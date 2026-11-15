@@ -29,12 +29,48 @@
 		if (!node.id) node.id = (prefix || 'wpcap-f') + '-' + (++uid) + '-' + Math.random().toString(16).slice(2, 6);
 		return node.id;
 	}
+	// Participant field control: text, email, tel, date, textarea, select, checkbox/consent. Radio groups are
+	// built by appendField() (fieldset with legend), the others get a <label for>.
 	function fieldInput(field, id) {
-		const type = field.type === 'email' ? 'email' : ((field.type === 'checkbox' || field.type === 'consent') ? 'checkbox' : 'text');
-		const input = field.type === 'textarea' ? el('textarea', { id: id, 'data-key': field.key }) : el('input', { id: id, type: type, 'data-key': field.key });
+		if (field.type === 'textarea') return el('textarea', { id: id, 'data-key': field.key });
+		let input;
+		if (field.type === 'select') {
+			input = el('select', { id: id, 'data-key': field.key });
+			input.appendChild(el('option', { value: '' }, t.choose || '–'));
+			(field.options || []).forEach(function (choice) { input.appendChild(el('option', { value: choice }, choice)); });
+		} else {
+			const map = { email: 'email', tel: 'tel', date: 'date', checkbox: 'checkbox', consent: 'checkbox' };
+			const type = map[field.type] || 'text';
+			input = el('input', { id: id, type: type, 'data-key': field.key });
+			if (type === 'checkbox') input.value = '1';
+			if (type === 'tel') { input.setAttribute('autocomplete', 'tel'); input.setAttribute('inputmode', 'tel'); }
+		}
 		if (Number(field.required)) input.required = true;
-		if (type === 'checkbox') input.value = '1';
 		return input;
+	}
+	function appendField(fs, field, id) {
+		const required = Number(field.required);
+		if (field.type === 'radio') {
+			const group = el('fieldset', { class: 'wpcap-radio-group', id: id, 'data-radio-key': field.key });
+			group.appendChild(el('legend', {}, field.label + (required ? ' *' : '')));
+			(field.options || []).forEach(function (choice, i) {
+				const label = el('label', { class: 'wpcap-choice' });
+				const radio = el('input', { type: 'radio', name: id, value: choice, 'data-key': field.key });
+				if (required && i === 0) radio.required = true;
+				label.appendChild(radio);
+				label.appendChild(document.createTextNode(' ' + choice));
+				group.appendChild(label);
+			});
+			fs.appendChild(group);
+		} else {
+			fs.appendChild(el('label', { for: id }, field.label + (required ? ' *' : '')));
+			fs.appendChild(fieldInput(field, id));
+		}
+		if (field.type === 'consent' && field.consent_text) fs.appendChild(el('small', { class: 'wpcap-consent-text' }, field.consent_text + (field.consent_version ? ' (' + field.consent_version + ')' : '')));
+		if (field.purpose) fs.appendChild(el('small', {}, field.purpose));
+	}
+	function attendeeLegend(count, name) {
+		return (t.attendee || 'Attendee %d').replace('%d', count) + ' · ' + name;
 	}
 	function renderAttendees(form) {
 		const box = form.querySelector('.wpcap-attendees');
@@ -43,30 +79,45 @@
 		box.innerHTML = '';
 		let count = 0;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
-			const n = Math.max(0, Number(qty.value) || 0);
+			const n = qty.disabled ? 0 : Math.max(0, Number(qty.value) || 0);
 			const fields = JSON.parse(qty.dataset.fields || '[]');
+			const nameMode = qty.dataset.attendeeName || 'optional';
 			for (let i = 0; i < n; i++) {
 				count++;
 				const slot = qty.dataset.type + '-' + i;
-				if (previous[slot]) { box.appendChild(previous[slot]); continue; }
+				if (previous[slot]) {
+					// Reused fieldset (entered values stay): its number follows the current order of all tickets.
+					const legend = previous[slot].querySelector('.wpcap-attendee-legend');
+					if (legend) legend.textContent = attendeeLegend(count, qty.dataset.name);
+					box.appendChild(previous[slot]);
+					continue;
+				}
 				const fs = el('fieldset', { 'data-slot': slot, 'data-type': qty.dataset.type, class: 'wpcap-attendee' });
-				fs.appendChild(el('legend', {}, (t.attendee || 'Attendee %d').replace('%d', count) + ' · ' + qty.dataset.name));
+				fs.appendChild(el('legend', { class: 'wpcap-attendee-legend' }, attendeeLegend(count, qty.dataset.name)));
 				const base = 'wpcap-att-' + slot + '-' + Math.random().toString(16).slice(2, 8);
-				const nameLabel = el('label', { for: base + '-name' }, t.name || 'Name');
-				fs.appendChild(nameLabel);
-				fs.appendChild(el('input', { id: base + '-name', type: 'text', 'data-key': '__name', autocomplete: 'name', maxlength: '190' }));
-				fs.appendChild(el('label', { for: base + '-email' }, t.email || 'E-mail'));
-				fs.appendChild(el('input', { id: base + '-email', type: 'email', 'data-key': '__email', autocomplete: 'off' }));
-				fields.forEach(function (field, index) {
-					const id = base + '-f' + index;
-					fs.appendChild(el('label', { for: id }, field.label + (Number(field.required) ? ' *' : '')));
-					fs.appendChild(fieldInput(field, id));
-					if (field.type === 'consent' && field.consent_text) fs.appendChild(el('small', { class: 'wpcap-consent-text' }, field.consent_text + (field.consent_version ? ' (' + field.consent_version + ')' : '')));
-					if (field.purpose) fs.appendChild(el('small', {}, field.purpose));
-				});
+				if (nameMode !== 'off') {
+					const required = nameMode === 'required';
+					fs.appendChild(el('label', { for: base + '-name' }, (t.name || 'Name') + (required ? ' *' : '')));
+					const name = el('input', { id: base + '-name', type: 'text', 'data-key': '__name', autocomplete: 'name', maxlength: '190' });
+					if (required) name.required = true;
+					fs.appendChild(name);
+				}
+				// Own ticket e-mail per attendee: optional, so it is folded away (summary keeps it reachable).
+				const more = el('details', { class: 'wpcap-attendee-email' });
+				more.appendChild(el('summary', {}, t.attendeeEmailToggle || t.email || 'E-mail'));
+				more.appendChild(el('label', { for: base + '-email' }, t.email || 'E-mail'));
+				more.appendChild(el('input', { id: base + '-email', type: 'email', 'data-key': '__email', autocomplete: 'off' }));
+				fs.appendChild(more);
+				fields.forEach(function (field, index) { appendField(fs, field, base + '-f' + index); });
 				box.appendChild(fs);
 			}
 		});
+		// Short status instead of a live region around the whole block (screen readers would re-read every field).
+		const status = form.querySelector('.wpcap-attendee-status');
+		if (status && String(count) !== status.dataset.count) {
+			status.dataset.count = String(count);
+			status.textContent = count && t.attendeeCount ? fill(t.attendeeCount, [count]) : '';
+		}
 	}
 	// Same output as PHP Frontend\Format::money(): number_format_i18n( amount, decimals ) . ' ' . symbol.
 	function money(minor, currency) {
@@ -84,15 +135,258 @@
 	// Display only: the server recalculates every price at checkout.
 	function renderEstimate(form) {
 		const box = form.querySelector('.wpcap-estimate');
-		if (!box) return;
 		let total = 0;
+		let selected = 0;
 		let currency = '';
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
-			const n = Math.max(0, Number(qty.value) || 0);
+			const n = qty.disabled ? 0 : Math.max(0, Number(qty.value) || 0);
 			total += n * (Number(qty.dataset.price) || 0);
+			selected += n;
 			if (n) currency = qty.dataset.currency || currency;
 		});
-		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) : '';
+		if (box) box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) : '';
+		// "Kostenlos bestellen" when only free tickets are selected; "Zahlungspflichtig bestellen" otherwise.
+		const button = form.querySelector('button[type="submit"]');
+		if (button && t.payButton && t.freeButton) {
+			if (button.dataset.defaultLabel === undefined) button.dataset.defaultLabel = button.textContent;
+			button.textContent = !selected ? button.dataset.defaultLabel : (total > 0 ? t.payButton : t.freeButton);
+		}
+		syncSteppers(form);
+	}
+
+	/* ---------------------------------------------------------------- Quantity stepper */
+
+	function syncSteppers(form) {
+		form.querySelectorAll('.wpcap-step').forEach(function (button) {
+			const qty = document.getElementById(button.getAttribute('aria-controls'));
+			if (!qty) return;
+			const n = Number(qty.value) || 0;
+			button.disabled = qty.disabled || (Number(button.dataset.step) < 0 ? n <= 0 : n >= Number(qty.max));
+		});
+	}
+	function step(button) {
+		const qty = document.getElementById(button.getAttribute('aria-controls'));
+		if (!qty || qty.disabled) return;
+		const next = Math.min(Number(qty.max) || 0, Math.max(0, (Number(qty.value) || 0) + Number(button.dataset.step)));
+		if (String(next) === String(qty.value)) return;
+		qty.value = String(next);
+		qty.dispatchEvent(new Event('input', { bubbles: true }));
+		qty.dispatchEvent(new Event('change', { bubbles: true }));
+		// Keep focus on the pressed button unless it just became disabled (then on the input).
+		if (button.disabled) qty.focus();
+	}
+
+	/* ---------------------------------------------------------------- Live availability */
+
+	// Upcoming sale: "Verkaufsstart in 2 Std. 5 Min." within 24 h, otherwise null (the server text stays).
+	function countdownText(ms) {
+		if (ms <= 0) return t.salesOpen || '';
+		if (ms > 86400000) return null;
+		const s = Math.ceil(ms / 1000);
+		const parts = [];
+		const h = Math.floor(s / 3600);
+		const m = Math.floor((s % 3600) / 60);
+		if (h) parts.push(fill(t.hours || '%d h', [h]));
+		if (m || h) parts.push(fill(t.minutes || '%d min', [m]));
+		if (!h) parts.push(fill(t.seconds || '%d s', [s % 60]));
+		return fill(t.salesIn || '%s', [parts.join(' ')]);
+	}
+	function setStatus(row, cls, text, attrs) {
+		const box = row.querySelector('.wpcap-type-status');
+		if (!box) return;
+		box.innerHTML = '';
+		if (text) box.appendChild(el('span', Object.assign({ class: cls }, attrs || {}), text));
+	}
+	// Applies one ticket type state {status, max, remaining, sales_start} to every form row of that type.
+	function applyTypeState(id, state) {
+		document.querySelectorAll('.wpcap-qty[data-type="' + id + '"]').forEach(function (qty) {
+			const row = qty.closest('.wpcap-type');
+			const form = qty.closest('.wpcap-checkout-form');
+			if (!row || !form) return;
+			const key = [state.status, state.max, state.remaining, state.sales_start].join('|');
+			if (row.dataset.live === key) return;
+			row.dataset.live = key;
+			const control = row.querySelector('.wpcap-qty-control');
+			const before = Number(qty.value) || 0;
+			const available = state.status === 'available' && Number(state.max) > 0;
+			qty.disabled = !available;
+			qty.max = String(available ? Number(state.max) : 0);
+			if (control) control.hidden = !available;
+			if (!available && before) qty.value = '0';
+			if (available && before > Number(state.max)) qty.value = String(state.max);
+			row.dataset.state = available ? 'available' : state.status;
+			const waitlist = row.querySelector('.wpcap-waitlist');
+			if (available) {
+				const low = state.remaining !== null && state.remaining !== undefined && Number(state.remaining) <= 10;
+				setStatus(row, 'wpcap-remaining', low && t.remaining ? fill(t.remaining, [Number(state.remaining)]) : '');
+				const signed = waitlist && waitlist.querySelector('.wpcap-waitlist-status');
+				if (waitlist && !(signed && signed.textContent)) waitlist.remove();
+			} else if (state.status === 'upcoming') {
+				setStatus(row, 'wpcap-upcoming', fill(t.salesFrom || '%s', [state.sales_start ? new Date(state.sales_start).toLocaleString() : '']), { 'data-sales-start': state.sales_start || '' });
+				qty.dataset.salesStart = state.sales_start || '';
+			} else {
+				setStatus(row, 'wpcap-soldout', state.status === 'soldout' ? (t.soldOut || 'Sold out') : (t.salesClosed || t.soldOut || ''));
+				if (state.status === 'soldout' && form.dataset.waitlist === '1' && !waitlist) {
+					row.appendChild(el('div', { class: 'wpcap-waitlist', 'data-type': String(id) }));
+				}
+			}
+			if (state.status !== 'upcoming') delete qty.dataset.salesStart;
+			renderWaitlists(form);
+			if (before !== (Number(qty.value) || 0)) {
+				renderAttendees(form);
+			}
+			renderEstimate(form);
+		});
+	}
+	function applyAvailability(data) {
+		const types = (data && data.types) || {};
+		Object.keys(types).forEach(function (id) { applyTypeState(id, types[id]); });
+	}
+	function liveTypeIds() {
+		const ids = [];
+		document.querySelectorAll('.wpcap-checkout-form:not([hidden]) .wpcap-qty[data-type]').forEach(function (qty) {
+			const id = Number(qty.dataset.type);
+			if (id && ids.indexOf(id) === -1) ids.push(id);
+		});
+		return ids.sort(function (a, b) { return a - b; });
+	}
+	// Next poll: at the next sales start (plus up to 2 s jitter, so thousands of pages do not hit the same
+	// second), otherwise after the configured interval (15–60 s) plus jitter.
+	function pollDelay(now) {
+		const every = Math.min(60, Math.max(15, Number(config.poll) || 20)) * 1000;
+		let delay = every + Math.floor(Math.random() * 3000);
+		document.querySelectorAll('.wpcap-qty[data-sales-start]').forEach(function (qty) {
+			const at = Date.parse(qty.dataset.salesStart);
+			if (!isNaN(at) && at > now) delay = Math.min(delay, at - now + Math.floor(Math.random() * 2000));
+		});
+		return Math.max(500, delay);
+	}
+	let pollTimer = null;
+	let pollMissed = false;
+	function schedulePoll(ms) {
+		if (pollTimer) clearTimeout(pollTimer);
+		pollTimer = setTimeout(poll, ms);
+	}
+	async function poll() {
+		pollTimer = null;
+		if (document.hidden) { pollMissed = true; return; }
+		const ids = liveTypeIds();
+		if (!ids.length || !config.availabilityUrl) return;
+		let wait = null;
+		try {
+			const response = await fetch(config.availabilityUrl + (config.availabilityUrl.indexOf('?') === -1 ? '?' : '&') + 'types=' + ids.join(','), { headers: { Accept: 'application/json' } });
+			if (response.status === 429) {
+				wait = Math.min(300, Math.max(30, retryAfter(response, {}) || 60)) * 1000;
+			} else if (response.ok) {
+				applyAvailability(await response.json());
+			}
+		} catch (e) { /* offline: try again later */ }
+		schedulePoll(wait || pollDelay(Date.now()));
+	}
+	function tickCountdowns() {
+		const now = Date.now();
+		let opened = false;
+		document.querySelectorAll('.wpcap-upcoming[data-sales-start]').forEach(function (node) {
+			const at = Date.parse(node.dataset.salesStart);
+			if (isNaN(at)) return;
+			const text = countdownText(at - now);
+			if (text !== null && node.textContent !== text) node.textContent = text;
+			if (at <= now && !node.dataset.opened) { node.dataset.opened = '1'; opened = true; }
+		});
+		if (opened) schedulePoll(Math.floor(Math.random() * 2000));
+	}
+
+	/* ---------------------------------------------------------------- Waitlist */
+
+	function renderWaitlists(form) {
+		form.querySelectorAll('.wpcap-waitlist').forEach(function (box) {
+			if (box.firstChild) return;
+			const qty = form.querySelector('.wpcap-qty[data-type="' + box.dataset.type + '"]');
+			const name = qty ? qty.dataset.name : '';
+			const panel = el('div', { class: 'wpcap-waitlist-form', hidden: '' });
+			const panelId = ensureId(panel, 'wpcap-waitlist');
+			const open = el('button', { type: 'button', class: 'wpcap-waitlist-open', 'aria-expanded': 'false', 'aria-controls': panelId }, t.waitlistOpen || 'Waitlist');
+			if (t.waitlistOpenLabel) open.setAttribute('aria-label', fill(t.waitlistOpenLabel, [name]));
+			const email = el('input', { type: 'email', class: 'wpcap-waitlist-email', autocomplete: 'email', 'aria-required': 'true' });
+			const emailId = ensureId(email, 'wpcap-waitlist-email');
+			const label = el('label', { for: emailId }, t.waitlistEmail || 'E-mail');
+			panel.appendChild(label);
+			panel.appendChild(email);
+			panel.appendChild(el('button', { type: 'button', class: 'wpcap-waitlist-submit' }, t.waitlistSubmit || 'Join'));
+			box.appendChild(open);
+			box.appendChild(panel);
+			box.appendChild(el('p', { class: 'wpcap-waitlist-status', role: 'status' }));
+		});
+	}
+	function toggleWaitlist(button) {
+		const panel = document.getElementById(button.getAttribute('aria-controls'));
+		if (!panel) return;
+		const opening = panel.hidden;
+		panel.hidden = !opening;
+		button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+		if (opening) {
+			const email = panel.querySelector('.wpcap-waitlist-email');
+			const form = button.closest('.wpcap-checkout-form');
+			const buyer = form && form.querySelector('[name="email"]');
+			if (email && buyer && !email.value) email.value = buyer.value.trim();
+			if (email) email.focus();
+		}
+	}
+	async function joinWaitlist(box) {
+		const form = box.closest('.wpcap-checkout-form');
+		const email = box.querySelector('.wpcap-waitlist-email');
+		const status = box.querySelector('.wpcap-waitlist-status');
+		const submit = box.querySelector('.wpcap-waitlist-submit');
+		const value = email.value.trim();
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+			email.setAttribute('aria-invalid', 'true');
+			status.textContent = fill(t.errEmail || '%s', [t.waitlistEmail || 'E-mail']);
+			email.focus();
+			return;
+		}
+		email.removeAttribute('aria-invalid');
+		submit.disabled = true;
+		status.textContent = t.waitlistSending || '…';
+		try {
+			const response = await fetch(String(config.waitlistUrl || '').replace('/events/0/waitlist', '/events/' + encodeURIComponent(form.dataset.event || '') + '/waitlist'), {
+				method: 'POST',
+				headers: headers(),
+				body: JSON.stringify({ occurrence_id: Number(form.dataset.occurrence) || 0, ticket_type_id: Number(box.dataset.type) || 0, email: value })
+			});
+			let data = {};
+			try { data = await response.json(); } catch (e) { data = {}; }
+			if (!response.ok) {
+				status.textContent = data.message || t.waitlistFailed || 'Failed.';
+				return;
+			}
+			// Double opt-in: the place only counts after the link in the e-mail was confirmed.
+			status.textContent = (data.message || '') + (data.double_opt_in && t.waitlistConfirm ? ' ' + t.waitlistConfirm : '');
+			box.querySelector('.wpcap-waitlist-form').hidden = true;
+			box.querySelector('.wpcap-waitlist-open').hidden = true;
+		} catch (e) {
+			status.textContent = t.waitlistFailed || 'Failed.';
+		} finally {
+			submit.disabled = false;
+		}
+	}
+
+	/* ---------------------------------------------------------------- Requests */
+
+	// JSON headers; the REST nonce only exists for signed-in buyers (buyer limits per account).
+	function headers() {
+		const h = { 'Content-Type': 'application/json' };
+		if (config.nonce) h['X-WP-Nonce'] = config.nonce;
+		return h;
+	}
+	// Seconds from a Retry-After header (or data.retry_after), capped at 10 s for the automatic retry.
+	function retryAfter(response, data) {
+		let value = response && response.headers && typeof response.headers.get === 'function' ? response.headers.get('Retry-After') : null;
+		if ((value === null || value === undefined) && data && data.data) value = data.data.retry_after;
+		const n = Number(value);
+		return isFinite(n) && n > 0 ? n : 0;
+	}
+	function wait(ms) {
+		return new Promise(function (resolve) { setTimeout(resolve, ms); });
 	}
 
 	/* ---------------------------------------------------------------- Errors (WCAG 3.3.1 / 3.3.3) */
@@ -169,7 +463,7 @@
 	// Client-side checks with the field's own label wording.
 	function validate(form) {
 		const errors = [];
-		const qtys = Array.prototype.slice.call(form.querySelectorAll('.wpcap-qty'));
+		const qtys = Array.prototype.slice.call(form.querySelectorAll('.wpcap-qty')).filter(function (qty) { return !qty.disabled; });
 		let selected = 0;
 		qtys.forEach(function (qty) {
 			const n = Number(qty.value) || 0;
@@ -178,7 +472,7 @@
 		});
 		if (!selected && qtys.length) errors.push({ input: qtys[0], message: t.selectTickets || 'Select tickets.' });
 		form.querySelectorAll('input, select, textarea').forEach(function (input) {
-			if (input.classList.contains('wpcap-qty') || input.type === 'hidden' || input.type === 'radio' || input.type === 'submit' || input.disabled || input.closest('[hidden]')) return;
+			if (input.classList.contains('wpcap-qty') || input.type === 'hidden' || input.type === 'radio' || input.type === 'submit' || input.disabled || input.closest('[hidden]') || input.closest('.wpcap-waitlist')) return;
 			const v = input.validity;
 			if (!v || v.valid) return;
 			const label = labelText(input);
@@ -189,13 +483,20 @@
 			else text = fill(t.errInvalid || '%s', [label]);
 			errors.push({ input: input, message: text });
 		});
+		// Required radio groups (participant fields of type "radio").
+		form.querySelectorAll('.wpcap-radio-group').forEach(function (group) {
+			const radios = Array.prototype.slice.call(group.querySelectorAll('input[type="radio"]'));
+			if (!radios.length || !radios.some(function (r) { return r.required; }) || radios.some(function (r) { return r.checked; })) return;
+			const legend = group.querySelector('legend');
+			errors.push({ input: radios[0], message: fill(t.errRequired || '%s', [legend ? legend.textContent.replace(/\*/g, '').trim() : '']) });
+		});
 		return errors;
 	}
 	// Server error -> form control (data.field from the REST response).
 	function serverErrorField(form, data) {
 		const field = data && data.data && data.data.field;
 		if (!field) return null;
-		if (field === 'items') return form.querySelector('.wpcap-qty');
+		if (field === 'items') return form.querySelector('.wpcap-qty:not([disabled])') || form.querySelector('.wpcap-qty');
 		if (field === 'provider') return form.querySelector('[name="provider"]:not([type="hidden"])');
 		if (field === 'attendees') {
 			const inputs = Array.prototype.slice.call(form.querySelectorAll('.wpcap-attendee [data-key]'));
@@ -308,7 +609,36 @@
 		const form = event.target.name === 'billing_enabled' ? event.target.closest('.wpcap-checkout-form') : null;
 		if (form) syncBilling(form);
 	});
-	document.querySelectorAll('.wpcap-checkout-form').forEach(syncBilling);
+	document.addEventListener('click', function (event) {
+		const target = event.target && event.target.closest ? event.target : null;
+		if (!target) return;
+		const stepper = target.closest('.wpcap-step');
+		if (stepper) { event.preventDefault(); step(stepper); return; }
+		const open = target.closest('.wpcap-waitlist-open');
+		if (open) { event.preventDefault(); toggleWaitlist(open); return; }
+		const join = target.closest('.wpcap-waitlist-submit');
+		if (join) { event.preventDefault(); joinWaitlist(join.closest('.wpcap-waitlist')); }
+	});
+	// Enter in the waitlist e-mail field signs up for the waitlist instead of submitting the order form.
+	document.addEventListener('keydown', function (event) {
+		if (event.key !== 'Enter' || !event.target.classList || !event.target.classList.contains('wpcap-waitlist-email')) return;
+		event.preventDefault();
+		joinWaitlist(event.target.closest('.wpcap-waitlist'));
+	});
+	document.querySelectorAll('.wpcap-checkout-form').forEach(function (form) {
+		syncBilling(form);
+		renderWaitlists(form);
+		syncSteppers(form);
+	});
+	// Live availability (cached pages): first check shortly after load, then at sales starts and every
+	// 15–60 s while the page is visible; countdowns for upcoming sales tick every second.
+	if (document.querySelector('.wpcap-checkout-form .wpcap-qty') && config.availabilityUrl) {
+		schedulePoll(1000 + Math.floor(Math.random() * 2000));
+		document.addEventListener('visibilitychange', function () {
+			if (!document.hidden && pollMissed) { pollMissed = false; schedulePoll(Math.floor(Math.random() * 1000)); }
+		});
+		if (document.querySelector('.wpcap-upcoming[data-sales-start]')) { tickCountdowns(); setInterval(tickCountdowns, 1000); }
+	}
 	document.addEventListener('submit', async function (event) {
 		const form = event.target.closest('.wpcap-checkout-form');
 		if (!form) return;
@@ -320,13 +650,14 @@
 		if (errors.length) { showErrors(form, errors); return; }
 		const items = [];
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
-			const n = Number(qty.value) || 0;
+			const n = qty.disabled ? 0 : Number(qty.value) || 0;
 			if (n > 0) items.push({ ticket_type_id: Number(qty.dataset.type), quantity: n });
 		});
 		const attendees = [];
 		form.querySelectorAll('.wpcap-attendee').forEach(function (fs) {
 			const entry = { ticket_type_id: Number(fs.dataset.type), answers: {} };
 			fs.querySelectorAll('[data-key]').forEach(function (input) {
+				if (input.type === 'radio') { if (input.checked) entry.answers[input.dataset.key] = input.value; else if (!(input.dataset.key in entry.answers)) entry.answers[input.dataset.key] = ''; return; }
 				const value = input.type === 'checkbox' ? (input.checked ? '1' : '') : input.value;
 				if (input.dataset.key === '__name') entry.name = value;
 				else if (input.dataset.key === '__email') entry.email = value;
@@ -339,6 +670,7 @@
 		const terms = form.querySelector('[name="accept_terms"]');
 		const voucher = form.querySelector('[name="voucher_code"]');
 		const email = form.querySelector('[name="email"]').value.trim();
+		const buyerName = form.querySelector('[name="buyer_name"]');
 		// The kept key (after a network error) only belongs to the same attempt: a changed provider,
 		// quantity, e-mail or code starts a new one (the server answers 409 for a reused key with other data).
 		const signature = JSON.stringify([provider ? provider.value : 'manual', items, email.toLowerCase(), code ? code.value.trim() : '', voucher ? voucher.value.trim() : '']);
@@ -351,6 +683,9 @@
 		if (billing) extra.billing = billing;
 		const locale = form.querySelector('[name="locale"]');
 		if (locale && locale.value) extra.locale = locale.value;
+		if (buyerName && buyerName.value.trim()) extra.buyer_name = buyerName.value.trim();
+		// Hosted payment pages return to this page (validated on the server: same site only).
+		if (location && location.href) extra.return_to = String(location.href).split('#')[0];
 		// Modules (e.g. seat selection) add fields here; they may set detail.error (and detail.field) to block submission.
 		const hook = new CustomEvent('wpcap:checkout-payload', { detail: { form: form, items: items, payload: extra, error: '', field: null } });
 		document.dispatchEvent(hook);
@@ -366,28 +701,46 @@
 		message.textContent = t.creating || '…';
 		let done = false;
 		try {
-			const response = await fetch(config.url, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(Object.assign({
-					email: email,
-					items: items,
-					attendees: attendees,
-					campaign_codes: code && code.value.trim() ? [code.value.trim()] : [],
-					provider: provider ? provider.value : 'manual',
-					accept_terms: terms ? terms.checked : false,
-					voucher_code: voucher ? voucher.value.trim() : '',
-					idempotency_key: form.dataset.key
-				}, extra))
-			});
+			const body = JSON.stringify(Object.assign({
+				email: email,
+				items: items,
+				attendees: attendees,
+				campaign_codes: code && code.value.trim() ? [code.value.trim()] : [],
+				provider: provider ? provider.value : 'manual',
+				accept_terms: terms ? terms.checked : false,
+				voucher_code: voucher ? voucher.value.trim() : '',
+				idempotency_key: form.dataset.key
+			}, extra));
+			let response;
 			let data = {};
-			try { data = await response.json(); } catch (e) { data = {}; }
+			// A busy server (503 / retryable) is retried automatically up to twice with the same idempotency
+			// key (never a second order), after Retry-After plus jitter, so not every buyer clicks again at once.
+			for (let attempt = 0; ; attempt++) {
+				response = await fetch(config.url, { method: 'POST', headers: headers(), body: body });
+				data = {};
+				try { data = await response.json(); } catch (e) { data = {}; }
+				const retryable = response.status === 503 || (data && data.data && data.data.retryable);
+				if (response.ok || !retryable || attempt >= 2) break;
+				message.textContent = t.retrying || '…';
+				await wait(Math.min(10, retryAfter(response, data) || 1.5) * 1000 + Math.floor(Math.random() * 1000));
+			}
 			if (!response.ok) {
 				// The server answered: this attempt is finished, so the next submit starts a new one
 				// (only network errors keep the key, so a retry can never create a second order).
 				delete form.dataset.key;
 				message.textContent = '';
-				showErrors(form, [{ input: serverErrorField(form, data), message: data.message || t.failed || 'Failed.' }]);
+				let target = serverErrorField(form, data);
+				const remaining = data && data.data && data.data.remaining;
+				if (remaining && typeof remaining === 'object') {
+					// Not enough tickets: show the current maximum per type and adjust the selection.
+					Object.keys(remaining).forEach(function (id) {
+						const max = Math.max(0, Number(remaining[id]) || 0);
+						applyTypeState(id, { status: max > 0 ? 'available' : 'soldout', max: max, remaining: max, sales_start: null });
+						const qty = form.querySelector('.wpcap-qty[data-type="' + id + '"]');
+						if (qty && !target) target = qty.disabled ? null : qty;
+					});
+				}
+				showErrors(form, [{ input: target, message: data.message || t.failed || 'Failed.' }]);
 				return;
 			}
 			delete form.dataset.key;
@@ -409,5 +762,5 @@
 		}
 	});
 	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
-	if (typeof module === 'object' && module && module.exports) { module.exports = { holdText: holdText, fill: fill, money: money, renderAttendees: renderAttendees, renderEstimate: renderEstimate, labelText: labelText, validate: validate, showErrors: showErrors, clearErrors: clearErrors, serverErrorField: serverErrorField, billingPayload: billingPayload }; }
+	if (typeof module === 'object' && module && module.exports) { module.exports = { holdText: holdText, fill: fill, money: money, renderAttendees: renderAttendees, renderEstimate: renderEstimate, labelText: labelText, validate: validate, showErrors: showErrors, clearErrors: clearErrors, serverErrorField: serverErrorField, billingPayload: billingPayload, applyAvailability: applyAvailability, countdownText: countdownText, pollDelay: pollDelay, poll: poll, liveTypeIds: liveTypeIds, renderWaitlists: renderWaitlists, headers: headers }; }
 })();

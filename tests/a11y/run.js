@@ -33,6 +33,17 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 				await page.waitForTimeout(300);
 			},
 		},
+		{ name: 'Event list (layout list)', group: 'public', url: fx.events_list_url, include: '.wpcap-events' },
+		{ name: 'Single occurrence view (?wpcap_occ)', group: 'public', url: fx.events_url && fx.events_url + (fx.events_url.includes('?') ? '&' : '?') + 'wpcap_occ=' + fx.occurrence_id, include: '.wpcap-events-detail' },
+		{
+			name: 'Waitlist sign-up of a sold-out ticket type', group: 'public', url: fx.events_url, include: '.wpcap-events',
+			prepare: async (page) => {
+				const row = page.locator(`.wpcap-type[data-type-row="${fx.ticket_types.Ausverkauft}"]`);
+				await row.locator('.wpcap-waitlist-open').click();
+				await row.locator('.wpcap-waitlist-email').fill('a11y-wl@example.com');
+				await page.waitForTimeout(200);
+			},
+		},
 		{ name: 'Ticket page', group: 'public', url: fx.ticket_url },
 		{ name: 'Order portal', group: 'public', url: fx.portal_url },
 		{ name: 'Waitlist offer page', group: 'public', url: fx.waitlist_url },
@@ -80,7 +91,7 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 		pages.push({ name: 'Admin: ' + l.text.replace(/[↗]/g, '').trim(), group: 'admin', url: l.href, include: '#wpbody-content', auth: true });
 	}
 	const selected = pages.filter((p) => p.url && (!args.only || p.group === args.only) && (!args.match || p.name.toLowerCase().includes(args.match.toLowerCase())));
-	const anon = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE' });
+	const anon = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE', bypassCSP: true });
 	const results = [];
 	let failed = false;
 	for (const def of selected) {

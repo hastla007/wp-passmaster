@@ -32,7 +32,8 @@ function fixture() {
 
 async function launch() {
 	const browser = await playwright.chromium.launch();
-	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE', reducedMotion: 'reduce' });
+	// bypassCSP: private pages send a strict CSP (script-src 'self'); axe is injected as an inline script.
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE', reducedMotion: 'reduce', bypassCSP: true });
 	return { browser, ctx };
 }
 

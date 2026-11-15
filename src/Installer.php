@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.16.1';
+	const DB_VERSION = '3.17.5';
 
 	public static function install() {
 		global $wpdb;
@@ -98,6 +98,9 @@ final class Installer {
 				sales_start datetime NULL,
 				sales_end datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				description text NULL,
+				position smallint(5) unsigned NOT NULL DEFAULT 0,
+				attendee_name varchar(10) NOT NULL DEFAULT 'optional',
 				PRIMARY KEY  (ticket_type_id),
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)
@@ -107,6 +110,7 @@ final class Installer {
 				public_id char(32) NOT NULL,
 				idempotency_key char(64) NOT NULL,
 				customer_email varchar(190) NOT NULL,
+				customer_name varchar(190) NOT NULL DEFAULT '',
 				customer_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				access_token_hash char(64) NOT NULL DEFAULT '',
 				access_expires_at datetime NULL,
@@ -443,6 +447,7 @@ final class Installer {
 				status varchar(20) NOT NULL DEFAULT 'active',
 				consent_text text NULL,
 				consent_version varchar(32) NOT NULL DEFAULT '',
+				options text NULL,
 				PRIMARY KEY  (field_id),
 				UNIQUE KEY type_key (ticket_type_id,field_key),
 				KEY type_status (ticket_type_id,status)

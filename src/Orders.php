@@ -291,6 +291,9 @@ final class Orders {
 			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
 			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
 			if ( $customer_user_id ) { $order_row['customer_user_id'] = $customer_user_id; }
+			// Optional buyer name (checkout field "Dein Name"); only once the column exists (DB 3.17.5).
+			$buyer_name = is_scalar( $payload['buyer_name'] ?? '' ) ? mb_substr( sanitize_text_field( (string) ( $payload['buyer_name'] ?? '' ) ), 0, 190 ) : '';
+			if ( '' !== $buyer_name && self::schema_at_least( '3.17.5' ) ) { $order_row['customer_name'] = $buyer_name; }
 			// Fingerprint of the attempt (Orders::request_fingerprint()); a retry with the same key is compared against it.
 			// Not while a deferred schema upgrade (DB 3.12.0) is still pending: the column may not exist yet.
 			if ( ! empty( $internal['request_fingerprint'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) $internal['request_fingerprint'] ) && version_compare( strtok( (string) get_option( 'wpcap_db_version' ), '+' ), '3.12.0', '>=' ) ) { $order_row['request_fingerprint'] = (string) $internal['request_fingerprint']; }
@@ -629,17 +632,26 @@ final class Orders {
 	 *                            (trusted adapters only; entries that are given are still validated).
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
+	/** Whether the stored schema version is at least $version (columns of a deferred upgrade may be missing). */
+	public static function schema_at_least( $version ) {
+		$stored = (string) get_option( 'wpcap_db_version', '' );
+		return '' !== $stored && version_compare( (string) strtok( $stored, '+' ), (string) $version, '>=' );
+	}
+
 	public static function validate_attendees( array $lines, $attendees, $allow_missing = false ) {
 		global $wpdb;
 		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
 		$out = array();
+		$schema = self::schema_at_least( '3.17.5' ); // attendee_name and options columns (DB 3.17.5).
 		foreach ( $lines as $type_id => $quantity ) {
-			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) );
+			$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT field_id,field_key,label,field_type,required' . ( $schema ? ',options' : '' ) . " FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
+			// Name per ticket: off (not asked, not stored), optional (default) or required (ticket type option).
+			$name_mode = $schema ? self::attendee_name_mode( $wpdb->get_var( $wpdb->prepare( 'SELECT attendee_name FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $type_id ) ) ) : 'optional';
 			$given = array_values( array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } ) );
 			if ( count( $given ) > $quantity ) {
 				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
-			$needs_all = (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
+			$needs_all = 'required' === $name_mode || (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
 			for ( $i = 0; $i < $quantity; $i++ ) {
 				$entry = $given[ $i ] ?? null;
 				if ( ! $entry && ( ! $needs_all || $allow_missing ) ) { continue; }
@@ -647,21 +659,20 @@ final class Orders {
 				$answers = is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array();
 				$clean = array();
 				foreach ( $fields as $field ) {
-					$value = $answers[ $field->field_key ] ?? '';
-					$value = is_scalar( $value ) ? trim( (string) $value ) : '';
-					if ( 'email' === $field->field_type ) { $value = sanitize_email( $value ); }
-					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
-					elseif ( 'checkbox' === $field->field_type || 'consent' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
-					else { $value = sanitize_text_field( $value ); }
+					$value = self::clean_answer( $field, $answers[ $field->field_key ] ?? '' );
+					if ( null === $value ) {
+						/* translators: %s: field label */
+						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( 'email' === $field->field_type ? __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ) : __( '„%s“ ist ungültig.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
+					}
 					if ( (int) $field->required && '' === $value ) {
 						/* translators: %s: field label */
 						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
 					}
-					if ( 'email' === $field->field_type && '' !== $value && ! is_email( $value ) ) {
-						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
-					}
 					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
+				}
+				$name = 'off' === $name_mode ? '' : mb_substr( sanitize_text_field( is_scalar( $entry['name'] ?? '' ) ? (string) ( $entry['name'] ?? '' ) : '' ), 0, 190 );
+				if ( 'required' === $name_mode && '' === $name ) {
+					return new \WP_Error( 'wpcap_attendee_name_required', __( 'Bitte „Name“ für jedes Ticket ausfüllen.', 'pass-captain' ), array( 'status' => 400 ) );
 				}
 				$email = sanitize_email( $entry['email'] ?? '' );
 				// tickets.attendee_email / ticket_assignments.attendee_email are varchar(190); refused here,
@@ -671,13 +682,59 @@ final class Orders {
 				}
 				$out[] = array(
 					'ticket_type_id' => (int) $type_id,
-					'name' => mb_substr( sanitize_text_field( $entry['name'] ?? '' ), 0, 190 ),
+					'name' => $name,
 					'email' => is_email( $email ) ? $email : '',
 					'answers' => $clean,
 				);
 			}
 		}
 		return $out;
+	}
+
+	/** Normalised attendee-name mode of a ticket type: off, optional (default) or required. */
+	public static function attendee_name_mode( $value ) {
+		return in_array( (string) $value, array( 'off', 'optional', 'required' ), true ) ? (string) $value : 'optional';
+	}
+
+	/**
+	 * Choices of a select/radio participant field (one per line in the options column).
+	 *
+	 * @return string[]
+	 */
+	public static function field_options( $field ) {
+		$raw = is_object( $field ) ? (string) ( $field->options ?? '' ) : (string) ( $field['options'] ?? '' );
+		return array_values( array_unique( array_filter( array_map( 'trim', (array) preg_split( '/\R/', $raw ) ), static function ( $choice ) { return '' !== $choice; } ) ) );
+	}
+
+	/**
+	 * Sanitised answer for one participant field; null when the value is not valid for the field type
+	 * (e-mail, choice outside the options, impossible date, phone number with other characters).
+	 */
+	public static function clean_answer( $field, $value ) {
+		$value = is_scalar( $value ) ? trim( (string) $value ) : '';
+		switch ( (string) $field->field_type ) {
+			case 'email':
+				$value = sanitize_email( $value );
+				return '' === $value || is_email( $value ) ? $value : null;
+			case 'textarea':
+				return sanitize_textarea_field( $value );
+			case 'checkbox':
+			case 'consent':
+				return $value && '0' !== $value ? '1' : '';
+			case 'select':
+			case 'radio':
+				$value = sanitize_text_field( $value );
+				return '' === $value || in_array( $value, self::field_options( $field ), true ) ? $value : null;
+			case 'date':
+				if ( '' === $value ) { return ''; }
+				$date = \DateTime::createFromFormat( '!Y-m-d', $value );
+				return $date && $date->format( 'Y-m-d' ) === $value ? $value : null;
+			case 'tel':
+				if ( '' === $value ) { return ''; }
+				return preg_match( '/^\+?[0-9 ()\/.\-]{3,40}$/', $value ) && preg_match_all( '/[0-9]/', $value ) >= 3 ? $value : null;
+			default:
+				return sanitize_text_field( $value );
+		}
 	}
 
 	/**

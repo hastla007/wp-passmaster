@@ -80,6 +80,7 @@ final class Plugin {
 		Notifications::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
+		Frontend\Availability::register(); // Purge hook wp_pass_captain_availability_changed_v1.
 		Mobile\Api::register();
 		OccurrenceCancellation::register();
 		Modules::register_all();
@@ -87,6 +88,8 @@ final class Plugin {
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'template_redirect', array( PublicEvents::class, 'maybe_protect_scanner_page' ), 1, 0 );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
+		add_action( 'save_post', array( PublicEvents::class, 'flush_page_cache' ), 10, 0 );
+		add_action( 'deleted_post', array( PublicEvents::class, 'flush_page_cache' ), 10, 0 );
 	}
 
 	/** Runs a pending schema upgrade for the current request context; re-schedules events after it. */

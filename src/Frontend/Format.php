@@ -20,6 +20,11 @@ final class Format {
 	}
 
 	/** Number format and symbols for assets/checkout.js, so prices look the same in PHP and JS. */
+	/** Buyer-facing price: "kostenlos" for 0, otherwise money(). */
+	public static function price( $minor, $currency ) {
+		return 0 === (int) $minor ? __( 'kostenlos', 'pass-captain' ) : self::money( $minor, $currency );
+	}
+
 	public static function js_config() {
 		global $wp_locale;
 		$format = isset( $wp_locale->number_format ) && is_array( $wp_locale->number_format ) ? $wp_locale->number_format : array();

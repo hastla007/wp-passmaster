@@ -87,7 +87,8 @@ function mockFetch(responder) {
 		calls.push({ url: String(url), init: init || {}, body });
 		const r = await responder(String(url), init || {}, body);
 		const status = r.status || 200;
-		return { ok: status >= 200 && status < 300, status, json: async () => (r.json === undefined ? {} : r.json) };
+		const head = r.headers || {};
+		return { ok: status >= 200 && status < 300, status, headers: { get: (k) => head[k] ?? head[String(k).toLowerCase()] ?? null }, json: async () => (r.json === undefined ? {} : r.json) };
 	};
 	fn.calls = calls;
 	return fn;

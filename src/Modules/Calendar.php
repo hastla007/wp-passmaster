@@ -142,7 +142,13 @@ final class Calendar {
 		$view = 'list' === $atts['view'] ? 'list' : 'month';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- navigation only.
 		$month = isset( $_GET['wpcap_month'] ) ? sanitize_text_field( wp_unslash( $_GET['wpcap_month'] ) ) : '';
-		return 'list' === $view ? self::render_list( absint( $atts['event'] ), absint( $atts['limit'] ) ) : self::render_month( $month, absint( $atts['event'] ) );
+		$calendar = 'list' === $view ? self::render_list( absint( $atts['event'] ), absint( $atts['limit'] ) ) : self::render_month( $month, absint( $atts['event'] ) );
+		// A calendar link without a checkout page opens the date on this page (?wpcap_occ): show its form above the calendar.
+		$occurrence = absint( wp_unslash( $_GET['wpcap_occ'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public, read-only view.
+		if ( $occurrence && ! self::page_has_events() ) {
+			return \PassCaptain\PublicEvents::render_shortcode( array() ) . $calendar;
+		}
+		return $calendar;
 	}
 
 	/** Local date/time of an occurrence in its own timezone. */
@@ -157,9 +163,18 @@ final class Calendar {
 		return $dt->format( $format );
 	}
 
+	/** Link of a calendar entry: checkout URL, else the single-occurrence view on this page (rendered above the calendar). */
 	private static function link_for( $row ) {
 		$url = Ics::checkout_url( (int) $row->occurrence_id );
-		return '' !== $url ? $url : '#wpcap-occ-' . (int) $row->occurrence_id;
+		return '' !== $url ? $url : \PassCaptain\PublicEvents::occurrence_url( (int) $row->occurrence_id ) . '#wpcap-occ-' . (int) $row->occurrence_id;
+	}
+
+	/** Whether the current post shows the events shortcode or block itself. */
+	private static function page_has_events() {
+		$post = function_exists( 'get_post' ) ? get_post() : null;
+		if ( ! $post ) { return false; }
+		$content = (string) $post->post_content;
+		return ( function_exists( 'has_shortcode' ) && has_shortcode( $content, 'wp_pass_captain_events' ) ) || false !== strpos( $content, '<!-- wp:wp-pass-captain/events' );
 	}
 
 	public static function render_list( $event_id = 0, $limit = 50 ) {
@@ -270,7 +285,7 @@ final class Calendar {
 		echo '<p>' . esc_html__( 'Shortcode: [wp_pass_captain_calendar view="month"] oder view="list"; alternativ der Block „Pass Captain Kalender“.', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_calendar_save' );
 		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html__( 'Kalendereinträge verlinken auf diese Seite (Anker #wpcap-occ-{Termin-ID}). Leer: nur Anker auf derselben Seite.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html__( 'Kalendereinträge verlinken auf die Einzelansicht des Termins auf dieser Seite (?wpcap_occ={Termin-ID}). Leer: die veröffentlichte Seite mit dem Event-Shortcode bzw. -Block wird automatisch verwendet; ohne eine solche Seite öffnet der Kalender den Termin auf der Kalenderseite selbst.', 'pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Ticket-E-Mail', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="attach_ics" value="1"' . checked( ! empty( $s['attach_ics'] ), true, false ) . '> ' . esc_html__( 'Kalenderdatei (.ics) je Termin anhängen', 'pass-captain' ) . '</label></td></tr>';
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );

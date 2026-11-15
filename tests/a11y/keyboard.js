@@ -106,10 +106,22 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	check('ArrowUp on the quantity adds an attendee fieldset', attendees === 1, String(attendees));
 	await page.keyboard.press('Tab');
 	f = await focused(page, scope);
+	if (f && f.tag.startsWith('button') && /Warteliste|waitlist/i.test(f.name)) {
+		// "Auf die Warteliste" of the sold-out type (after the free type in the ticket list).
+		check('waitlist button of the sold-out type is labelled with the ticket type', /Ausverkauft/.test(f.name), f.name);
+		await page.keyboard.press('Tab');
+		f = await focused(page, scope);
+	}
 	check('next Tab reaches the buyer e-mail (placed before the attendee fields)', f && f.field === 'email' && /E-Mail|e-?mail/i.test(f.name), f && `${f.tag}:${f.field} ${f.name}`);
 	await page.keyboard.type('keine-adresse');
 	await page.keyboard.press('Tab');
 	f = await focused(page, scope);
+	if (f && f.field === 'buyer_name') {
+		// Optional buyer name (between the buyer e-mail and the attendee fields).
+		check('optional buyer name is labelled', /Name/i.test(f.name), f.name);
+		await page.keyboard.press('Tab');
+		f = await focused(page, scope);
+	}
 	if (f && f.field === 'locale') {
 		// Buyer language selector (between the buyer e-mail and the attendee fields).
 		check('buyer language selector is labelled', /Sprache|Language|langue|idioma|lingua|taal/i.test(f.name), f.name);

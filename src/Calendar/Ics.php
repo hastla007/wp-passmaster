@@ -112,11 +112,17 @@ final class Ics {
 		);
 	}
 
-	/** Checkout link of an occurrence: configured shortcode page + card anchor. */
+	/**
+	 * Checkout link of an occurrence: its single-occurrence view (?wpcap_occ=ID, with the checkout form
+	 * of exactly this date – also beyond the listing limit) on the configured shortcode page, else on
+	 * the published page with the events shortcode/block (found automatically), plus the card anchor.
+	 * '' when neither exists.
+	 */
 	public static function checkout_url( $occurrence_id ) {
 		$settings = (array) Settings::get( 'calendar' );
 		$base = (string) ( $settings['checkout_url'] ?? '' );
-		$url = '' !== $base ? $base . '#wpcap-occ-' . absint( $occurrence_id ) : '';
+		if ( '' === $base ) { $base = \PassCaptain\PublicEvents::shortcode_page_url(); }
+		$url = '' !== $base ? \PassCaptain\PublicEvents::occurrence_url( $occurrence_id, $base ) . '#wpcap-occ-' . absint( $occurrence_id ) : '';
 		return (string) apply_filters( 'wpcap_calendar_checkout_url', $url, absint( $occurrence_id ) );
 	}
 

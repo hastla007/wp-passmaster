@@ -110,12 +110,12 @@ final class CheckoutGate {
 		return new \WP_Error( (string) $result->get_error_code() ?: 'wpcap_checkout_not_allowed', $message, $data );
 	}
 
-	/** rest_post_dispatch: Retry-After for gate refusals (error data retry_after). */
+	/** rest_post_dispatch: Retry-After for gate refusals and retryable checkout errors (error data retry_after, e.g. db_busy). */
 	public static function retry_after_header( $response ) {
 		if ( ! $response instanceof \WP_REST_Response || $response->get_status() < 400 ) { return $response; }
 		$data = $response->get_data();
 		$error = is_array( $data ) && isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : array();
-		if ( ! empty( $error['checkout_gate'] ) && ! empty( $error['retry_after'] ) ) {
+		if ( ( ! empty( $error['checkout_gate'] ) || ! empty( $error['retryable'] ) ) && ! empty( $error['retry_after'] ) ) {
 			$response->header( 'Retry-After', (string) absint( $error['retry_after'] ) );
 		}
 		return $response;

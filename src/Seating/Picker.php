@@ -34,6 +34,16 @@ final class Picker {
 			'help' => __( 'Mit den Pfeiltasten zwischen Plätzen wechseln, mit Leertaste oder Enter auswählen.', 'pass-captain' ),
 			'legend' => __( 'Legende', 'pass-captain' ),
 			'standing' => __( 'Stehplatz', 'pass-captain' ),
+			'zoomIn' => __( 'Saalplan vergrößern', 'pass-captain' ),
+			'zoomOut' => __( 'Saalplan verkleinern', 'pass-captain' ),
+			/* translators: %d: zoom in percent */
+			'zoomLevel' => __( 'Zoom %d %%', 'pass-captain' ),
+			'best' => __( 'Beste verfügbare Plätze', 'pass-captain' ),
+			/* translators: %s: seat labels */
+			'bestDone' => __( 'Vorgeschlagen: %s. Du kannst die Auswahl im Plan oder in der Liste ändern.', 'pass-captain' ),
+			'bestNone' => __( 'Bitte wähle zuerst die Anzahl der Tickets – oder es sind keine passenden Plätze mehr frei.', 'pass-captain' ),
+			'listHint' => __( 'Auf kleinen Bildschirmen ist die Platzliste oft einfacher zu bedienen.', 'pass-captain' ),
+			'listShow' => __( 'Platzliste öffnen', 'pass-captain' ),
 		);
 	}
 

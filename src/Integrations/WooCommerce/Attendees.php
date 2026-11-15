@@ -143,14 +143,16 @@ final class Attendees {
 			if ( ! $type_id || ! $quantity ) {
 				continue;
 			}
-			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose,consent_text FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose,consent_text" . ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ? ',options' : '' ) . " FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
 			$fields = array();
 			foreach ( $rows as $row ) {
 				$fields[] = array(
 					'key'      => (string) $row->field_key,
 					// Consent fields are a checkbox whose label carries the consent text (logged on issuance).
 					'label'    => 'consent' === $row->field_type && '' !== (string) $row->consent_text ? (string) $row->label . ': ' . (string) $row->consent_text : (string) $row->label,
-					'type'     => 'consent' === $row->field_type ? 'checkbox' : ( in_array( $row->field_type, array( 'text', 'email', 'textarea', 'checkbox' ), true ) ? $row->field_type : 'text' ),
+					'type'     => 'consent' === $row->field_type ? 'checkbox' : ( in_array( $row->field_type, array( 'text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'date', 'tel' ), true ) ? $row->field_type : 'text' ),
+					// select/radio: woocommerce_form_field() renders the choices (value = label, validated in Orders::clean_answer()).
+					'options'  => in_array( $row->field_type, array( 'select', 'radio' ), true ) ? array_combine( \PassCaptain\Orders::field_options( $row ), \PassCaptain\Orders::field_options( $row ) ) : array(),
 					'required' => (bool) (int) $row->required,
 					'purpose'  => (string) $row->purpose,
 				);
@@ -279,6 +281,7 @@ final class Attendees {
 							'required'    => $field['required'],
 							'description' => $field['purpose'],
 							'value'       => 'checkbox' === $field['type'] ? '1' : null,
+							'options'     => $field['options'] ?? array(),
 						),
 						$value( $field['key'] )
 					);

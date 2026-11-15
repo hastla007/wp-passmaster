@@ -78,6 +78,14 @@ switch ( $cmd ) {
 		$tickets = $order ? $wpdb->get_results( $wpdb->prepare( "SELECT status,attendee_email FROM {$p}wpcap_tickets WHERE order_id=%d", $order->order_id ) ) : array();
 		echo wp_json_encode( array( 'order' => $order, 'tickets' => $tickets ) );
 		break;
+	case 'waitlist':
+		// Waitlist entry by e-mail (frontend sign-up, double opt-in).
+		echo wp_json_encode( array( 'entry' => $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,status,ticket_type_id FROM {$p}wpcap_waitlist WHERE email=%s ORDER BY waitlist_id DESC LIMIT 1", (string) ( $argv[3] ?? '' ) ) ) ) );
+		break;
+	case 'buyer':
+		// Newest order of an e-mail address with the account it was placed with (REST nonce → customer_user_id).
+		echo wp_json_encode( array( 'order' => $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_user_id,payment_status FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", (string) ( $argv[3] ?? '' ) ) ) ) );
+		break;
 	case 'woo-order':
 		$wc = wc_get_order( (int) ( $argv[3] ?? 0 ) );
 		echo wp_json_encode( array( 'status' => $wc ? $wc->get_status() : null, 'attendees' => $wc ? $wc->get_meta( \PassCaptain\Integrations\WooCommerce\OrderAdapter::ATTENDEE_META ) : null ) );

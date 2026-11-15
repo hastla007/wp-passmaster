@@ -137,9 +137,9 @@ if ( ! function_exists( 'wpautop' ) ) { function wpautop( $t ) { return '<p>' . 
 if ( ! function_exists( 'esc_attr_e' ) ) { function esc_attr_e( $t, $d = null ) { echo esc_attr( $t ); } }
 if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = $a == $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
 try {
-	$html = PassCaptain\PublicEvents::render_shortcode();
+	$html = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 	$pos_card = strpos( $html, 'id="wpcap-' . $occ3 . '-' . $s3['types'][ $occ3 ]['Student'] . '"' );
-	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student — 9,00 €' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
+	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student</span> — <span class="wpcap-type-price">9,00 €' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
 } catch ( \Throwable $e ) {
 	check( 'event page renders (' . $e->getMessage() . ')', false );
 }

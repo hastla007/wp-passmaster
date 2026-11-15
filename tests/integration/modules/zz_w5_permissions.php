@@ -71,6 +71,7 @@ $pm_routes = array(
 	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/campaigns' => 'cap:wpcap_manage_events',
 	'POST wp-pass-captain/v1/payments/(?P<provider>[a-z0-9_-]+)/webhook' => 'token:provider signature (Stripe HMAC, PayPal verification, Mollie re-fetch)',
 	'GET wp-pass-captain/v1/checkout/options' => 'public:enabled payment methods and legal texts',
+	'GET wp-pass-captain/v1/availability' => 'public:remaining tickets per ticket type for cached event pages; no personal data, rate limited',
 	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/waitlist' => 'public:waitlist sign-up; response does not reveal existing entries, rate limited',
 	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/waitlist/offer' => 'cap:wpcap_manage_events',
 	'POST wp-pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/accept' => 'token:offer token from the e-mail required',
@@ -192,6 +193,8 @@ $pm_admin = array(
 	// Registered outside Menu::handlers().
 	'wpcap_print_invoice' => 'wpcap_view_finance', 'wpcap_export_accounting' => 'wpcap_view_finance',
 	'wpcap_accept_waitlist' => 'token:waitlist offer token from the e-mail (admin_post_nopriv)',
+	'wpcap_payment_retry' => 'token:order return token from the payment return URL (admin_post_nopriv)',
+	'wpcap_payment_release' => 'token:order return token from the payment return URL (admin_post_nopriv)',
 	'wpcap_service_portal' => 'token:order access token (service booking portal forms, admin_post and admin_post_nopriv)',
 	// W9: audit log, per-case unmask, support access, date-level staff, buyer language.
 	'wpcap_audit_export' => 'wpcap_view_audit', 'wpcap_pii_unmask' => 'wpcap_manage_orders',
@@ -464,6 +467,8 @@ $pm_handlers = \PassCaptain\Admin\Menu::handlers() + array(
 	'wpcap_print_invoice' => array( \PassCaptain\Invoices::class, 'handle_admin_print' ),
 	'wpcap_export_accounting' => array( \PassCaptain\Invoices::class, 'handle_export' ),
 	'wpcap_accept_waitlist' => array( \PassCaptain\Waitlists::class, 'handle_accept_request' ),
+	'wpcap_payment_retry' => array( \PassCaptain\Payments\ReturnNotice::class, 'handle_retry' ),
+	'wpcap_payment_release' => array( \PassCaptain\Payments\ReturnNotice::class, 'handle_release' ),
 	'wpcap_service_portal' => array( \PassCaptain\Services\Portal::class, 'handle_post' ),
 	'wpcap_portal_language' => array( \PassCaptain\Frontend\Language::class, 'handle_portal_language' ),
 	'ajax:' . \PassCaptain\Mail\Admin::ACTION_PREVIEW => array( \PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),

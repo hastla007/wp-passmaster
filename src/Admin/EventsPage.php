@@ -21,7 +21,10 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class EventsPage {
 	const SLUG = 'wp-pass-captain';
 	const CAP = 'wpcap_manage_events';
-	const FIELD_TYPES = array( 'text', 'email', 'textarea', 'checkbox', 'consent' );
+	const FIELD_TYPES = array( 'text', 'email', 'textarea', 'checkbox', 'consent', 'select', 'radio', 'date', 'tel' );
+
+	/** Field types with a list of choices (options column, one per line). */
+	const CHOICE_TYPES = array( 'select', 'radio' );
 	const STAFF_CAPS = array( 'wpcap_checkin', 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports' );
 
 	/* =============================================================================================
@@ -302,6 +305,22 @@ final class EventsPage {
 			$data['tax_class'] = mb_substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 );
 			$formats[] = '%s';
 		}
+		// Buyer-facing description, display order and the attendee-name option (DB 3.17.5); only when
+		// submitted, so callers that do not know these fields keep the stored values.
+		if ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ) {
+			if ( array_key_exists( 'description', $in ) ) {
+				$data['description'] = Forms::textarea( $in, 'description', 1000 );
+				$formats[] = '%s';
+			}
+			if ( array_key_exists( 'position', $in ) ) {
+				$data['position'] = min( 65535, max( 0, Forms::int( $in, 'position' ) ) );
+				$formats[] = '%d';
+			}
+			if ( array_key_exists( 'attendee_name', $in ) ) {
+				$data['attendee_name'] = Forms::choice( $in, 'attendee_name', array( 'off', 'optional', 'required' ), 'optional' );
+				$formats[] = '%s';
+			}
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_ticket_types';
 		if ( $old ) {
@@ -342,6 +361,19 @@ final class EventsPage {
 		);
 		$formats = array( '%s', '%s', '%d', '%s', '%d', '%d' );
 		global $wpdb;
+		if ( in_array( $field_type, self::CHOICE_TYPES, true ) ) {
+			// Choices, one per line (max. 50 × 190 characters); the checkout only accepts one of them.
+			$choices = array_slice( \PassCaptain\Orders::field_options( array( 'options' => Forms::textarea( $in, 'options', 10000 ) ) ), 0, 50 );
+			$choices = array_values( array_unique( array_map( static function ( $c ) { return mb_substr( $c, 0, 190 ); }, $choices ) ) );
+			if ( count( $choices ) < 2 ) {
+				return Forms::error( 'wpcap_field_options', __( 'Für Auswahlliste und Optionsfelder bitte mindestens zwei Auswahlmöglichkeiten angeben (eine pro Zeile).', 'pass-captain' ) );
+			}
+			$data['options'] = implode( "\n", $choices );
+			$formats[] = '%s';
+		} elseif ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ) {
+			$data['options'] = null;
+			$formats[] = '%s';
+		}
 		if ( 'consent' === $field_type ) {
 			// Logged consent (Sales\Consents): text and version are stored with every consent record.
 			$consent_text = Forms::textarea( $in, 'consent_text', 2000 );
@@ -865,6 +897,9 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $type ? (int) $type->max_per_order : 10 ); ?>"></td></tr>
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-tt-desc" name="description" class="large-text" rows="2" maxlength="1000" aria-describedby="wpcap-tt-desc-hint"><?php echo esc_textarea( $type ? (string) ( $type->description ?? '' ) : '' ); ?></textarea><p class="description" id="wpcap-tt-desc-hint"><?php esc_html_e( 'Kurzer Hinweis unter der Ticketart, z. B. „inkl. Garderobe“ oder „nur mit Schülerausweis“.', 'pass-captain' ); ?></p></td></tr>
+			<tr><th><label for="wpcap-tt-pos"><?php esc_html_e( 'Reihenfolge', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-pos" name="position" type="number" min="0" max="65535" value="<?php echo esc_attr( (string) ( $type ? (int) ( $type->position ?? 0 ) : 0 ) ); ?>"> <span class="description"><?php esc_html_e( 'Kleinere Zahlen stehen auf der Eventseite weiter oben.', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-attname"><?php esc_html_e( 'Name je Ticket', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'attendee_name', array( 'optional' => __( 'Optional abfragen', 'pass-captain' ), 'required' => __( 'Pflichtangabe (personalisiertes Ticket)', 'pass-captain' ), 'off' => __( 'Nicht abfragen', 'pass-captain' ) ), $type ? \PassCaptain\Orders::attendee_name_mode( $type->attendee_name ?? '' ) : 'optional', 'wpcap-tt-attname' ); ?></td></tr>
 			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $type ? $type->status : 'active', 'wpcap-tt-status' ); ?></td></tr>
 		</tbody></table>
 		<?php submit_button( $type ? __( 'Ticketart speichern', 'pass-captain' ) : __( 'Ticketart hinzufügen', 'pass-captain' ) ); ?>
@@ -883,7 +918,7 @@ final class EventsPage {
 		foreach ( $fields as $field ) {
 			if ( (int) $field->field_id === $edit_field_id ) { $edit_field = $field; }
 		}
-		$type_labels = array( 'text' => __( 'Text', 'pass-captain' ), 'email' => __( 'E-Mail', 'pass-captain' ), 'textarea' => __( 'Mehrzeiliger Text', 'pass-captain' ), 'checkbox' => __( 'Checkbox', 'pass-captain' ), 'consent' => __( 'Einwilligung (protokolliert)', 'pass-captain' ) );
+		$type_labels = array( 'text' => __( 'Text', 'pass-captain' ), 'email' => __( 'E-Mail', 'pass-captain' ), 'tel' => __( 'Telefonnummer', 'pass-captain' ), 'date' => __( 'Datum', 'pass-captain' ), 'textarea' => __( 'Mehrzeiliger Text', 'pass-captain' ), 'select' => __( 'Auswahlliste', 'pass-captain' ), 'radio' => __( 'Optionsfelder (eine Auswahl)', 'pass-captain' ), 'checkbox' => __( 'Checkbox', 'pass-captain' ), 'consent' => __( 'Einwilligung (protokolliert)', 'pass-captain' ) );
 		$type_url = self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $ticket_type_id ) );
 		?>
 		<p><a href="<?php echo esc_url( self::url( array( 'view' => 'occurrence', 'occurrence_id' => $type->occurrence_id ) ) ); ?>"><?php echo esc_html( '← ' . ( $event ? $event->name . ', ' : '' ) . Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?></a></p>
@@ -937,6 +972,7 @@ final class EventsPage {
 				</td></tr>
 				<tr><th><label for="wpcap-pf-label"><?php esc_html_e( 'Bezeichnung', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-label" name="label" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $edit_field ? $edit_field->label : '' ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-type"><?php esc_html_e( 'Typ', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'field_type', $type_labels, $edit_field ? $edit_field->field_type : 'text', 'wpcap-pf-type' ); ?></td></tr>
+				<tr><th><label for="wpcap-pf-options"><?php esc_html_e( 'Auswahlmöglichkeiten', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-pf-options" name="options" class="large-text" rows="4" aria-describedby="wpcap-pf-options-desc"><?php echo esc_textarea( $edit_field ? (string) ( $edit_field->options ?? '' ) : '' ); ?></textarea><p class="description" id="wpcap-pf-options-desc"><?php esc_html_e( 'Nur für „Auswahlliste“ und „Optionsfelder“: eine Auswahlmöglichkeit pro Zeile (mindestens zwei).', 'pass-captain' ); ?></p></td></tr>
 				<tr><th><?php esc_html_e( 'Pflichtfeld', 'pass-captain' ); ?></th><td><label><input type="checkbox" name="required" value="1" <?php checked( $edit_field && $edit_field->required ); ?>> <?php esc_html_e( 'Für jedes Ticket erforderlich', 'pass-captain' ); ?></label></td></tr>
 				<tr><th><label for="wpcap-pf-consent"><?php esc_html_e( 'Einwilligungstext', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-pf-consent" name="consent_text" class="large-text" rows="3" maxlength="2000" aria-describedby="wpcap-pf-consent-desc"><?php echo esc_textarea( $edit_field ? (string) ( $edit_field->consent_text ?? '' ) : '' ); ?></textarea><p class="description" id="wpcap-pf-consent-desc"><?php esc_html_e( 'Nur für den Typ „Einwilligung“: Text, dem zugestimmt wird. Text, Version, Zeitpunkt und Quelle werden je Ticket protokolliert; Käufer können im Bestellportal widerrufen.', 'pass-captain' ); ?></p></td></tr>
 				<tr><th><label for="wpcap-pf-consent-version"><?php esc_html_e( 'Version des Einwilligungstexts', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-consent-version" name="consent_version" type="text" maxlength="32" pattern="[A-Za-z0-9._\-]{1,32}" value="<?php echo esc_attr( $edit_field ? (string) ( $edit_field->consent_version ?? '' ) : '1' ); ?>"></td></tr>

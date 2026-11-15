@@ -141,16 +141,16 @@ $card_type = make_type( 30, 5, 1990 );
 // Only this occurrence is listed (the shortcode shows the next 50 dates).
 $card_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$card_type" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='p1u_hidden' WHERE status='scheduled' AND occurrence_id<>$card_occ" );
-$card = PassCaptain\PublicEvents::render_shortcode();
+$card = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 $card_pos = strpos( $card, 'data-type="' . $card_type . '"' );
 $article = false !== $card_pos ? substr( $card, strrpos( substr( $card, 0, $card_pos ), '<article' ), 12000 ) : '';
 check( 'buyer e-mail comes before the attendee box with the clear label', false !== strpos( $article, 'Deine E-Mail-Adresse (für Tickets und Bestätigung)' ) && strpos( $article, 'name="email"' ) < strpos( $article, 'wpcap-attendees' ) );
 check( 'CTA uses the theme button class', false !== strpos( $article, 'class="wp-element-button wpcap-submit"' ) );
 check( 'consent mentions consumer information only when configured', false !== strpos( $article, 'Ich akzeptiere die Bedingungen.</label>' ) && false === strpos( $article, 'Verbraucherinformationen gelesen' ) );
-check( 'prices with currency symbol', false !== strpos( $article, 'Standard — 19,90 €' ) );
+check( 'prices with currency symbol', false !== strpos( $article, 'Standard</span> — <span class="wpcap-type-price">19,90 €' ) );
 check( 'fields are labelled explicitly (for/id) for inline errors', 1 === preg_match( '#<label for="(wpcap-\d+-email)">.*?<input id="\1" name="email"#s', $article ) && false !== strpos( $article, 'name="campaign_code"' ) && false !== strpos( $article, 'Rabattcode (optional)' ) );
 Settings::update( array( 'consumer_info_text' => 'Widerrufsbelehrung …' ) );
-$card2 = PassCaptain\PublicEvents::render_shortcode();
+$card2 = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 check( 'with consumer information the consent names it', false !== strpos( $card2, 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.' ) );
 Settings::update( array( 'require_terms' => 0, 'terms_text' => '', 'consumer_info_text' => '' ) );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE status='p1u_hidden'" );
