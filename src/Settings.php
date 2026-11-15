@@ -79,6 +79,11 @@ final class Settings {
 			'withdrawal_notice_text'    => __( 'Hinweis: Bei Tickets für Veranstaltungen mit festem Termin besteht in der Regel kein Widerrufsrecht (§ 312g Abs. 2 Nr. 9 BGB / § 18 Abs. 1 Z 10 FAGG). Deine Bestellung ist nach dem Absenden verbindlich.', 'pass-captain' ),
 			'withdrawal_right_text'     => __( 'Für Produkte ohne festen Veranstaltungstermin (z. B. Mitgliedspässe oder Gutscheine) besteht ein gesetzliches Widerrufsrecht. Einzelheiten findest du in der Widerrufsbelehrung in den Verbraucherinformationen.', 'pass-captain' ),
 			'refund_approval_threshold' => 0,
+			// Postponed occurrence: buyers may request a refund in the order portal (with approval) until
+			// the deadline (hours before the new start); the note goes into the reschedule mail ({refund_note}).
+			'reschedule_refund_request' => 1,
+			'reschedule_refund_hours'   => 0,
+			'reschedule_refund_note'    => __( 'Kannst du den neuen Termin nicht wahrnehmen? Dann kannst du bis {refund_deadline} über den persönlichen Link zu deiner Bestellung eine Erstattung beantragen; der Veranstalter prüft den Antrag.', 'pass-captain' ),
 			'require_2fa_for_refunds'   => 0,
 			'attendee_retention_days'   => 0,
 			'attendee_edit_hours'       => 24,

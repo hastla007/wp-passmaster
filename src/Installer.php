@@ -80,6 +80,7 @@ final class Installer {
 				location varchar(190) NOT NULL DEFAULT '',
 				capacity int(10) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'scheduled',
+				rescheduled_at datetime NULL,
 				PRIMARY KEY  (occurrence_id),
 				KEY event_id (event_id),
 				KEY starts_at (starts_at),

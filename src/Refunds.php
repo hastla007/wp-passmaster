@@ -24,9 +24,13 @@ final class Refunds {
 	 * @param int[]  $ticket_ids      Tickets to refund; empty = all tickets not yet refunded.
 	 * @param string $reason          Reason (stored in audit log and refund record).
 	 * @param string $idempotency_key Unique key for this refund request.
+	 * @param array  $options         `customer` => true: request by the buyer (order portal, e.g. after a
+	 *                                postponement). No staff capability is checked (the caller has verified
+	 *                                the order access token) and the refund always waits for a staff approval.
 	 * @return array|\WP_Error Refund row as array.
 	 */
-	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key ) {
+	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key, array $options = array() ) {
+		$customer = ! empty( $options['customer'] );
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
@@ -35,11 +39,11 @@ final class Refunds {
 		if ( $existing ) {
 			// "approved" means the execution never got past its claim (e.g. a database error): a retry of
 			// the same request continues it. execute() claims the row, so it cannot pay out twice.
-			if ( 'approved' === $existing['status'] && true === self::check_actor() ) { return self::execute( (int) $existing['refund_id'] ); }
+			if ( ! $customer && 'approved' === $existing['status'] && true === self::check_actor() ) { return self::execute( (int) $existing['refund_id'] ); }
 			return $existing;
 		}
 
-		$check = self::check_actor();
+		$check = $customer ? true : self::check_actor();
 		if ( is_wp_error( $check ) ) { return $check; }
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
@@ -85,7 +89,7 @@ final class Refunds {
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! current_user_can( self::APPROVE_CAP );
 		// "allow with approval": a second person must approve, even when the requester could approve.
-		$needs_approval = $needs_approval || 'approval' === $checkin_policy;
+		$needs_approval = $needs_approval || 'approval' === $checkin_policy || $customer;
 		$now = current_time( 'mysql', true );
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
 			'order_id' => $order_id,
@@ -96,7 +100,7 @@ final class Refunds {
 			'ticket_ids' => wp_json_encode( $calc['ticket_ids'] ),
 			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
 			'status' => $needs_approval ? 'pending_approval' : 'approved',
-			'requested_by' => get_current_user_id(),
+			'requested_by' => $customer ? 0 : get_current_user_id(),
 			'approved_by' => $needs_approval ? 0 : get_current_user_id(),
 			'created_at' => $now,
 			'updated_at' => $now,
@@ -108,7 +112,7 @@ final class Refunds {
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::request_db_error( $order_id, 'request_commit' ); }
-		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'checked_in_tickets' => count( $checked_in ), 'checkin_policy' => $checkin_policy ) );
+		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'checked_in_tickets' => count( $checked_in ), 'checkin_policy' => $checkin_policy, 'by_customer' => $customer ) );
 		if ( $needs_approval ) {
 			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Localization::money_number( $calc['amount_minor'], $order->currency ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );

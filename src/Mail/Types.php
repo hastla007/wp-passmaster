@@ -420,12 +420,13 @@ final class Types {
 					'event_date' => __( 'Neues Datum und Uhrzeit', 'pass-captain' ),
 					'timezone' => __( 'Zeitzone', 'pass-captain' ),
 					'event_location' => __( 'Ort', 'pass-captain' ),
+					'refund_note' => __( 'Erstattungshinweis mit Frist (Einstellungen → Erstattungen); ohne Antragsmöglichkeit der Hinweis, sich an den Veranstalter zu wenden', 'pass-captain' ),
 				),
 				/* translators: %s: event */
 				'subject' => static function () { return sprintf( __( 'Terminänderung: %s', 'pass-captain' ), '{event_name}' ); },
-				/* translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location */
-				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.", 'pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}' ); },
-				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien' ); },
+				/* translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location, 6: refund note */
+				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. %6\$s", 'pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}', '{refund_note}' ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien', 'refund_note' => str_replace( '{refund_deadline}', '22.01.2027 20:00', (string) \PassCaptain\Settings::get( 'reschedule_refund_note' ) ) ); },
 			),
 			'waitlist_confirm' => array(
 				'label' => __( 'Warteliste: Eintragung bestätigen (Double-Opt-in)', 'pass-captain' ),

@@ -11,7 +11,8 @@ final class Notifications {
 
 	/**
 	 * Informs holders of valid tickets (attendee e-mail if set, otherwise buyer) about a new date.
-	 * Each recipient gets one message per change; refunds are not implied.
+	 * Each recipient gets one message per change; the mail carries the refund note ({refund_note},
+	 * RescheduleRefunds) and the occurrence is marked as moved for portal refund requests.
 	 *
 	 * @return int Number of notified recipients.
 	 */
@@ -20,11 +21,12 @@ final class Notifications {
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
 		if ( ! $occ || $old_starts_at === $new_starts_at ) { return 0; }
+		RescheduleRefunds::mark( (int) $occ->occurrence_id );
 		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 		$tz = new \DateTimeZone( $occ->timezone ?: 'UTC' );
 		$old = wp_date( 'd.m.Y H:i', strtotime( $old_starts_at . ' UTC' ), $tz );
 		$new = wp_date( 'd.m.Y H:i', strtotime( $new_starts_at . ' UTC' ), $tz );
-		$vars = array( 'event_name' => (string) $occ->event_name, 'old_date' => $old, 'event_date' => $new, 'timezone' => (string) $occ->timezone, 'event_location' => (string) $occ->location );
+		$vars = array( 'event_name' => (string) $occ->event_name, 'old_date' => $old, 'event_date' => $new, 'timezone' => (string) $occ->timezone, 'event_location' => (string) $occ->location, 'refund_note' => RescheduleRefunds::mail_note( $new_starts_at, (string) $occ->timezone ) );
 		$sent = 0;
 		foreach ( $recipients as $recipient ) {
 			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_rescheduled', $recipient->email, $vars, array(), (string) $recipient->locale ) ) { ++$sent; }

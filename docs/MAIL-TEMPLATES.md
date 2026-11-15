@@ -18,7 +18,7 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `refund_confirmation` | Erstattung abgeschlossen (nicht bei WooCommerce) | `{refund_amount}`, `{order_id}`, `{revoked_count}`, `{revoked_note}`, `{credit_note_number}`, `{credit_note}`, `{reason}` |
 | `event_cancelled` | Ganzes Event abgesagt | `{event_name}` |
 | `occurrence_cancelled` | Einzelner Termin abgesagt | `{event_name}`, `{event_date}`, `{event_location}`, `{timezone}`, `{refund_note}` |
-| `occurrence_rescheduled` | Termin verschoben | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}` |
+| `occurrence_rescheduled` | Termin verschoben | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}`, `{refund_note}` (Erstattungshinweis mit Frist, siehe [OPERATIONS.md](OPERATIONS.md#terminverschiebung-erstattungsantrag-im-bestellportal)) |
 | `waitlist_confirm` | Double-Opt-in: Bestätigungslink nach der Anmeldung zur Event-Warteliste (Einstellung `waitlist_double_opt_in`, Standard an; Link 48 Stunden gültig) | `{confirm_link}`, `{confirm_expires}`, `{event_name}`, `{ticket_name}` |
 | `waitlist_joined` | Eintragung in die Warteliste (bei Double-Opt-in erst nach der Bestätigung) | `{position}`, `{event_name}`, `{ticket_name}` |
 | `waitlist_offer` | Platzangebot aus der Warteliste | `{offer_expires}`, `{accept_link}`, `{position}`, `{event_name}`, `{ticket_name}` |

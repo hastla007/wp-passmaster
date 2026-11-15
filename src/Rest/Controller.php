@@ -47,6 +47,11 @@ final class Controller {
 			'callback' => array( __CLASS__, 'resend_tickets' ),
 			'permission_callback' => '__return_true',
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/refund-request', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'request_refund' ),
+			'permission_callback' => '__return_true',
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/assign', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'assign_ticket' ),
@@ -458,6 +463,28 @@ final class Controller {
 			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => $status ) );
 		}
 		return rest_ensure_response( array( 'status' => 'sent', 'email' => \PassCaptain\Frontend\Format::mask_email( $order->customer_email ) ) );
+	}
+
+	/**
+	 * Order portal: refund request after a postponed occurrence (RescheduleRefunds). Token like the
+	 * other portal actions (Rest\Credentials); per client 10 and per order 3 requests per hour; the
+	 * refund always waits for a staff approval.
+	 */
+	public static function request_refund( \WP_REST_Request $request ) {
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-refund-client|' . \PassCaptain\RateLimit::client(), 10, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
+		$order = self::order_with_access( sanitize_text_field( (string) $request['public_id'] ), Credentials::token( $request ) );
+		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-refund|' . $order->public_id, 3, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
+		$result = \PassCaptain\RescheduleRefunds::request( $order );
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => (int) ( $data['status'] ?? 409 ) ) );
+		}
+		return rest_ensure_response( array( 'status' => (string) ( $result['status'] ?? '' ), 'refund_id' => (int) ( $result['refund_id'] ?? 0 ) ) );
 	}
 
 	/** Order portal: buyer corrects the billing data (company/address/VAT ID) until the invoice is issued. */

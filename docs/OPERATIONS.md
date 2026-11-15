@@ -211,6 +211,24 @@ Erstattungen und Chargebacks, die beim Anbieter ausgelöst werden, verbucht Pass
 
 Lehnt der Anbieter eine im Plugin ausgelöste Erstattung endgültig ab (z. B. Stripe „Insufficient available balance“, HTTP 4xx), steht sie auf „fehlgeschlagen“; nach Behebung der Ursache (Guthaben aufgeladen) einfach erneut ausführen – der nächste Versuch nutzt einen neuen Idempotenzschlüssel (`wpcap-refund-{id}-{n}`). Bei Zeitüberschreitung oder 5xx bleibt der Schlüssel gleich, damit eine womöglich doch ausgeführte Erstattung nicht doppelt ausgezahlt wird. Eine eröffnete Zahlungsanfechtung (Dispute) erzeugt eine Admin-Mail; gebucht wird erst, wenn das Geld tatsächlich abgezogen wird.
 
+## Terminverschiebung: Erstattungsantrag im Bestellportal
+
+Wird ein Termin verschoben (`wpcap_occurrence_rescheduled`), merkt sich Pass Captain den Zeitpunkt
+(`wpcap_occurrences.rescheduled_at`). Käufer:innen, die **vor** der Verschiebung bestellt haben, sehen
+im Bestellportal den Kasten „Termin verschoben“ mit dem Button **„Erstattung beantragen“** – bis zur
+Frist (Beginn des neuen Termins minus *Einstellungen → Erstattungen → Antragsfrist*, Standard 0 Stunden).
+Der Antrag (`POST /wp-pass-captain/v1/orders/{id}/refund-request`, Token wie die übrigen Portal-Aktionen
+per `X-WPCAP-Access-Token`; je Client 10, je Bestellung 3 Anfragen pro Stunde) legt über
+`Refunds::request()` eine Erstattung an, die **immer** auf Freigabe wartet (*Erstattungen*); erst die
+Freigabe zahlt aus und sperrt die Tickets. Ein erneuter Antrag erzeugt keine zweite Erstattung.
+
+Die Verschiebungs-Mail enthält `{refund_note}` (Text unter *Einstellungen → Erstattungen*, Platzhalter
+`{refund_deadline}`), die SMS den Platzhalter `{refund_note}` (kurzer Hinweis mit Frist). Ist der Antrag
+ausgeschaltet (`reschedule_refund_request`), steht in der Mail wie bisher „Bei Fragen zu Rückgabe oder
+Erstattung wende dich bitte an den Veranstalter.“ und die SMS bleibt ohne Zusatz. Ob und wann bei einer
+Verschiebung ein Rücktritts- bzw. Erstattungsanspruch besteht, hängt vom Vertrag und vom anwendbaren Recht
+ab; die Texte sind Vorschläge und keine Rechtsberatung.
+
 ## Kasse: keine Registrierkasse
 
 Die Kasse (Menü **Pass Captain → Kasse**) bucht Verkäufe vor Ort als Bestellungen, erzeugt Belege mit fortlaufender Nummer und einen Kassenabschluss. Sie ist **keine** Registrierkasse im fiskalrechtlichen Sinn:
