@@ -17,6 +17,7 @@
 namespace PassCaptain\Modules;
 
 use PassCaptain\Audit;
+use PassCaptain\DateInput;
 use PassCaptain\Log;
 use PassCaptain\Partners\SalesModel;
 use PassCaptain\Fiscalization\ArchiveExporter;
@@ -232,6 +233,13 @@ final class Fiscalization {
 		if ( in_array( $status, array( 'active', 'not_required' ), true ) && ( 'production' !== $environment || empty( $input['review_attested'] ) || '' === $ruleset || '' === $ruleset_version || '' === $legal_reference ) ) {
 			return new \WP_Error( 'wpcap_fiscal_profile_review_required', __( 'Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		// Validity window: "Y-m-d H:i:s" (UTC) or ISO 8601 with offset, stored in UTC (DateInput).
+		$effective = DateInput::fields( $input, array( 'effective_from', 'effective_until' ) );
+		if ( is_wp_error( $effective ) ) { return $effective; }
+		$effective += array( 'effective_from' => null, 'effective_until' => null );
+		if ( $effective['effective_from'] && $effective['effective_until'] && $effective['effective_until'] <= $effective['effective_from'] ) {
+			return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Das Ende der Gültigkeit (effective_until) muss nach dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400, 'field' => 'effective_until' ) );
+		}
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT profile_id,profile_version,created_at FROM %i WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s', $p . 'wpcap_fiscal_profiles', $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
 		$now = current_time( 'mysql', true );
 		$profile_version = $existing ? (int) $existing->profile_version + 1 : 1;
@@ -242,15 +250,17 @@ final class Fiscalization {
 			'ruleset_version' => $ruleset_version, 'legal_reference' => $legal_reference,
 			'profile_data' => wp_json_encode( $data ), 'reviewed_by' => in_array( $status, array( 'active', 'not_required' ), true ) ? get_current_user_id() : 0,
 			'reviewed_at' => in_array( $status, array( 'active', 'not_required' ), true ) ? $now : null,
-			'effective_from' => ! empty( $input['effective_from'] ) ? sanitize_text_field( $input['effective_from'] ) : null,
-			'effective_until' => ! empty( $input['effective_until'] ) ? sanitize_text_field( $input['effective_until'] ) : null,
+			'effective_from' => $effective['effective_from'],
+			'effective_until' => $effective['effective_until'],
 			'created_at' => $existing ? $existing->created_at : $now, 'updated_at' => $now,
 		);
 		if ( $existing ) { $row['profile_id'] = (int) $existing->profile_id; }
 		$result = $wpdb->replace( "{$p}wpcap_fiscal_profiles", $row );
 		if ( false === $result ) { return new \WP_Error( 'wpcap_fiscal_profile_save', __( 'Fiskalprofil konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
+		// Read the id before Audit::record(): its own INSERT replaces $wpdb->insert_id.
+		$profile_id = $existing ? (int) $existing->profile_id : (int) $wpdb->insert_id;
 		Audit::record( 'fiscal_profile_saved', 'seller', $seller_id, array( 'country_code' => $seller->country_code, 'channel' => $channel, 'environment' => $environment, 'status' => $status, 'profile_version' => $profile_version ) );
-		return array( 'profile_id' => $existing ? (int) $existing->profile_id : (int) $wpdb->insert_id, 'profile_version' => $profile_version, 'status' => $status );
+		return array( 'profile_id' => $profile_id, 'profile_version' => $profile_version, 'status' => $status );
 	}
 
 	/**

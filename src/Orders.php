@@ -6,6 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Orders {
 	const HOLD_MINUTES = 10;
+	/** Length of the e-mail columns (customer_email, attendee_email: varchar(190)). */
+	const EMAIL_MAX_LENGTH = 190;
 
 	/**
 	 * Creates an order with inventory holds.
@@ -27,6 +29,10 @@ final class Orders {
 		$lines = $payload['items'] ?? array();
 		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		// customer_email is varchar(190): a longer address passes is_email() but would fail the order insert.
+		if ( strlen( $email ) > self::EMAIL_MAX_LENGTH ) {
+			return self::email_too_long( 'email' );
 		}
 
 		$key = sanitize_text_field( $payload['idempotency_key'] ?? '' );
@@ -87,17 +93,14 @@ final class Orders {
 
 		// Keep anonymous checkout abuse bounded without retaining raw IP addresses.
 		$ip = self::client_ip();
-		$rate_key = 'wpcap_checkout_' . self::rate_hash( $ip . '|' . strtolower( $email ) );
-		$count = (int) get_transient( $rate_key );
 		if ( ! $skip_rate_limit ) {
-			// Per IP+email and per IP alone, so rotating email addresses cannot bypass the limit.
+			// Per IP alone and per IP+email, so rotating email addresses cannot bypass the limit. RateLimit::hit()
+			// counts atomically with a persistent object cache (parallel requests cannot share one old count).
 			$ip_key = 'wpcap_checkout_ip_' . self::rate_hash( $ip );
-			$ip_count = (int) get_transient( $ip_key );
-			if ( $count >= 8 || $ip_count >= (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ) {
+			$rate_key = 'wpcap_checkout_' . self::rate_hash( $ip . '|' . strtolower( $email ) );
+			if ( ! RateLimit::hit( $ip_key, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ), HOUR_IN_SECONDS ) || ! RateLimit::hit( $rate_key, 8, HOUR_IN_SECONDS ) ) {
 				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 			}
-			set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
-			set_transient( $ip_key, $ip_count + 1, HOUR_IN_SECONDS );
 		}
 
 		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
@@ -525,6 +528,16 @@ final class Orders {
 		return RateLimit::client_ip();
 	}
 
+	/** 400 error for an e-mail address longer than the database columns allow (EMAIL_MAX_LENGTH). */
+	private static function email_too_long( $field ) {
+		return new \WP_Error(
+			'wpcap_email_too_long',
+			/* translators: %d: maximum number of characters */
+			sprintf( __( 'Die E-Mail-Adresse ist zu lang (höchstens %d Zeichen).', 'pass-captain' ), self::EMAIL_MAX_LENGTH ),
+			array( 'status' => 400, 'field' => $field )
+		);
+	}
+
 	/** Positive integer from an int or a digit-only string; 0 for anything else (negative, float, array). */
 	public static function positive_int( $value ) {
 		if ( is_int( $value ) ) { return $value > 0 ? $value : 0; }
@@ -593,6 +606,11 @@ final class Orders {
 					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
 				}
 				$email = sanitize_email( $entry['email'] ?? '' );
+				// tickets.attendee_email / ticket_assignments.attendee_email are varchar(190); refused here,
+				// because a failing write at ticket issuance would roll back an already paid order.
+				if ( strlen( $email ) > self::EMAIL_MAX_LENGTH ) {
+					return self::email_too_long( 'attendees.email' );
+				}
 				$out[] = array(
 					'ticket_type_id' => (int) $type_id,
 					'name' => mb_substr( sanitize_text_field( $entry['name'] ?? '' ), 0, 190 ),
@@ -1183,6 +1201,9 @@ final class Orders {
 		$recipient_email = sanitize_email( $recipient_email );
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! is_email( $recipient_email ) ) {
 			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		if ( strlen( $recipient_email ) > self::EMAIL_MAX_LENGTH ) {
+			return self::email_too_long( 'recipient_email' );
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) {

@@ -992,11 +992,23 @@ final class Installer {
 
 	/** Name of the per-site upgrade lock (MySQL lock names are limited to 64 characters). */
 	public static function lock_name() {
+		return 'wpcap_upgrade_' . self::lock_scope();
+	}
+
+	/**
+	 * Install-specific part of MySQL GET_LOCK names (16 hex characters). GET_LOCK names are
+	 * server-wide: the scope covers table prefix and database, so installs sharing one server (same
+	 * prefix in different databases) never block each other. Also used by Sales\BuyerLimits.
+	 */
+	public static function lock_scope() {
 		global $wpdb;
-		// GET_LOCK names are server-wide: include the database so installs sharing one server never block each other.
 		$database = defined( 'DB_NAME' ) ? (string) DB_NAME : (string) ( $wpdb->dbname ?? '' );
-		if ( '' === $database ) { $database = (string) $wpdb->get_var( 'SELECT DATABASE()' ); }
-		return 'wpcap_upgrade_' . substr( md5( (string) $wpdb->prefix . '|' . $database ), 0, 16 );
+		if ( '' === $database ) {
+			static $selected = null;
+			$selected = $selected ?? (string) $wpdb->get_var( 'SELECT DATABASE()' );
+			$database = $selected;
+		}
+		return substr( md5( (string) $wpdb->prefix . '|' . $database ), 0, 16 );
 	}
 
 	/**

@@ -88,10 +88,12 @@ final class BuyerLimits {
 		return true;
 	}
 
-	/** Lock names for a buyer (sorted, MySQL limit 64 characters). */
+	/**
+	 * Lock names for a buyer (sorted, MySQL limit 64 characters). GET_LOCK names are server-wide, so
+	 * they carry Installer::lock_scope() (table prefix and database name).
+	 */
 	public static function lock_names( $email, $user_id ) {
-		global $wpdb;
-		$salt = substr( md5( (string) $wpdb->prefix ), 0, 8 );
+		$salt = \PassCaptain\Installer::lock_scope();
 		$names = array( 'wpcap_buyer_' . $salt . '_e' . substr( hash( 'sha256', self::normalize_email( $email ) ), 0, 32 ) );
 		if ( absint( $user_id ) ) { $names[] = 'wpcap_buyer_' . $salt . '_u' . absint( $user_id ); }
 		sort( $names, SORT_STRING );

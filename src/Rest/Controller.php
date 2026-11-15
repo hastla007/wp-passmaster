@@ -721,12 +721,15 @@ final class Controller {
 		$resource_id = absint( $request['resource_id'] );
 		$resource = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE resource_id=%d AND status='active'", $wpdb->prefix . 'wpcap_resources', $resource_id ) );
 		if ( ! $resource || ! Access::can_access_event( $resource->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für diese Ressource.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		$payload = $request->get_json_params();
-		$start = strtotime( sanitize_text_field( $payload['starts_at'] ?? '' ) );
-		$end = strtotime( sanitize_text_field( $payload['ends_at'] ?? '' ) );
+		$payload = (array) $request->get_json_params();
+		// Strict: "Y-m-d H:i:s" (UTC) or ISO 8601 with offset; no strtotime() guessing ("tomorrow", server time zone).
+		$start = \PassCaptain\DateInput::utc( $payload['starts_at'] ?? null, 'starts_at' );
+		$end = \PassCaptain\DateInput::utc( $payload['ends_at'] ?? null, 'ends_at' );
+		if ( is_wp_error( $start ) ) { return $start; }
+		if ( is_wp_error( $end ) ) { return $end; }
 		if ( ! $start || ! $end || $end <= $start ) { return new \WP_Error( 'wpcap_service_slot_invalid', __( 'Zeitfenster ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		// Rejects slots that overlap another slot of the resource incl. buffers (409).
-		$slot_id = \PassCaptain\ServiceResources::create_slot( $resource_id, gmdate( 'Y-m-d H:i:s', $start ), gmdate( 'Y-m-d H:i:s', $end ), absint( $payload['capacity'] ?? 0 ) );
+		$slot_id = \PassCaptain\ServiceResources::create_slot( $resource_id, $start, $end, absint( $payload['capacity'] ?? 0 ) );
 		if ( is_wp_error( $slot_id ) ) { return $slot_id; }
 		return new \WP_REST_Response( array( 'slot_id' => (int) $slot_id ), 201 );
 	}

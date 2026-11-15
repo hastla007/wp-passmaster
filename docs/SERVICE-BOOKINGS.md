@@ -28,6 +28,9 @@ Code: `src/ServiceResources.php` (Stammdaten, Regeln, Kollisionen), `src/Service
 - Zwei Zeitfenster derselben Ressource kollidieren, wenn sich `[Beginn − Puffer vorher, Ende + Puffer nachher]`
   überschneidet. Kollidierende Zeitfenster werden beim Anlegen, Bearbeiten, im Wochengenerator (übersprungen)
   und über REST (`POST /resources/{id}/slots`, HTTP 409 `wpcap_service_slot_overlap`) abgelehnt.
+  REST-Zeiten `starts_at`/`ends_at`: `JJJJ-MM-TT HH:MM:SS` (UTC) oder ISO 8601 mit Offset (`…+02:00`,
+  `…Z`); relative Angaben wie `tomorrow` oder Zeiten ohne Zone im ISO-Format → HTTP 400
+  `wpcap_invalid_datetime` mit `data.field`.
   Geschlossene Zeitfenster ohne Buchung zählen nicht.
 - Beim Buchen wird zusätzlich geprüft, dass kein überlappendes Zeitfenster derselben Ressource bereits Buchungen
   hat (`wpcap_slot_conflict`; schützt Altbestände). Die Ressourcenzeile wird dabei gesperrt, parallele Buchungen

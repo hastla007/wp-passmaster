@@ -11,9 +11,33 @@ final class RateLimit {
 		// Keyed hash: bucket names may contain client addresses or IDs; a plain md5 of an IPv4
 		// address can be reversed by brute force from the options table / object cache.
 		$key = 'wpcap_rl_' . substr( hash_hmac( 'sha256', $bucket . '|' . $slot, self::secret() ), 0, 40 );
+		return self::hit( $key, $limit, $window );
+	}
+
+	/**
+	 * Counts one hit on the transient counter $key; false once $limit hits were counted.
+	 *
+	 * With a persistent object cache the counter is increased atomically (wp_cache_add() +
+	 * wp_cache_incr() in the "transient" group, where WordPress keeps transients in that case), so
+	 * parallel requests cannot all read the same old value and pass together. Without one, transients
+	 * live in the options table and the read-modify-write stays best effort (a burst of exactly
+	 * simultaneous requests can exceed the limit by a few hits). Hits over the limit are counted in
+	 * the atomic path; the window (TTL from the first hit) is not extended by them.
+	 *
+	 * @param string $key   Transient name (at most 172 characters).
+	 * @param int    $limit Allowed hits per TTL.
+	 * @param int    $ttl   Lifetime in seconds.
+	 */
+	public static function hit( $key, $limit, $ttl ) {
+		$ttl = max( 1, (int) $ttl );
+		if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_incr' ) ) {
+			wp_cache_add( $key, 0, 'transient', $ttl );
+			$count = wp_cache_incr( $key, 1, 'transient' );
+			if ( false !== $count ) { return (int) $count <= (int) $limit; }
+		}
 		$count = (int) get_transient( $key );
 		if ( $count >= (int) $limit ) { return false; }
-		set_transient( $key, $count + 1, (int) $window );
+		set_transient( $key, $count + 1, $ttl );
 		return true;
 	}
 
