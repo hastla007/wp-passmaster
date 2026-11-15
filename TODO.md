@@ -340,3 +340,16 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 ### Verdachtsfälle
 
 - In dieser Folgerunde wurde kein zusätzlicher Verdachtsfall aufgenommen.
+
+
+## P1 – Form Captain und Review Captain Integration (neu, 15.11.2026)
+
+- [ ] **Form Captain:** Öffentliche, versionierte Formularreferenz/Einbettung integrieren; Eventspezifische Formulare in Event-Admin auswählen und veröffentlichen. Ein Formular-Entry darf nie automatisch Reservierung, Zahlung oder Ticket erzeugen.
+- [ ] Bei expliziter Übergabe nur freigegebene, validierte Felder plus Formular-/Entry-ID verarbeiten; keine direkten Tabellenzugriffe. Event-/Buchungsdaten und Ticket-Teilnehmerfelder bleiben in Pass Captain.
+- [ ] **Review Captain:** Versionierten `experience_completed`-/Teilnahmevertrag ergänzen, der tatsächlichen Check-in bzw. eine zulässige Teilnahmebestätigung sowie Event-ID, stabile Quellreferenz, Zeitpunkt und Sprache signalisiert. Vorhandene interne Hooks nicht ungeprüft als öffentlichen Vertrag verwenden.
+- [ ] Einladungskontakt über einen autorisierten Resolver bereitstellen; Ereignisse enthalten standardmäßig keine E-Mail/Personendaten. Opt-out, Einladungsberechtigung, Frequenzlimit und Versand bleiben Review-Captain-Aufgabe.
+- [ ] Refund, Storno, Eventabsage, No-show, Tickettransfer und Wiederholung idempotent abbilden; keine Einladung bei abgesagtem/erstattetem oder nicht bestätigtem Besuch.
+- [ ] Review Captain Pro Adapter/Entitlement, Inkompatibilitätsdiagnose und Wiederholungs-/Fehlerstatus in Pass Captain Admin ergänzen; Free-Kern bleibt ohne harte Abhängigkeit.
+- [ ] Affiliate Captain nur für spätere aggregierte Qualitätsberichte vorsehen; Review-Klicks/-Bewertungen erzeugen keine Partnerprovision.
+- [ ] E2E-Matrix für Ticketkauf → Check-in/Teilnahme → Review-Anfrage und die Ausschlüsse (Refund, Absage, No-show, Opt-out, Duplikat, fehlendes Plugin) ergänzen.
+- **Abnahme:** Ein bestätigtes Erlebnis erzeugt maximal eine zulässige Anfrage; generische Formulareinsendungen und Affiliate-Provisionsereignisse lösen keine Einladung aus.
