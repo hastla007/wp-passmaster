@@ -29,7 +29,11 @@ final class QrCode {
 		$payload = (string) $payload;
 		if ( '' === $payload || ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || ! class_exists( '\\BaconQrCode\\Common\\ErrorCorrectionLevel' ) ) { return array(); }
 		try {
-			$qr     = \BaconQrCode\Encoder\Encoder::encode( $payload, \BaconQrCode\Common\ErrorCorrectionLevel::M(), 'UTF-8' );
+			// Ticket payloads are plain ASCII: encoded as ISO-8859-1 (Bacon's default) they need no ECI
+			// header, which saves capacity (signed QR: version 11 instead of 12) and avoids handheld
+			// scanners that print or reject the ECI designator. Only non-ASCII text uses UTF-8 with ECI.
+			$encoding = preg_match( '/[^\x00-\x7F]/', $payload ) ? 'UTF-8' : 'ISO-8859-1';
+			$qr     = \BaconQrCode\Encoder\Encoder::encode( $payload, \BaconQrCode\Common\ErrorCorrectionLevel::M(), $encoding );
 			$matrix = $qr->getMatrix();
 			$rows   = array();
 			$height = $matrix->getHeight();
@@ -90,6 +94,14 @@ final class QrCode {
 			return '';
 		}
 		$own = str_replace( '\\', '/', WPCAP_PATH . 'vendor/' );
-		return '' === $file || 0 === strpos( str_replace( '\\', '/', $file ), $own ) ? '' : $file;
+		// The vendor directory or the package may be a symlink (deployments, development checkouts) and PHP
+		// reports resolved paths: compare the real paths too.
+		$norm = str_replace( '\\', '/', $file );
+		if ( '' === $file || 0 === strpos( $norm, $own ) ) { return ''; }
+		foreach ( array( 'vendor', 'vendor/bacon/bacon-qr-code' ) as $dir ) {
+			$real = realpath( WPCAP_PATH . $dir );
+			if ( false !== $real && 0 === strpos( $norm, rtrim( str_replace( '\\', '/', $real ), '/' ) . '/' ) ) { return ''; }
+		}
+		return $file;
 	}
 }

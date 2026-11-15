@@ -2024,9 +2024,9 @@ final class Orders {
 		$entries = array_map( static function ( $ticket ) {
 			return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'url' => add_query_arg( 'wpcap_ticket', $ticket['token'], home_url( '/' ) ), 'token' => $ticket['token'] );
 		}, $issued );
-		$pdf = Mail\TicketAttachment::create( $order, self::pdf_tickets( $issued ) );
+		$pdf = Mail\TicketAttachment::create( $order, $issued );
 		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, (bool) $pdf['files'] );
-		$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted ) { return self::with_note( Mail\Blocks::issued_tickets( $listed ), $omitted ); } ), (string) $order->locale );
+		$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted, $pdf ) { return self::with_note( Mail\Blocks::issued_tickets( $listed ), $omitted, $pdf['notice'] ); } ), (string) $order->locale );
 		if ( ! $message ) {
 			Mail\TicketAttachment::remove( $pdf );
 			return false;
@@ -2043,17 +2043,11 @@ final class Orders {
 		}
 	}
 
-	/** PDF items (event, ticket, when, location, seat, token) of issued/rotated tickets. */
-	private static function pdf_tickets( array $tickets ) {
-		return array_map( static function ( $ticket ) {
-			return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'token' => $ticket['token'] );
-		}, $tickets );
-	}
-
 	/** A ticket list block followed by the "… and N more tickets" note (Mail\TicketAttachment). */
-	private static function with_note( array $block, $omitted ) {
+	private static function with_note( array $block, $omitted, $notice = '' ) {
 		$note = Mail\TicketAttachment::omitted_note( (int) $omitted );
-		return Mail\Mailer::block( (string) $block['text'] . $note['text'], (string) $block['html'] . $note['html'] );
+		$big = Mail\TicketAttachment::notice_block( $notice );
+		return Mail\Mailer::block( (string) $block['text'] . $note['text'] . $big['text'], (string) $block['html'] . $note['html'] . $big['html'] );
 	}
 
 	/**
@@ -2232,7 +2226,7 @@ final class Orders {
 	 * @param array    $entries Ticket entries (event, ticket, when, location, url).
 	 * @param callable $list    Builds the {ticket_list} block (runs in the recipient locale).
 	 */
-	private static function ticket_mail_vars( $order, array $entries, $list ) {
+	public static function ticket_mail_vars( $order, array $entries, $list ) {
 		$first = $entries[0] ?? array();
 		return array(
 			'order_id' => (string) $order->public_id,
@@ -2447,9 +2441,9 @@ final class Orders {
 			$entries[] = array( 'event' => $item['event'], 'ticket' => $item['ticket'], 'when' => self::format_start( $item['starts_at'], $item['timezone'] ), 'location' => $item['location'], 'url' => add_query_arg( 'wpcap_ticket', $item['token'], home_url( '/' ) ), 'extra' => $extra );
 		}
 		if ( ! $entries ) { return true; }
-		$pdf = $extras_only ? array( 'files' => array(), 'dir' => '' ) : Mail\TicketAttachment::create( $order, self::pdf_tickets( $items ) );
+		$pdf = $extras_only ? array( 'files' => array(), 'dir' => '' ) : Mail\TicketAttachment::create( $order, $items );
 		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, (bool) $pdf['files'] );
-		$vars = self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted ) { return self::with_note( Mail\Blocks::code_tickets( $listed ), $omitted ); } );
+		$vars = self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted, $pdf ) { return self::with_note( Mail\Blocks::code_tickets( $listed ), $omitted, (string) ( $pdf['notice'] ?? '' ) ); } );
 		try {
 			return (bool) Mail\Mailer::send( 'tickets_resend', $recipient, $vars, $pdf['files'], (string) $order->locale );
 		} finally {
@@ -2497,7 +2491,7 @@ final class Orders {
 		if ( ( $context['notify'] ?? true ) && is_email( $recipient ) ) {
 			$list = array( array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $ticket_id ) ) );
 			$vars = self::ticket_mail_vars( $order, $list, static function () use ( $list ) { return Mail\Blocks::code_tickets( $list ); } );
-			$pdf = Mail\TicketAttachment::create( $order, self::pdf_tickets( array( array( 'ticket_id' => $ticket_id, 'token' => $token, 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'starts_at' => $ticket->starts_at, 'timezone' => $ticket->timezone, 'location' => $ticket->location ) ) ) );
+			$pdf = Mail\TicketAttachment::create( $order, array( array( 'ticket_id' => $ticket_id, 'token' => $token, 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'starts_at' => $ticket->starts_at, 'timezone' => $ticket->timezone, 'location' => $ticket->location ) ) );
 			try {
 				$mailed = (bool) Mail\Mailer::send( 'tickets_resend', $recipient, $vars, $pdf['files'], (string) $order->locale );
 			} finally {

@@ -147,6 +147,7 @@ $pm_routes = array(
 	'GET wp-pass-captain/v1/wallet/apple/v1/passes/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:PassKit ApplePass authentication token',
 	'POST wp-pass-captain/v1/wallet/apple/v1/log' => 'public:unauthenticated by Apple PassKit spec; tight rate limits, small buffer',
 	'GET wp-pass-captain/v1/wallet/apple/download/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:signed download link (HMAC)',
+	'GET wp-pass-captain/v1/wallet/order/(?P<order>[A-Za-z0-9\-]{8,64})' => 'token:signed collection link of an order (HMAC, expiry)',
 	'POST wp-pass-captain/v1/sms/twilio/status' => 'token:X-Twilio-Signature',
 	'POST wp-pass-captain/v1/sms/twilio/inbound' => 'token:X-Twilio-Signature',
 	'POST wp-pass-captain/v1/sms/verify/request' => 'public:SMS code for the checkout opt-in (PRIV-16); same-origin check, rate limited per number, address and site, allowed mobile ranges only',

@@ -31,7 +31,15 @@ class GoogleProvider implements WalletProvider {
 		return $this->issuer_id() . '.wpcap_' . self::site_key() . '_t' . preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $ticket['public_id'] ) ) . '_g' . max( 1, (int) ( $ticket['generation'] ?? 1 ) );
 	}
 
-	private static function text( $value ) { return array( 'defaultValue' => array( 'language' => 'de', 'value' => (string) $value ) ); }
+	/** BCP 47 language of a ticket's order (locale de_DE → de-DE), site language as fallback. */
+	public static function language( array $ticket ) {
+		$locale = (string) ( $ticket['locale'] ?? '' );
+		if ( '' === $locale && function_exists( 'determine_locale' ) ) { $locale = (string) determine_locale(); }
+		$lang = preg_replace( '/[^A-Za-z0-9-]/', '', str_replace( '_', '-', $locale ) );
+		return '' !== $lang ? $lang : 'de';
+	}
+
+	private static function text( $value, $lang = 'de' ) { return array( 'defaultValue' => array( 'language' => (string) $lang, 'value' => (string) $value ) ); }
 
 	private static function iso( $utc, $timezone ) {
 		try { $tz = new \DateTimeZone( $timezone ?: 'UTC' ); } catch ( \Exception $e ) { $tz = new \DateTimeZone( 'UTC' ); }
@@ -43,7 +51,7 @@ class GoogleProvider implements WalletProvider {
 			'id' => $this->class_id( $ticket['occurrence_id'] ),
 			'issuerName' => AppleProvider::organization(),
 			'reviewStatus' => 'UNDER_REVIEW',
-			'eventName' => self::text( $ticket['event_name'] ),
+			'eventName' => self::text( $ticket['event_name'], self::language( $ticket ) ),
 			'eventId' => 'wpcap-' . self::site_key() . '-' . absint( $ticket['occurrence_id'] ),
 			'dateTime' => array( 'start' => self::iso( $ticket['starts_at'], $ticket['timezone'] ) ),
 			'hexBackgroundColor' => (string) ( Settings::get( 'wallet_background_color' ) ?: '#1d2327' ),
@@ -52,7 +60,7 @@ class GoogleProvider implements WalletProvider {
 		if ( 'cancelled' === ( $ticket['occurrence_status'] ?? '' ) || 'cancelled' === ( $ticket['event_status'] ?? '' ) ) {
 			$class['messages'] = array( array( 'id' => 'wpcap_cancelled', 'header' => __( 'Abgesagt', 'pass-captain' ), 'body' => __( 'Die Veranstaltung wurde abgesagt.', 'pass-captain' ) ) );
 		}
-		if ( '' !== (string) $ticket['location'] ) { $class['venue'] = array( 'name' => self::text( $ticket['location'] ), 'address' => self::text( $ticket['location'] ) ); }
+		if ( '' !== (string) $ticket['location'] ) { $class['venue'] = array( 'name' => self::text( $ticket['location'], self::language( $ticket ) ), 'address' => self::text( $ticket['location'], self::language( $ticket ) ) ); }
 		return apply_filters( 'wpcap_wallet_google_class', $class, $ticket );
 	}
 
@@ -63,16 +71,20 @@ class GoogleProvider implements WalletProvider {
 			'classId' => $this->class_id( $ticket['occurrence_id'] ),
 			'state' => $active ? 'ACTIVE' : 'INACTIVE',
 			'ticketNumber' => (string) $ticket['public_id'],
-			'ticketType' => self::text( $ticket['ticket_name'] ),
+			'ticketType' => self::text( $ticket['ticket_name'], self::language( $ticket ) ),
 		);
 		if ( $active ) { $object['barcode'] = array( 'type' => 'QR_CODE', 'value' => \PassCaptain\Security\SignedQr::qr_value( (string) $ticket['code'] ), 'alternateText' => substr( (string) $ticket['public_id'], 0, 8 ) ); }
-		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $object['seatInfo'] = array( 'seat' => self::text( $ticket['seat'] ) ); }
+		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $object['seatInfo'] = array( 'seat' => self::text( $ticket['seat'], self::language( $ticket ) ) ); }
 		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $object['ticketHolderName'] = (string) $ticket['attendee_name']; }
 		return apply_filters( 'wpcap_wallet_google_object', $object, $ticket );
 	}
 
-	/** "Save to Google Wallet" URL with the class and object embedded in the JWT. */
-	public function save_url( array $ticket ) {
+	/**
+	 * "Save to Google Wallet" URL. By default the class and object are embedded in the JWT (works before
+	 * the object exists, about 2.3 KB). With $skinny the object was created over the REST API before
+	 * (Service::issue_deferred) and the JWT only carries its id (skinny JWT, a few hundred bytes).
+	 */
+	public function save_url( array $ticket, $skinny = false ) {
 		$account = Credentials::google();
 		if ( is_wp_error( $account ) ) { throw new \RuntimeException( esc_html( $account->get_error_code() ) ); }
 		$claims = array(
@@ -81,7 +93,9 @@ class GoogleProvider implements WalletProvider {
 			'typ' => 'savetowallet',
 			'iat' => time(),
 			'origins' => array( home_url( '/' ) ),
-			'payload' => array( 'eventTicketClasses' => array( $this->class_payload( $ticket ) ), 'eventTicketObjects' => array( $this->object_payload( $ticket ) ) ),
+			'payload' => $skinny
+				? array( 'eventTicketObjects' => array( array( 'id' => $this->object_id( $ticket ) ) ) )
+				: array( 'eventTicketClasses' => array( $this->class_payload( $ticket ) ), 'eventTicketObjects' => array( $this->object_payload( $ticket ) ) ),
 		);
 		return self::SAVE_URL . Jwt::sign( $claims, $account['private_key'] );
 	}

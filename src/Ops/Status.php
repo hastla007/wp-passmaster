@@ -344,6 +344,8 @@ final class Status {
 		if ( $proxy ) { $issues[] = $proxy; }
 		// Sender of customer mails (From/Reply-To/Return-Path): missing or not aligned with the site domain.
 		$issues = array_merge( $issues, \PassCaptain\Mail\Mailer::sender_issues() );
+		// Wallet: Apple certificates expiring within 30 days, APNs rejecting the certificate (403).
+		$issues = array_merge( $issues, \PassCaptain\WalletPasses\Service::status_issues() );
 		usort( $issues, static function ( $a, $b ) { return ( 'error' === $b['severity'] ) <=> ( 'error' === $a['severity'] ); } );
 		return $issues;
 	}

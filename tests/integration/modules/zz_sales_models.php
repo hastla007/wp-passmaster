@@ -104,7 +104,7 @@ check( 'seller snapshot is the organizer (legal name, address, VAT ID, tax numbe
 $sm_html1 = Invoices::render_html( $sm_i1['invoice_id'] );
 check( 'invoice view shows organizer as seller and "Vermittelt durch {platform}"', false !== strpos( $sm_html1, 'Theater Agentur GmbH' ) && false !== strpos( $sm_html1, 'Steuernummer: 143/123/45678' ) && false !== strpos( $sm_html1, 'Vermittelt durch Plattform GmbH' ) && false !== strpos( $sm_html1, 'TAG-' ) );
 $sm_pdf1 = PassCaptain\Printing\InvoicePdf::render( $sm_i1['invoice_id'] );
-check( 'invoice PDF shows organizer and agent note', str_starts_with( $sm_pdf1, '%PDF' ) && false !== strpos( $sm_pdf1, 'Vermittelt durch Plattform GmbH' ) && false !== strpos( $sm_pdf1, 'Theater Agentur GmbH' ) );
+check( 'invoice PDF shows organizer and agent note', str_starts_with( $sm_pdf1, '%PDF' ) && false !== strpos( wpcap_test_pdf_plain( $sm_pdf1 ), 'Vermittelt durch Plattform GmbH' ) && false !== strpos( wpcap_test_pdf_plain( $sm_pdf1 ), 'Theater Agentur GmbH' ) );
 $sm_i2 = Invoices::issue_for_order( sm_order( array( $sm_ta => 1 ), 'sm-agent-2' ) );
 check( 'next agent invoice continues the organizer series without gaps', sprintf( 'TAG-%d-000002', $sm_year ) === $sm_i2['invoice_number'] );
 $sm_ip = Invoices::issue_for_order( sm_order( array( $sm_tp => 1 ), 'sm-platform' ) );

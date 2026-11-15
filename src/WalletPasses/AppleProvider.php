@@ -176,14 +176,35 @@ class AppleProvider implements WalletProvider {
 
 	/* ---- push ---- */
 
+	/** @var ApnsClient|null Client of the current run (one HTTP/2 connection for all pushes). */
+	private static $apns = null;
+	private static $in_run = false;
+
 	public static function apns_client() {
+		if ( self::$in_run && null !== self::$apns ) { return self::$apns; }
 		$client = apply_filters( 'wpcap_wallet_apns_client', null );
-		return $client instanceof ApnsClient ? $client : new ApnsClient();
+		$client = $client instanceof ApnsClient ? $client : new ApnsClient();
+		if ( self::$in_run ) { self::$apns = $client; }
+		return $client;
+	}
+
+	/** Starts a dispatch run (Service::process()): all pushes of the run share one client/connection. */
+	public static function begin_apns_run() {
+		self::$in_run = true;
+	}
+
+	/** Ends the run: closes the APNs connection. */
+	public static function release_apns_client() {
+		if ( null !== self::$apns ) { self::$apns->close(); }
+		self::$apns = null;
+		self::$in_run = false;
 	}
 
 	/**
 	 * Sends an update push to every device registered for the serial. Tokens answered with 410
 	 * (device unregistered) are removed. Returns false on transport/server errors (retry later).
+	 * 403 means APNs rejects the certificate or topic: a configuration error that no retry fixes, so it
+	 * is recorded for the system status (Service::status_issues()) and not retried.
 	 */
 	public function notify( $serial ) {
 		$registrations = Store::registrations_for_serial( $serial );
@@ -199,6 +220,13 @@ class AppleProvider implements WalletProvider {
 			$status = $client->send( $registration->push_token, $registration->pass_type_id, $credentials, $host );
 			$sent[ $registration->push_token ] = $status;
 			if ( 410 === $status ) { Store::delete_push_token( $registration->push_token ); continue; }
+			if ( 403 === $status ) {
+				if ( (int) get_option( Service::APNS_ERROR_OPTION, 0 ) < time() - HOUR_IN_SECONDS ) {
+					update_option( Service::APNS_ERROR_OPTION, time(), false );
+					Service::log( 'apns_forbidden', 'APNs 403: certificate or pass type id rejected' );
+				}
+				continue;
+			}
 			if ( 200 !== $status && 400 !== $status ) { $ok = false; }
 		}
 		return $ok;

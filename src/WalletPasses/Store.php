@@ -122,6 +122,13 @@ final class Store {
 		return (int) $wpdb->insert_id;
 	}
 
+	/** Records that the provider object of a pass exists remotely (Google: created/updated over REST). */
+	public static function mark_synced( $wallet_pass_id ) {
+		global $wpdb;
+		if ( ! $wallet_pass_id ) { return; }
+		$wpdb->update( self::t( 'wallet_passes' ), array( 'synced_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
+	}
+
 	public static function set_pass_status( $wallet_pass_id, $status ) {
 		global $wpdb;
 		$wpdb->update( self::t( 'wallet_passes' ), array( 'status' => $status, 'updated_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );

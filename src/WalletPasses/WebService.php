@@ -31,6 +31,26 @@ final class WebService {
 		register_rest_route( self::NS, $base . '/v1/passes/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'latest_pass' ), 'permission_callback' => '__return_true' ) );
 		register_rest_route( self::NS, $base . '/v1/log', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'log' ), 'permission_callback' => '__return_true' ) );
 		register_rest_route( self::NS, $base . '/download/(?P<serial>[A-Za-z0-9\-]{1,190})', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'download' ), 'permission_callback' => '__return_true' ) );
+		register_rest_route( self::NS, '/wallet/order/(?P<order>[A-Za-z0-9\-]{8,64})', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'collection' ), 'permission_callback' => '__return_true' ) );
+	}
+
+	/**
+	 * Signed collection page of an order (multi-ticket mails link here instead of attaching one pass
+	 * per ticket): HTML list of the Apple/Google buttons of the tickets the buyer still holds.
+	 */
+	public static function collection( \WP_REST_Request $request ) {
+		$order = (string) $request->get_param( 'order' );
+		$expires = (int) $request->get_param( 'exp' );
+		$sig = (string) $request->get_param( 'sig' );
+		if ( ! RateLimit::allow( 'wallet_dl_' . RateLimit::client(), 60, MINUTE_IN_SECONDS ) || $expires < time() || ! hash_equals( Service::collection_sig( $order, $expires ), $sig ) ) {
+			return new \WP_Error( 'wpcap_wallet_link', __( 'Dieser Wallet-Link ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 404 ) );
+		}
+		$headers = array( 'Content-Type' => 'text/html; charset=utf-8' );
+		foreach ( \PassCaptain\Security\PrivatePage::header_lines() as $line ) {
+			list( $name, $value ) = explode( ':', $line, 2 );
+			$headers[ $name ] = trim( $value );
+		}
+		return new \WP_REST_Response( array( '__wpcap_raw' => Service::collection_html( $order ), 'headers' => $headers ), 200 );
 	}
 
 	private static function unauthorized() {

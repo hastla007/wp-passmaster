@@ -42,28 +42,38 @@ final class TicketAttachment {
 	}
 
 	/**
-	 * Renders the ticket PDF for one mail.
+	 * Renders the ticket PDF for one mail (TicketPdf::mail_attachment(): order language, attendee
+	 * names, streamed and compressed, size limits of `wp_pass_captain_ticket_pdf_limits_v1`). Above
+	 * max_tickets() or the PDF limits no file is attached; `notice` then tells the buyer where the
+	 * tickets are (append it to the mail body).
 	 *
-	 * @param object $order   Order row (order_id, public_id).
-	 * @param array  $tickets Items with event, ticket, when, location, seat, token (plaintext code).
-	 * @return array{files:string[],dir:string} Attachment paths (empty when not attached).
+	 * @param object $order   Order row (order_id, public_id, locale).
+	 * @param array  $tickets Issued/rotated items with ticket_id, token (plaintext), event, ticket, starts_at, timezone, location.
+	 * @return array{files:string[],dir:string,notice:string} Attachment paths (empty when not attached).
 	 */
 	public static function create( $order, array $tickets ) {
-		$none = array( 'files' => array(), 'dir' => '' );
+		$none = array( 'files' => array(), 'dir' => '', 'notice' => '' );
 		$order_id = (int) ( $order->order_id ?? 0 );
-		if ( ! $tickets || count( $tickets ) > self::max_tickets( $order_id ) || ! apply_filters( 'wpcap_attach_ticket_pdf', true, $order_id ) ) {
+		if ( ! $tickets || ! apply_filters( 'wpcap_attach_ticket_pdf', true, $order_id ) ) {
 			return $none;
 		}
-		$dir = TempFiles::private_dir();
-		if ( ! $dir ) { return $none; }
-		$file = $dir . '/tickets-' . preg_replace( '/[^a-f0-9]/', '', (string) ( $order->public_id ?? '' ) ) . '.pdf';
-		$bytes = TicketPdf::render( array_values( $tickets ), array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
-		if ( ! TempFiles::put( $file, $bytes ) ) {
-			TempFiles::remove_dir( $dir );
+		if ( count( $tickets ) > self::max_tickets( $order_id ) ) {
 			return $none;
 		}
-		TempFiles::track( $file, $dir );
-		return array( 'files' => array( $file ), 'dir' => $dir );
+		$part = TicketPdf::mail_attachment( $order, array_values( $tickets ) );
+		foreach ( (array) $part['files'] as $file ) { TempFiles::track( $file, (string) $part['dir'] ); }
+		if ( ! $part['files'] && ! empty( $part['dir'] ) ) {
+			TempFiles::remove_dir( (string) $part['dir'] );
+			$part['dir'] = '';
+		}
+		return array( 'files' => (array) $part['files'], 'dir' => (string) $part['dir'], 'notice' => (string) $part['notice'] );
+	}
+
+	/** Notice block for a PDF that was left out because of its size (plain text and HTML). */
+	public static function notice_block( $notice ) {
+		$notice = trim( (string) $notice );
+		if ( '' === $notice ) { return Mailer::block( '', '' ); }
+		return Mailer::block( $notice . "\n\n", '<p style="margin:0 0 16px"><em>' . esc_html( $notice ) . '</em></p>' );
 	}
 
 	/**
