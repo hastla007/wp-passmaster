@@ -218,9 +218,17 @@ final class Service {
 	 */
 	public static function ticket_types( $occurrence_id ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,price_minor,currency,max_per_order,tax_rate_bp,status,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp,status,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
 		$seated = self::seated_types( $occurrence_id );
 		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		// Display batch: capacity, holds, pools and rules of all types in grouped queries (PERF-1).
+		return \PassCaptain\DisplayBatch::run( array_map( static function ( $r ) { return (int) $r->ticket_type_id; }, $rows ), static function () use ( $rows, $seated, $occurrence ) {
+			return self::ticket_type_rows( $rows, $seated, $occurrence );
+		} );
+	}
+
+	/** Output rows of ticket_types() (runs inside the display batch). */
+	private static function ticket_type_rows( array $rows, array $seated, $occurrence ) {
 		$out = array();
 		foreach ( $rows as $r ) {
 			$out[] = array(

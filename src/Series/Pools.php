@@ -129,6 +129,16 @@ final class Pools {
 		if ( ! $type_ids ) { return 0; }
 		$p = $wpdb->prefix;
 		$exclude = absint( $exclude_order_id );
+		if ( ! $exclude && \PassCaptain\DisplayBatch::active() ) {
+			// Display batch: every requested type preloaded → sum the grouped usage (no query).
+			$usage = \PassCaptain\DisplayBatch::usage();
+			$batched = \PassCaptain\DisplayBatch::types();
+			if ( ! array_diff( $type_ids, array_keys( $batched ) ) ) {
+				$sum = 0;
+				foreach ( $type_ids as $id ) { $sum += ( $usage['type_sold'][ $id ] ?? 0 ) + ( $usage['type_held_with_order'][ $id ] ?? 0 ); }
+				return $sum;
+			}
+		}
 		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d AND oi.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_orders', $exclude ), $type_ids ) ) );
 		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM %i WHERE status='active' AND expires_at > %s AND order_id <> %d AND ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_reservations', $now, $exclude ), $type_ids ) ) );
 		return $sold + $held;
@@ -198,9 +208,32 @@ final class Pools {
 
 	/** Remaining units of each pool containing the type (smallest wins); null when in no pool. */
 	public static function remaining_for_type( $type ) {
+		if ( isset( $type->ticket_type_id ) && \PassCaptain\DisplayBatch::type( $type->ticket_type_id ) ) {
+			return self::batch_remaining( $type );
+		}
 		$min = null;
 		foreach ( self::pools_for_types( array( $type ) ) as $entry ) {
 			$left = max( 0, (int) $entry['pool']->capacity - self::used( self::member_type_ids( $entry['pool'] ), current_time( 'mysql', true ) ) );
+			$min = null === $min ? $left : min( $min, $left );
+		}
+		return $min;
+	}
+
+	/**
+	 * remaining_for_type() inside a display batch: the pools of every type of the page are looked up
+	 * once, and each pool's usage once (not per ticket type).
+	 */
+	private static function batch_remaining( $type ) {
+		$pools = \PassCaptain\DisplayBatch::memo( 'series_pools', static function () {
+			return self::pools_for_types( array_values( \PassCaptain\DisplayBatch::types() ) );
+		} );
+		$min = null;
+		foreach ( $pools as $pool_id => $entry ) {
+			if ( ! in_array( (int) $type->ticket_type_id, $entry['type_ids'], true ) ) { continue; }
+			$used = \PassCaptain\DisplayBatch::memo( 'series_pool_used_' . (int) $pool_id, static function () use ( $entry ) {
+				return self::used( self::member_type_ids( $entry['pool'] ), \PassCaptain\DisplayBatch::now() );
+			} );
+			$left = max( 0, (int) $entry['pool']->capacity - $used );
 			$min = null === $min ? $left : min( $min, $left );
 		}
 		return $min;

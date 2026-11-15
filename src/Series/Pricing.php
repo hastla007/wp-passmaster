@@ -296,6 +296,15 @@ final class Pricing {
 		$occurrence_id = absint( $occurrence_id );
 		// Keyed by table prefix too: after switch_to_blog() the same id is another site's occurrence.
 		$key = $wpdb->prefix . '|' . $occurrence_id;
+		if ( ! isset( $map[ $key ] ) && \PassCaptain\DisplayBatch::occurrence( $occurrence_id ) ) {
+			// Display batch: the series of every occurrence of the page in one query.
+			$ids = array_keys( \PassCaptain\DisplayBatch::occurrences() );
+			foreach ( $ids as $id ) { $map[ $wpdb->prefix . '|' . $id ] = 0; }
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . \PassCaptain\DisplayBatch::placeholders( $ids ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_series_occurrences' ), $ids ) ) ) as $row ) {
+				$map[ $wpdb->prefix . '|' . (int) $row->occurrence_id ] = (int) $row->series_id;
+			}
+		}
 		if ( ! isset( $map[ $key ] ) ) {
 			$map[ $key ] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT series_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_series_occurrences', $occurrence_id ) );
 		}
@@ -309,6 +318,12 @@ final class Pricing {
 			return 100 * Pools::used( array( (int) $type->ticket_type_id ), $now, $exclude_order_id ) / (int) $type->capacity;
 		}
 		if ( $occurrence && (int) $occurrence->capacity > 0 ) {
+			if ( ! absint( $exclude_order_id ) && \PassCaptain\DisplayBatch::occurrence( $occurrence->occurrence_id ) ) {
+				// Display batch: usage of all types of the occurrence is already grouped.
+				$usage = \PassCaptain\DisplayBatch::usage();
+				$id = (int) $occurrence->occurrence_id;
+				return 100 * ( ( $usage['occ_sold'][ $id ] ?? 0 ) + ( $usage['occ_held_with_order'][ $id ] ?? 0 ) ) / (int) $occurrence->capacity;
+			}
 			$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $occurrence->occurrence_id ) ) );
 			return 100 * Pools::used( $ids, $now, $exclude_order_id ) / (int) $occurrence->capacity;
 		}

@@ -42,10 +42,43 @@ final class Waitlists {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
+		if ( ! absint( $exclude_waitlist_id ) && DisplayBatch::type( $type->ticket_type_id ?? 0 ) ) {
+			// Display batch: open offer holds of every type/occurrence of the page in two grouped queries.
+			$held = self::batch_holds();
+			if ( $occurrence && (int) $occurrence->capacity > 0 ) {
+				return (int) ( $held['occ'][ (int) $occurrence->occurrence_id ] ?? 0 );
+			}
+			return (int) ( $held['type'][ (int) $type->ticket_type_id ] ?? 0 );
+		}
 		if ( $occurrence && (int) $occurrence->capacity > 0 ) {
 			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(w.hold_quantity),0) FROM %i w INNER JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id WHERE tt.occurrence_id=%d AND w.status='offered' AND w.offer_expires_at>%s AND w.waitlist_id<>%d", $p . 'wpcap_waitlist', $p . 'wpcap_ticket_types', (int) $occurrence->occurrence_id, $now, absint( $exclude_waitlist_id ) ) );
 		}
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(hold_quantity),0) FROM %i WHERE ticket_type_id=%d AND status='offered' AND offer_expires_at>%s AND waitlist_id<>%d", $p . 'wpcap_waitlist', (int) $type->ticket_type_id, $now, absint( $exclude_waitlist_id ) ) );
+	}
+
+	/** Open offer holds per ticket type and per occurrence of the current display batch. */
+	private static function batch_holds() {
+		return DisplayBatch::memo( 'waitlist_holds', static function () {
+			global $wpdb;
+			$p = $wpdb->prefix;
+			$now = DisplayBatch::now();
+			$out = array( 'type' => array(), 'occ' => array() );
+			$type_ids = array_keys( DisplayBatch::types() );
+			$occ_ids = array_keys( DisplayBatch::occurrences() );
+			if ( $type_ids ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id AS id, COALESCE(SUM(hold_quantity),0) AS n FROM %i WHERE ticket_type_id IN (" . DisplayBatch::placeholders( $type_ids ) . ") AND status='offered' AND offer_expires_at>%s GROUP BY ticket_type_id", array_merge( array( $p . 'wpcap_waitlist' ), $type_ids, array( $now ) ) ) ) as $row ) {
+					$out['type'][ (int) $row->id ] = (int) $row->n;
+				}
+			}
+			if ( $occ_ids ) {
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id AS id, COALESCE(SUM(w.hold_quantity),0) AS n FROM %i w INNER JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id WHERE tt.occurrence_id IN (" . DisplayBatch::placeholders( $occ_ids ) . ") AND w.status='offered' AND w.offer_expires_at>%s GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_waitlist', $p . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) ) as $row ) {
+					$out['occ'][ (int) $row->id ] = (int) $row->n;
+				}
+			}
+			return $out;
+		} );
 	}
 
 	/**

@@ -81,6 +81,8 @@ final class Rest {
 	/** Adds area selection, check-out and the idempotent sync endpoint to the web scanner. */
 	public static function localize_scanner() {
 		if ( ! function_exists( 'wp_localize_script' ) || ! is_user_logged_in() || ! current_user_can( 'wpcap_checkin' ) ) { return; }
+		// The areas query runs only where the web scanner is on the page, not on every front-end page.
+		if ( ! function_exists( 'wp_script_is' ) || ! wp_script_is( 'wpcap-scanner', 'enqueued' ) ) { return; }
 		$areas = array();
 		foreach ( Areas::selectable() as $area ) {
 			$areas[] = array( 'id' => (int) $area->area_id, 'label' => $area->event_name . ' – ' . $area->name );

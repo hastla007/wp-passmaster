@@ -64,6 +64,23 @@ final class PriceRules {
 	public static function for_event( $event_id ) {
 		global $wpdb;
 		$event_id = absint( $event_id );
+		if ( ! isset( self::$cache[ $event_id ] ) && \PassCaptain\DisplayBatch::active() ) {
+			// Display batch: the rules of every event of the page in one query.
+			$ids = array();
+			foreach ( \PassCaptain\DisplayBatch::occurrences() as $occurrence ) {
+				if ( ! isset( self::$cache[ (int) $occurrence->event_id ] ) ) { $ids[ (int) $occurrence->event_id ] = (int) $occurrence->event_id; }
+			}
+			if ( isset( $ids[ $event_id ] ) ) {
+				$ids = array_values( $ids );
+				$grouped = array_fill_keys( $ids, array() );
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id IN (" . \PassCaptain\DisplayBatch::placeholders( $ids ) . ") AND status='active' ORDER BY rule_id", array_merge( array( $wpdb->prefix . 'wpcap_price_rules' ), $ids ) ) ) as $row ) {
+					$row->source = 'event';
+					$grouped[ (int) $row->event_id ][] = $row;
+				}
+				foreach ( $grouped as $id => $rows ) { self::$cache[ $id ] = $rows; }
+			}
+		}
 		if ( ! isset( self::$cache[ $event_id ] ) ) {
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id=%d AND status='active' ORDER BY rule_id", $wpdb->prefix . 'wpcap_price_rules', $event_id ) );
 			foreach ( $rows as $row ) { $row->source = 'event'; }

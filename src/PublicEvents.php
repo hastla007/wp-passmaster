@@ -7,8 +7,6 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class PublicEvents {
 	public static function register_assets() {
 		wp_register_script( 'wpcap-checkout', WPCAP_URL . 'assets/checkout.js', array(), WPCAP_VERSION, true );
-		$providers = array();
-		foreach ( Payments\Registry::enabled( 'EUR' ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
 			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
 			'money' => Frontend\Format::js_config(),
@@ -96,51 +94,108 @@ final class PublicEvents {
 		) );
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );
-		ob_start();
-		?>
-		<div class="wpcap-events">
-			<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
-			<?php foreach ( $rows as $event ) :
-				$translation = $wpdb->get_row( $wpdb->prepare( 'SELECT name,description,location FROM %i WHERE event_id=%d AND locale=%s', $wpdb->prefix . 'wpcap_event_translations', $event->event_id, determine_locale() ) );
-				if ( $translation ) {
-					$event->name = $translation->name;
-					$event->description = $translation->description;
-					$event->location = $translation->location ?: $event->location;
-				}
-				$now = current_time( 'mysql', true );
-				$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM %i WHERE occurrence_id=%d AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $wpdb->prefix . 'wpcap_ticket_types', $event->occurrence_id, $now, $now ) );
-				if ( ! $types ) { continue; }
-				$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $event->occurrence_id ) );
-				foreach ( $types as $type ) {
-					// Effective server-side price (e.g. series price tiers); the checkout charges the same.
-					$type->base_price_minor = (int) $type->price_minor;
-					$type->price_label = Orders::price_label( $type, $occurrence, array( 'now' => $now ) );
-					// Buyer-visible reason for an automatic price (Sales\PriceRules), e.g. "Frühbucherpreis: gilt bei Buchung bis …".
-					$type->price_explanation = Sales\PriceRules::explanation_for( $type, $occurrence, array( 'now' => $now ) );
-					$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
-					$type->available = Orders::availability( $type->ticket_type_id );
-					// Only field definitions are exposed (no answers); used to render attendee inputs.
-					$type->fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type->ticket_type_id ), ARRAY_A );
-				}
-				$providers = Payments\Registry::enabled( $types[0]->currency );
-				$legal = array(
-					'require_terms' => (bool) Settings::get( 'require_terms' ),
-					'terms_text' => (string) Settings::get( 'terms_text' ),
-					'consumer_info_text' => (string) Settings::get( 'consumer_info_text' ),
-				);
-				?>
-				<?php
-				$template = locate_template( 'wp-pass-captain/event-card.php' );
-				if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
-				ob_start();
-				include $template;
-				$card_html = ob_get_clean();
-				echo apply_filters( 'wp_pass_captain_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
-				?>
-			<?php endforeach; ?>
-		</div>
-		<?php
-		return ob_get_clean();
+		return self::render_cards( $rows );
+	}
+
+	/**
+	 * Renders the event cards for listing rows (event_id, name, description, occurrence_id,
+	 * starts_at, timezone, location). Translations, ticket types, participant fields, capacity,
+	 * waitlist holds, pools and price rules are loaded with a fixed number of grouped queries for
+	 * all rows (DisplayBatch), not per occurrence or ticket type.
+	 *
+	 * @param object[] $rows Listing rows.
+	 */
+	public static function render_cards( array $rows ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$event_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->event_id; }, $rows ) ) );
+		$occ_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) ) );
+		$translations = self::translations( $event_ids, determine_locale() );
+		$types_by_occ = array();
+		if ( $occ_ids ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM %i WHERE occurrence_id IN (" . DisplayBatch::placeholders( $occ_ids ) . ") AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", array_merge( array( $p . 'wpcap_ticket_types' ), $occ_ids, array( $now, $now ) ) ) ) as $type ) {
+				$types_by_occ[ (int) $type->occurrence_id ][] = $type;
+			}
+		}
+		$type_ids = array();
+		foreach ( $types_by_occ as $list ) {
+			foreach ( $list as $type ) { $type_ids[] = (int) $type->ticket_type_id; }
+		}
+		$fields = array();
+		if ( $type_ids ) {
+			// Only field definitions are exposed (no answers); used to render attendee inputs.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM %i WHERE ticket_type_id IN (" . DisplayBatch::placeholders( $type_ids ) . ") AND status='active' ORDER BY position,field_id", array_merge( array( $p . 'wpcap_participant_fields' ), $type_ids ) ), ARRAY_A ) as $field ) {
+				$type_id = (int) $field['ticket_type_id'];
+				unset( $field['ticket_type_id'] );
+				$fields[ $type_id ][] = $field;
+			}
+		}
+		$legal = array(
+			'require_terms' => (bool) Settings::get( 'require_terms' ),
+			'terms_text' => (string) Settings::get( 'terms_text' ),
+			'consumer_info_text' => (string) Settings::get( 'consumer_info_text' ),
+		);
+		return DisplayBatch::run( $type_ids, static function () use ( $rows, $translations, $types_by_occ, $fields, $legal, $now ) {
+			$providers_by_currency = array();
+			ob_start();
+			?>
+			<div class="wpcap-events">
+				<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
+				<?php foreach ( $rows as $event ) :
+					$translation = $translations[ (int) $event->event_id ] ?? null;
+					if ( $translation ) {
+						$event->name = $translation->name;
+						$event->description = $translation->description;
+						$event->location = $translation->location ?: $event->location;
+					}
+					$types = $types_by_occ[ (int) $event->occurrence_id ] ?? array();
+					if ( ! $types ) { continue; }
+					$occurrence = DisplayBatch::occurrence( $event->occurrence_id );
+					foreach ( $types as $type ) {
+						// Effective server-side price (e.g. series price tiers); the checkout charges the same.
+						$type->base_price_minor = (int) $type->price_minor;
+						$type->price_label = Orders::price_label( $type, $occurrence, array( 'now' => $now ) );
+						// Buyer-visible reason for an automatic price (Sales\PriceRules), e.g. "Frühbucherpreis: gilt bei Buchung bis …".
+						$type->price_explanation = Sales\PriceRules::explanation_for( $type, $occurrence, array( 'now' => $now ) );
+						$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
+						$type->available = Orders::availability( $type->ticket_type_id );
+						$type->fields = $fields[ (int) $type->ticket_type_id ] ?? array();
+					}
+					$currency = (string) $types[0]->currency;
+					if ( ! isset( $providers_by_currency[ $currency ] ) ) { $providers_by_currency[ $currency ] = Payments\Registry::enabled( $currency ); }
+					$providers = $providers_by_currency[ $currency ];
+					$template = locate_template( 'wp-pass-captain/event-card.php' );
+					if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
+					ob_start();
+					include $template;
+					$card_html = ob_get_clean();
+					echo apply_filters( 'wp_pass_captain_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
+				endforeach; ?>
+			</div>
+			<?php
+			return ob_get_clean();
+		} );
+	}
+
+	/**
+	 * Event translations for a locale in one query.
+	 *
+	 * @param int[]  $event_ids Event ids.
+	 * @param string $locale    Locale, e.g. de_DE.
+	 * @return object[] event_id => {name, description, location}
+	 */
+	public static function translations( array $event_ids, $locale ) {
+		global $wpdb;
+		$out = array();
+		if ( ! $event_ids ) { return $out; }
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT event_id,name,description,location FROM %i WHERE event_id IN (' . DisplayBatch::placeholders( $event_ids ) . ') AND locale=%s', array_merge( array( $wpdb->prefix . 'wpcap_event_translations' ), array_map( 'absint', $event_ids ), array( (string) $locale ) ) ) ) as $row ) {
+			$out[ (int) $row->event_id ] = $row;
+		}
+		return $out;
 	}
 
 	public static function render_scanner_shortcode() {
