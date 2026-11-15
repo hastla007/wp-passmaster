@@ -69,7 +69,9 @@ Audit-Log: `partner_key_created`, `partner_key_revoked` und `partner_key_auth_fa
 `reason` = `missing`, `malformed`, `invalid`, `revoked`, `expired`, `partner_inactive`,
 `ip_not_allowed`, `scope_missing`, `rate_limited` (höchstens einmal pro Minute und Key),
 `event_not_allowed`, `event_restricted_settlements`. Protokolliert werden Key-ID, Veranstalter, Route und
-die gekürzte Client-Adresse (IPv4 /24, IPv6 /48) – nie das Secret.
+die gekürzte Client-Adresse (IPv4 /24, IPv6 /48) – nie das Secret. Abrufe von `orders` und `tickets` mit
+E-Mail-Adressen (Scope `attendees:read`) erzeugen `partner_api_pii_read` (Key-ID, Route, Seite, Anzahl der
+Zeilen, keine Adressen; höchstens einmal je Key, Route und Seite pro Stunde).
 
 ## Authentifizierung
 
