@@ -1,12 +1,36 @@
 <?php
-/** Scoped, hashed API keys for read-only developer endpoints. */
+/** Scoped, hashed API keys for developer endpoints (core: read-only scopes; add-ons: own scopes, see Api\Auth). */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class DeveloperKeys {
-	/** Supported scopes. */
+	/** Scopes of the core (always available; add-ons add more with wp_pass_captain_api_scopes_v1). */
 	const SCOPES = array( 'events.read', 'reports.read' );
+
+	/** Filter for additional scopes of add-ons (scope => label). */
+	const SCOPES_FILTER = 'wp_pass_captain_api_scopes_v1';
+
+	/**
+	 * Every supported scope with its label: the core scopes plus valid add-on scopes
+	 * (`area.action`, lower case letters, digits, underscores; core scopes cannot be replaced).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function scopes() {
+		$core = array(
+			'events.read' => __( 'Event-Daten lesen (events.read)', 'pass-captain' ),
+			'reports.read' => __( 'Berichte lesen (reports.read)', 'pass-captain' ),
+		);
+		$extra = apply_filters( 'wp_pass_captain_api_scopes_v1', array() );
+		foreach ( is_array( $extra ) ? $extra : array() as $scope => $label ) {
+			$scope = (string) $scope;
+			if ( isset( $core[ $scope ] ) || ! preg_match( '/^[a-z][a-z0-9_]{0,40}\.[a-z][a-z0-9_]{0,40}$/', $scope ) ) { continue; }
+			$label = is_scalar( $label ) ? sanitize_text_field( (string) $label ) : '';
+			$core[ $scope ] = '' !== $label ? $label : $scope;
+		}
+		return $core;
+	}
 
 	/** Requests per minute and key when nothing else is configured. */
 	const DEFAULT_RATE_LIMIT = 600;
@@ -23,7 +47,7 @@ final class DeveloperKeys {
 	public static function issue( $event_id, array $scopes, $label = '', $expires_at = '', $rate_limit = self::DEFAULT_RATE_LIMIT ) {
 		global $wpdb;
 		$event_id = absint( $event_id );
-		$allowed = self::SCOPES;
+		$allowed = array_keys( self::scopes() );
 		$rate_limit = self::normalize_rate_limit( $rate_limit );
 		$scopes = array_values( array_unique( array_intersect( array_map( static function ( $scope ) { return trim( sanitize_text_field( $scope ) ); }, $scopes ), $allowed ) ) );
 		if ( ! $event_id || ! $scopes ) { return new \WP_Error( 'wpcap_api_key_invalid', __( 'Event und mindestens ein unterstützter Scope sind erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
@@ -36,24 +60,47 @@ final class DeveloperKeys {
 		return array( 'api_key_id' => $key_id, 'key' => $prefix . '.' . $secret, 'prefix' => $prefix, 'scopes' => $scopes, 'rate_limit' => $rate_limit, 'shown_once' => true );
 	}
 
+	/** Core routes: user id of the key, or false (any reason). See check() for the detailed variant. */
 	public static function authorize( \WP_REST_Request $request, $scope, $event_id ) {
+		$result = self::check( $request, $scope, $event_id );
+		return is_wp_error( $result ) ? false : (int) $result['user_id'];
+	}
+
+	/**
+	 * Validates the X-WPCAP-Key header of a request for a scope and an event: format, secret, revocation,
+	 * expiry, event binding, the key owner's access to the event, the scope and the per-key rate limit
+	 * (requests per minute, shared by all routes). Counts the request and updates last_used_at on success.
+	 *
+	 * @return array{api_key_id:int,user_id:int,event_id:int,scopes:string[],scope:string}|\WP_Error 401 missing/invalid/
+	 *         revoked/expired key, 403 wrong event/scope/no access, 429 rate limit (retry_after in seconds).
+	 */
+	public static function check( \WP_REST_Request $request, $scope, $event_id ) {
 		global $wpdb;
+		$denied = static function ( $code, $message, $status, array $data = array() ) {
+			return new \WP_Error( $code, $message, array_merge( array( 'status' => $status ), $data ) );
+		};
 		$provided = (string) $request->get_header( 'x-wpcap-key' );
+		if ( '' === $provided ) { return $denied( 'wpcap_api_key_missing', __( 'API-Key fehlt (Header X-WPCAP-Key).', 'pass-captain' ), 401 ); }
 		$parts = explode( '.', $provided, 2 );
-		if ( 2 !== count( $parts ) || ! preg_match( '/^[a-f0-9]{12}$/', $parts[0] ) || ! preg_match( '/^[a-f0-9]{64}$/', $parts[1] ) ) { return false; }
+		$invalid = $denied( 'wpcap_api_key_invalid', __( 'API-Key ist ungültig, widerrufen oder abgelaufen.', 'pass-captain' ), 401 );
+		if ( 2 !== count( $parts ) || ! preg_match( '/^[a-f0-9]{12}$/', $parts[0] ) || ! preg_match( '/^[a-f0-9]{64}$/', $parts[1] ) ) { return $invalid; }
 		$key = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_api_keys WHERE public_prefix=%s AND revoked_at IS NULL", $parts[0] ) );
-		if ( ! $key || ! hash_equals( $key->secret_hash, hash( 'sha256', $parts[1] ) ) || ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) || (int) $key->event_id !== absint( $event_id ) ) { return false; }
+		if ( ! $key || ! hash_equals( $key->secret_hash, hash( 'sha256', $parts[1] ) ) || ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) ) { return $invalid; }
+		$event_id = absint( $event_id );
+		if ( (int) $key->event_id !== $event_id ) { return $denied( 'wpcap_api_key_event', __( 'Dieser API-Key gilt nicht für dieses Event.', 'pass-captain' ), 403 ); }
 		$user_id = (int) $key->user_id;
-		if ( ! user_can( $user_id, 'manage_options' ) && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id=%d AND user_id=%d AND capability IN ('wpcap_manage_events','wpcap_view_reports') LIMIT 1", $event_id, $user_id ) ) ) { return false; }
+		if ( ! user_can( $user_id, 'manage_options' ) && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id=%d AND user_id=%d AND capability IN ('wpcap_manage_events','wpcap_view_reports') LIMIT 1", $event_id, $user_id ) ) ) {
+			return $denied( 'wpcap_api_key_event', __( 'Dieser API-Key gilt nicht für dieses Event.', 'pass-captain' ), 403 );
+		}
 		$scopes = json_decode( $key->scopes, true );
-		if ( ! is_array( $scopes ) || ! in_array( $scope, $scopes, true ) ) { return false; }
+		if ( ! is_array( $scopes ) || ! in_array( (string) $scope, $scopes, true ) ) { return $denied( 'wpcap_api_key_scope', __( 'Dem API-Key fehlt die nötige Berechtigung (Scope).', 'pass-captain' ), 403, array( 'scope' => (string) $scope ) ); }
 		$rate_key = 'wpcap_api_rate_' . (int) $key->api_key_id . '_' . gmdate( 'YmdHi' );
 		$rate = (int) get_transient( $rate_key );
 		$limit = isset( $key->rate_limit ) && (int) $key->rate_limit > 0 ? (int) $key->rate_limit : self::DEFAULT_RATE_LIMIT;
-		if ( $rate >= $limit ) { return false; }
+		if ( $rate >= $limit ) { return $denied( 'wpcap_api_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte später erneut versuchen.', 'pass-captain' ), 429, array( 'retry_after' => max( 1, 60 - (int) gmdate( 's' ) ) ) ); }
 		set_transient( $rate_key, $rate + 1, MINUTE_IN_SECONDS );
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
-		return (int) $key->user_id;
+		return array( 'api_key_id' => (int) $key->api_key_id, 'user_id' => $user_id, 'event_id' => $event_id, 'scopes' => array_values( array_map( 'strval', $scopes ) ), 'scope' => (string) $scope );
 	}
 
 	/** Changes the per-key rate limit (owner or administrator). */

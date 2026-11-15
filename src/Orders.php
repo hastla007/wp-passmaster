@@ -71,6 +71,12 @@ final class Orders {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 		}
+		// Add-on gate (e.g. virtual waiting room) for public checkouts only: not for channels with their own
+		// namespace (box office, waitlist offers) or trusted adapters (WooCommerce, vouchers). Sales\CheckoutGate.
+		if ( ! $external && '' === $namespace ) {
+			$gate = Sales\CheckoutGate::check( array( 'source' => $internal['source'] ?? 'native', 'phase' => 'checkout', 'items' => $clean_lines, 'email' => $email, 'idempotency_key' => $key, 'request' => $internal['request'] ?? null ) );
+			if ( is_wp_error( $gate ) ) { return $gate; }
+		}
 		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array() );
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
 		// Buyer billing data (company/address/VAT ID). Trusted adapters (e.g. WooCommerce) pass data that

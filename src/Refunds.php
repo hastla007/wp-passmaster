@@ -731,7 +731,13 @@ final class Refunds {
 			'credit_note' => static function () use ( $credit_note ) { return Mail\Types::credit_note( $credit_note ); },
 			'reason' => (string) ( $refund['reason'] ?? '' ),
 		);
-		Mail\Mailer::send( 'refund_confirmation', $order->customer_email, $vars, array(), (string) ( $order->locale ?? '' ) );
+		// Add-on attachments for the correction document (wp_pass_captain_invoice_mail_attachments_v1); temporary files.
+		$attachments = Api\Invoices::correction_mail_attachments( $refund_id, (int) $order->order_id );
+		try {
+			Mail\Mailer::send( 'refund_confirmation', $order->customer_email, $vars, $attachments, (string) ( $order->locale ?? '' ) );
+		} finally {
+			foreach ( $attachments as $file ) { wp_delete_file( $file ); }
+		}
 	}
 
 	/**

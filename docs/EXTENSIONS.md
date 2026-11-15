@@ -49,6 +49,11 @@ Grundsätze für Add-ons:
 | Berichte | `wp_pass_captain_report_data_v1`, `wp_pass_captain_report_metrics_v1`, `wp_pass_captain_report_tabs_v1` | Versionierte Filter | `src/Reports/Data.php`, `src/Reports/Page.php` |
 | Exporte | `wp_pass_captain_export_rows_v1` (Spalten/Zeilen), `wp_pass_captain_export_types_v1` (weitere Exporte) | Versionierte Filter | `src/Reports/Exports.php`, `src/Invoices.php` |
 | Protokoll | `wpcap_log` (Action), `wpcap_log_to_error_log` | Action/Filter | `src/Log.php` |
+| Admin-Menü fertig (Add-on-Seiten) | `wp_pass_captain_admin_menu_built_v1` | Versionierte Action | `src/Admin/Menu.php` |
+| Rechnungen, Korrekturen, Abrechnungen | `wp_pass_captain_invoice_created_v1`, `PassCaptain\Api\Invoices::get()` / `wpcap_get_invoice()`, `wp_pass_captain_invoice_mail_attachments_v1`, `wp_pass_captain_invoice_links_v1` | Action, Lese-API, Filter | `src/Api/Invoices.php` |
+| White Label | `wp_pass_captain_brand_name_v1`, `wp_pass_captain_brand_logo_v1`, `wp_pass_captain_admin_menu_title_v1`, `wp_pass_captain_admin_menu_icon_v1` | Versionierte Filter | `src/Brand.php` |
+| Zugangsschranke vor dem Kauf (Warteraum) | `wp_pass_captain_checkout_allowed_v1` | Versionierter Filter | `src/Sales/CheckoutGate.php`, `src/Integrations/WooCommerce/CheckoutGate.php` |
+| API-Scopes für eigene REST-Routen | `wp_pass_captain_api_scopes_v1`, `PassCaptain\Api\Auth::request_can()` / `wpcap_api_request_can()` | Filter + Prüf-API | `src/DeveloperKeys.php`, `src/Api/Auth.php` |
 
 ## Module: Admin-Navigation, Einstellungen, Tabellen
 
@@ -299,6 +304,174 @@ add_filter( 'wp_pass_captain_export_types_v1', static function ( array $types ) 
 Alle CSV-Zellen laufen bei der Ausgabe durch den Formelschutz (`Reports\Scope::csv_cell()`).
 `PassCaptain\Reports\Data` und `PassCaptain\Reports\Scope` selbst bleiben interne Klassen ohne Versionszusage;
 Add-ons verwenden die Filter.
+
+## Pass Captain Pro / Add-on-Schnittstellen
+
+Andockpunkte für das Premium-Add-on „Pass Captain Pro“ (eigenes Repository). Der Kern implementiert die
+Premiumfunktionen **nicht** (keine E-Rechnung, kein Warteraum, kein White Label, keine schreibenden API-Routen) –
+nur stabile, getestete Schnittstellen (`tests/integration/modules/zzzzz_x5_addon_hooks.php`). Ohne Callbacks
+verhält sich der Kern unverändert. Alle Hooks: [HOOKS.md](HOOKS.md).
+
+| Vorgeschlagener Name | Umsetzung im Kern |
+|---|---|
+| `wp_pass_captain_admin_menu_built_v1( $parent_slug )` | unverändert übernommen |
+| `…_invoice_created_v1( $invoice_id, $type )` | `wp_pass_captain_invoice_created_v1( int $id, string $type, array $context )` |
+| `PassCaptain\Api\Invoices::get( $id )`, `wpcap_get_invoice( $id )` | beide, mit optionalem zweitem Argument `$type` (`invoice`, `correction`, `settlement`) |
+| `…_invoice_mail_attachments_v1` | `wp_pass_captain_invoice_mail_attachments_v1( array $files, int $id, string $type, array $context )` |
+| `…_invoice_links_v1` | `wp_pass_captain_invoice_links_v1( array $links, int $id, string $type, array $context )` |
+| `…_brand_name_v1`, `…_brand_logo_v1` | `wp_pass_captain_brand_name_v1( $name, $context )`, `wp_pass_captain_brand_logo_v1( $url, $context )` |
+| Filter für Titel und Icon des Admin-Menüs | `wp_pass_captain_admin_menu_title_v1`, `wp_pass_captain_admin_menu_icon_v1` |
+| `…_checkout_allowed_v1( true, $context )` | `wp_pass_captain_checkout_allowed_v1( true, array $context )` |
+| `…_api_scopes_v1` | `wp_pass_captain_api_scopes_v1( array $scopes )` |
+| `PassCaptain\Api\Auth::request_can( $r, $scope )`, `wpcap_api_request_can()` | beide, mit optionalem drittem Argument `$event_id` |
+
+### Admin-Menü
+
+```php
+add_action( 'wp_pass_captain_admin_menu_built_v1', static function ( string $parent_slug ) {
+	add_submenu_page( $parent_slug, __( 'Pro', 'pc-pro' ), __( 'Pro', 'pc-pro' ), 'manage_options', 'pcpro-dashboard', array( \PcPro\Dashboard::class, 'render' ) );
+} );
+```
+
+Feuert am Ende des Kernmenüs (Hook `admin_menu`) mit dem Slug `wp-pass-captain`, unabhängig von Modulen; die
+Seiten stehen nach „Einstellungen“. Wer seine Seite vor „Einstellungen“ braucht, nutzt weiterhin
+`wp_pass_captain_admin_menu_v1` (siehe oben).
+
+### Rechnungen: Ereignis, Lese-API, Anhänge, Links (E-Rechnung XRechnung/ZUGFeRD)
+
+```php
+// Nach jedem neuen Beleg (Commit erfolgt): z. B. XRechnung erzeugen und ablegen.
+add_action( 'wp_pass_captain_invoice_created_v1', static function ( int $id, string $type, array $context ) {
+	$doc = PassCaptain\Api\Invoices::get( $id, $type ); // oder wpcap_get_invoice( $id, $type )
+	if ( $doc ) { \PcPro\EInvoice::store( $doc ); }
+}, 10, 3 );
+
+// XML an die Ticket-Mail (Rechnung) bzw. die Erstattungsbestätigung (Rechnungskorrektur) anhängen.
+add_filter( 'wp_pass_captain_invoice_mail_attachments_v1', static function ( array $files, int $id, string $type, array $context ) {
+	$file = PassCaptain\Api\Invoices::temp_file( 'xrechnung-' . $id . '.xml', \PcPro\EInvoice::xml( $id, $type ) );
+	if ( '' !== $file ) { $files[] = $file; }
+	return $files;
+}, 10, 4 );
+
+// Download-Link neben „Rechnung anzeigen“ (Admin, Rechnungsansicht, Bestellportal, Abrechnung).
+add_filter( 'wp_pass_captain_invoice_links_v1', static function ( array $links, int $id, string $type, array $context ) {
+	$args = array( 'pcpro_xml' => $id, 'type' => $type );
+	if ( 'customer' === $context['audience'] ) {
+		$args += array( 'order' => $context['order_public_id'], 'access' => $context['access_token'] ); // Prüfung: Api\Invoices::for_order_access()
+	}
+	$links[] = array( 'label' => __( 'E-Rechnung (XML)', 'pc-pro' ), 'url' => add_query_arg( $args, home_url( '/' ) ), 'download' => true );
+	return $links;
+}, 10, 4 );
+```
+
+Belegarten: `invoice` (Kundenrechnung, ID = `invoice_id`), `correction` (Rechnungskorrektur zu einer Erstattung,
+ID = `credit_note_id`), `settlement` (abgeschlossene Veranstalter-Abrechnung, ID = `settlement_id`; Entwürfe sind
+keine Belege, `get()` liefert `null`). Der Download-Handler des Add-ons prüft selbst: im Admin mit
+`Api\Invoices::current_user_can_view( $id, $type )`, beim Käufer mit `Api\Invoices::for_order_access( $public_id, $token )`
+(liefert die Rechnungs-ID oder 0).
+
+Anhänge sind **temporäre Dateien**: Der Kern löscht sie nach dem Versand (`temp_file()` legt sie in einem nicht
+erratbaren privaten Verzeichnis an, das spätestens am Ende der Anfrage entfernt wird). Ticket-Mails tragen
+Add-on-Anhänge nur, wenn die Bestellung beim Versand bereits eine Rechnung hat (mit „Rechnung automatisch erstellen“
+bei bezahlten Bestellungen immer). Fehlerhafte Callbacks von `…_invoice_created_v1` werden protokolliert und brechen
+die Belegerstellung nicht ab.
+
+`Api\Invoices::get()` liefert (Vertragsversion 1; neue Schlüssel können hinzukommen, bestehende ändern sich nicht):
+
+| Schlüssel | Inhalt |
+|---|---|
+| `version`, `id`, `type`, `number`, `status` | `1`, Beleg-ID, Belegart, Belegnummer, `issued` bzw. `finalized`/`paid` |
+| `date`, `issued_at` | Belegdatum `Y-m-d` (Website-Zeitzone), Zeitpunkt ISO 8601 UTC |
+| `currency`, `currency_decimals` | ISO-Code, Nachkommastellen (alle Beträge sind Ganzzahlen in Kleinsteinheiten, z. B. Cent) |
+| `seller`, `buyer` (, `agent`) | Partei: `name`, `company`, `address_lines[]`, `street`, `postcode`, `city`, `country`, `vat_id`, `tax_number`, `email`, `small_business`. Der Rechnungssteller hat eine Freitext-Anschrift (nur `address_lines`); der Käufer die strukturierten Rechnungsangaben. `agent` = Plattform bei Vermittler-Rechnungen (sonst `null`). |
+| `lines[]` | `position`, `description`, `quantity`, `unit_gross_minor`, `discount_minor`, `net_minor`, `vat_rate` (Prozent, float), `vat_minor`, `gross_minor` |
+| `vat_breakdown[]` | je Steuersatz `vat_rate`, `net_minor`, `vat_minor`, `gross_minor` |
+| `totals` | `net_minor`, `vat_minor`, `gross_minor`, `discount_minor`, `voucher_payments_minor` (Mehrzweckgutscheine), `paid_minor`, `due_minor` |
+| `references` | `order_id`, `order_public_id`, `buyer_reference` (Bestell-/Referenznummer des Käufers, z. B. Leitweg-ID), `terms_version`; Korrektur zusätzlich `invoice_id`, `invoice_number`, `invoice_date`, `refund_id`, `reason`; Abrechnung `settlement_id`, `partner_id`, `period`, `payment_reference` |
+| `notes[]`, `sales_model` | Hinweise des Belegs (Kleinunternehmer, Vermittlung, Leistungsort, Reverse Charge), Verkaufsmodell |
+| `corrections[]` | (Rechnung) IDs der Rechnungskorrekturen |
+| `lines_allocated` | (Korrektur) `true`, wenn der Korrekturbetrag auf mehrere Steuersätze anteilig verteilt wurde |
+| `settlement` | (Abrechnung) `document_type`, `reverse_charge`, `ticket_revenue_gross_minor`, `ticket_revenue_vat_minor`, `payout_minor`, `self_billing` (Gutschrift bei Eigenhändler-Veranstaltern: `number`, `seller`, `buyer`, `vat_breakdown`, `totals`, `reverse_charge`, `small_business`, sonst `null`) |
+
+Korrekturen tragen negative Beträge; ihre Positionen sind je Steuersatz aus den erstatteten Tickets abgeleitet.
+Abrechnungen beschreiben die Rechnung über Plattformgebühren (Provision, Ticketgebühren) von der Plattform an den
+Veranstalter.
+
+### White Label
+
+```php
+add_filter( 'wp_pass_captain_brand_name_v1', static fn( string $name, string $context ) => 'Tixx', 10, 2 );
+add_filter( 'wp_pass_captain_brand_logo_v1', static fn( string $url, string $context ) => 'https://example.com/tixx.png', 10, 2 );
+add_filter( 'wp_pass_captain_admin_menu_icon_v1', static fn() => 'data:image/svg+xml;base64,' . base64_encode( $svg ) );
+```
+
+Wirkung: Admin-Hauptmenü (Titel und Icon, auch Netzwerk-Admin), alle übersetzten Texte der Textdomain mit
+„Pass Captain“ (Admin-Hinweise, Admin-Mails, Einstellungen, Systemstatus-Widget, Web-Scanner-Überschrift,
+Offline-Scanner-Texte – über die gettext-Filter, ohne geänderte Quelltexte), Datenschutz-Leitfaden, Offline-Scanner
+(Seitentitel, Logo in der Kopfzeile, Web-App-Manifest über `GET /app/offline/manifest`), Web-Scanner-Shortcode,
+Bestellportal und Ticketseite (Logo), PDF-Metadaten (Producer). Kunden-Mails nennen kein Produkt: Absendername und
+Fußzeile kommen aus dem Website-Titel bzw. dem Mail-Layout. Bereits vorhandene Filter für den Rest:
+
+| Ort | Filter / Einstellung |
+|---|---|
+| Absendername und Name in Kunden-Mails | `wpcap_sender_name` |
+| Mail-Layout (Logo, Farbe, Fußzeile) | Einstellung „E-Mail-Vorlagen → HTML-Layout“, Filter `wpcap_mail_layout_html` |
+| Wallet-Pässe (Apple/Google) | Einstellung `wallet_organization_name`, `wpcap_wallet_apple_pass_json`, `wpcap_wallet_apple_images`, `wpcap_wallet_google_class`, `wpcap_wallet_google_object` |
+
+Nicht umbenannt werden technische Kennungen (Textdomain, Menü-Slug `wp-pass-captain`, REST-Namensraum, iCalendar-PRODID,
+WP-CLI-Befehle, Fehlerprotokoll-Präfix) und die mitgelieferten Icons des Offline-Scanners. Ein Logo im Offline-Scanner
+muss von derselben Herkunft kommen (CSP `img-src 'self'`).
+
+### Zugangsschranke vor dem Kauf (virtueller Warteraum)
+
+```php
+add_filter( 'wp_pass_captain_checkout_allowed_v1', static function ( $allowed, array $context ) {
+	if ( true !== $allowed || ! \PcPro\WaitingRoom::active_for( $context['occurrence_ids'] ) ) { return $allowed; }
+	if ( \PcPro\WaitingRoom::admitted( $context['request'] ) ) { return true; }
+	return new WP_Error( 'pcpro_waiting_room', __( 'Du bist in der Warteschlange – bitte gleich erneut versuchen.', 'pc-pro' ), array( 'status' => 429, 'retry_after' => 30 ) );
+}, 10, 2 );
+```
+
+Gefragt wird bei: nativem Checkout (REST `POST /checkout` und jedem öffentlichen `Orders::create()`), Kunden-
+Servicebuchungen (`POST /service-slots/{id}/bookings`, Buchungen mit Mitgliedspass), WooCommerce „In den Warenkorb“
+(klassisch und Store API), Absenden des klassischen Woo-Checkouts und Store-API-Checkout (vor der Reservierung).
+**Nicht** gefragt bei Kasse/Box Office, Admin-Aktionen, Wartelisten-Angeboten (das Kontingent ist schon reserviert),
+Gutschein-Umwandlung, WooCommerce-Bestellverarbeitung nach dem Checkout (Zahlung, Statuswechsel, im Admin angelegte
+Bestellungen) und Wiederholungen bereits angelegter Bestellungen (gleicher Idempotency-Key). Der Fehler erreicht den
+Käufer mit Status (Standard 503) und Meldung; `retry_after` wird bei REST-Antworten zum Header `Retry-After`.
+Exceptions des Callbacks lassen den Kauf durch (fail open) – ein ausgefallenes Add-on blockiert keinen Verkauf.
+Kontext-Schlüssel siehe [HOOKS.md](HOOKS.md).
+
+### Eigene API-Scopes und Prüfung von Entwickler-API-Keys
+
+```php
+add_filter( 'wp_pass_captain_api_scopes_v1', static function ( array $scopes ) {
+	$scopes['orders.write'] = __( 'Bestellungen anlegen (orders.write)', 'pc-pro' );
+	return $scopes;
+} );
+
+add_action( 'rest_api_init', static function () {
+	register_rest_route( 'pc-pro/v1', '/events/(?P<event_id>\d+)/orders', array(
+		'methods'             => 'POST',
+		'callback'            => array( \PcPro\Api::class, 'create_order' ),
+		// Pflicht: eigene permission_callback; prüft Key, Scope, Event, Ablauf/Widerruf und Ratenlimit wie die Kernrouten.
+		'permission_callback' => static fn( WP_REST_Request $r ) => PassCaptain\Api\Auth::request_can( $r, 'orders.write' ),
+	) );
+} );
+```
+
+`request_can( $request, $scope, $event_id = null )` liefert `true` oder einen `WP_Error`: 400 ohne Event
+(`$event_id` oder Parameter `event_id`), 401 fehlender/ungültiger/widerrufener/abgelaufener Key, 403 anderes Event,
+fehlender oder unbekannter Scope bzw. kein Zugriff der Key-Inhaberin auf das Event, 429 Ratenlimit (je Key und
+Minute gemeinsam mit den Kernrouten; `retry_after` und Header `Retry-After`). Danach liefert
+`Auth::key_for( $request )` den Key (`api_key_id`, `user_id` der Inhaberin, `event_id`, `scopes`) – z. B. für
+eigene Rechteprüfungen. Neue Scopes erscheinen auf der Seite „Entwickler-API-Keys“; entfernt das Add-on einen Scope,
+gelten Keys dafür nicht mehr.
+
+### Geplant
+
+- **Kartenterminals an der Kasse (Box Office):** Andockpunkt für Terminal-Zahlungen folgt nach der Integration der
+  Fiskalisierung; bis dahin keine Schnittstelle.
 
 ## WP Affiliate Captain
 
