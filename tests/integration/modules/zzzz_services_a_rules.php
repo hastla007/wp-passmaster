@@ -54,7 +54,7 @@ function svc_slot( $resource_id, $hours, $minutes = 60, $capacity = 0 ) {
 	$start = (int) ( floor( ( time() + (int) round( $hours * 3600 ) ) / 60 ) * 60 );
 	return ServiceResources::create_slot( $resource_id, gmdate( 'Y-m-d H:i:s', $start ), gmdate( 'Y-m-d H:i:s', $start + $minutes * 60 ), $capacity );
 }
-function svc_reset_limits() { $GLOBALS['wpcap_test_transients'] = array(); }
+function svc_reset_limits() { wpcap_test_reset_transients(); }
 function svc_book( $slot_id, $email, $qty = 1, array $args = array(), $order_id = 0 ) {
 	svc_reset_limits();
 	return ServiceBookings::reserve( $slot_id, $email, $qty, $order_id, 10, 'svc-' . uniqid( '', true ), $args );

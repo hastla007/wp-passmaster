@@ -148,12 +148,11 @@ final class Adapter {
 
 	/** Rejects unknown codes; at most 10 wrong codes per hour and client (code guessing). */
 	private static function check_code( $code ) {
-		$client = class_exists( '\PassCaptain\RateLimit' ) ? \PassCaptain\RateLimit::client() : sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+		$client = \PassCaptain\RateLimit::client();
 		$key    = 'wpcap_partner_fail_' . hash( 'sha256', $client . '|' . wp_salt( 'nonce' ) );
-		$fails  = (int) get_transient( $key );
-		if ( $fails >= 10 ) { throw new \RuntimeException( 'partner_code_rate_limited' ); }
+		if ( \PassCaptain\RateLimit::count( $key ) >= 10 ) { throw new \RuntimeException( 'partner_code_rate_limited' ); }
 		if ( ! function_exists( 'wpac_resolve_partner_code' ) || ! wpac_resolve_partner_code( $code, array( 'context' => 'code', 'source' => self::SOURCE ) ) ) {
-			set_transient( $key, $fails + 1, HOUR_IN_SECONDS );
+			\PassCaptain\RateLimit::hit( $key, 10, HOUR_IN_SECONDS ); // Counts failures only (atomic, QA-V2).
 			throw new \RuntimeException( 'partner_code_invalid' );
 		}
 	}

@@ -63,7 +63,7 @@ unset( $GLOBALS['wpcap_test_options']['date_format'], $GLOBALS['wpcap_test_optio
 
 echo "Phase 1 UX: checkout response with bank transfer details\n";
 Settings::update( array( 'bank_recipient' => 'Kulturverein Musterstadt', 'bank_iban' => 'at61 1904 3002 3457 3201', 'bank_bic' => 'bkauatww', 'manual_instructions' => '', 'enabled_providers' => array( 'manual' ), 'manual_hold_hours' => 48 ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $mail_offset = count( $GLOBALS['wpcap_test_mails'] );
 $type = make_type( 20, 10, 2500 );
 $res = Controller::checkout( p1u_request( array( 'email' => 'bank@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'manual', 'idempotency_key' => 'p1u-bank-' . uniqid() ) ) );
@@ -91,7 +91,7 @@ $no_iban = BankTransfer::details( Orders::get( $data['order_id'] ) );
 check( 'without IBAN no bank rows (recipient/BIC) are shown, reference and amount stay', '' === $no_iban['iban'] && '' === $no_iban['bic'] && '' === $no_iban['recipient'] && ! isset( BankTransfer::rows( $no_iban )['IBAN'] ) && isset( BankTransfer::rows( $no_iban )['Verwendungszweck'] ) );
 
 echo "Phase 1 UX: checkout errors carry the form field\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $err = Controller::checkout( p1u_request( array( 'email' => 'kaputt', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual' ) ) );
 check( 'invalid e-mail -> field "email"', is_wp_error( $err ) && 'email' === ( $err->get_error_data()['field'] ?? '' ) && 400 === $err->get_error_data()['status'] );
 $err = Controller::checkout( p1u_request( array( 'email' => 'code@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'campaign_codes' => array( 'GIBTSNICHT' ), 'provider' => 'manual', 'idempotency_key' => 'p1u-code-' . uniqid() ) ) );
@@ -105,7 +105,7 @@ $err = Controller::with_error_field( new WP_Error( 'wpcap_voucher_state', 'x', a
 check( 'voucher errors -> field "voucher_code"; unknown codes stay without field', 'voucher_code' === $err->get_error_data()['field'] && ! isset( Controller::with_error_field( new WP_Error( 'wpcap_db_busy', 'x', array( 'status' => 503 ) ) )->get_error_data()['field'] ) );
 
 echo "Phase 1 UX: portal resend route\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $paid_id = admin_paid_order( make_type( 20 ), 2, 'resend@example.com' );
 $paid = Orders::get( $paid_id );
 $token = p1u_access_token( $paid->public_id );
@@ -119,7 +119,7 @@ p1u_data( Controller::resend_tickets( p1u_request( array( 'access_token' => $tok
 p1u_data( Controller::resend_tickets( p1u_request( array( 'access_token' => $token ), array( 'public_id' => $paid->public_id ) ) ) );
 $limited = Controller::resend_tickets( p1u_request( array( 'access_token' => $token ), array( 'public_id' => $paid->public_id ) ) );
 check( 'at most 3 resends per order and hour (429 afterwards)', is_wp_error( $limited ) && 429 === $limited->get_error_data()['status'] && 'wpcap_resend_rate_limited' === $limited->get_error_code() );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $pending = Orders::create( array( 'email' => 'unpaid@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5 ), 'quantity' => 1 ) ), 'idempotency_key' => 'p1u-unpaid-' . uniqid() ) );
 $unpaid = Controller::resend_tickets( p1u_request( array( 'access_token' => p1u_access_token( $pending['public_id'] ) ), array( 'public_id' => $pending['public_id'] ) ) );
 check( 'unpaid order: resend refused with 409', is_wp_error( $unpaid ) && 409 === $unpaid->get_error_data()['status'] );

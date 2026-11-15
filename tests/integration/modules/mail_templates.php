@@ -35,7 +35,7 @@ $GLOBALS['wpmt_locale_calls'] = array();
 $GLOBALS['wpmt_locale_stack'] = array();
 function wpmt_mails_since( $offset, $to = null ) { return array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $offset ), static fn( $m ) => null === $to || $to === $m['to'] ) ); }
 function wpmt_free_order( $email, $qty = 1 ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$type = make_type( 10, 10, 0 );
 	return Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'wpmt-' . uniqid( '', true ) ) );
 }

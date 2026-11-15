@@ -323,19 +323,13 @@ final class Waitlists {
 		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$rate_error = new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		// Per address and event (case-insensitive, like email_hash), per IP and event, and per IP across all events.
-		$rate_key = 'wpcap_waitlist_' . RateLimit::hash( strtolower( $email ) . '|' . $event_id );
-		$attempts = (int) get_transient( $rate_key );
-		if ( $attempts >= 5 ) { return $rate_error; }
-		set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
+		// RateLimit::hit() counts atomically (QA-V2).
 		$ip = RateLimit::client_network(); // IPv6: per /64, address rotation does not reset the limit.
-		$ip_key = 'wpcap_waitlist_ip_' . RateLimit::hash( $ip . '|' . $event_id );
-		$ip_attempts = (int) get_transient( $ip_key );
-		if ( $ip_attempts >= 20 ) { return $rate_error; }
-		$global_key = 'wpcap_waitlist_ipall_' . RateLimit::hash( $ip );
-		$global_attempts = (int) get_transient( $global_key );
-		if ( $global_attempts >= self::ip_limit_per_hour() ) { return $rate_error; }
-		set_transient( $ip_key, $ip_attempts + 1, HOUR_IN_SECONDS );
-		set_transient( $global_key, $global_attempts + 1, HOUR_IN_SECONDS );
+		if ( ! RateLimit::hit( 'wpcap_waitlist_' . RateLimit::hash( strtolower( $email ) . '|' . $event_id ), 5, HOUR_IN_SECONDS )
+			|| ! RateLimit::hit( 'wpcap_waitlist_ip_' . RateLimit::hash( $ip . '|' . $event_id ), 20, HOUR_IN_SECONDS )
+			|| ! RateLimit::hit( 'wpcap_waitlist_ipall_' . RateLimit::hash( $ip ), self::ip_limit_per_hour(), HOUR_IN_SECONDS ) ) {
+			return $rate_error;
+		}
 		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences', $event_id, $occurrence_id ) );
 		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id FROM %i WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $wpdb->prefix . 'wpcap_ticket_types', $ticket_type_id, $occurrence_id ) );

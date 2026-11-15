@@ -71,7 +71,7 @@ function w9_type( $price = 0, $capacity = 50 ) {
 	return array( 'type' => $type, 'occ' => $occ, 'event' => (int) $wpdb->get_var( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=$occ" ) );
 }
 function w9_order( $type, $qty, $email, $paid = false ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$r = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'w9-' . uniqid( '', true ) ) );
 	if ( is_wp_error( $r ) ) { echo '    (order failed: ' . $r->get_error_message() . ")\n"; return 0; }
 	if ( $paid ) { Orders::confirm_manual_payment( $r['order_id'] ); }
@@ -104,7 +104,7 @@ check( 'audit: capability changes of plugin roles and new roles are recorded', i
 
 /* ------------------------------------------------------------------ 1b. Audit: read access (rate limited) */
 
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $reads_before = w9_audit_count( 'pii_read' );
 $first = AuditTrail::read( 'order_detail', 'order', 777 );
 $again = AuditTrail::read( 'order_detail', 'order', 777 );
@@ -114,13 +114,13 @@ $GLOBALS['wpcap_test_user_id'] = 0;
 check( 'read audit: anonymous (buyer token) reads are not staff reads', false === AuditTrail::read( 'order_detail', 'order', 779 ) );
 w9_admin();
 Settings::update( array( 'audit_read_limit_per_hour' => 10 ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $reads_before = w9_audit_count( 'pii_read' );
 $throttled_before = w9_audit_count( 'pii_read_throttled' );
 for ( $i = 0; $i < 25; $i++ ) { AuditTrail::read( 'ticket_search', 'event', 9000 + $i ); }
 check( 'read audit: at most N entries per person and hour, then one throttle marker (no explosion)', $reads_before + 10 === w9_audit_count( 'pii_read' ) && $throttled_before + 1 === w9_audit_count( 'pii_read_throttled' ) );
 Settings::update( array( 'audit_read_limit_per_hour' => 300 ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $rest_before = w9_audit_count( 'pii_read' );
 AuditTrail::on_rest_response( new WP_REST_Response( array( 'status' => 'valid' ) ), null, new W9_Request( 'POST', '/wp-pass-captain/v1/tickets/validate', array( 'occurrence_id' => 42 ) ) );
 AuditTrail::on_rest_response( new WP_REST_Response( array() ), null, new W9_Request( 'GET', '/wp-pass-captain/v1/events' ) );
@@ -236,7 +236,7 @@ w9_as( 9960, $personas['partner'] );
 $partner_csv = wp_json_encode( PassCaptain\Reports\Data::csv_rows( $report ) );
 check( 'minimisation: report CSV for partner role has ticket/admission figures but no amounts', false !== strpos( $full_csv, 'Brutto' ) && false === strpos( $partner_csv, 'Brutto' ) && false === strpos( $partner_csv, 'USt' ) && false !== strpos( $partner_csv, 'Eingecheckt' ) );
 $wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => $w9m['event'], 'user_id' => 9960, 'capability' => 'wpcap_view_reports' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $rr = new WP_REST_Request( 'GET', '/wp-pass-captain/v1/events/' . $w9m['event'] . '/reports/summary' );
 $rr->set_param( 'event_id', $w9m['event'] );
 $allowed = PassCaptain\Rest\Controller::report_permission( $rr );
@@ -250,7 +250,7 @@ $wpdb->query( "DELETE FROM {$p}wpcap_event_staff WHERE user_id=9960" );
 // Support: masked personal data with audited per-case unmask.
 $wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => $w9m['event'], 'user_id' => 9961, 'capability' => 'wpcap_manage_orders' ) );
 w9_as( 9961, $personas['support'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $masked_order = DataPolicy::order_view( $order_row );
 $masked_ticket = DataPolicy::ticket_view( $ticket_rows[0], $w9m_order );
 check( 'minimisation: support sees masked buyer/attendee data, no billing, no answers', DataPolicy::masks_pii( $w9m_order ) && 'b•••@e•••.com' === $masked_order->customer_email && null === $masked_order->billing && 'E. M•••' === $masked_ticket->attendee_name && false === strpos( wp_json_encode( $masked_ticket ), 'erika@' ) && array() === $masked_ticket->answers );
@@ -441,7 +441,7 @@ check( 'language: supported locales = source language plus shipped catalogues', 
 check( 'language: normalisation accepts de-DE/fr, rejects unsupported locales', 'fr_FR' === PassCaptain\Localization::normalize_buyer_locale( 'fr' ) && 'en_US' === PassCaptain\Localization::normalize_buyer_locale( 'en-US' ) && '' === PassCaptain\Localization::normalize_buyer_locale( 'xx_XX' ) && '' === PassCaptain\Localization::normalize_buyer_locale( array() ) );
 check( 'language: checkout accepts the locale field', in_array( 'locale', PassCaptain\Frontend\Language::payload_keys( array( 'email' ) ), true ) );
 $w9l = w9_type();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $fr = Orders::create( array( 'email' => 'fr@example.com', 'items' => array( array( 'ticket_type_id' => $w9l['type'], 'quantity' => 1 ) ), 'idempotency_key' => 'w9-lang-fr', 'locale' => 'fr_FR' ) );
 $xx = Orders::create( array( 'email' => 'xx@example.com', 'items' => array( array( 'ticket_type_id' => $w9l['type'], 'quantity' => 1 ) ), 'idempotency_key' => 'w9-lang-xx', 'locale' => 'xx_XX' ) );
 check( 'language: chosen locale is stored on the order, unsupported falls back to the request locale', 'fr_FR' === Orders::get( $fr['order_id'] )->locale && 'de_DE' === Orders::get( $xx['order_id'] )->locale );

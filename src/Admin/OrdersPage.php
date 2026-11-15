@@ -234,6 +234,8 @@ final class OrdersPage {
 		$page = Forms::current_page();
 		$per_page = 20;
 		$data = Queries::search_orders( $filters, $scope, $page, $per_page );
+		// Masking decided once for the page (profile, policy, one unmask lookup), not per row (PERF-15).
+		$masked = DataPolicy::masks_pii_many( array_map( static fn( $row ) => (int) $row->order_id, $data['rows'] ) );
 		$events = Queries::event_options( $scope );
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ) );
 		$status_options = array( '' => __( 'Alle Bestellstatus', 'pass-captain' ) );
@@ -267,7 +269,7 @@ final class OrdersPage {
 				<tr>
 					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( substr( $order->public_id, 0, 12 ) ); ?>…</code></a></td>
 					<td><?php echo esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) ); ?></td>
-					<td><?php echo esc_html( DataPolicy::masks_pii( (int) $order->order_id ) ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?></td>
+					<td><?php echo esc_html( ! empty( $masked[ (int) $order->order_id ] ) ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
 					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td>

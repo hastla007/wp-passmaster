@@ -29,7 +29,7 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 function z1_event_of( $type ) {
 	global $wpdb;
@@ -118,7 +118,7 @@ check( 'SEC-5: before the 3.15.0 schema upgrade sign-ups keep the old behaviour'
 $z1_types = Z1MailTypes::all();
 check( 'SEC-5: confirmation mail templates are registered with their placeholders', isset( $z1_types['waitlist_confirm']['placeholders']['confirm_link'], $z1_types['service_waitlist_confirm']['placeholders']['confirm_link'] ) && false !== strpos( PassCaptain\Mail\Mailer::compose( 'waitlist_confirm', call_user_func( $z1_types['waitlist_confirm']['sample'] ) )['body'] ?? '', 'wpcap_waitlist_confirm=' ) );
 check( 'SEC-5: settings page offers the double opt-in switch', isset( PassCaptain\Security\Policy::sections( array() )['general']['fields']['waitlist_double_opt_in'] ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 /* ================================================================== SEC-5 slot waitlist */
 
@@ -226,7 +226,7 @@ $z1w_as_admin = static function () {
 };
 $z1w_post = $_POST;
 $z1w_as_shop_manager();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $z1w_p1 = new Z1_WC_Product( 9101 );
 $_POST = array( Z1Woo::PRODUCT_META => (string) $z1w_foreign );
 Z1Woo::save_product_field( $z1w_p1 );
@@ -243,7 +243,7 @@ check( 'SEC-V2: a link to a foreign event can neither be removed …', $z1w_fore
 $_POST = array( Z1Woo::PRODUCT_META => (string) $z1w_own );
 Z1Woo::save_product_field( $z1w_p2 );
 check( '… nor replaced', $z1w_foreign === (int) $z1w_p2->get_meta( Z1Woo::PRODUCT_META ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $_POST = array(); // Locked (disabled) select: nothing posted, nothing changes, no notice.
 Z1Woo::save_product_field( $z1w_p2 );
 check( 'SEC-V2: a locked field that posts nothing keeps the link without a notice', $z1w_foreign === (int) $z1w_p2->get_meta( Z1Woo::PRODUCT_META ) && false === get_transient( 'wpcap_admin_notices_' . $z1w_user ) );
@@ -279,4 +279,4 @@ Z1Woo::guard_product_link( $z1w_p6 );
 check( 'SEC-V2: administrators (manage_options) may link any ticket type', $z1w_own === (int) $z1w_p2->get_meta( Z1Woo::PRODUCT_META ) && $z1w_foreign === (int) $z1w_p6->get_meta( Z1Woo::PRODUCT_META ) );
 $_POST = $z1w_post;
 unset( $GLOBALS['product_object'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();

@@ -104,7 +104,7 @@ check( 'POS form input is parsed (quantities, names per line, tendered amount)',
 echo "Box office: shared quota with online sales\n";
 $type_c = make_type( 3, 10, 1500 );
 $occ_c = wpb_occurrence_of( $type_c );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $online = Orders::create( array( 'email' => 'online@example.com', 'items' => array( array( 'ticket_type_id' => $type_c, 'quantity' => 2 ) ), 'idempotency_key' => 'wpb-online-' . uniqid() ) );
 check( 'POS sees the online hold in live availability', 1 === Pos::ticket_types( $occ_c )[0]['available'] );
 $too_many = Pos::sell( array( 'occurrence_id' => $occ_c, 'quantities' => array( $type_c => 2 ), 'method' => 'cash', 'form_key' => wpb_key() ) );

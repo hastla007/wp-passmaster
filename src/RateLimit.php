@@ -1,5 +1,5 @@
 <?php
-/** Fixed-window rate limiter on transients (object-cache aware). */
+/** Fixed-window rate limiter: persistent object cache, otherwise an atomic counter table (wpcap_rate_limits). */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -15,30 +15,141 @@ final class RateLimit {
 	}
 
 	/**
-	 * Counts one hit on the transient counter $key; false once $limit hits were counted.
+	 * Counts one hit on the counter $key; false once $limit hits were counted within $ttl seconds.
 	 *
-	 * With a persistent object cache the counter is increased atomically (wp_cache_add() +
-	 * wp_cache_incr() in the "transient" group, where WordPress keeps transients in that case), so
-	 * parallel requests cannot all read the same old value and pass together. Without one, transients
-	 * live in the options table and the read-modify-write stays best effort (a burst of exactly
-	 * simultaneous requests can exceed the limit by a few hits). Hits over the limit are counted in
-	 * the atomic path; the window (TTL from the first hit) is not extended by them.
+	 * Every regular path counts atomically, so parallel requests cannot all read the same old value
+	 * and pass together (QA-V2):
+	 * - with a persistent object cache: wp_cache_add() + wp_cache_incr() in the "transient" group;
+	 * - otherwise: one row per bucket in the table wpcap_rate_limits, increased by a single
+	 *   INSERT … ON DUPLICATE KEY UPDATE (the row lock serialises parallel hits). The bucket is the
+	 *   keyed hash of $key (hash()), so client addresses are not stored. An expired row restarts at
+	 *   1; expired rows are deleted in batches by the daily retention run (PERF-16: no options row
+	 *   per client and no transient garbage).
+	 * Only while the table does not exist yet (before the schema upgrade ran) is the transient
+	 * read-modify-write used as a best-effort fallback. In the table the counter stops at
+	 * $limit + 1 (refused hits do not pile up, so a raised limit applies at once, as with the
+	 * transient); the object cache counts every hit. The window (TTL from the first hit) is never
+	 * extended by further hits.
 	 *
-	 * @param string $key   Transient name (at most 172 characters).
+	 * @param string $key   Counter name (any string; at most 172 characters for the fallback).
 	 * @param int    $limit Allowed hits per TTL.
 	 * @param int    $ttl   Lifetime in seconds.
 	 */
 	public static function hit( $key, $limit, $ttl ) {
 		$ttl = max( 1, (int) $ttl );
-		if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_incr' ) ) {
+		if ( self::object_cache() ) {
 			wp_cache_add( $key, 0, 'transient', $ttl );
 			$count = wp_cache_incr( $key, 1, 'transient' );
 			if ( false !== $count ) { return (int) $count <= (int) $limit; }
 		}
+		$count = self::db_hit( (string) $key, (int) $limit, $ttl );
+		if ( null !== $count ) { return $count <= (int) $limit; }
 		$count = (int) get_transient( $key );
 		if ( $count >= (int) $limit ) { return false; }
 		set_transient( $key, $count + 1, $ttl );
 		return true;
+	}
+
+	/**
+	 * Hits counted on $key in its current window, without counting one (0 when none or expired).
+	 * For limits that only count failures: check count() first, call hit() on a failure.
+	 */
+	public static function count( $key ) {
+		global $wpdb;
+		if ( self::object_cache() ) {
+			$value = wp_cache_get( $key, 'transient' );
+			return false === $value ? 0 : (int) $value;
+		}
+		if ( self::has_db() ) {
+			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+			$hits = $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
+			$failed = '' !== (string) $wpdb->last_error;
+			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
+			if ( ! $failed ) { return (int) $hits; }
+		}
+		return (int) get_transient( $key );
+	}
+
+	/** Rate-limit table of the current site. */
+	public static function table() {
+		global $wpdb;
+		return $wpdb->prefix . 'wpcap_rate_limits';
+	}
+
+	/**
+	 * Table definition (dbDelta format), created by the Installer. bucket_key is hash() of the
+	 * counter name (HMAC-SHA256, 64 hex characters).
+	 *
+	 * @param string $table   Table name with prefix.
+	 * @param string $charset Charset/collation clause.
+	 */
+	public static function schema( $table, $charset ) {
+		return "CREATE TABLE $table (
+				bucket_key char(64) NOT NULL,
+				window_start datetime NOT NULL,
+				hits int(10) unsigned NOT NULL DEFAULT 0,
+				expires_at datetime NOT NULL,
+				PRIMARY KEY  (bucket_key),
+				KEY expires_at (expires_at)
+			) ENGINE=InnoDB $charset;";
+	}
+
+	/**
+	 * Deletes expired counters in batches (daily retention run); returns the number of rows deleted.
+	 *
+	 * @param int|null   $now      Reference time (UNIX, tests).
+	 * @param float|null $deadline microtime() after which no further batch starts.
+	 * @param int        $batch    Rows per DELETE.
+	 */
+	public static function purge_expired( $now = null, $deadline = null, $batch = 5000 ) {
+		global $wpdb;
+		if ( ! self::has_db() ) { return 0; }
+		$cutoff = gmdate( 'Y-m-d H:i:s', null === $now ? time() : (int) $now );
+		$deadline = null === $deadline ? microtime( true ) + 10.0 : (float) $deadline;
+		$batch = max( 1, (int) $batch );
+		$total = 0;
+		do {
+			$deleted = $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE expires_at<=%s LIMIT %d', self::table(), $cutoff, $batch ) );
+			if ( false === $deleted ) { break; }
+			$total += (int) $deleted;
+		} while ( (int) $deleted >= $batch && microtime( true ) < $deadline );
+		return $total;
+	}
+
+	/**
+	 * Atomic hit in wpcap_rate_limits; returns the count after this hit (exact for this request), or
+	 * null when the table is not usable. Portable between MariaDB and MySQL 8: no VALUES() in the UPDATE part (deprecated
+	 * since MySQL 8.0.20) and no row alias (not supported by MariaDB) – the new values are passed
+	 * again as parameters. Assignments run left to right: hits and window_start still see the old
+	 * expires_at, which is updated last.
+	 */
+	private static function db_hit( $key, $limit, $ttl ) {
+		global $wpdb;
+		if ( ! self::has_db() ) { return null; }
+		$now = time();
+		$start = gmdate( 'Y-m-d H:i:s', $now );
+		$expires = gmdate( 'Y-m-d H:i:s', $now + $ttl );
+		$bucket = self::hash( $key );
+		$table = self::table();
+		$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+		// LAST_INSERT_ID(expr) hands the value this statement wrote back to this connection only, so
+		// the count is exact per request even when parallel requests hit the same row (a separate
+		// SELECT could already see their hits and reject more than necessary).
+		$ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (bucket_key, window_start, hits, expires_at) VALUES (%s, %s, LAST_INSERT_ID(1), %s) ON DUPLICATE KEY UPDATE hits = LAST_INSERT_ID(IF(expires_at<=%s, 1, LEAST(hits, %d) + 1)), window_start = IF(expires_at<=%s, %s, window_start), expires_at = IF(expires_at<=%s, %s, expires_at)', $table, $bucket, $start, $expires, $start, max( 0, $limit ), $start, $start, $start, $expires ) );
+		$hits = false === $ok ? null : $wpdb->get_var( 'SELECT LAST_INSERT_ID()' );
+		if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
+		return null === $hits ? null : (int) $hits;
+	}
+
+	/** Whether a database connection with a table prefix is available. */
+	private static function has_db() {
+		global $wpdb;
+		return isset( $wpdb ) && is_object( $wpdb ) && ! empty( $wpdb->prefix );
+	}
+
+	/** Whether a persistent object cache with atomic increments is in use. */
+	private static function object_cache() {
+		return function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_incr' );
 	}
 
 	/** Anonymised client key (keyed hash of the client address, site-specific secret). */

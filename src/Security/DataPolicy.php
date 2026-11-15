@@ -68,12 +68,57 @@ final class DataPolicy {
 		return ! ( $order_id && self::is_unmasked( $order_id ) );
 	}
 
-	private static function unmask_key( $order_id ) {
-		return 'wpcap_unmask_' . get_current_user_id() . '_' . absint( $order_id );
+	/**
+	 * Whether personal data is masked per order, for a list of orders (PERF-15): the profile and the
+	 * policy are checked once and all unmasks come from one memoised lookup, instead of both per row.
+	 *
+	 * @param int[] $order_ids Orders.
+	 * @return array<int,bool> order_id => masked.
+	 */
+	public static function masks_pii_many( array $order_ids ) {
+		$active = self::masks_pii();
+		$unmasked = $active ? self::unmasked_orders() : array();
+		$out = array();
+		foreach ( $order_ids as $order_id ) {
+			$out[ (int) $order_id ] = $active && ! isset( $unmasked[ (int) $order_id ] );
+		}
+		return $out;
+	}
+
+	/** Per-request copy of the unmask lists (user_id => order_id => UNIX expiry), PERF-15. */
+	private static $unmasked = array();
+
+	/**
+	 * One transient per user holds all unmasked orders with their expiry, so a list needs a single
+	 * lookup per request instead of one transient read per row (PERF-15).
+	 */
+	private static function unmask_key() {
+		return 'wpcap_unmask_' . get_current_user_id();
+	}
+
+	/** Unexpired unmasks of the current user: order_id => UNIX expiry (memoised per request). */
+	private static function unmasked_orders() {
+		$user_id = get_current_user_id();
+		if ( ! isset( self::$unmasked[ $user_id ] ) ) {
+			$list = get_transient( self::unmask_key() );
+			self::$unmasked[ $user_id ] = is_array( $list ) ? array_map( 'intval', $list ) : array();
+		}
+		$now = time();
+		return array_filter(
+			self::$unmasked[ $user_id ],
+			static function ( $expires ) use ( $now ) {
+				return $expires > $now;
+			}
+		);
+	}
+
+	/** Forgets the per-request memo (tests). */
+	public static function flush_cache() {
+		self::$unmasked = array();
 	}
 
 	public static function is_unmasked( $order_id ) {
-		return (bool) get_transient( self::unmask_key( $order_id ) );
+		return isset( self::unmasked_orders()[ absint( $order_id ) ] );
 	}
 
 	/**
@@ -90,7 +135,10 @@ final class DataPolicy {
 		if ( strlen( $reason ) < 5 ) {
 			return new \WP_Error( 'wpcap_unmask_reason', __( 'Bitte einen Grund (z. B. Ticketnummer der Supportanfrage) angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		set_transient( self::unmask_key( $order_id ), 1, self::UNMASK_SECONDS );
+		$list = self::unmasked_orders();
+		$list[ $order_id ] = time() + self::UNMASK_SECONDS;
+		set_transient( self::unmask_key(), $list, self::UNMASK_SECONDS );
+		self::$unmasked[ get_current_user_id() ] = $list;
 		Audit::record( 'pii_unmasked', 'order', $order_id, array( 'reason' => substr( $reason, 0, 190 ), 'minutes' => (int) ( self::UNMASK_SECONDS / 60 ) ) );
 		return array( 'order_id' => $order_id, 'expires_in' => self::UNMASK_SECONDS );
 	}

@@ -230,7 +230,7 @@ final class Queries {
 	/**
 	 * Order search with filters.
 	 *
-	 * @param array      $filters   status, payment_status, search (public id prefix or e-mail part), event_id.
+	 * @param array      $filters   status, payment_status, search (public id prefix, complete e-mail, e-mail prefix or "@domain"), event_id.
 	 * @param int[]|null $event_ids Scope.
 	 * @return array{rows: object[], total: int}
 	 */
@@ -243,11 +243,19 @@ final class Queries {
 		if ( ! empty( $filters['payment_status'] ) ) { $where .= ' AND ord.payment_status=%s'; $args[] = (string) $filters['payment_status']; }
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
 			$search = trim( (string) $filters['search'] );
-			$where .= ' AND (ord.public_id LIKE %s OR ord.customer_email LIKE %s)';
-			// Short order numbers / payment references ("Bestellung 3F2A-9C1E") are public id prefixes.
-			$id_prefix = preg_match( '/^(?:bestellung\s+)?([a-f0-9]{4})[\s-]?([a-f0-9]{4})$/i', $search, $m ) ? $m[1] . $m[2] : $search;
-			$args[] = self::like( strtolower( $id_prefix ) ) . '%';
-			$args[] = '%' . self::like( $search ) . '%';
+			if ( is_email( $search ) ) {
+				// A complete address: exact match on the customer_email index (PERF-15).
+				$where .= ' AND ord.customer_email=%s';
+				$args[] = $search;
+			} else {
+				// Short order numbers / payment references ("Bestellung 3F2A-9C1E") are public id prefixes.
+				// E-mail: prefix search ("anna", "anna@exa"), which can use the customer_email index; a
+				// leading "@" searches by domain (suffix, full scan; docs/OPERATIONS.md). PERF-15.
+				$id_prefix = preg_match( '/^(?:bestellung\s+)?([a-f0-9]{4})[\s-]?([a-f0-9]{4})$/i', $search, $m ) ? $m[1] . $m[2] : $search;
+				$where .= ' AND (ord.public_id LIKE %s OR ord.customer_email LIKE %s)';
+				$args[] = self::like( strtolower( $id_prefix ) ) . '%';
+				$args[] = '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%';
+			}
 		}
 		$items_join = "SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=ord.order_id";
 		if ( ! empty( $filters['event_id'] ) ) {

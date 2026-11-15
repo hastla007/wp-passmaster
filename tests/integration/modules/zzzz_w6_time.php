@@ -61,7 +61,7 @@ foreach ( array( 'UTC', 'Europe/Vienna' ) as $w6t_php_tz ) {
 	check( "[$w6t_php_tz] template sales start (7 days before at 10:00) copied across DST keeps 10:00 local", w6t_utc( '2026-03-25 10:00' ) === Generator::sales_time( w6t_utc( '2026-04-01 20:00' ), null, 86400, w6t_utc( '2026-03-18 10:00' ), $template, 'Europe/Vienna' ) );
 	$type = make_type( 0, 10, 1000 );
 	$wpdb->update( "{$p}wpcap_ticket_types", array( 'sales_end' => gmdate( 'Y-m-d H:i:s', time() - 1 ) ), array( 'ticket_type_id' => $type ) );
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$closed = Orders::create( array( 'email' => 'w6t@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'w6t-c-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 	$wpdb->update( "{$p}wpcap_ticket_types", array( 'sales_end' => gmdate( 'Y-m-d H:i:s', time() + 120 ) ), array( 'ticket_type_id' => $type ) );
 	$open = Orders::create( array( 'email' => 'w6t@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'w6t-o-' . uniqid() ), array( 'skip_rate_limit' => true ) );

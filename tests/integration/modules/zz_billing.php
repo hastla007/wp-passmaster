@@ -50,7 +50,7 @@ function bb_billing( array $override = array() ) {
 	return array_merge( array( 'enabled' => true, 'company' => 'Muster GmbH', 'first_name' => 'Erika', 'last_name' => 'Muster', 'street' => 'Ringstraße 1/3', 'postcode' => '1010', 'city' => 'Wien', 'country' => 'AT', 'vat_id' => 'ATU 1234 5678', 'po_number' => 'PO-4711' ), $override );
 }
 function bb_order( $type, $email, $billing, $qty = 1 ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'bb-' . uniqid( '', true ), 'billing' => $billing ) );
 }
 function bb_field( $err ) { return is_wp_error( $err ) ? (string) ( $err->get_error_data()['field'] ?? '' ) : ''; }
@@ -117,11 +117,11 @@ check( 'public callers cannot skip validation via the trusted adapter option', i
 
 echo "Billing: REST checkout\n";
 Settings::update( array( 'enabled_providers' => array( 'manual' ), 'require_terms' => 0 ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $rest = bb_data( Controller::checkout( bb_request( array( 'email' => 'rest-b2b@example.com', 'items' => array( array( 'ticket_type_id' => $bt, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'bb-rest-' . uniqid(), 'billing' => bb_billing( array( 'company' => 'REST AG' ) ) ) ) ) );
 $rest_order = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'rest-b2b@example.com' ) );
 check( 'REST checkout passes the billing payload key through', is_array( $rest ) && 'REST AG' === ( Orders::billing( $rest_order )['company'] ?? '' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $rest_err = Controller::checkout( bb_request( array( 'email' => 'rest-bad@example.com', 'items' => array( array( 'ticket_type_id' => $bt, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'bb-rest-bad-' . uniqid(), 'billing' => bb_billing( array( 'postcode' => '' ) ) ) ) );
 check( 'REST error carries data.field for the inline error (billing_postcode)', is_wp_error( $rest_err ) && 'billing_postcode' === bb_field( $rest_err ) );
 
@@ -151,7 +151,7 @@ echo "Billing: order portal correction\n";
 $portal = bb_order( $bt, 'portal-b2b@example.com', null );
 $portal_order = Orders::get( $portal['order_id'] );
 $token = bb_token( $portal_order->public_id );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $portal_html = PassCaptain\OrderPortal::render_page( $portal_order, $token );
 check( 'portal shows an editable billing form before the invoice', false !== strpos( $portal_html, 'class="wpcap-billing-form"' ) && false !== strpos( $portal_html, '/billing' ) && false !== strpos( $portal_html, 'data-billing="vat_id"' ) );
 $denied = Controller::update_billing( bb_request( array( 'access_token' => str_repeat( 'a', 64 ), 'billing' => bb_billing() ), array( 'public_id' => $portal_order->public_id ) ) );
@@ -168,7 +168,7 @@ $portal_html2 = PassCaptain\OrderPortal::render_page( Orders::get( $portal['orde
 check( 'portal shows read-only data after the invoice', false === strpos( $portal_html2, 'class="wpcap-billing-form"' ) && false !== strpos( $portal_html2, 'Korrigiert KG' ) && false !== strpos( $portal_html2, 'bereits ausgestellt' ) );
 $clear_order = bb_order( $bt, 'clear-b2b@example.com', bb_billing() );
 $clear_token = bb_token( Orders::get( $clear_order['order_id'] )->public_id );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $cleared = bb_data( Controller::update_billing( bb_request( array( 'access_token' => $clear_token, 'billing' => array( 'enabled' => false ) ), array( 'public_id' => Orders::get( $clear_order['order_id'] )->public_id ) ) ) );
 check( 'portal: unchecking removes the billing data', is_array( $cleared ) && array() === Orders::billing( $clear_order['order_id'] ) );
 

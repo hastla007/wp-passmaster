@@ -17,7 +17,7 @@ $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 unset( $GLOBALS['wpcap_test_user_can'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 \PassCaptain\Security\Vault::set_keys_for_tests( str_repeat( "\x43", 32 ) );
 PassCaptain\Modules\Connectors::register();
 ConnectorEvents::register();
@@ -152,7 +152,7 @@ ConnectorsPage::action( array( 'do' => 'delete', 'id' => $eid ) );
 check( 'delete removes endpoint and log', null === Endpoints::get( $eid ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_connector_deliveries WHERE endpoint_id=$eid" ) );
 if ( function_exists( 'esc_url' ) && function_exists( 'submit_button' ) && function_exists( 'wp_nonce_field' ) && function_exists( 'checked' ) ) { // Admin fakes of the admin screen tests.
 	Endpoints::save( array( 'name' => 'Render', 'url' => 'https://crm.example/hook', 'secret' => 'Bearer x4-render-secret-987654', 'events' => array( 'order_paid' ), 'mapping' => $mapping ) );
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	ob_start();
 	try { ConnectorsPage::render(); } catch ( Throwable $e ) { echo 'EXCEPTION ' . $e->getMessage(); }
 	$html = (string) ob_get_clean();

@@ -32,7 +32,7 @@ if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $t, $d = null ) 
 
 global $wpdb;
 $p = $wpdb->prefix;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
 $_SERVER['REMOTE_ADDR'] = '198.51.100.23';
@@ -109,14 +109,15 @@ check( 'secret is shown exactly once, afterwards only the prefix', '' !== $secre
 check( 'key screen: labelled fields and escaped output', str_contains( $first, '<label for="wpcap-ak-label">' ) && str_contains( $first, '<label for="wpcap-ak-rate">' ) && str_contains( $first, '<label for="wpcap-new-api-key">' ) && str_contains( $first, '<legend class="screen-reader-text">' ) && ! str_contains( $first, '<b>' ) );
 $audit = as_audit( 'developer_key_issued' );
 check( 'key creation is audited with rate limit, without the secret', $audit && (int) $audit->object_id === (int) $key_row->api_key_id && 3 === json_decode( $audit->details, true )['rate_limit'] && ! str_contains( $audit->details, explode( '.', $secret )[1] ?? 'x' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $ok = 0;
 for ( $i = 0; $i < 4; $i++ ) { $ok += false !== DeveloperKeys::authorize( as_key_request( $secret ), 'events.read', $event ) ? 1 : 0; }
 check( "per-key rate limit is enforced (3 of 4 requests allowed, got $ok)", 3 === $ok );
 $set = ApiKeysPage::admin_action( array( 'do' => 'rate_limit', 'id' => $key_row->api_key_id, 'rate_limit' => '5' ) );
 $after = 0;
 for ( $i = 0; $i < 3; $i++ ) { $after += false !== DeveloperKeys::authorize( as_key_request( $secret ), 'events.read', $event ) ? 1 : 0; }
-check( 'changed rate limit applies immediately and is audited', 5 === $set && 2 === $after && 5 === (int) $wpdb->get_var( "SELECT rate_limit FROM {$p}wpcap_api_keys WHERE api_key_id=" . (int) $key_row->api_key_id ) && as_audit( 'developer_key_rate_limit' ) );
+// The refused 4th request counted once (counter stops at limit + 1): with 5, one more request passes.
+check( 'changed rate limit applies immediately and is audited', 5 === $set && 1 === $after && 5 === (int) $wpdb->get_var( "SELECT rate_limit FROM {$p}wpcap_api_keys WHERE api_key_id=" . (int) $key_row->api_key_id ) && as_audit( 'developer_key_rate_limit' ) );
 $bad_rate = ApiKeysPage::admin_action( array( 'do' => 'rate_limit', 'id' => $key_row->api_key_id, 'rate_limit' => '0' ) );
 $past = ApiKeysPage::admin_action( array( 'do' => 'create', 'event_id' => $event, 'scopes' => array( 'events.read' ), 'expires_at' => '2020-01-01T10:00' ) );
 $no_scope = ApiKeysPage::admin_action( array( 'do' => 'create', 'event_id' => $event, 'scopes' => array( 'admin.write' ) ) );
@@ -132,7 +133,7 @@ $GLOBALS['wpcap_test_user_id'] = 1;
 check( 'other users cannot revoke a key or see it in their list', is_wp_error( $foreign ) && null === $wpdb->get_var( "SELECT revoked_at FROM {$p}wpcap_api_keys WHERE api_key_id=" . (int) $key_row->api_key_id ) && ! str_contains( $foreign_list, $key_row->public_prefix ) );
 $GLOBALS['wpcap_test_nonce_checks'] = array();
 $rv = as_post( array( ApiKeysPage::class, 'handle_action' ), array( 'do' => 'revoke', 'id' => $key_row->api_key_id ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 check( 'revoke handler (nonce checked) revokes the key; it no longer authorizes; audited', in_array( 'wpcap_api_key_action', $GLOBALS['wpcap_test_nonce_checks'], true ) && isset( $rv['redirect'] ) && null !== $wpdb->get_var( "SELECT revoked_at FROM {$p}wpcap_api_keys WHERE api_key_id=" . (int) $key_row->api_key_id ) && false === DeveloperKeys::authorize( as_key_request( $secret ), 'events.read', $event ) && (int) as_audit( 'developer_key_revoked' )->object_id === (int) $key_row->api_key_id );
 $list = as_render( array( ApiKeysPage::class, 'render' ) );
 check( 'list shows status of revoked keys without revoke button for them', str_contains( $list, 'Widerrufen' ) && str_contains( $list, $key_row->public_prefix ) );
@@ -182,7 +183,7 @@ echo "Admin screens: waitlists\n";
 $wl_type = make_type( 1 );
 $wl_event = as_event_of( $wl_type );
 $wl_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$wl_type" );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $wl_mails = count( $GLOBALS['wpcap_test_mails'] );
 foreach ( array( 'first@example.com', 'second@example.com', 'third@example.com' ) as $mail ) { Waitlists::join( $wl_event, $wl_occ, $wl_type, $mail ); }
 wpcap_test_confirm_waitlists( $wl_mails ); // Double opt-in: positions in confirmation order.
@@ -265,6 +266,6 @@ $mp_list = as_render( array( MembershipsPage::class, 'render' ), array( 'q' => '
 check( 'pass screens: labelled forms, rule quota inputs with labels, list with status', str_contains( $mp_detail, '<label for="wpcap-mp-edit-from">' ) && str_contains( $mp_detail, 'for="wpcap-mp-r' . (int) $rules[0]->rule_id . '-total"' ) && str_contains( $mp_detail, 'Pass widerrufen' ) && str_contains( $mp_list, 'member@example.com' ) && str_contains( $mp_list, 'Widerrufen' ) && str_contains( $mp_list, '<label for="wpcap-mp-email">' ) );
 
 if ( null === $as_tz_before ) { unset( $GLOBALS['wpcap_test_options']['timezone_string'] ); } else { $GLOBALS['wpcap_test_options']['timezone_string'] = $as_tz_before; }
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;

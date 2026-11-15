@@ -108,7 +108,7 @@ if ( null !== $wpdb->get_var( "SHOW TABLES LIKE '" . addcslashes( "{$p}wpcap_web
 
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0, 'require_2fa_for_refunds' => 0, 'require_terms' => 0, 'enabled_providers' => array( 'manual' ) ) );
 $a5_mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $a5_errors = array();
@@ -128,7 +128,7 @@ try {
 	$free = Orders::create( array( 'email' => 'a5-free@example.com', 'items' => array( array( 'ticket_type_id' => $free_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a5-free-' . uniqid() ) );
 	check( 'free checkout issues tickets immediately', ! is_wp_error( $free ) && 2 === count( array_filter( Orders::tickets_for_order( $free['order_id'] ), static fn( $t ) => 'valid' === $t->status ) ) );
 
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$paid = Orders::create( array( 'email' => 'a5-paid@example.com', 'items' => array( array( 'ticket_type_id' => $paid_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a5-paid-' . uniqid(), 'payment_provider' => 'manual' ) );
 	check( 'checkout with manual payment creates a pending order with a hold', ! is_wp_error( $paid ) && 'pending' === $paid['payment_status'] );
 	$mails = count( $GLOBALS['wpcap_test_mails'] );

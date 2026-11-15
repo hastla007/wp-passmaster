@@ -28,7 +28,7 @@ function adm_setup( $tz = 'Europe/Vienna', $start = null, $end = null, $qty = 1 
 	$type = make_type( 100, 50, 0 );
 	$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
 	$event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$occ" );
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$order = Orders::create( array( 'email' => 'adm' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'adm-' . uniqid( '', true ) ) );
 	$codes = is_wp_error( $order ) ? array() : ticket_code_for( $order['order_id'] );
 	$fields = array( 'timezone' => $tz );
@@ -221,7 +221,7 @@ check( 'paired device is bound to the selected area; /app/me returns it', $vip =
 RulesPage::save_policy( array( 'ticket_type_id' => $other['type'], 'policy' => 'default' ) );
 $nord_type = make_type( 10, 10, 0 );
 $wpdb->update( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $s['occ'] ), array( 'ticket_type_id' => $nord_type ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $no = Orders::create( array( 'email' => 'nordonly@example.com', 'items' => array( array( 'ticket_type_id' => $nord_type, 'quantity' => 1 ) ), 'idempotency_key' => 'adm-nord-' . uniqid() ) );
 $nord_code = ticket_code_for( $no['order_id'] )[0];
 Areas::set_type_areas( $nord_type, $s['event'], array( $nord ) );
@@ -277,7 +277,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
 
 echo "Admission: review fixes (scope of conflicts, public errors, backdated offline scans)\n";
 // Cross-event uploads never create conflicts in an event the device is not paired for.
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $foreign = adm_setup();
 $wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'cancelled' ), array( 'occurrence_id' => $foreign['occ'] ) );
 $foreign_ok = adm_setup();

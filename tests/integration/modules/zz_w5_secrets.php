@@ -159,7 +159,7 @@ PassCaptain\Settings::update( array( 'enabled_providers' => array( 'manual', 'st
 $w5_type = make_type( 5, 10, 1500 );
 $req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/checkout' );
 $req->set_body( json_encode( array( 'email' => 'w5-leak@example.com', 'items' => array( array( 'ticket_type_id' => $w5_type, 'quantity' => 1 ) ), 'idempotency_key' => 'w5-leak-1', 'provider' => 'stripe' ) ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $res = \PassCaptain\Rest\Controller::checkout( $req );
 $err_text = is_wp_error( $res ) ? $res->get_error_message() . json_encode( $res->get_error_data() ) : json_encode( $res );
 check( 'provider error echoing the API key is redacted in the REST error', is_wp_error( $res ) && array() === w5_leaks( $err_text, $w5_all ) && false !== strpos( $err_text, 'Invalid API Key' ) );

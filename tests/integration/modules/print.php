@@ -66,7 +66,7 @@ $pt = make_type( 10, 10, 0 );
 $pocc = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$pt" );
 $pevent = Scope::occurrence_event( $pocc );
 $wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $pt, 'field_key' => 'firma', 'label' => 'Firma', 'field_type' => 'text', 'required' => 0, 'status' => 'active' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $porder = Orders::create( array( 'email' => 'buyer-print@example.com', 'items' => array( array( 'ticket_type_id' => $pt, 'quantity' => 3 ) ), 'idempotency_key' => 'wpp-' . uniqid(), 'attendees' => array(
 	array( 'ticket_type_id' => $pt, 'name' => '=HYPERLINK("http://evil")', 'email' => 'ada@example.com', 'answers' => array( 'firma' => '+cmd|calc' ) ),
 	array( 'ticket_type_id' => $pt, 'name' => 'Ada Lovelace', 'answers' => array( 'firma' => 'ACME' ) ),
@@ -150,7 +150,7 @@ echo "Print: invoice PDF\n";
 $it = make_type( 10, 10, 1190 );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=1900 WHERE ticket_type_id=$it" );
 Settings::update( array( 'seller_name' => 'Veranstalter GmbH', 'seller_address' => "Ring 1\n1010 Wien", 'seller_vat_id' => 'ATU12345678' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $io = Orders::create( array( 'email' => 'rechnung@example.com', 'items' => array( array( 'ticket_type_id' => $it, 'quantity' => 2 ) ), 'idempotency_key' => 'wpp-inv-' . uniqid() ) );
 $access_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'rechnung@example.com' === $m['to'] ) )[0] ?? array( 'body' => '' );
@@ -179,7 +179,7 @@ check( 'buyer download works only with the order access token', ! is_wp_error( $
 Settings::update( array( 'print_attach_invoice_pdf' => 1, 'auto_invoice' => 1 ) );
 $GLOBALS['wpp_attachments'] = array();
 add_filter( 'wpcap_ticket_mail', static function ( $mail ) { $GLOBALS['wpp_attachments'] = (array) $mail['attachments']; return $mail; }, 30 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $ao = Orders::create( array( 'email' => 'anhang@example.com', 'items' => array( array( 'ticket_type_id' => $it, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp-att-' . uniqid() ) );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 Orders::confirm_manual_payment( $ao['order_id'] );
@@ -193,7 +193,7 @@ InvoicePdf::cleanup_temp_files();
 check( 'temporary directory is removed as well', '' !== $inv_path && ! is_dir( dirname( $inv_path ) ) );
 Settings::update( array( 'print_attach_invoice_pdf' => 0, 'auto_invoice' => 0 ) );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $no = Orders::create( array( 'email' => 'ohne@example.com', 'items' => array( array( 'ticket_type_id' => $it, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp-noatt-' . uniqid() ) );
 Orders::confirm_manual_payment( $no['order_id'] );
 $plain = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => str_starts_with( $m['subject'], 'Deine Tickets' ) ) )[0] ?? array( 'files' => array() );

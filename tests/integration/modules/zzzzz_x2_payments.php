@@ -31,7 +31,7 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0, 'require_2fa_for_refunds' => 0 ) );
 $x2_job = static function ( $key ) use ( $wpdb, $p ) {
 	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_jobs WHERE idempotency_key=%s", hash( 'sha256', $key ) ) );
@@ -165,7 +165,7 @@ $bl_type = make_type( 20, 10, 1000 );
 $bl_event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$bl_type" );
 $limit_id = PassCaptain\Sales\BuyerLimits::create( $bl_event, array( 'max_quantity' => 2, 'match_by' => 'email' ) );
 $bl_buy = static function ( $email, $qty ) use ( $bl_type ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $bl_type, 'quantity' => $qty ) ), 'idempotency_key' => 'x2bl-' . uniqid( '', true ) ), array( 'skip_rate_limit' => true ) );
 };
 $late = $bl_buy( 'X2-Limit@example.com', 2 );

@@ -152,7 +152,7 @@ check( 'QA-V1: "Y-m-d H:i:s" is UTC even when PHP runs in another time zone', $y
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Y8 QA-9: e-mail addresses longer than the database columns\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $y8_long = y8_email( 191 );
 $y8_max = y8_email( 190, 'max' );
 $y8_o1 = Y8Orders::create( array( 'email' => $y8_long, 'items' => array( array( 'ticket_type_id' => $y8_type, 'quantity' => 1 ) ), 'idempotency_key' => 'y8-long-' . uniqid() ) );
@@ -167,7 +167,7 @@ check( 'QA-9: ticket transfer to an over-long address is refused with field "rec
 echo "Y8 QA-V2: checkout rate limit with a persistent object cache\n";
 $GLOBALS['y8_ext_cache'] = true;
 $GLOBALS['y8_cache'] = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 check( 'RateLimit::hit counts with wp_cache_incr in the transient group (atomic), limit enforced', Y8RateLimit::hit( 'y8_rl', 2, 60 ) && Y8RateLimit::hit( 'y8_rl', 2, 60 ) && ! Y8RateLimit::hit( 'y8_rl', 2, 60 ) && 3 === ( $GLOBALS['y8_cache']['transient']['y8_rl'] ?? 0 ) && array() === $GLOBALS['wpcap_test_transients'] );
 $y8_ip = Y8Orders::client_ip();
 $y8_rl_email = 'y8-rl@example.com';
@@ -177,8 +177,8 @@ $y8_rl_ok = count( array_filter( $y8_rl, static fn( $r ) => ! is_wp_error( $r ) 
 $y8_rl_key = 'wpcap_checkout_' . Y8Orders::rate_hash( $y8_ip . '|' . $y8_rl_email );
 check( 'QA-V2: checkout counts in the object cache (not a read-then-write transient) and refuses the 9th order', 8 === $y8_rl_ok && is_wp_error( $y8_rl[8] ) && 'wpcap_rate_limited' === $y8_rl[8]->get_error_code() && 9 === ( $GLOBALS['y8_cache']['transient'][ $y8_rl_key ] ?? 0 ) && ! isset( $GLOBALS['wpcap_test_transients'][ $y8_rl_key ] ) );
 $GLOBALS['y8_ext_cache'] = false;
-$GLOBALS['wpcap_test_transients'] = array();
-check( 'without an object cache the transient fallback still limits', Y8RateLimit::hit( 'y8_fb', 1, 60 ) && ! Y8RateLimit::hit( 'y8_fb', 1, 60 ) && 1 === $GLOBALS['wpcap_test_transients']['y8_fb'] );
+wpcap_test_reset_transients();
+check( 'without an object cache the counter table limits (no transient written)', Y8RateLimit::hit( 'y8_fb', 1, 60 ) && ! Y8RateLimit::hit( 'y8_fb', 1, 60 ) && ! isset( $GLOBALS['wpcap_test_transients']['y8_fb'] ) && 2 === Y8RateLimit::count( 'y8_fb' ) );
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Y8 QA-V3/QA-V4: lock names and uninstall\n";

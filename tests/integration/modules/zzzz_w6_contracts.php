@@ -45,7 +45,7 @@ add_filter( W6Bridge::FILTER, $w6c_filter, 10, 2 );
 
 $w6c_type = make_type( 0, 10, 2000 );
 function w6c_order( $type ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => 'w6c' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'w6c-' . uniqid( '', true ) ), array( 'skip_rate_limit' => true ) );
 }
 function w6c_total( $o ) { return (int) Orders::get( $o['order_id'] )->total_minor; }
@@ -137,7 +137,7 @@ $GLOBALS['wpcap_test_user_id'] = 1;
 $token = (string) ( $device['token'] ?? '' );
 $me = app_call( 'me', 'GET', $token );
 check( 'device of a newer app version pairs; /me reports the API version', '' !== $token && is_array( $me ) && PassCaptain\Mobile\Api::VERSION === $me['api_version'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $mo = Orders::create( array( 'email' => 'w6c-m@example.com', 'items' => array( array( 'ticket_type_id' => $m_type, 'quantity' => 3 ) ), 'idempotency_key' => 'w6c-m-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 $codes = ticket_code_for( $mo['order_id'] );
 $scans = array(

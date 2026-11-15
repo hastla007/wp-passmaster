@@ -130,7 +130,7 @@ for ( $c = 0; $c < $cases; $c++ ) {
 		Campaigns::create( $campaign );
 		$codes[] = $code;
 	}
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$o = Orders::create( array( 'email' => "w6m$c@example.com", 'items' => $lines, 'idempotency_key' => "w6m-$c-" . uniqid(), 'campaign_codes' => $codes ), array( 'skip_rate_limit' => true ) );
 	if ( is_wp_error( $o ) ) { $violations[] = "case $c: order failed: " . $o->get_error_message(); continue; }
 	$oid = (int) $o['order_id'];

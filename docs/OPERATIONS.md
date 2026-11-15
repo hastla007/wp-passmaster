@@ -107,6 +107,19 @@ define( 'DISABLE_WP_CRON', true );
 
 Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`. Systemstatus und `wp pass-captain status`/`diagnose` arbeiten je Site (`--url=`); den Zustand aller Sites zeigt die Netzwerkübersicht (siehe „Multisite“).
 
+## Rate-Limits ohne persistenten Object-Cache
+
+Ohne persistenten Object-Cache zählen alle Plugin-Limits (Checkout, Servicebuchungen, Wartelisten, Sitzplatz-Holds, Partner- und Entwickler-API, Kopplung, Portal, SMS) in der Tabelle `wpcap_rate_limits` (seit Schema 3.16.0): eine Zeile je Zähler (`bucket_key` = HMAC des Zählernamens, `window_start`, `hits`, `expires_at`), hochgezählt mit einem einzigen atomaren `INSERT … ON DUPLICATE KEY UPDATE`. Parallele PHP-Worker können das Limit dadurch nicht mehr überholen; die Optionstabelle bleibt frei von Transient-Zeilen je IP. Die Tabelle ist klein (Zeilen leben nur bis zum Fensterende) und wird vom täglichen Löschlauf in Stapeln bereinigt; bei sehr vielen Zugriffen von wechselnden Adressen wächst sie bis dahin um eine Zeile je Adresse und Fenster. Mit persistentem Object-Cache (Redis/Memcached) bleibt es bei `wp_cache_incr()` – die Tabelle wird dann nicht benutzt. Fehlt die Tabelle (Update, Schema-Upgrade noch nicht gelaufen), zählen die Limits übergangsweise wie früher in Transients. Zum Zurücksetzen aller Zähler (z. B. nach einem Test) genügt `DELETE FROM wp_wpcap_rate_limits`.
+
+## Bestellsuche im Admin
+
+Die Suche unter **Pass Captain → Bestellungen** nutzt die Indizes der Bestelltabelle (PERF-15):
+
+- **Vollständige E-Mail-Adresse** (`anna@example.com`): exakter Treffer (Index `customer_email`; Groß-/Kleinschreibung egal).
+- **Anfang einer Adresse oder Bestellnummer** (`anna`, `anna@exa`, `3F2A-9C1E`): Präfixsuche (`anna%`), ebenfalls über den Index.
+- **Domain** mit führendem `@` (`@example.com`): Suche am Ende der Adresse – durchsucht alle Bestellungen und ist bei sehr großen Tabellen langsamer.
+- Teile aus der Mitte einer Adresse (`nna@`) werden nicht mehr gefunden; dafür bitte den Anfang der Adresse oder die Domain eingeben.
+
 ## Systemstatus, Diagnose und Monitoring
 
 **Pass Captain → Systemstatus** (Capability `manage_options`) zeigt den Hintergrundbetrieb auf einen Blick:
@@ -245,6 +258,7 @@ Meldet ein Terminal-Add-on (Vertrag 1.1) einen belasteten Betrag oder eine Währ
 | Audit-Log | 730 Tage | gelöscht |
 | Abgeschlossene Reservierungen (umgewandelt/abgelaufen/freigegeben) von Bestellungen, die nicht mehr auf Zahlung warten | 30 Tage nach Ablauf | gelöscht (Housekeeping) |
 | Erledigte/abgebrochene Hintergrundjobs (`complete`/`cancelled`; Dead Letters bleiben) | 30 Tage | gelöscht (Housekeeping) |
+| Abgelaufene Rate-Limit-Zähler (`wpcap_rate_limits`, nur HMAC-Schlüssel, keine Adressen) | nach Fensterende, beim nächsten Lauf (`rate_limits`, nicht abschaltbar) | gelöscht in Stapeln (`DELETE … LIMIT`, Index `expires_at`) |
 
 Die übrigen Fristen lassen sich mit `wpcap_privacy_retention_days` ändern oder abschalten (siehe [HOOKS.md](HOOKS.md)). Das Audit-Log erhält je Lauf nur die Anzahlen (`privacy_retention`). Nicht erfasst: Rechnungen, Gutschriften, Kassen- und Fiskalbelege (gesetzliche Aufbewahrung; nach Fristablauf, unter Berücksichtigung laufender Prüfungen, löschen Sie diese selbst), Kassensitzungen der Abendkasse samt Notizen (Kassenbuch), Bestellungen in WooCommerce (eigene Fristen des Shops; die Pass-Captain-Teilnehmerkopie `_wpcap_attendees` wird bei stornierten Bestellungen sofort, bei fehlgeschlagenen nach 7 Tagen entfernt), Daten bei Zahlungsanbietern, Partnern und Webhook-Empfängern. Webhook-Zustellungen haben eine eigene Frist (Modul Webhooks); ausstehende Zustellungen deaktivierter Webhooks werden nach dieser Frist ohne personenbezogene Daten abgebrochen.
 

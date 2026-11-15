@@ -105,7 +105,7 @@ function w6sm_violations( array $a, array $b, $ever_paid, $qty ) {
 
 /** Fresh pending native order of $qty tickets (manual provider, price 1000). */
 function w6sm_order( $type, $qty = 2 ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => 'w6sm' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'w6sm-' . uniqid( '', true ) ), array( 'skip_rate_limit' => true ) );
 }
 function w6sm_event( $o, $type, $id, array $extra = array() ) {
@@ -185,7 +185,7 @@ check( 'manual confirmation of a refunded order is refused', is_wp_error( Orders
 /* ------------------------------------------------------------------------------------------ */
 echo "W6 state machines: check-in and refunds\n";
 $free = make_type( 0, 10, 0 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $fo = Orders::create( array( 'email' => 'w6sm-ci@example.com', 'items' => array( array( 'ticket_type_id' => $free, 'quantity' => 2 ) ), 'idempotency_key' => 'w6sm-ci-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 $codes = ticket_code_for( $fo['order_id'] );
 $c1 = Checkin::perform( $codes[0], array( 'idempotency_key' => 'w6sm-a' ) );

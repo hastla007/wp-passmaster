@@ -51,14 +51,10 @@ final class ServiceBookings {
 		$actor = in_array( $actor, array( 'customer', 'admin', 'system' ), true ) ? $actor : 'customer';
 		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		if ( empty( $args['skip_rate_limit'] ) ) {
-			$rate_key = 'wpcap_servicebook_' . RateLimit::hash( strtolower( $email ) );
-			$rate = (int) get_transient( $rate_key );
-			if ( $rate >= 20 ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
-			set_transient( $rate_key, $rate + 1, HOUR_IN_SECONDS );
-			$ip_key = 'wpcap_servicebook_ip_' . RateLimit::client();
-			$ip_rate = (int) get_transient( $ip_key );
-			if ( $ip_rate >= (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
-			set_transient( $ip_key, $ip_rate + 1, HOUR_IN_SECONDS );
+			// Per address and per client; RateLimit::hit() counts atomically (QA-V2).
+			if ( ! RateLimit::hit( 'wpcap_servicebook_' . RateLimit::hash( strtolower( $email ) ), 20, HOUR_IN_SECONDS ) || ! RateLimit::hit( 'wpcap_servicebook_ip_' . RateLimit::client(), (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) ) {
+				return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) );
+			}
 		}
 		$gate_key = $idempotency_key;
 		$idempotency_key = hash( 'sha256', $idempotency_key );
