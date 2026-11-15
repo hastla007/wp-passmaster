@@ -115,7 +115,7 @@ function esc_url_raw( $u ) { return (string) $u; }
 function absint( $v ) { return abs( (int) $v ); }
 function sanitize_email( $e ) { return filter_var( trim( (string) $e ), FILTER_SANITIZE_EMAIL ); }
 function is_email( $e ) { return false !== filter_var( (string) $e, FILTER_VALIDATE_EMAIL ) ? $e : false; }
-function sanitize_text_field( $t ) { return trim( strip_tags( (string) $t ) ); }
+function sanitize_text_field( $t ) { return is_array( $t ) || is_object( $t ) ? '' : trim( strip_tags( (string) $t ) ); } // Like WordPress: '' for arrays/objects.
 // WordPress core implementation (wp-includes/formatting.php).
 function wp_strip_all_tags( $text, $remove_breaks = false ) {
 	if ( is_null( $text ) ) { return ''; }
@@ -125,7 +125,7 @@ function wp_strip_all_tags( $text, $remove_breaks = false ) {
 	if ( $remove_breaks ) { $text = preg_replace( '/[\r\n\t ]+/', ' ', $text ); }
 	return trim( $text );
 }
-function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+function sanitize_key( $k ) { return is_scalar( $k ) ? preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ) : ''; } // Like WordPress: '' for non-scalars.
 function wp_unslash( $v ) { return $v; }
 function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
 function wp_kses_post( $t ) { return (string) $t; }

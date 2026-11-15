@@ -28,6 +28,78 @@ final class Memberships {
 		);
 	}
 
+	/** Capability for pass rules of an event (REST POST /member-passes and the admin screen). */
+	const RULE_CAP = 'wpcap_manage_orders';
+
+	/**
+	 * Validates one rule definition for the current user and returns it normalized (scope, event_id,
+	 * ticket_type_id, resource_id resolved; other keys kept) or a WP_Error. Shared by the admin screen
+	 * and REST so both enforce the same scope:
+	 * - "service": one resource the user manages (ServiceResources::can_manage); all resources
+	 *   (resource_id 0) only for administrators. Event and ticket type are cleared.
+	 * - "any": administrators only (admits to events and resources together).
+	 * - "event": the ticket type must belong to the event (the event is taken from the ticket type);
+	 *   the user needs the order capability for that event; rules for all events only administrators.
+	 *
+	 * @param array $in Rule input (scope, event_id, ticket_type_id, resource_id, quotas, slot_mode, expires_at).
+	 * @return array|\WP_Error
+	 */
+	public static function validate_rule_for_current_user( array $in ) {
+		$raw_scope = $in['scope'] ?? 'event';
+		$scope = is_scalar( $raw_scope ) && in_array( (string) $raw_scope, self::SCOPES, true ) ? (string) $raw_scope : 'event';
+		$int = static function ( $key ) use ( $in ) { return is_scalar( $in[ $key ] ?? 0 ) ? absint( $in[ $key ] ?? 0 ) : 0; };
+		$is_admin = current_user_can( 'manage_options' );
+		if ( 'service' === $scope ) {
+			$resource_id = $int( 'resource_id' );
+			$resource = $resource_id ? ServiceResources::resource( $resource_id ) : null;
+			if ( $resource_id ? ! ( $resource && ServiceResources::can_manage( $resource ) ) : ! $is_admin ) {
+				return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel dieser Ressource. Regeln für alle Ressourcen dürfen nur Administratoren anlegen.', 'pass-captain' ), array( 'status' => 403 ) );
+			}
+			return array( 'scope' => 'service', 'event_id' => 0, 'ticket_type_id' => 0, 'resource_id' => $resource_id ) + $in;
+		}
+		if ( 'any' === $scope && ! $is_admin ) {
+			return new \WP_Error( 'wpcap_pass_forbidden', __( 'Regeln für Events und Ressourcen gemeinsam dürfen nur Administratoren anlegen.', 'pass-captain' ), array( 'status' => 403 ) );
+		}
+		$type_id = $int( 'ticket_type_id' );
+		$event_id = $int( 'event_id' );
+		if ( $type_id ) {
+			global $wpdb;
+			$type_event = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $type_id ) );
+			if ( ! $type_event || ( $event_id && $event_id !== $type_event ) ) {
+				return new \WP_Error( 'wpcap_pass_rule_scope', __( 'Die Ticketart gehört nicht zum gewählten Event.', 'pass-captain' ), array( 'status' => 400 ) );
+			}
+			$event_id = $type_event;
+		}
+		if ( $event_id ? ! Access::can_access_event( $event_id, self::RULE_CAP ) : ! $is_admin ) {
+			return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel. Regeln für alle Events dürfen nur Administratoren anlegen.', 'pass-captain' ), array( 'status' => 403 ) );
+		}
+		return array( 'scope' => $scope, 'event_id' => $event_id, 'ticket_type_id' => $type_id, 'resource_id' => 'any' === $scope ? $int( 'resource_id' ) : 0 ) + $in;
+	}
+
+	/**
+	 * Whether the current user may manage (revoke, change) a pass: every rule must be within their
+	 * scope – event rules need the order capability for the event, service rules a managed resource,
+	 * rules without event/resource and "any" rules need an administrator.
+	 */
+	public static function current_user_can_manage_pass( $pass_id ) {
+		global $wpdb;
+		$rules = $wpdb->get_results( $wpdb->prepare( 'SELECT scope,event_id,resource_id FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_pass_rules', absint( $pass_id ) ) );
+		$is_admin = current_user_can( 'manage_options' );
+		if ( ! $rules ) { return $is_admin; }
+		foreach ( $rules as $rule ) {
+			if ( 'service' === $rule->scope ) {
+				$resource = (int) $rule->resource_id ? ServiceResources::resource( (int) $rule->resource_id ) : null;
+				$ok = $resource ? ServiceResources::can_manage( $resource ) : $is_admin;
+			} elseif ( 'any' === $rule->scope ) {
+				$ok = $is_admin;
+			} else {
+				$ok = (int) $rule->event_id ? Access::can_access_event( (int) $rule->event_id, self::RULE_CAP ) : $is_admin;
+			}
+			if ( ! $ok ) { return false; }
+		}
+		return true;
+	}
+
 	public static function revoke( $pass_id ) {
 		global $wpdb;
 		$pass_id = absint( $pass_id );
@@ -60,7 +132,7 @@ final class Memberships {
 
 	public static function redeem( $token, $ticket_type_id, $idempotency_key ) {
 		global $wpdb;
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = Security\Input::hex( $token );
 		$ticket_type_id = absint( $ticket_type_id );
 		$idempotency_key = sanitize_text_field( $idempotency_key );
 		if ( 64 !== strlen( $token ) || ! $ticket_type_id || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_pass_redeem_invalid', __( 'Passcode oder Ticketkategorie ungültig.', 'pass-captain' ) ); }
@@ -96,7 +168,7 @@ final class Memberships {
 	 */
 	public static function redeem_service( $token, $resource_id, $idempotency_key, $slot_id = 0, $quantity = 1 ) {
 		global $wpdb;
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = Security\Input::hex( $token );
 		$resource_id = absint( $resource_id );
 		$slot_id = absint( $slot_id );
 		$idempotency_key = sanitize_text_field( $idempotency_key );

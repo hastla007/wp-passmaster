@@ -1249,7 +1249,7 @@ final class Orders {
 	public static function transfer_ticket( $public_id, $access_token, $ticket_public_id, $recipient_email ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( $public_id );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
+		$access_token = Security\Input::hex( $access_token );
 		$recipient_email = sanitize_email( $recipient_email );
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! is_email( $recipient_email ) ) {
 			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'pass-captain' ), array( 'status' => 400 ) );

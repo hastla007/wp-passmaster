@@ -241,6 +241,14 @@ unbegrenzt), `uses_per_day`, Ablauf über die Passlaufzeit und optional `expires
 Buchung verbraucht keine Nutzung; eine fristgerecht stornierte Pass-Buchung gibt die Nutzung zurück.
 REST: `POST /member-passes/redeem-service` (`token`, `resource_id`, `slot_id`, `idempotency_key`).
 
+**Wer welche Regel ausstellen darf** (`Memberships::validate_rule_for_current_user()`, gleich für die Admin-Seite
+„Mitgliedspässe“ und `POST /member-passes`, dort für jede Regel): `event`-Regeln brauchen `wpcap_manage_orders` für
+das Event; eine Ticketart muss zum Event gehören (das Event wird aus der Ticketart übernommen). `service`-Regeln
+brauchen eine Ressource, die die Person verwaltet (`ServiceResources::can_manage()`); „alle Ressourcen“
+(`resource_id` 0) und `any`-Regeln nur Administratoren. Ein `event_id` in einer Service-Regel wird verworfen.
+Widerrufen/Ändern (`POST /member-passes/{id}/revoke`, Admin) erfordert dieselbe Berechtigung für **jede** Regel
+des Passes.
+
 ## Mails (Vorlagen editierbar, deutsche Standardtexte)
 
 `service_booking_confirmed`, `service_booking_pending`, `service_booking_partner_request`,

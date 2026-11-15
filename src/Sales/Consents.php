@@ -188,7 +188,7 @@ final class Consents {
 	/** Ticket of a plain ticket code (the holder's credential), or null. */
 	private static function ticket_for_code( $code ) {
 		global $wpdb;
-		$code = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $code ) );
+		$code = \PassCaptain\Security\Input::hex( $code );
 		if ( 64 !== strlen( $code ) ) { return null; }
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT t.ticket_id,t.order_id,t.status,tt.name AS ticket_name,e.name AS event_name FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.token_hash=%s', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', hash( 'sha256', $code ) ) );
 	}
@@ -211,7 +211,7 @@ final class Consents {
 		if ( ! $missing ) {
 			$html .= '<p>' . esc_html__( 'Für dieses Ticket sind keine Einwilligungen offen.', 'pass-captain' ) . '</p>';
 		} else {
-			$html .= '<form method="post" action="' . esc_url( add_query_arg( 'wpcap_consent', strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $code ) ), home_url( '/' ) ) ) . '">';
+			$html .= '<form method="post" action="' . esc_url( add_query_arg( 'wpcap_consent', \PassCaptain\Security\Input::hex( $code ), home_url( '/' ) ) ) . '">';
 			foreach ( $missing as $field ) {
 				$id = 'wpcap-consent-' . (int) $field->field_id;
 				/* translators: %s: consent text version */
@@ -225,13 +225,12 @@ final class Consents {
 
 	/** template_redirect: ?wpcap_consent=<ticket code>. */
 	public static function maybe_render_attendee_page() {
-		$code = isset( $_GET['wpcap_consent'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['wpcap_consent'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the ticket code is the capability.
+		$code = isset( $_GET['wpcap_consent'] ) ? sanitize_text_field( wp_unslash( $_GET['wpcap_consent'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the ticket code is the capability.
 		if ( '' === $code || isset( $_GET['wpcap_order'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the order portal uses wpcap_consent as status flag.
 		$post = 'POST' === strtoupper( sanitize_key( wp_unslash( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) );
 		$fields = $post ? array_map( 'absint', (array) wp_unslash( $_POST['wpcap_consent_fields'] ?? array() ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the ticket code is the capability.
 		$html = self::attendee_page( $code, $fields );
-		nocache_headers();
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		\PassCaptain\Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		status_header( null === $html ? 404 : 200 );
 		echo null === $html ? esc_html__( 'Der Link ist ungültig.', 'pass-captain' ) : $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		exit;
@@ -354,7 +353,7 @@ final class Consents {
 		$open = self::open_for_buyer( $order );
 		if ( ! $consents && ! $open ) { return ''; }
 
-		$state = sanitize_key( (string) ( $_GET['wpcap_consent'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
+		$state = sanitize_key( wp_unslash( $_GET['wpcap_consent'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
 		$html = '<section class="card" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>';
 		if ( 'withdrawn' === $state ) { $html .= '<p role="status">' . esc_html__( 'Die Einwilligung wurde widerrufen.', 'pass-captain' ) . '</p>'; }
 		if ( 'error' === $state ) { $html .= '<p role="alert">' . esc_html__( 'Die Einwilligung konnte nicht widerrufen werden.', 'pass-captain' ) . '</p>'; }

@@ -333,6 +333,8 @@ final class Controller {
 		}
 		// Short human-readable order number; the full id and the access link only travel by e-mail.
 		$result['reference'] = \PassCaptain\Frontend\Format::order_reference( $result['public_id'] ?? '' );
+		// The sequential order_id reveals sales volume; the public_id is half of the portal link. Neither goes to the browser.
+		unset( $result['order_id'], $result['public_id'] );
 		return new \WP_REST_Response( $result, empty( $result['reused'] ) ? 201 : 200 );
 	}
 
@@ -527,24 +529,26 @@ final class Controller {
 
 	public static function issue_member_pass( \WP_REST_Request $request ) {
 		$payload = $request->get_json_params();
+		$payload = is_array( $payload ) ? $payload : array();
 		$rules = $payload['rules'] ?? array();
-		if ( ! is_array( $rules ) || ! $rules ) { return new \WP_Error( 'wpcap_pass_rules_invalid', __( 'Mindestens eine Passregel ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! is_array( $rules ) || ! $rules || count( $rules ) > 50 ) { return new \WP_Error( 'wpcap_pass_rules_invalid', __( 'Mindestens eine Passregel ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		// Same scope check as the admin screen for every rule (event via ticket type, resource, "any", global rules).
+		$normalized = array();
 		foreach ( $rules as $rule ) {
-			$event_id = absint( $rule['event_id'] ?? 0 );
-			if ( ( $event_id && ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) || ( ! $event_id && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel.', 'pass-captain' ), array( 'status' => 403 ) ); }
+			if ( ! is_array( $rule ) ) { return new \WP_Error( 'wpcap_pass_rules_invalid', __( 'Mindestens eine Passregel ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
+			$checked = Memberships::validate_rule_for_current_user( $rule );
+			if ( is_wp_error( $checked ) ) { return $checked; }
+			$normalized[] = $checked;
 		}
-		$result = Memberships::issue( $payload['email'] ?? '', $payload['valid_from'] ?? '', $payload['valid_until'] ?? '', $rules );
+		$text = static function ( $key ) use ( $payload ) { return is_scalar( $payload[ $key ] ?? '' ) ? (string) ( $payload[ $key ] ?? '' ) : ''; };
+		$result = Memberships::issue( $text( 'email' ), $text( 'valid_from' ), $text( 'valid_until' ), $normalized );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( array( 'pass_id' => (int) $result['pass_id'], 'status' => 'issued' ), 201 );
 	}
 
 	public static function revoke_member_pass( \WP_REST_Request $request ) {
-		global $wpdb;
 		$pass_id = absint( $request['pass_id'] );
-		$events = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_pass_rules', $pass_id ) );
-		if ( ! $events ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		foreach ( $events as $event_id ) {
-			if ( ( (int) $event_id && ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) || ( ! (int) $event_id && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		}
+		if ( ! Memberships::get( $pass_id ) ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! Memberships::current_user_can_manage_pass( $pass_id ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$result = Memberships::revoke( $pass_id );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'status' => 'revoked' ) );
 	}
@@ -821,7 +825,7 @@ final class Controller {
 
 	/** Web scanner check-in; the logic lives in Checkin::perform() (shared with the app API). */
 	public static function check_in( \WP_REST_Request $request ) {
-		$result = \PassCaptain\Checkin::perform( $request->get_param( 'token' ), array( 'source' => sanitize_key( $request->get_param( 'source' ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) ) ) );
+		$result = \PassCaptain\Checkin::perform( $request->get_param( 'token' ), array( 'source' => sanitize_key( $request->get_param( 'source' ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 }

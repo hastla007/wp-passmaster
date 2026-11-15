@@ -3,7 +3,8 @@
 ## Schutzgrenzen
 
 - Ticket-, Gastbestellungs- und API-Schlüssel werden als zufällige Geheimnisse ausgegeben; in der Datenbank werden nur Hashes gespeichert. Gastlinks sind Inhaberzugänge und dürfen nicht weitergegeben werden.
-- WordPress REST-Schreibzugriffe prüfen Berechtigungen und Eventbereiche. Entwickler-API-Schlüssel sind auf ein Event sowie `events.read` und `reports.read` beschränkt und können ablaufen oder widerrufen werden.
+- WordPress REST-Schreibzugriffe prüfen Berechtigungen und Eventbereiche – auch für Objekt-IDs im Body (Ticketart, Ressource, Pass, Buchung, Key). Entwickler-API-Schlüssel sind auf ein Event sowie `events.read` und `reports.read` (plus Add-on-Scopes) beschränkt und können ablaufen oder widerrufen werden. Ein Key gilt nur, solange die Inhaberin die passende Capability über ihre Rolle **und** als Eventpersonal hat; beim Löschen/Entfernen der Person werden ihre Keys widerrufen und ihre Zuweisungen entfernt, beim Rollenwechsel die nicht mehr nutzbaren Keys widerrufen. Ratenlimits über 6.000 Anfragen/Minute je Key (bis 100.000) kann nur ein Administrator setzen.
+- Die Checkout-Antwort enthält weder die fortlaufende `order_id` noch die `public_id` (Teil des Portal-Links); der Browser bekommt nur die kurze Bestellnummer (`reference`). Zugangslink und volle ID gehen nur per E-Mail.
 - Öffentliche Checkout-, Sitzplatz- und Wartelistenrouten sind nicht authentifiziert. Sie benötigen Hosting-seitige Rate-Limits, TLS, Bot-Abwehr und Überwachung (siehe „Rate-Limits“).
 - Offline-Scanner speichern Codes lokal und können während einer Netzunterbrechung nicht garantieren, dass ein Ticket an einem anderen Gerät unbenutzt geblieben ist.
 - Integrationsadapter werden standardmäßig nicht aktiviert. Externe Zugangsdaten gehören in geschützte WordPress-Konfiguration bzw. Secret-Storage, niemals in Quellcode oder Logs.
@@ -101,9 +102,29 @@ PC1.<base64url(JSON {t, o, v, k, c})>.<base64url(Ed25519-Signatur)>
   sind bis zum ersten Einlass gleichwertig); die Signatur verhindert Fälschungen und erlaubt die
   Offline-Vorprüfung, ersetzt aber nicht die Statusprüfung am Server bzw. im signierten Prüfpaket.
 
+## Private Seiten (Geheimlinks und Personal)
+
+Seiten, die über einen Geheimlink erreichbar sind oder Personal vorbehalten sind – Bestellportal, Ticketseite, Rechnungsansicht/-PDF (Käufer und Admin-Druck), Service-Portal, Wartelisten-Angebot und -Annahme, Einwilligungsseite für Teilnehmende und jede Seite mit dem Shortcode `[wp_pass_captain_scanner]` –, senden über `Security\PrivatePage::send()`:
+
+- `DONOTCACHEPAGE` und `nocache_headers()` sowie `Cache-Control: no-store, …, private` – Seiten-Caches (WP Super Cache, W3TC, LiteSpeed, Hosting-Caches) legen keine Kopie an, die ein zweiter Besucher bekäme;
+- `X-Frame-Options: DENY` und `Content-Security-Policy: frame-ancestors 'none'` – kein Einbetten in fremde Seiten (Clickjacking von „Annehmen/Übertragen/Widerrufen“);
+- `X-Robots-Tag: noindex, nofollow, noarchive`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
+
+Die Offline-Scanner-App (`assets/offline-scanner/`) ist eine statische Datei, die der Webserver direkt ausliefert; PHP kann dort keine Header setzen. Empfehlung: `X-Frame-Options: DENY`, `X-Robots-Tag: noindex` und `Cache-Control: no-cache` für dieses Verzeichnis in der Server-Konfiguration.
+
+Request-Parameter, die als Array ankommen (`?wpcap_access[]=x`, JSON), werden als leer behandelt (`Security\Input::text()/hex()`), statt „Array to string conversion“ auszulösen.
+
+## CSV-Exporte
+
+Alle CSV-Exporte laufen über `Reports\Scope::csv()`: RFC-4180-Quoting ohne Backslash-Escape (ein `\"` im Text kann die Zelle nicht beenden) und `csv_cell()`: führende `= + - @` (auch nach Leerzeichen) sowie solche Zeichen direkt nach `"`, `;` oder Tab im Text werden mit `'` entschärft; gültige JSON-Dokumente (Archivspalten) bleiben unverändert.
+
 ## Rate-Limits und Client-Adresse
 
 Die Plugin-Limits (Checkout pro IP und E-Mail, Servicebuchungen, Warteliste, Sitzplatz-Holds, Partner-API, Kopplung, Portal) liegen in WordPress-Transients. Sie sind **pro Site** und **kein verteilter Schutz**: Ohne persistenten Object-Cache landen sie in der Optionstabelle; mehrere PHP-Worker/Server können sich überholen (Lesen-dann-Schreiben ohne atomares Inkrement). Mit persistentem Object-Cache zählen `RateLimit::hit()`/`RateLimit::allow()` und das Checkout-Limit atomar (`wp_cache_incr()` in der Transient-Gruppe). Ohne Object-Cache bleibt es bei Best-Effort, und hinter Proxy/CDN sind sie nur so gut wie die erkannte Client-Adresse. Empfehlung: Rate-Limiting und Bot-Schutz zusätzlich am WAF/CDN bzw. Reverse Proxy (z. B. für `/wp-json/wp-pass-captain/v1/checkout`, `/…/app/pair`, `/…/partner/*`).
+
+Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und Event, 20 je IP und Event und 60 je IP über alle Events pro Stunde (Filter `wp_pass_captain_waitlist_ip_limit_v1`). Es gibt kein Double-Opt-in; die Antwort verrät nicht, ob eine Adresse schon eingetragen ist, und jede Eintragungsmail enthält einen Austragen-Link.
+
+**IPv6:** Sitzplatz-Holds und Wartelisten zählen IPv6-Adressen je /64-Netz (`RateLimit::client_network()`), damit wechselnde Adressen innerhalb eines Anschlusses das Limit nicht zurücksetzen.
 
 **Client-Adresse** (`RateLimit::client_ip()`, verwendet von allen Limits):
 
@@ -137,6 +158,8 @@ Die Plugin-Limits (Checkout pro IP und E-Mail, Servicebuchungen, Warteliste, Sit
 ## Berechtigungen (automatisch geprüft)
 
 `tests/integration/modules/zz_w5_permissions.php` enthält eine Tabelle aller REST-Routen und aller admin-post/admin-ajax-Aktionen. Jede Route ist als `public` (mit Begründung), `token` (Handler verlangt Geheimnis/Signatur), Capability, Gerät, Entwickler- oder Partner-Key deklariert. Der Test schlägt fehl, wenn eine Route fehlt oder wenn Gast, Abonnent, Mitarbeitende eines anderen Events, widerrufene/abgelaufene/fremde Entwickler-Keys, widerrufene Geräte oder Partner-Keys eines anderen Veranstalters Erfolg haben oder Daten ändern.
+
+Zusätzlich prüft `tests/integration/modules/zzzzzz_y1_security.php` den **Geltungsbereich**: Für jede schreibende, per Capability geschützte Route mit Objekt-IDs (Pfad oder Body) gibt es einen Fall, in dem Personal von Event A eine ID von Event B (Ticketart, Ressource, Pass, Buchung, Bestellung, Ticketcode, Key) oder einen globalen Geltungsbereich (Service-Regel für alle Ressourcen, `any`) verwendet; erwartet wird Ablehnung ohne Datenänderung. Eine neue solche Route ohne Fall (oder begründete Ausnahme) lässt den Test scheitern.
 
 ## Sicherheitsprozess
 

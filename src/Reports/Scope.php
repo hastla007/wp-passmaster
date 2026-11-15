@@ -57,12 +57,27 @@ final class Scope {
 		return true;
 	}
 
-	/** CSV cell that spreadsheet programs never evaluate as a formula. */
+	/**
+	 * CSV cell that spreadsheet programs never evaluate as a formula: a leading = + - @ (also after
+	 * whitespace) is neutralised with an apostrophe, and so is a formula character right after a quote,
+	 * semicolon or tab inside the text (where a lenient reader could start a new cell). Valid JSON
+	 * documents (archive columns) stay unchanged; csv() quotes them per RFC 4180.
+	 */
 	public static function csv_cell( $value ) {
 		if ( is_int( $value ) || is_float( $value ) ) { return (string) $value; }
-		$text = str_replace( array( "\r\n", "\r", "\n" ), ' ', (string) $value );
+		if ( is_bool( $value ) ) { return $value ? '1' : '0'; }
+		$text = is_scalar( $value ) ? str_replace( array( "\r\n", "\r", "\n" ), ' ', (string) $value ) : '';
 		if ( preg_match( '/^-?\d+(?:\.\d+)?$/', $text ) ) { return $text; } // Plain numbers cannot be formulas.
-		return preg_match( '/^[=+\-@\t\r]/', $text ) || preg_match( '/^\s+[=+\-@]/', $text ) ? "'" . $text : $text;
+		if ( preg_match( '/^[=+\-@\t\r]/', $text ) || preg_match( '/^\s+[=+\-@]/', $text ) ) { return "'" . $text; }
+		if ( preg_match( '/[";\t]\s*[=+\-@]/', $text ) && ! self::is_json_document( $text ) ) { return "'" . $text; }
+		return $text;
+	}
+
+	/** Whether the text is a JSON object or array (machine-readable archive cells). */
+	private static function is_json_document( $text ) {
+		if ( '' === $text || ! in_array( $text[0], array( '{', '[' ), true ) ) { return false; }
+		json_decode( $text );
+		return JSON_ERROR_NONE === json_last_error();
 	}
 
 	/** CSV text (semicolon separated, UTF-8 BOM) from rows; every cell passes csv_cell(). */
@@ -71,7 +86,7 @@ final class Scope {
 		$out = fopen( 'php://temp', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
 		foreach ( $rows as $row ) {
-			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '\\' );
+			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '' ); // '' = RFC 4180 quoting only; '\\' would let a backslash before a quote end the cell early (formula injection).
 		}
 		rewind( $out );
 		$csv = (string) stream_get_contents( $out );

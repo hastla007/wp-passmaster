@@ -79,7 +79,7 @@ final class Api {
 
 	public static function order_rebook( \WP_REST_Request $request ) {
 		$booking = ServiceBookings::for_order_access( $request['public_id'], $request->get_param( 'access_token' ), absint( $request['booking_id'] ) );
-		return $booking ? self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => (string) $request->get_param( 'idempotency_key' ), 'provider' => sanitize_key( (string) $request->get_param( 'provider' ) ) ) ) ) : self::denied();
+		return $booking ? self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ), 'provider' => sanitize_key( \PassCaptain\Security\Input::text( $request->get_param( 'provider' ) ) ) ) ) ) : self::denied();
 	}
 
 	public static function order_rebook_options( \WP_REST_Request $request ) {
@@ -97,7 +97,7 @@ final class Api {
 
 	public static function attach_order( \WP_REST_Request $request ) {
 		$booking = ServiceBookings::with_token( absint( $request['booking_id'] ), $request->get_param( 'token' ) );
-		$order = ServiceBookings::for_order_access( (string) $request->get_param( 'order_public_id' ), $request->get_param( 'access_token' ) );
+		$order = ServiceBookings::for_order_access( \PassCaptain\Security\Input::text( $request->get_param( 'order_public_id' ) ), $request->get_param( 'access_token' ) );
 		if ( ! $booking || ! $order ) { return self::denied(); }
 		return self::respond( ServiceBookings::attach_order( (int) $booking->booking_id, (int) $order->order_id ) );
 	}
@@ -115,13 +115,13 @@ final class Api {
 	public static function token_rebook( \WP_REST_Request $request ) {
 		$booking = ServiceBookings::with_token( absint( $request['booking_id'] ), $request->get_param( 'token' ) );
 		if ( ! $booking || (int) $booking->order_id ) { return self::denied(); }
-		return self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => (string) $request->get_param( 'idempotency_key' ) ) ) );
+		return self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) ) ) );
 	}
 
 	/* -------- Staff */
 
 	public static function decide( \WP_REST_Request $request ) {
-		return self::respond( ServiceBookings::decide( absint( $request['booking_id'] ), sanitize_key( (string) $request->get_param( 'decision' ) ), sanitize_text_field( (string) $request->get_param( 'reason' ) ) ) );
+		return self::respond( ServiceBookings::decide( absint( $request['booking_id'] ), sanitize_key( \PassCaptain\Security\Input::text( $request->get_param( 'decision' ) ) ), sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'reason' ) ) ) ) );
 	}
 
 	public static function check_in( \WP_REST_Request $request ) {
@@ -135,7 +135,7 @@ final class Api {
 	/* -------- Waitlists */
 
 	public static function join_slot_waitlist( \WP_REST_Request $request ) {
-		return self::respond( ServiceWaitlist::join( absint( $request['slot_id'] ), (string) $request->get_param( 'email' ), absint( $request->get_param( 'quantity' ) ?: 1 ) ) );
+		return self::respond( ServiceWaitlist::join( absint( $request['slot_id'] ), \PassCaptain\Security\Input::text( $request->get_param( 'email' ) ), absint( $request->get_param( 'quantity' ) ?: 1 ) ) );
 	}
 
 	public static function waitlist_position( \WP_REST_Request $request ) {
@@ -168,6 +168,6 @@ final class Api {
 		$attempts = (int) get_transient( $ip_key );
 		if ( $attempts >= 60 ) { return new \WP_Error( 'wpcap_pass_rate', __( 'Zu viele Versuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $ip_key, $attempts + 1, HOUR_IN_SECONDS );
-		return self::respond( Memberships::redeem_service( (string) $request->get_param( 'token' ), absint( $request->get_param( 'resource_id' ) ), (string) $request->get_param( 'idempotency_key' ), absint( $request->get_param( 'slot_id' ) ), absint( $request->get_param( 'quantity' ) ?: 1 ) ) );
+		return self::respond( Memberships::redeem_service( \PassCaptain\Security\Input::text( $request->get_param( 'token' ) ), absint( $request->get_param( 'resource_id' ) ), \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ), absint( $request->get_param( 'slot_id' ) ), absint( $request->get_param( 'quantity' ) ?: 1 ) ) );
 	}
 }

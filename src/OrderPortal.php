@@ -11,16 +11,15 @@ final class OrderPortal {
 	}
 
 	public static function maybe_render() {
-		$public_id = sanitize_text_field( get_query_var( 'wpcap_order' ) );
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) get_query_var( 'wpcap_access' ) ) );
+		$public_id = sanitize_text_field( Security\Input::text( get_query_var( 'wpcap_order' ) ) );
+		$token = Security\Input::hex( get_query_var( 'wpcap_access' ) );
 		if ( '' === $public_id || '' === $token ) { return; }
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || 64 !== strlen( $token ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
 		Sales\Consents::maybe_handle_portal_post( $order, $token ); // Consent withdrawal (POST, redirects back).
+		Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
-		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
-		header( 'Referrer-Policy: no-referrer' );
 		// Rendered in the order's language (buyer's choice in checkout or portal, Frontend\Language).
 		echo Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $order, $token ) { return self::render_page( $order, $token ); } ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_page.
 		exit;

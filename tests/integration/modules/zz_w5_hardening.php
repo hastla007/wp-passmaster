@@ -40,7 +40,7 @@ $hd_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WH
 $body = array( 'email' => 'hd@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 2 ) ), 'idempotency_key' => 'hd-idem-1', 'provider' => 'manual' );
 $a = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', $body ) );
 $b = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', $body ) );
-check( 'repeated checkout request reuses the order (201 then 200) and holds once', 201 === hd_status( $a ) && 200 === hd_status( $b ) && $a->get_data()['order_id'] === $b->get_data()['order_id'] && 18 === Orders::availability( $hd_type ) );
+check( 'repeated checkout request reuses the order (201 then 200) and holds once', 201 === hd_status( $a ) && 200 === hd_status( $b ) && $a->get_data()['reference'] === $b->get_data()['reference'] && 18 === Orders::availability( $hd_type ) );
 $c = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array_merge( $body, array( 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 4 ) ) ) ) ) );
 check( 'same idempotency key with a different body does not create a second order (409, audit QA-1)', is_wp_error( $c ) && 'wpcap_idempotency_mismatch' === $c->get_error_code() && 409 === hd_status( $c ) && 18 === Orders::availability( $hd_type ) );
 
@@ -79,7 +79,7 @@ $GLOBALS['wpcap_test_transients'] = array();
 $long_key = str_repeat( 'k', 10000 );
 $r = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-key@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => $long_key, 'provider' => 'manual' ) ) );
 $r2 = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-key2@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => $long_key . 'x', 'provider' => 'manual' ) ) );
-check( 'overlong idempotency keys never collide or break storage', ( is_wp_error( $r ) || is_wp_error( $r2 ) || $r->get_data()['order_id'] !== $r2->get_data()['order_id'] ) && '' === (string) $wpdb->last_error );
+check( 'overlong idempotency keys never collide or break storage', ( is_wp_error( $r ) || is_wp_error( $r2 ) || $r->get_data()['reference'] !== $r2->get_data()['reference'] ) && '' === (string) $wpdb->last_error );
 $GLOBALS['wpcap_test_transients'] = array();
 $r = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-prov@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-prov', 'provider' => 'stripe' ) ) );
 check( 'disabled payment provider cannot be forced through the body', is_wp_error( $r ) && 'wpcap_provider_unavailable' === $r->get_error_code() );

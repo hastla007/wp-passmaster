@@ -143,6 +143,26 @@ final class PublicEvents {
 		return ob_get_clean();
 	}
 
+	/**
+	 * template_redirect: a page with the scanner shortcode is a staff tool – not cached (it carries a
+	 * REST nonce), not framed, not indexed. Headers must go out before the theme prints anything, so
+	 * this runs before the shortcode renders.
+	 *
+	 * @return bool Whether the private-page headers were sent.
+	 */
+	public static function protect_scanner_page() {
+		if ( ! function_exists( 'is_singular' ) || ! is_singular() ) { return false; }
+		$post = get_post();
+		if ( ! $post || ! has_shortcode( (string) $post->post_content, 'wp_pass_captain_scanner' ) ) { return false; }
+		Security\PrivatePage::send();
+		return true;
+	}
+
+	/** template_redirect action (no return value), see protect_scanner_page(). */
+	public static function maybe_protect_scanner_page() {
+		self::protect_scanner_page();
+	}
+
 	public static function render_scanner_shortcode() {
 		if ( ! is_user_logged_in() || ! current_user_can( 'wpcap_checkin' ) ) {
 			return '<p>' . esc_html__( 'Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich.', 'pass-captain' ) . '</p>';

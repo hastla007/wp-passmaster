@@ -153,6 +153,9 @@ final class Checkin {
 			if ( $previous ) {
 				$found = self::lookup( $code, null, false );
 				if ( ! is_wp_error( $found ) && (int) $found['ticket_id'] === (int) $previous->ticket_id ) {
+					// A replay is answered only while the user may still admit this ticket here (access, device, date, area).
+					$denied = self::deny( $found, $context, 'in' );
+					if ( $denied ) { return $denied; }
 					$review_id = 'checked_in' === $previous->result && 'offline' === ( $context['source'] ?? '' ) ? Conflicts::find_by_dedupe( $user_id . '|' . $key ) : 0;
 					return 'checked_in' === $previous->result
 						? array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in', 'replayed' => true ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() )

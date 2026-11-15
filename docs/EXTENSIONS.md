@@ -468,6 +468,13 @@ Minute gemeinsam mit den Kernrouten; `retry_after` und Header `Retry-After`). Da
 eigene Rechteprüfungen. Neue Scopes erscheinen auf der Seite „Entwickler-API-Keys“; entfernt das Add-on einen Scope,
 gelten Keys dafür nicht mehr.
 
+Ein Key handelt als seine Inhaberin und gilt nur, solange sie das Recht noch hat: Administratoren immer; sonst muss
+die Rolle die Capability tragen **und** die Person für genau diese Capability dem Event zugewiesen sein. Lese-Scopes
+(`*.read`) akzeptieren `wpcap_manage_events` oder `wpcap_view_reports`, alle anderen Scopes (z. B. `orders.write`)
+nur `wpcap_manage_events`. Wird die Person gelöscht oder von der Site entfernt, widerruft der Kern ihre Keys und
+entfernt ihre Event-/Terminzuweisungen; bei einem Rollenwechsel werden die Keys widerrufen, die die neue Rolle
+nicht mehr nutzen darf (Audit `developer_key_revoked` mit `reason`).
+
 ### Kartenterminals an der Kasse (Box Office)
 
 Der Kern enthält **keinen** Terminal-Anbieter (Stripe Terminal, SumUp, …); ein Add-on registriert Geräte über einen

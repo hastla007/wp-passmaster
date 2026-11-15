@@ -50,7 +50,7 @@ final class Api {
 		if ( ! RateLimit::allow( 'pair_' . RateLimit::client(), 10, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_pair_rate', __( 'Zu viele Kopplungsversuche. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
-		$result = Devices::pair( $request->get_param( 'code' ), (string) $request->get_param( 'device_label' ), (string) $request->get_param( 'platform' ), (string) $request->get_param( 'app_version' ) );
+		$result = Devices::pair( $request->get_param( 'code' ), \PassCaptain\Security\Input::text( $request->get_param( 'device_label' ) ), \PassCaptain\Security\Input::text( $request->get_param( 'platform' ) ), \PassCaptain\Security\Input::text( $request->get_param( 'app_version' ) ) );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
 	}
 
@@ -121,7 +121,7 @@ final class Api {
 	}
 
 	public static function check_in( \WP_REST_Request $request ) {
-		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
+		$key = sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) );
 		if ( '' === $key ) {
 			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -133,7 +133,7 @@ final class Api {
 
 	/** Check-out (person leaves); for presence counting and re-entry tickets. */
 	public static function check_out( \WP_REST_Request $request ) {
-		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
+		$key = sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) );
 		if ( '' === $key ) {
 			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -154,9 +154,9 @@ final class Api {
 			if ( ! \PassCaptain\Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin', $found['event_id'] ) ) {
 				return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
 			}
-			$result = Engine::undo_last( $found, (string) $request->get_param( 'reason' ) );
+			$result = Engine::undo_last( $found, \PassCaptain\Security\Input::text( $request->get_param( 'reason' ) ) );
 		} else {
-			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => (string) $request->get_param( 'reason' ) ) );
+			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => \PassCaptain\Security\Input::text( $request->get_param( 'reason' ) ) ) );
 		}
 		if ( is_wp_error( $result ) ) { return self::scan_response( $result ); }
 		return rest_ensure_response( array( 'ok' => true, 'result' => 'undone', 'ticket_public_id' => $found['public_id'] ) );

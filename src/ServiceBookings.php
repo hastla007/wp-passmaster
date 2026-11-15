@@ -1021,7 +1021,7 @@ final class ServiceBookings {
 	/** Booking of an order the buyer has a valid order access token for, else null. */
 	public static function for_order_access( $public_id, $access_token, $booking_id = 0 ) {
 		global $wpdb;
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
+		$access_token = Security\Input::hex( $access_token );
 		if ( 64 !== strlen( $access_token ) ) { return null; }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', sanitize_text_field( (string) $public_id ) ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
@@ -1032,7 +1032,7 @@ final class ServiceBookings {
 
 	/** Booking whose manage token matches (bookings without order), else null. */
 	public static function with_token( $booking_id, $token ) {
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = Security\Input::hex( $token );
 		$booking = self::get( $booking_id );
 		if ( ! $booking || 64 !== strlen( $token ) || '' === (string) $booking->manage_token_hash || ! hash_equals( (string) $booking->manage_token_hash, hash( 'sha256', $token ) ) ) { return null; }
 		return $booking;
