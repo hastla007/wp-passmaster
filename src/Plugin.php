@@ -22,6 +22,7 @@ final class Plugin {
 		Security\Policy::register(); // W9 settings (before anything reads Settings::defaults()).
 		Security\Vault::register();
 		Security\AuditTrail::register();
+		DeveloperKeys::register(); // Ends API keys and staff rows of removed users or lost roles.
 		Security\StepUp::register();
 		Security\SupportAccess::register();
 		Security\Sessions::register();
@@ -83,6 +84,7 @@ final class Plugin {
 		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
+		add_action( 'template_redirect', array( PublicEvents::class, 'maybe_protect_scanner_page' ), 1, 0 );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
 	}
 

@@ -68,6 +68,10 @@ $mail_offset = count( $GLOBALS['wpcap_test_mails'] );
 $type = make_type( 20, 10, 2500 );
 $res = Controller::checkout( p1u_request( array( 'email' => 'bank@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'manual', 'idempotency_key' => 'p1u-bank-' . uniqid() ) ) );
 $data = p1u_data( $res );
+// The checkout response carries neither order_id nor public_id (SEC-4); the test reads them from the database.
+check( 'checkout response leaks neither the sequential order_id nor the public_id', is_array( $data ) && ! array_key_exists( 'order_id', $data ) && ! array_key_exists( 'public_id', $data ) );
+$p1u_row = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'bank@example.com' ) );
+$data = is_array( $data ) ? $data + array( 'order_id' => (int) ( $p1u_row->order_id ?? 0 ), 'public_id' => (string) ( $p1u_row->public_id ?? '' ) ) : $data;
 $bank = $data['payment']['bank_transfer'] ?? array();
 $ref = Format::order_reference( $data['public_id'] ?? '' );
 check( 'checkout returns the short order number and the formatted total', is_array( $data ) && $ref === ( $data['reference'] ?? '' ) && 9 === strlen( $ref ) && '50,00 €' === ( $data['total_formatted'] ?? '' ) );
@@ -77,7 +81,7 @@ $found2 = PassCaptain\Admin\Queries::search_orders( array( 'search' => strtolowe
 check( 'admin order search finds the order by its short number / payment reference', in_array( $data['public_id'], array_column( $found['rows'], 'public_id' ), true ) && in_array( $data['public_id'], array_column( $found2['rows'], 'public_id' ), true ) );
 $due = BankTransfer::due_at( $data['order_id'] );
 check( 'due date is the end of the reservation (48 h)', '' !== $due && abs( strtotime( $due . ' UTC' ) - ( time() + 48 * 3600 ) ) < 120 );
-check( 'the access token never travels in the checkout response', false === strpos( wp_json_encode( $data ), p1u_access_token( $data['public_id'] ) ) && '' !== p1u_access_token( $data['public_id'] ) );
+check( 'the access token never travels in the checkout response', false === strpos( wp_json_encode( p1u_data( $res ) ), p1u_access_token( $data['public_id'] ) ) && '' !== p1u_access_token( $data['public_id'] ) );
 $access_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mail_offset ), static fn( $m ) => 'bank@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Deine Bestellung' ) ) )[0] ?? array( 'body' => '' );
 check( 'access-link mail contains the payment instructions by default', false !== strpos( $access_mail['body'], "Zahlungsinformationen\nBetrag: 50,00 €\nEmpfänger: Kulturverein Musterstadt\nIBAN: AT61 1904 3002 3457 3201\nBIC: BKAUATWW\nVerwendungszweck: Bestellung " . $ref . "\nZahlbar bis: " ) && false !== strpos( $access_mail['body'], "verfällt die Reservierung.\n\nBewahre diesen Link sicher auf" ) );
 check( 'payment instructions are empty once the order is paid', ( function () use ( $data ) { Orders::confirm_manual_payment( $data['order_id'] ); $vars = PassCaptain\Mail\Types::order_access_vars( $data['public_id'] ); return '' === $vars['payment_instructions']['text'] && Format::order_reference( $data['public_id'] ) === $vars['order_reference']; } )() );

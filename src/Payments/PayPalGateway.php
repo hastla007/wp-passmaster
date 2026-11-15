@@ -102,8 +102,8 @@ final class PayPalGateway implements GatewayInterface {
 	public static function maybe_handle_return() {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Redirect from PayPal; the capture itself is authorized by PayPal.
 		if ( empty( $_GET['wpcap_paypal_return'] ) ) { return; }
-		$public_id = sanitize_text_field( wp_unslash( (string) ( $_GET['order'] ?? '' ) ) );
-		$token = sanitize_text_field( wp_unslash( (string) ( $_GET['token'] ?? '' ) ) );
+		$public_id = sanitize_text_field( wp_unslash( $_GET['order'] ?? '' ) );
+		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) );
 		// phpcs:enable
 		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '' );
 		if ( is_wp_error( $result ) ) {

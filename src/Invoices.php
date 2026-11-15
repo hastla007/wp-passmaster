@@ -356,7 +356,7 @@ final class Invoices {
 		if ( ! $exists ) { check_admin_referer( 'wpcap_issue_invoice_' . $order_id ); }
 		$result = self::issue_for_order( $order_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
-		nocache_headers();
+		Security\PrivatePage::send();
 		echo self::render_html( $result['invoice_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
 		exit;
 	}
@@ -364,15 +364,14 @@ final class Invoices {
 	/** Buyer view through the personal order link: ?wpcap_invoice=<public_id>&wpcap_access=<token> */
 	public static function maybe_render_customer_invoice() {
 		$public_id = sanitize_text_field( wp_unslash( $_GET['wpcap_invoice'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_GET['wpcap_access'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- reduced to hex characters.
+		$token = Security\Input::hex( wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- reduced to hex characters.
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return; }
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
 		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', $order->order_id ) );
 		if ( ! $invoice_id ) { status_header( 404 ); exit; }
-		nocache_headers();
-		header( 'Referrer-Policy: no-referrer' );
+		Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		echo self::render_html( $invoice_id, array( 'audience' => 'customer', 'order_public_id' => (string) $order->public_id, 'access_token' => $token ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
 		exit;
 	}

@@ -47,18 +47,18 @@ final class ApiKeysPage {
 				}
 				$scopes = array_values( array_intersect( array_map( 'strval', array_filter( (array) ( $in['scopes'] ?? array() ), 'is_scalar' ) ), array_keys( DeveloperKeys::scopes() ) ) );
 				$rate = Forms::int( $in, 'rate_limit', DeveloperKeys::DEFAULT_RATE_LIMIT );
-				if ( $rate < 1 || $rate > DeveloperKeys::MAX_RATE_LIMIT ) {
+				if ( $rate < 1 || $rate > DeveloperKeys::max_rate_limit() ) {
 					/* translators: %d: maximum */
-					return Forms::error( 'wpcap_api_key_rate', sprintf( __( 'Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen.', 'pass-captain' ), DeveloperKeys::MAX_RATE_LIMIT ) );
+					return Forms::error( 'wpcap_api_key_rate', sprintf( __( 'Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen.', 'pass-captain' ), DeveloperKeys::max_rate_limit() ) );
 				}
 				$result = DeveloperKeys::issue( $event_id, $scopes, Forms::text( $in, 'label' ), $expires, $rate );
 				if ( ! is_wp_error( $result ) ) { set_transient( self::new_key_transient(), $result['key'], 5 * MINUTE_IN_SECONDS ); }
 				return $result;
 			case 'rate_limit':
 				$rate = Forms::int( $in, 'rate_limit' );
-				if ( $rate < 1 || $rate > DeveloperKeys::MAX_RATE_LIMIT ) {
+				if ( $rate < 1 || $rate > DeveloperKeys::max_rate_limit() ) {
 					/* translators: %d: maximum */
-					return Forms::error( 'wpcap_api_key_rate', sprintf( __( 'Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen.', 'pass-captain' ), DeveloperKeys::MAX_RATE_LIMIT ) );
+					return Forms::error( 'wpcap_api_key_rate', sprintf( __( 'Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen.', 'pass-captain' ), DeveloperKeys::max_rate_limit() ) );
 				}
 				return DeveloperKeys::set_rate_limit( $id, $rate );
 			case 'revoke':
@@ -123,7 +123,7 @@ final class ApiKeysPage {
 		echo '</fieldset></td></tr>';
 		/* translators: %s: timezone */
 		FeatureScreens::input_row( 'wpcap-ak-expires', 'expires_at', __( 'Gültig bis (optional)', 'pass-captain' ), '', 'datetime-local', '', sprintf( __( 'Leer lassen für unbegrenzte Gültigkeit. Zeitzone: %s', 'pass-captain' ), $tz ) );
-		FeatureScreens::input_row( 'wpcap-ak-rate', 'rate_limit', __( 'Ratenlimit (Anfragen pro Minute)', 'pass-captain' ), (string) DeveloperKeys::DEFAULT_RATE_LIMIT, 'number', 'min="1" max="' . (int) DeveloperKeys::MAX_RATE_LIMIT . '" required' );
+		FeatureScreens::input_row( 'wpcap-ak-rate', 'rate_limit', __( 'Ratenlimit (Anfragen pro Minute)', 'pass-captain' ), (string) DeveloperKeys::DEFAULT_RATE_LIMIT, 'number', 'min="1" max="' . (int) DeveloperKeys::max_rate_limit() . '" required' );
 		echo '</tbody></table>';
 		submit_button( __( 'API-Key erstellen', 'pass-captain' ) );
 		echo '</form>';
@@ -150,7 +150,7 @@ final class ApiKeysPage {
 				Forms::open_form( self::ACTION, null, 'style="display:inline"' );
 				Forms::hidden( 'do', 'rate_limit' );
 				Forms::hidden( 'id', (int) $key->api_key_id );
-				echo '<label class="screen-reader-text" for="' . esc_attr( $rid ) . '">' . esc_html__( 'Ratenlimit (Anfragen pro Minute)', 'pass-captain' ) . '</label><input type="number" id="' . esc_attr( $rid ) . '" name="rate_limit" min="1" max="' . (int) DeveloperKeys::MAX_RATE_LIMIT . '" value="' . (int) $rate . '" style="width:7em"> <button type="submit" class="button button-small">' . esc_html__( 'Speichern', 'pass-captain' ) . '</button></form>';
+				echo '<label class="screen-reader-text" for="' . esc_attr( $rid ) . '">' . esc_html__( 'Ratenlimit (Anfragen pro Minute)', 'pass-captain' ) . '</label><input type="number" id="' . esc_attr( $rid ) . '" name="rate_limit" min="1" max="' . (int) DeveloperKeys::max_rate_limit() . '" value="' . (int) $rate . '" style="width:7em"> <button type="submit" class="button button-small">' . esc_html__( 'Speichern', 'pass-captain' ) . '</button></form>';
 			} else {
 				echo (int) $rate;
 			}

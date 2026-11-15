@@ -23,42 +23,24 @@ final class MembershipsPage {
 		return (int) $event_id ? Access::can_access_event( (int) $event_id, self::CAP ) : current_user_can( 'manage_options' );
 	}
 
-	/** Whether the current user may manage a pass: every rule's event must be accessible (as in REST). */
+	/** Whether the current user may manage a pass: every rule must be in their scope (shared with REST). */
 	public static function can_manage_pass( $pass_id ) {
-		global $wpdb;
-		$events = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_pass_rules', absint( $pass_id ) ) );
-		if ( ! $events ) { return current_user_can( 'manage_options' ); }
-		foreach ( $events as $event_id ) {
-			if ( ! self::can_rule_event( $event_id ) ) { return false; }
-		}
-		return true;
+		return Memberships::current_user_can_manage_pass( $pass_id );
 	}
 
-	/** Rule input (scope, event/ticket type or resource, quotas, expiry) → array or WP_Error. */
+	/** Rule input (scope, event/ticket type or resource, quotas, expiry) → array or WP_Error (scope check: Memberships). */
 	private static function rule_from( array $in ) {
 		$scope = Forms::choice( $in, 'scope', Memberships::SCOPES, 'event' );
 		$expires = FeatureScreens::optional_local( $in, 'expires_at', FeatureScreens::site_timezone() );
 		if ( null === $expires ) { return Forms::error( 'wpcap_pass_rule_expiry', __( 'Ungültiges Ablaufdatum der Regel.', 'pass-captain' ) ); }
-		$extra = array( 'scope' => $scope, 'slot_mode' => Forms::choice( $in, 'slot_mode', Memberships::SLOT_MODES, 'slot_free' ), 'expires_at' => (string) $expires );
-		if ( 'service' === $scope ) {
-			// Service rules: one resource (managed by the user) or all resources (administrators only).
-			$resource_id = Forms::int( $in, 'resource_id' );
-			$resource = $resource_id ? \PassCaptain\ServiceResources::resource( $resource_id ) : null;
-			if ( $resource_id ? ! \PassCaptain\ServiceResources::can_manage( $resource ) : ! current_user_can( 'manage_options' ) ) {
-				return Forms::forbidden( __( 'Keine Berechtigung für eine Passregel dieser Ressource. Regeln für alle Ressourcen dürfen nur Administratoren anlegen.', 'pass-captain' ) );
-			}
-			return array( 'event_id' => 0, 'ticket_type_id' => 0, 'resource_id' => $resource_id, 'uses_total' => Forms::int( $in, 'uses_total' ), 'uses_per_day' => Forms::int( $in, 'uses_per_day', 1 ) ) + $extra;
-		}
-		$type_id = Forms::int( $in, 'ticket_type_id' );
-		$event_id = Forms::int( $in, 'event_id' );
-		if ( $type_id ) {
-			$type_event = FeatureScreens::event_of_ticket_type( $type_id );
-			if ( ! $type_event || ( $event_id && $event_id !== $type_event ) ) { return Forms::error( 'wpcap_pass_rule_scope', __( 'Die Ticketart gehört nicht zum gewählten Event.', 'pass-captain' ) ); }
-			$event_id = $type_event;
-		}
-		if ( ! self::can_rule_event( $event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für eine Passregel. Regeln für alle Events dürfen nur Administratoren anlegen.', 'pass-captain' ) ); }
-		if ( 'any' === $scope && ! current_user_can( 'manage_options' ) ) { return Forms::forbidden( __( 'Regeln für Events und Ressourcen gemeinsam dürfen nur Administratoren anlegen.', 'pass-captain' ) ); }
-		return array( 'event_id' => $event_id, 'ticket_type_id' => $type_id, 'resource_id' => 0, 'uses_total' => Forms::int( $in, 'uses_total' ), 'uses_per_day' => Forms::int( $in, 'uses_per_day', 1 ) ) + $extra;
+		$rule = Memberships::validate_rule_for_current_user( array(
+			'scope' => $scope,
+			'event_id' => Forms::int( $in, 'event_id' ),
+			'ticket_type_id' => Forms::int( $in, 'ticket_type_id' ),
+			'resource_id' => Forms::int( $in, 'resource_id' ),
+		) );
+		if ( is_wp_error( $rule ) ) { return $rule; }
+		return array( 'event_id' => (int) $rule['event_id'], 'ticket_type_id' => (int) $rule['ticket_type_id'], 'resource_id' => (int) $rule['resource_id'], 'uses_total' => Forms::int( $in, 'uses_total' ), 'uses_per_day' => Forms::int( $in, 'uses_per_day', 1 ), 'scope' => $scope, 'slot_mode' => Forms::choice( $in, 'slot_mode', Memberships::SLOT_MODES, 'slot_free' ), 'expires_at' => (string) $expires );
 	}
 
 	/** Label of a service/any rule: scope, resource, slot binding, expiry. */

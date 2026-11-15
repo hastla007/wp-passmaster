@@ -22,6 +22,21 @@ final class RateLimit {
 		return hash_hmac( 'sha256', self::client_ip(), self::secret() );
 	}
 
+	/**
+	 * Network of the client for rate limits: the IPv4 address, or the /64 prefix of an IPv6 address
+	 * (one end-user network; rotating addresses inside it must not reset the limit).
+	 *
+	 * @param string|null $ip Address (default: client_ip()).
+	 */
+	public static function client_network( $ip = null ) {
+		$ip = null === $ip ? self::client_ip() : (string) $ip;
+		if ( false === filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) { return $ip; }
+		$packed = inet_pton( $ip );
+		if ( false === $packed || 16 !== strlen( $packed ) ) { return $ip; }
+		if ( 0 === strncmp( $packed, str_repeat( "\0", 10 ) . "\xff\xff", 12 ) ) { return (string) inet_ntop( substr( $packed, 12 ) ); } // IPv4-mapped.
+		return (string) inet_ntop( substr( $packed, 0, 8 ) . str_repeat( "\0", 8 ) ) . '/64';
+	}
+
 	/** Forwarding headers that can be trusted when the request comes from a trusted proxy. */
 	const PROXY_HEADERS = array(
 		'x_forwarded_for' => 'HTTP_X_FORWARDED_FOR',

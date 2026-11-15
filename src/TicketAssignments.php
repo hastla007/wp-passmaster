@@ -8,7 +8,7 @@ final class TicketAssignments {
 	public static function assign( $public_id, $access_token, $ticket_public_id, $name, $email, $answers = null ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( $public_id );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
+		$access_token = Security\Input::hex( $access_token );
 		$email = sanitize_email( $email );
 		$name = sanitize_text_field( $name );
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! $name || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_assignment_invalid', __( 'Teilnehmerdaten ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }

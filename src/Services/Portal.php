@@ -27,7 +27,7 @@ final class Portal {
 	const ACTION = 'wpcap_service_portal';
 
 	private static function token_from( array $in ) {
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) ( $in['token'] ?? '' ) ) );
+		$token = \PassCaptain\Security\Input::hex( $in['token'] ?? '' );
 		return 64 === strlen( $token ) ? $token : '';
 	}
 
@@ -39,15 +39,14 @@ final class Portal {
 		if ( ! empty( $get['wpcap_service_booking'] ) && $token ) {
 			$html = self::booking_page( absint( $get['wpcap_service_booking'] ), $token );
 		} elseif ( ! empty( $get['wpcap_service_waitlist'] ) && $token ) {
-			$html = self::waitlist_page( absint( $get['wpcap_service_waitlist'] ), sanitize_key( (string) ( $get['do'] ?? 'status' ) ), $token );
+			$html = self::waitlist_page( absint( $get['wpcap_service_waitlist'] ), sanitize_key( \PassCaptain\Security\Input::text( $get['do'] ?? 'status' ) ), $token );
 		} elseif ( ! empty( $get['wpcap_waitlist_decline'] ) && $token ) {
 			$html = self::confirm_page( __( 'Wartelistenangebot ablehnen', 'pass-captain' ), __( 'Möchtest du das Angebot ablehnen? Das Ticket geht dann an die nächste Person auf der Warteliste.', 'pass-captain' ), array( 'do' => 'event_decline', 'id' => absint( $get['wpcap_waitlist_decline'] ), 'token' => $token ), __( 'Angebot ablehnen', 'pass-captain' ) );
 		} elseif ( ! empty( $get['wpcap_waitlist_leave'] ) && $token ) {
 			$html = self::confirm_page( __( 'Von der Warteliste austragen', 'pass-captain' ), __( 'Möchtest du dich von der Warteliste austragen?', 'pass-captain' ), array( 'do' => 'event_leave', 'id' => absint( $get['wpcap_waitlist_leave'] ), 'token' => $token ), __( 'Austragen', 'pass-captain' ) );
 		}
 		if ( '' === $html ) { return; }
-		nocache_headers();
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		\PassCaptain\Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		status_header( 200 );
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		exit;
@@ -56,7 +55,7 @@ final class Portal {
 	/** admin-post handler (logged in or not). */
 	public static function handle_post() {
 		$in = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified below.
-		check_admin_referer( self::ACTION . '_' . sanitize_key( (string) ( $in['do'] ?? '' ) ) . '_' . absint( $in['id'] ?? 0 ) );
+		check_admin_referer( self::ACTION . '_' . sanitize_key( \PassCaptain\Security\Input::text( $in['do'] ?? '' ) ) . '_' . absint( $in['id'] ?? 0 ) );
 		$result = self::perform( (array) $in );
 		$redirect = is_array( $result ) ? (string) ( $result['supplement']['payment']['redirect_url'] ?? '' ) : '';
 		if ( '' !== $redirect && wp_http_validate_url( $redirect ) ) {
@@ -76,10 +75,10 @@ final class Portal {
 	 * @return array|\WP_Error
 	 */
 	public static function perform( array $in ) {
-		$do = sanitize_key( (string) ( $in['do'] ?? '' ) );
+		$do = sanitize_key( \PassCaptain\Security\Input::text( $in['do'] ?? '' ) );
 		$id = absint( $in['id'] ?? 0 );
 		$token = self::token_from( $in );
-		$key = 'portal-' . substr( hash( 'sha256', (string) ( $in['_wpnonce'] ?? '' ) . '|' . $id . '|' . absint( $in['slot_id'] ?? 0 ) ), 0, 24 );
+		$key = 'portal-' . substr( hash( 'sha256', \PassCaptain\Security\Input::text( $in['_wpnonce'] ?? '' ) . '|' . $id . '|' . absint( $in['slot_id'] ?? 0 ) ), 0, 24 );
 		switch ( $do ) {
 			case 'booking_confirm':
 				return ServiceBookings::confirm_free( $id, $token );
@@ -90,16 +89,16 @@ final class Portal {
 				return 'booking_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key ) );
 			case 'order_supplement_pay':
 				// Open supplementary payment of a dearer rebooking (card of the booking or of the supplement itself).
-				$booking = ServiceBookings::for_order_access( (string) ( $in['public_id'] ?? '' ), (string) ( $in['access_token'] ?? '' ), $id );
+				$booking = ServiceBookings::for_order_access( \PassCaptain\Security\Input::text( $in['public_id'] ?? '' ), \PassCaptain\Security\Input::text( $in['access_token'] ?? '' ), $id );
 				if ( ! $booking ) { return self::denied(); }
 				$supplement = (int) $booking->supplement_for ? $booking : ServiceBookings::open_supplement( (int) $booking->booking_id );
 				$payment = ServiceBookings::supplement_payment( $supplement );
 				return is_wp_error( $payment ) ? $payment : array( 'status' => 'supplement_pending', 'supplement' => array( 'amount_minor' => (int) $supplement->amount_minor, 'currency' => (string) $supplement->currency, 'expires_at' => (string) $supplement->expires_at, 'payment' => $payment ) );
 			case 'order_cancel':
 			case 'order_rebook':
-				$booking = ServiceBookings::for_order_access( (string) ( $in['public_id'] ?? '' ), (string) ( $in['access_token'] ?? '' ), $id );
+				$booking = ServiceBookings::for_order_access( \PassCaptain\Security\Input::text( $in['public_id'] ?? '' ), \PassCaptain\Security\Input::text( $in['access_token'] ?? '' ), $id );
 				if ( ! $booking ) { return self::denied(); }
-				return 'order_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key, 'provider' => sanitize_key( (string) ( $in['provider'] ?? '' ) ) ) );
+				return 'order_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key, 'provider' => sanitize_key( \PassCaptain\Security\Input::text( $in['provider'] ?? '' ) ) ) );
 			case 'waitlist_accept':
 				return ServiceWaitlist::accept( $id, $token );
 			case 'waitlist_decline':

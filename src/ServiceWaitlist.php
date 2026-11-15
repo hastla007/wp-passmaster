@@ -101,7 +101,7 @@ final class ServiceWaitlist {
 
 	/** Entry whose manage or offer token matches, else null. */
 	public static function with_token( $entry_id, $token ) {
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = Security\Input::hex( $token );
 		$entry = self::get( $entry_id );
 		if ( ! $entry || 64 !== strlen( $token ) ) { return null; }
 		$hash = hash( 'sha256', $token );
@@ -187,7 +187,7 @@ final class ServiceWaitlist {
 	public static function accept( $entry_id, $token ) {
 		global $wpdb;
 		$entry = self::get( $entry_id );
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = Security\Input::hex( $token );
 		if ( ! $entry || 64 !== strlen( $token ) ) { return self::invalid(); }
 		$hash = hash( 'sha256', $token );
 		$token_ok = ( '' !== (string) $entry->offer_token_hash && hash_equals( (string) $entry->offer_token_hash, $hash ) );

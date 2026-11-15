@@ -253,8 +253,8 @@ final class InvoicePdf {
 	 */
 	public static function customer_pdf( $public_id, $token ) {
 		global $wpdb;
-		$public_id = sanitize_text_field( (string) $public_id );
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$public_id = sanitize_text_field( \PassCaptain\Security\Input::text( $public_id ) );
+		$token = \PassCaptain\Security\Input::hex( $token );
 		$denied = new \WP_Error( 'wpcap_not_found', __( 'Nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return $denied; }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
@@ -269,7 +269,7 @@ final class InvoicePdf {
 		if ( ! isset( $_GET['wpcap_invoice_pdf'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$result = self::customer_pdf( wp_unslash( $_GET['wpcap_invoice_pdf'] ), wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
 		if ( is_wp_error( $result ) ) { status_header( 404 ); exit; }
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		\PassCaptain\Security\PrivatePage::send(); // No cache copy, no framing, no indexing (secret link).
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 

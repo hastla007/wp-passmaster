@@ -215,7 +215,7 @@ final class Waitlists {
 	/** Entry whose offer token ($kind offer) or manage/offer token ($kind any) matches. */
 	private static function entry_with_token( $waitlist_id, $token, $kind ) {
 		global $wpdb;
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = Security\Input::hex( $token );
 		if ( 64 !== strlen( $token ) ) { return null; }
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE waitlist_id=%d', $wpdb->prefix . 'wpcap_waitlist', absint( $waitlist_id ) ) );
 		if ( ! $row ) { return null; }
@@ -252,6 +252,11 @@ final class Waitlists {
 		return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
+	/** Sign-ups per client IP and hour across all events (filter wp_pass_captain_waitlist_ip_limit_v1, at least 1). */
+	public static function ip_limit_per_hour() {
+		return max( 1, (int) apply_filters( 'wp_pass_captain_waitlist_ip_limit_v1', 60 ) );
+	}
+
 	public static function join( $event_id, $occurrence_id, $ticket_type_id, $email ) {
 		global $wpdb;
 		$event_id = absint( $event_id );
@@ -259,15 +264,21 @@ final class Waitlists {
 		$ticket_type_id = absint( $ticket_type_id );
 		$email = sanitize_email( $email );
 		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$rate_key = 'wpcap_waitlist_' . hash( 'sha256', $email . '|' . $event_id );
+		$rate_error = new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		// Per address and event (case-insensitive, like email_hash), per IP and event, and per IP across all events.
+		$rate_key = 'wpcap_waitlist_' . hash( 'sha256', strtolower( $email ) . '|' . $event_id );
 		$attempts = (int) get_transient( $rate_key );
-		if ( $attempts >= 5 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
+		if ( $attempts >= 5 ) { return $rate_error; }
 		set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
-		$ip = RateLimit::client_ip();
+		$ip = RateLimit::client_network(); // IPv6: per /64, address rotation does not reset the limit.
 		$ip_key = 'wpcap_waitlist_ip_' . hash( 'sha256', $ip . '|' . $event_id );
 		$ip_attempts = (int) get_transient( $ip_key );
-		if ( $ip_attempts >= 20 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
+		if ( $ip_attempts >= 20 ) { return $rate_error; }
+		$global_key = 'wpcap_waitlist_ipall_' . hash( 'sha256', $ip );
+		$global_attempts = (int) get_transient( $global_key );
+		if ( $global_attempts >= self::ip_limit_per_hour() ) { return $rate_error; }
 		set_transient( $ip_key, $ip_attempts + 1, HOUR_IN_SECONDS );
+		set_transient( $global_key, $global_attempts + 1, HOUR_IN_SECONDS );
 		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences', $event_id, $occurrence_id ) );
 		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id FROM %i WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $wpdb->prefix . 'wpcap_ticket_types', $ticket_type_id, $occurrence_id ) );
@@ -353,8 +364,7 @@ final class Waitlists {
 		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || 64 !== strlen( $token ) || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
-		nocache_headers();
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		status_header( 200 );
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php esc_html_e( 'Wartelistenangebot annehmen', 'pass-captain' ); ?></title></head><body><main><h1><?php esc_html_e( 'Wartelistenangebot annehmen', 'pass-captain' ); ?></h1><p><?php esc_html_e( 'Mit der Annahme wird eine Bestellung angelegt und das Ticket reserviert, sofern es noch verfügbar ist.', 'pass-captain' ); ?></p><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'wpcap_accept_waitlist_' . $waitlist_id ); ?><input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="<?php echo esc_attr( $waitlist_id ); ?>"><input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>"><button type="submit"><?php esc_html_e( 'Angebot annehmen', 'pass-captain' ); ?></button></form></main></body></html><?php
 		exit;
@@ -364,6 +374,7 @@ final class Waitlists {
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
 		$result = self::accept_offer( $waitlist_id, sanitize_text_field( wp_unslash( $_POST['token'] ?? '' ) ) );
+		Security\PrivatePage::send();
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( sprintf( /* translators: %s: site name */ __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) ); ?></title></head><body><main><?php if ( is_wp_error( $result ) ) : ?><h1><?php esc_html_e( 'Angebot nicht verfügbar', 'pass-captain' ); ?></h1><p><?php echo esc_html( $result->get_error_message() ); ?></p><?php else : ?><h1><?php esc_html_e( 'Angebot angenommen', 'pass-captain' ); ?></h1><p><?php echo esc_html( 'complete' === ( $result['order']['status'] ?? '' ) ? __( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'pass-captain' ) : __( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet.', 'pass-captain' ) ); ?></p><?php endif; ?></main></body></html><?php
 		exit;
@@ -377,7 +388,7 @@ final class Waitlists {
 	 */
 	public static function accept_offer( $waitlist_id, $token ) {
 		global $wpdb;
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = Security\Input::hex( $token );
 		if ( 64 !== strlen( $token ) ) { return self::invalid_offer(); }
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,email,ticket_type_id,offer_token_hash,offer_expires_at,status FROM %i WHERE waitlist_id=%d', $table, absint( $waitlist_id ) ) );
