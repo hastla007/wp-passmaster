@@ -47,8 +47,16 @@ selbst übergeben, z. B. WooCommerce):
    (Leistungsort)“). Eintrittsberechtigungen zu Veranstaltungen werden in der Regel am
    Veranstaltungsort besteuert; ohne Angabe gilt das Verkäuferland (Einstellung `seller_country`).
 2. **Klasse** = Steuerklasse der Ticketart (`wpcap_ticket_types.tax_class`, leer = `standard`).
-3. **Datum** = Bestelldatum (UTC), Filter `wpcap_tax_profile_date`
-   (`string $date, object $type, object $occurrence`), z. B. um auf das Veranstaltungsdatum umzustellen.
+3. **Datum** = Leistungszeitpunkt: das **lokale Datum des Terminbeginns** (`occurrence.starts_at`,
+   umgerechnet in die Zeitzone des Termins, sonst die Website-Zeitzone). Maßgeblich ist in der Regel
+   der Satz, der bei Ausführung der Leistung gilt (DE § 27 Abs. 1 UStG, AT § 28 UStG) – ein Satzwechsel
+   zwischen Kauf und Veranstaltung wirkt also auf bereits geplante Termine. Ein Termin am 1.1. um
+   00:30 Uhr Wiener Zeit (31.12. 23:30 UTC) gilt als Leistung am 1.1. Ohne Terminbeginn gilt das
+   lokale Bestelldatum. Filter `wpcap_tax_profile_date`
+   (`string $date, object $type, object $occurrence, string $order_date`): `$order_date` ist das
+   lokale Bestelldatum, z. B. um (nach steuerlicher Prüfung) auf das Bestelldatum zurückzustellen.
+   Der Stichtag steht im Positions-Snapshot (`line_snapshot.tax.date`). Bis Version 3.17.3 war der
+   Stichtag das Bestelldatum (UTC); bestehende Bestellungen behalten ihren eingefrorenen Satz.
 4. Die aktive Version, deren Gültigkeit das Datum enthält, liefert den Satz. **Ohne passende aktive
    Version** gilt wie bisher der Steuersatz der Ticketart (`tax_rate_bp`).
 
