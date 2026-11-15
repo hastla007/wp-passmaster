@@ -209,7 +209,7 @@ foreach ( $w6u_cases as list( $file, $db_version, $label, $prefix, $full ) ) {
 	// The upgraded data works with the current code.
 	$wpdb->prefix = $prefix;
 	PassCaptain\Installer::flush_version_cache();
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$ci = Checkin::perform( $biz['code'], array( 'idempotency_key' => 'w6u-' . $prefix ) );
 	$avail = Orders::availability( $biz['type'] );
 	$new = Orders::create( array( 'email' => 'w6u-new@example.com', 'items' => array( array( 'ticket_type_id' => $biz['type'], 'quantity' => 1 ) ), 'idempotency_key' => 'w6u-' . $prefix ), array( 'skip_rate_limit' => true ) );

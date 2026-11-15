@@ -98,7 +98,7 @@ final class Orders {
 		$ip = self::client_ip();
 		if ( ! $skip_rate_limit ) {
 			// Per IP alone and per IP+email, so rotating email addresses cannot bypass the limit. RateLimit::hit()
-			// counts atomically with a persistent object cache (parallel requests cannot share one old count).
+			// counts atomically (object cache or wpcap_rate_limits), so parallel requests cannot share one old count.
 			$ip_key = 'wpcap_checkout_ip_' . self::rate_hash( $ip );
 			$rate_key = 'wpcap_checkout_' . self::rate_hash( $ip . '|' . strtolower( $email ) );
 			if ( ! RateLimit::hit( $ip_key, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ), HOUR_IN_SECONDS ) || ! RateLimit::hit( $rate_key, 8, HOUR_IN_SECONDS ) ) {

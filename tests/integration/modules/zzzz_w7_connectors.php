@@ -81,7 +81,7 @@ Refunds::request( $oid, array(), 'Test', 'w7c-refund-' . uniqid() );
 $occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=" . (int) $type );
 do_action( 'wpcap_occurrence_rescheduled', $occ, '2030-01-01 18:00:00', '2030-01-02 18:00:00' );
 do_action( 'wpcap_occurrence_cancelled', $occ, 3 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $pending = Orders::create( array( 'email' => 'w7c-cancel@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'w7c-cancel-' . uniqid() ) );
 Orders::cancel_order( $pending['order_id'], 'test' );
 $w7c_fake->received = array();

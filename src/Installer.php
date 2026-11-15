@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.14.0';
+	const DB_VERSION = '3.16.0';
 
 	public static function install() {
 		global $wpdb;
@@ -753,6 +753,8 @@ final class Installer {
 				KEY due_jobs (status,run_after),
 				KEY job_type (job_type,status)
 			) ENGINE=InnoDB $charset;",
+			// Atomic rate-limit counters without a persistent object cache (QA-V2/PERF-16, src/RateLimit.php).
+			RateLimit::schema( $wpdb->prefix . 'wpcap_rate_limits', $charset ),
 		);
 
 		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).

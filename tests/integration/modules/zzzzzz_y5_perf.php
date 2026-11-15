@@ -166,7 +166,7 @@ check( "box office list: 9 types with the same availability in $y5_q_bo queries 
 
 echo "Y5 PERF-2: Mollie methods – one cached list per currency/country, negative cache, short timeout\n";
 PassCaptain\Settings::update( array( 'mollie_api_key' => 'test_' . str_repeat( 'Yz5', 10 ), 'mollie' => array( 'methods' => array( 'ideal', 'klarna', 'creditcard' ), 'billing_country' => 'AT' ) ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_transient_ttl'] = array();
 http_reset();
 http_push( array( '_embedded' => array( 'methods' => array(
@@ -183,7 +183,7 @@ check( 'three different amounts need one API call (cache per currency/country)',
 check( 'limits are applied locally (Klarna from 35 €, up to 1,000 €; no limits = allowed)', array( 'ideal', 'creditcard' ) === array_keys( $y5_m1 ) && array( 'ideal', 'klarna', 'creditcard' ) === array_keys( $y5_m2 ) && array( 'ideal', 'creditcard' ) === array_keys( $y5_m3 ) );
 check( 'the methods lookup uses a timeout of at most 3 seconds', ( $y5_mreq[0]['timeout'] ?? 99 ) <= 3 );
 http_reset();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_push( array( 'detail' => 'down' ), 503, '/v2/methods' );
 $y5_e1 = PassCaptain\Mollie\MollieGateway::available_methods( '25.00', 'EUR' );
 $y5_e2 = PassCaptain\Mollie\MollieGateway::available_methods( '30.00', 'EUR' );
@@ -197,7 +197,7 @@ PassCaptain\Mollie\MollieGateway::available_methods( '25.00', 'CHF' );
 parse_str( (string) parse_url( http_requests( '/v2/methods' )[0]['url'] ?? '', PHP_URL_QUERY ), $y5_mq );
 check( 'other currencies: Mollie filters by amount (limits are only given in EUR)', '25.00' === ( $y5_mq['amount']['value'] ?? '' ) && 'CHF' === ( $y5_mq['amount']['currency'] ?? '' ) );
 http_reset();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 echo "Y5 PERF-4: occurrence cancellation – bulk revoke first, refunds/mails/hooks as job batches\n";
 PassCaptain\OccurrenceCancellation::register();
@@ -359,7 +359,7 @@ $y5p_short = PassCaptain\Reports\Data::build( array( 'from' => '2026-01-01', 'to
 check( 'report period is limited to 366 days (with flag for the notice)', ! empty( $y5p_long['range_clamped'] ) && '2025-11-15' === $y5p_long['from'] && '2026-11-15' === $y5p_long['to'] && empty( $y5p_short['range_clamped'] ) && '2026-01-01' === $y5p_short['from'] );
 // Admin page through Reports\Cache, invalidated with any event.
 PassCaptain\Reports\Cache::register();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $y5p_filters = array( 'from' => $y5p_today, 'to' => $y5p_today, 'event_id' => 0, 'occurrence_id' => 0, 'compare' => '' );
 PassCaptain\Reports\Page::cached_report( $y5p_filters, null );
 $y5p_before = $wpdb->num_queries;
@@ -370,7 +370,7 @@ PassCaptain\Reports\Cache::flush_event( $y5v_event );
 $y5p_before = $wpdb->num_queries;
 PassCaptain\Reports\Page::cached_report( $y5p_filters, null );
 check( 'report page cache is dropped when any event changes', $wpdb->num_queries - $y5p_before > 0 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 // QA-7 / streaming: audit export without the 50,000 row cap, delivered from a stream.
 $wpdb->insert( "{$p}wpcap_audit_logs", array( 'user_id' => 1, 'action' => 'y5_bulk', 'object_type' => 'test', 'object_id' => 0, 'details' => '{}', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 for ( $i = 0; $i < 16; $i++ ) {
@@ -434,7 +434,7 @@ check( 'PERF-6: completed jobs deleted after 30 days; dead letters, queued and r
 $wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type='y5_none'" );
 
 // PERF-8: check-in results without a DISTINCT scan per page view.
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 PassCaptain\Admin\Queries::checkin_results();
 $y5_before = $wpdb->num_queries;
 $y5_results = PassCaptain\Admin\Queries::checkin_results();

@@ -102,7 +102,7 @@ function y1_warnings( callable $fn ) {
 /* ------------------------------------------------------------------ Fixtures: event A and event B */
 
 y1_admin();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 \PassCaptain\Settings::update( array( 'enabled_providers' => array( 'manual' ), 'require_terms' => 0 ) );
 $y1_type_a = make_type( 50, 10, 0 );
 $y1_type_b = make_type( 50, 10, 0 );
@@ -274,7 +274,7 @@ foreach ( $y1_cases as $key => $cases ) {
 	list( $method, $route ) = explode( ' ', $key, 2 );
 	foreach ( $cases as $i => list( $params, $body ) ) {
 		y1_as( $y1_staff_a, \PassCaptain\Admin\EventsPage::STAFF_CAPS );
-		$GLOBALS['wpcap_test_transients'] = array();
+		wpcap_test_reset_transients();
 		$request = y1_json( explode( ',', $method )[0], '/' . $route, $body, $params );
 		$before = y1_snapshot();
 		$response = null;
@@ -333,7 +333,7 @@ y1_admin();
 $y1_check = static fn( $key, $scope ) => DeveloperKeys::check( y1_json( 'GET', '/x', array(), array(), array( 'X-WPCAP-Key' => $key['key'] ) ), $scope, $GLOBALS['y1_event_a'] );
 $GLOBALS['y1_event_a'] = $y1_event_a;
 $GLOBALS['wpcap_test_user_can'] = static fn( $u, $c ) => 1 === (int) $u || in_array( $c, $GLOBALS['y1_user_caps'][ (int) $u ] ?? array(), true );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 check( 'key of an event manager works for read and write scopes', ! is_wp_error( $y1_check( $y1_key, 'events.read' ) ) && ! is_wp_error( $y1_check( $y1_key, 'orders.write' ) ) );
 $y1_rw = $y1_check( $y1_rkey, 'orders.write' );
 check( 'key of report-only staff: read scope yes, write scope no (403)', ! is_wp_error( $y1_check( $y1_rkey, 'events.read' ) ) && is_wp_error( $y1_rw ) && 403 === y1_status( $y1_rw ) );
@@ -365,7 +365,7 @@ check( 'administrators may set up to MAX_RATE_LIMIT', DeveloperKeys::MAX_RATE_LI
 /* ------------------------------------------------------------------ SEC-4: checkout response */
 
 echo "Y1 SEC-4: the checkout response carries neither order_id nor public_id\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $y1_co = Controller::checkout( y1_json( 'POST', '/wp-pass-captain/v1/checkout', array( 'email' => 'y1-co@example.com', 'items' => array( array( 'ticket_type_id' => $y1_type_a, 'quantity' => 1 ) ), 'idempotency_key' => 'y1-co-' . uniqid(), 'provider' => 'manual' ) ) );
 $y1_co_data = $y1_co instanceof WP_REST_Response ? $y1_co->get_data() : array();
 $y1_co_row = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'y1-co@example.com' ) );
@@ -376,12 +376,12 @@ check( 'checkout answers with reference/status/total but without order_id and pu
 echo "Y1 SEC-5/V1: waitlist limits (case-insensitive address, global IP limit, IPv6 /64)\n";
 $y1_server = $_SERVER;
 $_SERVER['REMOTE_ADDR'] = '198.51.100.7';
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 for ( $i = 0; $i < 5; $i++ ) { Waitlists::join( $y1_event_a, $y1_occ_a, $y1_type_a, 'Y1.Case@Example.com' ); }
 $_SERVER['REMOTE_ADDR'] = '198.51.100.8';
 $y1_lower = Waitlists::join( $y1_event_a, $y1_occ_a, $y1_type_a, 'y1.case@example.com' );
 check( 'the per-address limit ignores upper/lower case (6th sign-up → 429)', is_wp_error( $y1_lower ) && 429 === y1_status( $y1_lower ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_filters']['wp_pass_captain_waitlist_ip_limit_v1'] = 3;
 $y1_wl_types = array( make_type( 1 ), make_type( 1 ), make_type( 1 ), make_type( 1 ) );
 $y1_wl = array();
@@ -389,13 +389,13 @@ foreach ( $y1_wl_types as $i => $type ) { $y1_wl[] = Waitlists::join( y1_event_o
 unset( $GLOBALS['wpcap_test_filters']['wp_pass_captain_waitlist_ip_limit_v1'] );
 check( 'one IP is limited across all events (limit 3: three accepted, the fourth on another event → 429)', ! is_wp_error( $y1_wl[0] ) && ! is_wp_error( $y1_wl[2] ) && is_wp_error( $y1_wl[3] ) && 429 === y1_status( $y1_wl[3] ) );
 check( 'IPv6 addresses share one rate bucket per /64, IPv4 stays per address', '2001:db8:1:2::/64' === RateLimit::client_network( '2001:db8:1:2:aaaa:bbbb:cccc:dddd' ) && RateLimit::client_network( '2001:db8:1:2::1' ) === RateLimit::client_network( '2001:db8:1:2:ffff::9' ) && '203.0.113.9' === RateLimit::client_network( '203.0.113.9' ) && '203.0.113.9' === RateLimit::client_network( '::ffff:203.0.113.9' ) );
-$GLOBALS['wpcap_test_transients'] = array();
-$GLOBALS['wpcap_test_transients'][ 'wpcap_seathold_' . RateLimit::hash( '2001:db8:7:7::/64' ) ] = 20;
+wpcap_test_reset_transients();
+for ( $y1_i = 0; $y1_i < 20; $y1_i++ ) { RateLimit::hit( 'wpcap_seathold_' . RateLimit::hash( '2001:db8:7:7::/64' ), 20, HOUR_IN_SECONDS ); } // Bucket of the /64 is full.
 $_SERVER['REMOTE_ADDR'] = '2001:db8:7:7:1234:5678:9abc:def0';
 $y1_hold = \PassCaptain\Seats::hold( $y1_occ_a, array( 1 ), 0, 10, 'y1-hold' );
 check( 'seat holds: a rotated IPv6 address inside the same /64 is still rate limited (429)', is_wp_error( $y1_hold ) && 429 === y1_status( $y1_hold ) );
 $_SERVER = $y1_server;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 /* ------------------------------------------------------------------ FE-7 / INT-6: private pages */
 

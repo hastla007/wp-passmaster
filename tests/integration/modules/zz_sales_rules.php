@@ -30,7 +30,7 @@ PassCaptain\Modules\SalesRules::register();
 PassCaptain\Modules\Series::register();
 global $wpdb;
 $p = $wpdb->prefix;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 if ( ! function_exists( 'wp_safe_redirect' ) ) { function wp_safe_redirect( $url, $status = 302 ) { throw new RuntimeException( 'redirect:' . $url ); } }
 

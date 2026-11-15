@@ -30,7 +30,7 @@ function hd_orders() { global $wpdb; return (int) $wpdb->get_var( "SELECT COUNT(
 function hd_status( $r ) { return is_wp_error( $r ) ? (int) ( $r->get_error_data()['status'] ?? 0 ) : ( $r instanceof WP_REST_Response ? $r->get_status() : 200 ); }
 
 echo "W5 security: REST negative tests\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 Settings::update( array( 'enabled_providers' => array( 'manual' ) ) );
 $hd_type = make_type( 20, 4, 1000 );
 $hd_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$hd_type" );
@@ -61,26 +61,26 @@ $bad = array(
 );
 $accepted = array();
 foreach ( $bad as $label => $items ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$r = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-bad@example.com', 'items' => $items, 'idempotency_key' => 'hd-bad-' . md5( $label ), 'provider' => 'manual' ) ) );
 	if ( ! is_wp_error( $r ) || hd_status( $r ) < 400 || hd_status( $r ) >= 500 ) { $accepted[] = $label; }
 }
 check( 'manipulated item lists are rejected with 4xx and create no order' . ( $accepted ? ' – accepted: ' . implode( ', ', $accepted ) : '' ), ! $accepted && $before === hd_orders() );
 $draft_type = make_type( 5, 4, 1000 );
 $wpdb->query( "UPDATE {$p}wpcap_events SET status='draft' WHERE event_id=(SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=(SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$draft_type))" );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $r = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-draft@example.com', 'items' => array( array( 'ticket_type_id' => $draft_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-draft', 'provider' => 'manual' ) ) );
 check( 'ticket type of an unpublished event cannot be bought', is_wp_error( $r ) && $before === hd_orders() );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $r = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => str_repeat( 'a', 5000 ) . '@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-long-mail', 'provider' => 'manual' ) ) );
 $r2 = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => array( 'x@example.com' ), 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-arr-mail', 'provider' => 'manual' ) ) );
 check( 'overlong or non-string e-mail is rejected', is_wp_error( $r ) && is_wp_error( $r2 ) && $before === hd_orders() );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $long_key = str_repeat( 'k', 10000 );
 $r = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-key@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => $long_key, 'provider' => 'manual' ) ) );
 $r2 = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-key2@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => $long_key . 'x', 'provider' => 'manual' ) ) );
 check( 'overlong idempotency keys never collide or break storage', ( is_wp_error( $r ) || is_wp_error( $r2 ) || $r->get_data()['reference'] !== $r2->get_data()['reference'] ) && '' === (string) $wpdb->last_error );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $r = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array( 'email' => 'hd-prov@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-prov', 'provider' => 'stripe' ) ) );
 check( 'disabled payment provider cannot be forced through the body', is_wp_error( $r ) && 'wpcap_provider_unavailable' === $r->get_error_code() );
 
@@ -104,7 +104,7 @@ $wpdb->insert( "{$p}wpcap_resources", array( 'event_id' => $hd_event, 'name' => 
 $hd_res = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_service_slots", array( 'resource_id' => $hd_res, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 86400 ), 'ends_at' => gmdate( 'Y-m-d H:i:s', time() + 90000 ), 'capacity' => 3, 'status' => 'open' ) );
 $hd_slot = (int) $wpdb->insert_id;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $neg = Controller::book_service_slot( hd_json_request( '/x', array( 'email' => 'hd-s@example.com', 'quantity' => -3, 'idempotency_key' => 'hd-s-neg' ), array( 'slot_id' => $hd_slot ) ) );
 $huge = Controller::book_service_slot( hd_json_request( '/x', array( 'email' => 'hd-s@example.com', 'quantity' => 500, 'idempotency_key' => 'hd-s-huge' ), array( 'slot_id' => $hd_slot ) ) );
 $s1 = Controller::book_service_slot( hd_json_request( '/x', array( 'email' => 'hd-s@example.com', 'quantity' => 1, 'idempotency_key' => 'hd-s-1' ), array( 'slot_id' => $hd_slot ) ) );
@@ -114,7 +114,7 @@ check( 'service booking: negative and out-of-range quantities are rejected (absi
 check( 'service booking: repeated request books once', ! is_wp_error( $s1 ) && ! is_wp_error( $s2 ) && 1 === $booked );
 
 // POS sale: repeated request and foreign/negative items (admin).
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $pos_type = make_type( 10, 10, 0 );
 $pos_body = array( 'email' => 'hd-pos@example.com', 'items' => array( array( 'ticket_type_id' => $pos_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-pos-1' );
 $p1 = Controller::pos_sale( hd_json_request( '/x', $pos_body ) );
@@ -290,5 +290,5 @@ unset( $_SERVER['HTTP_CF_CONNECTING_IP'] );
 $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 Settings::update( array( 'trusted_proxies' => '', 'trusted_proxy_header' => 'x_forwarded_for', 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '', 'http_endpoint' => '' ) ), 'stripe_secret_key' => '', 'twilio_auth_token' => '' ) );
 $GLOBALS['wpcap_test_dns'] = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_reset();

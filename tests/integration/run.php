@@ -249,7 +249,7 @@ $ok = Orders::confirm_manual_payment( $manual['order_id'] );
 check( 'manual payment after hold expiry is confirmed when capacity is free', true === $ok && 1 === count( tickets( $manual['order_id'] ) ) );
 check( 'confirming twice is rejected', is_wp_error( Orders::confirm_manual_payment( $manual['order_id'] ) ) );
 
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $type = make_type( 1000 );
 $limited = 0;
 for ( $i = 0; $i < 35; $i++ ) {
@@ -257,7 +257,7 @@ for ( $i = 0; $i < 35; $i++ ) {
 	if ( is_wp_error( $r ) && 'wpcap_rate_limited' === $r->get_error_code() ) { $limited++; }
 }
 check( "rotating emails hits the per-IP checkout limit ($limited of 35 blocked)", 5 === $limited );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 echo "Native refunds, tax, attendees, terms\n";
 $type = make_type( 10, 10, 1190 );
@@ -312,6 +312,8 @@ $ok = 0;
 foreach ( $procs as $proc ) { $ok += 'OK' === trim( stream_get_contents( $proc ) ) ? 1 : 0; pclose( $proc ); }
 $held = (int) $wpdb->get_var( "SELECT SUM(quantity) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active'" );
 check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 === $ok && 5 === $held );
+// The 20 child processes counted on the shared checkout rate limit (wpcap_rate_limits): start fresh.
+wpcap_test_reset_transients();
 
 require __DIR__ . '/finance.php';
 require __DIR__ . '/payments.php';

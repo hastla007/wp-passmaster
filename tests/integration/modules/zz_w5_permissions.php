@@ -243,7 +243,7 @@ check( 'every route with an open permission callback is declared public/token wi
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 unset( $GLOBALS['wpcap_test_user_can'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $pm_type_a = make_type( 50, 10, 0 );
 $pm_type_b = make_type( 50, 10, 0 );
 $pm_occ_a = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$pm_type_a" );
@@ -327,7 +327,7 @@ function pm_snapshot() {
 	$tables = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', str_replace( '_', '\\_', $wpdb->prefix . 'wpcap_' ) . '%' ) );
 	$sums = array();
 	foreach ( $tables as $table ) {
-		if ( preg_match( '/wpcap_(audit_logs|partner_keys|api_keys)$/', $table ) ) { continue; } // last_used/audit bookkeeping only.
+		if ( preg_match( '/wpcap_(audit_logs|partner_keys|api_keys|rate_limits)$/', $table ) ) { continue; } // last_used/audit/rate-limit bookkeeping only.
 		$row = $wpdb->get_row( "CHECKSUM TABLE `$table`", ARRAY_A );
 		$sums[ $table ] = $row['Checksum'] ?? '';
 	}
@@ -431,7 +431,7 @@ foreach ( $pm_endpoints as $key => $endpoint ) {
 		$attempts['guest without valid token'] = array( 'guest', array() );
 	}
 	foreach ( $attempts as $label => list( $persona, $headers ) ) {
-		$GLOBALS['wpcap_test_transients'] = array(); // Rate limits/lockouts must not mask the real decision.
+		wpcap_test_reset_transients(); // Rate limits/lockouts must not mask the real decision.
 		pm_persona( $persona );
 		list( $allowed, $response, $changed ) = pm_call( $endpoint, pm_request( $key, $headers ) );
 		++$pm_checked;
@@ -441,7 +441,7 @@ foreach ( $pm_endpoints as $key => $endpoint ) {
 	}
 	// A partner key must never expose another partner's event.
 	if ( 'partner' === $kind ) {
-		$GLOBALS['wpcap_test_transients'] = array();
+		wpcap_test_reset_transients();
 		pm_persona( 'guest' );
 		$r = pm_request( $key, array( 'Authorization' => 'Bearer ' . $pm_pk_b['key'] ) );
 		list( $allowed, $response ) = pm_call( $endpoint, $r );
@@ -452,7 +452,7 @@ foreach ( $pm_endpoints as $key => $endpoint ) {
 	}
 }
 pm_persona( 'admin' );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 check( "REST: no unauthorized success or data change ($pm_checked attempts)" . ( $pm_failures ? ' – ' . implode( '; ', $pm_failures ) : '' ), ! $pm_failures );
 check( 'REST: administrators pass every capability route (positive control)' . ( $pm_admin_ok ? ' – ' . implode( ', ', $pm_admin_ok ) : '' ), ! $pm_admin_ok );
 
@@ -510,7 +510,7 @@ foreach ( $pm_handlers as $action => $handler ) {
 		foreach ( $dos as $do ) {
 			if ( 'staff_other_event' === $persona && 'manage_options' !== $spec && '' === $do && count( $dos ) > 1 ) { continue; }
 			if ( 'staff_other_event' === $persona && isset( $pm_unscoped[ $action ] ) ) { continue; }
-			$GLOBALS['wpcap_test_transients'] = array();
+			wpcap_test_reset_transients();
 			pm_persona( $persona );
 			$_POST = $pm_post_ids + array( 'do' => $do, '_wpnonce' => 'n', 'token' => str_repeat( '0', 64 ), 'waitlist_id' => 1 );
 			$_GET = $_POST;
@@ -535,5 +535,5 @@ foreach ( $pm_handlers as $action => $handler ) {
 $_POST = $_GET = $_REQUEST = array();
 remove_filter( 'wpcap_pre_send_download', $pm_capture, 10 );
 pm_persona( 'admin' );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 check( "admin actions: unauthorized users change nothing ($pm_admin_checked attempts)" . ( $pm_admin_failures ? ' – ' . implode( '; ', array_slice( $pm_admin_failures, 0, 15 ) ) : '' ), ! $pm_admin_failures );

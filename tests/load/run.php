@@ -62,7 +62,9 @@ if ( isset( $argv[1] ) && '--worker' === $argv[1] ) {
 		$t0 = hrtime( true );
 		switch ( $op['kind'] ) {
 			case 'buy':
+				// Only this buyer's per-IP+e-mail counter (a full reset would serialise the workers on the table).
 				$GLOBALS['wpcap_test_transients'] = array();
+				$wpdb->delete( \PassCaptain\RateLimit::table(), array( 'bucket_key' => \PassCaptain\RateLimit::hash( 'wpcap_checkout_' . Orders::rate_hash( Orders::client_ip() . '|' . strtolower( $op['email'] ) ) ) ) );
 				$r = Orders::create(
 					array( 'email' => $op['email'], 'items' => array( array( 'ticket_type_id' => $op['type'], 'quantity' => $op['qty'] ) ), 'idempotency_key' => $op['key'] ),
 					array( 'payment_provider' => 'manual', 'hold_minutes' => 60 )
@@ -344,7 +346,7 @@ if ( in_array( $cfg['scenario'], array( 'all', 'webhooks' ), true ) ) {
 	$type = load_make_type( $E * 2, 2, 1500 );
 	$orders = array();
 	for ( $e = 0; $e < $E; $e++ ) {
-		$GLOBALS['wpcap_test_transients'] = array();
+		wpcap_test_reset_transients();
 		$r = Orders::create( array( 'email' => "hook$e@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => "load-hook-$e-" . uniqid() ), array( 'payment_provider' => 'stripe', 'hold_minutes' => 60, 'skip_rate_limit' => true ) );
 		if ( is_wp_error( $r ) ) { fwrite( STDERR, 'fixture order failed: ' . $r->get_error_message() . "\n" ); exit( 2 ); }
 		$orders[] = (array) Orders::get( $r['order_id'] );

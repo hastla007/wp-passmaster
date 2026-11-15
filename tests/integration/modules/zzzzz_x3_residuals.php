@@ -28,7 +28,7 @@ global $wpdb;
 $p = $wpdb->prefix;
 PassCaptain\Modules\SalesRules::register(); // Price rules and consents (idempotent; also registered by zz_sales_rules.php).
 w9_admin();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 function x3_access_token( $order_id, $from = 0 ) {
 	$public = (string) Orders::get( $order_id )->public_id;
@@ -159,7 +159,7 @@ $wpdb->query( "UPDATE {$p}wpcap_occurrences SET starts_at='" . gmdate( 'Y-m-d H:
 $x3c_field = EventsPage::save_participant_field( array( 'ticket_type_id' => $x3c_type, 'field_key' => 'photo', 'label' => 'Fotoeinwilligung', 'field_type' => 'consent', 'required' => '0', 'consent_text' => 'Fotos sind ok.', 'consent_version' => '1' ) );
 $x3c_fid = (int) $x3c_field['field_id'];
 $x3c_mails = count( $GLOBALS['wpcap_test_mails'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x3c = Orders::create( array( 'email' => 'x3-buyer@example.com', 'items' => array( array( 'ticket_type_id' => $x3c_type, 'quantity' => 3 ) ), 'attendees' => array( array( 'ticket_type_id' => $x3c_type, 'name' => 'Ana', 'email' => 'x3-ana@example.com', 'answers' => array( 'photo' => '1' ) ), array( 'ticket_type_id' => $x3c_type, 'name' => 'Ben', 'email' => 'x3-ben@example.com', 'answers' => array( 'photo' => '1' ) ) ), 'idempotency_key' => 'x3c-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 $x3c_token = x3_access_token( $x3c['order_id'], $x3c_mails );
 $x3c_order = Orders::get( $x3c['order_id'] );
@@ -197,7 +197,7 @@ echo "X3: campaign report attributes refunds and splits orders with two codes\n"
 $x3r_type = make_type( 50, 10, 1000 );
 $x3r_event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$x3r_type" );
 $x3r_order = static function ( $qty ) use ( $x3r_type ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$r = Orders::create( array( 'email' => 'x3-report@example.com', 'items' => array( array( 'ticket_type_id' => $x3r_type, 'quantity' => $qty ) ), 'idempotency_key' => 'x3r-' . uniqid( '', true ) ), array( 'skip_rate_limit' => true ) );
 	Orders::confirm_manual_payment( $r['order_id'] );
 	return (int) $r['order_id'];

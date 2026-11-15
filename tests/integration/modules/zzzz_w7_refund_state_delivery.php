@@ -159,7 +159,7 @@ remove_filter( 'wp_pass_captain_process_job_v1', array( Woo::class, 'handle_job'
 echo "W7: no second ticket mail when completing the outbox job fails\n";
 $mails_to = static function ( $to ) { return count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => $m['to'] === $to ) ); };
 $email = 'w7-outbox-' . uniqid() . '@example.com';
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $r = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $w7_type, 'quantity' => 2 ) ), 'idempotency_key' => 'w7-outbox-' . uniqid() ) );
 $base = $mails_to( $email );
 $w7_faults()->fail( "/^UPDATE \S+wpcap_jobs SET status='complete'/", 0, 10, false );

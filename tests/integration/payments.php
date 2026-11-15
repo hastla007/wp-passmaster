@@ -116,7 +116,7 @@ function paypal_request( array $event, $with_headers = true ) {
 }
 
 /* ---- Setup ---- */
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 PassCaptain\Settings::update( array(
 	'stripe_secret_key' => 'sk_test_123', 'stripe_webhook_secret' => 'whsec_test',
 	'paypal_mode' => 'sandbox', 'paypal_client_id' => 'client', 'paypal_client_secret' => 'secret', 'paypal_webhook_id' => 'WH-ID-1',

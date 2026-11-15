@@ -33,7 +33,7 @@ function rem_queue( $occ ) {
 $type = make_type( 20, 10, 0 );
 $occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET starts_at=%s WHERE occurrence_id=%d", gmdate( 'Y-m-d H:i:s', time() + 10 * 3600 ), $occ ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $a = Orders::create( array( 'email' => 'rem-a@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'rem-a' ) );
 $b = Orders::create( array( 'email' => 'rem-b@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'rem-b' ) );
 $c = Orders::create( array( 'email' => 'rem-c@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'rem-c' ) );

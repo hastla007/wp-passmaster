@@ -50,7 +50,7 @@ function admin_last_audit( $action ) {
 }
 /** Creates a paid order with $qty tickets of $type and returns its order id. */
 function admin_paid_order( $type, $qty, $email ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$r = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'admin-' . uniqid( '', true ) ) );
 	if ( is_wp_error( $r ) ) { echo '    (order failed: ' . $r->get_error_message() . ")\n"; return 0; }
 	Orders::confirm_manual_payment( $r['order_id'] );
@@ -185,7 +185,7 @@ EventsPage::remove_staff( array( 'event_id' => $event_id, 'user_id' => 7, 'capab
 check( 'staff assignment can be removed', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_event_staff WHERE event_id=$event_id AND user_id=7" ) );
 
 echo "Admin: orders\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $pending = Orders::create( array( 'email' => 'admin-pending@example.com', 'items' => array( array( 'ticket_type_id' => $type_id, 'quantity' => 1 ) ), 'idempotency_key' => 'admin-pending-' . uniqid() ) );
 $found = Queries::search_orders( array( 'search' => 'admin-pending@', 'status' => 'pending_payment' ), null );
 $by_id = Queries::search_orders( array( 'search' => substr( $pending['public_id'], 0, 10 ) ), null );
@@ -309,14 +309,14 @@ putenv( 'WPCAP_STRIPE_SECRET_KEY' );
 Settings::update( array( 'stripe_mode' => 'test', 'stripe_secret_key' => '', 'stripe_webhook_secret' => '', 'require_terms' => 0, 'terms_text' => '', 'refund_approval_threshold' => 0, 'hold_minutes' => 10, 'manual_hold_hours' => 72, 'manual_instructions' => '', 'seller_name' => '', 'invoice_prefix' => 'WPC' ) );
 
 echo "Admin: admin-post wrappers\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_nonce_checks'] = array();
 $_POST = array( 'action' => 'wpcap_update_event', 'event_id' => (string) $event_id, 'name' => 'Admin Gala Final', 'description' => '', 'status' => 'published' );
 $redirect = '';
 try { EventsPage::handle_update_event(); } catch ( Wpcap_Test_Redirect $e ) { $redirect = $e->getMessage(); }
 $notices = $GLOBALS['wpcap_test_transients'][ 'wpcap_admin_notices_1' ] ?? array();
 check( 'wrapper checks the nonce, saves, flashes and redirects to the event', in_array( 'wpcap_update_event', $GLOBALS['wpcap_test_nonce_checks'] ?? array( 'wpcap_update_event' ), true ) && 'Admin Gala Final' === Queries::event( $event_id )->name && false !== strpos( $redirect, 'event_id=' . $event_id ) && 'success' === ( $notices[0]['type'] ?? '' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $_POST = array( 'action' => 'wpcap_update_event', 'event_id' => (string) $event_id, 'name' => '', 'status' => 'published' );
 try { EventsPage::handle_update_event(); } catch ( Wpcap_Test_Redirect $e ) { $redirect = $e->getMessage(); }
 $notices = $GLOBALS['wpcap_test_transients'][ 'wpcap_admin_notices_1' ] ?? array();
@@ -328,4 +328,4 @@ try { SettingsPage::handle_save(); } catch ( Wpcap_Test_Die $e ) { $died = true;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'forbidden actions end with wp_die instead of a redirect', $died && 10 === (int) Settings::get( 'hold_minutes' ) );
 $_POST = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();

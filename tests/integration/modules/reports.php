@@ -29,7 +29,7 @@ $wpdb->query( "UPDATE {$p}wpcap_events SET name='=Gala' WHERE event_id=$revent" 
 $wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $rocc, 'name' => 'Kind', 'price_minor' => 1070, 'currency' => 'EUR', 'capacity' => 5, 'max_per_order' => 10, 'tax_rate_bp' => 700, 'status' => 'active' ) );
 $rb = (int) $wpdb->insert_id;
 
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $o1 = Orders::create( array( 'email' => 'report@example.com', 'items' => array( array( 'ticket_type_id' => $ra, 'quantity' => 2 ), array( 'ticket_type_id' => $rb, 'quantity' => 1 ) ), 'idempotency_key' => 'wpr-1-' . uniqid() ) );
 Orders::confirm_manual_payment( $o1['order_id'] );
 $unpaid = Orders::create( array( 'email' => 'unpaid-report@example.com', 'items' => array( array( 'ticket_type_id' => $ra, 'quantity' => 1 ) ), 'idempotency_key' => 'wpr-2-' . uniqid() ) );

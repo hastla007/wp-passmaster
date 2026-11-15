@@ -103,11 +103,9 @@ final class DeveloperKeys {
 		}
 		$scopes = json_decode( $key->scopes, true );
 		if ( ! is_array( $scopes ) || ! in_array( (string) $scope, $scopes, true ) ) { return $denied( 'wpcap_api_key_scope', __( 'Dem API-Key fehlt die nötige Berechtigung (Scope).', 'pass-captain' ), 403, array( 'scope' => (string) $scope ) ); }
-		$rate_key = 'wpcap_api_rate_' . (int) $key->api_key_id . '_' . gmdate( 'YmdHi' );
-		$rate = (int) get_transient( $rate_key );
 		$limit = isset( $key->rate_limit ) && (int) $key->rate_limit > 0 ? (int) $key->rate_limit : self::DEFAULT_RATE_LIMIT;
-		if ( $rate >= $limit ) { return $denied( 'wpcap_api_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte später erneut versuchen.', 'pass-captain' ), 429, array( 'retry_after' => max( 1, 60 - (int) gmdate( 's' ) ) ) ); }
-		set_transient( $rate_key, $rate + 1, MINUTE_IN_SECONDS );
+		// Fixed window per calendar minute (RateLimit::allow() slots), counted atomically (QA-V2).
+		if ( ! RateLimit::allow( 'wpcap_api_rate_' . (int) $key->api_key_id, $limit, MINUTE_IN_SECONDS ) ) { return $denied( 'wpcap_api_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte später erneut versuchen.', 'pass-captain' ), 429, array( 'retry_after' => max( 1, 60 - (int) gmdate( 's' ) ) ) ); }
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
 		return array( 'api_key_id' => (int) $key->api_key_id, 'user_id' => $user_id, 'event_id' => $event_id, 'scopes' => array_values( array_map( 'strval', $scopes ) ), 'scope' => (string) $scope );
 	}

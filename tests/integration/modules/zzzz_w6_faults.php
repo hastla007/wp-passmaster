@@ -113,7 +113,7 @@ $w6_type = make_type( 0, 10, 1000 );
 w6_matrix(
 	'checkout with hold',
 	static function () use ( $w6_type ) {
-		$GLOBALS['wpcap_test_transients'] = array();
+		wpcap_test_reset_transients();
 		return array( 'type' => $w6_type, 'email' => 'w6co' . uniqid() . '@example.com', 'key' => 'w6co-' . uniqid( '', true ) );
 	},
 	static function ( $ctx ) {
@@ -138,7 +138,7 @@ $w6_free = make_type( 0, 10, 0 );
 w6_matrix(
 	'free checkout with immediate issuance',
 	static function () use ( $w6_free ) {
-		$GLOBALS['wpcap_test_transients'] = array();
+		wpcap_test_reset_transients();
 		return array( 'type' => $w6_free, 'email' => 'w6free' . uniqid() . '@example.com', 'key' => 'w6free-' . uniqid( '', true ) );
 	},
 	static function ( $ctx ) {
@@ -162,7 +162,7 @@ echo "W6 faults: payment confirmation\n";
 $w6_paid_type = make_type( 0, 10, 1000 );
 /** Pending native order of 2 tickets (manual provider). */
 $w6_pending = static function ( $type ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$email = 'w6pay' . uniqid() . '@example.com';
 	$o = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'w6pay-' . uniqid( '', true ) ), array( 'skip_rate_limit' => true ) );
 	return array( 'order' => $o, 'event_id' => 'w6evt-' . uniqid( '', true ) );
@@ -292,7 +292,7 @@ w6_matrix(
 echo "W6 faults: check-in (Checkin::perform)\n";
 /** One issued ticket of a free order; returns [type, order_id, code]. */
 function w6_ticket( $type ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$o = Orders::create( array( 'email' => 'w6t' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'w6t-' . uniqid( '', true ) ), array( 'skip_rate_limit' => true ) );
 	$codes = ticket_code_for( $o['order_id'] );
 	global $wpdb;

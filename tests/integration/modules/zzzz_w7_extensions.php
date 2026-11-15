@@ -151,7 +151,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'adapter capability is checked before the callback', is_wp_error( $forbidden ) && 403 === $forbidden->get_error_data()['status'] && array() === $x_calls );
 // Core tickets always win, even if an adapter "recognizes" them.
 $x_type = make_type( 10, 10, 0 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x_order = PassCaptain\Orders::create( array( 'email' => 'w7x-scan@example.com', 'items' => array( array( 'ticket_type_id' => $x_type, 'quantity' => 1 ) ), 'idempotency_key' => 'w7x-scan-' . uniqid() ) );
 $x_token = bin2hex( random_bytes( 32 ) );
 $x_ticket = (int) $wpdb->get_var( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=" . (int) $x_order['order_id'] );

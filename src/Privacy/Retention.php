@@ -36,7 +36,8 @@
  * - audit log entries are deleted after 730 days,
  * - housekeeping (PERF-6): finished holds (converted, expired, released) of orders that no longer
  *   wait for payment are deleted 30 days after they expired, completed/cancelled background jobs
- *   30 days after their last update.
+ *   30 days after their last update; expired rate-limit counters (wpcap_rate_limits) are deleted
+ *   on every run (PERF-16).
  *
  * Work runs in batches of 500 rows within a time budget (~20 s); the next run continues. Only
  * counts are written to the audit log.
@@ -128,7 +129,7 @@ final class Retention {
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
-		$steps = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs' );
+		$steps = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs', 'rate_limits' );
 		foreach ( $steps as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
 		}
@@ -630,5 +631,10 @@ final class Retention {
 				return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('complete','cancelled') AND job_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_jobs' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 			}
 		);
+	}
+
+	/** Expired rate-limit counters (wpcap_rate_limits, index expires_at; keyed hashes only, always on). */
+	private static function step_rate_limits( $now, $deadline ) {
+		return \PassCaptain\RateLimit::purge_expired( $now, $deadline, self::BATCH * 10 );
 	}
 }

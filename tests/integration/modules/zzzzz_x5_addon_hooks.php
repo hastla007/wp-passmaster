@@ -42,7 +42,7 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 PassCaptain\Settings::update( array( 'require_terms' => 0, 'refund_approval_threshold' => 0 ) );
 
 /** Collects hook calls of a test callback. */
@@ -131,7 +131,7 @@ $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=1900 WHERE ticket_t
 $x5_type7 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$x5_type" );
 $wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $x5_type7, 'name' => 'Ermäßigt', 'price_minor' => 1070, 'currency' => 'EUR', 'capacity' => 20, 'max_per_order' => 10, 'tax_rate_bp' => 700, 'status' => 'active' ) );
 $x5_type7 = (int) $wpdb->insert_id;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_order = Orders::create( array( 'email' => 'x5-inv@example.com', 'items' => array( array( 'ticket_type_id' => $x5_type, 'quantity' => 2 ), array( 'ticket_type_id' => $x5_type7, 'quantity' => 1 ) ), 'idempotency_key' => 'x5-inv-' . uniqid(), 'billing' => bb_billing( array( 'company' => 'X5 GmbH', 'postcode' => '10115', 'city' => 'Berlin', 'street' => 'Unter den Linden 1', 'country' => 'DE', 'vat_id' => 'DE123456789', 'po_number' => '991-12345-67' ) ) ) );
 Orders::confirm_manual_payment( $x5_order['order_id'] );
 $x5_inv = Invoices::issue_for_order( $x5_order['order_id'] );
@@ -175,7 +175,7 @@ check( 'refund confirmation carries the add-on attachment of the correction (fil
 check( 'temporary attachment files are deleted after sending', ! is_file( $x5_corr_hook[0][0] ) );
 // Ticket mail of an order that has an invoice (resend with new codes, auto invoice on payment).
 Settings::update( array( 'auto_invoice' => 1 ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_auto = Orders::create( array( 'email' => 'x5-auto@example.com', 'items' => array( array( 'ticket_type_id' => $x5_type, 'quantity' => 1 ) ), 'idempotency_key' => 'x5-auto-' . uniqid() ) );
 $x5_mails_before = count( $GLOBALS['wpcap_test_mails'] );
 Orders::confirm_manual_payment( $x5_auto['order_id'] );
@@ -218,7 +218,7 @@ $x5_pid = is_array( $x5_pid ) ? (int) $x5_pid['partner_id'] : (int) $x5_pid;
 $x5_stype = make_type( 20, 10, 1190 );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=1900 WHERE ticket_type_id=$x5_stype" );
 X5Partners::set_events( $x5_pid, array( pa_event_of_type( $x5_stype ) ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 pa_order( array( array( 'ticket_type_id' => $x5_stype, 'quantity' => 2 ) ), 'x5-set', gmdate( 'Y-m-d H:i:s', strtotime( $x5_m . '-15 12:00:00 UTC' ) ) );
 $x5_draft = X5Settlements::create_draft( $x5_pid, $x5_m );
 $x5_sid = is_array( $x5_draft ) ? (int) ( $x5_draft['settlement_id'] ?? 0 ) : ( is_object( $x5_draft ) ? (int) $x5_draft->settlement_id : (int) $x5_draft );
@@ -231,7 +231,7 @@ check( 'settlement read API: platform fee invoice (commission 2,00 + fees 1,00 +
 remove_action( 'wp_pass_captain_invoice_created_v1', $x5_on_created, 10 );
 $x5_throw = static function () { throw new RuntimeException( 'add-on down' ); };
 add_action( 'wp_pass_captain_invoice_created_v1', $x5_throw );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_o2 = Orders::create( array( 'email' => 'x5-throw@example.com', 'items' => array( array( 'ticket_type_id' => $x5_type, 'quantity' => 1 ) ), 'idempotency_key' => 'x5-throw-' . uniqid() ) );
 Orders::confirm_manual_payment( $x5_o2['order_id'] );
 $x5_i2 = Invoices::issue_for_order( $x5_o2['order_id'] );
@@ -253,19 +253,19 @@ $x5_gate = static function ( $allowed, $context ) use ( &$x5_gate_calls ) {
 	$x5_gate_calls[] = $context;
 	return new WP_Error( 'x5_waiting_room', 'Du bist in der Warteschlange.', array( 'status' => 429, 'retry_after' => 30 ) );
 };
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_free_key = 'x5-gate0-' . uniqid();
 $x5_free = Orders::create( array( 'email' => 'x5-gate0@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 1 ) ), 'idempotency_key' => $x5_free_key ) );
 check( 'without a callback the gate allows (true) and checkout works', true === CheckoutGate::check( array( 'items' => array( $x5_gate_type => 1 ) ) ) && ! is_wp_error( $x5_free ) );
 add_filter( 'wp_pass_captain_checkout_allowed_v1', $x5_gate, 10, 2 );
 $x5_orders_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders" );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_refused = Orders::create( array( 'email' => 'x5-gate1@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 2 ) ), 'idempotency_key' => 'x5-gate1' ) );
 $x5_ctx = end( $x5_gate_calls );
 check( 'native checkout is refused with the gate error (status 429, retry_after) and creates nothing', is_wp_error( $x5_refused ) && 'x5_waiting_room' === $x5_refused->get_error_code() && 429 === $x5_refused->get_error_data()['status'] && 30 === $x5_refused->get_error_data()['retry_after'] && $x5_orders_before === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders" ) );
 check( 'gate context: version, source native, phase checkout, items, ticket type/occurrence/event ids, e-mail, key', 1 === $x5_ctx['version'] && 'native' === $x5_ctx['source'] && 'checkout' === $x5_ctx['phase'] && array( $x5_gate_type => 2 ) === $x5_ctx['items'] && array( $x5_gate_type ) === $x5_ctx['ticket_type_ids'] && array( $x5_gate_occ ) === $x5_ctx['occurrence_ids'] && array( $x5_gate_event ) === $x5_ctx['event_ids'] && 'x5-gate1@example.com' === $x5_ctx['email'] && 'x5-gate1' === $x5_ctx['idempotency_key'] );
 $x5_calls_before = count( $x5_gate_calls );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_retry = Orders::create( array( 'email' => 'x5-gate0@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 1 ) ), 'idempotency_key' => $x5_free_key ) );
 check( 'a retry of an order created before (same idempotency key) is not gated', ! is_wp_error( $x5_retry ) && ! empty( $x5_retry['reused'] ) && $x5_free['order_id'] === $x5_retry['order_id'] && count( $x5_gate_calls ) === $x5_calls_before );
 $x5_calls_before = count( $x5_gate_calls );
@@ -274,7 +274,7 @@ $x5_ext = Orders::create( array( 'email' => 'x5-ext@example.com', 'items' => arr
 $x5_wl = Orders::create( array( 'email' => 'x5-wl@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 1 ) ), 'idempotency_key' => 'x5-wl-' . uniqid(), 'accept_terms' => 1 ), array( 'key_namespace' => 'waitlist', 'skip_rate_limit' => true, 'source' => 'waitlist' ) );
 check( 'box office, trusted adapters (WooCommerce order processing) and waitlist offers bypass the gate', ! is_wp_error( $x5_pos ) && ! is_wp_error( $x5_ext ) && ! is_wp_error( $x5_wl ) && count( $x5_gate_calls ) === $x5_calls_before );
 // REST checkout: error with status, request in the context, Retry-After header.
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_req = p1u_request( array( 'email' => 'x5-rest@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'x5-rest-' . uniqid() ) );
 $x5_providers_before = Settings::get( 'enabled_providers' );
 Settings::update( array( 'enabled_providers' => array( 'manual' ) ) );
@@ -334,13 +334,13 @@ remove_filter( 'wp_pass_captain_checkout_allowed_v1', $x5_nostatus, 10 );
 check( 'errors without status default to 503', is_wp_error( $x5_n ) && 503 === $x5_n->get_error_data()['status'] && 'x5_closed' === $x5_n->get_error_code() );
 $x5_boom = static function ( $a, $c ) { throw new RuntimeException( 'waiting room service down' ); };
 add_filter( 'wp_pass_captain_checkout_allowed_v1', $x5_boom, 10, 2 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_open = Orders::create( array( 'email' => 'x5-open@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 1 ) ), 'idempotency_key' => 'x5-open-' . uniqid() ) );
 remove_filter( 'wp_pass_captain_checkout_allowed_v1', $x5_boom, 10 );
 check( 'fail open: an exception in the gate never blocks the sale', ! is_wp_error( $x5_open ) && $x5_open['order_id'] > 0 );
 $x5_allow = static fn( $a, $c ) => true;
 add_filter( 'wp_pass_captain_checkout_allowed_v1', $x5_allow, 10, 2 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_ok = Orders::create( array( 'email' => 'x5-ok@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 1 ) ), 'idempotency_key' => 'x5-ok-' . uniqid() ) );
 remove_filter( 'wp_pass_captain_checkout_allowed_v1', $x5_allow, 10 );
 check( 'gate returning true lets the checkout through', ! is_wp_error( $x5_ok ) );
@@ -371,12 +371,12 @@ $x5_r = static function ( $key = null, array $params = array() ) {
 	return $r;
 };
 $x5_code = static fn( $r ) => is_wp_error( $r ) ? $r->get_error_code() . ':' . (int) ( $r->get_error_data()['status'] ?? 0 ) : $r;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $x5_ok_req = $x5_r( $x5_key['key'], array( 'event_id' => $x5_api_event ) );
 check( 'request_can: valid key, scope and event (route parameter event_id) → true; key_for() names the key owner', true === Auth::request_can( $x5_ok_req, 'orders.write' ) && $x5_key['api_key_id'] === Auth::key_for( $x5_ok_req )['api_key_id'] && 1 === Auth::key_for( $x5_ok_req )['user_id'] && null === Auth::key_for( $x5_r( $x5_key['key'] ) ) );
 check( 'global wpcap_api_request_can() with explicit event id', true === wpcap_api_request_can( $x5_r( $x5_key['key'] ), 'events.read', $x5_api_event ) );
 check( 'rate limit per key and minute shared with core routes → 429 with retry_after', 'wpcap_api_rate_limited:429' === $x5_code( Auth::request_can( $x5_r( $x5_key['key'], array( 'event_id' => $x5_api_event ) ), 'orders.write' ) ) && false === DeveloperKeys::authorize( $x5_r( $x5_key['key'] ), 'events.read', $x5_api_event ) && Auth::request_can( $x5_r( $x5_key['key'] ), 'orders.write', $x5_api_event )->get_error_data()['retry_after'] >= 1 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 check( 'missing key → 401', 'wpcap_api_key_missing:401' === $x5_code( Auth::request_can( $x5_r( null ), 'orders.write', $x5_api_event ) ) );
 check( 'malformed or wrong secret → 401', 'wpcap_api_key_invalid:401' === $x5_code( Auth::request_can( $x5_r( 'abc' ), 'orders.write', $x5_api_event ) ) && 'wpcap_api_key_invalid:401' === $x5_code( Auth::request_can( $x5_r( $x5_key['prefix'] . '.' . str_repeat( '0', 64 ) ), 'orders.write', $x5_api_event ) ) );
 check( 'other event → 403, missing scope → 403, unknown scope → 403, no event → 400', 'wpcap_api_key_event:403' === $x5_code( Auth::request_can( $x5_r( $x5_key['key'] ), 'orders.write', $x5_other_event ) ) && 'wpcap_api_key_scope:403' === $x5_code( Auth::request_can( $x5_r( $x5_key['key'] ), 'reports.read', $x5_api_event ) ) && 'wpcap_api_scope_unknown:403' === $x5_code( Auth::request_can( $x5_r( $x5_key['key'] ), 'nothing.here', $x5_api_event ) ) && 'wpcap_api_event_required:400' === $x5_code( Auth::request_can( $x5_r( $x5_key['key'] ), 'orders.write' ) ) );
@@ -390,7 +390,7 @@ $x5_key2 = DeveloperKeys::issue( $x5_api_event, array( 'orders.write' ), 'x5-noa
 check( 'key owner without access to the event → 403 (same rule as core routes)', 'wpcap_api_key_event:403' === $x5_code( Auth::request_can( $x5_r( $x5_key2['key'] ), 'orders.write', $x5_api_event ) ) );
 unset( $GLOBALS['wpcap_test_user_can'] );
 remove_filter( 'wp_pass_captain_api_scopes_v1', $x5_scopes );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 check( 'after removing the add-on scope its keys no longer pass (scope unknown)', 'wpcap_api_scope_unknown:403' === $x5_code( Auth::request_can( $x5_r( $x5_key2['key'] ), 'orders.write', $x5_api_event ) ) && is_wp_error( DeveloperKeys::issue( $x5_api_event, array( 'orders.write' ), 'x5-gone' ) ) );
 $x5_core_key = DeveloperKeys::issue( $x5_api_event, array( 'events.read' ), 'x5-core' );
 check( 'core routes keep working with authorize() (user id) for core scopes', 1 === DeveloperKeys::authorize( $x5_r( $x5_core_key['key'] ), 'events.read', $x5_api_event ) && false === DeveloperKeys::authorize( $x5_r( $x5_core_key['key'] ), 'reports.read', $x5_api_event ) );

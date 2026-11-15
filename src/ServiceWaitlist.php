@@ -41,14 +41,10 @@ final class ServiceWaitlist {
 		$email = sanitize_email( $email );
 		$quantity = min( 20, max( 1, absint( $quantity ) ) );
 		if ( ! $slot_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Zeitfenster oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$rate_key = 'wpcap_svcwait_' . \PassCaptain\RateLimit::hash( strtolower( $email ) . '|' . $slot_id );
-		$attempts = (int) get_transient( $rate_key );
-		if ( $attempts >= 5 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
-		set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
-		$ip_key = 'wpcap_svcwait_ip_' . \PassCaptain\RateLimit::client();
-		$ip_attempts = (int) get_transient( $ip_key );
-		if ( $ip_attempts >= 30 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
-		set_transient( $ip_key, $ip_attempts + 1, HOUR_IN_SECONDS );
+		// Per address and slot, and per client; RateLimit::hit() counts atomically (QA-V2).
+		if ( ! \PassCaptain\RateLimit::hit( 'wpcap_svcwait_' . \PassCaptain\RateLimit::hash( strtolower( $email ) . '|' . $slot_id ), 5, HOUR_IN_SECONDS ) || ! \PassCaptain\RateLimit::hit( 'wpcap_svcwait_ip_' . \PassCaptain\RateLimit::client(), 30, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
 		$slot = ServiceResources::slot( $slot_id );
 		$resource = $slot ? ServiceResources::resource( (int) $slot->resource_id ) : null;
 		$published = $resource ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE event_id=%d', $p . 'wpcap_events', (int) $resource->event_id ) ) : '';

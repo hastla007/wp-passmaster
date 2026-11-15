@@ -45,7 +45,7 @@ check( 'amount strings use currency decimals', '45.00' === MollieGateway::format
 
 echo "Mollie: methods\n";
 Settings::update( array( 'mollie' => array( 'methods' => array( 'ideal', 'creditcard', 'klarna' ), 'billing_country' => 'NL' ) ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_reset();
 http_push( array( '_embedded' => array( 'methods' => array( array( 'id' => 'ideal', 'description' => 'iDEAL' ), array( 'id' => 'creditcard', 'description' => 'Kreditkarte' ), array( 'id' => 'bancontact', 'description' => 'Bancontact' ) ) ) ), 200, '/v2/methods' );
 $methods = MollieGateway::selectable_methods( 2500, 'EUR' );
@@ -63,12 +63,12 @@ ob_start(); Mollie::render_checkout_fields( (object) array( 'occurrence_id' => 3
 check( 'checkout shows a labelled method selector', false !== strpos( $html, '<legend>' ) && false !== strpos( $html, 'value="ideal"' ) && false === strpos( $html, 'bancontact' ) );
 
 echo "Mollie: create payment\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_reset();
 $r = Orders::create( array( 'email' => 'mol-1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'mol-1', 'mollie_method' => 'ideal' ), array( 'payment_provider' => 'mollie', 'hold_minutes' => 30 ) );
 $order = (array) Orders::get( $r['order_id'] );
 check( 'chosen method stored for the order', 'ideal' === Mollie::chosen_method( $order['order_id'] ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_push( array( '_embedded' => array( 'methods' => array( array( 'id' => 'ideal', 'description' => 'iDEAL' ) ) ) ), 200, '/v2/methods' );
 http_push( mollie_payment( 'tr_Test1234', 'open', $order ), 201, '/v2/payments' );
 $pay = $mollie->create_payment( $order, order_items_array( $order['order_id'] ) );

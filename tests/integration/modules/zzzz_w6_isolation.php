@@ -60,7 +60,7 @@ function w6i_site( $prefix ) {
 	global $wpdb;
 	$wpdb->prefix = $prefix;
 	Installer::flush_version_cache();
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 }
 function w6i_drop( $prefix ) {
 	global $wpdb;

@@ -150,6 +150,12 @@ function update_option( $k, $v ) { $GLOBALS['wpcap_test_options'][ $k ] = $v; re
 if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['wpcap_test_options'][ $k ] ); return true; } }
 function get_transient( $k ) { return $GLOBALS['wpcap_test_transients'][ $k ] ?? false; }
 function set_transient( $k, $v, $e = 0 ) { $GLOBALS['wpcap_test_transients'][ $k ] = $v; $GLOBALS['wpcap_test_transient_ttl'][ $k ] = (int) $e; return true; }
+/** Forgets all transients and rate-limit counters (wpcap_rate_limits holds the counters without an object cache). */
+function wpcap_test_reset_transients() {
+	global $wpdb;
+	$GLOBALS['wpcap_test_transients'] = array();
+	$wpdb->query( 'DELETE FROM `' . $wpdb->prefix . 'wpcap_rate_limits`' );
+}
 function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { $args = array( $args => $url ); $url = $u; } return $url . '?' . http_build_query( $args ); }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }

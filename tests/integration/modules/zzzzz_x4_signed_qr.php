@@ -18,7 +18,7 @@ $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 unset( $GLOBALS['wpcap_test_user_can'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 \PassCaptain\Security\Vault::set_keys_for_tests( str_repeat( "\x42", 32 ) );
 update_option( SignedQr::OPTION, array() );
 

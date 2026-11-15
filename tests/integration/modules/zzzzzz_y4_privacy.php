@@ -28,7 +28,7 @@ $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
 unset( $GLOBALS['wpcap_test_user_can'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 unset( $GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] );
 Settings::update( array( 'require_terms' => 0, 'terms_text' => '', 'attendee_retention_days' => 0, 'retention_order_years' => 10, 'retention_waitlist_days' => 30, 'retention_pass_days' => 365 ) );
 Consents::register();
@@ -52,7 +52,7 @@ function y4_move( $type, $days_ago ) {
 function y4_order( $type, $email, array $attendees ) {
 	$list = array();
 	foreach ( $attendees as $a ) { $list[] = array( 'ticket_type_id' => $type, 'name' => $a[0], 'email' => $a[1], 'answers' => $a[2] ?? array() ); }
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => count( $attendees ) ) ), 'idempotency_key' => 'y4-' . uniqid( '', true ), 'attendees' => $list ), array( 'skip_rate_limit' => true ) );
 }
 function y4_tickets( $order_id ) { return array_map( static fn( $t ) => (int) $t->ticket_id, Orders::tickets_for_order( $order_id ) ); }
@@ -301,12 +301,12 @@ foreach ( array( 'src/Seats.php', 'src/Waitlists.php', 'src/ServiceBookings.php'
 // Transient/lock names built from an unkeyed hash ('wpcap_x_' . hash( 'sha256', … ) or md5( … )) and the buyer lock name.
 check( 'PRIV-8: no unkeyed sha256/md5 of e-mail or IP addresses for counters and locks', ! preg_match( '/\'(wpcap|partner)_[a-z_]+\' \. (hash\( \'sha256\'|md5\()/', $y4src ) && false === strpos( $y4src, "substr( hash( 'sha256', self::normalize_email( \$email ) )" ) );
 check( 'PRIV-8: RateLimit::hash is keyed (differs from plain sha256)', RateLimit::hash( 'a@example.com' ) !== hash( 'sha256', 'a@example.com' ) && 64 === strlen( RateLimit::hash( 'a@example.com' ) ) );
-$y4seat_before = array_keys( $GLOBALS['wpcap_test_transients'] );
+$y4seat_before = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', RateLimit::table() ) );
 $y4ip = '203.0.113.' . random_int( 10, 200 );
 $_SERVER['REMOTE_ADDR'] = $y4ip;
 PassCaptain\Waitlists::join( y4_event( $y4wf ), y4_occ( $y4wf ), $y4wf, 'y4-ratelimit@example.com' );
-$y4new_keys = array_diff( array_keys( $GLOBALS['wpcap_test_transients'] ), $y4seat_before );
-check( 'PRIV-8: waitlist rate-limit transients use keyed hashes', $y4new_keys && ! in_array( 'wpcap_waitlist_ip_' . hash( 'sha256', $y4ip . '|' . y4_event( $y4wf ) ), $y4new_keys, true ) && ! in_array( 'wpcap_waitlist_' . hash( 'sha256', 'y4-ratelimit@example.com|' . y4_event( $y4wf ) ), $y4new_keys, true ) );
+$y4new_keys = array_values( array_diff( $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', RateLimit::table() ) ), $y4seat_before ) );
+check( 'PRIV-8: waitlist rate-limit counters use keyed hashes (bucket = RateLimit::hash of a keyed name)', 3 === count( $y4new_keys ) && in_array( RateLimit::hash( 'wpcap_waitlist_ip_' . RateLimit::hash( $y4ip . '|' . y4_event( $y4wf ) ) ), $y4new_keys, true ) && ! in_array( hash( 'sha256', $y4ip . '|' . y4_event( $y4wf ) ), $y4new_keys, true ) && ! in_array( RateLimit::hash( 'wpcap_waitlist_' . hash( 'sha256', 'y4-ratelimit@example.com|' . y4_event( $y4wf ) ) ), $y4new_keys, true ) );
 check( 'PRIV-8: policy text names HTTP/JSON connectors with names', ! PolicyText::recipients()['webhooks'] || false !== strpos( PolicyText::content(), 'HTTP/JSON' ) );
 $y4filter = static fn( $r ) => array_merge( $r, array( 'webhooks' => true, 'fiscal' => true ) );
 $GLOBALS['wpcap_test_hooks']['wpcap_privacy_policy_recipients'][10][] = array( $y4filter, 1 );

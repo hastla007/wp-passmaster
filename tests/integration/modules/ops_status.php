@@ -165,7 +165,7 @@ check( 'clean schema check reports ok', 'ok' === $diag( 'schema' )['severity'] &
 
 // Expired holds.
 $type = make_type( 20 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $hold = PassCaptain\Orders::create( array( 'email' => 'ops-hold@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'ops-hold-' . uniqid() ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=%s WHERE order_id=%d", $ops_ago( 7200 ), $hold['order_id'] ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET created_at=%s WHERE order_id=%d", $ops_ago( 7200 ), $hold['order_id'] ) );

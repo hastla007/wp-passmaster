@@ -33,7 +33,7 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 Settings::update( array(
 	'stripe_secret_key' => 'sk_test_123', 'stripe_webhook_secret' => 'whsec_test',
 	'paypal_mode' => 'sandbox', 'paypal_client_id' => 'client', 'paypal_client_secret' => 'secret', 'paypal_webhook_id' => 'WH-ID-1',
@@ -47,7 +47,7 @@ $y2_paypal = Registry::get( 'paypal' );
 $y2_mollie = Registry::get( 'mollie' );
 
 $y2_checkout = static function ( array $body ) {
-	$GLOBALS['wpcap_test_transients'] = array(); // Rate limit per IP: many checkouts in one test run.
+	wpcap_test_reset_transients(); // Rate limit per IP: many checkouts in one test run.
 	$r = new WP_REST_Request( 'POST' );
 	$r->set_body( wp_json_encode( $body + array( 'accept_terms' => true ) ) );
 	return Controller::checkout( $r );
