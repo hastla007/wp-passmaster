@@ -95,7 +95,10 @@ final class SignedQr {
 	}
 
 	private static function generate() {
-		$pair = sodium_crypto_sign_keypair();
+		do {
+			// A key id of digits only would become an integer array key in PHP and break the strict id comparisons.
+			$pair = sodium_crypto_sign_keypair();
+		} while ( ctype_digit( self::key_id( sodium_crypto_sign_publickey( $pair ) ) ) );
 		$public = sodium_crypto_sign_publickey( $pair );
 		$secret = sodium_crypto_sign_secretkey( $pair );
 		$entry = array(
@@ -151,7 +154,7 @@ final class SignedQr {
 		$data['keys'][ $kid ] = $entry;
 		$data['active'] = $kid;
 		foreach ( $data['keys'] as $id => $key ) {
-			if ( $id !== $kid && (int) $key['valid_until'] <= $now ) { unset( $data['keys'][ $id ] ); }
+			if ( (string) $id !== (string) $kid && (int) $key['valid_until'] <= $now ) { unset( $data['keys'][ $id ] ); }
 		}
 		self::store( $data );
 		Audit::record( 'qr_key_rotated', 'settings', 0, array( 'key_id' => $kid, 'previous' => $previous, 'previous_valid_until' => $until ? gmdate( 'c', $until ) : null, 'revoked' => (bool) $revoke, 'reason' => sanitize_key( (string) $reason ) ) );
@@ -170,13 +173,13 @@ final class SignedQr {
 		$now = time();
 		$out = array();
 		foreach ( $data['keys'] as $kid => $key ) {
-			if ( $kid !== $active && (int) $key['valid_until'] <= $now ) { continue; }
+			if ( (string) $kid !== (string) $active && (int) $key['valid_until'] <= $now ) { continue; }
 			$out[] = array(
 				'key_id' => (string) $kid,
 				'alg' => 'Ed25519',
 				'public_key' => (string) $key['public'],
-				'status' => $kid === $active ? 'active' : 'retired',
-				'valid_until' => $kid === $active ? null : gmdate( 'c', (int) $key['valid_until'] ),
+				'status' => (string) $kid === (string) $active ? 'active' : 'retired',
+				'valid_until' => (string) $kid === (string) $active ? null : gmdate( 'c', (int) $key['valid_until'] ),
 			);
 		}
 		usort( $out, static function ( $a, $b ) { return strcmp( $a['status'], $b['status'] ); } );
@@ -203,6 +206,7 @@ final class SignedQr {
 	public static function sign( array $claims ) {
 		$kid = self::active_id();
 		$data = self::load();
+		if ( ! isset( $data['keys'][ $kid ] ) || ! is_array( $data['keys'][ $kid ] ) ) { return ''; }
 		$secret = self::open_secret( $data['keys'][ $kid ] );
 		if ( null === $secret ) { return ''; }
 		$claims = array(
