@@ -353,3 +353,14 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 - [ ] Affiliate Captain nur für spätere aggregierte Qualitätsberichte vorsehen; Review-Klicks/-Bewertungen erzeugen keine Partnerprovision.
 - [ ] E2E-Matrix für Ticketkauf → Check-in/Teilnahme → Review-Anfrage und die Ausschlüsse (Refund, Absage, No-show, Opt-out, Duplikat, fehlendes Plugin) ergänzen.
 - **Abnahme:** Ein bestätigtes Erlebnis erzeugt maximal eine zulässige Anfrage; generische Formulareinsendungen und Affiliate-Provisionsereignisse lösen keine Einladung aus.
+
+## P1 – Workflow Captain Provider-Vertrag
+
+- [ ] PASS-WF-01 – Öffentlichen Providervertrag v1 festlegen: SemVer, Event-Envelope, Feld-Allowlist, Capability, Entitlement, Fehlercodes und Deprecation-Frist; keine privaten Klassen oder Tabellen.
+- [ ] PASS-WF-02 – Post-Commit-Events für Bestellung bezahlt/storniert/erstattet, Ticket erstellt/widerrufen/transferiert, Check-in/out, Event abgesagt/verschoben und Teilnahme bestätigt veröffentlichen; stabile IDs, Zeitstempel und Schema-Version, keine Codes oder Teilnehmer-PII.
+- [ ] PASS-WF-03 – Ausgabe-Semantik pro Ticket mit stabiler Ticket-ID definieren; Refunds nach Order, Line und Ticket eindeutig abbilden; fehlenden order.refunded Pfad schließen und Outbox/Dedupe gegen Mehrfachhooks ergänzen.
+- [ ] PASS-WF-04 – Sichere v1-Commands für ausgewählte Aktionen bereitstellen: Mail erneut senden, Ticket widerrufen, Event absagen/verschieben und zulässige Teilnahme bestätigen. Capability, Allowlist, Idempotency-Key und Audit; keine Zahlung, Erstattung oder Ticketcode-Ausgabe.
+- [ ] PASS-WF-05 – Ownership für optionale Erinnerungen/Mails mit expliziter, protokollierter Übergabe ergänzen. Zahlung, Reservierung, Ausgabe, Refund und Einlass bleiben Pass Captain-eigene Abläufe.
+- [ ] PASS-WF-06 – Adminstatus für Providervertrag, Workflow-Übergaben, letzte Eventannahme und Fehler ergänzen; bei fehlendem/inkompatiblem Workflow auf native Abläufe zurückfallen.
+- [ ] PASS-WF-07 – Vertragsfixtures und E2E für PII-Redaction, HPOS/Classic, Multisite, Replay, Duplikate, Workflow fehlt/deaktiviert, Fachplugin-Pro-Recht fehlt/abgelaufen und Contract-Major ergänzen.
+- Abnahme: Workflow nutzt nur Pass-Services; jede Zahlung/Refund erzeugt eine fachliche Änderung und kritische Kernabläufe bleiben unabhängig.
