@@ -108,15 +108,21 @@ async function context(browser, opts) {
 	return browser.newContext(Object.assign(base, opts || {}));
 }
 async function login(ctx) {
-	const page = await ctx.newPage();
-	// Redirect to the lightweight profile screen instead of the dashboard (widgets, news feeds) and wait only
-	// for the navigation to commit: the session cookie is set by then. Waiting for "load" of the dashboard
-	// timed out in Firefox on CI.
-	await page.goto(BASE + '/wp-login.php?redirect_to=' + encodeURIComponent(BASE + '/wp-admin/profile.php'));
-	await page.fill('#user_login', USER);
-	await page.fill('#user_pass', PASS);
-	await Promise.all([page.waitForURL((u) => !u.pathname.includes('wp-login'), { timeout: 60000, waitUntil: 'commit' }), page.click('#wp-submit')]);
-	await page.close();
+	// Log in over HTTP with the context's request client: it shares the cookie jar with the browser context,
+	// so no page navigation is involved. Waiting for the post-login navigation timed out intermittently in
+	// Firefox on CI (even with waitUntil "commit"). WordPress needs its test cookie, set by the GET first.
+	const url = BASE + '/wp-login.php';
+	for (let attempt = 1; attempt <= 3; attempt++) {
+		await ctx.request.get(url);
+		const res = await ctx.request.post(url, {
+			form: { log: USER, pwd: PASS, 'wp-submit': 'Log In', redirect_to: BASE + '/wp-admin/profile.php', testcookie: '1' },
+			maxRedirects: 0,
+			timeout: 60000,
+		});
+		const cookies = await ctx.cookies(BASE);
+		if (cookies.some((c) => c.name.startsWith('wordpress_logged_in_'))) return;
+		if (attempt === 3) throw new Error('login failed: HTTP ' + res.status());
+	}
 }
 
 /**
