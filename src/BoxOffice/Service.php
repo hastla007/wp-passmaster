@@ -15,6 +15,7 @@ namespace PassCaptain\BoxOffice;
 
 use PassCaptain\Audit;
 use PassCaptain\Invoices;
+use PassCaptain\Log;
 use PassCaptain\Orders;
 use PassCaptain\Refunds;
 use PassCaptain\Reports\Scope;
@@ -121,31 +122,46 @@ final class Service {
 	/**
 	 * Totals of a session.
 	 *
-	 * @return array{methods:array,expected_cash:int,net_total:int,sales:int,voided:int,currency:string}
+	 * Per method: count/gross (booked sales), voided_count/voided (stornos: the amount of the storno
+	 * refund, i.e. what was still left after earlier partial refunds), refunded_count/refunded (other
+	 * refunds of box office orders booked into this session, see book_refund()) and
+	 * net = gross − voided − refunded. expected_cash = opening float + net of cash.
+	 *
+	 * @return array{methods:array,expected_cash:int,net_total:int,sales:int,voided:int,refunds:int,currency:string}
 	 */
 	public static function session_totals( $session_id ) {
 		global $wpdb;
+		$p = $wpdb->prefix;
 		$session = self::session( $session_id );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT payment_method,status,COUNT(*) AS n,COALESCE(SUM(total_minor),0) AS amount FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d AND status IN ('completed','voided','storno_pending') GROUP BY payment_method,status", absint( $session_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.payment_method,s.status,COUNT(*) AS n,COALESCE(SUM(s.total_minor),0) AS amount,COALESCE(SUM(CASE WHEN s.status='voided' THEN COALESCE(r.amount_minor,s.total_minor) ELSE 0 END),0) AS voided_amount FROM %i s LEFT JOIN %i r ON r.refund_id=s.storno_refund_id AND s.storno_refund_id>0 AND r.status='completed' WHERE s.session_id=%d AND s.status IN ('completed','voided','storno_pending') GROUP BY s.payment_method,s.status", $p . 'wpcap_boxoffice_sales', $p . 'wpcap_refunds', absint( $session_id ) ) );
+		$empty = array( 'count' => 0, 'gross' => 0, 'voided_count' => 0, 'voided' => 0, 'refunded_count' => 0, 'refunded' => 0, 'net' => 0 );
 		$methods = array();
-		foreach ( array_keys( self::methods() ) as $m ) { $methods[ $m ] = array( 'count' => 0, 'gross' => 0, 'voided_count' => 0, 'voided' => 0, 'net' => 0 ); }
+		foreach ( array_keys( self::methods() ) as $m ) { $methods[ $m ] = $empty; }
 		$sales = 0;
 		$voided = 0;
 		foreach ( $rows as $r ) {
 			$m = $r->payment_method;
-			if ( ! isset( $methods[ $m ] ) ) { $methods[ $m ] = array( 'count' => 0, 'gross' => 0, 'voided_count' => 0, 'voided' => 0, 'net' => 0 ); }
+			if ( ! isset( $methods[ $m ] ) ) { $methods[ $m ] = $empty; }
 			$methods[ $m ]['count'] += (int) $r->n;
 			$methods[ $m ]['gross'] += (int) $r->amount;
 			$sales += (int) $r->n;
 			if ( 'voided' === $r->status ) {
 				$methods[ $m ]['voided_count'] += (int) $r->n;
-				$methods[ $m ]['voided'] += (int) $r->amount;
+				$methods[ $m ]['voided'] += (int) $r->voided_amount;
 				$voided += (int) $r->n;
 			}
 		}
+		$refunds = 0;
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT payment_method,COUNT(*) AS n,COALESCE(SUM(amount_minor),0) AS amount FROM %i WHERE session_id=%d AND session_id>0 GROUP BY payment_method', $p . 'wpcap_boxoffice_refunds', absint( $session_id ) ) ) as $r ) {
+			$m = $r->payment_method;
+			if ( ! isset( $methods[ $m ] ) ) { $methods[ $m ] = $empty; }
+			$methods[ $m ]['refunded_count'] += (int) $r->n;
+			$methods[ $m ]['refunded'] += (int) $r->amount;
+			$refunds += (int) $r->n;
+		}
 		$net_total = 0;
 		foreach ( $methods as $m => $t ) {
-			$methods[ $m ]['net'] = $t['gross'] - $t['voided'];
+			$methods[ $m ]['net'] = $t['gross'] - $t['voided'] - $t['refunded'];
 			$net_total += $methods[ $m ]['net'];
 		}
 		return array(
@@ -154,8 +170,66 @@ final class Service {
 			'net_total' => $net_total,
 			'sales' => $sales,
 			'voided' => $voided,
+			'refunds' => $refunds,
 			'currency' => $session ? $session->currency : 'EUR',
 		);
+	}
+
+	/**
+	 * Books a completed refund of a box office order that is not a storno (e.g. a partial refund on the
+	 * refund page) into a register session, so the expected cash balance follows the money paid out:
+	 * - the sale's session while it is open;
+	 * - after it was closed: the currently open session of the same register (same location and a
+	 *   non-empty register ID; the most recently opened one);
+	 * - otherwise none: the refund is recorded with session 0 and audited as `pos_refund_unassigned`;
+	 *   the cash is paid out and booked outside a register session (see docs/OPERATIONS.md).
+	 * Runs under the session row lock, so it serialises with close_session(). Idempotent per refund.
+	 *
+	 * @return int Session the refund was booked into (0 = none), -1 when it is not a box office refund.
+	 */
+	public static function book_refund( $refund_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$refund = Refunds::get( $refund_id );
+		if ( ! $refund || 'completed' !== $refund['status'] || (int) $refund['amount_minor'] <= 0 ) { return -1; }
+		$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT sale_id,session_id,payment_method,storno_refund_id,storno_attempt FROM %i WHERE order_id=%d', $p . 'wpcap_boxoffice_sales', (int) $refund['order_id'] ) );
+		if ( ! $sale || (int) $sale->storno_refund_id === (int) $refund['refund_id'] || self::is_storno_refund( $refund, $sale ) ) { return -1; }
+		$known = $wpdb->get_var( $wpdb->prepare( 'SELECT session_id FROM %i WHERE refund_id=%d', $p . 'wpcap_boxoffice_refunds', (int) $refund['refund_id'] ) );
+		if ( null !== $known ) { return (int) $known; }
+		$wpdb->query( 'START TRANSACTION' );
+		$origin = $wpdb->get_row( $wpdb->prepare( 'SELECT session_id,status,location_id,register_id FROM %i WHERE session_id=%d FOR UPDATE', $p . 'wpcap_boxoffice_sessions', (int) $sale->session_id ) );
+		$target = 0;
+		if ( $origin && 'open' === $origin->status ) {
+			$target = (int) $origin->session_id;
+		} elseif ( $origin && '' !== (string) $origin->register_id ) {
+			$target = (int) $wpdb->get_var( $wpdb->prepare( "SELECT session_id FROM %i WHERE status='open' AND location_id=%d AND register_id=%s ORDER BY opened_at DESC, session_id DESC LIMIT 1 FOR UPDATE", $p . 'wpcap_boxoffice_sessions', (int) $origin->location_id, (string) $origin->register_id ) );
+		}
+		$inserted = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (refund_id,sale_id,session_id,payment_method,amount_minor,booked_at) VALUES (%d,%d,%d,%s,%d,%s)', $p . 'wpcap_boxoffice_refunds', (int) $refund['refund_id'], (int) $sale->sale_id, $target, (string) $sale->payment_method, (int) $refund['amount_minor'], current_time( 'mysql', true ) ) );
+		if ( false === $inserted ) {
+			$error = (string) $wpdb->last_error;
+			$wpdb->query( 'ROLLBACK' );
+			Log::error( 'pos_refund_book_failed', sprintf( 'refund %d of box office sale %d could not be booked into a register session: %s', (int) $refund['refund_id'], (int) $sale->sale_id, $error ) );
+			return 0;
+		}
+		$wpdb->query( 'COMMIT' );
+		$details = array( 'sale_id' => (int) $sale->sale_id, 'refund_id' => (int) $refund['refund_id'], 'session_id' => $target, 'method' => (string) $sale->payment_method, 'amount_minor' => (int) $refund['amount_minor'], 'sale_session_id' => (int) $sale->session_id );
+		Audit::record( $target ? 'pos_refund_booked' : 'pos_refund_unassigned', 'order', (int) $refund['order_id'], $details );
+		return $target;
+	}
+
+	/** Whether a refund row is the storno refund of a sale (idempotency key of any storno attempt). */
+	private static function is_storno_refund( array $refund, $sale ) {
+		for ( $attempt = 0; $attempt <= (int) $sale->storno_attempt; $attempt++ ) {
+			if ( hash_equals( hash( 'sha256', 'refund|' . (int) $refund['order_id'] . '|' . self::storno_key( $sale->sale_id, $attempt ) ), (string) $refund['idempotency_key'] ) ) { return true; }
+		}
+		return false;
+	}
+
+	/** Refunds of box office orders booked into a session (session overview). */
+	public static function session_refunds( $session_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT br.*,s.receipt_number,s.session_id AS sale_session_id FROM %i br INNER JOIN %i s ON s.sale_id=br.sale_id WHERE br.session_id=%d AND br.session_id>0 ORDER BY br.refund_id', $p . 'wpcap_boxoffice_refunds', $p . 'wpcap_boxoffice_sales', absint( $session_id ) ) );
 	}
 
 	/**
@@ -590,6 +664,7 @@ final class Service {
 		$session = self::session( $sale->session_id );
 		$payload = array(
 			'version' => DeviceGatewayInterface::VERSION,
+			'contract' => DeviceGatewayInterface::VERSION . '.' . DeviceGatewayInterface::REVISION,
 			'sale_key' => (string) $sale->form_key_hash,
 			'sale_id' => (int) $sale->sale_id,
 			'order_id' => (int) $order->order_id,
@@ -611,7 +686,7 @@ final class Service {
 		do_action( 'wp_pass_captain_pos_device_payment_started_v1', (int) $sale->sale_id, (string) $sale->device_id, $started['reference'], $payload );
 		$sale = self::sale( $sale->sale_id );
 		if ( 'succeeded' === $started['status'] ) {
-			$confirmed = self::confirm_device( $sale, '' !== $started['provider_reference'] ? $started['provider_reference'] : $started['reference'], 'start' );
+			$confirmed = self::confirm_device( $sale, '' !== $started['provider_reference'] ? $started['provider_reference'] : $started['reference'], 'start', $started );
 			return is_wp_error( $confirmed ) ? $confirmed : self::finalize( $sale->sale_id );
 		}
 		if ( in_array( $started['status'], array( 'failed', 'cancelled' ), true ) ) { return self::fail_device( $sale, $started['status'], $started['message'] ); }
@@ -627,11 +702,15 @@ final class Service {
 	 *
 	 * @param string $sale_key_or_order_id `sale_key` from start() (64 hex) or the order ID.
 	 * @param string $provider_reference   Payment reference of the provider (stored on the order).
+	 * @param array  $payment              Optional (contract 1.1): amount_minor and currency actually
+	 *                                     charged. When given, they must match the order, else the sale
+	 *                                     ends as amount_mismatch and nothing is booked.
 	 * @return true|\WP_Error 404 unknown sale, 400 empty reference, 409 no terminal payment expected any
-	 *                        more (cancelled/failed/timed out: refund it on the terminal) or a different
-	 *                        reference after a confirmed payment (second payment: refund it).
+	 *                        more (cancelled/failed/timed out: refund it on the terminal), a different
+	 *                        reference after a confirmed payment (second payment: refund it) or a
+	 *                        different amount/currency (wpcap_pos_device_amount_mismatch: refund it).
 	 */
-	public static function confirm_device_payment( $sale_key_or_order_id, $provider_reference ) {
+	public static function confirm_device_payment( $sale_key_or_order_id, $provider_reference, $payment = array() ) {
 		global $wpdb;
 		$key = trim( (string) $sale_key_or_order_id );
 		$sale = null;
@@ -641,11 +720,14 @@ final class Service {
 			$sale = self::sale_by_key( $key );
 		}
 		if ( ! $sale || self::DEVICE_METHOD !== $sale->payment_method ) { return self::error( 'wpcap_pos_device_sale', __( 'Kein Kassenverkauf mit Terminalzahlung gefunden.', 'pass-captain' ), 404 ); }
-		return self::confirm_device( $sale, (string) $provider_reference, 'webhook' );
+		return self::confirm_device( $sale, (string) $provider_reference, 'webhook', Devices::amount_of( $payment ) );
 	}
 
-	/** confirm_device_payment() for a sale row; $source poll|webhook|start (audit). */
-	private static function confirm_device( $sale, $reference, $source ) {
+	/**
+	 * confirm_device_payment() for a sale row; $source poll|webhook|start (audit). $payment may carry the
+	 * charged amount_minor/currency (Devices::amount_of()); a difference to the order is never confirmed.
+	 */
+	private static function confirm_device( $sale, $reference, $source, array $payment = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$reference = mb_substr( sanitize_text_field( (string) $reference ), 0, 191 );
@@ -664,6 +746,18 @@ final class Service {
 			Audit::record( 'pos_device_payment_late', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reference' => $reference, 'device_status' => (string) $sale->device_status, 'source' => $source ) );
 			return self::error( 'wpcap_pos_device_not_pending', __( 'Für diesen Verkauf wird keine Terminalzahlung mehr erwartet (abgebrochen, fehlgeschlagen oder abgelaufen). Eine dennoch erfolgte Zahlung bitte am Terminal erstatten.', 'pass-captain' ), 409 );
 		}
+		$mismatch = self::amount_mismatch( $sale, $payment );
+		if ( '' !== $mismatch ) {
+			Audit::record( 'pos_device_amount_mismatch', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reference' => $reference, 'source' => $source, 'charged_minor' => $payment['amount_minor'] ?? null, 'charged_currency' => (string) ( $payment['currency'] ?? '' ) ) );
+			$order = Orders::get( $sale->order_id );
+			wp_mail(
+				get_option( 'admin_email' ),
+				__( 'Pass Captain: Terminalzahlung prüfen', 'pass-captain' ),
+				/* translators: 1: order id, 2: terminal reference, 3: description of the difference */
+				sprintf( __( "Bestellung %1\$s (Terminal-Referenz %2\$s): %3\$s\n\nDer Verkauf wurde nicht gebucht. Bitte den am Terminal belasteten Betrag dort erstatten und den Verkauf neu erfassen.", 'pass-captain' ), $order ? $order->public_id : (string) $sale->order_id, $reference, $mismatch )
+			);
+			return self::fail_device( $sale, 'amount_mismatch', $mismatch );
+		}
 		// Exactly one request wins the transition pending → succeeded (poll, webhook and cancel race here).
 		$won = $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'device_status' => 'succeeded' ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending', 'device_status' => 'pending' ) );
 		if ( ! $won ) {
@@ -681,8 +775,33 @@ final class Service {
 	}
 
 	/**
+	 * Difference between the amount a terminal reports as charged and the order (empty when it matches
+	 * or the device reported no amount – contract 1.0).
+	 *
+	 * @param array $payment amount_minor (int|null), currency (string) from Devices::amount_of().
+	 */
+	private static function amount_mismatch( $sale, array $payment ) {
+		$amount = $payment['amount_minor'] ?? null;
+		$currency = (string) ( $payment['currency'] ?? '' );
+		if ( null === $amount && '' === $currency ) { return ''; }
+		$order = Orders::get( $sale->order_id );
+		if ( ! $order ) { return ''; } // Nothing to compare with; confirm_external_payment() decides.
+		$parts = array();
+		if ( null !== $amount && (int) $amount !== (int) $order->total_minor ) {
+			/* translators: 1: charged amount, 2: order amount */
+			$parts[] = sprintf( __( 'Am Terminal wurde %1$s belastet, die Bestellung beträgt %2$s.', 'pass-captain' ), $amount < 0 ? '?' : Scope::money( (int) $amount, '' !== $currency && 'XXX' !== $currency ? $currency : $order->currency ), Scope::money( (int) $order->total_minor, $order->currency ) );
+		}
+		if ( '' !== $currency && strtoupper( (string) $order->currency ) !== $currency ) {
+			/* translators: 1: charged currency, 2: order currency */
+			$parts[] = sprintf( __( 'Das Terminal meldet die Währung %1$s statt %2$s.', 'pass-captain' ), $currency, strtoupper( (string) $order->currency ) );
+		}
+		return implode( ' ', $parts );
+	}
+
+	/**
 	 * Ends a pending terminal payment without payment: the sale is marked failed and the order (hold)
-	 * cancelled, so the cashier can sell again with another method. $status failed|cancelled|timeout.
+	 * cancelled, so the cashier can sell again with another method. $status failed|cancelled|timeout|
+	 * amount_mismatch (the terminal charged another amount: never booked, refund it on the terminal).
 	 */
 	private static function fail_device( $sale, $status, $message ) {
 		global $wpdb;
@@ -691,6 +810,7 @@ final class Service {
 			'failed' => __( 'Die Zahlung am Terminal ist fehlgeschlagen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
 			'cancelled' => __( 'Die Zahlung am Terminal wurde abgebrochen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
 			'timeout' => __( 'Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
+			'amount_mismatch' => __( 'Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Der Verkauf wurde nicht gebucht; bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen.', 'pass-captain' ),
 		);
 		$status = isset( $texts[ $status ] ) ? $status : 'failed';
 		$message = mb_substr( sanitize_text_field( (string) $message ), 0, 255 );
@@ -731,7 +851,7 @@ final class Service {
 			$state = $device && '' !== $reference ? Devices::poll( $device, $reference ) : new \WP_Error( 'wpcap_pos_device_missing', __( 'Das Kartenterminal ist nicht mehr verfügbar.', 'pass-captain' ) );
 			$status = is_wp_error( $state ) ? 'pending' : $state['status'];
 			if ( 'succeeded' === $status ) {
-				self::confirm_device( $sale, '' !== $state['provider_reference'] ? $state['provider_reference'] : $reference, 'poll' );
+				self::confirm_device( $sale, '' !== $state['provider_reference'] ? $state['provider_reference'] : $reference, 'poll', $state );
 			} elseif ( 'failed' === $status || 'cancelled' === $status ) {
 				self::fail_device( $sale, $status, $state['message'] );
 			} elseif ( self::device_elapsed( $sale ) >= Devices::timeout( $sale->device_id ) ) {
@@ -777,8 +897,9 @@ final class Service {
 	public static function device_state( $sale, $message = '' ) {
 		$status = 'pending';
 		if ( 'failed' === $sale->status ) {
-			$status = in_array( $sale->device_status, array( 'cancelled', 'timeout' ), true ) ? $sale->device_status : 'failed';
+			$status = in_array( $sale->device_status, array( 'cancelled', 'timeout', 'amount_mismatch' ), true ) ? $sale->device_status : 'failed';
 			$texts = array(
+				'amount_mismatch' => __( 'Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen.', 'pass-captain' ),
 				'failed' => __( 'Die Zahlung am Terminal ist fehlgeschlagen. Bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
 				'cancelled' => __( 'Die Zahlung am Terminal wurde abgebrochen. Bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
 				'timeout' => __( 'Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
@@ -890,14 +1011,22 @@ final class Service {
 		return self::sale( $sale_id );
 	}
 
-	/** wpcap_refund_completed: marks the sale voided and allocates the storno receipt number (idempotent). */
+	/**
+	 * wpcap_refund_completed: a storno refund marks the sale voided and allocates the storno receipt
+	 * number (idempotent); any other refund of a box office order is booked into a register session
+	 * (book_refund(), PAY-V4).
+	 */
 	public static function on_refund_completed( $refund_id, $order_id = 0 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$refund = Refunds::get( $refund_id );
 		if ( ! $refund ) { return; }
 		$sale = $wpdb->get_row( $wpdb->prepare( "SELECT sale_id,storno_attempt FROM {$p}wpcap_boxoffice_sales WHERE order_id=%d", (int) $refund['order_id'] ) );
-		if ( ! $sale || ! hash_equals( hash( 'sha256', 'refund|' . (int) $refund['order_id'] . '|' . self::storno_key( $sale->sale_id, (int) $sale->storno_attempt ) ), (string) $refund['idempotency_key'] ) ) { return; }
+		if ( ! $sale ) { return; }
+		if ( ! hash_equals( hash( 'sha256', 'refund|' . (int) $refund['order_id'] . '|' . self::storno_key( $sale->sale_id, (int) $sale->storno_attempt ) ), (string) $refund['idempotency_key'] ) ) {
+			self::book_refund( (int) $refund_id );
+			return;
+		}
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale->sale_id ) );
 		if ( ! $locked || ! in_array( $locked->status, array( 'completed', 'storno_pending' ), true ) ) { $wpdb->query( 'COMMIT' ); return; }

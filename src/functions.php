@@ -28,10 +28,12 @@ if ( ! function_exists( 'wpcap_confirm_pos_payment' ) ) {
 	 *
 	 * @param int|string $order_id  Order ID or the sale_key passed to DeviceGatewayInterface::start().
 	 * @param string     $reference Payment reference of the provider.
+	 * @param array      $payment   Optional (contract 1.1): amount_minor and currency actually charged;
+	 *                              a difference to the order is never booked (amount_mismatch).
 	 * @return true|WP_Error
 	 */
-	function wpcap_confirm_pos_payment( $order_id, $reference ) {
-		return PassCaptain\BoxOffice\Service::confirm_device_payment( (string) $order_id, (string) $reference );
+	function wpcap_confirm_pos_payment( $order_id, $reference, $payment = array() ) {
+		return PassCaptain\BoxOffice\Service::confirm_device_payment( (string) $order_id, (string) $reference, (array) $payment );
 	}
 }
 

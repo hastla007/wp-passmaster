@@ -211,11 +211,27 @@ final class Page {
 		echo '<h2>' . esc_html( sprintf( /* translators: 1: register session number, 2: opening time */ __( 'Kassensitzung #%1$d (seit %2$s)', 'pass-captain' ), $session->session_id, Scope::local( $session->opened_at, Scope::site_timezone() ) ) ) . '</h2>';
 		/* translators: 1: location ID, 2: register ID */
 		echo '<p>' . esc_html( sprintf( __( 'Standort %1$d · Kasse %2$s', 'pass-captain' ), (int) $session->location_id, '' !== (string) $session->register_id ? (string) $session->register_id : __( 'Standard', 'pass-captain' ) ) ) . '</p>';
-		echo '<table class="widefat" style="max-width:40rem"><thead><tr><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufe', 'pass-captain' ) . '</th><th>' . esc_html__( 'Storniert', 'pass-captain' ) . '</th><th>' . esc_html__( 'Netto-Umsatz', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat" style="max-width:40rem"><thead><tr><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufe', 'pass-captain' ) . '</th><th>' . esc_html__( 'Storniert', 'pass-captain' ) . '</th><th>' . esc_html__( 'Erstattet', 'pass-captain' ) . '</th><th>' . esc_html__( 'Netto-Umsatz', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $totals['methods'] as $m => $t ) {
-			echo '<tr><td>' . esc_html( Service::method_label( $m ) ) . '</td><td>' . (int) $t['count'] . '</td><td>' . (int) $t['voided_count'] . '</td><td>' . esc_html( Scope::money( $t['net'], $cur ) ) . '</td></tr>';
+			echo '<tr><td>' . esc_html( Service::method_label( $m ) ) . '</td><td>' . (int) $t['count'] . '</td><td>' . (int) $t['voided_count'] . '</td><td>' . esc_html( $t['refunded'] ? '-' . Scope::money( $t['refunded'], $cur ) : '' ) . '</td><td>' . esc_html( Scope::money( $t['net'], $cur ) ) . '</td></tr>';
 		}
-		echo '</tbody></table><p>' . esc_html( sprintf( /* translators: 1: opening float, 2: expected cash balance */ __( 'Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s', 'pass-captain' ), Scope::money( $session->opening_float_minor, $cur ), Scope::money( $totals['expected_cash'], $cur ) ) ) . '</p>';
+		echo '</tbody></table>';
+		$session_refunds = Service::session_refunds( $session->session_id );
+		if ( $session_refunds ) {
+			// Partial refunds of box office orders (refund page) that reduce the expected balance (PAY-V4).
+			echo '<p>' . esc_html__( 'Erstattungen von Kassenverkäufen in dieser Sitzung:', 'pass-captain' ) . '</p><ul>';
+			foreach ( $session_refunds as $br ) {
+				/* translators: 1: receipt number, 2: payment method, 3: amount */
+				$line = sprintf( __( 'Beleg %1$s (%2$s): -%3$s', 'pass-captain' ), (string) $br->receipt_number, Service::method_label( $br->payment_method ), Scope::money( (int) $br->amount_minor, $cur ) );
+				if ( (int) $br->sale_session_id !== (int) $session->session_id ) {
+					/* translators: %d: register session number */
+					$line .= ' ' . sprintf( __( '(Verkauf aus Sitzung #%d, erstattet nach deren Abschluss)', 'pass-captain' ), (int) $br->sale_session_id );
+				}
+				echo '<li>' . esc_html( $line ) . '</li>';
+			}
+			echo '</ul>';
+		}
+		echo '<p>' . esc_html( sprintf( /* translators: 1: opening float, 2: expected cash balance */ __( 'Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s', 'pass-captain' ), Scope::money( $session->opening_float_minor, $cur ), Scope::money( $totals['expected_cash'], $cur ) ) ) . '</p>';
 
 		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d AND status <> 'failed' ORDER BY sale_id DESC LIMIT 50", $session->session_id ) );
 		if ( $sales ) {

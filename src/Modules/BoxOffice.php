@@ -134,6 +134,19 @@ final class BoxOffice {
 				KEY session_status (session_id,status),
 				KEY created_at (created_at)
 			) ENGINE=InnoDB $charset;",
+			// Refunds of box office orders other than stornos, booked into a register session (PAY-V4,
+			// Service::book_refund()); session_id 0 = refunded after the session closed, no open session.
+			"CREATE TABLE {$prefix}wpcap_boxoffice_refunds (
+				refund_id bigint(20) unsigned NOT NULL,
+				sale_id bigint(20) unsigned NOT NULL,
+				session_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				payment_method varchar(20) NOT NULL,
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				booked_at datetime NOT NULL,
+				PRIMARY KEY  (refund_id),
+				KEY session_method (session_id,payment_method),
+				KEY sale_id (sale_id)
+			) ENGINE=InnoDB $charset;",
 		);
 	}
 

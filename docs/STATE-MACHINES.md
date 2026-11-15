@@ -171,7 +171,7 @@ Rules:
 | `approved`, `failed` | `processing` | durable claim (conditional single-row update, committed) before any money moves |
 | `processing` | `failed` | provider refused (nothing paid out) or the order changed meanwhile (`execution_conflict`) |
 | `processing` (with provider reference) | `completed` | booking: tickets revoked/flagged, order item and order totals updated – one transaction |
-| (new) | `completed` | external refunds (WooCommerce, provider) via `record_external()` – row and booking in one transaction |
+| (new) | `completed` | external refunds (WooCommerce, provider) via `record_external()` – row and booking in one transaction; nothing is written when neither an amount (≤ 0, also after capping at the remaining amount under the order lock) nor a ticket is left (`record_external()` returns `false`) |
 
 - A refund with a provider reference that is still `processing` was paid out but not booked; it is
   only ever booked (`Refunds::reconcile()`, cron), never paid out again.
@@ -180,6 +180,12 @@ Rules:
 - A read error during validation keeps the refund `approved` (it is not a conflict); retrying the
   same request (`idempotency_key`) continues an `approved` refund.
 - `rejected`, `completed` are final; a `failed` refund can be executed again.
+- Provider idempotency key: `wpcap-refund-{id}` for the first attempt, `wpcap-refund-{id}-{n}` after
+  the n-th **final decline** (`provider_attempt`, incremented together with `processing` → `failed`).
+  Final = the provider answered with 4xx (except 409/429) or returned a refund object with status
+  failed/canceled; the providers replay stored answers per key (Stripe 24 h), so the same key would
+  fail again. Network errors, timeouts and 5xx keep the key: the first request may have paid out and
+  only the same key prevents a second payout (`Refunds::is_final_decline()`).
 
 ## Seat claim
 
@@ -196,6 +202,17 @@ reserved under the session lock) → `storno_pending` → `voided`, or `storno_p
 is then cancelled). A transient database error leaves the sale `pending`; resubmitting the same form
 key or "Nachbuchen" resumes it (also a claim whose order creation failed). Receipt numbers come from
 a checked sequence update, so a number is never handed out twice.
+
+Terminal payment (`device_status`): `''` → `pending` (start claimed) → `succeeded` (exactly one
+confirmation wins) or `failed` / `cancelled` / `timeout` / `amount_mismatch` (sale `failed`, order
+cancelled). `amount_mismatch`: the device (contract 1.1) reported another charged amount or currency
+than the order; it is never confirmed or booked.
+
+Refunds of box office orders that are not a storno (refund page) are booked into a register session
+(`wpcap_boxoffice_refunds`, once per refund): the sale's session while it is open, after its close the
+open session of the same register (location + register ID), else session 0 (audit
+`pos_refund_unassigned`). They reduce `session_totals()` (`refunded`, `net`, `expected_cash`); a storno
+counts only the amount of its own refund (what was left after partial refunds).
 
 ## Queues (jobs, e-mails, outgoing webhooks)
 
