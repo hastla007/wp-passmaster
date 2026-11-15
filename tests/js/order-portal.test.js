@@ -67,7 +67,7 @@ test('transfer: confirm dialog shows recipient, cancel sends nothing, focus retu
 	assert.equal(env.document.activeElement, opener);
 });
 
-test('transfer: confirmed request carries the access token; form controls are removed afterwards', async () => {
+test('transfer: confirmed request carries the access token in the header; form controls are removed afterwards', async () => {
 	const fetch = mockFetch(() => ({ json: { ok: true } }));
 	const env = portal({ fetch });
 	const form = env.document.querySelector('.wpcap-transfer-form');
@@ -77,7 +77,10 @@ test('transfer: confirmed request carries the access token; form controls are re
 	env.document.getElementById('wpcap-confirm').close('ok');
 	await flush();
 	assert.equal(fetch.calls[0].url, '/transfer');
-	assert.deepEqual(fetch.calls[0].body, { access_token: 'tok123', ticket_public_id: 'T1', recipient_email: 'friend@example.com' });
+	assert.deepEqual(fetch.calls[0].body, { ticket_public_id: 'T1', recipient_email: 'friend@example.com' });
+	// SEC-7: the access token travels in a header, never in the body or the URL.
+	assert.equal(fetch.calls[0].init.headers['X-WPCAP-Access-Token'], 'tok123');
+	assert.ok(!fetch.calls[0].url.includes('tok123'));
 	assert.equal(form.querySelector('.message').textContent, 'Übertragen.');
 	assert.equal(form.querySelectorAll('label, button').length, 0);
 });
@@ -118,7 +121,7 @@ test('assign attendee: answers incl. checkboxes; message depends on code rotatio
 	form.querySelector('[data-answer="wheelchair"]').checked = true;
 	submit(form);
 	await flush();
-	assert.deepEqual(fetch.calls[0].body, { access_token: 'tok123', ticket_public_id: 'T1', attendee_name: 'Alex', attendee_email: 'alex@example.com', answers: { diet: 'vegan', wheelchair: '1' } });
+	assert.deepEqual(fetch.calls[0].body, { ticket_public_id: 'T1', attendee_name: 'Alex', attendee_email: 'alex@example.com', answers: { diet: 'vegan', wheelchair: '1' } });
 	assert.equal(form.querySelector('.message').textContent, 'Gespeichert, neuer Code.');
 	rotated = false;
 	submit(form);
@@ -136,7 +139,7 @@ test('resend: confirmation, progress text and masked target address', async () =
 	env.document.getElementById('wpcap-confirm').close('ok');
 	await flush();
 	assert.equal(fetch.calls[0].url, '/resend');
-	assert.deepEqual(fetch.calls[0].body, { access_token: 'tok123' });
+	assert.deepEqual(fetch.calls[0].body, {});
 	assert.equal(form.querySelector('.message').textContent, 'Gesendet an a***@example.com.');
 	assert.equal(form.querySelector('button').disabled, false);
 });
@@ -152,7 +155,7 @@ test('billing: toggle shows the fields; server field error marks and focuses the
 	assert.equal(box.hidden, false);
 	submit(form);
 	await flush();
-	assert.deepEqual(fetch.calls[0].body, { access_token: 'tok123', billing: { enabled: true, company: 'ACME', vat_id: 'ATU1' } });
+	assert.deepEqual(fetch.calls[0].body, { billing: { enabled: true, company: 'ACME', vat_id: 'ATU1' } });
 	const vat = form.querySelector('[data-billing="vat_id"]');
 	assert.equal(vat.getAttribute('aria-invalid'), 'true');
 	assert.equal(env.document.activeElement, vat);

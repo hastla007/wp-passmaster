@@ -16,6 +16,7 @@ use PassCaptain\ServiceBookings;
 use PassCaptain\ServiceResources;
 use PassCaptain\ServiceWaitlist;
 use PassCaptain\Waitlists;
+use PassCaptain\Rest\Credentials;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -68,22 +69,22 @@ final class Api {
 	/* -------- Buyer via order access token */
 
 	public static function order_bookings( \WP_REST_Request $request ) {
-		$order = ServiceBookings::for_order_access( $request['public_id'], $request->get_param( 'access_token' ) );
+		$order = ServiceBookings::for_order_access( $request['public_id'], Credentials::token( $request ) );
 		return $order ? rest_ensure_response( ServiceBookings::for_order( (int) $order->order_id ) ) : self::denied();
 	}
 
 	public static function order_cancel( \WP_REST_Request $request ) {
-		$booking = ServiceBookings::for_order_access( $request['public_id'], $request->get_param( 'access_token' ), absint( $request['booking_id'] ) );
+		$booking = ServiceBookings::for_order_access( $request['public_id'], Credentials::token( $request ), absint( $request['booking_id'] ) );
 		return $booking ? self::respond( ServiceBookings::cancel( (int) $booking->booking_id, array( 'actor' => 'customer' ) ) ) : self::denied();
 	}
 
 	public static function order_rebook( \WP_REST_Request $request ) {
-		$booking = ServiceBookings::for_order_access( $request['public_id'], $request->get_param( 'access_token' ), absint( $request['booking_id'] ) );
+		$booking = ServiceBookings::for_order_access( $request['public_id'], Credentials::token( $request ), absint( $request['booking_id'] ) );
 		return $booking ? self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ), 'provider' => sanitize_key( \PassCaptain\Security\Input::text( $request->get_param( 'provider' ) ) ) ) ) ) : self::denied();
 	}
 
 	public static function order_rebook_options( \WP_REST_Request $request ) {
-		$booking = ServiceBookings::for_order_access( $request['public_id'], $request->get_param( 'access_token' ), absint( $request['booking_id'] ) );
+		$booking = ServiceBookings::for_order_access( $request['public_id'], Credentials::token( $request ), absint( $request['booking_id'] ) );
 		if ( ! $booking ) { return self::denied(); }
 		return rest_ensure_response( array_map( array( __CLASS__, 'slot_view' ), ServiceBookings::rebook_options( $booking ) ) );
 	}
@@ -97,23 +98,23 @@ final class Api {
 
 	public static function attach_order( \WP_REST_Request $request ) {
 		$booking = ServiceBookings::with_token( absint( $request['booking_id'] ), $request->get_param( 'token' ) );
-		$order = ServiceBookings::for_order_access( \PassCaptain\Security\Input::text( $request->get_param( 'order_public_id' ) ), $request->get_param( 'access_token' ) );
+		$order = ServiceBookings::for_order_access( \PassCaptain\Security\Input::text( $request->get_param( 'order_public_id' ) ), Credentials::token( $request ) );
 		if ( ! $booking || ! $order ) { return self::denied(); }
 		return self::respond( ServiceBookings::attach_order( (int) $booking->booking_id, (int) $order->order_id ) );
 	}
 
 	public static function confirm_free( \WP_REST_Request $request ) {
-		return self::respond( ServiceBookings::confirm_free( absint( $request['booking_id'] ), $request->get_param( 'token' ) ) );
+		return self::respond( ServiceBookings::confirm_free( absint( $request['booking_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	public static function token_cancel( \WP_REST_Request $request ) {
-		$booking = ServiceBookings::with_token( absint( $request['booking_id'] ), $request->get_param( 'token' ) );
+		$booking = ServiceBookings::with_token( absint( $request['booking_id'] ), Credentials::token( $request, 'token' ) );
 		if ( ! $booking || (int) $booking->order_id ) { return self::denied(); }
 		return self::respond( ServiceBookings::cancel( (int) $booking->booking_id, array( 'actor' => 'customer' ) ) );
 	}
 
 	public static function token_rebook( \WP_REST_Request $request ) {
-		$booking = ServiceBookings::with_token( absint( $request['booking_id'] ), $request->get_param( 'token' ) );
+		$booking = ServiceBookings::with_token( absint( $request['booking_id'] ), Credentials::token( $request, 'token' ) );
 		if ( ! $booking || (int) $booking->order_id ) { return self::denied(); }
 		return self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) ) ) );
 	}
@@ -139,27 +140,27 @@ final class Api {
 	}
 
 	public static function waitlist_position( \WP_REST_Request $request ) {
-		return self::respond( ServiceWaitlist::position( absint( $request['entry_id'] ), $request->get_param( 'token' ) ) );
+		return self::respond( ServiceWaitlist::position( absint( $request['entry_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	public static function waitlist_accept( \WP_REST_Request $request ) {
-		return self::respond( ServiceWaitlist::accept( absint( $request['entry_id'] ), $request->get_param( 'token' ) ) );
+		return self::respond( ServiceWaitlist::accept( absint( $request['entry_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	public static function waitlist_decline( \WP_REST_Request $request ) {
-		return self::respond( ServiceWaitlist::decline( absint( $request['entry_id'] ), $request->get_param( 'token' ) ) );
+		return self::respond( ServiceWaitlist::decline( absint( $request['entry_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	public static function waitlist_leave( \WP_REST_Request $request ) {
-		return self::respond( ServiceWaitlist::leave( absint( $request['entry_id'] ), $request->get_param( 'token' ) ) );
+		return self::respond( ServiceWaitlist::leave( absint( $request['entry_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	public static function event_waitlist_decline( \WP_REST_Request $request ) {
-		return self::respond( Waitlists::decline_offer( absint( $request['waitlist_id'] ), $request->get_param( 'token' ) ) );
+		return self::respond( Waitlists::decline_offer( absint( $request['waitlist_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	public static function event_waitlist_unsubscribe( \WP_REST_Request $request ) {
-		return self::respond( Waitlists::unsubscribe( absint( $request['waitlist_id'] ), $request->get_param( 'token' ) ) );
+		return self::respond( Waitlists::unsubscribe( absint( $request['waitlist_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	/** Pass holder uses a service pass (the 64-hex pass code is the credential). */

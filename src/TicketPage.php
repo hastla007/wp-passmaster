@@ -6,22 +6,40 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class TicketPage {
 	public static function register() {
-		add_filter( 'query_vars', static function ( $vars ) { $vars[] = 'wpcap_ticket'; return $vars; } );
+		add_filter( 'query_vars', static function ( $vars ) { $vars[] = 'wpcap_ticket'; $vars[] = 'wpcap_tref'; return $vars; } );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_render' ) );
 		OrderPortal::register();
 	}
 
 	public static function maybe_render() {
 		$token = get_query_var( 'wpcap_ticket' );
-		if ( ! $token || ! is_scalar( $token ) ) { return; } // ?wpcap_ticket[]=… is not a ticket link.
-		$token = Security\Input::hex( $token );
-		if ( 64 !== strlen( $token ) ) { status_header( 404 ); exit; }
+		$from_url = '';
+		if ( $token && is_scalar( $token ) ) {
+			$from_url = Security\Input::hex( $token );
+			if ( 64 !== strlen( $from_url ) ) { status_header( 404 ); exit; }
+			$token = $from_url;
+		} else {
+			// ?wpcap_tref=… after the token was exchanged for the ticket's access cookie (SEC-7).
+			$ref = get_query_var( 'wpcap_tref' );
+			$ref = $ref && is_scalar( $ref ) ? Security\Input::hex( $ref ) : '';
+			if ( 32 !== strlen( $ref ) ) { return; } // ?wpcap_ticket[]=… is not a ticket link either.
+			$token = Security\AccessCookie::resolve( 'ticket', $ref );
+			if ( '' === $token || ! hash_equals( $ref, Security\AccessCookie::ticket_ref( $token ) ) ) {
+				if ( Security\AccessCookie::marker_present() ) { Security\AccessCookie::blocked_page(); }
+				status_header( 404 );
+				exit;
+			}
+		}
 		global $wpdb;
 		$ticket = $wpdb->get_row( $wpdb->prepare(
 			'SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.locale FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_orders', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events',
 			hash( 'sha256', $token )
 		) );
 		if ( ! $ticket ) { status_header( 404 ); exit; }
+		if ( '' !== $from_url ) {
+			$ref = Security\AccessCookie::ticket_ref( $token );
+			Security\AccessCookie::exchange( 'ticket', $ref, $token, add_query_arg( 'wpcap_tref', $ref, home_url( '/' ) ) );
+		}
 		// The ticket page is shown in the language of the order (buyer's choice, W9); the request ends below.
 		$locale = Mail\Mailer::normalize_locale( (string) $ticket->locale );
 		if ( '' !== $locale && function_exists( 'switch_to_locale' ) ) { switch_to_locale( $locale ); }
