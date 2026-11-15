@@ -115,6 +115,7 @@ php tests/load/run.php --profile=ci        # 200 Käufer / 20 Verbindungen, ~10 
 php tests/load/run.php                     # default: 500 Käufer, Kontingent 150, 50 Verbindungen
 php tests/load/run.php --profile=heavy     # 1000 Käufer, 100 Verbindungen
 php tests/load/run.php --buyers=800 --capacity=200 --workers=80 --scenario=checkout --json=out.json
+php tests/load/run.php --profile=ci --scenario=mixed --isolation=READ-COMMITTED   # Sitzungen unter READ COMMITTED
 ```
 
 | Szenario | Was passiert | Invarianten |
@@ -122,9 +123,13 @@ php tests/load/run.php --buyers=800 --capacity=200 --workers=80 --scenario=check
 | checkout | B Käufer (70 % 1 Ticket, sonst 2–4) kaufen eine Ticketart mit begrenztem Kontingent über `Orders::create()`; 15 % schicken denselben Idempotency-Key gleichzeitig über eine zweite Verbindung (Doppelklick/Retry) | kein Überverkauf; gehaltene Tickets = Tickets erfolgreicher Bestellungen; je Key genau eine Bestellung; keine unerwarteten Fehler |
 | check-in | T Tickets, D Geräte scannen jedes Ticket gleichzeitig (gerade Geräte in Reihenfolge, ungerade gemischt), danach Wiederholung mit gleichem Key | genau ein erfolgreicher Scan und genau eine Einlasszeile pro Ticket; jede „eingelassen“-Antwort hat eine Einlasszeile; Replays idempotent |
 | webhooks | E Stripe-Events (`checkout.session.completed`), jedes R-mal gleichzeitig zugestellt, mit echter Signaturprüfung | jedes Event genau einmal angewendet; alle Bestellungen bezahlt; Tickets genau einmal ausgestellt; eine Event-Zeile je Event |
+| mixed | Eine Ticketart: Checkout-Ansturm, pünktliche Zahlungs-Webhooks, **verspätete** Webhooks von Bestellungen mit abgelaufener Reservierung (`--late`, `--ontime`) und Hold-Aufräumläufe gleichzeitig | bezahlt + aktive Reservierungen ≤ Kontingent; gültige Tickets = bezahlte Menge; jeder verspätete Webhook endgültig beantwortet (bezahlt oder `needs_review`); keine Fehler (Deadlocks dürfen nicht als 409/503 beim Käufer ankommen) |
+| seats | Saalplan als einzige Grenze: Käufer konkurrieren um (begehrte) Plätze, verspätete Webhooks holen abgelaufene Sitz-Reservierungen zurück, Sitz- und Hold-Aufräumen laufen mit | jedes gültige Ticket hat einen eigenen Sitz; aktive Claims ≤ Sitze; keine verwaisten Claims; keine Fehler |
+
+`--isolation=READ-COMMITTED` (oder `READ-UNCOMMITTED`, `SERIALIZABLE`) setzt die Sitzungs-Isolation jeder Worker-Verbindung; CI fährt `mixed` und `seats` zusätzlich unter READ COMMITTED. Deadlocks zählt der Lauf auf MySQL über `information_schema.INNODB_METRICS` (`lock_deadlocks`), auf MariaDB über `Innodb_deadlocks`. Ein abgestürzter Worker bzw. ein Vorgang ohne Ergebnis zählt als Fehler.
 
 Ausgabe: Requests, Wall-Time, Durchsatz, p50/p95/p99/max-Latenz je Operation, InnoDB-Deadlocks
-(Server-Zähler; nur aussagekräftig, wenn sonst niemand die DB nutzt) und Fehlerquote. **Exit-Code 1 bei
+(Server-Zähler, MySQL und MariaDB; nur aussagekräftig, wenn sonst niemand die DB nutzt) und Fehlerquote. **Exit-Code 1 bei
 verletzter Invariante.** „sold_out“ ist ein erwartetes Ergebnis, kein Fehler.
 
 Der früher gefundene Check-in-Fehler (Gap-Lock-Deadlock auf `wpcap_admission_state`, falsche
