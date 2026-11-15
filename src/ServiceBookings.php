@@ -60,9 +60,25 @@ final class ServiceBookings {
 			if ( $ip_rate >= (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 			set_transient( $ip_key, $ip_rate + 1, HOUR_IN_SECONDS );
 		}
+		$gate_key = $idempotency_key;
 		$idempotency_key = hash( 'sha256', $idempotency_key );
 		$slots = $wpdb->prefix . 'wpcap_service_slots';
 		$bookings = $wpdb->prefix . 'wpcap_service_bookings';
+		// Add-on gate (e.g. virtual waiting room) for customer bookings; a retry of an existing booking passes.
+		if ( 'customer' === $actor && Sales\CheckoutGate::is_active() && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_service_bookings WHERE idempotency_key=%s", $idempotency_key ) ) ) {
+			$gate_resource = $wpdb->get_row( $wpdb->prepare( "SELECT r.event_id,r.ticket_type_id FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE s.slot_id=%d", $slot_id ) );
+			$gate = Sales\CheckoutGate::check( array(
+				'source' => empty( $args['pass_use_id'] ) ? 'service_booking' : 'service_pass_booking',
+				'phase' => 'booking',
+				'items' => $gate_resource && (int) $gate_resource->ticket_type_id ? array( (int) $gate_resource->ticket_type_id => $quantity ) : array(),
+				'event_ids' => $gate_resource ? array( (int) $gate_resource->event_id ) : array(),
+				'slot_id' => $slot_id,
+				'email' => $email,
+				'idempotency_key' => $gate_key,
+				'request' => $args['request'] ?? null,
+			) );
+			if ( is_wp_error( $gate ) ) { return $gate; }
+		}
 		$resource_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT resource_id FROM $slots WHERE slot_id=%d", $slot_id ) );
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		// Lock phase first (locking reads only): resource (serialises bookings of overlapping slots),

@@ -734,7 +734,8 @@
 	function applyI18n() {
 		dateFormat = null;
 		document.documentElement.lang = lang();
-		document.title = t('Offline-Scanner') + ' · Pass Captain';
+		applyBrand();
+		document.title = t('Offline-Scanner') + ' · ' + brandName();
 		Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function (n) { n.textContent = t(n.getAttribute('data-i18n')); });
 		['placeholder', 'title'].forEach(function (attr) {
 			Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-' + attr + ']'), function (n) { n.setAttribute(attr, t(n.getAttribute('data-i18n-' + attr))); });
@@ -743,6 +744,37 @@
 		$('camera').textContent = camera.stream ? t('Kamera stoppen') : t('Kamera starten');
 		$('pending').textContent = t('%d offen', state.pendingCount);
 		setNet();
+	}
+
+	/** Product name from the server (white label, wp_pass_captain_brand_name_v1); default "Pass Captain". */
+	function brandName() {
+		var brand = state.i18n && state.i18n.brand;
+		return brand && typeof brand.name === 'string' && brand.name ? brand.name : 'Pass Captain';
+	}
+
+	/**
+	 * White label: with a brand set on the server, links the manifest with the brand name and shows the
+	 * logo (same origin only, CSP img-src 'self') in the header. Without a brand nothing changes.
+	 */
+	function applyBrand() {
+		var brand = state.i18n && state.i18n.brand;
+		if (!brand || !brand.custom) { return; }
+		var manifest = document.querySelector('link[rel="manifest"]');
+		if (manifest && state.api) { manifest.setAttribute('href', endpoint('offline/manifest', '')); }
+		var bar = document.querySelector('header.bar') || document.querySelector('header');
+		var logo = document.getElementById('brand-logo');
+		if (bar && typeof brand.logo === 'string' && /^(https?:\/\/|\/(?!\/))/.test(brand.logo)) {
+			if (!logo) {
+				logo = document.createElement('img');
+				logo.setAttribute('id', 'brand-logo');
+				logo.setAttribute('class', 'brand-logo');
+				bar.insertBefore(logo, bar.firstChild);
+			}
+			logo.setAttribute('src', brand.logo);
+			logo.setAttribute('alt', brandName());
+		} else if (logo && logo.parentNode) {
+			logo.parentNode.removeChild(logo);
+		}
 	}
 
 	/** Preferred device languages as a comma separated list of BCP 47 tags (best first, max. 6). */

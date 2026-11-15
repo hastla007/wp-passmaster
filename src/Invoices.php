@@ -19,6 +19,8 @@ final class Invoices {
 		add_action( 'admin_post_wpcap_print_invoice', array( __CLASS__, 'handle_admin_print' ) );
 		add_action( 'admin_post_wpcap_export_accounting', array( __CLASS__, 'handle_export' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_render_customer_invoice' ) );
+		// Add-on attachments (e.g. e-invoice XML) for the ticket mail of an order with invoice.
+		add_filter( 'wpcap_ticket_mail', array( Api\Invoices::class, 'filter_ticket_mail' ), 30, 2 );
 	}
 
 	/** Issues an invoice automatically after payment when enabled in the settings. */
@@ -85,6 +87,7 @@ final class Invoices {
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'invoice_issued', 'invoice', $invoice_id, array( 'order_id' => $order_id, 'invoice_number' => $number, 'sales_model' => $seller_context['model'], 'partner_id' => $seller_context['partner_id'] ) );
+		Api\Invoices::created( $invoice_id, 'invoice', array( 'order_id' => $order_id, 'number' => $number ) );
 		return array( 'invoice_id' => $invoice_id, 'invoice_number' => $number );
 	}
 
@@ -127,7 +130,11 @@ final class Invoices {
 		$wpdb->update( "{$p}wpcap_refunds", array( 'credit_note_number' => $number ), array( 'refund_id' => absint( $refund_id ) ) );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'credit_note_issued', 'invoice', (int) $invoice->invoice_id, array( 'refund_id' => absint( $refund_id ), 'number' => $number ) );
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
+		$credit_note = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
+		if ( $credit_note ) {
+			Api\Invoices::created( (int) $credit_note['credit_note_id'], 'correction', array( 'invoice_id' => (int) $invoice->invoice_id, 'refund_id' => absint( $refund_id ), 'order_id' => (int) $refund['order_id'], 'number' => $number ) );
+		}
+		return $credit_note;
 	}
 
 	/** Platform seller data for documents (settings "Rechnungssteller"). */
@@ -293,8 +300,12 @@ final class Invoices {
 		return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number );
 	}
 
-	/** Renders an invoice and its credit notes as a printable HTML document. */
-	public static function render_html( $invoice_id ) {
+	/**
+	 * Renders an invoice and its credit notes as a printable HTML document.
+	 *
+	 * @param array $link_context Context for add-on links (wp_pass_captain_invoice_links_v1): audience, location, access_token.
+	 */
+	public static function render_html( $invoice_id, array $link_context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_invoices WHERE invoice_id=%d", absint( $invoice_id ) ) );
@@ -328,6 +339,8 @@ final class Invoices {
 		<?php echo self::payments_html( $invoice, $snapshot, $money ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payments_html(). ?>
 		<?php foreach ( self::seller_notes( $snapshot ) as $note ) : ?><p class="wpcap-seller-note"><?php echo esc_html( $note ); ?></p><?php endforeach; ?>
 		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
+		<?php $extra_links = Api\Invoices::links_html( (int) $invoice->invoice_id, 'invoice', array_merge( array( 'audience' => 'admin', 'order_id' => (int) $invoice->order_id ), $link_context, array( 'location' => 'invoice_view' ) ) ); ?>
+		<?php if ( '' !== $extra_links ) : ?><p class="wpcap-invoice-extra"><?php echo $extra_links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?></p><?php endif; ?>
 		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'pass-captain' ); ?></button>
 		</body></html><?php
 		return (string) ob_get_clean();
@@ -360,7 +373,7 @@ final class Invoices {
 		if ( ! $invoice_id ) { status_header( 404 ); exit; }
 		nocache_headers();
 		header( 'Referrer-Policy: no-referrer' );
-		echo self::render_html( $invoice_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
+		echo self::render_html( $invoice_id, array( 'audience' => 'customer', 'order_public_id' => (string) $order->public_id, 'access_token' => $token ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
 		exit;
 	}
 

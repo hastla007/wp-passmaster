@@ -256,7 +256,7 @@ final class Controller {
 			return $messages;
 		};
 		add_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
-		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) );
+		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request ) );
 		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		if ( is_wp_error( $result ) ) { return self::with_error_field( $result, $campaign_messages( array() ) ); }
 		// A retry of an attempt that was cancelled (voucher rejected, payment start failed) or expired must not look like a new order.
@@ -771,7 +771,7 @@ final class Controller {
 
 	public static function book_service_slot( \WP_REST_Request $request ) {
 		$payload = $request->get_json_params();
-		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', $payload['quantity'] ?? 1, 0, 10, is_scalar( $payload['idempotency_key'] ?? null ) ? (string) $payload['idempotency_key'] : '' );
+		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', $payload['quantity'] ?? 1, 0, 10, is_scalar( $payload['idempotency_key'] ?? null ) ? (string) $payload['idempotency_key'] : '', array( 'request' => $request ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

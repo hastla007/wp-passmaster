@@ -66,6 +66,9 @@ final class Plugin {
 		);
 		add_action( 'init', array( $this, 'register_blocks' ) );
 		Integrations\WooCommerce\OrderAdapter::register();
+		Integrations\WooCommerce\CheckoutGate::register(); // Add-on gate (waiting room) for Woo cart, checkout and Store API.
+		Sales\CheckoutGate::register(); // Retry-After header for refused checkouts (wp_pass_captain_checkout_allowed_v1).
+		Brand::register(); // White label: product name in translated texts (wp_pass_captain_brand_name_v1).
 		Integrations\ConnectorEvents::register(); // Domain events → enabled connectors (job queue).
 		Invoices::register();
 		Integrations\Vouchers\Checkout::register();

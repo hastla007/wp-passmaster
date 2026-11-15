@@ -15,7 +15,7 @@ final class PolicyText {
 	/** admin_init: registers the suggestion with WordPress. */
 	public static function add() {
 		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) { return; }
-		wp_add_privacy_policy_content( 'Pass Captain', wp_kses_post( self::content() ) );
+		wp_add_privacy_policy_content( \PassCaptain\Brand::name( 'admin' ), wp_kses_post( self::content() ) );
 	}
 
 	/** Recipients that are active in this installation (keys used in content()). */

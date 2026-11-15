@@ -40,7 +40,7 @@ final class Network {
 	}
 
 	public static function add_menu() {
-		add_menu_page( __( 'Pass Captain Netzwerk', 'pass-captain' ), __( 'Pass Captain', 'pass-captain' ), self::CAP, self::SLUG, array( __CLASS__, 'render' ), 'dashicons-tickets-alt', 58 );
+		add_menu_page( __( 'Pass Captain Netzwerk', 'pass-captain' ), \PassCaptain\Brand::menu_title(), self::CAP, self::SLUG, array( __CLASS__, 'render' ), \PassCaptain\Brand::menu_icon(), 58 );
 	}
 
 	/** Site ids of the network (filter wpcap_network_site_ids for very large networks). */

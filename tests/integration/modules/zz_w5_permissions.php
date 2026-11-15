@@ -97,6 +97,7 @@ $pm_routes = array(
 	'GET wp-pass-captain/v1/app/offline/occurrences' => 'device',
 	'GET wp-pass-captain/v1/app/offline/package' => 'device',
 	'GET wp-pass-captain/v1/app/offline/i18n' => 'public:static UI strings for the scanner app, no data',
+	'GET wp-pass-captain/v1/app/offline/manifest' => 'public:web app manifest of the scanner app (brand name, icons), no data',
 	// Service bookings and waitlists (W4).
 	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings' => 'token:order access token required',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:order access token required',
