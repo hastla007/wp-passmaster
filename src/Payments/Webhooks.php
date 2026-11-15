@@ -88,7 +88,9 @@ final class Webhooks {
 					return self::db_error( $provider, $event_id, 'order_lookup' );
 				}
 			}
-			$result = self::apply( $provider, $event_id, $order_id, $event );
+			// Ticket mails of this payment go to the job queue (due now): the provider gets its answer
+			// without waiting for PDF rendering, wallet signing and SMTP (no timeouts and redeliveries).
+			$result = Orders::defer_ticket_mail( static function () use ( $provider, $event_id, $order_id, $event ) { return self::apply( $provider, $event_id, $order_id, $event ); } );
 		} catch ( \Throwable $error ) {
 			$release();
 			return new \WP_Error( 'wpcap_webhook_exception', 'Processing failed; retry later.' );

@@ -118,13 +118,16 @@ echo "Mail templates: wpcap_ticket_code_mail_section in resend mails\n";
 add_filter( 'wpcap_ticket_code_mail_section', $wpmt_section = static function ( $text, $ticket_id ) { return $text . "\nWALLET https://wallet.example/" . (int) $ticket_id . "\n"; }, 5, 2 );
 $before = count( $GLOBALS['wpcap_test_mails'] );
 Orders::resend_tickets( $o['order_id'] );
-$resent = wpmt_mails_since( $before, 'mt-default@example.com' )[0] ?? array( 'subject' => '', 'body' => '' );
+// R3: the section text (wallet links) exists only after the codes are stored, so it follows in a second short mail.
+$resent = array_values( wpmt_mails_since( $before, 'mt-default@example.com' ) );
+$resent = end( $resent ) ?: array( 'subject' => '', 'body' => '' );
 $tid = (int) Orders::tickets_for_order( $o['order_id'] )[0]->ticket_id;
 check( 'resend (text) keeps the old format and includes the section text', 'Deine Tickets für Testsite' === $resent['subject'] && str_starts_with( $resent['body'], "Deine Tickets für Testsite:\n\nKonzert — Standard\n" ) && false !== strpos( $resent['body'], "\nWALLET https://wallet.example/$tid\n" ) );
 Templates::save( 'tickets_resend', 'de_DE', array( 'subject' => 'Neu: {ticket_count}', 'body' => '<p>Neu</p>{ticket_list}', 'format' => 'html' ) );
 $before = count( $GLOBALS['wpcap_test_mails'] );
 Orders::resend_tickets( $o['order_id'] );
-$resent_html = wpmt_mails_since( $before, 'mt-default@example.com' )[0] ?? array( 'subject' => '', 'body' => '' );
+$resent_html = array_values( wpmt_mails_since( $before, 'mt-default@example.com' ) );
+$resent_html = end( $resent_html ) ?: array( 'subject' => '', 'body' => '' );
 check( 'resend (HTML) links the section text', 'Neu: 2' === $resent_html['subject'] && false !== strpos( $resent_html['body'], 'WALLET <a href="https://wallet.example/' . $tid . '">' ) );
 remove_filter( 'wpcap_ticket_code_mail_section', $wpmt_section, 5 );
 Templates::reset( 'tickets_resend', 'de_DE' );
