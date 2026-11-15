@@ -319,6 +319,8 @@ final class Status {
 			/* translators: %d: number of refunds */
 			$issues[] = array( 'severity' => 'error', 'message' => sprintf( __( '%d Erstattungen hängen in „processing“ ohne Anbieter-Referenz und brauchen eine manuelle Prüfung.', 'pass-captain' ), $stuck ) );
 		}
+		// Server isolation other than REPEATABLE READ (the plugin's inventory transactions force it themselves).
+		$issues = array_merge( $issues, \PassCaptain\DbSession::status_issues() );
 		// QR encoder (bacon/bacon-qr-code, not namespace-prefixed): another plugin may have loaded its own copy first.
 		$foreign = \PassCaptain\QrCode::foreign_encoder();
 		$qr_ok   = (bool) \PassCaptain\QrCode::matrix( 'pass-captain' );

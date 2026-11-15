@@ -16,6 +16,7 @@ final class ReturnNotice {
 			'pending' => __( 'Deine Zahlung wird noch verarbeitet. Sobald sie bestätigt ist, senden wir dir die Tickets per E-Mail.', 'pass-captain' ),
 			'failed'  => __( 'Die Zahlung ist fehlgeschlagen. Es wurde nichts abgebucht; du kannst es erneut versuchen.', 'pass-captain' ),
 			'cancel'  => __( 'Die Zahlung wurde abgebrochen. Deine Reservierung verfällt automatisch.', 'pass-captain' ),
+			'expired' => __( 'Deine Reservierung ist abgelaufen, es wurde keine Zahlung eingezogen. Bitte starte die Bestellung erneut.', 'pass-captain' ),
 		);
 		return $messages[ $state ] ?? '';
 	}

@@ -139,9 +139,10 @@ final class Pools {
 				return $sum;
 			}
 		}
-		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d AND oi.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_orders', $exclude ), $type_ids ) ) );
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM %i WHERE status='active' AND expires_at > %s AND order_id <> %d AND ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_reservations', $now, $exclude ), $type_ids ) ) );
-		return $sold + $held;
+		$in = implode( ',', array_fill( 0, count( $type_ids ), '%d' ) );
+		// Sold and held in ONE statement (one snapshot): a payment moving units from held to sold between
+		// two statements would be missing from both sums under READ COMMITTED.
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d AND oi.ticket_type_id IN ($in)) + (SELECT COALESCE(SUM(quantity),0) FROM %i WHERE status='active' AND expires_at > %s AND order_id <> %d AND ticket_type_id IN ($in))", array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_orders', $exclude ), $type_ids, array( $p . 'wpcap_reservations', $now, $exclude ), $type_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- generated placeholders, replacements as one array.
 	}
 
 	/**

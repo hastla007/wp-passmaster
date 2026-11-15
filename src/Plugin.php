@@ -53,6 +53,8 @@ final class Plugin {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
+		// Lapsed holds every 5 minutes too, so capacity and limited discount codes come back quickly.
+		add_action( 'wpcap_process_jobs', array( Orders::class, 'process_expired_holds' ), 3, 0 );
 		Ops\Heartbeat::register(); // Worker heartbeats for the system status page.
 		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); }
 		// Self-healing schedule: e.g. deleting the old "wp-pass-captain" copy runs its uninstall.php, which clears the

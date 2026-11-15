@@ -335,6 +335,9 @@ final class StatusPage {
 
 	private static function render_schema() {
 		echo '<h2 id="wpcap-schema">' . esc_html__( 'Datenbankschema', 'pass-captain' ) . '</h2>';
+		$isolation = \PassCaptain\DbSession::isolation();
+		/* translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ */
+		echo '<p>' . esc_html( sprintf( __( 'Transaktions-Isolation des Servers: %s (Bestell- und Zahlungstransaktionen laufen immer mit REPEATABLE READ).', 'pass-captain' ), '' !== $isolation['global'] ? $isolation['global'] : __( 'unbekannt', 'pass-captain' ) ) ) . '</p>';
 		$error = get_option( Installer::ERROR_OPTION );
 		$stored = (string) get_option( 'wpcap_db_version' );
 		if ( ! is_array( $error ) && Installer::version() === $stored ) {

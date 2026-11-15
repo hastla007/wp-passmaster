@@ -105,8 +105,10 @@ final class OccurrenceCancellation {
 		// Recipients first, while tickets are still valid.
 		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', $occurrence_id ) );
 
-		// 1. Unpaid orders touching this occurrence: cancel (releases holds, campaigns, vouchers).
-		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM %i ord INNER JOIN %i oi ON oi.order_id=ord.order_id INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='pending'", $p . 'wpcap_orders', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $occurrence_id ) );
+		// 1. Unpaid orders touching this occurrence: cancel (releases holds, campaigns, vouchers). Expired
+		// orders with a started provider payment (provider_reference) are cancelled as well: a payment that
+		// still arrives then counts as "payment for a closed order" (alert, no tickets; PayPal does not capture).
+		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM %i ord INNER JOIN %i oi ON oi.order_id=ord.order_id INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ( ord.payment_status='pending' OR ( ord.payment_status='expired' AND COALESCE(ord.provider_reference,'')<>'' ) )", $p . 'wpcap_orders', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $occurrence_id ) );
 		foreach ( $pending as $order_id ) {
 			Orders::cancel_order( (int) $order_id, 'occurrence_cancelled' );
 			++$summary['cancelled_orders'];

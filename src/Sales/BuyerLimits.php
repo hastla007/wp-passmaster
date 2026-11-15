@@ -159,10 +159,12 @@ final class BuyerLimits {
 		$from = "{$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
 		$where = '(' . implode( ' OR ', $who ) . ') AND ' . $scope . $wpdb->prepare( ' AND ord.order_id<>%d', absint( $exclude_order_id ) );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fragments prepared above.
-		$paid = (int) $wpdb->get_var( "SELECT COALESCE(SUM(oi.quantity-oi.refunded_quantity),0) FROM $from WHERE $where AND ord.payment_status='paid' AND ord.status<>'refunded'" );
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE $where AND r.status='active' AND r.expires_at>%s AND ord.payment_status<>'paid'", $now ) );
+		// Paid and held in ONE statement (one snapshot, see Orders::capacity_error()).
+		// $where is already prepared: it is not passed through prepare() again (a "%" in an address).
+		$now_sql = $wpdb->prepare( '%s', $now );
+		$used = (int) $wpdb->get_var( "SELECT (SELECT COALESCE(SUM(oi.quantity-oi.refunded_quantity),0) FROM $from WHERE $where AND ord.payment_status='paid' AND ord.status<>'refunded') + (SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE $where AND r.status='active' AND r.expires_at>$now_sql AND ord.payment_status<>'paid')" );
 		// phpcs:enable
-		return $paid + $held;
+		return $used;
 	}
 
 	/**
