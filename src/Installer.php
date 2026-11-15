@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.14.0';
+	const DB_VERSION = '3.15.0';
 
 	public static function install() {
 		global $wpdb;
@@ -578,6 +578,8 @@ final class Installer {
 				offer_expires_at datetime NULL,
 				hold_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
 				manage_token_hash char(64) NOT NULL DEFAULT '',
+				confirm_token_hash char(64) NOT NULL DEFAULT '',
+				confirm_expires_at datetime NULL,
 				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
@@ -585,6 +587,7 @@ final class Installer {
 				UNIQUE KEY event_type_email (event_id,ticket_type_id,email_hash),
 				KEY queue_order (event_id,ticket_type_id,status,position),
 				KEY offer_expiry (status,offer_expires_at),
+				KEY confirm_expiry (status,confirm_expires_at),
 				KEY type_hold (ticket_type_id,status,offer_expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_service_waitlist (
@@ -598,13 +601,16 @@ final class Installer {
 				offer_token_hash char(64) NOT NULL DEFAULT '',
 				offer_expires_at datetime NULL,
 				manage_token_hash char(64) NOT NULL DEFAULT '',
+				confirm_token_hash char(64) NOT NULL DEFAULT '',
+				confirm_expires_at datetime NULL,
 				booking_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (entry_id),
 				UNIQUE KEY slot_email (slot_id,email_hash),
 				KEY queue_order (slot_id,status,position),
-				KEY offer_expiry (status,offer_expires_at)
+				KEY offer_expiry (status,offer_expires_at),
+				KEY confirm_expiry (status,confirm_expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $api_keys (
 				api_key_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

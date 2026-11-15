@@ -29,7 +29,7 @@ final class WaitlistsPage {
 	}
 
 	public static function status_labels() {
-		return array( 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
+		return array( 'unconfirmed' => __( 'Unbestätigt (Bestätigungslink offen)', 'pass-captain' ), 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
 	}
 
 	/**

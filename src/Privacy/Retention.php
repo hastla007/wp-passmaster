@@ -24,6 +24,8 @@
  * - event waitlist and appointment waitlist entries: N days (setting retention_waitlist_days,
  *   default 30) after the end of the occurrence / slot (event-wide entries: after the last
  *   occurrence of the event) – e-mail pseudonymised, tokens cleared,
+ * - unconfirmed waitlist sign-ups (double opt-in, both waitlists) are deleted as soon as their
+ *   confirmation link expired,
  * - service bookings that never became a booking (held/expired) or were cancelled/declined: after
  *   90 days; bookings without an order (pass bookings) after the slot end plus the attendee period,
  * - member passes: N days (setting retention_pass_days, default 365) after valid_until – e-mail
@@ -128,7 +130,7 @@ final class Retention {
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
-		$steps = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs' );
+		$steps = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs' );
 		foreach ( $steps as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
 		}
@@ -389,6 +391,29 @@ final class Retention {
 				},
 				static function ( $ids ) use ( $wpdb, $p, $now_sql ) {
 					return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET email=CONCAT('deleted+',LEFT(SHA2(CONCAT(entry_id,'|',RAND(),'|',UUID()),256),24),%s),email_hash=SHA2(CONCAT(entry_id,'|',RAND(),'|',UUID()),256),offer_token_hash='',manage_token_hash='',status=IF(status IN ('waiting','offered'),'expired',status),updated_at=%s WHERE entry_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_service_waitlist', Privacy::PLACEHOLDER_DOMAIN, $now_sql ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				}
+			);
+		}
+		return $count;
+	}
+
+	/** Unconfirmed waitlist sign-ups (double opt-in): deleted once the confirmation link expired. */
+	private static function step_unconfirmed_waitlists( $now, $deadline ) {
+		if ( ! \PassCaptain\Waitlists::schema_ready() ) { return 0; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now_sql = self::utc( $now );
+		$count = 0;
+		foreach ( array( 'wpcap_waitlist' => 'waitlist_id', 'wpcap_service_waitlist' => 'entry_id' ) as $table => $key ) {
+			if ( ! Privacy::has_table( $table ) ) { continue; }
+			$count += self::loop(
+				$deadline,
+				static function () use ( $wpdb, $p, $table, $key, $now_sql ) {
+					return $wpdb->get_col( $wpdb->prepare( "SELECT %i FROM %i WHERE status='unconfirmed' AND confirm_expires_at IS NOT NULL AND confirm_expires_at<%s LIMIT %d", $key, $p . $table, $now_sql, self::BATCH ) );
+				},
+				static function ( $ids ) use ( $wpdb, $p, $table, $key, $now_sql ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+					return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status='unconfirmed' AND confirm_expires_at<%s AND %i IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . $table, $now_sql, $key ), $ids ) ) );
 				}
 			);
 		}

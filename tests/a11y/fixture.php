@@ -75,6 +75,10 @@ foreach ( $mails as $mail ) {
 
 // Waitlist: join the sold-out type and offer the place.
 Waitlists::join( $event, $occ, $by_name['Ausverkauft'], 'a11y-wait-' . bin2hex( random_bytes( 3 ) ) . '@example.com' );
+// Double opt-in (default on): confirm the sign-up with the link from the confirmation mail.
+foreach ( $mails as $mail ) {
+	if ( preg_match( '#wpcap_waitlist_confirm=(\d+)(?:&amp;|&)token=([a-f0-9]{64})#', (string) ( $mail['message'] ?? '' ), $m ) ) { Waitlists::confirm( (int) $m[1], $m[2] ); }
+}
 $offer = Waitlists::offer_next( $event, $by_name['Ausverkauft'] );
 $waitlist_url = '';
 foreach ( $mails as $mail ) {

@@ -222,6 +222,15 @@ final class Types {
 				'body' => static function () { return sprintf( __( "Du stehst auf der Warteliste für %1\$s am %2\$s (Position %3\$s). Sobald Plätze frei werden, bekommst du ein befristetes Angebot.\n\nAktuelle Position: %4\$s\nAustragen: %5\$s", 'pass-captain' ), '{resource_name}', '{slot_date}', '{position}', '{status_link}', '{leave_link}' ); },
 				'sample' => static function () { return array( 'resource_name' => 'Segelboot „Möwe“', 'slot_date' => '15.06.2027 10:00 (Europe/Vienna)', 'quantity' => 1, 'position' => 2, 'status_link' => Mailer::link( home_url( '/?wpcap_service_waitlist=7&do=status&token=' . str_repeat( 'd4', 32 ) ) ), 'leave_link' => Mailer::link( home_url( '/?wpcap_service_waitlist=7&do=leave&token=' . str_repeat( 'd4', 32 ) ) ) ); },
 			),
+			'service_waitlist_confirm' => array(
+				'label' => __( 'Warteliste Zeitfenster: Eintragung bestätigen (Double-Opt-in)', 'pass-captain' ),
+				'description' => __( 'Bestätigungslink nach der Eintragung in die Warteliste eines Zeitfensters. Erst nach dem Klick zählt der Eintrag und bekommt eine Position.', 'pass-captain' ),
+				'placeholders' => array( 'resource_name' => $base['resource_name'], 'slot_date' => $base['slot_date'], 'quantity' => $base['quantity'], 'confirm_link' => __( 'Link zur Bestätigung', 'pass-captain' ), 'confirm_expires' => __( 'Gültigkeit des Bestätigungslinks', 'pass-captain' ) ),
+				'subject' => static function () { return __( 'Bitte bestätige deine Eintragung in die Warteliste', 'pass-captain' ); },
+				/* translators: 1: resource, 2: date, 3: confirmation link, 4: expiry */
+				'body' => static function () { return sprintf( __( "Bitte bestätige deine Eintragung in die Warteliste für %1\$s am %2\$s:\n%3\$s\n\nDer Link ist bis %4\$s gültig. Ohne Bestätigung wirst du nicht eingetragen und die Anfrage wird danach gelöscht. Falls du dich nicht eingetragen hast, kannst du diese E-Mail ignorieren.", 'pass-captain' ), '{resource_name}', '{slot_date}', '{confirm_link}', '{confirm_expires}' ); },
+				'sample' => static function () { return array( 'resource_name' => 'Segelboot „Möwe“', 'slot_date' => '15.06.2027 10:00 (Europe/Vienna)', 'quantity' => 1, 'confirm_expires' => '13.06.2027 10:00 UTC', 'confirm_link' => Mailer::link( home_url( '/?wpcap_service_waitlist=7&do=confirm&token=' . str_repeat( 'c3', 32 ) ) ) ); },
+			),
 			'service_waitlist_offer' => array(
 				'label' => __( 'Warteliste Zeitfenster: Platzangebot', 'pass-captain' ),
 				'description' => __( 'Befristetes Angebot an die nächste Person; die Plätze sind bis zum Ablauf reserviert.', 'pass-captain' ),
@@ -399,6 +408,20 @@ final class Types {
 				/* translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location */
 				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.", 'pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}' ); },
 				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien' ); },
+			),
+			'waitlist_confirm' => array(
+				'label' => __( 'Warteliste: Eintragung bestätigen (Double-Opt-in)', 'pass-captain' ),
+				'description' => __( 'Bestätigungslink nach der Eintragung in eine Event-Warteliste. Erst nach dem Klick zählt der Eintrag und bekommt eine Position.', 'pass-captain' ),
+				'placeholders' => array(
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
+					'confirm_link' => __( 'Link zur Bestätigung', 'pass-captain' ),
+					'confirm_expires' => __( 'Gültigkeit des Bestätigungslinks', 'pass-captain' ),
+				),
+				'subject' => static function () { return __( 'Bitte bestätige deine Eintragung in die Warteliste', 'pass-captain' ); },
+				/* translators: 1: event, 2: ticket type, 3: confirmation link, 4: expiry */
+				'body' => static function () { return sprintf( __( "Bitte bestätige deine Eintragung in die Warteliste für „%1\$s“ (%2\$s):\n%3\$s\n\nDer Link ist bis %4\$s gültig. Ohne Bestätigung wirst du nicht eingetragen und die Anfrage wird danach gelöscht. Falls du dich nicht eingetragen hast, kannst du diese E-Mail ignorieren.", 'pass-captain' ), '{event_name}', '{ticket_name}', '{confirm_link}', '{confirm_expires}' ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'confirm_expires' => '17.01.2027 19:30 UTC', 'confirm_link' => Mailer::link( home_url( '/?wpcap_waitlist_confirm=12&token=' . str_repeat( 'c3', 32 ) ) ) ); },
 			),
 			'waitlist_joined' => array(
 				'label' => __( 'Warteliste: Eintragung', 'pass-captain' ),

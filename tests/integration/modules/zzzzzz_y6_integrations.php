@@ -60,7 +60,7 @@ update_option( Settings::OPTION, $y6_s );
 Settings::migrate_uninstall_policy();
 check( 'INT-1: a site without opt-in gets the explicit policy "keep"', 'keep' === get_option( Settings::UNINSTALL_POLICY ) );
 $y6_installer = (string) file_get_contents( WPCAP_PATH . 'src/Installer.php' );
-check( 'INT-1: the installer runs the migration (DB 3.14.0)', false !== strpos( $y6_installer, 'Settings::migrate_uninstall_policy();' ) && "3.14.0" === PassCaptain\Installer::DB_VERSION );
+check( 'INT-1: the installer runs the migration (DB 3.14.0)', false !== strpos( $y6_installer, 'Settings::migrate_uninstall_policy();' ) && version_compare( PassCaptain\Installer::DB_VERSION, "3.14.0", ">=" ) );
 $y6_uninstall = (string) file_get_contents( WPCAP_PATH . 'uninstall.php' );
 $y6_reads_old = (bool) preg_match( "/\\$\\w+\\['delete_data_on_uninstall'\\]/", $y6_uninstall );
 check( 'INT-1: uninstall.php reads only wpcap_uninstall_policy', ! $y6_reads_old && false !== strpos( $y6_uninstall, "get_option( 'wpcap_uninstall_policy', 'keep' )" ) );

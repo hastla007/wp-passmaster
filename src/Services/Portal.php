@@ -6,6 +6,8 @@
  * - ?wpcap_service_waitlist=ID&do=…&token=…       slot waitlist (status/position, accept, decline, leave)
  * - ?wpcap_waitlist_decline=ID&token=…            event waitlist: decline an offer
  * - ?wpcap_waitlist_leave=ID&token=…              event waitlist: unsubscribe
+ * - ?wpcap_waitlist_confirm=ID&token=…            event waitlist: confirm the sign-up (double opt-in)
+ * - ?wpcap_service_waitlist=ID&do=confirm&token=… slot waitlist: confirm the sign-up (double opt-in)
  * - section in the order portal                   bookings of the order (cancel, rebook)
  *
  * GET only shows a confirmation form (mail scanners and link previews never change anything); the
@@ -38,6 +40,10 @@ final class Portal {
 		$html = '';
 		if ( ! empty( $get['wpcap_service_booking'] ) && $token ) {
 			$html = self::booking_page( absint( $get['wpcap_service_booking'] ), $token );
+		} elseif ( ! empty( $get['wpcap_service_waitlist'] ) && $token && 'confirm' === sanitize_key( \PassCaptain\Security\Input::text( $get['do'] ?? '' ) ) ) {
+			$html = self::confirm_page( __( 'Eintragung in die Warteliste bestätigen', 'pass-captain' ), __( 'Bitte bestätige, dass du auf die Warteliste möchtest. Erst danach bekommst du eine Position und Angebote für frei werdende Plätze.', 'pass-captain' ), array( 'do' => 'waitlist_confirm', 'id' => absint( $get['wpcap_service_waitlist'] ), 'token' => $token ), __( 'Eintragung bestätigen', 'pass-captain' ) );
+		} elseif ( ! empty( $get['wpcap_waitlist_confirm'] ) && $token ) {
+			$html = self::confirm_page( __( 'Eintragung in die Warteliste bestätigen', 'pass-captain' ), __( 'Bitte bestätige, dass du auf die Warteliste möchtest. Erst danach bekommst du eine Position und Angebote für frei werdende Tickets.', 'pass-captain' ), array( 'do' => 'event_confirm', 'id' => absint( $get['wpcap_waitlist_confirm'] ), 'token' => $token ), __( 'Eintragung bestätigen', 'pass-captain' ) );
 		} elseif ( ! empty( $get['wpcap_service_waitlist'] ) && $token ) {
 			$html = self::waitlist_page( absint( $get['wpcap_service_waitlist'] ), sanitize_key( \PassCaptain\Security\Input::text( $get['do'] ?? 'status' ) ), $token );
 		} elseif ( ! empty( $get['wpcap_waitlist_decline'] ) && $token ) {
@@ -99,6 +105,10 @@ final class Portal {
 				$booking = ServiceBookings::for_order_access( \PassCaptain\Security\Input::text( $in['public_id'] ?? '' ), \PassCaptain\Security\Input::text( $in['access_token'] ?? '' ), $id );
 				if ( ! $booking ) { return self::denied(); }
 				return 'order_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key, 'provider' => sanitize_key( \PassCaptain\Security\Input::text( $in['provider'] ?? '' ) ) ) );
+			case 'waitlist_confirm':
+				return ServiceWaitlist::confirm( $id, $token );
+			case 'event_confirm':
+				return Waitlists::confirm( $id, $token );
 			case 'waitlist_accept':
 				return ServiceWaitlist::accept( $id, $token );
 			case 'waitlist_decline':
@@ -192,7 +202,7 @@ final class Portal {
 		$slot = ServiceResources::slot( (int) $entry->slot_id );
 		$tz = ServiceResources::timezone_of( $slot ? ServiceResources::resource( (int) $slot->resource_id ) : null );
 		$content = '<p>' . esc_html( $state['resource_name'] . ' – ' . self::when( $state['starts_at'], $tz ) ) . '</p>';
-		$labels = array( 'waiting' => __( 'Wartend', 'pass-captain' ), 'offered' => __( 'Angebot offen', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'declined' => __( 'Abgelehnt', 'pass-captain' ), 'expired' => __( 'Abgelaufen', 'pass-captain' ), 'left' => __( 'Ausgetragen', 'pass-captain' ) );
+		$labels = array( 'unconfirmed' => __( 'Unbestätigt', 'pass-captain' ), 'waiting' => __( 'Wartend', 'pass-captain' ), 'offered' => __( 'Angebot offen', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'declined' => __( 'Abgelehnt', 'pass-captain' ), 'expired' => __( 'Abgelaufen', 'pass-captain' ), 'left' => __( 'Ausgetragen', 'pass-captain' ) );
 		$content .= '<p><strong>' . esc_html( $labels[ $state['status'] ] ?? $state['status'] ) . '</strong>';
 		/* translators: %d: position */
 		$content .= $state['position'] ? ' · ' . esc_html( sprintf( __( 'Position %d', 'pass-captain' ), $state['position'] ) ) : '';
@@ -221,6 +231,7 @@ final class Portal {
 			'declined' => __( 'Angebot abgelehnt. Danke für die Rückmeldung!', 'pass-captain' ),
 			'left' => __( 'Du wurdest von der Warteliste ausgetragen.', 'pass-captain' ),
 			'unsubscribed' => __( 'Du wurdest von der Warteliste ausgetragen.', 'pass-captain' ),
+			'waitlist_confirmed' => __( 'Danke! Deine Eintragung in die Warteliste ist bestätigt. Deine Position und einen Link zum Austragen bekommst du per E-Mail.', 'pass-captain' ),
 		);
 		if ( isset( $result['supplement'] ) ) {
 			$supplement = $result['supplement'];

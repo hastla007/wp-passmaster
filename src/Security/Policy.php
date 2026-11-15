@@ -2,7 +2,7 @@
 /**
  * Settings of the access-protection features (W9): audit of read access, data minimisation, staff
  * sessions, MFA for sensitive actions, support access, check-out/re-entry, refunds after check-in,
- * the buyer language selection and the event waitlist offer window.
+ * the buyer language selection, the event waitlist offer window and the waitlist double opt-in.
  *
  * The keys are registered through the public settings filters (wp_pass_captain_settings_defaults_v1,
  * wp_pass_captain_settings_sections_v1), so they appear on the settings page next to the core fields.
@@ -39,6 +39,7 @@ final class Policy {
 		'refund_after_checkin'       => 'allow',
 		'buyer_language_selector'    => 1,
 		'waitlist_offer_hours'       => 24,
+		'waitlist_double_opt_in'     => 1,
 	);
 
 	private static $registered = false;
@@ -113,6 +114,7 @@ final class Policy {
 			'fields' => array(
 				'buyer_language_selector' => array( 'type' => 'bool', 'label' => __( 'Sprachauswahl im Checkout und im Bestellportal anzeigen', 'pass-captain' ) ),
 				'waitlist_offer_hours' => array( 'type' => 'int', 'label' => __( 'Event-Warteliste: Annahmefrist eines Angebots (Stunden)', 'pass-captain' ), 'description' => __( 'So lange ist ein freigewordenes Ticket für die Person auf der Warteliste reserviert, bevor es der nächsten angeboten wird (1–720 Stunden).', 'pass-captain' ), 'min' => 1, 'max' => 720 ),
+				'waitlist_double_opt_in' => array( 'type' => 'bool', 'label' => __( 'Wartelisten: Eintragung per E-Mail bestätigen lassen (Double-Opt-in)', 'pass-captain' ), 'description' => __( 'Neue Einträge in Event- und Zeitfenster-Wartelisten gelten erst nach einem Klick auf den Bestätigungslink (48 Stunden gültig). Unbestätigte Einträge bekommen keine Position und keine Angebote und werden nach Ablauf gelöscht.', 'pass-captain' ) ),
 			),
 		);
 		return $sections;

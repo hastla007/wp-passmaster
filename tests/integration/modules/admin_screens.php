@@ -183,7 +183,9 @@ $wl_type = make_type( 1 );
 $wl_event = as_event_of( $wl_type );
 $wl_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$wl_type" );
 $GLOBALS['wpcap_test_transients'] = array();
+$wl_mails = count( $GLOBALS['wpcap_test_mails'] );
 foreach ( array( 'first@example.com', 'second@example.com', 'third@example.com' ) as $mail ) { Waitlists::join( $wl_event, $wl_occ, $wl_type, $mail ); }
+wpcap_test_confirm_waitlists( $wl_mails ); // Double opt-in: positions in confirmation order.
 $entries = Waitlists::entries( $wl_event );
 check( 'entries are listed in queue order', 3 === count( $entries ) && array( 1, 2, 3 ) === array_map( static fn( $e ) => (int) $e->position, $entries ) && 'first@example.com' === $entries[0]->email );
 $other_type = make_type( 1 );

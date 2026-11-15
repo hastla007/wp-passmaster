@@ -22,6 +22,8 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
+// Queue mechanics without the double opt-in step (covered by zzzzzz_z1_security.php).
+$GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] = 0;
 
 /** Runs worker processes that start at the same moment; returns their outputs in order. */
 function svc_parallel( array $jobs ) {
@@ -103,3 +105,5 @@ list( $sw_id, $sw_token ) = svc_token_from_mail( 'sw-wait@svc.test', 'wpcap_serv
 $out = svc_parallel( array( array( 'accept_slot', $sw_id, $sw_token ), array( 'accept_slot', $sw_id, $sw_token ), array( 'book', $sw_slot, 'sw-public@svc.test' ) ) );
 $sw_bookings = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_service_bookings WHERE slot_id=$sw_slot AND customer_email='sw-wait@svc.test'" );
 check( 'parallel acceptance of one slot offer creates one booking; a public booking racing it fails', 1 === $sw_bookings && 'ERR:wpcap_slot_full' === $out[2] && 1 === ServiceResources::booked_quantity( $sw_slot ) && 'confirmed' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_service_bookings WHERE slot_id=$sw_slot AND customer_email='sw-wait@svc.test'" ) );
+
+unset( $GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] );

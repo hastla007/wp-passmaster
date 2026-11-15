@@ -23,6 +23,8 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
+// Queue mechanics without the double opt-in step (covered by zzzzzz_z1_security.php).
+$GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] = 0;
 
 /** Token of the last mail to $email whose body matches $param=<64 hex>. */
 function svc_token_from_mail( $email, $param ) {
@@ -169,3 +171,5 @@ list( $ec_id, $ec_token ) = svc_token_from_mail( 'ew-cap@svc.test', 'wpcap_waitl
 $ec_acc = Waitlists::accept_offer( $ec_id, $ec_token );
 check( 'accept consumes the own hold and creates the order (free ticket issued at once)', 'accepted' === ( $ec_acc['status'] ?? '' ) && 'accepted' === $ew_row( 'ew-cap@svc.test' )->status && (int) $ec_acc['order']['order_id'] === (int) $ew_row( 'ew-cap@svc.test' )->order_id && 0 === (int) $ew_row( 'ew-cap@svc.test' )->hold_quantity && 1 === count( tickets( $ec_acc['order']['order_id'] ) ) && 0 === Orders::availability( $ew2_type ) );
 check( 'an accepted offer cannot be accepted again', is_wp_error( Waitlists::accept_offer( $ec_id, $ec_token ) ) );
+
+unset( $GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] );
