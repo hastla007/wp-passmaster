@@ -2126,13 +2126,16 @@ final class Orders {
 	private static function issue_failed( $order_id, $step ) {
 		global $wpdb;
 		$error = (string) $wpdb->last_error;
+		// Busy: deadlock/lock wait timeout, or the server rolled the transaction back inside a creation hook
+		// deadlock, detected by in_transaction(); the error text may be gone by then). Retried inline.
+		$busy = DbSession::is_busy_error( $error ) || 'ticket_hook' === (string) $step;
 		$wpdb->query( 'ROLLBACK' );
 		Log::error( 'ticket_issue_failed', 'Ticket issuance failed and was rolled back; a retry is queued.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) ) );
 		if ( ! self::$issuing_from_job && $order_id ) {
 			// One retry job per order and minute; the job queue retries it with backoff.
 			Jobs::enqueue( 'ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ISSUE_JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
 		}
-		return new \WP_Error( 'wpcap_issue_failed', __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'step' => (string) $step, 'db_busy' => DbSession::is_busy_error( $error ) ) );
+		return new \WP_Error( 'wpcap_issue_failed', __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'step' => (string) $step, 'db_busy' => $busy ) );
 	}
 
 	/**
