@@ -57,7 +57,7 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.order_id,t.status,t.token_hash,t.ticket_type_id,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status,ta.attendee_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id=%d",
+			'SELECT t.ticket_id,t.public_id,t.order_id,t.status,t.token_hash,t.ticket_type_id,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status,ta.attendee_name FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id=%d', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_ticket_assignments',
 			absint( $ticket_id )
 		), ARRAY_A );
 		if ( ! $row ) { return null; }
@@ -207,7 +207,7 @@ final class Service {
 		$state = Store::state( $ticket_id );
 		if ( ! $state || ! is_string( $code ) || hash_equals( (string) $state->code_hash, hash( 'sha256', $code ) ) ) { return array(); }
 		global $wpdb;
-		$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		$current = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT token_hash FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
 		if ( ! hash_equals( $current, hash( 'sha256', $code ) ) ) { return array(); }
 		foreach ( Store::passes( $ticket_id, 'google' ) as $old ) { Store::set_pass_status( $old->wallet_pass_id, 'retired' ); }
 		$passes = self::issue( $ticket_id, $code );
@@ -261,7 +261,7 @@ final class Service {
 	public static function on_occurrence_changed( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT s.ticket_id FROM {$p}wpcap_wallet_state s INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=s.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d", absint( $occurrence_id ) ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT s.ticket_id FROM %i s INNER JOIN %i t ON t.ticket_id=s.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d', $p . 'wpcap_wallet_state', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 		self::sync_many( $ids );
 		// Tickets may already have been synced through wpcap_ticket_revoked; the Google class still needs the new date/status.
 		if ( $ids ) { self::$pending_occurrences[ (int) $occurrence_id ] = true; }
@@ -270,7 +270,7 @@ final class Service {
 	public static function on_order_changed( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		self::sync_many( $wpdb->get_col( $wpdb->prepare( "SELECT s.ticket_id FROM {$p}wpcap_wallet_state s INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=s.ticket_id WHERE t.order_id=%d", absint( $order_id ) ) ) );
+		self::sync_many( $wpdb->get_col( $wpdb->prepare( 'SELECT s.ticket_id FROM %i s INNER JOIN %i t ON t.ticket_id=s.ticket_id WHERE t.order_id=%d', $p . 'wpcap_wallet_state', $p . 'wpcap_tickets', absint( $order_id ) ) ) );
 	}
 
 	public static function on_refund_completed( $refund_id, $order_id = 0 ) { self::on_order_changed( $order_id ); }
@@ -331,7 +331,7 @@ final class Service {
 	private static function class_ticket( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$id = $wpdb->get_var( $wpdb->prepare( "SELECT w.ticket_id FROM {$p}wpcap_wallet_passes w INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=w.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE w.provider='google' AND tt.occurrence_id=%d LIMIT 1", absint( $occurrence_id ) ) );
+		$id = $wpdb->get_var( $wpdb->prepare( "SELECT w.ticket_id FROM %i w INNER JOIN %i t ON t.ticket_id=w.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE w.provider='google' AND tt.occurrence_id=%d LIMIT 1", $p . 'wpcap_wallet_passes', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 		return $id ? self::ticket( (int) $id ) : null;
 	}
 

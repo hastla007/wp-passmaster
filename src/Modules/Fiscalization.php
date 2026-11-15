@@ -208,7 +208,7 @@ final class Fiscalization {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$seller_id = absint( $seller_id );
-		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT country_code,status FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $seller_id ) );
+		$seller = $wpdb->get_row( $wpdb->prepare( 'SELECT country_code,status FROM %i WHERE seller_id=%d', $p . 'wpcap_legal_sellers', $seller_id ) );
 		$channel = sanitize_key( $input['channel'] ?? '' );
 		$environment = sanitize_key( $input['environment'] ?? 'test' );
 		$status = sanitize_key( $input['status'] ?? 'draft' );
@@ -232,7 +232,7 @@ final class Fiscalization {
 		if ( in_array( $status, array( 'active', 'not_required' ), true ) && ( 'production' !== $environment || empty( $input['review_attested'] ) || '' === $ruleset || '' === $ruleset_version || '' === $legal_reference ) ) {
 			return new \WP_Error( 'wpcap_fiscal_profile_review_required', __( 'Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT profile_id,profile_version,created_at FROM {$p}wpcap_fiscal_profiles WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s", $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT profile_id,profile_version,created_at FROM %i WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s', $p . 'wpcap_fiscal_profiles', $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
 		$now = current_time( 'mysql', true );
 		$profile_version = $existing ? (int) $existing->profile_version + 1 : 1;
 		$row = array(
@@ -266,8 +266,8 @@ final class Fiscalization {
 			return new \WP_Error( 'wpcap_fiscal_mapping_invalid', __( 'Verkäuferzuordnung ist ungültig.', 'pass-captain' ) );
 		}
 		$p = $wpdb->prefix;
-		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT seller_id,status FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $seller_id ) );
-		$type = $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d", $ticket_type_id ) );
+		$seller = $wpdb->get_row( $wpdb->prepare( 'SELECT seller_id,status FROM %i WHERE seller_id=%d', $p . 'wpcap_legal_sellers', $seller_id ) );
+		$type = $wpdb->get_var( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_type_id=%d', $p . 'wpcap_ticket_types', $ticket_type_id ) );
 		if ( ! $seller || 'active' !== $seller->status || ! $type ) {
 			return new \WP_Error( 'wpcap_fiscal_mapping_missing', __( 'Ticketart oder aktiver Rechtsträger wurde nicht gefunden.', 'pass-captain' ) );
 		}
@@ -314,14 +314,21 @@ final class Fiscalization {
 		$scope = self::profile_scope( $channel, array(), 0 );
 		if ( is_wp_error( $scope ) ) { return true; } // Fail closed: the checkout itself refuses an invalid scope.
 		$now = current_time( 'mysql', true );
-		$in = implode( ',', $type_ids );
 		return (bool) $wpdb->get_var( $wpdb->prepare(
-			"SELECT 1 FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id AND s.status='active' INNER JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status='active' AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id IN ({$in}) LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
-			sanitize_key( $channel ),
-			(int) $scope['location_id'],
-			$scope['register_id'],
-			$now,
-			$now
+			"SELECT 1 FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id AND s.status='active' INNER JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status='active' AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') LIMIT 1',
+			array_merge(
+				array(
+					$p . 'wpcap_ticket_sellers',
+					$p . 'wpcap_legal_sellers',
+					$p . 'wpcap_fiscal_profiles',
+					sanitize_key( $channel ),
+					(int) $scope['location_id'],
+					$scope['register_id'],
+					$now,
+					$now,
+				),
+				$type_ids
+			)
 		) );
 	}
 
@@ -341,7 +348,7 @@ final class Fiscalization {
 		$ticket_sellers = array();
 		foreach ( (array) $selected as $line ) {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
-			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
+			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id LEFT JOIN %i c ON c.seller_id=s.seller_id LEFT JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $p . 'wpcap_ticket_sellers', $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs', $p . 'wpcap_fiscal_profiles', $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
 			// A failed lookup must not look like "not mapped" (that would sell without receipt): fail closed.
 			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 			if ( ! $mapping ) {
@@ -420,7 +427,7 @@ final class Fiscalization {
 			$seller_mode = sanitize_key( $extra['seller_mode'] ?? '' );
 			if ( ! $seller_id || ! in_array( $seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) { throw new \RuntimeException( 'fiscal_extra_seller_invalid' ); }
 			$mapping = $wpdb->get_row( $wpdb->prepare(
-				"SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_legal_sellers s LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE s.seller_id=%d",
+				"SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM %i s LEFT JOIN %i c ON c.seller_id=s.seller_id LEFT JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE s.seller_id=%d", $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs', $p . 'wpcap_fiscal_profiles',
 				$channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $seller_id
 			) );
 			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
@@ -466,7 +473,7 @@ final class Fiscalization {
 			$groups[ $seller_id ]['gross_minor'] += $gross;
 			$groups[ $seller_id ]['tax_minor'] += $tax;
 		}
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT currency,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT currency,payment_provider FROM %i WHERE order_id=%d', $p . 'wpcap_orders', absint( $order_id ) ) );
 		if ( $has_mapping && ! $order ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 		$payment_method = self::payment_method( $internal, $order ? (string) $order->payment_provider : '' );
 		if ( $has_mapping && false === $wpdb->replace( "{$p}wpcap_fiscal_order_state", array( 'order_id' => absint( $order_id ), 'fiscal_status' => $groups ? 'pending' : 'not_required', 'fulfillment_status' => $groups ? 'blocked' : 'awaiting_payment', 'updated_at' => $now ), array( '%d', '%s', '%s', '%s' ) ) ) {
@@ -513,15 +520,15 @@ final class Fiscalization {
 		$p = $wpdb->prefix;
 		// Retries respect the backoff (next_attempt_at) unless an operator forces them (retry/reconcile).
 		$docs = $force
-			? $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_documents WHERE order_id=%d AND status IN ('pending','retry') ORDER BY seller_id", absint( $order_id ) ) )
-			: $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_documents WHERE order_id=%d AND (status='pending' OR (status='retry' AND (next_attempt_at IS NULL OR next_attempt_at<=%s))) ORDER BY seller_id", absint( $order_id ), current_time( 'mysql', true ) ) );
+			? $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND status IN ('pending','retry') ORDER BY seller_id", $p . 'wpcap_fiscal_documents', absint( $order_id ) ) )
+			: $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND (status='pending' OR (status='retry' AND (next_attempt_at IS NULL OR next_attempt_at<=%s))) ORDER BY seller_id", $p . 'wpcap_fiscal_documents', absint( $order_id ), current_time( 'mysql', true ) ) );
 		foreach ( $docs as $doc ) {
 			$adapter = Registry::get( $doc->provider_id );
 			if ( ! $adapter ) { self::fail( $doc, 'adapter_unavailable' ); continue; }
-			$config_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+			$config_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE seller_id=%d', $p . 'wpcap_fiscal_configs', $doc->seller_id ), ARRAY_A );
 			$document = json_decode( $doc->snapshot, true );
 			if ( ! is_array( $document ) ) { self::fail( $doc, 'snapshot_invalid' ); continue; }
-			$seller = is_array( $document['seller'] ?? null ) ? $document['seller'] : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+			$seller = is_array( $document['seller'] ?? null ) ? $document['seller'] : $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE seller_id=%d', $p . 'wpcap_legal_sellers', $doc->seller_id ), ARRAY_A );
 			if ( ! is_array( $seller ) || empty( $seller['seller_id'] ) ) { self::fail( $doc, 'seller_snapshot_invalid' ); continue; }
 			$configuration = is_array( $document['provider_configuration'] ?? null ) ? $document['provider_configuration'] : ( $config_row && $config_row['configuration'] ? (array) json_decode( $config_row['configuration'], true ) : array() );
 			$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
@@ -613,7 +620,7 @@ final class Fiscalization {
 	public static function record_refund_adjustment( $refund_id, $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,amount_minor,currency,ticket_ids FROM {$p}wpcap_refunds WHERE refund_id=%d AND order_id=%d", absint( $refund_id ), absint( $order_id ) ) );
+		$refund = $wpdb->get_row( $wpdb->prepare( 'SELECT refund_id,amount_minor,currency,ticket_ids FROM %i WHERE refund_id=%d AND order_id=%d', $p . 'wpcap_refunds', absint( $refund_id ), absint( $order_id ) ) );
 		if ( ! $refund ) { return; }
 		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( $refund->ticket_ids, true ) ) ) );
 		$ticket_types = array();
@@ -626,7 +633,7 @@ final class Fiscalization {
 				if ( 'checked_in' === $ticket->status ) { $used_by_type[ $type_id ] = ( $used_by_type[ $type_id ] ?? 0 ) + 1; }
 			}
 		}
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT total_minor,refunded_minor FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT total_minor,refunded_minor FROM %i WHERE order_id=%d', $p . 'wpcap_orders', absint( $order_id ) ) );
 		$metadata = array(
 			'refund_id' => absint( $refund_id ),
 			'adjustment_kind' => 'refund_credit_note_or_correction',
@@ -654,7 +661,7 @@ final class Fiscalization {
 		$order_ids = array_values( array_filter( array_map( 'absint', (array) $order_ids ) ) );
 		if ( ! $order_ids || ! $lines ) { return; }
 		$in = implode( ',', $order_ids );
-		$docs = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id IN ({$in}) AND status='submitted' ORDER BY order_id,seller_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$docs = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND status='submitted' ORDER BY order_id,seller_id", array_merge( array( $wpdb->prefix . 'wpcap_fiscal_documents' ), $order_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		if ( ! $docs ) { return; }
 		$owner = array();
 		$by_key = array();
@@ -707,7 +714,7 @@ final class Fiscalization {
 	public static function submit_efsta_void( $event_id ) {
 		global $wpdb;
 		$event_id = absint( $event_id );
-		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_events WHERE event_id=%d AND event_status='manual_required'", $event_id ) );
+		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE event_id=%d AND event_status='manual_required'", $wpdb->prefix . 'wpcap_fiscal_events', $event_id ) );
 		if ( ! $source || 'order_cancellation' !== $source->event_type || 'efsta_efr' !== $source->provider_id ) {
 			return new \WP_Error( 'wpcap_fiscal_void_unavailable', __( 'Für diesen Vorgang ist kein automatisches efsta-Storno verfügbar.', 'pass-captain' ) );
 		}
@@ -715,7 +722,7 @@ final class Fiscalization {
 		if ( ! is_array( $metadata ) || 'void' !== sanitize_key( $metadata['adjustment_kind'] ?? '' ) ) {
 			return new \WP_Error( 'wpcap_fiscal_void_payment_exchanged', __( 'Ein bereits bezahlter Vorgang darf nicht als Storno automatisiert werden.', 'pass-captain' ) );
 		}
-		$doc = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE document_id=%d", absint( $source->document_id ) ) );
+		$doc = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE document_id=%d', $wpdb->prefix . 'wpcap_fiscal_documents', absint( $source->document_id ) ) );
 		$document = $doc ? json_decode( $doc->snapshot, true ) : null;
 		if ( ! $doc || ! is_array( $document ) || 'efsta_efr' !== $doc->provider_id || empty( $document['seller']['seller_id'] ) || ! is_array( $document['provider_configuration'] ?? null ) ) {
 			return new \WP_Error( 'wpcap_fiscal_void_snapshot_missing', __( 'Der unveränderbare Originalbeleg oder seine Anbieterkonfiguration fehlt.', 'pass-captain' ) );
@@ -775,12 +782,12 @@ final class Fiscalization {
 		if ( ! $event_id || ! in_array( $resolution, array( 'void', 'refund', 'credit_note', 'correction' ), true ) || '' === $provider_reference || strlen( $provider_reference ) > 191 ) {
 			return new \WP_Error( 'wpcap_fiscal_resolution_invalid', __( 'Korrekturart und Anbieter-Referenz sind erforderlich.', 'pass-captain' ) );
 		}
-		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_events WHERE event_id=%d AND event_status='manual_required'", $event_id ) );
+		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE event_id=%d AND event_status='manual_required'", $wpdb->prefix . 'wpcap_fiscal_events', $event_id ) );
 		if ( ! $source || ! in_array( $source->event_type, array( 'refund_adjustment', 'order_cancellation', 'event_cancellation' ), true ) ) {
 			return new \WP_Error( 'wpcap_fiscal_resolution_source', __( 'Offener Fiskalkorrekturvorgang wurde nicht gefunden.', 'pass-captain' ) );
 		}
 		$existing = $wpdb->get_results( $wpdb->prepare(
-			"SELECT metadata FROM {$wpdb->prefix}wpcap_fiscal_events WHERE document_id=%d AND event_type='manual_correction_recorded'",
+			"SELECT metadata FROM %i WHERE document_id=%d AND event_type='manual_correction_recorded'", $wpdb->prefix . 'wpcap_fiscal_events',
 			(int) $source->document_id
 		) );
 		foreach ( $existing as $row ) {
@@ -842,7 +849,7 @@ final class Fiscalization {
 		$event_id = absint( $event_id );
 		if ( ! $event_id ) { return; }
 		$docs = $wpdb->get_results( $wpdb->prepare(
-			"SELECT DISTINCT d.* FROM {$p}wpcap_fiscal_documents d INNER JOIN {$p}wpcap_fiscal_document_items i ON i.document_id=d.document_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=i.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND d.status='submitted'",
+			"SELECT DISTINCT d.* FROM %i d INNER JOIN %i i ON i.document_id=d.document_id INNER JOIN %i tt ON tt.ticket_type_id=i.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND d.status='submitted'", $p . 'wpcap_fiscal_documents', $p . 'wpcap_fiscal_document_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences',
 			$event_id
 		) );
 		foreach ( $docs as $doc ) {
@@ -858,7 +865,7 @@ final class Fiscalization {
 	/** Append a correction task to each affected seller receipt; leave originals immutable. */
 	private static function record_adjustment_events( $order_id, $event_type, array $metadata, array $ticket_types = array() ) {
 		global $wpdb;
-		$docs = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status='submitted' ORDER BY seller_id", absint( $order_id ) ) );
+		$docs = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND status='submitted' ORDER BY seller_id", $wpdb->prefix . 'wpcap_fiscal_documents', absint( $order_id ) ) );
 		$matching = array();
 		foreach ( $docs as $doc ) {
 			$snapshot = json_decode( $doc->snapshot, true );
@@ -902,13 +909,13 @@ final class Fiscalization {
 
 	public static function rest_reconcile_document( \WP_REST_Request $request ) {
 		global $wpdb;
-		$doc = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE document_id=%d", absint( $request['document_id'] ) ) );
+		$doc = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE document_id=%d', $wpdb->prefix . 'wpcap_fiscal_documents', absint( $request['document_id'] ) ) );
 		if ( ! $doc ) { return new \WP_Error( 'wpcap_fiscal_document_missing', __( 'Fiskalvorgang wurde nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$adapter = Registry::get( $doc->provider_id );
-		$config = $wpdb->get_row( $wpdb->prepare( "SELECT configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+		$config = $wpdb->get_row( $wpdb->prepare( 'SELECT configuration FROM %i WHERE seller_id=%d', $wpdb->prefix . 'wpcap_fiscal_configs', $doc->seller_id ), ARRAY_A );
 		$decoded = json_decode( $doc->snapshot, true );
 		$document = is_array( $decoded ) ? $decoded : array();
-		$seller = is_array( $document['seller'] ?? null ) ? $document['seller'] : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+		$seller = is_array( $document['seller'] ?? null ) ? $document['seller'] : $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE seller_id=%d', $wpdb->prefix . 'wpcap_legal_sellers', $doc->seller_id ), ARRAY_A );
 		$has_snapshot_config = is_array( $document['provider_configuration'] ?? null );
 		if ( ! $adapter || ! is_array( $seller ) || empty( $seller['seller_id'] ) || ( ! $config && ! $has_snapshot_config ) ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$configuration = $has_snapshot_config ? $document['provider_configuration'] : ( $config && $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array() );
@@ -939,17 +946,17 @@ final class Fiscalization {
 			return new \WP_Error( 'wpcap_fiscal_status_unknown', __( 'Der Anbieter hat keinen verwertbaren Status geliefert.', 'pass-captain' ), array( 'status' => 502 ) );
 		}
 		Orders::issue_and_email( (int) $doc->order_id );
-		return rest_ensure_response( array( 'document_id' => (int) $doc->document_id, 'status' => $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE document_id=%d", $doc->document_id ) ) ) );
+		return rest_ensure_response( array( 'document_id' => (int) $doc->document_id, 'status' => $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE document_id=%d', $wpdb->prefix . 'wpcap_fiscal_documents', $doc->document_id ) ) ) );
 	}
 
 	public static function rest_retry_order( \WP_REST_Request $request ) {
 		global $wpdb;
 		$order_id = absint( $request['order_id'] );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_fiscal_documents SET status='retry',last_error='',next_attempt_at=NULL,updated_at=%s WHERE order_id=%d AND status='failed'", current_time( 'mysql', true ), $order_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='retry',last_error='',next_attempt_at=NULL,updated_at=%s WHERE order_id=%d AND status='failed'", $wpdb->prefix . 'wpcap_fiscal_documents', current_time( 'mysql', true ), $order_id ) );
 		Audit::record( 'fiscal_order_retry', 'order', $order_id, array() );
 		self::process_order( $order_id, true );
 		Orders::issue_and_email( $order_id );
-		$blocked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status <> 'submitted'", $order_id ) );
+		$blocked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status <> 'submitted'", $wpdb->prefix . 'wpcap_fiscal_documents', $order_id ) );
 		return rest_ensure_response( array( 'order_id' => $order_id, 'tickets_issued' => ! $blocked && (bool) Orders::tickets_for_order( $order_id ), 'fiscal_pending' => (bool) $blocked ) );
 	}
 
@@ -977,7 +984,7 @@ final class Fiscalization {
 			}
 			return;
 		}
-		$seller_name = (string) $wpdb->get_var( $wpdb->prepare( "SELECT legal_name FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", (int) $doc->seller_id ) );
+		$seller_name = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT legal_name FROM %i WHERE seller_id=%d', $wpdb->prefix . 'wpcap_legal_sellers', (int) $doc->seller_id ) );
 		$details = array(
 			'document_id' => (int) $doc->document_id,
 			'order_id' => (int) $doc->order_id,
@@ -1012,15 +1019,15 @@ final class Fiscalization {
 		$order_id = absint( $order_id );
 		// Orders without any fiscal seller mapping have no state row: unchanged behaviour, one cheap lookup.
 		// Database errors block issuance (fail closed); the core retries the issuance later.
-		$state = $wpdb->get_var( $wpdb->prepare( "SELECT fiscal_status FROM {$p}wpcap_fiscal_order_state WHERE order_id=%d", $order_id ) );
+		$state = $wpdb->get_var( $wpdb->prepare( 'SELECT fiscal_status FROM %i WHERE order_id=%d', $p . 'wpcap_fiscal_order_state', $order_id ) );
 		if ( self::db_failed() ) { return false; }
 		if ( null === $state ) { return $ready; }
 		// Receipts are only submitted for paid orders (the core issues nothing for unpaid ones anyway).
-		$payment_status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT payment_status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
+		$payment_status = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT payment_status FROM %i WHERE order_id=%d', $p . 'wpcap_orders', $order_id ) );
 		if ( self::db_failed() ) { return false; }
 		if ( 'paid' !== $payment_status ) { return $ready; }
 		self::process_order( $order_id );
-		$counts = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, SUM(status <> 'submitted') AS blocked, SUM(status='failed') AS failed FROM {$p}wpcap_fiscal_documents WHERE order_id=%d", $order_id ) );
+		$counts = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, SUM(status <> 'submitted') AS blocked, SUM(status='failed') AS failed FROM %i WHERE order_id=%d", $p . 'wpcap_fiscal_documents', $order_id ) );
 		if ( ! $counts || self::db_failed() ) { return false; }
 		$total = (int) ( $counts->total ?? 0 );
 		$blocked = (int) ( $counts->blocked ?? 0 );
@@ -1050,7 +1057,7 @@ final class Fiscalization {
 	public static function blocking_status( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(status <> 'submitted') AS blocked, SUM(status='failed') AS failed FROM {$p}wpcap_fiscal_documents WHERE order_id=%d", absint( $order_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(status <> 'submitted') AS blocked, SUM(status='failed') AS failed FROM %i WHERE order_id=%d", $p . 'wpcap_fiscal_documents', absint( $order_id ) ) );
 		if ( ! $row || ! (int) $row->blocked ) { return ''; }
 		return (int) $row->failed ? 'failed' : 'pending';
 	}
@@ -1144,7 +1151,7 @@ final class Fiscalization {
 		check_admin_referer( 'wpcap_fiscal_save_credentials_' . $seller_id );
 		$provider_id = sanitize_key( wp_unslash( $_POST['provider_id'] ?? '' ) );
 		global $wpdb;
-		$config = $wpdb->get_row( $wpdb->prepare( "SELECT provider_id FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $seller_id ), ARRAY_A );
+		$config = $wpdb->get_row( $wpdb->prepare( 'SELECT provider_id FROM %i WHERE seller_id=%d', $wpdb->prefix . 'wpcap_fiscal_configs', $seller_id ), ARRAY_A );
 		if ( ! $config || $provider_id !== $config['provider_id'] || ! Registry::get( $provider_id ) ) { self::admin_redirect( 'credentials_error' ); }
 		$names = is_array( $_POST['credential_name'] ?? null ) ? array_map( 'sanitize_key', wp_unslash( $_POST['credential_name'] ) ) : array();
 		$values = is_array( $_POST['credential_value'] ?? null ) ? wp_unslash( $_POST['credential_value'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- secret values must stay byte-exact; they are only encrypted, never output.
@@ -1211,9 +1218,9 @@ final class Fiscalization {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$sellers = $wpdb->get_results( "SELECT s.*,c.provider_id,c.configuration,c.enabled FROM {$p}wpcap_legal_sellers s LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id ORDER BY s.legal_name" );
-		$profiles = $wpdb->get_results( "SELECT fp.*,s.legal_name FROM {$p}wpcap_fiscal_profiles fp INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=fp.seller_id ORDER BY fp.updated_at DESC" );
-		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,ts.seller_id,ts.seller_mode FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_sellers ts ON ts.ticket_type_id=tt.ticket_type_id ORDER BY e.name,tt.name" );
+		$sellers = $wpdb->get_results( $wpdb->prepare( 'SELECT s.*,c.provider_id,c.configuration,c.enabled FROM %i s LEFT JOIN %i c ON c.seller_id=s.seller_id ORDER BY s.legal_name', $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs' ) );
+		$profiles = $wpdb->get_results( $wpdb->prepare( 'SELECT fp.*,s.legal_name FROM %i fp INNER JOIN %i s ON s.seller_id=fp.seller_id ORDER BY fp.updated_at DESC', $p . 'wpcap_fiscal_profiles', $p . 'wpcap_legal_sellers' ) );
+		$types = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,ts.seller_id,ts.seller_mode FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id LEFT JOIN %i ts ON ts.ticket_type_id=tt.ticket_type_id ORDER BY e.name,tt.name', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_ticket_sellers' ) );
 		$adapters = Registry::all();
 		$result = sanitize_key( $_GET['fiscal_result'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only status.
 		echo '<div class="wrap"><h1>' . esc_html__( 'Fiskalisierung', 'pass-captain' ) . '</h1>';
@@ -1295,7 +1302,7 @@ final class Fiscalization {
 			echo '</form>';
 		}
 		echo '<hr><h2>' . esc_html__( 'Offene Fiskalvorgänge', 'pass-captain' ) . '</h2>';
-		$pending = $wpdb->get_results( "SELECT d.document_id,d.order_id,d.status,d.last_error,d.attempts,d.updated_at,s.legal_name FROM {$p}wpcap_fiscal_documents d INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=d.seller_id WHERE d.status <> 'submitted' ORDER BY d.updated_at DESC LIMIT 100" );
+		$pending = $wpdb->get_results( $wpdb->prepare( "SELECT d.document_id,d.order_id,d.status,d.last_error,d.attempts,d.updated_at,s.legal_name FROM %i d INNER JOIN %i s ON s.seller_id=d.seller_id WHERE d.status <> 'submitted' ORDER BY d.updated_at DESC LIMIT 100", $p . 'wpcap_fiscal_documents', $p . 'wpcap_legal_sellers' ) );
 		if ( ! $pending ) { echo '<p>' . esc_html__( 'Keine offenen Fiskalvorgänge.', 'pass-captain' ) . '</p>'; }
 		else {
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Dokument', 'pass-captain' ) . '</th><th>' . esc_html__( 'Bestellung', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufer', 'pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'pass-captain' ) . '</th><th>' . esc_html__( 'Versuche / letzter Fehler', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'pass-captain' ) . '</th></tr></thead><tbody>';
@@ -1323,9 +1330,9 @@ final class Fiscalization {
 		submit_button( __( 'CSV herunterladen', 'pass-captain' ), 'secondary', 'submit', false );
 		echo '</form>';
 		echo '<hr><h2>' . esc_html__( 'Fiskal-Ereignisprotokoll', 'pass-captain' ) . '</h2>';
-		$events = $wpdb->get_results( "SELECT e.event_id,e.document_id,e.order_id,e.provider_id,e.event_type,e.event_status,e.metadata,e.created_at,d.country_code FROM {$p}wpcap_fiscal_events e LEFT JOIN {$p}wpcap_fiscal_documents d ON d.document_id=e.document_id ORDER BY e.event_id DESC LIMIT 200" );
+		$events = $wpdb->get_results( $wpdb->prepare( 'SELECT e.event_id,e.document_id,e.order_id,e.provider_id,e.event_type,e.event_status,e.metadata,e.created_at,d.country_code FROM %i e LEFT JOIN %i d ON d.document_id=e.document_id ORDER BY e.event_id DESC LIMIT 200', $p . 'wpcap_fiscal_events', $p . 'wpcap_fiscal_documents' ) );
 		$resolved_events = array();
-		$resolutions = $wpdb->get_results( "SELECT metadata FROM {$p}wpcap_fiscal_events WHERE event_type='manual_correction_recorded' ORDER BY event_id DESC LIMIT 5000" );
+		$resolutions = $wpdb->get_results( $wpdb->prepare( "SELECT metadata FROM %i WHERE event_type='manual_correction_recorded' ORDER BY event_id DESC LIMIT 5000", $p . 'wpcap_fiscal_events' ) );
 		foreach ( $resolutions as $resolution_row ) {
 			$resolution_data = json_decode( $resolution_row->metadata, true );
 			if ( is_array( $resolution_data ) && ! empty( $resolution_data['resolves_event_id'] ) ) {
@@ -1336,7 +1343,7 @@ final class Fiscalization {
 			}
 		}
 		$void_attempted_events = array();
-		$void_attempts = $wpdb->get_results( "SELECT metadata FROM {$p}wpcap_fiscal_events WHERE event_type IN ('provider_void_attempted','provider_void_failed') ORDER BY event_id DESC LIMIT 5000" );
+		$void_attempts = $wpdb->get_results( $wpdb->prepare( "SELECT metadata FROM %i WHERE event_type IN ('provider_void_attempted','provider_void_failed') ORDER BY event_id DESC LIMIT 5000", $p . 'wpcap_fiscal_events' ) );
 		foreach ( $void_attempts as $void_attempt ) {
 			$attempt_data = json_decode( $void_attempt->metadata, true );
 			if ( is_array( $attempt_data ) && ! empty( $attempt_data['source_event_id'] ) ) {
@@ -1445,7 +1452,7 @@ final class Fiscalization {
 
 	public static function rest_sellers() {
 		global $wpdb;
-		return rest_ensure_response( $wpdb->get_results( "SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.status,c.provider_id,c.enabled FROM {$wpdb->prefix}wpcap_legal_sellers s LEFT JOIN {$wpdb->prefix}wpcap_fiscal_configs c ON c.seller_id=s.seller_id ORDER BY s.legal_name", ARRAY_A ) );
+		return rest_ensure_response( $wpdb->get_results( $wpdb->prepare( 'SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.status,c.provider_id,c.enabled FROM %i s LEFT JOIN %i c ON c.seller_id=s.seller_id ORDER BY s.legal_name', $wpdb->prefix . 'wpcap_legal_sellers', $wpdb->prefix . 'wpcap_fiscal_configs' ), ARRAY_A ) );
 	}
 
 	public static function rest_save_seller( \WP_REST_Request $request ) {
@@ -1477,8 +1484,8 @@ final class Fiscalization {
 	public static function rest_health_check( \WP_REST_Request $request ) {
 		global $wpdb;
 		$seller_id = absint( $request['seller_id'] );
-		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d AND status='active'", $seller_id ), ARRAY_A );
-		$config = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d AND enabled=1", $seller_id ), ARRAY_A );
+		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE seller_id=%d AND status='active'", $wpdb->prefix . 'wpcap_legal_sellers', $seller_id ), ARRAY_A );
+		$config = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE seller_id=%d AND enabled=1', $wpdb->prefix . 'wpcap_fiscal_configs', $seller_id ), ARRAY_A );
 		$adapter = $config ? Registry::get( $config['provider_id'] ) : null;
 		if ( ! $seller || ! $config || ! $adapter || ! in_array( strtoupper( $seller['country_code'] ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
 			return new \WP_Error( 'wpcap_fiscal_health_unavailable', __( 'Aktiver Anbieter oder Länderunterstützung fehlt.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -1502,7 +1509,7 @@ final class Fiscalization {
 		$provider_id = sanitize_key( $body['provider_id'] ?? '' );
 		$enabled = ! empty( $body['enabled'] ) ? 1 : 0;
 		$adapter = Registry::get( $provider_id );
-		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT country_code FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", $seller_id ) );
+		$seller = $wpdb->get_row( $wpdb->prepare( 'SELECT country_code FROM %i WHERE seller_id=%d', $wpdb->prefix . 'wpcap_legal_sellers', $seller_id ) );
 		if ( ! $seller || ( $enabled && ( ! $adapter || ! in_array( $seller->country_code, array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) ) ) {
 			return new \WP_Error( 'wpcap_fiscal_provider_invalid', __( 'Anbieter oder Länderunterstützung ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}

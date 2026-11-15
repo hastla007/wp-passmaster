@@ -176,22 +176,24 @@ final class Templates {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$scope = Scope::event_ids( 'wpcap_manage_events' );
-		$owner_sql = null === $scope ? '' : ' AND owner_event_id IN (' . implode( ',', array_merge( array( 0 ), array_map( 'absint', (array) $scope ) ) ) . ')';
+		// Owner events: all (null scope), else global templates (0) and the managed events.
+		$all_owners = null === $scope ? 1 : 0;
+		$owners = array_merge( array( 0 ), array_values( array_map( 'absint', (array) $scope ) ) );
 		if ( '' !== $kind ) {
-			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_print_templates WHERE kind=%s AND status='active'$owner_sql ORDER BY name", $kind ) );
+			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE kind=%s AND status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY name', array_merge( array( $p . 'wpcap_print_templates', $kind, $all_owners ), $owners ) ) );
 		}
-		return $wpdb->get_results( "SELECT * FROM {$p}wpcap_print_templates WHERE status='active'$owner_sql ORDER BY kind,name" );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY kind,name', array_merge( array( $p . 'wpcap_print_templates', $all_owners ), $owners ) ) );
 	}
 
 	public static function get_template( $template_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_print_templates WHERE template_id=%d", absint( $template_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE template_id=%d', $wpdb->prefix . 'wpcap_print_templates', absint( $template_id ) ) );
 	}
 
 	/** Events a template is selected for. */
 	public static function assigned_events( $template_id ) {
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_print_event_templates WHERE template_id=%d", absint( $template_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE template_id=%d', $wpdb->prefix . 'wpcap_print_event_templates', absint( $template_id ) ) ) );
 	}
 
 	/**
@@ -260,7 +262,7 @@ final class Templates {
 				return new \WP_Error( 'wpcap_print_template_owner', __( 'Diese Vorlage gehört zu einem anderen Event.', 'pass-captain' ), array( 'status' => 403 ) );
 			}
 		}
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_print_event_templates WHERE event_id=%d AND kind=%s", absint( $event_id ), $kind ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE event_id=%d AND kind=%s', $p . 'wpcap_print_event_templates', absint( $event_id ), $kind ) );
 		if ( $template_id ) {
 			$wpdb->insert( "{$p}wpcap_print_event_templates", array( 'event_id' => absint( $event_id ), 'kind' => $kind, 'template_id' => $template_id ) );
 		}
@@ -271,7 +273,7 @@ final class Templates {
 	public static function body_for_event( $event_id, $kind ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$body = $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM {$p}wpcap_print_event_templates et INNER JOIN {$p}wpcap_print_templates t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", absint( $event_id ), $kind ) );
+		$body = $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM %i et INNER JOIN %i t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", $p . 'wpcap_print_event_templates', $p . 'wpcap_print_templates', absint( $event_id ), $kind ) );
 		return $body ? (string) $body : self::default_body( $kind );
 	}
 
@@ -282,12 +284,23 @@ final class Templates {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
-		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		if ( ! $statuses ) { $statuses = array( 'valid' ); }
 		return $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
-			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
-			WHERE o.occurrence_id=%d AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id",
-			absint( $occurrence_id )
+			FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i a ON a.ticket_id=t.ticket_id
+			WHERE o.occurrence_id=%d AND t.status IN (" . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ") ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id",
+			array_merge(
+				array(
+					$p . 'wpcap_tickets',
+					$p . 'wpcap_ticket_types',
+					$p . 'wpcap_occurrences',
+					$p . 'wpcap_events',
+					$p . 'wpcap_orders',
+					$p . 'wpcap_ticket_assignments',
+					absint( $occurrence_id ),
+				),
+				$statuses
+			)
 		) );
 	}
 
@@ -320,7 +333,7 @@ final class Templates {
 		$out = array();
 		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $ticket_id ) {
 			$token = bin2hex( random_bytes( 32 ) );
-			$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid'", hash( 'sha256', $token ), $ticket_id ) );
+			$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET token_hash=%s WHERE ticket_id=%d AND status='valid'", $wpdb->prefix . 'wpcap_tickets', hash( 'sha256', $token ), $ticket_id ) );
 			if ( $updated ) {
 				$out[ $ticket_id ] = $token;
 				/** The ticket got a new code (old one invalid), e.g. so wallet passes can be refreshed. */

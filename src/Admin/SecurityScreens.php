@@ -161,7 +161,7 @@ final class SecurityScreens {
 		if ( ! \PassCaptain\Access::can_access_event( (int) $occ->event_id, EventsPage::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		if ( method_exists( $user, 'add_cap' ) ) { $user->add_cap( $capability ); }
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_occurrence_staff (occurrence_id,event_id,user_id,capability) VALUES (%d,%d,%d,%s)", $occurrence_id, (int) $occ->event_id, (int) $user->ID, $capability ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (occurrence_id,event_id,user_id,capability) VALUES (%d,%d,%d,%s)', $wpdb->prefix . 'wpcap_occurrence_staff', $occurrence_id, (int) $occ->event_id, (int) $user->ID, $capability ) );
 		Audit::record( 'occurrence_staff_assigned', 'occurrence', $occurrence_id, array( 'event_id' => (int) $occ->event_id, 'user_id' => (int) $user->ID, 'capability' => $capability ) );
 		return array( 'occurrence_id' => $occurrence_id, 'user_id' => (int) $user->ID );
 	}
@@ -201,7 +201,7 @@ final class SecurityScreens {
 	/** Staff of one date. */
 	public static function occurrence_staff( $occurrence_id ) {
 		global $wpdb;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT user_id,capability FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE occurrence_id=%d ORDER BY user_id", absint( $occurrence_id ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT user_id,capability FROM %i WHERE occurrence_id=%d ORDER BY user_id', $wpdb->prefix . 'wpcap_occurrence_staff', absint( $occurrence_id ) ) );
 	}
 
 	/** Section on the occurrence screen (EventsPage::render_occurrence). */

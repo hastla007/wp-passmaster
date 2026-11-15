@@ -346,8 +346,8 @@ final class OrdersPage {
 			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
 			<?php
 			global $wpdb;
-			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
-			$credit_notes = $invoice ? $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_number FROM {$wpdb->prefix}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) ) : array();
+			$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT invoice_id,invoice_number FROM %i WHERE order_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_invoices', $order_id ) );
+			$credit_notes = $invoice ? $wpdb->get_col( $wpdb->prepare( 'SELECT credit_note_number FROM %i WHERE invoice_id=%d ORDER BY credit_note_id', $wpdb->prefix . 'wpcap_credit_notes', $invoice->invoice_id ) ) : array();
 			$invoice_url = add_query_arg( array( 'action' => 'wpcap_print_invoice', 'order_id' => (int) $order_id ), admin_url( 'admin-post.php' ) );
 			?>
 			<tr><th><?php esc_html_e( 'Rechnung', 'pass-captain' ); ?></th><td>
@@ -363,7 +363,7 @@ final class OrdersPage {
 			<?php
 			// Sales model / seller of the customer invoice (docs/SALES-MODELS.md).
 			if ( $invoice ) {
-				$sales_label = \PassCaptain\Invoices::seller_label( (array) json_decode( (string) $wpdb->get_var( $wpdb->prepare( "SELECT buyer_snapshot FROM {$wpdb->prefix}wpcap_invoices WHERE invoice_id=%d", $invoice->invoice_id ) ), true ) );
+				$sales_label = \PassCaptain\Invoices::seller_label( (array) json_decode( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT buyer_snapshot FROM %i WHERE invoice_id=%d', $wpdb->prefix . 'wpcap_invoices', $invoice->invoice_id ) ), true ) );
 			} else {
 				$sales_context = \PassCaptain\Partners\SalesModel::order_context( $order_id );
 				$sales_label = is_wp_error( $sales_context ) ? '' : \PassCaptain\Invoices::seller_label( array( 'sales_model' => $sales_context['model'], 'seller' => $sales_context['seller'] ) );

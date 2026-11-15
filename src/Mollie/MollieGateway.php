@@ -121,14 +121,14 @@ final class MollieGateway implements GatewayInterface {
 	private static function remember( $payment_id, array $order ) {
 		global $wpdb;
 		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', (string) $payment_id ) ) { return; }
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_mollie_payments (payment_id,order_id,created_at) VALUES (%s,%d,%s)", $payment_id, (int) ( $order['order_id'] ?? 0 ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (payment_id,order_id,created_at) VALUES (%s,%d,%s)', $wpdb->prefix . 'wpcap_mollie_payments', $payment_id, (int) ( $order['order_id'] ?? 0 ), current_time( 'mysql', true ) ) );
 	}
 
 	/** Whether a payment id belongs to a Mollie order of this site. */
 	public static function known_payment( $payment_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_mollie_payments WHERE payment_id=%s UNION SELECT 1 FROM {$p}wpcap_orders WHERE payment_provider='mollie' AND provider_reference=%s LIMIT 1", $payment_id, $payment_id ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i WHERE payment_id=%s UNION SELECT 1 FROM %i WHERE payment_provider='mollie' AND provider_reference=%s LIMIT 1", $p . 'wpcap_mollie_payments', $payment_id, $p . 'wpcap_orders', $payment_id ) );
 	}
 
 	/**
@@ -220,7 +220,7 @@ final class MollieGateway implements GatewayInterface {
 			'currency' => $currency,
 		);
 		if ( 'paid' === $status ) {
-			$order = '' !== $public_id ? $wpdb->get_row( $wpdb->prepare( "SELECT payment_status FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='mollie'", $public_id ) ) : null;
+			$order = '' !== $public_id ? $wpdb->get_row( $wpdb->prepare( "SELECT payment_status FROM %i WHERE public_id=%s AND payment_provider='mollie'", $wpdb->prefix . 'wpcap_orders', $public_id ) ) : null;
 			$external = self::external_refunded_minor( $payment, $currency );
 			$chargeback = self::charged_back_minor( $payment, $currency );
 			if ( $order && 'pending' !== $order->payment_status && $chargeback > 0 ) {

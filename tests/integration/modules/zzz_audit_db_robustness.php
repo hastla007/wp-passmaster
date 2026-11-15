@@ -39,7 +39,7 @@ final class Audit_Fault_WPDB {
 	/** null = run it, false = injected error, 0 = injected silent no-op. */
 	private function intercept( $sql ) {
 		foreach ( $this->rules as $i => $rule ) {
-			if ( $rule['times'] <= 0 || ! preg_match( $rule['pattern'], (string) $sql ) ) { continue; }
+			if ( $rule['times'] <= 0 || ! preg_match( $rule['pattern'], str_replace( '`', '', (string) $sql ) ) ) { continue; }
 			if ( $rule['skip'] > 0 ) { $this->rules[ $i ]['skip']--; return null; }
 			$this->rules[ $i ]['times']--;
 			if ( $rule['silent'] ) { $this->inner->last_error = ''; return 0; }

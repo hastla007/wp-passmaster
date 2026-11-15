@@ -97,7 +97,7 @@ final class Ics {
 	public static function entry_from_row( $row ) {
 		$start = (int) strtotime( $row->starts_at . ' UTC' );
 		$end = ! empty( $row->ends_at ) ? (int) strtotime( $row->ends_at . ' UTC' ) : $start + (int) apply_filters( 'wpcap_calendar_default_duration', 2 * HOUR_IN_SECONDS, $row );
-		$description = trim( preg_replace( '/\s+/u', ' ', strip_tags( (string) ( $row->event_description ?? '' ) ) ) );
+		$description = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) ( $row->event_description ?? '' ) ) ) );
 		if ( function_exists( 'mb_substr' ) && mb_strlen( $description ) > 500 ) { $description = mb_substr( $description, 0, 497 ) . '...'; }
 		$url = self::checkout_url( (int) $row->occurrence_id );
 		return array(
@@ -124,7 +124,7 @@ final class Ics {
 	public static function published_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND e.status='published'", absint( $occurrence_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND e.status='published'", $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
 	}
 
 	/** iCalendar for one occurrence or null when it is not public. */
@@ -137,9 +137,9 @@ final class Ics {
 	public static function event_feed( $event_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name FROM {$p}wpcap_events WHERE event_id=%d AND status='published'", absint( $event_id ) ) );
+		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name FROM %i WHERE event_id=%d AND status='published'", $p . 'wpcap_events', absint( $event_id ) ) );
 		if ( ! $event ) { return null; }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id=%d AND o.starts_at>=%s ORDER BY o.starts_at LIMIT 500", (int) $event->event_id, gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.event_id=%d AND o.starts_at>=%s ORDER BY o.starts_at LIMIT 500', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) $event->event_id, gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
 		return self::build( array_map( array( __CLASS__, 'entry_from_row' ), $rows ), array( 'name' => $event->name ) );
 	}
 

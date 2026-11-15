@@ -95,7 +95,7 @@ final class Page {
 			echo ' <a class="button" href="' . esc_url( Exports::url( $type_id, $filters ) ) . '">' . esc_html( $type['label'] ) . '</a>';
 		}
 		echo '</p></form>';
-		echo '<p class="description">' . esc_html( sprintf( __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'pass-captain' ), $report['timezone'] ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( /* translators: %s: time zone name */ __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'pass-captain' ), $report['timezone'] ) ) . '</p>';
 
 		$t = $report['total'];
 		echo '<table class="widefat" style="max-width:52rem"><tbody>';
@@ -146,7 +146,7 @@ final class Page {
 
 		$labels = array( 'event' => __( 'Event', 'pass-captain' ), 'occurrence' => __( 'Termin', 'pass-captain' ), 'ticket_type' => __( 'Ticketart', 'pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'pass-captain' ) );
 		foreach ( $labels as $dim => $label ) {
-			echo '<h2>' . esc_html( sprintf( __( 'Umsatz nach %s', 'pass-captain' ), $label ) ) . '</h2>';
+			echo '<h2>' . esc_html( sprintf( /* translators: %s: report dimension (e.g. event, ticket type) */ __( 'Umsatz nach %s', 'pass-captain' ), $label ) ) . '</h2>';
 			self::table( $label, $report['dimensions'][ $dim ], $money );
 		}
 		echo '<h2>' . esc_html__( 'Umsatzsteuer nach Satz', 'pass-captain' ) . '</h2>';

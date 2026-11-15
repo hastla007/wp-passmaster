@@ -117,7 +117,7 @@ final class Checkin {
 			$policy = Policies::for_type( $found['ticket_type_id'] );
 			if ( $policy ) {
 				global $wpdb;
-				$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_admission_state WHERE ticket_id=%d", $found['ticket_id'] ) );
+				$state = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_admission_state', $found['ticket_id'] ) );
 				$blocked = Engine::evaluate_in( $policy, $found, $state, $at );
 				if ( $blocked ) { $status = $blocked; }
 			} else {
@@ -148,7 +148,7 @@ final class Checkin {
 		$key = self::key_hash( $context );
 		$at = self::eval_time( $context );
 		if ( $key ) {
-			$previous = $wpdb->get_row( $wpdb->prepare( "SELECT c.checkin_id,c.result,c.ticket_id FROM {$p}wpcap_checkins c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1", $user_id, $key ) );
+			$previous = $wpdb->get_row( $wpdb->prepare( 'SELECT c.checkin_id,c.result,c.ticket_id FROM %i c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1', $p . 'wpcap_checkins', $user_id, $key ) );
 			if ( ! $previous && '' !== (string) $wpdb->last_error ) { return self::retry_error(); }
 			if ( $previous ) {
 				$found = self::lookup( $code, null, false );
@@ -167,7 +167,7 @@ final class Checkin {
 		$log = self::logger( $found, $context, $key, $user_id );
 
 		$wpdb->query( 'START TRANSACTION' );
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
+		$ticket = $wpdb->get_row( $wpdb->prepare( 'SELECT ticket_id,status FROM %i WHERE ticket_id=%d FOR UPDATE', $p . 'wpcap_tickets', $found['ticket_id'] ) );
 		if ( '' !== $wpdb->last_error ) { return self::abort(); }
 		$reentry = $ticket && 'checked_in' === $ticket->status ? self::reentry_block( $found, $at ) : null;
 		if ( null !== $reentry ) {
@@ -206,17 +206,17 @@ final class Checkin {
 			// Legacy per-occurrence day rules.
 			$service_date = Engine::service_date( $at, $found['timezone'], $found );
 			$day_table = "{$p}wpcap_occurrence_days";
-			$day = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id,admission_policy,max_entries FROM $day_table WHERE occurrence_id=%d AND service_date=%s", $found['occurrence_id'], $service_date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$day = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_day_id,admission_policy,max_entries FROM %i WHERE occurrence_id=%d AND service_date=%s', $day_table, $found['occurrence_id'], $service_date ) );
 			if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
-			$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $day_table WHERE occurrence_id=%d", $found['occurrence_id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d', $day_table, $found['occurrence_id'] ) );
 			if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 			$repeatable = $day && in_array( $day->admission_policy, array( 'daily', 'reentry' ), true );
 			$day_id = $day ? (int) $day->occurrence_day_id : 0;
 			$blocked = Engine::default_window_block( $found, $at );
 			if ( ! $blocked && $has_day_rules && ! $day ) { $blocked = 'not_valid_today'; }
 			if ( ! $blocked && $repeatable ) {
-				$entries_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='checked_in'", $ticket->ticket_id, $day->occurrence_day_id ) );
-				$undone_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='undone'", $ticket->ticket_id, $day->occurrence_day_id ) );
+				$entries_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND occurrence_day_id=%d AND result='checked_in'", $p . 'wpcap_checkins', $ticket->ticket_id, $day->occurrence_day_id ) );
+				$undone_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND occurrence_day_id=%d AND result='undone'", $p . 'wpcap_checkins', $ticket->ticket_id, $day->occurrence_day_id ) );
 				if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 				if ( $entries_today - $undone_today >= (int) $day->max_entries ) { $blocked = 'daily_limit_reached'; }
 			}
@@ -269,7 +269,7 @@ final class Checkin {
 		$found = self::lookup( $code, $at, false );
 		if ( is_wp_error( $found ) ) { return $found; }
 		if ( $key ) {
-			$previous = $wpdb->get_row( $wpdb->prepare( "SELECT c.checkin_id,c.result,c.ticket_id FROM {$p}wpcap_checkins c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1", $user_id, $key ) );
+			$previous = $wpdb->get_row( $wpdb->prepare( 'SELECT c.checkin_id,c.result,c.ticket_id FROM %i c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1', $p . 'wpcap_checkins', $user_id, $key ) );
 			if ( $previous && (int) $previous->ticket_id === (int) $found['ticket_id'] ) {
 				return 'checked_out' === $previous->result
 					? array_merge( self::public_view( $found, 'checked_out' ), array( 'status' => 'checked_out', 'replayed' => true ) )
@@ -281,7 +281,7 @@ final class Checkin {
 		if ( $denied ) { return $denied; }
 		$log = self::logger( $found, $context, $key, $user_id );
 		$wpdb->query( 'START TRANSACTION' );
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
+		$ticket = $wpdb->get_row( $wpdb->prepare( 'SELECT ticket_id,status FROM %i WHERE ticket_id=%d FOR UPDATE', $p . 'wpcap_tickets', $found['ticket_id'] ) );
 		if ( '' !== $wpdb->last_error ) { return self::abort(); }
 		$state = Engine::state_for_update( $found['ticket_id'] );
 		if ( false === $state ) { return self::abort(); }
@@ -309,7 +309,7 @@ final class Checkin {
 		if ( ! Security\Policy::get( 'reentry_after_checkout' ) || Policies::for_type( $found['ticket_type_id'] ) ) { return null; }
 		global $wpdb;
 		// A refunded ticket keeps status checked_in as history but never grants another entry.
-		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT refunded FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", (int) $found['ticket_id'] ) ) ) { return null; }
+		if ( (int) $wpdb->get_var( $wpdb->prepare( 'SELECT refunded FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', (int) $found['ticket_id'] ) ) ) { return null; }
 		$state = Engine::state_for_update( $found['ticket_id'] );
 		if ( ! $state || (int) $state->inside || empty( $state->last_out_at ) ) { return null; }
 		$max = (int) Security\Policy::get( 'max_reentries' );

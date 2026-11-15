@@ -95,7 +95,7 @@ final class Settlements {
 		$lines = array();
 		if ( $events ) {
 			$in = implode( ',', array_map( 'absint', $events ) );
-			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( "SELECT source_key FROM {$p}wpcap_partner_settlement_lines WHERE partner_id=%d AND source_key IS NOT NULL", (int) $partner->partner_id ) ) );
+			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( 'SELECT source_key FROM %i WHERE partner_id=%d AND source_key IS NOT NULL', $p . 'wpcap_partner_settlement_lines', (int) $partner->partner_id ) ) );
 			$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 			$has_partner_item = "EXISTS (SELECT 1 FROM {$p}wpcap_order_items x INNER JOIN {$p}wpcap_ticket_types xt ON xt.ticket_type_id=x.ticket_type_id INNER JOIN {$p}wpcap_occurrences xo ON xo.occurrence_id=xt.occurrence_id WHERE x.order_id=ord.order_id AND xo.event_id IN ($in))";
 			$lower_sql = '' !== $lower ? $wpdb->prepare( ' AND ord.created_at >= %s', $lower ) : '';
@@ -182,7 +182,7 @@ final class Settlements {
 		$weights = array();
 		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
 		if ( $ids ) {
-			foreach ( $wpdb->get_col( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN (" . implode( ',', $ids ) . ')' ) as $type_id ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_tickets' ), $ids ) ) ) as $type_id ) {
 				$i = $by_type[ (int) $type_id ] ?? null;
 				if ( null === $i ) { continue; }
 				$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
@@ -302,12 +302,12 @@ final class Settlements {
 
 	public static function get( $settlement_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partner_settlements WHERE settlement_id=%d", absint( $settlement_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE settlement_id=%d', $wpdb->prefix . 'wpcap_partner_settlements', absint( $settlement_id ) ) );
 	}
 
 	public static function lines( $settlement_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partner_settlement_lines WHERE settlement_id=%d ORDER BY occurred_at,line_id", absint( $settlement_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE settlement_id=%d ORDER BY occurred_at,line_id', $wpdb->prefix . 'wpcap_partner_settlement_lines', absint( $settlement_id ) ) );
 	}
 
 	/**
@@ -319,17 +319,22 @@ final class Settlements {
 	public static function query( $partner_ids = null, $statuses = null, $limit = 200 ) {
 		global $wpdb;
 		$where = '1=1';
+		$args = array( $wpdb->prefix . 'wpcap_partner_settlements', $wpdb->prefix . 'wpcap_partners' );
 		if ( null !== $partner_ids ) {
-			$partner_ids = array_filter( array_map( 'absint', (array) $partner_ids ) );
+			$partner_ids = array_values( array_filter( array_map( 'absint', (array) $partner_ids ) ) );
 			if ( ! $partner_ids ) { return array(); }
-			$where .= ' AND s.partner_id IN (' . implode( ',', $partner_ids ) . ')';
+			$where .= ' AND s.partner_id IN (' . implode( ',', array_fill( 0, count( $partner_ids ), '%d' ) ) . ')';
+			$args = array_merge( $args, $partner_ids );
 		}
 		if ( null !== $statuses ) {
 			$statuses = array_values( array_intersect( self::STATUSES, (array) $statuses ) );
 			if ( ! $statuses ) { return array(); }
-			$where .= " AND s.status IN ('" . implode( "','", $statuses ) . "')";
+			$where .= ' AND s.status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')';
+			$args = array_merge( $args, $statuses );
 		}
-		return $wpdb->get_results( "SELECT s.*,pa.name AS partner_name FROM {$wpdb->prefix}wpcap_partner_settlements s INNER JOIN {$wpdb->prefix}wpcap_partners pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT " . max( 1, (int) $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- whitelisted values.
+		$args[] = max( 1, (int) $limit );
+		// $where: literal conditions with placeholders for every value ($args).
+		return $wpdb->get_results( $wpdb->prepare( "SELECT s.*,pa.name AS partner_name FROM %i s INNER JOIN %i pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT %d", $args ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
 	}
 
 	/** Creates a draft for a partner and month. */
@@ -340,7 +345,7 @@ final class Settlements {
 		if ( ! self::valid_period( $period ) ) { return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'pass-captain' ), array( 'status' => 400 ) ); }
 		list( $start, $end ) = self::period_bounds( $period );
 		if ( $start > current_time( 'mysql', true ) ) { return new \WP_Error( 'wpcap_settlement_future', __( 'Für zukünftige Zeiträume kann keine Abrechnung erstellt werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$latest = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(period) FROM {$wpdb->prefix}wpcap_partner_settlements WHERE partner_id=%d AND status IN ('finalized','paid')", (int) $partner->partner_id ) );
+		$latest = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(period) FROM %i WHERE partner_id=%d AND status IN ('finalized','paid')", $wpdb->prefix . 'wpcap_partner_settlements', (int) $partner->partner_id ) );
 		if ( '' !== $latest && $period <= $latest ) {
 			/* translators: %s: period */
 			return new \WP_Error( 'wpcap_settlement_order', sprintf( __( 'Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet.', 'pass-captain' ), $latest ), array( 'status' => 409 ) );
@@ -385,7 +390,7 @@ final class Settlements {
 	private static function store( $s, array $result, $partner ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_partner_settlement_lines WHERE settlement_id=%d", (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE settlement_id=%d', $p . 'wpcap_partner_settlement_lines', (int) $s->settlement_id ) );
 		foreach ( $result['lines'] as $line ) {
 			$wpdb->insert( "{$p}wpcap_partner_settlement_lines", array_merge( $line, array( 'settlement_id' => (int) $s->settlement_id, 'partner_id' => (int) $s->partner_id, 'event_name' => substr( $line['event_name'], 0, 190 ) ) ) );
 		}
@@ -421,12 +426,12 @@ final class Settlements {
 		$p = $wpdb->prefix;
 		$settlement_id = absint( $settlement_id );
 		$wpdb->query( 'START TRANSACTION' );
-		$s = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_partner_settlements WHERE settlement_id=%d FOR UPDATE", $settlement_id ) );
+		$s = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE settlement_id=%d FOR UPDATE', $p . 'wpcap_partner_settlements', $settlement_id ) );
 		$fail = static function ( $error ) use ( $wpdb ) { $wpdb->query( 'ROLLBACK' ); return $error; };
 		if ( ! $s ) { return $fail( new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ) ); }
 		if ( 'draft' !== $s->status ) { return $fail( self::immutable_error() ); }
 		if ( $s->period_end > current_time( 'mysql', true ) ) { return $fail( new \WP_Error( 'wpcap_settlement_open_period', __( 'Der Abrechnungszeitraum ist noch nicht beendet.', 'pass-captain' ), array( 'status' => 409 ) ) ); }
-		if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_partner_settlements WHERE partner_id=%d AND status='draft' AND period < %s LIMIT 1", (int) $s->partner_id, $s->period ) ) ) {
+		if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i WHERE partner_id=%d AND status='draft' AND period < %s LIMIT 1", $p . 'wpcap_partner_settlements', (int) $s->partner_id, $s->period ) ) ) {
 			return $fail( new \WP_Error( 'wpcap_settlement_order', __( 'Bitte zuerst die Entwürfe früherer Zeiträume abschließen oder löschen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$partner = Repository::get( $s->partner_id );
@@ -449,7 +454,7 @@ final class Settlements {
 			if ( is_wp_error( $self_billing_number ) ) { return $fail( $self_billing_number ); }
 		}
 		// Locks every line: the unique (partner_id, source_key) index rejects items settled elsewhere.
-		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlement_lines SET source_key=item_key WHERE settlement_id=%d", $settlement_id ) ) ) {
+		if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET source_key=item_key WHERE settlement_id=%d', $p . 'wpcap_partner_settlement_lines', $settlement_id ) ) ) {
 			return $fail( new \WP_Error( 'wpcap_settlement_conflict', __( 'Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$snapshot = array(
@@ -477,7 +482,7 @@ final class Settlements {
 		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'finalized' !== $s->status ) { return new \WP_Error( 'wpcap_settlement_state', __( 'Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partner_settlements SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $now, substr( sanitize_text_field( (string) $reference ), 0, 190 ), $now, (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $wpdb->prefix . 'wpcap_partner_settlements', $now, substr( sanitize_text_field( (string) $reference ), 0, 190 ), $now, (int) $s->settlement_id ) );
 		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => substr( sanitize_text_field( (string) $reference ), 0, 190 ) ) );
 		return self::get( $settlement_id );
 	}
@@ -488,8 +493,8 @@ final class Settlements {
 		$s = self::get( $settlement_id );
 		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'draft' !== $s->status ) { return self::immutable_error(); }
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_settlement_lines WHERE settlement_id=%d", (int) $s->settlement_id ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_settlements WHERE settlement_id=%d AND status='draft'", (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE settlement_id=%d', $wpdb->prefix . 'wpcap_partner_settlement_lines', (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE settlement_id=%d AND status='draft'", $wpdb->prefix . 'wpcap_partner_settlements', (int) $s->settlement_id ) );
 		Audit::record( 'partner_settlement_deleted', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'period' => $s->period ) );
 		return array( 'deleted' => (int) $s->settlement_id );
 	}

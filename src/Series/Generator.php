@@ -62,7 +62,7 @@ final class Generator {
 	public static function definition( array $in ) {
 		global $wpdb;
 		$event_id = absint( $in['event_id'] ?? 0 );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id,status FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $event_id ) );
 		if ( ! $event ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		if ( 'cancelled' === $event->status ) { return self::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'pass-captain' ), 409 ); }
@@ -70,7 +70,7 @@ final class Generator {
 		if ( is_wp_error( $rule ) ) { return $rule; }
 		$template_id = absint( $in['template_occurrence_id'] ?? 0 );
 		if ( $template_id ) {
-			$template = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $template_id ) );
+			$template = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $template_id ) );
 			if ( ! $template || (int) $template->event_id !== $event_id ) { return self::error( 'wpcap_series_template', __( 'Der Vorlagentermin gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$sales_start = self::optional_int( $in['sales_start_days_before'] ?? '' );
@@ -80,7 +80,7 @@ final class Generator {
 		}
 		$seat_version = absint( $in['seat_version_id'] ?? 0 );
 		if ( $seat_version ) {
-			$version_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_seating_versions WHERE version_id=%d", $seat_version ) );
+			$version_event = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE version_id=%d', $wpdb->prefix . 'wpcap_seating_versions', $seat_version ) );
 			if ( $version_event !== $event_id ) { return self::error( 'wpcap_series_seat_map', __( 'Die Saalplan-Version gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$definition = array(
@@ -121,8 +121,13 @@ final class Generator {
 	private static function existing_starts( $event_id, array $items, $lock = false ) {
 		global $wpdb;
 		if ( ! $items ) { return array(); }
-		$starts = array_map( static function ( $item ) use ( $wpdb ) { return $wpdb->prepare( '%s', $item['starts_at'] ); }, $items );
-		$rows = $wpdb->get_col( $wpdb->prepare( "SELECT starts_at FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND starts_at IN (" . implode( ',', $starts ) . ')' . ( $lock ? ' FOR UPDATE' : '' ), $event_id ) );
+		$starts = array_values( array_map( static function ( $item ) { return (string) $item['starts_at']; }, $items ) );
+		$table = $wpdb->prefix . 'wpcap_occurrences';
+		if ( $lock ) {
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ') FOR UPDATE', array_merge( array( $table, $event_id ), $starts ) ) );
+		} else {
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ')', array_merge( array( $table, $event_id ), $starts ) ) );
+		}
 		return array_flip( $rows );
 	}
 
@@ -143,8 +148,8 @@ final class Generator {
 		$template = null;
 		$types = array();
 		if ( $definition['template_occurrence_id'] ) {
-			$template = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $definition['template_occurrence_id'] ) );
-			$types = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d AND status<>'archived' ORDER BY ticket_type_id", $definition['template_occurrence_id'] ) );
+			$template = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', $definition['template_occurrence_id'] ) );
+			$types = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id=%d AND status<>'archived' ORDER BY ticket_type_id", $p . 'wpcap_ticket_types', $definition['template_occurrence_id'] ) );
 		}
 		$hash_source = $definition;
 		unset( $hash_source['name'] );
@@ -156,8 +161,8 @@ final class Generator {
 		$wpdb->query( 'START TRANSACTION' );
 		try {
 			// Serialises concurrent runs for the same event.
-			$wpdb->query( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE event_id=%d FOR UPDATE", $definition['event_id'] ) );
-			$series_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT series_id FROM {$p}wpcap_series WHERE event_id=%d AND definition_hash=%s", $definition['event_id'], $hash ) );
+			$wpdb->query( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d FOR UPDATE', $p . 'wpcap_events', $definition['event_id'] ) );
+			$series_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT series_id FROM %i WHERE event_id=%d AND definition_hash=%s', $p . 'wpcap_series', $definition['event_id'], $hash ) );
 			if ( ! $series_id ) {
 				$ok = $wpdb->insert( "{$p}wpcap_series", array( 'event_id' => $definition['event_id'], 'name' => $definition['name'], 'template_occurrence_id' => $definition['template_occurrence_id'], 'definition' => wp_json_encode( $definition ), 'definition_hash' => $hash, 'created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now ) );
 				$series_id = (int) $wpdb->insert_id;
@@ -200,7 +205,7 @@ final class Generator {
 				$wpdb->insert( "{$p}wpcap_series_occurrences", array( 'series_id' => $series_id, 'occurrence_id' => $occurrence_id, 'starts_at' => $item['starts_at'], 'created_at' => $now ) );
 				$created[] = $occurrence_id;
 			}
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_series SET updated_at=%s WHERE series_id=%d", $now, $series_id ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET updated_at=%s WHERE series_id=%d', $p . 'wpcap_series', $now, $series_id ) );
 			$wpdb->query( 'COMMIT' );
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -281,6 +286,6 @@ final class Generator {
 	/** Stored series of an event. */
 	public static function for_event( $event_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT s.series_id,s.name,s.definition,s.created_at,s.updated_at,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_series_occurrences so WHERE so.series_id=s.series_id) AS occurrences FROM {$wpdb->prefix}wpcap_series s WHERE s.event_id=%d ORDER BY s.series_id DESC", absint( $event_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT s.series_id,s.name,s.definition,s.created_at,s.updated_at,(SELECT COUNT(*) FROM %i so WHERE so.series_id=s.series_id) AS occurrences FROM %i s WHERE s.event_id=%d ORDER BY s.series_id DESC', $wpdb->prefix . 'wpcap_series_occurrences', $wpdb->prefix . 'wpcap_series', absint( $event_id ) ) );
 	}
 }

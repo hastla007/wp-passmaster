@@ -232,11 +232,11 @@ final class Vault {
 	private static function migrate_webhook_secrets() {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_webhook_subscriptions';
-		$column = $wpdb->get_row( $wpdb->prepare( "SHOW COLUMNS FROM $table LIKE %s", 'secret' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$column = $wpdb->get_row( $wpdb->prepare( 'SHOW COLUMNS FROM %i LIKE %s', $table, 'secret' ) );
 		// Only once the column is wide enough for ciphertext (schema upgrade); never truncate a secret.
 		if ( ! $column || ! preg_match( '/\((\d+)\)/', (string) ( $column->Type ?? '' ), $m ) || (int) $m[1] < 200 ) { return 0; } // phpcs:ignore WordPress.NamingConventions.ValidVariableName
 		$count = 0;
-		foreach ( (array) $wpdb->get_results( "SELECT subscription_id,secret FROM $table" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT subscription_id,secret FROM %i', $table ) ) as $row ) {
 			$plain = self::plain_for_reencrypt( (string) $row->secret, 'webhook_secret' );
 			if ( null === $plain || '' === $plain ) { continue; }
 			$wpdb->update( $table, array( 'secret' => self::encrypt( $plain, 'webhook_secret' ) ), array( 'subscription_id' => (int) $row->subscription_id ) );

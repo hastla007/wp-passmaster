@@ -224,7 +224,7 @@ final class AdminPage {
 			submit_button( $link ? __( 'Verknüpfung aktualisieren', 'pass-captain' ) : __( 'Verknüpfen', 'pass-captain' ), 'secondary', 'submit', false );
 			echo '</form>';
 			if ( $link ) {
-				$claimed = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Layouts::table( 'claims' ) . ' WHERE occurrence_id=%d AND active_key IS NOT NULL', (int) $occurrence->occurrence_id ) );
+				$claimed = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d AND active_key IS NOT NULL', Layouts::table( 'claims' ), (int) $occurrence->occurrence_id ) );
 				/* translators: %d: seats */
 				echo '<p>' . esc_html( sprintf( __( 'Verknüpft · %d Plätze reserviert/verkauft', 'pass-captain' ), $claimed ) ) . '</p>';
 				if ( ! $claimed ) {

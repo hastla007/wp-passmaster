@@ -98,13 +98,13 @@ final class Diagnostics {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$cutoff = self::gmt( self::HOLD_GRACE );
-		$reservations = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE status='active' AND expires_at<%s", $cutoff ) );
-		$seat_holds = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_seat_holds WHERE status='active' AND expires_at<%s", $cutoff ) );
-		$orders_sql = "FROM {$p}wpcap_orders ord WHERE ord.payment_status='pending' AND ord.created_at<%s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>=%s)";
-		$orders = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) $orders_sql", $cutoff, $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$samples = $wpdb->get_results( $wpdb->prepare( "SELECT r.reservation_id, r.order_id, r.ticket_type_id, r.quantity, r.expires_at FROM {$p}wpcap_reservations r WHERE r.status='active' AND r.expires_at<%s ORDER BY r.expires_at LIMIT %d", $cutoff, self::SAMPLES ) );
+		$reservations = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<%s", $p . 'wpcap_reservations', $cutoff ) );
+		$seat_holds = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<%s", $p . 'wpcap_seat_holds', $cutoff ) );
+		// Pending orders past the grace period without an active reservation.
+		$orders = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i ord WHERE ord.payment_status='pending' AND ord.created_at<%s AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>=%s)", $p . 'wpcap_orders', $cutoff, $p . 'wpcap_reservations', $cutoff ) );
+		$samples = $wpdb->get_results( $wpdb->prepare( "SELECT r.reservation_id, r.order_id, r.ticket_type_id, r.quantity, r.expires_at FROM %i r WHERE r.status='active' AND r.expires_at<%s ORDER BY r.expires_at LIMIT %d", $p . 'wpcap_reservations', $cutoff, self::SAMPLES ) );
 		if ( ! $samples ) {
-			$samples = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id, ord.created_at $orders_sql ORDER BY ord.order_id LIMIT %d", $cutoff, $cutoff, self::SAMPLES ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$samples = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id, ord.created_at FROM %i ord WHERE ord.payment_status='pending' AND ord.created_at<%s AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>=%s) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders', $cutoff, $p . 'wpcap_reservations', $cutoff, self::SAMPLES ) );
 		}
 		return array(
 			$reservations + $seat_holds + $orders,
@@ -120,12 +120,12 @@ final class Diagnostics {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		return (array) $wpdb->get_results( $wpdb->prepare(
-			"SELECT ord.order_id, ord.public_id, ord.updated_at, SUM(GREATEST(0, CAST(oi.qty AS SIGNED) - COALESCE(t.n,0))) AS missing
-			FROM {$p}wpcap_orders ord
-			INNER JOIN (SELECT order_id, ticket_type_id, SUM(quantity) AS qty FROM {$p}wpcap_order_items GROUP BY order_id, ticket_type_id) oi ON oi.order_id=ord.order_id
-			LEFT JOIN (SELECT order_id, ticket_type_id, COUNT(*) AS n FROM {$p}wpcap_tickets GROUP BY order_id, ticket_type_id) t ON t.order_id=oi.order_id AND t.ticket_type_id=oi.ticket_type_id
-			WHERE ord.payment_status='paid' AND ord.updated_at<%s
-			GROUP BY ord.order_id, ord.public_id, ord.updated_at HAVING missing>0 ORDER BY ord.order_id LIMIT %d",
+			'SELECT ord.order_id, ord.public_id, ord.updated_at, SUM(GREATEST(0, CAST(oi.qty AS SIGNED) - COALESCE(t.n,0))) AS missing
+			FROM %i ord
+			INNER JOIN (SELECT order_id, ticket_type_id, SUM(quantity) AS qty FROM %i GROUP BY order_id, ticket_type_id) oi ON oi.order_id=ord.order_id
+			LEFT JOIN (SELECT order_id, ticket_type_id, COUNT(*) AS n FROM %i GROUP BY order_id, ticket_type_id) t ON t.order_id=oi.order_id AND t.ticket_type_id=oi.ticket_type_id
+			WHERE ord.payment_status=\'paid\' AND ord.updated_at<%s
+			GROUP BY ord.order_id, ord.public_id, ord.updated_at HAVING missing>0 ORDER BY ord.order_id LIMIT %d', $p . 'wpcap_orders', $p . 'wpcap_order_items', $p . 'wpcap_tickets',
 			self::gmt( self::ISSUE_GRACE ),
 			max( 1, (int) $limit )
 		) );
@@ -149,7 +149,7 @@ final class Diagnostics {
 	/** Several completed/processing refunds share one real provider reference. */
 	public static function check_duplicate_refunds() {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT provider_reference, COUNT(*) AS refunds, GROUP_CONCAT(refund_id ORDER BY refund_id) AS refund_ids, GROUP_CONCAT(DISTINCT order_id) AS order_ids, SUM(amount_minor) AS amount_minor FROM {$wpdb->prefix}wpcap_refunds WHERE status IN ('completed','processing') AND provider_reference NOT IN ('','manual','external') GROUP BY provider_reference HAVING COUNT(*)>1 ORDER BY MIN(refund_id) LIMIT %d", 1000 ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT provider_reference, COUNT(*) AS refunds, GROUP_CONCAT(refund_id ORDER BY refund_id) AS refund_ids, GROUP_CONCAT(DISTINCT order_id) AS order_ids, SUM(amount_minor) AS amount_minor FROM %i WHERE status IN ('completed','processing') AND provider_reference NOT IN ('','manual','external') GROUP BY provider_reference HAVING COUNT(*)>1 ORDER BY MIN(refund_id) LIMIT %d", $wpdb->prefix . 'wpcap_refunds', 1000 ) );
 		return array( count( (array) $rows ), $rows, 'error', __( 'Mehrere Erstattungen verweisen auf dieselbe Rückzahlung beim Zahlungsanbieter. Beim Anbieter prüfen, ob doppelt ausgezahlt wurde, und die Buchungen manuell korrigieren.', 'pass-captain' ) );
 	}
 
@@ -168,14 +168,14 @@ final class Diagnostics {
 
 	public static function check_unbooked_refunds() {
 		global $wpdb;
-		$samples = $wpdb->get_results( $wpdb->prepare( "SELECT refund_id, order_id, amount_minor, currency, provider_reference, updated_at FROM {$wpdb->prefix}wpcap_refunds WHERE status='processing' AND provider_reference<>'' ORDER BY refund_id LIMIT %d", self::SAMPLES ) );
+		$samples = $wpdb->get_results( $wpdb->prepare( "SELECT refund_id, order_id, amount_minor, currency, provider_reference, updated_at FROM %i WHERE status='processing' AND provider_reference<>'' ORDER BY refund_id LIMIT %d", $wpdb->prefix . 'wpcap_refunds', self::SAMPLES ) );
 		return array( Refunds::unbooked_count(), $samples, 'error', __( 'Der Zahlungsanbieter hat ausgezahlt, die lokale Verbuchung fehlt. Reparatur verbucht sie (ohne erneuten Anbieteraufruf).', 'pass-captain' ) );
 	}
 
 	/** Rows of refunds stuck in processing without provider reference (manual review). */
 	public static function stuck_refunds( $limit = 50 ) {
 		global $wpdb;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id, order_id, amount_minor, currency, reason, error_message, updated_at FROM {$wpdb->prefix}wpcap_refunds WHERE status='processing' AND provider_reference='' AND updated_at<%s ORDER BY refund_id LIMIT %d", self::gmt( Status::STALE_CLAIM_AFTER ), max( 1, absint( $limit ) ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id, order_id, amount_minor, currency, reason, error_message, updated_at FROM %i WHERE status='processing' AND provider_reference='' AND updated_at<%s ORDER BY refund_id LIMIT %d", $wpdb->prefix . 'wpcap_refunds', self::gmt( Status::STALE_CLAIM_AFTER ), max( 1, absint( $limit ) ) ) );
 	}
 
 	public static function check_stuck_refunds() {
@@ -218,8 +218,8 @@ final class Diagnostics {
 
 	public static function repair_expired_holds() {
 		global $wpdb;
-		$released = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_seat_holds SET status='expired' WHERE status='active' AND expires_at<=%s", current_time( 'mysql', true ) ) );
-		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_reservations WHERE status='active' AND expires_at<=%s", current_time( 'mysql', true ) ) );
+		$released = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_seat_holds', current_time( 'mysql', true ) ) );
+		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_reservations', current_time( 'mysql', true ) ) );
 		$total = 0;
 		do {
 			$expired = (int) Orders::expire_holds( 500 );
@@ -234,7 +234,7 @@ final class Diagnostics {
 		$queued = 0;
 		foreach ( self::orders_missing_tickets( 500 ) as $row ) {
 			$order_id = (int) $row->order_id;
-			$open = $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM {$wpdb->prefix}wpcap_jobs WHERE job_type=%s AND status IN ('queued','running') AND payload=%s LIMIT 1", Orders::ISSUE_JOB, wp_json_encode( array( 'order_id' => $order_id ) ) ) );
+			$open = $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM %i WHERE job_type=%s AND status IN ('queued','running') AND payload=%s LIMIT 1", $wpdb->prefix . 'wpcap_jobs', Orders::ISSUE_JOB, wp_json_encode( array( 'order_id' => $order_id ) ) ) );
 			if ( $open ) { continue; }
 			if ( true === Jobs::enqueue( 'diagnostics-ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi' ), Orders::ISSUE_JOB, array( 'order_id' => $order_id ) ) ) { ++$queued; }
 		}
@@ -249,7 +249,7 @@ final class Diagnostics {
 		foreach ( Status::queues() as $q ) {
 			if ( ! Status::table_exists( $q['table'] ) ) { continue; }
 			$t = $wpdb->prefix . $q['table'];
-			$requeued += (int) $wpdb->query( $wpdb->prepare( "UPDATE $t SET status=%s,locked_at=NULL WHERE status=%s AND locked_at<%s", $q['ready'], $q['claimed'], $stale ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+			$requeued += (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET status=%s,locked_at=NULL WHERE status=%s AND locked_at<%s', $t, $q['ready'], $q['claimed'], $stale ) );
 		}
 		return $requeued;
 	}

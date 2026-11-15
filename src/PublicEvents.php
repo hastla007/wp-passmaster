@@ -91,7 +91,7 @@ final class PublicEvents {
 	public static function render_shortcode() {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 50",
+			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 50", $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences',
 			current_time( 'mysql', true )
 		) );
 		wp_enqueue_script( 'wpcap-checkout' );
@@ -101,16 +101,16 @@ final class PublicEvents {
 		<div class="wpcap-events">
 			<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
 			<?php foreach ( $rows as $event ) :
-				$translation = $wpdb->get_row( $wpdb->prepare( "SELECT name,description,location FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id=%d AND locale=%s", $event->event_id, determine_locale() ) );
+				$translation = $wpdb->get_row( $wpdb->prepare( 'SELECT name,description,location FROM %i WHERE event_id=%d AND locale=%s', $wpdb->prefix . 'wpcap_event_translations', $event->event_id, determine_locale() ) );
 				if ( $translation ) {
 					$event->name = $translation->name;
 					$event->description = $translation->description;
 					$event->location = $translation->location ?: $event->location;
 				}
 				$now = current_time( 'mysql', true );
-				$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $event->occurrence_id, $now, $now ) );
+				$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM %i WHERE occurrence_id=%d AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $wpdb->prefix . 'wpcap_ticket_types', $event->occurrence_id, $now, $now ) );
 				if ( ! $types ) { continue; }
-				$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $event->occurrence_id ) );
+				$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $event->occurrence_id ) );
 				foreach ( $types as $type ) {
 					// Effective server-side price (e.g. series price tiers); the checkout charges the same.
 					$type->base_price_minor = (int) $type->price_minor;
@@ -120,7 +120,7 @@ final class PublicEvents {
 					$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
 					$type->available = Orders::availability( $type->ticket_type_id );
 					// Only field definitions are exposed (no answers); used to render attendee inputs.
-					$type->fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type->ticket_type_id ), ARRAY_A );
+					$type->fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type->ticket_type_id ), ARRAY_A );
 				}
 				$providers = Payments\Registry::enabled( $types[0]->currency );
 				$legal = array(

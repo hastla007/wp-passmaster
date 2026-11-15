@@ -34,18 +34,18 @@ final class Invoices {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d', $p . 'wpcap_orders', $order_id ) );
 		if ( ! $order || 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_invoice_order_unpaid', __( 'Eine Rechnung kann erst für bezahlte Bestellungen erstellt werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$p}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT invoice_id,invoice_number FROM %i WHERE order_id=%d LIMIT 1', $p . 'wpcap_invoices', $order_id ) );
 		if ( $existing ) { return array( 'invoice_id' => (int) $existing->invoice_id, 'invoice_number' => $existing->invoice_number, 'reused' => true ); }
-		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order_id ) );
+		$items = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name,e.name AS event_name,o.starts_at,o.timezone FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $order_id ) );
 		$order_subtotal = (int) $order->subtotal_minor ?: (int) $order->total_minor;
 		// Seller side (sales models, docs/SALES-MODELS.md): platform or organizer, refused for mixed sellers.
 		$seller_context = self::seller_context( $order_id, $items );
 		if ( is_wp_error( $seller_context ) ) { return $seller_context; }
 		$wpdb->query( 'START TRANSACTION' );
-		$locked_order = $wpdb->get_row( $wpdb->prepare( "SELECT payment_status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$p}wpcap_invoices WHERE order_id=%d", $order_id ) );
+		$locked_order = $wpdb->get_row( $wpdb->prepare( 'SELECT payment_status FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT invoice_id,invoice_number FROM %i WHERE order_id=%d', $p . 'wpcap_invoices', $order_id ) );
 		if ( $existing ) { $wpdb->query( 'COMMIT' ); return array( 'invoice_id' => (int) $existing->invoice_id, 'invoice_number' => $existing->invoice_number, 'reused' => true ); }
 		if ( ! $locked_order || 'paid' !== $locked_order->payment_status ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_order_unpaid', __( 'Die Bestellung ist nicht mehr als bezahlt markiert.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		// Reserve the number in the same transaction so a rollback never leaves a gap.
@@ -101,9 +101,9 @@ final class Invoices {
 		$p = $wpdb->prefix;
 		$refund = Refunds::get( $refund_id );
 		if ( ! $refund || 'completed' !== $refund['status'] ) { return null; }
-		$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,buyer_snapshot FROM {$p}wpcap_invoices WHERE order_id=%d", (int) $refund['order_id'] ) );
+		$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT invoice_id,buyer_snapshot FROM %i WHERE order_id=%d', $p . 'wpcap_invoices', (int) $refund['order_id'] ) );
 		if ( ! $invoice ) { return null; }
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE refund_id=%d', $p . 'wpcap_credit_notes', absint( $refund_id ) ), ARRAY_A );
 		if ( $existing ) { return $existing; }
 		$wpdb->query( 'START TRANSACTION' );
 		// Corrections follow the seller (and number range owner) of the corrected invoice.
@@ -125,12 +125,12 @@ final class Invoices {
 		if ( false === $saved ) {
 			$wpdb->query( 'ROLLBACK' );
 			// A concurrent call created it first.
-			return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
+			return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE refund_id=%d', $p . 'wpcap_credit_notes', absint( $refund_id ) ), ARRAY_A );
 		}
 		$wpdb->update( "{$p}wpcap_refunds", array( 'credit_note_number' => $number ), array( 'refund_id' => absint( $refund_id ) ) );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'credit_note_issued', 'invoice', (int) $invoice->invoice_id, array( 'refund_id' => absint( $refund_id ), 'number' => $number ) );
-		$credit_note = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
+		$credit_note = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE refund_id=%d', $p . 'wpcap_credit_notes', absint( $refund_id ) ), ARRAY_A );
 		if ( $credit_note ) {
 			Api\Invoices::created( (int) $credit_note['credit_note_id'], 'correction', array( 'invoice_id' => (int) $invoice->invoice_id, 'refund_id' => absint( $refund_id ), 'order_id' => (int) $refund['order_id'], 'number' => $number ) );
 		}
@@ -243,8 +243,8 @@ final class Invoices {
 		$year = $year ? absint( $year ) : self::local_year();
 		$table = $wpdb->prefix . 'wpcap_invoice_sequences';
 		if ( ! $in_transaction ) { $wpdb->query( 'START TRANSACTION' ); }
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (year,next_number) VALUES (%d,1)", $year ) );
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT next_number FROM $table WHERE year=%d FOR UPDATE", $year ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (year,next_number) VALUES (%d,1)', $table, $year ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT next_number FROM %i WHERE year=%d FOR UPDATE', $table, $year ) );
 		if ( ! $row ) { if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); } return new \WP_Error( 'wpcap_invoice_sequence', __( 'Rechnungsnummer konnte nicht reserviert werden.', 'pass-captain' ) ); }
 		$number = (int) $row->next_number;
 		$updated = $wpdb->update( $table, array( 'next_number' => $number + 1 ), array( 'year' => $year ), array( '%d' ), array( '%d' ) );
@@ -291,11 +291,11 @@ final class Invoices {
 			return new \WP_Error( 'wpcap_document_sequence', __( 'Belegnummer konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		};
 		if ( ! $in_transaction && false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
-		if ( false === $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (series,year,next_number) VALUES (%s,%d,1)", $series, $year ) ) ) { return $failed(); }
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT next_number FROM $table WHERE series=%s AND year=%d FOR UPDATE", $series, $year ) );
+		if ( false === $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (series,year,next_number) VALUES (%s,%d,1)', $table, $series, $year ) ) ) { return $failed(); }
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT next_number FROM %i WHERE series=%s AND year=%d FOR UPDATE', $table, $series, $year ) );
 		if ( ! $row ) { return $failed(); }
 		$number = (int) $row->next_number;
-		if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE $table SET next_number=%d WHERE series=%s AND year=%d AND next_number=%d", $number + 1, $series, $year, $number ) ) ) { return $failed(); }
+		if ( 1 !== (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET next_number=%d WHERE series=%s AND year=%d AND next_number=%d', $table, $number + 1, $series, $year, $number ) ) ) { return $failed(); }
 		if ( ! $in_transaction && false === $wpdb->query( 'COMMIT' ) ) { return $failed(); }
 		return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number );
 	}
@@ -308,10 +308,10 @@ final class Invoices {
 	public static function render_html( $invoice_id, array $link_context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_invoices WHERE invoice_id=%d", absint( $invoice_id ) ) );
+		$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d', $p . 'wpcap_invoices', absint( $invoice_id ) ) );
 		if ( ! $invoice ) { return ''; }
-		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_invoice_lines WHERE invoice_id=%d ORDER BY invoice_line_id", $invoice->invoice_id ) );
-		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d ORDER BY invoice_line_id', $p . 'wpcap_invoice_lines', $invoice->invoice_id ) );
+		$credits = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d ORDER BY credit_note_id', $p . 'wpcap_credit_notes', $invoice->invoice_id ) );
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
 		$seller = (array) ( $snapshot['seller'] ?? self::seller() );
 		$money = static function ( $minor ) use ( $invoice ) { return Localization::money_number( $minor, $invoice->currency ) . ' ' . $invoice->currency; };
@@ -351,7 +351,7 @@ final class Invoices {
 		$order_id = absint( $_GET['order_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view, capability and scope checked.
 		if ( ! self::can_view_order_finance( $order_id ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		global $wpdb;
-		$exists = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
+		$exists = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_invoices', $order_id ) );
 		// Viewing is read-only; creating a new invoice number is a state change and needs a nonce.
 		if ( ! $exists ) { check_admin_referer( 'wpcap_issue_invoice_' . $order_id ); }
 		$result = self::issue_for_order( $order_id );
@@ -364,12 +364,12 @@ final class Invoices {
 	/** Buyer view through the personal order link: ?wpcap_invoice=<public_id>&wpcap_access=<token> */
 	public static function maybe_render_customer_invoice() {
 		$public_id = sanitize_text_field( wp_unslash( $_GET['wpcap_invoice'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_GET['wpcap_access'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_GET['wpcap_access'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- reduced to hex characters.
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return; }
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
-		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", $order->order_id ) );
+		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', $order->order_id ) );
 		if ( ! $invoice_id ) { status_header( 404 ); exit; }
 		nocache_headers();
 		header( 'Referrer-Policy: no-referrer' );
@@ -384,8 +384,10 @@ final class Invoices {
 	public static function handle_export() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::FINANCE_CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		check_admin_referer( 'wpcap_export_accounting' );
-		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $_REQUEST['from'] ?? '' ) ) ? sanitize_text_field( wp_unslash( $_REQUEST['from'] ) ) : gmdate( 'Y-m-01' );
-		$to = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $_REQUEST['to'] ?? '' ) ) ? sanitize_text_field( wp_unslash( $_REQUEST['to'] ) ) : gmdate( 'Y-m-d' );
+		$from = sanitize_text_field( wp_unslash( $_REQUEST['from'] ?? '' ) );
+		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ? $from : gmdate( 'Y-m-01' );
+		$to = sanitize_text_field( wp_unslash( $_REQUEST['to'] ?? '' ) );
+		$to = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ? $to : gmdate( 'Y-m-d' );
 		$rows = self::export_rows( $from, $to );
 		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ) ) );
 		nocache_headers();
@@ -414,11 +416,11 @@ final class Invoices {
 		};
 		$money = static function ( $minor, $currency = 'EUR' ) { return Localization::money_decimal( (int) $minor, $currency ); };
 		$safe = static function ( $text ) { $text = (string) $text; return preg_match( '/^[=+\-@\t\r]/', $text ) ? "'" . $text : $text; };
-		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT i.invoice_number,i.issued_at,i.currency,i.buyer_snapshot,o.public_id,o.payment_provider,l.description,l.quantity,l.tax_rate,l.tax_minor,l.total_minor FROM {$p}wpcap_invoices i INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id INNER JOIN {$p}wpcap_invoice_lines l ON l.invoice_id=i.invoice_id WHERE i.issued_at >= %s AND i.issued_at < %s ORDER BY i.invoice_id,l.invoice_line_id", $from_utc, $to_utc ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT i.invoice_number,i.issued_at,i.currency,i.buyer_snapshot,o.public_id,o.payment_provider,l.description,l.quantity,l.tax_rate,l.tax_minor,l.total_minor FROM %i i INNER JOIN %i o ON o.order_id=i.order_id INNER JOIN %i l ON l.invoice_id=i.invoice_id WHERE i.issued_at >= %s AND i.issued_at < %s ORDER BY i.invoice_id,l.invoice_line_id', $p . 'wpcap_invoices', $p . 'wpcap_orders', $p . 'wpcap_invoice_lines', $from_utc, $to_utc ) );
 		foreach ( $lines as $l ) {
 			$rows[] = array( 'Rechnung', $l->invoice_number, substr( $l->issued_at, 0, 10 ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor, $l->currency ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor, $l->currency ), $money( (int) $l->total_minor, $l->currency ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
 		}
-		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id", $from_utc, $to_utc ) );
+		$credits = $wpdb->get_results( $wpdb->prepare( 'SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id INNER JOIN %i o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id', $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $p . 'wpcap_orders', $from_utc, $to_utc ) );
 		foreach ( $credits as $c ) {
 			$rows[] = array( 'Gutschrift', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( (int) $c->net_minor, $c->currency ), '', '-' . $money( (int) $c->tax_minor, $c->currency ), '-' . $money( (int) $c->total_minor, $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
 		}
@@ -429,7 +431,7 @@ final class Invoices {
 	private static function can_view_order_finance( $order_id ) {
 		if ( current_user_can( 'manage_options' ) || current_user_can( self::FINANCE_CAP ) ) { return true; }
 		global $wpdb;
-		$event_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) );
+		$event_ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT o.event_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $order_id ) ) );
 		if ( ! $event_ids ) { return false; }
 		foreach ( $event_ids as $event_id ) {
 			if ( ! Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return false; }

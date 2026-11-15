@@ -152,7 +152,7 @@ final class SalesModel {
 	public static function order_context( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT o.event_id, COALESCE(pe.partner_id,0) AS partner_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_partner_events pe ON pe.event_id=o.event_id WHERE oi.order_id=%d", absint( $order_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT DISTINCT o.event_id, COALESCE(pe.partner_id,0) AS partner_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i pe ON pe.event_id=o.event_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_partner_events', absint( $order_id ) ) );
 		$sellers = array();
 		$agents = array();
 		foreach ( (array) $rows as $row ) {

@@ -84,12 +84,12 @@ final class DeveloperKeys {
 		$parts = explode( '.', $provided, 2 );
 		$invalid = $denied( 'wpcap_api_key_invalid', __( 'API-Key ist ungültig, widerrufen oder abgelaufen.', 'pass-captain' ), 401 );
 		if ( 2 !== count( $parts ) || ! preg_match( '/^[a-f0-9]{12}$/', $parts[0] ) || ! preg_match( '/^[a-f0-9]{64}$/', $parts[1] ) ) { return $invalid; }
-		$key = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_api_keys WHERE public_prefix=%s AND revoked_at IS NULL", $parts[0] ) );
+		$key = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_prefix=%s AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_api_keys', $parts[0] ) );
 		if ( ! $key || ! hash_equals( $key->secret_hash, hash( 'sha256', $parts[1] ) ) || ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) ) { return $invalid; }
 		$event_id = absint( $event_id );
 		if ( (int) $key->event_id !== $event_id ) { return $denied( 'wpcap_api_key_event', __( 'Dieser API-Key gilt nicht für dieses Event.', 'pass-captain' ), 403 ); }
 		$user_id = (int) $key->user_id;
-		if ( ! user_can( $user_id, 'manage_options' ) && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id=%d AND user_id=%d AND capability IN ('wpcap_manage_events','wpcap_view_reports') LIMIT 1", $event_id, $user_id ) ) ) {
+		if ( ! user_can( $user_id, 'manage_options' ) && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i WHERE event_id=%d AND user_id=%d AND capability IN ('wpcap_manage_events','wpcap_view_reports') LIMIT 1", $wpdb->prefix . 'wpcap_event_staff', $event_id, $user_id ) ) ) {
 			return $denied( 'wpcap_api_key_event', __( 'Dieser API-Key gilt nicht für dieses Event.', 'pass-captain' ), 403 );
 		}
 		$scopes = json_decode( $key->scopes, true );
@@ -106,7 +106,7 @@ final class DeveloperKeys {
 	/** Changes the per-key rate limit (owner or administrator). */
 	public static function set_rate_limit( $key_id, $rate_limit ) {
 		global $wpdb;
-		$key = $wpdb->get_row( $wpdb->prepare( "SELECT api_key_id,user_id,rate_limit FROM {$wpdb->prefix}wpcap_api_keys WHERE api_key_id=%d AND revoked_at IS NULL", absint( $key_id ) ) );
+		$key = $wpdb->get_row( $wpdb->prepare( 'SELECT api_key_id,user_id,rate_limit FROM %i WHERE api_key_id=%d AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_api_keys', absint( $key_id ) ) );
 		if ( ! $key || ( (int) $key->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$rate_limit = self::normalize_rate_limit( $rate_limit );
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'rate_limit' => $rate_limit ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%d' ), array( '%d' ) );
@@ -116,9 +116,9 @@ final class DeveloperKeys {
 
 	public static function revoke( $key_id ) {
 		global $wpdb;
-		$key = $wpdb->get_row( $wpdb->prepare( "SELECT api_key_id,user_id FROM {$wpdb->prefix}wpcap_api_keys WHERE api_key_id=%d", absint( $key_id ) ) );
+		$key = $wpdb->get_row( $wpdb->prepare( 'SELECT api_key_id,user_id FROM %i WHERE api_key_id=%d', $wpdb->prefix . 'wpcap_api_keys', absint( $key_id ) ) );
 		if ( ! $key || ( (int) $key->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_api_keys SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), absint( $key_id ) ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_api_keys', current_time( 'mysql', true ), absint( $key_id ) ) );
 		Audit::record( 'developer_key_revoked', 'api_key', absint( $key_id ) );
 		return true;
 	}

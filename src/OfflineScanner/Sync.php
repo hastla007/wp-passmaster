@@ -66,7 +66,7 @@ final class Sync {
 	private static function auto_resolve( $conflict ) {
 		global $wpdb;
 		if ( 'open' !== $conflict->status ) { return; }
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_admission_conflicts SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'pass-captain' ), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", $wpdb->prefix . 'wpcap_admission_conflicts', __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'pass-captain' ), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
 		if ( $updated ) {
 			Audit::record( 'admission_conflict_auto_resolved', 'admission_conflict', (int) $conflict->conflict_id, array( 'event_id' => (int) $conflict->event_id, 'ticket_id' => (int) $conflict->ticket_id, 'rule' => 'first_sync_wins' ) );
 		}
@@ -79,7 +79,7 @@ final class Sync {
 		if ( is_wp_error( $found ) || '' === $key ) { return 0; }
 		$key_hash = hash( 'sha256', 'app:' . sanitize_text_field( $key ) );
 		$user_id = get_current_user_id();
-		$checkin_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT checkin_id FROM {$wpdb->prefix}wpcap_checkins WHERE user_id=%d AND idempotency_key=%s AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $user_id, $key_hash ) );
+		$checkin_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT checkin_id FROM %i WHERE user_id=%d AND idempotency_key=%s AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_checkins', $user_id, $key_hash ) );
 		return Conflicts::record( array(
 			'dedupe' => 'offline_expired|' . $user_id . '|' . $key_hash,
 			'ticket_id' => $found['ticket_id'],

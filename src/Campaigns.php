@@ -33,7 +33,7 @@ final class Campaigns {
 		$table = $wpdb->prefix . 'wpcap_campaigns';
 		$now = current_time( 'mysql', true );
 		foreach ( $codes as $code ) {
-			$campaign = $wpdb->get_row( $wpdb->prepare( "SELECT *,discount_value AS value FROM $table WHERE code=%s AND status='active' FOR UPDATE", $code ) );
+			$campaign = $wpdb->get_row( $wpdb->prepare( "SELECT *,discount_value AS value FROM %i WHERE code=%s AND status='active' FOR UPDATE", $table, $code ) );
 			if ( ! $campaign || ( $campaign->starts_at && $campaign->starts_at > $now ) || ( $campaign->ends_at && $campaign->ends_at < $now ) || ( $campaign->usage_limit > 0 && (int) $campaign->used_count >= (int) $campaign->usage_limit ) || strtoupper( $campaign->currency ) !== strtoupper( $currency ) ) {
 				return new \WP_Error( 'wpcap_campaign_unavailable', __( 'Ein Kampagnencode ist ungültig, abgelaufen oder nicht mehr verfügbar.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
@@ -108,7 +108,7 @@ final class Campaigns {
 			$campaign = $adjustment['campaign'];
 			$inserted = $wpdb->insert( $uses, array( 'campaign_id' => (int) $campaign->campaign_id, 'order_id' => (int) $order_id, 'code' => $campaign->code, 'discount_minor' => (int) $adjustment['amount_minor'], 'status' => 'reserved', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%d', '%s', '%s' ) );
 			if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_use_failed', __( 'Kampagnennutzung konnte nicht gespeichert werden.', 'pass-captain' ) ); }
-			$updated = $wpdb->query( $wpdb->prepare( "UPDATE $campaigns SET used_count=used_count+1 WHERE campaign_id=%d AND (usage_limit=0 OR used_count<usage_limit)", $campaign->campaign_id ) );
+			$updated = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET used_count=used_count+1 WHERE campaign_id=%d AND (usage_limit=0 OR used_count<usage_limit)', $campaigns, $campaign->campaign_id ) );
 			if ( 1 !== $updated ) { return new \WP_Error( 'wpcap_campaign_exhausted', __( 'Das Kampagnenlimit wurde während des Checkouts erreicht.', 'pass-captain' ) ); }
 		}
 		return true;
@@ -123,10 +123,10 @@ final class Campaigns {
 		global $wpdb;
 		$uses = $wpdb->prefix . 'wpcap_campaign_uses';
 		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT campaign_id FROM $uses WHERE order_id=%d AND status='reserved'", absint( $order_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT campaign_id FROM %i WHERE order_id=%d AND status='reserved'", $uses, absint( $order_id ) ) );
 		foreach ( $rows as $row ) {
 			$released = $wpdb->update( $uses, array( 'status' => 'released' ), array( 'campaign_id' => (int) $row->campaign_id, 'order_id' => absint( $order_id ), 'status' => 'reserved' ), array( '%s' ), array( '%d', '%d', '%s' ) );
-			if ( 1 === $released ) { $wpdb->query( $wpdb->prepare( "UPDATE $campaigns SET used_count=IF(used_count>0,used_count-1,0) WHERE campaign_id=%d", $row->campaign_id ) ); }
+			if ( 1 === $released ) { $wpdb->query( $wpdb->prepare( 'UPDATE %i SET used_count=IF(used_count>0,used_count-1,0) WHERE campaign_id=%d', $campaigns, $row->campaign_id ) ); }
 		}
 		return true;
 	}
@@ -167,7 +167,7 @@ final class Campaigns {
 
 	public static function get( $campaign_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_campaigns WHERE campaign_id=%d", absint( $campaign_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE campaign_id=%d', $wpdb->prefix . 'wpcap_campaigns', absint( $campaign_id ) ) );
 	}
 
 	/**
@@ -180,7 +180,7 @@ final class Campaigns {
 		global $wpdb;
 		$campaign = self::get( $campaign_id );
 		if ( ! $campaign ) { return new \WP_Error( 'wpcap_campaign_missing', __( 'Kampagne nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$used = (int) $campaign->used_count > 0 || (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_campaign_uses WHERE campaign_id=%d", (int) $campaign->campaign_id ) ) > 0;
+		$used = (int) $campaign->used_count > 0 || (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE campaign_id=%d', $wpdb->prefix . 'wpcap_campaign_uses', (int) $campaign->campaign_id ) ) > 0;
 		$code = strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( $data['code'] ?? $campaign->code ) ) ) );
 		$kind = sanitize_key( $data['kind'] ?? $campaign->kind );
 		$value = absint( $data['value'] ?? $campaign->discount_value );

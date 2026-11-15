@@ -26,7 +26,7 @@ final class MembershipsPage {
 	/** Whether the current user may manage a pass: every rule's event must be accessible (as in REST). */
 	public static function can_manage_pass( $pass_id ) {
 		global $wpdb;
-		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", absint( $pass_id ) ) );
+		$events = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_pass_rules', absint( $pass_id ) ) );
 		if ( ! $events ) { return current_user_can( 'manage_options' ); }
 		foreach ( $events as $event_id ) {
 			if ( ! self::can_rule_event( $event_id ) ) { return false; }
@@ -249,7 +249,7 @@ final class MembershipsPage {
 			$scope_label = 'event' === (string) ( $rule->scope ?? 'event' ) ? ( (int) $rule->event_id ? ( $events[ (int) $rule->event_id ] ?? '#' . (int) $rule->event_id ) : __( 'Alle Events', 'pass-captain' ) ) : self::service_rule_label( $rule );
 			echo '<tr><td>' . esc_html( $scope_label ) . '</td><td>' . esc_html( (int) $rule->ticket_type_id ? ( $types[ (int) $rule->ticket_type_id ] ?? '#' . (int) $rule->ticket_type_id ) : __( 'Alle Ticketarten', 'pass-captain' ) ) . '</td><td>' . (int) $rule->used . '</td>';
 			if ( $active ) {
-				echo '<td><label class="screen-reader-text" for="wpcap-mp-r' . $rid . '-total">' . esc_html__( 'Einlösungen gesamt', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . $rid . '-total" name="uses_total" min="0" max="65535" value="' . (int) $rule->uses_total . '" style="width:6em"></td><td><label class="screen-reader-text" for="wpcap-mp-r' . $rid . '-day">' . esc_html__( 'Einlösungen pro Tag', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . $rid . '-day" name="uses_per_day" min="1" max="65535" value="' . (int) $rule->uses_per_day . '" style="width:6em"> ';
+				echo '<td><label class="screen-reader-text" for="wpcap-mp-r' . esc_attr( (string) $rid ) . '-total">' . esc_html__( 'Einlösungen gesamt', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . esc_attr( (string) $rid ) . '-total" name="uses_total" min="0" max="65535" value="' . (int) $rule->uses_total . '" style="width:6em"></td><td><label class="screen-reader-text" for="wpcap-mp-r' . esc_attr( (string) $rid ) . '-day">' . esc_html__( 'Einlösungen pro Tag', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . esc_attr( (string) $rid ) . '-day" name="uses_per_day" min="1" max="65535" value="' . (int) $rule->uses_per_day . '" style="width:6em"> ';
 				Forms::open_form( self::ACTION, null, 'id="' . esc_attr( $form ) . '" style="display:inline"' );
 				Forms::hidden( 'do', 'save_rule' );
 				Forms::hidden( 'id', (int) $pass->pass_id );

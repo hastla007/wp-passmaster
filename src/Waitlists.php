@@ -43,9 +43,9 @@ final class Waitlists {
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
 		if ( $occurrence && (int) $occurrence->capacity > 0 ) {
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(w.hold_quantity),0) FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id WHERE tt.occurrence_id=%d AND w.status='offered' AND w.offer_expires_at>%s AND w.waitlist_id<>%d", (int) $occurrence->occurrence_id, $now, absint( $exclude_waitlist_id ) ) );
+			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(w.hold_quantity),0) FROM %i w INNER JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id WHERE tt.occurrence_id=%d AND w.status='offered' AND w.offer_expires_at>%s AND w.waitlist_id<>%d", $p . 'wpcap_waitlist', $p . 'wpcap_ticket_types', (int) $occurrence->occurrence_id, $now, absint( $exclude_waitlist_id ) ) );
 		}
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(hold_quantity),0) FROM {$p}wpcap_waitlist WHERE ticket_type_id=%d AND status='offered' AND offer_expires_at>%s AND waitlist_id<>%d", (int) $type->ticket_type_id, $now, absint( $exclude_waitlist_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(hold_quantity),0) FROM %i WHERE ticket_type_id=%d AND status='offered' AND offer_expires_at>%s AND waitlist_id<>%d", $p . 'wpcap_waitlist', (int) $type->ticket_type_id, $now, absint( $exclude_waitlist_id ) ) );
 	}
 
 	/**
@@ -80,7 +80,7 @@ final class Waitlists {
 	/** Hook wpcap_capacity_released: queue offers for the order's ticket types. */
 	public static function on_capacity_released( $order_id ) {
 		global $wpdb;
-		$types = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d", absint( $order_id ) ) ) );
+		$types = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT ticket_type_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_order_items', absint( $order_id ) ) ) );
 		self::queue( $types );
 	}
 
@@ -94,7 +94,7 @@ final class Waitlists {
 		global $wpdb;
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
-		$waiting = array_map( 'absint', $wpdb->get_col( "SELECT DISTINCT ticket_type_id FROM {$wpdb->prefix}wpcap_waitlist WHERE status='waiting' AND ticket_type_id IN (" . implode( ',', $type_ids ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM %i WHERE status='waiting' AND ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_waitlist' ), $type_ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		foreach ( $waiting as $type_id ) {
 			Jobs::enqueue( 'waitlist-freed-' . $type_id . '-' . wp_generate_uuid4(), self::JOB, array( 'ticket_type_id' => $type_id ) );
 		}
@@ -142,11 +142,11 @@ final class Waitlists {
 		$now = current_time( 'mysql', true );
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return new \WP_Error( 'wpcap_db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503 ) ); }
 		// Locking reads first: ticket type, then its occurrence (Orders::create() lock order).
-		$type = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d FOR UPDATE", $ticket_type_id ) );
-		$occurrence = $type ? $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE", (int) $type->occurrence_id ) ) : null;
+		$type = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d FOR UPDATE', $p . 'wpcap_ticket_types', $ticket_type_id ) );
+		$occurrence = $type ? $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) $type->occurrence_id ) ) : null;
 		if ( ! $type || ! $occurrence ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_empty', __( 'Für diese Ticketart gibt es keinen wartenden Eintrag.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE ticket_type_id=%d AND status='offered' AND offer_expires_at<=%s", $now, $ticket_type_id, $now ) );
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,event_id,email,position FROM $table WHERE ticket_type_id=%d AND status='waiting' ORDER BY position,waitlist_id LIMIT 1 FOR UPDATE", $ticket_type_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE ticket_type_id=%d AND status='offered' AND offer_expires_at<=%s", $table, $now, $ticket_type_id, $now ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,event_id,email,position FROM %i WHERE ticket_type_id=%d AND status='waiting' ORDER BY position,waitlist_id LIMIT 1 FOR UPDATE", $table, $ticket_type_id ) );
 		if ( ! $row ) { $wpdb->query( 'COMMIT' ); return new \WP_Error( 'wpcap_waitlist_empty', __( 'Für diese Ticketart gibt es keinen wartenden Eintrag.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$sellable = 'active' === $type->status && 'scheduled' === $occurrence->status && 'published' === $occurrence->event_status && strtotime( $occurrence->starts_at . ' UTC' ) > time();
 		$available = $sellable ? Orders::availability( $ticket_type_id ) : 0; // Already net of open offer holds.
@@ -205,7 +205,7 @@ final class Waitlists {
 		global $wpdb;
 		$row = self::entry_with_token( $waitlist_id, $token, 'any' );
 		if ( ! $row || ! in_array( $row->status, array( 'waiting', 'offered' ), true ) ) { return self::invalid_offer(); }
-		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status='unsubscribed',offer_token_hash='',manage_token_hash='',hold_quantity=0,updated_at=%s WHERE waitlist_id=%d AND status IN ('waiting','offered')", current_time( 'mysql', true ), (int) $row->waitlist_id ) );
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='unsubscribed',offer_token_hash='',manage_token_hash='',hold_quantity=0,updated_at=%s WHERE waitlist_id=%d AND status IN ('waiting','offered')", $wpdb->prefix . 'wpcap_waitlist', current_time( 'mysql', true ), (int) $row->waitlist_id ) );
 		if ( 1 !== (int) $changed ) { return self::invalid_offer(); }
 		Audit::record( 'waitlist_unsubscribed', 'waitlist', (int) $row->waitlist_id, array( 'ticket_type_id' => (int) $row->ticket_type_id, 'was' => $row->status ) );
 		if ( 'offered' === $row->status ) { self::queue( array( (int) $row->ticket_type_id ) ); }
@@ -217,7 +217,7 @@ final class Waitlists {
 		global $wpdb;
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
 		if ( 64 !== strlen( $token ) ) { return null; }
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_waitlist WHERE waitlist_id=%d", absint( $waitlist_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE waitlist_id=%d', $wpdb->prefix . 'wpcap_waitlist', absint( $waitlist_id ) ) );
 		if ( ! $row ) { return null; }
 		$hash = hash( 'sha256', $token );
 		$offer = '' !== (string) $row->offer_token_hash && hash_equals( (string) $row->offer_token_hash, $hash );
@@ -230,11 +230,11 @@ final class Waitlists {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$now = current_time( 'mysql', true );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT waitlist_id,ticket_type_id FROM $table WHERE status='offered' AND offer_expires_at<=%s LIMIT %d", $now, absint( $limit ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT waitlist_id,ticket_type_id FROM %i WHERE status='offered' AND offer_expires_at<=%s LIMIT %d", $table, $now, absint( $limit ) ) );
 		$types = array();
 		$expired = 0;
 		foreach ( (array) $rows as $row ) {
-			$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE waitlist_id=%d AND status='offered' AND offer_expires_at<=%s", $now, (int) $row->waitlist_id, $now ) );
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE waitlist_id=%d AND status='offered' AND offer_expires_at<=%s", $table, $now, (int) $row->waitlist_id, $now ) );
 			if ( 1 === (int) $changed ) {
 				++$expired;
 				$types[] = (int) $row->ticket_type_id;
@@ -243,7 +243,7 @@ final class Waitlists {
 		}
 		// Expired offers and capacity raised by staff: offer what is free now. GROUP BY + MIN() instead of
 		// DISTINCT … ORDER BY o.starts_at: MySQL rejects ordering a DISTINCT result by an unselected column (3065).
-		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT w.ticket_type_id FROM $table w INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND o.starts_at>%s GROUP BY w.ticket_type_id ORDER BY MIN(o.starts_at) LIMIT %d", $now, absint( $limit ) ) ) );
+		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT w.ticket_type_id FROM %i w INNER JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND o.starts_at>%s GROUP BY w.ticket_type_id ORDER BY MIN(o.starts_at) LIMIT %d", $table, $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $now, absint( $limit ) ) ) );
 		foreach ( array_unique( array_merge( $types, $waiting ) ) as $type_id ) { self::auto_offer( $type_id ); }
 		return $expired;
 	}
@@ -268,22 +268,22 @@ final class Waitlists {
 		$ip_attempts = (int) get_transient( $ip_key );
 		if ( $ip_attempts >= 20 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $ip_key, $ip_attempts + 1, HOUR_IN_SECONDS );
-		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $event_id, $occurrence_id ) );
+		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences', $event_id, $occurrence_id ) );
 		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $ticket_type_id, $occurrence_id ) );
+		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id FROM %i WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $wpdb->prefix . 'wpcap_ticket_types', $ticket_type_id, $occurrence_id ) );
 		if ( ! $type ) { return new \WP_Error( 'wpcap_waitlist_ticket', __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$table = $wpdb->prefix . 'wpcap_waitlist';
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE event_id=%d AND ticket_type_id=%d AND status='offered' AND offer_expires_at<=%s", current_time( 'mysql', true ), absint( $event_id ), absint( $ticket_type_id ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE event_id=%d AND ticket_type_id=%d AND status='offered' AND offer_expires_at<=%s", $table, current_time( 'mysql', true ), absint( $event_id ), absint( $ticket_type_id ), current_time( 'mysql', true ) ) );
 		$email_hash = hash( 'sha256', strtolower( $email ) );
 		$wpdb->query( 'START TRANSACTION' );
-		$wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d FOR UPDATE", $event_id ) );
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,status,position FROM $table WHERE event_id=%d AND ticket_type_id=%d AND email_hash=%s", $event_id, $ticket_type_id, $email_hash ) );
+		$wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_events', $event_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,status,position FROM %i WHERE event_id=%d AND ticket_type_id=%d AND email_hash=%s', $table, $event_id, $ticket_type_id, $email_hash ) );
 		if ( $existing ) {
 			$wpdb->query( 'COMMIT' );
 			// Same response as a new entry so the endpoint does not reveal who is on a waitlist.
 			return self::join_response();
 		}
-		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(MAX(position),0) FROM $table WHERE event_id=%d AND ticket_type_id=%d", $event_id, $ticket_type_id ) );
+		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MAX(position),0) FROM %i WHERE event_id=%d AND ticket_type_id=%d', $table, $event_id, $ticket_type_id ) );
 		$manage = bin2hex( random_bytes( 32 ) );
 		$wpdb->insert( $table, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email_hash' => $email_hash, 'email' => $email, 'position' => $position, 'status' => 'waiting', 'manage_token_hash' => hash( 'sha256', $manage ), 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' ) );
 		$waitlist_id = (int) $wpdb->insert_id;
@@ -298,7 +298,7 @@ final class Waitlists {
 	/** Event and ticket names for waitlist mail placeholders. */
 	private static function mail_names( $event_id, $ticket_type_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT e.name AS event_name,tt.name AS ticket_name FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d AND e.event_id=%d", absint( $ticket_type_id ), absint( $event_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT e.name AS event_name,tt.name AS ticket_name FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d AND e.event_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', absint( $ticket_type_id ), absint( $event_id ) ) );
 		return array( 'event_name' => (string) ( $row->event_name ?? '' ), 'ticket_name' => (string) ( $row->ticket_name ?? '' ) );
 	}
 
@@ -314,7 +314,7 @@ final class Waitlists {
 	 */
 	public static function offer_next( $event_id, $ticket_type_id ) {
 		global $wpdb;
-		$owner = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", absint( $ticket_type_id ) ) );
+		$owner = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $ticket_type_id ) ) );
 		if ( $owner !== absint( $event_id ) ) { return new \WP_Error( 'wpcap_waitlist_empty', __( 'Für diese Ticketart gibt es keinen wartenden Eintrag.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		return self::offer_one( absint( $ticket_type_id ), false );
 	}
@@ -327,9 +327,9 @@ final class Waitlists {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE event_id=%d AND status='offered' AND offer_expires_at<=%s", $now, absint( $event_id ), $now ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE event_id=%d AND status='offered' AND offer_expires_at<=%s", $table, $now, absint( $event_id ), $now ) );
 		$where = $occurrence_id ? $wpdb->prepare( ' AND w.occurrence_id=%d', absint( $occurrence_id ) ) : '';
-		return $wpdb->get_results( $wpdb->prepare( "SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.email,w.position,w.status,w.offer_expires_at,w.hold_quantity,w.order_id,w.created_at,tt.name AS ticket_name,o.starts_at,o.timezone FROM $table w LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id WHERE w.event_id=%d", absint( $event_id ) ) . $where . ' ORDER BY o.starts_at,w.occurrence_id,w.ticket_type_id,w.position,w.waitlist_id LIMIT 2000' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is prepared.
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.email,w.position,w.status,w.offer_expires_at,w.hold_quantity,w.order_id,w.created_at,tt.name AS ticket_name,o.starts_at,o.timezone FROM %i w LEFT JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=w.occurrence_id WHERE w.event_id=%d', $table, $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) . $where . ' ORDER BY o.starts_at,w.occurrence_id,w.ticket_type_id,w.position,w.waitlist_id LIMIT 2000' );
 	}
 
 	/**
@@ -340,7 +340,7 @@ final class Waitlists {
 	public static function remove( $waitlist_id ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_waitlist';
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,event_id,ticket_type_id,position,status FROM $table WHERE waitlist_id=%d", absint( $waitlist_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,event_id,ticket_type_id,position,status FROM %i WHERE waitlist_id=%d', $table, absint( $waitlist_id ) ) );
 		if ( ! $row ) { return new \WP_Error( 'wpcap_waitlist_missing', __( 'Wartelisteneintrag nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$wpdb->delete( $table, array( 'waitlist_id' => (int) $row->waitlist_id ), array( '%d' ) );
 		if ( 'offered' === $row->status ) { self::queue( array( (int) $row->ticket_type_id ) ); }
@@ -349,8 +349,9 @@ final class Waitlists {
 	}
 
 	public static function maybe_render_offer_page() {
-		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 );
-		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) );
+		// The link from the offer mail carries a 64-hex token instead of a nonce; accepting posts a nonce-protected form.
+		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || 64 !== strlen( $token ) || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		nocache_headers();
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
@@ -362,7 +363,7 @@ final class Waitlists {
 	public static function handle_accept_request() {
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
-		$result = self::accept_offer( $waitlist_id, wp_unslash( $_POST['token'] ?? '' ) );
+		$result = self::accept_offer( $waitlist_id, sanitize_text_field( wp_unslash( $_POST['token'] ?? '' ) ) );
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( sprintf( /* translators: %s: site name */ __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) ); ?></title></head><body><main><?php if ( is_wp_error( $result ) ) : ?><h1><?php esc_html_e( 'Angebot nicht verfügbar', 'pass-captain' ); ?></h1><p><?php echo esc_html( $result->get_error_message() ); ?></p><?php else : ?><h1><?php esc_html_e( 'Angebot angenommen', 'pass-captain' ); ?></h1><p><?php echo esc_html( 'complete' === ( $result['order']['status'] ?? '' ) ? __( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'pass-captain' ) : __( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet.', 'pass-captain' ) ); ?></p><?php endif; ?></main></body></html><?php
 		exit;
@@ -379,7 +380,7 @@ final class Waitlists {
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
 		if ( 64 !== strlen( $token ) ) { return self::invalid_offer(); }
 		$table = $wpdb->prefix . 'wpcap_waitlist';
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,email,ticket_type_id,offer_token_hash,offer_expires_at,status FROM $table WHERE waitlist_id=%d", absint( $waitlist_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,email,ticket_type_id,offer_token_hash,offer_expires_at,status FROM %i WHERE waitlist_id=%d', $table, absint( $waitlist_id ) ) );
 		if ( ! $row || 'offered' !== $row->status || $row->offer_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $row->offer_token_hash, hash( 'sha256', $token ) ) ) { return self::invalid_offer(); }
 		$waitlist_id = (int) $row->waitlist_id;
 		$converted = false;
@@ -387,7 +388,7 @@ final class Waitlists {
 		// reservation in the same commit, so a parallel checkout or acceptance never counts both.
 		$convert = static function ( $order_id ) use ( $table, $waitlist_id, &$converted ) {
 			global $wpdb;
-			$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='accepted',offer_token_hash='',hold_quantity=0,order_id=%d,updated_at=%s WHERE waitlist_id=%d AND status='offered'", absint( $order_id ), current_time( 'mysql', true ), $waitlist_id ) );
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='accepted',offer_token_hash='',hold_quantity=0,order_id=%d,updated_at=%s WHERE waitlist_id=%d AND status='offered'", $table, absint( $order_id ), current_time( 'mysql', true ), $waitlist_id ) );
 			if ( false === $changed ) { throw new \RuntimeException( 'db_busy' ); }
 			if ( 1 !== (int) $changed ) { throw new \RuntimeException( 'waitlist_offer_taken' ); }
 			$converted = true;
@@ -404,7 +405,7 @@ final class Waitlists {
 			self::$accepting = 0;
 		}
 		if ( is_wp_error( $order ) ) {
-			$now_row = $wpdb->get_row( $wpdb->prepare( "SELECT status,order_id FROM $table WHERE waitlist_id=%d", $waitlist_id ) );
+			$now_row = $wpdb->get_row( $wpdb->prepare( 'SELECT status,order_id FROM %i WHERE waitlist_id=%d', $table, $waitlist_id ) );
 			if ( $now_row && 'accepted' === $now_row->status ) {
 				// A parallel acceptance of the same offer won; its order holds the ticket.
 				return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot wurde bereits angenommen.', 'pass-captain' ), array( 'status' => 409, 'order_id' => (int) $now_row->order_id ) );

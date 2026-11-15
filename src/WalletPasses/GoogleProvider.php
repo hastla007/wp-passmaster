@@ -74,7 +74,7 @@ class GoogleProvider implements WalletProvider {
 	/** "Save to Google Wallet" URL with the class and object embedded in the JWT. */
 	public function save_url( array $ticket ) {
 		$account = Credentials::google();
-		if ( is_wp_error( $account ) ) { throw new \RuntimeException( $account->get_error_code() ); }
+		if ( is_wp_error( $account ) ) { throw new \RuntimeException( esc_html( $account->get_error_code() ) ); }
 		$claims = array(
 			'iss' => $account['client_email'],
 			'aud' => 'google',

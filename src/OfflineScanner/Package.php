@@ -57,16 +57,16 @@ final class Package {
 		$state = self::state( $occurrence_id );
 		$now = time();
 		if ( $state && ! $force && $state->refreshed_at && strtotime( $state->refreshed_at . ' UTC' ) > $now - self::refresh_interval() ) { return $state; }
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_offline_state (occurrence_id,epoch,version) VALUES (%d,%s,0)", $occurrence_id, bin2hex( random_bytes( 8 ) ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (occurrence_id,epoch,version) VALUES (%d,%s,0)', $p . 'wpcap_offline_state', $occurrence_id, bin2hex( random_bytes( 8 ) ) ) );
 		$wpdb->query( 'START TRANSACTION' );
 		$state = self::state( $occurrence_id, true );
 		$version = (int) $state->version + 1;
 		$live = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.token_hash,t.status,t.ticket_type_id,ta.attendee_name,o.status AS occurrence_status,e.status AS event_status FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id=%d AND t.token_hash<>''",
+			"SELECT t.ticket_id,t.token_hash,t.status,t.ticket_type_id,ta.attendee_name,o.status AS occurrence_status,e.status AS event_status FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id=%d AND t.token_hash<>''", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_ticket_assignments',
 			$occurrence_id
 		) );
 		$known = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,fingerprint,status FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d", $occurrence_id ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT token_hash,fingerprint,status FROM %i WHERE occurrence_id=%d', $p . 'wpcap_offline_entries', $occurrence_id ) ) as $row ) {
 			$known[ $row->token_hash ] = $row;
 		}
 		$changed = array();
@@ -121,9 +121,9 @@ final class Package {
 		$from = null === $since || '' === $since ? null : self::parse_cursor( (string) $since, $state );
 		$kind = null === $from ? 'full' : 'delta';
 		if ( 'full' === $kind ) {
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d AND status IN ('valid','checked_in') ORDER BY token_hash", (int) $occurrence->occurrence_id ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM %i WHERE occurrence_id=%d AND status IN ('valid','checked_in') ORDER BY token_hash", $p . 'wpcap_offline_entries', (int) $occurrence->occurrence_id ) );
 		} else {
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d AND version>%d ORDER BY token_hash", (int) $occurrence->occurrence_id, $from ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT token_hash,status,ticket_type_id,attendee_name FROM %i WHERE occurrence_id=%d AND version>%d ORDER BY token_hash', $p . 'wpcap_offline_entries', (int) $occurrence->occurrence_id, $from ) );
 		}
 		$tickets = array();
 		foreach ( $rows as $row ) {
@@ -133,7 +133,7 @@ final class Package {
 			$tickets[] = $entry;
 		}
 		$types = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", (int) $occurrence->occurrence_id ) ) as $type ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,name FROM %i WHERE occurrence_id=%d ORDER BY ticket_type_id', $p . 'wpcap_ticket_types', (int) $occurrence->occurrence_id ) ) as $type ) {
 			$policy = Policies::for_type( (int) $type->ticket_type_id );
 			$types[] = array( 'id' => (int) $type->ticket_type_id, 'name' => (string) $type->name, 'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ), 'policy' => $policy ? $policy['policy'] : 'single', 'multi' => $policy && 'single' !== $policy['policy'] );
 		}

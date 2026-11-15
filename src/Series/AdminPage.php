@@ -51,7 +51,7 @@ final class AdminPage {
 		$events = Queries::event_options( Queries::event_ids_for( Generator::CAP ) );
 		$in = array();
 		$preview = null;
-		if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) && isset( $_POST['wpcap_series_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
+		if ( 'POST' === sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ?? '' ) ) && isset( $_POST['wpcap_series_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
 			check_admin_referer( self::NONCE );
 			$in = self::input( Forms::post() );
 			$preview = Generator::preview( $in );
@@ -185,7 +185,7 @@ final class AdminPage {
 
 	private static function rules_url( $series_id ) {
 		global $wpdb;
-		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE series_id=%d', $wpdb->prefix . 'wpcap_series', absint( $series_id ) ) );
 		return self::url( array( 'event_id' => $event_id, 'series_id' => absint( $series_id ) ) ) . '#wpcap-series-rules';
 	}
 
@@ -355,7 +355,7 @@ final class AdminPage {
 	/** Effective prices and availability of the next occurrences right now. */
 	private static function render_price_preview( $series_id, $currency ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.timezone FROM {$wpdb->prefix}wpcap_series_occurrences so INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=so.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id WHERE so.series_id=%d AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at,tt.ticket_type_id LIMIT 30", absint( $series_id ), current_time( 'mysql', true ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.timezone FROM %i so INNER JOIN %i o ON o.occurrence_id=so.occurrence_id INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id WHERE so.series_id=%d AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at,tt.ticket_type_id LIMIT 30", $wpdb->prefix . 'wpcap_series_occurrences', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_ticket_types', absint( $series_id ), current_time( 'mysql', true ) ) );
 		if ( ! $rows ) { return; }
 		echo '<h3>' . esc_html__( 'Aktuelle Preise der nächsten Termine', 'pass-captain' ) . '</h3><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Termin', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ticketart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Grundpreis', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktueller Preis', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verfügbar', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $type ) {

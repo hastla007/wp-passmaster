@@ -87,7 +87,7 @@ final class Pricing {
 		$series_id = absint( $series_id );
 		$key = $wpdb->prefix . '|' . $series_id;
 		if ( ! isset( self::$cache[ $key ] ) ) {
-			self::$cache[ $key ] = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series_price_rules WHERE series_id=%d AND status='active' ORDER BY rule_id", $series_id ) );
+			self::$cache[ $key ] = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE series_id=%d AND status='active' ORDER BY rule_id", $wpdb->prefix . 'wpcap_series_price_rules', $series_id ) );
 		}
 		return self::$cache[ $key ];
 	}
@@ -95,11 +95,11 @@ final class Pricing {
 	/** Series row with its timezone and currency (from the generated ticket types). */
 	public static function series( $series_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE series_id=%d', $wpdb->prefix . 'wpcap_series', absint( $series_id ) ) );
 		if ( ! $row ) { return null; }
 		$definition = json_decode( (string) $row->definition, true );
 		$row->timezone = (string) ( $definition['rule']['timezone'] ?? 'UTC' );
-		$row->currency = (string) $wpdb->get_var( $wpdb->prepare( "SELECT tt.currency FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_series_occurrences so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.ticket_type_id LIMIT 1", $row->series_id ) );
+		$row->currency = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT tt.currency FROM %i tt INNER JOIN %i so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.ticket_type_id LIMIT 1', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_series_occurrences', $row->series_id ) );
 		if ( '' === $row->currency ) { $row->currency = 'EUR'; }
 		return $row;
 	}
@@ -107,7 +107,7 @@ final class Pricing {
 	/** Distinct ticket type names of a series (for the admin scope select). */
 	public static function type_names( $series_id ) {
 		global $wpdb;
-		return $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.name FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_series_occurrences so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.name", absint( $series_id ) ) );
+		return $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT tt.name FROM %i tt INNER JOIN %i so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.name', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_series_occurrences', absint( $series_id ) ) );
 	}
 
 	/** "HH:MM" or '' (null when invalid). */
@@ -200,7 +200,7 @@ final class Pricing {
 	/** Deactivates a rule (kept for the audit trail). */
 	public static function delete( $rule_id ) {
 		global $wpdb;
-		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT r.rule_id,r.series_id,s.event_id FROM {$wpdb->prefix}wpcap_series_price_rules r INNER JOIN {$wpdb->prefix}wpcap_series s ON s.series_id=r.series_id WHERE r.rule_id=%d", absint( $rule_id ) ) );
+		$rule = $wpdb->get_row( $wpdb->prepare( 'SELECT r.rule_id,r.series_id,s.event_id FROM %i r INNER JOIN %i s ON s.series_id=r.series_id WHERE r.rule_id=%d', $wpdb->prefix . 'wpcap_series_price_rules', $wpdb->prefix . 'wpcap_series', absint( $rule_id ) ) );
 		if ( ! $rule ) { return self::error( 'wpcap_series_rule_missing', __( 'Preisregel nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $rule->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_series_price_rules", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'rule_id' => (int) $rule->rule_id ) );
@@ -297,7 +297,7 @@ final class Pricing {
 		// Keyed by table prefix too: after switch_to_blog() the same id is another site's occurrence.
 		$key = $wpdb->prefix . '|' . $occurrence_id;
 		if ( ! isset( $map[ $key ] ) ) {
-			$map[ $key ] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT series_id FROM {$wpdb->prefix}wpcap_series_occurrences WHERE occurrence_id=%d", $occurrence_id ) );
+			$map[ $key ] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT series_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_series_occurrences', $occurrence_id ) );
 		}
 		return $map[ $key ];
 	}
@@ -309,7 +309,7 @@ final class Pricing {
 			return 100 * Pools::used( array( (int) $type->ticket_type_id ), $now, $exclude_order_id ) / (int) $type->capacity;
 		}
 		if ( $occurrence && (int) $occurrence->capacity > 0 ) {
-			$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence->occurrence_id ) ) );
+			$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $occurrence->occurrence_id ) ) );
 			return 100 * Pools::used( $ids, $now, $exclude_order_id ) / (int) $occurrence->capacity;
 		}
 		return null;

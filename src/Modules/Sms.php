@@ -140,9 +140,9 @@ final class Sms {
 	public static function ticket_revoked( $ticket_id, $reason = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
-		if ( ! $order_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT consent_id FROM {$p}wpcap_sms_consents WHERE order_id=%d AND retired_at IS NULL AND withdrawn_at IS NULL", $order_id ) ) ) { return false; }
-		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND status IN ('valid','checked_in')", $order_id ) );
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE ticket_id=%d', $p . 'wpcap_tickets', absint( $ticket_id ) ) );
+		if ( ! $order_id || ! $wpdb->get_var( $wpdb->prepare( 'SELECT consent_id FROM %i WHERE order_id=%d AND retired_at IS NULL AND withdrawn_at IS NULL', $p . 'wpcap_sms_consents', $order_id ) ) ) { return false; }
+		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status IN ('valid','checked_in')", $p . 'wpcap_tickets', $order_id ) );
 		return $left ? false : Service::retire( $order_id );
 	}
 
@@ -192,13 +192,13 @@ final class Sms {
 	private static function orders_for_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_sms_consents c ON c.order_id=t.order_id AND c.withdrawn_at IS NULL WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0", absint( $occurrence_id ) ) ) );
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i c ON c.order_id=t.order_id AND c.withdrawn_at IS NULL WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_sms_consents', absint( $occurrence_id ) ) ) );
 	}
 
 	private static function occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
 	}
 
 	public static function occurrence_cancelled( $occurrence_id ) {
@@ -234,7 +234,7 @@ final class Sms {
 		if ( '' !== $reason || ! is_object( $row ) || 'reminder' !== $row->purpose ) { return $reason; }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=%d AND tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND o.status='scheduled' AND o.starts_at>%s", (int) $row->order_id, (int) $row->occurrence_id, current_time( 'mysql', true ) ) );
+		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=%d AND tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND o.status='scheduled' AND o.starts_at>%s", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', (int) $row->order_id, (int) $row->occurrence_id, current_time( 'mysql', true ) ) );
 		return $valid ? '' : 'not_valid_anymore';
 	}
 
@@ -260,7 +260,7 @@ final class Sms {
 		$p = $wpdb->prefix;
 		$email = sanitize_email( $email );
 		if ( '' === $email ) { return array(); }
-		return $wpdb->get_results( $wpdb->prepare( "SELECT c.* FROM {$p}wpcap_sms_consents c INNER JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE o.customer_email=%s OR o.customer_email=CONCAT('deleted+',LEFT(SHA2(CONCAT(%s,'|',o.order_id),256),24),'@invalid.example') ORDER BY c.consent_id", $email, $email ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT c.* FROM %i c INNER JOIN %i o ON o.order_id=c.order_id WHERE o.customer_email=%s OR o.customer_email=CONCAT('deleted+',LEFT(SHA2(CONCAT(%s,'|',o.order_id),256),24),'@invalid.example') ORDER BY c.consent_id", $p . 'wpcap_sms_consents', $p . 'wpcap_orders', $email, $email ) );
 	}
 
 	public static function erase( $email, $page = 1 ) {
@@ -377,7 +377,7 @@ final class Sms {
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form>';
-		$stats = $wpdb->get_results( "SELECT status,COUNT(*) AS n FROM {$wpdb->prefix}wpcap_sms_messages GROUP BY status" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$stats = $wpdb->get_results( $wpdb->prepare( 'SELECT status,COUNT(*) AS n FROM %i GROUP BY status', $wpdb->prefix . 'wpcap_sms_messages' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		if ( $stats ) {
 			echo '<h2>' . esc_html__( 'Versandstatus', 'pass-captain' ) . '</h2><ul>';
 			foreach ( $stats as $stat ) { echo '<li>' . esc_html( $stat->status . ': ' . (int) $stat->n ) . '</li>'; }

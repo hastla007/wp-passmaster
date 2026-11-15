@@ -279,7 +279,7 @@ final class Billing {
 	/** Whether the order already has an invoice (billing data is then frozen in the invoice). */
 	public static function invoice_issued( $order_id ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", absint( $order_id ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_invoices', absint( $order_id ) ) );
 	}
 
 	/**

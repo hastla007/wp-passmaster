@@ -65,7 +65,7 @@ final class Invoices {
 	/** Invoice of an order (or null). */
 	public static function for_order( $order_id ) {
 		global $wpdb;
-		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", absint( $order_id ) ) );
+		$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_invoices', absint( $order_id ) ) );
 		return $id ? self::invoice( $id ) : null;
 	}
 
@@ -78,9 +78,9 @@ final class Invoices {
 		$public_id = sanitize_text_field( (string) $public_id );
 		$token = strtolower( (string) preg_replace( '/[^a-fA-F0-9]/', '', (string) $token ) );
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return 0; }
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,access_token_hash,access_expires_at FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return 0; }
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", (int) $order->order_id ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', (int) $order->order_id ) );
 	}
 
 	/**
@@ -94,8 +94,8 @@ final class Invoices {
 			return Settlements::can_view( Settlements::get( $id ) );
 		}
 		$order_id = 'correction' === $type
-			? (int) $wpdb->get_var( $wpdb->prepare( "SELECT i.order_id FROM {$wpdb->prefix}wpcap_credit_notes c INNER JOIN {$wpdb->prefix}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE c.credit_note_id=%d", $id ) )
-			: (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_invoices WHERE invoice_id=%d", $id ) );
+			? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT i.order_id FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id WHERE c.credit_note_id=%d', $wpdb->prefix . 'wpcap_credit_notes', $wpdb->prefix . 'wpcap_invoices', $id ) )
+			: (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE invoice_id=%d', $wpdb->prefix . 'wpcap_invoices', $id ) );
 		return $order_id && \PassCaptain\Printing\InvoicePdf::can_view_order_finance( $order_id );
 	}
 
@@ -132,7 +132,7 @@ final class Invoices {
 	public static function filter_ticket_mail( $mail, $order = null ) {
 		if ( ! is_array( $mail ) || ! is_object( $order ) || empty( $order->order_id ) ) { return $mail; }
 		global $wpdb;
-		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", (int) $order->order_id ) );
+		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', (int) $order->order_id ) );
 		if ( ! $invoice_id ) { return $mail; }
 		$files = self::mail_attachments( $invoice_id, 'invoice', array( 'mail' => 'tickets', 'order_id' => (int) $order->order_id ) );
 		if ( $files ) { $mail['attachments'] = array_values( array_unique( array_merge( (array) ( $mail['attachments'] ?? array() ), $files ) ) ); }
@@ -142,7 +142,7 @@ final class Invoices {
 	/** Attachments for the refund confirmation of a refund with a correction document. */
 	public static function correction_mail_attachments( $refund_id, $order_id ) {
 		global $wpdb;
-		$credit_note_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT credit_note_id FROM {$wpdb->prefix}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ) );
+		$credit_note_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT credit_note_id FROM %i WHERE refund_id=%d', $wpdb->prefix . 'wpcap_credit_notes', absint( $refund_id ) ) );
 		return $credit_note_id ? self::mail_attachments( $credit_note_id, 'correction', array( 'mail' => 'refund_confirmation', 'order_id' => absint( $order_id ), 'refund_id' => absint( $refund_id ) ) ) : array();
 	}
 
@@ -193,13 +193,13 @@ final class Invoices {
 
 	private static function invoice( $id ) {
 		global $wpdb;
-		$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT i.*,o.public_id AS order_public_id FROM {$wpdb->prefix}wpcap_invoices i LEFT JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=i.order_id WHERE i.invoice_id=%d", $id ) );
+		$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT i.*,o.public_id AS order_public_id FROM %i i LEFT JOIN %i o ON o.order_id=i.order_id WHERE i.invoice_id=%d', $wpdb->prefix . 'wpcap_invoices', $wpdb->prefix . 'wpcap_orders', $id ) );
 		if ( ! $invoice ) { return null; }
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
 		$currency = (string) $invoice->currency;
 		$lines = array();
 		$position = 0;
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_invoice_lines WHERE invoice_id=%d ORDER BY invoice_line_id", $id ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d ORDER BY invoice_line_id', $wpdb->prefix . 'wpcap_invoice_lines', $id ) );
 		foreach ( $rows as $row ) {
 			$gross = (int) $row->total_minor;
 			$vat = (int) $row->tax_minor;
@@ -240,24 +240,24 @@ final class Invoices {
 			'totals' => array( 'net_minor' => $gross - $vat, 'vat_minor' => $vat, 'gross_minor' => $gross, 'discount_minor' => (int) ( $snapshot['discount_minor'] ?? 0 ), 'voucher_payments_minor' => $voucher_minor, 'paid_minor' => $gross, 'due_minor' => 0 ),
 			'references' => array( 'order_id' => (int) $invoice->order_id, 'order_public_id' => (string) $invoice->order_public_id, 'buyer_reference' => (string) ( $snapshot['po_number'] ?? '' ), 'terms_version' => (string) ( $snapshot['terms_version'] ?? '' ) ),
 			'notes' => array_values( array_map( 'strval', \PassCaptain\Invoices::seller_notes( $snapshot ) ) ),
-			'corrections' => array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_id FROM {$wpdb->prefix}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $id ) ) ),
+			'corrections' => array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT credit_note_id FROM %i WHERE invoice_id=%d ORDER BY credit_note_id', $wpdb->prefix . 'wpcap_credit_notes', $id ) ) ),
 		);
 	}
 
 	private static function correction( $id ) {
 		global $wpdb;
-		$credit = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_credit_notes WHERE credit_note_id=%d", $id ) );
+		$credit = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE credit_note_id=%d', $wpdb->prefix . 'wpcap_credit_notes', $id ) );
 		if ( ! $credit ) { return null; }
 		$invoice = self::invoice( (int) $credit->invoice_id );
 		if ( ! $invoice ) { return null; }
-		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,ticket_ids,reason FROM {$wpdb->prefix}wpcap_refunds WHERE refund_id=%d", (int) $credit->refund_id ) );
+		$refund = $wpdb->get_row( $wpdb->prepare( 'SELECT refund_id,ticket_ids,reason FROM %i WHERE refund_id=%d', $wpdb->prefix . 'wpcap_refunds', (int) $credit->refund_id ) );
 		$gross = (int) $credit->total_minor;
 		$vat = (int) $credit->tax_minor;
 		// Per VAT rate: weights = value of the refunded tickets (order lines), else the corrected invoice lines.
 		$weights = array();
 		$ticket_ids = $refund ? array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) ) : array();
 		if ( $ticket_ids ) {
-			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT oi.tax_rate_bp,oi.line_total_minor,oi.quantity FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=t.order_id AND oi.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND t.ticket_id IN (" . implode( ',', array_map( 'intval', $ticket_ids ) ) . ')', (int) $invoice['references']['order_id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT oi.tax_rate_bp,oi.line_total_minor,oi.quantity FROM %i t INNER JOIN %i oi ON oi.order_id=t.order_id AND oi.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND t.ticket_id IN (' . implode( ',', array_fill( 0, count( array_map( 'intval', $ticket_ids ) ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_order_items', (int) $invoice['references']['order_id'] ), array_map( 'intval', $ticket_ids ) ) ) );
 			foreach ( $rows as $row ) {
 				$key = (string) ( (int) $row->tax_rate_bp / 100 );
 				$weights[ $key ] = ( $weights[ $key ] ?? 0 ) + intdiv( (int) $row->line_total_minor, max( 1, (int) $row->quantity ) );

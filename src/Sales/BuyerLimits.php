@@ -44,7 +44,7 @@ final class BuyerLimits {
 		global $wpdb;
 		$event_ids = array_values( array_filter( array_map( 'absint', $event_ids ) ) );
 		if ( ! $event_ids ) { return array(); }
-		$rows = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_buyer_limits WHERE status='active' AND event_id IN (" . implode( ',', $event_ids ) . ') ORDER BY limit_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status='active' AND event_id IN (" . implode( ',', array_fill( 0, count( $event_ids ), '%d' ) ) . ') ORDER BY limit_id', array_merge( array( $wpdb->prefix . 'wpcap_buyer_limits' ), $event_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
 		return is_array( $rows ) ? $rows : array();
 	}
 
@@ -53,18 +53,18 @@ final class BuyerLimits {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = absint( $event_id );
-		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d', $p . 'wpcap_events', $event_id ) ) ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$occurrence_id = absint( $in['occurrence_id'] ?? 0 );
 		$type_id = absint( $in['ticket_type_id'] ?? 0 );
 		$max = absint( $in['max_quantity'] ?? 0 );
 		$match = in_array( (string) ( $in['match_by'] ?? '' ), self::MATCH, true ) ? (string) $in['match_by'] : 'both';
 		if ( $max < 1 || $max > 10000 ) { return self::error( 'wpcap_buyer_limit_max', __( 'Bitte eine Höchstmenge zwischen 1 und 10000 angeben.', 'pass-captain' ) ); }
-		if ( $occurrence_id && (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) ) !== $event_id ) {
+		if ( $occurrence_id && (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', $occurrence_id ) ) !== $event_id ) {
 			return self::error( 'wpcap_buyer_limit_scope', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ) );
 		}
 		if ( $type_id ) {
-			$type = $wpdb->get_row( $wpdb->prepare( "SELECT tt.occurrence_id,o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+			$type = $wpdb->get_row( $wpdb->prepare( 'SELECT tt.occurrence_id,o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $type_id ) );
 			if ( ! $type || (int) $type->event_id !== $event_id || ( $occurrence_id && (int) $type->occurrence_id !== $occurrence_id ) ) {
 				return self::error( 'wpcap_buyer_limit_scope', __( 'Die Ticketart gehört nicht zu diesem Event bzw. Termin.', 'pass-captain' ) );
 			}
@@ -80,7 +80,7 @@ final class BuyerLimits {
 	/** Deactivates a limit. */
 	public static function delete( $limit_id ) {
 		global $wpdb;
-		$limit = $wpdb->get_row( $wpdb->prepare( "SELECT limit_id,event_id FROM {$wpdb->prefix}wpcap_buyer_limits WHERE limit_id=%d", absint( $limit_id ) ) );
+		$limit = $wpdb->get_row( $wpdb->prepare( 'SELECT limit_id,event_id FROM %i WHERE limit_id=%d', $wpdb->prefix . 'wpcap_buyer_limits', absint( $limit_id ) ) );
 		if ( ! $limit ) { return self::error( 'wpcap_buyer_limit_missing', __( 'Käuferlimit nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( (int) $limit->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_buyer_limits", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'limit_id' => (int) $limit->limit_id ) );
@@ -108,7 +108,7 @@ final class BuyerLimits {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return false; }
 		$p = $wpdb->prefix;
-		$hit = $wpdb->get_var( "SELECT bl.limit_id FROM {$p}wpcap_buyer_limits bl INNER JOIN {$p}wpcap_occurrences o ON o.event_id=bl.event_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id WHERE bl.status='active' AND tt.ticket_type_id IN (" . implode( ',', $type_ids ) . ') LIMIT 1' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
+		$hit = $wpdb->get_var( $wpdb->prepare( "SELECT bl.limit_id FROM %i bl INNER JOIN %i o ON o.event_id=bl.event_id INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id WHERE bl.status='active' AND tt.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') LIMIT 1', array_merge( array( $p . 'wpcap_buyer_limits', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types' ), $type_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
 		return (bool) $hit;
 	}
 

@@ -101,6 +101,10 @@ No. Pass Captain is free software under the GPL. All features in this plugin wor
 
 The schema upgrade runs in the admin area, via WP-Cron or WP-CLI, protected by a database lock so parallel requests cannot start it twice. Front-end requests only schedule the upgrade.
 
+= Where does Pass Captain store its data? =
+
+In its own database tables (prefix `wpcap_`, created on activation and removed on uninstall only if you opt in), not in posts or post meta: orders, tickets, check-ins and seat claims need transactions, row locks and unique keys that the post tables cannot provide. All queries on these tables go through `$wpdb->prepare()`; values are never concatenated into SQL. Because the tables are the source of truth for availability and payments, their reads are not cached in the object cache.
+
 = Operations =
 
 Queues (emails, SMS, jobs, webhooks) are processed via WP-Cron with a time budget of about 20 seconds per run; if a backlog remains, another run follows immediately. If Action Scheduler is available (for example with WooCommerce), follow-up runs are scheduled through it. For busy shops, set `define( 'DISABLE_WP_CRON', true );` in wp-config.php and run `wp cron event run --due-now` every minute from a system cron job.

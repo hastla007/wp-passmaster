@@ -65,7 +65,7 @@ final class PriceRules {
 		global $wpdb;
 		$event_id = absint( $event_id );
 		if ( ! isset( self::$cache[ $event_id ] ) ) {
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_price_rules WHERE event_id=%d AND status='active' ORDER BY rule_id", $event_id ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id=%d AND status='active' ORDER BY rule_id", $wpdb->prefix . 'wpcap_price_rules', $event_id ) );
 			foreach ( $rows as $row ) { $row->source = 'event'; }
 			self::$cache[ $event_id ] = $rows;
 		}
@@ -89,17 +89,17 @@ final class PriceRules {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = absint( $event_id );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE event_id=%d", $event_id ) );
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d', $p . 'wpcap_events', $event_id ) );
 		if ( ! $event ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$occurrence_id = absint( $in['occurrence_id'] ?? 0 );
 		$type_id = absint( $in['ticket_type_id'] ?? 0 );
-		if ( $occurrence_id && (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) ) !== $event_id ) {
+		if ( $occurrence_id && (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', $occurrence_id ) ) !== $event_id ) {
 			return self::error( 'wpcap_price_rule_scope', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ) );
 		}
 		$type = null;
 		if ( $type_id ) {
-			$type = $wpdb->get_row( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.currency,o.event_id,o.timezone FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+			$type = $wpdb->get_row( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.occurrence_id,tt.currency,o.event_id,o.timezone FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $type_id ) );
 			if ( ! $type || (int) $type->event_id !== $event_id || ( $occurrence_id && (int) $type->occurrence_id !== $occurrence_id ) ) {
 				return self::error( 'wpcap_price_rule_scope', __( 'Die Ticketart gehört nicht zu diesem Event bzw. Termin.', 'pass-captain' ) );
 			}
@@ -121,7 +121,7 @@ final class PriceRules {
 	/** Deactivates an event rule (kept for the audit trail and order snapshots). */
 	public static function delete( $rule_id ) {
 		global $wpdb;
-		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT rule_id,event_id FROM {$wpdb->prefix}wpcap_price_rules WHERE rule_id=%d", absint( $rule_id ) ) );
+		$rule = $wpdb->get_row( $wpdb->prepare( 'SELECT rule_id,event_id FROM %i WHERE rule_id=%d', $wpdb->prefix . 'wpcap_price_rules', absint( $rule_id ) ) );
 		if ( ! $rule ) { return self::error( 'wpcap_price_rule_missing', __( 'Preisregel nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( (int) $rule->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_price_rules", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'rule_id' => (int) $rule->rule_id ) );

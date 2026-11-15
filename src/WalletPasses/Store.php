@@ -52,7 +52,7 @@ final class Store {
 
 	public static function state( $ticket_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_state' ) . ' WHERE ticket_id=%d', absint( $ticket_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d', self::t( 'wallet_state' ), absint( $ticket_id ) ) );
 	}
 
 	/**
@@ -98,13 +98,15 @@ final class Store {
 
 	public static function passes( $ticket_id, $provider = '' ) {
 		global $wpdb;
-		$sql = 'SELECT * FROM ' . self::t( 'wallet_passes' ) . ' WHERE ticket_id=%d' . ( $provider ? ' AND provider=%s' : '' ) . ' ORDER BY wallet_pass_id';
-		return $provider ? $wpdb->get_results( $wpdb->prepare( $sql, absint( $ticket_id ), $provider ) ) : $wpdb->get_results( $wpdb->prepare( $sql, absint( $ticket_id ) ) );
+		if ( $provider ) {
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d AND provider=%s ORDER BY wallet_pass_id', self::t( 'wallet_passes' ), absint( $ticket_id ), $provider ) );
+		}
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d ORDER BY wallet_pass_id', self::t( 'wallet_passes' ), absint( $ticket_id ) ) );
 	}
 
 	public static function pass_by_serial( $provider, $serial ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_passes' ) . ' WHERE provider=%s AND serial_number=%s', $provider, (string) $serial ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE provider=%s AND serial_number=%s', self::t( 'wallet_passes' ), $provider, (string) $serial ) );
 	}
 
 	/** Idempotent insert/update by serial number. */
@@ -131,8 +133,8 @@ final class Store {
 		global $wpdb;
 		$table = self::t( 'wallet_registrations' );
 		$now = current_time( 'mysql', true );
-		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT registration_id FROM $table WHERE device_library_id=%s AND serial_number=%s", $device, $serial ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET push_token=%s,updated_at=%s WHERE device_library_id=%s", $push_token, $now, $device ) );
+		$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT registration_id FROM %i WHERE device_library_id=%s AND serial_number=%s', $table, $device, $serial ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET push_token=%s,updated_at=%s WHERE device_library_id=%s', $table, $push_token, $now, $device ) );
 		if ( $exists ) {
 			$wpdb->update( $table, array( 'auth_token_hash' => $auth_hash, 'pass_type_id' => $pass_type, 'updated_at' => $now ), array( 'registration_id' => (int) $exists ) );
 			return false;
@@ -143,35 +145,35 @@ final class Store {
 
 	public static function unregister_device( $device, $serial ) {
 		global $wpdb;
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'wallet_registrations' ) . ' WHERE device_library_id=%s AND serial_number=%s', $device, $serial ) );
+		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE device_library_id=%s AND serial_number=%s', self::t( 'wallet_registrations' ), $device, $serial ) );
 	}
 
 	public static function delete_push_token( $push_token ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'wallet_registrations' ) . ' WHERE push_token=%s', $push_token ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE push_token=%s', self::t( 'wallet_registrations' ), $push_token ) );
 	}
 
 	public static function registrations_for_serial( $serial ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_registrations' ) . ' WHERE serial_number=%s', $serial ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE serial_number=%s', self::t( 'wallet_registrations' ), $serial ) );
 	}
 
 	public static function registration_by_auth( $serial, $auth_hash ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_registrations' ) . ' WHERE serial_number=%s AND auth_token_hash=%s LIMIT 1', $serial, $auth_hash ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE serial_number=%s AND auth_token_hash=%s LIMIT 1', self::t( 'wallet_registrations' ), $serial, $auth_hash ) );
 	}
 
 	/** Serial numbers registered on a device that changed after $since (update tag). */
 	public static function updated_serials( $device, $pass_type, $since ) {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT r.serial_number,s.update_tag FROM ' . self::t( 'wallet_registrations' ) . ' r INNER JOIN ' . self::t( 'wallet_passes' ) . " p ON p.provider='apple' AND p.serial_number=r.serial_number INNER JOIN " . self::t( 'wallet_state' ) . ' s ON s.ticket_id=p.ticket_id WHERE r.device_library_id=%s AND r.pass_type_id=%s AND s.update_tag>%d ORDER BY s.update_tag',
+			"SELECT r.serial_number,s.update_tag FROM %i r INNER JOIN %i p ON p.provider='apple' AND p.serial_number=r.serial_number INNER JOIN %i s ON s.ticket_id=p.ticket_id WHERE r.device_library_id=%s AND r.pass_type_id=%s AND s.update_tag>%d ORDER BY s.update_tag", self::t( 'wallet_registrations' ), self::t( 'wallet_passes' ), self::t( 'wallet_state' ),
 			$device, $pass_type, (int) $since
 		) );
 	}
 
 	public static function has_registrations_for_device( $device, $pass_type ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . self::t( 'wallet_registrations' ) . ' WHERE device_library_id=%s AND pass_type_id=%s LIMIT 1', $device, $pass_type ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE device_library_id=%s AND pass_type_id=%s LIMIT 1', self::t( 'wallet_registrations' ), $device, $pass_type ) );
 	}
 }

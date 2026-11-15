@@ -73,7 +73,7 @@ final class Language {
 		global $wpdb;
 		$public_id = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $public_id ) );
 		$token = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $token ) );
-		$order = 32 === strlen( $public_id ) ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) ) : null;
+		$order = 32 === strlen( $public_id ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) ) : null;
 		if ( ! $order || 64 !== strlen( $token ) || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) {
 			return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}

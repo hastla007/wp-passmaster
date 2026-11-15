@@ -15,7 +15,7 @@ final class ReceiptRenderer {
 	public static function render( $order_id ) {
 		global $wpdb;
 		$docs = $wpdb->get_results( $wpdb->prepare(
-			"SELECT seller_id,provider_result,snapshot FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status='submitted' ORDER BY seller_id",
+			"SELECT seller_id,provider_result,snapshot FROM %i WHERE order_id=%d AND status='submitted' ORDER BY seller_id", $wpdb->prefix . 'wpcap_fiscal_documents',
 			absint( $order_id )
 		) );
 		if ( ! $docs ) { return ''; }

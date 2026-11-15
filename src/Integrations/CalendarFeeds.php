@@ -44,13 +44,13 @@ final class CalendarFeeds {
 
 	public static function all() {
 		global $wpdb;
-		$rows = (array) $wpdb->get_results( 'SELECT feed_id,scope,scope_id,label,status,created_by,created_at,revoked_at,last_access_at FROM ' . self::table( 'calendar_feeds' ) . ' ORDER BY feed_id DESC LIMIT 200' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT feed_id,scope,scope_id,label,status,created_by,created_at,revoked_at,last_access_at FROM %i ORDER BY feed_id DESC LIMIT 200', self::table( 'calendar_feeds' ) ) );
 		return '' === (string) $wpdb->last_error ? $rows : array();
 	}
 
 	public static function get( $feed_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'calendar_feeds' ) . ' WHERE feed_id=%d', absint( $feed_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE feed_id=%d', self::table( 'calendar_feeds' ), absint( $feed_id ) ) );
 	}
 
 	/**
@@ -63,7 +63,7 @@ final class CalendarFeeds {
 		$scope = in_array( $scope, self::SCOPES, true ) ? $scope : '';
 		$scope_id = 'all' === $scope ? 0 : absint( $scope_id );
 		if ( '' === $scope ) { return new \WP_Error( 'wpcap_feed_scope', __( 'Unbekannter Umfang des Kalender-Abos.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		if ( 'event' === $scope && ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $scope_id ) ) ) {
+		if ( 'event' === $scope && ! $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $scope_id ) ) ) {
 			return new \WP_Error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		if ( 'partner' === $scope && ( ! class_exists( '\\PassCaptain\\Partners\\Repository' ) || ! \PassCaptain\Partners\Repository::get( $scope_id ) ) ) {
@@ -80,7 +80,7 @@ final class CalendarFeeds {
 	/** Revokes a feed: its URL stops working immediately. */
 	public static function revoke( $feed_id ) {
 		global $wpdb;
-		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'calendar_feeds' ) . " SET status='revoked',revoked_at=%s WHERE feed_id=%d AND status='active'", current_time( 'mysql', true ), absint( $feed_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked',revoked_at=%s WHERE feed_id=%d AND status='active'", self::table( 'calendar_feeds' ), current_time( 'mysql', true ), absint( $feed_id ) ) );
 		if ( $changed ) { \PassCaptain\Audit::record( 'calendar_feed_revoked', 'settings', absint( $feed_id ), array() ); }
 		return (bool) $changed;
 	}
@@ -101,7 +101,7 @@ final class CalendarFeeds {
 		global $wpdb;
 		$token = strtolower( trim( (string) $token ) );
 		if ( ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return null; }
-		$feed = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'calendar_feeds' ) . " WHERE token_hash=%s AND status='active'", hash( 'sha256', $token ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		$feed = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE token_hash=%s AND status='active'", self::table( 'calendar_feeds' ), hash( 'sha256', $token ) ) );
 		return $feed ? $feed : null;
 	}
 
@@ -139,7 +139,7 @@ final class CalendarFeeds {
 		if ( ! $rows ) { return array(); }
 		$ids = array_map( static function ( $r ) { return (int) $r->occurrence_id; }, $rows );
 		$known = array();
-		foreach ( (array) $wpdb->get_results( "SELECT occurrence_id,fingerprint,sequence,changed_at FROM $table WHERE occurrence_id IN (" . implode( ',', $ids ) . ')' ) as $s ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,fingerprint,sequence,changed_at FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $table ), $ids ) ) ) as $s ) {
 			$known[ (int) $s->occurrence_id ] = $s;
 		}
 		$out = array();
@@ -149,12 +149,12 @@ final class CalendarFeeds {
 			$fp = self::fingerprint( $row );
 			$s = $known[ $id ] ?? null;
 			if ( ! $s ) {
-				$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (occurrence_id,fingerprint,sequence,changed_at) VALUES (%d,%s,0,%s)", $id, $fp, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (occurrence_id,fingerprint,sequence,changed_at) VALUES (%d,%s,0,%s)', $table, $id, $fp, $now ) );
 				$out[ $id ] = array( 'sequence' => 0, 'changed_at' => strtotime( $now . ' UTC' ) );
 				continue;
 			}
 			if ( $s->fingerprint !== $fp ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE $table SET fingerprint=%s,sequence=sequence+1,changed_at=%s WHERE occurrence_id=%d AND fingerprint=%s", $fp, $now, $id, (string) $s->fingerprint ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i SET fingerprint=%s,sequence=sequence+1,changed_at=%s WHERE occurrence_id=%d AND fingerprint=%s', $table, $fp, $now, $id, (string) $s->fingerprint ) );
 				$out[ $id ] = array( 'sequence' => (int) $s->sequence + 1, 'changed_at' => strtotime( $now . ' UTC' ) );
 				continue;
 			}
@@ -170,12 +170,12 @@ final class CalendarFeeds {
 	public static function bump( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.ends_at,o.location,o.status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table prefix.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT o.occurrence_id,o.starts_at,o.ends_at,o.location,o.status,e.status AS event_status,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
 		if ( ! $row ) { return; }
 		$table = self::table( 'calendar_sequences' );
 		$fp = self::fingerprint( $row );
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "INSERT INTO $table (occurrence_id,fingerprint,sequence,changed_at) VALUES (%d,%s,1,%s) ON DUPLICATE KEY UPDATE sequence=IF(fingerprint=VALUES(fingerprint),sequence,sequence+1),fingerprint=VALUES(fingerprint),changed_at=IF(fingerprint=VALUES(fingerprint),changed_at,VALUES(changed_at))", (int) $row->occurrence_id, $fp, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (occurrence_id,fingerprint,sequence,changed_at) VALUES (%d,%s,1,%s) ON DUPLICATE KEY UPDATE sequence=IF(fingerprint=VALUES(fingerprint),sequence,sequence+1),fingerprint=VALUES(fingerprint),changed_at=IF(fingerprint=VALUES(fingerprint),changed_at,VALUES(changed_at))', $table, (int) $row->occurrence_id, $fp, $now ) );
 	}
 
 	/** iCalendar body of a token, or null (unknown or revoked token). */

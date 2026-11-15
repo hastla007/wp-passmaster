@@ -109,7 +109,7 @@ final class Types {
 		global $wpdb;
 		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ) );
 		if ( 32 !== strlen( $public_id ) ) { return $vars; }
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( $order && \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
 			$vars['payment_instructions'] = Blocks::payment_instructions( \PassCaptain\Payments\BankTransfer::details( $order ) );
 		}
@@ -364,8 +364,8 @@ final class Types {
 				'label' => __( 'Eventabsage', 'pass-captain' ),
 				'description' => __( 'Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird.', 'pass-captain' ),
 				'placeholders' => array( 'event_name' => __( 'Event', 'pass-captain' ) ),
-				'subject' => static function () { return sprintf( __( 'Eventabsage: %s', 'pass-captain' ), '{event_name}' ); },
-				'body' => static function () { return sprintf( __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'pass-captain' ), '{event_name}' ); },
+				'subject' => static function () { return sprintf( /* translators: %s: event name placeholder */ __( 'Eventabsage: %s', 'pass-captain' ), '{event_name}' ); },
+				'body' => static function () { return sprintf( /* translators: %s: event name placeholder */ __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'pass-captain' ), '{event_name}' ); },
 				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert' ); },
 			),
 			'occurrence_cancelled' => array(

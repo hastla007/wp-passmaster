@@ -21,7 +21,7 @@ final class Seats {
 		$wpdb->query( 'START TRANSACTION' );
 		$holds = $wpdb->prefix . 'wpcap_seat_holds';
 		$seats = $wpdb->prefix . 'wpcap_seats';
-		$existing = $wpdb->get_results( $wpdb->prepare( "SELECT hold_id,seat_id,expires_at,status FROM $holds WHERE request_key=%s", $idempotency_key ) );
+		$existing = $wpdb->get_results( $wpdb->prepare( 'SELECT hold_id,seat_id,expires_at,status FROM %i WHERE request_key=%s', $holds, $idempotency_key ) );
 		if ( $existing ) {
 			$existing_ids = array_map( 'intval', wp_list_pluck( $existing, 'seat_id' ) );
 			sort( $existing_ids, SORT_NUMERIC );
@@ -31,10 +31,10 @@ final class Seats {
 			return array( 'seat_ids' => $existing_ids, 'expires_at' => $existing[0]->expires_at, 'reused' => true );
 		}
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE $holds SET status='expired' WHERE status='active' AND expires_at <= %s", $now ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at <= %s", $holds, $now ) );
 		foreach ( $seat_ids as $seat_id ) {
-			$seat = $wpdb->get_row( $wpdb->prepare( "SELECT s.seat_id,s.status FROM $seats s INNER JOIN {$wpdb->prefix}wpcap_seat_maps m ON m.map_id=s.map_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=m.event_id WHERE s.seat_id=%d AND o.occurrence_id=%d AND m.status='published' FOR UPDATE", $seat_id, $occurrence_id ) );
-			$active = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $holds WHERE occurrence_id=%d AND seat_id=%d AND status IN ('active','sold')", $occurrence_id, $seat_id ) );
+			$seat = $wpdb->get_row( $wpdb->prepare( "SELECT s.seat_id,s.status FROM %i s INNER JOIN %i m ON m.map_id=s.map_id INNER JOIN %i o ON o.event_id=m.event_id WHERE s.seat_id=%d AND o.occurrence_id=%d AND m.status='published' FOR UPDATE", $seats, $wpdb->prefix . 'wpcap_seat_maps', $wpdb->prefix . 'wpcap_occurrences', $seat_id, $occurrence_id ) );
+			$active = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE occurrence_id=%d AND seat_id=%d AND status IN ('active','sold')", $holds, $occurrence_id, $seat_id ) );
 			if ( ! $seat || 'available' !== $seat->status || $active ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_unavailable', __( 'Mindestens ein Sitzplatz ist nicht mehr verfügbar.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		}
 		$expires = gmdate( 'Y-m-d H:i:s', time() + min( 15, max( 1, absint( $minutes ) ) ) * MINUTE_IN_SECONDS );

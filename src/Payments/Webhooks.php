@@ -43,13 +43,13 @@ final class Webhooks {
 		}
 		$now = current_time( 'mysql', true );
 		// A claim left in "processing" by a crashed request may be taken over after 10 minutes.
-		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ) ) );
+		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $p . 'wpcap_payment_events', $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ) ) );
 		if ( false === $taken_over ) {
 			return self::db_error( $provider, $event_id, 'takeover' );
 		}
 		// INSERT IGNORE: 1 = claimed, 0 = already claimed/processed (duplicate), false = database error.
 		// Only a real duplicate is acknowledged; a database error must reach the provider as a 5xx so it retries.
-		$claimed = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_payment_events (provider,provider_event_id,event_type,status,created_at,updated_at) VALUES (%s,%s,%s,'processing',%s,%s)", $provider, $event_id, sanitize_key( $event['type'] ?? '' ), $now, $now ) );
+		$claimed = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (provider,provider_event_id,event_type,status,created_at,updated_at) VALUES (%s,%s,%s,'processing',%s,%s)", $p . 'wpcap_payment_events', $provider, $event_id, sanitize_key( $event['type'] ?? '' ), $now, $now ) );
 		if ( false === $claimed ) {
 			return self::db_error( $provider, $event_id, 'claim' );
 		}
@@ -61,7 +61,7 @@ final class Webhooks {
 			// (filter wpcap_webhook_claim_wait_ms, default 3000) before asking the provider to retry.
 			$wait_until = microtime( true ) + max( 0, (int) apply_filters( 'wpcap_webhook_claim_wait_ms', 3000 ) ) / 1000;
 			do {
-				$status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s", $provider, $event_id ) );
+				$status = $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE provider=%s AND provider_event_id=%s', $p . 'wpcap_payment_events', $provider, $event_id ) );
 				if ( 'processed' === $status ) {
 					return 'duplicate';
 				}
@@ -74,13 +74,13 @@ final class Webhooks {
 			return new \WP_Error( 'wpcap_webhook_in_progress', 'Event is being processed; retry later.', array( 'status' => 409, 'retryable' => true ) );
 		}
 		$release = static function () use ( $wpdb, $p, $provider, $event_id ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s AND status='processing'", $provider, $event_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing'", $p . 'wpcap_payment_events', $provider, $event_id ) );
 		};
 		try {
 			$order_id = 0;
 			$public_id = sanitize_text_field( (string) ( $event['order_public_id'] ?? '' ) );
 			if ( '' !== $public_id ) {
-				$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE public_id=%s AND payment_provider=%s", $public_id, $provider ) );
+				$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE public_id=%s AND payment_provider=%s', $p . 'wpcap_orders', $public_id, $provider ) );
 				if ( '' !== (string) $wpdb->last_error ) {
 					// A failed lookup is not an unknown order: "ignored" would acknowledge a lost payment.
 					$release();

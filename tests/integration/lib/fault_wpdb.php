@@ -88,7 +88,7 @@ if ( ! class_exists( 'Wpcap_Fault_WPDB' ) ) {
 			if ( $this->down ) { return $this->inject( 'gone', $sql ); }
 			if ( isset( $this->nth[ $index ] ) ) { return $this->inject( $this->nth[ $index ], $sql ); }
 			foreach ( $this->rules as $i => $rule ) {
-				if ( $rule['times'] <= 0 || ! preg_match( $rule['pattern'], $sql ) ) { continue; }
+				if ( $rule['times'] <= 0 || ! preg_match( $rule['pattern'], str_replace( '`', '', (string) $sql ) ) ) { continue; }
 				if ( $rule['skip'] > 0 ) { $this->rules[ $i ]['skip']--; return null; }
 				$this->rules[ $i ]['times']--;
 				return $this->inject( $rule['kind'], $sql );

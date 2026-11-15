@@ -48,9 +48,11 @@ final class Test_WPDB {
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
 		$i = 0;
-		return preg_replace_callback( '/%%|%[dsf]/', function ( $m ) use ( &$i, $args ) {
+		return preg_replace_callback( '/%%|%[dsfi]/', function ( $m ) use ( &$i, $args ) {
 			if ( '%%' === $m[0] ) { return '%'; }
 			$v = $args[ $i++ ] ?? '';
+			// %i (WordPress 6.2+): identifier, backtick-quoted with embedded backticks doubled.
+			if ( '%i' === $m[0] ) { return '`' . str_replace( '`', '``', (string) $v ) . '`'; }
 			if ( '%d' === $m[0] ) { return (string) (int) $v; }
 			if ( '%f' === $m[0] ) { return (string) (float) $v; }
 			return $this->esc( $v );
@@ -114,6 +116,15 @@ function absint( $v ) { return abs( (int) $v ); }
 function sanitize_email( $e ) { return filter_var( trim( (string) $e ), FILTER_SANITIZE_EMAIL ); }
 function is_email( $e ) { return false !== filter_var( (string) $e, FILTER_VALIDATE_EMAIL ) ? $e : false; }
 function sanitize_text_field( $t ) { return trim( strip_tags( (string) $t ) ); }
+// WordPress core implementation (wp-includes/formatting.php).
+function wp_strip_all_tags( $text, $remove_breaks = false ) {
+	if ( is_null( $text ) ) { return ''; }
+	if ( ! is_scalar( $text ) ) { return ''; }
+	$text = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
+	$text = strip_tags( $text );
+	if ( $remove_breaks ) { $text = preg_replace( '/[\r\n\t ]+/', ' ', $text ); }
+	return trim( $text );
+}
 function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 function wp_unslash( $v ) { return $v; }
 function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }

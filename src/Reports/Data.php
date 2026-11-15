@@ -140,13 +140,12 @@ final class Data {
 				'channel' => 0 === strpos( (string) $provider, 'pos_' ) ? 'pos' : 'online',
 			);
 		};
-		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 
 		// Sales.
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) );
+		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM %i WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $p . 'wpcap_orders', $start, $end ) );
 		$order_map = array();
 		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
-		$lines_by_order = self::lines_by_order( array_keys( $order_map ), $line_sql );
+		$lines_by_order = self::lines_by_order( array_keys( $order_map ) );
 		$order_scope = array(); // order id => in-scope [tickets, gross after discount, line total before discount, all lines before discount].
 		foreach ( $order_map as $order_id => $order ) {
 			$lines = $lines_by_order[ $order_id ] ?? array();
@@ -168,8 +167,8 @@ final class Data {
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
-		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) );
+		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) );
 		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
 		foreach ( $refunds as $refund ) {
 			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
@@ -179,7 +178,7 @@ final class Data {
 			$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
 			$weights = array(); // line index => [tickets, weight]
 			if ( $ids ) {
-				foreach ( $wpdb->get_results( 'SELECT ticket_type_id FROM ' . $p . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) as $t ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets' ), $ids ) ) ) as $t ) {
 					$i = $by_type[ (int) $t->ticket_type_id ] ?? null;
 					if ( null === $i ) { continue; }
 					$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
@@ -214,7 +213,7 @@ final class Data {
 		ksort( $rates );
 
 		// Credit notes in the range (reference only).
-		$credit_rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.credit_note_number,c.total_minor,c.tax_minor,i.order_id FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE c.issued_at >= %s AND c.issued_at < %s", $start, $end ) );
+		$credit_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT c.credit_note_number,c.total_minor,c.tax_minor,i.order_id FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id WHERE c.issued_at >= %s AND c.issued_at < %s', $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $start, $end ) );
 		$credit = array( 'count' => 0, 'total' => 0, 'tax' => 0 );
 		foreach ( $credit_rows as $c ) {
 			$events = Scope::order_events( $c->order_id );
@@ -291,7 +290,7 @@ final class Data {
 		$uses = array();
 		$ids = array_values( array_unique( array_merge( array_map( 'absint', array_keys( $order_scope ) ), array_map( 'absint', array_keys( $refund_scope ) ) ) ) );
 		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
-			foreach ( $wpdb->get_results( "SELECT cu.campaign_use_id,cu.order_id,cu.campaign_id,cu.code,cu.discount_minor,c.name FROM {$p}wpcap_campaign_uses cu LEFT JOIN {$p}wpcap_campaigns c ON c.campaign_id=cu.campaign_id WHERE cu.status IN ('reserved','committed') AND cu.order_id IN (" . implode( ',', $chunk ) . ') ORDER BY cu.campaign_use_id' ) as $use ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT cu.campaign_use_id,cu.order_id,cu.campaign_id,cu.code,cu.discount_minor,c.name FROM %i cu LEFT JOIN %i c ON c.campaign_id=cu.campaign_id WHERE cu.status IN ('reserved','committed') AND cu.order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY cu.campaign_use_id', array_merge( array( $p . 'wpcap_campaign_uses', $p . 'wpcap_campaigns' ), $chunk ) ) ) as $use ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
 				$uses[ (int) $use->order_id ][] = $use;
 			}
 		}
@@ -355,11 +354,11 @@ final class Data {
 	}
 
 	/** Order lines grouped by order id (item order = Orders::create order). */
-	private static function lines_by_order( array $order_ids, $line_sql ) {
+	private static function lines_by_order( array $order_ids ) {
 		global $wpdb;
 		$out = array();
 		foreach ( array_chunk( array_map( 'absint', $order_ids ), 500 ) as $chunk ) {
-			foreach ( $wpdb->get_results( $line_sql . ' WHERE oi.order_id IN (' . implode( ',', $chunk ) . ') ORDER BY oi.order_id,oi.item_id' ) as $line ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT oi.order_id,oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY oi.order_id,oi.item_id', array_merge( array( $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events' ), $chunk ) ) ) as $line ) {
 				$out[ (int) $line->order_id ][] = $line;
 			}
 		}
@@ -391,17 +390,17 @@ final class Data {
 	public static function occurrence_stats( array $occurrence_ids, $start, $end, $scope ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$starting = $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE starts_at >= %s AND starts_at < %s", $start, $end ) );
+		$starting = $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE starts_at >= %s AND starts_at < %s', $p . 'wpcap_occurrences', $start, $end ) );
 		$ids = array_values( array_unique( array_merge( array_map( 'absint', $occurrence_ids ), array_map( 'absint', $starting ) ) ) );
 		if ( ! $ids ) { return array(); }
 		$in = implode( ',', $ids );
 		$out = array();
-		$occ_rows = $wpdb->get_results( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id IN ($in) ORDER BY o.starts_at" );
-		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.capacity,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded'),0) AS sold FROM {$p}wpcap_ticket_types tt WHERE tt.occurrence_id IN ($in) ORDER BY tt.ticket_type_id" );
+		$occ_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,e.name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY o.starts_at', array_merge( array( $p . 'wpcap_occurrences', $p . 'wpcap_events' ), $ids ) ) );
+		$types = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.capacity,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded'),0) AS sold FROM %i tt WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY tt.ticket_type_id', array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_orders', $p . 'wpcap_ticket_types' ), $ids ) ) );
 		$issued = array();
-		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $issued[ (int) $r->occurrence_id ] = (int) $r->n; }
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT tt.occurrence_id,COUNT(*) AS n FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_tickets', $p . 'wpcap_ticket_types' ), $ids ) ) ) as $r ) { $issued[ (int) $r->occurrence_id ] = (int) $r->n; }
 		$checked = array();
-		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(DISTINCT c.ticket_id) AS n FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND c.result='checked_in' AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $checked[ (int) $r->occurrence_id ] = (int) $r->n; }
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT tt.occurrence_id,COUNT(DISTINCT c.ticket_id) AS n FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND c.result='checked_in' AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_checkins', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types' ), $ids ) ) ) as $r ) { $checked[ (int) $r->occurrence_id ] = (int) $r->n; }
 		foreach ( $occ_rows as $o ) {
 			if ( ! self::in_scope( $o->event_id, $scope ) ) { continue; }
 			$id = (int) $o->occurrence_id;
@@ -436,8 +435,8 @@ final class Data {
 	public static function checkin_histogram( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$tz = (string) $wpdb->get_var( $wpdb->prepare( "SELECT timezone FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
-		$times = $wpdb->get_col( $wpdb->prepare( "SELECT COALESCE(c.scanned_at,c.created_at) FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND c.result='checked_in'", absint( $occurrence_id ) ) );
+		$tz = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT timezone FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', absint( $occurrence_id ) ) );
+		$times = $wpdb->get_col( $wpdb->prepare( "SELECT COALESCE(c.scanned_at,c.created_at) FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND c.result='checked_in'", $p . 'wpcap_checkins', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 		$out = array();
 		foreach ( $times as $time ) {
 			$hour = Scope::local( $time, $tz ?: 'UTC', 'Y-m-d H:00' );

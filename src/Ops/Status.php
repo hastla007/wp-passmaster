@@ -77,15 +77,15 @@ final class Status {
 		$t = $wpdb->prefix . $q['table'];
 		$finished = array( 'complete', 'sent', 'succeeded', 'cancelled', 'skipped', 'delivered' );
 		$counts = array();
-		foreach ( (array) $wpdb->get_results( "SELECT status, COUNT(*) AS n FROM $t GROUP BY status" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT status, COUNT(*) AS n FROM %i GROUP BY status', $t ) ) as $row ) {
 			if ( ! in_array( $row->status, $finished, true ) ) { $counts[ $row->status ] = (int) $row->n; }
 		}
 		return array(
 			'label'        => $q['label'],
 			'counts'       => $counts,
 			'overdue'      => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE status=%s AND {$q['due']}<%s", $q['ready'], self::gmt( self::OVERDUE_AFTER, $now ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			'long_running' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE status=%s AND locked_at<%s", $q['claimed'], self::gmt( self::LONG_RUNNING_AFTER, $now ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			'stale_claims' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE status=%s AND locked_at<%s", $q['claimed'], self::gmt( self::STALE_CLAIM_AFTER, $now ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'long_running' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s AND locked_at<%s', $t, $q['claimed'], self::gmt( self::LONG_RUNNING_AFTER, $now ) ) ),
+			'stale_claims' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s AND locked_at<%s', $t, $q['claimed'], self::gmt( self::STALE_CLAIM_AFTER, $now ) ) ),
 			'failed'       => $counts[ $q['failed'] ] ?? 0,
 		);
 	}
@@ -93,7 +93,7 @@ final class Status {
 	/** Open jobs by status and type: rows {status, job_type, n, oldest_due}. */
 	public static function job_backlog() {
 		global $wpdb;
-		return (array) $wpdb->get_results( "SELECT status, job_type, COUNT(*) AS n, MIN(run_after) AS oldest_due FROM {$wpdb->prefix}wpcap_jobs WHERE status NOT IN ('complete','cancelled') GROUP BY status, job_type ORDER BY status, job_type" );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT status, job_type, COUNT(*) AS n, MIN(run_after) AS oldest_due FROM %i WHERE status NOT IN ('complete','cancelled') GROUP BY status, job_type ORDER BY status, job_type", $wpdb->prefix . 'wpcap_jobs' ) );
 	}
 
 	/**
@@ -115,7 +115,7 @@ final class Status {
 	public static function email_failures( $limit = 10 ) {
 		global $wpdb;
 		if ( ! self::table_exists( 'wpcap_message_queue' ) ) { return array(); }
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT last_error, COUNT(*) AS n, MAX(created_at) AS latest FROM {$wpdb->prefix}wpcap_message_queue WHERE status IN ('failed','queued') AND last_error IS NOT NULL AND last_error<>'' GROUP BY last_error ORDER BY n DESC LIMIT %d", max( 1, absint( $limit ) ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT last_error, COUNT(*) AS n, MAX(created_at) AS latest FROM %i WHERE status IN ('failed','queued') AND last_error IS NOT NULL AND last_error<>'' GROUP BY last_error ORDER BY n DESC LIMIT %d", $wpdb->prefix . 'wpcap_message_queue', max( 1, absint( $limit ) ) ) );
 	}
 
 	/**
@@ -164,7 +164,7 @@ final class Status {
 		$q = self::queues()[ $queue ] ?? null;
 		if ( ! $q || ! self::table_exists( $q['table'] ) ) { return 0; }
 		$t = $wpdb->prefix . $q['table'];
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE status=%s", $q['failed'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s', $t, $q['failed'] ) );
 	}
 
 	/**
@@ -314,7 +314,7 @@ final class Status {
 			/* translators: %d: number of refunds */
 			$issues[] = array( 'severity' => 'error', 'message' => sprintf( __( '%d Erstattungen wurden ausgezahlt, aber noch nicht verbucht.', 'pass-captain' ), $unbooked ) );
 		}
-		$stuck = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_refunds WHERE status='processing' AND provider_reference='' AND updated_at<%s", self::gmt( self::STALE_CLAIM_AFTER, $now ) ) );
+		$stuck = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='processing' AND provider_reference='' AND updated_at<%s", $wpdb->prefix . 'wpcap_refunds', self::gmt( self::STALE_CLAIM_AFTER, $now ) ) );
 		if ( $stuck > 0 ) {
 			/* translators: %d: number of refunds */
 			$issues[] = array( 'severity' => 'error', 'message' => sprintf( __( '%d Erstattungen hängen in „processing“ ohne Anbieter-Referenz und brauchen eine manuelle Prüfung.', 'pass-captain' ), $stuck ) );

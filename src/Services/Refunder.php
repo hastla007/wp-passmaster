@@ -39,14 +39,14 @@ final class Refunder {
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$key_hash = hash( 'sha256', 'refund|' . $order_id . '|' . sanitize_text_field( $key ) );
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', $p . 'wpcap_refunds', $key_hash ), ARRAY_A );
 		if ( $existing ) { return self::resume( $existing ); }
 		$ticket_ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
 		if ( ! $ticket_ids && null === $amount_minor ) {
 			return new \WP_Error( 'wpcap_service_refund_empty', __( 'Für diese Buchung gibt es nichts zu erstatten.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -56,7 +56,7 @@ final class Refunder {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', $p . 'wpcap_refunds', $key_hash ), ARRAY_A );
 		if ( $existing ) { $wpdb->query( 'ROLLBACK' ); return self::resume( $existing ); }
 		$open = self::open_refunds( $order_id );
 		if ( $ticket_ids && array_intersect( $ticket_ids, $open['ticket_ids'] ) ) {
@@ -96,7 +96,7 @@ final class Refunder {
 		) );
 		if ( false === $inserted || ! $wpdb->insert_id ) {
 			$wpdb->query( 'ROLLBACK' );
-			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', $p . 'wpcap_refunds', $key_hash ), ARRAY_A );
 			return $existing ? self::resume( $existing ) : self::busy();
 		}
 		$refund_id = (int) $wpdb->insert_id;
@@ -112,7 +112,7 @@ final class Refunder {
 	/** Refund row written for an idempotency key (also when the provider call failed), or null. */
 	public static function find( $order_id, $key ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_refunds WHERE idempotency_key=%s", hash( 'sha256', 'refund|' . absint( $order_id ) . '|' . sanitize_text_field( $key ) ) ), ARRAY_A );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', $wpdb->prefix . 'wpcap_refunds', hash( 'sha256', 'refund|' . absint( $order_id ) . '|' . sanitize_text_field( $key ) ) ), ARRAY_A );
 	}
 
 	/** Continues an existing refund row: approved/failed ones are (re-)executed, others returned as they are. */
@@ -129,7 +129,7 @@ final class Refunder {
 	/** Tickets and amount of refunds of the order that are not finished (same rule as Refunds::request()). */
 	private static function open_refunds( $order_id ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_ids,amount_minor FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND status IN ('pending_approval','approved','processing')", absint( $order_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_ids,amount_minor FROM %i WHERE order_id=%d AND status IN ('pending_approval','approved','processing')", $wpdb->prefix . 'wpcap_refunds', absint( $order_id ) ) );
 		$ids = array();
 		$amount = 0;
 		foreach ( (array) $rows as $row ) {

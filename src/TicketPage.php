@@ -18,7 +18,7 @@ final class TicketPage {
 		if ( 64 !== strlen( $token ) ) { status_header( 404 ); exit; }
 		global $wpdb;
 		$ticket = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.locale FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
+			'SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.locale FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_orders', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events',
 			hash( 'sha256', $token )
 		) );
 		if ( ! $ticket ) { status_header( 404 ); exit; }

@@ -42,14 +42,14 @@ final class TicketsPage {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$wpdb->query( 'START TRANSACTION' );
-		$updated = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", (int) $ticket->ticket_id ) );
+		$updated = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked' WHERE ticket_id=%d AND status='valid'", $p . 'wpcap_tickets', (int) $ticket->ticket_id ) );
 		if ( 1 !== $updated ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_ticket_not_valid', __( 'Nur gültige (nicht eingecheckte) Tickets können widerrufen werden.', 'pass-captain' ), 409 );
 		}
 		$release = Forms::flag( $in, 'release_capacity' );
 		if ( $release ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+1) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $ticket->order_id, (int) $ticket->ticket_type_id ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded_quantity=LEAST(quantity,refunded_quantity+1) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1', $p . 'wpcap_order_items', (int) $ticket->order_id, (int) $ticket->ticket_type_id ) );
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'ticket_revoked', 'ticket', (int) $ticket->ticket_id, array( 'order_id' => (int) $ticket->order_id, 'event_id' => (int) $ticket->event_id, 'reason' => $reason, 'capacity_released' => $release ) );
@@ -89,7 +89,7 @@ final class TicketsPage {
 			return Forms::error( 'wpcap_db_busy', __( 'Die Änderung konnte gerade nicht gespeichert werden. Bitte erneut versuchen.', 'pass-captain' ), 503 );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,t.refunded,ord.status AS order_status,ord.payment_status FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d FOR UPDATE", (int) $ticket->ticket_id ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT t.ticket_id,t.status,t.refunded,ord.status AS order_status,ord.payment_status FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d FOR UPDATE', $p . 'wpcap_tickets', $p . 'wpcap_orders', (int) $ticket->ticket_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
 		if ( ! $row || 'checked_in' !== $row->status ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -101,7 +101,7 @@ final class TicketsPage {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_ticket_not_undoable', __( 'Der Check-in eines erstatteten oder stornierten Tickets kann nicht zurückgenommen werden.', 'pass-captain' ), 409 );
 		}
-		$last = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", (int) $ticket->ticket_id ) );
+		$last = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id FROM %i WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $p . 'wpcap_checkins', (int) $ticket->ticket_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
 		// Pending lazy undos are applied first, so the state below is current.
 		if ( false === \PassCaptain\Admission\Engine::state_for_update( (int) $ticket->ticket_id ) ) { return $busy(); }

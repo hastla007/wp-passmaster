@@ -85,12 +85,12 @@ final class Reminders {
 		if ( empty( $c['enabled'] ) || ! $c['offsets'] ) { return 0; }
 		$p = $wpdb->prefix;
 		$now = $now ?? time();
-		$occurrences = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s ORDER BY o.starts_at LIMIT 200", gmdate( 'Y-m-d H:i:s', $now ), gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS ) ) );
+		$occurrences = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s ORDER BY o.starts_at LIMIT 200", $p . 'wpcap_occurrences', $p . 'wpcap_events', gmdate( 'Y-m-d H:i:s', $now ), gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS ) ) );
 		$queued = 0;
 		foreach ( $occurrences as $occ ) {
 			$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
 			if ( ! $stage ) { continue; }
-			$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
+			$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) );
 			foreach ( $holders as $holder ) {
 				if ( ! is_email( $holder->email ) ) { continue; }
 				$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
@@ -99,7 +99,7 @@ final class Reminders {
 				if ( true === $result ) { ++$queued; }
 			}
 			if ( ! empty( $c['sms'] ) && '' !== trim( (string) $c['sms_body'] ) && class_exists( SmsService::class ) ) {
-				$orders = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid'", (int) $occ->occurrence_id ) );
+				$orders = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid'", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) );
 				$body = Placeholders::render( $c['sms_body'], array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => $stage ) ) );
 				foreach ( $orders as $order_id ) {
 					if ( true === SmsService::enqueue( 'sms|reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . (int) $order_id, (int) $order_id, (int) $occ->occurrence_id, 'reminder', $body ) ) { ++$queued; }
@@ -111,28 +111,28 @@ final class Reminders {
 
 	private static function already_queued( $key ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM {$wpdb->prefix}wpcap_message_queue WHERE dedupe_key=%s", hash( 'sha256', $key ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT message_id FROM %i WHERE dedupe_key=%s', $wpdb->prefix . 'wpcap_message_queue', hash( 'sha256', $key ) ) );
 	}
 
 	/** Whether a queued reminder is still valid (occurrence scheduled at the same time, holder has valid tickets). */
 	public static function still_valid( $recipient, array $payload ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.starts_at,o.status,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", (int) ( $payload['occurrence_id'] ?? 0 ) ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.starts_at,o.status,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) ( $payload['occurrence_id'] ?? 0 ) ) );
 		if ( ! $occ || 'scheduled' !== $occ->status || 'published' !== $occ->event_status || $occ->starts_at !== ( $payload['starts_at'] ?? '' ) || strtotime( $occ->starts_at . ' UTC' ) <= time() ) { return false; }
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email))=%s", (int) $payload['occurrence_id'], strtolower( (string) $recipient ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email))=%s", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $payload['occurrence_id'], strtolower( (string) $recipient ) ) );
 	}
 
 	/** Cancels queued reminders that are no longer valid. Returns the number cancelled. */
 	public static function purge_stale() {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_message_queue';
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT message_id,recipient,payload FROM $table WHERE status='queued' AND template_key=%s LIMIT 500", self::TEMPLATE ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT message_id,recipient,payload FROM %i WHERE status='queued' AND template_key=%s LIMIT 500", $table, self::TEMPLATE ) );
 		$cancelled = 0;
 		foreach ( $rows as $row ) {
 			$payload = json_decode( (string) $row->payload, true );
 			if ( is_array( $payload ) && self::still_valid( $row->recipient, $payload ) ) { continue; }
-			$cancelled += (int) $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='cancelled',last_error='reminder_not_valid' WHERE message_id=%d AND status='queued'", (int) $row->message_id ) );
+			$cancelled += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='cancelled',last_error='reminder_not_valid' WHERE message_id=%d AND status='queued'", $table, (int) $row->message_id ) );
 		}
 		return $cancelled;
 	}
@@ -142,7 +142,7 @@ final class Reminders {
 		if ( self::TEMPLATE !== $key || ! is_array( $payload ) ) { return $template; }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", (int) ( $payload['occurrence_id'] ?? 0 ) ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) ( $payload['occurrence_id'] ?? 0 ) ) );
 		if ( ! $occ ) { return $template; }
 		$c = self::config();
 		$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => (int) ( $payload['hours'] ?? 0 ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ) ) );
