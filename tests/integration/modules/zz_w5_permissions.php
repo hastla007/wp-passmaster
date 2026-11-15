@@ -172,6 +172,8 @@ $pm_admin = array(
 	'wpcap_pos_open' => 'wpcap_manage_orders', 'wpcap_pos_sell' => 'wpcap_manage_orders', 'wpcap_pos_storno' => 'wpcap_manage_orders', 'wpcap_pos_storno_reject' => 'wpcap_approve_refunds',
 	'wpcap_pos_finalize' => 'wpcap_manage_orders', 'wpcap_pos_close' => 'wpcap_manage_orders', 'wpcap_pos_receipt' => 'wpcap_manage_orders', 'wpcap_pos_tickets' => 'wpcap_manage_orders',
 	'wpcap_pos_availability' => 'wpcap_manage_orders', 'wpcap_pos_settings' => 'manage_options',
+	// Card-terminal payments (add-on devices): admin-post fallback and the POS status poll/cancel via admin-ajax; cashier of the sale or administrator.
+	'wpcap_pos_device_cancel' => 'wpcap_manage_orders', 'ajax:wpcap_pos_device_status' => 'wpcap_manage_orders', 'ajax:wpcap_pos_device_cancel' => 'wpcap_manage_orders',
 	'wpcap_calendar_save' => 'manage_options', 'wpcap_mail_template_save' => 'manage_options', 'wpcap_mail_template_reset' => 'manage_options',
 	'wpcap_mail_template_test' => 'manage_options', 'wpcap_mail_layout_save' => 'manage_options', 'wpcap_mollie_save' => 'manage_options',
 	'wpcap_offline_save_rules' => 'wpcap_manage_events', 'wpcap_offline_assign' => 'wpcap_manage_events', 'wpcap_offline_unassign' => 'wpcap_manage_events',
@@ -463,6 +465,8 @@ $pm_handlers = \PassCaptain\Admin\Menu::handlers() + array(
 	'wpcap_service_portal' => array( \PassCaptain\Services\Portal::class, 'handle_post' ),
 	'wpcap_portal_language' => array( \PassCaptain\Frontend\Language::class, 'handle_portal_language' ),
 	'ajax:' . \PassCaptain\Mail\Admin::ACTION_PREVIEW => array( \PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),
+	'ajax:wpcap_pos_device_status' => array( \PassCaptain\BoxOffice\Page::class, 'ajax_device_status' ),
+	'ajax:wpcap_pos_device_cancel' => array( \PassCaptain\BoxOffice\Page::class, 'ajax_device_cancel' ),
 );
 $src_actions = array();
 foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WPCAP_PATH . 'src' ) ) as $file ) {

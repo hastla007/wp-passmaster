@@ -134,3 +134,100 @@ test('consent fields render as a checkbox with the consent text and version', ()
 	const text = set.querySelector('#' + box.getAttribute('aria-describedby'));
 	assert.equal(text.textContent, 'Ich willige in Fotos ein. (Version 2)');
 });
+
+/** Terminal status box like BoxOffice\Page::render_device_status (pending card-terminal payment). */
+function device(opts) {
+	opts = opts || {};
+	return load('assets/boxoffice/pos.js', {
+		window: { wpcapPosDevice: { saleId: 42, url: '/wp-admin/admin-ajax.php', nonce: 'n0nce', interval: 2000, cancelling: 'Abbruch …', offline: 'Offline …', booked: 'Gebucht …', again: 'Neu erfassen.' } },
+		fetch: opts.fetch,
+		url: 'https://example.test/wp-admin/admin.php?page=wpcap-boxoffice&device_sale=42',
+		setup(doc, h) {
+			doc.body.appendChild(h('div#wpcap-pos-device.notice.notice-info', { 'data-status': 'pending' }, [
+				h('p#wpcap-pos-device-status', { role: 'status', 'aria-live': 'polite', tabindex: '-1' }, 'Am Terminal bezahlen … 12,00 €'),
+				h('p#wpcap-pos-device-hint', 'Bitte Karte vorlegen.'),
+				h('form#wpcap-pos-device-cancel-form', [h('button#wpcap-pos-device-cancel', { type: 'submit' }, 'Zahlung am Terminal abbrechen')]),
+			]));
+		},
+	});
+}
+function oneShot(env) { return [...env.timers.pending.values()].filter((t) => !t.repeat); }
+
+test('terminal payment: status region gets focus, polls admin-ajax with nonce until booked, then opens the receipt view', async () => {
+	let n = 0;
+	const fetch = mockFetch(() => (++n < 3 ? { json: { success: true, data: { status: 'pending', message: '' } } } : { json: { success: true, data: { status: 'succeeded', redirect: 'https://example.test/wp-admin/admin.php?page=wpcap-boxoffice&sale=42' } } }));
+	const env = device({ fetch });
+	const status = env.document.getElementById('wpcap-pos-device-status');
+	assert.equal(env.document.activeElement, status, 'live region focused for screen readers');
+	assert.equal(status.getAttribute('aria-live'), 'polite');
+	assert.equal(oneShot(env).length, 1);
+	assert.equal(oneShot(env)[0].ms, 2000);
+	assert.equal(fetch.calls.length, 0, 'first poll after the interval');
+	for (let i = 0; i < 3; i++) { env.timers.run(); await flush(); }
+	assert.equal(fetch.calls.length, 3);
+	assert.equal(fetch.calls[0].url, '/wp-admin/admin-ajax.php');
+	assert.equal(fetch.calls[0].init.method, 'POST');
+	assert.deepEqual(fetch.calls[0].body, { action: 'wpcap_pos_device_status', sale_id: '42', _ajax_nonce: 'n0nce' });
+	assert.equal(status.textContent, 'Gebucht …');
+	assert.equal(env.window.location.href, 'https://example.test/wp-admin/admin.php?page=wpcap-boxoffice&sale=42');
+	assert.equal(oneShot(env).length, 0, 'polling stops');
+});
+
+test('terminal payment: failure stops polling, hides cancel and announces the reason', async () => {
+	const fetch = mockFetch(() => ({ json: { success: true, data: { status: 'failed', message: 'Karte abgelehnt.' } } }));
+	const env = device({ fetch });
+	env.timers.run();
+	await flush();
+	const box = env.document.getElementById('wpcap-pos-device');
+	assert.equal(env.document.getElementById('wpcap-pos-device-status').textContent, 'Karte abgelehnt.');
+	assert.equal(box.getAttribute('data-status'), 'failed');
+	assert.ok(box.classList.contains('notice-error'));
+	assert.equal(env.document.getElementById('wpcap-pos-device-cancel-form').hidden, true);
+	assert.equal(env.document.getElementById('wpcap-pos-device-hint').textContent, 'Neu erfassen.');
+	assert.equal(oneShot(env).length, 0);
+});
+
+test('terminal payment: cancel button posts the cancel action and shows the cancelled state', async () => {
+	const fetch = mockFetch((url, init, body) => (body.action === 'wpcap_pos_device_cancel' ? { json: { success: true, data: { status: 'cancelled', message: 'Abgebrochen.' } } } : { json: { success: true, data: { status: 'pending' } } }));
+	const env = device({ fetch });
+	const form = env.document.getElementById('wpcap-pos-device-cancel-form');
+	const submit = new Event('submit', { bubbles: true });
+	form.dispatchEvent(submit);
+	assert.equal(submit.defaultPrevented, true, 'no admin-post navigation with JavaScript');
+	assert.equal(env.document.getElementById('wpcap-pos-device-status').textContent, 'Abbruch …');
+	assert.equal(env.document.getElementById('wpcap-pos-device-cancel').disabled, true);
+	assert.equal(oneShot(env).length, 0, 'no poll while cancelling');
+	await flush();
+	assert.equal(fetch.calls.length, 1);
+	assert.equal(fetch.calls[0].body.action, 'wpcap_pos_device_cancel');
+	assert.equal(env.document.getElementById('wpcap-pos-device-status').textContent, 'Abgebrochen.');
+	assert.equal(env.document.getElementById('wpcap-pos-device').getAttribute('data-status'), 'cancelled');
+	assert.equal(env.document.activeElement, env.document.getElementById('wpcap-pos-device-status'));
+});
+
+test('terminal payment: refused cancel and network errors keep polling with a message', async () => {
+	let fail = true;
+	const fetch = mockFetch((url, init, body) => {
+		if (body.action === 'wpcap_pos_device_cancel') return { status: 409, json: { success: false, data: { message: 'Karte bereits vorgelegt.' } } };
+		if (fail) { fail = false; throw new Error('network'); }
+		return { json: { success: true, data: { status: 'pending' } } };
+	});
+	const env = device({ fetch });
+	env.timers.run();
+	await flush();
+	assert.equal(env.document.getElementById('wpcap-pos-device-status').textContent, 'Offline …');
+	assert.equal(oneShot(env).length, 1, 'retries after a network error');
+	env.document.getElementById('wpcap-pos-device-cancel-form').dispatchEvent(new Event('submit', { bubbles: true }));
+	await flush();
+	assert.equal(env.document.getElementById('wpcap-pos-device-status').textContent, 'Karte bereits vorgelegt.');
+	assert.equal(env.document.getElementById('wpcap-pos-device-cancel').disabled, false);
+	assert.equal(oneShot(env).length, 1, 'keeps polling');
+});
+
+test('no terminal payment on the page (default): no polling, the sale form behaves as before', () => {
+	const fetch = mockFetch(() => ({ json: {} }));
+	const env = pos({ fetch });
+	assert.equal(oneShot(env).length, 0);
+	assert.equal(env.document.querySelectorAll('input[name="method"]').length, 3);
+	assert.equal(fetch.calls.length, 0);
+});

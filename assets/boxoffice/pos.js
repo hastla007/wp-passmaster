@@ -1,13 +1,103 @@
-/* Pass Captain box office: running total, change, participant fields and live availability (no dependencies). */
+/* Pass Captain box office: running total, change, participant fields, live availability and card-terminal status (no dependencies). */
 (function () {
 	'use strict';
 	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
 	if (typeof module === 'object' && module && module.exports) { module.exports = { money: money, parseMoney: parseMoney }; }
+	var deviceBox = document.getElementById('wpcap-pos-device');
+	if (deviceBox && window.wpcapPosDevice && window.fetch) { initDevice(window.wpcapPosDevice, deviceBox); }
 	var form = document.getElementById('wpcap-pos-form');
 	if (!form) { return; }
 	var totalEl = document.getElementById('wpcap-pos-total');
 	var changeEl = document.getElementById('wpcap-pos-change');
 	var submitted = false;
+
+	/*
+	 * Card terminal payment (BoxOffice\Page::render_device_status): polls admin-ajax
+	 * wpcap_pos_device_status until the payment succeeded (→ booked sale), failed, was cancelled or timed
+	 * out; the cancel button calls wpcap_pos_device_cancel (without JavaScript it posts the admin-post form).
+	 * The status paragraph is a polite live region and gets the focus when the state changes.
+	 */
+	function initDevice(cfg, box) {
+		var statusEl = document.getElementById('wpcap-pos-device-status');
+		var hint = document.getElementById('wpcap-pos-device-hint');
+		var cancelForm = document.getElementById('wpcap-pos-device-cancel-form');
+		var cancelBtn = document.getElementById('wpcap-pos-device-cancel');
+		var timer = null;
+		var done = false;
+		var busy = false;
+		if (!statusEl) { return; }
+		function say(text) {
+			if (text && statusEl.textContent !== text) { statusEl.textContent = text; }
+		}
+		function request(action) {
+			var body = 'action=' + encodeURIComponent(action) + '&sale_id=' + encodeURIComponent(cfg.saleId) + '&_ajax_nonce=' + encodeURIComponent(cfg.nonce);
+			return fetch(cfg.url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+				.then(function (r) { return r.json().catch(function () { return null; }); });
+		}
+		function schedule() {
+			if (!done) { timer = setTimeout(poll, cfg.interval || 2000); }
+		}
+		function finish(state) {
+			done = true;
+			if (timer) { clearTimeout(timer); }
+			if (cancelForm) { cancelForm.hidden = true; }
+			if (hint) { hint.textContent = state.status === 'unbooked' ? '' : (cfg.again || ''); }
+			box.setAttribute('data-status', state.status);
+			box.classList.remove('notice-info');
+			box.classList.add(state.status === 'unbooked' ? 'notice-warning' : 'notice-error');
+			say(state.message || state.status);
+			statusEl.focus();
+		}
+		function handle(json) {
+			if (!json) { say(cfg.offline); schedule(); return; }
+			if (!json.success) {
+				// E.g. the terminal refused the cancel (card already presented): show why, keep polling.
+				say((json.data && json.data.message) || cfg.offline);
+				schedule();
+				return;
+			}
+			var state = json.data || {};
+			if (state.status === 'pending') { schedule(); return; }
+			if (state.status === 'succeeded') {
+				done = true;
+				if (cancelForm) { cancelForm.hidden = true; }
+				say(cfg.booked);
+				if (state.redirect) { window.location.href = state.redirect; }
+				return;
+			}
+			finish(state);
+		}
+		function run(action) {
+			busy = true;
+			request(action).then(function (json) { busy = false; handle(json); }, function () { busy = false; say(cfg.offline); schedule(); });
+		}
+		function poll() {
+			timer = null;
+			if (!done && !busy) { run('wpcap_pos_device_status'); }
+		}
+		if (cancelForm) {
+			cancelForm.addEventListener('submit', function (event) {
+				event.preventDefault();
+				if (done || busy) { return; }
+				if (timer) { clearTimeout(timer); timer = null; }
+				if (cancelBtn) { cancelBtn.disabled = true; }
+				say(cfg.cancelling);
+				busy = true;
+				request('wpcap_pos_device_cancel').then(function (json) {
+					busy = false;
+					if (cancelBtn) { cancelBtn.disabled = false; }
+					handle(json);
+				}, function () {
+					busy = false;
+					if (cancelBtn) { cancelBtn.disabled = false; }
+					say(cfg.offline);
+					schedule();
+				});
+			});
+		}
+		statusEl.focus();
+		schedule();
+	}
 
 	function money(minor) {
 		var sign = minor < 0 ? '-' : '';

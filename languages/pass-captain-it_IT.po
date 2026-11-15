@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-15T00:37:58+00:00\n"
+"POT-Creation-Date: 2026-11-15T01:05:52+00:00\n"
 "PO-Revision-Date: 2026-11-14 17:14+0000\n"
 "Language: it_IT\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -59,7 +59,7 @@ msgstr "https://github.com/hastla007"
 #: src/Admission/RulesPage.php:73
 #: src/Admission/RulesPage.php:90
 #: src/Admission/RulesPage.php:101
-#: src/BoxOffice/Service.php:332
+#: src/BoxOffice/Service.php:350
 #: src/OfflineScanner/AdminPage.php:33
 #: src/OfflineScanner/AdminPage.php:51
 #: src/OfflineScanner/AdminPage.php:57
@@ -141,12 +141,13 @@ msgstr "Chiave API revocata."
 #: src/Admission/ConflictsPage.php:54
 #: src/Admission/RulesPage.php:168
 #: src/BoxOffice/Page.php:48
-#: src/BoxOffice/Page.php:371
-#: src/BoxOffice/Page.php:396
-#: src/BoxOffice/Service.php:81
-#: src/BoxOffice/Service.php:316
-#: src/BoxOffice/Service.php:538
-#: src/BoxOffice/Service.php:588
+#: src/BoxOffice/Page.php:447
+#: src/BoxOffice/Page.php:478
+#: src/BoxOffice/Page.php:503
+#: src/BoxOffice/Service.php:91
+#: src/BoxOffice/Service.php:334
+#: src/BoxOffice/Service.php:824
+#: src/BoxOffice/Service.php:874
 #: src/Fiscalization/ArchiveExporter.php:17
 #: src/Integrations/ConnectorsPage.php:121
 #: src/Invoices.php:352
@@ -223,7 +224,7 @@ msgstr "Non ci sono eventi per cui puoi creare chiavi."
 #: src/Admin/EventsPage.php:850
 #: src/Admin/ServicesPage.php:253
 #: src/Admin/ServicesPage.php:275
-#: src/BoxOffice/Page.php:131
+#: src/BoxOffice/Page.php:144
 #: src/Integrations/ConnectorsPage.php:144
 #: src/Integrations/ConnectorsPage.php:168
 #: src/Integrations/WooCommerce/Attendees.php:194
@@ -761,7 +762,7 @@ msgstr "Codice"
 
 #: src/Admin/CampaignsPage.php:168
 #: src/Admin/OrdersPage.php:408
-#: src/BoxOffice/Service.php:692
+#: src/BoxOffice/Service.php:978
 #: src/Invoices.php:328
 #: src/Printing/InvoicePdf.php:115
 #: src/Reports/Data.php:490
@@ -870,7 +871,7 @@ msgstr "Percentuale (es. 10 o 7,5) o importo (es. 5,00) a seconda del tipo di sc
 
 #: src/Admin/CampaignsPage.php:205
 #: src/Admin/EventsPage.php:652
-#: src/BoxOffice/Page.php:67
+#: src/BoxOffice/Page.php:70
 #: src/Partners/AdminPage.php:267
 msgid "Währung"
 msgstr "Valuta"
@@ -955,7 +956,7 @@ msgstr "Attualmente presenti"
 #: src/Admin/OrdersPage.php:384
 #: src/Admin/WaitlistsPage.php:81
 #: src/Admin/WaitlistsPage.php:118
-#: src/BoxOffice/Page.php:87
+#: src/BoxOffice/Page.php:90
 #: src/OfflineScanner/AdminPage.php:165
 #: src/OfflineScanner/AdminPage.php:180
 #: src/OfflineScanner/I18n.php:102
@@ -1752,7 +1753,7 @@ msgid "Ticketarten"
 msgstr "Tipi di biglietto"
 
 #: src/Admin/EventsPage.php:813
-#: src/BoxOffice/Page.php:95
+#: src/BoxOffice/Page.php:98
 #: src/Sales/AdminSections.php:148
 #: src/Sales/AdminSections.php:179
 #: src/Series/AdminPage.php:272
@@ -2384,7 +2385,7 @@ msgstr "Regole del pass"
 #: src/Admin/MembershipsPage.php:242
 #: src/Admin/OrdersPage.php:383
 #: src/Admin/WaitlistsPage.php:81
-#: src/BoxOffice/Page.php:95
+#: src/BoxOffice/Page.php:98
 #: src/Mail/Types.php:64
 #: src/Mail/Types.php:409
 #: src/Mail/Types.php:429
@@ -2647,7 +2648,7 @@ msgid "Summe"
 msgstr "Totale"
 
 #: src/Admin/OrdersPage.php:262
-#: src/BoxOffice/Page.php:156
+#: src/BoxOffice/Page.php:214
 msgid "Zahlart"
 msgstr "Metodo di pagamento"
 
@@ -2671,9 +2672,11 @@ msgid "← Zur Bestellliste"
 msgstr "← Torna agli ordini"
 
 #. translators: %s: order id
+#. translators: %s: order number (shortened)
 #. translators: %s: short order number
 #. translators: %s: order number
 #: src/Admin/OrdersPage.php:309
+#: src/BoxOffice/Service.php:592
 #: src/Mail/Types.php:283
 #: src/Mollie/MollieGateway.php:101
 #: src/OrderPortal.php:75
@@ -2888,7 +2891,7 @@ msgstr "Rimborsa tutti i biglietti aperti (importo residuo dell'ordine)"
 #: src/Admin/OrdersPage.php:532
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/TicketsPage.php:247
-#: src/BoxOffice/Page.php:185
+#: src/BoxOffice/Page.php:243
 #: src/Mail/Types.php:181
 #: src/Mail/Types.php:190
 msgid "Grund"
@@ -2930,7 +2933,7 @@ msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr "Annullare l'ordine non pagato e liberare la prenotazione?"
 
 #: src/Admin/OrdersPage.php:505
-#: src/BoxOffice/Page.php:185
+#: src/BoxOffice/Page.php:243
 msgid "Stornieren"
 msgstr "Annulla ordine"
 
@@ -3599,7 +3602,7 @@ msgstr "Prenotazione"
 #: src/Admin/ServicesPage.php:443
 #: src/Admin/StatusPage.php:274
 #: src/Admin/StatusPage.php:364
-#: src/BoxOffice/Page.php:95
+#: src/BoxOffice/Page.php:98
 msgid "Anzahl"
 msgstr "Quantità"
 
@@ -4063,7 +4066,7 @@ msgstr "«%s» non è un importo valido."
 
 #: src/Admin/SettingsPage.php:338
 #: src/Admission/RulesPage.php:120
-#: src/BoxOffice/Page.php:407
+#: src/BoxOffice/Page.php:514
 #: src/Modules/Calendar.php:259
 #: src/Modules/Mollie.php:168
 #: src/Modules/Reminders.php:175
@@ -4766,7 +4769,7 @@ msgid "Klärung"
 msgstr "Chiarimento"
 
 #: src/Admission/ConflictsPage.php:93
-#: src/BoxOffice/Page.php:194
+#: src/BoxOffice/Page.php:252
 msgid "Notiz"
 msgstr "Nota"
 
@@ -5244,135 +5247,151 @@ msgstr "Partita IVA del destinatario della prestazione:"
 msgid "Ihre Bestell-/Referenznummer:"
 msgstr "Il tuo numero d’ordine/di riferimento:"
 
+#: src/BoxOffice/Devices.php:99
+msgid "Das Kartenterminal hat keine gültige Antwort geliefert."
+msgstr "Il terminale POS non ha restituito una risposta valida."
+
+#: src/BoxOffice/Devices.php:118
+msgid "Die Zahlung konnte am Terminal nicht abgebrochen werden."
+msgstr "Non è stato possibile annullare il pagamento sul terminale."
+
+#: src/BoxOffice/Devices.php:127
+msgid "Das Kartenterminal ist nicht erreichbar."
+msgstr "Il terminale POS non è raggiungibile."
+
 #: src/BoxOffice/Page.php:34
 msgid "Für stornierte Verkäufe werden keine Tickets gedruckt."
 msgstr "Per le vendite annullate non vengono stampati biglietti."
 
 #: src/BoxOffice/Page.php:50
-#: src/Modules/BoxOffice.php:131
+#: src/Modules/BoxOffice.php:149
 #: src/Reports/Data.php:112
 msgid "Kasse"
 msgstr "Cassa"
 
-#: src/BoxOffice/Page.php:58
+#: src/BoxOffice/Page.php:60
 #, php-format
 msgid "Verkauf gebucht: Beleg %1$s über %2$s."
 msgstr "Vendita registrata: ricevuta %1$s per %2$s."
 
-#: src/BoxOffice/Page.php:58
+#: src/BoxOffice/Page.php:60
 msgid "Beleg drucken"
 msgstr "Stampa ricevuta"
 
-#: src/BoxOffice/Page.php:61
+#: src/BoxOffice/Page.php:63
 msgid "Tickets drucken (PDF)"
 msgstr "Stampa biglietti (PDF)"
 
-#: src/BoxOffice/Page.php:64
+#: src/BoxOffice/Page.php:67
 msgid "Kassensitzung öffnen"
 msgstr "Apri sessione di cassa"
 
-#: src/BoxOffice/Page.php:66
+#: src/BoxOffice/Page.php:69
 msgid "Wechselgeld (Anfangsbestand)"
 msgstr "Fondo cassa (saldo iniziale)"
 
-#: src/BoxOffice/Page.php:70
+#: src/BoxOffice/Page.php:73
 msgid "Kassenregister"
 msgstr "Postazione di cassa"
 
-#: src/BoxOffice/Page.php:71
+#: src/BoxOffice/Page.php:74
 msgid "Bitte wählen"
 msgstr "Seleziona"
 
 #. translators: 1: register name, 2: location ID, 3: register ID
-#: src/BoxOffice/Page.php:74
+#: src/BoxOffice/Page.php:77
 #, php-format
 msgid "%1$s (Standort %2$d · %3$s)"
 msgstr "%1$s (sede %2$d · %3$s)"
 
-#: src/BoxOffice/Page.php:79
+#: src/BoxOffice/Page.php:82
 #: src/Modules/Fiscalization.php:1236
 msgid "Standort-ID (0 = Standard)"
 msgstr "ID sede (0 = predefinita)"
 
-#: src/BoxOffice/Page.php:79
+#: src/BoxOffice/Page.php:82
 msgid "Kassen-ID"
 msgstr "ID cassa"
 
-#: src/BoxOffice/Page.php:81
+#: src/BoxOffice/Page.php:84
 msgid "Kasse öffnen"
 msgstr "Apri cassa"
 
-#: src/BoxOffice/Page.php:95
+#: src/BoxOffice/Page.php:98
 #: src/Series/AdminPage.php:360
 msgid "Verfügbar"
 msgstr "Disponibili"
 
-#: src/BoxOffice/Page.php:103
+#: src/BoxOffice/Page.php:106
 msgid "Saalplan: Sitzplätze werden automatisch zugewiesen (beste freie Plätze)."
 msgstr "Mappa della sala: i posti vengono assegnati automaticamente (i migliori posti liberi)."
 
 #. translators: %s: list of field labels
-#: src/BoxOffice/Page.php:105
+#: src/BoxOffice/Page.php:108
 #, php-format
 msgid "Pflichtangaben je Ticket: %s"
 msgstr "Dati obbligatori per biglietto: %s"
 
 #. translators: %s: ticket type
-#: src/BoxOffice/Page.php:107
+#: src/BoxOffice/Page.php:110
 #, php-format
 msgid "Anzahl %s"
 msgstr "Quantità %s"
 
-#: src/BoxOffice/Page.php:111
+#: src/BoxOffice/Page.php:114
 msgid "An der Kasse kann kein Platz im Saalplan gewählt werden: Für Ticketarten mit Saalplan werden die besten freien Plätze automatisch vergeben und auf den Tickets angegeben. Für Wunschplätze bitte die Online-Buchung nutzen."
 msgstr "Alla cassa non è possibile scegliere un posto sulla mappa della sala: per i tipi di biglietto con mappa della sala i migliori posti liberi vengono assegnati automaticamente e riportati sui biglietti. Per scegliere i posti, utilizza la prenotazione online."
 
-#: src/BoxOffice/Page.php:114
+#: src/BoxOffice/Page.php:117
 msgid "Für Teilnehmerangaben wird JavaScript benötigt."
 msgstr "Per i dati dei partecipanti è necessario JavaScript."
 
-#: src/BoxOffice/Page.php:115
+#: src/BoxOffice/Page.php:118
 msgid "Summe:"
 msgstr "Totale:"
 
-#: src/BoxOffice/Page.php:119
+#: src/BoxOffice/Page.php:126
+msgid "Kartenterminal"
+msgstr "Terminale POS"
+
+#: src/BoxOffice/Page.php:132
 msgid "Gegeben (bar)"
 msgstr "Consegnato (contanti)"
 
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:133
 msgid "Terminal-Referenz"
 msgstr "Riferimento terminale"
 
-#: src/BoxOffice/Page.php:121
+#: src/BoxOffice/Page.php:134
 msgid "E-Mail Käufer (optional, Pflicht bei Rechnung)"
 msgstr "E-mail acquirente (facoltativa, obbligatoria per la fattura)"
 
-#: src/BoxOffice/Page.php:123
+#: src/BoxOffice/Page.php:136
 msgid "Verkauf buchen"
 msgstr "Registra vendita"
 
-#: src/BoxOffice/Page.php:128
+#: src/BoxOffice/Page.php:141
 msgid "Rückgeld:"
 msgstr "Resto:"
 
 #. translators: 1: running ticket number, 2: ticket type
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/BoxOffice/Page.php:130
+#: src/BoxOffice/Page.php:143
 #: src/Integrations/WooCommerce/Attendees.php:193
 #: src/Integrations/WooCommerce/Attendees.php:328
 #, php-format
 msgid "Ticket %1$d · %2$s"
 msgstr "Biglietto %1$d · %2$s"
 
-#: src/BoxOffice/Page.php:132
+#: src/BoxOffice/Page.php:145
 msgid "E-Mail (optional)"
 msgstr "E-mail (facoltativa)"
 
-#: src/BoxOffice/Page.php:133
+#: src/BoxOffice/Page.php:146
 msgid "Teilnehmerangaben"
 msgstr "Dati del partecipante"
 
-#: src/BoxOffice/Page.php:134
+#: src/BoxOffice/Page.php:147
 #: src/Modules/Fiscalization.php:1245
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Sales/TaxProfilesPage.php:110
@@ -5380,155 +5399,194 @@ msgstr "Dati del partecipante"
 msgid "Version"
 msgstr "Versione"
 
-#: src/BoxOffice/Page.php:142
+#. translators: %s: amount with currency
+#: src/BoxOffice/Page.php:174
+#, php-format
+msgid "Am Terminal bezahlen … %s"
+msgstr "Pagare al terminale … %s"
+
+#: src/BoxOffice/Page.php:178
+msgid "Die Zahlung ist erfolgt. Bitte den Verkauf in der Liste unten später „Nachbuchen“."
+msgstr "Il pagamento è stato effettuato. Più tardi usare «Registra a posteriori» per la vendita nell’elenco sottostante."
+
+#: src/BoxOffice/Page.php:178
+#: src/BoxOffice/Page.php:195
+msgid "Der Verkauf kann unten mit derselben oder einer anderen Zahlart neu erfasst werden."
+msgstr "La vendita può essere registrata di nuovo qui sotto con lo stesso o un altro metodo di pagamento."
+
+#: src/BoxOffice/Page.php:181
+msgid "Bitte die Karte am Terminal vorlegen. Die Anzeige aktualisiert sich automatisch."
+msgstr "Presentare la carta al terminale. Questa schermata si aggiorna automaticamente."
+
+#: src/BoxOffice/Page.php:182
+msgid "Status aktualisieren"
+msgstr "Aggiorna stato"
+
+#: src/BoxOffice/Page.php:185
+msgid "Zahlung am Terminal abbrechen"
+msgstr "Annulla pagamento al terminale"
+
+#: src/BoxOffice/Page.php:192
+msgid "Zahlung wird am Terminal abgebrochen …"
+msgstr "Annullamento del pagamento al terminale …"
+
+#: src/BoxOffice/Page.php:193
+msgid "Keine Verbindung zum Server. Der Status wird erneut abgefragt …"
+msgstr "Nessuna connessione al server. Lo stato verrà verificato di nuovo …"
+
+#: src/BoxOffice/Page.php:194
+msgid "Zahlung erfolgreich. Der Verkauf wird gebucht …"
+msgstr "Pagamento riuscito. Registrazione della vendita …"
+
+#: src/BoxOffice/Page.php:200
 msgid "Kassen- und Belegeinstellungen"
 msgstr "Impostazioni di cassa e ricevute"
 
-#: src/BoxOffice/Page.php:144
+#: src/BoxOffice/Page.php:202
 msgid "Präfix Belegnummer"
 msgstr "Prefisso numero ricevuta"
 
-#: src/BoxOffice/Page.php:144
+#: src/BoxOffice/Page.php:202
 #: src/Mail/Admin.php:218
 msgid "Fußzeile"
 msgstr "Piè di pagina"
 
-#: src/BoxOffice/Page.php:145
+#: src/BoxOffice/Page.php:203
 msgid "Zugelassene Kassenregister (eine Zeile je Register)"
 msgstr "Postazioni di cassa autorizzate (una riga per postazione)"
 
-#: src/BoxOffice/Page.php:145
+#: src/BoxOffice/Page.php:203
 msgid "Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen."
 msgstr "Formato: ID sede|ID cassa|nome visualizzato. Esempio: 23|BOX-01|Cassa ingresso principale. Una volta salvate le voci, i cassieri possono scegliere solo una postazione autorizzata."
 
-#: src/BoxOffice/Page.php:146
+#: src/BoxOffice/Page.php:204
 msgid "Kassen- und Belegeinstellungen speichern"
 msgstr "Salva impostazioni di cassa e ricevute"
 
-#: src/BoxOffice/Page.php:153
+#: src/BoxOffice/Page.php:211
 #, php-format
 msgid "Kassensitzung #%1$d (seit %2$s)"
 msgstr "Sessione di cassa #%1$d (dal %2$s)"
 
 #. translators: 1: location ID, 2: register ID
-#: src/BoxOffice/Page.php:155
+#: src/BoxOffice/Page.php:213
 #, php-format
 msgid "Standort %1$d · Kasse %2$s"
 msgstr "Sede %1$d · cassa %2$s"
 
 #. translators: 1: location ID, 2: register ID
-#: src/BoxOffice/Page.php:155
+#: src/BoxOffice/Page.php:213
 #: src/Mail/Admin.php:205
 #: src/Mail/Admin.php:236
 #: src/WalletPasses/AdminPage.php:99
 msgid "Standard"
 msgstr "Standard"
 
-#: src/BoxOffice/Page.php:156
+#: src/BoxOffice/Page.php:214
 msgid "Verkäufe"
 msgstr "Vendite"
 
-#: src/BoxOffice/Page.php:156
+#: src/BoxOffice/Page.php:214
 #: src/Services/Portal.php:251
 msgid "Storniert"
 msgstr "Annullato"
 
-#: src/BoxOffice/Page.php:156
+#: src/BoxOffice/Page.php:214
 msgid "Netto-Umsatz"
 msgstr "Ricavi netti"
 
-#: src/BoxOffice/Page.php:160
+#: src/BoxOffice/Page.php:218
 #, php-format
 msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
 msgstr "Saldo iniziale %1$s · saldo di cassa atteso (contanti) %2$s"
 
-#: src/BoxOffice/Page.php:164
+#: src/BoxOffice/Page.php:222
 msgid "Verkäufe dieser Sitzung"
 msgstr "Vendite di questa sessione"
 
-#: src/BoxOffice/Page.php:168
+#: src/BoxOffice/Page.php:226
 msgid "(nicht gebucht)"
 msgstr "(non registrata)"
 
-#: src/BoxOffice/Page.php:168
-#: src/BoxOffice/Service.php:685
+#: src/BoxOffice/Page.php:226
+#: src/BoxOffice/Service.php:971
 msgid "Beleg"
 msgstr "Ricevuta"
 
-#: src/BoxOffice/Page.php:173
+#: src/BoxOffice/Page.php:231
 msgid "Nachbuchen"
 msgstr "Registra a posteriori"
 
-#: src/BoxOffice/Page.php:178
+#: src/BoxOffice/Page.php:236
 msgid "Storno ablehnen"
 msgstr "Rifiuta annullamento"
 
-#: src/BoxOffice/Page.php:180
+#: src/BoxOffice/Page.php:238
 msgid "Stornobeleg"
 msgstr "Ricevuta di annullamento"
 
-#: src/BoxOffice/Page.php:183
+#: src/BoxOffice/Page.php:241
 msgid "Verkauf wirklich stornieren?"
 msgstr "Annullare davvero questa vendita?"
 
-#: src/BoxOffice/Page.php:191
+#: src/BoxOffice/Page.php:249
 msgid "Kassenabschluss"
 msgstr "Chiusura di cassa"
 
-#: src/BoxOffice/Page.php:192
+#: src/BoxOffice/Page.php:250
 msgid "Kasse jetzt abschließen?"
 msgstr "Chiudere la cassa ora?"
 
-#: src/BoxOffice/Page.php:194
+#: src/BoxOffice/Page.php:252
 msgid "Gezählter Bargeldbestand"
 msgstr "Contanti contati"
 
-#: src/BoxOffice/Page.php:194
+#: src/BoxOffice/Page.php:252
 msgid "Kasse abschließen"
 msgstr "Chiudi cassa"
 
-#: src/BoxOffice/Page.php:215
+#: src/BoxOffice/Page.php:273
 msgid "Wichtiger Hinweis:"
 msgstr "Avviso importante:"
 
-#: src/BoxOffice/Page.php:216
+#: src/BoxOffice/Page.php:274
 msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
 msgstr "La cassa non è un registratore di cassa ai sensi della RKSV (AT) o della KassenSichV/TSE (DE). Per i pagamenti in contanti e con carta in loco è necessaria un'unità di firma certificata."
 
-#: src/BoxOffice/Page.php:217
+#: src/BoxOffice/Page.php:275
 msgid "Mehr dazu in der Dokumentation"
 msgstr "Maggiori informazioni nella documentazione"
 
-#: src/BoxOffice/Page.php:217
+#: src/BoxOffice/Page.php:275
 msgid "(öffnet in neuem Tab)"
 msgstr "(si apre in una nuova scheda)"
 
-#: src/BoxOffice/Page.php:218
+#: src/BoxOffice/Page.php:276
 msgid "Hinweis für mich ausblenden"
 msgstr "Nascondi l'avviso per me"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:293
 msgid "Bitte ein freigegebenes Kassenregister auswählen."
 msgstr "Seleziona una postazione di cassa autorizzata."
 
-#: src/BoxOffice/Page.php:239
-#: src/BoxOffice/Page.php:364
+#: src/BoxOffice/Page.php:297
+#: src/BoxOffice/Page.php:471
 msgid "Ungültiger Betrag."
 msgstr "Importo non valido."
 
-#: src/BoxOffice/Page.php:241
+#: src/BoxOffice/Page.php:299
 msgid "Kasse geöffnet."
 msgstr "Cassa aperta."
 
-#: src/BoxOffice/Page.php:248
+#: src/BoxOffice/Page.php:306
 msgid "Rechnung auf Firma/Adresse (optional)"
 msgstr "Fattura intestata ad azienda/indirizzo (facoltativo)"
 
-#: src/BoxOffice/Page.php:249
+#: src/BoxOffice/Page.php:307
 msgid "Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht."
 msgstr "Compila solo se l’acquirente ha bisogno di una fattura con nome e indirizzo. Se un campo è compilato, nome, cognome, via, CAP, città e paese sono obbligatori."
 
-#: src/BoxOffice/Page.php:253
+#: src/BoxOffice/Page.php:311
 #: src/Integrations/WooCommerce/Attendees.php:331
 #: src/OrderPortal.php:128
 #: templates/event-card.php:71
@@ -5537,28 +5595,32 @@ msgstr "Compila solo se l’acquirente ha bisogno di una fattura con nome e indi
 msgid "(optional)"
 msgstr "(facoltativo)"
 
-#: src/BoxOffice/Page.php:335
+#: src/BoxOffice/Page.php:398
 msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Annullamento creato; è in attesa di approvazione."
 
-#: src/BoxOffice/Page.php:335
+#: src/BoxOffice/Page.php:398
 msgid "Verkauf storniert. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben."
 msgstr "Vendita annullata. Rimborsa l'importo in contanti oppure accreditalo sul terminale per carte."
 
-#: src/BoxOffice/Page.php:351
+#: src/BoxOffice/Page.php:414
 msgid "Verkauf gebucht."
 msgstr "Vendita registrata."
 
-#: src/BoxOffice/Page.php:357
+#: src/BoxOffice/Page.php:425
+msgid "Zahlung am Terminal abgebrochen."
+msgstr "Pagamento al terminale annullato."
+
+#: src/BoxOffice/Page.php:464
 msgid "Storno abgelehnt; der Verkauf bleibt bestehen."
 msgstr "Annullamento rifiutato; la vendita rimane valida."
 
-#: src/BoxOffice/Page.php:365
+#: src/BoxOffice/Page.php:472
 #, php-format
 msgid "Kasse abgeschlossen. Erwartet %1$s, gezählt %2$s, Differenz %3$s."
 msgstr "Cassa chiusa. Atteso %1$s, contato %2$s, differenza %3$s."
 
-#: src/BoxOffice/Page.php:372
+#: src/BoxOffice/Page.php:479
 msgid "Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde."
 msgstr "Per questa vendita non esiste una ricevuta perché non è stata registrata."
 
@@ -5582,194 +5644,274 @@ msgstr "Carta (terminale)"
 msgid "Freikarte"
 msgstr "Biglietto omaggio"
 
-#: src/BoxOffice/Service.php:88
+#: src/BoxOffice/Service.php:45
+msgid "Karte am Terminal (automatisch)"
+msgstr "Carta al terminale (automatico)"
+
+#: src/BoxOffice/Service.php:98
 #: src/Modules/Fiscalization.php:220
 msgid "Kassen-ID ist ungültig."
 msgstr "L’ID cassa non è valido."
 
-#: src/BoxOffice/Service.php:89
+#: src/BoxOffice/Service.php:99
 msgid "Standort und Kasse sind nicht als Register freigegeben."
 msgstr "Questa sede e questa cassa non sono autorizzate come postazione."
 
-#: src/BoxOffice/Service.php:105
+#: src/BoxOffice/Service.php:115
 msgid "Die Kassensitzung konnte nicht geöffnet werden."
 msgstr "Impossibile aprire la sessione di cassa."
 
-#: src/BoxOffice/Service.php:161
-#: src/BoxOffice/Service.php:537
+#: src/BoxOffice/Service.php:171
+#: src/BoxOffice/Service.php:823
 msgid "Kassensitzung nicht gefunden."
 msgstr "Sessione di cassa non trovata."
 
-#: src/BoxOffice/Service.php:162
+#: src/BoxOffice/Service.php:172
 msgid "Nur die eigene Kassensitzung kann geschlossen werden."
 msgstr "È possibile chiudere solo la propria sessione di cassa."
 
-#: src/BoxOffice/Service.php:163
-#: src/BoxOffice/Service.php:169
+#: src/BoxOffice/Service.php:173
+#: src/BoxOffice/Service.php:179
 msgid "Die Kassensitzung ist bereits geschlossen."
 msgstr "La sessione di cassa è già chiusa."
 
-#: src/BoxOffice/Service.php:166
+#: src/BoxOffice/Service.php:176
 msgid "Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen."
 msgstr "Un annullamento è ancora in attesa di approvazione. Fallo approvare o rifiutare, quindi chiudi la cassa."
 
-#: src/BoxOffice/Service.php:174
+#: src/BoxOffice/Service.php:184
+msgid "Eine Kartenzahlung am Terminal läuft noch. Bitte abwarten oder abbrechen, dann die Kasse abschließen."
+msgstr "Un pagamento con carta al terminale è ancora in corso. Attendere o annullarlo, poi chiudere la cassa."
+
+#: src/BoxOffice/Service.php:188
 msgid "Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen."
 msgstr "Una vendita pagata non è ancora stata registrata. Esegui prima «Registra a posteriori»."
 
-#: src/BoxOffice/Service.php:290
-#: src/BoxOffice/Service.php:318
+#: src/BoxOffice/Service.php:304
+#: src/BoxOffice/Service.php:336
 msgid "Das Formular ist ungültig. Bitte neu laden."
 msgstr "Il modulo non è valido. Ricarica la pagina."
 
-#: src/BoxOffice/Service.php:292
-#: src/BoxOffice/Service.php:459
+#: src/BoxOffice/Service.php:306
+#: src/BoxOffice/Service.php:492
 msgid "Dieser Verkauf wird gerade verarbeitet."
 msgstr "Questa vendita è in fase di elaborazione."
 
-#: src/BoxOffice/Service.php:295
-#: src/BoxOffice/Service.php:457
+#: src/BoxOffice/Service.php:313
+#: src/BoxOffice/Service.php:490
 msgid "Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen."
 msgstr "Questa vendita non è stata registrata. Inseriscila di nuovo."
 
-#: src/BoxOffice/Service.php:327
+#: src/BoxOffice/Service.php:345
 msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Apri prima una sessione di cassa."
 
-#: src/BoxOffice/Service.php:328
+#: src/BoxOffice/Service.php:346
 msgid "Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen."
 msgstr "Questa postazione di cassa non è più autorizzata. Chiudi la sessione e apri una postazione autorizzata."
 
-#: src/BoxOffice/Service.php:335
+#: src/BoxOffice/Service.php:353
+#: src/BoxOffice/Service.php:357
 msgid "Bitte eine Zahlart wählen."
 msgstr "Seleziona un metodo di pagamento."
 
-#: src/BoxOffice/Service.php:347
+#: src/BoxOffice/Service.php:360
+msgid "Bitte ein Kartenterminal wählen."
+msgstr "Scegliere un terminale POS."
+
+#: src/BoxOffice/Service.php:373
 #: src/Seating/Layouts.php:549
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
 msgstr "Un tipo di biglietto non appartiene a questa data."
 
-#: src/BoxOffice/Service.php:348
+#: src/BoxOffice/Service.php:374
 msgid "Die Währung der Ticketart passt nicht zur Kassensitzung."
 msgstr "La valuta del tipo di biglietto non corrisponde alla sessione di cassa."
 
-#: src/BoxOffice/Service.php:352
+#: src/BoxOffice/Service.php:378
 msgid "Bitte mindestens ein Ticket wählen."
 msgstr "Seleziona almeno un biglietto."
 
-#: src/BoxOffice/Service.php:355
+#: src/BoxOffice/Service.php:381
 msgid "Die E-Mail-Adresse ist ungültig."
 msgstr "L'indirizzo e-mail non è valido."
 
-#: src/BoxOffice/Service.php:356
+#: src/BoxOffice/Service.php:382
 msgid "Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich."
 msgstr "Per il pagamento con fattura è necessario l'indirizzo e-mail dell'acquirente."
 
-#: src/BoxOffice/Service.php:383
-#: src/BoxOffice/Service.php:507
+#: src/BoxOffice/Service.php:410
+#: src/BoxOffice/Service.php:544
 msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "Impossibile salvare la vendita."
 
-#: src/BoxOffice/Service.php:415
+#: src/BoxOffice/Service.php:444
 msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
 msgstr "Non è stato possibile salvare la vendita. Inviala di nuovo."
 
-#: src/BoxOffice/Service.php:430
+#: src/BoxOffice/Service.php:463
+#: src/BoxOffice/Service.php:580
+#: src/BoxOffice/Service.php:664
+#: src/BoxOffice/Service.php:695
 msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
 msgstr "Al momento non è stato possibile registrare la vendita. Inviala di nuovo."
 
-#: src/BoxOffice/Service.php:456
-#: src/BoxOffice/Service.php:535
+#: src/BoxOffice/Service.php:489
+#: src/BoxOffice/Service.php:571
+#: src/BoxOffice/Service.php:821
 msgid "Verkauf nicht gefunden."
 msgstr "Vendita non trovata."
 
-#: src/BoxOffice/Service.php:472
+#: src/BoxOffice/Service.php:495
+msgid "Die Zahlung am Kartenterminal ist noch nicht bestätigt. Der Verkauf wird erst danach gebucht."
+msgstr "Il pagamento al terminale POS non è ancora confermato. La vendita sarà registrata solo dopo."
+
+#: src/BoxOffice/Service.php:509
 msgid "Der Fiskalbeleg konnte nicht erstellt werden. Es wurden keine Tickets ausgegeben und der Verkauf wurde nicht gebucht. Bitte unter Fiskalisierung prüfen und erneut versuchen, dann „Nachbuchen“."
 msgstr "Non è stato possibile creare la ricevuta fiscale. Nessun biglietto è stato emesso e la vendita non è stata registrata. Controlla in Fiscalizzazione, riprova, poi usa «Registra a posteriori»."
 
-#: src/BoxOffice/Service.php:475
+#: src/BoxOffice/Service.php:512
 msgid "Der Fiskalbeleg ist noch nicht vom Anbieter bestätigt. Tickets werden erst danach ausgegeben; der Verkauf bleibt offen. Bitte später „Nachbuchen“."
 msgstr "Il provider non ha ancora confermato la ricevuta fiscale. I biglietti vengono emessi solo dopo; la vendita resta aperta. Usa «Registra a posteriori» più tardi."
 
-#: src/BoxOffice/Service.php:477
+#: src/BoxOffice/Service.php:514
 msgid "Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen."
 msgstr "L'ordine non è pagato oppure non tutti i biglietti sono stati emessi. La vendita non è stata registrata; verifica l'ordine."
 
-#: src/BoxOffice/Service.php:496
+#: src/BoxOffice/Service.php:533
 msgid "Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert."
 msgstr "Nel frattempo la sessione di cassa è stata chiusa. La vendita non è stata registrata e i biglietti sono stati annullati."
 
-#: src/BoxOffice/Service.php:539
+#: src/BoxOffice/Service.php:574
+#: src/BoxOffice/Service.php:723
+msgid "Das Kartenterminal ist nicht mehr verfügbar."
+msgstr "Il terminale POS non è più disponibile."
+
+#: src/BoxOffice/Service.php:575
+msgid "Für einen Betrag von 0,00 bitte „Freikarte“ wählen."
+msgstr "Per un importo di 0,00 scegliere «Biglietto omaggio»."
+
+#: src/BoxOffice/Service.php:635
+#: src/BoxOffice/Service.php:719
+#: src/BoxOffice/Service.php:748
+msgid "Kein Kassenverkauf mit Terminalzahlung gefunden."
+msgstr "Nessuna vendita alla cassa con pagamento al terminale trovata."
+
+#: src/BoxOffice/Service.php:644
+msgid "Die Zahlungsreferenz fehlt."
+msgstr "Manca il riferimento del pagamento."
+
+#: src/BoxOffice/Service.php:650
+msgid "Dieser Verkauf wurde bereits mit einer anderen Terminalzahlung bestätigt. Die zweite Zahlung bitte am Terminal erstatten."
+msgstr "Questa vendita è già stata confermata con un altro pagamento al terminale. Rimborsare il secondo pagamento sul terminale."
+
+#: src/BoxOffice/Service.php:657
+msgid "Für diesen Verkauf wird keine Terminalzahlung mehr erwartet (abgebrochen, fehlgeschlagen oder abgelaufen). Eine dennoch erfolgte Zahlung bitte am Terminal erstatten."
+msgstr "Per questa vendita non è più atteso alcun pagamento al terminale (annullato, non riuscito o scaduto). Rimborsare sul terminale un eventuale pagamento effettuato comunque."
+
+#: src/BoxOffice/Service.php:683
+msgid "Die Zahlung am Terminal ist fehlgeschlagen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
+msgstr "Il pagamento al terminale non è riuscito. La vendita non è stata registrata; riprovare o scegliere un altro metodo di pagamento."
+
+#: src/BoxOffice/Service.php:684
+msgid "Die Zahlung am Terminal wurde abgebrochen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
+msgstr "Il pagamento al terminale è stato annullato. La vendita non è stata registrata; riprovare o scegliere un altro metodo di pagamento."
+
+#: src/BoxOffice/Service.php:685
+msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
+msgstr "Tempo scaduto: nessun pagamento confermato al terminale. La vendita non è stata registrata; riprovare o scegliere un altro metodo di pagamento."
+
+#: src/BoxOffice/Service.php:756
+msgid "Die Zahlung konnte am Terminal nicht abgebrochen werden (z. B. Karte bereits vorgelegt). Bitte das Ergebnis am Terminal abwarten."
+msgstr "Non è stato possibile annullare il pagamento sul terminale (ad es. carta già presentata). Attendere l’esito sul terminale."
+
+#: src/BoxOffice/Service.php:774
+msgid "Die Zahlung am Terminal ist fehlgeschlagen. Bitte erneut versuchen oder eine andere Zahlart wählen."
+msgstr "Il pagamento al terminale non è riuscito. Riprovare o scegliere un altro metodo di pagamento."
+
+#: src/BoxOffice/Service.php:775
+msgid "Die Zahlung am Terminal wurde abgebrochen. Bitte erneut versuchen oder eine andere Zahlart wählen."
+msgstr "Il pagamento al terminale è stato annullato. Riprovare o scegliere un altro metodo di pagamento."
+
+#: src/BoxOffice/Service.php:776
+msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Bitte erneut versuchen oder eine andere Zahlart wählen."
+msgstr "Tempo scaduto: nessun pagamento confermato al terminale. Riprovare o scegliere un altro metodo di pagamento."
+
+#: src/BoxOffice/Service.php:783
+msgid "Die Kartenzahlung ist bestätigt."
+msgstr "Il pagamento con carta è confermato."
+
+#: src/BoxOffice/Service.php:825
 msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "È possibile annullare solo le vendite della propria sessione di cassa."
 
-#: src/BoxOffice/Service.php:546
+#: src/BoxOffice/Service.php:832
 msgid "Storno ist nur bis zum Kassenabschluss möglich. Danach bitte eine Erstattung über die Bestellung anlegen."
 msgstr "L'annullamento è possibile solo fino alla chiusura di cassa. Successivamente crea un rimborso tramite l'ordine."
 
-#: src/BoxOffice/Service.php:557
+#: src/BoxOffice/Service.php:843
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
 msgstr "L'annullamento è stato rifiutato oppure non è riuscito. Riprova."
 
-#: src/BoxOffice/Service.php:587
+#: src/BoxOffice/Service.php:873
 msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "Per questa vendita non è in attesa alcun annullamento."
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:684
+#: src/BoxOffice/Service.php:970
 #: src/Invoices.php:204
 #: src/Invoices.php:218
 #: src/Partners/Settlements.php:659
 msgid "USt-IdNr.:"
 msgstr "Partita IVA:"
 
-#: src/BoxOffice/Service.php:685
+#: src/BoxOffice/Service.php:971
 msgid "STORNOBELEG"
 msgstr "RICEVUTA DI ANNULLAMENTO"
 
-#: src/BoxOffice/Service.php:686
+#: src/BoxOffice/Service.php:972
 msgid "Beleg-Nr.:"
 msgstr "N. ricevuta:"
 
-#: src/BoxOffice/Service.php:687
+#: src/BoxOffice/Service.php:973
 msgid "Storno zu Beleg"
 msgstr "Annullamento della ricevuta"
 
-#: src/BoxOffice/Service.php:688
+#: src/BoxOffice/Service.php:974
 #: src/Printing/InvoicePdf.php:187
 msgid "Datum:"
 msgstr "Data:"
 
-#: src/BoxOffice/Service.php:688
+#: src/BoxOffice/Service.php:974
 msgid "Kasse/Bediener:"
 msgstr "Cassa/Operatore:"
 
-#: src/BoxOffice/Service.php:693
+#: src/BoxOffice/Service.php:979
 msgid "SUMME"
 msgstr "TOTALE"
 
-#: src/BoxOffice/Service.php:695
+#: src/BoxOffice/Service.php:981
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr "IVA %1$s %%: imponibile %2$s"
 
-#: src/BoxOffice/Service.php:697
+#: src/BoxOffice/Service.php:983
 msgid "Zahlart:"
 msgstr "Metodo di pagamento:"
 
-#: src/BoxOffice/Service.php:699
+#: src/BoxOffice/Service.php:985
 msgid "Gegeben"
 msgstr "Consegnato"
 
-#: src/BoxOffice/Service.php:699
+#: src/BoxOffice/Service.php:985
 msgid "Rückgeld"
 msgstr "Resto"
 
-#: src/BoxOffice/Service.php:701
+#: src/BoxOffice/Service.php:987
 msgid "Bestellung:"
 msgstr "Ordine:"
 
-#: src/BoxOffice/Service.php:704
+#: src/BoxOffice/Service.php:990
 #: src/Printing/AttendeeList.php:81
 msgid "Drucken"
 msgstr "Stampa"

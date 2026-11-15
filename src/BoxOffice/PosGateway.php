@@ -1,6 +1,6 @@
 <?php
 /**
- * Payment adapters for box office payments (pos_cash, pos_card, pos_free, pos_invoice).
+ * Payment adapters for box office payments (pos_cash, pos_card, pos_free, pos_invoice, pos_card_device).
  *
  * They are never offered in the online checkout (is_available() is false). refund() only returns a
  * reference: the money is paid back at the till (cash), on the card terminal or by credit note.
@@ -43,7 +43,8 @@ final class PosGateway implements GatewayInterface {
 	/** wpcap_payment_gateways filter. */
 	public static function register_gateways( $list ) {
 		$list = is_array( $list ) ? $list : array();
-		foreach ( Service::methods() as $method => $def ) {
+		// All methods incl. card_device: stornos of terminal sales stay possible without the add-on.
+		foreach ( Service::all_methods() as $method => $def ) {
 			$list[] = new self( $def['provider'], $def['label'] );
 		}
 		return $list;
