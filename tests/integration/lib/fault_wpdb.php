@@ -127,6 +127,10 @@ if ( ! class_exists( 'Wpcap_Fault_WPDB' ) ) {
 			$r = $this->intercept( "INSERT INTO $table (" . implode( ',', array_keys( $data ) ) . ')' );
 			return null === $r ? $this->inner->insert( $table, $data, $format ) : $r;
 		}
+		public function replace( $table, $data, $format = null ) {
+			$r = $this->intercept( "REPLACE INTO $table (" . implode( ',', array_keys( $data ) ) . ')' );
+			return null === $r ? $this->inner->replace( $table, $data, $format ) : $r;
+		}
 		public function update( $table, $data, $where, $format = null, $where_format = null ) {
 			$r = $this->intercept( "UPDATE $table SET " . self::pairs( $data, ',' ) . ' WHERE ' . self::pairs( $where, ' AND ' ) );
 			return null === $r ? $this->inner->update( $table, $data, $where, $format, $where_format ) : $r;

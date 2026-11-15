@@ -342,6 +342,8 @@ final class Fiscalization {
 		foreach ( (array) $selected as $line ) {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
 			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
+			// A failed lookup must not look like "not mapped" (that would sell without receipt): fail closed.
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 			if ( ! $mapping ) {
 				$unmapped_types[] = $type_id;
 				continue;
@@ -421,6 +423,7 @@ final class Fiscalization {
 				"SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_legal_sellers s LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE s.seller_id=%d",
 				$channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $seller_id
 			) );
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 			if ( ! $mapping || 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) { throw new \RuntimeException( 'fiscal_extra_seller_profile_unavailable' ); }
 			$has_mapping = true;
 			if ( 'not_required' === $mapping->profile_status ) { continue; }
@@ -464,8 +467,11 @@ final class Fiscalization {
 			$groups[ $seller_id ]['tax_minor'] += $tax;
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT currency,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		if ( $has_mapping && ! $order ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 		$payment_method = self::payment_method( $internal, $order ? (string) $order->payment_provider : '' );
-		if ( $has_mapping ) { $wpdb->replace( "{$p}wpcap_fiscal_order_state", array( 'order_id' => absint( $order_id ), 'fiscal_status' => $groups ? 'pending' : 'not_required', 'fulfillment_status' => $groups ? 'blocked' : 'awaiting_payment', 'updated_at' => $now ), array( '%d', '%s', '%s', '%s' ) ); }
+		if ( $has_mapping && false === $wpdb->replace( "{$p}wpcap_fiscal_order_state", array( 'order_id' => absint( $order_id ), 'fiscal_status' => $groups ? 'pending' : 'not_required', 'fulfillment_status' => $groups ? 'blocked' : 'awaiting_payment', 'updated_at' => $now ), array( '%d', '%s', '%s', '%s' ) ) ) {
+			throw new \RuntimeException( 'fiscal_snapshot_failed' );
+		}
 		foreach ( $groups as $seller_id => $group ) {
 			$key = hash( 'sha256', 'wpcap-fiscal-v1:' . absint( $order_id ) . ':' . $seller_id );
 			if ( self::contains_secret_key( $group['configuration'] ) ) { throw new \RuntimeException( 'fiscal_configuration_contains_secret' ); }
@@ -1005,12 +1011,17 @@ final class Fiscalization {
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		// Orders without any fiscal seller mapping have no state row: unchanged behaviour, one cheap lookup.
+		// Database errors block issuance (fail closed); the core retries the issuance later.
 		$state = $wpdb->get_var( $wpdb->prepare( "SELECT fiscal_status FROM {$p}wpcap_fiscal_order_state WHERE order_id=%d", $order_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return false; }
 		if ( null === $state ) { return $ready; }
 		// Receipts are only submitted for paid orders (the core issues nothing for unpaid ones anyway).
-		if ( 'paid' !== (string) $wpdb->get_var( $wpdb->prepare( "SELECT payment_status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) ) { return $ready; }
+		$payment_status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT payment_status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return false; }
+		if ( 'paid' !== $payment_status ) { return $ready; }
 		self::process_order( $order_id );
 		$counts = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, SUM(status <> 'submitted') AS blocked, SUM(status='failed') AS failed FROM {$p}wpcap_fiscal_documents WHERE order_id=%d", $order_id ) );
+		if ( ! $counts || '' !== (string) $wpdb->last_error ) { return false; }
 		$total = (int) ( $counts->total ?? 0 );
 		$blocked = (int) ( $counts->blocked ?? 0 );
 		$failed = (int) ( $counts->failed ?? 0 );

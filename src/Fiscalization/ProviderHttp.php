@@ -135,7 +135,7 @@ final class ProviderHttp {
 
 	/** Host and error code only: no path, query, headers or bodies (they may carry taxpayer or auth data). */
 	private static function log_failure( $url, $code, $status ) {
-		$host = (string) wp_parse_url( (string) $url, PHP_URL_HOST );
+		$host = (string) ( function_exists( 'wp_parse_url' ) ? wp_parse_url( (string) $url, PHP_URL_HOST ) : parse_url( (string) $url, PHP_URL_HOST ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- fallback outside WordPress (CLI tools, tests).
 		Log::warning( 'fiscal_provider_http_failed', sprintf( 'Fiscal provider request to %s failed (%s).', $host, sanitize_key( (string) $code ) ), array(
 			'object_type' => 'fiscal_provider',
 			'details' => array( 'host' => $host, 'error_code' => sanitize_key( (string) $code ), 'status' => absint( $status ) ),
