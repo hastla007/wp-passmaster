@@ -179,7 +179,9 @@ final class PublicEvents {
 					ob_start();
 					include $template;
 					$card_html = ob_get_clean();
-					echo apply_filters( 'wp_pass_captain_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
+					// Versioned contract wp_pass_captain_event_card_html_v1; the unversioned name still fires (deprecated since 1.5.0).
+					$card_html = apply_filters_deprecated( 'wp_pass_captain_event_card_html', array( $card_html, $event, $types ), '1.5.0', 'wp_pass_captain_event_card_html_v1' );
+					echo apply_filters( 'wp_pass_captain_event_card_html_v1', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
 				endforeach; ?>
 			</div>
 			<?php

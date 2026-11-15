@@ -40,7 +40,9 @@ final class Localization {
 	}
 
 	public static function currencies() {
-		$currencies = apply_filters( 'wp_pass_captain_currencies', array( 'EUR', 'USD', 'CHF', 'GBP', 'CAD', 'AUD' ) );
+		// Versioned contract wp_pass_captain_currencies_v1; the unversioned name still fires (deprecated since 1.5.0).
+		$currencies = apply_filters_deprecated( 'wp_pass_captain_currencies', array( array( 'EUR', 'USD', 'CHF', 'GBP', 'CAD', 'AUD' ) ), '1.5.0', 'wp_pass_captain_currencies_v1' );
+		$currencies = apply_filters( 'wp_pass_captain_currencies_v1', $currencies );
 		if ( ! is_array( $currencies ) ) { return array( 'EUR' ); }
 		$currencies = array_unique( array_filter( array_map( static function ( $code ) { $code = strtoupper( sanitize_text_field( $code ) ); return preg_match( '/^[A-Z]{3}$/', $code ) ? $code : ''; }, $currencies ) ) );
 		return $currencies ?: array( 'EUR' );
