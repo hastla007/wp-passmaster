@@ -38,7 +38,8 @@ A device gets a package only if **all** of these hold:
 - the device user has `wpcap_checkin` access to the event.
 
 Otherwise the server returns `403 wpcap_offline_not_assigned`. Revoked devices get `401`. The PWA
-deletes stored packages that the server no longer lists or refuses with 403.
+deletes stored packages that the server no longer lists or refuses with 403. On `401` (or an error code
+`…device_revoked`/`…device_unauthenticated`) it wipes the device, see *Revoked token* below.
 
 ## REST (device bearer token, namespace `wp-pass-captain/v1`)
 
@@ -135,14 +136,22 @@ Offline pre-validation in the PWA (`verifySignedQr()` / `decideSigned()` in `app
 
 1. Ed25519 signature over the ASCII bytes `PC1.<claims>` with a trusted QR key (retired keys only until
    `valid_until`; unknown key id = `invalid_signature`).
-2. Claim types and the validity window `v` at the device time (corrected by the server clock offset);
-   outside = `out_of_window`.
+2. Claim types and the validity window at the device time (corrected by the server clock offset, never
+   earlier than the last known server time); outside = `out_of_window`. The window is the signed `v`,
+   widened to the current dates of the package's occurrence (same `o`): from `min(v[0], start − 365 days)`
+   to `max(v[1], (end or start) + 1 day)`. A QR code sent before the occurrence was moved therefore stays
+   valid for the new date (audit QA-2). Multi-day admission policies are only known to the server; the
+   PWA uses the occurrence end.
 3. `o` must be the package's occurrence (`wrong_occurrence`).
 4. The code version `c` (first 16 hex of the code hash) is looked up in the package index. A reissued
    ticket has a new hash, so a QR of the old code is `unknown` (or `revoked` once the snapshot lists the old
    hash as revoked). Then the usual local rules apply (revoked, already used, area).
 
-Online the server decides (signature, code version, window, ticket state). Offline admissions upload the
+Online the server decides (signature, code version, window, ticket state). The server checks the window
+the same way (`SignedQr::in_window()` with the ticket's current row): the signature proves ticket and
+occurrence, the window is `[min(signed start, current start), max(signed end, current end)]`, where the
+current window is `SignedQr::window()` (a year before the start until a day after the last valid time,
+filter `wpcap_signed_qr_window`). Offline admissions upload the
 signed code unchanged through `/app/scan/sync`; the server verifies it again. Classic codes keep working
 everywhere, whatever the setting.
 
@@ -153,14 +162,19 @@ everywhere, whatever the setting.
 | `index.html` | App shell with the German source texts (`data-i18n*` attributes); translated at runtime. Strict CSP with `connect-src 'self'`. |
 | `app.js` | App logic. |
 | `app.css` | Styles. |
-| `sw.js` | Service worker that caches the app shell. API calls are never cached. |
+| `sw.js` | Service worker that caches the app shell. API calls are never cached. Only navigations to the app itself (scope root or `index.html`) are served from and stored as `index.html`, and only `text/html` responses are stored; other navigations inside the scope are network-only. |
 | `manifest.json`, icons | Makes the app installable. Locale-neutral on purpose (product name only, no `lang`/description): a static file cannot follow the device language. |
 | `../vendor/tweetnacl/` | tweetnacl-js 1.0.3 (Unlicense), used for signature verification. |
 | `../vendor/jsqr/` | Camera fallback when `BarcodeDetector` is unavailable. |
 
 - **Start:** open the app from the admin button. The link passes `?api=<rest_url>`, which is stored.
-  Only **same-origin** API bases are accepted. HTTPS (or localhost) is required for the service
-  worker and WebCrypto.
+  It is only used while the device is **not paired**; a paired device keeps its stored API base and
+  ignores the parameter (the parameter is removed from the address bar either way). Accepted API
+  bases (parameter, stored value and the `api` of the pairing QR): **same origin** and exactly the
+  plugin's app namespace, either a REST path ending in `/wp-pass-captain/v1/app/` or
+  `…?rest_route=/wp-pass-captain/v1/app/` as the only query parameter; anything else falls back to the
+  base derived from the plugin URL. HTTPS (or localhost) is required for the service worker and
+  WebCrypto.
 - **Language:** on every online start the app loads `GET /app/offline/i18n` with the device languages
   (`navigator.languages`) and keeps the table in IndexedDB, so it stays translated offline. It sets
   `<html lang>` and formats dates with `Intl` in the served language. Without a table (first start
@@ -171,7 +185,11 @@ everywhere, whatever the setting.
   it fetches a new full package). Every document is re-verified on each start:
   - the signature with the known key (retired keys only until `valid_until`),
   - `format`/`v`, `key_id` and `device_id` (packages are bound to the device),
-  - the chain (`delta.since === previous cursor`).
+  - the chain (`delta.since === previous cursor`),
+  - no rollback: the app stores the newest accepted `cursor` and `issued_at` per occurrence (IndexedDB
+    `kv.hw`) and refuses a package with an older `issued_at` or a lower cursor version of the same epoch.
+  - Expired packages (they may carry attendee names) are deleted at start and every 30 s; the next
+    online refresh loads a new one.
 - **Scanning:**
   - Online, the app calls `POST /app/scan/check-in` with an idempotency key (5 s timeout).
   - On a network error or 5xx it decides offline. It normalizes the code like the server, computes
@@ -184,10 +202,23 @@ everywhere, whatever the setting.
 - **Log and sync:** every scan is logged locally with its idempotency key. Offline admissions are
   uploaded through `POST /app/scan/sync` (batches of 200) when the device is online, on reconnect and
   every 30 s. The ticket code is kept only until the upload succeeded. Server conflicts, including
-  auto-resolved ones, are listed in the app.
+  auto-resolved ones, are listed in the app. The log is shortened after each sync, at start and every
+  30 s: synced entries older than 24 h are removed and at most 500 synced entries are kept. Pending
+  (not yet uploaded) scans are never removed.
+- **Revoked token:** when the server answers `401` (keys, occurrences, package, scan or sync), the app
+  deletes the device token, device id, package and QR keys, all packages, the scan log (including the
+  ticket codes of pending scans, which the server would no longer accept from this device), the clock
+  offset and the rollback markers, then shows the pairing screen. Only the translations and the API base
+  stay.
 - **Clock:** the app takes an offset from the server time of the keys endpoint, to limit
-  manipulation of the device clock. Package expiry is still enforced on the device, so a rooted
-  device can bypass it. The server then flags old scans (`offline_expired`).
+  manipulation of the device clock, and keeps the last known server time (`server_time` of the keys
+  endpoint, `issued_at` of verified packages; IndexedDB `kv.server_time`) as a lower bound for its
+  clock: setting the device clock back does not extend a package. Package expiry is still enforced on
+  the device, so a rooted device can bypass it. The server then flags old scans (`offline_expired`).
+- **Camera:** stopped (all tracks ended) when the app is hidden or left (`visibilitychange`,
+  `pagehide`) and after a 401 wipe.
+- **Diagnostics:** `window.wpcapOffline` exposes helper functions and a view of the state without the
+  device token.
 
 Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshed in the background
 (stale-while-revalidate).
@@ -196,8 +227,9 @@ Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshe
 
 - A package lets a device recognize valid ticket **hashes**, not forge tickets: the codes cannot be
   derived from the hashes (256-bit random codes).
-- Revoking a device makes its token invalid (`401`). A package it already holds stays usable offline
-  until it expires. Keep `max_offline_hours` short.
+- Revoking a device makes its token invalid (`401`). As soon as the device reaches the server again it
+  wipes its local data (see *Revoked token*). While it stays offline, a package it already holds stays
+  usable until it expires. Keep `max_offline_hours` short.
 - Every offline admission is re-checked at sync. Double admissions are never silently dropped: they
   are always recorded as admission conflicts.
 
@@ -206,7 +238,11 @@ Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshe
 - `tests/integration/modules/zzzzz_x4_signed_qr.php` covers signed QR codes on the server (valid,
   tampered, unknown/foreign key, rotation with grace and revocation, window, reissued and revoked
   tickets, classic codes, mobile API and offline sync); `tests/js/offline-scanner.test.js` covers the
-  offline verification in the PWA.
+  offline verification in the PWA. `tests/integration/modules/zzzzz_y7_frontend_scanner.php` covers a
+  signed QR after moving the occurrence by 30 days (QA-2).
+- `tests/js/offline-scanner.test.js` also covers the 401 wipe, pruning of expired packages and of the
+  log, the `?api=` rules, rollback protection and the server time floor; `tests/js/offline-sw.test.js`
+  the service worker cache rules.
 - `tests/integration/modules/offline_scanner.php` covers opt-in, assignment, signatures (including
   `sodium_crypto_sign_verify_detached`), deltas with revocations, expiry, rotation and grace, and the
   sync rules.

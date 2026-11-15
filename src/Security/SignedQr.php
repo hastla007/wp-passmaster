@@ -295,9 +295,25 @@ final class SignedQr {
 		return $valid ? $claims : self::invalid();
 	}
 
-	/** True when the evaluation time lies inside the signed validity window. */
-	public static function in_window( array $claims, $at ) {
-		return (int) $at >= (int) $claims['v'][0] && (int) $at <= (int) $claims['v'][1];
+	/**
+	 * True when the evaluation time lies inside the validity window.
+	 *
+	 * Without $row only the signed window counts. With the ticket's current row (starts_at, ends_at,
+	 * timezone, ticket_type_id, occurrence_id) the window is widened to the current occurrence dates:
+	 * [min(signed start, current start), max(signed end, current end)]. The signature already proves
+	 * ticket and occurrence, so a QR code sent before the occurrence was moved stays valid for the new
+	 * date (audit QA-2). A narrower window from wpcap_signed_qr_window still applies, because the current
+	 * window goes through the same filter.
+	 */
+	public static function in_window( array $claims, $at, $row = null ) {
+		$nbf = (int) $claims['v'][0];
+		$exp = (int) $claims['v'][1];
+		if ( is_object( $row ) ) {
+			$current = self::window( $row );
+			$nbf = min( $nbf, $current[0] );
+			$exp = max( $exp, $current[1] );
+		}
+		return (int) $at >= $nbf && (int) $at <= $exp;
 	}
 
 	/** True when the claims belong to the ticket's current code (code version and occurrence). */

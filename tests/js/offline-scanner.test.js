@@ -68,7 +68,7 @@ async function boot(opts) {
 		return handler(body, url, init);
 	});
 	const env = load('assets/offline-scanner/app.js', {
-		url: PAGE,
+		url: opts.url || PAGE,
 		window: { nacl, indexedDB, wpcapUnused: 1 },
 		indexedDB,
 		navigator: Object.assign({ onLine: true }, opts.navigator || {}),
@@ -285,7 +285,10 @@ test('decideSigned: package lookup by code version, occurrence, revoked and rota
 	assert.equal(decideSigned(entry, qr({ o: 8 })).result, 'wrong_occurrence');
 	assert.equal(decideSigned(entry, qr({ c: sha(CODE_REVOKED).slice(0, 16) })).result, 'revoked');
 	assert.equal(decideSigned(entry, qr({ c: sha('8'.repeat(64)).slice(0, 16) })).result, 'unknown', 'code version of a reissued (old) code');
-	assert.equal(decideSigned(entry, qr({ v: [nowS() - 7200, nowS() - 60] })).result, 'out_of_window');
+	// The signed window is widened to the package's current occurrence dates (QA-2): an expired signed
+	// window is refused only when the current occurrence is over as well.
+	const past = loadPackage({ occurrence_id: 7, full: sign(payload({ occurrence: { id: 7, starts_at: new Date(Date.now() - 3 * 86400e3).toISOString(), ends_at: null } })), deltas: [] });
+	assert.equal(decideSigned(past, qr({ v: [nowS() - 7200, nowS() - 60] })).result, 'out_of_window');
 	assert.equal(decideSigned(null, qr()).result, 'no_package');
 });
 
@@ -410,8 +413,173 @@ test('server outage during an online scan falls back to the offline decision', a
 	assert.equal(env.db.dump('log').map(([, v]) => v)[0].synced, 0);
 });
 
-test('revoked device token (401) asks for re-pairing', async () => {
-	const indexedDB = await pairedDb();
-	const env = await boot({ indexedDB, routes: { 'offline/keys': () => ({ status: 401, json: { message: 'revoked' } }), 'offline/i18n': () => ({ status: 404 }) } });
+test('revoked device token (401) asks for re-pairing and wipes token, keys, packages and log (FE-1/PRIV-5)', async () => {
+	const indexedDB = await pairedDb({ qr_keys: QR_KEYS, i18n: { v: 1, lang: 'de-DE', strings: {} } });
+	const env0 = await boot({ indexedDB, navigator: { onLine: false } });
+	env0.db.stores.packages.data.set(7, { occurrence_id: 7, full: sign(payload()), deltas: [] });
+	env0.db.stores.log.data.set('k-pending', { key: 'k-pending', occurrence_id: 7, hash: sha(CODE_OK), code: CODE_OK, scanned_at: new Date().toISOString(), ok: true, synced: 0, mode: 'offline', decision: 'checked_in' });
+	const env = await boot({ indexedDB, routes: { 'offline/keys': () => ({ status: 401, json: { code: 'wpcap_device_unauthenticated', message: 'revoked' } }), 'offline/i18n': () => ({ status: 404 }) } });
+	await flush(40);
 	assert.equal(text(env, 'result-title'), 'Gerät nicht mehr gekoppelt');
+	const kv = env.db.stores.kv.data;
+	for (const k of ['token', 'device_id', 'keys', 'qr_keys']) assert.equal(kv.get(k), undefined, k + ' removed');
+	assert.equal(kv.get('api'), API, 'API base kept for re-pairing');
+	assert.ok(kv.get('i18n'), 'translations kept');
+	assert.equal(env.db.dump('packages').length, 0, 'packages (attendee names) removed');
+	assert.equal(env.db.dump('log').length, 0, 'log (pending ticket codes) removed');
+	assert.deepEqual(Object.keys(env.app.state.packages), []);
+	assert.deepEqual(env.app.state.keys, {});
+	assert.equal(env.document.getElementById('pair-view').hidden, false, 'pairing screen shown');
+	assert.equal(env.document.getElementById('main-view').hidden, true);
+	// Offline decisions are impossible afterwards.
+	await env.app.handleScan(CODE_OK);
+	await flush();
+	assert.notEqual(text(env, 'result-title'), 'Einlass OK (offline)');
+});
+
+test('401 during a scan or the sync also wipes the device', async () => {
+	const indexedDB = await pairedDb();
+	const env0 = await boot({ indexedDB, navigator: { onLine: false } });
+	env0.db.stores.packages.data.set(7, { occurrence_id: 7, full: sign(payload()), deltas: [] });
+	const env = await boot({ indexedDB, navigator: { onLine: false } });
+	await env.app.handleScan(CODE_OK); // offline, queued
+	await flush();
+	assert.equal(env.db.dump('log').length, 1, 'scan queued offline');
+	const online = await boot({ indexedDB, routes: { 'offline/keys': () => ({ status: 503 }), 'scan/sync': () => ({ status: 401, json: {} }), 'offline/i18n': () => ({ status: 404 }) } });
+	await online.app.syncNow();
+	await flush(40);
+	assert.equal(online.db.stores.kv.data.get('token'), undefined);
+	assert.equal(online.db.dump('log').length, 0);
+	assert.equal(online.db.dump('packages').length, 0);
+});
+
+/* ---- audit 2026-11-15: QA-2, FE-1…FE-5, FE-8 ---- */
+
+test('QA-2: signed QR of a moved occurrence (+30 days) is accepted offline shortly before the new start; forged stays refused', async () => {
+	const env = await boot({ indexedDB: await pairedDb({ qr_keys: QR_KEYS }), navigator: { onLine: false } });
+	const { loadPackage, decideSigned, verifySignedQr } = env.app;
+	const day = 86400;
+	const oldStart = nowS() - 30 * day + 3600; // the original date lies 30 days back
+	const newStart = nowS() + 3600; // moved by 30 days: begins in an hour
+	const code = qr({ v: [oldStart - 365 * day, oldStart + day] }); // window signed for the old date
+	const entry = loadPackage({ occurrence_id: 7, full: sign(payload({ occurrence: { id: 7, starts_at: new Date(newStart * 1000).toISOString(), ends_at: null } })), deltas: [] });
+	assert.equal(verifySignedQr(code).result, 'out_of_window', 'signed window alone has expired');
+	const d = decideSigned(entry, code);
+	assert.equal(d.result, 'checked_in', 'current occurrence dates from the package widen the window');
+	assert.equal(d.hash, sha(CODE_OK));
+	// A package of another occurrence does not widen the window of this QR.
+	assert.equal(verifySignedQr(code, undefined, { id: 8, starts_at: new Date(newStart * 1000).toISOString() }).result, 'out_of_window');
+	// Manipulated signature: still refused.
+	const parts = code.split('.');
+	assert.equal(decideSigned(entry, parts[0] + '.' + parts[1] + '.' + ('A' === parts[2][0] ? 'B' : 'A') + parts[2].slice(1)).result, 'invalid_signature');
+	assert.equal(decideSigned(entry, qr({ v: [oldStart - 365 * day, oldStart + day] }, QR_OTHER)).result, 'invalid_signature');
+	// Over a day after the (current) end: refused.
+	const over = loadPackage({ occurrence_id: 7, full: sign(payload({ occurrence: { id: 7, starts_at: new Date((nowS() - 3 * day) * 1000).toISOString(), ends_at: null } })), deltas: [] });
+	assert.equal(decideSigned(over, code).result, 'out_of_window');
+});
+
+test('FE-1/PRIV-5: expired packages are removed at start, valid ones stay', async () => {
+	const indexedDB = await pairedDb();
+	const env0 = await boot({ indexedDB, navigator: { onLine: false } });
+	env0.db.stores.packages.data.set(7, { occurrence_id: 7, full: sign(payload()), deltas: [] });
+	env0.db.stores.packages.data.set(8, { occurrence_id: 8, full: sign(payload({ occurrence: { id: 8, starts_at: '2026-12-01T19:00:00Z' }, expires_at: new Date(Date.now() - 1000).toISOString() })), deltas: [] });
+	const env = await boot({ indexedDB, navigator: { onLine: false } });
+	assert.deepEqual(env.db.dump('packages').map(([k]) => k), [7]);
+	assert.deepEqual(Object.keys(env.app.state.packages), ['7']);
+	// Expiry later on: the periodic pruning removes it as well.
+	env.app.state.packages[7].meta.expires_at = new Date(Date.now() - 1).toISOString();
+	assert.deepEqual(await env.app.pruneExpired(), [7]);
+	await flush();
+	assert.equal(env.db.dump('packages').length, 0);
+});
+
+test('FE-3: ?api= is used only by an unpaired device and only for the plugin namespace on the same origin', async () => {
+	const { validApiBase } = (await boot({ navigator: { onLine: false } })).app;
+	assert.equal(validApiBase(API), true);
+	assert.equal(validApiBase('https://example.test/index.php?rest_route=/wp-pass-captain/v1/app/'), true);
+	assert.equal(validApiBase('https://example.test/custom-rest/wp-pass-captain/v1/app/'), true, 'other REST prefix');
+	assert.equal(validApiBase('https://evil.test/wp-json/wp-pass-captain/v1/app/'), false, 'other origin');
+	assert.equal(validApiBase('https://example.test/wp-json/wp/v2/users/'), false, 'other namespace');
+	assert.equal(validApiBase('https://example.test/upload.php?x=/wp-pass-captain/v1/app/'), false);
+	assert.equal(validApiBase('https://example.test/?rest_route=/wp-pass-captain/v1/app/&x=1'), false);
+	assert.equal(validApiBase('https://example.test/wp-json/wp-pass-captain/v1/app/#x'), false);
+	assert.equal(validApiBase(''), false);
+
+	const plain = 'https://example.test/index.php?rest_route=/wp-pass-captain/v1/app/';
+	const fresh = await boot({ url: PAGE + '?api=' + encodeURIComponent(plain), navigator: { onLine: false } });
+	assert.equal(fresh.app.state.api, plain, 'unpaired: parameter adopted');
+	assert.equal(fresh.db.stores.kv.data.get('api'), plain);
+	const bad = await boot({ url: PAGE + '?api=' + encodeURIComponent('https://example.test/wp-admin/admin-ajax.php?'), navigator: { onLine: false } });
+	assert.equal(bad.app.state.api, API, 'unpaired, wrong path: derived API base');
+
+	const indexedDB = await pairedDb();
+	const paired = await boot({ indexedDB, url: PAGE + '?api=' + encodeURIComponent(plain), navigator: { onLine: false } });
+	assert.equal(paired.app.state.api, API, 'paired: stored API base kept');
+	assert.equal(paired.db.stores.kv.data.get('api'), API);
+});
+
+test('FE-4: the IndexedDB log keeps pending scans, drops synced entries after a day and above the cap', async () => {
+	const indexedDB = await pairedDb();
+	const env0 = await boot({ indexedDB, navigator: { onLine: false } });
+	const log = env0.db.stores.log.data;
+	const at = (h) => new Date(Date.now() - h * 3600e3).toISOString();
+	const entry = (key, h, synced) => ({ key, occurrence_id: 7, hash: sha(key), code: synced ? '' : CODE_OK, scanned_at: at(h), ok: true, synced, mode: 'offline', decision: 'checked_in' });
+	log.set('old-synced', entry('old-synced', 30, 1));
+	log.set('old-pending', entry('old-pending', 30, 0));
+	log.set('new-synced', entry('new-synced', 1, 1));
+	for (let i = 0; i < 520; i++) log.set('bulk-' + i, entry('bulk-' + i, 2 + i / 1000, 1));
+	const env = await boot({ indexedDB, navigator: { onLine: false } });
+	await flush(20);
+	const keys = env.db.dump('log').map(([k]) => k);
+	assert.ok(!keys.includes('old-synced'), 'synced entry older than a day removed');
+	assert.ok(keys.includes('old-pending'), 'pending scans are never removed');
+	assert.ok(keys.includes('new-synced'), 'newest synced entries stay');
+	assert.equal(keys.filter((k) => k !== 'old-pending').length, 500, 'synced entries capped');
+	assert.ok(!keys.includes('bulk-519'), 'the oldest synced entries go first');
+});
+
+test('FE-5: older packages are refused (rollback); expiry uses the last server time as lower bound', async () => {
+	const env = await boot({ indexedDB: await pairedDb(), navigator: { onLine: false } });
+	const { loadPackage, packageStatus, state } = env.app;
+	const at = (ms) => new Date(Date.now() + ms).toISOString();
+	const newer = loadPackage({ occurrence_id: 7, full: sign(payload({ cursor: 'ab12.5', issued_at: at(-1000) })), deltas: [] });
+	assert.equal(newer.error, '');
+	await flush();
+	assert.deepEqual(env.db.stores.kv.data.get('hw')[7], { cursor: 'ab12.5', issued_at: newer.meta.issued_at }, 'high-water mark stored');
+	const older = loadPackage({ occurrence_id: 7, full: sign(payload({ cursor: 'ab12.6', issued_at: at(-60000) })), deltas: [] });
+	assert.match(older.error, /Kein gültiges Prüfpaket/, 'older issued_at refused');
+	const lowerCursor = loadPackage({ occurrence_id: 7, full: sign(payload({ cursor: 'ab12.3', issued_at: newer.meta.issued_at })), deltas: [] });
+	assert.match(lowerCursor.error, /Kein gültiges Prüfpaket/, 'lower cursor of the same epoch refused');
+	const rebuilt = loadPackage({ occurrence_id: 7, full: sign(payload({ cursor: 'ffee.1', issued_at: at(0) })), deltas: [] });
+	assert.equal(rebuilt.error, '', 'newer package of a new epoch accepted');
+
+	// The device clock is set back by two hours after the last server contact: the server time wins.
+	const pkg = loadPackage({ occurrence_id: 7, full: sign(payload({ issued_at: at(1000), expires_at: at(3600e3) })), deltas: [] });
+	assert.equal(packageStatus(pkg).ok, true);
+	state.clockOffset = -2 * 3600e3;
+	state.serverTime = Date.now() + 2 * 3600e3; // last server_time seen
+	assert.equal(packageStatus(pkg).code, 'package_expired');
+});
+
+test('FE-5: server_time of the keys response is stored as time floor', async () => {
+	const indexedDB = await pairedDb();
+	const serverTime = new Date(Date.now() + 3 * 3600e3).toISOString();
+	const routes = { 'offline/keys': () => ({ json: { keys: KEYS, server_time: serverTime } }), 'offline/occurrences': () => ({ json: { occurrences: [] } }), 'scan/sync': () => ({ json: { results: [] } }), 'offline/i18n': () => ({ status: 404 }) };
+	const env = await boot({ indexedDB, routes });
+	await flush(40);
+	assert.equal(env.db.stores.kv.data.get('server_time'), Date.parse(serverTime));
+	const again = await boot({ indexedDB, navigator: { onLine: false } });
+	assert.equal(again.app.state.serverTime, Date.parse(serverTime));
+});
+
+test('FE-8: the exposed state hides the device token', async () => {
+	const env = await boot({ indexedDB: await pairedDb(), navigator: { onLine: false } });
+	const s = env.app.state;
+	assert.equal(s.token, undefined);
+	assert.equal('token' in s, false);
+	assert.ok(!Object.keys(s).includes('token'));
+	assert.ok(!JSON.stringify(s).includes('"token"'));
+	s.token = 'evil';
+	assert.equal(s.token, undefined, 'not writable through the view');
+	assert.equal(s.deviceId, DEVICE, 'other fields readable');
 });

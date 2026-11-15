@@ -178,3 +178,45 @@ test('no camera API at all', async () => {
 	await flush();
 	assert.equal(result(env).textContent, 'Keine Kamera.');
 });
+
+/** Fake camera stream whose tracks record stop() calls. */
+function fakeStream() {
+	const tracks = [{ stopped: false, stop() { this.stopped = true; } }, { stopped: false, stop() { this.stopped = true; } }];
+	return { tracks, getTracks: () => tracks };
+}
+
+test('camera tracks are stopped when the page is hidden or left (FE-6)', async () => {
+	for (const how of ['visibilitychange', 'pagehide']) {
+		const stream = fakeStream();
+		const env = scanner({ navigator: { onLine: true, mediaDevices: { getUserMedia: () => Promise.resolve(stream) } } });
+		const video = env.document.querySelector('.wpcap-camera');
+		video.play = async () => {};
+		env.document.querySelector('.wpcap-camera-start').click();
+		await flush();
+		assert.equal(video.srcObject, stream, how + ': camera running');
+		assert.equal(video.hidden, false);
+		assert.ok(stream.tracks.every((t) => !t.stopped));
+		if ('visibilitychange' === how) {
+			env.document.visibilityState = 'hidden';
+			env.document.dispatchEvent(new Event('visibilitychange'));
+		} else {
+			env.window.dispatchEvent(new Event('pagehide'));
+		}
+		assert.ok(stream.tracks.every((t) => t.stopped), how + ': all tracks stopped');
+		assert.equal(video.srcObject, null);
+		assert.equal(video.hidden, true);
+		assert.equal(env.document.querySelector('.wpcap-camera-start').disabled, false, how + ': camera can be started again');
+	}
+});
+
+test('camera error after the stream was obtained stops the tracks (FE-6)', async () => {
+	const stream = fakeStream();
+	const env = scanner({ navigator: { onLine: true, mediaDevices: { getUserMedia: () => Promise.resolve(stream) } } });
+	const video = env.document.querySelector('.wpcap-camera');
+	video.play = () => Promise.reject(new Error('play failed'));
+	env.document.querySelector('.wpcap-camera-start').click();
+	await flush();
+	assert.equal(result(env).textContent, 'Kamerafehler: play failed');
+	assert.ok(stream.tracks.every((t) => t.stopped), 'no camera left running');
+	assert.equal(video.hidden, true);
+});

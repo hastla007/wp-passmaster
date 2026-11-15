@@ -85,7 +85,11 @@ PC1.<base64url(JSON {t, o, v, k, c})>.<base64url(Ed25519-Signatur)>
 - Server: `Checkin::lookup()` prüft Format, Signatur und Schlüssel, lädt das Ticket über die öffentliche ID,
   verlangt passende Code-Version und Termin (sonst `wpcap_qr_superseded`, Ergebnis `revoked` – eine
   Neuausstellung macht alte QR-Codes ungültig wie den alten Code) und beim Einlass den Gültigkeitszeitraum
-  (`wpcap_qr_expired`). Danach gelten dieselben Prüfungen wie für klassische Codes (Status, Widerruf, Absage,
+  (`wpcap_qr_expired`). Dieser wird gegen die aktuellen Termindaten erweitert:
+  `[min(signierter Beginn, aktueller Beginn), max(signiertes Ende, aktuelles Ende)]`, das aktuelle Fenster
+  nach `SignedQr::window()` (inkl. Filter). Nach einer Terminverschiebung bleibt ein bereits versendeter QR-Code
+  daher für den neuen Termin gültig; die Signatur belegt Ticket und Termin ohnehin. Die Offline-PWA erweitert
+  das Fenster ebenso mit den Termindaten aus dem signierten Prüfpaket. Danach gelten dieselben Prüfungen wie für klassische Codes (Status, Widerruf, Absage,
   Einlassregeln, Idempotenz). Eine gültige Signatur allein lässt nie ein. Ungültige PC1-Codes werden nie an
   Scanner-Adapter von Add-ons weitergereicht.
 - Interoperabilität: Alle Pass-Captain-Scanner (Web-Scanner, Offline-PWA, App-API, Offline-Sync, Check-in-Dienst

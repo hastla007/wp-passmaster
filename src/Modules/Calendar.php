@@ -193,14 +193,17 @@ final class Calendar {
 		$first = new \DateTime( $month . '-01 00:00:00', $tz );
 		$next = ( clone $first )->modify( '+1 month' );
 		$prev = ( clone $first )->modify( '-1 month' );
-		$from = ( clone $first )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		// Occurrences are grouped by their local date in their own timezone, the same timezone their time
+		// label uses (and the list view). The site-timezone month is widened by a day on both sides so
+		// occurrences whose own date falls into the month are found whatever the offset (audit QA-11).
+		$from = ( clone $first )->modify( '-1 day' )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 		$from = max( $from, current_time( 'mysql', true ) ); // Upcoming only.
-		$to = ( clone $next )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$to = ( clone $next )->modify( '+1 day' )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 		$by_day = array();
 		foreach ( self::occurrences( $from, $to, $event_id, 500 ) as $row ) {
-			$dt = new \DateTime( $row->starts_at, new \DateTimeZone( 'UTC' ) );
-			$dt->setTimezone( $tz );
-			$by_day[ $dt->format( 'Y-m-d' ) ][] = $row;
+			$day = self::local( $row, 'Y-m-d' );
+			if ( 0 !== strpos( $day, $month . '-' ) ) { continue; }
+			$by_day[ $day ][] = $row;
 		}
 		$months = array( 1 => __( 'Januar', 'pass-captain' ), __( 'Februar', 'pass-captain' ), __( 'März', 'pass-captain' ), __( 'April', 'pass-captain' ), __( 'Mai', 'pass-captain' ), __( 'Juni', 'pass-captain' ), __( 'Juli', 'pass-captain' ), __( 'August', 'pass-captain' ), __( 'September', 'pass-captain' ), __( 'Oktober', 'pass-captain' ), __( 'November', 'pass-captain' ), __( 'Dezember', 'pass-captain' ) );
 		$days = array( __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ), __( 'Sonntag', 'pass-captain' ) );
