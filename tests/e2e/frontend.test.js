@@ -63,7 +63,8 @@ test('signed-in buyer: the checkout runs as that account (X-WP-Nonce over the co
 		const email = 'e2e-member-' + Date.now() + '@example.com';
 		await form.locator('[name="email"]').fill(email);
 		if (await form.locator('[name="accept_terms"]').count()) await form.locator('[name="accept_terms"]').check();
-		assert.equal(await form.locator('button[type="submit"]').innerText(), 'Kostenlos bestellen');
+		// The signed-in user's profile language decides the text (catalogs are complete): compare with the localized string.
+		assert.equal(await form.locator('button[type="submit"]').innerText(), await p.evaluate(() => window.WPCAP_CHECKOUT.i18n.freeButton));
 		await form.locator('button[type="submit"]').click();
 		await assert.doesNotReject(p.locator('.wpcap-confirmation').waitFor());
 		const order = helper('buyer', email).order;

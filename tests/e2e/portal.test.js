@@ -44,7 +44,11 @@ test('resend tickets: confirm dialog, then success message', page('portal resend
 	const dialog = p.locator('#wpcap-confirm');
 	await dialog.waitFor({ state: 'visible' });
 	await assertFitsViewport(p, 'portal confirm dialog');
-	assert.equal(await p.locator('#wpcap-confirm-text').innerText(), s.resendConfirm);
+	// After the attendee test a ticket of this order is passed on: the confirmation then names the warning (R3).
+	const passedOn = Number(await p.locator('.wpcap-resend-form').getAttribute('data-passed-on')) || 0;
+	const ownBox = await p.locator('.wpcap-resend-form [name="only_own"]').count();
+	const expected = passedOn > 0 && !ownBox ? s.resendConfirmAll.replace('%d', String(passedOn)) : s.resendConfirm;
+	assert.equal(await p.locator('#wpcap-confirm-text').innerText(), expected);
 	await p.locator('#wpcap-confirm-ok').click();
 	const message = p.locator('.wpcap-resend-form .message');
 	await p.waitForFunction(() => /@/.test(document.querySelector('.wpcap-resend-form .message').textContent));
