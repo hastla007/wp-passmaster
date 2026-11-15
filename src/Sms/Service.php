@@ -245,15 +245,20 @@ final class Service {
 			if ( 1 !== (int) $updated ) { $wpdb->query( 'ROLLBACK' ); continue; }
 			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); break; }
 			$claimed = (int) $row->message_id;
-			\PassCaptain\Jobs\TimeBudget::claimed( $table, 'message_id', $claimed, 'sending', 'queued', 'failed', self::MAX_ATTEMPTS );
-			// Consent is re-checked at send time (it may have been withdrawn meanwhile).
-			$consent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE consent_id=%d AND withdrawn_at IS NULL AND phone<>''" . self::sendable_condition(), $p . 'wpcap_sms_consents', (int) $row->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal condition.
-			$skip = ! $consent ? 'no_consent' : (string) apply_filters( 'wpcap_sms_skip_reason', '', $row );
-			if ( '' !== $skip ) {
-				$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'skipped', 'locked_at' => null, 'last_error' => substr( $skip, 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
-				continue;
+			\PassCaptain\Jobs\TimeBudget::claimed( $table, 'message_id', $claimed, 'sending', 'queued', 'failed', self::MAX_ATTEMPTS, array( 'due' => 'send_at', 'error' => 'last_error' ) );
+			try {
+				// Consent is re-checked at send time (it may have been withdrawn meanwhile).
+				$consent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE consent_id=%d AND withdrawn_at IS NULL AND phone<>''" . self::sendable_condition(), $p . 'wpcap_sms_consents', (int) $row->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal condition.
+				$skip = ! $consent ? 'no_consent' : (string) apply_filters( 'wpcap_sms_skip_reason', '', $row );
+				if ( '' !== $skip ) {
+					$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'skipped', 'locked_at' => null, 'last_error' => substr( $skip, 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
+					continue;
+				}
+				$result = $provider->send( $consent->phone, $row->body, 'wpcap-sms-' . $row->message_id );
+			} catch ( \Throwable $e ) {
+				// A throwing provider or filter must not stop the SMS queue: retried with backoff like a failed send.
+				$result = \PassCaptain\Jobs::exception_error( $e, $row );
 			}
-			$result = $provider->send( $consent->phone, $row->body, 'wpcap-sms-' . $row->message_id );
 			if ( is_wp_error( $result ) ) {
 				$tries = (int) $row->attempts + 1;
 				$data = (array) $result->get_error_data();

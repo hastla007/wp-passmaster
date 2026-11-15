@@ -23,9 +23,15 @@ final class OccurrenceCancellation {
 	const JOB_REFUNDS = 'occurrence_cancel_refunds';
 	const JOB_NOTIFY = 'occurrence_cancel_notify';
 
-	/** Batch sizes: tickets per hook job, orders per refund job, recipients per mail job. */
+	/**
+	 * Batch sizes: tickets per hook job, orders per refund job, recipients per mail job. A refund can
+	 * wait for a 15 s provider timeout, so a refund job holds only a few orders; it also checks the time
+	 * budget before each order and queues the rest as a new job. A mail job only queues one message
+	 * per recipient (Communications, dedupe key occ-cancel|occurrence|run|e-mail) and sends what fits
+	 * into the time budget; each message is retried on its own.
+	 */
 	const HOOK_BATCH = 200;
-	const REFUND_BATCH = 20;
+	const REFUND_BATCH = 5;
 	const NOTIFY_BATCH = 100;
 
 	/**
@@ -61,7 +67,7 @@ final class OccurrenceCancellation {
 	private static function register_jobs() {
 		if ( self::$jobs_registered ) { return; }
 		self::$jobs_registered = true;
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 4 );
 	}
 
 	/** Marks the start of a whole-event cancellation: holders get the event mail instead. */
@@ -155,7 +161,7 @@ final class OccurrenceCancellation {
 	private static function enqueue( $key, $type, array $payload ) {
 		$result = Jobs::enqueue( $key, $type, $payload );
 		if ( is_wp_error( $result ) ) {
-			Audit::record( 'occurrence_cancellation_enqueue_failed', 'occurrence', (int) $payload['occurrence_id'], array( 'type' => $type, 'error' => $result->get_error_code() ) );
+			Log::error( 'occurrence_cancellation_enqueue_failed', 'A batch of the occurrence cancellation could not be queued.', array( 'object_type' => 'occurrence', 'object_id' => (int) $payload['occurrence_id'], 'details' => array( 'type' => $type, 'error' => $result->get_error_code() ) ) );
 			return '';
 		}
 		return $key;
@@ -194,7 +200,7 @@ final class OccurrenceCancellation {
 	}
 
 	/** Filter wp_pass_captain_process_job_v1: runs one batch of a cancellation. */
-	public static function handle_job( $handled, $type, $payload = array() ) {
+	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
 		if ( ! in_array( $type, array( self::JOB_HOOKS, self::JOB_REFUNDS, self::JOB_NOTIFY ), true ) ) { return $handled; }
 		$payload = (array) $payload;
 		$run = (string) ( $payload['run'] ?? '' );
@@ -205,13 +211,21 @@ final class OccurrenceCancellation {
 			return true;
 		}
 		if ( self::JOB_REFUNDS === $type ) {
-			$counts = self::refund_orders( $occurrence_id, (array) ( $payload['orders'] ?? array() ), (string) ( $payload['key'] ?? 'occurrence-cancelled-' . $occurrence_id ) );
+			$orders = array_values( (array) ( $payload['orders'] ?? array() ) );
+			$counts = self::refund_orders( $occurrence_id, $orders, (string) ( $payload['key'] ?? 'occurrence-cancelled-' . $occurrence_id ), Jobs\TimeBudget::deadline() );
+			$rest = array_slice( $orders, (int) $counts['done'] );
+			if ( $rest ) {
+				// Time budget used up: the remaining orders become a new job (refunds are idempotent per order and key).
+				$requeued = Jobs::enqueue( 'occ-cancel-rest-' . absint( $job_id ) . '-' . count( $rest ) . '-' . substr( hash( 'sha256', (string) wp_json_encode( $rest ) ), 0, 12 ), self::JOB_REFUNDS, array_merge( $payload, array( 'orders' => $rest ) ) );
+				if ( is_wp_error( $requeued ) ) { return $requeued; } // Retry this job as a whole (already refunded orders are skipped).
+			}
+			unset( $counts['done'] );
 			self::count( $run, $counts );
 			return true;
 		}
-		$sent = self::notify( $occurrence_id, (array) ( $payload['recipients'] ?? array() ), ! empty( $payload['auto_refund'] ) );
-		if ( is_wp_error( $sent ) ) { return $sent; }
-		self::count( $run, array( 'notified' => $sent ) );
+		$queued = self::notify( $occurrence_id, (array) ( $payload['recipients'] ?? array() ), ! empty( $payload['auto_refund'] ), $run );
+		if ( is_wp_error( $queued ) ) { return $queued; }
+		self::count( $run, array( 'notified' => $queued ) );
 		return true;
 	}
 
@@ -220,8 +234,15 @@ final class OccurrenceCancellation {
 		foreach ( $counts as $key => $n ) { self::$counters[ $run ][ $key ] = ( self::$counters[ $run ][ $key ] ?? 0 ) + (int) $n; }
 	}
 
-	/** Sends the cancellation mail to one batch of holders; returns the number sent. */
-	private static function notify( $occurrence_id, array $recipients, $auto_refund ) {
+	/**
+	 * Queues the cancellation mail for one batch of holders (one message per recipient, dedupe key
+	 * occ-cancel|occurrence|run|e-mail) and sends as many as the time budget allows. A job retry after a
+	 * worker crash queues nothing twice and only sends what is still queued; a failed mail is retried
+	 * per recipient by the message queue.
+	 *
+	 * @return int|\WP_Error Number of recipients queued; WP_Error when a message could not be stored (job retry).
+	 */
+	private static function notify( $occurrence_id, array $recipients, $auto_refund, $run = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
@@ -232,15 +253,21 @@ final class OccurrenceCancellation {
 			'event_date' => wp_date( 'd.m.Y H:i', strtotime( $occ->starts_at . ' UTC' ), $tz ),
 			'event_location' => (string) $occ->location,
 			'timezone' => (string) $occ->timezone,
-			// Translated in the recipient's locale.
-			'refund_note' => static function () use ( $auto_refund ) { return $auto_refund ? __( 'Der Ticketpreis wird automatisch erstattet.', 'pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'pass-captain' ); },
+			// The refund note is derived when the mail is rendered, in the recipient's locale (Mail\Types).
+			'auto_refund' => $auto_refund ? 1 : 0,
 		);
-		$sent = 0;
+		$ref = 'occ-cancel|' . absint( $occurrence_id ) . '|' . (string) $run;
+		$keys = array();
+		$error = null;
 		foreach ( $recipients as $recipient ) {
 			$email = (string) ( $recipient['email'] ?? '' );
-			if ( is_email( $email ) && Mail\Mailer::send( 'occurrence_cancelled', $email, $vars, array(), (string) ( $recipient['locale'] ?? '' ) ) ) { ++$sent; }
+			if ( ! is_email( $email ) ) { continue; }
+			$key = $ref . '|' . strtolower( $email );
+			$queued = Communications::enqueue_mail( $key, $email, 'occurrence_cancelled', $vars, (string) ( $recipient['locale'] ?? '' ), $ref );
+			if ( true === $queued ) { $keys[] = $key; } else { $error = $queued; }
 		}
-		return $sent;
+		Communications::run_now( $keys, Jobs\TimeBudget::deadline() );
+		return $error ? $error : count( $keys );
 	}
 
 	/**
@@ -264,19 +291,25 @@ final class OccurrenceCancellation {
 		foreach ( $paid as $row ) {
 			$orders[] = array( 'order_id' => (int) $row->order_id, 'provider' => (string) $row->payment_provider, 'ticket_ids' => array_map( 'absint', explode( ',', $row->ticket_ids ) ) );
 		}
-		return self::refund_orders( $occurrence_id, $orders, $key );
+		$counts = self::refund_orders( $occurrence_id, $orders, $key );
+		unset( $counts['done'] );
+		return $counts;
 	}
 
 	/**
 	 * Refunds one batch of the refund plan (see refund_paid()); tickets may already be revoked by the
 	 * cancellation (they stay refundable while the occurrence is cancelled).
 	 *
-	 * @param array[] $orders order_id, provider, ticket_ids.
-	 * @return int[] ['refunds' => n, 'refund_errors' => n]
+	 * @param array[]    $orders   order_id, provider, ticket_ids.
+	 * @param float|null $deadline Time budget (microtime): no further order is started after it.
+	 * @return int[] ['refunds' => n, 'refund_errors' => n, 'done' => orders handled (the rest is left for the caller)]
 	 */
-	private static function refund_orders( $occurrence_id, array $orders, $key ) {
-		$counts = array( 'refunds' => 0, 'refund_errors' => 0 );
+	private static function refund_orders( $occurrence_id, array $orders, $key, $deadline = null ) {
+		$counts = array( 'refunds' => 0, 'refund_errors' => 0, 'done' => 0 );
 		foreach ( $orders as $row ) {
+			// At least one order per call, then only while the time budget lasts (the caller queues the rest).
+			if ( null !== $deadline && $counts['done'] > 0 && Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
+			++$counts['done'];
 			$row = (object) $row;
 			if ( 'woocommerce' === $row->provider ) {
 				do_action( 'wpcap_occurrence_cancelled_woocommerce_order', (int) $row->order_id, $occurrence_id );

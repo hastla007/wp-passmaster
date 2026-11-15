@@ -23,6 +23,7 @@ if ( ! function_exists( 'is_user_logged_in' ) ) { function is_user_logged_in() {
 // Registrars of REST routes. A new file with register_rest_route() must be added here.
 $pm_registrars = array(
 	'src/Rest/Controller.php' => array( \PassCaptain\Rest\Controller::class, 'register_routes' ),
+	'src/Mail/Suppression.php' => array( \PassCaptain\Mail\Suppression::class, 'routes' ),
 	'src/Mobile/Api.php' => array( \PassCaptain\Mobile\Api::class, 'routes' ),
 	'src/Admission/Rest.php' => array( \PassCaptain\Admission\Rest::class, 'routes' ),
 	'src/OfflineScanner/Rest.php' => array( \PassCaptain\OfflineScanner\Rest::class, 'routes' ),
@@ -150,6 +151,7 @@ $pm_routes = array(
 	'POST wp-pass-captain/v1/sms/twilio/inbound' => 'token:X-Twilio-Signature',
 	'POST wp-pass-captain/v1/sms/verify/request' => 'public:SMS code for the checkout opt-in (PRIV-16); same-origin check, rate limited per number, address and site, allowed mobile ranges only',
 	'POST wp-pass-captain/v1/sms/verify/confirm' => 'token:verification token from the code request plus the 6-digit code (5 attempts, 10 minutes)',
+	'POST wp-pass-captain/v1/mail/bounce' => 'token:bounce webhook token of the mail service (header or query, constant-time compare); off unless mail_bounce_webhook is enabled (R3)',
 );
 
 // admin-post / admin-ajax actions: action => required capability, or 'public:<why>' / 'token:<why>'.

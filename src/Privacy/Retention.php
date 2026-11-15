@@ -49,12 +49,20 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *   30 days after their last update; expired rate-limit counters (wpcap_rate_limits) are deleted
  *   on every run (PERF-16).
  *
- * Work runs in batches of 500 rows within a time budget (~20 s); the next run continues. Only
- * counts are written to the audit log.
+ * Work runs in batches of 500 rows within a time budget (~20 s). When the budget runs out, a
+ * follow-up run is queued right away (Jobs\TimeBudget::continue_later) and starts with the step that
+ * did not finish (option wpcap_retention_next_step), so later steps never starve. Each run records
+ * the heartbeat "retention" (system status). Only counts are written to the audit log.
  */
 final class Retention {
 	const HOOK = 'wpcap_privacy_retention';
 	const BATCH = 500;
+
+	/** Steps in their regular order (each is a step_* method). */
+	const STEPS = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs', 'rate_limits', 'checkin_claims' );
+
+	/** Option: index of the step the next run starts with (after a run that ran out of time). */
+	const START_OPTION = 'wpcap_retention_next_step';
 
 	/** Registers the daily event (runs on init, activation and after upgrades). */
 	public static function schedule() {
@@ -127,18 +135,35 @@ final class Retention {
 	 * @param float    $budget Seconds before the run stops (filter wpcap_privacy_retention_budget).
 	 */
 	public static function run( $now = null, $budget = null ) {
-		$now = null === $now || '' === $now ? time() : (int) $now;
+		// A continuation run (TimeBudget::continue_later) passes the argument "continue": not a timestamp.
+		$now = is_numeric( $now ) ? (int) $now : time();
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
-		$steps = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs', 'rate_limits', 'checkin_claims' );
-		foreach ( $steps as $step ) {
-			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
+		$steps = self::STEPS;
+		// The run starts where the last incomplete run stopped, so the later steps (audit logs, holds,
+		// jobs) do not starve when the first steps use up the budget every day.
+		$start = (int) get_option( self::START_OPTION, 0 );
+		$start = $start > 0 && $start < count( $steps ) ? $start : 0;
+		$stopped = null;
+		foreach ( array_merge( array_slice( $steps, $start ), array_slice( $steps, 0, $start ) ) as $step ) {
+			if ( microtime( true ) >= $deadline ) {
+				$counts[ $step ] = 0;
+				if ( null === $stopped ) { $stopped = (int) array_search( $step, $steps, true ); }
+				continue;
+			}
+			$counts[ $step ] = (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline );
 		}
-		$counts['complete'] = microtime( true ) < $deadline;
+		$counts['complete'] = microtime( true ) < $deadline && null === $stopped;
+		update_option( self::START_OPTION, $counts['complete'] ? 0 : (int) $stopped, false );
 		if ( array_sum( array_map( 'intval', array_diff_key( $counts, array( 'complete' => 1 ) ) ) ) > 0 ) {
 			Audit::record( 'privacy_retention', 'system', 0, $counts );
 		}
+		if ( ! $counts['complete'] ) {
+			// Budget used up: continue right away instead of waiting a day.
+			\PassCaptain\Jobs\TimeBudget::continue_later( self::HOOK );
+		}
+		\PassCaptain\Ops\Heartbeat::beat( 'retention', array_sum( array_map( 'intval', array_diff_key( $counts, array( 'complete' => 1 ) ) ) ) );
 		return $counts;
 	}
 

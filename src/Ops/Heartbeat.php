@@ -27,6 +27,7 @@ final class Heartbeat {
 			'webhooks' => array( __( 'Webhook-Zustellung', 'pass-captain' ), 'wpcap_process_jobs', 5 * MINUTE_IN_SECONDS ),
 			'sms'      => array( __( 'SMS-Queue', 'pass-captain' ), 'wpcap_process_messages', 5 * MINUTE_IN_SECONDS ),
 			'cleanup'  => array( __( 'Reservierungs-Bereinigung', 'pass-captain' ), 'wpcap_cleanup_reservations', HOUR_IN_SECONDS ),
+			'retention' => array( __( 'Datenschutz-Aufbewahrung', 'pass-captain' ), 'wpcap_privacy_retention', DAY_IN_SECONDS ),
 		);
 	}
 

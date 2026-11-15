@@ -121,6 +121,18 @@ final class SettingsPage {
 					'retention_pass_days' => array( 'type' => 'int', 'label' => __( 'Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = nie.', 'pass-captain' ) ),
 				),
 			),
+			'mail' => array(
+				'title' => __( 'E-Mail-Versand', 'pass-captain' ),
+				'fields' => array(
+					'mail_from_email' => array( 'type' => 'text', 'label' => __( 'Absenderadresse', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_mail_address' ), 'description' => __( 'Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@ihre-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. Ihren SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang.', 'pass-captain' ) ),
+					'mail_from_name' => array( 'type' => 'text', 'label' => __( 'Absendername', 'pass-captain' ), 'description' => __( 'Leer: Titel der Website.', 'pass-captain' ) ),
+					'mail_reply_to' => array( 'type' => 'text', 'label' => __( 'Antwortadresse (Reply-To)', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_mail_address' ), 'description' => __( 'Hierhin gehen Antworten der Kund:innen, z. B. Ihr Support-Postfach. Leer: an die Absenderadresse.', 'pass-captain' ) ),
+					'mail_bounce_webhook' => array( 'type' => 'bool', 'label' => __( 'Bounce-/Beschwerde-Webhook des Versanddienstes annehmen', 'pass-captain' ), 'description' => \PassCaptain\Mail\Suppression::webhook_enabled()
+						/* translators: %s: webhook URL with token */
+						? sprintf( __( 'Diese URL beim Versanddienst (Postmark, SendGrid, Mailgun, Amazon SES/SNS) als Webhook für Bounces und Spam-Beschwerden eintragen: %s – unzustellbare Mails werden als fehlgeschlagen markiert und bei der Bestellung angezeigt; nach einer Beschwerde gehen keine Erinnerungen mehr an die Adresse. Die URL enthält ein geheimes Token.', 'pass-captain' ), \PassCaptain\Mail\Suppression::webhook_url() )
+						: __( 'Nach dem Aktivieren erscheint hier die Webhook-URL (mit geheimem Token) für den Versanddienst.', 'pass-captain' ) ),
+				),
+			),
 			'seller' => array(
 				'title' => __( 'Rechnungssteller', 'pass-captain' ),
 				'fields' => array(
@@ -259,6 +271,14 @@ final class SettingsPage {
 	 *
 	 * @return array|\WP_Error ['saved' => values written, 'errors' => list of messages for invalid fields]
 	 */
+	/** Sanitizer of the sender address fields: '' or a valid e-mail address. */
+	public static function sanitize_mail_address( $value ) {
+		$value = trim( (string) $value );
+		if ( '' === $value ) { return ''; }
+		$email = sanitize_email( $value );
+		return is_email( $email ) ? $email : new \WP_Error( 'wpcap_invalid_mail_address', __( 'Bitte eine gültige E-Mail-Adresse angeben.', 'pass-captain' ) );
+	}
+
 	public static function save( array $in ) {
 		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
 		$current = Settings::all();

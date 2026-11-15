@@ -90,7 +90,8 @@ Jobs::enqueue( $k, 'w6_crash', array(), '2000-01-01 00:00:00' );
 $out = w6_child( 'job' );
 $job = w6_job( $k );
 check( 'worker exits inside the handler: claim released to the queue on shutdown (attempt counted)', false !== strpos( $out, 'CRASH' ) && false === strpos( $out, 'DONE' ) && 'queued' === $job->status && 1 === (int) $job->attempts && null === $job->locked_at );
-$wpdb->update( "{$p}wpcap_jobs", array( 'job_type' => 'w6_ok' ), array( 'job_id' => (int) $job->job_id ) ); // "Bug fixed": the next run succeeds.
+check( 'released crash claim waits a backoff and carries a last error (R3: no poison job at the head of the queue)', strtotime( $job->run_after . ' UTC' ) > time() + 30 && '' !== (string) $job->last_error );
+$wpdb->update( "{$p}wpcap_jobs", array( 'job_type' => 'w6_ok', 'run_after' => '2000-01-01 00:00:00' ), array( 'job_id' => (int) $job->job_id ) ); // "Bug fixed" and backoff over: the next run succeeds.
 $w6_runs = array();
 Jobs::process_due( 200 );
 check( 'next worker run resumes and completes it once', 'complete' === w6_job( $k )->status && array( (int) $job->job_id ) === array_values( array_intersect( $w6_runs, array( (int) $job->job_id ) ) ) );
@@ -137,7 +138,8 @@ $to = 'w6-crash-' . uniqid() . '@example.com';
 Communications::enqueue( 'w6-' . $to, $to, 'w6_crash', array( 'subject' => 'W6', 'body' => 'Hallo' ), '2000-01-01 00:00:00' );
 $out = w6_child( 'message' );
 check( 'mail worker exits while rendering: message back in the queue, attempt counted', false !== strpos( $out, 'CRASH' ) && 'queued' === w6_msg( $to )->status && 1 === (int) w6_msg( $to )->attempts );
-$wpdb->update( "{$p}wpcap_message_queue", array( 'template_key' => 'w6_mail' ), array( 'recipient' => $to ) );
+check( 'released mail claim waits a backoff (send_at in the future) with a last error', strtotime( w6_msg( $to )->send_at . ' UTC' ) > time() + 30 && '' !== (string) w6_msg( $to )->last_error );
+$wpdb->update( "{$p}wpcap_message_queue", array( 'template_key' => 'w6_mail', 'send_at' => '2000-01-01 00:00:00' ), array( 'recipient' => $to ) );
 Communications::process_due();
 check( 'next run sends it once', 'sent' === w6_msg( $to )->status && 1 === count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => $m['to'] === $to ) ) );
 $to = 'w6-bounce-' . uniqid() . '@example.com';
@@ -213,6 +215,7 @@ $cd = w6_last( $w6_deliveries( (int) $crash['subscription_id'] ) );
 $out = w6_child( 'webhook' );
 $row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE delivery_id=" . (int) $cd->delivery_id );
 check( 'dispatcher exits during the request: delivery released to pending, attempt counted', false !== strpos( $out, 'CRASH' ) && 'pending' === $row->status && 1 === (int) $row->attempts && null === $row->locked_at );
+check( 'released delivery waits a backoff with a last error', strtotime( $row->next_attempt_at . ' UTC' ) > time() + 30 && '' !== (string) $row->last_error );
 Dispatcher::set_status( (int) $crash['subscription_id'], false );
 
 // Backoff and final failure for a receiver that keeps answering 500.

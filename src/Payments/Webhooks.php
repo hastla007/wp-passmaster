@@ -88,7 +88,9 @@ final class Webhooks {
 					return self::db_error( $provider, $event_id, 'order_lookup' );
 				}
 			}
-			$result = self::apply( $provider, $event_id, $order_id, $event );
+			// Ticket mails of this payment go to the job queue (due now): the provider gets its answer
+			// without waiting for PDF rendering, wallet signing and SMTP (no timeouts and redeliveries).
+			$result = Orders::defer_ticket_mail( static function () use ( $provider, $event_id, $order_id, $event ) { return self::apply( $provider, $event_id, $order_id, $event ); } );
 		} catch ( \Throwable $error ) {
 			$release();
 			return new \WP_Error( 'wpcap_webhook_exception', 'Processing failed; retry later.' );
@@ -102,7 +104,7 @@ final class Webhooks {
 		if ( false === $marked ) {
 			// The event was applied; the claim stays "processing" and a redelivery after the takeover
 			// window re-applies it idempotently.
-			Audit::record( 'webhook_mark_processed_failed', 'order', $order_id, array( 'provider' => $provider ) );
+			\PassCaptain\Log::error( 'webhook_mark_processed_failed', 'Payment webhook applied, but marking the event as processed failed.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'provider' => $provider ) ) );
 		}
 		return $result;
 	}
@@ -110,7 +112,7 @@ final class Webhooks {
 	/** Retryable error for a database failure while claiming an event (the endpoint answers 500). */
 	private static function db_error( $provider, $event_id, $step ) {
 		global $wpdb;
-		Audit::record( 'webhook_db_error', 'payment_event', 0, array( 'provider' => $provider, 'event_id' => $event_id, 'step' => $step, 'error' => substr( (string) $wpdb->last_error, 0, 200 ) ) );
+		\PassCaptain\Log::error( 'webhook_db_error', 'Payment webhook hit a database error; the provider will retry.', array( 'object_type' => 'payment_event', 'object_id' => 0, 'details' => array( 'provider' => $provider, 'event_id' => $event_id, 'step' => $step, 'error' => substr( (string) $wpdb->last_error, 0, 200 ) ) ) );
 		return new \WP_Error( 'wpcap_webhook_db_error', 'Database unavailable; retry later.', array( 'status' => 503, 'retryable' => true ) );
 	}
 

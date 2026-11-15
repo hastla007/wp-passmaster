@@ -801,6 +801,8 @@ final class Installer {
 			RateLimit::schema( $wpdb->prefix . 'wpcap_rate_limits', $charset ),
 			// Atomic idempotency claims of check-ins (audit R2 #6, src/Checkin.php).
 			Checkin::claims_schema( $wpdb->prefix . 'wpcap_checkin_claims', $charset ),
+			// Reminder unsubscribes and bounce/complaint reports, address hashes only (DB 3.17.2, src/Mail/Suppression.php).
+			Mail\Suppression::schema( $wpdb->prefix . 'wpcap_mail_suppressions', $charset ),
 		);
 
 		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).

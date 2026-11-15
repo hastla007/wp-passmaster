@@ -1451,7 +1451,7 @@ final class OrderAdapter {
 			array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id ),
 			gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
 		);
-		\PassCaptain\Audit::record( 'woocommerce_refund_sync_failed', 'order', (int) ( $core_ids[0] ?? 0 ), array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id, 'retryable' => (bool) $retryable, 'message' => substr( $message, 0, 190 ) ) );
+		\PassCaptain\Log::error( 'woocommerce_refund_sync_failed', 'WooCommerce refund could not be synchronised with the tickets.', array( 'object_type' => 'order', 'object_id' => (int) ( $core_ids[0] ?? 0 ), 'details' => array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id, 'retryable' => (bool) $retryable, 'message' => substr( $message, 0, 190 ) ) ) );
 		$note = $retryable
 			/* translators: %s: error message */
 			? __( 'Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht.', 'pass-captain' )

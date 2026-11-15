@@ -270,14 +270,17 @@ $r = Orders::resend_tickets( $o['order_id'] );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_mail'] );
 check( 'resend with failing mail returns an error and keeps every old code', is_wp_error( $r ) && 'wpcap_mail_failed' === $r->get_error_code() && $before === odf_hashes( $o['order_id'] ) );
 $faults = $odf_faults();
-$faults->fail( '/^UPDATE \S+wpcap_tickets SET token_hash=/', 1, 1, true ); // Second recipient's rotation affects 0 rows.
+$faults->fail( '/^UPDATE \S+wpcap_tickets SET token_hash=/', 1, 1, true ); // Second recipient's compare-and-set affects 0 rows (ticket changed meanwhile).
 $mails_buyer = odf_mails_to( $buyer );
 $mails_holder = odf_mails_to( 'holder@example.com' );
+$odf_conflicts = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='ticket_rotation_conflict'" );
 $r = Orders::resend_tickets( $o['order_id'] );
 $odf_restore();
 $after = odf_hashes( $o['order_id'] );
-check( 'rotation affecting 0 rows is an error', is_wp_error( $r ) && 'wpcap_ticket_rotation_failed' === $r->get_error_code() && 1 === (int) ( $r->get_error_data()['sent'] ?? -1 ) );
-check( 'partial failure: first recipient rotated and mailed, second unchanged and not mailed', $after[0] !== $before[0] && $after[1] === $before[1] && odf_mails_to( $buyer ) === $mails_buyer + 1 && odf_mails_to( 'holder@example.com' ) === $mails_holder );
+// R3 optimistic resend: the mail goes out before the short compare-and-set; a ticket changed in the
+// meantime keeps its previous state (old code stays valid, never a code without mail) and is logged.
+check( 'compare-and-set affecting 0 rows keeps that ticket unchanged and logs the conflict', ! is_wp_error( $r ) && $odf_conflicts + 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='ticket_rotation_conflict'" ) );
+check( 'first recipient rotated and mailed; second mailed, but its stored code is unchanged (old code still valid)', $after[0] !== $before[0] && $after[1] === $before[1] && odf_mails_to( $buyer ) === $mails_buyer + 1 && odf_mails_to( 'holder@example.com' ) === $mails_holder + 1 );
 $faults = $odf_faults();
 $faults->fail( '/^COMMIT/' );
 $mid = odf_hashes( $o['order_id'] );
@@ -287,12 +290,13 @@ check( 'failed commit after the mail rolls the rotation back', is_wp_error( $r )
 $r = Orders::resend_tickets( $o['order_id'] );
 $final = odf_hashes( $o['order_id'] );
 check( 'resend succeeds after the failures and rotates every code', true === $r && $final[0] !== $mid[0] && $final[1] !== $mid[1] );
-// A rotation always compares against the hash read under the row lock (stale hash = 0 rows = error).
+// R3: no row lock is held while mailing; a failed read of the tickets aborts without changes or mails.
 $faults = $odf_faults();
-$faults->fail( '/FROM \S+wpcap_tickets WHERE order_id=\d+ AND status=.valid. AND ticket_id IN \([0-9,]+\) ORDER BY ticket_id FOR UPDATE/', 0, 2 );
+$faults->fail( '/FROM \S+wpcap_tickets t INNER JOIN .* WHERE t\.order_id=\d+ AND t\.status=.valid. AND t\.ticket_id IN /', 0, 2 );
+$mails_buyer = odf_mails_to( $buyer );
 $r = Orders::resend_tickets( $o['order_id'] );
 $odf_restore();
-check( 'row lock failure aborts the resend without changes', is_wp_error( $r ) && $final === odf_hashes( $o['order_id'] ) );
+check( 'read failure aborts the resend without changes and without mail', is_wp_error( $r ) && $final === odf_hashes( $o['order_id'] ) && odf_mails_to( $buyer ) === $mails_buyer );
 check( 'resend still rejects unpaid orders', is_wp_error( Orders::resend_tickets( odf_order( $type, 1 )['order_id'] ) ) );
 
 // Leave no due-later retry jobs of these fixtures for the queue tests that run after this file.

@@ -91,6 +91,7 @@ final class Plugin {
 		Integrations\Vouchers\CheckinService::register();
 		Integrations\AffiliateCaptain\Adapter::register();
 		Notifications::register();
+		Mail\Suppression::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
 		Mobile\Api::register();

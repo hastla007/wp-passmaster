@@ -123,6 +123,13 @@ final class Settings {
 			'trusted_proxy_header'      => 'x_forwarded_for',
 			// Fiscal services on the local network (plain http, loopback/private addresses) are blocked unless enabled.
 			'fiscal_allow_local_service' => 0,
+			// Sender of customer mails (Mail\Mailer): From address/name, Reply-To. Empty address: WordPress
+			// default (wordpress@<host>) unless an SMTP plugin sets one; empty name: site title.
+			'mail_from_email'           => '',
+			'mail_from_name'            => '',
+			'mail_reply_to'             => '',
+			// Bounce/complaint webhook of the sending service (Mail\Suppression), off by default.
+			'mail_bounce_webhook'       => 0,
 		);
 	}
 

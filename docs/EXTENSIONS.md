@@ -412,12 +412,16 @@ Wirkung: Admin-Hauptmenü (Titel und Icon, auch Netzwerk-Admin), alle übersetzt
 „Pass Captain“ (Admin-Hinweise, Admin-Mails, Einstellungen, Systemstatus-Widget, Web-Scanner-Überschrift,
 Offline-Scanner-Texte – über die gettext-Filter, ohne geänderte Quelltexte), Datenschutz-Leitfaden, Offline-Scanner
 (Seitentitel, Logo in der Kopfzeile, Web-App-Manifest über `GET /app/offline/manifest`), Web-Scanner-Shortcode,
-Bestellportal und Ticketseite (Logo), PDF-Metadaten (Producer). Kunden-Mails nennen kein Produkt: Absendername und
-Fußzeile kommen aus dem Website-Titel bzw. dem Mail-Layout. Bereits vorhandene Filter für den Rest:
+Bestellportal und Ticketseite (Logo), PDF-Metadaten (Producer). Kunden-Mails nennen kein Produkt: Absenderadresse,
+Absendername und Antwortadresse kommen aus **Einstellungen → E-Mail-Versand** (`mail_from_email`, `mail_from_name`,
+`mail_reply_to`; leerer Name = Website-Titel), die Fußzeile aus dem Mail-Layout. Ohne eingestellte Absenderadresse
+setzt das Plugin keinen From-Header: dann gilt der WordPress-Standard `wordpress@<host>` bzw. der Absender eines
+SMTP-Plugins (siehe docs/MAIL-TEMPLATES.md, „Absender und Zustellbarkeit“). Bereits vorhandene Filter für den Rest:
 
 | Ort | Filter / Einstellung |
 |---|---|
-| Absendername und Name in Kunden-Mails | `wpcap_sender_name` |
+| Absender (Adresse, Name, Reply-To) | Einstellungen „E-Mail-Versand“ |
+| Name der Website in Kunden-Mails (`{site_name}`) | `wpcap_sender_name` |
 | Mail-Layout (Logo, Farbe, Fußzeile) | Einstellung „E-Mail-Vorlagen → HTML-Layout“, Filter `wpcap_mail_layout_html` |
 | Wallet-Pässe (Apple/Google) | Einstellung `wallet_organization_name`, `wpcap_wallet_apple_pass_json`, `wpcap_wallet_apple_images`, `wpcap_wallet_google_class`, `wpcap_wallet_google_object` |
 

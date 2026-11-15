@@ -171,6 +171,32 @@ test('refund request after a postponement: confirmation, token header, button re
 	assert.equal(form2.querySelector('button').disabled, false);
 });
 
+test('resend with tickets passed on: "only my own" is sent; unticking it asks with the explicit warning (R3)', async () => {
+	const fetch = mockFetch(() => ({ json: { email: 'a***@example.com' } }));
+	const env = load('assets/order-portal.js', {
+		window: { wpcapPortal: { strings: Object.assign({ resendConfirmAll: 'Achtung: %d weitergegebene Tickets werden ungültig.' }, STRINGS), token: 'tok123', urls: URLS } },
+		fetch,
+		setup(doc, h) {
+			doc.body.appendChild(h('form.wpcap-resend-form', { 'data-passed-on': '2' }, [h('input', { type: 'checkbox', name: 'only_own', value: '1', checked: true }), h('button', { type: 'submit' }, 'Erneut senden'), h('p.message', { role: 'status' })]));
+			doc.body.appendChild(h('dialog#wpcap-confirm', [h('form', { method: 'dialog' }, [h('p#wpcap-confirm-text'), h('button', { value: 'cancel' }, 'Abbrechen'), h('button#wpcap-confirm-ok', { value: 'ok' })])]));
+		},
+	});
+	const form = env.document.querySelector('.wpcap-resend-form');
+	submit(form);
+	await flush(2);
+	assert.equal(env.document.getElementById('wpcap-confirm-text').textContent, 'Tickets erneut senden?');
+	env.document.getElementById('wpcap-confirm').close('ok');
+	await flush();
+	assert.deepEqual(fetch.calls[0].body, { only_own: true });
+	form.querySelector('[name="only_own"]').checked = false;
+	submit(form);
+	await flush(2);
+	assert.equal(env.document.getElementById('wpcap-confirm-text').textContent, 'Achtung: 2 weitergegebene Tickets werden ungültig.');
+	env.document.getElementById('wpcap-confirm').close('ok');
+	await flush();
+	assert.deepEqual(fetch.calls[1].body, { only_own: false });
+});
+
 test('billing: toggle shows the fields; server field error marks and focuses the input', async () => {
 	const fetch = mockFetch(() => ({ status: 400, json: { message: 'UID ungültig', data: { field: 'billing_vat_id' } } }));
 	const env = portal({ fetch });

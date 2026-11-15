@@ -327,6 +327,14 @@ final class OrdersPage {
 		<?php elseif ( $delivery && 'retrying' === $delivery['status'] ) : ?>
 			<div class="notice notice-warning inline"><p><?php echo esc_html( sprintf( /* translators: 1: attempts, 2: UTC date/time */ __( 'Die Ticket-E-Mail konnte bisher nicht zugestellt werden (%1$d Versuche). Der Versand wird automatisch wiederholt (nächster Versuch: %2$s UTC).', 'pass-captain' ), (int) $delivery['attempts'], (string) $delivery['next_attempt'] ) ); ?></p></div>
 		<?php endif; ?>
+		<?php $bounce = \PassCaptain\Mail\Suppression::bounce_for_order( $order_id ); ?>
+		<?php if ( $bounce ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( 'complaint' === $bounce['type']
+				/* translators: %s: UTC date/time */
+				? sprintf( __( 'Der Versanddienst meldet eine Spam-Beschwerde der Käufer-Adresse (%s UTC). Erinnerungen gehen nicht mehr an diese Adresse.', 'pass-captain' ), $bounce['at'] )
+				/* translators: %s: UTC date/time */
+				: sprintf( __( 'Der Versanddienst meldet die Käufer-Adresse als unzustellbar (Bounce, %s UTC). Bitte die E-Mail-Adresse prüfen und die Tickets erneut senden.', 'pass-captain' ), $bounce['at'] ) ); ?></p></div>
+		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
 			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten.', 'pass-captain' ); ?></p></div>
 		<?php endif; ?>

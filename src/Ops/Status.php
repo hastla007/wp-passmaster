@@ -220,7 +220,7 @@ final class Status {
 			'wpcap_process_jobs'         => array( __( 'Jobs und Webhooks', 'pass-captain' ), 5 * MINUTE_IN_SECONDS, 'jobs' ),
 			'wpcap_process_messages'     => array( __( 'E-Mails, Erinnerungen und SMS', 'pass-captain' ), 5 * MINUTE_IN_SECONDS, 'messages' ),
 			'wpcap_cleanup_reservations' => array( __( 'Abgelaufene Reservierungen', 'pass-captain' ), HOUR_IN_SECONDS, 'cleanup' ),
-			'wpcap_privacy_retention'    => array( __( 'Datenschutz-Aufbewahrung', 'pass-captain' ), DAY_IN_SECONDS, '' ),
+			'wpcap_privacy_retention'    => array( __( 'Datenschutz-Aufbewahrung', 'pass-captain' ), DAY_IN_SECONDS, 'retention' ),
 		);
 	}
 
@@ -342,6 +342,8 @@ final class Status {
 		// Behind a proxy/CDN without trusted proxies every buyer shares a few addresses (checkout rate limit).
 		$proxy = \PassCaptain\Sales\CheckoutThrottle::status_issue();
 		if ( $proxy ) { $issues[] = $proxy; }
+		// Sender of customer mails (From/Reply-To/Return-Path): missing or not aligned with the site domain.
+		$issues = array_merge( $issues, \PassCaptain\Mail\Mailer::sender_issues() );
 		usort( $issues, static function ( $a, $b ) { return ( 'error' === $b['severity'] ) <=> ( 'error' === $a['severity'] ); } );
 		return $issues;
 	}

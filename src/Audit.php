@@ -8,12 +8,17 @@ final class Audit {
 	/** Per-request cache: table prefix => whether the audit table exists (only checked for switched sites). */
 	private static $site_tables = array();
 
+	/**
+	 * Appends an audit entry.
+	 *
+	 * @return bool|null False when the insert failed, null when the site has no audit table, else true.
+	 */
 	public static function record( $action, $object_type, $object_id, array $details = array() ) {
 		global $wpdb;
 		if ( ! self::site_has_tables() ) {
-			return; // Multisite: switched to a site where the plugin is not installed (e.g. role change there).
+			return null; // Multisite: switched to a site where the plugin is not installed (e.g. role change there).
 		}
-		$wpdb->insert(
+		return false !== $wpdb->insert(
 			$wpdb->prefix . 'wpcap_audit_logs',
 			array(
 				'user_id' => get_current_user_id(),

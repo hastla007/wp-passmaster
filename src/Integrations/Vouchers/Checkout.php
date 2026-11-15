@@ -194,7 +194,7 @@ final class Checkout {
 		if ( 'reserved' === $snapshot['status'] && $order && ( in_array( $order->status, array( 'refunded', 'cancelled' ), true ) || in_array( $order->payment_status, array( 'refunded', 'cancelled' ), true ) ) ) {
 			$released = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id );
 			if ( is_wp_error( $released ) ) {
-				Audit::record( 'voucher_release_failed', 'order', $order_id, array( 'error' => $released->get_error_code() ) );
+				\PassCaptain\Log::error( 'voucher_release_failed', 'Voucher reservation could not be released.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'error' => $released->get_error_code() ) ) );
 				return true;
 			}
 			$snapshot['status'] = 'released';
@@ -271,7 +271,7 @@ final class Checkout {
 
 	private static function commit_error( $order_id, array $snapshot, \WP_Error $error, $final ) {
 		if ( ! $final && self::is_temporary( $error ) ) {
-			Audit::record( 'voucher_commit_failed', 'order', (int) $order_id, array( 'error' => $error->get_error_code(), 'retry' => true ) );
+			\PassCaptain\Log::error( 'voucher_commit_failed', 'Voucher redemption could not be committed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $error->get_error_code(), 'retry' => true ) ) );
 			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 			return false;
 		}
@@ -283,7 +283,7 @@ final class Checkout {
 		$snapshot['status'] = 'commit_failed';
 		$snapshot['error'] = $error->get_error_code();
 		self::save( $order_id, $snapshot );
-		Audit::record( 'voucher_commit_failed', 'order', (int) $order_id, array( 'error' => $error->get_error_code(), 'retry' => false ) );
+		\PassCaptain\Log::error( 'voucher_commit_failed', 'Voucher redemption could not be committed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $error->get_error_code(), 'retry' => false ) ) );
 		$order = Orders::get( $order_id );
 		wp_mail(
 			get_option( 'admin_email' ),
@@ -313,7 +313,7 @@ final class Checkout {
 		if ( $order && 'paid' === $order->payment_status ) { return; }
 		$result = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id );
 		if ( is_wp_error( $result ) ) {
-			Audit::record( 'voucher_release_failed', 'order', (int) $order_id, array( 'error' => $result->get_error_code() ) );
+			\PassCaptain\Log::error( 'voucher_release_failed', 'Voucher reservation could not be released.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $result->get_error_code() ) ) );
 			return;
 		}
 		$snapshot['status'] = 'released';
@@ -352,7 +352,7 @@ final class Checkout {
 		}
 		$result = Bridge::refund( (array) ( $snapshot['redemption'] ?? array() ), $share, 'wpcap-refund-' . absint( $refund_id ) );
 		if ( is_wp_error( $result ) ) {
-			Audit::record( 'voucher_refund_failed', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code() ) );
+			\PassCaptain\Log::error( 'voucher_refund_failed', 'Voucher refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code() ) ) );
 			return;
 		}
 		$snapshot['refunded_minor'] = (int) $snapshot['refunded_minor'] + $share;
