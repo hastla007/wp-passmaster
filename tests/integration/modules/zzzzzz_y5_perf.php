@@ -198,3 +198,119 @@ parse_str( (string) parse_url( http_requests( '/v2/methods' )[0]['url'] ?? '', P
 check( 'other currencies: Mollie filters by amount (limits are only given in EUR)', '25.00' === ( $y5_mq['amount']['value'] ?? '' ) && 'CHF' === ( $y5_mq['amount']['currency'] ?? '' ) );
 http_reset();
 $GLOBALS['wpcap_test_transients'] = array();
+
+echo "Y5 PERF-4: occurrence cancellation – bulk revoke first, refunds/mails/hooks as job batches\n";
+PassCaptain\OccurrenceCancellation::register();
+PassCaptain\Settings::update( array( 'auto_refund_cancelled' => 1, 'refund_approval_threshold' => 0, 'require_terms' => 0, 'refund_after_checkin' => 'allow' ) );
+$y5c_type = make_type( 300, 10, 1000 );
+$y5c_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$y5c_type" );
+$y5c_orders = array();
+for ( $i = 0; $i < 25; $i++ ) {
+	$r = Orders::create( array( 'email' => "y5c$i@example.com", 'items' => array( array( 'ticket_type_id' => $y5c_type, 'quantity' => 2 ) ), 'idempotency_key' => 'y5c-' . $i . '-' . uniqid() ), array( 'skip_rate_limit' => true ) );
+	Orders::confirm_manual_payment( $r['order_id'] );
+	$y5c_orders[] = (int) $r['order_id'];
+}
+$y5c_open = Orders::create( array( 'email' => 'y5c-open@example.com', 'items' => array( array( 'ticket_type_id' => $y5c_type, 'quantity' => 1 ) ), 'idempotency_key' => 'y5c-open-' . uniqid() ), array( 'skip_rate_limit' => true ) );
+$y5c_in = implode( ',', $y5c_orders );
+$y5c_invariant = static function () use ( $wpdb, $p, $y5c_occ ) {
+	// Never: a valid ticket whose money was refunded.
+	return 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets t JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=$y5c_occ AND t.status='valid' AND t.refunded=1" );
+};
+$y5c_hook_states = array();
+$y5c_hook = static function ( $ticket_id ) use ( &$y5c_hook_states, $wpdb, $p ) { $y5c_hook_states[] = (string) $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $ticket_id ); };
+add_action( 'wpcap_ticket_revoked', $y5c_hook, 1, 1 );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='cancelled' WHERE occurrence_id=$y5c_occ" );
+PassCaptain\OccurrenceCancellation::$inline_seconds = 0; // Simulates a request that has no time left: everything stays queued.
+$y5c_mails = count( $GLOBALS['wpcap_test_mails'] );
+$y5c_before = $wpdb->num_queries;
+$y5c_sum = PassCaptain\OccurrenceCancellation::handle( $y5c_occ );
+$y5c_q = $wpdb->num_queries - $y5c_before;
+PassCaptain\OccurrenceCancellation::$inline_seconds = 20;
+$y5c_valid = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id IN ($y5c_in) AND status='valid'" );
+check( "50 tickets revoked with bulk UPDATEs before any refund ($y5c_q queries incl. the open order)", 50 === $y5c_sum['revoked'] && 0 === $y5c_valid && $y5c_q <= 60 );
+check( 'no refund, mail or hook ran yet; batches are queued (hooks, 2 refund batches, mails)', 0 === $y5c_sum['refunds'] && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id IN ($y5c_in)" ) && $y5c_mails === count( $GLOBALS['wpcap_test_mails'] ) && array() === $y5c_hook_states && 4 === $y5c_sum['queued_jobs'] );
+check( 'open order of the occurrence is cancelled inline', 'cancelled' === Orders::get( $y5c_open['order_id'] )->payment_status && 1 === $y5c_sum['cancelled_orders'] );
+$y5c_progress = PassCaptain\OccurrenceCancellation::progress( $y5c_occ );
+check( 'admin progress: 4 batches queued', 4 === $y5c_progress['queued'] && 0 === $y5c_progress['complete'] );
+check( 'invariant after the abort: no valid ticket with refunded money', $y5c_invariant() );
+$y5c_run = $y5c_sum['run'];
+// Worker picks up the hooks and the first refund batch, then "crashes".
+PassCaptain\Jobs::run_now( array( "occ-cancel-$y5c_occ-$y5c_run-hooks-0", "occ-cancel-$y5c_occ-$y5c_run-refunds-0" ), time() + 60 );
+$y5c_refunded_orders = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT order_id) FROM {$p}wpcap_refunds WHERE status='completed' AND order_id IN ($y5c_in)" );
+check( 'hooks fire per ticket only after the revoke was persisted (50 x status revoked: ' . count( $y5c_hook_states ) . ' ' . implode( ',', array_unique( $y5c_hook_states ) ) . ')', 50 === count( $y5c_hook_states ) && array( 'revoked' ) === array_values( array_unique( $y5c_hook_states ) ) );
+check( "first refund batch: 20 orders refunded ($y5c_refunded_orders), invariant holds mid-way", 20 === $y5c_refunded_orders && $y5c_invariant() );
+PassCaptain\Jobs::run_now( array( "occ-cancel-$y5c_occ-$y5c_run-refunds-1", "occ-cancel-$y5c_occ-$y5c_run-notify-0" ), time() + 60 );
+$y5c_refunded_orders = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT order_id) FROM {$p}wpcap_refunds WHERE status='completed' AND order_id IN ($y5c_in)" );
+$y5c_to = array_unique( array_map( static fn( $m ) => $m['to'], array_slice( $GLOBALS['wpcap_test_mails'], $y5c_mails ) ) );
+$y5c_flagged = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id IN ($y5c_in) AND status='revoked' AND refunded=1" );
+check( 'remaining batches: all 25 orders refunded, all 50 tickets revoked and flagged refunded', 25 === $y5c_refunded_orders && 50 === $y5c_flagged );
+check( 'holders informed by the mail batch (25 recipients)', count( array_filter( $y5c_to, static fn( $t ) => str_starts_with( $t, 'y5c' ) && 'y5c-open@example.com' !== $t ) ) >= 25 );
+check( 'progress: all batches complete', 4 === PassCaptain\OccurrenceCancellation::progress( $y5c_occ )['complete'] );
+remove_action( 'wpcap_ticket_revoked', $y5c_hook, 1 );
+// Orders::revoke_ids(): one statement per chunk, only still valid tickets reported.
+$y5c_type2 = make_type( 50, 10, 0 );
+$y5c_free = Orders::create( array( 'email' => 'y5c-free@example.com', 'items' => array( array( 'ticket_type_id' => $y5c_type2, 'quantity' => 6 ) ), 'idempotency_key' => 'y5c-free-' . uniqid() ), array( 'skip_rate_limit' => true ) );
+$y5c_ids = array_map( static fn( $t ) => (int) $t->ticket_id, Orders::tickets_for_order( $y5c_free['order_id'] ) );
+$wpdb->query( "UPDATE {$p}wpcap_tickets SET status='checked_in' WHERE ticket_id=" . $y5c_ids[0] );
+$y5c_before = $wpdb->num_queries;
+$y5c_changed = Orders::revoke_ids( array_merge( $y5c_ids, array( $y5c_ids[1], 0 ) ) );
+$y5c_q = $wpdb->num_queries - $y5c_before;
+sort( $y5c_changed );
+check( "revoke_ids: 5 valid of 6 tickets revoked in $y5c_q statements (checked-in one untouched)", array_slice( $y5c_ids, 1 ) === $y5c_changed && 2 === $y5c_q && 'checked_in' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . $y5c_ids[0] ) );
+check( 'revoke_ids: second call changes nothing', array() === Orders::revoke_ids( $y5c_ids ) );
+PassCaptain\Settings::update( array( 'auto_refund_cancelled' => 0 ) );
+
+echo "Y5 PERF-3 / QA-10: reminders without a SELECT per holder, all occurrences of the window, time budget\n";
+PassCaptain\Modules\Reminders::register();
+/** Paid order with one valid ticket of $type for $email (direct inserts, fast fixture). */
+function y5_paid_ticket( $type, $email ) {
+	global $wpdb;
+	$p = $wpdb->prefix;
+	$now = gmdate( 'Y-m-d H:i:s' );
+	$wpdb->insert( "{$p}wpcap_orders", array( 'public_id' => substr( md5( uniqid( '', true ) ), 0, 32 ), 'idempotency_key' => 'y5r-' . uniqid( '', true ), 'customer_email' => $email, 'price_snapshot' => '{}', 'status' => 'completed', 'payment_status' => 'paid', 'currency' => 'EUR', 'created_at' => $now, 'updated_at' => $now ) );
+	$order = (int) $wpdb->insert_id;
+	$wpdb->insert( "{$p}wpcap_tickets", array( 'public_id' => substr( md5( uniqid( 't', true ) ), 0, 32 ), 'order_id' => $order, 'ticket_type_id' => $type, 'token_hash' => hash( 'sha256', uniqid( 'tok', true ) ), 'status' => 'valid', 'issued_at' => $now ) );
+	return $order;
+}
+function y5_occ_type( $starts_ts ) {
+	global $wpdb;
+	$p = $wpdb->prefix;
+	$now = gmdate( 'Y-m-d H:i:s' );
+	$wpdb->insert( "{$p}wpcap_events", array( 'name' => 'Y5R', 'slug' => 'y5r' . uniqid(), 'description' => '', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
+	$event = (int) $wpdb->insert_id;
+	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $event, 'starts_at' => gmdate( 'Y-m-d H:i:s', $starts_ts ), 'timezone' => 'Europe/Vienna', 'location' => 'Wien', 'capacity' => 0, 'status' => 'scheduled' ) );
+	$occ = (int) $wpdb->insert_id;
+	$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $occ, 'name' => 'Standard', 'price_minor' => 1000, 'currency' => 'EUR', 'capacity' => 0, 'max_per_order' => 10, 'status' => 'active' ) );
+	return array( $occ, (int) $wpdb->insert_id );
+}
+PassCaptain\Settings::update( array( 'reminders' => array( 'enabled' => 1, 'offsets' => array( 2, 700 ), 'subject' => 'Erinnerung {event}', 'body' => 'Bald: {event}', 'sms' => 0, 'sms_body' => '' ) ) );
+// 205 occurrences start within the next minutes (more than the old LIMIT 200), the target in 650 h.
+for ( $i = 0; $i < 205; $i++ ) { y5_occ_type( time() + 120 + $i ); }
+list( $y5r_occ, $y5r_type ) = y5_occ_type( time() + 650 * 3600 );
+y5_paid_ticket( $y5r_type, 'y5r-first@example.com' );
+$y5r_count = static function () use ( $wpdb, $p, $y5r_occ ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_message_queue WHERE template_key='wpcap_reminder' AND payload LIKE %s", '%"occurrence_id":' . $y5r_occ . ',%' ) ); };
+PassCaptain\Modules\Reminders::schedule_due();
+check( 'QA-10: the 700 h stage of an occurrence behind 200+ earlier ones is queued', 1 === $y5r_count() );
+$y5r_before = $wpdb->num_queries;
+check( 'second run queues nothing (dedupe)', 0 === PassCaptain\Modules\Reminders::schedule_due() );
+$y5r_q1 = $wpdb->num_queries - $y5r_before;
+for ( $i = 0; $i < 30; $i++ ) { y5_paid_ticket( $y5r_type, "y5r-h$i@example.com" ); }
+$y5r_new = PassCaptain\Modules\Reminders::schedule_due();
+$y5r_before = $wpdb->num_queries;
+PassCaptain\Modules\Reminders::schedule_due();
+$y5r_q2 = $wpdb->num_queries - $y5r_before;
+check( "30 new holders queued once; a run with 31 holders needs no extra query per holder ($y5r_q1 -> $y5r_q2)", 30 === $y5r_new && 31 === $y5r_count() && $y5r_q2 <= $y5r_q1 + 1 );
+// Time budget: an exhausted budget stops before the first occurrence and remembers the position.
+$y5r_tb = new ReflectionProperty( PassCaptain\Jobs\TimeBudget::class, 'deadline' );
+$y5r_tb->setAccessible( true );
+$y5r_tb->setValue( null, microtime( true ) - 1 );
+list( $y5r_occ2, $y5r_type2 ) = y5_occ_type( time() + 3600 );
+y5_paid_ticket( $y5r_type2, 'y5r-budget@example.com' );
+$y5r_stopped = PassCaptain\Modules\Reminders::schedule_due();
+$y5r_cursor = get_option( PassCaptain\Modules\Reminders::CURSOR_OPTION, false );
+$y5r_tb->setValue( null, null );
+check( 'exhausted time budget: nothing scheduled, cursor stored for the next run', 0 === $y5r_stopped && false !== $y5r_cursor );
+$y5r_resumed = PassCaptain\Modules\Reminders::schedule_due();
+check( 'next run continues and clears the cursor', 1 === $y5r_resumed && false === get_option( PassCaptain\Modules\Reminders::CURSOR_OPTION, false ) );
+PassCaptain\Settings::update( array( 'reminders' => array( 'enabled' => 0, 'offsets' => array( 24 ) ) ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id SET o.status='cancelled' WHERE e.name=%s", 'Y5R' ) );

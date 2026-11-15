@@ -78,40 +78,104 @@ final class Reminders {
 		return 0;
 	}
 
-	/** Queues due reminders. Returns the number of newly queued e-mails and SMS. */
+	/** Occurrences read per page while scheduling. */
+	const PAGE_SIZE = 200;
+
+	/** Option: where the last run stopped on the time budget ("starts_at|occurrence_id"). */
+	const CURSOR_OPTION = 'wpcap_reminder_cursor';
+
+	/**
+	 * Queues due reminders. Returns the number of newly queued e-mails and SMS.
+	 *
+	 * Every occurrence in the reminder window is visited (pages of PAGE_SIZE, no fixed cap, so early
+	 * stages of later occurrences are not skipped when more than 200 occurrences are upcoming). Per
+	 * occurrence the holders are read once and the existing reminders checked with one IN() query
+	 * (no SELECT per holder). The run stops on the shared cron time budget; the next run continues
+	 * after the last occurrence handled and then wraps around.
+	 */
 	public static function schedule_due( $now = null ) {
 		global $wpdb;
 		$c = self::config();
 		if ( empty( $c['enabled'] ) || ! $c['offsets'] ) { return 0; }
 		$p = $wpdb->prefix;
 		$now = $now ?? time();
-		$occurrences = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s ORDER BY o.starts_at LIMIT 200", $p . 'wpcap_occurrences', $p . 'wpcap_events', gmdate( 'Y-m-d H:i:s', $now ), gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS ) ) );
+		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
+		$from = gmdate( 'Y-m-d H:i:s', $now );
+		$to = gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS );
+		$saved = (string) get_option( self::CURSOR_OPTION, '' );
+		$start = '' !== $saved ? explode( '|', $saved, 2 ) + array( '', '0' ) : array( '', '0' );
+		// Pass 1: from the saved cursor to the end; pass 2 (only after a saved cursor): from the start up to it.
+		$passes = '' !== $saved ? array( array( $start, null ), array( array( '', '0' ), $start ) ) : array( array( $start, null ) );
 		$queued = 0;
-		foreach ( $occurrences as $occ ) {
-			$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
-			if ( ! $stage ) { continue; }
-			$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) );
-			foreach ( $holders as $holder ) {
-				if ( ! is_email( $holder->email ) ) { continue; }
-				$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
-				if ( self::already_queued( $key ) ) { continue; }
-				$result = Communications::enqueue( $key, $holder->email, self::TEMPLATE, array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets ) );
-				if ( true === $result ) { ++$queued; }
-			}
-			if ( ! empty( $c['sms'] ) && '' !== trim( (string) $c['sms_body'] ) && class_exists( SmsService::class ) ) {
-				$orders = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid'", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) );
-				$body = Placeholders::render( $c['sms_body'], array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => $stage ) ) );
-				foreach ( $orders as $order_id ) {
-					if ( true === SmsService::enqueue( 'sms|reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . (int) $order_id, (int) $order_id, (int) $occ->occurrence_id, 'reminder', $body ) ) { ++$queued; }
+		foreach ( $passes as list( $cursor, $until ) ) {
+			while ( true ) {
+				$sql = "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s AND (o.starts_at>%s OR (o.starts_at=%s AND o.occurrence_id>%d))";
+				$args = array( $p . 'wpcap_occurrences', $p . 'wpcap_events', $from, $to, $cursor[0], $cursor[0], (int) $cursor[1] );
+				if ( $until ) {
+					$sql .= ' AND (o.starts_at<%s OR (o.starts_at=%s AND o.occurrence_id<=%d))';
+					array_push( $args, $until[0], $until[0], (int) $until[1] );
 				}
+				$sql .= ' ORDER BY o.starts_at,o.occurrence_id LIMIT %d';
+				$args[] = self::PAGE_SIZE;
+				$occurrences = $wpdb->get_results( $wpdb->prepare( $sql, $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders only.
+				foreach ( $occurrences as $occ ) {
+					if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) {
+						// Budget used up: remember where to continue and ask for a follow-up run.
+						update_option( self::CURSOR_OPTION, $cursor[0] . '|' . (int) $cursor[1], false );
+						\PassCaptain\Jobs\TimeBudget::continue_later( 'wpcap_process_messages' );
+						return $queued;
+					}
+					$queued += self::schedule_occurrence( $occ, $c, $now );
+					$cursor = array( (string) $occ->starts_at, (string) $occ->occurrence_id );
+				}
+				if ( count( $occurrences ) < self::PAGE_SIZE ) { break; }
+			}
+		}
+		if ( '' !== $saved ) { delete_option( self::CURSOR_OPTION ); }
+		return $queued;
+	}
+
+	/** Queues the reminders of the current stage of one occurrence; returns the number newly queued. */
+	private static function schedule_occurrence( $occ, array $c, $now ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
+		if ( ! $stage ) { return 0; }
+		$queued = 0;
+		$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) );
+		$keys = array();
+		foreach ( $holders as $holder ) {
+			if ( ! is_email( $holder->email ) ) { continue; }
+			$keys[ hash( 'sha256', 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email ) ] = $holder;
+		}
+		$existing = self::existing_keys( array_keys( $keys ) );
+		foreach ( $keys as $hash => $holder ) {
+			if ( isset( $existing[ $hash ] ) ) { continue; }
+			$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
+			$result = Communications::enqueue( $key, $holder->email, self::TEMPLATE, array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets ) );
+			if ( true === $result ) { ++$queued; }
+		}
+		if ( ! empty( $c['sms'] ) && '' !== trim( (string) $c['sms_body'] ) && class_exists( SmsService::class ) ) {
+			$orders = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid'", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) );
+			$body = Placeholders::render( $c['sms_body'], array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => $stage ) ) );
+			foreach ( $orders as $order_id ) {
+				if ( true === SmsService::enqueue( 'sms|reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . (int) $order_id, (int) $order_id, (int) $occ->occurrence_id, 'reminder', $body ) ) { ++$queued; }
 			}
 		}
 		return $queued;
 	}
 
-	private static function already_queued( $key ) {
+	/** Dedupe keys (sha256) that already exist in the message queue, as a set; one query per 500 keys. */
+	private static function existing_keys( array $hashes ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT message_id FROM %i WHERE dedupe_key=%s', $wpdb->prefix . 'wpcap_message_queue', hash( 'sha256', $key ) ) );
+		$out = array();
+		foreach ( array_chunk( $hashes, 500 ) as $chunk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT dedupe_key FROM %i WHERE dedupe_key IN (' . implode( ',', array_fill( 0, count( $chunk ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_message_queue' ), $chunk ) ) ) as $hash ) {
+				$out[ (string) $hash ] = true;
+			}
+		}
+		return $out;
 	}
 
 	/** Whether a queued reminder is still valid (occurrence scheduled at the same time, holder has valid tickets). */

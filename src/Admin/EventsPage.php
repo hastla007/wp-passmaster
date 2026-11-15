@@ -233,6 +233,16 @@ final class EventsPage {
 				/* translators: %d: number of tickets */
 				: sprintf( __( '%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', 'pass-captain' ), $issued );
 		}
+		// Large occurrences: revocation is done, the rest (refunds, mails, wallet/webhooks) continues in the background.
+		$summary = \PassCaptain\OccurrenceCancellation::last_summary( (int) $occ->occurrence_id );
+		if ( ! empty( $summary['queued_jobs'] ) ) {
+			$result['queued_jobs'] = (int) $summary['queued_jobs'];
+			$result['warning'] = trim( ( $result['warning'] ?? '' ) . ' ' . sprintf(
+				/* translators: %d: number of background batches */
+				__( 'Alle Tickets sind bereits widerrufen. %d weitere Arbeitspakete (Erstattungen, Benachrichtigungen, Wallet/Webhooks) laufen im Hintergrund weiter; den Fortschritt zeigt der Systemstatus (Hintergrundjobs).', 'pass-captain' ),
+				(int) $summary['queued_jobs']
+			) );
+		}
 		return $result;
 	}
 

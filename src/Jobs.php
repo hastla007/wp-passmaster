@@ -59,26 +59,59 @@ final class Jobs {
 			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
 			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
 			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
-			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', 'dead_letter', self::MAX_ATTEMPTS );
 			++$processed;
-			$payload = json_decode( $row->payload, true );
-			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
-			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
-			if ( true === $handled ) {
-				self::update_with_retry( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
-				continue;
-			}
-			$attempts = (int) $row->attempts + 1;
-			$status = $attempts >= self::MAX_ATTEMPTS ? 'dead_letter' : 'queued';
-			// A handler may answer a WP_Error instead of false: its message is kept as last_error (system status page).
-			$last_error = is_wp_error( $handled ) ? substr( sanitize_text_field( $handled->get_error_message() ), 0, 500 ) : '';
-			self::update_with_retry( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => '' !== $last_error ? $last_error : 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+			self::execute( $table, $row );
 		}
 		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM %i WHERE status='queued' AND run_after<=%s LIMIT 1", $table, $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
 		}
 		Ops\Heartbeat::beat( 'jobs', $processed ); // System status: last completed worker run.
 		return $processed;
+	}
+
+	/**
+	 * Runs specific queued jobs (by enqueue key) right away, in the given order, until $deadline (Unix
+	 * time). Long operations (occurrence cancellation) persist all their batches as jobs first and do
+	 * the first ones inside the request; whatever is left runs in the regular worker. Same claim
+	 * protocol as process_due(): a job a worker claimed meanwhile is skipped, never run twice.
+	 *
+	 * @param string[] $keys     Keys as passed to enqueue().
+	 * @param int      $deadline Unix time after which no further job is claimed.
+	 * @return int Number of jobs run.
+	 */
+	public static function run_now( array $keys, $deadline ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_jobs';
+		$done = 0;
+		foreach ( $keys as $key ) {
+			if ( time() >= (int) $deadline ) { break; }
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
+			$now = current_time( 'mysql', true );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE idempotency_key=%s AND status='queued' AND run_after<=%s FOR UPDATE", $table, hash( 'sha256', sanitize_text_field( $key ) ), $now ) );
+			if ( ! $row ) { $wpdb->query( 'COMMIT' ); continue; }
+			$claimed = $wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
+			if ( 1 !== (int) $claimed || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			self::execute( $table, $row );
+			++$done;
+		}
+		return $done;
+	}
+
+	/** Runs the handler of a claimed job and stores the outcome (complete / retry / dead letter). */
+	private static function execute( $table, $row ) {
+		Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', 'dead_letter', self::MAX_ATTEMPTS );
+		$payload = json_decode( $row->payload, true );
+		$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
+		Jobs\TimeBudget::finished( $table, (int) $row->job_id );
+		if ( true === $handled ) {
+			self::update_with_retry( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+			return;
+		}
+		$attempts = (int) $row->attempts + 1;
+		$status = $attempts >= self::MAX_ATTEMPTS ? 'dead_letter' : 'queued';
+		// A handler may answer a WP_Error instead of false: its message is kept as last_error (system status page).
+		$last_error = is_wp_error( $handled ) ? substr( sanitize_text_field( $handled->get_error_message() ), 0, 500 ) : '';
+		self::update_with_retry( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => '' !== $last_error ? $last_error : 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
 	}
 
 	/**

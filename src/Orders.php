@@ -457,17 +457,35 @@ final class Orders {
 		return true;
 	}
 
+	/** Tickets per bulk revoke statement (IN list size). */
+	const REVOKE_CHUNK = 500;
+
 	/**
 	 * Revokes the given tickets if still valid and returns the IDs actually changed.
 	 * Callers fire wpcap_ticket_revoked via fire_revoked() after their transaction commits.
+	 *
+	 * One UPDATE per chunk of REVOKE_CHUNK tickets (not one per ticket): the still valid IDs are read,
+	 * then revoked with the same condition. If the row count differs (a concurrent request changed
+	 * some of them in between), the changed set is re-read so no ID is reported that stayed valid.
 	 */
 	public static function revoke_ids( array $ticket_ids ) {
 		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_tickets';
 		$changed = array();
-		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $id ) {
-			if ( $id && $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked' WHERE ticket_id=%d AND status='valid'", $wpdb->prefix . 'wpcap_tickets', $id ) ) ) {
-				$changed[] = $id;
+		foreach ( array_chunk( array_values( array_filter( array_unique( array_map( 'absint', $ticket_ids ) ) ) ), self::REVOKE_CHUNK ) as $chunk ) {
+			$in = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			$valid = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE ticket_id IN ($in) AND status='valid' ORDER BY ticket_id", array_merge( array( $table ), $chunk ) ) ) );
+			if ( ! $valid ) { continue; }
+			$in = implode( ',', array_fill( 0, count( $valid ), '%d' ) );
+			$result = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked' WHERE ticket_id IN ($in) AND status='valid'", array_merge( array( $table ), $valid ) ) );
+			if ( false === $result || ! $result ) { continue; }
+			if ( (int) $result !== count( $valid ) ) {
+				// Race: keep only IDs that are revoked now (a few may have been revoked by the other request).
+				$valid = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE ticket_id IN ($in) AND status='revoked' ORDER BY ticket_id", array_merge( array( $table ), $valid ) ) ) );
 			}
+			// phpcs:enable
+			$changed = array_merge( $changed, $valid );
 		}
 		return $changed;
 	}
