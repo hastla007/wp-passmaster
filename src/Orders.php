@@ -401,24 +401,14 @@ final class Orders {
 	}
 
 	/**
-	 * Per-line discount of an order (same index as $selected): every campaign's amount is split over
-	 * the lines it applies to (ticket type / event restriction) in proportion to what is left of them.
+	 * Per-line discount of an order (same index as $selected): the sum of the per-line parts
+	 * Campaigns::calculate() split every campaign into (the split its amounts were computed with).
 	 */
 	private static function line_discounts( array $selected, array $adjustments ) {
-		$remaining = array();
-		foreach ( $selected as $index => $line ) { $remaining[ $index ] = (int) $line['line_total']; }
-		$discounts = array_fill_keys( array_keys( $remaining ), 0 );
+		$discounts = array_fill_keys( array_keys( $selected ), 0 );
 		foreach ( $adjustments as $adjustment ) {
-			$campaign = $adjustment['campaign'] ?? null;
-			$eligible = array();
-			foreach ( $selected as $index => $line ) {
-				$type_match = ! $campaign || ! (int) $campaign->ticket_type_id || (int) $campaign->ticket_type_id === (int) $line['type']->ticket_type_id;
-				$event_match = ! $campaign || ! (int) $campaign->event_id || (int) $campaign->event_id === (int) $line['event_id'];
-				if ( $type_match && $event_match ) { $eligible[ $index ] = $remaining[ $index ]; }
-			}
-			foreach ( self::allocate( $eligible, (int) $adjustment['amount_minor'] ) as $index => $part ) {
-				$discounts[ $index ] += $part;
-				$remaining[ $index ] -= $part;
+			foreach ( (array) ( $adjustment['lines'] ?? array() ) as $index => $part ) {
+				if ( isset( $discounts[ $index ] ) ) { $discounts[ $index ] += (int) $part; }
 			}
 		}
 		return $discounts;

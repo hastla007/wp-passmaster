@@ -64,17 +64,23 @@ add_filter( 'wpcap_voucher_purpose', function ( $purpose, $voucher, $context ) {
 
 Die Rechnung enthält einen Hinweis „Eingelöster Einzweckgutschein …1234: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet …“. Die 2,50 € USt betreffen nur den bar bezahlten Teil.
 
+Der Gutschein wird auf die Bestellzeilen aufgeteilt (anteilig zu ihrem Betrag nach Kampagnenrabatten, `voucher_lines` im Voucher-Snapshot) und beim Einzweckgutschein zum Zeilenrabatt addiert (`price_snapshot.line_discounts`, `discount_minor`); die Zeilen-USt wird auf dem verminderten Zeilenbetrag neu berechnet. Rechnung, Berichte, Veranstalter-Abrechnung, Erstattungen und der Fiskalbeleg verwenden damit die Beträge nach dem Gutschein, auch zusammen mit Kampagnencodes.
+
+**Fiskalbeleg**: Der Beleg entsteht schon beim Anlegen der Bestellung. Solange er noch nicht übermittelt wurde (Status `pending`/`configuration_required`, kein Versuch), werden seine Positionen, Summen und der Snapshot beim Einlösen eines Einzweckgutscheins neu berechnet. Wurde er bereits (möglicherweise) übermittelt, wird der Einzweckgutschein abgelehnt (`wpcap_voucher_fiscal_locked`) – ein übermittelter Beleg kann nicht mehr geändert werden. Mehrzweckgutscheine ändern den Preis nicht und sind davon nicht betroffen.
+
 ## Erstattungen
 
 Erstattungen werden **anteilig** aufgeteilt:
 
-- **Barteil**: wie bisher aus `Refunds::calculate()` (Anteil der erstatteten Tickets am offenen Betrag), über den Zahlungsanbieter.
-- **Gutscheinteil**: derselbe Anteil des Gutscheinbetrags, gemessen am Wert der erstatteten Tickets (`Checkout::refund_plan()`); die Erstattung, mit der die letzten Tickets erstattet werden, erhält den Rest. Er wird über `ProviderInterface::refund()` auf den Gutschein zurückgebucht (Schlüssel `wpcap-refund-{id}`, idempotent).
+- **Barteil**: aus `Refunds::calculate()`: der bezahlte Wert der erstatteten Tickets (Zeilenbetrag nach Rabatten), skaliert auf den offenen Betrag (beim Mehrzweckgutschein der bar bezahlte Anteil), über den Zahlungsanbieter.
+- **Gutscheinteil**: der Anteil der erstatteten Tickets an der Gutschein-Aufteilung `voucher_lines` (`Checkout::refund_plan()`); die Erstattung, mit der die letzten Tickets erstattet werden, erhält den Rest. Bar- und Gutscheinteil zusammen ergeben höchstens den bezahlten Wert der Tickets, auch mit Kampagnenrabatt. Er wird über `ProviderInterface::refund()` auf den Gutschein zurückgebucht (Schlüssel `wpcap-refund-{id}`, idempotent).
 - **Rechnungskorrektur** (Mehrzweckgutschein): umfasst Bar- **und** Gutscheinteil sowie die volle Umsatzsteuer der erstatteten Tickets; alle Korrekturen zusammen ergeben genau die Rechnung. Beim Einzweckgutschein entspricht die Korrektur wie bisher der Barerstattung.
 
 Beispiel oben, ein Ticket wird erstattet: 5,00 € an den Zahlungsanbieter, 5,00 € zurück auf den Gutschein, Rechnungskorrektur über 10,00 € (darin 1,67 € USt). Bei vollständig per Gutschein bezahlten Bestellungen erstattet der Zahlungsanbieter 0 € und der ganze Wert geht auf den Gutschein zurück.
 
 Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
+
+**Veranstalter-Abrechnung**: Verkäufe zählen beim Mehrzweckgutschein mit dem vollen Entgelt (bar + Gutschein); Erstattungen ziehen daher die Beträge der Rechnungskorrektur ab (Bar- **und** Gutscheinteil, `Checkout::credit_note_amounts()`). Beim Einzweckgutschein zählen Verkauf und Erstattung jeweils nur den Betrag nach dem Gutschein.
 
 ## Ticketdienst (Gutschein → Tickets)
 
@@ -102,6 +108,7 @@ Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
 | `amount_due_minor` | Offener Betrag für den Zahlungsanbieter (= `orders.total_minor`) |
 | `face_value_minor`, `face_value_source` | Einzweck über den Ticketdienst: Gutscheinwert für Abrechnungen (`voucher` oder `list_price`) |
 | `status` | `reserved`, `committed`, `released`, `commit_failed`, `external` (Ticketdienst) |
+| `voucher_lines` | Aufteilung des Gutscheins je Ticketart (anteilig zum Zeilenbetrag nach Kampagnenrabatten); Grundlage des Gutscheinteils von Erstattungen |
 | `refund_plans` | Je Erstattung: `voucher_minor`, `cash_minor`, `tax_minor` (volle USt, nur Mehrzweck), `tickets` |
 
 Hilfsfunktionen: `Checkout::purpose()`, `Checkout::voucher_payment_minor( $order )`, `Checkout::gross_minor( $order )` (offener Betrag + Gutscheinzahlung), `Checkout::invoice_payments( $order )`, `Checkout::credit_note_amounts( $refund_id )`, `Invoices::payment_summary( $invoice, $snapshot )`.

@@ -576,17 +576,35 @@ final class ServiceBookings {
 		$capacity_error = self::capacity_error( $resource, $target, (int) $booking->quantity, (int) $booking->booking_id );
 		if ( $capacity_error ) { $wpdb->query( 'ROLLBACK' ); return $capacity_error; }
 		$data = array( 'slot_id' => $new_slot_id, 'rebook_count' => (int) $booking->rebook_count + 1, 'last_action_key' => $key_hash, 'updated_at' => $now );
-		if ( $difference > 0 ) { $data['amount_minor'] = max( 0, (int) $booking->amount_minor - $difference ); }
+		// After a dearer rebooking the booking value is split over two orders: the supplementary order
+		// (order_id, amount_minor − origin_minor) and the first payment (origin_order_id, origin_minor).
+		// A cheaper move refunds the supplementary part first, the rest from the original order (PAY-9).
+		$origin_part = 0;
+		if ( $difference > 0 ) {
+			$data['amount_minor'] = max( 0, (int) $booking->amount_minor - $difference );
+			if ( (int) $booking->origin_order_id && (int) $booking->origin_minor ) {
+				$supplement_part = max( 0, (int) $booking->amount_minor - (int) $booking->origin_minor );
+				$origin_part = min( (int) $booking->origin_minor, max( 0, $difference - $supplement_part ) );
+				$data['origin_minor'] = (int) $booking->origin_minor - $origin_part;
+			}
+		}
 		$updated = $wpdb->update( "{$p}wpcap_service_bookings", $data, array( 'booking_id' => (int) $booking->booking_id, 'slot_id' => (int) $old_slot->slot_id ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		$count = (int) $booking->rebook_count + 1;
 		Audit::record( 'service_booking_rebooked', 'service_booking', (int) $booking->booking_id, array( 'actor' => $actor, 'from_slot' => (int) $old_slot->slot_id, 'to_slot' => $new_slot_id, 'difference_minor' => $difference, 'user_id' => get_current_user_id() ) );
 		$refund = null;
-		if ( $difference > 0 && (int) $booking->order_id ) {
-			$refund = Refunder::refund( (int) $booking->order_id, array(), $difference, sprintf( /* translators: %d: booking id */ __( 'Preisdifferenz Umbuchung #%d', 'pass-captain' ), (int) $booking->booking_id ), 'service-rebook-' . (int) $booking->booking_id . '-' . $count, $actor );
+		if ( $difference - $origin_part > 0 && (int) $booking->order_id ) {
+			$refund = Refunder::refund( (int) $booking->order_id, array(), $difference - $origin_part, sprintf( /* translators: %d: booking id */ __( 'Preisdifferenz Umbuchung #%d', 'pass-captain' ), (int) $booking->booking_id ), 'service-rebook-' . (int) $booking->booking_id . '-' . $count, $actor );
 			if ( is_wp_error( $refund ) || ! Refunder::settled( $refund ) ) {
 				Audit::record( 'service_booking_refund_failed', 'service_booking', (int) $booking->booking_id, array( 'error' => is_wp_error( $refund ) ? $refund->get_error_code() : (string) ( $refund['status'] ?? '' ), 'kind' => 'rebook_difference' ) );
 			}
+		}
+		if ( $origin_part > 0 ) {
+			$origin_refund = Refunder::refund( (int) $booking->origin_order_id, array(), $origin_part, sprintf( /* translators: %d: booking id */ __( 'Preisdifferenz Umbuchung #%d', 'pass-captain' ), (int) $booking->booking_id ), 'service-rebook-' . (int) $booking->booking_id . '-' . $count . '-origin', $actor );
+			if ( is_wp_error( $origin_refund ) || ! Refunder::settled( $origin_refund ) ) {
+				Audit::record( 'service_booking_refund_failed', 'service_booking', (int) $booking->booking_id, array( 'error' => is_wp_error( $origin_refund ) ? $origin_refund->get_error_code() : (string) ( $origin_refund['status'] ?? '' ), 'kind' => 'rebook_difference_origin' ) );
+			}
+			$refund = null === $refund ? $origin_refund : $refund;
 		}
 		$fresh = self::get( $booking->booking_id );
 		self::mail( 'service_booking_rebooked', $fresh, array( 'old_slot' => $old_slot, 'refund' => $refund ) );
