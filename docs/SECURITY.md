@@ -114,6 +114,20 @@ Die Offline-Scanner-App (`assets/offline-scanner/`) ist eine statische Datei, di
 
 Request-Parameter, die als Array ankommen (`?wpcap_access[]=x`, JSON), werden als leer behandelt (`Security\Input::text()/hex()`), statt „Array to string conversion“ auszulösen.
 
+### Zugangstokens nicht in URLs (SEC-7 / PRIV-14)
+
+**Mail-Links (Bestellportal, Ticketseite, Rechnung, Rechnungs-PDF):** Beim ersten Aufruf mit `?wpcap_access=…` bzw. `?wpcap_ticket=…` prüft die Seite das Token und tauscht es gegen ein kurzlebiges Cookie (`Security\AccessCookie`):
+
+- Antwort `303 See Other` auf dieselbe Adresse **ohne Token** (`?wpcap_order=<ID>`, `?wpcap_invoice=<ID>`, `?wpcap_invoice_pdf=<ID>`, Ticket: `?wpcap_tref=<Referenz>`) plus Merker `wpcap_ck=1`; auch diese Antwort sendet die Private-Page-Header (kein Cache).
+- Cookie `wpcap_ax_<Kennung>` je Bestellung bzw. Ticket: `HttpOnly`, `SameSite=Lax`, `Secure` auf HTTPS-Seiten, Pfad = Pfad der Website (`home_url('/')`), Laufzeit 2 Stunden. Der Wert ist das Token, versiegelt mit dem Secrets-Vault (XSalsa20-Poly1305, eigener Kontext, gebunden an Bestellung/Ticket und Ablauf) – nicht fälschbar und nicht auf eine andere Bestellung übertragbar. Serverseitig liegt weiterhin nur der SHA-256-Hash des Tokens.
+- Die Ticket-Referenz in der URL ist ein verschlüsselter Hash (HMAC mit dem Site-Schlüssel), weder das Token noch dessen einfacher Hash.
+- Folgeanfragen (Neuladen, Rechnungslink im Portal) werden über das Cookie autorisiert; das Portal verlinkt die Rechnung dann ohne Token.
+- **Cookies blockiert:** Kommt nach dem Redirect kein Cookie zurück, merkt sich die Seite das für diese Bestellung/dieses Ticket einen Tag lang (Transient ohne Geheimnis) und bittet, den Mail-Link erneut zu öffnen. Dieser zweite Aufruf zeigt die Seite direkt mit dem Token in der URL – keine Endlosschleife, die Token-URL funktioniert weiter wie bisher. Ohne libsodium/Schlüssel (Vault kann nicht versiegeln) entfällt der Tausch ebenfalls.
+- Nur `GET`/`HEAD` werden umgeleitet; Formular-POSTs (Einwilligungen, Sprache) behalten ihren Inhalt.
+- Bekannte Grenze: Der erste Aufruf mit Token steht weiterhin im Zugriffslog des Webservers und ggf. in der Mail. Link-Scanner von Mailprogrammen, die keine Cookies speichern, können den Merker „Cookies blockiert“ auslösen; dann gilt für diesen Link das frühere Verhalten (Token-URL).
+
+**REST (Bestellportal, Servicebuchungen, Wartelisten):** Öffentliche Routen, die ein Käufer-Token erwarten (`GET /orders/{id}`, `GET /orders/{id}/service-bookings`, `GET …/rebook-options`, `GET /service-waitlist/{id}` sowie die POST-Routen für Übertragung, Zuweisung, erneutes Senden, Rechnungsdaten, Stornieren/Umbuchen und Wartelistenaktionen), lesen das Token zuerst aus dem Header **`X-WPCAP-Access-Token`** (`Rest\Credentials`), sonst aus dem Parameter `access_token` bzw. `token`. Das eigene Frontend (`assets/order-portal.js`) sendet nur noch den Header. Query-Parameter bleiben aus Kompatibilitätsgründen akzeptiert (Links in älteren Mails, bestehende Integrationen); sie landen aber in Zugriffslogs und sollten in neuen Integrationen nicht verwendet werden. Bei `POST /service-bookings/{id}/attach-order` trägt der Header das Bestell-Token, das Buchungs-Token bleibt Parameter. Der Header steht in der CORS-Freigabeliste (`rest_allowed_cors_headers`).
+
 ## CSV-Exporte
 
 Alle CSV-Exporte laufen über `Reports\Scope::csv()`: RFC-4180-Quoting ohne Backslash-Escape (ein `\"` im Text kann die Zelle nicht beenden) und `csv_cell()`: führende `= + - @` (auch nach Leerzeichen) sowie solche Zeichen direkt nach `"`, `;` oder Tab im Text werden mit `'` entschärft; gültige JSON-Dokumente (Archivspalten) bleiben unverändert.
@@ -122,7 +136,15 @@ Alle CSV-Exporte laufen über `Reports\Scope::csv()`: RFC-4180-Quoting ohne Back
 
 Die Plugin-Limits (Checkout pro IP und E-Mail, Servicebuchungen, Warteliste, Sitzplatz-Holds, Partner-API, Kopplung, Portal) liegen in WordPress-Transients. Sie sind **pro Site** und **kein verteilter Schutz**: Ohne persistenten Object-Cache landen sie in der Optionstabelle; mehrere PHP-Worker/Server können sich überholen (Lesen-dann-Schreiben ohne atomares Inkrement). Mit persistentem Object-Cache zählen `RateLimit::hit()`/`RateLimit::allow()` und das Checkout-Limit atomar (`wp_cache_incr()` in der Transient-Gruppe). Ohne Object-Cache bleibt es bei Best-Effort, und hinter Proxy/CDN sind sie nur so gut wie die erkannte Client-Adresse. Empfehlung: Rate-Limiting und Bot-Schutz zusätzlich am WAF/CDN bzw. Reverse Proxy (z. B. für `/wp-json/wp-pass-captain/v1/checkout`, `/…/app/pair`, `/…/partner/*`).
 
-Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und Event, 20 je IP und Event und 60 je IP über alle Events pro Stunde (Filter `wp_pass_captain_waitlist_ip_limit_v1`). Es gibt kein Double-Opt-in; die Antwort verrät nicht, ob eine Adresse schon eingetragen ist, und jede Eintragungsmail enthält einen Austragen-Link.
+Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und Event, 20 je IP und Event und 60 je IP über alle Events pro Stunde (Filter `wp_pass_captain_waitlist_ip_limit_v1`). Die Antwort verrät nicht, ob eine Adresse schon eingetragen ist, und jede Eintragungsmail enthält einen Austragen-Link.
+
+**Double-Opt-in für Wartelisten (SEC-5)** – Einstellung *Allgemein / Reservierung → Wartelisten: Eintragung per E-Mail bestätigen lassen* (`waitlist_double_opt_in`, Standard an), gilt für Event- und Zeitfenster-Wartelisten:
+
+- Eine Anmeldung legt einen Eintrag mit Status `unconfirmed` **ohne Position** an und sendet die Mail „Warteliste: Eintragung bestätigen“ (`waitlist_confirm` bzw. `service_waitlist_confirm`) mit Bestätigungslink. Gespeichert wird nur der SHA-256-Hash des Tokens (`confirm_token_hash`), gültig 48 Stunden (`confirm_expires_at`).
+- Der Link zeigt nur ein Bestätigungsformular (Mail-Scanner bestätigen nichts); erst der POST (Nonce) setzt den Eintrag auf `waiting` und vergibt die Position am Ende der Warteschlange. Danach folgt die bisherige Eintragungsmail mit Position und Austragen-Link.
+- Unbestätigte Einträge zählen nicht für Positionen, Angebote, Reservierungen und „Platz frei“-Prüfungen und werden vom täglichen Aufbewahrungslauf gelöscht, sobald der Link abgelaufen ist (`Privacy\Retention`, Schritt `unconfirmed_waitlists`).
+- Eine erneute Anmeldung derselben Adresse vor der Bestätigung ersetzt den Link (die Limits oben begrenzen die Mails).
+- Bestehende Einträge bleiben gültig. Ist die Einstellung aus, gilt eine Anmeldung sofort (früheres Verhalten).
 
 **IPv6:** Sitzplatz-Holds und Wartelisten zählen IPv6-Adressen je /64-Netz (`RateLimit::client_network()`), damit wechselnde Adressen innerhalb eines Anschlusses das Limit nicht zurücksetzen.
 
@@ -135,6 +157,7 @@ Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und E
 
 ## Rollen, Eventscoping und Datenminimierung
 
+- **WooCommerce-Produkte (SEC-V2):** Nur Administratoren (`manage_options`) und Personen mit `wpcap_manage_events` für das jeweilige Event (`Access::can_access_event`) dürfen ein Produkt mit einer Ticketart verknüpfen, die Verknüpfung ändern oder entfernen. Shop-Manager ohne Eventzuweisung sehen in der Auswahl nur Ticketarten ihrer Events; eine bestehende Verknüpfung zu einem fremden Event wird schreibgeschützt angezeigt. Ein unzulässiger Wert wird nicht gespeichert (Fehlerhinweis im Produkt-Editor); andere Speicherwege eines angemeldeten Nutzers (WooCommerce-REST-API, Schnellbearbeitung, CSV-Import) setzen den gespeicherten Wert zurück (Audit `woocommerce_product_link_refused`).
 - **Eventscoping:** Operative Rollen brauchen eine Zuweisung je Event (`wpcap_event_staff`) oder – nur für Einlass – je Termin (`wpcap_occurrence_staff`, Abschnitt „Einlasspersonal nur für diesen Termin“ im Termin-Admin). Terminpersonal darf an genau diesem Termin ein-/auschecken, den Scanner/die App/Offline-Pakete dieses Termins nutzen und die Basis-Teilnehmerliste sehen; es erhält nie eventweiten Zugriff (`Access::can_access_occurrence`).
 - **Datenminimierung je Rolle** (`Security\DataPolicy`, abgeleitet aus den Capabilities):
   - Einlass (`wpcap_checkin`) und Veranstalter/Partner (`wpcap_view_reports` ohne Bestell-/Finanzrechte) erhalten keine Zahlungsdaten: keine Beträge, keine Anbieter-Referenzen, keine Rechnungsdaten – weder im Admin (Berichte zeigen nur Ticket- und Einlasszahlen), noch im REST-Bericht `events/{id}/reports/summary` (Entwickler-Keys behalten den vollen Bericht), noch im Bericht-CSV.
