@@ -109,10 +109,13 @@ async function context(browser, opts) {
 }
 async function login(ctx) {
 	const page = await ctx.newPage();
-	await page.goto(BASE + '/wp-login.php');
+	// Redirect to the lightweight profile screen instead of the dashboard (widgets, news feeds) and wait only
+	// for the navigation to commit: the session cookie is set by then. Waiting for "load" of the dashboard
+	// timed out in Firefox on CI.
+	await page.goto(BASE + '/wp-login.php?redirect_to=' + encodeURIComponent(BASE + '/wp-admin/profile.php'));
 	await page.fill('#user_login', USER);
 	await page.fill('#user_pass', PASS);
-	await Promise.all([page.waitForURL((u) => !u.pathname.includes('wp-login'), { timeout: 60000 }), page.click('#wp-submit')]);
+	await Promise.all([page.waitForURL((u) => !u.pathname.includes('wp-login'), { timeout: 60000, waitUntil: 'commit' }), page.click('#wp-submit')]);
 	await page.close();
 }
 
