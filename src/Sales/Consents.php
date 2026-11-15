@@ -77,7 +77,7 @@ final class Consents {
 		$fields = self::fields( (int) $ticket->ticket_type_id );
 		if ( ! $fields ) { return; }
 		$field_ids = array_map( 'absint', array_keys( $fields ) );
-		$answers = $wpdb->get_results( $wpdb->prepare( 'SELECT field_id,answer FROM %i WHERE ticket_id=%d AND field_id IN (' . implode( ',', array_fill( 0, count( $field_ids ), '%d' ) ) . ')', $p . 'wpcap_participant_answers', (int) $ticket->ticket_id, ...$field_ids ) );
+		$answers = $wpdb->get_results( $wpdb->prepare( 'SELECT field_id,answer FROM %i WHERE ticket_id=%d AND field_id IN (' . implode( ',', array_fill( 0, count( $field_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_participant_answers', (int) $ticket->ticket_id ), $field_ids ) ) );
 		foreach ( $answers as $answer ) {
 			if ( '1' !== (string) $answer->answer ) { continue; }
 			$field = $fields[ (int) $answer->field_id ];
@@ -455,7 +455,7 @@ final class Consents {
 		$removed = 0;
 		if ( '' !== $email ) {
 			$ids = array_map( 'absint', self::ids_for_email( $email, self::BATCH ) );
-			if ( $ids ) { $removed = (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE consent_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', self::table(), ...$ids ) ); }
+			if ( $ids ) { $removed = (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE consent_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( self::table() ), $ids ) ) ); }
 			$done = count( $ids ) < self::BATCH;
 		} else {
 			$done = true;
@@ -482,7 +482,7 @@ final class Consents {
 			// A global retention period overrides the per-field one (which falls back to the default).
 			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i f ON f.field_id=c.field_id WHERE DATE_ADD(COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)), INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', self::table(), $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_participant_fields', $global, $global, $default_days, $now_sql, self::BATCH ) );
 			if ( ! $ids ) { break; }
-			$deleted += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE consent_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', self::table(), ...$ids ) );
+			$deleted += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE consent_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( self::table() ), $ids ) ) );
 			if ( count( $ids ) < self::BATCH ) { break; }
 		}
 		if ( $deleted ) { Audit::record( 'privacy_retention_consents', 'system', 0, array( 'deleted' => $deleted ) ); }

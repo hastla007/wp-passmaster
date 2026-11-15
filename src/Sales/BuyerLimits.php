@@ -44,7 +44,7 @@ final class BuyerLimits {
 		global $wpdb;
 		$event_ids = array_values( array_filter( array_map( 'absint', $event_ids ) ) );
 		if ( ! $event_ids ) { return array(); }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status='active' AND event_id IN (" . implode( ',', array_fill( 0, count( $event_ids ), '%d' ) ) . ') ORDER BY limit_id', $wpdb->prefix . 'wpcap_buyer_limits', ...$event_ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status='active' AND event_id IN (" . implode( ',', array_fill( 0, count( $event_ids ), '%d' ) ) . ') ORDER BY limit_id', array_merge( array( $wpdb->prefix . 'wpcap_buyer_limits' ), $event_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
 		return is_array( $rows ) ? $rows : array();
 	}
 
@@ -108,7 +108,7 @@ final class BuyerLimits {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return false; }
 		$p = $wpdb->prefix;
-		$hit = $wpdb->get_var( $wpdb->prepare( "SELECT bl.limit_id FROM %i bl INNER JOIN %i o ON o.event_id=bl.event_id INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id WHERE bl.status='active' AND tt.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') LIMIT 1', $p . 'wpcap_buyer_limits', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', ...$type_ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
+		$hit = $wpdb->get_var( $wpdb->prepare( "SELECT bl.limit_id FROM %i bl INNER JOIN %i o ON o.event_id=bl.event_id INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id WHERE bl.status='active' AND tt.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') LIMIT 1', array_merge( array( $p . 'wpcap_buyer_limits', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types' ), $type_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
 		return (bool) $hit;
 	}
 

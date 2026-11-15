@@ -183,7 +183,7 @@ final class Reservations {
 			$ids = array();
 			foreach ( $explicit as $type_ids ) { $ids = array_merge( $ids, $type_ids ); }
 			sort( $ids, SORT_NUMERIC );
-			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id=%d AND seat_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY seat_id FOR UPDATE', self::t( 'seats' ), (int) $link->version_id, ...$ids ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id=%d AND seat_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY seat_id FOR UPDATE', array_merge( array( self::t( 'seats' ), (int) $link->version_id ), $ids ) ) );
 			$seats = array();
 			foreach ( $rows as $row ) { $seats[ (int) $row->seat_id ] = $row; }
 			foreach ( $explicit as $type_id => $type_ids ) {
@@ -204,7 +204,7 @@ final class Reservations {
 		}
 		if ( ! $plan ) { return; }
 		$keys = array_map( static function ( $entry ) { return $entry[1]->seat_key; }, $plan );
-		$busy = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d AND active_key IN (' . implode( ',', array_fill( 0, count( $keys ), '%s' ) ) . ') FOR UPDATE', $claims, $occurrence_id, ...array_values( $keys ) ) );
+		$busy = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d AND active_key IN (' . implode( ',', array_fill( 0, count( $keys ), '%s' ) ) . ') FOR UPDATE', array_merge( array( $claims, $occurrence_id ), array_values( $keys ) ) ) );
 		if ( $busy ) { throw new \RuntimeException( 'seat_unavailable' ); }
 		foreach ( $plan as list( $type_id, $seat ) ) {
 			$ok = $wpdb->insert( $claims, array(
@@ -385,7 +385,7 @@ final class Reservations {
 		$ticket_ids = array_filter( array_map( 'absint', $ticket_ids ) );
 		if ( ! $ticket_ids ) { return array(); }
 		$out = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,label FROM %i WHERE status='assigned' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') ORDER BY assignment_id', self::t( 'ticket_seats' ), ...$ticket_ids ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,label FROM %i WHERE status='assigned' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') ORDER BY assignment_id', array_merge( array( self::t( 'ticket_seats' ) ), $ticket_ids ) ) ) as $row ) {
 			$out[ (int) $row->ticket_id ] = $row->label;
 		}
 		return $out;

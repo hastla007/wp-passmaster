@@ -139,7 +139,7 @@ final class CalendarFeeds {
 		if ( ! $rows ) { return array(); }
 		$ids = array_map( static function ( $r ) { return (int) $r->occurrence_id; }, $rows );
 		$known = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,fingerprint,sequence,changed_at FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $table, ...$ids ) ) as $s ) {
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,fingerprint,sequence,changed_at FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $table ), $ids ) ) ) as $s ) {
 			$known[ (int) $s->occurrence_id ] = $s;
 		}
 		$out = array();

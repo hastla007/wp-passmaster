@@ -1264,12 +1264,21 @@ final class Orders {
 		$order_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT oi.order_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $event_id ) ) );
 		// Only buyers with a paid or open order are notified, not abandoned/expired/refunded attempts.
 		// Read before the cancellation changes order and ticket states.
-		$notify_ids = $order_ids ? array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND payment_status IN ('paid','pending','paid_unallocated')", $p . 'wpcap_orders', ...$order_ids ) ) ) : array();
-		$pending_before = $order_ids ? array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND payment_status='pending'", $p . 'wpcap_orders', ...$order_ids ) ) ) : array();
+		$notify_ids = $order_ids ? array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND payment_status IN ('paid','pending','paid_unallocated')", array_merge( array( $p . 'wpcap_orders' ), $order_ids ) ) ) ) : array();
+		$pending_before = $order_ids ? array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND payment_status='pending'", array_merge( array( $p . 'wpcap_orders' ), $order_ids ) ) ) ) : array();
 		$recipients = ! $notify_ids ? array() : $wpdb->get_results( $wpdb->prepare(
-			"SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM %i ord INNER JOIN %i oi ON oi.order_id=ord.order_id INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d AND ord.order_id IN (" . implode( ',', array_fill( 0, count( $notify_ids ), '%d' ) ) . ') GROUP BY email', $p . 'wpcap_orders', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_tickets',
-			$event_id,
-			...$notify_ids
+			"SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM %i ord INNER JOIN %i oi ON oi.order_id=ord.order_id INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d AND ord.order_id IN (" . implode( ',', array_fill( 0, count( $notify_ids ), '%d' ) ) . ') GROUP BY email',
+			array_merge(
+				array(
+					$p . 'wpcap_orders',
+					$p . 'wpcap_order_items',
+					$p . 'wpcap_ticket_types',
+					$p . 'wpcap_occurrences',
+					$p . 'wpcap_tickets',
+					$event_id,
+				),
+				$notify_ids
+			)
 		) );
 
 		self::begin();
@@ -1297,7 +1306,7 @@ final class Orders {
 		}
 
 		// Safety net when the occurrence handler is unhooked: open orders and still valid tickets.
-		$still_pending = $order_ids ? array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND payment_status='pending'", $p . 'wpcap_orders', ...$order_ids ) ) ) : array();
+		$still_pending = $order_ids ? array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND payment_status='pending'", array_merge( array( $p . 'wpcap_orders' ), $order_ids ) ) ) ) : array();
 		foreach ( $still_pending as $order_id ) {
 			self::cancel_order( $order_id, 'event_cancelled' );
 			++$summary['cancelled_orders'];
@@ -1843,7 +1852,7 @@ final class Orders {
 		$rotation_failed = __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' );
 		if ( false === self::begin() ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'start' ); }
 		// Only the ticket rows are locked (not ticket types/occurrences), so checkouts are not blocked while the mail is sent.
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,token_hash,attendee_email FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( array_map( 'absint', $ids ) ), '%d' ) ) . ') ORDER BY ticket_id FOR UPDATE', $p . 'wpcap_tickets', (int) $order->order_id, ...array_map( 'absint', $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,token_hash,attendee_email FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( array_map( 'absint', $ids ) ), '%d' ) ) . ') ORDER BY ticket_id FOR UPDATE', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), array_map( 'absint', $ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		if ( '' !== $wpdb->last_error ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'lock' ); }
 		$rotated = array();
 		foreach ( $rows as $row ) {
@@ -1859,7 +1868,7 @@ final class Orders {
 			return 0;
 		}
 		$info = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT t.ticket_id,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.ticket_id IN (' . implode( ',', array_fill( 0, count( array_keys( $rotated ) ), '%d' ) ) . ') ORDER BY t.ticket_id', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', ...array_keys( $rotated ) ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT t.ticket_id,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.ticket_id IN (' . implode( ',', array_fill( 0, count( array_keys( $rotated ) ), '%d' ) ) . ') ORDER BY t.ticket_id', array_merge( array( $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ), array_keys( $rotated ) ) ) ) as $row ) {
 			$info[ (int) $row->ticket_id ] = $row;
 		}
 		if ( '' !== $wpdb->last_error || count( $info ) !== count( $rotated ) ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'read' ); }

@@ -35,7 +35,7 @@ final class Queries {
 			if ( \PassCaptain\Security\SupportAccess::covers( get_current_user_id(), $cap ) ) { return null; }
 		}
 		global $wpdb;
-		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE user_id=%d AND capability IN (' . implode( ',', array_fill( 0, count( $caps ), '%s' ) ) . ')', $wpdb->prefix . 'wpcap_event_staff', get_current_user_id(), ...$caps ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE user_id=%d AND capability IN (' . implode( ',', array_fill( 0, count( $caps ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_event_staff', get_current_user_id() ), $caps ) ) );
 		return array_map( 'absint', $ids );
 	}
 
@@ -50,7 +50,7 @@ final class Queries {
 		$caps = array_values( array_filter( (array) $caps, static function ( $cap ) { return current_user_can( $cap ); } ) );
 		if ( ! $caps || ! get_current_user_id() ) { return array(); }
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT occurrence_id FROM %i WHERE user_id=%d AND capability IN (' . implode( ',', array_fill( 0, count( $caps ), '%s' ) ) . ')', $wpdb->prefix . 'wpcap_occurrence_staff', get_current_user_id(), ...$caps ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT occurrence_id FROM %i WHERE user_id=%d AND capability IN (' . implode( ',', array_fill( 0, count( $caps ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_occurrence_staff', get_current_user_id() ), $caps ) ) ) );
 	}
 
 	/** SQL fragment restricting $column to the given scope (null = no restriction). */
@@ -182,7 +182,7 @@ final class Queries {
 		}
 		$occurrences = array();
 		if ( $occ_ids ) {
-			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( array_unique( $occ_ids ) ), '%d' ) ) . ')', $p . 'wpcap_occurrences', ...array_unique( $occ_ids ) ) ) as $occ ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( array_unique( $occ_ids ) ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_occurrences' ), array_unique( $occ_ids ) ) ) ) as $occ ) {
 				$occurrences[ (int) $occ->occurrence_id ] = $occ;
 			}
 		}
@@ -282,7 +282,7 @@ final class Queries {
 		if ( ! $tickets ) { return array(); }
 		$ids = array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets );
 		$answers = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.ticket_id,a.answer,f.label,f.field_type FROM %i a INNER JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY f.position,f.field_id', $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields', ...$ids ) ) as $answer ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.ticket_id,a.answer,f.label,f.field_type FROM %i a INNER JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY f.position,f.field_id', array_merge( array( $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields' ), $ids ) ) ) as $answer ) {
 			$value = 'checkbox' === $answer->field_type ? ( '1' === (string) $answer->answer ? __( 'Ja', 'pass-captain' ) : __( 'Nein', 'pass-captain' ) ) : $answer->answer;
 			$answers[ (int) $answer->ticket_id ][ $answer->label ] = $value;
 		}

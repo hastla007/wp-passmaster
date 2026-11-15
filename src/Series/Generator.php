@@ -124,9 +124,9 @@ final class Generator {
 		$starts = array_values( array_map( static function ( $item ) { return (string) $item['starts_at']; }, $items ) );
 		$table = $wpdb->prefix . 'wpcap_occurrences';
 		if ( $lock ) {
-			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ') FOR UPDATE', $table, $event_id, ...$starts ) );
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ') FOR UPDATE', array_merge( array( $table, $event_id ), $starts ) ) );
 		} else {
-			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ')', $table, $event_id, ...$starts ) );
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ')', array_merge( array( $table, $event_id ), $starts ) ) );
 		}
 		return array_flip( $rows );
 	}

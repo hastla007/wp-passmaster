@@ -94,7 +94,7 @@ final class Waitlists {
 		global $wpdb;
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
-		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM %i WHERE status='waiting' AND ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', $wpdb->prefix . 'wpcap_waitlist', ...$type_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM %i WHERE status='waiting' AND ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_waitlist' ), $type_ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		foreach ( $waiting as $type_id ) {
 			Jobs::enqueue( 'waitlist-freed-' . $type_id . '-' . wp_generate_uuid4(), self::JOB, array( 'ticket_type_id' => $type_id ) );
 		}

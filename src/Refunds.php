@@ -277,12 +277,12 @@ final class Refunds {
 		$ticket_ids = array_values( array_map( 'absint', (array) json_decode( $refund['ticket_ids'], true ) ) );
 		$revoked_ids = array();
 		if ( $ok && $ticket_ids ) {
-			$per_type = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ") AND refunded=0 AND status IN ('valid','checked_in','revoked') GROUP BY ticket_type_id", $p . 'wpcap_tickets', ...$ticket_ids ) );
+			$per_type = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ") AND refunded=0 AND status IN ('valid','checked_in','revoked') GROUP BY ticket_type_id", array_merge( array( $p . 'wpcap_tickets' ), $ticket_ids ) ) );
 			$ok = '' === (string) $wpdb->last_error;
 			if ( $ok ) {
-				$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') FOR UPDATE', $p . 'wpcap_tickets', $order_id, ...$ticket_ids ) ) );
+				$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') FOR UPDATE', array_merge( array( $p . 'wpcap_tickets', $order_id ), $ticket_ids ) ) ) );
 				// revoke_ids() cannot report errors: verify that no ticket of this refund is still valid.
-				$still_valid = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', $order_id, ...$ticket_ids ) );
+				$still_valid = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', $order_id ), $ticket_ids ) ) );
 				$ok = null !== $still_valid && 0 === (int) $still_valid;
 			}
 			foreach ( $ok ? $per_type : array() as $row ) {
@@ -291,7 +291,7 @@ final class Refunds {
 					break;
 				}
 			}
-			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded=1 WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', $order_id, ...$ticket_ids ) );
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded=1 WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', $order_id ), $ticket_ids ) ) );
 		}
 		$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d', $p . 'wpcap_orders', (int) $refund['amount_minor'], current_time( 'mysql', true ), $order_id ) );
 		$ok = $ok && 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='completed',error_message='',updated_at=%s WHERE refund_id=%d AND status='processing'", $p . 'wpcap_refunds', current_time( 'mysql', true ), $refund_id ) );
@@ -499,7 +499,7 @@ final class Refunds {
 		}
 		$ticket_ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
 		if ( $ticket_ids ) {
-			$ticket_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE order_id=%d AND refunded=0 AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') FOR UPDATE', $p . 'wpcap_tickets', $order_id, ...$ticket_ids ) ) );
+			$ticket_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE order_id=%d AND refunded=0 AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') FOR UPDATE', array_merge( array( $p . 'wpcap_tickets', $order_id ), $ticket_ids ) ) ) );
 			if ( '' !== (string) $wpdb->last_error ) { return self::record_error( 0, $order_id, 'tickets', true ); }
 		}
 		// The payout already happened outside, so no approval applies. Tickets and money that a native
@@ -537,7 +537,7 @@ final class Refunds {
 		$revoked_ids = array();
 		$ok = true;
 		if ( $ticket_ids ) {
-			$per_type = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ") AND refunded=0 AND status IN ('valid','checked_in','revoked') GROUP BY ticket_type_id", $p . 'wpcap_tickets', ...$ticket_ids ) );
+			$per_type = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ") AND refunded=0 AND status IN ('valid','checked_in','revoked') GROUP BY ticket_type_id", array_merge( array( $p . 'wpcap_tickets' ), $ticket_ids ) ) );
 			$ok = '' === (string) $wpdb->last_error;
 			foreach ( $ok ? $per_type : array() as $row ) {
 				if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1', $p . 'wpcap_order_items', (int) $row->n, $order_id, (int) $row->ticket_type_id ) ) ) {
@@ -548,10 +548,10 @@ final class Refunds {
 			if ( $ok ) {
 				$revoked_ids = Orders::revoke_ids( $ticket_ids );
 				// revoke_ids() cannot report errors: verify that no ticket of this refund is still valid.
-				$still_valid = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', $order_id, ...$ticket_ids ) );
+				$still_valid = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', $order_id ), $ticket_ids ) ) );
 				$ok = null !== $still_valid && 0 === (int) $still_valid;
 			}
-			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded=1 WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', $order_id, ...$ticket_ids ) );
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded=1 WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', $order_id ), $ticket_ids ) ) );
 		}
 		$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d', $p . 'wpcap_orders', $amount, $now, $order_id ) );
 		if ( ! $ok || false === $wpdb->query( 'COMMIT' ) ) {
@@ -589,7 +589,7 @@ final class Refunds {
 	private static function open_refunds( $order_id, array $statuses = array( 'pending_approval', 'approved', 'processing' ), $exclude_refund_id = 0 ) {
 		global $wpdb;
 		$statuses = array_values( array_map( static function ( $s ) { return preg_replace( '/[^a-z_]/', '', (string) $s ); }, $statuses ) );
-		$rows = self::checked( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_ids,amount_minor FROM %i WHERE order_id=%d AND refund_id<>%d AND status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')', $wpdb->prefix . 'wpcap_refunds', absint( $order_id ), absint( $exclude_refund_id ), ...$statuses ) ) );
+		$rows = self::checked( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_ids,amount_minor FROM %i WHERE order_id=%d AND refund_id<>%d AND status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_refunds', absint( $order_id ), absint( $exclude_refund_id ) ), $statuses ) ) ) );
 		$ids = array();
 		$amount = 0;
 		foreach ( (array) $rows as $row ) {
@@ -612,7 +612,7 @@ final class Refunds {
 		}
 		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) ) ) );
 		if ( $ticket_ids ) {
-			$open = (int) self::checked( $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE order_id=%d AND refunded=0 AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') FOR UPDATE', $p . 'wpcap_tickets', (int) $refund['order_id'], ...$ticket_ids ) ) );
+			$open = (int) self::checked( $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE order_id=%d AND refunded=0 AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') FOR UPDATE', array_merge( array( $p . 'wpcap_tickets', (int) $refund['order_id'] ), $ticket_ids ) ) ) );
 			$running = self::open_refunds( (int) $refund['order_id'], array( 'processing' ), (int) $refund['refund_id'] );
 			if ( $open !== count( $ticket_ids ) || array_intersect( $ticket_ids, $running['ticket_ids'] ) ) {
 				return __( 'Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );
@@ -688,7 +688,7 @@ final class Refunds {
 		if ( ! $ticket_ids ) { return array(); }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT t.ticket_id FROM %i t LEFT JOIN %i s ON s.ticket_id=t.ticket_id WHERE t.ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ") AND (t.status='checked_in' OR COALESCE(s.entries,0)>0) ORDER BY t.ticket_id", $p . 'wpcap_tickets', $p . 'wpcap_admission_state', ...$ticket_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT t.ticket_id FROM %i t LEFT JOIN %i s ON s.ticket_id=t.ticket_id WHERE t.ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ") AND (t.status='checked_in' OR COALESCE(s.entries,0)>0) ORDER BY t.ticket_id", array_merge( array( $p . 'wpcap_tickets', $p . 'wpcap_admission_state' ), $ticket_ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 	}
 
 	/** Optional enforcement of two-factor authentication for refund actions. */
@@ -764,7 +764,7 @@ final class Refunds {
 		}
 		$ids = array_values( array_map( 'absint', $ticket_ids ) );
 		$sum = 0.0;
-		foreach ( $ids ? self::checked( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', (int) $order->order_id, ...$ids ) ) ) : array() as $type_id ) {
+		foreach ( $ids ? self::checked( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), $ids ) ) ) ) : array() as $type_id ) {
 			$sum += $unit[ (int) $type_id ] ?? 0;
 		}
 		return (int) round( $sum );
@@ -782,7 +782,7 @@ final class Refunds {
 		$ids = array_values( array_map( 'absint', $ticket_ids ) );
 		$gross = 0.0;
 		$tax = 0.0;
-		foreach ( self::checked( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', (int) $order->order_id, ...$ids ) ) ) as $type_id ) {
+		foreach ( self::checked( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), $ids ) ) ) ) as $type_id ) {
 			$gross += $unit[ (int) $type_id ][0] ?? 0;
 			$tax += $unit[ (int) $type_id ][1] ?? 0;
 		}

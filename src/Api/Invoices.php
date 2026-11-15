@@ -257,7 +257,7 @@ final class Invoices {
 		$weights = array();
 		$ticket_ids = $refund ? array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) ) : array();
 		if ( $ticket_ids ) {
-			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT oi.tax_rate_bp,oi.line_total_minor,oi.quantity FROM %i t INNER JOIN %i oi ON oi.order_id=t.order_id AND oi.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND t.ticket_id IN (' . implode( ',', array_fill( 0, count( array_map( 'intval', $ticket_ids ) ), '%d' ) ) . ')', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_order_items', (int) $invoice['references']['order_id'], ...array_map( 'intval', $ticket_ids ) ) );
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT oi.tax_rate_bp,oi.line_total_minor,oi.quantity FROM %i t INNER JOIN %i oi ON oi.order_id=t.order_id AND oi.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND t.ticket_id IN (' . implode( ',', array_fill( 0, count( array_map( 'intval', $ticket_ids ) ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_order_items', (int) $invoice['references']['order_id'] ), array_map( 'intval', $ticket_ids ) ) ) );
 			foreach ( $rows as $row ) {
 				$key = (string) ( (int) $row->tax_rate_bp / 100 );
 				$weights[ $key ] = ( $weights[ $key ] ?? 0 ) + intdiv( (int) $row->line_total_minor, max( 1, (int) $row->quantity ) );

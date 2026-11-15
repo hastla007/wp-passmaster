@@ -1217,7 +1217,7 @@ final class OrderAdapter {
 				continue;
 			}
 			$ids    = array_values( array_map( 'absint', $plan['ticket_ids'] ) );
-			$valid  = $ids ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND status='valid'", $wpdb->prefix . 'wpcap_tickets', ...$ids ) ) : 0; // phpcs:ignore WordPress.DB
+			$valid  = $ids ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND status='valid'", array_merge( array( $wpdb->prefix . 'wpcap_tickets' ), $ids ) ) ) : 0; // phpcs:ignore WordPress.DB
 			$result = call_user_func(
 				array( '\\PassCaptain\\Refunds', 'record_external' ),
 				$core_id,
@@ -1505,7 +1505,7 @@ final class OrderAdapter {
 			return array();
 		}
 		$owners = array();
-		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $core_ids ), '%d' ) ) . ') ORDER BY item_id', $wpdb->prefix . 'wpcap_order_items', ...$core_ids ) ); // phpcs:ignore WordPress.DB
+		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $core_ids ), '%d' ) ) . ') ORDER BY item_id', array_merge( array( $wpdb->prefix . 'wpcap_order_items' ), $core_ids ) ) ); // phpcs:ignore WordPress.DB
 		$order  = array_flip( $core_ids );
 		usort( $rows, static function ( $a, $b ) use ( $order ) {
 			return ( $order[ (int) $a->order_id ] ?? 0 ) <=> ( $order[ (int) $b->order_id ] ?? 0 );

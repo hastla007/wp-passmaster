@@ -315,13 +315,20 @@ final class Fiscalization {
 		if ( is_wp_error( $scope ) ) { return true; } // Fail closed: the checkout itself refuses an invalid scope.
 		$now = current_time( 'mysql', true );
 		return (bool) $wpdb->get_var( $wpdb->prepare(
-			"SELECT 1 FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id AND s.status='active' INNER JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status='active' AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') LIMIT 1', $p . 'wpcap_ticket_sellers', $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_profiles',
-			sanitize_key( $channel ),
-			(int) $scope['location_id'],
-			$scope['register_id'],
-			$now,
-			$now,
-			...$type_ids
+			"SELECT 1 FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id AND s.status='active' INNER JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status='active' AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') LIMIT 1',
+			array_merge(
+				array(
+					$p . 'wpcap_ticket_sellers',
+					$p . 'wpcap_legal_sellers',
+					$p . 'wpcap_fiscal_profiles',
+					sanitize_key( $channel ),
+					(int) $scope['location_id'],
+					$scope['register_id'],
+					$now,
+					$now,
+				),
+				$type_ids
+			)
 		) );
 	}
 
@@ -654,7 +661,7 @@ final class Fiscalization {
 		$order_ids = array_values( array_filter( array_map( 'absint', (array) $order_ids ) ) );
 		if ( ! $order_ids || ! $lines ) { return; }
 		$in = implode( ',', $order_ids );
-		$docs = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND status='submitted' ORDER BY order_id,seller_id", $wpdb->prefix . 'wpcap_fiscal_documents', ...$order_ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$docs = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $order_ids ), '%d' ) ) . ") AND status='submitted' ORDER BY order_id,seller_id", array_merge( array( $wpdb->prefix . 'wpcap_fiscal_documents' ), $order_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		if ( ! $docs ) { return; }
 		$owner = array();
 		$by_key = array();

@@ -96,13 +96,17 @@ final class Assignments {
 		if ( ! $events ) { return array(); }
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			'SELECT DISTINCT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.status FROM %i a INNER JOIN %i r ON r.event_id=a.event_id AND r.enabled=1 INNER JOIN %i o ON o.event_id=a.event_id AND ( a.occurrence_id=0 OR a.occurrence_id=o.occurrence_id ) INNER JOIN %i e ON e.event_id=o.event_id WHERE a.device_id=%d AND COALESCE(o.ends_at,o.starts_at) >= %s AND a.event_id IN (' . implode( ',', array_fill( 0, count( $events ), '%d' ) ) . ') ORDER BY o.starts_at LIMIT 100',
-			$p . 'wpcap_offline_assignments',
-			$p . 'wpcap_offline_events',
-			$p . 'wpcap_occurrences',
-			$p . 'wpcap_events',
-			(int) $device->device_id,
-			gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ),
-			...array_values( array_map( 'absint', $events ) )
+			array_merge(
+				array(
+					$p . 'wpcap_offline_assignments',
+					$p . 'wpcap_offline_events',
+					$p . 'wpcap_occurrences',
+					$p . 'wpcap_events',
+					(int) $device->device_id,
+					gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ),
+				),
+				array_values( array_map( 'absint', $events ) )
+			)
 		) );
 		return $rows;
 	}

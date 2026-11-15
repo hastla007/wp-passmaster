@@ -180,9 +180,9 @@ final class Templates {
 		$all_owners = null === $scope ? 1 : 0;
 		$owners = array_merge( array( 0 ), array_values( array_map( 'absint', (array) $scope ) ) );
 		if ( '' !== $kind ) {
-			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE kind=%s AND status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY name', $p . 'wpcap_print_templates', $kind, $all_owners, ...$owners ) );
+			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE kind=%s AND status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY name', array_merge( array( $p . 'wpcap_print_templates', $kind, $all_owners ), $owners ) ) );
 		}
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY kind,name', $p . 'wpcap_print_templates', $all_owners, ...$owners ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY kind,name', array_merge( array( $p . 'wpcap_print_templates', $all_owners ), $owners ) ) );
 	}
 
 	public static function get_template( $template_id ) {
@@ -289,14 +289,18 @@ final class Templates {
 			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
 			FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i a ON a.ticket_id=t.ticket_id
 			WHERE o.occurrence_id=%d AND t.status IN (" . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ") ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id",
-			$p . 'wpcap_tickets',
-			$p . 'wpcap_ticket_types',
-			$p . 'wpcap_occurrences',
-			$p . 'wpcap_events',
-			$p . 'wpcap_orders',
-			$p . 'wpcap_ticket_assignments',
-			absint( $occurrence_id ),
-			...$statuses
+			array_merge(
+				array(
+					$p . 'wpcap_tickets',
+					$p . 'wpcap_ticket_types',
+					$p . 'wpcap_occurrences',
+					$p . 'wpcap_events',
+					$p . 'wpcap_orders',
+					$p . 'wpcap_ticket_assignments',
+					absint( $occurrence_id ),
+				),
+				$statuses
+			)
 		) );
 	}
 

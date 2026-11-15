@@ -182,7 +182,7 @@ final class Settlements {
 		$weights = array();
 		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
 		if ( $ids ) {
-			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $wpdb->prefix . 'wpcap_tickets', ...$ids ) ) as $type_id ) {
+			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_tickets' ), $ids ) ) ) as $type_id ) {
 				$i = $by_type[ (int) $type_id ] ?? null;
 				if ( null === $i ) { continue; }
 				$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
