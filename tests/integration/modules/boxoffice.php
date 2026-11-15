@@ -217,7 +217,7 @@ $old_hash = $wpdb->get_var( "SELECT token_hash FROM {$p}wpcap_tickets WHERE orde
 $tpdf = PosPage::tickets_pdf( $s1->sale_id );
 $new_hash = $wpdb->get_var( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $s1->order_id . " AND status='valid' ORDER BY ticket_id LIMIT 1" );
 preg_match( '/startxref\n(\d+)\n%%EOF$/', $tpdf['pdf'] ?? '', $xm );
-check( 'printed tickets are a valid PDF with one page per valid ticket and fresh codes', ! is_wp_error( $tpdf ) && str_starts_with( $tpdf['pdf'], '%PDF-1.4' ) && count( tickets( $s1->order_id, 'valid' ) ) === preg_match_all( '#/Type /Page /Parent#', $tpdf['pdf'] ) && isset( $xm[1] ) && 0 === strpos( substr( $tpdf['pdf'], (int) $xm[1] ), 'xref' ) && $old_hash !== $new_hash && false !== strpos( $tpdf['pdf'], '(Ada Lovelace) Tj' ) );
+check( 'printed tickets are a valid PDF with one page per valid ticket and fresh codes', ! is_wp_error( $tpdf ) && str_starts_with( $tpdf['pdf'], '%PDF-1.4' ) && count( tickets( $s1->order_id, 'valid' ) ) === preg_match_all( '#/Type /Page /Parent#', $tpdf['pdf'] ) && isset( $xm[1] ) && 0 === strpos( substr( $tpdf['pdf'], (int) $xm[1] ), 'xref' ) && $old_hash !== $new_hash && false !== strpos( wpcap_test_pdf_plain( $tpdf['pdf'] ), '(Ada Lovelace) Tj' ) );
 check( 'no ticket print for voided sales', is_wp_error( PosPage::tickets_pdf( $se->sale_id ) ) );
 
 $numbers = array();

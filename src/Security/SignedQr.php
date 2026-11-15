@@ -114,6 +114,11 @@ final class SignedQr {
 		return array( self::key_id( $public ), $entry );
 	}
 
+	/** Stored active key id without opening the key ('' before the first key exists). Cheap; for fingerprints. */
+	public static function active_key_id() {
+		return self::load()['active'];
+	}
+
 	/** Active key id; creates the first key (or a new one when the secret cannot be opened any more). */
 	public static function active_id() {
 		$data = self::load();
@@ -136,6 +141,7 @@ final class SignedQr {
 	 * @return array{key_id: string, previous: string, previous_valid_until: int, revoked: bool}
 	 */
 	public static function rotate( $revoke = false, $reason = 'manual' ) {
+		self::forget_key();
 		$data = self::load();
 		$now = time();
 		$previous = $data['active'];
@@ -157,8 +163,19 @@ final class SignedQr {
 			if ( (string) $id !== (string) $kid && (int) $key['valid_until'] <= $now ) { unset( $data['keys'][ $id ] ); }
 		}
 		self::store( $data );
+		self::forget_key();
 		Audit::record( 'qr_key_rotated', 'settings', 0, array( 'key_id' => $kid, 'previous' => $previous, 'previous_valid_until' => $until ? gmdate( 'c', $until ) : null, 'revoked' => (bool) $revoke, 'reason' => sanitize_key( (string) $reason ) ) );
-		return array( 'key_id' => $kid, 'previous' => $previous, 'previous_valid_until' => $until, 'revoked' => (bool) $revoke );
+		$result = array( 'key_id' => $kid, 'previous' => $previous, 'previous_valid_until' => $until, 'revoked' => (bool) $revoke );
+		if ( '' !== $previous ) {
+			/**
+			 * The QR signing key was rotated (revoked = the previous key is rejected at once). Wallet passes
+			 * of upcoming occurrences are re-issued after a revocation.
+			 *
+			 * @param array $result key_id, previous, previous_valid_until, revoked.
+			 */
+			do_action( 'wp_pass_captain_qr_key_rotated_v1', $result );
+		}
+		return $result;
 	}
 
 	/**
@@ -199,16 +216,57 @@ final class SignedQr {
 	/* ------------------------------------------------------------------ Signing */
 
 	/**
+	 * Opened active signing key of this request: [kid, secret] (audit R2 #5: one Vault decryption per
+	 * request instead of two per ticket). The cache is keyed by the stored key id and ciphertext, so a
+	 * rotation or any change of the key ring opens the key again; the secret is wiped at shutdown.
+	 *
+	 * @var array{kid:string,cipher:string,secret:string}|null
+	 */
+	private static $signing = null;
+
+	/** @return array{0:string,1:string|null} Active key id and its 64-byte secret (null when unusable). */
+	private static function signing_key() {
+		$data = self::load();
+		$kid = $data['active'];
+		$cipher = '' !== $kid ? (string) ( $data['keys'][ $kid ]['secret'] ?? '' ) : '';
+		if ( null !== self::$signing && '' !== $cipher && self::$signing['kid'] === $kid && hash_equals( self::$signing['cipher'], $cipher ) ) {
+			return array( $kid, self::$signing['secret'] );
+		}
+		self::forget_key();
+		$kid = self::active_id();
+		$data = self::load();
+		$entry = $data['keys'][ $kid ] ?? null;
+		$secret = is_array( $entry ) ? self::open_secret( $entry ) : null;
+		if ( null === $secret ) { return array( $kid, null ); }
+		self::$signing = array( 'kid' => (string) $kid, 'cipher' => (string) $entry['secret'], 'secret' => $secret );
+		static $registered = false;
+		if ( ! $registered ) {
+			$registered = true;
+			register_shutdown_function( array( __CLASS__, 'forget_key' ) );
+		}
+		return array( $kid, $secret );
+	}
+
+	/** Wipes the cached signing key (shutdown, rotation). */
+	public static function forget_key() {
+		if ( null !== self::$signing && function_exists( 'sodium_memzero' ) ) {
+			$secret = self::$signing['secret'];
+			self::$signing = null;
+			sodium_memzero( $secret );
+		}
+		self::$signing = null;
+	}
+
+	/**
 	 * Signs claims with the active key (k is set here).
 	 *
 	 * @param array $claims t, o, v, c.
 	 */
 	public static function sign( array $claims ) {
-		$kid = self::active_id();
+		list( $kid, $secret ) = self::signing_key();
+		if ( null === $secret ) { return ''; }
 		$data = self::load();
 		if ( ! isset( $data['keys'][ $kid ] ) || ! is_array( $data['keys'][ $kid ] ) ) { return ''; }
-		$secret = self::open_secret( $data['keys'][ $kid ] );
-		if ( null === $secret ) { return ''; }
 		$claims = array(
 			't' => (string) $claims['t'],
 			'o' => (int) $claims['o'],
@@ -218,7 +276,6 @@ final class SignedQr {
 		);
 		$body = self::PREFIX . '.' . self::b64u_encode( (string) wp_json_encode( $claims ) );
 		$signature = sodium_crypto_sign_detached( $body, $secret );
-		sodium_memzero( $secret );
 		if ( $claims['v'][1] > (int) $data['keys'][ $kid ]['max_expires'] + 60 ) {
 			$data['keys'][ $kid ]['max_expires'] = $claims['v'][1];
 			self::store( $data );
@@ -254,9 +311,9 @@ final class SignedQr {
 		return $row ? self::for_row( $row ) : '';
 	}
 
-	private static function for_row( $row ) {
+	private static function for_row( $row, $window = null ) {
 		if ( ! preg_match( '/^[a-f0-9]{64}$/i', (string) $row->token_hash ) || '' === (string) $row->public_id ) { return ''; }
-		return self::sign( array( 't' => (string) $row->public_id, 'o' => (int) $row->occurrence_id, 'v' => self::window( $row ), 'c' => self::code_version( $row->token_hash ) ) );
+		return self::sign( array( 't' => (string) $row->public_id, 'o' => (int) $row->occurrence_id, 'v' => null !== $window ? $window : self::window( $row ), 'c' => self::code_version( $row->token_hash ) ) );
 	}
 
 	/**
@@ -269,6 +326,38 @@ final class SignedQr {
 		$row = self::ticket_row( 't.token_hash=%s', hash( 'sha256', strtolower( $token ) ) );
 		$signed = $row ? self::for_row( $row ) : '';
 		return '' !== $signed ? $signed : $token;
+	}
+
+	/**
+	 * QR values of many tokens at once (same result as qr_value() per token, keys preserved): the
+	 * ticket rows are read with one query per 200 tokens instead of one per token.
+	 *
+	 * @param string[] $tokens Plaintext ticket codes.
+	 * @return array<int|string,string>
+	 */
+	public static function qr_values( array $tokens ) {
+		$out = array();
+		foreach ( $tokens as $key => $token ) { $out[ $key ] = (string) $token; }
+		if ( ! self::enabled() ) { return $out; }
+		$by_hash = array();
+		foreach ( $out as $key => $token ) {
+			if ( preg_match( '/^[a-f0-9]{64}$/i', $token ) ) { $by_hash[ hash( 'sha256', strtolower( $token ) ) ][] = $key; }
+		}
+		global $wpdb;
+		$p = $wpdb->prefix;
+		foreach ( array_chunk( array_keys( $by_hash ), 200 ) as $chunk ) {
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT t.ticket_id,t.public_id,t.token_hash,t.ticket_type_id,tt.occurrence_id,o.starts_at,o.ends_at,o.timezone FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.token_hash IN (' . implode( ',', array_fill( 0, count( $chunk ), '%s' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences' ), $chunk ) ) );
+			$windows = array();
+			foreach ( (array) $rows as $row ) {
+				// The window depends on ticket type and occurrence only: computed once per pair.
+				$pair = (int) $row->ticket_type_id . ':' . (int) $row->occurrence_id;
+				if ( ! isset( $windows[ $pair ] ) ) { $windows[ $pair ] = self::window( $row ); }
+				$signed = self::for_row( $row, $windows[ $pair ] );
+				if ( '' === $signed ) { continue; }
+				foreach ( $by_hash[ strtolower( (string) $row->token_hash ) ] ?? array() as $key ) { $out[ $key ] = $signed; }
+			}
+		}
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ Verification */

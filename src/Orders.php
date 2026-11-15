@@ -1669,18 +1669,13 @@ final class Orders {
 			$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return Mail\Blocks::issued_tickets( $entries ); } ), (string) $order->locale );
 			$attachments = array();
 			if ( apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
-				$pdf_tickets = array_map( static function ( $ticket ) {
-					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'token' => $ticket['token'] );
-				}, $issued );
 				// The PDF holds plaintext ticket codes: private directory (0700) and file (0600) with a
-				// random name in the shared temp dir, removed right after delivery.
-				$pdf_dir = self::private_temp_dir();
-				if ( $pdf_dir ) {
-					$file = $pdf_dir . '/tickets-' . $order->public_id . '.pdf';
-					if ( TempFiles::put( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
-						$attachments[] = $file;
-					}
-				}
+				// random name in the shared temp dir, removed right after delivery. Too many tickets or a
+				// too large file: no attachment, a note points to the ticket links (TicketPdf::mail_limits()).
+				$pdf_part = TicketPdf::mail_attachment( $order, $issued );
+				$pdf_dir = $pdf_part['dir'];
+				$attachments = $pdf_part['files'];
+				if ( '' !== $pdf_part['notice'] ) { $message['body'] = Mail\Mailer::apply_filtered( $message, array( 'body' => rtrim( (string) $message['body'] ) . "\n\n" . $pdf_part['notice'] ) )['body']; }
 			}
 			$mail = array( 'attachments' => $attachments );
 			$delivered = false;
@@ -1833,11 +1828,6 @@ final class Orders {
 		return array( 'status' => $status, 'attempts' => (int) $job->attempts, 'last_error' => (string) $job->last_error, 'next_attempt' => 'retrying' === $status ? (string) $job->run_after : '' );
 	}
 
-	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
-	private static function private_temp_dir() {
-		return TempFiles::private_dir();
-	}
-
 	/**
 	 * Placeholder values shared by the ticket and resend mails.
 	 *
@@ -1845,7 +1835,7 @@ final class Orders {
 	 * @param array    $entries Ticket entries (event, ticket, when, location, url).
 	 * @param callable $list    Builds the {ticket_list} block (runs in the recipient locale).
 	 */
-	private static function ticket_mail_vars( $order, array $entries, $list ) {
+	public static function ticket_mail_vars( $order, array $entries, $list ) {
 		$first = $entries[0] ?? array();
 		return array(
 			'order_id' => (string) $order->public_id,

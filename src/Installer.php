@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.16.1';
+	const DB_VERSION = '3.17.1';
 
 	public static function install() {
 		global $wpdb;
@@ -392,6 +392,7 @@ final class Installer {
 				provider_ref varchar(190) NOT NULL DEFAULT '',
 				serial_number varchar(190) NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				synced_at datetime NULL DEFAULT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (wallet_pass_id),
 				UNIQUE KEY serial_number (serial_number),

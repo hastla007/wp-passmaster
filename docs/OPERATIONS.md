@@ -233,6 +233,13 @@ Die Kasse des Plugins signiert selbst keine Belege und hat keine eigene TSE-/Sig
 
 Meldet ein Terminal-Add-on (Vertrag 1.1) einen belasteten Betrag oder eine Währung, die nicht zur Bestellung passt, wird der Verkauf nicht gebucht (`amount_mismatch`, Bestellung storniert) und die Admin-Adresse erhält die Mail „Terminalzahlung prüfen“. Die Belastung am Terminal erstatten und den Verkauf neu erfassen.
 
+## Ticket-PDF und Druck: Größe, Zeichensatz
+
+- Alle PDFs (Ticket-Anhang, Stapeldruck, Namensschilder, Rechnungen) werden mit komprimierten Inhaltsströmen (FlateDecode) geschrieben; QR-Module werden zeilenweise zu Rechtecken zusammengefasst und jede fertige Seite sofort serialisiert (Stapeldruck mit QR: seitenweise in eine Temp-Datei). Messung (Ticketmail mit 500 Tickets, gleiche Maschine): klassischer Code vorher 10,2 MB PDF / 38 MB Speicher, nachher 0,75 MB / 7 MB; signierter QR vorher 30,4 MB / 108 MB und 2039 Abfragen, nachher 1,6 MB / 8,5 MB und 1040 Abfragen. Die Laufzeit bestimmt weiterhin die QR-Kodierung (BaconQrCode).
+- Ticketmail: Bei mehr als 50 Tickets oder einem PDF über 5 MB wird kein PDF angehängt; die Mail enthält einen Hinweis auf die Ticketlinks (Filter `wp_pass_captain_ticket_pdf_limits_v1`). Wallet-Pässe: bei mehreren Tickets ein Sammel-Link statt eines `.pkpass` je Ticket (siehe [WALLET.md](WALLET.md)).
+- Die PDF-Schrift ist Helvetica (WinAnsi). Zeichen außerhalb davon (Kyrillisch, CJK, Ł, ć …) werden in lateinische Buchstaben umgeschrieben (Intl-Transliterator, sonst iconv; „Привет Łódź“ → „Privet Lodz“) statt als „?“ zu erscheinen. Eine eingebettete Unicode-Schrift (CIDFontType2/Identity-H mit Subsetting) ist nicht enthalten: sie bräuchte einen TrueType-Parser/Subsetter und eine mitgelieferte OFL-Schriftdatei mehrerer MB.
+- Ticket-PDFs der Mail enthalten den Teilnehmernamen (`ticket_assignments`), brechen lange Eventnamen auf zwei Zeilen um, kürzen andere Zeilen und tragen `/Title` und `/Lang` (Sprache der Bestellung).
+
 ## Datenschutz: Löschfristen, Auskunft und Löschung
 
 **Täglicher Löschlauf** (`wpcap_privacy_retention`, WordPress-Cron, Stapel zu 500 Zeilen, Zeitbudget 20 s; der nächste Lauf setzt fort). Bezugspunkt ist das Terminende (`ends_at`, sonst Beginn + 1 Tag):

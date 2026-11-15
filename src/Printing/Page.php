@@ -6,7 +6,9 @@ use PassCaptain\Admin\Forms;
 use PassCaptain\Admin\Queries;
 use PassCaptain\Audit;
 use PassCaptain\Reports\Scope;
+use PassCaptain\Security\StepUp;
 use PassCaptain\Settings;
+use PassCaptain\TempFiles;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -35,17 +37,55 @@ final class Page {
 	/**
 	 * Permission and generation of a batch PDF.
 	 *
-	 * @return array{pdf:string,filename:string}|\WP_Error
+	 * Without codes: event or order managers (no QR code, codes unchanged). With new codes (QR) only
+	 * event managers/administrators of the event, behind the 2FA step-up of bulk actions and exports
+	 * (audit R2 #3: the box office role could otherwise collect every valid code of an occurrence and
+	 * invalidate all tickets sent to customers). By default only tickets whose code never reached a
+	 * customer are reprinted (box office sales without e-mail); customer tickets need
+	 * $options['include_delivered'] plus $options['confirm'] = their exact number, and their holders
+	 * receive the new links by e-mail. At most Templates::batch_limit() tickets per job
+	 * ($options['offset'] selects the part).
+	 *
+	 * @param array $options include_delivered (bool), confirm (int), offset (int, 0-based).
+	 * @return array{pdf:string,filename:string,count?:int,total?:int,notified?:int}|\WP_Error
 	 */
-	public static function batch_request( $occurrence_id, $kind, $with_codes ) {
+	public static function batch_request( $occurrence_id, $kind, $with_codes, array $options = array() ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! in_array( $kind, Templates::KINDS, true ) ) { return Forms::error( 'wpcap_print_kind', __( 'Unbekanntes Layout.', 'pass-captain' ) ); }
 		if ( ! $event_id || ! Scope::can_event( $event_id, array( 'wpcap_manage_events', 'wpcap_manage_orders' ) ) ) { return Forms::forbidden(); }
-		// New ticket codes invalidate the old ones: only order managers may do that.
-		if ( $with_codes && ! Scope::can_event( $event_id, array( 'wpcap_manage_orders' ) ) ) { return Forms::forbidden( __( 'Neue Ticketcodes dürfen nur Personen mit Bestellverwaltung erzeugen.', 'pass-captain' ) ); }
-		$pdf = Templates::batch_pdf( $occurrence_id, $kind, $with_codes );
-		Audit::record( 'print_batch', 'occurrence', $occurrence_id, array( 'kind' => $kind, 'codes' => (bool) $with_codes ) );
-		return array( 'pdf' => $pdf, 'filename' => $kind . '-' . $occurrence_id . '.pdf' );
+		if ( ! $with_codes ) {
+			$pdf = Templates::batch_pdf( $occurrence_id, $kind );
+			Audit::record( 'print_batch', 'occurrence', $occurrence_id, array( 'kind' => $kind, 'codes' => false ) );
+			return array( 'pdf' => $pdf, 'filename' => $kind . '-' . $occurrence_id . '.pdf' );
+		}
+		// New ticket codes invalidate the old ones and hand every printed code to the operator.
+		if ( ! Scope::can_event( $event_id, array( 'wpcap_manage_events' ) ) ) { return Forms::forbidden( __( 'Neue Ticketcodes für den Stapeldruck dürfen nur Personen mit Eventverwaltung erzeugen.', 'pass-captain' ) ); }
+		$step_up = StepUp::check( array( 'bulk', 'exports' ), 'print_batch_codes' );
+		if ( is_wp_error( $step_up ) ) { return $step_up; }
+		$include_delivered = ! empty( $options['include_delivered'] );
+		$offset = max( 0, (int) ( $options['offset'] ?? 0 ) );
+		if ( $include_delivered ) {
+			$customer = count( Templates::code_candidates( $occurrence_id )['delivered'] );
+			if ( $customer && (int) ( $options['confirm'] ?? -1 ) !== $customer ) {
+				return Forms::error(
+					'wpcap_print_confirm_required',
+					/* translators: %d: number of customer tickets */
+					sprintf( _n( 'Bitte bestätigen: %d Kundenticket wird ungültig. Der Inhaber erhält den neuen Link per E-Mail. Gib die Zahl zur Bestätigung ein.', 'Bitte bestätigen: %d Kundentickets werden ungültig. Die Inhaber erhalten die neuen Links per E-Mail. Gib die Zahl zur Bestätigung ein.', $customer, 'pass-captain' ), $customer ),
+					409
+				);
+			}
+		}
+		$dir = TempFiles::private_dir();
+		if ( ! $dir ) { return Forms::error( 'wpcap_print_temp', __( 'Temporäre Datei konnte nicht angelegt werden.', 'pass-captain' ), 500 ); }
+		$file = $dir . '/' . $kind . '-' . absint( $occurrence_id ) . '.pdf';
+		TempFiles::track( $file, $dir );
+		$result = Templates::batch_pdf_with_codes( $occurrence_id, $kind, $file, $include_delivered, $offset );
+		$pdf = is_wp_error( $result ) ? '' : TempFiles::get( $file );
+		TempFiles::remove_with_dir( $file, $dir );
+		if ( is_wp_error( $result ) ) { return $result; }
+		Audit::record( 'print_batch', 'occurrence', $occurrence_id, array( 'kind' => $kind, 'codes' => true, 'count' => $result['count'], 'customer_tickets' => $result['delivered'], 'offset' => $offset ) );
+		$part = $offset || $result['total'] > $result['count'] ? '-' . ( $offset + 1 ) . '-' . ( $offset + $result['count'] ) : '';
+		return array( 'pdf' => $pdf, 'filename' => $kind . '-' . $occurrence_id . $part . '.pdf' ) + $result;
 	}
 
 	public static function render() {
@@ -65,7 +105,16 @@ final class Page {
 		<?php Forms::open_form( 'wpcap_print_batch', null, 'target="_blank"' ); ?>
 		<p><label><?php esc_html_e( 'Termin', 'pass-captain' ); ?> <?php Forms::select( 'occurrence_id', $print_occ, '' ); ?></label>
 		<label><?php esc_html_e( 'Layout', 'pass-captain' ); ?> <?php Forms::select( 'kind', $labels, 'badge' ); ?></label></p>
-		<p><label><input type="checkbox" name="with_codes" value="1"> <?php esc_html_e( 'Mit QR-Code drucken: erzeugt neue Ticketcodes für alle gültigen Tickets. Bereits versendete oder gedruckte Codes werden ungültig.', 'pass-captain' ); ?></label></p>
+		<?php if ( current_user_can( 'wpcap_manage_events' ) ) : ?>
+		<fieldset><legend><?php esc_html_e( 'QR-Codes (nur Eventverwaltung)', 'pass-captain' ); ?></legend>
+		<p><label><input type="checkbox" name="with_codes" value="1"> <?php esc_html_e( 'Mit QR-Code drucken: erzeugt neue Ticketcodes. Standardmäßig nur für Kassentickets ohne E-Mail-Zustellung.', 'pass-captain' ); ?></label></p>
+		<p><label><input type="checkbox" name="include_delivered" value="1"> <?php esc_html_e( 'Auch Kundentickets neu drucken: deren bisherige Codes werden ungültig, die Inhaber erhalten neue Links per E-Mail.', 'pass-captain' ); ?></label>
+		<label><?php esc_html_e( 'Bestätigung (Anzahl Kundentickets)', 'pass-captain' ); ?> <input type="number" name="confirm" min="0" step="1" class="small-text"></label></p>
+		<p><label><?php esc_html_e( 'Ab Ticket Nr.', 'pass-captain' ); ?> <input type="number" name="offset_from" min="1" step="1" value="1" class="small-text"></label>
+		<span class="description"><?php echo esc_html( sprintf( /* translators: %d: maximum tickets per print job */ __( 'Höchstens %d Tickets je Druckauftrag; größere Termine in Teilen drucken.', 'pass-captain' ), Templates::batch_limit() ) ); ?></span></p>
+		</fieldset>
+		<?php endif; ?>
+		<p class="description"><?php esc_html_e( 'Zeichen, die die PDF-Schrift nicht enthält (z. B. Kyrillisch, Chinesisch, Ł, ć), werden in lateinische Buchstaben umgeschrieben (Привет → Privet).', 'pass-captain' ); ?></p>
 		<p><button class="button button-primary"><?php esc_html_e( 'PDF erzeugen', 'pass-captain' ); ?></button></p>
 		</form>
 		<?php endif; ?>
@@ -137,8 +186,16 @@ final class Page {
 	public static function handle_batch() {
 		Forms::verify( 'wpcap_print_batch' );
 		$in = Forms::post();
-		$result = self::batch_request( Forms::int( $in, 'occurrence_id' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), Forms::flag( $in, 'with_codes' ) );
-		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 403 ); }
+		$options = array(
+			'include_delivered' => Forms::flag( $in, 'include_delivered' ),
+			'confirm' => isset( $in['confirm'] ) && is_scalar( $in['confirm'] ) && '' !== trim( (string) $in['confirm'] ) ? Forms::int( $in, 'confirm' ) : -1,
+			'offset' => max( 0, Forms::int( $in, 'offset_from' ) - 1 ),
+		);
+		$result = self::batch_request( Forms::int( $in, 'occurrence_id' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), Forms::flag( $in, 'with_codes' ), $options );
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			wp_die( esc_html( $result->get_error_message() ), '', array( 'response' => (int) ( $data['status'] ?? 403 ), 'back_link' => true ) );
+		}
 		Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 

@@ -270,3 +270,21 @@ function wpcap_test_confirm_waitlists( $since = 0 ) {
 	}
 	return $done;
 }
+
+/**
+ * PDF with every FlateDecode content stream inflated (PdfWriter compresses streams), so tests can
+ * search drawing operators such as "(Text) Tj" or count " re" rectangles. Offsets are not valid afterwards.
+ */
+function wpcap_test_pdf_plain( $pdf ) {
+	$pdf = (string) $pdf;
+	$out = '';
+	$pos = 0;
+	while ( preg_match( '/<< \/Length (\d+) \/Filter \/FlateDecode >>\nstream\n/', $pdf, $m, PREG_OFFSET_CAPTURE, $pos ) ) {
+		$start = $m[0][1] + strlen( $m[0][0] );
+		$raw = substr( $pdf, $start, (int) $m[1][0] );
+		$plain = @gzuncompress( $raw );
+		$out .= substr( $pdf, $pos, $m[0][1] - $pos ) . '<< /Length ' . strlen( (string) $plain ) . " >>\nstream\n" . ( false === $plain ? $raw : $plain );
+		$pos = $start + (int) $m[1][0];
+	}
+	return $out . substr( $pdf, $pos );
+}

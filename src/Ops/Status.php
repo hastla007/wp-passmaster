@@ -332,6 +332,8 @@ final class Status {
 					: sprintf( __( 'QR-Codes können nicht erzeugt werden: Die QR-Bibliothek (BaconQrCode) fehlt oder ein anderes Plugin lädt eine inkompatible Version (%s). Tickets zeigen dann keinen QR-Code.', 'pass-captain' ), '' !== $foreign ? $foreign : '-' ),
 			);
 		}
+		// Wallet: Apple certificates expiring within 30 days, APNs rejecting the certificate (403).
+		$issues = array_merge( $issues, \PassCaptain\WalletPasses\Service::status_issues() );
 		usort( $issues, static function ( $a, $b ) { return ( 'error' === $b['severity'] ) <=> ( 'error' === $a['severity'] ); } );
 		return $issues;
 	}

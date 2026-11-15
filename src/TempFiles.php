@@ -75,6 +75,21 @@ final class TempFiles {
 		return (bool) $ok;
 	}
 
+	/**
+	 * Appends $bytes to $file (created with mode 0600 when missing). Used to stream large PDFs to disk
+	 * page by page instead of building them in memory.
+	 */
+	public static function append( $file, $bytes ) {
+		if ( ! is_dir( dirname( (string) $file ) ) ) { return false; }
+		$new = ! file_exists( $file );
+		$old_umask = umask( 0077 );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- WP_Filesystem has no append; private temp file.
+		$ok = false !== file_put_contents( $file, (string) $bytes, FILE_APPEND );
+		umask( $old_umask );
+		if ( $ok && $new ) { self::chmod( $file, 0600 ); }
+		return $ok;
+	}
+
 	/** Reads a file this request created; empty string on failure. */
 	public static function get( $file ) {
 		if ( ! is_readable( $file ) ) { return ''; }

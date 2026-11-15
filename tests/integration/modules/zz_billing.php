@@ -136,7 +136,7 @@ check( 'HTML invoice: recipient block with company, name, address, country', 1 =
 check( 'HTML invoice: VAT ID, buyer reference and e-mail in the recipient block', false !== strpos( $html, 'UID des Leistungsempfängers: ATU12345678' ) && false !== strpos( $html, 'Ihre Bestell-/Referenznummer: PO-4711' ) && false !== strpos( $html, "PO-4711\nb2b@example.com</div>" ) );
 check( 'HTML invoice: no reverse-charge note', false === strpos( $html, 'Steuerschuldnerschaft' ) && false === strpos( $html, 'Reverse' ) );
 $pdf = InvoicePdf::render( $inv['invoice_id'] );
-check( 'PDF invoice: recipient block rendered', false !== strpos( $pdf, '(Muster GmbH) Tj' ) && false !== strpos( $pdf, '(Erika Muster) Tj' ) && false !== strpos( $pdf, '(1010 Wien) Tj' ) && false !== strpos( $pdf, 'ATU12345678) Tj' ) && false !== strpos( $pdf, 'PO-4711) Tj' ) && false !== strpos( $pdf, '(b2b@example.com) Tj' ) );
+check( 'PDF invoice: recipient block rendered', false !== strpos( wpcap_test_pdf_plain( $pdf ), '(Muster GmbH) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $pdf ), '(Erika Muster) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $pdf ), '(1010 Wien) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $pdf ), 'ATU12345678) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $pdf ), 'PO-4711) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $pdf ), '(b2b@example.com) Tj' ) );
 Orders::confirm_manual_payment( $without['order_id'] );
 $plain = Invoices::issue_for_order( $without['order_id'] );
 $plain_html = Invoices::render_html( $plain['invoice_id'] );
@@ -145,7 +145,7 @@ check( 'invoice without billing data keeps the e-mail-only recipient line', fals
 $refund = PassCaptain\Refunds::request( $with['order_id'], array( (int) tickets( $with['order_id'] )[0]->ticket_id ), 'Test', 'bb-cn-' . uniqid() );
 $cn = Invoices::credit_note_for_refund( $refund['refund_id'] );
 $cn_pdf = InvoicePdf::admin_pdf( $with['order_id'], (int) ( $cn['credit_note_id'] ?? 0 ) );
-check( 'credit note PDF names the recipient from the invoice snapshot', ! is_wp_error( $cn_pdf ) && false !== strpos( $cn_pdf['pdf'], '(Muster GmbH) Tj' ) );
+check( 'credit note PDF names the recipient from the invoice snapshot', ! is_wp_error( $cn_pdf ) && false !== strpos( wpcap_test_pdf_plain( $cn_pdf['pdf'] ), '(Muster GmbH) Tj' ) );
 
 echo "Billing: order portal correction\n";
 $portal = bb_order( $bt, 'portal-b2b@example.com', null );
