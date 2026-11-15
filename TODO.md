@@ -436,6 +436,233 @@ Vollständiger Bericht mit Fundstellen, Debatte und Fix-Code: `docs/audit/PANEL-
 - [x] PayPal/Stripe: Liste der zu abonnierenden Webhook-Ereignisse in `docs/OPERATIONS.md` („Webhooks der Zahlungsanbieter einrichten“).
 - [ ] Echte Umgebung: Multisite-Übernahme mit Opt-in, Netzwerkaktivierung > 25 Sites, WooCommerce-Papierkorb/Wiederherstellen mit HPOS an/aus, Fremd-Plugin mit endroid 4.x.
 
+## 12-Experten-Audit Runde 2 (2026-11-15, Stand 2185656) – Master-To-do-Liste
+
+Bericht mit allen Expertenurteilen: `docs/audit/PANEL-2026-11-15-R2.md`. Nach Priorität sortiert. Stand: 74 Funde (1 kritisch, 19 hoch, 38 mittel, 16 niedrig). Die Funde von Experte #2 (Concurrency) und #7 (Caching/Drop-Events) folgen, sobald deren Lasttests abgeschlossen sind.
+
+- [ ] **[PRIO: KRITISCH]** | **[Experte #5, #11, #3]** | **[Kategorie: Bug]** – Stapeldruck „mit QR“ rotiert alle Codes vor der PDF-Erzeugung; Abbruch macht alle Tickets eines Termins ungültig (Insider: Kassenrolle erhält alle Codes)
+  - *Problem:* Printing/Templates.php:354-361 `batch_pdf()` → `rotate_codes()` (:331-347, Einzel-UPDATEs mit Autocommit, je Ticket `wpcap_ticket_code_rotated` → Apple-Signierung inline) → erst dann `render()` im Admin-Request (Printing/Page.php:132-136); Klartext nur im Speicher; kein Limit, kein Test. Reproduziert: 3000 Tickets signiert, 256M → Fatal in PdfWriter.php:131, danach rotated=3000, still_original=0; 3000 unsigniert 24,6 s/202 MB/59 MB PDF; 2000 Seiten nur Render 15,7 s/154 MB. Inhaber nicht benachrichtigt. Zusätzlich (#3): `batch_request` (Printing/Page.php:40-48) verlangt nur wpcap_manage_orders (Rolle Vor-Ort-Kasse, Installer.php:1080) → Kassierer erhält alle gültigen Codes und entwertet alle versendeten Tickets; kein StepUp.
+  - *Lösung:* Code-Neuerzeugung nur mit wpcap_manage_events/Admin + StepUp; standardmäßig nur nie zugestellte (Kasse/Hardticket) Tickets drucken, sonst Pflichtbestätigung „N Kundentickets werden ungültig“ + neue Links an Inhaber; Obergrenze je Auftrag (z. B. 500, Filter); Codes pro Stück in einer Transaktion rotieren, PDF-Teil in Temp-Datei schreiben, erst nach erfolgreichem Schreiben COMMIT sonst ROLLBACK; Wallet-Neuausstellung als Job nach Commit; Regressionstest.
+- [ ] **[PRIO: HOCH]** | **[Experte #3]** | **[Kategorie: Security]** – Sammeldruck „mit Codes“ durch Kassenpersonal: alle gültigen Codes im PDF, alle Kundentickets ungültig
+  - *Problem:* Printing/Page.php:40-48 (`batch_request`) verlangt nur wpcap_manage_orders (Rolle wpcap_box_office, Installer.php:1080); `Templates::batch_pdf()` (:354-357) ruft `rotate_codes()` (:331-347) für alle gültigen Tickets des Termins → Kassierer hat alle gültigen Codes, versendete Codes tot, Kunden nicht benachrichtigt; kein StepUp. Belegart: Code.
+  - *Lösung:* Code-Neuerzeugung nur mit wpcap_manage_events/Admin + `StepUp::check(array('exports'),'print_batch_codes')`; standardmäßig nur nie zugestellte Tickets (Kasse/Hardticket) drucken; sonst Pflichtbestätigung „N Kundentickets werden ungültig“ und neue Links per rotate_and_send an Inhaber.
+- [ ] **[PRIO: HOCH]** | **[Experte #6]** | **[Kategorie: Concurrency]** – Idempotenzschlüssel nicht atomar: paralleler Retry zählt mehrfach, zeigt „bereits verwendet“ oder Scheinkonflikte
+  - *Problem:* Checkin.php:150-165 liest `previous` vor der Transaktion; Index `idempotency (user_id,idempotency_key)` nicht UNIQUE (Installer.php:205). Reproduziert (4 parallele Requests, gleicher Key): multi_entry(5) 4× OK = 4 Einlässe statt 1; Einzelticket App 1× OK + 2× already_checked_in (Retry zeigt Rot obwohl eingelassen); Offline-Sync Scheinkonflikt. Replays nehmen jüngste Zeile (Ablehnung) statt checked_in.
+  - *Lösung:* Key-Prüfung nach dem Ticket-Lock (FOR UPDATE) wiederholen, beim Replay checked_in bevorzugen (`ORDER BY (result='checked_in') DESC`); zusätzlich Claim-Tabelle bzw. UNIQUE-Schlüssel.
+- [ ] **[PRIO: HOCH]** | **[Experte #6]** | **[Kategorie: UX]** – PWA zeigt bis 5 s das alte Ergebnis und wird nach 3 s für denselben QR rot
+  - *Problem:* `handleScan()` (assets/offline-scanner/app.js:645-695) setzt keinen Zwischenzustand vor dem 5-s-Request; nach 3 s Sperre (:648) wird gehaltener QR erneut gesendet → „Bereits verwendet“ rot überschreibt Grün; Ergebnis nie zurück auf „Bereit“.
+  - *Lösung:* Sofort neutral „Prüfe …“; nach 4 s idle; gleichen Code 10 s sperren; bei state.admitted gelb „Eben hier eingelassen (vor X s)“.
+- [ ] **[PRIO: HOCH]** | **[Experte #4]** | **[Kategorie: Payment]** – Verspätete Zahlung stellt Tickets für abgesagte/vergangene Termine und deaktivierte Ticketarten aus
+  - *Problem:* `Orders::confirm_payment_locked()` (src/Orders.php:1037-1103) prüft im Late-Pfad nur Kontingent, Käuferlimit, Kampagne – nicht occurrences.status/starts_at/ends_at, ticket_types.status. `Webhooks::apply()` (:160) und `PayPalGateway::order_closed()` (:379) blocken nur cancelled/refunded (expired wird gecaptured). `OccurrenceCancellation::handle()` (:109) storniert nur pending, nicht expired. Reproduziert (a2pay/r1.php): abgelaufene Order, Termin abgesagt, Mollie paid → complete/paid, 2 gültige Tickets; ebenso vergangener Termin und inaktive Ticketart.
+  - *Lösung:* Im Late-Pfad Verkaufszustand prüfen (Typ aktiv, Termin nicht abgesagt, Ende in der Zukunft) → sonst `needs_review` + Alert; `order_closed()` um expired (ohne aktiven Hold) erweitern; `extend_for_delayed_payment` auf Zeit bis Terminbeginn begrenzen.
+- [ ] **[PRIO: HOCH]** | **[Experte #4]** | **[Kategorie: Payment]** – Stripe: Dashboard-Teilerstattungen gehen verloren (Lücke in PAY-2)
+  - *Problem:* `StripeGateway::normalize_refund()` (:298-311) holt nur die neueste Erstattung (`refunds?charge=…&limit=1`); verspätete/Retry-Webhooks buchen die falsche, Key `stripe:refund:<re_id>` doppelt → echte geht verloren; ist die neueste eine Plugin-Erstattung, wird ältere Dashboard-Erstattung ignoriert. Reproduziert (r2.php): 10 € + 20 € → Ledger 20 € statt 30 €.
+  - *Lösung:* Alle Refunds der Charge (paginiert) holen und jede ohne `metadata.wpcap_refund` einzeln per refund_id buchen, oder kumulativ über `charge.amount_refunded` minus Plugin-Erstattungen; optional `refund.created` abonnieren.
+- [ ] **[PRIO: HOCH]** | **[Experte #10]** | **[Kategorie: Legal]** – Steuersatz nach Bestelldatum (UTC) statt nach Leistungszeitpunkt
+  - *Problem:* `TaxProfiles::for_line()` (src/Sales/TaxProfiles.php:220) nutzt `substr($now,0,10)` (Bestelldatum UTC), dokumentiert in docs/TAX-PROFILES.md:50. Maßgeblich ist der Leistungszeitpunkt (DE § 27 Abs. 1 UStG, AT § 28 UStG); Satzänderungen zwischen Kauf und Event → falscher Satz dauerhaft im Snapshot; UTC verschiebt Datum um Mitternacht.
+  - *Lösung:* Stichtag = lokales Datum von `occurrence.starts_at` in Termin-Zeitzone; Bestelldatum nur per Filter `wpcap_tax_profile_date`.
+- [ ] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: Bug]** – Seriengenerator kopiert keine Teilnehmerfelder
+  - *Problem:* src/Series/Generator.php:189-201 kopiert nur wpcap_ticket_types; wpcap_participant_fields fehlen → erzeugte Termine ohne Pflichtfelder/Einwilligungen. Reproduziert (60 Termine: Vorlage 1 Feld, neue 0).
+  - *Lösung:* Felder der Vorlage je neuem Typ mitkopieren (vor der Transaktion laden), ebenso Seller-Zuordnung, Einlassbereiche, Preisregeln je Typ prüfen; Regressionstest.
+- [ ] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: Bug]** – Kalenderlinks standardmäßig tot, ab dem 51. Termin immer
+  - *Problem:* src/Modules/Calendar.php:160-162 verlinkt `#wpcap-occ-{id}`; mit `checkout_url=''` Anker auf Kalenderseite ohne Karten; mit Checkout-Seite fehlen Termine > 50 (PublicEvents.php:99 LIMIT 50). Reproduziert.
+  - *Lösung:* Einzeltermin-Ansicht (`?wpcap_occ=ID` bzw. Shortcode-Attribut `occurrence`), Kalender verlinkt darauf; fehlt checkout_url, Shortcode-Seite automatisch finden.
+- [ ] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: UX]** – Keine Seite pro Event; Shortcode/Block ohne Attribute
+  - *Problem:* `render_shortcode()` (src/PublicEvents.php:96-105) ignoriert Attribute; block.json ohne attributes; jeder Termin als komplettes Formular (62 Termine → 49 Formulare, 59.590 px, 832 Inputs, 1.056 IDs).
+  - *Lösung:* Attribute event, occurrence, limit, layout=list|cards; Liste mit kompakten Terminzeilen + „Tickets“-Button, Formular erst für gewählten Termin; Serien mit Datumsauswahl.
+- [ ] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: Feature]** – Warteliste im Frontend nicht erreichbar
+  - *Problem:* templates/event-card.php:29-30 zeigt bei Ausverkauft nur Text; nur REST `POST /events/{id}/waitlist` und Admin; kein Frontend-Aufruf, obwohl FREE-PREMIUM.md sie als Kernfunktion führt.
+  - *Lösung:* Bei ausverkauft (Warteliste aktiv) Button + E-Mail-Feld, fetch an bestehende Route; Double-Opt-in-UI nutzen.
+- [ ] **[PRIO: HOCH]** | **[Experte #12]** | **[Kategorie: Feature]** – Event-Detailseite mit schema.org/Event (JSON-LD) und teilbarer URL (Kern)
+  - *Problem:* Keine Route pro Event trotz `wpcap_events.slug`; kein JSON-LD, kein Event-Bild, keine Kategorie → keine Rich Results/Social-Previews/Kampagnenlinks.
+  - *Lösung:* Rewrite `/{basis}/{slug}/`, Template event-single.php, JSON-LD mit offers/availability/eventStatus, Bild, Kategorien (Kern, M).
+- [ ] **[PRIO: HOCH]** | **[Experte #12]** | **[Kategorie: Feature]** – Mengen-/Gruppenrabatt, automatische Rabatte, Einzelcodes in Serie (Kern)
+  - *Problem:* wpcap_campaigns ohne Mindestmenge, ohne Rabatt ohne Code, ohne Limit pro Käufer, ohne Massen-Einmalcodes.
+  - *Lösung:* min_quantity, auto_apply, per_buyer_limit, Code-Batch-Generator mit CSV (Kern, M).
+- [ ] **[PRIO: HOCH]** | **[Experte #12]** | **[Kategorie: Feature]** – Versteckte Ticketarten / Freischaltcodes (Presale, Mitglieder, Presse) (Kern)
+  - *Problem:* ticket_types ohne Sichtbarkeit.
+  - *Lösung:* visibility public|code|hidden + Codeliste, Rabattcode-Feld schaltet Typen frei (Kern, S–M).
+- [ ] **[PRIO: HOCH]** | **[Experte #5]** | **[Kategorie: Bug]** – Ticket-PDF unkomprimiert, ein `re f` je QR-Modul; Größe sprengt Mail-Limits
+  - *Problem:* TicketPdf.php:46-53 je Modul eine Operation, `document()` (:68-94) ohne FlateDecode; PdfWriter gleich. Reproduziert über `issue_and_email` mit 500 Tickets: klassisch 10,2 MB/3,7 s/38 MB/1029 Queries, signiert 30,6 MB/13,9 s/108 MB/2029 Queries → Base64 14/41 MB, Mailserver lehnen ab 10–25 MB ab, `wp_mail` meldet trotzdem true.
+  - *Lösung:* Module zeilenweise zu Rechtecken zusammenfassen, gzcompress + /Filter /FlateDecode, QR als Form-XObject; ab Schwelle (> 50 Tickets oder > 5 MB) Portal-Link statt Anhang (Filter mit Größenprüfung).
+- [ ] **[PRIO: HOCH]** | **[Experte #5]** | **[Kategorie: Bug]** – Ticketmail mit Wallet: ein .pkpass-Anhang und ~2,3 KB Google-Link je Ticket, synchron im Webhook
+  - *Problem:* WalletPasses/Service.php:184-201 `on_ticket_mail()` → je Ticket `issue()` (Apple PKCS#7, Temp-Dateien, PNG; AppleProvider.php:132-176); `mail_parts()` (:133-166) hängt je Ticket .pkpass an; Google-Save-URL 2135/2388 Zeichen gemessen; 500 Tickets ≈ 1,2 MB Links + 500 Anhänge im Webhook-Request (Payments/Webhooks.php:157). Lange Save-Links in manchen Clients problematisch (Verdacht; Google empfiehlt Skinny JWT).
+  - *Lösung:* Wallet-Erstellung als Job nach Commit; in der Mail ein Sammel-Link aufs Portal; ab N > 1 kein .pkpass-Anhang (oder .pkpasses-Bundle); Google-Objekte per REST anlegen, im JWT nur IDs.
+- [ ] **[PRIO: HOCH]** | **[Experte #8]** | **[Kategorie: Bug]** – Kein From-Name/-Adresse, Reply-To, Envelope-Sender; Doku falsch
+  - *Problem:* Mail/Mailer.php:145-174 (`prepare()`) setzt nur Content-Type; kein wp_mail_from/_name, kein `$phpmailer->Sender`; `wpcap_sender_name` (Orders.php:1871-1874) nur Platzhalter; docs/EXTENSIONS.md:412-417 behauptet Website-Titel als Absender → „WordPress <wordpress@host>“, kein DMARC-Alignment, Antworten verschwinden.
+  - *Lösung:* Einstellungen mail_from_email/name, mail_reply_to; From-/Reply-To-Header in prepare(), Sender in phpmailer_init während deliver; Systemstatus-Hinweis bei Domain-Mismatch; Doku zu SPF/DKIM/DMARC/SMTP; EXTENSIONS.md korrigieren.
+- [ ] **[PRIO: HOCH]** | **[Experte #8]** | **[Kategorie: Bug]** – PERF-4 unvollständig: Terminverschiebung und Event-Absage mailen synchron an alle
+  - *Problem:* Notifications.php:18-36 `occurrence_rescheduled()` inline (aus Admin/EventsPage.php:197); Orders.php:1435-1440 `cancel_event()` mailt alle Käufer im Request → Abbruch bei 10.000 Empfängern, Rest nie benachrichtigt, kein Fortschrittsdatensatz.
+  - *Lösung:* Gleiches Batch-Muster wie Einzeltermin-Absage (`*_notify`-Jobs, Jobs::run_now, Fortschritt) bzw. je Empfänger Communications::enqueue mit Dedupe-Key.
+- [ ] **[PRIO: HOCH]** | **[Experte #8]** | **[Kategorie: Payment]** – Ticketmail samt PDF und Wallet inline im Zahlungs-Webhook und Checkout
+  - *Problem:* Orders.php:1662-1697 rendert/versendet nach Commit synchron (Aufrufer u. a. Payments/Webhooks.php:157, Gratis-Checkout, BoxOffice); Outbox nur Rückfall. 500 Tickets 3,7 s / 13,9 s (signiert) ohne SMTP/Wallet → PSP-Webhook-Timeouts, Retries; Body 130 KB, Gmail kürzt ab ~102 KB.
+  - *Lösung:* Ab Schwelle (z. B. > 10 Tickets) bzw. immer im Webhook: Versand als sofortiger Job; frische Codes kurzzeitig vault-verschlüsselt im Job-Payload (TTL, nach Versand löschen) oder bei großen Bestellungen nur Portal-Link mit Sammel-PDF; Ticketliste ab N kürzen.
+- [ ] **[PRIO: HOCH]** | **[Experte #11]** | **[Kategorie: Bug]** – Ein werfender Job-Handler legt die ganze Job-Queue lahm (Ticketzustellung, Erstattungen, Webhooks)
+  - *Problem:* src/Jobs.php:104 `execute()` ruft `apply_filters('wp_pass_captain_process_job_v1')` ohne try/catch; `TimeBudget::release_claims()` (Jobs/TimeBudget.php:101-110) setzt auf queued ohne run_after/last_error → gleicher Job bei jedem Lauf zuerst (ORDER BY run_after,job_id), übrige fällige Jobs und spätere Callbacks blockiert bis 8 Versuche (~40 min), kein Heartbeat, Dead Letter ohne Fehlertext. Gleiches Muster in Communications::process_due und Sms\Service::process_due. Reproduziert (job_poison.php): A queued attempts=3 last_error NULL, B attempts=0.
+  - *Lösung:* try/catch(\Throwable) → WP_Error + Log::error (redigiert); release_claims() setzt run_after = NOW()+Backoff und last_error; gleiche Absicherung in Mail-/SMS-Workern; Regressionstest.
+- [ ] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Security]** – Check-in-Undo ohne Zeitfenster, Rollenbindung und Idempotenz (Passback)
+  - *Problem:* Mobile/Api.php:146-163 (`/app/scan/undo`), Admin/TicketsPage.php:80-125: jeder mit wpcap_checkin kann beliebig alte Check-ins beliebig oft zurücknehmen; keine `undo_roles` (nur checkout_roles); `Engine::undo_last()` (:247-272) ohne Idempotenzschlüssel (Retry entfernt zwei Einlässe).
+  - *Lösung:* `undo_window_minutes` (z. B. 5) für Personal ohne manage_orders; nur eigene Scans/eigenes Gerät, sonst `undo_roles`; Pflicht-idempotency_key; Zähler „Undos pro Ticket“ im Konfliktbericht.
+- [ ] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Check-in]** – `duplicate_policy=first_sync_wins` schließt echte Doppel-Einlässe automatisch
+  - *Problem:* OfflineScanner/Sync.php:39-42,66-73 setzt jeden double_admission-Konflikt (gleicher Code auf zwei Geräten = Screenshot-Betrug) auf resolved/duplicate_scan → nicht mehr unter „Offen“, Kennzahl unsichtbar.
+  - *Lösung:* Nur bei gleichem Gerät/Benutzer automatisch schließen; geräteübergreifend `open` lassen oder eigene resolution `duplicate_admission` mit Zähler/Report.
+- [ ] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – Web-Scanner: kein Fetch-Timeout; Offline-Queue erzeugt neuen Idempotenzschlüssel (Scheinkonflikt)
+  - *Problem:* assets/scanner.js:203-215 fetch ohne AbortController (Scanner hängt); nach Abbruch bietet `offline()` Sichtprüfung an, `enqueue()` (:105) mit neuer uuid → Sync als already_checked_in-Konflikt; Anzeige bleibt grün (:200).
+  - *Lösung:* AbortController 5 s; Key des Online-Versuchs an offline()/enqueue weiterreichen; state 'pending'.
+- [ ] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – DB-Retry (Deadlock/Lock-Timeout) kommt als HTTP 200 ok:false; PWA zeigt rot „retry“, kein Offline-Fallback, Scan verloren
+  - *Problem:* Mobile/Api.php:222-228 lässt nur 401/429 durch; `Checkin::retry_error` (503) wird `{ok:false,result:'retry'}`; app.js:672-676 zeigt „retry · online“ rot (fehlt in RESULT_TEXT), Scan als synced geloggt.
+  - *Lösung:* scan_response bei retryable HTTP 503 → PWA fällt auf Offline-Entscheidung zurück; RESULT_TEXT-Eintrag.
+- [ ] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – Offline-Paket bei 50.000 Tickets: 15-s-Timeout, Volldownload ~alle 30 min, Build pro Gerät
+  - *Problem:* Messung Package::build 50.000 Tickets: Payload 4,34 MB (mit Namen 6,86 MB), Body 4,82/7,62 MB, gzip 1,83/2,08 MB, Build 0,46 s, 76 MB RAM. refreshPackage nutzt 15-s-Timeout (app.js:303,446) → bei 2 Mbit/s immer Abbruch; REST ohne Kompression; MAX_DELTAS=30 bei REFRESH_MS=60000 → Vollpaket zur Spitzenzeit; Build gerätegebunden (nicht cachebar, 20 Geräte × 76 MB).
+  - *Lösung:* Bei MAX_DELTAS `since=full.cursor`-Kompaktdelta; Paket-Timeout 120 s + Fortschritt; gzip serverseitig; kompakteres Format, Namen nur Opt-in.
+- [ ] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – Offline lässt PWA Mehrfachtickets (daily/multi_entry/reentry) lokal unbegrenzt ein
+  - *Problem:* `decideOffline()` (app.js:606-618) prüft admitted nur für !multi → Tagesticket-Screenshot lässt beliebig viele ein; Konflikte erst beim Sync (und durch first_sync_wins geschlossen).
+  - *Lösung:* Lokaler Zähler je Hash und Service-Tag (daily 1/Tag, multi_entry < max_entries, reentry inside-Flag); Paket um max_entries/valid_days ergänzen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Verzögerte Zahlarten außerhalb Stripe verlängern den Hold nicht
+  - *Problem:* Mollie verlängert nur bei vorab gewählter `banktransfer` (MollieGateway.php:123); `open`/`pending` nicht als payment_pending (:317); Mollie-Überweisung lebt ~12 Tage. PayPal `PENDING`-Capture / `PAYMENT.CAPTURE.PENDING` nicht ausgewertet (PayPalGateway.php:143).
+  - *Lösung:* Mollie open/pending + method banktransfer/directdebit → payment_pending, `expiresAt` auf Hold-Ende; PayPal CAPTURE.PENDING normalisieren.
+- [ ] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Klarna/Riverty über Mollie wählbar, Status `authorized` wird nie gecaptured
+  - *Problem:* `Modules\Mollie::KNOWN_METHODS` (:22) bietet klarna/riverty; `normalize()`/`handle_return()` kennen `authorized` nicht, kein Capture-Aufruf → Order läuft ab, Autorisierung verfällt (Mollie-Verhalten in Sandbox bestätigen).
+  - *Lösung:* klarna/riverty entfernen oder `authorized` sofort per `POST /v2/payments/{id}/captures` capturen, erst Capture = paid.
+- [ ] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Storno/Ablauf annulliert offene PSP-Sessions nicht; Zahlung auf stornierte Order nur per Alert
+  - *Problem:* Kein Gateway-Hook an `cancel_order()` (src/Orders.php:1143-1177) / `expire_holds()` (:1501): kein Stripe `/expire`, kein Mollie DELETE. Danach nur `paid_for_closed_order`/`double_payment`-Mail (Webhooks.php:150-164), keine automatische Rückerstattung, keine Admin-Liste.
+  - *Lösung:* Hook auf Order-Storno → `void_payment()` je Gateway; für paid_for_closed_order/double_payment Refund-Job (optional per Einstellung) + Admin-Liste.
+- [ ] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Später fehlschlagende PSP-Erstattungen bleiben als erstattet gebucht
+  - *Problem:* `StripeGateway::refund()` (:163) wertet `pending` als Erfolg; `charge.refund.updated`/`refund.failed` und Mollie-Refund `failed` werden nicht verarbeitet → Ledger/Gutschrift/Abrechnung sagen erstattet, Käufer hat kein Geld.
+  - *Lösung:* Events normalisieren (`refund_failed`), Refund per provider_reference auf failed, Alert, Gegenbuchung; in docs/OPERATIONS.md Event-Liste ergänzen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – Rechnungskorrektur ohne Steuersatz und Aufschlüsselung nach Sätzen
+  - *Problem:* `wpcap_credit_notes` (src/Installer.php:703-717) nur ein net/tax/total; Render ohne Satz, Export `USt-Satz=''`; bei Mischsätzen und Betragserstattungen verteilt `Refunds::tax_for()` (:819) anteilig → Mischsatz (§ 17 i. V. m. § 14 Abs. 4 Nr. 8 UStG / § 11, § 16 UStG AT).
+  - *Lösung:* Tabelle `wpcap_credit_note_lines (credit_note_id, tax_rate_bp, net, tax, total)`, Render/Export je Satz.
+- [ ] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – Buchhaltungsexport nur aus Rechnungen, ohne Steuerland (OSS)
+  - *Problem:* `Invoices::export_rows()` (src/Invoices.php:~395) liest nur Rechnungen/Gutschriften; mit Standard `auto_invoice=0` fehlen alle B2C-Verkäufe ohne Rechnung (GoBD / § 131 BAO); keine Spalte Steuerland → keine OSS-Aufteilung.
+  - *Lösung:* Export auf Basis Order-Zeilen + Ledger (Zahlung, Erstattung, Chargeback mit Satz, Steuerland, Beleg-/Order-ID) unabhängig von Rechnungen; Spalte Steuerland; alternativ auto_invoice standardmäßig an.
+- [ ] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – Hinweis auf fehlendes Widerrufsrecht ab Werk leer; keine Vertragsbestätigung auf dauerhaftem Datenträger
+  - *Problem:* `consumer_info_text`/`terms_text` leer, `require_terms=0` (src/Settings.php:74-76) → templates/event-card.php:111-120 zeigt nichts (Pflicht: § 312d BGB / Art. 246a § 1 Abs. 3 Nr. 1 EGBGB, § 4 Abs. 1 Z 11 FAGG). Produkte ohne Termin (Mitgliedspässe, Gutscheine, Service-Pässe) haben Widerrufsrecht – keine Unterscheidung. Mails ohne AGB/Verbraucherinfo (§ 312f Abs. 2 BGB / § 7 Abs. 3 FAGG).
+  - *Lösung:* Standardhinweis „Kein Widerrufsrecht … (§ 312g Abs. 2 Nr. 9 BGB / § 18 Abs. 1 Z 10 FAGG)“ nur wenn alle Positionen terminiert; Widerrufsbelehrung für Produkte ohne Termin; Platzhalter {consumer_info}/{terms} bzw. AGB-PDF in Ticket-Mail; Status-Check „Verbraucherinformationen leer“.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: Bug]** – Teilnehmer-Nummerierung falsch nach Mengenänderung
+  - *Problem:* assets/checkout.js:48-53 (`renderAttendees`) behält alte Legenden → „Attendee 1/2/3 · Standard“, „Attendee 3 · Freier Eintritt“ (reproduziert); `aria-live` am ganzen Block lässt alles neu vorlesen.
+  - *Lösung:* Legende beim Wiederverwenden neu setzen; aria-live vom Block entfernen, kurze Statusmeldung stattdessen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Rückkehr vom Zahlungsanbieter auf die Startseite, kein „Erneut bezahlen“
+  - *Problem:* Return-URLs `home_url('/')?wpcap_payment=…` (StripeGateway.php:399, PayPalGateway.php:515, MollieGateway.php:411); `ReturnNotice` nur über `wp_body_open` (klassische Themes zeigen nichts); bei cancel nur „Reservierung verfällt“; Portal ohne Bezahl-Button für offene Online-Bestellungen.
+  - *Lösung:* Ursprungsseite als `return_to` (wp_validate_redirect); bei cancel/failed „Erneut bezahlen“ (neue Session für dieselbe Order solange Hold) und „Reservierung freigeben“; Fallback-Banner per `the_content`.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Personalisierung: Name nicht erzwingbar, wenige Feldtypen
+  - *Problem:* Namensfeld je Ticket immer optional (checkout.js:57); FIELD_TYPES nur text/email/textarea/checkbox/consent (Admin/EventsPage.php:24) – kein select/radio/date/tel; kein Käufername ohne Rechnung; E-Mail-Feld je Teilnehmer ohne „übernehmen“.
+  - *Lösung:* Ticketart-Option attendee_name off|optional|required (serverseitig geprüft); Feldtypen select/radio/date/tel; optionaler Käufername; Teilnehmer-E-Mail einklappbar.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Ticketarten ohne Beschreibung/Reihenfolge, „0,00 €“ statt „kostenlos“
+  - *Problem:* ticket_types ohne description/position, Sortierung nach ID (PublicEvents.php:125); Gratis zeigt „0.00 €“, Button „Zahlungspflichtig bestellen“ auch bei 0 € (event-card.php:124); Mengenfelder umbrechen uneinheitlich.
+  - *Lösung:* Spalten description, position; „kostenlos“; Button-Text bei Summe 0 „Kostenlos bestellen“; festes Grid.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Saalplan auf dem Handy kaum antippbar (Verdacht)
+  - *Problem:* assets/seating/picker.css:3 `svg{width:100%;min-width:320px}` ohne Zoom/Pan; kein „beste Plätze“.
+  - *Lösung:* Mindestbreite aus Sitzdichte (≥ 24 px, WCAG 2.5.8), scrollbarer Zoom, Button „Beste verfügbare Plätze“, Liste mobil vorschlagen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Freikarten/Gästeliste nur über offene Kassensitzung
+  - *Problem:* „Freikarte“ nur als Box-Office-Zahlart `pos_free` (BoxOffice/Service.php:34), `sell()` verlangt offene Sitzung (:353) → Kassenbericht/Fiskal-Logik.
+  - *Lösung:* Admin-Aktion „Tickets ausstellen“ (Typ, Menge, Empfänger, CSV-Gästeliste), provider=comp, 0 €, ohne Kasse/Fiskal, Audit, Berichtsfilter „Freikarten“.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Bestellsuche nur Nummer/E-Mail, kein Bestellungs-CSV, drei Nummernformate
+  - *Problem:* Queries::search_orders (Admin/Queries.php:244-250) ohne Teilnehmer-/Rechnungsname/Ticketcode; kein Orders-Export; Käufer sieht `2EBB-D9FC`, Liste 12 Hex, Detail 32 Hex (OrdersPage.php:268).
+  - *Lösung:* Suche per EXISTS auf attendee_name/billing; Export-Typ orders mit csv_cell(); überall Format::order_reference().
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Erstattung ohne Betragsvorschau, freien Betrag oder Gebührenabzug
+  - *Problem:* Admin/OrdersPage.php:85-108 nur Tickets ankreuzen + Grund; Betrag erst nach Absenden; keine Kulanz-Teilbeträge/Bearbeitungsgebühr; Checkboxen ohne Label.
+  - *Lösung:* Vorschau mit Refunds::calculate; optionaler Abzug/Höchstbetrag mit Rechnungskorrektur; aria-label an Checkboxen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – 35 flache Admin-Menüpunkte, kein Dashboard, kein Einrichtungsassistent, kein Duplizieren
+  - *Problem:* Admin/Menu.php:126-145 + Modulseiten; Module nur per Filter abschaltbar (Modules.php:32); Start = Eventliste ohne KPIs; kein Onboarding; 3 Seitenwechsel bis zur ersten Ticketart; kein „Event/Termin duplizieren“.
+  - *Lösung:* Menü gruppieren; Einstellungen „Funktionen“ mit Schaltern; Dashboard mit KPIs + Setup-Checkliste; „Duplizieren“ inkl. Typen, Felder, Preisregeln.
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Zusatzprodukte (Parken, Merch) und Kombi-/Paket-Tickets
+  - *Problem:* Kein Add-on-/Bundle-Modell im eigenen Checkout; Merch nur über WooCommerce; Kombi über mehrere Termine fehlt als Verkaufsobjekt.
+  - *Lösung:* Ticketart-Typ addon (an Hauptticket gebunden) und bundle (n Termine/Typen, ein Preis, gemeinsames Kontingent); einfache Zusatzprodukte Kern, Bundle Add-on (L).
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Teilnehmer-Self-Service: Stornoanfrage / Terminumtausch im Portal
+  - *Problem:* Portal ohne Storno-/Erstattungsanfrage nach Veranstalterregel und ohne Terminwechsel.
+  - *Lösung:* Regel je Event (Frist, Gebühr) → Anfrage → Refund-/Freigabefluss; Terminwechsel bei gleichem Preis (Anfrage Kern, Auto-Umtausch Add-on).
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Datenschutzkonformes Conversion-Tracking und Embed-Widget
+  - *Problem:* Nur JS-Event `wpcap:checkout-complete` (nicht dokumentiert); keine UTM-Übernahme; kein iFrame-/Widget.
+  - *Lösung:* Dokumentierte JS-Events (view_item … purchase, ohne PII); UTM/Referrer an Order (Retention); embed.js mit postMessage-Höhe (Events/UTM Kern, Widget Add-on).
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Import aus anderen Systemen (Tickera, Event Tickets, Pretix, CSV)
+  - *Problem:* Kein Importer.
+  - *Lösung:* CSV-Import Events/Termine/Ticketarten (Kern, S); Migration bestehender Tickets mit Fremdcodes (Add-on, M).
+- [ ] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: Check-in]** – QR mit unnötigem UTF-8-ECI-Header
+  - *Problem:* QrCode.php:32 `Encoder::encode($payload, M, 'UTF-8')` → ECI-Präfix (Bacon warnt selbst); Payloads reines ASCII; signierter QR 251 Zeichen → Version 12 statt 11; manche HID-Handscanner geben ECI-Präfix aus oder lesen nicht (Verdacht).
+  - *Lösung:* Bei ASCII ohne ECI kodieren (`'ISO-8859-1'`); optional Alphanumerik-Modus für klassische Codes.
+- [ ] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: UX]** – Kyrillisch, CJK, ł, ź, Ć … werden im PDF/Namensschild zu „?“
+  - *Problem:* TicketPdf.php:97-101 und PdfWriter nutzen Helvetica/WinAnsi; reproduziert „Привет 東京 Łódź Ä€“ → „?????? ?? ?ód? Ä€“, „Ćirić“ → „?iri?“; Namensschilder betroffen.
+  - *Lösung:* Unicode-TTF als CIDFontType2/Identity-H mit ToUnicode (Subset, z. B. Noto Sans, per Filter); mindestens transliterieren statt „?“ und im Admin warnen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: Security]** – Widerruf des QR-Signaturschlüssels aktualisiert keine Wallet-Pässe
+  - *Problem:* `SignedQr::rotate(true)` (Security/SignedQr.php:136-160) ohne Wallet-Sync; `Service::fingerprint()` (WalletPasses/Service.php:84-87) ohne Schlüssel-ID → Pässe behalten Barcode mit widerrufenem Schlüssel → am Einlass invalid_signature.
+  - *Lösung:* Nach rotate (mind. revoke) alle aktiven Pässe kommender Termine in wallet_sync-Jobs; Schlüssel-ID in Fingerprint oder generation erhöhen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: Bug]** – Signierter QR je Ticket: zwei Vault-Entschlüsselungen + DB-Abfrage (3,7-fache Zeit)
+  - *Problem:* `SignedQr::qr_value()` (:258-264) liest je Token die Ticketzeile; `sign()` öffnet Secret doppelt (:175-192); 500 Tickets 13,9 s statt 3,7 s, +1000 Queries.
+  - *Lösung:* Secret + kid pro Request statisch cachen (sodium_memzero beim Shutdown); Ticketzeilen per IN() gesammelt (`qr_values(array)`).
+- [ ] **[PRIO: MITTEL]** | **[Experte #8, #11]** | **[Kategorie: Bug]** – Absage-Batches: kein Retry je Empfänger, Abbruch erzeugt Duplikate, Batches zu groß
+  - *Problem:* `OccurrenceCancellation::notify()` (:221-242) zählt nur; `handle_job()` gibt immer true (:209-212) → Fehlschläge verloren; Worker-Tod nach 50/100 → Retry des ganzen Batches, bis 8× Dubletten; NOTIFY_BATCH 100, REFUND_BATCH 20 mit 15-s-PSP-Timeouts (:27-29) weit über max_execution_time; TimeBudget nur vor Claim.
+  - *Lösung:* Je Empfänger `Communications::enqueue('occ-cancel|occ|run|email')` (Dedupe, Claim, Backoff); kleinere Batches (Mails 20, Refunds 5), Deadline im Job prüfen, Rest neu einreihen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #8]** | **[Kategorie: Concurrency]** – „Tickets erneut senden“ hält Zeilensperren während SMTP-Versand und Wallet-Signierung
+  - *Problem:* Orders.php:1966-2006 `rotate_and_send_group()` FOR UPDATE, darin `wpcap_ticket_code_rotated` (Apple-Signierung je Ticket) und `Mailer::send()` vor Commit → Check-in desselben Tickets wartet bis innodb_lock_wait_timeout (50 s).
+  - *Lösung:* Optimistisch: Codes vorbereiten, Mail senden, dann kurze CAS-Transaktion `UPDATE … WHERE ticket_id=? AND token_hash=?`; Wallet nach Commit über Queue.
+- [ ] **[PRIO: MITTEL]** | **[Experte #8]** | **[Kategorie: UX]** – Neuversand/Zustell-Retry ohne PDF; Käufer-Neuversand entwertet Tickets der Teilnehmenden ohne Warnung
+  - *Problem:* rotate_and_send_group() (Orders.php:2000), reissue_ticket() (:2050), retry_delivery() (:1772) senden ohne Anhang; Portal-Neuversand (Rest/Controller.php:440-461) rotiert auch Tickets mit Teilnehmer-E-Mail → Käufer entwertet gedruckte Tickets Dritter, Portal erklärt das nicht.
+  - *Lösung:* PDF beim Neuversand (gleiche Größenschwelle); deutliche Warnung im Portal; Option „nur eigene, nicht zugewiesene Tickets neu senden“.
+- [ ] **[PRIO: MITTEL]** | **[Experte #1]** | **[Kategorie: Bug]** – Hook-Vertragstest ohne Signaturen; 5 Hooks undokumentiert; Typverletzung in `_v1`-Hook
+  - *Problem:* tests/integration/modules/hooks_contract.php vergleicht nur Namen; Integrations/HttpJson/Endpoints.php:415 übergibt endpoint_id als String (dokumentiert int); undokumentiert: wpcap_buyer_locales, wpcap_checkout_user_roles, wpcap_data_profile, wpcap_db_tracks_in_transaction, wpcap_webhook_claim_wait_ms; `wp_pass_captain_currencies`, `wp_pass_captain_event_card_html` öffentliches Präfix ohne `_v1`.
+  - *Lösung:* Arity aus HOOKS.md parsen und per Tokenizer gegen Aufrufstellen prüfen; (int)-Cast; die zwei Hooks umbenennen bzw. ins wpcap_-Präfix; fünf dokumentieren; Test für alle nicht versionierten Hooks.
+- [ ] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Bug]** – Action-Scheduler-Fortsetzung bricht nach einem Folgelauf ab
+  - *Problem:* Jobs/TimeBudget.php:68-71 `continue_later()` prüft `as_has_scheduled_action()`, das auch RUNNING zählt → laufende Fortsetzung plant keine weitere; Rückstand wartet bis zum nächsten 5-Minuten-Cron (mit WooCommerce der Normalfall).
+  - *Lösung:* Nur PENDING prüfen (`as_get_scheduled_actions(... 'status' => STATUS_PENDING ...)`), sonst `as_enqueue_async_action`.
+- [ ] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Bug]** – Abgelaufene Holds geben Kampagnen-Kontingent erst stündlich frei (max. 200 Bestellungen/Stunde)
+  - *Problem:* Kapazität lazy (Orders.php:802,811), Kampagnen über used_count (Campaigns.php:40,124), Freigabe nur in `expire_holds()` (Orders.php:1501-1529) am stündlichen `wpcap_cleanup_reservations` (Plugin.php:177), 200 pro Lauf → limitierte Codes bis Hold+60 min blockiert, Rückstand wächst; wpcap_order_cancelled/capacity_released spät; kein Test.
+  - *Lösung:* expire_holds zusätzlich im 5-Minuten-Hook mit Zeitbudget/Fortsetzung, oder Kampagnencheck lazy (reservierte Nutzungen abgelaufener Bestellungen abziehen); Test.
+- [ ] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Legal]** – Retention ohne Folgelauf bei Budgetende und ohne Heartbeat
+  - *Problem:* src/Privacy/Retention.php:126-140 bricht nach 20 s ab, keine Fortsetzung, feste Reihenfolge → hintere Schritte (audit_logs, reservations, jobs) verhungern; Ops\Heartbeat::workers() kennt Retention nicht.
+  - *Lösung:* Bei !complete `TimeBudget::continue_later(Retention::HOOK)`, Startschritt rotieren (Option), Heartbeat 'retention' (Intervall 1 Tag).
+- [ ] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Bug]** – Operative Fehler laufen an Log vorbei; wpcap_log-Kontext unredigiert
+  - *Problem:* Nur 12 Log::error/warning; 27 Fehlerereignisse direkt per Audit::record (ticket_issue_failed Orders.php:1710, order_state_db_error :560, webhook_db_error Payments/Webhooks.php:113, ticket_delivery_failed, refund_failed, voucher_commit_failed, woocommerce_refund_sync_failed) → weder Action wpcap_log noch PHP-Error-Log; bei DB-Ausfall scheitert auch der Audit-INSERT still. `Log.php:57` gibt $context unredigiert weiter (Jobs.php:130 roher $wpdb->last_error).
+  - *Lösung:* Alle *_failed/*_db_error über Log::error; Redact::data auf details vor do_action; Fallback auf Redact::log() wenn Audit-INSERT scheitert.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Security]** – Rückdatierte Offline-Uploads umgehen Einlassfenster bei Ticketarten ohne Policy
+  - *Problem:* Admission/Rest.php:55-70 erlaubt scanned_at bis 12 h zurück; Backdating-Prüfung (Checkin.php:236) nur mit $policy; mit default_entry_window wird Scan nach Einlassschluss still zugelassen.
+  - *Lösung:* Backdating-Prüfung auch ohne Policy; kürzeres Höchstalter für Web-Uploads (1 h).
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Bug]** – Liefer-Retry rotiert übertragene/zugewiesene Tickets und mailt sie an den Käufer
+  - *Problem:* `Orders::retry_delivery` (:1772) → `rotate_and_send(..., true)`; `code_recipient()` (:1946-1949) liefert immer Käufer, Skip (:1974) greift nie; Kommentar (:1774) behauptet Gegenteil.
+  - *Lösung:* Im Retry Tickets mit transfer_count>0 bzw. Holder-Wechsel überspringen oder $to_buyer nur ohne abweichende attendee_email.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #6]** | **[Kategorie: UX]** – Scanner-Feedback und Hardware
+  - *Problem:* Web-Scanner ohne Ton/Vibration, zeigt attendee_name nicht; PWA nur navigator.vibrate (iOS ohne Feedback); keine Torch/Fokus-Constraints; PWA ohne Check-out/Undo.
+  - *Lösung:* WebAudio-Töne (abschaltbar) in beiden Scannern; Name anzeigen; Torch-Schalter und focusMode continuous.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Feature]** – Kein Abgleich mit PSP-Berichten, kein Status-Poll für hängende pending-Orders
+  - *Problem:* Kein Abgleich gegen Stripe balance_transactions/PayPal-Berichte/Mollie-Settlements; fehlt ein Webhook, läuft eine bezahlte Order ab. Gebühren/Auszahlungen unsichtbar.
+  - *Lösung:* Cron fragt pending-Orders mit provider_reference > X min beim PSP ab und spielt den Status über `Webhooks::process` ein; CSV-Abgleich der Settlements.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – Verschiebungs-Mail „Ticket bleibt gültig“ ohne Erstattungshinweis
+  - *Problem:* src/Mail/Types.php:400, SMS src/Modules/Sms.php:98; kein Self-Service-Erstattungsweg/Frist trotz Rücktrittsanspruch bei erheblicher Verschiebung.
+  - *Lösung:* Text konfigurierbar mit Erstattungshinweis + Frist; Portal-Button „Erstattung beantragen“ (Refunds::request mit Freigabe) bis Beginn des neuen Termins.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Feature]** – Kombitickets mit gemischten Steuersätzen nicht abbildbar
+  - *Problem:* Eine Ticketart = ein Satz (TaxProfiles::for_line); Konzert + Gastro-/Merch-Anteil nicht aufteilbar.
+  - *Lösung:* Optionale Zusammensetzung je Ticketart (Anteile mit Satz/Betrag), mehrere Steuerzeilen je Position in Snapshot, Rechnung, Fiskalbeleg.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – Checkout ohne Datenschutz-Hinweis bei der Erhebung (Art. 13 DSGVO)
+  - *Problem:* templates/event-card.php erhebt E-Mail/Rechnungs-/Teilnehmerdaten ohne Link auf `get_privacy_policy_url()`.
+  - *Lösung:* Hinweis mit Link unter dem Button, wenn Datenschutzseite gesetzt.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #9]** | **[Kategorie: UX]** – Mengenwahl `type=number value=0` ohne Plus/Minus
+  - *Problem:* templates/event-card.php:32; auf Touch muss „0“ gelöscht werden.
+  - *Lösung:* −/+-Buttons (aria-label, ≥ 44 px), lösen input aus.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #12]** | **[Kategorie: Feature]** – Pay-what-you-want/Spenden, Resale-Börse, Abos mit Platzbindung
+  - *Problem:* Fehlen (PWYW steuerlich heikel).
+  - *Lösung:* PWYW als Ticketart-Option (Mindestpreis, freier Betrag; Kern, S, Steuerhinweis); Resale und Abo mit Platz als Add-on (L).
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #5]** | **[Kategorie: UX]** – Ticket-PDF ohne Teilnehmername, Umbruch, Metadaten, Käufersprache
+  - *Problem:* Orders.php:1672-1674 übergibt kein attendee; `TicketPdf::page()` bricht lange Eventnamen nicht um; keine /Info, /Lang, nicht getaggt; Footer/Datum/Apple-Labels außerhalb `Mailer::with_locale()`, Google `language => 'de'` fest (GoogleProvider.php:37).
+  - *Lösung:* attendee aus ticket_assignments; PdfWriter::fit()/wrap(); /Info Title + /Lang; PDF- und Wallet-Erzeugung in with_locale($order->locale).
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #5]** | **[Kategorie: Feature]** – APNs ohne Verbindungs-Wiederverwendung/Zeitbudget; Zertifikatsablauf nur auf Wallet-Seite
+  - *Problem:* ApnsClient::request() (:30-79) neuer TLS-Handshake je Push; Service::process() ohne TimeBudget (Jobs à 200 Tickets); Ablaufwarnung (AdminPage.php:134-136) nicht im Systemstatus/Mail; 403 wird bis Dead-Letter wiederholt.
+  - *Lösung:* Ein cURL-Handle je Lauf (HTTP/2), TimeBudget, Ablauf < 30 Tage im Systemstatus/Heartbeat, 403 als Konfigurationsfehler (kein Retry, Admin-Hinweis).
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #8]** | **[Kategorie: Feature]** – Kein Bounce-Handling, Standardvorlagen nur Text, Erinnerungen ohne Abmeldung
+  - *Problem:* Kein Return-Path, keine Bounce-Auswertung (wp_mail true = zugestellt); Vorlagen Text (Mail/Types.php:240-259); Erinnerungen (Modules/Reminders.php) ohne List-Unsubscribe.
+  - *Lösung:* Sender/Return-Path; optional Bounce-/Complaint-Webhook für gängige SMTP-Dienste → failed im Bestell-Admin; Abmeldelink je Bestellung + List-Unsubscribe/One-Click für Erinnerungen.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Bug]** – Takeover: Fall „neue Kopie lädt zuerst“ nicht abgefangen
+  - *Problem:* pass-captain.php:160 schützt nur, wenn Altkopie zuerst lädt; `pass-captain/…` sortiert vor `wp-pass-captain/…` → im Takeover-Request lädt danach die Altdatei ohne Guard: 4× „Constant already defined“, `Plugin::instance()->run()` zweimal, Hooks/Cron doppelt.
+  - *Lösung:* Altkopie-Bootstrap im selben Request neutralisieren und `Plugin::run()` per statischem Flag idempotent machen.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Bug]** – Downgrade nicht erkannt (Schema-Version per Gleichheit verglichen)
+  - *Problem:* src/Installer.php:969 `version() === get_option('wpcap_db_version')` → ältere Version führt install() aus und schreibt db_version zurück; neuere Daten (z. B. pcv1-Secrets) unlesbar; kein Hinweis.
+  - *Lösung:* version_compare; bei neuerem gespeicherten Stand nicht installieren, Admin-Hinweis „Restore erforderlich“, Option wpcap_schema_newer.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Feature]** – Gott-Klasse Orders und statische Kopplung verhindern isolierte Tests
+  - *Problem:* Orders.php 2058 Zeilen/70 Methoden/22 Abhängigkeiten, Modules/Fiscalization.php 1622/59, ServiceBookings 48; global $wpdb überall, Fault-Injection nur über manipulierten $wpdb.
+  - *Lösung:* Schrittweise Orders\Holds, Orders\Issuance, Orders\Delivery, Orders\PortalAccess; Orders bleibt Fassade mit gleichen statischen Signaturen (Add-on-Verträge stabil).
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #11]** | **[Kategorie: Bug]** – Netzwerkaktivierung und Multisite-Uninstall ohne automatisierten Test; Uninstall ohne Zeitbudget
+  - *Problem:* Plugin::activate() mit Budget/Aufschub (Plugin.php:140-168) nirgends getestet; ci-install-test.sh ohne Multisite-Bein; uninstall.php:61-71 iteriert alle Sites ohne Budget.
+  - *Lösung:* CI-Bein mit wp core multisite-install, 30 Sites, Netzwerkaktivierung (25 sofort, Rest per wpcap_run_upgrade), Site löschen, Uninstall mit gemischtem Opt-in.
+
 ## Externe Abnahmen und offene Entscheidungen (Stand 2026-11-14)
 
 Diese Punkte lassen sich nicht im Code erledigen. Sie brauchen echte Umgebungen, Fachleute oder eine Entscheidung der Produktverantwortung.
