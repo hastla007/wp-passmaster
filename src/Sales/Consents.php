@@ -230,7 +230,7 @@ final class Consents {
 		$post = 'POST' === strtoupper( sanitize_key( wp_unslash( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) );
 		$fields = $post ? array_map( 'absint', (array) wp_unslash( $_POST['wpcap_consent_fields'] ?? array() ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the ticket code is the capability.
 		$html = self::attendee_page( $code, $fields );
-		\PassCaptain\Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
+		\PassCaptain\Security\PrivatePage::send( true ); // No page cache, no framing, no indexing (secret link); strict CSP (standalone page).
 		status_header( null === $html ? 404 : 200 );
 		echo null === $html ? esc_html__( 'Der Link ist ungültig.', 'pass-captain' ) : $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		exit;

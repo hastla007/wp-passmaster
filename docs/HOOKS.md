@@ -157,6 +157,7 @@ Webhook-Ereignissen).
 | `wpcap_mail_layout_html` | `string $html, string $content, string $subject` | Fertiges HTML-Dokument des E-Mail-Layouts (HTML-Vorlagen). |
 | `wpcap_mail_test_recipient` | `string $email, WP_User|null $user` | Empfänger der „Testmail senden“-Funktion (Standard: Adresse der angemeldeten Person). |
 | `wpcap_ticket_code_mail_section` | `string $section, int $ticket_id` | Zusatztext je Ticket in Übertragungs-, Zuweisungs- und Neuversand-Mails (z. B. Wallet-Links; nach einem Inhaberwechsel der Einwilligungslink `?wpcap_consent=` für offene Einwilligungen). |
+| `wpcap_strict_csp` | `string $policy` | Strikte Content-Security-Policy der vollständig vom Plugin ausgegebenen Seiten (Ticketseite, Rechnung, Einwilligungsseite), z. B. um die Origin eines fremd gehosteten Markenlogos zu `img-src` hinzuzufügen. Zeilenumbrüche werden entfernt, leere Rückgabe = Standard (docs/SECURITY.md). |
 | `wpcap_ticket_seat_label` | `string $label, int $ticket_id, array $ticket` | Sitzplatz-/Bereichsbezeichnung für Wallet-Pässe und Druckvorlagen. |
 | `wp_pass_captain_email_template_v1` | `array|null $template, string $template_key, array $payload` | Vorlage für Nachrichten aus `wpcap_message_queue`; Rückgabe `['subject' => …, 'body' => …]`. Erinnerungen nutzen den Schlüssel `wpcap_reminder`. |
 | `wp_pass_captain_event_card_html` | `string $html, object $event, array $types` | HTML einer Event-Karte im Shortcode `[wp_pass_captain_events]` (das Kalender-Modul ergänzt den Anker `id="wpcap-occ-{Termin}"`). |

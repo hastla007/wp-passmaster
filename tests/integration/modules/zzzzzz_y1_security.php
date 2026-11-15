@@ -421,7 +421,7 @@ $y1_missing = array();
 foreach ( $y1_pages as list( $class, $method ) ) {
 	$rm = new ReflectionMethod( $class, $method );
 	$src = implode( '', array_slice( file( $rm->getFileName() ), $rm->getStartLine() - 1, $rm->getEndLine() - $rm->getStartLine() + 1 ) );
-	if ( false === strpos( $src, 'PrivatePage::send()' ) ) { $y1_missing[] = $class . '::' . $method; }
+	if ( ! preg_match( '/PrivatePage::send\( ?(true )?\)/', $src ) ) { $y1_missing[] = $class . '::' . $method; }
 }
 check( 'every token/staff page sends the private-page headers' . ( $y1_missing ? ' – missing: ' . implode( ', ', $y1_missing ) : '' ), ! $y1_missing );
 $y1_plugin_src = (string) file_get_contents( WPCAP_PATH . 'src/Plugin.php' );

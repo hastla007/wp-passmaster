@@ -110,6 +110,17 @@ Seiten, die über einen Geheimlink erreichbar sind oder Personal vorbehalten sin
 - `X-Frame-Options: DENY` und `Content-Security-Policy: frame-ancestors 'none'` – kein Einbetten in fremde Seiten (Clickjacking von „Annehmen/Übertragen/Widerrufen“);
 - `X-Robots-Tag: noindex, nofollow, noarchive`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
 
+**Strikte Content-Security-Policy (FE-8):** Seiten, die das Plugin vollständig selbst ausgibt (kein Theme, kein `wp_head()`), senden über `PrivatePage::send( true )` statt nur `frame-ancestors` die volle Policy
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;
+object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+```
+
+Das gilt für die Ticketseite (`?wpcap_ticket=`), die Rechnungsansicht (Käufer-Link und Admin-Druck) und die Einwilligungsseite für Teilnehmende. Liegen Plugin-Dateien bzw. Uploads auf einem anderen Host (CDN-Offloading), wird dessen Origin automatisch zu `script-src`/`img-src` ergänzt; weitere Quellen (z. B. ein Markenlogo von einem fremden Host) über den Filter `wpcap_strict_csp`. `style-src 'unsafe-inline'` bleibt bewusst: Die Seiten bringen einen kleinen `<style>`-Block mit (Druckansicht ohne zusätzliche Datei), Markenlogos haben `style`-Attribute; Inline-CSS führt keinen Code aus, alle Ausgaben sind escaped. Nicht strikt (nur `frame-ancestors`) bleiben Seiten mit Inline-Konfiguration oder Theme-Anteil: Bestellportal (`window.wpcapPortal` inline), Service-Portal und Wartelisten-Seiten (eigene Pakete) sowie Theme-Seiten mit Scanner-Shortcode – dort bestimmen Theme und andere Plugins die Skripte.
+
+Damit das möglich ist, enthält das Plugin **keine Inline-Event-Handler** (`onclick=`, `onsubmit=`, `onchange=`, `onload=` …) mehr: Druck-Buttons tragen `data-wpcap-print` (Skript `assets/print.js`, als versionierte Datei eingebunden; Kassenbelege drucken über `<body data-wpcap-autoprint>`), Bestätigungsdialoge im Admin `data-wpcap-confirm="…"` (Skript `assets/admin-confirm.js`, nur auf den Plugin-Seiten geladen; weiterhin natives `window.confirm()`), Auswahllisten mit Sofort-Absenden `data-wpcap-autosubmit`. Die Offline-Scanner-App setzt ihre strikte CSP selbst (`<meta http-equiv>` in `index.html`).
+
 Die Offline-Scanner-App (`assets/offline-scanner/`) ist eine statische Datei, die der Webserver direkt ausliefert; PHP kann dort keine Header setzen. Empfehlung: `X-Frame-Options: DENY`, `X-Robots-Tag: noindex` und `Cache-Control: no-cache` für dieses Verzeichnis in der Server-Konfiguration.
 
 Request-Parameter, die als Array ankommen (`?wpcap_access[]=x`, JSON), werden als leer behandelt (`Security\Input::text()/hex()`), statt „Array to string conversion“ auszulösen.

@@ -78,7 +78,7 @@ final class AttendeeList {
 			foreach ( $row as $cell ) { $html .= '<td>' . esc_html( $cell ) . '</td>'; }
 			$html .= '</tr>';
 		}
-		$html .= '</tbody></table><p><button onclick="window.print()">' . esc_html( __( 'Drucken', 'pass-captain' ) ) . '</button></p></body></html>';
+		$html .= '</tbody></table><p>' . \PassCaptain\Frontend\PrintButton::html( __( 'Drucken', 'pass-captain' ) ) . '</p></body></html>';
 		return $html;
 	}
 }

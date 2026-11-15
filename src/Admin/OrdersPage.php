@@ -477,7 +477,7 @@ final class OrdersPage {
 			<?php if ( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ) > 0 && ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig.', 'pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
 			<?php endif; ?>
-			<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ausgewählte Tickets wirklich erstatten?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>
+			<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ausgewählte Tickets wirklich erstatten?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>
 			</form>
 		<?php endif; ?>
 
@@ -495,18 +495,18 @@ final class OrdersPage {
 		if ( $can_mark_paid ) {
 			Forms::open_form( 'wpcap_confirm_payment', 'wpcap_confirm_payment_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
-			echo '<button class="button button-primary" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Zahlungseingang bestätigen und Tickets ausstellen?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Als bezahlt markieren', 'pass-captain' ) . '</button></form> ';
+			echo '<button class="button button-primary" type="submit" data-wpcap-confirm="' . esc_attr( __( 'Zahlungseingang bestätigen und Tickets ausstellen?', 'pass-captain' ) ) . '">' . esc_html__( 'Als bezahlt markieren', 'pass-captain' ) . '</button></form> ';
 		}
 		if ( $can_cancel ) {
 			Forms::open_form( 'wpcap_cancel_order', 'wpcap_cancel_order_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
 			echo '<input type="text" name="reason" placeholder="' . esc_attr__( 'Grund (optional)', 'pass-captain' ) . '" maxlength="255"> ';
-			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form> ';
+			echo '<button class="button" type="submit" data-wpcap-confirm="' . esc_attr( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'pass-captain' ) ) . '">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form> ';
 		}
 		if ( $can_resend ) {
 			Forms::open_form( 'wpcap_resend_tickets', 'wpcap_resend_tickets_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
-			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.', 'pass-captain' ) ) . '\')">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</button></form>';
+			echo '<button class="button" type="submit" data-wpcap-confirm="' . esc_attr( __( 'Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.', 'pass-captain' ) ) . '">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</button></form>';
 		}
 		echo '</p>';
 	}
@@ -558,7 +558,7 @@ final class OrdersPage {
 								<em><?php esc_html_e( 'Freigabe durch eine andere Person erforderlich', 'pass-captain' ); ?></em>
 							<?php else : ?>
 								<?php Forms::open_form( 'wpcap_approve_refund', 'wpcap_approve_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
-								<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Erstattung freigeben und auszahlen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Freigeben', 'pass-captain' ); ?></button>
+								<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Erstattung freigeben und auszahlen?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Freigeben', 'pass-captain' ); ?></button>
 								</form>
 								<?php Forms::open_form( 'wpcap_reject_refund', 'wpcap_reject_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
 								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Ablehnung', 'pass-captain' ); ?>">

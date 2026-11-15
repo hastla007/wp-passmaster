@@ -740,7 +740,7 @@ final class Settlements {
 			$h .= '<tr><td>' . esc_html( Scope::local( $l->occurred_at, Scope::site_timezone(), 'd.m.Y' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
 		}
 		$extra_links = 'draft' === $s->status ? '' : \PassCaptain\Api\Invoices::links_html( (int) $s->settlement_id, 'settlement', array( 'audience' => 'admin', 'location' => 'settlement_view', 'partner_id' => (int) $s->partner_id ) );
-		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . ( '' !== $extra_links ? '<p class="wpcap-invoice-extra">' . $extra_links . '</p>' : '' ) . '<button onclick="window.print()">' . esc_html__( 'Drucken oder als PDF speichern', 'pass-captain' ) . '</button></body></html>';
+		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . ( '' !== $extra_links ? '<p class="wpcap-invoice-extra">' . $extra_links . '</p>' : '' ) . \PassCaptain\Frontend\PrintButton::html( __( 'Drucken oder als PDF speichern', 'pass-captain' ) ) . '</body></html>';
 		return $h;
 	}
 

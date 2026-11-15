@@ -25,6 +25,7 @@ class Event {
 	}
 	preventDefault() { if (this.cancelable) this.defaultPrevented = true; }
 	stopPropagation() { this._stop = true; }
+	stopImmediatePropagation() { this._stop = true; this._stopNow = true; }
 }
 class CustomEvent extends Event {
 	constructor(type, init) { super(type, init); this.detail = init && init.detail; }
@@ -45,6 +46,7 @@ class EventTarget {
 			const list = (node._listeners[event.type] || []).slice();
 			event.currentTarget = node;
 			for (const l of list) {
+				if (event._stopNow) break;
 				if (l.once) node.removeEventListener(event.type, l.fn);
 				l.fn.call(node, event);
 			}

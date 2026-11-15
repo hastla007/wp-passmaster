@@ -347,7 +347,7 @@ final class Invoices {
 		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
 		<?php $extra_links = Api\Invoices::links_html( (int) $invoice->invoice_id, 'invoice', array_merge( array( 'audience' => 'admin', 'order_id' => (int) $invoice->order_id ), $link_context, array( 'location' => 'invoice_view' ) ) ); ?>
 		<?php if ( '' !== $extra_links ) : ?><p class="wpcap-invoice-extra"><?php echo $extra_links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?></p><?php endif; ?>
-		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'pass-captain' ); ?></button>
+		<?php echo Frontend\PrintButton::html( __( 'Drucken oder als PDF speichern', 'pass-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html(). ?>
 		</body></html><?php
 		return (string) ob_get_clean();
 	}
@@ -362,7 +362,7 @@ final class Invoices {
 		if ( ! $exists ) { check_admin_referer( 'wpcap_issue_invoice_' . $order_id ); }
 		$result = self::issue_for_order( $order_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
-		Security\PrivatePage::send();
+		Security\PrivatePage::send( true ); // Standalone document: strict CSP.
 		echo self::render_html( $result['invoice_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
 		exit;
 	}
@@ -377,7 +377,7 @@ final class Invoices {
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
 		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', $order->order_id ) );
 		if ( ! $invoice_id ) { status_header( 404 ); exit; }
-		Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
+		Security\PrivatePage::send( true ); // No page cache, no framing, no indexing (secret link); strict CSP (standalone document).
 		echo self::render_html( $invoice_id, array( 'audience' => 'customer', 'order_public_id' => (string) $order->public_id, 'access_token' => $token ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
 		exit;
 	}

@@ -99,7 +99,7 @@ final class ApiKeysPage {
 		$new = get_transient( self::new_key_transient() );
 		if ( is_string( $new ) && '' !== $new ) {
 			delete_transient( self::new_key_transient() );
-			echo '<div class="notice notice-warning"><p><label for="wpcap-new-api-key"><strong>' . esc_html__( 'Neuer API-Key (wird nur dieses eine Mal angezeigt):', 'pass-captain' ) . '</strong></label><br><input type="text" id="wpcap-new-api-key" class="large-text code" readonly value="' . esc_attr( $new ) . '" onfocus="this.select()"></p></div>';
+			echo '<div class="notice notice-warning"><p><label for="wpcap-new-api-key"><strong>' . esc_html__( 'Neuer API-Key (wird nur dieses eine Mal angezeigt):', 'pass-captain' ) . '</strong></label><br><input type="text" id="wpcap-new-api-key" class="large-text code" readonly value="' . esc_attr( $new ) . '" data-wpcap-select-on-focus></p></div>';
 		}
 		self::render_form( $tz );
 		self::render_list( $tz );

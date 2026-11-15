@@ -208,7 +208,7 @@ final class StatusPage {
 	}
 
 	private static function action_button( $action, $nonce, array $fields, $label, $class = 'button button-small', $confirm = '' ) {
-		Forms::open_form( $action, $nonce, 'style="display:inline"' . ( $confirm ? ' onsubmit="return confirm(' . esc_attr( wp_json_encode( $confirm ) ) . ')"' : '' ) );
+		Forms::open_form( $action, $nonce, 'style="display:inline"' . ( $confirm ? ' data-wpcap-confirm="' . esc_attr( $confirm ) . '"' : '' ) );
 		foreach ( $fields as $name => $value ) { Forms::hidden( $name, $value ); }
 		echo '<button type="submit" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</button></form> ';
 	}
@@ -326,8 +326,8 @@ final class StatusPage {
 			Forms::open_form( 'wpcap_ops_refund_resolve', 'wpcap_ops_refund_' . (int) $row->refund_id, 'style="display:inline"' );
 			Forms::hidden( 'refund_id', (int) $row->refund_id );
 			echo '<label class="screen-reader-text" for="wpcap-ref-' . (int) $row->refund_id . '">' . esc_html__( 'Anbieter-Referenz oder Notiz', 'pass-captain' ) . '</label><input type="text" id="wpcap-ref-' . (int) $row->refund_id . '" name="reference" maxlength="150" placeholder="' . esc_attr__( 'Anbieter-Referenz / Notiz', 'pass-captain' ) . '"> ';
-			echo '<button type="submit" name="resolution" value="completed" class="button button-small" onclick="return confirm(' . esc_attr( wp_json_encode( __( 'Wurde die Erstattung beim Zahlungsanbieter wirklich ausgezahlt? Sie wird jetzt verbucht.', 'pass-captain' ) ) ) . ')">' . esc_html__( 'Manuell als erledigt markieren', 'pass-captain' ) . '</button> ';
-			echo '<button type="submit" name="resolution" value="failed" class="button button-small" onclick="return confirm(' . esc_attr( wp_json_encode( __( 'Wurde beim Zahlungsanbieter sicher nichts ausgezahlt?', 'pass-captain' ) ) ) . ')">' . esc_html__( 'Als fehlgeschlagen markieren', 'pass-captain' ) . '</button></form>';
+			echo '<button type="submit" name="resolution" value="completed" class="button button-small" data-wpcap-confirm="' . esc_attr( __( 'Wurde die Erstattung beim Zahlungsanbieter wirklich ausgezahlt? Sie wird jetzt verbucht.', 'pass-captain' ) ) . '">' . esc_html__( 'Manuell als erledigt markieren', 'pass-captain' ) . '</button> ';
+			echo '<button type="submit" name="resolution" value="failed" class="button button-small" data-wpcap-confirm="' . esc_attr( __( 'Wurde beim Zahlungsanbieter sicher nichts ausgezahlt?', 'pass-captain' ) ) . '">' . esc_html__( 'Als fehlgeschlagen markieren', 'pass-captain' ) . '</button></form>';
 			echo '</td></tr>';
 		}
 		echo '</tbody></table>';

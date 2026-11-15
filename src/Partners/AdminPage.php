@@ -175,7 +175,7 @@ final class AdminPage {
 		Forms::hidden( 'do', $do );
 		foreach ( $fields as $k => $v ) { Forms::hidden( $k, $v ); }
 		echo $extra_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal markup from this class.
-		echo '<button type="submit" class="button button-small"' . ( '' !== $confirm ? ' onclick="return confirm(' . esc_attr( wp_json_encode( $confirm ) ) . ')"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
+		echo '<button type="submit" class="button button-small"' . ( '' !== $confirm ? ' data-wpcap-confirm="' . esc_attr( $confirm ) . '"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
 	}
 
 	/* ------------------------------------------------------------------ Partner screen */
