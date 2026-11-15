@@ -274,9 +274,12 @@ final class StripeGateway implements GatewayInterface {
 
 	/**
 	 * charge.refunded carries the cumulative refunded amount. A fully refunded charge is reported as
-	 * a refund of its total. For partial refunds the latest refund is inspected: refunds created by
-	 * this plugin (metadata wpcap_refund) are already booked by Refunds and are ignored; others
-	 * (e.g. Stripe dashboard) are reported with the amount of that single refund.
+	 * a refund of its total. For partial refunds ALL refunds of the charge are read (paginated):
+	 * refunds created by this plugin (metadata wpcap_refund) are already booked by Refunds and are
+	 * skipped; every other refund (e.g. Stripe dashboard) is reported with its own refund id and
+	 * amount (refund_scope `list`), so Webhooks books each one exactly once – also when webhooks
+	 * arrive late, out of order or as retries after further refunds were made. Failed/canceled
+	 * refunds are not money that left.
 	 */
 	private function normalize_refund( array $base, array $charge ) {
 		$base['provider_reference'] = (string) ( $charge['id'] ?? '' );
@@ -295,20 +298,54 @@ final class StripeGateway implements GatewayInterface {
 			$base['amount_minor'] = self::from_stripe_amount( (int) ( $charge['amount_refunded'] ?? 0 ), $base['currency'] );
 			return $base;
 		}
-		$latest = $charge['refunds']['data'][0] ?? null;
-		if ( ! is_array( $latest ) ) {
-			$list = $this->api( 'GET', 'refunds?' . http_build_query( array( 'charge' => (string) $charge['id'], 'limit' => 1 ) ) );
-			if ( is_wp_error( $list ) ) { return self::retry_error( $list ); }
-			$latest = $list['data'][0] ?? null;
+		$refunds = $this->charge_refunds( $charge );
+		if ( is_wp_error( $refunds ) ) { return self::retry_error( $refunds ); }
+		$external = array();
+		foreach ( $refunds as $refund ) {
+			if ( ! is_array( $refund ) || empty( $refund['id'] ) || ! empty( $refund['metadata']['wpcap_refund'] ) ) { continue; }
+			if ( in_array( (string) ( $refund['status'] ?? '' ), array( 'failed', 'canceled' ), true ) ) { continue; }
+			$external[] = array(
+				'refund_id' => (string) $refund['id'],
+				'amount_minor' => self::from_stripe_amount( (int) ( $refund['amount'] ?? 0 ), $base['currency'] ),
+			);
 		}
-		if ( ! is_array( $latest ) || ! empty( $latest['metadata']['wpcap_refund'] ) ) {
+		if ( ! $external ) {
 			return $base;
 		}
+		// Oldest first, so the ledger follows the order in which the money left.
+		$external = array_reverse( $external );
 		$base['type'] = 'refunded';
-		$base['refund_scope'] = 'single';
-		$base['refund_id'] = (string) ( $latest['id'] ?? '' );
-		$base['amount_minor'] = self::from_stripe_amount( (int) ( $latest['amount'] ?? 0 ), $base['currency'] );
+		$base['refund_scope'] = 'list';
+		$base['refunds'] = $external;
+		$base['amount_minor'] = (int) array_sum( array_column( $external, 'amount_minor' ) );
 		return $base;
+	}
+
+	/**
+	 * All refunds of a charge (newest first), paginated through GET /v1/refunds?charge=…; an embedded
+	 * complete list (older API versions) is used without a request.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function charge_refunds( array $charge ) {
+		$embedded = $charge['refunds'] ?? null;
+		if ( is_array( $embedded ) && isset( $embedded['data'] ) && is_array( $embedded['data'] ) && empty( $embedded['has_more'] ) ) {
+			return $embedded['data'];
+		}
+		$all = array();
+		$after = '';
+		for ( $page = 0; $page < 20; $page++ ) {
+			$query = array( 'charge' => (string) ( $charge['id'] ?? '' ), 'limit' => 100 );
+			if ( '' !== $after ) { $query['starting_after'] = $after; }
+			$list = $this->api( 'GET', 'refunds?' . http_build_query( $query ) );
+			if ( is_wp_error( $list ) ) { return $list; }
+			$data = is_array( $list['data'] ?? null ) ? $list['data'] : array();
+			$all = array_merge( $all, $data );
+			$last = end( $data );
+			if ( empty( $list['has_more'] ) || ! is_array( $last ) || empty( $last['id'] ) ) { break; }
+			$after = (string) $last['id'];
+		}
+		return $all;
 	}
 
 	/** Stripe API call; returns the decoded body or WP_Error with Stripe's message. */

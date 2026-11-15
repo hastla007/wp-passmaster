@@ -242,13 +242,17 @@ final class Webhooks {
 	 *
 	 * Event fields: amount_minor; refund_scope `single` (amount of this one refund, idempotent per
 	 * refund_id), `cumulative` (running total of all external refunds/chargebacks of the payment; only the
-	 * part not booked yet is recorded) or `full` (the payment is fully refunded at the provider: the
-	 * remaining amount is recorded). Without refund_scope an amount covering the remaining total counts
+	 * part not booked yet is recorded), `full` (the payment is fully refunded at the provider: the
+	 * remaining amount is recorded) or `list` (all external refunds with their ids, see
+	 * book_external_refund_list()). Without refund_scope an amount covering the remaining total counts
 	 * as `full`, anything else as `single` keyed by the event id.
 	 *
 	 * @return string|\WP_Error
 	 */
 	private static function book_external_refund( $provider, $event_id, $order, array $event ) {
+		if ( 'list' === (string) ( $event['refund_scope'] ?? '' ) ) {
+			return self::book_external_refund_list( $provider, $event_id, $order, $event );
+		}
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = (int) $order->order_id;
@@ -309,6 +313,38 @@ final class Webhooks {
 		}
 		// A redelivered refund (same key) returns the existing row and changes nothing.
 		return (int) $fresh->refunded_minor > (int) $order->refunded_minor ? 'partial_refund_booked' : 'refund_already_booked';
+	}
+
+	/**
+	 * refund_scope `list`: every external refund of the payment with its own id and amount
+	 * (`refunds` => [{refund_id, amount_minor}], e.g. all dashboard refunds of a Stripe charge). Each is
+	 * booked as a `single` refund keyed by its refund id, so refunds already booked by an earlier
+	 * event are skipped and none is lost when webhooks arrive late or out of order.
+	 *
+	 * @return string|\WP_Error
+	 */
+	private static function book_external_refund_list( $provider, $event_id, $order, array $event ) {
+		$order_id = (int) $order->order_id;
+		$before = (int) $order->refunded_minor;
+		$result = 'refund_already_booked';
+		foreach ( (array) ( $event['refunds'] ?? array() ) as $item ) {
+			$refund_id = substr( sanitize_text_field( (string) ( $item['refund_id'] ?? '' ) ), 0, 150 );
+			$amount = (int) ( $item['amount_minor'] ?? 0 );
+			if ( '' === $refund_id || $amount <= 0 ) { continue; }
+			$current = Orders::get( $order_id );
+			if ( ! $current ) {
+				return new \WP_Error( 'wpcap_webhook_db_error', 'Database unavailable; retry later.', array( 'status' => 503, 'retryable' => true ) );
+			}
+			$single = array_merge( $event, array( 'refund_scope' => 'single', 'refund_id' => $refund_id, 'amount_minor' => $amount ) );
+			unset( $single['refunds'] );
+			$result = self::book_external_refund( $provider, $event_id, $current, $single );
+			if ( is_wp_error( $result ) || 'refunded' === $result ) { return $result; }
+		}
+		$fresh = Orders::get( $order_id );
+		if ( $fresh && 'partial_refund_logged' !== $result ) {
+			return (int) $fresh->refunded_minor > $before ? 'partial_refund_booked' : 'refund_already_booked';
+		}
+		return $result;
 	}
 
 	/**
