@@ -440,9 +440,9 @@ final class SettingsPage {
 		}
 	}
 
-	/** Typed confirmation for delete_data_on_uninstall ("LÖSCHEN", case-insensitive). */
+	/** Typed confirmation for delete_data_on_uninstall ("LÖSCHEN" or "DELETE" for translated admin screens, case-insensitive). */
 	private static function uninstall_confirmed( array $in ) {
 		$typed = is_scalar( $in['delete_data_on_uninstall_confirm'] ?? null ) ? trim( (string) $in['delete_data_on_uninstall_confirm'] ) : '';
-		return in_array( mb_strtoupper( $typed ), array( 'LÖSCHEN', 'LOESCHEN' ), true );
+		return in_array( mb_strtoupper( $typed ), array( 'LÖSCHEN', 'LOESCHEN', 'DELETE' ), true );
 	}
 }

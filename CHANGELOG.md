@@ -17,6 +17,45 @@
 - **Kassenregister**: Sobald unter „Kassen- und Belegeinstellungen“ Register eingetragen sind, kann eine Kassensitzung nur mit einem freigegebenen Register geöffnet werden; ein entferntes Register sperrt weitere Verkäufe der noch offenen Sitzung.
 - **REST `POST /pos/sales`**: optionales Feld `payment_method` (`cash`, `card`, `voucher`, `other`; nur für Fiskalbelege), Antwort zusätzlich `tickets_issued` und `ticket_issuance_pending`.
 
+### Audit-Panel 2026-11-15 (8 Prüfer, Bericht `docs/audit/PANEL-2026-11-15.md`)
+
+**Verhaltensänderungen beim Update**
+- **Datenbankschema 3.14.0** (über 3.12.0/3.13.0): Spalte `request_fingerprint` an Bestellungen, Indizes `status_expires` (Reservierungen) und `created_checkin` (Check-ins). Upgrade-Schritte: Lösch-Opt-in wandert in die eigene Option `wpcap_uninstall_policy` (die alte Kopie „WP Pass Captain“ kann so keine Daten mehr löschen), `wpcap_settings` wird automatisch geladen (autoload).
+- **REST `POST /checkout`**: Antwort ohne `order_id`/`public_id` (nur `reference`). Ein wiederverwendeter Idempotency-Key mit anderen Angaben (Zahlungsart, Positionen, E-Mail, Codes) liefert `409 wpcap_idempotency_mismatch`; nach Ablauf der Reservierung `409 wpcap_checkout_closed`. Offene Stripe-/Mollie-Zahlungen werden nur bei gleichem Betrag wiederverwendet.
+- **Strenge Datumsprüfung** in den REST-Endpunkten für Kampagnen (`starts_at`/`ends_at`), Fiskalprofile (`effective_from`/`effective_until`) und Service-Slots: `Y-m-d H:i:s` (UTC) oder ISO 8601 mit Offset, sonst `400 wpcap_invalid_datetime`.
+- **E-Mail-Adressen über 190 Zeichen** werden mit klarer Feldmeldung abgelehnt (Käufer, Teilnehmer, Ticket-Weitergabe).
+- **Gestapelte Rabattcodes**: Jeder Code wird anteilig auf die Zeilen verteilt; bei überlappenden Codes kann der Gesamtrabatt kleiner ausfallen als bisher, entspricht aber genau den Zeilenrabatten auf Rechnung, Fiskalbeleg und Abrechnung (`docs/SALES-MODELS.md`).
+- **Reservierungsdauer**: Stripe-Checkouts halten mindestens 36 Minuten (Session endet 5 Minuten vorher); gestartete verzögerte Zahlarten (SEPA, Banküberweisung) verlängern die Reservierung auf 7 Tage (Filter `wp_pass_captain_delayed_payment_hold_minutes_v1`).
+- **Neue Löschfristen** (Einstellungen unter „Datenschutz“): Käuferdaten aller Bestellungen nach der gesetzlichen Frist (Standard 10 Jahre ab Ende des Bestelljahres; Rechnungen und Fiskalbelege bleiben unverändert), Wartelisten (30 Tage nach dem Termin), Mitgliedspässe (365 Tage nach Ablauf), stornierte/abgelaufene Servicebuchungen (90 Tage), SMS-Texte (30 Tage), Einlassbuchungen/-konflikte und Gerätebezeichnungen (365 Tage), erledigte Reservierungen und Hintergrundjobs (30 Tage). Der erste Lauf auf Bestandssystemen arbeitet ältere Daten in Batches ab.
+- **Beim Löschen alle Daten entfernen** lässt sich nur noch mit der Eingabe „LÖSCHEN“ (oder „DELETE“) aktivieren.
+- **Affiliate-Cookie** gilt ohne WP Consent API als nicht eingewilligt.
+- **QR-Codes** werden ohne `endroid/qr-code` direkt aus BaconQrCode gezeichnet (keine Kollision mehr mit Plugins, die eine ältere endroid-Version mitbringen); die Statusseite warnt, wenn ein anderes Plugin BaconQrCode lädt.
+- **Offline-Scanner**: Ein gesperrtes Gerät (401/`device_revoked`) löscht Zugangsdaten, Pakete und Protokoll – noch nicht synchronisierte Scans gehen dabei verloren; abgelaufene Pakete und alte Protokolleinträge werden automatisch entfernt.
+- **Terminabsage** widerruft zuerst alle Tickets in einem Schritt; Erstattungen, Mails und Wallet-/Webhook-Effekte laufen als Hintergrundjobs (Fortschritt im Systemstatus).
+
+**Sicherheit**
+- REST `POST /member-passes` prüft den Geltungsbereich jeder Regel wie die Admin-Maske (keine Service-Pässe für fremde Ressourcen mehr durch Kassenpersonal); Scope-Matrix-Test für alle schreibenden Routen mit Objekt-IDs.
+- CSV-Exporte ohne Backslash-Escape und mit erweiterter Formel-Neutralisierung (CSV-/Formel-Injection).
+- Entwickler-API-Keys gelten nur, solange Rolle und Event-Zuweisung bestehen; Widerruf bei Löschen/Rollenwechsel. Nicht-Admins höchstens 6.000 Anfragen/Minute.
+- Token-Seiten (Portal, Ticket, Rechnung, Warteliste, Einwilligung, Service-Portal, Scanner) senden `X-Frame-Options: DENY`, `frame-ancestors 'none'`, `X-Robots-Tag: noindex` und `DONOTCACHEPAGE`.
+- Wartelisten: globales IP-Limit (Filter `wp_pass_captain_waitlist_ip_limit_v1`), IPv6-Limits je /64; Check-in-Wiederholungen prüfen die Berechtigung erneut; Array-Parameter in URLs erzeugen keine PHP-Warnungen mehr.
+
+**Zahlungen und Belege**
+- Erstattungen und Chargebacks im Dashboard von Stripe, PayPal und Mollie werden im Erstattungsbuch gebucht (Gutschrift, Abrechnungsabzug); Disputes lösen eine Admin-Mail aus.
+- Verspätete Zahlung nach Ablauf der Reservierung belegt den Rabattcode neu, sonst manuelle Prüfung (`needs_review`).
+- Abrechnung und Finanzbericht ziehen bei Erstattungen auch den Gutschein-Anteil ab; Einzweck-Gutscheine werden auf die Zeilen verteilt (Rechnung, Fiskalbeleg, Abrechnung stimmen mit der Summe überein); Teilerstattungen bei Kampagne plus Gutschein korrekt skaliert; Umbuchung auf günstiger nach Zuzahlung erstattet über beide Bestellungen; Gutschriften für Erstattungen vor der Rechnungsstellung; PayPal bucht nicht mehr für bereits geschlossene Bestellungen ab.
+- Signierte QR-Codes bleiben nach einer Terminverschiebung gültig.
+
+**Datenschutz**
+- Auskunft/Löschung eines Käufers erfasst nur noch eigene Einwilligungen; nie bezahlte Bestellungen verlieren auch die Rechnungsanschrift; Wallet-Pässe werden bei Löschung ohne Namen aktualisiert; Wartelisten-E-Mails werden für die Support-Rolle maskiert; WooCommerce-Teilnehmerkopien werden gelöscht und sind in den WooCommerce-Datenschutzwerkzeugen; Rate-Limit-Schlüssel mit geheimem Schlüssel (HMAC); `Redact` maskiert Telefonnummern, IBAN und IP-Adressen; Export/Löschung um Benutzerkonto, Erstattungsgrund, Nachrichtenwarteschlange, SMS und Ansprechpartner ergänzt; Datenschutztext an die tatsächlichen Fristen und Empfänger angepasst.
+
+**Performance**
+- Event-Seite, Block und `GET /events` laden gebündelt (konstant rund 15–20 Abfragen statt mehrere je Ticketart); Mollie-Zahlarten pro Währung/Land gecacht mit Negativ-Cache und 3 s Timeout; Erinnerungen ohne Abfrage je Inhaber und ohne 200-Termine-Grenze; Admin-Badges als COUNT; Berichtsseite gecacht, Zeitraum höchstens 366 Tage; Audit- und Fiskal-Export streamen ohne 50.000-Zeilen-Grenze; WooCommerce-Block-CSS nur noch im Checkout.
+
+**WooCommerce, Multisite, WordPress.org**
+- Kopierte `_wpcap_*`-Meta (z. B. Abo-Verlängerungen) kann keine fremden Tickets mehr stornieren; Papierkorb/Löschen unbezahlter Bestellungen gibt Reservierungen frei; Admin-/REST-Bestellungen mit Pflichtfeldern bekommen Tickets, die Angaben folgen im Portal; Audit-Einträge auf Sites ohne Plugin-Tabellen werden übersprungen; Netzwerkaktivierung in Batches; eigene PHP-Versionsprüfung statt Composer-`platform_check`; `readme.txt` „External services“ vervollständigt, tweetnacl-Quellhinweis im Paket.
+- Neu: `Campaigns::create`/`Fiscalization::save_profile` liefern die richtige ID; Monatskalender gruppiert in der Zeitzone des Termins; Deinstallation entfernt Action-Scheduler-Aktionen.
+
 ### Fiskalisierung (PR #14 integriert)
 - Modul **Fiskalisierung** (Pass Captain → Fiskalisierung): Rechtsträger, Länder-/Kanalprofile mit Prüfvermerk (Regelwerk, Version, Referenz), Anbieter je Rechtsträger, Verkäufer je Ticketart, Verbindungstest, offene Vorgänge mit Statusabgleich und Wiederholung, Ereignisprotokoll mit „Extern erledigt dokumentieren“, einmaliges efsta-Vollstorno (AT/DE, nur vor Zahlung), CSV-Archivexport (kein Behördenformat). Adapter: fiskaly SIGN AT, SIGN DE, Unified API (FR, IT, PT, SE), efsta EFR, fiskaltrust POS System API. Kein zertifiziertes Produkt; Anbieter-Sandbox-Abnahme und rechtliche Prüfung bleiben beim Betreiber (`docs/fiscalization-adapters.md`, `docs/fiscalization-scope-at-de-hu.md`).
 - **Ein gehärteter Transport** (`Fiscalization\ProviderHttp`) für alle Adapter: nur HTTPS zu öffentlichen Adressen (SSRF-Schutz), lokale Fiskaldienste nur nach Freigabe, keine Weiterleitungen, Zeit- und Größenlimits, Beträge mit den Nachkommastellen der Währung, Fehler über `PassCaptain\Log` (nur Host und Code). Endpunkte werden schon beim Speichern geprüft. Der frühere `Providers\HttpClient` entfällt.

@@ -184,6 +184,18 @@ wird `pass-captain.zip.sha256` veröffentlicht (Prüfung und Nachbau:
 mit realistischen Datenständen, doppelte Webhooks, E-Mail-Ausfälle, hohe Scanrate, Multisite):
 [RELEASE.md](RELEASE.md).
 
+## Webhooks der Zahlungsanbieter einrichten
+
+Pass Captain wertet nur die Ereignisse aus, die beim Anbieter für den Webhook-Endpunkt abonniert sind. Fehlt ein Ereignis, bleiben z. B. Dashboard-Erstattungen oder Chargebacks unverbucht und die Tickets gültig.
+
+| Anbieter | Zu abonnierende Ereignisse |
+|---|---|
+| Stripe | `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated`, `charge.dispute.closed` |
+| PayPal | `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `CUSTOMER.DISPUTE.CREATED` |
+| Mollie | keine Auswahl nötig: Mollie ruft den Webhook bei jeder Statusänderung einer Zahlung auf (inkl. Erstattung und Chargeback) |
+
+Erstattungen und Chargebacks, die beim Anbieter ausgelöst werden, verbucht Pass Captain über `Refunds::record_external()` (Gutschrift, Abrechnungsabzug, Fiskal-Korrekturaufgabe). Eine eröffnete Zahlungsanfechtung (Dispute) erzeugt eine Admin-Mail; gebucht wird erst, wenn das Geld tatsächlich abgezogen wird.
+
 ## Kasse: keine Registrierkasse
 
 Die Kasse (Menü **Pass Captain → Kasse**) bucht Verkäufe vor Ort als Bestellungen, erzeugt Belege mit fortlaufender Nummer und einen Kassenabschluss. Sie ist **keine** Registrierkasse im fiskalrechtlichen Sinn:

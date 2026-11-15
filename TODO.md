@@ -339,83 +339,102 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 
 ## Audit-Panel 2026-11-15 – Funde (main-Branch @ f060845)
 
-Vollständiger Bericht mit Fundstellen, Debatte und Fix-Code: `docs/audit/PANEL-2026-11-15.md`. Priorität: **K** = Kritisch (vor Release), **M** = Mittel (vor Release), **N** = Nice-to-have. Verdachtsfälle zuerst verifizieren.
+Vollständiger Bericht mit Fundstellen, Debatte und Fix-Code: `docs/audit/PANEL-2026-11-15.md`. **Stand 2026-11-15: alle acht Pakete behoben und zusammengeführt** (Integrationssuite 3228/0 auf MariaDB, Lasttest, phpcs-Baseline, PHPStan, i18n, JS 82/82, Lizenz-Wächter). Details je Fund im CHANGELOG; Restpunkte unten. Priorität: **K** = Kritisch (vor Release), **M** = Mittel (vor Release), **N** = Nice-to-have. Verdachtsfälle zuerst verifizieren.
 
 ### Y1 Sicherheit & Zugriff
-- [ ] SEC-1 (K) REST `POST /member-passes`: Regel-Geltungsbereich wie in der Admin-Maske prüfen (Kassierer kann sich 0-€-Service-Pässe für alle Ressourcen ausstellen).
-- [ ] SEC-2 (K) CSV-Formel-Injection: `Reports/Scope.php` ohne Backslash-Escape, `csv_cell()` härten.
-- [ ] SEC-3 (K) Developer-Keys: Rolle/Capability bei jeder Prüfung verlangen, Keys/Staff-Zeilen bei Löschen/Rollenwechsel widerrufen.
-- [ ] LEAD-1 (K) Scope-Matrix-Test für schreibende Routen mit Objekt-IDs im Body.
-- [ ] SEC-4 (M) Checkout-Antwort ohne `order_id`/`public_id`.
-- [ ] SEC-5 (M) Warteliste: globales IP-Limit, E-Mail-Key kleingeschrieben, Double-Opt-in.
-- [ ] SEC-6 (M) Google-Wallet `token_uri` fest/Allowlist.
-- [ ] FE-7 (M) `X-Frame-Options: DENY`/`frame-ancestors 'none'` + `X-Robots-Tag: noindex` auf Portal, Ticket-, Scanner-, Rechnungsseiten.
-- [ ] INT-6 (M) `DONOTCACHEPAGE` + `nocache_headers()` auf allen Token-Seiten.
-- [ ] QA-8 (N) `is_scalar()` vor String-Casts von Query-Parametern (7 Dateien).
-- [ ] Verdacht SEC-V1…V4 verifizieren (Saal-Blockade, Shop-Manager-Verknüpfung, Check-in-Replay, Key-Rate-Limit).
+- [x] SEC-1 (K) REST `POST /member-passes`: Regel-Geltungsbereich wie in der Admin-Maske prüfen (Kassierer kann sich 0-€-Service-Pässe für alle Ressourcen ausstellen).
+- [x] SEC-2 (K) CSV-Formel-Injection: `Reports/Scope.php` ohne Backslash-Escape, `csv_cell()` härten.
+- [x] SEC-3 (K) Developer-Keys: Rolle/Capability bei jeder Prüfung verlangen, Keys/Staff-Zeilen bei Löschen/Rollenwechsel widerrufen.
+- [x] LEAD-1 (K) Scope-Matrix-Test für schreibende Routen mit Objekt-IDs im Body.
+- [x] SEC-4 (M) Checkout-Antwort ohne `order_id`/`public_id`.
+- [x] SEC-5 (M) Warteliste: globales IP-Limit, E-Mail-Key kleingeschrieben, Double-Opt-in.
+- [x] SEC-6 (M) Google-Wallet `token_uri` fest/Allowlist.
+- [x] FE-7 (M) `X-Frame-Options: DENY`/`frame-ancestors 'none'` + `X-Robots-Tag: noindex` auf Portal, Ticket-, Scanner-, Rechnungsseiten.
+- [x] INT-6 (M) `DONOTCACHEPAGE` + `nocache_headers()` auf allen Token-Seiten.
+- [x] QA-8 (N) `is_scalar()` vor String-Casts von Query-Parametern (7 Dateien).
+- [x] Verdacht SEC-V1…V4 verifizieren (Saal-Blockade, Shop-Manager-Verknüpfung, Check-in-Replay, Key-Rate-Limit).
 
 ### Y2 Checkout & Zahlungsfluss
-- [ ] QA-1 (K) Idempotency-Reuse nur bei gleichem Provider/Items/E-Mail (Fingerprint, sonst 409); offene PSP-Session nur bei gleichem Betrag wiederverwenden; `checkout.js` verwirft Key bei Änderungen.
-- [ ] PAY-1 (K) Late-Payment: Kampagnen-Nutzung neu belegen, sonst `needs_review`.
-- [ ] QA-6 (K) Stripe-Session-Ablauf ≤ Hold; verzögerte Zahlarten nur mit passendem Hold.
-- [ ] PAY-2 (K) Dashboard-Refunds (voll und teilweise) über `Refunds::record_external` buchen.
-- [ ] PAY-8 (K) Stripe-/PayPal-Chargebacks/Disputes als Refund buchen, Alert bei Eröffnung.
-- [ ] PAY-7 (M) Gutschriften für Erstattungen vor Rechnungsstellung nachziehen.
-- [ ] PAY-10 (N) PayPal: nicht capturen, wenn Order bereits geschlossen.
-- [ ] Verdacht PAY-V2…V5 verifizieren (Stripe-Refund-Retry-Idempotenz, Terminal-Betrag, Kassen-Session, Admin-Cancel bezahlter Order).
+- [x] QA-1 (K) Idempotency-Reuse nur bei gleichem Provider/Items/E-Mail (Fingerprint, sonst 409); offene PSP-Session nur bei gleichem Betrag wiederverwenden; `checkout.js` verwirft Key bei Änderungen.
+- [x] PAY-1 (K) Late-Payment: Kampagnen-Nutzung neu belegen, sonst `needs_review`.
+- [x] QA-6 (K) Stripe-Session-Ablauf ≤ Hold; verzögerte Zahlarten nur mit passendem Hold.
+- [x] PAY-2 (K) Dashboard-Refunds (voll und teilweise) über `Refunds::record_external` buchen.
+- [x] PAY-8 (K) Stripe-/PayPal-Chargebacks/Disputes als Refund buchen, Alert bei Eröffnung.
+- [x] PAY-7 (M) Gutschriften für Erstattungen vor Rechnungsstellung nachziehen.
+- [x] PAY-10 (N) PayPal: nicht capturen, wenn Order bereits geschlossen.
+- [x] Verdacht PAY-V2…V5 verifizieren (Stripe-Refund-Retry-Idempotenz, Terminal-Betrag, Kassen-Session, Admin-Cancel bezahlter Order).
 
 ### Y3 Beträge, Belege & Abrechnung
-- [ ] PAY-3 (K) Abrechnung: Gutschein-Anteil erstatteter Tickets abziehen.
-- [ ] PAY-4 (K) Einzweck-Gutschein in `line_discounts` aufteilen; Fiskal-Dokument aktualisieren bzw. ablehnen.
-- [ ] LEAD-2 (K) Geld-Invarianten-Tests (Σ Zeilenrabatte = Rabatt, Rechnungszeilen = Summe, Abrechnung = Kasse − Erstattungen inkl. Gutschein).
-- [ ] PAY-5 (M) `Campaigns::calculate` liefert die tatsächliche Zeilenaufteilung (inkl. `with_price_rules`).
-- [ ] PAY-6 (M) Teilerstattung bei Kampagne + Gutschein korrekt skalieren.
-- [ ] PAY-9 (M) Service-Umbuchung nach Upgrade: Differenz über Ursprungs- und Nachzahlungs-Order erstatten.
+- [x] PAY-3 (K) Abrechnung: Gutschein-Anteil erstatteter Tickets abziehen.
+- [x] PAY-4 (K) Einzweck-Gutschein in `line_discounts` aufteilen; Fiskal-Dokument aktualisieren bzw. ablehnen.
+- [x] LEAD-2 (K) Geld-Invarianten-Tests (Σ Zeilenrabatte = Rabatt, Rechnungszeilen = Summe, Abrechnung = Kasse − Erstattungen inkl. Gutschein).
+- [x] PAY-5 (M) `Campaigns::calculate` liefert die tatsächliche Zeilenaufteilung (inkl. `with_price_rules`).
+- [x] PAY-6 (M) Teilerstattung bei Kampagne + Gutschein korrekt skalieren.
+- [x] PAY-9 (M) Service-Umbuchung nach Upgrade: Differenz über Ursprungs- und Nachzahlungs-Order erstatten.
 
 ### Y4 Datenschutz
-- [ ] PRIV-2 (K) Anonymisierung unbezahlter Orders löscht `billing`.
-- [ ] PRIV-3 (K) DSAR: Einwilligungen nur per `subject_email`; Käufer-Export ohne fremde Antworten/Einwilligungen.
-- [ ] PRIV-1 (M) Retention: Fristlöschung bezahlter Orders (konfigurierbar, Standard 10 J.), Wartelisten, Service-Buchungen, Mitgliedspässe, SMS-Texte, Einlassprotokolle.
-- [ ] PRIV-4 (M) Wallet-Pässe bei Löschung aktualisieren (Google PATCH, Apple Push vor Purge).
-- [ ] PRIV-6 (M) Wartelisten-Seite/Export nach `DataPolicy` maskieren.
-- [ ] PRIV-7 (M) WooCommerce `_wpcap_attendees`: löschen bei cancelled/failed, WC-Exporter/Eraser registrieren.
-- [ ] PRIV-8 (M) Hashes mit Schlüssel (`RateLimit::client()`), Policy-Text korrigieren (Connector, Fiskal-Empfänger).
-- [ ] PRIV-9 (N, Rechtsfrage) E-Mail aus `buyer_snapshot` neuer Rechnungen.
-- [ ] PRIV-10…13, 15…17 (N) Redact-Muster, Exporter-/Eraser-Lücken, `attendee_data` bezahlter Orders, Affiliate-Cookie-Default, SMS-Opt-in-Verifizierung, Uninstall-Warnung.
-- [ ] Verdacht PRIV-V1…V3 verifizieren (webhook_deliveries, Partner-API-Audit, Gerätelabels).
+- [x] PRIV-2 (K) Anonymisierung unbezahlter Orders löscht `billing`.
+- [x] PRIV-3 (K) DSAR: Einwilligungen nur per `subject_email`; Käufer-Export ohne fremde Antworten/Einwilligungen.
+- [x] PRIV-1 (M) Retention: Fristlöschung bezahlter Orders (konfigurierbar, Standard 10 J.), Wartelisten, Service-Buchungen, Mitgliedspässe, SMS-Texte, Einlassprotokolle.
+- [x] PRIV-4 (M) Wallet-Pässe bei Löschung aktualisieren (Google PATCH, Apple Push vor Purge).
+- [x] PRIV-6 (M) Wartelisten-Seite/Export nach `DataPolicy` maskieren.
+- [x] PRIV-7 (M) WooCommerce `_wpcap_attendees`: löschen bei cancelled/failed, WC-Exporter/Eraser registrieren.
+- [x] PRIV-8 (M) Hashes mit Schlüssel (`RateLimit::client()`), Policy-Text korrigieren (Connector, Fiskal-Empfänger).
+- [x] PRIV-9 (N, Rechtsfrage) E-Mail aus `buyer_snapshot` neuer Rechnungen.
+- [x] PRIV-10…13, 15…17 (N) Redact-Muster, Exporter-/Eraser-Lücken, `attendee_data` bezahlter Orders, Affiliate-Cookie-Default, SMS-Opt-in-Verifizierung, Uninstall-Warnung.
+- [x] Verdacht PRIV-V1…V3 verifizieren (webhook_deliveries, Partner-API-Audit, Gerätelabels).
 
 ### Y5 Performance
-- [ ] PERF-1 (K) Event-Seite/`GET /events` vorladen und Verfügbarkeit gebündelt berechnen.
-- [ ] PERF-2 (K) Mollie-Methoden: Negativ-Cache, kurzer Timeout, nicht pro Betrag.
-- [ ] PERF-4 (K) Termin absagen/verschieben: Revoke zuerst gebündelt, Refunds und Mails als Jobs.
-- [ ] PERF-3 (M) Reminder-Cron ohne N+1, mit Zeitbudget; QA-10 (Limit 200) mitlösen.
-- [ ] PERF-5…11 (M) WooCommerce-CSS nur im Checkout, Reservierungs-Index + Retention für reservations/jobs, `reconcile_issuance`-Index, Check-in-Index, Admin-Queries, Berichtsseite cachen/streamen (inkl. QA-7, QA-12), Settings-Autoload + toter Code.
-- [ ] PERF-13…17 (N) Scanner-Lokalisierung, Lazy-Module, Check-in-Admin, Transients, Cron-Hooks bei Deaktivierung (= INT-7).
+- [x] PERF-1 (K) Event-Seite/`GET /events` vorladen und Verfügbarkeit gebündelt berechnen.
+- [x] PERF-2 (K) Mollie-Methoden: Negativ-Cache, kurzer Timeout, nicht pro Betrag.
+- [x] PERF-4 (K) Termin absagen/verschieben: Revoke zuerst gebündelt, Refunds und Mails als Jobs.
+- [x] PERF-3 (M) Reminder-Cron ohne N+1, mit Zeitbudget; QA-10 (Limit 200) mitlösen.
+- [x] PERF-5…11 (M) WooCommerce-CSS nur im Checkout, Reservierungs-Index + Retention für reservations/jobs, `reconcile_issuance`-Index, Check-in-Index, Admin-Queries, Berichtsseite cachen/streamen (inkl. QA-7, QA-12), Settings-Autoload + toter Code.
+- [x] PERF-13…17 (N) Scanner-Lokalisierung, Lazy-Module, Check-in-Admin, Transients, Cron-Hooks bei Deaktivierung (= INT-7).
 
 ### Y6 Integrationen, Multisite & WordPress.org
-- [ ] INT-1 (K) Uninstall-Opt-in in eigenen Schlüssel verschieben (Altkopie kann keine Daten mehr löschen).
-- [ ] INT-2 (K) QR-SVG aus eigener Bacon-Matrix; PERF-12 Vendor-Präfix prüfen.
-- [ ] INT-3 (K) `core_order_ids()` nur für zugehörige WC-Order; `_wpcap_*` von Subscriptions-Kopie ausschließen.
-- [ ] INT-4 (M) Papierkorb/Löschen unbezahlter WC-Orders gibt Hold frei.
-- [ ] INT-5 (M) Audit-Trail auf Sites ohne Plugin-Tabellen überspringen.
-- [ ] INT-10 (M) WC-Admin-/REST-Orders mit Pflichtfeldern: Ausstellung + spätere Eingabe.
-- [ ] WPORG-1, WPORG-3 (M) readme „External services“ vervollständigen, Platzhalter entfernen; tweetnacl-Quellhinweis im ZIP.
-- [ ] INT-7…9, 11…13, WPORG-2, 4, 5 (N) Cron bei Deaktivierung, Altkopie-Warnings, `product_block_editor`, `platform_check`, Notiz bei gelöschter WC-Order, Netzwerkaktivierung in Batches, Inline-Style, Vault-Hinweis.
+- [x] INT-1 (K) Uninstall-Opt-in in eigenen Schlüssel verschieben (Altkopie kann keine Daten mehr löschen).
+- [x] INT-2 (K) QR-SVG aus eigener Bacon-Matrix; PERF-12 Vendor-Präfix prüfen.
+- [x] INT-3 (K) `core_order_ids()` nur für zugehörige WC-Order; `_wpcap_*` von Subscriptions-Kopie ausschließen.
+- [x] INT-4 (M) Papierkorb/Löschen unbezahlter WC-Orders gibt Hold frei.
+- [x] INT-5 (M) Audit-Trail auf Sites ohne Plugin-Tabellen überspringen.
+- [x] INT-10 (M) WC-Admin-/REST-Orders mit Pflichtfeldern: Ausstellung + spätere Eingabe.
+- [x] WPORG-1, WPORG-3 (M) readme „External services“ vervollständigen, Platzhalter entfernen; tweetnacl-Quellhinweis im ZIP.
+- [x] INT-7…9, 11…13, WPORG-2, 4, 5 (N) Cron bei Deaktivierung, Altkopie-Warnings, `product_block_editor`, `platform_check`, Notiz bei gelöschter WC-Order, Netzwerkaktivierung in Batches, Inline-Style, Vault-Hinweis.
 
 ### Y7 Frontend & Scanner
-- [ ] QA-2 (K) Signierter QR: Fenster gegen aktuelle Termindaten prüfen.
-- [ ] FE-1 / PRIV-5 (M) Offline-Gerät: bei 401/`device_revoked` Stores löschen; abgelaufene Pakete entfernen.
-- [ ] FE-3 (M) `?api=` nur für ungekoppelte Geräte.
-- [ ] FE-2, FE-4, FE-5, FE-6, FE-8 (N) SW-Navigation-Cache, Log-Pruning, Cursor/`issued_at` gegen Rollback, Kamera stoppen, Token nicht global, Inline-Handler.
-- [ ] QA-11 (N) Monatskalender: Gruppierung und Beschriftung in derselben Zeitzone.
+- [x] QA-2 (K) Signierter QR: Fenster gegen aktuelle Termindaten prüfen.
+- [x] FE-1 / PRIV-5 (M) Offline-Gerät: bei 401/`device_revoked` Stores löschen; abgelaufene Pakete entfernen.
+- [x] FE-3 (M) `?api=` nur für ungekoppelte Geräte.
+- [x] FE-2, FE-4, FE-5, FE-6, FE-8 (N) SW-Navigation-Cache, Log-Pruning, Cursor/`issued_at` gegen Rollback, Kamera stoppen, Token nicht global, Inline-Handler.
+- [x] QA-11 (N) Monatskalender: Gruppierung und Beschriftung in derselben Zeitzone.
 
 ### Y8 Kleine Bugs
-- [ ] QA-3 (M) `Campaigns::create` gibt die richtige ID zurück.
-- [ ] QA-4 (M) `Fiscalization::save_profile` gibt die richtige ID zurück.
-- [ ] LEAD-3 (M) Muster „`insert_id` nach `Audit::record`“ im ganzen Code suchen und beheben.
-- [ ] QA-5 (M) Datumsfelder in Kampagnen-/Fiskal-REST streng validieren (ISO 8601 → UTC, sonst 400).
-- [ ] QA-9 (N) E-Mail-Länge ≤ 190 mit klarer Feldmeldung.
-- [ ] Verdacht QA-V1…V4 verifizieren (`strtotime` ohne TZ, Rate-Limit-Atomarität, BuyerLimits-Lock-Name, Action-Scheduler beim Uninstall).
+- [x] QA-3 (M) `Campaigns::create` gibt die richtige ID zurück.
+- [x] QA-4 (M) `Fiscalization::save_profile` gibt die richtige ID zurück.
+- [x] LEAD-3 (M) Muster „`insert_id` nach `Audit::record`“ im ganzen Code suchen und beheben.
+- [x] QA-5 (M) Datumsfelder in Kampagnen-/Fiskal-REST streng validieren (ISO 8601 → UTC, sonst 400).
+- [x] QA-9 (N) E-Mail-Länge ≤ 190 mit klarer Feldmeldung.
+- [x] Verdacht QA-V1…V4 verifizieren (`strtotime` ohne TZ, Rate-Limit-Atomarität, BuyerLimits-Lock-Name, Action-Scheduler beim Uninstall).
+
+### Restpunkte aus dem Audit-Panel (bewusst offen oder nur teilweise)
+- [ ] SEC-5: Double-Opt-in für Wartelisten (neuer Status, Bestätigungsmail, Vorlage, Migration). Derzeit begrenzt durch Limits pro E-Mail/IP/global und Austragen-Link.
+- [ ] SEC-V2: Shop-Manager können in WooCommerce jede Ticketart mit einem Produkt verknüpfen (kein Event-Scope für Woo-Rollen).
+- [ ] SEC-7 / PRIV-14: Zugangstokens in GET-URLs gegen Cookie/Session tauschen bzw. REST-Token per Header/POST.
+- [ ] QA-V2: Checkout-Rate-Limit ohne persistenten Object-Cache nicht atomar (bräuchte eigene Tabelle).
+- [ ] PAY-V2: Stripe-Erstattung nach endgültiger Ablehnung – Retry mit gleichem Idempotency-Key bekommt 24 h dieselbe Antwort (Versuchszähler in `Refunds`).
+- [ ] PAY-V3: Kartenterminal-Vertrag (`DeviceGatewayInterface::poll`) liefert keinen Betrag zum Abgleich (Vertragserweiterung).
+- [ ] PAY-V4: Teilerstattung einer Kassenbestellung über die Erstattungsseite fehlt im erwarteten Kassenbestand (`session_totals`).
+- [ ] Abrechnung: `Settlements::allocate_refund()` verteilt Erstattungen innerhalb einer Bestellung nach Listenpreis statt rabattiertem Wert (Summen stimmen; Zuordnung bei mehreren Veranstaltern leicht verschoben). Altbestellungen mit Einzweck-Gutschein + Kampagne ohne `voucher_lines` werden nicht migriert.
+- [ ] `record_external` schreibt bei Betrag 0 trotzdem eine Zeile (kleines Wettlaufrisiko bei externen Erstattungen).
+- [ ] FE-8: `onclick="window.print()"` auf der Ticketseite und `confirm()`-Inline-Handler im Admin verhindern eine strikte CSP (externes Skript nötig).
+- [ ] PERF-14…16: Lazy-Loading der Module, Check-in-Admin pro Termin, Transient-Zeilen pro IP ohne Object-Cache.
+- [ ] PRIV-9 (Rechtsfrage): E-Mail im `buyer_snapshot` neuer Rechnungen – Vorschlag in `docs/OPERATIONS.md`.
+- [ ] PRIV-16: SMS-Opt-in ohne Verifizierung der Nummer (OTP).
+- [ ] WPORG-1: efsta – öffentliche Nutzungsbedingungen nicht gefunden; `readme.txt` verweist auf den Vertrag. Von Hand bestätigen.
+- [ ] Mollie: Annahme prüfen, dass `GET /v2/methods` ohne Betrag die Grenzen in EUR liefert (lokale Filterung für EUR) – in der Sandbox-Abnahme.
+- [x] PayPal/Stripe: Liste der zu abonnierenden Webhook-Ereignisse in `docs/OPERATIONS.md` („Webhooks der Zahlungsanbieter einrichten“).
+- [ ] Echte Umgebung: Multisite-Übernahme mit Opt-in, Netzwerkaktivierung > 25 Sites, WooCommerce-Papierkorb/Wiederherstellen mit HPOS an/aus, Fremd-Plugin mit endroid 4.x.
 
 ## Externe Abnahmen und offene Entscheidungen (Stand 2026-11-14)
 
