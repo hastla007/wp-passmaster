@@ -52,7 +52,16 @@ $y2_checkout = static function ( array $body ) {
 	$r->set_body( wp_json_encode( $body + array( 'accept_terms' => true ) ) );
 	return Controller::checkout( $r );
 };
-$y2_data = static function ( $res ) { return $res instanceof WP_REST_Response ? $res->get_data() : $res; };
+// The checkout response carries only the short reference (audit SEC-4); resolve the order for the assertions.
+$y2_data = static function ( $res ) use ( $wpdb, $p ) {
+	$data = $res instanceof WP_REST_Response ? $res->get_data() : $res;
+	if ( is_array( $data ) && ! isset( $data['order_id'] ) && ! empty( $data['reference'] ) ) {
+		$prefix = strtolower( str_replace( '-', '', (string) $data['reference'] ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT order_id, public_id FROM {$p}wpcap_orders WHERE public_id LIKE %s ORDER BY order_id DESC LIMIT 1", addcslashes( $prefix, '_%\\' ) . '%' ) );
+		if ( $row ) { $data['order_id'] = (int) $row->order_id; $data['public_id'] = $row->public_id; }
+	}
+	return $data;
+};
 $y2_hold_until = static function ( $order_id ) use ( $wpdb, $p ) {
 	$v = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM {$p}wpcap_reservations WHERE order_id=%d AND status='active'", $order_id ) );
 	return $v ? strtotime( $v . ' UTC' ) : 0;
