@@ -186,6 +186,10 @@ final class InvoicePdf {
 			$y -= 14;
 			$pdf->text( 50, $y, 10, __( 'Datum:', 'pass-captain' ) . ' ' . self::date( $credit->issued_at ) . ' · ' . __( 'Empfänger:', 'pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
 			if ( Billing::address_lines( $snapshot ) ) { $y = self::recipient( $pdf, $y - 20, $snapshot, false ); }
+			if ( 'voided' === ( $credit->status ?? '' ) ) {
+				$y -= 18;
+				$pdf->text( 50, $y, 10, sprintf( /* translators: %s: date */ __( 'Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt.', 'pass-captain' ), self::date( (string) $credit->voided_at ) ), true );
+			}
 			$y -= 36;
 			// Split per VAT rate (credit notes from 3.17.4; older ones keep the single summary).
 			$credit_lines = \PassCaptain\Invoices::credit_note_lines( array( (int) $credit->credit_note_id ) )[ (int) $credit->credit_note_id ] ?? array();

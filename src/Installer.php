@@ -718,6 +718,8 @@ final class Installer {
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				issued_at datetime NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'issued',
+				voided_at datetime NULL,
 				PRIMARY KEY  (credit_note_id),
 				UNIQUE KEY refund_id (refund_id),
 				UNIQUE KEY credit_note_number (credit_note_number),
@@ -734,6 +736,24 @@ final class Installer {
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (credit_note_line_id),
 				KEY credit_note_id (credit_note_id)
+			) ENGINE=InnoDB $charset;",
+			// Payments that need a decision (Payments\Cases, 3.17.4).
+			"CREATE TABLE {$wpdb->prefix}wpcap_payment_cases (
+				case_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				provider varchar(32) NOT NULL,
+				kind varchar(32) NOT NULL,
+				reference varchar(191) NOT NULL DEFAULT '',
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL DEFAULT '',
+				status varchar(20) NOT NULL DEFAULT 'open',
+				note varchar(255) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (case_id),
+				UNIQUE KEY case_reference (provider,kind,reference),
+				KEY status (status),
+				KEY order_id (order_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_document_sequences (
 				series varchar(40) NOT NULL,

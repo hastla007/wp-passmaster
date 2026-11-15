@@ -50,6 +50,7 @@ $pm_routes = array(
 	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})' => 'token:order access token (64 hex) required',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer' => 'token:order access token required',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend' => 'token:order access token required',
+	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request' => 'token:order access token required; postponement refund request, always pending staff approval',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign' => 'token:order access token required',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/billing' => 'token:order access token required',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/invoice' => 'cap:wpcap_manage_orders',
@@ -168,7 +169,7 @@ $pm_admin = array(
 	'wpcap_admission_resolve_conflict' => 'wpcap_manage_events',
 	// System status (W2) and add-on export types (W7).
 	'wpcap_ops_queue_action' => 'manage_options', 'wpcap_ops_queue_bulk_retry' => 'manage_options', 'wpcap_ops_diagnose' => 'manage_options', 'wpcap_ops_repair' => 'manage_options',
-	'wpcap_ops_refund_resolve' => 'manage_options', 'wpcap_ops_schema_retry' => 'manage_options', 'wpcap_reports_export' => 'wpcap_view_reports',
+	'wpcap_ops_refund_resolve' => 'manage_options', 'wpcap_ops_schema_retry' => 'manage_options', 'wpcap_ops_payment_case' => 'manage_options', 'wpcap_reports_export' => 'wpcap_view_reports',
 	// Sales rules (W8): tax profiles, event sections (tax country, price rules, buyer limits).
 	'wpcap_tax_profile_action' => 'manage_options', 'wpcap_sales_event_action' => 'wpcap_manage_events',
 	'wpcap_pos_open' => 'wpcap_manage_orders', 'wpcap_pos_sell' => 'wpcap_manage_orders', 'wpcap_pos_storno' => 'wpcap_manage_orders', 'wpcap_pos_storno_reject' => 'wpcap_approve_refunds',

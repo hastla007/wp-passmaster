@@ -352,6 +352,64 @@ final class Refunds {
 	}
 
 	/**
+	 * A refund booked as completed failed later at the provider (Stripe refund.failed /
+	 * charge.refund.updated, Mollie refund status failed): the money never reached the buyer. In one
+	 * transaction the refund rows with one of the references (plugin refund id or "ext:{provider}:{id}")
+	 * are set to `failed` (error_message `provider_refund_failed`, next attempt with a new idempotency
+	 * key), the order's refunded amount is reduced again and a fully refunded order goes back to
+	 * complete/paid. Revoked tickets stay revoked (seats may have been sold again); the credit note is
+	 * voided (Invoices::void_credit_note_for_refund()) and `wp_pass_captain_refund_failed_v1` fires.
+	 *
+	 * @param string[] $references Provider refund references.
+	 * @return array|\WP_Error Rows of the refunds that were reversed (empty: nothing booked under these references).
+	 */
+	public static function provider_failed( $order_id, array $references, $provider = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$refs = array();
+		foreach ( array_filter( array_map( 'strval', $references ) ) as $ref ) {
+			$refs[] = substr( $ref, 0, 191 );
+			if ( '' !== (string) $provider ) { $refs[] = substr( 'ext:' . sanitize_key( (string) $provider ) . ':' . $ref, 0, 191 ); }
+		}
+		$refs = array_values( array_unique( $refs ) );
+		if ( ! $order_id || ! $refs ) { return array(); }
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::db_error( 0, $order_id, 'provider_failed_start' ); }
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,status,payment_status,refunded_minor,total_minor FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) );
+		$rows = $order ? (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND status='completed' AND provider_reference IN (" . implode( ',', array_fill( 0, count( $refs ), '%s' ) ) . ') FOR UPDATE', array_merge( array( $p . 'wpcap_refunds', $order_id ), $refs ) ), ARRAY_A ) : array();
+		if ( '' !== (string) $wpdb->last_error ) {
+			$error = (string) $wpdb->last_error;
+			$wpdb->query( 'ROLLBACK' );
+			return self::db_error( 0, $order_id, 'provider_failed_lock', $error );
+		}
+		if ( ! $rows ) {
+			$wpdb->query( 'COMMIT' );
+			return array();
+		}
+		$amount = (int) array_sum( array_map( static function ( $row ) { return (int) $row['amount_minor']; }, $rows ) );
+		$ok = true;
+		foreach ( $rows as $row ) {
+			$ok = $ok && 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='failed',error_message='provider_refund_failed',provider_attempt=provider_attempt+1,updated_at=%s WHERE refund_id=%d AND status='completed'", $p . 'wpcap_refunds', current_time( 'mysql', true ), (int) $row['refund_id'] ) );
+		}
+		$reopen = 'refunded' === (string) $order->status && (int) $order->refunded_minor - $amount < (int) $order->total_minor;
+		$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded_minor=GREATEST(0,CAST(refunded_minor AS SIGNED)-%d),updated_at=%s WHERE order_id=%d', $p . 'wpcap_orders', $amount, current_time( 'mysql', true ), $order_id ) );
+		if ( $reopen ) {
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='complete',payment_status='paid' WHERE order_id=%d AND status='refunded'", $p . 'wpcap_orders', $order_id ) );
+		}
+		if ( ! $ok || false === $wpdb->query( 'COMMIT' ) ) {
+			$error = (string) $wpdb->last_error;
+			$wpdb->query( 'ROLLBACK' );
+			return self::db_error( 0, $order_id, 'provider_failed_update', $error );
+		}
+		foreach ( $rows as $row ) {
+			Invoices::void_credit_note_for_refund( (int) $row['refund_id'] );
+			Audit::record( 'refund_provider_failed', 'order', $order_id, array( 'refund_id' => (int) $row['refund_id'], 'amount_minor' => (int) $row['amount_minor'], 'reference' => (string) $row['provider_reference'], 'order_reopened' => $reopen ) );
+			do_action( 'wp_pass_captain_refund_failed_v1', (int) $row['refund_id'], $order_id );
+		}
+		return $rows;
+	}
+
+	/**
 	 * Finishes refunds that were paid out by the provider but not booked locally (status processing
 	 * with provider reference), e.g. after a database error. Never calls the provider. Idempotent;
 	 * runs with the job queue (cron) and when the refund admin page loads.

@@ -18,7 +18,12 @@ final class Mollie {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-mollie';
 
-	/** Methods offered in the settings (Mollie ids). */
+	/**
+	 * Methods offered in the settings (Mollie ids). Klarna and Riverty only authorize a payment; the
+	 * plugin captures the authorization right away when the webhook reports it (MollieGateway::
+	 * capture_authorized()), and only the capture confirms the order. Removing them would not be
+	 * enough, because without a method restriction the buyer can still choose them on Mollie's page.
+	 */
 	const KNOWN_METHODS = array( 'applepay', 'bancontact', 'banktransfer', 'belfius', 'blik', 'creditcard', 'eps', 'giftcard', 'ideal', 'kbc', 'klarna', 'mybank', 'paypal', 'paysafecard', 'przelewy24', 'riverty', 'satispay', 'trustly', 'twint' );
 
 	public static function register() {
@@ -142,9 +147,12 @@ final class Mollie {
 			return 'pending';
 		}
 		if ( 'canceled' === $status ) { return 'cancel'; }
-		if ( 'pending' === $status || ( 'open' === $status && 'banktransfer' === ( $payment['method'] ?? '' ) ) ) {
-			// Bank transfer (or another delayed method) chosen at Mollie: the money arrives days later.
-			// Keep the tickets held for that time (QA-6); Mollie expires an unpaid bank transfer itself.
+		if ( 'authorized' === $status || ( in_array( $status, array( 'open', 'pending' ), true ) && in_array( (string) ( $payment['method'] ?? '' ), MollieGateway::DELAYED_METHODS, true ) ) ) {
+			// Klarna/Riverty authorization (captured now) or bank transfer / direct debit (hold kept until the
+			// money can arrive, QA-6): the same normalized event and event id as the webhook.
+			$event = MollieGateway::normalize( $payment );
+			if ( $event['order_public_id'] === $public_id ) { Webhooks::process( 'mollie', $event ); }
+		} elseif ( 'pending' === $status ) {
 			$full = \PassCaptain\Orders::get( (int) $order->order_id );
 			if ( $full && 'pending' === $full->payment_status ) { Webhooks::extend_for_delayed_payment( $full, 'mollie' ); }
 		}

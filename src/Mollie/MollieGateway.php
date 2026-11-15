@@ -29,6 +29,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class MollieGateway implements GatewayInterface {
 	const API = 'https://api.mollie.com/v2/';
 
+	/** Methods where the money arrives days later (open/pending = payment_pending, hold kept). */
+	const DELAYED_METHODS = array( 'banktransfer', 'directdebit' );
+
+	/** Methods that are only authorized first and must be captured (Klarna, Riverty, Billie). */
+	const CAPTURE_METHODS = array( 'klarna', 'klarnapaylater', 'klarnapaynow', 'klarnasliceit', 'riverty', 'billie' );
+
 	/** Currencies Mollie accepts. */
 	const CURRENCIES = array( 'AED', 'AUD', 'BGN', 'BRL', 'CAD', 'CHF', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'ILS', 'ISK', 'JPY', 'MXN', 'MYR', 'NOK', 'NZD', 'PHP', 'PLN', 'RON', 'SEK', 'SGD', 'THB', 'TWD', 'USD', 'ZAR' );
 
@@ -113,6 +119,11 @@ final class MollieGateway implements GatewayInterface {
 		if ( in_array( $locale, self::LOCALES, true ) ) { $body['locale'] = $locale; }
 		$method = self::method_for_order( $order, $value, $currency );
 		if ( '' !== $method && array() !== $method ) { $body['method'] = $method; }
+		if ( 'banktransfer' === $method && ! empty( $order['order_id'] ) ) {
+			// The transfer expires with the extended hold, not Mollie's default (~12 days): a transfer after
+			// the tickets were released would only end in the late-payment re-check.
+			$body['dueDate'] = self::due_date( (object) $order );
+		}
 		$body = apply_filters( 'wpcap_mollie_payment_body', $body, $order, $items );
 		$payment = self::api( 'POST', 'payments', $body, 'wpcap-mollie-' . $public_id . $key_suffix . '-' . $total . strtolower( $currency ) );
 		if ( is_wp_error( $payment ) ) { return $payment; }
@@ -293,7 +304,16 @@ final class MollieGateway implements GatewayInterface {
 			'currency' => $currency,
 		);
 		if ( 'paid' === $status ) {
-			$order = '' !== $public_id ? $wpdb->get_row( $wpdb->prepare( "SELECT payment_status FROM %i WHERE public_id=%s AND payment_provider='mollie'", $wpdb->prefix . 'wpcap_orders', $public_id ) ) : null;
+			$order = '' !== $public_id ? $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status FROM %i WHERE public_id=%s AND payment_provider='mollie'", $wpdb->prefix . 'wpcap_orders', $public_id ) ) : null;
+			$failed_refunds = $order ? self::failed_booked_refunds( $payment, (int) $order->order_id ) : array();
+			if ( $failed_refunds ) {
+				// A refund booked by the plugin failed later at Mollie: Webhooks reverses the booking.
+				$event['event_id'] = 'mollie-' . $id . '-refund-failed-' . implode( '-', $failed_refunds );
+				$event['type'] = 'refund_failed';
+				$event['refund_ids'] = $failed_refunds;
+				$event['refund_id'] = $failed_refunds[0];
+				return $event;
+			}
 			$external = self::external_refunded_minor( $payment, $currency );
 			$chargeback = self::charged_back_minor( $payment, $currency );
 			if ( $order && 'pending' !== $order->payment_status && $chargeback > 0 ) {
@@ -316,8 +336,101 @@ final class MollieGateway implements GatewayInterface {
 			$event['type'] = 'paid';
 		} elseif ( in_array( $status, array( 'failed', 'canceled', 'expired' ), true ) ) {
 			$event['type'] = 'failed';
+		} elseif ( 'authorized' === $status ) {
+			// Klarna/Riverty: only authorized; Webhooks captures it (capture_authorized()), the capture's
+			// "paid" webhook then confirms the order. An uncaptured authorization would lapse.
+			$event['type'] = 'payment_authorized';
+		} elseif ( in_array( $status, array( 'open', 'pending' ), true ) && in_array( (string) ( $payment['method'] ?? '' ), self::DELAYED_METHODS, true ) ) {
+			// Bank transfer / SEPA direct debit: the money arrives days later; keep the tickets held (QA-6).
+			$event['type'] = 'payment_pending';
+			$event['method'] = (string) $payment['method'];
 		}
 		return $event;
+	}
+
+	/** Due date (Y-m-d, at least tomorrow, at most 100 days) of a bank transfer: end of the delayed-payment hold. */
+	public static function due_date( $order ) {
+		$minutes = \PassCaptain\Payments\Webhooks::delayed_hold_minutes( $order, 'mollie' );
+		$days = max( 1, min( 100, (int) floor( $minutes / ( DAY_IN_SECONDS / MINUTE_IN_SECONDS ) ) ) );
+		return gmdate( 'Y-m-d', time() + $days * DAY_IN_SECONDS );
+	}
+
+	/**
+	 * Captures an authorized payment in full (POST /v2/payments/{id}/captures, idempotent per payment).
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function capture_authorized( array $order, array $event ) {
+		$id = (string) ( $event['provider_reference'] ?? '' );
+		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', $id ) ) {
+			return new \WP_Error( 'wpcap_mollie_capture', __( 'Unbekannte Mollie-Zahlung.', 'pass-captain' ) );
+		}
+		$capture = self::api( 'POST', 'payments/' . rawurlencode( $id ) . '/captures', array( 'description' => mb_substr( sprintf( /* translators: %s: order number */ __( 'Bestellung %s', 'pass-captain' ), (string) ( $order['public_id'] ?? '' ) ), 0, 255 ) ), 'wpcap-capture-' . $id );
+		if ( is_wp_error( $capture ) ) {
+			$data = (array) $capture->get_error_data();
+			return new \WP_Error( $capture->get_error_code(), $capture->get_error_message(), array( 'status' => (int) ( $data['status'] ?? 0 ) ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Hold extended for a delayed method: moves the bank transfer's due date to the new hold end
+	 * (PATCH /v2/payments/{id}, dueDate), so Mollie does not accept money after the tickets were released.
+	 */
+	public function after_hold_extended( array $order, array $event ) {
+		if ( 'banktransfer' !== (string) ( $event['method'] ?? '' ) ) { return true; }
+		$id = (string) ( $event['provider_reference'] ?? '' );
+		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', $id ) ) { return true; }
+		$result = self::api( 'PATCH', 'payments/' . rawurlencode( $id ), array( 'dueDate' => self::due_date( (object) $order ) ) );
+		return is_wp_error( $result ) ? $result : true;
+	}
+
+	/**
+	 * Cancels an open payment of a cancelled/expired order (DELETE /v2/payments/{id} when Mollie reports
+	 * isCancelable), so the buyer cannot pay it any more.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function void_payment( array $order ) {
+		$id = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 !== strpos( $id, 'tr_' ) ) { return true; }
+		$payment = self::api( 'GET', 'payments/' . rawurlencode( $id ) );
+		if ( is_wp_error( $payment ) ) { return $payment; }
+		if ( empty( $payment['isCancelable'] ) ) { return true; }
+		$deleted = self::api( 'DELETE', 'payments/' . rawurlencode( $id ) );
+		return is_wp_error( $deleted ) ? $deleted : true;
+	}
+
+	/**
+	 * Status poll for a pending order whose webhook did not arrive: the payment is read like in the
+	 * webhook (same event ids, so a later webhook is a duplicate).
+	 *
+	 * @return array|\WP_Error|null Normalized event.
+	 */
+	public function poll_payment( array $order ) {
+		$id = (string) ( $order['provider_reference'] ?? '' );
+		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', $id ) ) { return null; }
+		$payment = self::api( 'GET', 'payments/' . rawurlencode( $id ) . '?embed=refunds,chargebacks' );
+		return is_wp_error( $payment ) ? $payment : self::normalize( $payment );
+	}
+
+	/**
+	 * Ids of embedded refunds with status failed that are still booked as completed for the order
+	 * (plugin refunds store the Mollie refund id as provider reference).
+	 *
+	 * @return string[]
+	 */
+	private static function failed_booked_refunds( array $payment, $order_id ) {
+		global $wpdb;
+		$ids = array();
+		foreach ( (array) ( $payment['_embedded']['refunds'] ?? array() ) as $refund ) {
+			if ( 'failed' === ( $refund['status'] ?? '' ) && preg_match( '/^re_[A-Za-z0-9]{4,64}$/', (string) ( $refund['id'] ?? '' ) ) ) { $ids[] = (string) $refund['id']; }
+		}
+		if ( ! $ids ) { return array(); }
+		$refs = array_merge( $ids, array_map( static function ( $id ) { return 'ext:mollie:' . $id; }, $ids ) );
+		$booked = (array) $wpdb->get_col( $wpdb->prepare( "SELECT provider_reference FROM %i WHERE order_id=%d AND status='completed' AND provider_reference IN (" . implode( ',', array_fill( 0, count( $refs ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_refunds', absint( $order_id ) ), $refs ) ) );
+		$booked = array_map( static function ( $ref ) { return preg_replace( '/^ext:mollie:/', '', (string) $ref ); }, $booked );
+		return array_values( array_intersect( $ids, $booked ) );
 	}
 
 	/** Sum of refunds not created by the plugin (no metadata.wpcap_refund), excluding failed/canceled. */
@@ -380,6 +493,10 @@ final class MollieGateway implements GatewayInterface {
 			$args['body'] = wp_json_encode( $body );
 			if ( '' !== $idempotency_key ) { $args['headers']['Idempotency-Key'] = substr( $idempotency_key, 0, 255 ); }
 			$response = wp_remote_post( self::API . $path, $args );
+		} elseif ( 'PATCH' === $method ) {
+			$args['headers']['Content-Type'] = 'application/json';
+			$args['body'] = wp_json_encode( $body );
+			$response = wp_remote_request( self::API . $path, $args );
 		} elseif ( 'DELETE' === $method ) {
 			$response = wp_remote_request( self::API . $path, $args );
 		} else {

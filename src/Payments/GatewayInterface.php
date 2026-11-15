@@ -31,7 +31,8 @@ interface GatewayInterface {
 	/**
 	 * Verify a provider webhook.
 	 *
-	 * @return array|\WP_Error Normalized event: ['event_id'=>string, 'type'=>'paid'|'failed'|'refunded'|'payment_pending'
+	 * @return array|\WP_Error Normalized event: ['event_id'=>string, 'type'=>'paid'|'failed'|'refunded'|'refund_failed'|'payment_pending'
+	 *                         |'payment_authorized'
 	 *                         |'dispute_opened'|'dispute_reinstated'|'ignored', 'order_public_id'=>string,
 	 *                         'provider_reference'=>string, 'amount_minor'=>int, 'currency'=>string]. Refund events may add
 	 *                         'refund_scope' ('single' = this refund's amount, idempotent per 'refund_id'; 'cumulative' =

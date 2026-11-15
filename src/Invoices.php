@@ -153,6 +153,20 @@ final class Invoices {
 	}
 
 	/**
+	 * Voids the credit note of a refund that failed at the provider after it was booked (status
+	 * `voided`, voided_at). The document and its number stay; print view and PDF mark it as voided and
+	 * the accounting export adds a reversal row ("Storno Gutschrift") in the period of the voiding.
+	 */
+	public static function void_credit_note_for_refund( $refund_id ) {
+		global $wpdb;
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='voided',voided_at=%s WHERE refund_id=%d AND status='issued'", $wpdb->prefix . 'wpcap_credit_notes', current_time( 'mysql', true ), absint( $refund_id ) ) );
+		if ( $updated ) {
+			Audit::record( 'credit_note_voided', 'invoice', 0, array( 'refund_id' => absint( $refund_id ), 'reason' => 'provider_refund_failed' ) );
+		}
+		return (bool) $updated;
+	}
+
+	/**
 	 * Splits a credit note amount per VAT rate. The weights come from the refunded tickets (their
 	 * discounted order line value) or, for an amount-only refund, from all order lines. The gross is
 	 * distributed exactly (Orders::allocate) and the credit note's VAT in proportion to the VAT each
@@ -429,6 +443,7 @@ final class Invoices {
 		<?php if ( ! empty( $credit_lines[ (int) $credit->credit_note_id ] ) ) : ?><table class="wpcap-credit-rates"><caption><?php esc_html_e( 'Korrektur nach Steuersätzen', 'pass-captain' ); ?></caption><thead><tr><th><?php esc_html_e( 'USt-Satz', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Netto', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Brutto', 'pass-captain' ); ?></th></tr></thead><tbody>
 		<?php foreach ( $credit_lines[ (int) $credit->credit_note_id ] as $credit_line ) : ?><tr><td><?php echo esc_html( number_format_i18n( (int) $credit_line->tax_rate_bp / 100, 2 ) . ' %' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit_line->net_minor ) ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit_line->tax_minor ) ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit_line->total_minor ) ); ?></td></tr><?php endforeach; ?>
 		</tbody></table><?php endif; ?>
+		<?php if ( 'voided' === ( $credit->status ?? '' ) ) : ?><p class="wpcap-credit-voided"><strong><?php echo esc_html( sprintf( /* translators: %s: date */ __( 'Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt.', 'pass-captain' ), wp_date( 'd.m.Y', strtotime( (string) $credit->voided_at . ' UTC' ) ) ) ); ?></strong></p><?php endif; ?>
 		<table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
 		<?php $extra_links = Api\Invoices::links_html( (int) $invoice->invoice_id, 'invoice', array_merge( array( 'audience' => 'admin', 'order_id' => (int) $invoice->order_id ), $link_context, array( 'location' => 'invoice_view' ) ) ); ?>
 		<?php if ( '' !== $extra_links ) : ?><p class="wpcap-invoice-extra"><?php echo $extra_links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?></p><?php endif; ?>
@@ -536,6 +551,18 @@ final class Invoices {
 				$rows[] = array( 'Gutschrift', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( (int) $part->net_minor, $c->currency ), $rate, '-' . $money( (int) $part->tax_minor, $c->currency ), '-' . $money( (int) $part->total_minor, $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ), self::countries_label( $of_rate ? $of_rate : $items ) );
 			}
 		}
+		// Credit notes voided in the period (provider refund failed): reversal rows with positive amounts.
+		$voided = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,i.order_id,o.public_id,o.payment_provider FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id INNER JOIN %i o ON o.order_id=i.order_id WHERE c.status='voided' AND c.voided_at >= %s AND c.voided_at < %s ORDER BY c.credit_note_id", $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		$voided_lines = self::credit_note_lines( array_map( static function ( $c ) { return (int) $c->credit_note_id; }, $voided ) );
+		$voided_countries = self::item_tax_countries( array_map( static function ( $c ) { return (int) $c->order_id; }, $voided ) );
+		foreach ( $voided as $c ) {
+			$items = $voided_countries[ (int) $c->order_id ] ?? array();
+			$parts = $voided_lines[ (int) $c->credit_note_id ] ?? array( (object) array( 'tax_rate_bp' => null, 'net_minor' => $c->net_minor, 'tax_minor' => $c->tax_minor, 'total_minor' => $c->total_minor ) );
+			foreach ( $parts as $part ) {
+				$rate = null === $part->tax_rate_bp ? '' : number_format( (int) $part->tax_rate_bp / 100, 2, '.', '' );
+				$rows[] = array( 'Storno Gutschrift', $c->credit_note_number, substr( (string) $c->voided_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung beim Zahlungsanbieter fehlgeschlagen', '', $money( (int) $part->net_minor, $c->currency ), $rate, $money( (int) $part->tax_minor, $c->currency ), $money( (int) $part->total_minor, $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ), self::countries_label( $items ) );
+			}
+		}
 		return Reports\Exports::filter_rows( $rows, 'accounting', array( 'from' => $from, 'to' => $to ) );
 	}
 
@@ -601,6 +628,16 @@ final class Invoices {
 				$of_rate = array_filter( $items, static function ( $item ) use ( $part ) { return (int) $item['rate_bp'] === (int) $part['tax_rate_bp']; } );
 				$reference = '' !== (string) $refund->provider_reference ? (string) $refund->provider_reference : (string) $refund->order_reference;
 				$rows[] = array( $chargeback ? 'Chargeback' : 'Erstattung', substr( (string) $refund->updated_at, 0, 10 ), $number, (string) $refund->public_id, (int) $refund->order_id, (int) $refund->refund_id, (string) $refund->reason, '', '-' . $money( $part['net_minor'], $refund->currency ), $rate( $part['tax_rate_bp'] ), '-' . $money( $part['tax_minor'], $refund->currency ), '-' . $money( $part['total_minor'], $refund->currency ), (string) $refund->currency, (string) $refund->payment_provider, $reference, self::countries_label( $of_rate ? $of_rate : $items ) );
+			}
+		}
+		// Refunds that failed at the provider after booking (money stayed with the seller): reversal rows.
+		$failed = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id,o.payment_provider,o.provider_reference AS order_reference FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status='failed' AND r.error_message='provider_refund_failed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		$failed_countries = self::item_tax_countries( array_map( static function ( $r ) { return (int) $r->order_id; }, $failed ) );
+		foreach ( $failed as $refund ) {
+			$items = $failed_countries[ (int) $refund->order_id ] ?? array();
+			foreach ( self::credit_note_split( (array) $refund, (int) $refund->amount_minor, (int) $refund->tax_minor ) as $part ) {
+				$of_rate = array_filter( $items, static function ( $item ) use ( $part ) { return (int) $item['rate_bp'] === (int) $part['tax_rate_bp']; } );
+				$rows[] = array( 'Erstattung fehlgeschlagen', substr( (string) $refund->updated_at, 0, 10 ), (string) $refund->credit_note_number, (string) $refund->public_id, (int) $refund->order_id, (int) $refund->refund_id, (string) $refund->reason, '', $money( $part['net_minor'], $refund->currency ), $rate( $part['tax_rate_bp'] ), $money( $part['tax_minor'], $refund->currency ), $money( $part['total_minor'], $refund->currency ), (string) $refund->currency, (string) $refund->payment_provider, (string) $refund->provider_reference, self::countries_label( $of_rate ? $of_rate : $items ) );
 			}
 		}
 		return Reports\Exports::filter_rows( $rows, 'accounting_ledger', array( 'from' => $from, 'to' => $to ) );

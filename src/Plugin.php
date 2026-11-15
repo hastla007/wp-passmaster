@@ -73,6 +73,8 @@ final class Plugin {
 		Brand::register(); // White label: product name in translated texts (wp_pass_captain_brand_name_v1).
 		Integrations\ConnectorEvents::register(); // Domain events → enabled connectors (job queue).
 		Invoices::register();
+		Payments\Cases::register(); // Double payments / payments for closed orders / failed provider refunds.
+		Payments\Reconcile::register(); // Void open PSP sessions on cancellation, poll stuck pending orders.
 		Integrations\Vouchers\Checkout::register();
 		Integrations\Vouchers\TicketService::register();
 		Integrations\Vouchers\CheckinService::register();

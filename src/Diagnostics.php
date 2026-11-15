@@ -46,6 +46,7 @@ final class Diagnostics {
 			'stuck_refunds'        => array( __( 'Erstattungen in „processing“ ohne Anbieter-Referenz', 'pass-captain' ), false ),
 			'schema'               => array( __( 'Datenbankschema und Migrationen', 'pass-captain' ), true ),
 			'legal_texts'          => array( __( 'Rechtstexte: Verbraucherinformationen und AGB', 'pass-captain' ), false ),
+			'payment_cases'        => array( __( 'Zahlungen zur Klärung (Doppelzahlung, Zahlung auf stornierte Bestellung, fehlgeschlagene Erstattung)', 'pass-captain' ), false ),
 		);
 	}
 
@@ -207,6 +208,13 @@ final class Diagnostics {
 			if ( '' === trim( (string) Settings::get( $key ) ) ) { $samples[] = array( 'setting' => $key, 'label' => $label ); }
 		}
 		return array( count( $samples ), $samples, 'warning', __( 'Verbraucherinformationen bzw. AGB sind leer. Unter „Einstellungen → Rechtstexte“ pflegen (z. B. Angaben zum Anbieter, Preise, Widerrufsrecht bzw. dessen Ausschluss); sie erscheinen im Checkout und über {consumer_info}/{terms} in Ticket- und Zugangs-E-Mails. Inhalte bitte rechtlich prüfen lassen.', 'pass-captain' ) );
+	}
+
+	/** Open payment cases (Payments\Cases): money received without tickets or refunds that failed at the provider. */
+	public static function check_payment_cases() {
+		$rows = Payments\Cases::open_cases( 1000 );
+		$samples = array_map( static function ( $row ) { return array( 'case_id' => (int) $row->case_id, 'order_id' => (int) $row->order_id, 'kind' => (string) $row->kind, 'provider' => (string) $row->provider, 'reference' => (string) $row->reference, 'amount_minor' => (int) $row->amount_minor, 'status' => (string) $row->status ); }, $rows );
+		return array( count( $rows ), $samples, 'warning', __( 'Diese Zahlungen sind keiner gültigen Bestellung zugeordnet bzw. die Erstattung ist beim Anbieter fehlgeschlagen. Unter „Zahlungen zur Klärung“ erstatten oder nach manueller Klärung als erledigt markieren.', 'pass-captain' ) );
 	}
 
 	/* ------------------------------------------------------------------ Repairs */

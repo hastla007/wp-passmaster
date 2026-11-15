@@ -140,7 +140,11 @@ final class PayPalGateway implements GatewayInterface {
 		}
 		$event = self::capture( $paypal_order_id );
 		if ( is_wp_error( $event ) ) { return $event; }
-		if ( 'pending' === $event['type'] ) { return 'pending'; }
+		if ( 'pending' === $event['type'] ) {
+			// Capture pending (e.g. eCheck, review): keep the tickets held until PayPal completes it.
+			Webhooks::process( 'paypal', self::pending_event( $event ) );
+			return 'pending';
+		}
 		if ( 'paid' !== $event['type'] || $event['order_public_id'] !== $public_id ) {
 			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'pass-captain' ) );
 		}
@@ -231,6 +235,51 @@ final class PayPalGateway implements GatewayInterface {
 		return $event;
 	}
 
+	/**
+	 * payment_pending event of a pending capture (own event id, so the later "capture-{id}" paid event
+	 * is not taken for a duplicate).
+	 */
+	private static function pending_event( array $event ) {
+		$event['type'] = 'payment_pending';
+		$event['event_id'] = (string) $event['event_id'] . '-pending';
+		return $event;
+	}
+
+	/** Cancellation of the plugin order: a PayPal order is never captured for a closed order (handle_return/webhook check), nothing to void. */
+	public function void_payment( array $order ) {
+		return true;
+	}
+
+	/**
+	 * Status poll for a pending order (no webhook/return arrived): reads the PayPal order. COMPLETED →
+	 * paid event of the capture, APPROVED → capture now (same request id and event id as the return
+	 * handler), a pending capture → payment_pending.
+	 *
+	 * @return array|\WP_Error|null Normalized event.
+	 */
+	public function poll_payment( array $order ) {
+		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $order['provider_reference'] ?? '' ) );
+		if ( '' === $reference ) { return null; }
+		$paypal_order = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $reference ) );
+		if ( is_wp_error( $paypal_order ) ) { return $paypal_order; }
+		$status = (string) ( $paypal_order['status'] ?? '' );
+		if ( 'APPROVED' === $status ) {
+			$event = self::capture( $reference );
+		} elseif ( 'COMPLETED' === $status ) {
+			$unit = $paypal_order['purchase_units'][0] ?? array();
+			$capture = $unit['payments']['captures'][0] ?? null;
+			if ( ! is_array( $capture ) || empty( $capture['id'] ) ) { return null; }
+			$event = self::capture_event( $capture, (string) ( $unit['custom_id'] ?? ( $unit['reference_id'] ?? '' ) ) );
+			$capture_status = (string) ( $capture['status'] ?? '' );
+			$event['type'] = 'COMPLETED' === $capture_status ? 'paid' : ( 'PENDING' === $capture_status ? 'pending' : 'ignored' );
+		} else {
+			return null;
+		}
+		if ( is_wp_error( $event ) ) { return $event; }
+		if ( 'pending' === $event['type'] ) { return self::pending_event( $event ); }
+		return in_array( $event['type'], array( 'paid', 'failed' ), true ) ? $event : null;
+	}
+
 	/** Normalized event for a capture; event id is shared by return handler and webhooks. */
 	private static function capture_event( array $capture, $fallback_public_id = '' ) {
 		$currency = strtoupper( (string) ( $capture['amount']['currency_code'] ?? '' ) );
@@ -262,8 +311,13 @@ final class PayPalGateway implements GatewayInterface {
 				if ( is_wp_error( $captured ) ) {
 					return new \WP_Error( $captured->get_error_code(), $captured->get_error_message(), array( 'status' => 503 ) );
 				}
-				// A pending capture is confirmed later by PAYMENT.CAPTURE.COMPLETED.
+				// A pending capture is confirmed later by PAYMENT.CAPTURE.COMPLETED; meanwhile the hold is kept.
+				if ( 'pending' === $captured['type'] ) { return self::pending_event( $captured ); }
 				return 'paid' === $captured['type'] ? $captured : $ignored;
+
+			case 'PAYMENT.CAPTURE.PENDING':
+				if ( empty( $resource['id'] ) ) { return $ignored; }
+				return self::pending_event( self::capture_event( $resource ) );
 
 			case 'PAYMENT.CAPTURE.COMPLETED':
 				if ( empty( $resource['id'] ) ) { return $ignored; }
