@@ -276,8 +276,12 @@ check( 'box office, trusted adapters (WooCommerce order processing) and waitlist
 // REST checkout: error with status, request in the context, Retry-After header.
 $GLOBALS['wpcap_test_transients'] = array();
 $x5_req = p1u_request( array( 'email' => 'x5-rest@example.com', 'items' => array( array( 'ticket_type_id' => $x5_gate_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'x5-rest-' . uniqid() ) );
+$x5_providers_before = Settings::get( 'enabled_providers' );
+Settings::update( array( 'enabled_providers' => array( 'manual' ) ) );
+PassCaptain\Payments\Registry::reset();
 $x5_rest = Controller::checkout( $x5_req );
-check( 'REST checkout passes the gate error to the buyer (429) with the request in the context', is_wp_error( $x5_rest ) && 429 === $x5_rest->get_error_data()['status'] && 'Du bist in der Warteschlange.' === $x5_rest->get_error_message() && end( $x5_gate_calls )['request'] === $x5_req );
+Settings::update( array( 'enabled_providers' => $x5_providers_before ) );
+check( 'REST checkout passes the gate error to the buyer (429) with the request in the context' . ( is_wp_error( $x5_rest ) && 'x5_waiting_room' === $x5_rest->get_error_code() ? '' : ' – got ' . ( is_wp_error( $x5_rest ) ? $x5_rest->get_error_code() . ' ' . $x5_rest->get_error_message() : wp_json_encode( p1u_data( $x5_rest ) ) ) ), is_wp_error( $x5_rest ) && 429 === $x5_rest->get_error_data()['status'] && 'Du bist in der Warteschlange.' === $x5_rest->get_error_message() && end( $x5_gate_calls )['request'] === $x5_req );
 $x5_resp = new class( array( 'code' => 'x5_waiting_room', 'message' => 'x', 'data' => array( 'status' => 429, 'retry_after' => 30, 'checkout_gate' => true ) ), 429 ) extends WP_REST_Response { public $headers = array(); public function header( $k, $v ) { $this->headers[ $k ] = $v; } };
 CheckoutGate::retry_after_header( $x5_resp );
 $x5_other = new class( array( 'code' => 'other', 'message' => 'x', 'data' => array( 'status' => 429, 'retry_after' => 30 ) ), 429 ) extends WP_REST_Response { public $headers = array(); public function header( $k, $v ) { $this->headers[ $k ] = $v; } };
