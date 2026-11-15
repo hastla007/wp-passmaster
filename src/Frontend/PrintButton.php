@@ -17,16 +17,17 @@ final class PrintButton {
 
 	/** External script tag (deferred) for assets/print.js. */
 	public static function script_tag() {
-		return '<script src="' . esc_attr( self::script_url() ) . '" defer></script>';
+		// Standalone documents without wp_head()/wp_footer(): the enqueue API cannot print here.
+		return '<script src="' . esc_attr( self::script_url() ) . '" defer></script>'; // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- standalone page, see above.
 	}
 
 	/**
 	 * Print button plus the script tag.
 	 *
 	 * @param string $label Visible label.
-	 * @param string $class Optional CSS class.
+	 * @param string $css_class Optional CSS class.
 	 */
-	public static function html( $label, $class = '' ) {
-		return '<button type="button" data-wpcap-print' . ( '' !== $class ? ' class="' . esc_attr( $class ) . '"' : '' ) . '>' . esc_html( $label ) . '</button>' . self::script_tag();
+	public static function html( $label, $css_class = '' ) {
+		return '<button type="button" data-wpcap-print' . ( '' !== $css_class ? ' class="' . esc_attr( $css_class ) . '"' : '' ) . '>' . esc_html( $label ) . '</button>' . self::script_tag();
 	}
 }

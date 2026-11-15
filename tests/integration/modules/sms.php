@@ -27,7 +27,7 @@ echo "SMS: configuration and phone numbers\n";
 check( 'no provider configured: opt-in is not offered', ! Service::enabled() );
 ob_start(); Sms::render_checkout_fields( (object) array( 'occurrence_id' => 1 ), array() ); $html = ob_get_clean();
 check( 'no checkout field without provider', '' === $html );
-Settings::update( array( 'twilio_account_sid' => $sid, 'twilio_auth_token' => $token, 'sms' => array_merge( Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49' ) ) ) );
+Settings::update( array( 'twilio_account_sid' => $sid, 'twilio_auth_token' => $token, 'sms' => array_merge( Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49', 'verify_phone' => 0 ) ) ) );
 check( 'Twilio configured via settings', Service::enabled() && Service::provider() instanceof TwilioProvider );
 check( 'phone numbers normalized to E.164', '+4915123456789' === Service::normalize_phone( '0151 2345-6789' ) && '+43664123456' === Service::normalize_phone( '0043 664 123456' ) && '+4915123456789' === Service::normalize_phone( '+49 (151) 23456789' ) && '' === Service::normalize_phone( '12ab' ) && '' === Service::normalize_phone( '+0123' ) );
 ob_start(); Sms::render_checkout_fields( (object) array( 'occurrence_id' => 5 ), array() ); $html = ob_get_clean();

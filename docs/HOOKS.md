@@ -181,7 +181,9 @@ Webhook-Ereignissen).
 | `wpcap_calendar_default_duration` | `int $seconds` (7200), `object $occurrence` | Dauer für `DTEND`, wenn der Termin kein Ende hat. |
 | `wpcap_signed_qr_window` | `int[] $window` (`[nicht vor, gültig bis]`, Unix-Sekunden), `object $ticket` | Gültigkeitszeitraum signierter QR-Codes (Standard: ein Jahr vor Beginn bis einen Tag nach dem letzten gültigen Zeitpunkt). Siehe [SECURITY.md](SECURITY.md#signierte-qr-codes-pc1). |
 | `wpcap_sms_providers` | `ProviderInterface[] $providers` | Weitere SMS-Adapter (`PassCaptain\Sms\ProviderInterface`). |
-| `wpcap_sms_number_daily_limit` | `int $limit` (3) | SMS-Einwilligungen je Mobilnummer in 24 Stunden (Missbrauchsschutz; eine Bestätigung per SMS-Code ist nicht implementiert). |
+| `wpcap_sms_number_daily_limit` | `int $limit` (3) | SMS-Einwilligungen je Mobilnummer in 24 Stunden (Missbrauchsschutz, zusätzlich zur Bestätigung per Code). |
+| `wpcap_sms_otp_limits` | `array $limits` (`number_hour` 3, `number_day` 5, `ip_hour` 5, `site_day` 500, `confirm_ip_hour` 30) | Kosten-/Missbrauchsschutz der Nummernbestätigung (PRIV-16): Codes je Nummer pro Stunde/Tag, je Client-IP pro Stunde, je Site pro Tag, Bestätigungsversuche je IP pro Stunde. Werte < 1 werden 1. |
+| `wpcap_sms_otp_body` | `string $body, string $code` | Text der SMS mit dem Bestätigungscode; enthält der Text den Code nicht, wird er vorangestellt. |
 | `wpcap_sms_ip_hourly_limit` | `int $limit` (10) | SMS-Einwilligungen je Client-IP und Stunde. |
 | `wpcap_sms_skip_reason` | `string $reason, object $message` | Grund, eine fällige SMS nicht zu senden (leer = senden). Erinnerungs-SMS werden so bei ungültigen Tickets übersprungen. |
 | `wpcap_webhook_payload_object` | `array $object, string $type` | `data.object` eines ausgehenden Webhooks (keine PII ergänzen). |

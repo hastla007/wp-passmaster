@@ -54,11 +54,11 @@ Before that, when the checkout (or the payment method selector) is rendered for 
 Terms: https://www.mollie.com/user-agreement — Privacy policy: https://www.mollie.com/privacy
 
 = Twilio (SMS) =
-Used when SMS is enabled with Twilio as provider and the buyer has explicitly consented to SMS. For each message (for example a reminder) the recipient's mobile number, the message text and a status callback URL of your site are sent to api.twilio.com.
+Used when SMS is enabled with Twilio as provider and the buyer has explicitly consented to SMS. For each message (for example a reminder) the recipient's mobile number, the message text and a status callback URL of your site are sent to api.twilio.com. With number verification switched on (default), the mobile number and a one-time confirmation code are sent when the buyer requests the code in the checkout.
 Terms: https://www.twilio.com/en-us/legal/tos — Privacy policy: https://www.twilio.com/en-us/legal/privacy
 
 = Generic HTTP SMS provider =
-Used when SMS is enabled with the "HTTP" provider. The recipient's mobile number, the message text and an internal reference are sent to the endpoint URL entered by the administrator. Which service receives the data, and its terms and privacy policy, depend on the provider the administrator configures.
+Used when SMS is enabled with the "HTTP" provider. The recipient's mobile number, the message text (also the one-time confirmation code of the number verification) and an internal reference are sent to the endpoint URL entered by the administrator. Which service receives the data, and its terms and privacy policy, depend on the provider the administrator configures.
 
 = Apple Push Notification service (Apple Wallet) =
 Used when Apple Wallet passes are enabled and a pass certificate is uploaded. When a ticket changes (for example revoked, transferred or the date moved) the plugin sends an empty push notification to api.push.apple.com (api.sandbox.push.apple.com in sandbox mode) with the device push token registered by the buyer's Wallet app, so the device fetches the updated pass from your site. Apple devices that added a pass contact your site's pass web service directly.
