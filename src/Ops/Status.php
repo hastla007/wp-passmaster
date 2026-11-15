@@ -319,6 +319,19 @@ final class Status {
 			/* translators: %d: number of refunds */
 			$issues[] = array( 'severity' => 'error', 'message' => sprintf( __( '%d Erstattungen hängen in „processing“ ohne Anbieter-Referenz und brauchen eine manuelle Prüfung.', 'pass-captain' ), $stuck ) );
 		}
+		// QR encoder (bacon/bacon-qr-code, not namespace-prefixed): another plugin may have loaded its own copy first.
+		$foreign = \PassCaptain\QrCode::foreign_encoder();
+		$qr_ok   = (bool) \PassCaptain\QrCode::matrix( 'pass-captain' );
+		if ( '' !== $foreign || ! $qr_ok ) {
+			$issues[] = array(
+				'severity' => $qr_ok ? 'warning' : 'error',
+				'message'  => $qr_ok
+					/* translators: %s: file path of the foreign QR library */
+					? sprintf( __( 'Die QR-Bibliothek (BaconQrCode) wird von einem anderen Plugin geladen (%s). QR-Codes funktionieren derzeit; nach Updates des anderen Plugins bitte Ticket-QR-Codes prüfen.', 'pass-captain' ), $foreign )
+					/* translators: %s: file path of the foreign QR library, may be empty */
+					: sprintf( __( 'QR-Codes können nicht erzeugt werden: Die QR-Bibliothek (BaconQrCode) fehlt oder ein anderes Plugin lädt eine inkompatible Version (%s). Tickets zeigen dann keinen QR-Code.', 'pass-captain' ), '' !== $foreign ? $foreign : '-' ),
+			);
+		}
 		usort( $issues, static function ( $a, $b ) { return ( 'error' === $b['severity'] ) <=> ( 'error' === $a['severity'] ); } );
 		return $issues;
 	}

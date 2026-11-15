@@ -58,6 +58,9 @@ final class OrderAdapter {
 		}
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', WPCAP_FILE, true );
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPCAP_FILE, true );
+		// The ticket category field is a classic product data field (woocommerce_product_options_general_product_data);
+		// the new product block editor does not show it.
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'product_block_editor', WPCAP_FILE, false );
 	}
 
 	/** Job that retries mirroring a WooCommerce refund after a database error. */
@@ -93,6 +96,11 @@ final class OrderAdapter {
 		add_filter( 'woocommerce_store_api_product_quantity_maximum', array( __CLASS__, 'store_api_quantity_maximum' ), 10, 3 );
 		add_filter( 'woocommerce_store_api_cart_item_quantity_validation', array( __CLASS__, 'store_api_validate_quantity' ), 10, 4 );
 
+		// WooCommerce Subscriptions & co.: never copy Pass Captain's order meta to renewals/subscriptions.
+		foreach ( array( 'wc_subscriptions_renewal_order_data', 'wc_subscriptions_resubscribe_order_data', 'wc_subscriptions_subscription_data', 'wcs_renewal_order_meta', 'wcs_resubscribe_order_meta', 'wcs_subscription_meta', 'wcs_renewal_order_meta_query', 'wcs_resubscribe_order_meta_query', 'wcs_subscription_meta_query' ) as $copy_filter ) {
+			add_filter( $copy_filter, array( __CLASS__, 'exclude_copied_meta' ), 20, 1 );
+		}
+
 		// Per-ticket participant fields (classic and block checkout).
 		Attendees::register();
 
@@ -111,6 +119,14 @@ final class OrderAdapter {
 		add_action( 'woocommerce_order_status_cancelled', array( __CLASS__, 'sync_cancelled_order' ), 20 );
 		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'sync_cancelled_order' ), 20 );
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'sync_refund' ), 20, 2 );
+		// Trash/delete: an unpaid order releases its hold, restoring it from the trash reserves again (HPOS
+		// and posts storage; posts hooks only for the shop_order post type, every handler is idempotent).
+		add_action( 'woocommerce_trash_order', array( __CLASS__, 'sync_trashed_order' ), 20, 1 );
+		add_action( 'woocommerce_before_delete_order', array( __CLASS__, 'sync_deleted_order' ), 20, 1 );
+		add_action( 'woocommerce_untrash_order', array( __CLASS__, 'sync_untrashed_order' ), 20, 1 );
+		add_action( 'wp_trash_post', array( __CLASS__, 'sync_trashed_post' ), 20, 1 );
+		add_action( 'before_delete_post', array( __CLASS__, 'sync_deleted_post' ), 20, 1 );
+		add_action( 'untrashed_post', array( __CLASS__, 'sync_untrashed_post' ), 20, 1 );
 		// Refunds of checked-in tickets are refused before WooCommerce pays them out (unless allowed).
 		add_action( 'woocommerce_create_refund', array( __CLASS__, 'guard_refund' ), 10, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( __CLASS__, 'sync_fully_refunded_order' ), 20 );
@@ -494,9 +510,12 @@ final class OrderAdapter {
 	 * the orders created so far). The first one is stored in ORDER_META, all of them in
 	 * SellerSplit::SPLIT_META, the allocation snapshot in SellerSplit::PLAN_META.
 	 *
+	 * @param bool $after_payment Called for an order that never went through the checkout (created in the
+	 *                            admin or over REST and then paid): tickets whose type has required attendee
+	 *                            fields are issued without the data; the buyer adds it in the order portal.
 	 * @return int|\WP_Error|null First core order ID, error, or null if the order has no ticket lines.
 	 */
-	public static function reserve( $wc_order ) {
+	public static function reserve( $wc_order, $after_payment = false ) {
 		if ( ! $wc_order instanceof \WC_Order ) {
 			return null;
 		}
@@ -567,6 +586,7 @@ final class OrderAdapter {
 					'billing'       => self::billing_from_order( $wc_order ),
 					'fiscal_extra_items'    => $fiscal_extra[ $key ] ?? array(),
 					'fiscal_payment_method' => '' !== $payment_method ? $payment_method : 'unknown',
+					'attendees_deferred'    => (bool) $after_payment,
 				)
 			);
 			if ( is_wp_error( $result ) ) {
@@ -636,10 +656,82 @@ final class OrderAdapter {
 		}
 		$map = $wc_order->get_meta( SellerSplit::SPLIT_META, true );
 		if ( is_array( $map ) && $map ) {
-			return array_values( array_filter( array_map( 'absint', $map ) ) );
+			$ids = array();
+			foreach ( $map as $key => $core_id ) {
+				if ( absint( $core_id ) ) {
+					$ids[ absint( $core_id ) ] = (string) $key;
+				}
+			}
+		} else {
+			$id  = absint( $wc_order->get_meta( self::ORDER_META, true ) );
+			$ids = $id ? array( $id => '' ) : array();
 		}
-		$id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
-		return $id ? array( $id ) : array();
+		return $ids ? self::owned_core_ids( $wc_order, $ids ) : array();
+	}
+
+	/**
+	 * Keeps only the Pass Captain orders that were created for this WooCommerce order. The meta can be
+	 * copied to another order (WooCommerce Subscriptions renewals, "duplicate order" plugins, imports); a
+	 * copy must never cancel, refund or display the original order's tickets.
+	 *
+	 * A core order belongs to the WooCommerce order when its keyed idempotency key is the one reserve()
+	 * derives for this order ID and one of its checkout attempts ("{id}-{attempt}[-{seller key}]"), or when
+	 * its payment was confirmed with the reference "woocommerce:{id}" (confirm_core()).
+	 *
+	 * @param array<int,string> $ids Core order ID => seller key ('' when not split).
+	 * @return int[]
+	 */
+	private static function owned_core_ids( $wc_order, array $ids ) {
+		global $wpdb;
+		$wc_id    = (int) $wc_order->get_id();
+		$attempts = min( 50, max( 1, absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) ) );
+		$keys     = array();
+		foreach ( array_unique( array_values( $ids ) ) as $seller ) {
+			for ( $attempt = 1; $attempt <= $attempts; $attempt++ ) {
+				$plain          = $wc_id . '-' . $attempt . ( '' !== $seller ? '-' . $seller : '' );
+				$keys[ hash_hmac( 'sha256', $plain, 'wpcap-channel-woocommerce' ) ] = true; // Orders::create() with key_namespace "woocommerce".
+				$keys[ hash( 'sha256', 'woocommerce-' . $plain ) ] = true; // Keys of early pre-1.0 builds.
+			}
+		}
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,idempotency_key,provider_reference FROM %i WHERE order_id IN ($placeholders)", array_merge( array( $wpdb->prefix . 'wpcap_orders' ), array_keys( $ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+		$owned = array();
+		foreach ( (array) $rows as $row ) {
+			if ( isset( $keys[ (string) $row->idempotency_key ] ) || 'woocommerce:' . $wc_id === (string) $row->provider_reference ) {
+				$owned[ (int) $row->order_id ] = true;
+			}
+		}
+		// Keep the stored order (the first one is the classic ORDER_META order).
+		return array_values( array_filter( array_keys( $ids ), static function ( $id ) use ( $owned ) {
+			return isset( $owned[ $id ] );
+		} ) );
+	}
+
+	/**
+	 * Filters of WooCommerce Subscriptions that copy order meta to renewal/resubscribe orders and to the
+	 * subscription itself: Pass Captain's own meta (_wpcap_*) is never copied (tickets belong to the order
+	 * they were bought with; a renewal with ticket products gets its own hold when it is paid).
+	 *
+	 * Handles the array forms (meta key => value, or rows with meta_key) and the SQL query form.
+	 *
+	 * @param mixed $data Meta data or SQL query.
+	 * @return mixed
+	 */
+	public static function exclude_copied_meta( $data ) {
+		if ( is_string( $data ) ) {
+			// wcs_*_meta_query: SELECT meta_key, meta_value FROM … WHERE … – exclude our keys in SQL.
+			return '' === trim( $data ) ? $data : $data . " AND meta_key NOT LIKE '\\_wpcap\\_%'";
+		}
+		if ( ! is_array( $data ) ) {
+			return $data;
+		}
+		foreach ( $data as $key => $value ) {
+			$meta_key = is_array( $value ) && isset( $value['meta_key'] ) ? (string) $value['meta_key'] : ( is_string( $key ) ? $key : '' );
+			if ( 0 === strpos( $meta_key, '_wpcap_' ) ) {
+				unset( $data[ $key ] );
+			}
+		}
+		return $data;
 	}
 
 	/** Seller key => core order ID of a split WooCommerce order (empty if not split). */
@@ -939,8 +1031,9 @@ final class OrderAdapter {
 		}
 		$core_ids = self::core_order_ids( $wc_order );
 		if ( ! $core_ids ) {
-			// Orders created in the admin or before the adapter was active have no hold yet.
-			$core_id = self::reserve( $wc_order );
+			// Orders created in the admin or over REST (or before the adapter was active) have no hold yet;
+			// required attendee data cannot have been collected, the buyer completes it in the order portal.
+			$core_id = self::reserve( $wc_order, true );
 			if ( is_wp_error( $core_id ) ) {
 				/* translators: %s: error message */
 				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'pass-captain' ), $core_id->get_error_message() ) );
@@ -950,6 +1043,9 @@ final class OrderAdapter {
 				return;
 			}
 			$core_ids = self::core_order_ids( $wc_order );
+			if ( self::missing_attendee_data( $core_ids ) ) {
+				$wc_order->add_order_note( __( 'Pass Captain: Die Bestellung wurde nicht über den Checkout angelegt; Pflichtangaben zu Teilnehmenden fehlen. Die Tickets werden trotzdem ausgestellt – die Kundschaft ergänzt die Angaben über den Bestelllink aus der Ticket-E-Mail.', 'pass-captain' ) );
+			}
 		}
 		$cores = array();
 		foreach ( $core_ids as $core_id ) {
@@ -1000,6 +1096,22 @@ final class OrderAdapter {
 			$wc_order->delete_meta_data( self::ATTENDEE_META );
 			$wc_order->save();
 		}
+	}
+
+	/** Whether a ticket type of these core orders has required attendee fields but the order has no attendee data. */
+	private static function missing_attendee_data( array $core_ids ) {
+		global $wpdb;
+		foreach ( $core_ids as $core_id ) {
+			$core = Orders::get( $core_id );
+			if ( ! $core || ! empty( $core->attendee_data ) ) {
+				continue;
+			}
+			$required = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i f INNER JOIN %i i ON i.ticket_type_id=f.ticket_type_id WHERE i.order_id=%d AND f.required=1 AND f.status='active'", $wpdb->prefix . 'wpcap_participant_fields', $wpdb->prefix . 'wpcap_order_items', (int) $core_id ) );
+			if ( $required ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -1080,6 +1192,93 @@ final class OrderAdapter {
 	public static function sync_cancelled_order( $wc_order_id ) {
 		foreach ( self::core_order_ids( $wc_order_id ) as $core_id ) {
 			Orders::cancel_order( $core_id, 'woocommerce_' . current_filter() );
+		}
+	}
+
+	/** Order moved to the trash (HPOS hook; also fired by the posts data store). */
+	public static function sync_trashed_order( $wc_order_id ) {
+		self::release_removed_order( $wc_order_id, 'trash' );
+	}
+
+	/** Order about to be deleted permanently. */
+	public static function sync_deleted_order( $wc_order_id ) {
+		self::release_removed_order( $wc_order_id, 'delete' );
+	}
+
+	/** Order restored from the trash. */
+	public static function sync_untrashed_order( $wc_order_id ) {
+		self::restore_untrashed_order( $wc_order_id );
+	}
+
+	/** Posts storage: wp_trash_post for shop_order posts. */
+	public static function sync_trashed_post( $post_id ) {
+		if ( self::is_order_post( $post_id ) ) { self::release_removed_order( $post_id, 'trash' ); }
+	}
+
+	/** Posts storage: order post about to be removed permanently (before_delete_post). */
+	public static function sync_deleted_post( $post_id ) {
+		if ( self::is_order_post( $post_id ) ) { self::release_removed_order( $post_id, 'delete' ); }
+	}
+
+	/** Posts storage: untrashed_post for shop_order posts. */
+	public static function sync_untrashed_post( $post_id ) {
+		if ( self::is_order_post( $post_id ) ) { self::restore_untrashed_order( $post_id ); }
+	}
+
+	private static function is_order_post( $post_id ) {
+		return function_exists( 'get_post_type' ) && 'shop_order' === get_post_type( absint( $post_id ) );
+	}
+
+	/**
+	 * An unpaid WooCommerce order that is trashed or deleted releases its hold (Orders::cancel_order with
+	 * only_unpaid). A paid order keeps its tickets – deleting a WooCommerce order is no refund – but it is
+	 * recorded in the audit log and, when only trashed, noted on the order.
+	 *
+	 * @param string $how 'trash' or 'delete'.
+	 */
+	private static function release_removed_order( $wc_order_id, $how ) {
+		$wc_order = wc_get_order( absint( $wc_order_id ) );
+		if ( ! $wc_order ) {
+			return;
+		}
+		$paid = array();
+		foreach ( self::core_order_ids( $wc_order ) as $core_id ) {
+			$result = Orders::cancel_order( $core_id, 'woocommerce_order_' . $how, true );
+			if ( is_wp_error( $result ) && 'wpcap_order_paid_state' === $result->get_error_code() ) {
+				$paid[] = $core_id;
+				\PassCaptain\Audit::record( 'woocommerce_paid_order_removed', 'order', $core_id, array( 'wc_order_id' => (int) $wc_order->get_id(), 'action' => $how ) );
+			}
+		}
+		if ( $paid && 'trash' === $how ) {
+			/* translators: %s: list of Pass Captain order IDs */
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Bestellung in den Papierkorb verschoben. Die Tickets der bezahlten Bestellung(en) %s bleiben gültig – für einen Widerruf die Bestellung erstatten oder stornieren.', 'pass-captain' ), '#' . implode( ', #', $paid ) ) );
+		}
+	}
+
+	/** A restored unpaid order reserves its tickets again (its hold was released when it was trashed). */
+	private static function restore_untrashed_order( $wc_order_id ) {
+		$wc_order = wc_get_order( absint( $wc_order_id ) );
+		if ( ! $wc_order || ( is_callable( array( $wc_order, 'is_paid' ) ) && $wc_order->is_paid() ) ) {
+			return;
+		}
+		$status = is_callable( array( $wc_order, 'get_status' ) ) ? (string) $wc_order->get_status() : 'pending';
+		if ( ! in_array( $status, array( 'pending', 'on-hold', 'checkout-draft' ), true ) ) {
+			return;
+		}
+		foreach ( self::core_order_ids( $wc_order ) as $core_id ) {
+			$core = Orders::get( $core_id );
+			if ( $core && 'cancelled' !== $core->status ) {
+				return; // Still reserved (or paid): nothing to restore.
+			}
+		}
+		$result = self::reserve( $wc_order );
+		if ( is_wp_error( $result ) ) {
+			/* translators: %s: error message */
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Bestellung wiederhergestellt, aber die Tickets konnten nicht erneut reserviert werden: %s', 'pass-captain' ), $result->get_error_message() ) );
+			return;
+		}
+		if ( $result && 'on-hold' === $status ) {
+			self::sync_on_hold_order( $wc_order->get_id() );
 		}
 	}
 
@@ -1684,9 +1883,12 @@ final class OrderAdapter {
 			return null;
 		}
 		foreach ( array( self::ORDER_META, SellerSplit::LOOKUP_META ) as $key ) {
-			$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => $key, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-			if ( $orders ) {
-				return $orders[0];
+			$orders = wc_get_orders( array( 'limit' => 5, 'meta_key' => $key, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+			foreach ( (array) $orders as $order ) {
+				// A copy of the meta (renewal, duplicated order) does not own the core order.
+				if ( in_array( absint( $core_order_id ), self::core_order_ids( $order ), true ) ) {
+					return $order;
+				}
 			}
 		}
 		return null;

@@ -29,8 +29,30 @@ das Plugin auf die übrigen geprüften Statements und den COMMIT zurück. Stand 
 - WordPress/WooCommerce: Job `install-test` (`matrix.include`, Variablen `WPCAP_IT_WP_VERSION`,
   `WPCAP_IT_WC_VERSION` von `build/ci-install-test.sh`).
 - Bei einer neuen Mindestversion auch Plugin-Header, `readme.txt`, `composer.json` (`require.php`,
-  `config.platform.php`) und `phpcs.xml.dist` (`testVersion`, `minimum_wp_version`) anpassen –
+  `config.platform.php`), die eigene PHP-Prüfung `version_compare( PHP_VERSION, '8.2', '<' )` am Anfang von `pass-captain.php` (die
+  Composer-Plattformprüfung `vendor/composer/platform_check.php` wird wegen `config.platform-check: false` nicht
+  ausgeliefert) und `phpcs.xml.dist` (`testVersion`, `minimum_wp_version`) anpassen –
   `build/check-versions.sh` prüft die Übereinstimmung von Header, Readme und Composer.
+
+### Fremd-Plugins und Multisite
+
+- **QR-Codes:** Die SVG wird aus der Modulmatrix von `bacon/bacon-qr-code` (`Encoder::encode()`, gleich in Bacon 2.x
+  und 3.x) selbst gezeichnet (`QrCode::svg()`); `endroid/qr-code` wird nicht mehr mitgeliefert. Ein anderes Plugin,
+  das endroid 4.x/5.x früher lädt, kann den Ticket- und Kopplungs-QR-Code daher nicht mehr brechen. Die
+  Vendor-Namespaces sind nicht präfixiert (kein Strauss/PHP-Scoper im Build): Lädt ein Fremd-Plugin eine
+  inkompatible Bacon-Version (1.x) zuerst, meldet die Systemstatus-Seite das mit Pfad (Fehler, wenn kein QR-Code
+  entsteht; Warnung, wenn die fremde Kopie funktioniert).
+- **Altkopie „wp-pass-captain“:** Das Daten-Opt-in für die Deinstallation liegt seit DB 3.14.0 in der Option
+  `wpcap_uninstall_policy`; der alte Schlüssel `wpcap_settings[delete_data_on_uninstall]`, den die `uninstall.php` der
+  Altkopie auf allen Sites liest, steht immer auf 0. Die Altkopie lässt sich neben „Pass Captain“ nicht mehr
+  aktivieren (kein „Aktivieren“-Link, Aktivierungsanfrage wird vor dem Laden abgelehnt; per WP-CLI greift nur die
+  Übernahme beim nächsten Request).
+- **Netzwerkaktivierung:** höchstens 25 Sites bzw. 15 Sekunden werden in der Aktivierungsanfrage installiert, die
+  übrigen per Upgrade-Cron-Ereignis auf der jeweiligen Site (ihr Daten-Opt-in wird sofort migriert).
+- **Audit auf fremden Sites:** Netzwerkweite Hooks (z. B. Rollenwechsel nach `switch_to_blog()`) schreiben kein
+  Audit, wenn die Site keine Plugin-Tabellen hat.
+- **WooCommerce:** HPOS und Checkout-Blöcke kompatibel; der neue Produkt-Block-Editor ist als inkompatibel
+  deklariert (das Ticketkategorie-Feld ist ein klassisches Produktdatenfeld).
 
 ## Test-Basislinie je Release
 

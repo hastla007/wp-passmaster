@@ -50,6 +50,7 @@ Terms: https://www.paypal.com/legalhub/paypal/useragreement-full — Privacy pol
 
 = Mollie (payments) =
 Used when the Mollie payment method is enabled and an API key is entered. At checkout the plugin creates a payment at api.mollie.com with order reference, amount, currency, description, the selected payment method and the redirect and webhook URLs of your site. Payment status is read back when Mollie calls the webhook, and refunds are requested through the same API.
+Before that, when the checkout (or the payment method selector) is rendered for an amount, the plugin asks api.mollie.com which payment methods are available (GET /v2/methods with amount, currency, the sequence type "oneoff" and, if configured, the billing country; no buyer data). The answer is cached for one hour.
 Terms: https://www.mollie.com/user-agreement — Privacy policy: https://www.mollie.com/privacy
 
 = Twilio (SMS) =
@@ -70,14 +71,20 @@ Terms: https://developers.google.com/terms — Privacy policy: https://policies.
 = Webhooks to URLs you configure =
 Used only when an administrator adds a webhook subscription. Order, ticket, check-in and refund events (IDs, status, amounts, event and ticket type data) are sent as signed HTTP POST requests to the URL entered by the administrator. Email addresses of buyers or attendees are only included if the subscription is explicitly configured to include them. The receiving service is chosen by the administrator.
 
+= HTTP/JSON connector (CRM, Zapier, Make, n8n or your own service) =
+Used only when an administrator creates and activates an endpoint under Pass Captain → Connectors. For each event the endpoint subscribes to (order paid, refunded or cancelled, refund completed, tickets issued, ticket checked in, date moved or cancelled) the plugin sends a JSON POST request over HTTPS to the URL entered by the administrator: event name, time, an idempotency key and the order, ticket and event identifiers and states, or the fields chosen in the endpoint's field mapping. Buyer email addresses and attendee names are only sent when the endpoint's personal data option is enabled. An optional authentication header entered by the administrator is sent with each request. The "Test" button sends one sample request. The receiving service, and its terms and privacy policy, are chosen by the administrator.
+
 = Fiscal services (fiskaly, efsta, fiskaltrust) =
 Used only when an administrator creates a legal seller under Pass Captain → Fiscalization, selects and enables a fiscal provider for it, saves a reviewed production profile and maps ticket types (or WooCommerce products) to that seller. Nothing is sent before that. When a mapped order is paid (online, WooCommerce or box office), the plugin sends one receipt per seller to the selected provider before tickets are issued: seller legal name, country, tax number/VAT ID, order reference and a derived idempotency key, line items (descriptions, quantities, gross amounts, tax rates and tax amounts), currency, payment method and, at the box office, the register ID. No buyer name, email address or ticket code is sent. Status lookups, connection checks ("Verbindung prüfen") and, for efsta, an operator-triggered one-time void send the same identifiers. Credentials are sent only to the respective provider. Endpoints:
 - fiskaly SIGN AT: rksv.fiskaly.com; fiskaly SIGN DE: kassensichv-middleware.fiskaly.com; fiskaly Unified API (FR, IT, PT, SE): test.api.fiskaly.com or live.api.fiskaly.com.
 - efsta EFR: the EFR endpoint entered by the administrator (a local EFR, e.g. on 127.0.0.1, only after "Lokalen Fiskaldienst erlauben" is enabled, or an efsta cloud endpoint).
 - fiskaltrust POS System API: possystem-api-sandbox.fiskaltrust.eu or possystem-api.fiskaltrust.eu (or an endpoint entered by the administrator).
-fiskaly terms: https://www.fiskaly.com/legal/terms — fiskaly privacy policy: https://www.fiskaly.com/legal/privacy (to be verified manually)
-efsta terms and privacy: https://www.efsta.eu/ (homepage; exact pages to be verified manually)
-fiskaltrust terms and privacy: https://www.fiskaltrust.eu/ (homepage; exact pages to be verified manually)
+fiskaly (fiskaly GmbH): Terms: https://www.fiskaly.com/legal-terms-of-use — Privacy policy: https://www.fiskaly.com/privacy-policy (API use is additionally governed by the contract the operator concludes with fiskaly).
+efsta (efsta IT Services GmbH): Privacy policy: https://en.efsta.eu/datenschutz — Terms: the contract the operator concludes with efsta for the EFR (https://www.efsta.eu/en).
+fiskaltrust (fiskaltrust consulting gmbh): Terms: https://fiskaltrust.eu/en-eu/terms-and-conditions/ — Privacy policy: https://fiskaltrust.eu/en-eu/privacy-policy/
+
+= Third-party libraries =
+Bundled unmodified: bacon/bacon-qr-code and dasprid/enum (BSD-2-Clause, in vendor/, see composer.json), jsQR (Apache-2.0, assets/vendor/jsqr/, source: https://github.com/cozmo/jsQR) and tweetnacl-js 1.0.3 (Unlicense, assets/vendor/tweetnacl/, origin in SOURCE.txt; source: https://github.com/dchest/tweetnacl-js).
 
 The optional integrations with WooCommerce, WP Voucher Captain and WP Affiliate Captain run inside your WordPress installation through those plugins' PHP APIs and do not contact external services.
 

@@ -259,8 +259,14 @@ final class Vault {
 		return $out;
 	}
 
+	/**
+	 * Key/decryption warnings, only on the plugin's own pages and the plugins screen (not on every admin
+	 * page); the settings page additionally shows key_notice().
+	 */
 	public static function render_notices() {
 		if ( ! current_user_can( 'manage_options' ) ) { return; }
+		global $pagenow;
+		if ( ! \PassCaptain\Admin\Menu::is_plugin_page() && 'plugins.php' !== ( $pagenow ?? '' ) ) { return; }
 		$broken = self::undecryptable_settings();
 		if ( $broken ) {
 			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain:', 'pass-captain' ) . '</strong> ';

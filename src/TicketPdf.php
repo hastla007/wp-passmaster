@@ -62,20 +62,9 @@ final class TicketPdf {
 		return implode( "\n", $ops );
 	}
 
-	/** QR modules as rows of booleans, or empty array when the encoder is unavailable. */
+	/** QR modules as rows of booleans, or empty array when the encoder is unavailable (see QrCode::matrix()). */
 	public static function qr_matrix( $payload ) {
-		if ( '' === $payload || ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) ) { return array(); }
-		try {
-			$qr = \BaconQrCode\Encoder\Encoder::encode( $payload, \BaconQrCode\Common\ErrorCorrectionLevel::M(), 'UTF-8' );
-			$matrix = $qr->getMatrix();
-			$rows = array();
-			for ( $y = 0; $y < $matrix->getHeight(); $y++ ) {
-				for ( $x = 0; $x < $matrix->getWidth(); $x++ ) { $rows[ $y ][ $x ] = 1 === $matrix->get( $x, $y ); }
-			}
-			return $rows;
-		} catch ( \Throwable $e ) {
-			return array();
-		}
+		return QrCode::matrix( (string) $payload );
 	}
 
 	/** Assembles objects and the xref table. */

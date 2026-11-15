@@ -24,9 +24,11 @@ $wpcap_check( 'WPCAP_VERSION defined', defined( 'WPCAP_VERSION' ), defined( 'WPC
 $wpcap_check( 'plugin path is the installed copy', defined( 'WPCAP_PATH' ) && str_ends_with( wp_normalize_path( WPCAP_PATH ), '/plugins/pass-captain/' ), defined( 'WPCAP_PATH' ) ? WPCAP_PATH : '' );
 $wpcap_check( 'Composer autoloader present', is_readable( WPCAP_PATH . 'vendor/autoload.php' ) );
 $wpcap_check( 'plugin classes autoload', class_exists( PassCaptain\Plugin::class ) && class_exists( PassCaptain\Orders::class ) );
-$wpcap_check( 'runtime dependency endroid/qr-code autoloads', class_exists( Endroid\QrCode\QrCode::class ) );
+$wpcap_check( 'runtime dependency bacon/bacon-qr-code autoloads', class_exists( BaconQrCode\Encoder\Encoder::class ) );
+$wpcap_check( 'no endroid/qr-code shipped (QR SVG is drawn from the Bacon matrix)', ! is_dir( WPCAP_PATH . 'vendor/endroid' ) );
+$wpcap_check( 'no Composer platform check shipped (own PHP version check)', ! is_file( WPCAP_PATH . 'vendor/composer/platform_check.php' ) );
 $qr = PassCaptain\QrCode::data_uri( 'pass-captain-ci' );
-$wpcap_check( 'QR code renders', is_string( $qr ) && str_starts_with( $qr, 'data:image/' ), is_string( $qr ) ? substr( $qr, 0, 22 ) : gettype( $qr ) );
+$wpcap_check( 'QR code renders', is_string( $qr ) && str_starts_with( $qr, 'data:image/svg+xml;base64,' ), is_string( $qr ) ? substr( $qr, 0, 30 ) : gettype( $qr ) );
 
 // Schema: tables, version and fingerprint written by the installer.
 $tables   = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix . 'wpcap_' ) . '%' ) );

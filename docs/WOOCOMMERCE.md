@@ -1,6 +1,6 @@
 # WooCommerce-Adapter
 
-Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nutzt ausschließlich die CRUD-APIs von WooCommerce (`wc_get_order()`, Bestell-/Produktmetadaten) und ist mit HPOS und dem klassischen Bestellspeicher sowie mit Cart/Checkout Blocks kompatibel deklariert. Pass Captain greift nie direkt auf WooCommerce-Tabellen zu.
+Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nutzt ausschließlich die CRUD-APIs von WooCommerce (`wc_get_order()`, Bestell-/Produktmetadaten) und ist mit HPOS und dem klassischen Bestellspeicher sowie mit Cart/Checkout Blocks kompatibel deklariert. Den neuen Produkt-Block-Editor (`product_block_editor`) deklariert er als inkompatibel: Das Feld **Pass Captain Ticketkategorie** ist ein klassisches Produktdatenfeld. Pass Captain greift nie direkt auf WooCommerce-Tabellen zu.
 
 ## Einrichtung
 
@@ -21,7 +21,12 @@ Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nu
 | `on-hold` (z. B. Überweisung) | Reservierung auf 3 Tage verlängern (Filter `wpcap_woocommerce_on_hold_minutes`) |
 | `failed` / `cancelled` | Reservierung freigeben, gültige Tickets widerrufen. Kommt später doch eine Zahlung, wird neu reserviert |
 | Erstattung (`woocommerce_order_refunded`) | je WooCommerce-Erstattung genau einmal: Erstattung im Pass-Captain-Erstattungsjournal buchen (Zeile in `wpcap_refunds`, erstatteter Betrag der Bestellung, Tickets als erstattet markiert und – sofern gültig – widerrufen, Kontingent frei, Gutschrift, `wpcap_refund_completed`). Mengen wählen die Tickets (gültige zuerst, eingecheckte nur wenn erlaubt), der Betrag ist der Brutto-Erstattungsbetrag der Ticketpositionen; reine Betragserstattungen werden anteilig den Tickets zugerechnet. Aufgeteilte Bestellungen: je Rechnungssteller, siehe „Mehrere Rechnungssteller im Warenkorb“. Benötigt `Refunds::record_external()` im Kern; ohne diese Methode werden wie bisher nur die erstatteten Tickets widerrufen |
+| Unbezahlte Bestellung in den Papierkorb / endgültig gelöscht (`woocommerce_trash_order`, `woocommerce_before_delete_order`; im klassischen Speicher zusätzlich `wp_trash_post`/`before_delete_post` für `shop_order`) | Reservierung freigeben (`Orders::cancel_order(…, only_unpaid)`), Kontingent frei |
+| Unbezahlte Bestellung aus dem Papierkorb wiederhergestellt (`woocommerce_untrash_order`, `untrashed_post`) | erneut reservieren (Status `pending`/`on-hold`/`checkout-draft`); reicht das Kontingent nicht mehr, Bestellnotiz |
+| Bezahlte Bestellung in den Papierkorb / gelöscht | Tickets bleiben gültig (Löschen ist keine Erstattung); Audit-Eintrag `woocommerce_paid_order_removed`, beim Papierkorb zusätzlich eine Bestellnotiz. Für einen Widerruf erstatten oder stornieren |
 | `refunded` | offene WooCommerce-Erstattungen zuerst buchen (WooCommerce setzt den Status vor `woocommerce_order_refunded`), dann alle noch gültigen Tickets widerrufen, Kontingent freigeben |
+
+**Zuordnung Bestellung ↔ Pass-Captain-Bestellung:** Die Metadaten `_wpcap_core_order_id` / `_wpcap_core_orders` gelten nur, wenn die Pass-Captain-Bestellung wirklich für diese WooCommerce-Bestellung angelegt wurde (ihr Idempotenzschlüssel ist der aus Bestell-ID und Checkout-Versuch abgeleitete, oder ihre Zahlung wurde mit `woocommerce:{ID}` bestätigt). Kopierte Metadaten – Verlängerungsbestellungen von WooCommerce Subscriptions, „Bestellung duplizieren“-Plugins, Importe – werden ignoriert: Eine fehlgeschlagene Verlängerung storniert nicht die Tickets der Erstbestellung. Zusätzlich filtert der Adapter `_wpcap_*` aus den Kopierfiltern von WooCommerce Subscriptions (`wc_subscriptions_renewal_order_data`, `wc_subscriptions_resubscribe_order_data`, `wc_subscriptions_subscription_data`, `wcs_*_meta` und `wcs_*_meta_query`). Enthält eine Verlängerung selbst Ticketprodukte, bekommt sie bei Zahlung eine eigene Reservierung.
 
 Eingecheckte Tickets werden bei Storno oder Erstattung nicht verändert und bleiben als Einlasshistorie erhalten; die Bestellnotiz weist darauf hin. Erstattungen mit Menge, die eingecheckte Tickets bräuchten, lehnt WooCommerce schon beim Anlegen ab, wenn die Erstattung nach Check-in nicht erlaubt ist (siehe unten).
 
@@ -111,6 +116,8 @@ Hat eine Ticketkategorie Teilnehmerfelder, fragt der Checkout je Ticket Name, E-
 
 - **Klassischer Checkout** (Shortcode): Felder nach den Bestellnotizen (`woocommerce_after_order_notes`), Prüfung in `woocommerce_after_checkout_validation`.
 - **Checkout-Block:** ein kleiner innerer Block im Schritt „Kontaktinformationen“ (`assets/woocommerce/attendees.js`, ohne Build). Der Warenkorb liefert die nötigen Felder über die Store API (`extensions.wpcap.attendee_types`), die Antworten gehen als Checkout-Erweiterungsdaten (`extensions.wpcap.attendees`, JSON) zurück. Fehlende Pflichtangaben sperren „Bestellung aufgeben“ über den Validierungs-Store von WooCommerce; der Server prüft erneut.
+
+**Bestellungen ohne Checkout** (im Admin oder per REST-API angelegt und dann bezahlt): Hier konnten keine Teilnehmerangaben erfasst werden. Die Tickets werden trotzdem ausgestellt, auch wenn die Kategorie Pflichtfelder hat (`Orders::create()` mit der vertrauenswürdigen Option `attendees_deferred`; nur Tickets ganz ohne Angaben, mitgeschickte Angaben werden weiter geprüft). Die Bestellung erhält eine Notiz, und die Kundschaft ergänzt Name, E-Mail und Pflichtangaben über den persönlichen Bestelllink aus der Ticket-E-Mail (Teilnehmerzuweisung im Portal, bis „Teilnehmerdaten änderbar bis“ vor Beginn). Über den Checkout bleiben Pflichtfelder verbindlich.
 
 Die Antworten liegen bis zur Ticketausstellung als Bestellmeta `_wpcap_attendees` an der WooCommerce-Bestellung und werden danach dort gelöscht (sie sind dann am Ticket gespeichert). Mit dem Filter `wpcap_woocommerce_collect_attendees` ( `bool $collect, int $type_id` ) lassen sich Name/E-Mail auch für Kategorien ohne Felder abfragen.
 

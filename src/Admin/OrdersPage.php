@@ -282,9 +282,8 @@ final class OrdersPage {
 
 	/** Finds the WooCommerce order id that references a core order (read-only hint). */
 	private static function woocommerce_order_id( $order_id ) {
-		if ( ! function_exists( 'wc_get_orders' ) ) { return 0; }
-		$ids = wc_get_orders( array( 'limit' => 1, 'return' => 'ids', 'meta_key' => '_wpcap_core_order_id', 'meta_value' => absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-		return $ids ? absint( $ids[0] ) : 0;
+		$wc_order = \PassCaptain\Integrations\WooCommerce\OrderAdapter::wc_order_for_core( $order_id );
+		return $wc_order ? absint( $wc_order->get_id() ) : 0;
 	}
 
 	private static function render_detail( $order_id ) {

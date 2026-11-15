@@ -164,7 +164,7 @@ everywhere, whatever the setting.
 | `app.css` | Styles. |
 | `sw.js` | Service worker that caches the app shell. API calls are never cached. Only navigations to the app itself (scope root or `index.html`) are served from and stored as `index.html`, and only `text/html` responses are stored; other navigations inside the scope are network-only. |
 | `manifest.json`, icons | Makes the app installable. Locale-neutral on purpose (product name only, no `lang`/description): a static file cannot follow the device language. |
-| `../vendor/tweetnacl/` | tweetnacl-js 1.0.3 (Unlicense), used for signature verification. |
+| `../vendor/tweetnacl/` | tweetnacl-js 1.0.3 (Unlicense), used for signature verification; origin and checksum in `SOURCE.txt` (ships with the ZIP, `*.md` does not). |
 | `../vendor/jsqr/` | Camera fallback when `BarcodeDetector` is unavailable. |
 
 - **Start:** open the app from the admin button. The link passes `?api=<rest_url>`, which is stored.

@@ -5,7 +5,7 @@
   "license": "GPL-2.0-or-later",
   "require": {
     "php": ">=8.2",
-    "endroid/qr-code": "^6.0"
+    "bacon/bacon-qr-code": "^3.0"
   },
   "require-dev": {
     "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
@@ -39,6 +39,7 @@
       "dealerdirect/phpcodesniffer-composer-installer": true,
       "phpstan/extension-installer": true
     },
-    "sort-packages": true
+    "sort-packages": true,
+    "platform-check": false
   }
 }

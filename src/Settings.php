@@ -7,6 +7,15 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Settings {
 	const OPTION = 'wpcap_settings';
 
+	/**
+	 * Uninstall opt-in ('delete' or 'keep'), stored outside wpcap_settings: the uninstall.php of the old
+	 * "wp-pass-captain" copy (up to 1.4) reads wpcap_settings['delete_data_on_uninstall'], and on a multisite
+	 * network it runs for every site, also where this copy's pre_uninstall_plugin guard is not loaded. The
+	 * setting key delete_data_on_uninstall stays the interface (settings page, Settings::get()), but it is
+	 * read from and written to this option; in wpcap_settings it is always 0.
+	 */
+	const UNINSTALL_POLICY = 'wpcap_uninstall_policy';
+
 	/** Per-request cache of defaults() (module defaults contain translated texts). */
 	private static $defaults = null;
 
@@ -103,6 +112,7 @@ final class Settings {
 	public static function all() {
 		$stored = get_option( self::OPTION, array() );
 		$stored = is_array( $stored ) ? $stored : array();
+		$stored['delete_data_on_uninstall'] = self::deletes_data_on_uninstall() ? 1 : 0;
 		// The option is re-read every time (another site, direct update_option), the merge is reused.
 		if ( null === self::$all || self::$all[0] !== $stored ) {
 			self::$all = array( $stored, array_merge( self::defaults(), $stored ) );
@@ -139,14 +149,40 @@ final class Settings {
 	/** Persist already sanitised values (unknown keys are ignored); secrets are encrypted at rest. */
 	public static function update( array $values ) {
 		$values = array_intersect_key( $values, self::defaults() );
+		if ( array_key_exists( 'delete_data_on_uninstall', $values ) ) {
+			update_option( self::UNINSTALL_POLICY, empty( $values['delete_data_on_uninstall'] ) ? 'keep' : 'delete', false );
+		}
 		foreach ( self::secret_keys() as $key ) {
 			if ( isset( $values[ $key ] ) && is_string( $values[ $key ] ) && '' !== $values[ $key ] ) {
 				$values[ $key ] = Security\Vault::encrypt( $values[ $key ], $key );
 			}
 		}
-		update_option( self::OPTION, array_merge( self::all(), $values ), false );
+		$merged = array_merge( self::all(), $values );
+		$merged['delete_data_on_uninstall'] = 0; // Never in the old key (see UNINSTALL_POLICY).
+		update_option( self::OPTION, $merged, false );
 		self::$all = null;
 		Security\Redact::reset();
+	}
+
+	/** Whether the operator opted in to removing all data when the plugin is deleted (uninstall.php). */
+	public static function deletes_data_on_uninstall() {
+		return 'delete' === get_option( self::UNINSTALL_POLICY, 'keep' );
+	}
+
+	/**
+	 * Upgrade step (per site, idempotent): moves an opt-in still stored in wpcap_settings to
+	 * UNINSTALL_POLICY and sets the old key to 0, so the old copy's uninstall.php keeps the data.
+	 */
+	public static function migrate_uninstall_policy() {
+		$settings = get_option( self::OPTION, array() );
+		if ( is_array( $settings ) && ! empty( $settings['delete_data_on_uninstall'] ) ) {
+			update_option( self::UNINSTALL_POLICY, 'delete', false );
+			$settings['delete_data_on_uninstall'] = 0;
+			update_option( self::OPTION, $settings, false );
+			self::$all = null;
+		} elseif ( false === get_option( self::UNINSTALL_POLICY, false ) ) {
+			update_option( self::UNINSTALL_POLICY, 'keep', false );
+		}
 	}
 
 	/** Name of the constant/environment variable (WPCAP_<KEY>) that overrides a key, or ''. */

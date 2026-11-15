@@ -47,6 +47,11 @@ Das Token wird nur einmal ausgeliefert. Die App speichert es im sicheren Speiche
 Authorization: Bearer wpcapd_<device>_<secret>
 ```
 
+Hosts mit Apache und PHP als CGI/FastCGI reichen den `Authorization`-Header oft nicht an PHP weiter. Der Server liest dann
+ersatzweise `REDIRECT_HTTP_AUTHORIZATION`; dafür braucht die `.htaccess` die übliche Regel
+`RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]` (WordPress-Standard-`.htaccess` ab 5.6). Ohne sie antwortet
+jeder App-Aufruf mit 401 `wpcap_device_unauthenticated`.
+
 **Eigenschaften des Tokens**
 
 - Personengebunden: Das Gerät handelt im Namen der Person, die gekoppelt hat. Es gibt keine geteilten Konten.
