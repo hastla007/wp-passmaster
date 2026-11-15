@@ -94,14 +94,14 @@ final class CheckoutThrottle {
 		$suspect = self::proxy_suspect();
 		if ( '' !== $suspect ) { self::remember( $suspect ); }
 		$factor = 'header' === $suspect ? max( 1, (int) apply_filters( 'wpcap_checkout_proxy_limit_factor', 10 ) ) : 1;
-		$ip_limit = max( 1, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ) * $factor;
+		$ip_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ), $factor );
 		$attempt_factor = max( 1, (int) apply_filters( 'wpcap_checkout_attempt_factor', 4 ) );
-		$unpaid_limit = max( 1, (int) apply_filters( 'wpcap_checkout_unpaid_per_network', 10 ) ) * $factor;
+		$unpaid_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_unpaid_per_network', 10 ) ), $factor );
 		$per_network = 'private' !== $suspect;
 		$net_hash = Orders::rate_hash( $network );
 		$buyer_hash = Orders::rate_hash( $network . '|' . $buyer );
 		// Attempts (never taken back).
-		$attempts_ok = ( ! $per_network || RateLimit::hit( 'wpcap_checkout_try_ip_' . $net_hash, $ip_limit * $attempt_factor, HOUR_IN_SECONDS ) )
+		$attempts_ok = ( ! $per_network || RateLimit::hit( 'wpcap_checkout_try_ip_' . $net_hash, self::times( $ip_limit, $attempt_factor ), HOUR_IN_SECONDS ) )
 			&& RateLimit::hit( 'wpcap_checkout_try_' . $buyer_hash, self::EMAIL_LIMIT * $attempt_factor, HOUR_IN_SECONDS );
 		$counters = array();
 		if ( $per_network ) {
@@ -124,6 +124,11 @@ final class CheckoutThrottle {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		return $counted;
+	}
+
+	/** $a * $b for positive limits, saturated at PHP_INT_MAX (a filter may return PHP_INT_MAX to switch a limit off). */
+	private static function times( $a, $b ) {
+		return $a > intdiv( PHP_INT_MAX, max( 1, $b ) ) ? PHP_INT_MAX : $a * $b;
 	}
 
 	/**
