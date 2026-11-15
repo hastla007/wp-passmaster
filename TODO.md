@@ -99,7 +99,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] Pass Captain funktioniert ohne Voucher Captain; Voucher Captain funktioniert ohne Pass Captain. *(CI beider Plugins läuft ohne das andere)*
 - [x] Gemeinsame Installation aktiviert die definierte Bridge, ohne separate Plugin-Einträge oder Admin-Menüs zusammenzulegen.
 - [x] Gutschein-zu-Ticket-Einlösung und Ticket-Rückerstattung sind idempotent und revisionsfähig.
-- [ ] Release-Gates aus Konzept sind bestanden und dokumentiert. *Stand 2026-11-14: Gates dokumentiert (`docs/RELEASE.md`), automatisiert in CI/Release-Workflow; Bestehen erst mit dem ersten echten CI-Lauf und der manuellen Abnahme.*
+- [ ] Release-Gates aus Konzept sind bestanden und dokumentiert. *Stand 2026-11-14: Gates dokumentiert (`docs/RELEASE.md`), automatisiert in CI/Release-Workflow; Automatische Gates seit Run #715 grün; offen ist die manuelle Abnahme (`docs/RELEASE.md`).*
 
 ## P1 – Ticketverwaltung nach dem Kauf
 
@@ -342,7 +342,7 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 Diese Punkte lassen sich nicht im Code erledigen. Sie brauchen echte Umgebungen, Fachleute oder eine Entscheidung der Produktverantwortung.
 
 ### Erster echter CI-Lauf
-- [ ] Workflows auf GitHub einmal vollständig laufen lassen und Fehler beheben: Testmatrix PHP × MariaDB/MySQL, ZIP-Installationstest (WordPress 6.4/aktuell, WooCommerce 8.2/aktuell, HPOS an/aus), Plugin Check, Browser-Job (axe-Gate + Playwright), gitleaks/Dependency Review, wöchentlicher Lasttest. Lokal sind alle Teile grün, in GitHub Actions noch nicht ausgeführt.
+- [x] Workflows auf GitHub einmal vollständig laufen lassen und Fehler beheben: Testmatrix PHP × MariaDB/MySQL, ZIP-Installationstest (WordPress 6.4/aktuell, WooCommerce 8.2/aktuell, HPOS an/aus), Plugin Check, Browser-Job (axe-Gate + Playwright), gitleaks/Dependency Review, wöchentlicher Lasttest. Lokal sind alle Teile grün, in GitHub Actions noch nicht ausgeführt. **Erledigt (2026-11-15):** Erster vollständig grüner Lauf (Run #715, Commit 501108f): Integrationsmatrix PHP 8.2–8.4 × MariaDB 10.6/11.4 × MySQL 8.0/8.4, Browser-Matrix (Chromium inkl. a11y-Gate und WooCommerce Blocks, Firefox, WebKit, Pixel 7, iPhone 14), statische Prüfungen, Secret-Scan, Lizenz-Wächter, reproduzierbares Paket, Installationstests (WP 6.4/7.1, WooCommerce 8.2/11.3, HPOS an/aus, Update von 1.4.0, Deinstallation) und Plugin Check.
 - [ ] Für gitleaks ggf. Secret `GITLEAKS_LICENSE` (nur bei Organisations-Repositories) und den Dependency Graph aktivieren.
 
 ### Abnahme in echten Umgebungen
