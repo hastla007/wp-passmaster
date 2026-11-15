@@ -390,7 +390,7 @@ unset( $GLOBALS['wpcap_test_filters']['wp_pass_captain_waitlist_ip_limit_v1'] );
 check( 'one IP is limited across all events (limit 3: three accepted, the fourth on another event → 429)', ! is_wp_error( $y1_wl[0] ) && ! is_wp_error( $y1_wl[2] ) && is_wp_error( $y1_wl[3] ) && 429 === y1_status( $y1_wl[3] ) );
 check( 'IPv6 addresses share one rate bucket per /64, IPv4 stays per address', '2001:db8:1:2::/64' === RateLimit::client_network( '2001:db8:1:2:aaaa:bbbb:cccc:dddd' ) && RateLimit::client_network( '2001:db8:1:2::1' ) === RateLimit::client_network( '2001:db8:1:2:ffff::9' ) && '203.0.113.9' === RateLimit::client_network( '203.0.113.9' ) && '203.0.113.9' === RateLimit::client_network( '::ffff:203.0.113.9' ) );
 $GLOBALS['wpcap_test_transients'] = array();
-$GLOBALS['wpcap_test_transients'][ 'wpcap_seathold_' . hash( 'sha256', '2001:db8:7:7::/64' ) ] = 20;
+$GLOBALS['wpcap_test_transients'][ 'wpcap_seathold_' . RateLimit::hash( '2001:db8:7:7::/64' ) ] = 20;
 $_SERVER['REMOTE_ADDR'] = '2001:db8:7:7:1234:5678:9abc:def0';
 $y1_hold = \PassCaptain\Seats::hold( $y1_occ_a, array( 1 ), 0, 10, 'y1-hold' );
 check( 'seat holds: a rotated IPv6 address inside the same /64 is still rate limited (429)', is_wp_error( $y1_hold ) && 429 === y1_status( $y1_hold ) );
