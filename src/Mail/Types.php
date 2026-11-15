@@ -392,6 +392,8 @@ final class Types {
 				/* translators: 1: event, 2: date and time, 3: refund note */
 				'body' => static function () { return sprintf( __( "Der Termin „%1\$s“ am %2\$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n\n%3\$s", 'pass-captain' ), '{event_name}', '{event_date}', '{refund_note}' ); },
 				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'event_date' => '15.01.2027 19:30', 'event_location' => 'Stadthalle Wien', 'timezone' => 'Europe/Vienna', 'refund_note' => __( 'Der Ticketpreis wird automatisch erstattet.', 'pass-captain' ) ); },
+				// Queued mails carry the flag auto_refund; the note is translated when the mail is rendered.
+				'vars' => static function ( array $vars ) { return array( 'refund_note' => ! empty( $vars['auto_refund'] ) ? __( 'Der Ticketpreis wird automatisch erstattet.', 'pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'pass-captain' ) ); },
 			),
 			'occurrence_rescheduled' => array(
 				'label' => __( 'Terminänderung', 'pass-captain' ),

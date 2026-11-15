@@ -332,6 +332,8 @@ final class Status {
 					: sprintf( __( 'QR-Codes können nicht erzeugt werden: Die QR-Bibliothek (BaconQrCode) fehlt oder ein anderes Plugin lädt eine inkompatible Version (%s). Tickets zeigen dann keinen QR-Code.', 'pass-captain' ), '' !== $foreign ? $foreign : '-' ),
 			);
 		}
+		// Sender of customer mails (From/Reply-To/Return-Path): missing or not aligned with the site domain.
+		$issues = array_merge( $issues, \PassCaptain\Mail\Mailer::sender_issues() );
 		usort( $issues, static function ( $a, $b ) { return ( 'error' === $b['severity'] ) <=> ( 'error' === $a['severity'] ); } );
 		return $issues;
 	}

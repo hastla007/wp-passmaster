@@ -1373,6 +1373,7 @@ final class Orders {
 	public static function cancel_event( $event_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$started = microtime( true );
 		$event_id = absint( $event_id );
 		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id,name,status FROM %i WHERE event_id=%d', $p . 'wpcap_events', $event_id ) );
 		if ( ! $event || 'published' !== $event->status ) {
@@ -1432,17 +1433,25 @@ final class Orders {
 		$summary['revoked'] += count( $revoked_ids );
 		self::fire_revoked( $revoked_ids, 'event_cancelled' );
 
-		$emails = array();
+		// One queued mail per recipient (dedupe key event-cancel|event|e-mail): no SMTP round trip per buyer
+		// in this request, a retry or double submit sends nothing twice, failures are retried per
+		// recipient. The first ones go out right away, the rest with the message worker.
+		$ref = 'event-cancel|' . $event_id;
+		$keys = array();
 		foreach ( $recipients as $recipient ) {
-			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'event_cancelled', $recipient->email, array( 'event_name' => (string) $event->name ), array(), (string) $recipient->locale ) ) {
-				$emails[] = $recipient->email;
-			}
+			if ( ! is_email( $recipient->email ) ) { continue; }
+			$key = $ref . '|' . strtolower( (string) $recipient->email );
+			if ( true === Communications::enqueue_mail( $key, (string) $recipient->email, 'event_cancelled', array( 'event_name' => (string) $event->name ), (string) $recipient->locale, $ref ) ) { $keys[] = $key; }
 		}
+		// Shares the request's inline budget with the occurrence batches above (no request beyond ~20 s).
+		$inline_deadline = min( microtime( true ) + max( 0, (int) Communications::$inline_seconds ), $started + max( (int) Communications::$inline_seconds, (int) OccurrenceCancellation::$inline_seconds ) );
+		if ( Communications::run_now( $keys, $inline_deadline ) < count( $keys ) ) { Jobs\TimeBudget::continue_later( 'wpcap_process_messages' ); }
 		// Open orders already reported their release through cancel_order().
 		foreach ( array_diff( $order_ids, $pending_before ) as $released_order_id ) { self::capacity_released( $released_order_id, 'event_cancelled' ); }
 		$result = array_merge( $summary, array(
 			'status' => 'cancelled',
-			'notified_count' => count( $emails ),
+			'notified_count' => count( $keys ),
+			'notifications' => Communications::progress( $ref ),
 			'occurrences' => count( $occurrence_ids ),
 			'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
 		) );

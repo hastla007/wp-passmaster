@@ -229,8 +229,15 @@ final class Dispatcher {
 			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); break; }
 			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
 			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); break; }
-			\PassCaptain\Jobs\TimeBudget::claimed( $d, 'delivery_id', (int) $row->delivery_id, 'delivering', 'pending', 'failed', self::max_attempts() );
-			self::attempt( $row );
+			\PassCaptain\Jobs\TimeBudget::claimed( $d, 'delivery_id', (int) $row->delivery_id, 'delivering', 'pending', 'failed', self::max_attempts(), array( 'due' => 'next_attempt_at', 'error' => 'last_error' ) );
+			try {
+				self::attempt( $row );
+			} catch ( \Throwable $e ) {
+				// A throwing filter/listener must not stall the delivery queue: retried with backoff.
+				$attempts = (int) $row->attempts + 1;
+				$error = \PassCaptain\Jobs::exception_error( $e, $row )->get_error_message();
+				$wpdb->update( $d, array( 'status' => $attempts >= self::max_attempts() ? 'failed' : 'pending', 'attempts' => $attempts, 'last_error' => substr( $error, 0, 190 ), 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
+			}
 			\PassCaptain\Jobs\TimeBudget::finished( $d, (int) $row->delivery_id );
 			++$done;
 		}

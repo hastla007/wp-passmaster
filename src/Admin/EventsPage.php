@@ -195,6 +195,8 @@ final class EventsPage {
 			if ( $old->starts_at !== $starts && $issued > 0 ) {
 				$rescheduled = true;
 				do_action( 'wpcap_occurrence_rescheduled', $occurrence_id, $old->starts_at, $starts );
+				// Holder mails are queued per recipient; the admin sees how many went out already.
+				$notifications = \PassCaptain\Communications::progress( 'resched|' . $occurrence_id . '|' . $starts );
 			}
 			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled ) );
 			if ( 'cancelled' === $status && 'cancelled' !== $old->status ) {
@@ -208,7 +210,9 @@ final class EventsPage {
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
 		\PassCaptain\Reports\Cache::flush_event( (int) $event->event_id );
-		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled );
+		$result = array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled );
+		if ( isset( $notifications ) ) { $result['notifications'] = $notifications; }
+		return $result;
 	}
 
 	/** Cancels a single occurrence (tickets stay; refunds are handled per order). */
@@ -495,9 +499,19 @@ final class EventsPage {
 		$message = __( 'Termin gespeichert.', 'pass-captain' );
 		if ( ! is_wp_error( $result ) && $result['rescheduled'] ) {
 			$message .= ' ' . __( 'Der Termin hat verkaufte Tickets; die Verschiebung wurde gemeldet.', 'pass-captain' );
+			$message .= self::notification_progress( (array) ( $result['notifications'] ?? array() ) );
 		}
 		$back = Forms::int( $in, 'occurrence_id' ) ? self::url( array( 'view' => 'occurrence', 'occurrence_id' => Forms::int( $in, 'occurrence_id' ) ) ) : self::event_url( Forms::int( $in, 'event_id' ) );
 		Forms::finish( $result, $message, is_wp_error( $result ) ? $back : self::url( array( 'view' => 'occurrence', 'occurrence_id' => $result['occurrence_id'] ) ), $back );
+	}
+
+	/** " N versendet, M in der Warteschlange" for a notice (Communications::progress() counters). */
+	private static function notification_progress( array $progress ) {
+		$total = array_sum( array_map( 'intval', $progress ) );
+		if ( ! $total ) { return ''; }
+		$pending = (int) ( $progress['queued'] ?? 0 ) + (int) ( $progress['sending'] ?? 0 );
+		/* translators: 1: mails sent, 2: mails waiting in the queue, 3: failed mails */
+		return ' ' . sprintf( __( 'Benachrichtigungen: %1$d versendet, %2$d werden im Hintergrund versendet, %3$d fehlgeschlagen (Systemstatus → E-Mail-Queue).', 'pass-captain' ), (int) ( $progress['sent'] ?? 0 ), $pending, (int) ( $progress['failed'] ?? 0 ) );
 	}
 
 	public static function handle_cancel_occurrence() {
@@ -550,7 +564,7 @@ final class EventsPage {
 		Forms::verify( 'wpcap_cancel_event_' . $event_id );
 		$result = self::cancel_event( $in );
 		/* translators: %d: notified buyers */
-		$message = is_wp_error( $result ) ? '' : sprintf( __( 'Event abgesagt. %d Käufer wurden benachrichtigt.', 'pass-captain' ), (int) ( $result['notified_count'] ?? 0 ) );
+		$message = is_wp_error( $result ) ? '' : sprintf( __( 'Event abgesagt. %d Käufer wurden benachrichtigt.', 'pass-captain' ), (int) ( $result['notified_count'] ?? 0 ) ) . self::notification_progress( (array) ( $result['notifications'] ?? array() ) );
 		if ( ! is_wp_error( $result ) && ! empty( $result['revoked'] ) ) {
 			$message .= ' ' . ( ! empty( $result['auto_refund'] )
 				/* translators: 1: automatic refunds, 2: failed refunds */

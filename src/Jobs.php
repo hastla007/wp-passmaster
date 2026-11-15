@@ -28,9 +28,16 @@ final class Jobs {
 		// Refunds paid out at the provider but not booked locally are finished here (no provider call);
 		// the order status retry job handler (order_mark_refunded) is registered for this run.
 		Refunds::register();
-		Refunds::reconcile();
 		// Paid orders whose ticket issuance failed without a queued retry (e.g. connection lost).
-		Orders::reconcile_issuance();
+		// A sweep that throws must not stop the job queue itself.
+		foreach ( array( 'refund_reconcile' => array( Refunds::class, 'reconcile' ), 'issuance_reconcile' => array( Orders::class, 'reconcile_issuance' ) ) as $step => $sweep ) {
+			try {
+				call_user_func( $sweep );
+			} catch ( \Throwable $e ) {
+				self::rollback_after_throw();
+				Log::error( 'job_sweep_exception', sprintf( '%s threw %s: %s', $step, get_class( $e ), $e->getMessage() ), array( 'details' => array( 'step' => $step, 'exception' => get_class( $e ) ) ) );
+			}
+		}
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
@@ -99,9 +106,15 @@ final class Jobs {
 
 	/** Runs the handler of a claimed job and stores the outcome (complete / retry / dead letter). */
 	private static function execute( $table, $row ) {
-		Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', 'dead_letter', self::MAX_ATTEMPTS );
+		Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', 'dead_letter', self::MAX_ATTEMPTS, array( 'due' => 'run_after', 'error' => 'last_error' ) );
 		$payload = json_decode( $row->payload, true );
-		$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
+		try {
+			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
+		} catch ( \Throwable $e ) {
+			// A throwing handler (add-on, connector, bug) must not stall the queue: the job is retried with
+			// backoff like any failed job, dead-lettered after MAX_ATTEMPTS, and the reason is logged.
+			$handled = self::exception_error( $e, $row );
+		}
 		Jobs\TimeBudget::finished( $table, (int) $row->job_id );
 		if ( true === $handled ) {
 			self::update_with_retry( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
@@ -112,6 +125,29 @@ final class Jobs {
 		// A handler may answer a WP_Error instead of false: its message is kept as last_error (system status page).
 		$last_error = is_wp_error( $handled ) ? substr( sanitize_text_field( $handled->get_error_message() ), 0, 500 ) : '';
 		self::update_with_retry( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => '' !== $last_error ? $last_error : 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+	}
+
+	/**
+	 * Turns an exception of a queue handler into a WP_Error (redacted message) and logs it. An open
+	 * transaction of the handler is rolled back first, so the status update that follows is not
+	 * committed together with half-finished work.
+	 *
+	 * @param \Throwable $e   The exception.
+	 * @param object     $row Queue row (job_id/message_id, job_type/template_key).
+	 */
+	public static function exception_error( \Throwable $e, $row = null ) {
+		self::rollback_after_throw();
+		$message = Security\Redact::text( get_class( $e ) . ': ' . $e->getMessage() );
+		$type = (string) ( $row->job_type ?? $row->template_key ?? '' );
+		$id = (int) ( $row->job_id ?? $row->message_id ?? 0 );
+		Log::error( 'queue_handler_exception', sprintf( 'Handler of %s #%d threw %s', '' !== $type ? $type : 'item', $id, $message ), array( 'object_type' => 'job', 'object_id' => $id, 'details' => array( 'type' => sanitize_key( $type ), 'exception' => get_class( $e ), 'message' => substr( $message, 0, 300 ) ) ) );
+		return new \WP_Error( 'wpcap_job_exception', substr( sprintf( 'Handler threw %s', $message ), 0, 190 ) );
+	}
+
+	/** Rolls back a transaction a throwing handler may have left open (no-op otherwise). */
+	private static function rollback_after_throw() {
+		global $wpdb;
+		$wpdb->query( 'ROLLBACK' );
 	}
 
 	/**
