@@ -254,8 +254,11 @@ leftover() { # field of `build/ci-data.php leftovers` (arrays comma-separated)
 	wp eval-file "${DATA}" leftovers | php -r '$d = json_decode( stream_get_contents( STDIN ), true ); $v = $d[ $argv[1] ] ?? null; echo is_array( $v ) ? implode( ",", $v ) : (string) $v;' "$1"
 }
 set_delete_data() { # 1|0
-	# Since 1.5 the opt-in lives in its own option (the old copy's uninstall.php reads wpcap_settings).
-	if [ "${1}" = "1" ]; then wp option update wpcap_uninstall_policy delete >/dev/null; else wp option update wpcap_uninstall_policy keep >/dev/null; fi
+	# Saved like the settings page does (Settings::update): since 1.5 the opt-in lives in its own option
+	# wpcap_uninstall_policy (the old copy's uninstall.php reads wpcap_settings, which keeps 0 there).
+	wp eval "\\PassCaptain\\Settings::update( array( 'delete_data_on_uninstall' => (int) '${1}' ) );" >/dev/null
+	local expected; if [ "${1}" = "1" ]; then expected=delete; else expected=keep; fi
+	[ "$(wp option get wpcap_uninstall_policy 2>/dev/null || true)" = "${expected}" ] || fail "wpcap_uninstall_policy is not '${expected}' after saving the setting"
 }
 
 if [ -n "${OLD_ZIP}" ]; then
