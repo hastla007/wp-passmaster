@@ -58,7 +58,10 @@ function wpcap_ci_data_snapshot() {
 		$out['tables'][ $table ] = array( 'rows' => count( $rows ), 'columns' => implode( ',', $cols ), 'md5' => md5( wp_json_encode( $rows ) ) );
 	}
 	$settings = get_option( 'wpcap_settings', array() );
-	$out['settings_md5'] = md5( wp_json_encode( is_array( $settings ) ? $settings : array() ) );
+	$settings = is_array( $settings ) ? $settings : array();
+	// Since 1.5 the uninstall opt-in moves to wpcap_uninstall_policy and the old key is reset to 0 (checked separately).
+	unset( $settings['delete_data_on_uninstall'] );
+	$out['settings_md5'] = md5( wp_json_encode( $settings ) );
 	return $out;
 }
 
