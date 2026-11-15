@@ -277,16 +277,33 @@ final class Engine {
 	 * @return array{present: int, by_area: array<int,int>}
 	 */
 	public static function presence( $occurrence_id ) {
+		return self::presence_many( array( (int) $occurrence_id ) )[ (int) $occurrence_id ];
+	}
+
+	/**
+	 * presence() for several occurrences with one query (PERF-15: the check-in screen lists up to
+	 * 50 occurrences). Returns occurrence_id => array( 'present' => int, 'by_area' => int[] ).
+	 *
+	 * @param int[] $occurrence_ids Occurrences.
+	 */
+	public static function presence_many( array $occurrence_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.area_id, COUNT(*) AS n FROM %i s WHERE s.occurrence_id=%d AND s.inside=1 AND NOT EXISTS (SELECT 1 FROM %i c WHERE c.ticket_id=s.ticket_id AND c.result='undone' AND c.checkin_id>s.last_checkin_id) GROUP BY s.area_id", $p . 'wpcap_admission_state', (int) $occurrence_id, $p . 'wpcap_checkins' ) );
-		$by_area = array();
-		$total = 0;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
+		$out = array();
+		foreach ( $occurrence_ids as $id ) { $out[ (int) $id ] = array( 'present' => 0, 'by_area' => array() ); }
+		if ( ! $ids ) { return $out; }
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array (generated IN placeholders).
+			"SELECT s.occurrence_id, s.area_id, COUNT(*) AS n FROM %i s WHERE s.occurrence_id IN ($placeholders) AND s.inside=1 AND NOT EXISTS (SELECT 1 FROM %i c WHERE c.ticket_id=s.ticket_id AND c.result='undone' AND c.checkin_id>s.last_checkin_id) GROUP BY s.occurrence_id, s.area_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			array_merge( array( $p . 'wpcap_admission_state' ), $ids, array( $p . 'wpcap_checkins' ) )
+		) );
 		foreach ( $rows as $row ) {
-			$by_area[ (int) $row->area_id ] = (int) $row->n;
-			$total += (int) $row->n;
+			$occ = (int) $row->occurrence_id;
+			$out[ $occ ]['by_area'][ (int) $row->area_id ] = (int) $row->n;
+			$out[ $occ ]['present'] += (int) $row->n;
 		}
-		return array( 'present' => $total, 'by_area' => $by_area );
+		return $out;
 	}
 
 	/** Effective entries and check-outs of an occurrence, per area. */
