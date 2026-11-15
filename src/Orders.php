@@ -1236,14 +1236,9 @@ final class Orders {
 		return true;
 	}
 
-	/** Issues a new personal order access link (old link becomes invalid) and emails it. */
+	/** Issues a new personal order access link (old link becomes invalid) and emails it (Orders\PortalAccess). */
 	public static function rotate_access_link( $order_id ) {
-		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,customer_email FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
-		if ( ! $order ) { return false; }
-		$token = bin2hex( random_bytes( 32 ) );
-		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
-		return self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+		return Orders\PortalAccess::rotate( $order_id );
 	}
 
 	/** Returns tickets of an order with event context (no tokens). */
@@ -1280,13 +1275,9 @@ final class Orders {
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
 	}
 
+	/** Mails the personal order access link (Orders\PortalAccess). */
 	public static function send_order_access_link( $email, $public_id, $access_token, $locale = null ) {
-		global $wpdb;
-		$url = add_query_arg( array( 'wpcap_order' => $public_id, 'wpcap_access' => $access_token ), home_url( '/' ) );
-		if ( null === $locale ) {
-			$locale = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT locale FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', (string) $public_id ) );
-		}
-		return Mail\Mailer::send( 'order_access', sanitize_email( $email ), array( 'order_id' => (string) $public_id, 'access_link' => Mail\Mailer::link( $url ) ), array(), (string) $locale );
+		return Orders\PortalAccess::send( $email, $public_id, $access_token, $locale );
 	}
 
 	public static function transfer_ticket( $public_id, $access_token, $ticket_public_id, $recipient_email ) {
