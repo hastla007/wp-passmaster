@@ -14,6 +14,8 @@ final class PublicEvents {
 
 	public static function register_assets() {
 		wp_register_script( 'wpcap-checkout', WPCAP_URL . 'assets/checkout.js', array(), WPCAP_VERSION, true );
+		// Privacy-friendly commerce events (wpcap:track) and UTM attribution, docs/TRACKING.md.
+		wp_register_script( 'wpcap-tracking', WPCAP_URL . 'assets/tracking.js', array(), WPCAP_VERSION, true );
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
 			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
 			'money' => Frontend\Format::js_config(),
@@ -126,7 +128,14 @@ final class PublicEvents {
 		$types_by_occ = array();
 		if ( $occ_ids ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", array_merge( array( $p . 'wpcap_ticket_types' ), $occ_ids, array( $now, $now ) ) ) ) as $type ) {
+			// SELECT *: visibility/access_codes may not exist before the schema upgrade (then all are public).
+			$type_rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", array_merge( array( $p . 'wpcap_ticket_types' ), $occ_ids, array( $now, $now ) ) ) );
+			// Hidden types never, code-only types only with a matching ?wpcap_code= (Sales\Visibility).
+			$unlock_code = Sales\Visibility::request_code();
+			$visible_rows = Sales\Visibility::filter_listing( (array) $type_rows, $unlock_code );
+			$has_locked = count( array_filter( (array) $type_rows, static function ( $row ) { return 'code' === Sales\Visibility::of( $row ); } ) ) > count( array_filter( $visible_rows, static function ( $row ) { return 'code' === Sales\Visibility::of( $row ); } ) );
+			foreach ( $visible_rows as $type ) {
+				$type = (object) array_intersect_key( (array) $type, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'tax_rate_bp', 'visibility' ) ) );
 				$types_by_occ[ (int) $type->occurrence_id ][] = $type;
 			}
 		}
@@ -149,11 +158,16 @@ final class PublicEvents {
 			'terms_text' => (string) Settings::get( 'terms_text' ),
 			'consumer_info_text' => (string) Settings::get( 'consumer_info_text' ),
 		);
-		return DisplayBatch::run( $type_ids, static function () use ( $rows, $translations, $types_by_occ, $fields, $legal, $now ) {
+		$has_locked = ! empty( $has_locked );
+		if ( function_exists( 'wp_enqueue_script' ) ) { wp_enqueue_script( 'wpcap-tracking' ); }
+		return DisplayBatch::run( $type_ids, static function () use ( $rows, $translations, $types_by_occ, $fields, $legal, $now, $has_locked ) {
 			$providers_by_currency = array();
 			ob_start();
 			?>
 			<div class="wpcap-events">
+				<?php if ( $has_locked ) : // Code-only ticket types exist (Sales\Visibility): reload with ?wpcap_code=. ?>
+					<form class="wpcap-unlock" method="get"><label><?php esc_html_e( 'Freischaltcode', 'pass-captain' ); ?> <input type="text" name="wpcap_code" maxlength="32" autocomplete="off" value="<?php echo esc_attr( Sales\Visibility::request_code() ); ?>"></label> <button type="submit"><?php esc_html_e( 'Tickets freischalten', 'pass-captain' ); ?></button></form>
+				<?php endif; ?>
 				<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
 				<?php foreach ( $rows as $event ) :
 					$translation = $translations[ (int) $event->event_id ] ?? null;

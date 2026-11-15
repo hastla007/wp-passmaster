@@ -134,12 +134,24 @@ final class EventsPage {
 			return Forms::error( 'wpcap_event_invalid', __( 'Bitte prüfe die Eventdaten.', 'pass-captain' ) );
 		}
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_events', array(
+		$data = array(
 			'name' => $name,
 			'description' => wp_kses_post( (string) ( $in['description'] ?? '' ) ),
 			'status' => $status,
 			'updated_at' => current_time( 'mysql', true ),
-		), array( 'event_id' => (int) $event->event_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+		);
+		// Optional event page fields (Frontend\EventPage) and the self-service cancellation rule (Sales\SelfService).
+		if ( array_key_exists( 'image_url', $in ) ) {
+			$image = esc_url_raw( trim( (string) $in['image_url'] ) );
+			$data['image_url'] = preg_match( '#^https?://#i', $image ) ? mb_substr( $image, 0, 500 ) : '';
+			$data['category'] = Forms::text( $in, 'category' );
+		}
+		if ( array_key_exists( 'refund_hours_before', $in ) ) {
+			$policy = \PassCaptain\Sales\SelfService::parse_policy( $in );
+			if ( is_wp_error( $policy ) ) { return $policy; }
+			$data['refund_policy'] = $policy ? wp_json_encode( $policy ) : null;
+		}
+		$wpdb->update( $wpdb->prefix . 'wpcap_events', $data, array( 'event_id' => (int) $event->event_id ) );
 		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) );
 		\PassCaptain\Reports\Cache::flush_event( (int) $event->event_id );
 		return array( 'event_id' => (int) $event->event_id );
@@ -304,6 +316,13 @@ final class EventsPage {
 		if ( array_key_exists( 'tax_class', $in ) ) {
 			// Tax class selects the versioned tax profile (Sales\TaxProfiles); '' = standard.
 			$data['tax_class'] = mb_substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 );
+			$formats[] = '%s';
+		}
+		if ( array_key_exists( 'visibility', $in ) ) {
+			// Sales\Visibility: public | code (unlock code list or a campaign scoped to the type) | hidden.
+			$data['visibility'] = Forms::choice( $in, 'visibility', \PassCaptain\Sales\Visibility::VALUES, 'public' );
+			$data['access_codes'] = implode( "\n", \PassCaptain\Sales\Visibility::parse_codes( (string) ( $in['access_codes'] ?? '' ) ) );
+			$formats[] = '%s';
 			$formats[] = '%s';
 		}
 		global $wpdb;
@@ -613,6 +632,7 @@ final class EventsPage {
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Events', 'pass-captain' ); ?></h1>
 		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
+		<?php if ( 1 === $page ) { Dashboard::render_summary(); } ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
@@ -681,6 +701,7 @@ final class EventsPage {
 			<?php submit_button( __( 'Event speichern', 'pass-captain' ) ); ?>
 		</form>
 		<?php
+		OrganizerTools::render_import();
 	}
 
 	private static function render_event( $event_id ) {
@@ -692,6 +713,8 @@ final class EventsPage {
 		?>
 		<p><a href="<?php echo esc_url( self::url() ); ?>"><?php esc_html_e( '← Zur Eventliste', 'pass-captain' ); ?></a></p>
 		<h1><?php echo esc_html( $event->name ); ?> <span class="subtitle"><?php echo esc_html( Forms::status_label( $event->status ) ); ?></span></h1>
+		<?php $wpcap_event_url = 'published' === $event->status ? \PassCaptain\Frontend\EventPage::url( $event->slug ) : ''; ?>
+		<?php if ( '' !== $wpcap_event_url ) : ?><p><?php esc_html_e( 'Eventseite:', 'pass-captain' ); ?> <a href="<?php echo esc_url( $wpcap_event_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $wpcap_event_url ); ?></a></p><?php endif; ?>
 		<?php Forms::render_notices(); ?>
 
 		<h2><?php esc_html_e( 'Eventdaten', 'pass-captain' ); ?></h2>
@@ -701,6 +724,15 @@ final class EventsPage {
 				<tr><th><label for="wpcap-ev-name"><?php esc_html_e( 'Eventname', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $event->name ); ?>"></td></tr>
 				<tr><th><label for="wpcap-ev-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-ev-desc" name="description" class="large-text" rows="5"><?php echo esc_textarea( $event->description ); ?></textarea></td></tr>
 				<tr><th><label for="wpcap-ev-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $event->status, 'wpcap-ev-status' ); ?></td></tr>
+				<tr><th><label for="wpcap-ev-image"><?php esc_html_e( 'Bild (URL, optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-image" name="image_url" type="url" class="large-text" maxlength="500" value="<?php echo esc_attr( (string) ( $event->image_url ?? '' ) ); ?>" aria-describedby="wpcap-ev-image-desc"><p class="description" id="wpcap-ev-image-desc"><?php esc_html_e( 'Für die Eventseite, Vorschauen in sozialen Netzwerken und Suchmaschinen (mind. 1200 px breit empfohlen).', 'pass-captain' ); ?></p></td></tr>
+				<tr><th><label for="wpcap-ev-category"><?php esc_html_e( 'Kategorie (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-category" name="category" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( (string) ( $event->category ?? '' ) ); ?>"></td></tr>
+				<?php $wpcap_policy = \PassCaptain\Sales\SelfService::policy( $event ); ?>
+				<tr><th><?php esc_html_e( 'Stornoanfragen im Bestellportal', 'pass-captain' ); ?></th><td><fieldset><legend class="screen-reader-text"><?php esc_html_e( 'Stornoanfragen im Bestellportal', 'pass-captain' ); ?></legend>
+					<label><input type="checkbox" name="refund_requests" value="1"<?php checked( ! empty( $wpcap_policy ) ); ?>> <?php esc_html_e( 'Käufer dürfen Tickets selbst zur Erstattung anfragen', 'pass-captain' ); ?></label><br>
+					<label><?php esc_html_e( 'bis Stunden vor Beginn', 'pass-captain' ); ?> <input name="refund_hours_before" type="number" min="0" max="8760" style="width:6em" value="<?php echo esc_attr( (string) ( $wpcap_policy['hours_before'] ?? 48 ) ); ?>"></label>
+					<label><?php esc_html_e( 'Bearbeitungsgebühr in % des Ticketwerts', 'pass-captain' ); ?> <input name="refund_fee_percent" type="text" inputmode="decimal" style="width:5em" value="<?php echo esc_attr( Forms::percent_input( (int) ( $wpcap_policy['fee_bp'] ?? 0 ) ) ); ?>"></label>
+					<p class="description"><?php esc_html_e( 'Die Anfrage läuft über die normale Erstattung (Freigabe ab Schwellenwert); die Gebühr wird vom Erstattungsbetrag abgezogen und in der Rechnungskorrektur ausgewiesen.', 'pass-captain' ); ?></p>
+				</fieldset></td></tr>
 			</tbody></table>
 			<?php submit_button( __( 'Event aktualisieren', 'pass-captain' ) ); ?>
 			</form>
@@ -861,6 +893,14 @@ final class EventsPage {
 			<?php self::ticket_type_form( null, $occ ); ?>
 		<?php endif; ?>
 		<?php
+		/**
+		 * Further sections of the occurrence screen (e.g. complimentary tickets, duplicate:
+		 * Admin\OrganizerTools). Callbacks check their own capabilities.
+		 *
+		 * @param object $occ      Occurrence row.
+		 * @param bool   $editable False for cancelled events.
+		 */
+		do_action( 'wp_pass_captain_admin_occurrence_sections_v1', $occ, $editable );
 		SecurityScreens::render_occurrence_staff( $occ );
 	}
 
@@ -880,6 +920,9 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $type ? $type->status : 'active', 'wpcap-tt-status' ); ?></td></tr>
+			<tr><th><label for="wpcap-tt-vis"><?php esc_html_e( 'Sichtbarkeit', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'visibility', array( 'public' => __( 'Öffentlich', 'pass-captain' ), 'code' => __( 'Nur mit Freischaltcode', 'pass-captain' ), 'hidden' => __( 'Versteckt (nur Kasse, Freikarten)', 'pass-captain' ) ), \PassCaptain\Sales\Visibility::of( $type ), 'wpcap-tt-vis', 'aria-describedby="wpcap-tt-vis-desc"' ); ?>
+				<p><label for="wpcap-tt-codes"><?php esc_html_e( 'Freischaltcodes (einer pro Zeile)', 'pass-captain' ); ?></label><br><textarea id="wpcap-tt-codes" name="access_codes" rows="3" cols="30" class="code"><?php echo esc_textarea( $type ? implode( "\n", \PassCaptain\Sales\Visibility::codes( $type ) ) : '' ); ?></textarea></p>
+				<p class="description" id="wpcap-tt-vis-desc"><?php esc_html_e( 'Codes schalten die Ticketart im Rabattcode-Feld oder per Link ?wpcap_code=CODE frei (ohne Rabatt). Ein Kampagnencode, der nur für diese Ticketart gilt, schaltet sie ebenfalls frei (mit Rabatt). Der Server prüft die Freischaltung bei jeder Bestellung.', 'pass-captain' ); ?></p></td></tr>
 		</tbody></table>
 		<?php submit_button( $type ? __( 'Ticketart speichern', 'pass-captain' ) : __( 'Ticketart hinzufügen', 'pass-captain' ) ); ?>
 		</form>

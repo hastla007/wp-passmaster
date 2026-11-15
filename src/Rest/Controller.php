@@ -222,7 +222,10 @@ final class Controller {
 		$type_ids = array();
 		if ( $occ_ids ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' ORDER BY ticket_type_id ASC", array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), $occ_ids ) ), ARRAY_A ) as $type ) {
+			// Hidden types never, code-only types only with a matching ?code= (Sales\Visibility).
+			$type_rows = \PassCaptain\Sales\Visibility::filter_listing( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' ORDER BY ticket_type_id ASC", array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), $occ_ids ) ) ), (string) $request->get_param( 'code' ) );
+			foreach ( $type_rows as $type_row ) {
+				$type = array_intersect_key( (array) $type_row, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'sales_start', 'sales_end' ) ) );
 				$types_by_occ[ (int) $type['occurrence_id'] ][] = $type;
 				$type_ids[] = (int) $type['ticket_type_id'];
 			}
@@ -261,7 +264,7 @@ final class Controller {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing', 'attribution' ) ) ) );
 		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );

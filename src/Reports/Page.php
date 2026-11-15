@@ -23,6 +23,7 @@ final class Page {
 			'event_id' => absint( $in['event_id'] ?? 0 ),
 			'occurrence_id' => absint( $in['occurrence_id'] ?? 0 ),
 			'compare' => in_array( (string) ( $in['compare'] ?? '' ), Data::COMPARE, true ) ? (string) $in['compare'] : '',
+			'channel' => in_array( (string) ( $in['channel'] ?? '' ), Data::CHANNELS, true ) ? (string) $in['channel'] : '',
 		);
 	}
 
@@ -102,6 +103,9 @@ final class Page {
 		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'], '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) );
 		echo ' <label>' . esc_html__( 'Vergleich', 'pass-captain' ) . ' ';
 		Forms::select( 'compare', array( '' => __( 'kein Vergleich', 'pass-captain' ), 'previous' => __( 'Vorperiode', 'pass-captain' ), 'last_year' => __( 'Vorjahreszeitraum', 'pass-captain' ) ), $filters['compare'] );
+		echo '</label>';
+		echo ' <label>' . esc_html__( 'Bestellungen', 'pass-captain' ) . ' ';
+		Forms::select( 'channel', array( '' => __( 'alle', 'pass-captain' ), 'sales' => __( 'Verkäufe (ohne Freikarten)', 'pass-captain' ), 'comp' => __( 'Freikarten', 'pass-captain' ) ), $filters['channel'] );
 		echo '</label>';
 		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'pass-captain' ) . '</a>';
 		foreach ( Exports::types() as $type_id => $type ) {

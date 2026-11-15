@@ -47,6 +47,7 @@ Hooks mit Präfix `wp_pass_captain_` tragen immer das Suffix `_v1` (außer den v
 | `wpcap_consent_withdrawn` | `int $consent_id, object $consent` | Eine protokollierte Einwilligung eines Teilnehmerfelds wurde widerrufen (`Sales\Consents::withdraw()`, Quelle z. B. `portal`) oder ist durch einen Inhaberwechsel des Tickets beendet (`withdrawn_source` `holder_changed`, bei Zuweisung an eine andere Person oder Übertragung); Datensatz bleibt mit Zeitpunkt erhalten, die Antwort ist gelöscht. |
 | `wpcap_checkout_form_fields` | `object $event, array $types` | Template `templates/event-card.php` innerhalb des Checkout-Formulars (eigene Felder ausgeben; JS-Ereignis `wpcap:checkout-payload` ergänzt den Payload). |
 | `wp_pass_captain_admin_menu_built_v1` | `string $parent_slug` (`wp-pass-captain`) | Ende von `Admin\Menu::add_menus()` (Hook `admin_menu`), nachdem alle Kernseiten registriert sind: Add-ons hängen eigene Unterseiten mit `add_submenu_page( $parent_slug, … )` an – unabhängig von Modulen und der Reihenfolge der `admin_menu`-Callbacks (die Seiten stehen nach den Kernseiten). |
+| `wp_pass_captain_admin_occurrence_sections_v1` | `object $occurrence`, `bool $editable` (false bei abgesagtem Event) | Weitere Abschnitte der Terminseite (Events → Termin) nach den Ticketarten, z. B. „Tickets ausstellen“ und „Termin duplizieren“ (`Admin\OrganizerTools`). Callbacks prüfen ihre Rechte selbst. |
 | `wp_pass_captain_invoice_created_v1` | `int $id, string $type, array $context` | Nach dem Commit eines Belegs, genau einmal je Beleg: `invoice` (`Invoices::issue_for_order()`, `$id` = invoice_id, Kontext `order_id`, `number`), `correction` (Rechnungskorrektur zu einer Erstattung, `$id` = credit_note_id, Kontext `invoice_id`, `refund_id`, `order_id`, `number`), `settlement` (Veranstalter-Abrechnung abgeschlossen, `$id` = settlement_id, Kontext `partner_id`, `period`, `number`, `self_billing_number`). Daten über `PassCaptain\Api\Invoices::get( $id, $type )`. Exceptions der Callbacks werden protokolliert (`invoice_created_hook_failed`) und brechen den Kern nicht ab. |
 | `wp_pass_captain_pos_device_payment_started_v1` | `int $sale_id, string $device_id, string $reference, array $sale` | Kasse: Eine Kartenterminal-Zahlung wurde am Gerät gestartet (nach `DeviceGatewayInterface::start()`, genau einmal je Verkauf). `$sale` = Start-Daten (`version`, `sale_key`, `sale_id`, `order_id`, `order_public_id`, `amount_minor`, `currency`, `description`, `device_id`, `session_id`, `location_id`, `register_id`, `cashier_id`). Siehe [EXTENSIONS.md](EXTENSIONS.md#kartenterminals-an-der-kasse-box-office). |
 | `wp_pass_captain_pos_device_payment_completed_v1` | `int $sale_id, int $order_id, string $provider_reference, string $device_id` | Kasse: Die Terminalzahlung ist bestätigt (Abfrage oder `Service::confirm_device_payment()`), genau einmal je Verkauf – auch wenn die Buchung danach noch auf den Fiskalbeleg wartet. |
@@ -72,6 +73,13 @@ können sich anhängen, z. B. für Überwachung; die Verarbeitung selbst steckt 
 | `wpcap_privacy_retention` | – | Täglicher Löschlauf (`Privacy\Retention`). |
 | `wpcap_privacy_purge_wallet_registrations` | `int[] $ticket_ids` | Einmalig eine Stunde nach dem Löschen bzw. Anonymisieren von Tickets: Wallet-Geräteregistrierungen dieser Tickets entfernen (Apple-Geräte bekommen vorher noch den Push für den widerrufenen Pass). |
 | `wpcap_run_upgrade` | – | Einmaliges Ereignis für ein aufgeschobenes Schema-Upgrade (Frontend-Anfrage nach Update, verzögerte Netzwerkaktivierung, `Installer::UPGRADE_HOOK`). |
+
+### JavaScript-Ereignisse (Frontend)
+
+| Ereignis | Detail | Wann |
+|---|---|---|
+| `wpcap:track` (auf `document`) | `{ event, currency, value, items[{item_id, item_name, price, quantity}], transaction_id? }` | Datensparsame Commerce-Ereignisse `view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout`, `purchase` (assets/tracking.js, ohne personenbezogene Daten). Siehe [TRACKING.md](TRACKING.md). |
+| `wpcap:checkout-payload`, `wpcap:checkout-complete` | siehe assets/checkout.js | Vor dem Absenden (Module ergänzen Felder) bzw. nach erfolgreicher Bestellung ohne Weiterleitung. |
 
 ## Filter
 

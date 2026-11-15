@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.17.4';
+	const DB_VERSION = '3.17.6';
 
 	public static function install() {
 		global $wpdb;
@@ -69,6 +69,9 @@ final class Installer {
 				description longtext NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
 				tax_country char(2) NOT NULL DEFAULT '',
+				image_url varchar(500) NOT NULL DEFAULT '',
+				category varchar(190) NOT NULL DEFAULT '',
+				refund_policy text NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (event_id),
@@ -103,6 +106,8 @@ final class Installer {
 				sales_start datetime NULL,
 				sales_end datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				visibility varchar(10) NOT NULL DEFAULT 'public',
+				access_codes text NULL,
 				PRIMARY KEY  (ticket_type_id),
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)
@@ -132,6 +137,7 @@ final class Installer {
 				attendee_data longtext NULL,
 				billing longtext NULL,
 				request_fingerprint char(64) NULL,
+				attribution varchar(500) NOT NULL DEFAULT '',
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (order_id),
@@ -552,9 +558,15 @@ final class Installer {
 				combinable tinyint(1) unsigned NOT NULL DEFAULT 1,
 				with_price_rules tinyint(1) unsigned NOT NULL DEFAULT 1,
 				max_discount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				min_quantity int(10) unsigned NOT NULL DEFAULT 0,
+				auto_apply tinyint(1) unsigned NOT NULL DEFAULT 0,
+				per_buyer_limit int(10) unsigned NOT NULL DEFAULT 0,
+				batch_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (campaign_id),
 				UNIQUE KEY code (code),
+				KEY auto_status (auto_apply,status),
+				KEY batch_id (batch_id),
 				KEY scope_status (event_id,ticket_type_id,status),
 				KEY active_window (status,starts_at,ends_at)
 			) ENGINE=InnoDB $charset;",
@@ -706,6 +718,7 @@ final class Installer {
 				error_message varchar(255) NOT NULL DEFAULT '',
 				credit_note_number varchar(40) NOT NULL DEFAULT '',
 				provider_attempt smallint(5) unsigned NOT NULL DEFAULT 0,
+				deducted_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (refund_id),

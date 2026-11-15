@@ -21,6 +21,7 @@ final class FeatureScreens {
 			WaitlistsPage::ACTION => array( WaitlistsPage::class, 'handle_action' ),
 			WaitlistsPage::EXPORT_ACTION => array( WaitlistsPage::class, 'handle_export' ),
 			CampaignsPage::ACTION => array( CampaignsPage::class, 'handle_action' ),
+			CampaignsPage::CSV_ACTION => array( CampaignsPage::class, 'handle_codes_csv' ),
 			MembershipsPage::ACTION => array( MembershipsPage::class, 'handle_action' ),
 		);
 	}

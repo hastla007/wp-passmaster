@@ -21,15 +21,20 @@ final class Campaigns {
 	 *   reductions against the stored price plus all campaign discounts) as a share of the order
 	 *   value at stored prices (0 = no cap); later codes are reduced first.
 	 *
+	 * - min_quantity: the lines the campaign applies to must hold at least that many tickets;
+	 * - per_buyer_limit: uses per buyer e-mail (reserved or committed orders; 0 = no limit);
+	 * - auto_apply campaigns need no code: with $context['auto'] the matching active ones are added
+	 *   after the explicit codes (at most three, priority order); one that does not match, is not
+	 *   combinable with the codes or would yield no discount is skipped silently.
+	 *
 	 * @param array $selected Lines: type, event_id, quantity, line_total, optional base_minor and price_rule.
+	 * @param array $context  auto (bool: add auto_apply campaigns; never for trusted adapters), email (buyer).
 	 * @return array|\WP_Error Adjustments: campaign, amount_minor, lines (index of $selected => part of
-	 *                         amount_minor; the parts add up to amount_minor), optional capped.
+	 *                         amount_minor; the parts add up to amount_minor), optional capped, auto.
 	 */
-	public static function calculate( array $selected, array $codes, $currency ) {
+	public static function calculate( array $selected, array $codes, $currency, array $context = array() ) {
 		global $wpdb;
-		$codes = array_values( array_unique( array_filter( array_map( static function ( $code ) {
-			return strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( $code ) ) ) );
-		}, $codes ) ) ) );
+		$codes = array_values( array_unique( array_filter( array_map( array( __CLASS__, 'normalize_code' ), $codes ) ) ) );
 		sort( $codes, SORT_STRING );
 		if ( count( $codes ) > 3 ) { return new \WP_Error( 'wpcap_campaign_limit', __( 'Es können höchstens drei Kampagnencodes verwendet werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$campaigns = array();
@@ -40,7 +45,12 @@ final class Campaigns {
 			if ( ! $campaign || ( $campaign->starts_at && $campaign->starts_at > $now ) || ( $campaign->ends_at && $campaign->ends_at < $now ) || ( $campaign->usage_limit > 0 && (int) $campaign->used_count >= (int) $campaign->usage_limit ) || strtoupper( $campaign->currency ) !== strtoupper( $currency ) ) {
 				return new \WP_Error( 'wpcap_campaign_unavailable', __( 'Ein Kampagnencode ist ungültig, abgelaufen oder nicht mehr verfügbar.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
+			$rule_error = self::rule_error( $campaign, $selected, (string) ( $context['email'] ?? '' ) );
+			if ( $rule_error ) { return $rule_error; }
 			$campaigns[] = $campaign;
+		}
+		if ( ! empty( $context['auto'] ) ) {
+			$campaigns = array_merge( $campaigns, self::auto_campaigns( $campaigns, $selected, $currency, (string) ( $context['email'] ?? '' ), $now ) );
 		}
 		if ( count( $campaigns ) > 1 ) {
 			foreach ( $campaigns as $campaign ) {
@@ -58,11 +68,12 @@ final class Campaigns {
 			$sum = array_sum( $eligible );
 			$discount = 'percent' === $campaign->kind ? (int) floor( $sum * min( 10000, (int) $campaign->value ) / 10000 ) : min( $sum, (int) $campaign->value );
 			if ( (int) ( $campaign->max_discount_minor ?? 0 ) > 0 ) { $discount = min( $discount, (int) $campaign->max_discount_minor ); }
+			if ( $discount < 1 && ! empty( $campaign->auto_applied ) ) { continue; }
 			if ( $discount < 1 ) { return new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'pass-captain' ), array( 'status' => 409 ) ); }
 			// The same proportional split that is stored with the order (Orders::allocate()), so the next
 			// code sees exactly what is left of each line.
 			foreach ( Orders::allocate( $eligible, $discount ) as $index => $part ) { $remaining[ $index ] -= $part; }
-			$adjustments[] = array( 'campaign' => $campaign, 'amount_minor' => $discount );
+			$adjustments[] = array( 'campaign' => $campaign, 'amount_minor' => $discount ) + ( empty( $campaign->auto_applied ) ? array() : array( 'auto' => true ) );
 		}
 		$cap_bp = min( 10000, absint( Settings::get( 'max_total_discount_bp' ) ) );
 		if ( $cap_bp > 0 && $adjustments ) {
@@ -95,6 +106,72 @@ final class Campaigns {
 			$adjustments[ $n ]['lines'] = $parts;
 		}
 		return $adjustments;
+	}
+
+	/** Code as stored: upper case letters, digits, "_" and "-" only ('' for non-scalars). */
+	public static function normalize_code( $code ) {
+		return is_scalar( $code ) ? strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( (string) $code ) ) ) ) : '';
+	}
+
+	/** Tickets on the lines a campaign applies to. */
+	private static function eligible_quantity( $campaign, array $selected ) {
+		$quantity = 0;
+		foreach ( array_keys( self::eligible( $campaign, $selected, array_map( static function ( $line ) { return (int) $line['line_total']; }, $selected ) ) ) as $index ) {
+			$quantity += (int) $selected[ $index ]['quantity'];
+		}
+		return $quantity;
+	}
+
+	/**
+	 * Minimum quantity and per-buyer limit of a campaign (null = fine). The buyer's earlier uses are read
+	 * with a locking read after the campaign row lock, so parallel orders of the same buyer see each other.
+	 */
+	private static function rule_error( $campaign, array $selected, $email ) {
+		global $wpdb;
+		$min = (int) ( $campaign->min_quantity ?? 0 );
+		if ( $min > 1 && self::eligible_quantity( $campaign, $selected ) < $min ) {
+			/* translators: 1: campaign code, 2: minimum number of tickets */
+			return new \WP_Error( 'wpcap_campaign_min_quantity', sprintf( __( 'Der Code %1$s gilt ab %2$d passenden Tickets.', 'pass-captain' ), $campaign->code, $min ), array( 'status' => 409 ) );
+		}
+		$limit = (int) ( $campaign->per_buyer_limit ?? 0 );
+		if ( $limit > 0 ) {
+			$used = '' === $email ? 0 : (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i u INNER JOIN %i o ON o.order_id=u.order_id WHERE u.campaign_id=%d AND u.status IN ('reserved','committed') AND o.customer_email=%s LOCK IN SHARE MODE", $wpdb->prefix . 'wpcap_campaign_uses', $wpdb->prefix . 'wpcap_orders', (int) $campaign->campaign_id, $email ) );
+			if ( $used >= $limit ) {
+				/* translators: %s: campaign code */
+				return new \WP_Error( 'wpcap_campaign_buyer_limit', sprintf( __( 'Der Code %s wurde für diese E-Mail-Adresse bereits so oft wie erlaubt eingelöst.', 'pass-captain' ), $campaign->code ), array( 'status' => 409 ) );
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Active auto_apply campaigns matching the order, after the explicit codes (rows locked).
+	 *
+	 * @param object[] $explicit Campaigns from codes.
+	 * @return object[]
+	 */
+	private static function auto_campaigns( array $explicit, array $selected, $currency, $email, $now ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_campaigns';
+		foreach ( $explicit as $campaign ) {
+			if ( ! (int) ( $campaign->combinable ?? 1 ) ) { return array(); }
+		}
+		$ids = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT campaign_id FROM %i WHERE auto_apply=1 AND status='active' AND currency=%s AND (starts_at IS NULL OR starts_at<=%s) AND (ends_at IS NULL OR ends_at>=%s) AND (usage_limit=0 OR used_count<usage_limit) ORDER BY priority,campaign_id LIMIT 20", $table, strtoupper( (string) $currency ), $now, $now ) ) );
+		if ( '' !== (string) $wpdb->last_error ) { return array(); } // Columns missing before the schema upgrade.
+		$taken = array_map( static function ( $c ) { return (int) $c->campaign_id; }, $explicit );
+		$out = array();
+		foreach ( $ids as $id ) {
+			if ( count( $out ) >= 3 || in_array( $id, $taken, true ) ) { continue; }
+			$campaign = $wpdb->get_row( $wpdb->prepare( "SELECT *,discount_value AS value FROM %i WHERE campaign_id=%d AND status='active' FOR UPDATE", $table, $id ) );
+			if ( ! $campaign || ( (int) $campaign->usage_limit > 0 && (int) $campaign->used_count >= (int) $campaign->usage_limit ) ) { continue; }
+			if ( ! array_sum( self::eligible( $campaign, $selected, array_map( static function ( $line ) { return (int) $line['line_total']; }, $selected ) ) ) ) { continue; }
+			if ( self::rule_error( $campaign, $selected, $email ) ) { continue; }
+			if ( ! (int) ( $campaign->combinable ?? 1 ) && ( $explicit || $out ) ) { continue; }
+			if ( $out && ! (int) ( $out[0]->combinable ?? 1 ) ) { break; }
+			$campaign->auto_applied = true;
+			$out[] = $campaign;
+		}
+		return $out;
 	}
 
 	/**
@@ -233,14 +310,88 @@ final class Campaigns {
 
 	/**
 	 * Stacking columns from input (only keys that are given, so writes keep working before the
-	 * schema upgrade): combinable, with_price_rules (0/1), max_discount_minor.
+	 * schema upgrade): combinable, with_price_rules, auto_apply (0/1), max_discount_minor,
+	 * min_quantity, per_buyer_limit.
 	 */
 	private static function stacking_values( array $data, $campaign = null ) {
 		$out = array();
-		foreach ( array( 'combinable', 'with_price_rules' ) as $key ) {
+		foreach ( array( 'combinable', 'with_price_rules', 'auto_apply' ) as $key ) {
 			if ( array_key_exists( $key, $data ) ) { $out[ $key ] = empty( $data[ $key ] ) ? 0 : 1; }
 		}
 		if ( array_key_exists( 'max_discount_minor', $data ) ) { $out['max_discount_minor'] = absint( $data['max_discount_minor'] ); }
+		if ( array_key_exists( 'min_quantity', $data ) ) { $out['min_quantity'] = min( 1000, absint( $data['min_quantity'] ) ); }
+		if ( array_key_exists( 'per_buyer_limit', $data ) ) { $out['per_buyer_limit'] = min( 1000, absint( $data['per_buyer_limit'] ) ); }
+		return $out;
+	}
+
+	/** Characters of generated codes (no 0/O, 1/I/L). */
+	const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+	/** Codes per generator run. */
+	const MAX_BATCH = 5000;
+
+	/**
+	 * Generates single-use codes for a campaign (code batch): every code is an own campaign row with the
+	 * settings of the template campaign, usage limit 1, no auto apply and batch_id = template id, so the
+	 * checkout, limits and reports treat it like any code.
+	 *
+	 * @return array|\WP_Error {created, codes[]}
+	 */
+	public static function generate_codes( $campaign_id, $count, $prefix = '' ) {
+		global $wpdb;
+		$template = self::get( $campaign_id );
+		if ( ! $template ) { return new \WP_Error( 'wpcap_campaign_missing', __( 'Kampagne nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( (int) ( $template->batch_id ?? 0 ) ) { return new \WP_Error( 'wpcap_campaign_batch', __( 'Einzelcodes können nur aus der Vorlagen-Kampagne erzeugt werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		$count = absint( $count );
+		if ( $count < 1 || $count > self::MAX_BATCH ) {
+			/* translators: %d: maximum number */
+			return new \WP_Error( 'wpcap_campaign_batch_count', sprintf( __( 'Bitte zwischen 1 und %d Codes erzeugen.', 'pass-captain' ), self::MAX_BATCH ), array( 'status' => 400 ) );
+		}
+		$prefix = substr( self::normalize_code( $prefix ), 0, 12 );
+		$prefix = '' === $prefix ? '' : rtrim( $prefix, '-' ) . '-';
+		$table = $wpdb->prefix . 'wpcap_campaigns';
+		$now = current_time( 'mysql', true );
+		$columns = array( 'event_id', 'ticket_type_id', 'code', 'name', 'kind', 'discount_value', 'currency', 'usage_limit', 'used_count', 'priority', 'starts_at', 'ends_at', 'status', 'combinable', 'with_price_rules', 'max_discount_minor', 'min_quantity', 'auto_apply', 'per_buyer_limit', 'batch_id', 'created_at' );
+		$codes = array();
+		$attempts = 0;
+		$have = 0;
+		while ( $have < $count && $attempts < 20 ) {
+			++$attempts;
+			$chunk = array();
+			for ( $i = 0, $want = min( 500, $count - $have ); $i < $want; $i++ ) {
+				$random = '';
+				for ( $j = 0; $j < 10; $j++ ) { $random .= self::CODE_ALPHABET[ random_int( 0, strlen( self::CODE_ALPHABET ) - 1 ) ]; }
+				$chunk[ $prefix . $random ] = true;
+			}
+			$chunk = array_keys( $chunk );
+			$values = array();
+			$args = array( $table );
+			foreach ( $chunk as $code ) {
+				$values[] = '(%d,%d,%s,%s,%s,%d,%s,1,0,%d,' . ( $template->starts_at ? '%s' : 'NULL' ) . ',' . ( $template->ends_at ? '%s' : 'NULL' ) . ",'active',%d,%d,%d,%d,0,%d,%d,%s)";
+				array_push( $args, (int) $template->event_id, (int) $template->ticket_type_id, $code, (string) $template->name, (string) $template->kind, (int) $template->discount_value, (string) $template->currency, (int) $template->priority );
+				if ( $template->starts_at ) { $args[] = (string) $template->starts_at; }
+				if ( $template->ends_at ) { $args[] = (string) $template->ends_at; }
+				array_push( $args, (int) $template->combinable, (int) $template->with_price_rules, (int) $template->max_discount_minor, (int) ( $template->min_quantity ?? 0 ), (int) ( $template->per_buyer_limit ?? 0 ), (int) $template->campaign_id, $now );
+			}
+			// INSERT IGNORE: a (rare) collision with an existing code is skipped and generated again.
+			$sql = 'INSERT IGNORE INTO %i (' . implode( ',', $columns ) . ') VALUES ' . implode( ',', $values );
+			if ( false === $wpdb->query( $wpdb->prepare( $sql, $args ) ) ) { break; } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- generated placeholders.
+			$in = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
+			$stored = $wpdb->get_col( $wpdb->prepare( "SELECT code FROM %i WHERE batch_id=%d AND code IN ($in)", array_merge( array( $table, (int) $template->campaign_id ), $chunk ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- generated placeholders, replacements as one array.
+			$codes = array_merge( $codes, array_diff( (array) $stored, $codes ) );
+			$have = count( $codes );
+		}
+		Audit::record( 'campaign_codes_generated', 'campaign', (int) $template->campaign_id, array( 'count' => count( $codes ) ) );
+		return array( 'created' => count( $codes ), 'codes' => $codes );
+	}
+
+	/** Rows (header + code, status, used) of the generated codes of a template campaign for Reports\Scope::send_csv(). */
+	public static function batch_rows( $campaign_id ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT code,status,used_count,usage_limit FROM %i WHERE batch_id=%d ORDER BY campaign_id', $wpdb->prefix . 'wpcap_campaigns', absint( $campaign_id ) ) );
+		$out = array( array( 'code', 'status', 'used' ) );
+		foreach ( (array) $rows as $row ) {
+			$out[] = array( (string) $row->code, (string) $row->status, (int) $row->used_count >= max( 1, (int) $row->usage_limit ) ? 'yes' : 'no' );
+		}
 		return $out;
 	}
 

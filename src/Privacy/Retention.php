@@ -44,6 +44,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *   (conflicts also the resolution note); labels of revoked/expired scanner devices and of used or
  *   expired pairing codes are cleared after the same period,
  * - audit log entries are deleted after 730 days,
+ * - order attribution (UTM source/medium/campaign, referrer host; assets/tracking.js) is cleared 90 days
+ *   after the order,
  * - housekeeping (PERF-6): finished holds (converted, expired, released) of orders that no longer
  *   wait for payment are deleted 30 days after they expired, completed/cancelled background jobs
  *   30 days after their last update; expired rate-limit counters (wpcap_rate_limits) are deleted
@@ -59,7 +61,7 @@ final class Retention {
 	const BATCH = 500;
 
 	/** Steps in their regular order (each is a step_* method). */
-	const STEPS = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs', 'rate_limits', 'checkin_claims' );
+	const STEPS = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'attribution', 'reservations', 'jobs', 'rate_limits', 'checkin_claims' );
 
 	/** Option: index of the step the next run starts with (after a run that ran out of time). */
 	const START_OPTION = 'wpcap_retention_next_step';
@@ -81,6 +83,7 @@ final class Retention {
 			'sms_content' => 30,
 			'checkin_staff' => 365,
 			'audit_logs' => 730,
+			'attribution' => 90,
 			'reservations' => 30,
 			'jobs' => 30,
 			'service_holds' => 90,
@@ -186,6 +189,26 @@ final class Retention {
 			if ( count( $ids ) < self::BATCH || ! $changed ) { break; }
 		}
 		return $total;
+	}
+
+	/** Marketing attribution of orders (UTM, referrer host) after N days. */
+	private static function step_attribution( $now, $deadline ) {
+		global $wpdb;
+		$days = self::days( 'attribution' );
+		if ( ! $days ) { return 0; }
+		$table = $wpdb->prefix . 'wpcap_orders';
+		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
+		return self::loop(
+			$deadline,
+			static function () use ( $wpdb, $table, $cutoff ) {
+				$ids = $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE attribution<>'' AND created_at<%s LIMIT %d", $table, $cutoff, self::BATCH ) );
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->last_error = ''; return array(); } // Column missing before the schema upgrade.
+				return $ids;
+			},
+			static function ( $ids ) use ( $wpdb, $table ) {
+				return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attribution='' WHERE order_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $table ), $ids ) ) );
+			}
+		);
 	}
 
 	private static function step_answers( $now, $deadline ) {

@@ -109,5 +109,24 @@ final class Modules {
 		return $out;
 	}
 
+	/**
+	 * Admin pages split for the menu: [visible pages, pages of modules hidden in "Funktionen"
+	 * (Admin\Dashboard::module_hidden(); registered without menu entry, so links keep working)].
+	 *
+	 * @return array{0: array, 1: array}
+	 */
+	public static function menu_pages() {
+		$visible = array();
+		$hidden = array();
+		foreach ( self::classes() as $class ) {
+			if ( ! self::provides( $class, 'admin_pages' ) ) { continue; }
+			$is_hidden = Admin\Dashboard::module_hidden( $class );
+			foreach ( (array) $class::admin_pages() as $page ) {
+				if ( $is_hidden ) { $hidden[] = $page; } else { $visible[] = $page; }
+			}
+		}
+		return array( $visible, $hidden );
+	}
+
 	public static function admin_handlers() { return self::collect( 'admin_handlers' ); }
 }

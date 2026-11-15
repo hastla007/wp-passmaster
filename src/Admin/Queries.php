@@ -230,7 +230,9 @@ final class Queries {
 	/**
 	 * Order search with filters.
 	 *
-	 * @param array      $filters   status, payment_status, search (public id prefix, complete e-mail, e-mail prefix or "@domain"), event_id.
+	 * @param array      $filters   status, payment_status, search (public id prefix, complete e-mail, e-mail prefix or "@domain";
+	 *                              from 3 characters also attendee name prefix, billing first/last name or
+	 *                              company prefix and ticket id prefix), event_id.
 	 * @param int[]|null $event_ids Scope.
 	 * @return array{rows: object[], total: int}
 	 */
@@ -252,9 +254,25 @@ final class Queries {
 				// E-mail: prefix search ("anna", "anna@exa"), which can use the customer_email index; a
 				// leading "@" searches by domain (suffix, full scan; docs/OPERATIONS.md). PERF-15.
 				$id_prefix = preg_match( '/^(?:bestellung\s+)?([a-f0-9]{4})[\s-]?([a-f0-9]{4})$/i', $search, $m ) ? $m[1] . $m[2] : $search;
-				$where .= ' AND (ord.public_id LIKE %s OR ord.customer_email LIKE %s)';
+				$conditions = array( 'ord.public_id LIKE %s', 'ord.customer_email LIKE %s' );
 				$args[] = self::like( strtolower( $id_prefix ) ) . '%';
 				$args[] = '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%';
+				if ( '@' !== $search[0] && mb_strlen( $search ) >= 3 ) {
+					// Attendee name (prefix), billing first/last name or company (prefix inside the stored JSON,
+					// matched in its JSON encoding so umlauts match too) and ticket id prefix.
+					$conditions[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st INNER JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND sa.attendee_name LIKE %s)";
+					$args[] = self::like( $search ) . '%';
+					$json = substr( (string) wp_json_encode( $search ), 0, -1 );
+					foreach ( array( 'first_name', 'last_name', 'company' ) as $key ) {
+						$conditions[] = 'ord.billing LIKE %s';
+						$args[] = '%"' . $key . '":' . self::like( $json ) . '%';
+					}
+					if ( preg_match( '/^[a-f0-9]{6,32}$/i', $search ) ) {
+						$conditions[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets sp WHERE sp.order_id=ord.order_id AND sp.public_id LIKE %s)";
+						$args[] = self::like( strtolower( $search ) ) . '%';
+					}
+				}
+				$where .= ' AND (' . implode( ' OR ', $conditions ) . ')';
 			}
 		}
 		$items_join = "SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=ord.order_id";

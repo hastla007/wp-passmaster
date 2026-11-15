@@ -94,7 +94,7 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 		<?php endif; ?>
 		<div class="wpcap-field">
 			<label for="<?php echo esc_attr( $wpcap_form_id . '-campaign' ); ?>"><?php esc_html_e( 'Rabattcode (optional)', 'pass-captain' ); ?></label>
-			<input id="<?php echo esc_attr( $wpcap_form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">
+			<input id="<?php echo esc_attr( $wpcap_form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40" value="<?php echo esc_attr( \PassCaptain\Sales\Visibility::request_code() ); ?>">
 		</div>
 		<?php if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) : ?>
 			<div class="wpcap-field">

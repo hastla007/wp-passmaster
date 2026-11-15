@@ -17,6 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class CampaignsPage {
 	const SLUG = 'wpcap-campaigns';
 	const ACTION = 'wpcap_campaign_action';
+	const CSV_ACTION = 'wpcap_campaign_codes_csv';
 	const CAP = 'wpcap_manage_events';
 
 	/** Global campaigns (no event) need manage_options; event campaigns the event capability. */
@@ -48,6 +49,8 @@ final class CampaignsPage {
 		return array(
 			// Stacking rules (Campaigns::calculate()).
 			'combinable' => Forms::flag( $in, 'combinable' ) ? 1 : 0, 'with_price_rules' => Forms::flag( $in, 'with_price_rules' ) ? 1 : 0, 'max_discount_minor' => (int) $max_discount,
+			// Group discount, automatic discount without code, uses per buyer.
+			'min_quantity' => Forms::int( $in, 'min_quantity' ), 'auto_apply' => Forms::flag( $in, 'auto_apply' ) ? 1 : 0, 'per_buyer_limit' => Forms::int( $in, 'per_buyer_limit' ),
 			'code' => Forms::text( $in, 'code', 64 ), 'name' => Forms::text( $in, 'name' ), 'kind' => $kind, 'value' => $value, 'currency' => $currency,
 			'event_id' => $event_id, 'ticket_type_id' => $type_id, 'usage_limit' => Forms::int( $in, 'usage_limit' ), 'priority' => Forms::int( $in, 'priority', 100 ),
 			'starts_at' => $starts, 'ends_at' => $ends,
@@ -83,6 +86,9 @@ final class CampaignsPage {
 					return Campaigns::update( $id, $data );
 				}
 				return Campaigns::create( $data );
+			case 'generate':
+				if ( ! $existing ) { return Forms::error( 'wpcap_campaign_missing', __( 'Kampagne nicht gefunden.', 'pass-captain' ), 404 ); }
+				return Campaigns::generate_codes( $id, Forms::int( $in, 'count' ), Forms::text( $in, 'prefix', 16 ) );
 			case 'status':
 				if ( ! $existing ) { return Forms::error( 'wpcap_campaign_missing', __( 'Kampagne nicht gefunden.', 'pass-captain' ), 404 ); }
 				return Campaigns::set_status( $id, Forms::choice( $in, 'status', array( 'active', 'inactive' ), 'inactive' ) );
@@ -97,8 +103,22 @@ final class CampaignsPage {
 		$do = sanitize_key( $in['do'] ?? '' );
 		$id = Forms::int( $in, 'id' );
 		$error_url = Forms::page_url( self::SLUG, array( 'campaign_id' => $id ? $id : 'new' ) );
+		if ( 'generate' === $do && is_array( $result ) ) {
+			/* translators: %d: number of codes */
+			Forms::finish( $result, sprintf( __( '%d Einzelcodes erzeugt. Export über „Codes als CSV“.', 'pass-captain' ), (int) $result['created'] ), Forms::page_url( self::SLUG, array( 'campaign_id' => $id ) ) );
+		}
 		$message = 'status' === $do && is_array( $result ) ? ( 'active' === $result['status'] ? __( 'Kampagne aktiviert.', 'pass-captain' ) : __( 'Kampagne deaktiviert.', 'pass-captain' ) ) : ( 'stacking' === $do ? __( 'Stapelregeln gespeichert.', 'pass-captain' ) : __( 'Kampagne gespeichert.', 'pass-captain' ) );
 		Forms::finish( $result, $message, Forms::page_url( self::SLUG ), 'save' === $do ? $error_url : '' );
+	}
+
+	/** CSV download of the generated single-use codes of a template campaign (GET, nonce). */
+	public static function handle_codes_csv() {
+		check_admin_referer( self::CSV_ACTION );
+		$id = absint( $_GET['id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce checked above.
+		$campaign = $id ? Campaigns::get( $id ) : null;
+		if ( ! current_user_can( self::CAP ) || ! $campaign || ! self::can_scope( (int) $campaign->event_id ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403 ) ); }
+		\PassCaptain\Audit::record( 'campaign_codes_exported', 'campaign', $id, array() );
+		\PassCaptain\Reports\Scope::send_csv( Campaigns::batch_rows( $id ), 'codes-' . sanitize_file_name( strtolower( (string) $campaign->code ) ) . '.csv' );
 	}
 
 	/** Campaigns visible to the current user: event campaigns in scope, global ones for administrators. */
@@ -106,7 +126,8 @@ final class CampaignsPage {
 		global $wpdb;
 		$scope = Queries::event_ids_for( self::CAP );
 		$where = null === $scope ? '' : ( $scope ? ' AND c.event_id IN (' . implode( ',', array_map( 'absint', $scope ) ) . ')' : ' AND 1=0' );
-		return $wpdb->get_results( "SELECT c.*,e.name AS event_name,tt.name AS ticket_name FROM {$wpdb->prefix}wpcap_campaigns c LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=c.event_id LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=c.ticket_type_id WHERE 1=1{$where} ORDER BY c.status='active' DESC,c.created_at DESC LIMIT 500" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scope from absint ids.
+		// Generated single-use codes (batch_id) are listed with their template campaign, not one by one.
+		return $wpdb->get_results( "SELECT c.*,e.name AS event_name,tt.name AS ticket_name,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_campaigns b WHERE b.batch_id=c.campaign_id) AS batch_codes FROM {$wpdb->prefix}wpcap_campaigns c LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=c.event_id LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=c.ticket_type_id WHERE c.batch_id=0{$where} ORDER BY c.status='active' DESC,c.created_at DESC LIMIT 500" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scope from absint ids.
 	}
 
 	/** Stacking summary for the list. */
@@ -114,6 +135,10 @@ final class CampaignsPage {
 		$parts = array( (int) ( $c->combinable ?? 1 ) ? __( 'ja', 'pass-captain' ) : __( 'nein (nur allein)', 'pass-captain' ) );
 		if ( ! (int) ( $c->with_price_rules ?? 1 ) ) { $parts[] = __( 'nicht auf Preisregeln', 'pass-captain' ); }
 		if ( (int) ( $c->max_discount_minor ?? 0 ) ) { $parts[] = sprintf( /* translators: %s: amount */ __( 'max. %s', 'pass-captain' ), Forms::money( (int) $c->max_discount_minor, $c->currency ) ); }
+		if ( (int) ( $c->auto_apply ?? 0 ) ) { $parts[] = __( 'automatisch (ohne Code)', 'pass-captain' ); }
+		if ( (int) ( $c->min_quantity ?? 0 ) > 1 ) { $parts[] = sprintf( /* translators: %d: tickets */ __( 'ab %d Tickets', 'pass-captain' ), (int) $c->min_quantity ); }
+		if ( (int) ( $c->per_buyer_limit ?? 0 ) ) { $parts[] = sprintf( /* translators: %d: uses */ __( 'max. %d je Käufer', 'pass-captain' ), (int) $c->per_buyer_limit ); }
+		if ( (int) ( $c->batch_codes ?? 0 ) ) { $parts[] = sprintf( /* translators: %d: codes */ __( '%d Einzelcodes', 'pass-captain' ), (int) $c->batch_codes ); }
 		return implode( ', ', $parts );
 	}
 
@@ -220,6 +245,10 @@ final class CampaignsPage {
 		echo '<label><input type="checkbox" name="combinable" value="1"' . checked( 1, $combinable, false ) . '> ' . esc_html__( 'Mit anderen Codes kombinierbar', 'pass-captain' ) . '</label><br>';
 		echo '<label><input type="checkbox" name="with_price_rules" value="1"' . checked( 1, $with_rules, false ) . '> ' . esc_html__( 'Auch auf Tickets mit automatischem Preis (Frühbucher, Last-Minute, Nachfrage, Wochentag) anwenden', 'pass-captain' ) . '</label></fieldset></td></tr>';
 		FeatureScreens::input_row( 'wpcap-cp-max', 'max_discount', __( 'Höchstrabatt je Bestellung (optional)', 'pass-captain' ), $c && (int) ( $c->max_discount_minor ?? 0 ) ? Forms::money_input( (int) $c->max_discount_minor, Forms::currency_decimals( $c->currency ) ) : '', 'text', 'inputmode="decimal" style="width:8em"', __( 'Betrag in der Kampagnenwährung; leer = ohne Obergrenze. Sinnvoll für Prozentrabatte.', 'pass-captain' ) );
+		FeatureScreens::input_row( 'wpcap-cp-minqty', 'min_quantity', __( 'Mindestmenge (Gruppenrabatt)', 'pass-captain' ), $c ? (int) ( $c->min_quantity ?? 0 ) : 0, 'number', 'min="0" max="1000"', __( 'Gilt erst ab so vielen passenden Tickets in der Bestellung; 0 = immer.', 'pass-captain' ) );
+		FeatureScreens::input_row( 'wpcap-cp-buyer', 'per_buyer_limit', __( 'Einlösungen je Käufer', 'pass-captain' ), $c ? (int) ( $c->per_buyer_limit ?? 0 ) : 0, 'number', 'min="0" max="1000"', __( 'Je E-Mail-Adresse; 0 = unbegrenzt.', 'pass-captain' ) );
+		$auto = $c ? (int) ( $c->auto_apply ?? 0 ) : 0;
+		echo '<tr><th scope="row">' . esc_html__( 'Automatisch', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="auto_apply" value="1"' . checked( 1, $auto, false ) . '> ' . esc_html__( 'Ohne Code automatisch anwenden, wenn die Bestellung passt (z. B. Gruppenrabatt)', 'pass-captain' ) . '</label></td></tr>';
 		if ( $c ) {
 			$status = (string) $c->status;
 			FeatureScreens::row( 'wpcap-cp-status', __( 'Status', 'pass-captain' ), static function () use ( $status ) { Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'inactive' => __( 'Deaktiviert', 'pass-captain' ) ), $status, 'wpcap-cp-status' ); } );
@@ -228,5 +257,19 @@ final class CampaignsPage {
 		if ( $used ) { echo '<p class="description">' . esc_html__( 'Dieser Code wurde bereits eingelöst: Code, Rabattart und Währung sind gesperrt.', 'pass-captain' ) . '</p>'; }
 		submit_button( $c ? __( 'Kampagne speichern', 'pass-captain' ) : __( 'Kampagne anlegen', 'pass-captain' ) );
 		echo '</form>';
+		if ( $c && ! (int) ( $c->batch_id ?? 0 ) ) { self::render_generator( $c ); }
+	}
+
+	/** Code batch: n single-use codes with the settings of this campaign, CSV export. */
+	private static function render_generator( $c ) {
+		echo '<h2>' . esc_html__( 'Einzelcodes erzeugen', 'pass-captain' ) . '</h2><p class="description">' . esc_html__( 'Erzeugt einmal einlösbare Codes mit den Einstellungen dieser Kampagne (z. B. für Mailings oder Partner).', 'pass-captain' ) . '</p>';
+		Forms::open_form( self::ACTION );
+		Forms::hidden( 'do', 'generate' );
+		Forms::hidden( 'id', (int) $c->campaign_id );
+		echo '<p><label for="wpcap-cp-count">' . esc_html__( 'Anzahl', 'pass-captain' ) . '</label> <input id="wpcap-cp-count" name="count" type="number" min="1" max="' . (int) Campaigns::MAX_BATCH . '" value="100" style="width:7em"> ';
+		echo '<label for="wpcap-cp-prefix">' . esc_html__( 'Präfix (optional)', 'pass-captain' ) . '</label> <input id="wpcap-cp-prefix" name="prefix" type="text" maxlength="12" pattern="[A-Za-z0-9_\-]{0,12}" style="width:8em"> ';
+		echo '<button type="submit" class="button">' . esc_html__( 'Codes erzeugen', 'pass-captain' ) . '</button> ';
+		$url = wp_nonce_url( add_query_arg( array( 'action' => self::CSV_ACTION, 'id' => (int) $c->campaign_id ), admin_url( 'admin-post.php' ) ), self::CSV_ACTION );
+		echo '<a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Codes als CSV', 'pass-captain' ) . '</a></p></form>';
 	}
 }

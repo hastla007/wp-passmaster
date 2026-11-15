@@ -130,6 +130,11 @@ final class Settings {
 			'mail_reply_to'             => '',
 			// Bounce/complaint webhook of the sending service (Mail\Suppression), off by default.
 			'mail_bounce_webhook'       => 0,
+			// Frontend\EventPage: event detail pages /{event_base}/{slug}/ with schema.org/Event.
+			'event_pages'               => 1,
+			'event_base'                => 'event',
+			// Admin\Dashboard: modules whose menu entries are hidden (they keep running).
+			'hidden_modules'            => array(),
 		);
 	}
 

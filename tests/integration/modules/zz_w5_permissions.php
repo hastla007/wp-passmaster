@@ -162,6 +162,9 @@ $pm_admin = array(
 	'wpcap_assign_staff' => 'wpcap_manage_events', 'wpcap_remove_staff' => 'wpcap_manage_events',
 	'wpcap_confirm_payment' => 'wpcap_manage_orders', 'wpcap_cancel_order' => 'wpcap_manage_orders', 'wpcap_resend_tickets' => 'wpcap_manage_orders',
 	'wpcap_refund_order' => 'wpcap_refund', 'wpcap_approve_refund' => 'wpcap_approve_refunds', 'wpcap_reject_refund' => 'wpcap_approve_refunds',
+	// R7: complimentary tickets, duplicate, CSV import/exports.
+	'wpcap_orders_csv' => 'wpcap_manage_orders', 'wpcap_issue_comps' => 'wpcap_manage_orders', 'wpcap_duplicate_event' => 'wpcap_manage_events',
+	'wpcap_duplicate_occurrence' => 'wpcap_manage_events', 'wpcap_import_events' => 'wpcap_manage_events', 'wpcap_campaign_codes_csv' => 'wpcap_manage_events',
 	'wpcap_revoke_ticket' => 'wpcap_manage_orders', 'wpcap_undo_checkin' => 'wpcap_checkin', 'wpcap_reissue_ticket' => 'wpcap_manage_orders',
 	'wpcap_save_settings' => 'manage_options', 'wpcap_create_pairing' => 'wpcap_checkin', 'wpcap_revoke_device' => 'wpcap_checkin',
 	'wpcap_api_key_action' => 'wpcap_manage_events', 'wpcap_service_action' => 'wpcap_manage_events', 'wpcap_waitlist_action' => 'wpcap_manage_events',
