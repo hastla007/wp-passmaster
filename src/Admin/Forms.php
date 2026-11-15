@@ -365,8 +365,10 @@ final class Forms {
 
 	/** Sanitised GET parameter. */
 	public static function query_arg( $key, $default = '' ) {
-		$value = $_GET[ $key ] ?? $default; // phpcs:ignore WordPress.Security.NonceVerification
-		return is_scalar( $value ) ? sanitize_text_field( wp_unslash( (string) $value ) ) : $default;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view parameter.
+		if ( ! isset( $_GET[ $key ] ) ) { return is_scalar( $default ) ? sanitize_text_field( wp_unslash( (string) $default ) ) : $default; }
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view parameter.
+		return is_scalar( $_GET[ $key ] ) ? sanitize_text_field( wp_unslash( (string) $_GET[ $key ] ) ) : $default;
 	}
 
 	/** Display name of a WordPress user id. */

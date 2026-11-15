@@ -364,7 +364,7 @@ final class Invoices {
 	/** Buyer view through the personal order link: ?wpcap_invoice=<public_id>&wpcap_access=<token> */
 	public static function maybe_render_customer_invoice() {
 		$public_id = sanitize_text_field( wp_unslash( $_GET['wpcap_invoice'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_GET['wpcap_access'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_GET['wpcap_access'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- reduced to hex characters.
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return; }
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
@@ -384,8 +384,10 @@ final class Invoices {
 	public static function handle_export() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::FINANCE_CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		check_admin_referer( 'wpcap_export_accounting' );
-		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $_REQUEST['from'] ?? '' ) ) ? sanitize_text_field( wp_unslash( $_REQUEST['from'] ) ) : gmdate( 'Y-m-01' );
-		$to = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $_REQUEST['to'] ?? '' ) ) ? sanitize_text_field( wp_unslash( $_REQUEST['to'] ) ) : gmdate( 'Y-m-d' );
+		$from = sanitize_text_field( wp_unslash( $_REQUEST['from'] ?? '' ) );
+		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ? $from : gmdate( 'Y-m-01' );
+		$to = sanitize_text_field( wp_unslash( $_REQUEST['to'] ?? '' ) );
+		$to = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ? $to : gmdate( 'Y-m-d' );
 		$rows = self::export_rows( $from, $to );
 		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ) ) );
 		nocache_headers();

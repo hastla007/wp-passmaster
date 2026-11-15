@@ -52,8 +52,8 @@ function wpcap_uninstall_global_usermeta() {
 
 if ( is_multisite() ) {
 	$wpcap_all_opted_in = true;
-	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
-		switch_to_blog( (int) $site_id );
+	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $wpcap_site_id ) {
+		switch_to_blog( (int) $wpcap_site_id );
 		$wpcap_all_opted_in = wpcap_uninstall_site() && $wpcap_all_opted_in;
 		restore_current_blog();
 	}

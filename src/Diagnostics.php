@@ -100,11 +100,11 @@ final class Diagnostics {
 		$cutoff = self::gmt( self::HOLD_GRACE );
 		$reservations = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<%s", $p . 'wpcap_reservations', $cutoff ) );
 		$seat_holds = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<%s", $p . 'wpcap_seat_holds', $cutoff ) );
-		$orders_sql = "FROM {$p}wpcap_orders ord WHERE ord.payment_status='pending' AND ord.created_at<%s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>=%s)";
-		$orders = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) $orders_sql", $cutoff, $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// Pending orders past the grace period without an active reservation.
+		$orders = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i ord WHERE ord.payment_status='pending' AND ord.created_at<%s AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>=%s)", $p . 'wpcap_orders', $cutoff, $p . 'wpcap_reservations', $cutoff ) );
 		$samples = $wpdb->get_results( $wpdb->prepare( "SELECT r.reservation_id, r.order_id, r.ticket_type_id, r.quantity, r.expires_at FROM %i r WHERE r.status='active' AND r.expires_at<%s ORDER BY r.expires_at LIMIT %d", $p . 'wpcap_reservations', $cutoff, self::SAMPLES ) );
 		if ( ! $samples ) {
-			$samples = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id, ord.created_at $orders_sql ORDER BY ord.order_id LIMIT %d", $cutoff, $cutoff, self::SAMPLES ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$samples = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id, ord.created_at FROM %i ord WHERE ord.payment_status='pending' AND ord.created_at<%s AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>=%s) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders', $cutoff, $p . 'wpcap_reservations', $cutoff, self::SAMPLES ) );
 		}
 		return array(
 			$reservations + $seat_holds + $orders,

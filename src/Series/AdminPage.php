@@ -51,7 +51,7 @@ final class AdminPage {
 		$events = Queries::event_options( Queries::event_ids_for( Generator::CAP ) );
 		$in = array();
 		$preview = null;
-		if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) && isset( $_POST['wpcap_series_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
+		if ( 'POST' === sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ?? '' ) ) && isset( $_POST['wpcap_series_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
 			check_admin_referer( self::NONCE );
 			$in = self::input( Forms::post() );
 			$preview = Generator::preview( $in );

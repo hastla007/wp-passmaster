@@ -349,8 +349,9 @@ final class Waitlists {
 	}
 
 	public static function maybe_render_offer_page() {
-		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 );
-		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) );
+		// The link from the offer mail carries a 64-hex token instead of a nonce; accepting posts a nonce-protected form.
+		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || 64 !== strlen( $token ) || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		nocache_headers();
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
@@ -362,7 +363,7 @@ final class Waitlists {
 	public static function handle_accept_request() {
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
-		$result = self::accept_offer( $waitlist_id, wp_unslash( $_POST['token'] ?? '' ) );
+		$result = self::accept_offer( $waitlist_id, sanitize_text_field( wp_unslash( $_POST['token'] ?? '' ) ) );
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( sprintf( /* translators: %s: site name */ __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) ); ?></title></head><body><main><?php if ( is_wp_error( $result ) ) : ?><h1><?php esc_html_e( 'Angebot nicht verfügbar', 'pass-captain' ); ?></h1><p><?php echo esc_html( $result->get_error_message() ); ?></p><?php else : ?><h1><?php esc_html_e( 'Angebot angenommen', 'pass-captain' ); ?></h1><p><?php echo esc_html( 'complete' === ( $result['order']['status'] ?? '' ) ? __( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'pass-captain' ) : __( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet.', 'pass-captain' ) ); ?></p><?php endif; ?></main></body></html><?php
 		exit;

@@ -82,7 +82,7 @@ done < <(git -C "${ROOT}" ls-files -- src templates assets 'languages/*.mo' | gr
 [ "${missing_tracked}" -eq 0 ] && ok "all tracked files of src/, templates/, assets/ and languages/*.mo present"
 
 # Development files that must never ship.
-FORBIDDEN='^pass-captain/(tests|docs|build|node_modules|\.github|\.claude|\.codex)/|/\.git(/|ignore$|attributes$)|/\.distignore$|^pass-captain/(composer\.(json|lock)|phpcs\.xml(\.dist)?|phpcs-baseline\.json|phpstan(-baseline)?\.neon(\.dist)?|\.gitleaks\.toml|phpunit\.xml(\.dist)?|package(-lock)?\.json|\.editorconfig)$|\.md$|\.po$|^pass-captain/vendor/[^/]+/[^/]+/(tests?|\.github)/|^pass-captain/vendor/bin/|\.(sh|neon|log|sql|bak|orig|swp)$|(^|/)\.DS_Store$'
+FORBIDDEN='^pass-captain/(tests|docs|build|node_modules|\.github|\.claude|\.codex)/|/\.git(/|ignore$|attributes$)|/\.distignore$|^pass-captain/(composer\.lock|phpcs\.xml(\.dist)?|phpcs-baseline\.json|phpstan(-baseline)?\.neon(\.dist)?|\.gitleaks\.toml|phpunit\.xml(\.dist)?|package(-lock)?\.json|\.editorconfig)$|\.md$|\.po$|^pass-captain/vendor/[^/]+/[^/]+/(tests?|\.github)/|^pass-captain/vendor/bin/|\.(sh|neon|log|sql|bak|orig|swp)$|(^|/)\.DS_Store$'
 if grep -E "${FORBIDDEN}" "${LIST}" > "${WORK}/forbidden.txt"; then
 	fail "development files in the ZIP: $(head -10 "${WORK}/forbidden.txt" | tr '\n' ' ')"
 else

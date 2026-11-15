@@ -147,7 +147,7 @@ final class Page {
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 );
 		$level = AttendeeList::access_level( $occurrence_id );
 		if ( '' === $level ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		$format = 'csv' === ( $_GET['format'] ?? '' ) ? 'csv' : 'html';
+		$format = 'csv' === sanitize_key( wp_unslash( $_GET['format'] ?? '' ) ) ? 'csv' : 'html';
 		Audit::record( 'attendee_list_' . $format, 'occurrence', $occurrence_id, array( 'level' => $level ) );
 		if ( 'csv' === $format ) {
 			Scope::send_download( Scope::csv( AttendeeList::rows( $occurrence_id, $level ) ), 'teilnehmer-' . $occurrence_id . '.csv', 'text/csv; charset=utf-8' );
