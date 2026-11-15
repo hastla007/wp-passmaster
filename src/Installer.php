@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.16.1';
+	const DB_VERSION = '3.17.3';
 
 	public static function install() {
 		global $wpdb;
@@ -762,6 +762,8 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 			// Atomic rate-limit counters without a persistent object cache (QA-V2/PERF-16, src/RateLimit.php).
 			RateLimit::schema( $wpdb->prefix . 'wpcap_rate_limits', $charset ),
+			// Atomic idempotency claims of check-ins (audit R2 #6, src/Checkin.php).
+			Checkin::claims_schema( $wpdb->prefix . 'wpcap_checkin_claims', $charset ),
 		);
 
 		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).

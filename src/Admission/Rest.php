@@ -63,7 +63,9 @@ final class Rest {
 			if ( ! is_array( $scan ) ) { $scan = array( 'token' => (string) $scan ); }
 			$token = sanitize_text_field( (string) ( $scan['token'] ?? '' ) );
 			$key = sanitize_text_field( (string) ( $scan['idempotency_key'] ?? '' ) );
-			$context = array( 'source' => 'offline', 'area_id' => absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '' );
+			// The web scanner has no verification package (visual check only): its device time counts for
+			// at most an hour; older scans are evaluated at upload time.
+			$context = array( 'source' => 'offline', 'area_id' => absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '', 'max_age' => Checkin::WEB_UPLOAD_MAX_AGE );
 			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
 			if ( $scanned && $scanned <= $now + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
 			$out = 'out' === ( $scan['direction'] ?? 'in' );

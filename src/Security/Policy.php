@@ -1,7 +1,7 @@
 <?php
 /**
  * Settings of the access-protection features (W9): audit of read access, data minimisation, staff
- * sessions, MFA for sensitive actions, support access, check-out/re-entry, refunds after check-in,
+ * sessions, MFA for sensitive actions, support access, check-out/re-entry, check-in undo, refunds after check-in,
  * the buyer language selection, the event waitlist offer window and the waitlist double opt-in.
  *
  * The keys are registered through the public settings filters (wp_pass_captain_settings_defaults_v1,
@@ -34,6 +34,8 @@ final class Policy {
 		'mfa_api_keys'               => 0,
 		'support_access_max_hours'   => 24,
 		'checkout_roles'             => '',
+		'undo_window_minutes'        => 5,
+		'undo_roles'                 => '',
 		'reentry_after_checkout'     => 0,
 		'max_reentries'              => 0,
 		'refund_after_checkin'       => 'allow',
@@ -90,6 +92,8 @@ final class Policy {
 			'title' => __( 'Einlass / Scanner-Geräte', 'pass-captain' ),
 			'fields' => array(
 				'checkout_roles' => array( 'type' => 'text', 'label' => __( 'Check-out nur für diese Rollen (Rollen-Slugs, kommagetrennt)', 'pass-captain' ), 'description' => __( 'Leer = alle Personen mit Einlassrecht für den Termin. Beispiel: wpcap_event_manager,wpcap_box_office. Administratoren dürfen immer.', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_roles' ) ),
+				'undo_window_minutes' => array( 'type' => 'int', 'label' => __( 'Check-in zurücknehmen: Zeitfenster für Einlasspersonal (Minuten)', 'pass-captain' ), 'description' => __( 'Personal ohne Bestellrechte darf nur eigene Scans (eigenes Konto oder eigenes Gerät) innerhalb dieses Zeitfensters zurücknehmen; 0 = gar nicht. Administratoren, Personal mit Bestellrechten und die Rollen unten dürfen immer.', 'pass-captain' ), 'min' => 0, 'max' => 1440 ),
+				'undo_roles' => array( 'type' => 'text', 'label' => __( 'Check-ins ohne Zeitfenster zurücknehmen dürfen diese Rollen (Rollen-Slugs, kommagetrennt)', 'pass-captain' ), 'description' => __( 'Beispiel: wpcap_event_manager. Leer = nur Administratoren und Personal mit Bestellrechten.', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_roles' ) ),
 				'reentry_after_checkout' => array( 'type' => 'bool', 'label' => __( 'Wiedereinlass nach Check-out erlauben (Ticketarten ohne eigene Einlassregel)', 'pass-captain' ) ),
 				'max_reentries' => array( 'type' => 'int', 'label' => __( 'Maximale Wiedereinlässe je Ticket (0 = unbegrenzt)', 'pass-captain' ), 'min' => 0, 'max' => 1000 ),
 			),

@@ -81,6 +81,9 @@ final class TicketsPage {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
+		$denied = \PassCaptain\Checkin::undo_denied( (int) $ticket->ticket_id, (int) $ticket->event_id, array( 'device_id' => Forms::int( $in, 'device_id' ) ) );
+		if ( $denied ) { return Forms::error( $denied->get_error_code(), $denied->get_error_message(), 403 ); }
+		$key = Forms::text( $in, 'idempotency_key', 190 );
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
@@ -91,6 +94,13 @@ final class TicketsPage {
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT t.ticket_id,t.status,t.refunded,ord.status AS order_status,ord.payment_status FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d FOR UPDATE', $p . 'wpcap_tickets', $p . 'wpcap_orders', (int) $ticket->ticket_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
+		// A retried undo (same key, e.g. a double submit or an app retry) never removes a second entry.
+		$claim = '' !== $key ? \PassCaptain\Checkin::claim_key( $key, (int) $ticket->ticket_id ) : 1;
+		if ( $claim < 0 ) { return $busy(); }
+		if ( 0 === $claim ) {
+			$wpdb->query( 'ROLLBACK' );
+			return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id, 'status' => $row ? (string) $row->status : '', 'replayed' => true );
+		}
 		if ( ! $row || 'checked_in' !== $row->status ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), 409 );
@@ -111,8 +121,9 @@ final class TicketsPage {
 			'occurrence_day_id' => $last ? (int) $last->occurrence_day_id : 0,
 			'user_id' => get_current_user_id(),
 			'result' => 'undone',
+			'device_id' => Forms::int( $in, 'device_id' ),
 			'created_at' => $now,
-		), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
+		), array( '%d', '%d', '%d', '%d', '%s', '%d', '%s' ) );
 		$undo_id = false === $logged ? 0 : (int) $wpdb->insert_id;
 		if ( ! $undo_id ) { return $busy(); }
 		// Only the last entry is taken back; the ticket is valid again only when no entry remains
@@ -153,7 +164,10 @@ final class TicketsPage {
 	public static function handle_undo_checkin() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_undo_checkin_' . Forms::int( $in, 'ticket_id' ) );
-		$result = self::undo_checkin( $in );
+		// Every form carries its own key: a double submit or a resent POST undoes only once.
+		$result = '' === Forms::text( $in, 'idempotency_key', 190 )
+			? Forms::error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), 400 )
+			: self::undo_checkin( $in );
 		$message = ! is_wp_error( $result ) && ! empty( $result['remaining_entries'] )
 			? __( 'Letzter Einlass zurückgenommen; der frühere Einlass bleibt gezählt, das Ticket bleibt eingecheckt.', 'pass-captain' )
 			: __( 'Check-in zurückgenommen; das Ticket ist wieder gültig.', 'pass-captain' );
@@ -243,7 +257,7 @@ final class TicketsPage {
 						</td>
 						<td>
 							<?php if ( 'valid' === $ticket->status && $can_orders ) : ?>
-								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
 								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'pass-captain' ); ?>">
 								<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'pass-captain' ); ?></label>
 								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button>
@@ -252,7 +266,7 @@ final class TicketsPage {
 								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Neu ausstellen', 'pass-captain' ); ?></button>
 								</form>
 							<?php elseif ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
-								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
 								<input type="text" name="reason" maxlength="255" placeholder="<?php esc_attr_e( 'Grund (optional)', 'pass-captain' ); ?>">
 								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>
 								</form>

@@ -72,6 +72,23 @@ final class ConflictsPage {
 			<?php Forms::select( 'status', array( 'open' => __( 'Offen', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status, '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
+		<?php $report = Conflicts::report( $scope, $event_id ); ?>
+		<div class="wpcap-conflict-report">
+			<p><strong><?php esc_html_e( 'Doppel-Einlässe auf verschiedenen Geräten', 'pass-captain' ); ?>:</strong>
+			<?php
+			/* translators: 1: open cross-device double admissions, 2: total, 3: resolved as double admission */
+			echo esc_html( sprintf( __( '%1$d offen · %2$d insgesamt · %3$d als Doppel-Einlass bestätigt', 'pass-captain' ), $report['cross_device_open'], $report['cross_device_total'], $report['duplicate_admission'] ) );
+			?>
+			</p>
+			<?php if ( $report['undos'] ) : ?>
+			<p><strong><?php esc_html_e( 'Zurückgenommene Check-ins (Undos pro Ticket)', 'pass-captain' ); ?>:</strong></p>
+			<table class="widefat striped wpcap-undo-report"><thead><tr><th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Undos', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt', 'pass-captain' ); ?></th></tr></thead><tbody>
+			<?php foreach ( $report['undos'] as $undo ) : ?>
+				<tr><td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $undo->public_id ) ) ); ?>"><code><?php echo esc_html( (string) $undo->public_id ); ?></code></a></td><td><?php echo (int) $undo->undos; ?></td><td><?php echo esc_html( Forms::datetime( $undo->last_at, 'UTC' ) ); ?></td></tr>
+			<?php endforeach; ?>
+			</tbody></table>
+			<?php endif; ?>
+		</div>
 		<table class="widefat striped"><thead><tr>
 			<th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th>
 			<th><?php esc_html_e( 'Ergebnis', 'pass-captain' ); ?></th>

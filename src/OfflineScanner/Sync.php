@@ -4,11 +4,15 @@
  * (/app/scan/sync). Called after Api::sync() with the uploaded scans (same order as the results).
  *
  *  - duplicate_policy first_sync_wins: a double admission (ticket already admitted by an earlier
- *    upload) is still recorded as admission conflict, but resolved automatically as "duplicate_scan".
+ *    upload) is still recorded as admission conflict. It is resolved automatically as "duplicate_scan"
+ *    only when the earlier admission came from the same device or the same user (a guest scanned twice
+ *    at one entrance). The same code admitted on two devices (e.g. a shared screenshot) stays open and
+ *    is reported as cross-device double admission (result flag cross_device, report on
+ *    "Einlass-Konflikte", resolution "duplicate_admission").
  *  - max_offline_hours: an admitted scan whose device time is older than the event's maximum offline
  *    duration is flagged (offline_expired) and recorded as an open conflict for review.
  *
- * Result rows gain: offline_rules (policy), auto_resolved, offline_expired, conflict_status.
+ * Result rows gain: offline_rules (policy), auto_resolved, cross_device, offline_expired, conflict_status.
  */
 namespace PassCaptain\OfflineScanner;
 
@@ -36,9 +40,13 @@ final class Sync {
 			if ( ! $rules['enabled'] ) { continue; }
 			$row['offline_rules'] = $rules['duplicate_policy'];
 
-			if ( $conflict && ! empty( $row['double_admission'] ) && 'first_sync_wins' === $rules['duplicate_policy'] ) {
-				self::auto_resolve( $conflict );
-				$conflict = Conflicts::get( (int) $conflict->conflict_id );
+			if ( $conflict && ! empty( $row['double_admission'] ) ) {
+				$same = Conflicts::same_origin( $conflict );
+				$row['cross_device'] = ! $same;
+				if ( $same && 'first_sync_wins' === $rules['duplicate_policy'] ) {
+					self::auto_resolve( $conflict );
+					$conflict = Conflicts::get( (int) $conflict->conflict_id );
+				}
 			}
 
 			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
