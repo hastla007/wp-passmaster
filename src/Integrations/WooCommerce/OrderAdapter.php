@@ -865,7 +865,7 @@ final class OrderAdapter {
 		$factor = 10 ** self::currency_decimals( $currency );
 		$gross = (int) round( ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor );
 		$tax = (int) round( (float) $item->get_total_tax() * $factor );
-		if ( $gross < 0 ) { return new \WP_Error( 'wpcap_fiscal_negative_extra_line', __( 'Negative fees müssen als zugeordnete Rabattposition statt als negative Gebühr eingerichtet werden.', 'pass-captain' ) ); }
+		if ( $gross < 0 ) { return new \WP_Error( 'wpcap_fiscal_negative_extra_line', __( 'Negative Beträge müssen als WooCommerce-Rabatt (Gutschein) statt als negative Position eingerichtet werden.', 'pass-captain' ) ); }
 		$taxes = is_callable( array( $item, 'get_taxes' ) ) ? (array) $item->get_taxes() : array();
 		$rate_ids = array_keys( array_filter( (array) ( $taxes['total'] ?? array() ), static function ( $amount ) { return abs( (float) $amount ) > 0.000001; } ) );
 		$rate_bp = 0;

@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-14T23:32:26+00:00\n"
+"POT-Creation-Date: 2026-11-15T00:23:06+00:00\n"
 "PO-Revision-Date: 2026-11-14 17:14+0000\n"
 "Language: fr_FR\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
@@ -70,15 +70,15 @@ msgstr "Lire les rapports (reports.read)"
 #: src/Admission/RulesPage.php:73
 #: src/Admission/RulesPage.php:90
 #: src/Admission/RulesPage.php:101
-#: src/BoxOffice/Service.php:325
+#: src/BoxOffice/Service.php:332
 #: src/OfflineScanner/AdminPage.php:33
 #: src/OfflineScanner/AdminPage.php:51
 #: src/OfflineScanner/AdminPage.php:57
-#: src/Rest/Controller.php:535
-#: src/Rest/Controller.php:597
-#: src/Rest/Controller.php:629
-#: src/Rest/Controller.php:680
-#: src/Rest/Controller.php:706
+#: src/Rest/Controller.php:538
+#: src/Rest/Controller.php:600
+#: src/Rest/Controller.php:632
+#: src/Rest/Controller.php:683
+#: src/Rest/Controller.php:709
 #: src/Sales/AdminSections.php:50
 #: src/Sales/BuyerLimits.php:57
 #: src/Sales/BuyerLimits.php:85
@@ -94,7 +94,7 @@ msgid "Keine Berechtigung für dieses Event."
 msgstr "Vous n’avez pas l’autorisation pour cet événement."
 
 #: src/Admin/ApiKeysPage.php:48
-#: src/Rest/Controller.php:598
+#: src/Rest/Controller.php:601
 msgid "Ablaufdatum muss in der Zukunft liegen."
 msgstr "La date d’expiration doit être dans le futur."
 
@@ -152,17 +152,29 @@ msgstr "Clé API révoquée."
 #: src/Admission/ConflictsPage.php:54
 #: src/Admission/RulesPage.php:168
 #: src/BoxOffice/Page.php:48
-#: src/BoxOffice/Page.php:343
-#: src/BoxOffice/Page.php:368
+#: src/BoxOffice/Page.php:371
+#: src/BoxOffice/Page.php:396
 #: src/BoxOffice/Service.php:81
-#: src/BoxOffice/Service.php:310
-#: src/BoxOffice/Service.php:520
-#: src/BoxOffice/Service.php:570
+#: src/BoxOffice/Service.php:316
+#: src/BoxOffice/Service.php:538
+#: src/BoxOffice/Service.php:588
+#: src/Fiscalization/ArchiveExporter.php:17
 #: src/Integrations/ConnectorsPage.php:121
 #: src/Invoices.php:339
 #: src/Invoices.php:372
 #: src/Mail/Admin.php:187
 #: src/Modules/Calendar.php:263
+#: src/Modules/Fiscalization.php:761
+#: src/Modules/Fiscalization.php:815
+#: src/Modules/Fiscalization.php:1074
+#: src/Modules/Fiscalization.php:1091
+#: src/Modules/Fiscalization.php:1112
+#: src/Modules/Fiscalization.php:1132
+#: src/Modules/Fiscalization.php:1157
+#: src/Modules/Fiscalization.php:1167
+#: src/Modules/Fiscalization.php:1177
+#: src/Modules/Fiscalization.php:1187
+#: src/Modules/Fiscalization.php:1201
 #: src/Modules/Mollie.php:172
 #: src/Modules/Reminders.php:179
 #: src/Modules/Sms.php:329
@@ -222,7 +234,7 @@ msgstr "Il n’y a aucun événement pour lequel vous pouvez créer des clés."
 #: src/Admin/EventsPage.php:850
 #: src/Admin/ServicesPage.php:253
 #: src/Admin/ServicesPage.php:275
-#: src/BoxOffice/Page.php:117
+#: src/BoxOffice/Page.php:131
 #: src/Integrations/ConnectorsPage.php:144
 #: src/Integrations/ConnectorsPage.php:168
 #: src/Integrations/WooCommerce/Attendees.php:194
@@ -260,7 +272,7 @@ msgstr "Nom"
 #: src/Admission/ConflictsPage.php:71
 #: src/Admission/RulesPage.php:178
 #: src/Integrations/ConnectorsPage.php:247
-#: src/Integrations/WooCommerce/OrderAdapter.php:1494
+#: src/Integrations/WooCommerce/OrderAdapter.php:1803
 #: src/Mail/Types.php:63
 #: src/Mail/Types.php:130
 #: src/Mail/Types.php:366
@@ -380,7 +392,11 @@ msgstr "Valable jusqu’au"
 #: src/Integrations/ConnectorsPage.php:193
 #: src/Integrations/ConnectorsPage.php:207
 #: src/Integrations/ConnectorsPage.php:227
-#: src/Integrations/WooCommerce/OrderAdapter.php:1494
+#: src/Integrations/WooCommerce/OrderAdapter.php:1803
+#: src/Modules/Fiscalization.php:1226
+#: src/Modules/Fiscalization.php:1235
+#: src/Modules/Fiscalization.php:1291
+#: src/Modules/Fiscalization.php:1338
 #: src/Modules/Webhooks.php:292
 #: src/Modules/Webhooks.php:326
 #: src/OfflineScanner/AdminPage.php:165
@@ -434,7 +450,6 @@ msgstr "Actions"
 #: src/Admin/MembershipsPage.php:257
 #: src/Admission/RulesPage.php:186
 #: src/Admission/RulesPage.php:241
-#: src/BoxOffice/Page.php:174
 #: src/Mail/Admin.php:262
 #: src/Modules/Calendar.php:273
 #: src/Modules/Mollie.php:194
@@ -502,6 +517,7 @@ msgstr "Traçabilité des modifications et des accès aux données personnelles.
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/SecurityScreens.php:212
 #: src/Admin/TicketsPage.php:223
+#: src/Modules/Fiscalization.php:1291
 msgid "Aktion"
 msgstr "Action"
 
@@ -564,6 +580,7 @@ msgid "Benutzer"
 msgstr "Utilisateur"
 
 #: src/Admin/AuditLogPage.php:159
+#: src/Modules/Fiscalization.php:1338
 msgid "Details"
 msgstr "Détails"
 
@@ -589,7 +606,7 @@ msgid "Das Ende des Gültigkeitszeitraums muss nach dem Beginn liegen."
 msgstr "La fin de la période de validité doit être postérieure au début."
 
 #: src/Admin/CampaignsPage.php:44
-#: src/Rest/Controller.php:541
+#: src/Rest/Controller.php:544
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Le type de ticket n’appartient pas à cet événement."
 
@@ -716,6 +733,7 @@ msgstr "Limite atteinte"
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/SettingsPage.php:384
 #: src/Integrations/ConnectorsPage.php:193
+#: src/Modules/Fiscalization.php:1248
 #: src/Modules/Reminders.php:185
 #: src/Sales/TaxProfilesPage.php:56
 #: src/WalletPasses/AdminPage.php:188
@@ -754,7 +772,7 @@ msgstr "Code"
 
 #: src/Admin/CampaignsPage.php:168
 #: src/Admin/OrdersPage.php:406
-#: src/BoxOffice/Service.php:673
+#: src/BoxOffice/Service.php:692
 #: src/Invoices.php:317
 #: src/Printing/InvoicePdf.php:115
 #: src/Reports/Data.php:490
@@ -863,7 +881,7 @@ msgstr "Pourcentage (p. ex. 10 ou 7,5) ou montant (p. ex. 5,00) selon le type de
 
 #: src/Admin/CampaignsPage.php:205
 #: src/Admin/EventsPage.php:652
-#: src/BoxOffice/Page.php:66
+#: src/BoxOffice/Page.php:67
 #: src/Partners/AdminPage.php:267
 msgid "Währung"
 msgstr "Devise"
@@ -948,7 +966,7 @@ msgstr "Actuellement présents"
 #: src/Admin/OrdersPage.php:382
 #: src/Admin/WaitlistsPage.php:81
 #: src/Admin/WaitlistsPage.php:118
-#: src/BoxOffice/Page.php:73
+#: src/BoxOffice/Page.php:87
 #: src/OfflineScanner/AdminPage.php:165
 #: src/OfflineScanner/AdminPage.php:180
 #: src/OfflineScanner/I18n.php:102
@@ -1003,6 +1021,7 @@ msgid "Datum und Uhrzeit in %s"
 msgstr "Date et heure en %s"
 
 #: src/Admin/CheckinsPage.php:91
+#: src/Modules/Fiscalization.php:1338
 msgid "Zeitpunkt"
 msgstr "Horodatage"
 
@@ -1010,8 +1029,7 @@ msgstr "Horodatage"
 #: src/Admin/OrdersPage.php:439
 #: src/Admin/TicketsPage.php:218
 #: src/Admission/ConflictsPage.php:76
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:63
-#: src/Integrations/WooCommerce/OrderAdapter.php:1494
+#: src/Integrations/WooCommerce/OrderAdapter.php:1803
 #: src/Printing/AttendeeList.php:50
 #: src/TicketPage.php:33
 #: src/WalletPasses/AppleProvider.php:67
@@ -1162,7 +1180,7 @@ msgstr[1] "%d scans"
 #. translators: %d: number of scans
 #: src/Admin/DevicesPage.php:90
 #: src/Integrations/ConnectorsPage.php:232
-#: src/Integrations/WooCommerce/OrderAdapter.php:1492
+#: src/Integrations/WooCommerce/OrderAdapter.php:1801
 #: src/OfflineScanner/AdminPage.php:172
 #: src/Partners/AdminPage.php:347
 msgid "widerrufen"
@@ -1228,8 +1246,8 @@ msgstr "Le type de ticket n’a pas pu être enregistré."
 #: src/OfflineScanner/AdminPage.php:32
 #: src/OfflineScanner/AdminPage.php:50
 #: src/Partners/Api.php:135
-#: src/Rest/Controller.php:616
-#: src/Rest/Controller.php:687
+#: src/Rest/Controller.php:619
+#: src/Rest/Controller.php:690
 #: src/Sales/BuyerLimits.php:56
 #: src/Sales/PriceRules.php:93
 #: src/Seating/Layouts.php:431
@@ -1247,8 +1265,8 @@ msgstr "Les événements annulés ne peuvent plus être modifiés."
 #: src/Admin/EventsPage.php:217
 #: src/Admin/EventsPage.php:245
 #: src/OfflineScanner/Rest.php:78
-#: src/Rest/Controller.php:523
-#: src/Rest/Controller.php:760
+#: src/Rest/Controller.php:526
+#: src/Rest/Controller.php:763
 #: src/Seating/Layouts.php:594
 msgid "Termin nicht gefunden."
 msgstr "Date introuvable."
@@ -1439,6 +1457,7 @@ msgstr "← Retour à la liste des événements"
 
 #: src/Admin/EventsPage.php:581
 #: src/Admin/Forms.php:383
+#: src/Modules/Fiscalization.php:1226
 #: src/Partners/Settlements.php:49
 #: src/Sales/TaxProfilesPage.php:56
 msgid "Entwurf"
@@ -1462,6 +1481,7 @@ msgstr "Prochaine date"
 #: src/Mail/Types.php:66
 #: src/Mail/Types.php:377
 #: src/Mail/Types.php:395
+#: src/Modules/Fiscalization.php:1217
 #: src/Reminders/Placeholders.php:15
 #: src/WalletPasses/AppleProvider.php:66
 msgid "Ort"
@@ -1743,7 +1763,7 @@ msgid "Ticketarten"
 msgstr "Types de ticket"
 
 #: src/Admin/EventsPage.php:813
-#: src/BoxOffice/Page.php:81
+#: src/BoxOffice/Page.php:95
 #: src/Sales/AdminSections.php:148
 #: src/Sales/AdminSections.php:179
 #: src/Series/AdminPage.php:272
@@ -2186,12 +2206,12 @@ msgstr "Veuillez saisir une période valide : « Valable jusqu’au » doit êtr
 #: src/Admin/MembershipsPage.php:223
 #: src/Memberships.php:181
 #: src/Memberships.php:199
-#: src/Rest/Controller.php:508
+#: src/Rest/Controller.php:511
 msgid "Pass nicht gefunden."
 msgstr "Pass introuvable."
 
 #: src/Admin/MembershipsPage.php:93
-#: src/Rest/Controller.php:510
+#: src/Rest/Controller.php:513
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "Vous n’avez pas l’autorisation pour ce pass."
 
@@ -2375,7 +2395,7 @@ msgstr "Règles de la carte"
 #: src/Admin/MembershipsPage.php:242
 #: src/Admin/OrdersPage.php:381
 #: src/Admin/WaitlistsPage.php:81
-#: src/BoxOffice/Page.php:81
+#: src/BoxOffice/Page.php:95
 #: src/Mail/Types.php:64
 #: src/Mail/Types.php:409
 #: src/Mail/Types.php:429
@@ -2489,7 +2509,7 @@ msgid "WP Voucher Captain ↗"
 msgstr "WP Voucher Captain ↗"
 
 #: src/Admin/OrdersPage.php:37
-#: src/Orders.php:911
+#: src/Orders.php:912
 #: src/Payments/PayPalGateway.php:130
 #: src/Rest/Controller.php:361
 #: src/Rest/Controller.php:430
@@ -2617,6 +2637,7 @@ msgstr "Numéro de commande ou e-mail"
 #: src/Admin/OrdersPage.php:527
 #: src/Admin/ServicesPage.php:443
 #: src/Admin/StatusPage.php:323
+#: src/Modules/Fiscalization.php:1291
 #: src/Partners/Settlements.php:586
 #: src/Partners/Settlements.php:723
 #: src/Printing/AttendeeList.php:50
@@ -2637,7 +2658,7 @@ msgid "Summe"
 msgstr "Total"
 
 #: src/Admin/OrdersPage.php:262
-#: src/BoxOffice/Page.php:132
+#: src/BoxOffice/Page.php:156
 msgid "Zahlart"
 msgstr "Mode de paiement"
 
@@ -2878,7 +2899,7 @@ msgstr "Rembourser tous les tickets ouverts (solde restant de la commande)"
 #: src/Admin/OrdersPage.php:530
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/TicketsPage.php:247
-#: src/BoxOffice/Page.php:161
+#: src/BoxOffice/Page.php:185
 #: src/Mail/Types.php:181
 #: src/Mail/Types.php:190
 msgid "Grund"
@@ -2920,7 +2941,7 @@ msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr "Annuler la commande non payée et libérer la réservation ?"
 
 #: src/Admin/OrdersPage.php:503
-#: src/BoxOffice/Page.php:161
+#: src/BoxOffice/Page.php:185
 msgid "Stornieren"
 msgstr "Annuler la commande"
 
@@ -3116,7 +3137,7 @@ msgid "Ressource nicht gefunden."
 msgstr "Ressource introuvable."
 
 #: src/Admin/ServicesPage.php:39
-#: src/Rest/Controller.php:720
+#: src/Rest/Controller.php:723
 msgid "Keine Berechtigung für diese Ressource."
 msgstr "Vous n’avez pas l’autorisation pour cette ressource."
 
@@ -3589,7 +3610,7 @@ msgstr "Réservation"
 #: src/Admin/ServicesPage.php:443
 #: src/Admin/StatusPage.php:274
 #: src/Admin/StatusPage.php:364
-#: src/BoxOffice/Page.php:81
+#: src/BoxOffice/Page.php:95
 msgid "Anzahl"
 msgstr "Quantité"
 
@@ -3818,6 +3839,7 @@ msgstr "Mode"
 
 #: src/Admin/SettingsPage.php:63
 #: src/Mail/Admin.php:118
+#: src/Modules/Fiscalization.php:1226
 msgid "Test"
 msgstr "Test"
 
@@ -4052,7 +4074,7 @@ msgstr "« %s » n’est pas un montant valide."
 
 #: src/Admin/SettingsPage.php:338
 #: src/Admission/RulesPage.php:120
-#: src/BoxOffice/Page.php:375
+#: src/BoxOffice/Page.php:407
 #: src/Modules/Calendar.php:259
 #: src/Modules/Mollie.php:168
 #: src/Modules/Reminders.php:175
@@ -4290,6 +4312,7 @@ msgid "Letzter Fehler"
 msgstr "Dernière erreur"
 
 #: src/Admin/StatusPage.php:306
+#: src/Modules/Fiscalization.php:1301
 msgid "Erneut versuchen"
 msgstr "Réessayer"
 
@@ -4318,6 +4341,7 @@ msgid "Bei diesen Erstattungen brach der Ablauf während des Aufrufs beim Zahlun
 msgstr "Pour ces remboursements, le traitement s’est interrompu pendant l’appel au prestataire de paiement. Veuillez vérifier dans le compte du prestataire si le versement a eu lieu : « Terminé » comptabilise le remboursement (les tickets sont révoqués), « Échoué » le libère pour une nouvelle tentative."
 
 #: src/Admin/StatusPage.php:323
+#: src/Modules/Fiscalization.php:1361
 #: src/Partners/Settlements.php:56
 #: src/Partners/Settlements.php:586
 msgid "Erstattung"
@@ -4424,7 +4448,7 @@ msgstr "Exécuter la réparation maintenant ?"
 #: src/Admin/TicketsPage.php:82
 #: src/Checkin.php:75
 #: src/Checkin.php:83
-#: src/Orders.php:1892
+#: src/Orders.php:1897
 #: src/ScannerAdapters.php:88
 msgid "Ticket nicht gefunden."
 msgstr "Ticket introuvable."
@@ -4531,7 +4555,7 @@ msgid "Angebot abgelaufen"
 msgstr "Proposition expirée"
 
 #: src/Admin/WaitlistsPage.php:41
-#: src/Rest/Controller.php:556
+#: src/Rest/Controller.php:559
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "Vous n’avez pas l’autorisation pour ce type de ticket."
 
@@ -4753,7 +4777,7 @@ msgid "Klärung"
 msgstr "Clarification"
 
 #: src/Admission/ConflictsPage.php:93
-#: src/BoxOffice/Page.php:170
+#: src/BoxOffice/Page.php:194
 msgid "Notiz"
 msgstr "Note"
 
@@ -4829,7 +4853,7 @@ msgid "Zu viele Tage (höchstens 366)."
 msgstr "Trop de jours (366 au maximum)."
 
 #: src/Admission/Rest.php:58
-#: src/Rest/Controller.php:471
+#: src/Rest/Controller.php:474
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "Le lot de scans hors ligne doit contenir de 1 à 100 codes."
 
@@ -5140,10 +5164,12 @@ msgid "Straße und Hausnummer"
 msgstr "Rue et numéro"
 
 #: src/Billing.php:132
+#: src/Modules/Fiscalization.php:1217
 msgid "PLZ"
 msgstr "Code postal"
 
 #: src/Billing.php:134
+#: src/Modules/Fiscalization.php:1215
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Sales/TaxProfilesPage.php:106
 msgid "Land"
@@ -5206,232 +5232,286 @@ msgid "Für stornierte Verkäufe werden keine Tickets gedruckt."
 msgstr "Aucun ticket n’est imprimé pour les ventes annulées."
 
 #: src/BoxOffice/Page.php:50
-#: src/Modules/BoxOffice.php:120
+#: src/Modules/BoxOffice.php:131
 #: src/Reports/Data.php:112
 msgid "Kasse"
 msgstr "Caisse"
 
-#: src/BoxOffice/Page.php:57
+#: src/BoxOffice/Page.php:58
 #, php-format
 msgid "Verkauf gebucht: Beleg %1$s über %2$s."
 msgstr "Vente enregistrée : reçu %1$s pour %2$s."
 
-#: src/BoxOffice/Page.php:57
+#: src/BoxOffice/Page.php:58
 msgid "Beleg drucken"
 msgstr "Imprimer le reçu"
 
-#: src/BoxOffice/Page.php:60
+#: src/BoxOffice/Page.php:61
 msgid "Tickets drucken (PDF)"
 msgstr "Imprimer les tickets (PDF)"
 
-#: src/BoxOffice/Page.php:63
+#: src/BoxOffice/Page.php:64
 msgid "Kassensitzung öffnen"
 msgstr "Ouvrir une session de caisse"
 
-#: src/BoxOffice/Page.php:65
+#: src/BoxOffice/Page.php:66
 msgid "Wechselgeld (Anfangsbestand)"
 msgstr "Fonds de caisse (solde initial)"
 
-#: src/BoxOffice/Page.php:67
+#: src/BoxOffice/Page.php:70
+msgid "Kassenregister"
+msgstr "Poste de caisse"
+
+#: src/BoxOffice/Page.php:71
+msgid "Bitte wählen"
+msgstr "Veuillez choisir"
+
+#. translators: 1: register name, 2: location ID, 3: register ID
+#: src/BoxOffice/Page.php:74
+#, php-format
+msgid "%1$s (Standort %2$d · %3$s)"
+msgstr "%1$s (site %2$d · %3$s)"
+
+#: src/BoxOffice/Page.php:79
+#: src/Modules/Fiscalization.php:1226
+msgid "Standort-ID (0 = Standard)"
+msgstr "ID du site (0 = par défaut)"
+
+#: src/BoxOffice/Page.php:79
+msgid "Kassen-ID"
+msgstr "ID de caisse"
+
+#: src/BoxOffice/Page.php:81
 msgid "Kasse öffnen"
 msgstr "Ouvrir la caisse"
 
-#: src/BoxOffice/Page.php:81
+#: src/BoxOffice/Page.php:95
 #: src/Series/AdminPage.php:360
 msgid "Verfügbar"
 msgstr "Disponible"
 
-#: src/BoxOffice/Page.php:89
+#: src/BoxOffice/Page.php:103
 msgid "Saalplan: Sitzplätze werden automatisch zugewiesen (beste freie Plätze)."
 msgstr "Plan de salle : les places sont attribuées automatiquement (meilleures places libres)."
 
 #. translators: %s: list of field labels
-#: src/BoxOffice/Page.php:91
+#: src/BoxOffice/Page.php:105
 #, php-format
 msgid "Pflichtangaben je Ticket: %s"
 msgstr "Informations obligatoires par ticket : %s"
 
 #. translators: %s: ticket type
-#: src/BoxOffice/Page.php:93
+#: src/BoxOffice/Page.php:107
 #, php-format
 msgid "Anzahl %s"
 msgstr "Quantité %s"
 
-#: src/BoxOffice/Page.php:97
+#: src/BoxOffice/Page.php:111
 msgid "An der Kasse kann kein Platz im Saalplan gewählt werden: Für Ticketarten mit Saalplan werden die besten freien Plätze automatisch vergeben und auf den Tickets angegeben. Für Wunschplätze bitte die Online-Buchung nutzen."
 msgstr "À la caisse, il n’est pas possible de choisir une place sur le plan de salle : pour les types de ticket avec plan de salle, les meilleures places libres sont attribuées automatiquement et indiquées sur les tickets. Pour choisir vos places, veuillez utiliser la réservation en ligne."
 
-#: src/BoxOffice/Page.php:100
+#: src/BoxOffice/Page.php:114
 msgid "Für Teilnehmerangaben wird JavaScript benötigt."
 msgstr "JavaScript est nécessaire pour les informations des participants."
 
-#: src/BoxOffice/Page.php:101
+#: src/BoxOffice/Page.php:115
 msgid "Summe:"
 msgstr "Total :"
 
-#: src/BoxOffice/Page.php:105
+#: src/BoxOffice/Page.php:119
 msgid "Gegeben (bar)"
 msgstr "Remis (espèces)"
 
-#: src/BoxOffice/Page.php:106
+#: src/BoxOffice/Page.php:120
 msgid "Terminal-Referenz"
 msgstr "Référence du terminal"
 
-#: src/BoxOffice/Page.php:107
+#: src/BoxOffice/Page.php:121
 msgid "E-Mail Käufer (optional, Pflicht bei Rechnung)"
 msgstr "E-mail de l’acheteur (facultatif, obligatoire pour une facture)"
 
-#: src/BoxOffice/Page.php:109
+#: src/BoxOffice/Page.php:123
 msgid "Verkauf buchen"
 msgstr "Enregistrer la vente"
 
-#: src/BoxOffice/Page.php:114
+#: src/BoxOffice/Page.php:128
 msgid "Rückgeld:"
 msgstr "Monnaie à rendre :"
 
 #. translators: 1: running ticket number, 2: ticket type
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/BoxOffice/Page.php:116
+#: src/BoxOffice/Page.php:130
 #: src/Integrations/WooCommerce/Attendees.php:193
 #: src/Integrations/WooCommerce/Attendees.php:328
 #, php-format
 msgid "Ticket %1$d · %2$s"
 msgstr "Ticket %1$d · %2$s"
 
-#: src/BoxOffice/Page.php:118
+#: src/BoxOffice/Page.php:132
 msgid "E-Mail (optional)"
 msgstr "E-mail (facultatif)"
 
-#: src/BoxOffice/Page.php:119
+#: src/BoxOffice/Page.php:133
 msgid "Teilnehmerangaben"
 msgstr "Informations du participant"
 
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:134
+#: src/Modules/Fiscalization.php:1235
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Sales/TaxProfilesPage.php:110
 #: src/Seating/AdminPage.php:181
 msgid "Version"
 msgstr "Version"
 
-#: src/BoxOffice/Page.php:131
-#, php-format
-msgid "Kassensitzung #%1$d (seit %2$s)"
-msgstr "Session de caisse n° %1$d (depuis %2$s)"
-
-#: src/BoxOffice/Page.php:132
-msgid "Verkäufe"
-msgstr "Ventes"
-
-#: src/BoxOffice/Page.php:132
-#: src/Services/Portal.php:251
-msgid "Storniert"
-msgstr "Annulée"
-
-#: src/BoxOffice/Page.php:132
-msgid "Netto-Umsatz"
-msgstr "Chiffre d’affaires net"
-
-#: src/BoxOffice/Page.php:136
-#, php-format
-msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
-msgstr "Solde initial %1$s · solde de caisse attendu (espèces) %2$s"
-
-#: src/BoxOffice/Page.php:140
-msgid "Verkäufe dieser Sitzung"
-msgstr "Ventes de cette session"
+#: src/BoxOffice/Page.php:142
+msgid "Kassen- und Belegeinstellungen"
+msgstr "Paramètres de caisse et de reçu"
 
 #: src/BoxOffice/Page.php:144
-msgid "(nicht gebucht)"
-msgstr "(non enregistrée)"
-
-#: src/BoxOffice/Page.php:144
-#: src/BoxOffice/Service.php:666
-msgid "Beleg"
-msgstr "Reçu"
-
-#: src/BoxOffice/Page.php:149
-msgid "Nachbuchen"
-msgstr "Enregistrer a posteriori"
-
-#: src/BoxOffice/Page.php:154
-msgid "Storno ablehnen"
-msgstr "Refuser l’annulation"
-
-#: src/BoxOffice/Page.php:156
-msgid "Stornobeleg"
-msgstr "Reçu d’annulation"
-
-#: src/BoxOffice/Page.php:159
-msgid "Verkauf wirklich stornieren?"
-msgstr "Annuler vraiment cette vente ?"
-
-#: src/BoxOffice/Page.php:167
-msgid "Kassenabschluss"
-msgstr "Clôture de caisse"
-
-#: src/BoxOffice/Page.php:168
-msgid "Kasse jetzt abschließen?"
-msgstr "Clôturer la caisse maintenant ?"
-
-#: src/BoxOffice/Page.php:170
-msgid "Gezählter Bargeldbestand"
-msgstr "Espèces comptées"
-
-#: src/BoxOffice/Page.php:170
-msgid "Kasse abschließen"
-msgstr "Clôturer la caisse"
-
-#: src/BoxOffice/Page.php:172
-msgid "Belegeinstellungen"
-msgstr "Réglages des reçus"
-
-#: src/BoxOffice/Page.php:174
 msgid "Präfix Belegnummer"
 msgstr "Préfixe du numéro de reçu"
 
-#: src/BoxOffice/Page.php:174
+#: src/BoxOffice/Page.php:144
 #: src/Mail/Admin.php:218
 msgid "Fußzeile"
 msgstr "Pied de page"
 
-#: src/BoxOffice/Page.php:196
+#: src/BoxOffice/Page.php:145
+msgid "Zugelassene Kassenregister (eine Zeile je Register)"
+msgstr "Postes de caisse autorisés (une ligne par poste)"
+
+#: src/BoxOffice/Page.php:145
+msgid "Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen."
+msgstr "Format : ID du site|ID de caisse|nom affiché. Exemple : 23|BOX-01|Caisse entrée principale. Dès que des entrées sont enregistrées, les caissiers ne peuvent choisir qu’un poste autorisé."
+
+#: src/BoxOffice/Page.php:146
+msgid "Kassen- und Belegeinstellungen speichern"
+msgstr "Enregistrer les paramètres de caisse et de reçu"
+
+#: src/BoxOffice/Page.php:153
+#, php-format
+msgid "Kassensitzung #%1$d (seit %2$s)"
+msgstr "Session de caisse n° %1$d (depuis %2$s)"
+
+#. translators: 1: location ID, 2: register ID
+#: src/BoxOffice/Page.php:155
+#, php-format
+msgid "Standort %1$d · Kasse %2$s"
+msgstr "Site %1$d · caisse %2$s"
+
+#. translators: 1: location ID, 2: register ID
+#: src/BoxOffice/Page.php:155
+#: src/Mail/Admin.php:205
+#: src/Mail/Admin.php:236
+#: src/WalletPasses/AdminPage.php:99
+msgid "Standard"
+msgstr "Par défaut"
+
+#: src/BoxOffice/Page.php:156
+msgid "Verkäufe"
+msgstr "Ventes"
+
+#: src/BoxOffice/Page.php:156
+#: src/Services/Portal.php:251
+msgid "Storniert"
+msgstr "Annulée"
+
+#: src/BoxOffice/Page.php:156
+msgid "Netto-Umsatz"
+msgstr "Chiffre d’affaires net"
+
+#: src/BoxOffice/Page.php:160
+#, php-format
+msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
+msgstr "Solde initial %1$s · solde de caisse attendu (espèces) %2$s"
+
+#: src/BoxOffice/Page.php:164
+msgid "Verkäufe dieser Sitzung"
+msgstr "Ventes de cette session"
+
+#: src/BoxOffice/Page.php:168
+msgid "(nicht gebucht)"
+msgstr "(non enregistrée)"
+
+#: src/BoxOffice/Page.php:168
+#: src/BoxOffice/Service.php:685
+msgid "Beleg"
+msgstr "Reçu"
+
+#: src/BoxOffice/Page.php:173
+msgid "Nachbuchen"
+msgstr "Enregistrer a posteriori"
+
+#: src/BoxOffice/Page.php:178
+msgid "Storno ablehnen"
+msgstr "Refuser l’annulation"
+
+#: src/BoxOffice/Page.php:180
+msgid "Stornobeleg"
+msgstr "Reçu d’annulation"
+
+#: src/BoxOffice/Page.php:183
+msgid "Verkauf wirklich stornieren?"
+msgstr "Annuler vraiment cette vente ?"
+
+#: src/BoxOffice/Page.php:191
+msgid "Kassenabschluss"
+msgstr "Clôture de caisse"
+
+#: src/BoxOffice/Page.php:192
+msgid "Kasse jetzt abschließen?"
+msgstr "Clôturer la caisse maintenant ?"
+
+#: src/BoxOffice/Page.php:194
+msgid "Gezählter Bargeldbestand"
+msgstr "Espèces comptées"
+
+#: src/BoxOffice/Page.php:194
+msgid "Kasse abschließen"
+msgstr "Clôturer la caisse"
+
+#: src/BoxOffice/Page.php:215
 msgid "Wichtiger Hinweis:"
 msgstr "Remarque importante :"
 
-#: src/BoxOffice/Page.php:197
+#: src/BoxOffice/Page.php:216
 msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
 msgstr "La caisse n’est pas une caisse enregistreuse au sens de la RKSV (AT) ou de la KassenSichV/TSE (DE). Une unité de signature certifiée est nécessaire pour les paiements en espèces et par carte sur place."
 
-#: src/BoxOffice/Page.php:198
+#: src/BoxOffice/Page.php:217
 msgid "Mehr dazu in der Dokumentation"
 msgstr "Plus d’informations dans la documentation"
 
-#: src/BoxOffice/Page.php:198
+#: src/BoxOffice/Page.php:217
 msgid "(öffnet in neuem Tab)"
 msgstr "(s’ouvre dans un nouvel onglet)"
 
-#: src/BoxOffice/Page.php:199
+#: src/BoxOffice/Page.php:218
 msgid "Hinweis für mich ausblenden"
 msgstr "Masquer l’avis pour moi"
 
-#: src/BoxOffice/Page.php:212
-#: src/BoxOffice/Page.php:336
+#: src/BoxOffice/Page.php:235
+msgid "Bitte ein freigegebenes Kassenregister auswählen."
+msgstr "Veuillez sélectionner un poste de caisse autorisé."
+
+#: src/BoxOffice/Page.php:239
+#: src/BoxOffice/Page.php:364
 msgid "Ungültiger Betrag."
 msgstr "Montant non valide."
 
-#: src/BoxOffice/Page.php:213
+#: src/BoxOffice/Page.php:241
 msgid "Kasse geöffnet."
 msgstr "Caisse ouverte."
 
-#: src/BoxOffice/Page.php:220
+#: src/BoxOffice/Page.php:248
 msgid "Rechnung auf Firma/Adresse (optional)"
 msgstr "Facture à une société/à une adresse (facultatif)"
 
-#: src/BoxOffice/Page.php:221
+#: src/BoxOffice/Page.php:249
 msgid "Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht."
 msgstr "À remplir uniquement si l’acheteur a besoin d’une facture avec nom et adresse. Dès qu’un champ est rempli, le prénom, le nom, la rue, le code postal, la ville et le pays sont obligatoires."
 
-#: src/BoxOffice/Page.php:225
+#: src/BoxOffice/Page.php:253
 #: src/Integrations/WooCommerce/Attendees.php:331
 #: src/OrderPortal.php:128
 #: templates/event-card.php:71
@@ -5440,28 +5520,28 @@ msgstr "À remplir uniquement si l’acheteur a besoin d’une facture avec nom 
 msgid "(optional)"
 msgstr "(facultatif)"
 
-#: src/BoxOffice/Page.php:307
+#: src/BoxOffice/Page.php:335
 msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Annulation créée ; elle est en attente de validation."
 
-#: src/BoxOffice/Page.php:307
+#: src/BoxOffice/Page.php:335
 msgid "Verkauf storniert. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben."
 msgstr "Vente annulée. Veuillez verser le montant ou le créditer sur le terminal de paiement."
 
-#: src/BoxOffice/Page.php:323
+#: src/BoxOffice/Page.php:351
 msgid "Verkauf gebucht."
 msgstr "Vente enregistrée."
 
-#: src/BoxOffice/Page.php:329
+#: src/BoxOffice/Page.php:357
 msgid "Storno abgelehnt; der Verkauf bleibt bestehen."
 msgstr "Annulation refusée ; la vente est maintenue."
 
-#: src/BoxOffice/Page.php:337
+#: src/BoxOffice/Page.php:365
 #, php-format
 msgid "Kasse abgeschlossen. Erwartet %1$s, gezählt %2$s, Differenz %3$s."
 msgstr "Caisse clôturée. Attendu %1$s, compté %2$s, écart %3$s."
 
-#: src/BoxOffice/Page.php:344
+#: src/BoxOffice/Page.php:372
 msgid "Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde."
 msgstr "Il n’existe pas de reçu pour cette vente, car elle n’a pas été enregistrée."
 
@@ -5485,176 +5565,203 @@ msgstr "Carte (terminal)"
 msgid "Freikarte"
 msgstr "Billet gratuit"
 
-#: src/BoxOffice/Service.php:99
+#: src/BoxOffice/Service.php:88
+#: src/Modules/Fiscalization.php:220
+msgid "Kassen-ID ist ungültig."
+msgstr "L’ID de caisse n’est pas valide."
+
+#: src/BoxOffice/Service.php:89
+msgid "Standort und Kasse sind nicht als Register freigegeben."
+msgstr "Ce site et cette caisse ne sont pas autorisés comme poste."
+
+#: src/BoxOffice/Service.php:105
 msgid "Die Kassensitzung konnte nicht geöffnet werden."
 msgstr "La session de caisse n’a pas pu être ouverte."
 
-#: src/BoxOffice/Service.php:155
-#: src/BoxOffice/Service.php:519
+#: src/BoxOffice/Service.php:161
+#: src/BoxOffice/Service.php:537
 msgid "Kassensitzung nicht gefunden."
 msgstr "Session de caisse introuvable."
 
-#: src/BoxOffice/Service.php:156
+#: src/BoxOffice/Service.php:162
 msgid "Nur die eigene Kassensitzung kann geschlossen werden."
 msgstr "Vous ne pouvez clôturer que votre propre session de caisse."
 
-#: src/BoxOffice/Service.php:157
 #: src/BoxOffice/Service.php:163
+#: src/BoxOffice/Service.php:169
 msgid "Die Kassensitzung ist bereits geschlossen."
 msgstr "La session de caisse est déjà clôturée."
 
-#: src/BoxOffice/Service.php:160
+#: src/BoxOffice/Service.php:166
 msgid "Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen."
 msgstr "Une annulation est encore en attente de validation. Veuillez la faire valider ou refuser, puis clôturer la caisse."
 
-#: src/BoxOffice/Service.php:168
+#: src/BoxOffice/Service.php:174
 msgid "Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen."
 msgstr "Une vente payée n’est pas encore enregistrée. Veuillez d’abord exécuter « Enregistrer a posteriori »."
 
-#: src/BoxOffice/Service.php:284
-#: src/BoxOffice/Service.php:312
+#: src/BoxOffice/Service.php:290
+#: src/BoxOffice/Service.php:318
 msgid "Das Formular ist ungültig. Bitte neu laden."
 msgstr "Le formulaire n’est pas valide. Veuillez recharger la page."
 
-#: src/BoxOffice/Service.php:286
-#: src/BoxOffice/Service.php:450
+#: src/BoxOffice/Service.php:292
+#: src/BoxOffice/Service.php:459
 msgid "Dieser Verkauf wird gerade verarbeitet."
 msgstr "Cette vente est en cours de traitement."
 
-#: src/BoxOffice/Service.php:289
-#: src/BoxOffice/Service.php:448
+#: src/BoxOffice/Service.php:295
+#: src/BoxOffice/Service.php:457
 msgid "Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen."
 msgstr "Cette vente n’a pas été enregistrée. Veuillez la saisir à nouveau."
 
-#: src/BoxOffice/Service.php:321
+#: src/BoxOffice/Service.php:327
 msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Veuillez d’abord ouvrir une session de caisse."
 
 #: src/BoxOffice/Service.php:328
+msgid "Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen."
+msgstr "Ce poste de caisse n’est plus autorisé. Veuillez fermer la session et ouvrir un poste autorisé."
+
+#: src/BoxOffice/Service.php:335
 msgid "Bitte eine Zahlart wählen."
 msgstr "Veuillez choisir un mode de paiement."
 
-#: src/BoxOffice/Service.php:340
+#: src/BoxOffice/Service.php:347
 #: src/Seating/Layouts.php:549
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
 msgstr "Un type de ticket n’appartient pas à cette date."
 
-#: src/BoxOffice/Service.php:341
+#: src/BoxOffice/Service.php:348
 msgid "Die Währung der Ticketart passt nicht zur Kassensitzung."
 msgstr "La devise du type de ticket ne correspond pas à la session de caisse."
 
-#: src/BoxOffice/Service.php:345
+#: src/BoxOffice/Service.php:352
 msgid "Bitte mindestens ein Ticket wählen."
 msgstr "Veuillez choisir au moins un ticket."
 
-#: src/BoxOffice/Service.php:348
+#: src/BoxOffice/Service.php:355
 msgid "Die E-Mail-Adresse ist ungültig."
 msgstr "L’adresse e-mail n’est pas valide."
 
-#: src/BoxOffice/Service.php:349
+#: src/BoxOffice/Service.php:356
 msgid "Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich."
 msgstr "L’adresse e-mail de l’acheteur est requise pour un paiement sur facture."
 
-#: src/BoxOffice/Service.php:376
-#: src/BoxOffice/Service.php:489
+#: src/BoxOffice/Service.php:383
+#: src/BoxOffice/Service.php:507
 msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "La vente n’a pas pu être enregistrée."
 
-#: src/BoxOffice/Service.php:406
+#: src/BoxOffice/Service.php:415
 msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
 msgstr "La vente n’a pas pu être enregistrée. Veuillez la soumettre à nouveau."
 
-#: src/BoxOffice/Service.php:421
+#: src/BoxOffice/Service.php:430
 msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
 msgstr "La vente n’a pas pu être comptabilisée pour le moment. Veuillez la soumettre à nouveau."
 
-#: src/BoxOffice/Service.php:447
-#: src/BoxOffice/Service.php:517
+#: src/BoxOffice/Service.php:456
+#: src/BoxOffice/Service.php:535
 msgid "Verkauf nicht gefunden."
 msgstr "Vente introuvable."
 
-#: src/BoxOffice/Service.php:459
+#: src/BoxOffice/Service.php:472
+msgid "Der Fiskalbeleg konnte nicht erstellt werden. Es wurden keine Tickets ausgegeben und der Verkauf wurde nicht gebucht. Bitte unter Fiskalisierung prüfen und erneut versuchen, dann „Nachbuchen“."
+msgstr "Le reçu fiscal n’a pas pu être créé. Aucun billet n’a été émis et la vente n’a pas été enregistrée. Veuillez vérifier sous Fiscalisation, réessayer, puis utiliser « Enregistrer a posteriori »."
+
+#: src/BoxOffice/Service.php:475
+msgid "Der Fiskalbeleg ist noch nicht vom Anbieter bestätigt. Tickets werden erst danach ausgegeben; der Verkauf bleibt offen. Bitte später „Nachbuchen“."
+msgstr "Le fournisseur n’a pas encore confirmé le reçu fiscal. Les billets ne sont émis qu’ensuite ; la vente reste ouverte. Veuillez utiliser « Enregistrer a posteriori » plus tard."
+
+#: src/BoxOffice/Service.php:477
 msgid "Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen."
 msgstr "La commande n’est pas payée ou tous les tickets n’ont pas été émis. La vente n’a pas été enregistrée ; veuillez vérifier la commande."
 
-#: src/BoxOffice/Service.php:478
+#: src/BoxOffice/Service.php:496
 msgid "Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert."
 msgstr "La session de caisse a entre-temps été clôturée. La vente n’a pas été enregistrée et les tickets ont été annulés."
 
-#: src/BoxOffice/Service.php:521
+#: src/BoxOffice/Service.php:539
 msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "Seules les ventes de votre propre session de caisse peuvent être annulées."
 
-#: src/BoxOffice/Service.php:528
+#: src/BoxOffice/Service.php:546
 msgid "Storno ist nur bis zum Kassenabschluss möglich. Danach bitte eine Erstattung über die Bestellung anlegen."
 msgstr "L’annulation n’est possible que jusqu’à la clôture de caisse. Ensuite, veuillez créer un remboursement via la commande."
 
-#: src/BoxOffice/Service.php:539
+#: src/BoxOffice/Service.php:557
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
 msgstr "L’annulation a été refusée ou a échoué. Veuillez réessayer."
 
-#: src/BoxOffice/Service.php:569
+#: src/BoxOffice/Service.php:587
 msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "Aucune annulation n’est en attente pour cette vente."
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:665
+#: src/BoxOffice/Service.php:684
 #: src/Invoices.php:197
 #: src/Invoices.php:211
 #: src/Partners/Settlements.php:658
 msgid "USt-IdNr.:"
 msgstr "N° de TVA :"
 
-#: src/BoxOffice/Service.php:666
+#: src/BoxOffice/Service.php:685
 msgid "STORNOBELEG"
 msgstr "REÇU D’ANNULATION"
 
-#: src/BoxOffice/Service.php:667
+#: src/BoxOffice/Service.php:686
 msgid "Beleg-Nr.:"
 msgstr "N° de reçu :"
 
-#: src/BoxOffice/Service.php:668
+#: src/BoxOffice/Service.php:687
 msgid "Storno zu Beleg"
 msgstr "Annulation du reçu"
 
-#: src/BoxOffice/Service.php:669
+#: src/BoxOffice/Service.php:688
 #: src/Printing/InvoicePdf.php:187
 msgid "Datum:"
 msgstr "Date :"
 
-#: src/BoxOffice/Service.php:669
+#: src/BoxOffice/Service.php:688
 msgid "Kasse/Bediener:"
 msgstr "Caisse/Opérateur :"
 
-#: src/BoxOffice/Service.php:674
+#: src/BoxOffice/Service.php:693
 msgid "SUMME"
 msgstr "TOTAL"
 
-#: src/BoxOffice/Service.php:676
+#: src/BoxOffice/Service.php:695
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr "TVA %1$s %% : net %2$s"
 
-#: src/BoxOffice/Service.php:678
+#: src/BoxOffice/Service.php:697
 msgid "Zahlart:"
 msgstr "Mode de paiement :"
 
-#: src/BoxOffice/Service.php:680
+#: src/BoxOffice/Service.php:699
 msgid "Gegeben"
 msgstr "Remis"
 
-#: src/BoxOffice/Service.php:680
+#: src/BoxOffice/Service.php:699
 msgid "Rückgeld"
 msgstr "Monnaie rendue"
 
-#: src/BoxOffice/Service.php:682
+#: src/BoxOffice/Service.php:701
 msgid "Bestellung:"
 msgstr "Commande :"
 
-#: src/BoxOffice/Service.php:684
+#: src/BoxOffice/Service.php:704
 #: src/Printing/AttendeeList.php:81
 msgid "Drucken"
 msgstr "Imprimer"
+
+#. translators: %s: comma separated line numbers
+#: src/BoxOffice/TerminalRegistry.php:74
+#, php-format
+msgid "Ungültige Kassenliste in Zeile(n): %s. Erwartet wird Standort-ID|Kassen-ID|Anzeigename."
+msgstr "Liste de caisses invalide à la/aux ligne(s) : %s. Format attendu : ID du site|ID de caisse|nom affiché."
 
 #: src/Campaigns.php:31
 msgid "Es können höchstens drei Kampagnencodes verwendet werden."
@@ -5895,105 +6002,212 @@ msgstr "Le remboursement n’attend pas (ou plus) de vérification manuelle."
 msgid "Manuell als fehlgeschlagen markiert (keine Auszahlung beim Anbieter)."
 msgstr "Marqué manuellement comme échoué (aucun versement par le prestataire)."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:23
-msgid "efsta EFR-Verbindungstest wurde abgelehnt."
-msgstr "Le test de connexion efsta EFR a été refusé."
+#: src/Fiscalization/ArchiveExporter.php:23
+msgid "Bitte einen gültigen UTC-Zeitraum wählen."
+msgstr "Veuillez choisir une période UTC valide."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:39
-msgid "efsta-Journalstatus konnte nicht sicher abgefragt werden."
-msgstr "L’état du journal efsta n’a pas pu être interrogé de manière fiable."
+#: src/Fiscalization/Credentials.php:64
+msgid "Verkäufer und Anbieter sind erforderlich."
+msgstr "Le vendeur et le fournisseur sont obligatoires."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:62
-msgid "Ein Steuersatz ist keiner efsta-Steuergruppe zugeordnet."
-msgstr "Un taux de taxe n’est associé à aucun groupe fiscal efsta."
+#: src/Fiscalization/Credentials.php:68
+msgid "Zugangsdaten enthalten ein ungültiges Feld."
+msgstr "Les identifiants contiennent un champ invalide."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:81
-msgid "Der Fiskalbeleg enthält keine Positionen."
-msgstr "Le reçu fiscal ne contient aucune ligne."
+#: src/Fiscalization/Credentials.php:70
+msgid "Zugangsdaten dürfen nicht leer sein und maximal 8192 Zeichen umfassen."
+msgstr "Les identifiants ne doivent pas être vides et peuvent contenir au maximum 8192 caractères."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:86
-msgid "Zahlungsart ist keiner efsta-Zahlungsgruppe zugeordnet."
-msgstr "Le moyen de paiement n’est associé à aucun groupe de paiement efsta."
+#: src/Fiscalization/Credentials.php:81
+msgid "Zugangsdaten können nicht verschlüsselt gespeichert werden (libsodium oder Schlüssel PASS_CAPTAIN_SECRET_KEY bzw. wp-config-Salts fehlen)."
+msgstr "Les identifiants ne peuvent pas être enregistrés chiffrés (libsodium ou la clé PASS_CAPTAIN_SECRET_KEY ou les salts de wp-config manquent)."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:108
-msgid "efsta hat den Beleg nicht bestätigt."
-msgstr "efsta n’a pas confirmé le reçu."
+#: src/Fiscalization/Credentials.php:85
+msgid "Zugangsdaten konnten nicht sicher verschlüsselt werden."
+msgstr "Les identifiants n’ont pas pu être chiffrés de manière sûre."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:112
-msgid "efsta hat die Transaktion abgelehnt oder zur Wiederholung markiert."
-msgstr "efsta a refusé la transaction ou l’a marquée pour une nouvelle tentative."
+#: src/Fiscalization/Credentials.php:94
+msgid "Verschlüsselte Zugangsdaten konnten nicht gespeichert werden."
+msgstr "Les identifiants chiffrés n’ont pas pu être enregistrés."
 
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:122
-msgid "efsta Cloud API-Key und Secret fehlen."
-msgstr "La clé API et le secret efsta Cloud sont manquants."
-
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:124
-msgid "Für efsta Cloud ist die Verkäufer-Steuernummer erforderlich."
-msgstr "Le numéro fiscal du vendeur est requis pour efsta Cloud."
-
-#: src/Fiscalization/Providers/EfstaEfrAdapter.php:130
-msgid "efsta Cloud-Zugang konnte nicht authentifiziert werden."
-msgstr "L’accès efsta Cloud n’a pas pu être authentifié."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:24
-msgid "fiskaltrust-Verbindungstest wurde abgelehnt."
-msgstr "Le test de connexion fiskaltrust a été refusé."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:37
-msgid "fiskaltrust-Status konnte nicht sicher abgefragt werden."
-msgstr "L’état fiskaltrust n’a pas pu être interrogé de manière fiable."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:40
-msgid "fiskaltrust verarbeitet den Vorgang noch."
-msgstr "fiskaltrust traite encore l’opération."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:44
-msgid "fiskaltrust meldet keinen erfolgreich abgeschlossenen Beleg."
-msgstr "fiskaltrust ne signale aucun reçu finalisé avec succès."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:60
-msgid "Steuer- oder Belegfall-Zuordnung für fiskaltrust fehlt."
-msgstr "L’association des taxes ou des cas de reçu pour fiskaltrust est manquante."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:71
-msgid "Zahlungsart ist in fiskaltrust nicht zugeordnet."
-msgstr "Le moyen de paiement n’est pas associé dans fiskaltrust."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:83
-msgid "fiskaltrust hat den Beleg nicht bestätigt."
-msgstr "fiskaltrust n’a pas confirmé le reçu."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:90
-msgid "Die von fiskaltrust für das Land freigegebenen Geschäftsfall-Codes fehlen."
-msgstr "Les codes de cas d’opération validés par fiskaltrust pour le pays sont manquants."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:95
-msgid "Ein Steuersatz ist nicht auf einen fiskaltrust-Belegfall abgebildet."
-msgstr "Un taux de taxe n’est associé à aucun cas de reçu fiskaltrust."
-
-#: src/Fiscalization/Providers/FiskaltrustAdapter.php:116
-msgid "fiskaltrust CashBox-Zugang und POS-System-ID fehlen."
-msgstr "L’accès CashBox fiskaltrust et l’ID du système de caisse sont manquants."
-
-#: src/Fiscalization/Providers/HttpClient.php:24
+#: src/Fiscalization/ProviderHttp.php:43
+#: src/Fiscalization/ProviderHttp.php:88
+#: src/Modules/Fiscalization.php:1507
 msgid "Der Fiskal-Anbieter-Endpunkt ist ungültig oder nicht erlaubt (nur öffentliche HTTPS-Endpunkte; lokale Dienste nur nach Freigabe in den Einstellungen)."
 msgstr "Le point de terminaison du prestataire fiscal n’est pas valide ou n’est pas autorisé (uniquement des points de terminaison HTTPS publics ; services locaux uniquement après autorisation dans les réglages)."
 
-#: src/Fiscalization/Providers/HttpClient.php:41
+#: src/Fiscalization/ProviderHttp.php:82
 msgid "Die Antwort des Fiskal-Anbieters ist zu groß."
 msgstr "La réponse du prestataire fiscal est trop volumineuse."
 
-#: src/Fiscalization/Providers/HttpClient.php:44
+#: src/Fiscalization/ProviderHttp.php:85
 msgid "Der Fiskal-Anbieter hat umgeleitet; Weiterleitungen werden nicht verfolgt."
 msgstr "Le prestataire fiscal a redirigé ; les redirections ne sont pas suivies."
 
-#: src/Fiscalization/Providers/HttpClient.php:46
+#: src/Fiscalization/ProviderHttp.php:90
 msgid "Der Fiskal-Anbieter ist nicht erreichbar."
 msgstr "Le prestataire fiscal est injoignable."
 
-#: src/Fiscalization/Providers/HttpClient.php:52
-msgid "Die Antwort des Fiskal-Anbieters ist kein gültiges JSON."
-msgstr "La réponse du prestataire fiscal n’est pas un JSON valide."
+#: src/Fiscalization/ProviderHttp.php:100
+msgid "Der Fiskal-Anbieter hat die Anfrage abgelehnt oder eine ungültige Antwort gesendet."
+msgstr "Le fournisseur fiscal a refusé la requête ou envoyé une réponse invalide."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:24
+msgid "Die Antwort bestätigt keine laufende efsta EFR-Instanz."
+msgstr "La réponse ne confirme pas une instance efsta EFR en cours d’exécution."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:49
+msgid "Automatisches efsta-Storno ist hier nur für AT und DE freigeschaltet; HU benötigt zusätzliche Kundendaten."
+msgstr "L’annulation efsta automatique n’est activée ici que pour AT et DE ; HU nécessite des données client supplémentaires."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:54
+msgid "Originale efsta-Transaktionskennung fehlt; Storno wird nicht gesendet."
+msgstr "L’identifiant de transaction efsta d’origine manque ; l’annulation n’est pas envoyée."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:77
+msgid "efsta EFR hat das Storno nicht bestätigt."
+msgstr "efsta EFR n’a pas confirmé l’annulation."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:81
+msgid "efsta hat das Storno angenommen, aber keine Referenz geliefert; Vorgang muss abgeglichen werden."
+msgstr "efsta a accepté l’annulation mais n’a renvoyé aucune référence ; l’opération doit être rapprochée."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:100
+msgid "efsta EFR hat die Transaktion nicht bestätigt."
+msgstr "efsta EFR n’a pas confirmé la transaction."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:128
+msgid "Für einen Steuersatz fehlt die efsta-Steuergruppen-Zuordnung."
+msgstr "Un taux de TVA n’a pas de correspondance de groupe fiscal efsta."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:138
+msgid "Die efsta-Belegdaten sind leer oder stimmen betragsmäßig nicht überein."
+msgstr "Les données du reçu efsta sont vides ou les montants ne concordent pas."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:147
+msgid "Für die Zahlungsart fehlt die efsta-Zahlungsgruppen-Zuordnung."
+msgstr "Le mode de paiement n’a pas de correspondance de groupe de paiement efsta."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:168
+msgid "Die efsta EFR-Endpunktadresse muss konfiguriert werden."
+msgstr "L’adresse du point de terminaison efsta EFR doit être configurée."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:45
+msgid "fiskaltrust hat keine Belegreferenz zurückgegeben."
+msgstr "fiskaltrust n’a renvoyé aucune référence de reçu."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:61
+msgid "Die fiskaltrust-Geschäftsfallcodes müssen je Land konfiguriert werden."
+msgstr "Les codes de cas fiskaltrust doivent être configurés par pays."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:79
+msgid "Die Zahlungscode-Zuordnung fehlt oder der Belegbetrag stimmt nicht."
+msgstr "La correspondance des codes de paiement manque ou le montant du reçu ne concorde pas."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:93
+msgid "Die fiskaltrust-POS-System-ID fehlt."
+msgstr "L’ID du système de caisse fiskaltrust manque."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:111
+msgid "fiskaltrust-CashBox-Zugangsdaten oder POS-System-ID fehlen."
+msgstr "Les identifiants CashBox fiskaltrust ou l’ID du système de caisse manquent."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:117
+msgid "fiskaltrust-Endpunkt fehlt."
+msgstr "Le point de terminaison fiskaltrust manque."
+
+#: src/Fiscalization/Providers/FiskalySignAtAdapter.php:40
+msgid "Die RKSV-Belegschema-Zuordnung für fiskaly SIGN AT muss fachlich konfiguriert werden."
+msgstr "La correspondance du schéma de reçu RKSV pour fiskaly SIGN AT doit être configurée par un spécialiste."
+
+#: src/Fiscalization/Providers/FiskalySignAtAdapter.php:61
+msgid "Eine konfigurierte fiskaly SIGN AT Kassen-ID ist erforderlich."
+msgstr "Un ID de caisse fiskaly SIGN AT configuré est obligatoire."
+
+#: src/Fiscalization/Providers/FiskalySignAtAdapter.php:80
+#: src/Fiscalization/Providers/FiskalySignDeAdapter.php:113
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:115
+msgid "fiskaly API-Key und API-Secret fehlen."
+msgstr "La clé API et le secret API fiskaly manquent."
+
+#: src/Fiscalization/Providers/FiskalySignAtAdapter.php:87
+#: src/Fiscalization/Providers/FiskalySignDeAdapter.php:120
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:122
+msgid "fiskaly hat kein Zugriffstoken zurückgegeben."
+msgstr "fiskaly n’a renvoyé aucun jeton d’accès."
+
+#: src/Fiscalization/Providers/FiskalySignAtAdapter.php:93
+msgid "fiskaly-Zugriffstoken abgelaufen; Vorgang wird sicher wiederholt."
+msgstr "Jeton d’accès fiskaly expiré ; l’opération sera relancée en toute sécurité."
+
+#: src/Fiscalization/Providers/FiskalySignDeAdapter.php:32
+msgid "Der fiskaly-TSE-Transaktionsstatus ist nicht eindeutig."
+msgstr "Le statut de la transaction TSE fiskaly est ambigu."
+
+#: src/Fiscalization/Providers/FiskalySignDeAdapter.php:64
+msgid "Für einen Steuersatz fehlt die fiskaly SIGN DE VAT-Zuordnung."
+msgstr "Un taux de TVA n’a pas de correspondance TVA fiskaly SIGN DE."
+
+#: src/Fiscalization/Providers/FiskalySignDeAdapter.php:72
+msgid "Die fiskaly SIGN DE Zahlungsart fehlt oder die Belegsummen stimmen nicht."
+msgstr "Le type de paiement fiskaly SIGN DE manque ou les totaux du reçu ne concordent pas."
+
+#: src/Fiscalization/Providers/FiskalySignDeAdapter.php:109
+msgid "Die fiskaly SIGN DE Ressourcen-ID ist ungültig oder fehlt."
+msgstr "L’ID de ressource fiskaly SIGN DE est invalide ou manquant."
+
+#: src/Fiscalization/Providers/FiskalySignDeAdapter.php:124
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:126
+msgid "fiskaly-Zugriffstoken abgelaufen."
+msgstr "Jeton d’accès fiskaly expiré."
+
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:31
+msgid "Der fiskaly Unified-Vorgang ist älter als das sichere Wiederholungsfenster. Bitte im fiskaly Dashboard abgleichen, bevor erneut signiert wird."
+msgstr "L’opération fiskaly Unified est plus ancienne que la fenêtre de relance sûre. Veuillez la rapprocher dans le tableau de bord fiskaly avant de signer à nouveau."
+
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:42
+msgid "Die fiskaly Unified API unterstützt dieses Land nicht in diesem Adapter."
+msgstr "L’API fiskaly Unified ne prend pas en charge ce pays dans cet adaptateur."
+
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:48
+msgid "fiskaly hat keine Intention-Referenz zurückgegeben."
+msgstr "fiskaly n’a renvoyé aucune référence d’intention."
+
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:55
+msgid "fiskaly hat keine Belegreferenz zurückgegeben."
+msgstr "fiskaly n’a renvoyé aucune référence de reçu."
+
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:74
+msgid "Für einen Steuersatz fehlt die fiskaly Länder-Zuordnung."
+msgstr "Un taux de TVA n’a pas de correspondance pays fiskaly."
+
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:91
+msgid "Zahlungsart fehlt in der fiskaly Länder-Zuordnung oder der Betrag stimmt nicht."
+msgstr "Le mode de paiement manque dans la correspondance pays fiskaly ou le montant ne concorde pas."
+
+#: src/Fiscalization/Providers/FiskalyUnifiedAdapter.php:132
+msgid "Eine fiskaly SIGN Unified API Ressource fehlt in der Konfiguration."
+msgstr "Une ressource fiskaly SIGN Unified API manque dans la configuration."
+
+#: src/Fiscalization/ReceiptRenderer.php:22
+msgid "Fiskalbelege"
+msgstr "Reçus fiscaux"
+
+#: src/Fiscalization/ReceiptRenderer.php:29
+#: src/Modules/Fiscalization.php:1224
+#: src/Modules/Fiscalization.php:1235
+#: src/Modules/Fiscalization.php:1291
+msgid "Verkäufer"
+msgstr "Vendeur"
+
+#: src/Fiscalization/ReceiptRenderer.php:31
+msgid "Fiskalreferenz:"
+msgstr "Référence fiscale :"
+
+#: src/Fiscalization/ReceiptRenderer.php:45
+#: src/Fiscalization/ReceiptRenderer.php:66
+msgid "Fiskal-QR-Code"
+msgstr "Code QR fiscal"
 
 #: src/Frontend/Language.php:54
 msgid "Sprache für E-Mails und Tickets"
@@ -6284,6 +6498,7 @@ msgid "Connector"
 msgstr "Connecteur"
 
 #: src/Integrations/ConnectorsPage.php:207
+#: src/Modules/Fiscalization.php:1338
 #: src/Modules/Webhooks.php:326
 msgid "Ereignis"
 msgstr "Événement"
@@ -6698,118 +6913,171 @@ msgstr "Palier de prix"
 msgid "statt %s"
 msgstr "au lieu de %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:127
+#: src/Integrations/WooCommerce/OrderAdapter.php:140
 msgid "— Kein Ticketprodukt —"
 msgstr "— Aucun produit de ticket —"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:131
+#: src/Integrations/WooCommerce/OrderAdapter.php:144
 msgid "nicht im Verkauf"
 msgstr "pas en vente"
 
 #. translators: %d: ticket type ID
-#: src/Integrations/WooCommerce/OrderAdapter.php:137
+#: src/Integrations/WooCommerce/OrderAdapter.php:150
 #, php-format
 msgid "Unbekannte Ticketkategorie #%d"
 msgstr "Type de ticket inconnu n° %d"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:143
+#: src/Integrations/WooCommerce/OrderAdapter.php:156
 msgid "Pass Captain Ticketkategorie"
 msgstr "Type de ticket Pass Captain"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:145
+#: src/Integrations/WooCommerce/OrderAdapter.php:158
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
 msgstr "Ce produit vend des tickets du type choisi. Le contingent, la fenêtre de vente, la quantité maximale et – selon le réglage WooCommerce – le prix, paliers de prix inclus, proviennent de Pass Captain. Laissez la gestion des stocks de WooCommerce désactivée pour ce produit."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:146
+#: src/Integrations/WooCommerce/OrderAdapter.php:159
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
 msgstr "Ce produit vend des tickets du type choisi. Le contingent, la fenêtre de vente et la quantité maximale proviennent de Pass Captain ; le prix provient de WooCommerce. Laissez la gestion des stocks de WooCommerce désactivée pour ce produit."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:364
+#: src/Integrations/WooCommerce/OrderAdapter.php:166
+msgid "— Verkäufer für normales Produkt wählen —"
+msgstr "— Choisir le vendeur du produit ordinaire —"
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:168
+msgid "Fiskalischer Verkäufer (normales WooCommerce-Produkt)"
+msgstr "Vendeur fiscal (produit WooCommerce ordinaire)"
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:168
+msgid "Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkäuferzuordnung der Pass-Captain-Ticketart."
+msgstr "Pour les paniers mixtes. Les produits billets continuent d’utiliser le vendeur attribué au type de billet Pass Captain."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:169
+#: src/Modules/Fiscalization.php:1283
+msgid "Verkäuferrolle"
+msgstr "Rôle du vendeur"
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:169
+#: src/Modules/Fiscalization.php:1283
+msgid "Betreibergesellschaft ist Verkäufer"
+msgstr "La société exploitante est le vendeur"
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:169
+#: src/Modules/Fiscalization.php:1283
+msgid "Veranstalter ist Verkäufer"
+msgstr "L’organisateur est le vendeur"
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:396
 msgid "Diese Ticketkategorie existiert nicht mehr."
 msgstr "Ce type de ticket n’existe plus."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:370
+#: src/Integrations/WooCommerce/OrderAdapter.php:402
 #, php-format
 msgid "„%s“ ist nicht mehr buchbar."
 msgstr "« %s » n’est plus réservable."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:374
+#: src/Integrations/WooCommerce/OrderAdapter.php:406
 #, php-format
 msgid "Der Verkauf für „%s“ ist derzeit geschlossen."
 msgstr "Les ventes pour « %s » sont actuellement fermées."
 
 #. translators: 1: max quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:378
+#: src/Integrations/WooCommerce/OrderAdapter.php:410
 #, php-format
 msgid "Pro Bestellung sind höchstens %1$d Tickets für „%2$s“ möglich."
 msgstr "Au maximum %1$d tickets pour « %2$s » sont possibles par commande."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:384
+#: src/Integrations/WooCommerce/OrderAdapter.php:416
 #, php-format
 msgid "„%s“ ist ausverkauft."
 msgstr "« %s » est complet."
 
 #. translators: 1: available quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:386
+#: src/Integrations/WooCommerce/OrderAdapter.php:418
 #, php-format
 msgid "Für „%2$s“ sind nur noch %1$d Tickets verfügbar."
 msgstr "Il ne reste que %1$d tickets pour « %2$s »."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:392
+#: src/Integrations/WooCommerce/OrderAdapter.php:424
 #, php-format
 msgid "Für „%s“ sind keine passenden Sitzplätze mehr frei."
 msgstr "Il n’y a plus de places assises adaptées pour « %s »."
 
 #. translators: 1: free seats, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:394
+#: src/Integrations/WooCommerce/OrderAdapter.php:426
 #, php-format
 msgid "Für „%2$s“ sind nur noch %1$d passende Sitzplätze frei."
 msgstr "Il ne reste que %1$d places assises adaptées pour « %2$s »."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:487
+#: src/Integrations/WooCommerce/OrderAdapter.php:519
 msgid "Für Tickets wird eine gültige E-Mail-Adresse benötigt."
 msgstr "Une adresse e-mail valide est requise pour les tickets."
 
 #. translators: 1: hold minutes, 2: number of seller orders, 3: list of orders and sellers
-#: src/Integrations/WooCommerce/OrderAdapter.php:563
+#: src/Integrations/WooCommerce/OrderAdapter.php:605
 #, php-format
 msgid "Pass Captain: Tickets für %1$d Minuten reserviert, aufgeteilt auf %2$d Bestellungen je Rechnungssteller: %3$s."
 msgstr "Pass Captain : tickets réservés pendant %1$d minutes, répartis en %2$d commandes par émetteur de la facture : %3$s."
 
 #. translators: %d: hold minutes
-#: src/Integrations/WooCommerce/OrderAdapter.php:566
+#: src/Integrations/WooCommerce/OrderAdapter.php:608
 #, php-format
 msgid "Pass Captain: Tickets für %d Minuten reserviert."
 msgstr "Pass Captain : tickets réservés pour %d minutes."
 
+#: src/Integrations/WooCommerce/OrderAdapter.php:804
+msgid "Ein Rabatt als negative Gebühr kann in dieser Bestellung nicht auf dem Fiskalbeleg abgebildet werden, weil er auch auf andere Produkte als Tickets entfällt. Bitte einen Gutschein (Coupon) verwenden oder die Tickets getrennt bestellen."
+msgstr "Une remise ajoutée comme frais négatifs ne peut pas figurer sur le reçu fiscal de cette commande, car elle s’applique aussi à d’autres produits que des billets. Veuillez utiliser un code promo ou commander les billets séparément."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:840
+msgid "Jede zusätzliche Ware, Gebühr und Versandposition in einer Bestellung mit fiskalischen Tickets muss einem rechtlichen Verkäufer zugeordnet sein."
+msgstr "Chaque produit, frais et ligne d’expédition supplémentaire d’une commande avec des billets fiscaux doit être attribué à un vendeur juridique."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:868
+msgid "Negative Beträge müssen als WooCommerce-Rabatt (Gutschein) statt als negative Position eingerichtet werden."
+msgstr "Les montants négatifs doivent être configurés comme remise WooCommerce (code promo) plutôt que comme ligne négative."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:872
+msgid "Eine zusätzliche Warenkorbposition enthält mehrere Steuersätze und kann nicht sicher einem Fiskalbeleg zugeordnet werden."
+msgstr "Une ligne supplémentaire du panier contient plusieurs taux de TVA et ne peut pas être attribuée à un reçu fiscal de manière sûre."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:877
+msgid "Der WooCommerce-Steuersatz für eine zusätzliche Position konnte nicht eindeutig bestimmt werden."
+msgstr "Le taux de TVA WooCommerce d’une ligne supplémentaire n’a pas pu être déterminé sans ambiguïté."
+
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:708
+#: src/Integrations/WooCommerce/OrderAdapter.php:946
 #, php-format
 msgid "Pass Captain: Tickets konnten nicht reserviert werden: %s"
 msgstr "Pass Captain : les tickets n’ont pas pu être réservés : %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:734
+#: src/Integrations/WooCommerce/OrderAdapter.php:972
 msgid "Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird."
 msgstr "Pass Captain : paiement à la livraison/au retrait – les tickets restent réservés et seront émis dès que la commande passera à « Terminée »."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:750
+#: src/Integrations/WooCommerce/OrderAdapter.php:988
 #, php-format
 msgid "Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s"
 msgstr "Pass Captain : paiement reçu, mais les tickets n’ont pas pu être réservés à nouveau – veuillez régler manuellement. %s"
 
 #. translators: 1: seller order prefix (may be empty), 2: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:791
+#: src/Integrations/WooCommerce/OrderAdapter.php:1029
 #, php-format
 msgid "Pass Captain: %1$sKeine Tickets ausgestellt – %2$s"
 msgstr "Pass Captain : %1$saucun ticket émis – %2$s"
 
+#. translators: %s: seller order prefix (may be empty)
+#: src/Integrations/WooCommerce/OrderAdapter.php:1036
+#, php-format
+msgid "Pass Captain: %sZahlung übernommen, Tickets warten noch auf die Fiskalisierung. Fiskalstatus unter Pass Captain → Fiskalisierung prüfen oder den Fiskal-Retry auslösen."
+msgstr "Pass Captain : %sPaiement accepté, les billets attendent encore la fiscalisation. Vérifiez le statut fiscal sous Pass Captain → Fiscalisation ou relancez la fiscalisation."
+
 #. translators: 1: seller order prefix (may be empty), 2: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:796
+#: src/Integrations/WooCommerce/OrderAdapter.php:1040
 #, php-format
 msgid "Pass Captain: %1$s%2$d Ticket ausgestellt und per E-Mail versendet."
 msgid_plural "Pass Captain: %1$s%2$d Tickets ausgestellt und per E-Mail versendet."
@@ -6817,134 +7085,134 @@ msgstr[0] "Pass Captain : %1$s%2$d ticket émis et envoyé par e-mail."
 msgstr[1] "Pass Captain : %1$s%2$d tickets émis et envoyés par e-mail."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:938
+#: src/Integrations/WooCommerce/OrderAdapter.php:1189
 #, php-format
 msgid "Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht."
 msgstr "Pass Captain : le remboursement n’a pas encore pu être pris en compte (%s). Il sera retenté automatiquement."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:940
+#: src/Integrations/WooCommerce/OrderAdapter.php:1191
 #, php-format
 msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s. Sie wird automatisch erneut versucht; schlägt das dauerhaft fehl, erscheint der Auftrag auf der Seite Pass Captain → Systemstatus."
 msgstr "Pass Captain : le remboursement n’a pas pu être appliqué – %s. Il sera réessayé automatiquement ; en cas d’échec persistant, la tâche apparaît sur la page Pass Captain → État du système."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:975
+#: src/Integrations/WooCommerce/OrderAdapter.php:1226
 msgid "Erstattung in WooCommerce"
 msgstr "Remboursement dans WooCommerce"
 
 #. translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:994
+#: src/Integrations/WooCommerce/OrderAdapter.php:1245
 #, php-format
 msgid "Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket(s)."
 msgstr "Pass Captain : remboursement de la commande n° %1$d (%2$s) : %3$s, %4$d ticket(s)."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1010
+#: src/Integrations/WooCommerce/OrderAdapter.php:1261
 #, php-format
 msgid "Pass Captain: %d erstattete(s) Ticket(s) waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht."
 msgstr "Pass Captain : %d ticket(s) remboursé(s) avai(en)t déjà fait l’objet d’un check-in et, selon le réglage, n’a/ont pas été marqué(s) comme remboursé(s) ; le montant a été comptabilisé."
 
 #. translators: 1: event and ticket name, 2: number of tickets that can be refunded
-#: src/Integrations/WooCommerce/OrderAdapter.php:1082
+#: src/Integrations/WooCommerce/OrderAdapter.php:1333
 #, php-format
 msgid "Pass Captain: Für „%1$s“ können nur %2$d nicht eingecheckte Tickets erstattet werden. Eingecheckte Tickets werden laut Einstellung nicht erstattet. Erstatte nur einen Betrag ohne Menge oder erlaube die Erstattung eingecheckter Tickets unter WooCommerce → Einstellungen → Produkte → Pass Captain."
 msgstr "Pass Captain : pour « %1$s », seuls %2$d tickets sans check-in peuvent être remboursés. Selon le réglage, les tickets ayant fait l’objet d’un check-in ne sont pas remboursés. Remboursez uniquement un montant sans quantité ou autorisez le remboursement des tickets ayant fait l’objet d’un check-in sous WooCommerce → Réglages → Produits → Pass Captain."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1316
+#: src/Integrations/WooCommerce/OrderAdapter.php:1625
 #, php-format
 msgid "Pass Captain: %d Ticket(s) wegen Erstattung widerrufen."
 msgstr "Pass Captain : %d ticket(s) révoqué(s) suite au remboursement."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1319
+#: src/Integrations/WooCommerce/OrderAdapter.php:1628
 #, php-format
 msgid "%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert."
 msgstr "%d ticket(s) remboursé(s) étaient déjà enregistrés ou n’étaient plus valides et n’ont pas été modifiés."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1345
+#: src/Integrations/WooCommerce/OrderAdapter.php:1654
 msgid "Pass Captain: Die Tickets konnten wegen eines Datenbankfehlers noch nicht widerrufen werden. Der Vorgang wird automatisch wiederholt."
 msgstr "Pass Captain : les tickets n’ont pas encore pu être révoqués en raison d’une erreur de base de données. L’opération sera retentée automatiquement."
 
 #. translators: 1: seller order ID, 2: seller name
-#: src/Integrations/WooCommerce/OrderAdapter.php:1362
+#: src/Integrations/WooCommerce/OrderAdapter.php:1671
 #, php-format
 msgid "Pass Captain: Ein Termin der Bestellung #%1$d (%2$s) wurde abgesagt; die Tickets sind widerrufen. Bitte diese Positionen in WooCommerce mit Menge erstatten – die Erstattung wird dieser Bestellung zugeordnet."
 msgstr "Pass Captain : une date de la commande n° %1$d (%2$s) a été annulée ; les tickets ont été révoqués. Veuillez rembourser ces lignes avec quantité dans WooCommerce – le remboursement sera associé à cette commande."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1369
+#: src/Integrations/WooCommerce/OrderAdapter.php:1678
 msgid "Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten."
 msgstr "Pass Captain : une date de cette commande a été annulée ; les tickets sont révoqués. Veuillez rembourser la commande dans WooCommerce."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1400
+#: src/Integrations/WooCommerce/OrderAdapter.php:1709
 msgid "Deine Tickets"
 msgstr "Vos tickets"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1402
+#: src/Integrations/WooCommerce/OrderAdapter.php:1711
 msgid "Deine Tickets werden nach bestätigter Zahlung per E-Mail zugestellt."
 msgstr "Vos tickets vous seront envoyés par e-mail une fois le paiement confirmé."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1405
+#: src/Integrations/WooCommerce/OrderAdapter.php:1714
 msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "Nous vous avons envoyé par e-mail les liens des tickets avec QR code."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1417
+#: src/Integrations/WooCommerce/OrderAdapter.php:1726
 #: src/Privacy.php:243
 msgid "Pass Captain Tickets"
 msgstr "Tickets Pass Captain"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1426
+#: src/Integrations/WooCommerce/OrderAdapter.php:1735
 msgid "Keine Tickets in dieser Bestellung."
 msgstr "Aucun ticket dans cette commande."
 
 #. translators: 1: order ID, 2: status, 3: payment status
-#: src/Integrations/WooCommerce/OrderAdapter.php:1434
+#: src/Integrations/WooCommerce/OrderAdapter.php:1743
 #, php-format
 msgid "Pass Captain Bestellung #%1$d: %2$s / %3$s"
 msgstr "Commande Pass Captain n° %1$d : %2$s / %3$s"
 
 #. translators: %s: seller name
-#: src/Integrations/WooCommerce/OrderAdapter.php:1437
+#: src/Integrations/WooCommerce/OrderAdapter.php:1746
 #, php-format
 msgid "Rechnungssteller: %s"
 msgstr "Émetteur de la facture : %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1441
+#: src/Integrations/WooCommerce/OrderAdapter.php:1750
 msgid "Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten."
 msgstr "Paiement reçu, mais plus de contingent disponible. Veuillez libérer une place et choisir « Émettre à nouveau les tickets », ou rembourser."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1454
+#: src/Integrations/WooCommerce/OrderAdapter.php:1763
 msgid "Pass Captain: Tickets erneut senden (neue Codes)"
 msgstr "Pass Captain : renvoyer les tickets (nouveaux codes)"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1455
+#: src/Integrations/WooCommerce/OrderAdapter.php:1764
 msgid "Pass Captain: Tickets erneut ausstellen"
 msgstr "Pass Captain : émettre à nouveau les tickets"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:1470
+#: src/Integrations/WooCommerce/OrderAdapter.php:1779
 #, php-format
 msgid "Pass Captain: Erneuter Versand fehlgeschlagen – %s"
 msgstr "Pass Captain : échec du renvoi – %s"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:1470
+#: src/Integrations/WooCommerce/OrderAdapter.php:1779
 msgid "Pass Captain: Tickets mit neuen Codes erneut gesendet."
 msgstr "Pass Captain : tickets renvoyés avec de nouveaux codes."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1479
+#: src/Integrations/WooCommerce/OrderAdapter.php:1788
 msgid "Pass Captain: Bei dieser Zahlungsart werden die Tickets erst mit dem Status „Abgeschlossen“ ausgestellt."
 msgstr "Pass Captain : avec ce mode de paiement, les tickets ne sont émis qu’au statut « Terminée »."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1483
+#: src/Integrations/WooCommerce/OrderAdapter.php:1792
 msgid "Pass Captain: Die Bestellung ist noch nicht bezahlt."
 msgstr "Pass Captain : la commande n’est pas encore payée."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1490
+#: src/Integrations/WooCommerce/OrderAdapter.php:1799
 msgid "gültig"
 msgstr "valide"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1491
+#: src/Integrations/WooCommerce/OrderAdapter.php:1800
 msgid "eingecheckt"
 msgstr "enregistré"
 
@@ -7251,12 +7519,6 @@ msgstr "Personnalisez l’objet et le texte des e-mails destinés aux clients �
 #: src/Mail/Admin.php:202
 msgid "Eigene Vorlagen"
 msgstr "Modèles personnalisés"
-
-#: src/Mail/Admin.php:205
-#: src/Mail/Admin.php:236
-#: src/WalletPasses/AdminPage.php:99
-msgid "Standard"
-msgstr "Par défaut"
 
 #: src/Mail/Admin.php:208
 msgid "Erinnerung"
@@ -8417,6 +8679,503 @@ msgstr "E-mail du ticket"
 msgid "Kalenderdatei (.ics) je Termin anhängen"
 msgstr "Joindre un fichier de calendrier (.ics) pour chaque date"
 
+#: src/Modules/Fiscalization.php:184
+msgid "Für diese Tickets ist die Belegerstellung (Fiskalisierung) derzeit nicht verfügbar. Der Kauf ist im Moment nicht möglich; bitte später erneut versuchen oder den Veranstalter kontaktieren."
+msgstr "La création de reçus (fiscalisation) n’est pas disponible actuellement pour ces billets. L’achat n’est pas possible pour le moment ; veuillez réessayer plus tard ou contacter l’organisateur."
+
+#: src/Modules/Fiscalization.php:188
+msgid "Die Verkäuferzuordnung dieser Tickets für die Belegerstellung ist unvollständig oder widersprüchlich. Der Kauf ist im Moment nicht möglich; bitte den Veranstalter kontaktieren."
+msgstr "L’attribution du vendeur de ces billets pour la création de reçus est incomplète ou incohérente. L’achat n’est pas possible pour le moment ; veuillez contacter l’organisateur."
+
+#: src/Modules/Fiscalization.php:230
+msgid "Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig."
+msgstr "Le profil fiscal, le vendeur ou la configuration non secrète n’est pas valide."
+
+#: src/Modules/Fiscalization.php:233
+msgid "Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung."
+msgstr "La mise en production nécessite une vérification pays documentée, une version de référentiel et une confirmation explicite."
+
+#: src/Modules/Fiscalization.php:251
+msgid "Fiskalprofil konnte nicht gespeichert werden."
+msgstr "Le profil fiscal n’a pas pu être enregistré."
+
+#: src/Modules/Fiscalization.php:266
+msgid "Verkäuferzuordnung ist ungültig."
+msgstr "L’attribution du vendeur n’est pas valide."
+
+#: src/Modules/Fiscalization.php:272
+msgid "Ticketart oder aktiver Rechtsträger wurde nicht gefunden."
+msgstr "Type de billet ou entité juridique active introuvable."
+
+#: src/Modules/Fiscalization.php:276
+msgid "Diese Ticketart wird von der Plattform in eigenem Namen verkauft (Verkaufsmodell). Als Verkäuferrolle ist „Betreibergesellschaft ist Verkäufer“ erforderlich."
+msgstr "Ce type de billet est vendu par la plateforme en son propre nom (modèle de vente). Le rôle du vendeur doit être « La société exploitante est le vendeur »."
+
+#: src/Modules/Fiscalization.php:277
+msgid "Diese Ticketart wird im Namen des Veranstalters verkauft (Verkaufsmodell Vermittler). Als Verkäuferrolle ist „Veranstalter ist Verkäufer“ erforderlich."
+msgstr "Ce type de billet est vendu au nom de l’organisateur (modèle de vente intermédiaire). Le rôle du vendeur doit être « L’organisateur est le vendeur »."
+
+#: src/Modules/Fiscalization.php:285
+msgid "Verkäuferzuordnung konnte nicht gespeichert werden."
+msgstr "L’attribution du vendeur n’a pas pu être enregistrée."
+
+#: src/Modules/Fiscalization.php:296
+msgid "Kassenstellen-Zuordnung ist ungültig."
+msgstr "L’attribution du poste de caisse n’est pas valide."
+
+#: src/Modules/Fiscalization.php:299
+msgid "Kassen-ID darf nur Buchstaben, Ziffern sowie . _ : - enthalten und maximal 64 Zeichen lang sein."
+msgstr "L’ID de caisse ne peut contenir que des lettres, des chiffres et . _ : - et comporter au maximum 64 caractères."
+
+#: src/Modules/Fiscalization.php:459
+msgid "WooCommerce-Position"
+msgstr "Ligne WooCommerce"
+
+#: src/Modules/Fiscalization.php:609
+msgid "Unbekannte Fiskal-Ausfallregel."
+msgstr "Règle de panne fiscale inconnue."
+
+#: src/Modules/Fiscalization.php:712
+msgid "Für diesen Vorgang ist kein automatisches efsta-Storno verfügbar."
+msgstr "Aucune annulation efsta automatique n’est disponible pour cette opération."
+
+#: src/Modules/Fiscalization.php:716
+msgid "Ein bereits bezahlter Vorgang darf nicht als Storno automatisiert werden."
+msgstr "Une opération déjà payée ne doit pas être annulée automatiquement."
+
+#: src/Modules/Fiscalization.php:721
+msgid "Der unveränderbare Originalbeleg oder seine Anbieterkonfiguration fehlt."
+msgstr "Le reçu d’origine immuable ou sa configuration fournisseur manque."
+
+#: src/Modules/Fiscalization.php:725
+msgid "Automatisches efsta-Storno ist für dieses Land nicht freigeschaltet."
+msgstr "L’annulation efsta automatique n’est pas activée pour ce pays."
+
+#: src/Modules/Fiscalization.php:733
+msgid "Für dieses Storno gab es bereits einen Sendeversuch. Anbieterstatus prüfen und nicht erneut senden."
+msgstr "Cette annulation a déjà fait l’objet d’une tentative d’envoi. Vérifiez le statut chez le fournisseur et ne l’envoyez pas à nouveau."
+
+#: src/Modules/Fiscalization.php:746
+msgid "efsta-Storno konnte nicht bestätigt werden. Anbieterstatus prüfen und keine automatische Wiederholung auslösen."
+msgstr "L’annulation efsta n’a pas pu être confirmée. Vérifiez le statut chez le fournisseur et ne déclenchez pas de relance automatique."
+
+#: src/Modules/Fiscalization.php:776
+msgid "Korrekturart und Anbieter-Referenz sind erforderlich."
+msgstr "Le type de correction et la référence du fournisseur sont obligatoires."
+
+#: src/Modules/Fiscalization.php:780
+msgid "Offener Fiskalkorrekturvorgang wurde nicht gefunden."
+msgstr "Tâche de correction fiscale ouverte introuvable."
+
+#: src/Modules/Fiscalization.php:789
+msgid "Für diesen Vorgang wurde bereits eine Anbieter-Referenz dokumentiert."
+msgstr "Une référence de fournisseur a déjà été consignée pour cette tâche."
+
+#: src/Modules/Fiscalization.php:906
+msgid "Fiskalvorgang wurde nicht gefunden."
+msgstr "Document fiscal introuvable."
+
+#: src/Modules/Fiscalization.php:913
+msgid "Anbieter oder Verkäuferdaten fehlen."
+msgstr "Les données du fournisseur ou du vendeur manquent."
+
+#: src/Modules/Fiscalization.php:921
+msgid "Der Anbieterstatus ist weiterhin unklar; es wurde keine neue Beleganlage ausgelöst."
+msgstr "Le statut chez le fournisseur reste incertain ; aucun nouveau reçu n’a été créé."
+
+#: src/Modules/Fiscalization.php:929
+msgid "Der Anbieter meldet den Beleg als erstellt, aber die erforderlichen QR-Daten fehlen. Es wurde kein zweiter Beleg erstellt."
+msgstr "Le fournisseur indique que le reçu a été créé, mais les données QR requises manquent. Aucun second reçu n’a été créé."
+
+#: src/Modules/Fiscalization.php:939
+msgid "Der Anbieter hat keinen verwertbaren Status geliefert."
+msgstr "Le fournisseur n’a renvoyé aucun statut exploitable."
+
+#: src/Modules/Fiscalization.php:994
+msgid "Pass Captain: Fiskalvorgang erfordert Eingriff"
+msgstr "Pass Captain : un document fiscal nécessite une intervention"
+
+#. translators: 1: document ID, 2: order ID, 3: seller, 4: provider ID, 5: error code
+#: src/Modules/Fiscalization.php:997
+#, php-format
+msgid "Der Fiskalvorgang %1$d für Bestellung %2$d ist fehlgeschlagen. Verkäufer: %3$s. Anbieter: %4$s. Fehlercode: %5$s. Ticket-Ausgabe bleibt gesperrt, bis der Vorgang geprüft und behoben wurde."
+msgstr "Le document fiscal %1$d de la commande %2$d a échoué. Vendeur : %3$s. Fournisseur : %4$s. Code d’erreur : %5$s. L’émission des billets reste bloquée jusqu’à ce que le document ait été vérifié et résolu."
+
+#: src/Modules/Fiscalization.php:1049
+#: src/Modules/Fiscalization.php:1209
+msgid "Fiskalisierung"
+msgstr "Fiscalisation"
+
+#: src/Modules/Fiscalization.php:1210
+msgid "Änderung gespeichert."
+msgstr "Modification enregistrée."
+
+#: src/Modules/Fiscalization.php:1211
+msgid "Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen."
+msgstr "La modification a échoué. Vérifiez les saisies, l’adaptateur et la prise en charge du pays."
+
+#: src/Modules/Fiscalization.php:1212
+msgid "Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt."
+msgstr "Les reçus fiscaux sont créés par entité juridique. Un billet attribué n’est émis qu’une fois le reçu confirmé par l’adaptateur configuré."
+
+#: src/Modules/Fiscalization.php:1213
+msgid "Rechtsträger anlegen"
+msgstr "Créer une entité juridique"
+
+#: src/Modules/Fiscalization.php:1215
+msgid "Rechtlicher Name"
+msgstr "Raison sociale"
+
+#: src/Modules/Fiscalization.php:1215
+msgid "Steuernummer / VAT-ID"
+msgstr "Numéro fiscal / numéro de TVA"
+
+#: src/Modules/Fiscalization.php:1216
+msgid "VAT-ID"
+msgstr "Numéro de TVA"
+
+#: src/Modules/Fiscalization.php:1216
+#: src/Partners/AdminPage.php:257
+msgid "Kontakt-E-Mail"
+msgstr "E-mail de contact"
+
+#: src/Modules/Fiscalization.php:1217
+msgid "Geschäftsadresse"
+msgstr "Adresse professionnelle"
+
+#: src/Modules/Fiscalization.php:1217
+msgid "Region"
+msgstr "Région"
+
+#: src/Modules/Fiscalization.php:1217
+msgid "Land der Anschrift"
+msgstr "Pays de l’adresse"
+
+#: src/Modules/Fiscalization.php:1218
+msgid "Rechtsträger speichern"
+msgstr "Enregistrer l’entité juridique"
+
+#: src/Modules/Fiscalization.php:1219
+msgid "Länder- und Verkaufskanalprofil"
+msgstr "Profil pays et canal de vente"
+
+#: src/Modules/Fiscalization.php:1220
+msgid "Ein Produktivprofil erfordert dokumentierte fachliche Prüfung. Die Plugin-Freigabe ersetzt keine rechtliche oder steuerliche Prüfung."
+msgstr "Un profil de production nécessite une vérification spécialisée documentée. L’activation dans le plugin ne remplace pas un examen juridique ou fiscal."
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Kassen-ID (leer = Standard)"
+msgstr "ID de caisse (vide = par défaut)"
+
+#: src/Modules/Fiscalization.php:1226
+#: src/Reports/Data.php:481
+msgid "Kanal"
+msgstr "Canal"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "POS/Abendkasse"
+msgstr "Point de vente/caisse"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Eigener Checkout"
+msgstr "Paiement propre"
+
+#: src/Modules/Fiscalization.php:1226
+#: src/Modules/Fiscalization.php:1235
+msgid "Umgebung"
+msgstr "Environnement"
+
+#: src/Modules/Fiscalization.php:1226
+#: src/WalletPasses/AdminPage.php:194
+msgid "Produktion"
+msgstr "Production"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Produktiv mit Adapter"
+msgstr "Production avec adaptateur"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Geprüft: nicht erforderlich"
+msgstr "Vérifié : non requis"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Gesperrt"
+msgstr "Suspendu"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Regelwerk/Profil"
+msgstr "Référentiel/profil"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Regelwerkversion"
+msgstr "Version du référentiel"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Rechts-/Prüfreferenz"
+msgstr "Référence juridique/de vérification"
+
+#: src/Modules/Fiscalization.php:1226
+msgid "Ich bestätige die fachliche Prüfung und Freigabe dieses Profils."
+msgstr "Je confirme la vérification spécialisée et la validation de ce profil."
+
+#: src/Modules/Fiscalization.php:1227
+msgid "Ausfallverhalten"
+msgstr "Comportement en cas de panne"
+
+#: src/Modules/Fiscalization.php:1227
+msgid "Verkauf stoppen, bis Anbieter wieder verfügbar ist"
+msgstr "Arrêter les ventes jusqu’à ce que le fournisseur soit de nouveau disponible"
+
+#: src/Modules/Fiscalization.php:1227
+msgid "Anbieter-gepufferter Notbetrieb (Adapterfähigkeit erforderlich)"
+msgstr "Mode de secours mis en mémoire tampon par le fournisseur (capacité de l’adaptateur requise)"
+
+#: src/Modules/Fiscalization.php:1228
+msgid "Zusätzliche Adapterfähigkeiten (Komma-getrennt)"
+msgstr "Capacités supplémentaires de l’adaptateur (séparées par des virgules)"
+
+#: src/Modules/Fiscalization.php:1229
+msgid "Profil speichern"
+msgstr "Enregistrer le profil"
+
+#: src/Modules/Fiscalization.php:1232
+msgid "Gespeicherte Profile"
+msgstr "Profils enregistrés"
+
+#: src/Modules/Fiscalization.php:1233
+msgid "Keine Länderprofile gespeichert."
+msgstr "Aucun profil pays enregistré."
+
+#: src/Modules/Fiscalization.php:1235
+msgid "Land/Kanal/Kasse"
+msgstr "Pays/canal/caisse"
+
+#: src/Modules/Fiscalization.php:1235
+msgid "Regelwerk"
+msgstr "Référentiel"
+
+#: src/Modules/Fiscalization.php:1239
+msgid "Anbieter konfigurieren"
+msgstr "Configurer le fournisseur"
+
+#: src/Modules/Fiscalization.php:1240
+msgid "Noch kein Fiskaladapter installiert. Anbieter bleiben deaktiviert, bis ein Adapter registriert wurde."
+msgstr "Aucun adaptateur fiscal installé pour l’instant. Les fournisseurs restent désactivés jusqu’à l’enregistrement d’un adaptateur."
+
+#: src/Modules/Fiscalization.php:1246
+#: src/Modules/Fiscalization.php:1338
+#: src/Modules/Sms.php:359
+msgid "Anbieter"
+msgstr "Fournisseur"
+
+#: src/Modules/Fiscalization.php:1246
+msgid "Keiner"
+msgstr "Aucun"
+
+#: src/Modules/Fiscalization.php:1248
+msgid "Nicht geheime Adapter-Konfiguration (JSON)"
+msgstr "Configuration non secrète de l’adaptateur (JSON)"
+
+#: src/Modules/Fiscalization.php:1249
+msgid "Anbieter speichern"
+msgstr "Enregistrer le fournisseur"
+
+#: src/Modules/Fiscalization.php:1253
+msgid "Verbindung prüfen (keinen Beleg erstellen)"
+msgstr "Vérifier la connexion (aucun reçu créé)"
+
+#: src/Modules/Fiscalization.php:1258
+msgid "Zugangsdaten für Anbieter"
+msgstr "Identifiants pour le fournisseur"
+
+#: src/Modules/Fiscalization.php:1262
+msgid "Gespeicherte Zugangsdaten (Werte werden nicht angezeigt):"
+msgstr "Identifiants enregistrés (les valeurs ne sont pas affichées) :"
+
+#. translators: %s: credential field name
+#: src/Modules/Fiscalization.php:1265
+#, php-format
+msgid "%s löschen"
+msgstr "Supprimer %s"
+
+#: src/Modules/Fiscalization.php:1269
+msgid "Feldname"
+msgstr "Nom du champ"
+
+#: src/Modules/Fiscalization.php:1269
+msgid "Geheimer Wert"
+msgstr "Valeur secrète"
+
+#: src/Modules/Fiscalization.php:1271
+msgid "Neue Werte werden im Schlüsseltresor von Pass Captain verschlüsselt gespeichert (Schlüssel PASS_CAPTAIN_SECRET_KEY, sonst aus den wp-config-Salts abgeleitet; Schlüsselwechsel über PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Vorhandene Werte bleiben erhalten, wenn Sie nur einzelne Felder ergänzen oder ersetzen. Werte werden nie wieder angezeigt."
+msgstr "Les nouvelles valeurs sont enregistrées chiffrées dans le coffre de secrets de Pass Captain (clé PASS_CAPTAIN_SECRET_KEY, sinon dérivée des salts de wp-config ; changement de clé via PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Les valeurs existantes sont conservées si vous ajoutez ou remplacez seulement certains champs. Les valeurs ne sont plus jamais affichées."
+
+#: src/Modules/Fiscalization.php:1272
+msgid "Zugangsdaten können derzeit nicht verschlüsselt gespeichert werden (libsodium oder Schlüssel fehlt); das Speichern wird abgelehnt."
+msgstr "Les identifiants ne peuvent actuellement pas être enregistrés chiffrés (libsodium ou clé manquante) ; l’enregistrement est refusé."
+
+#: src/Modules/Fiscalization.php:1273
+msgid "Zugangsdaten speichern"
+msgstr "Enregistrer les identifiants"
+
+#: src/Modules/Fiscalization.php:1276
+msgid "Verkäufer je Ticketart"
+msgstr "Vendeur par type de billet"
+
+#: src/Modules/Fiscalization.php:1277
+msgid "Lege zuerst mindestens einen Rechtsträger an."
+msgstr "Créez d’abord au moins une entité juridique."
+
+#: src/Modules/Fiscalization.php:1281
+msgid "Fiskalischer Verkäufer"
+msgstr "Vendeur fiscal"
+
+#: src/Modules/Fiscalization.php:1281
+msgid "Nicht fiskal zuordnen"
+msgstr "Pas d’attribution fiscale"
+
+#: src/Modules/Fiscalization.php:1284
+msgid "Zuordnung speichern"
+msgstr "Enregistrer l’attribution"
+
+#: src/Modules/Fiscalization.php:1287
+msgid "Offene Fiskalvorgänge"
+msgstr "Documents fiscaux en attente"
+
+#: src/Modules/Fiscalization.php:1289
+msgid "Keine offenen Fiskalvorgänge."
+msgstr "Aucun document fiscal en attente."
+
+#: src/Modules/Fiscalization.php:1291
+msgid "Dokument"
+msgstr "Document"
+
+#: src/Modules/Fiscalization.php:1291
+msgid "Versuche / letzter Fehler"
+msgstr "Tentatives / dernière erreur"
+
+#: src/Modules/Fiscalization.php:1296
+msgid "Status beim Anbieter abgleichen"
+msgstr "Rapprocher le statut chez le fournisseur"
+
+#: src/Modules/Fiscalization.php:1310
+msgid "Fiskaldaten exportieren"
+msgstr "Exporter les données fiscales"
+
+#: src/Modules/Fiscalization.php:1310
+msgid "Normalisierter CSV-Export für Archiv- und Betriebszwecke; kein länderspezifisches Behördenformat. Zeitraum in UTC, maximal 50.000 Dokumente."
+msgstr "Export CSV normalisé pour l’archivage et l’exploitation ; pas un format officiel propre à un pays. Période en UTC, 50 000 documents au maximum."
+
+#: src/Modules/Fiscalization.php:1312
+msgid "Von (UTC)"
+msgstr "Du (UTC)"
+
+#: src/Modules/Fiscalization.php:1312
+msgid "Bis (UTC)"
+msgstr "Au (UTC)"
+
+#: src/Modules/Fiscalization.php:1313
+msgid "CSV herunterladen"
+msgstr "Télécharger le CSV"
+
+#: src/Modules/Fiscalization.php:1315
+msgid "Fiskal-Ereignisprotokoll"
+msgstr "Journal des événements fiscaux"
+
+#: src/Modules/Fiscalization.php:1336
+msgid "Noch keine Fiskalereignisse protokolliert."
+msgstr "Aucun événement fiscal consigné pour l’instant."
+
+#: src/Modules/Fiscalization.php:1338
+msgid "Dokument/Bestellung"
+msgstr "Document/commande"
+
+#: src/Modules/Fiscalization.php:1338
+msgid "Bearbeitung"
+msgstr "Traitement"
+
+#: src/Modules/Fiscalization.php:1345
+msgid "Über Anbieteradapter erledigt"
+msgstr "Traité via l’adaptateur du fournisseur"
+
+#: src/Modules/Fiscalization.php:1345
+msgid "Extern erledigt"
+msgstr "Traité en externe"
+
+#. translators: 1: who completed the correction, 2: provider reference
+#: src/Modules/Fiscalization.php:1347
+#, php-format
+msgid "%1$s · Referenz %2$s"
+msgstr "%1$s · référence %2$s"
+
+#: src/Modules/Fiscalization.php:1354
+msgid "efsta-Vollstorno senden"
+msgstr "Envoyer l’annulation totale efsta"
+
+#: src/Modules/Fiscalization.php:1355
+msgid "Einmaliger Sendeversuch. Bei unklarem Ergebnis Anbieterstatus prüfen; keine Wiederholung auslösen."
+msgstr "Tentative d’envoi unique. En cas de résultat incertain, vérifiez le statut chez le fournisseur ; ne relancez pas."
+
+#: src/Modules/Fiscalization.php:1357
+msgid "Sendeversuch erfolgt. Anbieterstatus prüfen; nicht erneut senden."
+msgstr "Tentative d’envoi effectuée. Vérifiez le statut chez le fournisseur ; ne renvoyez pas."
+
+#: src/Modules/Fiscalization.php:1361
+msgid "Korrekturart"
+msgstr "Type de correction"
+
+#: src/Modules/Fiscalization.php:1361
+msgid "Gutschrift"
+msgstr "Avoir"
+
+#: src/Modules/Fiscalization.php:1361
+msgid "Storno"
+msgstr "Annulation"
+
+#: src/Modules/Fiscalization.php:1361
+msgid "Korrektur"
+msgstr "Correction"
+
+#: src/Modules/Fiscalization.php:1361
+msgid "Beleg-/Anbieterreferenz"
+msgstr "Référence du reçu/fournisseur"
+
+#: src/Modules/Fiscalization.php:1362
+msgid "Extern erledigt dokumentieren"
+msgstr "Consigner comme traité en externe"
+
+#: src/Modules/Fiscalization.php:1363
+msgid "Nur nach Durchführung im Anbieterportal verwenden."
+msgstr "À utiliser uniquement après exécution dans le portail du fournisseur."
+
+#: src/Modules/Fiscalization.php:1447
+msgid "Name und eines der unterstützten Länder AT, DE, HU oder ein weiteres EU-Land sind erforderlich."
+msgstr "Un nom et l’un des pays pris en charge AT, DE, HU ou un autre pays de l’UE sont obligatoires."
+
+#: src/Modules/Fiscalization.php:1458
+msgid "Rechtsträger konnte nicht gespeichert werden."
+msgstr "L’entité juridique n’a pas pu être enregistrée."
+
+#: src/Modules/Fiscalization.php:1474
+msgid "Aktiver Anbieter oder Länderunterstützung fehlt."
+msgstr "Le fournisseur actif ou la prise en charge du pays manque."
+
+#: src/Modules/Fiscalization.php:1482
+msgid "Der Anbieter-Verbindungstest ist fehlgeschlagen."
+msgstr "Le test de connexion au fournisseur a échoué."
+
+#: src/Modules/Fiscalization.php:1497
+msgid "Anbieter oder Länderunterstützung ist ungültig."
+msgstr "Le fournisseur ou la prise en charge du pays n’est pas valide."
+
+#: src/Modules/Fiscalization.php:1501
+msgid "API-Schlüssel und Zugangsdaten dürfen nicht in der allgemeinen Anbieter-Konfiguration gespeichert werden."
+msgstr "Les clés API et identifiants ne doivent pas être enregistrés dans la configuration générale du fournisseur."
+
+#: src/Modules/Fiscalization.php:1511
+msgid "Anbieter-Konfiguration konnte nicht gespeichert werden."
+msgstr "La configuration du fournisseur n’a pas pu être enregistrée."
+
 #: src/Modules/Mollie.php:58
 msgid "Mollie"
 msgstr "Mollie"
@@ -8661,10 +9420,6 @@ msgstr "Chaque SMS est facturé par le fournisseur (par segment de 160 caractèr
 #: src/Modules/Sms.php:356
 msgid "SMS werden nur an Käufer:innen gesendet, die im Checkout ausdrücklich eingewilligt haben (Nummer, Zweck, Textversion und Zeitpunkt werden gespeichert)."
 msgstr "Les SMS ne sont envoyés qu’aux acheteurs ayant expressément donné leur consentement lors du paiement (numéro, finalité, version du texte et horodatage sont enregistrés)."
-
-#: src/Modules/Sms.php:359
-msgid "Anbieter"
-msgstr "Fournisseur"
 
 #: src/Modules/Sms.php:360
 msgid "Einwilligungstext im Checkout"
@@ -9774,7 +10529,7 @@ msgid "Bitte warte kurz und versuche es erneut."
 msgstr "Veuillez patienter un instant et réessayer."
 
 #: src/Orders.php:115
-#: src/Orders.php:333
+#: src/Orders.php:334
 #: src/ServiceBookings.php:1157
 #: src/Services/Refunder.php:143
 #: src/ServiceWaitlist.php:302
@@ -9782,171 +10537,171 @@ msgstr "Veuillez patienter un instant et réessayer."
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr "Il y a beaucoup d’affluence en ce moment. Veuillez réessayer dans un instant."
 
-#: src/Orders.php:331
+#: src/Orders.php:332
 #: src/Waitlists.php:274
 msgid "Diese Ticketart ist nicht verfügbar."
 msgstr "Ce type de ticket n’est pas disponible."
 
-#: src/Orders.php:332
+#: src/Orders.php:333
 msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
 msgstr "Cette quantité de tickets par commande n’est pas possible pour ce type de ticket."
 
-#: src/Orders.php:334
+#: src/Orders.php:335
 msgid "Dieser Termin ist nicht mehr verfügbar."
 msgstr "Cette date n’est plus disponible."
 
-#: src/Orders.php:335
+#: src/Orders.php:336
 msgid "Der Verkauf für diese Ticketart ist geschlossen."
 msgstr "Les ventes pour ce type de ticket sont fermées."
 
-#: src/Orders.php:336
+#: src/Orders.php:337
 msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden."
 msgstr "Des tickets de devises différentes ne peuvent pas être commandés ensemble."
 
-#: src/Orders.php:337
+#: src/Orders.php:338
 #: src/Waitlists.php:74
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr "Il ne reste plus assez de tickets disponibles pour ce type de ticket."
 
-#: src/Orders.php:338
+#: src/Orders.php:339
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr "Il ne reste plus assez de places disponibles pour cette date."
 
-#: src/Orders.php:339
+#: src/Orders.php:340
 msgid "Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung."
 msgstr "Un code de campagne n’est pas valide ou ne correspond pas à la commande."
 
-#: src/Orders.php:340
+#: src/Orders.php:341
 msgid "Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden."
 msgstr "La remise n’a pas pu être appliquée à la commande de manière fiable."
 
-#: src/Orders.php:351
+#: src/Orders.php:352
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
 msgstr "Pour ce montant de commande, nous avons besoin de votre nom et de votre adresse pour la facture. Veuillez activer « J’ai besoin d’une facture au nom d’une société/à une adresse » et remplir les champs."
 
-#: src/Orders.php:354
+#: src/Orders.php:355
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr "La commande n’a pas pu être créée."
 
-#: src/Orders.php:495
+#: src/Orders.php:496
 msgid "Die Bestellung konnte gerade nicht aktualisiert werden. Bitte erneut versuchen."
 msgstr "La commande n’a pas pu être mise à jour pour le moment. Veuillez réessayer."
 
-#: src/Orders.php:562
+#: src/Orders.php:563
 msgid "Es wurden mehr Teilnehmende angegeben als Tickets bestellt."
 msgstr "Plus de participants ont été indiqués que de tickets commandés."
 
 #. translators: %s: field label
-#: src/Orders.php:580
+#: src/Orders.php:581
 #, php-format
 msgid "Bitte „%s“ für jedes Ticket ausfüllen."
 msgstr "Veuillez renseigner « %s » pour chaque ticket."
 
 #. translators: %s: field label
-#: src/Orders.php:584
+#: src/Orders.php:585
 #, php-format
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "« %s » n’est pas une adresse e-mail valide."
 
-#: src/Orders.php:608
+#: src/Orders.php:609
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Le paiement n’a pas pu être enregistré pour le moment. Veuillez réessayer."
 
-#: src/Orders.php:920
-#: src/Orders.php:1036
-#: src/Orders.php:1346
+#: src/Orders.php:921
+#: src/Orders.php:1037
+#: src/Orders.php:1348
 msgid "Der Bestellstatus erlaubt diese Aktion nicht."
 msgstr "Le statut de la commande n’autorise pas cette action."
 
 #. translators: 1: order number, 2: payment reference
-#: src/Orders.php:980
+#: src/Orders.php:981
 msgid "Pass Captain: Bezahlte Bestellung über dem Käuferlimit"
 msgstr "Pass Captain : commande payée au-delà de la limite par acheteur"
 
 #. translators: 1: order number, 2: payment reference
-#: src/Orders.php:980
+#: src/Orders.php:981
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen)."
 msgstr "Le paiement de la commande %1$s (%2$s) est arrivé après l’expiration de la réservation. Avec cette commande, la personne dépasserait une limite par acheteur. Aucun billet n’a été émis. Veuillez régler la situation manuellement (rembourser, ou ajuster la limite et confirmer à nouveau le paiement)."
 
-#: src/Orders.php:981
+#: src/Orders.php:982
 msgid "Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden."
 msgstr "La réservation avait expiré et la commande dépasserait une limite par acheteur. La commande doit être réglée manuellement."
 
-#: src/Orders.php:983
+#: src/Orders.php:984
 msgid "Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
 msgstr "Pass Captain : commande payée sans contingent disponible"
 
-#: src/Orders.php:983
+#: src/Orders.php:984
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten)."
 msgstr "Le paiement de la commande %1$s (%2$s) est arrivé après l’expiration de la réservation et il ne reste plus de contingent. Aucun ticket n’a été émis. Veuillez régler manuellement (libérer une place ou rembourser)."
 
-#: src/Orders.php:984
+#: src/Orders.php:985
 msgid "Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden."
 msgstr "La réservation avait expiré et il ne reste plus de contingent. La commande doit être réglée manuellement."
 
-#: src/Orders.php:1178
+#: src/Orders.php:1179
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "Les données de transfert ne sont pas valides."
 
-#: src/Orders.php:1182
+#: src/Orders.php:1183
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "L’accès à la commande n’est pas valide."
 
-#: src/Orders.php:1185
+#: src/Orders.php:1186
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "Les tickets ne peuvent être transférés qu’après confirmation du paiement."
 
-#: src/Orders.php:1196
+#: src/Orders.php:1197
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Ce ticket ne peut plus être transféré."
 
-#: src/Orders.php:1201
+#: src/Orders.php:1202
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr "Le titulaire de ce ticket a déjà été modifié ; un nouveau transfert n’est pas possible."
 
-#: src/Orders.php:1211
+#: src/Orders.php:1212
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "Le transfert du ticket n’a pas pu être enregistré."
 
-#: src/Orders.php:1232
+#: src/Orders.php:1233
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "Le transfert du ticket a été enregistré, mais l’e-mail n’a pas pu être remis. Veuillez contacter l’organisateur pour un nouvel envoi."
 
-#: src/Orders.php:1255
-#: src/Orders.php:1272
+#: src/Orders.php:1256
+#: src/Orders.php:1273
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Cet événement ne peut pas être annulé."
 
-#: src/Orders.php:1542
+#: src/Orders.php:1547
 #: src/WalletPasses/AppleProvider.php:73
 msgid "Dieses Ticket ist nur einmal gültig. Code nicht weitergeben."
 msgstr "Ce ticket n’est valable qu’une seule fois. Ne communiquez pas le code."
 
-#: src/Orders.php:1577
+#: src/Orders.php:1582
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "Les tickets n’ont pas pu être émis pour le moment. Veuillez réessayer."
 
-#: src/Orders.php:1755
+#: src/Orders.php:1760
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "Les tickets ne peuvent être renvoyés qu’après confirmation du paiement."
 
-#: src/Orders.php:1784
-#: src/Orders.php:1831
-#: src/Orders.php:1902
+#: src/Orders.php:1789
+#: src/Orders.php:1836
+#: src/Orders.php:1907
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Le code du ticket n’a pas pu être renouvelé."
 
-#: src/Orders.php:1787
+#: src/Orders.php:1792
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Aucun ticket valide trouvé pour le renvoi."
 
-#: src/Orders.php:1863
+#: src/Orders.php:1868
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; bitte versuche den Versand erneut."
 msgstr "Au moins un e-mail n’a pas pu être remis. Les codes des tickets existants restent valables ; veuillez réessayer l’envoi."
 
-#: src/Orders.php:1896
+#: src/Orders.php:1901
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Seuls les tickets valides et non encore enregistrés de commandes payées peuvent être réémis."
 
@@ -10058,10 +10813,6 @@ msgstr "Nom de l’organisation"
 #: src/Partners/AdminPage.php:256
 msgid "Ansprechperson"
 msgstr "Interlocuteur"
-
-#: src/Partners/AdminPage.php:257
-msgid "Kontakt-E-Mail"
-msgstr "E-mail de contact"
 
 #: src/Partners/AdminPage.php:258
 msgid "Telefon"
@@ -11991,10 +12742,6 @@ msgstr "Prestataire de paiement"
 msgid "Tag"
 msgstr "Jour"
 
-#: src/Reports/Data.php:481
-msgid "Kanal"
-msgstr "Canal"
-
 #: src/Reports/Data.php:485
 #: src/Reports/Data.php:523
 #: src/Reports/Page.php:222
@@ -12213,80 +12960,84 @@ msgstr[1] "Les tickets ne peuvent être renvoyés que %d fois par heure au maxim
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "Les lignes de vente POS ou la clé d’idempotence ne sont pas valides."
 
-#: src/Rest/Controller.php:453
+#: src/Rest/Controller.php:450
+msgid "Zahlungsart ist ungültig."
+msgstr "Le mode de paiement n’est pas valide."
+
+#: src/Rest/Controller.php:455
 msgid "Für dieses Event fehlt die POS-Berechtigung."
 msgstr "L’autorisation POS manque pour cet événement."
 
-#: src/Rest/Controller.php:463
+#: src/Rest/Controller.php:465
 msgid "Dieser Idempotency-Key gehört zu einer nicht bezahlten Bestellung; bitte einen neuen Verkauf starten."
 msgstr "Cette clé d’idempotence appartient à une commande non payée ; veuillez démarrer une nouvelle vente."
 
-#: src/Rest/Controller.php:487
+#: src/Rest/Controller.php:490
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "L’autorisation d’entrée manque pour cet événement."
 
-#: src/Rest/Controller.php:495
+#: src/Rest/Controller.php:498
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "Au moins une règle de pass est requise."
 
-#: src/Rest/Controller.php:498
+#: src/Rest/Controller.php:501
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "Vous n’avez pas l’autorisation pour une règle de pass."
 
-#: src/Rest/Controller.php:521
+#: src/Rest/Controller.php:524
 msgid "Sitzplan nicht gefunden."
 msgstr "Plan de salle introuvable."
 
-#: src/Rest/Controller.php:579
+#: src/Rest/Controller.php:582
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "La période du rapport doit être valide et ne pas dépasser 90 jours."
 
-#: src/Rest/Controller.php:623
+#: src/Rest/Controller.php:626
 msgid "Übersetzung nicht gefunden."
 msgstr "Traduction introuvable."
 
-#: src/Rest/Controller.php:633
+#: src/Rest/Controller.php:636
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Locale ou titre traduit non valide."
 
-#: src/Rest/Controller.php:684
+#: src/Rest/Controller.php:687
 msgid "Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten."
 msgstr "Un plan de salle doit comporter un nom et de 1 à 500 places."
 
-#: src/Rest/Controller.php:691
+#: src/Rest/Controller.php:694
 msgid "Sitzplan konnte nicht gespeichert werden."
 msgstr "Le plan de salle n’a pas pu être enregistré."
 
-#: src/Rest/Controller.php:695
+#: src/Rest/Controller.php:698
 msgid "Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung."
 msgstr "Chaque place nécessite une clé unique et un libellé."
 
-#: src/Rest/Controller.php:697
+#: src/Rest/Controller.php:700
 msgid "Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel."
 msgstr "Les places n’ont pas toutes pu être enregistrées ; vérifiez les clés en double."
 
-#: src/Rest/Controller.php:709
+#: src/Rest/Controller.php:712
 #: src/ServiceResources.php:167
 msgid "Ressourcenname fehlt."
 msgstr "Nom de la ressource manquant."
 
-#: src/Rest/Controller.php:724
+#: src/Rest/Controller.php:727
 msgid "Zeitfenster ist ungültig."
 msgstr "Créneau non valide."
 
-#: src/Rest/Controller.php:735
+#: src/Rest/Controller.php:738
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "Vous n’avez pas l’autorisation pour cette date."
 
-#: src/Rest/Controller.php:738
+#: src/Rest/Controller.php:741
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Veuillez indiquer de 1 à 31 jours d’événement."
 
-#: src/Rest/Controller.php:747
+#: src/Rest/Controller.php:750
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Un jour d’événement ou une règle d’admission n’est pas valide."
 
-#: src/Rest/Controller.php:749
+#: src/Rest/Controller.php:752
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Les règles d’admission n’ont pas pu être enregistrées."
 
@@ -13481,29 +14232,29 @@ msgstr "Seuls les administrateurs peuvent révoquer un accès support."
 msgid "Dieser Supportzugriff ist nicht mehr aktiv."
 msgstr "Cet accès support n’est plus actif."
 
-#: src/Security/Vault.php:264
+#: src/Security/Vault.php:266
 msgid "Pass Captain:"
 msgstr "Pass Captain :"
 
 #. translators: %s: comma separated setting names
-#: src/Security/Vault.php:266
+#: src/Security/Vault.php:268
 #, php-format
 msgid "Gespeicherte Zugangsdaten können nicht mehr entschlüsselt werden (Schlüssel PASS_CAPTAIN_SECRET_KEY oder die wp-config-Salts wurden geändert): %s. Sie werden als „nicht gesetzt“ behandelt – bitte erneut eingeben."
 msgstr "Les identifiants enregistrés ne peuvent plus être déchiffrés (la clé PASS_CAPTAIN_SECRET_KEY ou les salts de wp-config ont été modifiés) : %s. Ils sont traités comme « non définis » – veuillez les saisir à nouveau."
 
-#: src/Security/Vault.php:270
+#: src/Security/Vault.php:272
 msgid "Pass Captain: libsodium oder ein Schlüssel fehlt – Zugangsdaten werden unverschlüsselt gespeichert."
 msgstr "Pass Captain : libsodium ou une clé est manquant – les identifiants sont enregistrés sans chiffrement."
 
-#: src/Security/Vault.php:279
+#: src/Security/Vault.php:281
 msgid "Zugangsdaten werden mit PASS_CAPTAIN_SECRET_KEY verschlüsselt gespeichert."
 msgstr "Les identifiants sont enregistrés chiffrés avec PASS_CAPTAIN_SECRET_KEY."
 
-#: src/Security/Vault.php:281
+#: src/Security/Vault.php:283
 msgid "Zugangsdaten werden mit einem aus den wp-config-Salts (AUTH_KEY, SECURE_AUTH_KEY) abgeleiteten Schlüssel verschlüsselt. Werden die Salts erneuert, müssen alle Zugangsdaten neu eingegeben werden. Empfohlen: eigene Konstante PASS_CAPTAIN_SECRET_KEY (32 zufällige Bytes, hex) in wp-config.php."
 msgstr "Les identifiants sont chiffrés avec une clé dérivée des salts de wp-config (AUTH_KEY, SECURE_AUTH_KEY). Si les salts sont renouvelés, tous les identifiants doivent être saisis à nouveau. Recommandé : une constante dédiée PASS_CAPTAIN_SECRET_KEY (32 octets aléatoires, hex) dans wp-config.php."
 
-#: src/Security/Vault.php:283
+#: src/Security/Vault.php:285
 msgid "Kein Schlüssel verfügbar: Zugangsdaten werden unverschlüsselt gespeichert."
 msgstr "Aucune clé disponible : les identifiants sont enregistrés sans chiffrement."
 
@@ -14711,10 +15462,6 @@ msgstr "Sous forme de lien de téléchargement"
 #: src/WalletPasses/AdminPage.php:193
 msgid "APNs"
 msgstr "APNs"
-
-#: src/WalletPasses/AdminPage.php:194
-msgid "Produktion"
-msgstr "Production"
 
 #: src/WalletPasses/AdminPage.php:196
 msgid "Eigenes Icon (PNG-Pfad, 29×29)"
