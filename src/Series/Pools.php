@@ -128,10 +128,9 @@ final class Pools {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
 		$p = $wpdb->prefix;
-		$in = implode( ',', $type_ids );
 		$exclude = absint( $exclude_order_id );
-		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $exclude ) );
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at > %s AND order_id <> %d", $now, $exclude ) );
+		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d AND oi.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', $p . 'wpcap_order_items', $p . 'wpcap_orders', $exclude, ...$type_ids ) );
+		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM %i WHERE status='active' AND expires_at > %s AND order_id <> %d AND ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', $p . 'wpcap_reservations', $now, $exclude, ...$type_ids ) );
 		return $sold + $held;
 	}
 
@@ -147,13 +146,21 @@ final class Pools {
 		$p = $wpdb->prefix;
 		$occ_ids = array_values( array_unique( array_filter( array_map( static function ( $type ) { return (int) $type->occurrence_id; }, $types ) ) ) );
 		if ( ! $occ_ids ) { return array(); }
-		$series_rows = $wpdb->get_results( "SELECT series_id,occurrence_id FROM {$p}wpcap_series_occurrences WHERE occurrence_id IN (" . implode( ',', $occ_ids ) . ')' . ( $lock ? ' LOCK IN SHARE MODE' : '' ) );
+		if ( $lock ) {
+			$series_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ') LOCK IN SHARE MODE', $p . 'wpcap_series_occurrences', ...$occ_ids ) );
+		} else {
+			$series_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ')', $p . 'wpcap_series_occurrences', ...$occ_ids ) );
+		}
 		if ( ! $series_rows ) { return array(); }
 		$series_of = array();
 		foreach ( $series_rows as $row ) { $series_of[ (int) $row->occurrence_id ] = (int) $row->series_id; }
 		$series_ids = array_values( array_unique( $series_of ) );
 		sort( $series_ids );
-		$pools = $wpdb->get_results( "SELECT * FROM {$p}wpcap_series_pools WHERE series_id IN (" . implode( ',', $series_ids ) . ") AND status='active' ORDER BY pool_id" . ( $lock ? ' FOR UPDATE' : '' ) );
+		if ( $lock ) {
+			$pools = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE series_id IN (' . implode( ',', array_fill( 0, count( $series_ids ), '%d' ) ) . ") AND status='active' ORDER BY pool_id FOR UPDATE", $p . 'wpcap_series_pools', ...$series_ids ) );
+		} else {
+			$pools = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE series_id IN (' . implode( ',', array_fill( 0, count( $series_ids ), '%d' ) ) . ") AND status='active' ORDER BY pool_id", $p . 'wpcap_series_pools', ...$series_ids ) );
+		}
 		$out = array();
 		foreach ( $pools as $pool ) {
 			$member = array();

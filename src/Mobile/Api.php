@@ -74,7 +74,8 @@ final class Api {
 		$p = $wpdb->prefix;
 		$ids = Devices::event_ids( Devices::current() );
 		if ( ! $ids ) { return rest_ensure_response( array( 'occurrences' => array() ) ); }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id IN (" . implode( ',', array_map( 'absint', $ids ) ) . ") AND o.starts_at >= %s ORDER BY o.starts_at LIMIT 100", gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$ids = array_values( array_map( 'absint', $ids ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.starts_at >= %s AND o.event_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY o.starts_at LIMIT 100', $p . 'wpcap_occurrences', $p . 'wpcap_events', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ), ...$ids ) );
 		$out = array();
 		$areas = array();
 		foreach ( $rows as $row ) {

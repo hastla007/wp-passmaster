@@ -169,7 +169,7 @@ final class Repository {
 			if ( false !== $wpdb->update( "{$p}wpcap_partners", array( 'payout_details' => $sealed ), array( 'partner_id' => (int) $row->partner_id ) ) ) { ++$count; }
 		}
 		if ( ! self::table_present( 'wpcap_partner_settlements' ) ) { return $count; }
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT settlement_id,partner_snapshot FROM %i WHERE partner_snapshot LIKE '%%payout_details%%'", $p . 'wpcap_partner_settlements' ) ) as $row ) {
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT settlement_id,partner_snapshot FROM %i WHERE partner_snapshot LIKE %s', $p . 'wpcap_partner_settlements', '%payout_details%' ) ) as $row ) {
 			$snapshot = json_decode( (string) $row->partner_snapshot, true );
 			$stored = is_array( $snapshot ) ? (string) ( $snapshot['partner']['payout_details'] ?? '' ) : '';
 			if ( '' === $stored ) { continue; }

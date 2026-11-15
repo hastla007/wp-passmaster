@@ -140,13 +140,12 @@ final class Data {
 				'channel' => 0 === strpos( (string) $provider, 'pos_' ) ? 'pos' : 'online',
 			);
 		};
-		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 
 		// Sales.
 		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM %i WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $p . 'wpcap_orders', $start, $end ) );
 		$order_map = array();
 		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
-		$lines_by_order = self::lines_by_order( array_keys( $order_map ), $line_sql );
+		$lines_by_order = self::lines_by_order( array_keys( $order_map ) );
 		$order_scope = array(); // order id => in-scope [tickets, gross after discount, line total before discount, all lines before discount].
 		foreach ( $order_map as $order_id => $order ) {
 			$lines = $lines_by_order[ $order_id ] ?? array();
@@ -169,7 +168,7 @@ final class Data {
 
 		// Completed refunds (netted on their completion day).
 		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) );
-		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
+		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) );
 		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
 		foreach ( $refunds as $refund ) {
 			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
@@ -355,11 +354,11 @@ final class Data {
 	}
 
 	/** Order lines grouped by order id (item order = Orders::create order). */
-	private static function lines_by_order( array $order_ids, $line_sql ) {
+	private static function lines_by_order( array $order_ids ) {
 		global $wpdb;
 		$out = array();
 		foreach ( array_chunk( array_map( 'absint', $order_ids ), 500 ) as $chunk ) {
-			foreach ( $wpdb->get_results( $line_sql . ' WHERE oi.order_id IN (' . implode( ',', $chunk ) . ') ORDER BY oi.order_id,oi.item_id' ) as $line ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT oi.order_id,oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY oi.order_id,oi.item_id', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', ...$chunk ) ) as $line ) {
 				$out[ (int) $line->order_id ][] = $line;
 			}
 		}

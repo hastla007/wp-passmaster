@@ -50,7 +50,8 @@ final class DevicesPage {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		global $wpdb;
 		$scope = Queries::event_ids_for( array( self::CAP ) );
-		$events = $wpdb->get_results( "SELECT event_id,name FROM {$wpdb->prefix}wpcap_events WHERE status='published'" . Queries::scope_sql( $scope, 'event_id' ) . ' ORDER BY name LIMIT 200' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scope_sql builds an integer list.
+		$where = "status='published'" . Queries::scope_sql( $scope, 'event_id' );
+		$events = $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name FROM %i WHERE {$where} ORDER BY name LIMIT 200", $wpdb->prefix . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: literal condition and integer scope.
 		$pairing = get_transient( self::pairing_key() );
 		$devices = Devices::list_for_current_user();
 		$names = array();

@@ -25,8 +25,8 @@ final class Page {
 	public static function occurrence_options( $caps ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$scope = Queries::scope_sql( Scope::event_ids( $caps ), 'o.event_id' );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s $scope ORDER BY o.starts_at LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
+		$where = 'o.starts_at >= %s' . Queries::scope_sql( Scope::event_ids( $caps ), 'o.event_id' );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,e.name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE {$where} ORDER BY o.starts_at LIMIT 300", $p . 'wpcap_occurrences', $p . 'wpcap_events', gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: literal condition and integer scope.
 		$out = array();
 		foreach ( $rows as $r ) { $out[ (int) $r->occurrence_id ] = $r->name . ' – ' . Scope::local( $r->starts_at, $r->timezone ); }
 		return $out;

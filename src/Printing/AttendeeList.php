@@ -42,8 +42,8 @@ final class AttendeeList {
 		$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT f.field_id,f.label FROM %i f INNER JOIN %i tt ON tt.ticket_type_id=f.ticket_type_id WHERE tt.occurrence_id=%d ORDER BY f.position,f.field_id', $p . 'wpcap_participant_fields', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 		$answers = array();
 		if ( $tickets ) {
-			$ids = implode( ',', array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) );
-			foreach ( $wpdb->get_results( "SELECT ticket_id,field_id,answer FROM {$p}wpcap_participant_answers WHERE ticket_id IN ($ids)" ) as $a ) {
+			$ids = array_values( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) );
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_id,field_id,answer FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_participant_answers', ...$ids ) ) as $a ) {
 				$answers[ (int) $a->ticket_id ][ (int) $a->field_id ] = $a->answer;
 			}
 		}

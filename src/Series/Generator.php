@@ -121,8 +121,13 @@ final class Generator {
 	private static function existing_starts( $event_id, array $items, $lock = false ) {
 		global $wpdb;
 		if ( ! $items ) { return array(); }
-		$starts = array_map( static function ( $item ) use ( $wpdb ) { return $wpdb->prepare( '%s', $item['starts_at'] ); }, $items );
-		$rows = $wpdb->get_col( $wpdb->prepare( "SELECT starts_at FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND starts_at IN (" . implode( ',', $starts ) . ')' . ( $lock ? ' FOR UPDATE' : '' ), $event_id ) );
+		$starts = array_values( array_map( static function ( $item ) { return (string) $item['starts_at']; }, $items ) );
+		$table = $wpdb->prefix . 'wpcap_occurrences';
+		if ( $lock ) {
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ') FOR UPDATE', $table, $event_id, ...$starts ) );
+		} else {
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ')', $table, $event_id, ...$starts ) );
+		}
 		return array_flip( $rows );
 	}
 

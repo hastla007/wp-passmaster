@@ -462,13 +462,20 @@ final class Layouts {
 		if ( is_wp_error( $normalized ) ) { return $normalized; }
 		$violations = self::protection_violations( self::locked_seats( $layout->layout_id ), self::expand( $normalized ) );
 		if ( $violations ) { return self::violation_error( $violations ); }
-		$data = array( 'draft' => wp_json_encode( $normalized ), 'updated_at' => current_time( 'mysql', true ) );
-		if ( null !== $name && '' !== self::text( $name, 190 ) ) { $data['name'] = self::text( $name, 190 ); }
-		$set = array();
-		foreach ( $data as $column => $value ) { $set[] = $wpdb->prepare( "$column=%s", $value ); }
-		$sql = 'UPDATE ' . self::table( 'layouts' ) . ' SET ' . implode( ',', $set ) . ',draft_revision=draft_revision+1 WHERE layout_id=' . (int) $layout->layout_id;
-		if ( $revision ) { $sql .= $wpdb->prepare( ' AND draft_revision=%d', absint( $revision ) ); }
-		$updated = $wpdb->query( $sql );
+		$new_name = null !== $name ? self::text( $name, 190 ) : '';
+		$revision = absint( $revision ); // 0 = no revision check.
+		// The name only changes when a non-empty one is given.
+		$updated = $wpdb->query( $wpdb->prepare(
+			"UPDATE %i SET draft=%s,updated_at=%s,name=IF(%d=1,%s,name),draft_revision=draft_revision+1 WHERE layout_id=%d AND (%d=0 OR draft_revision=%d)",
+			self::table( 'layouts' ),
+			wp_json_encode( $normalized ),
+			current_time( 'mysql', true ),
+			'' !== $new_name ? 1 : 0,
+			$new_name,
+			(int) $layout->layout_id,
+			$revision,
+			$revision
+		) );
 		if ( ! $updated ) {
 			return new \WP_Error( 'wpcap_seating_conflict', __( 'Der Saalplan wurde inzwischen von jemand anderem geändert. Bitte neu laden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -501,11 +508,11 @@ final class Layouts {
 			$version_id = (int) $wpdb->insert_id;
 			if ( ! $inserted || ! $version_id ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Version konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 			foreach ( array_chunk( array_values( $rows ), 200 ) as $chunk ) {
-				$values = array();
+				$values = array( self::table( 'seats' ) );
 				foreach ( $chunk as $row ) {
-					$values[] = $wpdb->prepare( '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d)', $version_id, $row['seat_key'], $row['kind'], $row['group_key'], $row['row_label'], $row['seat_label'], $row['label'], $row['zone'], $row['category'], $row['accessible'], $row['pos_x'], $row['pos_y'], $row['sort_order'] );
+					array_push( $values, $version_id, $row['seat_key'], $row['kind'], $row['group_key'], $row['row_label'], $row['seat_label'], $row['label'], $row['zone'], $row['category'], $row['accessible'], $row['pos_x'], $row['pos_y'], $row['sort_order'] );
 				}
-				$ok = $wpdb->query( 'INSERT INTO ' . self::table( 'seats' ) . ' (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', $values ) );
+				$ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', array_fill( 0, count( $chunk ), '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d)' ) ), $values ) );
 				if ( false === $ok ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Sitzplätze konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET published_version=%d,updated_at=%s WHERE layout_id=%d', self::table( 'layouts' ), $version, $now, (int) $layout->layout_id ) );

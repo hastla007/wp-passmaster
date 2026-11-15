@@ -98,8 +98,10 @@ final class Store {
 
 	public static function passes( $ticket_id, $provider = '' ) {
 		global $wpdb;
-		$sql = 'SELECT * FROM ' . self::t( 'wallet_passes' ) . ' WHERE ticket_id=%d' . ( $provider ? ' AND provider=%s' : '' ) . ' ORDER BY wallet_pass_id';
-		return $provider ? $wpdb->get_results( $wpdb->prepare( $sql, absint( $ticket_id ), $provider ) ) : $wpdb->get_results( $wpdb->prepare( $sql, absint( $ticket_id ) ) );
+		if ( $provider ) {
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d AND provider=%s ORDER BY wallet_pass_id', self::t( 'wallet_passes' ), absint( $ticket_id ), $provider ) );
+		}
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d ORDER BY wallet_pass_id', self::t( 'wallet_passes' ), absint( $ticket_id ) ) );
 	}
 
 	public static function pass_by_serial( $provider, $serial ) {
