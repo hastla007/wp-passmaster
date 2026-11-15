@@ -25,10 +25,10 @@ final class ArchiveExporter {
 		$end_exclusive = ( new \DateTimeImmutable( $until . ' 00:00:00', new \DateTimeZone( 'UTC' ) ) )->modify( '+1 day' )->format( 'Y-m-d H:i:s' );
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT d.document_id,d.order_id,d.seller_id,d.document_key,d.country_code,d.provider_id,d.status,d.currency,d.gross_minor,d.tax_minor,d.snapshot,d.provider_result,d.last_error,d.attempts,d.created_at,d.updated_at,s.legal_name
-			FROM {$wpdb->prefix}wpcap_fiscal_documents d
-			LEFT JOIN {$wpdb->prefix}wpcap_legal_sellers s ON s.seller_id=d.seller_id
-			WHERE d.created_at >= %s AND d.created_at < %s ORDER BY d.created_at,d.document_id LIMIT 50000",
+			'SELECT d.document_id,d.order_id,d.seller_id,d.document_key,d.country_code,d.provider_id,d.status,d.currency,d.gross_minor,d.tax_minor,d.snapshot,d.provider_result,d.last_error,d.attempts,d.created_at,d.updated_at,s.legal_name
+			FROM %i d
+			LEFT JOIN %i s ON s.seller_id=d.seller_id
+			WHERE d.created_at >= %s AND d.created_at < %s ORDER BY d.created_at,d.document_id LIMIT 50000', $wpdb->prefix . 'wpcap_fiscal_documents', $wpdb->prefix . 'wpcap_legal_sellers',
 			$from . ' 00:00:00',
 			$end_exclusive
 		) );

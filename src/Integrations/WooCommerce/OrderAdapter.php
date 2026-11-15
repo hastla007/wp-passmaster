@@ -136,7 +136,7 @@ final class OrderAdapter {
 		$fiscal_seller = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? absint( $product_object->get_meta( self::FISCAL_SELLER_META, true ) ) : 0;
 		$fiscal_mode = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? sanitize_key( $product_object->get_meta( self::FISCAL_MODE_META, true ) ) : 'platform_seller';
 		$p       = $wpdb->prefix;
-		$rows    = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$options = array( '' => __( '— Kein Ticketprodukt —', 'pass-captain' ) );
 		foreach ( $rows as $row ) {
 			$label = sprintf( '%1$s · %2$s · %3$s', $row->event_name, mysql2date( 'd.m.Y H:i', get_date_from_gmt( $row->starts_at ), true ), $row->name );
@@ -162,7 +162,7 @@ final class OrderAdapter {
 				'value'       => $current ? (string) $current : '',
 			)
 		);
-		$sellers = $wpdb->get_results( "SELECT seller_id,legal_name,country_code FROM {$p}wpcap_legal_sellers WHERE status='active' ORDER BY legal_name" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$sellers = $wpdb->get_results( $wpdb->prepare( "SELECT seller_id,legal_name,country_code FROM %i WHERE status='active' ORDER BY legal_name", $p . 'wpcap_legal_sellers' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$seller_options = array( '' => __( '— Verkäufer für normales Produkt wählen —', 'pass-captain' ) );
 		foreach ( $sellers as $seller ) { $seller_options[ (string) $seller->seller_id ] = $seller->legal_name . ' (' . $seller->country_code . ')'; }
 		woocommerce_wp_select( array( 'id' => self::FISCAL_SELLER_META, 'label' => __( 'Fiskalischer Verkäufer (normales WooCommerce-Produkt)', 'pass-captain' ), 'description' => __( 'Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkäuferzuordnung der Pass-Captain-Ticketart.', 'pass-captain' ), 'desc_tip' => true, 'options' => $seller_options, 'value' => $fiscal_seller ? (string) $fiscal_seller : '' ) );
@@ -1216,8 +1216,8 @@ final class OrderAdapter {
 			if ( ! $plan['ticket_ids'] && $plan['amount_minor'] <= 0 ) {
 				continue;
 			}
-			$ids    = implode( ',', array_map( 'absint', $plan['ticket_ids'] ) );
-			$valid  = $ids ? (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($ids) AND status='valid'" ) : 0; // phpcs:ignore WordPress.DB
+			$ids    = array_values( array_map( 'absint', $plan['ticket_ids'] ) );
+			$valid  = $ids ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND status='valid'", $wpdb->prefix . 'wpcap_tickets', ...$ids ) ) : 0; // phpcs:ignore WordPress.DB
 			$result = call_user_func(
 				array( '\\PassCaptain\\Refunds', 'record_external' ),
 				$core_id,
@@ -1505,7 +1505,7 @@ final class OrderAdapter {
 			return array();
 		}
 		$owners = array();
-		$rows   = $wpdb->get_results( "SELECT order_id,ticket_type_id FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', $core_ids ) . ') ORDER BY item_id' ); // phpcs:ignore WordPress.DB
+		$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $core_ids ), '%d' ) ) . ') ORDER BY item_id', $wpdb->prefix . 'wpcap_order_items', ...$core_ids ) ); // phpcs:ignore WordPress.DB
 		$order  = array_flip( $core_ids );
 		usort( $rows, static function ( $a, $b ) use ( $order ) {
 			return ( $order[ (int) $a->order_id ] ?? 0 ) <=> ( $order[ (int) $b->order_id ] ?? 0 );
@@ -1812,7 +1812,7 @@ final class OrderAdapter {
 	public static function ticket_type( $type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d", absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT tt.*,o.starts_at,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 
 	/** Detects Store API (blocks) requests. */

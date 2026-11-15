@@ -204,14 +204,14 @@ final class Controller {
 	public static function events( \WP_REST_Request $request ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.slug,e.description,o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.location,o.capacity FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 100",
+			"SELECT e.event_id,e.name,e.slug,e.description,o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.location,o.capacity FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 100", $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences',
 			current_time( 'mysql', true )
 		) );
 		$output = array();
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
 		foreach ( $rows as $row ) {
-			$translation = $wpdb->get_row( $wpdb->prepare( "SELECT name,description,location FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id=%d AND locale=%s", $row->event_id, $locale ) );
-			$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id ASC", $row->occurrence_id ), ARRAY_A );
+			$translation = $wpdb->get_row( $wpdb->prepare( 'SELECT name,description,location FROM %i WHERE event_id=%d AND locale=%s', $wpdb->prefix . 'wpcap_event_translations', $row->event_id, $locale ) );
+			$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM %i WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id ASC", $wpdb->prefix . 'wpcap_ticket_types', $row->occurrence_id ), ARRAY_A );
 			$output[] = array(
 				'event_id' => (int) $row->event_id,
 				'name' => $translation ? $translation->name : $row->name,
@@ -357,7 +357,7 @@ final class Controller {
 		global $wpdb;
 		$public_id = sanitize_text_field( $request['public_id'] );
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', is_scalar( $request->get_param( 'access_token' ) ) ? (string) $request->get_param( 'access_token' ) : '' ) );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ), ARRAY_A );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		unset( $order['access_token_hash'] );
@@ -381,7 +381,7 @@ final class Controller {
 		global $wpdb;
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', is_scalar( $access_token ) ? (string) $access_token : '' ) );
 		if ( 64 !== strlen( $access_token ) ) { return null; }
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", sanitize_text_field( (string) $public_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', sanitize_text_field( (string) $public_id ) ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
 		return $order;
 	}
@@ -426,9 +426,9 @@ final class Controller {
 
 	public static function issue_invoice( \WP_REST_Request $request ) {
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", sanitize_text_field( $request['public_id'] ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', sanitize_text_field( $request['public_id'] ) ) );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$event_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", $order->order_id ) );
+		$event_ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT o.event_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $order->order_id ) );
 		foreach ( $event_ids as $event_id ) { if ( ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_invoice_forbidden', __( 'Keine Berechtigung für diese Bestellung.', 'pass-captain' ), array( 'status' => 403 ) ); } }
 		$result = Invoices::issue_for_order( $order->order_id );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
@@ -451,7 +451,7 @@ final class Controller {
 		global $wpdb;
 		foreach ( $items as $item ) {
 			$type_id = absint( $item['ticket_type_id'] ?? 0 );
-			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+			$event_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $type_id ) );
 			if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_pos_forbidden', __( 'Für dieses Event fehlt die POS-Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		}
 		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => sanitize_text_field( $payload['idempotency_key'] ) ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true, 'source' => 'pos', 'fiscal_payment_method' => $payment_method ) );
@@ -486,7 +486,7 @@ final class Controller {
 	public static function redeem_pass( \WP_REST_Request $request ) {
 		$type_id = absint( $request->get_param( 'ticket_type_id' ) );
 		global $wpdb;
-		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $type_id ) );
 		if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Für dieses Event fehlt die Einlassberechtigung.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$result = Memberships::redeem( $request->get_param( 'token' ), $type_id, $request->get_param( 'idempotency_key' ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
@@ -507,7 +507,7 @@ final class Controller {
 	public static function revoke_member_pass( \WP_REST_Request $request ) {
 		global $wpdb;
 		$pass_id = absint( $request['pass_id'] );
-		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", $pass_id ) );
+		$events = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_pass_rules', $pass_id ) );
 		if ( ! $events ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		foreach ( $events as $event_id ) {
 			if ( ( (int) $event_id && ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) || ( ! (int) $event_id && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
@@ -520,14 +520,14 @@ final class Controller {
 		global $wpdb;
 		$event_id = absint( $request['event_id'] );
 		$occurrence_id = absint( $request->get_param( 'occurrence_id' ) );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id,status FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $event_id ) );
 		if ( ! $event || 'published' !== $event->status ) { return new \WP_Error( 'wpcap_seat_map_not_found', __( 'Sitzplan nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$valid_occurrence = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d AND event_id=%d AND status='scheduled'", $occurrence_id, $event_id ) );
+		$valid_occurrence = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE occurrence_id=%d AND event_id=%d AND status='scheduled'", $wpdb->prefix . 'wpcap_occurrences', $occurrence_id, $event_id ) );
 		if ( ! $valid_occurrence ) { return new \WP_Error( 'wpcap_occurrence_not_found', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$map = $wpdb->get_row( $wpdb->prepare( "SELECT map_id,version,name FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d AND status='published' ORDER BY version DESC LIMIT 1", $event_id ) );
+		$map = $wpdb->get_row( $wpdb->prepare( "SELECT map_id,version,name FROM %i WHERE event_id=%d AND status='published' ORDER BY version DESC LIMIT 1", $wpdb->prefix . 'wpcap_seat_maps', $event_id ) );
 		if ( ! $map ) { return rest_ensure_response( array( 'map' => null, 'seats' => array() ) ); }
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_seat_holds SET status='expired' WHERE status='active' AND expires_at<=%s", current_time( 'mysql', true ) ) );
-		$seats = $wpdb->get_results( $wpdb->prepare( "SELECT s.seat_id,s.seat_key,s.zone,s.row_label,s.seat_label,s.position_x,s.position_y,IF(s.status='available' AND NOT EXISTS(SELECT 1 FROM {$wpdb->prefix}wpcap_seat_holds h WHERE h.seat_id=s.seat_id AND h.occurrence_id=%d AND h.status IN ('active','sold')), 'available', 'unavailable') AS availability FROM {$wpdb->prefix}wpcap_seats s WHERE s.map_id=%d ORDER BY s.zone,s.row_label,s.seat_label", $occurrence_id, $map->map_id ), ARRAY_A );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_seat_holds', current_time( 'mysql', true ) ) );
+		$seats = $wpdb->get_results( $wpdb->prepare( "SELECT s.seat_id,s.seat_key,s.zone,s.row_label,s.seat_label,s.position_x,s.position_y,IF(s.status='available' AND NOT EXISTS(SELECT 1 FROM %i h WHERE h.seat_id=s.seat_id AND h.occurrence_id=%d AND h.status IN ('active','sold')), 'available', 'unavailable') AS availability FROM %i s WHERE s.map_id=%d ORDER BY s.zone,s.row_label,s.seat_label", $wpdb->prefix . 'wpcap_seat_holds', $occurrence_id, $wpdb->prefix . 'wpcap_seats', $map->map_id ), ARRAY_A );
 		return rest_ensure_response( array( 'map' => array( 'version' => (int) $map->version, 'name' => $map->name ), 'seats' => $seats ) );
 	}
 
@@ -540,7 +540,7 @@ final class Controller {
 		$payload['event_id'] = $event_id;
 		if ( ! empty( $payload['ticket_type_id'] ) ) {
 			global $wpdb;
-			$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d AND o.event_id=%d", absint( $payload['ticket_type_id'] ), $event_id ) );
+			$valid = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d AND o.event_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $payload['ticket_type_id'] ), $event_id ) );
 			if ( ! $valid ) { return new \WP_Error( 'wpcap_campaign_scope', __( 'Die Ticketart gehört nicht zu diesem Event.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		}
 		$result = Campaigns::create( $payload );
@@ -555,7 +555,7 @@ final class Controller {
 		$event_id = absint( $request['event_id'] );
 		$type_id = absint( $request->get_param( 'ticket_type_id' ) );
 		global $wpdb;
-		$type_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+		$type_event = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $type_id ) );
 		if ( $type_event !== $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_waitlist_forbidden', __( 'Keine Berechtigung für diese Ticketart.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$result = Waitlists::offer_next( $event_id, $type_id );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
@@ -585,8 +585,8 @@ final class Controller {
 		// Staff without access to payment data (check-in/partner roles) get no amounts; developer keys keep the full report.
 		$minimise = get_current_user_id() && ! \PassCaptain\Security\DataPolicy::can_view_payment();
 		if ( false !== $cached ) { return rest_ensure_response( $minimise ? \PassCaptain\Security\DataPolicy::strip_payment( (array) $cached ) : $cached ); }
-		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT ord.currency,COUNT(DISTINCT ord.order_id) AS orders_count,COALESCE(SUM(oi.quantity),0) AS tickets_sold,COALESCE(SUM(oi.line_total_minor),0) AS gross_minor FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.payment_status='paid' AND ord.status<>'refunded' AND ord.created_at >= %s AND ord.created_at < DATE_ADD(%s,INTERVAL 1 DAY) GROUP BY ord.currency", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ), ARRAY_A );
-		$checkins = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE event_id=%d AND result='checked_in' AND created_at >= %s AND created_at < DATE_ADD(%s,INTERVAL 1 DAY)", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ) );
+		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT ord.currency,COUNT(DISTINCT ord.order_id) AS orders_count,COALESCE(SUM(oi.quantity),0) AS tickets_sold,COALESCE(SUM(oi.line_total_minor),0) AS gross_minor FROM %i ord INNER JOIN %i oi ON oi.order_id=ord.order_id INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.payment_status='paid' AND ord.status<>'refunded' AND ord.created_at >= %s AND ord.created_at < DATE_ADD(%s,INTERVAL 1 DAY) GROUP BY ord.currency", $wpdb->prefix . 'wpcap_orders', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ), ARRAY_A );
+		$checkins = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE event_id=%d AND result='checked_in' AND created_at >= %s AND created_at < DATE_ADD(%s,INTERVAL 1 DAY)", $wpdb->prefix . 'wpcap_checkins', $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ) );
 		$currency_totals = array();
 		foreach ( $sales as $sale ) { $currency_totals[] = array( 'currency' => $sale['currency'], 'orders_count' => (int) $sale['orders_count'], 'tickets_sold' => (int) $sale['tickets_sold'], 'gross_minor' => (int) $sale['gross_minor'] ); }
 		$data = array( 'event_id' => $event_id, 'from' => $from, 'to' => $to, 'sales_by_currency' => $currency_totals, 'checkins' => $checkins, 'financial_basis' => 'gross_line_totals_before_order_discounts_tax_and_refunds' );
@@ -615,14 +615,14 @@ final class Controller {
 	public static function developer_event( \WP_REST_Request $request ) {
 		global $wpdb;
 		// Authorised (and rate limited) once in developer_key_permission().
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,slug,description,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", absint( $request['event_id'] ) ), ARRAY_A );
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id,name,slug,description,status FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', absint( $request['event_id'] ) ), ARRAY_A );
 		return $event ? rest_ensure_response( $event ) : new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 	}
 
 	public static function get_event_translation( \WP_REST_Request $request ) {
 		global $wpdb;
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
-		$translation = $wpdb->get_row( $wpdb->prepare( "SELECT tr.locale,tr.name,tr.description,tr.location,tr.updated_at FROM {$wpdb->prefix}wpcap_event_translations tr INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=tr.event_id WHERE tr.event_id=%d AND tr.locale=%s AND e.status='published'", absint( $request['event_id'] ), $locale ), ARRAY_A );
+		$translation = $wpdb->get_row( $wpdb->prepare( "SELECT tr.locale,tr.name,tr.description,tr.location,tr.updated_at FROM %i tr INNER JOIN %i e ON e.event_id=tr.event_id WHERE tr.event_id=%d AND tr.locale=%s AND e.status='published'", $wpdb->prefix . 'wpcap_event_translations', $wpdb->prefix . 'wpcap_events', absint( $request['event_id'] ), $locale ), ARRAY_A );
 		return $translation ? rest_ensure_response( $translation ) : new \WP_Error( 'wpcap_translation_not_found', __( 'Übersetzung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 	}
 
@@ -634,7 +634,7 @@ final class Controller {
 		$locale = sanitize_text_field( $payload['locale'] ?? '' );
 		$name = sanitize_text_field( $payload['name'] ?? '' );
 		if ( ! preg_match( '/^[a-z]{2,3}([_-][A-Za-z0-9]{2,8})*$/', $locale ) || '' === $name ) { return new \WP_Error( 'wpcap_translation_invalid', __( 'Locale oder übersetzter Titel ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_event_translations (event_id,locale,name,description,location,updated_at) VALUES (%d,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),location=VALUES(location),updated_at=VALUES(updated_at)", $event_id, $locale, $name, wp_kses_post( $payload['description'] ?? '' ), sanitize_text_field( $payload['location'] ?? '' ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (event_id,locale,name,description,location,updated_at) VALUES (%d,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),location=VALUES(location),updated_at=VALUES(updated_at)', $wpdb->prefix . 'wpcap_event_translations', $event_id, $locale, $name, wp_kses_post( $payload['description'] ?? '' ), sanitize_text_field( $payload['location'] ?? '' ), current_time( 'mysql', true ) ) );
 		return rest_ensure_response( array( 'event_id' => $event_id, 'locale' => $locale, 'status' => 'saved' ) );
 	}
 
@@ -686,9 +686,9 @@ final class Controller {
 		$name = sanitize_text_field( $payload['name'] ?? '' );
 		if ( ! $name || ! is_array( $rows ) || ! $rows || count( $rows ) > 500 ) { return new \WP_Error( 'wpcap_seat_map_invalid', __( 'Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$wpdb->query( 'START TRANSACTION' );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d FOR UPDATE", $event_id ) );
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_events', $event_id ) );
 		if ( ! $event ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$version = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d", $event_id ) );
+		$version = 1 + (int) $wpdb->get_var( $wpdb->prepare( 'SELECT MAX(version) FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_seat_maps', $event_id ) );
 		$map_saved = $wpdb->insert( $wpdb->prefix . 'wpcap_seat_maps', array( 'event_id' => $event_id, 'version' => $version, 'name' => $name, 'status' => 'published', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%s', '%s' ) );
 		$map_id = false === $map_saved ? 0 : (int) $wpdb->insert_id;
 		if ( ! $map_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_map_save', __( 'Sitzplan konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
@@ -719,7 +719,7 @@ final class Controller {
 	public static function create_service_slot( \WP_REST_Request $request ) {
 		global $wpdb;
 		$resource_id = absint( $request['resource_id'] );
-		$resource = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d AND status='active'", $resource_id ) );
+		$resource = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE resource_id=%d AND status='active'", $wpdb->prefix . 'wpcap_resources', $resource_id ) );
 		if ( ! $resource || ! Access::can_access_event( $resource->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für diese Ressource.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$payload = $request->get_json_params();
 		$start = strtotime( sanitize_text_field( $payload['starts_at'] ?? '' ) );
@@ -734,7 +734,7 @@ final class Controller {
 	public static function set_admission_days( \WP_REST_Request $request ) {
 		global $wpdb;
 		$occurrence_id = absint( $request['occurrence_id'] );
-		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.event_id FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", $occurrence_id ) );
+		$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.event_id FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', $occurrence_id ) );
 		if ( ! $occurrence || ! Access::can_access_event( $occurrence->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_admission_forbidden', __( 'Keine Berechtigung für diesen Termin.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$payload = $request->get_json_params();
 		$days = $payload['days'] ?? array();
@@ -748,7 +748,7 @@ final class Controller {
 			$parts = array_map( 'intval', explode( '-', $date ) );
 			$valid_date = 3 === count( $parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) && checkdate( $parts[1], $parts[2], $parts[0] );
 			if ( ! $valid_date || $date < $start_date || $date > $end_date || ! in_array( $policy, array( 'single_entry', 'daily', 'reentry' ), true ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_admission_day_invalid', __( 'Ein Veranstaltungstag oder eine Einlassregel ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_occurrence_days (occurrence_id,service_date,admission_policy,max_entries) VALUES (%d,%s,%s,%d) ON DUPLICATE KEY UPDATE admission_policy=VALUES(admission_policy),max_entries=VALUES(max_entries)", $occurrence_id, $date, $policy, min( 20, max( 1, absint( $entry['max_entries'] ?? 1 ) ) ) ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (occurrence_id,service_date,admission_policy,max_entries) VALUES (%d,%s,%s,%d) ON DUPLICATE KEY UPDATE admission_policy=VALUES(admission_policy),max_entries=VALUES(max_entries)', $wpdb->prefix . 'wpcap_occurrence_days', $occurrence_id, $date, $policy, min( 20, max( 1, absint( $entry['max_entries'] ?? 1 ) ) ) ) );
 			if ( $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_admission_save', __( 'Einlassregeln konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		}
 		$wpdb->query( 'COMMIT' );
@@ -759,7 +759,7 @@ final class Controller {
 		global $wpdb;
 		$event_id = absint( $request['event_id'] );
 		$occurrence_id = absint( $request->get_param( 'occurrence_id' ) );
-		$allowed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND o.event_id=%d AND o.status='scheduled' AND e.status='published'", $occurrence_id, $event_id ) );
+		$allowed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND o.event_id=%d AND o.status='scheduled' AND e.status='published'", $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', $occurrence_id, $event_id ) );
 		if ( ! $allowed ) { return new \WP_Error( 'wpcap_occurrence_not_found', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$result = Seats::hold( $occurrence_id, (array) $request->get_param( 'seat_ids' ), 0, 10, $request->get_param( 'idempotency_key' ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
@@ -768,7 +768,7 @@ final class Controller {
 	public static function service_slots( \WP_REST_Request $request ) {
 		global $wpdb;
 		$event_id = absint( $request['event_id'] );
-		$slots = $wpdb->get_results( $wpdb->prepare( "SELECT s.slot_id,s.starts_at,s.ends_at,s.capacity,r.name AS resource_name FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at LIMIT 100", $event_id, current_time( 'mysql', true ) ), ARRAY_A );
+		$slots = $wpdb->get_results( $wpdb->prepare( "SELECT s.slot_id,s.starts_at,s.ends_at,s.capacity,r.name AS resource_name FROM %i s INNER JOIN %i r ON r.resource_id=s.resource_id INNER JOIN %i e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at LIMIT 100", $wpdb->prefix . 'wpcap_service_slots', $wpdb->prefix . 'wpcap_resources', $wpdb->prefix . 'wpcap_events', $event_id, current_time( 'mysql', true ) ), ARRAY_A );
 		return rest_ensure_response( $slots );
 	}
 
