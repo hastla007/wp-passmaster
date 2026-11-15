@@ -283,6 +283,8 @@ final class Webhooks {
 		$reason = $provider . '_' . ( '' !== $reason ? $reason : 'dashboard_refund' );
 		if ( $this_refund > 0 ) {
 			$reference = $ext_prefix . substr( sanitize_text_field( (string) ( $event['refund_id'] ?? '' ) ?: (string) ( $event['provider_reference'] ?? '' ) ?: $event_id ), 0, 150 );
+			// false: under the order lock nothing was left to book (a concurrent refund took the rest) – no
+			// zero row is written; the state check below decides like for a redelivery.
 			$row = Refunds::record_external( $order_id, array(), $this_refund, $reason, $key, array( 'provider_reference' => $reference, 'source' => $provider ) );
 			if ( is_wp_error( $row ) ) {
 				if ( 'wpcap_refund_state' !== $row->get_error_code() ) {

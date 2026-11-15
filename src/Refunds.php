@@ -228,18 +228,25 @@ final class Refunds {
 		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
 		$provider_reference = 'manual';
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
-			$result = $gateway->refund( (array) $order, (int) $refund['amount_minor'], 'wpcap-refund-' . $refund_id );
+			$attempt = (int) ( $refund['provider_attempt'] ?? 0 );
+			$result = $gateway->refund( (array) $order, (int) $refund['amount_minor'], self::provider_key( $refund_id, $attempt ) );
 			if ( is_wp_error( $result ) ) {
-				$failed = $wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $result->get_error_message(), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing' ) );
+				// A final decline (the provider answered and refused, e.g. insufficient balance, card
+				// expired) moves the next retry to a new idempotency key: Stripe, PayPal and Mollie replay the
+				// stored answer of a key (Stripe for 24 h), so the same key would fail again although the
+				// cause was fixed. Network errors, timeouts and 5xx keep the key: the first request may have
+				// paid out, and only the same key prevents a second payout.
+				$final = self::is_final_decline( $result );
+				$failed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='failed',error_message=%s,provider_attempt=provider_attempt+%d,updated_at=%s WHERE refund_id=%d AND status='processing'", $p . 'wpcap_refunds', substr( $result->get_error_message(), 0, 255 ), $final ? 1 : 0, current_time( 'mysql', true ), $refund_id ) );
 				if ( 1 !== (int) $failed ) {
 					// Stays "processing" without provider reference: needs a manual check, never an automatic retry.
 					self::log_problem( $refund_id, (int) $refund['order_id'], 'mark_failed_after_provider_error', (string) $wpdb->last_error );
 				}
-				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code() ) );
+				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code(), 'attempt' => $attempt, 'final_decline' => $final ) );
 				return $result;
 			}
 			$provider_reference = (string) $result;
-			if ( '' === $provider_reference ) { $provider_reference = 'wpcap-refund-' . $refund_id; }
+			if ( '' === $provider_reference ) { $provider_reference = self::provider_key( $refund_id, $attempt ); }
 		}
 		// Persist the payout first: from here on the refund must only be booked, never paid out again.
 		$stored = $wpdb->update( "{$p}wpcap_refunds", array( 'provider_reference' => substr( $provider_reference, 0, 191 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing' ) );
@@ -250,6 +257,33 @@ final class Refunds {
 			return new \WP_Error( 'wpcap_refund_booking', __( 'Die Erstattung wurde beim Zahlungsanbieter ausgeführt, konnte aber nicht verbucht werden. Bitte die Erstattung prüfen.', 'pass-captain' ), array( 'status' => 500, 'provider_reference' => $provider_reference ) );
 		}
 		return self::finalize( $refund_id );
+	}
+
+	/**
+	 * Idempotency key of a provider refund request. Attempt 0 keeps the historic key
+	 * "wpcap-refund-{id}" (refunds started before the attempt counter keep their key); every final
+	 * decline (is_final_decline()) moves the next attempt to "wpcap-refund-{id}-{attempt}".
+	 */
+	public static function provider_key( $refund_id, $attempt = 0 ) {
+		return 'wpcap-refund-' . absint( $refund_id ) . ( (int) $attempt > 0 ? '-' . absint( $attempt ) : '' );
+	}
+
+	/**
+	 * Whether a provider error is a final decline: the provider answered and the refund was definitely
+	 * not executed, so a retry may use a new idempotency key without risking a second payout.
+	 *
+	 * Final: HTTP 4xx except 409 (Stripe: concurrent request with the same key / parameter mismatch –
+	 * the first request may still succeed) and 429 (rate limit, not stored under the key), and the
+	 * gateway codes for a refund object returned with status failed/canceled. Not final (same key on the
+	 * retry): no HTTP status (network error, timeout, local validation before any request) and 5xx.
+	 */
+	public static function is_final_decline( \WP_Error $error ) {
+		if ( in_array( $error->get_error_code(), array( 'wpcap_stripe_refund_failed', 'wpcap_paypal_refund_failed', 'wpcap_mollie_refund_failed' ), true ) ) {
+			return true;
+		}
+		$data = $error->get_error_data();
+		$status = is_array( $data ) ? (int) ( $data['status'] ?? 0 ) : 0;
+		return $status >= 400 && $status < 500 && ! in_array( $status, array( 409, 429 ), true );
 	}
 
 	/**
@@ -476,12 +510,17 @@ final class Refunds {
 	 * @param string $reason          Reason.
 	 * @param string $idempotency_key Unique key per external refund (e.g. "woocommerce-refund-123").
 	 * @param array  $args            provider_reference (string), source (string), tax_minor (int, else proportional).
-	 * @return array|\WP_Error Refund row.
+	 * @return array|false|\WP_Error Refund row; false when there is nothing to record: no amount (≤ 0, also
+	 *                               after capping at the remaining amount under the order lock) and no
+	 *                               ticket left to refund. Nothing is written then (no zero refund row).
 	 */
 	public static function record_external( $order_id, array $ticket_ids, $amount_minor, $reason, $idempotency_key, array $args = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
+		// Neither money nor tickets: a no-op. A zero amount with tickets (free tickets, a WooCommerce refund
+		// of 0.00 with items) is still recorded, because the tickets must be revoked.
+		if ( (int) $amount_minor <= 0 && ! array_filter( array_map( 'absint', $ticket_ids ) ) ) { return false; }
 		$key_hash = hash( 'sha256', 'external-refund|' . $order_id . '|' . sanitize_text_field( $idempotency_key ) );
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', $p . 'wpcap_refunds', $key_hash ), ARRAY_A );
 		if ( $existing ) { return $existing; }
@@ -509,6 +548,11 @@ final class Refunds {
 		if ( '' !== (string) $wpdb->last_error ) { return self::record_error( 0, $order_id, 'open_refunds', true ); }
 		$ticket_ids = array_values( array_diff( $ticket_ids, $running['ticket_ids'] ) );
 		$amount = min( max( 0, (int) $amount_minor ), max( 0, (int) $order->total_minor - (int) $order->refunded_minor - $running['amount_minor'] ) );
+		if ( $amount <= 0 && ! $ticket_ids ) {
+			// Lost a race (e.g. a native refund or another webhook booked the rest meanwhile): no zero row.
+			$wpdb->query( 'ROLLBACK' );
+			return false;
+		}
 		$tax = isset( $args['tax_minor'] ) ? min( $amount, absint( $args['tax_minor'] ) ) : self::tax_for( $order, $ticket_ids ?: null, $amount );
 		if ( self::$read_failed ) { return self::record_error( 0, $order_id, 'read', true ); }
 		$now = current_time( 'mysql', true );
