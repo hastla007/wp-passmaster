@@ -99,7 +99,6 @@ final class Retention {
 		return $total;
 	}
 
-	private static function in_list( array $ids ) { return implode( ',', array_map( 'absint', $ids ) ) ?: '0'; }
 
 	private static function step_answers( $now, $deadline ) {
 		global $wpdb;
@@ -118,7 +117,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT a.answer_id FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id INNER JOIN {$p}wpcap_tickets t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN {$p}wpcap_participant_answers a ON a.ticket_id=t.ticket_id LEFT JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE o.starts_at<%s AND DATE_ADD($end, INTERVAL $days DAY)<%s LIMIT %d", $start_before, $now_sql, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer/static SQL.
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "DELETE FROM {$p}wpcap_participant_answers WHERE answer_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE answer_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_participant_answers', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
 	}
@@ -136,7 +135,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT ta.assignment_id FROM $from INNER JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE o.starts_at<%s AND $end<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'') LIMIT %d", $cutoff, $cutoff, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "UPDATE {$p}wpcap_ticket_assignments SET attendee_name='',attendee_email='' WHERE assignment_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email='' WHERE assignment_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_ticket_assignments', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
 		$count += self::loop(
@@ -145,14 +144,14 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM $from WHERE o.starts_at<%s AND $end<%s AND t.attendee_email<>'' LIMIT %d", $cutoff, $cutoff, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "UPDATE {$p}wpcap_tickets SET attendee_email='' WHERE ticket_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_email='' WHERE ticket_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
 		$occurrences = $wpdb->get_col( $wpdb->prepare( "SELECT o.occurrence_id FROM {$p}wpcap_occurrences o WHERE o.starts_at<%s AND $end<%s", $cutoff, $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( $occurrences && Privacy::has_table( 'wpcap_offline_entries' ) ) {
 			foreach ( array_chunk( $occurrences, self::BATCH ) as $chunk ) {
 				if ( microtime( true ) >= $deadline ) { break; }
-				$count += (int) $wpdb->query( "UPDATE {$p}wpcap_offline_entries SET attendee_name='' WHERE attendee_name<>'' AND occurrence_id IN (" . self::in_list( $chunk ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$count += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='' WHERE attendee_name<>'' AND occurrence_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', $p . 'wpcap_offline_entries', ...$chunk ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		}
 		if ( Privacy::has_table( 'wpcap_wallet_registrations' ) ) {
@@ -162,7 +161,7 @@ final class Retention {
 					return $wpdb->get_col( $wpdb->prepare( "SELECT r.registration_id FROM $from INNER JOIN {$p}wpcap_wallet_passes w ON w.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_wallet_registrations r ON r.serial_number=w.serial_number WHERE o.starts_at<%s AND $end<%s LIMIT %d", $cutoff, $cutoff, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
-					return (int) $wpdb->query( "DELETE FROM {$p}wpcap_wallet_registrations WHERE registration_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE registration_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_wallet_registrations', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				}
 			);
 		}
@@ -182,7 +181,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE attendee_data IS NOT NULL AND payment_status IN ('expired','cancelled','failed') AND updated_at<%s LIMIT %d", $p . 'wpcap_orders', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "UPDATE {$p}wpcap_orders SET attendee_data=NULL WHERE order_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET attendee_data=NULL WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_orders', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
 	}
@@ -202,7 +201,7 @@ final class Retention {
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				$done = 0;
-				foreach ( $wpdb->get_results( 'SELECT order_id,customer_email FROM ' . $p . 'wpcap_orders WHERE order_id IN (' . self::in_list( $ids ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,customer_email FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_orders', ...$ids ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$done += (int) $wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => Privacy::replacement_email( (string) $row->customer_email, (int) $row->order_id ), 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null, 'attendee_data' => null ), array( 'order_id' => (int) $row->order_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 				}
 				return $done;
@@ -224,7 +223,7 @@ final class Retention {
 					return $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM %i WHERE status IN ('sent','failed','cancelled') AND send_at<%s AND created_at<%s AND (recipient<>'' OR payload<>'{}') LIMIT %d", $p . 'wpcap_message_queue', $cutoff, $cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
-					return (int) $wpdb->query( "UPDATE {$p}wpcap_message_queue SET recipient='',payload='{}',last_error=NULL WHERE message_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET recipient='',payload='{}',last_error=NULL WHERE message_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_message_queue', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				}
 			);
 		}
@@ -237,7 +236,7 @@ final class Retention {
 					return $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM %i WHERE status IN ('sent','failed','cancelled') AND send_at<%s AND created_at<%s LIMIT %d", $p . 'wpcap_message_queue', $cutoff, $cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
-					return (int) $wpdb->query( "DELETE FROM {$p}wpcap_message_queue WHERE message_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE message_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_message_queue', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				}
 			);
 		}
@@ -257,7 +256,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( 'SELECT checkin_id FROM %i WHERE created_at<%s AND (user_id<>0 OR device_id<>0) LIMIT %d', $p . 'wpcap_checkins', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "UPDATE {$p}wpcap_checkins SET user_id=0,device_id=0 WHERE checkin_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET user_id=0,device_id=0 WHERE checkin_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_checkins', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
 	}
@@ -274,7 +273,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( 'SELECT audit_id FROM %i WHERE created_at<%s ORDER BY audit_id LIMIT %d', $p . 'wpcap_audit_logs', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "DELETE FROM {$p}wpcap_audit_logs WHERE audit_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE audit_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_audit_logs', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
 	}

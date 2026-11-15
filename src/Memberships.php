@@ -67,7 +67,7 @@ final class Memberships {
 		$key = hash( 'sha256', $token . '|' . $idempotency_key );
 		$uses = $wpdb->prefix . 'wpcap_pass_uses';
 		$wpdb->query( 'START TRANSACTION' );
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT pass_use_id,pass_id FROM $uses WHERE idempotency_key=%s", $key ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT pass_use_id,pass_id FROM %i WHERE idempotency_key=%s', $uses, $key ) );
 		if ( $existing ) { $wpdb->query( 'COMMIT' ); return array( 'status' => 'already_redeemed', 'pass_id' => (int) $existing->pass_id ); }
 		$pass = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE token_hash=%s FOR UPDATE', $wpdb->prefix . 'wpcap_member_passes', hash( 'sha256', $token ) ) );
 		$now = current_time( 'mysql', true );
@@ -75,8 +75,8 @@ final class Memberships {
 		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT r.*,o.timezone FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=%d INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE r.pass_id=%d AND r.scope IN ('event','any') AND (r.expires_at IS NULL OR r.expires_at>%s) AND (r.ticket_type_id=%d OR r.ticket_type_id=0) AND (r.event_id=o.event_id OR r.event_id=0) ORDER BY r.ticket_type_id DESC,r.event_id DESC LIMIT 1 FOR UPDATE", $wpdb->prefix . 'wpcap_pass_rules', $wpdb->prefix . 'wpcap_ticket_types', $ticket_type_id, $wpdb->prefix . 'wpcap_occurrences', $pass->pass_id, $now, $ticket_type_id ) );
 		if ( ! $rule ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_scope', __( 'Dieser Pass gilt nicht für dieses Event oder diese Ticketkategorie.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$day = wp_date( 'Y-m-d', time(), new \DateTimeZone( $rule->timezone ) );
-		$today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $uses WHERE pass_id=%d AND rule_id=%d AND service_date=%s", $pass->pass_id, $rule->rule_id, $day ) );
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $uses WHERE pass_id=%d AND rule_id=%d", $pass->pass_id, $rule->rule_id ) );
+		$today = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE pass_id=%d AND rule_id=%d AND service_date=%s', $uses, $pass->pass_id, $rule->rule_id, $day ) );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE pass_id=%d AND rule_id=%d', $uses, $pass->pass_id, $rule->rule_id ) );
 		if ( (int) $rule->uses_per_day > 0 && $today >= (int) $rule->uses_per_day || (int) $rule->uses_total > 0 && $total >= (int) $rule->uses_total ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_quota', __( 'Das Nutzungskontingent dieses Passes ist ausgeschöpft.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->insert( $uses, array( 'pass_id' => (int) $pass->pass_id, 'rule_id' => (int) $rule->rule_id, 'service_date' => $day, 'user_id' => get_current_user_id(), 'idempotency_key' => $key, 'created_at' => $now ), array( '%d', '%d', '%s', '%d', '%s', '%s' ) );
 		$use_id = (int) $wpdb->insert_id;
@@ -109,13 +109,13 @@ final class Memberships {
 		}
 		$key = hash( 'sha256', $token . '|service|' . $idempotency_key );
 		$uses = $wpdb->prefix . 'wpcap_pass_uses';
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT pass_use_id,pass_id,rule_id,booking_id FROM $uses WHERE idempotency_key=%s", $key ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT pass_use_id,pass_id,rule_id,booking_id FROM %i WHERE idempotency_key=%s', $uses, $key ) );
 		if ( $existing ) { return array( 'status' => 'already_redeemed', 'pass_id' => (int) $existing->pass_id, 'rule_id' => (int) $existing->rule_id, 'booking_id' => (int) $existing->booking_id ); }
 		$wpdb->query( 'START TRANSACTION' );
 		$pass = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE token_hash=%s FOR UPDATE', $wpdb->prefix . 'wpcap_member_passes', hash( 'sha256', $token ) ) );
 		$now = current_time( 'mysql', true );
 		if ( ! $pass || 'active' !== $pass->status || $pass->valid_from > $now || $pass->valid_until < $now ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_inactive', __( 'Pass ist ungültig oder außerhalb der Laufzeit.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT pass_use_id,pass_id,rule_id,booking_id FROM $uses WHERE idempotency_key=%s", $key ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT pass_use_id,pass_id,rule_id,booking_id FROM %i WHERE idempotency_key=%s', $uses, $key ) );
 		if ( $existing ) { $wpdb->query( 'COMMIT' ); return array( 'status' => 'already_redeemed', 'pass_id' => (int) $existing->pass_id, 'rule_id' => (int) $existing->rule_id, 'booking_id' => (int) $existing->booking_id ); }
 		$mode = $slot_id ? 'slot_bound' : 'slot_free';
 		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE pass_id=%d AND scope IN ('service','any') AND slot_mode=%s AND (resource_id=%d OR resource_id=0) AND (expires_at IS NULL OR expires_at>%s) ORDER BY resource_id DESC,rule_id LIMIT 1 FOR UPDATE", $wpdb->prefix . 'wpcap_pass_rules', (int) $pass->pass_id, $mode, $resource_id, $now ) );
@@ -127,8 +127,8 @@ final class Memberships {
 		}
 		$tz = ServiceResources::timezone_of( $resource );
 		$day = wp_date( 'Y-m-d', $slot_id ? strtotime( $slot->starts_at . ' UTC' ) : time(), new \DateTimeZone( $tz ) );
-		$today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $uses WHERE pass_id=%d AND rule_id=%d AND service_date=%s", $pass->pass_id, $rule->rule_id, $day ) );
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $uses WHERE pass_id=%d AND rule_id=%d", $pass->pass_id, $rule->rule_id ) );
+		$today = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE pass_id=%d AND rule_id=%d AND service_date=%s', $uses, $pass->pass_id, $rule->rule_id, $day ) );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE pass_id=%d AND rule_id=%d', $uses, $pass->pass_id, $rule->rule_id ) );
 		if ( ( (int) $rule->uses_per_day > 0 && $today >= (int) $rule->uses_per_day ) || ( (int) $rule->uses_total > 0 && $total >= (int) $rule->uses_total ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_quota', __( 'Das Nutzungskontingent dieses Passes ist ausgeschöpft.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->insert( $uses, array( 'pass_id' => (int) $pass->pass_id, 'rule_id' => (int) $rule->rule_id, 'service_date' => $day, 'user_id' => get_current_user_id(), 'idempotency_key' => $key, 'resource_id' => $resource_id, 'slot_id' => $slot_id, 'created_at' => $now ), array( '%d', '%d', '%s', '%d', '%s', '%d', '%d', '%s' ) );
 		$use_id = (int) $wpdb->insert_id;

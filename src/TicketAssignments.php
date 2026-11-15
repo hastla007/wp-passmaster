@@ -13,7 +13,7 @@ final class TicketAssignments {
 		$name = sanitize_text_field( $name );
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! $name || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_assignment_invalid', __( 'Teilnehmerdaten ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$orders = $wpdb->prefix . 'wpcap_orders';
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE public_id=%s", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $orders, $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_assignment_denied', __( 'Bestellzugriff ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		if ( 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_assignment_unpaid', __( 'Teilnehmer können erst nach Zahlung zugewiesen werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'START TRANSACTION' );

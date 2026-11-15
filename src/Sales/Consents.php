@@ -480,7 +480,7 @@ final class Consents {
 		for ( $round = 0; $round < 20; $round++ ) {
 			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM ' . self::table() . " c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_participant_fields f ON f.field_id=c.field_id WHERE DATE_ADD(COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)), INTERVAL $days DAY)<%s LIMIT %d", $now_sql, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- integer SQL.
 			if ( ! $ids ) { break; }
-			$deleted += (int) $wpdb->query( 'DELETE FROM ' . self::table() . ' WHERE consent_id IN (' . implode( ',', array_map( 'absint', $ids ) ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$deleted += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE consent_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', self::table(), ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			if ( count( $ids ) < self::BATCH ) { break; }
 		}
 		if ( $deleted ) { Audit::record( 'privacy_retention_consents', 'system', 0, array( 'deleted' => $deleted ) ); }

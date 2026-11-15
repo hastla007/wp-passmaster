@@ -184,7 +184,7 @@ final class Reservations {
 			$ids = array();
 			foreach ( $explicit as $type_ids ) { $ids = array_merge( $ids, $type_ids ); }
 			sort( $ids, SORT_NUMERIC );
-			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'seats' ) . ' WHERE version_id=%d AND seat_id IN (' . implode( ',', array_map( 'absint', $ids ) ) . ') ORDER BY seat_id FOR UPDATE', (int) $link->version_id ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id=%d AND seat_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY seat_id FOR UPDATE', self::t( 'seats' ), (int) $link->version_id, ...$ids ) );
 			$seats = array();
 			foreach ( $rows as $row ) { $seats[ (int) $row->seat_id ] = $row; }
 			foreach ( $explicit as $type_id => $type_ids ) {
@@ -251,8 +251,8 @@ final class Reservations {
 		$order_id = absint( $order_id );
 		$claims = self::t( 'claims' );
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE $claims SET status='sold',updated_at=%s WHERE order_id=%d AND status='held' AND active_key IS NOT NULL", $now, $order_id ) );
-		$recoverable = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $claims WHERE order_id=%d AND active_key IS NULL AND release_reason IN ('stale','expired') ORDER BY claim_id", $order_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='sold',updated_at=%s WHERE order_id=%d AND status='held' AND active_key IS NOT NULL", $claims, $now, $order_id ) );
+		$recoverable = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND active_key IS NULL AND release_reason IN ('stale','expired') ORDER BY claim_id", $claims, $order_id ) );
 		if ( ! $recoverable ) { return; }
 		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.ticket_type_id,SUM(oi.quantity) AS quantity,tt.occurrence_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d GROUP BY oi.ticket_type_id,tt.occurrence_id ORDER BY tt.occurrence_id,oi.ticket_type_id', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $order_id ) );
 		$missing_total = 0;
@@ -264,7 +264,7 @@ final class Reservations {
 				$link = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d FOR UPDATE', self::t( 'links' ), $occurrence_id ) );
 				$mapping = $link ? Layouts::type_zones( $occurrence_id ) : array();
 				if ( empty( $mapping[ $type_id ] ) ) { continue; }
-				$have = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $claims WHERE order_id=%d AND ticket_type_id=%d AND active_key IS NOT NULL", $order_id, $type_id ) );
+				$have = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE order_id=%d AND ticket_type_id=%d AND active_key IS NOT NULL', $claims, $order_id, $type_id ) );
 				$need = (int) $line->quantity - $have;
 				if ( $need < 1 ) { continue; }
 				self::release_stale( $occurrence_id );
@@ -274,7 +274,7 @@ final class Reservations {
 				foreach ( $previous as $claim ) {
 					if ( count( $plan ) >= $need ) { break; }
 					$seat = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id=%d AND seat_key=%s FOR UPDATE', self::t( 'seats' ), (int) $link->version_id, $claim->seat_key ) );
-					$busy = $seat ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $claims WHERE occurrence_id=%d AND active_key=%s FOR UPDATE", $occurrence_id, $claim->seat_key ) ) : 1;
+					$busy = $seat ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d AND active_key=%s FOR UPDATE', $claims, $occurrence_id, $claim->seat_key ) ) : 1;
 					if ( $seat && ! $busy && ! in_array( $seat->seat_key, $keys, true ) ) { $plan[] = $seat; $keys[] = $seat->seat_key; }
 				}
 				if ( count( $plan ) < $need ) {
@@ -307,7 +307,7 @@ final class Reservations {
 		$type_id = (int) ( is_object( $line ) ? $line->ticket_type_id : 0 );
 		if ( ! $ticket_id || ! $order_id || ! $type_id ) { return; }
 		$claims = self::t( 'claims' );
-		$claim = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $claims WHERE order_id=%d AND ticket_type_id=%d AND ticket_id=0 AND active_key IS NOT NULL ORDER BY claim_id LIMIT 1 FOR UPDATE", $order_id, $type_id ) );
+		$claim = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d AND ticket_type_id=%d AND ticket_id=0 AND active_key IS NOT NULL ORDER BY claim_id LIMIT 1 FOR UPDATE', $claims, $order_id, $type_id ) );
 		if ( ! $claim ) {
 			$occurrence_id = (int) ( $line->occurrence_id ?? 0 );
 			if ( $occurrence_id && Layouts::link( $occurrence_id ) && ! empty( Layouts::type_zones( $occurrence_id )[ $type_id ] ) ) {
@@ -316,7 +316,7 @@ final class Reservations {
 			return;
 		}
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE $claims SET ticket_id=%d,status='sold',updated_at=%s WHERE claim_id=%d", $ticket_id, $now, (int) $claim->claim_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET ticket_id=%d,status='sold',updated_at=%s WHERE claim_id=%d", $claims, $ticket_id, $now, (int) $claim->claim_id ) );
 		$label = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT label FROM %i WHERE seat_id=%d', self::t( 'seats' ), (int) $claim->seat_id ) );
 		$wpdb->insert( self::t( 'ticket_seats' ), array(
 			'ticket_id' => $ticket_id,
@@ -347,7 +347,7 @@ final class Reservations {
 		$released = 0;
 		if ( in_array( $order->status, array( 'cancelled', 'expired', 'refunded' ), true ) ) {
 			$reason = 'expired' === $order->status ? 'expired' : 'order_' . $order->status;
-			$released += (int) $wpdb->query( $wpdb->prepare( "UPDATE $claims SET active_key=NULL,status='released',release_reason=%s,updated_at=%s WHERE order_id=%d AND active_key IS NOT NULL AND ticket_id=0", $reason, $now, $order_id ) );
+			$released += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET active_key=NULL,status='released',release_reason=%s,updated_at=%s WHERE order_id=%d AND active_key IS NOT NULL AND ticket_id=0", $claims, $reason, $now, $order_id ) );
 		}
 		$released += self::release_revoked( $now, $wpdb->prepare( ' AND c.order_id=%d', $order_id ) );
 		if ( $released ) { Audit::record( 'seats_released', 'order', $order_id, array( 'count' => $released ) ); }
@@ -376,7 +376,7 @@ final class Reservations {
 		global $wpdb;
 		$now = current_time( 'mysql', true );
 		$claims = self::t( 'claims' );
-		$wpdb->query( $wpdb->prepare( "UPDATE $claims c INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=c.order_id SET c.active_key=NULL,c.status='released',c.release_reason=IF(o.status='expired','expired',CONCAT('order_',o.status)),c.updated_at=%s WHERE c.active_key IS NOT NULL AND c.ticket_id=0 AND o.status IN ('cancelled','expired','refunded')", $now ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i c INNER JOIN %i o ON o.order_id=c.order_id SET c.active_key=NULL,c.status='released',c.release_reason=IF(o.status='expired','expired',CONCAT('order_',o.status)),c.updated_at=%s WHERE c.active_key IS NOT NULL AND c.ticket_id=0 AND o.status IN ('cancelled','expired','refunded')", $claims, $wpdb->prefix . 'wpcap_orders', $now ) );
 		self::release_stale();
 		self::release_revoked( $now );
 	}
