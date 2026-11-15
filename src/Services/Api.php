@@ -164,7 +164,7 @@ final class Api {
 
 	/** Pass holder uses a service pass (the 64-hex pass code is the credential). */
 	public static function redeem_service_pass( \WP_REST_Request $request ) {
-		$ip_key = 'wpcap_svcpass_ip_' . hash( 'sha256', \PassCaptain\RateLimit::client_ip() );
+		$ip_key = 'wpcap_svcpass_ip_' . \PassCaptain\RateLimit::client();
 		$attempts = (int) get_transient( $ip_key );
 		if ( $attempts >= 60 ) { return new \WP_Error( 'wpcap_pass_rate', __( 'Zu viele Versuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $ip_key, $attempts + 1, HOUR_IN_SECONDS );

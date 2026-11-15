@@ -23,6 +23,11 @@ final class ServicesPage {
 	const ACTION = 'wpcap_service_action';
 	const CAP = 'wpcap_manage_events';
 
+	/** E-mail as the current user may see it (masked for the support profile, DataPolicy). */
+	private static function email( $email ) {
+		return \PassCaptain\Security\DataPolicy::masks_pii() ? \PassCaptain\Security\DataPolicy::mask_email( (string) $email ) : (string) $email;
+	}
+
 	private static function can_event( $event_id ) {
 		return $event_id && Access::can_access_event( $event_id, self::CAP );
 	}
@@ -451,7 +456,7 @@ final class ServicesPage {
 				if ( '' !== (string) $b->cancel_reason ) { $state .= ' (' . ServiceBookings::reason_label( $b->cancel_reason ) . ')'; }
 				if ( (int) $b->fee_minor ) { $state .= ' · ' . sprintf( /* translators: %s: amount */ __( 'Gebühr %s', 'pass-captain' ), Forms::money( (int) $b->fee_minor, (string) $b->currency ) ); }
 				if ( (int) $b->rebook_count ) { $state .= ' · ' . sprintf( /* translators: %d: count */ _n( '%d× umgebucht', '%d× umgebucht', (int) $b->rebook_count, 'pass-captain' ), (int) $b->rebook_count ); }
-				echo '<tr><td>#' . (int) $b->booking_id . '</td><td>' . esc_html( $b->customer_email ) . '</td><td>' . (int) $b->quantity . '</td><td>' . esc_html( $state ) . '</td><td>' . esc_html( (int) $b->amount_minor ? Forms::money( (int) $b->amount_minor, (string) $b->currency ) : '—' ) . '</td><td>' . ( (int) $b->order_id ? '#' . (int) $b->order_id : '—' ) . '</td><td>' . esc_html( Forms::datetime( $b->created_at, $tz, false ) ) . '</td><td>';
+				echo '<tr><td>#' . (int) $b->booking_id . '</td><td>' . esc_html( self::email( $b->customer_email ) ) . '</td><td>' . (int) $b->quantity . '</td><td>' . esc_html( $state ) . '</td><td>' . esc_html( (int) $b->amount_minor ? Forms::money( (int) $b->amount_minor, (string) $b->currency ) : '—' ) . '</td><td>' . ( (int) $b->order_id ? '#' . (int) $b->order_id : '—' ) . '</td><td>' . esc_html( Forms::datetime( $b->created_at, $tz, false ) ) . '</td><td>';
 				$base = array( 'id' => (int) $b->booking_id, 'return_slot' => (int) $slot->slot_id );
 				if ( 'pending_confirmation' === $b->status ) {
 					FeatureScreens::button( self::ACTION, $base + array( 'do' => 'booking_confirm' ), __( 'Bestätigen', 'pass-captain' ), '', 'button button-small button-primary' );
@@ -492,7 +497,7 @@ final class ServicesPage {
 		}
 		echo '</tr></thead><tbody>';
 		foreach ( $entries as $e ) {
-			echo '<tr><td>' . (int) $e->position . '</td><td>' . esc_html( $e->email ) . '</td><td>' . (int) $e->quantity . '</td><td>' . esc_html( $labels[ $e->status ] ?? $e->status ) . '</td><td>' . esc_html( 'offered' === $e->status && $e->offer_expires_at ? Forms::datetime( $e->offer_expires_at, $tz, false ) : '—' ) . '</td><td>';
+			echo '<tr><td>' . (int) $e->position . '</td><td>' . esc_html( self::email( $e->email ) ) . '</td><td>' . (int) $e->quantity . '</td><td>' . esc_html( $labels[ $e->status ] ?? $e->status ) . '</td><td>' . esc_html( 'offered' === $e->status && $e->offer_expires_at ? Forms::datetime( $e->offer_expires_at, $tz, false ) : '—' ) . '</td><td>';
 			FeatureScreens::button( self::ACTION, array( 'do' => 'waitlist_remove', 'id' => (int) $e->entry_id, 'return_slot' => (int) $slot->slot_id ), __( 'Entfernen', 'pass-captain' ), __( 'Diesen Eintrag von der Warteliste entfernen?', 'pass-captain' ), 'button button-small button-link-delete' );
 			echo '</td></tr>';
 		}

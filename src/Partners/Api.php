@@ -59,6 +59,21 @@ final class Api {
 		return self::$context && in_array( $scope, self::$context['scopes'], true );
 	}
 
+	/**
+	 * Audit trail for partner reads of personal data (e-mail addresses with attendees:read): one entry
+	 * per key, route and page per hour (polling integrations would flood the log otherwise). Only the
+	 * key, route, page and row count are logged, never the addresses.
+	 */
+	private static function audit_pii_read( $route, $rows, $page ) {
+		$key_id = (int) ( self::$context['key']->key_id ?? 0 );
+		$partner_id = (int) ( self::$context['partner']->partner_id ?? 0 );
+		$marker = 'wpcap_pk_read_' . substr( hash( 'sha256', $key_id . '|' . $route . '|' . (int) $page . '|' . gmdate( 'YmdH' ) ), 0, 32 );
+		if ( get_transient( $marker ) ) { return false; }
+		set_transient( $marker, 1, HOUR_IN_SECONDS );
+		\PassCaptain\Audit::record( 'partner_api_pii_read', 'partner', $partner_id, array( 'key_id' => $key_id, 'route' => sanitize_key( $route ), 'page' => (int) $page, 'rows' => (int) $rows ) );
+		return true;
+	}
+
 	private static function respond( $data ) {
 		$response = new \WP_REST_Response( $data, 200 );
 		if ( method_exists( $response, 'header' ) ) {
@@ -189,6 +204,7 @@ final class Api {
 			if ( $pii ) { $row['customer_email'] = \PassCaptain\Privacy::public_email( $o->customer_email ); }
 			$out[] = $row;
 		}
+		if ( $pii && $out ) { self::audit_pii_read( 'orders', count( $out ), $page ); }
 		return self::respond( array( 'orders' => $out, 'page' => $page, 'per_page' => $per_page, 'total' => $total ) );
 	}
 
@@ -216,6 +232,7 @@ final class Api {
 			if ( $pii ) { $row['attendee_email'] = \PassCaptain\Privacy::public_email( $t->attendee_email ); }
 			$out[] = $row;
 		}
+		if ( $pii && $out ) { self::audit_pii_read( 'tickets', count( $out ), $page ); }
 		return self::respond( array( 'tickets' => $out, 'page' => $page, 'per_page' => $per_page, 'total' => $total ) );
 	}
 

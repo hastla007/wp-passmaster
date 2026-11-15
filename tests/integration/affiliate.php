@@ -25,6 +25,8 @@ if ( ! function_exists( 'wpac_contract_version' ) ) {
 }
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'salt-' . $scheme; } }
 AffiliateAdapter::register();
+// No consent API in this test: the operator opts in to reading the referral cookie (default: no consent).
+$GLOBALS['wpcap_test_filters']['wpcap_affiliate_tracking_allowed'] = true;
 $aff_last_sale = static fn() => end( $GLOBALS['wpac_test_sales'] );
 $aff_snapshot  = static function ( $order_id ) { global $wpdb; return json_decode( $wpdb->get_var( "SELECT price_snapshot FROM {$wpdb->prefix}wpcap_orders WHERE order_id=" . (int) $order_id ), true ); };
 $aff_order     = static function ( $type, $qty, $payload = array(), $internal = array() ) {
@@ -102,3 +104,4 @@ $expected = $by_means ? (int) $fresh->total_minor - (int) round( (int) $fresh->t
 check( 'a redeemed voucher reduces the commission base to the net of what was paid', ! is_wp_error( $applied ) && (string) $vo['order_id'] === $sale['order_id'] && $expected === $sale['items'][0]['net_minor'] && $sale['items'][0]['net_minor'] < 10000 );
 echo '  (voucher ' . ( $by_means ? 'multi-purpose' : 'single-purpose' ) . ': paid ' . (int) $fresh->total_minor . ', base ' . (int) $sale['items'][0]['net_minor'] . ")\n";
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_affiliate_tracking_allowed'] );

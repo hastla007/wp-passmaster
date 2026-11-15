@@ -92,7 +92,7 @@ final class BuyerLimits {
 	public static function lock_names( $email, $user_id ) {
 		global $wpdb;
 		$salt = substr( md5( (string) $wpdb->prefix ), 0, 8 );
-		$names = array( 'wpcap_buyer_' . $salt . '_e' . substr( hash( 'sha256', self::normalize_email( $email ) ), 0, 32 ) );
+		$names = array( 'wpcap_buyer_' . $salt . '_e' . substr( \PassCaptain\RateLimit::hash( self::normalize_email( $email ) ), 0, 32 ) );
 		if ( absint( $user_id ) ) { $names[] = 'wpcap_buyer_' . $salt . '_u' . absint( $user_id ); }
 		sort( $names, SORT_STRING );
 		return $names;

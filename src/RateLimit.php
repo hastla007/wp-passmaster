@@ -22,6 +22,15 @@ final class RateLimit {
 		return hash_hmac( 'sha256', self::client_ip(), self::secret() );
 	}
 
+	/**
+	 * Keyed hash of any identifying value (e-mail address, client address plus scope) for transient
+	 * and lock names. An unkeyed sha256/md5 of an e-mail or IPv4 address can be reversed by brute
+	 * force or a dictionary from the options table / object cache.
+	 */
+	public static function hash( $value ) {
+		return hash_hmac( 'sha256', (string) $value, self::secret() );
+	}
+
 	/** Forwarding headers that can be trusted when the request comes from a trusted proxy. */
 	const PROXY_HEADERS = array(
 		'x_forwarded_for' => 'HTTP_X_FORWARDED_FOR',

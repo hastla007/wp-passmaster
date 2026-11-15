@@ -5,7 +5,8 @@
  *
  * Removes: configured provider secrets (exact values), API keys / tokens by pattern (Stripe,
  * Mollie, Twilio, PayPal bearer, JWT, partner and developer keys, webhook secrets), PEM private
- * keys, 64-hex ticket/access codes, e-mail addresses (masked) and values under sensitive keys.
+ * keys, 64-hex ticket/access codes, e-mail addresses (masked), IBANs, IPv4/IPv6 addresses, phone
+ * numbers and values under sensitive keys (contact keys such as phone, ip, address and names masked).
  */
 namespace PassCaptain\Security;
 
@@ -19,8 +20,8 @@ final class Redact {
 	/** Array keys whose values are always removed. */
 	const SENSITIVE_KEYS = '/(secret|passw|token|api_?key|authorization|private_?key|cookie|signature|credential|auth_header|iban|card)/i';
 
-	/** Array keys holding e-mail addresses / phone numbers (masked, not removed). */
-	const PII_KEYS = '/(e_?mail|phone|recipient)$/i';
+	/** Array keys holding contact data: e-mail, phone, client address, names, postal address (masked, not removed). */
+	const PII_KEYS = '/(e_?mail|phone|mobile|recipient|(^|_)ip(_?address)?|^to|attendee_name|holder_name|contact_name|customer_name|buyer_name|full_name|first_name|last_name|street|(^|_)address(_line_?\d)?|postcode|zip)$/i';
 
 	/** Per-request cache of configured secret values. */
 	private static $known = null;
@@ -92,9 +93,38 @@ final class Redact {
 			'/\b([a-f0-9]{6})[a-f0-9]{58}\b/i' => '$1…',
 		);
 		$text = (string) preg_replace( array_keys( $patterns ), array_values( $patterns ), $text );
-		return (string) preg_replace_callback(
+		$text = (string) preg_replace_callback(
 			'/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/',
 			static function ( $m ) { return self::email( $m[0] ); },
+			$text
+		);
+		return self::contact_data( $text );
+	}
+
+	/**
+	 * IBANs, IPv4/IPv6 addresses and phone numbers in free text. Phone numbers need an international
+	 * (+, 00) or national (0 followed by a non-zero digit) prefix and 8–15 digits, so dates, times,
+	 * amounts and ids are left alone.
+	 */
+	private static function contact_data( $text ) {
+		$text = (string) preg_replace( '/\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/', self::MASK, $text );
+		$text = (string) preg_replace_callback(
+			'/(?<![\w:.])(?:[0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}(?![\w:])|(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])/i',
+			static function ( $m ) {
+				if ( false === filter_var( $m[0], FILTER_VALIDATE_IP ) ) { return $m[0]; }
+				// Already truncated addresses (/24 IPv4 "198.51.100.0", /48 IPv6 "2001:db8:1::") stay readable.
+				return preg_match( '/^(\d+\.){3}0$|::$/', $m[0] ) ? $m[0] : self::MASK;
+			},
+			$text
+		);
+		return (string) preg_replace_callback(
+			'/(?<![\w.\/+\-])(?:\+|00)?\d[\d ()\/\-]{6,}\d(?![\w.\/\-])/',
+			static function ( $m ) {
+				$candidate = $m[0];
+				$digits = (string) preg_replace( '/\D/', '', $candidate );
+				$prefixed = '+' === $candidate[0] || 0 === strpos( $candidate, '00' ) || ( '0' === $candidate[0] && isset( $digits[1] ) && '0' !== $digits[1] );
+				return $prefixed && strlen( $digits ) >= 8 && strlen( $digits ) <= 15 ? self::MASK : $candidate;
+			},
 			$text
 		);
 	}
@@ -111,7 +141,13 @@ final class Redact {
 				continue;
 			}
 			if ( is_string( $key ) && preg_match( self::PII_KEYS, $key ) && is_string( $value ) && '' !== $value ) {
-				$out[ $key ] = false !== strpos( $value, '@' ) ? self::email( $value ) : self::MASK;
+				if ( false !== strpos( $value, '@' ) ) {
+					$out[ $key ] = self::email( $value );
+				} elseif ( false !== filter_var( $value, FILTER_VALIDATE_IP ) ) {
+					$out[ $key ] = self::contact_data( $value ); // Truncated addresses stay readable.
+				} else {
+					$out[ $key ] = self::MASK;
+				}
 				continue;
 			}
 			$out[ $key ] = self::data( $value, $depth + 1 );

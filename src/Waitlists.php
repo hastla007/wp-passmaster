@@ -259,12 +259,12 @@ final class Waitlists {
 		$ticket_type_id = absint( $ticket_type_id );
 		$email = sanitize_email( $email );
 		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$rate_key = 'wpcap_waitlist_' . hash( 'sha256', $email . '|' . $event_id );
+		$rate_key = 'wpcap_waitlist_' . RateLimit::hash( $email . '|' . $event_id );
 		$attempts = (int) get_transient( $rate_key );
 		if ( $attempts >= 5 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
 		$ip = RateLimit::client_ip();
-		$ip_key = 'wpcap_waitlist_ip_' . hash( 'sha256', $ip . '|' . $event_id );
+		$ip_key = 'wpcap_waitlist_ip_' . RateLimit::hash( $ip . '|' . $event_id );
 		$ip_attempts = (int) get_transient( $ip_key );
 		if ( $ip_attempts >= 20 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $ip_key, $ip_attempts + 1, HOUR_IN_SECONDS );

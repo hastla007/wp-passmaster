@@ -132,15 +132,17 @@ final class Adapter {
 	 *
 	 * Cookie referrals (method "cookie"): with the WP Consent API (plugin "WP Consent API" plus a
 	 * compatible cookie banner) the "marketing" category decides – no consent, no use. Without a
-	 * consent API the default is true: the site operator then gates Affiliate Captain's cookie in
-	 * the cookie banner. Link referrals of the current shop session (method "link"/"app") use no
-	 * marketing cookie and are allowed by default. Filter `wpcap_affiliate_tracking_allowed`
-	 * (bool $allowed, string $method) overrides both, e.g. for a different consent manager.
+	 * consent API there is no proof of consent, so the cookie is not read (default false, § 25
+	 * TDDDG / § 165 Abs. 3 TKG 2021); an operator whose cookie banner blocks Affiliate Captain's
+	 * cookie until consent opts in with the filter below. Link referrals of the current shop
+	 * session (method "link"/"app") use no marketing cookie and are allowed by default. Filter
+	 * `wpcap_affiliate_tracking_allowed` (bool $allowed, string $method) overrides both, e.g. for a
+	 * different consent manager.
 	 *
 	 * @param string $method Touch method (cookie, link, app).
 	 */
 	public static function tracking_allowed( $method = 'cookie' ) {
-		$allowed = 'cookie' !== $method ? true : ( function_exists( 'wp_has_consent' ) ? (bool) wp_has_consent( 'marketing' ) : true );
+		$allowed = 'cookie' !== $method ? true : ( function_exists( 'wp_has_consent' ) && (bool) wp_has_consent( 'marketing' ) );
 		return (bool) apply_filters( 'wpcap_affiliate_tracking_allowed', $allowed, $method );
 	}
 

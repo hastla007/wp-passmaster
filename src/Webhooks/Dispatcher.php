@@ -327,7 +327,30 @@ final class Dispatcher {
 	/** Deletes final deliveries older than the retention period (cron). Returns deleted rows. */
 	public static function purge_old() {
 		global $wpdb;
-		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", self::t( 'deliveries' ), gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS ) ) );
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
+		self::cancel_stale( $cutoff );
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", self::t( 'deliveries' ), $cutoff ) );
+	}
+
+	/**
+	 * Pending deliveries of a disabled or deleted subscription are never attempted and would keep
+	 * their payload (possibly with e-mail addresses) forever: after the retention period they are
+	 * cancelled without personal data and then deleted like other final deliveries. A subscription
+	 * reactivated within the period still delivers them.
+	 *
+	 * @return int Cancelled deliveries.
+	 */
+	public static function cancel_stale( $cutoff ) {
+		global $wpdb;
+		$d = self::t( 'deliveries' );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT d.delivery_id,d.payload,d.pii_purged FROM %i d LEFT JOIN %i s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND d.created_at<%s AND (s.subscription_id IS NULL OR s.status<>'active') LIMIT 500", $d, self::t( 'subscriptions' ), (string) $cutoff ) );
+		$now = current_time( 'mysql', true );
+		$count = 0;
+		foreach ( (array) $rows as $row ) {
+			list( $payload, $had_pii ) = self::strip_pii( $row->payload );
+			$count += (int) $wpdb->update( $d, array( 'status' => 'cancelled', 'last_error' => 'subscription_inactive', 'payload' => $payload, 'pii_purged' => $had_pii ? 1 : (int) $row->pii_purged, 'locked_at' => null, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id, 'status' => 'pending' ) );
+		}
+		return $count;
 	}
 
 	/** Privacy eraser: removes the e-mail address from all logged and pending payloads. */

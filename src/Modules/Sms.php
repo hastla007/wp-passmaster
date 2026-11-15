@@ -265,8 +265,11 @@ final class Sms {
 
 	public static function erase( $email, $page = 1 ) {
 		$removed = 0;
+		global $wpdb;
 		foreach ( self::consents_for_email( $email ) as $consent ) {
 			if ( Service::withdraw( (int) $consent->order_id ) ) { ++$removed; }
+			// Message texts and provider errors of the person's order (queued ones were skipped by the withdrawal).
+			$removed += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET body='',last_error=NULL WHERE order_id=%d AND status<>'sending' AND (body<>'' OR last_error IS NOT NULL)", $wpdb->prefix . 'wpcap_sms_messages', (int) $consent->order_id ) );
 		}
 		return array( 'items_removed' => $removed > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
 	}
@@ -281,6 +284,14 @@ final class Sms {
 				array( 'name' => __( 'Eingewilligt (UTC)', 'pass-captain' ), 'value' => $c->consented_at ),
 				array( 'name' => __( 'Widerrufen / beendet (UTC)', 'pass-captain' ), 'value' => (string) ( $c->withdrawn_at ?? '' ) . ' / ' . (string) ( $c->retired_at ?? '' ) ),
 			) );
+			global $wpdb;
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT message_id,purpose,status,body,send_at FROM %i WHERE consent_id=%d ORDER BY message_id LIMIT 200', $wpdb->prefix . 'wpcap_sms_messages', (int) $c->consent_id ) ) as $m ) {
+				$data[] = array( 'group_id' => 'wpcap-sms', 'group_label' => __( 'Pass Captain SMS-Einwilligungen', 'pass-captain' ), 'item_id' => 'sms-message-' . (int) $m->message_id, 'data' => array(
+					array( 'name' => __( 'SMS: Zweck und Status', 'pass-captain' ), 'value' => $m->purpose . ' / ' . $m->status ),
+					array( 'name' => __( 'SMS: Versandzeit (UTC)', 'pass-captain' ), 'value' => (string) $m->send_at ),
+					array( 'name' => __( 'SMS: Text', 'pass-captain' ), 'value' => '' !== (string) $m->body ? (string) $m->body : __( '(gelöscht)', 'pass-captain' ) ),
+				) );
+			}
 		}
 		return array( 'data' => $data, 'done' => true );
 	}
