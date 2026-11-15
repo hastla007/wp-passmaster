@@ -16,8 +16,44 @@ final class PublicEvents {
 		wp_register_script( 'wpcap-checkout', WPCAP_URL . 'assets/checkout.js', array(), WPCAP_VERSION, true );
 		// Privacy-friendly commerce events (wpcap:track) and UTM attribution, docs/TRACKING.md.
 		wp_register_script( 'wpcap-tracking', WPCAP_URL . 'assets/tracking.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
+		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', self::checkout_config() );
+		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
+		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/offline-sync' ) ), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
+			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
+			/* translators: %d: number of queued scans */
+			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'pass-captain' ),
+			'syncFailed' => __( 'Synchronisierung fehlgeschlagen.', 'pass-captain' ),
+			/* translators: 1: synced scans, 2: conflicts */
+			'synced' => __( '%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d.', 'pass-captain' ),
+			'queued' => __( 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.', 'pass-captain' ),
+			'unchecked' => __( 'NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden.', 'pass-captain' ),
+			'admitUnchecked' => __( 'Nach Sichtprüfung einlassen (wird später geprüft)', 'pass-captain' ),
+			'checking' => __( 'Ticket wird geprüft …', 'pass-captain' ),
+			'invalid' => __( 'Ticket nicht gültig.', 'pass-captain' ),
+			'noCamera' => __( 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.', 'pass-captain' ),
+			'cameraError' => __( 'Kamerazugriff nicht möglich:', 'pass-captain' ),
+			'timeout' => __( 'Keine Antwort vom Server.', 'pass-captain' ),
+			'soundOn' => __( 'Ton an', 'pass-captain' ),
+			'soundOff' => __( 'Ton aus', 'pass-captain' ),
+			'torch' => __( 'Taschenlampe', 'pass-captain' ),
+		) ) );
+	}
+
+	/**
+	 * Data for assets/checkout.js (WPCAP_CHECKOUT). The REST nonce is only added for signed-in users:
+	 * cached pages for guests stay nonce-free (a cached, expired nonce would break their checkout), and
+	 * with the nonce the REST request runs as the signed-in customer, so buyer limits "per account"
+	 * (Sales\BuyerLimits, customer_user_id) apply in the native checkout.
+	 */
+	public static function checkout_config() {
+		$config = array(
 			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
+			'availabilityUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/availability' ) ),
+			// Event id 0 is replaced with the form's event id (esc_url_raw() would strip a {id} placeholder).
+			'waitlistUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/events/0/waitlist' ) ),
+			// Polling interval of the live availability while the page is visible (15–60 s).
+			'poll' => min( 60, max( 15, (int) apply_filters( 'wpcap_availability_poll_seconds', 20 ) ) ),
 			'money' => Frontend\Format::js_config(),
 			'i18n' => array(
 				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'pass-captain' ),
@@ -74,40 +110,344 @@ final class PublicEvents {
 				'remittance' => __( 'Verwendungszweck', 'pass-captain' ),
 				'dueDate' => __( 'Zahlbar bis', 'pass-captain' ),
 				'orderAgain' => __( 'Weitere Tickets bestellen', 'pass-captain' ),
+				// Live availability, waitlist, quantity stepper, attendee status (audit R2 #7/#9).
+				'soldOut' => __( 'Ausverkauft', 'pass-captain' ),
+				/* translators: %s: date and time */
+				'salesFrom' => __( 'Verkauf ab %s', 'pass-captain' ),
+				/* translators: %s: remaining time, e.g. "2 Std. 5 Min." */
+				'salesIn' => __( 'Verkaufsstart in %s', 'pass-captain' ),
+				'salesOpen' => __( 'Der Verkauf hat begonnen.', 'pass-captain' ),
+				/* translators: %d: days */
+				'days' => __( '%d Tg.', 'pass-captain' ),
+				/* translators: %d: hours */
+				'hours' => __( '%d Std.', 'pass-captain' ),
+				/* translators: %d: minutes */
+				'minutes' => __( '%d Min.', 'pass-captain' ),
+				/* translators: %d: seconds */
+				'seconds' => __( '%d Sek.', 'pass-captain' ),
+				/* translators: %d: remaining tickets */
+				'remaining' => __( 'Nur noch %d verfügbar', 'pass-captain' ),
+				/* translators: %s: ticket type */
+				'decrease' => __( 'Anzahl „%s“ verringern', 'pass-captain' ),
+				/* translators: %s: ticket type */
+				'increase' => __( 'Anzahl „%s“ erhöhen', 'pass-captain' ),
+				/* translators: %d: number of tickets */
+				'attendeeCount' => __( 'Angaben für %d Ticket(s)', 'pass-captain' ),
+				'attendeeNameRequired' => __( 'Name (wie auf dem Ticket)', 'pass-captain' ),
+				'attendeeEmailToggle' => __( 'Ticket an eine eigene E-Mail-Adresse senden (optional)', 'pass-captain' ),
+				'choose' => __( '– bitte wählen –', 'pass-captain' ),
+				'payButton' => __( 'Zahlungspflichtig bestellen', 'pass-captain' ),
+				'freeButton' => __( 'Kostenlos bestellen', 'pass-captain' ),
+				'free' => __( 'kostenlos', 'pass-captain' ),
+				'retrying' => __( 'Gerade ist viel los – neuer Versuch …', 'pass-captain' ),
+				/* translators: %d: remaining tickets */
+				'notEnough' => __( 'Es sind nur noch %d Tickets dieser Art verfügbar. Die Auswahl wurde angepasst.', 'pass-captain' ),
+				'waitlistOpen' => __( 'Auf die Warteliste', 'pass-captain' ),
+				/* translators: %s: ticket type */
+				'waitlistOpenLabel' => __( 'Für „%s“ auf die Warteliste setzen', 'pass-captain' ),
+				'waitlistEmail' => __( 'E-Mail-Adresse für die Warteliste', 'pass-captain' ),
+				'waitlistSubmit' => __( 'Eintragen', 'pass-captain' ),
+				'waitlistSending' => __( 'Wird eingetragen …', 'pass-captain' ),
+				'waitlistConfirm' => __( 'Bitte bestätige den Link in der E-Mail, die wir dir gerade geschickt haben – erst dann zählt dein Platz auf der Warteliste.', 'pass-captain' ),
+				'salesClosed' => __( 'Nicht mehr erhältlich', 'pass-captain' ),
+				'waitlistFailed' => __( 'Die Eintragung hat nicht geklappt. Bitte versuche es erneut.', 'pass-captain' ),
 			),
-		) );
-		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
-		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/offline-sync' ) ), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
-			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
-			/* translators: %d: number of queued scans */
-			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'pass-captain' ),
-			'syncFailed' => __( 'Synchronisierung fehlgeschlagen.', 'pass-captain' ),
-			/* translators: 1: synced scans, 2: conflicts */
-			'synced' => __( '%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d.', 'pass-captain' ),
-			'queued' => __( 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.', 'pass-captain' ),
-			'unchecked' => __( 'NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden.', 'pass-captain' ),
-			'admitUnchecked' => __( 'Nach Sichtprüfung einlassen (wird später geprüft)', 'pass-captain' ),
-			'checking' => __( 'Ticket wird geprüft …', 'pass-captain' ),
-			'invalid' => __( 'Ticket nicht gültig.', 'pass-captain' ),
-			'noCamera' => __( 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.', 'pass-captain' ),
-			'cameraError' => __( 'Kamerazugriff nicht möglich:', 'pass-captain' ),
-			'timeout' => __( 'Keine Antwort vom Server.', 'pass-captain' ),
-			'soundOn' => __( 'Ton an', 'pass-captain' ),
-			'soundOff' => __( 'Ton aus', 'pass-captain' ),
-			'torch' => __( 'Taschenlampe', 'pass-captain' ),
-		) ) );
+		);
+		if ( get_current_user_id() > 0 ) {
+			$config['nonce'] = wp_create_nonce( 'wp_rest' );
+		}
+		return $config;
 	}
 
-	public static function render_shortcode() {
-		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 50", $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences',
-			current_time( 'mysql', true )
-		) );
+	/** Default attributes of [wp_pass_captain_events] and the wp-pass-captain/events block. */
+	const DEFAULT_ATTS = array( 'event' => 0, 'occurrence' => 0, 'limit' => 50, 'layout' => 'auto' );
+
+	/** Query parameter of the single-occurrence view (?wpcap_occ=ID). */
+	const OCC_PARAM = 'wpcap_occ';
+
+	/**
+	 * Normalised shortcode/block attributes: event (id), occurrence (id), limit (1–200), layout
+	 * auto|list|cards.
+	 */
+	public static function atts( $atts ) {
+		$atts = is_array( $atts ) ? $atts : array();
+		$atts = function_exists( 'shortcode_atts' ) ? shortcode_atts( self::DEFAULT_ATTS, $atts, 'wp_pass_captain_events' ) : array_merge( self::DEFAULT_ATTS, array_intersect_key( $atts, self::DEFAULT_ATTS ) );
+		$layout = sanitize_key( (string) $atts['layout'] );
+		return array(
+			'event' => absint( $atts['event'] ),
+			'occurrence' => absint( $atts['occurrence'] ),
+			'limit' => max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) ),
+			'layout' => in_array( $layout, array( 'list', 'cards' ), true ) ? $layout : 'auto',
+		);
+	}
+
+	/**
+	 * Up to this many occurrences, layout "auto" shows full checkout cards; more become the compact
+	 * list with a "Tickets" link per occurrence (filter wpcap_events_auto_list_threshold).
+	 */
+	public static function auto_list_threshold() {
+		return max( 1, (int) apply_filters( 'wpcap_events_auto_list_threshold', 3 ) );
+	}
+
+	/**
+	 * [wp_pass_captain_events event="" occurrence="" limit="50" layout="auto|list|cards"]
+	 *
+	 * Without occurrence: list of upcoming occurrences (compact rows with a "Tickets" button, series
+	 * with a date picker) or – layout cards, or auto with few occurrences – the checkout cards. With
+	 * occurrence (attribute, or ?wpcap_occ=ID on the page): only that occurrence with its checkout form.
+	 */
+	public static function render_shortcode( $atts = array() ) {
+		$atts = self::atts( $atts );
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );
-		return self::render_cards( $rows );
+		if ( $atts['occurrence'] ) {
+			return self::render_detail( $atts['occurrence'], $atts, false );
+		}
+		$requested = absint( wp_unslash( $_GET[ self::OCC_PARAM ] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public, read-only view.
+		if ( $requested ) {
+			return self::render_detail( $requested, $atts, true );
+		}
+		$rows = self::listing_rows( $atts['event'], 0, $atts['limit'] );
+		$layout = 'auto' === $atts['layout'] ? ( count( $rows ) > self::auto_list_threshold() ? 'list' : 'cards' ) : $atts['layout'];
+		return 'list' === $layout ? self::render_list( $rows ) : self::render_cards( $rows );
+	}
+
+	/**
+	 * Listing rows (event_id, name, description, occurrence_id, starts_at, timezone, location) of
+	 * upcoming published, scheduled occurrences.
+	 */
+	public static function listing_rows( $event_id = 0, $occurrence_id = 0, $limit = 50 ) {
+		global $wpdb;
+		$sql = "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s";
+		$args = array( $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences', current_time( 'mysql', true ) );
+		if ( $event_id ) { $sql .= ' AND e.event_id=%d'; $args[] = absint( $event_id ); }
+		if ( $occurrence_id ) { $sql .= ' AND o.occurrence_id=%d'; $args[] = absint( $occurrence_id ); }
+		$sql .= ' ORDER BY o.starts_at ASC,o.occurrence_id ASC LIMIT %d';
+		$args[] = max( 1, min( 200, (int) $limit ) );
+		return $wpdb->get_results( $wpdb->prepare( $sql, $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built from literals.
+	}
+
+	/** Current page URL without the plugin's view/return parameters (base for "Tickets" links). */
+	public static function page_url() {
+		$url = function_exists( 'get_permalink' ) && function_exists( 'is_singular' ) && is_singular() ? (string) get_permalink() : '';
+		if ( '' === $url ) {
+			$url = home_url( self::url_part( esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ?? '/' ) ), PHP_URL_PATH ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised by esc_url_raw.
+		}
+		// Keep the query of the request (e.g. ?page_id=4 without pretty permalinks), not the view/return parameters.
+		$keep = array();
+		foreach ( $_GET as $key => $value ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- link building only.
+			$key = sanitize_key( (string) $key );
+			if ( is_scalar( $value ) && '' !== $key && ! in_array( $key, array( self::OCC_PARAM, 'wpcap_payment', 'order', 'wpcap_rt', 'wpcap_month' ), true ) && false === strpos( $url, $key . '=' ) ) {
+				$keep[ $key ] = sanitize_text_field( wp_unslash( (string) $value ) );
+			}
+		}
+		return $keep ? add_query_arg( $keep, $url ) : $url;
+	}
+
+	/** One component of a URL ('' when missing). */
+	private static function url_part( $url, $component ) {
+		$part = function_exists( 'wp_parse_url' ) ? wp_parse_url( (string) $url, $component ) : parse_url( (string) $url, $component ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- fallback outside WordPress.
+		return is_string( $part ) ? $part : '';
+	}
+
+	/** URL of the single-occurrence view on $base (default: this page). */
+	public static function occurrence_url( $occurrence_id, $base = null ) {
+		return add_query_arg( array( self::OCC_PARAM => absint( $occurrence_id ) ), null === $base ? self::page_url() : (string) $base );
+	}
+
+	/**
+	 * Single occurrence with its checkout form; series show a date picker for the other dates.
+	 *
+	 * @param bool $from_request Opened from a list (?wpcap_occ): adds the "all dates" link.
+	 */
+	public static function render_detail( $occurrence_id, array $atts = array(), $from_request = true ) {
+		$rows = self::listing_rows( (int) ( $atts['event'] ?? 0 ), $occurrence_id, 1 );
+		$back = '';
+		if ( $from_request ) {
+			$back = '<p class="wpcap-back"><a href="' . esc_url( self::page_url() ) . '">' . esc_html__( '← Alle Termine', 'pass-captain' ) . '</a></p>';
+		}
+		if ( ! $rows ) {
+			return '<div class="wpcap-events wpcap-events-detail">' . $back . '<p>' . esc_html__( 'Dieser Termin ist nicht (mehr) buchbar.', 'pass-captain' ) . '</p></div>';
+		}
+		$picker = $from_request ? self::series_picker( (int) $rows[0]->event_id, (int) $rows[0]->occurrence_id ) : '';
+		return '<div class="wpcap-events-detail">' . $back . $picker . self::render_cards( $rows ) . '</div>';
+	}
+
+	/** Date picker (GET form, works without JavaScript) for the other upcoming dates of a series. */
+	private static function series_picker( $event_id, $current ) {
+		$rows = self::listing_rows( $event_id, 0, 200 );
+		if ( count( $rows ) < 2 ) { return ''; }
+		list( $status ) = self::occurrence_states( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) );
+		return self::date_form( $rows, $current, __( 'Anderen Termin wählen', 'pass-captain' ), $status );
+	}
+
+	/**
+	 * GET form with a date select (name wpcap_occ) and a "Tickets" button; keeps the page's other query
+	 * parameters as hidden fields.
+	 *
+	 * @param object[] $rows   Occurrence rows of one event.
+	 * @param array    $status occurrence_id => status (soldout|upcoming|available).
+	 */
+	private static function date_form( array $rows, $selected, $label, array $status ) {
+		static $n = 0;
+		$id = 'wpcap-occ-picker-' . ( ++$n );
+		$url = self::page_url();
+		$action = (string) strtok( $url, '?' );
+		$hidden = '';
+		$query = self::url_part( $url, PHP_URL_QUERY );
+		if ( '' !== $query ) {
+			parse_str( $query, $params );
+			foreach ( $params as $key => $value ) {
+				if ( is_scalar( $value ) && self::OCC_PARAM !== $key ) { $hidden .= '<input type="hidden" name="' . esc_attr( (string) $key ) . '" value="' . esc_attr( (string) $value ) . '">'; }
+			}
+		}
+		$options = '';
+		foreach ( $rows as $row ) {
+			$state = $status[ (int) $row->occurrence_id ] ?? '';
+			if ( $status && '' === $state ) { continue; } // Nothing on sale or announced for this date.
+			$text = Frontend\Format::event_start( $row->starts_at, $row->timezone );
+			if ( 'soldout' === $state ) { $text .= ' – ' . __( 'ausverkauft', 'pass-captain' ); }
+			if ( 'upcoming' === $state ) { $text .= ' – ' . __( 'Vorverkauf folgt', 'pass-captain' ); }
+			$options .= '<option value="' . esc_attr( (string) (int) $row->occurrence_id ) . '"' . ( (int) $row->occurrence_id === (int) $selected ? ' selected' : '' ) . '>' . esc_html( $text ) . '</option>';
+		}
+		return '<form method="get" action="' . esc_url( $action ) . '" class="wpcap-occ-picker">' . $hidden . '<label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label> <span class="wpcap-occ-picker-row"><select id="' . esc_attr( $id ) . '" name="' . esc_attr( self::OCC_PARAM ) . '">' . $options . '</select> <button type="submit" class="wp-element-button">' . esc_html__( 'Tickets', 'pass-captain' ) . '</button></span></form>';
+	}
+
+	/**
+	 * Sales state per occurrence for lists (available|soldout|upcoming); occurrences without an active,
+	 * not yet ended ticket type are missing. One DisplayBatch for all rows.
+	 *
+	 * @param int[] $occ_ids Occurrence ids.
+	 * @return array{0: array<int,string>, 1: array<int,string>} status and earliest upcoming sales start (UTC) per occurrence.
+	 */
+	public static function occurrence_states( array $occ_ids ) {
+		global $wpdb;
+		$occ_ids = array_values( array_unique( array_filter( array_map( 'absint', $occ_ids ) ) ) );
+		if ( ! $occ_ids ) { return array( array(), array() ); }
+		$now = current_time( 'mysql', true );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+		$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,sales_start FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' AND (sales_end IS NULL OR sales_end >= %s)", array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) );
+		$status = array();
+		$starts = array();
+		$open = array();
+		foreach ( $types as $type ) {
+			$occ = (int) $type->occurrence_id;
+			if ( $type->sales_start && $type->sales_start > $now ) {
+				$starts[ $occ ] = isset( $starts[ $occ ] ) ? min( $starts[ $occ ], $type->sales_start ) : $type->sales_start;
+				$status[ $occ ] = $status[ $occ ] ?? 'upcoming';
+			} else {
+				$open[] = $type;
+			}
+		}
+		if ( $open ) {
+			DisplayBatch::run( array_map( static function ( $t ) { return (int) $t->ticket_type_id; }, $open ), static function () use ( $open, &$status ) {
+				foreach ( $open as $type ) {
+					$occ = (int) $type->occurrence_id;
+					$remaining = Orders::availability( (int) $type->ticket_type_id );
+					if ( null === $remaining || $remaining > 0 ) {
+						$status[ $occ ] = 'available';
+					} elseif ( 'available' !== ( $status[ $occ ] ?? '' ) && 'upcoming' !== ( $status[ $occ ] ?? '' ) ) {
+						$status[ $occ ] = 'soldout';
+					}
+				}
+			} );
+		}
+		return array( $status, $starts );
+	}
+
+	/**
+	 * Compact list: one block per event with its upcoming dates as rows ("Tickets" link to the
+	 * single-occurrence view); series with more than three dates get a date picker instead. No
+	 * checkout forms (a page with 60 dates stays small).
+	 *
+	 * @param object[] $rows Listing rows.
+	 */
+	public static function render_list( array $rows ) {
+		$translations = self::translations( array_values( array_unique( array_map( static function ( $row ) { return (int) $row->event_id; }, $rows ) ) ), determine_locale() );
+		list( $status, $starts ) = self::occurrence_states( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) );
+		$events = array();
+		foreach ( $rows as $row ) {
+			if ( ! isset( $status[ (int) $row->occurrence_id ] ) ) { continue; } // No ticket types on sale or announced.
+			$events[ (int) $row->event_id ][] = $row;
+		}
+		$level = min( 6, max( 2, (int) apply_filters( 'wpcap_event_card_heading_level', 2 ) ) );
+		$out = '<div class="wpcap-events wpcap-events-list">';
+		if ( ! $events ) {
+			$out .= '<p>' . esc_html__( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ) . '</p>';
+		}
+		foreach ( $events as $event_id => $occurrences ) {
+			$first = $occurrences[0];
+			$translation = $translations[ $event_id ] ?? null;
+			$name = $translation ? $translation->name : $first->name;
+			$description = wp_strip_all_tags( (string) ( $translation ? $translation->description : $first->description ) );
+			$location = $translation && $translation->location ? $translation->location : $first->location;
+			$excerpt = function_exists( 'wp_trim_words' ) ? wp_trim_words( $description, 30 ) : ( mb_strlen( $description ) > 200 ? mb_substr( $description, 0, 200 ) . ' …' : $description );
+			$heading_id = 'wpcap-event-' . (int) $event_id . '-title';
+			$out .= '<article class="wpcap-event-summary" aria-labelledby="' . esc_attr( $heading_id ) . '"><h' . $level . ' id="' . esc_attr( $heading_id ) . '">' . esc_html( $name ) . '</h' . $level . '>';
+			if ( '' !== trim( $excerpt ) ) { $out .= '<p class="wpcap-event-excerpt">' . esc_html( $excerpt ) . '</p>'; }
+			if ( count( $occurrences ) > 3 ) {
+				// The date picker offers every upcoming date of the series, also beyond the listing limit.
+				$all = self::listing_rows( (int) $event_id, 0, 200 );
+				list( $all_status ) = count( $all ) > count( $occurrences ) ? self::occurrence_states( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $all ) ) : array( $status );
+				$dates = count( array_filter( $all, static function ( $row ) use ( $all_status ) { return isset( $all_status[ (int) $row->occurrence_id ] ); } ) );
+				/* translators: 1: number of dates, 2: first date */
+				$out .= '<p class="wpcap-occ-meta">' . esc_html( sprintf( __( '%1$d Termine ab %2$s', 'pass-captain' ), $dates, Frontend\Format::event_start( $first->starts_at, $first->timezone ) ) . ( $location ? ' · ' . $location : '' ) ) . '</p>';
+				$out .= self::date_form( $all, (int) $first->occurrence_id, __( 'Termin wählen', 'pass-captain' ), $all_status );
+			} else {
+				$out .= '<ul class="wpcap-occ-rows">';
+				foreach ( $occurrences as $row ) {
+					$occ = (int) $row->occurrence_id;
+					$when = Frontend\Format::event_start( $row->starts_at, $row->timezone );
+					$where = $translation && $translation->location ? $translation->location : $row->location;
+					$state = $status[ $occ ];
+					$badge = '';
+					if ( 'soldout' === $state ) { $badge = '<span class="wpcap-badge wpcap-badge-soldout">' . esc_html__( 'Ausverkauft', 'pass-captain' ) . '</span>'; }
+					/* translators: %s: date and time */
+					if ( 'upcoming' === $state && isset( $starts[ $occ ] ) ) { $badge = '<span class="wpcap-badge">' . esc_html( sprintf( __( 'Vorverkauf ab %s', 'pass-captain' ), Frontend\Format::event_start( $starts[ $occ ], $row->timezone ) ) ) . '</span>'; }
+					/* translators: 1: event name, 2: date and time */
+					$label = sprintf( __( 'Tickets für %1$s am %2$s', 'pass-captain' ), $name, $when );
+					$out .= '<li class="wpcap-occ-row" id="wpcap-occ-' . $occ . '"><span class="wpcap-occ-when">' . esc_html( $when ) . '</span>' . ( $where ? '<span class="wpcap-occ-where">' . esc_html( $where ) . '</span>' : '' ) . $badge . '<a class="wp-element-button wpcap-tickets-link" href="' . esc_url( self::occurrence_url( $occ ) ) . '" aria-label="' . esc_attr( $label ) . '">' . esc_html__( 'Tickets', 'pass-captain' ) . '</a></li>';
+				}
+				$out .= '</ul>';
+			}
+			$out .= '</article>';
+		}
+		return $out . '</div>';
+	}
+
+	/**
+	 * Published page that shows the events shortcode or block (link target of the calendar when no
+	 * checkout page is configured). Cached for a day; forgotten when a post is saved or deleted.
+	 */
+	public static function shortcode_page_url() {
+		$cached = get_transient( 'wpcap_events_page' );
+		if ( is_array( $cached ) && isset( $cached['url'] ) ) { return (string) $cached['url']; }
+		$url = '';
+		$candidates = array();
+		if ( function_exists( 'get_posts' ) ) {
+			foreach ( array( 'wp_pass_captain_events', 'wp-pass-captain/events' ) as $needle ) {
+				foreach ( (array) get_posts( array( 'post_type' => array( 'page', 'post' ), 'post_status' => 'publish', 's' => $needle, 'numberposts' => 20, 'orderby' => 'ID', 'order' => 'ASC', 'suppress_filters' => true ) ) as $post ) {
+					$content = (string) $post->post_content;
+					$shortcode = function_exists( 'has_shortcode' ) ? has_shortcode( $content, 'wp_pass_captain_events' ) : false !== strpos( $content, '[wp_pass_captain_events' );
+					$block = false !== strpos( $content, '<!-- wp:wp-pass-captain/events' );
+					// A page that shows one fixed date (occurrence attribute) is no list page.
+					if ( ( $shortcode || $block ) && ! preg_match( '/\[wp_pass_captain_events[^\]]*occurrence=|"occurrenceId":\s*[1-9]/', $content ) ) {
+						$candidates[ (int) $post->ID ] = ( 'page' === $post->post_type ? 0 : 1000000000000 ) + (int) $post->ID; // Pages first, then the oldest.
+					}
+				}
+			}
+		}
+		if ( $candidates ) {
+			asort( $candidates );
+			$url = (string) get_permalink( (int) array_key_first( $candidates ) );
+		}
+		set_transient( 'wpcap_events_page', array( 'url' => $url ), DAY_IN_SECONDS );
+		return $url;
+	}
+
+	/** save_post / deleted_post: forget the cached events page. */
+	public static function flush_page_cache() {
+		delete_transient( 'wpcap_events_page' );
 	}
 
 	/**
@@ -128,14 +468,22 @@ final class PublicEvents {
 		$types_by_occ = array();
 		if ( $occ_ids ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			// SELECT *: visibility/access_codes may not exist before the schema upgrade (then all are public).
-			$type_rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", array_merge( array( $p . 'wpcap_ticket_types' ), $occ_ids, array( $now, $now ) ) ) );
+			// Types whose sales start later are shown too (with a countdown, not selectable), so a cached page
+			// already contains them when the sale opens; the checkout script enables them live.
+			// SELECT *: visibility/access_codes and the 3.17.5 columns may not exist before the schema upgrade.
+			$schema = Orders::schema_at_least( '3.17.5' );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- generated placeholders.
+			$type_rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' AND (sales_end IS NULL OR sales_end >= %s) ORDER BY " . ( $schema ? 'position,' : '' ) . 'ticket_type_id', array_merge( array( $p . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) );
 			// Hidden types never, code-only types only with a matching ?wpcap_code= (Sales\Visibility).
 			$unlock_code = Sales\Visibility::request_code();
 			$visible_rows = Sales\Visibility::filter_listing( (array) $type_rows, $unlock_code );
 			$has_locked = count( array_filter( (array) $type_rows, static function ( $row ) { return 'code' === Sales\Visibility::of( $row ); } ) ) > count( array_filter( $visible_rows, static function ( $row ) { return 'code' === Sales\Visibility::of( $row ); } ) );
 			foreach ( $visible_rows as $type ) {
-				$type = (object) array_intersect_key( (array) $type, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'tax_rate_bp', 'visibility' ) ) );
+				$type = (object) array_intersect_key( (array) $type, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'tax_rate_bp', 'visibility', 'sales_start', 'description', 'attendee_name' ) ) );
+				$type->upcoming = $type->sales_start && $type->sales_start > $now;
+				$type->sales_start_iso = $type->upcoming ? gmdate( 'c', (int) strtotime( $type->sales_start . ' UTC' ) ) : '';
+				$type->description = (string) ( $type->description ?? '' );
+				$type->attendee_name = Orders::attendee_name_mode( $type->attendee_name ?? '' );
 				$types_by_occ[ (int) $type->occurrence_id ][] = $type;
 			}
 		}
@@ -146,10 +494,12 @@ final class PublicEvents {
 		$fields = array();
 		if ( $type_ids ) {
 			// Only field definitions are exposed (no answers); used to render attendee inputs.
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ") AND status='active' ORDER BY position,field_id", array_merge( array( $p . 'wpcap_participant_fields' ), $type_ids ) ), ARRAY_A ) as $field ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version' . ( Orders::schema_at_least( '3.17.5' ) ? ',options' : '' ) . " FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ") AND status='active' ORDER BY position,field_id", array_merge( array( $p . 'wpcap_participant_fields' ), $type_ids ) ), ARRAY_A ) as $field ) {
 				$type_id = (int) $field['ticket_type_id'];
 				unset( $field['ticket_type_id'] );
+				// select/radio: the choices as a list; other types carry no options.
+				if ( in_array( $field['type'], array( 'select', 'radio' ), true ) ) { $field['options'] = Orders::field_options( $field ); } else { unset( $field['options'] ); }
 				$fields[ $type_id ][] = $field;
 			}
 		}
@@ -188,6 +538,9 @@ final class PublicEvents {
 						$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
 						$type->available = Orders::availability( $type->ticket_type_id );
 						$type->fields = $fields[ (int) $type->ticket_type_id ] ?? array();
+						$type->max = $type->upcoming ? 0 : ( null === $type->available ? (int) $type->max_per_order : max( 0, min( (int) $type->max_per_order, (int) $type->available ) ) );
+						// Waitlist sign-up for sold-out types (filter wpcap_waitlist_frontend, default on).
+						$type->waitlist = ! $type->upcoming && $type->max < 1 && (bool) apply_filters( 'wpcap_waitlist_frontend', true, $event, $type );
 					}
 					$currency = (string) $types[0]->currency;
 					if ( ! isset( $providers_by_currency[ $currency ] ) ) { $providers_by_currency[ $currency ] = Payments\Registry::enabled( $currency ); }

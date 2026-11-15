@@ -33,6 +33,17 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 				await page.waitForTimeout(300);
 			},
 		},
+		{ name: 'Event list (layout list)', group: 'public', url: fx.events_list_url, include: '.wpcap-events' },
+		{ name: 'Single occurrence view (?wpcap_occ)', group: 'public', url: fx.events_url && fx.events_url + (fx.events_url.includes('?') ? '&' : '?') + 'wpcap_occ=' + fx.occurrence_id, include: '.wpcap-events-detail' },
+		{
+			name: 'Waitlist sign-up of a sold-out ticket type', group: 'public', url: fx.events_url, include: '.wpcap-events',
+			prepare: async (page) => {
+				const row = page.locator(`.wpcap-type[data-type-row="${fx.ticket_types.Ausverkauft}"]`);
+				await row.locator('.wpcap-waitlist-open').click();
+				await row.locator('.wpcap-waitlist-email').fill('a11y-wl@example.com');
+				await page.waitForTimeout(200);
+			},
+		},
 		{ name: 'Ticket page', group: 'public', url: fx.ticket_url },
 		{ name: 'Order portal', group: 'public', url: fx.portal_url },
 		{ name: 'Waitlist offer page', group: 'public', url: fx.waitlist_url },

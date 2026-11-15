@@ -121,6 +121,28 @@ final class StripeGateway implements GatewayInterface {
 		return $this->payment_result( $session );
 	}
 
+	/**
+	 * Ends the order's open Checkout session before the buyer releases the reservation (ReturnNotice),
+	 * so the session can no longer be paid. A completed session refuses the release.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function cancel_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 !== strpos( $reference, 'cs_' ) ) { return true; }
+		$session = $this->api( 'GET', 'checkout/sessions/' . rawurlencode( $reference ) );
+		if ( is_wp_error( $session ) ) { return $session; }
+		$status = (string) ( $session['status'] ?? '' );
+		if ( 'complete' === $status ) {
+			return new \WP_Error( 'wpcap_stripe_session_complete', __( 'Die Zahlung ist bereits abgeschlossen; die Reservierung kann nicht freigegeben werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		if ( 'open' === $status ) {
+			$expired = $this->api( 'POST', 'checkout/sessions/' . rawurlencode( $reference ) . '/expire' );
+			if ( is_wp_error( $expired ) ) { return $expired; }
+		}
+		return true;
+	}
+
 	/** Verifies the Stripe-Signature header and maps the event. */
 	public function verify_webhook( \WP_REST_Request $request ) {
 		$secret = Settings::secret( 'stripe_webhook_secret' );
@@ -522,7 +544,8 @@ final class StripeGateway implements GatewayInterface {
 
 	/** Return URL for the buyer after the hosted payment page. */
 	public static function return_url( $status, $public_id ) {
-		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
+		// Back to the page the buyer ordered on (ReturnNotice::set_base()), with the return token for "pay again".
+		$url = ReturnNotice::url( $status, $public_id );
 		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'stripe' );
 	}
 

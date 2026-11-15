@@ -456,7 +456,8 @@ final class Waitlists {
 
 	/** Uniform public response for waitlist sign-ups. */
 	private static function join_response() {
-		return array( 'status' => 'received', 'message' => __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine Bestätigung per E-Mail.', 'pass-captain' ) );
+		// double_opt_in: the frontend asks the buyer to confirm the link in the e-mail (same answer for every address).
+		return array( 'status' => 'received', 'message' => __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine Bestätigung per E-Mail.', 'pass-captain' ), 'double_opt_in' => self::double_opt_in() );
 	}
 
 	/**

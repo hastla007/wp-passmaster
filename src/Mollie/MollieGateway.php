@@ -111,7 +111,7 @@ final class MollieGateway implements GatewayInterface {
 			'amount' => array( 'currency' => $currency, 'value' => $value ),
 			/* translators: %s: order number */
 			'description' => mb_substr( sprintf( __( 'Bestellung %s', 'pass-captain' ), $public_id ), 0, 255 ),
-			'redirectUrl' => add_query_arg( array( 'wpcap_mollie_return' => '1', 'order' => $public_id ), home_url( '/' ) ),
+			'redirectUrl' => \PassCaptain\Payments\ReturnNotice::handler_url( array( 'wpcap_mollie_return' => '1', 'order' => $public_id ) ),
 			'webhookUrl' => self::webhook_url(),
 			'metadata' => array( 'order' => $public_id ),
 		);
@@ -527,7 +527,8 @@ final class MollieGateway implements GatewayInterface {
 
 	/** Return URL with the standard notice (?wpcap_payment=…). */
 	public static function return_url( $status, $public_id ) {
-		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
+		// Back to the page the buyer ordered on (ReturnNotice::set_base()), with the return token for "pay again".
+		$url = \PassCaptain\Payments\ReturnNotice::url( $status, $public_id );
 		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'mollie' );
 	}
 }

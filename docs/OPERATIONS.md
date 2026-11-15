@@ -125,6 +125,38 @@ Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site li
 
 Ohne persistenten Object-Cache zählen alle Plugin-Limits (Checkout, Servicebuchungen, Wartelisten, Sitzplatz-Holds, Partner- und Entwickler-API, Kopplung, Portal, SMS) in der Tabelle `wpcap_rate_limits` (seit Schema 3.16.0): eine Zeile je Zähler (`bucket_key` = HMAC des Zählernamens, `window_start`, `hits`, `expires_at`), hochgezählt mit einem einzigen atomaren `INSERT … ON DUPLICATE KEY UPDATE`. Parallele PHP-Worker können das Limit dadurch nicht mehr überholen; die Optionstabelle bleibt frei von Transient-Zeilen je IP. Die Tabelle ist klein (Zeilen leben nur bis zum Fensterende) und wird vom täglichen Löschlauf in Stapeln bereinigt; bei sehr vielen Zugriffen von wechselnden Adressen wächst sie bis dahin um eine Zeile je Adresse und Fenster. Mit persistentem Object-Cache (Redis/Memcached) bleibt es bei `wp_cache_incr()` – die Tabelle wird dann nicht benutzt. Fehlt die Tabelle (Update, Schema-Upgrade noch nicht gelaufen), zählen die Limits übergangsweise wie früher in Transients. Zum Zurücksetzen aller Zähler (z. B. nach einem Test) genügt `DELETE FROM wp_wpcap_rate_limits`.
 
+## Eventseiten: Shortcode/Block, Seiten-Cache und Vorverkaufsstart
+
+`[wp_pass_captain_events]` bzw. der Block „Pass Captain Events“ kennen die Attribute `event` (nur dieses Event),
+`occurrence` (direkt die Ticketauswahl dieses Termins), `limit` (1–200, Standard 50) und
+`layout="auto|list|cards"`. `auto` (Standard) zeigt bis zu drei Termine mit vollständigem Ticketformular, mehr als
+kompakte Terminliste mit „Tickets“-Button (Filter `wpcap_events_auto_list_threshold`); Serien mit mehr als drei Terminen
+bekommen eine Datumsauswahl. Das Formular lädt erst die Einzelansicht `?wpcap_occ={Termin-ID}` derselben Seite – eine
+Seite mit 60 Terminen enthält damit kein einziges Formular. Kalendereinträge verlinken auf diese Einzelansicht: auf die
+in „Kalender“ eingetragene Seite, sonst automatisch auf die erste veröffentlichte Seite mit dem Shortcode/Block (ohne
+`occurrence`-Attribut; 24 h zwischengespeichert, beim Speichern eines Beitrags verworfen), ohne solche Seite auf der
+Kalenderseite selbst.
+
+Eventseiten dürfen vom Seiten-Cache/CDN gecacht werden: Sie enthalten für Gäste keine Nonce (die REST-Nonce wird nur
+angemeldeten Käufern ausgeliefert, damit Käuferlimits „pro Konto“ greifen). Verfügbarkeit und Verkaufsfenster
+aktualisiert `assets/checkout.js` live über `GET /wp-json/wp-pass-captain/v1/availability?types=1,2,3` (öffentlich,
+keine personenbezogenen Daten, `Cache-Control: public, max-age=5, stale-while-revalidate=10`, 120 Abrufe je Minute und
+Client-Netz): kurz nach dem Laden, genau zum nächsten Verkaufsstart (mit bis zu 2 s Streuung) und danach alle 20 s
+(Filter `wpcap_availability_poll_seconds`, 15–60 s), nur solange die Seite sichtbar ist. Ticketarten vor ihrem
+Verkaufsstart stehen mit „Verkauf ab …“ bzw. Countdown auf der Seite und werden zum Start freigeschaltet. Ausverkaufte
+Ticketarten bieten „Auf die Warteliste“ an (Double-Opt-in; abschaltbar mit `wpcap_waitlist_frontend`). Wer den Seiten-
+Cache gezielt leeren will, hängt sich an `wp_pass_captain_availability_changed_v1` (siehe [HOOKS.md](HOOKS.md)); den
+Endpunkt selbst sollte ein CDN höchstens 5 s cachen.
+
+Nach einer gehosteten Zahlung (Stripe, PayPal, Mollie) kehrt der Käufer auf die Seite zurück, auf der er bestellt hat
+(nur dieselbe Website). Seiten mit `?wpcap_payment=…` werden nie gecacht (`DONOTCACHEPAGE`, `nocache_headers()`); der
+Hinweis erscheint über `wp_body_open`, bei Themes ohne diesen Hook am Anfang des Inhalts. Nach Abbruch oder
+fehlgeschlagener Zahlung bietet er „Erneut bezahlen“ (neue Zahlungsseite für dieselbe Bestellung, solange die
+Reservierung läuft) und „Reservierung freigeben“ (sofortige Stornierung der unbezahlten Bestellung; eine offene
+Stripe-Checkout-Session wird vorher beendet). Beide Aktionen sind über das Rückkehr-Token `wpcap_rt` der Rückkehr-URL
+berechtigt. Hinweis: Mollie-Zahlungen lassen sich nicht immer serverseitig abbrechen – kommt nach der Freigabe doch
+eine Zahlung an, greift der bestehende Ablauf für Zahlungen ohne Kontingent.
+
 ## Bestellsuche im Admin
 
 Die Suche unter **Pass Captain → Bestellungen** nutzt die Indizes der Bestelltabelle (PERF-15):

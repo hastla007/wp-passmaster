@@ -58,7 +58,7 @@ final class PayPalGateway implements GatewayInterface {
 		$value = self::format_amount( $total, $currency );
 		if ( is_wp_error( $value ) ) { return $value; }
 		$experience = array(
-			'return_url' => add_query_arg( array( 'wpcap_paypal_return' => '1', 'order' => $public_id ), home_url( '/' ) ),
+			'return_url' => ReturnNotice::handler_url( array( 'wpcap_paypal_return' => '1', 'order' => $public_id ) ),
 			'cancel_url' => self::return_url( 'cancel', $public_id ),
 			'user_action' => 'PAY_NOW',
 			'shipping_preference' => 'NO_SHIPPING',
@@ -589,7 +589,8 @@ final class PayPalGateway implements GatewayInterface {
 	}
 
 	private static function return_url( $status, $public_id ) {
-		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
+		// Back to the page the buyer ordered on (ReturnNotice::set_base()), with the return token for "pay again".
+		$url = ReturnNotice::url( $status, $public_id );
 		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'paypal' );
 	}
 }

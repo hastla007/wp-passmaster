@@ -155,6 +155,13 @@ final class Controller {
 			// Authenticity is established by the provider signature check in verify_webhook().
 			'permission_callback' => '__return_true',
 		) );
+		// Public live availability for cached event pages (Frontend\Availability; rate limited, 5 s cacheable).
+		register_rest_route( 'wp-pass-captain/v1', '/availability', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( \PassCaptain\Frontend\Availability::class, 'rest' ),
+			'permission_callback' => '__return_true',
+			'args' => array( 'types' => array( 'required' => true ) ),
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/checkout/options', array(
 			'methods' => \WP_REST_Server::READABLE,
 			'callback' => array( __CLASS__, 'checkout_options' ),
@@ -264,7 +271,7 @@ final class Controller {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing', 'attribution' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing', 'attribution', 'buyer_name' ) ) ) );
 		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
@@ -285,7 +292,13 @@ final class Controller {
 		$fingerprint = Orders::request_fingerprint( $payload, $provider_id );
 		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request, 'request_fingerprint' => $fingerprint ) );
 		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
-		if ( is_wp_error( $result ) ) { return self::with_error_field( $result, $campaign_messages( array() ) ); }
+		if ( is_wp_error( $result ) ) { return self::checkout_error( self::with_error_field( $result, $campaign_messages( array() ) ), $payload ); }
+		if ( empty( $result['reused'] ) ) {
+			// New reservation: purge adapters may refresh the cached event page (wp_pass_captain_availability_changed_v1).
+			\PassCaptain\Frontend\Availability::changed( array_map( static function ( $line ) { return is_array( $line ) ? absint( $line['ticket_type_id'] ?? 0 ) : 0; }, (array) ( $payload['items'] ?? array() ) ), 'reserved' );
+		}
+		// Hosted payment pages return to the page the buyer ordered on (same site only), not the home page.
+		\PassCaptain\Payments\ReturnNotice::set_base( is_string( $params['return_to'] ?? null ) ? $params['return_to'] : '' );
 		if ( ! empty( $result['reused'] ) ) {
 			// Same key, different attempt (provider, tickets, e-mail or codes changed): never hand out the old
 			// order – its payment would arrive for another provider or amount (paid without tickets).
@@ -361,6 +374,30 @@ final class Controller {
 		return new \WP_REST_Response( $result, empty( $result['reused'] ) ? 201 : 200 );
 	}
 
+	/**
+	 * Checkout error for the browser: a busy database (503, retryable) carries retry_after (Retry-After
+	 * header via Sales\CheckoutGate::retry_after_header()); "not enough tickets" (409) carries the
+	 * remaining selectable quantity per requested ticket type, so the form can update its maximum.
+	 */
+	public static function checkout_error( \WP_Error $error, array $payload ) {
+		$data = $error->get_error_data();
+		$data = is_array( $data ) ? $data : array();
+		$status = (int) ( $data['status'] ?? 0 );
+		if ( 503 === $status && ! empty( $data['retryable'] ) && empty( $data['retry_after'] ) ) {
+			$data['retry_after'] = 2;
+		} elseif ( 409 === $status && 'wpcap_checkout_failed' === $error->get_error_code() ) {
+			$ids = array_map( static function ( $line ) { return is_array( $line ) ? absint( $line['ticket_type_id'] ?? 0 ) : 0; }, (array) ( $payload['items'] ?? array() ) );
+			$remaining = array();
+			foreach ( \PassCaptain\Frontend\Availability::snapshot( $ids ) as $id => $state ) {
+				$remaining[ (string) $id ] = (int) $state['max'];
+			}
+			if ( $remaining ) { $data['remaining'] = $remaining; }
+		} else {
+			return $error;
+		}
+		return new \WP_Error( $error->get_error_code(), $error->get_error_message(), $data );
+	}
+
 	/** End of the order's active hold as Unix timestamp (earliest active reservation), 0 when none is left. */
 	private static function hold_until( $order_id ) {
 		global $wpdb;
@@ -381,6 +418,7 @@ final class Controller {
 			'wpcap_attendees_invalid' => 'attendees',
 			'wpcap_attendee_field_required' => 'attendees',
 			'wpcap_attendee_field_invalid' => 'attendees',
+			'wpcap_attendee_name_required' => 'attendees',
 			'wpcap_invalid_item' => 'items',
 			'wpcap_provider_unavailable' => 'provider',
 			'wpcap_provider_currency' => 'provider',

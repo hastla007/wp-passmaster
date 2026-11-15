@@ -264,7 +264,7 @@ echo "Billing: checkout form and admin view\n";
 $card_type = make_type( 30, 5, 1990 );
 $card_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$card_type" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='bb_hidden' WHERE status='scheduled' AND occurrence_id<>$card_occ" );
-$card = PassCaptain\PublicEvents::render_shortcode();
+$card = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE status='bb_hidden'" );
 check( 'event card: collapsed billing section with checkbox and fields', false !== strpos( $card, '<legend>Rechnung mit Firmen-/Adressdaten</legend>' ) && false !== strpos( $card, 'name="billing_enabled"' ) && 1 === preg_match( '#class="wpcap-billing-fields" id="(wpcap-\d+-billing-fields)" hidden>#', $card, $bm ) && false !== strpos( $card, 'aria-controls="' . $bm[1] . '"' ) );
 check( 'event card: labelled inputs (for/id), required markers, autocomplete', 1 === preg_match( '#<label for="(wpcap-\d+-billing-first_name)">Vorname \*</label>\s*<input id="\1" name="billing_first_name" type="text" autocomplete="given-name" maxlength="100" required>#u', $card ) && false !== strpos( $card, 'Firma (optional)' ) && false !== strpos( $card, 'name="billing_country" autocomplete="country" required' ) && false !== strpos( $card, 'UID-Nummer (optional)' ) );

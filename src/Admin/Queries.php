@@ -99,7 +99,7 @@ final class Queries {
 
 	public static function ticket_types_for_occurrence( $occurrence_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d ORDER BY ticket_type_id', $wpdb->prefix . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d ORDER BY ' . ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ? 'position,' : '' ) . 'ticket_type_id', $wpdb->prefix . 'wpcap_ticket_types', absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal ORDER BY.
 	}
 
 	/** Participant field with event context. */

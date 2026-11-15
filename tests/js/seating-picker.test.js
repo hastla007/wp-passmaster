@@ -167,3 +167,51 @@ test('changing a quantity to 0 moves selected seats to another eligible type', a
 	assert.equal(selects[1].getAttribute('aria-label'), 'Ticketart: Reihe 1, Platz 1');
 	assert.equal(selects[1].value, '12');
 });
+
+/* ---------------------------------------------------------------- Mobile (audit R2 #9) */
+
+test('map width follows the seat density: every seat at least 24 px and 24 px apart', () => {
+	const { exports: p } = picker();
+	// 20-unit seats 30 units apart on a 300-unit map: 24/20 = 1.2 → 360 px.
+	assert.equal(p.minMapWidth(300, [{ x: 0, y: 0 }, { x: 30, y: 0 }]), 360);
+	// Dense map (12 units apart): 24/12 = 2 → 600 px.
+	assert.equal(p.minMapWidth(300, [{ x: 0, y: 0 }, { x: 12, y: 0 }, { x: 24, y: 0 }]), 600);
+	assert.equal(p.minMapWidth(100, [{ x: 0, y: 0 }]), 320, 'never below 320 px');
+});
+
+test('zoom buttons scale the scrollable map and announce the level', async () => {
+	const env = picker();
+	await flush();
+	const svg = env.box.querySelector('svg');
+	const [out, inn] = env.box.querySelectorAll('.wpcap-seating-zoom');
+	assert.equal(svg.style.minWidth, '360px', 'density-based minimum width (seats 30 units apart)');
+	assert.equal(out.disabled, true);
+	inn.click();
+	assert.equal(svg.style.width, '150%');
+	assert.equal(svg.style.minWidth, '540px');
+	inn.click(); inn.click(); inn.click();
+	assert.equal(svg.style.width, '300%');
+	assert.equal(inn.disabled, true);
+	assert.match(env.box.querySelector('.wpcap-seating-zoom-level').textContent, /300/);
+});
+
+test('"Beste verfügbare Plätze" proposes adjacent free seats near the stage for the ordered quantity', async () => {
+	const env = picker({ q11: 1, q12: 1 });
+	await flush();
+	env.box.querySelector('.wpcap-seating-best').click();
+	const p = payload(env);
+	assert.equal(p.error, '');
+	const seats = [].concat(p.payload.seats[11] || [], p.payload.seats[12] || []);
+	assert.equal(seats.length, 2);
+	assert.match(env.status(), /Reihe/);
+	const row = [
+		{ id: 1, kind: 'seat', zone: 'a', row: 'R1', status: 'free', x: 10, y: 10 },
+		{ id: 2, kind: 'seat', zone: 'a', row: 'R1', status: 'taken', x: 20, y: 10 },
+		{ id: 3, kind: 'seat', zone: 'a', row: 'R1', status: 'free', x: 30, y: 10 },
+		{ id: 4, kind: 'seat', zone: 'a', row: 'R2', status: 'free', x: 10, y: 40 },
+		{ id: 5, kind: 'seat', zone: 'a', row: 'R2', status: 'free', x: 20, y: 40 },
+	];
+	assert.deepEqual(env.exports.bestSeats(row, 2, 40, () => true).map((s) => s.id), [4, 5], 'side by side beats a gap in the front row');
+	assert.deepEqual(env.exports.bestSeats(row, 1, 50, () => true).map((s) => s.id), [3], 'single seat: front row, near the centre');
+	assert.deepEqual(env.exports.bestSeats(row, 9, 40, () => true), [], 'not enough free seats');
+});

@@ -116,7 +116,12 @@ if ( ! $layout_id && class_exists( '\\PassCaptain\\Seating\\Layouts' ) ) {
 }
 wp_set_current_user( 0 );
 
-$pages = $wpdb->get_results( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND (post_content LIKE '%[wp_pass_captain_events%' OR post_content LIKE '%[wp_pass_captain_scanner%')" );
+// Compact list view (layout="list") of the events shortcode: rows with a "Tickets" link to ?wpcap_occ=ID.
+$list_page = (int) $wpdb->get_var( "SELECT ID FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND post_content LIKE '%[wp_pass_captain_events layout=\"list\"]%' LIMIT 1" );
+if ( ! $list_page ) {
+	$list_page = (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Terminliste', 'post_name' => 'pc-events-list', 'post_content' => '[wp_pass_captain_events layout="list"]' ) );
+}
+$pages = $wpdb->get_results( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND (post_content LIKE '%[wp_pass_captain_events]%' OR post_content LIKE '%[wp_pass_captain_scanner%')" );
 $events_url = $scanner_url = '';
 foreach ( $pages as $page ) {
 	if ( ! $events_url && false !== strpos( $page->post_content, '[wp_pass_captain_events' ) ) { $events_url = get_permalink( $page->ID ); }
@@ -129,6 +134,7 @@ echo wp_json_encode( array(
 	'ticket_types' => $by_name,
 	'order_id' => (int) $order['order_id'],
 	'events_url' => $events_url,
+	'events_list_url' => $list_page ? get_permalink( $list_page ) : '',
 	'scanner_url' => $scanner_url,
 	'ticket_url' => $ticket_url,
 	'portal_url' => $portal_url,
