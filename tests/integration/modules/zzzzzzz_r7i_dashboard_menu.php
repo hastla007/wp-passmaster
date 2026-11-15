@@ -29,10 +29,12 @@ $r7i_after = R7iDashboard::kpis( null );
 $r7i_paid = PassCaptain\Orders::get( $r7i_o['order_id'] );
 check( 'paid order counts today: orders +1 (' . $r7i_before['orders_today'] . ' → ' . $r7i_after['orders_today'] . ', status ' . $r7i_paid->payment_status . ')', $r7i_after['orders_today'] === $r7i_before['orders_today'] + 1 );
 check( 'paid order counts today: revenue +30,00 EUR', ( $r7i_after['revenue_today']['EUR'] ?? 0 ) === ( $r7i_before['revenue_today']['EUR'] ?? 0 ) + 3000 );
-check( 'tickets of the next 7 days +2 (' . $r7i_before['tickets_next_7d'] . ' → ' . $r7i_after['tickets_next_7d'] . ')', $r7i_after['tickets_next_7d'] === $r7i_before['tickets_next_7d'] + 2 );
 $r7i_event = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $r7i_type ) );
 $r7i_scoped = R7iDashboard::kpis( array( $r7i_event ) );
 $r7i_none = R7iDashboard::kpis( array( 999999999 ) );
+// Scoped to this test's event: the global count also moves with fixtures of other modules whose
+// occurrences cross the 7-day window while the suite runs (flaky on slow CI machines).
+check( 'tickets of the next 7 days: the 2 new tickets count (' . $r7i_scoped['tickets_next_7d'] . ')', 2 === $r7i_scoped['tickets_next_7d'] );
 check( 'scope limits the figures to the user\'s events', 1 === $r7i_scoped['orders_today'] && 0 === $r7i_none['orders_today'] && 0 === $r7i_none['tickets_next_7d'] );
 
 $r7i_settings = array( 'seller_name' => R7iSettings::get( 'seller_name' ), 'seller_address' => R7iSettings::get( 'seller_address' ), 'hidden_modules' => R7iSettings::get( 'hidden_modules' ) );
