@@ -80,7 +80,10 @@ function load(file, opts) {
 function mockFetch(responder) {
 	const calls = [];
 	const fn = async (url, init) => {
-		const body = init && init.body ? JSON.parse(init.body) : null;
+		// JSON bodies are parsed; form-encoded bodies (admin-ajax) become an object of their fields.
+		const raw = init && init.body ? String(init.body) : '';
+		let body = null;
+		if (raw) { try { body = JSON.parse(raw); } catch (e) { body = Object.fromEntries(new URLSearchParams(raw)); } }
 		calls.push({ url: String(url), init: init || {}, body });
 		const r = await responder(String(url), init || {}, body);
 		const status = r.status || 200;

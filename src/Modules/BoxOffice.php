@@ -21,10 +21,13 @@ final class BoxOffice {
 		add_action( 'add_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );
 		add_action( 'update_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );
 		add_action( 'init', array( __CLASS__, 'maybe_migrate' ), 5, 0 );
+		// Card-terminal payments (only used when an add-on registers a device): status poll and cancel.
+		add_action( 'wp_ajax_wpcap_pos_device_status', array( Page::class, 'ajax_device_status' ) );
+		add_action( 'wp_ajax_wpcap_pos_device_cancel', array( Page::class, 'ajax_device_cancel' ) );
 	}
 
 	/** Version of the box office data migrations (option wpcap_boxoffice_migration). */
-	const MIGRATION_VERSION = 2;
+	const MIGRATION_VERSION = 3;
 
 	/** Runs migrate() once per MIGRATION_VERSION (cheap autoloaded option check). */
 	public static function maybe_migrate() {
@@ -57,6 +60,16 @@ final class BoxOffice {
 			'register_id' => "varchar(64) NOT NULL DEFAULT '' AFTER location_id",
 		) as $name => $definition ) {
 			if ( ! $wpdb->get_row( "SHOW COLUMNS FROM `{$session_table}` LIKE '{$name}'" ) && false === $wpdb->query( "ALTER TABLE `{$session_table}` ADD COLUMN {$name} {$definition}" ) ) { return false; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- own table, constant column names/definitions from the array above.
+		}
+		// Version 3: state of asynchronous card-terminal payments.
+		foreach ( array(
+			'device_id' => "varchar(40) NOT NULL DEFAULT '' AFTER payment_method",
+			'device_reference' => "varchar(191) NOT NULL DEFAULT '' AFTER device_id",
+			'device_status' => "varchar(20) NOT NULL DEFAULT '' AFTER device_reference",
+			'device_message' => "varchar(255) NOT NULL DEFAULT '' AFTER device_status",
+			'device_started_at' => 'datetime NULL AFTER device_message',
+		) as $name => $definition ) {
+			if ( ! $wpdb->get_row( "SHOW COLUMNS FROM `{$table}` LIKE '{$name}'" ) && false === $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN {$name} {$definition}" ) ) { return false; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- own table, constant column names/definitions from the array above.
 		}
 
 		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * 60 ) ) );
@@ -95,6 +108,11 @@ final class BoxOffice {
 				form_key_hash char(64) NOT NULL,
 				receipt_number varchar(40) NULL,
 				payment_method varchar(20) NOT NULL,
+				device_id varchar(40) NOT NULL DEFAULT '',
+				device_reference varchar(191) NOT NULL DEFAULT '',
+				device_status varchar(20) NOT NULL DEFAULT '',
+				device_message varchar(255) NOT NULL DEFAULT '',
+				device_started_at datetime NULL,
 				currency char(3) NOT NULL,
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -143,6 +161,7 @@ final class BoxOffice {
 			'wpcap_pos_tickets'      => array( Page::class, 'handle_tickets' ),
 			'wpcap_pos_availability' => array( Page::class, 'handle_availability' ),
 			'wpcap_pos_settings'     => array( Page::class, 'handle_settings' ),
+			'wpcap_pos_device_cancel' => array( Page::class, 'handle_device_cancel' ),
 		);
 	}
 }

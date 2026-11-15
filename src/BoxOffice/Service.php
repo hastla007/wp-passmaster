@@ -36,8 +36,18 @@ final class Service {
 		);
 	}
 
+	/** Method of asynchronous card-terminal payments (only offered when an add-on registers a device, see Devices). */
+	const DEVICE_METHOD = 'card_device';
+
+	/** methods() plus the card-terminal method (for validation, labels and the refund gateways). */
+	public static function all_methods() {
+		return self::methods() + array(
+			self::DEVICE_METHOD => array( 'provider' => 'pos_card_device', 'label' => __( 'Karte am Terminal (automatisch)', 'pass-captain' ) ),
+		);
+	}
+
 	public static function method_label( $method ) {
-		$methods = self::methods();
+		$methods = self::all_methods();
 		return $methods[ $method ]['label'] ?? $method;
 	}
 
@@ -167,9 +177,13 @@ final class Service {
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $session->session_id ) );
 		if ( ! $locked || 'open' !== $locked->status ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 ); }
-		$unfinished = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id,ord.payment_status FROM {$p}wpcap_boxoffice_sales s LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' FOR UPDATE", $session->session_id ) );
+		$unfinished = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id,s.device_status,ord.payment_status FROM {$p}wpcap_boxoffice_sales s LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' FOR UPDATE", $session->session_id ) );
 		foreach ( $unfinished as $row ) {
-			if ( 'paid' === $row->payment_status ) {
+			if ( 'pending' === $row->device_status ) {
+				$wpdb->query( 'ROLLBACK' );
+				return self::error( 'wpcap_pos_device_pending', __( 'Eine Kartenzahlung am Terminal läuft noch. Bitte abwarten oder abbrechen, dann die Kasse abschließen.', 'pass-captain' ), 409 );
+			}
+			if ( 'paid' === $row->payment_status || 'succeeded' === $row->device_status ) {
 				$wpdb->query( 'ROLLBACK' );
 				return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'pass-captain' ), 409 );
 			}
@@ -290,6 +304,10 @@ final class Service {
 		if ( (int) $existing->cashier_id !== get_current_user_id() ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'pass-captain' ) ); }
 		if ( 'pending' === $existing->status ) {
 			if ( ! $existing->order_id ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'pass-captain' ), 409 ); }
+			if ( self::DEVICE_METHOD === $existing->payment_method && 'succeeded' !== $existing->device_status ) {
+				// Terminal payment not confirmed yet: resume the start (idempotent per sale key) or report the wait.
+				return '' === (string) $existing->device_status ? self::start_device_payment( (int) $existing->sale_id ) : array( 'sale' => $existing, 'reused' => true, 'device_pending' => true );
+			}
 			return self::finalize( $existing->sale_id );
 		}
 		if ( 'failed' === $existing->status ) { return self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'pass-captain' ), 409 ); }
@@ -330,9 +348,17 @@ final class Service {
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id || ! Scope::can_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
-		$methods = self::methods();
+		$methods = self::all_methods();
 		$method = (string) ( $input['method'] ?? '' );
 		if ( ! isset( $methods[ $method ] ) ) { return self::error( 'wpcap_pos_method', __( 'Bitte eine Zahlart wählen.', 'pass-captain' ) ); }
+		$device_id = '';
+		if ( self::DEVICE_METHOD === $method ) {
+			$devices = Devices::for_session( $session );
+			if ( ! $devices ) { return self::error( 'wpcap_pos_method', __( 'Bitte eine Zahlart wählen.', 'pass-captain' ) ); }
+			$device_id = (string) ( $input['device'] ?? '' );
+			if ( '' === $device_id && 1 === count( $devices ) ) { $device_id = (string) array_key_first( $devices ); }
+			if ( ! isset( $devices[ $device_id ] ) ) { return self::error( 'wpcap_pos_device', __( 'Bitte ein Kartenterminal wählen.', 'pass-captain' ) ); }
+		}
 
 		$types = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,currency,price_minor FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence_id ) ) as $t ) { $types[ (int) $t->ticket_type_id ] = $t; }
@@ -366,6 +392,7 @@ final class Service {
 			'order_id' => null,
 			'form_key_hash' => $key_hash,
 			'payment_method' => $method,
+			'device_id' => $device_id,
 			'currency' => $session->currency,
 			'tendered_minor' => $tendered,
 			'occurrence_id' => $occurrence_id,
@@ -395,6 +422,8 @@ final class Service {
 			'hold_minutes' => 15,
 			'skip_rate_limit' => true,
 		);
+		// Fiscal documents describe a terminal payment as card payment.
+		if ( self::DEVICE_METHOD === $method ) { $internal['fiscal_payment_method'] = 'card'; }
 		if ( 'free' === $method ) {
 			foreach ( $items as $item ) {
 				$internal['unit_prices'][ $item['ticket_type_id'] ] = 0;
@@ -414,6 +443,10 @@ final class Service {
 			// Payment is only confirmed for an order the sale row points to; resubmitting the form resumes.
 			return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden.', 'pass-captain' ), 503 );
 		}
+
+		// 3a. Card terminal: the payment is started and confirmed asynchronously (poll or webhook);
+		// the sale stays pending with the order hold until then.
+		if ( self::DEVICE_METHOD === $method ) { return self::start_device_payment( $sale_id ); }
 
 		// 3. Payment confirmation and issuance, then booking.
 		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
@@ -457,6 +490,10 @@ final class Service {
 		if ( 'pending' !== $sale->status ) { return 'failed' === $sale->status ? self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'pass-captain' ), 409 ) : array( 'sale' => $sale, 'reused' => true ); }
 		$order = $sale->order_id ? Orders::get( $sale->order_id ) : null;
 		if ( ! $order ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'pass-captain' ), 409 ); }
+		// A terminal payment is only booked after the device (or the add-on's webhook) confirmed it.
+		if ( self::DEVICE_METHOD === $sale->payment_method && 'succeeded' !== $sale->device_status ) {
+			return self::error( 'wpcap_pos_device_pending', __( 'Die Zahlung am Kartenterminal ist noch nicht bestätigt. Der Verkauf wird erst danach gebucht.', 'pass-captain' ), 409 );
+		}
 		// "expired": the sale was interrupted before the payment was confirmed and the 15-minute hold
 		// lapsed meanwhile; confirm_external_payment() re-checks capacity under locks (late recovery).
 		if ( in_array( $order->payment_status, array( 'pending', 'expired' ), true ) ) {
@@ -510,6 +547,255 @@ final class Service {
 		if ( ! self::is_placeholder_email( $order->customer_email ) ) { Orders::rotate_access_link( $order->order_id ); }
 		Audit::record( 'pos_sale', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id, 'receipt' => $number, 'method' => $sale->payment_method, 'total_minor' => (int) $order->total_minor ) );
 		return array( 'sale' => self::sale( $sale->sale_id ), 'reused' => false );
+	}
+
+	/* ------------------------------------------------------------------ card terminal (asynchronous) */
+
+	/** Gateway of a sale's device in the sale's session context; null when no longer registered. */
+	private static function device_of( $sale ) {
+		$session = self::session( $sale->session_id );
+		return $session ? Devices::find( $session, $sale->device_id ) : null;
+	}
+
+	/**
+	 * Starts the terminal payment of a pending sale (exactly once per sale: the device state is claimed
+	 * first, so a resubmitted form or a parallel request does not start a second payment).
+	 *
+	 * @return array|\WP_Error ['sale' => row, 'reused' => bool, 'device_pending' => true] while the
+	 *                         terminal is pending; the booked sale when the device answered "succeeded" at once.
+	 */
+	private static function start_device_payment( $sale_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$sale = self::sale( $sale_id );
+		if ( ! $sale || 'pending' !== $sale->status || ! $sale->order_id ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'pass-captain' ), 404 ); }
+		$order = Orders::get( $sale->order_id );
+		$device = self::device_of( $sale );
+		if ( ! $order || ! $device ) { return self::fail_device( $sale, 'failed', __( 'Das Kartenterminal ist nicht mehr verfügbar.', 'pass-captain' ) ); }
+		if ( (int) $order->total_minor <= 0 ) { return self::fail_device( $sale, 'failed', __( 'Für einen Betrag von 0,00 bitte „Freikarte“ wählen.', 'pass-captain' ) ); }
+		$claimed = $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'device_status' => 'pending', 'device_started_at' => current_time( 'mysql', true ) ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending', 'device_status' => '' ) );
+		if ( ! $claimed ) {
+			$fresh = self::sale( $sale->sale_id );
+			if ( $fresh && 'pending' === $fresh->status && 'pending' === $fresh->device_status ) { return array( 'sale' => $fresh, 'reused' => true, 'device_pending' => true ); }
+			return self::error( 'wpcap_pos_busy', __( 'Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden.', 'pass-captain' ), 503 );
+		}
+		$session = self::session( $sale->session_id );
+		$payload = array(
+			'version' => DeviceGatewayInterface::VERSION,
+			'sale_key' => (string) $sale->form_key_hash,
+			'sale_id' => (int) $sale->sale_id,
+			'order_id' => (int) $order->order_id,
+			'order_public_id' => (string) $order->public_id,
+			'amount_minor' => (int) $order->total_minor,
+			'currency' => (string) $order->currency,
+			/* translators: %s: order number (shortened) */
+			'description' => sprintf( __( 'Bestellung %s', 'pass-captain' ), substr( (string) $order->public_id, 0, 12 ) ),
+			'device_id' => (string) $sale->device_id,
+			'session_id' => (int) $sale->session_id,
+			'location_id' => $session ? (int) $session->location_id : 0,
+			'register_id' => $session ? (string) $session->register_id : '',
+			'cashier_id' => (int) $sale->cashier_id,
+		);
+		$started = Devices::start( $device, $payload );
+		if ( is_wp_error( $started ) ) { return self::fail_device( self::sale( $sale->sale_id ), 'failed', $started->get_error_message() ); }
+		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'device_reference' => $started['reference'], 'device_message' => $started['message'] ), array( 'sale_id' => (int) $sale->sale_id ) );
+		Audit::record( 'pos_device_payment_started', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id, 'device_id' => (string) $sale->device_id, 'reference' => $started['reference'], 'amount_minor' => (int) $order->total_minor ) );
+		do_action( 'wp_pass_captain_pos_device_payment_started_v1', (int) $sale->sale_id, (string) $sale->device_id, $started['reference'], $payload );
+		$sale = self::sale( $sale->sale_id );
+		if ( 'succeeded' === $started['status'] ) {
+			$confirmed = self::confirm_device( $sale, '' !== $started['provider_reference'] ? $started['provider_reference'] : $started['reference'], 'start' );
+			return is_wp_error( $confirmed ) ? $confirmed : self::finalize( $sale->sale_id );
+		}
+		if ( in_array( $started['status'], array( 'failed', 'cancelled' ), true ) ) { return self::fail_device( $sale, $started['status'], $started['message'] ); }
+		return array( 'sale' => $sale, 'reused' => false, 'device_pending' => true );
+	}
+
+	/**
+	 * Confirms the terminal payment of a box office sale, e.g. from the add-on's verified webhook.
+	 * Idempotent and audited: only a sale waiting for its terminal payment is confirmed and then booked
+	 * through the same path as cash/card sales (fiscal gating applies; while the fiscal receipt is
+	 * pending the sale stays open without tickets and is booked by "Nachbuchen"/the next poll). A
+	 * repeated confirmation with a known reference returns true without booking twice.
+	 *
+	 * @param string $sale_key_or_order_id `sale_key` from start() (64 hex) or the order ID.
+	 * @param string $provider_reference   Payment reference of the provider (stored on the order).
+	 * @return true|\WP_Error 404 unknown sale, 400 empty reference, 409 no terminal payment expected any
+	 *                        more (cancelled/failed/timed out: refund it on the terminal) or a different
+	 *                        reference after a confirmed payment (second payment: refund it).
+	 */
+	public static function confirm_device_payment( $sale_key_or_order_id, $provider_reference ) {
+		global $wpdb;
+		$key = trim( (string) $sale_key_or_order_id );
+		$sale = null;
+		if ( '' !== $key && ctype_digit( $key ) ) {
+			$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE order_id=%d", (int) $key ) );
+		} elseif ( preg_match( '/^[a-f0-9]{64}$/', $key ) ) {
+			$sale = self::sale_by_key( $key );
+		}
+		if ( ! $sale || self::DEVICE_METHOD !== $sale->payment_method ) { return self::error( 'wpcap_pos_device_sale', __( 'Kein Kassenverkauf mit Terminalzahlung gefunden.', 'pass-captain' ), 404 ); }
+		return self::confirm_device( $sale, (string) $provider_reference, 'webhook' );
+	}
+
+	/** confirm_device_payment() for a sale row; $source poll|webhook|start (audit). */
+	private static function confirm_device( $sale, $reference, $source ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$reference = mb_substr( sanitize_text_field( (string) $reference ), 0, 191 );
+		if ( '' === $reference ) { return self::error( 'wpcap_pos_device_reference', __( 'Die Zahlungsreferenz fehlt.', 'pass-captain' ) ); }
+		if ( 'succeeded' === $sale->device_status ) {
+			$order = Orders::get( $sale->order_id );
+			$known = array_filter( array( (string) $sale->device_reference, $order ? (string) $order->provider_reference : '' ), static function ( $ref ) { return '' !== $ref; } );
+			if ( ! in_array( $reference, $known, true ) ) {
+				Audit::record( 'pos_device_payment_conflict', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reference' => $reference, 'source' => $source ) );
+				return self::error( 'wpcap_pos_device_conflict', __( 'Dieser Verkauf wurde bereits mit einer anderen Terminalzahlung bestätigt. Die zweite Zahlung bitte am Terminal erstatten.', 'pass-captain' ), 409 );
+			}
+			if ( 'pending' === $sale->status ) { self::finalize( (int) $sale->sale_id ); } // Resume an unbooked sale; never books twice.
+			return true;
+		}
+		if ( 'pending' !== $sale->device_status || 'pending' !== $sale->status ) {
+			Audit::record( 'pos_device_payment_late', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reference' => $reference, 'device_status' => (string) $sale->device_status, 'source' => $source ) );
+			return self::error( 'wpcap_pos_device_not_pending', __( 'Für diesen Verkauf wird keine Terminalzahlung mehr erwartet (abgebrochen, fehlgeschlagen oder abgelaufen). Eine dennoch erfolgte Zahlung bitte am Terminal erstatten.', 'pass-captain' ), 409 );
+		}
+		// Exactly one request wins the transition pending → succeeded (poll, webhook and cancel race here).
+		$won = $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'device_status' => 'succeeded' ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending', 'device_status' => 'pending' ) );
+		if ( ! $won ) {
+			$fresh = self::sale( $sale->sale_id );
+			if ( $fresh && 'pending' !== $fresh->device_status ) { return self::confirm_device( $fresh, $reference, $source ); }
+			return self::error( 'wpcap_pos_busy', __( 'Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden.', 'pass-captain' ), 503 );
+		}
+		$confirmed = Orders::confirm_external_payment( (int) $sale->order_id, 'pos:' . self::DEVICE_METHOD . ':' . $reference );
+		Orders::set_provider_reference( (int) $sale->order_id, $reference );
+		Audit::record( 'pos_device_payment_confirmed', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'device_id' => (string) $sale->device_id, 'reference' => $reference, 'source' => $source, 'order_confirmed' => ! is_wp_error( $confirmed ) ) );
+		do_action( 'wp_pass_captain_pos_device_payment_completed_v1', (int) $sale->sale_id, (int) $sale->order_id, $reference, (string) $sale->device_id );
+		// Booking (receipt number, tickets after the fiscal gate). Errors leave the sale pending for "Nachbuchen".
+		if ( ! is_wp_error( $confirmed ) ) { self::finalize( (int) $sale->sale_id ); }
+		return true;
+	}
+
+	/**
+	 * Ends a pending terminal payment without payment: the sale is marked failed and the order (hold)
+	 * cancelled, so the cashier can sell again with another method. $status failed|cancelled|timeout.
+	 */
+	private static function fail_device( $sale, $status, $message ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$texts = array(
+			'failed' => __( 'Die Zahlung am Terminal ist fehlgeschlagen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
+			'cancelled' => __( 'Die Zahlung am Terminal wurde abgebrochen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
+			'timeout' => __( 'Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
+		);
+		$status = isset( $texts[ $status ] ) ? $status : 'failed';
+		$message = mb_substr( sanitize_text_field( (string) $message ), 0, 255 );
+		if ( ! $sale ) { return self::error( 'wpcap_pos_device_' . $status, $texts[ $status ], 409 ); }
+		// Compare-and-set on the device state read before ('' before the start, else 'pending').
+		$done = in_array( (string) $sale->device_status, array( '', 'pending' ), true ) ? $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'failed', 'device_status' => $status, 'device_message' => $message ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending', 'device_status' => (string) $sale->device_status ) ) : 0;
+		if ( ! $done ) {
+			$fresh = self::sale( $sale->sale_id );
+			// Confirmed concurrently (or a database error): report the actual state instead.
+			if ( $fresh && 'failed' !== $fresh->status ) { return 'succeeded' === $fresh->device_status ? self::finalize( (int) $fresh->sale_id ) : self::error( 'wpcap_pos_busy', __( 'Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden.', 'pass-captain' ), 503 ); }
+		} else {
+			if ( $sale->order_id ) { Orders::cancel_order( (int) $sale->order_id, 'pos_device_' . $status, true ); }
+			Audit::record( 'pos_device_payment_failed', 'pos_sale', (int) $sale->sale_id, array( 'order_id' => (int) $sale->order_id, 'device_id' => (string) $sale->device_id, 'status' => $status, 'message' => $message ) );
+			do_action( 'wp_pass_captain_pos_device_payment_failed_v1', (int) $sale->sale_id, $status, $message, (string) $sale->device_id );
+		}
+		return self::error( 'wpcap_pos_device_' . $status, $texts[ $status ] . ( '' !== $message ? ' (' . $message . ')' : '' ), 409 );
+	}
+
+	/** Seconds since the terminal payment was started. */
+	private static function device_elapsed( $sale ) {
+		$started = $sale->device_started_at ? strtotime( $sale->device_started_at . ' UTC' ) : false;
+		return false === $started ? 0 : max( 0, time() - $started );
+	}
+
+	/**
+	 * Polls a pending terminal payment once and applies the answer: succeeded → confirmation and
+	 * booking, failed/cancelled → released, no answer past the timeout → cancelled on the terminal
+	 * (best effort) and released as "timeout". Errors of the device count as "still pending".
+	 *
+	 * @return array|\WP_Error See device_state().
+	 */
+	public static function poll_device_payment( $sale_id ) {
+		$sale = self::sale( $sale_id );
+		if ( ! $sale || self::DEVICE_METHOD !== $sale->payment_method ) { return self::error( 'wpcap_pos_device_sale', __( 'Kein Kassenverkauf mit Terminalzahlung gefunden.', 'pass-captain' ), 404 ); }
+		if ( 'pending' === $sale->status && 'pending' === $sale->device_status ) {
+			$device = self::device_of( $sale );
+			$reference = (string) $sale->device_reference;
+			$state = $device && '' !== $reference ? Devices::poll( $device, $reference ) : new \WP_Error( 'wpcap_pos_device_missing', __( 'Das Kartenterminal ist nicht mehr verfügbar.', 'pass-captain' ) );
+			$status = is_wp_error( $state ) ? 'pending' : $state['status'];
+			if ( 'succeeded' === $status ) {
+				self::confirm_device( $sale, '' !== $state['provider_reference'] ? $state['provider_reference'] : $reference, 'poll' );
+			} elseif ( 'failed' === $status || 'cancelled' === $status ) {
+				self::fail_device( $sale, $status, $state['message'] );
+			} elseif ( self::device_elapsed( $sale ) >= Devices::timeout( $sale->device_id ) ) {
+				if ( $device && '' !== $reference ) { Devices::cancel( $device, $reference ); }
+				self::fail_device( $sale, 'timeout', '' );
+			} else {
+				return self::device_state( $sale, is_wp_error( $state ) ? $state->get_error_message() : $state['message'] );
+			}
+			$sale = self::sale( $sale_id );
+		}
+		return self::device_state( $sale );
+	}
+
+	/**
+	 * Cancels a pending terminal payment (cashier). When the terminal refuses (card already presented)
+	 * the sale stays pending and the current state decides.
+	 *
+	 * @return array|\WP_Error See device_state().
+	 */
+	public static function cancel_device_payment( $sale_id ) {
+		$sale = self::sale( $sale_id );
+		if ( ! $sale || self::DEVICE_METHOD !== $sale->payment_method ) { return self::error( 'wpcap_pos_device_sale', __( 'Kein Kassenverkauf mit Terminalzahlung gefunden.', 'pass-captain' ), 404 ); }
+		if ( 'pending' !== $sale->status || 'pending' !== $sale->device_status ) { return self::device_state( $sale ); }
+		$device = self::device_of( $sale );
+		if ( $device && '' !== (string) $sale->device_reference ) {
+			$cancelled = Devices::cancel( $device, $sale->device_reference );
+			if ( is_wp_error( $cancelled ) ) {
+				$state = self::poll_device_payment( $sale->sale_id );
+				if ( is_array( $state ) && 'pending' !== $state['status'] ) { return $state; }
+				return self::error( 'wpcap_pos_device_cancel', __( 'Die Zahlung konnte am Terminal nicht abgebrochen werden (z. B. Karte bereits vorgelegt). Bitte das Ergebnis am Terminal abwarten.', 'pass-captain' ), 409 );
+			}
+		}
+		self::fail_device( $sale, 'cancelled', '' );
+		return self::device_state( self::sale( $sale->sale_id ) );
+	}
+
+	/**
+	 * State of a terminal sale for the POS: status pending|succeeded|unbooked|failed|cancelled|timeout,
+	 * message, sale_id, receipt (number once booked), elapsed and timeout (seconds).
+	 * "unbooked": the payment is confirmed but the sale is not booked yet (e.g. fiscal receipt pending);
+	 * each call retries the booking.
+	 */
+	public static function device_state( $sale, $message = '' ) {
+		$status = 'pending';
+		if ( 'failed' === $sale->status ) {
+			$status = in_array( $sale->device_status, array( 'cancelled', 'timeout' ), true ) ? $sale->device_status : 'failed';
+			$texts = array(
+				'failed' => __( 'Die Zahlung am Terminal ist fehlgeschlagen. Bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
+				'cancelled' => __( 'Die Zahlung am Terminal wurde abgebrochen. Bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
+				'timeout' => __( 'Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Bitte erneut versuchen oder eine andere Zahlart wählen.', 'pass-captain' ),
+			);
+			$message = $texts[ $status ] . ( '' !== (string) $sale->device_message ? ' (' . $sale->device_message . ')' : '' );
+		} elseif ( 'pending' === $sale->status && 'succeeded' === $sale->device_status ) {
+			$booked = self::finalize( (int) $sale->sale_id );
+			if ( is_wp_error( $booked ) ) {
+				$status = 'unbooked';
+				$message = __( 'Die Kartenzahlung ist bestätigt.', 'pass-captain' ) . ' ' . $booked->get_error_message();
+			} else {
+				$status = 'succeeded';
+				$sale = $booked['sale'];
+			}
+		} elseif ( 'pending' !== $sale->status ) {
+			$status = 'succeeded';
+		}
+		return array(
+			'status' => $status,
+			'message' => (string) $message,
+			'sale_id' => (int) $sale->sale_id,
+			'receipt' => self::is_booked( $sale ) ? (string) $sale->receipt_number : '',
+			'elapsed' => self::device_elapsed( $sale ),
+			'timeout' => Devices::timeout( $sale->device_id ),
+		);
 	}
 
 	/** Unfinished sales of a session (order exists but no receipt yet). */

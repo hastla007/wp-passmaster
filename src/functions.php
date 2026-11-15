@@ -21,6 +21,20 @@ if ( ! function_exists( 'wpcap_get_invoice' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wpcap_confirm_pos_payment' ) ) {
+	/**
+	 * Confirms the card-terminal payment of a box office sale (e.g. from a verified provider webhook),
+	 * see PassCaptain\BoxOffice\Service::confirm_device_payment(). Idempotent; books the sale once.
+	 *
+	 * @param int|string $order_id  Order ID or the sale_key passed to DeviceGatewayInterface::start().
+	 * @param string     $reference Payment reference of the provider.
+	 * @return true|WP_Error
+	 */
+	function wpcap_confirm_pos_payment( $order_id, $reference ) {
+		return PassCaptain\BoxOffice\Service::confirm_device_payment( (string) $order_id, (string) $reference );
+	}
+}
+
 if ( ! function_exists( 'wpcap_api_request_can' ) ) {
 	/**
 	 * Checks the developer API key of a REST request for a scope (and event), see PassCaptain\Api\Auth::request_can().

@@ -51,7 +51,9 @@ final class Page {
 		self::render_fiscal_notice();
 		Forms::render_notices();
 		if ( current_user_can( 'manage_options' ) ) { self::render_admin_settings(); }
+		$device_state = self::device_state_for_request();
 		$last = absint( $_GET['sale'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $device_state && 'succeeded' === $device_state['status'] ) { $last = (int) $device_state['sale_id']; }
 		$last_sale = $last ? Service::sale( $last ) : null;
 		if ( $last_sale && Service::is_booked( $last_sale ) && self::can_view_sale( $last_sale ) ) {
 			$receipt = add_query_arg( array( 'action' => 'wpcap_pos_receipt', 'sale_id' => $last ), admin_url( 'admin-post.php' ) );
@@ -60,6 +62,7 @@ final class Page {
 			Forms::hidden( 'sale_id', $last );
 			echo '<button class="button">' . esc_html__( 'Tickets drucken (PDF)', 'pass-captain' ) . '</button></form></p></div>';
 		}
+		if ( $device_state && 'succeeded' !== $device_state['status'] ) { self::render_device_status( $device_state ); }
 		if ( ! $session ) {
 			echo '<h2>' . esc_html__( 'Kassensitzung öffnen', 'pass-captain' ) . '</h2>';
 			Forms::open_form( 'wpcap_pos_open' );
@@ -116,6 +119,16 @@ final class Page {
 			foreach ( Service::methods() as $key => $def ) {
 				echo '<label style="margin-right:1em"><input type="radio" name="method" value="' . esc_attr( $key ) . '"' . ( 'cash' === $key ? ' checked' : '' ) . '> ' . esc_html( $def['label'] ) . '</label>';
 			}
+			// Card terminals of an add-on (DeviceGatewayInterface): only when at least one is registered for this register.
+			$devices = Devices::for_session( $session );
+			if ( $devices ) {
+				echo '<label style="margin-right:1em"><input type="radio" name="method" value="' . esc_attr( Service::DEVICE_METHOD ) . '"> ' . esc_html( Service::method_label( Service::DEVICE_METHOD ) ) . '</label>';
+				echo '<label for="wpcap-pos-device-select">' . esc_html__( 'Kartenterminal', 'pass-captain' ) . '</label> <select id="wpcap-pos-device-select" name="device">';
+				foreach ( $devices as $device_id => $gateway ) {
+					echo '<option value="' . esc_attr( $device_id ) . '">' . esc_html( Devices::label( $gateway, $device_id ) ) . '</option>';
+				}
+				echo '</select>';
+			}
 			echo '</p><p><label>' . esc_html__( 'Gegeben (bar)', 'pass-captain' ) . ' <input type="text" inputmode="decimal" name="tendered" size="8"></label> <span id="wpcap-pos-change"></span> ';
 			echo '<label>' . esc_html__( 'Terminal-Referenz', 'pass-captain' ) . ' <input type="text" name="reference" size="14" maxlength="100"></label> ';
 			echo '<label>' . esc_html__( 'E-Mail Käufer (optional, Pflicht bei Rechnung)', 'pass-captain' ) . ' <input type="email" name="email" size="28"></label></p>';
@@ -136,6 +149,51 @@ final class Page {
 		}
 		self::render_session( $session );
 		echo '</div>';
+	}
+
+	/**
+	 * State of the terminal sale named by ?device_sale= (polled once, so a reload without JavaScript
+	 * also advances it); null when absent, not a terminal sale or not the user's.
+	 */
+	private static function device_state_for_request() {
+		$sale_id = absint( $_GET['device_sale'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- status view with permission check; the poll changes nothing the user could not trigger.
+		if ( ! $sale_id ) { return null; }
+		$sale = Service::sale( $sale_id );
+		if ( ! $sale || Service::DEVICE_METHOD !== $sale->payment_method || ! self::own_or_admin( $sale ) ) { return null; }
+		$state = Service::poll_device_payment( $sale_id );
+		return is_wp_error( $state ) ? null : $state;
+	}
+
+	/** Status box of a terminal payment: live region, cancel button (JS polls via admin-ajax). */
+	private static function render_device_status( array $state ) {
+		$sale = Service::sale( $state['sale_id'] );
+		$order = $sale ? Orders::get( $sale->order_id ) : null;
+		$pending = 'pending' === $state['status'];
+		$class = $pending ? 'notice-info' : ( 'unbooked' === $state['status'] ? 'notice-warning' : 'notice-error' );
+		/* translators: %s: amount with currency */
+		$text = $pending ? sprintf( __( 'Am Terminal bezahlen … %s', 'pass-captain' ), $order ? Scope::money( $order->total_minor, $order->currency ) : '' ) : $state['message'];
+		echo '<div id="wpcap-pos-device" class="notice ' . esc_attr( $class ) . ' inline wpcap-pos-device" data-status="' . esc_attr( $state['status'] ) . '">';
+		echo '<p id="wpcap-pos-device-status" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" style="font-size:1.2em"><strong>' . esc_html( $text ) . '</strong></p>';
+		if ( ! $pending ) {
+			echo '<p>' . esc_html( 'unbooked' === $state['status'] ? __( 'Die Zahlung ist erfolgt. Bitte den Verkauf in der Liste unten später „Nachbuchen“.', 'pass-captain' ) : __( 'Der Verkauf kann unten mit derselben oder einer anderen Zahlart neu erfasst werden.', 'pass-captain' ) ) . '</p></div>';
+			return;
+		}
+		echo '<p id="wpcap-pos-device-hint">' . esc_html__( 'Bitte die Karte am Terminal vorlegen. Die Anzeige aktualisiert sich automatisch.', 'pass-captain' ) . '</p>';
+		echo '<noscript><p><a class="button" href="' . esc_url( self::back( array( 'device_sale' => (int) $state['sale_id'] ) ) ) . '">' . esc_html__( 'Status aktualisieren', 'pass-captain' ) . '</a></p></noscript>';
+		Forms::open_form( 'wpcap_pos_device_cancel', 'wpcap_pos_device_' . (int) $state['sale_id'], 'id="wpcap-pos-device-cancel-form"' );
+		Forms::hidden( 'sale_id', (int) $state['sale_id'] );
+		echo '<p><button type="submit" class="button" id="wpcap-pos-device-cancel">' . esc_html__( 'Zahlung am Terminal abbrechen', 'pass-captain' ) . '</button></p></form></div>';
+		wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
+		wp_add_inline_script( 'wpcap-pos', 'window.wpcapPosDevice=' . wp_json_encode( array(
+			'saleId' => (int) $state['sale_id'],
+			'url' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'wpcap_pos_device_' . (int) $state['sale_id'] ),
+			'interval' => 2000,
+			'cancelling' => __( 'Zahlung wird am Terminal abgebrochen …', 'pass-captain' ),
+			'offline' => __( 'Keine Verbindung zum Server. Der Status wird erneut abgefragt …', 'pass-captain' ),
+			'booked' => __( 'Zahlung erfolgreich. Der Verkauf wird gebucht …', 'pass-captain' ),
+			'again' => __( 'Der Verkauf kann unten mit derselben oder einer anderen Zahlart neu erfasst werden.', 'pass-captain' ),
+		) ) . ';', 'before' );
 	}
 
 	private static function render_admin_settings() {
@@ -301,7 +359,8 @@ final class Page {
 			'names' => $names,
 			'attendees' => $attendees,
 			'email' => Forms::text( $in, 'email' ),
-			'method' => Forms::choice( $in, 'method', array_keys( Service::methods() ), '' ),
+				'method' => Forms::choice( $in, 'method', array_keys( Service::all_methods() ), '' ),
+			'device' => Forms::text( $in, 'device', 40 ),
 			'tendered_minor' => $tendered,
 			'reference' => Forms::text( $in, 'reference', 100 ),
 			'form_key' => Forms::text( $in, 'form_key', 64 ),
@@ -323,6 +382,10 @@ final class Page {
 		$result = Service::sell( $input );
 		if ( is_wp_error( $result ) ) {
 			Forms::finish( $result, '', self::back( array( 'occurrence_id' => $input['occurrence_id'] ) ) );
+		}
+		if ( ! empty( $result['device_pending'] ) ) {
+			// Terminal payment running: the page shows its status (polled by pos.js).
+			Forms::redirect( self::back( array( 'occurrence_id' => $input['occurrence_id'], 'device_sale' => (int) $result['sale']->sale_id ) ) );
 		}
 		Forms::redirect( self::back( array( 'occurrence_id' => $input['occurrence_id'], 'sale' => (int) $result['sale']->sale_id ) ) );
 	}
@@ -349,6 +412,50 @@ final class Page {
 		$sale = Service::sale( $sale_id );
 		$result = self::own_or_admin( $sale ) ? Service::finalize( $sale_id ) : Forms::forbidden();
 		Forms::finish( $result, __( 'Verkauf gebucht.', 'pass-captain' ), self::back( is_wp_error( $result ) ? array() : array( 'sale' => $sale_id ) ) );
+	}
+
+	/** admin-post fallback (no JavaScript): cancel a running terminal payment. */
+	public static function handle_device_cancel() {
+		$sale_id = Forms::int( Forms::post(), 'sale_id' );
+		Forms::verify( 'wpcap_pos_device_' . $sale_id );
+		$sale = Service::sale( $sale_id );
+		$result = current_user_can( Service::CAP ) && self::own_or_admin( $sale ) ? Service::cancel_device_payment( $sale_id ) : Forms::forbidden();
+		if ( is_array( $result ) && 'succeeded' === $result['status'] ) { Forms::redirect( self::back( array( 'occurrence_id' => (int) $sale->occurrence_id, 'sale' => $sale_id ) ) ); }
+		$message = is_array( $result ) ? $result['message'] : '';
+		Forms::finish( $result, '' !== $message ? $message : __( 'Zahlung am Terminal abgebrochen.', 'pass-captain' ), self::back( $sale ? array( 'occurrence_id' => (int) $sale->occurrence_id ) : array() ) );
+	}
+
+	/** admin-ajax wpcap_pos_device_status: polls the terminal payment of a sale (cashier or administrator). */
+	public static function ajax_device_status() {
+		$sale_id = absint( $_REQUEST['sale_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the nonce is per sale and verified on the next line.
+		check_ajax_referer( 'wpcap_pos_device_' . $sale_id );
+		$sale = self::device_sale_or_forbidden( $sale_id );
+		self::send_device_state( Service::poll_device_payment( $sale_id ), $sale );
+	}
+
+	/** admin-ajax wpcap_pos_device_cancel: cancels the running terminal payment of a sale. */
+	public static function ajax_device_cancel() {
+		$sale_id = absint( $_REQUEST['sale_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the nonce is per sale and verified on the next line.
+		check_ajax_referer( 'wpcap_pos_device_' . $sale_id );
+		$sale = self::device_sale_or_forbidden( $sale_id );
+		self::send_device_state( Service::cancel_device_payment( $sale_id ), $sale );
+	}
+
+	private static function device_sale_or_forbidden( $sale_id ) {
+		$sale = Service::sale( $sale_id );
+		if ( ! current_user_can( Service::CAP ) || ! self::own_or_admin( $sale ) ) {
+			wp_send_json_error( array( 'message' => __( 'Keine Berechtigung.', 'pass-captain' ) ), 403 );
+		}
+		return $sale;
+	}
+
+	private static function send_device_state( $state, $sale ) {
+		if ( is_wp_error( $state ) ) {
+			$data = $state->get_error_data();
+			wp_send_json_error( array( 'message' => $state->get_error_message() ), is_array( $data ) ? (int) ( $data['status'] ?? 400 ) : 400 );
+		}
+		if ( 'succeeded' === $state['status'] ) { $state['redirect'] = self::back( array( 'occurrence_id' => (int) $sale->occurrence_id, 'sale' => (int) $sale->sale_id ) ); }
+		wp_send_json_success( $state );
 	}
 
 	public static function handle_storno_reject() {
