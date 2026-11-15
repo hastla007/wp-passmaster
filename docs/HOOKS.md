@@ -70,6 +70,7 @@ Webhook-Ereignissen).
 | `wpcap_affiliate_sale_payload` | `array $payload, object $order` | Verkaufsdaten an WP Affiliate Captain. |
 | `wpcap_affiliate_skip_channels` | `string[] $channels` (`woocommerce`) | Kanäle/Zahlungsanbieter, die nicht gemeldet werden. |
 | `wpcap_checkout_ip_limit` | `int $limit` (30) | Checkouts je IP und Stunde. |
+| `wp_pass_captain_waitlist_ip_limit_v1` | `int $limit` (60) | Event-Wartelisten-Anmeldungen je Client-IP und Stunde über alle Events (zusätzlich zu 5 je Adresse und Event sowie 20 je IP und Event); mindestens 1. |
 | `wpcap_client_ip` | `string $ip, array $server` | Client-IP für Ratenbegrenzungen (Standard `REMOTE_ADDR`, bzw. Header eines vertrauenswürdigen Proxys, siehe `wpcap_trusted_proxies`). Ungültige Rückgaben fallen auf die erkannte Adresse zurück. |
 | `wpcap_trusted_proxies` | `string[] $proxies` | Vertrauenswürdige Reverse Proxies/CDN (IP oder CIDR); nur von ihnen wird der eingestellte Client-IP-Header ausgewertet (docs/SECURITY.md). |
 | `wpcap_secret_settings` | `string[] $keys` | Einstellungen, die verschlüsselt gespeichert und nur über `Settings::secret()` gelesen werden. |
