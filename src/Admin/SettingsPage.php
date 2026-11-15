@@ -81,6 +81,9 @@ final class SettingsPage {
 					'terms_text' => array( 'type' => 'html', 'label' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ) ),
 					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ) ),
 					'require_terms' => array( 'type' => 'bool', 'label' => __( 'Zustimmung im Checkout verlangen', 'pass-captain' ) ),
+					'withdrawal_notice' => array( 'type' => 'bool', 'label' => __( 'Hinweis „kein Widerrufsrecht“ neben dem Bestellbutton zeigen', 'pass-captain' ), 'description' => __( 'Nur wenn alle Positionen einen festen Veranstaltungstermin haben. Standardtext, bitte prüfen und anpassen – keine Rechtsberatung.', 'pass-captain' ) ),
+					'withdrawal_notice_text' => array( 'type' => 'html', 'label' => __( 'Text: kein Widerrufsrecht (terminierte Tickets)', 'pass-captain' ) ),
+					'withdrawal_right_text' => array( 'type' => 'html', 'label' => __( 'Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)', 'pass-captain' ), 'description' => __( 'Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen.', 'pass-captain' ) ),
 				),
 			),
 			'refunds' => array(

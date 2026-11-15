@@ -399,6 +399,9 @@ final class Controller {
 			'require_terms' => (bool) \PassCaptain\Settings::get( 'require_terms' ),
 			'terms_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'terms_text' ) ),
 			'consumer_info_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'consumer_info_text' ) ),
+			// Notice for a checkout of dated tickets (Frontend\LegalNotice); '' when switched off.
+			'withdrawal_notice' => wp_kses_post( \PassCaptain\Frontend\LegalNotice::withdrawal( true )['text'] ),
+			'privacy_policy_url' => esc_url_raw( \PassCaptain\Frontend\LegalNotice::privacy_url() ),
 			'terms_version' => \PassCaptain\Settings::terms_version(),
 		) );
 	}

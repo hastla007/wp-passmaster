@@ -74,6 +74,10 @@ final class Settings {
 			'terms_text'                => '',
 			'consumer_info_text'        => '',
 			'require_terms'             => 0,
+			// Withdrawal notices next to the order button (Frontend\LegalNotice); defaults, to be checked by the operator.
+			'withdrawal_notice'         => 1,
+			'withdrawal_notice_text'    => __( 'Hinweis: Bei Tickets für Veranstaltungen mit festem Termin besteht in der Regel kein Widerrufsrecht (§ 312g Abs. 2 Nr. 9 BGB / § 18 Abs. 1 Z 10 FAGG). Deine Bestellung ist nach dem Absenden verbindlich.', 'pass-captain' ),
+			'withdrawal_right_text'     => __( 'Für Produkte ohne festen Veranstaltungstermin (z. B. Mitgliedspässe oder Gutscheine) besteht ein gesetzliches Widerrufsrecht. Einzelheiten findest du in der Widerrufsbelehrung in den Verbraucherinformationen.', 'pass-captain' ),
 			'refund_approval_threshold' => 0,
 			'require_2fa_for_refunds'   => 0,
 			'attendee_retention_days'   => 0,

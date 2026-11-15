@@ -8,9 +8,9 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 
 | Typ | Wann | Wichtige Platzhalter |
 |---|---|---|
-| `tickets` | Tickets nach bestätigter Zahlung (mit PDF) | `{order_id}`, `{ticket_list}`, `{ticket_links}`, `{ticket_count}`, `{event_name}`, `{event_date}`, `{event_location}`, `{customer_email}` |
+| `tickets` | Tickets nach bestätigter Zahlung (mit PDF) | `{order_id}`, `{ticket_list}`, `{ticket_links}`, `{ticket_count}`, `{event_name}`, `{event_date}`, `{event_location}`, `{customer_email}`, `{consumer_info}`, `{terms}` |
 | `tickets_resend` | Tickets erneut senden (neue Codes, je Empfänger:in) | wie `tickets`; `{ticket_list}` enthält je Ticket den Link und den Zusatztext aus `wpcap_ticket_code_mail_section` (z. B. Wallet-Links) |
-| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{access_link}` |
+| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{access_link}`, `{payment_instructions}`, `{consumer_info}`, `{terms}` |
 | `ticket_transfer_recipient` | Ticket wurde an eine Person übertragen | `{event_name}`, `{ticket_name}`, `{event_date}`, `{event_location}`, `{ticket_link}`, `{ticket_extras}` |
 | `ticket_transfer_sender` | Bestätigung der Übertragung an die Käufer:in | `{event_name}`, `{recipient_email}` |
 | `ticket_assigned_attendee` | Ticket an zugewiesene Teilnehmer:in | `{attendee_name}`, `{attendee_email}`, `{ticket_link}`, `{ticket_extras}` … |
@@ -24,6 +24,13 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `waitlist_offer` | Platzangebot aus der Warteliste | `{offer_expires}`, `{accept_link}`, `{position}`, `{event_name}`, `{ticket_name}` |
 | `service_waitlist_confirm` | Double-Opt-in: Bestätigungslink nach der Anmeldung zur Warteliste eines Zeitfensters | `{confirm_link}`, `{confirm_expires}`, `{resource_name}`, `{slot_date}`, `{quantity}` |
 | `member_pass` | Mitgliedspass ausgestellt | `{pass_code}`, `{valid_from}`, `{valid_until}` |
+
+`{consumer_info}` und `{terms}` setzen die Texte „Verbraucherinformationen“ und „AGB / Teilnahmebedingungen“
+aus *Einstellungen → Rechtstexte* mit Überschrift ein (Vertragsbestätigung auf einem dauerhaften
+Datenträger, vgl. § 312f Abs. 2 BGB / § 7 Abs. 3 FAGG); ist ein Text leer, bleibt der Platzhalter leer.
+Die Standardtexte von `tickets` und `order_access` enthalten beide Platzhalter (ohne gepflegte Texte
+ändert sich nichts). Eigene Vorlagen müssen sie selbst aufnehmen. Ob das im Einzelfall genügt (z. B. AGB
+zusätzlich als PDF), ist rechtlich zu prüfen.
 
 In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`) und `{site_url}` zur Verfügung. Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.
 

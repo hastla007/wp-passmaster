@@ -118,3 +118,49 @@ check( 'R5-4: ledger export has payment rows for orders without invoice (rate, t
 check( 'R5-4: chargebacks and refunds appear with rate, negative amounts and refund id', 1 === count( $r5_cbr ) && '-5.00' === $r5_cbr[0][11] && '7.00' === $r5_cbr[0][9] && (int) $r5_cbr[0][5] > 0 && 2 === count( $r5_mixed_ref ) && $r5_cn->credit_note_number === $r5_mixed_ref[0][2] );
 $r5_csv = PassCaptain\Reports\Scope::csv( $r5_ledger );
 check( 'R5-4: ledger CSV passes the formula guard (refund amounts stay numbers)', false !== strpos( $r5_csv, ';-5.00;' ) );
+
+echo "R5: withdrawal notice, consumer information in mails, privacy notice, status warning\n";
+if ( ! function_exists( 'wpautop' ) ) { function wpautop( $t ) { return '<p>' . $t . '</p>'; } }
+if ( ! function_exists( 'get_privacy_policy_url' ) ) { function get_privacy_policy_url() { return (string) ( $GLOBALS['r5_privacy_url'] ?? '' ); } }
+use PassCaptain\Frontend\LegalNotice;
+// Earlier admin tests save the settings form (unchecked = 0): start from the defaults.
+Settings::update( array( 'withdrawal_notice' => 1, 'withdrawal_notice_text' => Settings::defaults()['withdrawal_notice_text'], 'withdrawal_right_text' => Settings::defaults()['withdrawal_right_text'] ) );
+$r5_dated = array( (object) array( 'ticket_type_id' => 1, 'starts_at' => '2027-01-01 18:00:00' ) );
+$r5_undated = array( (object) array( 'ticket_type_id' => 1, 'starts_at' => '2027-01-01 18:00:00' ), (object) array( 'ticket_type_id' => 2, 'starts_at' => '' ) );
+$r5_n1 = LegalNotice::checkout_html( (object) array( 'starts_at' => '2027-01-01 18:00:00' ), $r5_dated );
+check( 'R5-5: default notice "kein Widerrufsrecht" with § 312g / § 18 FAGG when all positions are dated', false !== strpos( $r5_n1, 'kein Widerrufsrecht' ) && false !== strpos( $r5_n1, '§ 312g Abs. 2 Nr. 9 BGB' ) && false !== strpos( $r5_n1, '§ 18 Abs. 1 Z 10 FAGG' ) && false !== strpos( $r5_n1, 'wpcap-withdrawal-excluded' ) );
+$r5_n2 = LegalNotice::checkout_html( null, $r5_undated );
+check( 'R5-5: with an undated position the notice says a right of withdrawal exists', false === strpos( $r5_n2, 'kein Widerrufsrecht' ) && false !== strpos( $r5_n2, 'wpcap-withdrawal-right' ) && false !== strpos( $r5_n2, 'Widerrufsrecht' ) );
+Settings::update( array( 'withdrawal_notice' => 0 ) );
+$r5_n3 = LegalNotice::checkout_html( (object) array( 'starts_at' => '2027-01-01 18:00:00' ), $r5_dated );
+Settings::update( array( 'withdrawal_notice' => 1, 'withdrawal_notice_text' => 'Eigener Hinweis XY.' ) );
+$r5_n4 = LegalNotice::checkout_html( (object) array( 'starts_at' => '2027-01-01 18:00:00' ), $r5_dated );
+Settings::update( array( 'withdrawal_notice_text' => Settings::defaults()['withdrawal_notice_text'] ) );
+check( 'R5-5: the notice can be switched off and its text edited', false === strpos( $r5_n3, 'wpcap-withdrawal' ) && false !== strpos( $r5_n4, 'Eigener Hinweis XY.' ) );
+// Event card: one block below the order button.
+$r5_card_type = make_type( 30, 5, 1990 );
+$r5_card_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$r5_card_type" );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='r5_hidden' WHERE status='scheduled' AND occurrence_id<>$r5_card_occ" );
+$GLOBALS['r5_privacy_url'] = 'https://example.test/datenschutz/';
+$r5_card = PassCaptain\PublicEvents::render_shortcode();
+$GLOBALS['r5_privacy_url'] = '';
+$r5_card_noprivacy = PassCaptain\PublicEvents::render_shortcode();
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE status='r5_hidden'" );
+$r5_btn = strpos( $r5_card, 'wpcap-submit' );
+check( 'R5-5: the event card shows the withdrawal notice next to (after) the order button', false !== $r5_btn && false !== strpos( $r5_card, 'wpcap-withdrawal-excluded' ) && strpos( $r5_card, 'wpcap-withdrawal-excluded' ) > $r5_btn );
+check( 'R5-7: privacy notice with get_privacy_policy_url() below the order button, only when a page is set', false !== strpos( $r5_card, 'href="https://example.test/datenschutz/"' ) && strpos( $r5_card, 'wpcap-privacy-notice' ) > $r5_btn && false === strpos( $r5_card_noprivacy, 'wpcap-privacy-notice' ) );
+// Mails: {consumer_info} / {terms}.
+Settings::update( array( 'consumer_info_text' => '<p>Anbieter: Kulturverein</p>', 'terms_text' => 'AGB Version 3' ) );
+$r5_tm = PassCaptain\Mail\Mailer::compose( 'tickets', array( 'ticket_list' => "Konzert\n\n" ) );
+$r5_am = PassCaptain\Mail\Mailer::compose( 'order_access', array( 'order_id' => str_repeat( 'a', 32 ), 'access_link' => 'https://example.test/x' ) );
+Settings::update( array( 'consumer_info_text' => '', 'terms_text' => '' ) );
+$r5_tm_empty = PassCaptain\Mail\Mailer::compose( 'tickets', array( 'ticket_list' => "Konzert\n\n" ) );
+check( 'R5-5: ticket mail carries consumer information and terms ({consumer_info}/{terms})', false !== strpos( $r5_tm['body'], "Verbraucherinformationen\nAnbieter: Kulturverein" ) && false !== strpos( $r5_tm['body'], "Bedingungen\nAGB Version 3" ) );
+check( 'R5-5: access-link mail carries them before the closing sentence', false !== strpos( $r5_am['body'], "AGB Version 3\n\nBewahre diesen Link" ) );
+check( 'R5-5: without texts the mail is unchanged', 'Deine Tickets für Testsite:' . "\n\nKonzert\n\n" === $r5_tm_empty['body'] || ( false === strpos( $r5_tm_empty['body'], 'Verbraucherinformationen' ) && false === strpos( $r5_tm_empty['body'], 'Bedingungen' ) ) );
+check( 'R5-5: placeholders are listed for the editor', isset( PassCaptain\Mail\Types::all()['tickets']['placeholders']['consumer_info'], PassCaptain\Mail\Types::all()['order_access']['placeholders']['terms'] ) );
+$r5_diag = PassCaptain\Diagnostics::run( array( 'legal_texts' ) )['checks']['legal_texts'];
+Settings::update( array( 'consumer_info_text' => 'x', 'terms_text' => 'y' ) );
+$r5_diag_ok = PassCaptain\Diagnostics::run( array( 'legal_texts' ) )['checks']['legal_texts'];
+Settings::update( array( 'consumer_info_text' => '', 'terms_text' => '' ) );
+check( 'R5-5: system status warns while consumer information/terms are empty', 2 === $r5_diag['count'] && 'warning' === $r5_diag['severity'] && 'ok' === $r5_diag_ok['severity'] );
