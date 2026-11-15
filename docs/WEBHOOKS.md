@@ -119,7 +119,8 @@ Den Body vor der Prüfung nicht umformatieren (JSON nicht neu kodieren). Nachric
   (`wpcap_webhooks_max_attempts`) wird die Zustellung als `failed` markiert.
 - Nach 20 Fehlversuchen in Folge (`wpcap_webhooks_disable_after`) wird das Abonnement deaktiviert
   (`disabled_reason = failures`) und die Website-Administration per E-Mail informiert. Ausstehende
-  Zustellungen bleiben erhalten und werden nach der Reaktivierung fortgesetzt.
+  Zustellungen bleiben erhalten und werden nach der Reaktivierung fortgesetzt, sofern diese innerhalb
+  der Aufbewahrungsfrist des Zustellprotokolls erfolgt (siehe Datenschutz).
 - Das Zustellprotokoll im Admin zeigt Status, Versuche, HTTP-Code, Fehlertext und Zeitpunkte;
   „Erneut senden“ stellt eine Zustellung mit neuem Versuchsbudget wieder ein. Antwortinhalte werden
   nicht gespeichert.
@@ -138,7 +139,9 @@ und sollte nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag aktiviert we
   Adressen werden nicht wieder übertragen; ist der Payload nicht mehr lesbar, wird die erneute Zustellung
   abgelehnt.
 - Abgeschlossene Zustellungen werden nach 30 Tagen gelöscht (einstellbar auf der Webhook-Seite,
-  1–365 Tage; Cron `wpcap_process_jobs`). Ausstehende Zustellungen bleiben erhalten.
+  1–365 Tage; Cron `wpcap_process_jobs`). Ausstehende Zustellungen aktiver Abonnements bleiben erhalten;
+  ausstehende Zustellungen deaktivierter oder gelöschter Abonnements werden nach derselben Frist ohne
+  personenbezogene Daten abgebrochen (`cancelled`, `last_error = subscription_inactive`) und danach gelöscht.
 - Der WordPress-Datenlöscher „Pass Captain Webhook-Protokoll“ entfernt eine E-Mail-Adresse aus allen
   gespeicherten Payloads, auch aus noch ausstehenden.
 

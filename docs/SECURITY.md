@@ -41,8 +41,8 @@ Wer Datenbank und `wp-config.php` gemeinsam erbeutet, kann die Werte entschlüss
 
 `Security\Redact` ist die zentrale Stelle:
 
-- `Audit::record()` speichert Details nur redigiert: Werte unter Schlüsseln wie `secret`, `token`, `password`, `api_key`, `authorization`, `private_key`, `signature`, `iban` werden entfernt, E-Mail-/Telefonfelder maskiert (`j***@example.com`).
-- Freitexte (Anbieterantworten, DB-Fehler, WP_Error-Meldungen) werden von konfigurierten Secrets (exakter Wert), Stripe-/Mollie-/Twilio-/PayPal-Tokens, JWTs, Partner- und Entwickler-Keys, `whsec_…`, PEM-Private-Keys, 64-stelligen Ticket-/Zugangscodes (gekürzt), Token-Query-Parametern und E-Mail-Adressen befreit.
+- `Audit::record()` speichert Details nur redigiert: Werte unter Schlüsseln wie `secret`, `token`, `password`, `api_key`, `authorization`, `private_key`, `signature`, `iban` werden entfernt, E-Mail-, Telefon-, IP-, Namens- und Anschriftsfelder (`email`, `phone`, `mobile`, `recipient`, `ip`, `ip_address`, `attendee_name`, `contact_name`, `street`, `address`, `postcode` …) maskiert (`j***@example.com`; bereits gekürzte IP-Adressen wie `198.51.100.0` bleiben lesbar).
+- Freitexte (Anbieterantworten, DB-Fehler, WP_Error-Meldungen) werden von konfigurierten Secrets (exakter Wert), Stripe-/Mollie-/Twilio-/PayPal-Tokens, JWTs, Partner- und Entwickler-Keys, `whsec_…`, PEM-Private-Keys, 64-stelligen Ticket-/Zugangscodes (gekürzt), Token-Query-Parametern, E-Mail-Adressen, IBANs, IPv4-/IPv6-Adressen und Telefonnummern (mit Präfix + / 00 / 0, 8–15 Ziffern; Datumsangaben, Uhrzeiten und IDs bleiben) befreit.
 - Fehlermeldungen von Stripe, PayPal, Mollie und Twilio werden vor der Weitergabe (REST-Antwort, Bestellnotiz, Audit) redigiert.
 - Das Plugin schreibt nur über `Redact::log()` ins PHP-Error-Log (DB-Fehler können Zeilenwerte zitieren). Filter `wpcap_error_log` (false = nicht schreiben).
 

@@ -299,15 +299,15 @@ final class Waitlists {
 		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$rate_error = new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		// Per address and event (case-insensitive, like email_hash), per IP and event, and per IP across all events.
-		$rate_key = 'wpcap_waitlist_' . hash( 'sha256', strtolower( $email ) . '|' . $event_id );
+		$rate_key = 'wpcap_waitlist_' . RateLimit::hash( strtolower( $email ) . '|' . $event_id );
 		$attempts = (int) get_transient( $rate_key );
 		if ( $attempts >= 5 ) { return $rate_error; }
 		set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
 		$ip = RateLimit::client_network(); // IPv6: per /64, address rotation does not reset the limit.
-		$ip_key = 'wpcap_waitlist_ip_' . hash( 'sha256', $ip . '|' . $event_id );
+		$ip_key = 'wpcap_waitlist_ip_' . RateLimit::hash( $ip . '|' . $event_id );
 		$ip_attempts = (int) get_transient( $ip_key );
 		if ( $ip_attempts >= 20 ) { return $rate_error; }
-		$global_key = 'wpcap_waitlist_ipall_' . hash( 'sha256', $ip );
+		$global_key = 'wpcap_waitlist_ipall_' . RateLimit::hash( $ip );
 		$global_attempts = (int) get_transient( $global_key );
 		if ( $global_attempts >= self::ip_limit_per_hour() ) { return $rate_error; }
 		set_transient( $ip_key, $ip_attempts + 1, HOUR_IN_SECONDS );

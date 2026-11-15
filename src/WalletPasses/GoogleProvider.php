@@ -96,7 +96,9 @@ class GoogleProvider implements WalletProvider {
 	public function update_pass( array $ticket, array $provider_pass ) {
 		$object = $this->object_payload( $ticket );
 		if ( ! empty( $provider_pass['serial_number'] ) ) { $object['id'] = (string) $provider_pass['serial_number']; }
-		$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
+		// PATCH keeps fields that are left out: an erased or expired holder name must be sent empty.
+		$patch = $object + array( 'ticketHolderName' => '' );
+		$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $patch );
 		if ( 404 === $res['code'] ) {
 			$class = $this->api( 'POST', 'eventTicketClass', $this->class_payload( $ticket ) );
 			if ( ! in_array( $class['code'], array( 200, 409 ), true ) ) { return false; }

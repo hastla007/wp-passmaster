@@ -12,6 +12,7 @@ namespace PassCaptain\Admin;
 use PassCaptain\Access;
 use PassCaptain\Audit;
 use PassCaptain\Reports\Scope;
+use PassCaptain\Security\DataPolicy;
 use PassCaptain\Waitlists;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -21,6 +22,11 @@ final class WaitlistsPage {
 	const ACTION = 'wpcap_waitlist_action';
 	const EXPORT_ACTION = 'wpcap_waitlist_export';
 	const CAP = 'wpcap_manage_orders';
+
+	/** E-mail as the current user may see it (masked for the support profile, DataPolicy). */
+	private static function email( $email ) {
+		return DataPolicy::masks_pii() ? DataPolicy::mask_email( (string) $email ) : (string) $email;
+	}
 
 	public static function status_labels() {
 		return array( 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
@@ -81,7 +87,7 @@ final class WaitlistsPage {
 		$rows = array( array( __( 'Position', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Termin', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Eingetragen (UTC)', 'pass-captain' ), __( 'Angebot gültig bis (UTC)', 'pass-captain' ) ) );
 		$entries = Waitlists::entries( $event_id, $occurrence_id );
 		foreach ( $entries as $e ) {
-			$rows[] = array( (int) $e->position, (string) $e->email, (string) $e->ticket_name, Forms::datetime( $e->starts_at, $e->timezone ), $labels[ $e->status ] ?? $e->status, (string) $e->created_at, (string) $e->offer_expires_at );
+			$rows[] = array( (int) $e->position, self::email( $e->email ), (string) $e->ticket_name, Forms::datetime( $e->starts_at, $e->timezone ), $labels[ $e->status ] ?? $e->status, (string) $e->created_at, (string) $e->offer_expires_at );
 		}
 		Audit::record( 'waitlist_exported', 'event', $event_id, array( 'occurrence_id' => $occurrence_id, 'rows' => count( $entries ) ) );
 		return Scope::csv( $rows );
@@ -141,7 +147,7 @@ final class WaitlistsPage {
 			}
 			echo '</tr></thead><tbody>';
 			foreach ( $rows as $e ) {
-				echo '<tr><td>' . (int) $e->position . '</td><td>' . esc_html( $e->email ) . '</td><td>' . esc_html( $labels[ $e->status ] ?? $e->status ) . '</td><td>' . esc_html( Forms::datetime( $e->created_at, $e->timezone, false ) ) . '</td><td>' . esc_html( 'offered' === $e->status ? Forms::datetime( $e->offer_expires_at, $e->timezone, false ) : '—' ) . '</td><td>';
+				echo '<tr><td>' . (int) $e->position . '</td><td>' . esc_html( self::email( $e->email ) ) . '</td><td>' . esc_html( $labels[ $e->status ] ?? $e->status ) . '</td><td>' . esc_html( Forms::datetime( $e->created_at, $e->timezone, false ) ) . '</td><td>' . esc_html( 'offered' === $e->status ? Forms::datetime( $e->offer_expires_at, $e->timezone, false ) : '—' ) . '</td><td>';
 				FeatureScreens::button( self::ACTION, array( 'do' => 'remove', 'id' => (int) $e->waitlist_id, 'event_id' => $event_id, 'occurrence_id' => $occurrence_id ), __( 'Entfernen', 'pass-captain' ), __( 'Diesen Eintrag von der Warteliste entfernen?', 'pass-captain' ), 'button button-small button-link-delete' );
 				echo '</td></tr>';
 			}

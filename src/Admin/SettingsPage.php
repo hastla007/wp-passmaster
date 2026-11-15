@@ -109,6 +109,9 @@ final class SettingsPage {
 				'fields' => array(
 					'attendee_retention_days' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten nach dem Event löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = Feldeinstellung verwenden.', 'pass-captain' ) ),
 					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 720 ),
+					'retention_order_years' => array( 'type' => 'int', 'label' => __( 'Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( 'Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; deren Löschung nach Fristablauf entscheiden Sie selbst (laufende Prüfungen verlängern die Frist). 0 = nie.', 'pass-captain' ) ),
+					'retention_waitlist_days' => array( 'type' => 'int', 'label' => __( 'Wartelisteneinträge nach dem Termin anonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Gilt für Event- und Termin-Wartelisten. 0 = nie.', 'pass-captain' ) ),
+					'retention_pass_days' => array( 'type' => 'int', 'label' => __( 'Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = nie.', 'pass-captain' ) ),
 				),
 			),
 			'seller' => array(
@@ -136,7 +139,7 @@ final class SettingsPage {
 			'uninstall' => array(
 				'title' => __( 'Deinstallation', 'pass-captain' ),
 				'fields' => array(
-					'delete_data_on_uninstall' => array( 'type' => 'bool', 'label' => __( 'Beim Löschen des Plugins alle Daten entfernen', 'pass-captain' ), 'description' => __( 'Achtung: Events, Bestellungen, Tickets und Rechnungen werden unwiderruflich gelöscht. Gesetzliche Aufbewahrungspflichten beachten.', 'pass-captain' ) ),
+					'delete_data_on_uninstall' => array( 'type' => 'bool', 'label' => __( 'Beim Löschen des Plugins alle Daten entfernen', 'pass-captain' ), 'description' => __( 'Achtung: Events, Bestellungen, Tickets, Rechnungen, Rechnungskorrekturen, Kassen- und Fiskalbelege werden beim Löschen des Plugins unwiderruflich gelöscht. Rechnungen und Buchungsbelege unterliegen gesetzlichen Aufbewahrungspflichten (DE 10 Jahre, AT 7 Jahre): vorher Rechnungen und das Fiskal-Archiv exportieren und sicher aufbewahren.', 'pass-captain' ) ),
 				),
 			),
 		);
@@ -306,6 +309,11 @@ final class SettingsPage {
 					default:
 						$values[ $key ] = Forms::text( $in, $key, 'trusted_proxies' === $key ? 1000 : 190 );
 				}
+				// Deleting all data on uninstall (incl. invoices, credit notes and fiscal records) needs a typed confirmation.
+				if ( 'delete_data_on_uninstall' === $key && ! empty( $values[ $key ] ) && empty( $current[ $key ] ) && ! self::uninstall_confirmed( $in ) ) {
+					$errors[] = __( '„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen.', 'pass-captain' );
+					$values[ $key ] = 0;
+				}
 				if ( array_key_exists( $key, $values ) && isset( $def['sanitize'] ) && is_callable( $def['sanitize'] ) ) {
 					$clean = call_user_func( $def['sanitize'], $values[ $key ], $current[ $key ] ?? null );
 					if ( is_wp_error( $clean ) ) {
@@ -427,5 +435,14 @@ final class SettingsPage {
 		if ( ! empty( $def['description'] ) ) {
 			echo '<p class="description">' . esc_html( $def['description'] ) . '</p>';
 		}
+		if ( 'delete_data_on_uninstall' === $key && ! $value ) {
+			echo '<p><label for="wpcap-set-delete-confirm">' . esc_html__( 'Zum Aktivieren LÖSCHEN eintragen:', 'pass-captain' ) . '</label> <input type="text" id="wpcap-set-delete-confirm" name="delete_data_on_uninstall_confirm" autocomplete="off" size="10" value=""></p>';
+		}
+	}
+
+	/** Typed confirmation for delete_data_on_uninstall ("LÖSCHEN", case-insensitive). */
+	private static function uninstall_confirmed( array $in ) {
+		$typed = is_scalar( $in['delete_data_on_uninstall_confirm'] ?? null ) ? trim( (string) $in['delete_data_on_uninstall_confirm'] ) : '';
+		return in_array( mb_strtoupper( $typed ), array( 'LÖSCHEN', 'LOESCHEN' ), true );
 	}
 }

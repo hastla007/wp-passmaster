@@ -415,10 +415,15 @@ final class Consents {
 		return $erasers;
 	}
 
-	/** Records of a person: subject e-mail or buyer e-mail of the order. */
+	/**
+	 * Records of a person: only consents whose subject is this person. A buyer's export/erasure must
+	 * neither hand out nor destroy the consent proof of the attendees (Art. 7(1), Art. 15(4) GDPR);
+	 * consents ticked by the buyer for an attendee at checkout name the attendee as subject and stay
+	 * with the attendee's request.
+	 */
 	private static function ids_for_email( $email, $limit, $offset = 0 ) {
 		global $wpdb;
-		return $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM %i c LEFT JOIN %i o ON o.order_id=c.order_id WHERE c.subject_email=%s OR o.customer_email=%s ORDER BY c.consent_id LIMIT %d OFFSET %d', self::table(), $wpdb->prefix . 'wpcap_orders', $email, $email, $limit, $offset ) );
+		return $wpdb->get_col( $wpdb->prepare( 'SELECT consent_id FROM %i WHERE subject_email=%s ORDER BY consent_id LIMIT %d OFFSET %d', self::table(), $email, $limit, $offset ) );
 	}
 
 	/** Personal data exporter: every consent with text, version, times and source. */

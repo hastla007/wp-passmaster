@@ -78,6 +78,11 @@ final class Settings {
 			'require_2fa_for_refunds'   => 0,
 			'attendee_retention_days'   => 0,
 			'attendee_edit_hours'       => 24,
+			// Privacy\Retention: order personal data after the statutory period (years from the end of
+			// the order's calendar year), waitlists after the date, member passes after valid_until.
+			'retention_order_years'     => 10,
+			'retention_waitlist_days'   => 30,
+			'retention_pass_days'       => 365,
 			'seller_name'               => '',
 			'seller_address'            => '',
 			'seller_vat_id'             => '',

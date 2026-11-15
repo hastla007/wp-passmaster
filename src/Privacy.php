@@ -121,7 +121,7 @@ final class Privacy {
 
 		// Orders bought with this address. Attendee-only matches export just their own tickets (below),
 		// never the buyer's order.
-		$orders = $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status,currency,total_minor,subtotal_minor,discount_minor,price_snapshot,attendee_data,billing,created_at FROM %i WHERE customer_email=%s ORDER BY order_id ASC LIMIT 50 OFFSET %d', $p . 'wpcap_orders', $email, $offset ), ARRAY_A );
+		$orders = $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status,currency,total_minor,subtotal_minor,discount_minor,price_snapshot,attendee_data,billing,customer_user_id,created_at FROM %i WHERE customer_email=%s ORDER BY order_id ASC LIMIT 50 OFFSET %d', $p . 'wpcap_orders', $email, $offset ), ARRAY_A );
 		foreach ( $orders as $order ) {
 			$items = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.name,oi.quantity,oi.unit_price_minor,oi.line_total_minor FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $order['order_id'] ), ARRAY_A );
 			$tickets = $wpdb->get_results( $wpdb->prepare( 'SELECT t.public_id,t.attendee_email,ta.attendee_name,ta.attendee_email AS assigned_email,t.status,t.transfer_count FROM %i t LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE t.order_id=%d ORDER BY t.ticket_id', $p . 'wpcap_tickets', $p . 'wpcap_ticket_assignments', $order['order_id'] ), ARRAY_A );
@@ -135,8 +135,15 @@ final class Privacy {
 				array( 'name' => __( 'Positionen', 'pass-captain' ), 'value' => wp_json_encode( $items ) ),
 				array( 'name' => __( 'Tickets und Teilnehmerdaten', 'pass-captain' ), 'value' => wp_json_encode( $tickets ) ),
 			);
+			if ( (int) $order['customer_user_id'] ) {
+				$rows[] = array( 'name' => __( 'Verknüpftes Benutzerkonto (ID)', 'pass-captain' ), 'value' => (string) (int) $order['customer_user_id'] );
+			}
 			if ( ! empty( $order['attendee_data'] ) ) {
 				$rows[] = array( 'name' => __( 'Noch nicht zugeordnete Teilnehmerangaben', 'pass-captain' ), 'value' => $order['attendee_data'] );
+			}
+			$refunds = $wpdb->get_results( $wpdb->prepare( 'SELECT amount_minor,currency,status,reason,created_at FROM %i WHERE order_id=%d ORDER BY refund_id', $p . 'wpcap_refunds', $order['order_id'] ), ARRAY_A );
+			if ( $refunds ) {
+				$rows[] = array( 'name' => __( 'Erstattungen (Betrag, Status, Grund, Datum UTC)', 'pass-captain' ), 'value' => wp_json_encode( $refunds ) );
 			}
 			$billing = Billing::for_order( (object) $order );
 			if ( $billing ) {
@@ -178,14 +185,26 @@ final class Privacy {
 				array( 'name' => __( 'Erstellt / Angebotsablauf', 'pass-captain' ), 'value' => $entry['created_at'] . ' / ' . ( $entry['offer_expires_at'] ?? '' ) ),
 			) );
 		}
-		$bookings = $wpdb->get_results( $wpdb->prepare( 'SELECT b.booking_id,b.quantity,b.status,b.created_at,s.starts_at,s.ends_at,r.name AS resource_name FROM %i b LEFT JOIN %i s ON s.slot_id=b.slot_id LEFT JOIN %i r ON r.resource_id=s.resource_id WHERE b.customer_email=%s ORDER BY b.booking_id LIMIT 50 OFFSET %d', $p . 'wpcap_service_bookings', $p . 'wpcap_service_slots', $p . 'wpcap_resources', $email, $offset ), ARRAY_A );
+		$bookings = $wpdb->get_results( $wpdb->prepare( 'SELECT b.booking_id,b.quantity,b.status,b.cancel_reason,b.created_at,s.starts_at,s.ends_at,r.name AS resource_name FROM %i b LEFT JOIN %i s ON s.slot_id=b.slot_id LEFT JOIN %i r ON r.resource_id=s.resource_id WHERE b.customer_email=%s ORDER BY b.booking_id LIMIT 50 OFFSET %d', $p . 'wpcap_service_bookings', $p . 'wpcap_service_slots', $p . 'wpcap_resources', $email, $offset ), ARRAY_A );
 		foreach ( $bookings as $booking ) {
 			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'Pass Captain Terminbuchungen', 'pass-captain' ), 'item_id' => 'booking-' . $booking['booking_id'], 'data' => array(
 				array( 'name' => __( 'Ressource', 'pass-captain' ), 'value' => (string) $booking['resource_name'] ),
 				array( 'name' => __( 'Termin von/bis (UTC)', 'pass-captain' ), 'value' => $booking['starts_at'] . ' / ' . $booking['ends_at'] ),
-				array( 'name' => __( 'Anzahl und Status', 'pass-captain' ), 'value' => $booking['quantity'] . ' / ' . $booking['status'] ),
+				array( 'name' => __( 'Anzahl und Status', 'pass-captain' ), 'value' => $booking['quantity'] . ' / ' . $booking['status'] . ( '' !== (string) $booking['cancel_reason'] ? ' (' . $booking['cancel_reason'] . ')' : '' ) ),
 				array( 'name' => __( 'Erstellt (UTC)', 'pass-captain' ), 'value' => $booking['created_at'] ),
 			) );
+		}
+		// E-mails queued for or sent to this address (content is not kept after 30 days, see Retention).
+		$mails = $wpdb->get_results( $wpdb->prepare( 'SELECT message_id,template_key,status,send_at,created_at FROM %i WHERE recipient=%s ORDER BY message_id LIMIT 50 OFFSET %d', $p . 'wpcap_message_queue', $email, $offset ), ARRAY_A );
+		foreach ( $mails as $mail ) {
+			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'Pass Captain E-Mail-Benachrichtigungen', 'pass-captain' ), 'item_id' => 'message-' . (int) $mail['message_id'], 'data' => array(
+				array( 'name' => __( 'Vorlage', 'pass-captain' ), 'value' => $mail['template_key'] ),
+				array( 'name' => __( 'Status', 'pass-captain' ), 'value' => $mail['status'] ),
+				array( 'name' => __( 'Geplant / erstellt (UTC)', 'pass-captain' ), 'value' => $mail['send_at'] . ' / ' . $mail['created_at'] ),
+			) );
+		}
+		if ( 1 === max( 1, absint( $page ) ) ) {
+			foreach ( self::business_contacts( $email ) as $contact ) { $data[] = $contact; }
 		}
 		$slot_waits = $wpdb->get_results( $wpdb->prepare( 'SELECT w.entry_id,w.quantity,w.position,w.status,w.created_at,s.starts_at,r.name AS resource_name FROM %i w LEFT JOIN %i s ON s.slot_id=w.slot_id LEFT JOIN %i r ON r.resource_id=s.resource_id WHERE w.email=%s ORDER BY w.entry_id LIMIT 50 OFFSET %d', $p . 'wpcap_service_waitlist', $p . 'wpcap_service_slots', $p . 'wpcap_resources', $email, $offset ), ARRAY_A );
 		foreach ( (array) $slot_waits as $entry ) {
@@ -195,8 +214,50 @@ final class Privacy {
 				array( 'name' => __( 'Erstellt (UTC)', 'pass-captain' ), 'value' => $entry['created_at'] ),
 			) );
 		}
-		$done = count( $orders ) < 50 && count( $tickets ) < 50 && count( $passes ) < 50 && count( $waitlist ) < 50 && count( $bookings ) < 50 && count( (array) $slot_waits ) < 50;
+		$done = count( $orders ) < 50 && count( $tickets ) < 50 && count( $passes ) < 50 && count( $waitlist ) < 50 && count( $bookings ) < 50 && count( (array) $slot_waits ) < 50 && count( (array) $mails ) < 50;
 		return array( 'data' => $data, 'done' => $done );
+	}
+
+	/**
+	 * Partner and seller contact details stored with this address (business contact person).
+	 *
+	 * @return array[] Export items.
+	 */
+	private static function business_contacts( $email ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$out = array();
+		if ( self::has_table( 'wpcap_partners' ) ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT partner_id,name,contact_name,contact_email,contact_phone FROM %i WHERE contact_email=%s ORDER BY partner_id', $p . 'wpcap_partners', $email ) ) as $row ) {
+				$out[] = array( 'group_id' => 'wp-pass-captain-contacts', 'group_label' => __( 'Pass Captain Ansprechpartner', 'pass-captain' ), 'item_id' => 'partner-' . (int) $row->partner_id, 'data' => array(
+					array( 'name' => __( 'Partner', 'pass-captain' ), 'value' => (string) $row->name ),
+					array( 'name' => __( 'Name, E-Mail, Telefon', 'pass-captain' ), 'value' => trim( $row->contact_name . ' / ' . $row->contact_email . ' / ' . $row->contact_phone, ' /' ) ),
+				) );
+			}
+		}
+		if ( self::has_table( 'wpcap_legal_sellers' ) ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT seller_id,legal_name,contact_email FROM %i WHERE contact_email=%s ORDER BY seller_id', $p . 'wpcap_legal_sellers', $email ) ) as $row ) {
+				$out[] = array( 'group_id' => 'wp-pass-captain-contacts', 'group_label' => __( 'Pass Captain Ansprechpartner', 'pass-captain' ), 'item_id' => 'seller-' . (int) $row->seller_id, 'data' => array(
+					array( 'name' => __( 'Verkäufer', 'pass-captain' ), 'value' => (string) $row->legal_name ),
+					array( 'name' => __( 'Kontakt-E-Mail', 'pass-captain' ), 'value' => (string) $row->contact_email ),
+				) );
+			}
+		}
+		return $out;
+	}
+
+	/** Removes this address (and the partner contact person's name/phone) from partner and seller records. */
+	private static function erase_business_contacts( $email ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$count = 0;
+		if ( self::has_table( 'wpcap_partners' ) ) {
+			$count += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET contact_name='',contact_email='',contact_phone='',updated_at=%s WHERE contact_email=%s", $p . 'wpcap_partners', current_time( 'mysql', true ), $email ) );
+		}
+		if ( self::has_table( 'wpcap_legal_sellers' ) ) {
+			$count += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET contact_email='',updated_at=%s WHERE contact_email=%s", $p . 'wpcap_legal_sellers', current_time( 'mysql', true ), $email ) );
+		}
+		return $count;
 	}
 
 	/** One ticket with attendee name, answers, check-in history and wallet passes. */
@@ -213,7 +274,17 @@ final class Privacy {
 		$attendee_email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
 		if ( '' !== (string) $ticket->attendee_name ) { $rows[] = array( 'name' => __( 'Name des Teilnehmers', 'pass-captain' ), 'value' => $ticket->attendee_name ); }
 		if ( '' !== (string) $attendee_email ) { $rows[] = array( 'name' => __( 'E-Mail des Teilnehmers', 'pass-captain' ), 'value' => $attendee_email ); }
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.answer,f.label,f.purpose FROM %i a LEFT JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id=%d ORDER BY a.field_id', $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields', $id ) ) as $answer ) {
+		// Answers the buyer typed in (checkout, order portal) belong to the buyer's export as well. Consent
+		// answers of another holder are that person's declaration (given through the attendee link or
+		// recorded for them): the buyer only gets consents whose subject is the buyer (Art. 15(4) GDPR).
+		$is_buyer = 0 === strcasecmp( (string) $ticket->customer_email, $email );
+		$other_holder = $is_buyer && '' !== (string) $attendee_email && 0 !== strcasecmp( (string) $attendee_email, $email );
+		$own_consents = array();
+		if ( $other_holder && self::has_table( 'wpcap_consents' ) ) {
+			$own_consents = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT field_id FROM %i WHERE ticket_id=%d AND subject_email=%s', $p . 'wpcap_consents', $id, $email ) ) );
+		}
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.field_id,a.answer,f.label,f.purpose,f.field_type FROM %i a LEFT JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id=%d ORDER BY a.field_id', $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields', $id ) ) as $answer ) {
+			if ( $other_holder && 'consent' === (string) $answer->field_type && ! in_array( (int) $answer->field_id, $own_consents, true ) ) { continue; }
 			$label = '' !== (string) $answer->label ? $answer->label : __( 'Teilnehmerangabe', 'pass-captain' );
 			$rows[] = array( 'name' => $label . ( '' !== (string) $answer->purpose ? ' (' . $answer->purpose . ')' : '' ), 'value' => $answer->answer );
 		}
@@ -265,7 +336,10 @@ final class Privacy {
 			$in = self::in_list( $attendee_ids );
 			$removed += (int) $wpdb->query( "UPDATE {$p}wpcap_tickets SET attendee_email='' WHERE ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$removed += (int) $wpdb->query( "UPDATE {$p}wpcap_ticket_assignments SET attendee_email='',attendee_name='' WHERE ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$removed += self::erase_ticket_details( $attendee_ids, true );
+			// Wallet passes carry the name: Google objects are updated, Apple devices get a push and fetch
+			// the nameless pass; their registrations are deleted after that push (WALLET_PURGE_HOOK).
+			self::wallet_resync( $attendee_ids );
+			$removed += self::erase_ticket_details( $attendee_ids, false );
 			if ( $upcoming ) {
 				/* translators: %d: number of tickets */
 				$messages[] = sprintf( __( 'Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', 'pass-captain' ), $upcoming );
@@ -307,14 +381,19 @@ final class Privacy {
 
 		// 3) Records keyed by the address only.
 		$hash = substr( hash( 'sha256', $email ), 0, 24 );
-		$bookings = (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET customer_email=%s WHERE customer_email=%s', $p . 'wpcap_service_bookings', 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
+		$bookings = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET customer_email=%s,manage_token_hash='' WHERE customer_email=%s", $p . 'wpcap_service_bookings', 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
 		$messages_removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET recipient=%s,payload='{}',status=IF(status IN ('queued','sending'),'cancelled',status),locked_at=NULL,last_error='privacy_erasure' WHERE recipient=%s", $p . 'wpcap_message_queue', 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
-		$passes_removed = $wpdb->update( $p . 'wpcap_member_passes', array( 'member_email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'token_hash' => self::random_hash(), 'status' => 'revoked' ), array( 'member_email' => $email ), array( '%s', '%s', '%s' ), array( '%s' ) );
-		$waitlist_removed = $wpdb->update( $p . 'wpcap_waitlist', array( 'email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'email_hash' => self::random_hash(), 'offer_token_hash' => '', 'status' => 'removed', 'updated_at' => $now ), array( 'email' => $email ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%s' ) );
+		list( $passes_removed, $passes_deferred ) = self::erase_member_passes( $email, 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN );
+		$waitlist_removed = $wpdb->update( $p . 'wpcap_waitlist', array( 'email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'email_hash' => self::random_hash(), 'offer_token_hash' => '', 'manage_token_hash' => '', 'status' => 'removed', 'updated_at' => $now ), array( 'email' => $email ), array( '%s', '%s', '%s', '%s', '%s', '%s' ), array( '%s' ) );
 		$slot_waits_removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET email=%s,email_hash=SHA2(CONCAT(entry_id,'|',RAND()),256),offer_token_hash='',manage_token_hash='',status=IF(status IN ('waiting','offered'),'removed',status),updated_at=%s WHERE email=%s", $p . 'wpcap_service_waitlist', 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $now, $email ) );
-		$removed += $bookings + $messages_removed + (int) $passes_removed + (int) $waitlist_removed + $slot_waits_removed;
+		$contacts_removed = self::erase_business_contacts( $email );
+		$removed += $bookings + $messages_removed + (int) $passes_removed + (int) $waitlist_removed + $slot_waits_removed + $contacts_removed;
+		if ( $passes_deferred ) {
+			/* translators: %d: number of member passes */
+			$messages[] = sprintf( __( '%d gültige(r) Mitgliedspass/-pässe bleiben zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis zum Ende der Gültigkeit nutzbar und werden danach automatisch anonymisiert.', 'pass-captain' ), $passes_deferred );
+		}
 
-		$retained = (bool) $orders;
+		$retained = (bool) $orders || $passes_deferred > 0;
 		if ( $deferred ) {
 			/* translators: %d: number of orders */
 			$messages[] = sprintf( __( '%d Bestellung(en) mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig.', 'pass-captain' ), $deferred );
@@ -367,10 +446,12 @@ final class Privacy {
 			$in = self::in_list( $ticket_ids );
 			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_assignments SET buyer_email=%s,attendee_email='',attendee_name='' WHERE ticket_id IN ($in)", $replacement ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$details = self::erase_ticket_details( $ticket_ids, false );
+			// Tickets that were not revoked (checked in, past dates) still carry the name on wallet passes.
+			self::wallet_resync( $ticket_ids );
 		} else {
 			$details = 0;
 		}
-		$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'access_token_hash' => self::random_hash(), 'access_expires_at' => null, 'attendee_data' => null, 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+		$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'customer_user_id' => 0, 'access_token_hash' => self::random_hash(), 'access_expires_at' => null, 'attendee_data' => null, 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%d', '%s', '%s', '%s', '%s' ), array( '%d' ) );
 		// Billing data (name, company, address, VAT ID) of the order; issued invoices keep their own
 		// snapshot (retention duty, Art. 17 Abs. 3 lit. b DSGVO). Separate statement: the column may be
 		// missing while a deferred schema upgrade is pending.
@@ -399,9 +480,82 @@ final class Privacy {
 		Audit::record( 'privacy_erasure_deferred', 'order', $order_id );
 	}
 
+	/** Deferred member pass erasures: pass id => replacement email. */
+	const DEFERRED_PASSES_OPTION = 'wpcap_deferred_pass_erasures';
+
+	public static function deferred_passes() {
+		$list = get_option( self::DEFERRED_PASSES_OPTION, array() );
+		return is_array( $list ) ? $list : array();
+	}
+
+	/**
+	 * Erasure of member passes, consistent with orders: a pass that is still valid (active, valid_until
+	 * in the future) is part of a contract still being performed and stays usable until it ends
+	 * (filter wpcap_privacy_defer_upcoming, $defer, 0, 'member_pass', $pass_id); it is anonymised by
+	 * process_deferred() afterwards. Other passes are anonymised and their code invalidated now.
+	 *
+	 * @return int[] [anonymised, deferred]
+	 */
+	private static function erase_member_passes( $email, $replacement ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$removed = 0;
+		$deferred = 0;
+		$list = self::deferred_passes();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT pass_id,status,valid_until FROM %i WHERE member_email=%s ORDER BY pass_id', $p . 'wpcap_member_passes', $email ) ) as $pass ) {
+			$pass_id = (int) $pass->pass_id;
+			if ( 'active' === $pass->status && (string) $pass->valid_until > $now && apply_filters( 'wpcap_privacy_defer_upcoming', true, 0, 'member_pass', $pass_id ) ) {
+				if ( ! isset( $list[ $pass_id ] ) ) {
+					$list[ $pass_id ] = $replacement;
+					Audit::record( 'privacy_erasure_deferred', 'member_pass', $pass_id );
+				}
+				++$deferred;
+				continue;
+			}
+			$removed += (int) self::anonymize_pass( $pass_id, $replacement );
+		}
+		update_option( self::DEFERRED_PASSES_OPTION, $list, false );
+		return array( $removed, $deferred );
+	}
+
+	private static function anonymize_pass( $pass_id, $replacement ) {
+		global $wpdb;
+		return $wpdb->update( $wpdb->prefix . 'wpcap_member_passes', array( 'member_email' => $replacement, 'token_hash' => self::random_hash(), 'status' => 'revoked' ), array( 'pass_id' => (int) $pass_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+	}
+
+	/**
+	 * Brings wallet passes of these tickets up to date after personal data was removed (attendee
+	 * name): Google objects are patched without the holder name, Apple devices get a push and fetch
+	 * the nameless pass. Returns the number of tickets queued for an update.
+	 */
+	public static function wallet_resync( array $ticket_ids ) {
+		$ticket_ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+		if ( ! $ticket_ids || ! self::has_table( 'wpcap_wallet_state' ) || ! class_exists( '\PassCaptain\WalletPasses\Service' ) ) { return 0; }
+		global $wpdb;
+		$with_state = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_wallet_state' ), $ticket_ids ) ) ) );
+		$changed = array();
+		foreach ( $with_state as $ticket_id ) {
+			if ( WalletPasses\Service::sync_ticket( $ticket_id ) ) { $changed[] = $ticket_id; }
+		}
+		if ( $changed ) { WalletPasses\Service::queue( $changed ); }
+		return count( $changed );
+	}
+
 	/** Hourly: anonymises deferred orders whose dates have passed (or whose tickets are no longer valid). */
 	public static function process_deferred() {
 		global $wpdb;
+		$passes = self::deferred_passes();
+		if ( $passes ) {
+			$now = current_time( 'mysql', true );
+			foreach ( $passes as $pass_id => $replacement ) {
+				$pass = $wpdb->get_row( $wpdb->prepare( 'SELECT status,valid_until FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_member_passes', (int) $pass_id ) );
+				if ( $pass && 'active' === $pass->status && (string) $pass->valid_until > $now ) { continue; }
+				if ( $pass ) { self::anonymize_pass( (int) $pass_id, (string) $replacement ); }
+				unset( $passes[ $pass_id ] );
+			}
+			update_option( self::DEFERRED_PASSES_OPTION, $passes, false );
+		}
 		$list = self::deferred();
 		$changed = false;
 		foreach ( $list as $order_id => $replacement ) {

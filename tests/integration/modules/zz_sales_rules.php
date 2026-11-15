@@ -306,13 +306,15 @@ $portal = Consents::portal_section( Orders::get( $co['order_id'] ) );
 check( 'portal section lists the consent with its withdrawal state', false !== strpos( $portal, 'Fotoeinwilligung' ) && false !== strpos( $portal, 'Widerrufen am' ) && false === strpos( $portal, 'wpcap_consent_withdraw' ) );
 $co2 = Orders::create( array( 'email' => 'consent2@example.com', 'items' => array( array( 'ticket_type_id' => $ct, 'quantity' => 1 ) ), 'attendees' => array( array( 'ticket_type_id' => $ct, 'answers' => array( 'photo' => '1' ) ) ), 'idempotency_key' => 'sr-c2-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 check( 'new consents use the new text version; portal shows a withdraw button', '2' === Consents::for_order( $co2['order_id'] )[0]->text_version && 'consent2@example.com' === Consents::for_order( $co2['order_id'] )[0]->subject_email && false !== strpos( Consents::portal_section( Orders::get( $co2['order_id'] ) ), 'wpcap_consent_withdraw' ) );
-$export = Consents::export( 'consent@example.com' );
+// The consent belongs to its subject (Ana), not to the buyer who ordered the ticket (PRIV-3).
+$export = Consents::export( 'ana@example.com' );
 $flat = wp_json_encode( $export );
-check( 'privacy export contains consent text, version, grant and withdrawal', 1 === count( $export['data'] ) && false !== strpos( $flat, 'Ich bin mit Fotos einverstanden.' ) && false !== strpos( $flat, 'portal' ) && Consents::export( 'ana@example.com' )['data'] );
+check( 'privacy export contains consent text, version, grant and withdrawal', 1 === count( $export['data'] ) && false !== strpos( $flat, 'Ich bin mit Fotos einverstanden.' ) && false !== strpos( $flat, 'portal' ) && array() === Consents::export( 'consent@example.com' )['data'] );
 $exporters = apply_filters( 'wp_privacy_personal_data_exporters', array() );
 check( 'consent exporter and eraser are registered', isset( $exporters['wp-pass-captain-consents'] ) && isset( apply_filters( 'wp_privacy_personal_data_erasers', array() )['wp-pass-captain-consents'] ) );
-$erase = Consents::erase( 'consent@example.com' );
-check( 'privacy eraser deletes the consent records', 1 === $erase['items_removed'] && array() === Consents::for_order( $co['order_id'] ) );
+$erase_buyer = Consents::erase( 'consent@example.com' );
+$erase = Consents::erase( 'ana@example.com' );
+check( 'privacy eraser deletes the consent records of the subject only', 0 === $erase_buyer['items_removed'] && 1 === $erase['items_removed'] && array() === Consents::for_order( $co['order_id'] ) );
 // Retention: delete with the answers after end + retention days.
 $wpdb->query( "UPDATE {$p}wpcap_participant_fields SET retention_days=10 WHERE field_id=" . (int) $cf['field_id'] );
 check( 'retention keeps consents before end + retention days', 0 === Consents::retention( time() ) && 1 === count( Consents::for_order( $co2['order_id'] ) ) );

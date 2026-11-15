@@ -12,7 +12,7 @@ final class Seats {
 		$idempotency_key = sanitize_text_field( $idempotency_key );
 		if ( ! $occurrence_id || ! $seat_ids || count( $seat_ids ) > 8 || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_seat_selection_invalid', __( 'Sitzplatzauswahl oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		$ip = RateLimit::client_network(); // IPv6: per /64, address rotation does not reset the limit.
-		$rate_key = 'wpcap_seathold_' . hash( 'sha256', $ip );
+		$rate_key = 'wpcap_seathold_' . RateLimit::hash( $ip );
 		$rate = (int) get_transient( $rate_key );
 		if ( $rate >= 20 ) { return new \WP_Error( 'wpcap_seat_hold_rate', __( 'Zu viele Sitzplatzreservierungen; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $rate_key, $rate + 1, HOUR_IN_SECONDS );

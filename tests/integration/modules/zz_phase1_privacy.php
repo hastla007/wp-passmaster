@@ -201,7 +201,11 @@ add_action( 'wpcap_ticket_revoked', static function ( $id, $reason = '' ) use ( 
 $GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] = false;
 $res_a = Privacy::erase( 'p1p-ada@example.com' );
 check( 'erase attendee: name, e-mail, answers removed; ticket stays valid', '' === $wpdb->get_var( "SELECT attendee_name FROM {$p}wpcap_ticket_assignments WHERE ticket_id=$ada" ) && '' === $wpdb->get_var( "SELECT attendee_email FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array() === $answers( $ada ) && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array( 'Initech' ) === $answers( $bob ) );
-check( 'erase attendee: wallet device registration removed, no revocation', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
+// PRIV-4: the device first gets the push for the nameless pass; the registration goes with the delayed purge.
+$p1p_purge = array_values( array_filter( $GLOBALS['p1p_scheduled'] ?? array(), static fn( $e ) => Privacy::WALLET_PURGE_HOOK === $e[1] && in_array( $ada, (array) ( $e[2][0] ?? array() ), true ) ) );
+$p1p_reg_after_erase = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" );
+Privacy::purge_wallet_registrations( array( $ada ) );
+check( 'erase attendee: wallet device registration removed after the push (delayed purge), no revocation', 1 === $p1p_reg_after_erase && ( ! $p1p_own_cron || $p1p_purge ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
 check( 'erase attendee: warns that the buyer\'s upcoming tickets stay valid', (bool) preg_grep( '/bleiben gültig/', $res_a['messages'] ) );
 // Buyer erasure.
 $GLOBALS['p1p_scheduled'] = array();
@@ -268,7 +272,8 @@ $GLOBALS['wpac_test_touch'] = array( 'code' => 'NORD-1', 'method' => 'cookie', '
 $had_consent_api = function_exists( 'wp_has_consent' );
 if ( ! $had_consent_api ) {
 	$no_api = $aff_buy();
-	check( 'affiliate: without a consent API the touch is read (operator gates the cookie)', 'cookie' === ( $aff_snap( $no_api['order_id'] )['affiliate_referral']['touch']['method'] ?? '' ) );
+	// PRIV-15: no consent API = no proof of consent, the cookie is not read.
+	check( 'affiliate: without a consent API the referral cookie is not read', ! isset( $aff_snap( $no_api['order_id'] )['affiliate_referral']['touch'] ) );
 	function wp_has_consent( $category ) { return ! empty( $GLOBALS['p1p_consent'][ $category ] ); }
 }
 $GLOBALS['p1p_consent'] = array();
