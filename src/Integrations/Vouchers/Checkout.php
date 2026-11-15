@@ -14,15 +14,17 @@
  *
  * VAT treatment (EU VAT Directive Art. 30a/30b, DE §3 Abs. 13–15 UStG, AT §4 Abs. 9 UStG):
  * - Single-purpose voucher ("single"): VAT was due when the voucher was sold, so the redemption is a
- *   price reduction: total, discount and line VAT are reduced (unchanged legacy behaviour).
+ *   price reduction: total, discount, the per-line discount split (price_snapshot.line_discounts) and
+ *   line VAT are reduced; unsent fiscal documents are rebuilt, a sent one refuses the voucher.
  * - Multi-purpose voucher ("multi", default): the redemption is a means of payment. Order lines,
  *   discount_minor and tax_minor keep the full consideration; only the amount due (orders.total_minor,
  *   which every gateway, webhook amount check and refund cap uses as the cash amount) is reduced. The
  *   voucher part is stored in the voucher snapshot (`amount_paid_by_voucher`, `gross_minor`), invoices
  *   show the full gross amount and list the voucher under "Zahlungen".
- * Refunds are split proportionally: the cash part comes from Refunds::calculate() (gross share × amount
- * due / subtotal), the voucher part is the same share of the voucher amount (by ticket value; the last
- * refund receives the remainder) and goes back to the voucher. Credit notes of multi-purpose orders cover
+ * The voucher is split over the lines at apply time (`voucher_lines`, proportional to the line amounts
+ * after campaign discounts). Refunds: the cash part comes from Refunds::calculate() (discounted value of
+ * the tickets scaled to the amount due), the voucher part is the tickets' share of `voucher_lines` (the
+ * last refund receives the remainder) and goes back to the voucher. Credit notes of multi-purpose orders cover
  * cash + voucher part with the full VAT of the refunded tickets (see credit_note_amounts()).
  */
 namespace PassCaptain\Integrations\Vouchers;
@@ -91,7 +93,33 @@ final class Checkout {
 		$old_total = (int) $order->total_minor;
 		$new_total = $old_total - $amount;
 		$purpose = self::purpose( array( 'quote' => $quote, 'reservation' => $reservation ), array( 'source' => 'checkout', 'order_id' => (int) $order_id, 'code_hint' => substr( $code, -4 ) ) );
-		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'purpose' => $purpose, 'gross_minor' => $old_total, 'gross_tax_minor' => (int) $order->tax_minor, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
+		// Split of the voucher over the order lines, proportional to what is paid for each line after
+		// campaign discounts (PAY-4/PAY-6): single-purpose → part of the line discount, multi-purpose →
+		// part of the line paid by voucher. Refunds take the voucher share of a ticket from it.
+		$price_snapshot = json_decode( (string) $order->price_snapshot, true );
+		$price_snapshot = is_array( $price_snapshot ) ? $price_snapshot : array();
+		$line_discounts = Orders::snapshot_line_discounts( $order );
+		if ( null === $line_discounts ) {
+			// Orders before the split was stored: the proportional split of the order discount.
+			$line_discounts = array();
+			$all = array();
+			foreach ( $items as $index => $item ) { $all[ $index ] = (int) $item->line_total_minor; }
+			foreach ( Orders::allocate( $all, (int) $order->discount_minor ) as $index => $part ) { $line_discounts[ (int) $items[ $index ]->ticket_type_id ] = $part; }
+		}
+		$paid_lines = array();
+		foreach ( $items as $item ) {
+			$type_id = (int) $item->ticket_type_id;
+			$paid_lines[ $type_id ] = ( $paid_lines[ $type_id ] ?? 0 ) + max( 0, (int) $item->line_total_minor - (int) ( $line_discounts[ $type_id ] ?? 0 ) );
+		}
+		$voucher_lines = Orders::allocate( $paid_lines, $amount );
+		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'purpose' => $purpose, 'gross_minor' => $old_total, 'gross_tax_minor' => (int) $order->tax_minor, 'voucher_lines' => $voucher_lines, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
+		// Single-purpose vouchers change the price: fiscal documents already sent (or possibly sent) to the
+		// provider cannot follow any more, so the voucher is refused (docs/VOUCHERS.md).
+		$fiscal = self::PURPOSE_SINGLE === $purpose && class_exists( \PassCaptain\Modules\Fiscalization::class ) ? \PassCaptain\Modules\Fiscalization::order_documents_state( (int) $order_id ) : 'none';
+		if ( 'locked' === $fiscal ) {
+			Bridge::release( (array) $reservation, 'wpcap-release-' . $order->public_id );
+			return new \WP_Error( 'wpcap_voucher_fiscal_locked', __( 'Der Gutschein kann nicht mehr angewendet werden, weil für diese Bestellung bereits ein Fiskalbeleg übermittelt wird.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
 		// One transaction, every write checked; the order row only changes while it is still pending, unchanged
 		// and without a voucher (a concurrent retry or an expiry in between wins): see the WHERE of both UPDATEs.
 		$wpdb->query( 'START TRANSACTION' );
@@ -103,18 +131,29 @@ final class Checkout {
 			$ok = false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, wp_json_encode( $snapshot ), current_time( 'mysql', true ), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
 		} else {
 			// Single-purpose: VAT was paid when the voucher was sold; the redemption reduces price and VAT.
-			$new_tax = $old_total > 0 ? (int) round( (int) $order->tax_minor * $new_total / $old_total ) : 0;
-			// Keep line VAT consistent with the reduced total (proportional, remainder on the last line).
-			$tax_left = $new_tax;
-			$last = count( $items ) - 1;
-			foreach ( $items as $index => $item ) {
-				$line_tax = $index === $last ? $tax_left : ( (int) $order->tax_minor > 0 ? (int) round( (int) $item->tax_minor * $new_tax / (int) $order->tax_minor ) : 0 );
-				$line_tax = max( 0, min( $line_tax, $tax_left ) );
-				$tax_left -= $line_tax;
+			// The voucher becomes part of the line discounts (price_snapshot.line_discounts), so invoice,
+			// reports, partner settlements, refunds and the fiscal document use the reduced line amounts;
+			// line VAT is computed again on the reduced line amount (same rule as the checkout).
+			$new_tax = 0;
+			$fiscal_lines = array();
+			foreach ( $items as $item ) {
+				$type_id = (int) $item->ticket_type_id;
+				$line_discounts[ $type_id ] = (int) ( $line_discounts[ $type_id ] ?? 0 ) + (int) ( $voucher_lines[ $type_id ] ?? 0 );
+				$voucher_lines[ $type_id ] = 0; // Each type's part is added once.
+				$gross = max( 0, (int) $item->line_total_minor - (int) $line_discounts[ $type_id ] );
+				$line_tax = (int) $item->tax_minor > 0 ? Orders::gross_tax( $gross, (int) $item->tax_rate_bp ) : 0;
+				$new_tax += $line_tax;
+				$fiscal_lines[ $type_id ] = array( $gross, $line_tax );
 				$ok = $ok && false !== $wpdb->update( "{$p}wpcap_order_items", array( 'tax_minor' => $line_tax ), array( 'item_id' => (int) $item->item_id ) );
 			}
+			$price_snapshot['line_discounts'] = array_map( 'intval', $line_discounts );
+			$price_snapshot['discount_minor'] = (int) $order->discount_minor + $amount;
+			$price_snapshot['total_minor'] = $new_total;
+			$price_snapshot['voucher_minor'] = $amount;
 			$snapshot['amount_paid_by_voucher'] = 0;
-			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, $amount, $new_tax, wp_json_encode( $snapshot ), current_time( 'mysql', true ), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,price_snapshot=%s,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, $amount, $new_tax, wp_json_encode( $price_snapshot ), wp_json_encode( $snapshot ), current_time( 'mysql', true ), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
+			// Unsent fiscal documents (created at checkout) follow the reduced amounts.
+			if ( $ok && 'open' === $fiscal ) { $ok = \PassCaptain\Modules\Fiscalization::reprice_open_documents( (int) $order_id, $fiscal_lines ); }
 		}
 		if ( ! $ok ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -328,8 +367,10 @@ final class Checkout {
 	 * part, computed once and stored in the voucher snapshot (`refund_plans`) so that the credit note and
 	 * the voucher refund use the same numbers.
 	 *
-	 * Voucher part = voucher amount × value of the refunded tickets / value of all tickets, the refund that
-	 * covers the last tickets receives the remainder. For multi-purpose vouchers also the full VAT of the
+	 * Voucher part = the refunded tickets' part of the voucher split stored at apply time (voucher_lines,
+	 * proportional to the line amounts after campaign discounts; older snapshots: voucher amount × their
+	 * discounted line value / all discounted line values), the refund that covers the last tickets
+	 * receives the remainder. For multi-purpose vouchers also the full VAT of the
 	 * refunded tickets (`tax_minor`, cash + voucher part) for the credit note.
 	 *
 	 * @return array|null voucher_minor, cash_minor, tax_minor (full VAT, multi only), tickets, purpose.
@@ -346,13 +387,19 @@ final class Checkout {
 		if ( isset( $plans[ (string) absint( $refund_id ) ] ) ) { return (array) $plans[ (string) absint( $refund_id ) ]; }
 		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) ) ) );
 		$items = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM %i WHERE order_id=%d', $p . 'wpcap_order_items', $order_id ) );
+		// Weight of a ticket = its part of the voucher (voucher_lines, stored at apply time on the line
+		// amounts after campaign discounts); older snapshots: its line value after campaign discounts.
+		$voucher_lines = isset( $snapshot['voucher_lines'] ) && is_array( $snapshot['voucher_lines'] ) ? array_map( 'intval', $snapshot['voucher_lines'] ) : null;
+		$line_discounts = null === $voucher_lines ? (array) Orders::snapshot_line_discounts( Orders::get( $order_id ) ) : array();
 		$unit = array();
 		$all_value = 0;
 		$all_tickets = 0;
 		foreach ( (array) $items as $item ) {
 			$q = max( 1, (int) $item->quantity );
-			$unit[ (int) $item->ticket_type_id ] = array( (int) $item->line_total_minor / $q, (int) $item->tax_minor / $q );
-			$all_value += (int) $item->line_total_minor;
+			$type_id = (int) $item->ticket_type_id;
+			$weight = null !== $voucher_lines ? (int) ( $voucher_lines[ $type_id ] ?? 0 ) : max( 0, (int) $item->line_total_minor - (int) ( $line_discounts[ $type_id ] ?? 0 ) );
+			$unit[ $type_id ] = array( $weight / $q, (int) $item->tax_minor / $q );
+			$all_value += $weight;
 			$all_tickets += (int) $item->quantity;
 		}
 		$value = 0.0;
@@ -381,7 +428,7 @@ final class Checkout {
 		} elseif ( $final ) {
 			$share = $voucher - $planned;
 		} else {
-			$share = $all_value > 0 ? (int) floor( $voucher * $value / $all_value ) : 0;
+			$share = $all_value > 0 ? (int) floor( $voucher * $value / $all_value + 1e-6 ) : 0;
 		}
 		$share = max( 0, min( $share, $voucher - $planned ) );
 		$purpose = self::snapshot_purpose( $snapshot );
