@@ -293,6 +293,9 @@ jobs:
           - { label: 'WooCommerce 8.2 (minimum)', php: '8.2', wc: '8.2.0' }
           # Release 1.4.0 (#18), the last version published as wp-pass-captain/wp-pass-captain.php.
           - { label: 'Update from 1.4.0', php: '8.4', wc: '', upgrade_from: '90c972ab681b32254887a945a11e17325e0a801c' }
+          # Multisite (build/ci-multisite-test.sh): 30 sites, network activation (25 now, the rest via
+          # wpcap_run_upgrade), site deletion, uninstall with mixed opt-in.
+          - { label: 'Multisite (30 sites)', php: '8.4', wc: '', multisite: '1' }
     services:
       mariadb:
         image: mariadb:11.4
@@ -327,7 +330,12 @@ jobs:
           WPCAP_IT_WP_VERSION: ${{ matrix.wp || 'latest' }}
           WPCAP_IT_WC_VERSION: ${{ matrix.wc }}
           WPCAP_IT_UPGRADE_FROM: ${{ matrix.upgrade_from }}
-        run: bash build/ci-install-test.sh build/dist/pass-captain.zip
+        run: |
+          if [ "${{ matrix.multisite }}" = "1" ]; then
+            bash build/ci-multisite-test.sh build/dist/pass-captain.zip
+          else
+            bash build/ci-install-test.sh build/dist/pass-captain.zip
+          fi
 
   plugin-check:
     # Official WordPress.org Plugin Check (TODO A8) against exactly the files of the release ZIP.
