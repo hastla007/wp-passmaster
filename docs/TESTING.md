@@ -95,6 +95,8 @@ Zustandsautomaten. Geeignet als nächtlicher Lauf; derzeit in keinem Workflow ei
 | `zzzzz_x5_addon_hooks.php` | Add-on-Schnittstellen ([EXTENSIONS.md](EXTENSIONS.md#pass-captain-pro--add-on-schnittstellen)): Admin-Menü-Action, White Label (Name, Logo, Menü, gettext, Offline-Scanner-Manifest), Rechnungs-Action und Lese-API (Rechnung, Korrektur, Abrechnung), Mail-Anhänge und Links, Checkout-Schranke (nativ, REST, Servicebuchung, WooCommerce, Ausnahmen, fail open), API-Scopes und `Api\Auth::request_can()` (401/403/429); jeweils auch: ohne Callback unverändert. |
 | `zzzzzz_y1_security.php` | Audit-Panel 2026-11-15, Sicherheit & Zugriff: Scope-Matrix aller schreibenden, per Capability geschützten Routen mit Objekt-IDs (Personal von Event A gegen IDs von Event B, neue Routen ohne Fall scheitern), Passregeln REST/Admin, CSV-Injection, Entwickler-Keys an Rolle gebunden und bei Löschung/Rollenwechsel widerrufen, Checkout-Antwort ohne IDs, Wartelisten-Limits (IPv6 /64), Header privater Seiten, Array-Parameter, Check-in-Replay ohne Zugriff. |
 | `zzzz_w6_privacy_volume.php` | Export/Löschung/Retention mit 400 (langsam: 5.000) Bestellungen, kommenden Terminen, Rechnungen, WooCommerce-Bestellungen und zweiter Site; Zeitbudget, Finanzbelege bleiben. |
+| `zzzzzz_z4_csp.php` | Audit-Panel 2026-11-15, Paket Z4 (FE-8): strikte CSP der vollständig vom Plugin ausgegebenen Seiten (Ticketseite, Rechnungen, Einwilligungsseite; Filter, Header-Injection), keine Inline-Event-Handler in `src/`, Druck-Buttons über `assets/print.js`, Admin-Bestätigungen über `data-wpcap-confirm`. |
+| `zzzzzz_z4_sms_otp.php` | Audit-Panel 2026-11-15, Paket Z4 (PRIV-16): SMS-Opt-in nur mit per Code bestätigter Nummer – Code-Anforderung (Nummernprüfung, Same-Origin, Limits je Nummer/IP/Site, Wartezeit), nur Hashes gespeichert, 5 Versuche, Ablauf 10 min, einmalige Verwendung im Checkout, Nachweis (verified_at, Audit), unbestätigte Opt-ins ohne SMS, Altbestand gültig, Export, Löschung nach einem Tag, Upgrade. |
 | `zzzzzz_y4_privacy.php` | Audit-Panel 2026-11-15, Paket Y4 (Datenschutz): Fristlöschung nach gesetzlicher Frist, Wartelisten, Terminbuchungen, Pässe, SMS, Einlass, Gerätebezeichnungen; Rechnungsanschrift unbezahlter Bestellungen; Einwilligungen nur für die betroffene Person; Wallet-Aktualisierung ohne Namen; Maskierung der Wartelisten für Support; WooCommerce-Teilnehmerkopie; schlüsselbasierte Rate-Limit-Hashes; Redaktion von Telefon/IBAN/IP; Exporter-/Löscherlücken; Affiliate-Cookie ohne Consent-API; Deinstallations-Bestätigung; Webhook-Altzustellungen; Partner-API-Audit. |
 
 Gemeinsamer Fehler-Proxy für `$wpdb`: `tests/integration/lib/fault_wpdb.php` (`wpcap_faults()`,
@@ -288,7 +290,7 @@ tests/ci/browser-tests.sh all
 ### JS-Unit-Tests (`tests/js/`, `npm test`)
 
 `node --test` ohne Abhängigkeiten (Node ≥ 20). `lib/load.js` führt die Seiten-Skripte in Node mit Mini-DOM
-(`lib/dom.js`), Fake-Timern, `fetch`-Mock und In-Memory-IndexedDB (`lib/idb.js`) aus. 56 Tests:
+(`lib/dom.js`), Fake-Timern, `fetch`-Mock und In-Memory-IndexedDB (`lib/idb.js`) aus.
 
 | Datei | Abgedeckt |
 |---|---|
@@ -297,6 +299,8 @@ tests/ci/browser-tests.sh all
 | `scanner.test.js` | Web-Scanner: Online-Check-in, Serverfehler, Offline nie automatisch eingelassen, Warteschlange pro Benutzer, Ablauf nach 24 h, Sync in 100er-Blöcken, Einlassmodul, Kamera verweigert/fehlt |
 | `order-portal.test.js` | Übertragung mit Bestätigungsdialog, Teilnehmerzuweisung, erneuter Versand, Rechnungsdaten |
 | `seating-picker.test.js` | Saalplan: Rollen/Labels, Listen-Fallback, Auswahl, Tastatur, Stehplätze, Mengenänderung, Payload |
+| `csp.test.js` | FE-8: Admin-Bestätigungsdialoge (`data-wpcap-confirm` an Buttons/Formularen, Abbrechen verhindert das Absenden), Auto-Submit, Select-on-Focus, Druck-Buttons und Auto-Druck (`assets/print.js`); statische Prüfung: keine Inline-Event-Handler in `src/` und `assets/` |
+| `sms-checkout.test.js` | PRIV-16: SMS-Opt-in mit Bestätigungscode – Code anfordern/bestätigen, Fehlertexte, Enter im Codefeld, Token im Payload, Nummernwechsel verwirft die Bestätigung, ohne Bestätigung keine Bestellung mit Opt-in, Einstellung aus |
 | `offline-scanner.test.js` | PWA: i18n, Kopplung, Ed25519-Paketprüfung, Delta-Kette, Offline-Entscheidung, IndexedDB-Warteschlange und Sync mit Konflikten, Serverausfall, 401 |
 
 ### Barrierefreiheit (`tests/a11y/`, Gate `gate.sh`)

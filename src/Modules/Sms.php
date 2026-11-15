@@ -13,6 +13,7 @@ use PassCaptain\Settings;
 use PassCaptain\Sms\HttpProvider;
 use PassCaptain\Sms\Service;
 use PassCaptain\Sms\TwilioProvider;
+use PassCaptain\Sms\Verification;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -51,9 +52,27 @@ final class Sms {
 				consented_at datetime NOT NULL,
 				withdrawn_at datetime NULL,
 				retired_at datetime NULL,
+				verification varchar(20) NOT NULL DEFAULT 'legacy',
+				verified_at datetime NULL,
 				PRIMARY KEY  (consent_id),
 				UNIQUE KEY order_purpose (order_id,purpose),
 				KEY phone (phone,consented_at)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_sms_verifications (
+				verification_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				token_hash char(64) NOT NULL,
+				phone varchar(20) NOT NULL,
+				code_hash char(64) NOT NULL DEFAULT '',
+				attempts smallint(5) unsigned NOT NULL DEFAULT 0,
+				sends smallint(5) unsigned NOT NULL DEFAULT 0,
+				expires_at datetime NOT NULL,
+				last_sent_at datetime NOT NULL,
+				verified_at datetime NULL,
+				used_order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (verification_id),
+				UNIQUE KEY token_hash (token_hash),
+				KEY created_at (created_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$prefix}wpcap_sms_messages (
 				message_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -85,6 +104,8 @@ final class Sms {
 		return array(
 			'sms' => array(
 				'provider' => '',
+				// PRIV-16: the opt-in needs the number confirmed with an SMS code (default on).
+				'verify_phone' => 1,
 				'consent_text' => __( 'Ja, ich möchte Erinnerungen und Informationen zu Terminänderungen und Absagen dieser Bestellung per SMS erhalten. Die Einwilligung kann jederzeit widerrufen werden.', 'pass-captain' ),
 				'default_country_code' => '+49',
 				// Only numbers of these countries (and, for AT/DE/CH, only mobile ranges) are accepted.
@@ -119,6 +140,18 @@ final class Sms {
 			// Authenticity: X-Twilio-Signature is validated in the callback.
 			'permission_callback' => '__return_true',
 		) );
+		// Number verification for the checkout opt-in (PRIV-16). Public like the checkout itself; protected by
+		// same-origin check, rate limits per number/address/site, attempt limit and the verification token.
+		register_rest_route( 'wp-pass-captain/v1', '/sms/verify/request', array(
+			'methods' => 'POST',
+			'callback' => array( Verification::class, 'rest_request' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/sms/verify/confirm', array(
+			'methods' => 'POST',
+			'callback' => array( Verification::class, 'rest_confirm' ),
+			'permission_callback' => '__return_true',
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/sms/twilio/inbound', array(
 			'methods' => 'POST',
 			'callback' => array( Service::class, 'twilio_inbound' ),
@@ -149,12 +182,13 @@ final class Sms {
 	/* ------------------------------------------------------------------ Checkout */
 
 	public static function payload_keys( $keys ) {
-		return array_merge( (array) $keys, array( 'sms_phone', 'sms_consent' ) );
+		return array_merge( (array) $keys, array( 'sms_phone', 'sms_consent', 'sms_verification' ) );
 	}
 
 	public static function error_messages( $messages ) {
 		$messages['sms_phone_not_allowed'] = __( 'SMS-Benachrichtigungen sind nur für Mobilnummern aus den unterstützten Ländern möglich. Bitte deaktiviere die SMS-Benachrichtigung oder nutze eine andere Nummer.', 'pass-captain' );
 		$messages['sms_rate_limited'] = __( 'Für diese Mobilnummer wurden zu viele SMS-Anmeldungen erstellt. Bitte versuche es später erneut oder bestelle ohne SMS-Benachrichtigung.', 'pass-captain' );
+		$messages['sms_verification_required'] = __( 'Bitte bestätige deine Mobilnummer mit dem per SMS gesendeten Code oder deaktiviere die SMS-Benachrichtigung.', 'pass-captain' );
 		$messages['sms_phone_invalid'] = __( 'Bitte gib eine gültige Mobilnummer an (z. B. +49 151 23456789) oder deaktiviere die SMS-Benachrichtigung.', 'pass-captain' );
 		return $messages;
 	}
@@ -164,26 +198,77 @@ final class Sms {
 		static $enqueued = false;
 		if ( ! $enqueued && function_exists( 'wp_enqueue_script' ) ) {
 			wp_enqueue_script( 'wpcap-sms-checkout', WPCAP_URL . 'assets/sms/checkout-sms.js', array(), WPCAP_VERSION, true );
-			wp_localize_script( 'wpcap-sms-checkout', 'WPCAP_SMS', array( 'phoneRequired' => __( 'Bitte gib für SMS-Benachrichtigungen eine Mobilnummer an.', 'pass-captain' ) ) );
+			wp_localize_script( 'wpcap-sms-checkout', 'WPCAP_SMS', self::checkout_config() );
 			$enqueued = true;
 		}
 		$id = 'wpcap-sms-' . ( is_object( $event ) ? (int) $event->occurrence_id : 0 );
 		echo '<fieldset class="wpcap-sms"><legend>' . esc_html__( 'SMS-Benachrichtigung (optional)', 'pass-captain' ) . '</legend>';
 		echo '<label for="' . esc_attr( $id ) . '-consent" class="wpcap-terms"><input type="checkbox" id="' . esc_attr( $id ) . '-consent" name="sms_consent" value="1"> ' . esc_html( Service::consent_text() ) . '</label>';
 		echo '<label for="' . esc_attr( $id ) . '-phone">' . esc_html__( 'Mobilnummer', 'pass-captain' ) . ' <input type="tel" id="' . esc_attr( $id ) . '-phone" name="sms_phone" autocomplete="tel" inputmode="tel" maxlength="20"></label>';
+		if ( Verification::required() ) {
+			// PRIV-16: the number is confirmed with a code before the order (assets/sms/checkout-sms.js).
+			echo '<div class="wpcap-sms-verify" hidden><p class="description">' . esc_html__( 'Wir senden dir einen 6-stelligen Code per SMS, um die Nummer zu bestätigen. Erst danach erhältst du SMS-Benachrichtigungen.', 'pass-captain' ) . '</p>';
+			echo '<button type="button" class="wpcap-sms-send">' . esc_html__( 'Code per SMS senden', 'pass-captain' ) . '</button> ';
+			echo '<label for="' . esc_attr( $id ) . '-code">' . esc_html__( 'Bestätigungscode', 'pass-captain' ) . ' <input type="text" id="' . esc_attr( $id ) . '-code" name="sms_code" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" size="8"></label> ';
+			echo '<button type="button" class="wpcap-sms-confirm">' . esc_html__( 'Code bestätigen', 'pass-captain' ) . '</button>';
+			echo '<input type="hidden" name="sms_verification" value=""><p class="wpcap-sms-status" role="status" aria-live="polite"></p></div>';
+		}
 		echo '</fieldset>';
 	}
 
-	/** wpcap_order_creating: store consent; a number without consent is discarded. */
+	/** Script configuration of the checkout opt-in (WPCAP_SMS). */
+	public static function checkout_config() {
+		return array(
+			'phoneRequired' => __( 'Bitte gib für SMS-Benachrichtigungen eine Mobilnummer an.', 'pass-captain' ),
+			'verify' => Verification::required(),
+			'requestUrl' => rest_url( 'wp-pass-captain/v1/sms/verify/request' ),
+			'confirmUrl' => rest_url( 'wp-pass-captain/v1/sms/verify/confirm' ),
+			'strings' => array(
+				'sending' => __( 'Code wird gesendet …', 'pass-captain' ),
+				/* translators: %s: masked phone number */
+				'sent' => __( 'Code an %s gesendet. Bitte gib ihn ein.', 'pass-captain' ),
+				'checking' => __( 'Code wird geprüft …', 'pass-captain' ),
+				'verified' => __( 'Mobilnummer bestätigt.', 'pass-captain' ),
+				'codeRequired' => __( 'Bitte gib den 6-stelligen Code ein.', 'pass-captain' ),
+				'verifyRequired' => __( 'Bitte bestätige deine Mobilnummer mit dem per SMS gesendeten Code oder deaktiviere die SMS-Benachrichtigung.', 'pass-captain' ),
+				'failed' => __( 'Das hat nicht geklappt. Bitte versuche es erneut.', 'pass-captain' ),
+			),
+		);
+	}
+
+	/**
+	 * wpcap_order_creating: store consent; a number without consent is discarded. With code
+	 * verification on (PRIV-16) the payload must carry a verified token for exactly this number.
+	 */
 	public static function store_consent( $order_id, $selected = array(), $payload = array(), $internal = array() ) {
 		if ( empty( $payload['sms_consent'] ) || ! empty( $internal['external'] ) || ! Service::enabled() ) { return; }
 		$phone = Service::normalize_phone( is_scalar( $payload['sms_phone'] ?? null ) ? $payload['sms_phone'] : '' );
 		if ( '' === $phone ) { throw new \RuntimeException( 'sms_phone_invalid' ); }
 		if ( ! Service::number_allowed( $phone ) ) { throw new \RuntimeException( 'sms_phone_not_allowed' ); }
-		// Abuse protection: third-party numbers and cost pumping (no OTP verification, see docs).
+		// Abuse protection: third-party numbers and cost pumping (in addition to the code verification).
 		if ( Service::recent_consents_for_number( $phone ) >= (int) apply_filters( 'wpcap_sms_number_daily_limit', 3 ) ) { throw new \RuntimeException( 'sms_rate_limited' ); }
+		$verified_at = null;
+		if ( Verification::required() ) {
+			$token = is_scalar( $payload['sms_verification'] ?? null ) ? (string) $payload['sms_verification'] : '';
+			$verified_at = Verification::consume( $token, $phone, $order_id );
+			if ( null === $verified_at ) { throw new \RuntimeException( 'sms_verification_required' ); }
+		}
 		if ( ! \PassCaptain\RateLimit::allow( 'sms_consent|' . \PassCaptain\RateLimit::client(), (int) apply_filters( 'wpcap_sms_ip_hourly_limit', 10 ), HOUR_IN_SECONDS ) ) { throw new \RuntimeException( 'sms_rate_limited' ); }
-		Service::record_consent( $order_id, $phone );
+		Service::record_consent( $order_id, $phone, null, null === $verified_at ? Service::UNVERIFIED : Service::VERIFIED, $verified_at );
+		if ( null !== $verified_at ) {
+			// Proof of the confirmed number next to the consent record (consented_at/verified_at in the table).
+			\PassCaptain\Audit::record( 'sms_consent_verified', 'order', absint( $order_id ), array( 'method' => 'sms_code', 'verified_at' => $verified_at, 'text_version' => Service::consent_version() ) );
+		}
+	}
+
+	/** Human readable verification state of a consent row (admin, privacy export). */
+	public static function verification_label( $consent ) {
+		$state = (string) ( $consent->verification ?? Service::LEGACY );
+		if ( Service::VERIFIED === $state ) {
+			/* translators: %s: UTC time */
+			return sprintf( __( 'per SMS-Code bestätigt (%s UTC)', 'pass-captain' ), (string) ( $consent->verified_at ?? '' ) );
+		}
+		return Service::LEGACY === $state ? __( 'unverifiziert (Altbestand)', 'pass-captain' ) : __( 'unverifiziert (ohne Code erfasst)', 'pass-captain' );
 	}
 
 	/* ------------------------------------------------------------------ Change messages */
@@ -282,6 +367,7 @@ final class Sms {
 				array( 'name' => __( 'Zweck', 'pass-captain' ), 'value' => $c->purpose ),
 				array( 'name' => __( 'Version des Einwilligungstexts', 'pass-captain' ), 'value' => $c->text_version ),
 				array( 'name' => __( 'Eingewilligt (UTC)', 'pass-captain' ), 'value' => $c->consented_at ),
+				array( 'name' => __( 'Bestätigung der Nummer', 'pass-captain' ), 'value' => self::verification_label( $c ) ),
 				array( 'name' => __( 'Widerrufen / beendet (UTC)', 'pass-captain' ), 'value' => (string) ( $c->withdrawn_at ?? '' ) . ' / ' . (string) ( $c->retired_at ?? '' ) ),
 			) );
 			global $wpdb;
@@ -311,6 +397,8 @@ final class Sms {
 		$prefix = trim( (string) ( $in['default_country_code'] ?? '' ) );
 		$values = array(
 			'provider' => Forms::choice( $in, 'provider', array_merge( array( '' ), array_keys( Service::providers() ) ), '' ),
+			// The form posts a hidden 0 before the checkbox; a save without the key keeps the current value.
+			'verify_phone' => array_key_exists( 'verify_phone', $in ) ? ( Forms::flag( $in, 'verify_phone' ) ? 1 : 0 ) : ( Verification::required() ? 1 : 0 ),
 			'consent_text' => Forms::textarea( $in, 'consent_text', 1000 ),
 			'default_country_code' => preg_match( '/^\+[1-9]\d{0,3}$/', $prefix ) ? $prefix : '',
 			'allowed_prefixes' => implode( ',', array_filter( preg_split( '/[\s,;]+/', (string) ( $in['allowed_prefixes'] ?? '' ) ), static function ( $v ) { return 1 === preg_match( '/^\+[1-9]\d{0,3}$/', $v ); } ) ),
@@ -364,13 +452,14 @@ final class Sms {
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'SMS-Benachrichtigungen', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Kostenhinweis:', 'pass-captain' ) . '</strong> ' . esc_html__( 'Jede SMS wird vom Anbieter berechnet (je Segment von 160 GSM- bzw. 70 Unicode-Zeichen, Preise je Zielland). Erinnerungen, Verschiebungen und Absagen erzeugen pro einwilligender Bestellung je eine SMS. Prüfe die Preise deines Anbieters, bevor du SMS aktivierst.', 'pass-captain' ) . '</p></div>';
-		echo '<p>' . esc_html__( 'SMS werden nur an Käufer:innen gesendet, die im Checkout ausdrücklich eingewilligt haben (Nummer, Zweck, Textversion und Zeitpunkt werden gespeichert).', 'pass-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'SMS werden nur an Käufer:innen gesendet, die im Checkout ausdrücklich eingewilligt haben (Nummer, Zweck, Textversion und Zeitpunkt werden gespeichert, bei bestätigter Nummer auch der Zeitpunkt der Code-Bestätigung).', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_sms_save' );
 		echo '<table class="form-table"><tbody>';
 		ob_start(); Forms::select( 'provider', $providers, (string) ( $s['provider'] ?? '' ), 'wpcap-sms-provider' ); $row( __( 'Anbieter', 'pass-captain' ), ob_get_clean() );
+		$row( __( 'Nummer per Code bestätigen', 'pass-captain' ), '<input type="hidden" name="verify_phone" value="0"><input type="checkbox" name="verify_phone" id="wpcap-sms-verify_phone" value="1"' . ( Verification::required() ? ' checked' : '' ) . '>', __( 'Empfohlen. Vor der Bestellung wird ein 6-stelliger Code per SMS an die Nummer gesendet (10 Minuten gültig, höchstens 5 Versuche); erst nach Eingabe des Codes gilt die Einwilligung als bestätigt. Unbestätigte Nummern erhalten nur den Code. Jeder Code ist eine kostenpflichtige SMS: je Nummer höchstens 3 Codes pro Stunde und 5 pro Tag, je IP 5 pro Stunde, insgesamt 500 pro Tag (Filter wpcap_sms_otp_limits). Ausgeschaltet gelten neue Einwilligungen ohne Code als „unverifiziert“ und erhalten SMS wie bisher; vorhandene Einwilligungen bleiben als „unverifiziert (Altbestand)“ gültig.', 'pass-captain' ) );
 		$row( __( 'Einwilligungstext im Checkout', 'pass-captain' ), $area( 'consent_text', $s['consent_text'] ?? '' ), sprintf( /* translators: %s: version */ __( 'Aktuelle Textversion: %s – Änderungen erzeugen eine neue Version.', 'pass-captain' ), Service::consent_version() ) );
 		$row( __( 'Standard-Ländervorwahl', 'pass-captain' ), $text( 'default_country_code', $s['default_country_code'] ?? '' ), __( 'Für Nummern mit führender 0, z. B. +49.', 'pass-captain' ) );
-		$row( __( 'Erlaubte Ländervorwahlen', 'pass-captain' ), $text( 'allowed_prefixes', $s['allowed_prefixes'] ?? '+43,+49,+41' ), __( 'Kommagetrennt. Für +43, +49 und +41 werden nur Mobilfunkbereiche akzeptiert (keine Premium-/Sonderrufnummern). Je Nummer höchstens 3 Einwilligungen pro Tag, je IP 10 pro Stunde. Eine Bestätigung per SMS-Code (OTP) ist nicht implementiert.', 'pass-captain' ) );
+		$row( __( 'Erlaubte Ländervorwahlen', 'pass-captain' ), $text( 'allowed_prefixes', $s['allowed_prefixes'] ?? '+43,+49,+41' ), __( 'Kommagetrennt. Für +43, +49 und +41 werden nur Mobilfunkbereiche akzeptiert (keine Premium-/Sonderrufnummern). Je Nummer höchstens 3 Einwilligungen pro Tag, je IP 10 pro Stunde.', 'pass-captain' ) );
 		$row( __( 'Text bei Absage', 'pass-captain' ), $area( 'cancel_body', $s['cancel_body'] ?? '' ) );
 		$row( __( 'Text bei Verschiebung', 'pass-captain' ), $area( 'reschedule_body', $s['reschedule_body'] ?? '' ), __( 'Platzhalter: ', 'pass-captain' ) . implode( ' ', array_keys( Placeholders::available() ) ) );
 		echo '</tbody></table><h2>Twilio</h2><table class="form-table"><tbody>';
@@ -388,6 +477,15 @@ final class Sms {
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form>';
+		$consents = $wpdb->get_results( $wpdb->prepare( "SELECT verification,COUNT(*) AS n FROM %i WHERE withdrawn_at IS NULL AND retired_at IS NULL AND phone<>'' GROUP BY verification ORDER BY verification", $wpdb->prefix . 'wpcap_sms_consents' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		if ( $consents ) {
+			echo '<h2>' . esc_html__( 'Aktive Einwilligungen', 'pass-captain' ) . '</h2><ul>';
+			foreach ( $consents as $c ) {
+				$label = Service::VERIFIED === $c->verification ? __( 'per SMS-Code bestätigt', 'pass-captain' ) : self::verification_label( $c );
+				echo '<li>' . esc_html( $label . ': ' . (int) $c->n ) . '</li>';
+			}
+			echo '</ul>';
+		}
 		$stats = $wpdb->get_results( $wpdb->prepare( 'SELECT status,COUNT(*) AS n FROM %i GROUP BY status', $wpdb->prefix . 'wpcap_sms_messages' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		if ( $stats ) {
 			echo '<h2>' . esc_html__( 'Versandstatus', 'pass-captain' ) . '</h2><ul>';

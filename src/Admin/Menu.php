@@ -83,6 +83,9 @@ final class Menu {
 		wp_register_style( 'wpcap-admin', false, array(), WPCAP_VERSION );
 		wp_enqueue_style( 'wpcap-admin' );
 		wp_add_inline_style( 'wpcap-admin', self::ADMIN_CSS );
+		// Confirm dialogs, auto-submit selects and select-on-focus via data attributes instead of inline
+		// event handlers (strict CSP possible, audit FE-8). Native window.confirm() as before.
+		wp_enqueue_script( 'wpcap-admin-confirm', plugins_url( 'assets/admin-confirm.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
 	}
 
 	/** First capability of the list the current user holds (fallback: the first one). */

@@ -196,7 +196,7 @@ final class AdminPage {
 			<tr><td><code><?php echo esc_html( $key['key_id'] ); ?></code></td><td><code style="font-size:11px"><?php echo esc_html( $key['public_key'] ); ?></code></td><td><?php echo esc_html( 'active' === $key['status'] ? __( 'aktiv', 'pass-captain' ) : __( 'in Übergangsfrist', 'pass-captain' ) ); ?></td><td><?php echo esc_html( $key['valid_until'] ? Forms::datetime( gmdate( 'Y-m-d H:i:s', strtotime( $key['valid_until'] ) ), wp_timezone_string() ) : '—' ); ?></td></tr>
 		<?php endforeach; ?>
 		</tbody></table>
-		<?php Forms::open_form( 'wpcap_offline_rotate_key', 'wpcap_offline_rotate_key', 'onsubmit="return confirm(\'' . esc_js( __( 'Neuen Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '\')"' ); Forms::hidden( 'event_id', $event_id ); ?>
+		<?php Forms::open_form( 'wpcap_offline_rotate_key', 'wpcap_offline_rotate_key', 'data-wpcap-confirm="' . esc_attr( __( 'Neuen Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '"' ); Forms::hidden( 'event_id', $event_id ); ?>
 			<p><button class="button"><?php esc_html_e( 'Schlüssel rotieren', 'pass-captain' ); ?></button></p>
 		</form>
 		<?php self::render_qr_keys( $event_id ); ?>
@@ -213,7 +213,7 @@ final class AdminPage {
 			<tr><td><code><?php echo esc_html( $key['key_id'] ); ?></code></td><td><code style="font-size:11px"><?php echo esc_html( $key['public_key'] ); ?></code></td><td><?php echo esc_html( 'active' === $key['status'] ? __( 'aktiv', 'pass-captain' ) : __( 'in Übergangsfrist', 'pass-captain' ) ); ?></td><td><?php echo esc_html( $key['valid_until'] ? Forms::datetime( gmdate( 'Y-m-d H:i:s', strtotime( $key['valid_until'] ) ), wp_timezone_string() ) : '—' ); ?></td></tr>
 		<?php endforeach; ?>
 		</tbody></table>
-		<?php Forms::open_form( 'wpcap_qr_rotate_key', 'wpcap_qr_rotate_key', 'onsubmit="return confirm(\'' . esc_js( __( 'Neuen QR-Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '\')"' ); Forms::hidden( 'event_id', $event_id ); ?>
+		<?php Forms::open_form( 'wpcap_qr_rotate_key', 'wpcap_qr_rotate_key', 'data-wpcap-confirm="' . esc_attr( __( 'Neuen QR-Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '"' ); Forms::hidden( 'event_id', $event_id ); ?>
 			<p><label><input type="checkbox" name="revoke" value="1"> <?php esc_html_e( 'Bisherigen Schlüssel sofort sperren (bei Verdacht auf Kompromittierung; alle damit signierten QR-Codes werden ungültig und müssen neu versendet werden)', 'pass-captain' ); ?></label></p>
 			<p><button class="button"><?php esc_html_e( 'QR-Schlüssel rotieren', 'pass-captain' ); ?></button></p>
 		</form>

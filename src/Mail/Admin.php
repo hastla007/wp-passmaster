@@ -262,7 +262,7 @@ final class Admin {
 		submit_button( __( 'Speichern', 'pass-captain' ), 'primary', 'submit', false );
 		echo ' <button type="submit" class="button" name="action" value="' . esc_attr( self::ACTION_TEST ) . '">' . esc_html__( 'Testmail senden', 'pass-captain' ) . '</button>';
 		if ( $own ) {
-			echo ' <button type="submit" class="button button-link-delete" name="action" value="' . esc_attr( self::ACTION_RESET ) . '" onclick="return confirm(' . esc_attr( wp_json_encode( __( 'Eigene Vorlage für diese Sprache löschen?', 'pass-captain' ) ) ) . ')">' . esc_html__( 'Auf Standard zurücksetzen', 'pass-captain' ) . '</button>';
+			echo ' <button type="submit" class="button button-link-delete" name="action" value="' . esc_attr( self::ACTION_RESET ) . '" data-wpcap-confirm="' . esc_attr( __( 'Eigene Vorlage für diese Sprache löschen?', 'pass-captain' ) ) . '">' . esc_html__( 'Auf Standard zurücksetzen', 'pass-captain' ) . '</button>';
 		}
 		echo '</p><p class="description">' . esc_html__( 'Die Testmail nutzt den aktuellen Formularinhalt mit Beispieldaten und geht an deine eigene Adresse.', 'pass-captain' ) . '</p>';
 		echo '</form>';

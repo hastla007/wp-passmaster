@@ -157,6 +157,7 @@ Webhook-Ereignissen).
 | `wpcap_mail_layout_html` | `string $html, string $content, string $subject` | Fertiges HTML-Dokument des E-Mail-Layouts (HTML-Vorlagen). |
 | `wpcap_mail_test_recipient` | `string $email, WP_User|null $user` | Empfänger der „Testmail senden“-Funktion (Standard: Adresse der angemeldeten Person). |
 | `wpcap_ticket_code_mail_section` | `string $section, int $ticket_id` | Zusatztext je Ticket in Übertragungs-, Zuweisungs- und Neuversand-Mails (z. B. Wallet-Links; nach einem Inhaberwechsel der Einwilligungslink `?wpcap_consent=` für offene Einwilligungen). |
+| `wpcap_strict_csp` | `string $policy` | Strikte Content-Security-Policy der vollständig vom Plugin ausgegebenen Seiten (Ticketseite, Rechnung, Einwilligungsseite), z. B. um die Origin eines fremd gehosteten Markenlogos zu `img-src` hinzuzufügen. Zeilenumbrüche werden entfernt, leere Rückgabe = Standard (docs/SECURITY.md). |
 | `wpcap_ticket_seat_label` | `string $label, int $ticket_id, array $ticket` | Sitzplatz-/Bereichsbezeichnung für Wallet-Pässe und Druckvorlagen. |
 | `wp_pass_captain_email_template_v1` | `array|null $template, string $template_key, array $payload` | Vorlage für Nachrichten aus `wpcap_message_queue`; Rückgabe `['subject' => …, 'body' => …]`. Erinnerungen nutzen den Schlüssel `wpcap_reminder`. |
 | `wp_pass_captain_event_card_html` | `string $html, object $event, array $types` | HTML einer Event-Karte im Shortcode `[wp_pass_captain_events]` (das Kalender-Modul ergänzt den Anker `id="wpcap-occ-{Termin}"`). |
@@ -180,7 +181,9 @@ Webhook-Ereignissen).
 | `wpcap_calendar_default_duration` | `int $seconds` (7200), `object $occurrence` | Dauer für `DTEND`, wenn der Termin kein Ende hat. |
 | `wpcap_signed_qr_window` | `int[] $window` (`[nicht vor, gültig bis]`, Unix-Sekunden), `object $ticket` | Gültigkeitszeitraum signierter QR-Codes (Standard: ein Jahr vor Beginn bis einen Tag nach dem letzten gültigen Zeitpunkt). Siehe [SECURITY.md](SECURITY.md#signierte-qr-codes-pc1). |
 | `wpcap_sms_providers` | `ProviderInterface[] $providers` | Weitere SMS-Adapter (`PassCaptain\Sms\ProviderInterface`). |
-| `wpcap_sms_number_daily_limit` | `int $limit` (3) | SMS-Einwilligungen je Mobilnummer in 24 Stunden (Missbrauchsschutz; eine Bestätigung per SMS-Code ist nicht implementiert). |
+| `wpcap_sms_number_daily_limit` | `int $limit` (3) | SMS-Einwilligungen je Mobilnummer in 24 Stunden (Missbrauchsschutz, zusätzlich zur Bestätigung per Code). |
+| `wpcap_sms_otp_limits` | `array $limits` (`number_hour` 3, `number_day` 5, `ip_hour` 5, `site_day` 500, `confirm_ip_hour` 30) | Kosten-/Missbrauchsschutz der Nummernbestätigung (PRIV-16): Codes je Nummer pro Stunde/Tag, je Client-IP pro Stunde, je Site pro Tag, Bestätigungsversuche je IP pro Stunde. Werte < 1 werden 1. |
+| `wpcap_sms_otp_body` | `string $body, string $code` | Text der SMS mit dem Bestätigungscode; enthält der Text den Code nicht, wird er vorangestellt. |
 | `wpcap_sms_ip_hourly_limit` | `int $limit` (10) | SMS-Einwilligungen je Client-IP und Stunde. |
 | `wpcap_sms_skip_reason` | `string $reason, object $message` | Grund, eine fällige SMS nicht zu senden (leer = senden). Erinnerungs-SMS werden so bei ungültigen Tickets übersprungen. |
 | `wpcap_webhook_payload_object` | `array $object, string $type` | `data.object` eines ausgehenden Webhooks (keine PII ergänzen). |

@@ -110,6 +110,17 @@ Seiten, die über einen Geheimlink erreichbar sind oder Personal vorbehalten sin
 - `X-Frame-Options: DENY` und `Content-Security-Policy: frame-ancestors 'none'` – kein Einbetten in fremde Seiten (Clickjacking von „Annehmen/Übertragen/Widerrufen“);
 - `X-Robots-Tag: noindex, nofollow, noarchive`, `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
 
+**Strikte Content-Security-Policy (FE-8):** Seiten, die das Plugin vollständig selbst ausgibt (kein Theme, kein `wp_head()`), senden über `PrivatePage::send( true )` statt nur `frame-ancestors` die volle Policy
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;
+object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+```
+
+Das gilt für die Ticketseite (`?wpcap_ticket=`), die Rechnungsansicht (Käufer-Link und Admin-Druck) und die Einwilligungsseite für Teilnehmende. Liegen Plugin-Dateien bzw. Uploads auf einem anderen Host (CDN-Offloading), wird dessen Origin automatisch zu `script-src`/`img-src` ergänzt; weitere Quellen (z. B. ein Markenlogo von einem fremden Host) über den Filter `wpcap_strict_csp`. `style-src 'unsafe-inline'` bleibt bewusst: Die Seiten bringen einen kleinen `<style>`-Block mit (Druckansicht ohne zusätzliche Datei), Markenlogos haben `style`-Attribute; Inline-CSS führt keinen Code aus, alle Ausgaben sind escaped. Nicht strikt (nur `frame-ancestors`) bleiben Seiten mit Inline-Konfiguration oder Theme-Anteil: Bestellportal (`window.wpcapPortal` inline), Service-Portal und Wartelisten-Seiten (eigene Pakete) sowie Theme-Seiten mit Scanner-Shortcode – dort bestimmen Theme und andere Plugins die Skripte.
+
+Damit das möglich ist, enthält das Plugin **keine Inline-Event-Handler** (`onclick=`, `onsubmit=`, `onchange=`, `onload=` …) mehr: Druck-Buttons tragen `data-wpcap-print` (Skript `assets/print.js`, als versionierte Datei eingebunden; Kassenbelege drucken über `<body data-wpcap-autoprint>`), Bestätigungsdialoge im Admin `data-wpcap-confirm="…"` (Skript `assets/admin-confirm.js`, nur auf den Plugin-Seiten geladen; weiterhin natives `window.confirm()`), Auswahllisten mit Sofort-Absenden `data-wpcap-autosubmit`. Die Offline-Scanner-App setzt ihre strikte CSP selbst (`<meta http-equiv>` in `index.html`).
+
 Die Offline-Scanner-App (`assets/offline-scanner/`) ist eine statische Datei, die der Webserver direkt ausliefert; PHP kann dort keine Header setzen. Empfehlung: `X-Frame-Options: DENY`, `X-Robots-Tag: noindex` und `Cache-Control: no-cache` für dieses Verzeichnis in der Server-Konfiguration.
 
 Request-Parameter, die als Array ankommen (`?wpcap_access[]=x`, JSON), werden als leer behandelt (`Security\Input::text()/hex()`), statt „Array to string conversion“ auszulösen.
@@ -145,6 +156,13 @@ Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und E
 - Unbestätigte Einträge zählen nicht für Positionen, Angebote, Reservierungen und „Platz frei“-Prüfungen und werden vom täglichen Aufbewahrungslauf gelöscht, sobald der Link abgelaufen ist (`Privacy\Retention`, Schritt `unconfirmed_waitlists`).
 - Eine erneute Anmeldung derselben Adresse vor der Bestätigung ersetzt den Link (die Limits oben begrenzen die Mails).
 - Bestehende Einträge bleiben gültig. Ist die Einstellung aus, gilt eine Anmeldung sofort (früheres Verhalten).
+
+**SMS-Opt-in mit Nummernbestätigung (PRIV-16):** Mit der Einstellung *SMS → Nummer per Code bestätigen* (Standard: an) gilt eine SMS-Einwilligung erst, wenn die Nummer vor der Bestellung mit einem 6-stelligen Code bestätigt wurde (`Sms\Verification`, REST `POST /sms/verify/request` und `/sms/verify/confirm`). Unbestätigte Nummern erhalten nur den Code selbst.
+
+- Gespeichert werden nur Hashes: der Bestätigungs-Token als SHA-256, der Code als Schlüssel-HMAC (`RateLimit::hash()`), nach erfolgreicher Bestätigung wird auch dieser geleert. Code 10 Minuten gültig, höchstens 5 Fehlversuche (atomar gezählt), danach ist eine neue Anforderung nötig; erneutes Senden frühestens nach 60 Sekunden, höchstens 3 Codes je Bestätigung.
+- Der Checkout verbraucht den Token genau einmal (`used_order_id`, in der Bestell-Transaktion: bricht die Bestellung ab, ist er wieder frei), nur für dieselbe Nummer und höchstens eine Stunde nach der Bestätigung. Nachweis: Spalten `verification`/`verified_at` an der Einwilligung und Audit-Eintrag `sms_consent_verified` mit Zeitpunkt und Textversion.
+- **Kosten- und Missbrauchsschutz** (jeder Code ist eine kostenpflichtige SMS an eine Nummer, die der Anfragende nicht besitzen muss): nur erlaubte Ländervorwahlen und für AT/DE/CH nur Mobilfunkbereiche (keine Premium-/Sonderrufnummern), Same-Origin-Prüfung (`Origin`/`Referer` muss die eigene Site sein; fehlt beides, greifen nur die Limits), höchstens 3 Codes je Nummer und Stunde, 5 je Nummer und Tag, 5 je Client-IP und Stunde, 500 je Site und Tag, 30 Bestätigungsversuche je IP und Stunde (Filter `wpcap_sms_otp_limits`). Die Limits liegen wie alle Plugin-Limits in Transients (siehe oben: pro Site, ohne Object-Cache best effort) – bei hohem SMS-Preis zusätzlich ein Ausgabenlimit beim SMS-Anbieter setzen und `/wp-json/wp-pass-captain/v1/sms/verify/request` am WAF begrenzen.
+- Bestätigungsdatensätze (Nummer, Hashes) werden nach einem Tag gelöscht (SMS-Worker). Einwilligungen von vor DB 3.15.2 bleiben gültig und sind als „unverifiziert (Altbestand)“ gekennzeichnet; bei ausgeschalteter Bestätigung erfasste Einwilligungen heißen „unverifiziert (ohne Code erfasst)“ und erhalten nur SMS, solange die Bestätigung ausgeschaltet ist.
 
 **IPv6:** Sitzplatz-Holds und Wartelisten zählen IPv6-Adressen je /64-Netz (`RateLimit::client_network()`), damit wechselnde Adressen innerhalb eines Anschlusses das Limit nicht zurücksetzen.
 

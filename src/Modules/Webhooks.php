@@ -271,7 +271,7 @@ final class Webhooks {
 		Forms::open_form( 'wpcap_webhook_action', null, 'style="display:inline"' );
 		Forms::hidden( 'do', $do );
 		Forms::hidden( 'id', $id );
-		echo '<button type="submit" class="button button-small"' . ( '' !== $confirm ? ' onclick="return confirm(' . esc_attr( wp_json_encode( $confirm ) ) . ')"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
+		echo '<button type="submit" class="button button-small"' . ( '' !== $confirm ? ' data-wpcap-confirm="' . esc_attr( $confirm ) . '"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
 	}
 
 	public static function render_admin() {

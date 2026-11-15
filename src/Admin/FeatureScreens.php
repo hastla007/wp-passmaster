@@ -56,7 +56,7 @@ final class FeatureScreens {
 	public static function button( $action, array $fields, $label, $confirm = '', $class = 'button button-small' ) {
 		Forms::open_form( $action, null, 'style="display:inline"' );
 		foreach ( $fields as $name => $value ) { Forms::hidden( $name, $value ); }
-		echo '<button type="submit" class="' . esc_attr( $class ) . '"' . ( '' !== $confirm ? ' onclick="return confirm(' . esc_attr( wp_json_encode( $confirm ) ) . ')"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
+		echo '<button type="submit" class="' . esc_attr( $class ) . '"' . ( '' !== $confirm ? ' data-wpcap-confirm="' . esc_attr( $confirm ) . '"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
 	}
 
 	/** Ticket type id => "Event – Termin – Ticketart" for the given events (null = all). */

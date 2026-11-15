@@ -88,7 +88,7 @@ final class Page {
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! isset( $occurrences[ $occurrence_id ] ) ) { $occurrence_id = (int) array_key_first( $occurrences ); }
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p><label>' . esc_html__( 'Termin', 'pass-captain' ) . ' ';
-		Forms::select( 'occurrence_id', $occurrences, $occurrence_id, '', 'onchange="this.form.submit()"' );
+		Forms::select( 'occurrence_id', $occurrences, $occurrence_id, '', 'data-wpcap-autosubmit' );
 		echo '</label></p></form>';
 		if ( $occurrence_id ) {
 			$types = Service::ticket_types( $occurrence_id );
@@ -254,7 +254,7 @@ final class Page {
 					echo ' · <a target="_blank" href="' . esc_url( add_query_arg( 'storno', 1, $url ) ) . '">' . esc_html__( 'Stornobeleg', 'pass-captain' ) . '</a>';
 				} elseif ( 'completed' === $s->status ) {
 					echo ' ';
-					Forms::open_form( 'wpcap_pos_storno', 'wpcap_pos_storno_' . (int) $s->sale_id, 'style="display:inline" onsubmit="return confirm(\'' . esc_js( __( 'Verkauf wirklich stornieren?', 'pass-captain' ) ) . '\')"' );
+					Forms::open_form( 'wpcap_pos_storno', 'wpcap_pos_storno_' . (int) $s->sale_id, 'style="display:inline" data-wpcap-confirm="' . esc_attr( __( 'Verkauf wirklich stornieren?', 'pass-captain' ) ) . '"' );
 					Forms::hidden( 'sale_id', (int) $s->sale_id );
 					echo '<input type="text" name="reason" size="12" placeholder="' . esc_attr__( 'Grund', 'pass-captain' ) . '"> <button class="button-link-delete">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form>';
 				}
@@ -263,7 +263,7 @@ final class Page {
 			echo '</tbody></table>';
 		}
 		echo '<h3>' . esc_html__( 'Kassenabschluss', 'pass-captain' ) . '</h3>';
-		Forms::open_form( 'wpcap_pos_close', null, 'onsubmit="return confirm(\'' . esc_js( __( 'Kasse jetzt abschließen?', 'pass-captain' ) ) . '\')"' );
+		Forms::open_form( 'wpcap_pos_close', null, 'data-wpcap-confirm="' . esc_attr( __( 'Kasse jetzt abschließen?', 'pass-captain' ) ) . '"' );
 		Forms::hidden( 'session_id', (int) $session->session_id );
 		echo '<p><label>' . esc_html__( 'Gezählter Bargeldbestand', 'pass-captain' ) . ' <input type="text" inputmode="decimal" name="counted" required size="10"></label> <label>' . esc_html__( 'Notiz', 'pass-captain' ) . ' <input type="text" name="note" size="30"></label> <button class="button">' . esc_html__( 'Kasse abschließen', 'pass-captain' ) . '</button></p></form>';
 	}

@@ -637,7 +637,7 @@ final class EventsPage {
 						<a class="button" href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'pass-captain' ); ?></a>
 						<?php if ( 'published' === $event->status ) : ?>
 							<?php Forms::open_form( 'wpcap_cancel_event', 'wpcap_cancel_event_' . $event->event_id, 'style="display:inline"' ); Forms::hidden( 'event_id', $event->event_id ); ?>
-							<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Event absagen und betroffene Käufer benachrichtigen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Event absagen', 'pass-captain' ); ?></button>
+							<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Event absagen und betroffene Käufer benachrichtigen?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Event absagen', 'pass-captain' ); ?></button>
 							</form>
 						<?php endif; ?>
 					</td>
@@ -717,7 +717,7 @@ final class EventsPage {
 						<a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'occurrence', 'occurrence_id' => $occ->occurrence_id ) ) ); ?>"><?php esc_html_e( 'Bearbeiten & Ticketarten', 'pass-captain' ); ?></a>
 						<?php if ( $editable && 'cancelled' !== $occ->status ) : ?>
 							<?php Forms::open_form( 'wpcap_cancel_occurrence', null, 'style="display:inline"' ); Forms::hidden( 'occurrence_id', $occ->occurrence_id ); ?>
-							<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Diesen Termin absagen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Absagen', 'pass-captain' ); ?></button>
+							<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Diesen Termin absagen?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Absagen', 'pass-captain' ); ?></button>
 							</form>
 						<?php endif; ?>
 					</td>

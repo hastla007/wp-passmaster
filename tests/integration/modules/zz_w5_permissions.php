@@ -147,6 +147,8 @@ $pm_routes = array(
 	'GET wp-pass-captain/v1/wallet/apple/download/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:signed download link (HMAC)',
 	'POST wp-pass-captain/v1/sms/twilio/status' => 'token:X-Twilio-Signature',
 	'POST wp-pass-captain/v1/sms/twilio/inbound' => 'token:X-Twilio-Signature',
+	'POST wp-pass-captain/v1/sms/verify/request' => 'public:SMS code for the checkout opt-in (PRIV-16); same-origin check, rate limited per number, address and site, allowed mobile ranges only',
+	'POST wp-pass-captain/v1/sms/verify/confirm' => 'token:verification token from the code request plus the 6-digit code (5 attempts, 10 minutes)',
 );
 
 // admin-post / admin-ajax actions: action => required capability, or 'public:<why>' / 'token:<why>'.
