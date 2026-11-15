@@ -217,6 +217,46 @@ test('network error keeps the idempotency key for the retry (no duplicate order)
 	assert.equal(fetch.calls[0].body.idempotency_key, fetch.calls[1].body.idempotency_key);
 });
 
+test('network error: a changed quantity, e-mail or code discards the kept idempotency key (QA-1)', async () => {
+	let n = 0;
+	const fetch = mockFetch(() => { if (++n <= 3) throw new TypeError('Failed to fetch'); return { status: 201, json: { status: 'complete' } }; });
+	const env = checkout({ fetch });
+	const form = env.document.querySelector('form');
+	setQty(env, 'q1', 1);
+	env.document.getElementById('em').value = 'b@example.com';
+	form.querySelector('[name="accept_terms"]').checked = true;
+	form.dispatchEvent(new Event('submit', { bubbles: true }));
+	await flush();
+	setQty(env, 'q1', 2);
+	form.dispatchEvent(new Event('submit', { bubbles: true }));
+	await flush();
+	env.document.getElementById('em').value = 'other@example.com';
+	form.dispatchEvent(new Event('submit', { bubbles: true }));
+	await flush();
+	form.querySelector('[name="campaign_code"]').value = 'SPRING';
+	form.dispatchEvent(new Event('submit', { bubbles: true }));
+	await flush();
+	assert.equal(fetch.calls.length, 4);
+	const keys = fetch.calls.map((c) => c.body.idempotency_key);
+	assert.equal(new Set(keys).size, 4, 'every changed attempt gets its own key');
+});
+
+test('network error: an unchanged retry with only different e-mail case keeps the key', async () => {
+	let n = 0;
+	const fetch = mockFetch(() => { if (++n === 1) throw new TypeError('Failed to fetch'); return { status: 201, json: { status: 'complete' } }; });
+	const env = checkout({ fetch });
+	const form = env.document.querySelector('form');
+	setQty(env, 'q1', 1);
+	env.document.getElementById('em').value = 'b@example.com';
+	form.querySelector('[name="accept_terms"]').checked = true;
+	form.dispatchEvent(new Event('submit', { bubbles: true }));
+	await flush();
+	env.document.getElementById('em').value = 'B@Example.com';
+	form.dispatchEvent(new Event('submit', { bubbles: true }));
+	await flush();
+	assert.equal(fetch.calls[0].body.idempotency_key, fetch.calls[1].body.idempotency_key);
+});
+
 test('client validation errors block the request', async () => {
 	const fetch = mockFetch(() => ({ status: 201, json: {} }));
 	const env = checkout({ fetch });

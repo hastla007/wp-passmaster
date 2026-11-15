@@ -334,12 +334,18 @@
 			});
 			attendees.push(entry);
 		});
-		if (!form.dataset.key) form.dataset.key = uuid();
 		const provider = form.querySelector('[name="provider"]:checked') || form.querySelector('input[type="hidden"][name="provider"]');
 		const code = form.querySelector('[name="campaign_code"]');
 		const terms = form.querySelector('[name="accept_terms"]');
 		const voucher = form.querySelector('[name="voucher_code"]');
 		const email = form.querySelector('[name="email"]').value.trim();
+		// The kept key (after a network error) only belongs to the same attempt: a changed provider,
+		// quantity, e-mail or code starts a new one (the server answers 409 for a reused key with other data).
+		const signature = JSON.stringify([provider ? provider.value : 'manual', items, email.toLowerCase(), code ? code.value.trim() : '', voucher ? voucher.value.trim() : '']);
+		if (!form.dataset.key || form.dataset.keySignature !== signature) {
+			form.dataset.key = uuid();
+			form.dataset.keySignature = signature;
+		}
 		const extra = {};
 		const billing = billingPayload(form);
 		if (billing) extra.billing = billing;
