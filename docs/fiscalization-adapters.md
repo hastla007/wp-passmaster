@@ -66,7 +66,7 @@ All endpoints require an authenticated user with `manage_options`:
 
 - `GET /wp-json/wp-pass-captain/v1/fiscal/sellers`
 - `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (supported ISO country code), and seller tax/address details
-- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, optional `location_id` and `register_id`, environment, status, reviewed rule-set/version, legal reference, and additional required capability keys
+- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, optional `location_id` and `register_id`, environment, status, reviewed rule-set/version, legal reference, and additional required capability keys; optional `effective_from`/`effective_until` as `Y-m-d H:i:s` (UTC) or ISO 8601 with offset (stored in UTC; other formats or an end before the start return HTTP 400 with `data.field`)
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/provider` with `provider_id`, `enabled`, and non-secret `configuration`
 - `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/health-check` runs a provider health check without creating a receipt
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/ticket-types/{ticket_type_id}/seller` with `seller_id` and `seller_mode`

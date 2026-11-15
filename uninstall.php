@@ -20,6 +20,10 @@ function wpcap_uninstall_site() {
 	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_process_fiscal_order' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
+	// Action Scheduler runs (Jobs\TimeBudget continuations), when another plugin such as WooCommerce provides it.
+	if ( function_exists( 'as_unschedule_all_actions' ) ) {
+		as_unschedule_all_actions( '', array(), 'wp-pass-captain' );
+	}
 	$settings = get_option( 'wpcap_settings', array() );
 	if ( empty( $settings['delete_data_on_uninstall'] ) ) {
 		return false;

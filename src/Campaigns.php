@@ -153,16 +153,40 @@ final class Campaigns {
 		if ( strlen( $code ) < 3 || strlen( $code ) > 32 || ! in_array( $kind, array( 'percent', 'fixed' ), true ) || ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! $value || ( 'percent' === $kind && $value > 10000 ) ) {
 			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Kampagnencode, Währung oder Rabattwert ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		$window = self::window( $data );
+		if ( is_wp_error( $window ) ) { return $window; }
 		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_campaigns', array(
 			'event_id' => absint( $data['event_id'] ?? 0 ), 'ticket_type_id' => absint( $data['ticket_type_id'] ?? 0 ), 'code' => $code,
 			'name' => sanitize_text_field( $data['name'] ?? $code ), 'kind' => $kind, 'discount_value' => $value, 'currency' => $currency,
 			'usage_limit' => absint( $data['usage_limit'] ?? 0 ), 'used_count' => 0, 'priority' => min( 1000, absint( $data['priority'] ?? 100 ) ),
-			'starts_at' => sanitize_text_field( $data['starts_at'] ?? '' ) ?: null, 'ends_at' => sanitize_text_field( $data['ends_at'] ?? '' ) ?: null,
+			'starts_at' => $window['starts_at'], 'ends_at' => $window['ends_at'],
 			'status' => 'active', 'created_at' => current_time( 'mysql', true ),
 		) + self::stacking_values( $data ) );
 		if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
-		Audit::record( 'campaign_created', 'campaign', (int) $wpdb->insert_id, array( 'code' => $code, 'kind' => $kind ) );
-		return array( 'campaign_id' => (int) $wpdb->insert_id, 'code' => $code );
+		// Read the id before Audit::record(): its own INSERT replaces $wpdb->insert_id.
+		$campaign_id = (int) $wpdb->insert_id;
+		Audit::record( 'campaign_created', 'campaign', $campaign_id, array( 'code' => $code, 'kind' => $kind ) );
+		return array( 'campaign_id' => $campaign_id, 'code' => $code );
+	}
+
+	/**
+	 * Validity window from input: starts_at/ends_at as "Y-m-d H:i:s" (UTC) or ISO 8601 with offset
+	 * (see DateInput); the admin form converts its local times to UTC before. Keys missing in $data
+	 * fall back to $campaign (update) or null.
+	 *
+	 * @return array|\WP_Error array( 'starts_at' => ?string, 'ends_at' => ?string ) in UTC.
+	 */
+	private static function window( array $data, $campaign = null ) {
+		$parsed = DateInput::fields( $data, array( 'starts_at', 'ends_at' ) );
+		if ( is_wp_error( $parsed ) ) { return $parsed; }
+		$window = array(
+			'starts_at' => array_key_exists( 'starts_at', $parsed ) ? $parsed['starts_at'] : ( $campaign && $campaign->starts_at ? (string) $campaign->starts_at : null ),
+			'ends_at' => array_key_exists( 'ends_at', $parsed ) ? $parsed['ends_at'] : ( $campaign && $campaign->ends_at ? (string) $campaign->ends_at : null ),
+		);
+		if ( $window['starts_at'] && $window['ends_at'] && $window['ends_at'] <= $window['starts_at'] ) {
+			return new \WP_Error( 'wpcap_campaign_window', __( 'Das Ende des Gültigkeitszeitraums muss nach dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400, 'field' => 'ends_at' ) );
+		}
+		return $window;
 	}
 
 	/**
@@ -208,11 +232,10 @@ final class Campaigns {
 		if ( $limit > 0 && $limit < (int) $campaign->used_count ) {
 			return new \WP_Error( 'wpcap_campaign_limit_low', __( 'Das Nutzungslimit darf nicht unter der Zahl der bisherigen Einlösungen liegen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$starts = array_key_exists( 'starts_at', $data ) ? ( sanitize_text_field( (string) $data['starts_at'] ) ?: null ) : $campaign->starts_at;
-		$ends = array_key_exists( 'ends_at', $data ) ? ( sanitize_text_field( (string) $data['ends_at'] ) ?: null ) : $campaign->ends_at;
-		if ( $starts && $ends && $ends <= $starts ) {
-			return new \WP_Error( 'wpcap_campaign_window', __( 'Das Ende des Gültigkeitszeitraums muss nach dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400 ) );
-		}
+		$window = self::window( $data, $campaign );
+		if ( is_wp_error( $window ) ) { return $window; }
+		$starts = $window['starts_at'];
+		$ends = $window['ends_at'];
 		$status = in_array( (string) ( $data['status'] ?? $campaign->status ), array( 'active', 'inactive' ), true ) ? (string) ( $data['status'] ?? $campaign->status ) : $campaign->status;
 		$values = array(
 			'event_id' => absint( $data['event_id'] ?? $campaign->event_id ), 'ticket_type_id' => absint( $data['ticket_type_id'] ?? $campaign->ticket_type_id ), 'code' => $code,

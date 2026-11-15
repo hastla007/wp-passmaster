@@ -308,6 +308,11 @@ Positionen nach den vorherigen Codes abziehen.
   Kampagnenseite): Summe aus Preisregel-Ermäßigungen und Codes je Bestellung, bezogen auf die
   regulären Preise; spätere Codes werden zuerst gekürzt, ein Code ohne verbleibenden Rabatt wird mit
   Meldung abgelehnt.
+- **Gültigkeitszeitraum** (`starts_at`/`ends_at`): im Formular in Ortszeit der Website, gespeichert in
+  UTC. Per REST (`POST /events/{id}/campaigns`) und `Campaigns::create()/update()` nur
+  `JJJJ-MM-TT HH:MM:SS` (UTC) oder ISO 8601 mit Offset (`2026-12-01T18:00:00+01:00`, `…Z`); andere
+  Formate (`01.12.2026`, `tomorrow`) und ein Ende vor dem Beginn ergeben HTTP 400 mit Feldname
+  (`wpcap_invalid_datetime` bzw. `wpcap_campaign_window`, `data.field`).
 
 ### Käuferlimits
 
