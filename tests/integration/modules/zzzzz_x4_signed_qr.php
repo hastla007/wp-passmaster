@@ -88,8 +88,9 @@ check( 'nothing was admitted by the forged codes', 'valid' === $wpdb->get_var( "
 $expired_cb = static function ( $w ) { return array( time() - 7200, time() - 60 ); };
 add_filter( 'wpcap_signed_qr_window', $expired_cb );
 $qr_expired = SignedQr::qr_value( $codes[2] );
-remove_filter( 'wpcap_signed_qr_window', $expired_cb );
+// The filter stays active for the check: the current window is computed through it as well (QA-2).
 $r = Checkin::perform( $qr_expired, array( 'source' => 'web' ) );
+remove_filter( 'wpcap_signed_qr_window', $expired_cb );
 check( 'expired validity window: refused (out_of_window), ticket stays valid', is_wp_error( $r ) && 'wpcap_qr_expired' === $r->get_error_code() && 'out_of_window' === $r->get_error_data()['result'] && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $ticket_of( $codes[2] )->ticket_id ) );
 check( 'default window: like the lookup plausibility range (a year before the start until a day after the last valid time)', abs( $claims['v'][0] - ( time() + 7 * 86400 - 365 * 86400 ) ) < 120 && $claims['v'][1] >= time() + 7 * 86400 + 86400 - 120 );
 

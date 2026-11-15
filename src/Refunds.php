@@ -659,8 +659,10 @@ final class Refunds {
 		if ( count( $ticket_ids ) === count( $open_ids ) ) {
 			$amount = $remaining_total;
 		} elseif ( null !== Orders::snapshot_line_discounts( $order ) ) {
-			// Discount split per line known: each ticket refunds its own line's discounted price.
-			$amount = min( $remaining_total, self::discounted_share( $order, $ticket_ids ) );
+			// Discount split per line known: each ticket refunds its own line's discounted price, scaled to
+			// the cash part of the order (a multi-purpose voucher paid the rest; its share goes back to the
+			// voucher, Vouchers\Checkout::refund_plan()).
+			$amount = min( $remaining_total, self::discounted_share( $order, $ticket_ids, true ) );
 		} else {
 			list( $gross ) = self::line_shares( $order, $ticket_ids );
 			$subtotal = max( 1, (int) $order->subtotal_minor ?: (int) $order->total_minor );
@@ -752,21 +754,29 @@ final class Refunds {
 		return $gross;
 	}
 
-	/** Discounted gross of the given tickets: (line total − line discount) / quantity per ticket, rounded once. */
-	private static function discounted_share( $order, array $ticket_ids ) {
+	/**
+	 * Discounted gross of the given tickets: (line total − line discount) / quantity per ticket, rounded
+	 * once. $cash: scaled to the amount due (orders.total_minor) over all discounted lines – the part paid
+	 * in cash when a multi-purpose voucher paid the rest (factor 1 without voucher).
+	 */
+	private static function discounted_share( $order, array $ticket_ids, $cash = false ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$discounts = (array) Orders::snapshot_line_discounts( $order );
 		$unit = array();
+		$all = 0;
 		foreach ( self::checked( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,SUM(quantity) AS quantity,SUM(line_total_minor) AS line_total FROM %i WHERE order_id=%d GROUP BY ticket_type_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) ) as $item ) {
 			$type = (int) $item->ticket_type_id;
-			$unit[ $type ] = max( 0, (int) $item->line_total - (int) ( $discounts[ $type ] ?? 0 ) ) / max( 1, (int) $item->quantity );
+			$line = max( 0, (int) $item->line_total - (int) ( $discounts[ $type ] ?? 0 ) );
+			$all += $line;
+			$unit[ $type ] = $line / max( 1, (int) $item->quantity );
 		}
 		$ids = array_values( array_map( 'absint', $ticket_ids ) );
 		$sum = 0.0;
 		foreach ( $ids ? self::checked( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), $ids ) ) ) ) : array() as $type_id ) {
 			$sum += $unit[ (int) $type_id ] ?? 0;
 		}
+		if ( $cash && $all > 0 && (int) $order->total_minor < $all ) { $sum = $sum * (int) $order->total_minor / $all; }
 		return (int) round( $sum );
 	}
 

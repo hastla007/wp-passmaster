@@ -27,6 +27,10 @@ test.after(async () => {
 
 test('camera permission denied: error is announced, the manual code entry still checks tickets in', withPage(() => denied, 'scanner camera denied', async (p) => {
 	await p.goto(fx.scanner_url);
+	// WebKit can fire `load` before the localized scanner data is evaluated; wait for it explicitly.
+	await p.waitForFunction(() => window.WPCAP_SCANNER && window.WPCAP_SCANNER.i18n, null, { timeout: 15000 }).catch(() => {
+		throw new Error('scanner data missing on ' + p.url());
+	});
 	const i18n = await p.evaluate(() => window.WPCAP_SCANNER.i18n);
 	const result = p.locator('.wpcap-scan-result');
 	assert.equal(await result.getAttribute('aria-live'), 'polite');

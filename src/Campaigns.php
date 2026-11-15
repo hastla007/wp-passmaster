@@ -11,7 +11,8 @@ final class Campaigns {
 	 *
 	 * Stacking rules (docs/SALES-MODELS.md):
 	 * - codes are applied in priority order (smaller number first), each on the amount the previous
-	 *   codes left over;
+	 *   codes left over; every code is split over its lines proportionally to what is left of them
+	 *   (Orders::allocate()), exactly as stored in price_snapshot.line_discounts;
 	 * - a campaign with combinable = 0 must be the only code of the order;
 	 * - a campaign with with_price_rules = 0 ignores lines whose price came from an automatic price
 	 *   rule (early bird, last minute, demand, weekday; line key price_rule);
@@ -21,6 +22,8 @@ final class Campaigns {
 	 *   value at stored prices (0 = no cap); later codes are reduced first.
 	 *
 	 * @param array $selected Lines: type, event_id, quantity, line_total, optional base_minor and price_rule.
+	 * @return array|\WP_Error Adjustments: campaign, amount_minor, lines (index of $selected => part of
+	 *                         amount_minor; the parts add up to amount_minor), optional capped.
 	 */
 	public static function calculate( array $selected, array $codes, $currency ) {
 		global $wpdb;
@@ -50,28 +53,15 @@ final class Campaigns {
 		usort( $campaigns, static function ( $a, $b ) { $priority = (int) $a->priority <=> (int) $b->priority; return $priority ?: ( (int) $a->campaign_id <=> (int) $b->campaign_id ); } );
 		$adjustments = array();
 		$remaining = array_map( static function ( $line ) { return (int) $line['line_total']; }, $selected );
-		$applies = static function ( $campaign, $line ) {
-			$type_match = ! (int) $campaign->ticket_type_id || (int) $campaign->ticket_type_id === (int) $line['type']->ticket_type_id;
-			$event_match = ! (int) $campaign->event_id || (int) $campaign->event_id === (int) $line['event_id'];
-			$rule_ok = (int) ( $campaign->with_price_rules ?? 1 ) || empty( $line['price_rule'] );
-			return $type_match && $event_match && $rule_ok;
-		};
 		foreach ( $campaigns as $campaign ) {
-			$eligible = 0;
-			foreach ( $selected as $index => $line ) {
-				if ( $applies( $campaign, $line ) ) { $eligible += $remaining[ $index ]; }
-			}
-			$discount = 'percent' === $campaign->kind ? (int) floor( $eligible * min( 10000, (int) $campaign->value ) / 10000 ) : min( $eligible, (int) $campaign->value );
+			$eligible = self::eligible( $campaign, $selected, $remaining );
+			$sum = array_sum( $eligible );
+			$discount = 'percent' === $campaign->kind ? (int) floor( $sum * min( 10000, (int) $campaign->value ) / 10000 ) : min( $sum, (int) $campaign->value );
 			if ( (int) ( $campaign->max_discount_minor ?? 0 ) > 0 ) { $discount = min( $discount, (int) $campaign->max_discount_minor ); }
 			if ( $discount < 1 ) { return new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'pass-captain' ), array( 'status' => 409 ) ); }
-			$left = $discount;
-			foreach ( $selected as $index => $line ) {
-				if ( ! $applies( $campaign, $line ) ) { continue; }
-				$part = min( $remaining[ $index ], $left );
-				$remaining[ $index ] -= $part;
-				$left -= $part;
-				if ( $left < 1 ) { break; }
-			}
+			// The same proportional split that is stored with the order (Orders::allocate()), so the next
+			// code sees exactly what is left of each line.
+			foreach ( Orders::allocate( $eligible, $discount ) as $index => $part ) { $remaining[ $index ] -= $part; }
 			$adjustments[] = array( 'campaign' => $campaign, 'amount_minor' => $discount );
 		}
 		$cap_bp = min( 10000, absint( Settings::get( 'max_total_discount_bp' ) ) );
@@ -96,7 +86,30 @@ final class Campaigns {
 				}
 			}
 		}
+		// Final per-line split of the (possibly capped) amounts – the one the order stores in
+		// price_snapshot.line_discounts and computes line VAT with (PAY-5: one source of truth).
+		$remaining = array_map( static function ( $line ) { return (int) $line['line_total']; }, $selected );
+		foreach ( $adjustments as $n => $adjustment ) {
+			$parts = Orders::allocate( self::eligible( $adjustment['campaign'], $selected, $remaining ), (int) $adjustment['amount_minor'] );
+			foreach ( $parts as $index => $part ) { $remaining[ $index ] -= $part; }
+			$adjustments[ $n ]['lines'] = $parts;
+		}
 		return $adjustments;
+	}
+
+	/**
+	 * Lines a campaign applies to (ticket type / event restriction, with_price_rules) with what is
+	 * left of them: index => remaining amount.
+	 */
+	private static function eligible( $campaign, array $selected, array $remaining ) {
+		$out = array();
+		foreach ( $selected as $index => $line ) {
+			$type_match = ! (int) $campaign->ticket_type_id || (int) $campaign->ticket_type_id === (int) $line['type']->ticket_type_id;
+			$event_match = ! (int) $campaign->event_id || (int) $campaign->event_id === (int) $line['event_id'];
+			$rule_ok = (int) ( $campaign->with_price_rules ?? 1 ) || empty( $line['price_rule'] );
+			if ( $type_match && $event_match && $rule_ok ) { $out[ $index ] = max( 0, (int) $remaining[ $index ] ); }
+		}
+		return $out;
 	}
 
 	/** Persist applied codes and atomically consume their limits in the caller transaction. */

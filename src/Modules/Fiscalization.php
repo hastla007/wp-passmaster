@@ -1062,6 +1062,62 @@ final class Fiscalization {
 		return (int) $row->failed ? 'failed' : 'pending';
 	}
 
+	/**
+	 * State of an order's fiscal documents for a later price change (single-purpose voucher, PAY-4):
+	 * 'none' (no document), 'open' (all documents unsent: pending/configuration_required without any
+	 * submission attempt, so they can still be rebuilt) or 'locked' (at least one document was or may
+	 * have been sent to the provider – the price can no longer change).
+	 */
+	public static function order_documents_state( $order_id ) {
+		global $wpdb;
+		if ( ! \PassCaptain\Ops\Status::table_exists( 'wpcap_fiscal_documents' ) ) { return 'none'; }
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, SUM(status NOT IN ('pending','configuration_required') OR attempts>0) AS locked FROM %i WHERE order_id=%d", $wpdb->prefix . 'wpcap_fiscal_documents', absint( $order_id ) ) );
+		if ( '' !== (string) $wpdb->last_error || ! $row ) { return 'locked'; }
+		if ( ! (int) $row->total ) { return 'none'; }
+		return (int) $row->locked ? 'locked' : 'open';
+	}
+
+	/**
+	 * Rebuilds the amounts of an order's unsent fiscal documents after a price change before payment
+	 * (single-purpose voucher): items, document totals and the stored snapshot get the new gross/VAT
+	 * per ticket type. Runs inside the caller's transaction and locks the document rows.
+	 *
+	 * @param array $lines ticket_type_id => array( gross_minor, tax_minor ) (whole line).
+	 * @return bool False when a document is no longer unsent or a write failed (caller rolls back).
+	 */
+	public static function reprice_open_documents( $order_id, array $lines ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! \PassCaptain\Ops\Status::table_exists( 'wpcap_fiscal_documents' ) ) { return true; }
+		$docs = $wpdb->get_results( $wpdb->prepare( 'SELECT document_id,status,attempts,snapshot FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_fiscal_documents', absint( $order_id ) ) );
+		if ( '' !== (string) $wpdb->last_error ) { return false; }
+		foreach ( (array) $docs as $doc ) {
+			if ( ! in_array( $doc->status, array( 'pending', 'configuration_required' ), true ) || (int) $doc->attempts > 0 ) { return false; }
+			$snapshot = json_decode( (string) $doc->snapshot, true );
+			if ( ! is_array( $snapshot ) ) { return false; }
+			$gross_total = 0;
+			$tax_total = 0;
+			foreach ( (array) ( $snapshot['items'] ?? array() ) as $n => $item ) {
+				$type_id = absint( $item['ticket_type_id'] ?? 0 );
+				if ( $type_id && isset( $lines[ $type_id ] ) ) {
+					$gross = max( 0, (int) $lines[ $type_id ][0] );
+					$tax = min( $gross, max( 0, (int) $lines[ $type_id ][1] ) );
+					$snapshot['items'][ $n ]['gross_minor'] = $gross;
+					$snapshot['items'][ $n ]['tax_minor'] = $tax;
+					$updated = $wpdb->update( "{$p}wpcap_fiscal_document_items", array( 'gross_minor' => $gross, 'tax_minor' => $tax ), array( 'document_id' => (int) $doc->document_id, 'ticket_type_id' => $type_id ), array( '%d', '%d' ), array( '%d', '%d' ) );
+					if ( false === $updated ) { return false; }
+				}
+				$gross_total += (int) $snapshot['items'][ $n ]['gross_minor'];
+				$tax_total += (int) $snapshot['items'][ $n ]['tax_minor'];
+			}
+			$snapshot['gross_minor'] = $gross_total;
+			$snapshot['tax_minor'] = $tax_total;
+			$saved = $wpdb->update( "{$p}wpcap_fiscal_documents", array( 'gross_minor' => $gross_total, 'tax_minor' => $tax_total, 'snapshot' => wp_json_encode( $snapshot ), 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ), array( '%d', '%d', '%s', '%s' ), array( '%d' ) );
+			if ( false === $saved ) { return false; }
+		}
+		return true;
+	}
+
 	public static function admin_pages() {
 		return array( array( 'wpcap-fiscalization', __( 'Fiskalisierung', 'pass-captain' ), 'manage_options', array( __CLASS__, 'render_admin' ) ) );
 	}

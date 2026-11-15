@@ -93,7 +93,7 @@ final class Checkin {
 		$start = strtotime( $row->starts_at . ' UTC' );
 		$last = Policies::last_valid_ts( (int) $row->ticket_type_id, $found );
 		if ( $last < $at - DAY_IN_SECONDS || $start > $at + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
-		if ( $claims && ! Security\SignedQr::in_window( $claims, $at ) ) { return new \WP_Error( 'wpcap_qr_expired', __( 'Der QR-Code liegt außerhalb seines Gültigkeitszeitraums.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
+		if ( $claims && ! Security\SignedQr::in_window( $claims, $at, $row ) ) { return new \WP_Error( 'wpcap_qr_expired', __( 'Der QR-Code liegt außerhalb seines Gültigkeitszeitraums.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
 		return $found;
 	}
 

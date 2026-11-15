@@ -155,7 +155,11 @@ Bei `price_policy = refund_difference` und bezahlter Buchung:
    Zuzahlung vollständig erstattet (Schlüssel `service-supplement-{id}`, Wiederholung über
    `service_booking_refund`). Nie überbucht.
 6. **Stornierung** einer so umgebuchten Buchung erstattet die Tickets der Zuzahlungsbestellung und die erste
-   Zahlung als Betrag aus der ursprünglichen Bestellung (Schlüssel `service-booking-{id}-origin`). Wird die
+   Zahlung als Betrag aus der ursprünglichen Bestellung (Schlüssel `service-booking-{id}-origin`).
+   **Günstigere Umbuchung** einer so umgebuchten Buchung: Die Differenz wird zuerst aus der
+   Zuzahlungsbestellung erstattet, der Rest aus der ursprünglichen Bestellung (Schlüssel
+   `service-rebook-{id}-{n}-origin`); `origin_minor` sinkt entsprechend, eine spätere Stornierung erstattet
+   nur noch den verbleibenden Teil der ersten Zahlung. Wird die
    Buchung storniert, solange die Zuzahlung offen ist, endet diese mit, und ihre Bestellung wird storniert.
 
 ### Check-in und No-Show

@@ -122,6 +122,14 @@ final class Settlements {
 			$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 			foreach ( $refunds as $refund ) {
 				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
+				// Sales count the full consideration (a multi-purpose voucher is a means of payment), so a
+				// refund takes back its voucher part as well: the amounts of its credit note (PAY-3).
+				$booked = \PassCaptain\Integrations\Vouchers\Checkout::credit_note_amounts( (int) $refund->refund_id );
+				if ( $booked ) {
+					$refund = clone $refund;
+					$refund->amount_minor = (int) $booked['total_minor'];
+					$refund->tax_minor = (int) $booked['tax_minor'];
+				}
 				foreach ( self::allocate_refund( $refund, $order_lines ) as $i => $share ) {
 					$line = $order_lines[ $i ];
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
