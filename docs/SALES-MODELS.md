@@ -293,7 +293,11 @@ Unabhängig vom Verkaufsmodell gelten im Checkout (`Orders::create()`) die folge
 ### Kampagnencodes und Stapelregeln
 
 *Pass Captain → Kampagnen*. Höchstens drei Codes je Bestellung, angewendet nach Priorität (kleinere
-Zahl zuerst) jeweils auf den Restbetrag.
+Zahl zuerst) jeweils auf den Restbetrag. Jeder Code wird anteilig auf die Positionen verteilt, für die er
+gilt (nach dem, was nach den vorherigen Codes von ihnen übrig ist); genau diese Aufteilung wird mit der
+Bestellung gespeichert (`price_snapshot.line_discounts`) und für Zeilen-USt, Rechnung, Erstattungen und
+Abrechnungen verwendet. Ein auf eine Ticketart beschränkter Code kann daher höchstens den Restbetrag dieser
+Positionen nach den vorherigen Codes abziehen.
 
 - **Kombinierbar** (Standard ja): ein nicht kombinierbarer Code muss allein eingelöst werden; sonst
   Meldung „Der Code … kann nicht mit anderen Codes kombiniert werden.“
