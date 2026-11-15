@@ -267,8 +267,14 @@ final class InvoicePdf {
 	/** template_redirect: ?wpcap_invoice_pdf=<public_id>&wpcap_access=<token> */
 	public static function maybe_customer_download() {
 		if ( ! isset( $_GET['wpcap_invoice_pdf'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$result = self::customer_pdf( wp_unslash( $_GET['wpcap_invoice_pdf'] ), wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
+		$public_id = sanitize_text_field( \PassCaptain\Security\Input::text( wp_unslash( $_GET['wpcap_invoice_pdf'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
+		$from_url = \PassCaptain\Security\Input::hex( wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
+		// Without token in the URL: the order's short-lived access cookie (Security\AccessCookie, SEC-7).
+		$token = '' !== $from_url || '' === $public_id ? $from_url : \PassCaptain\Security\AccessCookie::resolve( 'order', $public_id );
+		if ( '' === $token && '' !== $public_id && \PassCaptain\Security\AccessCookie::marker_present() ) { \PassCaptain\Security\AccessCookie::blocked_page(); }
+		$result = self::customer_pdf( $public_id, $token );
 		if ( is_wp_error( $result ) ) { status_header( 404 ); exit; }
+		if ( '' !== $from_url ) { \PassCaptain\Security\AccessCookie::exchange( 'order', $public_id, $from_url, add_query_arg( 'wpcap_invoice_pdf', $public_id, home_url( '/' ) ) ); }
 		\PassCaptain\Security\PrivatePage::send(); // No cache copy, no framing, no indexing (secret link).
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}

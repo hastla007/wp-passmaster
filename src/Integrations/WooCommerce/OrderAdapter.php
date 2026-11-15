@@ -83,6 +83,9 @@ final class OrderAdapter {
 		// Product configuration.
 		add_action( 'woocommerce_product_options_general_product_data', array( __CLASS__, 'product_field' ) );
 		add_action( 'woocommerce_admin_process_product_object', array( __CLASS__, 'save_product_field' ) );
+		// Same rule for every other way of saving a product (WooCommerce REST API, quick edit, CSV import).
+		add_action( 'woocommerce_before_product_object_save', array( __CLASS__, 'guard_product_link' ), 10, 1 );
+		add_action( 'woocommerce_before_product_variation_object_save', array( __CLASS__, 'guard_product_link' ), 10, 1 );
 
 		// Cart and checkout validation (classic + Store API/blocks).
 		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'validate_add_to_cart' ), 10, 4 );
@@ -152,16 +155,25 @@ final class OrderAdapter {
 		$fiscal_seller = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? absint( $product_object->get_meta( self::FISCAL_SELLER_META, true ) ) : 0;
 		$fiscal_mode = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? sanitize_key( $product_object->get_meta( self::FISCAL_MODE_META, true ) ) : 'platform_seller';
 		$p       = $wpdb->prefix;
-		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.event_id,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$options = array( '' => __( '— Kein Ticketprodukt —', 'pass-captain' ) );
+		$allowed = array();
 		foreach ( $rows as $row ) {
+			// SEC-V2: only ticket types of events the user manages (shop managers have no event scope of their own).
+			$allowed[ (int) $row->event_id ] = $allowed[ (int) $row->event_id ] ?? self::can_link_event( (int) $row->event_id );
+			if ( ! $allowed[ (int) $row->event_id ] ) { continue; }
 			$label = sprintf( '%1$s · %2$s · %3$s', $row->event_name, mysql2date( 'd.m.Y H:i', get_date_from_gmt( $row->starts_at ), true ), $row->name );
 			if ( 'published' !== $row->event_status || 'active' !== $row->status ) {
 				$label .= ' (' . __( 'nicht im Verkauf', 'pass-captain' ) . ')';
 			}
 			$options[ (string) $row->ticket_type_id ] = $label;
 		}
-		if ( $current && ! isset( $options[ (string) $current ] ) ) {
+		$locked = $current && ! self::can_link_ticket_type( $current );
+		if ( $locked ) {
+			// Linked to an event the user does not manage: shown, but not changeable (save_product_field keeps it).
+			$type = self::ticket_type( $current );
+			$options = array( (string) $current => sprintf( '%1$s · %2$s (%3$s)', $type ? $type->event_name : '#' . $current, $type ? $type->name : '', __( 'keine Berechtigung für diese Veranstaltung – nicht änderbar', 'pass-captain' ) ) );
+		} elseif ( $current && ! isset( $options[ (string) $current ] ) ) {
 			/* translators: %d: ticket type ID */
 			$options[ (string) $current ] = sprintf( __( 'Unbekannte Ticketkategorie #%d', 'pass-captain' ), $current );
 		}
@@ -176,6 +188,7 @@ final class OrderAdapter {
 				'desc_tip'    => true,
 				'options'     => $options,
 				'value'       => $current ? (string) $current : '',
+				'custom_attributes' => $locked ? array( 'disabled' => 'disabled' ) : array(),
 			)
 		);
 		$sellers = $wpdb->get_results( $wpdb->prepare( "SELECT seller_id,legal_name,country_code FROM %i WHERE status='active' ORDER BY legal_name", $p . 'wpcap_legal_sellers' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
@@ -192,7 +205,17 @@ final class OrderAdapter {
 			return;
 		}
 		// Nonce is verified by WooCommerce before woocommerce_admin_process_product_object fires.
+		$posted = isset( $_POST[ self::PRODUCT_META ] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$type_id = absint( wp_unslash( $_POST[ self::PRODUCT_META ] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$current = absint( $product->get_meta( self::PRODUCT_META, true ) );
+		if ( $type_id !== $current && ( ( $current && ! self::can_link_ticket_type( $current ) ) || ( $type_id && ! self::can_link_ticket_type( $type_id ) ) ) ) {
+			// SEC-V2: linking or unlinking a ticket type of an event the user does not manage is refused;
+			// the product keeps its current link and seller fields (disabled field: nothing posted, no notice).
+			if ( $posted ) {
+				self::admin_error( __( 'Die Ticketkategorie wurde nicht geändert: Du darfst nur Ticketkategorien von Veranstaltungen verknüpfen, die du verwaltest.', 'pass-captain' ) );
+			}
+			return;
+		}
 		if ( $type_id && self::ticket_type( $type_id ) ) {
 			$product->update_meta_data( self::PRODUCT_META, $type_id );
 			// Ticket products are virtual and sold individually per line quantity.
@@ -214,6 +237,52 @@ final class OrderAdapter {
 				$product->delete_meta_data( self::FISCAL_MODE_META );
 			}
 		}
+	}
+
+	/**
+	 * Whether the current user may link products to ticket types of an event: administrators
+	 * (manage_options) or users with wpcap_manage_events for that event (Access::can_access_event).
+	 */
+	public static function can_link_event( $event_id ) {
+		return current_user_can( 'manage_options' ) || ( absint( $event_id ) && \PassCaptain\Access::can_access_event( absint( $event_id ), 'wpcap_manage_events' ) );
+	}
+
+	/** Whether the current user may link (or unlink) this ticket type; unknown types only for administrators. */
+	public static function can_link_ticket_type( $type_id ) {
+		global $wpdb;
+		if ( current_user_can( 'manage_options' ) ) { return true; }
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $event_id > 0 && self::can_link_event( $event_id );
+	}
+
+	/**
+	 * Before a product is saved by a logged-in user: a changed ticket type link that the user may
+	 * not set or remove (SEC-V2) is reset to the stored value. Saves without a user (cron, WP-CLI) are
+	 * not restricted.
+	 */
+	public static function guard_product_link( $product ) {
+		if ( ! is_object( $product ) || ! method_exists( $product, 'get_meta' ) || ! get_current_user_id() ) { return; }
+		$id = method_exists( $product, 'get_id' ) ? absint( $product->get_id() ) : 0;
+		$stored = $id ? absint( get_post_meta( $id, self::PRODUCT_META, true ) ) : 0;
+		$new = absint( $product->get_meta( self::PRODUCT_META, true ) );
+		if ( $new === $stored ) { return; }
+		if ( ( $stored && ! self::can_link_ticket_type( $stored ) ) || ( $new && ! self::can_link_ticket_type( $new ) ) ) {
+			if ( $stored ) {
+				$product->update_meta_data( self::PRODUCT_META, $stored );
+			} else {
+				$product->delete_meta_data( self::PRODUCT_META );
+			}
+			\PassCaptain\Audit::record( 'woocommerce_product_link_refused', 'product', $id, array( 'ticket_type_id' => $new, 'kept' => $stored ) );
+		}
+	}
+
+	/** Error notice on the product screen (WooCommerce meta box errors), else the plugin's admin notice. */
+	private static function admin_error( $message ) {
+		if ( class_exists( '\WC_Admin_Meta_Boxes' ) && is_callable( array( '\WC_Admin_Meta_Boxes', 'add_error' ) ) ) {
+			\WC_Admin_Meta_Boxes::add_error( $message );
+			return;
+		}
+		\PassCaptain\Admin\Forms::flash( 'error', $message );
 	}
 
 	/** Returns the linked ticket type ID of a product (variations inherit from the parent). */

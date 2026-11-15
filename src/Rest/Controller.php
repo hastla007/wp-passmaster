@@ -406,7 +406,7 @@ final class Controller {
 	public static function order_status( \WP_REST_Request $request ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( $request['public_id'] );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', is_scalar( $request->get_param( 'access_token' ) ) ? (string) $request->get_param( 'access_token' ) : '' ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', Credentials::token( $request ) ) );
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ), ARRAY_A );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
@@ -418,7 +418,7 @@ final class Controller {
 	public static function transfer_ticket( \WP_REST_Request $request ) {
 		$result = Orders::transfer_ticket(
 			$request['public_id'],
-			$request->get_param( 'access_token' ),
+			Credentials::token( $request ),
 			$request->get_param( 'ticket_public_id' ),
 			$request->get_param( 'recipient_email' )
 		);
@@ -442,7 +442,7 @@ final class Controller {
 		if ( ! \PassCaptain\RateLimit::allow( 'portal-resend-client|' . \PassCaptain\RateLimit::client(), 20, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
-		$order = self::order_with_access( $public_id, $request->get_param( 'access_token' ) );
+		$order = self::order_with_access( $public_id, Credentials::token( $request ) );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$limit = max( 1, (int) apply_filters( 'wpcap_portal_resend_limit', 3 ) );
 		if ( ! \PassCaptain\RateLimit::allow( 'portal-resend|' . $order->public_id, $limit, HOUR_IN_SECONDS ) ) {
@@ -462,7 +462,7 @@ final class Controller {
 		if ( ! \PassCaptain\RateLimit::allow( 'portal-billing|' . \PassCaptain\RateLimit::client(), 30, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
-		$order = self::order_with_access( sanitize_text_field( (string) $request['public_id'] ), $request->get_param( 'access_token' ) );
+		$order = self::order_with_access( sanitize_text_field( (string) $request['public_id'] ), Credentials::token( $request ) );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$input = $request->get_param( 'billing' );
 		$result = \PassCaptain\Billing::update_for_order( $order, is_array( $input ) ? $input : array( 'enabled' => false ) );
@@ -470,7 +470,7 @@ final class Controller {
 	}
 
 	public static function assign_ticket( \WP_REST_Request $request ) {
-		$result = TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ), is_array( $request->get_param( 'answers' ) ) ? $request->get_param( 'answers' ) : null );
+		$result = TicketAssignments::assign( $request['public_id'], Credentials::token( $request ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ), is_array( $request->get_param( 'answers' ) ) ? $request->get_param( 'answers' ) : null );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
@@ -614,7 +614,7 @@ final class Controller {
 	}
 
 	public static function accept_waitlist_offer( \WP_REST_Request $request ) {
-		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ) );
+		$result = Waitlists::accept_offer( $request['waitlist_id'], Credentials::token( $request, 'token' ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

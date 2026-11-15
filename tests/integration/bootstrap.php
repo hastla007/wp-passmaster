@@ -246,3 +246,21 @@ function wpcap_test_install() {
 	file_put_contents( ABSPATH . 'wp-admin/includes/upgrade.php', '<?php if ( ! function_exists( "dbDelta" ) ) { function dbDelta( $sql ) { global $wpdb; if ( preg_match( "/CREATE TABLE (\\S+)/", $sql, $m ) ) { $wpdb->query( "DROP TABLE IF EXISTS " . $m[1] ); } if ( false === $wpdb->query( $sql ) ) { fwrite( STDERR, $wpdb->last_error . "\n" ); } } }' );
 	PassCaptain\Installer::install();
 }
+
+/**
+ * Confirms every waitlist sign-up whose confirmation mail (double opt-in) was captured since mail
+ * index $since (event and slot waitlists). Returns the number of confirmed entries.
+ */
+function wpcap_test_confirm_waitlists( $since = 0 ) {
+	$done = 0;
+	foreach ( array_slice( $GLOBALS['wpcap_test_mails'], (int) $since ) as $mail ) {
+		$body = html_entity_decode( (string) $mail['body'] );
+		if ( preg_match_all( '/wpcap_waitlist_confirm=(\d+)&token=([a-f0-9]{64})/', $body, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $hit ) { $done += is_array( PassCaptain\Waitlists::confirm( (int) $hit[1], $hit[2] ) ) ? 1 : 0; }
+		}
+		if ( preg_match_all( '/wpcap_service_waitlist=(\d+)&do=confirm&token=([a-f0-9]{64})/', $body, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $hit ) { $done += is_array( PassCaptain\ServiceWaitlist::confirm( (int) $hit[1], $hit[2] ) ) ? 1 : 0; }
+		}
+	}
+	return $done;
+}

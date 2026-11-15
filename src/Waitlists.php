@@ -9,6 +9,12 @@
  * order then holds the ticket), declined, unsubscribed or expired (→ next entry). Offers are made
  * under the ticket type row lock that Orders::create() also takes, so an offer and a parallel
  * checkout never both get the last ticket.
+ *
+ * Double opt-in (setting waitlist_double_opt_in, default on): a sign-up creates an `unconfirmed` entry
+ * without position and sends a confirmation link (token stored as SHA-256 hash, valid
+ * CONFIRM_HOURS). Only confirm() turns it into a `waiting` entry with a position at the end of the
+ * queue. Unconfirmed entries never receive offers and are deleted by the retention run after the
+ * link expired (Privacy\Retention::step_unconfirmed_waitlists).
  */
 namespace PassCaptain;
 
@@ -17,6 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Waitlists {
 	/** Job type: offer freed capacity of ticket types to the next entries. */
 	const JOB = 'waitlist_capacity_freed';
+
+	/** Validity of a sign-up confirmation link (double opt-in) in hours. */
+	const CONFIRM_HOURS = 48;
 
 	/** Waitlist entry whose hold is consumed by the order being created (accept_offer()). */
 	private static $accepting = 0;
@@ -27,6 +36,21 @@ final class Waitlists {
 		add_action( 'wpcap_capacity_released', array( __CLASS__, 'on_capacity_released' ), 20, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 30, 2 );
 		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+	}
+
+	/**
+	 * Whether new sign-ups must be confirmed by e-mail (setting waitlist_double_opt_in, default on).
+	 * Off until the schema upgrade added the confirmation columns (DB 3.15.0): frontend requests run
+	 * on the old schema for a few minutes after a plugin update (Installer::maybe_upgrade()).
+	 */
+	public static function double_opt_in() {
+		return (bool) Security\Policy::get( 'waitlist_double_opt_in' ) && self::schema_ready();
+	}
+
+	/** Whether the confirmation columns exist (stored schema version 3.15.0 or newer). */
+	public static function schema_ready() {
+		$stored = (string) get_option( 'wpcap_db_version', '' );
+		return '' !== $stored && version_compare( strtok( $stored, '+' ), '3.15.0', '>=' );
 	}
 
 	/** Acceptance window of an offer in hours: setting waitlist_offer_hours (default 24), then filter wpcap_waitlist_offer_hours. */
@@ -321,22 +345,112 @@ final class Waitlists {
 		$email_hash = hash( 'sha256', strtolower( $email ) );
 		$wpdb->query( 'START TRANSACTION' );
 		$wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_events', $event_id ) );
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,status,position FROM %i WHERE event_id=%d AND ticket_type_id=%d AND email_hash=%s', $table, $event_id, $ticket_type_id, $email_hash ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,status,position FROM %i WHERE event_id=%d AND ticket_type_id=%d AND email_hash=%s FOR UPDATE', $table, $event_id, $ticket_type_id, $email_hash ) );
+		$double = self::double_opt_in();
+		if ( $existing && 'unconfirmed' === $existing->status && $double ) {
+			// Not confirmed yet: a new link replaces the old one (the rate limits above bound repeated mails).
+			$confirm = self::set_confirm_token( (int) $existing->waitlist_id );
+			$wpdb->query( 'COMMIT' );
+			self::send_confirmation( (int) $existing->waitlist_id, $email, $event_id, $ticket_type_id, $confirm );
+			return self::join_response();
+		}
+		if ( $existing && 'unconfirmed' === $existing->status ) {
+			// Double opt-in was switched off in the meantime: the sign-up counts now.
+			$activated = self::activate( (int) $existing->waitlist_id );
+			$wpdb->query( 'COMMIT' );
+			if ( $activated ) { self::after_activation( (int) $existing->waitlist_id, $email, $event_id, $ticket_type_id, $activated ); }
+			return self::join_response();
+		}
 		if ( $existing ) {
 			$wpdb->query( 'COMMIT' );
 			// Same response as a new entry so the endpoint does not reveal who is on a waitlist.
 			return self::join_response();
 		}
-		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MAX(position),0) FROM %i WHERE event_id=%d AND ticket_type_id=%d', $table, $event_id, $ticket_type_id ) );
-		$manage = bin2hex( random_bytes( 32 ) );
-		$wpdb->insert( $table, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email_hash' => $email_hash, 'email' => $email, 'position' => $position, 'status' => 'waiting', 'manage_token_hash' => hash( 'sha256', $manage ), 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' ) );
+		$now = current_time( 'mysql', true );
+		$wpdb->insert( $table, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email_hash' => $email_hash, 'email' => $email, 'position' => 0, 'status' => 'unconfirmed', 'manage_token_hash' => '', 'created_at' => $now, 'updated_at' => $now ), array( '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' ) );
 		$waitlist_id = (int) $wpdb->insert_id;
 		if ( ! $waitlist_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_join', __( 'Der Wartelistenplatz konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
+		if ( $double ) {
+			$confirm = self::set_confirm_token( $waitlist_id );
+			$wpdb->query( 'COMMIT' );
+			self::send_confirmation( $waitlist_id, $email, $event_id, $ticket_type_id, $confirm );
+			return self::join_response();
+		}
+		$activated = self::activate( $waitlist_id );
 		$wpdb->query( 'COMMIT' );
-		Mail\Mailer::send( 'waitlist_joined', $email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array( 'position' => (int) $position, 'leave_link' => Mail\Mailer::link( self::leave_url( $waitlist_id, $manage ) ) ) ) );
-		// A ticket may already be free (e.g. released while the person was signing up).
-		self::queue( array( $ticket_type_id ) );
+		if ( $activated ) { self::after_activation( $waitlist_id, $email, $event_id, $ticket_type_id, $activated ); }
 		return self::join_response();
+	}
+
+	/** New confirmation token (hash stored, CONFIRM_HOURS valid) for an unconfirmed entry; returns the plain token. */
+	private static function set_confirm_token( $waitlist_id ) {
+		global $wpdb;
+		$token = bin2hex( random_bytes( 32 ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_waitlist', array( 'confirm_token_hash' => hash( 'sha256', $token ), 'confirm_expires_at' => gmdate( 'Y-m-d H:i:s', time() + self::CONFIRM_HOURS * HOUR_IN_SECONDS ), 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => absint( $waitlist_id ), 'status' => 'unconfirmed' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
+		return $token;
+	}
+
+	/** Link of the confirmation mail (GET shows a confirmation form, the POST confirms). */
+	public static function confirm_url( $waitlist_id, $token ) {
+		return add_query_arg( array( 'wpcap_waitlist_confirm' => absint( $waitlist_id ), 'token' => $token ), home_url( '/' ) );
+	}
+
+	private static function send_confirmation( $waitlist_id, $email, $event_id, $ticket_type_id, $token ) {
+		$expires = time() + self::CONFIRM_HOURS * HOUR_IN_SECONDS;
+		return Mail\Mailer::send( 'waitlist_confirm', $email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array( 'confirm_link' => Mail\Mailer::link( self::confirm_url( $waitlist_id, $token ) ), 'confirm_expires' => wp_date( 'd.m.Y H:i T', $expires ) ) ) );
+	}
+
+	/**
+	 * Unconfirmed entry → waiting at the end of the queue (caller holds the event row lock inside a
+	 * transaction). Returns position and the plain manage token, or null when nothing changed.
+	 *
+	 * @return array{position:int,manage:string}|null
+	 */
+	private static function activate( $waitlist_id ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_waitlist';
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,event_id,ticket_type_id FROM %i WHERE waitlist_id=%d AND status='unconfirmed' FOR UPDATE", $table, absint( $waitlist_id ) ) );
+		if ( ! $row ) { return null; }
+		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MAX(position),0) FROM %i WHERE event_id=%d AND ticket_type_id=%d', $table, (int) $row->event_id, (int) $row->ticket_type_id ) );
+		$manage = bin2hex( random_bytes( 32 ) );
+		$data = array( 'status' => 'waiting', 'position' => $position, 'manage_token_hash' => hash( 'sha256', $manage ), 'updated_at' => current_time( 'mysql', true ) );
+		if ( self::schema_ready() ) { $data += array( 'confirm_token_hash' => '', 'confirm_expires_at' => null ); }
+		$changed = $wpdb->update( $table, $data, array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'unconfirmed' ) );
+		return 1 === (int) $changed ? array( 'position' => $position, 'manage' => $manage ) : null;
+	}
+
+	/** Sign-up mail with position and unsubscribe link; offers a ticket if one is free already. */
+	private static function after_activation( $waitlist_id, $email, $event_id, $ticket_type_id, array $activated ) {
+		Mail\Mailer::send( 'waitlist_joined', $email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array( 'position' => (int) $activated['position'], 'leave_link' => Mail\Mailer::link( self::leave_url( $waitlist_id, $activated['manage'] ) ) ) ) );
+		// A ticket may already be free (e.g. released while the person was signing up).
+		self::queue( array( (int) $ticket_type_id ) );
+	}
+
+	/**
+	 * Confirms a sign-up (double opt-in link): the entry joins the end of the queue.
+	 *
+	 * @return array|\WP_Error
+	 */
+	public static function confirm( $waitlist_id, $token ) {
+		global $wpdb;
+		$token = Security\Input::hex( $token );
+		$table = $wpdb->prefix . 'wpcap_waitlist';
+		$row = 64 === strlen( $token ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,event_id,ticket_type_id,email,status,confirm_token_hash,confirm_expires_at FROM %i WHERE waitlist_id=%d', $table, absint( $waitlist_id ) ) ) : null;
+		if ( ! $row || 'unconfirmed' !== $row->status || '' === (string) $row->confirm_token_hash || ! $row->confirm_expires_at || $row->confirm_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $row->confirm_token_hash, hash( 'sha256', $token ) ) ) {
+			return self::invalid_confirmation();
+		}
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return new \WP_Error( 'wpcap_db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503 ) ); }
+		// Same lock as join(): positions are handed out one at a time per event.
+		$wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_events', (int) $row->event_id ) );
+		$activated = self::activate( (int) $row->waitlist_id );
+		if ( ! $activated || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::invalid_confirmation(); }
+		Audit::record( 'waitlist_confirmed', 'waitlist', (int) $row->waitlist_id, array( 'ticket_type_id' => (int) $row->ticket_type_id, 'position' => (int) $activated['position'] ) );
+		self::after_activation( (int) $row->waitlist_id, (string) $row->email, (int) $row->event_id, (int) $row->ticket_type_id, $activated );
+		return array( 'status' => 'waitlist_confirmed', 'position' => (int) $activated['position'] );
+	}
+
+	private static function invalid_confirmation() {
+		return new \WP_Error( 'wpcap_waitlist_confirm_invalid', __( 'Der Bestätigungslink ist ungültig, abgelaufen oder wurde bereits verwendet.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
 	/** Event and ticket names for waitlist mail placeholders. */
@@ -364,8 +478,9 @@ final class Waitlists {
 	}
 
 	/**
-	 * Entries of an event (optionally one occurrence) in queue order: ticket type, then position.
-	 * Expired offers are marked first so the list shows the real state.
+	 * Entries of an event (optionally one occurrence) in queue order: ticket type, then position
+	 * (unconfirmed sign-ups without position last). Expired offers are marked first so the list
+	 * shows the real state.
 	 */
 	public static function entries( $event_id, $occurrence_id = 0 ) {
 		global $wpdb;
@@ -373,7 +488,7 @@ final class Waitlists {
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE event_id=%d AND status='offered' AND offer_expires_at<=%s", $table, $now, absint( $event_id ), $now ) );
 		$where = $occurrence_id ? $wpdb->prepare( ' AND w.occurrence_id=%d', absint( $occurrence_id ) ) : '';
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.email,w.position,w.status,w.offer_expires_at,w.hold_quantity,w.order_id,w.created_at,tt.name AS ticket_name,o.starts_at,o.timezone FROM %i w LEFT JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=w.occurrence_id WHERE w.event_id=%d', $table, $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) . $where . ' ORDER BY o.starts_at,w.occurrence_id,w.ticket_type_id,w.position,w.waitlist_id LIMIT 2000' );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.email,w.position,w.status,w.offer_expires_at,w.hold_quantity,w.order_id,w.created_at,tt.name AS ticket_name,o.starts_at,o.timezone FROM %i w LEFT JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=w.occurrence_id WHERE w.event_id=%d', $table, $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) . $where . " ORDER BY o.starts_at,w.occurrence_id,w.ticket_type_id,w.status='unconfirmed',w.position,w.waitlist_id LIMIT 2000" );
 	}
 
 	/**

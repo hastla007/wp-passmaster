@@ -12,11 +12,21 @@ final class OrderPortal {
 
 	public static function maybe_render() {
 		$public_id = sanitize_text_field( Security\Input::text( get_query_var( 'wpcap_order' ) ) );
-		$token = Security\Input::hex( get_query_var( 'wpcap_access' ) );
-		if ( '' === $public_id || '' === $token ) { return; }
+		if ( '' === $public_id ) { return; }
+		$from_url = Security\Input::hex( get_query_var( 'wpcap_access' ) );
+		// Without token in the URL: the short-lived access cookie set by the exchange below (SEC-7).
+		$token = '' !== $from_url ? $from_url : Security\AccessCookie::resolve( 'order', $public_id );
+		if ( '' === $token ) {
+			if ( Security\AccessCookie::marker_present() ) { Security\AccessCookie::blocked_page(); }
+			return;
+		}
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || 64 !== strlen( $token ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
+		if ( '' !== $from_url ) {
+			// Token from the mail link → cookie, 303 to the portal URL without token (falls back to rendering).
+			Security\AccessCookie::exchange( 'order', (string) $order->public_id, $token, add_query_arg( array_filter( array( 'wpcap_order' => (string) $order->public_id, 'wpcap_consent' => sanitize_key( Security\Input::text( wp_unslash( $_GET['wpcap_consent'] ?? '' ) ) ) ) ), home_url( '/' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only status flag, reduced by sanitize_key().
+		}
 		Sales\Consents::maybe_handle_portal_post( $order, $token ); // Consent withdrawal (POST, redirects back).
 		Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
@@ -88,7 +98,7 @@ final class OrderPortal {
 <?php echo Sales\Consents::portal_section( $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in portal_section. ?>
 <?php echo (string) apply_filters( 'wpcap_order_portal_sections', '', $order, $token ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sections escape their own output (e.g. service bookings). ?>
 <?php echo self::billing_section( $billing, $has_invoice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in billing_section. ?>
-<?php if ( $has_invoice ) : ?><p><a href="<?php echo esc_url( add_query_arg( array( 'wpcap_invoice' => $public_id, 'wpcap_access' => $token ), home_url( '/' ) ) ); ?>"><?php esc_html_e( 'Rechnung anzeigen', 'pass-captain' ); ?></a><?php $invoice_links = Api\Invoices::links_html( (int) $has_invoice, 'invoice', array( 'audience' => 'customer', 'location' => 'portal', 'order_id' => (int) $order->order_id, 'order_public_id' => (string) $order->public_id, 'access_token' => $token ) ); echo '' !== $invoice_links ? '<br>' . $invoice_links : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?></p><?php endif; ?>
+<?php if ( $has_invoice ) : ?><p><a href="<?php echo esc_url( add_query_arg( array( 'wpcap_invoice' => $public_id ) + ( Security\AccessCookie::via_cookie() ? array() : array( 'wpcap_access' => $token ) ), home_url( '/' ) ) ); ?>"><?php esc_html_e( 'Rechnung anzeigen', 'pass-captain' ); ?></a><?php $invoice_links = Api\Invoices::links_html( (int) $has_invoice, 'invoice', array( 'audience' => 'customer', 'location' => 'portal', 'order_id' => (int) $order->order_id, 'order_public_id' => (string) $order->public_id, 'access_token' => $token ) ); echo '' !== $invoice_links ? '<br>' . $invoice_links : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?></p><?php endif; ?>
 <p><?php esc_html_e( 'Diesen persönlichen Link sicher aufbewahren und nicht teilen.', 'pass-captain' ); ?></p>
 <p class="muted"><small><?php echo esc_html( sprintf( /* translators: %s: full order id */ __( 'Vollständige Bestell-ID: %s', 'pass-captain' ), $order->public_id ) ); ?></small></p></main>
 <dialog id="wpcap-confirm" aria-labelledby="wpcap-confirm-text"><form method="dialog"><p id="wpcap-confirm-text"></p><div class="actions"><button value="cancel"><?php echo esc_html( $strings['cancel'] ); ?></button><button value="ok" class="danger" id="wpcap-confirm-ok"></button></div></form></dialog>

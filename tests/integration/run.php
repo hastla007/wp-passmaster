@@ -232,6 +232,7 @@ $event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE
 $j1 = PassCaptain\Waitlists::join( $event, $occ, $type, 'wait@example.com' );
 $j2 = PassCaptain\Waitlists::join( $event, $occ, $type, 'wait@example.com' );
 check( 'waitlist join response does not reveal existing entries', $j1 === $j2 && ! isset( $j1['position'] ) && ! isset( $j1['waitlist_id'] ) );
+wpcap_test_confirm_waitlists(); // Double opt-in (default on).
 $before = count( $GLOBALS['wpcap_test_mails'] );
 $offer = PassCaptain\Waitlists::offer_next( $event, $type );
 $mail = end( $GLOBALS['wpcap_test_mails'] );

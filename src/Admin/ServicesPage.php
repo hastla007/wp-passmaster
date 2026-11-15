@@ -490,7 +490,7 @@ final class ServicesPage {
 		$entries = ServiceWaitlist::entries( $slot->slot_id );
 		echo '<h3>' . esc_html__( 'Warteliste', 'pass-captain' ) . '</h3>';
 		if ( ! $entries ) { echo '<p>' . esc_html__( 'Niemand auf der Warteliste.', 'pass-captain' ) . '</p>'; return; }
-		$labels = array( 'waiting' => __( 'Wartend', 'pass-captain' ), 'offered' => __( 'Angebot offen', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'declined' => __( 'Abgelehnt', 'pass-captain' ), 'expired' => __( 'Abgelaufen', 'pass-captain' ), 'left' => __( 'Ausgetragen', 'pass-captain' ) );
+		$labels = array( 'unconfirmed' => __( 'Unbestätigt', 'pass-captain' ), 'waiting' => __( 'Wartend', 'pass-captain' ), 'offered' => __( 'Angebot offen', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'declined' => __( 'Abgelehnt', 'pass-captain' ), 'expired' => __( 'Abgelaufen', 'pass-captain' ), 'left' => __( 'Ausgetragen', 'pass-captain' ) );
 		echo '<table class="widefat striped"><thead><tr>';
 		foreach ( array( __( 'Position', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Plätze', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Angebot gültig bis', 'pass-captain' ), __( 'Aktionen', 'pass-captain' ) ) as $head ) {
 			echo '<th scope="col">' . esc_html( $head ) . '</th>';

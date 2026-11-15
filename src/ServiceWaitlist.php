@@ -7,6 +7,11 @@
  * Offers are made under the same locks as bookings (resource row, then slot row), so an offer never
  * promises a place that a parallel booking takes.
  *
+ * Double opt-in (setting waitlist_double_opt_in, like the event waitlist): a sign-up first creates an
+ * `unconfirmed` entry without position; confirm() with the token from the confirmation mail puts it
+ * at the end of the queue. Unconfirmed entries are not counted as waiting, never get offers and are
+ * deleted by the retention run after the link expired.
+ *
  * @package PassCaptain
  */
 
@@ -72,8 +77,25 @@ final class ServiceWaitlist {
 			$wpdb->query( 'COMMIT' );
 			return self::join_response();
 		}
+		if ( Waitlists::double_opt_in() ) {
+			// Double opt-in: no position until the address is confirmed (a repeated sign-up gets a new link).
+			$confirm = bin2hex( random_bytes( 32 ) );
+			$expires = time() + Waitlists::CONFIRM_HOURS * HOUR_IN_SECONDS;
+			$row = array( 'email' => $email, 'quantity' => $quantity, 'position' => 0, 'status' => 'unconfirmed', 'offer_token_hash' => '', 'offer_expires_at' => null, 'manage_token_hash' => '', 'confirm_token_hash' => hash( 'sha256', $confirm ), 'confirm_expires_at' => gmdate( 'Y-m-d H:i:s', $expires ), 'booking_id' => 0, 'updated_at' => $now );
+			if ( $existing ) {
+				$ok = false !== $wpdb->update( "{$p}wpcap_service_waitlist", $row, array( 'entry_id' => (int) $existing->entry_id ) );
+				$entry_id = (int) $existing->entry_id;
+			} else {
+				$ok = false !== $wpdb->insert( "{$p}wpcap_service_waitlist", $row + array( 'slot_id' => $slot_id, 'email_hash' => $email_hash, 'created_at' => $now ) );
+				$entry_id = (int) $wpdb->insert_id;
+			}
+			if ( ! $ok || ! $entry_id || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
+			Mail\Mailer::send( 'service_waitlist_confirm', $email, self::vars( $slot, $resource ) + array( 'quantity' => $quantity, 'confirm_link' => Mail\Mailer::link( self::link( $entry_id, $confirm, 'confirm' ) ), 'confirm_expires' => wp_date( 'd.m.Y H:i T', $expires ) ) );
+			return self::join_response( true );
+		}
 		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MAX(position),0) FROM %i WHERE slot_id=%d', $p . 'wpcap_service_waitlist', $slot_id ) );
 		$row = array( 'email' => $email, 'quantity' => $quantity, 'position' => $position, 'status' => 'waiting', 'offer_token_hash' => '', 'offer_expires_at' => null, 'manage_token_hash' => hash( 'sha256', $token ), 'booking_id' => 0, 'updated_at' => $now );
+		if ( Waitlists::schema_ready() ) { $row += array( 'confirm_token_hash' => '', 'confirm_expires_at' => null ); }
 		if ( $existing ) {
 			// Former entry (expired, declined, left): back to the end of the queue.
 			$ok = false !== $wpdb->update( "{$p}wpcap_service_waitlist", $row, array( 'entry_id' => (int) $existing->entry_id ) );
@@ -89,8 +111,44 @@ final class ServiceWaitlist {
 		return self::join_response();
 	}
 
-	private static function join_response() {
-		return array( 'status' => 'received', 'message' => __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du deine Wartelistenposition per E-Mail.', 'pass-captain' ) );
+	private static function join_response( $confirm = null ) {
+		$confirm = null === $confirm ? Waitlists::double_opt_in() : (bool) $confirm;
+		return array( 'status' => 'received', 'message' => $confirm ? __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine E-Mail mit einem Bestätigungslink. Erst nach der Bestätigung stehst du auf der Warteliste.', 'pass-captain' ) : __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du deine Wartelistenposition per E-Mail.', 'pass-captain' ) );
+	}
+
+	/**
+	 * Confirms a sign-up (double opt-in): the entry joins the end of the queue of its slot and gets
+	 * the usual sign-up mail with position, status and leave link.
+	 *
+	 * @return array|\WP_Error
+	 */
+	public static function confirm( $entry_id, $token ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$token = Security\Input::hex( $token );
+		$entry = 64 === strlen( $token ) ? self::get( $entry_id ) : null;
+		$invalid = new \WP_Error( 'wpcap_waitlist_confirm_invalid', __( 'Der Bestätigungslink ist ungültig, abgelaufen oder wurde bereits verwendet.', 'pass-captain' ), array( 'status' => 403 ) );
+		if ( ! $entry || 'unconfirmed' !== $entry->status || '' === (string) $entry->confirm_token_hash || ! $entry->confirm_expires_at || $entry->confirm_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $entry->confirm_token_hash, hash( 'sha256', $token ) ) ) {
+			return $invalid;
+		}
+		$slot_id = (int) $entry->slot_id;
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		// Same lock as join(): positions of a slot are handed out one at a time.
+		$wpdb->get_row( $wpdb->prepare( 'SELECT slot_id FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', $slot_id ) );
+		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MAX(position),0) FROM %i WHERE slot_id=%d', $p . 'wpcap_service_waitlist', $slot_id ) );
+		$manage = bin2hex( random_bytes( 32 ) );
+		$changed = $wpdb->update( "{$p}wpcap_service_waitlist", array( 'status' => 'waiting', 'position' => $position, 'manage_token_hash' => hash( 'sha256', $manage ), 'confirm_token_hash' => '', 'confirm_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'unconfirmed' ) );
+		if ( 1 !== (int) $changed || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return $invalid; }
+		Audit::record( 'service_waitlist_joined', 'service_waitlist', (int) $entry->entry_id, array( 'slot_id' => $slot_id, 'position' => $position, 'quantity' => (int) $entry->quantity, 'confirmed' => true ) );
+		$slot = ServiceResources::slot( $slot_id );
+		$resource = $slot ? ServiceResources::resource( (int) $slot->resource_id ) : null;
+		if ( $slot ) {
+			$ahead = self::ahead( $slot_id, $position );
+			Mail\Mailer::send( 'service_waitlist_joined', (string) $entry->email, self::vars( $slot, $resource ) + array( 'position' => $ahead + 1, 'quantity' => (int) $entry->quantity, 'status_link' => Mail\Mailer::link( self::link( (int) $entry->entry_id, $manage, 'status' ) ), 'leave_link' => Mail\Mailer::link( self::link( (int) $entry->entry_id, $manage, 'leave' ) ) ) );
+		}
+		// Places may have become free while the address was unconfirmed.
+		self::offer_next( $slot_id );
+		return array( 'status' => 'waitlist_confirmed' );
 	}
 
 	/** Number of open entries ahead of a position. */
@@ -255,10 +313,10 @@ final class ServiceWaitlist {
 		return array( 'slot_id' => (int) $entry->slot_id );
 	}
 
-	/** Entries of a slot in queue order. */
+	/** Entries of a slot in queue order (unconfirmed sign-ups without position last). */
 	public static function entries( $slot_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d ORDER BY position,entry_id LIMIT 500', $wpdb->prefix . 'wpcap_service_waitlist', absint( $slot_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE slot_id=%d ORDER BY status='unconfirmed',position,entry_id LIMIT 500", $wpdb->prefix . 'wpcap_service_waitlist', absint( $slot_id ) ) );
 	}
 
 	/** Expired offers move on to the next entry. @return int Slots processed. */

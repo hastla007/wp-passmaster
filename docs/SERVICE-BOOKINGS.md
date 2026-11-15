@@ -16,7 +16,7 @@ Code: `src/ServiceResources.php` (Stammdaten, Regeln, Kollisionen), `src/Service
 |---|---|
 | `wpcap_resources` | `default_duration` (Min.), `buffer_before`/`buffer_after` (Min.), `partner_id` (Veranstalter), `ticket_type_id` (Preis; 0 = kostenlos), `rules` (JSON, siehe unten) |
 | `wpcap_service_bookings` | `status` (24 Zeichen), `ticket_ids` (JSON), `amount_minor`, `currency`, `manage_token_hash`, `confirm_by`, `cancel_reason`, `refund_id`, `rebook_count`, `last_action_key`, `pass_use_id`, `checked_in_at`, `noshow_at`, `fee_minor`, `updated_at` |
-| `wpcap_service_waitlist` (neu) | Warteliste je Zeitfenster: `slot_id`, `email(_hash)`, `quantity`, `position`, `status`, `offer_token_hash`, `offer_expires_at`, `manage_token_hash`, `booking_id` |
+| `wpcap_service_waitlist` (neu) | Warteliste je Zeitfenster: `slot_id`, `email(_hash)`, `quantity`, `position`, `status`, `offer_token_hash`, `offer_expires_at`, `manage_token_hash`, `confirm_token_hash`, `confirm_expires_at` (Double-Opt-in, DB 3.15.0), `booking_id` |
 | `wpcap_waitlist` | `hold_quantity` (reservierte Tickets eines offenen Angebots), `manage_token_hash` (Austragen), `order_id` |
 | `wpcap_pass_rules` | `scope` (`event`/`service`/`any`), `resource_id`, `slot_mode` (`slot_free`/`slot_bound`), `expires_at` |
 | `wpcap_pass_uses` | `resource_id`, `slot_id`, `booking_id` |
@@ -177,7 +177,7 @@ Bei `price_policy = refund_difference` und bezahlter Buchung:
 
 - **Bestellportal**: Buchungen erscheinen im Bestellportal (Filter `wpcap_order_portal_sections`) mit Formularen
   zum Umbuchen/Stornieren (POST an `admin-post.php`, Nonce, ohne JavaScript).
-- **REST mit Bestellzugang** (`access_token`): `GET /orders/{public_id}/service-bookings`,
+- **REST mit Bestellzugang** (Header `X-WPCAP-Access-Token`, alternativ Parameter `access_token`): `GET /orders/{public_id}/service-bookings`,
   `POST …/{booking_id}/cancel`, `POST …/{booking_id}/rebook` (`slot_id`, `idempotency_key`),
   `GET …/{booking_id}/rebook-options`.
 - **Buchungen ohne Bestellung** (kostenlos/Pass): Buchungs-Token – `POST /service-bookings/{id}/cancel|rebook|confirm`
@@ -189,6 +189,12 @@ Bei `price_policy = refund_difference` und bezahlter Buchung:
 - Eintragen: `POST /service-slots/{id}/waitlist` (`email`, `quantity`) – nur wenn das Zeitfenster voll ist.
   Antwort ist immer gleich (verrät nicht, ob die Adresse schon eingetragen ist); die Position kommt per Mail mit
   Link zur aktuellen Position und zum Austragen.
+- **Double-Opt-in** (Einstellung `waitlist_double_opt_in`, Standard an; gilt auch für die Event-Warteliste): Die
+  Anmeldung ist zunächst `unconfirmed` (ohne Position, keine Angebote) und bekommt die Mail
+  `service_waitlist_confirm` mit `?wpcap_service_waitlist=ID&do=confirm&token=…` (48 Stunden gültig, gespeichert nur
+  als Hash). Erst die Bestätigung (POST) vergibt die Position; sind schon Plätze frei, folgt sofort das Angebot.
+  Abgelaufene unbestätigte Einträge löscht der Aufbewahrungslauf. Event-Warteliste: `?wpcap_waitlist_confirm=ID&token=…`,
+  Mail `waitlist_confirm`.
 - **Reihenfolge**: strikt nach Position. Ein Eintrag, der mehr Plätze braucht als frei sind, blockiert die
   nachfolgenden (nachvollziehbare Reihenfolge).
 - **Angebot**: Wird ein Platz frei (Stornierung, Ablehnung, abgelaufener Hold, Kapazitätserhöhung), bietet der
@@ -198,7 +204,9 @@ Bei `price_policy = refund_difference` und bezahlter Buchung:
   kostenlos → bestätigte Buchung; bezahlt → Bestellung mit Zahlungs-Hold, die Zahlung bestätigt die Buchung.
   Wiederholte/parallele Annahmen liefern dieselbe Buchung.
 - **Ablehnen/Austragen/Ablauf** → der nächste Eintrag bekommt das Angebot automatisch.
-- Position abfragen: `GET /service-waitlist/{id}?token=…`.
+- Position abfragen: `GET /service-waitlist/{id}` mit Header `X-WPCAP-Access-Token: <Token>` (`?token=…` bleibt aus
+  Kompatibilitätsgründen erlaubt, landet aber in Zugriffslogs). Dasselbe gilt für alle Käufer-Routen mit
+  `access_token`/`token` (siehe `docs/SECURITY.md`, „Zugangstokens nicht in URLs“).
 - Admin: Warteliste je Zeitfenster mit Entfernen und „Freie Plätze jetzt anbieten“.
 
 ## Event-Warteliste mit Automatik
@@ -266,7 +274,7 @@ des Passes.
 
 `service_booking_reserved|confirmed|pending_confirmation|capacity_lost|cancelled|declined|rebooked|checked_in|no_show|refund_failed|partner_confirmed|order_attached|expired`,
 `service_resource_partner_changed`, `service_waitlist_joined|offered|accepted|declined|left|removed|offer_expired`,
-`waitlist_offer_made|offer_accepted|offer_declined|offer_expired|unsubscribed`, `member_pass_service_redeemed`,
+`waitlist_confirmed`, `waitlist_offer_made|offer_accepted|offer_declined|offer_expired|unsubscribed`, `member_pass_service_redeemed`,
 `member_pass_use_released`.
 
 ## Tests
