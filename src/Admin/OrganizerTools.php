@@ -29,6 +29,7 @@ final class OrganizerTools {
 			'wpcap_issue_comps' => array( __CLASS__, 'handle_issue_comps' ),
 			'wpcap_duplicate_event' => array( __CLASS__, 'handle_duplicate_event' ),
 			'wpcap_duplicate_occurrence' => array( __CLASS__, 'handle_duplicate_occurrence' ),
+			'wpcap_import_events' => array( __CLASS__, 'handle_import' ),
 		);
 	}
 
@@ -82,6 +83,42 @@ final class OrganizerTools {
 		<button class="button" type="submit"><?php esc_html_e( 'Als Entwurf duplizieren', 'pass-captain' ); ?></button></p>
 		</form>
 		<?php
+	}
+
+	/** CSV import form (events list, Admin\Import). */
+	public static function render_import() {
+		if ( ! current_user_can( EventsPage::CAP ) ) { return; }
+		$columns = implode( ', ', Import::COLUMNS );
+		?>
+		<h2><?php esc_html_e( 'Events aus CSV importieren', 'pass-captain' ); ?></h2>
+		<p class="description"><?php echo esc_html( sprintf( /* translators: %s: column names */ __( 'Eine Zeile pro Ticketart; gleiche Eventnamen werden zu einem Event, gleiche Beginnzeiten zu einem Termin zusammengefasst. Spalten: %s. Pflicht: event, starts_at (JJJJ-MM-TT HH:MM, Ortszeit), ticket, price. Importierte Events sind Entwürfe.', 'pass-captain' ), $columns ) ); ?></p>
+		<?php Forms::open_form( 'wpcap_import_events', null, 'enctype="multipart/form-data"' ); ?>
+		<p><label for="wpcap-import-file"><?php esc_html_e( 'CSV-Datei', 'pass-captain' ); ?></label> <input id="wpcap-import-file" type="file" name="import_file" accept=".csv,text/csv" required>
+		<label><input type="checkbox" name="dry_run" value="1" checked> <?php esc_html_e( 'Nur prüfen (nichts speichern)', 'pass-captain' ); ?></label>
+		<button class="button" type="submit"><?php esc_html_e( 'Importieren', 'pass-captain' ); ?></button></p>
+		</form>
+		<?php
+	}
+
+	public static function handle_import() {
+		Forms::verify( 'wpcap_import_events' );
+		$back = Forms::page_url( EventsPage::SLUG );
+		if ( ! current_user_can( EventsPage::CAP ) ) { Forms::finish( Forms::forbidden(), '', $back ); }
+		$file = $_FILES['import_file'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- only tmp_name/size are used, the content is parsed and validated.
+		$path = is_array( $file ) && isset( $file['tmp_name'] ) && is_uploaded_file( (string) $file['tmp_name'] ) && (int) $file['size'] <= 2 * 1024 * 1024 ? (string) $file['tmp_name'] : '';
+		if ( '' === $path ) { Forms::finish( Forms::error( 'wpcap_import_file', __( 'Bitte eine CSV-Datei bis 2 MB hochladen.', 'pass-captain' ) ), '', $back ); }
+		$plan = Import::plan( (string) file_get_contents( $path ), wp_timezone_string() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- uploaded temp file.
+		if ( $plan['errors'] ) {
+			Forms::finish( Forms::error( 'wpcap_import_invalid', implode( ' ', array_slice( $plan['errors'], 0, 10 ) ) ), '', $back );
+		}
+		$occurrences = array_sum( array_map( static function ( $e ) { return count( $e['occurrences'] ); }, $plan['events'] ) );
+		if ( Forms::flag( Forms::post(), 'dry_run' ) ) {
+			/* translators: 1: events, 2: occurrences, 3: rows */
+			Forms::finish( array(), sprintf( __( 'Prüfung ohne Fehler: %1$d Events, %2$d Termine, %3$d Ticketarten. Zum Importieren „Nur prüfen“ abwählen.', 'pass-captain' ), count( $plan['events'] ), $occurrences, (int) $plan['rows'] ), $back );
+		}
+		$result = Import::import( $plan );
+		/* translators: 1: events, 2: occurrences, 3: ticket types */
+		Forms::finish( $result, is_wp_error( $result ) ? '' : sprintf( __( 'Importiert: %1$d Events (Entwurf), %2$d Termine, %3$d Ticketarten.', 'pass-captain' ), $result['events'], $result['occurrences'], $result['ticket_types'] ), $back );
 	}
 
 	/* ------------------------------------------------------------------------------------------ */

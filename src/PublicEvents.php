@@ -14,6 +14,8 @@ final class PublicEvents {
 
 	public static function register_assets() {
 		wp_register_script( 'wpcap-checkout', WPCAP_URL . 'assets/checkout.js', array(), WPCAP_VERSION, true );
+		// Privacy-friendly commerce events (wpcap:track) and UTM attribution, docs/TRACKING.md.
+		wp_register_script( 'wpcap-tracking', WPCAP_URL . 'assets/tracking.js', array(), WPCAP_VERSION, true );
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
 			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
 			'money' => Frontend\Format::js_config(),
@@ -153,6 +155,7 @@ final class PublicEvents {
 			'consumer_info_text' => (string) Settings::get( 'consumer_info_text' ),
 		);
 		$has_locked = ! empty( $has_locked );
+		if ( function_exists( 'wp_enqueue_script' ) ) { wp_enqueue_script( 'wpcap-tracking' ); }
 		return DisplayBatch::run( $type_ids, static function () use ( $rows, $translations, $types_by_occ, $fields, $legal, $now, $has_locked ) {
 			$providers_by_currency = array();
 			ob_start();

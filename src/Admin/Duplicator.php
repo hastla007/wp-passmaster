@@ -39,8 +39,9 @@ final class Duplicator {
 		$row['starts_at'] = $starts_at;
 		$row['ends_at'] = self::shift( $occ->ends_at, $delta );
 		$row['status'] = 'scheduled';
-		if ( ! $wpdb->insert( $p . 'wpcap_occurrences', $row ) || ! $wpdb->insert_id ) { throw new \RuntimeException( 'occurrence_insert' ); }
+		$inserted = $wpdb->insert( $p . 'wpcap_occurrences', $row );
 		$new_occ = (int) $wpdb->insert_id;
+		if ( ! $inserted || ! $new_occ ) { throw new \RuntimeException( 'occurrence_insert' ); }
 		$types = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id=%d AND status<>'archived' ORDER BY ticket_type_id", $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) );
 		$map = array();
 		foreach ( $types as $type ) {
@@ -112,8 +113,9 @@ final class Duplicator {
 		$occurrences = $with_occurrences ? $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id=%d AND status<>'cancelled' AND starts_at>%s ORDER BY starts_at LIMIT %d", $p . 'wpcap_occurrences', $source_id, $now, self::MAX_OCCURRENCES ) ) : array();
 		$wpdb->query( 'START TRANSACTION' );
 		try {
-			if ( ! $wpdb->insert( $p . 'wpcap_events', $event ) || ! $wpdb->insert_id ) { throw new \RuntimeException( 'event_insert' ); }
+			$inserted = $wpdb->insert( $p . 'wpcap_events', $event );
 			$new_event = (int) $wpdb->insert_id;
+			if ( ! $inserted || ! $new_event ) { throw new \RuntimeException( 'event_insert' ); }
 			foreach ( $occurrences as $occ ) { self::copy_occurrence( $occ, $new_event, $occ->starts_at, false ); }
 			if ( $with_occurrences ) {
 				foreach ( array( 'wpcap_price_rules' => 'rule_id', 'wpcap_buyer_limits' => 'limit_id' ) as $table => $pk ) {

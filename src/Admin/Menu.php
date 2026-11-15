@@ -32,6 +32,7 @@ final class Menu {
 			'wpcap_cancel_order' => array( OrdersPage::class, 'handle_cancel_order' ),
 			'wpcap_resend_tickets' => array( OrdersPage::class, 'handle_resend_tickets' ),
 			'wpcap_refund_order' => array( OrdersPage::class, 'handle_refund' ),
+			'wpcap_orders_csv' => array( OrdersPage::class, 'handle_csv' ),
 			'wpcap_approve_refund' => array( OrdersPage::class, 'handle_approve_refund' ),
 			'wpcap_reject_refund' => array( OrdersPage::class, 'handle_reject_refund' ),
 			'wpcap_revoke_ticket' => array( TicketsPage::class, 'handle_revoke_ticket' ),

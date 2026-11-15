@@ -8,6 +8,7 @@
 
 namespace PassCaptain\Admin;
 
+use PassCaptain\Audit;
 use PassCaptain\Orders;
 use PassCaptain\Refunds;
 use PassCaptain\Security\AuditTrail;
@@ -267,14 +268,62 @@ final class OrdersPage {
 		echo '</div>';
 	}
 
-	private static function render_list() {
-		$scope = Queries::event_ids_for( self::CAP );
-		$filters = array(
+	/** List filters from the query string (list and CSV export). */
+	private static function list_filters() {
+		return array(
 			'status' => in_array( Forms::query_arg( 'status' ), self::ORDER_STATUSES, true ) ? Forms::query_arg( 'status' ) : '',
 			'payment_status' => in_array( Forms::query_arg( 'payment_status' ), self::PAYMENT_STATUSES, true ) ? Forms::query_arg( 'payment_status' ) : '',
 			'search' => Forms::query_arg( 's' ),
 			'event_id' => absint( Forms::query_arg( 'event_id', 0 ) ),
 		);
+	}
+
+	/** Orders per CSV export at most. */
+	const CSV_LIMIT = 5000;
+
+	/**
+	 * CSV rows of the filtered orders in the user's event scope (header first): order number as shown to
+	 * buyers (Format::order_reference()), full id, dates, states, provider, buyer e-mail (masked for the
+	 * support profile), amounts and events. Cells are protected against formulas by Reports\Scope.
+	 *
+	 * @return array[]
+	 */
+	public static function csv_rows( array $filters ) {
+		$data = Queries::search_orders( $filters, Queries::event_ids_for( self::CAP ), 1, self::CSV_LIMIT );
+		$masked = DataPolicy::masks_pii_many( array_map( static fn( $row ) => (int) $row->order_id, $data['rows'] ) );
+		$rows = array( array( __( 'Bestellnummer', 'pass-captain' ), __( 'Bestell-ID', 'pass-captain' ), __( 'Datum (UTC)', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Zahlung', 'pass-captain' ), __( 'Zahlungsanbieter', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Gesamt', 'pass-captain' ), __( 'Erstattet', 'pass-captain' ), __( 'Währung', 'pass-captain' ), __( 'Events', 'pass-captain' ) ) );
+		foreach ( $data['rows'] as $order ) {
+			$decimals = Forms::currency_decimals( (string) $order->currency );
+			$rows[] = array(
+				\PassCaptain\Frontend\Format::order_reference( $order->public_id ),
+				(string) $order->public_id,
+				(string) $order->created_at,
+				(string) $order->status,
+				(string) $order->payment_status,
+				(string) $order->payment_provider,
+				! empty( $masked[ (int) $order->order_id ] ) ? DataPolicy::mask_email( $order->customer_email ) : (string) $order->customer_email,
+				number_format( (int) $order->total_minor / ( 10 ** $decimals ), $decimals, '.', '' ),
+				number_format( (int) $order->refunded_minor / ( 10 ** $decimals ), $decimals, '.', '' ),
+				(string) $order->currency,
+				(string) ( $order->event_names ?? '' ),
+			);
+		}
+		return $rows;
+	}
+
+	/** admin-post wpcap_orders_csv (GET, nonce): CSV of the filtered order list. */
+	public static function handle_csv() {
+		check_admin_referer( 'wpcap_orders_csv' );
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403 ) ); }
+		$filters = self::list_filters();
+		$rows = self::csv_rows( $filters );
+		Audit::record( 'orders_exported', 'order', 0, array( 'rows' => count( $rows ) - 1, 'filters' => array_filter( $filters ) ) );
+		\PassCaptain\Reports\Scope::send_csv( $rows, 'bestellungen-' . gmdate( 'Y-m-d' ) . '.csv' );
+	}
+
+	private static function render_list() {
+		$scope = Queries::event_ids_for( self::CAP );
+		$filters = self::list_filters();
 		$page = Forms::current_page();
 		$per_page = 20;
 		$data = Queries::search_orders( $filters, $scope, $page, $per_page );
@@ -294,8 +343,9 @@ final class OrdersPage {
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', 'aria-label="' . esc_attr__( 'Bestellstatus', 'pass-captain' ) . '"' ); ?>
 			<?php Forms::select( 'payment_status', $payment_options, $filters['payment_status'], '', 'aria-label="' . esc_attr__( 'Zahlungsstatus', 'pass-captain' ) . '"' ); ?>
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
-			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>">
+			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer, E-Mail, Name oder Ticket-ID', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer, E-Mail, Name oder Ticket-ID', 'pass-captain' ); ?>">
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
+			<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array_filter( array( 'action' => 'wpcap_orders_csv', 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ), admin_url( 'admin-post.php' ) ), 'wpcap_orders_csv' ) ); ?>"><?php esc_html_e( 'CSV-Export', 'pass-captain' ); ?></a>
 		</form>
 		<table class="widefat striped">
 			<thead><tr>
@@ -311,7 +361,7 @@ final class OrdersPage {
 			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Bestellungen gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $data['rows'] as $order ) : ?>
 				<tr>
-					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( substr( $order->public_id, 0, 12 ) ); ?>…</code></a></td>
+					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ); ?></code></a></td>
 					<td><?php echo esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) ); ?></td>
 					<td><?php echo esc_html( ! empty( $masked[ (int) $order->order_id ] ) ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
@@ -351,7 +401,8 @@ final class OrdersPage {
 		$tz = wp_timezone_string();
 		?>
 		<p><a href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( '← Zur Bestellliste', 'pass-captain' ); ?></a></p>
-		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'pass-captain' ), $order->public_id ) ); ?></h1>
+		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'pass-captain' ), \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ) ); ?></h1>
+		<p class="description"><?php echo esc_html( sprintf( /* translators: %s: full order id */ __( 'Vollständige Bestell-ID: %s', 'pass-captain' ), $order->public_id ) ); ?></p>
 		<?php Forms::render_notices(); ?>
 		<?php if ( $is_woo ) :
 			$wc_id = self::woocommerce_order_id( $order_id );
@@ -377,6 +428,9 @@ final class OrdersPage {
 
 		<table class="form-table"><tbody>
 			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
+			<?php if ( ! empty( $order->attribution ) ) : ?>
+				<tr><th><?php esc_html_e( 'Herkunft', 'pass-captain' ); ?></th><td><code><?php echo esc_html( (string) $order->attribution ); ?></code></td></tr>
+			<?php endif; ?>
 			<tr><th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th><td><?php echo esc_html( $masked ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?>
 				<?php if ( $masked ) : ?>
 					<?php Forms::open_form( SecurityScreens::UNMASK_ACTION, SecurityScreens::UNMASK_ACTION . '_' . (int) $order_id, 'style="margin-top:.5em"' ); Forms::hidden( 'order_id', (int) $order_id ); ?>
@@ -610,7 +664,7 @@ final class OrdersPage {
 				<tr>
 					<td><?php echo esc_html( Forms::datetime( $refund['created_at'], wp_timezone_string(), false ) ); ?></td>
 					<?php if ( $queue ) : ?>
-						<td><a href="<?php echo esc_url( self::order_url( $refund['order_id'] ) ); ?>"><code><?php echo esc_html( substr( (string) ( $refund['order_public_id'] ?? '' ), 0, 12 ) ); ?>…</code></a><br><small><?php echo esc_html( (string) ( $refund['customer_email'] ?? '' ) ); ?></small></td>
+						<td><a href="<?php echo esc_url( self::order_url( $refund['order_id'] ) ); ?>"><code><?php echo esc_html( \PassCaptain\Frontend\Format::order_reference( (string) ( $refund['order_public_id'] ?? '' ) ) ); ?></code></a><br><small><?php echo esc_html( (string) ( $refund['customer_email'] ?? '' ) ); ?></small></td>
 						<td><?php echo esc_html( (string) ( $refund['event_names'] ?? '' ) ); ?></td>
 					<?php endif; ?>
 					<td><?php echo esc_html( Forms::money( $refund['amount_minor'], $refund['currency'] ?: $currency ) ); ?><br><small><?php echo esc_html( sprintf( /* translators: %s: tax amount */ __( 'davon Steuer %s', 'pass-captain' ), Forms::money( $refund['tax_minor'], $refund['currency'] ?: $currency ) ) ); ?></small></td>

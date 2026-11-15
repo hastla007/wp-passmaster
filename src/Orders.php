@@ -332,6 +332,9 @@ final class Orders {
 			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
 			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
 			if ( $customer_user_id ) { $order_row['customer_user_id'] = $customer_user_id; }
+			// Marketing attribution of public checkouts (assets/tracking.js; Privacy\Retention clears it).
+			$attribution = $public_checkout ? self::attribution( $payload['attribution'] ?? null ) : '';
+			if ( '' !== $attribution ) { $order_row['attribution'] = $attribution; }
 			// Fingerprint of the attempt (Orders::request_fingerprint()); a retry with the same key is compared against it.
 			// Not while a deferred schema upgrade (DB 3.12.0) is still pending: the column may not exist yet.
 			if ( ! empty( $internal['request_fingerprint'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) $internal['request_fingerprint'] ) && version_compare( strtok( (string) get_option( 'wpcap_db_version' ), '+' ), '3.12.0', '>=' ) ) { $order_row['request_fingerprint'] = (string) $internal['request_fingerprint']; }
@@ -425,6 +428,20 @@ final class Orders {
 		}
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+	}
+
+	/**
+	 * Attribution from the checkout payload ({source, medium, campaign, ref}) as "source=…;medium=…":
+	 * known keys only, values reduced to [a-z0-9_.-] and 64 characters (no personal data, no URLs).
+	 */
+	public static function attribution( $input ) {
+		if ( ! is_array( $input ) ) { return ''; }
+		$parts = array();
+		foreach ( array( 'source', 'medium', 'campaign', 'ref' ) as $key ) {
+			$value = is_scalar( $input[ $key ] ?? null ) ? substr( (string) preg_replace( '/[^a-z0-9_.\-]/', '', strtolower( (string) $input[ $key ] ) ), 0, 64 ) : '';
+			if ( '' !== $value ) { $parts[] = $key . '=' . $value; }
+		}
+		return implode( ';', $parts );
 	}
 
 	/** Result of create() for a request whose idempotency key already has an order. */

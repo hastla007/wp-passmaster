@@ -686,6 +686,7 @@ final class EventsPage {
 			<?php submit_button( __( 'Event speichern', 'pass-captain' ) ); ?>
 		</form>
 		<?php
+		OrganizerTools::render_import();
 	}
 
 	private static function render_event( $event_id ) {
