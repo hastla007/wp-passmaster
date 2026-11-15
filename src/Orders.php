@@ -1956,6 +1956,18 @@ final class Orders {
 	 *                        does not make this fail (the outbox retries it).
 	 */
 	public static function issue_and_email( $order_id ) {
+		// A deadlock or lock wait timeout (e.g. with a seat claim of a parallel checkout) rolls the issuance
+		// back; it is retried here up to DB_RETRIES times before the job queue takes over.
+		for ( $attempt = 0; ; ++$attempt ) {
+			$result = self::issue_and_email_attempt( $order_id );
+			$data = $result instanceof \WP_Error ? (array) $result->get_error_data() : array();
+			if ( empty( $data['db_busy'] ) || $attempt >= self::DB_RETRIES ) { return $result; }
+			usleep( random_int( 30, 150 ) * 1000 * ( $attempt + 1 ) );
+		}
+	}
+
+	/** One issuance attempt (see issue_and_email()). */
+	private static function issue_and_email_attempt( $order_id ) {
 		// Fiscal modules submit every seller-specific receipt before tickets can be issued. A blocked order is
 		// not an issuance failure: the fiscal module retries and calls this again once its receipts are confirmed.
 		if ( ! apply_filters( 'wpcap_order_fiscal_ready', true, absint( $order_id ) ) ) { return true; }
@@ -2120,7 +2132,7 @@ final class Orders {
 			// One retry job per order and minute; the job queue retries it with backoff.
 			Jobs::enqueue( 'ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ISSUE_JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
 		}
-		return new \WP_Error( 'wpcap_issue_failed', __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'step' => (string) $step ) );
+		return new \WP_Error( 'wpcap_issue_failed', __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'step' => (string) $step, 'db_busy' => DbSession::is_busy_error( $error ) ) );
 	}
 
 	/**
