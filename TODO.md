@@ -365,9 +365,9 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 - [ ] PASS-WF-07 – Vertragsfixtures und E2E für PII-Redaction, HPOS/Classic, Multisite, Replay, Duplikate, Workflow fehlt/deaktiviert, Fachplugin-Pro-Recht fehlt/abgelaufen und Contract-Major ergänzen.
 - Abnahme: Workflow nutzt nur Pass-Services; jede Zahlung/Refund erzeugt eine fachliche Änderung und kritische Kernabläufe bleiben unabhängig.
 
-## P1/P2 – Funktionsausbau nach dem FooEvents-Abgleich
+## P1/P2 – Funktionsausbau nach dem neutralen Funktionsabgleich
 
-Diese Aufgaben konkretisieren noch offene oder bisher nur grob beschriebene Bereiche der bestehenden Pass-To-do-Liste. Sie ergänzen die vorhandene Ticket-, WooCommerce-, POS-, Scanner- und Teilnehmergrundlage; sie ersetzen keine Kernabläufe und begründen keine direkte Abhängigkeit von FooEvents.
+Diese Aufgaben konkretisieren noch offene oder bisher nur grob beschriebene Bereiche der bestehenden Pass-To-do-Liste. Sie ergänzen die vorhandene Ticket-, WooCommerce-, POS-, Scanner- und Teilnehmergrundlage; sie ersetzen keine Kernabläufe und begründen keine direkte Abhängigkeit von externen Wettbewerbsprodukten.
 
 ### P1 – Teilnehmerdaten, Checkout und Self-Service
 
@@ -415,5 +415,5 @@ Diese Aufgaben konkretisieren noch offene oder bisher nur grob beschriebene Bere
 
 - [ ] **PASS-FE-23 – Free/Pro-Zuordnung pro Funktionspaket bestätigen.** Grundlegende Teilnehmerfelder, Ticketzugriff, Check-in und Datenschutz als Teil eines vollständigen Ticketkerns bewerten; native Apps, erweiterte Layouts, POS-Integrationen, Drittanbieteradapter und priorisierter Betrieb anhand Kosten/Nachfrage zuordnen. Keine bereits ausgelieferte Kernfunktion nachträglich sperren.
 - [ ] **PASS-FE-24 – Preis und Site-Limits nach dem tatsächlichen Launchumfang festlegen.** Vor Shopfreigabe den dann lieferbaren Funktionsumfang gegen die 1/3/5-Site-Staffel, Supportaufwand, externe Providerkosten, 14-Tage-Erstattungsregeln und Lizenzlimits in WP License Captain abgleichen. Unfertige App-/POS-/Adapterfunktionen nicht als enthaltene Launchleistung bewerben.
-- [ ] **PASS-FE-25 – Wettbewerbsfähigkeits- und Release-Matrix ergänzen.** FooEvents-Bundle-Funktionen gegen Pass Captain Core und Pro regelmäßig abgleichen; je Abweichung Status „vorhanden“, „teilweise“, „nicht geplant“ oder konkretes Releaseziel dokumentieren. End-to-End-Matrix umfasst Blocks/Classic, HPOS, Mobilgeräte, Multisite, mehrere Scanner, Offlinekonflikte, Druck, POS, Refund und fehlende Drittanbieter.
+- [ ] **PASS-FE-25 – Wettbewerbsfähigkeits- und Release-Matrix ergänzen.** Funktionen marktüblicher Ticket- und Eventlösungen gegen Pass Captain Core und Pro regelmäßig abgleichen; je Abweichung Status „vorhanden“, „teilweise“, „nicht geplant“ oder konkretes Releaseziel dokumentieren. End-to-End-Matrix umfasst Blocks/Classic, HPOS, Mobilgeräte, Multisite, mehrere Scanner, Offlinekonflikte, Druck, POS, Refund und fehlende Drittanbieter.
 - **Gesamtabnahme:** Pass Captain weist für alle wesentlichen Eventtage-Abläufe eine geprüfte Alternative oder eine ausdrücklich dokumentierte Produktgrenze auf; Releaseumfang, Pro-Preis und Supportversprechen beziehen sich auf tatsächlich ausgelieferte Funktionen.
