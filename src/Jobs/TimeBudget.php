@@ -62,11 +62,16 @@ final class TimeBudget {
 	 * Asks for an immediate follow-up run of $hook because a backlog remains. Uses Action Scheduler
 	 * when available, else a single WP-Cron event (with an argument, so WP does not treat it as a
 	 * duplicate of the recurring event of the same hook).
+	 *
+	 * Action Scheduler: only a PENDING continuation counts as "already planned". The continuation
+	 * that is running right now (status in-progress) must not stop the next one from being queued –
+	 * as_has_scheduled_action() counts running actions too, so a backlog used to wait for the next
+	 * five-minute tick after the first follow-up run.
 	 */
 	public static function continue_later( $hook ) {
 		$args = array( 'continue' );
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			if ( ! function_exists( 'as_has_scheduled_action' ) || ! as_has_scheduled_action( $hook, $args, 'wp-pass-captain' ) ) {
+			if ( ! self::as_pending( $hook, $args ) ) {
 				as_enqueue_async_action( $hook, $args, 'wp-pass-captain' );
 			}
 			return true;
@@ -76,6 +81,17 @@ final class TimeBudget {
 			return true;
 		}
 		return false;
+	}
+
+	/** Whether Action Scheduler already holds a pending (not running) action of $hook with $args. */
+	private static function as_pending( $hook, array $args ) {
+		if ( function_exists( 'as_get_scheduled_actions' ) ) {
+			$status = class_exists( '\\ActionScheduler_Store' ) ? \ActionScheduler_Store::STATUS_PENDING : 'pending';
+			$ids = as_get_scheduled_actions( array( 'hook' => $hook, 'args' => $args, 'group' => 'wp-pass-captain', 'status' => $status, 'per_page' => 1 ), 'ids' );
+			return ! empty( $ids );
+		}
+		// Older Action Scheduler without the query API: fall back to the combined check.
+		return function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( $hook, $args, 'wp-pass-captain' );
 	}
 
 	/**

@@ -115,6 +115,8 @@ final class Settings {
 			'mail_from_email'           => '',
 			'mail_from_name'            => '',
 			'mail_reply_to'             => '',
+			// Bounce/complaint webhook of the sending service (Mail\Suppression), off by default.
+			'mail_bounce_webhook'       => 0,
 		);
 	}
 

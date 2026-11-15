@@ -159,7 +159,7 @@ final class OccurrenceCancellation {
 	private static function enqueue( $key, $type, array $payload ) {
 		$result = Jobs::enqueue( $key, $type, $payload );
 		if ( is_wp_error( $result ) ) {
-			Audit::record( 'occurrence_cancellation_enqueue_failed', 'occurrence', (int) $payload['occurrence_id'], array( 'type' => $type, 'error' => $result->get_error_code() ) );
+			Log::error( 'occurrence_cancellation_enqueue_failed', 'A batch of the occurrence cancellation could not be queued.', array( 'object_type' => 'occurrence', 'object_id' => (int) $payload['occurrence_id'], 'details' => array( 'type' => $type, 'error' => $result->get_error_code() ) ) );
 			return '';
 		}
 		return $key;

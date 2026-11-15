@@ -4,11 +4,11 @@
  * resend, reissue) – one place for the size rules, so every ticket mail behaves the same.
  *
  * - The PDF (one page per ticket, TicketPdf) is attached up to max_tickets() tickets per mail
- *   (filter `wpcap_ticket_pdf_max_tickets`, default 200); larger mails carry the links only, so a
+ *   (filter `wp_pass_captain_ticket_pdf_max_tickets_v1`, default 200); larger mails carry the links only, so a
  *   mail never grows beyond what mail servers accept. The existing filter `wpcap_attach_ticket_pdf`
  *   still switches the attachment off.
  * - With the PDF attached, the ticket list in the mail body is shortened to list_max() entries
- *   (filter `wpcap_ticket_mail_list_max`, default 25) plus a note: Gmail clips bodies above ~102 KB.
+ *   (filter `wp_pass_captain_ticket_mail_list_max_v1`, default 25) plus a note: Gmail clips bodies above ~102 KB.
  *   Without a PDF the list stays complete (the links are the only copy of the codes).
  *
  * The PDF holds plaintext ticket codes: it is written to a private temp directory (0700, file 0600)
@@ -33,12 +33,12 @@ final class TicketAttachment {
 
 	/** Maximum tickets per attached PDF for this order. */
 	public static function max_tickets( $order_id = 0 ) {
-		return max( 1, (int) apply_filters( 'wpcap_ticket_pdf_max_tickets', self::MAX_TICKETS, (int) $order_id ) );
+		return max( 1, (int) apply_filters( 'wp_pass_captain_ticket_pdf_max_tickets_v1', self::MAX_TICKETS, (int) $order_id ) );
 	}
 
 	/** Tickets listed in the body when the PDF is attached. */
 	public static function list_max( $order_id = 0 ) {
-		return max( 1, (int) apply_filters( 'wpcap_ticket_mail_list_max', self::LIST_MAX, (int) $order_id ) );
+		return max( 1, (int) apply_filters( 'wp_pass_captain_ticket_mail_list_max_v1', self::LIST_MAX, (int) $order_id ) );
 	}
 
 	/**

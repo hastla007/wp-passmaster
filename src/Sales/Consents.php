@@ -478,7 +478,7 @@ final class Consents {
 	public static function retention( $now = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now_sql = gmdate( 'Y-m-d H:i:s', null === $now || '' === $now ? time() : (int) $now );
+		$now_sql = gmdate( 'Y-m-d H:i:s', is_numeric( $now ) ? (int) $now : time() ); // "continue" on a continuation run.
 		$global = Retention::attendee_days(); // 0 = per-field periods.
 		$default_days = (int) Retention::default_attendee_days();
 		$deleted = 0;

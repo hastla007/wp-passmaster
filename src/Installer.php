@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.16.1';
+	const DB_VERSION = '3.17.2';
 
 	public static function install() {
 		global $wpdb;
@@ -762,6 +762,8 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 			// Atomic rate-limit counters without a persistent object cache (QA-V2/PERF-16, src/RateLimit.php).
 			RateLimit::schema( $wpdb->prefix . 'wpcap_rate_limits', $charset ),
+			// Reminder unsubscribes and bounce/complaint reports, address hashes only (DB 3.17.2, src/Mail/Suppression.php).
+			Mail\Suppression::schema( $wpdb->prefix . 'wpcap_mail_suppressions', $charset ),
 		);
 
 		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).

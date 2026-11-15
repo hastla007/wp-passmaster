@@ -14,9 +14,12 @@ use PassCaptain\Communications;
 use PassCaptain\Jobs;
 use PassCaptain\Jobs\TimeBudget;
 use PassCaptain\Mail\Mailer;
+use PassCaptain\Mail\Suppression;
 use PassCaptain\OccurrenceCancellation;
 use PassCaptain\Orders;
 use PassCaptain\Settings;
+
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
 
 global $wpdb;
 $p = $wpdb->prefix;
@@ -210,9 +213,9 @@ $r3_issued_hashes = $r3_hashes( $r3_big['order_id'] );
 check( 'order above the threshold (30 > 10 tickets): no ticket mail inside the checkout request', 30 === count( tickets( $r3_big['order_id'] ) ) && array() === $r3_ticket_mails( $r3_mails, 'r3-big@example.com' ) );
 check( 'outbox job due right away, marked initial, with the code hashes (no plaintext codes in the payload)', 'queued' === $r3_bjob->status && strtotime( $r3_bjob->run_after . ' UTC' ) <= time() + 1 && 1 === (int) $r3_bpayload['initial'] && 30 === count( $r3_bpayload['hashes'] ) && array_values( $r3_bpayload['hashes'] ) === $r3_issued_hashes );
 $r3_list_max = static fn() => 5;
-add_filter( 'wpcap_ticket_mail_list_max', $r3_list_max );
+add_filter( 'wp_pass_captain_ticket_mail_list_max_v1', $r3_list_max );
 Jobs::process_due( 200 );
-remove_filter( 'wpcap_ticket_mail_list_max', $r3_list_max );
+remove_filter( 'wp_pass_captain_ticket_mail_list_max_v1', $r3_list_max );
 $r3_bmail = $r3_ticket_mails( $r3_mails, 'r3-big@example.com' );
 $r3_now_hashes = $r3_hashes( $r3_big['order_id'] );
 preg_match_all( '/wpcap_ticket=([a-f0-9]{64})/', $r3_bmail[0]['body'] ?? '', $r3_codes );
@@ -227,7 +230,7 @@ Jobs::process_due( 200 );
 remove_filter( 'wpcap_attach_ticket_pdf', $r3_no_pdf );
 $r3_b2mail = $r3_ticket_mails( $r3_mails, 'r3-big2@example.com' );
 check( 'without PDF the list stays complete (the links are the only copy of the codes)', 1 === count( $r3_b2mail ) && 30 === substr_count( $r3_b2mail[0]['body'], 'Ticket-Code:' ) && array() === $r3_b2mail[0]['files'] );
-check( 'small orders keep the inline mail (threshold filter wpcap_ticket_mail_inline_max)', 10 === Orders::INLINE_DELIVERY_MAX );
+check( 'small orders keep the inline mail (threshold filter wp_pass_captain_ticket_mail_inline_max_v1)', 10 === Orders::INLINE_DELIVERY_MAX );
 // Payment webhook context: always deferred, even for one ticket.
 $r3_pt = make_type( 10, 10, 1500 );
 wpcap_test_reset_transients();
@@ -301,3 +304,99 @@ if ( function_exists( 'bloginfo' ) && function_exists( 'esc_url' ) ) { // WordPr
 $r3_portal = PassCaptain\OrderPortal::render_page( Orders::get( $r3_so['order_id'] ), str_repeat( 'a', 64 ) );
 check( 'portal: warning about tickets passed on and the "only my own tickets" option (checked)', false !== strpos( $r3_portal, 'data-passed-on="1"' ) && false !== strpos( $r3_portal, 'name="only_own" value="1" checked' ) && false !== strpos( $r3_portal, 'an eine andere Person weitergegeben' ) );
 }
+
+echo "R3 #11: operational errors reach the log; context redacted; fallback when the audit insert fails\n";
+$r3_logs = array();
+PassCaptain\Log::error( 'r3_probe_failed', 'probe for anna@example.com', array( 'details' => array( 'token' => 'abc123secret', 'error' => "Duplicate entry 'anna@example.com' for key 'x'" ) ) );
+$r3_ctx = end( $r3_logs )['context'] ?? array();
+check( 'wpcap_log context is redacted (secret keys masked, e-mail addresses in values removed)', 'abc123secret' !== ( $r3_ctx['details']['token'] ?? '' ) && false === strpos( (string) ( $r3_ctx['details']['error'] ?? '' ), 'anna@example.com' ) && false === strpos( end( $r3_logs )['message'], 'anna@example.com' ) );
+$r3_lines = array();
+$r3_errlog = static function ( $write, $line ) use ( &$r3_lines ) { $r3_lines[] = $line; return false; };
+add_filter( 'wpcap_error_log', $r3_errlog, 10, 2 );
+$r3_f = wpcap_faults();
+$r3_f->fail( '/^INSERT INTO \S*wpcap_audit_logs/', 0, 1 );
+PassCaptain\Log::error( 'r3_db_down_failed', 'probe while the database refuses writes' );
+wpcap_faults_restore();
+$wpdb = $GLOBALS['wpdb'];
+remove_filter( 'wpcap_error_log', $r3_errlog, 10 );
+check( 'audit insert failed: the entry is written to the PHP error log (redacted) instead of being lost', (bool) array_filter( $r3_lines, static fn( $l ) => false !== strpos( $l, 'r3_db_down_failed' ) && false !== strpos( $l, 'audit log unavailable' ) ) );
+$r3_logs = array();
+$r3_io = Orders::create( array( 'email' => 'r3-issue@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 5, 0 ), 'quantity' => 1 ) ), 'idempotency_key' => 'r3-issue-' . uniqid() ), array( 'skip_rate_limit' => true ) );
+$r3_f = wpcap_faults();
+$r3_f->fail( '/^(START TRANSACTION|SET autocommit)/i', 0, 1 );
+$r3_issue = Orders::issue_and_email( $r3_io['order_id'] );
+wpcap_faults_restore();
+$wpdb = $GLOBALS['wpdb'];
+check( 'failed ticket issuance goes through Log::error (wpcap_log), not only the audit table', is_wp_error( $r3_issue ) && (bool) array_filter( $r3_logs, static fn( $l ) => 'ticket_issue_failed' === $l['event'] ) );
+$r3_src = '';
+foreach ( array( 'src/Orders.php', 'src/Payments/Webhooks.php', 'src/Refunds.php', 'src/Integrations/Vouchers/Checkout.php', 'src/Integrations/WooCommerce/OrderAdapter.php' ) as $r3_file ) { $r3_src .= (string) file_get_contents( WPCAP_PATH . $r3_file ); }
+check( 'no *_failed / *_db_error event is written with Audit::record alone in orders, webhooks, refunds, vouchers, WooCommerce', ! preg_match( "/Audit::record\\( '[a-z_]*(_failed|_db_error)'/", $r3_src ) );
+$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE job_type='ticket_issue' AND payload LIKE %s", $r3_jobs, '{"order_id":' . (int) $r3_io['order_id'] . '%' ) );
+
+echo "R3 #11: Action Scheduler continuation only counts pending actions\n";
+if ( ! function_exists( 'as_enqueue_async_action' ) ) {
+	function as_enqueue_async_action( $hook, $args = array(), $group = '' ) { $GLOBALS['r3_as'][] = array( 'hook' => $hook, 'args' => $args, 'status' => 'pending' ); return count( $GLOBALS['r3_as'] ); }
+	function as_has_scheduled_action( $hook, $args = null, $group = '' ) { foreach ( $GLOBALS['r3_as'] ?? array() as $a ) { if ( $a['hook'] === $hook && in_array( $a['status'], array( 'pending', 'in-progress' ), true ) ) { return true; } } return false; }
+	function as_get_scheduled_actions( $q = array(), $return = 'objects' ) { $ids = array(); foreach ( $GLOBALS['r3_as'] ?? array() as $i => $a ) { if ( $a['hook'] === ( $q['hook'] ?? '' ) && $a['args'] === ( $q['args'] ?? array() ) && $a['status'] === ( $q['status'] ?? '' ) ) { $ids[] = $i + 1; } } return $ids; }
+}
+$GLOBALS['r3_as'] = array( array( 'hook' => 'wpcap_process_jobs', 'args' => array( 'continue' ), 'status' => 'in-progress' ) );
+TimeBudget::continue_later( 'wpcap_process_jobs' );
+check( 'the continuation that is running right now does not block queuing the next one', 2 === count( $GLOBALS['r3_as'] ) && 'pending' === $GLOBALS['r3_as'][1]['status'] );
+TimeBudget::continue_later( 'wpcap_process_jobs' );
+check( 'an already pending continuation is not queued twice', 2 === count( $GLOBALS['r3_as'] ) );
+
+echo "R3 #11: retention continues, rotates its start step and reports a heartbeat\n";
+$GLOBALS['r3_as'] = array();
+$r3_audit_step = array_search( 'audit_logs', PassCaptain\Privacy\Retention::STEPS, true );
+update_option( PassCaptain\Privacy\Retention::START_OPTION, $r3_audit_step );
+$r3_ret = PassCaptain\Privacy\Retention::run( null, 0.000001 );
+check( 'budget used up: run incomplete, a continuation is queued at once', false === $r3_ret['complete'] && (bool) array_filter( $GLOBALS['r3_as'], static fn( $a ) => PassCaptain\Privacy\Retention::HOOK === $a['hook'] ) );
+check( 'the next run starts where this one stopped (step audit_logs), not at the first step again', $r3_audit_step === (int) get_option( PassCaptain\Privacy\Retention::START_OPTION ) );
+$r3_ret = PassCaptain\Privacy\Retention::run( 'continue' );
+check( 'continuation run (argument "continue", not a timestamp) completes and resets the start step', true === $r3_ret['complete'] && 0 === (int) get_option( PassCaptain\Privacy\Retention::START_OPTION ) );
+check( 'heartbeat "retention" recorded and part of the cron health', null !== PassCaptain\Ops\Heartbeat::last( 'retention' ) && 'retention' === PassCaptain\Ops\Status::cron_hooks()[ PassCaptain\Privacy\Retention::HOOK ][2] );
+
+echo "R3 #8: reminder unsubscribe (link + List-Unsubscribe one-click), bounce/complaint webhook\n";
+check( 'schema: wpcap_mail_suppressions exists (DB 3.17.2)', version_compare( PassCaptain\Installer::DB_VERSION, '3.17.2', '>=' ) && null !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $p . 'wpcap_mail_suppressions' ) ) );
+$r3_rem_type = make_type( 10, 10, 0 );
+$r3_rem_occ = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE ticket_type_id=%d', "{$p}wpcap_ticket_types", $r3_rem_type ) );
+Orders::create( array( 'email' => 'r3-rem@example.com', 'items' => array( array( 'ticket_type_id' => $r3_rem_type, 'quantity' => 1 ) ), 'idempotency_key' => 'r3-rem-' . uniqid() ), array( 'skip_rate_limit' => true ) );
+$r3_rem_starts = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE occurrence_id=%d', "{$p}wpcap_occurrences", $r3_rem_occ ) );
+$r3_tpl = PassCaptain\Modules\Reminders::render_template( null, PassCaptain\Modules\Reminders::TEMPLATE, array( 'occurrence_id' => $r3_rem_occ, 'starts_at' => $r3_rem_starts, 'hours' => 24, 'tickets' => 1 ), 'r3-rem@example.com' );
+check( 'reminder carries a personal unsubscribe link and List-Unsubscribe + List-Unsubscribe-Post (one-click)', false !== strpos( $r3_tpl['body'], 'wpcap_unsubscribe=' . Suppression::hash( 'r3-rem@example.com' ) ) && in_array( 'List-Unsubscribe-Post: List-Unsubscribe=One-Click', $r3_tpl['headers'], true ) && (bool) preg_grep( '/^List-Unsubscribe: <https:\/\/example\.test\/\?wpcap_unsubscribe=[a-f0-9]{64}&sig=[a-f0-9]{64}>$/', $r3_tpl['headers'] ) );
+$r3_hooked = ! empty( array_filter( $GLOBALS['wpcap_test_hooks']['wp_pass_captain_email_template_v1'][10] ?? array(), static fn( $e ) => array( PassCaptain\Modules\Reminders::class, 'render_template' ) === $e[0] ) );
+if ( ! $r3_hooked ) { add_filter( 'wp_pass_captain_email_template_v1', array( PassCaptain\Modules\Reminders::class, 'render_template' ), 10, 4 ); }
+$r3_hdrs = array();
+$r3_cap = static function ( $prepared ) use ( &$r3_hdrs ) { $r3_hdrs = $prepared['headers']; };
+add_action( 'wpcap_mail_before_send', $r3_cap, 10, 1 );
+$r3_rkey = 'reminder|' . $r3_rem_occ . '|' . $r3_rem_starts . '|24|r3-rem@example.com';
+Communications::enqueue( $r3_rkey, 'r3-rem@example.com', PassCaptain\Modules\Reminders::TEMPLATE, array( 'occurrence_id' => $r3_rem_occ, 'starts_at' => $r3_rem_starts, 'hours' => 24, 'tickets' => 1 ) );
+Communications::run_now( array( $r3_rkey ), microtime( true ) + 10 );
+remove_action( 'wpcap_mail_before_send', $r3_cap, 10 );
+check( 'the queue passes the recipient to the template filter and sends the List-Unsubscribe headers', in_array( 'List-Unsubscribe-Post: List-Unsubscribe=One-Click', $r3_hdrs, true ) );
+$r3_hash = Suppression::hash( 'r3-rem@example.com' );
+check( 'unsubscribe link with a wrong signature is rejected', 404 === Suppression::handle_unsubscribe( $r3_hash, str_repeat( '0', 64 ), true )['status'] && ! Suppression::suppressed( 'r3-rem@example.com' ) );
+$r3_url = Suppression::unsubscribe_url( 'r3-rem@example.com' );
+parse_str( (string) parse_url( $r3_url, PHP_URL_QUERY ), $r3_q );
+$r3_get = Suppression::handle_unsubscribe( $r3_q['wpcap_unsubscribe'], $r3_q['sig'], false );
+check( 'GET only shows the confirmation (link scanners do not unsubscribe)', 200 === $r3_get['status'] && ! $r3_get['done'] && ! Suppression::suppressed( 'r3-rem@example.com' ) && false !== strpos( Suppression::page( $r3_q['wpcap_unsubscribe'], $r3_q['sig'], $r3_get ), 'method="post"' ) );
+check( 'POST (button or one-click) unsubscribes the address from reminders', Suppression::handle_unsubscribe( $r3_q['wpcap_unsubscribe'], $r3_q['sig'], true )['done'] && Suppression::suppressed( 'r3-rem@example.com' ) && ! PassCaptain\Modules\Reminders::still_valid( 'r3-rem@example.com', array( 'occurrence_id' => $r3_rem_occ, 'starts_at' => $r3_rem_starts ) ) );
+check( 'only address hashes are stored', 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE email_hash LIKE %s", $p . 'wpcap_mail_suppressions', '%@%' ) ) );
+if ( ! $r3_hooked ) { remove_filter( 'wp_pass_captain_email_template_v1', array( PassCaptain\Modules\Reminders::class, 'render_template' ), 10 ); }
+// Bounce/complaint webhook.
+$r3_breq = static function ( $body, $token = '' ) { $r = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/mail/bounce' ); $r->set_body( wp_json_encode( $body ) ); if ( '' !== $token ) { $r->set_header( 'X-WPCAP-Bounce-Token', $token ); } return $r; };
+$r3_bo = Orders::create( array( 'email' => 'r3-bounce@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 5, 0 ), 'quantity' => 1 ) ), 'idempotency_key' => 'r3-bounce-' . uniqid() ), array( 'skip_rate_limit' => true ) );
+Communications::enqueue( 'r3-bounce-msg', 'r3-bounce@example.com', 'r3_fine', array( 'subject' => 'S', 'body' => 'B' ) );
+Communications::run_now( array( 'r3-bounce-msg' ), microtime( true ) + 10 );
+check( 'webhook is off by default', is_wp_error( Suppression::rest_bounce( $r3_breq( array( 'email' => 'r3-bounce@example.com' ), Suppression::token() ) ) ) );
+Settings::update( array( 'mail_bounce_webhook' => 1 ) );
+$r3_bad = Suppression::rest_bounce( $r3_breq( array( 'email' => 'r3-bounce@example.com' ), 'wrong' ) );
+check( 'wrong token: 403', is_wp_error( $r3_bad ) && 403 === $r3_bad->get_error_data()['status'] );
+$r3_ok = Suppression::rest_bounce( $r3_breq( array( 'RecordType' => 'Bounce', 'Type' => 'HardBounce', 'Email' => 'r3-bounce@example.com' ), Suppression::token() ) );
+$r3_bounce = Suppression::bounce_for_order( $r3_bo['order_id'] );
+check( 'Postmark hard bounce: handled, the order shows the bounce, recent queue mails to the address are failed', ! is_wp_error( $r3_ok ) && $r3_bounce && 'bounce' === $r3_bounce['type'] && 'failed' === $r3_msg( 'r3-bounce@example.com' )->status );
+check( 'soft bounces and unknown events are ignored', array() === Suppression::parse( array( 'RecordType' => 'Bounce', 'Type' => 'SoftBounce', 'Email' => 'x@example.com' ) ) && array() === Suppression::parse( array( 'event-data' => array( 'event' => 'failed', 'severity' => 'temporary', 'recipient' => 'x@example.com' ) ) ) );
+Suppression::rest_bounce( $r3_breq( array( array( 'event' => 'spamreport', 'email' => 'r3-bounce@example.com' ) ), Suppression::token() ) );
+check( 'SendGrid spam report: complaint recorded, reminders to the address stop', Suppression::suppressed( 'r3-bounce@example.com' ) && 'complaint' === Suppression::bounce_for_order( $r3_bo['order_id'] )['type'] );
+check( 'SES (SNS) and Mailgun payloads are understood', array( array( 'email' => 'a@example.com', 'type' => 'bounce' ) ) === Suppression::parse( array( 'Type' => 'Notification', 'Message' => wp_json_encode( array( 'notificationType' => 'Bounce', 'bounce' => array( 'bounceType' => 'Permanent', 'bouncedRecipients' => array( array( 'emailAddress' => 'a@example.com' ) ) ) ) ) ) ) && array( array( 'email' => 'b@example.com', 'type' => 'complaint' ) ) === Suppression::parse( array( 'event-data' => array( 'event' => 'complained', 'recipient' => 'b@example.com' ) ) ) );
+Settings::update( array( 'mail_bounce_webhook' => 0 ) );

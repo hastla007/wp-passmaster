@@ -220,7 +220,7 @@ final class Status {
 			'wpcap_process_jobs'         => array( __( 'Jobs und Webhooks', 'pass-captain' ), 5 * MINUTE_IN_SECONDS, 'jobs' ),
 			'wpcap_process_messages'     => array( __( 'E-Mails, Erinnerungen und SMS', 'pass-captain' ), 5 * MINUTE_IN_SECONDS, 'messages' ),
 			'wpcap_cleanup_reservations' => array( __( 'Abgelaufene Reservierungen', 'pass-captain' ), HOUR_IN_SECONDS, 'cleanup' ),
-			'wpcap_privacy_retention'    => array( __( 'Datenschutz-Aufbewahrung', 'pass-captain' ), DAY_IN_SECONDS, '' ),
+			'wpcap_privacy_retention'    => array( __( 'Datenschutz-Aufbewahrung', 'pass-captain' ), DAY_IN_SECONDS, 'retention' ),
 		);
 	}
 

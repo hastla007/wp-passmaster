@@ -61,6 +61,60 @@ Text ohne HTML-Tags im HTML-Modus wird maskiert und automatisch umbrochen. Zu je
 
 Das fertige Dokument kann über `wpcap_mail_layout_html` ersetzt werden.
 
+## Absender und Zustellbarkeit
+
+**Einstellungen → E-Mail-Versand:**
+
+- **Absenderadresse** (`mail_from_email`): From-Header aller Kunden-Mails des Plugins und – nur während das Plugin
+  sendet – Envelope-Sender/Return-Path (`$phpmailer->Sender`, `phpmailer_init` Priorität 5). Leer: kein From-Header,
+  WordPress sendet als `wordpress@<host>`.
+- **Absendername** (`mail_from_name`, leer: Website-Titel; ersetzt „WordPress“ über `wp_mail_from_name` Priorität 5).
+- **Antwortadresse** (`mail_reply_to`): Reply-To-Header, z. B. das Support-Postfach.
+
+Ein SMTP-Plugin (WP Mail SMTP, FluentSMTP, Post SMTP …), das einen eigenen Absender erzwingt, hat weiterhin Vorrang:
+Es hängt sich später ein bzw. setzt den Sender selbst; ein schon gesetzter Envelope-Sender wird nicht überschrieben.
+Mails anderer Plugins bleiben unberührt (die Hooks gelten nur für die Dauer des eigenen Versands).
+
+Damit Tickets nicht im Spam landen:
+
+1. Absenderadresse mit der **Domain der Website** wählen (z. B. `tickets@ihre-domain.de`).
+2. **SPF**: Der DNS-TXT-Eintrag der Domain muss den versendenden Server bzw. SMTP-Dienst erlauben
+   (z. B. `v=spf1 include:_spf.ihr-dienst.example ~all`).
+3. **DKIM**: Mails signieren – praktisch nur über einen SMTP-/Versanddienst oder den Mailserver des Hosters.
+4. **DMARC**: TXT-Eintrag `_dmarc.ihre-domain.de` (z. B. `v=DMARC1; p=none; rua=mailto:…`); er verlangt, dass
+   SPF oder DKIM zur From-Domain passt („Alignment“) – genau dafür setzt das Plugin From und Return-Path gleich.
+5. Für mehr als ein paar Dutzend Mails am Tag einen **SMTP-Dienst** (Postmark, SendGrid, Mailgun, Amazon SES, Brevo …)
+   über ein SMTP-Plugin verwenden; PHP `mail()` des Webservers wird von großen Anbietern oft abgelehnt.
+
+Der **Systemstatus** warnt, wenn keine Absenderadresse eingestellt ist oder ihre Domain nicht zur Website passt.
+
+**Massenmails** (Terminverschiebung, Event-Absage, Terminabsage) gehen je Empfänger:in über die E-Mail-Queue
+(Dedupe-Schlüssel `resched|Termin|neuer Beginn|E-Mail`, `event-cancel|Event|E-Mail`, `occ-cancel|Termin|Lauf|E-Mail`):
+die ersten werden noch im Admin-Request versendet (bis ~10 s), der Rest vom Worker; jede Mail wird einzeln mit
+Backoff wiederholt, nichts doppelt gesendet. Die Admin-Meldung nennt „versendet / im Hintergrund / fehlgeschlagen“.
+
+**Ticket-Mails großer Bestellungen** (über 10 Tickets, Filter `wp_pass_captain_ticket_mail_inline_max_v1`) und jede
+Bestellung, die ein Zahlungs-Webhook bestätigt, werden nicht im Request gerendert: Der Outbox-Job ist sofort fällig
+und mailt neue Codes (die bei der Ausstellung erzeugten Codes sah niemand; Klartext-Codes werden nie gespeichert,
+auch nicht verschlüsselt). Das PDF hängt bis 200 Tickets an (`wp_pass_captain_ticket_pdf_max_tickets_v1`); mit PDF
+listet der Text nur die ersten 25 Tickets (`wp_pass_captain_ticket_mail_list_max_v1`). Dieselben Regeln gelten für
+Zustell-Retry, „Tickets erneut senden“ und Neuausstellung.
+
+**Erinnerungen** enthalten einen persönlichen Abmeldelink und die Header `List-Unsubscribe` /
+`List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058). Der Link zeigt per GET nur eine Bestätigung (Link-Scanner
+melden niemanden ab); erst POST trägt die Adresse aus (Tabelle `wpcap_mail_suppressions`, nur SHA-256 der Adresse).
+Die Abmeldung gilt für alle Erinnerungen an diese Adresse, nicht für Tickets, Absagen oder Erstattungen.
+
+**Bounces und Beschwerden** (optional, Einstellung „Bounce-/Beschwerde-Webhook“): Die angezeigte URL (mit geheimem
+Token, alternativ Header `X-WPCAP-Bounce-Token`) beim Versanddienst eintragen. Verstanden werden Postmark, SendGrid,
+Mailgun, Amazon SES (über SNS) und `{"email": "…", "type": "bounce|complaint"}`. Harte Bounces markieren die
+Queue-Mails der letzten 14 Tage an die Adresse als fehlgeschlagen und erscheinen als Hinweis in der Bestellung;
+Spam-Beschwerden beenden zusätzlich die Erinnerungen.
+
+**HTML als Standard?** Die eingebauten Vorlagen bleiben Text: Ihre Ausgabe ist seit jeher identisch, und Filter wie
+`wpcap_ticket_mail` hängen Klartext an (Sitzplätze, Wallet-Links). Eine Umstellung des Standards würde die Mails
+bestehender Installationen sichtbar ändern. HTML ist je Vorlage ein Klick (mit automatischer Textversion).
+
 ## Sprache der Empfänger:innen
 
 Bestellungen speichern ihre Sprache (`locale`). Mails zu einer Bestellung (Tickets, Neuversand, Bestellzugang, Übertragung, Zuweisung, Erstattung, Absage, Terminänderung) werden in dieser Sprache gerendert: Der Mailer schaltet mit `switch_to_locale()` um und stellt danach die vorherige Sprache wieder her. Auswahl der Vorlage:

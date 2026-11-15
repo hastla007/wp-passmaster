@@ -7,8 +7,11 @@
  *   forward it;
  * - is written to the audit table (`wpcap_audit_logs`, action = event) when that table exists, so it is
  *   visible in the admin without server access;
- * - reaches the PHP error log only when the site enabled it: `WP_DEBUG` and `WP_DEBUG_LOG`, or the filter
- *   `wpcap_log_to_error_log` returns true (e.g. on hosts without debug logging that still want it).
+ * - reaches the PHP error log when the site enabled it: `WP_DEBUG` and `WP_DEBUG_LOG`, or the filter
+ *   `wpcap_log_to_error_log` returns true (e.g. on hosts without debug logging that still want it) –
+ *   and always when the audit insert fails (database down), so the entry is not lost.
+ *
+ * Message and context are redacted (Security\Redact) before they leave the plugin.
  *
  * @package PassCaptain
  */
@@ -54,16 +57,28 @@ final class Log {
 			$event = sanitize_key( (string) $event );
 			// Redacted before it leaves the plugin: DB errors can quote row values (e-mails), provider errors secrets.
 			$message = Security\Redact::text( (string) $message );
+			// The context too: details often carry raw $wpdb->last_error texts or provider answers.
+			$context = (array) Security\Redact::data( $context );
 			/** Every Pass Captain log entry (level `error`/`warning`). */
 			do_action( 'wpcap_log', $level, $event, $message, $context );
+			$logged = false;
 			if ( self::to_error_log( $level, $event ) ) {
 				// Security\Redact::log() is the single place that writes to the PHP error log.
 				Security\Redact::log( '[' . $level . '] ' . $event . ': ' . $message );
+				$logged = true;
 			}
-			if ( ( $context['audit'] ?? true ) && self::audit_available() ) {
-				$details = (array) ( $context['details'] ?? array() );
-				if ( ! $details ) { $details = array( 'message' => substr( $message, 0, 500 ) ); }
-				Audit::record( $event, (string) ( $context['object_type'] ?? 'system' ), absint( $context['object_id'] ?? 0 ), $details );
+			if ( $context['audit'] ?? true ) {
+				$stored = false;
+				if ( self::audit_available() ) {
+					$details = (array) ( $context['details'] ?? array() );
+					if ( ! $details ) { $details = array( 'message' => substr( $message, 0, 500 ) ); }
+					$stored = false !== Audit::record( $event, (string) ( $context['object_type'] ?? 'system' ), absint( $context['object_id'] ?? 0 ), $details );
+				}
+				if ( ! $stored && ! $logged ) {
+					// The database is the problem (audit insert failed or table unreachable): the PHP error
+					// log is the only place left where the entry survives.
+					Security\Redact::log( '[' . $level . '] ' . $event . ': ' . $message . ' (audit log unavailable)' );
+				}
 			}
 		} finally {
 			self::$writing = false;

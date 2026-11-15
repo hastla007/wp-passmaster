@@ -176,7 +176,7 @@ final class Communications {
 			if ( $headers ) { $message['headers'] = $headers; }
 			return Mail\Mailer::deliver( $row->recipient, $message );
 		}
-		$template = apply_filters( 'wp_pass_captain_email_template_v1', null, $row->template_key, $payload );
+		$template = apply_filters( 'wp_pass_captain_email_template_v1', null, $row->template_key, $payload, (string) $row->recipient );
 		$template = is_array( $template ) ? $template : $payload;
 		$subject = sanitize_text_field( $template['subject'] ?? '' );
 		$body = (string) ( $template['body'] ?? '' );

@@ -203,7 +203,7 @@ final class Refunds {
 				$wpdb->query( 'ROLLBACK' );
 				return self::db_error( $refund_id, (int) $refund['order_id'], 'mark_failed', $error );
 			}
-			Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) );
+			Log::error( 'refund_failed', 'Refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) ) );
 			return new \WP_Error( 'wpcap_refund_conflict', $invalid, array( 'status' => 409 ) );
 		}
 		// Claim: must move exactly this row out of approved/failed, and the commit must succeed,
@@ -242,7 +242,7 @@ final class Refunds {
 					// Stays "processing" without provider reference: needs a manual check, never an automatic retry.
 					self::log_problem( $refund_id, (int) $refund['order_id'], 'mark_failed_after_provider_error', (string) $wpdb->last_error );
 				}
-				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code(), 'attempt' => $attempt, 'final_decline' => $final ) );
+				Log::error( 'refund_failed', 'Refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => $result->get_error_code(), 'attempt' => $attempt, 'final_decline' => $final ) ) );
 				return $result;
 			}
 			$provider_reference = (string) $result;

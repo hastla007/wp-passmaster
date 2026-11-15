@@ -557,7 +557,7 @@ final class Orders {
 		global $wpdb;
 		$error = (string) $wpdb->last_error;
 		$wpdb->query( 'ROLLBACK' );
-		Audit::record( 'order_state_db_error', 'order', absint( $order_id ), array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) );
+		Log::error( 'order_state_db_error', 'Order state change hit a database error.', array( 'object_type' => 'order', 'object_id' => absint( $order_id ), 'details' => array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) ) );
 		return new \WP_Error( 'wpcap_db_busy', __( 'Die Bestellung konnte gerade nicht aktualisiert werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'step' => (string) $step ) );
 	}
 
@@ -1551,7 +1551,7 @@ final class Orders {
 
 	/**
 	 * Tickets per order up to which the ticket mail (PDF, wallet, SMTP) is sent inside the request that
-	 * confirmed the payment (filter wpcap_ticket_mail_inline_max). Larger orders – and every order
+	 * confirmed the payment (filter wp_pass_captain_ticket_mail_inline_max_v1). Larger orders – and every order
 	 * confirmed by a payment webhook – are delivered by the outbox job right away instead.
 	 */
 	const INLINE_DELIVERY_MAX = 10;
@@ -1724,7 +1724,7 @@ final class Orders {
 	/** Whether the ticket mail of a fresh issuance goes to the outbox job instead of the request. */
 	private static function defers_delivery( $order_id, $ticket_count ) {
 		if ( self::$defer_mail > 0 ) { return true; }
-		$max = (int) apply_filters( 'wpcap_ticket_mail_inline_max', self::INLINE_DELIVERY_MAX, (int) $order_id );
+		$max = (int) apply_filters( 'wp_pass_captain_ticket_mail_inline_max_v1', self::INLINE_DELIVERY_MAX, (int) $order_id );
 		return $ticket_count > max( 0, $max );
 	}
 
@@ -1781,7 +1781,7 @@ final class Orders {
 		global $wpdb;
 		$error = (string) $wpdb->last_error;
 		$wpdb->query( 'ROLLBACK' );
-		Audit::record( 'ticket_issue_failed', 'order', $order_id, array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) );
+		Log::error( 'ticket_issue_failed', 'Ticket issuance failed and was rolled back; a retry is queued.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) ) );
 		if ( ! self::$issuing_from_job && $order_id ) {
 			// One retry job per order and minute; the job queue retries it with backoff.
 			Jobs::enqueue( 'ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ISSUE_JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
@@ -1815,7 +1815,7 @@ final class Orders {
 			return;
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET attempts=attempts+1,run_after=%s,last_error=%s,updated_at=%s WHERE idempotency_key=%s AND status='queued'", $table, gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ), 'Ticket mail could not be delivered.', $now, hash( 'sha256', $key ) ) );
-		Audit::record( 'ticket_delivery_failed', 'order', absint( $order_id ), array( 'ticket_count' => count( $ticket_ids ), 'retry' => 'scheduled' ) );
+		Log::warning( 'ticket_delivery_failed', 'Ticket mail could not be delivered; the outbox retries it.', array( 'object_type' => 'order', 'object_id' => absint( $order_id ), 'details' => array( 'ticket_count' => count( $ticket_ids ), 'retry' => 'scheduled' ) ) );
 	}
 
 	/** Option name of the "delivered" marker of one ticket delivery (order + its tickets). */

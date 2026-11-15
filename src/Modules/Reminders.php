@@ -29,7 +29,7 @@ final class Reminders {
 	public static function register() {
 		add_action( 'wpcap_process_messages', array( __CLASS__, 'schedule_due' ), 1, 0 );
 		add_action( 'wpcap_process_messages', array( __CLASS__, 'purge_stale' ), 5, 0 );
-		add_filter( 'wp_pass_captain_email_template_v1', array( __CLASS__, 'render_template' ), 10, 3 );
+		add_filter( 'wp_pass_captain_email_template_v1', array( __CLASS__, 'render_template' ), 10, 4 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'purge_stale' ), 20, 0 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'purge_stale' ), 20, 0 );
 	}
@@ -153,7 +153,8 @@ final class Reminders {
 		}
 		$existing = self::existing_keys( array_keys( $keys ) );
 		foreach ( $keys as $hash => $holder ) {
-			if ( isset( $existing[ $hash ] ) ) { continue; }
+			// Already queued, or unsubscribed (link in every reminder) / spam complaint: nothing to queue.
+			if ( isset( $existing[ $hash ] ) || \PassCaptain\Mail\Suppression::suppressed( $holder->email ) ) { continue; }
 			$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
 			$result = Communications::enqueue( $key, $holder->email, self::TEMPLATE, array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets ) );
 			if ( true === $result ) { ++$queued; }
@@ -184,6 +185,7 @@ final class Reminders {
 	/** Whether a queued reminder is still valid (occurrence scheduled at the same time, holder has valid tickets). */
 	public static function still_valid( $recipient, array $payload ) {
 		global $wpdb;
+		if ( \PassCaptain\Mail\Suppression::suppressed( (string) $recipient ) ) { return false; }
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.starts_at,o.status,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) ( $payload['occurrence_id'] ?? 0 ) ) );
 		if ( ! $occ || 'scheduled' !== $occ->status || 'published' !== $occ->event_status || $occ->starts_at !== ( $payload['starts_at'] ?? '' ) || strtotime( $occ->starts_at . ' UTC' ) <= time() ) { return false; }
@@ -205,7 +207,7 @@ final class Reminders {
 	}
 
 	/** wp_pass_captain_email_template_v1: renders the reminder with the current texts and occurrence data. */
-	public static function render_template( $template, $key = '', $payload = array() ) {
+	public static function render_template( $template, $key = '', $payload = array(), $recipient = '' ) {
 		if ( self::TEMPLATE !== $key || ! is_array( $payload ) ) { return $template; }
 		global $wpdb;
 		$p = $wpdb->prefix;
@@ -213,7 +215,14 @@ final class Reminders {
 		if ( ! $occ ) { return $template; }
 		$c = self::config();
 		$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => (int) ( $payload['hours'] ?? 0 ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ) ) );
-		return array( 'subject' => Placeholders::render( $c['subject'], $vars ), 'body' => Placeholders::render( $c['body'], $vars ) );
+		$body = Placeholders::render( $c['body'], $vars );
+		$headers = array();
+		if ( is_email( $recipient ) ) {
+			// Personal unsubscribe link (all reminders to this address) plus List-Unsubscribe one-click (RFC 8058).
+			$body .= "\n\n" . __( 'Keine Erinnerungen mehr erhalten:', 'pass-captain' ) . ' ' . \PassCaptain\Mail\Suppression::unsubscribe_url( $recipient );
+			$headers = \PassCaptain\Mail\Suppression::headers( $recipient );
+		}
+		return array( 'subject' => Placeholders::render( $c['subject'], $vars ), 'body' => $body, 'headers' => $headers );
 	}
 
 	/* ------------------------------------------------------------------ Admin */

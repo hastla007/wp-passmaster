@@ -63,6 +63,7 @@ check( 'heartbeat older than four intervals is stale', Heartbeat::is_stale( 'job
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Ops: WP-Cron health\n";
+PassCaptain\Ops\Heartbeat::beat( 'retention' ); // R3: the retention run reports a heartbeat too.
 $hooks = array( 'wpcap_process_jobs' => time() + 120, 'wpcap_process_messages' => time() + 60, 'wpcap_cleanup_reservations' => time() + 1800, 'wpcap_privacy_retention' => time() + 3600 );
 $by_hook = static function ( array $rows ) { $out = array(); foreach ( $rows as $r ) { $out[ $r['hook'] ] = $r; } return $out; };
 $h = $by_hook( Status::cron_health( null, $hooks, false ) );
