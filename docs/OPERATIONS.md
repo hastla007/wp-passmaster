@@ -184,7 +184,19 @@ Fehlgeschlagene Webhook-Zustellungen sind nur eine Warnung (externes Zielsystem)
 ## Multisite: Site löschen und Plugin deinstallieren
 
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.
-- Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben; Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites.
+- Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben (Sites ganz ohne Plugin-Daten zählen als zustimmend); Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites.
+- Große Netzwerke: `uninstall.php` bittet PHP um mehr Zeit (`set_time_limit(0)`, wo erlaubt) und läuft weiter, wenn der Browser die Verbindung schließt. Bricht der Webserver trotzdem ab, behält WordPress die Plugin-Dateien und meldet den Fehler; erneutes Löschen wiederholt die Deinstallation. Jeder Schritt ist idempotent, bereits bereinigte Sites haben keine Daten mehr und werden übersprungen – die Wiederholung macht dort weiter, wo der Abbruch war. Ohne Zeitlimit: `wp plugin deactivate pass-captain --network`, dann `wp plugin uninstall pass-captain`.
+- Getestet in CI mit 30 Sites (`build/ci-multisite-test.sh`): Netzwerkaktivierung, Site löschen, Deinstallation mit gemischtem Opt-in.
+
+## Downgrade (ältere Plugin-Version über neuerer Datenbank)
+
+Die gespeicherte Schema-Version (`wpcap_db_version`) wird per `version_compare` mit `Installer::DB_VERSION`
+verglichen. Stammt die Datenbank von einer neueren Version (z. B. nach dem Zurückspielen einer älteren
+Plugin-Version ohne Datenbank-Restore), führt das Plugin **kein** Upgrade aus und schreibt die Version nicht zurück;
+die Option `wpcap_schema_newer` enthält die neuere Version, Admin-Hinweis und Systemstatus melden „Datenbank stammt
+von neuerer Version – Restore erforderlich“. Abhilfe: die neuere Plugin-Version wieder installieren oder die
+Datensicherung von vor dem Update zusammen mit der passenden Plugin-Version wiederherstellen. Sobald Code und
+Datenbank wieder zusammenpassen, verschwindet die Option.
 
 ## Release-Build
 

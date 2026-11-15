@@ -169,6 +169,10 @@ function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook
 function did_action( $hook ) { return in_array( $hook, $GLOBALS['wpcap_test_actions'] ?? array(), true ) || 'init' === $hook ? 1 : 0; }
 function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, $q ); }
 function apply_filters( $hook, $value, ...$args ) { if ( array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ) { return $GLOBALS['wpcap_test_filters'][ $hook ]; } return wpcap_test_run_hooks( $hook, array_merge( array( $value ), $args ), true ); }
+if ( ! function_exists( 'has_filter' ) ) { function has_filter( $hook, $callback = false ) { return ! empty( array_filter( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() ) ); } }
+/** Like WordPress: fires only when a callback is registered and records the deprecated use. */
+function apply_filters_deprecated( $hook, $args, $version, $replacement = '', $message = '' ) { if ( ! has_filter( $hook ) ) { return $args[0]; } $GLOBALS['wpcap_test_deprecated_hooks'][] = $hook; return apply_filters( $hook, ...$args ); }
+function do_action_deprecated( $hook, $args, $version, $replacement = '', $message = '' ) { if ( ! has_filter( $hook ) ) { return; } $GLOBALS['wpcap_test_deprecated_hooks'][] = $hook; do_action( $hook, ...$args ); }
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = array( $callback, $accepted_args ); return true; }
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
 function remove_filter( $hook, $callback, $priority = 10 ) { foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ] ?? array() as $i => $entry ) { if ( $entry[0] === $callback ) { unset( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][ $i ] ); return true; } } return false; }
@@ -193,6 +197,9 @@ function current_filter() { return 'test_filter'; }
 /* Outbound DNS is faked (Security\OutboundHttp): every host resolves to a public address unless tests map it in $GLOBALS['wpcap_test_dns']. */
 $GLOBALS['wpcap_test_dns'] = array();
 add_filter( 'wpcap_outbound_resolve', static function ( $ips, $host ) { return $GLOBALS['wpcap_test_dns'][ $host ] ?? array( '93.184.215.14' ); }, 10, 2 );
+/* The suite creates hundreds of unpaid orders from one (empty) client address; the per-network limit of unpaid orders (Sales\CheckoutThrottle) is tested on its own with this filter removed. */
+function wpcap_test_unpaid_limit() { return 100000; }
+add_filter( 'wpcap_checkout_unpaid_per_network', 'wpcap_test_unpaid_limit' );
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }
 function add_role() {}

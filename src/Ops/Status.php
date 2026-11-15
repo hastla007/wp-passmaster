@@ -287,6 +287,11 @@ final class Status {
 		if ( is_array( $error ) && $error ) {
 			$issues[] = array( 'severity' => 'error', 'message' => __( 'Die letzte Datenbank-Aktualisierung ist fehlgeschlagen.', 'pass-captain' ) );
 		}
+		$newer = get_option( Installer::NEWER_OPTION );
+		if ( $newer ) {
+			/* translators: %s: schema version in the database */
+			$issues[] = array( 'severity' => 'error', 'message' => sprintf( __( 'Die Datenbank stammt von einer neueren Plugin-Version (Schema %s) – Restore erforderlich: neuere Plugin-Version installieren oder Datensicherung wiederherstellen.', 'pass-captain' ), (string) $newer ) );
+		}
 		foreach ( array( 'jobs', 'messages', 'webhooks', 'sms' ) as $queue ) {
 			$s = self::queue_summary( $queue, $now );
 			if ( ! $s ) { continue; }
@@ -332,6 +337,9 @@ final class Status {
 					: sprintf( __( 'QR-Codes können nicht erzeugt werden: Die QR-Bibliothek (BaconQrCode) fehlt oder ein anderes Plugin lädt eine inkompatible Version (%s). Tickets zeigen dann keinen QR-Code.', 'pass-captain' ), '' !== $foreign ? $foreign : '-' ),
 			);
 		}
+		// Behind a proxy/CDN without trusted proxies every buyer shares a few addresses (checkout rate limit).
+		$proxy = \PassCaptain\Sales\CheckoutThrottle::status_issue();
+		if ( $proxy ) { $issues[] = $proxy; }
 		usort( $issues, static function ( $a, $b ) { return ( 'error' === $b['severity'] ) <=> ( 'error' === $a['severity'] ); } );
 		return $issues;
 	}

@@ -12,7 +12,16 @@ final class Plugin {
 		return self::$instance;
 	}
 
+	/** @var bool Whether run() already registered the hooks in this request. */
+	private static $started = false;
+
+	/**
+	 * Registers all hooks. Idempotent: during the takeover from the old copy (LegacyCopy) its bootstrap also
+	 * calls run() in the same request; a second call must not register hooks and cron callbacks twice.
+	 */
 	public function run() {
+		if ( self::$started ) { return; }
+		self::$started = true;
 		// Schema upgrades never run inline on every request: admin requests check on admin_init,
 		// cron/WP-CLI/frontend on init; frontend requests only defer to a cron event (see Installer).
 		$upgrade_hook = 'admin' === Installer::context() ? 'admin_init' : 'init';

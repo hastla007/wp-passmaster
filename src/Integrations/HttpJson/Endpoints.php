@@ -412,7 +412,7 @@ final class Endpoints {
 				$out['tickets'][] = $item;
 			}
 		}
-		return (array) apply_filters( 'wp_pass_captain_http_connector_data_v1', $out, $endpoint->endpoint_id, $event, $data );
+		return (array) apply_filters( 'wp_pass_captain_http_connector_data_v1', $out, (int) $endpoint->endpoint_id, $event, $data );
 	}
 
 	/** Complete request body. */

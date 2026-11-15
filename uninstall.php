@@ -9,7 +9,14 @@
  * transients, roles and capabilities are removed. On a multisite network this is decided per site:
  * each site's tables, options and per-site user options ({site prefix}wpcap_*) are removed only for
  * sites that opted in. Network-wide user meta (wpcap_*) is shared by all sites and is therefore
- * only deleted when every site opted in.
+ * only deleted when every site opted in (a site without any plugin data keeps nothing and counts as opted in).
+ *
+ * Large networks: the loop asks PHP for more time and keeps running when the browser disconnects. If the
+ * request is still cut off (hard max_execution_time of the web server), WordPress keeps the plugin files and
+ * reports the failure; deleting the plugin again repeats the uninstall. Every step is idempotent: sites
+ * already cleaned up have no data left and are skipped, so the repetition continues where it stopped.
+ * Deleting the plugin with WP-CLI (`wp plugin deactivate pass-captain --network`, then `wp plugin uninstall pass-captain`) has no
+ * time limit.
  *
  * @package PassCaptain
  */
@@ -27,7 +34,7 @@ function wpcap_uninstall_site() {
 		as_unschedule_all_actions( '', array(), 'wp-pass-captain' );
 	}
 	if ( 'delete' !== get_option( 'wpcap_uninstall_policy', 'keep' ) ) {
-		return false;
+		return ! wpcap_uninstall_site_has_data(); // Nothing kept (never installed, or already removed by an aborted run).
 	}
 	$like = $wpdb->esc_like( $wpdb->prefix . 'wpcap_' ) . '%';
 	foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ) as $table ) {
@@ -49,6 +56,15 @@ function wpcap_uninstall_site() {
 	return true;
 }
 
+/** Whether the current site has plugin data (schema version, settings or tables). */
+function wpcap_uninstall_site_has_data() {
+	global $wpdb;
+	if ( false !== get_option( 'wpcap_db_version', false ) || false !== get_option( 'wpcap_settings', false ) ) {
+		return true;
+	}
+	return (bool) $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix . 'wpcap_' ) . '%' ) );
+}
+
 /** Deletes network-wide (unprefixed) user meta wpcap_*. */
 function wpcap_uninstall_global_usermeta() {
 	global $wpdb;
@@ -56,6 +72,11 @@ function wpcap_uninstall_global_usermeta() {
 }
 
 if ( is_multisite() ) {
+	// Many sites: more time where the host allows it, and no abort when the admin closes the browser tab.
+	ignore_user_abort( true );
+	if ( function_exists( 'set_time_limit' ) && false === strpos( (string) ini_get( 'disable_functions' ), 'set_time_limit' ) ) {
+		set_time_limit( 0 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- uninstall of a whole network, see the file comment.
+	}
 	$wpcap_all_opted_in = true;
 	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $wpcap_site_id ) {
 		switch_to_blog( (int) $wpcap_site_id );

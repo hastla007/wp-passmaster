@@ -164,7 +164,14 @@ Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und E
 - **Kosten- und Missbrauchsschutz** (jeder Code ist eine kostenpflichtige SMS an eine Nummer, die der Anfragende nicht besitzen muss): nur erlaubte Ländervorwahlen und für AT/DE/CH nur Mobilfunkbereiche (keine Premium-/Sonderrufnummern), Same-Origin-Prüfung (`Origin`/`Referer` muss die eigene Site sein; fehlt beides, greifen nur die Limits), höchstens 3 Codes je Nummer und Stunde, 5 je Nummer und Tag, 5 je Client-IP und Stunde, 500 je Site und Tag, 30 Bestätigungsversuche je IP und Stunde (Filter `wpcap_sms_otp_limits`). Die Limits liegen wie alle Plugin-Limits in Transients (siehe oben: pro Site, ohne Object-Cache best effort) – bei hohem SMS-Preis zusätzlich ein Ausgabenlimit beim SMS-Anbieter setzen und `/wp-json/wp-pass-captain/v1/sms/verify/request` am WAF begrenzen.
 - Bestätigungsdatensätze (Nummer, Hashes) werden nach einem Tag gelöscht (SMS-Worker). Einwilligungen von vor DB 3.15.2 bleiben gültig und sind als „unverifiziert (Altbestand)“ gekennzeichnet; bei ausgeschalteter Bestätigung erfasste Einwilligungen heißen „unverifiziert (ohne Code erfasst)“ und erhalten nur SMS, solange die Bestätigung ausgeschaltet ist.
 
-**IPv6:** Sitzplatz-Holds und Wartelisten zählen IPv6-Adressen je /64-Netz (`RateLimit::client_network()`), damit wechselnde Adressen innerhalb eines Anschlusses das Limit nicht zurücksetzen.
+**IPv6:** Sitzplatz-Holds, Wartelisten und der Checkout zählen IPv6-Adressen je /64-Netz (`RateLimit::client_network()`), damit wechselnde Adressen innerhalb eines Anschlusses das Limit nicht zurücksetzen.
+
+**Checkout** (`Sales\CheckoutThrottle`, alle Zähler atomar):
+
+- je Client-Netz 30 angelegte Bestellungen pro Stunde (`wpcap_checkout_ip_limit`), je Netz und normalisierter E-Mail 8; die E-Mail wird wie bei Käuferlimits normalisiert (`+tag` entfällt, Gmail ohne Punkte, `googlemail.com` → `gmail.com`; abschaltbar mit `wpcap_buyer_email_aliases`);
+- Versuche, die keine Bestellung anlegen (ausverkauft, Verkauf geschlossen, ungültiger Code, „viel los“), werden zurückgebucht (`RateLimit::refund()`); gegen Dauerklicken gilt zusätzlich ein Versuchslimit (4× so hoch, `wpcap_checkout_attempt_factor`);
+- je Netz höchstens 10 unbezahlte Bestellungen innerhalb einer Haltezeit (höchstens 1 Stunde, `wpcap_checkout_unpaid_per_network`);
+- **hinter Proxy/CDN ohne eingetragene vertrauenswürdige Proxys:** ist `REMOTE_ADDR` eine private/Loopback-Adresse (Load Balancer, Reverse Proxy), entfallen die Limits je Netz – sonst stünden alle Käufer unter einer Adresse und der Vorverkaufsstart würde seitenweit gedrosselt; es gilt nur Netz + E-Mail. Trägt die Anfrage nur einen Weiterleitungs-Header (`X-Forwarded-For`, `CF-Connecting-IP` …) von einer öffentlichen Adresse, werden die Limits je Netz verzehnfacht (`wpcap_checkout_proxy_limit_factor`; der Header ist fälschbar, deshalb kein völliges Aussetzen). Der Systemstatus warnt in beiden Fällen (auch noch 7 Tage nach dem letzten solchen Checkout), bis die Proxys eingetragen sind.
 
 **Client-Adresse** (`RateLimit::client_ip()`, verwendet von allen Limits):
 

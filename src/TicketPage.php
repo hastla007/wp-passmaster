@@ -5,7 +5,12 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class TicketPage {
+	/** @var bool Registered in this request (the old copy's bootstrap calls register() again, see LegacyCopy). */
+	private static $registered = false;
+
 	public static function register() {
+		if ( self::$registered ) { return; }
+		self::$registered = true;
 		add_filter( 'query_vars', static function ( $vars ) { $vars[] = 'wpcap_ticket'; $vars[] = 'wpcap_tref'; return $vars; } );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_render' ) );
 		OrderPortal::register();

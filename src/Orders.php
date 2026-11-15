@@ -94,16 +94,12 @@ final class Orders {
 		if ( is_wp_error( $billing ) ) { return $billing; }
 		$billing = $billing && ! Billing::is_empty( $billing ) ? $billing : array();
 
-		// Keep anonymous checkout abuse bounded without retaining raw IP addresses.
-		$ip = self::client_ip();
+		// Keep anonymous checkout abuse bounded without retaining raw IP addresses: per client network (IPv6 /64)
+		// and per network + normalised e-mail; a checkout that creates no order is taken back (Sales\CheckoutThrottle).
+		$throttle = null;
 		if ( ! $skip_rate_limit ) {
-			// Per IP alone and per IP+email, so rotating email addresses cannot bypass the limit. RateLimit::hit()
-			// counts atomically (object cache or wpcap_rate_limits), so parallel requests cannot share one old count.
-			$ip_key = 'wpcap_checkout_ip_' . self::rate_hash( $ip );
-			$rate_key = 'wpcap_checkout_' . self::rate_hash( $ip . '|' . strtolower( $email ) );
-			if ( ! RateLimit::hit( $ip_key, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ), HOUR_IN_SECONDS ) || ! RateLimit::hit( $rate_key, 8, HOUR_IN_SECONDS ) ) {
-				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
-			}
+			$throttle = Sales\CheckoutThrottle::check( $email, $hold_minutes );
+			if ( is_wp_error( $throttle ) ) { return $throttle; }
 		}
 
 		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
@@ -124,6 +120,7 @@ final class Orders {
 		if ( $check_buyer_limits ) {
 			$buyer_locks = Sales\BuyerLimits::acquire( $email, $customer_user_id );
 			if ( false === $buyer_locks ) {
+				Sales\CheckoutThrottle::refund( $throttle );
 				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 			}
 		}
@@ -343,6 +340,7 @@ final class Orders {
 		} catch ( \Throwable $error ) {
 			$wpdb->query( 'ROLLBACK' );
 			Sales\BuyerLimits::release( $buyer_locks );
+			Sales\CheckoutThrottle::refund( $throttle ); // No order: sold-out and other failed attempts do not use up the limit.
 			$messages = array(
 				'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
 				'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'pass-captain' ),
@@ -374,6 +372,7 @@ final class Orders {
 		Sales\BuyerLimits::release( $buyer_locks );
 
 		$pending = $total || $external;
+		if ( $throttle ) { Sales\CheckoutThrottle::record( $throttle, $pending ); }
 		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
 			self::issue_and_email( $order_id );
@@ -1237,14 +1236,9 @@ final class Orders {
 		return true;
 	}
 
-	/** Issues a new personal order access link (old link becomes invalid) and emails it. */
+	/** Issues a new personal order access link (old link becomes invalid) and emails it (Orders\PortalAccess). */
 	public static function rotate_access_link( $order_id ) {
-		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,customer_email FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
-		if ( ! $order ) { return false; }
-		$token = bin2hex( random_bytes( 32 ) );
-		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
-		return self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+		return Orders\PortalAccess::rotate( $order_id );
 	}
 
 	/** Returns tickets of an order with event context (no tokens). */
@@ -1281,13 +1275,9 @@ final class Orders {
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
 	}
 
+	/** Mails the personal order access link (Orders\PortalAccess). */
 	public static function send_order_access_link( $email, $public_id, $access_token, $locale = null ) {
-		global $wpdb;
-		$url = add_query_arg( array( 'wpcap_order' => $public_id, 'wpcap_access' => $access_token ), home_url( '/' ) );
-		if ( null === $locale ) {
-			$locale = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT locale FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', (string) $public_id ) );
-		}
-		return Mail\Mailer::send( 'order_access', sanitize_email( $email ), array( 'order_id' => (string) $public_id, 'access_link' => Mail\Mailer::link( $url ) ), array(), (string) $locale );
+		return Orders\PortalAccess::send( $email, $public_id, $access_token, $locale );
 	}
 
 	public static function transfer_ticket( $public_id, $access_token, $ticket_public_id, $recipient_email ) {

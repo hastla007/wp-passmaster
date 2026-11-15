@@ -22,7 +22,7 @@ final class Calendar {
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_ics' ), 1 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'attach_ics' ), 20, 3 );
-		add_filter( 'wp_pass_captain_event_card_html', array( __CLASS__, 'add_card_anchor' ), 5, 3 );
+		add_filter( 'wp_pass_captain_event_card_html_v1', array( __CLASS__, 'add_card_anchor' ), 5, 3 );
 	}
 
 	public static function settings_defaults() {

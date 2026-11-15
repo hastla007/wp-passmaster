@@ -51,6 +51,28 @@ final class RateLimit {
 	}
 
 	/**
+	 * Takes back one hit that hit() allowed on $key (e.g. a checkout that did not create an order), so
+	 * only successful actions use up the limit while the check itself stays atomic. Never goes below 0
+	 * and does not touch an expired window. Not undone in the transient fallback (before the table exists).
+	 *
+	 * @param string $key Counter name passed to hit().
+	 */
+	public static function refund( $key ) {
+		global $wpdb;
+		if ( self::object_cache() ) {
+			$done = function_exists( 'wp_cache_decr' ) ? wp_cache_decr( $key, 1, 'transient' ) : wp_cache_incr( $key, -1, 'transient' );
+			if ( false !== $done ) { return; }
+		}
+		if ( self::has_db() ) {
+			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+			$ok = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET hits=GREATEST(hits,1)-1 WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
+			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
+			if ( false !== $ok ) { return; }
+		}
+		// Transient fallback (table not created yet): best effort, the hit stays counted (its TTL is unknown here).
+	}
+
+	/**
 	 * Hits counted on $key in its current window, without counting one (0 when none or expired).
 	 * For limits that only count failures: check count() first, call hit() on a failure.
 	 */
