@@ -332,6 +332,9 @@ final class Status {
 					: sprintf( __( 'QR-Codes können nicht erzeugt werden: Die QR-Bibliothek (BaconQrCode) fehlt oder ein anderes Plugin lädt eine inkompatible Version (%s). Tickets zeigen dann keinen QR-Code.', 'pass-captain' ), '' !== $foreign ? $foreign : '-' ),
 			);
 		}
+		// Behind a proxy/CDN without trusted proxies every buyer shares a few addresses (checkout rate limit).
+		$proxy = \PassCaptain\Sales\CheckoutThrottle::status_issue();
+		if ( $proxy ) { $issues[] = $proxy; }
 		usort( $issues, static function ( $a, $b ) { return ( 'error' === $b['severity'] ) <=> ( 'error' === $a['severity'] ); } );
 		return $issues;
 	}

@@ -94,16 +94,12 @@ final class Orders {
 		if ( is_wp_error( $billing ) ) { return $billing; }
 		$billing = $billing && ! Billing::is_empty( $billing ) ? $billing : array();
 
-		// Keep anonymous checkout abuse bounded without retaining raw IP addresses.
-		$ip = self::client_ip();
+		// Keep anonymous checkout abuse bounded without retaining raw IP addresses: per client network (IPv6 /64)
+		// and per network + normalised e-mail; a checkout that creates no order is taken back (Sales\CheckoutThrottle).
+		$throttle = null;
 		if ( ! $skip_rate_limit ) {
-			// Per IP alone and per IP+email, so rotating email addresses cannot bypass the limit. RateLimit::hit()
-			// counts atomically (object cache or wpcap_rate_limits), so parallel requests cannot share one old count.
-			$ip_key = 'wpcap_checkout_ip_' . self::rate_hash( $ip );
-			$rate_key = 'wpcap_checkout_' . self::rate_hash( $ip . '|' . strtolower( $email ) );
-			if ( ! RateLimit::hit( $ip_key, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ), HOUR_IN_SECONDS ) || ! RateLimit::hit( $rate_key, 8, HOUR_IN_SECONDS ) ) {
-				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
-			}
+			$throttle = Sales\CheckoutThrottle::check( $email, $hold_minutes );
+			if ( is_wp_error( $throttle ) ) { return $throttle; }
 		}
 
 		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
@@ -124,6 +120,7 @@ final class Orders {
 		if ( $check_buyer_limits ) {
 			$buyer_locks = Sales\BuyerLimits::acquire( $email, $customer_user_id );
 			if ( false === $buyer_locks ) {
+				Sales\CheckoutThrottle::refund( $throttle );
 				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 			}
 		}
@@ -343,6 +340,7 @@ final class Orders {
 		} catch ( \Throwable $error ) {
 			$wpdb->query( 'ROLLBACK' );
 			Sales\BuyerLimits::release( $buyer_locks );
+			Sales\CheckoutThrottle::refund( $throttle ); // No order: sold-out and other failed attempts do not use up the limit.
 			$messages = array(
 				'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
 				'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'pass-captain' ),
@@ -374,6 +372,7 @@ final class Orders {
 		Sales\BuyerLimits::release( $buyer_locks );
 
 		$pending = $total || $external;
+		if ( $throttle ) { Sales\CheckoutThrottle::record( $throttle, $pending ); }
 		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
 			self::issue_and_email( $order_id );

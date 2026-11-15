@@ -34,9 +34,57 @@ final class BuyerLimits {
 		return new \WP_Error( $code, $message, array( 'status' => $status ) );
 	}
 
-	/** Normalised e-mail used for matching (filter `wpcap_buyer_limit_email`). */
+	/** Mail domains whose local part ignores dots (Gmail): a.b@gmail.com and ab@googlemail.com are one mailbox. */
+	const DOTLESS_DOMAINS = array( 'gmail.com', 'googlemail.com' );
+
+	/**
+	 * Normalised e-mail used for matching buyers (buyer limits, checkout rate limits): lowercase and
+	 * trimmed; with alias folding (default, filter `wpcap_buyer_email_aliases` returns false to switch it
+	 * off) a "+tag" in the local part is removed, and for Gmail the dots are removed and googlemail.com
+	 * becomes gmail.com – so a+1@gmail.com and a.b@googlemail.com cannot bypass a per-buyer limit.
+	 * The result passes the filter `wpcap_buyer_limit_email`.
+	 */
 	public static function normalize_email( $email ) {
-		return (string) apply_filters( 'wpcap_buyer_limit_email', strtolower( trim( (string) $email ) ) );
+		$email = strtolower( trim( (string) $email ) );
+		if ( self::fold_aliases() ) { $email = self::fold_alias( $email ); }
+		return (string) apply_filters( 'wpcap_buyer_limit_email', $email );
+	}
+
+	/** Whether e-mail aliases ("+tag", Gmail dots) are folded (filter `wpcap_buyer_email_aliases`, default true). */
+	public static function fold_aliases() {
+		return (bool) apply_filters( 'wpcap_buyer_email_aliases', true );
+	}
+
+	/** Folds "+tag" and Gmail dots of a lowercase address (unchanged when it has no single "@"). */
+	private static function fold_alias( $email ) {
+		$at = strrpos( $email, '@' );
+		if ( false === $at || 0 === $at ) { return $email; }
+		$local = substr( $email, 0, $at );
+		$domain = substr( $email, $at + 1 );
+		$plus = strpos( $local, '+' );
+		if ( false !== $plus && $plus > 0 ) { $local = substr( $local, 0, $plus ); }
+		if ( in_array( $domain, self::DOTLESS_DOMAINS, true ) ) {
+			$domain = 'gmail.com';
+			$local = str_replace( '.', '', $local );
+		}
+		return '' === $local ? $email : $local . '@' . $domain;
+	}
+
+	/**
+	 * SQL expression with the same folding as normalize_email() for a stored address column (without
+	 * the filter `wpcap_buyer_limit_email`, which SQL cannot follow). Without alias folding: LOWER(column).
+	 *
+	 * @param string $column Trusted column reference, e.g. "ord.customer_email".
+	 */
+	public static function email_sql( $column ) {
+		$lower = 'LOWER(TRIM(' . $column . '))';
+		if ( ! self::fold_aliases() ) { return $lower; }
+		$domain = "SUBSTRING_INDEX($lower,'@',-1)";
+		$local = "SUBSTRING_INDEX(SUBSTRING_INDEX($lower,'@',1),'+',1)";
+		$dotless = "$domain IN ('gmail.com','googlemail.com')";
+		// Same edge cases as fold_alias(): a leading "+" keeps the local part, a missing "@" keeps the address.
+		$local = "IF(LEFT(SUBSTRING_INDEX($lower,'@',1),1)='+',SUBSTRING_INDEX($lower,'@',1),$local)";
+		return "IF(LOCATE('@',$lower)>1,CONCAT(IF($dotless,REPLACE($local,'.',''),$local),'@',IF($dotless,'gmail.com',$domain)),$lower)";
 	}
 
 	/** Active limits of the events. @return object[] */
@@ -150,7 +198,7 @@ final class BuyerLimits {
 		$limit = (object) $limit;
 		$who = array();
 		$email = self::normalize_email( $email );
-		if ( in_array( $limit->match_by, array( 'email', 'both' ), true ) && '' !== $email ) { $who[] = $wpdb->prepare( 'LOWER(ord.customer_email)=%s', $email ); }
+		if ( in_array( $limit->match_by, array( 'email', 'both' ), true ) && '' !== $email ) { $who[] = $wpdb->prepare( self::email_sql( 'ord.customer_email' ) . '=%s', $email ); } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- constant expression.
 		if ( in_array( $limit->match_by, array( 'customer', 'both' ), true ) && absint( $user_id ) ) { $who[] = $wpdb->prepare( 'ord.customer_user_id=%d', absint( $user_id ) ); }
 		if ( ! $who ) { return 0; }
 		$scope = $wpdb->prepare( 'o.event_id=%d', (int) $limit->event_id );
