@@ -40,10 +40,16 @@ final class Checkin {
 		$now = self::now();
 		if ( 'offline' === ( $context['source'] ?? '' ) && ! empty( $context['scanned_at'] ) ) {
 			$ts = strtotime( $context['scanned_at'] . ' UTC' );
-			if ( $ts && $ts <= $now + 300 && $ts >= $now - Policies::offline_max_age_seconds() ) { return min( $ts, $now ); }
+			$max_age = Policies::offline_max_age_seconds();
+			// Uploads of the web scanner (visual check without package) get a shorter maximum age.
+			if ( isset( $context['max_age'] ) ) { $max_age = min( $max_age, max( 0, (int) $context['max_age'] ) ); }
+			if ( $ts && $ts <= $now + 300 && $ts >= $now - $max_age ) { return min( $ts, $now ); }
 		}
 		return $now;
 	}
+
+	/** Maximum age (seconds) of the device time of web scanner offline uploads (audit R2, Experte #3). */
+	const WEB_UPLOAD_MAX_AGE = HOUR_IN_SECONDS;
 
 	/** Internal error data that must not leave the server (ids used for conflict recording). */
 	const INTERNAL_KEYS = array( 'ticket_id', 'event_id', 'occurrence_id', 'checkin_id' );
@@ -148,20 +154,8 @@ final class Checkin {
 		$key = self::key_hash( $context );
 		$at = self::eval_time( $context );
 		if ( $key ) {
-			$previous = $wpdb->get_row( $wpdb->prepare( 'SELECT c.checkin_id,c.result,c.ticket_id FROM %i c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1', $p . 'wpcap_checkins', $user_id, $key ) );
-			if ( ! $previous && '' !== (string) $wpdb->last_error ) { return self::retry_error(); }
-			if ( $previous ) {
-				$found = self::lookup( $code, null, false );
-				if ( ! is_wp_error( $found ) && (int) $found['ticket_id'] === (int) $previous->ticket_id ) {
-					// A replay is answered only while the user may still admit this ticket here (access, device, date, area).
-					$denied = self::deny( $found, $context, 'in' );
-					if ( $denied ) { return $denied; }
-					$review_id = 'checked_in' === $previous->result && 'offline' === ( $context['source'] ?? '' ) ? Conflicts::find_by_dedupe( $user_id . '|' . $key ) : 0;
-					return 'checked_in' === $previous->result
-						? array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in', 'replayed' => true ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() )
-						: self::offline_conflict( self::result_error( $previous->result, $found, (int) $previous->checkin_id ), $found, $context, $key, (int) $previous->checkin_id );
-				}
-			}
+			$replay = self::replay( $code, $context, $key, $user_id );
+			if ( null !== $replay ) { return $replay; }
 		}
 		$found = self::lookup( $code, $at );
 		if ( is_wp_error( $found ) ) { return self::offline_conflict( $found, null, $context, $key ); }
@@ -172,6 +166,18 @@ final class Checkin {
 		$wpdb->query( 'START TRANSACTION' );
 		$ticket = $wpdb->get_row( $wpdb->prepare( 'SELECT ticket_id,status FROM %i WHERE ticket_id=%d FOR UPDATE', $p . 'wpcap_tickets', $found['ticket_id'] ) );
 		if ( '' !== $wpdb->last_error ) { return self::abort(); }
+		// Idempotency is decided under the ticket lock: the key is claimed atomically (primary key
+		// user + key + ticket). A parallel request with the same key waited for this lock; when the
+		// claim already exists, the first request has committed and its outcome is replayed.
+		if ( $key && $ticket ) {
+			$claimed = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (user_id,key_hash,ticket_id,created_at) VALUES (%d,%s,%d,%s)', $p . 'wpcap_checkin_claims', $user_id, $key, (int) $ticket->ticket_id, current_time( 'mysql', true ) ) );
+			if ( false === $claimed || self::db_failed() ) { return self::abort(); }
+			if ( 0 === (int) $claimed ) {
+				$wpdb->query( 'ROLLBACK' );
+				$replay = self::replay( $code, $context, $key, $user_id );
+				return null !== $replay ? $replay : self::retry_error();
+			}
+		}
 		$reentry = $ticket && 'checked_in' === $ticket->status ? self::reentry_block( $found, $at ) : null;
 		if ( null !== $reentry ) {
 			// Re-entry after check-out (settings reentry_after_checkout / max_reentries) for ticket types without own policy.
@@ -231,10 +237,12 @@ final class Checkin {
 		}
 		// A backdated offline scan that would be refused if evaluated now (e.g. second admission on a
 		// daily ticket claimed for "yesterday") is admitted as uploaded but recorded for review.
+		// Ticket types without own policy are checked against the default entry window (setting
+		// default_entry_window): a scan claimed for a time before admission closed is reviewed too.
 		$backdated = '';
 		$now = self::now();
-		if ( $policy && 'offline' === ( $context['source'] ?? '' ) && $at < $now - 15 * MINUTE_IN_SECONDS ) {
-			$backdated = Engine::evaluate_in( $policy, $found, $state, $now );
+		if ( 'offline' === ( $context['source'] ?? '' ) && $at < $now - 15 * MINUTE_IN_SECONDS ) {
+			$backdated = $policy ? Engine::evaluate_in( $policy, $found, $state, $now ) : Engine::default_window_block( $found, $now );
 		}
 		// Every write is checked: after a deadlock or lock timeout MariaDB has rolled the transaction
 		// back, and continuing would autocommit a "checked_in" log for a ticket that stayed valid.
@@ -333,11 +341,110 @@ final class Checkin {
 		return new \WP_Error( 'wpcap_checkout_forbidden', __( 'Check-out ist für deine Rolle nicht freigegeben.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden', 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] ) );
 	}
 
+	/**
+	 * Permission to take back the latest admission of a ticket (admin ticket screen, app undo).
+	 * Administrators and staff with wpcap_manage_orders for the event may always; roles in the setting
+	 * undo_roles as well. Everybody else (plain check-in staff) only undoes an own scan – same user or,
+	 * for apps, the same device – within undo_window_minutes (default 5; 0 = never).
+	 *
+	 * @param array $context device_id of the requesting app (optional).
+	 * @return \WP_Error|null
+	 */
+	public static function undo_denied( $ticket_id, $event_id, array $context = array() ) {
+		if ( current_user_can( 'manage_options' ) || Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return null; }
+		$allowed = array_filter( array_map( 'trim', explode( ',', (string) Security\Policy::get( 'undo_roles' ) ) ) );
+		if ( $allowed && array_intersect( $allowed, self::current_roles() ) ) { return null; }
+		$minutes = max( 0, (int) Security\Policy::get( 'undo_window_minutes' ) );
+		global $wpdb;
+		$last = $wpdb->get_row( $wpdb->prepare( "SELECT user_id,device_id,created_at FROM %i WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_checkins', (int) $ticket_id ) );
+		$device_id = absint( $context['device_id'] ?? 0 );
+		$own = $last && ( (int) $last->user_id === get_current_user_id() || ( $device_id && (int) $last->device_id === $device_id ) );
+		$recent = $last && strtotime( $last->created_at . ' UTC' ) >= time() - $minutes * MINUTE_IN_SECONDS;
+		if ( $minutes > 0 && $own && $recent ) { return null; }
+		$message = $minutes > 0
+			/* translators: %d: minutes */
+			? sprintf( __( 'Nur eigene Scans der letzten %d Minuten können zurückgenommen werden. Bitte die Einlassleitung fragen.', 'pass-captain' ), $minutes )
+			: __( 'Check-ins können nur von der Einlassleitung zurückgenommen werden.', 'pass-captain' );
+		return new \WP_Error( 'wpcap_undo_forbidden', $message, array( 'status' => 403, 'result' => 'forbidden' ) );
+	}
+
+	/**
+	 * Claims the idempotency key of an undo inside the caller's transaction (ticket row locked).
+	 *
+	 * @return int 1 claimed (first request), 0 already claimed (replay), -1 database error.
+	 */
+	public static function claim_key( $key, $ticket_id ) {
+		global $wpdb;
+		$claimed = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (user_id,key_hash,ticket_id,created_at) VALUES (%d,%s,%d,%s)', $wpdb->prefix . 'wpcap_checkin_claims', get_current_user_id(), hash( 'sha256', 'undo|' . (string) $key ), (int) $ticket_id, current_time( 'mysql', true ) ) );
+		if ( false === $claimed || '' !== (string) $wpdb->last_error ) { return -1; }
+		return (int) $claimed > 0 ? 1 : 0;
+	}
+
 	/** Roles of the current user (filter wpcap_checkout_user_roles). */
 	private static function current_roles() {
 		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
 		$roles = is_object( $user ) ? array_values( (array) ( get_object_vars( $user )['roles'] ?? array() ) ) : array();
 		return array_map( 'strval', (array) apply_filters( 'wpcap_checkout_user_roles', $roles, get_current_user_id() ) );
+	}
+
+	/**
+	 * Answer for a repeated idempotency key of this user (null: key unknown or used for another
+	 * ticket). An admission wins over later rejections logged under the same key, so a retry after a
+	 * lost response shows the original "OK" instead of "already used".
+	 *
+	 * @return array|\WP_Error|null
+	 */
+	private static function replay( $code, array $context, $key, $user_id ) {
+		global $wpdb;
+		$previous = $wpdb->get_row( $wpdb->prepare( "SELECT c.checkin_id,c.result,c.ticket_id FROM %i c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY (c.result='checked_in') DESC, c.checkin_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_checkins', $user_id, $key ) );
+		if ( ! $previous && '' !== (string) $wpdb->last_error ) { return self::retry_error(); }
+		if ( ! $previous ) { return null; }
+		$found = self::lookup( $code, null, false );
+		if ( is_wp_error( $found ) || (int) $found['ticket_id'] !== (int) $previous->ticket_id ) { return null; }
+		// A replay is answered only while the user may still admit this ticket here (access, device, date, area).
+		$denied = self::deny( $found, $context, 'in' );
+		if ( $denied ) { return $denied; }
+		$review_id = 'checked_in' === $previous->result && 'offline' === ( $context['source'] ?? '' ) ? Conflicts::find_by_dedupe( $user_id . '|' . $key ) : 0;
+		return 'checked_in' === $previous->result
+			? array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in', 'replayed' => true ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() )
+			: self::offline_conflict( self::result_error( $previous->result, $found, (int) $previous->checkin_id ), $found, $context, $key, (int) $previous->checkin_id );
+	}
+
+	/** Schema of the idempotency claims (one row per user + key + ticket, written under the ticket lock). */
+	public static function claims_schema( $table, $charset ) {
+		return "CREATE TABLE $table (
+				user_id bigint(20) unsigned NOT NULL,
+				key_hash char(64) NOT NULL,
+				ticket_id bigint(20) unsigned NOT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (user_id,key_hash,ticket_id),
+				KEY created_at (created_at)
+			) ENGINE=InnoDB $charset;";
+	}
+
+	/**
+	 * Deletes idempotency claims older than 7 days (retries arrive within minutes; offline uploads
+	 * within the offline maximum age). Replays of older keys are still answered from the check-in log.
+	 */
+	public static function purge_claims( $now = null, $deadline = null, $batch = 5000 ) {
+		global $wpdb;
+		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? time() : (int) $now ) - 7 * DAY_IN_SECONDS );
+		$total = 0;
+		do {
+			$deleted = (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE created_at<%s LIMIT %d', $wpdb->prefix . 'wpcap_checkin_claims', $cutoff, (int) $batch ) );
+			$total += max( 0, $deleted );
+		} while ( $deleted >= $batch && ( null === $deadline || microtime( true ) < $deadline ) );
+		return $total;
+	}
+
+	/**
+	 * Whether the last database statement failed (every query resets/sets the error).
+	 *
+	 * @phpstan-impure
+	 */
+	private static function db_failed() {
+		global $wpdb;
+		return '' !== (string) $wpdb->last_error;
 	}
 
 	/** Rolls back a failed check-in transaction and returns a retryable error (nothing was booked). */

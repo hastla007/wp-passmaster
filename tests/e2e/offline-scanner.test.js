@@ -100,10 +100,11 @@ test('pair, load the signed package, scan offline into the IndexedDB queue, sync
 	assert.match(await p.locator('#pending').innerText(), /1/);
 	assert.equal(helper('ticket', door.codes[0]).checkins, 0, 'server does not know the scan yet');
 
-	// Same ticket again while offline: refused locally.
+	// Same ticket again while offline: refused locally – admitted here a moment ago, so yellow (audit R2 #6).
 	await p.fill('#manual-code', door.codes[0]);
 	await p.click('#manual button[type="submit"]');
-	await p.waitForFunction(() => document.getElementById('result').classList.contains('bad'));
+	await p.waitForFunction(() => document.getElementById('result').classList.contains('warn'));
+	assert.match(await p.locator('#result-title').innerText(), /\d+ s/);
 
 	// Back online: the "online" event triggers refresh + sync.
 	await ctx.setOffline(false);

@@ -13,10 +13,21 @@
  *
  * The signed document is the exact JSON string in `payload`; the Ed25519 signature (base64) covers
  * its UTF-8 bytes. Devices must verify before parsing and use only the signed fields.
+ *
+ * Formats (request parameter `format`, default 1 for existing clients):
+ *  - v1: `tickets` = [{h: sha256 hex, s: status, t: ticket type, n?: attendee name}, ...].
+ *  - v2 (compact, ~40 % of v1): `hash_prefix` = 32, `rows` = [[ticket type, status digit, the
+ *    concatenated first 32 hex digits of every ticket hash of that type and status], ...] with status
+ *    digits 0 revoked, 1 valid, 2 checked_in (revoked rows carry type 0); attendee names (opt-in per
+ *    event) in `names` = {hash prefix: name}. 128 bit of the hash identify a ticket as safely as the
+ *    full hash for this purpose (a forged code would need a 128-bit preimage).
+ * Both formats carry per ticket type max_entries and valid_days (local entry counters of the PWA) and
+ * the day cutoff hour of the occurrence.
  */
 namespace PassCaptain\OfflineScanner;
 
 use PassCaptain\Admission\Areas;
+use PassCaptain\Admission\Engine;
 use PassCaptain\Admission\Policies;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -24,6 +35,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Package {
 	const FORMAT = 'wpcap-offline-package';
 	const VERSION = 1;
+	/** Newest supported format version (compact rows); clients ask for it with format=2. */
+	const VERSION_COMPACT = 2;
+	/** Hex digits of the ticket hash shipped in the compact format. */
+	const HASH_PREFIX = 32;
+	/** Status digits of the compact format. */
+	const STATUS_DIGITS = array( 'revoked' => 0, 'valid' => 1, 'checked_in' => 2 );
 
 	/** Ticket statuses shipped as admissible/used; everything else is "revoked". */
 	const SHIPPED = array( 'valid', 'checked_in' );
@@ -109,9 +126,11 @@ final class Package {
 	 * @param object      $device     Device row.
 	 * @param object      $occurrence Occurrence row with event_name, event_status.
 	 * @param string|null $since      Cursor of the device's current package.
+	 * @param int         $format     Payload format version (1 or 2, see class doc).
 	 * @return array Response body: alg, key_id, payload (signed JSON string), signature, kind, cursor, expires_at.
 	 */
-	public static function build( $device, $occurrence, $since = null ) {
+	public static function build( $device, $occurrence, $since = null, $format = self::VERSION ) {
+		$format = self::VERSION_COMPACT === (int) $format ? self::VERSION_COMPACT : self::VERSION;
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = (int) $occurrence->event_id;
@@ -126,16 +145,38 @@ final class Package {
 			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT token_hash,status,ticket_type_id,attendee_name FROM %i WHERE occurrence_id=%d AND version>%d ORDER BY token_hash', $p . 'wpcap_offline_entries', (int) $occurrence->occurrence_id, $from ) );
 		}
 		$tickets = array();
+		$compact = array();
+		$shipped_names = array();
 		foreach ( $rows as $row ) {
+			$revoked = 'revoked' === $row->status;
+			$name = $names && ! $revoked ? (string) $row->attendee_name : '';
+			if ( self::VERSION_COMPACT === $format ) {
+				$prefix = substr( strtolower( (string) $row->token_hash ), 0, self::HASH_PREFIX );
+				$group = ( $revoked ? 0 : (int) $row->ticket_type_id ) . ':' . ( self::STATUS_DIGITS[ $row->status ] ?? 0 );
+				$compact[ $group ] = ( $compact[ $group ] ?? '' ) . $prefix;
+				if ( '' !== $name ) { $shipped_names[ $prefix ] = $name; }
+				continue;
+			}
 			$entry = array( 'h' => $row->token_hash, 's' => $row->status );
-			if ( 'revoked' !== $row->status ) { $entry['t'] = (int) $row->ticket_type_id; }
-			if ( $names && '' !== (string) $row->attendee_name && 'revoked' !== $row->status ) { $entry['n'] = (string) $row->attendee_name; }
+			if ( ! $revoked ) { $entry['t'] = (int) $row->ticket_type_id; }
+			if ( '' !== $name ) { $entry['n'] = $name; }
 			$tickets[] = $entry;
 		}
+		$count = self::VERSION_COMPACT === $format ? count( $rows ) : count( $tickets );
 		$types = array();
+		$found = array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'event_id' => $event_id, 'starts_at' => (string) $occurrence->starts_at, 'ends_at' => $occurrence->ends_at ? (string) $occurrence->ends_at : '', 'timezone' => (string) $occurrence->timezone );
 		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,name FROM %i WHERE occurrence_id=%d ORDER BY ticket_type_id', $p . 'wpcap_ticket_types', (int) $occurrence->occurrence_id ) ) as $type ) {
 			$policy = Policies::for_type( (int) $type->ticket_type_id );
-			$types[] = array( 'id' => (int) $type->ticket_type_id, 'name' => (string) $type->name, 'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ), 'policy' => $policy ? $policy['policy'] : 'single', 'multi' => $policy && 'single' !== $policy['policy'] );
+			$types[] = array(
+				'id' => (int) $type->ticket_type_id,
+				'name' => (string) $type->name,
+				'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ),
+				'policy' => $policy ? $policy['policy'] : 'single',
+				'multi' => $policy && 'single' !== $policy['policy'],
+				// Local entry counters of the PWA (daily: once per valid day, multi_entry/reentry: max).
+				'max_entries' => $policy ? (int) $policy['max_entries'] : 1,
+				'valid_days' => $policy ? Policies::valid_days( $policy, $found ) : null,
+			);
 		}
 		$areas = array_map( static function ( $a ) { return array( 'id' => (int) $a->area_id, 'name' => (string) $a->name ); }, Areas::for_event( $event_id ) );
 		$area_id = \PassCaptain\Mobile\Devices::area_id( $device );
@@ -145,7 +186,7 @@ final class Package {
 		$kid = Keys::active_id();
 		$payload = array(
 			'format' => self::FORMAT,
-			'v' => self::VERSION,
+			'v' => $format,
 			'kind' => $kind,
 			'site' => home_url( '/' ),
 			'device_id' => (string) $device->public_id,
@@ -158,11 +199,22 @@ final class Package {
 			'cursor' => $cursor,
 			'rules' => array( 'max_offline_hours' => $rules['max_offline_hours'], 'duplicate_policy' => $rules['duplicate_policy'], 'attendee_names' => $names ),
 			'device_area_id' => $area_id ?: null,
+			'day_cutoff_hour' => Engine::day_cutoff_hour( $found ),
 			'hash' => 'sha256',
 			'ticket_types' => $types,
 			'areas' => $areas,
-			'tickets' => $tickets,
 		);
+		if ( self::VERSION_COMPACT === $format ) {
+			$payload['hash_prefix'] = self::HASH_PREFIX;
+			$payload['rows'] = array();
+			foreach ( $compact as $group => $hashes ) {
+				list( $type_id, $digit ) = array_map( 'intval', explode( ':', $group ) );
+				$payload['rows'][] = array( $type_id, $digit, $hashes );
+			}
+			if ( $shipped_names ) { $payload['names'] = $shipped_names; }
+		} else {
+			$payload['tickets'] = $tickets;
+		}
 		$json = (string) wp_json_encode( $payload );
 		$signed = Keys::sign( $json, $expires );
 		if ( $signed['key_id'] !== $kid ) {
@@ -178,7 +230,8 @@ final class Package {
 			'signature' => $signed['signature'],
 			'kind' => $kind,
 			'cursor' => $cursor,
-			'count' => count( $tickets ),
+			'count' => $count,
+			'format' => $format,
 			'expires_at' => gmdate( 'c', $expires ),
 		);
 	}

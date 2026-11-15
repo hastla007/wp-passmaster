@@ -7,8 +7,9 @@
  *    the maximum age of an offline scan at upload; older scans are flagged for review.
  *  - duplicate_policy: how a ticket admitted offline on two devices is handled at sync.
  *      review           – the later upload becomes an open admission conflict ("Einlass-Konflikte").
- *      first_sync_wins  – the first uploaded admission counts; later duplicates are recorded and
- *                         resolved automatically as "Doppelscan" (still visible in the history).
+ *      first_sync_wins  – the first uploaded admission counts; later duplicates of the same device or
+ *                         user are recorded and resolved automatically as "Doppelscan" (still visible
+ *                         in the history); duplicates from another device stay open for review.
  *  - include_attendee: attendee names in packages; only effective while the global setting
  *    scanner_show_attendee is on. Default: token hashes only.
  */
@@ -26,7 +27,7 @@ final class Rules {
 	public static function policy_labels() {
 		return array(
 			'review' => __( 'Zur Prüfung markieren (offener Einlass-Konflikt)', 'pass-captain' ),
-			'first_sync_wins' => __( 'Erste Synchronisierung gewinnt (Doppelscan automatisch geklärt)', 'pass-captain' ),
+			'first_sync_wins' => __( 'Erste Synchronisierung gewinnt (Doppelscan am selben Gerät automatisch geklärt, geräteübergreifend zur Prüfung)', 'pass-captain' ),
 		);
 	}
 

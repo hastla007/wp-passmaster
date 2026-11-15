@@ -21,7 +21,7 @@ offline sync (`POST /app/scan/sync`, see [MOBILE-API.md](MOBILE-API.md)).
 |---|---|---|
 | `enabled` | off | Only opted-in events deliver packages (`403 wpcap_offline_disabled` otherwise). |
 | `max_offline_hours` | 12 (1–72) | Package lifetime (`expires_at = issued_at + hours`). Uploaded offline scans older than this are admitted, but recorded as an open conflict `offline_expired`. |
-| `duplicate_policy` | `review` | Rule for a ticket admitted offline on two devices. `review`: the later upload becomes an open conflict. `first_sync_wins`: the first upload counts; the later one is still recorded but resolved automatically as `duplicate_scan` (`resolved_by = 0`, audit `admission_conflict_auto_resolved`). |
+| `duplicate_policy` | `review` | Rule for a ticket admitted offline on two devices. `review`: the later upload becomes an open conflict. `first_sync_wins`: the first upload counts; a later duplicate of the **same device** (or, without devices, the same user) is still recorded but resolved automatically as `duplicate_scan` (`resolved_by = 0`, audit `admission_conflict_auto_resolved`). The same code admitted on **another device** (e.g. a shared screenshot) stays an open conflict with `cross_device: true`; staff resolve it, e.g. as `duplicate_admission` („Doppel-Einlass auf verschiedenen Geräten“). "Einlass-Konflikte" shows the count of cross-device double admissions (open / total / confirmed) and the tickets with the most check-in undos. |
 | `include_attendee` | off | Ships attendee names, but only while the global setting `scanner_show_attendee` is on as well. Never e-mails. |
 
 The Admission setting `offline_max_age_hours` still decides at which time an offline scan is
@@ -58,16 +58,22 @@ Public (no token, the pairing screen needs it before a device token exists; it o
 
 Existing responses are also extended:
 
-- `POST /app/pair` adds `offline: {keys, package_format}`, which delivers the public keys at pairing.
+- `POST /app/pair` adds `offline: {keys, package_format, package_formats}`, which delivers the public keys at pairing (`package_formats`: the supported payload versions, `[1, 2]`).
 - `GET /app/me` sets `features.offline_packages = true`.
-- `POST /app/scan/sync` result rows gain `offline_rules`, `auto_resolved`, `offline_expired` and `conflict_status`.
+- `POST /app/scan/sync` result rows gain `offline_rules`, `auto_resolved`, `cross_device` (double admissions), `offline_expired` and `conflict_status`.
 
 ### Package response
 
 ```json
 { "alg": "Ed25519", "key_id": "…16 hex…", "payload": "<JSON string>", "signature": "<base64>",
-  "kind": "full|delta", "cursor": "<epoch>.<version>", "count": 3, "expires_at": "…" }
+  "kind": "full|delta", "cursor": "<epoch>.<version>", "count": 3, "format": 1, "expires_at": "…" }
 ```
+
+`GET /app/offline/package?occurrence_id=&since=&format=2` – `format=2` asks for the compact payload
+(below); without it existing clients keep getting format 1. When the request accepts gzip
+(`Accept-Encoding: gzip`), zlib is available and PHP does not compress the output itself, the body is
+sent with `Content-Encoding: gzip` (from 1 KB on); browsers inflate it transparently and the signed
+payload string is unchanged.
 
 The signature covers the exact UTF-8 bytes of `payload`. Clients must verify the signature first,
 then parse `payload`, and use only the signed fields. The fields outside `payload` are convenience copies.
@@ -80,11 +86,32 @@ Signed payload (`v` = package format version 1):
   "event": {"id": 1, "name": "…"}, "occurrence": {"id": 2, "starts_at": "…", "ends_at": null, "timezone": "Europe/Vienna", "status": "scheduled"},
   "issued_at": "…", "expires_at": "…", "since": null, "cursor": "a1b2c3d4e5f60718.7",
   "rules": {"max_offline_hours": 12, "duplicate_policy": "review", "attendee_names": false},
-  "device_area_id": null, "hash": "sha256",
-  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false}],
+  "device_area_id": null, "day_cutoff_hour": 0, "hash": "sha256",
+  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false, "max_entries": 1, "valid_days": null}],
   "areas": [{"id": 3, "name": "Eingang Nord"}],
   "tickets": [{"h": "<sha256(code) hex>", "s": "valid|checked_in|revoked", "t": 5, "n": "Name (optional)"}] }
 ```
+
+Format 2 (`"v": 2`, compact, about 35 % of format 1) replaces `tickets` with
+
+```json
+  "hash_prefix": 32,
+  "rows": [[5, 1, "<32 hex><32 hex>…"], [5, 2, "<32 hex>…"], [0, 0, "<32 hex>…"]],
+  "names": {"<32 hex>": "Name"}
+```
+
+Each row is `[ticket type, status digit, concatenation of the first 32 hex digits of every ticket hash
+with this type and status]`; status digits: `0` revoked (type `0`), `1` valid, `2` checked_in. `names`
+only exists with attendee names (opt-in per event, see `include_attendee`). 128 bits of the hash
+identify a ticket for this purpose as safely as the full hash (a forged code would need a 128-bit
+preimage); the app keys its index by these 32 digits for both formats.
+
+`max_entries` and `valid_days` (the service days of `daily`/`multi_day` types, `null` = no day
+restriction) and `day_cutoff_hour` feed the app's local entry counters (see below).
+
+Measured with 50,000 tickets of one occurrence (`Package::build`, no names): format 1 payload 4.34 MB,
+HTTP body 4.82 MB, gzip 1.83 MB; format 2 payload/body 1.53 MB, gzip 0.86 MB. A compact delta after
+20,000 check-ins: 0.61 MB, gzip 0.35 MB.
 
 What the package contains:
 
@@ -93,6 +120,9 @@ What the package contains:
   becomes `revoked` when its ticket is revoked, when its code is reissued (the old hash goes away), or
   when the occurrence or event is cancelled.
 - An unknown epoch or a future cursor gives a full package.
+- Any older cursor of the same epoch is a valid `since`: after 30 deltas the app asks with
+  `since=<cursor of its full package>` and gets one compact delta with all changes since then, instead
+  of downloading the full package again.
 - Every package (including an empty delta) renews `expires_at`.
 - Hashes are `sha256` of the 64-hex ticket code (the same as `wpcap_tickets.token_hash`).
 - Ticket codes, e-mails and order data are never included.
@@ -191,14 +221,29 @@ everywhere, whatever the setting.
   - Expired packages (they may carry attendee names) are deleted at start and every 30 s; the next
     online refresh loads a new one.
 - **Scanning:**
+  - Every scan shows the neutral state „Prüfe …“ at once, so the previous guest's result is never
+    visible during a check. A result stays about 4 s, then the app shows „Bereit“ again. The same code
+    is ignored for 10 s (a QR code held in front of the camera). A rejection for a code this device
+    admitted within the last 5 minutes (server „already used“ or a local limit) is shown yellow as
+    „Eben hier eingelassen (vor X s)“ instead of red.
+  - Feedback: vibration and a short WebAudio tone (high = admitted, double = warning, low = rejected),
+    switchable with the „Ton an/aus“ button (kept in IndexedDB `kv.sound`). The camera uses continuous
+    autofocus and offers a torch switch where the browser supports them.
   - Online, the app calls `POST /app/scan/check-in` with an idempotency key (5 s timeout).
-  - On a network error or 5xx it decides offline. It normalizes the code like the server, computes
+  - On a network error, 5xx (including the database retry, HTTP 503 with `result: "retry"`) it decides
+    offline. It normalizes the code like the server, computes
     its SHA-256 with WebCrypto and looks the hash up in the package. Signed QR codes (PC1) are
     verified locally first and matched by code version (see above).
   - A ticket is refused offline when it is unknown, revoked, already used (single entry: package
     status or the local log), in the wrong area (the type's area restriction against the device's or
     the selected area), or when the package is missing or expired.
-  - Multi-entry types are admitted offline. The server checks their limits at sync.
+  - Multi-entry types are limited by local counters per hash from the device's own scan log (online
+    and offline admissions of the last day; pending scans always): `daily`/`multi_day` once per service
+    day (occurrence timezone and day cutoff hour, `valid_days`), `multi_entry` up to `max_entries`,
+    `reentry` not while the ticket is inside (the PWA has no check-out, so once per device). Entries on
+    other devices are only known to the server; it checks the limits again at sync.
+- **Package download:** 120 s timeout (full packages of large events on weak networks) with the
+  received kilobytes shown in the package box; format 2 is requested.
 - **Log and sync:** every scan is logged locally with its idempotency key. Offline admissions are
   uploaded through `POST /app/scan/sync` (batches of 200) when the device is online, on reconnect and
   every 30 s. The ticket code is kept only until the upload succeeded. Server conflicts, including

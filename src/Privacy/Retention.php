@@ -131,7 +131,7 @@ final class Retention {
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
-		$steps = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs', 'rate_limits' );
+		$steps = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'reservations', 'jobs', 'rate_limits', 'checkin_claims' );
 		foreach ( $steps as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
 		}
@@ -661,5 +661,10 @@ final class Retention {
 	/** Expired rate-limit counters (wpcap_rate_limits, index expires_at; keyed hashes only, always on). */
 	private static function step_rate_limits( $now, $deadline ) {
 		return \PassCaptain\RateLimit::purge_expired( $now, $deadline, self::BATCH * 10 );
+	}
+
+	/** Idempotency claims of check-ins older than 7 days (no personal data, always on). */
+	private static function step_checkin_claims( $now, $deadline ) {
+		return \PassCaptain\Checkin::purge_claims( $now, $deadline, self::BATCH * 10 );
 	}
 }

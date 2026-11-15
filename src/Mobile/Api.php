@@ -143,23 +143,35 @@ final class Api {
 		return self::scan_response( Checkin::check_out( $request->get_param( 'code' ), $context ) );
 	}
 
+	/**
+	 * Takes back the latest admission of a ticket. Requires an idempotency_key (a retried request never
+	 * removes a second entry). Staff without wpcap_manage_orders may only undo their own scans (same
+	 * user or this device) within the undo window (setting undo_window_minutes); roles listed in
+	 * undo_roles may undo any admission of their events.
+	 */
 	public static function undo( \WP_REST_Request $request ) {
+		$key = sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) );
+		if ( '' === $key ) {
+			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
 		$found = Checkin::lookup( $request->get_param( 'code' ) );
 		if ( is_wp_error( $found ) ) { return self::scan_response( $found ); }
 		if ( ! in_array( (int) $found['event_id'], Devices::event_ids( Devices::current() ), true ) ) {
 			return self::scan_response( new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'pass-captain' ), array( 'result' => 'wrong_event' ) ) );
 		}
+		$reason = \PassCaptain\Security\Input::text( $request->get_param( 'reason' ) );
+		$device_id = (int) Devices::current()->device_id;
 		$policy = Policies::for_type( $found['ticket_type_id'] );
 		if ( $policy && 'single' !== $policy['policy'] ) {
 			if ( ! \PassCaptain\Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin', $found['event_id'] ) ) {
 				return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
 			}
-			$result = Engine::undo_last( $found, \PassCaptain\Security\Input::text( $request->get_param( 'reason' ) ) );
+			$result = Engine::undo_last( $found, $reason, array( 'idempotency_key' => 'app:' . $key, 'device_id' => $device_id ) );
 		} else {
-			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => \PassCaptain\Security\Input::text( $request->get_param( 'reason' ) ) ) );
+			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => $reason, 'idempotency_key' => 'app:' . $key, 'device_id' => $device_id ) );
 		}
 		if ( is_wp_error( $result ) ) { return self::scan_response( $result ); }
-		return rest_ensure_response( array( 'ok' => true, 'result' => 'undone', 'ticket_public_id' => $found['public_id'] ) );
+		return rest_ensure_response( array_merge( array( 'ok' => true, 'result' => 'undone', 'ticket_public_id' => $found['public_id'] ), ! empty( $result['replayed'] ) ? array( 'replayed' => true ) : array() ) );
 	}
 
 	/**
@@ -218,11 +230,18 @@ final class Api {
 		return array( 'event_ids' => Devices::event_ids( $device ), 'device_id' => (int) $device->device_id, 'occurrence_id' => absint( $request->get_param( 'occurrence_id' ) ), 'area_id' => Devices::area_id( $device ) ?: absint( $request->get_param( 'area_id' ) ) );
 	}
 
-	/** Scan outcomes as 200 responses; authentication/validation problems stay HTTP errors. */
+	/**
+	 * Scan outcomes as 200 responses; authentication/validation problems stay HTTP errors. A transient
+	 * database error (retryable, nothing booked) is HTTP 503, so apps treat it like an outage and fall
+	 * back to their offline decision instead of showing a rejection.
+	 */
 	private static function scan_response( $outcome ) {
 		if ( is_wp_error( $outcome ) ) {
 			$data = (array) $outcome->get_error_data();
 			if ( in_array( (int) ( $data['status'] ?? 0 ), array( 401, 429 ), true ) ) { return $outcome; }
+			if ( ! empty( $data['retryable'] ) ) {
+				return new \WP_Error( $outcome->get_error_code(), $outcome->get_error_message(), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
+			}
 		}
 		return rest_ensure_response( self::scan_payload( $outcome ) );
 	}

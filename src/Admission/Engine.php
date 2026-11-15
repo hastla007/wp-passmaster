@@ -244,7 +244,7 @@ final class Engine {
 	 *
 	 * @return array|\WP_Error
 	 */
-	public static function undo_last( array $found, $reason = '' ) {
+	public static function undo_last( array $found, $reason = '', array $context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		// Every step is checked: an undo reported as done must really have freed the entry.
@@ -252,9 +252,20 @@ final class Engine {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
 		};
+		$denied = \PassCaptain\Checkin::undo_denied( (int) $found['ticket_id'], (int) $found['event_id'], $context );
+		if ( $denied ) { return $denied; }
+		$key = (string) ( $context['idempotency_key'] ?? '' );
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$wpdb->get_row( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE ticket_id=%d FOR UPDATE', $p . 'wpcap_tickets', (int) $found['ticket_id'] ) );
-		if ( '' !== (string) $wpdb->last_error || false === self::state_for_update( $found['ticket_id'] ) ) { return $busy(); }
+		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
+		// A retried undo (same key) is answered as done without removing a second entry.
+		$claim = '' !== $key ? \PassCaptain\Checkin::claim_key( $key, (int) $found['ticket_id'] ) : 1;
+		if ( $claim < 0 ) { return $busy(); }
+		if ( 0 === $claim ) {
+			$wpdb->query( 'ROLLBACK' );
+			return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'], 'replayed' => true );
+		}
+		if ( false === self::state_for_update( $found['ticket_id'] ) ) { return $busy(); }
 		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM %i WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT 1", $p . 'wpcap_admission_entries', (int) $found['ticket_id'] ) );
 		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
 		if ( ! $entry ) {
@@ -262,7 +273,7 @@ final class Engine {
 			return new \WP_Error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), array( 'status' => 409, 'result' => 'not_checked_in' ) );
 		}
 		$now = current_time( 'mysql', true );
-		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'created_at' => $now ) );
+		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'device_id' => absint( $context['device_id'] ?? 0 ), 'created_at' => $now ) );
 		$undo_id = '' === (string) $wpdb->last_error ? (int) $wpdb->insert_id : 0;
 		if ( ! $undo_id ) { return $busy(); }
 		if ( false === self::revert_last_entry( (int) $found['ticket_id'], $undo_id ) ) { return $busy(); }

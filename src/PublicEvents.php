@@ -90,6 +90,10 @@ final class PublicEvents {
 			'invalid' => __( 'Ticket nicht gültig.', 'pass-captain' ),
 			'noCamera' => __( 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.', 'pass-captain' ),
 			'cameraError' => __( 'Kamerazugriff nicht möglich:', 'pass-captain' ),
+			'timeout' => __( 'Keine Antwort vom Server.', 'pass-captain' ),
+			'soundOn' => __( 'Ton an', 'pass-captain' ),
+			'soundOff' => __( 'Ton aus', 'pass-captain' ),
+			'torch' => __( 'Taschenlampe', 'pass-captain' ),
 		) ) );
 	}
 

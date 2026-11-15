@@ -99,6 +99,7 @@ Zustandsautomaten. Geeignet als nächtlicher Lauf; derzeit in keinem Workflow ei
 | `zzzzzz_z4_csp.php` | Audit-Panel 2026-11-15, Paket Z4 (FE-8): strikte CSP der vollständig vom Plugin ausgegebenen Seiten (Ticketseite, Rechnungen, Einwilligungsseite; Filter, Header-Injection), keine Inline-Event-Handler in `src/`, Druck-Buttons über `assets/print.js`, Admin-Bestätigungen über `data-wpcap-confirm`. |
 | `zzzzzz_z4_sms_otp.php` | Audit-Panel 2026-11-15, Paket Z4 (PRIV-16): SMS-Opt-in nur mit per Code bestätigter Nummer – Code-Anforderung (Nummernprüfung, Same-Origin, Limits je Nummer/IP/Site, Wartezeit), nur Hashes gespeichert, 5 Versuche, Ablauf 10 min, einmalige Verwendung im Checkout, Nachweis (verified_at, Audit), unbestätigte Opt-ins ohne SMS, Altbestand gültig, Export, Löschung nach einem Tag, Upgrade. |
 | `zzzzzzz_r8_abuse_arch.php` | Audit Runde 2, Paket R8: Checkout-Limit hinter Proxy/CDN (Erkennung, Aussetzen/Anheben, Systemstatus), Rückbuchung bei „ausverkauft“, IPv6-/64, unbezahlte Bestellungen je Netz, E-Mail-Aliase (PHP und SQL), Übernahme der Altkopie im selben Request, Downgrade-Erkennung, Deinstallation großer Netzwerke, `Orders\PortalAccess`. Der Hook-Vertrag mit Argumentzahl steht in `hooks_contract.php`. |
+| `zzzzzzz_r4_scanner.php` | Audit Runde 2, Paket R4 (Experten #6/#3): atomare Idempotenzschlüssel (parallele Prozesse über `workers/r4_worker.php`: Mehrfachticket zählt 1 Einlass, Einzelticket-Retry bekommt das Original-OK, Offline-Upload ohne Scheinkonflikt; Replay bevorzugt den Einlass; Claim-Tabelle und Bereinigung), Mobile-API-Retry als HTTP 503, Undo nur mit Schlüssel (idempotent), Undo-Zeitfenster/-Rollen/eigenes Gerät, Konfliktbericht (Doppel-Einlässe geräteübergreifend, Undos pro Ticket), `first_sync_wins` nur bei gleichem Gerät, Rückdatierung ohne Einlassregel, Web-Upload höchstens 1 h, Offline-Paket Format 2 (Zähler je Ticketart, Kompaktdelta) und gzip. |
 | `zzzzzz_y4_privacy.php` | Audit-Panel 2026-11-15, Paket Y4 (Datenschutz): Fristlöschung nach gesetzlicher Frist, Wartelisten, Terminbuchungen, Pässe, SMS, Einlass, Gerätebezeichnungen; Rechnungsanschrift unbezahlter Bestellungen; Einwilligungen nur für die betroffene Person; Wallet-Aktualisierung ohne Namen; Maskierung der Wartelisten für Support; WooCommerce-Teilnehmerkopie; schlüsselbasierte Rate-Limit-Hashes; Redaktion von Telefon/IBAN/IP; Exporter-/Löscherlücken; Affiliate-Cookie ohne Consent-API; Deinstallations-Bestätigung; Webhook-Altzustellungen; Partner-API-Audit. |
 
 Gemeinsamer Fehler-Proxy für `$wpdb`: `tests/integration/lib/fault_wpdb.php` (`wpcap_faults()`,
@@ -298,12 +299,12 @@ tests/ci/browser-tests.sh all
 |---|---|
 | `checkout.test.js` | Haltezeit-Texte, `money()` wie `Format::money()`, Summe und Teilnehmer-Fieldsets, Validierung, Fehlerzusammenfassung (Fokus, ARIA), Server-Fehler → Feld, Rechnungsdaten, REST-Payload, Idempotency-Key |
 | `pos.test.js` | Kasse: Betragsformat/-parser, Summe, Rückgeld, Karte/frei, Teilnehmerfelder, Doppel-Submit, Verfügbarkeits-Refresh |
-| `scanner.test.js` | Web-Scanner: Online-Check-in, Serverfehler, Offline nie automatisch eingelassen, Warteschlange pro Benutzer, Ablauf nach 24 h, Sync in 100er-Blöcken, Einlassmodul, Kamera verweigert/fehlt |
+| `scanner.test.js` | Web-Scanner: Online-Check-in, Serverfehler, Offline nie automatisch eingelassen, Warteschlange pro Benutzer, Ablauf nach 24 h, Sync in 100er-Blöcken, Einlassmodul, Kamera verweigert/fehlt, 5-s-Timeout mit Zustand `pending` und Schlüsselübernahme in die Warteschlange, Teilnehmername, Töne (abschaltbar), Taschenlampe/Dauerfokus |
 | `order-portal.test.js` | Übertragung mit Bestätigungsdialog, Teilnehmerzuweisung, erneuter Versand, Rechnungsdaten |
 | `seating-picker.test.js` | Saalplan: Rollen/Labels, Listen-Fallback, Auswahl, Tastatur, Stehplätze, Mengenänderung, Payload |
 | `csp.test.js` | FE-8: Admin-Bestätigungsdialoge (`data-wpcap-confirm` an Buttons/Formularen, Abbrechen verhindert das Absenden), Auto-Submit, Select-on-Focus, Druck-Buttons und Auto-Druck (`assets/print.js`); statische Prüfung: keine Inline-Event-Handler in `src/` und `assets/` |
 | `sms-checkout.test.js` | PRIV-16: SMS-Opt-in mit Bestätigungscode – Code anfordern/bestätigen, Fehlertexte, Enter im Codefeld, Token im Payload, Nummernwechsel verwirft die Bestätigung, ohne Bestätigung keine Bestellung mit Opt-in, Einstellung aus |
-| `offline-scanner.test.js` | PWA: i18n, Kopplung, Ed25519-Paketprüfung, Delta-Kette, Offline-Entscheidung, IndexedDB-Warteschlange und Sync mit Konflikten, Serverausfall, 401 |
+| `offline-scanner.test.js` | PWA: i18n, Kopplung, Ed25519-Paketprüfung, Delta-Kette, Offline-Entscheidung, IndexedDB-Warteschlange und Sync mit Konflikten, Serverausfall, 401; „Prüfe …“ → Ergebnis → „Bereit“, 10-s-Sperre, gelb „Eben hier eingelassen“, DB-Retry (503) → offline, lokale Einlasszähler (Tages-/Mehrfach-/Wiedereinlass), Servicetag, Paketformat 2, Kompaktdelta nach 30 Deltas, 120-s-Timeout und Fortschritt, Töne, Taschenlampe |
 
 ### Barrierefreiheit (`tests/a11y/`, Gate `gate.sh`)
 
@@ -380,7 +381,7 @@ Screenshots fehlgeschlagener Tests als Artefakt `e2e-artifacts-<bein>`.
 | `checkout.test.js` | Bezahlte Bestellung über Fake-Zahlung → 2 Tickets, Namen im Portal; kostenlose Bestellung; Fehlerzusammenfassung |
 | `portal.test.js` | Teilnehmerzuweisung, erneuter Versand mit Dialog, einmalige Übertragung |
 | `scanner.test.js` | Video vor dem Start verborgen; Kamera verweigert/fehlt → Meldung, manueller Code checkt ein, zweiter Scan abgelehnt; Fake-Kamera → Video läuft (alle Engines) |
-| `offline-scanner.test.js` | PWA: Kopplung, signiertes Paket, Scan offline → lokale Entscheidung + Warteschlange, Doppelscan abgelehnt, Sync nach Reconnect |
+| `offline-scanner.test.js` | PWA: Kopplung, signiertes Paket, Scan offline → lokale Entscheidung + Warteschlange, Doppelscan abgelehnt (gelb „Eben hier eingelassen“), Sync nach Reconnect |
 | `woocommerce-blocks.test.js` | Blocks-Checkout mit Teilnehmer-Fieldset, ungültige E-Mail blockiert, Angaben am Woo-Auftrag (ohne `WPCAP_WOO_ZIP` übersprungen) |
 
 ## Restore-Probe (`tests/drills/restore-drill.sh`)

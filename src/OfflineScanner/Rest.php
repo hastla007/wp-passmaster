@@ -4,7 +4,7 @@
  *
  *   GET /app/offline/keys                            – trusted Ed25519 public keys (packages: keys, signed QR codes: qr_keys)
  *   GET /app/offline/occurrences                     – occurrences this device may hold packages for
- *   GET /app/offline/package?occurrence_id=&since=   – signed full/delta package
+ *   GET /app/offline/package?occurrence_id=&since=&format=2 – signed full/delta package (format 2: compact; gzip when accepted)
  *   GET /app/offline/i18n?locale=fr-CH,fr,en         – public: locale + translated UI texts of the PWA (+ brand)
  *   GET /app/offline/manifest                        – public: web app manifest with the brand name (white label)
  *
@@ -121,11 +121,55 @@ final class Rest {
 			return new \WP_Error( 'wpcap_offline_not_assigned', __( 'Dieses Gerät ist für diesen Termin nicht zum Offline-Scannen zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$since = $request->get_param( 'since' );
-		$body = Package::build( $device, $occurrence, is_string( $since ) ? $since : null );
+		$body = Package::build( $device, $occurrence, is_string( $since ) ? $since : null, absint( $request->get_param( 'format' ) ) );
 		Assignments::touch( $assignment );
 		$response = rest_ensure_response( $body );
-		if ( method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-store' ); }
+		if ( method_exists( $response, 'header' ) ) {
+			$response->header( 'Cache-Control', 'no-store' );
+			$response->header( 'Vary', 'Accept-Encoding' );
+		}
 		return $response;
+	}
+
+	/** Packages from this size on are sent gzip-compressed when the client accepts it. */
+	const GZIP_MIN_BYTES = 1024;
+
+	/**
+	 * rest_pre_serve_request: sends the package response gzip-compressed (Content-Encoding: gzip) when
+	 * the client accepts gzip, zlib is available and the server does not compress already. 50,000
+	 * tickets shrink from ~4.8 MB to ~1.8 MB (v1) – the difference between a timeout and a download on
+	 * a weak venue network. The signed payload is untouched (the browser inflates transparently).
+	 *
+	 * @param bool                   $served  Whether the request was already served.
+	 * @param \WP_REST_Response|mixed $result  Response.
+	 * @param \WP_REST_Request|mixed  $request Request.
+	 * @return bool
+	 */
+	public static function serve_gzip( $served, $result = null, $request = null ) {
+		if ( $served || ! $result instanceof \WP_REST_Response || ! is_object( $request ) ) { return $served; }
+		if ( '/' . Api::NS . '/app/offline/package' !== self::route( $request ) || (int) $result->get_status() >= 300 ) { return $served; }
+		$accept = method_exists( $request, 'get_header' ) ? (string) $request->get_header( 'accept_encoding' ) : '';
+		if ( '' === $accept ) { $accept = isset( $_SERVER['HTTP_ACCEPT_ENCODING'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_ACCEPT_ENCODING'] ) ) : ''; }
+		if ( ! preg_match( '/\bgzip\b(?!\s*;\s*q=0(?:\.0*)?(?![\d.]))/i', $accept ) || ! self::can_gzip() ) { return $served; }
+		$json = (string) wp_json_encode( $result->get_data() );
+		if ( strlen( $json ) < self::GZIP_MIN_BYTES ) { return $served; }
+		$gz = gzencode( $json, 6 );
+		if ( false === $gz ) { return $served; }
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: application/json; charset=utf-8' );
+			header( 'Content-Encoding: gzip' );
+			header( 'Vary: Accept-Encoding' );
+			header( 'Content-Length: ' . strlen( $gz ) );
+		}
+		echo $gz; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- gzip-compressed JSON body.
+		return true;
+	}
+
+	/** zlib is available and PHP does not compress the output itself (no double encoding). */
+	private static function can_gzip() {
+		if ( ! function_exists( 'gzencode' ) ) { return false; }
+		if ( filter_var( ini_get( 'zlib.output_compression' ), FILTER_VALIDATE_BOOLEAN ) ) { return false; }
+		return ! in_array( 'ob_gzhandler', ob_list_handlers(), true );
 	}
 
 	private static function route( $request ) {
@@ -141,7 +185,7 @@ final class Rest {
 		$data = $response->get_data();
 		if ( ! is_array( $data ) ) { return $response; }
 		if ( $base . 'pair' === $route && ! empty( $data['token'] ) ) {
-			$data['offline'] = array( 'keys' => Keys::public_keys(), 'qr_keys' => SignedQr::public_keys(), 'package_format' => Package::VERSION );
+			$data['offline'] = array( 'keys' => Keys::public_keys(), 'qr_keys' => SignedQr::public_keys(), 'package_format' => Package::VERSION, 'package_formats' => array( Package::VERSION, Package::VERSION_COMPACT ) );
 		} elseif ( $base . 'me' === $route && isset( $data['features'] ) ) {
 			$data['features']['offline_packages'] = true;
 		} elseif ( $base . 'scan/sync' === $route && isset( $data['results'] ) && Devices::current() ) {

@@ -21,6 +21,7 @@ final class Conflicts {
 		return array(
 			'accepted' => __( 'Einlass nachträglich akzeptiert', 'pass-captain' ),
 			'duplicate_scan' => __( 'Doppelscan derselben Person', 'pass-captain' ),
+			'duplicate_admission' => __( 'Doppel-Einlass auf verschiedenen Geräten (bestätigt)', 'pass-captain' ),
 			'misuse' => __( 'Missbrauch (Ticket weitergegeben/kopiert)', 'pass-captain' ),
 			'other' => __( 'Sonstiges', 'pass-captain' ),
 		);
@@ -59,6 +60,43 @@ final class Conflicts {
 			Audit::record( 'admission_conflict_recorded', 'admission_conflict', $id, array( 'ticket_id' => $ticket_id, 'result' => sanitize_key( (string) ( $data['result'] ?? '' ) ), 'device_id' => absint( $data['device_id'] ?? 0 ) ) );
 		}
 		return $id;
+	}
+
+	/**
+	 * Whether a double admission and the earlier admission come from the same origin: the same scanner
+	 * device or, without devices (web scanner), the same user. Only those are harmless double scans.
+	 */
+	public static function same_origin( $conflict ) {
+		$device = (int) $conflict->device_id;
+		if ( $device && (int) $conflict->first_device_id ) { return $device === (int) $conflict->first_device_id; }
+		return (int) $conflict->user_id > 0 && (int) $conflict->user_id === (int) $conflict->first_user_id;
+	}
+
+	/**
+	 * Report figures of "Einlass-Konflikte": double admissions on different devices (open / resolved as
+	 * duplicate_admission / total) and the tickets with the most check-in undos.
+	 *
+	 * @param int[]|null $scope Event ids (null = all).
+	 * @return array{cross_device_open: int, cross_device_total: int, duplicate_admission: int, undos: object[]}
+	 */
+	public static function report( $scope, $event_id = 0, $limit = 10 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$admission = \PassCaptain\Checkin::REJECTED_ADMISSION;
+		$in = implode( ',', array_fill( 0, count( $admission ), '%s' ) );
+		$where = '1=1' . Queries::scope_sql( $scope, 'event_id' ) . ( $event_id ? $wpdb->prepare( ' AND event_id=%d', absint( $event_id ) ) : '' );
+		// Cross-device: both admissions have a device and they differ, or (web scanner) different users.
+		$cross = '((device_id>0 AND first_device_id>0 AND device_id<>first_device_id) OR ((device_id=0 OR first_device_id=0) AND user_id<>first_user_id)) AND first_checkin_id>0';
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(CASE WHEN status='open' THEN 1 ELSE 0 END) AS open_n, COUNT(*) AS total_n FROM %i WHERE {$where} AND result IN ($in) AND {$cross}", array_merge( array( $p . 'wpcap_admission_conflicts' ), $admission ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- literal conditions, integer scope, generated placeholders.
+		$dup = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE {$where} AND resolution='duplicate_admission'", $p . 'wpcap_admission_conflicts' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal conditions and integer scope.
+		$cwhere = "c.result='undone'" . Queries::scope_sql( $scope, 'c.event_id' ) . ( $event_id ? $wpdb->prepare( ' AND c.event_id=%d', absint( $event_id ) ) : '' );
+		$undos = $wpdb->get_results( $wpdb->prepare( "SELECT c.ticket_id, t.public_id, COUNT(*) AS undos, MAX(c.created_at) AS last_at FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id WHERE {$cwhere} GROUP BY c.ticket_id, t.public_id ORDER BY undos DESC, c.ticket_id DESC LIMIT %d", $p . 'wpcap_checkins', $p . 'wpcap_tickets', max( 1, (int) $limit ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal conditions and integer scope.
+		return array(
+			'cross_device_open' => (int) ( $row->open_n ?? 0 ),
+			'cross_device_total' => (int) ( $row->total_n ?? 0 ),
+			'duplicate_admission' => $dup,
+			'undos' => is_array( $undos ) ? $undos : array(),
+		);
 	}
 
 	public static function get( $conflict_id ) {

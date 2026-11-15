@@ -100,33 +100,104 @@
 		if (!item.stored_at) item.stored_at = item.scanned_at ? Date.parse(item.scanned_at) || Date.now() : Date.now();
 		return item;
 	}
-	function enqueue(token) {
+	// key: idempotency key of the online attempt that did not get an answer (timeout, network). The
+	// queued scan reuses it, so an attempt that did reach the server is replayed at sync instead of
+	// becoming an "already used" conflict.
+	function enqueue(token, key) {
 		const items = queue();
-		items.push({ token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, direction: mode });
+		items.push({ token: token, idempotency_key: key || uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, direction: mode });
 		saveQueue(items);
 		result.textContent = t.queued || 'Saved offline.';
 		result.dataset.state = 'warning';
 		input.value = '';
 		updateQueueButton();
 	}
+	/* ---- feedback: tones (WebAudio, can be switched off per browser), torch ---- */
+	let soundOn = prefs.sound !== false;
+	let audio = null;
+	/** Short tone per result: high beep = admitted, double beep = warning, low buzz = rejected. */
+	function beep(kind) {
+		if (!soundOn) return;
+		const Ctx = window.AudioContext || window.webkitAudioContext;
+		if (!Ctx) return;
+		try {
+			audio = audio || new Ctx();
+			if (audio.state === 'suspended' && audio.resume) audio.resume();
+			const tones = kind === 'success' ? [[880, 0, 0.12]] : kind === 'warning' ? [[660, 0, 0.1], [660, 0.16, 0.1]] : [[220, 0, 0.35]];
+			tones.forEach(function (tone) {
+				const osc = audio.createOscillator();
+				const gain = audio.createGain();
+				osc.type = kind === 'error' ? 'square' : 'sine';
+				osc.frequency.value = tone[0];
+				gain.gain.value = 0.15;
+				osc.connect(gain);
+				gain.connect(audio.destination);
+				const at = (audio.currentTime || 0) + tone[1];
+				osc.start(at);
+				osc.stop(at + tone[2]);
+			});
+		} catch (ignore) {}
+	}
+	/** Sets the result text and state (pending, success, warning, error) with tone and vibration. */
+	function show(text, state) {
+		result.textContent = text;
+		result.dataset.state = state;
+		if (state === 'pending') return;
+		beep(state);
+		if (navigator.vibrate) { try { navigator.vibrate(state === 'success' ? 80 : [60, 60, 60]); } catch (ignore) {} }
+	}
+	const soundButton = document.createElement('button');
+	soundButton.type = 'button';
+	soundButton.className = 'button wpcap-sound-toggle';
+	function renderSound() {
+		soundButton.textContent = soundOn ? (t.soundOn || 'Sound on') : (t.soundOff || 'Sound off');
+		soundButton.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+	}
+	soundButton.addEventListener('click', function () { soundOn = !soundOn; prefs.sound = soundOn; savePrefs(); renderSound(); });
+	renderSound();
+	const torchButton = document.createElement('button');
+	torchButton.type = 'button';
+	torchButton.className = 'button wpcap-torch-toggle';
+	torchButton.textContent = t.torch || 'Torch';
+	torchButton.hidden = true;
+	torchButton.setAttribute('aria-pressed', 'false');
+	let torchOn = false;
+	let videoTrack = null;
+	/** Torch switch and continuous autofocus where the camera supports them (Chrome/Android). */
+	function setupTrack(current) {
+		const track = current && current.getVideoTracks ? current.getVideoTracks()[0] : null;
+		let caps = {};
+		try { caps = (track && track.getCapabilities && track.getCapabilities()) || {}; } catch (ignore) { caps = {}; }
+		videoTrack = track;
+		torchOn = false;
+		torchButton.setAttribute('aria-pressed', 'false');
+		torchButton.hidden = !caps.torch;
+		if (track && Array.isArray(caps.focusMode) && caps.focusMode.indexOf('continuous') !== -1 && track.applyConstraints) {
+			track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {});
+		}
+	}
+	torchButton.addEventListener('click', function () {
+		const track = videoTrack;
+		if (!track || !track.applyConstraints) return;
+		const next = !torchOn;
+		track.applyConstraints({ advanced: [{ torch: next }] }).then(function () { torchOn = next; torchButton.setAttribute('aria-pressed', next ? 'true' : 'false'); }).catch(function () {});
+	});
 	// Offline the code cannot be checked: never shown as admitted. Only codes that look like a ticket are
 	// offered, and only after an explicit staff decision ("admit after a visual check") are they queued
 	// for the later server check. Reliable offline admission: the offline scanner app with a ticket package.
 	// Signed QR payload (PC1.<claims>.<signature>, setting "signed_qr"); verified by the server.
 	var SIGNED_QR = /PC1\.[A-Za-z0-9_-]{16,700}\.[A-Za-z0-9_-]{86}/;
-	function offline(token) {
+	function offline(token, key) {
 		if (!/(^|[^a-f0-9])[a-f0-9]{64}($|[^a-f0-9])/i.test(token) && !SIGNED_QR.test(token)) {
-			result.textContent = t.invalid || 'Invalid ticket.';
-			result.dataset.state = 'error';
+			show(t.invalid || 'Invalid ticket.', 'error');
 			return;
 		}
-		result.textContent = t.unchecked || 'NOT CHECKED (offline).';
-		result.dataset.state = 'warning';
+		show(t.unchecked || 'NOT CHECKED (offline).', 'warning');
 		const admit = document.createElement('button');
 		admit.type = 'button';
 		admit.className = 'button wpcap-admit-unchecked';
 		admit.textContent = t.admitUnchecked || 'Admit after visual check';
-		admit.addEventListener('click', function () { enqueue(token); input.focus(); });
+		admit.addEventListener('click', function () { enqueue(token, key); input.focus(); });
 		result.appendChild(document.createTextNode(' '));
 		result.appendChild(admit);
 	}
@@ -150,6 +221,11 @@
 	syncButton.textContent = t.syncButton || 'Sync offline scans';
 	syncButton.hidden = true;
 	root.appendChild(syncButton);
+	const feedbackBar = document.createElement('div');
+	feedbackBar.className = 'wpcap-scanner-feedback';
+	feedbackBar.appendChild(soundButton);
+	feedbackBar.appendChild(torchButton);
+	root.insertBefore(feedbackBar, form);
 	function updateQueueButton() { const count = queue().length; syncButton.hidden = !count; syncButton.textContent = (t.syncCount || '%d').replace('%d', count); }
 	function removeSent(keys) {
 		saveQueue(queue().filter(function (item) { return keys.indexOf(item.idempotency_key) === -1; }));
@@ -192,35 +268,44 @@
 	window.addEventListener('online', syncQueue);
 	updateQueueButton();
 
+	/** Request timeout of a scan: afterwards the scan counts as offline (visual check, queued with the same key). */
+	const SCAN_TIMEOUT_MS = 5000;
 	async function submitToken(token) {
 		token = String(token || '').trim();
 		if (locked || !token) return;
-		if (!navigator.onLine) { offline(token); return; }
+		// One key per scan: the online attempt and a later offline upload of the same scan share it.
+		const key = uuid();
+		if (!navigator.onLine) { offline(token, key); return; }
 		locked = true;
-		result.textContent = t.checking || '…';
+		show(t.checking || '…', 'pending');
 		try {
 			let response;
+			const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+			const timer = ctrl ? window.setTimeout(function () { ctrl.abort(); }, SCAN_TIMEOUT_MS) : 0;
 			try {
 				const url = adm ? (mode === 'out' ? adm.checkoutUrl : adm.checkinUrl) : WPCAP_SCANNER.checkinUrl;
-				const body = adm ? { token: token, area_id: areaId, idempotency_key: uuid() } : { token: token };
+				const body = adm ? { token: token, area_id: areaId, idempotency_key: key } : { token: token };
 				response = await fetch(url, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce },
-					body: JSON.stringify(body)
+					body: JSON.stringify(body),
+					signal: ctrl ? ctrl.signal : undefined
 				});
 			} catch (networkError) {
-				// The browser reported "online" but the request never reached the server.
-				offline(token);
+				// The browser reported "online" but the request never reached the server or timed out.
+				offline(token, key);
 				return;
+			} finally {
+				if (timer) window.clearTimeout(timer);
 			}
 			const data = await response.json().catch(function () { return {}; });
 			if (!response.ok) throw new Error(data.message || t.invalid || 'Invalid ticket.');
-			result.textContent = (data.status === 'checked_out' ? '↩ ' + ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '✓ ') + data.event + ' — ' + data.ticket;
-			result.dataset.state = 'success';
+			// The attendee name comes only when the operator enabled scanner_show_attendee.
+			const name = data.attendee_name ? ' · ' + data.attendee_name : '';
+			show((data.status === 'checked_out' ? '↩ ' + ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '✓ ') + data.event + ' — ' + data.ticket + name, 'success');
 			input.value = '';
 		} catch (error) {
-			result.textContent = error.message;
-			result.dataset.state = 'error';
+			show(error.message, 'error');
 		} finally {
 			window.setTimeout(function () { locked = false; }, 1400);
 		}
@@ -284,6 +369,8 @@
 			video.hidden = true;
 		}
 		if (cameraButton) cameraButton.disabled = false;
+		torchButton.hidden = true;
+		videoTrack = null;
 	}
 	window.addEventListener('pagehide', stopCamera);
 	document.addEventListener('visibilitychange', function () { if ('hidden' === document.visibilityState) stopCamera(); });
@@ -303,6 +390,7 @@
 			video.muted = true;
 			video.hidden = false;
 			await video.play();
+			setupTrack(own);
 			const detect = await makeDetector();
 			// Stopped meanwhile (page hidden or left): do not restart the scan loop.
 			if (stream !== own) return;
@@ -338,5 +426,5 @@
 		}
 	});
 	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
-	if (typeof module === 'object' && module && module.exports) { module.exports = { queueKey: queueKey, queue: queue, normalizeItem: normalizeItem, enqueue: enqueue, offline: offline, dropExpired: dropExpired, syncQueue: syncQueue, submitToken: submitToken }; }
+	if (typeof module === 'object' && module && module.exports) { module.exports = { queueKey: queueKey, queue: queue, normalizeItem: normalizeItem, enqueue: enqueue, offline: offline, dropExpired: dropExpired, syncQueue: syncQueue, submitToken: submitToken, beep: beep }; }
 })();

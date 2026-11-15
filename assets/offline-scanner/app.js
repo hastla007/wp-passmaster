@@ -18,6 +18,19 @@
  * otherwise the site language. The table is kept in IndexedDB so the app is translated offline too;
  * without a table the German source texts are shown.
  *
+ * Scan feedback: a scan first shows the neutral "Prüfe …" state, the result stays ~4 s and then
+ * returns to "Bereit"; the same code is ignored for 10 s (a QR held in front of the camera). A code
+ * this device admitted a moment ago shows yellow "Eben hier eingelassen (vor X s)" instead of red.
+ * Tones (WebAudio, switchable) and vibration accompany every result.
+ *
+ * Packages: format 2 (compact rows of 32-hex hash prefixes, see PassCaptain\OfflineScanner\Package)
+ * is requested and format 1 still read; the ticket index is keyed by the first 32 hex digits of the
+ * hash. After MAX_DELTAS deltas the app asks for one compact delta since the full package instead of
+ * a new full package. Package downloads may take 120 s and show their progress.
+ *
+ * Multi-entry tickets offline: local entry counters per hash (daily/multi_day once per service day,
+ * multi_entry up to max_entries, reentry while not inside) from the device's own scan log.
+ *
  * Security: the API must be same-origin (also enforced by the page CSP). All server/package text is
  * rendered with textContent. Ticket codes are kept only until the scan is synced.
  */
@@ -32,6 +45,12 @@
 	var LOG_MAX_AGE_MS = 24 * 3600e3; // synced log entries are kept for a day ...
 	var LOG_MAX_ENTRIES = 500; // ... and at most this many (pending scans are always kept)
 	var DAY_S = 86400;
+	var RESULT_HOLD_MS = 4000; // a result stays visible this long, then the app is "Bereit" again
+	var SAME_CODE_LOCK_MS = 10000; // the same code (held in front of the camera) is ignored this long
+	var RECENT_MS = 300000; // "Eben hier eingelassen": local admissions of the last 5 minutes
+	var PACKAGE_TIMEOUT_MS = 120000; // full packages of large events need time on weak networks
+	var PACKAGE_FORMAT = 2; // compact package format (format 1 is still read)
+	var HASH_KEY = 32; // hex digits of the ticket hash used as index key (= hash prefix of format 2)
 	var API_SUFFIX = '/wp-pass-captain/v1/app/';
 	var nacl = window.nacl;
 
@@ -41,7 +60,9 @@
 		hw: {}, // occurrence_id -> { cursor, issued_at } of the newest accepted package (rollback protection)
 		occurrences: [], selected: 0, areaId: 0,
 		packages: {}, // occurrence_id -> { record, index: Map, meta, error }
-		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
+		admitted: {}, // occurrence_id -> Set of hash keys admitted on this device
+		local: {}, // occurrence_id -> Map hash key -> { ins: [ms of admissions], inside: bool } (entry counters)
+		sound: true, // result tones (kv "sound")
 		busy: false, lastRefresh: 0, pendingCount: 0,
 		i18n: null, // { v, locale, lang, strings } from GET /app/offline/i18n
 		forceFull: {} // occurrence_id -> true after a broken delta chain
@@ -177,16 +198,56 @@
 		cancelled_event: 'Termin abgesagt', out_of_window: 'Außerhalb des Einlasszeitraums', not_valid_today: 'Heute nicht gültig',
 		daily_limit_reached: 'Tageskontingent erreicht', entry_limit_reached: 'Einlasslimit erreicht', outside_entry_window: 'Außerhalb des Einlassfensters',
 		already_inside: 'Bereits drinnen', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
-		invalid_code: 'Kein Ticketcode erkannt', invalid_signature: 'QR-Signatur ungültig'
+		invalid_code: 'Kein Ticketcode erkannt', invalid_signature: 'QR-Signatur ungültig', retry: 'Bitte erneut scannen'
 	};
 	function resultText(code) { return Object.prototype.hasOwnProperty.call(RESULT_TEXT, code) ? t(RESULT_TEXT[code]) : code; }
 
-	function showResult(kind, title, detail) {
+	var resultTimer = 0;
+	var audio = null;
+	/** Result tone via WebAudio (switchable): high = admitted, double = warning, low buzz = rejected. */
+	function beep(kind) {
+		if (!state.sound) { return; }
+		var Ctx = window.AudioContext || window.webkitAudioContext;
+		if (!Ctx) { return; }
+		try {
+			audio = audio || new Ctx();
+			if ('suspended' === audio.state && audio.resume) { audio.resume(); }
+			var tones = 'ok' === kind ? [[880, 0, 0.12]] : 'warn' === kind ? [[660, 0, 0.1], [660, 0.16, 0.1]] : [[220, 0, 0.35]];
+			tones.forEach(function (tone) {
+				var osc = audio.createOscillator();
+				var gain = audio.createGain();
+				osc.type = 'bad' === kind ? 'square' : 'sine';
+				osc.frequency.value = tone[0];
+				gain.gain.value = 0.15;
+				osc.connect(gain);
+				gain.connect(audio.destination);
+				var at = (audio.currentTime || 0) + tone[1];
+				osc.start(at);
+				osc.stop(at + tone[2]);
+			});
+		} catch (e) { /* no audio output */ }
+	}
+	function showIdle() {
+		clearTimeout(resultTimer);
+		$('result').className = 'result idle';
+		$('result-title').textContent = t('Bereit');
+		$('result-detail').textContent = '';
+	}
+	/**
+	 * Shows a result: kind ok (green), warn (yellow), bad (red) or pending (neutral, while checking).
+	 * Scan results (hold = true) go back to "Bereit" after RESULT_HOLD_MS, so the next guest never sees
+	 * the previous guest's result.
+	 */
+	function showResult(kind, title, detail, hold) {
+		clearTimeout(resultTimer);
 		var box = $('result');
 		box.className = 'result ' + kind;
 		$('result-title').textContent = title;
 		$('result-detail').textContent = detail || '';
-		if (navigator.vibrate) { navigator.vibrate('ok' === kind ? 80 : [60, 60, 60]); }
+		if ('pending' === kind) { return; }
+		beep(kind);
+		if (navigator.vibrate) { try { navigator.vibrate('ok' === kind ? 80 : [60, 60, 60]); } catch (e) { /* not allowed */ } }
+		if (hold) { resultTimer = setTimeout(showIdle, RESULT_HOLD_MS); }
 	}
 
 	/* ---------------- API ---------------- */
@@ -226,7 +287,30 @@
 
 	function ApiError(status, body) { this.status = status; this.body = body || {}; this.message = (body && body.message) || ('HTTP ' + status); }
 
-	function api(method, route, body, query, timeoutMs) {
+	/** Reads a response body as JSON, reporting the received bytes (streams where available). */
+	function readJson(res, onProgress) {
+		if (!onProgress || !res.body || typeof res.body.getReader !== 'function') { return res.json(); }
+		var reader = res.body.getReader();
+		var chunks = [];
+		var loaded = 0;
+		function pump() {
+			return reader.read().then(function (step) {
+				if (step.done) {
+					var all = new Uint8Array(loaded);
+					var at = 0;
+					chunks.forEach(function (c) { all.set(c, at); at += c.length; });
+					return JSON.parse(new TextDecoder().decode(all));
+				}
+				chunks.push(step.value);
+				loaded += step.value.length;
+				try { onProgress(loaded); } catch (e) { /* display only */ }
+				return pump();
+			});
+		}
+		return pump();
+	}
+
+	function api(method, route, body, query, timeoutMs, onProgress) {
 		var ctrl = window.AbortController ? new AbortController() : null;
 		var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, timeoutMs || 15000) : null;
 		var headers = { 'Accept': 'application/json' };
@@ -234,8 +318,8 @@
 		if (body) { headers['Content-Type'] = 'application/json'; }
 		return fetch(endpoint(route, query), { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined, credentials: 'omit', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
 			.then(function (res) {
-				if (timer) { clearTimeout(timer); }
-				return res.json().catch(function () { return {}; }).then(function (data) {
+				return readJson(res, res.ok ? onProgress : null).catch(function () { return {}; }).then(function (data) {
+					if (timer) { clearTimeout(timer); }
 					if (!res.ok) { throw new ApiError(res.status, data); }
 					return data;
 				});
@@ -380,17 +464,54 @@
 		} catch (e) { ok = false; }
 		if (!ok) { throw new Error(t('Signatur ungültig')); }
 		var payload = JSON.parse(doc.payload);
-		if ('wpcap-offline-package' !== payload.format || 1 !== payload.v) { throw new Error(t('Unbekanntes Paketformat')); }
+		if ('wpcap-offline-package' !== payload.format || (1 !== payload.v && 2 !== payload.v)) { throw new Error(t('Unbekanntes Paketformat')); }
+		if (2 === payload.v) { payload.tickets = compactTickets(payload); }
+		if (!Array.isArray(payload.tickets)) { throw new Error(t('Unbekanntes Paketformat')); }
 		if (payload.key_id !== doc.key_id) { throw new Error(t('Schlüssel-ID passt nicht')); }
 		if (payload.device_id !== state.deviceId) { throw new Error(t('Paket gehört zu einem anderen Gerät')); }
 		return payload;
+	}
+
+	var STATUS_OF_DIGIT = ['revoked', 'valid', 'checked_in'];
+	/**
+	 * Tickets of a format-2 payload: rows [type, status digit, concatenated 32-hex hash prefixes] and the
+	 * optional names map, as the {h, s, t, n} entries of format 1 (h = hash prefix).
+	 */
+	function compactTickets(payload) {
+		var size = payload.hash_prefix;
+		if (HASH_KEY !== size || !Array.isArray(payload.rows)) { throw new Error(t('Unbekanntes Paketformat')); }
+		var names = payload.names && typeof payload.names === 'object' ? payload.names : {};
+		var out = [];
+		payload.rows.forEach(function (row) {
+			var status = Array.isArray(row) ? STATUS_OF_DIGIT[row[1]] : undefined;
+			if (!status || typeof row[2] !== 'string' || row[2].length % size || !/^[a-f0-9]*$/.test(row[2])) { throw new Error(t('Unbekanntes Paketformat')); }
+			for (var i = 0; i < row[2].length; i += size) {
+				var h = row[2].slice(i, i + size);
+				var entry = { h: h, s: status };
+				if ('revoked' !== status) { entry.t = row[0]; }
+				if ('revoked' !== status && Object.prototype.hasOwnProperty.call(names, h) && typeof names[h] === 'string') { entry.n = names[h]; }
+				out.push(entry);
+			}
+		});
+		return out;
+	}
+	/** Index key of a ticket hash: its first HASH_KEY hex digits (full sha256 or format-2 prefix). */
+	function hkey(hash) { return String(hash || '').slice(0, HASH_KEY); }
+	/** Map of tickets keyed by hkey(); get/set/has accept full hashes and prefixes alike. */
+	function ticketIndex() {
+		var index = new Map();
+		['get', 'set', 'has', 'delete'].forEach(function (m) {
+			var orig = Map.prototype[m];
+			index[m] = function (hash) { var args = Array.prototype.slice.call(arguments); args[0] = hkey(hash); return orig.apply(index, args); };
+		});
+		return index;
 	}
 
 	/** Rebuilds the ticket index from a stored record (full + chained deltas), verifying every document. */
 	function buildIndex(record) {
 		var full = verifyDoc(record.full);
 		if ('full' !== full.kind || full.occurrence.id !== record.occurrence_id) { throw new Error(t('Paket passt nicht zum Termin')); }
-		var index = new Map();
+		var index = ticketIndex();
 		var prefix = new Map(); // code version (first 16 hex of the hash) -> hash, for signed QR codes
 		full.tickets.forEach(function (t) { index.set(t.h, t); prefix.set(t.h.slice(0, 16), t.h); });
 		var meta = full;
@@ -402,7 +523,7 @@
 			cursor = d.cursor;
 			meta = d;
 		});
-		return { index: index, prefix: prefix, meta: meta, cursor: cursor };
+		return { index: index, prefix: prefix, meta: meta, cursor: cursor, fullCursor: full.cursor };
 	}
 
 	/** Cursor "epoch.version" → {epoch, version}. */
@@ -434,13 +555,14 @@
 	}
 
 	function loadPackage(record) {
-		var entry = { record: record, index: null, prefix: null, meta: null, error: '' };
+		var entry = { record: record, index: null, prefix: null, meta: null, fullCursor: '', error: '' };
 		try {
 			var built = buildIndex(record);
 			if (isRollback(record.occurrence_id, built.meta, built.cursor)) { throw new Error(t('Kein gültiges Prüfpaket')); }
 			entry.index = built.index;
 			entry.prefix = built.prefix;
 			entry.meta = built.meta;
+			entry.fullCursor = built.fullCursor;
 			noteAccepted(record.occurrence_id, built.meta, built.cursor);
 		} catch (e) {
 			entry.error = e.message;
@@ -487,16 +609,36 @@
 		}).catch(function () {});
 	}
 
-	/** Fetches and stores the package of an occurrence (delta when possible). */
+	/** Download progress of a package in the package box (only for the selected occurrence). */
+	function packageProgress(occurrenceId) {
+		return function (bytes) {
+			if (occurrenceId !== state.selected) { return; }
+			var box = $('pkg');
+			box.className = 'pkg small';
+			box.textContent = t('Prüfpaket wird geladen … %d kB', Math.round(bytes / 1024));
+		};
+	}
+
+	/**
+	 * Fetches and stores the package of an occurrence: a delta since the current cursor; after
+	 * MAX_DELTAS deltas one compact delta since the full package (replaces the chain) instead of a new
+	 * full package; a full package without a usable stored one.
+	 */
 	function refreshPackage(occurrenceId) {
 		var current = state.packages[occurrenceId];
-		var usable = current && current.index && current.record.deltas.length < MAX_DELTAS && !state.forceFull[occurrenceId];
-		var query = 'occurrence_id=' + encodeURIComponent(occurrenceId) + (usable ? '&since=' + encodeURIComponent(current.meta.cursor) : '');
-		return api('GET', 'offline/package', null, query).then(function (doc) {
+		var valid = !!(current && current.index && !state.forceFull[occurrenceId]);
+		var compact = valid && current.record.deltas.length >= MAX_DELTAS && !!current.fullCursor;
+		var usable = valid && (compact || current.record.deltas.length < MAX_DELTAS);
+		var since = usable ? (compact ? current.fullCursor : current.meta.cursor) : '';
+		var query = 'occurrence_id=' + encodeURIComponent(occurrenceId) + '&format=' + PACKAGE_FORMAT + (since ? '&since=' + encodeURIComponent(since) : '');
+		return api('GET', 'offline/package', null, query, PACKAGE_TIMEOUT_MS, packageProgress(occurrenceId)).then(function (doc) {
 			var payload = verifyDoc(doc);
 			var record;
 			if ('full' === payload.kind) {
 				record = { occurrence_id: occurrenceId, full: doc, deltas: [] };
+			} else if (compact) {
+				if (payload.since !== current.fullCursor) { throw new Error(t('Delta passt nicht zum gespeicherten Paket')); }
+				record = { occurrence_id: occurrenceId, full: current.record.full, deltas: [doc] };
 			} else {
 				if (!usable || payload.since !== current.meta.cursor) { throw new Error(t('Delta passt nicht zum gespeicherten Paket')); }
 				var deltas = current.record.deltas.slice();
@@ -601,8 +743,70 @@
 
 	/* ---------------- scanning ---------------- */
 
-	/** Offline decision against the verified package (mirrors the server rules that can be checked locally). */
-	function decideOffline(entry, hash) {
+	/* ---------------- local entry counters ---------------- */
+
+	/** Local entry state of a hash on this device: { ins: [ms of admissions], inside: bool }. */
+	function localOf(occurrenceId, hash) {
+		var map = state.local[occurrenceId];
+		return (map && map.get(hkey(hash))) || { ins: [], inside: false };
+	}
+	/** Counts an admission of this device (online or offline) at atMs. */
+	function noteLocal(occurrenceId, hash, atMs) {
+		if (!state.local[occurrenceId]) { state.local[occurrenceId] = new Map(); }
+		var key = hkey(hash);
+		var rec = state.local[occurrenceId].get(key) || { ins: [], inside: false };
+		rec.ins.push(isFinite(atMs) ? atMs : now());
+		rec.inside = true;
+		state.local[occurrenceId].set(key, rec);
+	}
+	/** Milliseconds since this device admitted the hash, when within RECENT_MS; otherwise -1. */
+	function recentLocal(occurrenceId, hash) {
+		var ins = localOf(occurrenceId, hash).ins;
+		if (!ins.length) { return -1; }
+		var ago = now() - Math.max.apply(null, ins);
+		return ago >= 0 && ago < RECENT_MS ? ago : -1;
+	}
+	/** Service day (Y-m-d) of a time in the occurrence timezone, with the day cutoff hour of the package. */
+	function serviceDay(ms, timezone, cutoffHour) {
+		var d = new Date(ms - (Number(cutoffHour) || 0) * 3600e3);
+		try {
+			var parts = {};
+			new Intl.DateTimeFormat('en-CA', { timeZone: timezone || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).forEach(function (p) { parts[p.type] = p.value; });
+			return parts.year + '-' + parts.month + '-' + parts.day;
+		} catch (e) {
+			return d.toISOString().slice(0, 10);
+		}
+	}
+	/**
+	 * Local limit of a multi-entry ticket type (mirrors PassCaptain\Admission\Engine::evaluate_in() with
+	 * this device's own admissions): '' when admitted, otherwise the block code.
+	 */
+	function localLimit(entry, type, hash, atMs) {
+		var policy = type.policy || 'multi_entry';
+		var local = localOf(entry.record.occurrence_id, hash);
+		var max = Number(type.max_entries) || 0;
+		if ('daily' === policy || 'multi_day' === policy) {
+			var tz = entry.meta.occurrence && entry.meta.occurrence.timezone;
+			var cutoff = entry.meta.day_cutoff_hour;
+			var day = serviceDay(atMs, tz, cutoff);
+			if (Array.isArray(type.valid_days) && type.valid_days.indexOf(day) < 0) { return 'not_valid_today'; }
+			return local.ins.some(function (ms) { return serviceDay(ms, tz, cutoff) === day; }) ? 'daily_limit_reached' : '';
+		}
+		if ('reentry' === policy) {
+			if (local.inside) { return 'already_inside'; }
+			return max > 0 && local.ins.length >= max ? 'entry_limit_reached' : '';
+		}
+		if ('multi_entry' === policy && type.max_entries !== undefined) {
+			return local.ins.length >= Math.max(1, max) ? 'entry_limit_reached' : '';
+		}
+		return '';
+	}
+
+	/**
+	 * Offline decision against the verified package (mirrors the server rules that can be checked locally).
+	 * Rejections caused by an admission of this device within RECENT_MS carry `recent` (ms ago).
+	 */
+	function decideOffline(entry, hash, atMs) {
 		var status = packageStatus(entry);
 		if (!status.ok) { return { ok: false, result: status.code }; }
 		var t = entry.index.get(hash);
@@ -611,8 +815,21 @@
 		var type = null;
 		entry.meta.ticket_types.forEach(function (tt) { if (tt.id === t.t) { type = tt; } });
 		var multi = !!(type && type.multi);
-		var admitted = state.admitted[entry.record.occurrence_id];
-		if (!multi && ('checked_in' === t.s || (admitted && admitted.has(hash)))) { return { ok: false, result: 'already_checked_in', ticket: t, type: type }; }
+		var occurrenceId = entry.record.occurrence_id;
+		var admitted = state.admitted[occurrenceId];
+		var here = !!(admitted && (admitted.has(hkey(hash)) || admitted.has(hash)));
+		var blocked = '';
+		if (!multi && ('checked_in' === t.s || here)) {
+			blocked = 'already_checked_in';
+		} else if (multi) {
+			blocked = localLimit(entry, type, hash, atMs === undefined || atMs === null ? now() : atMs);
+		}
+		if (blocked) {
+			var d = { ok: false, result: blocked, ticket: t, type: type };
+			var ago = 'not_valid_today' === blocked ? -1 : recentLocal(occurrenceId, hash);
+			if (ago >= 0) { d.recent = ago; }
+			return d;
+		}
 		var area = entry.meta.device_area_id || state.areaId || 0;
 		if (type && type.areas.length && type.areas.indexOf(area) < 0) { return { ok: false, result: 'wrong_area', ticket: t, type: type }; }
 		return { ok: true, result: 'checked_in', ticket: t, type: type, multi: multi };
@@ -637,21 +854,36 @@
 		return d;
 	}
 
-	function markAdmitted(occurrenceId, hash) {
+	function markAdmitted(occurrenceId, hash, atMs) {
 		if (!state.admitted[occurrenceId]) { state.admitted[occurrenceId] = new Set(); }
-		state.admitted[occurrenceId].add(hash);
+		state.admitted[occurrenceId].add(hkey(hash));
+		noteLocal(occurrenceId, hash, atMs);
+	}
+
+	/** Rejections that a recent admission on this device explains (shown yellow, not red). */
+	var LOCAL_REPEAT = ['already_checked_in', 'daily_limit_reached', 'entry_limit_reached', 'already_inside'];
+	/** Shows a rejection: yellow "Eben hier eingelassen (vor X s)" when this device admitted it just now. */
+	function showRejected(occurrenceId, hash, result, details, ago) {
+		if (ago === undefined) { ago = LOCAL_REPEAT.indexOf(result) >= 0 ? recentLocal(occurrenceId, hash) : -1; }
+		if (ago >= 0) {
+			showResult('warn', t('Eben hier eingelassen (vor %d s)', Math.round(ago / 1000)), [resultText(result)].concat(details).filter(Boolean).join(' · '), true);
+		} else {
+			showResult('bad', resultText(result), details.filter(Boolean).join(' · '), true);
+		}
 	}
 
 	var lastScan = { code: '', at: 0 };
 	function handleScan(raw) {
 		var signed = signedCode(raw);
 		var code = signed || normalizeCode(raw);
-		if (!code) { showResult('bad', resultText('invalid_code')); return Promise.resolve(); }
-		if (code === lastScan.code && Date.now() - lastScan.at < 3000) { return Promise.resolve(); }
+		if (!code) { showResult('bad', resultText('invalid_code'), '', true); return Promise.resolve(); }
+		if (code === lastScan.code && Date.now() - lastScan.at < SAME_CODE_LOCK_MS) { return Promise.resolve(); }
 		lastScan = { code: code, at: Date.now() };
 		var occurrenceId = state.selected;
 		var entry = state.packages[occurrenceId];
-		if (!occurrenceId) { showResult('bad', t('Kein Termin gewählt')); return Promise.resolve(); }
+		if (!occurrenceId) { showResult('bad', t('Kein Termin gewählt'), '', true); return Promise.resolve(); }
+		// Neutral state at once: the previous guest's result must never stay visible during the check.
+		showResult('pending', t('Prüfe …'));
 		var key = uuid();
 		var scannedAt = new Date(now()).toISOString();
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
@@ -666,15 +898,23 @@
 				? api('POST', 'scan/check-in', { code: code, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000)
 				: Promise.reject({ network: true });
 			return attempt.then(function (res) {
+				// An old server answering a database retry with HTTP 200: decide offline like an outage.
+				if (!res.ok && 'retry' === res.result) { throw { network: true }; }
 				var ok = !!res.ok;
-				if (ok) { markAdmitted(occurrenceId, hash); }
-				showResult(ok ? 'ok' : 'bad', resultText(res.result), [res.ticket, res.attendee_name, t('online')].filter(Boolean).join(' · '));
+				var details = [res.ticket, res.attendee_name, t('online')];
+				if (ok) {
+					markAdmitted(occurrenceId, hash, Date.parse(scannedAt));
+					showResult('ok', resultText(res.result), details.filter(Boolean).join(' · '), true);
+				} else {
+					showRejected(occurrenceId, hash, res.result, details);
+				}
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
-			}, function (err) {
-				// Network errors, timeouts and server outages fall back to the offline decision.
+			}).catch(function (err) {
+				// Network errors, timeouts, server outages and database retries (HTTP 503) fall back to
+				// the offline decision.
 				if (!err || !(err.network || err.status >= 500)) {
 					if (handleAuthError(err)) { return; }
-					showResult('bad', t('Fehler'), err && err.message);
+					showResult('bad', t('Fehler'), err && err.message, true);
 					return;
 				}
 				var d = signed ? decideSigned(entry, code) : decideOffline(entry, hash);
@@ -682,10 +922,10 @@
 				var typeName = d.type ? d.type.name : '';
 				var name = d.ticket && d.ticket.n ? d.ticket.n : '';
 				if (d.ok) {
-					markAdmitted(occurrenceId, hash);
-					showResult('ok', t('Einlass OK (offline)'), [typeName, name, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : ''].filter(Boolean).join(' · '));
+					markAdmitted(occurrenceId, hash, Date.parse(scannedAt));
+					showResult('ok', t('Einlass OK (offline)'), [typeName, name, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : ''].filter(Boolean).join(' · '), true);
 				} else {
-					showResult('bad', resultText(d.result), [typeName, name, t('offline')].filter(Boolean).join(' · '));
+					showRejected(occurrenceId, hash, d.result, [typeName, name, t('offline')], d.recent === undefined ? -1 : d.recent);
 				}
 				// Only admitted scans are uploaded; the code is kept until the upload succeeded.
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: d.ok ? code : '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'offline', decision: d.result, ok: d.ok, synced: d.ok ? 0 : 1 });
@@ -817,6 +1057,7 @@
 			video.srcObject = stream;
 			video.hidden = false;
 			$('camera').textContent = t('Kamera stoppen');
+			setupTrack(stream);
 			return video.play();
 		}).then(function () {
 			if ('BarcodeDetector' in window) {
@@ -825,9 +1066,40 @@
 			return camera.detector ? null : loadJsQr();
 		}).then(tick).catch(function (e) { showResult('bad', t('Kamera nicht verfügbar'), e && e.message); stopCamera(); });
 	}
+	/** Torch switch and continuous autofocus where the camera supports them. */
+	function setupTrack(stream) {
+		var track = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+		var caps = {};
+		try { caps = track && track.getCapabilities ? track.getCapabilities() || {} : {}; } catch (e) { caps = {}; }
+		camera.track = track;
+		camera.torch = false;
+		var btn = $('torch');
+		if (btn) { btn.hidden = !caps.torch; btn.setAttribute('aria-pressed', 'false'); }
+		if (track && Array.isArray(caps.focusMode) && caps.focusMode.indexOf('continuous') >= 0 && track.applyConstraints) {
+			track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () {});
+		}
+	}
+	function toggleTorch() {
+		var track = camera.track;
+		if (!track || !track.applyConstraints) { return Promise.resolve(); }
+		var next = !camera.torch;
+		return track.applyConstraints({ advanced: [{ torch: next }] }).then(function () {
+			camera.torch = next;
+			var btn = $('torch');
+			if (btn) { btn.setAttribute('aria-pressed', next ? 'true' : 'false'); }
+		}).catch(function () {});
+	}
+	function renderSound() {
+		var btn = $('sound');
+		if (!btn) { return; }
+		btn.textContent = state.sound ? t('Ton an') : t('Ton aus');
+		btn.setAttribute('aria-pressed', state.sound ? 'true' : 'false');
+	}
 	function stopCamera() {
 		if (camera.stream) { camera.stream.getTracks().forEach(function (t) { t.stop(); }); }
 		camera.stream = null;
+		camera.track = null;
+		if ($('torch')) { $('torch').hidden = true; }
 		clearTimeout(camera.timer);
 		$('video').hidden = true;
 		$('camera').textContent = t('Kamera starten');
@@ -904,6 +1176,7 @@
 		if (/\bidle\b/.test($('result').className)) { $('result-title').textContent = t('Bereit'); }
 		$('camera').textContent = camera.stream ? t('Kamera stoppen') : t('Kamera starten');
 		$('pending').textContent = t('%d offen', state.pendingCount);
+		renderSound();
 		setNet();
 	}
 
@@ -981,7 +1254,8 @@
 		}
 		if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {}); }
 		var param = new URLSearchParams(location.search).get('api');
-		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n'), kvGet('qr_keys'), kvGet('server_time'), kvGet('hw')]).then(function (v) {
+		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n'), kvGet('qr_keys'), kvGet('server_time'), kvGet('hw'), kvGet('sound')]).then(function (v) {
+			state.sound = false !== v[11];
 			// Stored translations first, so everything below (incl. package errors) is translated offline.
 			if (validI18n(v[7])) { state.i18n = v[7]; }
 			applyI18n();
@@ -1001,7 +1275,10 @@
 			state.hw = v[10] && typeof v[10] === 'object' ? v[10] : {};
 			if (useParam && param !== stored) { kvSet('api', param); }
 			v[5].forEach(loadPackage);
-			v[6].forEach(function (e) { if (e.ok) { markAdmitted(e.occurrence_id, e.hash); } });
+			// Local entry counters from this device's scan log (admissions of the last day, pending ones always).
+			v[6].slice().sort(function (a, b) { return a.scanned_at < b.scanned_at ? -1 : 1; }).forEach(function (e) {
+				if (e.ok && 'out' !== e.direction) { markAdmitted(e.occurrence_id, e.hash, Date.parse(e.scanned_at)); }
+			});
 			if (param) { history.replaceState(null, '', location.pathname); }
 			showView();
 			setNet();
@@ -1034,6 +1311,14 @@
 		$('refresh').addEventListener('click', function () { refreshAll(true); });
 		$('sync').addEventListener('click', function () { syncNow(); });
 		$('camera').addEventListener('click', startCamera);
+		if ($('torch')) { $('torch').addEventListener('click', toggleTorch); }
+		if ($('sound')) {
+			$('sound').addEventListener('click', function () {
+				state.sound = !state.sound;
+				renderSound();
+				kvSet('sound', state.sound).catch(function () {});
+			});
+		}
 		$('unpair').addEventListener('click', unpair);
 		$('manual').addEventListener('submit', function (ev) {
 			ev.preventDefault();
@@ -1066,7 +1351,7 @@
 	}) : {};
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, signedCode: signedCode, verifySignedQr: verifySignedQr, decideSigned: decideSigned, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: publicState, syncNow: syncNow, refreshAll: refreshAll, validApiBase: validApiBase, pruneExpired: pruneExpired, pruneLog: pruneLog, qrWindow: qrWindow };
+	window.wpcapOffline = { serviceDay: serviceDay, beep: beep, showIdle: showIdle, toggleTorch: toggleTorch, setupTrack: setupTrack, refreshPackage: refreshPackage, t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, signedCode: signedCode, verifySignedQr: verifySignedQr, decideSigned: decideSigned, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: publicState, syncNow: syncNow, refreshAll: refreshAll, validApiBase: validApiBase, pruneExpired: pruneExpired, pruneLog: pruneLog, qrWindow: qrWindow };
 
 	boot();
 }());
