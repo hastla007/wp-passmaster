@@ -48,10 +48,13 @@ check( 'number without consent is not stored', null === $wpdb->get_var( "SELECT 
 check( 'no SMS can be queued without consent', false === Service::enqueue( 'x-no', $no['order_id'], $occ, 'reminder', 'Hallo' ) );
 
 echo "SMS: change messages and sending via Twilio\n";
-do_action( 'wpcap_occurrence_rescheduled', $occ, gmdate( 'Y-m-d H:i:s', time() + 3 * 86400 ), gmdate( 'Y-m-d H:i:s', time() + 7 * 86400 ) );
+// Fixed timestamps: the dedupe key contains the new start, two time() calls can straddle a second.
+$sms_old_start = gmdate( 'Y-m-d H:i:s', time() + 3 * 86400 );
+$sms_new_start = gmdate( 'Y-m-d H:i:s', time() + 7 * 86400 );
+do_action( 'wpcap_occurrence_rescheduled', $occ, $sms_old_start, $sms_new_start );
 $msgs = $wpdb->get_results( "SELECT * FROM {$p}wpcap_sms_messages WHERE occurrence_id=$occ" );
 check( 'reschedule message only for the consenting order', 1 === count( $msgs ) && (int) $yes['order_id'] === (int) $msgs[0]->order_id && 'reschedule' === $msgs[0]->purpose && false !== strpos( $msgs[0]->body, 'Neuer Termin: Konzert' ) );
-do_action( 'wpcap_occurrence_rescheduled', $occ, gmdate( 'Y-m-d H:i:s', time() + 3 * 86400 ), gmdate( 'Y-m-d H:i:s', time() + 7 * 86400 ) );
+do_action( 'wpcap_occurrence_rescheduled', $occ, $sms_old_start, $sms_new_start );
 check( 'same change is queued once', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_sms_messages WHERE occurrence_id=$occ" ) );
 http_reset();
 http_push( array( 'sid' => 'SM' . str_repeat( 'b', 32 ), 'status' => 'queued' ), 201, '/Messages.json' );
