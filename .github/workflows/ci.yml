@@ -138,6 +138,8 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: mbstring, mysqli, gd, zip, sodium, openssl
           coverage: none
+      - name: Shipped Composer dependencies (as in the release ZIP; QR encoder)
+        run: composer install --no-dev --no-interaction --prefer-dist --no-progress
       - name: Integration tests
         env:
           WPCAP_TEST_DB_HOST: 127.0.0.1
