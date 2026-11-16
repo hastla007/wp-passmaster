@@ -219,6 +219,18 @@ $reqs = http_requests( 'public.example' );
 check( 'redirects are not followed, responses are size-limited and JSON-validated', is_wp_error( $redir ) && 'wpcap_outbound_redirect' === $redir->get_error_code() && is_wp_error( $big ) && 'wpcap_outbound_too_large' === $big->get_error_code() && is_wp_error( $nojson ) && 3 === count( $reqs ) );
 $blocked = OutboundHttp::request( 'https://private.example/x', array( 'body' => '{}' ) );
 check( 'a blocked target is never contacted', is_wp_error( $blocked ) && 0 === count( http_requests( 'private.example' ) ) );
+// N03: the connection is pinned to the checked address (CURLOPT_RESOLVE), like PassCaptain\OutboundHttp.
+http_reset();
+http_push( '{}', 200, 'public.example' );
+OutboundHttp::request( 'https://public.example/pin', array( 'body' => '{}' ) );
+$n03_req = http_requests( 'public.example' )[0] ?? array();
+$n03_pin = (array) ( $n03_req['args'][ \PassCaptain\OutboundHttp::PIN_ARG ] ?? array() );
+$n03_ip = (string) ( OutboundHttp::resolve( 'public.example' )[0] ?? '' );
+check( 'N03: Security\OutboundHttp pins the connection to the checked public address', array( 'public.example:443:' . $n03_ip ) === $n03_pin && '' !== $n03_ip );
+$n03_opts = \PassCaptain\OutboundHttp::curl_options( (array) ( $n03_req['args'] ?? array() ) );
+check( 'N03: the pinned request allows https only and no cURL redirects', defined( 'CURLOPT_RESOLVE' ) && ( $n03_opts[ CURLOPT_RESOLVE ] ?? null ) === $n03_pin && false === ( $n03_opts[ CURLOPT_FOLLOWLOCATION ] ?? null ) && ( ! defined( 'CURLPROTO_HTTPS' ) || CURLPROTO_HTTPS === ( $n03_opts[ CURLOPT_PROTOCOLS ] ?? null ) ) );
+check( 'N03: IP literals need no pin', array() === OutboundHttp::pin_entries( array( 'host' => '93.184.216.34', 'port' => 443, 'ips' => array( '93.184.216.34' ), 'literal' => true ) ) );
+check( 'N03: a local http service is pinned with http allowed', array( 'lan.example:5618:10.0.0.5' ) === OutboundHttp::pin_entries( array( 'host' => 'lan.example', 'port' => 5618, 'ips' => array( '10.0.0.5' ), 'literal' => false ) ) && ( ! defined( 'CURLPROTO_HTTP' ) || ( CURLPROTO_HTTPS | CURLPROTO_HTTP ) === ( \PassCaptain\OutboundHttp::curl_options( array( \PassCaptain\OutboundHttp::PIN_ARG => array( 'lan.example:5618:10.0.0.5' ), \PassCaptain\OutboundHttp::PIN_ARG . '_http' => true ) )[ CURLOPT_PROTOCOLS ] ?? null ) ) );
 
 // Webhooks: creation validates DNS; DNS rebinding after creation blocks the delivery.
 $GLOBALS['wpcap_test_dns']['rebind.hooks.example'] = array( '93.184.215.14' );

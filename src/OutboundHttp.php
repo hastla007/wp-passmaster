@@ -222,7 +222,10 @@ final class OutboundHttp {
 			CURLOPT_FOLLOWLOCATION => false,
 			CURLOPT_CONNECTTIMEOUT => min( self::CONNECT_TIMEOUT, max( 1, (int) ( $args['timeout'] ?? self::DEFAULT_TIMEOUT ) ) ),
 		);
-		if ( defined( 'CURLOPT_PROTOCOLS' ) && defined( 'CURLPROTO_HTTPS' ) ) { $options[ CURLOPT_PROTOCOLS ] = CURLPROTO_HTTPS; }
+		if ( defined( 'CURLOPT_PROTOCOLS' ) && defined( 'CURLPROTO_HTTPS' ) ) {
+			// Plain http only for a pinned local service of Security\OutboundHttp (allow_local, N03).
+			$options[ CURLOPT_PROTOCOLS ] = ! empty( $args[ self::PIN_ARG . '_http' ] ) && defined( 'CURLPROTO_HTTP' ) ? ( CURLPROTO_HTTPS | CURLPROTO_HTTP ) : CURLPROTO_HTTPS;
+		}
 		return $options;
 	}
 
@@ -234,11 +237,12 @@ final class OutboundHttp {
 	/* ------------------------------------------------------------------ internals */
 
 	/** Whether WordPress will use the cURL transport (the only one that honours the pin). */
-	private static function can_pin() {
+	public static function can_pin() {
 		return (bool) apply_filters( 'wpcap_outbound_can_pin', function_exists( 'curl_init' ) && function_exists( 'curl_exec' ) && defined( 'CURLOPT_RESOLVE' ) );
 	}
 
-	private static function hook() {
+	/** Registers the cURL pinning hook (also used by Security\OutboundHttp, N03). */
+	public static function hook() {
 		if ( self::$hooked || ! function_exists( 'add_action' ) ) { return; }
 		self::$hooked = true;
 		add_action( 'http_api_curl', array( __CLASS__, 'apply_curl_options' ), 99, 3 );

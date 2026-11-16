@@ -31,36 +31,11 @@ final class ClientIp {
 	 * @param array|null $server $_SERVER-like array (tests); default $_SERVER.
 	 */
 	public static function get( $server = null ) {
+		// N03: one resolver. RateLimit::client_ip() honours the same settings (trusted_proxies with
+		// constant/env, the header choice incl. cf-connecting-ip) plus the filter wpcap_client_ip.
 		$server = is_array( $server ) ? $server : $_SERVER; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- validated below.
-		$remote = self::normalize( (string) ( $server['REMOTE_ADDR'] ?? '' ) );
-		if ( '' === $remote ) { return ''; }
-		$proxies = self::trusted_proxies();
-		if ( ! $proxies || ! self::in_ranges( $remote, $proxies ) ) {
-			return $remote;
-		}
-		$header = (string) apply_filters( 'wpcap_client_ip_header', Settings::secret( 'client_ip_header' ) );
-		if ( 'cf-connecting-ip' === $header ) {
-			$ip = self::normalize( (string) ( $server['HTTP_CF_CONNECTING_IP'] ?? '' ) );
-			return '' !== $ip ? $ip : $remote;
-		}
-		if ( 'forwarded' === $header ) {
-			$chain = self::forwarded_for( (string) ( $server['HTTP_FORWARDED'] ?? '' ) );
-		} else {
-			$chain = array_map( 'trim', explode( ',', (string) ( $server['HTTP_X_FORWARDED_FOR'] ?? '' ) ) );
-		}
-		$chain = array_values( array_filter( $chain, static fn( $hop ) => '' !== $hop ) );
-		// Right to left: the right-most hop was added by our own trusted proxy.
-		for ( $i = count( $chain ) - 1; $i >= 0; $i-- ) {
-			$ip = self::normalize( $chain[ $i ] );
-			if ( '' === $ip ) {
-				return $remote; // Malformed chain: never guess.
-			}
-			if ( ! self::in_ranges( $ip, $proxies ) ) {
-				return $ip;
-			}
-			$remote = $ip; // Another trusted proxy: keep walking.
-		}
-		return $remote;
+		if ( '' === self::normalize( (string) ( $server['REMOTE_ADDR'] ?? '' ) ) ) { return ''; }
+		return self::normalize( RateLimit::client_ip( $server ) );
 	}
 
 	/**
@@ -100,9 +75,8 @@ final class ClientIp {
 
 	/** Trusted proxy entries (IP or CIDR), validated. */
 	public static function trusted_proxies() {
-		$list = preg_split( '/[\s,;]+/', Settings::secret( 'trusted_proxies' ) );
-		$list = (array) apply_filters( 'wpcap_trusted_proxies', array_values( array_filter( array_map( 'trim', (array) $list ) ) ) );
-		return array_values( array_filter( array_map( 'strval', $list ), array( __CLASS__, 'valid_range' ) ) );
+		// N03: the same list as RateLimit (setting, constant/env WPCAP_TRUSTED_PROXIES, filter).
+		return array_values( array_filter( RateLimit::trusted_proxies(), array( __CLASS__, 'valid_range' ) ) );
 	}
 
 	/** Whether $range is an IPv4/IPv6 address or CIDR range. */
