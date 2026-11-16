@@ -20,3 +20,16 @@ Hintergrundadapter können idempotente Jobs über `PassCaptain\Jobs::enqueue()` 
 
 Ergebnisse stehen im Audit-Log (`affiliate_sale`, `affiliate_refund`, `…_queued`, `…_failed`). Filter siehe `docs/HOOKS.md`.
 
+
+## Form Captain
+
+`src/Integrations/FormCaptain/` (registriert über das Modul `src/Modules/FormCaptain.php`) bettet ein Form-Captain-Formular für Anfragen, Bewerbungen oder freiwillige Zusatzangaben in die Eventseite ein. Grundlage ist der öffentliche Form-Captain-Vertrag v1 ab 1.1.0 (`form_captain_get_form_v1()`, `form_captain_get_render_v1()`, `form_captain_register_context_purpose_v1()`, `form_captain_sign_context_v1()`, Filter `form_captain_accepted_context_purposes_v1`). Kein Zugriff auf Form-Captain-Tabellen; ohne Form Captain ist der Adapter inaktiv, bei anderer Vertrags-Hauptversion registriert er nichts.
+
+| Schritt | Umsetzung |
+|---|---|
+| Kontextzweck | `pass.event_registration` nach `form_captain_loaded_v1` (spätestens auf `init`): Eigentümer `pass`, `ref_types` `['event']`, Ausgabeweg `public_endpoint`, TTL 12 h / max. 24 h, nicht einweg, `marks_verified`. `issue_check` und `submit_check`: Event veröffentlicht, mindestens ein Termin nicht abgesagt, Formular ist das dem Event zugeordnete. |
+| Zuordnung | Event-Adminseite, Abschnitt „Formular (Form Captain)“ (Action `wpcap_event_admin_sections`, Argumente `$event`, `$editable`): Formular-ID oder öffentliche ID, geprüft mit `form_captain_get_form_v1()`, nur veröffentlichte Formulare. Gespeichert in der Pass-Captain-Tabelle `wpcap_event_forms`; Recht `wpcap_manage_events` mit Event-Scope; Audit `event_form_assigned`/`event_form_removed`. Für zugeordnete Formulare nimmt der Adapter den Zweck über `form_captain_accepted_context_purposes_v1` an, die Formular-Einstellungen bleiben unverändert. |
+| Ausgabe | Filter `wp_pass_captain_event_card_html`: Formular in der Event-Karte nach dem Checkout-Formular, je Event einmal pro Seite. `form_captain_get_render_v1()` bekommt `context_ref` (`event:<id>`, frischer Kontext über die no-store-Token-Route von Form Captain) und als Rückfall einen beim Rendern signierten Kontext mit 24 h Laufzeit. Dieser ist nicht personenbezogen und mehrfach verwendbar; gecachte Seiten bleiben damit nutzbar, nach Ablauf bittet Form Captain um erneutes Absenden. Ohne Zuordnung, bei Entwurf oder abgesagtem Event wird nichts ausgegeben. |
+| Abgrenzung | Eine Einsendung ist keine Buchung: Der Adapter registriert keine Formularaktion und hört nicht auf Entry-Ereignisse; es entstehen keine Reservierung, Zahlung oder Ticket. Ticket-Teilnehmerfelder und Buchungsbestätigung bleiben in Pass Captain. Eine explizite Übergabe von Formulardaten (Formularaktion mit Feld-Allowlist) ist erst nach Freigabe vorgesehen (TODO PASS-FC-05). |
+
+Tests: `tests/integration/modules/form_captain.php` (mit nachgebildeten Vertragsfunktionen) und der Zwei-Plugin-Test gegen das echte Form Captain in `tests/form-captain/` (siehe `docs/TESTING.md`).

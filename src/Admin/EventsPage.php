@@ -694,6 +694,7 @@ final class EventsPage {
 			<?php self::occurrence_form( null, (int) $event->event_id, $default_tz ); ?>
 		<?php endif; ?>
 
+		<?php do_action( 'wpcap_event_admin_sections', $event, $editable ); ?>
 		<?php self::render_staff( $event ); ?>
 		<?php
 	}

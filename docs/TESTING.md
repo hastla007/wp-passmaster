@@ -123,3 +123,19 @@ Template), Tastatur-Durchlauf 23/23 Prüfungen bestanden, Farbkontrast der öffe
 Seiten: 9 kritische und 48 ernste Knoten (fehlende Labels an Filter-Selects, Kontrast von `<code>`-Links,
 Zielgröße der Checkboxen) – siehe offene Punkte im Changelog/Report. Nicht in CI (braucht eine WordPress-Instanz).
 Automatische Prüfungen ersetzen keine Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).
+
+## Zwei-Plugin-Test mit Form Captain (`tests/form-captain/`)
+
+Prüft den Form-Captain-Adapter gegen das echte Form Captain (Signatur, Zweckregistrierung, Einsendung). Nutzt die
+WordPress-Testbibliothek, PHPUnit und die Testkonfiguration eines Form-Captain-Checkouts mit `vendor/`; braucht
+eine Wegwerf-Datenbank (`WP_TESTS_DB_NAME`, `_USER`, `_PASSWORD`, `_HOST`, Standard `wp`/`wp`@`localhost`).
+
+```bash
+FORM_CAPTAIN_DIR=/pfad/zu/wp-formmaster WP_TESTS_DB_NAME=wp_passfc_tests \
+  php "$FORM_CAPTAIN_DIR/vendor/bin/phpunit" -c tests/form-captain/phpunit.xml
+```
+
+Abgedeckt: Zweck `pass.event_registration` registriert, nur veröffentlichte Formulare zuordenbar, Einsendung mit
+verifiziertem Eventkontext erzeugt keine Bestellung/Reservierung/Ticket, manipulierte Event-ID →
+`context_signature_invalid`, abgesagtes Event → `context_ref_rejected`, Event-Karte mit Formular und gültigem
+Kontext. Nicht in CI (braucht einen Form-Captain-Checkout).
