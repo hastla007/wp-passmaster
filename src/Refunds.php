@@ -1207,7 +1207,7 @@ final class Refunds {
 		if ( is_wp_error( $calc ) ) { return $calc; }
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
-		$calc['needs_approval'] = $threshold > 0 && $cumulative > $threshold && ! current_user_can( self::APPROVE_CAP );
+		$calc['needs_approval'] = $threshold > 0 && $cumulative > $threshold && ! self::may_self_approve();
 		return $calc;
 	}
 

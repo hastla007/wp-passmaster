@@ -178,16 +178,16 @@ $r4_checkout = static function ( $key ) use ( $r4_paid_type, $r4_buyer ) {
 	return PassCaptain\Rest\Controller::checkout( $req );
 };
 $r4_from = $r4_last();
-$r4_res = $r4_checkout( 'r4-start-1' );
+$r4_res = $r4_checkout( 'r4-start-0001-retry' );
 $r4_data = is_wp_error( $r4_res ) ? (array) $r4_res->get_error_data() : array();
 $r4_ref = (string) ( $r4_data['reference'] ?? '' );
-check( 'A324: buyer sees a neutral message with Fehler-ID, not the provider text', is_wp_error( $r4_res ) && 502 === $r4_data['status'] && 'wpcap_r4_api' === $r4_res->get_error_code() && '' !== $r4_ref && false !== strpos( $r4_res->get_error_message(), $r4_ref ) && false === strpos( $r4_res->get_error_message(), 'live charges' ) && false === strpos( json_encode( $r4_data ), 'live charges' ) );
+check( 'A324: buyer sees a neutral message with Fehler-ID, not the provider text', is_wp_error( $r4_res ) && 502 === $r4_data['status'] && 'wpcap_payment_start_failed' === $r4_res->get_error_code() && '' !== $r4_ref && false !== strpos( $r4_res->get_error_message(), $r4_ref ) && false === strpos( $r4_res->get_error_message(), 'live charges' ) && false === strpos( json_encode( $r4_data ), 'live charges' ) );
 $r4_entry = Log::entries( array( 'reference' => $r4_ref ) )[0] ?? array();
-$r4_order_row = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status FROM {$p}wpcap_orders WHERE idempotency_key=%s", hash( 'sha256', 'r4-start-1' ) ) );
+$r4_order_row = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status FROM {$p}wpcap_orders WHERE idempotency_key=%s", hash( 'sha256', 'r4-start-0001-retry' ) ) );
 check( 'A324: the provider text is in the support log (redacted) with order and provider', false !== strpos( (string) ( $r4_entry['message'] ?? '' ), 'live charges' ) && 'r4fake' === ( $r4_entry['context']['provider'] ?? '' ) && $r4_order_row && (int) $r4_order_row->order_id === (int) $r4_entry['order_id'] && false === strpos( json_encode( $r4_entry ), $r4_secret ) && false === strpos( json_encode( $r4_entry ), $r4_buyer ) );
 check( 'A324: the order is cancelled', $r4_order_row && 'cancelled' === $r4_order_row->status );
 check( 'A324: one failure makes the payment start test "recommended"', 'recommended' === SiteHealth::test_payment_start()['status'] );
-for ( $r4_i = 2; $r4_i <= 5; $r4_i++ ) { $r4_checkout( 'r4-start-' . $r4_i ); }
+for ( $r4_i = 2; $r4_i <= 5; $r4_i++ ) { $r4_checkout( 'r4-start-000' . $r4_i . '-retry' ); }
 $r4_health = SiteHealth::test_payment_start();
 check( 'A324: five failures within an hour are critical (admin notice)', 'critical' === $r4_health['status'] && false !== strpos( $r4_health['description'], 'r4fake: 5' ) && in_array( $r4_health['label'], SiteHealth::critical_labels( true ), true ) );
 R4_Fake_Gateway::$start_error = null;

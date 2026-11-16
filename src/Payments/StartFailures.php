@@ -57,8 +57,11 @@ final class StartFailures {
 		 * @param string    $reference Support log reference shown to the buyer.
 		 */
 		do_action( 'wpcap_payment_start_failed', absint( $order_id ), $provider, $error, $reference );
+		// A642: the order's audit trail keeps the redacted provider code and text as well.
+		\PassCaptain\Audit::record( 'payment_start_failed', 'order', absint( $order_id ), array( 'provider' => $provider, 'flow' => sanitize_key( (string) $flow ), 'error' => sanitize_key( (string) $error->get_error_code() ), 'message' => substr( \PassCaptain\Redact::text( (string) $error->get_error_message() ), 0, 300 ), 'reference' => $reference ) );
+		// Buyers never see the provider's error code either (A642), only the generic one of the flow.
 		return new \WP_Error(
-			'' !== (string) $code ? (string) $code : (string) $error->get_error_code(),
+			'' !== (string) $code ? (string) $code : 'wpcap_payment_start_failed',
 			/* translators: %s: error reference for support */
 			sprintf( __( 'Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es in einem Moment erneut oder wähle eine andere Zahlungsart. Fehler-ID: %s', 'pass-captain' ), $reference ),
 			array( 'status' => 502, 'reference' => $reference, 'reason' => 'payment_start_failed' )
