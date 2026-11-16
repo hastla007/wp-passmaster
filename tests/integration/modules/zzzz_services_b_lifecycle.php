@@ -349,7 +349,8 @@ $page_cancel = SvcPortal::perform( array( 'do' => 'booking_cancel', 'id' => $mt[
 check( 'manage-token page: confirm and cancel a free booking; wrong token denied', is_wp_error( $page_cancel_wrong ) && 'confirmed' === ( $page_confirm['status'] ?? '' ) && 'cancelled' === ( $page_cancel['status'] ?? '' ) );
 $GLOBALS['wpcap_test_routes'] = array();
 SvcApi::register_routes();
-check( 'REST routes are registered (buyer, staff, waitlist, passes)', isset( $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook'], $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/decide'], $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept'], $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/member-passes/redeem-service'] ) );
+// Merged REST namespace pass-captain/v1 (Services\Api::NS; LegacySlug routes the former wp-pass-captain/v1 here).
+check( 'REST routes are registered (buyer, staff, waitlist, passes)', isset( $GLOBALS['wpcap_test_routes']['pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook'], $GLOBALS['wpcap_test_routes']['pass-captain/v1/service-bookings/(?P<booking_id>\d+)/decide'], $GLOBALS['wpcap_test_routes']['pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept'], $GLOBALS['wpcap_test_routes']['pass-captain/v1/member-passes/redeem-service'] ) );
 
 remove_filter( 'wpcap_payment_gateways', $svc_gateways );
 PassCaptain\Payments\Registry::reset();
