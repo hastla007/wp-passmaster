@@ -52,7 +52,9 @@ final class ServiceBookings {
 		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		if ( empty( $args['skip_rate_limit'] ) ) {
 			// Per address and per client; RateLimit::hit() counts atomically (QA-V2).
-			if ( ! RateLimit::hit( 'wpcap_servicebook_' . RateLimit::hash( strtolower( $email ) ), 20, HOUR_IN_SECONDS ) || ! RateLimit::hit( 'wpcap_servicebook_ip_' . RateLimit::client(), (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) ) {
+			// A644: the address limit is only checked here and counted once the hold exists (below), so junk
+			// requests with someone's address cannot lock them out; the client limit counts every attempt.
+			if ( RateLimit::hits( 'servicebook|' . strtolower( $email ), HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT || ! RateLimit::hit( 'wpcap_servicebook_ip_' . RateLimit::client(), (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) ) {
 				return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) );
 			}
 		}
@@ -126,6 +128,7 @@ final class ServiceBookings {
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		Audit::record( 'service_booking_reserved', 'service_booking', $id, array( 'slot_id' => $slot_id, 'quantity' => $quantity, 'order_id' => absint( $order_id ), 'status' => $status, 'actor' => $actor ) );
+		if ( empty( $args['skip_rate_limit'] ) ) { RateLimit::allow( 'servicebook|' . strtolower( $email ), self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); } // A644: counted once the hold exists.
 		return array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => $status, 'manage_token' => $token, 'token' => $token ); // 'token': name used by assets/service-booking.js and the public REST flow.
 	}
 

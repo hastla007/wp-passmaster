@@ -18,6 +18,13 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ..
 if ( ! function_exists( 'wp_localize_script' ) ) { function wp_localize_script( ...$a ) {} }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r instanceof WP_REST_Response ? $r : new WP_REST_Response( $r ); } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
+if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1, $n = '_wpnonce', $r = true, $e = true ) { $f = '<input type="hidden" name="' . $n . '" value="n">'; if ( $e ) { echo $f; } return $f; } }
+if ( ! function_exists( 'esc_textarea' ) ) { function esc_textarea( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
+if ( ! function_exists( 'submit_button' ) ) { function submit_button( $t = 'Speichern' ) { echo '<button type="submit">' . $t . '</button>'; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . ltrim( $p, '/' ); } }
+if ( ! function_exists( 'selected' ) ) { function selected( $a, $b = true, $echo = true ) { $r = (string) $a === (string) $b ? ' selected="selected"' : ''; if ( $echo ) { echo $r; } return $r; } }
+if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = (string) $a === (string) $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
 
 global $wpdb;
 $p = $wpdb->prefix;
