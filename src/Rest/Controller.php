@@ -17,6 +17,9 @@ use PassCaptain\DeveloperKeys;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Controller {
+	/** Minimum length of a client-chosen checkout idempotency key (A639; the checkout form sends a UUID). */
+	const MIN_CHECKOUT_KEY_LENGTH = 16;
+
 	public static function register_routes() {
 		register_rest_route( 'pass-captain/v1', '/events', array(
 			'methods' => \WP_REST_Server::READABLE,
@@ -321,6 +324,12 @@ final class Controller {
 		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		// A639: a client-chosen idempotency key identifies the attempt across retries; short (guessable)
+		// keys are refused. Without a key the server generates one.
+		$client_key = \PassCaptain\Http::str( $params['idempotency_key'] ?? '' );
+		if ( '' !== $client_key && strlen( trim( $client_key ) ) < self::MIN_CHECKOUT_KEY_LENGTH ) {
+			return new \WP_Error( 'wpcap_idempotency_key', __( 'Der Bestellversuch ist ungültig. Bitte lade die Seite neu und versuche es erneut.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
 		// Hosted payment pages (Stripe Checkout lives at least 30 minutes) end with the hold (A577).
 		$hold = max( Orders::HOSTED_HOLD_MINUTES, (int) \PassCaptain\Settings::get( 'hold_minutes' ) );
 		if ( 'manual' === $provider_id && ! $gateway->is_available( '' ) ) {
@@ -352,13 +361,20 @@ final class Controller {
 		if ( ! empty( $result['reused'] ) && in_array( $result['payment_status'] ?? '', array( 'cancelled', 'expired' ), true ) ) {
 			return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
+		// A639: a retry with another payment method would start a payment no webhook can assign to the order.
+		if ( ! empty( $result['reused'] ) ) {
+			$reused_order = Orders::get( $result['order_id'] );
+			if ( $reused_order && (string) $reused_order->payment_provider !== $provider_id ) {
+				return new \WP_Error( 'wpcap_checkout_provider_changed', __( 'Dieser Bestellversuch läuft bereits mit einer anderen Zahlungsart. Bitte lade die Seite neu, um mit einer anderen Zahlungsart zu bestellen.', 'pass-captain' ), array( 'status' => 409, 'field' => 'provider' ) );
+			}
+		}
 		$voucher_code = sanitize_text_field( $params['voucher_code'] ?? '' );
 		// Also on a retry whose first attempt stopped before the voucher was stored (the reservation key is the same).
 		$needs_voucher = empty( $result['reused'] ) || ! Orders::get( $result['order_id'] )->voucher_snapshot;
 		if ( '' !== $voucher_code && 'pending' === ( $result['payment_status'] ?? '' ) && $needs_voucher ) {
 			$voucher = \PassCaptain\Integrations\Vouchers\Checkout::apply( $result['order_id'], $voucher_code );
 			if ( is_wp_error( $voucher ) ) {
-				Orders::cancel_order( $result['order_id'], 'voucher_rejected' );
+				Orders::cancel_order( $result['order_id'], 'voucher_rejected', array( 'pending' ) );
 				return self::with_error_field( $voucher );
 			}
 			$fresh = Orders::get( $result['order_id'] );
@@ -370,13 +386,14 @@ final class Controller {
 		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
 			$order = (array) Orders::get( $result['order_id'] );
 			if ( ! $gateway->is_available( $order['currency'] ) ) {
-				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency' );
+				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency', array( 'pending' ) );
 				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$items = array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( $result['order_id'] ) );
 			$payment = $gateway->create_payment( $order, $items );
 			if ( is_wp_error( $payment ) ) {
-				Orders::cancel_order( $result['order_id'], 'payment_start_failed' );
+				// Only while still unpaid (A639): a concurrent confirmation of a retried attempt keeps its payment.
+				Orders::cancel_order( $result['order_id'], 'payment_start_failed', array( 'pending' ) );
 				// Neutral text + reference for the buyer; the provider text goes to the support log (A324).
 				return \PassCaptain\Payments\StartFailures::handle( $provider_id, (int) $result['order_id'], $payment );
 			}

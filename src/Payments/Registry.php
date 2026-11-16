@@ -42,6 +42,22 @@ final class Registry {
 		return $out;
 	}
 
+	/**
+	 * Error for a buyer whose payment could not be started (A642): payment providers' texts and internal
+	 * error codes stay in the audit log (redacted) and the PHP error log; the buyer gets a generic message.
+	 *
+	 * @param \WP_Error $error    Gateway error.
+	 * @param int       $order_id Order.
+	 * @param string    $provider Gateway id.
+	 * @return \WP_Error wpcap_payment_start_failed (502).
+	 */
+	public static function public_start_error( \WP_Error $error, $order_id, $provider ) {
+		$message = substr( \PassCaptain\Redact::text( (string) $error->get_error_message() ), 0, 300 );
+		\PassCaptain\Audit::record( 'payment_start_failed', 'order', absint( $order_id ), array( 'provider' => sanitize_key( (string) $provider ), 'error' => sanitize_key( (string) $error->get_error_code() ), 'message' => $message ) );
+		\PassCaptain\Redact::log( 'payment start failed', array( 'order_id' => absint( $order_id ), 'provider' => sanitize_key( (string) $provider ), 'error' => (string) $error->get_error_code(), 'message' => $message ) );
+		return new \WP_Error( 'wpcap_payment_start_failed', __( 'Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es in einem Moment erneut oder wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 502 ) );
+	}
+
 	/** Test helper. */
 	public static function reset() { self::$gateways = null; }
 }

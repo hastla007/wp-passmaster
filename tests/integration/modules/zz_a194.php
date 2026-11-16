@@ -152,6 +152,12 @@ function a194_rest( $route, $method, array $params = array(), $body = null, arra
 	$status = $res instanceof WP_Error ? (int) ( ( (array) $res->get_error_data() )['status'] ?? 500 ) : ( $res instanceof WP_REST_Response ? (int) $res->get_status() : 200 );
 	return array( 'res' => $res, 'status' => $status, 'issues' => $issues, 'output' => $output );
 }
+/** Details of the latest payment_start_failed audit entry (A642: provider errors are only logged). */
+function a194_start_failure() {
+	global $wpdb;
+	return (string) $wpdb->get_var( "SELECT details FROM {$wpdb->prefix}wpcap_audit_logs WHERE action='payment_start_failed' ORDER BY audit_id DESC LIMIT 1" );
+}
+
 function a194_text( $res ) {
 	if ( $res instanceof WP_Error ) { return $res->get_error_code() . ' ' . $res->get_error_message() . ' ' . json_encode( $res->get_error_data() ); }
 	return json_encode( $res instanceof WP_REST_Response ? $res->get_data() : $res );
@@ -186,9 +192,10 @@ $a194_checkout = static function ( $provider, $key ) use ( $a194_type ) {
 };
 http_reset();
 http_push( array( 'error' => array( 'type' => 'invalid_request_error', 'message' => 'Invalid API Key provided: ' . $a194_values['stripe_secret_key'] . ' (card ' . $a194_card . ', customer ' . $a194_buyer . ')' ) ), 401, 'api.stripe.com' );
-$a194_r = $a194_checkout( 'stripe', 'a194-stripe-401' );
-$a194_outputs['stripe api error'] = a194_text( $a194_r['res'] );
-check( 'Stripe API error: checkout answers 502 without key, card or buyer e-mail', 502 === $a194_r['status'] && 'wpcap_stripe_api' === $a194_r['res']->get_error_code() && array() === a194_found( $a194_outputs['stripe api error'] ) && ! $a194_r['issues'] );
+$a194_r = $a194_checkout( 'stripe', 'a194-stripe-401-key' );
+// A642: the buyer gets a generic error; the (redacted) provider text is only in the audit log.
+$a194_outputs['stripe api error'] = a194_text( $a194_r['res'] ) . ' ' . a194_start_failure();
+check( 'Stripe API error: checkout answers 502 without key, card or buyer e-mail', 502 === $a194_r['status'] && 'wpcap_payment_start_failed' === $a194_r['res']->get_error_code() && false === strpos( a194_text( $a194_r['res'] ), 'Invalid API Key' ) && false !== strpos( a194_start_failure(), 'wpcap_stripe_api' ) && array() === a194_found( $a194_outputs['stripe api error'] ) && ! $a194_r['issues'] );
 http_reset();
 $GLOBALS['wpcap_test_http_queue'][] = array( 'error' => new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out; headers Authorization: Bearer ' . $a194_values['stripe_secret_key'] ), 'match' => 'api.stripe.com' );
 $a194_r = $a194_checkout( 'stripe', 'a194-stripe-timeout' );
@@ -200,12 +207,12 @@ check( 'Stripe transport error: message is kept (support log, A324), the key is 
 http_reset();
 http_push( array( 'error' => 'invalid_client', 'error_description' => 'Client Authentication failed for secret ' . $a194_values['paypal_client_secret'] ), 401, '/v1/oauth2/token' );
 $a194_r = $a194_checkout( 'paypal', 'a194-paypal-auth' );
-$a194_outputs['paypal auth'] = a194_text( $a194_r['res'] );
+$a194_outputs['paypal auth'] = a194_text( $a194_r['res'] ) . ' ' . a194_start_failure();
 check( 'PayPal OAuth error: checkout answer without client secret', $a194_r['status'] >= 500 && array() === a194_found( $a194_outputs['paypal auth'] ) );
 http_reset();
 http_push( array( 'access_token' => 'A21-a194', 'expires_in' => 3600 ), 200, '/v1/oauth2/token' );
 http_push( array( 'name' => 'INVALID_REQUEST', 'message' => 'bad', 'details' => array( array( 'issue' => 'PAYEE_ACCOUNT_INVALID', 'description' => 'payee ' . $a194_buyer . ' iban ' . $a194_iban . ' client_secret=' . $a194_canaries['paypal_client_secret'] ) ) ), 422, '/v2/checkout/orders' );
-$a194_r = $a194_checkout( 'paypal', 'a194-paypal-422' );
+$a194_r = $a194_checkout( 'paypal', 'a194-paypal-422-key' );
 $a194_outputs['paypal api'] = a194_text( $a194_r['res'] );
 $a194_outputs['paypal api log'] = $a194_log_entry( $a194_r['res'] );
 check( 'PayPal API error: issue code kept (support log, A324), secret/IBAN/e-mail removed', false !== strpos( $a194_outputs['paypal api log'], 'PAYEE_ACCOUNT_INVALID' ) && array() === a194_found( $a194_outputs['paypal api'] ) && array() === a194_found( $a194_outputs['paypal api log'] ) );

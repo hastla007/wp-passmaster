@@ -153,7 +153,7 @@ check( 'idempotent retry still returns the existing order', ! is_wp_error( $retr
 $bad_locale = Orders::create( array( 'email' => 'a099-bad@example.com', 'items' => $items, 'idempotency_key' => 'a099-bad', 'accept_terms' => true, 'locale' => '../../etc' ) );
 check( 'invalid locale falls back to the request locale', ! is_wp_error( $bad_locale ) && 'de_DE' === Orders::get( $bad_locale['order_id'] )->locale && $legacy === Orders::get( $bad_locale['order_id'] )->terms_version );
 $req = new WP_REST_Request( 'POST' );
-$req->set_body( wp_json_encode( array( 'email' => 'a099-rest@example.com', 'items' => $items, 'idempotency_key' => 'a099-rest', 'accept_terms' => true, 'provider' => 'manual', 'locale' => 'en_GB', 'terms_version' => $v_en ) ) );
+$req->set_body( wp_json_encode( array( 'email' => 'a099-rest@example.com', 'items' => $items, 'idempotency_key' => 'a099-rest-checkout-key', 'accept_terms' => true, 'provider' => 'manual', 'locale' => 'en_GB', 'terms_version' => $v_en ) ) );
 $rest = Controller::checkout( $req );
 $rest_data = $rest instanceof WP_REST_Response ? $rest->get_data() : $rest;
 $rest_row = is_array( $rest_data ) && isset( $rest_data['order_id'] ) ? Orders::get( $rest_data['order_id'] ) : null;
