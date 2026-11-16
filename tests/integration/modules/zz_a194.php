@@ -123,6 +123,11 @@ function a194_log() { return is_file( $GLOBALS['a194_log'] ) ? (string) file_get
  * callback, callback, rest_request_after_callbacks (Redact::rest_after_callbacks). Records PHP
  * warnings/notices/deprecations and printed output.
  */
+/** PHP messages raised during an a194_rest() call, appended to a check label (shown when it fails, e.g. new deprecations). */
+function a194_issues( array $r ) {
+	return empty( $r['issues'] ) ? '' : ' [PHP: ' . substr( implode( ' | ', array_unique( $r['issues'] ) ), 0, 400 ) . ']';
+}
+
 function a194_rest( $route, $method, array $params = array(), $body = null, array $headers = array() ) {
 	$def = $GLOBALS['wpcap_test_routes'][ 'pass-captain/v1' . $route ] ?? null;
 	if ( ! $def ) { return array( 'res' => new WP_Error( 'no_route', $route, array( 'status' => 404 ) ), 'status' => 0, 'issues' => array( 'route missing' ), 'output' => '' ); }
@@ -195,7 +200,7 @@ http_push( array( 'error' => array( 'type' => 'invalid_request_error', 'message'
 $a194_r = $a194_checkout( 'stripe', 'a194-stripe-401-key' );
 // A642: the buyer gets a generic error; the (redacted) provider text is only in the audit log.
 $a194_outputs['stripe api error'] = a194_text( $a194_r['res'] ) . ' ' . a194_start_failure();
-check( 'Stripe API error: checkout answers 502 without key, card or buyer e-mail', 502 === $a194_r['status'] && 'wpcap_payment_start_failed' === $a194_r['res']->get_error_code() && false === strpos( a194_text( $a194_r['res'] ), 'Invalid API Key' ) && false !== strpos( a194_start_failure(), 'wpcap_stripe_api' ) && array() === a194_found( $a194_outputs['stripe api error'] ) && ! $a194_r['issues'] );
+check( 'Stripe API error: checkout answers 502 without key, card or buyer e-mail' . a194_issues( $a194_r ), 502 === $a194_r['status'] && 'wpcap_payment_start_failed' === $a194_r['res']->get_error_code() && false === strpos( a194_text( $a194_r['res'] ), 'Invalid API Key' ) && false !== strpos( a194_start_failure(), 'wpcap_stripe_api' ) && array() === a194_found( $a194_outputs['stripe api error'] ) && ! $a194_r['issues'] );
 http_reset();
 $GLOBALS['wpcap_test_http_queue'][] = array( 'error' => new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out; headers Authorization: Bearer ' . $a194_values['stripe_secret_key'] ), 'match' => 'api.stripe.com' );
 $a194_r = $a194_checkout( 'stripe', 'a194-stripe-timeout' );
@@ -251,7 +256,7 @@ http_push( array( 'name' => 'VALIDATION_ERROR', 'message' => 'webhook_id invalid
 $a194_pp = paypal_request( array( 'id' => 'WH-a194', 'event_type' => 'PAYMENT.CAPTURE.COMPLETED', 'resource' => array( 'id' => 'CAP-a194' ) ) );
 $a194_ppr = a194_rest( '/payments/(?P<provider>[a-z0-9_-]+)/webhook', 'POST', array( 'provider' => 'paypal' ), $a194_pp->get_body(), array( 'PAYPAL-TRANSMISSION-ID' => 'tid', 'PAYPAL-TRANSMISSION-TIME' => gmdate( 'c' ), 'PAYPAL-TRANSMISSION-SIG' => 'sig' . $a194_canaries['paypal_client_secret'], 'PAYPAL-CERT-URL' => 'https://api.sandbox.paypal.com/v1/notifications/certs/CERT', 'PAYPAL-AUTH-ALGO' => 'SHA256withRSA' ) );
 $a194_outputs['paypal verify'] = a194_text( $a194_ppr['res'] );
-check( 'PayPal webhook verification failure: error answer without client secret', is_wp_error( $a194_ppr['res'] ) && array() === a194_found( $a194_outputs['paypal verify'] ) && ! $a194_ppr['issues'] );
+check( 'PayPal webhook verification failure: error answer without client secret' . a194_issues( $a194_ppr ), is_wp_error( $a194_ppr['res'] ) && array() === a194_found( $a194_outputs['paypal verify'] ) && ! $a194_ppr['issues'] );
 
 /* ======================================================================= SMS / fiscal / wallet errors */
 echo "A194: SMS, fiscal and wallet provider failures\n";

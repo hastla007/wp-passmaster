@@ -68,13 +68,19 @@ for ( $i = 0; $i < 3000; $i++ ) { $a437_rows[] = $wpdb->prepare( '(%d,%s,%s,%s,%
 foreach ( array_chunk( $a437_rows, 500 ) as $chunk ) { $wpdb->query( "INSERT INTO {$p}wpcap_webhook_deliveries (subscription_id,event_id,event_type,payload,status,next_attempt_at,created_at,updated_at) VALUES " . implode( ',', $chunk ) ); }
 $wpdb->query( "ANALYZE TABLE {$p}wpcap_webhook_deliveries" );
 $a437_log = array();
+// Rows read by full table scans (Handler_read_rnd_next) during the run: an index range reads (almost)
+// none, a full scan reads every row of the log. The EXPLAIN text differs between server versions
+// (MariaDB 11.8 reports the same index access differently), the handler counter does not.
+$a437_scan = static function () use ( $wpdb ) { return (int) $wpdb->get_var( "SELECT VARIABLE_VALUE FROM information_schema.SESSION_STATUS WHERE VARIABLE_NAME='Handler_read_rnd_next'" ); };
+$a437_scan_before = $a437_scan();
 add_filter( 'query', $a437_spy );
 $a437_none = Dispatcher::purge_old();
 remove_filter( 'query', $a437_spy );
+$a437_scanned = $a437_scan() - $a437_scan_before;
 $a437_deletes = array_values( array_filter( $a437_log, static fn( $sql ) => 0 === stripos( ltrim( $sql ), 'DELETE' ) ) );
 $a437_plan = $a437_deletes ? (array) $wpdb->get_row( 'EXPLAIN ' . $a437_deletes[0] ) : array();
-if ( 'range' !== ( $a437_plan['type'] ?? '' ) ) { fwrite( STDERR, 'A437 plan: ' . json_encode( $a437_plan ) . "\n" ); }
-check( 'nothing due: one DELETE as a range on KEY cleanup (no full scan)', 0 === $a437_none && 1 === count( $a437_deletes ) && 'range' === ( $a437_plan['type'] ?? '' ) && 'cleanup' === ( $a437_plan['key'] ?? '' ) );
+if ( $a437_scanned >= 500 || 'cleanup' !== ( $a437_plan['key'] ?? '' ) ) { fwrite( STDERR, 'A437 plan: ' . json_encode( $a437_plan ) . " rows scanned: $a437_scanned\n" ); }
+check( 'nothing due: one DELETE, no full scan of the log (' . $a437_scanned . ' rows read by table scans)', 0 === $a437_none && 1 === count( $a437_deletes ) && $a437_scanned < 500 );
 
 $wpdb->query( "DELETE FROM {$p}wpcap_webhook_deliveries WHERE event_id LIKE 'evt\\_a437\\_%'" );
 $wpdb->query( "DELETE FROM {$p}wpcap_webhook_subscriptions WHERE subscription_id BETWEEN 9000 AND 9006" );

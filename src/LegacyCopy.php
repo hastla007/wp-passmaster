@@ -46,7 +46,8 @@ final class LegacyCopy {
 		if ( ! $legacy || null !== self::$handler ) { return; }
 		self::$pending = $legacy;
 		self::$handler = static function ( $errno, $errstr, $errfile = '', $errline = 0 ) {
-			if ( null !== self::$handler && E_WARNING === $errno && preg_match( '/^Constant (' . implode( '|', self::CONSTANTS ) . ') already defined$/', (string) $errstr ) ) {
+			// PHP 8.5 appends ", this will be an error in PHP 9" to the warning.
+			if ( null !== self::$handler && E_WARNING === $errno && preg_match( '/^Constant (' . implode( '|', self::CONSTANTS ) . ') already defined(, this will be an error in PHP \d+)?$/', (string) $errstr ) ) {
 				++self::$swallowed;
 				return true;
 			}
