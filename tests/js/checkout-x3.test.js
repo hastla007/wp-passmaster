@@ -239,3 +239,20 @@ test('A600: the confirmation offers the date as .ics right away', async () => {
 	const without = await orderConfirmation({ icsBase: '' });
 	assert.strictEqual(without.querySelector('.wpcap-ics-link'), null, 'no link without the calendar module');
 });
+
+/* ------------------------------------------------------------------ A603 */
+
+test('A603: each attendee block is an autofill section of its own, numbered by position', async () => {
+	const env = loadCheckout({ cards: [{ billing: false, types: [{ id: 5, price: 2500, name: 'Erwachsene' }, { id: 6, price: 1500, name: 'Kinder' }] }] });
+	await flush();
+	const form = env.forms[0];
+	const set = (type, n) => { const q = form.querySelector('.wpcap-qty[data-type="' + type + '"]'); q.value = String(n); q.dispatchEvent(new FakeEvent('input', { bubbles: true })); };
+	const tokens = () => form.querySelectorAll('.wpcap-attendee [data-key="__name"]').map((input) => input.getAttribute('autocomplete'));
+	set(5, 2);
+	set(6, 1);
+	assert.deepStrictEqual([...tokens()], ['section-att1 name', 'section-att2 name', 'section-att3 name']);
+	// Fewer adults: the child block moves up and takes the section of its new position.
+	set(5, 1);
+	assert.deepStrictEqual([...tokens()], ['section-att1 name', 'section-att2 name']);
+	assert.strictEqual(new Set(tokens()).size, tokens().length, 'no two blocks share a section');
+});

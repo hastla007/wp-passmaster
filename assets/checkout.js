@@ -75,6 +75,12 @@
 	function attendeeLegend(number, typeName) {
 		return (t.attendee || 'Attendee %d').replace('%d', number) + ' · ' + typeName;
 	}
+	// A603: every attendee block is an autofill section of its own ("section-att{n} name"), so the
+	// browser does not copy the buyer's name into all blocks at once; numbered by position.
+	function attendeeAutocomplete(block, number) {
+		const name = block.querySelector('[data-key="__name"]');
+		if (name) name.setAttribute('autocomplete', 'section-att' + number + ' name');
+	}
 	function renderAttendees(form) {
 		const box = form.querySelector('.wpcap-attendees');
 		if (!box) return;
@@ -93,6 +99,7 @@
 					// Number by position after every change (A550): "Teilnehmer:in 1, 2, …" without gaps.
 					const legend = cache[slot].querySelector('legend');
 					if (legend) legend.textContent = attendeeLegend(count, qty.dataset.name);
+					attendeeAutocomplete(cache[slot], count);
 					box.appendChild(cache[slot]);
 					continue;
 				}
@@ -101,7 +108,7 @@
 				const base = 'wpcap-att-' + slot + '-' + Math.random().toString(16).slice(2, 8);
 				const nameLabel = el('label', { for: base + '-name' }, t.name || 'Name');
 				fs.appendChild(nameLabel);
-				fs.appendChild(el('input', { id: base + '-name', type: 'text', 'data-key': '__name', autocomplete: 'name', maxlength: '190' }));
+				fs.appendChild(el('input', { id: base + '-name', type: 'text', 'data-key': '__name', autocomplete: 'section-att' + count + ' name', maxlength: '190' }));
 				fs.appendChild(el('label', { for: base + '-email' }, t.email || 'E-mail'));
 				fs.appendChild(el('input', { id: base + '-email', type: 'email', 'data-key': '__email', autocomplete: 'off' }));
 				fields.forEach(function (field, index) {
