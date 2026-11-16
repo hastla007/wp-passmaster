@@ -87,11 +87,15 @@ check( 'expiry in the past → rejected', is_wp_error( $e = DeveloperKeysPage::c
 check( 'rate limit above 10000 → rejected', is_wp_error( $e = DeveloperKeysPage::create( array( 'event_id' => $z_event, 'scopes' => array( 'events.read' ), 'rate_limit' => 20000 ) ) ) && 'wpcap_api_key_rate' === $e->get_error_code() );
 check( 'unknown event → rejected', is_wp_error( DeveloperKeysPage::create( array( 'event_id' => 99999999, 'scopes' => array( 'events.read' ) ) ) ) );
 
-// Non-administrators: no page, no actions.
+// Non-administrators: no admin actions; the merged screen (N04) shows organizers only the event-scoped view of
+// ApiKeysPage (own keys of their events, no endpoint map, no expiry editing); without wpcap_manage_events it dies.
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 $z_denied_create = DeveloperKeysPage::create( array( 'event_id' => $z_event, 'scopes' => array( 'events.read' ) ) );
+$z_scoped_page = $z_render( array( DeveloperKeysPage::class, 'render' ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_manage_events' );
 $z_denied_page = $z_render( array( DeveloperKeysPage::class, 'render' ) );
-check( 'without manage_options: create/update/revoke forbidden (403), page dies', is_wp_error( $z_denied_create ) && 403 === $z_denied_create->get_error_data()['status'] && is_wp_error( DeveloperKeysPage::revoke( array( 'api_key_id' => $z_key_id ) ) ) && is_wp_error( DeveloperKeysPage::update( array( 'api_key_id' => $z_key_id ) ) ) && 0 === strpos( $z_denied_page, 'EXCEPTION' ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
+check( 'without manage_options: create/update/revoke forbidden (403); organizers get only the event-scoped view, others a dying page', is_wp_error( $z_denied_create ) && 403 === $z_denied_create->get_error_data()['status'] && is_wp_error( DeveloperKeysPage::revoke( array( 'api_key_id' => $z_key_id ) ) ) && is_wp_error( DeveloperKeysPage::update( array( 'api_key_id' => $z_key_id ) ) ) && 0 === strpos( $z_denied_page, 'EXCEPTION' ) && 0 !== strpos( $z_scoped_page, 'EXCEPTION' ) && str_contains( $z_scoped_page, 'Vorhandene API-Keys' ) && ! str_contains( $z_scoped_page, 'Endpunkte und Scopes' ) && ! str_contains( $z_scoped_page, 'wpcap_developer_key_update' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 
 // Handlers check the per-action nonce.

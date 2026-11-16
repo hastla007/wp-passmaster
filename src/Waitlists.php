@@ -1661,6 +1661,7 @@ final class Waitlists {
 			'closed' => __( 'Geschlossen (Termin abgesagt oder vorbei)', 'pass-captain' ),
 			'blocked' => __( 'Nicht anbietbar', 'pass-captain' ),
 		);
+		$status = 'unconfirmed' === $status ? 'pending' : $status; // Legacy double opt-in status (renamed by the 3.18.0 upgrade).
 		return $labels[ $status ] ?? (string) $status;
 	}
 

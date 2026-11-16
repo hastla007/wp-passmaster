@@ -256,7 +256,9 @@ Die Suche unter **Pass Captain → Bestellungen** nutzt die Indizes der Bestellt
 
 ## Systemstatus, Diagnose und Monitoring
 
-**Pass Captain → Systemstatus** (Capability `manage_options`) zeigt den Hintergrundbetrieb auf einen Blick:
+**Pass Captain → Systemstatus** (Capability `manage_options`) ist die einzige Status-Seite (N04) mit den Reitern
+*Übersicht* (dieser Abschnitt) und *Betrieb* (siehe „Betriebsübersicht“ unten; die frühere Seite
+`admin.php?page=wpcap-operations` leitet dorthin weiter). Der Reiter *Übersicht* zeigt den Hintergrundbetrieb auf einen Blick:
 
 - **WP-Cron und Worker:** je Plugin-Hook (`wpcap_process_jobs`, `wpcap_process_messages`, `wpcap_cleanup_reservations`, `wpcap_privacy_retention`) den nächsten geplanten Lauf und den **letzten erfolgreichen Lauf**. Der Webhook-Versand (`wpcap_webhooks_dispatch`) wird nicht als Cron-Ereignis gelistet, sondern über seinen Heartbeat und die Zustellungs-Queue überwacht. Jeder Worker (Jobs, E-Mails, Webhooks, SMS, Reservierungs-Bereinigung) schreibt am Ende seines Laufs einen Heartbeat (Optionen `wpcap_heartbeat_<worker>`, Zeit und Anzahl verarbeiteter Einträge). Ein Heartbeat älter als vier Intervalle (20 Minuten bei den Fünf-Minuten-Queues, 4 Stunden bei der Bereinigung) gilt als veraltet; mit `DISABLE_WP_CRON` wird dann ausdrücklich auf den fehlenden externen Cron-Job hingewiesen. Nicht geplante oder um mehr als 10 Minuten überfällige Ereignisse werden ebenfalls markiert.
 - **Warteschlangen:** offene Einträge nach Status für Job-Queue (`wpcap_jobs`, zusätzlich nach Job-Typ), E-Mail-Queue, Webhook-Zustellungen und SMS-Queue; überfällige Einträge (fällig seit über 30 Minuten) und lang laufende Claims (`locked_at` älter als 5 Minuten). Die Worker geben Claims nach 15 Minuten selbst zurück – ältere Claims bedeuten, dass seither kein Worker lief.
@@ -512,7 +514,7 @@ Die Bestellansicht hat den Abschnitt **„Verlauf“**: Audit-Einträge der Best
 
 ### Betriebsübersicht: Rückstände und Dead Letters (A163)
 
-**Pass Captain → Einstellungen & Integrationen → Betrieb** (nur `manage_options`) zeigt die Ergebnisse der Prüfungen und je Warteschlange – Hintergrundjobs (`wpcap_jobs`), E-Mail-Warteschlange (`wpcap_message_queue`), Webhook-Zustellungen (`wpcap_webhook_deliveries`, falls das Modul installiert ist), SMS-Warteschlange (`wpcap_sms_messages`, falls das SMS-Modul installiert ist, A417) –:
+**Pass Captain → Systemstatus → Reiter Betrieb** (Bereich „Einstellungen & Integrationen“, nur `manage_options`; früher eigene Seite `wpcap-operations`) zeigt die Ergebnisse der Prüfungen und je Warteschlange – Hintergrundjobs (`wpcap_jobs`), E-Mail-Warteschlange (`wpcap_message_queue`), Webhook-Zustellungen (`wpcap_webhook_deliveries`, falls das Modul installiert ist), SMS-Warteschlange (`wpcap_sms_messages`, falls das SMS-Modul installiert ist, A417) –:
 
 - Einträge je Status, Anzahl fälliger Einträge und Wartezeit des ältesten,
 - die endgültig fehlgeschlagenen Einträge (Jobs `dead_letter`, E-Mails und Webhooks `failed`, SMS `failed`, `held` – wegen des Monatsbudgets zurückgehalten, mit Verfallsdatum – und `unknown` – Versandergebnis unklar, A416; neueste 50) mit Typ, Versuchen, **Bezug** (A326: Bestellung, Ticket, Termin, Event, Erstattung oder Lauf als Wert mit Link – nur diese Ganzzahl-IDs werden aus dem Inhalt gelesen, bei Jobs und E-Mails zusätzlich die gespeicherte Bestell-ID), letztem Fehler (A325: der Grund des Handlers – sein `WP_Error`, die Ausnahme mit Fehler-ID oder der `wp_mail`-Fehler des Laufs; bei E-Mails der Fehler des Mailers bzw. die fehlende Vorlage) (Secrets, Karten- und IBAN-Daten entfernt, E-Mail-Adressen maskiert, siehe SECURITY.md „Fehlerausgaben ohne Secrets“) und nur den **Feldnamen** des Inhalts (bei Webhooks die von `data.object`); E-Mail-Empfänger erscheinen maskiert. Inhalte, Betreffzeilen und Secrets werden nie angezeigt.
@@ -2168,7 +2170,7 @@ Schema 3.10.27):
 
 ## Captain-Suite: Status der Verträge und Provider (A670, A678)
 
-**Pass Captain → Betrieb → Captain-Suite** (`Admin\SuiteStatus`, Recht `manage_options`) zeigt je Vertrag, den der
+**Pass Captain → Systemstatus → Betrieb → Captain-Suite** (`Admin\SuiteStatus`, Recht `manage_options`) zeigt je Vertrag, den der
 Kern anbietet (`workflow`, `review`; [CONTRACTS.md](CONTRACTS.md)):
 
 - **Status:** „Vertrag verfügbar – kein Plugin registriert“, „Vertrag verfügbar – Provider aktiv (spricht x.y.z)“

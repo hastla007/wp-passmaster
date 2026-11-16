@@ -1,9 +1,12 @@
 <?php
 /**
- * Admin page "Entwickler-API" (A161): list developer API keys, create one (label, event, scopes,
- * expiry, rate limit), show the secret exactly once, change expiry and rate limit, revoke.
- * Administrators only (manage_options); every action is nonce-checked and recorded in the audit log
- * by DeveloperKeys. Scopes and route map: DeveloperKeys::scopes() / ROUTES, docs/SECURITY.md.
+ * Admin page "Entwickler-API" (A161), the only API key screen (N04): administrators (manage_options)
+ * list all developer API keys (status filter), create one (label, event, scopes, expiry, rate limit),
+ * see the secret exactly once, change expiry and rate limit, revoke, and see the endpoint/scope map.
+ * Users with wpcap_manage_events but without manage_options get the event-scoped view of ApiKeysPage
+ * (their own keys of events in their scope); its former slug wpcap-api-keys redirects here.
+ * Every action is nonce-checked and recorded in the audit log by DeveloperKeys. Scopes and route map:
+ * DeveloperKeys::scopes() / ROUTES, docs/SECURITY.md.
  *
  * @package PassCaptain
  */
@@ -20,6 +23,11 @@ final class DeveloperKeysPage {
 
 	/** Transient holding the freshly issued key of the current user (shown once, then deleted). */
 	private static function secret_key() { return 'wpcap_devkey_once_' . get_current_user_id(); }
+
+	/** Capability of the menu entry: administrators, else organizers with the event-scoped view. */
+	public static function menu_cap() {
+		return current_user_can( self::CAP ) || ! current_user_can( ApiKeysPage::CAP ) ? self::CAP : ApiKeysPage::CAP;
+	}
 
 	public static function url( array $args = array() ) {
 		return Forms::page_url( self::SLUG, $args );
@@ -93,7 +101,10 @@ final class DeveloperKeysPage {
 	}
 
 	public static function render() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) {
+			ApiKeysPage::render(); // Event-scoped view; dies without wpcap_manage_events.
+			return;
+		}
 		$zone = self::timezone();
 		$filter = Forms::query_arg( 'status' );
 		$filter = in_array( $filter, array( 'active', 'expired', 'revoked' ), true ) ? $filter : '';
@@ -107,6 +118,11 @@ final class DeveloperKeysPage {
 		echo '<p class="description">' . esc_html__( 'Entwickler-API-Schlüssel geben externen Systemen lesenden Zugriff auf genau ein Event. Jede Anfrage sendet den Schlüssel im Header X-WPCAP-Key. Der Schlüssel gilt nur, solange die Person, die ihn angelegt hat, für das Event berechtigt ist und alle Termine des Events in ihrem Standort- oder Partnerbereich liegen.', 'pass-captain' ) . '</p>';
 
 		$once = get_transient( self::secret_key() );
+		$scoped = get_transient( ApiKeysPage::new_key_transient() ); // Key created through the event-scoped form.
+		if ( ! is_array( $once ) && is_string( $scoped ) && '' !== $scoped ) {
+			$once = array( 'key' => $scoped );
+			delete_transient( ApiKeysPage::new_key_transient() );
+		}
 		if ( is_array( $once ) && ! empty( $once['key'] ) ) {
 			delete_transient( self::secret_key() );
 			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Neuer API-Key – wird nur jetzt angezeigt:', 'pass-captain' ) . '</strong></p>';

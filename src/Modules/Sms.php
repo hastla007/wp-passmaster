@@ -646,7 +646,7 @@ final class Sms {
 				/* translators: 1: number of days, 2: date and time */
 				echo esc_html( sprintf( __( 'Nicht freigegebene SMS verfallen nach %1$d Tagen; die älteste am %2$s.', 'pass-captain' ), Service::HELD_DAYS, wp_date( 'd.m.Y H:i', strtotime( $oldest . ' UTC' ) + Service::HELD_DAYS * DAY_IN_SECONDS ) ) ) . ' ';
 			}
-			echo '<a href="' . esc_url( \PassCaptain\Admin\Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) . '#wpcap-queue-sms' ) . '">' . esc_html__( 'Einzeln prüfen unter Betrieb → Warteschlangen', 'pass-captain' ) . '</a></p></div>';
+			echo '<a href="' . esc_url( \PassCaptain\Admin\OperationsPage::url() . '#wpcap-queue-sms' ) . '">' . esc_html__( 'Einzeln prüfen unter Betrieb → Warteschlangen', 'pass-captain' ) . '</a></p></div>';
 		}
 	}
 

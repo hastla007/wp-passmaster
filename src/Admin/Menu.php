@@ -366,7 +366,7 @@ final class Menu {
 		if ( ! is_array( $pages ) || ! $pages ) { return array(); }
 		$reserved = array( self::SLUG, OrdersPage::SLUG, TicketsPage::SLUG, CheckinsPage::SLUG, RefundsPage::SLUG, DevicesPage::SLUG, SettingsPage::SLUG );
 		$reserved[] = StatusPage::SLUG;
-		array_push( $reserved, CampaignsPage::SLUG, MembershipsPage::SLUG, ScannerPage::SLUG, TaxPage::SLUG, ServiceSlotsPage::SLUG, MyServicesPage::SLUG, AssignmentsPage::SLUG, DeveloperKeysPage::SLUG, AuditLogPage::SLUG, OperationsPage::SLUG );
+		array_push( $reserved, CampaignsPage::SLUG, MembershipsPage::SLUG, ScannerPage::SLUG, TaxPage::SLUG, ServiceSlotsPage::SLUG, MyServicesPage::SLUG, AssignmentsPage::SLUG, DeveloperKeysPage::SLUG, AuditLogPage::SLUG, ...array_keys( self::legacy_pages() ) );
 		// Module pages (with their badge counts) are built once per request by register() and passed in.
 		foreach ( array_merge( FeatureScreens::pages(), SecurityScreens::pages(), null === $module_pages ? \PassCaptain\Modules::admin_pages() : (array) $module_pages ) as $page ) { $reserved[] = (string) $page[0]; }
 		$out = array();
@@ -411,6 +411,11 @@ final class Menu {
 		// Second screens of a feature both development lines built (one menu entry per feature): reachable by link.
 		foreach ( self::unlisted_pages() as $slug => $page ) {
 			add_submenu_page( '', $page[0], $page[0], $page[1], $slug, $page[2] );
+		}
+		// Former slugs of merged screens (N02, N04): no menu entry, redirect to the merged screen.
+		foreach ( self::legacy_pages() as $slug => $page ) {
+			$hook = add_submenu_page( '', $page[2], $page[2], $page[3], $slug, $page[4] );
+			if ( is_string( $hook ) && '' !== $hook ) { add_action( 'load-' . $hook, array( self::class, 'redirect_legacy_page' ) ); }
 		}
 		// Modules hidden under Einstellungen > Funktionen (hidden_modules): reachable by link, no menu entry.
 		foreach ( self::$module_pages[1] as $page ) {
@@ -460,7 +465,6 @@ final class Menu {
 			'wpcap-waitlist'               => 'sales',
 			'wpcap-exchange'               => 'sales',
 			'wpcap-partners'               => 'sales',
-			WaitlistsPage::SLUG            => 'sales',
 			CheckinsPage::SLUG             => 'admission',
 			ScannerPage::SLUG              => 'admission',
 			DevicesPage::SLUG              => 'admission',
@@ -477,12 +481,10 @@ final class Menu {
 			'wpcap-sms'                    => 'communication',
 			SettingsPage::SLUG             => 'settings',
 			AuditLogPage::SLUG             => 'settings',
-			OperationsPage::SLUG           => 'settings',
 			'wpcap-mollie'                 => 'settings',
 			'wpcap-wallet'                 => 'settings',
 			'wpcap-webhooks'               => 'settings',
 			DeveloperKeysPage::SLUG        => 'settings',
-			ApiKeysPage::SLUG              => 'settings',
 			StatusPage::SLUG               => 'settings',
 			SecurityScreens::SUPPORT_SLUG  => 'settings',
 			'admin.php?page=vcap-vouchers' => 'settings',
@@ -525,7 +527,7 @@ final class Menu {
 			array( MyServicesPage::SLUG, __( 'Meine Leistungen', 'pass-captain' ), __( 'Meine Leistungen', 'pass-captain' ), MyServicesPage::CAP, array( MyServicesPage::class, 'render' ), '' ),
 			array( AssignmentsPage::SLUG, __( 'Zuweisungen', 'pass-captain' ), __( 'Zuweisungen', 'pass-captain' ), AssignmentsPage::CAP, array( AssignmentsPage::class, 'render' ), '' ),
 		);
-		// Feature screens of the audit line (waitlists, services, API keys; campaigns/memberships are listed above).
+		// Feature screens of the audit line (services; campaigns/memberships are listed above).
 		foreach ( FeatureScreens::pages() as $page ) {
 			if ( isset( self::unlisted_pages()[ $page[0] ] ) ) { continue; }
 			$entries[] = array( $page[0], $page[1], $page[1], $page[2], $page[3], '' );
@@ -543,13 +545,14 @@ final class Menu {
 		$entries = self::unique_entries( $entries );
 		$entries = array_merge( $entries, self::extension_pages( $entries ) );
 		$entries[] = array( SettingsPage::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, array( SettingsPage::class, 'render' ), '' );
-		$entries[] = array( DeveloperKeysPage::SLUG, __( 'Entwickler-API', 'pass-captain' ), __( 'Entwickler-API', 'pass-captain' ), DeveloperKeysPage::CAP, array( DeveloperKeysPage::class, 'render' ), '' );
+		// One API key screen (N04): administrators see all keys, organizers the event-scoped view of their own keys.
+		$entries[] = array( DeveloperKeysPage::SLUG, __( 'Entwickler-API', 'pass-captain' ), __( 'Entwickler-API', 'pass-captain' ), DeveloperKeysPage::menu_cap(), array( DeveloperKeysPage::class, 'render' ), '' );
 		$entries[] = array( AuditLogPage::SLUG, __( 'Audit-Log', 'pass-captain' ), __( 'Audit-Log', 'pass-captain' ), AuditLogPage::menu_cap(), array( AuditLogPage::class, 'render' ), '' );
 		foreach ( SecurityScreens::pages() as $page ) {
 			if ( AuditLogPage::SLUG !== $page[0] ) { $entries[] = array( $page[0], $page[1], $page[1], $page[2], $page[3], '' ); }
 		}
+		// One status screen (N04): tabs "Übersicht" (StatusPage) and "Betrieb" (OperationsPage).
 		$entries[] = array( StatusPage::SLUG, __( 'Systemstatus', 'pass-captain' ), StatusPage::menu_title(), StatusPage::CAP, array( StatusPage::class, 'render' ), '' );
-		$entries[] = array( OperationsPage::SLUG, __( 'Betrieb', 'pass-captain' ), __( 'Betrieb', 'pass-captain' ), OperationsPage::CAP, array( OperationsPage::class, 'render' ), '' );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
 			$entries[] = array( 'admin.php?page=vcap-scanner', __( 'Gemeinsamer Scanner', 'pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'pass-captain' ), 'wpcap_checkin', null, '' );
@@ -560,18 +563,60 @@ final class Menu {
 
 	/**
 	 * Pages registered without a menu entry because another screen of the same feature is listed:
-	 * "Warteliste" (Waitlists\AdminPage, module Waitlist) is listed, the queue/CSV screen
-	 * Admin\WaitlistsPage stays reachable by link; "Ressourcen & Zeitfenster" (Admin\ServicesPage) is
-	 * listed, "Service-Zeitfenster" with the provider assignment (Admin\ServiceSlotsPage, A143/A157) is
-	 * linked from it.
+	 * "Ressourcen & Zeitfenster" (Admin\ServicesPage) is listed, "Service-Zeitfenster" with the
+	 * provider assignment (Admin\ServiceSlotsPage, A143/A157) is linked from it.
 	 *
 	 * @return array<string,array{0:string,1:string,2:callable}> slug => [title, capability, callback].
 	 */
 	public static function unlisted_pages() {
 		return array(
-			WaitlistsPage::SLUG => array( __( 'Wartelisten (Export)', 'pass-captain' ), WaitlistsPage::CAP, array( WaitlistsPage::class, 'render' ) ),
 			ServiceSlotsPage::SLUG => array( __( 'Service-Zeitfenster', 'pass-captain' ), ServiceSlotsPage::CAP, array( ServiceSlotsPage::class, 'render' ) ),
 		);
+	}
+
+	/**
+	 * Former slugs of screens merged into another one (N02, N04). They stay registered without menu
+	 * entry (so the capability check and bookmarks, links in mails and add-ons keep working) and
+	 * redirect to the merged screen on load (redirect_legacy_page()); the callback renders the merged
+	 * view in place when the target is not registered (Waitlist module switched off).
+	 *
+	 * @return array<string,array{0:string,1:array<string,string>,2:string,3:string,4:callable}> old slug =>
+	 *         [target slug, query args added to the target, title, capability, callback].
+	 */
+	public static function legacy_pages() {
+		return array(
+			WaitlistsPage::SLUG => array( \PassCaptain\Waitlists\AdminPage::PAGE, array( 'tab' => \PassCaptain\Waitlists\AdminPage::TAB_QUEUE ), __( 'Warteliste', 'pass-captain' ), WaitlistsPage::CAP, array( WaitlistsPage::class, 'render' ) ),
+			ApiKeysPage::SLUG => array( DeveloperKeysPage::SLUG, array(), __( 'Entwickler-API', 'pass-captain' ), DeveloperKeysPage::menu_cap(), array( DeveloperKeysPage::class, 'render' ) ),
+			OperationsPage::SLUG => array( StatusPage::SLUG, array( 'tab' => StatusPage::TAB_OPERATIONS ), __( 'Systemstatus', 'pass-captain' ), OperationsPage::CAP, array( OperationsPage::class, 'render' ) ),
+		);
+	}
+
+	/**
+	 * Target URL of a former slug ('' when $slug is none): the merged screen with the other query args
+	 * of the request kept (event, occurrence, filters) and the target's tab.
+	 *
+	 * @param string $slug  Requested page slug.
+	 * @param array  $query Query args of the request (unslashed).
+	 */
+	public static function legacy_url( $slug, array $query ) {
+		$map = self::legacy_pages();
+		$slug = sanitize_key( (string) $slug );
+		if ( ! isset( $map[ $slug ] ) ) { return ''; }
+		$args = array();
+		foreach ( $query as $key => $value ) {
+			$key = sanitize_key( (string) $key );
+			if ( '' === $key || 'page' === $key || ! is_scalar( $value ) ) { continue; }
+			$args[ $key ] = rawurlencode( sanitize_text_field( (string) $value ) );
+		}
+		return Forms::page_url( $map[ $slug ][0], array_merge( $args, $map[ $slug ][1] ) );
+	}
+
+	/** load-{hook} of a former slug: redirect to the merged screen when it is registered. */
+	public static function redirect_legacy_page() {
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only redirect.
+		$map = self::legacy_pages();
+		if ( ! isset( $map[ $page ] ) || ! isset( $GLOBALS['_parent_pages'][ $map[ $page ][0] ] ) ) { return; }
+		Forms::redirect( self::legacy_url( $page, wp_unslash( $_GET ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised per value in legacy_url().
 	}
 
 	/** Entries without repeated slugs (the first registration of a slug wins). */
@@ -597,7 +642,8 @@ final class Menu {
 	public static function extension_pages( array $taken ) {
 		$used = array();
 		foreach ( $taken as $entry ) { $used[ (string) $entry[0] ] = true; }
-		$used[ SettingsPage::SLUG ] = $used[ DeveloperKeysPage::SLUG ] = $used[ AuditLogPage::SLUG ] = $used[ OperationsPage::SLUG ] = $used[ StatusPage::SLUG ] = true;
+		$used[ SettingsPage::SLUG ] = $used[ DeveloperKeysPage::SLUG ] = $used[ AuditLogPage::SLUG ] = $used[ StatusPage::SLUG ] = true;
+		foreach ( array_keys( self::legacy_pages() ) as $slug ) { $used[ $slug ] = true; }
 		foreach ( SecurityScreens::pages() as $page ) { $used[ (string) $page[0] ] = true; }
 		$out = array();
 		foreach ( (array) apply_filters( 'wpcap_admin_pages', array() ) as $page ) {

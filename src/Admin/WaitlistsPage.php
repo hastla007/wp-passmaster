@@ -1,8 +1,10 @@
 <?php
 /**
- * Admin screen "Wartelisten": entries of an event (optionally one occurrence) in queue order,
- * manual "Angebot senden" to the next waiting person of a ticket type (Waitlists::offer_next),
- * removing entries and an audited CSV export.
+ * Queue/export part of the admin screen "Warteliste" (N02: merged into Waitlists\AdminPage as the tab
+ * "Warteschlange & Export"): entries of an event (optionally one occurrence) in queue order, manual
+ * "Angebot senden" to the next waiting person of a ticket type (Waitlists::offer_next), removing entries
+ * and an audited CSV export. The admin-post actions stay here; the former slug SLUG is registered
+ * without menu entry and redirects to the merged screen (Admin\Menu::legacy_pages()).
  *
  * @package PassCaptain
  */
@@ -18,10 +20,16 @@ use PassCaptain\Waitlists;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class WaitlistsPage {
+	/** Former slug of this screen (kept for bookmarks and links; redirects to the merged screen). */
 	const SLUG = 'wpcap-waitlists';
 	const ACTION = 'wpcap_waitlist_action';
 	const EXPORT_ACTION = 'wpcap_waitlist_export';
 	const CAP = 'wpcap_manage_orders';
+
+	/** URL of the merged screen's queue/export tab. */
+	public static function url( array $args = array() ) {
+		return \PassCaptain\Waitlists\AdminPage::url( array( 'tab' => \PassCaptain\Waitlists\AdminPage::TAB_QUEUE ) + $args );
+	}
 
 	/** E-mail as the current user may see it (masked for the support profile, DataPolicy). */
 	private static function email( $email ) {
@@ -33,7 +41,7 @@ final class WaitlistsPage {
 		// Merged Waitlists (statuses of the Arbeitsliste line: `pending` instead of `unconfirmed`, plus paid/declined/…).
 		$labels = array( 'pending' => __( 'Unbestätigt (Bestätigungslink offen)', 'pass-captain' ), 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
 		foreach ( array( 'paid', 'declined', 'skipped', 'removed', 'closed', 'blocked' ) as $status ) { $labels[ $status ] = Waitlists::status_label( $status ); }
-		$labels['unconfirmed'] = $labels['pending'];
+		$labels['unconfirmed'] = $labels['pending']; // Legacy value of the audit line (renamed to `pending` by the 3.18.0 upgrade).
 		return $labels;
 	}
 
@@ -81,7 +89,7 @@ final class WaitlistsPage {
 			/* translators: %d: queue position */
 			? sprintf( __( 'Angebot an Position %d gesendet. Es ist 24 Stunden gültig und reserviert noch kein Ticket.', 'pass-captain' ), (int) $result['position'] )
 			: __( 'Eintrag entfernt.', 'pass-captain' );
-		Forms::finish( $result, $message, Forms::page_url( self::SLUG, $args ) );
+		Forms::finish( $result, $message, self::url( $args ) );
 	}
 
 	/**
@@ -115,10 +123,14 @@ final class WaitlistsPage {
 		Scope::send_download( $csv, 'warteliste-event-' . (int) $in['event_id'] . '.csv', 'text/csv; charset=utf-8' );
 	}
 
+	/** Former page callback: the merged screen with the queue/export tab open. */
 	public static function render() {
+		\PassCaptain\Waitlists\AdminPage::render( \PassCaptain\Waitlists\AdminPage::TAB_QUEUE );
+	}
+
+	/** Body of the queue/export tab (inside the merged screen's wrap; capability checked again). */
+	public static function render_section() {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Wartelisten', 'pass-captain' ) . '</h1>';
-		Forms::render_notices();
 		$events = Queries::event_options( Queries::event_ids_for( self::CAP ) );
 		$event_id = absint( Forms::query_arg( 'event_id', 0 ) );
 		if ( ! isset( $events[ $event_id ] ) || ! Access::can_access_event( $event_id, self::CAP ) ) { $event_id = 0; }
@@ -128,17 +140,17 @@ final class WaitlistsPage {
 			foreach ( Queries::occurrences_for_event( $event_id ) as $o ) { $occurrences[ (int) $o->occurrence_id ] = Forms::datetime( $o->starts_at, $o->timezone ); }
 		}
 		if ( ! isset( $occurrences[ $occurrence_id ] ) ) { $occurrence_id = 0; }
-		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><label for="wpcap-wl-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label> ';
+		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '"><input type="hidden" name="page" value="' . esc_attr( \PassCaptain\Waitlists\AdminPage::slug() ) . '"><input type="hidden" name="tab" value="' . esc_attr( \PassCaptain\Waitlists\AdminPage::TAB_QUEUE ) . '"><label for="wpcap-wl-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label> ';
 		Forms::select( 'event_id', array( '' => '—' ) + $events, $event_id, 'wpcap-wl-event' );
 		if ( $occurrences ) {
 			echo ' <label for="wpcap-wl-occurrence">' . esc_html__( 'Termin', 'pass-captain' ) . '</label> ';
 			Forms::select( 'occurrence_id', array( '' => __( 'Alle Termine', 'pass-captain' ) ) + $occurrences, $occurrence_id, 'wpcap-wl-occurrence' );
 		}
 		echo ' <button type="submit" class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>';
-		if ( ! $event_id ) { echo '<p>' . esc_html__( 'Bitte ein Event wählen.', 'pass-captain' ) . '</p></div>'; return; }
+		if ( ! $event_id ) { echo '<p>' . esc_html__( 'Bitte ein Event wählen.', 'pass-captain' ) . '</p>'; return; }
 		$entries = self::listed_entries( $event_id, $occurrence_id );
 		echo '<p>' . esc_html__( '„Angebot senden“ schreibt die nächste wartende Person einer Ticketart per E-Mail an. Das Angebot ist 24 Stunden gültig; erst bei Annahme wird eine Bestellung mit Reservierung angelegt.', 'pass-captain' ) . ' <a class="button" href="' . esc_url( self::export_url( $event_id, $occurrence_id ) ) . '">' . esc_html__( 'CSV exportieren', 'pass-captain' ) . '</a></p>';
-		if ( ! $entries ) { echo '<p>' . esc_html__( 'Keine Einträge auf der Warteliste.', 'pass-captain' ) . '</p></div>'; return; }
+		if ( ! $entries ) { echo '<p>' . esc_html__( 'Keine Einträge auf der Warteliste.', 'pass-captain' ) . '</p>'; return; }
 		$groups = array();
 		foreach ( $entries as $e ) { $groups[ (int) $e->ticket_type_id ][] = $e; }
 		$labels = self::status_labels();
@@ -163,6 +175,5 @@ final class WaitlistsPage {
 			}
 			echo '</tbody></table>';
 		}
-		echo '</div>';
 	}
 }

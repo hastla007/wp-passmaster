@@ -32,8 +32,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * - event waitlist and appointment waitlist entries: N days (setting retention_waitlist_days,
  *   default 30) after the end of the occurrence / slot (event-wide entries: after the last
  *   occurrence of the event) – e-mail pseudonymised, tokens cleared,
- * - unconfirmed waitlist sign-ups (double opt-in, both waitlists) are deleted as soon as their
- *   confirmation link expired,
+ * - unconfirmed waitlist sign-ups (double opt-in; event waitlist status `pending`, slot waitlist
+ *   `unconfirmed`) are deleted as soon as their confirmation link expired,
  * - service bookings that never became a booking (held/expired) or were cancelled/declined: after
  *   90 days; bookings without an order (pass bookings) after the slot end plus the attendee period,
  * - member passes: N days (setting retention_pass_days, default 365) after valid_until – e-mail
@@ -650,19 +650,25 @@ final class Retention {
 		$p = $wpdb->prefix;
 		$now_sql = self::utc( $now );
 		// Event waitlist (merged, A564): sign-ups wait as `pending` until confirmed; Waitlists::purge_unconfirmed()
-		// deletes those whose confirmation period (confirm_hours) ended. The query below still covers rows of the
-		// earlier `unconfirmed` state (renamed by the 3.18.0 upgrade) and the slot waitlist.
+		// deletes those whose confirmation period (confirm_hours) ended. The query below also deletes `pending`
+		// rows with a lapsed confirm_expires_at (written by the audit line before the merge) and rows still in
+		// the earlier `unconfirmed` state (renamed to `pending` by the 3.18.0 upgrade); the slot waitlist keeps
+		// its own `unconfirmed` status (ServiceWaitlist).
 		$count = \PassCaptain\Waitlists::purge_unconfirmed( 5000 );
-		foreach ( array( 'wpcap_waitlist' => 'waitlist_id', 'wpcap_service_waitlist' => 'entry_id' ) as $table => $key ) {
+		$tables = array(
+			'wpcap_waitlist' => array( 'waitlist_id', 'pending', 'unconfirmed' ),
+			'wpcap_service_waitlist' => array( 'entry_id', 'unconfirmed', 'unconfirmed' ),
+		);
+		foreach ( $tables as $table => list( $key, $status, $legacy ) ) {
 			if ( ! Privacy::has_table( $table ) ) { continue; }
 			$count += self::loop(
 				$deadline,
-				static function () use ( $wpdb, $p, $table, $key, $now_sql ) {
-					return $wpdb->get_col( $wpdb->prepare( "SELECT %i FROM %i WHERE status='unconfirmed' AND confirm_expires_at IS NOT NULL AND confirm_expires_at<%s LIMIT %d", $key, $p . $table, $now_sql, self::BATCH ) );
+				static function () use ( $wpdb, $p, $table, $key, $now_sql, $status, $legacy ) {
+					return $wpdb->get_col( $wpdb->prepare( 'SELECT %i FROM %i WHERE status IN (%s,%s) AND confirm_expires_at IS NOT NULL AND confirm_expires_at<%s LIMIT %d', $key, $p . $table, $status, $legacy, $now_sql, self::BATCH ) );
 				},
-				static function ( $ids ) use ( $wpdb, $p, $table, $key, $now_sql ) {
+				static function ( $ids ) use ( $wpdb, $p, $table, $key, $now_sql, $status, $legacy ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-					return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status='unconfirmed' AND confirm_expires_at<%s AND %i IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . $table, $now_sql, $key ), $ids ) ) );
+					return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN (%s,%s) AND confirm_expires_at<%s AND %i IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . $table, $status, $legacy, $now_sql, $key ), $ids ) ) );
 				}
 			);
 		}
