@@ -9,6 +9,8 @@
 use PassCaptain\Settings;
 use PassCaptain\Security\Vault;
 use PassCaptain\Security\Redact;
+use PassCaptain\Secrets;
+require_once __DIR__ . '/zz_r6_stubs.inc'; // esc_url(), esc_attr_e(), esc_textarea() … for the admin screens below.
 
 echo "W5 security: secrets vault\n";
 global $wpdb;
@@ -52,9 +54,11 @@ check( 'vault: without dedicated key the key is derived from the wp-config salts
 Settings::update( $w5_secrets );
 $raw = w5_raw_settings();
 check( 'settings: no secret is stored in plaintext in wpcap_settings after save', array() === w5_leaks( $raw, $w5_secrets ) );
+// Merged store: provider secrets (Secrets::KEYS) leave wpcap_settings entirely and are sealed in the
+// credential store (option wpcap_secrets, "v1:<key id>:…"); get()/all() never see them.
 $all_encrypted = true;
-foreach ( $w5_secrets as $key => $value ) { $all_encrypted = $all_encrypted && Vault::is_encrypted( get_option( Settings::OPTION )[ $key ] ?? '' ) && $value === Settings::secret( $key ); }
-check( 'settings: secret() decrypts transparently, get() only sees ciphertext', $all_encrypted && Vault::is_encrypted( Settings::get( 'stripe_secret_key' ) ) );
+foreach ( $w5_secrets as $key => $value ) { $all_encrypted = $all_encrypted && ! array_key_exists( $key, (array) get_option( Settings::OPTION ) ) && 0 === strpos( (string) ( get_option( Secrets::OPTION )[ $key ] ?? '' ), 'v1:' ) && $value === Settings::secret( $key ); }
+check( 'settings: secret() decrypts transparently from the sealed store, get() sees nothing', $all_encrypted && '' === (string) Settings::get( 'stripe_secret_key' ) && array() === w5_leaks( (string) json_encode( get_option( Secrets::OPTION ) ), $w5_secrets ) );
 \PassCaptain\Admin\SettingsPage::save( array( 'stripe_secret_key' => 'sk_test_W5viaForm' . $w5_tag . 'Abcdefgh' ) );
 check( 'settings page save stores the secret encrypted', false === strpos( w5_raw_settings(), 'sk_test_W5viaForm' ) && 'sk_test_W5viaForm' . $w5_tag . 'Abcdefgh' === Settings::secret( 'stripe_secret_key' ) );
 \PassCaptain\Admin\SettingsPage::save( array( 'stripe_secret_key' => '' ) );
@@ -93,30 +97,40 @@ putenv( 'PASS_CAPTAIN_SECRET_KEY=' . str_repeat( 'ab', 32 ) );
 Vault::reset();
 check( 'PASS_CAPTAIN_SECRET_KEY (env) is preferred', 'env' === Vault::key_source() && 'success' === Vault::key_notice()[0] );
 check( 'values encrypted with the salt key stay readable after switching to a dedicated key', $w5_secrets['mollie_api_key'] === Settings::secret( 'mollie_api_key' ) );
-$re = Vault::migrate();
 putenv( 'PASS_CAPTAIN_SECRET_KEY' );
 Vault::reset();
-check( "migration re-encrypts with the new key ({$re['settings']} values)", $re['settings'] >= count( $w5_secrets ) && null === Vault::decrypt( get_option( Settings::OPTION )['mollie_api_key'], 'mollie_api_key' ) );
-putenv( 'PASS_CAPTAIN_SECRET_KEY=' . str_repeat( 'ab', 32 ) );
-Vault::reset();
-check( 're-encrypted values decrypt with the dedicated key', $w5_secrets['mollie_api_key'] === Settings::secret( 'mollie_api_key' ) );
+// Merged store: provider secrets are sealed by Secrets with WPCAP_SECRETS_KEY (constant or environment);
+// the salt-derived key stays in the key ring after the switch, rewrap() re-encrypts with the new key.
+$w5_key1 = str_repeat( 'cd', 32 );
+putenv( 'WPCAP_SECRETS_KEY=' . $w5_key1 );
+check( 'store: WPCAP_SECRETS_KEY is preferred, salt-sealed values stay readable after the switch', 'constant' === Secrets::key_source() && Secrets::rewrap_pending() && $w5_secrets['mollie_api_key'] === Settings::secret( 'mollie_api_key' ) );
+$re = Secrets::rewrap();
+putenv( 'WPCAP_SECRETS_KEY' );
+check( 'migration re-encrypts with the new key (' . count( $re['rewrapped'] ) . ' values)', count( $re['rewrapped'] ) >= count( $w5_secrets ) && ! $re['failed'] && false === Secrets::stored( 'mollie_api_key' ) );
+putenv( 'WPCAP_SECRETS_KEY=' . $w5_key1 );
+check( 're-encrypted values decrypt with the dedicated key', $w5_secrets['mollie_api_key'] === Settings::secret( 'mollie_api_key' ) && ! Secrets::rewrap_pending() );
 
 /* ---- Key loss ---- */
-Vault::set_keys_for_tests( random_bytes( 32 ) );
+putenv( 'WPCAP_SECRETS_KEY=' . bin2hex( random_bytes( 32 ) ) ); // Another key, the old one not kept as _PREVIOUS.
 $lost = Settings::secret( 'mollie_api_key' );
-$broken = Vault::undecryptable_settings();
+$broken = Secrets::undecryptable();
 $w5_get = $_GET; $_GET = array( 'page' => 'wpcap-settings' ); // The notice is shown on plugin pages only (WPORG-5).
-ob_start(); Vault::render_notices(); $notice = ob_get_clean();
+ob_start(); Secrets::admin_notice(); $notice = ob_get_clean();
 $_GET = $w5_get;
 ob_start(); echo \PassCaptain\Admin\SettingsPage::secret_input( 'stripe_secret_key' ); $lost_field = ob_get_clean();
 check( 'key loss: undecryptable secret is treated as empty', '' === $lost && 'undecryptable' === Settings::secret_status( 'mollie_api_key' )['state'] );
-check( 'key loss: admin notice asks to re-enter the affected secrets', in_array( 'mollie_api_key', $broken, true ) && false !== strpos( $notice, 'erneut eingeben' ) && false !== strpos( $notice, 'mollie_api_key' ) );
+check( 'key loss: admin notice asks to re-enter the affected secrets', in_array( 'mollie_api_key', $broken, true ) && false !== strpos( $notice, 'nicht entschlüsselt' ) && false !== strpos( $notice, 'neu eingeben' ) && false !== strpos( $notice, Secrets::label( 'mollie_api_key' ) ) );
 check( 'key loss: settings field says so and offers replacement', false !== strpos( $lost_field, 'nicht entschlüsselt' ) && false !== strpos( $lost_field, 'stripe_secret_key__clear' ) );
 check( 'key loss: payment gateway counts as not configured instead of using garbage', ! ( new \PassCaptain\Mollie\MollieGateway() )->is_available( 'EUR' ) );
-$m3 = Vault::migrate();
-check( 'key loss: migration leaves undecryptable values untouched', 0 === $m3['settings'] );
-Vault::reset();
+$m3 = Secrets::rewrap();
+check( 'key loss: migration leaves undecryptable values untouched', ! $m3['rewrapped'] && in_array( 'mollie_api_key', $m3['failed'], true ) );
+putenv( 'WPCAP_SECRETS_KEY=' . $w5_key1 );
 check( 'key restored: secrets readable again', $w5_secrets['mollie_api_key'] === Settings::secret( 'mollie_api_key' ) );
+// Back to the salt-derived key for the rest of the run.
+putenv( 'WPCAP_SECRETS_KEY_PREVIOUS=' . $w5_key1 );
+putenv( 'WPCAP_SECRETS_KEY' );
+Secrets::rewrap();
+putenv( 'WPCAP_SECRETS_KEY_PREVIOUS' );
 
 /* ---- Leak checks ---- */
 echo "W5 security: secrets never appear in plaintext\n";
@@ -127,6 +141,8 @@ $w5_html = '';
 $w5_render_errors = array();
 foreach ( array(
 	'settings' => array( \PassCaptain\Admin\SettingsPage::class, 'render' ),
+	// Tabbed settings screen (merged line): the Stripe secrets are on ?tab=payments&section=stripe.
+	'settings-stripe' => static function () { $saved = $_GET; $_GET = array( 'page' => 'wpcap-settings', 'tab' => 'payments', 'section' => 'stripe' ); try { \PassCaptain\Admin\SettingsPage::render(); } finally { $_GET = $saved; } },
 	'sms' => array( \PassCaptain\Modules\Sms::class, 'render_admin' ),
 	'mollie' => array( \PassCaptain\Modules\Mollie::class, 'render_admin' ),
 	'wallet' => array( \PassCaptain\WalletPasses\AdminPage::class, 'render' ),
@@ -138,7 +154,8 @@ foreach ( array(
 }
 check( 'admin screens render (settings, SMS, Mollie, Wallet, Webhooks)' . ( $w5_render_errors ? ' – ' . implode( '; ', $w5_render_errors ) : '' ), ! $w5_render_errors && strlen( $w5_html ) > 1000 );
 check( 'admin HTML contains no plaintext secret and no ciphertext', array() === w5_leaks( $w5_html, $w5_all ) && false === strpos( $w5_html, 'pcv1:' ) );
-check( 'settings page shows "gespeichert ••••" with the last four characters', false !== strpos( $w5_html, 'gespeichert ••••' . substr( $w5_secrets['stripe_secret_key'], -4 ) ) );
+// Merged secrets UI (Secrets::render_field()): "Gespeichert (verschlüsselt), endet auf …abcd".
+check( 'settings page shows the stored state with the last four characters only', false !== strpos( $w5_html, 'endet auf …' . substr( $w5_secrets['stripe_secret_key'], -4 ) ) );
 // One-time reveal of a webhook secret after creation.
 set_transient( 'wpcap_webhook_reveal_' . get_current_user_id(), Vault::encrypt( json_encode( array( (int) $created['subscription_id'], $created['secret'] ) ), 'webhook_reveal' ) );
 ob_start(); \PassCaptain\Modules\Webhooks::render_admin(); $first = ob_get_clean();
@@ -158,11 +175,13 @@ http_push( array( 'error' => array( 'message' => 'Invalid API Key provided: ' . 
 PassCaptain\Settings::update( array( 'enabled_providers' => array( 'manual', 'stripe' ) ) );
 $w5_type = make_type( 5, 10, 1500 );
 $req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/checkout' );
-$req->set_body( json_encode( array( 'email' => 'w5-leak@example.com', 'items' => array( array( 'ticket_type_id' => $w5_type, 'quantity' => 1 ) ), 'idempotency_key' => 'w5-leak-1', 'provider' => 'stripe' ) ) );
+$req->set_body( json_encode( array( 'email' => 'w5-leak@example.com', 'items' => array( array( 'ticket_type_id' => $w5_type, 'quantity' => 1 ) ), 'idempotency_key' => 'w5-leak-0000000001', 'provider' => 'stripe' ) ) );
 wpcap_test_reset_transients();
 $res = \PassCaptain\Rest\Controller::checkout( $req );
 $err_text = is_wp_error( $res ) ? $res->get_error_message() . json_encode( $res->get_error_data() ) : json_encode( $res );
-check( 'provider error echoing the API key is redacted in the REST error', is_wp_error( $res ) && array() === w5_leaks( $err_text, $w5_all ) && false !== strpos( $err_text, 'Invalid API Key' ) );
+// Merged line: the buyer gets a generic message with an error reference (payment_start_failed), never the
+// provider text; the provider message is only logged (redacted).
+check( 'provider error echoing the API key is redacted in the REST error', is_wp_error( $res ) && array() === w5_leaks( $err_text, $w5_all ) && false === strpos( $err_text, 'Invalid API Key' ) && '' !== (string) ( $res->get_error_data()['reference'] ?? '' ) );
 $e = Redact::error( new WP_Error( 'x', 'failed with ' . $w5_secrets['twilio_auth_token'] . ' for jane@example.com', array( 'status' => 502, 'token' => 'abc', 'raw' => 'secret=' . $w5_secrets['sms_http_secret'] ) ) );
 check( 'Redact::error removes secrets from message and data, keeps status', array() === w5_leaks( $e->get_error_message() . json_encode( $e->get_error_data() ), $w5_all ) && 502 === $e->get_error_data()['status'] && false === strpos( $e->get_error_message(), 'jane@' ) );
 

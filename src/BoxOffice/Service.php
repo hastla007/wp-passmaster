@@ -501,9 +501,13 @@ final class Service {
 		// 3. A489: the shift must still be open (not counting/closed) right before the payment is
 		// confirmed and the tickets are issued – checked under the shift lock that counting and closing
 		// take, too. A count/close that comes later sees this pending sale as "in progress" and waits.
-		$wpdb->query( 'START TRANSACTION' );
+		// A failed locking read must not look like "session closed" (that cancels the order): the sale stays
+		// pending and resubmitting resumes it (as in finalize()).
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$locked_shift = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", (int) $session->session_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return self::busy(); }
 		$locked_sale = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return self::busy(); }
 		if ( ! $locked_shift || 'open' !== $locked_shift->status || ! $locked_sale || 'pending' !== $locked_sale->status ) {
 			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_boxoffice_sales SET status='failed' WHERE sale_id=%d AND status='pending'", $sale_id ) );
 			$wpdb->query( 'COMMIT' );

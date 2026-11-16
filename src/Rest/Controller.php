@@ -1074,6 +1074,7 @@ final class Controller {
 	}
 
 	public static function revoke_member_pass( \WP_REST_Request $request ) {
+		global $wpdb;
 		$pass_id = absint( $request['pass_id'] );
 		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", $pass_id ) );
 		if ( ! $events ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }

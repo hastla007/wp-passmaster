@@ -2596,6 +2596,8 @@ final class Orders {
 		}
 		if ( ! $order || in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
+			// A repeated call heals counters whose post-commit sync failed last time (idempotent).
+			if ( $order ) { CapacityCounters::sync_order_now( $order_id ); }
 			return true;
 		}
 		if ( $only_payment_status && ! in_array( (string) $order->payment_status, $only_payment_status, true ) ) {
