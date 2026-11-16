@@ -1302,6 +1302,23 @@ zeigt die Eingaben wieder an). Nach dem Speichern wiederholt eine Warnung, was d
 Änderung steht wie bisher im Termin-Verlauf (A114). Name, Kontingent, Verkaufsfenster und Status lassen sich
 ohne Bestätigung ändern; die Währung bleibt nach der ersten Bestellung gesperrt.
 
+### Ticketarten und Teilnehmerfelder auf alle Termine anwenden; Serien (A333)
+
+Hat das Event weitere kommende Termine, bietet das Ticketart-Formular „Auch für die gleichnamige Ticketart an N
+weiteren kommenden Terminen übernehmen“ (`apply_all`): Name, Preis, Währung, Steuer, Höchstmenge, Status und
+Einlasskontrolle gehen an die Ticketart gleichen (bisherigen) Namens aller kommenden, nicht abgesagten Termine;
+Kontingent und Verkaufszeitraum bleiben je Termin. Eine neue Ticketart wird so an jedem kommenden Termin ohne
+gleichnamige Ticketart angelegt, ihr Verkaufszeitraum mit dem Termin verschoben. Jeder Termin durchläuft dieselben
+Prüfungen wie ein einzelnes Speichern (Währungssperre, Kontingent ≥ verkauft, Bestätigung nach Verkaufsstart A334);
+scheitert eine, wird der Termin übersprungen und in der Warnung genannt („Nicht übernommen für …“). Teilnehmerfelder
+haben dieselbe Option; die Felder der anderen Termine werden über ihren Schlüssel gefunden (sonst angelegt).
+Vergangene und abgesagte Termine bleiben unverändert.
+
+Wiederkehrende Termine: Das Formular „Event anlegen“ behält die einfache wöchentliche Wiederholung (bis 12
+Termine). Ist das Modul „Serientermine“ aktiv, weisen das Formular und die Eventseite („Serientermine anlegen
+oder bearbeiten“) darauf hin – für andere Rhythmen, Ausnahmen, mehr Termine, Vorlagen mit Teilnehmerfeldern und
+Einlassregeln (A332) und spätere Änderungen der ganzen Serie.
+
 ### Termin- und Eventabsage (A266, A267, A356)
 
 Termine und ganze Events werden nur über eine **Bestätigungsseite** abgesagt: „Absagen …“ beim Termin (`view=cancel_occurrence`) bzw. „Event absagen …“ in der Eventliste und auf der Eventseite (`view=cancel_event`). Die Seite nennt die Folgen (Termine, zu widerrufende Tickets, zu stornierende offene Bestellungen, automatische oder offene Erstattungen, WooCommerce-Bestellungen, Empfänger der Absage-Mail), verlangt einen **Grund** (Audit-Log) und eine **Bestätigung per Checkbox**; ohne beides lehnt der Server ab (`wpcap_cancel_reason`, `wpcap_cancel_confirm`).

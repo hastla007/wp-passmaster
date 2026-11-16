@@ -601,7 +601,106 @@ final class EventsPage {
 			// A334: the confirmed change is recorded with what it did not change.
 			$warning = trim( self::sold_change_message( (int) $sold, $sold_change ) . ' ' . $warning );
 		}
-		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id ) + ( '' !== $warning ? array( 'warning' => $warning ) : array() );
+		$result = array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id );
+		if ( Forms::flag( $in, 'apply_all' ) && empty( $in['_wpcap_sibling'] ) ) {
+			// A333: the same change for the same-named ticket type of every upcoming date of the event.
+			$result += self::apply_type_to_siblings( $in, $old, $occ, $sales );
+			if ( ! empty( $result['skipped'] ) ) { $warning = trim( $warning . ' ' . implode( ' ', $result['skipped'] ) ); }
+		}
+		return $result + ( '' !== $warning ? array( 'warning' => $warning ) : array() );
+	}
+
+	/**
+	 * Upcoming scheduled occurrences of an event other than $except, by start.
+	 *
+	 * @return object[]
+	 */
+	public static function upcoming_occurrences( $event_id, $except = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id,starts_at,timezone FROM {$p}wpcap_occurrences WHERE event_id=%d AND occurrence_id<>%d AND status='scheduled' AND starts_at>=%s ORDER BY starts_at,occurrence_id", absint( $event_id ), absint( $except ), current_time( 'mysql', true ) ) );
+	}
+
+	/**
+	 * Ticket types named $name on the other upcoming dates of the event (A333: "auf alle Termine
+	 * anwenden"); archived types are left out.
+	 *
+	 * @return object[] ticket type rows with occurrence_starts_at and timezone.
+	 */
+	public static function sibling_types( $event_id, $except_occurrence, $name ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.timezone,o.starts_at AS occurrence_starts_at FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND o.occurrence_id<>%d AND o.status='scheduled' AND o.starts_at>=%s AND tt.name=%s AND tt.status<>'archived' ORDER BY o.starts_at,tt.ticket_type_id", absint( $event_id ), absint( $except_occurrence ), current_time( 'mysql', true ), (string) $name ) );
+	}
+
+	/**
+	 * A333: applies a saved ticket type to the same-named type of every other upcoming date of the
+	 * event (through save_ticket_type(), so every check – currency lock, capacity, A334
+	 * confirmation – runs per date). Existing types take over name, price, currency, tax, maximum
+	 * per order, status and admission checks and keep their own capacity and sales window; a new
+	 * type is created on every upcoming date that has none of that name, with the sales window
+	 * moved with the date.
+	 *
+	 * @param array       $in    Submitted form.
+	 * @param object|null $old   Type before the change (null: new type).
+	 * @param object      $occ   Occurrence of the edited type.
+	 * @param array       $sales UTC sales_start/sales_end of the edited type.
+	 * @return array{applied:int, skipped:string[]}
+	 */
+	private static function apply_type_to_siblings( array $in, $old, $occ, array $sales ) {
+		$applied = 0;
+		$skipped = array();
+		$base = array_diff_key( $in, array_flip( array( 'apply_all', 'ticket_type_id', 'occurrence_id', 'capacity', 'sales_start', 'sales_end' ) ) );
+		$base['_wpcap_sibling'] = 1;
+		$jobs = array();
+		if ( $old ) {
+			foreach ( self::sibling_types( (int) $occ->event_id, (int) $occ->occurrence_id, (string) $old->name ) as $type ) {
+				$jobs[] = array( $type, $base + array(
+					'ticket_type_id' => (int) $type->ticket_type_id,
+					'capacity' => (int) $type->capacity,
+					'sales_start' => Forms::utc_to_local( $type->sales_start, $type->timezone ),
+					'sales_end' => Forms::utc_to_local( $type->sales_end, $type->timezone ),
+				) );
+			}
+		} else {
+			$name = Forms::text( $in, 'name' );
+			$shift = static function ( $utc, $target ) use ( $occ ) {
+				if ( empty( $utc ) ) { return ''; }
+				$moved = strtotime( $utc . ' UTC' ) + ( strtotime( $target->starts_at . ' UTC' ) - strtotime( $occ->starts_at . ' UTC' ) );
+				return Forms::utc_to_local( gmdate( 'Y-m-d H:i:s', $moved ), $target->timezone );
+			};
+			$taken = array();
+			foreach ( self::sibling_types( (int) $occ->event_id, (int) $occ->occurrence_id, $name ) as $type ) { $taken[ (int) $type->occurrence_id ] = true; }
+			foreach ( self::upcoming_occurrences( (int) $occ->event_id, (int) $occ->occurrence_id ) as $target ) {
+				if ( isset( $taken[ (int) $target->occurrence_id ] ) ) { continue; }
+				$jobs[] = array( $target, $base + array(
+					'ticket_type_id' => 0,
+					'occurrence_id' => (int) $target->occurrence_id,
+					'capacity' => Forms::int( $in, 'capacity' ),
+					'sales_start' => $shift( $sales['sales_start'], $target ),
+					'sales_end' => $shift( $sales['sales_end'], $target ),
+				) );
+			}
+		}
+		foreach ( $jobs as $job ) {
+			list( $target, $sub ) = $job;
+			$done = self::save_ticket_type( $sub );
+			if ( is_wp_error( $done ) ) {
+				$when = Forms::datetime( $target->occurrence_starts_at ?? $target->starts_at, $target->timezone );
+				/* translators: 1: date of the occurrence, 2: reason */
+				$skipped[] = sprintf( __( 'Nicht übernommen für %1$s: %2$s', 'pass-captain' ), $when, $done->get_error_message() );
+				continue;
+			}
+			++$applied;
+		}
+		return array( 'applied' => $applied, 'skipped' => $skipped );
+	}
+
+	/** Success notice of a save with "auf alle Termine anwenden" (A333). */
+	private static function applied_notice( $base, $result ) {
+		if ( ! is_array( $result ) || ! isset( $result['applied'] ) ) { return $base; }
+		/* translators: %d: number of other dates */
+		return $base . ' ' . sprintf( _n( 'Auf %d weiteren Termin übernommen.', 'Auf %d weitere Termine übernommen.', (int) $result['applied'], 'pass-captain' ), (int) $result['applied'] );
 	}
 
 	/**
@@ -628,6 +727,11 @@ final class EventsPage {
 			(int) $sold,
 			$what
 		);
+	}
+
+	/** Whether the module "Serientermine" is on (A333: the event forms point to it). */
+	public static function series_available() {
+		return class_exists( '\\PassCaptain\\Series\\AdminPage' ) && \PassCaptain\Modules::enabled( \PassCaptain\Modules\Series::class );
 	}
 
 	/** Creates or updates a participant field. The key is fixed after creation. */
@@ -684,7 +788,26 @@ final class EventsPage {
 			$details['consent_text_version'] = \PassCaptain\Consents::ensure_text( (object) array( 'field_id' => $field_id, 'label' => $label, 'purpose' => $data['purpose'] ) )['text_version'];
 		}
 		Audit::record( $old ? 'participant_field_updated' : 'participant_field_created', 'ticket_type', (int) $type->ticket_type_id, $details );
-		return array( 'field_id' => $field_id, 'ticket_type_id' => (int) $type->ticket_type_id );
+		$result = array( 'field_id' => $field_id, 'ticket_type_id' => (int) $type->ticket_type_id );
+		if ( Forms::flag( $in, 'apply_all' ) && empty( $in['_wpcap_sibling'] ) ) {
+			// A333: the same field on the same-named ticket type of every upcoming date (matched by key).
+			$key = $old ? (string) $old->field_key : (string) $data['field_key'];
+			$sub = array_diff_key( $in, array_flip( array( 'apply_all', 'field_id', 'ticket_type_id', 'field_key' ) ) ) + array( '_wpcap_sibling' => 1 );
+			$result['applied'] = 0;
+			$skipped = array();
+			foreach ( self::sibling_types( (int) $type->event_id, (int) $type->occurrence_id, (string) $type->name ) as $sibling ) {
+				$existing = (int) $wpdb->get_var( $wpdb->prepare( "SELECT field_id FROM $table WHERE ticket_type_id=%d AND field_key=%s", (int) $sibling->ticket_type_id, $key ) );
+				$done = self::save_participant_field( $sub + ( $existing ? array( 'field_id' => $existing ) : array( 'ticket_type_id' => (int) $sibling->ticket_type_id, 'field_key' => $key ) ) );
+				if ( is_wp_error( $done ) ) {
+					/* translators: 1: date of the occurrence, 2: reason */
+					$skipped[] = sprintf( __( 'Nicht übernommen für %1$s: %2$s', 'pass-captain' ), Forms::datetime( $sibling->occurrence_starts_at, $sibling->timezone ), $done->get_error_message() );
+					continue;
+				}
+				++$result['applied'];
+			}
+			if ( $skipped ) { $result['warning'] = implode( ' ', $skipped ); }
+		}
+		return $result;
 	}
 
 	/** Activates or deactivates a participant field (answers are kept). */
@@ -866,7 +989,7 @@ final class EventsPage {
 		Forms::verify( 'wpcap_save_ticket_type' );
 		$result = self::save_ticket_type( $in );
 		$back = Forms::int( $in, 'ticket_type_id' ) ? self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => Forms::int( $in, 'ticket_type_id' ) ) ) : self::url( array( 'view' => 'occurrence', 'occurrence_id' => Forms::int( $in, 'occurrence_id' ) ) );
-		Forms::finish( $result, __( 'Ticketart gespeichert.', 'pass-captain' ), is_wp_error( $result ) ? $back : self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $result['ticket_type_id'] ) ), $back );
+		Forms::finish( $result, self::applied_notice( __( 'Ticketart gespeichert.', 'pass-captain' ), $result ), is_wp_error( $result ) ? $back : self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $result['ticket_type_id'] ) ), $back );
 	}
 
 	public static function handle_save_participant_field() {
@@ -874,7 +997,7 @@ final class EventsPage {
 		Forms::verify( 'wpcap_save_participant_field' );
 		$result = self::save_participant_field( $in );
 		$type_id = is_wp_error( $result ) ? Forms::int( $in, 'ticket_type_id' ) : $result['ticket_type_id'];
-		Forms::finish( $result, __( 'Teilnehmerfeld gespeichert.', 'pass-captain' ), self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $type_id ) ) );
+		Forms::finish( $result, self::applied_notice( __( 'Teilnehmerfeld gespeichert.', 'pass-captain' ), $result ), self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $type_id ) ) );
 	}
 
 	public static function handle_participant_field_status() {
@@ -1142,7 +1265,7 @@ final class EventsPage {
 			<tr><th><label for="wpcap-description"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-description" name="description" class="large-text" rows="4"><?php echo esc_textarea( $v( 'description', '' ) ); ?></textarea></td></tr>
 			<tr><th><label for="wpcap-start"><?php esc_html_e( 'Beginn', 'pass-captain' ); ?></label></th><td><input id="wpcap-start" name="starts_at" type="datetime-local" required value="<?php echo esc_attr( $v( 'starts_at', '' ) ); ?>"<?php echo $bad( 'starts_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::timezone_select( 'timezone', $v( 'timezone', wp_timezone_string() ), '', 'aria-label="' . esc_attr__( 'Zeitzone', 'pass-captain' ) . '"' . $bad( 'timezone' ) ); ?></td></tr>
 			<tr><th><label for="wpcap-end"><?php esc_html_e( 'Ende (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-end" name="ends_at" type="datetime-local" value="<?php echo esc_attr( $v( 'ends_at', '' ) ); ?>"<?php echo $bad( 'ends_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
-			<tr><th><label for="wpcap-repeat"><?php esc_html_e( 'Terminserie', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'repeat_frequency', array( 'none' => __( 'Einmalig', 'pass-captain' ), 'weekly' => __( 'Wöchentlich', 'pass-captain' ) ), $v( 'repeat_frequency', 'none' ), 'wpcap-repeat' ); ?> <label><?php esc_html_e( 'Anzahl Termine (max. 12)', 'pass-captain' ); ?> <input type="number" name="repeat_count" min="1" max="12" value="<?php echo esc_attr( $v( 'repeat_count', '1' ) ); ?>"></label></td></tr>
+			<tr><th><label for="wpcap-repeat"><?php esc_html_e( 'Terminserie', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'repeat_frequency', array( 'none' => __( 'Einmalig', 'pass-captain' ), 'weekly' => __( 'Wöchentlich', 'pass-captain' ) ), $v( 'repeat_frequency', 'none' ), 'wpcap-repeat' ); ?> <label><?php esc_html_e( 'Anzahl Termine (max. 12)', 'pass-captain' ); ?> <input type="number" name="repeat_count" min="1" max="12" value="<?php echo esc_attr( $v( 'repeat_count', '1' ) ); ?>"></label><?php if ( self::series_available() ) : ?><p class="description"><?php esc_html_e( 'Einfache wöchentliche Wiederholung. Andere Rhythmen, Ausnahmen, mehr als 12 Termine und spätere Änderungen der ganzen Serie: nach dem Anlegen im Event „Serientermine“ verwenden.', 'pass-captain' ); ?></p><?php endif; ?></td></tr>
 			<tr><th><label for="wpcap-location"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></label></th><td><input id="wpcap-location" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $v( 'location', '' ) ); ?>"></td></tr>
 			<tr><th><label for="wpcap-event-capacity"><?php esc_html_e( 'Kontingent pro Termin', 'pass-captain' ); ?></label></th><td><input id="wpcap-event-capacity" name="event_capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'event_capacity', '0' ) ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-type-name"><?php esc_html_e( 'Ticketkategorie', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-name" name="ticket_name" type="text" value="<?php echo esc_attr( $v( 'ticket_name', 'Standard' ) ); ?>" required maxlength="190"<?php echo $bad( 'ticket_name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
@@ -1263,6 +1386,9 @@ final class EventsPage {
 		<?php endif; ?>
 
 		<?php if ( $editable ) : ?>
+			<?php if ( self::series_available() ) : ?>
+				<p><a class="button" href="<?php echo esc_url( \PassCaptain\Series\AdminPage::url( array( 'event_id' => (int) $event->event_id ) ) ); ?>"><?php esc_html_e( 'Serientermine anlegen oder bearbeiten', 'pass-captain' ); ?></a> <span class="description"><?php esc_html_e( 'Mehrere Termine nach Regel mit Ticketarten, Teilnehmerfeldern und Einlassregeln eines Vorlagentermins.', 'pass-captain' ); ?></span></p>
+			<?php endif; ?>
 			<h3><?php esc_html_e( 'Termin hinzufügen', 'pass-captain' ); ?></h3>
 			<?php self::occurrence_form( null, (int) $event->event_id, $default_tz ); ?>
 		<?php endif; ?>
@@ -1448,6 +1574,13 @@ final class EventsPage {
 				<p class="description"><?php esc_html_e( 'Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt.', 'pass-captain' ); ?></p>
 			</td></tr>
 			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $v( 'status', $type ? $type->status : 'active' ), 'wpcap-tt-status' ); ?></td></tr>
+			<?php $wpcap_siblings = $type ? count( self::sibling_types( (int) $occ->event_id, (int) $occ->occurrence_id, (string) $type->name ) ) : count( self::upcoming_occurrences( (int) $occ->event_id, (int) $occ->occurrence_id ) ); ?>
+			<?php if ( $wpcap_siblings ) : ?>
+			<tr><th><?php esc_html_e( 'Weitere Termine', 'pass-captain' ); ?></th><td>
+				<label><input type="checkbox" name="apply_all" value="1"> <?php echo esc_html( $type ? sprintf( /* translators: %d: number of other upcoming dates */ _n( 'Auch für die gleichnamige Ticketart an %d weiteren kommenden Termin übernehmen', 'Auch für die gleichnamige Ticketart an %d weiteren kommenden Terminen übernehmen', $wpcap_siblings, 'pass-captain' ), $wpcap_siblings ) : sprintf( /* translators: %d: number of other upcoming dates */ _n( 'Auch an %d weiteren kommenden Termin anlegen', 'Auch an %d weiteren kommenden Terminen anlegen', $wpcap_siblings, 'pass-captain' ), $wpcap_siblings ) ); ?></label>
+				<p class="description"><?php echo esc_html( $type ? __( 'Name, Preis, Währung, Steuer, Höchstmenge, Status und Einlasskontrolle werden übernommen; Kontingent und Verkaufszeitraum bleiben je Termin. Termine, für die eine Prüfung fehlschlägt, werden übersprungen und genannt.', 'pass-captain' ) : __( 'Termine, die schon eine Ticketart dieses Namens haben, werden übersprungen. Der Verkaufszeitraum wird mit dem Termin verschoben.', 'pass-captain' ) ); ?></p>
+			</td></tr>
+			<?php endif; ?>
 			<?php if ( $type && Queries::type_has_orders( (int) $type->ticket_type_id ) ) : $wpcap_sold = Queries::sold_for_type( (int) $type->ticket_type_id ); ?>
 			<tr><th><?php esc_html_e( 'Bereits verkauft', 'pass-captain' ); ?></th><td>
 				<p class="description" id="wpcap-tt-sold-note"><strong><?php echo esc_html( sprintf( /* translators: %d: sold tickets */ _n( '%d Ticket verkauft.', '%d Tickets verkauft.', $wpcap_sold, 'pass-captain' ), $wpcap_sold ) ); ?></strong> <?php esc_html_e( 'Änderungen an Preis, Steuersatz oder Steuerklasse gelten nur für neue Bestellungen; bestehende Bestellungen, Tickets, Rechnungen und Erstattungen bleiben unverändert.', 'pass-captain' ); ?></p>
@@ -1532,6 +1665,10 @@ final class EventsPage {
 				<?php endif; ?>
 				<tr><th><label for="wpcap-pf-purpose"><?php esc_html_e( 'Zweck', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-purpose" name="purpose" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $edit_field ? $edit_field->purpose : '' ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-ret"><?php esc_html_e( 'Aufbewahrung (Tage)', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-ret" name="retention_days" type="number" min="0" max="3650" value="<?php echo esc_attr( $edit_field ? (int) $edit_field->retention_days : 365 ); ?>"></td></tr>
+				<?php $wpcap_siblings = count( self::sibling_types( (int) $type->event_id, (int) $type->occurrence_id, (string) $type->name ) ); ?>
+				<?php if ( $wpcap_siblings ) : ?>
+				<tr><th><?php esc_html_e( 'Weitere Termine', 'pass-captain' ); ?></th><td><label><input type="checkbox" name="apply_all" value="1"> <?php echo esc_html( sprintf( /* translators: %d: number of other upcoming dates */ _n( 'Auch bei der gleichnamigen Ticketart an %d weiteren kommenden Termin anlegen bzw. ändern', 'Auch bei der gleichnamigen Ticketart an %d weiteren kommenden Terminen anlegen bzw. ändern', $wpcap_siblings, 'pass-captain' ), $wpcap_siblings ) ); ?></label></td></tr>
+				<?php endif; ?>
 				<tr><th><label for="wpcap-pf-pos"><?php esc_html_e( 'Reihenfolge', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-pos" name="position" type="number" min="0" value="<?php echo esc_attr( $edit_field ? (int) $edit_field->position : count( $fields ) ); ?>"></td></tr>
 			</tbody></table>
 			<?php submit_button( __( 'Feld speichern', 'pass-captain' ) ); ?>
