@@ -93,6 +93,7 @@ final class Plugin {
 		Integrations\Vouchers\CheckinService::register();
 		Integrations\AffiliateCaptain\Adapter::register();
 		Notifications::register();
+		TicketCodes::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
 		PageCache::register();

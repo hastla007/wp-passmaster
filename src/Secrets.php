@@ -187,6 +187,19 @@ final class Secrets {
 		return self::FORMAT . ':' . self::kid( $key ) . ':' . base64_encode( $nonce . $box ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 	}
 
+	/**
+	 * Seals a value outside the vault option (e.g. ticket codes, A586) with the same key ring: the box
+	 * is bound to $context and survives a key rotation with WPCAP_SECRETS_KEY_PREVIOUS.
+	 */
+	public static function seal_value( $context, $value ) {
+		return self::seal( 'ext:' . (string) $context, (string) $value );
+	}
+
+	/** Opens a box of seal_value(); false when the key, context or box do not match. */
+	public static function open_value( $context, $sealed ) {
+		return self::open( 'ext:' . (string) $context, (string) $sealed );
+	}
+
 	/** Key id of a sealed entry ('' if malformed). */
 	private static function entry_kid( $sealed ) {
 		$parts = explode( ':', (string) $sealed, 3 );

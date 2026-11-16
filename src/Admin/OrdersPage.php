@@ -164,6 +164,54 @@ final class OrdersPage {
 	}
 
 	/**
+	 * A586: ticket PDF of the order's valid tickets (or one ticket, field "ticket" = public id) with
+	 * their stored current codes – nothing is rotated, mailed or printed codes stay valid. Tickets
+	 * without a stored code are left out and counted (they need "Tickets erneut senden").
+	 *
+	 * @return array|\WP_Error filename, content, tickets, missing.
+	 */
+	public static function ticket_pdf( array $in ) {
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { return $order; }
+		if ( 'paid' !== $order->payment_status ) {
+			return Forms::error( 'wpcap_order_unpaid', __( 'Tickets gibt es erst nach bestätigter Zahlung.', 'pass-captain' ), 409 );
+		}
+		$only = strtolower( preg_replace( '/[^a-f0-9]/i', '', Forms::text( $in, 'ticket', 32 ) ) );
+		$entries = array();
+		$missing = 0;
+		foreach ( \PassCaptain\PortalSelfService::tickets( $order ) as $ticket ) {
+			if ( 'valid' !== (string) $ticket->status || (int) $ticket->refunded || ( '' !== $only && ! hash_equals( (string) $ticket->public_id, $only ) ) ) { continue; }
+			$code = \PassCaptain\PortalSelfService::current_code( (int) $ticket->ticket_id );
+			if ( '' === $code ) { ++$missing; continue; }
+			$entries[] = array(
+				'event' => (string) $ticket->event_name,
+				'ticket' => (string) $ticket->ticket_name,
+				'when' => Orders::format_start( $ticket->starts_at, $ticket->timezone ),
+				'location' => (string) $ticket->location,
+				'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket->ticket_id, (array) $ticket ),
+				'attendee' => (string) $ticket->attendee_name,
+				'token' => $code,
+				'help_code' => \PassCaptain\HelpCode::for_ticket( (int) $ticket->ticket_id, $code ),
+			);
+		}
+		if ( ! $entries ) {
+			return Forms::error(
+				'wpcap_ticket_pdf_no_code',
+				$missing
+					? __( 'Für diese Tickets ist kein Code gespeichert (vor dem Update ausgestellt). „Tickets erneut senden“ stellt neue Codes aus; danach ist das PDF hier verfügbar.', 'pass-captain' )
+					: __( 'Diese Bestellung hat keine gültigen Tickets für ein PDF.', 'pass-captain' ),
+				409
+			);
+		}
+		$content = \PassCaptain\Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $entries ) {
+			return \PassCaptain\TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+		} );
+		\PassCaptain\Audit::record( 'admin_ticket_pdf', 'order', (int) $order->order_id, array( 'tickets' => count( $entries ), 'missing' => $missing, 'scope' => '' === $only ? 'all' : 'single' ) );
+		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', \PassCaptain\Frontend\Format::order_reference( $order->public_id ) );
+		return array( 'filename' => ( '' === $only ? 'tickets-' : 'ticket-' ) . $reference . ( '' === $only ? '' : '-' . substr( $only, 0, 8 ) ) . '.pdf', 'content' => $content, 'tickets' => count( $entries ), 'missing' => $missing );
+	}
+
+	/**
 	 * Requests a refund for selected tickets or the whole order. The idempotency key is generated
 	 * when the form is rendered, so a double submit returns the same refund.
 	 */
@@ -418,6 +466,15 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_resend_tickets_' . $order_id );
 		$result = self::resend_tickets( $in );
 		Forms::finish( $result, is_wp_error( $result ) ? '' : self::resend_message( $result ), self::order_url( $order_id ) );
+	}
+
+	public static function handle_ticket_pdf() {
+		$in = Forms::post();
+		$order_id = Forms::int( $in, 'order_id' );
+		Forms::verify( 'wpcap_ticket_pdf_' . $order_id );
+		$result = self::ticket_pdf( $in );
+		if ( is_wp_error( $result ) ) { Forms::finish( $result, '', self::order_url( $order_id ) ); }
+		\PassCaptain\Reports\Scope::send_download( $result['content'], $result['filename'], 'application/pdf' );
 	}
 
 	public static function handle_refund() {
@@ -784,6 +841,18 @@ final class OrdersPage {
 			Forms::hidden( 'order_id', $order->order_id );
 			echo '<input type="text" name="reason" placeholder="' . esc_attr__( 'Grund (optional)', 'pass-captain' ) . '" maxlength="255"> ';
 			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form> ';
+		}
+		if ( $can_resend ) {
+			// A586: PDF with the current codes (nothing becomes invalid), whole order or one ticket.
+			$options = array( '' => __( 'Alle gültigen Tickets', 'pass-captain' ) );
+			foreach ( \PassCaptain\PortalSelfService::tickets( $order ) as $ticket ) {
+				/* translators: 1: ticket number (short), 2: ticket type */
+				if ( 'valid' === (string) $ticket->status && ! (int) $ticket->refunded ) { $options[ (string) $ticket->public_id ] = sprintf( __( 'Ticket %1$s (%2$s)', 'pass-captain' ), substr( (string) $ticket->public_id, 0, 8 ), (string) $ticket->ticket_name ); }
+			}
+			Forms::open_form( 'wpcap_ticket_pdf', 'wpcap_ticket_pdf_' . $order->order_id, 'style="display:inline"' );
+			Forms::hidden( 'order_id', $order->order_id );
+			Forms::select( 'ticket', $options, '', 'wpcap-ticket-pdf-' . (int) $order->order_id, 'aria-label="' . esc_attr__( 'Tickets für das PDF', 'pass-captain' ) . '"' );
+			echo ' <button class="button" type="submit">' . esc_html__( 'Ticket-PDF herunterladen', 'pass-captain' ) . '</button></form>';
 		}
 		echo '</p>';
 		if ( $can_resend ) { self::render_resend_form( $order ); }

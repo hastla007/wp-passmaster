@@ -11,8 +11,9 @@
  * - "Send me my order link" on the ticket page (new access link to the buyer's address).
  *
  * Authorisation is exactly the portal's: order public id + access token (capability link from the order
- * mail). Ticket codes are stored hashed only, so a PDF uses a code a module still knows (filter
- * wpcap_ticket_known_code, e.g. wallet passes) or issues a new code for that ticket; the previous
+ * mail). The PDF uses the stored current code (filter wpcap_ticket_known_code: core TicketCodes,
+ * A586, or the wallet module), so repeated downloads keep the code. Only a ticket whose code is not
+ * stored (issued before schema 3.10.15, storage switched off) gets a new code once; the previous
  * code/link of that ticket becomes invalid (the portal says so before the download).
  */
 namespace PassCaptain;
@@ -121,6 +122,16 @@ final class PortalSelfService {
 				return __( 'Tickets gibt es erst nach bestätigter Zahlung.', 'pass-captain' );
 		}
 		return '';
+	}
+
+	/**
+	 * Current plaintext code of a ticket if it is stored (core TicketCodes, A586, or the wallet
+	 * module) – '' when unknown. Never issues a new code.
+	 */
+	public static function current_code( $ticket_id ) {
+		global $wpdb;
+		$hash = (string) $wpdb->get_var( $wpdb->prepare( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		return '' === $hash ? '' : self::known_code( (int) $ticket_id, $hash );
 	}
 
 	/** Plaintext code a module still knows for the ticket's current code ('' = unknown). */
