@@ -108,8 +108,11 @@ final class Waitlists {
 		$p = $wpdb->prefix;
 		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
 		$end = Occurrence::end_sql( 'o' ); // A606.
+		// Merged schema: the audit line's personal manage link (manage_token_hash) ends with the entry, and an entry of
+		// an ended date no longer waits (status closed, as close_ended() sets it).
+		$manage = ServiceBookings::has_column( 'wpcap_waitlist', 'manage_token_hash' ) ? "w.manage_token_hash=''," : '';
 		$counts['waitlist'] = (int) $wpdb->query( $wpdb->prepare(
-			"UPDATE {$p}wpcap_waitlist w SET w.email='',w.email_hash=SHA2(CONCAT('deleted|',w.waitlist_id),256),w.offer_token_hash='',w.unsubscribe_token_hash='',w.updated_at=%s WHERE ( w.email<>'' OR w.unsubscribe_token_hash<>'' ) AND w.status<>'offered' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_occurrences o WHERE ( o.occurrence_id=w.occurrence_id OR ( w.occurrence_id=0 AND o.event_id=w.event_id ) ) AND $end>=%s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SQL.
+			"UPDATE {$p}wpcap_waitlist w SET w.email='',w.email_hash=SHA2(CONCAT('deleted|',w.waitlist_id),256),w.offer_token_hash='',w.unsubscribe_token_hash='',{$manage}w.status=IF(w.status IN ('waiting','pending'),'closed',w.status),w.updated_at=%s WHERE ( w.email<>'' OR w.unsubscribe_token_hash<>'' ) AND w.status<>'offered' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_occurrences o WHERE ( o.occurrence_id=w.occurrence_id OR ( w.occurrence_id=0 AND o.event_id=w.event_id ) ) AND $end>=%s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SQL.
 			gmdate( 'Y-m-d H:i:s', (int) $now ),
 			$cutoff
 		) );
