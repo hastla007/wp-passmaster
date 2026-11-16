@@ -420,6 +420,16 @@ final class SettingsPage {
 	 * Markup of a secret input: never contains the value. Shows "gespeichert ••••1234" (last four
 	 * characters of long secrets), an empty replace field and a remove checkbox.
 	 */
+	/** A298: id of the WordPress editor of an HTML field (lowercase letters, digits and underscores only). */
+	private static function editor_id( $key ) {
+		return 'wpcap_set_' . preg_replace( '/[^a-z0-9_]/', '_', strtolower( (string) $key ) );
+	}
+
+	/** Id of a field's input for its label (the editor of HTML fields has its own id). */
+	private static function field_input_id( $key, array $field ) {
+		return 'html' === ( $field['type'] ?? '' ) && function_exists( 'wp_editor' ) && apply_filters( 'wpcap_settings_rich_editor', true, $key ) ? self::editor_id( $key ) : 'wpcap-set-' . $key;
+	}
+
 	public static function secret_input( $key, $id = '', $multiline = false ) {
 		$status = Settings::secret_status( $key );
 		$id = '' !== $id ? $id : 'wpcap-set-' . $key;
@@ -710,7 +720,7 @@ final class SettingsPage {
 			<table class="form-table"><tbody>
 			<?php foreach ( $def['fields'] as $key => $field ) : ?>
 				<tr>
-					<th scope="row"><label for="wpcap-set-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $field['label'] ); ?></label></th>
+					<th scope="row"><label for="<?php echo esc_attr( self::field_input_id( $key, $field ) ); ?>"><?php echo esc_html( $field['label'] ); ?></label></th>
 					<td><?php self::render_field( $key, $field, $values[ $key ] ?? null ); ?></td>
 				</tr>
 			<?php endforeach; ?>
@@ -945,6 +955,11 @@ final class SettingsPage {
 				echo '<textarea id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="large-text" rows="4">' . esc_textarea( (string) $value ) . '</textarea>';
 				break;
 			case 'html':
+				// A298: legal texts with the WordPress editor (lists, links, bold) where available; textarea otherwise.
+				if ( function_exists( 'wp_editor' ) && apply_filters( 'wpcap_settings_rich_editor', true, $key ) ) {
+					wp_editor( (string) $value, self::editor_id( $key ), array( 'textarea_name' => $key, 'media_buttons' => false, 'teeny' => true, 'textarea_rows' => 8, 'quicktags' => true ) );
+					break;
+				}
 				echo '<textarea id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="large-text" rows="8">' . esc_textarea( (string) $value ) . '</textarea>';
 				$version = 'terms_text' === $key ? Settings::terms_version( Settings::legal_default_locale() ) : '';
 				if ( '' !== $version ) {

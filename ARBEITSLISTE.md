@@ -673,8 +673,9 @@ Gesamt: 262 Aufgaben.
   - src/Mail/Mailer.php:215–229: Einstellungen Absendername und „Antwort an“ (Standard Rechnungssteller/Admin-Mail)
 - [x] **A297** [WICHTIG] Fehlerhafte Admin-Formulare verwerfen alle Eingaben, generische Meldung — _R1 UX_ (TODO L643; Audit Runde 4)
   - src/Admin/EventsPage.php:39–41, Forms.php:384–392: Eingaben per Transient zurückgeben, fehlerhaftes Feld benennen
-- [ ] **A298** [WICHTIG] A099 nur teilweise: Rechtstexte ohne Editor, „Zahlung vor Ort“ im Online-Checkout — _R1 UX_ (TODO L644; Audit Runde 4)
+- [x] **A298** [WICHTIG] A099 nur teilweise: Rechtstexte ohne Editor, „Zahlung vor Ort“ im Online-Checkout — _R1 UX_ (TODO L644; Audit Runde 4)
   - src/Admin/SettingsPage.php:603, ManualGateway.php:12: wp_editor für Rechtstexte; online nur „Überweisung“
+  - Erledigt: HTML-Rechtstexte der Einstellungen mit `wp_editor` (ohne Medien, Label passend, Filter `wpcap_settings_rich_editor`); der manuelle Zahlungsweg heißt online „Überweisung“ (kein „Zahlung vor Ort“ mehr). Test zz_a298.
 - [ ] **A299** [WICHTIG] 36 Unterseiten, Module nicht per Oberfläche abschaltbar, doppelte Wege — _R1 UX_ (TODO L645; Audit Runde 4)
   - src/Admin/Menu.php:197–226, Modules.php:60–63: Seite „Funktionen“ (Module an/aus), schlanke Grundausstattung; Doppelungen Serien/Mollie/Scanner auflösen
 - [x] **A300** [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) — _R1 Release_ (TODO L646; Audit Runde 4)
