@@ -261,7 +261,7 @@ final class SettingsPage {
 	public static function core_tabs() {
 		return array(
 			'general' => __( 'Allgemein', 'pass-captain' ),
-			'admission' => __( 'Einlass', 'pass-captain' ),
+			'admission' => _x( 'Einlass', 'admission (check-in area of work)', 'pass-captain' ),
 			'payments' => __( 'Zahlungsarten', 'pass-captain' ),
 			'legal' => __( 'Rechtstexte', 'pass-captain' ),
 			'invoices' => __( 'Rechnungen', 'pass-captain' ),

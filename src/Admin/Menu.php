@@ -343,7 +343,7 @@ final class Menu {
 		return array(
 			'events'        => __( 'Events & Programm', 'pass-captain' ),
 			'sales'         => __( 'Verkauf', 'pass-captain' ),
-			'admission'     => __( 'Einlass', 'pass-captain' ),
+			'admission'     => _x( 'Einlass', 'admission (check-in area of work)', 'pass-captain' ),
 			'finance'       => __( 'Finanzen & Auswertung', 'pass-captain' ),
 			'communication' => __( 'Kommunikation', 'pass-captain' ),
 			'settings'      => __( 'Einstellungen & Integrationen', 'pass-captain' ),

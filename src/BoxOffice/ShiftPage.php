@@ -67,7 +67,7 @@ final class ShiftPage {
 	}
 
 	public static function status_label( $status ) {
-		$labels = array( 'open' => __( 'offen', 'pass-captain' ), 'counting' => __( 'wird gezählt', 'pass-captain' ), 'closed' => __( 'abgeschlossen', 'pass-captain' ) );
+		$labels = array( 'open' => _x( 'offen', 'cash register shift status', 'pass-captain' ), 'counting' => __( 'wird gezählt', 'pass-captain' ), 'closed' => __( 'abgeschlossen', 'pass-captain' ) );
 		return $labels[ $status ] ?? Forms::status_label( $status );
 	}
 

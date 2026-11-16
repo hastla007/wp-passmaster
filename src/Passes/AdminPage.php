@@ -137,7 +137,7 @@ final class AdminPage {
 	private static function render_overview() {
 		echo '<p>' . esc_html__( 'Ein Pass (Festival-/Mehrtagespass) ist eine Ticketart, die auf einem Termin verkauft wird und für mehrere Termine gilt – desselben Events oder verschiedener Events. Jeder verkaufte Pass belegt in jedem enthaltenen Termin einen Platz. Bei „N aus M“ wählt der Gast beim Einlass bis zu N der M Termine.', 'pass-captain' ) . '</p>';
 		echo '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Pass', 'pass-captain' ), __( 'Verkauft auf', 'pass-captain' ), __( 'Gültig für', 'pass-captain' ), __( 'Einlass', 'pass-captain' ), __( 'Verkauft', 'pass-captain' ), __( 'Verfügbar', 'pass-captain' ) ) as $label ) {
+		foreach ( array( __( 'Pass', 'pass-captain' ), __( 'Verkauft auf', 'pass-captain' ), __( 'Gültig für', 'pass-captain' ), _x( 'Einlass', 'admission rule of a pass (once, once per day …)', 'pass-captain' ), __( 'Verkauft', 'pass-captain' ), __( 'Verfügbar', 'pass-captain' ) ) as $label ) {
 			echo '<th scope="col">' . esc_html( $label ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';

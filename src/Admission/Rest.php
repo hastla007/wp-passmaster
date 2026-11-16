@@ -117,7 +117,7 @@ final class Rest {
 			'i18n' => array(
 				'area' => __( 'Einlassbereich', 'pass-captain' ),
 				'noArea' => __( 'Kein Bereich', 'pass-captain' ),
-				'modeIn' => __( 'Einlass', 'pass-captain' ),
+				'modeIn' => _x( 'Einlass', 'scanner direction: entry (opposite of exit)', 'pass-captain' ),
 				'modeOut' => __( 'Auslass (Check-out)', 'pass-captain' ),
 				'checkedOut' => __( 'Ausgecheckt', 'pass-captain' ),
 				/* translators: %d: number of discarded offline scans (not 1; scanner.js uses expiredOne for 1) */

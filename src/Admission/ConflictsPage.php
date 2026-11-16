@@ -72,7 +72,7 @@ final class ConflictsPage {
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id ); ?>
-			<?php Forms::select( 'status', array( 'open' => __( 'Offen', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status ); ?>
+			<?php Forms::select( 'status', array( 'open' => _x( 'Offen', 'status of an admission conflict: not resolved yet', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
 		<table class="widefat striped"><thead><tr>

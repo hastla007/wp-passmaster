@@ -30,6 +30,12 @@ Anzahl erst im Browser feststeht, bekommen eine Einzahl-Variante mit dem Schlüs
 nimmt. „Status: %s“ ist ein Satz (`Forms::status_line()`), kein angehängtes Label. Die Regel prüft
 `tests/integration/modules/zz_a383.php`.
 
+Kontexte (A515): „Einlass“ gibt es als Einlasszeit (`doors open time`), Arbeitsbereich/Menü
+(`admission (check-in area of work)`), Scanner-Ergebnis (`scanner result: entry granted`), Scan-Richtung
+(`scanner direction: entry (opposite of exit)`) und Pass-Regel; „Offen“ als Restmenge, Konfliktstatus und
+Kassenschicht-Status. Alle Statuswerte von `Forms::status_label()` stehen im Kontext `status`
+(Übersetzungen können so z. B. das grammatische Geschlecht des Status wählen).
+
 ## Stand und Prüfung (A107)
 
 Stand 13.11.2026: alle 3234 Texte in allen fünf Sprachen vollständig, 0 fuzzy. Die 630 alten

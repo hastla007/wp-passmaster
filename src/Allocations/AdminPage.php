@@ -254,7 +254,7 @@ final class AdminPage {
 
 		echo '<h3>' . esc_html__( 'Kontingente und Sperren', 'pass-captain' ) . '</h3>';
 		echo '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Name', 'pass-captain' ), __( 'Art', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Genutzt / Gesamt', 'pass-captain' ), __( 'Offen', 'pass-captain' ), __( 'Nutzung nach Kanal', 'pass-captain' ), __( 'Auto-Freigabe', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Aktionen', 'pass-captain' ) ) as $label ) {
+		foreach ( array( __( 'Name', 'pass-captain' ), __( 'Art', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Genutzt / Gesamt', 'pass-captain' ), _x( 'Offen', 'remaining quantity of an allocation', 'pass-captain' ), __( 'Nutzung nach Kanal', 'pass-captain' ), __( 'Auto-Freigabe', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Aktionen', 'pass-captain' ) ) as $label ) {
 			echo '<th scope="col">' . esc_html( $label ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';

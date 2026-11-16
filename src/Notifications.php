@@ -162,7 +162,7 @@ final class Notifications {
 		$labels = array(
 			'starts_at' => __( 'Beginn', 'pass-captain' ),
 			'ends_at' => __( 'Ende', 'pass-captain' ),
-			'doors_open_at' => __( 'Einlass', 'pass-captain' ),
+			'doors_open_at' => _x( 'Einlass', 'doors open time', 'pass-captain' ),
 			'location' => __( 'Ort', 'pass-captain' ),
 			'venue_country' => __( 'Veranstaltungsland', 'pass-captain' ),
 		);
