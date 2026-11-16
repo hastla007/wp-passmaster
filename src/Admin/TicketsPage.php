@@ -479,7 +479,7 @@ final class TicketsPage {
 						</td>
 						<td><?php echo esc_html( trim( $attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 						<td>
-							<?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : '' ) ); ?>
+							<?php echo esc_html( Forms::status_label( $ticket->status, 'ticket' ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : '' ) ); ?>
 							<?php if ( $ticket->last_checkin_at ) : ?><br><small><?php echo esc_html( Forms::datetime( $ticket->last_checkin_at, $ticket->timezone, false ) ); ?></small><?php endif; ?>
 						</td>
 						<td>

@@ -965,7 +965,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Wallet-Push inline auf shutdown (bis 20 Tickets) — src/WalletPasses/Service.php:315–331 (A374, R1 Architektur)
 - [x] [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — src/Operations/SiteHealth.php:80–88 (A375, R1 Architektur)
 - [x] [OPTIMIERUNG] Saalplan-Verknüpfungen und Käuferlimits laden ganze Historie je Listing — src/Seating/Layouts.php:371, Allocations/BuyerLimits.php:51 (A376, R1 Architektur)
-- [ ] [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — src/Partners/AdminPage.php:224, ServiceSlotsPage.php:227/253, EventsPage.php:801–804 (A377, R1 UX)
+- [x] [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — src/Partners/AdminPage.php:224, ServiceSlotsPage.php:227/253, EventsPage.php:801–804 (A377, R1 UX)
 - [x] [OPTIMIERUNG] Tab „Allgemein“ überladen — src/Admin/SettingsPage.php:36–200 (A378, R1 UX)
 - [x] [OPTIMIERUNG] Keine Hilfe-Tabs, Verweise auf nicht ausgelieferte docs/ und privates Repo, kein Action-Link — src/Admin/SettingsPage.php:156/184, Partners/AdminPage.php:475, BoxOffice/Page.php:261 (A379, R1 UX)
 - [x] [OPTIMIERUNG] DATEV-Export ohne Kontenrahmen-Einstellung (SKR03 fest) — src/Invoices.php:790–805, Reports/Page.php:135 (A380, R1 UX) – erledigt: Einstellungen `datev_chart` (SKR03/SKR04) und `datev_contra_account`; Filter `wpcap_datev_accounts` bleibt; Tests in `zz_a129`
@@ -1003,7 +1003,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Umtausch-Verlauf in UTC, Rohwerte — src/Exchange/AdminPage.php:138 (A412, R2 UX)
 - [x] [OPTIMIERUNG] Audit-Log: Filter UTC, Anzeige Ortszeit, Rohcodes, keine Links — src/Admin/AuditLogPage.php:39–40, :104–115 (A413, R2 UX)
 - [x] [OPTIMIERUNG] Tickets-Seite verliert Filter/Seite nach Aktionen — src/Admin/TicketsPage.php:157–160 (A414, R2 UX) – erledigt (Filter): Ticketliste kehrt nach Widerruf/Neuausgabe/Korrektur/Undo mit Suche, Event, Status und Seite zurück; Test `zz_a414`. WP_List_Table (A411) bleibt offen.
-- [ ] [OPTIMIERUNG] Unklare Labels (Abgesagt/Storniert, Provider-Keys, „Schlüssel“, Kontingente, Grund-Feld, Checklisten-Links) — src/Admin/Forms.php:501, OrdersPage.php:298/370, EventsPage.php:803/807/1105, TicketsPage.php:260, GettingStarted.php:129–143 (A415, R2 UX)
+- [x] [OPTIMIERUNG] Unklare Labels (Abgesagt/Storniert, Provider-Keys, „Schlüssel“, Kontingente, Grund-Feld, Checklisten-Links) — src/Admin/Forms.php:501, OrdersPage.php:298/370, EventsPage.php:803/807/1105, TicketsPage.php:260, GettingStarted.php:129–143 (A415, R2 UX)
 - [x] [OPTIMIERUNG] SMS: Doppelversand bei Timeout/Absturz — src/Sms/TwilioProvider.php:44–67, Sms/Service.php:312/354 (A416, R2 API)
 - [x] [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — src/Operations/Queues.php:29–61, Sms/Service.php:314 (A417, R2 API)
 - [x] [OPTIMIERUNG] PayPal capturet per Webhook auch stornierte Bestellungen — src/Payments/PayPalGateway.php:249–257 (A418, R2 API)

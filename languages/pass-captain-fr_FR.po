@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T19:13:29+00:00\n"
+"POT-Creation-Date: 2026-11-16T19:19:02+00:00\n"
 "PO-Revision-Date: 2026-11-14 17:14+0000\n"
 "Language: fr_FR\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
@@ -83,7 +83,7 @@ msgstr "Activation refusée"
 #: src/Admin/EventsPage.php:1270
 #: src/Admin/SecurityScreens.php:161
 #: src/Admin/SecurityScreens.php:177
-#: src/Admin/ServiceSlotsPage.php:367
+#: src/Admin/ServiceSlotsPage.php:369
 #: src/Admin/ServicesPage.php:116
 #: src/Admin/TicketsPage.php:42
 #: src/Admin/TicketsPage.php:88
@@ -185,8 +185,8 @@ msgstr "Clé API révoquée."
 #: src/Admin/CheckinsPage.php:59
 #: src/Admin/DevicesPage.php:49
 #: src/Admin/EventsPage.php:1281
-#: src/Admin/Forms.php:432
-#: src/Admin/Forms.php:455
+#: src/Admin/Forms.php:435
+#: src/Admin/Forms.php:458
 #: src/Admin/MembershipsPage.php:215
 #: src/Admin/Menu.php:189
 #: src/Admin/Menu.php:269
@@ -201,7 +201,7 @@ msgstr "Clé API révoquée."
 #: src/Admin/SecurityScreens.php:64
 #: src/Admin/SecurityScreens.php:74
 #: src/Admin/SecurityScreens.php:90
-#: src/Admin/ServiceSlotsPage.php:349
+#: src/Admin/ServiceSlotsPage.php:351
 #: src/Admin/ServicesPage.php:228
 #: src/Admin/SettingsPage.php:682
 #: src/Admin/SettingsPage.php:714
@@ -328,7 +328,7 @@ msgstr "Il n’y a aucun événement pour lequel vous pouvez créer des clés."
 #: src/Admin/ServiceSlotsPage.php:193
 #: src/Admin/ServiceSlotsPage.php:234
 #: src/Admin/ServiceSlotsPage.php:254
-#: src/Admin/ServiceSlotsPage.php:377
+#: src/Admin/ServiceSlotsPage.php:379
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:283
 #: src/Admin/TicketsPage.php:500
@@ -383,7 +383,7 @@ msgstr "Nom"
 #: src/Admin/OrdersPage.php:715
 #: src/Admin/OrdersPage.php:726
 #: src/Admin/OrdersPage.php:1196
-#: src/Admin/ServiceSlotsPage.php:358
+#: src/Admin/ServiceSlotsPage.php:360
 #: src/Admin/ServicesPage.php:252
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:281
@@ -397,7 +397,7 @@ msgstr "Nom"
 #: src/Exchange/AdminPage.php:301
 #: src/GuestLists/Page.php:185
 #: src/Integrations/ConnectorsPage.php:247
-#: src/Integrations/WooCommerce/OrderAdapter.php:2330
+#: src/Integrations/WooCommerce/OrderAdapter.php:2335
 #: src/Mail/Types.php:92
 #: src/Mail/Types.php:192
 #: src/Mail/Types.php:538
@@ -523,11 +523,11 @@ msgstr "Valable jusqu’au"
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/ServiceSlotsPage.php:218
 #: src/Admin/ServiceSlotsPage.php:234
-#: src/Admin/ServiceSlotsPage.php:264
-#: src/Admin/ServiceSlotsPage.php:377
-#: src/Admin/ServiceSlotsPage.php:420
-#: src/Admin/ServiceSlotsPage.php:432
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:266
+#: src/Admin/ServiceSlotsPage.php:379
+#: src/Admin/ServiceSlotsPage.php:422
+#: src/Admin/ServiceSlotsPage.php:434
+#: src/Admin/ServiceSlotsPage.php:477
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:296
 #: src/Admin/ServicesPage.php:403
@@ -558,7 +558,7 @@ msgstr "Valable jusqu’au"
 #: src/Integrations/ConnectorsPage.php:193
 #: src/Integrations/ConnectorsPage.php:207
 #: src/Integrations/ConnectorsPage.php:227
-#: src/Integrations/WooCommerce/OrderAdapter.php:2330
+#: src/Integrations/WooCommerce/OrderAdapter.php:2335
 #: src/Modules/Fiscalization.php:1329
 #: src/Modules/Fiscalization.php:1338
 #: src/Modules/Fiscalization.php:1394
@@ -600,9 +600,9 @@ msgstr "Statut"
 #: src/Admin/OperationsPage.php:392
 #: src/Admin/OrdersPage.php:1070
 #: src/Admin/ServiceSlotsPage.php:234
-#: src/Admin/ServiceSlotsPage.php:377
-#: src/Admin/ServiceSlotsPage.php:420
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:379
+#: src/Admin/ServiceSlotsPage.php:422
+#: src/Admin/ServiceSlotsPage.php:477
 #: src/Admin/ServicesPage.php:403
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/ServicesPage.php:498
@@ -637,9 +637,9 @@ msgstr "Actions"
 #: src/Admin/DeveloperKeysPage.php:187
 #: src/Admin/MembershipsPage.php:318
 #: src/Admin/ServiceSlotsPage.php:242
-#: src/Admin/ServiceSlotsPage.php:388
-#: src/Admin/ServiceSlotsPage.php:400
-#: src/Admin/ServiceSlotsPage.php:436
+#: src/Admin/ServiceSlotsPage.php:390
+#: src/Admin/ServiceSlotsPage.php:402
+#: src/Admin/ServiceSlotsPage.php:438
 #: src/Admission/RulesPage.php:186
 #: src/Admission/RulesPage.php:203
 #: src/Admission/RulesPage.php:243
@@ -780,15 +780,15 @@ msgid "Das Event-Team (Event-Seite, „Personal und Zugriff“) bestimmt, wer an
 msgstr "L’équipe de l’événement (page de l’événement, « Personnel et accès ») détermine qui travaille sur un événement. Ici, vous restreignez davantage l’accès des personnes : à certaines dates par droit, à des zones d’entrée et – pour les prestataires – à certaines prestations. Sans affectation plus restreinte, l’événement entier s’applique."
 
 #: src/Admin/AssignmentsPage.php:116
-#: src/Admin/ServiceSlotsPage.php:359
+#: src/Admin/ServiceSlotsPage.php:361
 #: src/Waitlists/AdminPage.php:131
 #: src/blocks/service-booking/editor.js:26
 msgid "– Event wählen –"
 msgstr "– Choisir un événement –"
 
 #: src/Admin/AssignmentsPage.php:117
-#: src/Admin/Forms.php:612
-#: src/Admin/ServiceSlotsPage.php:360
+#: src/Admin/Forms.php:637
+#: src/Admin/ServiceSlotsPage.php:362
 #: src/Admin/WaitlistsPage.php:149
 #: src/Admission/RulesPage.php:179
 #: src/BoxOffice/Page.php:114
@@ -803,7 +803,7 @@ msgid "Anzeigen"
 msgstr "Afficher"
 
 #: src/Admin/AssignmentsPage.php:119
-#: src/Admin/ServiceSlotsPage.php:362
+#: src/Admin/ServiceSlotsPage.php:364
 msgid "Es gibt noch kein Event, das du verwalten darfst."
 msgstr "Il n’existe encore aucun événement que vous êtes autorisé à gérer."
 
@@ -1000,8 +1000,8 @@ msgstr "Prestation"
 
 #: src/Admin/AssignmentsPage.php:215
 #: src/Admin/ServiceSlotsPage.php:228
-#: src/Admin/ServiceSlotsPage.php:377
-#: src/Admin/ServiceSlotsPage.php:395
+#: src/Admin/ServiceSlotsPage.php:379
+#: src/Admin/ServiceSlotsPage.php:397
 msgid "Leistungserbringer"
 msgstr "Prestataires"
 
@@ -1330,7 +1330,7 @@ msgstr "Échec de la mise à jour de la base de données"
 #: src/Admin/OperationsPage.php:226
 #: src/Admin/OrdersPage.php:723
 #: src/Admin/OrdersPage.php:1196
-#: src/Admin/ServiceSlotsPage.php:298
+#: src/Admin/ServiceSlotsPage.php:300
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:376
 #: src/Admin/StatusPage.php:401
@@ -1355,7 +1355,7 @@ msgstr "Commande"
 #: src/Consents.php:531
 #: src/Consents.php:619
 #: src/Exchange/AdminPage.php:218
-#: src/Integrations/WooCommerce/OrderAdapter.php:2330
+#: src/Integrations/WooCommerce/OrderAdapter.php:2335
 #: src/Printing/AttendeeList.php:42
 #: src/Printing/NoShowList.php:56
 #: src/TicketPage.php:103
@@ -1424,10 +1424,18 @@ msgid "Warteliste"
 msgstr "Liste d’attente"
 
 #: src/Admin/AuditLogPage.php:321
-#: src/Admin/ServiceSlotsPage.php:259
+#: src/Admin/ServiceSlotsPage.php:261
+#: src/Admin/ServicesPage.php:261
+#: src/Admin/UserScope.php:49
+#: src/Integrations/ConnectorsPage.php:249
+#: src/Modules/Partners.php:346
+#: src/Partners/AdminPage.php:244
+#: src/Partners/AdminPage.php:668
+#: src/Partners/AdminPage.php:684
+#: src/Partners/Settlements.php:879
 #: src/Privacy.php:281
-msgid "Partner"
-msgstr "Partenaire"
+msgid "Veranstalter"
+msgstr "Organisateur"
 
 #. translators: 1: entries, 2: tickets
 #: src/Admin/AuditLogPage.php:322
@@ -2133,9 +2141,9 @@ msgstr "Contingent supprimé"
 #: src/Admin/EventsPage.php:1469
 #: src/Admin/EventsPage.php:1571
 #: src/Admin/MyServicesPage.php:107
-#: src/Admin/ServiceSlotsPage.php:420
-#: src/Admin/ServiceSlotsPage.php:429
-#: src/Admin/ServiceSlotsPage.php:461
+#: src/Admin/ServiceSlotsPage.php:422
+#: src/Admin/ServiceSlotsPage.php:431
+#: src/Admin/ServiceSlotsPage.php:463
 #: src/Admin/ServicesPage.php:368
 #: src/Admin/ServicesPage.php:403
 #: src/Admin/ServicesPage.php:432
@@ -2147,9 +2155,9 @@ msgstr "Début"
 #: src/Admin/ChangeHistory.php:86
 #: src/Admin/EventsPage.php:1572
 #: src/Admin/MyServicesPage.php:107
-#: src/Admin/ServiceSlotsPage.php:420
-#: src/Admin/ServiceSlotsPage.php:430
-#: src/Admin/ServiceSlotsPage.php:462
+#: src/Admin/ServiceSlotsPage.php:422
+#: src/Admin/ServiceSlotsPage.php:432
+#: src/Admin/ServiceSlotsPage.php:464
 #: src/Admin/ServicesPage.php:369
 #: src/Admin/ServicesPage.php:403
 #: src/Admin/ServicesPage.php:433
@@ -2164,7 +2172,7 @@ msgstr "Entrée à partir de"
 #: src/Admin/ChangeHistory.php:88
 #: src/Admin/EventsPage.php:1469
 #: src/Admin/EventsPage.php:1655
-#: src/Admin/Forms.php:572
+#: src/Admin/Forms.php:597
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:288
 #: src/Mail/Types.php:104
@@ -2199,8 +2207,6 @@ msgid "Ort"
 msgstr "Lieu"
 
 #: src/Admin/ChangeHistory.php:90
-#: src/Admin/EventsPage.php:1660
-#: src/Admin/EventsPage.php:1799
 #: src/Allocations/AdminPage.php:270
 #: src/Allocations/AdminPage.php:344
 #: src/Partners/AdminPage.php:480
@@ -2277,7 +2283,7 @@ msgid "Intervall"
 msgstr "Intervalle"
 
 #: src/Admin/ChangeHistory.php:105
-#: src/Admin/ServiceSlotsPage.php:286
+#: src/Admin/ServiceSlotsPage.php:288
 #: src/Admin/ServicesPage.php:382
 #: src/Sales/AdminSections.php:187
 #: src/Series/AdminPage.php:246
@@ -2355,6 +2361,7 @@ msgstr "Libellé"
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/ChangeHistory.php:117
+#: src/Admin/EventsPage.php:1474
 #: src/Admin/MembershipsPage.php:65
 #: src/Admin/MembershipsPage.php:303
 #: src/Admin/OrdersPage.php:910
@@ -2457,43 +2464,43 @@ msgid "Markierung"
 msgstr "Marquage"
 
 #: src/Admin/ChangeHistory.php:132
-#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:287
 #: src/Sales/PriceRules.php:258
 msgid "Mo"
 msgstr "lun."
 
 #: src/Admin/ChangeHistory.php:132
-#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:287
 #: src/Sales/PriceRules.php:258
 msgid "Di"
 msgstr "mar."
 
 #: src/Admin/ChangeHistory.php:132
-#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:287
 #: src/Sales/PriceRules.php:258
 msgid "Mi"
 msgstr "mer."
 
 #: src/Admin/ChangeHistory.php:132
-#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:287
 #: src/Sales/PriceRules.php:258
 msgid "Do"
 msgstr "jeu."
 
 #: src/Admin/ChangeHistory.php:132
-#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:287
 #: src/Sales/PriceRules.php:258
 msgid "Fr"
 msgstr "ven."
 
 #: src/Admin/ChangeHistory.php:132
-#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:287
 #: src/Sales/PriceRules.php:258
 msgid "Sa"
 msgstr "sam."
 
 #: src/Admin/ChangeHistory.php:132
-#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:287
 #: src/Sales/PriceRules.php:258
 msgid "So"
 msgstr "dim."
@@ -2669,7 +2676,7 @@ msgid "von"
 msgstr "du"
 
 #: src/Admin/CheckinsPage.php:93
-#: src/Admin/ServiceSlotsPage.php:282
+#: src/Admin/ServiceSlotsPage.php:284
 #: src/Admission/RulesPage.php:238
 #: src/Sales/AdminSections.php:193
 #: src/Series/AdminPage.php:645
@@ -3245,7 +3252,7 @@ msgstr[1] "%d scans"
 #: src/Admin/MembershipsPage.php:54
 #: src/Consents.php:540
 #: src/Integrations/ConnectorsPage.php:232
-#: src/Integrations/WooCommerce/OrderAdapter.php:2328
+#: src/Integrations/WooCommerce/OrderAdapter.php:2333
 #: src/OfflineScanner/AdminPage.php:177
 #: src/Partners/AdminPage.php:619
 msgid "widerrufen"
@@ -3356,7 +3363,8 @@ msgid "Die Zeitzone ist ungültig."
 msgstr "Le fuseau horaire n’est pas valide."
 
 #: src/Admin/EventsPage.php:52
-msgid "Bitte einen Namen für die Ticketkategorie angeben."
+#: src/Admin/EventsPage.php:548
+msgid "Bitte einen Namen für die Ticketart angeben."
 msgstr "Veuillez indiquer un nom pour le type de ticket."
 
 #: src/Admin/EventsPage.php:55
@@ -3394,7 +3402,7 @@ msgstr "Une date n’a pas pu être enregistrée."
 #: src/Admin/EventsPage.php:130
 #: src/Admin/EventsPage.php:666
 #: src/Admin/EventsPage.php:681
-msgid "Die Ticketkategorie konnte nicht gespeichert werden."
+msgid "Die Ticketart konnte nicht gespeichert werden."
 msgstr "Le type de ticket n’a pas pu être enregistré."
 
 #: src/Admin/EventsPage.php:161
@@ -3545,10 +3553,6 @@ msgstr "Tous les billets sont déjà révoqués. %d lots de travail supplémenta
 msgid "Ticketart nicht gefunden."
 msgstr "Type de ticket introuvable."
 
-#: src/Admin/EventsPage.php:548
-msgid "Bitte einen Namen für die Ticketart angeben."
-msgstr "Veuillez indiquer un nom pour le type de ticket."
-
 #: src/Admin/EventsPage.php:556
 msgid "Die maximale Anzahl pro Bestellung muss zwischen 1 und 100 liegen."
 msgstr "Le nombre maximal par commande doit être compris entre 1 et 100."
@@ -3682,7 +3686,7 @@ msgstr "Texte"
 #: src/Admin/OrdersPage.php:663
 #: src/Admin/ServiceSlotsPage.php:234
 #: src/Admin/ServiceSlotsPage.php:255
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:477
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/ServicesPage.php:498
 #: src/Admin/TicketsPage.php:501
@@ -4017,8 +4021,8 @@ msgstr "Aucune date à venir (dernière : %s)"
 #: src/Admin/EventsPage.php:1446
 #: src/Admin/EventsPage.php:1889
 #: src/Admin/ServiceSlotsPage.php:237
-#: src/Admin/ServiceSlotsPage.php:383
-#: src/Admin/ServiceSlotsPage.php:424
+#: src/Admin/ServiceSlotsPage.php:385
+#: src/Admin/ServiceSlotsPage.php:426
 #: src/Admin/TaxPage.php:109
 #: src/BoxOffice/ShiftPage.php:445
 #: src/Integrations/ConnectorsPage.php:148
@@ -4089,10 +4093,6 @@ msgstr "Contingent par date"
 #: src/Admin/EventsPage.php:1799
 msgid "0 bedeutet unbegrenzt."
 msgstr "0 signifie illimité."
-
-#: src/Admin/EventsPage.php:1474
-msgid "Ticketkategorie"
-msgstr "Type de ticket"
 
 #: src/Admin/EventsPage.php:1475
 #: src/Admin/EventsPage.php:1796
@@ -4254,6 +4254,10 @@ msgstr "Pays de l’événement"
 msgid "ISO-Code, z. B. AT. Leistungsort für die Umsatzsteuer auf Eintrittskarten (Steuerprofile). Leer = Land des Rechnungsstellers (%s)."
 msgstr "Code ISO, p. ex. AT. Lieu de la prestation pour la TVA sur les billets d’entrée (profils fiscaux). Vide = pays de l’émetteur des factures (%s)."
 
+#: src/Admin/EventsPage.php:1660
+msgid "Plätze des Termins"
+msgstr "Places de cette date"
+
 #: src/Admin/EventsPage.php:1666
 msgid "Termin absagen …"
 msgstr "Annuler la date …"
@@ -4352,6 +4356,10 @@ msgstr "Catégorie fiscale (facultatif)"
 #: src/Admin/EventsPage.php:1798
 msgid "z. B. culture. Gibt es für das Veranstaltungsland ein aktives Steuerprofil dieser Klasse, gilt dessen Satz; sonst der Steuersatz oben."
 msgstr "p. ex. culture. S’il existe pour le pays de l’événement un profil fiscal actif de cette catégorie, son taux s’applique ; sinon, le taux de TVA ci-dessus."
+
+#: src/Admin/EventsPage.php:1799
+msgid "Kontingent dieser Ticketart"
+msgstr "Contingent de ce type de ticket"
 
 #. translators: %s: timezone
 #: src/Admin/EventsPage.php:1801
@@ -4525,9 +4533,8 @@ msgstr "Ne demandez que les données nécessaires à l’événement. La finalit
 
 #: src/Admin/EventsPage.php:1867
 #: src/Admin/EventsPage.php:1903
-#: src/Secrets.php:560
-msgid "Schlüssel"
-msgstr "Clé"
+msgid "Technischer Schlüssel"
+msgstr "Clé technique"
 
 #: src/Admin/EventsPage.php:1869
 #: src/Admin/EventsPage.php:1908
@@ -4694,31 +4701,35 @@ msgid "Mitgliedspässe"
 msgstr "Cartes de membre"
 
 #. translators: 1: entered local time, 2: timezone, 3: next valid local time
-#: src/Admin/Forms.php:211
+#: src/Admin/Forms.php:214
 #, php-format
 msgid "Die Ortszeit %1$s gibt es in der Zeitzone %2$s wegen der Umstellung auf Sommerzeit nicht. Bitte eine andere Zeit wählen, z. B. %3$s (erste gültige Zeit danach)."
 msgstr "L’heure locale %1$s n’existe pas dans le fuseau horaire %2$s en raison du passage à l’heure d’été. Veuillez choisir une autre heure, p. ex. %3$s (première heure valide qui suit)."
 
 #. translators: 1: entered local time, 2: timezone, 3: UTC offset used, 4: UTC offset of the second instance
-#: src/Admin/Forms.php:220
+#: src/Admin/Forms.php:223
 #, php-format
 msgid "Die Ortszeit %1$s kommt in der Zeitzone %2$s wegen der Umstellung auf Winterzeit zweimal vor. Verwendet wurde die erste (Sommerzeit, UTC%3$s), nicht die zweite (UTC%4$s)."
 msgstr "L’heure locale %1$s existe deux fois dans le fuseau horaire %2$s en raison du passage à l’heure d’hiver. C’est la première occurrence (heure d’été, UTC%3$s) qui a été retenue, et non la seconde (UTC%4$s)."
 
 #. translators: 1: local time of the repetition, 2: timezone, 3: local time used instead
-#: src/Admin/Forms.php:247
+#: src/Admin/Forms.php:250
 #, php-format
 msgid "Die Wiederholung am %1$s fällt in die Zeitumstellung (Zeitzone %2$s, diese Ortszeit gibt es nicht) und wurde auf %3$s verschoben."
 msgstr "La répétition du %1$s tombe pendant le changement d’heure (fuseau horaire %2$s, cette heure locale n’existe pas) et a été décalée à %3$s."
 
 #. translators: 1: local time of the repetition, 2: timezone, 3: UTC offset used
-#: src/Admin/Forms.php:250
+#: src/Admin/Forms.php:253
 #, php-format
 msgid "Die Wiederholung am %1$s liegt in der doppelten Stunde der Zeitumstellung (Zeitzone %2$s); verwendet wurde die erste (Sommerzeit, UTC%3$s)."
 msgstr "La répétition du %1$s tombe dans l’heure en double du changement d’heure (fuseau horaire %2$s) ; c’est la première occurrence (heure d’été, UTC%3$s) qui a été retenue."
 
+#: src/Admin/Forms.php:583
+msgid "– kein Benutzer –"
+msgstr "– aucun utilisateur –"
+
 #. translators: %s: number of entries
-#: src/Admin/Forms.php:580
+#: src/Admin/Forms.php:605
 #, php-format
 msgid "%s Eintrag"
 msgid_plural "%s Einträge"
@@ -4726,210 +4737,220 @@ msgstr[0] "%s entrée"
 msgstr[1] "%s entrées"
 
 #. translators: 1: current page, 2: total pages
-#: src/Admin/Forms.php:588
+#: src/Admin/Forms.php:613
 #, php-format
 msgid "Seite %1$d von %2$d"
 msgstr "Page %1$d sur %2$d"
 
 #. translators: 1: dates listed, 2: dates of the event
-#: src/Admin/Forms.php:610
+#: src/Admin/Forms.php:635
 #, php-format
 msgid "%1$d von %2$d Terminen werden angezeigt (die nächsten ab dem gewählten Tag, ohne Auswahl ab heute)."
 msgstr "%1$d dates sur %2$d affichées (les prochaines à partir du jour choisi, ou à partir d’aujourd’hui sans sélection)."
 
-#: src/Admin/Forms.php:611
+#: src/Admin/Forms.php:636
 msgid "Termine ab"
 msgstr "Dates à partir du"
 
-#: src/Admin/Forms.php:642
+#: src/Admin/Forms.php:667
+msgctxt "status"
+msgid "Storniert"
+msgstr "Annulé"
+
+#: src/Admin/Forms.php:668
+msgctxt "status"
+msgid "Abgesagt"
+msgstr "Annulé"
+
+#: src/Admin/Forms.php:670
 msgctxt "status"
 msgid "Entwurf"
 msgstr "Brouillon"
 
-#: src/Admin/Forms.php:643
+#: src/Admin/Forms.php:671
 msgctxt "status"
 msgid "Veröffentlicht"
 msgstr "Publié"
 
-#: src/Admin/Forms.php:644
+#: src/Admin/Forms.php:672
 msgctxt "status"
 msgid "Abgesagt/Storniert"
 msgstr "Annulé"
 
-#: src/Admin/Forms.php:645
+#: src/Admin/Forms.php:673
 msgctxt "status"
 msgid "Geplant"
 msgstr "Planifié"
 
-#: src/Admin/Forms.php:646
+#: src/Admin/Forms.php:674
 msgctxt "status"
 msgid "Aktiv"
 msgstr "Actif"
 
-#: src/Admin/Forms.php:647
+#: src/Admin/Forms.php:675
 msgctxt "status"
 msgid "Pausiert"
 msgstr "En pause"
 
-#: src/Admin/Forms.php:648
+#: src/Admin/Forms.php:676
 msgctxt "status"
 msgid "Deaktiviert"
 msgstr "Désactivé"
 
-#: src/Admin/Forms.php:649
+#: src/Admin/Forms.php:677
 msgctxt "status"
 msgid "Zahlung offen"
 msgstr "Paiement en attente"
 
-#: src/Admin/Forms.php:650
+#: src/Admin/Forms.php:678
 msgctxt "status"
 msgid "Abgeschlossen"
 msgstr "Terminé"
 
-#: src/Admin/Forms.php:651
+#: src/Admin/Forms.php:679
 msgctxt "status"
 msgid "Erstattet"
 msgstr "Remboursé"
 
-#: src/Admin/Forms.php:652
+#: src/Admin/Forms.php:680
 msgctxt "status"
 msgid "Abgelaufen"
 msgstr "Expiré"
 
-#: src/Admin/Forms.php:653
+#: src/Admin/Forms.php:681
 msgctxt "status"
 msgid "Prüfung nötig"
 msgstr "Vérification nécessaire"
 
-#: src/Admin/Forms.php:654
+#: src/Admin/Forms.php:682
 msgctxt "status"
 msgid "Ausstehend"
 msgstr "En attente"
 
-#: src/Admin/Forms.php:655
+#: src/Admin/Forms.php:683
 msgctxt "status"
 msgid "Bezahlt"
 msgstr "Payé"
 
-#: src/Admin/Forms.php:656
+#: src/Admin/Forms.php:684
 msgctxt "status"
 msgid "Bezahlt, ohne Kontingent"
 msgstr "Payé, sans contingent"
 
-#: src/Admin/Forms.php:657
+#: src/Admin/Forms.php:685
 msgctxt "status"
 msgid "Gültig"
 msgstr "Valide"
 
-#: src/Admin/Forms.php:658
+#: src/Admin/Forms.php:686
 msgctxt "status"
 msgid "Eingecheckt"
 msgstr "Enregistré (check-in)"
 
-#: src/Admin/Forms.php:659
+#: src/Admin/Forms.php:687
 msgctxt "status"
 msgid "Bereits eingecheckt (abgelehnt)"
 msgstr "Déjà enregistré (refusé)"
 
-#: src/Admin/Forms.php:660
+#: src/Admin/Forms.php:688
 msgctxt "status"
 msgid "Heute nicht gültig"
 msgstr "Non valide aujourd’hui"
 
-#: src/Admin/Forms.php:661
+#: src/Admin/Forms.php:689
 msgctxt "status"
 msgid "Tageslimit erreicht"
 msgstr "Limite journalière atteinte"
 
-#: src/Admin/Forms.php:662
+#: src/Admin/Forms.php:690
 msgctxt "status"
 msgid "Widerrufen"
 msgstr "Révoqué"
 
-#: src/Admin/Forms.php:663
+#: src/Admin/Forms.php:691
 msgctxt "status"
 msgid "Wartet auf Freigabe"
 msgstr "En attente de validation"
 
-#: src/Admin/Forms.php:664
+#: src/Admin/Forms.php:692
 msgctxt "status"
 msgid "Freigegeben"
 msgstr "Validé"
 
-#: src/Admin/Forms.php:665
+#: src/Admin/Forms.php:693
 msgctxt "status"
 msgid "In Bearbeitung"
 msgstr "En cours de traitement"
 
-#: src/Admin/Forms.php:666
+#: src/Admin/Forms.php:694
 msgctxt "status"
 msgid "Durchgeführt"
 msgstr "Effectué"
 
-#: src/Admin/Forms.php:667
+#: src/Admin/Forms.php:695
 msgctxt "status"
 msgid "Fehlgeschlagen"
 msgstr "Échec"
 
-#: src/Admin/Forms.php:668
+#: src/Admin/Forms.php:696
 msgctxt "status"
 msgid "Abgelehnt"
 msgstr "Refusé"
 
-#: src/Admin/Forms.php:669
+#: src/Admin/Forms.php:697
 msgctxt "status"
 msgid "Beim Zahlungsanbieter gescheitert, storniert"
 msgstr "Échec chez le prestataire de paiement, annulé"
 
-#: src/Admin/Forms.php:670
+#: src/Admin/Forms.php:698
 msgctxt "status"
 msgid "Check-in zurückgenommen"
 msgstr "Check-in annulé"
 
-#: src/Admin/Forms.php:671
+#: src/Admin/Forms.php:699
 msgctxt "status"
 msgid "Unbekannt"
 msgstr "Inconnu"
 
-#: src/Admin/Forms.php:672
+#: src/Admin/Forms.php:700
 msgctxt "status"
 msgid "Außerhalb des Einlasszeitraums"
 msgstr "Hors de la période d’entrée"
 
-#: src/Admin/Forms.php:673
+#: src/Admin/Forms.php:701
 msgctxt "status"
 msgid "Einlass-Limit erreicht"
 msgstr "Limite d’entrées atteinte"
 
-#: src/Admin/Forms.php:674
+#: src/Admin/Forms.php:702
 msgctxt "status"
 msgid "Bereits drinnen"
 msgstr "Déjà à l’intérieur"
 
-#: src/Admin/Forms.php:675
+#: src/Admin/Forms.php:703
 msgctxt "status"
 msgid "Nicht eingecheckt"
 msgstr "Non enregistré"
 
-#: src/Admin/Forms.php:676
+#: src/Admin/Forms.php:704
 msgctxt "status"
 msgid "Falscher Einlassbereich"
 msgstr "Mauvaise zone d’entrée"
 
-#: src/Admin/Forms.php:677
+#: src/Admin/Forms.php:705
 msgctxt "status"
 msgid "Ausgecheckt"
 msgstr "Check-out effectué"
 
 #. translators: %s: ticket status (e.g. "Gültig") of a refunded ticket
-#: src/Admin/Forms.php:693
+#: src/Admin/Forms.php:721
 #, php-format
 msgid "Status: %s (erstattet)"
 msgstr "Statut : %s (remboursé)"
 
 #. translators: %s: ticket status (e.g. "Gültig")
 #. translators: %s: status
-#: src/Admin/Forms.php:695
+#: src/Admin/Forms.php:723
 #: src/Admin/MembershipsPage.php:285
 #, php-format
 msgid "Status: %s"
@@ -4948,7 +4969,7 @@ msgid "Die Zahlung läuft über den WooCommerce-Checkout (Produkte mit Ticketart
 msgstr "Le paiement passe par le checkout WooCommerce (produits liés à un type de ticket)."
 
 #: src/Admin/GettingStarted.php:135
-msgid "WooCommerce ist aktiv, aber noch kein veröffentlichtes Produkt ist mit einer Ticketart verknüpft (Produkt bearbeiten → „Pass Captain Ticketkategorie“). Alternativ eine eigene Zahlungsart einrichten."
+msgid "WooCommerce ist aktiv, aber noch kein veröffentlichtes Produkt ist mit einer Ticketart verknüpft (Produkt bearbeiten → „Pass Captain Ticketart“). Alternativ eine eigene Zahlungsart einrichten."
 msgstr "WooCommerce est actif, mais aucun produit publié n’est encore lié à un type de ticket (modifier le produit → « Type de ticket Pass Captain »). Vous pouvez aussi configurer un mode de paiement propre."
 
 #: src/Admin/GettingStarted.php:137
@@ -5773,7 +5794,7 @@ msgid "Voucher Captain ↗"
 msgstr "Voucher Captain ↗"
 
 #: src/Admin/Menu.php:617
-#: src/Admin/ServiceSlotsPage.php:355
+#: src/Admin/ServiceSlotsPage.php:357
 msgid "Service-Zeitfenster"
 msgstr "Créneaux de service"
 
@@ -5803,7 +5824,7 @@ msgstr "Confirmée"
 #: src/Admin/MyServicesPage.php:50
 #: src/Admin/MyServicesPage.php:70
 #: src/Admin/ServiceSlotsPage.php:176
-#: src/Admin/ServiceSlotsPage.php:313
+#: src/Admin/ServiceSlotsPage.php:315
 #: src/Admin/ServicesPage.php:470
 #: src/Frontend/ServiceBooking.php:143
 #: src/Services/Portal.php:261
@@ -5845,7 +5866,7 @@ msgid "Geschlossen"
 msgstr "Fermé"
 
 #: src/Admin/MyServicesPage.php:69
-#: src/Admin/ServiceSlotsPage.php:309
+#: src/Admin/ServiceSlotsPage.php:311
 #: src/Admin/ServicesPage.php:465
 msgid "Bestätigen"
 msgstr "Confirmer"
@@ -5864,9 +5885,9 @@ msgstr "Prestations affectées"
 
 #: src/Admin/MyServicesPage.php:106
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/ServiceSlotsPage.php:377
-#: src/Admin/ServiceSlotsPage.php:417
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:379
+#: src/Admin/ServiceSlotsPage.php:419
+#: src/Admin/ServiceSlotsPage.php:477
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:400
 #: src/Frontend/ServiceBooking.php:418
@@ -5874,7 +5895,7 @@ msgid "Zeitfenster"
 msgstr "Créneaux"
 
 #: src/Admin/MyServicesPage.php:107
-#: src/Admin/ServiceSlotsPage.php:420
+#: src/Admin/ServiceSlotsPage.php:422
 msgid "Gebucht / Plätze"
 msgstr "Réservé / places"
 
@@ -5883,8 +5904,8 @@ msgid "Keine anstehenden Zeitfenster."
 msgstr "Aucun créneau à venir."
 
 #: src/Admin/MyServicesPage.php:116
-#: src/Admin/ServiceSlotsPage.php:438
-#: src/Admin/ServiceSlotsPage.php:471
+#: src/Admin/ServiceSlotsPage.php:440
+#: src/Admin/ServiceSlotsPage.php:473
 #: src/Admin/ServicesPage.php:442
 #: src/BoxOffice/ZReport.php:403
 msgid "Buchungen"
@@ -5895,17 +5916,17 @@ msgid "Alle Buchungen anzeigen"
 msgstr "Afficher toutes les réservations"
 
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:477
 #: src/Admin/ServicesPage.php:451
 #: src/Services/Portal.php:190
 msgid "Buchung"
 msgstr "Réservation"
 
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/ServiceSlotsPage.php:284
-#: src/Admin/ServiceSlotsPage.php:431
-#: src/Admin/ServiceSlotsPage.php:463
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:286
+#: src/Admin/ServiceSlotsPage.php:433
+#: src/Admin/ServiceSlotsPage.php:465
+#: src/Admin/ServiceSlotsPage.php:477
 #: src/Admin/ServicesPage.php:498
 #: src/Allocations/AdminPage.php:344
 #: src/Frontend/ServiceBooking.php:137
@@ -5915,7 +5936,7 @@ msgid "Plätze"
 msgstr "Places"
 
 #: src/Admin/MyServicesPage.php:125
-#: src/Admin/ServiceSlotsPage.php:485
+#: src/Admin/ServiceSlotsPage.php:487
 msgid "Keine Buchungen."
 msgstr "Aucune réservation."
 
@@ -6441,7 +6462,7 @@ msgstr "Remboursé en externe – clôturer"
 #: src/Admin/OrdersPage.php:1032
 #: src/Admin/OrdersPage.php:1199
 #: src/Admin/SecurityScreens.php:111
-#: src/Admin/ServiceSlotsPage.php:325
+#: src/Admin/ServiceSlotsPage.php:327
 #: src/Admin/TicketsPage.php:488
 #: src/BoxOffice/Page.php:318
 #: src/BoxOffice/ShiftPage.php:180
@@ -7153,7 +7174,7 @@ msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr "Annuler la commande non payée et libérer la réservation ?"
 
 #: src/Admin/OrdersPage.php:1080
-#: src/Admin/ServiceSlotsPage.php:323
+#: src/Admin/ServiceSlotsPage.php:325
 #: src/BoxOffice/Page.php:318
 #: src/GuestLists/Page.php:278
 msgid "Stornieren"
@@ -7737,7 +7758,7 @@ msgid "z. B. Workshopraum 1"
 msgstr "p. ex. salle d’atelier 1"
 
 #: src/Admin/ServiceSlotsPage.php:194
-#: src/Admin/ServiceSlotsPage.php:377
+#: src/Admin/ServiceSlotsPage.php:379
 msgid "Plätze je Zeitfenster"
 msgstr "Places par créneau"
 
@@ -7812,8 +7833,8 @@ msgid "Personen oder Partnerfirmen, die eine Leistung erbringen (z. B. Ausbilder
 msgstr "Personnes ou entreprises partenaires qui fournissent une prestation (p. ex. moniteur ou monitrice, skipper). Associez-les aux ressources ; elles ne pourront alors pas être réservées deux fois."
 
 #: src/Admin/ServiceSlotsPage.php:230
-msgid "– kein Partner –"
-msgstr "– aucun partenaire –"
+msgid "– kein Veranstalter –"
+msgstr "– aucun organisateur –"
 
 #: src/Admin/ServiceSlotsPage.php:244
 msgid "Noch keine Leistungserbringer."
@@ -7828,57 +7849,57 @@ msgid "Leistungserbringer anlegen"
 msgstr "Créer un prestataire"
 
 #: src/Admin/ServiceSlotsPage.php:256
-msgid "WordPress-Benutzer-ID"
-msgstr "ID utilisateur WordPress"
+msgid "WordPress-Benutzer"
+msgstr "Utilisateur WordPress"
 
-#: src/Admin/ServiceSlotsPage.php:257
+#: src/Admin/ServiceSlotsPage.php:259
 msgid "Mit der Rolle „Pass Captain Leistungserbringer“ sieht diese Person unter „Meine Leistungen“ die Zeitfenster und Buchungen der zugeordneten Ressourcen."
 msgstr "Avec le rôle « Pass Captain Prestataire », cette personne voit sous « Mes prestations » les créneaux et les réservations des ressources associées."
 
-#: src/Admin/ServiceSlotsPage.php:273
+#: src/Admin/ServiceSlotsPage.php:275
 msgid "Zeitfenster-Serie erzeugen"
 msgstr "Générer une série de créneaux"
 
-#: src/Admin/ServiceSlotsPage.php:274
+#: src/Admin/ServiceSlotsPage.php:276
 msgid "Legt an den gewählten Wochentagen Zeitfenster der angegebenen Dauer an; zwischen zwei Zeitfenstern bleibt der Puffer der Ressource (danach + vorher) frei. Überschneidungen mit bestehenden Zeitfenstern werden übersprungen."
 msgstr "Crée des créneaux de la durée indiquée aux jours de la semaine choisis ; entre deux créneaux, la marge de la ressource (après + avant) reste libre. Les chevauchements avec des créneaux existants sont ignorés."
 
-#: src/Admin/ServiceSlotsPage.php:277
-#: src/Admin/ServiceSlotsPage.php:420
-#: src/Admin/ServiceSlotsPage.php:459
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:279
+#: src/Admin/ServiceSlotsPage.php:422
+#: src/Admin/ServiceSlotsPage.php:461
+#: src/Admin/ServiceSlotsPage.php:477
 #: src/Privacy.php:239
 msgid "Ressource"
 msgstr "Ressource"
 
-#: src/Admin/ServiceSlotsPage.php:279
+#: src/Admin/ServiceSlotsPage.php:281
 msgid "Von (Datum)"
 msgstr "Du (date)"
 
-#: src/Admin/ServiceSlotsPage.php:280
+#: src/Admin/ServiceSlotsPage.php:282
 msgid "Bis (Datum)"
 msgstr "Au (date)"
 
-#: src/Admin/ServiceSlotsPage.php:281
+#: src/Admin/ServiceSlotsPage.php:283
 msgid "Täglich ab"
 msgstr "Chaque jour à partir de"
 
-#: src/Admin/ServiceSlotsPage.php:283
+#: src/Admin/ServiceSlotsPage.php:285
 msgid "Dauer (Min.)"
 msgstr "Durée (min)"
 
-#: src/Admin/ServiceSlotsPage.php:283
-#: src/Admin/ServiceSlotsPage.php:284
-#: src/Admin/ServiceSlotsPage.php:463
+#: src/Admin/ServiceSlotsPage.php:285
+#: src/Admin/ServiceSlotsPage.php:286
+#: src/Admin/ServiceSlotsPage.php:465
 msgid "wie Ressource"
 msgstr "comme la ressource"
 
-#: src/Admin/ServiceSlotsPage.php:291
+#: src/Admin/ServiceSlotsPage.php:293
 msgid "Serie erzeugen"
 msgstr "Générer la série"
 
-#: src/Admin/ServiceSlotsPage.php:317
-#: src/Admin/ServiceSlotsPage.php:321
+#: src/Admin/ServiceSlotsPage.php:319
+#: src/Admin/ServiceSlotsPage.php:323
 #: src/Admin/ServicesPage.php:478
 #: src/Admin/TicketsPage.php:492
 #: src/Exchange/AdminPage.php:223
@@ -7888,76 +7909,76 @@ msgstr "Générer la série"
 msgid "Umbuchen"
 msgstr "Modifier la réservation"
 
-#: src/Admin/ServiceSlotsPage.php:319
+#: src/Admin/ServiceSlotsPage.php:321
 #: src/Admin/ServicesPage.php:476
 #: src/Services/Portal.php:162
 msgid "Neues Zeitfenster"
 msgstr "Nouveau créneau"
 
-#: src/Admin/ServiceSlotsPage.php:326
+#: src/Admin/ServiceSlotsPage.php:328
 msgid "Zahlung vollständig erstatten"
 msgstr "Rembourser intégralement le paiement"
 
-#: src/Admin/ServiceSlotsPage.php:327
+#: src/Admin/ServiceSlotsPage.php:329
 msgid "Fristen gelten für das Team nicht. Kund:in und Team werden per E-Mail informiert."
 msgstr "Les délais ne s’appliquent pas à l’équipe. Le client et l’équipe sont informés par e-mail."
 
-#: src/Admin/ServiceSlotsPage.php:327
+#: src/Admin/ServiceSlotsPage.php:329
 #: src/Services/Portal.php:181
 msgid "Buchung stornieren"
 msgstr "Annuler la réservation"
 
-#: src/Admin/ServiceSlotsPage.php:337
+#: src/Admin/ServiceSlotsPage.php:339
 msgid "Buchungsseite für Kund:innen"
 msgstr "Page de réservation pour les clients"
 
-#: src/Admin/ServiceSlotsPage.php:338
+#: src/Admin/ServiceSlotsPage.php:340
 msgid "Shortcode für dieses Event"
 msgstr "Shortcode pour cet événement"
 
-#: src/Admin/ServiceSlotsPage.php:339
+#: src/Admin/ServiceSlotsPage.php:341
 msgid "Füge den Shortcode oder den Block „Pass Captain Terminbuchung“ in eine Seite ein. Mit resource=\"ID\" zeigt die Seite nur eine Ressource. Kostenpflichtige Ressourcen (mit Ticketart als Preis) laufen über den normalen Checkout, kostenlose werden sofort bestätigt."
 msgstr "Insérez le shortcode ou le bloc « Réservation de rendez-vous Pass Captain » dans une page. Avec resource=\"ID\", la page n’affiche qu’une ressource. Les ressources payantes (avec un type de ticket comme prix) passent par le paiement normal ; les gratuites sont confirmées immédiatement."
 
-#: src/Admin/ServiceSlotsPage.php:341
+#: src/Admin/ServiceSlotsPage.php:343
 msgid "Auf der Website ansehen"
 msgstr "Voir sur le site"
 
-#: src/Admin/ServiceSlotsPage.php:341
+#: src/Admin/ServiceSlotsPage.php:343
 msgid "(öffnet in einem neuen Tab)"
 msgstr "(s’ouvre dans un nouvel onglet)"
 
-#: src/Admin/ServiceSlotsPage.php:343
+#: src/Admin/ServiceSlotsPage.php:345
 msgid "Noch keine veröffentlichte Seite zeigt die Terminbuchung für dieses Event."
 msgstr "Aucune page publiée n’affiche encore la réservation de rendez-vous pour cet événement."
 
-#: src/Admin/ServiceSlotsPage.php:357
+#: src/Admin/ServiceSlotsPage.php:359
 msgid "Ressourcen sind Räume, Personen oder Geräte eines Events. Für jede Ressource legst du buchbare Zeitfenster mit einer Platzzahl an; Kund:innen buchen sie auf einer Seite mit dem Shortcode [wpcap_service_booking] oder dem Block „Pass Captain Terminbuchung“. Zeitfenster mit Buchungen können nicht gelöscht, aber geschlossen werden."
 msgstr "Les ressources sont les salles, les personnes ou les équipements d’un événement. Pour chaque ressource, vous créez des créneaux réservables avec un nombre de places ; les clients les réservent sur une page avec le shortcode [wpcap_service_booking] ou le bloc « Réservation de rendez-vous Pass Captain ». Les créneaux comportant des réservations ne peuvent pas être supprimés, mais peuvent être fermés."
 
-#: src/Admin/ServiceSlotsPage.php:376
+#: src/Admin/ServiceSlotsPage.php:378
 #: src/Admin/ServicesPage.php:256
 msgid "Ressourcen"
 msgstr "Ressources"
 
-#: src/Admin/ServiceSlotsPage.php:377
+#: src/Admin/ServiceSlotsPage.php:379
 msgid "Puffer vorher/danach (Min.)"
 msgstr "Marge avant/après (min)"
 
-#: src/Admin/ServiceSlotsPage.php:390
+#: src/Admin/ServiceSlotsPage.php:392
 msgid "Leistungserbringer zuordnen"
 msgstr "Associer des prestataires"
 
-#: src/Admin/ServiceSlotsPage.php:399
+#: src/Admin/ServiceSlotsPage.php:401
 msgid "Eine Buchung belegt auch die zugeordneten Leistungserbringer: Sie können zur selben Zeit (inklusive Puffer) nicht über eine andere Ressource gebucht werden."
 msgstr "Une réservation occupe aussi les prestataires associés : ils ne peuvent pas être réservés au même moment (marge comprise) via une autre ressource."
 
-#: src/Admin/ServiceSlotsPage.php:402
+#: src/Admin/ServiceSlotsPage.php:404
 msgid "Ressource mit allen Zeitfenstern löschen? Das geht nur, solange es keine Buchungen gibt."
 msgstr "Supprimer la ressource avec tous ses créneaux ? Cela n’est possible que tant qu’il n’y a aucune réservation."
 
-#: src/Admin/ServiceSlotsPage.php:405
-#: src/Admin/ServiceSlotsPage.php:443
+#: src/Admin/ServiceSlotsPage.php:407
+#: src/Admin/ServiceSlotsPage.php:445
 #: src/Admin/ServicesPage.php:410
 #: src/Integrations/ConnectorsPage.php:151
 #: src/Modules/Webhooks.php:454
@@ -7967,57 +7988,57 @@ msgstr "Supprimer la ressource avec tous ses créneaux ? Cela n’est possible q
 msgid "Löschen"
 msgstr "Supprimer"
 
-#: src/Admin/ServiceSlotsPage.php:407
+#: src/Admin/ServiceSlotsPage.php:409
 #: src/Admin/ServicesPage.php:258
 msgid "Noch keine Ressourcen."
 msgstr "Aucune ressource pour l’instant."
 
-#: src/Admin/ServiceSlotsPage.php:409
+#: src/Admin/ServiceSlotsPage.php:411
 msgid "Ressource hinzufügen"
 msgstr "Ajouter une ressource"
 
-#: src/Admin/ServiceSlotsPage.php:413
+#: src/Admin/ServiceSlotsPage.php:415
 #: src/Admin/ServicesPage.php:316
 msgid "Ressource anlegen"
 msgstr "Créer la ressource"
 
 #. translators: %s: timezone
-#: src/Admin/ServiceSlotsPage.php:419
+#: src/Admin/ServiceSlotsPage.php:421
 #, php-format
 msgid "Alle Zeiten in %s."
 msgstr "Toutes les heures sont en %s."
 
-#: src/Admin/ServiceSlotsPage.php:435
+#: src/Admin/ServiceSlotsPage.php:437
 msgid "Das Zeitfenster hat Buchungen; Beginn und Ende sind fest."
 msgstr "Le créneau comporte des réservations ; le début et la fin sont fixes."
 
-#: src/Admin/ServiceSlotsPage.php:440
+#: src/Admin/ServiceSlotsPage.php:442
 msgid "Zeitfenster löschen? Das geht nur, solange es keine Buchungen gibt."
 msgstr "Supprimer ce créneau ? Ce n'est possible que tant qu'il n'a aucune réservation."
 
-#: src/Admin/ServiceSlotsPage.php:447
+#: src/Admin/ServiceSlotsPage.php:449
 #: src/Admin/ServicesPage.php:401
 msgid "Noch keine Zeitfenster."
 msgstr "Aucun créneau pour l’instant."
 
-#: src/Admin/ServiceSlotsPage.php:453
+#: src/Admin/ServiceSlotsPage.php:455
 msgid "Zeitfenster hinzufügen"
 msgstr "Ajouter un créneau"
 
-#: src/Admin/ServiceSlotsPage.php:455
+#: src/Admin/ServiceSlotsPage.php:457
 msgid "Lege zuerst eine aktive Ressource an."
 msgstr "Créez d’abord une ressource active."
 
-#: src/Admin/ServiceSlotsPage.php:464
+#: src/Admin/ServiceSlotsPage.php:466
 #: src/Admin/ServicesPage.php:372
 msgid "Zeitfenster anlegen"
 msgstr "Créer le créneau"
 
-#: src/Admin/ServiceSlotsPage.php:473
+#: src/Admin/ServiceSlotsPage.php:475
 msgid "Alle Buchungen des Events anzeigen"
 msgstr "Afficher toutes les réservations de l’événement"
 
-#: src/Admin/ServiceSlotsPage.php:475
+#: src/Admin/ServiceSlotsPage.php:477
 msgid "Gebucht am"
 msgstr "Réservé le"
 
@@ -8070,17 +8091,6 @@ msgstr "Associer des prestataires et des créneaux par ressource (créneaux de s
 #: src/Admin/ServicesPage.php:251
 msgid "Ressourcen sind buchbare Dinge oder Personen (z. B. Räume, Guides, Geräte) eines Events. Für jede Ressource werden Zeitfenster mit eigener Kapazität angelegt, die Kundinnen und Kunden buchen können."
 msgstr "Les ressources sont des choses ou des personnes réservables (p. ex. salles, guides, équipements) d’un événement. Pour chaque ressource, des créneaux avec leur propre capacité sont créés et peuvent être réservés par les clients."
-
-#: src/Admin/ServicesPage.php:261
-#: src/Admin/UserScope.php:49
-#: src/Integrations/ConnectorsPage.php:249
-#: src/Modules/Partners.php:346
-#: src/Partners/AdminPage.php:244
-#: src/Partners/AdminPage.php:668
-#: src/Partners/AdminPage.php:684
-#: src/Partners/Settlements.php:879
-msgid "Veranstalter"
-msgstr "Organisateur"
 
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:370
@@ -11911,7 +11921,7 @@ msgid "Nur einzelne Tickets stornieren"
 msgstr "Annuler uniquement certains tickets"
 
 #: src/BoxOffice/Page.php:322
-#: src/Integrations/WooCommerce/OrderAdapter.php:2327
+#: src/Integrations/WooCommerce/OrderAdapter.php:2332
 msgid "eingecheckt"
 msgstr "enregistré"
 
@@ -15914,8 +15924,8 @@ msgid "Ein Event"
 msgstr "Un événement"
 
 #: src/Integrations/CalendarFeeds.php:35
-msgid "Ein Veranstalter (Partner)"
-msgstr "Un organisateur (partenaire)"
+msgid "Ein Veranstalter"
+msgstr "Un organisateur"
 
 #: src/Integrations/CalendarFeeds.php:65
 msgid "Unbekannter Umfang des Kalender-Abos."
@@ -16563,7 +16573,7 @@ msgid "Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb v
 msgstr "Utiliser les prix Pass Captain (p. ex. paliers de prix des séries) dans le panier WooCommerce"
 
 #: src/Integrations/WooCommerce/CartPricing.php:90
-msgid "Ticketprodukte kosten dann den Preis der Pass-Captain-Ticketkategorie inklusive aktiver Preisstufe statt des WooCommerce-Produktpreises. Der Preis wird im Warenkorb und an der Kasse laufend neu berechnet."
+msgid "Ticketprodukte kosten dann den Preis der Pass-Captain-Ticketart inklusive aktiver Preisstufe statt des WooCommerce-Produktpreises. Der Preis wird im Warenkorb und an der Kasse laufend neu berechnet."
 msgstr "Les produits de ticket coûtent alors le prix du type de ticket Pass Captain, palier de prix actif inclus, au lieu du prix du produit WooCommerce. Le prix est recalculé en continu dans le panier et lors du paiement."
 
 #. translators: 1: product name, 2: new price (with tier label), 3: previous price
@@ -16589,237 +16599,237 @@ msgstr "Palier de prix"
 msgid "statt %s"
 msgstr "au lieu de %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:172
+#: src/Integrations/WooCommerce/OrderAdapter.php:177
 msgid "— Kein Ticketprodukt —"
 msgstr "— Aucun produit de ticket —"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:180
+#: src/Integrations/WooCommerce/OrderAdapter.php:185
 msgid "nicht im Verkauf"
 msgstr "pas en vente"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:188
+#: src/Integrations/WooCommerce/OrderAdapter.php:193
 msgid "keine Berechtigung für diese Veranstaltung – nicht änderbar"
 msgstr "aucune autorisation pour cet événement – non modifiable"
 
 #. translators: %d: ticket type ID
-#: src/Integrations/WooCommerce/OrderAdapter.php:191
+#: src/Integrations/WooCommerce/OrderAdapter.php:196
 #, php-format
-msgid "Unbekannte Ticketkategorie #%d"
+msgid "Unbekannte Ticketart #%d"
 msgstr "Type de ticket inconnu n° %d"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:197
-msgid "Pass Captain Ticketkategorie"
+#: src/Integrations/WooCommerce/OrderAdapter.php:202
+msgid "Pass Captain Ticketart"
 msgstr "Type de ticket Pass Captain"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:199
+#: src/Integrations/WooCommerce/OrderAdapter.php:204
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
 msgstr "Ce produit vend des tickets du type choisi. Le contingent, la fenêtre de vente, la quantité maximale et – selon le réglage WooCommerce – le prix, paliers de prix inclus, proviennent de Pass Captain. Laissez la gestion des stocks de WooCommerce désactivée pour ce produit."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:200
+#: src/Integrations/WooCommerce/OrderAdapter.php:205
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
 msgstr "Ce produit vend des tickets du type choisi. Le contingent, la fenêtre de vente et la quantité maximale proviennent de Pass Captain ; le prix provient de WooCommerce. Laissez la gestion des stocks de WooCommerce désactivée pour ce produit."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:208
+#: src/Integrations/WooCommerce/OrderAdapter.php:213
 msgid "— Verkäufer für normales Produkt wählen —"
 msgstr "— Choisir le vendeur du produit ordinaire —"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:210
+#: src/Integrations/WooCommerce/OrderAdapter.php:215
 msgid "Fiskalischer Verkäufer (normales WooCommerce-Produkt)"
 msgstr "Vendeur fiscal (produit WooCommerce ordinaire)"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:210
+#: src/Integrations/WooCommerce/OrderAdapter.php:215
 msgid "Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkäuferzuordnung der Pass-Captain-Ticketart."
 msgstr "Pour les paniers mixtes. Les produits billets continuent d’utiliser le vendeur attribué au type de billet Pass Captain."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:211
+#: src/Integrations/WooCommerce/OrderAdapter.php:216
 #: src/Modules/Fiscalization.php:1386
 msgid "Verkäuferrolle"
 msgstr "Rôle du vendeur"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:211
+#: src/Integrations/WooCommerce/OrderAdapter.php:216
 #: src/Modules/Fiscalization.php:1386
 msgid "Betreibergesellschaft ist Verkäufer"
 msgstr "La société exploitante est le vendeur"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:211
+#: src/Integrations/WooCommerce/OrderAdapter.php:216
 #: src/Modules/Fiscalization.php:1386
 msgid "Veranstalter ist Verkäufer"
 msgstr "L’organisateur est le vendeur"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:228
-msgid "Die Ticketkategorie wurde nicht geändert: Du darfst nur Ticketkategorien von Veranstaltungen verknüpfen, die du verwaltest."
+#: src/Integrations/WooCommerce/OrderAdapter.php:233
+msgid "Die Ticketart wurde nicht geändert: Du darfst nur Ticketarten von Veranstaltungen verknüpfen, die du verwaltest."
 msgstr "Le type de ticket n’a pas été modifié : vous ne pouvez associer que des types de ticket d’événements que vous gérez."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:512
-msgid "Diese Ticketkategorie existiert nicht mehr."
+#: src/Integrations/WooCommerce/OrderAdapter.php:517
+msgid "Diese Ticketart existiert nicht mehr."
 msgstr "Ce type de ticket n’existe plus."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:518
+#: src/Integrations/WooCommerce/OrderAdapter.php:523
 #, php-format
 msgid "„%s“ ist nicht mehr buchbar."
 msgstr "« %s » n’est plus réservable."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:522
+#: src/Integrations/WooCommerce/OrderAdapter.php:527
 #, php-format
 msgid "Der Verkauf für „%s“ ist derzeit geschlossen."
 msgstr "Les ventes pour « %s » sont actuellement fermées."
 
 #. translators: 1: max quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:526
+#: src/Integrations/WooCommerce/OrderAdapter.php:531
 #, php-format
 msgid "Pro Bestellung sind höchstens %1$d Tickets für „%2$s“ möglich."
 msgstr "Au maximum %1$d tickets pour « %2$s » sont possibles par commande."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:532
+#: src/Integrations/WooCommerce/OrderAdapter.php:537
 #, php-format
 msgid "„%s“ ist ausverkauft."
 msgstr "« %s » est complet."
 
 #. translators: 1: available quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:534
+#: src/Integrations/WooCommerce/OrderAdapter.php:539
 #, php-format
 msgid "Für „%2$s“ sind nur noch %1$d Tickets verfügbar."
 msgstr "Il ne reste que %1$d tickets pour « %2$s »."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:540
+#: src/Integrations/WooCommerce/OrderAdapter.php:545
 #, php-format
 msgid "Für „%s“ sind keine passenden Sitzplätze mehr frei."
 msgstr "Il n’y a plus de places assises adaptées pour « %s »."
 
 #. translators: 1: free seats, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:542
+#: src/Integrations/WooCommerce/OrderAdapter.php:547
 #, php-format
 msgid "Für „%2$s“ sind nur noch %1$d passende Sitzplätze frei."
 msgstr "Il ne reste que %1$d places assises adaptées pour « %2$s »."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:644
+#: src/Integrations/WooCommerce/OrderAdapter.php:649
 msgid "Für Tickets wird eine gültige E-Mail-Adresse benötigt."
 msgstr "Une adresse e-mail valide est requise pour les tickets."
 
 #. translators: 1: hold minutes, 2: number of seller orders, 3: list of orders and sellers
-#: src/Integrations/WooCommerce/OrderAdapter.php:735
+#: src/Integrations/WooCommerce/OrderAdapter.php:740
 #, php-format
 msgid "Pass Captain: Tickets für %1$d Minuten reserviert, aufgeteilt auf %2$d Bestellungen je Rechnungssteller: %3$s."
 msgstr "Pass Captain : tickets réservés pendant %1$d minutes, répartis en %2$d commandes par émetteur de la facture : %3$s."
 
 #. translators: %d: hold minutes
-#: src/Integrations/WooCommerce/OrderAdapter.php:738
+#: src/Integrations/WooCommerce/OrderAdapter.php:743
 #, php-format
 msgid "Pass Captain: Tickets für %d Minute reserviert."
 msgid_plural "Pass Captain: Tickets für %d Minuten reserviert."
 msgstr[0] "Pass Captain : tickets réservés pour %d minute."
 msgstr[1] "Pass Captain : tickets réservés pour %d minutes."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1007
+#: src/Integrations/WooCommerce/OrderAdapter.php:1012
 msgid "Ein Rabatt als negative Gebühr kann in dieser Bestellung nicht auf dem Fiskalbeleg abgebildet werden, weil er auch auf andere Produkte als Tickets entfällt. Bitte einen Gutschein (Coupon) verwenden oder die Tickets getrennt bestellen."
 msgstr "Une remise ajoutée comme frais négatifs ne peut pas figurer sur le reçu fiscal de cette commande, car elle s’applique aussi à d’autres produits que des billets. Veuillez utiliser un code promo ou commander les billets séparément."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1043
+#: src/Integrations/WooCommerce/OrderAdapter.php:1048
 msgid "Jede zusätzliche Ware, Gebühr und Versandposition in einer Bestellung mit fiskalischen Tickets muss einem rechtlichen Verkäufer zugeordnet sein."
 msgstr "Chaque produit, frais et ligne d’expédition supplémentaire d’une commande avec des billets fiscaux doit être attribué à un vendeur juridique."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1071
+#: src/Integrations/WooCommerce/OrderAdapter.php:1076
 msgid "Negative Beträge müssen als WooCommerce-Rabatt (Gutschein) statt als negative Position eingerichtet werden."
 msgstr "Les montants négatifs doivent être configurés comme remise WooCommerce (code promo) plutôt que comme ligne négative."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1075
+#: src/Integrations/WooCommerce/OrderAdapter.php:1080
 msgid "Eine zusätzliche Warenkorbposition enthält mehrere Steuersätze und kann nicht sicher einem Fiskalbeleg zugeordnet werden."
 msgstr "Une ligne supplémentaire du panier contient plusieurs taux de TVA et ne peut pas être attribuée à un reçu fiscal de manière sûre."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1080
+#: src/Integrations/WooCommerce/OrderAdapter.php:1085
 msgid "Der WooCommerce-Steuersatz für eine zusätzliche Position konnte nicht eindeutig bestimmt werden."
 msgstr "Le taux de TVA WooCommerce d’une ligne supplémentaire n’a pas pu être déterminé sans ambiguïté."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1162
+#: src/Integrations/WooCommerce/OrderAdapter.php:1167
 #, php-format
 msgid "Pass Captain: Tickets konnten nicht reserviert werden: %s"
 msgstr "Pass Captain : les tickets n’ont pas pu être réservés : %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1170
+#: src/Integrations/WooCommerce/OrderAdapter.php:1175
 msgid "Pass Captain: Die Bestellung wurde nicht über den Checkout angelegt; Pflichtangaben zu Teilnehmenden fehlen. Die Tickets werden trotzdem ausgestellt – die Kundschaft ergänzt die Angaben über den Bestelllink aus der Ticket-E-Mail."
 msgstr "Pass Captain : la commande n’a pas été créée via le checkout ; des données obligatoires des participants manquent. Les billets sont émis malgré tout – le client complète les données via le lien de commande de l’e-mail des billets."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1195
+#: src/Integrations/WooCommerce/OrderAdapter.php:1200
 msgid "Pass Captain: Die Tickets bleiben reserviert und werden nach der Prüfung der Bestellung ausgestellt."
 msgstr "Pass Captain : les billets restent réservés et seront émis après la vérification de la commande."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1206
+#: src/Integrations/WooCommerce/OrderAdapter.php:1211
 msgid "Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird."
 msgstr "Pass Captain : paiement à la livraison/au retrait – les tickets restent réservés et seront émis dès que la commande passera à « Terminée »."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1225
+#: src/Integrations/WooCommerce/OrderAdapter.php:1230
 #, php-format
 msgid "Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s"
 msgstr "Pass Captain : paiement reçu, mais les tickets n’ont pas pu être réservés à nouveau – veuillez régler manuellement. %s"
 
 #. translators: 1: seller order prefix (may be empty), 2: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1293
+#: src/Integrations/WooCommerce/OrderAdapter.php:1298
 #, php-format
 msgid "Pass Captain: %1$sKeine Tickets ausgestellt – %2$s"
 msgstr "Pass Captain : %1$saucun ticket émis – %2$s"
 
 #. translators: %s: seller order prefix (may be empty)
-#: src/Integrations/WooCommerce/OrderAdapter.php:1300
+#: src/Integrations/WooCommerce/OrderAdapter.php:1305
 #, php-format
 msgid "Pass Captain: %sZahlung übernommen, Tickets warten noch auf die Fiskalisierung. Fiskalstatus unter Pass Captain → Fiskalisierung prüfen oder den Fiskal-Retry auslösen."
 msgstr "Pass Captain : %sPaiement accepté, les billets attendent encore la fiscalisation. Vérifiez le statut fiscal sous Pass Captain → Fiscalisation ou relancez la fiscalisation."
 
 #. translators: 1: seller order prefix (may be empty), 2: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1304
+#: src/Integrations/WooCommerce/OrderAdapter.php:1309
 #, php-format
 msgid "Pass Captain: %1$s%2$d Ticket ausgestellt und per E-Mail versendet."
 msgid_plural "Pass Captain: %1$s%2$d Tickets ausgestellt und per E-Mail versendet."
 msgstr[0] "Pass Captain : %1$s%2$d ticket émis et envoyé par e-mail."
 msgstr[1] "Pass Captain : %1$s%2$d tickets émis et envoyés par e-mail."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1339
+#: src/Integrations/WooCommerce/OrderAdapter.php:1344
 msgid "Pass Captain: Die Erstattung konnte gerade nicht übernommen werden (Datenbank ausgelastet); sie wird automatisch erneut versucht."
 msgstr "Pass Captain : le remboursement n’a pas pu être pris en compte pour le moment (base de données surchargée) ; il sera automatiquement réessayé."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1340
+#: src/Integrations/WooCommerce/OrderAdapter.php:1345
 msgid "Pass Captain: Die Zahlung konnte gerade nicht verbucht werden (Datenbank ausgelastet); die Tickets werden automatisch erneut ausgestellt."
 msgstr "Pass Captain : le paiement n’a pas pu être comptabilisé pour le moment (base de données surchargée) ; les tickets seront automatiquement réémis."
 
 #. translators: %s: list of Pass Captain order IDs
-#: src/Integrations/WooCommerce/OrderAdapter.php:1501
+#: src/Integrations/WooCommerce/OrderAdapter.php:1506
 #, php-format
 msgid "Pass Captain: Bestellung in den Papierkorb verschoben. Die Tickets der bezahlten Bestellung(en) %s bleiben gültig – für einen Widerruf die Bestellung erstatten oder stornieren."
 msgstr "Pass Captain : commande placée dans la corbeille. Les billets de la ou des commandes payées %s restent valides – pour les révoquer, remboursez ou annulez la commande."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1524
+#: src/Integrations/WooCommerce/OrderAdapter.php:1529
 #, php-format
 msgid "Pass Captain: Bestellung wiederhergestellt, aber die Tickets konnten nicht erneut reserviert werden: %s"
 msgstr "Pass Captain : commande restaurée, mais les billets n’ont pas pu être réservés à nouveau : %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1545
+#: src/Integrations/WooCommerce/OrderAdapter.php:1550
 msgid "Pass Captain: Status „Fehlgeschlagen“ für eine bereits bezahlte Bestellung – die Tickets bleiben gültig. Zum Stornieren die Bestellung auf „Storniert“ setzen."
 msgstr "Pass Captain : statut « Échoué » pour une commande déjà payée – les tickets restent valables. Pour annuler, passez la commande au statut « Annulée »."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1659
+#: src/Integrations/WooCommerce/OrderAdapter.php:1664
 #, php-format
 msgid "Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht."
 msgstr "Pass Captain : le remboursement n’a pas encore pu être pris en compte (%s). Il sera retenté automatiquement."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1661
+#: src/Integrations/WooCommerce/OrderAdapter.php:1666
 #, php-format
 msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s. Sie wird automatisch erneut versucht; schlägt das dauerhaft fehl, erscheint der Auftrag auf der Seite Pass Captain → Systemstatus."
 msgstr "Pass Captain : le remboursement n’a pas pu être appliqué – %s. Il sera réessayé automatiquement ; en cas d’échec persistant, la tâche apparaît sur la page Pass Captain → État du système."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1696
+#: src/Integrations/WooCommerce/OrderAdapter.php:1701
 msgid "Erstattung in WooCommerce"
 msgstr "Remboursement dans WooCommerce"
 
 #. translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1718
+#: src/Integrations/WooCommerce/OrderAdapter.php:1723
 #, php-format
 msgid "Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket."
 msgid_plural "Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Tickets."
@@ -16827,7 +16837,7 @@ msgstr[0] "Pass Captain : remboursement de la commande #%1$d (%2$s) : %3$s, %4$d
 msgstr[1] "Pass Captain : remboursement de la commande #%1$d (%2$s) : %3$s, %4$d billets."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1734
+#: src/Integrations/WooCommerce/OrderAdapter.php:1739
 #, php-format
 msgid "Pass Captain: %d erstattetes Ticket war bereits eingecheckt und wurde laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht."
 msgid_plural "Pass Captain: %d erstattete Tickets waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht."
@@ -16835,13 +16845,13 @@ msgstr[0] "Pass Captain : %d billet remboursé avait déjà été enregistré et
 msgstr[1] "Pass Captain : %d billets remboursés avaient déjà été enregistrés et, selon le réglage, n'ont pas été marqués comme remboursés ; le montant a été comptabilisé."
 
 #. translators: 1: event and ticket name, 2: number of tickets that can be refunded
-#: src/Integrations/WooCommerce/OrderAdapter.php:1806
+#: src/Integrations/WooCommerce/OrderAdapter.php:1811
 #, php-format
 msgid "Pass Captain: Für „%1$s“ können nur %2$d nicht eingecheckte Tickets erstattet werden. Eingecheckte Tickets werden laut Einstellung nicht erstattet. Erstatte nur einen Betrag ohne Menge oder erlaube die Erstattung eingecheckter Tickets unter WooCommerce → Einstellungen → Produkte → Pass Captain."
 msgstr "Pass Captain : pour « %1$s », seuls %2$d tickets sans check-in peuvent être remboursés. Selon le réglage, les tickets ayant fait l’objet d’un check-in ne sont pas remboursés. Remboursez uniquement un montant sans quantité ou autorisez le remboursement des tickets ayant fait l’objet d’un check-in sous WooCommerce → Réglages → Produits → Pass Captain."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:2098
+#: src/Integrations/WooCommerce/OrderAdapter.php:2103
 #, php-format
 msgid "Pass Captain: %d Ticket wegen Erstattung widerrufen."
 msgid_plural "Pass Captain: %d Tickets wegen Erstattung widerrufen."
@@ -16849,99 +16859,99 @@ msgstr[0] "Pass Captain : %d ticket révoqué en raison d’un remboursement."
 msgstr[1] "Pass Captain : %d tickets révoqués en raison d’un remboursement."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:2101
+#: src/Integrations/WooCommerce/OrderAdapter.php:2106
 #, php-format
 msgid "%d erstattetes Ticket war bereits eingecheckt oder nicht mehr gültig und wurde nicht verändert."
 msgid_plural "%d erstattete Tickets waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert."
 msgstr[0] "%d ticket remboursé avait déjà fait l’objet d’un check-in ou n’était plus valable et n’a pas été modifié."
 msgstr[1] "%d tickets remboursés avaient déjà fait l’objet d’un check-in ou n’étaient plus valables et n’ont pas été modifiés."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2135
+#: src/Integrations/WooCommerce/OrderAdapter.php:2140
 msgid "Pass Captain: Die Tickets konnten wegen eines Datenbankfehlers noch nicht widerrufen werden. Der Vorgang wird automatisch wiederholt."
 msgstr "Pass Captain : les tickets n’ont pas encore pu être révoqués en raison d’une erreur de base de données. L’opération sera retentée automatiquement."
 
 #. translators: 1: seller order ID, 2: seller name
-#: src/Integrations/WooCommerce/OrderAdapter.php:2153
+#: src/Integrations/WooCommerce/OrderAdapter.php:2158
 #, php-format
 msgid "Pass Captain: Ein Termin der Bestellung #%1$d (%2$s) wurde abgesagt; die Tickets sind widerrufen. Bitte diese Positionen in WooCommerce mit Menge erstatten – die Erstattung wird dieser Bestellung zugeordnet."
 msgstr "Pass Captain : une date de la commande n° %1$d (%2$s) a été annulée ; les tickets ont été révoqués. Veuillez rembourser ces lignes avec quantité dans WooCommerce – le remboursement sera associé à cette commande."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2160
+#: src/Integrations/WooCommerce/OrderAdapter.php:2165
 msgid "Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten."
 msgstr "Pass Captain : une date de cette commande a été annulée ; les tickets sont révoqués. Veuillez rembourser la commande dans WooCommerce."
 
 #. translators: 1: amount, 2: currency, 3: exchange id
-#: src/Integrations/WooCommerce/OrderAdapter.php:2169
+#: src/Integrations/WooCommerce/OrderAdapter.php:2174
 #, php-format
 msgid "Pass Captain: Ticket umgetauscht (Umtausch #%3$d). Bitte die Differenz von %1$s %2$s hier in WooCommerce erstatten (Erstattung ohne Ticketauswahl)."
 msgstr "Pass Captain : ticket échangé (échange n° %3$d). Veuillez rembourser ici dans WooCommerce la différence de %1$s %2$s (remboursement sans sélection de ticket)."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2235
+#: src/Integrations/WooCommerce/OrderAdapter.php:2240
 msgid "Deine Tickets"
 msgstr "Vos tickets"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2237
+#: src/Integrations/WooCommerce/OrderAdapter.php:2242
 msgid "Deine Tickets werden nach bestätigter Zahlung per E-Mail zugestellt."
 msgstr "Vos tickets vous seront envoyés par e-mail une fois le paiement confirmé."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2240
+#: src/Integrations/WooCommerce/OrderAdapter.php:2245
 msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "Nous vous avons envoyé par e-mail les liens des tickets avec QR code."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2252
+#: src/Integrations/WooCommerce/OrderAdapter.php:2257
 #: src/Privacy.php:333
 #: src/Privacy.php:381
 msgid "Pass Captain Tickets"
 msgstr "Tickets Pass Captain"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2261
+#: src/Integrations/WooCommerce/OrderAdapter.php:2266
 msgid "Keine Tickets in dieser Bestellung."
 msgstr "Aucun ticket dans cette commande."
 
 #. translators: 1: order ID, 2: status, 3: payment status
-#: src/Integrations/WooCommerce/OrderAdapter.php:2269
+#: src/Integrations/WooCommerce/OrderAdapter.php:2274
 #, php-format
 msgid "Pass Captain Bestellung #%1$d: %2$s / %3$s"
 msgstr "Commande Pass Captain n° %1$d : %2$s / %3$s"
 
 #. translators: %s: seller name
-#: src/Integrations/WooCommerce/OrderAdapter.php:2272
+#: src/Integrations/WooCommerce/OrderAdapter.php:2277
 #, php-format
 msgid "Rechnungssteller: %s"
 msgstr "Émetteur de la facture : %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2276
+#: src/Integrations/WooCommerce/OrderAdapter.php:2281
 msgid "Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten."
 msgstr "Paiement reçu, mais plus de contingent disponible. Veuillez libérer une place et choisir « Émettre à nouveau les tickets », ou rembourser."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2289
+#: src/Integrations/WooCommerce/OrderAdapter.php:2294
 msgid "Pass Captain: Tickets erneut senden (neue Codes, ohne übertragene Tickets)"
 msgstr "Pass Captain : renvoyer les tickets (nouveaux codes, sans les tickets transférés)"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2290
+#: src/Integrations/WooCommerce/OrderAdapter.php:2295
 msgid "Pass Captain: Tickets erneut ausstellen"
 msgstr "Pass Captain : émettre à nouveau les tickets"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:2306
+#: src/Integrations/WooCommerce/OrderAdapter.php:2311
 #, php-format
 msgid "Pass Captain: Erneuter Versand fehlgeschlagen – %s"
 msgstr "Pass Captain : échec du renvoi – %s"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:2306
+#: src/Integrations/WooCommerce/OrderAdapter.php:2311
 msgid "Pass Captain: Tickets mit neuen Codes erneut gesendet (übertragene Tickets behalten ihren Code)."
 msgstr "Pass Captain : tickets renvoyés avec de nouveaux codes (les tickets transférés conservent leur code)."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2315
+#: src/Integrations/WooCommerce/OrderAdapter.php:2320
 msgid "Pass Captain: Bei dieser Zahlungsart werden die Tickets erst mit dem Status „Abgeschlossen“ ausgestellt."
 msgstr "Pass Captain : avec ce mode de paiement, les tickets ne sont émis qu’au statut « Terminée »."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2319
+#: src/Integrations/WooCommerce/OrderAdapter.php:2324
 msgid "Pass Captain: Die Bestellung ist noch nicht bezahlt."
 msgstr "Pass Captain : la commande n’est pas encore payée."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2326
+#: src/Integrations/WooCommerce/OrderAdapter.php:2331
 msgid "gültig"
 msgstr "valide"
 
@@ -18785,12 +18795,12 @@ msgid "Nur beantragte Pässe können abgelehnt werden."
 msgstr "Seules les cartes demandées peuvent être refusées."
 
 #: src/Memberships.php:311
-msgid "Passcode oder Ticketkategorie ungültig."
+msgid "Passcode oder Ticketart ungültig."
 msgstr "Code du pass ou type de ticket non valide."
 
 #: src/Memberships.php:315
 #: src/Memberships.php:327
-msgid "Dieser Pass gilt nicht für dieses Event oder diese Ticketkategorie."
+msgid "Dieser Pass gilt nicht für dieses Event oder diese Ticketart."
 msgstr "Ce pass n’est pas valable pour cet événement ou ce type de ticket."
 
 #: src/Memberships.php:324
@@ -29038,6 +29048,10 @@ msgstr "Pass Captain : clé propre recommandée pour les identifiants"
 #: src/Secrets.php:540
 msgid "Pass Captain: Verschlüsselung der Zugangsdaten in Ordnung"
 msgstr "Pass Captain : chiffrement des identifiants en ordre"
+
+#: src/Secrets.php:560
+msgid "Schlüssel"
+msgstr "Clé"
 
 #: src/Secrets.php:560
 msgid "aus WordPress-Salts abgeleitet"

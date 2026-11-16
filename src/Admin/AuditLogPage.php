@@ -318,7 +318,7 @@ final class AuditLogPage {
 			'refund'     => __( 'Erstattung', 'pass-captain' ),
 			'series'     => __( 'Serie', 'pass-captain' ),
 			'waitlist'   => __( 'Warteliste', 'pass-captain' ),
-			'partner'    => __( 'Partner', 'pass-captain' ),
+			'partner'    => __( 'Veranstalter', 'pass-captain' ),
 			'list'       => __( 'Liste', 'pass-captain' ),
 		);
 		return $labels[ (string) $object_type ] ?? (string) $object_type;

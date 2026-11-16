@@ -833,8 +833,9 @@ Gesamt: 262 Aufgaben.
   - Erledigt: Website-Zustand-Tests `wpcap_rest_anonymous` (Abruf ohne Cookie, 401/403 kritisch, Loopback-Fehler Empfehlung, 6 h Cache) und `wpcap_proxy` (`CheckoutThrottle::status_issue()`, Link auf Tab „Erweitert“); Proxy-Hinweistexte zeigen jetzt auf „Einstellungen → Erweitert“. Test zz_a375.
 - [x] **A376** [OPTIMIERUNG] Saalplan-Verknüpfungen und Käuferlimits laden ganze Historie je Listing — _R1 Architektur_ (TODO L722; Audit Runde 4)
   - src/Seating/Layouts.php:371, Allocations/BuyerLimits.php:51: Auf IDs des Listings einschränken
-- [ ] **A377** [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — _R1 UX_ (TODO L723; Audit Runde 4)
+- [x] **A377** [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — _R1 UX_ (TODO L723; Audit Runde 4)
   - src/Partners/AdminPage.php:224, ServiceSlotsPage.php:227/253, EventsPage.php:801–804: Glossar, Benutzerauswahl statt ID
+  - Erledigt: „Ticketkategorie“ überall durch „Ticketart“ ersetzt (Übersetzungen übernommen), „Partner“ in Admin-/Export-Beschriftungen → „Veranstalter“, Leistungserbringer wählen den WordPress-Benutzer über `Forms::user_select()` (Liste bis 300 Benutzer, sonst ID-Feld). Test zz_a377_a415.
 - [x] **A378** [OPTIMIERUNG] Tab „Allgemein“ überladen — _R1 UX_ (TODO L724; Audit Runde 4)
   - src/Admin/SettingsPage.php:36–200: Proxy unter „Erweitert“, Gutscheine nur mit Voucher Captain, Datenschutz eigener Tab
   - Erledigt: neue Kern-Tabs „Datenschutz“ (Löschfristen) und „Erweitert“ (Proxy/Client-Adresse, Sicherheit, Support, Deinstallation); Abschnitt „Gutscheine“ nur mit Gutscheinanbieter oder gespeichertem Nicht-Standardwert (`SettingsPage::vouchers_relevant()`), ausgeblendet wird er auch nicht gespeichert. Test zz_a378.
@@ -919,8 +920,9 @@ Gesamt: 262 Aufgaben.
   - src/Admin/AuditLogPage.php:39–40, :104–115: Filter in Site-Zone, Aktionen im Klartext, Objekt-Links
 - [x] **A414** [OPTIMIERUNG] Tickets-Seite verliert Filter/Seite nach Aktionen — _R2 UX_ (TODO L760; Audit Runde 4)
   - src/Admin/TicketsPage.php:157–160: event_id/status/paged mitgeben
-- [ ] **A415** [OPTIMIERUNG] Unklare Labels (Abgesagt/Storniert, Provider-Keys, „Schlüssel“, Kontingente, Grund-Feld, Checklisten-Links) — _R2 UX_ (TODO L761; Audit Runde 4)
+- [x] **A415** [OPTIMIERUNG] Unklare Labels (Abgesagt/Storniert, Provider-Keys, „Schlüssel“, Kontingente, Grund-Feld, Checklisten-Links) — _R2 UX_ (TODO L761; Audit Runde 4)
   - src/Admin/Forms.php:501, OrdersPage.php:298/370, EventsPage.php:803/807/1105, TicketsPage.php:260, GettingStarted.php:129–143: Konkrete Umformulierungen laut Auditbericht
+  - Erledigt: Status „cancelled“ je Objekt: „Storniert“ für Bestellungen/Tickets, „Abgesagt“ für Events/Termine und in der Änderungshistorie (`Forms::status_label( $status, $subject )`); „Kontingent“ getrennt in „Plätze des Termins“ und „Kontingent dieser Ticketart“; Feldschlüssel heißt „Technischer Schlüssel“. Test zz_a377_a415.
 - [x] **A416** [OPTIMIERUNG] SMS: Doppelversand bei Timeout/Absturz — _R2 API_ (TODO L762; Audit Runde 4)
   - src/Sms/TwilioProvider.php:44–67, Sms/Service.php:312/354: Vor Neuversand prüfen oder Timeout als „unbekannt“ nicht automatisch wiederholen
 - [x] **A417** [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — _R2 API_ (TODO L763; Audit Runde 4)

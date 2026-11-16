@@ -13,6 +13,9 @@ namespace PassCaptain\Admin;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Forms {
+	/** Most users listed by user_select() before it falls back to a user-ID field. */
+	const USER_SELECT_MAX = 300;
+
 	/** Upper bound for entered amounts in major units (keeps minor values far below bigint limits). */
 	const MAX_MAJOR_DIGITS = 10;
 
@@ -561,6 +564,28 @@ final class Forms {
 		echo '</select>';
 	}
 
+	/**
+	 * A377: WordPress user picker instead of a bare user-ID field. Lists up to USER_SELECT_MAX users
+	 * (display name and e-mail); on larger sites, or without get_users(), it falls back to the number
+	 * input. Value 0 = no user. The field posts the user ID either way.
+	 *
+	 * @param string $name     Field name.
+	 * @param int    $selected Selected user ID.
+	 * @param string $extra    Literal extra attributes (e.g. aria-describedby).
+	 */
+	public static function user_select( $name, $selected, $extra = '' ) {
+		$selected = max( 0, (int) $selected );
+		$users = function_exists( 'get_users' ) ? get_users( array( 'number' => self::USER_SELECT_MAX + 1, 'orderby' => 'display_name', 'fields' => array( 'ID', 'display_name', 'user_email' ) ) ) : null;
+		if ( ! is_array( $users ) || count( $users ) > self::USER_SELECT_MAX ) {
+			echo '<input type="number" name="' . esc_attr( $name ) . '" min="0" class="small-text"' . ( $extra ? ' ' . $extra : '' ) . ' value="' . esc_attr( (string) $selected ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput -- $extra is a literal from callers.
+			return;
+		}
+		$options = array( 0 => __( '– kein Benutzer –', 'pass-captain' ) );
+		foreach ( $users as $user ) { $options[ (int) $user->ID ] = (string) $user->display_name . ' (' . (string) $user->user_email . ')'; }
+		if ( $selected && ! isset( $options[ $selected ] ) ) { $options[ $selected ] = self::user_label( $selected ); }
+		self::select( $name, $options, (string) $selected, '', $extra );
+	}
+
 	/** aria-label attribute for $extra of select()/inputs whose visible context is not a <label> (e.g. filter bars). */
 	public static function aria_label( $label ) {
 		return 'aria-label="' . esc_attr( $label ) . '"';
@@ -637,7 +662,10 @@ final class Forms {
 	 * ("Aktiv", "Geplant", "Abgelaufen") are translated as a status – and can agree in gender with the
 	 * object in languages that need it – instead of sharing the entry of the same word elsewhere.
 	 */
-	public static function status_label( $status ) {
+	public static function status_label( $status, $subject = '' ) {
+		// A415: "cancelled" reads "Storniert" for orders/tickets/bookings and "Abgesagt" for events/dates.
+		if ( 'cancelled' === $status && in_array( $subject, array( 'order', 'ticket' ), true ) ) { return _x( 'Storniert', 'status', 'pass-captain' ); }
+		if ( 'cancelled' === $status && in_array( $subject, array( 'event', 'occurrence' ), true ) ) { return _x( 'Abgesagt', 'status', 'pass-captain' ); }
 		$labels = array(
 			'draft'            => _x( 'Entwurf', 'status', 'pass-captain' ),
 			'published'        => _x( 'Veröffentlicht', 'status', 'pass-captain' ),

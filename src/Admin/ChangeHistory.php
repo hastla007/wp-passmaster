@@ -155,7 +155,7 @@ final class ChangeHistory {
 			case 'capacity':
 				return (int) $value > 0 ? (string) (int) $value : __( 'unbegrenzt', 'pass-captain' );
 			case 'status':
-				return Forms::status_label( (string) $value );
+				return Forms::status_label( (string) $value, 'occurrence' ); // History covers events, dates, ticket types: "cancelled" only exists for events/dates.
 			case 'price_minor':
 				return Forms::money( (int) $value, (string) ( $context['currency'] ?? 'EUR' ) );
 			case 'amount':

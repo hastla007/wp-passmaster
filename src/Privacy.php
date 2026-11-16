@@ -278,7 +278,7 @@ final class Privacy {
 		if ( self::has_table( 'wpcap_partners' ) ) {
 			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT partner_id,name,contact_name,contact_email,contact_phone FROM %i WHERE contact_email=%s ORDER BY partner_id', $p . 'wpcap_partners', $email ) ) as $row ) {
 				$out[] = array( 'group_id' => 'pass-captain-contacts', 'group_label' => __( 'Pass Captain Ansprechpartner', 'pass-captain' ), 'item_id' => 'partner-' . (int) $row->partner_id, 'data' => array(
-					array( 'name' => __( 'Partner', 'pass-captain' ), 'value' => (string) $row->name ),
+					array( 'name' => __( 'Veranstalter', 'pass-captain' ), 'value' => (string) $row->name ),
 					array( 'name' => __( 'Name, E-Mail, Telefon', 'pass-captain' ), 'value' => trim( $row->contact_name . ' / ' . $row->contact_email . ' / ' . $row->contact_phone, ' /' ) ),
 				) );
 			}

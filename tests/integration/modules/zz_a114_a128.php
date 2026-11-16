@@ -60,7 +60,7 @@ EventsPage::save_occurrence( array( 'occurrence_id' => $h_occ_id, 'starts_at' =>
 check( 'capacity 0 is shown as "unbegrenzt"', false !== strpos( a114_history_text( ChangeHistory::for_occurrence( $h_occ_id, 1 ) ), 'Kontingent: 120 → unbegrenzt' ) );
 EventsPage::cancel_occurrence( array( 'occurrence_id' => $h_occ_id, 'reason' => 'Künstler erkrankt', 'confirm' => '1' ) );
 $h_text = a114_history_text( ChangeHistory::for_occurrence( $h_occ_id, 1 ) );
-check( 'cancellation is in the history with status change and reason', false !== strpos( $h_text, 'occurrence_cancelled' ) && false !== strpos( $h_text, 'Status: Geplant → Abgesagt/Storniert' ) && false !== strpos( $h_text, 'Grund: Künstler erkrankt' ) );
+check( 'cancellation is in the history with status change and reason', false !== strpos( $h_text, 'occurrence_cancelled' ) && false !== strpos( $h_text, 'Status: Geplant → Abgesagt' ) && false !== strpos( $h_text, 'Grund: Künstler erkrankt' ) );
 ob_start();
 ChangeHistory::render( ChangeHistory::for_occurrence( $h_occ_id ), 'Europe/Vienna', 'wpcap-occurrence-history' );
 $h_html = ob_get_clean();

@@ -308,11 +308,11 @@ final class Memberships {
 		$token = Security\Input::hex( $token );
 		$ticket_type_id = absint( $ticket_type_id );
 		$idempotency_key = sanitize_text_field( $idempotency_key );
-		if ( 64 !== strlen( $token ) || ! $ticket_type_id || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_pass_redeem_invalid', __( 'Passcode oder Ticketkategorie ungültig.', 'pass-captain' ) ); }
+		if ( 64 !== strlen( $token ) || ! $ticket_type_id || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_pass_redeem_invalid', __( 'Passcode oder Ticketart ungültig.', 'pass-captain' ) ); }
 		$key = hash( 'sha256', $token . '|' . $idempotency_key );
 		$uses = $wpdb->prefix . 'wpcap_pass_uses';
 		$type = self::scanned_type( $ticket_type_id );
-		if ( ! $type ) { return self::error( 'wpcap_pass_scope', __( 'Dieser Pass gilt nicht für dieses Event oder diese Ticketkategorie.', 'pass-captain' ), 403 ); }
+		if ( ! $type ) { return self::error( 'wpcap_pass_scope', __( 'Dieser Pass gilt nicht für dieses Event oder diese Ticketart.', 'pass-captain' ), 403 ); }
 		$bound = self::schema_ready();
 		$wpdb->query( 'START TRANSACTION' );
 		// A480: the lock comes first. Every read below runs after it and sees all redemptions of this
@@ -324,7 +324,7 @@ final class Memberships {
 		if ( ! $pass || 'active' !== $pass->status || $pass->valid_from > $now || $pass->valid_until < $now ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_inactive', __( 'Pass ist ungültig oder außerhalb der Laufzeit.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		// Only event rules ("event" or "any" scope) that have not expired admit to an event.
 		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT r.* FROM %i r WHERE r.pass_id=%d AND r.scope IN ('event','any') AND (r.expires_at IS NULL OR r.expires_at>%s) AND (r.ticket_type_id=%d OR r.ticket_type_id=0) AND (r.event_id=%d OR r.event_id=0) ORDER BY r.ticket_type_id DESC,r.event_id DESC LIMIT 1 FOR UPDATE", $wpdb->prefix . 'wpcap_pass_rules', $pass->pass_id, $now, $ticket_type_id, (int) $type->event_id ) );
-		if ( ! $rule ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_scope', __( 'Dieser Pass gilt nicht für dieses Event oder diese Ticketkategorie.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! $rule ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_scope', __( 'Dieser Pass gilt nicht für dieses Event oder diese Ticketart.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		// A482: the entry belongs to a real, scheduled occurrence that takes place today.
 		$ts = Checkin::now();
 		if ( 'scheduled' !== $type->occurrence_status || 'cancelled' === $type->event_status || in_array( (string) $type->type_status, array( 'archived', 'deleted' ), true ) ) {

@@ -738,7 +738,7 @@ final class OrdersPage {
 					<td><?php echo esc_html( $row_masked ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?><?php $buyer_name = $row_masked ? '' : self::buyer_name( $order ); ?><?php if ( '' !== $buyer_name ) : ?><br><small><?php echo esc_html( $buyer_name ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
 					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
-					<td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td>
+					<td><?php echo esc_html( Forms::status_label( $order->status, 'order' ) . ' / ' . Forms::status_label( $order->payment_status, 'order' ) ); ?></td>
 					<td><?php echo esc_html( $order->payment_provider ); ?></td>
 				</tr>
 			<?php endforeach; ?>
@@ -838,7 +838,7 @@ final class OrdersPage {
 		<?php endif; ?>
 
 		<table class="form-table"><tbody>
-			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status, 'order' ) . ' / ' . Forms::status_label( $order->payment_status, 'order' ) ); ?></td></tr>
 			<?php if ( ! empty( $order->attribution ) ) : ?>
 				<tr><th><?php esc_html_e( 'Herkunft', 'pass-captain' ); ?></th><td><code><?php echo esc_html( (string) $order->attribution ); ?></code></td></tr>
 			<?php endif; ?>
@@ -1008,7 +1008,7 @@ final class OrdersPage {
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
 					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?><?php if ( ! empty( $preview['prorated'][ (int) $ticket->ticket_id ] ) ) : $wpcap_share = $preview['prorated'][ (int) $ticket->ticket_id ]; ?><div class="description"><?php echo esc_html( sprintf( /* translators: 1: used dates, 2: all dates, 3: prorated amount */ __( 'Pass: %1$d von %2$d Terminen genutzt – anteilige Erstattung %3$s (als Höchstbetrag eintragen).', 'pass-captain' ), $wpcap_share['used'], $wpcap_share['total'], Forms::money( $wpcap_share['suggested_minor'], $order->currency ) ) ); ?></div><?php endif; ?></td>
-					<td><?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : ( in_array( (int) $ticket->ticket_id, $in_progress, true ) ? ' (' . __( 'Erstattung läuft', 'pass-captain' ) . ')' : '' ) ) ); ?></td>
+					<td><?php echo esc_html( Forms::status_label( $ticket->status, 'ticket' ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : ( in_array( (int) $ticket->ticket_id, $in_progress, true ) ? ' (' . __( 'Erstattung läuft', 'pass-captain' ) . ')' : '' ) ) ); ?></td>
 					<td><?php echo esc_html( trim( (string) $ticket->attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 					<td>
 						<?php foreach ( $ticket->answers as $label => $answer ) : ?>

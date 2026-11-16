@@ -193,13 +193,13 @@ final class OrderAdapter {
 			$options = array( (string) $current => sprintf( '%1$s · %2$s (%3$s)', $type ? $type->event_name : '#' . $current, $type ? $type->name : '', __( 'keine Berechtigung für diese Veranstaltung – nicht änderbar', 'pass-captain' ) ) );
 		} elseif ( $current && ! isset( $options[ (string) $current ] ) ) {
 			/* translators: %d: ticket type ID */
-			$options[ (string) $current ] = sprintf( __( 'Unbekannte Ticketkategorie #%d', 'pass-captain' ), $current );
+			$options[ (string) $current ] = sprintf( __( 'Unbekannte Ticketart #%d', 'pass-captain' ), $current );
 		}
 		echo '<div class="options_group">';
 		woocommerce_wp_select(
 			array(
 				'id'          => self::PRODUCT_META,
-				'label'       => __( 'Pass Captain Ticketkategorie', 'pass-captain' ),
+				'label'       => __( 'Pass Captain Ticketart', 'pass-captain' ),
 				'description' => CartPricing::enabled()
 					? __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'pass-captain' )
 					: __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'pass-captain' ),
@@ -230,7 +230,7 @@ final class OrderAdapter {
 			// SEC-V2: linking or unlinking a ticket type of an event the user does not manage is refused;
 			// the product keeps its current link and seller fields (disabled field: nothing posted, no notice).
 			if ( $posted ) {
-				self::admin_error( __( 'Die Ticketkategorie wurde nicht geändert: Du darfst nur Ticketkategorien von Veranstaltungen verknüpfen, die du verwaltest.', 'pass-captain' ) );
+				self::admin_error( __( 'Die Ticketart wurde nicht geändert: Du darfst nur Ticketarten von Veranstaltungen verknüpfen, die du verwaltest.', 'pass-captain' ) );
 			}
 			return;
 		}
@@ -514,7 +514,7 @@ final class OrderAdapter {
 	public static function quantity_error( $type_id, $quantity ) {
 		$type = self::ticket_type( $type_id );
 		if ( ! $type ) {
-			return __( 'Diese Ticketkategorie existiert nicht mehr.', 'pass-captain' );
+			return __( 'Diese Ticketart existiert nicht mehr.', 'pass-captain' );
 		}
 		$name = sprintf( '%s – %s', $type->event_name, $type->name );
 		$now  = \PassCaptain\Clock::mysql();

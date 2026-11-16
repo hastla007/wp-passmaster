@@ -227,7 +227,7 @@ final class ServiceSlotsPage {
 		if ( ! ServiceBookings::providers_ready() ) { return; }
 		echo '<h2 id="wpcap-service-providers">' . esc_html__( 'Leistungserbringer', 'pass-captain' ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Personen oder Partnerfirmen, die eine Leistung erbringen (z. B. Ausbilder:in, Skipper:in). Ordne sie den Ressourcen zu; dann können sie nicht doppelt gebucht werden.', 'pass-captain' ) . '</p>';
-		$partners = array( 0 => __( '– kein Partner –', 'pass-captain' ) );
+		$partners = array( 0 => __( '– kein Veranstalter –', 'pass-captain' ) );
 		if ( \PassCaptain\Modules::enabled( \PassCaptain\Modules\Partners::class ) ) {
 			foreach ( (array) \PassCaptain\Partners\Repository::all() as $partner ) { $partners[ (int) $partner->partner_id ] = (string) $partner->name; }
 		}
@@ -253,10 +253,12 @@ final class ServiceSlotsPage {
 	private static function provider_fields( $provider, array $partners ) {
 		echo '<p><label>' . esc_html__( 'Name', 'pass-captain' ) . ' <input type="text" name="name" maxlength="190" required value="' . esc_attr( $provider ? (string) $provider->name : '' ) . '"></label> ';
 		echo '<label>' . esc_html__( 'E-Mail', 'pass-captain' ) . ' <input type="email" name="email" maxlength="190" value="' . esc_attr( $provider ? (string) $provider->email : '' ) . '"></label> ';
-		echo '<label>' . esc_html__( 'WordPress-Benutzer-ID', 'pass-captain' ) . ' <input type="number" name="user_id" min="0" class="small-text" aria-describedby="wpcap-provider-user-help" value="' . esc_attr( $provider ? (string) (int) $provider->user_id : '0' ) . '"></label> ';
+		echo '<label>' . esc_html__( 'WordPress-Benutzer', 'pass-captain' ) . ' ';
+		Forms::user_select( 'user_id', $provider ? (int) $provider->user_id : 0, 'aria-describedby="wpcap-provider-user-help"' );
+		echo '</label> ';
 		echo '<span class="description" id="wpcap-provider-user-help">' . esc_html__( 'Mit der Rolle „Pass Captain Leistungserbringer“ sieht diese Person unter „Meine Leistungen“ die Zeitfenster und Buchungen der zugeordneten Ressourcen.', 'pass-captain' ) . '</span> ';
 		if ( count( $partners ) > 1 ) {
-			echo '<label>' . esc_html__( 'Partner', 'pass-captain' ) . ' ';
+			echo '<label>' . esc_html__( 'Veranstalter', 'pass-captain' ) . ' ';
 			Forms::select( 'partner_id', $partners, $provider ? (string) (int) $provider->partner_id : '0' );
 			echo '</label> ';
 		}

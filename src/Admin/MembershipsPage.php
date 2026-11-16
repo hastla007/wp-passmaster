@@ -205,7 +205,7 @@ final class MembershipsPage {
 
 	public static function state_label( $pass ) {
 		$now = current_time( 'mysql', true );
-		if ( 'active' !== $pass->status ) { return Forms::status_label( $pass->status ); }
+		if ( 'active' !== $pass->status ) { return Forms::status_label( $pass->status, 'order' ); }
 		if ( $pass->valid_until < $now ) { return __( 'Abgelaufen', 'pass-captain' ); }
 		if ( $pass->valid_from > $now ) { return __( 'Noch nicht gültig', 'pass-captain' ); }
 		return __( 'Aktiv', 'pass-captain' );

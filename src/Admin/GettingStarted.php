@@ -132,7 +132,7 @@ final class GettingStarted {
 		} elseif ( ! empty( $state['woocommerce'] ) ) {
 			$payment_note = __( 'Die Zahlung läuft über den WooCommerce-Checkout (Produkte mit Ticketart verknüpft).', 'pass-captain' );
 		} elseif ( ! empty( $state['woocommerce_active'] ) ) {
-			$payment_note = __( 'WooCommerce ist aktiv, aber noch kein veröffentlichtes Produkt ist mit einer Ticketart verknüpft (Produkt bearbeiten → „Pass Captain Ticketkategorie“). Alternativ eine eigene Zahlungsart einrichten.', 'pass-captain' );
+			$payment_note = __( 'WooCommerce ist aktiv, aber noch kein veröffentlichtes Produkt ist mit einer Ticketart verknüpft (Produkt bearbeiten → „Pass Captain Ticketart“). Alternativ eine eigene Zahlungsart einrichten.', 'pass-captain' );
 		} else {
 			$payment_note = __( 'Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen.', 'pass-captain' );
 		}
