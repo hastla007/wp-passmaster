@@ -124,8 +124,8 @@ final class Repository {
 		if ( $partner_id && ! $existing ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$name = \PassCaptain\Text::cut( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 190 );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_partner_name', __( 'Bitte einen Namen angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$email = sanitize_email( (string) ( $data['contact_email'] ?? '' ) );
-		if ( '' !== $email && ! is_email( $email ) ) { return new \WP_Error( 'wpcap_partner_email', __( 'Die Kontakt-E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		$email = \PassCaptain\Http::optional_email( $data['contact_email'] ?? '' );
+		if ( false === $email ) { return new \WP_Error( 'wpcap_partner_email', __( 'Die Kontakt-E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? 'EUR' ) ) );
 		if ( 3 !== strlen( $currency ) ) { return new \WP_Error( 'wpcap_partner_currency', __( 'Die Währung muss ein dreistelliger ISO-Code sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$commission = (int) ( $data['commission_bp'] ?? 0 );

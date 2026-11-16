@@ -584,17 +584,19 @@ final class Orders {
 				foreach ( $fields as $field ) {
 					$value = $answers[ $field->field_key ] ?? '';
 					$value = is_scalar( $value ) ? trim( (string) $value ) : '';
-					if ( 'email' === $field->field_type ) { $value = sanitize_email( $value ); }
+					// A498: sanitize_email() turns "kein-mail" into "" – an entered but invalid address must not pass as empty.
+					$bad_email = false;
+					if ( 'email' === $field->field_type ) { $value = Http::optional_email( $value ); $bad_email = false === $value; $value = (string) $value; }
 					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
 					elseif ( 'checkbox' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
 					else { $value = sanitize_text_field( $value ); }
+					if ( $bad_email ) {
+						/* translators: %s: field label */
+						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
+					}
 					if ( (int) $field->required && '' === $value && ! $defer_required ) {
 						/* translators: %s: field label */
 						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
-					}
-					if ( 'email' === $field->field_type && '' !== $value && ! is_email( $value ) ) {
-						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
 					}
 					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
 				}

@@ -822,7 +822,7 @@ final class Controller {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$params = $request->get_json_params() ?: $request->get_params();
-		$result = Campaigns::preview( (array) ( $params['items'] ?? array() ), sanitize_text_field( (string) ( $params['code'] ?? '' ) ) );
+		$result = Campaigns::preview( (array) ( $params['items'] ?? array() ), sanitize_text_field( \PassCaptain\Http::str( $params['code'] ?? '' ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

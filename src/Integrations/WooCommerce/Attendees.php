@@ -131,13 +131,14 @@ final class Attendees {
 				$out[] = array(
 					'ticket_type_id' => $type_id,
 					'name'           => mb_substr( sanitize_text_field( $name ), 0, 190 ),
-					'email'          => sanitize_email( $email ),
+					// A498: optional, but input that is no valid address is refused (not dropped as "empty").
+					'email'          => \PassCaptain\Http::optional_email( $email ),
 					'answers'        => $clean,
 				);
 			}
 		}
 		foreach ( $out as $entry ) {
-			if ( '' !== $entry['email'] && ! is_email( $entry['email'] ) ) {
+			if ( false === $entry['email'] ) {
 				return new \WP_Error( 'wpcap_attendee_email_invalid', __( 'Bitte eine gültige E-Mail-Adresse für die teilnehmende Person angeben oder das Feld leer lassen.', 'pass-captain' ) );
 			}
 		}

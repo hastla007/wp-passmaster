@@ -18,6 +18,29 @@ PHP-Prozesse (`modules/a186/ratelimit_child.php` mit `WPCAP_TEST_RATE_BACKEND=db
 Limit genau eingehalten wird. Außerdem prüft er die Auswertung der Proxy-Header. `modules/zz_a184.php`
 spielt doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse für alle Zahlungsadapter
 durch (siehe `docs/STATE-MACHINES.md`).
+
+### Eingabe↔Schema-Verträge wie in echtem WordPress (A498)
+
+Die Testlaufzeit bildet die Stellen nach, an denen sich WordPress anders verhält als einfache Stubs:
+
+- **Bereinigung:** `sanitize_text_field()`, `sanitize_textarea_field()`, `sanitize_key()`, `sanitize_email()`,
+  `is_email()`, `wp_strip_all_tags()` und `wp_check_invalid_utf8()` kommen aus `tests/integration/wp-sanitize.php`
+  – portiert aus WordPress (ein einzelnes „<“ wird `&lt;`, ungültiges UTF-8 wird `''`, Prozent-Oktette und
+  Zeilenumbrüche verschwinden, `sanitize_email( 'kein-mail' )` ist `''`, `is_email()` kennt keine Längengrenze,
+  ein Array in `sanitize_email()` ist ein `TypeError`). `php tests/integration/sanitize-parity.php` vergleicht
+  jede Funktion auf einem Fuzz-Korpus mit dem echten WordPress (`WPCAP_TEST_WP_DIR` oder der Download von
+  `tests/upgrade`); in CI läuft der Vergleich nach den Upgrade-Tests mit `--require`.
+- **Datenbank:** `Test_WPDB::insert()`/`update()` lehnen wie `wpdb::process_fields()` jeden `%s`-Wert ab, der kein
+  gültiges UTF-8 oder länger als seine Spalte ist (`varchar`: Zeichen, `text`: Bytes), mit der Fehlermeldung von
+  WordPress – unabhängig vom SQL-Modus (MySQL/MariaDB ohne Strict-Modus würden still kürzen). Ein Statement mit
+  ungültigem UTF-8 wird wie in `wpdb::query()` gar nicht gesendet. Abgelehnte Felder sammelt
+  `$GLOBALS['wpcap_test_field_errors']`, wenn ein Test es als Array setzt.
+- **Fuzzing:** `modules/zz_a498.php` schickt Listen, Objekte, Zahlen, Wahrheitswerte, `null`, 191/300 Zeichen,
+  70 000 Bytes, ungültiges UTF-8, ein 4-Byte-Zeichen an der 190er-Grenze, „<“, Entities und Prozent-Oktette
+  durch alle öffentlichen Eingänge (Checkout direkt und per REST, Kampagnenvorschau, Übertragung,
+  Zuweisung, Stornierungsanfrage, Rechnungsdaten, Warteliste, Servicebuchung) und verlangt: keine PHP-Warnung,
+  kein 5xx, kein Wert, der nicht ins Schema passt, erreicht die Datenbank.
+
 ### Fault-Injection: Deadlock, Lock-Timeout, Verbindungsabbruch, COMMIT-Fehler (A183)
 
 Das `$wpdb` der Integrationstests (`tests/integration/bootstrap.php`, `Test_WPDB`) kann einzelne

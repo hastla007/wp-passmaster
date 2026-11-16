@@ -236,8 +236,8 @@ final class Service {
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
 		if ( '' === $name ) { return self::error( 'wpcap_guestlist_entry_name', __( 'Bitte den Namen des Gastes angeben.', 'pass-captain' ) ); }
-		$email = \PassCaptain\Http::email( $in['email'] ?? '' );
-		if ( '' !== $email && ( ! \PassCaptain\Http::valid_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
+		$email = \PassCaptain\Http::optional_email( $in['email'] ?? '' );
+		if ( false === $email || self::is_placeholder_email( (string) $email ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 		$quantity = absint( $in['quantity'] ?? 1 );
 		if ( $quantity < 1 || $quantity > self::max_quantity() ) {
 			/* translators: %d: maximum tickets */
@@ -453,9 +453,9 @@ final class Service {
 		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		if ( 'issued' !== $entry->status || ! $entry->order_id ) { return self::error( 'wpcap_guestlist_state', __( 'Nur ausgestellte Einträge können erneut gesendet werden.', 'pass-captain' ), 409 ); }
-		$email = sanitize_email( (string) $email );
+		$email = \PassCaptain\Http::optional_email( $email );
 		if ( '' !== $email ) {
-			if ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
+			if ( false === $email || self::is_placeholder_email( $email ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 			$wpdb->update( "{$p}wpcap_guest_entries", array( 'email' => $email, 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id ) );
 			$wpdb->update( "{$p}wpcap_orders", array( 'customer_email' => $email ), array( 'order_id' => (int) $entry->order_id ) );
 			\PassCaptain\Privacy\AccessLog::correction( 'guest_entry', (int) $entry->entry_id, array( 'email' => self::is_placeholder_email( (string) $entry->email ) ? '' : (string) $entry->email ), array( 'email' => $email ), array( 'order_id' => (int) $entry->order_id, 'event_id' => (int) $list->event_id, 'source' => 'guestlist_resend' ) );

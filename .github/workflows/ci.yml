@@ -110,6 +110,8 @@ jobs:
         env:
           WPCAP_TEST_DB_HOST: 127.0.0.1
         run: php tests/upgrade/run.php
+      - name: Test runtime sanitisers equal WordPress' own (A498; uses the WordPress download of the upgrade tests)
+        run: php tests/integration/sanitize-parity.php --require
       - name: Concurrency/load smoke test (200 buyers, 8 scanners, 100 webhook deliveries; ~10 s)
         # Regression test for the check-in deadlock (false "admitted" responses, see docs/TESTING.md).
         env:

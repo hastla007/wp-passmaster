@@ -195,10 +195,10 @@ final class TicketsPage {
 			return Forms::error( 'wpcap_ticket_not_valid', __( 'Nur gültige oder eingecheckte Tickets können korrigiert werden.', 'pass-captain' ), 409 );
 		}
 		$name = Forms::text( $in, 'attendee_name', 190 );
-		$email = sanitize_email( Forms::text( $in, 'attendee_email', 190 ) );
+		$email = \PassCaptain\Http::optional_email( $in['attendee_email'] ?? '' );
 		$reason = Forms::text( $in, 'reason', 255 );
 		if ( '' === $reason ) { return Forms::error( 'wpcap_correction_reason', __( 'Bitte einen Grund für die Korrektur angeben.', 'pass-captain' ) ); }
-		if ( '' !== $email && ! is_email( $email ) ) { return Forms::error( 'wpcap_correction_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
+		if ( false === $email ) { return Forms::error( 'wpcap_correction_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$assignment = $wpdb->get_row( $wpdb->prepare( "SELECT attendee_name,attendee_email FROM {$p}wpcap_ticket_assignments WHERE ticket_id=%d", (int) $ticket->ticket_id ) );

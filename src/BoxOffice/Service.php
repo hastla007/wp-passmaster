@@ -312,8 +312,8 @@ final class Service {
 		}
 		if ( ! $items ) { return self::error( 'wpcap_pos_empty', __( 'Bitte mindestens ein Ticket wählen.', 'pass-captain' ) ); }
 
-		$email = \PassCaptain\Http::email( $input['email'] ?? '' );
-		if ( '' !== $email && ( ! \PassCaptain\Http::valid_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_pos_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
+		$email = \PassCaptain\Http::optional_email( $input['email'] ?? '' );
+		if ( false === $email || self::is_placeholder_email( (string) $email ) ) { return self::error( 'wpcap_pos_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 		if ( 'invoice' === $method && '' === $email ) { return self::error( 'wpcap_pos_email', __( 'Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich.', 'pass-captain' ) ); }
 		$buyer_email = '' !== $email ? $email : 'boxoffice+' . substr( $key_hash, 0, 16 ) . self::PLACEHOLDER_DOMAIN;
 		// Optional "Rechnung auf Firma": company, name, address, VAT ID for the invoice.

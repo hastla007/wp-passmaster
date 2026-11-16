@@ -62,6 +62,22 @@ final class Http {
 	}
 
 	/**
+	 * Optional e-mail field (A498): '' when nothing was entered, the sanitised address when it is valid
+	 * and fits the columns, false otherwise. WordPress' sanitize_email() returns '' for input without
+	 * "@" or a valid domain ("kein-mail"), so "'' !== sanitize_email( $raw )" alone treated such input
+	 * as "no e-mail given" and accepted it silently.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string|false
+	 */
+	public static function optional_email( $value ) {
+		$raw = trim( self::str( $value ) );
+		if ( '' === $raw ) { return ''; }
+		$email = sanitize_email( $raw );
+		return self::valid_email( $email ) ? $email : false;
+	}
+
+	/**
 	 * Whether a valid e-mail address is too long to be stored (more than EMAIL_MAX bytes), so the
 	 * caller can name the reason instead of "invalid".
 	 *

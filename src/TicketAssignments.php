@@ -12,19 +12,20 @@ final class TicketAssignments {
 		global $wpdb;
 		$public_id = sanitize_text_field( Http::str( $public_id ) );
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', Http::str( $access_token ) ) );
-		$email = Http::email( $email );
+		$email_raw = $email;
+		$email = Http::optional_email( $email_raw );
 		// A635: limited like the checkout (190 characters); the name goes into a mail to a freely chosen
 		// address, so it must not carry a link.
 		$name = Text::limit( sanitize_text_field( Http::str( $name ) ), self::NAME_MAX );
 		if ( self::has_link( $name ) ) {
 			return new \WP_Error( 'wpcap_assignment_invalid', __( 'Der Name darf keine Web-Adresse enthalten.', 'pass-captain' ), array( 'status' => 400, 'reason' => 'name_link', 'field' => 'attendee_name' ) );
 		}
-		if ( Http::email_too_long( $email ) ) {
+		if ( Http::email_too_long( Http::email( $email_raw ) ) ) {
 			return new \WP_Error( 'wpcap_assignment_invalid', Orders::email_too_long_message(), array( 'status' => 400, 'reason' => 'email_too_long', 'field' => 'attendee_email' ) );
 		}
 		// The attendee e-mail is optional (as in the checkout): without one, only name and answers
 		// are corrected and the ticket code stays.
-		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! $name || ( '' !== $email && ! is_email( $email ) ) ) { return new \WP_Error( 'wpcap_assignment_invalid', __( 'Teilnehmerdaten ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! $name || false === $email ) { return new \WP_Error( 'wpcap_assignment_invalid', __( 'Teilnehmerdaten ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE public_id=%s", $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_assignment_denied', __( 'Bestellzugriff ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }

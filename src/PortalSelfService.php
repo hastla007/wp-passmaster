@@ -402,7 +402,7 @@ final class PortalSelfService {
 		global $wpdb;
 		$order = self::order_with_access( $public_id, $token );
 		if ( ! $order ) { return self::denied(); }
-		$key = substr( preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $in['idempotency_key'] ?? '' ) ), 0, 64 );
+		$key = substr( preg_replace( '/[^A-Za-z0-9\-]/', '', Http::str( $in['idempotency_key'] ?? '' ) ), 0, 64 );
 		if ( strlen( $key ) < 16 ) {
 			return new \WP_Error( 'wpcap_refund_key', __( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -419,7 +419,7 @@ final class PortalSelfService {
 		if ( '' !== $block ) {
 			return new \WP_Error( 'wpcap_refund_request_' . $block, self::refund_block_message( $block ), array( 'status' => 409 ) );
 		}
-		$wanted = array_slice( array_values( array_unique( array_filter( array_map( static function ( $id ) { return strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $id ) ); }, (array) ( $in['ticket_public_ids'] ?? array() ) ) ) ) ), 0, self::MAX_TICKETS + 1 );
+		$wanted = array_slice( array_values( array_unique( array_filter( array_map( static function ( $id ) { return strtolower( preg_replace( '/[^a-f0-9]/i', '', Http::str( $id ) ) ); }, (array) ( $in['ticket_public_ids'] ?? array() ) ) ) ) ), 0, self::MAX_TICKETS + 1 );
 		if ( ! $wanted ) {
 			return new \WP_Error( 'wpcap_refund_tickets', __( 'Bitte wähle mindestens ein Ticket aus.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -444,8 +444,8 @@ final class PortalSelfService {
 			$ticket_ids[] = (int) $ticket->ticket_id;
 			$lines[] = $ticket->event_name . ' — ' . $ticket->ticket_name . ', ' . Orders::format_start( $ticket->starts_at, $ticket->timezone );
 		}
-		$reason = trim( preg_replace( '/\s+/', ' ', sanitize_textarea_field( (string) ( $in['reason'] ?? '' ) ) ) );
-		$reason = function_exists( 'mb_substr' ) ? mb_substr( $reason, 0, 200 ) : \PassCaptain\Text::cut( $reason, 200 );
+		$reason = trim( preg_replace( '/\s+/', ' ', sanitize_textarea_field( \PassCaptain\Http::str( $in['reason'] ?? '' ) ) ) );
+		$reason = \PassCaptain\Text::limit( $reason, 200 );
 		$result = Refunds::request( (int) $order->order_id, $ticket_ids, $reason, $refund_key, array( 'system' => true, 'require_approval' => true, 'source' => self::SOURCE ) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		$refund_id = (int) $result['refund_id'];

@@ -129,6 +129,8 @@ final class Test_WPDB {
 		$this->last_error = '';
 		if ( isset( $GLOBALS['wpcap_test_query_log'] ) && is_array( $GLOBALS['wpcap_test_query_log'] ) ) { $GLOBALS['wpcap_test_query_log'][] = $sql; }
 		if ( false === $this->inject_fault( $sql ) ) { $this->insert_id = 0; $this->rows_affected = 0; return false; }
+		// Like wpdb::query() (A498): a statement with invalid UTF-8 is not sent at all (all columns are utf8mb4).
+		if ( ! mb_check_encoding( (string) $sql, 'UTF-8' ) ) { $this->insert_id = 0; $this->rows_affected = 0; $this->last_error = 'WordPress database error: Could not perform query because it contains invalid data.'; return false; }
 		$res = $this->db->query( $sql );
 		if ( false === $res ) { $this->last_error = $this->db->error; return false; }
 		$this->insert_id = (int) $this->db->insert_id;
@@ -146,12 +148,57 @@ final class Test_WPDB {
 	public function get_row( $sql, $output = OBJECT ) { $r = $this->get_results( $sql, $output ); return $r[0] ?? null; }
 	public function get_col( $sql ) { return array_map( static fn( $r ) => array_values( (array) $r )[0], $this->get_results( $sql ) ); }
 	public function get_var( $sql ) { $r = $this->get_row( $sql ); return $r ? array_values( (array) $r )[0] : null; }
+	/** Column limits per table: name => [type 'char'|'byte', length] (like wpdb::get_col_length()). */
+	private $col_lengths = array();
+	private function col_lengths( $table ) {
+		if ( ! isset( $this->col_lengths[ $table ] ) ) {
+			$limits = array();
+			$res = $this->db->query( "SELECT COLUMN_NAME,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='" . $this->db->real_escape_string( (string) $table ) . "'" );
+			while ( $res instanceof mysqli_result && ( $row = $res->fetch_assoc() ) ) {
+				$type = strtolower( (string) $row['DATA_TYPE'] );
+				$bytes = array( 'tinytext' => 255, 'text' => 65535, 'mediumtext' => 16777215, 'longtext' => 4294967295 );
+				if ( in_array( $type, array( 'char', 'varchar' ), true ) ) { $limits[ strtolower( $row['COLUMN_NAME'] ) ] = array( 'char', (int) $row['CHARACTER_MAXIMUM_LENGTH'] ); }
+				elseif ( isset( $bytes[ $type ] ) ) { $limits[ strtolower( $row['COLUMN_NAME'] ) ] = array( 'byte', $bytes[ $type ] ); }
+			}
+			if ( $limits ) { $this->col_lengths[ $table ] = $limits; } // Tables created later are looked up again.
+			return $limits;
+		}
+		return $this->col_lengths[ $table ];
+	}
+	/**
+	 * Like wpdb::process_fields() (A498): a %s value that is not valid UTF-8 or longer than its column
+	 * (varchar: characters, text: bytes) makes insert()/update() fail with WordPress' error text – on
+	 * every server, independent of the SQL mode (MySQL/MariaDB in non-strict mode would silently cut).
+	 */
+	private function field_problem( $table, array $data, $format ) {
+		$limits = null;
+		$problems = array();
+		$i = 0;
+		foreach ( $data as $field => $value ) {
+			$f = is_array( $format ) ? ( $format[ $i ] ?? '%s' ) : ( is_string( $format ) ? $format : '%s' );
+			++$i;
+			if ( ! is_string( $value ) || '%s' !== $f ) { continue; }
+			$limits = $limits ?? $this->col_lengths( $table );
+			$limit = $limits[ strtolower( (string) $field ) ] ?? null;
+			if ( ! mb_check_encoding( $value, 'UTF-8' ) || ( $limit && ( 'char' === $limit[0] ? mb_strlen( $value, 'UTF-8' ) : strlen( $value ) ) > $limit[1] ) ) { $problems[] = $field; }
+		}
+		if ( ! $problems ) { return false; }
+		$this->last_error = 1 === count( $problems )
+			? 'WordPress database error: Processing the value for the following field failed: ' . $problems[0] . '. The supplied value may be too long or contains invalid data.'
+			: 'WordPress database error: Processing the values for the following fields failed: ' . implode( ', ', $problems ) . '. The supplied values may be too long or contain invalid data.';
+		$this->insert_id = 0;
+		$this->rows_affected = 0;
+		if ( isset( $GLOBALS['wpcap_test_field_errors'] ) && is_array( $GLOBALS['wpcap_test_field_errors'] ) ) { $GLOBALS['wpcap_test_field_errors'][] = $table . ': ' . implode( ', ', $problems ); }
+		return true;
+	}
 	public function insert( $table, $data, $format = null ) {
+		if ( $this->field_problem( $table, $data, $format ) ) { return false; }
 		$sql = "INSERT INTO $table (" . implode( ',', array_keys( $data ) ) . ') VALUES (' . implode( ',', array_map( array( $this, 'esc' ), $data ) ) . ')';
 		$r = $this->query( $sql );
 		return false === $r ? false : 1;
 	}
 	public function update( $table, $data, $where, $format = null, $where_format = null ) {
+		if ( $this->field_problem( $table, $data, $format ) ) { return false; }
 		$set = array(); foreach ( $data as $k => $v ) { $set[] = "$k=" . $this->esc( $v ); }
 		$w = array(); foreach ( $where as $k => $v ) { $w[] = "$k=" . $this->esc( $v ); }
 		return $this->query( "UPDATE $table SET " . implode( ',', $set ) . ' WHERE ' . implode( ' AND ', $w ) );
@@ -196,17 +243,13 @@ function esc_html_e( $t, $d = null ) { echo esc_html( $t ); }
 function esc_attr( $t ) { return esc_html( $t ); }
 function esc_url_raw( $u ) { return (string) $u; }
 function absint( $v ) { return abs( (int) $v ); }
-// Like WordPress on PHP 8: sanitize_email()/is_email() call strlen() first (TypeError for arrays/objects),
-// sanitize_text_field()/sanitize_key() return '' for non-scalars.
-function wpcap_test_strlen_arg( $v, $fn ) { if ( is_array( $v ) || is_object( $v ) ) { throw new TypeError( $fn . '(): strlen(): Argument #1 ($string) must be of type string, ' . gettype( $v ) . ' given' ); } }
-function sanitize_email( $e ) { wpcap_test_strlen_arg( $e, 'sanitize_email' ); return filter_var( trim( (string) $e ), FILTER_SANITIZE_EMAIL ); }
-function is_email( $e ) { wpcap_test_strlen_arg( $e, 'is_email' ); return false !== filter_var( (string) $e, FILTER_VALIDATE_EMAIL ) ? $e : false; }
-function sanitize_text_field( $t ) { if ( is_array( $t ) || is_object( $t ) ) { return ''; } return trim( strip_tags( (string) $t ) ); }
-function sanitize_key( $k ) { if ( ! is_scalar( $k ) ) { return ''; } return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+// WordPress' own sanitisers (A498): sanitize_text_field(), sanitize_textarea_field(), sanitize_key(),
+// sanitize_email(), is_email(), wp_strip_all_tags(), wp_check_invalid_utf8() – ported, checked against a
+// real WordPress by tests/integration/sanitize-parity.php. Arrays in sanitize_email()/is_email() are a
+// TypeError (strlen()) exactly as on PHP 8.
+require __DIR__ . '/wp-sanitize.php';
 function wp_unslash( $v ) { return $v; }
-function sanitize_textarea_field( $t ) { if ( is_array( $t ) || is_object( $t ) ) { return ''; } return trim( strip_tags( (string) $t ) ); }
 function wp_kses_post( $t ) { return (string) $t; }
-if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $t ) { return trim( strip_tags( (string) $t ) ); } }
 function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ",", "." ); }
 // $GLOBALS['wpcap_test_user_caps'][ user id ] = capabilities of that user (A471); users without an entry have every capability.
 function user_can( $u, $c ) { $id = is_object( $u ) ? (int) ( $u->ID ?? 0 ) : (int) $u; return isset( $GLOBALS['wpcap_test_user_caps'][ $id ] ) ? in_array( $c, (array) $GLOBALS['wpcap_test_user_caps'][ $id ], true ) : true; }

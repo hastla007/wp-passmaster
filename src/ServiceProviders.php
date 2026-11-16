@@ -103,9 +103,9 @@ final class ServiceProviders {
 			}
 		}
 		$name = mb_substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 190 );
-		$email = sanitize_email( (string) ( $data['email'] ?? '' ) );
+		$email = Http::optional_email( $data['email'] ?? '' );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_provider_invalid', __( 'Name des Leistungserbringers fehlt.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		if ( '' !== $email && ! is_email( $email ) ) { return new \WP_Error( 'wpcap_provider_invalid', __( 'Die E-Mail-Adresse des Leistungserbringers ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( false === $email ) { return new \WP_Error( 'wpcap_provider_invalid', __( 'Die E-Mail-Adresse des Leistungserbringers ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$row = array(
 			'name' => $name,
 			'email' => $email,
