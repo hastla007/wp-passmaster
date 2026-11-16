@@ -104,6 +104,8 @@ final class Layout {
 			. '</table>'
 			. '<!--[if mso]></td></tr></table><![endif]-->'
 			. '</td></tr></table></body></html>';
+		// A407: theme override pass-captain/email-layout.php ($content is safe HTML; the template escapes the rest).
+		$html = \PassCaptain\PublicEvents::page( 'email-layout.php', $html, array( 'content' => $content, 'subject' => (string) $subject, 'site' => $site, 'logo' => $logo, 'color' => $color, 'footer' => $footer, 'dir' => $dir, 'lang' => $lang ) );
 		return (string) apply_filters( 'wpcap_mail_layout_html', $html, $content, $subject );
 	}
 

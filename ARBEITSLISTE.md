@@ -895,8 +895,9 @@ Gesamt: 262 Aufgaben.
 - [x] **A406** [OPTIMIERUNG] Drei Template-Hooks nicht in HOOKS.md; kein CI-Abgleich — _R2 Support_ (TODO L752; Audit Runde 4)
   - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `tests/integration/modules/hooks_contract.php` gleicht Hooks in src/templates mit docs/HOOKS.md ab.
   - templates/event-card.php:13/22/85: Dokumentieren, Abgleich Code↔HOOKS.md als CI-Prüfung
-- [ ] **A407** [OPTIMIERUNG] Nur event-card.php per Theme überschreibbar — _R2 Support_ (TODO L753; Audit Runde 4)
+- [x] **A407** [OPTIMIERUNG] Nur event-card.php per Theme überschreibbar — _R2 Support_ (TODO L753; Audit Runde 4)
   - src/PublicEvents.php:179: Template-Loader mit Theme-Override für Ticketseite, Portal, Servicebuchung, Warteliste, Mail-Layout
+  - Erledigt: `PublicEvents::page()` – Theme-Overrides `pass-captain/ticket-page.php`, `order-portal.php`, `ticket-recovery.php`, `email-layout.php` (Variablen + Standard-HTML zum Umschließen), Filter `wpcap_template_page`; Servicebuchung/Warteliste laufen als Shortcode-Seiten im Theme. Test zz_a407.
 - [x] **A408** [OPTIMIERUNG] Hart codierte Laufzeitwerte (Timeouts, Backoff, Claims, Limits, Service-Hold 10 min, A4, Farben) — _R2 Support_ (TODO L754; Audit Runde 4)
   - src/Payments/Webhooks.php:52, Jobs.php:27/58/59, Communications.php:67, Orders.php:96, Rest/Controller.php:324/902/505/525/537, u. a.: Config::get(key, default) mit Filter wpcap_config_{key}; Service-Hold an hold_minutes
   - Erledigt: `src/Config.php` (`Config::get()`, Filter `wpcap_config` mit Schlüssel, Grenzen): Job-Versuche und -Hängezeit, Timeout der Zahlungsanbieter/Google Wallet, Wartezeit bei Erstattungen, Übernahme hängender Webhooks; Service-Holds hängen bereits an `hold_minutes`; Farben/A4 bleiben Teil der Druckvorlagen (A685/A686). Test zz_a408.

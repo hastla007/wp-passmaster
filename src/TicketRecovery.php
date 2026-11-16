@@ -180,10 +180,12 @@ final class TicketRecovery {
 			$body = '<p>' . esc_html__( 'Bestätige, dass du neue Links zu deinen Tickets erhalten möchtest. Die bisherigen QR-Codes werden dabei ungültig.', 'pass-captain' ) . '</p>'
 				. '<form method="post"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( 'wpcap_ticket_recover_confirm' ) ) . '"><p><button type="submit">' . esc_html__( 'Neue Ticketlinks senden', 'pass-captain' ) . '</button></p></form>';
 		}
-		return '<!doctype html><html ' . Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . esc_html__( 'Tickets anfordern', 'pass-captain' ) . '</title>'
+		$html = '<!doctype html><html ' . Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . esc_html__( 'Tickets anfordern', 'pass-captain' ) . '</title>'
 			. '<style>body{font:16px/1.5 system-ui,sans-serif;max-width:36rem;margin:2rem auto;padding:0 1rem;color:#1d2327}input[type=email]{width:100%;padding:.5rem;font:inherit}button{padding:.6rem 1rem;min-height:2.75rem;font:inherit}.muted{color:#50575e}.hp{position:absolute;left:-9999px}.notice{font-weight:700}</style></head><body><main>'
 			. '<h1>' . esc_html__( 'Tickets anfordern', 'pass-captain' ) . '</h1>'
 			. ( '' !== $notice ? '<p class="notice" role="status">' . esc_html( $notice ) . '</p>' : '' )
 			. $body . '</main></body></html>';
+		// A407: theme override pass-captain/ticket-recovery.php.
+		return PublicEvents::page( 'ticket-recovery.php', $html, array( 'notice' => $notice, 'step' => '1' === $value ? 'request' : ( $post ? 'done' : 'confirm' ) ) );
 	}
 }

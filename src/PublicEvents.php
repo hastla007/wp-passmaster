@@ -1128,6 +1128,40 @@ final class PublicEvents {
 	}
 
 	/**
+	 * A407: theme override of a whole front-end page or the mail layout. When the theme has
+	 * `pass-captain/<name>` (see theme_template()), it is rendered with $vars extracted plus `$default_html`
+	 * (the plugin's own rendering, e.g. to wrap it) and replaces the default; otherwise the default is returned.
+	 * The template escapes its own output. Filter `wpcap_template_page` gets the result.
+	 *
+	 * Pages: ticket-page.php, order-portal.php, ticket-recovery.php, email-layout.php.
+	 *
+	 * @param string $name         Template file name.
+	 * @param string $default_html Plugin rendering.
+	 * @param array  $vars         Variables for the template.
+	 */
+	public static function page( $name, $default_html, array $vars = array() ) {
+		$file = function_exists( 'locate_template' ) ? self::theme_template( $name ) : '';
+		$html = (string) $default_html;
+		if ( '' !== $file && is_readable( $file ) ) {
+			$render = static function ( $wpcap_template_file, array $wpcap_vars ) {
+				extract( $wpcap_vars, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- template variables, documented in docs/HOOKS.md.
+				ob_start();
+				include $wpcap_template_file;
+				return (string) ob_get_clean();
+			};
+			$html = $render( $file, $vars + array( 'default_html' => (string) $default_html ) );
+		}
+		/**
+		 * Rendered page/layout (A407).
+		 *
+		 * @param string $html  HTML.
+		 * @param string $name  Template name.
+		 * @param array  $vars  Template variables.
+		 */
+		return (string) apply_filters( 'wpcap_template_page', $html, (string) $name, $vars );
+	}
+
+	/**
 	 * Earliest future sales start per listed occurrence that has no ticket type on sale yet (A293):
 	 * occurrence_id => sales_start (UTC). Dates whose sales ended or that have no active ticket type
 	 * stay out of the listing.
