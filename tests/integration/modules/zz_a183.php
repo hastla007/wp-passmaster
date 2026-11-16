@@ -115,7 +115,7 @@ function a183_sweep( $label, callable $setup, callable $op, callable $verify, ca
 			if ( ! $fired ) { continue; }
 			++$fired_total;
 			$where = "$name@$i " . substr( preg_replace( '/\s+/', ' ', $fired[0] ), 0, 90 );
-			if ( 1 === (int) $wpdb->get_var( 'SELECT @@in_transaction' ) ) {
+			if ( 1 === a183_in_tx() ) {
 				$violations[] = "$where: transaction left open";
 				$wpdb->query( 'ROLLBACK' );
 			}
@@ -132,6 +132,18 @@ function a183_sweep( $label, callable $setup, callable $op, callable $verify, ca
 function a183_error_ok( $r ) {
 	return ! is_wp_error( $r ) || Errors::is_busy( $r );
 }
+/** Whether the connection is inside a transaction: @@in_transaction on MariaDB, innodb_trx on MySQL. */
+function a183_in_tx() {
+	global $wpdb;
+	$v = $wpdb->get_var( "SELECT IF(VERSION() LIKE '%MariaDB%', 1, 0)" );
+	if ( '1' === (string) $v ) { return (int) $wpdb->get_var( 'SELECT @@in_transaction' ); }
+	// MySQL: changing the transaction characteristics fails only inside an open transaction (error 1568);
+	// READ WRITE is the default, so outside a transaction the statement changes nothing.
+	$suppress = $wpdb->suppress_errors( true );
+	$wpdb->query( 'SET TRANSACTION READ WRITE' );
+	$wpdb->suppress_errors( $suppress );
+	return false !== stripos( (string) $wpdb->last_error, 'in progress' ) ? 1 : 0;
+}
 function a183_err( $r ) {
 	return is_wp_error( $r ) ? $r->get_error_code() . ' ' . json_encode( $r->get_error_data() ) : '';
 }
@@ -144,14 +156,14 @@ $wpdb->query( 'START TRANSACTION' );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET name='A183-tx' WHERE ticket_type_id=$t" );
 $dead = PassCaptain\Audit::record( 'a183', 'test', 1 );
 $dead_err = $wpdb->last_error;
-$in_tx = (int) $wpdb->get_var( 'SELECT @@in_transaction' );
+$in_tx = a183_in_tx();
 $wpdb->query( 'COMMIT' );
 check( 'A183 harness: deadlock fails the statement and rolls the transaction back', false !== strpos( $dead_err, 'Deadlock' ) && 0 === $in_tx && 'Standard' === $wpdb->get_var( "SELECT name FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$t" ) && 1 === count( wpcap_test_faults_clear() ) );
 wpcap_test_fault( '/^UPDATE \S+wpcap_ticket_types/', 'lock_timeout', array( 'skip' => 1 ) );
 $wpdb->query( 'START TRANSACTION' );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET name='A183-1' WHERE ticket_type_id=$t" );
 $second = $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET max_per_order=3 WHERE ticket_type_id=$t" );
-$in_tx = (int) $wpdb->get_var( 'SELECT @@in_transaction' );
+$in_tx = a183_in_tx();
 $wpdb->query( 'COMMIT' );
 check( 'A183 harness: lock wait timeout fails only the statement (skip counts matches)', false === $second && 1 === $in_tx && 'A183-1' === $wpdb->get_var( "SELECT name FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$t" ) && 10 === (int) $wpdb->get_var( "SELECT max_per_order FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$t" ) && 1 === count( wpcap_test_faults_clear() ) );
 $conn = $wpdb->get_var( 'SELECT CONNECTION_ID()' );
@@ -165,7 +177,7 @@ wpcap_test_fault( '/^UPDATE/', 'gone_away' );
 $wpdb->query( 'START TRANSACTION' );
 $wpdb->query( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$t FOR UPDATE" );
 $ok = $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET name='A183-3' WHERE ticket_type_id=$t" );
-$in_tx = (int) $wpdb->get_var( 'SELECT @@in_transaction' );
+$in_tx = a183_in_tx();
 $wpdb->query( 'ROLLBACK' );
 check( 'A183 harness: gone away reconnects like wpdb and the statement autocommits outside the transaction', 1 === $ok && 0 === $in_tx && 'A183-3' === $wpdb->get_var( "SELECT name FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$t" ) && 1 === count( wpcap_test_faults_clear() ) );
 
