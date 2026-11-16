@@ -2,14 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('path');
-const { load, flush, mockFetch, ROOT } = require('./lib/load');
+const { load, flush, mockFetch, MemoryStorage, ROOT } = require('./lib/load');
 const { fakeIndexedDB } = require('./lib/idb');
 
 const nacl = require(path.join(ROOT, 'assets/vendor/tweetnacl/nacl-fast.min.js'));
 const KEYPAIR = nacl.sign.keyPair.fromSeed(new Uint8Array(32).fill(7));
 const OTHER = nacl.sign.keyPair.fromSeed(new Uint8Array(32).fill(9));
 const b64 = (bytes) => Buffer.from(bytes).toString('base64');
-const API = 'https://example.test/wp-json/wp-pass-captain/v1/app/';
+const API = 'https://example.test/wp-json/pass-captain/v1/app/'; // merged REST namespace (wp-pass-captain/v1 stays accepted as legacy)
 const PAGE = 'https://example.test/wp-content/plugins/pass-captain/assets/offline-scanner/index.html';
 const DEVICE = 'dev-1';
 const CODE_OK = '1'.repeat(64), CODE_USED = '2'.repeat(64), CODE_REVOKED = '3'.repeat(64), CODE_VIP = '4'.repeat(64), CODE_MULTI = '5'.repeat(64);
@@ -71,6 +71,7 @@ async function boot(opts) {
 		url: opts.url || PAGE,
 		indexedDB,
 		navigator: Object.assign({ onLine: true }, opts.navigator || {}),
+		localStorage: opts.localStorage,
 		window: Object.assign({ nacl, indexedDB, wpcapUnused: 1 }, opts.window || {}),
 		fetch,
 		setup: (doc, h) => { page(doc, h); if (opts.setup) opts.setup(doc, h); },
@@ -79,7 +80,8 @@ async function boot(opts) {
 	env.app = env.window.wpcapOffline;
 	env.idb = indexedDB;
 	await flush(40);
-	env.db = indexedDB.dbs['wpcap-offline-scanner'];
+	// Merged (A473): every site has its own database (storeName()); the pre-A473 one serves its own site only.
+	env.db = indexedDB.dbs[env.app.storeName()] || indexedDB.dbs['wpcap-offline-scanner'];
 	return env;
 }
 /** Pre-fills the kv store of a fresh fake IndexedDB (a paired device). */
@@ -500,7 +502,10 @@ test('FE-3: ?api= is used only by an unpaired device and only for the plugin nam
 	const { validApiBase } = (await boot({ navigator: { onLine: false } })).app;
 	assert.equal(validApiBase(API), true);
 	assert.equal(validApiBase('https://example.test/index.php?rest_route=/wp-pass-captain/v1/app/'), true);
-	assert.equal(validApiBase('https://example.test/custom-rest/wp-pass-captain/v1/app/'), true, 'other REST prefix');
+	// Merged (A649, stricter): only the /wp-json/ prefix or the plain ?rest_route= form; a custom REST prefix is refused.
+	assert.equal(validApiBase('https://example.test/custom-rest/wp-pass-captain/v1/app/'), false, 'other REST prefix');
+	assert.equal(validApiBase('https://example.test/wp-json/wp-pass-captain/v1/app/'), true, 'legacy namespace');
+	assert.equal(validApiBase('https://example.test/index.php?rest_route=/pass-captain/v1/app/'), true);
 	assert.equal(validApiBase('https://evil.test/wp-json/wp-pass-captain/v1/app/'), false, 'other origin');
 	assert.equal(validApiBase('https://example.test/wp-json/wp/v2/users/'), false, 'other namespace');
 	assert.equal(validApiBase('https://example.test/upload.php?x=/wp-pass-captain/v1/app/'), false);
@@ -516,9 +521,16 @@ test('FE-3: ?api= is used only by an unpaired device and only for the plugin nam
 	assert.equal(bad.app.state.api, API, 'unpaired, wrong path: derived API base');
 
 	const indexedDB = await pairedDb();
+	// Merged (A473): ?api= names a site, and every site has its own database. A link to another base on a
+	// paired device opens that site unpaired – the pairing (token) of the first site never goes there.
 	const paired = await boot({ indexedDB, url: PAGE + '?api=' + encodeURIComponent(plain), navigator: { onLine: false } });
-	assert.equal(paired.app.state.api, API, 'paired: stored API base kept');
-	assert.equal(paired.db.stores.kv.data.get('api'), API);
+	assert.equal(paired.app.state.api, plain, 'the linked site is opened');
+	assert.notEqual(paired.app.storeName(), 'wpcap-offline-scanner', 'in its own database');
+	assert.equal(paired.db.stores.kv.data.get('token'), undefined, 'unpaired there: no token of the first site');
+	assert.equal(paired.document.getElementById('pair-view').hidden, false);
+	const first = Object.values(indexedDB.dbs).find((d) => d.stores.kv && 'tok' === d.stores.kv.data.get('token'));
+	assert.ok(first && API === first.stores.kv.data.get('api'), 'the paired site keeps its base');
+	assert.notEqual(first, paired.db, 'and its pairing, in its own database');
 });
 
 test('FE-4: the IndexedDB log keeps pending scans, drops synced entries after a day and above the cap', async () => {
@@ -598,7 +610,7 @@ async function withPackage(p) {
 }
 const ONLINE_ROUTES = { 'offline/keys': () => ({ status: 503 }), 'offline/i18n': () => ({ status: 404 }) };
 
-test('R2: a scan shows the neutral "Prüfe …" state at once, the result returns to "Bereit", the same code is locked for 10 s', async () => {
+test('R2: a scan shows the neutral "Prüfe …" state at once, the result returns to "Bereit" (6 s), the same code is locked for 10 s', async () => {
 	let release;
 	const gate = new Promise((r) => { release = r; });
 	const env = await boot({ indexedDB: await withPackage(), routes: Object.assign({ 'scan/check-in': () => gate.then(() => ({ json: { ok: true, result: 'checked_in', ticket: 'Standard' } })) }, ONLINE_ROUTES) });
@@ -611,8 +623,9 @@ test('R2: a scan shows the neutral "Prüfe …" state at once, the result return
 	await done;
 	await flush();
 	assert.equal(text(env, 'result-title'), 'Einlass OK');
-	const hold = [...env.timers.pending.values()].find((tm) => 4000 === tm.ms);
-	assert.ok(hold, 'result is held for 4 s');
+	// Merged (A548): green stays 6 s in the result box (overlay 2.5 s), then back to "Bereit".
+	const hold = [...env.timers.pending.values()].find((tm) => env.app.holdTimes('ok').reset === tm.ms && 6000 === tm.ms);
+	assert.ok(hold, 'result is held for 6 s');
 	env.timers.run();
 	assert.equal(text(env, 'result-title'), 'Bereit', 'back to ready for the next guest');
 	assert.ok(env.document.getElementById('result').className.includes('idle'));
@@ -625,7 +638,7 @@ test('R2: a scan shows the neutral "Prüfe …" state at once, the result return
 
 test('R2: server says "already used" for a code this device admitted a moment ago: yellow, not red', async () => {
 	let n = 0;
-	const routes = Object.assign({ 'scan/check-in': (body) => ({ json: body.code === CODE_OK && n++ > 0 ? { ok: false, result: 'already_checked_in', ticket: 'Standard' } : { ok: true, result: 'checked_in', ticket: 'Standard' } }) }, ONLINE_ROUTES);
+	const routes = Object.assign({ 'scan/check-in': (body) => ({ json: body.code === CODE_OK && n++ > 0 ? { ok: false, code: 'wpcap_already_checked_in', result: 'already_checked_in', ticket: 'Standard' } : { ok: true, result: 'checked_in', ticket: 'Standard' } }) }, ONLINE_ROUTES);
 	const env = await boot({ indexedDB: await withPackage(), routes });
 	await env.app.handleScan(CODE_OK);
 	await env.app.handleScan(CODE_VIP);
@@ -635,7 +648,7 @@ test('R2: server says "already used" for a code this device admitted a moment ag
 	assert.ok(env.document.getElementById('result').className.includes('warn'));
 	assert.match(text(env, 'result-detail'), /Bereits verwendet · Standard · online/);
 	// A code admitted elsewhere stays red.
-	routes['scan/check-in'] = () => ({ json: { ok: false, result: 'already_checked_in' } });
+	routes['scan/check-in'] = () => ({ json: { ok: false, code: 'wpcap_already_checked_in', result: 'already_checked_in' } });
 	await env.app.handleScan(CODE_USED);
 	await flush();
 	assert.equal(text(env, 'result-title'), 'Bereits verwendet');
@@ -805,29 +818,30 @@ test('R2: result tones via WebAudio (high = OK, low = rejected), switchable and 
 	const tones = [];
 	class FakeAudio {
 		constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
-		createOscillator() { const o = { type: '', frequency: { value: 0 }, connect() {}, start() { tones.push(o.frequency.value); }, stop() {} }; return o; }
-		createGain() { return { gain: { value: 0 }, connect() {} }; }
+		createOscillator() { const o = { type: '', frequency: { value: 0 }, connect(n) { return n; }, start() { tones.push(o.frequency.value); }, stop() {} }; return o; }
+		createGain() { return { gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect(n) { return n; } }; } // connect() returns its target (chained)
 	}
+	const localStorage = new MemoryStorage();
 	const withSound = (doc, h) => { doc.getElementById('main-view').appendChild(h('button#sound')); doc.getElementById('main-view').appendChild(h('button#torch', { hidden: true })); };
 	const indexedDB = await withPackage();
-	const env = await boot({ indexedDB, navigator: { onLine: false }, window: { AudioContext: FakeAudio }, setup: withSound });
+	const env = await boot({ indexedDB, localStorage, navigator: { onLine: false }, window: { AudioContext: FakeAudio }, setup: withSound });
 	assert.equal(text(env, 'sound'), 'Ton an');
 	await env.app.handleScan(CODE_OK);
 	await flush();
-	assert.deepEqual(tones, [880], 'admitted: one high tone');
+	// Merged tones (A548): admitted = rising two-tone, rejected = low buzz.
+	assert.deepEqual(tones, [660, 990], 'admitted: rising two-tone');
 	await env.app.handleScan(CODE_REVOKED);
 	await flush();
-	assert.deepEqual(tones, [880, 220], 'rejected: low tone');
+	assert.deepEqual(tones, [660, 990, 196, 147], 'rejected: low buzz');
 	env.document.getElementById('sound').click();
 	await flush();
 	assert.equal(text(env, 'sound'), 'Ton aus');
 	assert.equal(env.document.getElementById('sound').getAttribute('aria-pressed'), 'false');
 	await env.app.handleScan(CODE_VIP);
 	await flush();
-	assert.equal(tones.length, 2, 'switched off: silent');
-	assert.equal(env.db.stores.kv.data.get('sound'), false);
-	const again = await boot({ indexedDB, navigator: { onLine: false }, window: { AudioContext: FakeAudio }, setup: withSound });
-	assert.equal(again.app.state.sound, false, 'setting remembered');
+	assert.equal(tones.length, 4, 'switched off: silent');
+	assert.equal(localStorage.getItem('wpcap_scanner_sound'), 'off', 'merged: remembered per browser (localStorage)');
+	const again = await boot({ indexedDB, localStorage, navigator: { onLine: false }, window: { AudioContext: FakeAudio }, setup: withSound });
 	assert.equal(text(again, 'sound'), 'Ton aus');
 });
 
