@@ -131,6 +131,9 @@ final class Settings {
 			'billing_required_threshold_minor' => 25000,
 			'credit_note_prefix'        => 'RK', // Rechnungskorrektur; installs from before schema 3.8.3 keep 'GS' (Installer).
 			'auto_invoice'              => 0,
+			// A380: chart of accounts of the DATEV booking batch (skr03|skr04) and an optional own money account.
+			'datev_chart'               => 'skr03',
+			'datev_contra_account'      => '',
 			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.
 			'voucher_default_purpose'   => 'multi',
 			'delete_data_on_uninstall'  => 0,

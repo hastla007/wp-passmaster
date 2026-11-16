@@ -201,6 +201,17 @@ $GLOBALS['wpcap_test_filters']['wpcap_datev_accounts'] = array( 'revenue' => arr
 $a129_datev2 = array_values( array_filter( array_slice( Invoices::datev_rows( $a129_from, $a129_to ), 1 ), static fn( $r ) => in_array( $r[7], array( $a129_a_inv['invoice_number'], $a129_c_inv['invoice_number'] ), true ) ) );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_datev_accounts'] );
 check( 'A129 DATEV: accounts, BU keys and money account per provider via wpcap_datev_accounts', 4 === count( $a129_datev2 ) && array( '4400', '4300', '4200', '4200' ) === array_map( static fn( $r ) => $r[4], $a129_datev2 ) && '1800' === $a129_datev2[0][3] && '' === $a129_datev2[0][5] && '99' === $a129_datev2[3][5] && 'CHF' === $a129_datev2[3][2] );
+// A380: chart of accounts and own money account as settings (the filter above still wins).
+$a380_saved = array( \PassCaptain\Settings::get( 'datev_chart' ), \PassCaptain\Settings::get( 'datev_contra_account' ) );
+check( 'A380: SKR03 is the default chart', array( 1900 => '8400', 700 => '8300' ) === \PassCaptain\Invoices::datev_accounts()['revenue'] && '8200' === \PassCaptain\Invoices::datev_accounts()['revenue_default'] && '1360' === \PassCaptain\Invoices::datev_accounts()['contra'] );
+\PassCaptain\Settings::update( array( 'datev_chart' => 'skr04', 'datev_contra_account' => '' ) );
+$a380_acc = \PassCaptain\Invoices::datev_accounts();
+check( 'A380: setting SKR04 switches revenue and money accounts', array( 1900 => '4400', 700 => '4300' ) === $a380_acc['revenue'] && '4200' === $a380_acc['revenue_default'] && '1460' === $a380_acc['contra'] );
+\PassCaptain\Settings::update( array( 'datev_contra_account' => '1365' ) );
+check( 'A380: an own money account (4-8 digits) replaces Geldtransit', '1365' === \PassCaptain\Invoices::datev_accounts()['contra'] );
+\PassCaptain\Settings::update( array( 'datev_contra_account' => '12' ) );
+check( 'A380: an invalid money account falls back to the chart', '1460' === \PassCaptain\Invoices::datev_accounts()['contra'] );
+\PassCaptain\Settings::update( array( 'datev_chart' => (string) ( $a380_saved[0] ?: 'skr03' ), 'datev_contra_account' => (string) $a380_saved[1] ) );
 
 echo "A129: report CSV\n";
 $a129_csv = Data::csv_rows( $a129_report );

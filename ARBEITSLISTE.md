@@ -825,7 +825,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/SettingsPage.php:36–200: Proxy unter „Erweitert“, Gutscheine nur mit Voucher Captain, Datenschutz eigener Tab
 - [ ] **A379** [OPTIMIERUNG] Keine Hilfe-Tabs, Verweise auf nicht ausgelieferte docs/ und privates Repo, kein Action-Link — _R1 UX_ (TODO L725; Audit Runde 4)
   - src/Admin/SettingsPage.php:156/184, Partners/AdminPage.php:475, BoxOffice/Page.php:261: add_help_tab, öffentliche Doku-URL, „Einstellungen“-Link in der Pluginliste
-- [ ] **A380** [OPTIMIERUNG] DATEV-Export ohne Kontenrahmen-Einstellung (SKR03 fest) — _R1 UX_ (TODO L726; Audit Runde 4)
+- [x] **A380** [OPTIMIERUNG] DATEV-Export ohne Kontenrahmen-Einstellung (SKR03 fest) — _R1 UX_ (TODO L726; Audit Runde 4)
   - src/Invoices.php:790–805, Reports/Page.php:135: Konten in Einstellungen, SKR03/SKR04/AT benennen
 - [x] **A381** [OPTIMIERUNG] Destruktive Aktionen ohne Bestätigung (Zeitfenster löschen, Personal entfernen) — _R1 UX_ (TODO L727; Audit Runde 4)
   - src/Admin/ServiceSlotsPage.php:412–415, EventsPage.php:945: Einheitlich bestätigen

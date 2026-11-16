@@ -1376,18 +1376,22 @@ final class Invoices {
 	const DATEV_COLUMNS = array( 'Umsatz (ohne Soll/Haben-Kz)', 'Soll/Haben-Kennzeichen', 'WKZ Umsatz', 'Konto', 'Gegenkonto (ohne BU-Schlüssel)', 'BU-Schlüssel', 'Belegdatum', 'Belegfeld 1', 'Belegfeld 2', 'Buchungstext' );
 
 	/**
-	 * Account mapping of the booking batch. Defaults follow SKR03 (revenue accounts with automatic VAT:
-	 * 8400 = 19 %, 8300 = 7 %; other rates 8200; money account 1360 "Geldtransit"). Filter
-	 * `wpcap_datev_accounts` (SKR04, own accounts, BU keys, one money account per payment provider).
+	 * Account mapping of the booking batch. Defaults follow the chart of the setting `datev_chart` (A380):
+	 * SKR03 (revenue accounts with automatic VAT 8400 = 19 %, 8300 = 7 %, other rates 8200; money account
+	 * 1360 "Geldtransit") or SKR04 (4400 / 4300 / 4200; 1460). The setting `datev_contra_account` replaces
+	 * the money account. Filter `wpcap_datev_accounts` (own accounts, BU keys, one money account per
+	 * payment provider).
 	 *
 	 * @return array{revenue: array<int,string>, revenue_default: string, bu_keys: array<int,string>, contra: string, contra_by_provider: array<string,string>}
 	 */
 	public static function datev_accounts() {
+		$skr04 = 'skr04' === (string) Settings::get( 'datev_chart', 'skr03' );
+		$contra = preg_replace( '/\D/', '', (string) Settings::get( 'datev_contra_account', '' ) );
 		$defaults = array(
-			'revenue' => array( 1900 => '8400', 700 => '8300' ),
-			'revenue_default' => '8200',
+			'revenue' => $skr04 ? array( 1900 => '4400', 700 => '4300' ) : array( 1900 => '8400', 700 => '8300' ),
+			'revenue_default' => $skr04 ? '4200' : '8200',
 			'bu_keys' => array(),
-			'contra' => '1360',
+			'contra' => strlen( $contra ) >= 4 && strlen( $contra ) <= 8 ? $contra : ( $skr04 ? '1460' : '1360' ),
 			'contra_by_provider' => array(),
 		);
 		/**

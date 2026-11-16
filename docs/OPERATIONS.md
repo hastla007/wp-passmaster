@@ -1319,8 +1319,8 @@ stimmt daher immer mit ihm überein.
   `Soll/Haben-Kennzeichen` (`S` = Verkauf, `H` = Rechnungskorrektur/Erstattung), `WKZ Umsatz`, `Konto`
   (Geldkonto), `Gegenkonto (ohne BU-Schlüssel)` (Erlöskonto), `BU-Schlüssel`, `Belegdatum` (`TTMM`),
   `Belegfeld 1` (Beleg- bzw. Bestellnummer), `Belegfeld 2` (korrigierte Rechnung), `Buchungstext`.
-- Konten: Standard SKR03 – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit);
-  anpassbar über den Filter `wpcap_datev_accounts` (z. B. SKR04, Geldkonto je Zahlungsanbieter, BU-Schlüssel
+- Konten: Einstellung „Kontenrahmen für den DATEV-Buchungsstapel“ (Einstellungen → Rechnungen): SKR03 (Standard) – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit); SKR04 – 4400, 4300, 4200, Geldkonto 1460. Ein eigenes Geldkonto (4–8 Ziffern) ersetzt den Geldtransit;
+  darüber hinaus anpassbar über den Filter `wpcap_datev_accounts` (z. B. SKR04, Geldkonto je Zahlungsanbieter, BU-Schlüssel
   je Satz).
 - Belege im Vermittlermodell sind Umsatz des Veranstalters und werden nicht gebucht (Provision über die
   Partnerabrechnung).
