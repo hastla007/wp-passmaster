@@ -402,6 +402,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_offline_package_types` | `array $types, object $occurrence` | Ticketart-Beschreibungen des Offline-Pakets (`id`, `name`, `areas`, `policy`, `multi`) für zusätzlich ausgelieferte Tickets. |
 | `wpcap_member_pass_occurrence_quota` | `int $quota` (0 = kein eigenes Kontingent), `int $occurrence_id, int $ticket_type_id` | Höchstzahl der Mitgliedspass-Einlässe je Termin (A482); darüber `wpcap_pass_occurrence_full`. Unabhängig davon lässt ein voller Termin keine Mitglieder ein. Siehe [PASSES.md](PASSES.md#mitgliedspässe-kern-srcmembershipsphp). |
 | `wpcap_member_pass_redeemed` (Action) | `int $pass_id, int $pass_use_id, int $occurrence_id, int $ticket_type_id` | Nach dem Commit einer Mitgliedspass-Einlösung (A482). |
+| `wpcap_offline_scanner_app_base` | `string $url` (`home_url('/wpcap-offline-scanner/app/')`, bei einfachen Permalinks `…/index.php/wpcap-offline-scanner/app/`), `bool $pretty` | Adresse, unter der die Offline-Scanner-App ausgeliefert wird (A286). Muss auf dem Ursprung der REST-API liegen und auf `/app/` enden; die Route `Pwa::maybe_serve()` bedient nur die eigene Standardadresse. |
 
 ### Kasse
 

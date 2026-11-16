@@ -283,8 +283,12 @@
 
 	function deriveApi() {
 		var path = location.pathname;
-		var i = path.indexOf('/wp-content/');
-		return location.origin + (i >= 0 ? path.slice(0, i) : '') + '/wp-json/pass-captain/v1/app/';
+		// Served from the site (A286: …/wpcap-offline-scanner/app/, plain permalinks …/index.php/wpcap-offline-scanner/app/) or from the plugin folder.
+		var i = path.indexOf('/wpcap-offline-scanner/');
+		if (i < 0) { i = path.indexOf('/wp-content/'); }
+		var base = i >= 0 ? path.slice(0, i) : '';
+		if (/\/index\.php$/.test(base)) { return location.origin + base.slice(0, -10) + '/?rest_route=/pass-captain/v1/app/'; }
+		return location.origin + base + '/wp-json/pass-captain/v1/app/';
 	}
 	var API_ROUTES = ['/pass-captain/v1/app/', '/wp-pass-captain/v1/app/'];
 	/**

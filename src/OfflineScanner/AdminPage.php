@@ -22,12 +22,12 @@ final class AdminPage {
 
 	/**
 	 * URL of the PWA; the API base is passed so the app works in subdirectory installs, the language
-	 * (WordPress user locale) so the app speaks it – it remembers it for offline starts.
+	 * (WordPress user locale) so the app speaks it – it remembers it for offline starts. The app is
+	 * served from the site's own origin (Pwa, A286), not from the asset URL that may be on a CDN.
 	 */
 	public static function app_url() {
-		$base = defined( 'WPCAP_URL' ) ? WPCAP_URL : '';
 		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-		return $base . 'assets/offline-scanner/index.html?api=' . rawurlencode( \PassCaptain\Mobile\Devices::api_base() ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
+		return Pwa::base_url() . 'index.html?api=' . rawurlencode( \PassCaptain\Mobile\Devices::api_base() ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
 	}
 
 	public static function save_rules( array $in ) {

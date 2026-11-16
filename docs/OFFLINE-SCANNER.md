@@ -140,6 +140,12 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 | `../vendor/tweetnacl/` | tweetnacl-js 1.0.3 (Unlicense), used for signature verification. |
 | `../vendor/jsqr/` | Camera fallback when `BarcodeDetector` is unavailable. |
 
+- **Served from the site (A286):** the app is not opened from the plugin's asset URL but from
+  `home_url('/wpcap-offline-scanner/app/')` (plain permalinks: `/index.php/wpcap-offline-scanner/app/`),
+  where `OfflineScanner\Pwa` serves exactly the shell files above (and `…/vendor/` for tweetnacl/jsQR) with
+  `Cache-Control: no-cache` and `nosniff`. That keeps app, service worker and REST API on one origin even
+  when plugin assets are delivered from a CDN domain (the app only accepts a same-origin API). Apps installed
+  from the old asset URL keep working where that URL is on the site's own domain.
 - **Start:** open the app from the admin button. The link passes `?api=<rest_url>`, which is stored.
 - **One store per site (A473):** the app is served from the plugin URL, which all sites of a
   (subdirectory) network share – one origin, one IndexedDB. Pairing token, public keys, packages and
@@ -221,7 +227,7 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
   manipulation of the device clock. Package expiry is still enforced on the device, so a rooted
   device can bypass it. The server then flags old scans (`offline_expired`).
 
-Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v7`). Assets are also refreshed in the background
+Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v8`). Assets are also refreshed in the background
 (stale-while-revalidate).
 
 ## Security notes

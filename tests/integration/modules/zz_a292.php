@@ -83,7 +83,7 @@ check( 'handler creates a draft page "Tickets" with the shortcode and opens the 
 // Devices page: both ways to scan without the app.
 $GLOBALS['wpcap_test_transients'] = array();
 ob_start(); DevicesPage::render_web_scanners(); $a292_dev = ob_get_clean();
-check( 'devices page names the web scanner shortcode, links its page and the offline PWA', false !== strpos( $a292_dev, '[wpcap_scanner]' ) && false !== strpos( $a292_dev, '?page_id=' . $a292_scanner ) && false !== strpos( $a292_dev, 'assets/offline-scanner/index.html' ) );
+check( 'devices page names the web scanner shortcode, links its page and the offline PWA', false !== strpos( $a292_dev, '[wpcap_scanner]' ) && false !== strpos( $a292_dev, '?page_id=' . $a292_scanner ) && false !== strpos( $a292_dev, 'wpcap-offline-scanner/app/index.html' ) );
 
 r6_posts_tables( false );
 $GLOBALS['wpcap_test_transients'] = array();
