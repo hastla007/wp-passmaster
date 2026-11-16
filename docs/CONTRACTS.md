@@ -211,6 +211,13 @@ Bewertungsdaten gehören dem Provider. Der Kern bleibt ohne Provider unveränder
 
 Fixture: `tests/contracts/review.json`; `tests/integration/modules/zz_a667_a669.php` prüft echte Abläufe dagegen.
 
+**E2E-Matrix (A671):** `tests/integration/modules/zz_a671.php` spielt Ticketkauf → Einlass → Bewertungsanfrage mit
+einem Stub-Review-Plugin durch (Plugin fehlt zunächst und holt nach, Kontakt über den Resolver, eigene Opt-out-Liste,
+„eine Anfrage je Erlebnis und Empfänger“): eingelassen → genau eine Anfrage; doppelte Scans, wiederholte Hooks und
+Replay → weiterhin eine; Erstattung vor oder nach dem Einlass, abgesagter Termin, No-show und Opt-out → keine;
+Übertragung vor dem Einlass → Anfrage an die neue Inhaberin bzw. den neuen Inhaber. Kauf, Ticketversand und andere
+Ereignisse erreichen das Review-Plugin nicht.
+
 ## Fixtures und Tests
 
 Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow`, `workflow_commands`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
