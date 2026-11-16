@@ -351,12 +351,23 @@ function assert_capacity_counters( $after ) {
 	}
 }
 assert_capacity_counters( 'run.php core' );
+// WPCAP_TEST_ONLY=<regex>: run only the module files whose name matches (core files only with WPCAP_TEST_CORE=1).
+$wpcap_only = (string) getenv( 'WPCAP_TEST_ONLY' );
 foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $core_test ) {
+	if ( '' !== $wpcap_only && '1' !== getenv( 'WPCAP_TEST_CORE' ) && ! preg_match( '#' . $wpcap_only . '#', $core_test ) ) { continue; }
 	require __DIR__ . "/$core_test.php";
 	assert_capacity_counters( "$core_test.php" );
 }
 foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
-	require $module_test;
+	if ( '' !== $wpcap_only && ! preg_match( '#' . $wpcap_only . '#', basename( $module_test, '.php' ) ) ) { continue; }
+	try {
+		require $module_test;
+	} catch ( \Throwable $wpcap_module_error ) {
+		// One broken module must not hide the results of all following modules.
+		global $wpdb;
+		if ( isset( $wpdb ) ) { $wpdb->query( 'ROLLBACK' ); }
+		check( 'module ' . basename( $module_test ) . ' ran to the end (' . get_class( $wpcap_module_error ) . ': ' . $wpcap_module_error->getMessage() . ' @ ' . basename( $wpcap_module_error->getFile() ) . ':' . $wpcap_module_error->getLine() . ')', false );
+	}
 	assert_capacity_counters( 'modules/' . basename( $module_test ) );
 }
 if ( $failed_checks ) {

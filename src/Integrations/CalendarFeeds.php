@@ -213,12 +213,12 @@ final class CalendarFeeds {
 		if ( null === $body ) {
 			status_header( 404 );
 			echo esc_html__( 'Kalender-Abo nicht gefunden oder widerrufen.', 'pass-captain' );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		header( 'Content-Type: text/calendar; charset=utf-8' );
 		header( 'Content-Disposition: inline; filename="pass-captain.ics"' );
 		header( 'X-Content-Type-Options: nosniff' );
 		echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text/calendar body, values escaped per RFC 5545.
-		exit;
+		\PassCaptain\Http::end();
 	}
 }

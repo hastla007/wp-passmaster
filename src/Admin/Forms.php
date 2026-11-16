@@ -507,7 +507,7 @@ final class Forms {
 	/** Safe redirect followed by exit. */
 	public static function redirect( $url ) {
 		wp_safe_redirect( $url );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/* ---------------------------------------------------------------------------------------------

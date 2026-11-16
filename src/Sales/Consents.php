@@ -233,7 +233,7 @@ final class Consents {
 		\PassCaptain\Security\PrivatePage::send( true ); // No page cache, no framing, no indexing (secret link); strict CSP (standalone page).
 		status_header( null === $html ? 404 : 200 );
 		echo null === $html ? esc_html__( 'Der Link ist ungültig.', 'pass-captain' ) : $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Inserts an active consent record unless one exists for ticket and field. @return int consent id */
@@ -312,12 +312,12 @@ final class Consents {
 		if ( ! empty( $_POST['wpcap_consent_grant'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$granted = self::grant_for_order( $order, absint( wp_unslash( $_POST['wpcap_consent_grant'] ) ), absint( wp_unslash( $_POST['wpcap_consent_field'] ?? 0 ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( array( 'wpcap_order' => $order->public_id, 'wpcap_access' => $token, 'wpcap_consent' => is_wp_error( $granted ) ? 'error' : 'granted' ), home_url( '/' ) ), 303 );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		$result = self::withdraw_for_order( $order, absint( wp_unslash( $_POST['wpcap_consent_withdraw'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$url = add_query_arg( array( 'wpcap_order' => $order->public_id, 'wpcap_access' => $token, 'wpcap_consent' => is_wp_error( $result ) ? 'error' : 'withdrawn' ), home_url( '/' ) );
 		wp_safe_redirect( $url, 303 );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**

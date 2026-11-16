@@ -514,7 +514,7 @@ final class Page {
 		\PassCaptain\Privacy\AccessLog::export( 'pos_receipt', 'pos_sale', (int) $sale->sale_id, array( 'storno' => ! empty( $_GET['storno'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		nocache_headers();
 		echo Service::receipt_html( $sale->sale_id, ! empty( $_GET['storno'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in receipt_html.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	public static function handle_tickets() {

@@ -26,7 +26,7 @@ final class OrderPortal {
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
 		// A631: a pending (new) link counts as well (Orders::access_matches()).
-		if ( 64 !== strlen( $token ) || ! Orders::access_matches( $order, $token ) ) { status_header( 404 ); exit; }
+		if ( 64 !== strlen( $token ) || ! Orders::access_matches( $order, $token ) ) { status_header( 404 ); \PassCaptain\Http::end(); }
 		if ( '' !== $from_url ) {
 			// Token from the mail link → cookie, 303 to the portal URL without token (falls back to rendering).
 			Security\AccessCookie::exchange( 'order', (string) $order->public_id, $token, add_query_arg( array_filter( array( 'wpcap_order' => (string) $order->public_id, 'wpcap_consent' => sanitize_key( Security\Input::text( wp_unslash( $_GET['wpcap_consent'] ?? '' ) ) ) ) ), home_url( '/' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only status flag, reduced by sanitize_key().
@@ -37,19 +37,19 @@ final class OrderPortal {
 		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_consent_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Consents::handle_self_service().
 			$result = self::handle_consent( $order, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( self::link_args( $public_id, $token ) + array( 'wpcap_consent_result' => is_wp_error( $result ) ? 'error' : $result ), home_url( '/' ) ) . '#wpcap-consents' );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		// Waitlist self-unsubscribe (A158): entries with the order's e-mail address, same pattern.
 		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_waitlist_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Waitlists::handle_portal_request().
 			$result = Waitlists::handle_portal_request( $order, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( self::link_args( $public_id, $token ) + array( 'wpcap_waitlist_result' => is_wp_error( $result ) ? 'error' : 'removed' ), home_url( '/' ) ) . '#wpcap-waitlist' );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		// Service bookings (A135): cancel/rebook bookings with the order's e-mail address, same pattern.
 		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_service_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in ServiceBookingFlow::handle_portal_request().
 			$result = ServiceBookingFlow::handle_portal_request( $order, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( self::link_args( $public_id, $token ) + array( 'wpcap_service_result' => ServiceBookingFlow::result_flag( $result ) ), home_url( '/' ) ) . '#wpcap-service-bookings' );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
@@ -57,7 +57,7 @@ final class OrderPortal {
 		header( 'Referrer-Policy: no-referrer' );
 		// Rendered in the order's language (buyer's choice in checkout or portal, Frontend\Language).
 		echo Mail\Mailer::with_locale( (string) ( $order->locale ?? '' ), static function () use ( $order, $token ) { return self::render_page( $order, $token ); } ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_page.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**

@@ -208,7 +208,7 @@ final class AdminPage {
 		header( 'Content-Type: text/html; charset=utf-8' );
 		header( 'X-Content-Type-Options: nosniff' );
 		echo Settlements::render_html( $s ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped while building.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** CSV of the reseller statement ("Wiederverkäufer-Abrechnung") of a partner and month. */

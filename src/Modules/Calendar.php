@@ -81,14 +81,14 @@ final class Calendar {
 			status_header( 404 );
 			nocache_headers();
 			echo esc_html__( 'Kalendereintrag nicht gefunden.', 'pass-captain' );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		header( 'Content-Type: text/calendar; charset=utf-8' );
 		header( 'Content-Disposition: ' . ( 'event' === $kind ? 'inline' : 'attachment' ) . '; filename="' . ( 'event' === $kind ? 'event-' : 'termin-' ) . $id . '.ics"' );
 		header( 'Cache-Control: public, max-age=900' );
 		header( 'X-Content-Type-Options: nosniff' );
 		echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text/calendar body, values escaped per RFC 5545.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Body for a public request or null (unknown, unpublished). */

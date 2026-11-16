@@ -92,13 +92,13 @@ final class Pwa {
 			status_header( 404 );
 			header( 'Content-Type: text/plain; charset=utf-8' );
 			echo 'Not found';
-			exit;
+			\PassCaptain\Http::end();
 		}
 		$headers = self::headers( $file );
 		status_header( 200 );
 		foreach ( $headers as $name => $value ) { header( $name . ': ' . $value ); }
 		readfile( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- static shell file of the plugin.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Response headers for a shell file. */

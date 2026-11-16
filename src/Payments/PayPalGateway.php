@@ -182,7 +182,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface, Pa
 		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '', array( 'not_charged' => true ) );
 		nocache_headers();
 		wp_safe_redirect( self::return_url( self::return_state( $result ), $public_id, ReturnNotice::current_base() ), 302 );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**

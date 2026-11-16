@@ -128,7 +128,7 @@ final class AdminPage {
 		header( 'Content-Disposition: attachment; filename="test.pkpass"' );
 		header( 'Content-Length: ' . strlen( $bytes ) );
 		echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput -- binary pkpass.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	private static function yes_no( $flag ) {

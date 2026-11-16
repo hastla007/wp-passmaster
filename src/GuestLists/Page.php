@@ -144,7 +144,7 @@ final class Page {
 		\PassCaptain\Privacy\AccessLog::export( 'guestlist_print', 'occurrence', absint( Forms::query_arg( 'occurrence_id' ) ) );
 		if ( ! headers_sent() ) { header( 'Content-Type: text/html; charset=utf-8' ); header( 'X-Content-Type-Options: nosniff' ); }
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Printable will-call list (standalone HTML document, every value escaped). */

@@ -386,14 +386,14 @@ final class Waitlists {
 		status_header( $code );
 		self::page_head( __( 'Wartelistenplatz bestätigen', 'pass-captain' ) );
 		echo $html . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in confirm_page().
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** admin-post (POST only, nonce): confirms the sign-up of the confirmation page. */
 	public static function handle_confirm_request() {
 		if ( ! Http::is_post() ) {
 			status_header( 405 );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		check_admin_referer( self::CONFIRM_ACTION . '_' . $waitlist_id );
@@ -403,7 +403,7 @@ final class Waitlists {
 		status_header( is_wp_error( $result ) ? (int) ( $result->get_error_data()['status'] ?? 409 ) : 200 );
 		self::page_head( __( 'Wartelistenplatz bestätigen', 'pass-captain' ) );
 		echo self::confirm_result_html( $result ) . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in confirm_result_html().
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Result message of a confirmation (escaped HTML). */
@@ -1387,14 +1387,14 @@ final class Waitlists {
 		status_header( $code );
 		self::page_head( __( 'Von der Warteliste austragen', 'pass-captain' ) );
 		echo $html . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in unsubscribe_page().
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** admin-post (POST only, form proof): performs the unsubscribe confirmed on the page. */
 	public static function handle_unsubscribe_request() {
 		if ( ! Http::is_post() ) {
 			status_header( 405 );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_form() checks the form proof (or the nonce of older pages) before anything changes.
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
@@ -1406,7 +1406,7 @@ final class Waitlists {
 		status_header( is_wp_error( $result ) ? (int) ( $result->get_error_data()['status'] ?? 409 ) : 200 );
 		self::page_head( __( 'Von der Warteliste austragen', 'pass-captain' ) );
 		echo self::unsubscribe_result_html( $result ) . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in unsubscribe_result_html().
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Result message of an unsubscribe (escaped HTML). */
@@ -1685,7 +1685,7 @@ final class Waitlists {
 		echo '<h1>' . esc_html__( 'Wartelistenangebot annehmen', 'pass-captain' ) . '</h1>';
 		if ( ! $row || ! $order ) {
 			echo '<p>' . esc_html__( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'pass-captain' ) . '</p></main></body></html>';
-			exit;
+			\PassCaptain\Http::end();
 		}
 		echo self::offer_details_html( $row, $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in offer_details_html().
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-offer-form">';
@@ -1707,7 +1707,7 @@ final class Waitlists {
 		echo '<p><button type="submit" name="decision" value="accept">' . esc_html__( 'Angebot annehmen', 'pass-captain' ) . '</button> <button type="submit" name="decision" value="decline" formnovalidate>' . esc_html__( 'Angebot ablehnen', 'pass-captain' ) . '</button></p></form>';
 		echo self::submit_once_script(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static script.
 		echo '</main></body></html>';
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**
@@ -1823,7 +1823,7 @@ final class Waitlists {
 			echo '<h1>' . esc_html__( 'Angebot nicht verfügbar', 'pass-captain' ) . '</h1><p>' . esc_html( $result->get_error_message() ) . '</p>';
 		}
 		echo '</main></body></html>';
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -1957,7 +1957,7 @@ final class Waitlists {
 		self::page_head( sprintf( __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) );
 		echo self::result_html( $waitlist_id, $key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in result_html().
 		echo '</main></body></html>';
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**
@@ -1977,7 +1977,7 @@ final class Waitlists {
 		} else {
 			wp_safe_redirect( $url, 303 );
 		}
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/* ---------------------------------------------------------------------------------------------

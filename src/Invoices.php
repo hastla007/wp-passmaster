@@ -861,7 +861,7 @@ final class Invoices {
 		Privacy\AccessLog::export( 'invoice_html', 'order', $order_id, array( 'invoice_id' => (int) $result['invoice_id'] ) );
 		Security\PrivatePage::send( true ); // Standalone document: strict CSP, no cache.
 		echo self::render_html( $result['invoice_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Buyer view through the personal order link: ?wpcap_invoice=<public_id>&wpcap_access=<token> */
@@ -879,14 +879,14 @@ final class Invoices {
 		PageCache::no_store( 'invoice' );
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
-		if ( ! Orders::access_matches( $order, $token ) ) { status_header( 404 ); exit; }
+		if ( ! Orders::access_matches( $order, $token ) ) { status_header( 404 ); \PassCaptain\Http::end(); }
 		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', $order->order_id ) );
-		if ( ! $invoice_id ) { status_header( 404 ); exit; }
+		if ( ! $invoice_id ) { status_header( 404 ); \PassCaptain\Http::end(); }
 		if ( '' !== $from_url ) { Security\AccessCookie::exchange( 'order', (string) $order->public_id, $token, add_query_arg( 'wpcap_invoice', (string) $order->public_id, home_url( '/' ) ) ); }
 		Security\PrivatePage::send( true ); // No page cache, no framing, no indexing (secret link); strict CSP (standalone document).
 		header( 'Referrer-Policy: no-referrer' );
 		echo self::render_html( $invoice_id, array( 'audience' => 'customer', 'order_public_id' => (string) $order->public_id, 'access_token' => $token ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**
@@ -925,7 +925,7 @@ final class Invoices {
 			$out = fopen( 'php://output', 'w' );
 			Reports\Scope::write_csv( $out, $rows ); // Formula guard and RFC 4180 quoting as the built-in export (A495).
 			fclose( $out );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		$datev = 'datev' === $format;
 		nocache_headers();
@@ -943,7 +943,7 @@ final class Invoices {
 		Reports\Scope::write_csv( $out, $rows, 0, $datev ? array( 'encoding' => 'Windows-1252', 'bom' => false ) : array() );
 		fclose( $out );
 		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => $count, 'format' => $datev ? 'datev' : 'csv' ) );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Download URL of the accounting export (mode invoices|ledger; format datev or an extension format). */

@@ -296,7 +296,7 @@ final class InvoicePdf {
 		$token = '' !== $from_url || '' === $public_id ? $from_url : \PassCaptain\Security\AccessCookie::resolve( 'order', $public_id );
 		if ( '' === $token && '' !== $public_id && \PassCaptain\Security\AccessCookie::marker_present() ) { \PassCaptain\Security\AccessCookie::blocked_page(); }
 		$result = self::customer_pdf( $public_id, $token );
-		if ( is_wp_error( $result ) ) { status_header( 404 ); exit; }
+		if ( is_wp_error( $result ) ) { status_header( 404 ); \PassCaptain\Http::end(); }
 		if ( '' !== $from_url ) { \PassCaptain\Security\AccessCookie::exchange( 'order', $public_id, $from_url, add_query_arg( 'wpcap_invoice_pdf', $public_id, home_url( '/' ) ) ); }
 		\PassCaptain\Security\PrivatePage::send(); // No cache copy, no framing, no indexing (secret link).
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );

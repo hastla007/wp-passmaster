@@ -157,7 +157,7 @@ final class LegacySlug {
 		$new  = self::map_admin_page( $page );
 		if ( null === $new || wp_doing_ajax() ) { return; }
 		wp_safe_redirect( add_query_arg( 'page', $new ) );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** New admin page slug for an old one, or null. */

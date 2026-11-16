@@ -23,7 +23,7 @@ final class TicketPage {
 			// A283: personal page, also its 404 answers – never stored by a page cache or CDN.
 			PageCache::no_store( 'ticket' );
 			$from_url = Security\Input::hex( $token );
-			if ( 64 !== strlen( $from_url ) ) { status_header( 404 ); exit; }
+			if ( 64 !== strlen( $from_url ) ) { status_header( 404 ); \PassCaptain\Http::end(); }
 			$token = $from_url;
 		} else {
 			// ?wpcap_tref=… after the token was exchanged for the ticket's access cookie (SEC-7).
@@ -35,7 +35,7 @@ final class TicketPage {
 			if ( '' === $token || ! hash_equals( $ref, Security\AccessCookie::ticket_ref( $token ) ) ) {
 				if ( Security\AccessCookie::marker_present() ) { Security\AccessCookie::blocked_page(); }
 				status_header( 404 );
-				exit;
+				\PassCaptain\Http::end();
 			}
 		}
 		global $wpdb;
@@ -43,7 +43,7 @@ final class TicketPage {
 			"SELECT t.ticket_id,t.public_id,t.ticket_type_id,t.status,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.locale FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
 			hash( 'sha256', $token )
 		) );
-		if ( ! $ticket ) { status_header( 404 ); exit; }
+		if ( ! $ticket ) { status_header( 404 ); \PassCaptain\Http::end(); }
 		if ( '' !== $from_url ) {
 			// Token from the mail link → cookie, 303 to ?wpcap_tref=… without token (falls back to rendering).
 			$ref = Security\AccessCookie::ticket_ref( $token );
@@ -56,14 +56,14 @@ final class TicketPage {
 		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_consent_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Consents::handle_self_service().
 			$result = self::handle_consent( $ticket, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( self::link_args( $token ) + array( 'wpcap_consent_result' => is_wp_error( $result ) ? 'error' : $result ), home_url( '/' ) ) . '#wpcap-consents' );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		// A570: attendee name and answers by the current holder (POST to the same link, nonce, PRG).
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in handle_attendee().
 		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_attendee_op'] ) ) {
 			$result = self::handle_attendee( $ticket, $token, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( self::link_args( $token ) + array( 'wpcap_attendee_result' => is_wp_error( $result ) ? substr( sanitize_key( $result->get_error_code() ), 0, 40 ) : $result ), home_url( '/' ) ) . '#wpcap-attendee' );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		// "Send me my order link" (A118): new portal link to the buyer, POST with nonce.
 		$link_message = '';
@@ -94,7 +94,7 @@ final class TicketPage {
 		// Assigned here for tickets issued before help codes existed (lazy backfill).
 		$help_code = in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) ? HelpCode::for_ticket( (int) $ticket->ticket_id, $token ) : '';
 		?><!doctype html><html <?php echo \PassCaptain\Frontend\Format::html_lang_attributes(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in Format. ?>><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $ticket->event_name ); ?> — <?php esc_html_e( 'Ticket', 'pass-captain' ); ?></title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.ticket{border:1px solid #c3c4c7;border-radius:12px;padding:1.5rem}.qr{display:block;width:min(75vw,320px);height:auto;margin:1.5rem auto}.token{overflow-wrap:anywhere;font-family:monospace}.help-code strong{display:block;font:700 1.75rem/1.2 ui-monospace,monospace;letter-spacing:.12em}.print{padding:.6rem 1rem}.card{border:1px solid #c3c4c7;border-radius:12px;padding:1rem 1.5rem;margin:1rem 0}.muted{color:#50575e}.wpcap-consents{padding-left:1.2rem}.wpcap-consents li{margin:.75rem 0}.wpcap-consents button{padding:.55rem 1rem;min-height:2.75rem;margin-top:.25rem}.danger{background:#b32d2e;color:#fff;border:1px solid #8a1f1f;border-radius:4px}.manage{margin-top:1.5rem;border-top:1px solid #c3c4c7;padding-top:1rem}.notice{font-weight:700}@media print{.print,.card,.manage,.notice{display:none}.ticket{border:0}}</style></head><body><main class="ticket"><?php echo Brand::logo_html( 'ticket_page' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in logo_html(); empty without a brand logo. ?><h1><?php echo esc_html( $ticket->event_name ); ?></h1><h2><?php echo esc_html( $ticket->ticket_name ); ?></h2><p><?php echo esc_html( Orders::format_start( $ticket->starts_at, $ticket->timezone ) ); ?></p><?php if ( '' !== $seat ) : ?><p><strong><?php echo esc_html( $seat ); ?></strong></p><?php endif; ?><?php $doors = DoorsOpen::label( DoorsOpen::for_occurrence( (int) $ticket->occurrence_id ), $ticket->timezone, $ticket->starts_at ); ?><?php if ( '' !== $doors ) : ?><p><strong><?php echo esc_html( $doors ); ?></strong></p><?php endif; ?><?php if ( $ticket->location ) : ?><p><?php echo esc_html( $ticket->location ); ?></p><?php endif; ?><p><?php echo esc_html( Admin\Forms::status_line( $ticket->status ) ); ?></p><?php if ( $qr ) : ?><img class="qr" src="<?php echo esc_attr( $qr ); ?>" alt="<?php esc_attr_e( 'Ticket QR-Code', 'pass-captain' ); ?>"><?php endif; ?><p class="token"><?php echo esc_html( $token ); ?></p><?php if ( '' !== $help_code ) : ?><p class="help-code"><?php echo esc_html( HelpCode::caption() ); ?> <strong><?php echo esc_html( $help_code ); ?></strong></p><?php endif; ?><?php echo Frontend\PrintButton::html( __( 'Drucken oder als PDF speichern', 'pass-captain' ), 'print' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html(); no inline handler (strict CSP). ?><?php echo self::attendee_html( $ticket, isset( $_GET['wpcap_attendee_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_attendee_result'] ) ) : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in attendee_html(); display flag only. ?><?php echo $link_form; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?></main><?php echo self::consent_html( $ticket, isset( $_GET['wpcap_consent_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_consent_result'] ) ) : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in Consents; display flag only. ?></body></html><?php
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**

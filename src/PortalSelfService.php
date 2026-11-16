@@ -322,7 +322,7 @@ final class PortalSelfService {
 		header( 'X-Content-Type-Options: nosniff' );
 		header( 'Referrer-Policy: no-referrer' );
 		echo $result['content']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary PDF.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/* ------------------------------------------------------------------ Refund requests */

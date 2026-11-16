@@ -1172,7 +1172,7 @@ final class Fiscalization {
 
 	private static function admin_redirect( $result = 'saved' ) {
 		wp_safe_redirect( add_query_arg( array( 'page' => 'wpcap-fiscalization', 'fiscal_result' => sanitize_key( $result ) ), admin_url( 'admin.php' ) ) );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	public static function handle_admin_save_seller() {

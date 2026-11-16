@@ -151,7 +151,7 @@ final class Suppression {
 		\PassCaptain\Security\PrivatePage::send( true );
 		status_header( $result['status'] );
 		echo self::page( $hash, $sig, $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** HTML of the unsubscribe page. */

@@ -398,7 +398,7 @@ final class ShiftPage {
 		\PassCaptain\Privacy\AccessLog::export( 'zreport_html', 'pos_register', (int) $z->register_id, array( 'z_number' => (int) $z->z_number ) );
 		nocache_headers();
 		echo ZReport::html( $z ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	public static function handle_zreport_csv() {
@@ -415,7 +415,7 @@ final class ShiftPage {
 		if ( ! $mv || ! $mv->receipt_number || ! Shifts::can_view( $shift ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		nocache_headers();
 		echo ZReport::payout_receipt_html( $mv ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payout_receipt_html().
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/* ------------------------------------------------------------------ registers */

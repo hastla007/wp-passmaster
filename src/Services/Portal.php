@@ -55,7 +55,7 @@ final class Portal {
 		\PassCaptain\Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		status_header( 200 );
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** admin-post handler (logged in or not). */
@@ -67,11 +67,11 @@ final class Portal {
 		if ( '' !== $redirect && wp_http_validate_url( $redirect ) ) {
 			// Hosted payment page of the gateway for the supplementary payment (URL from the gateway, not from the request).
 			wp_redirect( $redirect, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- payment provider host.
-			exit;
+			\PassCaptain\Http::end();
 		}
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		echo self::result_page( $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in result_page.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**

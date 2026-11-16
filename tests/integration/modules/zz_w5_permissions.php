@@ -509,6 +509,9 @@ register_shutdown_function( static function () {
 if ( ! class_exists( 'Pm_Download' ) ) { class Pm_Download extends Exception { public $body = ''; } }
 $pm_capture = static function ( $pre, $body ) { $e = new Pm_Download( 'download' ); $e->body = (string) $body; throw $e; };
 add_filter( 'wpcap_pre_send_download', $pm_capture, 10, 2 );
+// A handler that ends the response itself (printable page, token page) ends through Http::end(): observe it.
+$pm_end = static function () { throw new Pm_Download( 'response' ); };
+add_action( 'wpcap_response_end', $pm_end );
 $pm_admin_failures = array();
 $pm_admin_checked = 0;
 foreach ( $pm_handlers as $action => $handler ) {
@@ -548,6 +551,7 @@ foreach ( $pm_handlers as $action => $handler ) {
 }
 $_POST = $_GET = $_REQUEST = array();
 remove_filter( 'wpcap_pre_send_download', $pm_capture, 10 );
+remove_action( 'wpcap_response_end', $pm_end );
 pm_persona( 'admin' );
 wpcap_test_reset_transients();
 check( "admin actions: unauthorized users change nothing ($pm_admin_checked attempts)" . ( $pm_admin_failures ? ' – ' . implode( '; ', array_slice( $pm_admin_failures, 0, 15 ) ) : '' ), ! $pm_admin_failures );

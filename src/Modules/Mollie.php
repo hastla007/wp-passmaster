@@ -131,7 +131,7 @@ final class Mollie {
 		$state = self::handle_return( $public_id );
 		nocache_headers();
 		wp_safe_redirect( MollieGateway::return_url( $state, $public_id, \PassCaptain\Payments\ReturnNotice::current_base() ) );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** @return string success|pending|failed|cancel */

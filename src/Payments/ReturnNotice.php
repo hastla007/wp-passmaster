@@ -299,7 +299,7 @@ final class ReturnNotice {
 		nocache_headers();
 		// The payment page is another host (Stripe, PayPal, Mollie): wp_redirect, not wp_safe_redirect.
 		wp_redirect( $target, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- provider URL from the gateway or a URL of this site (base()).
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**
@@ -443,10 +443,10 @@ final class ReturnNotice {
 		if ( is_wp_error( $result ) ) {
 			self::set_base( $return_to );
 			wp_safe_redirect( self::url( 'failed', $public_id, null, 'return' ) );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		wp_redirect( $result['redirect_url'] ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- payment provider page created by the gateway.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** admin-post (POST): release the reservation. */
@@ -460,6 +460,6 @@ final class ReturnNotice {
 		self::set_base( $return_to );
 		nocache_headers();
 		wp_safe_redirect( self::url( is_wp_error( $result ) ? 'failed' : 'released', $public_id, null, 'return' ) );
-		exit;
+		\PassCaptain\Http::end();
 	}
 }

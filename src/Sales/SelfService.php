@@ -126,7 +126,7 @@ final class SelfService {
 		$ids = array_map( 'absint', (array) wp_unslash( $_POST['wpcap_refund_tickets'] ?? array() ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- absint.
 		$result = $ids ? self::request( $order, $ids, array( 'reason' => sanitize_text_field( wp_unslash( (string) ( $_POST['wpcap_refund_reason'] ?? '' ) ) ) ) ) : new \WP_Error( 'wpcap_self_refund_empty', '' ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		wp_safe_redirect( add_query_arg( array( 'wpcap_order' => $order->public_id, 'wpcap_refund' => is_wp_error( $result ) ? 'error' : 'requested' ) + ( \PassCaptain\Security\AccessCookie::via_cookie() ? array() : array( 'wpcap_access' => $token ) ), home_url( '/' ) ), 303 );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Portal card (filter wpcap_order_portal_sections). */

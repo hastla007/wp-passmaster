@@ -146,7 +146,7 @@ final class Scope {
 		rewind( $handle );
 		fpassthru( $handle );
 		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**
