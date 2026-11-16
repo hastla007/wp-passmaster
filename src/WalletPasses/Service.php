@@ -33,6 +33,8 @@ final class Service {
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 20, 2 );
 		// Fired by core on resend, transfer, participant assignment and reprint (any reason).
 		add_action( 'wpcap_ticket_code_rotated', array( __CLASS__, 'on_code_rotated' ), 10, 2 );
+		// A490: tickets issued outside the ticket mail (exchange) get their passes too.
+		add_action( 'wpcap_ticket_code_issued', array( __CLASS__, 'on_code_issued' ), 10, 2 );
 		// Wallet links for the new code in the resend/transfer/assignment mails.
 		add_filter( 'wpcap_ticket_code_mail_section', array( __CLASS__, 'code_mail_section' ), 10, 2 );
 		// The stored (encrypted) code lets the order portal build a ticket PDF without a new code.
@@ -411,6 +413,24 @@ final class Service {
 		foreach ( Store::passes( $ticket_id, 'google' ) as $old ) { Store::set_pass_status( $old->wallet_pass_id, 'retired' ); }
 		$passes = self::issue( $ticket_id, $code );
 		self::queue( array( (int) $ticket_id ) );
+		self::$rotated[ (int) $ticket_id ] = $passes;
+		return $passes;
+	}
+
+	/**
+	 * A new ticket got its first code outside the ticket mail (exchange, A490): creates its passes;
+	 * the exchange mail adds the wallet links through wpcap_ticket_code_mail_section.
+	 *
+	 * @return array Created passes.
+	 */
+	public static function on_code_issued( $ticket_id, $code ) {
+		if ( ! is_string( $code ) || '' === $code ) { return array(); }
+		$state = Store::state( $ticket_id );
+		if ( $state && hash_equals( (string) $state->code_hash, hash( 'sha256', $code ) ) ) { return array(); }
+		global $wpdb;
+		$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		if ( ! hash_equals( $current, hash( 'sha256', $code ) ) ) { return array(); }
+		$passes = self::issue( (int) $ticket_id, $code );
 		self::$rotated[ (int) $ticket_id ] = $passes;
 		return $passes;
 	}

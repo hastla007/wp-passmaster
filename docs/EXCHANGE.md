@@ -13,6 +13,10 @@ Ticketart und/oder einen anderen Termin **desselben Events** getauscht – Mitar
 andere Events **derselben Serie** tauschen (`allow_series`). Das alte Ticket wird widerrufen
 (`wpcap_ticket_revoked`, Grund `exchange`), das neue bekommt einen neuen Code und wird per Mail
 `ticket_exchanged` verschickt. Das neue Ticket gehört immer zur **ursprünglichen Bestellung**.
+Vor dem Versand feuert `wpcap_ticket_code_issued` (Grund `exchange`): Ist das Wallet-Modul
+eingerichtet, bekommt das neue Ticket eigene Apple-/Google-Pässe und die Umtauschmail die Links
+„Zu Apple Wallet hinzufügen“ / „In Google Wallet speichern“; die Pässe des alten Tickets werden
+ungültig (A490).
 
 ## Ablauf
 

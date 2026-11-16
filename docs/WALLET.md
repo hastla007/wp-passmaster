@@ -78,6 +78,7 @@ Konsequenzen:
 | Termin abgesagt | `wpcap_occurrence_cancelled` | Pass `voided` mit Hinweis „abgesagt“ |
 | Bestellung storniert / erstattet | `wpcap_order_cancelled`, `wpcap_refund_completed` | Abgleich aller Tickets der Bestellung |
 | Ticketcode erneuert | siehe unten | neue Pass-Generation |
+| Ticket umgetauscht (A490) | `wpcap_ticket_revoked` (altes Ticket), `wpcap_ticket_code_issued` (neues Ticket) | alter Pass ungültig; neues Ticket bekommt Pässe, die Umtauschmail die Wallet-Links |
 
 Jede Änderung wird über einen Fingerabdruck der passrelevanten Daten erkannt (keine Pushes ohne Änderung). Hooks wie `wpcap_ticket_revoked` feuern pro Ticket (z. B. hundertfach bei einer Terminabsage); das Modul sammelt die betroffenen Tickets und Termine deshalb nur ein und verarbeitet sie **einmal am Ende des Requests** (`shutdown`). Dabei wird immer zuerst ein Job `wallet_sync` in `PassCaptain\Jobs` angelegt (Wiederholung mit Backoff), damit ein Timeout keine Aktualisierung verliert; bis zu 20 Tickets werden danach sofort verarbeitet (APNs-Push an alle registrierten Geräte, Google-`PATCH`; fehlt das Google-Objekt noch, werden Klasse und Objekt per `POST` angelegt, damit ein später benutzter Speichern-Link nicht den alten Stand anlegt) und der Job bei Erfolg abgeschlossen. Bei verschobenen oder abgesagten Terminen wird die Google-Klasse (Datum, Ort, Hinweis „Abgesagt“) immer aktualisiert, auch wenn die Tickets schon vorher über `wpcap_ticket_revoked` abgeglichen wurden. APNs-Antwort 410 entfernt die Geräte-Registrierung.
 

@@ -800,6 +800,15 @@ final class Service {
 			$price_note = array( 'waived', '' );
 		}
 
+		/**
+		 * A new ticket was issued outside the order's ticket mail (here: the exchange ticket), with its
+		 * plaintext code – e.g. for wallet passes (A490). $code is plaintext: never store it unencrypted.
+		 *
+		 * @param int    $ticket_id New ticket.
+		 * @param string $code      Plaintext ticket code.
+		 * @param string $reason    'exchange'.
+		 */
+		do_action( 'wpcap_ticket_code_issued', $new_id, (string) $done['token'], 'exchange' );
 		$mailed = self::mail( $done, $price_note );
 		Audit::record( 'ticket_exchanged', 'ticket', (int) $old->ticket_id, array(
 			'exchange_id' => $exchange_id,
