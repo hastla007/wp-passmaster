@@ -100,4 +100,16 @@ final class Http {
 		if ( is_string( $value ) && preg_match( '/^\s*\+?([0-9]{1,18})\s*$/', $value, $m ) ) { return max( 0, (int) $m[1] ); }
 		return 0;
 	}
+
+	/**
+	 * Whether an untrusted consent field means "yes" (A534): true, 1, "1", "true", "on" or "yes"
+	 * (any case). Everything else – "false", "0", "no", "off", "", arrays, null – is no consent;
+	 * empty() would take the string "false" as consent.
+	 *
+	 * @param mixed $value Raw value.
+	 */
+	public static function accepted( $value ) {
+		if ( true === $value || 1 === $value ) { return true; }
+		return is_string( $value ) && in_array( strtolower( trim( $value ) ), array( '1', 'true', 'on', 'yes' ), true );
+	}
 }

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.24';
+	const DB_VERSION = '3.10.25';
 
 	public static function install() {
 		global $wpdb;
@@ -128,6 +128,7 @@ final class Installer {
 				order_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				public_id char(32) NOT NULL,
 				idempotency_key char(64) NOT NULL,
+				request_hash char(64) NOT NULL DEFAULT '',
 				customer_email varchar(190) NOT NULL,
 				access_token_hash char(64) NOT NULL DEFAULT '',
 				access_expires_at datetime NULL,

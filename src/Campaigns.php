@@ -305,7 +305,7 @@ final class Campaigns {
 		$subtotal = 0;
 		foreach ( array_slice( $items, 0, 20 ) as $item ) {
 			$type_id = absint( is_array( $item ) ? ( $item['ticket_type_id'] ?? 0 ) : 0 );
-			$qty = min( 100, absint( is_array( $item ) ? ( $item['quantity'] ?? 0 ) : 0 ) );
+			$qty = min( 100, Http::positive_int( is_array( $item ) ? ( $item['quantity'] ?? 0 ) : 0 ) ); // A421: -2 is no quantity.
 			if ( ! $type_id || ! $qty ) { continue; }
 			$type = $wpdb->get_row( $wpdb->prepare( "SELECT tt.*,o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d AND tt.status='active' AND e.status='published'", $type_id ) );
 			if ( ! $type ) { continue; }

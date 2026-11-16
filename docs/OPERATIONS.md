@@ -1681,6 +1681,18 @@ zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EU
   (.ics)“, `?wpcap_ics=occurrence&id={Termin}`, Konfiguration `WPCAP_CHECKOUT.icsBase`); ohne Kalender-Modul
   entfällt der Link. Einen Ticket- bzw. Bestellportal-Link zeigt die Seite bewusst nicht (der Link ist ein
   Zugangsschlüssel und kommt nur per E-Mail).
+  Der Server prüft das selbst (A420, Schema 3.10.25): Zur Bestellung wird ein Fingerabdruck der Anfrage
+  gespeichert (`wpcap_orders.request_hash`: E-Mail, Ticketpositionen je Ticketart, Kampagnen- und
+  Gutscheincode). Kommt derselbe Schlüssel mit anderem Inhalt, antwortet er mit 409
+  `wpcap_idempotency_conflict` (`reason: idempotency_key_reused`) statt die erste Bestellung zurückzugeben;
+  das Formular verwirft dann den Schlüssel. Bestellungen von vor dem Update (ohne Fingerabdruck) und
+  Bestellungen von Kanälen (WooCommerce, Kasse, Partner) werden wie bisher wiederverwendet.
+- **Eingaben** (A421, A534): Die öffentlichen Schreibrouten (Checkout, Bestellportal, Servicebuchung,
+  Rabattvorschau, Warteliste) haben ein `args`-Schema; WordPress lehnt falsch typisierte Werte schon vor dem
+  Callback mit 400 `rest_invalid_param` ab. Mengen und IDs sind ganze Zahlen ab 1 – `-2` oder `2.5` werden
+  abgelehnt, nicht stillschweigend zu `2`. Zustimmungen (`accept_terms`, `sms_consent`) gelten nur bei
+  `true`, `1`, `"1"`, `"true"`, `"on"` oder `"yes"` (`Http::accepted()`); `"false"`, `"0"` oder `"no"` sind keine
+  Zustimmung.
 - **Was als Erfolg gilt** (A309): nur eine JSON-Antwort mit Bestellnummer (`reference`) und `status`.
   Eine HTML-Seite (Seitencache, WAF/Bot-Schutz, Proxy-Fehler 502/504) oder eine abgeschnittene Antwort
   zeigt kein „Vielen Dank“, sondern den Hinweis, das Postfach zu prüfen oder das Formular unverändert erneut

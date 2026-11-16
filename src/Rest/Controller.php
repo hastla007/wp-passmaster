@@ -19,6 +19,38 @@ final class Controller {
 	/** Minimum length of a client-chosen checkout idempotency key (A639; the checkout form sends a UUID). */
 	const MIN_CHECKOUT_KEY_LENGTH = 16;
 
+	/**
+	 * A421: argument schemas of the public write routes. WordPress refuses wrongly typed values with
+	 * 400 (rest_invalid_param) before the callback runs: strings stay strings, quantities and ids are
+	 * whole numbers ≥ 1 (no negative or fractional quantities that a cast would silently turn around).
+	 *
+	 * @param string $kind token|id|quantity|email|text|items|object|bool
+	 * @param array  $extra Further schema keywords (maxLength, maximum, required …).
+	 */
+	public static function arg( $kind, array $extra = array() ) {
+		$schemas = array(
+			'token' => array( 'type' => 'string', 'maxLength' => 64 ),
+			'id' => array( 'type' => 'integer', 'minimum' => 1 ),
+			'quantity' => array( 'type' => 'integer', 'minimum' => 1 ),
+			'email' => array( 'type' => 'string', 'maxLength' => \PassCaptain\Http::EMAIL_MAX ),
+			'text' => array( 'type' => 'string', 'maxLength' => 191 ),
+			'object' => array( 'type' => 'object' ),
+			'bool' => array( 'type' => array( 'boolean', 'string', 'integer' ) ),
+			'items' => array(
+				'type' => 'array',
+				'maxItems' => 10,
+				'items' => array(
+					'type' => 'object',
+					'properties' => array(
+						'ticket_type_id' => array( 'type' => 'integer', 'minimum' => 1, 'required' => true ),
+						'quantity' => array( 'type' => 'integer', 'minimum' => 1, 'required' => true ),
+					),
+				),
+			),
+		);
+		return array_merge( $schemas[ $kind ], array( 'validate_callback' => 'rest_validate_request_arg' ), $extra );
+	}
+
 	public static function register_routes() {
 		register_rest_route( 'pass-captain/v1', '/events', array(
 			'methods' => \WP_REST_Server::READABLE,
@@ -33,7 +65,9 @@ final class Controller {
 				// A492: type check before sanitising (sanitize_email() of an array is a TypeError); the
 				// callback is type-safe as well, the length limit is checked by Orders::create().
 				'email' => array( 'required' => true, 'type' => 'string', 'validate_callback' => 'rest_validate_request_arg', 'sanitize_callback' => array( \PassCaptain\Http::class, 'email' ) ),
-				'items' => array( 'required' => true, 'type' => 'array' ),
+				// A421: lines with whole ticket type ids and quantities ≥ 1 (Orders::create() checks the same).
+				'items' => self::arg( 'items', array( 'required' => true ) ),
+				'accept_terms' => self::arg( 'bool' ),
 			),
 		) );
 		// A645: the access token belongs in the header X-WPCAP-Access-Token or a POST body; GET with
@@ -47,11 +81,19 @@ final class Controller {
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'transfer_ticket' ),
 			'permission_callback' => '__return_true',
+			'args' => array(
+				'access_token' => self::arg( 'token', array( 'required' => true ) ),
+				'ticket_public_id' => self::arg( 'text', array( 'required' => true, 'maxLength' => 32 ) ),
+				'recipient_email' => self::arg( 'email', array( 'required' => true ) ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/resend', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'resend_tickets' ),
 			'permission_callback' => '__return_true',
+			'args' => array(
+				'access_token' => self::arg( 'token', array( 'required' => true ) ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/assign', array(
 			'methods' => \WP_REST_Server::CREATABLE,
@@ -70,11 +112,20 @@ final class Controller {
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'update_billing' ),
 			'permission_callback' => '__return_true',
+			'args' => array(
+				'access_token' => self::arg( 'token', array( 'required' => true ) ),
+				'billing' => self::arg( 'object' ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/payout-account', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'update_payout_account' ),
 			'permission_callback' => '__return_true', // Capability link: the access token is checked in the callback.
+			'args' => array(
+				'access_token' => self::arg( 'token', array( 'required' => true ) ),
+				'iban' => self::arg( 'text', array( 'maxLength' => 64 ) ),
+				'holder' => self::arg( 'text', array( 'maxLength' => 190 ) ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/invoice', array(
 			'methods' => \WP_REST_Server::CREATABLE,
@@ -155,6 +206,11 @@ final class Controller {
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'book_service_slot' ),
 			'permission_callback' => '__return_true',
+			'args' => array(
+				'email' => self::arg( 'email', array( 'required' => true ) ),
+				'quantity' => self::arg( 'quantity', array( 'maximum' => \PassCaptain\ServiceBookings::MAX_QUANTITY ) ),
+				'idempotency_key' => self::arg( 'text' ),
+			),
 		) );
 		// Service booking self-service (A135): personal booking token from the reservation.
 		register_rest_route( 'pass-captain/v1', '/service-bookings/(?P<booking_id>\d+)', array(
@@ -178,6 +234,10 @@ final class Controller {
 			'methods' => 'POST',
 			'callback' => array( __CLASS__, 'preview_campaign' ),
 			'permission_callback' => '__return_true', // Public, rate-limited, read-only (no locks, nothing reserved).
+			'args' => array(
+				'code' => self::arg( 'text', array( 'maxLength' => 64 ) ),
+				'items' => self::arg( 'items' ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/campaigns', array(
 			'methods' => \WP_REST_Server::CREATABLE,
@@ -205,6 +265,12 @@ final class Controller {
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'join_waitlist' ),
 			'permission_callback' => '__return_true',
+			'args' => array(
+				'occurrence_id' => self::arg( 'id', array( 'required' => true ) ),
+				'ticket_type_id' => self::arg( 'id', array( 'required' => true ) ),
+				'email' => self::arg( 'email', array( 'required' => true ) ),
+				'quantity' => self::arg( 'quantity' ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/waitlist/offer', array(
 			'methods' => \WP_REST_Server::CREATABLE,
@@ -215,11 +281,19 @@ final class Controller {
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'accept_waitlist_offer' ),
 			'permission_callback' => '__return_true',
+			'args' => array(
+				'token' => self::arg( 'token', array( 'required' => true ) ),
+				'accept_terms' => self::arg( 'bool' ),
+				'attendees' => array( 'type' => 'array', 'validate_callback' => 'rest_validate_request_arg' ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/waitlist/(?P<waitlist_id>\d+)/decline', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'decline_waitlist_offer' ),
 			'permission_callback' => '__return_true',
+			'args' => array(
+				'token' => self::arg( 'token', array( 'required' => true ) ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/waitlist/entries', array(
 			'methods' => \WP_REST_Server::READABLE,
@@ -904,7 +978,7 @@ final class Controller {
 	public static function accept_waitlist_offer( \WP_REST_Request $request ) {
 		// Attendee data (participant fields) is collected on acceptance (A536); Orders::validate_attendees() sanitises it.
 		$attendees = $request->get_param( 'attendees' );
-		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => ! empty( $request->get_param( 'accept_terms' ) ), 'terms_version' => \PassCaptain\Http::str( $request->get_param( 'terms_version' ) ), 'locale' => \PassCaptain\Http::str( $request->get_param( 'locale' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array() ) );
+		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => \PassCaptain\Http::accepted( $request->get_param( 'accept_terms' ) ), 'terms_version' => \PassCaptain\Http::str( $request->get_param( 'terms_version' ) ), 'locale' => \PassCaptain\Http::str( $request->get_param( 'locale' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array() ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
@@ -1080,7 +1154,12 @@ final class Controller {
 
 	public static function book_service_slot( \WP_REST_Request $request ) {
 		$payload = $request->get_json_params();
-		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', absint( $payload['quantity'] ?? 1 ), 0, 10, $payload['idempotency_key'] ?? '' );
+		// A421: -2 or 2.5 is no quantity (absint() turned -2 into 2); 1 when not given.
+		$quantity = isset( $payload['quantity'] ) ? \PassCaptain\Http::positive_int( $payload['quantity'] ) : 1;
+		if ( $quantity < 1 || $quantity > ServiceBookings::MAX_QUANTITY ) {
+			return new \WP_Error( 'wpcap_service_quantity', __( 'Bitte eine gültige Anzahl angeben.', 'pass-captain' ), array( 'status' => 400, 'field' => 'quantity' ) );
+		}
+		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', $quantity, 0, 10, $payload['idempotency_key'] ?? '' );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

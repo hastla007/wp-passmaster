@@ -878,7 +878,7 @@ final class Waitlists {
 		$locale = Mail\Mailer::normalize_locale( is_string( $args['locale'] ?? null ) ? $args['locale'] : '' );
 		if ( '' === $locale ) { $locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }
 		if ( Settings::get( 'require_terms' ) ) {
-			if ( empty( $args['accept_terms'] ) ) {
+			if ( ! Http::accepted( $args['accept_terms'] ?? null ) ) {
 				return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$shown = is_string( $args['terms_version'] ?? null ) ? $args['terms_version'] : '';
@@ -1749,7 +1749,7 @@ final class Waitlists {
 		$decline = 'decline' === $decision;
 		// Attendee data (A536) is sanitised field by field in Orders::validate_attendees().
 		$attendees = isset( $_POST['attendees'] ) && is_array( $_POST['attendees'] ) ? wp_unslash( $_POST['attendees'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated per configured field.
-		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => ! empty( $_POST['accept_terms'] ), 'terms_version' => sanitize_text_field( wp_unslash( (string) ( $_POST['terms_version'] ?? '' ) ) ), 'locale' => sanitize_text_field( wp_unslash( (string) ( $_POST['locale'] ?? '' ) ) ), 'attendees' => $attendees ) );
+		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => Http::accepted( sanitize_text_field( wp_unslash( (string) ( $_POST['accept_terms'] ?? '' ) ) ) ), 'terms_version' => sanitize_text_field( wp_unslash( (string) ( $_POST['terms_version'] ?? '' ) ) ), 'locale' => sanitize_text_field( wp_unslash( (string) ( $_POST['locale'] ?? '' ) ) ), 'attendees' => $attendees ) );
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 		// A317: Post/Redirect/Get. An answered offer goes to its result page (reload and back never post
 		// again); a paid acceptance with a hosted payment page goes straight there. A second submit of an

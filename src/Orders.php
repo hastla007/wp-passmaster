@@ -67,7 +67,7 @@ final class Orders {
 		$hold_minutes = max( 1, absint( $internal['hold_minutes'] ?? Settings::get( 'hold_minutes' ) ?? self::HOLD_MINUTES ) );
 		$line_taxes = ( $external && is_array( $internal['line_taxes'] ?? null ) ) ? array_map( 'absint', $internal['line_taxes'] ) : array();
 		$payment_provider = sanitize_key( $internal['payment_provider'] ?? ( $external ? ( $internal['source'] ?? 'external' ) : 'manual' ) );
-		if ( ! $external && Settings::get( 'require_terms' ) && empty( $payload['accept_terms'] ) ) {
+		if ( ! $external && Settings::get( 'require_terms' ) && ! Http::accepted( $payload['accept_terms'] ?? null ) ) {
 			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		// Buyer language: the locale the checkout form was rendered in (legal texts, mails), else the request locale.
@@ -92,12 +92,17 @@ final class Orders {
 		}
 		$changed_prices = array();
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
+		// A420: a public checkout key belongs to exactly one cart (schema 3.10.25; '' before the upgrade).
+		$request_hash = ! $external && '' === $namespace && Log::has_column( 'wpcap_orders', 'request_hash' ) ? self::request_fingerprint( $email, $lines, $payload ) : '';
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status' . ( '' !== $request_hash ? ',request_hash' : '' ) . " FROM $orders_table WHERE idempotency_key = %s", $key_hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal column list.
 		if ( '' !== $wpdb->last_error ) {
 			// Unknown whether an order with this key exists: never create a second one.
 			return Errors::busy();
 		}
 		if ( $existing ) {
+			if ( '' !== $request_hash && '' !== (string) ( $existing->request_hash ?? '' ) && ! hash_equals( (string) $existing->request_hash, $request_hash ) ) {
+				return self::key_reused_error();
+			}
 			return self::reused_order( $existing );
 		}
 		// The form names the version it showed: accepting texts that changed meanwhile is no valid consent.
@@ -341,6 +346,7 @@ final class Orders {
 			);
 			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
 			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
+			if ( '' !== $request_hash ) { $order_row['request_hash'] = $request_hash; }
 			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
 				// Only a duplicate idempotency key is a lost race; anything else is a transient error.
@@ -418,7 +424,7 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			if ( ! ( $lost && $commit_unknown && self::order_committed( $order_id, $key_hash ) ) ) {
 				if ( $lost ) { self::discard_lost_order( $order_id, $key_hash, $occurrence_ids ?? array() ); }
-				return self::checkout_error( $error->getMessage(), $custom_error, $key_hash, $error, array( 'db_error' => $db_error, 'lost_connection' => $lost, 'commit_unknown' => $commit_unknown, 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'provider' => sanitize_key( (string) ( $internal['payment_provider'] ?? '' ) ), 'ticket_type_ids' => array_slice( array_keys( $clean_lines ), 0, 20 ) ) );
+				return self::checkout_error( $error->getMessage(), $custom_error, $key_hash, $error, array( 'db_error' => $db_error, 'lost_connection' => $lost, 'commit_unknown' => $commit_unknown, 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'provider' => sanitize_key( (string) ( $internal['payment_provider'] ?? '' ) ), 'ticket_type_ids' => array_slice( array_keys( $clean_lines ), 0, 20 ), 'request_hash' => $request_hash ) );
 			}
 		}
 
@@ -677,6 +683,37 @@ final class Orders {
 	 * Result of a checkout retried with a known idempotency key. A paid order whose issuance failed
 	 * earlier (database error after the payment was booked) gets its missing tickets now.
 	 */
+	/**
+	 * A420: fingerprint of a public checkout request – e-mail, ticket lines (type => quantity, summed
+	 * and sorted), campaign and voucher codes. A retry with the same idempotency key must send the
+	 * same content; another cart under the same key gets 409 instead of the first order.
+	 *
+	 * @param string $email   Sanitised e-mail.
+	 * @param mixed  $lines   Raw `items`.
+	 * @param array  $payload Customer payload.
+	 */
+	public static function request_fingerprint( $email, $lines, array $payload ) {
+		$items = array();
+		foreach ( is_array( $lines ) ? $lines : array() as $line ) {
+			$type_id = is_array( $line ) ? Http::positive_int( $line['ticket_type_id'] ?? 0 ) : 0;
+			if ( $type_id ) { $items[ $type_id ] = ( $items[ $type_id ] ?? 0 ) + Http::positive_int( $line['quantity'] ?? 0 ); }
+		}
+		ksort( $items );
+		$codes = array();
+		foreach ( is_array( $payload['campaign_codes'] ?? null ) ? $payload['campaign_codes'] : array() as $code ) {
+			$code = strtoupper( trim( sanitize_text_field( Http::str( $code ) ) ) );
+			if ( '' !== $code ) { $codes[ $code ] = true; }
+		}
+		ksort( $codes );
+		$voucher = strtoupper( trim( sanitize_text_field( Http::str( $payload['voucher_code'] ?? '' ) ) ) );
+		return hash( 'sha256', (string) wp_json_encode( array( strtolower( (string) $email ), $items, array_keys( $codes ), $voucher ) ) );
+	}
+
+	/** A420: 409 for an idempotency key that already belongs to another cart; nothing was booked. */
+	private static function key_reused_error() {
+		return new \WP_Error( 'wpcap_idempotency_conflict', __( 'Dieser Bestellversuch gehört zu einem anderen Warenkorb. Bitte lade die Seite neu und bestelle erneut.', 'pass-captain' ), array( 'status' => 409, 'reason' => 'idempotency_key_reused' ) );
+	}
+
 	private static function reused_order( $existing ) {
 		if ( 'paid' === $existing->payment_status ) {
 			$issued = self::issue_and_email( (int) $existing->order_id );
@@ -786,8 +823,11 @@ final class Orders {
 		);
 		if ( 'order_insert_failed' === $code ) {
 			// A concurrent request with the same idempotency key won the unique index.
-			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM {$wpdb->prefix}wpcap_orders WHERE idempotency_key = %s", $key_hash ) );
+			$request_hash = (string) ( $context['request_hash'] ?? '' );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status' . ( '' !== $request_hash ? ',request_hash' : '' ) . " FROM {$wpdb->prefix}wpcap_orders WHERE idempotency_key = %s", $key_hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal column list.
 			if ( $existing ) {
+				// A420: the parallel winner of this key may have booked another cart.
+				if ( '' !== $request_hash && '' !== (string) ( $existing->request_hash ?? '' ) && ! hash_equals( (string) $existing->request_hash, $request_hash ) ) { return self::key_reused_error(); }
 				return self::reused_order( $existing );
 			}
 			$code = 'db_busy';

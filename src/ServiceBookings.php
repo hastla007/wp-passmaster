@@ -8,6 +8,9 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class ServiceBookings {
+	/** Most places of one service booking (REST refuses more with 400, A421). */
+	const MAX_QUANTITY = 20;
+
 	/**
 	 * Reserves places in a slot as a hold (status `held`, expires after $minutes, max. 15).
 	 *
@@ -24,7 +27,7 @@ final class ServiceBookings {
 		global $wpdb;
 		$slot_id = absint( $slot_id );
 		$email = Http::email( $email );
-		$quantity = min( 20, max( 1, absint( $quantity ) ) );
+		$quantity = min( self::MAX_QUANTITY, max( 1, absint( $quantity ) ) );
 		$idempotency_key = sanitize_text_field( Http::str( $idempotency_key ) );
 		if ( ! $slot_id || ! Http::valid_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		if ( ! RateLimit::allow( 'servicebook|' . strtolower( $email ), 20, HOUR_IN_SECONDS ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }

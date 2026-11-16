@@ -227,7 +227,7 @@ final class Sms {
 
 	/** wpcap_order_creating: store consent; a number without consent is discarded. */
 	public static function store_consent( $order_id, $selected = array(), $payload = array(), $internal = array() ) {
-		if ( empty( $payload['sms_consent'] ) || ! empty( $internal['external'] ) || ! Service::enabled() ) { return; }
+		if ( ! \PassCaptain\Http::accepted( $payload['sms_consent'] ?? null ) || ! empty( $internal['external'] ) || ! Service::enabled() ) { return; }
 		$phone = Service::normalize_phone( is_scalar( $payload['sms_phone'] ?? null ) ? $payload['sms_phone'] : '' );
 		if ( '' === $phone ) { throw new \RuntimeException( 'sms_phone_invalid' ); }
 		if ( ! Service::number_allowed( $phone ) ) { throw new \RuntimeException( 'sms_phone_not_allowed' ); }
