@@ -164,9 +164,49 @@ final class Calendar {
 		}
 		$wrapper = $block && function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-calendar wpcap-calendar-' . $view ) ) : '';
 		if ( 'list' === $view ) { return self::render_list( $event_id, $limit, $wrapper ); }
+		// A452: every month calendar of the page has its own parameter (wpcap_month, wpcap_month_2, …),
+		// so two calendars page independently and keep each other's month.
+		$instance = ++self::$month_instances;
+		$param = self::month_param( $instance );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- navigation only.
-		$month = isset( $_GET['wpcap_month'] ) ? sanitize_text_field( wp_unslash( $_GET['wpcap_month'] ) ) : '';
-		return self::render_month( $month, $event_id, $wrapper );
+		$month = isset( $_GET[ $param ] ) && is_string( $_GET[ $param ] ) ? sanitize_text_field( wp_unslash( $_GET[ $param ] ) ) : '';
+		return self::render_month( $month, $event_id, $wrapper, $instance );
+	}
+
+	/** Month calendars rendered in this request (numbering of their navigation parameters). */
+	private static $month_instances = 0;
+
+	/** Query parameter of the n-th month calendar of a page: wpcap_month, then wpcap_month_2, … */
+	public static function month_param( $instance ) {
+		return (int) $instance > 1 ? 'wpcap_month_' . (int) $instance : 'wpcap_month';
+	}
+
+	/**
+	 * Link of the month navigation (A452): the URL of the current request (not the permalink of the
+	 * global post, which is wrong in widgets, template parts, archives and query loops) with only
+	 * this calendar's parameter replaced; the other query parameters, including the months of
+	 * other calendars on the page, stay. The fragment jumps back to this calendar's navigation.
+	 * During REST rendering (editor preview) the permalink of the edited post is the base.
+	 */
+	public static function nav_url( $param, $value, $fragment = '' ) {
+		$uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only rebuilt into a relative URL, escaped on output.
+		$rest = defined( 'REST_REQUEST' ) && REST_REQUEST;
+		if ( $rest || '' === $uri || '/' !== $uri[0] ) {
+			$uri = function_exists( 'get_permalink' ) ? (string) get_permalink() : '';
+			if ( '' === $uri ) { $uri = home_url( '/' ); }
+		} else {
+			// Never let the path become protocol-relative (//host/…) or a backslash variant of it.
+			$uri = '/' . ltrim( $uri, '/\\' );
+		}
+		$uri = explode( '#', $uri, 2 )[0];
+		$parts = explode( '?', $uri, 2 );
+		$pairs = array();
+		foreach ( isset( $parts[1] ) && '' !== $parts[1] ? explode( '&', $parts[1] ) : array() as $pair ) {
+			if ( '' === $pair || urldecode( explode( '=', $pair, 2 )[0] ) === $param ) { continue; }
+			$pairs[] = $pair;
+		}
+		$pairs[] = rawurlencode( $param ) . '=' . rawurlencode( (string) $value );
+		return $parts[0] . '?' . implode( '&', $pairs ) . ( '' !== $fragment ? '#' . rawurlencode( $fragment ) : '' );
 	}
 
 	/** Opening tag of the root element: block wrapper attributes or the plain classes. */
@@ -236,7 +276,7 @@ final class Calendar {
 	}
 
 	/** Accessible month grid (table with caption, column headers and per-day lists). */
-	public static function render_month( $month = '', $event_id = 0, $wrapper = '' ) {
+	public static function render_month( $month = '', $event_id = 0, $wrapper = '', $instance = 1 ) {
 		$tz_name = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
 		try {
 			$tz = new \DateTimeZone( $tz_name ?: 'UTC' );
@@ -262,11 +302,13 @@ final class Calendar {
 		$months = array( 1 => __( 'Januar', 'pass-captain' ), __( 'Februar', 'pass-captain' ), __( 'März', 'pass-captain' ), __( 'April', 'pass-captain' ), __( 'Mai', 'pass-captain' ), __( 'Juni', 'pass-captain' ), __( 'Juli', 'pass-captain' ), __( 'August', 'pass-captain' ), __( 'September', 'pass-captain' ), __( 'Oktober', 'pass-captain' ), __( 'November', 'pass-captain' ), __( 'Dezember', 'pass-captain' ) );
 		$days = array( __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ), __( 'Sonntag', 'pass-captain' ) );
 		$title = $months[ (int) $first->format( 'n' ) ] . ' ' . $first->format( 'Y' );
-		$base = function_exists( 'get_permalink' ) ? (string) get_permalink() : home_url( '/' );
+		$instance = max( 1, (int) $instance );
+		$param = self::month_param( $instance );
+		$nav_id = 'wpcap-cal-nav-' . $instance;
 		$out = self::open_root( (string) $wrapper, 'month' );
-		$out .= '<nav class="wpcap-cal-nav" aria-label="' . esc_attr__( 'Monat wechseln', 'pass-captain' ) . '">';
-		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $prev->format( 'Y-m' ), $base ) ) . '" rel="prev">' . esc_html__( '← Vorheriger Monat', 'pass-captain' ) . '</a> ';
-		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $next->format( 'Y-m' ), $base ) ) . '" rel="next">' . esc_html__( 'Nächster Monat →', 'pass-captain' ) . '</a></nav>';
+		$out .= '<nav class="wpcap-cal-nav" id="' . esc_attr( $nav_id ) . '" aria-label="' . esc_attr__( 'Monat wechseln', 'pass-captain' ) . '">';
+		$out .= '<a href="' . esc_url( self::nav_url( $param, $prev->format( 'Y-m' ), $nav_id ) ) . '" rel="prev">' . esc_html__( '← Vorheriger Monat', 'pass-captain' ) . '</a> ';
+		$out .= '<a href="' . esc_url( self::nav_url( $param, $next->format( 'Y-m' ), $nav_id ) ) . '" rel="next">' . esc_html__( 'Nächster Monat →', 'pass-captain' ) . '</a></nav>';
 		$out .= '<table class="wpcap-cal-grid"><caption>' . esc_html( $title ) . '</caption><thead><tr>';
 		foreach ( $days as $day ) {
 			$out .= '<th scope="col"><abbr title="' . esc_attr( $day ) . '">' . esc_html( function_exists( 'mb_substr' ) ? mb_substr( $day, 0, 2 ) : substr( $day, 0, 2 ) ) . '</abbr></th>';
