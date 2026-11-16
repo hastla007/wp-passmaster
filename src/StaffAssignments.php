@@ -56,6 +56,43 @@ final class StaffAssignments {
 		return get_user_by( 'login', sanitize_text_field( $ref ) ) ?: null;
 	}
 
+	/**
+	 * A user that may be put into an event team, an entry area or an occurrence assignment by the
+	 * current user (A471, A636), or null. Unknown accounts, accounts that are not a member of this
+	 * site (multisite: assigning would pull any network user into the site and grant wpcap_checkin
+	 * there) and – for callers without `list_users` – accounts without a Pass Captain capability are
+	 * all refused the same way (assignable_error()), so the form is no account-existence oracle.
+	 * Administrators (list_users) may still add any member of the site; event managers delegate to
+	 * people who already hold a Pass Captain role.
+	 *
+	 * @param string|int $ref User id, login or e-mail.
+	 * @return object|null
+	 */
+	public static function assignable_user( $ref ) {
+		$user = self::find_user( (string) $ref );
+		if ( ! $user || empty( $user->ID ) ) { return null; }
+		$user_id = (int) $user->ID;
+		if ( function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'is_user_member_of_blog' ) && ! is_user_member_of_blog( $user_id, function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 0 ) ) { return null; }
+		if ( ! current_user_can( 'list_users' ) && ! self::is_plugin_staff( $user ) ) { return null; }
+		return $user;
+	}
+
+	/** Whether the user holds any Pass Captain capability on this site (role or user capability). */
+	public static function is_plugin_staff( $user ) {
+		foreach ( Installer::CAPABILITIES as $capability ) {
+			if ( user_can( $user, $capability ) ) { return true; }
+		}
+		return false;
+	}
+
+	/**
+	 * The one answer for every refused account (unknown, not on this site, no Pass Captain role),
+	 * see assignable_user().
+	 */
+	public static function assignable_error( $code = 'wpcap_assignment_user' ) {
+		return self::error( $code, __( 'Benutzer nicht gefunden oder nicht zuweisbar. Zuweisen lassen sich Mitglieder dieser Website mit einer Pass-Captain-Rolle (z. B. Einlass oder Veranstaltungsleitung).', 'pass-captain' ) );
+	}
+
 	/** Event id of an assignable object (0 when it does not exist). */
 	public static function object_event( $scope, $object_id ) {
 		global $wpdb;
@@ -188,8 +225,8 @@ final class StaffAssignments {
 		$event_id = self::object_event( $scope, $object_id );
 		if ( ! $event_id ) { return self::error( 'wpcap_assignment_object', __( 'Zuweisungsziel nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $scope, $object_id ) ) { return self::error( 'wpcap_assignment_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
-		$user = is_object( $user ) ? $user : self::find_user( (string) $user );
-		if ( ! $user || empty( $user->ID ) ) { return self::error( 'wpcap_assignment_user', __( 'Benutzer nicht gefunden.', 'pass-captain' ) ); }
+		$user = is_object( $user ) && ! empty( $user->ID ) ? self::assignable_user( (string) (int) $user->ID ) : self::assignable_user( (string) $user );
+		if ( ! $user ) { return self::assignable_error(); }
 		if ( 'occurrence' === $scope ) {
 			// Narrows an existing event-team entry; it never grants access on its own.
 			if ( ! in_array( $capability, self::team_caps( (int) $user->ID, $event_id ), true ) ) {

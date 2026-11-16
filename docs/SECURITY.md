@@ -185,6 +185,15 @@ bzw. `service_booking_no_show` ins Audit-Log und löst `wpcap_service_booking_st
 Andere Events, Bestellungen, Tickets, Berichte oder fremde Ressourcen erreicht die Rolle nicht; die Verknüpfung
 vergibt nie selbst ein Recht (die Rolle muss vorhanden sein), ein deaktivierter Datensatz entzieht den Zugang.
 
+**Wen das Event-Team aufnehmen kann (A471, A636):** Event-Team, Einlassbereiche und Terminzuweisungen nehmen
+nur Mitglieder der aktuellen Site auf (`StaffAssignments::assignable_user()`; im Netzwerk würde eine Zuweisung
+sonst ein beliebiges Netzwerkkonto mit `wpcap_checkin` in die Site holen). Eine Veranstaltungsleitung ohne
+`list_users` kann nur Personen zuweisen, die bereits eine Pass-Captain-Rolle bzw. -Capability haben;
+Administratoren dürfen jedes Mitglied der Site zuweisen (Einlasspersonal ohne Plugin-Rolle). Unbekannte
+Konten, Konten anderer Sites und Konten ohne Rolle bekommen dieselbe Meldung (auch bei fehlendem Einzelrecht
+für Nicht-Administratoren), und die Eventberechtigung wird vor dem Konto geprüft – die Zuweisung verrät nicht,
+ob ein Login oder eine E-Mail-Adresse existiert.
+
 **Rollenentzug und Löschen von Benutzern (A277, A278):** Einlasspersonal ohne Plugin-Rolle bekommt `wpcap_checkin`
 mit der Team-Zuweisung als Benutzer-Capability. Damit Zugänge eine Rollenänderung nicht überleben, nimmt
 `UserAccess` beim Entzug einer Rolle (`set_user_role` mit einer wegfallenden Rolle, `remove_user_role`) diese

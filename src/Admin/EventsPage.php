@@ -663,30 +663,30 @@ final class EventsPage {
 		return array( 'field_id' => (int) $field->field_id, 'ticket_type_id' => (int) $field->ticket_type_id );
 	}
 
-	/** Resolves a user by id, login or e-mail. */
-	private static function find_user( $ref ) {
-		$ref = trim( (string) $ref );
-		if ( '' === $ref ) { return null; }
-		if ( ctype_digit( $ref ) ) { return get_user_by( 'id', absint( $ref ) ) ?: null; }
-		if ( is_email( $ref ) ) { return get_user_by( 'email', $ref ) ?: null; }
-		return get_user_by( 'login', sanitize_text_field( $ref ) ) ?: null;
-	}
-
-	/** Assigns event-scoped access to a user. */
+	/**
+	 * Assigns event-scoped access to a user. The account must be assignable (A471, A636:
+	 * StaffAssignments::assignable_user() – member of this site and, for event managers without
+	 * `list_users`, already holding a Pass Captain role); every refused account gets the same answer.
+	 * "Event verwalten" includes delegating the event's rights within the event (CONCEPT.md).
+	 */
 	public static function assign_staff( array $in ) {
 		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
 		$event_id = Forms::int( $in, 'event_id' );
 		$capability = Forms::choice( $in, 'capability', self::STAFF_CAPS, '' );
-		$user = self::find_user( $in['user'] ?? ( $in['user_id'] ?? '' ) );
-		if ( ! $event_id || ! $user || '' === $capability || ! Queries::event( $event_id ) ) {
+		if ( ! $event_id || '' === $capability || ! Queries::event( $event_id ) ) {
 			return Forms::error( 'wpcap_staff_invalid', __( 'Zuweisung ungültig.', 'pass-captain' ) );
 		}
+		// Access first: people without rights for the event learn nothing about accounts.
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
+		$user = \PassCaptain\StaffAssignments::assignable_user( (string) ( $in['user'] ?? ( $in['user_id'] ?? '' ) ) );
+		if ( ! $user ) { return \PassCaptain\StaffAssignments::assignable_error( 'wpcap_staff_invalid' ); }
 		if ( 'wpcap_checkin' === $capability ) {
 			// Taken back with the last check-in assignment and on every role removal (UserAccess, A277).
 			$user->add_cap( 'wpcap_checkin' );
 		} elseif ( ! user_can( $user, $capability ) ) {
 			// Event scope never grants a role capability implicitly; the user needs a matching role.
+			// Callers who cannot list users get the same answer as for an unknown account (A636).
+			if ( ! current_user_can( 'list_users' ) ) { return \PassCaptain\StaffAssignments::assignable_error( 'wpcap_staff_invalid' ); }
 			return Forms::error( 'wpcap_staff_role', __( 'Der Benutzer hat dieses Recht nicht über seine Rolle (z. B. Pass Captain Veranstaltungsleitung). Bitte zuerst die Rolle zuweisen.', 'pass-captain' ) );
 		}
 		global $wpdb;

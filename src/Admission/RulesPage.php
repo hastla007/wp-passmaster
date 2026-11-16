@@ -81,21 +81,15 @@ final class RulesPage {
 		return array( 'area_id' => (int) $area->area_id, 'event_id' => (int) $area->event_id );
 	}
 
-	private static function find_user( $ref ) {
-		$ref = trim( (string) $ref );
-		if ( '' === $ref || ! function_exists( 'get_user_by' ) ) { return null; }
-		if ( ctype_digit( $ref ) ) { return get_user_by( 'id', absint( $ref ) ) ?: null; }
-		if ( is_email( $ref ) ) { return get_user_by( 'email', $ref ) ?: null; }
-		return get_user_by( 'login', sanitize_text_field( $ref ) ) ?: null;
-	}
-
 	/** Assigns a staff member to an area (restricts their scanning for this event to their areas). */
 	public static function add_staff( array $in ) {
 		$area = Areas::get( Forms::int( $in, 'area_id' ) );
 		if ( ! $area ) { return Forms::error( 'wpcap_area_missing', __( 'Bereich nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can( $area->event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
-		$user = self::find_user( $in['user'] ?? '' );
-		if ( ! $user ) { return Forms::error( 'wpcap_staff_invalid', __( 'Benutzer nicht gefunden.', 'pass-captain' ) ); }
+		// A471: only members of this site with a Pass Captain role (administrators: any member); one
+		// answer for every refused account.
+		$user = \PassCaptain\StaffAssignments::assignable_user( (string) ( $in['user'] ?? '' ) );
+		if ( ! $user ) { return \PassCaptain\StaffAssignments::assignable_error( 'wpcap_staff_invalid' ); }
 		Areas::add_staff( $area->area_id, $user->ID );
 		Audit::record( 'admission_area_staff_added', 'admission_area', (int) $area->area_id, array( 'event_id' => (int) $area->event_id, 'user_id' => (int) $user->ID ) );
 		return array( 'area_id' => (int) $area->area_id, 'event_id' => (int) $area->event_id, 'user_id' => (int) $user->ID );

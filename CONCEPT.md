@@ -556,6 +556,7 @@ Ticket Captain verwendet eigene Capabilities. Ein Rollenpaket allein gewährt ke
 - Partner und Einlasspersonal sehen nur Daten, die für ihre Aufgabe notwendig sind. Sensible Zusatzfelder sind standardmäßig deaktiviert und benötigen einen eigenen Zweck sowie eine gesonderte Berechtigung.
 - Exporte respektieren Eventscope und Feldberechtigungen. Globale Exporte bleiben Ticket-Administration und autorisierter Finanzbuchhaltung vorbehalten.
 - Erstattungen, Ticketübertragungen, Teilnehmerdatenänderungen, Check-in-Korrekturen, Exporte und Rechteänderungen werden mit Nutzer, Objekt, Zeitpunkt und Grund protokolliert.
+- „Event verwalten“ schließt die Delegation im eigenen Event ein: Wer `wpcap_manage_events` für ein Event hat, darf dessen Rechte (Einlass, Bestellungen/Kasse, Event verwalten, Berichte) an Personen im Event-Team vergeben – auch an sich selbst. Zuweisbar sind nur Mitglieder der aktuellen Site, die bereits eine Pass-Captain-Rolle haben (Administratoren mit `list_users`: jedes Mitglied der Site); unbekannte, fremde und rollenlose Konten erhalten dieselbe Antwort, damit die Zuweisung kein Konten-Orakel ist (A471, A636).
 - Keine gemeinsamen Benutzerkonten. Scannerzugänge sind personengebunden oder zeitlich begrenzte, eventgebundene Gerätesitzungen.
 - Mehr-Faktor-Authentifizierung für Ticket-Administration und Finanzrollen unterstützen. Hochwertige Erstattungen und Sammelaktionen können eine zweite Freigabe verlangen.
 - Supportzugriff auf personenbezogene Daten ist zeitlich begrenzt und protokolliert; keine verdeckte Admin-Impersonation.
