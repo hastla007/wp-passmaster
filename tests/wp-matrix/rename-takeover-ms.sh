@@ -26,6 +26,8 @@ wpc site create --slug=two --title=Two >/dev/null
 LOG="$WP/wp-content/debug.log"; rm -f "$LOG"
 state() { wpc --url="$SUB" eval-file "$DIR/state.php" | php -r '$s = json_decode( stream_get_contents( STDIN ), true ); echo $s["data_hash"], " ", $s["orders"], " ", $s["tables"];'; }
 flag() { wpc --url="$SUB" eval '$s = get_option( "wpcap_settings" ); echo (int) ( $s["delete_data_on_uninstall"] ?? 0 );'; }
+# The opt-in itself lives in wpcap_uninstall_policy; the old key (read by the old copy's uninstall.php) stays 0.
+policy() { wpc --url="$SUB" eval 'echo get_option( "wpcap_uninstall_policy", "-" );'; }
 
 # 1. Old release network-activated, data and opt-in on the subsite.
 wpc plugin install "$OLD_ZIP" >/dev/null 2>&1 && wpc plugin activate "$OLD" --network >/dev/null 2>&1 && ok "old release network-activated" || bad "old release could not be network-activated"
@@ -49,7 +51,7 @@ wpc plugin uninstall "$OLD" >/dev/null 2>&1 && ok "old copy uninstalled network-
 AFTER="$(state)"; read -r H2 ORD2 TBL2 <<<"$AFTER"; read -r H1 _ _ <<<"$BEFORE"
 [ "$H2" = "$H1" ] && [ "$ORD2" = "$ORD" ] && [ "${TBL2:-0}" -ge "$TBL" ] && ok "subsite keeps all tables and data ($TBL2 tables after the schema upgrade)" || bad "subsite data lost: $AFTER vs $BEFORE"
 wpc eval 'echo "";' >/dev/null 2>&1   # any request: notices the old folder is gone, restores the settings network-wide
-[ "$(flag)" = "1" ] && ok "subsite's delete-on-uninstall restored" || bad "subsite's setting not restored (flag=$(flag))"
+[ "$(flag)$(policy)" = "0delete" ] && ok "subsite's delete-on-uninstall still on (wpcap_uninstall_policy), old key stays 0" || bad "subsite's setting not restored (flag=$(flag), policy=$(policy))"
 wpc --url="$SUB" eval 'echo "";' >/dev/null 2>&1   # first request on the subsite: cron self-healing on init
 grep -q '^wpcap_process_jobs' <<<"$(wpc --url="$SUB" cron event list --fields=hook --format=csv 2>/dev/null)" && ok "subsite cron events scheduled again" || bad "subsite cron events missing"
 ERR="$( [ -f "$LOG" ] && grep -E "PHP (Fatal|Warning|Notice|Deprecated|Parse)" "$LOG" | grep -iE "pass-captain" || true )"
