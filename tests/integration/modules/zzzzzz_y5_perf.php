@@ -143,9 +143,15 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r instanceof WP_REST_Response ? $r : new WP_REST_Response( $r ); } }
 $y5_req = new WP_REST_Request( 'GET', '/wp-pass-captain/v1/events' );
 PriceRules::flush_cache();
+// The budget is for this module's fixture (rules, pools, translations, holds, waitlist offers). In a full run
+// earlier modules leave published events with pass types, other series rules and pools (a few constant
+// queries per such object, not per occurrence) that would otherwise fill the 100-row listing: hide them.
+$y5_foreign = array_map( 'intval', $wpdb->get_col( "SELECT event_id FROM {$p}wpcap_events WHERE status='published' AND name NOT LIKE 'Y5 %'" ) );
+if ( $y5_foreign ) { $wpdb->query( "UPDATE {$p}wpcap_events SET status='draft' WHERE event_id IN (" . implode( ',', $y5_foreign ) . ')' ); }
 $y5_before = $wpdb->num_queries;
 $y5_events = PassCaptain\Rest\Controller::events( $y5_req )->get_data();
 $y5_q_rest = $wpdb->num_queries - $y5_before;
+if ( $y5_foreign ) { $wpdb->query( "UPDATE {$p}wpcap_events SET status='published' WHERE event_id IN (" . implode( ',', $y5_foreign ) . ')' ); }
 $y5_ticket_count = array_sum( array_map( static fn( $e ) => count( $e['tickets'] ), $y5_events ) );
 check( "GET /events: " . count( $y5_events ) . " occurrences with $y5_ticket_count ticket types in $y5_q_rest queries (budget 25)", count( $y5_events ) >= 24 && $y5_q_rest <= 25 );
 $y5_rest_ok = true;
@@ -479,9 +485,15 @@ check( 'PERF-11: register_assets no longer queries the payment providers (dead c
 $y5_flag = new ReflectionProperty( PassCaptain\PublicEvents::class, 'scanner_rendered' );
 $y5_flag->setAccessible( true );
 $y5_flag->setValue( null, false );
+// In a full run zz_a368 defined wp_script_is() first: it reports the scanner script as enqueued unless
+// $GLOBALS['x2_a368_scripts'] says otherwise. This page has no scanner, so say so.
+$y5_a368_scripts = $GLOBALS['x2_a368_scripts'] ?? null;
+$GLOBALS['x2_a368_scripts']['wpcap-scanner']['enqueued'] = false;
 $y5_before = $wpdb->num_queries;
 PassCaptain\Admission\Rest::localize_scanner();
-check( 'PERF-13: no admission area query on pages without the scanner', $y5_before === $wpdb->num_queries );
+$y5_after = $wpdb->num_queries;
+if ( null === $y5_a368_scripts ) { unset( $GLOBALS['x2_a368_scripts'] ); } else { $GLOBALS['x2_a368_scripts'] = $y5_a368_scripts; }
+check( 'PERF-13: no admission area query on pages without the scanner', $y5_before === $y5_after );
 
 // PERF-17 / INT-7: deactivation removes every scheduled hook.
 $y5_hooks = PassCaptain\Plugin::cron_hooks();

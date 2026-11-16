@@ -255,7 +255,13 @@ check( 'PayPal webhook verification failure: error answer without client secret'
 
 /* ======================================================================= SMS / fiscal / wallet errors */
 echo "A194: SMS, fiscal and wallet provider failures\n";
-PassCaptain\Modules\Sms::register();
+// Register the SMS module only once: modules/sms.php may have done it already (the test hook stub, unlike
+// WordPress, does not dedupe identical callbacks – a second register() writes every consent audit row twice).
+$a194_sms_registered = false;
+foreach ( $GLOBALS['wpcap_test_hooks']['wpcap_order_creating'] ?? array() as $a194_cbs ) {
+	foreach ( $a194_cbs as $a194_cb ) { if ( array( PassCaptain\Modules\Sms::class, 'store_consent' ) === $a194_cb[0] ) { $a194_sms_registered = true; } }
+}
+if ( ! $a194_sms_registered ) { PassCaptain\Modules\Sms::register(); }
 $a194_sms_before = Settings::get( 'sms' );
 Settings::update( array( 'twilio_account_sid' => 'AC' . str_repeat( 'c3', 16 ), 'sms' => array_merge( PassCaptain\Modules\Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49' ) ) ) );
 // Merged checkout (PRIV-16): the SMS opt-in needs a confirmed number – a verified code request for it.

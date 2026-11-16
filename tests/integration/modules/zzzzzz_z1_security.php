@@ -107,7 +107,11 @@ check( 'SEC-5: a repeated sign-up replaces the confirmation link (old link inval
 // Confirmation through the admin-post handler (POST only, nonce of the confirmation page).
 $_SERVER['REQUEST_METHOD'] = 'POST';
 $_POST = array( 'waitlist_id' => $z1_id, 'token' => $z1_tok_new, '_wpnonce' => 'n' );
-try { ob_start(); Waitlists::handle_confirm_request(); } catch ( Throwable $e ) { /* Http::end() / wp_die fakes throw. */ } finally { ob_end_clean(); }
+// Http::end() exits after the page; the wpcap_response_end action lets the test stop it with an exception
+// (without it the whole run ended here).
+$z1_end = static function () { throw new RuntimeException( 'z1 response end' ); };
+add_action( 'wpcap_response_end', $z1_end );
+try { ob_start(); Waitlists::handle_confirm_request(); } catch ( Throwable $e ) { /* Http::end() / wp_die fakes throw. */ } finally { ob_end_clean(); remove_action( 'wpcap_response_end', $z1_end ); }
 $_POST = array();
 unset( $_SERVER['REQUEST_METHOD'] );
 check( 'SEC-5: confirmation through the POST handler → position 2 behind the earlier confirmation', 2 === (int) z1_wl( 'z1-first@example.com' )->position && 'waiting' === z1_wl( 'z1-first@example.com' )->status );

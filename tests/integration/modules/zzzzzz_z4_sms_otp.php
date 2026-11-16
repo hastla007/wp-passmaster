@@ -174,7 +174,8 @@ check( 'an unverified consent gets no SMS while verification is on', 'unverified
 // A message queued earlier is skipped at send time.
 $wpdb->insert( $p . 'wpcap_sms_messages', array( 'dedupe_key' => hash( 'sha256', 'z4s-queued' . uniqid() ), 'consent_id' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT consent_id FROM %i WHERE order_id=%d', $p . 'wpcap_sms_consents', $z4s_u['order_id'] ) ), 'order_id' => $z4s_u['order_id'], 'occurrence_id' => $z4s_occ, 'purpose' => 'reschedule', 'body' => 'x', 'status' => 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() - 60 ), 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $z4s_qid = (int) $wpdb->insert_id;
-$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='skipped' WHERE status='queued' AND message_id<>%d", $p . 'wpcap_sms_messages', $z4s_qid ) );
+// Messages of earlier modules: queued ones would be sent, 'unknown' ones (A416) looked up at Twilio first.
+$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='skipped' WHERE status IN ('queued','unknown') AND message_id<>%d", $p . 'wpcap_sms_messages', $z4s_qid ) );
 http_reset();
 Service::process_due();
 check( 'queued message of an unverified consent is skipped at send time (no SMS)', 'skipped' === $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE message_id=%d', $p . 'wpcap_sms_messages', $z4s_qid ) ) && ! http_requests( 'api.twilio.com' ) );

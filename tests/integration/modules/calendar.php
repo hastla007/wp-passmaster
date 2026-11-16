@@ -43,6 +43,7 @@ $event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE
 $start = gmdate( 'Y-m-d H:i:s', time() + 5 * 86400 );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET starts_at=%s, ends_at=NULL, location=%s WHERE occurrence_id=%d", $start, 'Saal 1; Wien, Ring', $occ ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_events SET name=%s, description=%s WHERE event_id=%d", 'Konzert, Nacht; Teil 2', '<p>Ein sehr langer Beschreibungstext mit Umlauten äöü und Sonderzeichen, der über die Zeilenlänge hinausgeht und gefaltet werden muss.</p>', $event ) );
+$cal_saved = Settings::get( 'calendar' ); // Restored at the end.
 Settings::update( array( 'calendar' => array( 'checkout_url' => 'https://example.test/tickets/', 'attach_ics' => 1 ) ) );
 
 $ics = Ics::occurrence_calendar( $occ );
@@ -125,3 +126,9 @@ check( 'event cards get an anchor id', 0 === strpos( $card, '<article id="wpcap-
 check( 'shortcode registered', isset( $GLOBALS['wpcap_test_shortcodes']['wp_pass_captain_calendar'] ) || ! isset( $GLOBALS['wpcap_test_shortcodes'] ) );
 $block = json_decode( (string) file_get_contents( WPCAP_PATH . 'src/blocks/calendar/block.json' ), true );
 check( 'block.json declares a dynamic block with view attribute', 'wp-pass-captain/calendar' === ( $block['name'] ?? '' ) && 'file:./render.php' === ( $block['render'] ?? '' ) && isset( $block['attributes']['view'] ) );
+Settings::update( array( 'calendar' => is_array( $cal_saved ) ? $cal_saved : array() ) );
+// Calendar::register() hooked the ticket mail and resend attachments (ICS, on by default): later modules
+// run without the calendar module and expect only the ticket PDF.
+remove_filter( 'wpcap_ticket_mail', array( Calendar::class, 'attach_ics' ), 20 );
+remove_filter( 'wpcap_ticket_resend_attachments', array( Calendar::class, 'resend_ics' ), 20 );
+remove_filter( 'wpcap_event_card_html', array( Calendar::class, 'add_card_anchor' ), 5 );

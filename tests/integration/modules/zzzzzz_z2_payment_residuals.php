@@ -147,6 +147,14 @@ $GLOBALS['z2_device_on'] = true;
 add_filter( Devices::FILTER, static function ( $devices ) { if ( $GLOBALS['z2_device_on'] ) { $devices['z2'] = $GLOBALS['z2_device']; } return $devices; }, 10, 2 );
 $z2_failed_hooks = array();
 add_action( 'wp_pass_captain_pos_device_payment_failed_v1', static function ( $sale_id, $status ) use ( &$z2_failed_hooks ) { $z2_failed_hooks[] = $status; }, 10, 2 );
+// The back-office refunds of PAY-V4 are requested by user 1, who must not have an open shift of their own
+// (in a full run earlier modules may have left one open, also blocking its register): close it first.
+$z2_user = $GLOBALS['wpcap_test_user_id'];
+$GLOBALS['wpcap_test_user_id'] = 1;
+for ( $z2_i = 0; $z2_i < 5 && ( $z2_own = PassCaptain\BoxOffice\Shifts::current_for_user( 1 ) ); $z2_i++ ) {
+	Z2Pos::close_session( (int) $z2_own->session_id, Z2Pos::session_totals( (int) $z2_own->session_id )['cash']['expected'] ?? 0, 'Z2: Schicht eines früheren Tests' );
+}
+$GLOBALS['wpcap_test_user_id'] = $z2_user;
 $GLOBALS['wpcap_test_user_id'] = 7201;
 $z2_type = make_type( 30, 10, 1200 );
 $z2_occ = wpb_occurrence_of( $z2_type );

@@ -190,6 +190,11 @@ $css = (string) file_get_contents( WPCAP_PATH . 'assets/public.css' ) . (string)
 check( 'A100 styles for badges, stepper, next-date highlight and collapsible lists', false !== strpos( $css, '.wpcap-badge-cancelled' ) && false !== strpos( $css, '.wpcap-step[aria-disabled="true"]' ) && false !== strpos( $css, '.wpcap-event:has(.wpcap-is-next)' ) && false !== strpos( $css, '.wpcap-calendar .wpcap-badge-next' ) );
 
 // Clean up.
+// Calendar::register() above also hooked the ticket mail/resend (ICS attachment, on by default); later
+// modules run without the calendar module and expect only the ticket PDF.
+remove_filter( 'wpcap_ticket_mail', array( Calendar::class, 'attach_ics' ), 20 );
+remove_filter( 'wpcap_ticket_resend_attachments', array( Calendar::class, 'resend_ics' ), 20 );
+remove_filter( 'wpcap_event_card_html', array( Calendar::class, 'add_card_anchor' ), 5 );
 if ( ! is_wp_error( $a100_hold ) ) { Orders::cancel_order( (int) $a100_hold['order_id'] ); }
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='a100_done' WHERE event_id=$a100_event" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE status='a100_hs'" );
