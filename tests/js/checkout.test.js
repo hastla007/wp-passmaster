@@ -179,3 +179,43 @@ test('A311: stepper announces quantity plus a short attendee note, typing announ
 	c.clock.run(50);
 	assert.strictEqual(c.live.textContent, 'Erwachsene: 1 Ticket');
 });
+
+/* ------------------------------------------------------------------ A551 */
+
+test('A551: client-side errors in attendee blocks name the attendee', async () => {
+	const c = load();
+	c.email.value = 'kauf@example.com';
+	c.type(c.qtyA, 2);
+	c.field(c.blocks()[0], 'club').value = 'SV Nord';
+	await c.submit();
+	assert.strictEqual(c.requests.length, 0);
+	assert.deepStrictEqual(c.summary(), ['Teilnehmer:in 2 · Erwachsene: Bitte fülle „Verein“ aus.']);
+	const club2 = c.field(c.blocks()[1], 'club');
+	assert.strictEqual(club2.getAttribute('aria-invalid'), 'true');
+	// The inline note sits inside the block and keeps the short wording.
+	assert.strictEqual(c.doc.getElementById(club2.id + '-error').textContent, 'Bitte fülle „Verein“ aus.');
+});
+
+test('A551: server error with data.index marks the field of that attendee', async () => {
+	const c = load({ reply: () => ({ status: 400, data: { code: 'wpcap_attendee_field_required', message: 'Bitte „Verein“ für jedes Ticket ausfüllen.', data: { status: 400, field: 'attendees', index: 2, ticket_type_id: 11, position: 2, field_key: 'club' } } }) });
+	c.email.value = 'kauf@example.com';
+	c.type(c.qtyA, 3);
+	c.blocks().forEach((b) => { c.field(b, 'club').value = 'x'; });
+	await c.submit();
+	const club3 = c.field(c.blocks()[2], 'club');
+	assert.strictEqual(club3.getAttribute('aria-invalid'), 'true');
+	assert.strictEqual(c.field(c.blocks()[0], 'club').getAttribute('aria-invalid'), null);
+	assert.deepStrictEqual(c.summary(), ['Teilnehmer:in 3 · Erwachsene: Bitte „Verein“ für jedes Ticket ausfüllen.']);
+});
+
+test('A551: server error without index uses ticket type and position', async () => {
+	const c = load({ reply: () => ({ status: 400, data: { code: 'wpcap_attendee_field_invalid', message: '„Verein“ ist ungültig.', data: { status: 400, field: 'attendees', ticket_type_id: 11, position: 1, field_key: 'club' } } }) });
+	c.email.value = 'kauf@example.com';
+	c.type(c.qtyB, 1);
+	c.type(c.qtyA, 2);
+	c.blocks().forEach((b) => { const f = c.field(b, 'club'); if (f) f.value = 'x'; });
+	await c.submit();
+	assert.strictEqual(c.field(c.blocks()[1], 'club').getAttribute('aria-invalid'), 'true');
+	assert.deepStrictEqual(c.summary(), ['Teilnehmer:in 2 · Erwachsene: „Verein“ ist ungültig.']);
+});
+

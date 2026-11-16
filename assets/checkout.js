@@ -306,13 +306,17 @@
 		if (errors.length > 1 && t.errorCount) summary.appendChild(el('p', {}, fill(t.errorCount, [errors.length])));
 		const list = el('ul');
 		errors.forEach(function (error) {
+			// Fields of an attendee block repeat per ticket: name the block ("Teilnehmer:in 2 · Erwachsene", A551).
+			const block = error.input && error.input.closest('.wpcap-attendee');
+			const legend = block && block.querySelector('legend');
+			const text = legend && error.message.indexOf(legend.textContent) !== 0 ? fill(t.attendeeError || '%1$s: %2$s', [legend.textContent, error.message]) : error.message;
 			// A field in a collapsed list (e.g. "Weitere Ticketarten") must be visible to be fixed.
 			const collapsed = error.input && error.input.closest('details:not([open])');
 			if (collapsed) collapsed.open = true;
 			const item = el('li');
 			if (error.input) {
 				markField(error.input, error.message);
-				const link = el('a', { href: '#' + error.input.id }, error.message);
+				const link = el('a', { href: '#' + error.input.id }, text);
 				link.addEventListener('click', function (event) {
 					event.preventDefault();
 					const details = error.input.closest('details');
@@ -322,7 +326,7 @@
 				});
 				item.appendChild(link);
 			} else {
-				item.textContent = error.message;
+				item.textContent = text;
 			}
 			list.appendChild(item);
 		});
@@ -368,6 +372,18 @@
 		if (field === 'items') return form.querySelector('.wpcap-qty');
 		if (field === 'provider') return form.querySelector('[name="provider"]:not([type="hidden"])');
 		if (field === 'attendees') {
+			// The server names the block: data.index (position in the submitted list) or
+			// data.ticket_type_id + data.position (n-th ticket of the type), and data.field_key (A551).
+			const blocks = Array.prototype.slice.call(form.querySelectorAll('.wpcap-attendee'));
+			const info = data.data;
+			let block = Number.isInteger(info.index) ? blocks[info.index] : null;
+			if (!block && info.ticket_type_id && Number.isInteger(info.position)) {
+				block = blocks.filter(function (fs) { return Number(fs.dataset.type) === Number(info.ticket_type_id); })[info.position] || null;
+			}
+			if (block) {
+				const keyed = Array.prototype.slice.call(block.querySelectorAll('[data-key]'));
+				return keyed.filter(function (input) { return info.field_key && input.dataset.key === String(info.field_key); })[0] || keyed[0] || null;
+			}
 			const inputs = Array.prototype.slice.call(form.querySelectorAll('.wpcap-attendee [data-key]'));
 			const quoted = /„([^“]+)“/.exec(data.message || '');
 			if (quoted) {

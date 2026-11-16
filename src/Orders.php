@@ -498,6 +498,10 @@ final class Orders {
 	 * $options['defer_required'] required fields may stay empty (waitlist offer orders: the data is
 	 * collected and fully validated when the offer is accepted, A536).
 	 *
+	 * Errors carry which attendee is meant (A551): `ticket_type_id`, `position` (0-based n-th ticket
+	 * of that type), `index` (0-based position in the submitted list, when that entry was sent) and
+	 * `field_key` (participant field) in the error data.
+	 *
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
 	public static function validate_attendees( array $lines, $attendees, array $options = array() ) {
@@ -508,9 +512,18 @@ final class Orders {
 		$defer_required = ! empty( $options['defer_required'] );
 		foreach ( $lines as $type_id => $quantity ) {
 			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) );
-			$given = array_values( array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } ) );
+			$given = array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } );
+			// Position of each entry in the submitted list: error data names the attendee (A551).
+			$given_index = array_keys( $given );
+			$given = array_values( $given );
+			$where = static function ( $i, $field = null ) use ( $type_id, $given_index ) {
+				$data = array( 'status' => 400, 'ticket_type_id' => (int) $type_id, 'position' => (int) $i );
+				if ( isset( $given_index[ $i ] ) ) { $data['index'] = (int) $given_index[ $i ]; }
+				if ( $field ) { $data['field_key'] = (string) $field->field_key; }
+				return $data;
+			};
 			if ( count( $given ) > $quantity ) {
-				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), $where( (int) $quantity ) );
 			}
 			$needs_all = ! $defer_required && (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
 			for ( $i = 0; $i < $quantity; $i++ ) {
@@ -528,11 +541,11 @@ final class Orders {
 					else { $value = sanitize_text_field( $value ); }
 					if ( (int) $field->required && '' === $value && ! $defer_required ) {
 						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
+						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
 					}
 					if ( 'email' === $field->field_type && '' !== $value && ! is_email( $value ) ) {
 						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
+						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
 					}
 					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
 				}

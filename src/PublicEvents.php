@@ -58,6 +58,8 @@ final class PublicEvents {
 				'errEmail' => __( '„%s“: Bitte gib eine gültige E-Mail-Adresse ein, z. B. name@example.com.', 'pass-captain' ),
 				/* translators: %s: field label */
 				'errInvalid' => __( '„%s“ ist ungültig.', 'pass-captain' ),
+				/* translators: 1: attendee block ("Teilnehmer:in 2 · Erwachsene"), 2: error message */
+				'attendeeError' => __( '%1$s: %2$s', 'pass-captain' ),
 				'errTerms' => __( 'Bitte bestätige die Bedingungen, um zu bestellen.', 'pass-captain' ),
 				/* translators: 1: ticket type, 2: maximum quantity */
 				'errTooMany' => __( '„%1$s“: Es sind höchstens %2$d Tickets möglich.', 'pass-captain' ),
