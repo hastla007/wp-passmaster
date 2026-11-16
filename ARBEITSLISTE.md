@@ -834,8 +834,9 @@ Gesamt: 262 Aufgaben.
   - src/Seating/Layouts.php:371, Allocations/BuyerLimits.php:51: Auf IDs des Listings einschränken
 - [ ] **A377** [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — _R1 UX_ (TODO L723; Audit Runde 4)
   - src/Partners/AdminPage.php:224, ServiceSlotsPage.php:227/253, EventsPage.php:801–804: Glossar, Benutzerauswahl statt ID
-- [ ] **A378** [OPTIMIERUNG] Tab „Allgemein“ überladen — _R1 UX_ (TODO L724; Audit Runde 4)
+- [x] **A378** [OPTIMIERUNG] Tab „Allgemein“ überladen — _R1 UX_ (TODO L724; Audit Runde 4)
   - src/Admin/SettingsPage.php:36–200: Proxy unter „Erweitert“, Gutscheine nur mit Voucher Captain, Datenschutz eigener Tab
+  - Erledigt: neue Kern-Tabs „Datenschutz“ (Löschfristen) und „Erweitert“ (Proxy/Client-Adresse, Sicherheit, Support, Deinstallation); Abschnitt „Gutscheine“ nur mit Gutscheinanbieter oder gespeichertem Nicht-Standardwert (`SettingsPage::vouchers_relevant()`), ausgeblendet wird er auch nicht gespeichert. Test zz_a378.
 - [x] **A379** [OPTIMIERUNG] Keine Hilfe-Tabs, Verweise auf nicht ausgelieferte docs/ und privates Repo, kein Action-Link — _R1 UX_ (TODO L725; Audit Runde 4)
   - src/Admin/SettingsPage.php:156/184, Partners/AdminPage.php:475, BoxOffice/Page.php:261: add_help_tab, öffentliche Doku-URL, „Einstellungen“-Link in der Pluginliste
   - Erledigt: „Einstellungen“ und „Erste Schritte“ in der Pluginliste (`Menu::plugin_action_links`), Hilfe-Tabs mit Seitenleiste auf allen Plugin-Seiten (`Menu::help_tabs`, Filter `wpcap_help_links`), keine übersetzbaren Verweise mehr auf `docs/*.md` (nicht im ZIP); Übersetzungen beibehalten. Test zz_a379.

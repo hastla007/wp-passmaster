@@ -3,7 +3,7 @@
  * Settings screen (manage_options). Covers every key of Settings::defaults(); keys added later
  * without a definition here are rendered generically under "Weitere Einstellungen".
  *
- * The screen is split into tabs (?tab=general|admission|payments|legal|invoices). A form only
+ * The screen is split into tabs (?tab=general|admission|payments|legal|invoices|privacy|advanced). A form only
  * contains the fields of its tab (on the payments tab: of one provider, ?section=…), and save()
  * only touches the keys of the submitted tab/section, so saving one tab never resets another.
  * Legal texts are kept per language (Settings::legal_texts; default language in the plain keys).
@@ -56,7 +56,7 @@ final class SettingsPage {
 			),
 			'network' => array(
 				'title' => __( 'Proxy / Client-Adresse', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'trusted_proxies' => array( 'type' => 'textarea', 'label' => __( 'Vertrauenswürdige Proxys (IP-Adressen oder CIDR-Bereiche)', 'pass-captain' ), 'overridable' => true, 'description' => __( 'Eine Adresse oder ein Bereich je Zeile, z. B. 10.0.0.0/8 oder die Adressbereiche des CDN. Nur wenn die direkte Gegenstelle (REMOTE_ADDR) hier steht, wird der Weiterleitungs-Header ausgewertet; leer = immer REMOTE_ADDR. Ratenlimits und Einwilligungsnachweise verwenden diese Adresse.', 'pass-captain' ) ),
 					'trusted_proxy_header' => array(
@@ -188,7 +188,7 @@ final class SettingsPage {
 			),
 			'privacy' => array(
 				'title' => __( 'Datenschutz', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'privacy',
 				'fields' => array(
 					'attendee_retention_days' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten nach dem Event löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = Feldeinstellung verwenden.', 'pass-captain' ) ),
 					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 720 ),
@@ -241,21 +241,21 @@ final class SettingsPage {
 			),
 			'security' => array(
 				'title' => __( 'Sicherheit', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'fiscal_allow_local_service' => array( 'type' => 'bool', 'label' => __( 'Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)', 'pass-captain' ), 'description' => __( 'Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden.', 'pass-captain' ) ),
 				),
 			),
 			'support' => array(
 				'title' => __( 'Support und Fehlersuche', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'debug_logging' => array( 'type' => 'bool', 'label' => __( 'Fehlersuche-Protokoll (Debug-Modus) für 24 Stunden einschalten', 'pass-captain' ), 'description' => __( 'Speichert zusätzlich ausführliche Diagnose-Einträge im Support-Protokoll (Betrieb → Support-Protokoll). Schaltet sich 24 Stunden nach dem Einschalten von selbst ab; zum erneuten Einschalten aus- und wieder einschalten. Fehler und Warnungen werden immer protokolliert. Geheimnisse, Ticketcodes und E-Mail-Adressen werden nie gespeichert. Die Konstante WPCAP_DEBUG in wp-config.php hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'uninstall' => array(
 				'title' => __( 'Deinstallation', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'delete_data_on_uninstall' => array( 'type' => 'bool', 'label' => __( 'Beim Löschen des Plugins alle Daten entfernen', 'pass-captain' ), 'description' => __( 'Achtung: Events, Bestellungen, Tickets, Rechnungen, Rechnungskorrekturen, Kassen- und Fiskalbelege werden beim Löschen des Plugins unwiderruflich gelöscht. Rechnungen und Buchungsbelege unterliegen gesetzlichen Aufbewahrungspflichten (DE 10 Jahre, AT 7 Jahre): vorher Rechnungen und das Fiskal-Archiv exportieren und sicher aufbewahren.', 'pass-captain' ) ),
 				),
@@ -345,6 +345,8 @@ final class SettingsPage {
 			'payments' => __( 'Zahlungsarten', 'pass-captain' ),
 			'legal' => __( 'Rechtstexte', 'pass-captain' ),
 			'invoices' => __( 'Rechnungen', 'pass-captain' ),
+			'privacy' => __( 'Datenschutz', 'pass-captain' ),
+			'advanced' => __( 'Erweitert', 'pass-captain' ),
 		);
 	}
 
@@ -372,6 +374,16 @@ final class SettingsPage {
 		return $out;
 	}
 
+	/**
+	 * A378: the voucher section only matters with a voucher provider (Voucher Captain). Without one it
+	 * is hidden (and not saved, so the stored value stays) unless a non-default value is stored.
+	 */
+	public static function vouchers_relevant() {
+		if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) { return true; }
+		$default = Settings::defaults()['voucher_default_purpose'] ?? 'multi';
+		return Settings::get( 'voucher_default_purpose' ) !== $default;
+	}
+
 	/** Valid tab id ('' = unknown). */
 	public static function tab( $tab ) {
 		$tab = sanitize_key( is_scalar( $tab ) ? (string) $tab : '' );
@@ -392,6 +404,7 @@ final class SettingsPage {
 		$tab = self::tab( $tab );
 		if ( '' === $tab ) { return array(); }
 		$sections = array_filter( $sections, static function ( $def ) use ( $tab ) { return ( $def['tab'] ?? 'general' ) === $tab; } );
+		if ( isset( $sections['vouchers'] ) && ! self::vouchers_relevant() ) { unset( $sections['vouchers'] ); }
 		if ( 'payments' === $tab ) {
 			$section = sanitize_key( is_scalar( $section ) ? (string) $section : '' );
 			$section = isset( $sections[ $section ] ) ? $section : 'payments';

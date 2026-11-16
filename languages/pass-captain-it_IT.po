@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T19:06:00+00:00\n"
+"POT-Creation-Date: 2026-11-16T19:10:29+00:00\n"
 "PO-Revision-Date: 2026-11-14 17:14+0000\n"
 "Language: it_IT\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -203,8 +203,8 @@ msgstr "Chiave API revocata."
 #: src/Admin/SecurityScreens.php:90
 #: src/Admin/ServiceSlotsPage.php:349
 #: src/Admin/ServicesPage.php:228
-#: src/Admin/SettingsPage.php:669
-#: src/Admin/SettingsPage.php:701
+#: src/Admin/SettingsPage.php:682
+#: src/Admin/SettingsPage.php:714
 #: src/Admin/StatusPage.php:242
 #: src/Admin/TaxPage.php:75
 #: src/Admin/TicketsPage.php:402
@@ -1735,7 +1735,7 @@ msgstr "Limite raggiunto"
 #: src/Admin/MembershipsPage.php:211
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:166
-#: src/Admin/SettingsPage.php:926
+#: src/Admin/SettingsPage.php:939
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:276
 #: src/BoxOffice/ShiftPage.php:478
@@ -2748,7 +2748,7 @@ msgstr "Pagamenti in sospeso"
 #: src/Admin/Dashboard.php:98
 #: src/Admin/Menu.php:117
 #: src/Admin/SettingsPage.php:105
-#: src/Admin/SettingsPage.php:828
+#: src/Admin/SettingsPage.php:841
 #: src/Admin/StatusPage.php:247
 #: src/Reports/Page.php:108
 msgid "Übersicht"
@@ -5185,7 +5185,7 @@ msgstr "Aliquota fiscale non valida."
 #. translators: %s: column
 #. translators: %s: field label
 #: src/Admin/Import.php:105
-#: src/Admin/SettingsPage.php:494
+#: src/Admin/SettingsPage.php:507
 #, php-format
 msgid "„%s“ muss eine ganze Zahl sein."
 msgstr "«%s» deve essere un numero intero."
@@ -5350,7 +5350,7 @@ msgid "Keine Berechtigung für diesen Pass."
 msgstr "Non hai l'autorizzazione per questo pass."
 
 #: src/Admin/MembershipsPage.php:161
-#: src/Admin/SettingsPage.php:469
+#: src/Admin/SettingsPage.php:482
 #: src/Integrations/WooCommerce/Attendees.php:480
 msgid "Bitte eine gültige E-Mail-Adresse angeben."
 msgstr "Inserisci un indirizzo e-mail valido."
@@ -8841,13 +8841,13 @@ msgid "Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestä
 msgstr "Mostra le condizioni generali / condizioni di partecipazione al checkout e richiede la conferma. Senza questa opzione le condizioni generali non compaiono al checkout (le informazioni per i consumatori sì, sempre)."
 
 #: src/Admin/SettingsPage.php:153
-#: src/Admin/SettingsPage.php:886
+#: src/Admin/SettingsPage.php:899
 #: src/Diagnostics.php:207
 msgid "AGB / Teilnahmebedingungen"
 msgstr "Condizioni generali / Condizioni di partecipazione"
 
 #: src/Admin/SettingsPage.php:154
-#: src/Admin/SettingsPage.php:886
+#: src/Admin/SettingsPage.php:899
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Informazioni per i consumatori (es. informativa sul diritto di recesso)"
 
@@ -8952,6 +8952,7 @@ msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckg
 msgstr "Vale solo se Voucher Captain non comunica alcun tipo per il buono. Buono multiuso: i biglietti mantengono il prezzo e l’IVA per intero e il buono compare in fattura come pagamento. Buono monouso (luogo della prestazione e aliquota erano noti al momento della vendita, ad es. buono per un determinato evento nazionale): l’IVA è già stata versata con la vendita del buono e il riscatto riduce il prezzo. In caso di dubbio chiarisci con il tuo consulente fiscale."
 
 #: src/Admin/SettingsPage.php:190
+#: src/Admin/SettingsPage.php:348
 msgid "Datenschutz"
 msgstr "Privacy"
 
@@ -9235,57 +9236,61 @@ msgstr "Metodi di pagamento"
 msgid "Rechnungen"
 msgstr "Fatture"
 
-#: src/Admin/SettingsPage.php:437
+#: src/Admin/SettingsPage.php:349
+msgid "Erweitert"
+msgstr "Avanzate"
+
+#: src/Admin/SettingsPage.php:450
 msgid "Neuen Wert eingeben, um ihn zu ersetzen – leer lassen, um beizubehalten"
 msgstr "Inserisci un nuovo valore per sostituirlo; lascia vuoto per mantenerlo"
 
-#: src/Admin/SettingsPage.php:437
+#: src/Admin/SettingsPage.php:450
 #: src/Secrets.php:480
 msgid "Nicht gesetzt"
 msgstr "Non impostato"
 
 #. translators: %s: masked value, e.g. ••••1234
-#: src/Admin/SettingsPage.php:443
+#: src/Admin/SettingsPage.php:456
 #, php-format
 msgid "gespeichert %s"
 msgstr "salvato %s"
 
-#: src/Admin/SettingsPage.php:445
+#: src/Admin/SettingsPage.php:458
 msgid "Gespeicherter Wert kann nicht entschlüsselt werden – bitte neu eingeben"
 msgstr "Il valore salvato non può essere decifrato: inseriscilo di nuovo"
 
-#: src/Admin/SettingsPage.php:447
+#: src/Admin/SettingsPage.php:460
 #: src/Secrets.php:458
 msgid "Kein Wert gespeichert"
 msgstr "Nessun valore salvato"
 
-#: src/Admin/SettingsPage.php:450
+#: src/Admin/SettingsPage.php:463
 msgid "Gespeicherten Wert entfernen"
 msgstr "Rimuovi il valore salvato"
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:522
+#: src/Admin/SettingsPage.php:535
 #, php-format
 msgid "„%s“ ist kein gültiger Betrag."
 msgstr "«%s» non è un importo valido."
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:531
+#: src/Admin/SettingsPage.php:544
 #: src/Orders.php:1047
 #: src/ParticipantFields.php:170
 #, php-format
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "«%s» non è un indirizzo e-mail valido."
 
-#: src/Admin/SettingsPage.php:552
+#: src/Admin/SettingsPage.php:565
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen."
 msgstr "“Rimuovi tutti i dati quando il plugin viene eliminato” non è stato attivato: per confermare digita LÖSCHEN o DELETE."
 
-#: src/Admin/SettingsPage.php:602
+#: src/Admin/SettingsPage.php:615
 msgid "Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen."
 msgstr "Il consenso al checkout è attivo, ma per la lingua predefinita non è stato inserito alcun testo delle condizioni generali. Gli acquirenti dovrebbero accettare condizioni che non vedono: inserisci le condizioni generali / condizioni di partecipazione."
 
-#: src/Admin/SettingsPage.php:645
+#: src/Admin/SettingsPage.php:658
 #: src/Admission/RulesPage.php:120
 #: src/Allocations/AdminPage.php:186
 #: src/BoxOffice/Page.php:558
@@ -9298,146 +9303,146 @@ msgstr "Il consenso al checkout è attivo, ma per la lingua predefinita non è s
 msgid "Einstellungen gespeichert."
 msgstr "Impostazioni salvate."
 
-#: src/Admin/SettingsPage.php:681
+#: src/Admin/SettingsPage.php:694
 msgid "Pass Captain Einstellungen"
 msgstr "Impostazioni di Pass Captain"
 
-#: src/Admin/SettingsPage.php:688
+#: src/Admin/SettingsPage.php:701
 msgid "Einstellungsbereiche"
 msgstr "Sezioni delle impostazioni"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:718
+#: src/Admin/SettingsPage.php:731
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "I testi seguenti valgono per la lingua predefinita (%s) e per ogni lingua senza una versione propria."
 
-#: src/Admin/SettingsPage.php:730
+#: src/Admin/SettingsPage.php:743
 #: src/Partners/AdminPage.php:286
 msgid "Einstellungen speichern"
 msgstr "Salva impostazioni"
 
-#: src/Admin/SettingsPage.php:770
+#: src/Admin/SettingsPage.php:783
 msgid "Webhook-URL:"
 msgstr "URL del webhook:"
 
-#: src/Admin/SettingsPage.php:772
+#: src/Admin/SettingsPage.php:785
 msgid "In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:"
 msgstr "Nell'app PayPal, in «Webhooks», crea un webhook con questo URL e questi eventi; inserisci qui sotto il Webhook ID mostrato:"
 
-#: src/Admin/SettingsPage.php:772
+#: src/Admin/SettingsPage.php:785
 msgid "Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:"
 msgstr "Nella dashboard di Stripe, in Sviluppatori → Webhook, crea un endpoint con questo URL e questi eventi; inserisci qui sotto il segreto di firma mostrato:"
 
 #. translators: %s: field names
-#: src/Admin/SettingsPage.php:780
+#: src/Admin/SettingsPage.php:793
 #, php-format
 msgid "Noch nicht vollständig eingerichtet. Es fehlen: %s."
 msgstr "Non ancora configurato completamente. Mancano: %s."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:781
+#: src/Admin/SettingsPage.php:794
 #, php-format
 msgid "%s wird im Checkout erst danach angeboten."
 msgstr "%s verrà offerto al checkout solo dopo."
 
-#: src/Admin/SettingsPage.php:788
-#: src/Admin/SettingsPage.php:792
+#: src/Admin/SettingsPage.php:801
+#: src/Admin/SettingsPage.php:805
 msgid "Verbindung testen"
 msgstr "Verifica connessione"
 
-#: src/Admin/SettingsPage.php:789
+#: src/Admin/SettingsPage.php:802
 msgid "Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern."
 msgstr "Verifica con le credenziali salvate l'accesso presso il fornitore e se il webhook è configurato con questo URL e tutti gli eventi necessari. Non viene modificato nulla; salva prima."
 
-#: src/Admin/SettingsPage.php:806
+#: src/Admin/SettingsPage.php:819
 msgid "Für diese Zahlungsart gibt es keinen Verbindungstest."
 msgstr "Per questo metodo di pagamento non è disponibile alcuna verifica della connessione."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:856
+#: src/Admin/SettingsPage.php:869
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "Offri %s al checkout"
 
-#: src/Admin/SettingsPage.php:858
-#: src/Admin/SettingsPage.php:936
+#: src/Admin/SettingsPage.php:871
+#: src/Admin/SettingsPage.php:949
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(non completamente configurato)"
 
-#: src/Admin/SettingsPage.php:867
+#: src/Admin/SettingsPage.php:880
 msgid "Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen."
 msgstr "Modalità di test attiva: non vengono addebitati pagamenti reali. Al checkout gli acquirenti vedono l'avviso «Modalità di test». Per vendere, passa a «Live» e inserisci le credenziali live."
 
-#: src/Admin/SettingsPage.php:870
+#: src/Admin/SettingsPage.php:883
 msgid "Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind."
 msgstr "Il bonifico viene offerto al checkout solo quando sono inseriti il beneficiario (o l'emittente della fattura) e l'IBAN oppure le istruzioni di pagamento."
 
-#: src/Admin/SettingsPage.php:879
+#: src/Admin/SettingsPage.php:892
 msgid "Rechtstexte je Sprache"
 msgstr "Testi legali per lingua"
 
-#: src/Admin/SettingsPage.php:880
+#: src/Admin/SettingsPage.php:893
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Gli acquirenti vedono i testi nella propria lingua (lingua della pagina o di WPML/Polylang). I campi vuoti riprendono il testo della lingua predefinita. Ogni lingua ha una propria versione, che viene salvata con l'ordine."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:892
+#: src/Admin/SettingsPage.php:905
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Vuoto: vale il testo di %s."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:899
+#: src/Admin/SettingsPage.php:912
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Versione attuale per %1$s: %2$s"
 
-#: src/Admin/SettingsPage.php:905
+#: src/Admin/SettingsPage.php:918
 msgid "Archivierte Fassungen"
 msgstr "Versioni archiviate"
 
-#: src/Admin/SettingsPage.php:905
+#: src/Admin/SettingsPage.php:918
 msgid "Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen."
 msgstr "Ogni versione che è stata in vigore resta salvata senza modifiche. Nel riepilogo dell'ordine è indicato quale versione valeva per l'ordine, e lì è possibile visualizzarne il testo."
 
-#: src/Admin/SettingsPage.php:906
+#: src/Admin/SettingsPage.php:919
 msgid "Fassung"
 msgstr "Versione"
 
-#: src/Admin/SettingsPage.php:906
+#: src/Admin/SettingsPage.php:919
 #: src/Consents.php:619
 #: src/Mail/Admin.php:234
 msgid "Sprache"
 msgstr "Lingua"
 
-#: src/Admin/SettingsPage.php:906
+#: src/Admin/SettingsPage.php:919
 msgid "Archiviert am"
 msgstr "Archiviata il"
 
-#: src/Admin/SettingsPage.php:914
+#: src/Admin/SettingsPage.php:927
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Aggiungi un'altra lingua (locale, ad es. en_US):"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:942
+#: src/Admin/SettingsPage.php:955
 #, php-format
 msgid "%s einrichten"
 msgstr "Configura %s"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:966
+#: src/Admin/SettingsPage.php:979
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Versione attuale: %s (salvata con ogni ordine)"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:992
+#: src/Admin/SettingsPage.php:1005
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Sovrascritto da %s (wp-config.php o variabile d'ambiente); il valore salvato qui non viene utilizzato."
 
-#: src/Admin/SettingsPage.php:998
+#: src/Admin/SettingsPage.php:1011
 msgid "Zum Aktivieren LÖSCHEN eintragen:"
 msgstr "Digita LÖSCHEN o DELETE per attivare:"
 

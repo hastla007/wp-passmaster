@@ -966,7 +966,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — src/Operations/SiteHealth.php:80–88 (A375, R1 Architektur)
 - [x] [OPTIMIERUNG] Saalplan-Verknüpfungen und Käuferlimits laden ganze Historie je Listing — src/Seating/Layouts.php:371, Allocations/BuyerLimits.php:51 (A376, R1 Architektur)
 - [ ] [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — src/Partners/AdminPage.php:224, ServiceSlotsPage.php:227/253, EventsPage.php:801–804 (A377, R1 UX)
-- [ ] [OPTIMIERUNG] Tab „Allgemein“ überladen — src/Admin/SettingsPage.php:36–200 (A378, R1 UX)
+- [x] [OPTIMIERUNG] Tab „Allgemein“ überladen — src/Admin/SettingsPage.php:36–200 (A378, R1 UX)
 - [x] [OPTIMIERUNG] Keine Hilfe-Tabs, Verweise auf nicht ausgelieferte docs/ und privates Repo, kein Action-Link — src/Admin/SettingsPage.php:156/184, Partners/AdminPage.php:475, BoxOffice/Page.php:261 (A379, R1 UX)
 - [x] [OPTIMIERUNG] DATEV-Export ohne Kontenrahmen-Einstellung (SKR03 fest) — src/Invoices.php:790–805, Reports/Page.php:135 (A380, R1 UX) – erledigt: Einstellungen `datev_chart` (SKR03/SKR04) und `datev_contra_account`; Filter `wpcap_datev_accounts` bleibt; Tests in `zz_a129`
 - [x] [OPTIMIERUNG] Destruktive Aktionen ohne Bestätigung (Zeitfenster löschen, Personal entfernen) – erledigt: alle Lösch-/Entfernen-/Abbrechen-Formulare mit `data-wpcap-confirm` (Zeitfenster, Personal, Zuweisungen, Einlassbereiche, Druckaufträge, Übergaben, Pass-Kontingente, Serienregeln/-pools); Absagen behalten die Pflicht-Checkbox; Test `zz_a381` scannt alle Formulare — src/Admin/ServiceSlotsPage.php:412–415, EventsPage.php:945 (A381, R1 UX)
