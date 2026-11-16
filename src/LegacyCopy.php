@@ -1,6 +1,6 @@
 <?php
 /**
- * Takeover from the old copy "wp-pass-captain/wp-pass-captain.php" (up to 1.4) in the same request.
+ * Takeover from the old copy (LegacySlug::LEGACY_BASENAME, up to 1.4) in the same request.
  *
  * WordPress loads the active plugins from a list it read before loading the first one. When this copy
  * takes over the activation (pass-captain.php removes the old entry from active_plugins), the old copy is

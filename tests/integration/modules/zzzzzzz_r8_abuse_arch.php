@@ -33,6 +33,10 @@ $r8_set_client = static function ( $remote, array $headers = array() ) use ( $r8
 };
 
 /* ------------------------------------------------------------------------------------------ */
+// The counters below (limit + 1 cap, refund()) are those of the production backend without an object cache; the test
+// bootstrap of the merged suite defaults to the transient fallback.
+$r8_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'db';
 echo "R8 (#7 HOCH): proxy/CDN without trusted proxies is detected\n";
 wpcap_test_reset_transients();
 delete_option( R8Throttle::SEEN_OPTION );
@@ -158,6 +162,7 @@ $_SERVER = $r8_server;
 wpcap_test_reset_transients();
 
 /* ------------------------------------------------------------------------------------------ */
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $r8_backend;
 echo "R8 (#1 NIEDRIG): takeover – the old copy loading after this one in the same request\n";
 $r8_rp = new ReflectionProperty( R8Plugin::class, 'started' );
 $r8_rp->setAccessible( true );
@@ -225,7 +230,7 @@ R8Installer::flush_version_cache();
 /* ------------------------------------------------------------------------------------------ */
 echo "R8 (#11 NIEDRIG): uninstall on large networks\n";
 $r8_un = (string) file_get_contents( WPCAP_PATH . 'uninstall.php' );
-check( 'uninstall: sites without plugin data count as opted in (a repeated run after an abort finishes the job)', false !== strpos( $r8_un, 'return ! wpcap_uninstall_site_has_data();' ) && false !== strpos( $r8_un, 'function wpcap_uninstall_site_has_data()' ) );
+check( 'uninstall: sites without plugin data count as opted in (a repeated run after an abort finishes the job)', ( false !== strpos( $r8_un, 'return ! wpcap_uninstall_site_has_data();' ) || (bool) preg_match( '/if \( ! wpcap_uninstall_site_has_data\(\) \) \{\s*return true;/', $r8_un ) ) && false !== strpos( $r8_un, 'function wpcap_uninstall_site_has_data()' ) );
 check( 'uninstall: the network loop keeps running without the browser and asks for more time', false !== strpos( $r8_un, 'ignore_user_abort( true )' ) && false !== strpos( $r8_un, 'set_time_limit( 0 )' ) );
 
 /* ------------------------------------------------------------------------------------------ */
@@ -233,7 +238,8 @@ echo "R8 (#1 NIEDRIG): Orders split – portal access link in Orders\\PortalAcce
 $r8_sig = static function ( $class, $method ) {
 	return array_map( static fn( $p ) => $p->getName() . ( $p->isOptional() ? '=' . var_export( $p->getDefaultValue(), true ) : '' ), ( new ReflectionMethod( $class, $method ) )->getParameters() );
 };
-check( 'facade signatures unchanged (rotate_access_link, send_order_access_link)', array( 'order_id' ) === $r8_sig( R8Orders::class, 'rotate_access_link' ) && array( 'email', 'public_id', 'access_token', 'locale=NULL' ) === $r8_sig( R8Orders::class, 'send_order_access_link' ) && ( new ReflectionMethod( R8Orders::class, 'rotate_access_link' ) )->isStatic() );
+// Merged: rotate_access_link() gained the optional $keep_current of the pending link (A631); existing calls are unchanged.
+check( 'facade signatures unchanged (rotate_access_link, send_order_access_link)', 'order_id' === ( $r8_sig( R8Orders::class, 'rotate_access_link' )[0] ?? '' ) && ! array_filter( array_slice( $r8_sig( R8Orders::class, 'rotate_access_link' ), 1 ), static fn( $a ) => false === strpos( $a, '=' ) ) && array( 'email', 'public_id', 'access_token', 'locale=NULL' ) === $r8_sig( R8Orders::class, 'send_order_access_link' ) && ( new ReflectionMethod( R8Orders::class, 'rotate_access_link' ) )->isStatic() );
 wpcap_test_reset_transients();
 $r8_po = $r8_buy( $r8_type, 'r8-portal@example.com' );
 $r8_old_hash = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT access_token_hash FROM %i WHERE order_id=%d', $p . 'wpcap_orders', $r8_po['order_id'] ) );
@@ -244,4 +250,6 @@ $r8_mail = array_slice( $GLOBALS['wpcap_test_mails'], $r8_mails );
 $r8_token = '';
 foreach ( $r8_mail as $m ) { if ( preg_match( '/wpcap_access=([a-f0-9]{64})/', (string) $m['body'], $mm ) ) { $r8_token = $mm[1]; } }
 check( 'rotating the access link through the facade: new token hash, 30 days, the mailed link carries the new token', $r8_row && $r8_old_hash !== $r8_row->access_token_hash && '' !== $r8_token && hash( 'sha256', $r8_token ) === $r8_row->access_token_hash && abs( strtotime( $r8_row->access_expires_at . ' UTC' ) - ( time() + 30 * DAY_IN_SECONDS ) ) < 120 );
-check( 'the facade only delegates to Orders\\PortalAccess', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Orders.php' ), 'return Orders\\PortalAccess::rotate( $order_id );' ) );
+// Merged: one implementation – Orders (with the A631 pending link); Orders\PortalAccess delegates to it.
+$r8_pa = (string) file_get_contents( WPCAP_PATH . 'src/Orders/PortalAccess.php' );
+check( 'Orders and Orders\\PortalAccess share one implementation (PortalAccess delegates)', false !== strpos( $r8_pa, 'return Orders::rotate_access_link( $order_id );' ) && false !== strpos( $r8_pa, 'return Orders::send_order_access_link( $email, $public_id, $access_token, $locale );' ) );

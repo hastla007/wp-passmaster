@@ -48,7 +48,10 @@ final class Refunder {
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
-		if ( ! $order || 'paid' !== $order->payment_status ) {
+		// An order whose tickets are all revoked is marked refunded even if money is left (PAY-9: the first
+		// payment of a booking moved to a supplementary order); an amount-only refund may take the rest.
+		$rest_open = $order && ! $ticket_ids && null !== $amount_minor && 'refunded' === $order->payment_status && (int) $order->refunded_minor < (int) $order->total_minor;
+		if ( ! $order || ( 'paid' !== $order->payment_status && ! $rest_open ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -80,14 +83,14 @@ final class Refunder {
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! $staff;
 		$now = current_time( 'mysql', true );
 		$user = in_array( $actor, array( 'admin', 'partner' ), true ) ? get_current_user_id() : 0;
-		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
+		$inserted = $wpdb->insert( "{$p}wpcap_refunds", ( Refunds::source_ready() ? array( 'source' => 'service_booking' ) : array() ) + array(
 			'order_id' => $order_id,
 			'idempotency_key' => $key_hash,
 			'amount_minor' => (int) $calc['amount_minor'],
 			'tax_minor' => (int) $calc['tax_minor'],
 			'currency' => $order->currency,
 			'ticket_ids' => wp_json_encode( array_values( array_map( 'intval', $calc['ticket_ids'] ) ) ),
-			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
+			'reason' => \PassCaptain\Text::cut( sanitize_text_field( $reason ), 255 ),
 			'status' => $needs_approval ? 'pending_approval' : 'approved',
 			'requested_by' => $user,
 			'approved_by' => $needs_approval ? 0 : $user,
@@ -140,6 +143,6 @@ final class Refunder {
 	}
 
 	private static function busy() {
-		return new \WP_Error( 'wpcap_db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return \PassCaptain\Errors::busy();
 	}
 }

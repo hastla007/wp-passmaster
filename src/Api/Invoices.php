@@ -17,6 +17,8 @@
  *    links/downloads next to the document (admin order page, order portal, HTML document views).
  *
  * The arrays returned by get() only change compatibly within version 1 (new keys may be added).
+ * Since contract 1.2.0 (WPCAP_CONTRACT_VERSION): service_date / service_period per document and service_date /
+ * service_date_end per line (PASS-INV-15; local dates Y-m-d of the occurrences).
  * Amounts are integers in minor units of `currency`; `currency_decimals` says how many decimals that is.
  *
  * @package PassCaptain
@@ -200,10 +202,15 @@ final class Invoices {
 		$lines = array();
 		$position = 0;
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d ORDER BY invoice_line_id', $wpdb->prefix . 'wpcap_invoice_lines', $id ) );
+		// PASS-INV-15: service dates per line (stored with the invoice since contract 1.2.0, in line order).
+		$service_dates = array_values( (array) ( $snapshot['service_dates'] ?? array() ) );
 		foreach ( $rows as $row ) {
 			$gross = (int) $row->total_minor;
 			$vat = (int) $row->tax_minor;
+			$dates = (array) ( $service_dates[ $position ] ?? array() );
 			$lines[] = array(
+				'service_date' => (string) ( $dates['start'] ?? '' ),
+				'service_date_end' => (string) ( $dates['end'] ?? ( $dates['start'] ?? '' ) ),
 				'position' => ++$position,
 				'description' => (string) $row->description,
 				'quantity' => (int) $row->quantity,
@@ -221,6 +228,7 @@ final class Invoices {
 		}
 		$gross = (int) $invoice->total_minor;
 		$vat = (int) $invoice->tax_minor;
+		list( $service_date, $service_period ) = self::service_period( $lines, (int) $invoice->order_id );
 		return array(
 			'version' => self::VERSION,
 			'id' => (int) $invoice->invoice_id,
@@ -228,6 +236,8 @@ final class Invoices {
 			'number' => (string) $invoice->invoice_number,
 			'date' => self::local_date( $invoice->issued_at ),
 			'issued_at' => self::iso( $invoice->issued_at ),
+			'service_date' => $service_date,
+			'service_period' => $service_period,
 			'status' => (string) $invoice->status,
 			'currency' => $currency,
 			'currency_decimals' => Localization::currency_decimals( $currency ),
@@ -295,6 +305,8 @@ final class Invoices {
 			'number' => (string) $credit->credit_note_number,
 			'date' => self::local_date( $credit->issued_at ),
 			'issued_at' => self::iso( $credit->issued_at ),
+			'service_date' => $invoice['service_date'],
+			'service_period' => $invoice['service_period'],
 			'status' => 'issued',
 			'currency' => (string) $credit->currency,
 			'currency_decimals' => Localization::currency_decimals( (string) $credit->currency ),
@@ -468,6 +480,29 @@ final class Invoices {
 			++$assigned;
 		}
 		return $parts;
+	}
+
+	/**
+	 * Invoice-level service date (PASS-INV-15): service_date = the single date when every line has the same
+	 * start and end date, else ''; service_period = {start, end} over all lines (always set; '' when unknown).
+	 * Invoices issued before the dates were stored fall back to the dates of the order's occurrences.
+	 *
+	 * @return array{0:string,1:array{start:string,end:string}}
+	 */
+	private static function service_period( array $lines, $order_id ) {
+		$starts = array_filter( array_column( $lines, 'service_date' ) );
+		$ends = array_filter( array_column( $lines, 'service_date_end' ) );
+		if ( ! $starts && $order_id ) {
+			global $wpdb;
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT o.starts_at,o.ends_at,o.timezone FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $order_id ) ) );
+			foreach ( $rows as $row ) {
+				$dates = \PassCaptain\Invoices::service_dates_of( $row );
+				if ( '' !== $dates['start'] ) { $starts[] = $dates['start']; $ends[] = $dates['end']; }
+			}
+		}
+		if ( ! $starts ) { return array( '', array( 'start' => '', 'end' => '' ) ); }
+		$period = array( 'start' => min( $starts ), 'end' => max( array_merge( $starts, $ends ) ) );
+		return array( $period['start'] === $period['end'] ? $period['start'] : '', $period );
 	}
 
 	private static function local_date( $utc ) {

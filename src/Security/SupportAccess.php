@@ -69,13 +69,13 @@ final class SupportAccess {
 		global $wpdb;
 		$now = current_time( 'mysql', true );
 		$expires = gmdate( 'Y-m-d H:i:s', time() + $hours * HOUR_IN_SECONDS );
-		$ok = $wpdb->insert( self::table(), array( 'user_id' => $user_id, 'granted_by' => get_current_user_id(), 'reason' => substr( $reason, 0, 255 ), 'capabilities' => implode( ',', $caps ), 'status' => 'active', 'expires_at' => $expires, 'created_at' => $now ), array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
+		$ok = $wpdb->insert( self::table(), array( 'user_id' => $user_id, 'granted_by' => get_current_user_id(), 'reason' => \PassCaptain\Text::cut( $reason, 255 ), 'capabilities' => implode( ',', $caps ), 'status' => 'active', 'expires_at' => $expires, 'created_at' => $now ), array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
 		if ( ! $ok ) {
 			return new \WP_Error( 'wpcap_support_save', __( 'Der Supportzugriff konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		$grant_id = (int) $wpdb->insert_id;
 		self::flush_cache();
-		Audit::record( 'support_access_granted', 'user', $user_id, array( 'grant_id' => $grant_id, 'hours' => $hours, 'capabilities' => $caps, 'reason' => substr( $reason, 0, 190 ) ) );
+		Audit::record( 'support_access_granted', 'user', $user_id, array( 'grant_id' => $grant_id, 'hours' => $hours, 'capabilities' => $caps, 'reason' => \PassCaptain\Text::cut( $reason, 190 ) ) );
 		return self::get( $grant_id );
 	}
 

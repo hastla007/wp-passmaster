@@ -1,17 +1,61 @@
 <?php
-/** Fixed-window rate limiter: persistent object cache, otherwise an atomic counter table (wpcap_rate_limits). */
+/**
+ * Fixed-window rate limiter, atomic across PHP workers and web servers.
+ *
+ * Backends (filter `wpcap_rate_limit_backend`):
+ * - `cache`: wp_cache_add() + wp_cache_incr() when a persistent object cache is installed
+ *   (wp_using_ext_object_cache()); atomic with Redis/Memcached shared by all web servers.
+ * - `db` (default without object cache): one row per bucket in `wpcap_rate_limits` (bucket_key = keyed
+ *   hash of the counter name, no client data), counted with a single
+ *   `INSERT … ON DUPLICATE KEY UPDATE hits=LAST_INSERT_ID(…)`, so every worker gets its own exact count
+ *   (QA-V2, PERF-16, A186).
+ * - `transient`: the former, non-atomic counter; used only as a fallback when the table is missing
+ *   (before the database upgrade) or the database fails.
+ *
+ * @package PassCaptain
+ */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class RateLimit {
-	/** Records a hit; returns false once $limit hits happened in the current window. */
+	const GROUP = 'wpcap_rate';
+
+	/** Backend that served the last hit (diagnostics, tests). */
+	public static $last_backend = '';
+
+	/** Records a hit; returns false once more than $limit hits happened in the current window. */
 	public static function allow( $bucket, $limit, $window = 60 ) {
-		$slot = (int) floor( time() / max( 1, (int) $window ) );
+		list( $key, $window, $slot ) = self::key( $bucket, $window );
+		// The key contains the window slot: the counter lives until the end of that slot.
+		return self::hit( $key, $limit, max( 1, ( $slot + 1 ) * $window - time() ) );
+	}
+
+	/**
+	 * Hits of the bucket in the current window, without counting one (A279/A288). Failure counters
+	 * check `hits() >= $limit` before the attempt and record a failure with allow() afterwards, so only
+	 * failed attempts count; parallel requests can exceed the limit at most by the requests in flight.
+	 */
+	public static function hits( $bucket, $window = 60 ) {
+		list( $key ) = self::key( $bucket, $window );
+		return self::count( $key );
+	}
+
+	/** Counter name, window and slot of a bucket for allow()/hits(). */
+	private static function key( $bucket, $window ) {
+		$window = max( 1, (int) $window );
+		$slot = (int) floor( time() / $window );
 		// Keyed hash: bucket names may contain client addresses or IDs; a plain md5 of an IPv4
 		// address can be reversed by brute force from the options table / object cache.
-		$key = 'wpcap_rl_' . substr( hash_hmac( 'sha256', $bucket . '|' . $slot, self::secret() ), 0, 40 );
-		return self::hit( $key, $limit, $window );
+		return array( 'wpcap_rl_' . substr( hash_hmac( 'sha256', $bucket . '|' . $slot, self::secret() ), 0, 40 ), $window, $slot );
+	}
+
+	/** Active backend: cache | db | transient (filter wpcap_rate_limit_backend). */
+	public static function backend() {
+		$default = self::object_cache() ? 'cache' : 'db';
+		$backend = function_exists( 'apply_filters' ) ? (string) apply_filters( 'wpcap_rate_limit_backend', $default ) : $default;
+		if ( 'cache' === $backend && ! function_exists( 'wp_cache_incr' ) ) { return 'db'; }
+		return in_array( $backend, array( 'cache', 'db', 'transient' ), true ) ? $backend : $default;
 	}
 
 	/**
@@ -37,13 +81,24 @@ final class RateLimit {
 	 */
 	public static function hit( $key, $limit, $ttl ) {
 		$ttl = max( 1, (int) $ttl );
-		if ( self::object_cache() ) {
+		$backend = self::backend();
+		if ( 'cache' === $backend ) {
 			wp_cache_add( $key, 0, 'transient', $ttl );
 			$count = wp_cache_incr( $key, 1, 'transient' );
-			if ( false !== $count ) { return (int) $count <= (int) $limit; }
+			if ( false !== $count ) {
+				self::$last_backend = 'cache';
+				return (int) $count <= (int) $limit;
+			}
+			// Evicted between add and incr, or no shared cache: count in the database instead.
 		}
-		$count = self::db_hit( (string) $key, (int) $limit, $ttl );
-		if ( null !== $count ) { return $count <= (int) $limit; }
+		if ( 'transient' !== $backend ) {
+			$count = self::db_hit( (string) $key, (int) $limit, $ttl );
+			if ( null !== $count ) {
+				self::$last_backend = 'db';
+				return $count <= (int) $limit;
+			}
+		}
+		self::$last_backend = 'transient';
 		$count = (int) get_transient( $key );
 		if ( $count >= (int) $limit ) { return false; }
 		set_transient( $key, $count + 1, $ttl );
@@ -59,11 +114,12 @@ final class RateLimit {
 	 */
 	public static function refund( $key ) {
 		global $wpdb;
-		if ( self::object_cache() ) {
+		$backend = self::backend();
+		if ( 'cache' === $backend ) {
 			$done = function_exists( 'wp_cache_decr' ) ? wp_cache_decr( $key, 1, 'transient' ) : wp_cache_incr( $key, -1, 'transient' );
 			if ( false !== $done ) { return; }
 		}
-		if ( self::has_db() ) {
+		if ( 'transient' !== $backend && self::has_db() ) {
 			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
 			$ok = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET hits=GREATEST(hits,1)-1 WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
 			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
@@ -78,11 +134,12 @@ final class RateLimit {
 	 */
 	public static function count( $key ) {
 		global $wpdb;
-		if ( self::object_cache() ) {
+		$backend = self::backend();
+		if ( 'cache' === $backend ) {
 			$value = wp_cache_get( $key, 'transient' );
-			return false === $value ? 0 : (int) $value;
+			if ( false !== $value ) { return (int) $value; }
 		}
-		if ( self::has_db() ) {
+		if ( 'transient' !== $backend && self::has_db() ) {
 			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
 			$hits = $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
 			$failed = '' !== (string) $wpdb->last_error;
@@ -138,6 +195,43 @@ final class RateLimit {
 		return $total;
 	}
 
+	/** Deletes up to $limit expired counters (one batch; kept for callers of the former API). */
+	public static function purge( $limit = 1000 ) {
+		return self::purge_expired( null, null, max( 1, (int) $limit ) );
+	}
+
+	/**
+	 * One-time claim of a key for $ttl seconds (A366: replay protection of signed callbacks): true for
+	 * the first call, false for every further call until the claim expires. Atomic with the database
+	 * and object-cache backends (exactly one of parallel callers gets true); the transient fallback is
+	 * best effort.
+	 */
+	public static function claim( $bucket, $ttl ) {
+		$ttl = max( 1, (int) $ttl );
+		$key = 'wpcap_rl_' . substr( hash_hmac( 'sha256', 'claim|' . $bucket, self::secret() ), 0, 40 );
+		$backend = self::backend();
+		if ( 'cache' === $backend && wp_cache_add( $key, 1, self::GROUP, $ttl ) ) {
+			self::$last_backend = 'cache';
+			return true;
+		}
+		if ( 'cache' === $backend && false !== wp_cache_get( $key, self::GROUP ) ) {
+			self::$last_backend = 'cache';
+			return false;
+		}
+		if ( 'transient' !== $backend ) {
+			// Limit 1: the first hit of the window counts 1, every further one 2 (the counter stops at limit + 1).
+			$count = self::db_hit( $key, 1, $ttl );
+			if ( null !== $count && $count > 0 ) {
+				self::$last_backend = 'db';
+				return 1 === $count;
+			}
+		}
+		self::$last_backend = 'transient';
+		if ( get_transient( $key ) ) { return false; }
+		set_transient( $key, 1, $ttl );
+		return true;
+	}
+
 	/**
 	 * Atomic hit in wpcap_rate_limits; returns the count after this hit (exact for this request), or
 	 * null when the table is not usable. Portable between MariaDB and MySQL 8: no VALUES() in the UPDATE part (deprecated
@@ -174,9 +268,31 @@ final class RateLimit {
 		return function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_incr' );
 	}
 
-	/** Anonymised client key (keyed hash of the client address, site-specific secret). */
-	public static function client() {
-		return hash_hmac( 'sha256', self::client_ip(), self::secret() );
+	/**
+	 * Anonymised client key (keyed hash, site-specific secret) of the client address (client_ip()).
+	 * IPv6 clients count per network prefix, /64 by default (ClientIp::limit_key(), A280), so rotating
+	 * addresses inside one connection does not reset limits.
+	 *
+	 * @param int $ipv6_prefix Prefix length for IPv6 (0 = default /64; e.g. 48 for the wider network).
+	 */
+	public static function client( $ipv6_prefix = 0 ) {
+		$ip = self::client_ip();
+		$key = ClientIp::limit_key( $ip, $ipv6_prefix );
+		return hash_hmac( 'sha256', '' !== $key ? $key : $ip, self::secret() );
+	}
+
+	/**
+	 * Per-client limit for requests that hold inventory (checkout, seat/service holds, waitlist): counts
+	 * the client (IPv6: its /64) and, for IPv6, also its /48 network with `wpcap_rate_limit_ipv6_network_factor`
+	 * (default 4) times the limit, so a client with a whole /48 cannot multiply its limit by rotating /64s.
+	 *
+	 * @param string $bucket Bucket name; the client key is appended.
+	 */
+	public static function allow_client( $bucket, $limit, $window = 60 ) {
+		if ( ! self::allow( $bucket . '|' . self::client(), $limit, $window ) ) { return false; }
+		if ( ! ClientIp::is_ipv6( self::client_ip() ) ) { return true; }
+		$factor = max( 1, (int) apply_filters( 'wpcap_rate_limit_ipv6_network_factor', 4 ) );
+		return self::allow( $bucket . '|net|' . self::client( 48 ), (int) $limit * $factor, $window );
 	}
 
 	/**
@@ -209,7 +325,22 @@ final class RateLimit {
 		'x_real_ip' => 'HTTP_X_REAL_IP',
 		'cf_connecting_ip' => 'HTTP_CF_CONNECTING_IP',
 		'true_client_ip' => 'HTTP_TRUE_CLIENT_IP',
+		'forwarded' => 'HTTP_FORWARDED',
 	);
+
+	/**
+	 * Configured forwarding header (a key of PROXY_HEADERS): setting "trusted_proxy_header"; when that is
+	 * the default, the setting "client_ip_header" (constant/env WPCAP_CLIENT_IP_HEADER, filter
+	 * wpcap_client_ip_header: x-forwarded-for, forwarded, cf-connecting-ip) is honoured as well.
+	 */
+	public static function proxy_header() {
+		$name = (string) Settings::get( 'trusted_proxy_header' );
+		if ( '' === $name || 'x_forwarded_for' === $name ) {
+			$alt = str_replace( '-', '_', strtolower( (string) apply_filters( 'wpcap_client_ip_header', Settings::secret( 'client_ip_header' ) ) ) );
+			if ( isset( self::PROXY_HEADERS[ $alt ] ) ) { $name = $alt; }
+		}
+		return isset( self::PROXY_HEADERS[ $name ] ) ? $name : 'x_forwarded_for';
+	}
 
 	/**
 	 * Trusted reverse proxies (IP addresses or CIDR ranges): setting "trusted_proxies", constant
@@ -219,6 +350,8 @@ final class RateLimit {
 	public static function trusted_proxies() {
 		$raw = (string) Settings::get( 'trusted_proxies' );
 		if ( defined( 'WPCAP_TRUSTED_PROXIES' ) ) { $raw .= ',' . (string) constant( 'WPCAP_TRUSTED_PROXIES' ); }
+		$env = getenv( 'WPCAP_TRUSTED_PROXIES' );
+		if ( is_string( $env ) && '' !== $env ) { $raw .= ',' . $env; }
 		$list = array_filter( array_map( 'trim', preg_split( '/[\s,;]+/', $raw ) ) );
 		$list = (array) apply_filters( 'wpcap_trusted_proxies', array_values( $list ) );
 		return array_values( array_filter( array_map( 'strval', $list ), static function ( $entry ) {
@@ -249,11 +382,13 @@ final class RateLimit {
 		$ip = $remote;
 		$trusted = self::trusted_proxies();
 		if ( $trusted && false !== filter_var( $remote, FILTER_VALIDATE_IP ) && self::is_trusted( $remote, $trusted ) ) {
-			$name = (string) Settings::get( 'trusted_proxy_header' );
-			$header = self::PROXY_HEADERS[ $name ] ?? self::PROXY_HEADERS['x_forwarded_for'];
+			$name = self::proxy_header();
+			$header = self::PROXY_HEADERS[ $name ];
 			$value = trim( (string) ( $server[ $header ] ?? '' ) );
 			if ( '' !== $value ) {
-				$hops = array_reverse( array_map( 'trim', explode( ',', $value ) ) );
+				// RFC 7239 Forwarded: the for= values, same right-to-left rule as X-Forwarded-For.
+				$chain = 'forwarded' === $name ? ClientIp::forwarded_for( $value ) : explode( ',', $value );
+				$hops = array_reverse( array_map( 'trim', $chain ) );
 				foreach ( $hops as $hop ) {
 					$hop = trim( preg_replace( '/^\[([^\]]+)\](:\d+)?$/', '$1', $hop ) );
 					if ( false === filter_var( $hop, FILTER_VALIDATE_IP ) ) { break; }

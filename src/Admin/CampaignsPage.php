@@ -1,8 +1,11 @@
 <?php
 /**
- * Admin screen "Kampagnen": list, create, edit, activate/deactivate discount codes with the
+ * Admin screen "Kampagnen" (Rabattcodes): list, create, edit, activate/deactivate discount codes with the
  * existing rules of Campaigns (percent/fixed value, currency, event/ticket type scope, time window,
- * usage limit, priority).
+ * usage limit, priority, stacking), single-use code batches with CSV export. Event-scoped staff with
+ * wpcap_manage_events manage the codes of their events; codes for all events need manage_options.
+ * The simple create/status API of the former "Rabattcodes" page (create(), set_status(), admin-post
+ * actions wpcap_campaign_create / wpcap_campaign_status) is kept.
  *
  * @package PassCaptain
  */
@@ -22,7 +25,17 @@ final class CampaignsPage {
 
 	/** Global campaigns (no event) need manage_options; event campaigns the event capability. */
 	public static function can_scope( $event_id ) {
+		$event_id = absint( $event_id );
 		return $event_id ? Access::can_access_event( $event_id, self::CAP ) : current_user_can( 'manage_options' );
+	}
+
+	/** Alias of can_scope(): whether the current user may manage codes of an event (0 = all events). */
+	public static function can_manage( $event_id ) {
+		return self::can_scope( $event_id );
+	}
+
+	public static function url( array $args = array() ) {
+		return Forms::page_url( self::SLUG, $args );
 	}
 
 	/**
@@ -46,9 +59,11 @@ final class CampaignsPage {
 		$max_raw = is_scalar( $in['max_discount'] ?? null ) ? trim( (string) $in['max_discount'] ) : '';
 		$max_discount = '' === $max_raw ? 0 : Forms::parse_money( $max_raw, Forms::currency_decimals( $currency ) );
 		if ( null === $max_discount ) { return Forms::error( 'wpcap_campaign_max', __( 'Der Höchstrabatt ist ungültig. Beispiel: 20,00', 'pass-captain' ) ); }
+		// "exclusive" is the field of the former simple form; "combinable" the one of this form.
+		$combinable = array_key_exists( 'exclusive', $in ) ? ( Forms::flag( $in, 'exclusive' ) ? 0 : 1 ) : ( Forms::flag( $in, 'combinable' ) ? 1 : 0 );
 		return array(
 			// Stacking rules (Campaigns::calculate()).
-			'combinable' => Forms::flag( $in, 'combinable' ) ? 1 : 0, 'with_price_rules' => Forms::flag( $in, 'with_price_rules' ) ? 1 : 0, 'max_discount_minor' => (int) $max_discount,
+			'combinable' => $combinable, 'stacking' => $combinable ? 'combinable' : 'exclusive', 'with_price_rules' => Forms::flag( $in, 'with_price_rules' ) ? 1 : 0, 'max_discount_minor' => (int) $max_discount,
 			// Group discount, automatic discount without code, uses per buyer.
 			'min_quantity' => Forms::int( $in, 'min_quantity' ), 'auto_apply' => Forms::flag( $in, 'auto_apply' ) ? 1 : 0, 'per_buyer_limit' => Forms::int( $in, 'per_buyer_limit' ),
 			'code' => Forms::text( $in, 'code', 64 ), 'name' => Forms::text( $in, 'name' ), 'kind' => $kind, 'value' => $value, 'currency' => $currency,
@@ -111,6 +126,43 @@ final class CampaignsPage {
 		Forms::finish( $result, $message, Forms::page_url( self::SLUG ), 'save' === $do ? $error_url : '' );
 	}
 
+	/**
+	 * Creates a code from the simple form (former "Rabattcodes" page; testable without a request).
+	 *
+	 * @param array $in code, name, kind (percent|fixed), value (percent or money), currency, event_id,
+	 *                  ticket_type_id, usage_limit, starts_at, ends_at (local, site time zone), priority, exclusive.
+	 * @return array|\WP_Error
+	 */
+	public static function create( array $in ) {
+		$event_id = Forms::int( $in, 'event_id' );
+		if ( ! self::can_scope( $event_id ) ) {
+			return Forms::forbidden( $event_id ? __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) : __( 'Codes für alle Events kann nur die Administration anlegen.', 'pass-captain' ) );
+		}
+		$in['do'] = 'save';
+		$in['id'] = 0;
+		if ( ! array_key_exists( 'exclusive', $in ) && ! array_key_exists( 'combinable', $in ) ) { $in['combinable'] = 1; }
+		return self::admin_action( $in );
+	}
+
+	/** Activates/deactivates a code (former simple form: campaign_id, status). @return array|true|\WP_Error */
+	public static function set_status( array $in ) {
+		$id = Forms::int( $in, 'campaign_id' ) ? Forms::int( $in, 'campaign_id' ) : Forms::int( $in, 'id' );
+		return self::admin_action( array( 'do' => 'status', 'id' => $id, 'status' => Forms::choice( $in, 'status', array( 'active', 'inactive' ), 'inactive' ) ) );
+	}
+
+	/** admin-post wpcap_campaign_create (former simple form). */
+	public static function handle_create() {
+		Forms::verify( 'wpcap_campaign_create' );
+		Forms::finish( self::create( Forms::post() ), __( 'Rabattcode angelegt.', 'pass-captain' ), self::url() );
+	}
+
+	/** admin-post wpcap_campaign_status (former simple form). */
+	public static function handle_status() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_campaign_status_' . Forms::int( $in, 'campaign_id' ) );
+		Forms::finish( self::set_status( $in ), __( 'Status gespeichert.', 'pass-captain' ), self::url() );
+	}
+
 	/** CSV download of the generated single-use codes of a template campaign (GET, nonce). */
 	public static function handle_codes_csv() {
 		check_admin_referer( self::CSV_ACTION );
@@ -136,7 +188,7 @@ final class CampaignsPage {
 		if ( ! (int) ( $c->with_price_rules ?? 1 ) ) { $parts[] = __( 'nicht auf Preisregeln', 'pass-captain' ); }
 		if ( (int) ( $c->max_discount_minor ?? 0 ) ) { $parts[] = sprintf( /* translators: %s: amount */ __( 'max. %s', 'pass-captain' ), Forms::money( (int) $c->max_discount_minor, $c->currency ) ); }
 		if ( (int) ( $c->auto_apply ?? 0 ) ) { $parts[] = __( 'automatisch (ohne Code)', 'pass-captain' ); }
-		if ( (int) ( $c->min_quantity ?? 0 ) > 1 ) { $parts[] = sprintf( /* translators: %d: tickets */ __( 'ab %d Tickets', 'pass-captain' ), (int) $c->min_quantity ); }
+		if ( (int) ( $c->min_quantity ?? 0 ) > 1 ) { $parts[] = sprintf( /* translators: %d: tickets */ _n( 'ab %d Ticket', 'ab %d Tickets', (int) $c->min_quantity, 'pass-captain' ), (int) $c->min_quantity ); }
 		if ( (int) ( $c->per_buyer_limit ?? 0 ) ) { $parts[] = sprintf( /* translators: %d: uses */ __( 'max. %d je Käufer', 'pass-captain' ), (int) $c->per_buyer_limit ); }
 		if ( (int) ( $c->batch_codes ?? 0 ) ) { $parts[] = sprintf( /* translators: %d: codes */ __( '%d Einzelcodes', 'pass-captain' ), (int) $c->batch_codes ); }
 		return implode( ', ', $parts );

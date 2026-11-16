@@ -1,6 +1,6 @@
 <?php
 /**
- * Event detail page (/{base}/{slug}/). Override in the theme as wp-pass-captain/event-single.php.
+ * Event detail page (/{base}/{slug}/). Override in the theme as pass-captain/event-single.php.
  *
  * Available: PassCaptain\Frontend\EventPage::current() (event row: name, description, image_url,
  * category, status), EventPage::tickets_html( $event ) (dates and ticket selection).

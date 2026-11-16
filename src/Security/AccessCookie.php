@@ -130,7 +130,7 @@ final class AccessCookie {
 		$cookie = $plan['cookie'];
 		setcookie( $cookie['name'], $cookie['value'], array_intersect_key( $cookie, array_flip( array( 'expires', 'path', 'domain', 'secure', 'httponly', 'samesite' ) ) ) ); // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.cookies_setcookie -- HttpOnly access cookie, see class doc.
 		wp_safe_redirect( $plan['url'], 303 );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**
@@ -165,7 +165,7 @@ final class AccessCookie {
 		status_header( 200 );
 		header( 'Content-Type: text/html; charset=utf-8' );
 		echo self::blocked_html(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in blocked_html().
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	public static function blocked_html() {

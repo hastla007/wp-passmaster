@@ -27,7 +27,7 @@ final class Cases {
 	const KINDS = array( 'paid_for_closed_order', 'double_payment', 'refund_failed' );
 
 	public static function register() {
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
 	private static function table() {
@@ -42,10 +42,10 @@ final class Cases {
 	public static function open( $order, $provider, $kind, $reference, $amount_minor, $currency, $note = '' ) {
 		global $wpdb;
 		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'paid_for_closed_order';
-		$reference = substr( sanitize_text_field( (string) $reference ), 0, 191 );
+		$reference = \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 191 );
 		$provider = sanitize_key( (string) $provider );
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (order_id,provider,kind,reference,amount_minor,currency,status,note,created_at,updated_at) VALUES (%d,%s,%s,%s,%d,%s,'open',%s,%s,%s)", self::table(), (int) ( $order->order_id ?? 0 ), $provider, $kind, $reference, max( 0, (int) $amount_minor ), strtoupper( substr( (string) $currency, 0, 3 ) ), substr( sanitize_text_field( (string) $note ), 0, 255 ), $now, $now ) );
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (order_id,provider,kind,reference,amount_minor,currency,status,note,created_at,updated_at) VALUES (%d,%s,%s,%s,%d,%s,'open',%s,%s,%s)", self::table(), (int) ( $order->order_id ?? 0 ), $provider, $kind, $reference, max( 0, (int) $amount_minor ), strtoupper( \PassCaptain\Text::cut( (string) $currency, 3 ) ), \PassCaptain\Text::cut( sanitize_text_field( (string) $note ), 255 ), $now, $now ) );
 		$case_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT case_id FROM %i WHERE provider=%s AND kind=%s AND reference=%s', self::table(), $provider, $kind, $reference ) );
 		if ( $case_id && 'refund_failed' !== $kind && '' !== $reference && Settings::get( 'auto_refund_unmatched_payments' ) ) {
 			Jobs::enqueue( 'payment-case-refund|' . $case_id, self::JOB, array( 'case_id' => $case_id ) );
@@ -77,7 +77,7 @@ final class Cases {
 		global $wpdb;
 		$case = self::get( $case_id );
 		if ( ! $case ) { return new \WP_Error( 'wpcap_payment_case_missing', __( 'Fall nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$wpdb->update( self::table(), array( 'status' => 'resolved', 'note' => substr( sanitize_text_field( (string) $note ), 0, 255 ) ?: (string) $case->note, 'updated_at' => current_time( 'mysql', true ) ), array( 'case_id' => (int) $case->case_id ) );
+		$wpdb->update( self::table(), array( 'status' => 'resolved', 'note' => \PassCaptain\Text::cut( sanitize_text_field( (string) $note ), 255 ) ?: (string) $case->note, 'updated_at' => current_time( 'mysql', true ) ), array( 'case_id' => (int) $case->case_id ) );
 		Audit::record( 'payment_case_resolved', 'order', (int) $case->order_id, array( 'case_id' => (int) $case->case_id, 'kind' => (string) $case->kind ) );
 		return true;
 	}
@@ -99,7 +99,7 @@ final class Cases {
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT public_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', (int) $case->order_id ) );
 		$result = $gateway->refund( array( 'provider_reference' => (string) $case->reference, 'currency' => (string) $case->currency, 'public_id' => $order ? (string) $order->public_id : '' ), (int) $case->amount_minor, 'wpcap-case-' . (int) $case->case_id );
 		$status = is_wp_error( $result ) ? 'refund_failed' : 'refunded';
-		$wpdb->update( self::table(), array( 'status' => $status, 'note' => is_wp_error( $result ) ? substr( $result->get_error_message(), 0, 255 ) : substr( 'refund ' . (string) $result, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'case_id' => (int) $case->case_id ) );
+		$wpdb->update( self::table(), array( 'status' => $status, 'note' => is_wp_error( $result ) ? \PassCaptain\Text::cut( $result->get_error_message(), 255 ) : \PassCaptain\Text::cut( 'refund ' . (string) $result, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'case_id' => (int) $case->case_id ) );
 		Audit::record( 'payment_case_' . $status, 'order', (int) $case->order_id, array( 'case_id' => (int) $case->case_id, 'kind' => (string) $case->kind, 'amount_minor' => (int) $case->amount_minor ) );
 		return is_wp_error( $result ) ? $result : true;
 	}

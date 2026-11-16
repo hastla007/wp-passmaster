@@ -31,25 +31,33 @@ test('event list: compact rows without forms, "Tickets" opens the single-occurre
 
 test('sold-out ticket type: waitlist sign-up asks to confirm the e-mail link (double opt-in)', page('waitlist', async (p) => {
 	await p.goto(fx.events_url);
-	const row = p.locator(`.wpcap-type[data-type-row="${fx.ticket_types.Ausverkauft}"]`);
-	await row.locator('.wpcap-waitlist-open').click();
+	// Merged card markup (A456): one waitlist form per card below the checkout form; its ticket type
+	// select lists only the sold-out types (hidden while there is just one).
+	const card = p.locator('.wpcap-event').filter({ has: p.locator(`.wpcap-qty[data-type="${fx.ticket_types.Ausverkauft}"]`) });
+	const form = card.locator('.wpcap-waitlist-form');
+	await form.waitFor();
+	assert.equal(await form.locator('[name="ticket_type_id"]').inputValue(), String(fx.ticket_types.Ausverkauft), 'the sold-out type is preselected');
 	const email = 'e2e-wl-' + Date.now() + '@example.com';
-	await row.locator('.wpcap-waitlist-email').fill(email);
-	await row.locator('.wpcap-waitlist-submit').click();
-	await assert.doesNotReject(row.locator('.wpcap-waitlist-status', { hasText: /bestätige den Link|confirm/i }).waitFor());
+	await form.locator('[name="email"]').fill(email);
+	await form.locator('button[type="submit"]').click();
+	await assert.doesNotReject(form.locator('.wpcap-message', { hasText: /Bestätigungslink|confirm/i }).waitFor());
 	const entry = helper('waitlist', email).entry;
 	assert.ok(entry, 'entry stored');
-	assert.equal(entry.status, 'unconfirmed', 'counts only after the confirmation link');
+	assert.equal(entry.status, 'pending', 'counts only after the confirmation link (merged status name: pending)');
 	assert.equal(Number(entry.ticket_type_id), fx.ticket_types.Ausverkauft);
 }));
 
 test('availability endpoint: public, 5 s cacheable, sold-out state per ticket type', async () => {
-	const res = await ctx.request.get(BASE + '/?rest_route=/wp-pass-captain/v1/availability&types=' + [fx.ticket_types.Standard, fx.ticket_types.Ausverkauft].join(','));
-	assert.equal(res.status(), 200);
-	assert.match(res.headers()['cache-control'] || '', /max-age=5/);
-	const data = await res.json();
-	assert.equal(data.types[String(fx.ticket_types.Ausverkauft)].status, 'soldout');
-	assert.equal(data.types[String(fx.ticket_types.Standard)].status, 'available');
+	// Merged namespace pass-captain/v1; the legacy wp-pass-captain/v1 alias answers the same (cached pages, old scripts).
+	for (const ns of ['pass-captain/v1', 'wp-pass-captain/v1']) {
+		const res = await ctx.request.get(BASE + '/?rest_route=/' + ns + '/availability&types=' + [fx.ticket_types.Standard, fx.ticket_types.Ausverkauft].join(','));
+		assert.equal(res.status(), 200, ns);
+		assert.match(res.headers()['cache-control'] || '', /max-age=5/, ns);
+		assert.doesNotMatch(res.headers()['cache-control'] || '', /no-store|private/, ns);
+		const data = await res.json();
+		assert.equal(data.types[String(fx.ticket_types.Ausverkauft)].status, 'soldout');
+		assert.equal(data.types[String(fx.ticket_types.Standard)].status, 'available');
+	}
 });
 
 test('signed-in buyer: the checkout runs as that account (X-WP-Nonce over the cookie REST path)', async () => {
@@ -64,7 +72,9 @@ test('signed-in buyer: the checkout runs as that account (X-WP-Nonce over the co
 		await form.locator('[name="email"]').fill(email);
 		if (await form.locator('[name="accept_terms"]').count()) await form.locator('[name="accept_terms"]').check();
 		// The signed-in user's profile language decides the text (catalogs are complete): compare with the localized string.
-		assert.equal(await form.locator('button[type="submit"]').innerText(), await p.evaluate(() => window.WPCAP_CHECKOUT.i18n.freeButton));
+		// Merged card: the button carries both localized labels (data-label-free / data-label-paid, A409).
+		const submit = form.locator('button[type="submit"]');
+		assert.equal(await submit.innerText(), await submit.getAttribute('data-label-free'));
 		await form.locator('button[type="submit"]').click();
 		await assert.doesNotReject(p.locator('.wpcap-confirmation').waitFor());
 		const order = helper('buyer', email).order;

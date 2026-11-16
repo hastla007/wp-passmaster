@@ -1,0 +1,259 @@
+# Warteliste und automatische Angebote
+
+Ausverkaufte Ticketarten haben eine Warteliste je Event, Termin und Ticketart. Wird Kontingent frei,
+bietet das Plugin die Plätze automatisch den nächsten passenden Einträgen an – und **reserviert sie
+dabei**, damit niemand anderes sie in der Zwischenzeit kaufen kann.
+
+## Einträge
+
+| Feld | Bedeutung |
+|---|---|
+| `quantity` | Gewünschte Anzahl (1 bis `max_per_order` der Ticketart). |
+| `position` | Reihenfolge der Eintragung (FIFO) je Event und Ticketart. |
+| `priority` | Optional, vom Team gesetzt (−1000 … 1000). Höhere Priorität kommt zuerst, innerhalb einer Priorität entscheidet die Position. |
+| `status` | (`pending` →) `waiting` → `offered` → `accepted` → `paid`; `pending` = Eintragung noch nicht per E-Mail bestätigt (Double-Opt-in, siehe unten); Endzustände `expired`, `declined`, `skipped`, `removed`, `closed` (Termin abgesagt oder vorbei); `blocked` = nicht anbietbar (siehe unten), bis das Team den Eintrag wieder aufnimmt. |
+| `block_reason` | Grund für `blocked`: `buyer_limit` (Käuferlimit), `quantity_limit` (Anzahl über dem Höchstwert pro Bestellung), `attendee_data`; bei `waiting` ggf. `seats` (zuletzt mangels Sitzplätzen übersprungen). Schema 3.10.14. |
+| `order_id` | Bestellung, die das offene Angebot reserviert (0 ohne Angebot). |
+| `offer_expires_at` | Ende der Reservierung (UTC): beim Angebot die Annahmefrist, nach der Annahme das Zahlungsziel. |
+| `confirm_token_hash` | SHA-256 des Bestätigungslinks (Double-Opt-in, Schema 3.10.21); der Link selbst wird nicht gespeichert. |
+| `confirmed_at` | Zeitpunkt der Bestätigung per Link (UTC), Nachweis der Eintragung; leer bei Einträgen ohne Double-Opt-in. |
+
+Eintragen: `POST /wp-json/pass-captain/v1/events/{event_id}/waitlist` mit `occurrence_id`,
+`ticket_type_id`, `email` und optional `quantity`. Die Antwort ist immer gleich und verrät nicht, ob
+die Adresse schon eingetragen war; die Position steht in der Bestätigungsmail (`waitlist_joined`).
+
+**Double-Opt-in (A564, Standard an):** Eine neue Eintragung ist zunächst `pending` (ohne Position) und
+bekommt die Mail `waitlist_confirm` mit einem persönlichen Link `/?wpcap_waitlist_confirm={id}&token=…`
+(gespeichert wird nur der Hash). Der Link öffnet eine Bestätigungsseite (GET ändert nichts, damit
+Mail-Scanner und Linkvorschauen nicht bestätigen); erst der Knopf darauf (POST an `admin-post.php`,
+Aktion `wpcap_waitlist_confirm`, Nonce) setzt den Eintrag auf `waiting` am Ende der Schlange, speichert
+`confirmed_at`, schreibt das Audit `waitlist_confirmed`, löst `wpcap_waitlist_confirmed` aus und schickt
+`waitlist_joined` mit der Position. Unbestätigte Einträge bekommen kein Angebot und halten daher kein
+Kontingent; nach `confirm_hours` (Standard 48, 1–168) ist der Link ungültig und der stündliche Sweep
+löscht den Eintrag vollständig (Audit `waitlist_unconfirmed_deleted` nur mit Anzahl). Erneutes Eintragen
+während `pending` schickt einen neuen Link (der alte wird ungültig). Ist der Termin bis zur Bestätigung
+abgesagt, begonnen oder nicht mehr im Verkauf, wird die Bestätigung abgelehnt und der Eintrag gelöscht.
+Die Antwort des Endpunkts enthält dann `confirmation_required: true` und einen passenden Hinweis.
+Abschalten: Einstellung *E-Mail-Bestätigung (Double-Opt-in)* (`waitlist.double_opt_in = 0`) oder je
+Eintragung der Filter `wpcap_waitlist_double_opt_in` (z. B. für anderweitig geprüfte Adressen). Fehlen
+die Spalten (Schema-Upgrade ausstehend), gilt das bisherige Verhalten ohne Bestätigung.
+Einträge mit Status `expired`, `declined`, `paid` oder `blocked` dürfen sich erneut eintragen (am Ende der
+Schlange); vom Team übersprungene oder entfernte Einträge nicht. Wer sich selbst ausgetragen hat
+(siehe unten), kann sich später neu eintragen – der alte Eintrag ist anonymisiert.
+
+**Käuferlimit beim Eintragen (A563):** Hat das Event ein Limit pro Person (Modul Kontingente), wird ein
+Eintrag abgelehnt (`wpcap_waitlist_buyer_limit`, 409), wenn die Adresse mit ihren aktuellen Tickets plus
+der gewünschten Anzahl darüber läge – so ein Eintrag könnte nie ein Angebot bekommen. Diese Antwort
+weicht von der einheitlichen Antwort ab (die Adresse hält Tickets dieses Events); erweiterbar über den
+Filter `wpcap_waitlist_join_error`.
+
+**Auf der Eventkarte** (Shortcode/Block): Ausverkaufte Ticketarten zeigen unter dem Bestellformular
+ein Wartelisten-Formular (Ticketart, Anzahl, E-Mail), das diesen Endpunkt aufruft. Ist der Termin ganz
+ausverkauft, entfällt das Bestellformular. Ausblenden: `add_filter( 'wpcap_waitlist_public_enabled',
+'__return_false' )` (zweiter Parameter: Termin-Zeile der Karte).
+
+**Abgesagte oder vergangene Termine (A557):** Wird ein Termin (oder das ganze Event) abgesagt, werden
+seine wartenden Einträge und offenen Angebote sofort geschlossen (`closed`, Audit `waitlist_closed`;
+ein offenes Angebot wird zurückgenommen und seine Reservierung freigegeben). Der stündliche Sweep
+(`wpcap_cleanup_reservations`) schließt außerdem Einträge, deren Termin begonnen hat oder deren
+Ticketart nicht mehr verkauft wird (`sales_end`); beim Phasenwechsel eines Termins
+(`wpcap_occurrence_phase_changed`, A562) geschieht das sofort. Eine Ticketart, die nach Beginn weiter
+online verkauft wird (Verkaufsende nach Beginn, mehrtägige Termine, A535), behält ihre Einträge bis zu
+ihrem Verkaufsende. Die Betroffenen erhalten die Mail
+`waitlist_closed` mit dem Grund; abschalten mit der Einstellung `waitlist.close_mail = 0`.
+
+**Verschobene Termine, neuer Ort (A565):** Ändern sich Beginn oder Ort eines Termins
+(`wpcap_occurrence_changed`), bekommen alle Wartenden und Personen mit offenem Angebot die Mail
+`waitlist_changed` mit bisherigen und neuen Angaben und dem Austragen-Link (Audit
+`waitlist_change_mailed` mit Anzahl); ein offenes Angebot bleibt gültig. Abschalten mit
+`waitlist.change_mail = 0`. Das
+Bestellportal zeigt nur Wartelisteneinträge für Termine, die noch geplant, in der Zukunft und im
+Verkauf sind.
+
+**Formular auf der Eventkarte (A410):** Der Hinweis nennt die eingestellte Annahmefrist („Du kannst es 24 Stunden lang annehmen, höchstens bis zum Beginn des Termins.“, Einstellung „Gültigkeit eines Angebots“, `offer_hours`). Die Höchstmenge des Anzahlfelds ist die der gewählten Ticketart (`max_per_order`, `option[data-max]`) und folgt einem Wechsel der Ticketart; eine größere Anzahl wird auf sie gesenkt.
+
+## Ablauf
+
+1. **Kontingent wird frei** – `wpcap_capacity_released` (Reservierung abgelaufen, Storno, Erstattung,
+   Teilerstattung, Widerruf mit Platzfreigabe, Umtausch, verspätete Zahlung ohne Kontingent) oder `wpcap_capacity_increased` (von Modulen bzw. nach
+   einer Kontingenterhöhung auszulösen). Alle Ticketarten desselben Termins mit wartenden Einträgen
+   werden vorgemerkt (Option `wpcap_waitlist_queue`), denn das Termin-Kontingent ist gemeinsam.
+   Vormerken und Entnehmen laufen unter einer kurzen Datenbanksperre; ein Lauf entfernt nur die
+   Ticketarten, die er übernimmt, sodass parallel vorgemerkte Ticketarten nicht verloren gehen.
+2. **Verarbeitung mit kurzer Verzögerung** – ein einmaliges Cron-Ereignis `wpcap_waitlist_process`
+   (Standard 60 Sekunden, Filter `wpcap_waitlist_process_delay`) bündelt mehrere Freigaben. Zusätzlich
+   läuft die Verarbeitung im 5-Minuten-Job (`wpcap_process_jobs`) und stündlich als Sweep über alle
+   Ticketarten mit wartenden Einträgen (`wpcap_cleanup_reservations`), der auch Kontingenterhöhungen
+   ohne Hook erfasst.
+3. **Angebot** – je Ticketart (mit Datenbanksperre, keine parallelen Läufe) wird die freie Menge aus
+   `Orders::availability()` ermittelt. Einträge werden nach Priorität und Position durchgegangen; ein
+   Eintrag erhält ein Angebot, wenn seine Anzahl in die freie Menge passt. Größere Einträge werden
+   übersprungen, kleinere dahinter bedient – außer mit der Einstellung *Strikte Reihenfolge*. Höchstens
+   *Angebote pro Durchlauf* je Lauf und Ticketart.
+   **Nicht anbietbare Einträge blockieren die Schlange nicht (A563):** Scheitert das Angebot nur an
+   diesem Eintrag – Käuferlimit (z. B. inzwischen anderweitig gekauft), gewünschte Anzahl über dem
+   (später gesenkten) Höchstwert pro Bestellung, Teilnehmerdaten –, wird er `blocked` mit
+   `block_reason`, im Audit-Log (`waitlist_blocked`) und per Aktion `wpcap_waitlist_blocked` gemeldet,
+   und der nächste Eintrag erhält die Plätze. Reichen die freien Sitzplätze (Saalplan) nicht für die
+   Anzahl, wird der Eintrag in diesem Lauf übersprungen (Hinweis `seats`, Status bleibt `waiting`).
+   Nur ausverkauft, Verkauf geschlossen oder Datenbankfehler beenden den Lauf.
+4. **Reservierung** – für das Angebot wird eine ausstehende Platzhalter-Bestellung angelegt
+   (`Orders::create()` mit `payment_provider` `waitlist_offer`, Kanal `waitlist`) mit einer Reservierung
+   über die angebotene Anzahl bis zum Ablauf der Annahmefrist (Einstellung, Standard 24 Stunden,
+   höchstens bis zum Ende des Online-Verkaufs: Terminbeginn bzw. ein späteres Verkaufsende bei
+   mehrtägigen Terminen, A535). Teilnehmerdaten werden dafür nicht verlangt – Pflichtfelder der
+   Ticketart werden erst bei der Annahme geprüft (A536). Das Kern-Kontingent zählt diese Reservierung; öffentliche Käufer:innen
+   können die Plätze nicht kaufen. Ein Eintrag hat höchstens ein offenes Angebot.
+5. **Mail** `waitlist_offer` mit Anzahl, Termin (Datum, Uhrzeit, Zeitzone) und Ort (A565), Frist und Link zur Angebotsseite
+   (`/?wpcap_waitlist_accept={id}&token=…`). Schlägt der Versand fehl, wird das Angebot zurückgenommen
+   und der Eintrag wartet weiter.
+6. **Annahme** – die Angebotsseite zeigt Event, Termin mit Zeitzone, Ort, Ticketart, Anzahl, Preis und
+   Frist und bietet *Annehmen* (mit Zahlungsart-Auswahl, falls mehrere aktiv sind) und *Ablehnen*. Ist
+   „Zustimmung im Checkout verlangen“ aktiv, zeigt sie wie der Checkout Bedingungen und
+   Verbraucherinformationen in der Sprache der Seite und verlangt die Zustimmung – auch bei kostenlosen
+   Angeboten (A565). Die angezeigte Fassung wird mitgeschickt (`terms_version`); hat sie sich inzwischen
+   geändert, wird die Annahme abgelehnt (`wpcap_terms_changed`, das Angebot bleibt offen). Die Bestellung
+   speichert die angenommene Fassung und die Sprache, die Fassung wird archiviert (A568). Hat die Ticketart Teilnehmerfelder, fragt die Seite je Ticket Name und Felder ab
+   (`attendees[i][…]` wie im Checkout, auch über `POST /waitlist/{id}/accept` mit `attendees`). Fehlt ein
+   Pflichtfeld, wird die Annahme abgelehnt (`wpcap_attendee_field_required`), das Angebot bleibt offen
+   und die Seite verlinkt zurück zum Formular. Die Daten landen an der Bestellung und gehen bei der
+   Ausstellung an die Tickets (Einwilligungsnachweis mit Quelle `waitlist`).
+   - Kostenlose Tickets: die Bestellung wird sofort abgeschlossen, die Tickets werden versendet
+     (`paid`).
+   - Kostenpflichtige Tickets: die Bestellung erhält die gewählte Zahlungsart, die Reservierung wird
+     auf das Zahlungsfenster dieser Zahlungsart verlängert (nie verkürzt), die Zahlung wird gestartet
+     (Weiterleitung bzw. Bankdaten) und der Bestell-Link per Mail versendet (`accepted`). Mit der
+     Zahlungsbestätigung (`wpcap_order_paid`) wird der Eintrag `paid`.
+7. **Ablehnung** – der Eintrag wird `declined`, die Platzhalter-Bestellung storniert; die Plätze gehen
+   an den nächsten Eintrag.
+   - **Ergebnisseite, Doppelklick, Neuladen (A317)**: Annehmen und Ablehnen antworten mit
+     Post/Redirect/Get. Nach einer Annahme mit Stripe/PayPal/Mollie geht es direkt zur Zahlungsseite,
+     sonst (Überweisung, kostenlos, Ablehnung) auf die Ergebnisseite
+     `/?wpcap_waitlist_result={id}&wl={Schlüssel}` (Schlüssel: HMAC aus Eintrag und Bestellung mit dem
+     WordPress-Salt, ohne personenbezogene Daten). Sie zeigt Ablehnung bzw. Annahme mit Bestellnummer und
+     Zahlungsstand: abgeschlossen, wartet auf Zahlung (mit Reservierungsende und Bankdaten bzw. *Jetzt
+     bezahlen*, das die offene Zahlungssitzung derselben Bestellung fortsetzt) oder Reservierung abgelaufen.
+     Das Formular sperrt sich nach dem ersten Absenden; kommt trotzdem ein zweites Absenden an oder wird
+     der Mail-Link nach der Antwort erneut geöffnet, erkennt das Plugin den Angebots-Token (Transient
+     `wpcap_wl_answered_{id}`, 30 Tage) und leitet auf dieselbe Ergebnisseite statt „Angebot nicht
+     verfügbar“. Eingabefehler (Pflichtfeld, Bedingungen) zeigen weiter „Bitte Angaben prüfen“ mit Link
+     zurück zum Angebot.
+8. **Ablauf** – läuft die Reservierung eines offenen oder angenommenen, unbezahlten Angebots ab, setzt
+   der Kern-Cleanup die Bestellung auf `expired`; der Eintrag wird `expired` und die Plätze werden
+   erneut angeboten. Die Warteliste prüft abgelaufene Angebote zusätzlich selbst (5-Minuten-Job und
+   eigenes Cron-Ereignis kurz nach der Frist), damit das nächste Angebot nicht bis zum stündlichen
+   Cleanup wartet.
+
+Alle Übergänge sind bedingte Updates (Status + Token), Mehrfachaufrufe von Hooks und Läufen ändern
+nichts doppelt.
+
+## Selbst austragen
+
+Jede Wartelisten-Mail (`waitlist_joined`, `waitlist_offer`) enthält einen persönlichen Link zum
+Austragen (Platzhalter `{unsubscribe_link}`, `/?wpcap_waitlist_unsubscribe={id}&token=…`). Fehlt der
+Platzhalter in einer angepassten Vorlage, hängt das Plugin den Standardsatz mit dem Link an.
+
+- **Token:** Schlüssel-Hash aus Eintrag und E-Mail-Hash (Site-Secret `wp_salt('auth')`), damit alle
+  Mails eines Eintrags denselben Link tragen. Gespeichert wird nur dessen SHA-256 in
+  `unsubscribe_token_hash` (Schema 3.10.1); Vergleich in konstanter Zeit. Einträge von vor 3.10.1
+  bekommen den Hash mit der nächsten Mail. Aufbewahrungsfrist und Löschanfrage leeren den Hash – der
+  Link ist dann ungültig.
+- **Kein Austragen per GET:** Der Link öffnet nur eine Bestätigungsseite (Event, Ticketart, Anzahl,
+  Status; bei offenem Angebot der Hinweis, dass die Tickets sofort freigegeben werden). Erst das
+  Formular (POST an `admin-post.php`, Aktion `wpcap_waitlist_unsubscribe`, Formularnachweis) trägt aus. So lösen
+  Mail-Scanner und Link-Vorschauen nichts aus.
+- **Wirkung:** Status `removed`, E-Mail-Adresse geleert, E-Mail-Hash ersetzt (wie bei der
+  Aufbewahrungsfrist), Angebots-Token entfernt. Ein offenes Angebot wird zurückgezogen: die
+  Platzhalter-Bestellung wird storniert, die Reservierung freigegeben und die Ticketart erneut
+  vorgemerkt, damit der nächste Eintrag das Angebot bekommt. Audit `waitlist_unsubscribed`
+  (`previous`, `order_id`, `source`), Action `wpcap_waitlist_unsubscribed`.
+- **Idempotent:** Ein erneuter Aufruf meldet „nicht mehr auf der Warteliste“ ohne Änderung (auch für
+  bezahlte, abgelaufene oder abgelehnte Einträge). Ein bereits **angenommenes** Angebot (Zahlung
+  offen) lässt sich nicht austragen (409) – zahlt die Person nicht, verfällt die Reservierung wie
+  gewohnt.
+- **Rate-Limit:** höchstens 30 Versuche je Client-Adresse und 10 je Eintrag und Stunde (429), für
+  Seite und Formular.
+- **Bestellportal:** Hat die Käufer-Adresse einer Bestellung offene Einträge (wartend oder Angebot
+  offen), zeigt das Portal die Karte *Deine Wartelisten* mit *Von der Warteliste austragen* (POST an
+  den Portal-Link mit Nonce, Rückmeldung per Redirect). Austragen geht dort nur für Einträge mit
+  derselben E-Mail-Adresse.
+
+## Gleichzeitige Aktionen
+
+Annehmen, Ablehnen, Austragen, Team-Aktionen und der Ablauf-Job können dasselbe Angebot gleichzeitig
+treffen. Garantien:
+
+- **Annahme in einer Transaktion:** Platzhalter-Bestellung, Eintrag und die aktiven Reservierungen
+  dieser Bestellung werden gesperrt (`FOR UPDATE`, Bestellung zuerst – dieselbe Reihenfolge wie in
+  `Orders`). Unter den Sperren werden Status `offered`, Token, Frist, `payment_provider`
+  `waitlist_offer` und eine noch laufende Reservierung erneut geprüft. Erst dann wird der Eintrag
+  `accepted`, die Reservierung verlängert (kostenlos: mindestens 15 Minuten für den Abschluss;
+  kostenpflichtig: Zahlungsfenster der Zahlungsart) und die Zahlungsart gesetzt. Zwei parallele
+  Annahmen: genau eine gewinnt, die zweite bekommt 409.
+- **Annahme gegen Ablauf:** Ist die Reservierung zeitlich abgelaufen, aber der Ablauf-Job noch nicht
+  gelaufen, wird die Annahme abgelehnt. Gewinnt die Annahme, ist die Reservierung bereits verlängert,
+  bevor der Ablauf-Job sie sieht; er lässt das Angebot dann stehen. Verliert die Annahme einen
+  Deadlock gegen den Ablauf-Job, wird alles zurückgerollt und einmal neu versucht.
+- **Ablehnen, Austragen, Überspringen/Entfernen** sind bedingte Updates bzw. sperren Bestellung und
+  Eintrag ebenfalls; nach einer Annahme schlagen sie fehl (bzw. melden 409), vor ihr verhindern sie
+  die Annahme. Die Stornierung der Platzhalter-Bestellung wird bei einem Sperrkonflikt sofort einmal
+  wiederholt, danach übernimmt der Wiederholungs-Job von `Orders::cancel_order()`.
+- **Eintrag während des Angebots entfernt:** Wird ein Eintrag zwischen Beanspruchung und Verknüpfung
+  der Platzhalter-Bestellung entfernt (Austragen, Team, Löschanfrage), storniert das Angebot seine
+  eben angelegte Bestellung sofort wieder – keine verwaiste Reservierung.
+
+Tests: `tests/integration/modules/zz_a158.php` (deterministische Reihenfolgen) und
+`php tests/load/run.php --scenario=waitlist` (echte parallele Verbindungen: parallele Annahmen,
+Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in Schleife; Teil von
+`--profile=ci`).
+
+## Admin
+
+*Pass Captain → Warteliste* (Recht `wpcap_manage_orders`, Event-Berechtigung wie bei Bestellungen):
+
+- Einträge je Event mit Termin (Datum/Uhrzeit in der Zeitzone des Termins), Ticketart, **Platz in der
+  Warteschlange** (Reihenfolge der Wartenden je Termin und Ticketart nach Priorität und Anmeldung; Platz 1
+  bekommt als Nächstes ein Angebot), **Anmeldung Nr.** (fortlaufende Nummer der Eintragung wie in der
+  Bestätigungsmail, ändert sich nicht), E-Mail, Anzahl, Priorität, Status, Reservierungsende und
+  Bestellung (kurze Bestellnummer wie in den Mails, verlinkt) (A341). Eine Legende über der Tabelle
+  erklärt die beiden Nummern.
+- Selbst ausgetragene Einträge erscheinen als *Entfernt* ohne E-Mail-Adresse.
+- Aktionen: *Jetzt anbieten* (auch bei abgeschalteten automatischen Angeboten), *Priorität setzen*,
+  *Überspringen* (`skipped`) und *Entfernen* (`removed`); ein offenes, unbezahltes Angebot wird dabei
+  zurückgezogen und die Reservierung freigegeben.
+- Nicht anbietbare Einträge stehen als *Nicht anbietbar* mit Grund in der Liste; *Wieder aufnehmen*
+  setzt sie auf `waiting` (gleiche Position) und verarbeitet die Ticketart erneut.
+- *Freie Plätze jetzt anbieten* verarbeitet alle Ticketarten des Events sofort.
+- Einstellungen (nur Administrator:innen): automatische Angebote an/aus, Gültigkeit eines Angebots in
+  Stunden (1–336), höchstens Angebote pro Durchlauf (1–100), strikte Reihenfolge, Mail bei Absage/Ende,
+  Mail bei Terminänderung, E-Mail-Bestätigung (Double-Opt-in) mit Gültigkeit des Links in Stunden.
+- Unbestätigte Eintragungen stehen als *Unbestätigt (E-Mail-Bestätigung offen)* ohne Anmeldenummer in
+  der Liste und können entfernt werden.
+
+## REST
+
+| Route | Recht | Zweck |
+|---|---|---|
+| `POST /events/{id}/waitlist` | öffentlich | Eintragen (`occurrence_id`, `ticket_type_id`, `email`, `quantity`). |
+| `GET /events/{id}/waitlist/entries` | Event verwalten | Einträge mit Rang und Status. |
+| `POST /events/{id}/waitlist/offer` | Event verwalten | Nächsten Eintrag einer Ticketart (`ticket_type_id`) sofort anbieten. |
+| `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`, `terms_version`, `locale`). |
+| `POST /waitlist/{id}/decline` | Token | Angebot ablehnen (`token`). |
+
+Das Austragen und die Double-Opt-in-Bestätigung laufen bewusst nicht über REST, sondern über die
+jeweilige Bestätigungsseite (POST + Formularnachweis bzw. Nonce) bzw. das Bestellportal.
+
+**Formularnachweis statt Nonce (A462):** Angebotsseite (Annehmen/Ablehnen), Abmeldeseite und „Jetzt bezahlen“
+auf der Ergebnisseite tragen im Feld `_wpcap_sig` einen HMAC über Art, Eintrag und das Geheimnis des Links
+(Angebots-Token, Abmelde-Token bzw. Ergebnisschlüssel; `Waitlists::form_sig()`). Ein WordPress-Nonce lebt nur
+12–24 Stunden und hängt am Anmeldestatus – ein Angebot mit `offer_hours` 24 oder mehr, am Vorabend geöffnet,
+scheiterte am nächsten Morgen mit „Link abgelaufen“. Der Nachweis läuft nicht ab und gilt nur zusammen mit dem
+Link; Formulare, die vor dem Update geöffnet wurden, werden weiter über ihren Nonce geprüft. Alle Seiten und
+ihre 303-Weiterleitungen sind `no-store` (`PageCache::no_store()`).
+
+## Hinweise
+
+- Platzhalter-Bestellungen erscheinen in der Bestellliste als ausstehend mit Zahlungsart
+  `waitlist_offer`; sie werden nicht bezahlt, sondern bei der Annahme auf die gewählte Zahlungsart
+  umgestellt.
+- Rabattcodes, Gutscheine und Rechnungsdaten werden bei Wartelisten-Bestellungen nicht abgefragt.

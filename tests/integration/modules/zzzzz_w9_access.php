@@ -17,6 +17,7 @@ use PassCaptain\Settings;
 use PassCaptain\Security\AuditTrail;
 use PassCaptain\Security\DataPolicy;
 use PassCaptain\Security\Policy;
+require_once __DIR__ . '/zz_r6_stubs.inc'; // esc_url() … for the language switcher.
 use PassCaptain\Security\Sessions;
 use PassCaptain\Security\StepUp;
 use PassCaptain\Security\SupportAccess;
@@ -122,9 +123,9 @@ check( 'read audit: at most N entries per person and hour, then one throttle mar
 Settings::update( array( 'audit_read_limit_per_hour' => 300 ) );
 wpcap_test_reset_transients();
 $rest_before = w9_audit_count( 'pii_read' );
-AuditTrail::on_rest_response( new WP_REST_Response( array( 'status' => 'valid' ) ), null, new W9_Request( 'POST', '/wp-pass-captain/v1/tickets/validate', array( 'occurrence_id' => 42 ) ) );
-AuditTrail::on_rest_response( new WP_REST_Response( array() ), null, new W9_Request( 'GET', '/wp-pass-captain/v1/events' ) );
-AuditTrail::on_rest_response( new WP_Error( 'x', 'y' ), null, new W9_Request( 'POST', '/wp-pass-captain/v1/app/scan/validate' ) );
+AuditTrail::on_rest_response( new WP_REST_Response( array( 'status' => 'valid' ) ), null, new W9_Request( 'POST', '/pass-captain/v1/tickets/validate', array( 'occurrence_id' => 42 ) ) );
+AuditTrail::on_rest_response( new WP_REST_Response( array() ), null, new W9_Request( 'GET', '/pass-captain/v1/events' ) );
+AuditTrail::on_rest_response( new WP_Error( 'x', 'y' ), null, new W9_Request( 'POST', '/pass-captain/v1/app/scan/validate' ) );
 check( 'read audit: staff REST reads of ticket data are logged, public routes and errors are not', $rest_before + 1 === w9_audit_count( 'pii_read' ) && false !== strpos( (string) w9_last_audit( 'pii_read' )->details, 'tickets\/validate' ) );
 $dl_before = w9_audit_count( 'export_downloaded' );
 $pass = AuditTrail::on_download( null, "a;b\n", 'teilnehmer-5.csv', 'text/csv' );
@@ -237,7 +238,7 @@ $partner_csv = wp_json_encode( PassCaptain\Reports\Data::csv_rows( $report ) );
 check( 'minimisation: report CSV for partner role has ticket/admission figures but no amounts', false !== strpos( $full_csv, 'Brutto' ) && false === strpos( $partner_csv, 'Brutto' ) && false === strpos( $partner_csv, 'USt' ) && false !== strpos( $partner_csv, 'Eingecheckt' ) );
 $wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => $w9m['event'], 'user_id' => 9960, 'capability' => 'wpcap_view_reports' ) );
 wpcap_test_reset_transients();
-$rr = new WP_REST_Request( 'GET', '/wp-pass-captain/v1/events/' . $w9m['event'] . '/reports/summary' );
+$rr = new WP_REST_Request( 'GET', '/pass-captain/v1/events/' . $w9m['event'] . '/reports/summary' );
 $rr->set_param( 'event_id', $w9m['event'] );
 $allowed = PassCaptain\Rest\Controller::report_permission( $rr );
 $partner_report = PassCaptain\Rest\Controller::event_report( $rr );
@@ -308,8 +309,8 @@ $_REQUEST = array( 'action' => 'wpcap_resend_tickets' );
 $passed = true === StepUp::guard_admin_request();
 $_REQUEST = array();
 check( 'MFA: admin-post exports are stopped before the handler, unrelated actions pass', $died && $passed );
-$rest_block = StepUp::guard_rest( null, null, new W9_Request( 'POST', '/wp-pass-captain/v1/developer/keys' ) );
-$rest_pass = StepUp::guard_rest( null, null, new W9_Request( 'GET', '/wp-pass-captain/v1/events' ) );
+$rest_block = StepUp::guard_rest( null, null, new W9_Request( 'POST', '/pass-captain/v1/developer/keys' ) );
+$rest_pass = StepUp::guard_rest( null, null, new W9_Request( 'GET', '/pass-captain/v1/events' ) );
 check( 'MFA: API key creation over REST requires 2FA', is_wp_error( $rest_block ) && 403 === $rest_block->get_error_data()['status'] && null === $rest_pass );
 $audit_export = AuditLogPage::export( $f );
 check( 'MFA: audit-log export requires 2FA when exports are protected', is_wp_error( $audit_export ) && 'wpcap_mfa_required' === $audit_export->get_error_code() );
@@ -403,7 +404,8 @@ $deny_all = Refunds::request( $w9r_order, array(), 'Alles', 'w9-deny-all' );
 $ok_valid = Refunds::request( $w9r_order, array( $valid[0] ), 'Gast verhindert', 'w9-deny-2' );
 check( 'refund policy deny: checked-in tickets (also in "refund all") are refused, unused tickets refundable', is_wp_error( $deny ) && 'wpcap_refund_checked_in' === $deny->get_error_code() && is_wp_error( $deny_all ) && is_array( $ok_valid ) && 'completed' === $ok_valid['status'] );
 Settings::update( array( 'refund_after_checkin' => 'approval' ) );
-$pending = Refunds::request( $w9r_order, array( $checked ), 'Kulanz', 'w9-approval-1' );
+// Merged policy (A131): staff refund a checked-in ticket only with a documented exception (used_override).
+$pending = Refunds::request( $w9r_order, array( $checked ), 'Kulanz', 'w9-approval-1', array( 'used_override' => 'Kulanz nach Einlass' ) );
 $self_approve = is_array( $pending ) ? Refunds::approve( $pending['refund_id'] ) : null;
 $GLOBALS['wpcap_test_user_id'] = 2;
 $approved = is_array( $pending ) ? Refunds::approve( $pending['refund_id'] ) : null;
@@ -413,8 +415,14 @@ check( 'refund policy approval: second person required even for approvers; check
 Settings::update( array( 'refund_after_checkin' => 'allow' ) );
 $w9r2_order = w9_order( $w9r['type'], 1, 'refund-allow@example.com', true );
 Checkin::perform( ticket_code_for( $w9r2_order )[0], array( 'source' => 'web' ) );
-$allow = Refunds::request( $w9r2_order, array(), 'Absage', 'w9-allow-1' );
-check( 'refund policy allow (default): checked-in tickets are refunded directly', is_array( $allow ) && 'completed' === $allow['status'] );
+// Merged policy: "allow" lets system flows (cancelled dates) refund checked-in tickets; staff still need the
+// documented exception (A131), which always takes a second approval.
+$allow_plain = Refunds::request( $w9r2_order, array(), 'Absage', 'w9-allow-0' );
+$allow = Refunds::request( $w9r2_order, array(), 'Absage', 'w9-allow-1', array( 'used_override' => 'Absage nach Einlass' ) );
+$GLOBALS['wpcap_test_user_id'] = 2;
+$allow_done = is_array( $allow ) ? Refunds::approve( $allow['refund_id'] ) : null;
+w9_admin();
+check( 'refund policy allow (default): checked-in tickets are refunded with a documented exception and a second approval', is_wp_error( $allow_plain ) && 'wpcap_refund_used_tickets' === $allow_plain->get_error_code() && is_array( $allow ) && 'pending_approval' === $allow['status'] && is_array( $allow_done ) && 'completed' === $allow_done['status'] );
 // Occurrence cancellation with automatic refunds follows the same rule.
 Settings::update( array( 'auto_refund_cancelled' => 1, 'refund_after_checkin' => 'deny' ) );
 $w9x = w9_type( 1500 );
@@ -466,10 +474,11 @@ $w9_prefixes = array( 1 => $wpdb->prefix, 2 => $wpdb->prefix . '2_' );
 $GLOBALS['w9_blog_stack'] = array();
 $GLOBALS['w9_blog'] = 1;
 if ( ! function_exists( 'switch_to_blog' ) ) {
-	function switch_to_blog( $id ) { global $wpdb; $GLOBALS['w9_blog_stack'][] = $GLOBALS['w9_blog']; $GLOBALS['w9_blog'] = (int) $id; $wpdb->prefix = $GLOBALS['w9_prefixes'][ (int) $id ]; return true; }
-	function restore_current_blog() { global $wpdb; $GLOBALS['w9_blog'] = array_pop( $GLOBALS['w9_blog_stack'] ) ?? 1; $wpdb->prefix = $GLOBALS['w9_prefixes'][ $GLOBALS['w9_blog'] ]; return true; }
-	function get_current_blog_id() { return $GLOBALS['w9_blog'] ?? 1; }
+	function switch_to_blog( $id ) { global $wpdb; $GLOBALS['w9_blog_stack'][] = $GLOBALS['w9_blog']; $GLOBALS['w9_blog'] = (int) $id; $GLOBALS['wpcap_test_blog_id'] = (int) $id; $wpdb->prefix = $GLOBALS['w9_prefixes'][ (int) $id ]; return true; }
+	function restore_current_blog() { global $wpdb; $GLOBALS['w9_blog'] = array_pop( $GLOBALS['w9_blog_stack'] ) ?? 1; $GLOBALS['wpcap_test_blog_id'] = $GLOBALS['w9_blog']; $wpdb->prefix = $GLOBALS['w9_prefixes'][ $GLOBALS['w9_blog'] ]; return true; }
 }
+// bootstrap.php may already define get_current_blog_id() (multisite stubs reading wpcap_test_blog_id): keep both in sync.
+if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return (int) ( $GLOBALS['wpcap_test_blog_id'] ?? $GLOBALS['w9_blog'] ?? 1 ); } }
 $GLOBALS['w9_prefixes'] = $w9_prefixes;
 // Site 2: own schema with its own prefix.
 $wpdb->prefix = $w9_prefixes[2];

@@ -103,7 +103,13 @@ check( 'confirmation mail (German default) and audit', (bool) array_filter( svc_
 ServiceBookings::on_order_paid( $o1 );
 check( 'repeated payment hooks are idempotent', 'confirmed' === svc_status( $b1 ) && 2 === count( svc_tickets_of( $b1 ) ) );
 $unpaid = svc_book( $sb_slot, 'unpaid@svc.test' );
-check( 'a paid resource cannot be confirmed without payment', is_wp_error( ServiceBookings::confirm( $unpaid['booking_id'] ) ) && is_wp_error( ServiceBookings::confirm_free( $unpaid['booking_id'], $unpaid['manage_token'] ) ) );
+// Merged with the slot booking flow (A135): confirm() of a paid hold without order starts the checkout
+// (order pending, booking stays held = pending_payment) instead of refusing; it is never confirmed unpaid.
+$via_checkout = svc_book( svc_slot( $sb_res, 75 ), 'checkout@svc.test' );
+$via_checkout_result = ServiceBookings::confirm( $via_checkout['booking_id'], array( 'provider' => 'manual' ) );
+$via_checkout_row = ServiceBookings::get( $via_checkout['booking_id'] );
+check( 'a paid resource cannot be confirmed without payment', is_wp_error( ServiceBookings::confirm_free( $unpaid['booking_id'], $unpaid['manage_token'] ) ) && ! is_wp_error( $via_checkout_result ) && 'pending_payment' === $via_checkout_result['status'] && 'held' === $via_checkout_row->status && (int) $via_checkout_row->order_id > 0 && 'pending' === Orders::get( (int) $via_checkout_row->order_id )->payment_status );
+ServiceBookings::cancel( $via_checkout['booking_id'], array( 'actor' => 'customer' ) );
 $small = Orders::create( array( 'email' => 'unpaid@svc.test', 'items' => array( array( 'ticket_type_id' => $sb_type, 'quantity' => 1 ) ), 'idempotency_key' => 'svc-small-' . uniqid() ) );
 $foreign = Orders::create( array( 'email' => 'someone@svc.test', 'items' => array( array( 'ticket_type_id' => $sb_type, 'quantity' => 1 ) ), 'idempotency_key' => 'svc-foreign-' . uniqid() ) );
 $taken = ServiceBookings::attach_order( $unpaid['booking_id'], $o1 );
@@ -229,7 +235,7 @@ $rb_soon = svc_slot( $sb_res, 10, 60, 2 );
 list( $rb2 ) = svc_paid( $rb_soon, $sb_type, 'rebook2@svc.test' );
 $late_move = ServiceBookings::rebook( $rb2, $rb_from, array( 'actor' => 'customer', 'idempotency_key' => 'rb-5' ) );
 $admin_move = ServiceBookings::rebook( $rb2, $rb_from, array( 'actor' => 'admin', 'idempotency_key' => 'rb-6' ) );
-check( 'rebooking deadline binds buyers, not staff', is_wp_error( $late_move ) && 'wpcap_rebook_deadline' === $late_move->get_error_code() && ! is_wp_error( $admin_move ) && (int) $rb_from === (int) ServiceBookings::get( $rb2 )->slot_id );
+check( 'rebooking deadline binds buyers, not staff', is_wp_error( $late_move ) && 'wpcap_booking_rebook_deadline' === $late_move->get_error_code() && ! is_wp_error( $admin_move ) && (int) $rb_from === (int) ServiceBookings::get( $rb2 )->slot_id );
 // Price difference.
 $cheap_type = (int) $wpdb->get_var( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=" . (int) $sb_type );
 $wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$sb_type" ), 'name' => 'Günstig', 'price_minor' => 2000, 'currency' => 'EUR', 'capacity' => 100, 'max_per_order' => 10, 'status' => 'active' ) );
@@ -242,7 +248,7 @@ $cheap_slot = svc_slot( $cheap_res, 90 );
 $dear_slot = svc_slot( $dear_res, 90 );
 list( $pd ) = svc_paid( svc_slot( $sb_res, 180 ), $sb_type, 'price@svc.test', 2 );
 $same_only = ServiceBookings::rebook( $pd, $cheap_slot, array( 'actor' => 'customer', 'idempotency_key' => 'pd-1' ) );
-check( 'policy same_price refuses a cheaper target', is_wp_error( $same_only ) && 'wpcap_rebook_price' === $same_only->get_error_code() );
+check( 'policy same_price refuses a cheaper target', is_wp_error( $same_only ) && 'wpcap_booking_rebook_price' === $same_only->get_error_code() );
 $dear_same = ServiceBookings::rebook( $pd, $dear_slot, array( 'actor' => 'customer', 'idempotency_key' => 'pd-1b' ) );
 check( 'policy same_price refuses a dearer target (no supplementary payment)', is_wp_error( $dear_same ) && 'wpcap_rebook_price_higher' === $dear_same->get_error_code() );
 ServiceResources::save_resource( array( 'name' => 'Boot PD', 'rules' => array( 'price_policy' => 'refund_difference' ) ), $sb_res );
@@ -349,7 +355,8 @@ $page_cancel = SvcPortal::perform( array( 'do' => 'booking_cancel', 'id' => $mt[
 check( 'manage-token page: confirm and cancel a free booking; wrong token denied', is_wp_error( $page_cancel_wrong ) && 'confirmed' === ( $page_confirm['status'] ?? '' ) && 'cancelled' === ( $page_cancel['status'] ?? '' ) );
 $GLOBALS['wpcap_test_routes'] = array();
 SvcApi::register_routes();
-check( 'REST routes are registered (buyer, staff, waitlist, passes)', isset( $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook'], $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/decide'], $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept'], $GLOBALS['wpcap_test_routes']['wp-pass-captain/v1/member-passes/redeem-service'] ) );
+// Merged REST namespace pass-captain/v1 (Services\Api::NS; LegacySlug routes the former wp-pass-captain/v1 here).
+check( 'REST routes are registered (buyer, staff, waitlist, passes)', isset( $GLOBALS['wpcap_test_routes']['pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook'], $GLOBALS['wpcap_test_routes']['pass-captain/v1/service-bookings/(?P<booking_id>\d+)/decide'], $GLOBALS['wpcap_test_routes']['pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept'], $GLOBALS['wpcap_test_routes']['pass-captain/v1/member-passes/redeem-service'] ) );
 
 remove_filter( 'wpcap_payment_gateways', $svc_gateways );
 PassCaptain\Payments\Registry::reset();

@@ -54,9 +54,21 @@ $bad_registry_session = Pos::open_session( 10000, 'EUR', '', 23, 'UNLISTED' );
 $duplicate_registry = TerminalRegistry::validate( "23|BOX-1|Kasse 1\n23|BOX-1|Doppelt" );
 check( 'managed terminal directory rejects unregistered registers and duplicate configuration rows', is_wp_error( $bad_registry_session ) && 'wpcap_pos_terminal' === $bad_registry_session->get_error_code() && is_wp_error( $duplicate_registry ) );
 $session = Pos::open_session( 10000, 'EUR', '', 23, 'BOX-OFFICE-2' );
+// Cash register law (Arbeitsliste): without a certified fiscal solution, cash and card are refused in DE/AT.
+// Merged: the session is opened on a registered terminal (TerminalRegistry, audit line) and the fiscal
+// block (Pos::fiscal_block(), Arbeitsliste) applies to its sales; Service::sell() checks the terminal first.
+Settings::update( array( 'seller_country' => 'DE', 'boxoffice_cash_confirmed' => 0 ) );
+$blocked = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
+check( 'without a certified fiscal solution cash and card are refused in DE', is_wp_error( $blocked ) && 'wpcap_pos_fiscal_required' === $blocked->get_error_code() && ! isset( Pos::sale_methods()['card'] ) && isset( Pos::sale_methods()['free'], Pos::sale_methods()['invoice'] ) );
+Settings::update( array( 'seller_country' => 'CH' ) );
+check( 'outside DE/AT cash and card stay available', isset( Pos::sale_methods()['cash'], Pos::sale_methods()['card'] ) );
+Settings::update( array( 'seller_country' => 'AT', 'boxoffice_cash_confirmed' => 1 ) );
+check( 'the operator can confirm a separate certified register (cash/card available again)', ! Pos::fiscal_block() && isset( Pos::sale_methods()['cash'] ) );
+Settings::update( array( 'seller_country' => 'DE' ) ); // Confirmation stays on for the following sales.
 $again = Pos::open_session( 5000 );
 check( 'one open session per cashier (opening twice returns it)', ! is_wp_error( $session ) && (int) $session->session_id === (int) $again->session_id && 10000 === (int) $again->opening_float_minor );
-check( 'POS session retains its location and register assignment', 23 === (int) $again->location_id && 'BOX-OFFICE-2' === $again->register_id );
+// Merged design: the session is a shift; register_id is the Registers entity, the terminal string is fiscal_register_id.
+check( 'POS session retains its location and register assignment', 23 === (int) $again->location_id && 'BOX-OFFICE-2' === $again->fiscal_register_id && (int) $again->register_id > 0 );
 Settings::update( array( 'boxoffice_terminals' => "24|BOX-OFFICE-3|Abendkassa 3" ) );
 $disabled_session_sale = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
 check( 'removing a register blocks further sales from its still-open session', is_wp_error( $disabled_session_sale ) && 'wpcap_pos_terminal' === $disabled_session_sale->get_error_code() );
@@ -225,14 +237,21 @@ foreach ( $wpdb->get_results( "SELECT receipt_number,storno_receipt_number FROM 
 	if ( $r->receipt_number ) { $numbers[] = wpb_seq( $r->receipt_number ); }
 	if ( $r->storno_receipt_number ) { $numbers[] = wpb_seq( $r->storno_receipt_number ); }
 }
+// Payout receipts of refunds/stornos (movements) share the receipt series; a full storno's payout number is the sale's storno number.
+foreach ( $wpdb->get_col( "SELECT receipt_number FROM {$p}wpcap_boxoffice_movements WHERE receipt_number IS NOT NULL" ) as $r ) { $numbers[] = wpb_seq( $r ); }
+$numbers = array_values( array_unique( $numbers ) );
 sort( $numbers );
 check( 'receipt numbers (sales and stornos, incl. parallel sales) are gapless and unique (' . count( $numbers ) . ')', $numbers && range( $numbers[0], $numbers[0] + count( $numbers ) - 1 ) === $numbers );
 
 $totals = Pos::session_totals( $session->session_id );
 $expected_cash = (int) $wpdb->get_var( "SELECT COALESCE(SUM(total_minor),0) FROM {$p}wpcap_boxoffice_sales WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash' AND status<>'voided'" );
 // The partial cash refund ("Kulanz") of this open session is paid out of the till (PAY-V4).
-$expected_cash -= (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$p}wpcap_boxoffice_refunds WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash'" );
-check( 'the partial cash refund of the open session is booked into it', (int) ( $refund_other['amount_minor'] ?? -1 ) === $totals['methods']['cash']['refunded'] && 1 === $totals['refunds'] );
+// Merged design: refunds of box office orders are refund movements of the shift (Shifts::book_refund(),
+// Service::session_refunds()); ZReport::compute() counts them in counts.refunds / methods[m].refund_amount.
+$session_cash_refunds = array_values( array_filter( Pos::session_refunds( $session->session_id ), static fn( $r ) => 'cash' === $r->payment_method ) );
+$expected_cash -= array_sum( array_map( static fn( $r ) => (int) $r->amount_minor, $session_cash_refunds ) );
+check( 'the partial cash refund of the open session is booked into it', 1 === count( $session_cash_refunds ) && (int) ( $refund_other['amount_minor'] ?? -1 ) === (int) $session_cash_refunds[0]->amount_minor && (int) $refund_other['refund_id'] === (int) $session_cash_refunds[0]->refund_id && 1 === $totals['counts']['refunds'] );
+// Both lines' formulas agree: sales minus the single partial refund (Arbeitsliste) = sales minus the refunds booked into the session (audit line).
 check( 'session totals per payment method net out stornos', 1 === $totals['methods']['card']['voided_count'] && 2140 === $totals['methods']['card']['net'] && 0 === $totals['methods']['free']['net'] && 2140 === $totals['methods']['invoice']['net'] && 10000 + $expected_cash === $totals['expected_cash'] && $expected_cash === $totals['methods']['cash']['net'] );
 $GLOBALS['wpcap_test_user_id'] = 2;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );

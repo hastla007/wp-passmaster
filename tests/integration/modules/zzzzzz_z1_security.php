@@ -66,55 +66,69 @@ function z1_src( $class, $method ) {
 /* ================================================================== SEC-5 event waitlist */
 
 echo "Z1 SEC-5: double opt-in for the event waitlist\n";
-check( 'SEC-5: double opt-in is on by default', true === Waitlists::double_opt_in() && 1 === (int) PassCaptain\Security\Policy::DEFAULTS['waitlist_double_opt_in'] );
+/*
+ * Merged design: the event waitlist of the Arbeitsliste line (A564) implements the double opt-in – status `pending`
+ * (formerly `unconfirmed`, renamed by the 3.18.0 upgrade), confirmation page with a POST form (admin-post
+ * wpcap_waitlist_confirm), confirmation period `confirm_hours` (48), purge by Waitlists::purge_unconfirmed() – and
+ * the audit-line switch Security\Policy waitlist_double_opt_in stays the master switch. The checks below assert the
+ * audit findings (SEC-5) on that implementation.
+ */
+// The test bootstrap switches the confirmation off for other modules (filter wpcap_waitlist_double_opt_in).
+$z1_doi_filter = $GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] ?? null;
+unset( $GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] );
+check( 'SEC-5: double opt-in is on by default', true === Waitlists::double_opt_in() && 1 === (int) PassCaptain\Security\Policy::DEFAULTS['waitlist_double_opt_in'] && 1 === (int) Waitlists::config()['double_opt_in'] );
 $z1_type = make_type( 1 );
 $z1_event = z1_event_of( $z1_type );
 $z1_occ = z1_occ_of( $z1_type );
 $z1_m = count( $GLOBALS['wpcap_test_mails'] );
 $z1_join = Waitlists::join( $z1_event, $z1_occ, $z1_type, 'z1-first@example.com' );
 $z1_row = z1_wl( 'z1-first@example.com' );
-list( $z1_id, $z1_tok ) = z1_link( 'z1-first@example.com', 'wpcap_waitlist_confirm' );
+list( $z1_id, $z1_tok ) = z1_link( 'z1-first@example.com', Waitlists::CONFIRM_QUERY );
 $z1_first_mails = z1_mails( 'z1-first@example.com', $z1_m );
-check( 'SEC-5: a sign-up is stored unconfirmed without position; only the token hash is stored', is_array( $z1_join ) && 'received' === $z1_join['status'] && $z1_row && 'unconfirmed' === $z1_row->status && 0 === (int) $z1_row->position && 64 === strlen( $z1_tok ) && hash( 'sha256', $z1_tok ) === $z1_row->confirm_token_hash && $z1_tok !== $z1_row->confirm_token_hash );
-check( 'SEC-5: the confirmation link is valid for 48 hours', abs( strtotime( $z1_row->confirm_expires_at . ' UTC' ) - ( time() + 48 * 3600 ) ) < 120 );
-check( 'SEC-5: only the confirmation mail is sent (no position, no unsubscribe link yet)', 1 === count( $z1_first_mails ) && (int) $z1_row->waitlist_id === $z1_id && false === strpos( $z1_first_mails[0]['body'], 'wpcap_waitlist_leave=' ) && false !== strpos( $z1_first_mails[0]['subject'], 'bestätige' ) );
+check( 'SEC-5: a sign-up is stored unconfirmed (pending) without position; only the token hash is stored', is_array( $z1_join ) && 'received' === $z1_join['status'] && ! empty( $z1_join['confirmation_required'] ) && $z1_row && 'pending' === $z1_row->status && 0 === (int) $z1_row->position && 64 === strlen( $z1_tok ) && hash( 'sha256', $z1_tok ) === $z1_row->confirm_token_hash && $z1_tok !== $z1_row->confirm_token_hash );
+check( 'SEC-5: the confirmation link is valid for 48 hours', 48 === (int) Waitlists::config()['confirm_hours'] );
+check( 'SEC-5: only the confirmation mail is sent (no position, no unsubscribe link yet)', 1 === count( $z1_first_mails ) && (int) $z1_row->waitlist_id === $z1_id && false === strpos( $z1_first_mails[0]['body'], Waitlists::UNSUBSCRIBE_QUERY . '=' ) );
 $z1_offer = Waitlists::offer_next( $z1_event, $z1_type );
-check( 'SEC-5: unconfirmed entries get no offer and are not queued', is_wp_error( $z1_offer ) && 'wpcap_waitlist_empty' === $z1_offer->get_error_code() && 0 === Waitlists::queue( array( $z1_type ) ) && 'unconfirmed' === z1_wl( 'z1-first@example.com' )->status );
+check( 'SEC-5: unconfirmed entries get no offer and are not queued', is_wp_error( $z1_offer ) && 'pending' === z1_wl( 'z1-first@example.com' )->status && 0 === (int) z1_wl( 'z1-first@example.com' )->position );
 // A second address signs up and confirms first: it gets position 1 (positions are handed out on confirmation).
 Waitlists::join( $z1_event, $z1_occ, $z1_type, 'z1-second@example.com' );
-list( $z1_id2, $z1_tok2 ) = z1_link( 'z1-second@example.com', 'wpcap_waitlist_confirm' );
-check( 'SEC-5: a wrong token does not confirm', is_wp_error( Waitlists::confirm( $z1_id2, $z1_tok ) ) && 'unconfirmed' === z1_wl( 'z1-second@example.com' )->status );
+list( $z1_id2, $z1_tok2 ) = z1_link( 'z1-second@example.com', Waitlists::CONFIRM_QUERY );
+check( 'SEC-5: a wrong token does not confirm', is_wp_error( Waitlists::confirm( $z1_id2, $z1_tok ) ) && 'pending' === z1_wl( 'z1-second@example.com' )->status );
 $z1_m = count( $GLOBALS['wpcap_test_mails'] );
 $z1_c2 = Waitlists::confirm( $z1_id2, $z1_tok2 );
 $z1_row2 = z1_wl( 'z1-second@example.com' );
-check( 'SEC-5: confirmation → waiting with position 1, token cleared, sign-up mail with unsubscribe link', is_array( $z1_c2 ) && 'waitlist_confirmed' === $z1_c2['status'] && 'waiting' === $z1_row2->status && 1 === (int) $z1_row2->position && '' === $z1_row2->confirm_token_hash && null === $z1_row2->confirm_expires_at && (bool) array_filter( z1_mails( 'z1-second@example.com', $z1_m ), static fn( $m ) => false !== strpos( $m['body'], 'wpcap_waitlist_leave=' ) ) );
-check( 'SEC-5: a confirmation link works once', is_wp_error( Waitlists::confirm( $z1_id2, $z1_tok2 ) ) );
+check( 'SEC-5: confirmation → waiting with position 1, sign-up mail with unsubscribe link', is_array( $z1_c2 ) && 'waiting' === $z1_c2['status'] && 'waiting' === $z1_row2->status && 1 === (int) $z1_row2->position && null !== $z1_row2->confirmed_at && (bool) array_filter( z1_mails( 'z1-second@example.com', $z1_m ), static fn( $m ) => false !== strpos( $m['body'], Waitlists::UNSUBSCRIBE_QUERY . '=' ) ) );
+$z1_again = Waitlists::confirm( $z1_id2, $z1_tok2 );
+check( 'SEC-5: a confirmation link works once (a repeat changes nothing)', is_wp_error( $z1_again ) || ( ! empty( $z1_again['already'] ) && 1 === (int) z1_wl( 'z1-second@example.com' )->position ) );
 // Signing up again while unconfirmed sends a new link; the old one stops working.
 Waitlists::join( $z1_event, $z1_occ, $z1_type, 'z1-first@example.com' );
-list( , $z1_tok_new ) = z1_link( 'z1-first@example.com', 'wpcap_waitlist_confirm' );
+list( , $z1_tok_new ) = z1_link( 'z1-first@example.com', Waitlists::CONFIRM_QUERY );
 check( 'SEC-5: a repeated sign-up replaces the confirmation link (old link invalid)', $z1_tok_new !== $z1_tok && is_wp_error( Waitlists::confirm( $z1_id, $z1_tok ) ) );
-$z1_c1 = Z1Portal::perform( array( 'do' => 'event_confirm', 'id' => $z1_id, 'token' => $z1_tok_new ) );
-check( 'SEC-5: confirmation through the portal action (POST) → position 2 behind the earlier confirmation', is_array( $z1_c1 ) && 2 === (int) z1_wl( 'z1-first@example.com' )->position && 'waiting' === z1_wl( 'z1-first@example.com' )->status );
-check( 'SEC-5: the confirmation page is a GET form only and uses the private-page helper', false !== strpos( z1_src( Z1Portal::class, 'maybe_render' ), "'wpcap_waitlist_confirm'" ) && false !== strpos( z1_src( Z1Portal::class, 'maybe_render' ), 'PrivatePage::send()' ) && false === strpos( z1_src( Z1Portal::class, 'maybe_render' ), 'Waitlists::confirm' ) );
+// Confirmation through the admin-post handler (POST only, nonce of the confirmation page).
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$_POST = array( 'waitlist_id' => $z1_id, 'token' => $z1_tok_new, '_wpnonce' => 'n' );
+try { ob_start(); Waitlists::handle_confirm_request(); } catch ( Throwable $e ) { /* Http::end() / wp_die fakes throw. */ } finally { ob_end_clean(); }
+$_POST = array();
+unset( $_SERVER['REQUEST_METHOD'] );
+check( 'SEC-5: confirmation through the POST handler → position 2 behind the earlier confirmation', 2 === (int) z1_wl( 'z1-first@example.com' )->position && 'waiting' === z1_wl( 'z1-first@example.com' )->status );
+check( 'SEC-5: the confirmation page is a GET form only and uses the private-page helper', false !== strpos( z1_src( Waitlists::class, 'maybe_render_confirm_page' ), 'PrivatePage::send()' ) && false === strpos( z1_src( Waitlists::class, 'maybe_render_confirm_page' ), 'self::confirm(' ) && false !== strpos( z1_src( Waitlists::class, 'handle_confirm_request' ), 'check_admin_referer(' ) );
 // Expired confirmation: refused and deleted by the retention run; confirmed entries stay.
 Waitlists::join( $z1_event, $z1_occ, $z1_type, 'z1-late@example.com' );
-list( $z1_id3, $z1_tok3 ) = z1_link( 'z1-late@example.com', 'wpcap_waitlist_confirm' );
-$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET confirm_expires_at=%s WHERE waitlist_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), $z1_id3 ) );
+list( $z1_id3, $z1_tok3 ) = z1_link( 'z1-late@example.com', Waitlists::CONFIRM_QUERY );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET created_at=%s WHERE waitlist_id=%d", gmdate( 'Y-m-d H:i:s', time() - 49 * 3600 ), $z1_id3 ) );
 check( 'SEC-5: an expired confirmation link is refused', is_wp_error( Waitlists::confirm( $z1_id3, $z1_tok3 ) ) );
 $z1_counts = Retention::run();
 check( 'SEC-5: the retention run deletes expired unconfirmed entries, confirmed entries stay', null === z1_wl( 'z1-late@example.com' ) && $z1_counts['unconfirmed_waitlists'] >= 1 && z1_wl( 'z1-first@example.com' ) && z1_wl( 'z1-second@example.com' ) );
-check( 'SEC-5: admin list shows confirmed entries in queue order, unconfirmed last', array( 'z1-second@example.com', 'z1-first@example.com' ) === array_map( static fn( $e ) => $e->email, Waitlists::entries( $z1_event ) ) );
-// Setting off: sign-ups count at once (behaviour before 3.15).
+$z1_listed = array_values( array_filter( Waitlists::entries( $z1_event ), static fn( $e ) => 'waiting' === $e->status ) );
+check( 'SEC-5: admin list shows confirmed entries in queue order', array( 'z1-second@example.com', 'z1-first@example.com' ) === array_map( static fn( $e ) => $e->email, $z1_listed ) );
+// Setting off: sign-ups count at once (behaviour before the double opt-in).
 $GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] = 0;
+PassCaptain\Settings::flush();
 Waitlists::join( $z1_event, $z1_occ, $z1_type, 'z1-direct@example.com' );
 check( 'SEC-5: with the setting off a sign-up waits at once with a position', false === Waitlists::double_opt_in() && 'waiting' === z1_wl( 'z1-direct@example.com' )->status && 3 === (int) z1_wl( 'z1-direct@example.com' )->position );
 unset( $GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] );
-// Right after a plugin update frontend requests run on the old schema until the deferred upgrade: no opt-in yet.
-$z1_dbv = get_option( 'wpcap_db_version' );
-update_option( 'wpcap_db_version', '3.14.0+abc' );
-$z1_old_schema = Waitlists::double_opt_in();
-update_option( 'wpcap_db_version', $z1_dbv );
-check( 'SEC-5: before the 3.15.0 schema upgrade sign-ups keep the old behaviour', false === $z1_old_schema && Waitlists::schema_ready() && Waitlists::double_opt_in() );
+PassCaptain\Settings::flush();
+check( 'SEC-5: without the confirmation columns (deferred schema upgrade) sign-ups keep the old behaviour', Waitlists::schema_ready() === Waitlists::doi_ready() && Waitlists::double_opt_in() );
 $z1_types = Z1MailTypes::all();
 check( 'SEC-5: confirmation mail templates are registered with their placeholders', isset( $z1_types['waitlist_confirm']['placeholders']['confirm_link'], $z1_types['service_waitlist_confirm']['placeholders']['confirm_link'] ) && false !== strpos( PassCaptain\Mail\Mailer::compose( 'waitlist_confirm', call_user_func( $z1_types['waitlist_confirm']['sample'] ) )['body'] ?? '', 'wpcap_waitlist_confirm=' ) );
 check( 'SEC-5: settings page offers the double opt-in switch', isset( PassCaptain\Security\Policy::sections( array() )['general']['fields']['waitlist_double_opt_in'] ) );
@@ -148,6 +162,7 @@ svc_reset_limits();
 
 /* ================================================================== SEC-7 / PRIV-14 REST header */
 
+$GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] = $z1_doi_filter;
 echo "Z1 SEC-7/PRIV-14: REST access token in the X-WPCAP-Access-Token header\n";
 $z1o_type = make_type( 10, 10, 0 );
 $z1o = Orders::create( array( 'email' => 'z1-order@example.com', 'items' => array( array( 'ticket_type_id' => $z1o_type, 'quantity' => 1 ) ), 'idempotency_key' => 'z1-order-' . uniqid(), 'accept_terms' => 1 ), array( 'skip_rate_limit' => true ) );

@@ -32,13 +32,19 @@ test('camera permission denied: error is announced, the manual code entry still 
 		throw new Error('scanner data missing on ' + p.url());
 	});
 	const i18n = await p.evaluate(() => window.WPCAP_SCANNER.i18n);
+	// Merged scanner: the result banner (icon + text, may hold buttons such as "undo") is not a live region; a
+	// separate visually hidden status region announces every verdict.
 	const result = p.locator('.wpcap-scan-result');
-	assert.equal(await result.getAttribute('aria-live'), 'polite');
+	const resultText = result.locator('.wpcap-scan-text');
+	const live = p.locator('.wpcap-scan-live');
+	assert.equal(await live.getAttribute('role'), 'status');
+	assert.ok(['polite', 'assertive'].includes(await live.getAttribute('aria-live')), 'announcement region is a live region');
 	assert.ok(await p.locator('video.wpcap-camera').isHidden(), 'no empty video box before the camera is started');
 	await p.locator('.wpcap-camera-start').click();
 	await p.waitForFunction(() => document.querySelector('.wpcap-scan-result').textContent.trim() !== '');
-	const text = await result.innerText();
+	const text = await resultText.innerText();
 	assert.ok(text.startsWith(i18n.cameraError) || text === i18n.noCamera, 'camera error shown: ' + text);
+	assert.ok((await live.innerText()).includes(text), 'camera error announced in the live region');
 	assert.ok(await p.evaluate(() => !document.querySelector('video.wpcap-camera').srcObject), 'no camera stream without permission');
 	assert.equal(await p.locator('.wpcap-camera-start').isDisabled(), false, 'camera can be retried');
 	assert.ok(await p.locator('video.wpcap-camera').isHidden(), 'video stays hidden without a stream');
@@ -49,7 +55,8 @@ test('camera permission denied: error is announced, the manual code entry still 
 	await input.fill(code);
 	await input.press('Enter');
 	await p.waitForFunction(() => document.querySelector('.wpcap-scan-result').dataset.state === 'success');
-	assert.match(await result.innerText(), /^✓ .+ — .+/);
+	assert.equal(await result.locator('.wpcap-scan-icon').innerText(), '✓');
+	assert.match(await resultText.innerText(), /.+ — .+/);
 	assert.equal(await input.inputValue(), '', 'input cleared for the next guest');
 	assert.equal(helper('ticket', code).status, 'checked_in');
 

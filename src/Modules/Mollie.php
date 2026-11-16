@@ -3,7 +3,7 @@
  * Mollie payments: registers the gateway (wpcap_payment_gateways), the optional payment method
  * selector in the checkout (only enabled methods Mollie offers for amount/currency), the buyer's
  * return handler (?wpcap_mollie_return=1) and the settings page. The webhook uses the generic
- * payment route /wp-pass-captain/v1/payments/mollie/webhook.
+ * payment route /pass-captain/v1/payments/mollie/webhook.
  */
 namespace PassCaptain\Modules;
 
@@ -19,12 +19,11 @@ final class Mollie {
 	const PAGE = 'wpcap-mollie';
 
 	/**
-	 * Methods offered in the settings (Mollie ids). Klarna and Riverty only authorize a payment; the
-	 * plugin captures the authorization right away when the webhook reports it (MollieGateway::
-	 * capture_authorized()), and only the capture confirms the order. Removing them would not be
-	 * enough, because without a method restriction the buyer can still choose them on Mollie's page.
+	 * Methods offered in the settings (Mollie ids). Pay-later methods that need order lines, a billing
+	 * address and a separate capture (MollieGateway::CAPTURE_METHODS: Klarna, Riverty, Billie) are not
+	 * offered (A351): the plugin sends neither, and an authorization would never become a payment.
 	 */
-	const KNOWN_METHODS = array( 'applepay', 'bancontact', 'banktransfer', 'belfius', 'blik', 'creditcard', 'eps', 'giftcard', 'ideal', 'kbc', 'klarna', 'mybank', 'paypal', 'paysafecard', 'przelewy24', 'riverty', 'satispay', 'trustly', 'twint' );
+	const KNOWN_METHODS = array( 'applepay', 'bancontact', 'banktransfer', 'belfius', 'blik', 'creditcard', 'eps', 'giftcard', 'ideal', 'kbc', 'mybank', 'paypal', 'paysafecard', 'przelewy24', 'satispay', 'trustly', 'twint' );
 
 	public static function register() {
 		add_filter( 'wpcap_payment_gateways', array( __CLASS__, 'add_gateway' ) );
@@ -32,6 +31,13 @@ final class Mollie {
 		add_action( 'wpcap_checkout_form_fields', array( __CLASS__, 'render_checkout_fields' ), 30, 2 );
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'store_method' ), 10, 4 );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_handle_return' ) );
+		add_action( MollieGateway::REFRESH_HOOK, array( MollieGateway::class, 'refresh_methods' ), 10, 2 );
+		add_filter( 'wpcap_payment_settings_url', array( __CLASS__, 'settings_url' ), 10, 2 );
+	}
+
+	/** wpcap_payment_settings_url: the payments tab of the settings links to this page. */
+	public static function settings_url( $url, $provider_id ) {
+		return 'mollie' === $provider_id ? Forms::page_url( self::PAGE ) : $url;
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -124,8 +130,8 @@ final class Mollie {
 		// phpcs:enable
 		$state = self::handle_return( $public_id );
 		nocache_headers();
-		wp_safe_redirect( MollieGateway::return_url( $state, $public_id ) );
-		exit;
+		wp_safe_redirect( MollieGateway::return_url( $state, $public_id, \PassCaptain\Payments\ReturnNotice::current_base() ) );
+		\PassCaptain\Http::end();
 	}
 
 	/** @return string success|pending|failed|cancel */
@@ -190,16 +196,16 @@ final class Mollie {
 		echo '<div class="wrap wpcap-admin"><h1>Mollie</h1>';
 		Forms::render_notices();
 		echo '<p>' . esc_html__( 'Webhook-URL (wird pro Zahlung automatisch übergeben):', 'pass-captain' ) . ' <code>' . esc_html( MollieGateway::webhook_url() ) . '</code></p>';
-		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'pass-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'pass-captain' ) . ' <a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\SettingsPage::SLUG, array( 'tab' => 'payments' ) ) ) . '">' . esc_html__( 'Zu den Zahlungsarten', 'pass-captain' ) . '</a></p>';
 		Forms::open_form( 'wpcap_mollie_save' );
 		echo '<table class="form-table"><tbody>';
 		echo '<tr><th scope="row"><label for="wpcap-mollie-key">' . esc_html__( 'API-Schlüssel', 'pass-captain' ) . '</label></th><td>';
 		if ( '' !== Settings::override_source( 'mollie_api_key' ) ) {
 			echo '<strong>' . esc_html__( 'Gesetzt über WPCAP_MOLLIE_API_KEY.', 'pass-captain' ) . '</strong>';
 		} else {
-			echo \PassCaptain\Admin\SettingsPage::secret_input( 'mollie_api_key', 'wpcap-mollie-key' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+			\PassCaptain\Secrets::render_field( 'mollie_api_key', 'wpcap-mollie-key' );
 		}
-		echo '<p class="description">' . esc_html__( 'Empfohlen: Konstante WPCAP_MOLLIE_API_KEY in wp-config.php.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<p class="description">' . esc_html__( 'Format: test_… oder live_…', 'pass-captain' ) . ' ' . esc_html__( 'Empfohlen: Konstante WPCAP_MOLLIE_API_KEY in wp-config.php.', 'pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Zahlungsmethoden', 'pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Zahlungsmethoden', 'pass-captain' ) . '</legend>';
 		foreach ( self::KNOWN_METHODS as $method ) {
 			echo '<label style="display:inline-block;min-width:11rem"><input type="checkbox" name="methods[]" value="' . esc_attr( $method ) . '"' . checked( in_array( $method, $c['methods'], true ), true, false ) . '> ' . esc_html( $method ) . '</label>';

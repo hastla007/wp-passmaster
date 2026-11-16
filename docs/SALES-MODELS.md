@@ -14,7 +14,7 @@ monatlich mit dem Veranstalter austauscht.
 |---|---|---|
 | Verkauf an Kunden | Plattform im eigenen Namen (für Rechnung des Veranstalters) | Plattform im Namen und für Rechnung des Veranstalters |
 | Kundenrechnung | Plattform als Rechnungssteller, Nummernkreis der Plattform (`WPC-…`) | **Veranstalter** als Rechnungssteller, eigener Nummernkreis je Veranstalter (`TAG-…` bzw. `V{ID}-…`), Zusatz „Vermittelt durch {Plattform}“ |
-| Rechnungskorrekturen | Serie der Plattform (`GS-…`) | Serie des Veranstalters (`{Präfix}-K-…`) |
+| Rechnungskorrekturen | Serie der Plattform (`RK-…`, Bestandsinstallationen weiter `GS-…`) | Serie des Veranstalters (`{Präfix}-K-…`) |
 | USt auf Ticketumsatz schuldet | Plattform | Veranstalter |
 | Monatlicher Beleg an Veranstalter | **Gutschrift** (Teil A, Serie `credit-self`, `GU-…`) + **Rechnung über Plattformgebühren** (Teil B, `PA-…`) + Verrechnung (Teil C) | **Provisionsrechnung** (`PA-…`) + informative Aufstellung der vereinnahmten Ticketerlöse |
 | Events ohne Veranstalter | immer Eigenhändler (Plattform verkauft) | – |
@@ -24,7 +24,6 @@ Die Liste der Veranstalter zeigt das Modell und markiert unvollständige Rechnun
 Bestellansicht zeigt das Verkaufsmodell bzw. den Rechnungssteller der Bestellung.
 
 ## Rechtsgrundlagen (Orientierung)
-
 ### Eigenhändler / Leistungskommission
 
 - **DE:** § 3 Abs. 11 UStG (Dienstleistungskommission): Wer im eigenen Namen für fremde Rechnung eine
@@ -57,7 +56,6 @@ Bestellansicht zeigt das Verkaufsmodell bzw. den Rechnungssteller der Bestellung
   Bei innergemeinschaftlichen B2B-Dienstleistungen ist eine Zusammenfassende Meldung abzugeben (§ 18a UStG).
 
 ## Was das Plugin tut
-
 ### Veranstalter-Felder
 
 | Feld | Verwendung |
@@ -69,10 +67,13 @@ Bestellansicht zeigt das Verkaufsmodell bzw. den Rechnungssteller der Bestellung
 | Steuernummer | Pflichtangabe, wenn keine USt-IdNr. vorhanden ist |
 | USt-IdNr. qualifiziert bestätigt am | Dokumentation der Prüfung (BZSt/VIES); ohne Datum warnt die Admin-Ansicht |
 | Präfix Rechnungsnummern | nur Buchstaben/Ziffern, eindeutig, nicht gleich den Plattform-Präfixen; leer = `V{ID}` |
-| Kleinunternehmer + Hinweistext | keine USt auf Veranstalter-Belegen; Standardtext § 19 UStG, für AT z. B. „Umsatzsteuerbefreit – Kleinunternehmer gem. § 6 Abs. 1 Z 27 UStG“ |
+| Kleinunternehmer + Hinweistext | keine USt auf Veranstalter-Belegen; Standardtext nach Land: DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG; eigener Text hat Vorrang |
 
 Plattformdaten (Einstellungen → Rechnungssteller): Name, Anschrift, USt-IdNr., **Steuernummer**,
-**Land** (Standard DE).
+**Land** (Standard DE) und **Kleinunternehmer** mit optionalem Hinweistext. Ist die Plattform selbst
+Kleinunternehmer, tragen ihre Rechnungen (Eigenhändler-Modell und Plattform-Events) den Hinweis
+(leer = Standardtext für das Land), und eine Rechnung wird verweigert, solange die Bestellung
+Umsatzsteuer enthält (`wpcap_invoice_small_business_vat`, § 14c UStG) – Ticketarten dann mit 0 % anlegen.
 
 ### Kundenrechnungen
 
@@ -100,7 +101,13 @@ Plattformdaten (Einstellungen → Rechnungssteller): Name, Anschrift, USt-IdNr.,
   Ticketarten mit USt-Satz > 0 % (`wpcap_invoice_small_business_vat`, sonst unberechtigter Steuerausweis
   nach § 14c UStG).
 - Rechnungskorrekturen folgen immer dem Rechnungssteller und Nummernkreis der korrigierten Rechnung.
-- Der Buchhaltungsexport enthält die Spalten `Verkaufsmodell` und `Rechnungssteller`. Belege im Modell
+- Rechnungskorrekturen schlüsseln Netto/USt/Brutto je Steuersatz auf: Der Korrekturbetrag und die
+  USt werden auf die Bestellpositionen der Erstattung verteilt (erstattete Tickets mit dem bezahlten
+  Positionsbrutto nach Rabatt, reine Betragserstattungen über alle Positionen; Restcent-Verteilung
+  nach größtem Rest) und mit dem Beleg gespeichert (`wpcap_credit_notes.rates`). Belege von vor
+  Schema 3.8.3 werden bei der Anzeige identisch berechnet. Der Buchhaltungsexport enthält je
+  Rechnungskorrektur eine Zeile je Steuersatz (Belegart `Rechnungskorrektur`).
+- Der Buchhaltungsexport (Spalten und Zeilenarten: [OPERATIONS.md](OPERATIONS.md#buchhaltungsexport)) enthält die Spalten `Verkaufsmodell` und `Rechnungssteller`. Belege im Modell
   Vermittler sind **keine Umsätze der Plattform** und in der Buchhaltung der Plattform als
   fremde Belege (Durchlaufposten/Verrechnungskonto Veranstalter) zu behandeln.
 - Ausgestellte Rechnungen sind unveränderlich; spätere Änderungen am Veranstalter wirken nur auf neue
@@ -146,13 +153,51 @@ unverändert („Veranstalter-Abrechnung“, `document_type` leer).
 | Serie | Präfix (Beispiel) | Beleg |
 |---|---|---|
 | Jahreszähler `wpcap_invoice_sequences` | `WPC-2026-000001` | Kundenrechnung der Plattform |
-| `credit` | `GS-2026-000001` | Rechnungskorrektur der Plattform |
+| `credit` | `RK-2026-000001` | Rechnungskorrektur der Plattform (Präfix einstellbar; vor Schema 3.8.3 Standard `GS`) |
 | `invoice-org-{ID}` | `TAG-2026-000001` / `V7-2026-000001` | Kundenrechnung im Namen des Veranstalters |
 | `credit-org-{ID}` | `TAG-K-2026-000001` | Rechnungskorrektur im Namen des Veranstalters |
 | `partner` | `PA-2026-000001` | Provisionsrechnung / Rechnung über Plattformgebühren |
 | `credit-self` | `GU-2026-000001` | Gutschrift (Gutschriftsverfahren) |
 
 Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen erweitert (Schema 3.5.0).
+
+## Länder-Steuerprofile (Steuerprüfung)
+
+Seit Schema 3.9.2 (A115) kann der Umsatzsteuersatz eines Tickets aus einem **Steuerprofil** je Land
+und Steuerklasse kommen statt aus dem Feld „Steuersatz“ der Ticketart.
+
+- **Leistungsort:** Für Eintrittsberechtigungen ist das Land der Veranstaltung maßgeblich
+  (Art. 53/54 MwStSystRL, § 3a Abs. 3 Nr. 5 UStG). Jeder Termin hat dafür das Feld
+  **„Veranstaltungsland“** (ISO-Code); leer = Land des Rechnungsstellers (Einstellungen →
+  Rechnungssteller → Land).
+- **Auflösung je Bestellposition:** Hat die Ticketart eine **Steuerklasse** (z. B. `culture`) und gibt
+  es für (Veranstaltungsland, Steuerklasse) ein **aktives** Profil, dessen Gültigkeit
+  (`gültig ab`/`gültig bis`, einschließlich, Datum in der Zeitzone der Website) den Verkaufstag
+  enthält, gilt dessen Satz. Sonst gilt wie bisher der Satz der Ticketart – bestehende Installationen
+  ändern sich also erst, wenn Ticketarten eine Steuerklasse bekommen und ein Profil aktiviert wird.
+- **Nachvollziehbarkeit:** Die Bestellposition speichert neben `tax_rate_bp` die Quelle
+  (`tax_source`: `profile`, `ticket_type` oder `external` für vom Kanal vorgegebene Steuer), Profil-ID,
+  Profilversion und Land. Die Bestellansicht zeigt das unter dem Steuersatz. Rechnungen,
+  Rechnungskorrekturen (Aufstellung je Steuersatz), Buchhaltungsexport, Berichte, Z-Bericht und
+  Veranstalterabrechnungen lesen ausschließlich den gespeicherten Satz der Position: Ein späteres
+  Außerkraftsetzen oder eine neue Profilversion ändert verkaufte Bestellungen nicht.
+- **Steuerprüfung (Menü Finanzen & Auswertung → Steuerprüfung):** Profile entstehen als **Entwurf**
+  (Admin-Seite oder `POST /pass-captain/v1/tax-profiles`). Aktivieren kann nur, wer Finanzrechte
+  hat (`wpcap_view_finance`, z. B. Rolle „Finanzbuchhaltung“, oder Administration), nach Bestätigung
+  der Prüfung und mit optionalem Prüfvermerk. **Vier-Augen-Prinzip** (Einstellung
+  „Vier-Augen-Prinzip für Steuerprofile“, Standard an): Wer den Entwurf angelegt oder zuletzt
+  bearbeitet hat, darf ihn nicht selbst aktivieren; Administratoren sind ausgenommen (wie bei der
+  Gästeliste). Ein zweites aktives Profil für dasselbe Land und dieselbe Steuerklasse mit
+  überlappendem Zeitraum wird abgelehnt. Aktive Profile werden nicht bearbeitet, sondern außer Kraft
+  gesetzt und durch eine neue Version ersetzt. Anlegen, Bearbeiten, Aktivieren, abgelehnte Prüfungen
+  und Außerkraftsetzen stehen im Audit-Log (`tax_profile_*`).
+- **Geltungsbereich:** eigener Checkout, Abendkasse (auch Katalog), Partner-API (auch Netto-Preislisten
+  und Katalog), Wartelisten-Angebote, Ticketumtausch und Gutscheineinlösungen.
+  **WooCommerce-Bestellungen** verwenden die Steuereinstellungen von WooCommerce; die Profile gelten
+  dort nicht (Position mit dem Satz der Ticketart). Andere Kanäle können über den Filter
+  `wpcap_tax_profiles_apply` ausgenommen werden (docs/HOOKS.md).
+- Die Seite zeigt außerdem, welche Steuerklassen kommende Termine verwenden und ob heute ein Profil
+  greift – ohne Profil gilt der Satz der Ticketart.
 
 ## Auszahlungsmodell: Belege, Geldfluss und Verantwortung (technisch)
 
@@ -233,7 +278,8 @@ Mahnwesen, Buchhaltung außerhalb des Exports sowie fiskalische Belege.
    Format; Reverse Charge wird angewendet, sobald das Format zum Land passt.
 5. **Stammdaten aktuell halten** (rechtlicher Name, Anschrift, Steuernummer/USt-IdNr.,
    Kleinunternehmerstatus) – Belege übernehmen die Daten als unveränderlichen Schnappschuss.
-6. **Steuersätze der Ticketarten** passend zum Modell und Veranstalter pflegen (Kleinunternehmer: 0 %).
+6. **Steuersätze der Ticketarten** passend zum Modell und Veranstalter pflegen (Kleinunternehmer: 0 %);
+   bei Steuerprofilen Satzänderungen rechtzeitig als neue Version anlegen und prüfen lassen.
 7. **Zusammenfassende Meldung** und Umsatzsteuer-Voranmeldung für Reverse-Charge-Leistungen;
    Buchung der Vermittler-Erlöse als fremde Gelder.
 8. **E-Rechnung:** Ab 2025/2027/2028 gelten in DE gestaffelte Pflichten zur E-Rechnung im B2B-Bereich
@@ -253,9 +299,12 @@ Mahnwesen, Buchhaltung außerhalb des Exports sowie fiskalische Belege.
   B2B-Grundregel (§ 3a Abs. 2) oder ein Sondertatbestand?
 - Reicht ein formaler Check plus Prüfdatum, oder soll Reverse Charge erst nach eingetragener
   qualifizierter Bestätigung greifen?
-- Rechnungskorrekturen der Plattform tragen standardmäßig das Präfix `GS` und werden im
-  Buchhaltungsexport als „Gutschrift“ bezeichnet – sollte das wegen der Verwechslungsgefahr mit der
-  Gutschrift i. S. d. § 14 Abs. 2 Satz 2 UStG geändert werden?
+- Erledigt (Schema 3.8.3): Rechnungskorrekturen der Plattform tragen für neue Installationen das
+  Präfix `RK` und heißen im Buchhaltungsexport, in Berichten und in der Erstattungsmail
+  „Rechnungskorrektur“ (nicht „Gutschrift“, Verwechslung mit § 14 Abs. 2 Satz 2 UStG). Bestehende
+  Installationen behalten ihr bisheriges Präfix (ohne gespeicherte Einstellung wird `GS` fest
+  eingetragen); ausgestellte Belege werden nicht umnummeriert. Rechnungskorrekturen weisen Netto, USt
+  und Brutto je Steuersatz aus (Druckansicht, PDF, Buchhaltungsexport mit einer Zeile je Satz).
 - Negative Monatswerte (mehr Erstattungen als Verkäufe): Gutschrift mit negativem Betrag oder
   Korrekturbeleg zu einer früheren Gutschrift?
 - Kleinunternehmer im Eigenhändler-Modell: Wer trägt die USt auf den Kundenumsatz wirtschaftlich

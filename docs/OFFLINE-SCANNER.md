@@ -41,7 +41,7 @@ Otherwise the server returns `403 wpcap_offline_not_assigned`. Revoked devices g
 deletes stored packages that the server no longer lists or refuses with 403. On `401` (or an error code
 `…device_revoked`/`…device_unauthenticated`) it wipes the device, see *Revoked token* below.
 
-## REST (device bearer token, namespace `wp-pass-captain/v1`)
+## REST (device bearer token, namespace `pass-captain/v1`)
 
 | Route | Description |
 |---|---|
@@ -61,6 +61,12 @@ Existing responses are also extended:
 - `POST /app/pair` adds `offline: {keys, package_format, package_formats}`, which delivers the public keys at pairing (`package_formats`: the supported payload versions, `[1, 2]`).
 - `GET /app/me` sets `features.offline_packages = true`.
 - `POST /app/scan/sync` result rows gain `offline_rules`, `auto_resolved`, `cross_device` (double admissions), `offline_expired` and `conflict_status`.
+- A result row with `retryable: true` (`result: "retry"`) was not booked because of a transient server
+  error (A345). The PWA keeps such scans as "wartet auf Sync" (code kept) and uploads them again with the
+  same idempotency key; a batch in which nothing could be booked does not trigger an immediate re-sync.
+- Codes in a package fetched by an assigned device during the last 72 hours cannot be rotated by the
+  buyer (portal resend/PDF, transfer, attendee change; A593), so a device never admits a code the server
+  no longer knows. Staff actions (reissue, admin resend, printing) still rotate.
 
 ### Package response
 
@@ -83,11 +89,11 @@ Signed payload (`v` = package format version 1):
 ```json
 { "format": "wpcap-offline-package", "v": 1, "kind": "full", "site": "https://…/",
   "device_id": "<public device id>", "key_id": "…",
-  "event": {"id": 1, "name": "…"}, "occurrence": {"id": 2, "starts_at": "…", "ends_at": null, "timezone": "Europe/Vienna", "status": "scheduled"},
+  "event": {"id": 1, "name": "…"}, "occurrence": {"id": 2, "starts_at": "…", "ends_at": null, "timezone": "Europe/Vienna", "status": "scheduled", "doors_open_at": null},
   "issued_at": "…", "expires_at": "…", "since": null, "cursor": "a1b2c3d4e5f60718.7",
   "rules": {"max_offline_hours": 12, "duplicate_policy": "review", "attendee_names": false},
   "device_area_id": null, "day_cutoff_hour": 0, "hash": "sha256",
-  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false, "max_entries": 1, "valid_days": null}],
+  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false, "max_entries": 1, "valid_days": null, "id_check": false, "min_age": 0, "hint": ""}],
   "areas": [{"id": 3, "name": "Eingang Nord"}],
   "tickets": [{"h": "<sha256(code) hex>", "s": "valid|checked_in|revoked", "t": 5, "n": "Name (optional)"}] }
 ```
@@ -118,7 +124,8 @@ What the package contains:
 - **Full packages** contain the `valid` and `checked_in` tickets.
 - **Deltas** (`since` = the previous cursor) contain every changed hash, including `revoked`. A hash
   becomes `revoked` when its ticket is revoked, when its code is reissued (the old hash goes away), or
-  when the occurrence or event is cancelled.
+  when the occurrence or event is cancelled. A hash that went away because the ticket got a new code
+  carries `"r": "replaced"` (A543); the app then shows "Code ersetzt" instead of "Widerrufen".
 - An unknown epoch or a future cursor gives a full package.
 - Any older cursor of the same epoch is a valid `since`: after 30 deltas the app asks with
   `since=<cursor of its full package>` and gets one compact delta with all changes since then, instead
@@ -126,6 +133,10 @@ What the package contains:
 - Every package (including an empty delta) renews `expires_at`.
 - Hashes are `sha256` of the 64-hex ticket code (the same as `wpcap_tickets.token_hash`).
 - Ticket codes, e-mails and order data are never included.
+- `ticket_types[].id_check`, `min_age` and `hint` carry the ID/age check of the ticket type; the app
+  shows `hint` (e.g. "Ausweis prüfen · Mindestalter 18") with every result of such a ticket.
+- `occurrence.doors_open_at` is the doors-open time ("Einlass ab", ISO 8601) or null; the app refuses
+  scans before it with `outside_entry_window`, like the server.
 
 Change tracking works without core hooks. `wpcap_offline_entries` keeps a snapshot (hash, status,
 type, name fingerprint, version) per occurrence. Each request compares it with the live tickets, at
@@ -151,6 +162,14 @@ Keys are stored in the option `wpcap_offline_keys` (not autoloaded):
   offline duration of any enabled event.
 
 If the salt changes and the secret can no longer be decrypted, a new key is generated automatically.
+
+**Concurrency** (A629): creating the first key, rotating and extending a key's grace run under the
+database lock `DbLock::acquire('offline_keys')` (name unique per installation, A364) and re-read the key option inside it, so a
+rotation is never overwritten by a process that read the keys before (and two first uses create one
+key, not two). Signing only reads the keys; the latest expiry signed per key is kept in the separate
+option `wpcap_offline_keys_expiry` (raised under the same lock). A package signed with a key that was
+rotated away in the meantime extends that key's `valid_until` to the package expiry. If the lock is not
+available within 10 seconds, signing/rotation fails with `offline_key_busy` and nothing is changed.
 Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_assigned` /
 `offline_device_unassigned`.
 
@@ -191,13 +210,40 @@ everywhere, whatever the setting.
 |---|---|
 | `index.html` | App shell with the German source texts (`data-i18n*` attributes); translated at runtime. Strict CSP with `connect-src 'self'`. |
 | `app.js` | App logic. |
+| `app.js` | App logic; all visible texts go through `t()`. |
 | `app.css` | Styles. |
 | `sw.js` | Service worker that caches the app shell. API calls are never cached. Only navigations to the app itself (scope root or `index.html`) are served from and stored as `index.html`, and only `text/html` responses are stored; other navigations inside the scope are network-only. |
 | `manifest.json`, icons | Makes the app installable. Locale-neutral on purpose (product name only, no `lang`/description): a static file cannot follow the device language. |
 | `../vendor/tweetnacl/` | tweetnacl-js 1.0.3 (Unlicense), used for signature verification; origin and checksum in `SOURCE.txt` (ships with the ZIP, `*.md` does not). |
 | `../vendor/jsqr/` | Camera fallback when `BarcodeDetector` is unavailable. |
+| `i18n.js` | Static translation catalogs (German source, English); works offline. |
 
+- **Served from the site (A286):** the app is not opened from the plugin's asset URL but from
+  `home_url('/wpcap-offline-scanner/app/')` (plain permalinks: `/index.php/wpcap-offline-scanner/app/`),
+  where `OfflineScanner\Pwa` serves exactly the shell files above (and `…/vendor/` for tweetnacl/jsQR) with
+  `Cache-Control: no-cache` and `nosniff`. That keeps app, service worker and REST API on one origin even
+  when plugin assets are delivered from a CDN domain (the app only accepts a same-origin API). Apps installed
+  from the old asset URL keep working where that URL is on the site's own domain.
 - **Start:** open the app from the admin button. The link passes `?api=<rest_url>`, which is stored.
+- **One store per site (A473):** the app is served from the plugin URL, which all sites of a
+  (subdirectory) network share – one origin, one IndexedDB. Pairing token, public keys, packages and
+  the scan log are therefore kept in one database per API base (`wpcap-offline-scanner@<api>`); each
+  site of the network needs its own pairing. A start without `?api=` (home screen icon) opens the
+  site used last (`localStorage` key `wpcap-offline-scanner-api`); open the app from the other site's
+  admin button to switch. A pairing QR code of another site pairs in that site's store. A pairing
+  made before keeps its database (`wpcap-offline-scanner`, its stored `api`) and only serves that
+  site. Unpairing clears the store of the current site only. Service worker cache: `v6`.
+- **Language:** the link also passes `?lang=` (WordPress user locale). The app remembers it on the
+  device for offline starts and otherwise falls back to the browser language, then German. Dates use
+  the matching locale. Add a language by adding a catalog to `i18n.js` (keys = German source text).
+  Only **same-origin** API bases are accepted, and only the app API itself (A649): the path must end
+  with `/wp-json/pass-captain/v1/app/` (or the legacy namespace `/wp-json/wp-pass-captain/v1/app/`),
+  or the base is the plain permalink form `…/?rest_route=/pass-captain/v1/app/` without further
+  parameters. Anything else in `?api=`, in the pairing QR or in storage is ignored (the app derives
+  the base from its own location instead), so the device token never goes to another path of the
+  same host. Sites with a changed REST prefix get the `?rest_route=` form in the admin link and the
+  pairing QR (`Mobile\Devices::api_base()`). HTTPS (or localhost) is required for the service
+  worker and WebCrypto.
   It is only used while the device is **not paired**; a paired device keeps its stored API base and
   ignores the parameter (the parameter is removed from the address bar either way). Accepted API
   bases (parameter, stored value and the `api` of the pairing QR): **same origin** and exactly the
@@ -230,6 +276,17 @@ everywhere, whatever the setting.
     switchable with the „Ton an/aus“ button (kept in IndexedDB `kv.sound`). The camera uses continuous
     autofocus and offers a torch switch where the browser supports them.
   - Online, the app calls `POST /app/scan/check-in` with an idempotency key (5 s timeout).
+  - On a network error, a timeout or 5xx it decides offline. It normalizes the code like the server,
+    computes its SHA-256 with WebCrypto and looks the hash up in the package.
+  - Only a scan result of the plugin is shown green or red (`ok: true`, or `ok: false` with a
+    `wpcap_*` code). Any other answer – a WAF, proxy or login page, an answer that is no JSON object,
+    an unknown error code or a retryable server error – is a yellow “System error – ticket not
+    checked” warning, never “no entry”.
+  - An input with more than one ticket code (two codes, or a hex run longer than 64 characters,
+    e.g. codes typed behind each other) is refused without a check, like on the server.
+  - The camera ignores a code for as long as it stays in view: the 3 s duplicate window restarts
+    with every sighting (sliding, like the web scanner), so a guest just admitted never gets
+    “already used” a moment later. A manual entry is always checked.
   - On a network error, 5xx (including the database retry, HTTP 503 with `result: "retry"`) it decides
     offline. It normalizes the code like the server, computes
     its SHA-256 with WebCrypto and looks the hash up in the package. Signed QR codes (PC1) are
@@ -237,6 +294,36 @@ everywhere, whatever the setting.
   - A ticket is refused offline when it is unknown, revoked, already used (single entry: package
     status or the local log), in the wrong area (the type's area restriction against the device's or
     the selected area), or when the package is missing or expired.
+  - Multi-entry types are admitted offline. The server checks their limits at sync.
+  - **Help code** (8 characters, e.g. `K7QM-4XWA`, printed below the QR code): typed into the manual
+    field when the QR code cannot be read. It is checked **online only** (the package holds no help
+    codes, see docs/SECURITY.md); offline the app asks for the QR code or the long code instead.
+  - Result: large coloured box, distinct tones (WebAudio, “Sound on/off” per device) and vibration
+    patterns; online results show “first admission” or “already admitted at …” from the server.
+  - **Full-screen result (A548):** every result is also shown full screen in large type with icon,
+    the time (hh:mm:ss) and the short code of the scanned ticket (last 6 characters of its hash, e.g.
+    `…3F9A2C`) – green for 2.5 s, yellow 5 s, red 8 s, or until tapped. The result box then returns to
+    “Bereit” (green after 6 s, otherwise after 15 s; not while an undo form is open), so a previous
+    verdict is never read as the current one. The overlay never takes focus; the result box stays the
+    live region for screen readers.
+  - **Search (A544):** “Ticket suchen” for guests without a readable code. Online the app calls
+    `GET /app/search` (order number always; attendee name and e-mail only as the server's PII rules
+    allow) and checks a hit in with `POST /app/scan/check-in` and `ticket_public_id` (same rules as a
+    scan, logged as manual check-in). Offline it searches the attendee names in the package – only
+    when the event ships names (`rules.attendee_names`) – decides like a scan and uploads the
+    admission with `ticket_hash` instead of the code.
+  - **Counter (A546):** above the result the app shows “Eingecheckt: 120 / 300” for the selected
+    date: online the server value (`admitted`/`admission_total` of `/app/occurrences/{id}/stats`, at
+    most every 10 s, own first admissions counted at once) plus this device's offline admissions not
+    uploaded yet; without a server value the package count (“laut Prüfpaket”: tickets used in the
+    package or admitted on this device). An old server value shows “Stand hh:mm”.
+  - **Undo (A547):** for 30 s after an admission the app offers “Rückgängig”. A reason is required
+    (four presets or own text). An online admission – or an offline one that is already uploaded –
+    is taken back with `POST /app/scan/undo` (`ticket_public_id`, `reason`, area of the scan); the
+    server checks device events, area binding and refunds (`Checkin::undo_guard()`). An offline
+    admission that is not uploaded yet was never booked: it is marked `undone` in the local log (with
+    the reason), never uploaded, and the ticket can be admitted again on this device. While a sync is
+    running the undo waits (“Synchronisierung läuft”).
   - Multi-entry types are limited by local counters per hash from the device's own scan log (online
     and offline admissions of the last day; pending scans always): `daily`/`multi_day` once per service
     day (occurrence timezone and day cutoff hour, `valid_days`), `multi_entry` up to `max_entries`,
@@ -256,17 +343,26 @@ everywhere, whatever the setting.
   offset and the rollback markers, then shows the pairing screen. Only the translations and the API base
   stay.
 - **Clock:** the app takes an offset from the server time of the keys endpoint, to limit
+  manipulation of the device clock. Package expiry is still enforced on the device, so a rooted
   manipulation of the device clock, and keeps the last known server time (`server_time` of the keys
   endpoint, `issued_at` of verified packages; IndexedDB `kv.server_time`) as a lower bound for its
   clock: setting the device clock back does not extend a package. Package expiry is still enforced on
   the device, so a rooted device can bypass it. The server then flags old scans (`offline_expired`).
+- **Time zone (A516):** start times, package dates, earlier admissions and logged scans are shown in
+  the occurrence's time zone (`occurrence.timezone` of the package, `timezone` of the assignment
+  list), not the device's; the zone abbreviation is added when it differs from the device zone. The
+  web scanner does the same with the `timezone` of the ticket answer (also sent with refusals that
+  carry an admission history).
 - **Camera:** stopped (all tracks ended) when the app is hidden or left (`visibilitychange`,
   `pagehide`) and after a 401 wipe.
 - **Diagnostics:** `window.wpcapOffline` exposes helper functions and a view of the state without the
   device token.
 
-Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshed in the background
+Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v9`). Assets are also refreshed in the background
 (stale-while-revalidate).
+
+The app runs edge to edge (`viewport-fit=cover`); the top bar, the content and the full-screen result keep
+clear of the notch, rounded corners and the home indicator with `env(safe-area-inset-*)` padding (A398).
 
 ## Security notes
 
@@ -294,3 +390,38 @@ Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshe
 - A Playwright check against a real WordPress install drove the end-to-end flow: pairing, admin
   opt-in and assignment, online and offline scans, an offline reload through the service worker,
   rejection of a tampered package, sync with a cross-device conflict, and key rotation.
+
+## Installation and device acceptance (A120)
+
+**Automated (CI job `pwa`, `node tests/pwa/installability.js`):** in Chromium desktop and an Android phone
+emulation (Pixel 7 profile) the test checks the manifest (standalone, start URL/scope, 192/512/maskable
+icons), Chrome's installability report, that the service worker controls the page and caches the whole
+shell, the offline start from the cache and the removal of outdated caches. Result 13.11.2026: all 16
+checks passed.
+
+**Manual acceptance matrix.** Automation cannot press "Install", grant the camera or test real
+hardware. Before a release, one person runs these steps on each device and records the result in the
+release notes (date, device, OS/browser version, tester):
+
+1. Open the app from the admin button (HTTPS), pair the device.
+2. Install: Chrome/Edge/Samsung Internet „App installieren“; iOS/iPadOS Safari „Teilen → Zum Home-Bildschirm“.
+3. Start from the home screen icon: opens without browser UI, correct icon and name.
+4. Allow the camera, scan a valid QR code, then the same code again (duplicate warning), then a help code online.
+5. Airplane mode: close and reopen the app from the icon, scan a valid code (admitted offline), then go online and check that the sync uploads it.
+6. Lock the screen during a scan session and resume: the camera restarts, no data lost.
+7. Update: after a plugin update the app shows the new version after the next start (new cache).
+
+| Platform | Browser | Installation | Automated | Manual status |
+|---|---|---|---|---|
+| Android 13+ | Chrome | install prompt / menu | yes (emulation) | pending |
+| Android 13+ | Samsung Internet | menu „Seite hinzufügen → Startbildschirm“ | – | pending |
+| Android 13+ | Firefox | menu „Installieren“ | – | pending |
+| iOS/iPadOS 17+ | Safari | „Zum Home-Bildschirm“ (camera via jsQR fallback, no BarcodeDetector) | – | pending |
+| iOS/iPadOS 17+ | Chrome/Firefox (WebKit) | only via Safari | – | not supported for installation |
+| Windows/macOS/Linux | Chrome, Edge | address bar install icon | yes | pending |
+| macOS 14+ | Safari | „Ablage → Zum Dock hinzufügen“ | – | pending |
+| any | Firefox desktop | no PWA installation; works as a website | – | runs in the browser tab only |
+
+Known platform limits: iOS evicts service worker storage after weeks without use, so an offline device
+must be opened online before an event to refresh the package. Background sync is not available on iOS,
+so scans upload when the app is open and online.

@@ -59,8 +59,23 @@ final class Devices {
 		) );
 		\PassCaptain\Admission\Areas::set_pairing_area( (int) $wpdb->insert_id, $area_id );
 		Audit::record( 'device_pairing_created', 'user', $user_id, array( 'event_ids' => $event_ids, 'hours' => $hours, 'area_id' => $area_id ) );
-		$payload = wp_json_encode( array( 'type' => 'wpcap-pair', 'v' => 1, 'api' => esc_url_raw( rest_url( 'wp-pass-captain/v1/app/' ) ), 'code' => $code ) );
+		$payload = wp_json_encode( array( 'type' => 'wpcap-pair', 'v' => 1, 'api' => self::api_base(), 'code' => $code ) );
 		return array( 'code' => $code, 'expires_at' => $expires, 'device_hours' => $hours, 'area_id' => $area_id, 'qr_payload' => $payload );
+	}
+
+	/**
+	 * Base URL of the app API for pairing QR codes and the offline scanner link (A649): the REST URL
+	 * when it is …/wp-json/pass-captain/v1/app/ or the plain permalink form, otherwise (changed REST
+	 * prefix) the form ?rest_route=/pass-captain/v1/app/, which every WordPress serves and the PWA
+	 * accepts.
+	 */
+	public static function api_base() {
+		$url = (string) rest_url( 'pass-captain/v1/app/' );
+		$path = (string) strtok( $url, '?#' );
+		if ( false === strpos( $url, 'rest_route=' ) && '/wp-json/pass-captain/v1/app/' !== substr( $path, -29 ) ) {
+			$url = add_query_arg( 'rest_route', '/pass-captain/v1/app/', home_url( '/' ) );
+		}
+		return esc_url_raw( $url );
 	}
 
 	/**
@@ -91,7 +106,7 @@ final class Devices {
 			'secret_hash' => hash( 'sha256', $secret ),
 			'label' => mb_substr( sanitize_text_field( $label ?: $pairing->label ), 0, 190 ),
 			'platform' => substr( sanitize_key( $platform ), 0, 32 ),
-			'app_version' => substr( sanitize_text_field( $app_version ), 0, 32 ),
+			'app_version' => \PassCaptain\Text::cut( sanitize_text_field( $app_version ), 32 ),
 			'event_ids' => $pairing->event_ids,
 			'expires_at' => $expires,
 			'created_at' => $now,

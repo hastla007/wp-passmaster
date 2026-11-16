@@ -15,7 +15,29 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Dispatcher {
 	const API_VERSION = '2026-11-01';
-	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'occurrence.rescheduled', 'occurrence.cancelled' );
+	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled', 'ticket.transferred', 'ticket.checked_out', 'attendance.confirmed', 'occurrence.changed', 'event.cancelled', 'refund.reversed' );
+
+	/**
+	 * Payload schema version per event type (A674, field schema_version of every payload). A minor step
+	 * only adds fields; order.refunded 1.1 added refund.kind, refund.lines and refund.source (A675).
+	 */
+	const SCHEMA_VERSIONS = array(
+		'order.paid' => '1.0',
+		'order.refunded' => '1.1',
+		'order.cancelled' => '1.0',
+		'ticket.issued' => '1.0',
+		'ticket.checked_in' => '1.0',
+		'ticket.revoked' => '1.0',
+		'ticket.exchanged' => '1.0',
+		'occurrence.rescheduled' => '1.0',
+		'occurrence.cancelled' => '1.0',
+		'ticket.transferred' => '1.0',
+		'ticket.checked_out' => '1.0',
+		'attendance.confirmed' => '1.0',
+		'occurrence.changed' => '1.0',
+		'event.cancelled' => '1.0',
+		'refund.reversed' => '1.0',
+	);
 	const MAX_ATTEMPTS = 8;
 	const DISABLE_AFTER = 20;
 	const BASE_DELAY = 60;
@@ -85,13 +107,14 @@ final class Dispatcher {
 		return \PassCaptain\Payments\StripeGateway::signature_valid( $body, $header, $secret, $now );
 	}
 
-	/** Only absolute https URLs to public hosts. */
+	/**
+	 * Only absolute https URLs to public hosts (form check without DNS; every delivery is checked
+	 * again with DNS and pinned by OutboundHttp).
+	 */
 	public static function valid_url( $url ) {
 		$url = trim( (string) $url );
 		if ( ! preg_match( '~^https://[^\s/?#]+~i', $url ) || false !== strpos( $url, '@' ) ) { return false; }
-		$host = strtolower( (string) parse_url( $url, PHP_URL_HOST ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
-		if ( '' === $host || 'localhost' === $host || preg_match( '/\.(local|localhost|internal)$/', $host ) ) { return false; }
-		if ( filter_var( trim( $host, '[]' ), FILTER_VALIDATE_IP ) && ! filter_var( trim( $host, '[]' ), FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) { return false; }
+		if ( is_wp_error( \PassCaptain\OutboundHttp::check( $url, array( 'context' => 'webhook', 'resolve' => false ) ) ) ) { return false; }
 		return function_exists( 'wp_http_validate_url' ) ? false !== wp_http_validate_url( $url ) : true;
 	}
 
@@ -174,7 +197,8 @@ final class Dispatcher {
 		if ( ! in_array( $type, self::EVENTS, true ) ) { return 0; }
 		$subs = $wpdb->get_results( $wpdb->prepare( "SELECT subscription_id,events,include_pii FROM %i WHERE status='active' AND FIND_IN_SET(%s,events)", self::t( 'subscriptions' ), $type ) );
 		if ( ! $subs ) { return 0; }
-		$event_id = 'evt_' . substr( hash( 'sha256', $type . '|' . $dedupe ), 0, 32 );
+		// Same id as the workflow outbox event of the same business event (Workflow\Outbox::event_id()).
+		$event_id = \PassCaptain\Workflow\Outbox::event_id( $type, $dedupe );
 		$object = apply_filters( 'wpcap_webhook_payload_object', $object, $type );
 		$created = time();
 		$queued = 0;
@@ -182,7 +206,7 @@ final class Dispatcher {
 		foreach ( $subs as $sub ) {
 			$data = $object;
 			if ( (int) $sub->include_pii && $pii ) { $data = array_merge( $data, $pii ); }
-			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'created' => $created, 'data' => array( 'object' => $data ) ) );
+			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'schema_version' => self::SCHEMA_VERSIONS[ $type ] ?? '1.0', 'created' => $created, 'data' => array( 'object' => $data ) ) );
 			$queued += (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", self::t( 'deliveries' ), (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
 		}
 		if ( $queued ) { self::schedule_soon(); }
@@ -236,7 +260,7 @@ final class Dispatcher {
 				// A throwing filter/listener must not stall the delivery queue: retried with backoff.
 				$attempts = (int) $row->attempts + 1;
 				$error = \PassCaptain\Jobs::exception_error( $e, $row )->get_error_message();
-				$wpdb->update( $d, array( 'status' => $attempts >= self::max_attempts() ? 'failed' : 'pending', 'attempts' => $attempts, 'last_error' => substr( $error, 0, 190 ), 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
+				$wpdb->update( $d, array( 'status' => $attempts >= self::max_attempts() ? 'failed' : 'pending', 'attempts' => $attempts, 'last_error' => \PassCaptain\Text::cut( $error, 190 ), 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
 			}
 			\PassCaptain\Jobs\TimeBudget::finished( $d, (int) $row->delivery_id );
 			++$done;
@@ -257,11 +281,11 @@ final class Dispatcher {
 		}
 		$timestamp = time();
 		$args = array(
+			'method' => 'POST',
 			'timeout' => 10,
-			'redirection' => 0,
 			'headers' => array(
 				'Content-Type' => 'application/json',
-				'User-Agent' => 'WP-Pass-Captain-Webhooks/' . self::API_VERSION,
+				'User-Agent' => 'Pass-Captain-Webhooks/' . self::API_VERSION,
 				'X-WPCAP-Event' => $row->event_type,
 				'X-WPCAP-Event-Id' => $row->event_id,
 				'X-WPCAP-Delivery' => (string) $row->delivery_id,
@@ -269,12 +293,12 @@ final class Dispatcher {
 			),
 			'body' => $row->payload,
 		);
-		$args['method'] = 'POST';
-		// Re-validated per attempt: the host's DNS may have changed to an internal address since creation.
+		// HTTPS, public address checked after DNS and pinned, no redirects, 64 KB response (A202);
+		// re-validated per attempt: the host's DNS may have changed to an internal address since creation.
 		$response = '' === (string) $sub->secret
 			? new \WP_Error( 'wpcap_webhook_secret_unavailable', __( 'Das Signing-Secret kann nicht entschlüsselt werden; bitte erneuern.', 'pass-captain' ) )
-			: \PassCaptain\Security\OutboundHttp::request( $sub->url, $args, array( 'max_bytes' => 65536 ) );
-		$code = is_wp_error( $response ) ? (int) ( $response->get_error_data()['response_code'] ?? 0 ) : (int) $response['code'];
+			: \PassCaptain\OutboundHttp::request( $sub->url, $args, array( 'context' => 'webhook', 'max_bytes' => 65536 ) );
+		$code = is_wp_error( $response ) ? (int) ( ( (array) $response->get_error_data() )['status'] ?? 0 ) : (int) wp_remote_retrieve_response_code( $response );
 		$attempts = (int) $row->attempts + 1;
 		$now = current_time( 'mysql', true );
 		// Final deliveries keep no personal data in the log.
@@ -284,7 +308,7 @@ final class Dispatcher {
 			$wpdb->update( self::t( 'subscriptions' ), array( 'consecutive_failures' => 0, 'last_success_at' => $now ), array( 'subscription_id' => (int) $sub->subscription_id ) );
 			return;
 		}
-		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( \PassCaptain\Security\Redact::text( $response->get_error_message() ) ), 0, 190 ) : 'HTTP ' . $code;
+		$error = is_wp_error( $response ) ? \PassCaptain\Operations\Queues::safe_error( sanitize_text_field( \PassCaptain\OutboundHttp::redact( $response->get_error_message(), array( $sub->secret ) ) ) ) : 'HTTP ' . $code;
 		$final = $attempts >= self::max_attempts();
 		$update_row = array( 'status' => $final ? 'failed' : 'pending', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => $error, 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => $now );
 		if ( $final && $had_pii ) { $update_row['payload'] = $stripped; $update_row['pii_purged'] = 1; }
@@ -331,12 +355,34 @@ final class Dispatcher {
 		return true;
 	}
 
-	/** Deletes final deliveries older than the retention period (cron). Returns deleted rows. */
-	public static function purge_old() {
+	/** Rows per DELETE of purge_old(). */
+	const PURGE_BATCH = 1000;
+
+	/** Seconds one purge_old() run may take (filter wpcap_webhook_purge_budget). */
+	const PURGE_BUDGET = 5.0;
+
+	/**
+	 * Deletes final deliveries older than the retention period (hourly cron `wpcap_cleanup_reservations`,
+	 * A437): batches of PURGE_BATCH rows on the index cleanup (status, updated_at) within a time budget;
+	 * the next run continues. Returns deleted rows.
+	 *
+	 * @param float|null $budget Seconds (default: filter wpcap_webhook_purge_budget, 5).
+	 * @param int|null   $now    Reference time (UNIX, tests).
+	 */
+	public static function purge_old( $budget = null, $now = null ) {
 		global $wpdb;
-		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
+		$budget = null === $budget || '' === $budget ? (float) apply_filters( 'wpcap_webhook_purge_budget', self::PURGE_BUDGET ) : (float) $budget;
+		$deadline = microtime( true ) + max( 0.0, $budget );
+		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now || '' === $now ? time() : (int) $now ) - self::retention_days() * DAY_IN_SECONDS );
+		// Pending deliveries of inactive subscriptions first (cancelled without personal data, then deleted below).
 		self::cancel_stale( $cutoff );
-		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", self::t( 'deliveries' ), $cutoff ) );
+		$deleted = 0;
+		do {
+			$batch = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'deliveries' ) . " WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s LIMIT %d", $cutoff, self::PURGE_BATCH ) );
+			$batch = false === $batch ? 0 : (int) $batch;
+			$deleted += $batch;
+		} while ( self::PURGE_BATCH === $batch && microtime( true ) < $deadline );
+		return $deleted;
 	}
 
 	/**

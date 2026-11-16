@@ -44,11 +44,22 @@ if ( ! function_exists( 'WC' ) ) {
 	function WC() { return $GLOBALS['wpcap_test_wc']; }
 }
 if ( ! function_exists( 'wc_get_orders' ) ) {
-	function wc_get_orders( $args ) {
-		foreach ( $GLOBALS['wpcap_test_orders'] as $order ) {
-			if ( in_array( (string) $args['meta_value'], array_map( 'strval', (array) ( $order->meta[ $args['meta_key'] ] ?? array() ) ), true ) ) { return array( $order ); }
+	// First definition wins for the whole run: also serves later modules (meta_query EXISTS + limit for
+	// MetaCleanup in zz_a196/zz_a284).
+	function wc_get_orders( $args = array() ) {
+		$out = array();
+		foreach ( $GLOBALS['wpcap_test_orders'] ?? array() as $order ) {
+			if ( isset( $args['meta_key'] ) ) {
+				if ( in_array( (string) ( $args['meta_value'] ?? '' ), array_map( 'strval', (array) ( $order->meta[ $args['meta_key'] ] ?? array() ) ), true ) ) { return array( $order ); }
+				continue;
+			}
+			foreach ( (array) ( $args['meta_query'] ?? array() ) as $clause ) {
+				if ( is_array( $clause ) && 'EXISTS' === ( $clause['compare'] ?? '' ) && '' === (string) $order->get_meta( $clause['key'], true ) ) { continue 2; }
+			}
+			$out[] = $order;
+			if ( count( $out ) >= (int) ( $args['limit'] ?? 10 ) ) { break; }
 		}
-		return array();
+		return $out;
 	}
 }
 if ( ! function_exists( 'number_format_i18n' ) ) {
@@ -327,7 +338,7 @@ $ms_r3 = woo_t_refund( 7622, $ms_wc, '30.00', array( array( 0, 3, 30.00 ) ) ); /
 $ms_plan3 = Woo::refund_plan( $ms_wc, $ms_r3, $ms_map[ $ms_kb ] );
 check( 'deny: the plan skips the checked-in ticket (2 tickets, 1 denied) but books the amount (capped at the remainder)', 2 === count( $ms_plan3['ticket_ids'] ) && 1 === $ms_plan3['denied_checked_in'] && 2754 - 300 === $ms_plan3['amount_minor'] );
 Woo::sync_refund( 7610, 7622 );
-check( 'checked-in ticket stays checked in and unrefunded; order note explains it', 'checked_in' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $ms_b_tickets[0]->ticket_id ) && '0' === (string) $wpdb->get_var( "SELECT refunded FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $ms_b_tickets[0]->ticket_id ) && 1 === count( array_filter( $ms_wc->notes, static fn( $n ) => false !== strpos( $n, 'bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert' ) ) ) );
+check( 'checked-in ticket stays checked in and unrefunded; order note explains it', 'checked_in' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $ms_b_tickets[0]->ticket_id ) && '0' === (string) $wpdb->get_var( "SELECT refunded FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $ms_b_tickets[0]->ticket_id ) && 1 === count( array_filter( $ms_wc->notes, static fn( $n ) => false !== strpos( $n, 'laut Einstellung nicht als erstattet markiert' ) ) ) );
 
 echo "WooCommerce multi-seller: full refund\n";
 $ms_refunded_so_far = 23.80 + 10.00 + 30.00;

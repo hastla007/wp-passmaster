@@ -14,10 +14,55 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Store {
 	/** 32 byte secretbox key from WPCAP_WALLET_ENCRYPTION_KEY or the WordPress auth salt. */
 	public static function key() {
+		return hash_hmac( 'sha256', 'wpcap-wallet-secretbox-v1', self::base(), true );
+	}
+
+	/**
+	 * Separate HMAC key for the signed wallet links (download, Google save, "add all"), derived from the
+	 * same base with its own label (A648): the secretbox key is used for encryption only.
+	 */
+	public static function link_key() {
+		return hash_hmac( 'sha256', 'wpcap-wallet-links-v1', self::base(), true );
+	}
+
+	private static function base() {
 		$base = defined( 'WPCAP_WALLET_ENCRYPTION_KEY' ) ? (string) constant( 'WPCAP_WALLET_ENCRYPTION_KEY' ) : '';
 		if ( '' === $base && function_exists( 'wp_salt' ) ) { $base = (string) wp_salt( 'auth' ); }
 		if ( '' === $base ) { throw new \RuntimeException( 'wallet_key_missing' ); }
-		return hash_hmac( 'sha256', 'wpcap-wallet-secretbox-v1', $base, true );
+		return $base;
+	}
+
+	/** 'constant' (WPCAP_WALLET_ENCRYPTION_KEY, recommended) or 'salt' (derived from wp_salt( 'auth' )). */
+	public static function key_source() {
+		return defined( 'WPCAP_WALLET_ENCRYPTION_KEY' ) && '' !== (string) constant( 'WPCAP_WALLET_ENCRYPTION_KEY' ) ? 'constant' : 'salt';
+	}
+
+	const KEY_CHECK_OPTION = 'wpcap_wallet_key_check';
+
+	/** Short, non-reversible fingerprint of the current key (detects a changed salt/key, A584). */
+	public static function key_check() {
+		return substr( hash_hmac( 'sha256', 'wpcap-wallet-key-check', self::key() ), 0, 16 );
+	}
+
+	/** Remembers the fingerprint of the key the stored secrets were encrypted with (first use only). */
+	public static function remember_key() {
+		if ( '' === (string) get_option( self::KEY_CHECK_OPTION, '' ) ) { update_option( self::KEY_CHECK_OPTION, self::key_check(), false ); }
+	}
+
+	/**
+	 * Whether stored secrets were encrypted with another key than the current one (salt rotated or
+	 * WPCAP_WALLET_ENCRYPTION_KEY changed/removed). Without a fingerprint (installs before A584) the
+	 * newest stored secret is probed instead.
+	 */
+	public static function key_changed() {
+		global $wpdb;
+		$known = (string) get_option( self::KEY_CHECK_OPTION, '' );
+		if ( '' !== $known ) { return ! hash_equals( $known, self::key_check() ); }
+		$box = $wpdb->get_var( 'SELECT secret FROM ' . self::t( 'wallet_state' ) . ' ORDER BY updated_at DESC LIMIT 1' );
+		if ( null === $box ) { return false; }
+		if ( null === self::decrypt( $box ) ) { return true; }
+		self::remember_key();
+		return false;
 	}
 
 	public static function encrypt( array $data ) {
@@ -67,6 +112,7 @@ final class Store {
 		$auth = bin2hex( random_bytes( 20 ) );
 		$generation = $existing ? (int) $existing->generation + 1 : 1;
 		$now = current_time( 'mysql', true );
+		self::remember_key();
 		$row = array(
 			'secret' => self::encrypt( array( 'code' => (string) $code, 'auth' => $auth ) ),
 			'code_hash' => hash( 'sha256', (string) $code ),
@@ -129,6 +175,29 @@ final class Store {
 		$wpdb->update( self::t( 'wallet_passes' ), array( 'synced_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
 	}
 
+	/** Whether wpcap_wallet_passes has `remote_at` (schema 3.10.21, A566; deferred upgrades). */
+	public static function remote_ready() {
+		return \PassCaptain\ServiceBookings::has_column( 'wpcap_wallet_passes', 'remote_at' );
+	}
+
+	/**
+	 * Whether the provider holds this pass (A566): a Google object exists only after the buyer used the
+	 * save link. Without the column (deferred upgrade) every pass counts as held, as before.
+	 *
+	 * @param object|array $pass wpcap_wallet_passes row.
+	 */
+	public static function is_remote( $pass ) {
+		$pass = (array) $pass;
+		return ! self::remote_ready() || ! empty( $pass['remote_at'] );
+	}
+
+	/** Marks a pass as held by the provider (the buyer's save link was used; first time only). */
+	public static function mark_remote( $provider, $serial ) {
+		global $wpdb;
+		if ( ! self::remote_ready() ) { return false; }
+		return (bool) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'wallet_passes' ) . ' SET remote_at=%s WHERE provider=%s AND serial_number=%s AND remote_at IS NULL', current_time( 'mysql', true ), (string) $provider, (string) $serial ) );
+	}
+
 	public static function set_pass_status( $wallet_pass_id, $status ) {
 		global $wpdb;
 		$wpdb->update( self::t( 'wallet_passes' ), array( 'status' => $status, 'updated_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
@@ -141,9 +210,10 @@ final class Store {
 		$table = self::t( 'wallet_registrations' );
 		$now = current_time( 'mysql', true );
 		$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT registration_id FROM %i WHERE device_library_id=%s AND serial_number=%s', $table, $device, $serial ) );
-		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET push_token=%s,updated_at=%s WHERE device_library_id=%s', $table, $push_token, $now, $device ) );
+		// A648: the caller is authenticated for this serial only – the push token of the device's other
+		// registrations is never changed here (each pass registers its own token).
 		if ( $exists ) {
-			$wpdb->update( $table, array( 'auth_token_hash' => $auth_hash, 'pass_type_id' => $pass_type, 'updated_at' => $now ), array( 'registration_id' => (int) $exists ) );
+			$wpdb->update( $table, array( 'push_token' => $push_token, 'auth_token_hash' => $auth_hash, 'pass_type_id' => $pass_type, 'updated_at' => $now ), array( 'registration_id' => (int) $exists ) );
 			return false;
 		}
 		$wpdb->insert( $table, array( 'device_library_id' => $device, 'pass_type_id' => $pass_type, 'serial_number' => $serial, 'push_token' => $push_token, 'auth_token_hash' => $auth_hash, 'created_at' => $now, 'updated_at' => $now ) );

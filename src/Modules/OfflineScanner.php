@@ -24,6 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class OfflineScanner {
 	public static function register() {
 		add_action( 'rest_api_init', array( Rest::class, 'routes' ) );
+		// A286: the app shell from the site's own origin (works with assets on a CDN domain).
+		\PassCaptain\OfflineScanner\Pwa::register();
 		add_filter( 'rest_request_after_callbacks', array( Rest::class, 'after_callbacks' ), 10, 3 );
 		add_filter( 'rest_pre_serve_request', array( Rest::class, 'serve_gzip' ), 10, 3 );
 	}

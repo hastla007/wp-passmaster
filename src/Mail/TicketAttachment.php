@@ -60,13 +60,63 @@ final class TicketAttachment {
 		if ( count( $tickets ) > self::max_tickets( $order_id ) ) {
 			return $none;
 		}
-		$part = TicketPdf::mail_attachment( $order, array_values( $tickets ) );
-		foreach ( (array) $part['files'] as $file ) { TempFiles::track( $file, (string) $part['dir'] ); }
-		if ( ! $part['files'] && ! empty( $part['dir'] ) ) {
-			TempFiles::remove_dir( (string) $part['dir'] );
-			$part['dir'] = '';
+		$tickets = array_values( $tickets );
+		$chunks = array_chunk( $tickets, \PassCaptain\Orders::ticket_pdf_chunk_size() );
+		if ( count( $chunks ) < 2 ) {
+			$part = TicketPdf::mail_attachment( $order, $tickets );
+			foreach ( (array) $part['files'] as $file ) { TempFiles::track( $file, (string) $part['dir'] ); }
+			if ( ! $part['files'] && ! empty( $part['dir'] ) ) {
+				TempFiles::remove_dir( (string) $part['dir'] );
+				$part['dir'] = '';
+			}
+			return array( 'files' => (array) $part['files'], 'dir' => (string) $part['dir'], 'notice' => (string) $part['notice'] );
 		}
-		return array( 'files' => (array) $part['files'], 'dir' => (string) $part['dir'], 'notice' => (string) $part['notice'] );
+		return self::create_chunked( $order, $chunks, count( $tickets ) );
+	}
+
+	/**
+	 * A580: large orders get several PDFs (Orders::ticket_pdf_chunk_size() tickets each), attached
+	 * while they fit the mail's attachment budget (Orders::attachment_budget(); the first PDF always);
+	 * `notice` names the tickets the attachments contain and where the rest is.
+	 *
+	 * @param object  $order  Order row.
+	 * @param array[] $chunks Ticket items per PDF.
+	 * @param int     $total  Number of tickets of the mail.
+	 * @return array{files:string[],dir:string,notice:string}
+	 */
+	private static function create_chunked( $order, array $chunks, $total ) {
+		$out = array( 'files' => array(), 'dir' => '', 'notice' => '' );
+		$budget = \PassCaptain\Orders::attachment_budget( $order );
+		$used = 0;
+		$covered = 0;
+		$public = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $order->public_id ?? 'order' ) );
+		foreach ( $chunks as $index => $chunk ) {
+			$part = TicketPdf::mail_attachment( $order, $chunk );
+			$file = (string) ( $part['files'][0] ?? '' );
+			$size = '' !== $file && is_file( $file ) ? (int) filesize( $file ) : 0;
+			if ( ! $size || ( $index > 0 && $used + $size > $budget ) ) {
+				if ( '' !== $file ) { wp_delete_file( $file ); }
+				if ( ! empty( $part['dir'] ) ) { TempFiles::remove_dir( (string) $part['dir'] ); }
+				if ( ! $size && '' === $out['notice'] && ! $out['files'] ) { $out['notice'] = (string) $part['notice']; }
+				break;
+			}
+			if ( '' === $out['dir'] ) { $out['dir'] = (string) $part['dir']; }
+			// One directory for all parts; numbered names (tickets-<order>-1.pdf, -2.pdf, …).
+			$target = $out['dir'] . '/tickets-' . $public . '-' . ( $index + 1 ) . '.pdf';
+			if ( ! @rename( $file, $target ) ) { $target = $file; } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.rename_rename -- private temp file.
+			if ( (string) $part['dir'] !== $out['dir'] && ! empty( $part['dir'] ) && $target !== $file ) { TempFiles::remove_dir( (string) $part['dir'] ); }
+			TempFiles::track( $target, $target === $file ? (string) $part['dir'] : $out['dir'] );
+			$out['files'][] = $target;
+			$used += $size;
+			$covered += count( $chunk );
+		}
+		if ( $out['files'] && $covered < $total ) {
+			$out['notice'] = Mailer::with_locale( (string) ( $order->locale ?? '' ), static function () use ( $covered, $total ) {
+				/* translators: 1: number of tickets in the PDF attachments, 2: number of tickets of the order */
+				return sprintf( __( 'Wegen der Größenbegrenzung von E-Mails enthalten die PDF-Anhänge die ersten %1$d von %2$d Tickets. Alle Tickets kannst du über die Links oben öffnen und im Bestellportal (Link aus deiner Bestellbestätigung) als PDF herunterladen.', 'pass-captain' ), $covered, $total );
+			} );
+		}
+		return $out;
 	}
 
 	/** Notice block for a PDF that was left out because of its size (plain text and HTML). */

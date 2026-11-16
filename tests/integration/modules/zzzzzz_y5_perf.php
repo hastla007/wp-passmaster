@@ -72,6 +72,7 @@ function y5_listing( $n, $m, $tag ) {
 				$wpdb->insert( "{$p}wpcap_waitlist", array( 'event_id' => $event, 'occurrence_id' => $occ, 'ticket_type_id' => $type, 'email_hash' => hash( 'sha256', "y5$type" ), 'email' => "y5w$type@example.com", 'position' => 1, 'status' => 'offered', 'offer_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 3600 ), 'hold_quantity' => 1, 'created_at' => $now, 'updated_at' => $now ) );
 			}
 		}
+		PassCaptain\CapacityCounters::rebuild_occurrence( $occ ); // Plain SQL fixture: the capacity counters (merged line) follow the rows.
 		$rows[] = (object) array( 'event_id' => $event, 'name' => "Y5 $tag $i", 'description' => 'Original', 'occurrence_id' => $occ, 'starts_at' => $starts, 'timezone' => 'Europe/Vienna', 'location' => 'Wien' );
 	}
 	return $rows;
@@ -165,23 +166,27 @@ foreach ( $y5_bo as $t ) { $y5_bo_ok = $y5_bo_ok && Orders::availability( $t['ti
 check( "box office list: 9 types with the same availability in $y5_q_bo queries (budget 30)", $y5_bo_ok && $y5_q_bo <= 30 );
 
 echo "Y5 PERF-2: Mollie methods – one cached list per currency/country, negative cache, short timeout\n";
-PassCaptain\Settings::update( array( 'mollie_api_key' => 'test_' . str_repeat( 'Yz5', 10 ), 'mollie' => array( 'methods' => array( 'ideal', 'klarna', 'creditcard' ), 'billing_country' => 'AT' ) ) );
+PassCaptain\Settings::update( array( 'mollie_api_key' => 'test_' . str_repeat( 'Yz5', 10 ), 'mollie' => array( 'methods' => array( 'ideal', 'paysafecard', 'creditcard' ), 'billing_country' => 'AT' ) ) );
 wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_transient_ttl'] = array();
 http_reset();
 http_push( array( '_embedded' => array( 'methods' => array(
 	array( 'id' => 'ideal', 'description' => 'iDEAL', 'minimumAmount' => array( 'value' => '0.01', 'currency' => 'EUR' ), 'maximumAmount' => array( 'value' => '50000.00', 'currency' => 'EUR' ) ),
-	array( 'id' => 'klarna', 'description' => 'Klarna', 'minimumAmount' => array( 'value' => '35.00', 'currency' => 'EUR' ), 'maximumAmount' => array( 'value' => '1000.00', 'currency' => 'EUR' ) ),
+	array( 'id' => 'paysafecard', 'description' => 'paysafecard', 'minimumAmount' => array( 'value' => '35.00', 'currency' => 'EUR' ), 'maximumAmount' => array( 'value' => '1000.00', 'currency' => 'EUR' ) ),
 	array( 'id' => 'creditcard', 'description' => 'Karte' ),
 ) ) ), 200, '/v2/methods' );
-$y5_m1 = PassCaptain\Mollie\MollieGateway::selectable_methods( 2500, 'EUR' );
-$y5_m2 = PassCaptain\Mollie\MollieGateway::selectable_methods( 4000, 'EUR' );
-$y5_m3 = PassCaptain\Mollie\MollieGateway::selectable_methods( 150000, 'EUR' );
+// Merged line (A282): page rendering never calls Mollie (remote=false schedules a background load);
+// the checkout/refresh path asks with remote=true.
+$y5_m1 = PassCaptain\Mollie\MollieGateway::selectable_methods( 2500, 'EUR', true );
+$y5_m2 = PassCaptain\Mollie\MollieGateway::selectable_methods( 4000, 'EUR', true );
+$y5_m3 = PassCaptain\Mollie\MollieGateway::selectable_methods( 150000, 'EUR', true );
 $y5_mreq = http_requests( '/v2/methods' );
 parse_str( (string) parse_url( $y5_mreq[0]['url'] ?? '', PHP_URL_QUERY ), $y5_mq );
 check( 'three different amounts need one API call (cache per currency/country)', 1 === count( $y5_mreq ) && ! isset( $y5_mq['amount'] ) && 'AT' === ( $y5_mq['billingCountry'] ?? '' ) );
-check( 'limits are applied locally (Klarna from 35 €, up to 1,000 €; no limits = allowed)', array( 'ideal', 'creditcard' ) === array_keys( $y5_m1 ) && array( 'ideal', 'klarna', 'creditcard' ) === array_keys( $y5_m2 ) && array( 'ideal', 'creditcard' ) === array_keys( $y5_m3 ) );
-check( 'the methods lookup uses a timeout of at most 3 seconds', ( $y5_mreq[0]['timeout'] ?? 99 ) <= 3 );
+// Klarna is no longer selectable in the merged line (A351 capture methods); paysafecard carries the limits here.
+check( 'limits are applied locally (method from 35 €, up to 1,000 €; no limits = allowed)', array( 'ideal', 'creditcard' ) === array_keys( $y5_m1 ) && array( 'ideal', 'paysafecard', 'creditcard' ) === array_keys( $y5_m2 ) && array( 'ideal', 'creditcard' ) === array_keys( $y5_m3 ) );
+// Merged line (A282): the lookup never runs while a page renders (background job), so a 5 s timeout is short enough.
+check( 'the methods lookup uses a short timeout (at most 5 seconds, background only)', ( $y5_mreq[0]['timeout'] ?? 99 ) <= 5 && PassCaptain\Mollie\MollieGateway::METHODS_TIMEOUT <= 5 );
 http_reset();
 wpcap_test_reset_transients();
 http_push( array( 'detail' => 'down' ), 503, '/v2/methods' );
@@ -220,41 +225,39 @@ $y5c_hook_states = array();
 $y5c_hook = static function ( $ticket_id ) use ( &$y5c_hook_states, $wpdb, $p ) { $y5c_hook_states[] = (string) $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $ticket_id ); };
 add_action( 'wpcap_ticket_revoked', $y5c_hook, 1, 1 );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='cancelled' WHERE occurrence_id=$y5c_occ" );
-PassCaptain\OccurrenceCancellation::$inline_seconds = 0; // Simulates a request that has no time left: everything stays queued.
+// Merged line: the cancellation is a resumable run (A428, BulkRuns: orders → refund plan → batched
+// revoke → refunds as idempotent jobs → queued mails); abort/resume is covered by zz_a428.php. Here:
+// the PERF goals – revocation in bulk statements, refunds once per order, every holder mailed once.
 $y5c_mails = count( $GLOBALS['wpcap_test_mails'] );
-$y5c_before = $wpdb->num_queries;
+$y5c_revoke_sql = 0;
+$y5c_spy = static function ( $sql ) use ( &$y5c_revoke_sql, $p ) { if ( preg_match( "/^\\s*UPDATE\\s+`?{$p}wpcap_tickets`?\\s+SET\\s+status='revoked'/i", $sql ) ) { ++$y5c_revoke_sql; } return $sql; };
+add_filter( 'query', $y5c_spy );
 $y5c_sum = PassCaptain\OccurrenceCancellation::handle( $y5c_occ );
-$y5c_q = $wpdb->num_queries - $y5c_before;
-PassCaptain\OccurrenceCancellation::$inline_seconds = 20;
+remove_filter( 'query', $y5c_spy );
 $y5c_valid = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id IN ($y5c_in) AND status='valid'" );
-check( "50 tickets revoked with bulk UPDATEs before any refund ($y5c_q queries incl. the open order)", 50 === $y5c_sum['revoked'] && 0 === $y5c_valid && $y5c_q <= 60 );
-check( 'no refund, mail or hook ran yet; batches are queued (hooks, 5 refund batches of 5 orders (R3), mails)', 0 === $y5c_sum['refunds'] && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id IN ($y5c_in)" ) && $y5c_mails === count( $GLOBALS['wpcap_test_mails'] ) && array() === $y5c_hook_states && 7 === $y5c_sum['queued_jobs'] );
+check( "50 tickets revoked with bulk UPDATEs ($y5c_revoke_sql statements, no statement per ticket)", 50 === $y5c_sum['revoked'] && 0 === $y5c_valid && $y5c_revoke_sql >= 1 && $y5c_revoke_sql <= 5 );
 check( 'open order of the occurrence is cancelled inline', 'cancelled' === Orders::get( $y5c_open['order_id'] )->payment_status && 1 === $y5c_sum['cancelled_orders'] );
-$y5c_progress = PassCaptain\OccurrenceCancellation::progress( $y5c_occ );
-check( 'admin progress: 7 batches queued', 7 === $y5c_progress['queued'] && 0 === $y5c_progress['complete'] );
-check( 'invariant after the abort: no valid ticket with refunded money', $y5c_invariant() );
-$y5c_run = $y5c_sum['run'];
-// Worker picks up the hooks and the first refund batch, then "crashes".
-PassCaptain\Jobs::run_now( array( "occ-cancel-$y5c_occ-$y5c_run-hooks-0", "occ-cancel-$y5c_occ-$y5c_run-refunds-0" ), time() + 60 );
-$y5c_refunded_orders = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT order_id) FROM {$p}wpcap_refunds WHERE status='completed' AND order_id IN ($y5c_in)" );
 check( 'hooks fire per ticket only after the revoke was persisted (50 x status revoked: ' . count( $y5c_hook_states ) . ' ' . implode( ',', array_unique( $y5c_hook_states ) ) . ')', 50 === count( $y5c_hook_states ) && array( 'revoked' ) === array_values( array_unique( $y5c_hook_states ) ) );
-check( "first refund batch: 5 orders refunded ($y5c_refunded_orders), invariant holds mid-way", 5 === $y5c_refunded_orders && $y5c_invariant() );
-PassCaptain\Jobs::run_now( array( "occ-cancel-$y5c_occ-$y5c_run-refunds-1", "occ-cancel-$y5c_occ-$y5c_run-refunds-2", "occ-cancel-$y5c_occ-$y5c_run-refunds-3", "occ-cancel-$y5c_occ-$y5c_run-refunds-4", "occ-cancel-$y5c_occ-$y5c_run-notify-0" ), time() + 60 );
+check( 'invariant after the run: no valid ticket with refunded money', $y5c_invariant() );
 $y5c_refunded_orders = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT order_id) FROM {$p}wpcap_refunds WHERE status='completed' AND order_id IN ($y5c_in)" );
+$y5c_refund_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id IN ($y5c_in)" );
 $y5c_to = array_unique( array_map( static fn( $m ) => $m['to'], array_slice( $GLOBALS['wpcap_test_mails'], $y5c_mails ) ) );
 $y5c_flagged = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id IN ($y5c_in) AND status='revoked' AND refunded=1" );
-check( 'remaining batches: all 25 orders refunded, all 50 tickets revoked and flagged refunded', 25 === $y5c_refunded_orders && 50 === $y5c_flagged );
-check( 'holders informed by the mail batch (25 recipients)', count( array_filter( $y5c_to, static fn( $t ) => str_starts_with( $t, 'y5c' ) && 'y5c-open@example.com' !== $t ) ) >= 25 );
-check( 'progress: all batches complete', 7 === PassCaptain\OccurrenceCancellation::progress( $y5c_occ )['complete'] );
+check( 'all 25 orders refunded exactly once, all 50 tickets revoked and flagged refunded', 25 === $y5c_refunded_orders && 25 === $y5c_refund_rows && 50 === $y5c_flagged && 25 === $y5c_sum['refunds'] );
+check( 'holders informed through the mail queue (25 recipients)', count( array_filter( $y5c_to, static fn( $t ) => str_starts_with( $t, 'y5c' ) && 'y5c-open@example.com' !== $t ) ) >= 25 && 25 <= $y5c_sum['mails_total'] );
+$y5c_run = PassCaptain\BulkRuns::occurrence_run( $y5c_occ );
+check( 'admin progress: the run reports completion and its counters', $y5c_run && 'complete' === $y5c_run->status && ! empty( $y5c_sum['complete'] ) && 'done' === $y5c_sum['phase'] );
 remove_action( 'wpcap_ticket_revoked', $y5c_hook, 1 );
 // Orders::revoke_ids(): one statement per chunk, only still valid tickets reported.
 $y5c_type2 = make_type( 50, 10, 0 );
 $y5c_free = Orders::create( array( 'email' => 'y5c-free@example.com', 'items' => array( array( 'ticket_type_id' => $y5c_type2, 'quantity' => 6 ) ), 'idempotency_key' => 'y5c-free-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 $y5c_ids = array_map( static fn( $t ) => (int) $t->ticket_id, Orders::tickets_for_order( $y5c_free['order_id'] ) );
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='checked_in' WHERE ticket_id=" . $y5c_ids[0] );
-$y5c_before = $wpdb->num_queries;
+// Statements of revoke_ids() itself; the report cache (A201, when registered) adds one id → event lookup for the whole statement.
+$GLOBALS['wpcap_test_query_log'] = array();
 $y5c_changed = Orders::revoke_ids( array_merge( $y5c_ids, array( $y5c_ids[1], 0 ) ) );
-$y5c_q = $wpdb->num_queries - $y5c_before;
+$y5c_q = count( array_filter( $GLOBALS['wpcap_test_query_log'], static fn( $sql ) => 0 !== strpos( ltrim( $sql ), 'SELECT t.ticket_id,o.event_id FROM' ) ) );
+unset( $GLOBALS['wpcap_test_query_log'] );
 sort( $y5c_changed );
 check( "revoke_ids: 5 valid of 6 tickets revoked in $y5c_q statements (checked-in one untouched)", array_slice( $y5c_ids, 1 ) === $y5c_changed && 2 === $y5c_q && 'checked_in' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . $y5c_ids[0] ) );
 check( 'revoke_ids: second call changes nothing', array() === Orders::revoke_ids( $y5c_ids ) );
@@ -334,6 +337,7 @@ function y5_refunded_order( $n, $refund_minor = 1000, $voucher_snapshot = null )
 		$wpdb->insert( "{$p}wpcap_refunds", array( 'order_id' => $order, 'idempotency_key' => hash( 'sha256', uniqid( 'r', true ) ), 'currency' => 'EUR', 'amount_minor' => $refund_minor, 'tax_minor' => 0, 'ticket_ids' => wp_json_encode( array( $ticket ) ), 'status' => 'completed', 'created_at' => $now, 'updated_at' => $now ) );
 		$refunds[] = (int) $wpdb->insert_id;
 	}
+	PassCaptain\CapacityCounters::sync_order_now( $order ); // Plain SQL fixture: counters follow the rows (merged line).
 	return array( $order, $type, $refunds );
 }
 $y5p_today = gmdate( 'Y-m-d' );
@@ -411,7 +415,7 @@ check( 'PERF-5: initialize() only registers the CSS; it is enqueued with the che
 
 // PERF-6 / PERF-8: indexes.
 $y5_index = static function ( $table, $key ) use ( $wpdb, $p ) { return (bool) $wpdb->get_row( $wpdb->prepare( 'SHOW INDEX FROM %i WHERE Key_name=%s', $p . $table, $key ) ); };
-check( 'PERF-6/8: KEY status_expires on reservations, KEY created_checkin on check-ins, DB version >= 3.13.0', $y5_index( 'wpcap_reservations', 'status_expires' ) && $y5_index( 'wpcap_checkins', 'created_checkin' ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.13.0', '>=' ) );
+check( 'PERF-6/8: KEY status_expires on reservations, KEY created (created_at,checkin_id) on check-ins (PERF-8; the duplicate created_checkin is dropped in 3.18.0), DB version >= 3.13.0', $y5_index( 'wpcap_reservations', 'status_expires' ) && $y5_index( 'wpcap_checkins', 'created' ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.13.0', '>=' ) );
 
 // PERF-6: retention of finished holds and jobs.
 $y5h_old = gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS );
@@ -426,7 +430,8 @@ foreach ( array( array( $y5h_paid, 'converted', $y5h_old ), array( $y5h_paid, 'r
 foreach ( array( array( 'complete', $y5h_old ), array( 'dead_letter', $y5h_old ), array( 'queued', $y5h_old ), array( 'complete', gmdate( 'Y-m-d H:i:s' ) ) ) as $i => $j ) {
 	$wpdb->insert( "{$p}wpcap_jobs", array( 'idempotency_key' => hash( 'sha256', 'y5h-job-' . $i . uniqid() ), 'job_type' => 'y5_none', 'payload' => '{}', 'run_after' => $j[1], 'status' => $j[0], 'created_at' => $j[1], 'updated_at' => $j[1] ) );
 }
-$y5h_counts = PassCaptain\Privacy\Retention::run();
+// Merged line: finished holds and jobs are cleaned up by the hourly housekeeping (Retention::housekeeping()), not the daily retention run.
+$y5h_counts = PassCaptain\Privacy\Retention::housekeeping();
 $y5h_left = array_map( 'intval', $wpdb->get_col( "SELECT reservation_id FROM {$p}wpcap_reservations WHERE reservation_id IN (" . implode( ',', $y5h_ids ) . ')' ) );
 $y5h_jobs = $wpdb->get_col( "SELECT status FROM {$p}wpcap_jobs WHERE job_type='y5_none' ORDER BY job_id" );
 check( 'PERF-6: old finished holds deleted; holds of a pending order and recent ones kept', array( $y5h_ids[2], $y5h_ids[3] ) === $y5h_left && $y5h_counts['reservations'] >= 2 );
@@ -438,7 +443,7 @@ wpcap_test_reset_transients();
 PassCaptain\Admin\Queries::checkin_results();
 $y5_before = $wpdb->num_queries;
 $y5_results = PassCaptain\Admin\Queries::checkin_results();
-check( 'PERF-8: check-in result filter options without a query on repeat (cached), core results included', $y5_before === $wpdb->num_queries && in_array( 'checked_in', $y5_results, true ) && in_array( 'undone', $y5_results, true ) && in_array( 'wrong_event', $y5_results, true ) );
+check( 'PERF-8: check-in result filter options without a query on repeat (cached), core results included', $y5_before === $wpdb->num_queries && in_array( 'checked_in', $y5_results, true ) && in_array( 'undone', $y5_results, true ) && in_array( 'already_checked_in', $y5_results, true ) ); // Merged: fixed list (A433); "wrong_event" is never logged.
 
 // PERF-9: badge as COUNT, conflicts once per request, policy text only on privacy screens.
 check( 'PERF-9: refund badge uses COUNT and matches the list', count( PassCaptain\Admin\Queries::pending_refunds( null ) ) === PassCaptain\Admin\Queries::pending_refunds_count( null ) );

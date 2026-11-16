@@ -61,9 +61,15 @@ final class RulesPage {
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( ! $event_id || ! Queries::event( $event_id ) ) { return Forms::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can( $event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
-		$id = Areas::save( $event_id, Forms::text( $in, 'name' ), Forms::int( $in, 'area_id' ) );
+		$capacity = null;
+		if ( array_key_exists( 'capacity', $in ) ) {
+			$raw = trim( (string) $in['capacity'] );
+			if ( '' !== $raw && ! preg_match( '/^\d{1,7}$/', $raw ) ) { return Forms::error( 'wpcap_area_capacity', __( 'Die Kapazität muss eine ganze Zahl ab 0 sein (0 = unbegrenzt).', 'pass-captain' ) ); }
+			$capacity = (int) $raw;
+		}
+		$id = Areas::save( $event_id, Forms::text( $in, 'name' ), Forms::int( $in, 'area_id' ), $capacity );
 		if ( is_wp_error( $id ) ) { return $id; }
-		Audit::record( 'admission_area_saved', 'admission_area', $id, array( 'event_id' => $event_id ) );
+		Audit::record( 'admission_area_saved', 'admission_area', $id, array( 'event_id' => $event_id, 'capacity' => $capacity ) );
 		return array( 'area_id' => $id, 'event_id' => $event_id );
 	}
 
@@ -75,21 +81,15 @@ final class RulesPage {
 		return array( 'area_id' => (int) $area->area_id, 'event_id' => (int) $area->event_id );
 	}
 
-	private static function find_user( $ref ) {
-		$ref = trim( (string) $ref );
-		if ( '' === $ref || ! function_exists( 'get_user_by' ) ) { return null; }
-		if ( ctype_digit( $ref ) ) { return get_user_by( 'id', absint( $ref ) ) ?: null; }
-		if ( is_email( $ref ) ) { return get_user_by( 'email', $ref ) ?: null; }
-		return get_user_by( 'login', sanitize_text_field( $ref ) ) ?: null;
-	}
-
 	/** Assigns a staff member to an area (restricts their scanning for this event to their areas). */
 	public static function add_staff( array $in ) {
 		$area = Areas::get( Forms::int( $in, 'area_id' ) );
 		if ( ! $area ) { return Forms::error( 'wpcap_area_missing', __( 'Bereich nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can( $area->event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
-		$user = self::find_user( $in['user'] ?? '' );
-		if ( ! $user ) { return Forms::error( 'wpcap_staff_invalid', __( 'Benutzer nicht gefunden.', 'pass-captain' ) ); }
+		// A471: only members of this site with a Pass Captain role (administrators: any member); one
+		// answer for every refused account.
+		$user = \PassCaptain\StaffAssignments::assignable_user( (string) ( $in['user'] ?? '' ) );
+		if ( ! $user ) { return \PassCaptain\StaffAssignments::assignable_error( 'wpcap_staff_invalid' ); }
 		Areas::add_staff( $area->area_id, $user->ID );
 		Audit::record( 'admission_area_staff_added', 'admission_area', (int) $area->area_id, array( 'event_id' => (int) $area->event_id, 'user_id' => (int) $user->ID ) );
 		return array( 'area_id' => (int) $area->area_id, 'event_id' => (int) $area->event_id, 'user_id' => (int) $user->ID );
@@ -196,11 +196,11 @@ final class RulesPage {
 		$labels = Policies::labels();
 		?>
 		<h2><?php esc_html_e( 'Einlassbereiche', 'pass-captain' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Bereiche (z. B. „Eingang Nord“, „VIP“) begrenzen, wo Tickettypen eingelassen werden. Personal mit Bereichszuweisung darf für dieses Event nur in seinen Bereichen scannen; Geräte werden beim Koppeln einem Bereich zugeordnet.', 'pass-captain' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Bereiche (z. B. „Eingang Nord“, „VIP“) begrenzen, wo Tickettypen eingelassen werden. Personal mit Bereichszuweisung darf für dieses Event nur in seinen Bereichen scannen; Geräte werden beim Koppeln einem Bereich zugeordnet.', 'pass-captain' ); ?> <?php esc_html_e( 'Kapazität: so viele Personen dürfen gleichzeitig über diesen Bereich drinnen sein (0 = unbegrenzt); ist sie erreicht, lehnt der Scanner weitere Einlässe ab, bis Auslässe gescannt werden.', 'pass-captain' ); ?></p>
 		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Personal', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $areas as $area ) : ?>
 			<tr>
-				<td><?php Forms::open_form( 'wpcap_admission_save_area' ); Forms::hidden( 'event_id', $event_id ); Forms::hidden( 'area_id', $area->area_id ); ?><input type="text" name="name" maxlength="190" value="<?php echo esc_attr( $area->name ); ?>"> <button class="button"><?php esc_html_e( 'Umbenennen', 'pass-captain' ); ?></button></form></td>
+				<td><?php Forms::open_form( 'wpcap_admission_save_area' ); Forms::hidden( 'event_id', $event_id ); Forms::hidden( 'area_id', $area->area_id ); ?><input type="text" name="name" maxlength="190" aria-label="<?php esc_attr_e( 'Name des Bereichs', 'pass-captain' ); ?>" value="<?php echo esc_attr( $area->name ); ?>"> <label><?php esc_html_e( 'Kapazität', 'pass-captain' ); ?> <input type="number" name="capacity" min="0" step="1" class="small-text" value="<?php echo esc_attr( (string) Areas::capacity( $area ) ); ?>"></label> <button class="button"><?php esc_html_e( 'Speichern', 'pass-captain' ); ?></button></form></td>
 				<td><?php echo esc_html( 'active' === $area->status ? __( 'aktiv', 'pass-captain' ) : __( 'archiviert', 'pass-captain' ) ); ?></td>
 				<td>
 					<?php foreach ( Areas::staff( $area->area_id ) as $user_id ) : ?>
@@ -214,12 +214,14 @@ final class RulesPage {
 		<?php if ( ! $areas ) : ?><tr><td colspan="4"><?php esc_html_e( 'Keine Bereiche – Tickets gelten an jedem Eingang.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 		</tbody></table>
 		<?php Forms::open_form( 'wpcap_admission_save_area' ); Forms::hidden( 'event_id', $event_id ); ?>
-			<p><label><?php esc_html_e( 'Neuer Bereich', 'pass-captain' ); ?> <input type="text" name="name" maxlength="190" required></label> <button class="button button-primary"><?php esc_html_e( 'Anlegen', 'pass-captain' ); ?></button></p>
+			<p><label><?php esc_html_e( 'Neuer Bereich', 'pass-captain' ); ?> <input type="text" name="name" maxlength="190" required></label> <label><?php esc_html_e( 'Kapazität', 'pass-captain' ); ?> <input type="number" name="capacity" min="0" step="1" class="small-text" value="0"></label> <button class="button button-primary"><?php esc_html_e( 'Anlegen', 'pass-captain' ); ?></button></p>
 		</form>
 
 		<h2><?php esc_html_e( 'Regeln pro Tickettyp', 'pass-captain' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Zeiten gelten in der Zeitzone des Termins. Einlassfenster: Minuten vor Beginn bzw. nach Ende (leer = unbegrenzt, 0 = genau ab Beginn/bis Ende). Tägliche Einlasszeit optional (HH:MM). Ohne eigene Regel gilt einmaliger Einlass bzw. die Tagesregeln des Termins.', 'pass-captain' ); ?></p>
-		<?php foreach ( Queries::occurrences_for_event( $event_id ) as $occ ) : ?>
+		<?php $window = Queries::occurrence_window( $event_id, array(), Forms::query_arg( 'occ_from' ) ); // A476: bounded, next dates first. ?>
+		<?php Forms::occurrence_window_filter( $window, self::SLUG, array( 'event_id' => $event_id ) ); ?>
+		<?php foreach ( $window['rows'] as $occ ) : ?>
 			<h3><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) . ( $occ->ends_at ? ' – ' . Forms::datetime( $occ->ends_at, $occ->timezone, false ) : '' ) ); ?></h3>
 			<?php foreach ( Queries::ticket_types_for_occurrence( $occ->occurrence_id ) as $type ) :
 				$policy = Policies::for_type( $type->ticket_type_id );

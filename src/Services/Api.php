@@ -1,6 +1,6 @@
 <?php
 /**
- * REST endpoints for service bookings and waitlists (namespace wp-pass-captain/v1).
+ * REST endpoints for service bookings and waitlists (namespace pass-captain/v1; the former one is routed by LegacySlug).
  *
  * Buyers authenticate with the order access token (bookings paid through an order) or the booking's
  * manage token (bookings without order); waitlist entries with their offer/manage token. Staff
@@ -21,7 +21,7 @@ use PassCaptain\Rest\Credentials;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Api {
-	const NS = 'wp-pass-captain/v1';
+	const NS = 'pass-captain/v1';
 
 	public static function register_routes() {
 		$public = '__return_true';
@@ -43,7 +43,6 @@ final class Api {
 			array( '/service-waitlist/(?P<entry_id>\d+)/accept', \WP_REST_Server::CREATABLE, 'waitlist_accept', $public ),
 			array( '/service-waitlist/(?P<entry_id>\d+)/decline', \WP_REST_Server::CREATABLE, 'waitlist_decline', $public ),
 			array( '/service-waitlist/(?P<entry_id>\d+)/leave', \WP_REST_Server::CREATABLE, 'waitlist_leave', $public ),
-			array( '/waitlist/(?P<waitlist_id>\d+)/decline', \WP_REST_Server::CREATABLE, 'event_waitlist_decline', $public ),
 			array( '/waitlist/(?P<waitlist_id>\d+)/unsubscribe', \WP_REST_Server::CREATABLE, 'event_waitlist_unsubscribe', $public ),
 			array( '/member-passes/redeem-service', \WP_REST_Server::CREATABLE, 'redeem_service_pass', $public ),
 		);
@@ -153,10 +152,6 @@ final class Api {
 
 	public static function waitlist_leave( \WP_REST_Request $request ) {
 		return self::respond( ServiceWaitlist::leave( absint( $request['entry_id'] ), Credentials::token( $request, 'token' ) ) );
-	}
-
-	public static function event_waitlist_decline( \WP_REST_Request $request ) {
-		return self::respond( Waitlists::decline_offer( absint( $request['waitlist_id'] ), Credentials::token( $request, 'token' ) ) );
 	}
 
 	public static function event_waitlist_unsubscribe( \WP_REST_Request $request ) {

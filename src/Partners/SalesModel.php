@@ -47,8 +47,11 @@ final class SalesModel {
 		return in_array( $model, self::MODELS, true ) ? $model : self::OWN_NAME;
 	}
 
-	/** Default note for small businesses (DE § 19 UStG); organizers may enter their own text (e.g. AT § 6 Abs. 1 Z 27 UStG). */
-	public static function default_small_business_note() {
+	/** Default note for small businesses by country (DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG); an own text always wins. */
+	public static function default_small_business_note( $country = 'DE' ) {
+		if ( 'AT' === self::country( $country ) ) {
+			return __( 'Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.', 'pass-captain' );
+		}
 		return __( 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).', 'pass-captain' );
 	}
 
@@ -117,7 +120,7 @@ final class SalesModel {
 			'tax_number' => (string) ( $partner->tax_number ?? '' ),
 			'country' => self::partner_country( $partner ),
 			'small_business' => $small,
-			'small_business_note' => $small ? ( '' !== $note ? $note : self::default_small_business_note() ) : '',
+			'small_business_note' => $small ? ( '' !== $note ? $note : self::default_small_business_note( self::partner_country( $partner ) ) ) : '',
 			'partner_id' => (int) $partner->partner_id,
 		);
 	}
@@ -153,10 +156,43 @@ final class SalesModel {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT DISTINCT o.event_id, COALESCE(pe.partner_id,0) AS partner_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i pe ON pe.event_id=o.event_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_partner_events', absint( $order_id ) ) );
+		return self::context_from_partners( array_map( static function ( $row ) { return (int) $row->partner_id; }, (array) $rows ) );
+	}
+
+	/**
+	 * order_context() for many orders: one query per 500 orders, each organizer read once (A434:
+	 * accounting export of thousands of orders without invoice).
+	 *
+	 * @param int[] $order_ids Order ids.
+	 * @return array<int, array|\WP_Error> Order id => order_context() result.
+	 */
+	public static function order_contexts( array $order_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$partners = array();
+		$out = array();
+		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
+			$by_order = array_fill_keys( $chunk, array() );
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT DISTINCT oi.order_id, o.event_id, COALESCE(pe.partner_id,0) AS partner_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i pe ON pe.event_id=o.event_id WHERE oi.order_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_partner_events' ), $chunk ) ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder list.
+				$by_order[ (int) $row->order_id ][] = (int) $row->partner_id;
+			}
+			foreach ( $by_order as $order_id => $partner_ids ) { $out[ $order_id ] = self::context_from_partners( $partner_ids, $partners ); }
+		}
+		return $out;
+	}
+
+	/**
+	 * Seller context from the organizer of each event of an order (0 = platform event).
+	 *
+	 * @param int[] $partner_ids One entry per distinct event of the order.
+	 * @param array $partners    Organizer rows already read (partner id => row|null), filled here.
+	 */
+	private static function context_from_partners( array $partner_ids, array &$partners = array() ) {
 		$sellers = array();
 		$agents = array();
-		foreach ( (array) $rows as $row ) {
-			$partner = (int) $row->partner_id ? Repository::get( (int) $row->partner_id ) : null;
+		foreach ( $partner_ids as $partner_id ) {
+			if ( $partner_id && ! array_key_exists( $partner_id, $partners ) ) { $partners[ $partner_id ] = Repository::get( $partner_id ); }
+			$partner = $partner_id ? $partners[ $partner_id ] : null;
 			if ( $partner && self::AGENT === self::model_of( $partner ) ) {
 				$sellers[ 'org-' . (int) $partner->partner_id ] = true;
 				$agents[ (int) $partner->partner_id ] = $partner;
@@ -174,7 +210,7 @@ final class SalesModel {
 		}
 		$platform = self::platform_seller();
 		if ( ! $agents ) {
-			return array( 'model' => self::OWN_NAME, 'partner_id' => 0, 'seller' => $platform, 'agent' => null, 'series' => '', 'prefix' => '', 'credit_series' => 'credit', 'credit_prefix' => (string) Settings::get( 'credit_note_prefix' ) ?: 'GS' );
+			return array( 'model' => self::OWN_NAME, 'partner_id' => 0, 'seller' => $platform, 'agent' => null, 'series' => '', 'prefix' => '', 'credit_series' => 'credit', 'credit_prefix' => (string) Settings::get( 'credit_note_prefix' ) ?: \PassCaptain\Invoices::CREDIT_PREFIX_DEFAULT );
 		}
 		$partner = reset( $agents );
 		$prefix = self::invoice_prefix( $partner );
@@ -249,7 +285,17 @@ final class SalesModel {
 	 * @return true|\WP_Error
 	 */
 	public static function validate_agent_invoice( array $context, array $items ) {
-		if ( self::AGENT !== $context['model'] ) { return true; }
+		if ( self::AGENT !== $context['model'] ) {
+			// The platform itself as a small business: no VAT may be shown on its invoices either.
+			if ( ! empty( $context['seller']['small_business'] ) ) {
+				foreach ( $items as $item ) {
+					if ( (int) $item->tax_minor > 0 ) {
+						return new \WP_Error( 'wpcap_invoice_small_business_vat', __( 'Die Plattform ist als Kleinunternehmer eingestellt, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen oder die Einstellung „Kleinunternehmer“ prüfen.', 'pass-captain' ), array( 'status' => 409 ) );
+					}
+				}
+			}
+			return true;
+		}
 		$missing = self::missing_supplier_fields( $context['partner'] );
 		if ( $missing ) {
 			return new \WP_Error( 'wpcap_invoice_organizer_incomplete', sprintf(

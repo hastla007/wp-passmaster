@@ -28,8 +28,18 @@ final class WaitlistsPage {
 		return DataPolicy::masks_pii() ? DataPolicy::mask_email( (string) $email ) : (string) $email;
 	}
 
+	/** Labels of the event waitlist statuses shown here (double opt-in sign-ups wait as `pending`, Waitlists A564). */
 	public static function status_labels() {
-		return array( 'unconfirmed' => __( 'Unbestätigt (Bestätigungslink offen)', 'pass-captain' ), 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
+		// Merged Waitlists (statuses of the Arbeitsliste line: `pending` instead of `unconfirmed`, plus paid/declined/…).
+		$labels = array( 'pending' => __( 'Unbestätigt (Bestätigungslink offen)', 'pass-captain' ), 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
+		foreach ( array( 'paid', 'declined', 'skipped', 'removed', 'closed', 'blocked' ) as $status ) { $labels[ $status ] = Waitlists::status_label( $status ); }
+		$labels['unconfirmed'] = $labels['pending'];
+		return $labels;
+	}
+
+	/** Entries of the screen and the export: removed entries (kept until retention deletes them) are left out. */
+	private static function listed_entries( $event_id, $occurrence_id ) {
+		return array_values( array_filter( (array) Waitlists::entries( $event_id, $occurrence_id ), static function ( $e ) { return 'removed' !== $e->status; } ) );
 	}
 
 	/**
@@ -85,7 +95,7 @@ final class WaitlistsPage {
 		if ( ! current_user_can( self::CAP ) || ! $event_id || ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden(); }
 		$labels = self::status_labels();
 		$rows = array( array( __( 'Position', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Termin', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Eingetragen (UTC)', 'pass-captain' ), __( 'Angebot gültig bis (UTC)', 'pass-captain' ) ) );
-		$entries = Waitlists::entries( $event_id, $occurrence_id );
+		$entries = self::listed_entries( $event_id, $occurrence_id );
 		foreach ( $entries as $e ) {
 			$rows[] = array( (int) $e->position, self::email( $e->email ), (string) $e->ticket_name, Forms::datetime( $e->starts_at, $e->timezone ), $labels[ $e->status ] ?? $e->status, (string) $e->created_at, (string) $e->offer_expires_at );
 		}
@@ -126,7 +136,7 @@ final class WaitlistsPage {
 		}
 		echo ' <button type="submit" class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>';
 		if ( ! $event_id ) { echo '<p>' . esc_html__( 'Bitte ein Event wählen.', 'pass-captain' ) . '</p></div>'; return; }
-		$entries = Waitlists::entries( $event_id, $occurrence_id );
+		$entries = self::listed_entries( $event_id, $occurrence_id );
 		echo '<p>' . esc_html__( '„Angebot senden“ schreibt die nächste wartende Person einer Ticketart per E-Mail an. Das Angebot ist 24 Stunden gültig; erst bei Annahme wird eine Bestellung mit Reservierung angelegt.', 'pass-captain' ) . ' <a class="button" href="' . esc_url( self::export_url( $event_id, $occurrence_id ) ) . '">' . esc_html__( 'CSV exportieren', 'pass-captain' ) . '</a></p>';
 		if ( ! $entries ) { echo '<p>' . esc_html__( 'Keine Einträge auf der Warteliste.', 'pass-captain' ) . '</p></div>'; return; }
 		$groups = array();

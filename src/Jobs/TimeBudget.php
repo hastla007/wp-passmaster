@@ -19,13 +19,16 @@ final class TimeBudget {
 	/** Default seconds of queue work per cron hook (filter: wpcap_cron_time_budget). */
 	const DEFAULT_SECONDS = 20;
 
+	/** Action Scheduler group of follow-up runs (before the rename: LegacySlug::LEGACY_AS_GROUP). */
+	const AS_GROUP = 'pass-captain';
+
 	/** Cron hooks whose workers share one deadline. */
-	const HOOKS = array( 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch' );
+	const HOOKS = array( 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_waitlist_process' );
 
 	/** Shared deadline (microtime) while a cron hook runs; null otherwise. */
 	private static $deadline = null;
 
-	/** Claims in flight: key => [table, id column, id, claimed status, release status, final status, max attempts]. */
+	/** Claims in flight: key => [table, id column, id, claimed status, release status, final status, max attempts, retry columns, extra columns]. */
 	private static $claims = array();
 
 	private static $shutdown_registered = false;
@@ -71,8 +74,9 @@ final class TimeBudget {
 	public static function continue_later( $hook ) {
 		$args = array( 'continue' );
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			if ( ! self::as_pending( $hook, $args ) ) {
-				as_enqueue_async_action( $hook, $args, 'wp-pass-captain' );
+			// A follow-up run still pending in the pre-rename group counts as well (no second run).
+			if ( ! self::as_pending( $hook, $args ) && ! \PassCaptain\LegacySlug::has_legacy_action( $hook, $args ) ) {
+				as_enqueue_async_action( $hook, $args, self::AS_GROUP );
 			}
 			return true;
 		}
@@ -87,11 +91,11 @@ final class TimeBudget {
 	private static function as_pending( $hook, array $args ) {
 		if ( function_exists( 'as_get_scheduled_actions' ) ) {
 			$status = class_exists( '\\ActionScheduler_Store' ) ? \ActionScheduler_Store::STATUS_PENDING : 'pending';
-			$ids = as_get_scheduled_actions( array( 'hook' => $hook, 'args' => $args, 'group' => 'wp-pass-captain', 'status' => $status, 'per_page' => 1 ), 'ids' );
+			$ids = as_get_scheduled_actions( array( 'hook' => $hook, 'args' => $args, 'group' => self::AS_GROUP, 'status' => $status, 'per_page' => 1 ), 'ids' );
 			return ! empty( $ids );
 		}
 		// Older Action Scheduler without the query API: fall back to the combined check.
-		return function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( $hook, $args, 'wp-pass-captain' );
+		return function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( $hook, $args, self::AS_GROUP );
 	}
 
 	/**
@@ -106,10 +110,19 @@ final class TimeBudget {
 	 * readable last error. Otherwise the same poisonous item would be claimed first on every run
 	 * (queues are ordered by due time) and block everything queued behind it.
 	 *
-	 * @param array $retry due (string column), error (string column).
+	 * Short form claimed( …, $release_status, array $release_set ): extra columns set when the claim
+	 * is released on shutdown (e.g. the next run time and an error note of a job whose worker died).
+	 *
+	 * @param string|array $final_status Final status, or the extra release columns (short form).
+	 * @param array        $retry        due (string column), error (string column).
+	 * @param array        $release_set  Extra columns (name => value) set on release.
 	 */
-	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status, $final_status = '', $max_attempts = 0, array $retry = array() ) {
-		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status, (string) $final_status, (int) $max_attempts, $retry );
+	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status, $final_status = '', $max_attempts = 0, array $retry = array(), array $release_set = array() ) {
+		if ( is_array( $final_status ) ) {
+			$release_set = $final_status;
+			$final_status = '';
+		}
+		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status, (string) $final_status, (int) $max_attempts, $retry, $release_set );
 		if ( ! self::$shutdown_registered ) {
 			self::$shutdown_registered = true;
 			register_shutdown_function( array( __CLASS__, 'release_claims' ) );
@@ -142,9 +155,11 @@ final class TimeBudget {
 				$reason = 'PHP fatal error: ' . (string) $last['message'];
 			}
 		}
-		$reason = substr( \PassCaptain\Security\Redact::text( '' !== $reason ? $reason : 'Worker stopped while processing (fatal error or time limit).' ), 0, 190 );
+		$reason = \PassCaptain\Text::cut( \PassCaptain\Security\Redact::text( '' !== $reason ? $reason : 'Worker stopped while processing (fatal error or time limit).' ), 190 );
 		$now = current_time( 'mysql', true );
-		foreach ( self::$claims as $key => list( $table, $column, $id, $claimed, $release, $final, $max, $retry ) ) {
+		foreach ( self::$claims as $key => $claim ) {
+			list( $table, $column, $id, $claimed, $release, $final, $max, $retry ) = $claim;
+			$extra = (array) ( $claim[8] ?? array() );
 			unset( self::$claims[ $key ] );
 			$sql = 'UPDATE %i SET status=';
 			$args = array( $table );
@@ -166,6 +181,17 @@ final class TimeBudget {
 			if ( '' !== $error ) {
 				$sql .= ',%i=%s';
 				array_push( $args, $error, $reason );
+			}
+			foreach ( $extra as $name => $value ) {
+				$name = sanitize_key( (string) $name );
+				if ( '' === $name || in_array( $name, array( 'status', 'locked_at', $due, $error ), true ) ) { continue; }
+				if ( null === $value ) {
+					$sql .= ',%i=NULL';
+					$args[] = $name;
+				} else {
+					$sql .= ',%i=%s';
+					array_push( $args, $name, (string) $value );
+				}
 			}
 			$sql .= ' WHERE %i=%d AND status=%s';
 			array_push( $args, $column, $id, $claimed );

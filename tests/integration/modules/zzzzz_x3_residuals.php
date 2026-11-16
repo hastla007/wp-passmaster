@@ -43,6 +43,8 @@ function x3_ticket( $code ) { global $wpdb; return $wpdb->get_row( $wpdb->prepar
 
 /* ------------------------------------------------------------------ 2. Box office: consent fields, price rule */
 echo "X3: box office consent fields and price-rule explanation\n";
+// Cash register law (merged, Arbeitsliste): cash sales in DE/AT need the confirmed certified register.
+Settings::update( array( 'boxoffice_cash_confirmed' => 1 ) );
 $x3_type = make_type( 20, 10, 2500 );
 $x3_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$x3_type" );
 $x3_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$x3_occ" );
@@ -55,9 +57,10 @@ $x3_consent = array_values( array_filter( $x3_types[0]['fields'], static fn( $f 
 check( 'POS ticket types carry the consent text/version of consent fields and the price-rule explanation', is_array( $x3_field ) && 1 === count( $x3_consent ) && 'Ich bin mit Fotos an der Kasse einverstanden.' === $x3_consent[0]['consent_text'] && '3' === $x3_consent[0]['consent_version'] && str_contains( $x3_types[0]['price_rule'], 'Frühbucher X3' ) && 1900 === $x3_types[0]['price_minor'] );
 X3Pos::open_session( 0 );
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $single = false ) { return ''; } }
-// The occurrence picker lists the first 300 occurrences by start: move this one to the front for the render.
+// The occurrence picker lists the first 300 upcoming occurrences by start (merged: past dates are left out):
+// move this one to the front for the render.
 $x3_start = $wpdb->get_var( "SELECT starts_at FROM {$p}wpcap_occurrences WHERE occurrence_id=$x3_occ" );
-$wpdb->query( "UPDATE {$p}wpcap_occurrences SET starts_at='" . gmdate( 'Y-m-d H:i:s', time() - 29 * 86400 ) . "' WHERE occurrence_id=$x3_occ" );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET starts_at='" . gmdate( 'Y-m-d H:i:s', time() + 60 ) . "' WHERE occurrence_id=$x3_occ" );
 ob_start();
 $_GET['occurrence_id'] = $x3_occ;
 try { PassCaptain\BoxOffice\Page::render(); } catch ( \Throwable $e ) { echo 'ERR ' . $e->getMessage(); }
@@ -93,6 +96,7 @@ check( 'administrators still see every date', 3 === TicketsPage::search( array( 
 
 /* ------------------------------------------------------------------ 4. Undo after re-entry */
 echo "X3: undo check-in restores the previous state precisely\n";
+// A547 (merged): every undo names its reason.
 Settings::update( array( 'reentry_after_checkout' => 1, 'max_reentries' => 0 ) );
 $x3u = w9_type( 0 );
 $x3u_order = w9_order( $x3u['type'], 2, 'x3-undo@example.com' );
@@ -101,20 +105,20 @@ $x3u_t = x3_ticket( $x3u_codes[0] );
 Checkin::perform( $x3u_codes[0], array( 'source' => 'web' ) );
 Checkin::check_out( $x3u_codes[0], array( 'source' => 'web' ) );
 $x3u_re = Checkin::perform( $x3u_codes[0], array( 'source' => 'web' ) );
-$x3u_undo = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id ) );
+$x3u_undo = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id, 'reason' => 'X3 Test' ) );
 $x3u_s = x3_state( $x3u_t->ticket_id );
 check( 'undo after a re-entry takes back only the re-entry: ticket stays checked in, one entry left, outside', is_array( $x3u_re ) && ! empty( $x3u_re['reentry'] ) && ! is_wp_error( $x3u_undo ) && 'checked_in' === x3_ticket( $x3u_codes[0] )->status && 1 === (int) $x3u_s->entries && 0 === (int) $x3u_s->inside && 1 === (int) $x3u_undo['remaining_entries'] );
 $x3u_again = Checkin::perform( $x3u_codes[0], array( 'source' => 'web' ) );
 check( 'after the undo the person can re-enter again (still checked out)', is_array( $x3u_again ) && ! empty( $x3u_again['reentry'] ) && 2 === (int) x3_state( $x3u_t->ticket_id )->entries );
-TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id ) );
-$x3u_last = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id ) );
+TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id, 'reason' => 'X3 Test' ) );
+$x3u_last = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id, 'reason' => 'X3 Test' ) );
 check( 'undoing the remaining first entry makes the ticket valid again', ! is_wp_error( $x3u_last ) && 0 === (int) $x3u_last['remaining_entries'] && 'valid' === x3_ticket( $x3u_codes[0] )->status && 0 === (int) x3_state( $x3u_t->ticket_id )->entries );
-$x3u_none = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id ) );
+$x3u_none = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t->ticket_id, 'reason' => 'X3 Test' ) );
 check( 'nothing left to undo is refused', is_wp_error( $x3u_none ) && 'wpcap_ticket_not_checked_in' === $x3u_none->get_error_code() );
 // Simple single entry without re-entry (regression).
 $x3u_t2 = x3_ticket( $x3u_codes[1] );
 Checkin::perform( $x3u_codes[1], array( 'source' => 'web' ) );
-$x3u_single = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t2->ticket_id ) );
+$x3u_single = TicketsPage::undo_checkin( array( 'ticket_id' => (int) $x3u_t2->ticket_id, 'reason' => 'X3 Test' ) );
 check( 'single check-in undo: valid again, no entry, outside', ! is_wp_error( $x3u_single ) && 'valid' === x3_ticket( $x3u_codes[1] )->status && 0 === (int) x3_state( $x3u_t2->ticket_id )->entries && 0 === (int) x3_state( $x3u_t2->ticket_id )->inside );
 Settings::update( array( 'reentry_after_checkout' => 0 ) );
 // Multi-entry ticket (policy): in, out, in → undo keeps the first entry, state derived from the rest.
@@ -234,19 +238,25 @@ check( 'CSV export has the refund columns for campaigns', (bool) array_filter( $
 
 /* ------------------------------------------------------------------ 8. REST tax profiles */
 echo "X3: REST tax profiles (label, note, activation)\n";
-$x3t_req = static function ( array $body ) { $r = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/tax-profiles' ); $r->set_body( wp_json_encode( $body ) ); $r->set_header( 'content-type', 'application/json' ); foreach ( $body as $k => $v ) { $r->set_param( $k, $v ); } return $r; };
+// Merged design (A115 review workflow): POST /tax-profiles only creates drafts (also when "activate" is sent);
+// activation is the review step Tax\Profiles::activate() (finance rights, four eyes, no overlap) and only
+// drafts can be edited (Tax\Profiles::save_draft()). Label, note and "rate" (percent) are still accepted.
+$x3t_req = static function ( array $body ) { $r = new WP_REST_Request( 'POST', '/pass-captain/v1/tax-profiles' ); $r->set_body( wp_json_encode( $body ) ); $r->set_header( 'content-type', 'application/json' ); foreach ( $body as $k => $v ) { $r->set_param( $k, $v ); } return $r; };
 $x3t_ver = 'x3-' . mt_rand( 1000, 9999 );
 $x3t = PassCaptain\Rest\Controller::save_tax_profile( $x3t_req( array( 'country_code' => 'LU', 'tax_class' => 'culture', 'rate_basis_points' => 300, 'version' => $x3t_ver, 'effective_from' => '2031-01-01', 'label' => 'Kultur LU', 'place_of_supply_note' => 'Ort der Veranstaltung', 'activate' => true ) ) );
 $x3t_data = $x3t instanceof WP_REST_Response ? $x3t->get_data() : array();
-$x3t_row = $x3t_data ? PassCaptain\Sales\TaxProfiles::get( $x3t_data['tax_profile_id'] ) : null;
-check( 'REST creates the profile with label and place-of-supply note and activates it', $x3t_row && 'Kultur LU' === $x3t_row->label && 'Ort der Veranstaltung' === $x3t_row->place_of_supply_note && 'active' === $x3t_row->status && 201 === $x3t->get_status() && 'active' === $x3t_data['status'] );
-$x3t_overlap = PassCaptain\Rest\Controller::save_tax_profile( $x3t_req( array( 'country_code' => 'LU', 'tax_class' => 'culture', 'rate' => '3', 'version' => $x3t_ver . 'b', 'effective_from' => '2031-06-01', 'activate' => 1 ) ) );
-$x3t_draft = is_wp_error( $x3t_overlap ) ? (int) ( $x3t_overlap->get_error_data()['tax_profile_id'] ?? 0 ) : 0;
-check( 'activation follows the admin rules: overlapping active version refused, the draft is kept', is_wp_error( $x3t_overlap ) && 'wpcap_tax_profile_overlap' === $x3t_overlap->get_error_code() && $x3t_draft && 'draft' === PassCaptain\Sales\TaxProfiles::get( $x3t_draft )->status );
-$x3t_upd = PassCaptain\Rest\Controller::save_tax_profile( $x3t_req( array( 'tax_profile_id' => $x3t_draft, 'country_code' => 'LU', 'tax_class' => 'culture', 'rate' => '3', 'version' => $x3t_ver . 'b', 'effective_from' => '2031-06-01', 'label' => 'Neu' ) ) );
-$x3t_frozen = PassCaptain\Rest\Controller::save_tax_profile( $x3t_req( array( 'tax_profile_id' => $x3t_data['tax_profile_id'], 'country_code' => 'LU', 'tax_class' => 'culture', 'rate' => '5', 'version' => $x3t_ver, 'effective_from' => '2031-01-01' ) ) );
+$x3t_row = $x3t_data ? PassCaptain\Tax\Profiles::get( $x3t_data['tax_profile_id'] ) : null;
+check( 'REST creates the profile with label and place-of-supply note as a draft (activation only in the review step)', $x3t_row && 'Kultur LU' === $x3t_row->label && 'Ort der Veranstaltung' === $x3t_row->place_of_supply_note && 'draft' === $x3t_row->status && 201 === $x3t->get_status() && 'draft' === $x3t_data['status'] && true === $x3t_data['requires_review'] );
+$x3t_active = $x3t_row ? PassCaptain\Tax\Profiles::activate( (int) $x3t_row->tax_profile_id ) : null;
+$x3t_overlap_req = PassCaptain\Rest\Controller::save_tax_profile( $x3t_req( array( 'country_code' => 'LU', 'tax_class' => 'culture', 'rate' => '3', 'version' => $x3t_ver . 'b', 'effective_from' => '2031-06-01', 'activate' => 1 ) ) );
+$x3t_draft = $x3t_overlap_req instanceof WP_REST_Response ? (int) $x3t_overlap_req->get_data()['tax_profile_id'] : 0;
+$x3t_overlap = $x3t_draft ? PassCaptain\Tax\Profiles::activate( $x3t_draft ) : null;
+check( 'activation follows the admin rules: overlapping active version refused, the draft is kept', ! is_wp_error( $x3t_active ) && 'active' === PassCaptain\Tax\Profiles::get( (int) $x3t_row->tax_profile_id )->status && $x3t_draft && 300 === (int) PassCaptain\Tax\Profiles::get( $x3t_draft )->rate_basis_points && is_wp_error( $x3t_overlap ) && 'wpcap_tax_profile_overlap' === $x3t_overlap->get_error_code() && 'draft' === PassCaptain\Tax\Profiles::get( $x3t_draft )->status );
+$x3t_upd = PassCaptain\Tax\Profiles::save_draft( array( 'tax_profile_id' => $x3t_draft, 'country_code' => 'LU', 'tax_class' => 'culture', 'rate_basis_points' => 300, 'version' => $x3t_ver . 'b', 'effective_from' => '2031-06-01', 'label' => 'Neu' ) );
+$x3t_frozen = PassCaptain\Tax\Profiles::save_draft( array( 'tax_profile_id' => $x3t_data['tax_profile_id'], 'country_code' => 'LU', 'tax_class' => 'culture', 'rate_basis_points' => 500, 'version' => $x3t_ver, 'effective_from' => '2031-01-01' ) );
+$x3t_rest_id = PassCaptain\Rest\Controller::save_tax_profile( $x3t_req( array( 'tax_profile_id' => $x3t_data['tax_profile_id'], 'country_code' => 'LU', 'tax_class' => 'culture', 'rate' => '5', 'version' => $x3t_ver . 'c', 'effective_from' => '2032-01-01' ) ) );
 $x3t_invalid = PassCaptain\Rest\Controller::save_tax_profile( $x3t_req( array( 'country_code' => 'LUX', 'version' => 'v', 'effective_from' => '2031-01-01', 'rate' => '3' ) ) );
-check( 'drafts are updated (200), active versions frozen, invalid input refused with the admin validation', $x3t_upd instanceof WP_REST_Response && 200 === $x3t_upd->get_status() && 'Neu' === PassCaptain\Sales\TaxProfiles::get( $x3t_draft )->label && is_wp_error( $x3t_frozen ) && 'wpcap_tax_profile_frozen' === $x3t_frozen->get_error_code() && is_wp_error( $x3t_invalid ) && 'wpcap_tax_profile_country' === $x3t_invalid->get_error_code() );
+check( 'drafts are updated, active versions frozen (REST never edits an existing profile), invalid input refused with the admin validation', $x3t_draft === $x3t_upd && 'Neu' === PassCaptain\Tax\Profiles::get( $x3t_draft )->label && is_wp_error( $x3t_frozen ) && 'wpcap_tax_profile_locked' === $x3t_frozen->get_error_code() && $x3t_rest_id instanceof WP_REST_Response && (int) $x3t_rest_id->get_data()['tax_profile_id'] !== (int) $x3t_data['tax_profile_id'] && 300 === (int) PassCaptain\Tax\Profiles::get( (int) $x3t_data['tax_profile_id'] )->rate_basis_points && is_wp_error( $x3t_invalid ) && 'wpcap_tax_profile_invalid' === $x3t_invalid->get_error_code() );
 
 /* ------------------------------------------------------------------ 9. System status: bulk retry, dashboard widget */
 echo "X3: system status bulk retry and dashboard widget\n";

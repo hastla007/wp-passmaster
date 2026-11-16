@@ -33,7 +33,7 @@ Code: `src/ServiceResources.php` (Stammdaten, Regeln, Kollisionen), `src/Service
   `wpcap_invalid_datetime` mit `data.field`.
   Geschlossene Zeitfenster ohne Buchung zählen nicht.
 - Beim Buchen wird zusätzlich geprüft, dass kein überlappendes Zeitfenster derselben Ressource bereits Buchungen
-  hat (`wpcap_slot_conflict`; schützt Altbestände). Die Ressourcenzeile wird dabei gesperrt, parallele Buchungen
+  hat (`wpcap_slot_resource_busy`, bei einem gemeinsamen aktiven Leistungserbringer einer anderen Ressource `wpcap_slot_provider_busy`; schützt Altbestände). Die Ressourcenzeile wird dabei gesperrt, parallele Buchungen
   überlappender Zeitfenster laufen also nacheinander.
 
 ## Veranstalter (Partner)
@@ -54,10 +54,10 @@ nehmen die Standardwerte an (`ServiceResources::default_rules()`).
 
 | Regel | Standard | Wirkung |
 |---|---|---|
-| `cutoff_minutes` (Buchungsschluss) | 60 | Keine neue Kundenbuchung später als X Minuten vor Beginn (`wpcap_booking_closed`). |
+| `cutoff_minutes` (Buchungsschluss) | 60 | Keine neue Kundenbuchung später als X Minuten vor Beginn (`wpcap_booking_cutoff`). |
 | `opens_days` (Vorlauf) | 365 | Buchbar frühestens X Tage vor Beginn, 0 = unbegrenzt (`wpcap_booking_too_early`). |
-| `max_per_customer` / `max_period` | 0 / `day` | Höchstens X Plätze je E-Mail-Adresse und Tag/Woche/Monat (Ortszeit der Ressource) oder für alle künftigen Termine (`total`); 0 = unbegrenzt (`wpcap_booking_limit`). |
-| `rebook_deadline_minutes` | 1440 | Kund:innen können bis X Minuten vor Beginn umbuchen (`wpcap_rebook_deadline`). |
+| `max_per_customer` / `max_period` | 0 / `day` | Höchstens X Plätze je E-Mail-Adresse und Tag/Woche/Monat (Ortszeit der Ressource) oder für alle künftigen Termine (`total`); 0 = unbegrenzt (`wpcap_booking_customer_limit`). |
+| `rebook_deadline_minutes` | 1440 | Kund:innen können bis X Minuten vor Beginn umbuchen (`wpcap_booking_rebook_deadline`). |
 | `cancel_deadline_minutes` | 1440 | Kund:innen können bis X Minuten vor Beginn stornieren – mit Erstattung (`wpcap_booking_cancel_deadline`). |
 | `price_policy` | `same_price` | Umbuchung nur zum gleichen Preis; `refund_difference` erlaubt günstigere Ziele (Differenz wird erstattet) und teurere Ziele mit Zuzahlung (siehe „Umbuchung mit Zuzahlung“). |
 | `requires_confirmation` / `confirmation_hours` | 0 / 24 | Bezahlte Buchungen warten auf die Bestätigung des Anbieters. |

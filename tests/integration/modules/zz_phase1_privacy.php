@@ -96,6 +96,8 @@ $wpdb->insert( "{$p}wpcap_message_queue", array( 'dedupe_key' => hash( 'sha256',
 $m3 = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => $otid, 'event_id' => 1, 'user_id' => 7, 'result' => 'checked_in', 'device_id' => 3, 'source' => 'app', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 380 * 86400 ) ) );
 $c1 = (int) $wpdb->insert_id;
+// A439: a check-in back-dated behind the step's cursor waits for the weekly full pass; start one now.
+delete_option( PassCaptain\Privacy\Retention::CHECKIN_STAFF_CURSOR );
 $wpdb->insert( "{$p}wpcap_audit_logs", array( 'user_id' => 1, 'action' => 'p1p_old', 'object_type' => 'test', 'object_id' => 0, 'details' => '{}', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 800 * 86400 ) ) );
 $a1 = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_audit_logs", array( 'user_id' => 1, 'action' => 'p1p_new', 'object_type' => 'test', 'object_id' => 0, 'details' => '{}', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 100 * 86400 ) ) );
@@ -191,7 +193,7 @@ check( 'export: service bookings', false !== strpos( $txt, 'Ressource=Workshopra
 $aexp = Privacy::export( 'p1p-ada@example.com' );
 $atxt = p1p_export_values( $aexp );
 $groups = array_unique( array_map( static fn( $i ) => $i['group_id'], $aexp['data'] ) );
-check( 'export: an attendee gets only their own ticket, not the buyer order', array( 'wp-pass-captain-tickets' ) === array_values( $groups ) && 1 === count( $aexp['data'] ) && false !== strpos( $atxt, 'Analytical' ) && false === strpos( $atxt, 'Initech' ) && false === strpos( $atxt, 'Bestellreferenz' ) );
+check( 'export: an attendee gets only their own ticket, not the buyer order', array( 'pass-captain-tickets' ) === array_values( $groups ) && 1 === count( $aexp['data'] ) && false !== strpos( $atxt, 'Analytical' ) && false === strpos( $atxt, 'Initech' ) && false === strpos( $atxt, 'Bestellreferenz' ) );
 
 echo "Privacy: eraser\n";
 // Attendee-only erasure: buyer's tickets stay valid.
@@ -206,7 +208,9 @@ $p1p_purge = array_values( array_filter( $GLOBALS['p1p_scheduled'] ?? array(), s
 $p1p_reg_after_erase = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" );
 Privacy::purge_wallet_registrations( array( $ada ) );
 check( 'erase attendee: wallet device registration removed after the push (delayed purge), no revocation', 1 === $p1p_reg_after_erase && ( ! $p1p_own_cron || $p1p_purge ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
-check( 'erase attendee: warns that the buyer\'s upcoming tickets stay valid', (bool) preg_grep( '/bleiben gültig/', $res_a['messages'] ) );
+// Arbeitsliste variant of the same assertion (registration gone, no revocation); holds after the delayed purge above.
+check( 'erase attendee: wallet device registration removed, no revocation', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
+check( 'erase attendee: warns that the buyer\'s upcoming tickets stay valid', (bool) preg_grep( '/bleib(?:t|en) gültig/', $res_a['messages'] ) );
 // Buyer erasure.
 $GLOBALS['p1p_scheduled'] = array();
 $bmsg = (int) $wpdb->get_var( "SELECT message_id FROM {$p}wpcap_message_queue WHERE recipient='p1p-buyer@example.com' ORDER BY message_id DESC LIMIT 1" );
@@ -303,7 +307,7 @@ $ctx = $inline ? json_decode( preg_replace( '/^window\.WPCAP_SCANNER_PRIVACY=|;$
 check( 'scanner: per-user owner key (not the raw user ID) and 24 h queue lifetime before the script', ( ! $p1p_own_assets && Privacy::scanner_owner( 5 ) !== Privacy::scanner_owner( 6 ) ) || is_array( $ctx ) && 'before' === $inline[2] && 24 === $ctx['maxAgeHours'] && Privacy::scanner_owner( 5 ) === $ctx['owner'] && '5' !== $ctx['owner'] && Privacy::scanner_owner( 6 ) !== $ctx['owner'] && false !== strpos( $ctx['i18n']['expired'], '24 Stunden' ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 $js = file_get_contents( WPCAP_PATH . 'assets/scanner.js' );
-check( 'scanner.js: queue key per owner, legacy/foreign queues removed, no 7-day lifetime', false !== strpos( $js, "queuePrefix + owner" ) && false !== strpos( $js, 'removeItem' ) && false === strpos( $js, '7 * 24 * 3600' ) );
+check( 'scanner.js: queue key per site and owner (A472), legacy/foreign queues removed, no 7-day lifetime', false !== strpos( $js, "queuePrefix + site + '.' + owner" ) && false !== strpos( $js, 'removeItem' ) && false === strpos( $js, '7 * 24 * 3600' ) );
 check( 'partner API: placeholder and empty addresses become null', null === Privacy::public_email( 'deleted+abc@invalid.example' ) && null === Privacy::public_email( 'boxoffice+x@INVALID.example' ) && null === Privacy::public_email( '' ) && 'a@example.com' === Privacy::public_email( 'a@example.com' ) );
 $api_src = file_get_contents( WPCAP_PATH . 'src/Partners/Api.php' );
 check( 'partner API: e-mail fields go through Privacy::public_email()', 2 === substr_count( $api_src, 'Privacy::public_email(' ) );
@@ -311,9 +315,14 @@ $_SERVER['REMOTE_ADDR'] = '198.51.100.7';
 $rl_client = PassCaptain\RateLimit::client();
 check( 'rate limit: client key is an HMAC with the site salt, not a static key', hash_hmac( 'sha256', '198.51.100.7', 'wpcap-rate' ) !== $rl_client && hash_hmac( 'sha256', '198.51.100.7', 'wpcap-rate|' . wp_salt( 'nonce' ) ) === $rl_client );
 wpcap_test_reset_transients();
+// Merged RateLimit: atomic database table by default (the suite bootstrap selects the transient fallback).
+$p1p_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'db';
+$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', PassCaptain\RateLimit::table() ) );
 $allowed = 0;
 for ( $i = 0; $i < 4; $i++ ) { $allowed += PassCaptain\RateLimit::allow( 'p1p_bucket|198.51.100.7', 3, 60 ) ? 1 : 0; }
 $keys = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', PassCaptain\RateLimit::table() ) );
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $p1p_backend;
 check( 'rate limit: still limits, stored bucket key is not a plain md5 of the bucket', 3 === $allowed && 1 === count( $keys ) && 64 === strlen( $keys[0] ) && false === strpos( $keys[0], md5( 'p1p_bucket|198.51.100.7|' . (int) floor( time() / 60 ) ) ) && array() === $GLOBALS['wpcap_test_transients'] );
 unset( $_SERVER['REMOTE_ADDR'] );
 wpcap_test_reset_transients();

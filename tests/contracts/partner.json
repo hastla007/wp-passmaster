@@ -1,0 +1,173 @@
+{
+  "contract": "partner",
+  "version": "1.0",
+  "description": "Partner-API pass-captain/v1/partner/… (Bearer wpcap_pk_…), Leseendpunkte. Requests sind Query-Parameter mit Platzhaltern, Responses Shapes.",
+  "endpoints": {
+    "GET /partner/me": {
+      "direction": "inbound",
+      "request": {},
+      "response": {
+        "api_version": "string",
+        "partner": {
+          "id": "int",
+          "name": "string",
+          "currency": "string",
+          "role": "string",
+          "sales_channel": "string"
+        },
+        "key": {
+          "prefix": "string",
+          "label": "string",
+          "scopes": [
+            "string"
+          ],
+          "expires_at": "string|null"
+        },
+        "event_ids": [
+          "int"
+        ],
+        "ticket_type_ids": [
+          "int"
+        ]
+      }
+    },
+    "GET /partner/events": {
+      "direction": "inbound",
+      "request": {
+        "per_page": 20,
+        "page": 1
+      },
+      "response": {
+        "events": [
+          {
+            "id": "int",
+            "name": "string",
+            "slug": "string",
+            "status": "string",
+            "occurrences": [
+              {
+                "id": "int",
+                "starts_at": "string",
+                "ends_at": "string|null",
+                "timezone": "string",
+                "location": "string",
+                "capacity": "int",
+                "status": "string",
+                "ticket_types": [
+                  {
+                    "id": "int",
+                    "name": "string",
+                    "price_minor": "int",
+                    "currency": "string",
+                    "tax_rate_bp": "int",
+                    "capacity": "int",
+                    "sold": "int",
+                    "status": "string"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "GET /partner/events/{event_id}": {
+      "direction": "inbound",
+      "request": {
+        "event_id": "{{event_id}}"
+      },
+      "response": {
+        "id": "int",
+        "name": "string",
+        "slug": "string",
+        "status": "string",
+        "occurrences": [
+          {
+            "id": "int",
+            "starts_at": "string",
+            "ends_at": "string|null",
+            "timezone": "string",
+            "location": "string",
+            "capacity": "int",
+            "status": "string",
+            "ticket_types": [
+              {
+                "id": "int",
+                "name": "string",
+                "price_minor": "int",
+                "currency": "string",
+                "tax_rate_bp": "int",
+                "capacity": "int",
+                "sold": "int",
+                "status": "string"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "GET /partner/orders": {
+      "direction": "inbound",
+      "request": {
+        "per_page": 20,
+        "page": 1
+      },
+      "response": {
+        "orders": [
+          {
+            "id": "string",
+            "status": "string",
+            "payment_status": "string",
+            "currency": "string",
+            "payment_provider": "string",
+            "created_at": "string",
+            "updated_at": "string",
+            "lines": [
+              {
+                "event_id": "int",
+                "occurrence_id": "int",
+                "ticket_type_id": "int",
+                "quantity": "int",
+                "refunded_quantity": "int",
+                "unit_price_minor": "int",
+                "line_total_minor": "int",
+                "tax_rate_bp": "int",
+                "tax_minor": "int"
+              }
+            ],
+            "?customer_email": "string"
+          }
+        ],
+        "page": "int",
+        "per_page": "int",
+        "total": "int"
+      }
+    },
+    "GET /partner/tickets": {
+      "direction": "inbound",
+      "request": {
+        "event_id": "{{event_id}}",
+        "per_page": 20
+      },
+      "response": {
+        "tickets": [
+          {
+            "id": "string",
+            "order_id": "string",
+            "event_id": "int",
+            "occurrence_id": "int",
+            "ticket_type_id": "int",
+            "ticket_type": "string",
+            "status": "string",
+            "refunded": "bool",
+            "issued_at": "string",
+            "?attendee_email": "string"
+          }
+        ],
+        "page": "int",
+        "per_page": "int",
+        "total": "int"
+      }
+    }
+  }
+}

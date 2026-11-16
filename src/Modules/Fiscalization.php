@@ -382,7 +382,7 @@ final class Fiscalization {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
 			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id LEFT JOIN %i c ON c.seller_id=s.seller_id LEFT JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $p . 'wpcap_ticket_sellers', $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs', $p . 'wpcap_fiscal_profiles', $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
 			// A failed lookup must not look like "not mapped" (that would sell without receipt): fail closed.
-			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			if ( ! $mapping ) {
 				$unmapped_types[] = $type_id;
 				continue;
@@ -419,7 +419,8 @@ final class Fiscalization {
 				'fiscal_applicability' => $mapping->profile_status, 'seller_snapshot' => wp_json_encode( $seller_snapshot ),
 				'created_at' => $now,
 			) );
-			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			// @phpstan-ignore notIdentical.alwaysFalse ($wpdb->insert() above resets and sets last_error; PHPStan keeps the earlier narrowing.)
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			if ( 'not_required' === $mapping->profile_status ) { continue; }
 			$adapter = Registry::get( $mapping->provider_id );
 			if ( ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
@@ -462,7 +463,7 @@ final class Fiscalization {
 				"SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM %i s LEFT JOIN %i c ON c.seller_id=s.seller_id LEFT JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE s.seller_id=%d", $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs', $p . 'wpcap_fiscal_profiles',
 				$channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $seller_id
 			) );
-			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			if ( ! $mapping || 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) { throw new \RuntimeException( 'fiscal_extra_seller_profile_unavailable' ); }
 			$has_mapping = true;
 			if ( 'not_required' === $mapping->profile_status ) { continue; }
@@ -522,7 +523,7 @@ final class Fiscalization {
 				'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'snapshot' => wp_json_encode( $snapshot ),
 				'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ),
 			) );
-			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			$document_id = (int) $wpdb->insert_id;
 			foreach ( $group['items'] as $item ) {
 				if ( empty( $item['ticket_type_id'] ) ) { continue; }
@@ -530,7 +531,7 @@ final class Fiscalization {
 					'document_id' => $document_id, 'ticket_type_id' => (int) $item['ticket_type_id'], 'seller_mode' => $item['seller_mode'],
 					'quantity' => (int) $item['quantity'], 'gross_minor' => (int) $item['gross_minor'], 'tax_rate_bp' => (int) $item['tax_rate_bp'], 'tax_minor' => (int) $item['tax_minor'],
 				) );
-				if ( false === $saved ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+				if ( false === $saved ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			}
 		}
 	}
@@ -621,7 +622,7 @@ final class Fiscalization {
 
 	/** Persist only normalized, printable receipt fields from an adapter response. */
 	private static function normalize_provider_result( array $result ) {
-		$reference = is_scalar( $result['reference'] ?? null ) ? substr( sanitize_text_field( (string) $result['reference'] ), 0, 191 ) : '';
+		$reference = is_scalar( $result['reference'] ?? null ) ? \PassCaptain\Text::cut( sanitize_text_field( (string) $result['reference'] ), 191 ) : '';
 		$normalized = array( 'reference' => $reference );
 		$receipt = is_array( $result['receipt'] ?? null ) ? $result['receipt'] : array();
 		$out = array();
@@ -631,9 +632,9 @@ final class Fiscalization {
 		$fields = is_array( $receipt['fields'] ?? null ) ? array_slice( $receipt['fields'], 0, 32, true ) : array();
 		foreach ( $fields as $label => $value ) {
 			if ( ! is_scalar( $value ) ) { continue; }
-			$label = substr( sanitize_text_field( (string) $label ), 0, 64 );
+			$label = \PassCaptain\Text::cut( sanitize_text_field( (string) $label ), 64 );
 			if ( '' === $label ) { continue; }
-			$out['fields'][ $label ] = substr( sanitize_text_field( (string) $value ), 0, 512 );
+			$out['fields'][ $label ] = \PassCaptain\Text::cut( sanitize_text_field( (string) $value ), 512 );
 		}
 		if ( $out ) { $normalized['receipt'] = $out; }
 		return $normalized;
@@ -1172,7 +1173,7 @@ final class Fiscalization {
 
 	private static function admin_redirect( $result = 'saved' ) {
 		wp_safe_redirect( add_query_arg( array( 'page' => 'wpcap-fiscalization', 'fiscal_result' => sanitize_key( $result ) ), admin_url( 'admin.php' ) ) );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	public static function handle_admin_save_seller() {
@@ -1476,29 +1477,29 @@ final class Fiscalization {
 
 	/** Admin-only REST endpoints for managing seller records, provider selection, and ticket mapping. */
 	public static function register_routes() {
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers', array(
 			array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'rest_sellers' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ) ),
 			array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_save_seller' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ) ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/profiles', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/profiles', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_save_profile' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/health-check', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/health-check', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_health_check' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\d+)/provider', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\d+)/provider', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_save_provider' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/documents/(?P<document_id>\\d+)/reconcile', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/documents/(?P<document_id>\\d+)/reconcile', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_reconcile_document' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/events/(?P<event_id>\\d+)/manual-resolution', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/events/(?P<event_id>\\d+)/manual-resolution', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_record_manual_resolution' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/orders/(?P<order_id>\\d+)/retry', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/orders/(?P<order_id>\\d+)/retry', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_retry_order' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_assign_seller' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
 	}

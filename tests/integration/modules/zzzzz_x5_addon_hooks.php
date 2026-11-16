@@ -37,6 +37,9 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ..
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) {} }
 if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 if ( ! function_exists( 'sanitize_file_name' ) ) { function sanitize_file_name( $f ) { return preg_replace( '/[^A-Za-z0-9._-]/', '', (string) $f ); } }
+// The merged offline scanner link carries the user locale (THEIRS ?lang=).
+if ( ! function_exists( 'get_user_locale' ) ) { function get_user_locale( $u = 0 ) { return 'de_DE'; } }
+if ( ! function_exists( 'wp_script_is' ) ) { function wp_script_is( $h, $l = 'enqueued' ) { return false; } }
 
 global $wpdb;
 $p = $wpdb->prefix;
@@ -148,6 +151,19 @@ check( 'read API: lines with net/VAT rate/VAT/gross (19 % 2×23,80; 7 % 10,70)',
 check( 'read API: totals and VAT breakdown add up', 5830 === $x5_doc['totals']['gross_minor'] && 830 === $x5_doc['totals']['vat_minor'] && 5000 === $x5_doc['totals']['net_minor'] && $x5_doc['totals']['gross_minor'] === $x5_sum( $x5_doc['vat_breakdown'], 'gross_minor' ) && 2 === count( $x5_doc['vat_breakdown'] ) && 7.0 === $x5_doc['vat_breakdown'][0]['vat_rate'] );
 check( 'read API: references (order) and global wpcap_get_invoice()', (int) $x5_order['order_id'] === $x5_doc['references']['order_id'] && $x5_doc === wpcap_get_invoice( $x5_inv['invoice_id'] ) && $x5_doc === InvoiceApi::for_order( $x5_order['order_id'] ) );
 check( 'read API: unknown ids/types give null', null === InvoiceApi::get( 999999 ) && null === InvoiceApi::get( $x5_inv['invoice_id'], 'quote' ) && null === wpcap_get_invoice( 0 ) );
+// PASS-INV-15 (contract 1.2.0): service date per document and per line (local date of the occurrence).
+$x5_occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.starts_at,o.ends_at,o.timezone FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d LIMIT 1", $x5_order['order_id'] ) );
+$x5_day = wp_date( 'Y-m-d', strtotime( $x5_occ->starts_at . ' UTC' ), new DateTimeZone( $x5_occ->timezone ?: 'UTC' ) );
+$x5_end = $x5_occ->ends_at ? wp_date( 'Y-m-d', strtotime( $x5_occ->ends_at . ' UTC' ), new DateTimeZone( $x5_occ->timezone ?: 'UTC' ) ) : $x5_day;
+check( 'PASS-INV-15: every line carries the local service date of its occurrence', (bool) $x5_doc['lines'] && ! array_filter( $x5_doc['lines'], static fn( $l ) => $x5_day !== $l['service_date'] || $x5_end !== $l['service_date_end'] ) );
+check( 'PASS-INV-15: service_period is always set; service_date only for a single date', array( 'start' => $x5_day, 'end' => $x5_end ) === $x5_doc['service_period'] && ( $x5_day === $x5_end ? $x5_day : '' ) === $x5_doc['service_date'] && (bool) preg_match( "/define\( 'WPCAP_CONTRACT_VERSION', '1\.([2-9]|[1-9][0-9])\./", (string) file_get_contents( dirname( __DIR__, 3 ) . '/pass-captain.php' ) ) );
+$x5_snap = (array) json_decode( (string) $wpdb->get_var( $wpdb->prepare( "SELECT buyer_snapshot FROM {$wpdb->prefix}wpcap_invoices WHERE invoice_id=%d", $x5_inv['invoice_id'] ) ), true );
+$x5_old_snap = $x5_snap;
+unset( $x5_old_snap['service_dates'] );
+$wpdb->update( $wpdb->prefix . 'wpcap_invoices', array( 'buyer_snapshot' => wp_json_encode( $x5_old_snap ) ), array( 'invoice_id' => $x5_inv['invoice_id'] ) );
+$x5_old = InvoiceApi::get( $x5_inv['invoice_id'] );
+check( 'PASS-INV-15: an invoice issued before 1.2.0 takes the period from the order\'s occurrences, no date per line', array( 'start' => $x5_day, 'end' => $x5_end ) === $x5_old['service_period'] && '' === $x5_old['lines'][0]['service_date'] );
+$wpdb->update( $wpdb->prefix . 'wpcap_invoices', array( 'buyer_snapshot' => wp_json_encode( $x5_snap ) ), array( 'invoice_id' => $x5_inv['invoice_id'] ) );
 
 // Correction (credit note) for a refund of one 19 % ticket.
 $x5_ticket19 = 0;
@@ -168,6 +184,7 @@ check( 'refund completed with a credit note; invoice_created_v1 fires with "corr
 $x5_corr = InvoiceApi::get( $x5_corr_created[0][0] ?? 0, 'correction' );
 check( 'correction read API: negative amounts, VAT rate of the refunded ticket, reference to the original invoice', is_array( $x5_corr ) && 'correction' === $x5_corr['type'] && -2380 === $x5_corr['totals']['gross_minor'] && -380 === $x5_corr['totals']['vat_minor'] && 1 === count( $x5_corr['lines'] ) && 19.0 === $x5_corr['lines'][0]['vat_rate'] && $x5_inv['invoice_id'] === $x5_corr['references']['invoice_id'] && $x5_inv['invoice_number'] === $x5_corr['references']['invoice_number'] && (int) $x5_refund['refund_id'] === $x5_corr['references']['refund_id'] );
 check( 'invoice lists its corrections', array( (int) $x5_corr['id'] ) === InvoiceApi::get( $x5_inv['invoice_id'] )['corrections'] );
+check( 'PASS-INV-15: the correction carries the service period of its invoice', $x5_corr['service_period'] === InvoiceApi::get( $x5_inv['invoice_id'] )['service_period'] && $x5_corr['service_date'] === InvoiceApi::get( $x5_inv['invoice_id'] )['service_date'] );
 $x5_refund_mails = array_slice( $GLOBALS['wpcap_test_mails'], $x5_mails_before );
 $x5_refund_mail = array_values( array_filter( $x5_refund_mails, static fn( $m ) => 'x5-inv@example.com' === $m['to'] ) );
 $x5_corr_hook = array_values( array_filter( $x5_mail_files, static fn( $c ) => 'correction' === $c[2] ) );
@@ -348,7 +365,7 @@ check( 'gate returning true lets the checkout through', ! is_wp_error( $x5_ok ) 
 /* ================================================================== (f) API scopes and Api\Auth */
 
 echo "X5: developer API scopes and Api\\Auth::request_can()\n";
-check( 'core scopes unchanged without filter', array( 'events.read', 'reports.read' ) === array_keys( DeveloperKeys::scopes() ) && array_keys( DeveloperKeys::scopes() ) === array_keys( ApiKeysPage::scope_labels() ) );
+check( 'core scopes unchanged without filter', array( 'events.read', 'reports.read', 'slots.read' ) === array_keys( DeveloperKeys::scopes() ) /* merged: slots.read of the services line */ && array_keys( DeveloperKeys::scopes() ) === array_keys( ApiKeysPage::scope_labels() ) );
 $x5_scopes = static function ( $scopes ) {
 	$scopes['orders.write'] = 'Bestellungen anlegen (orders.write)';
 	$scopes['events.read'] = 'Hijack';
@@ -358,7 +375,7 @@ $x5_scopes = static function ( $scopes ) {
 };
 add_filter( 'wp_pass_captain_api_scopes_v1', $x5_scopes );
 $x5_all = DeveloperKeys::scopes();
-check( 'add-on scopes are registered (valid ids only, core labels kept, empty label = id)', array( 'events.read', 'reports.read', 'orders.write', 'tickets.write' ) === array_keys( $x5_all ) && 'Event-Daten lesen (events.read)' === $x5_all['events.read'] && 'tickets.write' === $x5_all['tickets.write'] );
+check( 'add-on scopes are registered (valid ids only, core labels kept, empty label = id)', array( 'events.read', 'reports.read', 'slots.read', 'orders.write', 'tickets.write' ) === array_keys( $x5_all ) && 'Eventdaten lesen (Name, Beschreibung, Status)' === $x5_all['events.read'] && 'tickets.write' === $x5_all['tickets.write'] );
 check( 'add-on scopes appear on the API key admin page', isset( ApiKeysPage::scope_labels()['orders.write'] ) );
 $x5_api_event = pa_event_of_type( make_type( 5 ) );
 $x5_other_event = pa_event_of_type( make_type( 5 ) );

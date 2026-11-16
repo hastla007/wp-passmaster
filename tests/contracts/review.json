@@ -1,0 +1,118 @@
+{
+    "contract": "review",
+    "version": "1.0.0",
+    "description": "Review-Teilnahmevertrag v1 (wp_pass_captain_review_provider_v1): Envelope je Ereignistyp, wie Pass Captain es an receive() übergibt bzw. Outbox::since( …, 'review' ) liefert. request = Shape des Envelopes, response = kleinste gültige Antwort des Providers (true oder Array). Keine E-Mail, kein Name, kein Ticketcode; Kontakt nur über Review\\ContactResolver.",
+    "endpoints": {
+        "experience_completed": {
+            "direction": "outbound",
+            "request": {
+                "id": "string",
+                "type": "string",
+                "contract": "string",
+                "contract_version": "string",
+                "schema_version": "string",
+                "occurred_at": "string",
+                "sequence": "int",
+                "?attempt": "int",
+                "replay": "bool",
+                "source": {
+                    "plugin": "string",
+                    "version": "string",
+                    "site_id": "int"
+                },
+                "subject": {
+                    "type": "string",
+                    "id": "string"
+                },
+                "data": {
+                    "participation_id": "string",
+                    "experience_id": "string",
+                    "event_id": "int",
+                    "occurrence_id": "int",
+                    "ticket_type_id": "int",
+                    "recipient_ref": "string",
+                    "locale": "string",
+                    "outcome": "string",
+                    "completed_at": "string",
+                    "method": "string",
+                    "source": "string"
+                }
+            },
+            "schema_version": "1.0",
+            "response": true
+        },
+        "experience_excluded": {
+            "direction": "outbound",
+            "request": {
+                "id": "string",
+                "type": "string",
+                "contract": "string",
+                "contract_version": "string",
+                "schema_version": "string",
+                "occurred_at": "string",
+                "sequence": "int",
+                "?attempt": "int",
+                "replay": "bool",
+                "source": {
+                    "plugin": "string",
+                    "version": "string",
+                    "site_id": "int"
+                },
+                "subject": {
+                    "type": "string",
+                    "id": "string"
+                },
+                "data": {
+                    "participation_id": "string",
+                    "experience_id": "string",
+                    "event_id": "int",
+                    "occurrence_id": "int",
+                    "ticket_type_id": "int",
+                    "recipient_ref": "string",
+                    "locale": "string",
+                    "outcome": "string",
+                    "reason": "string",
+                    "excluded_at": "string",
+                    "previous_recipient_ref": "string|null"
+                }
+            },
+            "schema_version": "1.0",
+            "response": true
+        },
+        "experience_cancelled": {
+            "direction": "outbound",
+            "request": {
+                "id": "string",
+                "type": "string",
+                "contract": "string",
+                "contract_version": "string",
+                "schema_version": "string",
+                "occurred_at": "string",
+                "sequence": "int",
+                "?attempt": "int",
+                "replay": "bool",
+                "source": {
+                    "plugin": "string",
+                    "version": "string",
+                    "site_id": "int"
+                },
+                "subject": {
+                    "type": "string",
+                    "id": "string"
+                },
+                "data": {
+                    "experience_id": "string",
+                    "scope": "string",
+                    "event_id": "int",
+                    "occurrence_ids": [
+                        "int"
+                    ],
+                    "outcome": "string",
+                    "cancelled_at": "string"
+                }
+            },
+            "schema_version": "1.0",
+            "response": true
+        }
+    }
+}

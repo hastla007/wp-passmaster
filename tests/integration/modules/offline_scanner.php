@@ -37,7 +37,7 @@ function off_sync( $token, array $scans ) {
 	$req = app_request( 'POST', $token, array( 'scans' => $scans ) );
 	$auth = Api::authenticate( $req );
 	if ( true !== $auth ) { return $auth; }
-	$req->route = '/wp-pass-captain/v1/app/scan/sync';
+	$req->route = '/pass-captain/v1/app/scan/sync';
 	$res = Rest::after_callbacks( Api::sync( $req ), null, $req );
 	return $res->get_data();
 }
@@ -180,7 +180,7 @@ $opt = get_option( Keys::OPTION );
 $opt['keys'][ $old_kid ]['valid_until'] = time() - 1;
 update_option( Keys::OPTION, $opt );
 check( 'after the grace period the old key is no longer published and its packages fail', ! in_array( $old_kid, array_column( Keys::public_keys(), 'key_id' ), true ) && null === Package::verify( $old_pkg ) );
-$pair_req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/app/pair' );
+$pair_req = new WP_REST_Request( 'POST', '/pass-captain/v1/app/pair' );
 $pair_res = Rest::after_callbacks( new WP_REST_Response( array( 'token' => 'x', 'device_id' => 'y' ), 201 ), null, $pair_req );
 check( 'pairing response delivers the trusted public keys', $rot['key_id'] === $pair_res->get_data()['offline']['keys'][0]['key_id'] && 1 === $pair_res->get_data()['offline']['package_format'] );
 
@@ -279,7 +279,9 @@ $html_keys = array_map( 'html_entity_decode', $m[1] );
 $pwa_keys = array_unique( array_merge( $pwa_keys, $html_keys ) );
 $table_keys = array_keys( PassCaptain\OfflineScanner\I18n::strings() );
 $not_served = array_values( array_diff( $pwa_keys, $table_keys ) );
-check( 'app.js looks up its texts with t() and covers all 20 result codes (incl. retry)', count( $pwa_keys ) > 60 && 20 === count( $result_keys ) );
+// Merged PWA: the 22 codes of the Arbeitsliste line (incl. invalid_code, rate_limited) plus retry and
+// invalid_signature of the audit line (database retry, signed QR) = 24 result texts.
+check( 'app.js looks up its texts with t() and covers all 24 result codes (incl. retry, invalid_signature, rate_limited)', count( $pwa_keys ) > 60 && 24 === count( $result_keys ) && in_array( 'Bitte erneut scannen', $result_keys, true ) && in_array( 'QR-Signatur ungültig', $result_keys, true ) && in_array( 'Zu viele Hilfscode-Eingaben', $result_keys, true ) );
 check( 'every PWA text (t(), RESULT_TEXT, data-i18n*) is in the served table' . ( $not_served ? ' – missing: ' . implode( ' | ', $not_served ) : '' ), array() === $not_served && count( $html_keys ) >= 20 );
 check( 'app keeps the table in IndexedDB, sets <html lang> and formats dates with Intl in that locale', false !== strpos( $app_js, "kvSet('i18n', table)" ) && false !== strpos( $app_js, "kvGet('i18n')" ) && false !== strpos( $app_js, 'document.documentElement.lang = lang()' ) && false !== strpos( $app_js, 'new Intl.DateTimeFormat(lang()' ) && false === strpos( $app_js, "toLocaleString('de-DE'" ) );
 check( 'app asks for the device languages (navigator.languages → ?locale=)', false !== strpos( $app_js, 'navigator.languages' ) && false !== strpos( $app_js, "endpoint('offline/i18n', prefs ? 'locale=' + encodeURIComponent(prefs) : '')" ) );

@@ -29,6 +29,9 @@ final class Registry {
 	/** @return AdapterInterface|null */
 	public static function get( $id ) {
 		$adapters = self::all();
-		return $adapters[ sanitize_key( $id ) ] ?? null;
+		$id = sanitize_key( $id );
+		// Former id of the fiskaltrust adapter (Arbeitsliste line), converted by Installer::migrate_merged_data().
+		if ( 'fiskaltrust_possystem' === $id ) { $id = 'fiskaltrust_pos'; }
+		return $adapters[ $id ] ?? null;
 	}
 }

@@ -228,6 +228,9 @@ final class ServicesPage {
 		if ( ! self::can_use() ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Ressourcen & Zeitfenster', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
+		if ( current_user_can( ServiceSlotsPage::CAP ) ) {
+			echo '<p><a href="' . esc_url( Forms::page_url( ServiceSlotsPage::SLUG ) ) . '">' . esc_html__( 'Leistungserbringer und Zeitfenster je Ressource zuordnen (Service-Zeitfenster)', 'pass-captain' ) . '</a></p>';
+		}
 		$slot_id = absint( Forms::query_arg( 'slot_id', 0 ) );
 		$resource_id = absint( Forms::query_arg( 'resource_id', 0 ) );
 		if ( $slot_id ) {
@@ -402,7 +405,7 @@ final class ServicesPage {
 		}
 		echo '</tr></thead><tbody>';
 		foreach ( $slots as $slot ) {
-			echo '<tr><td>' . esc_html( Forms::datetime( $slot->starts_at, $tz, false ) ) . '</td><td>' . esc_html( Forms::datetime( $slot->ends_at, $tz, false ) ) . '</td><td>' . (int) $slot->booked . ' / ' . (int) $slot->capacity . '</td><td>' . esc_html( 'open' === $slot->status ? __( 'Offen', 'pass-captain' ) : __( 'Geschlossen', 'pass-captain' ) ) . '</td><td><a class="button button-small" href="' . esc_url( Forms::page_url( self::SLUG, array( 'slot_id' => (int) $slot->slot_id ) ) ) . '">' . esc_html__( 'Bearbeiten & Buchungen', 'pass-captain' ) . '</a> ';
+			echo '<tr><td>' . esc_html( Forms::datetime( $slot->starts_at, $tz, false ) ) . '</td><td>' . esc_html( Forms::datetime( $slot->ends_at, $tz, false ) ) . '</td><td>' . (int) $slot->booked . ' / ' . (int) $slot->capacity . '</td><td>' . esc_html( 'open' === $slot->status ? _x( 'Offen', 'status of a service slot: bookable', 'pass-captain' ) : __( 'Geschlossen', 'pass-captain' ) ) . '</td><td><a class="button button-small" href="' . esc_url( Forms::page_url( self::SLUG, array( 'slot_id' => (int) $slot->slot_id ) ) ) . '">' . esc_html__( 'Bearbeiten & Buchungen', 'pass-captain' ) . '</a> ';
 			if ( ! (int) $slot->booked ) {
 				FeatureScreens::button( self::ACTION, array( 'do' => 'delete_slot', 'id' => (int) $slot->slot_id ), __( 'Löschen', 'pass-captain' ), __( 'Dieses Zeitfenster löschen?', 'pass-captain' ), 'button button-small button-link-delete' );
 			}

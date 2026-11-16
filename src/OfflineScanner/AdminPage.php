@@ -21,10 +21,14 @@ final class AdminPage {
 		return current_user_can( self::CAP ) && Access::can_access_event( (int) $event_id, self::CAP );
 	}
 
-	/** URL of the PWA; the API base is passed so the app works in subdirectory installs. */
+	/**
+	 * URL of the PWA; the API base is passed so the app works in subdirectory installs, the language
+	 * (WordPress user locale) so the app speaks it – it remembers it for offline starts. The app is
+	 * served from the site's own origin (Pwa, A286), not from the asset URL that may be on a CDN.
+	 */
 	public static function app_url() {
-		$base = defined( 'WPCAP_URL' ) ? WPCAP_URL : '';
-		return $base . 'assets/offline-scanner/index.html?api=' . rawurlencode( rest_url( 'wp-pass-captain/v1/app/' ) );
+		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+		return Pwa::base_url() . 'index.html?api=' . rawurlencode( \PassCaptain\Mobile\Devices::api_base() ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
 	}
 
 	public static function save_rules( array $in ) {
@@ -139,10 +143,11 @@ final class AdminPage {
 
 	private static function render_event( $event_id ) {
 		$rules = Rules::get( $event_id );
-		$occurrences = Queries::occurrences_for_event( $event_id );
-		$occ_labels = array( 0 => __( 'Alle Termine', 'pass-captain' ) );
-		foreach ( $occurrences as $occ ) { $occ_labels[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone ); }
 		$assigned = Assignments::for_event( $event_id );
+		// A476: a bounded window of dates (next ones, or from the chosen day) plus every assigned date.
+		$window = Queries::occurrence_window( $event_id, array_map( static function ( $row ) { return (int) $row->occurrence_id; }, (array) $assigned ), Forms::query_arg( 'occ_from' ) );
+		$occ_labels = array( 0 => __( 'Alle Termine', 'pass-captain' ) );
+		foreach ( $window['rows'] as $occ ) { $occ_labels[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone ); }
 		$candidates = Assignments::candidates( $event_id );
 		$show_names = (bool) Settings::get( 'scanner_show_attendee' );
 		?>
@@ -180,6 +185,7 @@ final class AdminPage {
 				<label><?php esc_html_e( 'Termin', 'pass-captain' ); ?> <?php Forms::select( 'occurrence_id', $occ_labels, 0 ); ?></label>
 				<button class="button button-primary"><?php esc_html_e( 'Zuweisen', 'pass-captain' ); ?></button></p>
 			</form>
+			<?php Forms::occurrence_window_filter( $window, self::SLUG, array( 'event_id' => $event_id ) ); ?>
 		<?php else : ?>
 			<p class="description"><?php esc_html_e( 'Keine aktiven, für dieses Event gekoppelten Geräte. Zuerst unter „Scanner-Geräte“ einen Kopplungscode für dieses Event erstellen und im Offline-Scanner eingeben.', 'pass-captain' ); ?></p>
 		<?php endif; ?>

@@ -233,7 +233,7 @@ final class Consents {
 		\PassCaptain\Security\PrivatePage::send( true ); // No page cache, no framing, no indexing (secret link); strict CSP (standalone page).
 		status_header( null === $html ? 404 : 200 );
 		echo null === $html ? esc_html__( 'Der Link ist ungültig.', 'pass-captain' ) : $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Inserts an active consent record unless one exists for ticket and field. @return int consent id */
@@ -312,12 +312,12 @@ final class Consents {
 		if ( ! empty( $_POST['wpcap_consent_grant'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$granted = self::grant_for_order( $order, absint( wp_unslash( $_POST['wpcap_consent_grant'] ) ), absint( wp_unslash( $_POST['wpcap_consent_field'] ?? 0 ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( array( 'wpcap_order' => $order->public_id, 'wpcap_access' => $token, 'wpcap_consent' => is_wp_error( $granted ) ? 'error' : 'granted' ), home_url( '/' ) ), 303 );
-			exit;
+			\PassCaptain\Http::end();
 		}
 		$result = self::withdraw_for_order( $order, absint( wp_unslash( $_POST['wpcap_consent_withdraw'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$url = add_query_arg( array( 'wpcap_order' => $order->public_id, 'wpcap_access' => $token, 'wpcap_consent' => is_wp_error( $result ) ? 'error' : 'withdrawn' ), home_url( '/' ) );
 		wp_safe_redirect( $url, 303 );
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/**
@@ -406,12 +406,12 @@ final class Consents {
 	 * ------------------------------------------------------------------------------------------- */
 
 	public static function register_exporter( $exporters ) {
-		$exporters['wp-pass-captain-consents'] = array( 'exporter_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
+		$exporters['pass-captain-consents'] = array( 'exporter_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
 		return $exporters;
 	}
 
 	public static function register_eraser( $erasers ) {
-		$erasers['wp-pass-captain-consents'] = array( 'eraser_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) );
+		$erasers['pass-captain-consents'] = array( 'eraser_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) );
 		return $erasers;
 	}
 
@@ -436,7 +436,7 @@ final class Consents {
 			$c = self::get( $id );
 			if ( ! $c ) { continue; }
 			$data[] = array(
-				'group_id' => 'wp-pass-captain-consents',
+				'group_id' => 'pass-captain-consents',
 				'group_label' => __( 'Pass Captain Einwilligungen', 'pass-captain' ),
 				'item_id' => 'consent-' . (int) $c->consent_id,
 				'data' => array(
@@ -483,8 +483,8 @@ final class Consents {
 		$default_days = (int) Retention::default_attendee_days();
 		$deleted = 0;
 		for ( $round = 0; $round < 20; $round++ ) {
-			// A global retention period overrides the per-field one (which falls back to the default).
-			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i f ON f.field_id=c.field_id WHERE DATE_ADD(COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)), INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', self::table(), $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_participant_fields', $global, $global, $default_days, $now_sql, self::BATCH ) );
+			// A global retention period overrides the per-field one (which falls back to the default). End of the occurrence: Occurrence::end_sql() (A606).
+			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i f ON f.field_id=c.field_id WHERE DATE_ADD(' . \PassCaptain\Occurrence::end_sql( 'o' ) . ', INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', self::table(), $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_participant_fields', $global, $global, $default_days, $now_sql, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 			if ( ! $ids ) { break; }
 			$deleted += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE consent_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( self::table() ), $ids ) ) );
 			if ( count( $ids ) < self::BATCH ) { break; }

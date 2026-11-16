@@ -20,6 +20,10 @@ use PassCaptain\Security\DataPolicy as Z3DataPolicy;
 
 global $wpdb;
 $p = $wpdb->prefix;
+// The merged test bootstrap pins the transient backend (WPCAP_TEST_RATE_BACKEND); this file tests the
+// default without an object cache: the database table.
+$z3_saved_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'db';
 $z3_table = Z3RateLimit::table();
 $z3_rows = static function ( $key ) use ( $wpdb, $z3_table ) {
 	return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE bucket_key=%s', $z3_table, Z3RateLimit::hash( $key ) ) );
@@ -69,7 +73,7 @@ $z3_spawn = static function ( array $commands ) {
 	foreach ( $procs as $proc ) { $out[] = trim( (string) stream_get_contents( $proc ) ); pclose( $proc ); }
 	return $out;
 };
-$z3_worker = escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( dirname( __DIR__ ) . '/workers/z3_worker.php' );
+$z3_worker = 'WPCAP_TEST_RATE_BACKEND=db ' . escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( dirname( __DIR__ ) . '/workers/z3_worker.php' );
 $z3_start = microtime( true ) + 1.5;
 $z3_cmds = array();
 for ( $i = 0; $i < 12; $i++ ) { $z3_cmds[] = $z3_worker . ' hit ' . $z3_start . ' z3_parallel 5 3'; }
@@ -93,7 +97,7 @@ wpcap_test_reset_transients();
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Z3: every caller uses the shared RateLimit API (no read-then-write transient counters)\n";
-$z3_callers = array( 'src/ServiceBookings.php', 'src/Waitlists.php', 'src/Seats.php', 'src/ServiceWaitlist.php', 'src/Services/Api.php', 'src/DeveloperKeys.php', 'src/Integrations/AffiliateCaptain/Adapter.php', 'src/Orders.php', 'src/Modules/Sms.php', 'src/Rest/Controller.php', 'src/Partners/Keys.php' );
+$z3_callers = array( 'src/ServiceBookings.php', 'src/Waitlists.php', /* src/Seats.php removed in the merged line (A529) */ 'src/ServiceWaitlist.php', 'src/Services/Api.php', 'src/DeveloperKeys.php', 'src/Integrations/AffiliateCaptain/Adapter.php', 'src/Orders.php', 'src/Modules/Sms.php', 'src/Rest/Controller.php', 'src/Partners/Keys.php' );
 $z3_bad = array();
 foreach ( $z3_callers as $file ) {
 	$src = (string) file_get_contents( WPCAP_PATH . $file );
@@ -144,12 +148,13 @@ foreach ( Z3Modules::MANIFEST as $name => $listed ) {
 }
 check( 'contract: MANIFEST lists exactly the module methods each class implements' . ( $z3_mismatch ? ': ' . implode( ', ', $z3_mismatch ) : '' ), array() === $z3_mismatch );
 $z3_mod_src = file_get_contents( WPCAP_PATH . 'src/Modules.php' );
-check( 'Modules::classes() needs no glob() directory scan', false === strpos( $z3_mod_src, 'glob( ' ) && 19 === count( Z3Modules::bundled() ) );
+// Merged line: 24 bundled modules (both development lines), all from the static manifest.
+check( 'Modules::classes() needs no glob() directory scan', false === strpos( $z3_mod_src, 'glob( ' ) && count( Z3Modules::MANIFEST ) === count( Z3Modules::bundled() ) && 24 === count( Z3Modules::bundled() ) );
 $z3_boot = json_decode( (string) shell_exec( $z3_worker . ' boot' ), true );
 $z3_boot_files = (array) ( $z3_boot['files'] ?? array() );
 $z3_boot_modules = array_filter( $z3_boot_files, static fn( $f ) => 0 === strpos( $f, 'src/Modules/' ) );
 echo '  (frontend boot loads ' . count( $z3_boot_files ) . ' plugin files, ' . count( $z3_boot_modules ) . " module files)\n";
-check( 'frontend request: admin-only module (Reports) and admin screens are not loaded', $z3_boot_files && ! in_array( 'src/Modules/Reports.php', $z3_boot_files, true ) && ! in_array( 'src/Admin/FeatureScreens.php', $z3_boot_files, true ) && ! in_array( 'src/Admin/SecurityScreens.php', $z3_boot_files, true ) && 18 === count( $z3_boot_modules ) );
+check( 'frontend request: admin-only module (Reports) and admin screens are not loaded', $z3_boot_files && ! in_array( 'src/Modules/Reports.php', $z3_boot_files, true ) && ! in_array( 'src/Admin/FeatureScreens.php', $z3_boot_files, true ) && ! in_array( 'src/Admin/SecurityScreens.php', $z3_boot_files, true ) && count( Z3Modules::bundled() ) - 1 === count( $z3_boot_modules ) );
 check( 'frontend request: admin-post handlers are only registered in admin requests', isset( $z3_boot['admin_post'] ) && false === $z3_boot['admin_post'] );
 check( 'admin pages and handlers still include admin-only modules (Reports)', in_array( PassCaptain\Reports\Page::SLUG, array_map( static fn( $pg ) => (string) $pg[0], Z3Modules::admin_pages() ), true ) && isset( Z3Modules::admin_handlers()['wpcap_reports_csv'] ) );
 
@@ -206,8 +211,10 @@ $z3_sql_domain = implode( "\n", $wpdb->wpcap_log );
 $wpdb->wpcap_log = null;
 $z3_middle = Z3Queries::search_orders( array( 'search' => 'mask1' ), null );
 check( 'complete e-mail: exact match (customer_email = …), no LIKE', 1 === $z3_exact['total'] && false !== strpos( $z3_sql_exact, "ord.customer_email='z3-mask1@example.com'" ) && false === stripos( $z3_sql_exact, 'customer_email LIKE' ) );
-check( 'partial input: prefix search (x%) instead of %x%', 2 === $z3_prefix['total'] && false !== strpos( $z3_sql_prefix, "customer_email LIKE 'z3-mask%'" ) && false === strpos( $z3_sql_prefix, "LIKE '%z3-mask" ) );
+// Merged line: the buyer e-mail is searched by prefix; names, company and attendee data (A336) keep their own matching.
+check( 'partial input: prefix search (x%) instead of %x%', 2 === $z3_prefix['total'] && false !== strpos( $z3_sql_prefix, "customer_email LIKE 'z3-mask%'" ) && false === strpos( $z3_sql_prefix, "customer_email LIKE '%z3-mask" ) );
 check( 'leading @ searches by domain (documented full scan)', $z3_domain['total'] >= 2 && false !== strpos( $z3_sql_domain, "customer_email LIKE '%@example.com'" ) );
 check( 'a fragment from the middle of the address is no longer matched (documented)', 0 === $z3_middle['total'] );
 $z3_ex = $wpdb->get_row( $wpdb->prepare( "EXPLAIN SELECT order_id FROM %i ord WHERE ord.customer_email=%s", $p . 'wpcap_orders', 'z3-mask1@example.com' ) );
 check( 'EXPLAIN: exact e-mail search uses the customer_email index', $z3_ex && false !== strpos( (string) ( $z3_ex->possible_keys ?? '' ), 'customer_email' ) );
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $z3_saved_backend;

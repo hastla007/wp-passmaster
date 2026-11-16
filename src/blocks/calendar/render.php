@@ -1,6 +1,8 @@
 <?php
-/** Dynamic block server renderer for the event calendar. */
+/**
+ * Dynamic block server renderer for the event calendar. Attributes: view (month|list), eventId.
+ * The block wrapper attributes (block class, custom class, alignment, spacing) go on the root
+ * element (A449).
+ */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-$wpcap_view = ( isset( $attributes['view'] ) && 'list' === $attributes['view'] ) ? 'list' : 'month';
-$wpcap_event = isset( $attributes['eventId'] ) ? absint( $attributes['eventId'] ) : 0;
-echo \PassCaptain\Modules\Calendar::render_shortcode( array( 'view' => $wpcap_view, 'event' => $wpcap_event ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- renderer escapes all output.
+echo \PassCaptain\Modules\Calendar::render_block( (array) $attributes ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- renderer escapes all output.

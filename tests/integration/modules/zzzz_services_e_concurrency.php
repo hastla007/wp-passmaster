@@ -56,7 +56,7 @@ for ( $i = 1; $i <= 6; $i++ ) { $jobs[] = array( 'book', 0 === $i % 2 ? $ov_a : 
 $out = svc_parallel( $jobs );
 $in_a = ServiceResources::booked_quantity( $ov_a );
 $in_b = ServiceResources::booked_quantity( $ov_b );
-check( 'parallel bookings of two slots colliding within the buffer never land in both', ( 0 === $in_a ) !== ( 0 === $in_b ) && svc_ok( $out ) === $in_a + $in_b && 3 === $in_a + $in_b && 3 === count( array_filter( $out, static fn( $o ) => 'ERR:wpcap_slot_conflict' === $o ) ) );
+check( 'parallel bookings of two slots colliding within the buffer never land in both', ( 0 === $in_a ) !== ( 0 === $in_b ) && svc_ok( $out ) === $in_a + $in_b && 3 === $in_a + $in_b && 3 === count( array_filter( $out, static fn( $o ) => 'ERR:wpcap_slot_resource_busy' === $o ) ) );
 // Parallel rebooking into the last free place.
 $rb_target = svc_slot( $cc_res, 50, 60, 1 );
 $rb_src = svc_slot( $cc_res, 55, 60, 3 );
@@ -75,7 +75,10 @@ svc_reset_limits();
 $pw_sold = Orders::create( array( 'email' => 'pw-sold@svc.test', 'items' => array( array( 'ticket_type_id' => $pw_type, 'quantity' => 2 ) ), 'idempotency_key' => 'pw-sold-' . uniqid() ) );
 foreach ( array( 'pw-a@svc.test', 'pw-b@svc.test', 'pw-c@svc.test' ) as $mail ) { svc_reset_limits(); Waitlists::join( $pw_event, $pw_occ, $pw_type, $mail ); }
 Orders::cancel_order( $pw_sold['order_id'], 'test' ); // 2 tickets free → 2 offers with hold.
-svc_run_jobs();
+// Merged design: the event waitlist queue (Waitlists, A-line) offers freed units on its run (cron / job worker).
+$GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] = 0;
+Waitlists::run_due( true );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] );
 list( $pa_id, $pa_token ) = svc_token_from_mail( 'pw-a@svc.test', 'wpcap_waitlist_accept' );
 list( $pb_id, $pb_token ) = svc_token_from_mail( 'pw-b@svc.test', 'wpcap_waitlist_accept' );
 check( 'cancellation of 2 tickets: the first 2 entries get offers with holds, the third waits', $pa_id && $pb_id && 2 === Waitlists::held_quantity( (object) array( 'ticket_type_id' => $pw_type ) ) && 'waiting' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_waitlist WHERE email='pw-c@svc.test'" ) );

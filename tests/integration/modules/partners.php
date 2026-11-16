@@ -201,7 +201,10 @@ check( 'draft print view is marked as draft', false !== strpos( Settlements::ren
 
 echo "Partner API: keys\n";
 wpcap_test_reset_transients();
-check( 'key needs a supported scope and only partner events', is_wp_error( PartnerKeys::issue( $p1, array( 'orders:write' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'event_ids' => array( $ec ) ) ) ) );
+// Merged PartnerKeys::SCOPES include the write scopes of the Arbeitsliste line (orders:write, orders:cancel,
+// tickets:issue); unknown scopes such as admin:write and foreign events are still rejected.
+check( 'key needs a supported scope and only partner events', in_array( 'orders:write', PartnerKeys::SCOPES, true ) && is_wp_error( PartnerKeys::issue( $p1, array( 'nonsense:write' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'event_ids' => array( $ec ) ) ) ) );
+check( 'key needs a supported scope and only partner events (admin:write)', is_wp_error( PartnerKeys::issue( $p1, array( 'admin:write' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'event_ids' => array( $ec ) ) ) ) );
 check( 'invalid IP entries and past expiry are rejected', is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'ip_allowlist' => '300.1.1.1' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'expires_at' => '2001-01-01 00:00:00' ) ) ) );
 $k1 = PartnerAdmin::admin_action( array( 'do' => 'issue_key', 'id' => $p1, 'label' => 'ERP', 'scopes' => array( 'events:read', 'orders:read', 'tickets:read', 'checkins:read', 'reports:read', 'settlements:read' ) ) );
 $tok1 = $k1['key'];
@@ -297,8 +300,11 @@ check( 'repeated failures lock the client address out (valid keys too), other ad
 wpcap_test_reset_transients();
 
 PartnerApi::register_routes();
-$routes = array_filter( array_keys( $GLOBALS['wpcap_test_routes'] ?? array() ), static fn( $r ) => str_starts_with( $r, 'wp-pass-captain/v1/partner/' ) );
-check( 'read-only routes registered under /partner/', 9 === count( $routes ) && ! array_filter( $routes, static fn( $r ) => 'GET' !== $GLOBALS['wpcap_test_routes'][ $r ]['methods'] ) );
+$routes = array_filter( array_keys( $GLOBALS['wpcap_test_routes'] ?? array() ), static fn( $r ) => str_starts_with( $r, 'pass-captain/v1/partner/' ) );
+// Read routes are GET only; write endpoints (selling, see p3_partner_sales.php) are separate POST endpoints.
+$pa_methods = static fn( $r ) => array_map( static fn( $e ) => $e['methods'], isset( $GLOBALS['wpcap_test_routes'][ $r ]['methods'] ) ? array( $GLOBALS['wpcap_test_routes'][ $r ] ) : $GLOBALS['wpcap_test_routes'][ $r ] );
+$pa_read = array( 'me', 'events', 'events/(?P<event_id>\\d+)', 'tickets', 'checkins', 'reports', 'settlements', 'settlements/(?P<settlement_id>\\d+)' );
+check( 'read-only routes registered under /partner/', ! array_filter( $pa_read, static fn( $r ) => array( 'GET' ) !== $pa_methods( 'pass-captain/v1/partner/' . $r ) ) && array( 'GET', 'POST' ) === $pa_methods( 'pass-captain/v1/partner/orders' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
 

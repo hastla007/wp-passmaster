@@ -15,7 +15,7 @@
 	const KEY = 'wpcap_attribution';
 
 	function clean(value) {
-		return String(value || '').toLowerCase().replace(/[^a-z0-9_.\-]/g, '').slice(0, 64);
+		return String(value || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '').slice(0, 64);
 	}
 
 	function captureAttribution(win) {

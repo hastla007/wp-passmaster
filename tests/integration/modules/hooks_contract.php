@@ -49,7 +49,9 @@ foreach ( array( 'src', 'templates' ) as $hc_dir ) {
 foreach ( $hc_documented as $hook ) {
 	$direct = preg_match( '/(apply_filters|do_action)\(\s*[\'"]' . preg_quote( $hook, '/' ) . '[\'"]/', $hc_all_src );
 	$via_const = preg_match( '/const\s+([A-Z_]+)\s*=\s*[\'"]' . preg_quote( $hook, '/' ) . '[\'"]/', $hc_all_src, $cm ) && preg_match( '/(apply_filters|do_action)\(\s*(self|static|[A-Za-z\\\\]+)::' . $cm[1] . '\b/', $hc_all_src );
-	if ( ! $direct && ! $via_const ) { $hc_fired[] = $hook; }
+	// Merged hook policy (A104): an old name from Hooks::RENAMED fires through Hooks::legacy_filter() of its new name.
+	$via_legacy = isset( PassCaptain\Hooks::RENAMED[ $hook ] ) && preg_match( '/Hooks::legacy_filter\(\s*[\'"]' . preg_quote( PassCaptain\Hooks::RENAMED[ $hook ], '/' ) . '[\'"]/', $hc_all_src );
+	if ( ! $direct && ! $via_const && ! $via_legacy ) { $hc_fired[] = $hook; }
 }
 check( 'every documented *_v1 hook is fired by the core' . ( $hc_fired ? ' – never fired: ' . implode( ', ', $hc_fired ) : '' ), array() === $hc_fired );
 
@@ -117,7 +119,7 @@ $hc_array_count = static function ( array $arg ) {
 	return $any ? $count + 1 : 0;
 };
 $hc_prefixed = static function ( $hook ) { return (bool) preg_match( '/^(wpcap|wp_pass_captain)_[a-z0-9_]+$/', (string) $hook ); };
-$hc_fire = array(); $hc_provide = array(); $hc_dynamic = array();
+$hc_fire = array(); $hc_provide = array(); $hc_dynamic = array(); $hc_dyn_consts = array();
 $hc_fire_fns = array( 'apply_filters', 'do_action', 'apply_filters_deprecated', 'do_action_deprecated', 'apply_filters_ref_array', 'do_action_ref_array' );
 foreach ( $hc_tokens as $file => $t ) {
 	$rel = substr( $file, strlen( WPCAP_PATH ) );
@@ -136,6 +138,9 @@ foreach ( $hc_tokens as $file => $t ) {
 		if ( null === $hook ) {
 			$src = implode( '', array_map( static function ( $x ) { return is_array( $x ) ? $x[1] : $x; }, $name_arg ) );
 			if ( $is_fire && preg_match( '/[\'"](wpcap|wp_pass_captain)_/', $src ) ) { $hc_dynamic[] = "$rel:{$tok[2]}"; }
+			// Fired through a class constant the tokenizer cannot resolve (static::FILTER of the contract base class,
+			// self::PREPARE_HOOKS[ $resource ]): remember the constant, its values count as fired (arity not checked).
+			if ( $is_fire && preg_match( '/^(?:self|static)::([A-Z_]+)(\[|$)/', $src, $hc_cm ) ) { $hc_dyn_consts[ $hc_cm[1] ] = true; }
 			continue;
 		}
 		if ( ! $hc_prefixed( $hook ) ) { continue; }
@@ -154,6 +159,21 @@ foreach ( $hc_tokens as $file => $t ) {
 }
 // Hooks only registered with add_filter/add_action and never fired or scheduled by the core are provided for
 // third parties (e.g. the voucher services): their documented arity is the accepted argument count.
+// Old names from Hooks::RENAMED fire (deprecated) through Hooks::legacy_filter() with the arguments of the new hook.
+foreach ( PassCaptain\Hooks::RENAMED as $hc_old_name => $hc_new_name ) {
+	if ( isset( $hc_fire[ $hc_new_name ] ) && ! isset( $hc_fire[ $hc_old_name ] ) ) {
+		$hc_fire[ $hc_old_name ][] = array( 'src/Hooks.php (legacy_filter of ' . $hc_new_name . ')', max( array_column( $hc_fire[ $hc_new_name ], 1 ) ), true );
+	}
+}
+$hc_dyn_fired = array();
+foreach ( array_keys( $hc_dyn_consts ) as $hc_const ) {
+	if ( preg_match_all( '/const\s+' . $hc_const . '\s*=\s*(.*?);/s', $hc_all_src, $hc_dm ) ) {
+		foreach ( $hc_dm[1] as $hc_val ) {
+			preg_match_all( '/[\'"]((?:wpcap|wp_pass_captain)_[a-z0-9_]+)[\'"]/', $hc_val, $hc_vm );
+			foreach ( $hc_vm[1] as $hc_v ) { $hc_dyn_fired[ $hc_v ] = true; }
+		}
+	}
+}
 foreach ( $hc_provide as $hook => $rows ) {
 	if ( ! isset( $hc_fire[ $hook ] ) ) { $hc_fire[ $hook ] = array( array( $rows[0][0], max( array_column( $rows, 1 ) ), false ) ); }
 }
@@ -167,9 +187,12 @@ foreach ( preg_split( '/\R/', $hc_doc ) as $line ) {
 		if ( '|' === $ch && ! $tick ) { $cells[] = $cell; $cell = ''; continue; }
 		$cell .= $ch;
 	}
-	if ( count( $cells ) < 3 || ! preg_match( '/^\s*`([a-z0-9_]+)`\s*$/', $cells[1], $hm ) ) { continue; }
+	// Merged HOOKS.md: rows of the Arbeitsliste line mark the kind after the name (`name` (Action), `name` *(Action)*);
+	// a hook may appear in several tables (overview of the public add-on API without argument column, detail table):
+	// the documented arity is the largest of its rows.
+	if ( count( $cells ) < 3 || ! preg_match( '/^\s*`([a-z0-9_]+)`\s*(?:\*?\((?:Action|Filter)\)\*?)?\s*$/', $cells[1], $hm ) ) { continue; }
 	preg_match_all( '/`([^`]*)`/', $cells[2], $am );
-	$hc_doc_args[ $hm[1] ] = preg_match_all( '/\$[A-Za-z_][A-Za-z0-9_]*/', implode( ' ', $am[1] ) );
+	$hc_doc_args[ $hm[1] ] = max( $hc_doc_args[ $hm[1] ] ?? 0, preg_match_all( '/\$[A-Za-z_][A-Za-z0-9_]*/', implode( ' ', $am[1] ) ) );
 }
 $hc_deprecated_doc = array();
 if ( preg_match( '/^### Veraltete Namen.*?(?=^##|\z)/ms', $hc_doc, $dm ) && preg_match_all( '/^\|\s*`([a-z0-9_]+)`\s*\|/m', $dm[0], $dmm ) ) { $hc_deprecated_doc = $dmm[1]; }
@@ -187,7 +210,7 @@ foreach ( $hc_fire as $hook => $rows ) {
 	}
 }
 foreach ( array_keys( $hc_doc_args ) as $hook ) {
-	if ( $hc_prefixed( $hook ) && ! isset( $hc_fire[ $hook ] ) ) { $hc_unfired[] = $hook; }
+	if ( $hc_prefixed( $hook ) && ! isset( $hc_fire[ $hook ] ) && ! isset( $hc_dyn_fired[ $hook ] ) ) { $hc_unfired[] = $hook; }
 }
 check( 'R8: the tokenizer finds the hook calls (sanity: ' . count( $hc_fire ) . ' prefixed hooks, constants resolved)', count( $hc_fire ) > 150 && isset( $hc_fire['wp_pass_captain_voucher_provider_v1'], $hc_fire['wp_pass_captain_ticket_service_v1'], $hc_fire['wpcap_process_fiscal_order'] ) );
 check( 'R8: no prefixed hook with a dynamic name' . ( $hc_dynamic ? ' – ' . implode( ', ', $hc_dynamic ) : '' ), array() === $hc_dynamic );
@@ -212,7 +235,9 @@ PassCaptain\Localization::currencies();
 check( 'R8: without a callback on the old name no deprecation is reported', array() === $GLOBALS['wpcap_test_deprecated_hooks'] );
 $hc_cal_src = (string) file_get_contents( WPCAP_PATH . 'src/Modules/Calendar.php' );
 $hc_pe_src = (string) file_get_contents( WPCAP_PATH . 'src/PublicEvents.php' );
-check( 'R8: the event card filter fires as _v1 (calendar anchor uses it) and still under the old name', false !== strpos( $hc_cal_src, "'wp_pass_captain_event_card_html_v1'" ) && false !== strpos( $hc_pe_src, "apply_filters_deprecated( 'wp_pass_captain_event_card_html'" ) && false !== strpos( $hc_pe_src, "apply_filters( 'wp_pass_captain_event_card_html_v1'" ) );
+// Merged design: the calendar anchor hangs on wpcap_event_card_html (A104 name); the _v1 contract and the old
+// unversioned name (Hooks::RENAMED, via legacy_filter -> apply_filters_deprecated) keep firing.
+check( 'R8: the event card filter fires as wpcap_event_card_html (calendar anchor uses it), as _v1 and still under the old name', false !== strpos( $hc_cal_src, "'wpcap_event_card_html'" ) && false !== strpos( $hc_pe_src, "apply_filters( 'wpcap_event_card_html'" ) && false !== strpos( $hc_pe_src, "Hooks::legacy_filter( 'wpcap_event_card_html'" ) && false !== strpos( $hc_pe_src, "apply_filters( 'wp_pass_captain_event_card_html_v1'" ) && 'wpcap_event_card_html' === ( PassCaptain\Hooks::RENAMED['wp_pass_captain_event_card_html'] ?? '' ) );
 
 echo "Hooks contract: wp_pass_captain_http_connector_data_v1 passes the endpoint id as int\n";
 $hc_seen = null;

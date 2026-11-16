@@ -38,6 +38,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Checkout {
 	/** Job type for commit retries (Jobs queue). */
 	const JOB = 'voucher_commit';
+	/** Retry of a voucher share refund that failed temporarily. */
+	const REFUND_JOB = 'voucher_refund';
 	/** The Jobs queue moves a job to dead_letter after this many attempts; the last one flags the order. */
 	const FINAL_ATTEMPT = 8;
 	/** Voucher purposes (VAT treatment). */
@@ -46,9 +48,54 @@ final class Checkout {
 
 	public static function register() {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'commit' ) );
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 4 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 4 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'release' ) );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'refund' ), 20, 2 );
+		// A632: a late payment never issues tickets on a discount whose voucher was released.
+		add_action( 'wpcap_before_payment_confirm', array( __CLASS__, 'prepare_late_payment' ) );
+		add_filter( 'wpcap_order_recovering', array( __CLASS__, 'recovering' ), 10, 2 );
+		add_action( 'wpcap_capacity_released', array( __CLASS__, 'on_capacity_released' ), 10, 2 );
+	}
+
+	/**
+	 * Action wpcap_before_payment_confirm (outside any transaction, A632): an unpaid order whose voucher
+	 * reservation was released (hold lapsed, order expired) reserves the voucher again before the payment
+	 * is booked – the amount due still carries the voucher discount. If that fails the snapshot stays
+	 * `released` and recovering() sends the payment to review (`needs_review`/`paid_unallocated`)
+	 * instead of issuing tickets.
+	 */
+	public static function prepare_late_payment( $order_id ) {
+		$snapshot = self::snapshot( $order_id );
+		if ( ! $snapshot || 'released' !== ( $snapshot['status'] ?? '' ) ) { return; }
+		$order = Orders::get( $order_id );
+		if ( ! $order || in_array( (string) $order->payment_status, array( 'paid', 'refunded', 'cancelled' ), true ) || in_array( (string) $order->status, array( 'refunded', 'cancelled' ), true ) ) { return; }
+		$again = self::reserve_again( (int) $order_id, $order, $snapshot );
+		if ( is_wp_error( $again ) ) {
+			\PassCaptain\Log::error( 'voucher_reserve_again_failed', 'voucher reserve again failed', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $again->get_error_code() ) ) );
+		}
+	}
+
+	/**
+	 * Filter wpcap_order_recovering (late payment re-check under the order lock, A632): a voucher that is
+	 * still released means the payment only covers the discounted amount without a voucher behind it.
+	 *
+	 * @return null|\WP_Error
+	 */
+	public static function recovering( $result, $order_id ) {
+		if ( $result instanceof \WP_Error ) { return $result; }
+		$snapshot = self::snapshot( $order_id );
+		if ( $snapshot && 'released' === ( $snapshot['status'] ?? '' ) ) {
+			return new \WP_Error( 'voucher_released', __( 'Der Gutschein der Bestellung ist nicht mehr reserviert.', 'pass-captain' ) );
+		}
+		return $result;
+	}
+
+	/**
+	 * Action wpcap_capacity_released: a late payment that went to review (no tickets) gives a voucher that
+	 * was reserved again for it back, so it does not stay blocked; a retried allocation reserves it anew.
+	 */
+	public static function on_capacity_released( $order_id, $reason = '' ) {
+		if ( 'payment_unallocated' === $reason ) { self::release( $order_id ); }
 	}
 
 	/**
@@ -88,7 +135,15 @@ final class Checkout {
 		}
 		$key = 'wpcap-order-' . $order->public_id;
 		$reservation = Bridge::reserve( $quote, $key );
-		if ( is_wp_error( $reservation ) ) { return self::user_error( $reservation ); }
+		if ( is_wp_error( $reservation ) ) {
+			if ( Bridge::is_transport_error( $reservation ) ) {
+				// Timeout/exception: the provider may have reserved before failing. Nothing was written on our
+				// side; release the key so no voucher amount stays blocked (contract: release by idempotency key).
+				Bridge::release( array( 'idempotency_key' => $key, 'order_reference' => 'wpcap:' . $order->public_id ), 'wpcap-release-' . $order->public_id );
+				\PassCaptain\Log::error( 'voucher_reserve_failed', 'voucher reserve failed', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $reservation->get_error_code() ) ) );
+			}
+			return self::user_error( $reservation );
+		}
 
 		$old_total = (int) $order->total_minor;
 		$new_total = $old_total - $amount;
@@ -235,16 +290,24 @@ final class Checkout {
 	 * @return array|\WP_Error Updated snapshot.
 	 */
 	private static function reserve_again( $order_id, $order, array $snapshot ) {
-		$again = Bridge::reserve( (array) ( $snapshot['quote'] ?? array() ), 'wpcap-order-late-' . $order->public_id );
+		// Each new late reservation after a release of an earlier one gets its own key (a retried
+		// allocation after review must not get the released reservation back from the provider).
+		$round = (int) ( $snapshot['late_rounds'] ?? 0 );
+		$suffix = $round > 0 ? '-' . ( $round + 1 ) : '';
+		if ( ! Bridge::available() ) {
+			return new \WP_Error( 'wpcap_voucher_unavailable', __( 'Gutscheine können derzeit nicht eingelöst werden.', 'pass-captain' ) );
+		}
+		$again = Bridge::reserve( (array) ( $snapshot['quote'] ?? array() ), 'wpcap-order-late-' . $order->public_id . $suffix );
 		if ( is_wp_error( $again ) ) { return $again; }
 		$amount = $again['applied_minor'] ?? ( $again['amount_minor'] ?? null );
 		if ( null !== $amount && (int) $amount !== (int) $snapshot['amount_minor'] ) {
-			Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id );
+			Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id . $suffix );
 			return new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'pass-captain' ) );
 		}
 		$snapshot['reservation'] = $again;
 		$snapshot['status'] = 'reserved';
 		$snapshot['late_reservation'] = true;
+		$snapshot['late_rounds'] = $round + 1;
 		self::save( $order_id, $snapshot );
 		Audit::record( 'voucher_reserved_again', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
 		return $snapshot;
@@ -254,11 +317,14 @@ final class Checkout {
 		return 'wpcap_voucher_amount_changed' === $error->get_error_code() ? self::needs_review( $order_id, $snapshot, $error ) : self::commit_error( $order_id, $snapshot, $error, $final );
 	}
 
-	/** Filter wp_pass_captain_process_job_v1: retries a voucher commit. */
+	/** Filter wpcap_process_job: retries a voucher commit. */
 	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
-		if ( self::JOB !== $type ) { return $handled; }
+		if ( self::JOB !== $type && self::REFUND_JOB !== $type ) { return $handled; }
 		global $wpdb;
 		$attempts = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT attempts FROM %i WHERE job_id=%d', $wpdb->prefix . 'wpcap_jobs', absint( $job_id ) ) );
+		if ( self::REFUND_JOB === $type ) {
+			return self::refund( absint( $payload['refund_id'] ?? 0 ), absint( $payload['order_id'] ?? 0 ), true, $attempts >= self::FINAL_ATTEMPT );
+		}
 		return self::commit( absint( $payload['order_id'] ?? 0 ), $attempts >= self::FINAL_ATTEMPT );
 	}
 
@@ -290,7 +356,7 @@ final class Checkout {
 			__( 'Pass Captain: Gutschein konnte nicht belastet werden', 'pass-captain' ),
 			sprintf(
 				/* translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code */
-				__( 'Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten.', 'pass-captain' ),
+				__( 'Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten.', 'pass-captain' ),
 				$order ? $order->public_id : (int) $order_id,
 				\PassCaptain\Admin\Forms::money( (int) $snapshot['amount_minor'], $order ? $order->currency : 'EUR' ),
 				(string) ( $snapshot['code_hint'] ?? '' ),
@@ -310,8 +376,9 @@ final class Checkout {
 		$snapshot = self::snapshot( $order_id );
 		if ( ! $snapshot || 'reserved' !== $snapshot['status'] ) { return; }
 		$order = Orders::get( $order_id );
-		if ( $order && 'paid' === $order->payment_status ) { return; }
-		$result = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id );
+		if ( ! $order || 'paid' === $order->payment_status ) { return; }
+		$rounds = (int) ( $snapshot['late_rounds'] ?? 0 );
+		$result = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id . ( $rounds > 0 ? '-late-' . $rounds : '' ) );
 		if ( is_wp_error( $result ) ) {
 			\PassCaptain\Log::error( 'voucher_release_failed', 'Voucher reservation could not be released.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $result->get_error_code() ) ) );
 			return;
@@ -325,11 +392,16 @@ final class Checkout {
 	 * is restored). The share comes from refund_plan(): proportional to the value of the refunded tickets,
 	 * the last refund receives the remainder. The cash part was refunded by the payment gateway.
 	 */
-	public static function refund( $refund_id, $order_id ) {
+	/**
+	 * @param bool $from_job      Called by the retry job (no new job is queued; false = try again later).
+	 * @param bool $final_attempt Last retry: a failure is flagged instead of retried.
+	 * @return bool True when the voucher share is settled (or nothing is to do), false while a retry is due.
+	 */
+	public static function refund( $refund_id, $order_id, $from_job = false, $final_attempt = false ) {
 		$snapshot = self::snapshot( $order_id );
-		if ( ! $snapshot ) { return; }
+		if ( ! $snapshot ) { return true; }
 		$done_ids = array_map( 'absint', (array) ( $snapshot['refund_ids'] ?? array() ) );
-		if ( in_array( absint( $refund_id ), $done_ids, true ) ) { return; }
+		if ( in_array( absint( $refund_id ), $done_ids, true ) ) { return true; }
 		if ( 'reserved' === $snapshot['status'] ) {
 			// Commit still pending (retry job): the share is refunded right after the commit.
 			$pending = array_map( 'absint', (array) ( $snapshot['pending_refund_ids'] ?? array() ) );
@@ -337,29 +409,43 @@ final class Checkout {
 				$snapshot['pending_refund_ids'] = array_merge( $pending, array( absint( $refund_id ) ) );
 				self::save( $order_id, $snapshot );
 			}
-			return;
+			return true;
 		}
-		if ( 'committed' !== $snapshot['status'] ) { return; }
+		if ( 'committed' !== $snapshot['status'] ) { return true; }
 		$plan = self::refund_plan( $refund_id );
 		$snapshot = self::snapshot( $order_id ); // refund_plan() may have stored the plan.
-		if ( ! $plan ) { return; }
+		if ( ! $plan ) { return true; }
 		$share = (int) $plan['voucher_minor'];
 		if ( $share < 1 ) {
 			$snapshot['refunded_tickets'] = (int) $snapshot['refunded_tickets'] + (int) $plan['tickets'];
 			$snapshot['refund_ids'] = array_merge( $done_ids, array( absint( $refund_id ) ) );
 			self::save( $order_id, $snapshot );
-			return;
+			return true;
 		}
 		$result = Bridge::refund( (array) ( $snapshot['redemption'] ?? array() ), $share, 'wpcap-refund-' . absint( $refund_id ) );
 		if ( is_wp_error( $result ) ) {
+			// Never lose the voucher share: temporary errors are retried with the same refund key (the voucher
+			// system refunds each key once), a final one is flagged and the admin is told.
+			$final = $from_job ? $final_attempt : ! self::is_temporary( $result );
 			\PassCaptain\Log::error( 'voucher_refund_failed', 'Voucher refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code() ) ) );
-			return;
+			$snapshot['failed_refund_ids'] = array_values( array_unique( array_merge( array_map( 'absint', (array) ( $snapshot['failed_refund_ids'] ?? array() ) ), array( absint( $refund_id ) ) ) ) );
+			self::save( $order_id, $snapshot );
+			if ( $final ) {
+				$order = \PassCaptain\Orders::get( (int) $order_id );
+				/* translators: 1: order, 2: amount in minor units, 3: error */
+				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
+			} elseif ( ! $from_job ) {
+				Jobs::enqueue( 'voucher-refund-' . absint( $refund_id ), self::REFUND_JOB, array( 'refund_id' => absint( $refund_id ), 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			}
+			return $final;
 		}
 		$snapshot['refunded_minor'] = (int) $snapshot['refunded_minor'] + $share;
 		$snapshot['refunded_tickets'] = (int) $snapshot['refunded_tickets'] + (int) $plan['tickets'];
 		$snapshot['refund_ids'] = array_merge( $done_ids, array( absint( $refund_id ) ) );
+		$snapshot['failed_refund_ids'] = array_values( array_diff( array_map( 'absint', (array) ( $snapshot['failed_refund_ids'] ?? array() ) ), array( absint( $refund_id ) ) ) );
 		self::save( $order_id, $snapshot );
 		Audit::record( 'voucher_refunded', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'amount_minor' => $share, 'purpose' => self::snapshot_purpose( $snapshot ) ) );
+		return true;
 	}
 
 	/**
@@ -428,7 +514,8 @@ final class Checkout {
 		} elseif ( $final ) {
 			$share = $voucher - $planned;
 		} else {
-			$share = $all_value > 0 ? (int) floor( $voucher * $value / $all_value + 1e-6 ) : 0;
+			// Free tickets (single-purpose voucher from the ticket service, lines at 0): share by ticket count.
+			$share = $all_value > 0 ? (int) floor( $voucher * $value / $all_value + 1e-6 ) : ( $all_tickets > 0 ? (int) floor( $voucher * $tickets / $all_tickets + 1e-6 ) : 0 );
 		}
 		$share = max( 0, min( $share, $voucher - $planned ) );
 		$purpose = self::snapshot_purpose( $snapshot );
@@ -472,6 +559,35 @@ final class Checkout {
 		);
 	}
 
+	/**
+	 * Amounts of a completed refund for reports, organizer settlements and reseller statements, read from
+	 * the stored refund plan (`refund_plans`, see refund_plan()) instead of the cash-only refund row:
+	 * - multi-purpose voucher: amount = cash part + voucher share, tax = full VAT of the refunded tickets
+	 *   (the same numbers as the credit note, credit_note_amounts()),
+	 * - single-purpose voucher: amount/tax of the refund row; voucher_minor is the voucher value given back
+	 *   (reverses the organizer's claim against the voucher seller),
+	 * - no voucher: the refund row unchanged.
+	 *
+	 * @param object|array $refund Refund row with refund_id, order_id, amount_minor, tax_minor; an optional
+	 *                             `has_voucher` (0/1) skips the lookup for orders without voucher.
+	 * @return array{amount_minor:int,tax_minor:int,voucher_minor:int,purpose:string|null}
+	 */
+	public static function refund_amounts( $refund ) {
+		$refund = (object) $refund;
+		$out = array( 'amount_minor' => (int) ( $refund->amount_minor ?? 0 ), 'tax_minor' => (int) ( $refund->tax_minor ?? 0 ), 'voucher_minor' => 0, 'purpose' => null );
+		if ( isset( $refund->has_voucher ) && ! (int) $refund->has_voucher ) { return $out; }
+		$refund_id = absint( $refund->refund_id ?? 0 );
+		$plan = $refund_id ? self::refund_plan( $refund_id ) : null;
+		if ( ! $plan ) { return $out; }
+		$out['purpose'] = (string) ( $plan['purpose'] ?? '' );
+		$out['voucher_minor'] = max( 0, (int) ( $plan['voucher_minor'] ?? 0 ) );
+		if ( self::PURPOSE_MULTI === $out['purpose'] && $out['voucher_minor'] > 0 ) {
+			$out['amount_minor'] = (int) $plan['cash_minor'] + $out['voucher_minor'];
+			$out['tax_minor'] = (int) ( $plan['tax_minor'] ?? $out['tax_minor'] );
+		}
+		return $out;
+	}
+
 	/* ------------------------------------------------------------------ Voucher purpose (VAT treatment) */
 
 	/**
@@ -496,6 +612,13 @@ final class Checkout {
 	/** Purpose stated in provider data (common keys, also nested in quote/reservation/voucher), or null. */
 	public static function purpose_from_data( $data, $depth = 0 ) {
 		if ( ! is_array( $data ) || $depth > 3 ) { return null; }
+		// Contract field of ProviderInterface::quote(): payment = multi-purpose voucher; single and
+		// discount = price reduction (single-purpose voucher / plain discount).
+		if ( isset( $data['treatment'] ) && is_scalar( $data['treatment'] ) ) {
+			$treatment = strtolower( trim( (string) $data['treatment'] ) );
+			if ( 'payment' === $treatment ) { return self::PURPOSE_MULTI; }
+			if ( in_array( $treatment, array( 'single', 'discount' ), true ) ) { return self::PURPOSE_SINGLE; }
+		}
 		foreach ( array( 'purpose', 'voucher_purpose', 'voucher_type', 'tax_type', 'vat_type', 'tax_treatment' ) as $key ) {
 			if ( isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) {
 				$found = self::normalize_purpose( $data[ $key ] );
@@ -543,6 +666,19 @@ final class Checkout {
 		if ( self::PURPOSE_MULTI !== self::snapshot_purpose( $snapshot ) ) { return 0; }
 		if ( 'released' === ( $snapshot['status'] ?? '' ) && 'paid' !== $order->payment_status ) { return 0; }
 		return (int) ( $snapshot['amount_paid_by_voucher'] ?? $snapshot['amount_minor'] ?? 0 );
+	}
+
+	/**
+	 * Value of a single-purpose voucher redeemed on a paid order (booked as a discount on the order,
+	 * VAT was due when the voucher was sold). For ticket service exchanges (free tickets) the stored voucher
+	 * value `face_value_minor` (TicketService::record_voucher()). 0 otherwise.
+	 */
+	public static function single_purpose_minor( $order ) {
+		$order = is_object( $order ) ? $order : Orders::get( absint( $order ) );
+		if ( ! $order || empty( $order->voucher_snapshot ) ) { return 0; }
+		$snapshot = (array) json_decode( (string) $order->voucher_snapshot, true );
+		if ( self::PURPOSE_SINGLE !== self::snapshot_purpose( $snapshot ) || 'released' === ( $snapshot['status'] ?? '' ) ) { return 0; }
+		return max( 0, (int) ( $snapshot['face_value_minor'] ?? $snapshot['applied_minor'] ?? $snapshot['amount_minor'] ?? 0 ) );
 	}
 
 	/** Full gross consideration of an order (amount due + multi-purpose voucher payment). */

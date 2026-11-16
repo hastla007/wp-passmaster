@@ -86,12 +86,29 @@ function w6u_fill( $prefix, array $statements, $rows = 3 ) {
 	return '';
 }
 /** Hash of every column that existed in the old schema, per table. */
+/**
+ * Columns the merged upgrade encrypts at rest in place (Security\Vault::migrate(): webhook signing
+ * secrets, partner payout details). They are compared by "encrypted or empty" instead of their bytes.
+ */
+const W6U_SEALED = array( 'wpcap_webhook_subscriptions' => array( 'secret' ), 'wpcap_partners' => array( 'payout_details' ) );
 function w6u_hashes( $prefix, array $old_columns ) {
 	global $wpdb;
 	$out = array();
 	foreach ( $old_columns as $table => $cols ) {
-		$names = array_map( static fn( $c ) => "`$c`", array_keys( $cols ) );
-		$rows = $wpdb->get_results( "SELECT " . implode( ',', $names ) . " FROM `{$prefix}{$table}` ORDER BY " . implode( ',', $names ), ARRAY_A );
+		$sealed = W6U_SEALED[ $table ] ?? array();
+		$names = array_map( static fn( $c ) => "`$c`", array_diff( array_keys( $cols ), $sealed ) );
+		// The audit log is append-only: migrations of the merged line audit themselves (secrets moved,
+		// legal texts archived); only the rows that existed before the upgrade must stay unchanged.
+		$limit = 'wpcap_audit_logs' === $table ? ' LIMIT ' . ( $GLOBALS['w6u_audit_rows'][ $prefix ] ??= (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$prefix}{$table}`" ) ) : '';
+		$order = 'wpcap_audit_logs' === $table && isset( $cols['audit_id'] ) ? '`audit_id`' : implode( ',', $names );
+		$rows = $wpdb->get_results( "SELECT " . implode( ',', $names ) . " FROM `{$prefix}{$table}` ORDER BY " . $order . $limit, ARRAY_A );
+		foreach ( $sealed as $col ) {
+			if ( isset( $cols[ $col ] ) ) {
+				$values = (array) $wpdb->get_col( "SELECT `$col` FROM `{$prefix}{$table}`" );
+				$out[ "$table.$col" ] = count( $values ) . ':' . count( array_filter( $values, static fn( $v ) => '' !== (string) $v ) );
+				$GLOBALS['w6u_plain'][ $prefix ][ "$table.$col" ] = array_values( array_filter( $values, static fn( $v ) => '' !== (string) $v && ! PassCaptain\Security\Vault::is_encrypted( (string) $v ) ) );
+			}
+		}
 		$out[ $table ] = count( $rows ) . ':' . md5( json_encode( $rows ) );
 	}
 	return $out;
@@ -176,8 +193,9 @@ foreach ( $w6u_cases as list( $file, $db_version, $label, $prefix, $full ) ) {
 			foreach ( array_diff_key( $c, $cols[ $t ] ) as $name => $type ) { $schema_diff[] = "missing $t.$name"; }
 		}
 		$ok = is_array( $result ) && empty( $result['error'] ) && empty( $result['dbdelta_errors'] ) && $result['version'] === $result['expected'];
-		check( "$what: version current, schema equals a fresh install, no row of " . count( $before ) . ' tables changed', $ok && ! $changed && ! $schema_diff );
-		if ( ! $ok || $changed || $schema_diff ) { echo '         ' . substr( json_encode( array( 'result' => $result, 'changed' => array_slice( $changed, 0, 5 ), 'schema' => array_slice( $schema_diff, 0, 5 ) ) ), 0, 600 ) . "\n"; }
+		$plain = array_filter( (array) ( $GLOBALS['w6u_plain'][ $prefix ] ?? array() ) );
+		check( "$what: version current, schema equals a fresh install, no row of " . count( $old_columns ) . ' tables changed (secret columns encrypted at rest)', $ok && ! $changed && ! $schema_diff && ! $plain );
+		if ( ! $ok || $changed || $schema_diff ) { echo '         ' . substr( json_encode( array( 'result' => $result, 'changed' => array_slice( $changed, 0, 5 ), 'plaintext' => array_keys( $plain ), 'schema' => array_slice( $schema_diff, 0, 5 ) ) ), 0, 600 ) . "\n"; }
 	};
 
 	if ( $full ) {

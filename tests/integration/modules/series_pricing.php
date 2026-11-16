@@ -134,12 +134,15 @@ if ( ! function_exists( 'locate_template' ) ) { function locate_template( $t ) {
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) {} }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 if ( ! function_exists( 'wpautop' ) ) { function wpautop( $t ) { return '<p>' . $t . '</p>'; } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr_e' ) ) { function esc_attr_e( $t, $d = null ) { echo esc_attr( $t ); } }
 if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = $a == $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
 try {
 	$html = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 	$pos_card = strpos( $html, 'id="wpcap-' . $occ3 . '-' . $s3['types'][ $occ3 ]['Student'] . '"' );
-	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student</span> — <span class="wpcap-type-price">9,00 €' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
+	// Merged templates/event-card.php: "Name — <span class="wpcap-type-price">price</span>" (A456/A458), regular price in .wpcap-base-price.
+	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, '<small class="wpcap-base-price">statt 15,00 €</small>' ) && false === strpos( $html, 'Student</span> — ' ) && false !== strpos( $html, 'data-price="900"' ) );
+	check( 'event page shows the effective price, label, regular price and data-price (price in its own span)', false !== $pos_card && false !== strpos( $html, 'Student — <span class="wpcap-type-price">9,00 €</span>' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
 } catch ( \Throwable $e ) {
 	check( 'event page renders (' . $e->getMessage() . ')', false );
 }

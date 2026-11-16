@@ -58,8 +58,8 @@ final class CheckinsPage {
 	public static function render() {
 		if ( ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$scope = Queries::event_ids_for( self::VIEW_CAPS );
-		$events = Queries::event_options( $scope );
 		$event_id = absint( Forms::query_arg( 'event_id', 0 ) );
+		$events = Queries::event_options( $scope, array( $event_id ) );
 		if ( $event_id && ! isset( $events[ $event_id ] ) ) { $event_id = 0; }
 		$results = Queries::checkin_results();
 		$result = in_array( Forms::query_arg( 'result' ), $results, true ) ? Forms::query_arg( 'result' ) : '';
@@ -67,19 +67,24 @@ final class CheckinsPage {
 		$date_to = Forms::query_arg( 'date_to' );
 		$timezone = wp_timezone_string();
 		if ( $event_id ) {
-			$occurrences = Queries::occurrences_for_event( $event_id );
-			if ( $occurrences ) { $timezone = $occurrences[0]->timezone; }
+			$last = Queries::last_occurrence( $event_id ); // A476: one row, not every date of the event.
+			if ( $last ) { $timezone = $last->timezone; }
 		}
+		// Presence panel: the first 50 dates of the selected event (render_presence() lists at most 50).
+		$occurrences = $event_id ? Queries::occurrences_for_event( $event_id, 50 ) : array();
 		list( $from_utc, $to_utc ) = self::date_bounds( $date_from, $date_to, $timezone );
 		$page = Forms::current_page();
 		$per_page = 50;
 		$data = Queries::checkin_log( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $from_utc, 'date_to' => $to_utc ), $scope, $page, $per_page );
+		\PassCaptain\Privacy\AccessLog::list_view( 'checkin_list', array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => $page ), count( $data['rows'] ) );
 		$result_options = array( '' => __( 'Alle Ergebnisse', 'pass-captain' ) );
 		foreach ( $results as $r ) { $result_options[ $r ] = \PassCaptain\Admission\ConflictsPage::result_label( $r ); }
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $date_from, 'date_to' => $date_to ) ) );
 		?>
 		<div class="wrap wpcap-admin">
-		<h1><?php esc_html_e( 'Check-ins', 'pass-captain' ); ?></h1>
+		<h1 class="wp-heading-inline"><?php esc_html_e( 'Check-ins', 'pass-captain' ); ?></h1>
+		<?php if ( current_user_can( 'wpcap_checkin' ) ) : ?> <a class="page-title-action" href="<?php echo esc_url( Forms::page_url( ScannerPage::SLUG ) ); ?>"><?php esc_html_e( 'Web-Scanner öffnen', 'pass-captain' ); ?></a><?php endif; ?>
+		<hr class="wp-header-end">
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id, '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
@@ -89,6 +94,7 @@ final class CheckinsPage {
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 			<span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Datum und Uhrzeit in %s', 'pass-captain' ), $timezone ) ); ?></span>
 		</form>
+		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>
 		<?php if ( $event_id && ! empty( $occurrences ) ) { self::render_presence( $event_id, $occurrences ); } ?>
 		<table class="widefat striped">
 			<thead><tr>

@@ -79,7 +79,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$fis = is_array( $trac['Fis'] ?? null ) ? $trac['Fis'] : array();
 		$reference = (string) ( $transaction['FN'] ?? $fis['FN'] ?? $transaction['TN'] ?? '' );
 		if ( '' === $reference ) { return new \WP_Error( 'efsta_void_reference_missing', __( 'efsta hat das Storno angenommen, aber keine Referenz geliefert; Vorgang muss abgeglichen werden.', 'pass-captain' ) ); }
-		return array( 'reference' => substr( sanitize_text_field( $reference ), 0, 191 ) );
+		return array( 'reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ) );
 	}
 
 	private function register( array $document, array $seller, array $configuration, $path ) {
@@ -164,7 +164,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 	}
 
 	private function endpoint( array $configuration, $path ) {
-		$base = rtrim( (string) ( $configuration['endpoint_url'] ?? '' ), '/' );
+		$base = rtrim( trim( (string) ( $configuration['endpoint_url'] ?? $configuration['base_url'] ?? '' ) ), '/' ); // base_url: key of the earlier HttpClient-based adapter.
 		if ( '' === $base ) { return new \WP_Error( 'efsta_endpoint_missing', __( 'Die efsta EFR-Endpunktadresse muss konfiguriert werden.', 'pass-captain' ) ); }
 		return $base . '/' . ltrim( $path, '/' );
 	}

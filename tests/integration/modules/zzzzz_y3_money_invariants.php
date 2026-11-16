@@ -148,8 +148,14 @@ foreach ( array( 'EUR' => array( 10000, 4500 ), 'JPY' => array( 3000, 1300 ) ) a
 			$pid = is_array( $pid ) ? (int) $pid['partner_id'] : (int) $pid;
 			Y3Partners::set_events( $pid, array( $ev ) );
 			$tt = Y3Settlements::compute( Y3Partners::get( $pid ), $y3_month )['totals'];
-			if ( (int) $tt['sales_gross'] !== $cash_paid + $multi_voucher ) { $y3_failures[] = "$label: settlement sales {$tt['sales_gross']} ≠ till " . ( $cash_paid + $multi_voucher ); }
-			if ( (int) $tt['refunded'] !== $cash_paid + $multi_voucher || 0 !== (int) $tt['gross'] ) { $y3_failures[] = "$label: settlement refunded {$tt['refunded']}, gross {$tt['gross']} (expected all back, 0)"; }
+			// Merged design: a single-purpose voucher is a claim of the organizer against the voucher seller and
+			// is settled as its own line ("voucher"), so the organizer's sales = till + voucher value; the ticket
+			// sale lines themselves carry the amount after the voucher.
+			$single_voucher = 'single' === $y3_vmode ? $voucher : 0;
+			$sale_lines = (int) ( $tt['kinds']['sale']['gross'] ?? 0 ) + (int) ( $tt['kinds']['late_sale']['gross'] ?? 0 );
+			if ( $sale_lines !== $cash_paid + $multi_voucher ) { $y3_failures[] = "$label: settlement sale lines $sale_lines ≠ till " . ( $cash_paid + $multi_voucher ); }
+			if ( (int) $tt['sales_gross'] !== $cash_paid + $multi_voucher + $single_voucher ) { $y3_failures[] = "$label: settlement sales {$tt['sales_gross']} ≠ till + single-purpose voucher " . ( $cash_paid + $multi_voucher + $single_voucher ); }
+			if ( (int) $tt['refunded'] !== $cash_paid + $multi_voucher + $single_voucher || 0 !== (int) $tt['gross'] ) { $y3_failures[] = "$label: settlement refunded {$tt['refunded']}, gross {$tt['gross']} (expected all back, 0)"; }
 		}
 	}
 }
@@ -209,7 +215,7 @@ $f_pid = Y3Partners::save( array( 'name' => 'Y3 fiscal', 'currency' => 'EUR', 'c
 $f_pid = is_array( $f_pid ) ? (int) $f_pid['partner_id'] : (int) $f_pid;
 Y3Partners::set_events( $f_pid, array( $f_ev ) );
 $f_tt = Y3Settlements::compute( Y3Partners::get( $f_pid ), $y3_month )['totals'];
-check( 'invoice lines and partner settlement use the amount after the voucher (12.600, not 18.000)', 12600 === (int) $f_inv_row->total_minor && 12600 === $f_inv_lines && 12600 === (int) $f_tt['sales_gross'] );
+check( 'invoice lines and partner settlement use the amount after the voucher (12.600, not 18.000)', 12600 === (int) $f_inv_row->total_minor && 12600 === $f_inv_lines && 12600 === (int) ( $f_tt['kinds']['sale']['gross'] ?? 0 ) && 5400 === (int) ( $f_tt['kinds']['voucher']['gross'] ?? 0 ) && 18000 === (int) $f_tt['sales_gross'] );
 // A document that may already have reached the provider cannot follow: the voucher is refused.
 $g_r = Orders::create( array( 'email' => 'y3-fiscal2@example.com', 'items' => array( array( 'ticket_type_id' => $f_a, 'quantity' => 1 ) ), 'idempotency_key' => 'y3-f2-' . $f_sfx ), array( 'skip_rate_limit' => true ) );
 $g_oid = (int) $g_r['order_id'];

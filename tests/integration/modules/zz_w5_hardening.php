@@ -36,13 +36,16 @@ $hd_type = make_type( 20, 4, 1000 );
 $hd_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$hd_type" );
 $hd_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$hd_occ" );
 
-// Idempotency: a repeated checkout returns the same order and holds once.
-$body = array( 'email' => 'hd@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 2 ) ), 'idempotency_key' => 'hd-idem-1', 'provider' => 'manual' );
+// Idempotency: a repeated checkout returns the same order and holds once (client keys need >= 16
+// characters since A639 / box office form keys 16-64, merged line).
+$body = array( 'email' => 'hd@example.com', 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 2 ) ), 'idempotency_key' => 'hd-idem-0000000001', 'provider' => 'manual' );
 $a = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', $body ) );
 $b = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', $body ) );
 check( 'repeated checkout request reuses the order (201 then 200) and holds once', 201 === hd_status( $a ) && 200 === hd_status( $b ) && $a->get_data()['reference'] === $b->get_data()['reference'] && 18 === Orders::availability( $hd_type ) );
 $c = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array_merge( $body, array( 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 4 ) ) ) ) ) );
-check( 'same idempotency key with a different body does not create a second order (409, audit QA-1)', is_wp_error( $c ) && 'wpcap_idempotency_mismatch' === $c->get_error_code() && 409 === hd_status( $c ) && 18 === Orders::availability( $hd_type ) );
+// Merged line: a changed cart is refused by Orders::create() already (A420 wpcap_idempotency_conflict, nothing
+// booked); the controller's fingerprint check (QA-1 wpcap_idempotency_mismatch) covers provider changes.
+check( 'same idempotency key with a different body does not create a second order (409, audit QA-1)', is_wp_error( $c ) && in_array( $c->get_error_code(), array( 'wpcap_idempotency_conflict', 'wpcap_idempotency_mismatch' ), true ) && 409 === hd_status( $c ) && 18 === Orders::availability( $hd_type ) );
 
 // Manipulated bodies.
 $before = hd_orders();
@@ -116,13 +119,19 @@ check( 'service booking: repeated request books once', ! is_wp_error( $s1 ) && !
 // POS sale: repeated request and foreign/negative items (admin).
 wpcap_test_reset_transients();
 $pos_type = make_type( 10, 10, 0 );
-$pos_body = array( 'email' => 'hd-pos@example.com', 'items' => array( array( 'ticket_type_id' => $pos_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-pos-1' );
+$pos_body = array( 'email' => 'hd-pos@example.com', 'items' => array( array( 'ticket_type_id' => $pos_type, 'quantity' => 1 ) ), 'idempotency_key' => 'hd-pos-00000000001' );
+// Merged line: the POS route sells through the box office module, which needs an open shift.
+// Cash in DE/AT needs a certified register (wpcap_pos_fiscal_required): the test site confirms one.
+$hd_shift = PassCaptain\BoxOffice\Service::open_session( 0 );
+add_filter( 'wpcap_boxoffice_fiscal_ready', $hd_fiscal_ready = static function () { return true; } );
 $p1 = Controller::pos_sale( hd_json_request( '/x', $pos_body ) );
 $p2 = Controller::pos_sale( hd_json_request( '/x', $pos_body ) );
 check( 'POS sale: repeated request returns the same paid order', ! is_wp_error( $p1 ) && ! is_wp_error( $p2 ) && $p1->get_data()['order_id'] === $p2->get_data()['order_id'] && 201 === hd_status( $p1 ) && 200 === hd_status( $p2 ) );
-$p3 = Controller::pos_sale( hd_json_request( '/x', array_merge( $pos_body, array( 'idempotency_key' => 'hd-pos-neg', 'items' => array( array( 'ticket_type_id' => $pos_type, 'quantity' => -1 ) ) ) ) ) );
-$p4 = Controller::pos_sale( hd_json_request( '/x', array_merge( $pos_body, array( 'idempotency_key' => 'hd-pos-str', 'items' => 'x' ) ) ) );
+$p3 = Controller::pos_sale( hd_json_request( '/x', array_merge( $pos_body, array( 'idempotency_key' => 'hd-pos-neg-0000001', 'items' => array( array( 'ticket_type_id' => $pos_type, 'quantity' => -1 ) ) ) ) ) );
+$p4 = Controller::pos_sale( hd_json_request( '/x', array_merge( $pos_body, array( 'idempotency_key' => 'hd-pos-str-0000001', 'items' => 'x' ) ) ) );
 check( 'POS sale: negative quantity / malformed items are rejected', is_wp_error( $p3 ) && is_wp_error( $p4 ) );
+remove_filter( 'wpcap_boxoffice_fiscal_ready', $hd_fiscal_ready );
+if ( is_object( $hd_shift ) && isset( $hd_shift->session_id ) ) { PassCaptain\BoxOffice\Service::close_session( (int) $hd_shift->session_id, 0 ); }
 
 // Check-in: repeated request with the same idempotency key counts once.
 $ci_type = make_type( 5, 4, 0 );
@@ -142,15 +151,15 @@ $camp = Controller::create_campaign( hd_json_request( '/x', array( 'code' => 'HD
 check( 'campaign: ticket type of another event is rejected', is_wp_error( $camp ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_campaigns WHERE code='HDFOREIGN'" ) );
 
 echo "W5 security: redaction\n";
-Settings::update( array( 'stripe_secret_key' => 'sk_live_HDsecretABCDEFGHIJ123', 'twilio_auth_token' => 'hdTwilioTokenValue0123456789' ) );
-$text = Redact::text( 'key sk_live_HDsecretABCDEFGHIJ123 / tw hdTwilioTokenValue0123456789 / mollie live_abcdefghijklmnopqrstuvwxyz / whsec_abcdefghij1234 / pk wpcap_pk_0123456789ab_' . str_repeat( 'c', 64 ) . ' / dev 0123456789ab.' . str_repeat( 'd', 64 ) . ' / AC' . str_repeat( 'a', 32 ) . ' / Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop / ticket ' . str_repeat( 'e', 64 ) . ' / mail max.mustermann@example.org / url https://x.test/?token=abc123&x=1 / {"client_secret":"hunter2"}' );
+Settings::update( array( 'stripe_secret_key' => 'sk_live_' . 'HDsecretABCDEFGHIJ123', 'twilio_auth_token' => 'hdTwilioTokenValue0123456789' ) );
+$text = Redact::text( 'key sk_live_' . 'HDsecretABCDEFGHIJ123 / tw hdTwilioTokenValue0123456789 / mollie live_abcdefghijklmnopqrstuvwxyz / whsec_abcdefghij1234 / pk wpcap_pk_0123456789ab_' . str_repeat( 'c', 64 ) . ' / dev 0123456789ab.' . str_repeat( 'd', 64 ) . ' / AC' . str_repeat( 'a', 32 ) . ' / Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop / ticket ' . str_repeat( 'e', 64 ) . ' / mail max.mustermann@example.org / url https://x.test/?token=abc123&x=1 / {"client_secret":"hunter2"}' );
 $leaked = array_filter( array( 'sk_live_HDsecret', 'hdTwilioTokenValue', 'abcdefghijklmnopqrstuvwxyz', 'whsec_abcdefghij', str_repeat( 'c', 64 ), str_repeat( 'd', 64 ), str_repeat( 'a', 32 ), 'eyJzdWIi', str_repeat( 'e', 64 ), 'max.mustermann', 'abc123', 'hunter2' ), static fn( $needle ) => false !== strpos( $text, $needle ) );
 check( 'Redact::text removes configured secrets, API keys, tokens, ticket codes, e-mails' . ( $leaked ? ' – leaked: ' . implode( ', ', $leaked ) : '' ), ! $leaked && false !== strpos( $text, 'm***@example.org' ) );
 $data = Redact::data( array( 'password' => 'x', 'Authorization' => 'Basic abc', 'order_id' => 5, 'customer_email' => 'jane@example.com', 'nested' => array( 'response' => '{"access_token":"zzz-secret"}' ), 'ok' => true ) );
 check( 'Redact::data masks sensitive keys and PII, keeps ids and flags', '[redacted]' === $data['password'] && '[redacted]' === $data['Authorization'] && 5 === $data['order_id'] && 'j***@example.com' === $data['customer_email'] && false === strpos( $data['nested']['response'], 'zzz-secret' ) && true === $data['ok'] );
 $GLOBALS['hd_log'] = array();
 add_filter( 'wpcap_error_log', $hd_logger = static function ( $send, $line ) { $GLOBALS['hd_log'][] = $line; return false; }, 10, 2 );
-Redact::log( "Duplicate entry 'jane@example.com' for key with sk_live_HDsecretABCDEFGHIJ123", array( 'token' => 'abc', 'refund_id' => 7 ) );
+Redact::log( "Duplicate entry 'jane@example.com' for key with sk_live_" . "HDsecretABCDEFGHIJ123", array( 'token' => 'abc', 'refund_id' => 7 ) );
 remove_filter( 'wpcap_error_log', $hd_logger );
 check( 'error log lines are redacted (DB errors can quote row values)', 1 === count( $GLOBALS['hd_log'] ) && false === strpos( $GLOBALS['hd_log'][0], 'jane@example.com' ) && false === strpos( $GLOBALS['hd_log'][0], 'HDsecret' ) && false !== strpos( $GLOBALS['hd_log'][0], '"refund_id":7' ) );
 $src_logs = array();

@@ -57,6 +57,17 @@ jobs:
           # Full history so the ancestry check against origin/main works.
           fetch-depth: 0
 
+      # Tag pushes and manual runs: only commits that are on main and passed CI are released
+      # (the workflow_run path is gated by the successful CI run on main itself; build/verify-release.sh
+      # below checks the same again for every trigger).
+      - name: Release guard (commit on main, CI green)
+        if: github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --no-tags origin main
+          bash build/release-guard.sh "$RELEASE_SHA" origin/main "WordPress plugin checks"
+
       - name: Determine tag
         run: |
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
@@ -86,9 +97,18 @@ jobs:
         with:
           php-version: '8.2'
           # Same exact Composer version as ci.yml (COMPOSER_VERSION), so the ZIP is byte-identical.
-          tools: composer:2.8.12
+          # wp-cli: script translations (wp i18n make-json) in build/release.sh.
+          tools: composer:2.8.12, wp-cli
           extensions: mbstring
           coverage: none
+
+      - name: Release gate – all translations complete
+        if: env.SKIP == ''
+        run: php tests/i18n-check.php
+
+      - name: Release gate – manual acceptance record complete (docs/RELEASE.md)
+        if: env.SKIP == ''
+        run: bash build/release-acceptance.sh "${TAG#v}"
 
       - name: Version, changelog and requirement consistency
         if: env.SKIP == ''
@@ -136,7 +156,7 @@ jobs:
           else
             target_args=(--target "$RELEASE_SHA")
           fi
-          gh release create "$TAG" build/dist/pass-captain.zip build/dist/pass-captain.zip.sha256 \
+          gh release create "$TAG" build/dist/pass-captain.zip build/dist/pass-captain.zip.sha256 build/dist/build-info.txt \
             --title "Pass Captain ${TAG}" \
             --notes-file release-notes.md \
             "${target_args[@]}"

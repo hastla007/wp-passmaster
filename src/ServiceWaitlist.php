@@ -269,7 +269,7 @@ final class ServiceWaitlist {
 		if ( $order_id ) {
 			$result = ServiceBookings::attach_order( (int) $booking['booking_id'], $order_id );
 		} else {
-			$result = ServiceBookings::confirm( (int) $booking['booking_id'], array( 'manage_token' => (string) ( $booking['manage_token'] ?? '' ) ) );
+			$result = ServiceBookings::confirm( (int) $booking['booking_id'], array( 'actor' => 'system', 'manage_token' => (string) ( $booking['manage_token'] ?? '' ) ) );
 		}
 		return array( 'status' => 'accepted', 'booking' => is_wp_error( $result ) ? ServiceBookings::state( ServiceBookings::get( (int) $booking['booking_id'] ) ) : $result, 'order_id' => $order_id );
 	}
@@ -353,6 +353,6 @@ final class ServiceWaitlist {
 	}
 
 	private static function busy() {
-		return new \WP_Error( 'wpcap_db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return \PassCaptain\Errors::busy();
 	}
 }

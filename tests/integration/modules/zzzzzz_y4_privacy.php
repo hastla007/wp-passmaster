@@ -174,7 +174,9 @@ check( 'PRIV-1: its ticket assignment loses buyer e-mail and attendee data', $y4
 check( 'PRIV-1: invoices are not changed by the retention run', '{"email":"y4-2014@example.com"}' === $wpdb->get_var( "SELECT buyer_snapshot FROM {$p}wpcap_invoices WHERE invoice_number='Y4-OLD-1'" ) );
 check( 'PRIV-1: orders of this year keep e-mail and billing', 'y4-thisyear@example.com' === Orders::get( $y4new['order_id'] )->customer_email && '{"name":"Nina"}' === Orders::get( $y4new['order_id'] )->billing );
 $y4w = static fn( $id ) => $wpdb->get_row( "SELECT email,email_hash,manage_token_hash,status FROM {$p}wpcap_waitlist WHERE waitlist_id=$id" );
-check( 'PRIV-1: event waitlist entry pseudonymised 30 days after its occurrence, tokens cleared', Privacy::is_placeholder_email( $y4w( $y4wl_past )->email ) && '' === $y4w( $y4wl_past )->manage_token_hash && 'expired' === $y4w( $y4wl_past )->status );
+// Merged: the event waitlist anonymises itself (Waitlists::retention_step, Arbeitsliste line): the address is emptied
+// (not replaced by a placeholder), tokens are cleared and the entry no longer waits.
+check( 'PRIV-1: event waitlist entry pseudonymised 30 days after its occurrence, tokens cleared', ( '' === $y4w( $y4wl_past )->email || Privacy::is_placeholder_email( $y4w( $y4wl_past )->email ) ) && '' === $y4w( $y4wl_past )->manage_token_hash && ! in_array( $y4w( $y4wl_past )->status, array( 'waiting', 'offered' ), true ) );
 check( 'PRIV-1: waitlist entry of an upcoming occurrence is kept', 'y4-wait-future@example.com' === $y4w( $y4wl_future )->email );
 check( 'PRIV-1: appointment waitlist entry pseudonymised after the slot', Privacy::is_placeholder_email( $wpdb->get_var( "SELECT email FROM {$p}wpcap_service_waitlist WHERE entry_id=$y4sw" ) ) );
 $y4be = static fn( $id ) => $wpdb->get_var( "SELECT customer_email FROM {$p}wpcap_service_bookings WHERE booking_id=$id" );
@@ -197,11 +199,13 @@ check( 'PRIV-1: setting retention_waitlist_days = 0 disables the waitlist step',
 $y4policy_off = PolicyText::content();
 Settings::update( array( 'retention_waitlist_days' => 30 ) );
 $y4policy = PolicyText::content();
-check( 'PRIV-1: policy text names waitlist, pass and order periods from the settings', false !== strpos( $y4policy, 'Wartelisteneinträge anonymisieren wir 30 Tage' ) && false !== strpos( $y4policy, '365 Tage nach dem Ende ihrer Gültigkeit' ) && false !== strpos( $y4policy, '10 Jahre nach dem Ende des Bestelljahres' ) && false === strpos( $y4policy_off, 'Wartelisteneinträge anonymisieren' ) );
+check( 'PRIV-1: policy text names waitlist, pass and order periods from the settings', false !== strpos( $y4policy, 'Wartelisteneintrags löschen wir 30 Tage' ) && false !== strpos( $y4policy, '365 Tage nach dem Ende ihrer Gültigkeit' ) && false !== strpos( $y4policy, '10 Jahre nach dem Ende des Bestelljahres' ) && false === strpos( $y4policy_off, 'Wartelisteneintrags löschen wir' ) );
 check( 'PRIV-1: settings page offers the retention periods', isset( PassCaptain\Admin\SettingsPage::field_definitions()['privacy']['fields']['retention_order_years'], PassCaptain\Admin\SettingsPage::field_definitions()['privacy']['fields']['retention_waitlist_days'], PassCaptain\Admin\SettingsPage::field_definitions()['privacy']['fields']['retention_pass_days'] ) );
 
 /* ================================================================== PRIV-4 */
 echo "Y4 privacy: PRIV-4 wallet passes lose the name\n";
+// The wallet module listens to erasure/retention (registered by Modules\Wallet when active).
+if ( false === has_action( 'wpcap_privacy_attendees_cleared', array( Y4WalletService::class, 'on_attendees_cleared' ) ) ) { Y4WalletService::register(); }
 if ( ! class_exists( 'Y4_Google' ) ) {
 	class Y4_Google extends GoogleProvider {
 		public array $calls = array();
@@ -209,7 +213,9 @@ if ( ! class_exists( 'Y4_Google' ) ) {
 	}
 }
 $y4g = new Y4_Google();
-$y4g->update_pass( array( 'public_id' => 'abc', 'generation' => 1, 'occurrence_id' => 1, 'ticket_name' => 'Std', 'voided' => true, 'code' => null, 'seat' => '', 'attendee_name' => '' ), array( 'serial_number' => 'y4.serial' ) );
+// Merged (A566/A619): only passes the buyer saved at Google are updated (remote_at), an invalid one is replaced (PUT);
+// a valid pass whose holder name was cleared is patched.
+$y4g->update_pass( array( 'public_id' => 'abc', 'generation' => 1, 'occurrence_id' => 1, 'ticket_name' => 'Std', 'voided' => false, 'code' => str_repeat( 'a', 64 ), 'seat' => '', 'attendee_name' => '' ), array( 'serial_number' => 'y4.serial', 'remote_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 check( 'PRIV-4: Google PATCH sends an empty ticketHolderName (PATCH keeps omitted fields)', 'PATCH' === ( $y4g->calls[0][0] ?? '' ) && array_key_exists( 'ticketHolderName', $y4g->calls[0][2] ?? array() ) && '' === $y4g->calls[0][2]['ticketHolderName'] );
 $y4wt2 = make_type( 20, 10, 0 );
 $y4wo = y4_order( $y4wt2, 'y4-walletbuyer@example.com', array( array( 'Wanda Wallet', 'y4-wanda@example.com' ) ) );
@@ -297,16 +303,25 @@ check( 'PRIV-7: WooCommerce order eraser removes the attendee copy', '' === $y4w
 /* ================================================================== PRIV-8 */
 echo "Y4 privacy: PRIV-8 keyed rate-limit hashes\n";
 $y4src = '';
-foreach ( array( 'src/Seats.php', 'src/Waitlists.php', 'src/ServiceBookings.php', 'src/ServiceWaitlist.php', 'src/Services/Api.php', 'src/Partners/Keys.php', 'src/Sales/BuyerLimits.php' ) as $y4file ) { $y4src .= file_get_contents( WPCAP_PATH . $y4file ); }
+foreach ( array( 'src/Waitlists.php', 'src/ServiceBookings.php', 'src/ServiceWaitlist.php', 'src/Services/Api.php', 'src/Partners/Keys.php', 'src/Sales/BuyerLimits.php' ) as $y4file ) { $y4src .= file_get_contents( WPCAP_PATH . $y4file ); }
 // Transient/lock names built from an unkeyed hash ('wpcap_x_' . hash( 'sha256', … ) or md5( … )) and the buyer lock name.
 check( 'PRIV-8: no unkeyed sha256/md5 of e-mail or IP addresses for counters and locks', ! preg_match( '/\'(wpcap|partner)_[a-z_]+\' \. (hash\( \'sha256\'|md5\()/', $y4src ) && false === strpos( $y4src, "substr( hash( 'sha256', self::normalize_email( \$email ) )" ) );
 check( 'PRIV-8: RateLimit::hash is keyed (differs from plain sha256)', RateLimit::hash( 'a@example.com' ) !== hash( 'sha256', 'a@example.com' ) && 64 === strlen( RateLimit::hash( 'a@example.com' ) ) );
 $y4seat_before = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', RateLimit::table() ) );
 $y4ip = '203.0.113.' . random_int( 10, 200 );
 $_SERVER['REMOTE_ADDR'] = $y4ip;
+// Merged RateLimit: every counter row is keyed by RateLimit::hash() of the bucket name (which itself carries the
+// keyed client hash and the window); the counters are observed on the database backend.
+$y4backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'db';
 PassCaptain\Waitlists::join( y4_event( $y4wf ), y4_occ( $y4wf ), $y4wf, 'y4-ratelimit@example.com' );
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $y4backend;
 $y4new_keys = array_values( array_diff( $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', RateLimit::table() ) ), $y4seat_before ) );
-check( 'PRIV-8: waitlist rate-limit counters use keyed hashes (bucket = RateLimit::hash of a keyed name)', 3 === count( $y4new_keys ) && in_array( RateLimit::hash( 'wpcap_waitlist_ip_' . RateLimit::hash( $y4ip . '|' . y4_event( $y4wf ) ) ), $y4new_keys, true ) && ! in_array( hash( 'sha256', $y4ip . '|' . y4_event( $y4wf ) ), $y4new_keys, true ) && ! in_array( RateLimit::hash( 'wpcap_waitlist_' . hash( 'sha256', 'y4-ratelimit@example.com|' . y4_event( $y4wf ) ) ), $y4new_keys, true ) );
+$y4plain = array();
+foreach ( array( $y4ip, 'y4-ratelimit@example.com' ) as $y4v ) {
+	foreach ( array( $y4v, $y4v . '|' . y4_event( $y4wf ), 'waitlist|' . $y4v . '|' . y4_event( $y4wf ), 'wpcap_waitlist_ip_' . $y4v ) as $y4n ) { $y4plain[] = hash( 'sha256', $y4n ); $y4plain[] = md5( $y4n ); }
+}
+check( 'PRIV-8: waitlist rate-limit counters use keyed hashes (no counter row is a plain hash of the address or e-mail)', count( $y4new_keys ) >= 2 && ! array_intersect( $y4new_keys, $y4plain ) && ! array_filter( $y4new_keys, static fn( $k ) => false !== strpos( (string) $k, '203.0.113' ) ) );
 check( 'PRIV-8: policy text names HTTP/JSON connectors with names', ! PolicyText::recipients()['webhooks'] || false !== strpos( PolicyText::content(), 'HTTP/JSON' ) );
 $y4filter = static fn( $r ) => array_merge( $r, array( 'webhooks' => true, 'fiscal' => true ) );
 $GLOBALS['wpcap_test_hooks']['wpcap_privacy_policy_recipients'][10][] = array( $y4filter, 1 );

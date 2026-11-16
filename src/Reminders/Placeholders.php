@@ -18,6 +18,7 @@ final class Placeholders {
 			'{old_date}' => __( 'Bisheriges Datum und Uhrzeit (Verschiebung)', 'pass-captain' ),
 			'{refund_note}' => __( 'Hinweis auf den Erstattungsantrag mit Frist (Verschiebung; leer, wenn ausgeschaltet)', 'pass-captain' ),
 			'{ics_url}' => __( 'Link zur Kalenderdatei', 'pass-captain' ),
+			'{ticket_links}' => __( 'Persönliche Ticketlinks der Empfängerin bzw. des Empfängers (Erinnerung)', 'pass-captain' ),
 			'{site}' => __( 'Name der Website', 'pass-captain' ),
 		);
 	}
@@ -33,8 +34,9 @@ final class Placeholders {
 		$dt->setTimezone( $tz );
 		return array(
 			'event' => (string) $occ->event_name,
-			'date' => $dt->format( 'd.m.Y' ),
-			'time' => $dt->format( 'H:i' ),
+			// A384: formats (and month names) of the mail's language.
+			'date' => wp_date( \PassCaptain\Frontend\Format::date_format(), $dt->getTimestamp(), $tz ),
+			'time' => wp_date( \PassCaptain\Frontend\Format::time_format(), $dt->getTimestamp(), $tz ),
 			'timezone' => (string) $occ->timezone,
 			'location' => (string) $occ->location,
 			'ics_url' => \PassCaptain\Calendar\Ics::occurrence_url( (int) $occ->occurrence_id ),

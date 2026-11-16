@@ -53,7 +53,7 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 			if ( isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) { $fields[ $label ] = (string) $data[ $key ]; }
 		}
 		if ( $fields ) { $receipt['fields'] = $fields; }
-		return array( 'reference' => substr( sanitize_text_field( $reference ), 0, 191 ), 'receipt' => $receipt );
+		return array( 'reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ), 'receipt' => $receipt );
 	}
 
 	private function cash_register_id( array $configuration ) {

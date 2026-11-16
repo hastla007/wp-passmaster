@@ -8,3 +8,5 @@ tests/a11y/report/
 /.claude/worktrees/
 /build/.phpstan-cache/
 tests/e2e/artifacts/
+/node_modules/
+tests/upgrade/.wordpress/

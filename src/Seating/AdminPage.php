@@ -53,6 +53,7 @@ final class AdminPage {
 	}
 
 	public static function handle_save() {
+		Forms::require_any_cap( array( Layouts::CAP ) ); // A145: no lookup before the capability check.
 		$in = Forms::post();
 		$layout_id = Forms::int( $in, 'layout_id' );
 		Forms::verify( 'wpcap_seating_save_' . $layout_id );
@@ -66,6 +67,7 @@ final class AdminPage {
 	}
 
 	public static function handle_link() {
+		Forms::require_any_cap( array( Layouts::CAP ) ); // A145: no lookup before the capability check.
 		$in = Forms::post();
 		Forms::verify( 'wpcap_seating_link' );
 		Forms::finish( self::link( $in ), __( 'Saalplan mit dem Termin verknüpft.', 'pass-captain' ), self::url( array( 'layout_id' => Forms::int( $in, 'layout_id' ) ) ) );
@@ -155,6 +157,32 @@ final class AdminPage {
 			'category' => __( 'Kategorie', 'pass-captain' ),
 			'none' => __( '— keine —', 'pass-captain' ),
 			'seats' => __( 'Plätze', 'pass-captain' ),
+			'zones' => __( 'Bereiche', 'pass-captain' ),
+			'categories' => __( 'Kategorien', 'pass-captain' ),
+			'standingAreas' => __( 'Stehbereiche', 'pass-captain' ),
+			'tools' => __( 'Werkzeuge', 'pass-captain' ),
+			'map' => __( 'Saalplan', 'pass-captain' ),
+			'add' => __( 'Hinzufügen', 'pass-captain' ),
+			'defaults' => __( 'Standard für neue Plätze', 'pass-captain' ),
+			'spacing' => __( 'Abstand', 'pass-captain' ),
+			'startNumber' => __( 'ab Nr.', 'pass-captain' ),
+			'rows' => __( 'Reihen', 'pass-captain' ),
+			'capacity' => __( 'Kapazität', 'pass-captain' ),
+			'color' => __( 'Farbe', 'pass-captain' ),
+			'remove' => __( 'Entfernen', 'pass-captain' ),
+			'name' => __( 'Name', 'pass-captain' ),
+			'stage' => __( 'Bühne', 'pass-captain' ),
+			'width' => __( 'Breite', 'pass-captain' ),
+			'height' => __( 'Höhe', 'pass-captain' ),
+			'apply' => __( 'Übernehmen', 'pass-captain' ),
+			'delete' => __( 'Löschen', 'pass-captain' ),
+			'seat' => __( 'Platz', 'pass-captain' ),
+			'renumber' => __( 'Neu nummerieren ab (leer = nein)', 'pass-captain' ),
+			'accessible' => __( 'rollstuhlgerecht', 'pass-captain' ),
+			'companion' => __( 'Begleitplatz (nur mit Rollstuhlplatz)', 'pass-captain' ),
+			/* translators: %s: list name (zone or category) */
+			'addNamed' => __( '%s hinzufügen', 'pass-captain' ),
+			'help' => __( 'Klicken wählt einen Platz, Umschalt+Klick erweitert die Auswahl, Doppelklick wählt die ganze Gruppe. Ziehen oder Pfeiltasten verschieben (Umschalt: 1 px), Entf löscht, Esc hebt die Auswahl auf.', 'pass-captain' ),
 		);
 		echo '<div id="wpcap-seat-editor" class="wpcap-seat-editor" data-draft="' . esc_attr( $layout->draft ) . '" data-locked="' . esc_attr( wp_json_encode( (object) $locked ) ) . '" data-i18n="' . esc_attr( wp_json_encode( $i18n ) ) . '">';
 		echo '<noscript><p>' . esc_html__( 'Der grafische Editor benötigt JavaScript.', 'pass-captain' ) . '</p></noscript></div>';
@@ -201,7 +229,10 @@ final class AdminPage {
 		foreach ( array( 'zones' => __( 'Bereich', 'pass-captain' ), 'categories' => __( 'Kategorie', 'pass-captain' ) ) as $list => $label ) {
 			foreach ( (array) ( $definition[ $list ] ?? array() ) as $item ) { $keys[ $item['key'] ] = $label . ': ' . $item['name']; }
 		}
-		foreach ( Queries::occurrences_for_event( $layout->event_id ) as $occurrence ) {
+		// A476: a bounded window of dates (next ones, or from the chosen day) instead of every date.
+		$window = Queries::occurrence_window( (int) $layout->event_id, array(), Forms::query_arg( 'occ_from' ) );
+		Forms::occurrence_window_filter( $window, self::SLUG, array( 'layout_id' => (int) $layout->layout_id ) );
+		foreach ( $window['rows'] as $occurrence ) {
 			$link = Layouts::link( $occurrence->occurrence_id );
 			$mapping = Layouts::type_zones( $occurrence->occurrence_id );
 			echo '<div class="wpcap-seating-link"><h3>' . esc_html( Forms::datetime( $occurrence->starts_at, $occurrence->timezone ) ) . ( $occurrence->location ? ' · ' . esc_html( $occurrence->location ) : '' ) . '</h3>';

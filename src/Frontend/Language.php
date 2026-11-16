@@ -98,6 +98,6 @@ final class Language {
 			wp_die( esc_html( $result->get_error_message() ), '', array( 'response' => (int) ( $result->get_error_data()['status'] ?? 400 ) ) );
 		}
 		wp_safe_redirect( add_query_arg( array( 'wpcap_order' => (string) $result['order']->public_id, 'wpcap_access' => preg_replace( '/[^a-f0-9]/', '', strtolower( $token ) ) ), home_url( '/' ) ) );
-		exit;
+		\PassCaptain\Http::end();
 	}
 }

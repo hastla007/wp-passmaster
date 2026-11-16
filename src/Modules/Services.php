@@ -28,7 +28,7 @@ final class Services {
 		add_action( 'wpcap_tickets_issued', array( ServiceBookings::class, 'on_order_paid' ), 30, 1 );
 		add_action( 'wpcap_order_cancelled', array( ServiceBookings::class, 'on_order_cancelled' ), 20, 1 );
 		add_action( 'wpcap_ticket_checked_in', array( ServiceBookings::class, 'on_ticket_checked_in' ), 20, 1 );
-		add_filter( 'wp_pass_captain_process_job_v1', array( ServiceBookings::class, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( ServiceBookings::class, 'handle_job' ), 10, 3 );
 		// Before the job worker runs: deadlines, no-shows, expired offers (each queues follow-up work).
 		add_action( 'wpcap_process_jobs', array( __CLASS__, 'sweep' ), 5, 0 );
 		Waitlists::register();

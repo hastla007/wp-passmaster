@@ -2,7 +2,8 @@
 /**
  * Creates (or reuses) the data the accessibility run needs in a disposable WordPress install and
  * prints the URLs as JSON: an event with a paid, a free (with participant field) and a sold-out
- * ticket type, a free order (ticket page + order portal link) and a waitlist offer link.
+ * ticket type, a free order (ticket page + order portal link), a waitlist offer link and a service
+ * booking page (A268: free and paid resource with slots).
  *
  * Usage: php tests/a11y/fixture.php /path/to/wordpress
  * NEVER run this against a production site: it creates orders, tickets and waitlist entries.
@@ -73,11 +74,15 @@ foreach ( $mails as $mail ) {
 }
 
 // Waitlist: join the sold-out type and offer the place.
+// The fixture joins directly (no double opt-in mail round trip, A564).
+add_filter( 'wpcap_waitlist_double_opt_in', '__return_false' );
 Waitlists::join( $event, $occ, $by_name['Ausverkauft'], 'a11y-wait-' . bin2hex( random_bytes( 3 ) ) . '@example.com' );
 // Double opt-in (default on): confirm the sign-up with the link from the confirmation mail.
 foreach ( $mails as $mail ) {
 	if ( preg_match( '#wpcap_waitlist_confirm=(\d+)(?:&amp;|&)token=([a-f0-9]{64})#', (string) ( $mail['message'] ?? '' ), $m ) ) { Waitlists::confirm( (int) $m[1], $m[2] ); }
 }
+// Offers hold inventory: free one unit for the offer (the type stays sold out while it is held).
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_types SET capacity=capacity+1 WHERE ticket_type_id=%d", $by_name['Ausverkauft'] ) );
 $offer = Waitlists::offer_next( $event, $by_name['Ausverkauft'] );
 $waitlist_url = '';
 foreach ( $mails as $mail ) {
@@ -121,13 +126,46 @@ $list_page = (int) $wpdb->get_var( "SELECT ID FROM {$wpdb->posts} WHERE post_typ
 if ( ! $list_page ) {
 	$list_page = (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Terminliste', 'post_name' => 'pc-events-list', 'post_content' => '[wp_pass_captain_events layout="list"]' ) );
 }
-$pages = $wpdb->get_results( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND (post_content LIKE '%[wp_pass_captain_events]%' OR post_content LIKE '%[wp_pass_captain_scanner%')" );
-$events_url = $scanner_url = '';
-foreach ( $pages as $page ) {
-	if ( ! $events_url && false !== strpos( $page->post_content, '[wp_pass_captain_events' ) ) { $events_url = get_permalink( $page->ID ); }
-	if ( ! $scanner_url && false !== strpos( $page->post_content, '[wp_pass_captain_scanner' ) ) { $scanner_url = get_permalink( $page->ID ); }
+// Service slots (A268): event with a free and a paid resource, slots over the next days.
+$service_slug = 'a11y-service-event';
+$service_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE slug=%s", $service_slug ) );
+if ( ! $service_event ) {
+	$wpdb->insert( "{$p}wpcap_events", array( 'name' => 'Barrierefreiheit Bootsschule', 'slug' => $service_slug, 'description' => 'Fahrstunden zum Prüfen der Terminbuchung.', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
+	$service_event = (int) $wpdb->insert_id;
+	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $service_event, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 90 * DAY_IN_SECONDS ), 'timezone' => 'Europe/Vienna', 'location' => 'Hafen', 'capacity' => 0, 'status' => 'scheduled' ) );
+	$service_occ = (int) $wpdb->insert_id;
+	$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $service_occ, 'name' => 'Fahrstunde', 'price_minor' => 4500, 'currency' => 'EUR', 'capacity' => 0, 'max_per_order' => 4, 'status' => 'active' ) );
+	$service_type = (int) $wpdb->insert_id;
+	wp_set_current_user( 1 );
+	$free_res = \PassCaptain\ServiceBookings::create_resource( $service_event, array( 'name' => 'Schnuppersegeln', 'capacity' => 4, 'cancel_hours' => 24 ) );
+	$paid_res = \PassCaptain\ServiceBookings::create_resource( $service_event, array( 'name' => 'Motorboot', 'capacity' => 2, 'ticket_type_id' => $service_type ) );
+	wp_set_current_user( 0 );
+}
+// Keep a few future slots per resource (fixture reruns add new ones when the old ones have passed).
+foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT resource_id FROM {$p}wpcap_resources WHERE event_id=%d", $service_event ) ) as $svc_resource_id ) {
+	$future = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_service_slots WHERE resource_id=%d AND starts_at>%s", $svc_resource_id, gmdate( 'Y-m-d H:i:s', time() + 2 * DAY_IN_SECONDS ) ) );
+	// Two weeks with slots, so the week navigation has somewhere to go.
+	foreach ( array( 3, 4, 5, 10, 11, 12, 13, 14 ) as $day ) {
+		if ( $future >= 6 ) { break; }
+		$start = strtotime( gmdate( 'Y-m-d', time() + $day * DAY_IN_SECONDS ) . ' 08:00:00 UTC' );
+		if ( $wpdb->get_var( $wpdb->prepare( "SELECT slot_id FROM {$p}wpcap_service_slots WHERE resource_id=%d AND starts_at=%s", $svc_resource_id, gmdate( 'Y-m-d H:i:s', $start ) ) ) ) { continue; }
+		$future++;
+		$wpdb->insert( "{$p}wpcap_service_slots", array( 'resource_id' => (int) $svc_resource_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $start + HOUR_IN_SECONDS ), 'capacity' => 4, 'status' => 'open' ) );
+	}
 }
 
+$pages = $wpdb->get_results( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND (post_content LIKE '%_events%' OR post_content LIKE '%_scanner%' OR post_content LIKE '%wpcap_service_booking%')" );
+$events_url = $scanner_url = $service_url = '';
+foreach ( $pages as $page ) {
+	if ( ! $events_url && preg_match( '/\[(wp_pass_captain|wpcap)_events/', $page->post_content ) && false === strpos( $page->post_content, 'layout="list"' ) ) { $events_url = get_permalink( $page->ID ); }
+	if ( ! $scanner_url && preg_match( '/\[(wp_pass_captain|wpcap)_scanner/', $page->post_content ) ) { $scanner_url = get_permalink( $page->ID ); }
+	if ( ! $service_url && false !== strpos( $page->post_content, '[wpcap_service_booking event="' . $service_event . '"]' ) ) { $service_url = get_permalink( $page->ID ); }
+}
+
+// Fresh installs (CI): create the pages with the shortcodes once.
+if ( ! $events_url ) { $events_url = get_permalink( wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Tickets', 'post_content' => '[wpcap_events]' ) ) ); }
+if ( ! $service_url ) { $service_url = get_permalink( wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Termine', 'post_content' => '[wpcap_service_booking event="' . $service_event . '"]' ) ) ); }
+if ( ! $scanner_url ) { $scanner_url = get_permalink( wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Scanner', 'post_content' => '[wpcap_scanner]' ) ) ); }
 echo wp_json_encode( array(
 	'event_id' => $event,
 	'occurrence_id' => $occ,
@@ -136,6 +174,8 @@ echo wp_json_encode( array(
 	'events_url' => $events_url,
 	'events_list_url' => $list_page ? get_permalink( $list_page ) : '',
 	'scanner_url' => $scanner_url,
+	'service_event_id' => $service_event,
+	'service_url' => $service_url,
 	'ticket_url' => $ticket_url,
 	'portal_url' => $portal_url,
 	'waitlist_url' => $waitlist_url,

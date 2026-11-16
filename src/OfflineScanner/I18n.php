@@ -71,7 +71,7 @@ final class I18n {
 			$language = strtolower( strtok( $locale, '_' ) );
 			if ( ! isset( $by_language[ $language ] ) ) { $by_language[ $language ] = $locale; }
 		}
-		foreach ( array_slice( explode( ',', substr( (string) $requested, 0, 200 ) ), 0, 10 ) as $tag ) {
+		foreach ( array_slice( explode( ',', \PassCaptain\Text::cut( (string) $requested, 200 ) ), 0, 10 ) as $tag ) {
 			$tag = trim( (string) preg_replace( '/;.*$/', '', $tag ) );
 			if ( ! preg_match( '/^([A-Za-z]{2,3})(?:[-_]([A-Za-z0-9]{2,8}))?(?:[-_][A-Za-z0-9]{2,8})*$/', $tag, $m ) ) { continue; }
 			$language = strtolower( $m[1] );
@@ -106,7 +106,6 @@ final class I18n {
 			'Bereit' => __( 'Bereit', 'pass-captain' ),
 			'Kamera starten' => __( 'Kamera starten', 'pass-captain' ),
 			'Ticketcode manuell' => __( 'Ticketcode manuell', 'pass-captain' ),
-			'64-stelliger Code oder Ticket-Link' => __( '64-stelliger Code oder Ticket-Link', 'pass-captain' ),
 			'Prüfen' => __( 'Prüfen', 'pass-captain' ),
 			'Konflikte nach Synchronisierung' => __( 'Konflikte nach Synchronisierung', 'pass-captain' ),
 			'Letzte Scans' => __( 'Letzte Scans', 'pass-captain' ),
@@ -194,6 +193,66 @@ final class I18n {
 			'Gekoppelt' => __( 'Gekoppelt', 'pass-captain' ),
 			'Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.' => __( 'Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.', 'pass-captain' ),
 			'Kopplung fehlgeschlagen' => __( 'Kopplung fehlgeschlagen', 'pass-captain' ),
+			// Results, help codes, overlay (A089, A271, A315, A543, A548).
+			'Erstmals eingelassen' => __( 'Erstmals eingelassen', 'pass-captain' ),
+			/* translators: 1: number of admissions, 2: date and time of the first admission */
+			'Einlass Nr. %1 – zuerst eingelassen um %2' => __( 'Einlass Nr. %1 – zuerst eingelassen um %2', 'pass-captain' ),
+			/* translators: %1: date and time of the first admission */
+			'Bereits eingelassen um %1' => __( 'Bereits eingelassen um %1', 'pass-captain' ),
+			'Per Hilfscode geprüft' => __( 'Per Hilfscode geprüft', 'pass-captain' ),
+			'Hilfscode nur online' => __( 'Hilfscode nur online', 'pass-captain' ),
+			'Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.' => __( 'Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.', 'pass-captain' ),
+			'Systemfehler – Ticket nicht geprüft' => __( 'Systemfehler – Ticket nicht geprüft', 'pass-captain' ),
+			'Bitte erneut scannen.' => __( 'Bitte erneut scannen.', 'pass-captain' ),
+			'Mehrere Ticketcodes erkannt' => __( 'Mehrere Ticketcodes erkannt', 'pass-captain' ),
+			'Nichts geprüft. Bitte jedes Ticket einzeln scannen.' => __( 'Nichts geprüft. Bitte jedes Ticket einzeln scannen.', 'pass-captain' ),
+			'Code ersetzt' => __( 'Code ersetzt', 'pass-captain' ),
+			'Bereich voll' => __( 'Bereich voll', 'pass-captain' ),
+			'Zu viele Hilfscode-Eingaben' => __( 'Zu viele Hilfscode-Eingaben', 'pass-captain' ),
+			'Antippen zum Schließen' => __( 'Antippen zum Schließen', 'pass-captain' ),
+			'Ticket-Code, Ticket-Link oder Hilfscode (z. B. K7QM-4XWA)' => __( 'Ticket-Code, Ticket-Link oder Hilfscode (z. B. K7QM-4XWA)', 'pass-captain' ),
+			'Offline-Scanner · Pass Captain' => __( 'Offline-Scanner · Pass Captain', 'pass-captain' ),
+			// Manual search (A544).
+			'Ticket suchen' => __( 'Ticket suchen', 'pass-captain' ),
+			'Name, E-Mail oder Bestellnummer' => __( 'Name, E-Mail oder Bestellnummer', 'pass-captain' ),
+			'Suchen' => __( 'Suchen', 'pass-captain' ),
+			/* translators: %1: order number */
+			'Bestellung %1' => __( 'Bestellung %1', 'pass-captain' ),
+			'bereits eingecheckt' => __( 'bereits eingecheckt', 'pass-captain' ),
+			'widerrufen/erstattet' => __( 'widerrufen/erstattet', 'pass-captain' ),
+			'Kein Ticket gefunden.' => __( 'Kein Ticket gefunden.', 'pass-captain' ),
+			'Einchecken' => __( 'Einchecken', 'pass-captain' ),
+			'Bitte mindestens 3 Zeichen eingeben.' => __( 'Bitte mindestens 3 Zeichen eingeben.', 'pass-captain' ),
+			'Offline ist nur die Namenssuche möglich, und nur wenn das Prüfpaket Namen enthält.' => __( 'Offline ist nur die Namenssuche möglich, und nur wenn das Prüfpaket Namen enthält.', 'pass-captain' ),
+			'Weitere Treffer – bitte genauer suchen.' => __( 'Weitere Treffer – bitte genauer suchen.', 'pass-captain' ),
+			'Manuell (Suche)' => __( 'Manuell (Suche)', 'pass-captain' ),
+			'Nur online möglich.' => __( 'Nur online möglich.', 'pass-captain' ),
+			// Check-in counter (A546).
+			'laut Prüfpaket' => __( 'laut Prüfpaket', 'pass-captain' ),
+			/* translators: %1: date and time of the server count */
+			'Stand %1' => __( 'Stand %1', 'pass-captain' ),
+			/* translators: 1: admitted tickets, 2: admissible tickets */
+			'Eingecheckt: %1 / %2' => __( 'Eingecheckt: %1 / %2', 'pass-captain' ),
+			// Undo (A547).
+			'Rückgängig' => __( 'Rückgängig', 'pass-captain' ),
+			'Grund der Rücknahme' => __( 'Grund der Rücknahme', 'pass-captain' ),
+			'Einlass zurücknehmen' => __( 'Einlass zurücknehmen', 'pass-captain' ),
+			'Abbrechen' => __( 'Abbrechen', 'pass-captain' ),
+			'Fehlscan (falsches Ticket gescannt)' => __( 'Fehlscan (falsches Ticket gescannt)', 'pass-captain' ),
+			'Doppelt gescannt' => __( 'Doppelt gescannt', 'pass-captain' ),
+			'Gast hat den Einlass nicht betreten' => __( 'Gast hat den Einlass nicht betreten', 'pass-captain' ),
+			'Falscher Termin oder Bereich' => __( 'Falscher Termin oder Bereich', 'pass-captain' ),
+			'– Grund wählen –' => __( '– Grund wählen –', 'pass-captain' ),
+			'Anderer Grund …' => __( 'Anderer Grund …', 'pass-captain' ),
+			/* translators: %1: seconds left to undo the admission */
+			'Rückgängig (%1 s)' => __( 'Rückgängig (%1 s)', 'pass-captain' ),
+			'Bitte einen Grund wählen oder eingeben.' => __( 'Bitte einen Grund wählen oder eingeben.', 'pass-captain' ),
+			'Synchronisierung läuft – bitte gleich erneut versuchen.' => __( 'Synchronisierung läuft – bitte gleich erneut versuchen.', 'pass-captain' ),
+			'Einlass zurückgenommen' => __( 'Einlass zurückgenommen', 'pass-captain' ),
+			'Offline-Einlass verworfen – er wird nicht hochgeladen.' => __( 'Offline-Einlass verworfen – er wird nicht hochgeladen.', 'pass-captain' ),
+			'Rückgängig nicht möglich' => __( 'Rückgängig nicht möglich', 'pass-captain' ),
+			'Das Ticket ist wieder gültig.' => __( 'Das Ticket ist wieder gültig.', 'pass-captain' ),
+			'zurückgenommen' => __( 'zurückgenommen', 'pass-captain' ),
 		);
 	}
 

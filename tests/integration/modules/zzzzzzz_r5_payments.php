@@ -44,7 +44,8 @@ function r5p_pending( $provider, $reference, $qty = 1, $price = 5000 ) {
 	return Orders::get( $r['order_id'] );
 }
 function r5p_charge( $order, $refunded, $id = 'ch_r5' ) {
-	return array( 'id' => $id, 'object' => 'charge', 'amount' => (int) $order->total_minor, 'amount_refunded' => $refunded, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => 'pi_r5', 'metadata' => array( 'wpcap_order' => $order->public_id ) );
+	// The charge belongs to the order's booked payment intent (A640: refunds of another payment of the order are not booked on it).
+	return array( 'id' => $id, 'object' => 'charge', 'amount' => (int) $order->total_minor, 'amount_refunded' => $refunded, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => (string) $order->provider_reference, 'metadata' => array( 'wpcap_order' => $order->public_id ) );
 }
 
 echo "R5: Stripe dashboard partial refunds are all booked (paginated refund list)\n";
@@ -58,22 +59,24 @@ http_push( $r5_list, 200, 'refunds?' );
 $r5_e1 = stripe_deliver( $r5_stripe, array( 'id' => 'evt_r5_r1', 'type' => 'charge.refunded', 'data' => array( 'object' => r5p_charge( $r5_o, 1000 ) ) ) );
 $r5_e2 = stripe_deliver( $r5_stripe, array( 'id' => 'evt_r5_r2', 'type' => 'charge.refunded', 'data' => array( 'object' => r5p_charge( $r5_o, 3000 ) ) ) );
 $r5_fresh = Orders::get( $r5_o->order_id );
-check( 'R5-2: two dashboard refunds (10 + 20) book 30.00, the retry books nothing twice', 3000 === (int) $r5_fresh->refunded_minor && 'partial_refund_booked' === $r5_e1 && 'refund_already_booked' === $r5_e2 );
-$r5_refs = $wpdb->get_col( $wpdb->prepare( "SELECT provider_reference FROM %i WHERE order_id=%d AND status='completed' ORDER BY refund_id", $p . 'wpcap_refunds', $r5_o->order_id ) );
-check( 'R5-2: each Stripe refund is its own ledger row (oldest first)', array( 'ext:stripe:re_1', 'ext:stripe:re_2' ) === $r5_refs );
+// Merged design (A346/A347): charge.refunded is a cumulative snapshot of the charge's external refunds; only
+// the part not yet booked for the charge is booked (labels partial_refund / already_booked).
+check( 'R5-2: two dashboard refunds (10 + 20) book 30.00, the retry books nothing twice', 3000 === (int) $r5_fresh->refunded_minor && 'partial_refund' === $r5_e1 && 'already_booked' === $r5_e2 );
+$r5_refs = $wpdb->get_results( $wpdb->prepare( "SELECT provider_reference,amount_minor FROM %i WHERE order_id=%d AND status='completed' ORDER BY refund_id", $p . 'wpcap_refunds', $r5_o->order_id ) );
+check( 'R5-2: the dashboard refunds of the charge are booked once against the charge (cumulative, 30.00)', 1 === count( $r5_refs ) && 'ch_r5' === $r5_refs[0]->provider_reference && 3000 === (int) $r5_refs[0]->amount_minor );
 // The newest refund is a plugin refund: the older dashboard refund is still booked.
 $r5_o2 = r5p_paid( 'stripe', 'pi_r5_2' );
 http_reset();
 http_push( array( 'data' => array( array( 'id' => 're_4', 'amount' => 500, 'metadata' => array( 'wpcap_refund' => 'k' ) ), array( 'id' => 're_3', 'amount' => 1000, 'metadata' => array() ) ), 'has_more' => false ), 200, 'refunds?' );
 $r5_e3 = stripe_deliver( $r5_stripe, array( 'id' => 'evt_r5_r3', 'type' => 'charge.refunded', 'data' => array( 'object' => r5p_charge( $r5_o2, 1500, 'ch_r5_2' ) ) ) );
-check( 'R5-2: a newer plugin refund does not hide an older dashboard refund', 'partial_refund_booked' === $r5_e3 && 1000 === (int) Orders::get( $r5_o2->order_id )->refunded_minor );
+check( 'R5-2: a newer plugin refund does not hide an older dashboard refund', 'partial_refund' === $r5_e3 && 1000 === (int) Orders::get( $r5_o2->order_id )->refunded_minor );
 // Pagination: has_more → starting_after.
 $r5_o3 = r5p_paid( 'stripe', 'pi_r5_3' );
 http_reset();
 http_push( array( 'data' => array( array( 'id' => 're_6', 'amount' => 700, 'metadata' => array() ) ), 'has_more' => true ), 200, 'refunds?' );
 http_push( array( 'data' => array( array( 'id' => 're_5', 'amount' => 300, 'metadata' => array() ), array( 'id' => 're_x', 'amount' => 900, 'status' => 'failed', 'metadata' => array() ) ), 'has_more' => false ), 200, 'starting_after=re_6' );
 $r5_e4 = stripe_deliver( $r5_stripe, array( 'id' => 'evt_r5_r4', 'type' => 'charge.refunded', 'data' => array( 'object' => r5p_charge( $r5_o3, 1000, 'ch_r5_3' ) ) ) );
-check( 'R5-2: refund list is paginated (starting_after), failed refunds are skipped', 'partial_refund_booked' === $r5_e4 && 1000 === (int) Orders::get( $r5_o3->order_id )->refunded_minor && 2 === count( http_requests( 'refunds?' ) ) );
+check( 'R5-2: refund list is paginated (starting_after), failed refunds are skipped', 'partial_refund' === $r5_e4 && 1000 === (int) Orders::get( $r5_o3->order_id )->refunded_minor && 2 === count( http_requests( 'refunds?' ) ) );
 
 echo "R5: provider refunds that fail later are reversed (Stripe refund.failed, Mollie refund failed)\n";
 use PassCaptain\Mollie\MollieGateway;
@@ -91,16 +94,20 @@ $r5_ref8 = PassCaptain\Refunds::request( $r5_o8->order_id, array(), 'R5 test', '
 PassCaptain\Invoices::credit_note_for_refund( is_array( $r5_ref8 ) ? (int) $r5_ref8['refund_id'] : 0 );
 $r5_mails8 = count( $GLOBALS['wpcap_test_mails'] );
 check( 'R5-8: precondition – pending Stripe refund is booked (order refunded)', is_array( $r5_ref8 ) && 'completed' === $r5_ref8['status'] && 'refunded' === Orders::get( $r5_o8->order_id )->status );
-$r5_fail_event = array( 'id' => 'evt_r5_rf', 'type' => 'charge.refund.updated', 'data' => array( 'object' => array( 'id' => 're_p8', 'object' => 'refund', 'status' => 'failed', 'failure_reason' => 'expired_or_canceled_card', 'amount' => 4000, 'currency' => 'eur', 'payment_intent' => 'pi_r5_8', 'metadata' => array( 'wpcap_order' => $r5_o8->public_id, 'wpcap_refund' => 'k' ) ) ) );
+// Merged design: a plugin refund (metadata wpcap_refund = its provider key) that fails later is settled through
+// Refunds::apply_provider_states() (A348): the refund becomes "reversed" (provider status failed), the credit
+// note gets a reversal document, the admin is alerted and can pay out again; the order is paid again.
+$r5_key8 = PassCaptain\Refunds::provider_key( is_array( $r5_ref8 ) ? (int) $r5_ref8['refund_id'] : 0 );
+$r5_fail_event = array( 'id' => 'evt_r5_rf', 'type' => 'charge.refund.updated', 'data' => array( 'object' => array( 'id' => 're_p8', 'object' => 'refund', 'status' => 'failed', 'failure_reason' => 'expired_or_canceled_card', 'amount' => 4000, 'currency' => 'eur', 'payment_intent' => 'pi_r5_8', 'metadata' => array( 'wpcap_order' => $r5_o8->public_id, 'wpcap_refund' => $r5_key8 ) ) ) );
 $r5_res8 = stripe_deliver( $r5_stripe, $r5_fail_event );
 $r5_after8 = Orders::get( $r5_o8->order_id );
 $r5_row8 = PassCaptain\Refunds::get( (int) $r5_ref8['refund_id'] );
-check( 'R5-8: Stripe charge.refund.updated (failed) reverses the booking: refund failed, refunded amount 0, order paid again', 'refund_failed' === $r5_res8 && 'failed' === $r5_row8['status'] && 'provider_refund_failed' === $r5_row8['error_message'] && 0 === (int) $r5_after8->refunded_minor && 'paid' === $r5_after8->payment_status && 'complete' === $r5_after8->status );
-check( 'R5-8: tickets stay revoked, admin alert and a payment case are created', array() === tickets( $r5_o8->order_id, 'valid' ) && count( $GLOBALS['wpcap_test_mails'] ) > $r5_mails8 && (bool) $wpdb->get_var( $wpdb->prepare( "SELECT case_id FROM %i WHERE order_id=%d AND kind='refund_failed'", $p . 'wpcap_payment_cases', $r5_o8->order_id ) ) );
+check( 'R5-8: Stripe charge.refund.updated (failed) reverses the booking: refund reversed, refunded amount 0, order paid again', ! is_wp_error( $r5_res8 ) && 'reversed' === $r5_row8['status'] && 'failed' === $r5_row8['provider_status'] && 0 === (int) $r5_after8->refunded_minor && 'paid' === $r5_after8->payment_status && 'complete' === $r5_after8->status );
+check( 'R5-8: tickets stay revoked, admin alert, the reversal is audited and can be paid out again', array() === tickets( $r5_o8->order_id, 'valid' ) && count( $GLOBALS['wpcap_test_mails'] ) > $r5_mails8 && (bool) $wpdb->get_var( $wpdb->prepare( "SELECT audit_id FROM %i WHERE object_type='order' AND object_id=%d AND action='refund_reversed'", $p . 'wpcap_audit_logs', $r5_o8->order_id ) ) );
 $r5_cn8 = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE refund_id=%d', $p . 'wpcap_credit_notes', (int) $r5_ref8['refund_id'] ) );
 $r5_today8 = gmdate( 'Y-m-d' );
-$r5_storno = array_values( array_filter( PassCaptain\Invoices::export_rows( $r5_today8, $r5_today8 ), static fn( $r ) => 'Storno Gutschrift' === $r[0] && $r5_cn8 && $r[1] === $r5_cn8->credit_note_number ) );
-check( 'R5-8: the credit note is voided (marked in the print view, reversal row in the export)', $r5_cn8 && 'voided' === $r5_cn8->status && false !== strpos( PassCaptain\Invoices::render_html( $r5_inv8['invoice_id'] ), 'Storniert am' ) && 1 === count( $r5_storno ) && '40.00' === $r5_storno[0][10] );
+$r5_storno = array_values( array_filter( PassCaptain\Invoices::export_rows( $r5_today8, $r5_today8 ), static fn( $r ) => $r5_cn8 && '' !== (string) $r5_cn8->reversal_number && (string) $r[1] === (string) $r5_cn8->reversal_number ) );
+check( 'R5-8: the credit note is reversed (reversal document in the print view and the export, positive amount)', $r5_cn8 && '' !== (string) $r5_cn8->reversal_number && false !== strpos( PassCaptain\Invoices::render_html( $r5_inv8['invoice_id'] ), 'Storniert durch Beleg' ) && 1 === count( $r5_storno ) && '40.00' === $r5_storno[0][10] );
 $r5_failed_ledger = array_values( array_filter( PassCaptain\Invoices::ledger_export_rows( $r5_today8, $r5_today8 ), static fn( $r ) => 'Erstattung fehlgeschlagen' === $r[0] && (int) $r[4] === (int) $r5_o8->order_id ) );
 check( 'R5-8: ledger export books the failed refund back (positive amount)', 1 === count( $r5_failed_ledger ) && '40.00' === $r5_failed_ledger[0][11] );
 check( 'R5-8: redelivery changes nothing', 'duplicate' === stripe_deliver( $r5_stripe, $r5_fail_event ) && 0 === (int) Orders::get( $r5_o8->order_id )->refunded_minor );
@@ -132,8 +139,10 @@ http_push( array( 'id' => 'tr_r5mpaaaa' ), 200, 'payments/tr_r5mpaaaa' );
 $r5_mpe = MollieGateway::normalize( array( 'resource' => 'payment', 'id' => 'tr_r5mpaaaa', 'status' => 'open', 'method' => 'banktransfer', 'amount' => array( 'value' => '50.00', 'currency' => 'EUR' ), 'metadata' => array( 'order' => $r5_mp->public_id ) ) );
 $r5_mpr = Webhooks::process( 'mollie', $r5_mpe );
 $r5_patch = http_requests( 'payments/tr_r5mpaaaa' );
-check( 'R5-9: Mollie open bank transfer → payment_pending, hold extended (7 days)', 'payment_pending' === $r5_mpe['type'] && 'hold_extended' === $r5_mpr && r5p_hold_minutes( $r5_mp->order_id ) > 6 * 24 * 60 );
-check( 'R5-9: the bank transfer due date is moved to the hold end (PATCH dueDate)', $r5_patch && 'PATCH' === $r5_patch[0]['method'] && gmdate( 'Y-m-d', time() + 7 * DAY_IN_SECONDS ) === ( json_decode( (string) $r5_patch[0]['body'], true )['dueDate'] ?? '' ) );
+// Merged design (A577): a delayed method extends the hold like a bank transfer hold (manual_hold_hours).
+$r5_delayed_minutes = (int) Settings::get( 'manual_hold_hours' ) * 60;
+check( 'R5-9: Mollie open bank transfer → payment_pending, hold extended like a bank transfer hold', 'payment_pending' === $r5_mpe['type'] && 'hold_extended' === $r5_mpr && abs( r5p_hold_minutes( $r5_mp->order_id ) - $r5_delayed_minutes ) <= 2 );
+check( 'R5-9: the bank transfer due date is moved to the hold end (PATCH dueDate)', $r5_patch && 'PATCH' === $r5_patch[0]['method'] && gmdate( 'Y-m-d', PassCaptain\Orders::hold_end( $r5_mp->order_id ) ) === ( json_decode( (string) $r5_patch[0]['body'], true )['dueDate'] ?? '' ) );
 $r5_dd = MollieGateway::normalize( array( 'resource' => 'payment', 'id' => 'tr_r5mpbbbb', 'status' => 'pending', 'method' => 'directdebit', 'amount' => array( 'value' => '50.00', 'currency' => 'EUR' ), 'metadata' => array( 'order' => 'x' ) ) );
 $r5_cc = MollieGateway::normalize( array( 'resource' => 'payment', 'id' => 'tr_r5mpcccc', 'status' => 'open', 'method' => 'creditcard', 'amount' => array( 'value' => '50.00', 'currency' => 'EUR' ), 'metadata' => array( 'order' => 'x' ) ) );
 check( 'R5-9: direct debit pending is delayed, an open card payment is not', 'payment_pending' === $r5_dd['type'] && 'ignored' === $r5_cc['type'] );
@@ -143,7 +152,7 @@ $r5_ppn = ( new ReflectionMethod( PassCaptain\Payments\PayPalGateway::class, 'no
 $r5_ppn->setAccessible( true );
 $r5_ppev = $r5_ppn->invoke( null, $r5_ppe );
 $r5_ppr = Webhooks::process( 'paypal', $r5_ppev );
-check( 'R5-9: PayPal PAYMENT.CAPTURE.PENDING → payment_pending with its own event id, hold extended', 'payment_pending' === $r5_ppev['type'] && 'capture-CAPR5-pending' === $r5_ppev['event_id'] && 'hold_extended' === $r5_ppr && r5p_hold_minutes( $r5_pp->order_id ) > 6 * 24 * 60 );
+check( 'R5-9: PayPal PAYMENT.CAPTURE.PENDING → payment_pending with its own event id, hold extended', 'payment_pending' === $r5_ppev['type'] && 'capture-CAPR5-pending' === $r5_ppev['event_id'] && 'hold_extended' === $r5_ppr && abs( r5p_hold_minutes( $r5_pp->order_id ) - $r5_delayed_minutes ) <= 2 );
 
 echo "R5: Klarna/Riverty via Mollie – authorized payments are captured\n";
 $r5_k = r5p_pending( 'mollie', 'tr_r5klaaaa' );
@@ -210,8 +219,12 @@ $wpdb->query( $wpdb->prepare( "UPDATE %i SET created_at=%s WHERE payment_status=
 wpcap_test_reset_transients();
 http_reset();
 http_push( array( 'id' => 'cs_r5poll', 'status' => 'complete', 'payment_status' => 'paid', 'amount_total' => 5000, 'currency' => 'eur', 'payment_intent' => 'pi_r5poll', 'metadata' => array( 'wpcap_order' => $r5_poll->public_id ) ), 200, 'checkout/sessions/cs_r5poll' );
-$r5_polled = Reconcile::poll_pending();
-check( 'R5-12: a pending order older than X minutes is polled and confirmed through Webhooks::process', $r5_polled >= 1 && 'paid' === Orders::get( $r5_poll->order_id )->payment_status && (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE provider=%s AND provider_event_id=%s', $p . 'wpcap_payment_events', 'stripe', 'poll-cs_r5poll-paid' ) ) );
+// Merged design: providers with a payment lookup (Stripe, Mollie: PaymentLookupInterface) are reconciled by
+// Reconcile::run() (A352, orders older than MIN_AGE); poll_pending() only covers gateways without it.
+// Closed leftovers of earlier tests (also checked by run()) must not use up the per-run limit either.
+$wpdb->query( $wpdb->prepare( "UPDATE %i SET updated_at=%s WHERE payment_status IN ('expired','cancelled') AND provider_reference<>''", $p . 'wpcap_orders', gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ) ) );
+$r5_recon = Reconcile::run();
+check( 'R5-12: a pending order older than 10 minutes is reconciled (Reconcile::run) and confirmed through Webhooks::process', isset( $r5_recon['applied'][ (int) $r5_poll->order_id ] ) && 'paid' === Orders::get( $r5_poll->order_id )->payment_status && (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE provider=%s AND provider_event_id=%s', $p . 'wpcap_payment_events', 'stripe', 'reconcile-cs_r5poll-complete-paid' ) ) );
 check( 'R5-12: young orders are not polled', array() === http_requests( 'cs_r5young' ) );
 $r5_late_webhook = Webhooks::process( 'stripe', array( 'event_id' => 'evt_r5_poll_late', 'type' => 'paid', 'order_public_id' => $r5_poll->public_id, 'provider_reference' => 'pi_r5poll', 'related_references' => array( 'cs_r5poll', 'pi_r5poll' ), 'amount_minor' => 5000, 'currency' => 'EUR' ) );
 check( 'R5-12: the late webhook afterwards is harmless (already paid)', 'already_paid' === $r5_late_webhook && 1 === count( tickets( $r5_poll->order_id, 'valid' ) ) );

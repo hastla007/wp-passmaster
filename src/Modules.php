@@ -5,7 +5,7 @@
  *   public static function register()                 – hooks (called on plugins_loaded)
  *   public static function schema( $prefix, $charset ) – array of CREATE TABLE statements (dbDelta format)
  *   public static function settings_defaults()        – array key => default (merged into Settings)
- *   public static function admin_pages()              – array of [slug, title, capability, callable]
+ *   public static function admin_pages()              – array of [slug, title, capability, callable, menu area (optional, see Admin\Menu::groups())]
  *   public static function admin_handlers()           – array admin-post action => callable
  *
  * Schema changes are detected by hashing all module statements, so adding a column upgrades the DB.
@@ -26,14 +26,18 @@ final class Modules {
 	 */
 	const MANIFEST = array(
 		'Admission' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
+		'Allocations' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'BoxOffice' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'Calendar' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
 		'Connectors' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
+		'Exchange' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'Fiscalization' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
+		'GuestLists' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'MailTemplates' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
 		'Mollie' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'OfflineScanner' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'Partners' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
+		'Passes' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'PrintTemplates' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'Reminders' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
 		'Reports' => array( 'admin_handlers', 'admin_pages' ),
@@ -42,6 +46,7 @@ final class Modules {
 		'Series' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'Services' => array( 'register' ),
 		'Sms' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
+		'Waitlist' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
 		'Wallet' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'Webhooks' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 	);
@@ -84,8 +89,23 @@ final class Modules {
 
 	public static function register_all() {
 		foreach ( self::classes() as $class ) {
-			if ( self::provides( $class, 'register' ) ) { $class::register(); }
+			if ( self::enabled( $class ) && self::provides( $class, 'register' ) ) { $class::register(); }
 		}
+	}
+
+	/**
+	 * Whether a module registers its hooks. All modules are on by default; a site can switch single
+	 * modules off with the constant WPCAP_DISABLED_MODULES (comma list of short names, e.g.
+	 * "Sms,Wallet") or the filter wpcap_module_enabled. Tables and settings of a disabled module stay
+	 * (no data loss; switching it on again continues where it left off). Modules other code calls
+	 * directly keep working as libraries – only their hooks, pages and routes are gone.
+	 *
+	 * @param string $class Module class (PassCaptain\Modules\Name).
+	 */
+	public static function enabled( $class ) {
+		$short = substr( (string) strrchr( '\\' . $class, '\\' ), 1 );
+		$disabled = defined( 'WPCAP_DISABLED_MODULES' ) ? array_map( 'strtolower', array_map( 'trim', explode( ',', (string) WPCAP_DISABLED_MODULES ) ) ) : array();
+		return (bool) apply_filters( 'wpcap_module_enabled', ! in_array( strtolower( $short ), $disabled, true ), $short, $class );
 	}
 
 	public static function schema( $prefix, $charset ) { return self::collect( 'schema', $prefix, $charset ); }
@@ -102,7 +122,7 @@ final class Modules {
 	public static function admin_pages() {
 		$out = array();
 		foreach ( self::classes() as $class ) {
-			if ( self::provides( $class, 'admin_pages' ) ) {
+			if ( self::enabled( $class ) && self::provides( $class, 'admin_pages' ) ) {
 				foreach ( (array) $class::admin_pages() as $page ) { $out[] = $page; }
 			}
 		}
@@ -112,6 +132,7 @@ final class Modules {
 	/**
 	 * Admin pages split for the menu: [visible pages, pages of modules hidden in "Funktionen"
 	 * (Admin\Dashboard::module_hidden(); registered without menu entry, so links keep working)].
+	 * Modules switched off (enabled()) have no pages at all.
 	 *
 	 * @return array{0: array, 1: array}
 	 */
@@ -119,7 +140,7 @@ final class Modules {
 		$visible = array();
 		$hidden = array();
 		foreach ( self::classes() as $class ) {
-			if ( ! self::provides( $class, 'admin_pages' ) ) { continue; }
+			if ( ! self::enabled( $class ) || ! self::provides( $class, 'admin_pages' ) ) { continue; }
 			$is_hidden = Admin\Dashboard::module_hidden( $class );
 			foreach ( (array) $class::admin_pages() as $page ) {
 				if ( $is_hidden ) { $hidden[] = $page; } else { $visible[] = $page; }
@@ -128,5 +149,11 @@ final class Modules {
 		return array( $visible, $hidden );
 	}
 
-	public static function admin_handlers() { return self::collect( 'admin_handlers' ); }
+	public static function admin_handlers() {
+		$out = array();
+		foreach ( self::classes() as $class ) {
+			if ( self::enabled( $class ) && self::provides( $class, 'admin_handlers' ) ) { $out = array_merge( $out, (array) $class::admin_handlers() ); }
+		}
+		return $out;
+	}
 }

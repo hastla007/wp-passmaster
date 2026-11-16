@@ -50,7 +50,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 		if ( isset( $signatures[0]['ftSignatureData'] ) && is_string( $signatures[0]['ftSignatureData'] ) && strlen( $signatures[0]['ftSignatureData'] ) <= 4096 ) {
 			$receipt['qr_payload'] = $signatures[0]['ftSignatureData'];
 		}
-		return array( 'reference' => substr( sanitize_text_field( $reference ), 0, 191 ), 'receipt' => $receipt );
+		return array( 'reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ), 'receipt' => $receipt );
 	}
 
 	private function payload( array $document, array $configuration ) {
@@ -111,9 +111,23 @@ final class FiskaltrustAdapter implements AdapterInterface {
 		if ( '' === $cashbox_id || '' === $access_token || '' === $pos_id ) { return new \WP_Error( 'fiskaltrust_credentials_missing', __( 'fiskaltrust-CashBox-Zugangsdaten oder POS-System-ID fehlen.', 'pass-captain' ) ); }
 		return array( 'x-cashbox-id' => $cashbox_id, 'x-cashbox-accesstoken' => $access_token, 'x-possystem-id' => $pos_id, 'x-operation-id' => $operation_id );
 	}
+	/**
+	 * API base (A655): the configured endpoint_url (alias base_url); without one the production API only
+	 * for environment "production" and the sandbox only when the configuration explicitly says
+	 * environment "test"/"sandbox". A configuration without environment and without endpoint is refused –
+	 * real receipts are never fiscalised against the sandbox by a silent fallback.
+	 */
 	private function endpoint( array $configuration, $path ) {
-		$env = sanitize_key( $configuration['environment'] ?? 'test' );
-		$base = untrailingslashit( (string) ( $configuration['endpoint_url'] ?? ( 'production' === $env ? 'https://possystem-api.fiskaltrust.eu/v2' : 'https://possystem-api-sandbox.fiskaltrust.eu/v2' ) ) );
+		$base = trim( (string) ( $configuration['endpoint_url'] ?? $configuration['base_url'] ?? '' ) );
+		if ( '' === $base ) {
+			$env = sanitize_key( (string) ( $configuration['environment'] ?? '' ) );
+			if ( 'production' === $env ) {
+				$base = 'https://possystem-api.fiskaltrust.eu/v2';
+			} elseif ( in_array( $env, array( 'test', 'sandbox' ), true ) ) {
+				$base = 'https://possystem-api-sandbox.fiskaltrust.eu/v2';
+			}
+		}
+		$base = untrailingslashit( $base );
 		return '' === $base ? new \WP_Error( 'fiskaltrust_endpoint_missing', __( 'fiskaltrust-Endpunkt fehlt.', 'pass-captain' ) ) : $base . $path;
 	}
 }

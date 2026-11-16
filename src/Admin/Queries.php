@@ -35,8 +35,10 @@ final class Queries {
 			if ( \PassCaptain\Security\SupportAccess::covers( get_current_user_id(), $cap ) ) { return null; }
 		}
 		global $wpdb;
-		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE user_id=%d AND capability IN (' . implode( ',', array_fill( 0, count( $caps ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_event_staff', get_current_user_id() ), $caps ) ) );
-		return array_map( 'absint', $ids );
+		$placeholders = implode( ',', array_fill( 0, count( $caps ), '%s' ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=%d AND capability IN ($placeholders)", array_merge( array( get_current_user_id() ), $caps ) ) );
+		// Location/partner scope of the user (A119; no-op without scope).
+		return Access::filter_event_ids( array_map( 'absint', $ids ) );
 	}
 
 	/**
@@ -85,9 +87,47 @@ final class Queries {
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 	}
 
-	public static function occurrences_for_event( $event_id ) {
+	/** @param int $limit 0 = all dates; otherwise at most that many (A476: no full list where a few suffice). */
+	public static function occurrences_for_event( $event_id, $limit = 0 ) {
 		global $wpdb;
+		if ( $limit > 0 ) {
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d ORDER BY starts_at, occurrence_id LIMIT %d', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ), absint( $limit ) ) );
+		}
 		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d ORDER BY starts_at, occurrence_id', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) );
+	}
+
+	/**
+	 * Occurrence choices for staff selectors (box office, print, guest list): only scheduled
+	 * occurrences of published events; running and upcoming ones first (ascending, the default
+	 * choice is the first key), past ones after them (newest first, marked "vergangen").
+	 * An occurrence counts as running until 12 hours after its start (or until its end).
+	 *
+	 * @param object[] $rows        Rows with occurrence_id, starts_at, timezone, status, label (string),
+	 *                              optionally ends_at and event_status.
+	 * @param bool     $include_past Whether past occurrences are offered at all.
+	 * @return array occurrence_id => label
+	 */
+	public static function occurrence_choices( array $rows, $include_past = true ) {
+		$now = \PassCaptain\Clock::now();
+		$upcoming = array();
+		$past = array();
+		foreach ( $rows as $row ) {
+			if ( 'scheduled' !== ( $row->status ?? 'scheduled' ) || ( isset( $row->event_status ) && 'published' !== $row->event_status ) ) { continue; }
+			$start = strtotime( $row->starts_at . ' UTC' );
+			$end = ! empty( $row->ends_at ) ? strtotime( $row->ends_at . ' UTC' ) : $start + 12 * HOUR_IN_SECONDS;
+			if ( max( $end, $start ) >= $now ) {
+				$upcoming[ (int) $row->occurrence_id ] = array( $start, (string) $row->label );
+			} elseif ( $include_past ) {
+				$past[ (int) $row->occurrence_id ] = array( $start, (string) $row->label );
+			}
+		}
+		uasort( $upcoming, static function ( $a, $b ) { return $a[0] <=> $b[0]; } );
+		uasort( $past, static function ( $a, $b ) { return $b[0] <=> $a[0]; } );
+		$out = array();
+		foreach ( $upcoming as $id => $item ) { $out[ $id ] = $item[1]; }
+		/* translators: %s: occurrence label */
+		foreach ( $past as $id => $item ) { $out[ $id ] = sprintf( __( '%s (vergangen)', 'pass-captain' ), $item[1] ); }
+		return $out;
 	}
 
 	/** Ticket type with occurrence context (event_id, timezone). */
@@ -100,6 +140,23 @@ final class Queries {
 	public static function ticket_types_for_occurrence( $occurrence_id ) {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d ORDER BY ' . ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ? 'position,' : '' ) . 'ticket_type_id', $wpdb->prefix . 'wpcap_ticket_types', absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal ORDER BY.
+	}
+
+	/**
+	 * Number of ticket types per occurrence (one query, A476).
+	 *
+	 * @param int[] $occurrence_ids Occurrences.
+	 * @return array<int,int>
+	 */
+	public static function ticket_type_counts( array $occurrence_ids ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$out = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id, COUNT(*) AS n FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') GROUP BY occurrence_id', $ids ) ) as $row ) {
+			$out[ (int) $row->occurrence_id ] = (int) $row->n;
+		}
+		return $out;
 	}
 
 	/** Participant field with event context. */
@@ -130,7 +187,121 @@ final class Queries {
 	public static function sold_for_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', absint( $occurrence_id ) ) );
+		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", absint( $occurrence_id ) ) );
+		/** Sold units shown for an occurrence; modules add units counted there (e.g. passes anchored elsewhere). */
+		return (int) apply_filters( 'wpcap_occurrence_sold', $sold, absint( $occurrence_id ) );
+	}
+
+	/**
+	 * Sold units of several occurrences with one GROUP BY query (A476; same rule and filter as
+	 * sold_for_occurrence()).
+	 *
+	 * @param int[] $occurrence_ids Occurrences.
+	 * @return array<int,int> occurrence_id => sold units.
+	 */
+	public static function sold_for_occurrences( array $occurrence_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$sold = array_fill_keys( $ids, 0 );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id", $ids ) );
+		foreach ( (array) $rows as $row ) { $sold[ (int) $row->occurrence_id ] = (int) $row->sold; }
+		foreach ( $sold as $id => $units ) {
+			/** See sold_for_occurrence(). */
+			$sold[ $id ] = (int) apply_filters( 'wpcap_occurrence_sold', $units, $id );
+		}
+		return $sold;
+	}
+
+	/** Occurrences per page on the event detail page (A476; filter wpcap_admin_occurrences_per_page). */
+	public static function occurrences_per_page() {
+		return max( 1, min( 500, (int) apply_filters( 'wpcap_admin_occurrences_per_page', 50 ) ) );
+	}
+
+	/**
+	 * One page of an event's occurrences (A476: long series are no longer rendered at once). Without
+	 * a page number the page holding the next occurrence that is not over (start less than 12 hours
+	 * ago) is shown, so a daily series of several years opens at "today".
+	 *
+	 * @return array{rows: object[], total: int, page: int, pages: int, per_page: int}
+	 */
+	public static function occurrence_page( $event_id, $page = 0, $per_page = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_id = absint( $event_id );
+		$per_page = $per_page ? max( 1, (int) $per_page ) : self::occurrences_per_page();
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d", $event_id ) );
+		$pages = max( 1, (int) ceil( $total / $per_page ) );
+		$page = (int) $page;
+		if ( $page < 1 ) {
+			$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at < %s", $event_id, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 12 * HOUR_IN_SECONDS ) ) );
+			$page = $before >= $total ? $pages : intdiv( $before, $per_page ) + 1;
+		}
+		$page = min( max( 1, $page ), $pages );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at, occurrence_id LIMIT %d OFFSET %d", $event_id, $per_page, ( $page - 1 ) * $per_page ) );
+		return array( 'rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages, 'per_page' => $per_page );
+	}
+
+	/** Latest occurrence of an event (default time zone of a new occurrence) or null. */
+	public static function last_occurrence( $event_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at DESC, occurrence_id DESC LIMIT 1", absint( $event_id ) ) );
+	}
+
+	/** Cancelled occurrences of an event (ids), for the progress of their cancellation runs. */
+	public static function cancelled_occurrence_ids( $event_id, $limit = 50 ) {
+		global $wpdb;
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND status='cancelled' ORDER BY starts_at DESC LIMIT %d", absint( $event_id ), max( 1, (int) $limit ) ) ) );
+	}
+
+	/** Choices offered in an occurrence select (A476; filter wpcap_admin_occurrence_choices, default 200). */
+	public static function occurrence_choice_limit() {
+		return max( 1, min( 2000, (int) apply_filters( 'wpcap_admin_occurrence_choices', 200 ) ) );
+	}
+
+	/**
+	 * Bounded occurrence list of an event for selects and per-occurrence forms (A476): the next
+	 * occurrences from $from (Y-m-d, site time zone; default: those not over yet) in ascending
+	 * order, filled up with the most recent earlier ones, at most $limit; occurrences in $keep (e.g.
+	 * already assigned or selected) are always included. A series with thousands of dates no longer
+	 * renders thousands of options.
+	 *
+	 * @param int[] $keep Occurrence ids that must be part of the list.
+	 * @return array{rows: object[], total: int, more: bool, from: string}
+	 */
+	public static function occurrence_window( $event_id, array $keep = array(), $from = '', $limit = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_id = absint( $event_id );
+		$limit = $limit ? max( 1, (int) $limit ) : self::occurrence_choice_limit();
+		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '';
+		$since = '' !== $from ? self::local_day_start_utc( $from ) : gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 12 * HOUR_IN_SECONDS );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d", $event_id ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at >= %s ORDER BY starts_at, occurrence_id LIMIT %d", $event_id, $since, $limit ) );
+		if ( count( $rows ) < $limit ) {
+			$earlier = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at < %s ORDER BY starts_at DESC, occurrence_id DESC LIMIT %d", $event_id, $since, $limit - count( $rows ) ) );
+			$rows = array_merge( array_reverse( $earlier ), $rows );
+		}
+		$seen = array();
+		foreach ( $rows as $row ) { $seen[ (int) $row->occurrence_id ] = true; }
+		$missing = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $keep ) ) ), array_keys( $seen ) ) );
+		if ( $missing ) {
+			$extra = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND occurrence_id IN (" . implode( ',', array_fill( 0, count( $missing ), '%d' ) ) . ')', array_merge( array( $event_id ), $missing ) ) );
+			$rows = array_merge( $rows, $extra );
+			usort( $rows, static function ( $a, $b ) { return array( $a->starts_at, (int) $a->occurrence_id ) <=> array( $b->starts_at, (int) $b->occurrence_id ); } );
+		}
+		return array( 'rows' => $rows, 'total' => $total, 'more' => $total > count( $rows ), 'from' => $from );
+	}
+
+	/** UTC start of a local calendar day (site time zone). */
+	private static function local_day_start_utc( $date ) {
+		try {
+			$tz = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+			return ( new \DateTimeImmutable( $date . ' 00:00:00', $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		} catch ( \Exception $e ) {
+			return $date . ' 00:00:00';
+		}
 	}
 
 	/** Sold units of a ticket type (paid, not refunded). */
@@ -156,8 +327,9 @@ final class Queries {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		// The scope condition from scope_sql() lists integer event ids only (or is empty for all events).
-		$where = '1=1' . self::scope_sql( $event_ids, 'e.event_id' );
-		$now = current_time( 'mysql', true );
+		$scope = self::scope_sql( $event_ids, 'e.event_id' );
+		$where = '1=1' . $scope;
+		$now = \PassCaptain\Clock::mysql();
 		$offset = ( max( 1, (int) $page ) - 1 ) * $per_page;
 		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i e WHERE {$where}", $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: integer scope only.
 		$rows = $wpdb->get_results( $wpdb->prepare(
@@ -193,15 +365,170 @@ final class Queries {
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
-	/** Event id => name for filter selects (scoped). */
-	public static function event_options( $event_ids ) {
+	/**
+	 * Key figures of many events with two queries (event list, no per-row queries):
+	 * - sold: paid, not refunded units (as sold_for_occurrence(), summed over all occurrences);
+	 * - capacity: sellable units over the not cancelled occurrences – per occurrence the smaller of
+	 *   the occurrence limit and the sum of its ticket type limits; null when one is unlimited;
+	 * - revenue: currency => gross minor units of the paid, not refunded units after line discounts
+	 *   (refunded/exchanged units pro rata).
+	 *
+	 * @param int[] $event_ids Event ids.
+	 * @return array event_id => ['sold' => int, 'capacity' => int|null, 'revenue' => array<string,int>]
+	 */
+	public static function event_figures( array $event_ids ) {
 		global $wpdb;
-		$where = '1=1' . self::scope_sql( $event_ids, 'event_id' );
+		$p = $wpdb->prefix;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$in = implode( ',', $ids );
 		$out = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name FROM %i WHERE {$where} ORDER BY name LIMIT 500", $wpdb->prefix . 'wpcap_events' ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: integer scope only.
-			$out[ (int) $row->event_id ] = $row->name;
+		foreach ( $ids as $id ) { $out[ $id ] = array( 'sold' => 0, 'capacity' => 0, 'revenue' => array() ); }
+
+		$qty = 'oi.quantity - oi.refunded_quantity';
+		$paid_qty = \PassCaptain\OrderLines::paid( 'quantity' );
+		$paid_total = \PassCaptain\OrderLines::paid( 'line_total_minor' ) . ( \PassCaptain\OrderLines::ready() ? ' - COALESCE(oi.discount_minor,0)' : '' );
+		$sales = $wpdb->get_results(
+			"SELECT oc.event_id, ord.currency,
+				SUM({$qty}) AS sold,
+				SUM(CASE WHEN {$paid_qty} > 0 THEN FLOOR(GREATEST({$paid_total},0) * LEAST({$qty},{$paid_qty}) / {$paid_qty}) ELSE 0 END) AS revenue
+			FROM {$p}wpcap_order_items oi
+			INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id
+			INNER JOIN {$p}wpcap_occurrences oc ON oc.occurrence_id=tt.occurrence_id
+			INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id
+			WHERE oc.event_id IN ({$in}) AND ord.payment_status='paid' AND ord.status <> 'refunded'
+			GROUP BY oc.event_id, ord.currency"
+		);
+		foreach ( (array) $sales as $row ) {
+			$event = (int) $row->event_id;
+			$out[ $event ]['sold'] += (int) $row->sold;
+			$revenue = (int) $row->revenue;
+			if ( $revenue > 0 ) {
+				$currency = strtoupper( (string) $row->currency );
+				$out[ $event ]['revenue'][ $currency ] = ( $out[ $event ]['revenue'][ $currency ] ?? 0 ) + $revenue;
+			}
+		}
+
+		$caps = $wpdb->get_results(
+			"SELECT oc.event_id, oc.occurrence_id, oc.capacity AS occurrence_capacity,
+				COUNT(tt.ticket_type_id) AS types, COALESCE(SUM(tt.capacity = 0),0) AS unlimited_types, COALESCE(SUM(tt.capacity),0) AS type_capacity
+			FROM {$p}wpcap_occurrences oc
+			LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=oc.occurrence_id
+			WHERE oc.event_id IN ({$in}) AND oc.status <> 'cancelled'
+			GROUP BY oc.event_id, oc.occurrence_id, oc.capacity"
+		);
+		foreach ( (array) $caps as $row ) {
+			$event = (int) $row->event_id;
+			if ( null === $out[ $event ]['capacity'] ) { continue; }
+			$limits = array();
+			if ( (int) $row->occurrence_capacity > 0 ) { $limits[] = (int) $row->occurrence_capacity; }
+			if ( (int) $row->types > 0 && 0 === (int) $row->unlimited_types ) { $limits[] = (int) $row->type_capacity; }
+			if ( ! $limits && (int) $row->types > 0 ) {
+				$out[ $event ]['capacity'] = null; // Unlimited.
+				continue;
+			}
+			$out[ $event ]['capacity'] += $limits ? min( $limits ) : 0;
+		}
+		/**
+		 * Key figures of the admin event list; modules adjust them in bulk (e.g. units counted elsewhere).
+		 *
+		 * @param array $out       event_id => ['sold', 'capacity', 'revenue'].
+		 * @param int[] $event_ids Event ids.
+		 */
+		return (array) apply_filters( 'wpcap_event_figures', $out, $ids );
+	}
+
+	/** Maximum number of events in an event select (event_options()). */
+	const EVENT_OPTIONS_LIMIT = 500;
+
+	/** Whether the last event_options() call was cut at EVENT_OPTIONS_LIMIT. */
+	private static $options_truncated = false;
+
+	/** True when the last event_options() list was cut (more events exist than shown). */
+	public static function event_options_truncated() {
+		return self::$options_truncated;
+	}
+
+	/**
+	 * Escaped note for a cut event select (empty when the last list was complete): which events are
+	 * shown and how to reach the others (event ID in the page address).
+	 */
+	public static function event_options_note() {
+		if ( ! self::$options_truncated ) { return ''; }
+		/* translators: %d: number of events shown */
+		return '<p class="description wpcap-truncated">' . esc_html( sprintf( __( 'Es werden nur die ersten %d Events (alphabetisch) angezeigt. Weitere Events über die Event-ID in der Adresse auswählen (…&event_id=123); eine bereits gespeicherte Auswahl bleibt erhalten.', 'pass-captain' ), self::EVENT_OPTIONS_LIMIT ) ) . '</p>';
+	}
+
+	/**
+	 * Event id => label for selects (scoped). Events sharing a name are told apart by their first
+	 * date and ID ("Konzert (12.05.2027 20:00 Europe/Vienna, #14)"). At most EVENT_OPTIONS_LIMIT
+	 * events plus the $include ids (selected or stored values, when in scope).
+	 *
+	 * @param int[]|null $event_ids Scope (null = all).
+	 * @param int[]      $include   Event ids that must be in the list when in scope.
+	 */
+	public static function event_options( $event_ids, array $include = array() ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$scope = self::scope_sql( $event_ids, 'e.event_id' );
+		$select = "SELECT e.event_id,e.name,MIN(o.starts_at) AS first_start,MIN(o.timezone) AS timezone FROM {$p}wpcap_events e LEFT JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE 1=1{$scope}";
+		$rows = (array) $wpdb->get_results( "$select GROUP BY e.event_id,e.name ORDER BY e.name,first_start LIMIT " . ( self::EVENT_OPTIONS_LIMIT + 1 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scope from scope_sql(), integer limit.
+		// A447: the list is capped; a cut list is reported (event_options_note()) and the selected/stored
+		// events are always added, so a select never silently switches to another value or drops one.
+		self::$options_truncated = count( $rows ) > self::EVENT_OPTIONS_LIMIT;
+		$rows = array_slice( $rows, 0, self::EVENT_OPTIONS_LIMIT );
+		$have = array_map( static function ( $r ) { return (int) $r->event_id; }, $rows );
+		$include = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $include ) ) ), $have ) );
+		if ( $include ) {
+			$extra = (array) $wpdb->get_results( "$select AND e.event_id IN (" . implode( ',', $include ) . ') GROUP BY e.event_id,e.name' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = array_merge( $rows, $extra );
+		}
+		$count = array();
+		foreach ( (array) $rows as $row ) { $key = mb_strtolower( trim( (string) $row->name ) ); $count[ $key ] = ( $count[ $key ] ?? 0 ) + 1; }
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$label = (string) $row->name;
+			if ( $count[ mb_strtolower( trim( $label ) ) ] > 1 ) {
+				$label .= ' (' . ( $row->first_start ? \PassCaptain\Orders::format_start( $row->first_start, (string) $row->timezone ) . ', ' : '' ) . '#' . (int) $row->event_id . ')';
+			}
+			$out[ (int) $row->event_id ] = $label;
 		}
 		return $out;
+	}
+
+	/**
+	 * Public id prefix of a typed order or ticket number (A336/A545): the short order number as shown
+	 * in mails, the portal and payment references ("AB12-CD34", "ab12 cd34", "Bestellung AB12-CD34",
+	 * "#AB12CD34") or a longer part of the public id, lower case without separators. '' when the input
+	 * is no such number.
+	 */
+	public static function public_id_prefix( $search ) {
+		$value = strtolower( trim( (string) $search ) );
+		$value = (string) preg_replace( '/^(?:bestellung|bestellnummer|order|ticket)\s*(?:nr\.?|nummer)?\s*:?\s*/u', '', $value );
+		$hex = (string) preg_replace( '/[\s\-#]+/', '', $value );
+		return 1 === preg_match( '/^[a-f0-9]{4,32}$/', $hex ) ? $hex : '';
+	}
+
+	/**
+	 * SQL condition "every word of the search occurs in the billing data" (A336: buyer name/company in
+	 * the billing JSON). Each word is matched as typed and in its JSON-escaped form (non-ASCII letters are
+	 * stored as \uXXXX). Empty when the search has no word of at least two characters.
+	 *
+	 * @param string $column Column holding the billing JSON.
+	 * @param string $search Search input.
+	 * @return array{0:string,1:string[]} SQL fragment and its arguments.
+	 */
+	public static function billing_words_sql( $column, $search ) {
+		$words = array_slice( array_values( array_filter( preg_split( '/\s+/u', trim( (string) $search ) ) ?: array(), static function ( $w ) { return mb_strlen( $w ) >= 2; } ) ), 0, 4 );
+		$parts = array();
+		$args = array();
+		foreach ( $words as $word ) {
+			$escaped = substr( (string) wp_json_encode( $word ), 1, -1 );
+			$variants = array_unique( array( $word, $escaped ) );
+			$parts[] = '(' . implode( ' OR ', array_fill( 0, count( $variants ), $column . ' LIKE %s' ) ) . ')';
+			foreach ( $variants as $variant ) { $args[] = '%' . self::like( $variant ) . '%'; }
+		}
+		return $parts ? array( '(' . implode( ' AND ', $parts ) . ')', $args ) : array( '', array() );
 	}
 
 	/* --------------------------------------------------------------------------------------------- */
@@ -214,7 +541,8 @@ final class Queries {
 	}
 
 	/**
-	 * Whether the current user may act on an order: they need the capability for every event in it.
+	 * Whether the current user may act on an order: they need the capability for every event in it
+	 * and every occurrence must lie in their location/partner scope (A119).
 	 * Orders without items are reserved for global admins.
 	 */
 	public static function can_access_order( $order_id, $cap ) {
@@ -224,15 +552,34 @@ final class Queries {
 		foreach ( $events as $event_id ) {
 			if ( ! Access::can_access_event( $event_id, $cap ) ) { return false; }
 		}
-		return true;
+		return Access::order_in_scope( $order_id, 0, $cap );
+	}
+
+	/**
+	 * A650: SQL condition for orders the user may see in lists – like can_access_order(): at least one
+	 * line and every line in an event (and occurrence) of the scope. An order that also holds tickets of
+	 * a foreign event is not listed (its e-mail, total and the foreign event name would show).
+	 *
+	 * @param int[]|null $event_ids Scope (null = all events).
+	 * @param string     $order_col Column holding the order id (e.g. ord.order_id).
+	 */
+	public static function order_scope_sql( $event_ids, $order_col ) {
+		if ( null === $event_ids ) { return ''; }
+		if ( ! $event_ids ) { return ' AND 1=0'; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_col = preg_replace( '/[^A-Za-z0-9_.]/', '', (string) $order_col );
+		$lines = "SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=$order_col";
+		$in_scope = '(1=1' . self::scope_sql( $event_ids, 'fo.event_id' ) . Access::occurrence_scope_sql( 'fo' ) . ')';
+		return " AND EXISTS ($lines) AND NOT EXISTS ($lines AND NOT $in_scope)";
 	}
 
 	/**
 	 * Order search with filters.
 	 *
-	 * @param array      $filters   status, payment_status, search (public id prefix, complete e-mail, e-mail prefix or "@domain";
-	 *                              from 3 characters also attendee name prefix, billing first/last name or
-	 *                              company prefix and ticket id prefix), event_id.
+	 * @param array      $filters   status, payment_status, search (order number "AB12-CD34" or public id
+	 *                              prefix, e-mail part, billing name/company, attendee name or e-mail,
+	 *                              ticket number), event_id.
 	 * @param int[]|null $event_ids Scope.
 	 * @return array{rows: object[], total: int}
 	 */
@@ -245,52 +592,71 @@ final class Queries {
 		if ( ! empty( $filters['payment_status'] ) ) { $where .= ' AND ord.payment_status=%s'; $args[] = (string) $filters['payment_status']; }
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
 			$search = trim( (string) $filters['search'] );
+			$part = '%' . self::like( $search ) . '%';
+			// Short order numbers / payment references ("Bestellung 3F2A-9C1E") are public id prefixes.
+			$id_prefix = self::public_id_prefix( $search );
 			if ( is_email( $search ) ) {
 				// A complete address: exact match on the customer_email index (PERF-15).
-				$where .= ' AND ord.customer_email=%s';
-				$args[] = $search;
+				$or = array( 'ord.public_id LIKE %s', 'ord.customer_email=%s' );
+				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', $search );
 			} else {
-				// Short order numbers / payment references ("Bestellung 3F2A-9C1E") are public id prefixes.
-				// E-mail: prefix search ("anna", "anna@exa"), which can use the customer_email index; a
-				// leading "@" searches by domain (suffix, full scan; docs/OPERATIONS.md). PERF-15.
-				$id_prefix = preg_match( '/^(?:bestellung\s+)?([a-f0-9]{4})[\s-]?([a-f0-9]{4})$/i', $search, $m ) ? $m[1] . $m[2] : $search;
-				$conditions = array( 'ord.public_id LIKE %s', 'ord.customer_email LIKE %s' );
-				$args[] = self::like( strtolower( $id_prefix ) ) . '%';
-				$args[] = '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%';
-				if ( '@' !== $search[0] && mb_strlen( $search ) >= 3 ) {
-					// Attendee name (prefix), billing first/last name or company (prefix inside the stored JSON,
-					// matched in its JSON encoding so umlauts match too) and ticket id prefix.
-					$conditions[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st INNER JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND sa.attendee_name LIKE %s)";
-					$args[] = self::like( $search ) . '%';
-					$json = substr( (string) wp_json_encode( $search ), 0, -1 );
-					foreach ( array( 'first_name', 'last_name', 'company' ) as $key ) {
-						$conditions[] = 'ord.billing LIKE %s';
-						$args[] = '%"' . $key . '":' . self::like( $json ) . '%';
-					}
-					if ( preg_match( '/^[a-f0-9]{6,32}$/i', $search ) ) {
-						$conditions[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets sp WHERE sp.order_id=ord.order_id AND sp.public_id LIKE %s)";
-						$args[] = self::like( strtolower( $search ) ) . '%';
-					}
-				}
-				$where .= ' AND (' . implode( ' OR ', $conditions ) . ')';
+				$or = array( 'ord.public_id LIKE %s', 'ord.customer_email LIKE %s' );
+				// E-mail: prefix search ("anna", "anna@exa") on the customer_email index; a leading "@" searches
+				// by domain (suffix, documented full scan). PERF-15.
+				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%' );
 			}
+			// A336: buyer name/company (billing data) and attendee names, as far as the user may see them.
+			// R7: names only from 3 characters on (no accidental full scans for "Zo").
+			$names = '@' !== $search[0] && mb_strlen( $search ) >= 3;
+			if ( $names && ( \PassCaptain\Pii::can_view( 'buyer_name' ) || \PassCaptain\Pii::can_view( 'billing' ) ) ) {
+				list( $billing_sql, $billing_args ) = self::billing_words_sql( 'ord.billing', $search );
+				if ( '' !== $billing_sql ) { $or[] = $billing_sql; array_push( $args, ...$billing_args ); }
+			}
+			if ( $names && \PassCaptain\Pii::can_view( 'attendee_name' ) ) {
+				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st INNER JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND sa.attendee_name LIKE %s)";
+				$args[] = $part;
+			}
+			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) {
+				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st LEFT JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND (st.attendee_email LIKE %s OR sa.attendee_email LIKE %s))";
+				$email_part = is_email( $search ) ? self::like( $search ) : ( '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%' );
+				array_push( $args, $email_part, $email_part );
+			}
+			if ( '' !== $id_prefix && strlen( $id_prefix ) >= 8 ) {
+				// A ticket number of the order (ticket list, PDF) finds the order, too.
+				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st WHERE st.order_id=ord.order_id AND st.public_id LIKE %s)";
+				$args[] = self::like( $id_prefix ) . '%';
+			}
+			$where .= ' AND (' . implode( ' OR ', $or ) . ')';
 		}
 		$items_join = "SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=ord.order_id";
 		if ( ! empty( $filters['event_id'] ) ) {
 			$where .= " AND EXISTS ($items_join AND fo.event_id=%d)";
 			$args[] = absint( $filters['event_id'] );
 		}
-		if ( null !== $event_ids ) {
-			$where .= $event_ids ? " AND EXISTS ($items_join" . self::scope_sql( $event_ids, 'fo.event_id' ) . ')' : ' AND 1=0';
-		}
-		// $where: literal conditions with placeholders for every value ($args), table names from $wpdb->prefix.
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i ord WHERE $where", array_merge( array( $p . 'wpcap_orders' ), $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
-		$list_args = array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_orders' ), $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) );
-		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
-			"SELECT ord.*,(SELECT GROUP_CONCAT(DISTINCT e.name ORDER BY e.name SEPARATOR ', ') FROM %i ei INNER JOIN %i et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN %i eo ON eo.occurrence_id=et.occurrence_id INNER JOIN %i e ON e.event_id=eo.event_id WHERE ei.order_id=ord.order_id) AS event_names FROM %i ord WHERE $where ORDER BY ord.created_at DESC, ord.order_id DESC LIMIT %d OFFSET %d",
+		$where .= self::order_scope_sql( $event_ids, 'ord.order_id' );
+		$count_sql = "SELECT COUNT(*) FROM {$p}wpcap_orders ord WHERE $where";
+		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
+		$list_args = array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) );
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT ord.*,(SELECT GROUP_CONCAT(DISTINCT e.name ORDER BY e.name SEPARATOR ', ') FROM {$p}wpcap_order_items ei INNER JOIN {$p}wpcap_ticket_types et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN {$p}wpcap_occurrences eo ON eo.occurrence_id=et.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=eo.event_id WHERE ei.order_id=ord.order_id) AS event_names FROM {$p}wpcap_orders ord WHERE $where ORDER BY ord.created_at DESC, ord.order_id DESC LIMIT %d OFFSET %d",
 			$list_args
 		) );
 		return array( 'rows' => $rows, 'total' => $total );
+	}
+
+	/**
+	 * Number of paid orders without tickets that need a decision (`needs_review`: payment after the
+	 * hold expired without free capacity) the current user may see (A337: menu counter, admin notice).
+	 * Same scope as the order list (search_orders()); uses the status index.
+	 *
+	 * @param int[]|null $event_ids Scope (null = all events).
+	 */
+	public static function needs_review_count( $event_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( null !== $event_ids && ! $event_ids ) { return 0; }
+		$scope = self::order_scope_sql( $event_ids, 'ord.order_id' );
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders ord WHERE ord.status='needs_review'{$scope}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope from scope_sql()/occurrence_scope_sql().
 	}
 
 	/** Order items with tax, event and occurrence context. */
@@ -330,7 +696,8 @@ final class Queries {
 	/**
 	 * Ticket search.
 	 *
-	 * @param array      $filters   search (ticket/order public id prefix, buyer or attendee e-mail/name part), event_id, status.
+	 * @param array      $filters   search (ticket/order number – also "AB12-CD34" as shown to buyers –, help
+	 *                              code, full ticket code or link, buyer or attendee e-mail/name part), event_id, status.
 	 * @param int[]|null $event_ids      Scope.
 	 * @param int[]      $occurrence_ids Additional single dates in scope (date-level staff); ignored when $event_ids is null.
 	 * @return array{rows: object[], total: int}
@@ -338,30 +705,114 @@ final class Queries {
 	public static function search_tickets( array $filters, $event_ids, $page = 1, $per_page = 30, array $occurrence_ids = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$tables = array( $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_orders', $p . 'wpcap_ticket_assignments' );
+		// A432: the page is found on the tickets (and only the tables the filters need), its context and
+		// last check-ins are read for the ids of the page only.
+		$occ_join = " INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
 		if ( null !== $event_ids && $occurrence_ids ) {
-			// Events in scope or one of the assigned dates.
-			$where = '1=1 AND (' . ( $event_ids ? 'o.event_id IN (' . implode( ',', array_map( 'absint', $event_ids ) ) . ') OR ' : '' ) . 'o.occurrence_id IN (' . implode( ',', array_map( 'absint', $occurrence_ids ) ) . '))';
+			// Events in scope or one of the assigned dates (wpcap_occurrence_staff).
+			$where = '1=1 AND (' . ( $event_ids ? 'o.event_id IN (' . implode( ',', array_map( 'absint', $event_ids ) ) . ') OR ' : '' ) . 'o.occurrence_id IN (' . implode( ',', array_map( 'absint', $occurrence_ids ) ) . '))' . Access::occurrence_scope_sql( 'o' );
 		} else {
-			$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' );
+			$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' ) . Access::occurrence_scope_sql( 'o' );
 		}
+		$needs_occ = '1=1' !== $where;
 		$args = array();
+		$notice = null;
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
+			// A441: the matching tickets are collected first, one indexed lookup per field, instead of
+			// six LIKE '%x%' over a six-table join; the page is then built on these ids.
 			$search = trim( (string) $filters['search'] );
-			$prefix = self::like( strtolower( $search ) ) . '%';
-			$part = '%' . self::like( $search ) . '%';
-			$where .= ' AND (t.public_id LIKE %s OR ord.public_id LIKE %s OR ord.customer_email LIKE %s OR t.attendee_email LIKE %s OR ta.attendee_email LIKE %s OR ta.attendee_name LIKE %s)';
-			array_push( $args, $prefix, $prefix, $part, $part, $part, $part );
+			$capped = false;
+			$matches = self::ticket_search_ids( $search, $capped, $notice );
+			if ( $capped ) {
+				/* translators: %d: maximum number of matches per field */
+				$notice = sprintf( __( 'Mehr als %d Treffer – bitte die Suche genauer fassen (z. B. vollständige E-Mail-Adresse oder Bestellnummer).', 'pass-captain' ), self::TICKET_SEARCH_MAX );
+			}
+			$where .= ' AND t.ticket_id IN (' . ( $matches ? implode( ',', $matches ) : '0' ) . ')';
 		}
-		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
+		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); $needs_occ = true; }
 		if ( ! empty( $filters['status'] ) ) { $where .= ' AND t.status=%s'; $args[] = (string) $filters['status']; }
-		// $where: literal conditions with placeholders for every value ($args) and the integer scope.
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE $where", array_merge( $tables, $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
-		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
-			"SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name,(SELECT MAX(c.created_at) FROM %i c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in') AS last_checkin_at FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
-			array_merge( array( $p . 'wpcap_checkins' ), $tables, $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
-		) );
-		return array( 'rows' => $rows, 'total' => $total );
+		$from = "FROM {$p}wpcap_tickets t" . ( $needs_occ ? $occ_join : '' );
+		$count_sql = "SELECT COUNT(*) $from WHERE $where";
+		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
+		$ids = $total ? array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			"SELECT t.ticket_id $from WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
+			array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
+		) ) ) : array();
+		$rows = array();
+		if ( $ids ) {
+			$in = implode( ',', $ids );
+			$rows = (array) $wpdb->get_results( "SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id IN ($in) ORDER BY t.ticket_id DESC" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$last = array();
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_id,MAX(created_at) AS last_checkin_at FROM {$p}wpcap_checkins WHERE ticket_id IN ($in) AND result='checked_in' GROUP BY ticket_id" ) as $checkin ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$last[ (int) $checkin->ticket_id ] = (string) $checkin->last_checkin_at;
+			}
+			foreach ( $rows as $row ) { $row->last_checkin_at = $last[ (int) $row->ticket_id ] ?? null; }
+		}
+		return array( 'rows' => $rows, 'total' => $total ) + ( null !== $notice ? array( 'notice' => $notice ) : array() );
+	}
+
+	/** Matches read per search field (A441); more means the search is too broad. */
+	const TICKET_SEARCH_MAX = 1000;
+
+	/**
+	 * Ticket ids matching a ticket search (A441). Every field is looked up on its own index:
+	 * ticket and order numbers by prefix (also "AB12-CD34" as shown to buyers), e-mail addresses by
+	 * prefix (buyer, ticket, assignment), attendee names by prefix of the name or of one of its words
+	 * (the word search reads only the name index of wpcap_ticket_assignments), the full ticket code
+	 * exactly and the help code through the rate-limited HelpCode lookup. Names and e-mails only for
+	 * users who may see them (A119).
+	 *
+	 * @param string      $search Search input (trimmed).
+	 * @param bool        $capped Set when a field had more than TICKET_SEARCH_MAX matches.
+	 * @param string|null $notice Set to the help-code rate-limit message.
+	 * @return int[]
+	 */
+	private static function ticket_search_ids( $search, &$capped, &$notice ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$max = self::TICKET_SEARCH_MAX + 1;
+		$id_prefix = self::public_id_prefix( $search );
+		$lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $search ) : strtolower( $search );
+		$number = self::like( '' !== $id_prefix ? $id_prefix : $lower ) . '%';
+		$text = self::like( $lower ) . '%';
+		$queries = array(
+			$wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE public_id LIKE %s LIMIT %d", $number, $max ),
+			$wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id WHERE ord.public_id LIKE %s LIMIT %d", $number, $max ),
+		);
+		if ( mb_strlen( $search ) >= 2 ) {
+			// Only fields the user may see are searchable (A119: no probing of masked e-mails/names).
+			if ( \PassCaptain\Pii::can_view( 'buyer_email' ) ) {
+				$queries[] = $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id WHERE ord.customer_email LIKE %s LIMIT %d", $text, $max );
+			}
+			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) {
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE attendee_email LIKE %s LIMIT %d", $text, $max );
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_ticket_assignments WHERE attendee_email LIKE %s LIMIT %d", $text, $max );
+			}
+			if ( \PassCaptain\Pii::can_view( 'attendee_name' ) ) {
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_ticket_assignments WHERE attendee_name LIKE %s LIMIT %d", $text, $max );
+				// Last name or a later word: scans only KEY attendee_name (name, ticket id), no join.
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_ticket_assignments WHERE attendee_name LIKE %s LIMIT %d", '% ' . $text, $max );
+			}
+		}
+		$ids = array();
+		foreach ( $queries as $sql ) {
+			$found = array_map( 'intval', (array) $wpdb->get_col( $sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
+			if ( count( $found ) > self::TICKET_SEARCH_MAX ) { $capped = true; $found = array_slice( $found, 0, self::TICKET_SEARCH_MAX ); }
+			foreach ( $found as $id ) { $ids[ $id ] = $id; }
+		}
+		// The full ticket code or ticket link (64 hex) – whoever holds it holds the ticket anyway.
+		$code = \PassCaptain\Checkin::normalize_code( $search );
+		if ( '' !== $code ) {
+			$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE token_hash=%s", hash( 'sha256', $code ) ) );
+			if ( $id ) { $ids[ $id ] = $id; }
+		}
+		// The help code printed under the QR code: rate-limited lookup like at the scanner (HelpCode).
+		if ( \PassCaptain\HelpCode::looks_like( $search ) ) {
+			$help_ticket = \PassCaptain\HelpCode::resolve( $search );
+			if ( is_wp_error( $help_ticket ) ) { $notice = $help_ticket->get_error_message(); }
+			if ( is_int( $help_ticket ) && $help_ticket > 0 ) { $ids[ $help_ticket ] = $help_ticket; }
+		}
+		return array_values( $ids );
 	}
 
 	/**
@@ -374,66 +825,67 @@ final class Queries {
 	public static function checkin_log( array $filters, $event_ids, $page = 1, $per_page = 50 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$tables = array( $p . 'wpcap_checkins', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' );
-		$where = '1=1' . self::scope_sql( $event_ids, 'c.event_id' );
+		// A433: count and page on wpcap_checkins alone (KEY created, event_result_created); the ticket
+		// chain is joined only when the user's occurrence scope needs it, names only for the page.
+		$scope_join = " LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
+		$occurrence_scope = Access::occurrence_scope_sql( 'o' );
+		$where = '1=1' . self::scope_sql( $event_ids, 'c.event_id' ) . $occurrence_scope;
 		$args = array();
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND c.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
 		if ( ! empty( $filters['result'] ) ) { $where .= ' AND c.result=%s'; $args[] = (string) $filters['result']; }
 		if ( ! empty( $filters['date_from'] ) ) { $where .= ' AND c.created_at >= %s'; $args[] = (string) $filters['date_from']; }
 		if ( ! empty( $filters['date_to'] ) ) { $where .= ' AND c.created_at < %s'; $args[] = (string) $filters['date_to']; }
-		// $where: literal conditions with placeholders for every value ($args) and the integer scope.
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i c LEFT JOIN %i t ON t.ticket_id=c.ticket_id LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i e ON e.event_id=c.event_id WHERE $where", array_merge( $tables, $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
-		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
-			"SELECT c.*,t.public_id AS ticket_public_id,t.order_id,tt.name AS ticket_name,o.timezone,e.name AS event_name FROM %i c LEFT JOIN %i t ON t.ticket_id=c.ticket_id LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i e ON e.event_id=c.event_id WHERE $where ORDER BY c.created_at DESC, c.checkin_id DESC LIMIT %d OFFSET %d",
-			array_merge( $tables, $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
-		) );
+		$from = "FROM {$p}wpcap_checkins c" . ( '' !== $occurrence_scope ? $scope_join : '' );
+		$count_sql = "SELECT COUNT(*) $from WHERE $where";
+		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
+		$ids = $total ? array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			"SELECT c.checkin_id $from WHERE $where ORDER BY c.created_at DESC, c.checkin_id DESC LIMIT %d OFFSET %d",
+			array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
+		) ) ) : array();
+		$rows = array();
+		if ( $ids ) {
+			$by_id = array();
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.*,t.public_id AS ticket_public_id,t.order_id,tt.name AS ticket_name,o.timezone,e.name AS event_name FROM {$wpdb->prefix}wpcap_checkins c LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=c.event_id WHERE c.checkin_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ) ) as $row ) {
+				$by_id[ (int) $row->checkin_id ] = $row;
+			}
+			foreach ( $ids as $id ) { if ( isset( $by_id[ $id ] ) ) { $rows[] = $by_id[ $id ]; } } // Order of the page.
+		}
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
-	/** Check-in results written by the core (filter options of the check-in log). */
-	const CHECKIN_RESULTS = array( 'checked_in', 'checked_out', 'undone', 'already_checked_in', 'not_checked_in', 'revoked', 'unknown', 'wrong_event', 'wrong_occurrence', 'wrong_area', 'out_of_window', 'not_valid_today', 'daily_limit_reached', 'cancelled_event', 'invalid_signature', 'backdated_admission', 'offline_expired', 'forbidden' );
-
 	/**
-	 * Check-in results for the log filter: the known core results plus any other value present in the
-	 * log (add-on policies). The DISTINCT scan over the whole log runs at most once a day (transient),
-	 * not on every page view (PERF-8).
+	 * Results the check-in log can be filtered by (A433: a fixed list instead of a DISTINCT scan of
+	 * the whole log; Checkin::LOG_RESULTS, filter `wpcap_checkin_log_results`).
 	 */
 	public static function checkin_results() {
-		global $wpdb;
-		$extra = get_transient( 'wpcap_checkin_results' );
-		if ( ! is_array( $extra ) ) {
-			$extra = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT result FROM %i', $wpdb->prefix . 'wpcap_checkins' ) ) );
-			set_transient( 'wpcap_checkin_results', $extra, DAY_IN_SECONDS );
-		}
-		$results = array_values( array_unique( array_merge( self::CHECKIN_RESULTS, $extra ) ) );
-		sort( $results );
-		return $results;
+		return array_values( array_unique( array_map( 'sanitize_key', (array) apply_filters( 'wpcap_checkin_log_results', \PassCaptain\Checkin::LOG_RESULTS ) ) ) );
 	}
 
-	/** WHERE condition of pending_refunds() (literal, table names from the prefix, integer scope). */
-	private static function pending_refunds_where( $event_ids ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$where = "r.status='pending_approval'";
-		if ( null !== $event_ids ) {
-			$where .= $event_ids ? " AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=r.order_id" . self::scope_sql( $event_ids, 'fo.event_id' ) . ')' : ' AND 1=0';
-		}
-		return $where;
+	/** Event scope of the pending-refund queries ('' = all events). */
+	private static function pending_refund_scope( $event_ids ) {
+		return self::order_scope_sql( $event_ids, 'r.order_id' ); // A650: only orders entirely in scope.
 	}
 
-	/** Number of refunds waiting for approval (menu badge; COUNT instead of loading the list). */
+	/**
+	 * Number of refunds waiting for approval, for the menu badge on every admin page (A369): one
+	 * COUNT(*) on the status index (KEY status_updated) instead of loading up to 200 rows with
+	 * order data and event names. Same rows as pending_refunds(), capped at 200 like the list.
+	 *
+	 * @param int[]|null $event_ids Event scope (null = all).
+	 */
 	public static function pending_refunds_count( $event_ids ) {
 		global $wpdb;
-		$where = self::pending_refunds_where( $event_ids );
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i r WHERE {$where}", $wpdb->prefix . 'wpcap_refunds' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see pending_refunds_where().
+		$p = $wpdb->prefix;
+		$scope = self::pending_refund_scope( $event_ids );
+		if ( ' AND 1=0' === $scope ) { return 0; }
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT r.refund_id FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='pending_approval'{$scope} LIMIT 200) pending" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope.
 	}
 
 	/** Refunds waiting for approval (scoped by the order's events). */
 	public static function pending_refunds( $event_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$where = self::pending_refunds_where( $event_ids );
-		// $where: literal conditions, table names from $wpdb->prefix and the integer scope.
-		return $wpdb->get_results( $wpdb->prepare( "SELECT r.*,ord.public_id AS order_public_id,ord.customer_email,ord.payment_provider,(SELECT GROUP_CONCAT(DISTINCT e.name SEPARATOR ', ') FROM %i ei INNER JOIN %i et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN %i eo ON eo.occurrence_id=et.occurrence_id INNER JOIN %i e ON e.event_id=eo.event_id WHERE ei.order_id=r.order_id) AS event_names FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE {$where} ORDER BY r.created_at, r.refund_id LIMIT 200", $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_refunds', $p . 'wpcap_orders' ) );
+		$scope = self::pending_refund_scope( $event_ids );
+		return $wpdb->get_results( "SELECT r.*,ord.public_id AS order_public_id,ord.customer_email,ord.payment_provider,(SELECT GROUP_CONCAT(DISTINCT e.name SEPARATOR ', ') FROM {$p}wpcap_order_items ei INNER JOIN {$p}wpcap_ticket_types et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN {$p}wpcap_occurrences eo ON eo.occurrence_id=et.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=eo.event_id WHERE ei.order_id=r.order_id) AS event_names FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='pending_approval'{$scope} ORDER BY r.created_at, r.refund_id LIMIT 200" );
 	}
 }

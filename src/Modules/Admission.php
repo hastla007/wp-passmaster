@@ -19,8 +19,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Admission {
 	public static function register() {
 		add_action( 'rest_api_init', array( Rest::class, 'routes' ) );
-		// Only pages that render the scanner shortcode (it enqueues the footer script during content).
-		add_action( 'wp_footer', array( Rest::class, 'localize_scanner' ), 1 );
+		// Only where the scanner shortcode enqueued its script (A368); see Rest::localize_scanner().
+		add_action( 'wp_enqueue_scripts', array( Rest::class, 'localize_scanner' ), 20 );
+		add_action( 'wp_print_footer_scripts', array( Rest::class, 'localize_scanner' ), 1 );
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -74,6 +75,7 @@ final class Admission {
 				event_id bigint(20) unsigned NOT NULL,
 				name varchar(190) NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				capacity int(10) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (area_id),
 				KEY event_status (event_id,status)

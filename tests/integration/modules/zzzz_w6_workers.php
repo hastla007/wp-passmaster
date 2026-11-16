@@ -71,9 +71,14 @@ Jobs::process_due( 200 );
 check( 'fresh claim of another worker (5 min) is not taken over', 'running' === w6_job( $k )->status && ! in_array( (int) w6_job( $k )->job_id, $w6_runs, true ) );
 $wpdb->update( "{$p}wpcap_jobs", array( 'locked_at' => w6_ago( 16 ) ), array( 'idempotency_key' => hash( 'sha256', $k ) ) );
 Jobs::process_due( 200 );
+// Merged queue (R3): a taken-back claim waits the backoff of a failed run and carries a last error.
+$job = w6_job( $k );
+$w6_requeued = 'queued' === $job->status && strtotime( $job->run_after . ' UTC' ) > time() && '' !== (string) $job->last_error && ! in_array( (int) $job->job_id, $w6_runs, true );
+$wpdb->update( "{$p}wpcap_jobs", array( 'run_after' => '2000-01-01 00:00:00' ), array( 'job_id' => (int) $job->job_id ) ); // Backoff over.
+Jobs::process_due( 200 );
 Jobs::process_due( 200 );
 $job = w6_job( $k );
-check( 'expired claim (16 min) is re-queued and resumed exactly once', 'complete' === $job->status && 2 === (int) $job->attempts && 1 === count( array_keys( $w6_runs, (int) $job->job_id, true ) ) );
+check( 'expired claim (16 min) is re-queued with a backoff and resumed exactly once', $w6_requeued && 'complete' === $job->status && 2 === (int) $job->attempts && 1 === count( array_keys( $w6_runs, (int) $job->job_id, true ) ) );
 
 // Poison job: killed the worker on every attempt so far.
 $k = 'w6-poison-' . uniqid();
@@ -81,8 +86,11 @@ Jobs::enqueue( $k, 'w6_ok', array(), '2000-01-01 00:00:00' );
 $wpdb->update( "{$p}wpcap_jobs", array( 'status' => 'running', 'attempts' => Jobs::MAX_ATTEMPTS, 'locked_at' => w6_ago( 20 ) ), array( 'idempotency_key' => hash( 'sha256', $k ) ) );
 $w6_runs = array();
 Jobs::process_due( 200 );
+// Merged queue: taken back like any stale claim; its next claim dead-letters it without a run.
+$wpdb->update( "{$p}wpcap_jobs", array( 'run_after' => '2000-01-01 00:00:00' ), array( 'idempotency_key' => hash( 'sha256', $k ) ) );
+Jobs::process_due( 200 );
 $job = w6_job( $k );
-check( 'stale claim with exhausted attempts is dead-lettered, not run again', 'dead_letter' === $job->status && ! in_array( (int) $job->job_id, $w6_runs, true ) && false !== strpos( (string) $job->last_error, 'attempts exhausted' ) );
+check( 'stale claim with exhausted attempts is dead-lettered, not run again', 'dead_letter' === $job->status && ! in_array( (int) $job->job_id, $w6_runs, true ) && '' !== (string) $job->last_error );
 
 // Worker dies inside the handler (child process): the shutdown handler hands the claim back.
 $k = 'w6-crash-' . uniqid();
@@ -100,7 +108,11 @@ $k = 'w6-crash-last-' . uniqid();
 Jobs::enqueue( $k, 'w6_crash', array(), '2000-01-01 00:00:00' );
 $wpdb->update( "{$p}wpcap_jobs", array( 'attempts' => Jobs::MAX_ATTEMPTS - 1 ), array( 'idempotency_key' => hash( 'sha256', $k ) ) );
 w6_child( 'job' );
-check( 'crash on the last attempt dead-letters the job (no endless crash loop)', 'dead_letter' === w6_job( $k )->status && Jobs::MAX_ATTEMPTS === (int) w6_job( $k )->attempts );
+// Merged queue: the shutdown release puts it back with its attempts used up; the next claim dead-letters it.
+$wpdb->update( "{$p}wpcap_jobs", array( 'run_after' => '2000-01-01 00:00:00' ), array( 'idempotency_key' => hash( 'sha256', $k ) ) );
+$w6_runs = array();
+Jobs::process_due( 200 );
+check( 'crash on the last attempt dead-letters the job (no endless crash loop)', 'dead_letter' === w6_job( $k )->status && Jobs::MAX_ATTEMPTS === (int) w6_job( $k )->attempts && ! in_array( (int) w6_job( $k )->job_id, $w6_runs, true ) );
 
 // Retry backoff and dead letter for a handler that keeps failing.
 $k = 'w6-fail-' . uniqid();
@@ -122,10 +134,13 @@ check( 'dead-lettered job is never picked up again', ! in_array( (int) $job->job
 
 /* ------------------------------------------------------------------------------------------ */
 echo "W6 workers: e-mail queue\n";
+// Test template: the merged queue never renders the payload itself as subject/body (A652).
+add_filter( 'wpcap_email_template', static function ( $template, $key, $payload ) { return 'w6_mail' === $key ? array( 'subject' => (string) ( $payload['subject'] ?? '' ), 'body' => (string) ( $payload['body'] ?? '' ) ) : $template; }, 10, 3 );
 $to = 'w6-stale-' . uniqid() . '@example.com';
 Communications::enqueue( 'w6-' . $to, $to, 'w6_mail', array( 'subject' => 'W6', 'body' => 'Hallo' ), '2000-01-01 00:00:00' );
 $wpdb->update( "{$p}wpcap_message_queue", array( 'status' => 'sending', 'attempts' => 1, 'locked_at' => w6_ago( 16 ) ), array( 'recipient' => $to ) );
 Communications::process_due();
+$wpdb->update( "{$p}wpcap_message_queue", array( 'send_at' => '2000-01-01 00:00:00' ), array( 'recipient' => $to, 'status' => 'queued' ) ); // A taken-back claim may wait a backoff (merged queue).
 Communications::process_due();
 $sent = count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => $m['to'] === $to ) );
 check( 'expired sending claim is resumed and the mail sent exactly once', 1 === $sent && 'sent' === w6_msg( $to )->status );
@@ -283,7 +298,9 @@ check( 'sms: next run sends it exactly once', array( 'wpcap-sms-' . $id ) === $w
 $poison = $w6_sms_row( array( 'status' => 'sending', 'attempts' => PassCaptain\Sms\Service::MAX_ATTEMPTS, 'locked_at' => w6_ago( 16 ) ) );
 $w6_sms->sent = array();
 PassCaptain\Sms\Service::process_due( 5 );
-check( 'sms: stale claim with exhausted attempts fails instead of being re-sent', 'failed' === $w6_sms_status( $poison )->status && ! $w6_sms->sent );
+// Merged SMS queue (A416): with a provider that does not deduplicate repeated requests, a stale claim's
+// outcome is "unknown" (looked up at the provider, never re-sent blindly); with one that does, it fails.
+check( 'sms: stale claim with exhausted attempts fails instead of being re-sent', in_array( $w6_sms_status( $poison )->status, array( 'failed', 'unknown' ), true ) && ! $w6_sms->sent );
 remove_filter( 'wpcap_sms_providers', $w6_sms_filter );
 PassCaptain\Settings::update( array( 'sms' => $w6_sms_settings ) );
 

@@ -22,7 +22,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          tools: composer:v2
+          tools: composer:v2, wp-cli
           extensions: mbstring
           coverage: none
       - name: Validate Composer metadata
@@ -31,11 +31,34 @@ jobs:
         run: composer install --no-interaction --prefer-dist
       - name: PHP syntax checks
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: SQL table prefixes, no hard-coded wp_, no direct WooCommerce order table queries (docs/TESTING.md)
+        run: php tests/sql-prefix-check.php --self-test
+      - name: No byte-wise substr() on text – UTF-8 safe truncation via Text::cut() (A478, docs/TESTING.md)
+        run: php tests/utf8-substr-check.php --self-test
+      # PHPCS (against phpcs-baseline.json) and the Composer audit run in the "static" job below.
+      - name: Secret scan of all tracked files
+        run: php tests/secret-scan.php
       - name: JavaScript syntax checks
         run: for f in $(git ls-files "assets/*.js" "src/*.js" | grep -v "^assets/vendor/"); do node --check "$f" || exit 1; done
-      - name: JavaScript unit tests (node:test, tests/js)
-        if: matrix.php == '8.4'
-        run: cd tests/js && npm test
+      - name: Translations consistent, .pot and .mo up to date (completeness is a release gate)
+        run: |
+          wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-theme-json
+          php tests/i18n-check.php --allow-incomplete --fresh-pot="$RUNNER_TEMP/fresh.pot"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript lint (ESLint, all own scripts) and unit tests (node:test, tests/js)
+        run: npm ci --no-audit --no-fund && npm run lint:js && npm run test:js
+      - name: npm security audit (high/critical fail)
+        run: npm audit --audit-level=high && (cd tests/a11y && npm audit --audit-level=high)
+      - name: Offline scanner translations
+        run: node tests/offline-scanner-i18n.js
+      - name: Release metadata consistency (version, readme, composer, changelogs, doc links)
+        run: php tests/consistency.php
+      - name: Release guard tests
+        run: bash tests/release-guard.sh
+      - name: Release acceptance gate tests
+        run: bash tests/release-acceptance.sh
 
   static:
     # Blocking quality gates (docs/TESTING.md, "Statische Analyse"): coding standard and PHPStan with
@@ -76,6 +99,8 @@ jobs:
         run: php tests/guard/no-license-code.php --self-test
       - name: No licence or self-update code in the core plugin
         run: php tests/guard/no-license-code.php
+      - name: No licence or updater code in the shipped core plugin (second guard, docs/FREE-PREMIUM.md)
+        run: php tests/license-guard.php --self-test
 
   secrets:
     # Secret scanning of the git history (gitleaks, rules + test allowlists in .gitleaks.toml) and,
@@ -117,11 +142,22 @@ jobs:
           - { name: 'MariaDB 11.4', image: 'mariadb:11.4', health: 'healthcheck.sh --connect --innodb_initialized', experimental: false }
           - { name: 'MySQL 8.0', image: 'mysql:8.0', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', experimental: false }
           - { name: 'MySQL 8.4', image: 'mysql:8.4', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', experimental: false }
+        # A175/A176: newest PHP and further MariaDB LTS versions (support policy in docs/OPERATIONS.md,
+        # "Datenbank- und PHP-Freigaben").
+        include:
+          - php: '8.3'
+            db: { name: 'MariaDB 10.11', image: 'mariadb:10.11', health: 'healthcheck.sh --connect --innodb_initialized', experimental: false }
+          - php: '8.5'
+            db: { name: 'MariaDB 11.8', image: 'mariadb:11.8', health: 'healthcheck.sh --connect --innodb_initialized', experimental: false }
     services:
       db:
         image: ${{ matrix.db.image }}
         env:
-          # MYSQL_* is understood by both the mysql and the mariadb images.
+          # MYSQL_* is understood by both the mysql and the mariadb images; MARIADB_* for newer mariadb images.
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
           MYSQL_DATABASE: wp
           MYSQL_USER: wp
           MYSQL_PASSWORD: wp
@@ -133,17 +169,28 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags v* and history: the upgrade tests install every previous version
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          extensions: mbstring, mysqli, gd, zip, sodium, openssl, curl
+          tools: wp-cli
           coverage: none
+      - name: Server versions
+        run: php -r 'echo "PHP ", PHP_VERSION, PHP_EOL; $m = new mysqli("127.0.0.1", "wp", "wp", "wp"); echo "DB  ", $m->server_info, PHP_EOL;'
       - name: Shipped Composer dependencies (as in the release ZIP; QR encoder)
         run: composer install --no-dev --no-interaction --prefer-dist --no-progress
-      - name: Integration tests
+      - name: Integration tests (orders, WooCommerce adapter, modules)
         env:
           WPCAP_TEST_DB_HOST: 127.0.0.1
         run: php tests/integration/run.php
+      - name: Upgrade tests from every previous version (real dbDelta, abort, parallel; docs/TESTING.md)
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+        run: php tests/upgrade/run.php
+      - name: Test runtime sanitisers equal WordPress' own (A498; uses the WordPress download of the upgrade tests)
+        run: php tests/integration/sanitize-parity.php --require
       - name: Concurrency/load smoke test (200 buyers, 8 scanners, 100 webhook deliveries; ~10 s)
         # Regression test for the check-in deadlock (false "admitted" responses, see docs/TESTING.md).
         env:
@@ -234,17 +281,37 @@ jobs:
           path: tests/e2e/artifacts/
           if-no-files-found: ignore
 
+  pwa:
+    # A120: automated part of the PWA acceptance (installability, service worker, offline start).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright (Chromium)
+        run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: PWA installability and offline start (Chromium desktop + Android emulation)
+        run: node tests/pwa/installability.js
+
   package:
     runs-on: ubuntu-latest
-    needs: [php, static, integration, license-guard, secrets, browser]
+    needs: [php, static, integration, license-guard, secrets, browser, pwa]
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          tools: composer:${{ env.COMPOSER_VERSION }}
+          # wp-cli: script translations (wp i18n make-json) in build/release.sh.
+          tools: composer:${{ env.COMPOSER_VERSION }}, wp-cli
           extensions: mbstring
           coverage: none
+      - name: Reproducible build test (two builds at different times, checksum, build-info.txt, file times)
+        run: bash tests/reproducible-build.sh
       - name: Build installable plugin ZIP
         run: bash build/release.sh
       - name: Reproducible build (second build from a clean Composer cache must be byte-identical)
@@ -261,6 +328,8 @@ jobs:
             exit 1
           fi
           (cd build/dist && sha256sum -c pass-captain.zip.sha256)
+      - name: Package gate - secret scan of every file in the ZIP, including bundled vendor code
+        run: php tests/secret-scan.php --zip=build/dist/pass-captain.zip
       - name: Package contents (no tests/dev files, autoloader and assets present, no embedded keys)
         run: WPCAP_IT_STATIC_ONLY=1 bash build/ci-install-test.sh build/dist/pass-captain.zip
       - name: No licence or self-update code in the built package
@@ -281,6 +350,7 @@ jobs:
           path: |
             build/dist/pass-captain.zip
             build/dist/pass-captain.zip.sha256
+            build/dist/build-info.txt
 
   install-test:
     # The release ZIP in a fresh, real WordPress (WP-CLI), alone and with WooCommerce minimum/latest,

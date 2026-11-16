@@ -145,7 +145,7 @@ final class Status {
 				return new \WP_Error( 'wpcap_ops_state', __( 'Der Eintrag ist nicht (mehr) fehlgeschlagen und wurde nicht verändert.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
 		}
-		Audit::record( 'ops_queue_retry', $queue, $id, array( 'type' => (string) $row->{$q['type']}, 'attempts' => (int) $row->attempts, 'last_error' => substr( (string) $row->last_error, 0, 200 ) ) );
+		Audit::record( 'ops_queue_retry', $queue, $id, array( 'type' => (string) $row->{$q['type']}, 'attempts' => (int) $row->attempts, 'last_error' => \PassCaptain\Text::cut( (string) $row->last_error, 200 ) ) );
 		self::flush_issues();
 		return true;
 	}
@@ -209,7 +209,7 @@ final class Status {
 		if ( 1 !== (int) $changed ) {
 			return new \WP_Error( 'wpcap_ops_state', __( 'Der Eintrag ist nicht (mehr) fehlgeschlagen und wurde nicht verändert.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		Audit::record( 'ops_queue_discard', $queue, $id, array( 'type' => (string) $row->{$q['type']}, 'attempts' => (int) $row->attempts, 'last_error' => substr( (string) $row->last_error, 0, 200 ) ) );
+		Audit::record( 'ops_queue_discard', $queue, $id, array( 'type' => (string) $row->{$q['type']}, 'attempts' => (int) $row->attempts, 'last_error' => \PassCaptain\Text::cut( (string) $row->last_error, 200 ) ) );
 		self::flush_issues();
 		return true;
 	}

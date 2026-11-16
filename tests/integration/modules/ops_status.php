@@ -319,16 +319,18 @@ fwrite( STDERR, "(ops test: injected schema errors (NOSUCHTYPE) follow)\n" );
 $t = time();
 $ran = Installer::maybe_upgrade( 'cron' );
 $err = get_option( Installer::ERROR_OPTION );
-check( 'failed upgrade records attempt 1 and the next retry in one minute', false === $ran && 1 === $err['attempts'] && $err['next_retry'] >= $t + 60 && $err['next_retry'] <= time() + 60 );
+// Merged design: one backoff for both lines (A466, Installer::record_failure(): 5 minutes, doubled per attempt, at most 6 hours);
+// next_retry of the status page is the same time as retry_at.
+check( 'failed upgrade records attempt 1 and the next retry in five minutes (A466 backoff)', false === $ran && 1 === $err['attempts'] && $err['next_retry'] >= $t + 300 && $err['next_retry'] <= time() + 300 && $err['next_retry'] === $err['retry_at'] );
 $wpdb->query( 'DROP TABLE IF EXISTS wpops_wpcap_events' );
 $ran = Installer::maybe_upgrade( 'admin' );
 check( 'within the backoff neither admin nor cron requests run dbDelta again', false === $ran && false === Installer::maybe_upgrade( 'cron' ) && false === Installer::maybe_upgrade( 'frontend' ) && 1 === get_option( Installer::ERROR_OPTION )['attempts'] && null === $wpdb->get_var( "SHOW TABLES LIKE 'wpops\\_wpcap\\_events'" ) );
 check( 'retry_blocked_until reports the backoff end', Installer::retry_blocked_until() === $err['next_retry'] && 0 === Installer::retry_blocked_until( $err['next_retry'] + 1 ) );
 $delays = array();
-$expected = array( 2 => 300, 3 => 900, 4 => 3600, 5 => 3600 );
+$expected = array( 2 => 600, 3 => 1200, 4 => 2400, 5 => 4800 );
 $within = true;
 for ( $i = 2; $i <= 5; $i++ ) {
-	$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['next_retry'] = time() - 1; // Backoff elapsed.
+	$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['retry_at'] = time() - 1; // Backoff elapsed (A466 field).
 	// The upgrade attempt itself can take seconds on a busy server (MySQL): next_retry must lie between
 	// "start + delay" and "end + delay" instead of within a fixed tolerance.
 	$t0 = time();
@@ -339,7 +341,7 @@ for ( $i = 2; $i <= 5; $i++ ) {
 	$d = $expected[ $e['attempts'] ] ?? -1;
 	$within = $within && $e['next_retry'] >= $t0 + $d && $e['next_retry'] <= $t1 + $d;
 }
-check( 'each further failure backs off longer (5, 15, 60, 60 minutes)', array_keys( $delays ) === array( 2, 3, 4, 5 ) && $within );
+check( 'each further failure backs off longer (10, 20, 40, 80 minutes)', array_keys( $delays ) === array( 2, 3, 4, 5 ) && $within );
 check( 'diagnostics report the schema error with attempts and next retry', 1 <= $diag( 'schema' )['count'] && 5 === $diag( 'schema' )['samples'][0]['attempts'] && $diag( 'schema' )['repairable'] );
 $forced = StatusPage::schema_retry();
 check( '"jetzt erneut versuchen" ignores the backoff (fails again here and counts the attempt)', is_wp_error( $forced ) && 'wpcap_diag_schema_failed' === $forced->get_error_code() && 6 === get_option( Installer::ERROR_OPTION )['attempts'] );
@@ -351,6 +353,7 @@ $GLOBALS['wpcap_test_filters']['wpcap_modules'] = array_merge( PassCaptain\Modul
 Installer::flush_version_cache();
 Installer::maybe_upgrade( 'cron' );
 $GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['next_retry'] = time() + 3600;
+$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['retry_at'] = time() + 3600; // A466 field.
 unset( $GLOBALS['wpcap_test_filters']['wpcap_modules'] );
 Installer::flush_version_cache();
 $GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['version'] = Installer::version(); // Same version, still in backoff.

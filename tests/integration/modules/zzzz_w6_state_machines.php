@@ -120,8 +120,14 @@ $sm_type = make_type( 0, 10, 1000 );
 echo "W6 state machines: out-of-order and duplicate payment events\n";
 $o = w6sm_order( $sm_type );
 $r1 = w6sm_event( $o, 'refunded', 'w6sm-ref-first-' . uniqid() );
-check( 'refund webhook before the paid webhook: order cancelled (never refunded), holds released, no tickets', 'cancelled_unpaid' === $r1 && 'cancelled|cancelled' === w6sm_status( $o['order_id'] ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=" . (int) $o['order_id'] . " AND status='active'" ) && 0 < (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=" . (int) $o['order_id'] . " AND status='released'" ) && ! Orders::tickets_for_order( $o['order_id'] ) );
-check( 'refund webhook of an unpaid order: no refund record, refunded amount unchanged, audited', array() === PassCaptain\Refunds::for_order( $o['order_id'] ) && 0 === (int) Orders::get( $o['order_id'] )->refunded_minor && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='provider_refund_unpaid_cancelled' AND object_id=" . (int) $o['order_id'] ) );
+// Merged line: a refund that overtakes the payment of a still pending order books nothing and answers
+// a retryable 5xx (the provider redelivers it); once the hold lapsed, the redelivery cancels the order.
+check( 'refund webhook before the paid webhook: nothing booked, retryable 5xx, order still pending with its holds', is_wp_error( $r1 ) && 'wpcap_refund_before_payment' === $r1->get_error_code() && ! empty( $r1->get_error_data()['retryable'] ) && 'pending' === Orders::get( $o['order_id'] )->payment_status && 0 < (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=" . (int) $o['order_id'] . " AND status='active'" ) && ! Orders::tickets_for_order( $o['order_id'] ) );
+$wpdb->query( "UPDATE {$p}wpcap_reservations SET expires_at='" . gmdate( 'Y-m-d H:i:s', time() - 60 ) . "' WHERE order_id=" . (int) $o['order_id'] );
+Orders::expire_holds();
+$r1b = w6sm_event( $o, 'refunded', 'w6sm-ref-first-redelivered-' . uniqid() );
+check( 'redelivered refund after the hold lapsed: order cancelled (never refunded), holds released, no tickets', 'cancelled_unpaid' === $r1b && 'cancelled|cancelled' === w6sm_status( $o['order_id'] ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=" . (int) $o['order_id'] . " AND status='active'" ) && ! Orders::tickets_for_order( $o['order_id'] ) );
+check( 'refund webhook of an unpaid order: no refund record, refunded amount unchanged, audited', array() === PassCaptain\Refunds::for_order( $o['order_id'] ) && 0 === (int) Orders::get( $o['order_id'] )->refunded_minor && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='refund_before_payment' AND object_id=" . (int) $o['order_id'] ) && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='provider_refund_unpaid_cancelled' AND object_id=" . (int) $o['order_id'] ) );
 $mails = count( $GLOBALS['wpcap_test_mails'] );
 $r2 = w6sm_event( $o, 'paid', 'w6sm-paid-late-' . uniqid() );
 check( 'late paid webhook for the cancelled order issues nothing and alerts the admin', 'paid_for_closed_order' === $r2 && 'cancelled|cancelled' === w6sm_status( $o['order_id'] ) && ! Orders::tickets_for_order( $o['order_id'] ) && 1 === w6sm_admin_mails( $mails ) );
@@ -201,12 +207,20 @@ $pcodes = ticket_code_for( $po['order_id'] );
 $pt = array_map( static fn( $t ) => (int) $t->ticket_id, tickets( $po['order_id'] ) );
 $in = Checkin::perform( $pcodes[0], array( 'idempotency_key' => 'w6sm-p-' . uniqid() ) );
 $checked_ticket = (int) $wpdb->get_var( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE token_hash='" . hash( 'sha256', $pcodes[0] ) . "'" );
-$rf = Refunds::request( $po['order_id'], array( $checked_ticket ), 'w6', 'w6sm-rf-' . uniqid() );
+// Merged refund policy (A131): staff refund a checked-in ticket only with a documented exception and a
+// second approval.
+$rf = Refunds::request( $po['order_id'], array( $checked_ticket ), 'w6', 'w6sm-rf-' . uniqid(), array( 'used_override' => 'W6 Kulanz nach Einlass' ) );
+if ( is_array( $rf ) && 'pending_approval' === ( $rf['status'] ?? '' ) ) {
+	$GLOBALS['wpcap_test_user_id'] = 2;
+	Refunds::approve( (int) $rf['refund_id'] );
+	$GLOBALS['wpcap_test_user_id'] = 1;
+	$rf = Refunds::get( (int) $rf['refund_id'] );
+}
 $row = $wpdb->get_row( "SELECT status,refunded FROM {$p}wpcap_tickets WHERE ticket_id=$checked_ticket" );
 check( 'refund after check-in: refund completes, ticket stays checked_in (history) and is flagged refunded', 'checked_in' === $in['status'] && is_array( $rf ) && 'completed' === $rf['status'] && 'checked_in' === $row->status && 1 === (int) $row->refunded );
-$undo = TicketsPage::undo_checkin( array( 'ticket_id' => $checked_ticket ) );
+$undo = TicketsPage::undo_checkin( array( 'ticket_id' => $checked_ticket, 'reason' => 'Fehlscan' ) );
 check( 'undo of a refunded check-in is refused (would make the refunded ticket valid again)', is_wp_error( $undo ) && 'checked_in' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=$checked_ticket" ) );
-$rf2 = Refunds::request( $po['order_id'], array( $checked_ticket ), 'w6', 'w6sm-rf2-' . uniqid() );
+$rf2 = Refunds::request( $po['order_id'], array( $checked_ticket ), 'w6', 'w6sm-rf2-' . uniqid(), array( 'used_override' => 'W6 Kulanz nach Einlass' ) );
 check( 'second refund of the same ticket is refused', is_wp_error( $rf2 ) );
 $rest = Refunds::request( $po['order_id'], array(), 'w6', 'w6sm-rest-' . uniqid() );
 check( 'refund of the rest refunds the order fully; revoked ticket cannot check in', is_array( $rest ) && 'refunded|refunded' === w6sm_status( $po['order_id'] ) && 1000 * 2 === (int) Orders::get( $po['order_id'] )->refunded_minor && is_wp_error( Checkin::perform( $pcodes[1], array( 'idempotency_key' => 'w6sm-r-' . uniqid() ) ) ) );
@@ -217,7 +231,7 @@ Orders::confirm_manual_payment( $uo['order_id'] );
 $ucode = ticket_code_for( $uo['order_id'] )[0];
 Checkin::perform( $ucode, array( 'idempotency_key' => 'w6sm-u1-' . uniqid() ) );
 $uid = (int) tickets( $uo['order_id'] )[0]->ticket_id;
-$undo = TicketsPage::undo_checkin( array( 'ticket_id' => $uid ) );
+$undo = TicketsPage::undo_checkin( array( 'ticket_id' => $uid, 'reason' => 'Fehlscan' ) ); // A547: every undo names its reason.
 check( 'undo of a check-in on a paid order: ticket valid again, admission can be repeated once', ! is_wp_error( $undo ) && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=$uid" ) && 'checked_in' === Checkin::perform( $ucode, array( 'idempotency_key' => 'w6sm-u2-' . uniqid() ) )['status'] );
 
 // Refund request transitions.

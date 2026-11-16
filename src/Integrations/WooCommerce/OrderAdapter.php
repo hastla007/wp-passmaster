@@ -14,7 +14,8 @@
  *    Gateways that collect money on delivery (cash on delivery, filter
  *    `wpcap_woocommerce_issue_on_completed_gateways`) issue only at "completed".
  * 4. on-hold (e.g. bank transfer): hold is extended.
- * 5. cancelled/failed: hold released, valid tickets revoked.
+ * 5. cancelled: hold released, valid tickets revoked. failed: the same, but only while the order is unpaid
+ *    (a late "failed" never revokes paid tickets). A full refund of a never paid order cancels it.
  * 6. Refunds: every WooCommerce refund is recorded in the Pass Captain refund ledger (refund row,
  *    refunded amount, credit note) when the core supports external refunds; refunded ticket
  *    quantities revoke tickets; a full refund revokes all valid tickets.
@@ -42,6 +43,8 @@ final class OrderAdapter {
 	const PRODUCT_META  = '_wpcap_ticket_type_id';
 	const ORDER_META    = '_wpcap_core_order_id';
 	const ATTEMPT_META  = '_wpcap_checkout_attempt';
+	/** provider_reference of a core order created for a WooCommerce order: prefix + WooCommerce order id (A445). */
+	const REFERENCE_PREFIX = 'woocommerce:';
 	const REFUND_META   = '_wpcap_refund_processed';
 	const ITEM_META     = '_wpcap_ticket_type_id';
 	const FISCAL_SELLER_META = '_wpcap_fiscal_seller_id';
@@ -50,6 +53,12 @@ final class OrderAdapter {
 	const DEFER_NOTE    = '_wpcap_deferred_note';
 	/** Option: WooCommerce refunds with quantities may refund checked-in tickets ('yes'/'no', default 'no'). */
 	const CHECKED_IN_OPTION = 'wpcap_woocommerce_refund_checked_in';
+	/**
+	 * Version of the "wpcap_woocommerce_hold_fulfilment" contract (since 1.4): a filter returning true keeps the
+	 * tickets of a paid order reserved until the order is set to processing/completed again. Integrations
+	 * (Voucher Captain) check this constant before relying on the hold.
+	 */
+	const HOLD_FULFILMENT = 1;
 
 	/** Declares HPOS and Cart/Checkout Blocks compatibility. */
 	public static function declare_compatibility() {
@@ -79,7 +88,6 @@ final class OrderAdapter {
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			return;
 		}
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
 		// Product configuration.
 		add_action( 'woocommerce_product_options_general_product_data', array( __CLASS__, 'product_field' ) );
 		add_action( 'woocommerce_admin_process_product_object', array( __CLASS__, 'save_product_field' ) );
@@ -106,6 +114,8 @@ final class OrderAdapter {
 
 		// Per-ticket participant fields (classic and block checkout).
 		Attendees::register();
+		// Export/erasure/retention of the attendee payload kept on WooCommerce orders (A196).
+		Privacy::register();
 
 		// Optional: Pass Captain prices (e.g. series price tiers) in the cart.
 		CartPricing::register();
@@ -120,7 +130,7 @@ final class OrderAdapter {
 		add_action( 'woocommerce_order_status_completed', array( __CLASS__, 'sync_paid_order' ), 20 );
 		add_action( 'woocommerce_order_status_on-hold', array( __CLASS__, 'sync_on_hold_order' ), 20 );
 		add_action( 'woocommerce_order_status_cancelled', array( __CLASS__, 'sync_cancelled_order' ), 20 );
-		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'sync_cancelled_order' ), 20 );
+		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'sync_failed_order' ), 20 );
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'sync_refund' ), 20, 2 );
 		// Trash/delete: an unpaid order releases its hold, restoring it from the trash reserves again (HPOS
 		// and posts storage; posts hooks only for the shop_order post type, every handler is idempotent).
@@ -132,7 +142,10 @@ final class OrderAdapter {
 		add_action( 'untrashed_post', array( __CLASS__, 'sync_untrashed_post' ), 20, 1 );
 		// Refunds of checked-in tickets are refused before WooCommerce pays them out (unless allowed).
 		add_action( 'woocommerce_create_refund', array( __CLASS__, 'guard_refund' ), 10, 2 );
+		add_action( 'wpcap_exchange_refund_external', array( __CLASS__, 'note_exchange_refund' ), 10, 4 );
 		add_action( 'woocommerce_order_status_refunded', array( __CLASS__, 'sync_fully_refunded_order' ), 20 );
+		// Retries of a payment confirmation or refund that hit a busy database (A344).
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 
 		// Display and admin tools.
 		add_action( 'woocommerce_order_details_after_order_table', array( __CLASS__, 'render_customer_tickets' ) );
@@ -162,7 +175,7 @@ final class OrderAdapter {
 			// SEC-V2: only ticket types of events the user manages (shop managers have no event scope of their own).
 			$allowed[ (int) $row->event_id ] = $allowed[ (int) $row->event_id ] ?? self::can_link_event( (int) $row->event_id );
 			if ( ! $allowed[ (int) $row->event_id ] ) { continue; }
-			$label = sprintf( '%1$s · %2$s · %3$s', $row->event_name, mysql2date( 'd.m.Y H:i', get_date_from_gmt( $row->starts_at ), true ), $row->name );
+			$label = sprintf( '%1$s · %2$s · %3$s', $row->event_name, Orders::format_start( $row->starts_at, $row->timezone ), $row->name );
 			if ( 'published' !== $row->event_status || 'active' !== $row->status ) {
 				$label .= ' (' . __( 'nicht im Verkauf', 'pass-captain' ) . ')';
 			}
@@ -296,6 +309,24 @@ final class OrderAdapter {
 			$type_id = $parent ? absint( $parent->get_meta( self::PRODUCT_META, true ) ) : 0;
 		}
 		return $type_id;
+	}
+
+	/**
+	 * Whether WooCommerce sells tickets at all (A291): at least one published product (or variation)
+	 * is linked to an active ticket type. WooCommerce being active alone sells nothing.
+	 * Products are posts in every WooCommerce storage mode (HPOS only moves orders).
+	 */
+	public static function has_linked_ticket_products() {
+		global $wpdb;
+		if ( ! class_exists( 'WooCommerce' ) || empty( $wpdb->posts ) || empty( $wpdb->postmeta ) ) {
+			return false;
+		}
+		return (bool) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT 1 FROM {$wpdb->postmeta} pm INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id = CAST(pm.meta_value AS UNSIGNED) WHERE pm.meta_key = %s AND p.post_type IN ('product','product_variation') AND p.post_status = 'publish' AND tt.status = 'active' LIMIT 1",
+				self::PRODUCT_META
+			)
+		);
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -481,8 +512,8 @@ final class OrderAdapter {
 			return __( 'Diese Ticketkategorie existiert nicht mehr.', 'pass-captain' );
 		}
 		$name = sprintf( '%s – %s', $type->event_name, $type->name );
-		$now  = current_time( 'mysql', true );
-		if ( 'published' !== $type->event_status || 'active' !== $type->status || 'scheduled' !== $type->occurrence_status || $type->starts_at <= $now ) {
+		$now  = \PassCaptain\Clock::mysql();
+		if ( 'published' !== $type->event_status || 'active' !== $type->status || 'scheduled' !== $type->occurrence_status || \PassCaptain\Occurrence::online_sales_over( $type, $type ) ) {
 			/* translators: %s: event and ticket name */
 			return sprintf( __( '„%s“ ist nicht mehr buchbar.', 'pass-captain' ), $name );
 		}
@@ -593,6 +624,12 @@ final class OrderAdapter {
 			return null;
 		}
 		$existing_ids = self::core_order_ids( $wc_order );
+		if ( ! $existing_ids && $wc_order->get_meta( self::ORDER_META, true ) ) {
+			// A284: the stored link points to a Pass Captain order of another WooCommerce order (copied meta,
+			// or after uninstalling with data removal and reinstalling the IDs start again): never touch it.
+			$wc_order->delete_meta_data( self::ORDER_META );
+			$wc_order->delete_meta_data( SellerSplit::SPLIT_META );
+		}
 		foreach ( $existing_ids as $existing ) {
 			$core = Orders::get( $existing );
 			if ( $core && 'paid' === $core->payment_status ) {
@@ -685,6 +722,10 @@ final class OrderAdapter {
 			$wc_order->delete_meta_data( SellerSplit::SPLIT_META );
 		}
 		$wc_order->save();
+		foreach ( $created as $core_id ) {
+			// A445: the WooCommerce order id on the core order, so core → WooCommerce needs no meta_value search.
+			Orders::set_provider_reference( $core_id, self::REFERENCE_PREFIX . $wc_order->get_id() );
+		}
 		if ( $split ) {
 			$names = array();
 			foreach ( $created as $key => $core_id ) {
@@ -694,7 +735,7 @@ final class OrderAdapter {
 			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %1$d Minuten reserviert, aufgeteilt auf %2$d Bestellungen je Rechnungssteller: %3$s.', 'pass-captain' ), $hold, count( $created ), implode( ', ', $names ) ) );
 		} else {
 			/* translators: %d: hold minutes */
-			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %d Minuten reserviert.', 'pass-captain' ), $hold ) );
+			$wc_order->add_order_note( sprintf( _n( 'Pass Captain: Tickets für %d Minute reserviert.', 'Pass Captain: Tickets für %d Minuten reserviert.', $hold, 'pass-captain' ), $hold ) );
 		}
 		return $first;
 	}
@@ -747,10 +788,11 @@ final class OrderAdapter {
 	 * derives for this order ID and one of its checkout attempts ("{id}-{attempt}[-{seller key}]"), or when
 	 * its payment was confirmed with the reference "woocommerce:{id}" (confirm_core()).
 	 *
-	 * @param array<int,string> $ids Core order ID => seller key ('' when not split).
+	 * @param array<int,string> $ids          Core order ID => seller key ('' when not split).
+	 * @param bool              $by_reference Whether the reference "woocommerce:{id}" counts as proof.
 	 * @return int[]
 	 */
-	private static function owned_core_ids( $wc_order, array $ids ) {
+	private static function owned_core_ids( $wc_order, array $ids, $by_reference = true ) {
 		global $wpdb;
 		$wc_id    = (int) $wc_order->get_id();
 		$attempts = min( 50, max( 1, absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) ) );
@@ -766,7 +808,7 @@ final class OrderAdapter {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,idempotency_key,provider_reference FROM %i WHERE order_id IN ($placeholders)", array_merge( array( $wpdb->prefix . 'wpcap_orders' ), array_keys( $ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 		$owned = array();
 		foreach ( (array) $rows as $row ) {
-			if ( isset( $keys[ (string) $row->idempotency_key ] ) || 'woocommerce:' . $wc_id === (string) $row->provider_reference ) {
+			if ( isset( $keys[ (string) $row->idempotency_key ] ) || ( $by_reference && 'woocommerce:' . $wc_id === (string) $row->provider_reference ) ) {
 				$owned[ (int) $row->order_id ] = true;
 			}
 		}
@@ -1055,7 +1097,7 @@ final class OrderAdapter {
 
 	/** ISO 4217 minor unit digits for the currencies WooCommerce commonly uses. */
 	public static function currency_decimals( $currency ) {
-		return \PassCaptain\Localization::currency_decimals( $currency );
+		return \PassCaptain\Money::decimals( $currency );
 	}
 
 	/** Ticket quantities per ticket type of a WooCommerce order. */
@@ -1092,11 +1134,20 @@ final class OrderAdapter {
 	/**
 	 * Converts the hold(s) and issues tickets once WooCommerce reports a paid order. A split order
 	 * confirms every seller order (each issues its own tickets, mail and invoice).
+	 *
+	 * A transient database error (Errors::is_busy()) is not final (A344): the job
+	 * `woocommerce_paid_sync` repeats the sync with backoff, so a paid WooCommerce order does not
+	 * stay without tickets (and its hold does not lapse unnoticed).
+	 *
+	 * @param int  $wc_order_id WooCommerce order.
+	 * @param bool $force       Retry a needs_review order (order action).
+	 * @param bool $from_job    Called by the retry job (no new job, no repeated note).
+	 * @return true|\WP_Error|null Null when there is nothing to do.
 	 */
-	public static function sync_paid_order( $wc_order_id, $force = false ) {
+	public static function sync_paid_order( $wc_order_id, $force = false, $from_job = false ) {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( ! $wc_order ) {
-			return;
+			return null;
 		}
 		$core_ids = self::core_order_ids( $wc_order );
 		if ( ! $core_ids ) {
@@ -1104,12 +1155,15 @@ final class OrderAdapter {
 			// required attendee data cannot have been collected, the buyer completes it in the order portal.
 			$core_id = self::reserve( $wc_order, true );
 			if ( is_wp_error( $core_id ) ) {
+				if ( self::retry_later( $core_id, 'paid', $wc_order, 0, $from_job ) ) {
+					return $core_id;
+				}
 				/* translators: %s: error message */
-				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'pass-captain' ), $core_id->get_error_message() ) );
-				return;
+				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'pass-captain' ), \PassCaptain\Redact::text( $core_id->get_error_message(), false ) ) );
+				return $core_id;
 			}
 			if ( ! $core_id ) {
-				return;
+				return null;
 			}
 			$core_ids = self::core_order_ids( $wc_order );
 			if ( self::missing_attendee_data( $core_ids ) ) {
@@ -1124,7 +1178,22 @@ final class OrderAdapter {
 			return ! ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) );
 		}, ARRAY_FILTER_USE_BOTH );
 		if ( ! $open ) {
-			return;
+			return true;
+		}
+		/**
+		 * Lets another plugin hold the ticket issuance of a paid order, e.g. Voucher Captain while a gift card
+		 * could not be charged (shortfall). The hold is kept; tickets follow when the order is set to processing
+		 * or completed again after the review. Contract version: OrderAdapter::HOLD_FULFILMENT.
+		 *
+		 * @param bool      $hold     Whether to hold the issuance.
+		 * @param \WC_Order $wc_order WooCommerce order.
+		 */
+		if ( apply_filters( 'wpcap_woocommerce_hold_fulfilment', false, $wc_order ) ) {
+			foreach ( array_keys( $open ) as $core_id ) {
+				Orders::extend_hold( $core_id, (int) apply_filters( 'wpcap_woocommerce_deferred_hold_minutes', 14 * DAY_IN_SECONDS / MINUTE_IN_SECONDS, $wc_order ) );
+			}
+			$wc_order->add_order_note( __( 'Pass Captain: Die Tickets bleiben reserviert und werden nach der Prüfung der Bestellung ausgestellt.', 'pass-captain' ) );
+			return null;
 		}
 		if ( self::defers_issuance( $wc_order ) ) {
 			// Cash on delivery & co.: "processing" means "to be delivered", not "paid". Keep the hold.
@@ -1136,7 +1205,7 @@ final class OrderAdapter {
 				$wc_order->save();
 				$wc_order->add_order_note( __( 'Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird.', 'pass-captain' ) );
 			}
-			return;
+			return null;
 		}
 		$any_paid      = (bool) array_filter( $cores, static function ( $core ) {
 			return $core && 'paid' === $core->payment_status;
@@ -1148,23 +1217,33 @@ final class OrderAdapter {
 			// A failed payment released the hold; the customer has paid on a later attempt.
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) || ! $core_id ) {
-				$message = is_wp_error( $core_id ) ? $core_id->get_error_message() : '';
+				if ( is_wp_error( $core_id ) && self::retry_later( $core_id, 'paid', $wc_order, 0, $from_job ) ) {
+					return $core_id;
+				}
+				$message = is_wp_error( $core_id ) ? \PassCaptain\Redact::text( $core_id->get_error_message(), false ) : '';
 				/* translators: %s: error message */
 				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s', 'pass-captain' ), $message ) );
-				return;
+				return is_wp_error( $core_id ) ? $core_id : null;
 			}
 			$core_ids = self::core_order_ids( $wc_order );
 		}
 		$labels = array_flip( self::seller_orders( $wc_order ) );
 		$issued = 0;
+		$error  = null;
 		foreach ( $core_ids as $core_id ) {
-			$issued += self::confirm_core( $wc_order, $core_id, $force, isset( $labels[ $core_id ] ) ? SalesModel::seller_name( $labels[ $core_id ] ) : '' );
+			$count = self::confirm_core( $wc_order, $core_id, $force, isset( $labels[ $core_id ] ) ? SalesModel::seller_name( $labels[ $core_id ] ) : '', $from_job );
+			if ( is_wp_error( $count ) ) {
+				$error = $error ? $error : $count;
+				continue;
+			}
+			$issued += $count;
 		}
 		if ( $issued && $wc_order->get_meta( self::ATTENDEE_META, true ) ) {
 			// Participant data now lives on the tickets; do not keep a second copy on the WooCommerce order.
 			$wc_order->delete_meta_data( self::ATTENDEE_META );
 			$wc_order->save();
 		}
+		return $error ? $error : ( $issued ? true : null );
 	}
 
 	/** Whether a ticket type of these core orders has required attendee fields but the order has no attendee data. */
@@ -1186,10 +1265,11 @@ final class OrderAdapter {
 	/**
 	 * Confirms the payment of one Pass Captain order of a WooCommerce order and issues its tickets.
 	 *
-	 * @param string $seller Seller name for the order note of a split order ('' = not split).
-	 * @return int Number of tickets of the order after the call (0 when nothing was issued).
+	 * @param string $seller   Seller name for the order note of a split order ('' = not split).
+	 * @param bool   $from_job Called by the paid-sync retry job (A344).
+	 * @return int|\WP_Error Number of tickets of the order after the call (0 when nothing was issued).
 	 */
-	private static function confirm_core( $wc_order, $core_id, $force, $seller = '' ) {
+	private static function confirm_core( $wc_order, $core_id, $force, $seller = '', $from_job = false ) {
 		$core = Orders::get( $core_id );
 		if ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) ) {
 			return 0;
@@ -1206,9 +1286,12 @@ final class OrderAdapter {
 		}
 		$result = Orders::confirm_external_payment( $core_id, 'woocommerce:' . $wc_order->get_id() );
 		if ( is_wp_error( $result ) ) {
+			if ( self::retry_later( $result, 'paid', $wc_order, 0, $from_job ) ) {
+				return $result;
+			}
 			/* translators: 1: seller order prefix (may be empty), 2: error message */
-			$wc_order->add_order_note( sprintf( __( 'Pass Captain: %1$sKeine Tickets ausgestellt – %2$s', 'pass-captain' ), $prefix, $result->get_error_message() ) );
-			return 0;
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: %1$sKeine Tickets ausgestellt – %2$s', 'pass-captain' ), $prefix, \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
+			return $result;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
 		$fiscal = ! $count && class_exists( '\\PassCaptain\\Modules\\Fiscalization' ) ? \PassCaptain\Modules\Fiscalization::blocking_status( $core_id ) : '';
@@ -1224,6 +1307,53 @@ final class OrderAdapter {
 			Orders::rotate_access_link( $core_id );
 		}
 		return $count;
+	}
+
+	/**
+	 * A344: queues the retry job for a transient database error (busy) and notes it once on the
+	 * WooCommerce order. Returns false for any other (final) error: the caller notes it as before.
+	 *
+	 * @param \WP_Error $error     Error of the sync.
+	 * @param string    $kind      'paid' (job woocommerce_paid_sync) or 'refund' (woocommerce_refund_sync).
+	 * @param \WC_Order $wc_order  WooCommerce order.
+	 * @param int       $refund_id WooCommerce refund (kind 'refund').
+	 * @param bool      $from_job  The job retries itself (backoff): no second job, no second note.
+	 */
+	private static function retry_later( \WP_Error $error, $kind, $wc_order, $refund_id = 0, $from_job = false ) {
+		if ( ! self::is_transient( $error ) ) {
+			return false;
+		}
+		if ( $from_job ) {
+			return true;
+		}
+		$wc_id   = (int) $wc_order->get_id();
+		$type    = 'refund' === $kind ? 'woocommerce_refund_sync' : 'woocommerce_paid_sync';
+		$key     = 'refund' === $kind ? 'woocommerce-refund-sync|' . absint( $refund_id ) : 'woocommerce-paid-sync|' . $wc_id;
+		$payload = 'refund' === $kind ? array( 'woo_order' => $wc_id, 'refund_id' => absint( $refund_id ) ) : array( 'woo_order' => $wc_id );
+		$queued  = \PassCaptain\Jobs::enqueue( $key . '|' . time(), $type, $payload, gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+		if ( true !== $queued ) {
+			return false; // Not even the job could be stored: the caller's note asks for a manual retry.
+		}
+		$wc_order->add_order_note(
+			'refund' === $kind
+				? __( 'Pass Captain: Die Erstattung konnte gerade nicht übernommen werden (Datenbank ausgelastet); sie wird automatisch erneut versucht.', 'pass-captain' )
+				: __( 'Pass Captain: Die Zahlung konnte gerade nicht verbucht werden (Datenbank ausgelastet); die Tickets werden automatisch erneut ausgestellt.', 'pass-captain' )
+		);
+		return true;
+	}
+
+	/**
+	 * Busy database (Errors::is_busy()) or a refund row that could not be written
+	 * (`wpcap_refund_save` of Refunds::record_external(), a database failure as well).
+	 */
+	private static function is_transient( \WP_Error $error ) {
+		return \PassCaptain\Errors::is_busy( $error ) || 'wpcap_refund_save' === $error->get_error_code();
+	}
+
+	/** Earlier name of the paid-sync job handler; see handle_job(). */
+	private static function handle_paid_job( $payload ) {
+		$result = self::sync_paid_order( absint( $payload['woo_order'] ?? 0 ), false, true );
+		return ! ( is_wp_error( $result ) && self::is_transient( $result ) );
 	}
 
 	/**
@@ -1249,7 +1379,55 @@ final class OrderAdapter {
 		return 'completed' !== $status;
 	}
 
-	/** Extends the hold(s) while a manual payment (e.g. bank transfer) is outstanding. */
+	/** Parts of gateway ids that usually mean "pay later / on account" (A654). */
+	const PAY_LATER_PATTERNS = array( 'invoice', 'rechnung', 'purchase_on_account', 'on_account', 'pay_later', 'paylater', 'kauf_auf', 'billie', 'ratepay' );
+
+	/**
+	 * Enabled WooCommerce gateways that look like "pay later / purchase on account" and still issue
+	 * tickets at "processing" (A654): such gateways mark an order as processing before the money
+	 * arrives, so tickets would go out unpaid. Gateways listed in the filter
+	 * `wpcap_woocommerce_issue_on_completed_gateways` are not reported.
+	 *
+	 * @param array<string,string>|null $enabled Gateway id => title (null: read from WooCommerce).
+	 * @return array<string,string> Gateway id => title.
+	 */
+	public static function pay_later_gateways( $enabled = null ) {
+		if ( null === $enabled ) {
+			$enabled = array();
+			$registry = function_exists( 'WC' ) && is_object( WC() ) && is_callable( array( WC(), 'payment_gateways' ) ) ? WC()->payment_gateways() : null;
+			$gateways = is_object( $registry ) && is_callable( array( $registry, 'payment_gateways' ) ) ? (array) $registry->payment_gateways() : array();
+			foreach ( $gateways as $id => $gateway ) {
+				if ( is_object( $gateway ) && 'yes' === ( $gateway->enabled ?? '' ) ) {
+					$enabled[ (string) $id ] = is_callable( array( $gateway, 'get_title' ) ) ? (string) $gateway->get_title() : (string) $id;
+				}
+			}
+		}
+		$out = array();
+		foreach ( (array) $enabled as $id => $title ) {
+			$id = (string) $id;
+			$normalized = str_replace( '-', '_', strtolower( $id ) );
+			$match = false;
+			foreach ( self::PAY_LATER_PATTERNS as $pattern ) { $match = $match || false !== strpos( $normalized, $pattern ); }
+			if ( $match && ! self::defers_issuance( self::probe_order( $id ) ) ) { $out[ $id ] = '' !== (string) $title ? (string) $title : $id; }
+		}
+		return $out;
+	}
+
+	/** Unsaved order with only the payment method set, to ask the gateway filter (never stored). */
+	private static function probe_order( $gateway_id ) {
+		if ( class_exists( '\WC_Order' ) && method_exists( '\WC_Order', 'set_payment_method' ) ) {
+			$order = new \WC_Order();
+			$order->set_payment_method( $gateway_id );
+			return $order;
+		}
+		return new class( $gateway_id ) {
+			public function __construct( private string $method ) {}
+			public function get_payment_method() { return $this->method; }
+			public function get_status() { return 'pending'; }
+		};
+	}
+
+	/** Extends the hold while a manual payment (e.g. bank transfer) is outstanding. */
 	public static function sync_on_hold_order( $wc_order_id ) {
 		$minutes = (int) apply_filters( 'wpcap_woocommerce_on_hold_minutes', 3 * DAY_IN_SECONDS / MINUTE_IN_SECONDS );
 		foreach ( self::core_order_ids( $wc_order_id ) as $core_id ) {
@@ -1352,6 +1530,24 @@ final class OrderAdapter {
 	}
 
 	/**
+	 * A failed payment only ends an order that is still unpaid: a "failed" arriving after the payment was
+	 * confirmed (out of order, or set by hand) keeps the tickets. Use "cancelled" to cancel a paid order.
+	 */
+	public static function sync_failed_order( $wc_order_id ) {
+		$kept = false;
+		foreach ( self::core_order_ids( $wc_order_id ) as $core_id ) {
+			$result = Orders::cancel_order( $core_id, 'woocommerce_woocommerce_order_status_failed', array( 'pending', 'expired' ) );
+			$kept   = $kept || ( is_wp_error( $result ) && 'wpcap_order_state' === $result->get_error_code() );
+		}
+		if ( $kept ) {
+			$wc_order = wc_get_order( absint( $wc_order_id ) );
+			if ( $wc_order ) {
+				$wc_order->add_order_note( __( 'Pass Captain: Status „Fehlgeschlagen“ für eine bereits bezahlte Bestellung – die Tickets bleiben gültig. Zum Stornieren die Bestellung auf „Storniert“ setzen.', 'pass-captain' ) );
+			}
+		}
+	}
+
+	/**
 	 * Mirrors a WooCommerce refund into Pass Captain. Idempotent per refund.
 	 *
 	 * With core support (Refunds::record_external) the refund goes through the core refund ledger of
@@ -1359,7 +1555,7 @@ final class OrderAdapter {
 	 * released capacity, credit note (by the seller that issued the invoice) and the
 	 * wpcap_refund_completed hook. Without it only the refunded tickets are revoked.
 	 */
-	public static function sync_refund( $wc_order_id, $refund_id ) {
+	public static function sync_refund( $wc_order_id, $refund_id, $from_job = false ) {
 		$core_ids = self::core_order_ids( $wc_order_id );
 		$refund   = wc_get_order( absint( $refund_id ) );
 		if ( ! $core_ids || ! $refund || $refund->get_meta( self::REFUND_META, true ) ) {
@@ -1398,18 +1594,24 @@ final class OrderAdapter {
 	}
 
 	/**
-	 * Filter wp_pass_captain_process_job_v1: retries a WooCommerce refund whose recording failed with a
-	 * retryable database error (idempotent: the refund meta and the core idempotency key prevent doubles).
+	 * Filter wpcap_process_job (legacy wp_pass_captain_process_job_v1):
+	 * - `woocommerce_paid_sync` (A344) repeats a paid sync that hit a busy database;
+	 * - `woocommerce_refund_sync` retries a WooCommerce refund whose recording failed (idempotent: the
+	 *   refund meta and the core idempotency key prevent doubles). Payload key wc_order_id, or woo_order
+	 *   (jobs queued by the A344 implementation).
 	 */
 	public static function handle_job( $handled, $type, $payload = array() ) {
+		$payload = (array) $payload;
+		if ( 'woocommerce_paid_sync' === $type ) {
+			return self::handle_paid_job( $payload );
+		}
 		if ( self::REFUND_SYNC_JOB !== $type ) {
 			return $handled;
 		}
-		$payload = (array) $payload;
 		self::$refund_job_running = true;
 		self::$refund_job_error   = '';
 		try {
-			$done = true === self::sync_refund( absint( $payload['wc_order_id'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ) );
+			$done = true === self::sync_refund( absint( $payload['wc_order_id'] ?? $payload['woo_order'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ), true );
 		} finally {
 			self::$refund_job_running = false;
 		}
@@ -1439,9 +1641,9 @@ final class OrderAdapter {
 	 * with backoff and dead-letters it after Jobs::MAX_ATTEMPTS (listed on the system status page).
 	 */
 	private static function refund_failed( $wc_order, $refund_id, $message, $retryable ) {
-		$message = sanitize_text_field( (string) $message );
+		$message = \PassCaptain\Redact::text( sanitize_text_field( (string) $message ), false );
 		if ( self::$refund_job_running ) {
-			self::$refund_job_error = substr( $message, 0, 400 );
+			self::$refund_job_error = \PassCaptain\Text::cut( $message, 400 );
 			return;
 		}
 		$core_ids = self::core_order_ids( $wc_order->get_id() );
@@ -1451,7 +1653,7 @@ final class OrderAdapter {
 			array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id ),
 			gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
 		);
-		\PassCaptain\Log::error( 'woocommerce_refund_sync_failed', 'WooCommerce refund could not be synchronised with the tickets.', array( 'object_type' => 'order', 'object_id' => (int) ( $core_ids[0] ?? 0 ), 'details' => array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id, 'retryable' => (bool) $retryable, 'message' => substr( $message, 0, 190 ) ) ) );
+		\PassCaptain\Log::error( 'woocommerce_refund_sync_failed', 'WooCommerce refund could not be synchronised with the tickets.', array( 'object_type' => 'order', 'object_id' => (int) ( $core_ids[0] ?? 0 ), 'details' => array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id, 'retryable' => (bool) $retryable, 'message' => \PassCaptain\Text::cut( $message, 190 ) ) ) );
 		$note = $retryable
 			/* translators: %s: error message */
 			? __( 'Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht.', 'pass-captain' )
@@ -1471,7 +1673,7 @@ final class OrderAdapter {
 	 * @param int[] $core_ids Pass Captain orders of the WooCommerce order.
 	 * @return bool True when recorded (or nothing to record); false when a retry was queued or it failed for good.
 	 */
-	private static function record_refund( $wc_order, $refund, $core_ids ) {
+	private static function record_refund( $wc_order, $refund, $core_ids, $from_job = false ) {
 		global $wpdb;
 		$plans     = self::refund_plans( $wc_order, $refund, (array) $core_ids );
 		$labels    = array_flip( self::seller_orders( $wc_order ) );
@@ -1513,7 +1715,7 @@ final class OrderAdapter {
 				$wc_order->add_order_note(
 					sprintf(
 						/* translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count */
-						__( 'Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket(s).', 'pass-captain' ),
+						_n( 'Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket.', 'Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Tickets.', count( $plan['ticket_ids'] ), 'pass-captain' ),
 						$core_id,
 						SalesModel::seller_name( $labels[ $core_id ] ),
 						number_format_i18n( (int) ( $result['amount_minor'] ?? $plan['amount_minor'] ) / ( 10 ** self::currency_decimals( $wc_order->get_currency() ) ), self::currency_decimals( $wc_order->get_currency() ) ) . ' ' . $wc_order->get_currency(),
@@ -1529,7 +1731,7 @@ final class OrderAdapter {
 			$wc_order->add_order_note(
 				sprintf(
 					/* translators: %d: ticket count */
-					__( 'Pass Captain: %d erstattete(s) Ticket(s) waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht.', 'pass-captain' ),
+					_n( 'Pass Captain: %d erstattetes Ticket war bereits eingecheckt und wurde laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht.', 'Pass Captain: %d erstattete Tickets waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht.', $denied, 'pass-captain' ),
 					$denied
 				)
 			);
@@ -1893,10 +2095,10 @@ final class OrderAdapter {
 			return;
 		}
 		/* translators: %d: ticket count */
-		$note = sprintf( __( 'Pass Captain: %d Ticket(s) wegen Erstattung widerrufen.', 'pass-captain' ), $revoked );
+		$note = sprintf( _n( 'Pass Captain: %d Ticket wegen Erstattung widerrufen.', 'Pass Captain: %d Tickets wegen Erstattung widerrufen.', (int) $revoked, 'pass-captain' ), $revoked );
 		if ( $kept ) {
 			/* translators: %d: ticket count */
-			$note .= ' ' . sprintf( __( '%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', 'pass-captain' ), $kept );
+			$note .= ' ' . sprintf( _n( '%d erstattetes Ticket war bereits eingecheckt oder nicht mehr gültig und wurde nicht verändert.', '%d erstattete Tickets waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', (int) $kept, 'pass-captain' ), $kept );
 		}
 		$wc_order->add_order_note( $note );
 	}
@@ -1907,6 +2109,14 @@ final class OrderAdapter {
 	 */
 	public static function sync_fully_refunded_order( $wc_order_id ) {
 		$core_ids = self::core_order_ids( $wc_order_id );
+		foreach ( $core_ids as $index => $core_id ) {
+			$core = Orders::get( $core_id );
+			if ( $core && in_array( (string) $core->payment_status, array( 'pending', 'expired' ), true ) ) {
+				// Refunded before Pass Captain saw a payment: nothing to book, the order is closed like a cancellation.
+				Orders::cancel_order( $core_id, 'woocommerce_refunded_unpaid' );
+				unset( $core_ids[ $index ] );
+			}
+		}
 		if ( ! $core_ids ) {
 			return;
 		}
@@ -1930,6 +2140,7 @@ final class OrderAdapter {
 
 	/** Adds a note to the WooCommerce order when one of its occurrences was cancelled. */
 	public static function note_cancelled_occurrence( $core_order_id, $occurrence_id ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) { return; }
 		$wc_order = self::wc_order_for_core( $core_order_id );
 		if ( ! $wc_order ) {
 			return;
@@ -1949,11 +2160,52 @@ final class OrderAdapter {
 		$wc_order->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'pass-captain' ) );
 	}
 
+	/** wpcap_exchange_refund_external: note on the WooCommerce order which difference to refund there. */
+	public static function note_exchange_refund( $exchange_id, $core_order_id, $amount_minor, $currency ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) { return false; }
+		$wc_order = self::wc_order_for_core( $core_order_id );
+		if ( ! $wc_order ) { return false; }
+		/* translators: 1: amount, 2: currency, 3: exchange id */
+		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Ticket umgetauscht (Umtausch #%3$d). Bitte die Differenz von %1$s %2$s hier in WooCommerce erstatten (Erstattung ohne Ticketauswahl).', 'pass-captain' ), \PassCaptain\Money::number( absint( $amount_minor ), (string) $currency ), (string) $currency, absint( $exchange_id ) ) );
+		return true;
+	}
+
+	/** First (classic) Pass Captain order of a WooCommerce order, 0 when none. */
+	private static function core_order_id( $wc_order_id ) {
+		$ids = self::core_order_ids( $wc_order_id );
+		return $ids ? (int) $ids[0] : 0;
+	}
+
+	/**
+	 * Pass Captain order linked to a WooCommerce order – only when that order really was created for it
+	 * (A284; see owned_core_ids()). Split orders: the first seller order (core_order_ids() lists all).
+	 *
+	 * @param \WC_Order|object $wc_order WooCommerce order.
+	 * @return int Core order ID or 0.
+	 */
+	public static function linked_core_id( $wc_order ) {
+		if ( ! is_object( $wc_order ) || ! method_exists( $wc_order, 'get_meta' ) ) { return 0; }
+		$ids = self::core_order_ids( $wc_order );
+		return $ids ? (int) $ids[0] : 0;
+	}
+
 	/** WooCommerce order of a Pass Captain order (single order or one seller order of a split order). */
 	public static function wc_order_for_core( $core_order_id ) {
 		if ( ! function_exists( 'wc_get_orders' ) ) {
 			return null;
 		}
+		// A445: direct lookup through the WooCommerce order id stored at reserve() (provider_reference
+		// "woocommerce:<id>"), still verified against the order's own links (A284).
+		$core = Orders::get( absint( $core_order_id ) );
+		if ( $core && preg_match( '/^' . preg_quote( self::REFERENCE_PREFIX, '/' ) . '(\d+)$/', (string) ( $core->provider_reference ?? '' ), $m ) && function_exists( 'wc_get_order' ) ) {
+			$order = wc_get_order( (int) $m[1] );
+			// Ownership without the meta (A445: the meta may be missing or unsearchable): the core order's
+			// idempotency key derived from this WooCommerce order id – never the reference itself.
+			if ( is_object( $order ) && ( in_array( absint( $core_order_id ), self::core_order_ids( $order ), true ) || array( absint( $core_order_id ) ) === self::owned_core_ids( $order, array( absint( $core_order_id ) => '' ), false ) ) ) {
+				return $order;
+			}
+		}
+		// Orders reserved before the reference was stored: search by meta (slow on large shops).
 		foreach ( array( self::ORDER_META, SellerSplit::LOOKUP_META ) as $key ) {
 			$orders = wc_get_orders( array( 'limit' => 5, 'meta_key' => $key, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 			foreach ( (array) $orders as $order ) {
@@ -2033,8 +2285,8 @@ final class OrderAdapter {
 
 	/** Adds order actions. */
 	public static function order_actions( $actions, $wc_order = null ) {
-		if ( $wc_order instanceof \WC_Order && $wc_order->get_meta( self::ORDER_META, true ) && current_user_can( 'wpcap_manage_orders' ) ) {
-			$actions['wpcap_resend_tickets'] = __( 'Pass Captain: Tickets erneut senden (neue Codes)', 'pass-captain' );
+		if ( $wc_order instanceof \WC_Order && self::linked_core_id( $wc_order ) && current_user_can( 'wpcap_manage_orders' ) ) {
+			$actions['wpcap_resend_tickets'] = __( 'Pass Captain: Tickets erneut senden (neue Codes, ohne übertragene Tickets)', 'pass-captain' );
 			$actions['wpcap_retry_tickets']  = __( 'Pass Captain: Tickets erneut ausstellen', 'pass-captain' );
 		}
 		return $actions;
@@ -2045,12 +2297,13 @@ final class OrderAdapter {
 		if ( ! current_user_can( 'wpcap_manage_orders' ) ) {
 			return;
 		}
+		// A335: tickets passed on to another person keep their code (single tickets: "Neu ausstellen").
 		$result = true;
 		foreach ( self::core_order_ids( $wc_order ) as $core_id ) {
-			$sent   = Orders::resend_tickets( $core_id );
+			$sent   = Orders::resend_tickets( $core_id, array( 'skip_transferred' => true ) );
 			$result = is_wp_error( $sent ) ? $sent : $result;
 		}
-		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), $result->get_error_message() ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet.', 'pass-captain' ) );
+		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet (übertragene Tickets behalten ihren Code).', 'pass-captain' ) );
 	}
 
 	/** Order action: retry issuance (e.g. after resolving a needs_review order). */
@@ -2076,7 +2329,8 @@ final class OrderAdapter {
 		);
 		echo '<table class="shop_table wpcap-ticket-table"><thead><tr><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ticket', 'pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $tickets as $ticket ) {
-			$when = mysql2date( 'd.m.Y H:i', get_date_from_gmt( $ticket->starts_at ), true );
+			// Local time of the occurrence (with its time zone), not of the site (A276).
+			$when = Orders::format_start( $ticket->starts_at, $ticket->timezone ?? '' );
 			echo '<tr><td>' . esc_html( $ticket->event_name . ' · ' . $when ) . '</td><td>' . esc_html( $ticket->ticket_name ) . '</td><td>' . esc_html( $labels[ $ticket->status ] ?? $ticket->status ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
@@ -2086,7 +2340,7 @@ final class OrderAdapter {
 	public static function ticket_type( $type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT tt.*,o.starts_at,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT tt.*,o.starts_at,o.ends_at,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 
 	/** Detects Store API (blocks) requests. */

@@ -16,22 +16,22 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class InvoicePdf {
 	/** Same rule as Invoices::can_view_order_finance(): finance roles globally, order managers per event. */
 	public static function can_view_order_finance( $order_id ) {
-		if ( current_user_can( 'manage_options' ) || current_user_can( Invoices::FINANCE_CAP ) ) { return true; }
+		if ( current_user_can( 'manage_options' ) || ( current_user_can( Invoices::FINANCE_CAP ) && Access::order_in_scope( $order_id ) ) ) { return true; }
 		global $wpdb;
 		$event_ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT o.event_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $order_id ) ) );
 		if ( ! $event_ids ) { return false; }
 		foreach ( $event_ids as $event_id ) {
 			if ( ! Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return false; }
 		}
-		return true;
+		return Access::order_in_scope( $order_id );
 	}
 
 	private static function money( $minor, $currency ) {
-		return \PassCaptain\Localization::money_number( $minor, $currency ) . ' ' . $currency;
+		return \PassCaptain\Money::format( $minor, $currency );
 	}
 
 	private static function date( $utc ) {
-		return wp_date( 'd.m.Y', strtotime( $utc . ' UTC' ) );
+		return \PassCaptain\Frontend\Format::local( $utc, null, 'date' );
 	}
 
 	/** Header block with seller data; returns the y position below it. */
@@ -161,7 +161,7 @@ final class InvoicePdf {
 			$pdf->text( 545, $y, 10, self::money( (int) $invoice->total_minor - (int) $invoice->tax_minor, $cur ), false, 'right' );
 			foreach ( $rates as $rate => $sum ) {
 				$y -= 14;
-				$pdf->text( 300, $y, 10, sprintf( /* translators: %s: VAT rate in percent */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) );
+				$pdf->text( 300, $y, 10, sprintf( /* translators: %s: VAT rate */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) );
 				$pdf->text( 545, $y, 10, self::money( $sum['tax'], $cur ), false, 'right' );
 			}
 			$y -= 18;
@@ -191,28 +191,27 @@ final class InvoicePdf {
 				$pdf->text( 50, $y, 10, sprintf( /* translators: %s: date */ __( 'Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt.', 'pass-captain' ), self::date( (string) $credit->voided_at ) ), true );
 			}
 			$y -= 36;
-			// Split per VAT rate (credit notes from 3.17.4; older ones keep the single summary).
-			$credit_lines = \PassCaptain\Invoices::credit_note_lines( array( (int) $credit->credit_note_id ) )[ (int) $credit->credit_note_id ] ?? array();
-			if ( $credit_lines ) {
-				$pdf->text( 50, $y, 10, __( 'USt-Satz', 'pass-captain' ), true );
-				$pdf->text( 330, $y, 10, __( 'Netto', 'pass-captain' ), true, 'right' );
-				$pdf->text( 440, $y, 10, __( 'USt.', 'pass-captain' ), true, 'right' );
-				$pdf->text( 545, $y, 10, __( 'Brutto', 'pass-captain' ), true, 'right' );
-				$y -= 16;
-				foreach ( $credit_lines as $credit_line ) {
-					$pdf->text( 50, $y, 10, number_format_i18n( (int) $credit_line->tax_rate_bp / 100, 2 ) . ' %' );
-					$pdf->text( 330, $y, 10, '-' . self::money( $credit_line->net_minor, $credit->currency ), false, 'right' );
-					$pdf->text( 440, $y, 10, '-' . self::money( $credit_line->tax_minor, $credit->currency ), false, 'right' );
-					$pdf->text( 545, $y, 10, '-' . self::money( $credit_line->total_minor, $credit->currency ), false, 'right' );
-					$y -= 16;
-				}
-				$y -= 10;
+			// VAT breakdown per rate (net/tax/gross), like the invoice.
+			$credit_rates = Invoices::credit_rates( $credit );
+			$pdf->line( 50, $y + 6, 545, $y + 6 );
+			$y -= 10;
+			$pdf->text( 50, $y, 9, __( 'Aufstellung nach Steuersätzen', 'pass-captain' ), true );
+			$pdf->text( 330, $y, 9, __( 'Netto', 'pass-captain' ), true, 'right' );
+			$pdf->text( 440, $y, 9, __( 'USt.', 'pass-captain' ), true, 'right' );
+			$pdf->text( 545, $y, 9, __( 'Brutto', 'pass-captain' ), true, 'right' );
+			foreach ( $credit_rates as $r ) {
+				$y -= 13;
+				$pdf->text( 50, $y, 9, __( 'USt-Satz', 'pass-captain' ) . ' ' . Invoices::rate_label( $r['rate_bp'] ) );
+				$pdf->text( 330, $y, 9, '-' . self::money( $r['net'], $credit->currency ), false, 'right' );
+				$pdf->text( 440, $y, 9, '-' . self::money( $r['tax'], $credit->currency ), false, 'right' );
+				$pdf->text( 545, $y, 9, '-' . self::money( $r['gross'], $credit->currency ), false, 'right' );
 			}
-			$rows = array(
-				array( __( 'Nettobetrag', 'pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ),
-				array( __( 'Umsatzsteuer', 'pass-captain' ), '-' . self::money( $credit->tax_minor, $credit->currency ), false ),
-				array( __( 'Korrekturbetrag', 'pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true ),
-			);
+			$y -= 30;
+			$rows = array( array( __( 'Nettobetrag', 'pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ) );
+			foreach ( $credit_rates as $r ) {
+				$rows[] = array( sprintf( /* translators: %s: VAT rate */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( $r['rate_bp'] / 100, 2 ) ), '-' . self::money( $r['tax'], $credit->currency ), false );
+			}
+			$rows[] = array( __( 'Korrekturbetrag', 'pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true );
 			foreach ( $rows as $r ) {
 				$pdf->text( 300, $y, 10, $r[0], $r[2] );
 				$pdf->text( 545, $y, 10, $r[1], $r[2], 'right' );
@@ -244,6 +243,7 @@ final class InvoicePdf {
 		if ( is_wp_error( $result ) ) {
 			wp_die( esc_html( $result->get_error_message() ), (int) ( $result->get_error_data()['status'] ?? 400 ) );
 		}
+		\PassCaptain\Privacy\AccessLog::export( 'invoice_pdf', 'order', $order_id, array( 'credit_note_id' => $credit_note_id ) );
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 
@@ -279,7 +279,7 @@ final class InvoicePdf {
 		$denied = new \WP_Error( 'wpcap_not_found', __( 'Nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return $denied; }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return $denied; }
+		if ( ! \PassCaptain\Orders::access_matches( $order, $token ) ) { return $denied; }
 		$invoice_id = self::invoice_for_order( $order->order_id, false );
 		if ( ! $invoice_id ) { return $denied; }
 		return array( 'pdf' => self::render( $invoice_id ), 'filename' => self::filename( $invoice_id, 0 ) );
@@ -288,13 +288,15 @@ final class InvoicePdf {
 	/** template_redirect: ?wpcap_invoice_pdf=<public_id>&wpcap_access=<token> */
 	public static function maybe_customer_download() {
 		if ( ! isset( $_GET['wpcap_invoice_pdf'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// A283: personal download, also the 404 answer – never stored by a page cache or CDN.
+		\PassCaptain\PageCache::no_store( 'invoice_pdf' );
 		$public_id = sanitize_text_field( \PassCaptain\Security\Input::text( wp_unslash( $_GET['wpcap_invoice_pdf'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
 		$from_url = \PassCaptain\Security\Input::hex( wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
 		// Without token in the URL: the order's short-lived access cookie (Security\AccessCookie, SEC-7).
 		$token = '' !== $from_url || '' === $public_id ? $from_url : \PassCaptain\Security\AccessCookie::resolve( 'order', $public_id );
 		if ( '' === $token && '' !== $public_id && \PassCaptain\Security\AccessCookie::marker_present() ) { \PassCaptain\Security\AccessCookie::blocked_page(); }
 		$result = self::customer_pdf( $public_id, $token );
-		if ( is_wp_error( $result ) ) { status_header( 404 ); exit; }
+		if ( is_wp_error( $result ) ) { status_header( 404 ); \PassCaptain\Http::end(); }
 		if ( '' !== $from_url ) { \PassCaptain\Security\AccessCookie::exchange( 'order', $public_id, $from_url, add_query_arg( 'wpcap_invoice_pdf', $public_id, home_url( '/' ) ) ); }
 		\PassCaptain\Security\PrivatePage::send(); // No cache copy, no framing, no indexing (secret link).
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
@@ -326,10 +328,8 @@ final class InvoicePdf {
 
 	/** Removes temporary invoice attachments and their directories (idempotent). */
 	public static function cleanup_temp_files() {
-		foreach ( self::$temp_files as $entry ) {
-			list( $file, $dir ) = $entry;
-			\PassCaptain\TempFiles::remove_with_dir( $file, $dir );
-		}
+		// A626: kept for mail queue plugins until the cleanup sweep (Mail\TempFiles), unless the TTL is 0.
+		\PassCaptain\Mail\TempFiles::release( array_column( self::$temp_files, 0 ), array_column( self::$temp_files, 1 ) );
 		self::$temp_files = array();
 	}
 

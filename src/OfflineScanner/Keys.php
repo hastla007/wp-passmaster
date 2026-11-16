@@ -10,6 +10,12 @@
  *
  * Rotation creates a new active key; the previous secret is wiped immediately, its public key stays
  * published until the last package it signed has expired (grace), then it is pruned.
+ *
+ * Concurrency (A629): every change of the key option (first key, rotation, extended grace) runs under
+ * the DbLock lock `offline_keys` (unique per installation) and re-reads the option inside it, so a
+ * rotation is never undone by a stale copy. Signing only reads the key option; the latest expiry
+ * signed per key is kept in its own option (EXPIRY_OPTION) and raised under the same lock. A package
+ * signed with a key that was retired meanwhile extends that key's grace instead of being lost.
  */
 namespace PassCaptain\OfflineScanner;
 
@@ -19,6 +25,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Keys {
 	const OPTION = 'wpcap_offline_keys';
+
+	/** Latest package expiry signed per key id (kid => unix time), separate from the keys (A629). */
+	const EXPIRY_OPTION = 'wpcap_offline_keys_expiry';
+
+	/** Seconds to wait for the key lock before giving up (exception `offline_key_busy`). */
+	const LOCK_WAIT = 10;
 
 	private static function box_key() {
 		$base = defined( 'WPCAP_OFFLINE_SIGNING_KEY' ) ? (string) constant( 'WPCAP_OFFLINE_SIGNING_KEY' ) : '';
@@ -42,7 +54,11 @@ final class Keys {
 		return false === $plain || SODIUM_CRYPTO_SIGN_SECRETKEYBYTES !== strlen( $plain ) ? null : $plain;
 	}
 
-	private static function load() {
+	/**
+	 * Key data; $fresh drops the cached copy first (inside the lock: what other processes stored).
+	 */
+	private static function load( $fresh = false ) {
+		if ( $fresh && function_exists( 'wp_cache_delete' ) ) { wp_cache_delete( self::OPTION, 'options' ); }
 		$data = get_option( self::OPTION, array() );
 		$data = is_array( $data ) ? $data : array();
 		return array( 'active' => (string) ( $data['active'] ?? '' ), 'keys' => is_array( $data['keys'] ?? null ) ? $data['keys'] : array() );
@@ -50,6 +66,28 @@ final class Keys {
 
 	private static function store( array $data ) {
 		update_option( self::OPTION, $data, false );
+	}
+
+	/** Latest signed expiry per key id (A629). */
+	private static function expiries( $fresh = false ) {
+		if ( $fresh && function_exists( 'wp_cache_delete' ) ) { wp_cache_delete( self::EXPIRY_OPTION, 'options' ); }
+		$data = get_option( self::EXPIRY_OPTION, array() );
+		return is_array( $data ) ? array_map( 'intval', $data ) : array();
+	}
+
+	/**
+	 * Runs $fn under the database lock of the key option (A629). Throws `offline_key_busy` when the
+	 * lock cannot be had within LOCK_WAIT seconds – nothing is changed then.
+	 */
+	private static function locked( callable $fn ) {
+		if ( ! \PassCaptain\DbLock::acquire( 'offline_keys', self::LOCK_WAIT ) ) {
+			throw new \RuntimeException( 'offline_key_busy' );
+		}
+		try {
+			return $fn();
+		} finally {
+			\PassCaptain\DbLock::release( 'offline_keys' );
+		}
 	}
 
 	public static function key_id( $public ) {
@@ -75,9 +113,19 @@ final class Keys {
 	 */
 	public static function active_id() {
 		$data = self::load();
+		if ( self::usable( $data ) ) { return $data['active']; }
+		// A629: under the lock, and only if no other process created a usable key meanwhile.
+		return self::locked( static function () {
+			$data = self::load( true );
+			if ( self::usable( $data ) ) { return $data['active']; }
+			return self::rotate_unlocked( '' === $data['active'] ? 'initial' : 'unreadable', $data )['key_id'];
+		} );
+	}
+
+	/** Whether the active key of $data exists and its secret can be opened. */
+	private static function usable( array $data ) {
 		$kid = $data['active'];
-		if ( '' !== $kid && isset( $data['keys'][ $kid ] ) && null !== self::open( $data['keys'][ $kid ]['secret'] ) ) { return $kid; }
-		return self::rotate( '' === $kid ? 'initial' : 'unreadable' )['key_id'];
+		return '' !== $kid && isset( $data['keys'][ $kid ] ) && null !== self::open( $data['keys'][ $kid ]['secret'] );
 	}
 
 	/**
@@ -88,16 +136,39 @@ final class Keys {
 	 * @return array{key_id: string, signature: string} Signature base64.
 	 */
 	public static function sign( $message, $expires_at = 0 ) {
-		$kid = self::active_id();
+		// One consistent read: key id and secret come from the same copy (A629).
 		$data = self::load();
-		$secret = self::open( $data['keys'][ $kid ]['secret'] );
+		if ( ! self::usable( $data ) ) {
+			self::active_id();
+			$data = self::load( true );
+		}
+		$kid = $data['active'];
+		$secret = self::open( $data['keys'][ $kid ]['secret'] ?? '' );
+		if ( null === $secret ) { throw new \RuntimeException( 'offline_key_missing' ); }
 		$signature = sodium_crypto_sign_detached( (string) $message, $secret );
 		sodium_memzero( $secret );
-		if ( $expires_at > (int) $data['keys'][ $kid ]['max_expires'] + 60 ) {
-			$data['keys'][ $kid ]['max_expires'] = (int) $expires_at;
-			self::store( $data );
-		}
+		$known = max( (int) ( $data['keys'][ $kid ]['max_expires'] ?? 0 ), (int) ( self::expiries()[ $kid ] ?? 0 ) );
+		if ( $expires_at > $known + 60 ) { self::record_expiry( $kid, (int) $expires_at ); }
 		return array( 'key_id' => $kid, 'signature' => base64_encode( $signature ) );
+	}
+
+	/**
+	 * Raises the latest signed expiry of a key (A629, under the lock, fresh read). The key option is
+	 * only written when the key was retired meanwhile: its grace then covers this package, too.
+	 */
+	private static function record_expiry( $kid, $expires_at ) {
+		self::locked( static function () use ( $kid, $expires_at ) {
+			$expiries = self::expiries( true );
+			if ( $expires_at > (int) ( $expiries[ $kid ] ?? 0 ) ) {
+				$expiries[ $kid ] = $expires_at;
+				update_option( self::EXPIRY_OPTION, $expiries, false );
+			}
+			$data = self::load( true );
+			if ( isset( $data['keys'][ $kid ] ) && $kid !== $data['active'] && (int) $data['keys'][ $kid ]['valid_until'] < $expires_at ) {
+				$data['keys'][ $kid ]['valid_until'] = $expires_at;
+				self::store( $data );
+			}
+		} );
 	}
 
 	/**
@@ -107,13 +178,20 @@ final class Keys {
 	 * @return array{key_id: string, previous: string, previous_valid_until: int}
 	 */
 	public static function rotate( $reason = 'manual' ) {
-		$data = self::load();
+		return self::locked( static function () use ( $reason ) {
+			return self::rotate_unlocked( $reason, self::load( true ) );
+		} );
+	}
+
+	/** rotate() inside the lock, on data read inside the lock. */
+	private static function rotate_unlocked( $reason, array $data ) {
 		$now = time();
 		$previous = $data['active'];
 		$until = 0;
+		$expiries = self::expiries( true );
 		if ( '' !== $previous && isset( $data['keys'][ $previous ] ) ) {
 			$old = &$data['keys'][ $previous ];
-			$until = max( $now, (int) $old['max_expires'] );
+			$until = max( $now, (int) $old['max_expires'], (int) ( $expiries[ $previous ] ?? 0 ) );
 			// Packages issued before max_expires was tracked (or in the 60 s tolerance) are covered by the longest configured duration.
 			$until = max( $until, $now + Rules::max_hours_enabled() * HOUR_IN_SECONDS );
 			$old['secret'] = '';
@@ -126,6 +204,8 @@ final class Keys {
 		$data['active'] = $kid;
 		$data['keys'] = self::prune( $data['keys'], $kid, $now );
 		self::store( $data );
+		$kept = array_intersect_key( $expiries, $data['keys'] );
+		if ( $kept !== $expiries ) { update_option( self::EXPIRY_OPTION, $kept, false ); }
 		Audit::record( 'offline_key_rotated', 'settings', 0, array( 'key_id' => $kid, 'previous' => $previous, 'previous_valid_until' => $until ? gmdate( 'c', $until ) : null, 'reason' => sanitize_key( $reason ) ) );
 		return array( 'key_id' => $kid, 'previous' => $previous, 'previous_valid_until' => $until );
 	}

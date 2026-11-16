@@ -74,6 +74,13 @@ final class Redact {
 	public static function text( $text ) {
 		$text = (string) $text;
 		if ( '' === $text ) { return $text; }
+		// Values of secret-named fields first: a configured secret that is part of a field name (e.g. a
+		// PayPal secret "secret" inside "client_secret") must not break the field patterns below.
+		$text = (string) preg_replace(
+			array( '/([?&](?:access_token|token|key|secret|password|api_key|code)=)[^&\s"\']+/i', '/("(?:access_token|token|secret|password|api_key|client_secret|auth_token|refresh_token|private_key)"\s*:\s*")[^"]*"/i' ),
+			array( '$1' . self::MASK, '$1' . self::MASK . '"' ),
+			$text
+		);
 		foreach ( self::known_secrets() as $secret ) {
 			if ( false !== strpos( $text, $secret ) ) { $text = str_replace( $secret, self::MASK, $text ); }
 		}
@@ -141,18 +148,30 @@ final class Redact {
 				continue;
 			}
 			if ( is_string( $key ) && preg_match( self::PII_KEYS, $key ) && is_string( $value ) && '' !== $value ) {
-				if ( false !== strpos( $value, '@' ) ) {
-					$out[ $key ] = self::email( $value );
-				} elseif ( false !== filter_var( $value, FILTER_VALIDATE_IP ) ) {
-					$out[ $key ] = self::contact_data( $value ); // Truncated addresses stay readable.
-				} else {
-					$out[ $key ] = self::MASK;
+				$out[ $key ] = self::pii_value( $value );
+				continue;
+			}
+			if ( is_array( $value ) && $value && ! array_diff( array_keys( $value ), array( 'from', 'to' ) ) ) {
+				// Before/after diff of a correction (AccessLog::correction(), A122): the field name decides, not the
+				// key "to" (which elsewhere names a mail recipient). Contact fields stay masked, e.g. a country code
+				// stays readable.
+				$pii = is_string( $key ) && preg_match( self::PII_KEYS, $key );
+				foreach ( $value as $side => $v ) {
+					$out[ $key ][ $side ] = $pii && is_string( $v ) && '' !== $v ? self::pii_value( $v ) : self::data( $v, $depth + 2 );
 				}
 				continue;
 			}
 			$out[ $key ] = self::data( $value, $depth + 1 );
 		}
 		return $out;
+	}
+
+	/** Masked form of a contact value: e-mail masked, IP truncated, an already masked value ("E***") kept, else removed. */
+	private static function pii_value( $value ) {
+		if ( false !== strpos( $value, '@' ) ) { return self::email( $value ); }
+		if ( false !== filter_var( $value, FILTER_VALIDATE_IP ) ) { return self::contact_data( $value ); } // Truncated addresses stay readable.
+		if ( preg_match( '/^[^*]{0,2}\*{3}$/u', $value ) ) { return $value; }
+		return self::MASK;
 	}
 
 	/** WP_Error with redacted message and data (status codes are kept). */

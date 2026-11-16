@@ -90,7 +90,10 @@ $more = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( arr
 $other_mail = $y2_checkout( array( 'email' => 'someone@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'manual', 'idempotency_key' => $key ) );
 $code = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'campaign_codes' => array( 'NEU' ), 'provider' => 'manual', 'idempotency_key' => $key ) );
 $voucher = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'voucher_code' => 'GUT-1', 'provider' => 'manual', 'idempotency_key' => $key ) );
-check( 'same key with other quantity, e-mail, discount code or voucher: 409 each', is_wp_error( $more ) && is_wp_error( $other_mail ) && is_wp_error( $code ) && is_wp_error( $voucher ) && 'wpcap_idempotency_mismatch' === $more->get_error_code() && 'wpcap_idempotency_mismatch' === $other_mail->get_error_code() && 'wpcap_idempotency_mismatch' === $code->get_error_code() && 'wpcap_idempotency_mismatch' === $voucher->get_error_code() );
+// Merged design: Orders::create() compares the cart of a reused key first (A420, wpcap_idempotency_conflict); the
+// REST fingerprint check (wpcap_idempotency_mismatch) still catches a provider switch. Both answer 409 without booking.
+$y2_conflict = static fn( $r ) => is_wp_error( $r ) && 'wpcap_idempotency_conflict' === $r->get_error_code() && 409 === ( $r->get_error_data()['status'] ?? 0 );
+check( 'same key with other quantity, e-mail, discount code or voucher: 409 each', $y2_conflict( $more ) && $y2_conflict( $other_mail ) && $y2_conflict( $code ) && $y2_conflict( $voucher ) );
 $same = $y2_data( $y2_checkout( array( 'email' => ' QA1@example.COM ', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ), array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => $key ) ) );
 check( 'identical retry (e-mail case, split lines) reuses the order', is_array( $same ) && ! empty( $same['reused'] ) && (int) $same['order_id'] === (int) $first['order_id'] && ! isset( $same['request_fingerprint'], $same['payment_provider'] ) );
 check( 'fingerprint stored on the order (DB 3.12.0)', 64 === strlen( (string) Orders::get( $first['order_id'] )->request_fingerprint ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.12.0', '>=' ) );
@@ -159,13 +162,15 @@ echo "Y2 QA-6: delayed methods keep the hold\n";
 $dk = provider_order( 'stripe', $type, 1, 'y2-sepa-' . uniqid() );
 Orders::set_provider_reference( $dk['order_id'], 'cs_test_' . $dk['public_id'] );
 $sepa = stripe_deliver( $y2_stripe, stripe_session_event( 'evt_y2_sepa', 'checkout.session.completed', $dk, array( 'payment_status' => 'unpaid' ) ) );
-check( 'Stripe session completed with a delayed method extends the hold (7 days)', 'hold_extended' === $sepa && $y2_hold_until( $dk['order_id'] ) >= time() + 6 * DAY_IN_SECONDS && 'pending' === Orders::get( $dk['order_id'] )->payment_status );
+// Merged design (A577): a delayed method keeps the tickets like a bank transfer hold (manual_hold_hours).
+$y2_delayed_until = time() + (int) PassCaptain\Settings::get( 'manual_hold_hours' ) * HOUR_IN_SECONDS;
+check( 'Stripe session completed with a delayed method extends the hold like a bank transfer hold', 'hold_extended' === $sepa && abs( $y2_hold_until( $dk['order_id'] ) - $y2_delayed_until ) < 120 && 'pending' === Orders::get( $dk['order_id'] )->payment_status );
 http_reset();
 $bk = provider_order( 'mollie', $type, 1, 'y2-bank-' . uniqid() );
 Orders::set_provider_reference( $bk['order_id'], 'tr_Y2bank1' );
 http_push( array( 'id' => 'tr_Y2bank1', 'status' => 'open', 'method' => 'banktransfer', 'amount' => array( 'value' => '25.00', 'currency' => 'EUR' ), 'metadata' => array( 'order' => $bk['public_id'] ) ), 200, '/v2/payments/tr_Y2bank1' );
 $state = PassCaptain\Modules\Mollie::handle_return( $bk['public_id'] );
-check( 'Mollie bank transfer chosen: return extends the hold', 'pending' === $state && $y2_hold_until( $bk['order_id'] ) >= time() + 6 * DAY_IN_SECONDS );
+check( 'Mollie bank transfer chosen: return extends the hold', 'pending' === $state && abs( $y2_hold_until( $bk['order_id'] ) - $y2_delayed_until ) < 120 );
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Y2 PAY-1: a single-use code is not redeemed again by late payments of expired orders\n";
@@ -190,6 +195,7 @@ check( 'usage count stays at the limit', 1 === $used && 1 === (int) $wpdb->get_v
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Y2 PAY-2: provider dashboard refunds are booked in the refund ledger\n";
+// Merged result labels of Webhooks::process(): partial_refund / already_booked (formerly partial_refund_booked / refund_already_booked).
 Invoices::register();
 $type2 = make_type( 50, 10, 10000 );
 $ro = $y2_paid( 'stripe', $type2, 2, 'y2-dash-' . uniqid() );
@@ -198,8 +204,8 @@ $part = Webhooks::process( 'stripe', array( 'event_id' => 'evt_y2_p1', 'type' =>
 $again = Webhooks::process( 'stripe', array( 'event_id' => 'evt_y2_p1b', 'type' => 'refunded', 'refund_scope' => 'single', 'refund_id' => 're_y2_1', 'order_public_id' => $ro->public_id, 'provider_reference' => 'ch_1', 'amount_minor' => 5000, 'currency' => 'EUR' ) );
 $o = Orders::get( $ro->order_id );
 $rows = $y2_refund_rows( $ro->order_id );
-check( 'partial dashboard refund: refund row, refunded_minor, order stays complete', 'partial_refund_booked' === $part && 5000 === (int) $o->refunded_minor && 'complete' === $o->status && 1 === count( $rows ) && 'completed' === $rows[0]->status && 5000 === (int) $rows[0]->amount_minor );
-check( 'same refund via another event is not booked twice', 'refund_already_booked' === $again && 1 === count( $y2_refund_rows( $ro->order_id ) ) );
+check( 'partial dashboard refund: refund row, refunded_minor, order stays complete', 'partial_refund' === $part && 5000 === (int) $o->refunded_minor && 'complete' === $o->status && 1 === count( $rows ) && 'completed' === $rows[0]->status && 5000 === (int) $rows[0]->amount_minor );
+check( 'same refund via another event is not booked twice', ! is_wp_error( $again ) && 1 === count( $y2_refund_rows( $ro->order_id ) ) && 5000 === (int) Orders::get( $ro->order_id )->refunded_minor );
 check( 'credit note for the dashboard refund', 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_credit_notes WHERE refund_id=%d", $rows[0]->refund_id ) ) );
 $full = Webhooks::process( 'stripe', array( 'event_id' => 'evt_y2_full', 'type' => 'refunded', 'refund_scope' => 'full', 'order_public_id' => $ro->public_id, 'provider_reference' => 'ch_1', 'amount_minor' => 20000, 'currency' => 'EUR' ) );
 $o = Orders::get( $ro->order_id );
@@ -207,14 +213,16 @@ $rows = $y2_refund_rows( $ro->order_id );
 check( 'full refund books the rest and marks the order refunded', 'refunded' === $full && 'refunded' === $o->status && 20000 === (int) $o->refunded_minor && 2 === count( $rows ) && 15000 === (int) $rows[1]->amount_minor && array() === tickets( $ro->order_id, 'valid' ) );
 // Real Stripe payload: charge.refunded with a partial dashboard refund.
 $so2 = $y2_paid( 'stripe', $type2, 1, 'y2-dash2-' . uniqid() );
+// The charge belongs to the order's booked payment (A640: refunds of another payment are not booked on the order).
+$wpdb->update( "{$p}wpcap_orders", array( 'provider_reference' => 'pi_y2_2' ), array( 'order_id' => $so2->order_id ) );
 $charge = array( 'id' => 'ch_y2_2', 'object' => 'charge', 'amount' => 10000, 'amount_refunded' => 2500, 'refunded' => false, 'currency' => 'eur', 'metadata' => array( 'wpcap_order' => $so2->public_id ), 'payment_intent' => 'pi_y2_2', 'refunds' => array( 'data' => array( array( 'id' => 're_y2_2', 'amount' => 2500, 'metadata' => array() ) ) ) );
 $res2 = stripe_deliver( $y2_stripe, array( 'id' => 'evt_y2_ch2', 'type' => 'charge.refunded', 'data' => array( 'object' => $charge ) ) );
-check( 'Stripe charge.refunded (dashboard, partial) is booked', 'partial_refund_booked' === $res2 && 2500 === (int) Orders::get( $so2->order_id )->refunded_minor );
+check( 'Stripe charge.refunded (dashboard, partial) is booked', 'partial_refund' === $res2 && 2500 === (int) Orders::get( $so2->order_id )->refunded_minor );
 // Mollie reports the running total of external refunds.
 $mo2 = $y2_paid( 'mollie', $type2, 1, 'y2-mol-' . uniqid() );
 $m1 = Webhooks::process( 'mollie', array( 'event_id' => 'mollie-x-refunded-3000', 'type' => 'refunded', 'refund_scope' => 'cumulative', 'order_public_id' => $mo2->public_id, 'provider_reference' => 'tr_x', 'amount_minor' => 3000, 'currency' => 'EUR' ) );
 $m2 = Webhooks::process( 'mollie', array( 'event_id' => 'mollie-x-refunded-5000', 'type' => 'refunded', 'refund_scope' => 'cumulative', 'order_public_id' => $mo2->public_id, 'provider_reference' => 'tr_x', 'amount_minor' => 5000, 'currency' => 'EUR' ) );
-check( 'Mollie cumulative refunds: only the difference is booked (3000 + 2000)', 'partial_refund_booked' === $m1 && 'partial_refund_booked' === $m2 && 5000 === (int) Orders::get( $mo2->order_id )->refunded_minor && 2 === count( $y2_refund_rows( $mo2->order_id ) ) );
+check( 'Mollie cumulative refunds: only the difference is booked (3000 + 2000)', 'partial_refund' === $m1 && 'partial_refund' === $m2 && 5000 === (int) Orders::get( $mo2->order_id )->refunded_minor && 2 === count( $y2_refund_rows( $mo2->order_id ) ) );
 // A plugin refund still being paid out is not external money.
 $po2 = $y2_paid( 'stripe', $type2, 1, 'y2-proc-' . uniqid() );
 $wpdb->insert( "{$p}wpcap_refunds", array( 'order_id' => $po2->order_id, 'idempotency_key' => hash( 'sha256', 'y2-proc' . uniqid() ), 'amount_minor' => 10000, 'tax_minor' => 0, 'currency' => 'EUR', 'ticket_ids' => '[]', 'reason' => 'x', 'status' => 'processing', 'provider_reference' => '', 'requested_by' => 1, 'approved_by' => 1, 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
@@ -224,6 +232,7 @@ check( 'full refund event while the plugin refund is processing books no externa
 /* ------------------------------------------------------------------------------------------ */
 echo "Y2 PAY-8: chargebacks and disputes\n";
 $do = $y2_paid( 'stripe', $type2, 1, 'y2-disp-' . uniqid() );
+$wpdb->update( "{$p}wpcap_orders", array( 'provider_reference' => 'pi_y2_d' ), array( 'order_id' => $do->order_id ) ); // The disputed payment is the booked one (A640).
 $GLOBALS['wpcap_test_mails'] = array();
 http_reset();
 http_push( array( 'id' => 'pi_y2_d', 'metadata' => array( 'wpcap_order' => $do->public_id ) ), 200, '/v1/payment_intents/pi_y2_d' );

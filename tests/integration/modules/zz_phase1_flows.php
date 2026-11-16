@@ -94,7 +94,7 @@ echo "Phase 1: single occurrence cancellation without automatic refund\n";
 $t5 = make_type( 10, 10, 1000 );
 $o5 = admin_paid_order( $t5, 1, 'p1f-occ@example.com' );
 $occ5 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$t5" );
-$c5 = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ5 ) );
+$c5 = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ5, 'reason' => 'Test', 'confirm' => 1 ) );
 check( 'admin warning points to Bestellung → Erstatten', ! is_wp_error( $c5 ) && str_contains( (string) ( $c5['warning'] ?? '' ), 'Bestellung → Erstatten' ) );
 check( 'paid ticket is revoked but stays refundable', 'revoked' === Orders::tickets_for_order( $o5 )[0]->status && 1 === count( Orders::refundable_tickets( $o5 ) ) );
 
@@ -178,7 +178,10 @@ $cancelled_seen = array();
 $p1f_pay = static function ( $order_id ) use ( &$cancelled_seen, $e1, $e2, $wpdb, $p ) {
 	$cancelled_seen[] = (int) $order_id;
 	// The buyer pays order 2 while the cron is busy with order 1.
-	if ( (int) $order_id === (int) $e1['order_id'] ) { $wpdb->query( "UPDATE {$p}wpcap_orders SET payment_status='paid',status='confirmed' WHERE order_id=" . (int) $e2['order_id'] ); }
+	if ( (int) $order_id === (int) $e1['order_id'] ) {
+		$wpdb->query( "UPDATE {$p}wpcap_orders SET payment_status='paid',status='confirmed' WHERE order_id=" . (int) $e2['order_id'] );
+		PassCaptain\CapacityCounters::sync_order_now( $e2['order_id'] ); // Raw payment: keep the capacity counters in line.
+	}
 };
 add_action( 'wpcap_order_cancelled', $p1f_pay, 1, 1 );
 $expired = Orders::expire_holds();
@@ -221,6 +224,9 @@ $_SERVER['HTTP_CF_CONNECTING_IP'] = 'not-an-ip';
 check( 'invalid filtered IP falls back to REMOTE_ADDR', '203.0.113.10' === Orders::client_ip() );
 wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'] = 2;
+// Merged RateLimit: atomic database table by default (the suite bootstrap selects the transient fallback).
+$p1f_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'db';
 $t9 = make_type( 50, 10, 1000 );
 $buy = static function ( $client, $n ) use ( $t9 ) { $_SERVER['HTTP_CF_CONNECTING_IP'] = $client; return Orders::create( array( 'email' => "p1f-rl$n@example.com", 'items' => array( array( 'ticket_type_id' => $t9, 'quantity' => 1 ) ), 'idempotency_key' => 'p1f-rl-' . uniqid( '', true ) ) ); };
 $a1 = $buy( '198.51.100.1', 1 );
@@ -230,6 +236,16 @@ $b1 = $buy( '198.51.100.2', 4 );
 check( 'limit applies per real client, not to the whole proxy', ! is_wp_error( $a1 ) && ! is_wp_error( $a2 ) && is_wp_error( $a3 ) && 429 === $a3->get_error_data()['status'] && ! is_wp_error( $b1 ) );
 $keys = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', PassCaptain\RateLimit::table() ) );
 check( 'rate-limit keys use a keyed hash, not plain sha256 of the IP', in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . Orders::rate_hash( '198.51.100.1' ) ), $keys, true ) && ! in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . hash( 'sha256', '198.51.100.1' ) ), $keys, true ) && ! in_array( hash( 'sha256', '198.51.100.1' ), $keys, true ) && array() === $GLOBALS['wpcap_test_transients'] );
+// Merged PassCaptain\RateLimit: the table above by default; the transient fallback (no table yet) stores keyed
+// names too – window buckets as wpcap_rl_<hmac>, the checkout counters with a keyed hash of the address.
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'transient';
+wpcap_test_reset_transients();
+$buy( '198.51.100.1', 5 );
+PassCaptain\RateLimit::allow( 'p1f_bucket|203.0.113.10', 5, 60 );
+$rl_transient_keys = array_keys( $GLOBALS['wpcap_test_transients'] );
+$rl_plain = array_filter( $rl_transient_keys, static fn( $k ) => false !== strpos( $k, '198.51.100.1' ) || false !== strpos( $k, hash( 'sha256', '198.51.100.1' ) ) || false !== strpos( $k, hash( 'sha256', '203.0.113.10' ) ) );
+check( 'rate-limit keys use a keyed hash, not plain sha256 of the IP (transient storage)', ! $rl_plain && (bool) preg_grep( '/^wpcap_rl_[0-9a-f]{40}$/', $rl_transient_keys ) );
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $p1f_backend;
 unset( $GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'], $_SERVER['HTTP_CF_CONNECTING_IP'] );
 remove_filter( 'wpcap_client_ip', $p1f_proxy, 10 );
 if ( null === $p1f_remote ) { unset( $_SERVER['REMOTE_ADDR'] ); } else { $_SERVER['REMOTE_ADDR'] = $p1f_remote; }

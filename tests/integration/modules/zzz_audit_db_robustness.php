@@ -70,6 +70,8 @@ final class Audit_Fault_WPDB {
 }
 
 if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['wpcap_test_options'][ $k ] ); return true; } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $url ) { return (string) $url; } }
+if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $action = -1 ) { echo '<input type="hidden" name="_wpnonce" value="nonce">'; } }
 
 global $wpdb;
 $audit_real = $wpdb;
@@ -105,23 +107,26 @@ check( 'upgrade lock is released after the failed attempt', '1' === (string) $au
 $audit_lock_db->query( "SELECT RELEASE_LOCK('$lock')" );
 
 unset( $GLOBALS['wpcap_test_hooks']['admin_notices'] );
-$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['next_retry'] = 0; // Backoff elapsed (see ops_status.php).
+Installer::allow_retry(); // Backoff elapsed (merged A466 backoff: one retry_at, cleared like the status page's retry button).
 $f->fail( '/^CREATE TABLE wpfault_wpcap_jobs\b/', 0, 1 );
 fwrite( STDERR, "(audit test: one injected 'Injected fault' schema error follows)\n" );
 $ran_admin = Installer::maybe_upgrade( 'admin' );
+// Merged design (A466): the failed upgrade is shown by Admin\Menu::schema_error_notice() (with retry button).
 ob_start();
-foreach ( $GLOBALS['wpcap_test_hooks']['admin_notices'] ?? array() as $cbs ) { foreach ( $cbs as $cb ) { call_user_func( $cb[0] ); } }
+PassCaptain\Admin\Menu::schema_error_notice();
 $notice = (string) ob_get_clean();
-check( 'admin request retries, still fails, and shows an admin notice', false === $ran_admin && 'old-version' === get_option( 'wpcap_db_version' ) && false !== strpos( $notice, 'Datenbank-Aktualisierung ist fehlgeschlagen' ) && false !== strpos( $notice, 'wpfault_wpcap_jobs' ) );
+check( 'admin request retries, still fails, and shows an admin notice', false === $ran_admin && 'old-version' === get_option( 'wpcap_db_version' ) && false !== strpos( $notice, 'Datenbank-Update ist unvollständig' ) && false !== strpos( $notice, 'wpfault_wpcap_jobs' ) );
 
 $audit_restore();
-$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['next_retry'] = 0; // Backoff elapsed.
+Installer::allow_retry(); // Backoff elapsed.
 $ran_ok = Installer::maybe_upgrade( 'cron' );
 check( 'retry without the fault completes and stores version and fingerprint', true === $ran_ok && Installer::version() === get_option( 'wpcap_db_version' ) && $fp === get_option( 'wpcap_schema_fingerprint' ) && ! get_option( Installer::ERROR_OPTION ) );
 check( 'retry created the previously missing tables', null !== $audit_real->get_var( "SHOW TABLES LIKE 'wpfault\\_wpcap\\_jobs'" ) && null !== $audit_real->get_var( "SHOW TABLES LIKE 'wpfault\\_wpcap\\_refunds'" ) );
 unset( $GLOBALS['wpcap_test_hooks']['admin_notices'] );
 Installer::maybe_upgrade( 'admin' );
-check( 'no admin notice once the upgrade succeeded', empty( $GLOBALS['wpcap_test_hooks']['admin_notices'] ) );
+ob_start();
+PassCaptain\Admin\Menu::schema_error_notice();
+check( 'no admin notice once the upgrade succeeded', empty( $GLOBALS['wpcap_test_hooks']['admin_notices'] ) && '' === (string) ob_get_clean() );
 foreach ( $audit_real->get_col( "SHOW TABLES LIKE 'wpfault\\_%'" ) as $t ) { $audit_real->query( "DROP TABLE IF EXISTS `$t`" ); }
 $audit_real->prefix = $p;
 Installer::flush_version_cache();
@@ -184,20 +189,23 @@ foreach ( $claim_faults as $label => $rule ) {
 	$res = Refunds::execute( $rid );
 	$audit_restore();
 	$s = $audit_state( $rid, $oid, $tids[0] );
-	check( "refund $label: no provider call, refund stays approved", is_wp_error( $res ) && 'wpcap_refund_db' === $res->get_error_code() && 0 === Audit_Fault_Gateway::$calls && 'approved' === $s['status'] && 'valid/0' === $s['ticket'] && 0 === $s['refunded'] );
+	// Merged design (A063/A183): database errors are retryable busy errors (Errors::busy(), HTTP 503).
+	check( "refund $label: no provider call, refund stays approved", PassCaptain\Errors::is_busy( $res ) && 0 === Audit_Fault_Gateway::$calls && 'approved' === $s['status'] && 'valid/0' === $s['ticket'] && 0 === $s['refunded'] );
 	$retry = Refunds::execute( $rid );
 	$s = $audit_state( $rid, $oid, $tids[0] );
 	check( "refund $label: retry pays out once and books", is_array( $retry ) && 'completed' === $s['status'] && 1 === Audit_Fault_Gateway::$calls && 'revoked/1' === $s['ticket'] && 800 === $s['refunded'] && 1 === $s['items'] );
 }
 
-// Failures between the provider payout and the end of the local booking.
+// Failures between the provider payout and the end of the local booking. Merged statements: the order
+// line count is updated together with the ticket (CapacityRelease), the order total together with the
+// refund completion (one UPDATE … JOIN), so these faults hit those combined statements.
 $booking_faults = array(
 	'ticket revocation fails'              => array( "/SET status='revoked' WHERE ticket_id/", 0, 1, false ),
-	'order item update fails'              => array( '/UPDATE \S+wpcap_order_items SET refunded_quantity/', 0, 1, false ),
+	'order item update fails'              => array( '/oi\.refunded_quantity=LEAST/', 0, 1, false ),
 	'ticket refunded flag fails'           => array( '/UPDATE \S+wpcap_tickets SET refunded=1/', 0, 1, false ),
-	'order total update fails'             => array( '/UPDATE \S+wpcap_orders SET refunded_minor/', 0, 1, false ),
-	'refund completion fails'              => array( "/SET status='completed'/", 0, 1, false ),
-	'refund completion affects 0 rows'     => array( "/SET status='completed'/", 0, 1, true ),
+	'order total update fails'             => array( '/o\.refunded_minor=LEAST/', 0, 1, false ),
+	'refund completion fails'              => array( "/SET r\.status='completed'/", 0, 1, false ),
+	'refund completion affects 0 rows'     => array( "/SET r\.status='completed'/", 0, 1, true ),
 	'COMMIT of the booking fails'          => array( '/^COMMIT/', 1, 1, false ),
 );
 $n = 0;
@@ -208,12 +216,19 @@ foreach ( $booking_faults as $label => $rule ) {
 	$res = Refunds::execute( $rid );
 	$audit_restore();
 	$s = $audit_state( $rid, $oid, $tids[0] );
-	check( "refund $label: provider paid once, booking rolled back, payout recorded", is_wp_error( $res ) && 'wpcap_refund_booking_pending' === $res->get_error_code() && 1 === Audit_Fault_Gateway::$calls && 'processing' === $s['status'] && 'fake_wpcap-refund-' . $rid === $s['reference'] && 'valid/0' === $s['ticket'] && 0 === $s['refunded'] && 0 === $s['items'] );
-	$again = Refunds::execute( $rid );
-	check( "refund $label: execute() again does not pay out a second time", is_array( $again ) && 'processing' === $again['status'] && 1 === Audit_Fault_Gateway::$calls );
+	check( "refund $label: provider paid once, booking rolled back, payout recorded", PassCaptain\Errors::is_busy( $res ) && 1 === Audit_Fault_Gateway::$calls && 'processing' === $s['status'] && 'fake_wpcap-refund-' . $rid === $s['reference'] && 'valid/0' === $s['ticket'] && 0 === $s['refunded'] && 0 === $s['items'] );
 	check( "refund $label: unbooked refund is counted", Refunds::unbooked_count() >= 1 );
-	// Alternate the recovery path: direct reconcile() and the job queue cron.
-	if ( 0 === $n++ % 2 ) { $booked = Refunds::reconcile(); } else { Jobs::process_due( 1 ); $booked = 1; }
+	// Alternate the recovery path. Merged design (A183): execute() again resumes the local booking of a
+	// refund that holds its provider reference (no second payout); reconcile() books it as well.
+	if ( 0 === $n++ % 2 ) {
+		$again = Refunds::execute( $rid );
+		check( "refund $label: execute() again does not pay out a second time", is_array( $again ) && 'completed' === $again['status'] && 1 === Audit_Fault_Gateway::$calls );
+		$booked = 1;
+	} else {
+		$booked = Refunds::reconcile();
+		$again = Refunds::execute( $rid );
+		check( "refund $label: execute() again does not pay out a second time", is_array( $again ) && 'completed' === $again['status'] && 1 === Audit_Fault_Gateway::$calls );
+	}
 	$s = $audit_state( $rid, $oid, $tids[0] );
 	check( "refund $label: reconciliation books it without a provider call", $booked >= 1 && 'completed' === $s['status'] && 1 === Audit_Fault_Gateway::$calls && 'revoked/1' === $s['ticket'] && 800 === $s['refunded'] && 1 === $s['items'] );
 	Refunds::reconcile();
@@ -224,7 +239,7 @@ foreach ( $booking_faults as $label => $rule ) {
 // Full refund booked by reconciliation marks the order refunded.
 list( $rid, $oid, $tids ) = $audit_refund( true );
 Audit_Fault_Gateway::$calls = 0;
-$audit_faults()->fail( "/SET status='completed'/", 0, 1, false );
+$audit_faults()->fail( "/SET r\.status='completed'/", 0, 1, false );
 Refunds::execute( $rid );
 $audit_restore();
 check( 'full refund: order still paid while the booking is pending', 'paid' === Orders::get( $oid )->payment_status && 1 === Audit_Fault_Gateway::$calls );
@@ -232,15 +247,16 @@ Refunds::reconcile();
 check( 'full refund: reconciliation completes it and marks the order refunded', 'completed' === Refunds::get( $rid )['status'] && 'refunded' === Orders::get( $oid )->status && 2400 === (int) Orders::get( $oid )->refunded_minor && 1 === Audit_Fault_Gateway::$calls );
 
 // Provider paid, but even the payout note cannot be stored: stays processing (bound), never re-paid automatically.
+// Merged design: the booking in the same run stores the reference as well, so the booking fails too here.
 list( $rid, $oid, $tids ) = $audit_refund();
 Audit_Fault_Gateway::$calls = 0;
-$audit_faults()->fail( '/UPDATE \S+wpcap_refunds SET provider_reference=/', 0, 1, false );
+$audit_faults()->fail( '/UPDATE \S+wpcap_refunds SET provider_reference=/', 0, 1, false )->fail( "/SET status='revoked' WHERE ticket_id/", 0, 1, false );
 $res = Refunds::execute( $rid );
 $audit_restore();
 Refunds::reconcile();
 Refunds::execute( $rid );
 $s = $audit_state( $rid, $oid, $tids[0] );
-check( 'payout note fails: error, refund stays processing, no second payout by retry or reconcile', is_wp_error( $res ) && 'wpcap_refund_booking' === $res->get_error_code() && 'processing' === $s['status'] && '' === $s['reference'] && 1 === Audit_Fault_Gateway::$calls && 0 === $s['refunded'] );
+check( 'payout note fails: error, refund stays processing, no second payout by retry or reconcile', is_wp_error( $res ) && 'processing' === $s['status'] && '' === $s['reference'] && 1 === Audit_Fault_Gateway::$calls && 0 === $s['refunded'] );
 $overlap = Refunds::request( $oid, array( $tids[0] ), 'Test', 'audit-overlap-' . uniqid() );
 check( 'payout note fails: the tickets stay bound against new refunds', is_wp_error( $overlap ) && 'wpcap_refund_overlap' === $overlap->get_error_code() );
 $audit_real->query( "UPDATE {$p}wpcap_refunds SET status='failed' WHERE refund_id=" . (int) $rid ); // Clean up for later queue runs.
@@ -270,11 +286,13 @@ foreach ( $job_faults as $label => $rule ) {
 	$job = $audit_real->get_row( $audit_real->prepare( "SELECT job_id FROM {$p}wpcap_jobs WHERE idempotency_key=%s", hash( 'sha256', $key ) ) );
 	$audit_handled = array();
 	$audit_faults()->fail( ...$rule );
-	$processed = Jobs::process_due( 50 );
+	// Only this job type: the queue sweeps (refund/issuance reconcile) of a plain run would consume the
+	// injected fault on their own transactions when earlier test files left work for them.
+	$processed = Jobs::process_due( 50, 'audit_fault_job' );
 	$audit_restore();
 	$row = $audit_real->get_row( "SELECT status,attempts FROM {$p}wpcap_jobs WHERE job_id=" . (int) $job->job_id );
 	check( "jobs $label: handler not run, job stays queued without an attempt", 0 === $processed && array() === $audit_handled && 'queued' === $row->status && 0 === (int) $row->attempts );
-	Jobs::process_due( 200 );
+	Jobs::process_due( 200, 'audit_fault_job' );
 	$row = $audit_real->get_row( "SELECT status FROM {$p}wpcap_jobs WHERE job_id=" . (int) $job->job_id );
 	check( "jobs $label: next run handles it exactly once", array( (int) $job->job_id ) === array_values( array_filter( $audit_handled, static fn( $id ) => $id === (int) $job->job_id ) ) && 'complete' === $row->status );
 }
@@ -286,6 +304,12 @@ $msg_faults = array(
 	'claim UPDATE affects 0 rows' => array( "/UPDATE \S+wpcap_message_queue SET status='sending'/", 0, 1000, true ),
 	'COMMIT of the claim fails'   => array( '/^COMMIT/', 0, 1, false ),
 );
+// A652 (merged design): the stored payload is data, never a template – a renderer supplies subject and body.
+$audit_renderer = static function ( $template, $key, $payload ) {
+	if ( ! in_array( $key, array( 'audit_fault', 'audit_parallel' ), true ) ) { return $template; }
+	return array( 'subject' => (string) ( $payload['subject'] ?? '' ), 'body' => (string) ( $payload['body'] ?? '' ) );
+};
+add_filter( 'wpcap_email_template', $audit_renderer, 10, 3 );
 $audit_sent_to = static function ( $to ) { return count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => $m['to'] === $to ) ); };
 foreach ( $msg_faults as $label => $rule ) {
 	$to = 'audit-msg-' . uniqid() . '@example.com';
@@ -329,3 +353,4 @@ $complete = (int) $audit_real->get_var( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHE
 $sent = (int) $audit_real->get_var( "SELECT COUNT(*) FROM {$p}wpcap_message_queue WHERE template_key='audit_parallel' AND status='sent'" );
 check( 'parallel workers: each of 40 jobs handled exactly once (' . count( $jobs_seen ) . ' handled)', $expected_jobs === $jobs_seen && 40 === $complete );
 check( 'parallel workers: each of 40 messages sent exactly once (' . count( $mails_seen ) . '' . ' sent, ' . count( $counts ) . ' distinct, ' . $sent . ' marked sent)', 40 === count( $counts ) && array( 1 ) === array_values( array_unique( $counts ) ) && 40 === $sent );
+remove_filter( 'wpcap_email_template', $audit_renderer, 10 );
