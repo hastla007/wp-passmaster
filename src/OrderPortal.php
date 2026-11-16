@@ -185,7 +185,7 @@ document.querySelectorAll('.wpcap-billing-form').forEach(function(form){var togg
 		}
 		$html .= '<form class="wpcap-billing-form"><p class="muted"><small>' . esc_html__( 'Bis zur Ausstellung der Rechnung kannst du hier Firma, Name, Anschrift und UID-Nummer für die Rechnung angeben oder korrigieren.', 'pass-captain' ) . '</small></p>';
 		$html .= '<label style="display:flex;gap:.5rem;align-items:center"><input type="checkbox" name="enabled" value="1"' . ( $billing ? ' checked' : '' ) . '> ' . esc_html( $labels['enabled'] ) . '</label><div class="billing-fields">';
-		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'street-address', 'postcode' => 'postal-code', 'city' => 'address-level2', 'vat_id' => 'off', 'po_number' => 'off' );
+		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'address-line1', 'postcode' => 'postal-code', 'city' => 'address-level2', 'vat_id' => 'off', 'po_number' => 'off' );
 		$country = $billing['country'] ?? Billing::default_country();
 		foreach ( Billing::FIELDS as $field ) {
 			$required = in_array( $field, Billing::REQUIRED, true );

@@ -101,7 +101,7 @@ $wpcap_no_payment = ! $providers;
 				'company' => array( 'organization', false ),
 				'first_name' => array( 'given-name', true ),
 				'last_name' => array( 'family-name', true ),
-				'street' => array( 'street-address', true ),
+				'street' => array( 'address-line1', true ), // A602: single-line field (street-address is multi-line).
 				'postcode' => array( 'postal-code', true ),
 				'city' => array( 'address-level2', true ),
 			);
@@ -179,7 +179,10 @@ $wpcap_no_payment = ! $providers;
 		<?php endif; ?>
 		<?php /* A450: enabled by checkout.js once its handlers are attached; without JavaScript nothing is sent. A409: "Kostenlos anmelden" while only free tickets are offered (or selected); checkout.js switches with the selection and live prices. */ ?>
 		<?php $wpcap_label_paid = __( 'Zahlungspflichtig bestellen', 'pass-captain' ); $wpcap_label_free = __( 'Kostenlos anmelden', 'pass-captain' ); ?>
+		<?php /* A602: total next to the button, sticky at the bottom on narrow screens (the live estimate above stays for screen readers). */ ?>
+		<div class="wpcap-submit-bar"><p class="wpcap-submit-total" aria-hidden="true"></p>
 		<button type="submit" class="wp-element-button wpcap-submit" disabled data-wpcap-requires-js data-label-paid="<?php echo esc_attr( $wpcap_label_paid ); ?>" data-label-free="<?php echo esc_attr( $wpcap_label_free ); ?>"><?php echo esc_html( \PassCaptain\Frontend\Format::all_free( $types ) ? $wpcap_label_free : $wpcap_label_paid ); ?></button>
+		</div>
 		<noscript><p class="wpcap-noscript"><?php esc_html_e( 'Zum Bestellen wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser.', 'pass-captain' ); ?></p></noscript>
 		<p class="wpcap-message" role="status" aria-live="polite"></p>
 		</div>

@@ -141,6 +141,8 @@ final class PublicEvents {
 				/* translators: %d: maximum tickets per order (2 or more) */
 				'errTotal' => __( 'Es sind höchstens %d Tickets pro Person möglich.', 'pass-captain' ), // n>1: checkout.js uses errTotalOne for 1
 				'errTotalOne' => __( 'Es ist höchstens 1 Ticket pro Person möglich.', 'pass-captain' ),
+				/* translators: %s: formatted amount */
+				'submitTotal' => __( 'Summe: %s', 'pass-captain' ), // A602: next to the order button.
 				// A600: link in the order confirmation.
 				'addToCalendar' => __( 'Termin in den Kalender eintragen (.ics)', 'pass-captain' ),
 				// A409: price of a free ticket type (same as Frontend\Format::price()).

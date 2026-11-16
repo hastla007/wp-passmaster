@@ -181,6 +181,9 @@
 			if (n) currency = qty.dataset.currency || currency;
 		});
 		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) : '';
+		// A602: the sum next to the order button (visual only; the estimate above is the live region).
+		const near = form.querySelector('.wpcap-submit-total');
+		if (near) near.textContent = total > 0 ? fill(t.submitTotal || '%s', [money(total, currency)]) : '';
 		previewDiscount(form, total);
 	}
 

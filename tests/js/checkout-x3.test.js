@@ -256,3 +256,29 @@ test('A603: each attendee block is an autofill section of its own, numbered by p
 	assert.deepStrictEqual([...tokens()], ['section-att1 name', 'section-att2 name']);
 	assert.strictEqual(new Set(tokens()).size, tokens().length, 'no two blocks share a section');
 });
+
+/* ------------------------------------------------------------------ A602 */
+
+test('A602: the sum stands next to the order button and follows the selection', async () => {
+	const env = loadCheckout({
+		markup: (h) => {
+			const article = labelCard(h, [[5, 1250]]);
+			const form = article.querySelector('form');
+			const button = form.querySelector('.wpcap-submit');
+			const bar = h('div', { class: 'wpcap-submit-bar' }, [h('p', { class: 'wpcap-submit-total', 'aria-hidden': 'true' })]);
+			form.insertBefore(bar, button);
+			bar.appendChild(button);
+			return [article];
+		},
+		i18n: { submitTotal: 'Summe: %s' },
+	});
+	await flush();
+	const form = env.forms[0];
+	const near = form.querySelector('.wpcap-submit-total');
+	assert.strictEqual(near.textContent, '', 'nothing selected');
+	setQty(form, 5, 2);
+	assert.strictEqual(near.textContent, 'Summe: 25,00 €');
+	assert.strictEqual(near.getAttribute('aria-hidden'), 'true', 'visual only – the estimate is the live region');
+	setQty(form, 5, 0);
+	assert.strictEqual(near.textContent, '');
+});

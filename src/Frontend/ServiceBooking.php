@@ -527,7 +527,7 @@ final class ServiceBooking {
 				$html .= '<p class="wpcap-billing-hint" id="' . esc_attr( $bid . '-hint' ) . '"><small>' . esc_html( sprintf( __( 'Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und Anschrift.', 'pass-captain' ), Format::money( $threshold, $currency ) ) ) . '</small></p>';
 			}
 			$html .= '<div class="wpcap-billing-fields" id="' . esc_attr( $bid . '-fields' ) . '" hidden>';
-			$fields = array( 'company' => array( 'organization', false ), 'first_name' => array( 'given-name', true ), 'last_name' => array( 'family-name', true ), 'street' => array( 'street-address', true ), 'postcode' => array( 'postal-code', true ), 'city' => array( 'address-level2', true ) );
+			$fields = array( 'company' => array( 'organization', false ), 'first_name' => array( 'given-name', true ), 'last_name' => array( 'family-name', true ), 'street' => array( 'address-line1', true ), 'postcode' => array( 'postal-code', true ), 'city' => array( 'address-level2', true ) );
 			foreach ( $fields as $key => $def ) {
 				$html .= '<div class="wpcap-field"><label for="' . esc_attr( $bid . '-' . $key ) . '">' . esc_html( $labels[ $key ] . ( $def[1] ? ' *' : ' ' . __( '(optional)', 'pass-captain' ) ) ) . '</label><input id="' . esc_attr( $bid . '-' . $key ) . '" name="' . esc_attr( 'billing_' . $key ) . '" type="text" autocomplete="' . esc_attr( $def[0] ) . '" maxlength="' . esc_attr( (string) \PassCaptain\Billing::MAX[ $key ] ) . '"' . ( $def[1] ? ' required' : '' ) . '></div>';
 			}

@@ -260,7 +260,7 @@ final class Billing {
 		$default = self::default_country();
 		echo '<details class="' . esc_attr( $id_prefix ) . '"><summary>' . esc_html__( 'Rechnung auf Firma/Adresse (optional)', 'pass-captain' ) . '</summary>';
 		echo '<p class="description">' . esc_html__( 'Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht.', 'pass-captain' ) . '</p><table class="form-table" role="presentation"><tbody>';
-		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'street-address', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
+		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'address-line1', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
 		foreach ( self::FIELDS as $field ) {
 			$id = $id_prefix . '-' . $field;
 			$label = $labels[ $field ] . ( in_array( $field, self::REQUIRED, true ) ? '' : ' ' . __( '(optional)', 'pass-captain' ) );
