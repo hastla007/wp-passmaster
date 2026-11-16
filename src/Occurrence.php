@@ -11,6 +11,13 @@
  *
  * All times are UTC ("Y-m-d H:i:s"); rows only need `starts_at` and `ends_at`.
  *
+ * Lifecycle (A562): phase() names the phase of an occurrence at a time – `upcoming` (before the
+ * start), `running` (started, not over), `over` (after the effective end) or `cancelled`. Every
+ * transition fires `wpcap_occurrence_phase_changed` ( $occurrence_id, $new, $old, $context ):
+ * time-based ones from the sweep on `wpcap_process_jobs` (sweep_phases(), a few minutes late at
+ * most), admin edits that move the start/end and cancellations right away. Listings (page cache)
+ * and the waitlist react to it; further modules (scanner lists, wallet passes, purges) can hook in.
+ *
  * Local wall-clock arithmetic (A555/A556): local_shift() moves a time by the same local calendar
  * distance as a rescheduled start, local_days_before() subtracts whole local days – both keep the
  * local time of day across DST changes.
@@ -22,6 +29,28 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Occurrence {
 	/** Default duration of an occurrence without `ends_at` (hours). */
 	const DEFAULT_DURATION_HOURS = 6;
+
+	/** Lifecycle phases (A562). */
+	const UPCOMING = 'upcoming';
+	const RUNNING = 'running';
+	const OVER = 'over';
+	const CANCELLED = 'cancelled';
+
+	/** Action fired on every phase transition (A562). */
+	const PHASE_ACTION = 'wpcap_occurrence_phase_changed';
+
+	/** Option holding the end of the last phase sweep (UTC timestamp). */
+	const SWEEP_OPTION = 'wpcap_occurrence_phase_sweep';
+
+	/** Occurrences handled per sweep; the rest follows in the next run. */
+	const SWEEP_LIMIT = 500;
+
+	/** Hooks: phase sweep, cancellations and the built-in listing purge (called by Plugin). */
+	public static function register() {
+		add_action( 'wpcap_process_jobs', array( __CLASS__, 'sweep_phases' ), 5, 0 );
+		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'on_cancelled' ), 5, 1 );
+		add_action( self::PHASE_ACTION, array( __CLASS__, 'purge_listing' ), 10, 1 );
+	}
 
 	/**
 	 * Duration (seconds) assumed for occurrences without `ends_at`: setting
@@ -136,6 +165,112 @@ final class Occurrence {
 			? __( 'Das Verkaufsende liegt nach dem Ende des Termins. Online verkauft wird höchstens bis zum Terminende.', 'pass-captain' )
 			/* translators: %d: default duration in hours */
 			: sprintf( _n( 'Das Verkaufsende liegt nach dem Ende des Termins (ohne Endzeit: Beginn + %d Stunde). Online verkauft wird höchstens bis dahin; für mehrtägige Termine bitte ein Ende eintragen.', 'Das Verkaufsende liegt nach dem Ende des Termins (ohne Endzeit: Beginn + %d Stunden). Online verkauft wird höchstens bis dahin; für mehrtägige Termine bitte ein Ende eintragen.', max( 1, (int) round( self::default_duration() / HOUR_IN_SECONDS ) ), 'pass-captain' ), max( 1, (int) round( self::default_duration() / HOUR_IN_SECONDS ) ) );
+	}
+
+	/* ---------------------------------------------------------------------------------------------
+	 * Lifecycle (A562).
+	 * ------------------------------------------------------------------------------------------- */
+
+	/**
+	 * Phase of an occurrence at $now: `cancelled` (status), `over` (effective end passed), `running`
+	 * (started) or `upcoming`. Rows without `status` count as scheduled.
+	 */
+	public static function phase( $occurrence, $now = null ) {
+		$status = (string) ( is_array( $occurrence ) ? ( $occurrence['status'] ?? '' ) : ( $occurrence->status ?? '' ) );
+		if ( 'cancelled' === $status ) { return self::CANCELLED; }
+		return self::time_phase( $occurrence, $now );
+	}
+
+	/** Phase by time alone (status ignored): upcoming, running or over. */
+	public static function time_phase( $occurrence, $now = null ) {
+		$now = null === $now ? Clock::now() : (int) $now;
+		if ( self::is_over( $occurrence, $now ) ) { return self::OVER; }
+		return self::has_started( $occurrence, $now ) ? self::RUNNING : self::UPCOMING;
+	}
+
+	/**
+	 * Fires `wpcap_occurrence_phase_changed` when $old and $new differ.
+	 *
+	 * @param array $context source (sweep, admin, cancel), event_id.
+	 * @return bool Whether the action fired.
+	 */
+	public static function phase_changed( $occurrence_id, $new, $old, array $context = array() ) {
+		$occurrence_id = absint( $occurrence_id );
+		if ( ! $occurrence_id || (string) $new === (string) $old ) { return false; }
+		/**
+		 * An occurrence entered another lifecycle phase (A562): upcoming → running → over, or
+		 * cancelled (also back to upcoming when an admin moves a started date). Time-based
+		 * transitions come from the sweep on `wpcap_process_jobs` (a few minutes late at most;
+		 * after a long cron outage a phase may be skipped, e.g. upcoming → over). Handlers must be
+		 * idempotent: a transition can rarely be reported twice.
+		 *
+		 * @param int    $occurrence_id
+		 * @param string $new     upcoming, running, over or cancelled.
+		 * @param string $old     Previous phase.
+		 * @param array  $context source (sweep, admin, cancel), event_id.
+		 */
+		do_action( self::PHASE_ACTION, $occurrence_id, (string) $new, (string) $old, $context );
+		return true;
+	}
+
+	/**
+	 * Reports the time-based transitions since the last sweep: scheduled occurrences whose start or
+	 * effective end lies between the last run and $now. The first run only remembers the time; a
+	 * cron outage is caught up for at most 7 days.
+	 *
+	 * @param int|null $now Defaults to Clock::now().
+	 * @return int Transitions reported.
+	 */
+	public static function sweep_phases( $now = null ) {
+		global $wpdb;
+		$now = null === $now ? Clock::now() : (int) $now;
+		$last = (int) get_option( self::SWEEP_OPTION, 0 );
+		if ( $last <= 0 ) {
+			update_option( self::SWEEP_OPTION, $now, false );
+			return 0;
+		}
+		if ( $last >= $now ) { return 0; }
+		$from = max( $last, $now - 7 * DAY_IN_SECONDS );
+		$p = $wpdb->prefix;
+		$end = self::end_sql( 'o' );
+		$from_sql = gmdate( 'Y-m-d H:i:s', $from );
+		$to_sql = gmdate( 'Y-m-d H:i:s', $now );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare(
+			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.status,CASE WHEN o.starts_at>%s AND o.starts_at<=%s THEN o.starts_at ELSE $end END AS transition_at FROM {$p}wpcap_occurrences o WHERE o.status='scheduled' AND ( ( o.starts_at>%s AND o.starts_at<=%s ) OR ( $end>%s AND $end<=%s ) ) ORDER BY transition_at,o.occurrence_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static expression.
+			$from_sql,
+			$to_sql,
+			$from_sql,
+			$to_sql,
+			$from_sql,
+			$to_sql,
+			self::SWEEP_LIMIT
+		) );
+		$fired = 0;
+		foreach ( $rows as $row ) {
+			if ( self::phase_changed( (int) $row->occurrence_id, self::time_phase( $row, $now ), self::time_phase( $row, $from ), array( 'source' => 'sweep', 'event_id' => (int) $row->event_id ) ) ) { ++$fired; }
+		}
+		// A full batch continues just before the last transition time (a repeat is harmless).
+		$next = count( $rows ) >= self::SWEEP_LIMIT ? max( $from + 1, (int) strtotime( end( $rows )->transition_at . ' UTC' ) - 1 ) : $now;
+		update_option( self::SWEEP_OPTION, $next, false );
+		return $fired;
+	}
+
+	/** `wpcap_occurrence_cancelled`: reports the transition to `cancelled`. */
+	public static function on_cancelled( $occurrence_id ) {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id,starts_at,ends_at FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		if ( ! $row ) { return false; }
+		return self::phase_changed( (int) $row->occurrence_id, self::CANCELLED, self::time_phase( $row ), array( 'source' => 'cancel', 'event_id' => (int) $row->event_id ) );
+	}
+
+	/**
+	 * Built-in reaction: pages listing the event are purged from page caches when a date starts or
+	 * ends (it leaves the listing, or keeps only the ticket types still on sale).
+	 */
+	public static function purge_listing( $occurrence_id ) {
+		global $wpdb;
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		if ( $event_id ) { PageCache::event_changed( $event_id, 'phase', (int) $occurrence_id ); }
 	}
 
 	/* ---------------------------------------------------------------------------------------------

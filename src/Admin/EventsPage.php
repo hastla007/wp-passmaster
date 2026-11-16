@@ -353,6 +353,8 @@ final class EventsPage {
 			$dst_notes = array_merge( $dst_notes, self::shift_sales_windows( $occurrence_id, (int) $event->event_id, $old, $data ) );
 		}
 		if ( $old ) {
+			// A562: an edit that moves the date into another phase (e.g. back to upcoming) is reported now.
+			\PassCaptain\Occurrence::phase_changed( $occurrence_id, \PassCaptain\Occurrence::phase( $data ), \PassCaptain\Occurrence::phase( $old ), array( 'source' => 'admin', 'event_id' => (int) $event->event_id ) );
 			// A535: ticket types whose sales end now lies after the occurrence's (effective) end.
 			$late = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(sales_end) FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' AND sales_end IS NOT NULL", $occurrence_id ) );
 			$dst_notes[] = \PassCaptain\Occurrence::sales_end_warning( $data, (string) $late );

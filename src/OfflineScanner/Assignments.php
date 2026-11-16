@@ -95,7 +95,7 @@ final class Assignments {
 		$events = Devices::event_ids( $device );
 		if ( ! $events ) { return array(); }
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT DISTINCT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.status FROM {$p}wpcap_offline_assignments a INNER JOIN {$p}wpcap_offline_events r ON r.event_id=a.event_id AND r.enabled=1 INNER JOIN {$p}wpcap_occurrences o ON o.event_id=a.event_id AND ( a.occurrence_id=0 OR a.occurrence_id=o.occurrence_id ) INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE a.device_id=%d AND a.event_id IN (" . implode( ',', array_map( 'absint', $events ) ) . ') AND COALESCE(o.ends_at,o.starts_at) >= %s ORDER BY o.starts_at LIMIT 100', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			"SELECT DISTINCT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.status FROM {$p}wpcap_offline_assignments a INNER JOIN {$p}wpcap_offline_events r ON r.event_id=a.event_id AND r.enabled=1 INNER JOIN {$p}wpcap_occurrences o ON o.event_id=a.event_id AND ( a.occurrence_id=0 OR a.occurrence_id=o.occurrence_id ) INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE a.device_id=%d AND a.event_id IN (" . implode( ',', array_map( 'absint', $events ) ) . ') AND ' . \PassCaptain\Occurrence::end_sql( 'o' ) . ' >= %s ORDER BY o.starts_at LIMIT 100', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, static expression (A606: effective end).
 			(int) $device->device_id,
 			gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS )
 		) );

@@ -101,6 +101,7 @@ final class Plugin {
 		Mobile\Api::register();
 		HelpCode::register();
 		OccurrenceCancellation::register();
+		Occurrence::register(); // A562: lifecycle phases.
 		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wpcap_events', array( PublicEvents::class, 'render_shortcode' ) );

@@ -70,6 +70,8 @@ final class Waitlists {
 		add_action( 'wpcap_cleanup_reservations', array( __CLASS__, 'sweep' ), 30, 0 );
 		// A557: entries of a cancelled date are closed right away, past dates by the sweep.
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'on_occurrence_cancelled' ), 30, 1 );
+		// A562: a date that starts or ends closes its entries right away instead of on the hourly sweep.
+		add_action( Occurrence::PHASE_ACTION, array( __CLASS__, 'on_phase_changed' ), 30, 2 );
 		add_filter( 'wpcap_privacy_retention_steps', array( __CLASS__, 'retention_step' ), 10, 3 );
 	}
 
@@ -1170,9 +1172,16 @@ final class Waitlists {
 		return self::close_entries( (array) $rows, 'cancelled' );
 	}
 
+	/** `wpcap_occurrence_phase_changed` (A562): started or ended dates close their open entries. */
+	public static function on_phase_changed( $occurrence_id, $phase ) {
+		return in_array( $phase, array( Occurrence::RUNNING, Occurrence::OVER ), true ) ? self::close_ended() : 0;
+	}
+
 	/**
 	 * Closes open entries whose date can no longer be offered (A557): occurrence or event cancelled,
-	 * occurrence started, or the sales window of the ticket type ended. Runs in the sweep.
+	 * online sales over by the occurrence's phase (Occurrence::type_sale_sql(): started, except a
+	 * ticket type with a sales_end after the start – A535/A562), or the sales window ended. Runs in
+	 * the sweep and on phase changes.
 	 *
 	 * @return int Entries closed.
 	 */
@@ -1180,7 +1189,7 @@ final class Waitlists {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = Clock::mysql();
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT w.*,CASE WHEN o.status='cancelled' OR e.status='cancelled' THEN 'cancelled' ELSE 'ended' END AS close_reason FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE w.status IN ('waiting','offered') AND ( o.status='cancelled' OR e.status='cancelled' OR o.starts_at<=%s OR ( tt.sales_end IS NOT NULL AND tt.sales_end<=%s ) ) ORDER BY w.waitlist_id LIMIT %d", $now, $now, max( 1, (int) $limit ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT w.*,CASE WHEN o.status='cancelled' OR e.status='cancelled' THEN 'cancelled' ELSE 'ended' END AS close_reason FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE w.status IN ('waiting','offered') AND ( o.status='cancelled' OR e.status='cancelled' OR NOT " . Occurrence::type_sale_sql( 'tt', 'o', $now ) . " OR ( tt.sales_end IS NOT NULL AND tt.sales_end<=%s ) ) ORDER BY w.waitlist_id LIMIT %d", $now, max( 1, (int) $limit ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 		$closed = 0;
 		foreach ( array( 'cancelled', 'ended' ) as $reason ) {
 			$closed += self::close_entries( array_values( array_filter( (array) $rows, static function ( $row ) use ( $reason ) { return $reason === $row->close_reason; } ) ), $reason );

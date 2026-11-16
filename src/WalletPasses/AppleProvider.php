@@ -65,7 +65,7 @@ class AppleProvider implements WalletProvider {
 
 	public function pass_json( array $ticket ) {
 		$start = self::local_iso( $ticket['starts_at'], $ticket['timezone'] );
-		$end_utc = $ticket['ends_at'] ?: gmdate( 'Y-m-d H:i:s', strtotime( $ticket['starts_at'] . ' UTC' ) + 6 * HOUR_IN_SECONDS );
+		$end_utc = \PassCaptain\Occurrence::effective_end( $ticket ); // A606: same default duration as sales and listings.
 		$voided = ! empty( $ticket['voided'] ) || '' === (string) ( $ticket['code'] ?? '' );
 		$secondary = array( array( 'key' => 'date', 'label' => __( 'Datum', 'pass-captain' ), 'value' => $start, 'dateStyle' => 'PKDateStyleMedium', 'timeStyle' => 'PKDateStyleShort', 'ignoresTimeZone' => true ) );
 		if ( ! empty( $ticket['doors_open_at'] ) ) {

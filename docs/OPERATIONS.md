@@ -1261,7 +1261,29 @@ und SQL (`Occurrence::end_sql()`) rechnen gleich. Es gilt für:
   von denen noch eine Ticketart online verkauft wird (nur diese Ticketarten erscheinen).
 - **Terminauswahl von Web-Scanner und App** (`/app/occurrences`): laufende Termine (mehrtägige bis zu
   ihrem Ende), kommende (Web-Scanner: eine Woche voraus) und solche, die vor weniger als 24 h endeten.
-  Einlass an Tag 2/3 ist damit weiter mit Terminprüfung möglich.
+  Einlass an Tag 2/3 ist damit weiter mit Terminprüfung möglich. Dasselbe effektive Ende gilt für die
+  Terminliste des Offline-Scanners und das Ablaufdatum von Apple-Wallet-Pässen (Ende + 12 h, A606).
+  Ausnahmen mit Absicht: Aufbewahrungsfristen (Datenschutz-Löschläufe, Warteliste) rechnen weiter mit
+  „Beginn + 1 Tag“ ohne Ende (großzügiger Puffer), Kalenderdateien mit 2 h Anzeigedauer
+  (`wpcap_calendar_default_duration`), der Abgleich der Kapazitätszähler mit „Beginn + 1 Tag“.
+
+### Lebenszyklus eines Termins (A562)
+
+`Occurrence::phase( $termin, $jetzt )` liefert die Phase: `upcoming` (vor Beginn), `running` (begonnen,
+nicht vorbei), `over` (nach dem effektiven Ende) oder `cancelled`. Jeder Übergang löst
+`wpcap_occurrence_phase_changed` ( Termin-ID, neue Phase, alte Phase, Kontext ) aus:
+
+- **Zeitliche Übergänge** meldet `Occurrence::sweep_phases()` auf `wpcap_process_jobs` (alle 5 Minuten):
+  Termine, deren Beginn oder effektives Ende seit dem letzten Lauf (Option
+  `wpcap_occurrence_phase_sweep`) verstrichen ist, höchstens 500 je Lauf; nach einem Cron-Ausfall bis zu
+  7 Tage rückwirkend (dann kann eine Phase übersprungen werden, z. B. `upcoming` → `over`).
+- **Verwaltung**: Ein Speichern, das den Termin in eine andere Phase verschiebt (z. B. ein laufender Termin
+  in die Zukunft → `upcoming`), meldet sofort; eine Absage meldet `cancelled`.
+- **Reaktionen im Kern**: Seiten mit der Eventliste werden aus Seiten-Caches entfernt (der Termin
+  verschwindet bzw. zeigt nur noch Ticketarten im Verkauf); offene Wartelisteneinträge eines begonnenen
+  oder beendeten Termins werden sofort geschlossen (außer bei Ticketarten, die nach Beginn weiter online
+  verkauft werden, A535). Scanner-Listen, Wallet-Pässe und Löschläufe können sich anhängen; Handler müssen
+  idempotent sein (ein Übergang kann selten doppelt gemeldet werden).
 
 ## Geldbeträge, Rundung und Währungen (A200)
 

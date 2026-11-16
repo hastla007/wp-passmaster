@@ -38,7 +38,10 @@ ausverkauft, entfällt das Bestellformular. Ausblenden: `add_filter( 'wpcap_wait
 seine wartenden Einträge und offenen Angebote sofort geschlossen (`closed`, Audit `waitlist_closed`;
 ein offenes Angebot wird zurückgenommen und seine Reservierung freigegeben). Der stündliche Sweep
 (`wpcap_cleanup_reservations`) schließt außerdem Einträge, deren Termin begonnen hat oder deren
-Ticketart nicht mehr verkauft wird (`sales_end`). Die Betroffenen erhalten die Mail
+Ticketart nicht mehr verkauft wird (`sales_end`); beim Phasenwechsel eines Termins
+(`wpcap_occurrence_phase_changed`, A562) geschieht das sofort. Eine Ticketart, die nach Beginn weiter
+online verkauft wird (Verkaufsende nach Beginn, mehrtägige Termine, A535), behält ihre Einträge bis zu
+ihrem Verkaufsende. Die Betroffenen erhalten die Mail
 `waitlist_closed` mit dem Grund; abschalten mit der Einstellung `waitlist.close_mail = 0`. Das
 Bestellportal zeigt nur Wartelisteneinträge für Termine, die noch geplant, in der Zukunft und im
 Verkauf sind.
