@@ -22,3 +22,4 @@
 .wpcap-service-booking a:focus-visible,.wpcap-service-booking button:focus-visible,.wpcap-service-booking input:focus-visible,.wpcap-service-booking select:focus-visible,.wpcap-service-booking summary:focus-visible,.wpcap-service-booking [tabindex="-1"]:focus{outline:3px solid #135e96;outline-offset:3px}
 @media (max-width:30em){.wpcap-sb-week-nav{display:grid;grid-template-columns:1fr 1fr}.wpcap-sb-week{grid-column:1/-1;grid-row:1}.wpcap-sb-slot-list{grid-template-columns:1fr}.wpcap-sb-actions>*{flex:1 1 100%}.wpcap-sb-details{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.wpcap-service-booking *{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+.wpcap-email-hint{flex-basis:100%;margin:0}.wpcap-email-fix{margin-inline-start:.25rem}.wpcap-wrong-email{font-size:.9em}

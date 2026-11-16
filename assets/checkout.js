@@ -254,6 +254,87 @@
 		stepQty(button);
 	});
 
+	/* ---------------------------------------------------------------- Buyer e-mail typo hint (A553) */
+
+	// A mistyped domain ("gmial.com", "web.dee") means no tickets arrive. Close to a common domain
+	// (config.emailDomains, filter wpcap_checkout_email_domains) or a mistyped top-level domain:
+	// "Meintest du …?" with a button to take it, and one soft stop on submit (sending the same
+	// address again goes through). Nothing is changed without the buyer.
+	const TLD_FIX = { con: 'com', cmo: 'com', ocm: 'com', vom: 'com', xom: 'com', cpm: 'com', comm: 'com', coom: 'com', nte: 'net', ent: 'net', nett: 'net', dee: 'de', ded: 'de' };
+	// Edit distance with adjacent transpositions (optimal string alignment).
+	function editDistance(a, b) {
+		const d = [];
+		for (let i = 0; i <= a.length; i++) { d[i] = [i]; }
+		for (let j = 0; j <= b.length; j++) { d[0][j] = j; }
+		for (let i = 1; i <= a.length; i++) {
+			for (let j = 1; j <= b.length; j++) {
+				const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+				d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+				if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+			}
+		}
+		return d[a.length][b.length];
+	}
+	function emailSuggestion(value) {
+		value = String(value || '').trim();
+		const at = value.lastIndexOf('@');
+		if (at < 1 || at === value.length - 1) return '';
+		const local = value.slice(0, at);
+		const domain = value.slice(at + 1).toLowerCase();
+		const known = Array.isArray(config.emailDomains) ? config.emailDomains : [];
+		if (!known.length || known.indexOf(domain) !== -1) return '';
+		let best = '';
+		let bestScore = Infinity;
+		known.forEach(function (candidate) {
+			const score = editDistance(domain, candidate);
+			if (score && score <= (candidate.length > 7 ? 2 : 1) && score < bestScore) { best = candidate; bestScore = score; }
+		});
+		if (!best) {
+			const parts = domain.split('.');
+			const tld = parts.pop();
+			if (parts.length && parts.join('') && TLD_FIX[tld]) best = parts.join('.') + '.' + TLD_FIX[tld];
+		}
+		return best ? local + '@' + best : '';
+	}
+	function emailHintBox(input) {
+		const id = ensureId(input, 'wpcap-email') + '-typo';
+		let box = document.getElementById(id);
+		if (!box) {
+			box = el('p', { id: id, class: 'wpcap-email-hint', 'aria-live': 'polite' });
+			const wrapper = input.closest('.wpcap-field');
+			if (wrapper) wrapper.appendChild(box); else input.insertAdjacentElement('afterend', box);
+			const described = input.getAttribute('aria-describedby');
+			input.setAttribute('aria-describedby', ((described || '') + ' ' + id).trim());
+		}
+		return box;
+	}
+	function showEmailHint(input, suggestion) {
+		const box = emailHintBox(input);
+		box.textContent = '';
+		if (!suggestion) return;
+		box.appendChild(document.createTextNode(fill(t.emailSuggest || '%s?', [suggestion]) + ' '));
+		const take = el('button', { type: 'button', class: 'wpcap-email-fix' }, fill(t.emailSuggestApply || '%s', [suggestion]));
+		take.addEventListener('click', function () {
+			input.value = suggestion;
+			box.textContent = '';
+			input.focus();
+		});
+		box.appendChild(take);
+	}
+	const emailChecked = new WeakMap();
+	document.querySelectorAll('.wpcap-checkout-form [name="email"]').forEach(emailHintBox);
+	document.addEventListener('change', function (event) {
+		const input = event.target;
+		if (input.name !== 'email' || !input.closest || !input.closest('.wpcap-checkout-form')) return;
+		showEmailHint(input, emailSuggestion(input.value));
+	});
+	document.addEventListener('input', function (event) {
+		const input = event.target;
+		if (input.name !== 'email' || !input.closest || !input.closest('.wpcap-checkout-form')) return;
+		const box = document.getElementById(input.id + '-typo');
+		if (box && box.textContent && !emailSuggestion(input.value)) box.textContent = '';
+	});
+
 	/* ---------------------------------------------------------------- Errors (WCAG 3.3.1 / 3.3.3) */
 
 	// Visible label wording of a control, without the "*" and "(optional)" markers.
@@ -363,6 +444,17 @@
 			else text = fill(t.errInvalid || '%s', [label]);
 			errors.push({ input: input, message: text });
 		});
+		// Likely typo in the buyer's e-mail domain (A553): stop once per address.
+		const buyer = form.querySelector('[name="email"]');
+		if (buyer && !errors.some(function (error) { return error.input === buyer; })) {
+			const value = buyer.value.trim();
+			const suggestion = emailSuggestion(value);
+			if (suggestion && emailChecked.get(form) !== value) {
+				emailChecked.set(form, value);
+				showEmailHint(buyer, suggestion);
+				errors.push({ input: buyer, message: fill(t.emailTypo || '%1$s? %2$s', [suggestion, value]) });
+			}
+		}
 		return errors;
 	}
 	// Server error -> form control (data.field from the REST response).
@@ -466,6 +558,8 @@
 			}
 			panel.appendChild(el('p', {}, fill(t.sentTo || '%s', [email])));
 		}
+		// Typo in the address noticed only now (A553): say what to do instead of waiting for mail.
+		if (t.wrongEmail) panel.appendChild(el('p', { class: 'wpcap-wrong-email' }, t.wrongEmail));
 		panel.appendChild(el('p', { class: 'wpcap-hint' }, t.spamHint || ''));
 		const again = el('button', { type: 'button', class: 'wp-element-button wpcap-order-again' }, t.orderAgain || 'Order more');
 		again.addEventListener('click', function () {

@@ -5,6 +5,23 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class PublicEvents {
+	/**
+	 * Mail domains the checkout compares the buyer's e-mail domain with (typo hint, A553).
+	 * Filter `wpcap_checkout_email_domains`; an empty list turns the hint off.
+	 *
+	 * @return string[]
+	 */
+	public static function email_domains() {
+		$domains = array( 'gmail.com', 'googlemail.com', 'gmx.de', 'gmx.at', 'gmx.ch', 'gmx.net', 'gmx.com', 'web.de', 't-online.de', 'online.de', 'freenet.de', 'posteo.de', 'mailbox.org', 'outlook.com', 'outlook.de', 'hotmail.com', 'hotmail.de', 'live.com', 'live.de', 'msn.com', 'yahoo.com', 'yahoo.de', 'icloud.com', 'me.com', 'aon.at', 'a1.net', 'bluewin.ch', 'arcor.de', 'protonmail.com', 'proton.me' );
+		$domains = (array) apply_filters( 'wpcap_checkout_email_domains', $domains );
+		$clean = array();
+		foreach ( $domains as $domain ) {
+			$domain = strtolower( trim( (string) $domain ) );
+			if ( 1 === preg_match( '/^[a-z0-9-]+(\.[a-z0-9-]+)+$/', $domain ) ) { $clean[ $domain ] = $domain; }
+		}
+		return array_values( $clean );
+	}
+
 	public static function register_assets() {
 		wp_register_script( 'wpcap-checkout', WPCAP_URL . 'assets/checkout.js', array(), WPCAP_VERSION, true );
 		$providers = array();
@@ -15,6 +32,8 @@ final class PublicEvents {
 			'eventsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/events/' ) ),
 			'previewUrl' => esc_url_raw( rest_url( 'pass-captain/v1/campaigns/preview' ) ),
 			'money' => Frontend\Format::js_config(),
+			// Common mail domains for the typo hint on the buyer e-mail (A553).
+			'emailDomains' => self::email_domains(),
 			'i18n' => array(
 				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'pass-captain' ),
 				/* translators: 1: subtotal, 2: discount, 3: total */
@@ -72,6 +91,13 @@ final class PublicEvents {
 				'sentTo' => __( 'Wir haben die Bestätigung mit deinem persönlichen Bestelllink an %s gesendet.', 'pass-captain' ),
 				/* translators: %s: e-mail address */
 				'ticketsSentTo' => __( 'Die Tickets und die Bestätigung haben wir an %s gesendet.', 'pass-captain' ),
+				/* translators: %s: buyer e-mail address with the corrected domain */
+				'emailSuggest' => __( 'Meintest du %s?', 'pass-captain' ),
+				/* translators: %s: buyer e-mail address with the corrected domain */
+				'emailSuggestApply' => __( '%s übernehmen', 'pass-captain' ),
+				/* translators: 1: suggested e-mail address, 2: e-mail address as entered */
+				'emailTypo' => __( 'Bitte prüfe deine E-Mail-Adresse: Meintest du %1$s? Wenn %2$s stimmt, sende das Formular einfach noch einmal ab.', 'pass-captain' ),
+				'wrongEmail' => __( 'Adresse falsch? Dann kommen Bestätigung und Tickets nicht an. Wende dich bitte mit deiner Bestellnummer an den Veranstalter.', 'pass-captain' ),
 				'spamHint' => __( 'Keine E-Mail erhalten? Sieh bitte auch im Spam-Ordner nach.', 'pass-captain' ),
 				'payNow' => __( 'Bitte überweise den Betrag mit diesen Angaben:', 'pass-captain' ),
 				/* translators: %s: date and time */

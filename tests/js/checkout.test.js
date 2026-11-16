@@ -219,3 +219,55 @@ test('A551: server error without index uses ticket type and position', async () 
 	assert.deepStrictEqual(c.summary(), ['Teilnehmer:in 2 · Erwachsene: „Verein“ ist ungültig.']);
 });
 
+/* ------------------------------------------------------------------ A553 */
+
+function typoHint(c) { return c.doc.getElementById(c.email.id + '-typo'); }
+
+test('A553: mistyped mail domain shows "Meintest du …?" with a fix button, linked to the field', () => {
+	const c = load();
+	const hint = typoHint(c);
+	assert.ok(hint, 'hint region exists from the start (live region must exist before it speaks)');
+	assert.strictEqual(hint.getAttribute('aria-live'), 'polite');
+	assert.ok(c.email.getAttribute('aria-describedby').split(' ').indexOf(hint.id) !== -1);
+	const cases = { 'anna@gmial.com': 'anna@gmail.com', 'anna@gmx.dee': 'anna@gmx.de', 'anna@web.d': 'anna@web.de', 'anna@t-onlien.de': 'anna@t-online.de', 'anna@hotmail.con': 'anna@hotmail.com', 'anna@firma.con': 'anna@firma.com' };
+	for (const typed of Object.keys(cases)) {
+		c.email.value = typed;
+		c.change(c.email);
+		assert.strictEqual(hint.textContent, 'Meintest du ' + cases[typed] + '? ' + cases[typed] + ' übernehmen', typed);
+	}
+	for (const fine of ['anna@gmail.com', 'anna@gmx.at', 'anna@firma-xy.at', 'anna@uni-wien.ac.at', 'anna@example.com']) {
+		c.email.value = fine;
+		c.change(c.email);
+		assert.strictEqual(hint.textContent, '', fine);
+	}
+	c.email.value = 'Max.Muster@GMIAL.com';
+	c.change(c.email);
+	hint.querySelector('.wpcap-email-fix').click();
+	assert.strictEqual(c.email.value, 'Max.Muster@gmail.com');
+	assert.strictEqual(hint.textContent, '');
+	assert.strictEqual(c.doc.activeElement, c.email);
+});
+
+test('A553: one soft stop on submit, the same address sent again goes through', async () => {
+	const c = load();
+	c.type(c.qtyB, 1);
+	c.email.value = 'anna@gmial.com';
+	await c.submit();
+	assert.strictEqual(c.requests.length, 0);
+	assert.deepStrictEqual(c.summary(), ['Bitte prüfe deine E-Mail-Adresse: Meintest du anna@gmail.com? Sende das Formular erneut ab, um anna@gmial.com zu verwenden.']);
+	assert.strictEqual(c.email.getAttribute('aria-invalid'), 'true');
+	await c.submit();
+	assert.strictEqual(c.requests.length, 1);
+	assert.strictEqual(c.requests[0].body.email, 'anna@gmial.com');
+});
+
+test('A553: confirmation panel says what to do if the address is wrong', async () => {
+	const c = load();
+	c.type(c.qtyB, 1);
+	c.email.value = 'anna@example.com';
+	await c.submit();
+	const panel = c.doc.querySelector('.wpcap-confirmation');
+	assert.ok(panel);
+	assert.strictEqual(panel.querySelector('.wpcap-wrong-email').textContent, I18N.wrongEmail);
+});
+
