@@ -80,8 +80,12 @@ final class OrderPortal {
 				// Consent fields have their own card (grant/withdraw, logged).
 				$fields[ $ticket->ticket_type_id ] = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $ticket->ticket_type_id ) );
 			}
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT field_id,answer FROM {$wpdb->prefix}wpcap_participant_answers WHERE ticket_id=%d", $ticket->ticket_id ) ) as $row ) {
-				$answers[ $ticket->ticket_id ][ (int) $row->field_id ] = $row->answer;
+		}
+		// All answers of the order's tickets in one query (A442), not one per ticket.
+		$ticket_ids = array_map( static function ( $ticket ) { return (int) $ticket->ticket_id; }, (array) $tickets );
+		foreach ( array_chunk( $ticket_ids, 500 ) as $chunk ) {
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_id,field_id,answer FROM {$wpdb->prefix}wpcap_participant_answers WHERE ticket_id IN (" . implode( ',', $chunk ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$answers[ (int) $row->ticket_id ][ (int) $row->field_id ] = $row->answer;
 			}
 		}
 		$has_invoice = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", $order->order_id ) );
