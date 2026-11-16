@@ -262,9 +262,25 @@ final class TicketsPage {
 	 * admin-post wrappers
 	 * =========================================================================================== */
 
+	/** A414: back to the list with search, event, status and page of the action's origin. */
 	private static function back_url( array $in ) {
-		$search = Forms::text( $in, 'return_search', 190 );
-		return Forms::page_url( self::SLUG, '' !== $search ? array( 's' => $search ) : array() );
+		$status = Forms::text( $in, 'return_status', 32 );
+		$args = array(
+			's' => Forms::text( $in, 'return_search', 190 ),
+			'event_id' => Forms::int( $in, 'return_event' ),
+			'status' => in_array( $status, self::STATUSES, true ) ? $status : '',
+			'paged' => max( 0, Forms::int( $in, 'return_paged' ) ),
+		);
+		if ( 1 === $args['paged'] ) { $args['paged'] = 0; }
+		return Forms::page_url( self::SLUG, array_filter( $args ) );
+	}
+
+	/** Hidden fields carrying the list state into an action form (A414). */
+	private static function return_fields( array $filters, $page ) {
+		self::return_fields( $filters, $page );
+		Forms::hidden( 'return_event', (int) $filters['event_id'] );
+		Forms::hidden( 'return_status', (string) $filters['status'] );
+		Forms::hidden( 'return_paged', max( 1, (int) $page ) );
 	}
 
 	public static function handle_revoke_ticket() {
@@ -406,19 +422,19 @@ final class TicketsPage {
 						</td>
 						<td>
 							<?php if ( 'valid' === $ticket->status && $can_orders ) : ?>
-								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
+								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
 								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'pass-captain' ); ?>">
 								<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'pass-captain' ); ?></label>
 								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button>
 								</form>
 								<?php if ( $exchange ) : ?><p><a class="button" href="<?php echo esc_url( \PassCaptain\Exchange\AdminPage::url( array( 'ticket_id' => (int) $ticket->ticket_id ) ) ); ?>"><?php esc_html_e( 'Umbuchen', 'pass-captain' ); ?></a></p><?php endif; ?>
-								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
 								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Neu ausstellen', 'pass-captain' ); ?></button>
 								</form>
 							<?php endif; ?>
 							<?php if ( in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) && $can_orders ) : ?>
 								<details><summary><?php esc_html_e( 'Teilnehmerdaten korrigieren', 'pass-captain' ); ?></summary>
-								<?php Forms::open_form( 'wpcap_correct_attendee', 'wpcap_correct_attendee_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<?php Forms::open_form( 'wpcap_correct_attendee', 'wpcap_correct_attendee_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
 								<p><label><?php esc_html_e( 'Name', 'pass-captain' ); ?> <input type="text" name="attendee_name" maxlength="190" value="<?php echo esc_attr( (string) $ticket->attendee_name ); ?>"></label></p>
 								<p><label><?php esc_html_e( 'E-Mail', 'pass-captain' ); ?> <input type="email" name="attendee_email" maxlength="190" value="<?php echo esc_attr( (string) $email ); ?>"></label></p>
 								<p><input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>">
@@ -431,7 +447,7 @@ final class TicketsPage {
 								$areas = self::checkin_areas( (int) $ticket->event_id );
 								Forms::open_form( 'wpcap_checkin_ticket', 'wpcap_checkin_ticket_' . $ticket->ticket_id );
 								Forms::hidden( 'ticket_id', $ticket->ticket_id );
-								Forms::hidden( 'return_search', $filters['search'] );
+								self::return_fields( $filters, $page );
 								Forms::hidden( 'idempotency_key', wp_generate_uuid4() );
 								if ( $areas ) {
 									Forms::select( 'area_id', array( 0 => __( '– Einlassbereich –', 'pass-captain' ) ) + $areas, 0, '', 'aria-label="' . esc_attr__( 'Einlassbereich', 'pass-captain' ) . '"' );
@@ -441,7 +457,7 @@ final class TicketsPage {
 								</form>
 							<?php endif; ?>
 							<?php if ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
-								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
+								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
 								<input type="text" name="reason" maxlength="255" required aria-label="<?php esc_attr_e( 'Grund der Rücknahme', 'pass-captain' ); ?>" placeholder="<?php esc_attr_e( 'Grund (Pflicht)', 'pass-captain' ); ?>">
 								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>
 								</form>

@@ -1002,7 +1002,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — src/Admin/OrdersPage.php:257/289, TicketsPage.php:207, EventsPage.php:732 (A411, R2 UX)
 - [x] [OPTIMIERUNG] Umtausch-Verlauf in UTC, Rohwerte — src/Exchange/AdminPage.php:138 (A412, R2 UX)
 - [x] [OPTIMIERUNG] Audit-Log: Filter UTC, Anzeige Ortszeit, Rohcodes, keine Links — src/Admin/AuditLogPage.php:39–40, :104–115 (A413, R2 UX)
-- [ ] [OPTIMIERUNG] Tickets-Seite verliert Filter/Seite nach Aktionen — src/Admin/TicketsPage.php:157–160 (A414, R2 UX)
+- [x] [OPTIMIERUNG] Tickets-Seite verliert Filter/Seite nach Aktionen — src/Admin/TicketsPage.php:157–160 (A414, R2 UX) – erledigt (Filter): Ticketliste kehrt nach Widerruf/Neuausgabe/Korrektur/Undo mit Suche, Event, Status und Seite zurück; Test `zz_a414`. WP_List_Table (A411) bleibt offen.
 - [ ] [OPTIMIERUNG] Unklare Labels (Abgesagt/Storniert, Provider-Keys, „Schlüssel“, Kontingente, Grund-Feld, Checklisten-Links) — src/Admin/Forms.php:501, OrdersPage.php:298/370, EventsPage.php:803/807/1105, TicketsPage.php:260, GettingStarted.php:129–143 (A415, R2 UX)
 - [x] [OPTIMIERUNG] SMS: Doppelversand bei Timeout/Absturz — src/Sms/TwilioProvider.php:44–67, Sms/Service.php:312/354 (A416, R2 API)
 - [x] [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — src/Operations/Queues.php:29–61, Sms/Service.php:314 (A417, R2 API)
