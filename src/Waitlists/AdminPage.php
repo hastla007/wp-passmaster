@@ -1,6 +1,6 @@
 <?php
 /**
- * Admin screen "Warteliste": entries per event with queue rank, status and offer deadline, staff
+ * Admin screen "Warteliste": entries per event with date, queue place, status and offer deadline, staff
  * actions (offer, skip, remove, priority, unblock, process now) and the automatic offer settings.
  * Blocked entries (A563) show the reason why they could not be offered.
  */
@@ -117,14 +117,17 @@ final class AdminPage {
 			return;
 		}
 		\PassCaptain\Privacy\AccessLog::view( 'waitlist', 'event', (int) $event_id, array( 'rows' => count( $rows ) ) );
-		echo '<table class="widefat striped"><thead><tr>';
-		foreach ( array( __( 'Rang', 'pass-captain' ), __( 'Position', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Anzahl', 'pass-captain' ), __( 'Priorität', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Reserviert bis', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Aktionen', 'pass-captain' ) ) as $head ) {
+		// A341: the queue is kept per ticket type, i.e. per date – the date is shown, and both numbers are explained.
+		echo '<p class="description" id="wpcap-wl-legend">' . esc_html__( 'Platz in der Warteschlange: Reihenfolge der Wartenden je Termin und Ticketart (höhere Priorität zuerst, dann nach Anmeldung) – Platz 1 bekommt als Nächstes ein Angebot. Anmeldung Nr.: fortlaufende Nummer der Eintragung, wie sie in der Bestätigungsmail steht; sie ändert sich nicht.', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped" aria-describedby="wpcap-wl-legend"><thead><tr>';
+		foreach ( array( __( 'Termin', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Platz in der Warteschlange', 'pass-captain' ), __( 'Anmeldung Nr.', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Anzahl', 'pass-captain' ), __( 'Priorität', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Reserviert bis', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Aktionen', 'pass-captain' ) ) as $head ) {
 			echo '<th scope="col">' . esc_html( $head ) . '</th>';
 		}
 		echo '</tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			$open = in_array( $row->status, array( 'waiting', 'offered', 'accepted', 'blocked' ), true );
-			echo '<tr><td>' . esc_html( $row->queue_rank ? (string) $row->queue_rank : '–' ) . '</td><td>' . esc_html( (string) (int) $row->position ) . '</td><td>' . esc_html( (string) $row->ticket_name ) . '</td><td>' . esc_html( (string) $row->email ) . '</td><td>' . esc_html( (string) (int) $row->quantity ) . '</td><td>' . esc_html( (string) (int) $row->priority ) . '</td><td>' . esc_html( Waitlists::status_label( $row->status ) ) . ( '' !== Waitlists::block_reason_label( $row->block_reason ?? '' ) ? '<br><small>' . esc_html( Waitlists::block_reason_label( $row->block_reason ?? '' ) ) . '</small>' : '' ) . '</td><td>' . esc_html( in_array( $row->status, array( 'offered', 'accepted' ), true ) && $row->offer_expires_at ? Forms::datetime( $row->offer_expires_at, wp_timezone_string() ) : '–' ) . '</td><td>' . esc_html( $row->order_public_id ? substr( (string) $row->order_public_id, 0, 8 ) : '–' ) . '</td><td>';
+			$order = $row->order_public_id ? '<a href="' . esc_url( \PassCaptain\Admin\OrdersPage::order_url( (int) $row->order_id ) ) . '"><code>' . esc_html( \PassCaptain\Frontend\Format::order_reference( (string) $row->order_public_id ) ) . '</code></a>' : '–';
+			echo '<tr><td>' . esc_html( $row->starts_at ? Forms::datetime( $row->starts_at, (string) ( $row->timezone ?? '' ) ) : '–' ) . '</td><td>' . esc_html( (string) $row->ticket_name ) . '</td><td>' . esc_html( $row->queue_rank ? (string) $row->queue_rank : '–' ) . '</td><td>' . esc_html( (string) (int) $row->position ) . '</td><td>' . esc_html( (string) $row->email ) . '</td><td>' . esc_html( (string) (int) $row->quantity ) . '</td><td>' . esc_html( (string) (int) $row->priority ) . '</td><td>' . esc_html( Waitlists::status_label( $row->status ) ) . ( '' !== Waitlists::block_reason_label( $row->block_reason ?? '' ) ? '<br><small>' . esc_html( Waitlists::block_reason_label( $row->block_reason ?? '' ) ) . '</small>' : '' ) . '</td><td>' . esc_html( in_array( $row->status, array( 'offered', 'accepted' ), true ) && $row->offer_expires_at ? Forms::datetime( $row->offer_expires_at, wp_timezone_string() ) : '–' ) . '</td><td>' . $order . '</td><td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $order is built from escaped parts.
 			if ( 'waiting' === $row->status ) {
 				self::action_button( 'offer', $row, __( 'Jetzt anbieten', 'pass-captain' ) );
 				$field = '<input type="number" name="priority" value="' . esc_attr( (string) (int) $row->priority ) . '" min="-1000" max="1000" style="width:5em" aria-label="' . esc_attr__( 'Priorität', 'pass-captain' ) . '"> ';

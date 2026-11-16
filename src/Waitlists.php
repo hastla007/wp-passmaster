@@ -1247,7 +1247,7 @@ final class Waitlists {
 	public static function entries( $event_id, $limit = 500 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT w.*,tt.name AS ticket_name,o.starts_at,ord.public_id AS order_public_id,ord.payment_status AS order_payment_status FROM {$p}wpcap_waitlist w LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.event_id=%d ORDER BY w.ticket_type_id,FIELD(w.status,'offered','accepted','waiting') DESC,w.priority DESC,w.position,w.waitlist_id LIMIT %d", absint( $event_id ), max( 1, absint( $limit ) ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT w.*,tt.name AS ticket_name,o.starts_at,o.timezone,ord.public_id AS order_public_id,ord.payment_status AS order_payment_status FROM {$p}wpcap_waitlist w LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.event_id=%d ORDER BY w.ticket_type_id,FIELD(w.status,'offered','accepted','waiting') DESC,w.priority DESC,w.position,w.waitlist_id LIMIT %d", absint( $event_id ), max( 1, absint( $limit ) ) ) );
 		$rank = array();
 		foreach ( $rows as $row ) {
 			$row->queue_rank = 0;

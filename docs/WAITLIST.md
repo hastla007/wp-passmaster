@@ -164,8 +164,12 @@ Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in
 
 *Pass Captain → Warteliste* (Recht `wpcap_manage_orders`, Event-Berechtigung wie bei Bestellungen):
 
-- Einträge je Event mit Rang in der Schlange, Position, Ticketart, E-Mail, Anzahl, Priorität, Status,
-  Reservierungsende und Bestellung.
+- Einträge je Event mit Termin (Datum/Uhrzeit in der Zeitzone des Termins), Ticketart, **Platz in der
+  Warteschlange** (Reihenfolge der Wartenden je Termin und Ticketart nach Priorität und Anmeldung; Platz 1
+  bekommt als Nächstes ein Angebot), **Anmeldung Nr.** (fortlaufende Nummer der Eintragung wie in der
+  Bestätigungsmail, ändert sich nicht), E-Mail, Anzahl, Priorität, Status, Reservierungsende und
+  Bestellung (kurze Bestellnummer wie in den Mails, verlinkt) (A341). Eine Legende über der Tabelle
+  erklärt die beiden Nummern.
 - Selbst ausgetragene Einträge erscheinen als *Entfernt* ohne E-Mail-Adresse.
 - Aktionen: *Jetzt anbieten* (auch bei abgeschalteten automatischen Angeboten), *Priorität setzen*,
   *Überspringen* (`skipped`) und *Entfernen* (`removed`); ein offenes, unbezahltes Angebot wird dabei
