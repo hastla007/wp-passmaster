@@ -104,7 +104,10 @@ $a116_texts_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_conse
 $a116_saved = PassCaptain\Admin\EventsPage::save_participant_field( array( 'field_id' => $a116_news, 'label' => 'Newsletter', 'field_type' => 'checkbox', 'consent' => '1', 'purpose' => 'Newsletter mit Veranstaltungstipps (monatlich)', 'retention_days' => 365, 'position' => 3 ) );
 $a116_news_v2 = Consents::text_version( 'Newsletter', 'Newsletter mit Veranstaltungstipps (monatlich)' );
 check( 'A116 editor: changed consent text is stored as a new version, the old one is kept', is_array( $a116_saved ) && $a116_texts_before + 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_consent_texts WHERE field_id=$a116_news" ) && 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_consent_texts WHERE field_id=%d AND text_version=%s", $a116_news, $a116_news_v2 ) ) && '1' === (string) $wpdb->get_var( "SELECT consent FROM {$p}wpcap_participant_fields WHERE field_id=$a116_news" ) );
-check( 'A116 editor: text change is audited with the version', false !== strpos( (string) $wpdb->get_var( "SELECT details FROM {$p}wpcap_audit_logs WHERE action='participant_field_updated' ORDER BY audit_id DESC LIMIT 1" ), $a116_news_v2 ) );
+// Merged audit: Security\Redact masks every 64-hex value (codes and hashes look alike), so the log names the version
+// by its first six characters.
+$a116_audit = json_decode( (string) $wpdb->get_var( "SELECT details FROM {$p}wpcap_audit_logs WHERE action='participant_field_updated' ORDER BY audit_id DESC LIMIT 1" ), true );
+check( 'A116 editor: text change is audited with the version', is_array( $a116_audit ) && in_array( (string) ( $a116_audit['consent_text_version'] ?? '' ), array( $a116_news_v2, substr( $a116_news_v2, 0, 6 ) . '…' ), true ) );
 
 // ---- 2. Self-service withdrawal (order portal) and re-grant (ticket page).
 $a116_order_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_orders WHERE order_id=$a116_order" );
