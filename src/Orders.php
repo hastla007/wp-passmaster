@@ -45,8 +45,12 @@ final class Orders {
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
 		$payload = is_array( $payload ) ? $payload : array();
-		$email = sanitize_email( Http::str( $payload['email'] ?? '' ) );
+		$email = Http::email( $payload['email'] ?? '' );
 		$lines = $payload['items'] ?? array();
+		if ( Http::email_too_long( $email ) ) {
+			// A493: refused at the entrance (400) instead of failing at the varchar(190) column (503 db_busy).
+			return new \WP_Error( 'wpcap_invalid_checkout', self::email_too_long_message(), array( 'status' => 400, 'reason' => 'email_too_long', 'field' => 'email' ) );
+		}
 		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -436,11 +440,14 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = Clock::mysql();
-		$name = sanitize_text_field( $attendee['name'] ?? '' );
-		$email = sanitize_email( $attendee['email'] ?? '' );
-		if ( $name || is_email( $email ) ) {
-			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, is_email( $email ) ? $email : '', $name, $now ) ) ) { return false; }
-			if ( is_email( $email ) && false === $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) ) ) {
+		// Stored attendee data of orders from before the entrance checks (A492/A493) may hold values that do
+		// not fit the columns: they are dropped/shortened instead of blocking the issuance for good.
+		$name = mb_substr( sanitize_text_field( Http::str( $attendee['name'] ?? '' ) ), 0, 190 );
+		$email = Http::email( $attendee['email'] ?? '' );
+		$email = Http::valid_email( $email ) ? $email : '';
+		if ( $name || '' !== $email ) {
+			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, $email, $name, $now ) ) ) { return false; }
+			if ( '' !== $email && false === $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) ) ) {
 				return false;
 			}
 		}
@@ -591,16 +598,34 @@ final class Orders {
 					}
 					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
 				}
-				$email = sanitize_email( $entry['email'] ?? '' );
+				$email = Http::email( $entry['email'] ?? '' );
+				if ( Http::email_too_long( $email ) ) {
+					// A493: a valid but overlong address would fail at the tickets/assignments column at issuance.
+					return new \WP_Error( 'wpcap_attendees_invalid', self::email_too_long_message(), $where( $i ) + array( 'reason' => 'email_too_long' ) );
+				}
 				$out[] = array(
 					'ticket_type_id' => (int) $type_id,
-					'name' => mb_substr( sanitize_text_field( $entry['name'] ?? '' ), 0, 190 ),
+					'name' => mb_substr( sanitize_text_field( Http::str( $entry['name'] ?? '' ) ), 0, 190 ),
 					'email' => is_email( $email ) ? $email : '',
 					'answers' => $clean,
 				);
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Whether a database error means the value does not fit the column (too long, invalid characters:
+	 * MySQL/MariaDB strict mode or wpdb's own field check) rather than a busy or lost database (A493).
+	 */
+	public static function is_data_error( $db_error ) {
+		return 1 === preg_match( '/Data too long|Incorrect string value|Processing the values? for the following fields? failed|contains invalid data/i', (string) $db_error );
+	}
+
+	/** Message for a valid e-mail address that is longer than the e-mail columns allow (A493). */
+	public static function email_too_long_message() {
+		/* translators: %d: maximum number of characters */
+		return sprintf( __( 'Diese E-Mail-Adresse ist zu lang. Bitte verwende eine Adresse mit höchstens %d Zeichen.', 'pass-captain' ), Http::EMAIL_MAX );
 	}
 
 	/**
@@ -724,6 +749,14 @@ final class Orders {
 		}
 		if ( 'price_changed' === $code && $custom_error instanceof \WP_Error ) {
 			return $custom_error;
+		}
+		if ( 'db_busy' === $code && self::is_data_error( (string) ( $context['db_error'] ?? '' ) ) ) {
+			// A493: a value the columns cannot hold (too long, invalid characters) fails the same way on
+			// every retry – no "try again" (503), but a final 400 that is logged as an unexpected error
+			// (the entrance checks should have caught it).
+			$reference = Log::error( 'checkout', 'Checkout aborted: input does not fit the schema', array( 'reason' => 'invalid_data' ) + $context );
+			$message = __( 'Eine Angabe ist zu lang oder enthält ungültige Zeichen. Bitte prüfe deine Eingaben.', 'pass-captain' );
+			return new \WP_Error( 'wpcap_checkout_failed', $message, array_filter( array( 'status' => 400, 'retryable' => false, 'reason' => 'invalid_data', 'reference' => $reference ), static fn( $v ) => '' !== $v ) );
 		}
 		if ( 'billing_required' === $code ) {
 			return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
@@ -1967,9 +2000,12 @@ final class Orders {
 
 	public static function transfer_ticket( $public_id, $access_token, $ticket_public_id, $recipient_email ) {
 		global $wpdb;
-		$public_id = sanitize_text_field( $public_id );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
-		$recipient_email = sanitize_email( $recipient_email );
+		$public_id = sanitize_text_field( Http::str( $public_id ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', Http::str( $access_token ) ) );
+		$recipient_email = Http::email( $recipient_email );
+		if ( Http::email_too_long( $recipient_email ) ) {
+			return new \WP_Error( 'wpcap_transfer_invalid', self::email_too_long_message(), array( 'status' => 400, 'reason' => 'email_too_long', 'field' => 'recipient_email' ) );
+		}
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! is_email( $recipient_email ) ) {
 			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}

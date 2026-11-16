@@ -236,8 +236,8 @@ final class Service {
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
 		if ( '' === $name ) { return self::error( 'wpcap_guestlist_entry_name', __( 'Bitte den Namen des Gastes angeben.', 'pass-captain' ) ); }
-		$email = sanitize_email( (string) ( $in['email'] ?? '' ) );
-		if ( '' !== $email && ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
+		$email = \PassCaptain\Http::email( $in['email'] ?? '' );
+		if ( '' !== $email && ( ! \PassCaptain\Http::valid_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 		$quantity = absint( $in['quantity'] ?? 1 );
 		if ( $quantity < 1 || $quantity > self::max_quantity() ) {
 			/* translators: %d: maximum tickets */

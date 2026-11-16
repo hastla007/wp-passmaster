@@ -36,6 +36,42 @@ final class Http {
 	}
 
 	/**
+	 * Longest e-mail address the plugin stores: every e-mail column is varchar(190) (index length
+	 * limit of utf8mb4). Longer addresses are refused at the entrance (A493), never cut.
+	 */
+	const EMAIL_MAX = 190;
+
+	/**
+	 * Sanitised e-mail address of an untrusted field (A492): sanitize_email() of a string or number,
+	 * '' for arrays, objects, booleans and null – never a TypeError (sanitize_email() calls strlen()).
+	 *
+	 * @param mixed $value Raw value.
+	 */
+	public static function email( $value ) {
+		return sanitize_email( self::str( $value ) );
+	}
+
+	/**
+	 * Whether an (already sanitised) e-mail address is valid and fits the e-mail columns
+	 * (EMAIL_MAX). Use it instead of is_email() wherever the address is stored.
+	 *
+	 * @param mixed $email Address.
+	 */
+	public static function valid_email( $email ) {
+		return is_string( $email ) && strlen( $email ) <= self::EMAIL_MAX && is_email( $email );
+	}
+
+	/**
+	 * Whether a valid e-mail address is too long to be stored (more than EMAIL_MAX bytes), so the
+	 * caller can name the reason instead of "invalid".
+	 *
+	 * @param mixed $email Address.
+	 */
+	public static function email_too_long( $email ) {
+		return is_string( $email ) && strlen( $email ) > self::EMAIL_MAX && is_email( $email );
+	}
+
+	/**
 	 * Positive integer of an untrusted request field: integers, integral floats and digit strings
 	 * ("12", " 12 "); 0 for everything else – booleans, negatives, fractions, "1e3", "12abc", arrays.
 	 * Unlike absint() a negative number never turns into a positive one.

@@ -7,10 +7,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class TicketAssignments {
 	public static function assign( $public_id, $access_token, $ticket_public_id, $name, $email, $answers = null ) {
 		global $wpdb;
-		$public_id = sanitize_text_field( $public_id );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
-		$email = sanitize_email( (string) $email );
-		$name = sanitize_text_field( $name );
+		$public_id = sanitize_text_field( Http::str( $public_id ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', Http::str( $access_token ) ) );
+		$email = Http::email( $email );
+		$name = sanitize_text_field( Http::str( $name ) );
+		if ( Http::email_too_long( $email ) ) {
+			return new \WP_Error( 'wpcap_assignment_invalid', Orders::email_too_long_message(), array( 'status' => 400, 'reason' => 'email_too_long', 'field' => 'attendee_email' ) );
+		}
 		// The attendee e-mail is optional (as in the checkout): without one, only name and answers
 		// are corrected and the ticket code stays.
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! $name || ( '' !== $email && ! is_email( $email ) ) ) { return new \WP_Error( 'wpcap_assignment_invalid', __( 'Teilnehmerdaten ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }

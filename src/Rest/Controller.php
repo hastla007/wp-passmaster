@@ -31,7 +31,9 @@ final class Controller {
 			'callback' => array( __CLASS__, 'checkout' ),
 			'permission_callback' => '__return_true',
 			'args' => array(
-				'email' => array( 'required' => true, 'sanitize_callback' => 'sanitize_email' ),
+				// A492: type check before sanitising (sanitize_email() of an array is a TypeError); the
+				// callback is type-safe as well, the length limit is checked by Orders::create().
+				'email' => array( 'required' => true, 'type' => 'string', 'validate_callback' => 'rest_validate_request_arg', 'sanitize_callback' => array( \PassCaptain\Http::class, 'email' ) ),
 				'items' => array( 'required' => true, 'type' => 'array' ),
 			),
 		) );

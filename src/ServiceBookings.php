@@ -23,10 +23,10 @@ final class ServiceBookings {
 	public static function reserve( $slot_id, $email, $quantity = 1, $order_id = 0, $minutes = 10, $idempotency_key = '' ) {
 		global $wpdb;
 		$slot_id = absint( $slot_id );
-		$email = sanitize_email( $email );
+		$email = Http::email( $email );
 		$quantity = min( 20, max( 1, absint( $quantity ) ) );
-		$idempotency_key = sanitize_text_field( $idempotency_key );
-		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
+		$idempotency_key = sanitize_text_field( Http::str( $idempotency_key ) );
+		if ( ! $slot_id || ! Http::valid_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		if ( ! RateLimit::allow( 'servicebook|' . strtolower( $email ), 20, HOUR_IN_SECONDS ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		if ( ! RateLimit::allow_client( 'servicebook_ip', (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		$idempotency_key = hash( 'sha256', $idempotency_key );

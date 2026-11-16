@@ -120,9 +120,9 @@ final class Waitlists {
 		$occurrence_id = absint( $occurrence_id );
 		$ticket_type_id = absint( $ticket_type_id );
 		$quantity = null === $quantity || '' === $quantity ? 1 : Http::positive_int( $quantity );
-		$email = sanitize_email( Http::str( $email ) );
+		$email = Http::email( $email );
 		if ( ! $quantity ) { return new \WP_Error( 'wpcap_waitlist_quantity', __( 'Bitte eine gültige Anzahl angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $event_id || ! Http::valid_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( ! RateLimit::allow( 'waitlist|' . $email . '|' . $event_id, 5, HOUR_IN_SECONDS ) || ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}

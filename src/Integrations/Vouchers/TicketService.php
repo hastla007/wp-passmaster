@@ -138,8 +138,8 @@ final class TicketService {
 		$key = sanitize_text_field( (string) $idempotency_key );
 		$type_id = absint( $target['ticket_type_id'] ?? 0 );
 		$quantity = absint( $target['quantity'] ?? 1 );
-		$email = sanitize_email( (string) ( $recipient['email'] ?? '' ) );
-		if ( '' === $key || strlen( $key ) > 191 || ! $type_id || $quantity < 1 || $quantity > 10 || ! is_email( $email ) ) {
+		$email = \PassCaptain\Http::email( $recipient['email'] ?? '' );
+		if ( '' === $key || strlen( $key ) > 191 || ! $type_id || $quantity < 1 || $quantity > 10 || ! \PassCaptain\Http::valid_email( $email ) ) {
 			return self::error( 'wpcap_ticket_request_invalid', __( 'Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich.', 'pass-captain' ), 400 );
 		}
 		$existing = self::order_for_key( $key );
