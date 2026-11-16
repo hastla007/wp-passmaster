@@ -248,7 +248,7 @@ final class Service {
 		Orders::availability_many( $ids );
 		$fields_by_type = array_fill_keys( $ids, array() );
 		if ( $ids ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the IN list holds integers only.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- the IN list holds integers only.
 			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN (" . implode( ',', array_map( 'intval', $ids ) ) . ") AND status='active' ORDER BY position,field_id", ARRAY_A ) as $f ) {
 				$fields_by_type[ (int) $f['ticket_type_id'] ][] = $f;
 			}
