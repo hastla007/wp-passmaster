@@ -79,6 +79,27 @@ final class PortalSelfService {
 		return 'wpcap_portal_' . sanitize_key( $kind ) . '_' . strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $public_id ) );
 	}
 
+	/**
+	 * Form proof of the cancellation request (A459): keyed hash of order and access token, independent
+	 * of the WordPress user and without expiry. A WordPress nonce cannot be used here: the portal script
+	 * posts to the REST API without X-WP-Nonce, so REST treats the request as logged out and a nonce
+	 * rendered for a logged-in buyer never verifies; it would also expire on an open or cached page.
+	 * The capability is the access token itself (checked again in request_refund()).
+	 */
+	public static function refund_form_sig( $public_id, $token ) {
+		$public_id = strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $public_id ) );
+		$token = strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $token ) );
+		return hash_hmac( 'sha256', 'wpcap-portal-refund|' . $public_id . '|' . $token, function_exists( 'wp_salt' ) ? wp_salt( 'nonce' ) : ABSPATH );
+	}
+
+	/** Whether $proof (form field `nonce`) belongs to this order link; WordPress nonces of older pages still count. */
+	public static function verify_refund_proof( $proof, $public_id, $token ) {
+		$proof = (string) $proof;
+		if ( '' === $proof ) { return false; }
+		if ( 64 === strlen( $proof ) && hash_equals( self::refund_form_sig( $public_id, $token ), strtolower( $proof ) ) ) { return true; }
+		return (bool) wp_verify_nonce( $proof, self::nonce_action( 'refund', $public_id ) );
+	}
+
 	/** Portal URL of an order (capability link). */
 	public static function portal_url( $public_id, $token ) {
 		return add_query_arg( array( 'wpcap_order' => (string) $public_id, 'wpcap_access' => (string) $token ), home_url( '/' ) );
@@ -480,7 +501,7 @@ final class PortalSelfService {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		$public_id = (string) $request['public_id'];
-		if ( ! wp_verify_nonce( (string) ( $params['nonce'] ?? '' ), self::nonce_action( 'refund', $public_id ) ) ) {
+		if ( ! self::verify_refund_proof( (string) ( $params['nonce'] ?? '' ), $public_id, (string) ( $params['access_token'] ?? '' ) ) ) {
 			return new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$result = self::request_refund( $public_id, (string) ( $params['access_token'] ?? '' ), $params );
@@ -579,7 +600,7 @@ final class PortalSelfService {
 		if ( ! $count ) {
 			return $html . $options . '<p class="muted">' . esc_html__( 'Derzeit kann für keines deiner Tickets eine Stornierung angefragt werden.', 'pass-captain' ) . '</p></section>';
 		}
-		$html .= '<form class="wpcap-refund-form"><input type="hidden" name="idempotency_key" value="' . esc_attr( str_replace( '-', '', wp_generate_uuid4() ) ) . '"><input type="hidden" name="nonce" value="' . esc_attr( wp_create_nonce( self::nonce_action( 'refund', (string) $order->public_id ) ) ) . '">';
+		$html .= '<form class="wpcap-refund-form"><input type="hidden" name="idempotency_key" value="' . esc_attr( str_replace( '-', '', wp_generate_uuid4() ) ) . '"><input type="hidden" name="nonce" value="' . esc_attr( self::refund_form_sig( (string) $order->public_id, (string) $token ) ) . '">';
 		$html .= '<fieldset style="border:0;padding:0;margin:0"><legend>' . esc_html__( 'Welche Tickets möchtest du stornieren?', 'pass-captain' ) . '</legend>' . $options . '</fieldset>';
 		$html .= '<label>' . esc_html__( 'Grund (optional)', 'pass-captain' ) . '<textarea name="reason" maxlength="200" rows="2"></textarea></label>';
 		/* translators: %d: hours */
