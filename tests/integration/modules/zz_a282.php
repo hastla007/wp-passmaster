@@ -47,13 +47,16 @@ ob_start(); A282Mollie::render_checkout_fields( (object) array( 'occurrence_id' 
 check( 'A282 afterwards the selector renders from the cache, still without a request', false !== strpos( $a282_html, 'value="ideal"' ) && ! http_requests( '/v2/methods' ) );
 
 // Outage: the failed lookup is remembered, the next lookups do not wait for Mollie again.
+// Merged design: the EUR catalog is cached per currency and billing country (not per amount), so the cache
+// is emptied first to force a lookup.
+$GLOBALS['wpcap_test_transients'] = array();
 http_reset();
 http_push( array( 'detail' => 'Service unavailable' ), 503, '/v2/methods' );
 $a282_err = A282Gateway::available_methods( '44.00', 'EUR' );
 $a282_again = A282Gateway::available_methods( '44.00', 'EUR' );
 check( 'A282 a failed lookup is cached briefly (no second request during an outage)', is_wp_error( $a282_err ) && is_wp_error( $a282_again ) && 1 === count( http_requests( '/v2/methods' ) ) );
 check( 'A282 the negative cache expires after a few minutes', A282Gateway::METHODS_ERROR_TTL > 0 && A282Gateway::METHODS_ERROR_TTL <= 15 * MINUTE_IN_SECONDS );
-check( 'A282 the payment path still loads synchronously on a cache miss', ( static function () { http_reset(); http_push( array( '_embedded' => array( 'methods' => array() ) ), 200, '/v2/methods' ); A282Gateway::available_methods( '55.00', 'EUR' ); return 1 === count( http_requests( '/v2/methods' ) ); } )() );
+check( 'A282 the payment path still loads synchronously on a cache miss', ( static function () { $GLOBALS['wpcap_test_transients'] = array(); http_reset(); http_push( array( '_embedded' => array( 'methods' => array() ) ), 200, '/v2/methods' ); A282Gateway::available_methods( '55.00', 'EUR' ); return 1 === count( http_requests( '/v2/methods' ) ); } )() );
 
 update_option( 'wpcap_settings', $a282_settings );
 Settings::flush();
