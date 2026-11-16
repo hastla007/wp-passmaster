@@ -207,18 +207,47 @@ class GoogleProvider implements WalletProvider {
 		// A PATCH keeps fields it does not name: a removed holder name (retention, correction) is cleared explicitly.
 		if ( ! $invalid && ! isset( $object['ticketHolderName'] ) ) { $object['ticketHolderName'] = ''; }
 		$res = $this->api( $invalid ? 'PUT' : 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
-		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'object ' . self::short_id( $object['id'] ) ); } // Never re-created (A566).
+		if ( 404 === $res['code'] ) {
+			Service::log( 'google_not_found', 'object ' . self::short_id( $object['id'] ) ); // A valid object is never re-created (A566).
+			// A619: an invalid ticket is inserted as an empty INACTIVE object, so an older save link with
+			// the full object (fallback JWT) cannot create an ACTIVE pass with the old code later.
+			if ( $invalid ) { return $this->insert_inactive( (string) $object['id'], (string) $object['classId'] ); }
+		}
 		return in_array( $res['code'], array( 200, 404 ), true );
 	}
 
-	/** Older generation after a code rotation: replaced by an inactive object without data (A566). */
+	/**
+	 * Older generation after a code rotation: replaced by an inactive object without data (A566). A619:
+	 * missing at Google (the buyer opened but never finished an older save link) → inserted as INACTIVE,
+	 * so that link can no longer create an ACTIVE pass with the old, invalid code.
+	 */
 	public function revoke_pass( array $provider_pass ) {
 		if ( ! Store::is_remote( $provider_pass ) ) { return true; }
 		$object = array( 'id' => (string) $provider_pass['serial_number'], 'state' => 'INACTIVE' );
 		if ( '' !== (string) ( $provider_pass['provider_ref'] ?? '' ) ) { $object['classId'] = (string) $provider_pass['provider_ref']; }
 		$res = $this->api( 'PUT', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
-		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'revoke ' . self::short_id( (string) $provider_pass['serial_number'] ) ); }
-		return in_array( $res['code'], array( 200, 404 ), true );
+		if ( 404 === $res['code'] ) {
+			Service::log( 'google_not_found', 'revoke ' . self::short_id( (string) $provider_pass['serial_number'] ) );
+			return $this->insert_inactive( $object['id'], (string) ( $object['classId'] ?? '' ) );
+		}
+		return 200 === $res['code'];
+	}
+
+	/**
+	 * Inserts an INACTIVE object without barcode or personal data (A619). Google keeps an existing
+	 * object when a save link carries the same id, so a later save shows the invalid pass. 409 = it
+	 * exists already. Without a class (nobody saved a ticket of this date) nothing can be inserted –
+	 * the class is created only by a save link, which then finds no such object: logged, not retried.
+	 */
+	private function insert_inactive( $object_id, $class_id ) {
+		if ( '' === (string) $class_id ) { return true; }
+		$res = $this->api( 'POST', 'eventTicketObject', array( 'id' => (string) $object_id, 'classId' => (string) $class_id, 'state' => 'INACTIVE' ) );
+		if ( in_array( $res['code'], array( 200, 409 ), true ) ) { return true; }
+		if ( in_array( $res['code'], array( 400, 404 ), true ) ) {
+			Service::log( 'google_inactive_failed', 'object ' . self::short_id( $object_id ) . ' HTTP ' . $res['code'] );
+			return true;
+		}
+		return false; // Transport error, 429, 5xx: the sync retries.
 	}
 
 	/**
