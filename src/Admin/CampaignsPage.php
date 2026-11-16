@@ -188,7 +188,7 @@ final class CampaignsPage {
 		if ( ! (int) ( $c->with_price_rules ?? 1 ) ) { $parts[] = __( 'nicht auf Preisregeln', 'pass-captain' ); }
 		if ( (int) ( $c->max_discount_minor ?? 0 ) ) { $parts[] = sprintf( /* translators: %s: amount */ __( 'max. %s', 'pass-captain' ), Forms::money( (int) $c->max_discount_minor, $c->currency ) ); }
 		if ( (int) ( $c->auto_apply ?? 0 ) ) { $parts[] = __( 'automatisch (ohne Code)', 'pass-captain' ); }
-		if ( (int) ( $c->min_quantity ?? 0 ) > 1 ) { $parts[] = sprintf( /* translators: %d: tickets */ __( 'ab %d Tickets', 'pass-captain' ), (int) $c->min_quantity ); }
+		if ( (int) ( $c->min_quantity ?? 0 ) > 1 ) { $parts[] = sprintf( /* translators: %d: tickets */ _n( 'ab %d Ticket', 'ab %d Tickets', (int) $c->min_quantity, 'pass-captain' ), (int) $c->min_quantity ); }
 		if ( (int) ( $c->per_buyer_limit ?? 0 ) ) { $parts[] = sprintf( /* translators: %d: uses */ __( 'max. %d je Käufer', 'pass-captain' ), (int) $c->per_buyer_limit ); }
 		if ( (int) ( $c->batch_codes ?? 0 ) ) { $parts[] = sprintf( /* translators: %d: codes */ __( '%d Einzelcodes', 'pass-captain' ), (int) $c->batch_codes ); }
 		return implode( ', ', $parts );

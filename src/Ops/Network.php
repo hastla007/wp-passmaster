@@ -144,7 +144,7 @@ final class Network {
 		$url = wp_nonce_url( add_query_arg( 'action', self::REPORT_ACTION, network_admin_url( 'edit.php' ) ), self::REPORT_ACTION );
 		echo '<div class="wrap"><h1>' . esc_html__( 'Pass Captain – Netzwerkübersicht', 'pass-captain' ) . '</h1>';
 		/* translators: %d: number of days */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Zahlen je Website aus deren eigenen Tabellen; Umsatz = bezahlte Bestellungen der letzten %d Tage abzüglich Erstattungen. Daten verschiedener Websites werden nie gemeinsam abgefragt.', 'pass-captain' ), self::DAYS ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( /* translators: %d: days */ _n( 'Zahlen je Website aus deren eigenen Tabellen; Umsatz = bezahlte Bestellungen des letzten %d Tages abzüglich Erstattungen. Daten verschiedener Websites werden nie gemeinsam abgefragt.', 'Zahlen je Website aus deren eigenen Tabellen; Umsatz = bezahlte Bestellungen der letzten %d Tage abzüglich Erstattungen. Daten verschiedener Websites werden nie gemeinsam abgefragt.', self::DAYS, 'pass-captain' ), self::DAYS ) ) . '</p>';
 		echo '<p><a class="button" href="' . esc_url( $url ) . '">' . esc_html__( 'Netzwerkbericht als CSV (wird protokolliert)', 'pass-captain' ) . '</a></p>';
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Website', 'pass-captain' ) . '</th><th>' . esc_html__( 'Events', 'pass-captain' ) . '</th><th>' . esc_html__( 'Bestellungen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Bezahlt (30 Tage)', 'pass-captain' ) . '</th><th>' . esc_html__( 'Umsatz (30 Tage)', 'pass-captain' ) . '</th><th>' . esc_html__( 'Zustand', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $overview as $site ) {

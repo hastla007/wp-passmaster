@@ -132,7 +132,7 @@ final class Page {
 		<p><label><input type="checkbox" name="include_delivered" value="1"> <?php esc_html_e( 'Auch Kundentickets neu drucken: deren bisherige Codes werden ungültig, die Inhaber erhalten neue Links per E-Mail.', 'pass-captain' ); ?></label>
 		<label><?php esc_html_e( 'Bestätigung (Anzahl Kundentickets)', 'pass-captain' ); ?> <input type="number" name="confirm" min="0" step="1" class="small-text"></label></p>
 		<p><label><?php esc_html_e( 'Ab Ticket Nr.', 'pass-captain' ); ?> <input type="number" name="offset_from" min="1" step="1" value="1" class="small-text"></label>
-		<span class="description"><?php echo esc_html( sprintf( /* translators: %d: maximum tickets per print job */ __( 'Höchstens %d Tickets je Druckauftrag; größere Termine in Teilen drucken.', 'pass-captain' ), Templates::batch_limit() ) ); ?></span></p>
+		<span class="description"><?php echo esc_html( sprintf( /* translators: %d: maximum tickets per print job */ _n( 'Höchstens %d Ticket je Druckauftrag; größere Termine in Teilen drucken.', 'Höchstens %d Tickets je Druckauftrag; größere Termine in Teilen drucken.', Templates::batch_limit(), 'pass-captain' ), Templates::batch_limit() ) ); ?></span></p>
 		<?php endif; ?>
 		</fieldset>
 		<?php endif; ?>

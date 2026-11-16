@@ -162,7 +162,7 @@ final class ServiceBookings {
 		}
 		if ( $rules['opens_days'] > 0 && $start > Clock::now() + $rules['opens_days'] * DAY_IN_SECONDS ) {
 			/* translators: %d: days */
-			return new \WP_Error( 'wpcap_booking_too_early', sprintf( __( 'Dieses Zeitfenster ist noch nicht buchbar: Buchungen sind höchstens %d Tage im Voraus möglich.', 'pass-captain' ), (int) $rules['opens_days'] ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_booking_too_early', sprintf( /* translators: %d: days */ _n( 'Dieses Zeitfenster ist noch nicht buchbar: Buchungen sind höchstens %d Tag im Voraus möglich.', 'Dieses Zeitfenster ist noch nicht buchbar: Buchungen sind höchstens %d Tage im Voraus möglich.', (int) $rules['opens_days'], 'pass-captain' ), (int) $rules['opens_days'] ), array( 'status' => 409 ) );
 		}
 		$p = $wpdb->prefix;
 		if ( $rules['max_per_customer'] > 0 ) {
@@ -1285,7 +1285,7 @@ final class ServiceBookings {
 	}
 
 	private static function busy() {
-		return new \WP_Error( 'wpcap_db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return \PassCaptain\Errors::busy();
 	}
 
 	private static function unavailable() {

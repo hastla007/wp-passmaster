@@ -588,7 +588,7 @@ final class Checkin {
 		if ( $minutes > 0 && $own && $recent ) { return null; }
 		$message = $minutes > 0
 			/* translators: %d: minutes */
-			? sprintf( __( 'Nur eigene Scans der letzten %d Minuten können zurückgenommen werden. Bitte die Einlassleitung fragen.', 'pass-captain' ), $minutes )
+			? sprintf( /* translators: %d: minutes */ _n( 'Nur eigene Scans der letzten %d Minute können zurückgenommen werden. Bitte die Einlassleitung fragen.', 'Nur eigene Scans der letzten %d Minuten können zurückgenommen werden. Bitte die Einlassleitung fragen.', $minutes, 'pass-captain' ), $minutes )
 			: __( 'Check-ins können nur von der Einlassleitung zurückgenommen werden.', 'pass-captain' );
 		return new \WP_Error( 'wpcap_undo_forbidden', $message, array( 'status' => 403, 'result' => 'forbidden' ) );
 	}

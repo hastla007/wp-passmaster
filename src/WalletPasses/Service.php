@@ -475,7 +475,7 @@ final class Service {
 				$count = count( $codes );
 				$text .= Mailer::with_locale( $locale, static function () use ( $count, $url ) {
 					/* translators: %d: number of tickets */
-					return sprintf( __( 'Apple Wallet / Google Wallet für alle %d Tickets:', 'pass-captain' ), $count ) . ' ' . esc_url_raw( $url ) . "\n";
+					return sprintf( _n( 'Apple Wallet / Google Wallet für %d Ticket:', 'Apple Wallet / Google Wallet für alle %d Tickets:', $count, 'pass-captain' ), $count ) . ' ' . esc_url_raw( $url ) . "\n";
 				} );
 			}
 		}

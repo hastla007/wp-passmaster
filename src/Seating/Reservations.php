@@ -362,7 +362,7 @@ final class Reservations {
 		try {
 			$missing = self::recover_seats( $order_id, (array) $demand, $types );
 		} catch ( \RuntimeException $e ) {
-			return new \WP_Error( 'db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ) );
+			return \PassCaptain\Errors::busy( '', 'db_busy' );
 		}
 		if ( $missing > 0 ) {
 			return new \WP_Error( 'seat_sold_out', __( 'Für diese Ticketart sind keine passenden Sitzplätze mehr frei.', 'pass-captain' ) );

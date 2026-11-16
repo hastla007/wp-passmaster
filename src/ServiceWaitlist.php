@@ -353,6 +353,6 @@ final class ServiceWaitlist {
 	}
 
 	private static function busy() {
-		return new \WP_Error( 'wpcap_db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return \PassCaptain\Errors::busy();
 	}
 }

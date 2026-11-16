@@ -137,7 +137,7 @@ final class Page {
 		echo '</p></form>' . Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
 		if ( ! empty( $report['range_clamped'] ) ) {
 			/* translators: %d: maximum number of days */
-			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Der Zeitraum wurde auf die letzten %d Tage bis zum Enddatum gekürzt. Für längere Zeiträume bitte mehrere Berichte erstellen.', 'pass-captain' ), Data::MAX_RANGE_DAYS ) ) . '</p></div>';
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( /* translators: %d: days */ _n( 'Der Zeitraum wurde auf den letzten %d Tag bis zum Enddatum gekürzt. Für längere Zeiträume bitte mehrere Berichte erstellen.', 'Der Zeitraum wurde auf die letzten %d Tage bis zum Enddatum gekürzt. Für längere Zeiträume bitte mehrere Berichte erstellen.', Data::MAX_RANGE_DAYS, 'pass-captain' ), Data::MAX_RANGE_DAYS ) ) . '</p></div>';
 		}
 		echo '<p class="description">' . esc_html( sprintf( /* translators: %s: time zone name */ __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'pass-captain' ), $report['timezone'] ) ) . '</p>';
 

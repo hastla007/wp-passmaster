@@ -134,7 +134,7 @@ final class OrderPortal {
 			'resendConfirm' => __( 'Tickets jetzt erneut senden? Dabei werden neue Ticketcodes erstellt; die bisher gesendeten Codes und Ausdrucke werden ungültig.', 'pass-captain' ),
 			'resendConfirmButton' => __( 'Ja, erneut senden', 'pass-captain' ),
 			/* translators: %d: number of tickets passed on to other people */
-			'resendConfirmAll' => __( 'Achtung: Auch die %d Tickets, die du an andere Personen weitergegeben hast, bekommen neue Codes. Deren bisherige Tickets und Ausdrucke werden sofort ungültig; die neuen Codes gehen an die Teilnehmer-E-Mail. Trotzdem alle Tickets erneut senden?', 'pass-captain' ),
+			'resendConfirmAll' => /* translators: %d: number of tickets passed on to other people */ __( 'Achtung: Auch die an andere Personen weitergegebenen Tickets (Anzahl: %d) bekommen neue Codes. Deren bisherige Tickets und Ausdrucke werden sofort ungültig; die neuen Codes gehen an die Teilnehmer-E-Mail. Trotzdem alle Tickets erneut senden?', 'pass-captain' ),
 			'resendFailed' => __( 'Erneuter Versand fehlgeschlagen.', 'pass-captain' ),
 			/* translators: %s: masked e-mail address */
 			'resent' => __( 'Die Tickets wurden erneut an %s gesendet. Bitte verwende nur noch die neuen Codes.', 'pass-captain' ),
