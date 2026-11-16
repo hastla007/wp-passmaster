@@ -10,7 +10,8 @@
   "textdomain": "pass-captain",
   "attributes": {
     "view": { "type": "string", "default": "month", "enum": [ "month", "list" ] },
-    "eventId": { "type": "integer", "default": 0 }
+    "eventId": { "type": "integer", "default": 0 },
+    "limit": { "type": "integer", "default": 50, "minimum": 1, "maximum": 200 }
   },
   "supports": {
     "html": false,

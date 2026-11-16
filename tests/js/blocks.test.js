@@ -185,3 +185,40 @@ test('A360: ID attributes of every block are integers and the editor scripts dec
 		['wp-components', 'wp-i18n'].forEach((dep) => assert.ok(asset.includes("'" + dep + "'"), c.name + ' depends on ' + dep));
 	}
 });
+
+/* ------------------------------------------------------------------ A502 */
+
+const CAL_CHOICES = { events: [{ id: 5, label: 'Sommerfest (01.07.2027 19:00, #5)' }, { id: 6, label: 'Kurs (03.07.2027 10:00, #6)' }] };
+function textControls(tree) {
+	const out = {};
+	find(tree, 'TextControl').forEach((n) => { out[n.node.props.label] = n.node.props; });
+	return out;
+}
+
+test('A502: the calendar block offers the events as a selection instead of an ID field', () => {
+	const block = loadBlock('calendar', { WPCAP_BLOCK_CALENDAR: CAL_CHOICES });
+	const { tree, changes } = block.edit({ view: 'month', eventId: 6, limit: 50 });
+	const s = selects(tree);
+	assert.ok(s.Event, 'event select');
+	assert.strictEqual(s.Event.value, '6');
+	assert.deepStrictEqual(plain(s.Event.options.map((o) => o.value)), ['0', '5', '6']);
+	assert.strictEqual(Object.keys(textControls(tree)).length, 0, 'no number field for the event, no limit in the month view');
+	s.Event.onChange('5');
+	assert.deepStrictEqual(plain(changes), [{ eventId: 5 }]);
+	const gone = selects(block.edit({ view: 'month', eventId: 9 }).tree);
+	assert.deepStrictEqual(plain(gone.Event.options.filter((o) => o.value === '9').map((o) => o.label)), ['Event #9 (nicht mehr verfügbar)']);
+});
+
+test('A502: the list view of the calendar block has a limit (1–200)', () => {
+	const json = JSON.parse(fs.readFileSync(path.join(BLOCKS, 'calendar', 'block.json'), 'utf8'));
+	assert.deepStrictEqual(plain(json.attributes.limit), { type: 'integer', default: 50, minimum: 1, maximum: 200 });
+	const block = loadBlock('calendar', { WPCAP_BLOCK_CALENDAR: CAL_CHOICES });
+	const { tree, changes } = block.edit({ view: 'list', eventId: 0, limit: 20 });
+	const limit = Object.values(textControls(tree))[0];
+	assert.ok(limit, 'limit field in the list view');
+	assert.strictEqual(limit.value, '20');
+	limit.onChange('500');
+	limit.onChange('0');
+	limit.onChange('12');
+	assert.deepStrictEqual(plain(changes), [{ limit: 200 }, { limit: 50 }, { limit: 12 }]);
+});

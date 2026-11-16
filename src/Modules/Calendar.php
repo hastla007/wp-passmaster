@@ -47,8 +47,24 @@ final class Calendar {
 	public static function register_block() {
 		if ( function_exists( 'register_block_type' ) ) {
 			\PassCaptain\PublicEvents::register_styles(); // block.json "style" (A391).
-			\PassCaptain\Localization::block_translations( register_block_type( WPCAP_PATH . 'src/blocks/calendar' ) );
+			$block = register_block_type( WPCAP_PATH . 'src/blocks/calendar' );
+			\PassCaptain\Localization::block_translations( $block );
+			// A502: the event selection of the block (published events with upcoming dates).
+			if ( $block && ! empty( $block->editor_script_handles ) && is_admin() ) {
+				add_action( 'enqueue_block_editor_assets', static function () use ( $block ) {
+					wp_add_inline_script( $block->editor_script_handles[0], 'window.WPCAP_BLOCK_CALENDAR=' . wp_json_encode( self::block_choices() ) . ';', 'before' );
+				} );
+			}
 		}
+	}
+
+	/** Events for the calendar block's selection (A502): id and label as in the events block. */
+	public static function block_choices() {
+		$events = array();
+		foreach ( (array) ( \PassCaptain\PublicEvents::block_choices()['events'] ?? array() ) as $event ) {
+			$events[] = array( 'id' => (int) $event['id'], 'label' => (string) $event['label'] );
+		}
+		return array( 'events' => $events );
 	}
 
 	/* ------------------------------------------------------------------ iCalendar endpoints */
@@ -176,7 +192,9 @@ final class Calendar {
 	 * attributes (block class, custom CSS class, alignment, spacing) go on the root element.
 	 */
 	public static function render_block( array $attributes ) {
-		return self::render_view( ( $attributes['view'] ?? '' ) === 'list' ? 'list' : 'month', absint( $attributes['eventId'] ?? 0 ), 50, true );
+		// A502: limit (1–200, list view) is set in the block.
+		$limit = max( 1, min( 200, absint( $attributes['limit'] ?? 50 ) ?: 50 ) );
+		return self::render_view( ( $attributes['view'] ?? '' ) === 'list' ? 'list' : 'month', absint( $attributes['eventId'] ?? 0 ), $limit, true );
 	}
 
 	/** Month or list view of the shortcode or block ($block: with the block wrapper attributes). */
