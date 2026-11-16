@@ -11,6 +11,29 @@
 
 InnoDB mit `utf8mb4`. Jede Indexspalte bleibt unter 767 Byte (höchstens 191 Zeichen, sonst Präfixindex), zusammengesetzte Indizes unter 3072 Byte – das Schema ist damit auch ohne `innodb_large_prefix` anlegbar. Ein Test prüft das für alle Tabellen.
 
+### Replikate und Cluster (A285)
+
+Verkauf, Zahlung, Einlass und Warteschlangen verlassen sich auf Transaktionen mit Zeilensperren
+(`SELECT … FOR UPDATE`) und benannte Sperren (`GET_LOCK`). Datenbank-Drop-ins mit Lese-Replikaten
+(**HyperDB**, **LudicrousDB** und kompatible) schicken jedes `SELECT` an ein Replikat – auch die sperrenden
+Lesezugriffe, die dann ohne Transaktion und ohne Sperre auf evtl. veralteten Daten liefen (Doppelverkauf,
+doppelte Zahlung möglich). Das Plugin erkennt solche Drop-ins (`send_reads_to_masters()` bzw.
+`send_reads_to_primaries()`) und schaltet über den Filter `query` alle weiteren Lesezugriffe der Anfrage auf
+den Primärserver, sobald `START TRANSACTION`/`BEGIN`, ein sperrendes `SELECT` (`FOR UPDATE`, `FOR SHARE`,
+`LOCK IN SHARE MODE`) oder `GET_LOCK()` kommt (`PassCaptain\DbReplication`). Reine Leseseiten (Eventliste)
+nutzen bis dahin weiter die Replikate.
+
+Voraussetzungen im Cluster:
+
+- Das Drop-in muss den WordPress-Filter `query` vor der Verteilung anwenden (HyperDB und LudicrousDB tun das).
+  Andere Lastverteiler (ProxySQL, MaxScale, Cloud-Proxys) müssen Anfragen innerhalb einer Transaktion und
+  `SELECT … FOR UPDATE`/`GET_LOCK` an den Primärserver leiten (bei ProxySQL `transaction_persistent=1` und
+  eine Query-Regel für `FOR UPDATE`; MaxScale readwritesplit macht das standardmäßig).
+- Nur **ein** schreibender Knoten: Galera/MariaDB-Cluster bzw. Group Replication im Multi-Primary-Betrieb sind
+  nicht unterstützt (Sperren gelten nur auf dem eigenen Knoten); Schreibzugriffe auf einen Knoten bündeln.
+- Replikationsverzögerung: Anzeigen (z. B. Restkontingent auf der Eventkarte) können kurz veraltet sein;
+  maßgeblich ist immer die Prüfung in der Transaktion auf dem Primärserver.
+
 ## Datenbank- und PHP-Freigaben
 
 Freigegeben ist nur, was die CI bei jedem Push mit der vollständigen Integrationssuite und dem Last-/Nebenläufigkeitstest (`tests/load/run.php --profile=ci`) prüft (`.github/workflows/ci.yml`, Job `integration`):
