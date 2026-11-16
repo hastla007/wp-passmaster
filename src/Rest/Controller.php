@@ -403,6 +403,11 @@ final class Controller {
 		// A561: availability of all listed ticket types with a constant number of queries.
 		$type_ids = array();
 		foreach ( $types_of as $list ) { foreach ( $list as $type ) { $type_ids[] = (int) $type['ticket_type_id']; } }
+		// One display batch with the rows loaded above: price rules, series prices and pools of all listed
+		// types answer from grouped queries instead of several queries per ticket type (PERF-1).
+		$preloaded = array( 'types' => array(), 'occurrences' => $occurrences );
+		foreach ( $type_rows ?? array() as $type_row ) { $preloaded['types'][ (int) $type_row->ticket_type_id ] = $type_row; }
+		\PassCaptain\DisplayBatch::run( $type_ids, static function () use ( $rows, $translations, $types_of, $occurrences, $type_ids, $request, &$output ) {
 		$available = $type_ids ? Orders::availability_many( $type_ids, array( 'occurrences' => $occurrences ) ) : array();
 		$now = \PassCaptain\Clock::now();
 		foreach ( $rows as $row ) {
@@ -447,6 +452,7 @@ final class Controller {
 				); }, $types ),
 			), $row, $request );
 		}
+		}, $preloaded );
 		$response = rest_ensure_response( $output );
 		// A561: sales status and availability change by the minute – never stored by browsers or proxies.
 		if ( $response instanceof \WP_REST_Response && method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-store, max-age=0' ); }
