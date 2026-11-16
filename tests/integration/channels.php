@@ -87,8 +87,6 @@ function wpcap_test_public_rest() {
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/payout-account',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/exchange',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request',
-		'GET pass-captain/v1/events/(?P<event_id>\d+)/seats',
-		'POST pass-captain/v1/events/(?P<event_id>\d+)/seat-holds',
 		'GET pass-captain/v1/events/(?P<event_id>\d+)/service-slots',
 		'POST pass-captain/v1/service-slots/(?P<slot_id>\d+)/bookings',
 		'POST pass-captain/v1/campaigns/preview',

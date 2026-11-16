@@ -7,7 +7,6 @@ use PassCaptain\Audit;
 use PassCaptain\Orders;
 use PassCaptain\Memberships;
 use PassCaptain\TicketAssignments;
-use PassCaptain\Seats;
 use PassCaptain\ServiceBookings;
 use PassCaptain\Invoices;
 use PassCaptain\Campaigns;
@@ -132,21 +131,9 @@ final class Controller {
 			'callback' => array( __CLASS__, 'reject_member_pass' ),
 			'permission_callback' => array( __CLASS__, 'member_approve_permission' ),
 		) );
-		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/seats', array(
-			'methods' => \WP_REST_Server::READABLE,
-			'callback' => array( __CLASS__, 'seats' ),
-			'permission_callback' => '__return_true',
-		) );
-		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/seat-maps', array(
-			'methods' => \WP_REST_Server::CREATABLE,
-			'callback' => array( __CLASS__, 'create_seat_map' ),
-			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
-		) );
-		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/seat-holds', array(
-			'methods' => \WP_REST_Server::CREATABLE,
-			'callback' => array( __CLASS__, 'hold_seats' ),
-			'permission_callback' => '__return_true',
-		) );
+		// A529: the old seat API (GET /events/{id}/seats, POST /events/{id}/seat-maps, POST /events/{id}/seat-holds)
+		// had no purchase path (public holds that nothing could buy, an UPDATE on every GET) and is removed;
+		// seat selection and sale go through the Seating module (/seating/occurrences/{id}, checkout).
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/service-slots', array(
 			'methods' => \WP_REST_Server::READABLE,
 			'callback' => array( __CLASS__, 'service_slots' ),
@@ -838,21 +825,6 @@ final class Controller {
 		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'status' => 'revoked' ) );
 	}
 
-	public static function seats( \WP_REST_Request $request ) {
-		global $wpdb;
-		$event_id = absint( $request['event_id'] );
-		$occurrence_id = absint( $request->get_param( 'occurrence_id' ) );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
-		if ( ! $event || 'published' !== $event->status ) { return new \WP_Error( 'wpcap_seat_map_not_found', __( 'Sitzplan nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$valid_occurrence = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d AND event_id=%d AND status='scheduled'", $occurrence_id, $event_id ) );
-		if ( ! $valid_occurrence ) { return new \WP_Error( 'wpcap_occurrence_not_found', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$map = $wpdb->get_row( $wpdb->prepare( "SELECT map_id,version,name FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d AND status='published' ORDER BY version DESC LIMIT 1", $event_id ) );
-		if ( ! $map ) { return rest_ensure_response( array( 'map' => null, 'seats' => array() ) ); }
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_seat_holds SET status='expired' WHERE status='active' AND expires_at<=%s", current_time( 'mysql', true ) ) );
-		$seats = $wpdb->get_results( $wpdb->prepare( "SELECT s.seat_id,s.seat_key,s.zone,s.row_label,s.seat_label,s.position_x,s.position_y,IF(s.status='available' AND NOT EXISTS(SELECT 1 FROM {$wpdb->prefix}wpcap_seat_holds h WHERE h.seat_id=s.seat_id AND h.occurrence_id=%d AND h.status IN ('active','sold')), 'available', 'unavailable') AS availability FROM {$wpdb->prefix}wpcap_seats s WHERE s.map_id=%d ORDER BY s.zone,s.row_label,s.seat_label", $occurrence_id, $map->map_id ), ARRAY_A );
-		return rest_ensure_response( array( 'map' => array( 'version' => (int) $map->version, 'name' => $map->name ), 'seats' => $seats ) );
-	}
-
 	public static function manage_events_permission() { return is_user_logged_in() && current_user_can( 'wpcap_manage_events' ); }
 
 	/** Non-binding discount preview for the checkout estimate (Campaigns::preview()). */
@@ -1023,32 +995,6 @@ final class Controller {
 		return new \WP_REST_Response( array( 'tax_profile_id' => (int) $id, 'status' => 'draft', 'requires_review' => true ), 201 );
 	}
 
-	public static function create_seat_map( \WP_REST_Request $request ) {
-		global $wpdb;
-		$event_id = absint( $request['event_id'] );
-		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_seat_map_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		$payload = $request->get_json_params();
-		$rows = $payload['seats'] ?? array();
-		$name = sanitize_text_field( $payload['name'] ?? '' );
-		if ( ! $name || ! is_array( $rows ) || ! $rows || count( $rows ) > 500 ) { return new \WP_Error( 'wpcap_seat_map_invalid', __( 'Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->query( 'START TRANSACTION' );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d FOR UPDATE", $event_id ) );
-		if ( ! $event ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$version = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d", $event_id ) );
-		$map_saved = $wpdb->insert( $wpdb->prefix . 'wpcap_seat_maps', array( 'event_id' => $event_id, 'version' => $version, 'name' => $name, 'status' => 'published', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%s', '%s' ) );
-		$map_id = false === $map_saved ? 0 : (int) $wpdb->insert_id;
-		if ( ! $map_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_map_save', __( 'Sitzplan konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		foreach ( $rows as $seat ) {
-			$key = sanitize_key( $seat['seat_key'] ?? '' );
-			$label = sanitize_text_field( $seat['seat_label'] ?? '' );
-			if ( ! $key || ! $label ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_invalid', __( 'Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung.', 'pass-captain' ), array( 'status' => 400 ) ); }
-			$seat_saved = $wpdb->insert( $wpdb->prefix . 'wpcap_seats', array( 'map_id' => $map_id, 'seat_key' => $key, 'zone' => sanitize_text_field( $seat['zone'] ?? '' ), 'row_label' => sanitize_text_field( $seat['row_label'] ?? '' ), 'seat_label' => $label, 'position_x' => (float) ( $seat['x'] ?? 0 ), 'position_y' => (float) ( $seat['y'] ?? 0 ), 'status' => 'available' ), array( '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s' ) );
-			if ( false === $seat_saved ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_duplicate', __( 'Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel.', 'pass-captain' ), array( 'status' => 409 ) ); }
-		}
-		$wpdb->query( 'COMMIT' );
-		return new \WP_REST_Response( array( 'map_id' => $map_id, 'version' => $version, 'seat_count' => count( $rows ) ), 201 );
-	}
-
 	public static function create_resource( \WP_REST_Request $request ) {
 		$id = ServiceBookings::create_resource( absint( $request['event_id'] ), (array) $request->get_json_params() );
 		return is_wp_error( $id ) ? $id : new \WP_REST_Response( array( 'resource_id' => (int) $id ), 201 );
@@ -1081,16 +1027,6 @@ final class Controller {
 		}
 		$wpdb->query( 'COMMIT' );
 		return rest_ensure_response( array( 'status' => 'saved', 'day_count' => count( $days ) ) );
-	}
-
-	public static function hold_seats( \WP_REST_Request $request ) {
-		global $wpdb;
-		$event_id = absint( $request['event_id'] );
-		$occurrence_id = absint( $request->get_param( 'occurrence_id' ) );
-		$allowed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND o.event_id=%d AND o.status='scheduled' AND e.status='published'", $occurrence_id, $event_id ) );
-		if ( ! $allowed ) { return new \WP_Error( 'wpcap_occurrence_not_found', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$result = Seats::hold( $occurrence_id, (array) $request->get_param( 'seat_ids' ), 0, 10, $request->get_param( 'idempotency_key' ) );
-		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
 	public static function service_slots( \WP_REST_Request $request ) {

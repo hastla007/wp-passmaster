@@ -676,6 +676,15 @@ ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.tx
   Rücksprache vergeben will, legt sie in einen eigenen Bereich und ordnet ihn einer eigenen,
   nicht öffentlich verkauften Ticketart zu.
 
+## Saalpläne: altes Sitzplan-API entfernt (A529)
+
+Die Endpunkte `GET /events/{id}/seats`, `POST /events/{id}/seat-maps` und `POST /events/{id}/seat-holds` (Klasse
+`PassCaptain\Seats`) stammten aus einem frühen Entwurf ohne Kaufpfad: Jede:r konnte öffentlich Plätze reservieren,
+die sich nicht kaufen ließen, und jeder Abruf schrieb in die Datenbank. Sie sind entfernt (Antwort 404).
+Sitzplatzwahl und Verkauf laufen über das Modul Saalpläne (`GET /seating/occurrences/{id}`, Checkout mit
+Platzauswahl). Die Tabellen `wpcap_seat_maps`, `wpcap_seats` und `wpcap_seat_holds` bleiben für bestehende Daten;
+alte Reservierungen laufen ab und werden vom Löschlauf entfernt.
+
 ## Saalpläne: Stehbereiche (A528)
 
 - Ein Stehbereich mit Kapazität *n* wird beim Veröffentlichen zu *n* Stehplätzen mit den Schlüsseln
