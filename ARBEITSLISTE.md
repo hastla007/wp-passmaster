@@ -1103,10 +1103,12 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:12, Modules/Calendar.php:131: wp_unique_id() je Render, Kalender-Anker nur erste Instanz
 - [x] **A505** [OPTIMIERUNG] Öffentliche REST-GETs mit Live-Daten ohne Cache-Control (erweitert A370) — _R3 Caching_ (TODO L857; Audit Runde 4)
   - src/Rest/Controller.php:21/107/122/176, WalletPasses/WebService.php:83: Zentral no-store für den Namespace
-- [ ] **A506** [OPTIMIERUNG] Offline-PWA ohne Asset-Versionierung — _R3 Caching_ (TODO L858; Audit Runde 4)
+- [x] **A506** [OPTIMIERUNG] Offline-PWA ohne Asset-Versionierung — _R3 Caching_ (TODO L858; Audit Runde 4)
   - assets/offline-scanner/sw.js:8, index.html:13/80–82: Cache-Namen/Asset-URLs an WPCAP_VERSION, fetch no-cache
-- [ ] **A507** [OPTIMIERUNG] Einmalige Geheimnisse (API-Key, Kopplungscode) hängen an Transient zwischen POST und Redirect — _R3 Caching_ (TODO L859; Audit Runde 4)
+  - Erledigt: `Pwa::body()` setzt den Cache-Namen des Service Workers auf einen Hash aller Shell-Dateien plus Plugin-Version (`Pwa::shell_version()`); jede Änderung ersetzt den Shell-Cache, Shell-Dateien bleiben `no-cache`. Test zz_a506.
+- [x] **A507** [OPTIMIERUNG] Einmalige Geheimnisse (API-Key, Kopplungscode) hängen an Transient zwischen POST und Redirect — _R3 Caching_ (TODO L859; Audit Runde 4)
   - src/Admin/DeveloperKeysPage.php:51/107, Partners/AdminPage.php:113/487, Admin/DevicesPage.php:28/54: Direkt in POST-Antwort rendern oder DB-Zeile mit Löschen-bei-Lesen
+  - Erledigt: `Security\OneTimeSecret` (pro Benutzer, mit dem Vault verschlüsselt, kurze Laufzeit, Löschen beim Lesen) für Entwickler-/Event-API-Keys, Partner-Keys und Kopplungscodes. Test zz_a507.
 - [x] **A508** [OPTIMIERUNG] Web-Scanner-Shortcode-Seite ohne DONOTCACHEPAGE — _R3 Caching_ (TODO L860; Audit Runde 4)
   - src/PublicEvents.php:378–394: DONOTCACHEPAGE + nocache_headers
 - [x] **A509** [OPTIMIERUNG] Betriebsdoku ohne CDN-/WAF-/Seitencache-Ausnahmeregeln — _R3 Caching_ (TODO L861; Audit Runde 4)

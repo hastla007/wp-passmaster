@@ -22,7 +22,6 @@ final class DeveloperKeysPage {
 	const CAP = 'manage_options';
 
 	/** Transient holding the freshly issued key of the current user (shown once, then deleted). */
-	private static function secret_key() { return 'wpcap_devkey_once_' . get_current_user_id(); }
 
 	/** Capability of the menu entry: administrators, else organizers with the event-scoped view. */
 	public static function menu_cap() {
@@ -56,7 +55,7 @@ final class DeveloperKeysPage {
 		$scopes = isset( $in['scopes'] ) && is_array( $in['scopes'] ) ? array_values( array_filter( $in['scopes'], 'is_string' ) ) : array();
 		$result = DeveloperKeys::issue( Forms::int( $in, 'event_id' ), $scopes,Forms::text( $in, 'label', 190 ), $expiry, Forms::int( $in, 'rate_limit' ) );
 		if ( ! is_wp_error( $result ) ) {
-			set_transient( self::secret_key(), array( 'key' => $result['key'], 'api_key_id' => $result['api_key_id'] ), 10 * MINUTE_IN_SECONDS );
+			\PassCaptain\Security\OneTimeSecret::put( 'devkey', array( 'key' => $result['key'], 'api_key_id' => $result['api_key_id'] ), 10 * MINUTE_IN_SECONDS ); // A507: encrypted, shown once.
 		}
 		return $result;
 	}
@@ -117,14 +116,12 @@ final class DeveloperKeysPage {
 		Forms::render_notices();
 		echo '<p class="description">' . esc_html__( 'Entwickler-API-Schlüssel geben externen Systemen lesenden Zugriff auf genau ein Event. Jede Anfrage sendet den Schlüssel im Header X-WPCAP-Key. Der Schlüssel gilt nur, solange die Person, die ihn angelegt hat, für das Event berechtigt ist und alle Termine des Events in ihrem Standort- oder Partnerbereich liegen.', 'pass-captain' ) . '</p>';
 
-		$once = get_transient( self::secret_key() );
-		$scoped = get_transient( ApiKeysPage::new_key_transient() ); // Key created through the event-scoped form.
+		$once = \PassCaptain\Security\OneTimeSecret::take( 'devkey' );
+		$scoped = \PassCaptain\Security\OneTimeSecret::take( 'eventkey' ); // Key created through the event-scoped form.
 		if ( ! is_array( $once ) && is_string( $scoped ) && '' !== $scoped ) {
 			$once = array( 'key' => $scoped );
-			delete_transient( ApiKeysPage::new_key_transient() );
 		}
 		if ( is_array( $once ) && ! empty( $once['key'] ) ) {
-			delete_transient( self::secret_key() );
 			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Neuer API-Key – wird nur jetzt angezeigt:', 'pass-captain' ) . '</strong></p>';
 			echo '<p><input type="text" class="large-text code" readonly data-wpcap-select-on-focus aria-label="' . esc_attr__( 'Neuer API-Key', 'pass-captain' ) . '" value="' . esc_attr( (string) $once['key'] ) . '"></p>';
 			echo '<p>' . esc_html__( 'Gespeichert wird nur ein Hash. Geht der Schlüssel verloren, widerrufe ihn und lege einen neuen an.', 'pass-captain' ) . '</p></div>';
