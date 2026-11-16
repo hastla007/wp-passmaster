@@ -44,7 +44,8 @@ $wpdb->query( "UPDATE {$p}wpcap_orders SET payment_status='pending' WHERE order_
 PassCaptain\CapacityCounters::sync_order_now( $d['order_id'] ); // Raw state change: keep the capacity counters in line.
 // Attendee with own e-mail on one of A's tickets: separate holder.
 $a_tickets = tickets( $a['order_id'] );
-$wpdb->query( "UPDATE {$p}wpcap_tickets SET attendee_email='rem-guest@example.com' WHERE ticket_id=" . (int) $a_tickets[1]->ticket_id );
+// The ticket was assigned to the guest, whose address received the code (A581: code_with_attendee).
+$wpdb->query( "UPDATE {$p}wpcap_tickets SET attendee_email='rem-guest@example.com'" . ( PassCaptain\TicketCodes::holder_ready() ? ',code_with_attendee=1' : '' ) . " WHERE ticket_id=" . (int) $a_tickets[1]->ticket_id );
 
 echo "Reminders: scheduling and dedupe\n";
 $queued = Reminders::schedule_due();

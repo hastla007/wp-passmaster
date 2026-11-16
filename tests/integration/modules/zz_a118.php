@@ -103,7 +103,8 @@ $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'checked_in' ), array( 't
 check( 'checked-in ticket → 409 used', 'wpcap_ticket_pdf_used' === a118_code( A118::pdf( $a118_pub, $a118_tok, a118_public( $a118_t[0] ) ) ) );
 $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid', 'transfer_count' => 1 ), array( 'ticket_id' => $a118_t[0] ) );
 check( 'transferred ticket → 409 held by someone else (the buyer cannot take the recipient\'s code)', 'wpcap_ticket_pdf_held_elsewhere' === a118_code( A118::pdf( $a118_pub, $a118_tok, a118_public( $a118_t[0] ) ) ) );
-$wpdb->update( "{$p}wpcap_tickets", array( 'transfer_count' => 0, 'attendee_email' => 'guest@example.com' ), array( 'ticket_id' => $a118_t[0] ) );
+// Assigned to another address, which received the current code (A581: code_with_attendee).
+$wpdb->update( "{$p}wpcap_tickets", array( 'transfer_count' => 0, 'attendee_email' => 'guest@example.com' ) + ( PassCaptain\TicketCodes::holder_ready() ? array( 'code_with_attendee' => 1 ) : array() ), array( 'ticket_id' => $a118_t[0] ) );
 check( 'ticket assigned to another e-mail → 409 held by someone else', 'wpcap_ticket_pdf_held_elsewhere' === a118_code( A118::pdf( $a118_pub, $a118_tok, a118_public( $a118_t[0] ) ) ) );
 $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => 'A118@example.com' ), array( 'ticket_id' => $a118_t[0] ) );
 check( 'attendee e-mail = buyer e-mail (any case) stays downloadable', is_array( A118::pdf( $a118_pub, $a118_tok, a118_public( $a118_t[0] ) ) ) );
