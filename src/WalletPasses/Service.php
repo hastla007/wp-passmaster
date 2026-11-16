@@ -586,8 +586,11 @@ final class Service {
 	private static function class_ticket( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$id = $wpdb->get_var( $wpdb->prepare( "SELECT w.ticket_id FROM {$p}wpcap_wallet_passes w INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=w.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE w.provider='google' AND tt.occurrence_id=%d LIMIT 1", absint( $occurrence_id ) ) );
-		return $id ? self::ticket( (int) $id ) : null;
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT w.ticket_id,w.provider_ref FROM {$p}wpcap_wallet_passes w INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=w.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE w.provider='google' AND tt.occurrence_id=%d ORDER BY w.wallet_pass_id LIMIT 1", absint( $occurrence_id ) ) );
+		$ticket = $row ? self::ticket( (int) $row->ticket_id ) : null;
+		// A475: the class id stored with the issued passes, not one computed from today's home_url().
+		if ( $ticket && '' !== (string) $row->provider_ref ) { $ticket['google_class_id'] = (string) $row->provider_ref; }
+		return $ticket;
 	}
 
 	/** Sends Apple pushes and Google updates. Idempotent; false = retry later. */

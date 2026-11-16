@@ -25,9 +25,45 @@ class GoogleProvider implements WalletProvider {
 		return (bool) Settings::get( 'wallet_google_enabled' ) && '' !== $this->issuer_id() && is_array( Credentials::google() );
 	}
 
-	private static function site_key() { return substr( hash( 'sha256', home_url( '/' ) ), 0, 8 ); }
+	/** Option holding the site part of the Google class/object ids (A475). */
+	const SITE_KEY_OPTION = 'wpcap_wallet_google_site_key';
+
+	/**
+	 * Site part of every Google id (8 hex characters). Fixed at the first use and stored, so a domain
+	 * change (home_url()) no longer gives new class/object ids and cuts saved passes off from updates
+	 * (A475). Installs from before take the key of their newest issued pass (wpcap_wallet_passes),
+	 * otherwise the hash of the current home URL as before.
+	 */
+	public static function site_key() {
+		$stored = (string) get_option( self::SITE_KEY_OPTION, '' );
+		if ( 1 === preg_match( '/^[a-f0-9]{8}$/', $stored ) ) { return $stored; }
+		$current = substr( hash( 'sha256', home_url( '/' ) ), 0, 8 );
+		$issued = self::issued_site_key();
+		$key = '' !== $issued ? $issued : $current;
+		update_option( self::SITE_KEY_OPTION, $key, false );
+		if ( $key !== $current ) { Service::log( 'google_site_key_kept', 'site key of issued passes kept after an address change: ' . $key ); }
+		return $key;
+	}
+
+	/** Site key of the newest Google pass issued before the key was stored ('' without one). */
+	private static function issued_site_key() {
+		global $wpdb;
+		if ( ! \PassCaptain\Privacy::has_table( 'wpcap_wallet_passes' ) ) { return ''; }
+		$ref = (string) $wpdb->get_var( "SELECT provider_ref FROM {$wpdb->prefix}wpcap_wallet_passes WHERE provider='google' AND provider_ref<>'' ORDER BY wallet_pass_id DESC LIMIT 1" );
+		return 1 === preg_match( '/\.wpcap_([a-f0-9]{8})_o\d+$/', $ref, $m ) ? $m[1] : '';
+	}
 
 	public function class_id( $occurrence_id ) { return $this->issuer_id() . '.wpcap_' . self::site_key() . '_o' . absint( $occurrence_id ); }
+
+	/**
+	 * Class id of a ticket: the one stored with its pass (provider_ref, Service::ticket() and
+	 * class_ticket() set google_class_id) wins over the computed one, so passes issued under an
+	 * older id keep receiving updates (A475).
+	 */
+	private function ticket_class_id( array $ticket ) {
+		$stored = (string) ( $ticket['google_class_id'] ?? '' );
+		return '' !== $stored ? $stored : $this->class_id( $ticket['occurrence_id'] );
+	}
 
 	public function object_id( array $ticket ) {
 		return $this->issuer_id() . '.wpcap_' . self::site_key() . '_t' . preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $ticket['public_id'] ) ) . '_g' . max( 1, (int) ( $ticket['generation'] ?? 1 ) );
@@ -51,7 +87,7 @@ class GoogleProvider implements WalletProvider {
 
 	public function class_payload( array $ticket ) {
 		$class = array(
-			'id' => $this->class_id( $ticket['occurrence_id'] ),
+			'id' => $this->ticket_class_id( $ticket ),
 			'issuerName' => AppleProvider::organization(),
 			'reviewStatus' => 'UNDER_REVIEW',
 			'eventName' => self::text( $ticket['event_name'], $ticket ),
@@ -72,7 +108,7 @@ class GoogleProvider implements WalletProvider {
 		$active = empty( $ticket['voided'] ) && '' !== (string) ( $ticket['code'] ?? '' );
 		$object = array(
 			'id' => $this->object_id( $ticket ),
-			'classId' => $this->class_id( $ticket['occurrence_id'] ),
+			'classId' => $this->ticket_class_id( $ticket ),
 			'state' => $active ? 'ACTIVE' : 'INACTIVE',
 			'ticketNumber' => (string) $ticket['public_id'],
 			'ticketType' => self::text( $ticket['ticket_name'], $ticket ),
@@ -152,9 +188,12 @@ class GoogleProvider implements WalletProvider {
 
 	/** Brings the object to the current state; creates it when the customer has not saved it yet. */
 	public function update_pass( array $ticket, array $provider_pass ) {
+		// The ids stored at issuance (A475): the object id and its class, whatever home_url() is now.
+		if ( ! empty( $provider_pass['provider_ref'] ) ) { $ticket['google_class_id'] = (string) $provider_pass['provider_ref']; }
 		$object = $this->object_payload( $ticket );
 		if ( ! empty( $provider_pass['serial_number'] ) ) { $object['id'] = (string) $provider_pass['serial_number']; }
 		$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
+		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'object ' . self::short_id( $object['id'] ) ); }
 		if ( 404 === $res['code'] && Service::code_unavailable( $ticket ) ) { return true; } // Never create an object without its code.
 		if ( 404 === $res['code'] ) {
 			$class = $this->api( 'POST', 'eventTicketClass', $this->class_payload( $ticket ) );
@@ -167,14 +206,26 @@ class GoogleProvider implements WalletProvider {
 
 	public function revoke_pass( array $provider_pass ) {
 		$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( (string) $provider_pass['serial_number'] ), array( 'state' => 'INACTIVE' ) );
+		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'revoke ' . self::short_id( (string) $provider_pass['serial_number'] ) ); }
 		return in_array( $res['code'], array( 200, 404 ), true );
 	}
 
-	/** Updates date/venue of an occurrence class (404 = nobody saved a pass yet). */
+	/**
+	 * Updates date/venue of an occurrence class. 404 = nobody saved a pass yet, or the class lives
+	 * under another id; it is logged (Wallet page) instead of passing silently (A475).
+	 */
 	public function update_class( array $ticket ) {
 		$class = $this->class_payload( $ticket );
 		$res = $this->api( 'PATCH', 'eventTicketClass/' . rawurlencode( $class['id'] ), $class );
+		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'class ' . self::short_id( $class['id'] ) ); }
 		return in_array( $res['code'], array( 200, 404 ), true );
+	}
+
+	/** Id without the issuer number for the diagnostics log. */
+	private static function short_id( $id ) {
+		$id = (string) $id;
+		$dot = strpos( $id, '.' );
+		return false === $dot ? $id : substr( $id, $dot + 1 );
 	}
 
 	/* ---- REST ---- */

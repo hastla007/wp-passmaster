@@ -33,6 +33,16 @@ Icons/Logo werden mit GD erzeugt (ohne GD: einfarbige PNGs); eigene PNGs können
 
 Neue Klassen stehen bei Google zunächst auf `UNDER_REVIEW`; für den Livebetrieb muss der Aussteller freigeschaltet sein.
 
+**Stabile IDs bei Domainwechsel (A475):** Klassen- und Objekt-IDs haben die Form `{issuer}.wpcap_{site}_o{termin}`
+bzw. `{issuer}.wpcap_{site}_t{ticket}_g{generation}`. Der Site-Teil wird beim ersten Gebrauch festgelegt und in der
+Option `wpcap_wallet_google_site_key` gespeichert (bis dahin: Hash der Startseiten-URL; bestehende Installationen
+übernehmen den Schlüssel ihres zuletzt ausgestellten Passes). Ein späterer Umzug auf eine andere Domain ändert die
+IDs nicht mehr – gespeicherte Pässe erhalten weiter Datum, Ort, Absage und Widerruf. Aktualisierungen verwenden
+zudem die beim Ausstellen gespeicherten IDs (`wpcap_wallet_passes.serial_number`/`provider_ref`). Antwortet die
+Wallet-API mit 404 (Klasse/Objekt unbekannt – noch nicht gespeichert oder unter anderer ID), steht das als
+`google_not_found` im Protokoll der Wallet-Seite statt still als Erfolg zu gelten. Nach einem Domainwechsel muss
+nur `origins` im Speichern-Link passen; das nimmt das Plugin immer aus der aktuellen Startseite.
+
 **Speichern-Link (A583):** Die Mail enthält keinen Google-JWT mehr, sondern einen kurzen, signierten Link des Plugins (`/wp-json/pass-captain/v1/wallet/google/save?t={ticket}&sig=…`, HMAC über Ticket und aktuelle Pass-Generation – nach einer Code-Erneuerung ungültig). Erst beim Klick legt das Plugin Klasse und Objekt über die Wallet-API an (`POST`, bei 409 `PATCH` auf den aktuellen Stand) und leitet mit `302` auf `https://pay.google.com/gp/v/save/{jwt}` weiter; der JWT enthält dann nur noch die Objekt-IDs (gemessen rund 720 Zeichen für ein Ticket und rund 1.470 für 8 Tickets, statt über 1.800 für ein einzelnes vollständiges Objekt). Daten gehen so erst auf Klick der Kundin an Google. Ist die API nicht erreichbar, bekommt ein einzelnes Ticket als Rückfall den vollständigen JWT; für mehrere Tickets erscheint ein Hinweis (503), es später erneut zu versuchen.
 
 ## Was im Pass steht
