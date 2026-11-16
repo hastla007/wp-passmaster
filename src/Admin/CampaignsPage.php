@@ -56,6 +56,13 @@ final class CampaignsPage {
 		$starts = trim( (string) ( $in['starts_at'] ?? '' ) );
 		$ends = trim( (string) ( $in['ends_at'] ?? '' ) );
 		$tz = ( '' !== $starts || '' !== $ends ) ? wp_timezone_string() : 'UTC';
+		// A616: an unreadable date is an error, not an unlimited code.
+		$window = array();
+		foreach ( array( 'starts_at' => $starts, 'ends_at' => $ends ) as $bound => $local ) {
+			$utc = Campaigns::window_bound( $local, 'ends_at' === $bound, $tz );
+			if ( is_wp_error( $utc ) ) { return Forms::error( $utc->get_error_code(), $utc->get_error_message() ); }
+			$window[ $bound ] = (string) $utc;
+		}
 		$result = Campaigns::create( array(
 			'code' => (string) ( $in['code'] ?? '' ),
 			'name' => Forms::text( $in, 'name' ),
@@ -67,8 +74,8 @@ final class CampaignsPage {
 			'usage_limit' => Forms::int( $in, 'usage_limit' ),
 			'priority' => Forms::int( $in, 'priority', 100 ),
 			'stacking' => Forms::flag( $in, 'exclusive' ) ? 'exclusive' : 'combinable',
-			'starts_at' => '' !== $starts ? Forms::local_to_utc( $starts, $tz ) : '',
-			'ends_at' => '' !== $ends ? Forms::local_to_utc( $ends, $tz ) : '',
+			'starts_at' => $window['starts_at'],
+			'ends_at' => $window['ends_at'],
 		) );
 		return is_wp_error( $result ) ? Forms::error( $result->get_error_code(), $result->get_error_message() ) : $result;
 	}

@@ -1648,6 +1648,12 @@ Rundungsregeln (alle in Ganzzahlen, ohne Gleitkomma):
   Rundungsrest nimmt die letzte passende Zeile, was sie nicht aufnehmen kann, die ersten Zeilen mit Platz.
   Die Zeilenrabatte ergeben genau den Rabatt; eine Zeile wird nie negativ. Für ältere Bestellungen ohne
   gespeicherten Zeilenrabatt gilt dieselbe Verteilung (`OrderLines::after_discount()`).
+- **Gültigkeit von Rabattcodes** (A616): Das Admin-Formular nimmt Ortszeit der Website; die REST-Route
+  `POST /events/{id}/campaigns` nimmt `starts_at`/`ends_at` als Ortszeit der Website (`JJJJ-MM-TT HH:MM`),
+  als ISO 8601 mit Zeitzone (`2026-12-24T18:00:00+01:00`, `…Z`) oder als reines Datum – dann gilt der Code ab
+  Tagesbeginn bzw. bis Tagesende (23:59:59 Ortszeit). Gespeichert wird UTC (`Campaigns::window_bound()`). Ein
+  unlesbarer Wert oder ein Ende vor dem Beginn ergibt 400 `wpcap_campaign_dates`, statt einen unbegrenzten
+  Code oder einen um Mitternacht UTC ablaufenden Code anzulegen.
 - **Umsatzsteuer**: je Zeile aus dem Brutto nach Rabatt, kaufmännisch gerundet
   (`Orders::gross_tax()`: Brutto × Satz / (10000 + Satz), ab ,5 aufgerundet). Die Summe der Zeilen ergibt
   die Steuer der Bestellung, je Steuersatz und insgesamt.

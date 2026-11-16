@@ -951,6 +951,13 @@ final class Controller {
 		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_campaign_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$payload = (array) $request->get_json_params();
 		$payload['event_id'] = $event_id;
+		// A616: local times (site time zone), ISO 8601 with offset, or a date (ends_at: end of that day) → UTC.
+		$timezone = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
+		foreach ( array( 'starts_at' => false, 'ends_at' => true ) as $bound => $is_end ) {
+			$utc = Campaigns::window_bound( $payload[ $bound ] ?? '', $is_end, $timezone );
+			if ( is_wp_error( $utc ) ) { return $utc; }
+			$payload[ $bound ] = (string) $utc;
+		}
 		if ( ! empty( $payload['ticket_type_id'] ) ) {
 			global $wpdb;
 			$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d AND o.event_id=%d", absint( $payload['ticket_type_id'] ), $event_id ) );

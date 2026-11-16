@@ -207,6 +207,50 @@ final class Campaigns {
 		return true;
 	}
 
+	/**
+	 * A616: one validity bound of a code given through the API, as UTC "Y-m-d H:i:s" (null = open).
+	 * Accepted: ISO 8601 with offset or Z (converted to UTC), a local date and time "Y-m-d H:i[:s]"
+	 * (also with "T") in $timezone, or a date "Y-m-d" – the start of that day for starts_at, its end
+	 * (23:59:59 local) for ends_at. Anything else is an error, never a silent "unlimited".
+	 *
+	 * @param mixed  $value    Raw value.
+	 * @param bool   $end      true for ends_at.
+	 * @param string $timezone Time zone of local values (site time zone).
+	 * @return string|null|\WP_Error
+	 */
+	public static function window_bound( $value, $end, $timezone ) {
+		$invalid = new \WP_Error( 'wpcap_campaign_dates', __( 'Gültig ab/bis ist kein gültiger Zeitpunkt (JJJJ-MM-TT, JJJJ-MM-TT HH:MM in Ortszeit oder ISO 8601 mit Zeitzone).', 'pass-captain' ), array( 'status' => 400, 'field' => $end ? 'ends_at' : 'starts_at' ) );
+		if ( null !== $value && ! is_string( $value ) ) { return $invalid; }
+		$value = trim( (string) $value );
+		if ( '' === $value ) { return null; }
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) { $value .= $end ? ' 23:59:59' : ' 00:00:00'; }
+		if ( preg_match( '/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)(?:\.\d+)?(Z|[+-]\d{2}:?\d{2})$/i', $value, $m ) ) {
+			$date = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i' . ( 8 === strlen( $m[2] ) ? ':s' : '' ) . 'P', $m[1] . ' ' . $m[2] . ( 'Z' === strtoupper( $m[3] ) ? '+00:00' : substr( $m[3], 0, 3 ) . ':' . substr( $m[3], -2 ) ) );
+			$errors = \DateTimeImmutable::getLastErrors();
+			if ( ! $date || ( is_array( $errors ) && ( $errors['warning_count'] || $errors['error_count'] ) ) ) { return $invalid; }
+			return $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		}
+		if ( Admin\Forms::is_valid_timezone( $timezone ) ) {
+			$utc = Admin\Forms::local_to_utc( $value, $timezone );
+			return null === $utc ? $invalid : $utc;
+		}
+		// Site with a fixed UTC offset (wp_timezone_string() returns "+01:00"): no DST to consider.
+		$local = str_replace( 'T', ' ', $value );
+		try {
+			$zone = new \DateTimeZone( '' !== (string) $timezone ? (string) $timezone : 'UTC' );
+		} catch ( \Exception $e ) {
+			$zone = new \DateTimeZone( 'UTC' );
+		}
+		$date = preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/', $local, $m ) ? \DateTimeImmutable::createFromFormat( '!Y-m-d H:i' . ( isset( $m[1] ) ? ':s' : '' ), $local, $zone ) : false;
+		$errors = \DateTimeImmutable::getLastErrors();
+		if ( ! $date || ( is_array( $errors ) && ( $errors['warning_count'] || $errors['error_count'] ) ) ) { return $invalid; }
+		return $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+	}
+
+	/**
+	 * Creates a code. starts_at/ends_at are UTC "Y-m-d H:i:s" (or empty for open); callers convert
+	 * local input first (admin form: Forms::local_to_utc(), REST: window_bound(), A616).
+	 */
 	public static function create( array $data ) {
 		global $wpdb;
 		$code = strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( $data['code'] ?? '' ) ) ) );
@@ -216,11 +260,23 @@ final class Campaigns {
 		if ( strlen( $code ) < 3 || strlen( $code ) > 32 || ! in_array( $kind, array( 'percent', 'fixed' ), true ) || ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! $value || ( 'percent' === $kind && $value > 10000 ) ) {
 			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Kampagnencode, Währung oder Rabattwert ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		$window = array();
+		foreach ( array( 'starts_at', 'ends_at' ) as $bound ) {
+			$raw = trim( Http::str( $data[ $bound ] ?? '' ) );
+			$parsed = '' === $raw ? false : \DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $raw, new \DateTimeZone( 'UTC' ) );
+			if ( '' !== $raw && ( ! $parsed || $parsed->format( 'Y-m-d H:i:s' ) !== $raw ) ) {
+				return new \WP_Error( 'wpcap_campaign_dates', __( 'Gültig ab/bis ist kein gültiger Zeitpunkt (JJJJ-MM-TT, JJJJ-MM-TT HH:MM in Ortszeit oder ISO 8601 mit Zeitzone).', 'pass-captain' ), array( 'status' => 400, 'field' => $bound ) );
+			}
+			$window[ $bound ] = '' === $raw ? null : $raw;
+		}
+		if ( $window['starts_at'] && $window['ends_at'] && $window['ends_at'] <= $window['starts_at'] ) {
+			return new \WP_Error( 'wpcap_campaign_dates', __( 'Das Ende der Gültigkeit muss nach dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400, 'field' => 'ends_at' ) );
+		}
 		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_campaigns', array(
 			'event_id' => absint( $data['event_id'] ?? 0 ), 'ticket_type_id' => absint( $data['ticket_type_id'] ?? 0 ), 'code' => $code,
 			'name' => sanitize_text_field( $data['name'] ?? $code ), 'kind' => $kind, 'discount_value' => $value, 'currency' => $currency,
 			'usage_limit' => absint( $data['usage_limit'] ?? 0 ), 'used_count' => 0, 'priority' => min( 1000, absint( $data['priority'] ?? 100 ) ),
-			'starts_at' => sanitize_text_field( $data['starts_at'] ?? '' ) ?: null, 'ends_at' => sanitize_text_field( $data['ends_at'] ?? '' ) ?: null,
+			'starts_at' => $window['starts_at'], 'ends_at' => $window['ends_at'],
 			'status' => 'active', 'created_at' => current_time( 'mysql', true ),
 			'stacking' => 'exclusive' === ( $data['stacking'] ?? '' ) ? 'exclusive' : 'combinable',
 		), array( '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
