@@ -4033,7 +4033,8 @@ final class Orders {
 		if ( '' !== $request_key ) {
 			// A533: one resend per form submission. Checked and recorded under the order lock, so a double
 			// click (two requests) cannot rotate the codes twice; a failed resend frees the key again.
-			$marker = hash( 'sha256', 'resend|' . $order_id . '|' . $request_key );
+			// 48 hex characters: a full 64-hex hash would be masked in the audit details (Security\Redact).
+			$marker = substr( hash( 'sha256', 'resend|' . $order_id . '|' . $request_key ), 0, 48 );
 			if ( false === self::begin() ) { return $busy(); }
 			$wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_orders', $order_id ) );
 			$seen = '' === $wpdb->last_error ? $wpdb->get_row( $wpdb->prepare( "SELECT SUM(action='tickets_resend_request') AS requested,SUM(action='tickets_resend_request_failed') AS failed FROM %i WHERE object_type='order' AND object_id=%d AND action IN ('tickets_resend_request','tickets_resend_request_failed') AND details LIKE %s", $wpdb->prefix . 'wpcap_audit_logs', $order_id, '%' . $wpdb->esc_like( $marker ) . '%' ) ) : null;
