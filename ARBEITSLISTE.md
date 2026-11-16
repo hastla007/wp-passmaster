@@ -687,21 +687,21 @@ Gesamt: 262 Aufgaben.
   - src/Printing/AttendeeList.php:74, NoShowList.php:62, GuestLists/Page.php:158, BoxOffice/ZReport.php:439/466, Service.php:736, Reports/Settlement.php:297: determine_locale() verwenden
 - [ ] **A321** [WICHTIG] A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L652; Audit Runde 4)
   - tests/a11y/run.js, keyboard.js: Kalender, Saalplan, Portal-Dialoge, PWA, Kasse, Mobile/Reflow 320 px/400 %, Dark Mode, RTL, Live-Regionen, Nicht-JSON-Fehler, Tastatur-Scanner, bfcache, mehrere Shortcodes
-- [ ] **A322** [WICHTIG] Checkout-Fehler ohne Spur verschluckt — _R2 Support_ (TODO L653; Audit Runde 4)
+- [x] **A322** [WICHTIG] Checkout-Fehler ohne Spur verschluckt — _R2 Support_ (TODO L653; Audit Runde 4)
   - src/Orders.php:319–347 (catch Throwable): Zentrales Fehlerprotokoll (Klasse, Code, Datei:Zeile, last_error) + Fehler-ID für Käufer
-- [ ] **A323** [WICHTIG] Webhook-Abstürze und Signaturfehler hinterlassen keine Spur — _R2 Support_ (TODO L654; Audit Runde 4)
+- [x] **A323** [WICHTIG] Webhook-Abstürze und Signaturfehler hinterlassen keine Spur — _R2 Support_ (TODO L654; Audit Runde 4)
   - src/Payments/Webhooks.php:18–22, :71–73: Zähler + letzte Fehlermeldung je Provider, sofort in Site Health
-- [ ] **A324** [WICHTIG] Zahlungsstart-Fehler mit Rohtext an Käufer statt an Admin — _R2 Support_ (TODO L655; Audit Runde 4)
+- [x] **A324** [WICHTIG] Zahlungsstart-Fehler mit Rohtext an Käufer statt an Admin — _R2 Support_ (TODO L655; Audit Runde 4)
   - src/Rest/Controller.php:373–375, StripeGateway.php:286/293, PayPalGateway.php:364/370/412: Neutraler Text + Fehler-ID; Providertext speichern, Admin-Hinweis bei Häufung
-- [ ] **A325** [WICHTIG] Grund für Dead Letter geht verloren (immer gleicher Text) — _R2 Support_ (TODO L656; Audit Runde 4)
+- [x] **A325** [WICHTIG] Grund für Dead Letter geht verloren (immer gleicher Text) — _R2 Support_ (TODO L656; Audit Runde 4)
   - src/Jobs.php:59, Orders.php:1687–1706, Communications.php:67: Handler dürfen WP_Error liefern → last_error; Mail-Queue übernimmt Monitor-Fehler
-- [ ] **A326** [WICHTIG] Dead Letters keiner Bestellung zuordenbar — _R2 Support_ (TODO L657; Audit Runde 4)
+- [x] **A326** [WICHTIG] Dead Letters keiner Bestellung zuordenbar — _R2 Support_ (TODO L657; Audit Runde 4)
   - src/Operations/Queues.php:146, 162–174, Admin/OperationsPage.php:132: order_id/ticket_id/occurrence_id als Wert mit Link
-- [ ] **A327** [WICHTIG] Kein zentraler Logger, kein Debug-Modus — _R2 Support_ (TODO L658; Audit Runde 4)
+- [x] **A327** [WICHTIG] Kein zentraler Logger, kein Debug-Modus — _R2 Support_ (TODO L658; Audit Runde 4)
   - src/CapacityCounters.php:546 (einziges error_log), Monitor.php:17: Log-Klasse mit Stufen/Kanal, WPCAP_DEBUG/Einstellung, eigene rotierende Tabelle mit Redaction, Admin-Ansicht je Bestellung
-- [ ] **A328** [WICHTIG] Bestellung ohne Zeitleiste und Korrelations-ID; Mail-Erfolg nicht protokolliert — _R2 Support_ (TODO L659; Audit Runde 4)
+- [x] **A328** [WICHTIG] Bestellung ohne Zeitleiste und Korrelations-ID; Mail-Erfolg nicht protokolliert — _R2 Support_ (TODO L659; Audit Runde 4)
   - src/Admin/OrdersPage.php:409–540, Orders.php:1675: Abschnitt „Verlauf“ (Audit, Payment-Events, Mails, Jobs), order_id in message_queue
-- [ ] **A329** [WICHTIG] Website-Zustand-Info taugt nicht als Support-Export — _R2 Support_ (TODO L660; Audit Runde 4)
+- [x] **A329** [WICHTIG] Website-Zustand-Info taugt nicht als Support-Export — _R2 Support_ (TODO L660; Audit Runde 4)
   - src/Operations/SiteHealth.php:357ff.: Version, db_version, Fingerprint, schema_error, Module, Provider + Modus, WC, Währung, Locale, Holds, letzte Fehler
 - [ ] **A330** [WICHTIG] Zwei PDF-Engines; Mail-PDF zerstört Nicht-Latin-1-Zeichen, ignoriert Druckvorlagen — _R2 Support_ (TODO L661; Audit Runde 4)
   - src/TicketPdf.php:97/116–119, Printing/PdfWriter.php:152–154: Über Printing\Templates/PdfWriter, Unicode-Schrift einbetten, Fußzeile je Ticketart/Pass
@@ -733,7 +733,7 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:1089–1092, :1002–1005 (confirm_external_payment), Webhooks.php:121/142–147: issue_failed() ignoriert → Event processed. Job ticket_issue_retry anlegen (prüfen gegen A183-Stand)
 - [x] **A344** [WICHTIG] WooCommerce: Zahlungsbestätigung und Teilerstattung ohne Wiederholung bei „busy“ — _R2 API_ (TODO L675; Audit Runde 4)
   - src/Integrations/WooCommerce/OrderAdapter.php:669–674, :797–803: Retry-Jobs paid-sync/refund-sync je Woo-Refund-ID
-- [ ] **A345** [WICHTIG] Offline-Scanner: Serverfehler löscht offline erfolgten Einlass endgültig — _R2 API_ (TODO L676; Audit Runde 4)
+- [x] **A345** [WICHTIG] Offline-Scanner: Serverfehler löscht offline erfolgten Einlass endgültig — _R2 API_ (TODO L676; Audit Runde 4)
   - src/Mobile/Api.php:188–199 (sync), assets/offline-scanner/app.js:529–535, Checkin.php:295: retryable an Client, nicht als synchronisiert markieren bzw. Konflikt erfassen
 - [x] **A346** [WICHTIG] Stripe: Vollerstattungs-Webhook während eigener Erstattung → Erstattung über 0 € mit Gutschrift — _R2 API_ (TODO L677; Audit Runde 4)
   - src/Payments/StripeGateway.php:218–221, Webhooks.php:212–229, Refunds.php:436–455: Auch bei refunded=true wpcap_refund prüfen/kumulativ abgleichen, 0 € nicht buchen
@@ -1230,17 +1230,17 @@ Gesamt: 262 Aufgaben.
   - src/Modules/Reminders.php:37–46, :98, :141–155: Locale im Payload, Vorlagen je Sprache, Platzhalter für Ticket-/Portalzugang
 - [ ] **A588** [WICHTIG] Zustellung/Wiederherstellung hängt am Klartext-Code der ersten Mail (blinder Fleck) — _R4 Dokumente/Mail/Wallet_ (TODO L928; Audit Runde 4)
   - Orders, PortalSelfService, WalletPasses: Code verschlüsselt speichern, Zustellkontrolle (Größe, Bounce)
-- [ ] **A589** [WICHTIG] Gleicher Idempotency-Key bei parallelem Retry mehrfach eingelöst; offline-sync ohne Key — _R4 Ticket-Sicherheit_ (TODO L929; Audit Runde 4)
+- [x] **A589** [WICHTIG] Gleicher Idempotency-Key bei parallelem Retry mehrfach eingelöst; offline-sync ohne Key — _R4 Ticket-Sicherheit_ (TODO L929; Audit Runde 4)
   - src/Checkin.php:166–179, Installer.php:231 (Index nicht UNIQUE), Rest/Controller.php:606–619: UNIQUE (user_id, idempotency_key) bzw. Key-Reservierung, Prüfung nach Ticket-Sperre (belegt 6/6)
-- [ ] **A590** [WICHTIG] „Check-in zurücknehmen“ macht erstattete Tickets wieder einlassfähig — _R4 Ticket-Sicherheit_ (TODO L930; Audit Runde 4)
+- [x] **A590** [WICHTIG] „Check-in zurücknehmen“ macht erstattete Tickets wieder einlassfähig — _R4 Ticket-Sicherheit_ (TODO L930; Audit Runde 4)
   - src/Admin/TicketsPage.php:82–108, Mobile/Api.php:159, Checkin.php:87–115, Refunds.php:384–393: Undo bei refunded/unbezahlt ablehnen, lookup prüft refunded=0 (belegt)
-- [ ] **A591** [WICHTIG] Gästelisten-„Angekommen“ zerstört bei abgelehntem Check-in die Ticketcodes — _R4 Ticket-Sicherheit_ (TODO L931; Audit Runde 4)
+- [x] **A591** [WICHTIG] Gästelisten-„Angekommen“ zerstört bei abgelehntem Check-in die Ticketcodes — _R4 Ticket-Sicherheit_ (TODO L931; Audit Runde 4)
   - src/GuestLists/Service.php:646–651: Erst einchecken per ticket_id unter Sperre, Bereich übergeben, nie vorab rotieren (belegt)
-- [ ] **A592** [WICHTIG] Offline-Upload mit frei gewähltem scanned_at umgeht Einlassfenster und Bereichskapazität — _R4 Ticket-Sicherheit_ (TODO L932; Audit Runde 4)
+- [x] **A592** [WICHTIG] Offline-Upload mit frei gewähltem scanned_at umgeht Einlassfenster und Bereichskapazität — _R4 Ticket-Sicherheit_ (TODO L932; Audit Runde 4)
   - src/Admission/Rest.php:62–70, Mobile/Api.php:184–186, Checkin.php:39–46/224/236, OfflineScanner/Sync.php:250, Rest/Controller.php:925: Nur freigegebene Events/gekoppelte Geräte, zurückdatierte Einlässe immer als Konflikt, source nie vom Client (belegt)
-- [ ] **A593** [WICHTIG] Käufer-Code-Rotationen während des Einlasses erzeugen „offline gültig, online ungültig“ (erweitert A211) — _R4 Ticket-Sicherheit_ (TODO L933; Audit Runde 4)
+- [x] **A593** [WICHTIG] Käufer-Code-Rotationen während des Einlasses erzeugen „offline gültig, online ungültig“ (erweitert A211) — _R4 Ticket-Sicherheit_ (TODO L933; Audit Runde 4)
   - src/Rest/Controller.php:503–521, PortalSelfService.php:150ff., Orders.php:1481: Selbstbedienungs-Rotation ab Einlassbeginn bzw. nach Paketausgabe sperren
-- [ ] **A594** [WICHTIG] Einlass-Garantien nur im Normalpfad getestet — _R4 Ticket-Sicherheit_ (TODO L934; Audit Runde 4)
+- [x] **A594** [WICHTIG] Einlass-Garantien nur im Normalpfad getestet — _R4 Ticket-Sicherheit_ (TODO L934; Audit Runde 4)
   - tests/: Tests für parallele Retries, Client-Zeit/-Quelle, Statuswechsel außerhalb Checkin
 - [ ] **A595** [OPTIMIERUNG] Doppelscan-Anzeige ohne Gerät/Person, nicht in Ortszeit; PWA offline ohne Zeit (erweitert A089) — _R4 Käufer-UX/Einlass_ (TODO L935; Audit Runde 4)
   - src/Checkin.php:468–486, scanner.js:101–108, app.js:103–106/173–181: device_label/Name im Payload, Termin-TZ, lokale Zeit aus Log
@@ -1332,7 +1332,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
 
 - [ ] **A632** [KRITISCH] Abgelaufene Gutscheinbestellung: späte Zahlung über den reduzierten Betrag stellt Tickets aus — _Sicherheitsaudit 14.11. #2_ (TODO L1062; Sicherheitsaudit 2026-11-14)
   - Gutschein-Reservierung bei release() und Betrag zusammenführen: vor „bezahlt“ neu reservieren oder auf needs_review/paid_unallocated leiten, Hinweis in der Bestellansicht, Integrationstest.
-- [ ] **A633** [WICHTIG] Einlass-Undo ohne Bereichsbindung, Zeitfenster und Protokoll (Gerät/Bereich) — _Sicherheitsaudit 14.11. #4_ (TODO L1064; Sicherheitsaudit 2026-11-14)
+- [x] **A633** [WICHTIG] Einlass-Undo ohne Bereichsbindung, Zeitfenster und Protokoll (Gerät/Bereich) — _Sicherheitsaudit 14.11. #4_ (TODO L1064; Sicherheitsaudit 2026-11-14)
   - Areas::check in undo_checkin/undo_last/Mobile-Undo, Undo für Türpersonal auf eigene Scans/Zeitfenster begrenzen, device_id/area_id protokollieren (Paket R1 zusammen mit A590).
 - [ ] **A634** [WICHTIG] Unbezahlte Überweisungs-Bestellungen halten Kontingent ohne Obergrenze je Event/Menge — _Sicherheitsaudit 14.11. #7_ (TODO L1067; Sicherheitsaudit 2026-11-14)
   - Obergrenze für gehaltene Menge je Event (atomar), Doku in docs/SECURITY.md; Restarbeit zu A265/manual_hold_limit.
@@ -1360,7 +1360,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Token per Header/POST, Cast ergänzen, GET übergangsweise mit Deprecation.
 - [ ] **A646** [OPTIMIERUNG] Alte Seat-Hold-Routen anonym nutzbar, alte Sitzplanversionen nie zurückgezogen — _Sicherheitsaudit 14.11. #19_ (TODO L1082; Sicherheitsaudit 2026-11-14)
   - Routen entfernen oder an Bestellung binden; alte Versionen zurückziehen.
-- [ ] **A647** [OPTIMIERUNG] Web-Check-in übernimmt source vom Client (offline umgeht Bereichskapazität) — _Sicherheitsaudit 14.11. #20_ (TODO L1083; Sicherheitsaudit 2026-11-14)
+- [x] **A647** [OPTIMIERUNG] Web-Check-in übernimmt source vom Client (offline umgeht Bereichskapazität) — _Sicherheitsaudit 14.11. #20_ (TODO L1083; Sicherheitsaudit 2026-11-14)
   - source im Web-Scanner fest auf web.
 - [ ] **A648** [OPTIMIERUNG] Wallet: push_token für alle Pässe eines Geräts, globales serve_raw, Schlüssel doppelt genutzt — _Sicherheitsaudit 14.11. #21_ (TODO L1084; Sicherheitsaudit 2026-11-14)
   - Update auf die Seriennummer beschränken, eigene Response statt __wpcap_raw, abgeleiteter HMAC-Schlüssel.
