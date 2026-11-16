@@ -911,6 +911,8 @@ final class Installer {
 		// dbDelta reports no errors: verify every table/column exists before the version is stored,
 		// otherwise the next request would rely on a schema that is not there.
 		$missing = self::missing_schema( $all_queries );
+		// A513: indexes are part of the schema, too – a failed index change is not silently stored as done.
+		$missing = array_merge( $missing, self::missing_indexes( $all_queries ) );
 		if ( $missing ) {
 			self::record_failure( array_slice( $missing, 0, 50 ), Redact::text( (string) $wpdb->last_error ) );
 			if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
@@ -1311,13 +1313,7 @@ final class Installer {
 		foreach ( $queries as $query ) {
 			if ( ! preg_match( '/CREATE TABLE\s+`?([A-Za-z0-9_]+)`?\s*\((.*)\)[^)]*$/s', (string) $query, $m ) ) { continue; }
 			$table = $m[1];
-			$existing = array();
-			foreach ( (array) $wpdb->get_results( "SHOW INDEX FROM `$table`" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from our own schema.
-				$row = (array) $row;
-				$name = (string) $row['Key_name'];
-				$existing[ $name ]['unique'] = ! (int) $row['Non_unique'];
-				$existing[ $name ]['columns'][ (int) $row['Seq_in_index'] ] = strtolower( (string) $row['Column_name'] ) . ( null !== $row['Sub_part'] && '' !== (string) $row['Sub_part'] ? '(' . (int) $row['Sub_part'] . ')' : '' );
-			}
+			$existing = self::existing_indexes( $table );
 			if ( ! $existing ) { continue; }
 			$short = substr( $table, strlen( (string) $wpdb->prefix ) );
 			foreach ( self::OBSOLETE_INDEXES[ $short ] ?? array() as $name ) {
@@ -1325,21 +1321,76 @@ final class Installer {
 					$changed[] = "$table.$name";
 				}
 			}
-			foreach ( preg_split( '/\R/', $m[2] ) as $line ) {
-				if ( ! preg_match( '/^\s*(UNIQUE\s+KEY|UNIQUE\s+INDEX|KEY|INDEX)\s+`?([A-Za-z0-9_]+)`?\s*\((.+)\)\s*,?\s*$/i', $line, $k ) ) { continue; }
-				$name = $k[2];
-				if ( ! isset( $existing[ $name ] ) ) { continue; } // dbDelta adds missing indexes.
-				$unique = 0 === stripos( $k[1], 'UNIQUE' );
-				$columns = array_map( static fn( $c ) => strtolower( (string) preg_replace( '/[\s`]/', '', $c ) ), explode( ',', $k[3] ) );
-				ksort( $existing[ $name ]['columns'] );
-				if ( $unique === $existing[ $name ]['unique'] && array_values( $existing[ $name ]['columns'] ) === $columns ) { continue; }
-				$type = $unique ? 'UNIQUE KEY' : 'KEY';
-				if ( false !== $wpdb->query( "ALTER TABLE `$table` DROP INDEX `$name`, ADD $type `$name` ({$k[3]})" ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- definition from our own schema.
+			foreach ( self::declared_indexes( $m[2] ) as $name => $index ) {
+				if ( 'PRIMARY' === $name || ! isset( $existing[ $name ] ) ) { continue; } // dbDelta adds missing indexes.
+				if ( $index['unique'] === $existing[ $name ]['unique'] && $index['columns'] === $existing[ $name ]['columns'] ) { continue; }
+				$type = $index['unique'] ? 'UNIQUE KEY' : 'KEY';
+				if ( false !== $wpdb->query( "ALTER TABLE `$table` DROP INDEX `$name`, ADD $type `$name` ({$index['definition']})" ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- definition from our own schema.
 					$changed[] = "$table.$name";
 				}
 			}
 		}
 		return $changed;
+	}
+
+	/**
+	 * Indexes of the CREATE TABLE statements that are missing in the database or differ from their
+	 * declaration (columns, prefix lengths, uniqueness) after dbDelta and upgrade_indexes() – e.g. a
+	 * UNIQUE KEY that could not be built over duplicate rows, or an ALTER that hit a lock timeout
+	 * (A513). Reported as "table: index name" next to missing tables/columns (wpcap_schema_error).
+	 *
+	 * @param string[] $queries CREATE TABLE statements (dbDelta format).
+	 * @return string[]
+	 */
+	public static function missing_indexes( array $queries ) {
+		$missing = array();
+		foreach ( $queries as $query ) {
+			if ( ! preg_match( '/CREATE TABLE\s+`?([A-Za-z0-9_]+)`?\s*\((.*)\)[^)]*$/s', (string) $query, $m ) ) { continue; }
+			$existing = self::existing_indexes( $m[1] );
+			if ( ! $existing ) { continue; } // A missing table is reported by missing_schema().
+			foreach ( self::declared_indexes( $m[2] ) as $name => $index ) {
+				if ( isset( $existing[ $name ] ) && $index['unique'] === $existing[ $name ]['unique'] && $index['columns'] === $existing[ $name ]['columns'] ) { continue; }
+				$missing[] = $m[1] . ': index ' . $name;
+			}
+		}
+		return $missing;
+	}
+
+	/**
+	 * Indexes of a table as the database has them: name => [unique, columns] (lower case, prefix
+	 * lengths as "col(64)"). Empty when the table does not exist.
+	 */
+	private static function existing_indexes( $table ) {
+		global $wpdb;
+		$existing = array();
+		foreach ( (array) $wpdb->get_results( "SHOW INDEX FROM `$table`" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from our own schema.
+			$row = (array) $row;
+			$name = (string) $row['Key_name'];
+			$existing[ $name ]['unique'] = ! (int) $row['Non_unique'];
+			$existing[ $name ]['columns'][ (int) $row['Seq_in_index'] ] = strtolower( (string) $row['Column_name'] ) . ( null !== $row['Sub_part'] && '' !== (string) $row['Sub_part'] ? '(' . (int) $row['Sub_part'] . ')' : '' );
+		}
+		foreach ( $existing as $name => $index ) {
+			ksort( $index['columns'] );
+			$existing[ $name ]['columns'] = array_values( $index['columns'] );
+		}
+		return $existing;
+	}
+
+	/** Indexes declared in the body of a CREATE TABLE statement: name => [unique, columns, definition]. */
+	private static function declared_indexes( $body ) {
+		$declared = array();
+		foreach ( preg_split( '/\R/', (string) $body ) as $line ) {
+			if ( ! preg_match( '/^\s*(PRIMARY\s+KEY|UNIQUE\s+KEY|UNIQUE\s+INDEX|KEY|INDEX)\s+(?:`?([A-Za-z0-9_]+)`?\s*)?\((.+)\)\s*,?\s*$/i', $line, $k ) ) { continue; }
+			$primary = 0 === stripos( $k[1], 'PRIMARY' );
+			$name = $primary ? 'PRIMARY' : (string) $k[2];
+			if ( '' === $name ) { continue; }
+			$declared[ $name ] = array(
+				'unique' => $primary || 0 === stripos( $k[1], 'UNIQUE' ),
+				'columns' => array_map( static fn( $c ) => strtolower( (string) preg_replace( '/[\s`]/', '', $c ) ), explode( ',', $k[3] ) ),
+				'definition' => $k[3],
+			);
+		}
+		return $declared;
 	}
 
 	/** Cron hook that performs a deferred upgrade (scheduled by frontend requests). */

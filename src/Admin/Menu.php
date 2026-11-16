@@ -111,7 +111,7 @@ final class Menu {
 		if ( ! is_array( $error ) || ! current_user_can( 'manage_options' ) ) { return; }
 		$retry_at = \PassCaptain\Installer::retry_at();
 		$attempts = max( 1, (int) ( $error['attempts'] ?? 1 ) );
-		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Das Datenbank-Update ist unvollständig.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Update danach erneut starten.', 'pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p><p>';
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Das Datenbank-Update ist unvollständig.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen, Spalten oder Indizes; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Update danach erneut starten.', 'pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p><p>';
 		if ( $retry_at ) {
 			/* translators: 1: number of failed attempts, 2: date and time of the next automatic attempt */
 			echo esc_html( sprintf( _n( '%1$d Versuch fehlgeschlagen. Nächster automatischer Versuch: %2$s.', '%1$d Versuche fehlgeschlagen. Nächster automatischer Versuch: %2$s.', $attempts, 'pass-captain' ), $attempts, wp_date( 'd.m.Y H:i', $retry_at ) ) ) . ' ';
