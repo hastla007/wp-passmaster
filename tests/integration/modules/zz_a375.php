@@ -6,7 +6,10 @@
 use PassCaptain\Operations\SiteHealth;
 use PassCaptain\Settings;
 
+if ( ! function_exists( "esc_url" ) ) { function esc_url( $u ) { return (string) $u; } }
 echo "A375: site health REST/proxy\n";
+$a375_resolve = static function ( $ips, $host ) { return 'example.test' === $host ? array( '93.184.216.34' ) : $ips; };
+add_filter( 'wpcap_outbound_resolve', $a375_resolve, 10, 2 );
 check( 'A375: both tests are registered', isset( SiteHealth::test_callbacks()['rest_anonymous'], SiteHealth::test_callbacks()['proxy'] ) );
 
 $a375_probe = static function ( $code ) {
@@ -25,7 +28,8 @@ $a375_blocked = $a375_probe( 403 );
 check( 'A375: 403 for guests is critical and names the namespace', 'critical' === $a375_blocked['status'] && str_contains( $a375_blocked['description'], 'pass-captain/v1' ) && str_contains( $a375_blocked['description'], '403' ) );
 check( 'A375: 401 is critical as well', 'critical' === $a375_probe( 401 )['status'] );
 $a375_err = $a375_probe( new WP_Error( 'http_request_failed', 'cURL error 7' ) );
-check( 'A375: loopback failure is only a recommendation with the error', 'recommended' === $a375_err['status'] && str_contains( $a375_err['description'], 'cURL error 7' ) );
+check( 'A375: loopback failure is only a recommendation', 'recommended' === $a375_err['status'] && str_contains( $a375_err['description'], 'nicht erreichbar' ) );
+remove_filter( 'wpcap_outbound_resolve', $a375_resolve, 10 );
 delete_transient( SiteHealth::REST_PROBE_TRANSIENT );
 $GLOBALS['wpcap_test_http_queue'] = array();
 

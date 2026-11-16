@@ -474,7 +474,9 @@ foreach ( $a194_fuzz_targets as $a194_target => $a194_call ) {
 			$a194_ok = $a194_r['res'] instanceof WP_Error && $a194_r['status'] >= 400 && $a194_r['status'] < 500;
 			if ( ! $a194_ok && ! $a194_r['res'] instanceof WP_Error && $a194_r['status'] < 300 && ( in_array( $a194_value, array( null, '', ' ' ), true ) || in_array( $a194_field, $a194_tolerant[ $a194_target ] ?? array(), true ) ) ) { $a194_ok = true; }
 			$a194_text = a194_text( $a194_r['res'] );
-			$a194_clean = ! $a194_r['issues'] && '' === $a194_r['output'] && false === strpos( $a194_text, '#0 ' ) && false === stripos( $a194_text, 'stack trace' ) && false === stripos( $a194_text, '.php' ) && strlen( $a194_text ) < 4000;
+			// Trace/length checks apply to error answers; an accepted checkout may carry long data (A601 GiroCode SVG).
+			$a194_err_text = $a194_r['res'] instanceof WP_Error ? $a194_text : '';
+			$a194_clean = ! $a194_r['issues'] && '' === $a194_r['output'] && false === strpos( $a194_err_text, '#0 ' ) && false === stripos( $a194_err_text, 'stack trace' ) && false === stripos( $a194_err_text, '.php' ) && strlen( $a194_err_text ) < 4000;
 			if ( ! $a194_ok || ! $a194_clean ) {
 				$a194_bad[] = "$a194_target.$a194_field=$a194_label → " . $a194_r['status'] . ' ' . substr( $a194_text, 0, 140 ) . ( $a194_r['issues'] ? ' [' . substr( $a194_r['issues'][0], 0, 160 ) . ']' : '' ) . ( '' !== $a194_r['output'] ? ' [output]' : '' );
 			}

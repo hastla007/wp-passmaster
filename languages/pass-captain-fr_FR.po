@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T19:19:02+00:00\n"
+"POT-Creation-Date: 2026-11-16T19:26:37+00:00\n"
 "PO-Revision-Date: 2026-11-14 17:14+0000\n"
 "Language: fr_FR\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
@@ -222,10 +222,10 @@ msgstr "Clé API révoquée."
 #: src/BoxOffice/Service.php:998
 #: src/BoxOffice/Service.php:1083
 #: src/BoxOffice/ShiftPage.php:154
-#: src/BoxOffice/ShiftPage.php:397
-#: src/BoxOffice/ShiftPage.php:407
-#: src/BoxOffice/ShiftPage.php:415
-#: src/BoxOffice/ShiftPage.php:424
+#: src/BoxOffice/ShiftPage.php:408
+#: src/BoxOffice/ShiftPage.php:418
+#: src/BoxOffice/ShiftPage.php:426
+#: src/BoxOffice/ShiftPage.php:435
 #: src/BoxOffice/Shifts.php:188
 #: src/BoxOffice/Shifts.php:280
 #: src/BoxOffice/Shifts.php:567
@@ -335,14 +335,14 @@ msgstr "Il n’y a aucun événement pour lequel vous pouvez créer des clés."
 #: src/Allocations/AdminPage.php:260
 #: src/Allocations/AdminPage.php:310
 #: src/BoxOffice/Page.php:172
-#: src/BoxOffice/ShiftPage.php:428
-#: src/BoxOffice/ShiftPage.php:453
+#: src/BoxOffice/ShiftPage.php:439
+#: src/BoxOffice/ShiftPage.php:464
 #: src/GuestLists/Page.php:164
 #: src/GuestLists/Page.php:247
 #: src/GuestLists/Page.php:268
 #: src/GuestLists/Page.php:297
 #: src/GuestLists/Page.php:332
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Integrations/ConnectorsPage.php:144
 #: src/Integrations/ConnectorsPage.php:168
 #: src/Integrations/WooCommerce/Attendees.php:319
@@ -393,7 +393,7 @@ msgstr "Nom"
 #: src/Admission/RulesPage.php:178
 #: src/Allocations/AdminPage.php:214
 #: src/Allocations/BuyerLimits.php:224
-#: src/BoxOffice/ShiftPage.php:428
+#: src/BoxOffice/ShiftPage.php:439
 #: src/Exchange/AdminPage.php:301
 #: src/GuestLists/Page.php:185
 #: src/Integrations/ConnectorsPage.php:247
@@ -547,13 +547,13 @@ msgstr "Valable jusqu’au"
 #: src/Admission/ConflictsPage.php:100
 #: src/Admission/RulesPage.php:200
 #: src/Allocations/AdminPage.php:260
-#: src/BoxOffice/ShiftPage.php:428
-#: src/BoxOffice/ShiftPage.php:477
+#: src/BoxOffice/ShiftPage.php:439
+#: src/BoxOffice/ShiftPage.php:488
 #: src/Exchange/AdminPage.php:146
 #: src/Frontend/ServiceBooking.php:135
 #: src/GuestLists/Page.php:164
 #: src/GuestLists/Page.php:268
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Integrations/ConnectorsPage.php:144
 #: src/Integrations/ConnectorsPage.php:193
 #: src/Integrations/ConnectorsPage.php:207
@@ -645,7 +645,7 @@ msgstr "Actions"
 #: src/Admission/RulesPage.php:243
 #: src/Allocations/AdminPage.php:231
 #: src/Allocations/AdminPage.php:291
-#: src/BoxOffice/ShiftPage.php:479
+#: src/BoxOffice/ShiftPage.php:490
 #: src/Exchange/AdminPage.php:290
 #: src/Mail/Admin.php:262
 #: src/Modules/Calendar.php:502
@@ -666,8 +666,8 @@ msgstr "Enregistrer"
 
 #: src/Admin/ApiKeysPage.php:161
 #: src/Allocations/AdminPage.php:268
-#: src/Operations/SiteHealth.php:529
-#: src/Operations/SiteHealth.php:570
+#: src/Operations/SiteHealth.php:533
+#: src/Operations/SiteHealth.php:574
 msgid "nie"
 msgstr "jamais"
 
@@ -792,7 +792,7 @@ msgstr "– Choisir un événement –"
 #: src/Admin/WaitlistsPage.php:149
 #: src/Admission/RulesPage.php:179
 #: src/BoxOffice/Page.php:114
-#: src/BoxOffice/ShiftPage.php:343
+#: src/BoxOffice/ShiftPage.php:354
 #: src/GuestLists/Page.php:187
 #: src/OfflineScanner/AdminPage.php:136
 #: src/Partners/AdminPage.php:548
@@ -865,7 +865,7 @@ msgstr "Une personne affectée à au moins une date pour un droit n’accède pl
 #: src/GuestLists/Page.php:221
 #: src/GuestLists/Page.php:250
 #: src/GuestLists/Page.php:320
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/OfflineScanner/AdminPage.php:170
 #: src/OfflineScanner/AdminPage.php:185
 #: src/OfflineScanner/I18n.php:102
@@ -1442,7 +1442,7 @@ msgstr "Organisateur"
 #: src/GuestLists/Page.php:164
 #: src/GuestLists/Page.php:221
 #: src/GuestLists/Page.php:332
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/blocks/calendar/editor.js:60
 msgid "Liste"
 msgstr "Liste"
@@ -1531,7 +1531,7 @@ msgstr "%1$d entrées · heures en %2$s"
 #: src/Admin/OrderHistory.php:141
 #: src/Admin/StatusPage.php:288
 #: src/Admin/StatusPage.php:354
-#: src/BoxOffice/ShiftPage.php:180
+#: src/BoxOffice/ShiftPage.php:191
 #: src/Integrations/ConnectorsPage.php:207
 msgid "Zeit"
 msgstr "Heure"
@@ -1624,10 +1624,10 @@ msgid "Status gespeichert."
 msgstr "Statut enregistré."
 
 #: src/Admin/CampaignsPage.php:187
-#: src/BoxOffice/ShiftPage.php:434
+#: src/BoxOffice/ShiftPage.php:445
 #: src/BoxOffice/ZReport.php:398
-#: src/Operations/SiteHealth.php:522
-#: src/Operations/SiteHealth.php:621
+#: src/Operations/SiteHealth.php:526
+#: src/Operations/SiteHealth.php:625
 #: src/WalletPasses/AdminPage.php:135
 msgid "ja"
 msgstr "oui"
@@ -1707,7 +1707,7 @@ msgstr "0 = illimité."
 #: src/Admin/CampaignsPage.php:306
 #: src/Admin/ServiceSlotsPage.php:167
 #: src/Admin/ServicesPage.php:296
-#: src/BoxOffice/ShiftPage.php:478
+#: src/BoxOffice/ShiftPage.php:489
 #: src/Modules/Sms.php:552
 msgid "Deaktiviert"
 msgstr "Désactivé"
@@ -1746,7 +1746,7 @@ msgstr "Limite atteinte"
 #: src/Admin/SettingsPage.php:939
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:276
-#: src/BoxOffice/ShiftPage.php:478
+#: src/BoxOffice/ShiftPage.php:489
 #: src/Integrations/ConnectorsPage.php:193
 #: src/Modules/Fiscalization.php:1351
 #: src/Modules/Reminders.php:466
@@ -1838,7 +1838,7 @@ msgstr "Cumulable"
 #: src/Admin/ServicesPage.php:253
 #: src/Admin/TicketsPage.php:437
 #: src/Admission/ConflictsPage.php:74
-#: src/BoxOffice/ShiftPage.php:473
+#: src/BoxOffice/ShiftPage.php:484
 #: src/Integrations/CalendarFeeds.php:33
 #: src/Reports/Page.php:122
 #: src/Reports/Page.php:332
@@ -1905,8 +1905,8 @@ msgstr "Pourcentage (p. ex. 10 ou 7,5) ou montant (p. ex. 5,00) selon le type de
 #: src/Admin/EventsPage.php:1475
 #: src/Admin/EventsPage.php:1796
 #: src/Admin/OrdersPage.php:663
-#: src/BoxOffice/ShiftPage.php:428
-#: src/BoxOffice/ShiftPage.php:475
+#: src/BoxOffice/ShiftPage.php:439
+#: src/BoxOffice/ShiftPage.php:486
 #: src/Modules/Sms.php:569
 #: src/Partners/AdminPage.php:335
 #: src/Passes/AdminPage.php:175
@@ -2376,7 +2376,7 @@ msgstr "Libellé"
 #: src/GuestLists/Page.php:164
 #: src/GuestLists/Page.php:268
 #: src/GuestLists/Page.php:298
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Mail/Types.php:93
 #: src/Mail/Types.php:606
 #: src/Mail/Types.php:629
@@ -2416,8 +2416,8 @@ msgstr "Type de ticket"
 #: src/Admin/OrdersPage.php:995
 #: src/Allocations/AdminPage.php:260
 #: src/Allocations/AdminPage.php:311
-#: src/BoxOffice/ShiftPage.php:180
-#: src/BoxOffice/ShiftPage.php:190
+#: src/BoxOffice/ShiftPage.php:191
+#: src/BoxOffice/ShiftPage.php:201
 #: src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:925
 #: src/Partners/Settlements.php:942
@@ -3035,7 +3035,7 @@ msgstr "Clés API"
 
 #: src/Admin/DeveloperKeysPage.php:157
 #: src/Admission/ConflictsPage.php:75
-#: src/BoxOffice/ShiftPage.php:342
+#: src/BoxOffice/ShiftPage.php:353
 #: src/Series/AdminPage.php:584
 #: src/Series/AdminPage.php:658
 msgid "Alle"
@@ -3463,8 +3463,8 @@ msgstr "Le statut n’est pas valide."
 #: src/Admin/EventsPage.php:545
 #: src/Allocations/AdminPage.php:54
 #: src/Allocations/Holds.php:383
-#: src/GuestLists/Service.php:578
-#: src/GuestLists/Service.php:601
+#: src/GuestLists/Service.php:569
+#: src/GuestLists/Service.php:592
 #: src/OfflineScanner/Rest.php:113
 #: src/Partners/Sales.php:345
 #: src/Passes/Definitions.php:321
@@ -3694,7 +3694,7 @@ msgstr "Texte"
 #: src/Admin/WaitlistsPage.php:167
 #: src/GuestLists/Page.php:268
 #: src/GuestLists/Page.php:297
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Integrations/WooCommerce/Attendees.php:320
 #: src/Integrations/WooCommerce/Attendees.php:474
 #: src/Mail/Admin.php:202
@@ -4024,7 +4024,7 @@ msgstr "Aucune date à venir (dernière : %s)"
 #: src/Admin/ServiceSlotsPage.php:385
 #: src/Admin/ServiceSlotsPage.php:426
 #: src/Admin/TaxPage.php:109
-#: src/BoxOffice/ShiftPage.php:445
+#: src/BoxOffice/ShiftPage.php:456
 #: src/Integrations/ConnectorsPage.php:148
 #: src/Printing/Page.php:160
 #: src/Sales/TaxProfilesPage.php:87
@@ -5117,7 +5117,7 @@ msgstr "Masquer la liste de démarrage"
 #: src/Admin/TicketsPage.php:430
 #: src/BoxOffice/ZReport.php:383
 #: src/GuestLists/Page.php:268
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/OrderPortal.php:169
 #: src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:925
@@ -5860,7 +5860,7 @@ msgstr "Réservable"
 #: src/Admin/ServiceSlotsPage.php:169
 #: src/Admin/ServicesPage.php:408
 #: src/Admin/ServicesPage.php:436
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:372
 #: src/BoxOffice/ZReport.php:360
 msgid "Geschlossen"
 msgstr "Fermé"
@@ -6099,10 +6099,10 @@ msgstr "Le prestataire de paiement n’a pas répondu clairement pour ces rembou
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:376
 #: src/Admin/StatusPage.php:401
-#: src/BoxOffice/ShiftPage.php:180
-#: src/BoxOffice/ShiftPage.php:192
-#: src/BoxOffice/ShiftPage.php:199
-#: src/BoxOffice/ShiftPage.php:383
+#: src/BoxOffice/ShiftPage.php:191
+#: src/BoxOffice/ShiftPage.php:203
+#: src/BoxOffice/ShiftPage.php:210
+#: src/BoxOffice/ShiftPage.php:394
 #: src/Frontend/ServiceBooking.php:122
 #: src/Payments/BankTransfer.php:123
 #: src/PublicEvents.php:241
@@ -6465,13 +6465,13 @@ msgstr "Remboursé en externe – clôturer"
 #: src/Admin/ServiceSlotsPage.php:327
 #: src/Admin/TicketsPage.php:488
 #: src/BoxOffice/Page.php:318
-#: src/BoxOffice/ShiftPage.php:180
-#: src/BoxOffice/ShiftPage.php:192
-#: src/BoxOffice/ShiftPage.php:383
-#: src/BoxOffice/ShiftPage.php:441
+#: src/BoxOffice/ShiftPage.php:191
+#: src/BoxOffice/ShiftPage.php:203
+#: src/BoxOffice/ShiftPage.php:394
+#: src/BoxOffice/ShiftPage.php:452
 #: src/GuestLists/Page.php:221
 #: src/GuestLists/Page.php:248
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Mail/Types.php:243
 #: src/Mail/Types.php:252
 msgid "Grund"
@@ -6810,8 +6810,8 @@ msgstr "Total"
 
 #: src/Admin/OrdersPage.php:729
 #: src/BoxOffice/Page.php:275
-#: src/BoxOffice/ShiftPage.php:180
-#: src/BoxOffice/ShiftPage.php:199
+#: src/BoxOffice/ShiftPage.php:191
+#: src/BoxOffice/ShiftPage.php:210
 msgid "Zahlart"
 msgstr "Mode de paiement"
 
@@ -8775,13 +8775,13 @@ msgstr "Mode"
 #: src/Admin/SettingsPage.php:131
 #: src/Mail/Admin.php:118
 #: src/Modules/Fiscalization.php:1329
-#: src/Operations/SiteHealth.php:650
+#: src/Operations/SiteHealth.php:654
 msgid "Test"
 msgstr "Test"
 
 #: src/Admin/SettingsPage.php:131
 #: src/Admin/SettingsPage.php:142
-#: src/Operations/SiteHealth.php:649
+#: src/Operations/SiteHealth.php:653
 msgid "Live"
 msgstr "Live"
 
@@ -9762,7 +9762,7 @@ msgstr "Rembourser auprès du prestataire"
 #: src/BoxOffice/ShiftPage.php:109
 #: src/Exchange/AdminPage.php:271
 #: src/GuestLists/Page.php:257
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Modules/GuestLists.php:99
 msgid "Notiz"
 msgstr "Note"
@@ -9772,7 +9772,7 @@ msgid "Als erledigt markieren"
 msgstr "Marquer comme traité"
 
 #: src/Admin/StatusPage.php:416
-#: src/Operations/SiteHealth.php:629
+#: src/Operations/SiteHealth.php:633
 msgid "Datenbankschema"
 msgstr "Schéma de la base de données"
 
@@ -9784,7 +9784,7 @@ msgstr "Isolation des transactions du serveur : %s (les transactions de commande
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
 #: src/Admin/StatusPage.php:419
-#: src/Operations/SiteHealth.php:652
+#: src/Operations/SiteHealth.php:656
 msgid "unbekannt"
 msgstr "inconnu"
 
@@ -11464,7 +11464,7 @@ msgstr "J’ai besoin d’une facture au nom d’une société/à une adresse"
 #: src/GuestLists/Page.php:268
 #: src/GuestLists/Page.php:297
 #: src/GuestLists/Page.php:332
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Modules/GuestLists.php:95
 msgid "Firma"
 msgstr "Société"
@@ -11579,10 +11579,10 @@ msgstr "Veuillez indiquer le montant compté ou le détail des coupures."
 #: src/BoxOffice/Cash.php:79
 #: src/BoxOffice/ShiftPage.php:118
 #: src/BoxOffice/ShiftPage.php:132
-#: src/BoxOffice/ShiftPage.php:279
-#: src/BoxOffice/ShiftPage.php:293
-#: src/BoxOffice/ShiftPage.php:313
-#: src/BoxOffice/ShiftPage.php:390
+#: src/BoxOffice/ShiftPage.php:290
+#: src/BoxOffice/ShiftPage.php:304
+#: src/BoxOffice/ShiftPage.php:324
+#: src/BoxOffice/ShiftPage.php:401
 #: src/BoxOffice/Shifts.php:356
 #: src/BoxOffice/Shifts.php:589
 msgid "Ungültiger Betrag."
@@ -11605,8 +11605,8 @@ msgid "Für stornierte Verkäufe werden keine Tickets gedruckt."
 msgstr "Aucun ticket n’est imprimé pour les ventes annulées."
 
 #: src/BoxOffice/Page.php:52
-#: src/BoxOffice/ShiftPage.php:361
-#: src/BoxOffice/ShiftPage.php:428
+#: src/BoxOffice/ShiftPage.php:372
+#: src/BoxOffice/ShiftPage.php:439
 #: src/BoxOffice/ZReport.php:358
 msgid "Schicht"
 msgstr "Session"
@@ -11621,8 +11621,8 @@ msgstr "Caisses"
 
 #: src/BoxOffice/Page.php:64
 #: src/BoxOffice/ShiftPage.php:105
-#: src/BoxOffice/ShiftPage.php:340
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:351
+#: src/BoxOffice/ShiftPage.php:372
 #: src/BoxOffice/ZReport.php:355
 #: src/Exchange/AdminPage.php:43
 #: src/Modules/BoxOffice.php:414
@@ -11700,7 +11700,7 @@ msgid "Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen dies
 msgstr "Espèces et carte bloquées : en Allemagne et en Autriche, ces ventes exigent une solution de caisse certifiée (TSE/RKSV), dont Pass Captain ne dispose pas."
 
 #: src/BoxOffice/Page.php:154
-#: src/BoxOffice/ShiftPage.php:235
+#: src/BoxOffice/ShiftPage.php:246
 #: src/BoxOffice/ZReport.php:393
 msgid "Kartenterminal"
 msgstr "Terminal de paiement"
@@ -11895,8 +11895,8 @@ msgstr "(non enregistrée)"
 
 #: src/BoxOffice/Page.php:296
 #: src/BoxOffice/Service.php:1214
-#: src/BoxOffice/ShiftPage.php:180
-#: src/BoxOffice/ShiftPage.php:199
+#: src/BoxOffice/ShiftPage.php:191
+#: src/BoxOffice/ShiftPage.php:210
 msgid "Beleg"
 msgstr "Reçu"
 
@@ -12453,8 +12453,8 @@ msgid "Kassen verwalten"
 msgstr "Gérer les caisses"
 
 #: src/BoxOffice/ShiftPage.php:103
-#: src/BoxOffice/ShiftPage.php:428
-#: src/BoxOffice/ShiftPage.php:476
+#: src/BoxOffice/ShiftPage.php:439
+#: src/BoxOffice/ShiftPage.php:487
 #: src/BoxOffice/ZReport.php:398
 msgid "Blindzählung"
 msgstr "Comptage à l’aveugle"
@@ -12508,197 +12508,216 @@ msgstr "Ajouter un caissier"
 msgid "Hinzufügen"
 msgstr "Ajouter"
 
-#: src/BoxOffice/ShiftPage.php:177
+#. translators: %d: number of sales
+#: src/BoxOffice/ShiftPage.php:180
+#, php-format
+msgid "%d Verkauf dieser Schicht ist noch nicht abgeschlossen (Bestellung ohne Beleg)."
+msgid_plural "%d Verkäufe dieser Schicht sind noch nicht abgeschlossen (Bestellung ohne Beleg)."
+msgstr[0] "%d vente de cette session n’est pas encore terminée (commande sans reçu)."
+msgstr[1] "%d ventes de cette session ne sont pas encore terminées (commande sans reçu)."
+
+#. translators: %d: number of sales
+#: src/BoxOffice/ShiftPage.php:180
+msgid "An der Kasse fortsetzen oder stornieren, bevor die Schicht geschlossen wird."
+msgstr "Poursuivez-les ou annulez-les à la caisse avant de clôturer la session."
+
+#. translators: 1: sale id, 2: time, 3: amount, 4: payment method
+#: src/BoxOffice/ShiftPage.php:182
+#, php-format
+msgid "Verkauf #%1$d · %2$s · %3$s · %4$s"
+msgstr "Vente n° %1$d · %2$s · %3$s · %4$s"
+
+#: src/BoxOffice/ShiftPage.php:188
 msgid "Einlagen, Entnahmen und Auszahlungen"
 msgstr "Apports, retraits et versements"
 
-#: src/BoxOffice/ShiftPage.php:191
+#: src/BoxOffice/ShiftPage.php:202
 msgid "Einlage (Geld in die Kasse)"
 msgstr "Apport (argent mis en caisse)"
 
-#: src/BoxOffice/ShiftPage.php:191
+#: src/BoxOffice/ShiftPage.php:202
 msgid "Entnahme (Geld aus der Kasse)"
 msgstr "Retrait (argent sorti de la caisse)"
 
-#: src/BoxOffice/ShiftPage.php:192
+#: src/BoxOffice/ShiftPage.php:203
 msgid "Buchen"
 msgstr "Enregistrer"
 
-#: src/BoxOffice/ShiftPage.php:198
+#: src/BoxOffice/ShiftPage.php:209
 msgid "Offene Kassen-Rückzahlungen"
 msgstr "Remboursements en caisse en attente"
 
-#: src/BoxOffice/ShiftPage.php:198
+#: src/BoxOffice/ShiftPage.php:209
 msgid "Erstattungen aus der Verwaltung (Bestellung, Freigabe, Absage), die noch nicht an der Kasse ausgezahlt wurden. Erst „Auszahlen“ bucht sie in diese Schicht."
 msgstr "Remboursements issus de l’administration (commande, validation, annulation) qui n’ont pas encore été versés à la caisse. Ce n’est qu’avec « Verser » qu’ils sont comptabilisés dans cette session."
 
-#: src/BoxOffice/ShiftPage.php:199
+#: src/BoxOffice/ShiftPage.php:210
 msgid "Erstattet am"
 msgstr "Remboursé le"
 
-#: src/BoxOffice/ShiftPage.php:206
+#: src/BoxOffice/ShiftPage.php:217
 msgid "Auszahlen"
 msgstr "Verser"
 
-#: src/BoxOffice/ShiftPage.php:214
+#: src/BoxOffice/ShiftPage.php:225
 msgid "Kassenabschluss"
 msgstr "Clôture de caisse"
 
-#: src/BoxOffice/ShiftPage.php:218
+#: src/BoxOffice/ShiftPage.php:229
 msgid "Diese Kasse zählt blind. Du siehst den Soll-Bestand nur, weil du Kassenverwaltung oder Finanzrecht hast – Kassierkräfte ohne diese Rechte sehen ihn erst im Z-Bericht."
 msgstr "Cette caisse fonctionne en comptage à l’aveugle. Vous ne voyez le solde théorique que parce que vous disposez du droit de gestion des caisses ou du droit financier – les caissiers sans ces droits ne le voient que dans le rapport Z."
 
-#: src/BoxOffice/ShiftPage.php:221
+#: src/BoxOffice/ShiftPage.php:232
 msgid "Blindzählung: Soll-Bestand und Differenz stehen erst nach dem Schließen im Z-Bericht. Eine Nachzählung kann nur die Kassenverwaltung durchführen."
 msgstr "Comptage à l’aveugle : le solde théorique et l’écart n’apparaissent dans le rapport Z qu’après la clôture. Seule la gestion des caisses peut effectuer un recomptage."
 
 #. translators: %s: counted cash
-#: src/BoxOffice/ShiftPage.php:224
+#: src/BoxOffice/ShiftPage.php:235
 #, php-format
 msgid "Abgegebene Zählung: Bargeld %s."
 msgstr "Comptage remis : espèces %s."
 
 #. translators: 1: cash, 2: card
-#: src/BoxOffice/ShiftPage.php:228
+#: src/BoxOffice/ShiftPage.php:239
 #, php-format
 msgid "Soll-Bestand bar %1$s · Kartenumsatz laut Kasse %2$s"
 msgstr "Solde théorique en espèces %1$s · chiffre d’affaires carte selon la caisse %2$s"
 
-#: src/BoxOffice/ShiftPage.php:233
+#: src/BoxOffice/ShiftPage.php:244
 msgid "Gezählt"
 msgstr "Compté"
 
-#: src/BoxOffice/ShiftPage.php:233
+#: src/BoxOffice/ShiftPage.php:244
 msgid "Soll"
 msgstr "Théorique"
 
-#: src/BoxOffice/ShiftPage.php:233
+#: src/BoxOffice/ShiftPage.php:244
 #: src/BoxOffice/ZReport.php:396
 #: src/Exchange/AdminPage.php:146
 #: src/Reports/Data.php:781
 msgid "Differenz"
 msgstr "Différence"
 
-#: src/BoxOffice/ShiftPage.php:234
+#: src/BoxOffice/ShiftPage.php:245
 #: src/BoxOffice/ZReport.php:385
 msgid "Bargeld"
 msgstr "Espèces"
 
-#: src/BoxOffice/ShiftPage.php:241
-#: src/BoxOffice/ShiftPage.php:244
+#: src/BoxOffice/ShiftPage.php:252
+#: src/BoxOffice/ShiftPage.php:255
 msgid "Neu zählen"
 msgstr "Recompter"
 
-#: src/BoxOffice/ShiftPage.php:241
-#: src/BoxOffice/ShiftPage.php:244
+#: src/BoxOffice/ShiftPage.php:252
+#: src/BoxOffice/ShiftPage.php:255
 msgid "Zählung abgeben"
 msgstr "Remettre le comptage"
 
-#: src/BoxOffice/ShiftPage.php:242
+#: src/BoxOffice/ShiftPage.php:253
 msgid "Gezählter Bargeldbestand"
 msgstr "Espèces comptées"
 
-#: src/BoxOffice/ShiftPage.php:243
+#: src/BoxOffice/ShiftPage.php:254
 msgid "Summe laut Kartenterminal (Tagesabschluss)"
 msgstr "Total selon le terminal de paiement (clôture journalière)"
 
-#: src/BoxOffice/ShiftPage.php:243
+#: src/BoxOffice/ShiftPage.php:254
 msgid "Leer lassen, wenn kein Terminal genutzt wurde."
 msgstr "Laisser vide si aucun terminal n’a été utilisé."
 
-#: src/BoxOffice/ShiftPage.php:244
+#: src/BoxOffice/ShiftPage.php:255
 msgid "Nach der Zählung sind keine Verkäufe mehr möglich."
 msgstr "Après le comptage, plus aucune vente n’est possible."
 
-#: src/BoxOffice/ShiftPage.php:247
+#: src/BoxOffice/ShiftPage.php:258
 msgid "Schicht jetzt abschließen? Der Z-Bericht kann danach nicht mehr geändert werden."
 msgstr "Clôturer la session maintenant ? Le rapport Z ne pourra plus être modifié ensuite."
 
-#: src/BoxOffice/ShiftPage.php:249
+#: src/BoxOffice/ShiftPage.php:260
 msgid "Schicht abschließen (Z-Bericht)"
 msgstr "Clôturer la session (rapport Z)"
 
-#: src/BoxOffice/ShiftPage.php:250
+#: src/BoxOffice/ShiftPage.php:261
 msgid "Grund der Differenz (Pflicht bei Abweichung)"
 msgstr "Motif de l’écart (obligatoire en cas d’écart)"
 
-#: src/BoxOffice/ShiftPage.php:251
+#: src/BoxOffice/ShiftPage.php:262
 msgid "Übergabe an die nächste Schicht (optional)"
 msgstr "Remise à la session suivante (facultatif)"
 
-#: src/BoxOffice/ShiftPage.php:252
+#: src/BoxOffice/ShiftPage.php:263
 #: src/BoxOffice/ZReport.php:402
 msgid "Übergabe an"
 msgstr "Remise à"
 
-#: src/BoxOffice/ShiftPage.php:254
+#: src/BoxOffice/ShiftPage.php:265
 msgid "Betrag, der in der Kasse bleibt (Rest wird abgeschöpft)"
 msgstr "Montant qui reste dans la caisse (le reste est prélevé)"
 
-#: src/BoxOffice/ShiftPage.php:255
+#: src/BoxOffice/ShiftPage.php:266
 msgid "Schicht abschließen"
 msgstr "Clôturer la session"
 
-#: src/BoxOffice/ShiftPage.php:263
+#: src/BoxOffice/ShiftPage.php:274
 msgid "Kassierer hinzugefügt."
 msgstr "Caissier ajouté."
 
-#: src/BoxOffice/ShiftPage.php:270
+#: src/BoxOffice/ShiftPage.php:281
 msgid "Auszahlung gebucht."
 msgstr "Versement enregistré."
 
-#: src/BoxOffice/ShiftPage.php:280
+#: src/BoxOffice/ShiftPage.php:291
 msgid "Buchung gespeichert."
 msgstr "Opération enregistrée."
 
 #. translators: %s: counted amount
-#: src/BoxOffice/ShiftPage.php:299
+#: src/BoxOffice/ShiftPage.php:310
 #, php-format
 msgid "Zählung gespeichert (Blindzählung). Gezählt %s. Soll und Differenz stehen nach dem Schließen im Z-Bericht."
 msgstr "Comptage enregistré (comptage à l’aveugle). Compté : %s. Le solde théorique et l’écart figureront dans le rapport Z après la clôture."
 
 #. translators: 1: counted, 2: expected, 3: difference
-#: src/BoxOffice/ShiftPage.php:301
+#: src/BoxOffice/ShiftPage.php:312
 #, php-format
 msgid "Zählung gespeichert. Gezählt %1$s, Soll %2$s, Differenz %3$s."
 msgstr "Comptage enregistré. Compté %1$s, théorique %2$s, écart %3$s."
 
 #. translators: %d: Z number
-#: src/BoxOffice/ShiftPage.php:317
+#: src/BoxOffice/ShiftPage.php:328
 #, php-format
 msgid "Schicht abgeschlossen: Z-Bericht Nr. %d."
 msgstr "Session clôturée : rapport Z n° %d."
 
-#: src/BoxOffice/ShiftPage.php:350
+#: src/BoxOffice/ShiftPage.php:361
 msgid "Offene Schichten"
 msgstr "Sessions ouvertes"
 
 #. translators: 1: register, 2: shift, 3: cashier
-#: src/BoxOffice/ShiftPage.php:352
+#: src/BoxOffice/ShiftPage.php:363
 #, php-format
 msgid "%1$s · Schicht #%2$d · %3$s"
 msgstr "%1$s · session n° %2$d · %3$s"
 
-#: src/BoxOffice/ShiftPage.php:356
+#: src/BoxOffice/ShiftPage.php:367
 msgid "Abgeschlossene Schichten (Z-Berichte)"
 msgstr "Sessions clôturées (rapports Z)"
 
-#: src/BoxOffice/ShiftPage.php:358
+#: src/BoxOffice/ShiftPage.php:369
 msgid "Noch keine Z-Berichte."
 msgstr "Aucun rapport Z pour le moment."
 
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:372
 msgid "Z-Nr."
 msgstr "N° Z"
 
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:372
 #: src/BoxOffice/ZReport.php:359
 msgid "Geöffnet"
 msgstr "Ouverture"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:372
 #: src/BoxOffice/ZReport.php:368
 #: src/BoxOffice/ZReport.php:373
 #: src/Invoices.php:871
@@ -12718,111 +12737,111 @@ msgstr "Ouverture"
 msgid "Netto"
 msgstr "Net"
 
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:372
 msgid "Grand Total"
 msgstr "Grand total"
 
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:372
 msgid "Differenz bar / Karte"
 msgstr "Écart espèces / carte"
 
-#: src/BoxOffice/ShiftPage.php:361
+#: src/BoxOffice/ShiftPage.php:372
 #: src/Reports/Data.php:746
 #: src/Reports/Data.php:807
 msgid "Bericht"
 msgstr "Rapport"
 
-#: src/BoxOffice/ShiftPage.php:363
+#: src/BoxOffice/ShiftPage.php:374
 msgid "übernommen"
 msgstr "repris"
 
-#: src/BoxOffice/ShiftPage.php:369
+#: src/BoxOffice/ShiftPage.php:380
 msgid "Prüfung der Z-Kette"
 msgstr "Vérification de la chaîne Z"
 
-#: src/BoxOffice/ShiftPage.php:372
+#: src/BoxOffice/ShiftPage.php:383
 msgid "lückenlos und unverändert"
 msgstr "continue et inchangée"
 
-#: src/BoxOffice/ShiftPage.php:374
+#: src/BoxOffice/ShiftPage.php:385
 msgid "Korrektur zu einem Z-Bericht"
 msgstr "Correction d’un rapport Z"
 
-#: src/BoxOffice/ShiftPage.php:374
+#: src/BoxOffice/ShiftPage.php:385
 msgid "Z-Berichte werden nie geändert. Eine Korrektur wird als neue Buchung in die offene Schicht derselben Kasse gebucht und erscheint im nächsten Z-Bericht."
 msgstr "Les rapports Z ne sont jamais modifiés. Une correction est enregistrée comme nouvelle opération dans la session ouverte de la même caisse et apparaît dans le rapport Z suivant."
 
-#: src/BoxOffice/ShiftPage.php:379
+#: src/BoxOffice/ShiftPage.php:390
 msgid "Z-Bericht"
 msgstr "Rapport Z"
 
-#: src/BoxOffice/ShiftPage.php:381
+#: src/BoxOffice/ShiftPage.php:392
 msgid "Richtung"
 msgstr "Sens"
 
-#: src/BoxOffice/ShiftPage.php:382
+#: src/BoxOffice/ShiftPage.php:393
 msgid "mehr Bargeld (+)"
 msgstr "plus d’espèces (+)"
 
-#: src/BoxOffice/ShiftPage.php:382
+#: src/BoxOffice/ShiftPage.php:393
 msgid "weniger Bargeld (−)"
 msgstr "moins d’espèces (−)"
 
-#: src/BoxOffice/ShiftPage.php:383
+#: src/BoxOffice/ShiftPage.php:394
 msgid "Korrektur buchen"
 msgstr "Enregistrer la correction"
 
-#: src/BoxOffice/ShiftPage.php:391
+#: src/BoxOffice/ShiftPage.php:402
 msgid "Korrektur gebucht."
 msgstr "Correction enregistrée."
 
-#: src/BoxOffice/ShiftPage.php:396
-#: src/BoxOffice/ShiftPage.php:406
+#: src/BoxOffice/ShiftPage.php:407
+#: src/BoxOffice/ShiftPage.php:417
 #: src/BoxOffice/Shifts.php:604
 msgid "Z-Bericht nicht gefunden."
 msgstr "Rapport Z introuvable."
 
-#: src/BoxOffice/ShiftPage.php:428
-#: src/BoxOffice/ShiftPage.php:454
+#: src/BoxOffice/ShiftPage.php:439
+#: src/BoxOffice/ShiftPage.php:465
 #: src/BoxOffice/ZReport.php:356
 msgid "Standort"
 msgstr "Site"
 
-#: src/BoxOffice/ShiftPage.php:434
-#: src/Operations/SiteHealth.php:522
-#: src/Operations/SiteHealth.php:622
+#: src/BoxOffice/ShiftPage.php:445
+#: src/Operations/SiteHealth.php:526
+#: src/Operations/SiteHealth.php:626
 #: src/WalletPasses/AdminPage.php:135
 msgid "nein"
 msgstr "non"
 
 #. translators: %s: user
-#: src/BoxOffice/ShiftPage.php:438
+#: src/BoxOffice/ShiftPage.php:449
 #, php-format
 msgid "Übergabe an %s ausstehend"
 msgstr "Remise à %s en attente"
 
 #. translators: %s: user
-#: src/BoxOffice/ShiftPage.php:439
+#: src/BoxOffice/ShiftPage.php:450
 msgid "Übergabe abbrechen?"
 msgstr "Annuler cette remise ?"
 
-#: src/BoxOffice/ShiftPage.php:441
+#: src/BoxOffice/ShiftPage.php:452
 msgid "Übergabe stornieren"
 msgstr "Annuler la remise"
 
-#: src/BoxOffice/ShiftPage.php:449
+#: src/BoxOffice/ShiftPage.php:460
 msgid "Kasse bearbeiten"
 msgstr "Modifier la caisse"
 
-#: src/BoxOffice/ShiftPage.php:449
+#: src/BoxOffice/ShiftPage.php:460
 msgid "Neue Kasse"
 msgstr "Nouvelle caisse"
 
-#: src/BoxOffice/ShiftPage.php:458
+#: src/BoxOffice/ShiftPage.php:469
 msgid "Kassenregister (Fiskal/Terminal)"
 msgstr "Poste de caisse (fiscal/terminal)"
 
-#: src/BoxOffice/ShiftPage.php:461
+#: src/BoxOffice/ShiftPage.php:472
 #: src/Integrations/WooCommerce/Attendees.php:338
 #: src/Integrations/WooCommerce/Attendees.php:477
 #: src/ParticipantFields.php:248
@@ -12831,37 +12850,37 @@ msgid "Bitte wählen"
 msgstr "Veuillez choisir"
 
 #. translators: 1: register name, 2: location ID, 3: register ID
-#: src/BoxOffice/ShiftPage.php:464
+#: src/BoxOffice/ShiftPage.php:475
 #, php-format
 msgid "%1$s (Standort %2$d · %3$s)"
 msgstr "%1$s (site %2$d · %3$s)"
 
-#: src/BoxOffice/ShiftPage.php:468
+#: src/BoxOffice/ShiftPage.php:479
 #: src/Modules/Fiscalization.php:1329
 msgid "Standort-ID (0 = Standard)"
 msgstr "ID du site (0 = par défaut)"
 
-#: src/BoxOffice/ShiftPage.php:468
+#: src/BoxOffice/ShiftPage.php:479
 msgid "Kassen-ID"
 msgstr "ID de caisse"
 
-#: src/BoxOffice/ShiftPage.php:470
+#: src/BoxOffice/ShiftPage.php:481
 msgid "Bestimmt das Fiskalprofil (Standort/Kassen-ID) und die Kartenterminals dieser Kasse. Die Liste der zugelassenen Register wird in den Kassen- und Belegeinstellungen gepflegt."
 msgstr "Détermine le profil fiscal (site/ID de caisse) et les terminaux de paiement de cette caisse. La liste des postes autorisés est gérée dans les réglages de caisse et de justificatifs."
 
-#: src/BoxOffice/ShiftPage.php:472
+#: src/BoxOffice/ShiftPage.php:483
 msgid "Nur für Event (optional)"
 msgstr "Uniquement pour l’événement (facultatif)"
 
-#: src/BoxOffice/ShiftPage.php:476
+#: src/BoxOffice/ShiftPage.php:487
 msgid "Soll-Bestand erst nach der Zählung anzeigen"
 msgstr "N’afficher le solde théorique qu’après le comptage"
 
-#: src/BoxOffice/ShiftPage.php:476
+#: src/BoxOffice/ShiftPage.php:487
 msgid "Gilt für Kassierkräfte. Personen mit Kassenverwaltung oder Finanzrecht sehen den Soll-Bestand immer (sie können auch nachzählen); für eine echte Blindzählung sollte daher eine Person ohne diese Rechte zählen."
 msgstr "S’applique aux caissiers. Les personnes disposant du droit de gestion des caisses ou du droit financier voient toujours le solde théorique (elles peuvent aussi recompter) ; pour un véritable comptage à l’aveugle, le comptage doit donc être effectué par une personne sans ces droits."
 
-#: src/BoxOffice/ShiftPage.php:497
+#: src/BoxOffice/ShiftPage.php:508
 msgid "Kasse gespeichert."
 msgstr "Caisse enregistrée."
 
@@ -15460,7 +15479,7 @@ msgstr "%1$d entrées, %2$d personnes"
 
 #. translators: 1: entries, 2: tickets
 #: src/GuestLists/Page.php:164
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 msgid "Ticketcodes"
 msgstr "Codes de ticket"
 
@@ -15658,7 +15677,7 @@ msgid "Codes"
 msgstr "Codes"
 
 #: src/GuestLists/Page.php:332
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 #: src/Printing/AttendeeList.php:101
 #: src/Reports/Data.php:768
 #: src/Reports/Data.php:809
@@ -15772,7 +15791,7 @@ msgstr "Veuillez importer 1000 lignes au maximum par import."
 #: src/GuestLists/Service.php:384
 #: src/GuestLists/Service.php:453
 #: src/GuestLists/Service.php:480
-#: src/GuestLists/Service.php:639
+#: src/GuestLists/Service.php:630
 #: src/Waitlists/AdminPage.php:57
 msgid "Eintrag nicht gefunden."
 msgstr "Entrée introuvable."
@@ -15836,15 +15855,15 @@ msgstr "Les entrées refusées ne peuvent pas être annulées."
 msgid "Mindestens ein Ticket dieses Eintrags wurde bereits eingecheckt; der Eintrag kann nicht mehr storniert werden."
 msgstr "Au moins un ticket de cette entrée a déjà été enregistré (check-in) ; l’entrée ne peut plus être annulée."
 
-#: src/GuestLists/Service.php:641
+#: src/GuestLists/Service.php:632
 msgid "Für diesen Eintrag sind keine Tickets ausgestellt."
 msgstr "Aucun ticket n’a été émis pour cette entrée."
 
-#: src/GuestLists/Service.php:645
+#: src/GuestLists/Service.php:636
 msgid "Alle Tickets dieses Eintrags sind bereits eingecheckt."
 msgstr "Tous les tickets de cette entrée sont déjà enregistrés."
 
-#: src/GuestLists/Service.php:676
+#: src/GuestLists/Service.php:667
 msgid "Begleitpersonen"
 msgstr "Accompagnants"
 
@@ -21739,229 +21758,229 @@ msgstr "Au cours des %s, des acheteurs n’ont pas pu lancer le paiement ; ils o
 msgid "Pass Captain: Zahlungsstart beim Anbieter schlägt fehl"
 msgstr "Pass Captain : le lancement du paiement échoue chez le prestataire"
 
-#: src/Operations/SiteHealth.php:457
+#: src/Operations/SiteHealth.php:461
 msgid "Pass Captain: öffentliche REST-Schnittstelle erreichbar"
 msgstr "Pass Captain : API REST publique accessible"
 
-#: src/Operations/SiteHealth.php:457
+#: src/Operations/SiteHealth.php:461
 msgid "Die öffentlichen Endpunkte (Eventliste, Checkout, Bestellstatus) antworten auch ohne Anmeldung."
 msgstr "Les points d'accès publics (liste des événements, paiement, statut de commande) répondent aussi sans connexion."
 
 #. translators: %d: HTTP status code, e.g. 403
-#: src/Operations/SiteHealth.php:461
+#: src/Operations/SiteHealth.php:465
 #, php-format
 msgid "Die REST-Schnittstelle lehnt Anfragen ohne Anmeldung ab (HTTP %d). Checkout, Bestellportal, Ticketseite und Scanner funktionieren für Käufer:innen dann nicht. Häufige Ursache: ein Sicherheits-Plugin oder Code-Schnipsel, der die REST-API für Gäste sperrt. Bitte den Namensraum pass-captain/v1 dort freigeben."
 msgstr "L'API REST refuse les requêtes sans connexion (HTTP %d). Le paiement, le portail de commande, la page du billet et le scanner ne fonctionnent alors pas pour les acheteurs. Cause fréquente : une extension de sécurité ou un extrait de code qui bloque l'API REST pour les visiteurs. Veuillez y autoriser l'espace de noms pass-captain/v1."
 
-#: src/Operations/SiteHealth.php:462
+#: src/Operations/SiteHealth.php:466
 msgid "Pass Captain: REST-Schnittstelle für Gäste gesperrt"
 msgstr "Pass Captain : API REST bloquée pour les visiteurs"
 
 #. translators: %s: error message of the HTTP request
-#: src/Operations/SiteHealth.php:466
+#: src/Operations/SiteHealth.php:470
 #, php-format
 msgid "Fehler: %s"
 msgstr "Erreur : %s"
 
 #. translators: %d: HTTP status code
-#: src/Operations/SiteHealth.php:468
+#: src/Operations/SiteHealth.php:472
 #, php-format
 msgid "Antwort: HTTP %d"
 msgstr "Réponse : HTTP %d"
 
-#: src/Operations/SiteHealth.php:469
+#: src/Operations/SiteHealth.php:473
 msgid "Die Website konnte ihre eigene öffentliche REST-Schnittstelle nicht abrufen. Das kann an einer gesperrten Loopback-Verbindung liegen (dann ist nur diese Prüfung betroffen) oder an einer Sperre der REST-API für Gäste. Bitte den Checkout einmal ohne Anmeldung ausprobieren."
 msgstr "Le site n'a pas pu joindre sa propre API REST publique. Cela peut venir d'une connexion loopback bloquée (seul ce contrôle est alors concerné) ou d'un blocage de l'API REST pour les visiteurs. Veuillez essayer le paiement une fois sans être connecté."
 
-#: src/Operations/SiteHealth.php:470
+#: src/Operations/SiteHealth.php:474
 msgid "Pass Captain: öffentliche REST-Schnittstelle nicht prüfbar"
 msgstr "Pass Captain : API REST publique impossible à vérifier"
 
-#: src/Operations/SiteHealth.php:478
+#: src/Operations/SiteHealth.php:482
 msgid "Vertrauenswürdige Proxys sind eingetragen; Ratenlimits und Einwilligungsnachweise verwenden die Client-Adresse aus dem Weiterleitungs-Header."
 msgstr "Des proxys de confiance sont configurés ; les limites de débit et les preuves de consentement utilisent l'adresse client de l'en-tête de transfert."
 
-#: src/Operations/SiteHealth.php:479
+#: src/Operations/SiteHealth.php:483
 msgid "Es gibt keine Hinweise auf einen vorgeschalteten Proxy oder ein CDN; die direkte Absenderadresse wird verwendet."
 msgstr "Rien n'indique un proxy ou un CDN en amont ; l'adresse directe de l'expéditeur est utilisée."
 
-#: src/Operations/SiteHealth.php:480
+#: src/Operations/SiteHealth.php:484
 msgid "Pass Captain: Client-Adressen werden korrekt erkannt"
 msgstr "Pass Captain : les adresses client sont correctement détectées"
 
-#: src/Operations/SiteHealth.php:482
+#: src/Operations/SiteHealth.php:486
 msgid "Proxy-Einstellungen öffnen"
 msgstr "Ouvrir les réglages du proxy"
 
-#: src/Operations/SiteHealth.php:483
+#: src/Operations/SiteHealth.php:487
 msgid "Pass Captain: Proxy ohne vertrauenswürdige Adressen"
 msgstr "Pass Captain : proxy sans adresses de confiance"
 
-#: src/Operations/SiteHealth.php:513
+#: src/Operations/SiteHealth.php:517
 msgid "Pass Captain: Der Betrieb ist gestört."
 msgstr "Pass Captain : l’exploitation est perturbée."
 
-#: src/Operations/SiteHealth.php:513
+#: src/Operations/SiteHealth.php:517
 msgid "Betriebsübersicht öffnen"
 msgstr "Ouvrir la vue d’ensemble de l’exploitation"
 
-#: src/Operations/SiteHealth.php:513
+#: src/Operations/SiteHealth.php:517
 msgid "Website-Zustand"
 msgstr "État de santé du site"
 
 #. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
-#: src/Operations/SiteHealth.php:528
+#: src/Operations/SiteHealth.php:532
 #, php-format
 msgid "Letzter Lauf %s"
 msgstr "Dernière exécution %s"
 
 #. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
-#: src/Operations/SiteHealth.php:537
+#: src/Operations/SiteHealth.php:541
 #, php-format
 msgid "Nächster Lauf %s"
 msgstr "Prochaine exécution %s"
 
-#: src/Operations/SiteHealth.php:538
+#: src/Operations/SiteHealth.php:542
 msgid "nicht eingeplant"
 msgstr "non planifié"
 
 #. translators: 1: counts per status, 2: due items, 3: age of the oldest due item in minutes
-#: src/Operations/SiteHealth.php:550
+#: src/Operations/SiteHealth.php:554
 #, php-format
 msgid "%1$s; fällig %2$d, ältester seit %3$d Min."
 msgstr "%1$s ; échues %2$d, la plus ancienne depuis %3$d min"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:556
+#: src/Operations/SiteHealth.php:560
 #, php-format
 msgid "Fehlgeschlagene Plugin-E-Mails (%d h)"
 msgstr "E-mails du plugin en échec (%d h)"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:562
+#: src/Operations/SiteHealth.php:566
 #, php-format
 msgid "Fehlgeschlagene SMS (%d h)"
 msgstr "SMS en échec (%d h)"
 
 #. translators: %s: payment provider id
-#: src/Operations/SiteHealth.php:569
+#: src/Operations/SiteHealth.php:573
 #, php-format
 msgid "Letzter Zahlungs-Webhook %s"
 msgstr "Dernier webhook de paiement %s"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:578
+#: src/Operations/SiteHealth.php:582
 #, php-format
 msgid "Fehlgeschlagene Zahlungs-Webhooks (%d h)"
 msgstr "Webhooks de paiement échoués (%d h)"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:580
+#: src/Operations/SiteHealth.php:584
 #, php-format
 msgid "Fehlgeschlagene Zahlungsstarts (%d h)"
 msgstr "Lancements de paiement échoués (%d h)"
 
-#: src/Operations/SiteHealth.php:585
+#: src/Operations/SiteHealth.php:589
 msgid "Pass Captain – Betrieb"
 msgstr "Pass Captain – Exploitation"
 
-#: src/Operations/SiteHealth.php:589
+#: src/Operations/SiteHealth.php:593
 msgid "Pass Captain – Support"
 msgstr "Pass Captain – Support"
 
-#: src/Operations/SiteHealth.php:590
+#: src/Operations/SiteHealth.php:594
 msgid "Für Support-Anfragen: „Website-Informationen in die Zwischenablage kopieren“ überträgt diese Angaben. Sie enthalten keine Zugangsdaten, Ticketcodes oder Kundendaten."
 msgstr "Pour les demandes de support : « Copier les informations du site dans le presse-papiers » transfère ces données. Elles ne contiennent ni identifiants, ni codes de ticket, ni données client."
 
-#: src/Operations/SiteHealth.php:624
+#: src/Operations/SiteHealth.php:628
 msgid "Plugin-Version"
 msgstr "Version du plugin"
 
 #. translators: 1: stored schema version, 2: schema version of the code
-#: src/Operations/SiteHealth.php:628
+#: src/Operations/SiteHealth.php:632
 #, php-format
 msgid "%1$s (Code: %2$s)"
 msgstr "%1$s (code : %2$s)"
 
-#: src/Operations/SiteHealth.php:629
+#: src/Operations/SiteHealth.php:633
 msgid "Update ausstehend"
 msgstr "Mise à jour en attente"
 
 #. translators: 1: stored fingerprint, 2: expected fingerprint
-#: src/Operations/SiteHealth.php:632
+#: src/Operations/SiteHealth.php:636
 #, php-format
 msgid "%1$s (erwartet %2$s)"
 msgstr "%1$s (attendu %2$s)"
 
-#: src/Operations/SiteHealth.php:633
+#: src/Operations/SiteHealth.php:637
 msgid "Schema-Fingerabdruck"
 msgstr "Empreinte du schéma"
 
-#: src/Operations/SiteHealth.php:636
+#: src/Operations/SiteHealth.php:640
 msgid "Fehler beim letzten Schema-Update"
 msgstr "Erreur lors de la dernière mise à jour du schéma"
 
 #. translators: 1: date and time (UTC), 2: missing tables/columns, 3: database error
-#: src/Operations/SiteHealth.php:639
+#: src/Operations/SiteHealth.php:643
 #, php-format
 msgid "%1$s UTC: fehlt %2$s %3$s"
 msgstr "%1$s UTC : manque %2$s %3$s"
 
-#: src/Operations/SiteHealth.php:640
+#: src/Operations/SiteHealth.php:644
 msgid "keiner"
 msgstr "aucun"
 
-#: src/Operations/SiteHealth.php:645
+#: src/Operations/SiteHealth.php:649
 msgid "aus"
 msgstr "désactivé"
 
-#: src/Operations/SiteHealth.php:647
+#: src/Operations/SiteHealth.php:651
 msgid "Module"
 msgstr "Modules"
 
-#: src/Operations/SiteHealth.php:651
+#: src/Operations/SiteHealth.php:655
 msgid "nicht eingerichtet"
 msgstr "non configuré"
 
-#: src/Operations/SiteHealth.php:661
+#: src/Operations/SiteHealth.php:665
 msgid "Zahlungsarten (Modus)"
 msgstr "Modes de paiement (mode)"
 
-#: src/Operations/SiteHealth.php:664
+#: src/Operations/SiteHealth.php:668
 msgid "WooCommerce"
 msgstr "WooCommerce"
 
-#: src/Operations/SiteHealth.php:668
+#: src/Operations/SiteHealth.php:672
 msgid "Währungen aktiver Ticketarten"
 msgstr "Devises des types de ticket actifs"
 
-#: src/Operations/SiteHealth.php:669
+#: src/Operations/SiteHealth.php:673
 msgid "Sprache / Zeitzone"
 msgstr "Langue / fuseau horaire"
 
 #. translators: 1: open reservations, 2: tickets held, 3: reservations past their expiry
-#: src/Operations/SiteHealth.php:672
+#: src/Operations/SiteHealth.php:676
 #, php-format
 msgid "%1$d (%2$d Tickets), davon abgelaufen %3$d"
 msgstr "%1$d (%2$d tickets), dont %3$d expirées"
 
-#: src/Operations/SiteHealth.php:673
+#: src/Operations/SiteHealth.php:677
 msgid "Offene Reservierungen"
 msgstr "Réservations en cours"
 
-#: src/Operations/SiteHealth.php:674
+#: src/Operations/SiteHealth.php:678
 msgid "Debug-Modus (Support-Protokoll)"
 msgstr "Mode débogage (journal de support)"
 
-#: src/Operations/SiteHealth.php:675
+#: src/Operations/SiteHealth.php:679
 msgid "PHP / Datenbank"
 msgstr "PHP / base de données"
 
-#: src/Operations/SiteHealth.php:681
+#: src/Operations/SiteHealth.php:685
 msgid "Letzte Fehler (Support-Protokoll)"
 msgstr "Dernières erreurs (journal de support)"
 
-#: src/Operations/SiteHealth.php:681
+#: src/Operations/SiteHealth.php:685
 msgid "keine"
 msgstr "aucune"
 

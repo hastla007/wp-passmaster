@@ -895,8 +895,9 @@ Gesamt: 262 Aufgaben.
   - 206/224 Klassen: Fassade PassCaptain\Api mit @api/SemVer, Rest @internal
 - [x] **A403** [OPTIMIERUNG] Mehrere Geldformatierer (A200 zentralisiert – Rest prüfen, Box-Office-JS 2 Dezimalen) — _R2 Support_ (TODO L749; Audit Runde 4)
   - src/Modules/Sms.php:476, assets/boxoffice/pos.js, shift.js: Alle über Money::format(); JS aus js_config
-- [ ] **A404** [OPTIMIERUNG] Toter Code — _R2 Support_ (TODO L750; Audit Runde 4)
+- [x] **A404** [OPTIMIERUNG] Toter Code — _R2 Support_ (TODO L750; Audit Runde 4)
   - src/Refunds.php:656 (tax_for_tickets), OfflineScanner/Assignments.php:75, BoxOffice/Service.php:490, GuestLists/Service.php:539: Entfernen oder anbinden (unfinished_sales in Schichtansicht)
+  - Erledigt: `Refunds::tax_for_tickets()` und `GuestLists\Service::entry_tickets()` entfernt; `BoxOffice\Service::unfinished_sales()` erscheint als Warnung mit Liste in der Schichtansicht; `OfflineScanner\Assignments::unassign()` ist von der Geräteseite angebunden (kein toter Code). Test zz_n11_a404.
 - [x] **A405** [OPTIMIERUNG] Filter wpcap_client_ip wirkt nur auf Orders::client_ip — _R2 Support_ (TODO L751; Audit Runde 4)
   - src/Orders.php:440, RateLimit.php:42: Filter in ClientIp::get() anwenden
 - [x] **A406** [OPTIMIERUNG] Drei Template-Hooks nicht in HOOKS.md; kein CI-Abgleich — _R2 Support_ (TODO L752; Audit Runde 4)

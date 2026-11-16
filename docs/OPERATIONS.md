@@ -227,9 +227,10 @@ Kalenderseite selbst.
 
 Eventseiten dürfen vom Seiten-Cache/CDN gecacht werden: Sie enthalten für Gäste keine Nonce (die REST-Nonce wird nur
 angemeldeten Käufern ausgeliefert, damit Käuferlimits „pro Konto“ greifen). Verfügbarkeit und Verkaufsfenster
-aktualisiert `assets/checkout.js` live über `GET /wp-json/pass-captain/v1/availability?types=1,2,3` (öffentlich,
-keine personenbezogenen Daten, `Cache-Control: public, max-age=5, stale-while-revalidate=10`, 120 Abrufe je Minute und
-Client-Netz): kurz nach dem Laden, genau zum nächsten Verkaufsstart (mit bis zu 2 s Streuung) und danach alle 20 s
+aktualisiert `assets/checkout.js` live über `GET /wp-json/pass-captain/v1/checkout/live?occurrences=…` (je Termin: Preis,
+Verfügbarkeit, Verkaufsfenster). Für eigene Integrationen bleibt `GET /wp-json/pass-captain/v1/availability?types=1,2,3`
+als schlanker Abruf je Ticketart erhalten (öffentlich, keine personenbezogenen Daten,
+`Cache-Control: public, max-age=5, stale-while-revalidate=10`, 120 Abrufe je Minute und Client-Netz; N11). Aktualisiert wird kurz nach dem Laden, genau zum nächsten Verkaufsstart (mit bis zu 2 s Streuung) und danach alle 20 s
 (Filter `wpcap_availability_poll_seconds`, 15–60 s), nur solange die Seite sichtbar ist. Ticketarten vor ihrem
 Verkaufsstart stehen mit „Verkauf ab …“ bzw. Countdown auf der Seite und werden zum Start freigeschaltet. Ausverkaufte
 Ticketarten bieten „Auf die Warteliste“ an (Double-Opt-in; abschaltbar mit `wpcap_waitlist_frontend`). Wer den Seiten-

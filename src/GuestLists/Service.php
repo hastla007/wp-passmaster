@@ -535,15 +535,6 @@ final class Service {
 		return strtoupper( substr( (string) $public_id, 0, 8 ) );
 	}
 
-	/** Tickets of an entry's order with status and short code. */
-	public static function entry_tickets( $entry ) {
-		global $wpdb;
-		if ( ! $entry || ! $entry->order_id ) { return array(); }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,public_id,status FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d ORDER BY ticket_id", (int) $entry->order_id ) );
-		foreach ( $rows as $row ) { $row->short_code = self::short_code( $row->public_id ); }
-		return $rows;
-	}
-
 	private static function decorate( array $entries ) {
 		global $wpdb;
 		$p = $wpdb->prefix;

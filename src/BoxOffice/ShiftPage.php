@@ -173,6 +173,17 @@ final class ShiftPage {
 			echo ' <button class="button">' . esc_html__( 'Hinzufügen', 'pass-captain' ) . '</button></form>';
 		}
 
+		// A404: sales of this shift that have an order but no receipt yet (interrupted at the terminal or
+		// before the receipt) – they must be finished or cancelled before the shift is closed.
+		$unfinished = Service::unfinished_sales( $shift->session_id );
+		if ( $unfinished ) {
+			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( /* translators: %d: number of sales */ _n( '%d Verkauf dieser Schicht ist noch nicht abgeschlossen (Bestellung ohne Beleg).', '%d Verkäufe dieser Schicht sind noch nicht abgeschlossen (Bestellung ohne Beleg).', count( $unfinished ), 'pass-captain' ), count( $unfinished ) ) ) . '</strong> ' . esc_html__( 'An der Kasse fortsetzen oder stornieren, bevor die Schicht geschlossen wird.', 'pass-captain' ) . '</p><ul>';
+			foreach ( $unfinished as $sale ) {
+				echo '<li>' . esc_html( sprintf( /* translators: 1: sale id, 2: time, 3: amount, 4: payment method */ __( 'Verkauf #%1$d · %2$s · %3$s · %4$s', 'pass-captain' ), (int) $sale->sale_id, Scope::local( (string) $sale->created_at, $tz, 'H:i' ), Forms::money( (int) $sale->total_minor, (string) $sale->currency ), Service::method_label( (string) $sale->payment_method ) ) ) . '</li>';
+			}
+			echo '</ul></div>';
+		}
+
 		// Movements (cash in/out, payouts, corrections).
 		echo '<h3>' . esc_html__( 'Einlagen, Entnahmen und Auszahlungen', 'pass-captain' ) . '</h3>';
 		$kinds = ZReport::kind_labels();

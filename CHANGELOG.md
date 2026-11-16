@@ -19,6 +19,7 @@ Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Ve
 - **Sicherheit/Caching** (A506, A507): der Offline-Scanner erneuert seinen App-Cache bei jedem Update automatisch; neu angelegte API-Schlüssel und Kopplungscodes liegen bis zur einmaligen Anzeige nur verschlüsselt vor.
 - **Ticketseite** (A091): zeigt Bestellnummer und Wallet-Knöpfe; Ticket-PDFs heißen nach der lesbaren Bestellnummer.
 - **Rechtstexte** (A298): AGB- und Widerrufstexte werden in den Einstellungen mit dem WordPress-Editor bearbeitet.
+- **Kasse** (A404): die Schichtansicht warnt vor nicht abgeschlossenen Verkäufen (Bestellung ohne Beleg). Ungenutzte Altteile entfernt (N11).
 - **Begriffe** (A377/A415): einheitlich „Ticketart“ und „Veranstalter“; „Storniert“ (Bestellung/Ticket) und „Abgesagt“ (Event/Termin) getrennt; Benutzerauswahl statt Benutzer-ID bei Leistungserbringern.
 - **Website-Zustand** (A375): neue Prüfungen „öffentliche REST-Schnittstelle ohne Anmeldung“ und „Proxy ohne vertrauenswürdige Adressen“.
 - **Einstellungen** (A378): eigene Tabs „Datenschutz“ und „Erweitert“ (Proxy, Sicherheit, Support, Deinstallation); „Gutscheine“ erscheint nur mit Voucher Captain.

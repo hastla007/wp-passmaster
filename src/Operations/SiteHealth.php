@@ -432,18 +432,22 @@ final class SiteHealth {
 	public static function rest_probe( $fresh = false ) {
 		$cached = $fresh ? false : get_transient( self::REST_PROBE_TRANSIENT );
 		if ( is_array( $cached ) && isset( $cached['code'] ) ) { return $cached; }
-		$response = wp_remote_get( rest_url( 'pass-captain/v1/events' ), array(
+		// Through the outbound guard (A202); allow_local: the site may reach itself on a private/loopback address.
+		$response = \PassCaptain\Security\OutboundHttp::request( rest_url( 'pass-captain/v1/events' ), array(
+			'method'    => 'GET',
 			'timeout'   => 5,
 			'cookies'   => array(),
 			'headers'   => array( 'Cache-Control' => 'no-cache', 'Accept' => 'application/json' ),
 			// Loopback: core's own Site Health loopback test uses the same filter.
 			'sslverify' => (bool) apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
-		) );
+		), array( 'allow_local' => true, 'max_bytes' => 262144 ) );
 		$probe = array( 'code' => 0, 'error' => '', 'time' => time() );
 		if ( is_wp_error( $response ) ) {
-			$probe['error'] = sanitize_text_field( $response->get_error_message() );
+			$data = $response->get_error_data();
+			$probe['code'] = is_array( $data ) ? (int) ( $data['response_code'] ?? 0 ) : 0;
+			$probe['error'] = $probe['code'] ? '' : sanitize_text_field( $response->get_error_message() );
 		} else {
-			$probe['code'] = (int) wp_remote_retrieve_response_code( $response );
+			$probe['code'] = (int) $response['code'];
 		}
 		set_transient( self::REST_PROBE_TRANSIENT, $probe, max( MINUTE_IN_SECONDS, (int) apply_filters( 'wpcap_health_rest_probe_ttl', 6 * HOUR_IN_SECONDS ) ) );
 		return $probe;

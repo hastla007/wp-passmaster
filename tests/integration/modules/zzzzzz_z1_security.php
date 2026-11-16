@@ -220,7 +220,8 @@ foreach ( $z1_pages as list( $class, $method ) ) {
 }
 check( 'SEC-7: portal, ticket, invoice and invoice PDF exchange the URL token and accept the cookie' . ( $z1_missing ? ' – missing: ' . implode( ', ', $z1_missing ) : '' ), ! $z1_missing );
 check( 'SEC-7: the portal links the invoice without token when the cookie is in use', false !== strpos( z1_src( PassCaptain\OrderPortal::class, 'render_page' ), 'AccessCookie::via_cookie()' ) );
-check( 'SEC-7: the portal script sends the token in the header, not in the body', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/order-portal.js' ), "'X-WPCAP-Access-Token':TOKEN" ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'assets/order-portal.js' ), 'access_token:TOKEN' ) );
+// N11: the portal script is inline in OrderPortal::render() (assets/order-portal.js was unused and is removed).
+check( 'SEC-7: the portal script sends the token in the header, not in the body', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/OrderPortal.php' ), "'X-WPCAP-Access-Token':TOKEN" ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'src/OrderPortal.php' ), 'access_token:TOKEN' ) && ! file_exists( WPCAP_PATH . 'assets/order-portal.js' ) );
 AccessCookie::reset();
 
 /* ================================================================== SEC-V2 WooCommerce */
