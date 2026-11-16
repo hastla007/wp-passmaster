@@ -4,7 +4,7 @@
  * issuing a new code (order portal, admin "Ticket-PDF") – before, every portal download without the
  * wallet module invalidated the code that had just been mailed or printed.
  *
- * - Column wpcap_tickets.code_secret (schema 3.10.15), sealed with Secrets::seal_value() (sodium
+ * - Column wpcap_tickets.code_secret (schema 3.10.17), sealed with Secrets::seal_value() (sodium
  *   secretbox, key WPCAP_SECRETS_KEY or the salts, rotation through WPCAP_SECRETS_KEY_PREVIOUS),
  *   bound to the ticket id. The check-in still only uses the SHA-256 hash (token_hash).
  * - Written at issuance (wpcap_ticket_mail, before any other filter), after every code change

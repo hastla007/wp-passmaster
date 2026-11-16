@@ -199,7 +199,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_currency_symbols` | `array $symbols` (ISO-Code → Symbol) | Währungssymbole für die Anzeige; unbekannte Währungen erscheinen als ISO-Code. |
 | `wpcap_order_portal_ticket_html` | `string $html` (`''`), `object $ticket, object $order, string $token` | Zusätzliches HTML je Ticket im Bestellportal (z. B. Umtausch-Formular); der Callback muss selbst escapen. |
 | `wpcap_ticket_known_code` | `string $code` (`''`), `int $ticket_id` | Klartext-Code, den ein Modul für den **aktuellen** Ticketcode noch kennt (Kern `TicketCodes`, A586, Priorität 5; Wallet-Modul: verschlüsselt gespeicherter Code). Der Ticket-PDF-Download im Bestellportal verwendet ihn statt einen neuen Code auszugeben; ein Wert, der nicht zum gespeicherten Hash passt, wird ignoriert. Nur flüchtig verwenden. |
-| `wpcap_store_ticket_codes` | `bool $store` (`true`) | A586: aktuellen Ticketcode verschlüsselt speichern (`wpcap_tickets.code_secret`), damit PDFs ohne neuen Code möglich sind; `false` = nur Hash wie vor 3.10.15. |
+| `wpcap_store_ticket_codes` | `bool $store` (`true`) | A586: aktuellen Ticketcode verschlüsselt speichern (`wpcap_tickets.code_secret`), damit PDFs ohne neuen Code möglich sind; `false` = nur Hash wie vor 3.10.17. |
 | `wpcap_portal_pdf_rate_limit` | `int $limit` (20), `object $order` | Ticket-PDF-Downloads im Bestellportal je Bestellung und Stunde (zusätzlich 60 je Client). |
 
 ### Kalender, Erinnerungen, SMS, Webhooks

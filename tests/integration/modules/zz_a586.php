@@ -17,7 +17,7 @@ TicketCodes::register();
 $a586_rotations = array();
 add_action( 'wpcap_ticket_code_rotated', $a586_rot = static function ( $id, $code, $reason = '' ) use ( &$a586_rotations ) { $a586_rotations[] = (int) $id; }, 99, 3 );
 $a586_hashes = static function ( $order_id ) { global $wpdb; return $wpdb->get_col( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=" . (int) $order_id . ' ORDER BY ticket_id' ); };
-check( 'A586: schema 3.10.15 column wpcap_tickets.code_secret exists', TicketCodes::ready() && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.15', '>=' ) );
+check( 'A586: schema 3.10.17 column wpcap_tickets.code_secret exists', TicketCodes::ready() && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.17', '>=' ) );
 
 $a586_type = make_type( 10, 10, 0 );
 $a586_r = Orders::create( array( 'email' => 'a586@example.com', 'items' => array( array( 'ticket_type_id' => $a586_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a586-1' ) );

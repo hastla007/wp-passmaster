@@ -13,7 +13,7 @@
  * Authorisation is exactly the portal's: order public id + access token (capability link from the order
  * mail). The PDF uses the stored current code (filter wpcap_ticket_known_code: core TicketCodes,
  * A586, or the wallet module), so repeated downloads keep the code. Only a ticket whose code is not
- * stored (issued before schema 3.10.15, storage switched off) gets a new code once; the previous
+ * stored (issued before schema 3.10.17, storage switched off) gets a new code once; the previous
  * code/link of that ticket becomes invalid (the portal says so before the download).
  */
 namespace PassCaptain;
