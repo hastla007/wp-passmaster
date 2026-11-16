@@ -39,9 +39,18 @@ $wpa145_extra_post = array(
 	PassCaptain\Waitlists::UNSUBSCRIBE_ACTION => array( PassCaptain\Waitlists::class, 'handle_unsubscribe_request' ),
 	PassCaptain\Waitlists::CONFIRM_ACTION => array( PassCaptain\Waitlists::class, 'handle_confirm_request' ), // A564: double opt-in, keyed by the confirmation token.
 	PassCaptain\Admin\Notices::ACTION => array( PassCaptain\Admin\Notices::class, 'handle_dismiss' ), // A301: manage_options.
+	// Audit line (merged): payment retry/release on the return page (order return token wpcap_rt), service portal
+	// (nonce + booking token / order access token), buyer language in the order portal (order access token).
+	'wpcap_payment_retry' => array( PassCaptain\Payments\ReturnNotice::class, 'handle_retry' ),
+	'wpcap_payment_release' => array( PassCaptain\Payments\ReturnNotice::class, 'handle_release' ),
+	'wpcap_service_portal' => array( PassCaptain\Services\Portal::class, 'handle_post' ),
+	'wpcap_portal_language' => array( PassCaptain\Frontend\Language::class, 'handle_portal_language' ),
 );
 $wpa145_ajax = array(
 	PassCaptain\Mail\Admin::ACTION_PREVIEW => array( PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),
+	// Card-terminal payment of the box office (audit line): status poll and cancel, cashier of the sale or administrator.
+	'wpcap_pos_device_status' => array( PassCaptain\BoxOffice\Page::class, 'ajax_device_status' ),
+	'wpcap_pos_device_cancel' => array( PassCaptain\BoxOffice\Page::class, 'ajax_device_cancel' ),
 );
 // Source scan: every add_action( 'admin_post_…' / 'wp_ajax_…' ) outside Admin\Menu must be known here.
 $wpa145_resolve = static function ( $expr, $file ) {
@@ -98,6 +107,10 @@ $wpdb->insert( "{$p}wpcap_service_slots", array( 'resource_id' => $wpa145_res, '
 $wpa145_slot = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_service_bookings", array( 'slot_id' => $wpa145_slot, 'order_id' => 0, 'customer_email' => 'wpa145@example.com', 'idempotency_key' => hash( 'sha256', uniqid( 'wpa145', true ) ), 'quantity' => 1, 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + 600 ), 'status' => 'held', 'created_at' => $wpa145_now ) );
 $wpa145_booking = (int) $wpdb->insert_id;
+// A service provider assigned to the foreign resource (editing it needs every event of its resources).
+$wpdb->insert( "{$p}wpcap_service_providers", array( 'name' => 'WPA145 Provider', 'email' => '', 'user_id' => 0, 'partner_id' => 0, 'status' => 'active', 'created_at' => $wpa145_now ) );
+$wpa145_provider = (int) $wpdb->insert_id;
+$wpdb->insert( "{$p}wpcap_resource_providers", array( 'resource_id' => $wpa145_res, 'provider_id' => $wpa145_provider ) );
 $wpdb->insert( "{$p}wpcap_staff_assignments", array( 'user_id' => 9161, 'event_id' => $wpa145_foreign['event'], 'scope' => 'occurrence', 'object_id' => $wpa145_foreign['occ'], 'capability' => 'wpcap_checkin', 'created_by' => 1, 'created_at' => $wpa145_now ) );
 $wpa145_assignment = (int) $wpdb->insert_id;
 if ( PassCaptain\Privacy::has_table( 'wpcap_boxoffice_registers' ) ) {
@@ -120,6 +133,7 @@ $wpa145_fixed = array(
 	'slot_id' => $wpa145_slot,
 	'booking_id' => $wpa145_booking,
 	'assignment_id' => $wpa145_assignment,
+	'provider_id' => $wpa145_provider,
 	'user_id' => 9161,
 );
 $wpa145_id_value = static function ( $name ) use ( $wpdb, $p, $wpa145_fixed, $wpa145_own ) {
@@ -151,7 +165,8 @@ $wpa145_caps = array_values( array_filter( $wpa145_caps, static fn( $c ) => ! in
 /** Who acts: 'nocaps' (logged in, no capability at all) or 'foreign' (every operational capability, own event only). */
 $wpa145_as = static function ( $who ) use ( $wpa145_probe_user, $wpa145_caps ) {
 	$GLOBALS['wpcap_test_user_id'] = $wpa145_probe_user;
-	$GLOBALS['wpcap_test_denied_caps'] = 'nocaps' === $who ? $wpa145_caps : array( 'manage_options', 'manage_woocommerce', 'wpcap_view_finance' );
+	// Site-wide capabilities are not operational: finance, and the W9 audit viewer (not part of any operational role).
+	$GLOBALS['wpcap_test_denied_caps'] = 'nocaps' === $who ? $wpa145_caps : array( 'manage_options', 'manage_woocommerce', 'wpcap_view_finance', 'wpcap_view_audit' );
 	$GLOBALS['wpcap_test_transients'] = array();
 	StaffAssignments::flush();
 };
@@ -301,12 +316,14 @@ foreach ( array_unique( $wpa145_all_keys ) as $wpa145_k ) {
 
 // Public admin-post actions (also registered for visitors): the token of the waitlist offer or link is
 // verified by the function they call (tests in zz_a158.php / waitlist tests).
-$wpa145_public_post = array( 'wpcap_accept_waitlist', PassCaptain\Waitlists::UNSUBSCRIBE_ACTION, PassCaptain\Waitlists::CONFIRM_ACTION, 'wpcap_payment_return' );
+$wpa145_public_post = array( 'wpcap_accept_waitlist', PassCaptain\Waitlists::UNSUBSCRIBE_ACTION, PassCaptain\Waitlists::CONFIRM_ACTION, 'wpcap_payment_return', 'wpcap_payment_retry', 'wpcap_payment_release', 'wpcap_service_portal', 'wpcap_portal_language' );
 $wpa145_nopriv = array_values( array_unique( $wpa145_scanned['nopriv'] ) );
 sort( $wpa145_nopriv );
 $wpa145_public_sorted = $wpa145_public_post;
 sort( $wpa145_public_sorted );
-check( 'public admin-post actions are exactly the visitor (nopriv) ones and pass the token to the verifying function; no visitor AJAX', $wpa145_nopriv === $wpa145_public_sorted && ! $wpa145_scanned['ajax_nopriv'] && (bool) preg_match( '/accept_offer\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post['wpcap_accept_waitlist'], 0 ) ) && (bool) preg_match( '/unsubscribe\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post[ PassCaptain\Waitlists::UNSUBSCRIBE_ACTION ], 0 ) ) && (bool) preg_match( '/confirm\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post[ PassCaptain\Waitlists::CONFIRM_ACTION ], 0 ) ) );
+check( 'public admin-post actions are exactly the visitor (nopriv) ones and pass the token to the verifying function; no visitor AJAX', $wpa145_nopriv === $wpa145_public_sorted && ! $wpa145_scanned['ajax_nopriv'] && (bool) preg_match( '/accept_offer\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post['wpcap_accept_waitlist'], 0 ) ) && (bool) preg_match( '/unsubscribe\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post[ PassCaptain\Waitlists::UNSUBSCRIBE_ACTION ], 0 ) ) && (bool) preg_match( '/confirm\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post[ PassCaptain\Waitlists::CONFIRM_ACTION ], 0 ) )
+	&& (bool) preg_match( '/retry\(\s*\$public_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post['wpcap_payment_retry'], 0 ) ) && (bool) preg_match( '/release\(\s*\$public_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post['wpcap_payment_release'], 0 ) )
+	&& (bool) preg_match( '/check_admin_referer\(/', $wpa145_reachable( $wpa145_all_post['wpcap_service_portal'], 0 ) ) && (bool) preg_match( '/set_order_locale\(\s*\$public_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post['wpcap_portal_language'], 0 ) ) );
 
 $wpa145_entries = array();
 foreach ( $wpa145_rest as $wpa145_key => $wpa145_ep ) {
