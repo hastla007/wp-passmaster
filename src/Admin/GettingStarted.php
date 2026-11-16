@@ -45,6 +45,7 @@ final class GettingStarted {
 		$state = array(
 			'payment_online'      => self::online_payment_ready(),
 			'payment_manual'      => self::manual_payment_ready(),
+			'manual_incomplete'   => \PassCaptain\Payments\ManualGateway::enabled_but_incomplete(),
 			'woocommerce'         => class_exists( 'WooCommerce' ),
 			'legal_texts'         => '' !== trim( wp_strip_all_tags( (string) Settings::get( 'terms_text' ) ) ) && '' !== trim( wp_strip_all_tags( (string) Settings::get( 'consumer_info_text' ) ) ),
 			'seller'              => '' !== trim( (string) Settings::get( 'seller_name' ) ) && '' !== trim( (string) Settings::get( 'seller_address' ) ),
@@ -80,7 +81,6 @@ final class GettingStarted {
 	 * @return array[] Steps: key, label, description, done, url, action (link text of an open step).
 	 */
 	public static function items( array $state ) {
-		$settings = static function ( $section ) { return Forms::page_url( SettingsPage::SLUG ) . '#wpcap-settings-' . $section; };
 		$events = Forms::page_url( EventsPage::SLUG );
 		$payment_done = ! empty( $state['payment_online'] ) || ! empty( $state['payment_manual'] ) || ! empty( $state['woocommerce'] );
 		if ( ! empty( $state['payment_online'] ) ) {
@@ -98,21 +98,22 @@ final class GettingStarted {
 				'label' => __( 'Zahlungsart einrichten', 'pass-captain' ),
 				'description' => $payment_note,
 				'done' => $payment_done,
-				'url' => $settings( 'payments' ),
+				// An enabled but incomplete bank transfer is completed in its own section (A290).
+				'url' => self::settings_url( 'payments', ! empty( $state['manual_incomplete'] ) ? 'manual' : '' ),
 			),
 			array(
 				'key' => 'legal',
 				'label' => __( 'Rechtstexte hinterlegen', 'pass-captain' ),
 				'description' => __( 'AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) für den Checkout.', 'pass-captain' ),
 				'done' => ! empty( $state['legal_texts'] ),
-				'url' => $settings( 'legal' ),
+				'url' => self::settings_url( 'legal' ),
 			),
 			array(
 				'key' => 'seller',
 				'label' => __( 'Rechnungssteller angeben', 'pass-captain' ),
 				'description' => __( 'Name und Anschrift für Rechnungen und Belege.', 'pass-captain' ),
 				'done' => ! empty( $state['seller'] ),
-				'url' => $settings( 'seller' ),
+				'url' => self::settings_url( 'invoices', '', 'seller' ),
 			),
 			array(
 				'key' => 'event',
@@ -176,6 +177,20 @@ final class GettingStarted {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Settings URL that opens the tab (and payments section) of a step and jumps to its heading
+	 * (A290: without ?tab= the screen opens "Allgemein", where the anchor does not exist).
+	 *
+	 * @param string $tab     Settings tab (payments, legal, invoices, …).
+	 * @param string $section Payments section (provider) or ''.
+	 * @param string $anchor  Section id of the heading; default: the section, else the tab.
+	 */
+	public static function settings_url( $tab, $section = '', $anchor = '' ) {
+		$args = SettingsPage::url_args( $tab, $section );
+		$anchor = '' !== $anchor ? $anchor : ( $args['section'] ?? $tab );
+		return Forms::page_url( SettingsPage::SLUG, $args ) . '#wpcap-settings-' . $anchor;
 	}
 
 	/** Whether the current user hid the checklist. */
