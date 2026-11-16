@@ -93,6 +93,15 @@ final class TicketAssignments {
 				Mail\Mailer::send( 'ticket_assigned_buyer', $order->customer_email, $vars, array(), (string) $order->locale, (int) $order->order_id );
 			}
 		}
+		if ( ! $rotate ) {
+			/**
+			 * Attendee name/answers of a ticket were corrected for the same holder (code unchanged), A582.
+			 *
+			 * @param int    $ticket_id
+			 * @param string $source    'assign' (order portal).
+			 */
+			do_action( 'wpcap_ticket_attendee_updated', (int) $ticket->ticket_id, 'assign' );
+		}
 		Audit::record( 'ticket_assigned', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'assigned', 'code_rotated' => $rotate );
 	}

@@ -38,7 +38,7 @@ Neue Klassen stehen bei Google zunächst auf `UNDER_REVIEW`; für den Livebetrie
 |---|---|---|
 | Kennung | `serialNumber` = öffentliche Ticket-ID | Objekt `{issuer}.wpcap_{site}_t{ticket}_g{generation}`, Klasse `{issuer}.wpcap_{site}_o{occurrence}` |
 | Barcode | QR (`PKBarcodeFormatQR`), Inhalt = Ticketcode | `QR_CODE`, Inhalt = Ticketcode |
-| Felder | Veranstaltung, Datum/Uhrzeit in der Zeitzone des Termins (`ignoresTimeZone`), Ort, Ticketkategorie, Platz, Teilnehmername | Eventname, Termin (Klasse), Ort, Ticketart, Platz, Inhaber |
+| Felder | Veranstaltung, Datum/Uhrzeit in der Zeitzone des Termins (`ignoresTimeZone`), Einlass (falls gesetzt), Ort, Ticketkategorie, Platz, Teilnehmername; Ablauf 12 Stunden nach dem Ende | Eventname, Termin mit Ende und Einlass (`dateTime.start/end/doorsOpen`, Klasse), Ort, Ticketart, Platz, Inhaber |
 | Updates | `webServiceURL` + `authenticationToken`, APNs-Push | REST-API (`PATCH`/`POST`) |
 
 ### Filter
@@ -68,6 +68,10 @@ Konsequenzen:
 |---|---|---|
 | Ticket widerrufen | `wpcap_ticket_revoked` | Apple: Pass `voided`, ohne Barcode; Google: Objekt `INACTIVE` |
 | Termin verschoben | `wpcap_occurrence_rescheduled` | neues Datum im Pass; Google-Klasse `dateTime` aktualisiert |
+| Ort, Ende, Einlass, Status eines Termins geändert (A559) | `wpcap_occurrence_changed` | Pass und Google-Klasse (Ort, `dateTime`) neu; Apple zeigt „Neuer Ort“/„Neuer Einlass“ als Änderungshinweis |
+| Eventname geändert (A582) | `wpcap_event_updated` | alle Pässe des Events und die Google-Klassen seiner Termine |
+| Ticketartname geändert (A582) | `wpcap_ticket_type_updated` | Pässe dieser Ticketart (Apple „Ticket“, Google `ticketType`) |
+| Teilnehmername korrigiert, gleiche Person (A582) | `wpcap_record_corrected` (Ticket-Admin), `wpcap_ticket_attendee_updated` (Bestellportal) | neuer Name im Pass, Code und Pass-Generation bleiben |
 | Termin abgesagt | `wpcap_occurrence_cancelled` | Pass `voided` mit Hinweis „abgesagt“ |
 | Bestellung storniert / erstattet | `wpcap_order_cancelled`, `wpcap_refund_completed` | Abgleich aller Tickets der Bestellung |
 | Ticketcode erneuert | siehe unten | neue Pass-Generation |

@@ -51,6 +51,7 @@ class GoogleProvider implements WalletProvider {
 			'hexBackgroundColor' => (string) ( Settings::get( 'wallet_background_color' ) ?: '#1d2327' ),
 		);
 		if ( $ticket['ends_at'] ) { $class['dateTime']['end'] = self::iso( $ticket['ends_at'], $ticket['timezone'] ); }
+		if ( ! empty( $ticket['doors_open_at'] ) ) { $class['dateTime']['doorsOpen'] = self::iso( $ticket['doors_open_at'], $ticket['timezone'] ); }
 		if ( 'cancelled' === ( $ticket['occurrence_status'] ?? '' ) || 'cancelled' === ( $ticket['event_status'] ?? '' ) ) {
 			$class['messages'] = array( array( 'id' => 'wpcap_cancelled', 'header' => __( 'Abgesagt', 'pass-captain' ), 'body' => __( 'Die Veranstaltung wurde abgesagt.', 'pass-captain' ) ) );
 		}

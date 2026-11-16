@@ -22,6 +22,13 @@ final class Service {
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'on_ticket_changed' ), 20, 1 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'on_occurrence_changed' ), 20, 1 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'on_occurrence_changed' ), 20, 1 );
+		// A559/A582: location, end, doors open, status (any calendar-relevant field), event and ticket
+		// type names and attendee corrections reach the passes too.
+		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'on_occurrence_changed' ), 20, 1 );
+		add_action( 'wpcap_event_updated', array( __CLASS__, 'on_event_changed' ), 20, 1 );
+		add_action( 'wpcap_ticket_type_updated', array( __CLASS__, 'on_ticket_type_changed' ), 20, 1 );
+		add_action( 'wpcap_record_corrected', array( __CLASS__, 'on_record_corrected' ), 20, 2 );
+		add_action( 'wpcap_ticket_attendee_updated', array( __CLASS__, 'on_ticket_changed' ), 20, 1 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_order_changed' ), 20, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 20, 2 );
 		// Fired by core on resend, transfer, participant assignment and reprint (any reason).
@@ -58,11 +65,13 @@ final class Service {
 	public static function ticket( $ticket_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$doors = \PassCaptain\DoorsOpen::ready() ? 'o.doors_open_at' : 'NULL';
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.order_id,t.status,t.token_hash,t.ticket_type_id,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status,ta.attendee_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id=%d",
+			"SELECT t.ticket_id,t.public_id,t.order_id,t.status,t.token_hash,t.ticket_type_id,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,$doors AS doors_open_at,o.timezone,o.location,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status,ta.attendee_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id=%d",
 			absint( $ticket_id )
 		), ARRAY_A );
 		if ( ! $row ) { return null; }
+		$row['doors_open_at'] = empty( $row['doors_open_at'] ) || '0000-00-00 00:00:00' === $row['doors_open_at'] ? null : (string) $row['doors_open_at'];
 		$state = Store::state( $ticket_id );
 		$secrets = Store::secrets( $state );
 		$row['attendee_name'] = (string) ( $row['attendee_name'] ?? '' );
@@ -84,7 +93,7 @@ final class Service {
 	}
 
 	public static function fingerprint( array $ticket ) {
-		$keys = array( 'status', 'voided', 'starts_at', 'ends_at', 'timezone', 'location', 'event_name', 'ticket_name', 'seat', 'attendee_name', 'code_hash', 'generation', 'occurrence_status', 'event_status' );
+		$keys = array( 'status', 'voided', 'starts_at', 'ends_at', 'doors_open_at', 'timezone', 'location', 'event_name', 'ticket_name', 'seat', 'attendee_name', 'code_hash', 'generation', 'occurrence_status', 'event_status' );
 		return hash( 'sha256', (string) wp_json_encode( array_intersect_key( $ticket, array_flip( $keys ) ) ) );
 	}
 
@@ -281,6 +290,30 @@ final class Service {
 		self::sync_many( $ids );
 		// Tickets may already have been synced through wpcap_ticket_revoked; the Google class still needs the new date/status.
 		if ( $ids ) { self::$pending_occurrences[ (int) $occurrence_id ] = true; }
+	}
+
+	/** wpcap_event_updated: the event name is on every pass and in the Google class of each occurrence. */
+	public static function on_event_changed( $event_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT s.ticket_id FROM {$p}wpcap_wallet_state s INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=s.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d", absint( $event_id ) ) );
+		self::sync_many( $ids );
+		if ( ! $ids ) { return; }
+		foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE event_id=%d", absint( $event_id ) ) ) as $occurrence_id ) {
+			self::$pending_occurrences[ (int) $occurrence_id ] = true;
+		}
+	}
+
+	/** wpcap_ticket_type_updated: the ticket type name is printed on the passes of that type. */
+	public static function on_ticket_type_changed( $ticket_type_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		self::sync_many( $wpdb->get_col( $wpdb->prepare( "SELECT s.ticket_id FROM {$p}wpcap_wallet_state s INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=s.ticket_id WHERE t.ticket_type_id=%d", absint( $ticket_type_id ) ) ) );
+	}
+
+	/** wpcap_record_corrected: staff corrected the attendee name of a ticket (same holder, same code). */
+	public static function on_record_corrected( $object_type, $object_id = 0 ) {
+		if ( 'ticket' === $object_type ) { self::on_ticket_changed( (int) $object_id ); }
 	}
 
 	public static function on_order_changed( $order_id ) {

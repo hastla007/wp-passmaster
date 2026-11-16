@@ -157,6 +157,16 @@ final class EventsPage {
 		$wpdb->update( $wpdb->prefix . 'wpcap_events', $data, array( 'event_id' => (int) $event->event_id ), $formats, array( '%d' ) );
 		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) + $extra );
 		\PassCaptain\PageCache::event_changed( (int) $event->event_id, 'event' ); // A446.
+		$changes = \PassCaptain\Admin\ChangeHistory::diff( (array) $event, array( 'name' => $name, 'status' => $status ) );
+		if ( $changes ) {
+			/**
+			 * After an event's name or status was changed in the admin (A582, e.g. wallet passes).
+			 *
+			 * @param int   $event_id
+			 * @param array $changes field => [old, new].
+			 */
+			do_action( 'wpcap_event_updated', (int) $event->event_id, $changes );
+		}
 		return array( 'event_id' => (int) $event->event_id );
 	}
 
@@ -436,6 +446,15 @@ final class EventsPage {
 			if ( isset( $details['changes']['currency'] ) ) { $details['currency'] = (string) $old->currency; }
 		}
 		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, $details );
+		if ( $old && ! empty( $details['changes'] ) ) {
+			/**
+			 * After an existing ticket type was saved with changes (A582, e.g. the name on wallet passes).
+			 *
+			 * @param int   $ticket_type_id
+			 * @param array $changes field => [old, new].
+			 */
+			do_action( 'wpcap_ticket_type_updated', $type_id, (array) $details['changes'] );
+		}
 		// A446: price, sales window, status or capacity changed what the listing shows.
 		\PassCaptain\PageCache::event_changed( (int) $occ->event_id, 'ticket_type', (int) $occ->occurrence_id );
 		// A535: a sales end after the occurrence's (effective) end is saved, but online sales stop at the end.

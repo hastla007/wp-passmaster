@@ -63,7 +63,10 @@ class AppleProvider implements WalletProvider {
 		$end_utc = $ticket['ends_at'] ?: gmdate( 'Y-m-d H:i:s', strtotime( $ticket['starts_at'] . ' UTC' ) + 6 * HOUR_IN_SECONDS );
 		$voided = ! empty( $ticket['voided'] ) || '' === (string) ( $ticket['code'] ?? '' );
 		$secondary = array( array( 'key' => 'date', 'label' => __( 'Datum', 'pass-captain' ), 'value' => $start, 'dateStyle' => 'PKDateStyleMedium', 'timeStyle' => 'PKDateStyleShort', 'ignoresTimeZone' => true ) );
-		if ( '' !== (string) $ticket['location'] ) { $secondary[] = array( 'key' => 'location', 'label' => __( 'Ort', 'pass-captain' ), 'value' => (string) $ticket['location'] ); }
+		if ( ! empty( $ticket['doors_open_at'] ) ) {
+			$secondary[] = array( 'key' => 'doors', 'label' => __( 'Einlass', 'pass-captain' ), 'value' => self::local_iso( $ticket['doors_open_at'], $ticket['timezone'] ), 'dateStyle' => 'PKDateStyleNone', 'timeStyle' => 'PKDateStyleShort', 'ignoresTimeZone' => true, 'changeMessage' => __( 'Neuer Einlass: %@', 'pass-captain' ) );
+		}
+		if ( '' !== (string) $ticket['location'] ) { $secondary[] = array( 'key' => 'location', 'label' => __( 'Ort', 'pass-captain' ), 'value' => (string) $ticket['location'], 'changeMessage' => __( 'Neuer Ort: %@', 'pass-captain' ) ); }
 		$auxiliary = array( array( 'key' => 'category', 'label' => __( 'Ticket', 'pass-captain' ), 'value' => (string) $ticket['ticket_name'] ) );
 		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'seat', 'label' => __( 'Platz', 'pass-captain' ), 'value' => (string) $ticket['seat'] ); }
 		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'attendee', 'label' => __( 'Name', 'pass-captain' ), 'value' => (string) $ticket['attendee_name'] ); }
