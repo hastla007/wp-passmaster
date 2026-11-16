@@ -597,8 +597,9 @@ final class Queries {
 				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', $search );
 			} else {
 				$or = array( 'ord.public_id LIKE %s', 'ord.customer_email LIKE %s' );
-				// A leading "@" searches by domain (suffix).
-				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', '@' === $search[0] ? '%' . self::like( $search ) : $part );
+				// E-mail part: prefix search ("anna", "anna@exa") on the customer_email index; a leading "@"
+				// searches by domain (suffix, full scan; docs/OPERATIONS.md). PERF-15.
+				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%' );
 			}
 			// A336: buyer name/company (billing data) and attendee names, as far as the user may see them.
 			if ( \PassCaptain\Pii::can_view( 'buyer_name' ) || \PassCaptain\Pii::can_view( 'billing' ) ) {
