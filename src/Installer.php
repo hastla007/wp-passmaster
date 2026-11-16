@@ -210,6 +210,8 @@ final class Installer {
 				help_n tinyint(3) unsigned NOT NULL DEFAULT 0,
 				attendee_email varchar(190) NOT NULL DEFAULT '',
 				transfer_count tinyint(3) unsigned NOT NULL DEFAULT 0,
+				holder_changes tinyint(3) unsigned NOT NULL DEFAULT 0,
+				name_changes tinyint(3) unsigned NOT NULL DEFAULT 0,
 				refunded tinyint(1) unsigned NOT NULL DEFAULT 0,
 				capacity_released tinyint(1) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'valid',
@@ -914,6 +916,7 @@ final class Installer {
 		self::pin_legacy_entry_window( $previous_version );
 		self::backfill_capacity_released( $previous_version );
 		self::backfill_ticket_updated_at( $previous_version );
+		self::backfill_holder_changes( $previous_version );
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 		self::align_legacy_stripe_mode( $previous_version );
@@ -1094,6 +1097,21 @@ final class Installer {
 		$done = $wpdb->query( "UPDATE {$wpdb->prefix}wpcap_tickets SET updated_at=issued_at WHERE issued_at>'1970-01-02' AND updated_at>=issued_at" );
 		if ( '' !== $zone ) { $wpdb->query( $wpdb->prepare( 'SET time_zone=%s', $zone ) ); }
 		return false !== $done;
+	}
+
+	/**
+	 * Schema 3.10.18 (A569): holder and name changes are counted on the ticket. Holder changes made
+	 * before were only audit entries (`ticket_holder_changed`); they are carried over once, so the
+	 * limit keeps applying when the audit log is purged later. Idempotent (GREATEST).
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function backfill_holder_changes( $previous_version ) {
+		global $wpdb;
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.18', '>=' ) || ! TicketAssignments::counters_ready() ) { return false; }
+		$p = $wpdb->prefix;
+		return false !== $wpdb->query( "UPDATE {$p}wpcap_tickets t INNER JOIN (SELECT object_id,COUNT(*) AS n FROM {$p}wpcap_audit_logs WHERE object_type='ticket' AND action='ticket_holder_changed' GROUP BY object_id) a ON a.object_id=t.ticket_id SET t.holder_changes=GREATEST(t.holder_changes,LEAST(a.n,255))" );
 	}
 
 	public static function pin_legacy_credit_prefix( $previous_version ) {

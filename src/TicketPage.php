@@ -30,6 +30,13 @@ final class TicketPage {
 			wp_safe_redirect( add_query_arg( array( 'wpcap_ticket' => $token, 'wpcap_consent_result' => is_wp_error( $result ) ? 'error' : $result ), home_url( '/' ) ) . '#wpcap-consents' );
 			exit;
 		}
+		// A570: attendee name and answers by the current holder (POST to the same link, nonce, PRG).
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in handle_attendee().
+		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_attendee_op'] ) ) {
+			$result = self::handle_attendee( $ticket, $token, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			wp_safe_redirect( add_query_arg( array( 'wpcap_ticket' => $token, 'wpcap_attendee_result' => is_wp_error( $result ) ? substr( sanitize_key( $result->get_error_code() ), 0, 40 ) : $result ), home_url( '/' ) ) . '#wpcap-attendee' );
+			exit;
+		}
 		// "Send me my order link" (A118): new portal link to the buyer, POST with nonce.
 		$link_message = '';
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified right here.
@@ -57,8 +64,81 @@ final class TicketPage {
 		$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket->ticket_id, (array) $ticket );
 		// Assigned here for tickets issued before help codes existed (lazy backfill).
 		$help_code = in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) ? HelpCode::for_ticket( (int) $ticket->ticket_id, $token ) : '';
-		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $ticket->event_name ); ?> — <?php esc_html_e( 'Ticket', 'pass-captain' ); ?></title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.ticket{border:1px solid #c3c4c7;border-radius:12px;padding:1.5rem}.qr{display:block;width:min(75vw,320px);height:auto;margin:1.5rem auto}.token{overflow-wrap:anywhere;font-family:monospace}.help-code strong{display:block;font:700 1.75rem/1.2 ui-monospace,monospace;letter-spacing:.12em}.print{padding:.6rem 1rem}.card{border:1px solid #c3c4c7;border-radius:12px;padding:1rem 1.5rem;margin:1rem 0}.muted{color:#50575e}.wpcap-consents{padding-left:1.2rem}.wpcap-consents li{margin:.75rem 0}.wpcap-consents button{padding:.55rem 1rem;min-height:2.75rem;margin-top:.25rem}.danger{background:#b32d2e;color:#fff;border:1px solid #8a1f1f;border-radius:4px}.manage{margin-top:1.5rem;border-top:1px solid #c3c4c7;padding-top:1rem}.notice{font-weight:700}@media print{.print,.card,.manage,.notice{display:none}.ticket{border:0}}</style></head><body><main class="ticket"><h1><?php echo esc_html( $ticket->event_name ); ?></h1><h2><?php echo esc_html( $ticket->ticket_name ); ?></h2><p><?php echo esc_html( Orders::format_start( $ticket->starts_at, $ticket->timezone ) ); ?></p><?php if ( '' !== $seat ) : ?><p><strong><?php echo esc_html( $seat ); ?></strong></p><?php endif; ?><?php $doors = DoorsOpen::label( DoorsOpen::for_occurrence( (int) $ticket->occurrence_id ), $ticket->timezone, $ticket->starts_at ); ?><?php if ( '' !== $doors ) : ?><p><strong><?php echo esc_html( $doors ); ?></strong></p><?php endif; ?><?php if ( $ticket->location ) : ?><p><?php echo esc_html( $ticket->location ); ?></p><?php endif; ?><p><?php echo esc_html( __( 'Status:', 'pass-captain' ) . ' ' . Admin\Forms::status_label( $ticket->status ) ); ?></p><?php if ( $qr ) : ?><img class="qr" src="<?php echo esc_attr( $qr ); ?>" alt="<?php esc_attr_e( 'Ticket QR-Code', 'pass-captain' ); ?>"><?php endif; ?><p class="token"><?php echo esc_html( $token ); ?></p><?php if ( '' !== $help_code ) : ?><p class="help-code"><?php echo esc_html( HelpCode::caption() ); ?> <strong><?php echo esc_html( $help_code ); ?></strong></p><?php endif; ?><button class="print" onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'pass-captain' ); ?></button><?php echo $link_form; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?></main><?php echo self::consent_html( $ticket, isset( $_GET['wpcap_consent_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_consent_result'] ) ) : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in Consents; display flag only. ?></body></html><?php
+		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $ticket->event_name ); ?> — <?php esc_html_e( 'Ticket', 'pass-captain' ); ?></title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:42rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.ticket{border:1px solid #c3c4c7;border-radius:12px;padding:1.5rem}.qr{display:block;width:min(75vw,320px);height:auto;margin:1.5rem auto}.token{overflow-wrap:anywhere;font-family:monospace}.help-code strong{display:block;font:700 1.75rem/1.2 ui-monospace,monospace;letter-spacing:.12em}.print{padding:.6rem 1rem}.card{border:1px solid #c3c4c7;border-radius:12px;padding:1rem 1.5rem;margin:1rem 0}.muted{color:#50575e}.wpcap-consents{padding-left:1.2rem}.wpcap-consents li{margin:.75rem 0}.wpcap-consents button{padding:.55rem 1rem;min-height:2.75rem;margin-top:.25rem}.danger{background:#b32d2e;color:#fff;border:1px solid #8a1f1f;border-radius:4px}.manage{margin-top:1.5rem;border-top:1px solid #c3c4c7;padding-top:1rem}.notice{font-weight:700}@media print{.print,.card,.manage,.notice{display:none}.ticket{border:0}}</style></head><body><main class="ticket"><h1><?php echo esc_html( $ticket->event_name ); ?></h1><h2><?php echo esc_html( $ticket->ticket_name ); ?></h2><p><?php echo esc_html( Orders::format_start( $ticket->starts_at, $ticket->timezone ) ); ?></p><?php if ( '' !== $seat ) : ?><p><strong><?php echo esc_html( $seat ); ?></strong></p><?php endif; ?><?php $doors = DoorsOpen::label( DoorsOpen::for_occurrence( (int) $ticket->occurrence_id ), $ticket->timezone, $ticket->starts_at ); ?><?php if ( '' !== $doors ) : ?><p><strong><?php echo esc_html( $doors ); ?></strong></p><?php endif; ?><?php if ( $ticket->location ) : ?><p><?php echo esc_html( $ticket->location ); ?></p><?php endif; ?><p><?php echo esc_html( __( 'Status:', 'pass-captain' ) . ' ' . Admin\Forms::status_label( $ticket->status ) ); ?></p><?php if ( $qr ) : ?><img class="qr" src="<?php echo esc_attr( $qr ); ?>" alt="<?php esc_attr_e( 'Ticket QR-Code', 'pass-captain' ); ?>"><?php endif; ?><p class="token"><?php echo esc_html( $token ); ?></p><?php if ( '' !== $help_code ) : ?><p class="help-code"><?php echo esc_html( HelpCode::caption() ); ?> <strong><?php echo esc_html( $help_code ); ?></strong></p><?php endif; ?><button class="print" onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'pass-captain' ); ?></button><?php echo self::attendee_html( $ticket, isset( $_GET['wpcap_attendee_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_attendee_result'] ) ) : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in attendee_html(); display flag only. ?><?php echo $link_form; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?></main><?php echo self::consent_html( $ticket, isset( $_GET['wpcap_consent_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_consent_result'] ) ) : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in Consents; display flag only. ?></body></html><?php
 		exit;
+	}
+
+	/**
+	 * Attendee card of the ticket page (A570): name and field answers for the holder of the code, until
+	 * `attendee_edit_hours` before the start. '' when the data can no longer be changed.
+	 *
+	 * @param object $ticket Row of maybe_render() (ticket_id, ticket_type_id, status, starts_at).
+	 * @param string $flag   Result of the last submission ('saved', 'unchanged' or an error code).
+	 */
+	public static function attendee_html( $ticket, $flag = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT t.status,t.refunded,ord.payment_status,COALESCE(a.attendee_name,'') AS attendee_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id WHERE t.ticket_id=%d", (int) $ticket->ticket_id ) );
+		$hours = max( 0, (int) Settings::get( 'attendee_edit_hours' ) );
+		$open = $row && 'valid' === $row->status && ! (int) $row->refunded && 'paid' === $row->payment_status && strtotime( $ticket->starts_at . ' UTC' ) - $hours * HOUR_IN_SECONDS > time();
+		$notice = '';
+		if ( 'saved' === $flag ) {
+			$notice = __( 'Teilnehmerdaten gespeichert. Der Ticketcode bleibt unverändert.', 'pass-captain' );
+		} elseif ( 'unchanged' === $flag ) {
+			$notice = __( 'Es wurde nichts geändert.', 'pass-captain' );
+		} elseif ( '' !== $flag ) {
+			$messages = array(
+				'wpcap_assignment_limit' => __( 'Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; kleine Korrekturen des Namens (Tippfehler) und die Angaben bleiben möglich.', 'pass-captain' ),
+				'wpcap_assignment_name_limit' => __( 'Der Teilnehmername dieses Tickets wurde bereits mehrfach geändert. Weitere Änderungen sind nur über den Veranstalter möglich.', 'pass-captain' ),
+				'wpcap_assignment_not_allowed' => __( 'Die Teilnehmerdaten dieses Tickets können nicht mehr geändert werden.', 'pass-captain' ),
+			);
+			$notice = $messages[ $flag ] ?? __( 'Die Teilnehmerdaten konnten nicht gespeichert werden. Bitte prüfe die Angaben.', 'pass-captain' );
+		}
+		if ( ! $open ) {
+			return '' !== $notice ? '<p class="notice" id="wpcap-attendee" role="status">' . esc_html( $notice ) . '</p>' : '';
+		}
+		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', (int) $ticket->ticket_type_id ) );
+		$answers = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT field_id,answer FROM {$p}wpcap_participant_answers WHERE ticket_id=%d", (int) $ticket->ticket_id ) ) as $a ) { $answers[ (int) $a->field_id ] = (string) $a->answer; }
+		$html = '<section class="manage" id="wpcap-attendee"><h2>' . esc_html__( 'Teilnehmerdaten', 'pass-captain' ) . '</h2>';
+		if ( '' !== $notice ) { $html .= '<p class="notice" role="status">' . esc_html( $notice ) . '</p>'; }
+		$html .= '<form method="post"><input type="hidden" name="wpcap_attendee_op" value="save"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( 'wpcap_ticket_attendee_' . (int) $ticket->ticket_id ) ) . '">';
+		$html .= '<p><label>' . esc_html__( 'Name der teilnehmenden Person', 'pass-captain' ) . '<br><input name="attendee_name" type="text" maxlength="190" required value="' . esc_attr( (string) $row->attendee_name ) . '"></label></p>';
+		foreach ( (array) $fields as $field ) {
+			$value = $answers[ (int) $field->field_id ] ?? '';
+			$name = 'wpcap_answer[' . esc_attr( $field->field_key ) . ']';
+			$label = esc_html( $field->label . ( (int) $field->required ? ' *' : '' ) );
+			if ( 'textarea' === $field->field_type ) {
+				$input = '<textarea name="' . $name . '"' . ( (int) $field->required ? ' required' : '' ) . '>' . esc_html( $value ) . '</textarea>';
+			} elseif ( 'checkbox' === $field->field_type ) {
+				$input = '<input type="hidden" name="' . $name . '" value=""><input type="checkbox" name="' . $name . '" value="1"' . ( '1' === $value ? ' checked' : '' ) . '>';
+			} else {
+				$input = '<input type="' . ( 'email' === $field->field_type ? 'email' : 'text' ) . '" name="' . $name . '" value="' . esc_attr( $value ) . '"' . ( (int) $field->required ? ' required' : '' ) . '>';
+			}
+			$html .= '<p><label>' . $label . '<br>' . $input . '</label></p>';
+		}
+		$html .= '<p><small>' . esc_html__( 'Der Ticketcode bleibt gleich. Der Name kann korrigiert werden; ein Wechsel auf eine andere Person ist nur begrenzt möglich.', 'pass-captain' ) . '</small></p>';
+		if ( $hours ) {
+			/* translators: %d: hours */
+			$html .= '<p><small>' . esc_html( sprintf( _n( 'Änderungen sind bis %d Stunde vor Beginn möglich.', 'Änderungen sind bis %d Stunden vor Beginn möglich.', $hours, 'pass-captain' ), $hours ) ) . '</small></p>';
+		}
+		$html .= '<button type="submit" class="print">' . esc_html__( 'Teilnehmerdaten speichern', 'pass-captain' ) . '</button></form></section>';
+		return $html;
+	}
+
+	/**
+	 * Saves the attendee card of the ticket page (A570). The caller verified the ticket code.
+	 *
+	 * @return string|\WP_Error 'saved' or 'unchanged'.
+	 */
+	public static function handle_attendee( $ticket, $token, array $post ) {
+		$nonce = sanitize_text_field( (string) ( $post['_wpnonce'] ?? '' ) );
+		if ( ! wp_verify_nonce( $nonce, 'wpcap_ticket_attendee_' . (int) $ticket->ticket_id ) ) {
+			return new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Seite neu.', 'pass-captain' ) );
+		}
+		$answers = isset( $post['wpcap_answer'] ) && is_array( $post['wpcap_answer'] ) ? array_map( static function ( $v ) { return is_scalar( $v ) ? (string) $v : ''; }, $post['wpcap_answer'] ) : array();
+		$result = TicketAssignments::update_by_holder( $token, (string) ( $post['attendee_name'] ?? '' ), $answers );
+		return is_wp_error( $result ) ? $result : (string) $result['status'];
 	}
 
 	/** Consent card of the ticket page ('' without consent fields). */
