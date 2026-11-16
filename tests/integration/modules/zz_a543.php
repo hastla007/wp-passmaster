@@ -37,7 +37,7 @@ function a543_current_code( $ticket_id ) {
 }
 
 echo "A543: replaced codes and revocation reasons at the scanner\n";
-check( 'A543: schema 3.10.18 table wpcap_code_history exists', CodeHistory::ready() && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.18', '>=' ) );
+check( 'A543: schema 3.10.20 table wpcap_code_history exists', CodeHistory::ready() && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.20', '>=' ) );
 
 // Transfer: the old code says "Code ersetzt – übertragen" with the time; the new code admits.
 $s = adm_setup( 'UTC', null, null, 3 );

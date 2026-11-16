@@ -851,7 +851,7 @@ final class Installer {
 				KEY object_runs (kind,object_id),
 				KEY open_runs (status,updated_at)
 			) ENGINE=InnoDB $charset;",
-			// Replaced codes and revocation reasons for the scanner (schema 3.10.18, A543; see CodeHistory).
+			// Replaced codes and revocation reasons for the scanner (schema 3.10.20, A543; see CodeHistory).
 			"CREATE TABLE {$wpdb->prefix}wpcap_code_history (
 				history_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				ticket_id bigint(20) unsigned NOT NULL,

@@ -4,7 +4,7 @@
  * revocation, so the scanner can say "Code ersetzt (übertragen am …)" or "Widerrufen: umgetauscht"
  * instead of "Ticket nicht gefunden" / a bare "Widerrufen".
  *
- * - Table wpcap_code_history (schema 3.10.18): ticket_id, token_hash (SHA-256 of the old code; empty
+ * - Table wpcap_code_history (schema 3.10.20): ticket_id, token_hash (SHA-256 of the old code; empty
  *   for revocations), kind `replaced` or `revoked`, reason (short code, never free text), created_at.
  *   No personal data: the hash of a code that no longer works, the ticket id and a reason category.
  * - `replaced` rows are written by every code rotation in the same transaction as the new hash
