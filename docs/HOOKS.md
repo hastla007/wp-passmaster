@@ -255,6 +255,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Hook | Wert, Argumente | Zweck |
 |---|---|---|
+| `wpcap_schema_retry_delay` | `int $seconds`, `int $attempts` | Wartezeit bis zum nächsten automatischen Versuch eines fehlgeschlagenen Schema-Upgrades (A466; Standard 5 Minuten, je Fehlversuch verdoppelt, höchstens 6 Stunden). Admin-, Cron- und Frontend-Aufrufe warten so lange, WP-CLI (`wp pass-captain upgrade`) und der Knopf im Admin-Hinweis versuchen es sofort. |
 | `wpcap_bulk_run_batch_size` | `int $size` | Zeilen je Schritt eines Absage-/Benachrichtigungslaufs (Standard 200, 1–1000; A428). |
 | `wpcap_bulk_mail` | `array\|null $spec, array $payload` | Baut eine in einem Lauf (A428) eingereihte Mail eines Moduls beim Versand: `['type' => Mailtyp, 'vars' => Platzhalter]` (optional `ics` => Termin-ID). Das Pass-Modul baut so `pass_kept`/`pass_revoked`. |
 | `wpcap_admin_order_detail` (Action) | `object $order, array $tickets` | Zusätzliche Abschnitte auf der Bestelldetailseite im Admin vor den Erstattungen (z. B. Ticketumtausch). |

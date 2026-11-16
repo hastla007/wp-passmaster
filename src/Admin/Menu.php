@@ -19,6 +19,7 @@ final class Menu {
 	public static function handlers() {
 		return array(
 			'wpcap_create_event' => array( EventsPage::class, 'handle_create_event' ),
+			self::SCHEMA_RETRY_ACTION => array( self::class, 'handle_schema_retry' ),
 			'wpcap_update_event' => array( EventsPage::class, 'handle_update_event' ),
 			'wpcap_cancel_event' => array( EventsPage::class, 'handle_cancel_event' ),
 			'wpcap_save_occurrence' => array( EventsPage::class, 'handle_save_occurrence' ),
@@ -89,11 +90,41 @@ final class Menu {
 		}
 	}
 
-	/** Failed schema upgrade (Installer::missing_schema()): administrators see what is missing. */
+	/** admin-post action of the "retry the database update" button (A466). */
+	const SCHEMA_RETRY_ACTION = 'wpcap_schema_retry';
+
+	/**
+	 * Failed schema upgrade (Installer::missing_schema()): administrators see what is missing, how
+	 * often it failed, when the next automatic attempt runs (A466) and a button to retry now.
+	 */
 	public static function schema_error_notice() {
 		$error = get_option( 'wpcap_schema_error' );
 		if ( ! is_array( $error ) || ! current_user_can( 'manage_options' ) ) { return; }
-		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Das Datenbank-Update ist unvollständig.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren.', 'pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p></div>';
+		$retry_at = \PassCaptain\Installer::retry_at();
+		$attempts = max( 1, (int) ( $error['attempts'] ?? 1 ) );
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Das Datenbank-Update ist unvollständig.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Update danach erneut starten.', 'pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p><p>';
+		if ( $retry_at ) {
+			/* translators: 1: number of failed attempts, 2: date and time of the next automatic attempt */
+			echo esc_html( sprintf( _n( '%1$d Versuch fehlgeschlagen. Nächster automatischer Versuch: %2$s.', '%1$d Versuche fehlgeschlagen. Nächster automatischer Versuch: %2$s.', $attempts, 'pass-captain' ), $attempts, wp_date( 'd.m.Y H:i', $retry_at ) ) ) . ' ';
+		}
+		echo '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="' . esc_attr( self::SCHEMA_RETRY_ACTION ) . '">';
+		wp_nonce_field( self::SCHEMA_RETRY_ACTION );
+		echo '<p><button type="submit" class="button">' . esc_html__( 'Datenbank-Update jetzt erneut versuchen', 'pass-captain' ) . '</button></p></form></div>';
+	}
+
+	/** admin-post: retries a failed schema upgrade right away (manage_options, nonce; A466). */
+	public static function handle_schema_retry() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
+		}
+		Forms::verify( self::SCHEMA_RETRY_ACTION );
+		\PassCaptain\Installer::allow_retry();
+		\PassCaptain\Plugin::maybe_upgrade( 'admin' );
+		$ok = ! is_array( get_option( 'wpcap_schema_error' ) );
+		\PassCaptain\Audit::record( 'schema_upgrade_retried', 'system', 0, array( 'ok' => $ok ) );
+		Forms::flash( $ok ? 'success' : 'error', $ok ? __( 'Das Datenbank-Update wurde abgeschlossen.', 'pass-captain' ) : __( 'Das Datenbank-Update ist erneut fehlgeschlagen. Details stehen im Hinweis.', 'pass-captain' ) );
+		$back = wp_get_referer();
+		Forms::redirect( $back ? $back : admin_url() );
 	}
 
 	/**

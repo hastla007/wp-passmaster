@@ -18,6 +18,8 @@ final class Installer {
 		global $wpdb;
 		// Schema version before this run ('' on a fresh install), for one-off data migrations below.
 		$previous_version = self::migration_baseline( (string) get_option( 'wpcap_db_version', '' ), (string) get_option( 'wpcap_db_version_max', '' ) );
+		// Marker of a running attempt (A466): only survives when the request dies mid-upgrade.
+		self::begin_attempt();
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$charset = $wpdb->get_charset_collate();
@@ -834,8 +836,8 @@ final class Installer {
 		// otherwise the next request would rely on a schema that is not there.
 		$missing = self::missing_schema( $all_queries );
 		if ( $missing ) {
-			update_option( 'wpcap_schema_error', array( 'missing' => array_slice( $missing, 0, 50 ), 'at' => time(), 'db_error' => Redact::text( (string) $wpdb->last_error ) ) );
-			Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => array_slice( $missing, 0, 50 ) ) );
+			self::record_failure( array_slice( $missing, 0, 50 ), Redact::text( (string) $wpdb->last_error ) );
+			if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
 			return false;
 		}
 		if ( function_exists( 'delete_option' ) ) { delete_option( 'wpcap_schema_error' ); }
@@ -862,6 +864,78 @@ final class Installer {
 		Tax\Profiles::flush();
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
+		if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
+		return true;
+	}
+
+	/** Option: an upgrade attempt that started and did not finish yet ({target, count, at}; A466). */
+	const ATTEMPT_OPTION = 'wpcap_schema_attempt';
+
+	/** Remembers that an upgrade attempt starts (counts consecutive unfinished attempts per target). */
+	private static function begin_attempt() {
+		$previous = get_option( self::ATTEMPT_OPTION );
+		$target = self::version();
+		$count = is_array( $previous ) && ( $previous['target'] ?? '' ) === $target ? (int) ( $previous['count'] ?? 0 ) + 1 : 1;
+		update_option( self::ATTEMPT_OPTION, array( 'target' => $target, 'count' => $count, 'at' => time() ), false );
+	}
+
+	/** First retry after a failed schema upgrade (seconds); doubles per failure up to RETRY_MAX (A466). */
+	const RETRY_FIRST = 300;
+	/** Longest wait between two automatic attempts of a failing schema upgrade (seconds). */
+	const RETRY_MAX = 6 * 3600;
+
+	/**
+	 * A failed schema upgrade (A466): remembered with the target schema, the number of failed attempts
+	 * and the time of the next automatic attempt. Until then admin, cron and frontend requests do not
+	 * run dbDelta again (WP-CLI and the "retry" button do); a new plugin version (another target)
+	 * retries at once. Audited once per failed attempt.
+	 *
+	 * @param string[] $missing  Missing tables/columns.
+	 * @param string   $db_error Last database error (redacted).
+	 */
+	private static function record_failure( array $missing, $db_error ) {
+		$previous = get_option( 'wpcap_schema_error' );
+		$target = self::version();
+		$attempts = is_array( $previous ) && ( $previous['target'] ?? '' ) === $target ? (int) ( $previous['attempts'] ?? 0 ) + 1 : 1;
+		$delay = (int) min( self::RETRY_MAX, self::RETRY_FIRST * ( 2 ** min( 16, $attempts - 1 ) ) );
+		/**
+		 * Seconds until the next automatic attempt of a failing schema upgrade (A466).
+		 *
+		 * @param int $delay    Default: 5 minutes, doubled per failed attempt, at most 6 hours.
+		 * @param int $attempts Failed attempts for this schema version so far.
+		 */
+		$delay = max( 0, (int) apply_filters( 'wpcap_schema_retry_delay', $delay, $attempts ) );
+		update_option( 'wpcap_schema_error', array( 'missing' => $missing, 'at' => time(), 'db_error' => $db_error, 'target' => $target, 'attempts' => $attempts, 'retry_at' => time() + $delay ), false );
+		Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => $missing, 'attempts' => $attempts, 'retry_at' => gmdate( 'Y-m-d H:i:s', time() + $delay ) ) );
+	}
+
+	/**
+	 * Time of the next automatic attempt while a failed schema upgrade for the current target waits
+	 * (A466); 0 when an upgrade may run now.
+	 */
+	public static function retry_at() {
+		$target = self::version();
+		$at = 0;
+		$error = get_option( 'wpcap_schema_error' );
+		if ( is_array( $error ) && ( $error['target'] ?? '' ) === $target ) { $at = (int) ( $error['retry_at'] ?? 0 ); }
+		// Attempts that died mid-upgrade (time limit, fatal error): the first one is repeated at once,
+		// from the second one on with the same backoff.
+		$attempt = get_option( self::ATTEMPT_OPTION );
+		if ( is_array( $attempt ) && ( $attempt['target'] ?? '' ) === $target && (int) ( $attempt['count'] ?? 0 ) >= 2 ) {
+			$count = (int) $attempt['count'];
+			$at = max( $at, (int) $attempt['at'] + (int) min( self::RETRY_MAX, self::RETRY_FIRST * ( 2 ** min( 16, $count - 2 ) ) ) );
+		}
+		return $at > time() ? $at : 0;
+	}
+
+	/** Lets the next request retry a failed schema upgrade at once (admin button, WP-CLI). */
+	public static function allow_retry() {
+		if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
+		$error = get_option( 'wpcap_schema_error' );
+		if ( ! is_array( $error ) ) { return false; }
+		$error['retry_at'] = 0;
+		update_option( 'wpcap_schema_error', $error, false );
+		return true;
 	}
 
 	/**
@@ -1114,27 +1188,30 @@ final class Installer {
 			add_action( 'init', array( __CLASS__, 'rename_legacy_roles' ), 1 );
 		}
 		$fingerprint_ok = get_option( 'wpcap_schema_fingerprint' ) === self::fingerprint();
+		// A failing upgrade waits for its next attempt (A466); WP-CLI always tries.
+		$retry_at = 'cli' === $context ? 0 : self::retry_at();
 		if ( 'frontend' === $context ) {
 			if ( $fingerprint_ok ) { return false; }
 			$next = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( self::UPGRADE_HOOK ) : false;
 			if ( ! $next && function_exists( 'wp_schedule_single_event' ) ) {
-				wp_schedule_single_event( time(), self::UPGRADE_HOOK );
+				wp_schedule_single_event( max( time(), $retry_at ), self::UPGRADE_HOOK );
 				return false;
 			}
-			if ( $next && (int) $next > time() - self::OVERDUE_AFTER ) { return false; }
+			if ( $retry_at || ( $next && (int) $next > time() - self::OVERDUE_AFTER ) ) { return false; }
 		}
 		if ( self::version() === get_option( 'wpcap_db_version' ) ) {
 			// Schema is current; only the fingerprint was missing or outdated (e.g. installs before 1.2).
 			if ( ! $fingerprint_ok ) { update_option( 'wpcap_schema_fingerprint', self::fingerprint() ); }
 			return false;
 		}
+		if ( $retry_at ) { return false; }
 		$ran = false;
 		self::run_locked(
 			static function () use ( &$ran ) {
 				// Another request may have finished the upgrade while we waited for the lock.
 				if ( self::version() === self::stored_db_version() ) { return; }
-				self::install();
-				$ran = true;
+				// Only a completed install counts: a failed one schedules no events (A466).
+				$ran = false !== self::install();
 			}
 		);
 		return $ran;

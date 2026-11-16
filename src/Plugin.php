@@ -18,6 +18,16 @@ final class Plugin {
 		$upgrade_hook = 'admin' === Installer::context() ? 'admin_init' : 'init';
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
+		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
+			// Runs a pending (also a failed, waiting) schema upgrade now (A466).
+			\WP_CLI::add_command( 'pass-captain upgrade', static function () {
+				Installer::allow_retry();
+				$ran = self::maybe_upgrade( 'cli' );
+				$error = get_option( 'wpcap_schema_error' );
+				if ( is_array( $error ) ) { \WP_CLI::error( 'schema upgrade failed, missing: ' . implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 20 ) ) ); }
+				\WP_CLI::success( $ran ? 'schema upgraded to ' . Installer::version() : 'schema is current (' . Installer::version() . ')' );
+			} );
+		}
 		LegacySlug::register();
 		// Self-healing cron: recurring events lost (cron option cleaned up by another plugin, restore, the
 		// old copy's uninstall.php) are re-scheduled on the next request; one cached option read.
@@ -146,8 +156,11 @@ final class Plugin {
 	}
 
 	private static function activate_site() {
-		Installer::install();
+		// A failed first install (missing tables/columns) schedules no recurring events: their handlers
+		// would run against a schema that is not there (A466). The next admin request retries.
+		if ( false === Installer::install() ) { return false; }
 		self::schedule_events();
+		return true;
 	}
 
 	/** init: re-schedules the recurring events when the main queue event is missing (see run()). */
