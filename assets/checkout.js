@@ -1089,14 +1089,17 @@
 		const providers = Array.isArray(state.providers) ? state.providers : [];
 		const noPayment = !onSale || !providers.length;
 		let open = false;
+		let paidOpen = false;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const row = types[qty.dataset.type] || null;
 			const max = row ? Math.max(0, parseInt(row.max, 10) || 0) : 0;
 			qty.max = String(max);
 			if (row && /^\d+$/.test(String(row.price_minor))) qty.dataset.price = String(row.price_minor);
 			if ((Number(qty.value) || 0) > max) qty.value = String(max);
-			qty.disabled = max < 1 || noPayment;
+			// Without a payment provider only paid types are closed; free tickets need none.
+			qty.disabled = max < 1 || !onSale || (noPayment && (Number(qty.dataset.price) || 0) > 0);
 			if (max > 0) open = true;
+			if (max > 0 && (Number(qty.dataset.price) || 0) > 0) paidOpen = true;
 			const wrap = typeRow(qty);
 			if (wrap) {
 				show(wrap.querySelector('.wpcap-qty-box'), max > 0);
@@ -1111,7 +1114,7 @@
 		if (onSale) renderProviders(form, providers);
 		const soldOut = onSale && !open;
 		show(form.querySelector('.wpcap-soldout-note'), soldOut);
-		show(form.querySelector('.wpcap-no-payment'), !soldOut && noPayment);
+		show(form.querySelector('.wpcap-no-payment'), !soldOut && (!onSale || (noPayment && paidOpen)));
 		show(form.querySelector('.wpcap-buy'), !soldOut && !noPayment);
 		if (card) {
 			setText(card.querySelector('.wpcap-fact-availability dd'), state.availability);
