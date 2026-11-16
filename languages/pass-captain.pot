@@ -2,41 +2,41 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Pass Captain 1.4.0\n"
+"Project-Id-Version: Pass Captain 1.6.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pass-captain\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-15T11:20:25+00:00\n"
+"POT-Creation-Date: 2026-11-16T17:40:10+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: pass-captain\n"
 
 #. Plugin Name of the plugin
-#: pass-captain.php
+#: pass-captain.php:3
 #: src/Integrations/WooCommerce/CartPricing.php:83
 msgid "Pass Captain"
 msgstr ""
 
 #. Plugin URI of the plugin
-#: pass-captain.php
+#: pass-captain.php:4
 msgid "https://github.com/hastla007/wp-passmaster"
 msgstr ""
 
 #. Description of the plugin
-#: pass-captain.php
+#: pass-captain.php:5
 msgid "Eigenständige Event-, Ticket- und Passverwaltung für WordPress."
 msgstr ""
 
 #. Author of the plugin
-#: pass-captain.php
+#: pass-captain.php:9
 msgid "hastla007"
 msgstr ""
 
 #. Author URI of the plugin
-#: pass-captain.php
+#: pass-captain.php:10
 msgid "https://github.com/hastla007"
 msgstr ""
 
@@ -189,7 +189,7 @@ msgstr ""
 #: src/Modules/Fiscalization.php:1292
 #: src/Modules/Fiscalization.php:1306
 #: src/Modules/Mollie.php:188
-#: src/Modules/Reminders.php:255
+#: src/Modules/Reminders.php:262
 #: src/Modules/Sms.php:430
 #: src/Modules/Webhooks.php:278
 #: src/OfflineScanner/AdminPage.php:118
@@ -394,9 +394,9 @@ msgstr ""
 #: src/Admin/ServicesPage.php:433
 #: src/Admin/ServicesPage.php:448
 #: src/Admin/ServicesPage.php:495
-#: src/Admin/StatusPage.php:265
-#: src/Admin/StatusPage.php:292
-#: src/Admin/StatusPage.php:411
+#: src/Admin/StatusPage.php:266
+#: src/Admin/StatusPage.php:293
+#: src/Admin/StatusPage.php:412
 #: src/Admin/TicketsPage.php:224
 #: src/Admin/TicketsPage.php:236
 #: src/Admin/WaitlistsPage.php:87
@@ -443,7 +443,7 @@ msgstr ""
 #: src/Admin/ServicesPage.php:400
 #: src/Admin/ServicesPage.php:448
 #: src/Admin/ServicesPage.php:495
-#: src/Admin/StatusPage.php:319
+#: src/Admin/StatusPage.php:320
 #: src/Admin/WaitlistsPage.php:145
 #: src/Admission/RulesPage.php:200
 #: src/Integrations/ConnectorsPage.php:144
@@ -470,7 +470,7 @@ msgstr ""
 #: src/Mail/Admin.php:262
 #: src/Modules/Calendar.php:291
 #: src/Modules/Mollie.php:210
-#: src/Modules/Reminders.php:269
+#: src/Modules/Reminders.php:276
 #: src/Modules/Sms.php:480
 #: src/Modules/Webhooks.php:318
 #: src/OfflineScanner/AdminPage.php:160
@@ -533,7 +533,7 @@ msgstr ""
 #: src/Admin/OrdersPage.php:664
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/SecurityScreens.php:212
-#: src/Admin/StatusPage.php:366
+#: src/Admin/StatusPage.php:367
 #: src/Admin/TicketsPage.php:237
 #: src/Modules/Fiscalization.php:1396
 msgid "Aktion"
@@ -584,7 +584,7 @@ msgid "%1$d Einträge · Zeiten in %2$s"
 msgstr ""
 
 #: src/Admin/AuditLogPage.php:181
-#: src/Admin/StatusPage.php:319
+#: src/Admin/StatusPage.php:320
 #: src/Integrations/ConnectorsPage.php:207
 msgid "Zeit"
 msgstr ""
@@ -784,7 +784,7 @@ msgstr ""
 #: src/Admin/SettingsPage.php:435
 #: src/Integrations/ConnectorsPage.php:193
 #: src/Modules/Fiscalization.php:1353
-#: src/Modules/Reminders.php:261
+#: src/Modules/Reminders.php:268
 #: src/Sales/TaxProfilesPage.php:56
 #: src/WalletPasses/AdminPage.php:188
 #: src/WalletPasses/AdminPage.php:203
@@ -1043,8 +1043,8 @@ msgstr ""
 
 #: src/Admin/CampaignsPage.php:269
 #: src/Admin/ServicesPage.php:448
-#: src/Admin/StatusPage.php:292
-#: src/Admin/StatusPage.php:411
+#: src/Admin/StatusPage.php:293
+#: src/Admin/StatusPage.php:412
 #: src/BoxOffice/Page.php:98
 msgid "Anzahl"
 msgstr ""
@@ -1271,7 +1271,7 @@ msgstr ""
 
 #: src/Admin/Dashboard.php:137
 #: src/Modules/Reminders.php:51
-#: src/Modules/Reminders.php:257
+#: src/Modules/Reminders.php:264
 msgid "Erinnerungen"
 msgstr ""
 
@@ -1300,7 +1300,7 @@ msgid "Serien"
 msgstr ""
 
 #: src/Admin/Dashboard.php:142
-#: src/Modules/Reminders.php:265
+#: src/Modules/Reminders.php:272
 #: src/Modules/Sms.php:129
 msgid "SMS"
 msgstr ""
@@ -2242,7 +2242,7 @@ msgstr ""
 
 #: src/Admin/EventsPage.php:978
 #: src/Mail/Admin.php:259
-#: src/Modules/Reminders.php:264
+#: src/Modules/Reminders.php:271
 msgid "Text"
 msgstr ""
 
@@ -2327,8 +2327,8 @@ msgstr ""
 
 #: src/Admin/EventsPage.php:992
 #: src/Admin/EventsPage.php:1031
-#: src/Admin/StatusPage.php:292
-#: src/Admin/StatusPage.php:319
+#: src/Admin/StatusPage.php:293
+#: src/Admin/StatusPage.php:320
 msgid "Typ"
 msgstr ""
 
@@ -2936,7 +2936,7 @@ msgstr ""
 #: src/Admin/OrdersPage.php:529
 #: src/Admin/OrdersPage.php:660
 #: src/Admin/TicketsPage.php:218
-#: src/OrderPortal.php:104
+#: src/OrderPortal.php:106
 #: src/Partners/Settlements.php:613
 #: src/Partners/Settlements.php:733
 #: src/Partners/Settlements.php:740
@@ -3193,8 +3193,8 @@ msgstr ""
 #: src/Admin/OrdersPage.php:352
 #: src/Admin/OrdersPage.php:658
 #: src/Admin/ServicesPage.php:448
-#: src/Admin/StatusPage.php:341
-#: src/Admin/StatusPage.php:366
+#: src/Admin/StatusPage.php:342
+#: src/Admin/StatusPage.php:367
 #: src/Modules/Fiscalization.php:1396
 #: src/Partners/Settlements.php:613
 #: src/Partners/Settlements.php:750
@@ -3240,8 +3240,8 @@ msgstr ""
 #: src/Mail/Types.php:310
 #: src/Mollie/MollieGateway.php:113
 #: src/Mollie/MollieGateway.php:368
-#: src/OrderPortal.php:95
 #: src/OrderPortal.php:97
+#: src/OrderPortal.php:99
 #: src/Payments/BankTransfer.php:46
 #: src/Payments/StripeGateway.php:103
 #, php-format
@@ -3250,7 +3250,7 @@ msgstr ""
 
 #. translators: %s: full order id
 #: src/Admin/OrdersPage.php:405
-#: src/OrderPortal.php:115
+#: src/OrderPortal.php:117
 #, php-format
 msgid "Vollständige Bestell-ID: %s"
 msgstr ""
@@ -3319,7 +3319,7 @@ msgid "Daten für diesen Fall anzeigen (wird protokolliert)"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:451
-#: src/OrderPortal.php:137
+#: src/OrderPortal.php:139
 msgid "Rechnungsdaten"
 msgstr ""
 
@@ -3552,8 +3552,8 @@ msgstr ""
 
 #: src/Admin/OrdersPage.php:659
 #: src/Admin/ServicesPage.php:448
-#: src/Admin/StatusPage.php:341
-#: src/Admin/StatusPage.php:366
+#: src/Admin/StatusPage.php:342
+#: src/Admin/StatusPage.php:367
 #: src/Payments/BankTransfer.php:64
 #: src/PublicEvents.php:106
 msgid "Betrag"
@@ -4924,7 +4924,7 @@ msgstr ""
 #: src/BoxOffice/Page.php:530
 #: src/Modules/Calendar.php:277
 #: src/Modules/Mollie.php:184
-#: src/Modules/Reminders.php:251
+#: src/Modules/Reminders.php:258
 #: src/Modules/Sms.php:426
 #: src/Printing/Page.php:221
 msgid "Einstellungen gespeichert."
@@ -5056,307 +5056,307 @@ msgid "Warnung"
 msgstr ""
 
 #: src/Admin/StatusPage.php:215
-#: src/Admin/StatusPage.php:300
+#: src/Admin/StatusPage.php:301
 #: src/OfflineScanner/I18n.php:147
 msgid "Fehler"
 msgstr ""
 
-#: src/Admin/StatusPage.php:252
+#: src/Admin/StatusPage.php:253
 msgid "Keine Auffälligkeiten im Hintergrundbetrieb."
 msgstr ""
 
-#: src/Admin/StatusPage.php:261
+#: src/Admin/StatusPage.php:262
 msgid "WP-Cron und Worker"
 msgstr ""
 
-#: src/Admin/StatusPage.php:263
+#: src/Admin/StatusPage.php:264
 msgid "WP-Cron ist deaktiviert (DISABLE_WP_CRON). Ein externer Cron-Job muss wp-cron.php regelmäßig (mindestens alle 5 Minuten) aufrufen."
 msgstr ""
 
-#: src/Admin/StatusPage.php:265
+#: src/Admin/StatusPage.php:266
 msgid "Aufgabe"
 msgstr ""
 
-#: src/Admin/StatusPage.php:265
+#: src/Admin/StatusPage.php:266
 msgid "Cron-Hook"
 msgstr ""
 
-#: src/Admin/StatusPage.php:265
+#: src/Admin/StatusPage.php:266
 msgid "Nächster Lauf"
 msgstr ""
 
-#: src/Admin/StatusPage.php:265
+#: src/Admin/StatusPage.php:266
 msgid "Letzter erfolgreicher Lauf"
 msgstr ""
 
-#: src/Admin/StatusPage.php:270
+#: src/Admin/StatusPage.php:271
 msgid "Weitere Worker:"
 msgstr ""
 
-#: src/Admin/StatusPage.php:274
+#: src/Admin/StatusPage.php:275
 msgid "noch kein Lauf"
 msgstr ""
 
-#: src/Admin/StatusPage.php:280
+#: src/Admin/StatusPage.php:281
 msgid "Warteschlangen"
 msgstr ""
 
-#: src/Admin/StatusPage.php:281
+#: src/Admin/StatusPage.php:282
 msgid "Queue"
 msgstr ""
 
-#: src/Admin/StatusPage.php:281
+#: src/Admin/StatusPage.php:282
 msgid "Offen nach Status"
 msgstr ""
 
-#: src/Admin/StatusPage.php:281
+#: src/Admin/StatusPage.php:282
 msgid "Überfällig (> 30 Min.)"
 msgstr ""
 
-#: src/Admin/StatusPage.php:281
+#: src/Admin/StatusPage.php:282
 msgid "Lange in Bearbeitung (> 5 Min.)"
 msgstr ""
 
-#: src/Admin/StatusPage.php:292
+#: src/Admin/StatusPage.php:293
 msgid "Jobs nach Status und Typ"
 msgstr ""
 
-#: src/Admin/StatusPage.php:292
+#: src/Admin/StatusPage.php:293
 msgid "Ältester fälliger"
 msgstr ""
 
-#: src/Admin/StatusPage.php:300
+#: src/Admin/StatusPage.php:301
 msgid "E-Mail-Versandfehler"
 msgstr ""
 
-#: src/Admin/StatusPage.php:300
+#: src/Admin/StatusPage.php:301
 msgid "Nachrichten"
 msgstr ""
 
-#: src/Admin/StatusPage.php:300
+#: src/Admin/StatusPage.php:301
 #: src/Admission/ConflictsPage.php:85
 msgid "Zuletzt"
 msgstr ""
 
-#: src/Admin/StatusPage.php:304
+#: src/Admin/StatusPage.php:305
 msgid "Häufige Ursachen: SMTP-Plugin falsch konfiguriert, Absenderadresse nicht erlaubt, Versandlimit des Hosters."
 msgstr ""
 
-#: src/Admin/StatusPage.php:309
+#: src/Admin/StatusPage.php:310
 msgid "Fehlgeschlagene Einträge"
 msgstr ""
 
 #. translators: 1: number of failed items, 2: maximum per click
-#: src/Admin/StatusPage.php:318
+#: src/Admin/StatusPage.php:319
 #, php-format
 msgid "Alle %1$d erneut versuchen (höchstens %2$d pro Klick)"
 msgstr ""
 
 #. translators: 1: number of failed items, 2: maximum per click
-#: src/Admin/StatusPage.php:318
+#: src/Admin/StatusPage.php:319
 msgid "Alle fehlgeschlagenen Einträge dieser Warteschlange erneut versuchen?"
 msgstr ""
 
-#: src/Admin/StatusPage.php:319
+#: src/Admin/StatusPage.php:320
 #: src/Integrations/ConnectorsPage.php:207
 #: src/Modules/Webhooks.php:326
 msgid "Versuche"
 msgstr ""
 
-#: src/Admin/StatusPage.php:319
+#: src/Admin/StatusPage.php:320
 msgid "Letzter Fehler"
 msgstr ""
 
-#: src/Admin/StatusPage.php:324
+#: src/Admin/StatusPage.php:325
 #: src/Modules/Fiscalization.php:1406
 msgid "Erneut versuchen"
 msgstr ""
 
-#: src/Admin/StatusPage.php:325
+#: src/Admin/StatusPage.php:326
 msgid "Verwerfen"
 msgstr ""
 
-#: src/Admin/StatusPage.php:325
+#: src/Admin/StatusPage.php:326
 msgid "Eintrag endgültig verwerfen?"
 msgstr ""
 
-#: src/Admin/StatusPage.php:330
+#: src/Admin/StatusPage.php:331
 msgid "Keine fehlgeschlagenen Einträge."
 msgstr ""
 
-#: src/Admin/StatusPage.php:335
+#: src/Admin/StatusPage.php:336
 msgid "Erstattungen zur manuellen Prüfung"
 msgstr ""
 
-#: src/Admin/StatusPage.php:337
+#: src/Admin/StatusPage.php:338
 msgid "Keine Erstattung wartet auf eine manuelle Prüfung."
 msgstr ""
 
-#: src/Admin/StatusPage.php:340
+#: src/Admin/StatusPage.php:341
 msgid "Bei diesen Erstattungen brach der Ablauf während des Aufrufs beim Zahlungsanbieter ab. Bitte im Konto des Anbieters prüfen, ob ausgezahlt wurde: „Erledigt“ verbucht die Erstattung (Tickets werden widerrufen), „Fehlgeschlagen“ gibt sie für einen neuen Versuch frei."
 msgstr ""
 
-#: src/Admin/StatusPage.php:341
+#: src/Admin/StatusPage.php:342
 #: src/Modules/Fiscalization.php:1466
 #: src/Partners/Settlements.php:56
 #: src/Partners/Settlements.php:613
 msgid "Erstattung"
 msgstr ""
 
-#: src/Admin/StatusPage.php:341
+#: src/Admin/StatusPage.php:342
 msgid "Seit"
 msgstr ""
 
-#: src/Admin/StatusPage.php:341
+#: src/Admin/StatusPage.php:342
 msgid "Entscheidung"
 msgstr ""
 
-#: src/Admin/StatusPage.php:346
+#: src/Admin/StatusPage.php:347
 msgid "Anbieter-Referenz oder Notiz"
 msgstr ""
 
-#: src/Admin/StatusPage.php:346
+#: src/Admin/StatusPage.php:347
 msgid "Anbieter-Referenz / Notiz"
 msgstr ""
 
-#: src/Admin/StatusPage.php:347
+#: src/Admin/StatusPage.php:348
 msgid "Wurde die Erstattung beim Zahlungsanbieter wirklich ausgezahlt? Sie wird jetzt verbucht."
 msgstr ""
 
-#: src/Admin/StatusPage.php:347
+#: src/Admin/StatusPage.php:348
 msgid "Manuell als erledigt markieren"
 msgstr ""
 
-#: src/Admin/StatusPage.php:348
+#: src/Admin/StatusPage.php:349
 msgid "Wurde beim Zahlungsanbieter sicher nichts ausgezahlt?"
 msgstr ""
 
-#: src/Admin/StatusPage.php:348
+#: src/Admin/StatusPage.php:349
 msgid "Als fehlgeschlagen markieren"
 msgstr ""
 
-#: src/Admin/StatusPage.php:356
+#: src/Admin/StatusPage.php:357
 msgid "Zahlungen zur Klärung"
 msgstr ""
 
-#: src/Admin/StatusPage.php:358
+#: src/Admin/StatusPage.php:359
 msgid "Keine offenen Fälle."
 msgstr ""
 
-#: src/Admin/StatusPage.php:362
+#: src/Admin/StatusPage.php:363
 msgid "Zahlung auf stornierte/abgelaufene Bestellung"
 msgstr ""
 
-#: src/Admin/StatusPage.php:363
+#: src/Admin/StatusPage.php:364
 msgid "Doppelzahlung"
 msgstr ""
 
-#: src/Admin/StatusPage.php:364
+#: src/Admin/StatusPage.php:365
 msgid "Erstattung beim Anbieter fehlgeschlagen"
 msgstr ""
 
-#: src/Admin/StatusPage.php:366
+#: src/Admin/StatusPage.php:367
 msgid "Fall"
 msgstr ""
 
-#: src/Admin/StatusPage.php:366
+#: src/Admin/StatusPage.php:367
 msgid "Anbieter / Referenz"
 msgstr ""
 
-#: src/Admin/StatusPage.php:368
+#: src/Admin/StatusPage.php:369
 msgid "automatische Erstattung fehlgeschlagen"
 msgstr ""
 
-#: src/Admin/StatusPage.php:372
+#: src/Admin/StatusPage.php:373
 msgid "Betrag jetzt beim Zahlungsanbieter erstatten?"
 msgstr ""
 
-#: src/Admin/StatusPage.php:372
+#: src/Admin/StatusPage.php:373
 msgid "Beim Anbieter erstatten"
 msgstr ""
 
-#: src/Admin/StatusPage.php:374
+#: src/Admin/StatusPage.php:375
 #: src/Admission/ConflictsPage.php:110
 #: src/BoxOffice/Page.php:268
 msgid "Notiz"
 msgstr ""
 
-#: src/Admin/StatusPage.php:375
+#: src/Admin/StatusPage.php:376
 msgid "Als erledigt markieren"
 msgstr ""
 
-#: src/Admin/StatusPage.php:381
+#: src/Admin/StatusPage.php:382
 msgid "Datenbankschema"
 msgstr ""
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
-#: src/Admin/StatusPage.php:384
+#: src/Admin/StatusPage.php:385
 #, php-format
 msgid "Transaktions-Isolation des Servers: %s (Bestell- und Zahlungstransaktionen laufen immer mit REPEATABLE READ)."
 msgstr ""
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
-#: src/Admin/StatusPage.php:384
+#: src/Admin/StatusPage.php:385
 msgid "unbekannt"
 msgstr ""
 
-#: src/Admin/StatusPage.php:388
+#: src/Admin/StatusPage.php:389
 msgid "Aktuell."
 msgstr ""
 
 #. translators: 1: number of failed attempts, 2: time of the next automatic attempt
-#: src/Admin/StatusPage.php:394
+#: src/Admin/StatusPage.php:395
 #, php-format
 msgid "Die Aktualisierung ist %1$d-mal in Folge fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgstr ""
 
 #. translators: 1: number of failed attempts, 2: time of the next automatic attempt
-#: src/Admin/StatusPage.php:394
+#: src/Admin/StatusPage.php:395
 msgid "bei der nächsten Admin- oder Cron-Anfrage"
 msgstr ""
 
 #. translators: 1: stored schema version, 2: expected schema version
-#: src/Admin/StatusPage.php:398
+#: src/Admin/StatusPage.php:399
 #, php-format
 msgid "Gespeicherte Version %1$s, erwartet %2$s."
 msgstr ""
 
-#: src/Admin/StatusPage.php:400
+#: src/Admin/StatusPage.php:401
 msgid "Jetzt erneut versuchen"
 msgstr ""
 
-#: src/Admin/StatusPage.php:404
+#: src/Admin/StatusPage.php:405
 msgid "Diagnose und Abgleich"
 msgstr ""
 
-#: src/Admin/StatusPage.php:405
+#: src/Admin/StatusPage.php:406
 msgid "Sucht nach inkonsistenten Daten. Die Prüfung ändert nichts; Reparaturen gibt es nur, wo sie gefahrlos wiederholbar sind, und sie werden im Audit-Log protokolliert. Auch per WP-CLI: wp pass-captain diagnose"
 msgstr ""
 
-#: src/Admin/StatusPage.php:406
+#: src/Admin/StatusPage.php:407
 msgid "Diagnose ausführen"
 msgstr ""
 
 #. translators: %s: date and time
-#: src/Admin/StatusPage.php:410
+#: src/Admin/StatusPage.php:411
 #, php-format
 msgid "Letzte Diagnose: %s"
 msgstr ""
 
-#: src/Admin/StatusPage.php:411
+#: src/Admin/StatusPage.php:412
 #: src/Sales/TaxProfilesPage.php:79
 msgid "Prüfung"
 msgstr ""
 
-#: src/Admin/StatusPage.php:411
+#: src/Admin/StatusPage.php:412
 msgid "Beispiele und empfohlene Maßnahme"
 msgstr ""
 
-#: src/Admin/StatusPage.php:429
+#: src/Admin/StatusPage.php:430
 msgid "Reparieren"
 msgstr ""
 
-#: src/Admin/StatusPage.php:429
+#: src/Admin/StatusPage.php:430
 msgid "Reparatur jetzt ausführen?"
 msgstr ""
 
@@ -5365,7 +5365,7 @@ msgstr ""
 #: src/Admin/TicketsPage.php:82
 #: src/Checkin.php:81
 #: src/Checkin.php:89
-#: src/Orders.php:2531
+#: src/Orders.php:2546
 #: src/ScannerAdapters.php:88
 msgid "Ticket nicht gefunden."
 msgstr ""
@@ -6184,12 +6184,12 @@ msgid "Die UID-Nummer konnte nicht bestätigt werden. Bitte prüfe die Eingabe."
 msgstr ""
 
 #: src/Billing.php:293
-#: src/OrderPortal.php:141
+#: src/OrderPortal.php:143
 msgid "Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter."
 msgstr ""
 
 #: src/Billing.php:298
-#: src/OrderPortal.php:85
+#: src/OrderPortal.php:87
 msgid "Die Rechnungsdaten konnten nicht gespeichert werden."
 msgstr ""
 
@@ -6562,7 +6562,7 @@ msgstr ""
 
 #: src/BoxOffice/Page.php:327
 #: src/Integrations/WooCommerce/Attendees.php:410
-#: src/OrderPortal.php:150
+#: src/OrderPortal.php:152
 #: templates/event-card.php:66
 #: templates/event-card.php:100
 #: templates/event-card.php:113
@@ -7659,6 +7659,7 @@ msgid "wird wiederholt"
 msgstr ""
 
 #: src/Integrations/ConnectorsPage.php:114
+#: src/Integrations/WorkflowCaptain/Status.php:49
 msgid "fehlgeschlagen"
 msgstr ""
 
@@ -7684,6 +7685,7 @@ msgstr ""
 
 #: src/Integrations/ConnectorsPage.php:144
 #: src/Integrations/ConnectorsPage.php:174
+#: src/Integrations/WorkflowCaptain/Status.php:102
 #: src/Modules/Webhooks.php:292
 #: src/Modules/Webhooks.php:309
 msgid "Ereignisse"
@@ -7989,7 +7991,7 @@ msgstr ""
 
 #. translators: %s: masked e-mail address
 #: src/Integrations/HttpJson/Endpoints.php:107
-#: src/OrderPortal.php:106
+#: src/OrderPortal.php:108
 msgid "Termin verschoben"
 msgstr ""
 
@@ -8605,6 +8607,101 @@ msgstr ""
 msgid "Dein Warenkorb enthält Tickets verschiedener Rechnungssteller (%s). Diese Tickets können nicht in einer gemeinsamen Bestellung gekauft werden. Bitte bestelle die Tickets je Veranstalter getrennt."
 msgstr ""
 
+#: src/Integrations/WorkflowCaptain/Status.php:45
+msgid "empfangen"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:46
+msgid "in Bearbeitung"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:47
+msgid "erledigt"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:48
+msgid "wartet auf Wiederholung"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:50
+msgid "verworfen"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:51
+msgid "als Schleife gestoppt"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:52
+msgid "pausiert"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:73
+msgid "Workflow Captain"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:75
+msgid "Workflow Captain ist nicht aktiv. Mit Workflow Captain können Ereignisse aus Pass Captain (z. B. bezahlte Bestellungen) eigene Abläufe auslösen. Pass Captain funktioniert ohne Einschränkung."
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:79
+msgid "Workflow Captain ist aktiv, meldet aber noch keinen Status."
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:84
+msgid "angemeldet"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:86
+msgid "abgelehnt"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:88
+msgid "nicht angemeldet – Workflow Captain kennt noch keinen Adapter für Pass Captain."
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:100
+msgid "Workflows"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:101
+msgid "Läufe"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:103
+#: src/Modules/Fiscalization.php:1351
+#: src/Modules/Fiscalization.php:1443
+#: src/Modules/Sms.php:460
+msgid "Anbieter"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:111
+msgid "Adapter"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:112
+msgid "Vertragsversion"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:113
+msgid "Aktive Workflows"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:114
+msgid "Ereignisse je Zustand"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:114
+msgid "noch keine"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:115
+msgid "Letzte Korrelations-ID"
+msgstr ""
+
+#: src/Integrations/WorkflowCaptain/Status.php:123
+msgid "In Workflow Captain öffnen:"
+msgstr ""
+
 #: src/Invoices.php:38
 msgid "Eine Rechnung kann erst für bezahlte Bestellungen erstellt werden."
 msgstr ""
@@ -8944,7 +9041,7 @@ msgid "Eingebaute Standardvorlage (übersetzt in die Sprache der Empfänger:in).
 msgstr ""
 
 #: src/Mail/Admin.php:255
-#: src/Modules/Reminders.php:263
+#: src/Modules/Reminders.php:270
 msgid "Betreff"
 msgstr ""
 
@@ -8981,7 +9078,7 @@ msgid "Die Testmail nutzt den aktuellen Formularinhalt mit Beispieldaten und geh
 msgstr ""
 
 #: src/Mail/Admin.php:270
-#: src/Modules/Reminders.php:266
+#: src/Modules/Reminders.php:273
 msgid "Platzhalter"
 msgstr ""
 
@@ -9013,7 +9110,7 @@ msgstr ""
 
 #. translators: 1: voucher amount, 2: amount to pay
 #: src/Mail/Blocks.php:61
-#: src/OrderPortal.php:103
+#: src/OrderPortal.php:105
 msgid "Zahlungsinformationen"
 msgstr ""
 
@@ -10394,12 +10491,6 @@ msgid "Noch kein Fiskaladapter installiert. Anbieter bleiben deaktiviert, bis ei
 msgstr ""
 
 #: src/Modules/Fiscalization.php:1351
-#: src/Modules/Fiscalization.php:1443
-#: src/Modules/Sms.php:460
-msgid "Anbieter"
-msgstr ""
-
-#: src/Modules/Fiscalization.php:1351
 msgid "Keiner"
 msgstr ""
 
@@ -10687,31 +10778,31 @@ msgstr ""
 msgid "Erinnerung: {event} am {date} um {time}, {location}."
 msgstr ""
 
-#: src/Modules/Reminders.php:222
+#: src/Modules/Reminders.php:229
 msgid "Keine Erinnerungen mehr erhalten:"
 msgstr ""
 
-#: src/Modules/Reminders.php:243
+#: src/Modules/Reminders.php:250
 msgid "Bitte mindestens einen Zeitpunkt (1–720 Stunden), einen Betreff und einen Text angeben."
 msgstr ""
 
-#: src/Modules/Reminders.php:261
+#: src/Modules/Reminders.php:268
 msgid "Erinnerungs-E-Mails an Ticketinhaber:innen senden"
 msgstr ""
 
-#: src/Modules/Reminders.php:262
+#: src/Modules/Reminders.php:269
 msgid "Zeitpunkte (Stunden vor Beginn)"
 msgstr ""
 
-#: src/Modules/Reminders.php:262
+#: src/Modules/Reminders.php:269
 msgid "Kommagetrennt, z. B. 48, 2 (max. 5 Werte). Pro Termin und Zeitpunkt erhält jede Person höchstens eine Nachricht."
 msgstr ""
 
-#: src/Modules/Reminders.php:265
+#: src/Modules/Reminders.php:272
 msgid "Zusätzlich per SMS erinnern (nur mit Einwilligung, siehe SMS-Einstellungen; kostenpflichtig)"
 msgstr ""
 
-#: src/Modules/Reminders.php:265
+#: src/Modules/Reminders.php:272
 msgid "SMS-Text"
 msgstr ""
 
@@ -11886,116 +11977,116 @@ msgstr ""
 msgid "QR-Codes können nicht erzeugt werden: Die QR-Bibliothek (BaconQrCode) fehlt oder ein anderes Plugin lädt eine inkompatible Version (%s). Tickets zeigen dann keinen QR-Code."
 msgstr ""
 
-#: src/OrderPortal.php:66
+#: src/OrderPortal.php:68
 msgid "Abbrechen"
 msgstr ""
 
-#: src/OrderPortal.php:67
+#: src/OrderPortal.php:69
 msgid "Übertragung fehlgeschlagen."
 msgstr ""
 
-#: src/OrderPortal.php:68
+#: src/OrderPortal.php:70
 msgid "Ticket wurde übertragen. Der neue Code wurde per E-Mail versendet."
 msgstr ""
 
 #. translators: %s: recipient e-mail address
-#: src/OrderPortal.php:70
+#: src/OrderPortal.php:72
 #, php-format
 msgid "Ticket wirklich an %s übertragen? Das ist endgültig und nur einmal möglich: Der bisherige Ticketcode wird sofort ungültig und die neue Person erhält einen neuen Code per E-Mail."
 msgstr ""
 
-#: src/OrderPortal.php:71
+#: src/OrderPortal.php:73
 msgid "Ja, endgültig übertragen"
 msgstr ""
 
-#: src/OrderPortal.php:72
+#: src/OrderPortal.php:74
 msgid "Zuweisung fehlgeschlagen."
 msgstr ""
 
-#: src/OrderPortal.php:73
+#: src/OrderPortal.php:75
 msgid "Teilnehmer wurde zugewiesen. Ein neuer Ticketcode wurde an die Teilnehmer-E-Mail gesendet; der bisherige Code ist ungültig."
 msgstr ""
 
-#: src/OrderPortal.php:74
+#: src/OrderPortal.php:76
 msgid "Teilnehmerdaten gespeichert. Der Ticketcode bleibt unverändert."
 msgstr ""
 
-#: src/OrderPortal.php:75
+#: src/OrderPortal.php:77
 msgid "Tickets jetzt erneut senden? Dabei werden neue Ticketcodes erstellt; die bisher gesendeten Codes und Ausdrucke werden ungültig."
 msgstr ""
 
-#: src/OrderPortal.php:76
+#: src/OrderPortal.php:78
 msgid "Ja, erneut senden"
 msgstr ""
 
 #. translators: %d: number of tickets passed on to other people
-#: src/OrderPortal.php:78
+#: src/OrderPortal.php:80
 #, php-format
 msgid "Achtung: Auch die %d Tickets, die du an andere Personen weitergegeben hast, bekommen neue Codes. Deren bisherige Tickets und Ausdrucke werden sofort ungültig; die neuen Codes gehen an die Teilnehmer-E-Mail. Trotzdem alle Tickets erneut senden?"
 msgstr ""
 
-#: src/OrderPortal.php:79
+#: src/OrderPortal.php:81
 msgid "Erneuter Versand fehlgeschlagen."
 msgstr ""
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:81
+#: src/OrderPortal.php:83
 #, php-format
 msgid "Die Tickets wurden erneut an %s gesendet. Bitte verwende nur noch die neuen Codes."
 msgstr ""
 
-#: src/OrderPortal.php:82
+#: src/OrderPortal.php:84
 msgid "Wird gesendet …"
 msgstr ""
 
-#: src/OrderPortal.php:83
+#: src/OrderPortal.php:85
 msgid "Rechnungsdaten gespeichert. Sie werden auf der Rechnung verwendet."
 msgstr ""
 
-#: src/OrderPortal.php:84
+#: src/OrderPortal.php:86
 msgid "Rechnungsdaten entfernt."
 msgstr ""
 
-#: src/OrderPortal.php:86
+#: src/OrderPortal.php:88
 msgid "Erstattung für die Tickets der verschobenen Termine beantragen? Der Veranstalter prüft den Antrag; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet."
 msgstr ""
 
-#: src/OrderPortal.php:87
+#: src/OrderPortal.php:89
 msgid "Ja, Erstattung beantragen"
 msgstr ""
 
-#: src/OrderPortal.php:88
+#: src/OrderPortal.php:90
 msgid "Dein Erstattungsantrag ist eingegangen und wird geprüft."
 msgstr ""
 
-#: src/OrderPortal.php:89
+#: src/OrderPortal.php:91
 msgid "Der Erstattungsantrag konnte nicht gestellt werden."
 msgstr ""
 
 #. translators: %s: order date
-#: src/OrderPortal.php:98
+#: src/OrderPortal.php:100
 #, php-format
 msgid "Bestellt am %s"
 msgstr ""
 
 #. translators: %s: formatted amount
-#: src/OrderPortal.php:102
+#: src/OrderPortal.php:104
 #, php-format
 msgid "Gesamtbetrag: %s"
 msgstr ""
 
 #. translators: 1: voucher amount, 2: amount to pay
-#: src/OrderPortal.php:102
+#: src/OrderPortal.php:104
 #, php-format
 msgid "davon mit Gutschein bezahlt: %1$s · Zahlbetrag: %2$s"
 msgstr ""
 
-#: src/OrderPortal.php:104
+#: src/OrderPortal.php:106
 msgid "Die Ticketlinks und QR-Codes findest du in der Ticket-E-Mail (aus Sicherheitsgründen werden Ticketcodes nicht gespeichert und hier nicht angezeigt)."
 msgstr ""
 
 #. translators: %d: number of tickets
-#: src/OrderPortal.php:105
+#: src/OrderPortal.php:107
 #, php-format
 msgid "Achtung: %d Ticket hast du an eine andere Person weitergegeben."
 msgid_plural "Achtung: %d Tickets hast du an andere Personen weitergegeben."
@@ -12003,28 +12094,28 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of tickets
-#: src/OrderPortal.php:105
+#: src/OrderPortal.php:107
 msgid "Ein erneuter Versand aller Tickets macht deren Tickets und Ausdrucke ungültig. Sende nur deine eigenen Tickets neu, wenn du nur deine E-Mail verloren hast."
 msgstr ""
 
 #. translators: %d: number of tickets
-#: src/OrderPortal.php:105
+#: src/OrderPortal.php:107
 msgid "Nur meine eigenen, nicht weitergegebenen Tickets erneut senden"
 msgstr ""
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:105
+#: src/OrderPortal.php:107
 #, php-format
 msgid "Tickets erneut an %s senden"
 msgstr ""
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:105
+#: src/OrderPortal.php:107
 msgid "Dabei werden neue Ticketcodes erstellt; bisher gesendete Codes werden ungültig (auch Ausdrucke). Tickets mit eigener Teilnehmer-E-Mail gehen an diese Adresse. Höchstens dreimal pro Stunde."
 msgstr ""
 
 #. translators: 1: number of tickets, 2: deadline
-#: src/OrderPortal.php:106
+#: src/OrderPortal.php:108
 #, php-format
 msgid "Für %1$d Ticket wurde der Termin verschoben. Kannst du den neuen Termin nicht wahrnehmen, kannst du bis %2$s eine Erstattung beantragen."
 msgid_plural "Für %1$d Tickets wurde der Termin verschoben. Kannst du den neuen Termin nicht wahrnehmen, kannst du bis %2$s eine Erstattung beantragen."
@@ -12032,74 +12123,74 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: number of tickets, 2: deadline
-#: src/OrderPortal.php:106
+#: src/OrderPortal.php:108
 msgid "Ein Erstattungsantrag wird bereits geprüft."
 msgstr ""
 
 #. translators: 1: number of tickets, 2: deadline
-#: src/OrderPortal.php:106
+#: src/OrderPortal.php:108
 msgid "Erstattung beantragen"
 msgstr ""
 
 #. translators: 1: number of tickets, 2: deadline
 #. translators: %d: places
-#: src/OrderPortal.php:107
+#: src/OrderPortal.php:109
 #: src/Services/Portal.php:157
 #: src/TicketPage.php:55
 msgid "Status:"
 msgstr ""
 
-#: src/OrderPortal.php:108
+#: src/OrderPortal.php:110
 msgid "Teilnehmername"
 msgstr ""
 
-#: src/OrderPortal.php:108
+#: src/OrderPortal.php:110
 msgid "Teilnehmer-E-Mail"
 msgstr ""
 
-#: src/OrderPortal.php:108
+#: src/OrderPortal.php:110
 #: src/PublicEvents.php:138
 msgid "– bitte wählen –"
 msgstr ""
 
-#: src/OrderPortal.php:108
+#: src/OrderPortal.php:110
 msgid "Wenn du eine andere E-Mail-Adresse einträgst, erhält diese Person einen neuen Ticketcode und der bisherige Code wird ungültig. Namens- und Angabenkorrekturen behalten den Code."
 msgstr ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:108
+#: src/OrderPortal.php:110
 #, php-format
 msgid "Änderungen sind bis %d Stunden vor Beginn möglich."
 msgstr ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:108
+#: src/OrderPortal.php:110
 msgid "Teilnehmer zuweisen"
 msgstr ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:109
+#: src/OrderPortal.php:111
 msgid "An E-Mail übertragen"
 msgstr ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:109
+#: src/OrderPortal.php:111
 msgid "Ticket einmalig übertragen"
 msgstr ""
 
-#: src/OrderPortal.php:113
+#: src/OrderPortal.php:115
 msgid "Rechnung anzeigen"
 msgstr ""
 
-#: src/OrderPortal.php:114
+#: src/OrderPortal.php:116
 msgid "Diesen persönlichen Link sicher aufbewahren und nicht teilen."
 msgstr ""
 
-#: src/OrderPortal.php:144
+#: src/OrderPortal.php:146
 msgid "Bis zur Ausstellung der Rechnung kannst du hier Firma, Name, Anschrift und UID-Nummer für die Rechnung angeben oder korrigieren."
 msgstr ""
 
-#: src/OrderPortal.php:161
+#: src/OrderPortal.php:163
 msgid "Rechnungsdaten speichern"
 msgstr ""
 
@@ -12311,29 +12402,29 @@ msgstr ""
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr ""
 
-#: src/Orders.php:2123
+#: src/Orders.php:2138
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:2334
+#: src/Orders.php:2349
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr ""
 
-#: src/Orders.php:2366
-#: src/Orders.php:2429
-#: src/Orders.php:2541
+#: src/Orders.php:2381
+#: src/Orders.php:2444
+#: src/Orders.php:2556
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr ""
 
-#: src/Orders.php:2379
+#: src/Orders.php:2394
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr ""
 
-#: src/Orders.php:2452
+#: src/Orders.php:2467
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; bitte versuche den Versand erneut."
 msgstr ""
 
-#: src/Orders.php:2535
+#: src/Orders.php:2550
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr ""
 

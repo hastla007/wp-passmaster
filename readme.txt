@@ -125,6 +125,7 @@ Only the name, the main file (`pass-captain.php`), the folder and the text domai
 = 1.6.0 =
 * Read API for the state of orders, tickets, refunds, dates and events without personal data (`wpcap_get_order_state()` and siblings, `PassCaptain\Api\ReadFacade`, contract 1.2.0).
 * Stale reminders are sorted out in send order and in at least the batch size of a run.
+* Optional "Workflow Captain" box on the system status page (adapter state, contract version, active workflows, events per state, last correlation ID, links) when Workflow Captain is active.
 
 = 1.5.0 =
 * Extension points for add-ons (admin menu, invoices, branding, checkout gate, API scopes, card terminal devices) with the contract version constant `WPCAP_CONTRACT_VERSION` (contract 1.1.0).
