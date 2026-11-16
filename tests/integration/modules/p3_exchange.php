@@ -399,7 +399,9 @@ $vip16 = ex_type( $occ_b, 'VIP Kasse', 3500, 2 );
 // Merged: money at the counter is booked into the cashier's open shift, so the test opens one.
 \PassCaptain\Modules\BoxOffice::register();
 $ex_register = \PassCaptain\BoxOffice\Registers::save( array( 'name' => 'Umtausch-Kasse', 'blind_count' => 0 ) );
-$ex_shift = is_wp_error( $ex_register ) ? $ex_register : \PassCaptain\BoxOffice\Shifts::open( $ex_register->register_id, array( 'float_minor' => 0 ) );
+$ex_shift = \PassCaptain\BoxOffice\Service::open_session_for( get_current_user_id() ); // An earlier module may have left one open.
+if ( ! $ex_shift ) { $ex_shift = is_wp_error( $ex_register ) ? $ex_register : \PassCaptain\BoxOffice\Shifts::open( $ex_register->register_id, array( 'float_minor' => 0 ) ); }
+if ( is_wp_error( $ex_shift ) ) { echo '  (shift: ' . $ex_shift->get_error_code() . ")\n"; }
 check( 'box office shift for the exchange is open', ! is_wp_error( $ex_shift ) );
 $pos = Exchange::box_office_exchange( ex_ticket( $ids16[0] )->public_id, $vip16, array( 'pos_method' => 'cash', 'idempotency_key' => 'pos-1' ) );
 check( 'box office upgrade is paid at the counter and completes at once', ! is_wp_error( $pos ) && 'completed' === $pos['status'] && 'pos_cash' === Orders::get( (int) $pos['supplementary_order_id'] )->payment_provider && 'paid' === Orders::get( (int) $pos['supplementary_order_id'] )->payment_status );
