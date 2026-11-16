@@ -43,7 +43,9 @@ function wpcap_uninstall_site() {
 	foreach ( array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_service_provider', 'wpcap_finance', 'wpcap_support' ) as $role ) {
 		remove_role( $role );
 	}
-	$caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_service_bookings' );
+	// Core and module capabilities from one list (A372: wpcap_approve_comps was left behind).
+	require_once __DIR__ . '/src/Capabilities.php';
+	$caps = PassCaptain\Capabilities::all();
 	foreach ( wp_roles()->role_objects as $role ) {
 		foreach ( $caps as $cap ) { $role->remove_cap( $cap ); }
 	}

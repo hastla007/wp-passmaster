@@ -37,7 +37,8 @@ check( 'organiser role (wpcap_partner) unchanged: check-in and reports', array( 
 check( 'every capability of a role is a known plugin capability; administrators get all of them', ! array_diff( array_merge( ...array_map( static fn( $d ) => $d[1], array_values( $wpa143_roles ) ) ), Installer::CAPABILITIES ) && in_array( 'wpcap_service_bookings', Installer::CAPABILITIES, true ) );
 check( 'audit log knows every plugin role', array_keys( $wpa143_roles ) == PassCaptain\Privacy\AccessLog::PLUGIN_ROLES );
 $wpa143_uninstall = (string) file_get_contents( $wpa143_root . '/uninstall.php' );
-check( 'uninstall removes the new role and capability', false !== strpos( $wpa143_uninstall, "'wpcap_service_provider'" ) && false !== strpos( $wpa143_uninstall, "'wpcap_service_bookings'" ) );
+// A372: the capability list of uninstall.php is PassCaptain\Capabilities::all().
+check( 'uninstall removes the new role and capability', false !== strpos( $wpa143_uninstall, "'wpcap_service_provider'" ) && false !== strpos( $wpa143_uninstall, 'PassCaptain\\Capabilities::all()' ) && in_array( 'wpcap_service_bookings', PassCaptain\Capabilities::all(), true ) );
 // docs/SECURITY.md: the matrix must match role_definitions() exactly.
 $wpa143_doc = (string) file_get_contents( $wpa143_root . '/docs/SECURITY.md' );
 $wpa143_labels = array( 'Ticket-Administration' => 'wpcap_ticket_admin', 'Veranstaltungsleitung' => 'wpcap_event_manager', 'Vor-Ort-Kasse' => 'wpcap_box_office', 'Einlasspersonal' => 'wpcap_checkin_staff', 'Veranstalter' => 'wpcap_partner', 'Leistungserbringer' => 'wpcap_service_provider', 'Finanzbuchhaltung' => 'wpcap_finance', 'Support' => 'wpcap_support' );

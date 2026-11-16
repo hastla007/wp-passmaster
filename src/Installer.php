@@ -1491,8 +1491,11 @@ final class Installer {
 		}
 	}
 
-	/** All plugin capabilities (administrators hold every one of them). */
-	const CAPABILITIES = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_service_bookings' );
+	/**
+	 * Plugin capabilities of the role packages (administrators hold every one of them). The full list,
+	 * including module capabilities, is Capabilities::all() (A372).
+	 */
+	const CAPABILITIES = Capabilities::CORE;
 
 	/**
 	 * Role packages from the concept: slug => [translated name, capabilities]. Matrix in
