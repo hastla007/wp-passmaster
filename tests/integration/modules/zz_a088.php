@@ -80,7 +80,7 @@ Menu::add_menus();
 $a088_sub = $GLOBALS['submenu']['pass-captain'] ?? array();
 $a088_sub_heads = array_values( array_filter( $a088_sub, static fn( $s ) => 'wpcap-menu-heading' === ( $s[4] ?? '' ) ) );
 check( 'add_menus registers the top level page and the grouped submenu with heading rows', 'pass-captain' === ( $GLOBALS['a088_menu'][0][2] ?? '' ) && 'pass-captain' === $a088_sub[0][2] && 5 === count( $a088_sub_heads ) && '#wpcap-menu-sales' === $a088_sub_heads[0][2] && count( $a088_sub ) === count( $a088_layout ) );
-check( 'old URLs/slugs remain registered with the same capabilities', in_array( array( 'Bestellungen', 'wpcap_manage_orders', 'wpcap-orders', 'Bestellungen' ), $a088_sub, true ) && in_array( 'wpcap-settings', array_column( $a088_sub, 2 ), true ) && in_array( 'wpcap-devices', array_column( $a088_sub, 2 ), true ) );
+check( 'old URLs/slugs remain registered with the same capabilities', (bool) array_filter( $a088_sub, static fn( $s ) => 'wpcap-orders' === $s[2] && 'wpcap_manage_orders' === $s[1] && 'Bestellungen' === $s[3] && str_starts_with( (string) $s[0], 'Bestellungen' ) ) /* A337: the menu title may carry the needs_review counter */ && in_array( 'wpcap-settings', array_column( $a088_sub, 2 ), true ) && in_array( 'wpcap-devices', array_column( $a088_sub, 2 ), true ) );
 ob_start(); Menu::menu_heading_script(); $a088_js = ob_get_clean();
 check( 'headings become plain text in the menu (no dead link)', false !== strpos( $a088_js, 'li.wpcap-menu-heading > a' ) && false !== strpos( $a088_js, 'textContent' ) );
 check( 'checklist toggle handler is registered', isset( Menu::handlers()['wpcap_getting_started'] ) );
