@@ -37,6 +37,9 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ..
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) {} }
 if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 if ( ! function_exists( 'sanitize_file_name' ) ) { function sanitize_file_name( $f ) { return preg_replace( '/[^A-Za-z0-9._-]/', '', (string) $f ); } }
+// The merged offline scanner link carries the user locale (THEIRS ?lang=).
+if ( ! function_exists( 'get_user_locale' ) ) { function get_user_locale( $u = 0 ) { return 'de_DE'; } }
+if ( ! function_exists( 'wp_script_is' ) ) { function wp_script_is( $h, $l = 'enqueued' ) { return false; } }
 
 global $wpdb;
 $p = $wpdb->prefix;

@@ -301,7 +301,7 @@ x5_profile( $x5_platform, 'pos', 'active', 23, 'BOX-X5' );
 Settings::update( array( 'boxoffice_terminals' => "23|BOX-X5|Kasse X5" ) );
 $x5_unlisted = X5Pos::open_session( 0, 'EUR', '', 23, 'OTHER' );
 $x5_session = X5Pos::open_session( 0, 'EUR', '', 23, 'BOX-X5' );
-check( 'terminal registry: only listed registers open a session; the session keeps location/register', is_wp_error( $x5_unlisted ) && ! is_wp_error( $x5_session ) && 'BOX-X5' === $x5_session->register_id );
+check( 'terminal registry: only listed registers open a session; the session keeps location/register', is_wp_error( $x5_unlisted ) && ! is_wp_error( $x5_session ) && 'BOX-X5' === $x5_session->fiscal_register_id && 23 === (int) $x5_session->location_id ); // merged: register_id is the numeric register (shift), the terminal string is fiscal_register_id
 $GLOBALS['x5_fiscal']['fail'][ $x5_platform ] = true;
 $x5_key = 'x5pos-' . bin2hex( random_bytes( 8 ) );
 $x5_sale = X5Pos::sell( array( 'occurrence_id' => $x5_pos_occ, 'quantities' => array( $x5_pos_type => 1 ), 'method' => 'card', 'form_key' => $x5_key ) );
