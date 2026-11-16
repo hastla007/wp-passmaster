@@ -291,6 +291,11 @@ final class Webhooks {
 			if ( 'pending' !== $order->payment_status || ! self::is_current_attempt( $order, $event ) ) {
 				return 'ignored';
 			}
+			// A351: only the full order amount is captured; another authorized amount is left to the admin.
+			if ( (int) ( $event['amount_minor'] ?? -1 ) !== (int) $order->total_minor || strtoupper( (string) ( $event['currency'] ?? '' ) ) !== strtoupper( (string) $order->currency ) ) {
+				Audit::record( 'payment_amount_mismatch', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ), 'authorized' => true ) );
+				return 'authorized_amount_mismatch';
+			}
 			$gateway = Registry::get( $provider );
 			if ( ! $gateway || ! method_exists( $gateway, 'capture_authorized' ) ) {
 				self::alert( $order, __( 'Eine Zahlung wurde nur autorisiert und kann nicht automatisch eingezogen werden. Bitte beim Zahlungsanbieter einziehen oder stornieren.', 'pass-captain' ), $provider, $event );
