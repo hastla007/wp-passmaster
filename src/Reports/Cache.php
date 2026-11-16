@@ -264,7 +264,21 @@ final class Cache {
 		if ( 'INSERT' === $verb || 'REPLACE' === $verb ) {
 			$segment = preg_match( '/^(?:INSERT|REPLACE)\s+(?:(?:LOW_PRIORITY|DELAYED|HIGH_PRIORITY|IGNORE)\s+)*(?:INTO\s+)?(`?[A-Za-z0-9_]+`?)/i', $q, $m ) ? $m[1] : '';
 		} elseif ( 'UPDATE' === $verb ) {
-			$segment = preg_split( '/\bSET\b/i', $q, 2 )[0];
+			list( $segment, $set ) = array_pad( preg_split( '/\bSET\b/i', $q, 2 ), 2, '' );
+			// Multi-table UPDATE … JOIN: only the tables whose alias is assigned in SET change; joined
+			// tables that are only read (e.g. tickets in a seating release) are no targets.
+			if ( preg_match_all( '/`?' . preg_quote( $prefix, '/' ) . '([A-Za-z0-9_]+)`?\s+(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)/i', $segment, $aliased, PREG_SET_ORDER ) && preg_match_all( '/(?:^|,)\s*`?([A-Za-z_][A-Za-z0-9_]*)`?\.`?[A-Za-z0-9_]+`?\s*=/', preg_split( '/\bWHERE\b/i', $set, 2 )[0], $assigned ) ) {
+				$map = array();
+				foreach ( $aliased as $a ) {
+					if ( ! in_array( strtoupper( $a[2] ), array( 'INNER', 'LEFT', 'RIGHT', 'JOIN', 'CROSS', 'ON', 'STRAIGHT_JOIN' ), true ) ) { $map[ strtolower( $a[2] ) ] = $a[1]; }
+				}
+				$changed = array();
+				foreach ( array_unique( array_map( 'strtolower', $assigned[1] ) ) as $alias ) {
+					if ( ! isset( $map[ $alias ] ) ) { $changed = null; break; }
+					$changed[] = $map[ $alias ];
+				}
+				if ( $changed ) { return array_values( array_unique( $changed ) ); }
+			}
 		} else {
 			$segment = preg_split( '/\bWHERE\b/i', $q, 2 )[0];
 		}
