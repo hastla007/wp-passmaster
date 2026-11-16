@@ -201,7 +201,7 @@ final class Service {
 		if ( (int) $target->tax_rate_bp !== (int) $ticket->tax_rate_bp ) {
 			return self::error( 'wpcap_exchange_tax_rate', __( 'Ein Umtausch ist nur zwischen Ticketarten mit demselben Steuersatz möglich. Bitte das Ticket erstatten und das neue Ticket neu verkaufen.', 'pass-captain' ), 400 );
 		}
-		if ( strtotime( $target->starts_at . ' UTC' ) <= time() && 'pos' !== $channel ) {
+		if ( strtotime( $target->starts_at . ' UTC' ) <= \PassCaptain\Clock::now() && 'pos' !== $channel ) {
 			return self::error( 'wpcap_exchange_target_started', __( 'Der gewählte Termin hat bereits begonnen.', 'pass-captain' ) );
 		}
 		$same_event = (int) $target->event_id === (int) $ticket->event_id;
@@ -222,12 +222,12 @@ final class Service {
 			if ( (int) $ticket->transfer_count > 0 ) {
 				return self::error( 'wpcap_exchange_transferred', __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'pass-captain' ), 403 );
 			}
-			$now = current_time( 'mysql', true );
+			$now = \PassCaptain\Clock::mysql();
 			if ( ( $target->sales_start && $target->sales_start > $now ) || ( $target->sales_end && $target->sales_end < $now ) ) {
 				return self::error( 'wpcap_exchange_sales_closed', __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'pass-captain' ) );
 			}
 			if ( empty( $policy['portal_enabled'] ) ) { return self::error( 'wpcap_exchange_portal_disabled', __( 'Ein Umtausch ist hier nicht möglich. Bitte wende dich an den Veranstalter.', 'pass-captain' ), 403 ); }
-			$limit = time() + max( 0, (int) $policy['portal_hours'] ) * HOUR_IN_SECONDS;
+			$limit = \PassCaptain\Clock::now() + max( 0, (int) $policy['portal_hours'] ) * HOUR_IN_SECONDS;
 			if ( strtotime( $ticket->starts_at . ' UTC' ) <= $limit || strtotime( $target->starts_at . ' UTC' ) <= $limit ) {
 				/* translators: %d: hours */
 				return self::error( 'wpcap_exchange_too_late', sprintf( _n( 'Ein Umtausch ist nur bis %d Stunde vor Beginn möglich.', 'Ein Umtausch ist nur bis %d Stunden vor Beginn möglich.', (int) $policy['portal_hours'], 'pass-captain' ), (int) $policy['portal_hours']) );
@@ -453,7 +453,7 @@ final class Service {
 			return $valid;
 		}
 		$seat_id = absint( $args['seat_id'] ?? 0 );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		// Read before the lock phase (the transaction may only use locking reads until all locks are held).
 		$value = self::ticket_value( $ticket );
 		// Double submit of a pending upgrade (the target may be held by that very exchange).
@@ -680,7 +680,7 @@ final class Service {
 	private static function complete_locked( $order, $ticket, $target_type, $target_occ, $old_item, array $share, array $money, array $row, $seat_id, $from_supplement ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		// Value carried into the target line (pre-discount gross, like the order lines): the old share
 		// minus what is refunded now. A paid supplement stays on the supplementary order.
 		$order_total = \PassCaptain\Integrations\Vouchers\Checkout::gross_minor( $order ); // Incl. a multi-purpose voucher payment.
@@ -790,7 +790,7 @@ final class Service {
 		if ( (int) $row['refund_minor'] > 0 && 'woocommerce' === (string) $order->payment_provider ) {
 			// WooCommerce collected the money: the difference is refunded there (refund in WooCommerce →
 			// the adapter books it). Tracked as refund_status "woocommerce" with a note on the WC order.
-			$wpdb->update( self::table(), array( 'refund_status' => 'woocommerce', 'updated_at' => current_time( 'mysql', true ) ), array( 'exchange_id' => $exchange_id ) );
+			$wpdb->update( self::table(), array( 'refund_status' => 'woocommerce', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'exchange_id' => $exchange_id ) );
 			Audit::record( 'ticket_exchange_refund_external', 'order', (int) $order->order_id, array( 'exchange_id' => $exchange_id, 'amount_minor' => (int) $row['refund_minor'], 'provider' => 'woocommerce' ) );
 			/** The difference of an exchange must be refunded outside Pass Captain (e.g. in WooCommerce). */
 			do_action( 'wpcap_exchange_refund_external', $exchange_id, (int) $order->order_id, (int) $row['refund_minor'], (string) $order->currency );
@@ -807,11 +807,11 @@ final class Service {
 			);
 			if ( is_wp_error( $refund ) ) {
 				$warning = sprintf( /* translators: %s: error */ __( 'Der Umtausch ist erfolgt, die Erstattung der Differenz konnte aber nicht ausgelöst werden: %s', 'pass-captain' ), $refund->get_error_message() );
-				$wpdb->update( self::table(), array( 'refund_status' => 'error', 'updated_at' => current_time( 'mysql', true ) ), array( 'exchange_id' => $exchange_id ) );
+				$wpdb->update( self::table(), array( 'refund_status' => 'error', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'exchange_id' => $exchange_id ) );
 				Audit::record( 'ticket_exchange_refund_failed', 'order', (int) $order->order_id, array( 'exchange_id' => $exchange_id, 'error' => $refund->get_error_code() ) );
 				$price_note = array( 'refund_pending', $money( (int) $row['refund_minor'] ) );
 			} else {
-				$wpdb->update( self::table(), array( 'refund_id' => (int) $refund['refund_id'], 'refund_status' => (string) $refund['status'], 'updated_at' => current_time( 'mysql', true ) ), array( 'exchange_id' => $exchange_id ) );
+				$wpdb->update( self::table(), array( 'refund_id' => (int) $refund['refund_id'], 'refund_status' => (string) $refund['status'], 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'exchange_id' => $exchange_id ) );
 				$price_note = array( 'completed' === $refund['status'] ? 'refund' : 'refund_pending', $money( (int) $row['refund_minor'] ) );
 			}
 		} elseif ( (int) $row['due_minor'] > 0 ) {
@@ -905,13 +905,13 @@ final class Service {
 	private static function create_supplement( $order, $ticket, $target_type, $target_occ, array $money, array $row, array $args, $channel, $seat_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$provider = self::supplement_provider( $order, $args, $channel );
 		if ( isset( $args['hold_minutes'] ) ) {
 			$hold = max( 1, absint( $args['hold_minutes'] ) );
 		} elseif ( 'manual' === $provider ) {
 			// Never beyond the start of the target (no cutoff here: the old ticket stays valid meanwhile).
-			$hold = Orders::manual_hold_until( strtotime( $target_occ->starts_at . ' UTC' ) ) ?? max( 1, (int) floor( ( strtotime( $target_occ->starts_at . ' UTC' ) - time() ) / 60 ) );
+			$hold = Orders::manual_hold_until( strtotime( $target_occ->starts_at . ' UTC' ) ) ?? max( 1, (int) floor( ( strtotime( $target_occ->starts_at . ' UTC' ) - \PassCaptain\Clock::now() ) / 60 ) );
 		} else {
 			$hold = max( 1, (int) Settings::get( 'hold_minutes' ) );
 		}
@@ -948,7 +948,7 @@ final class Service {
 			'idempotency_key' => hash( 'sha256', 'exchange-supplement|' . ( $row['idempotency_key'] ?? '' ) . '|' . wp_generate_uuid4() ),
 			'customer_email' => (string) $order->customer_email,
 			'access_token_hash' => hash( 'sha256', $access_token ),
-			'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ),
+			'access_expires_at' => gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 30 * DAY_IN_SECONDS ),
 			'status' => 'pending_payment',
 			'payment_status' => 'pending',
 			'currency' => (string) $order->currency,
@@ -973,7 +973,7 @@ final class Service {
 			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 0, 'unit_price_minor' => $fee, 'line_total_minor' => $fee, 'tax_rate_bp' => $rate, 'tax_minor' => $tax_fee, 'refunded_quantity' => 0 ) + \PassCaptain\Tax\Profiles::line_columns( $tax_info ) );
 		}
 		if ( ! $ok ) { throw new \RuntimeException( 'insert_failed' ); }
-		$ok = $wpdb->insert( "{$p}wpcap_reservations", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + $hold * MINUTE_IN_SECONDS ), 'status' => 'active' ) );
+		$ok = $wpdb->insert( "{$p}wpcap_reservations", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'expires_at' => gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + $hold * MINUTE_IN_SECONDS ), 'status' => 'active' ) );
 		if ( ! $ok ) { throw new \RuntimeException( 'insert_failed' ); }
 		self::claim_seat( $supp_id, (object) array_merge( (array) $target_type, array( 'event_id' => (int) $target_occ->event_id ) ), $seat_id );
 		$row['status'] = self::PENDING;
@@ -1107,7 +1107,7 @@ final class Service {
 			$old_item = $review ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d AND quantity>0 ORDER BY item_id LIMIT 1 FOR UPDATE", (int) $order->order_id, (int) $exchange['from_type_id'] ) );
 			if ( ! $review && ! $old_item ) { $review = 'order_line_missing'; }
 			if ( $review ) {
-				StateMachine::transition( 'exchange', self::table(), 'exchange_id', absint( $exchange_id ), self::REVIEW, array( 'pending_ticket_id' => null, 'note' => $review, 'updated_at' => current_time( 'mysql', true ) ) );
+				StateMachine::transition( 'exchange', self::table(), 'exchange_id', absint( $exchange_id ), self::REVIEW, array( 'pending_ticket_id' => null, 'note' => $review, 'updated_at' => \PassCaptain\Clock::mysql() ) );
 				$wpdb->query( 'COMMIT' );
 			} else {
 				$type_ids = array( (int) $exchange['from_type_id'], (int) $exchange['to_type_id'] );
@@ -1165,7 +1165,7 @@ final class Service {
 			$order = Orders::get( $order_id );
 			if ( $order && 'paid' !== $order->payment_status ) {
 				$status = 'expired' === $order->status ? self::EXPIRED : self::CANCELLED;
-				$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . ' SET status=%s,pending_ticket_id=NULL,updated_at=%s WHERE exchange_id=%d AND status=%s', $status, current_time( 'mysql', true ), (int) $exchange['exchange_id'], self::PENDING ) );
+				$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . ' SET status=%s,pending_ticket_id=NULL,updated_at=%s WHERE exchange_id=%d AND status=%s', $status, \PassCaptain\Clock::mysql(), (int) $exchange['exchange_id'], self::PENDING ) );
 				if ( $changed ) {
 					Audit::record( 'ticket_exchange_' . $status, 'ticket', (int) $exchange['old_ticket_id'], array( 'exchange_id' => (int) $exchange['exchange_id'], 'supplementary_order_id' => $order_id ) );
 				}

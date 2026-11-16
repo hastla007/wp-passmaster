@@ -86,7 +86,7 @@ final class Queries {
 	 * @return array occurrence_id => label
 	 */
 	public static function occurrence_choices( array $rows, $include_past = true ) {
-		$now = time();
+		$now = \PassCaptain\Clock::now();
 		$upcoming = array();
 		$past = array();
 		foreach ( $rows as $row ) {
@@ -213,7 +213,7 @@ final class Queries {
 		$pages = max( 1, (int) ceil( $total / $per_page ) );
 		$page = (int) $page;
 		if ( $page < 1 ) {
-			$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at < %s", $event_id, gmdate( 'Y-m-d H:i:s', time() - 12 * HOUR_IN_SECONDS ) ) );
+			$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at < %s", $event_id, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 12 * HOUR_IN_SECONDS ) ) );
 			$page = $before >= $total ? $pages : intdiv( $before, $per_page ) + 1;
 		}
 		$page = min( max( 1, $page ), $pages );
@@ -254,7 +254,7 @@ final class Queries {
 		$event_id = absint( $event_id );
 		$limit = $limit ? max( 1, (int) $limit ) : self::occurrence_choice_limit();
 		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '';
-		$since = '' !== $from ? self::local_day_start_utc( $from ) : gmdate( 'Y-m-d H:i:s', time() - 12 * HOUR_IN_SECONDS );
+		$since = '' !== $from ? self::local_day_start_utc( $from ) : gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 12 * HOUR_IN_SECONDS );
 		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d", $event_id ) );
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at >= %s ORDER BY starts_at, occurrence_id LIMIT %d", $event_id, $since, $limit ) );
 		if ( count( $rows ) < $limit ) {
@@ -305,7 +305,7 @@ final class Queries {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$scope = self::scope_sql( $event_ids, 'e.event_id' );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$offset = ( max( 1, (int) $page ) - 1 ) * $per_page;
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_events e WHERE 1=1{$scope}" );
 		$rows = $wpdb->get_results( $wpdb->prepare(

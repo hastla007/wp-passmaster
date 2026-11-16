@@ -44,7 +44,7 @@ final class TicketAssignments {
 		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM $orders WHERE order_id=%d FOR UPDATE", (int) $order->order_id ) );
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,t.attendee_email,t.transfer_count,(SELECT a.attendee_name FROM {$wpdb->prefix}wpcap_ticket_assignments a WHERE a.ticket_id=t.ticket_id) AS previous_name,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE", sanitize_text_field( $ticket_public_id ), $order->order_id ) );
 		$deadline = ! $ticket ? 0 : strtotime( $ticket->starts_at . ' UTC' ) - max( 0, (int) Settings::get( 'attendee_edit_hours' ) ) * HOUR_IN_SECONDS;
-		if ( ! $ticket || 'valid' !== $ticket->status || $deadline <= time() ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_not_allowed', __( 'Dieses Ticket kann nicht mehr zugewiesen werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! $ticket || 'valid' !== $ticket->status || $deadline <= \PassCaptain\Clock::now() ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_not_allowed', __( 'Dieses Ticket kann nicht mehr zugewiesen werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		// A new holder gets a new code (the previous holder's code stops working); correcting the
 		// name or answers for the same person keeps the code that was already mailed.
 		$holder = (string) $ticket->attendee_email !== '' ? (string) $ticket->attendee_email : (string) $order->customer_email;
@@ -100,7 +100,7 @@ final class TicketAssignments {
 		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', $update, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid' ), array_fill( 0, count( $update ), '%s' ), array( '%d', '%s' ) );
 		if ( false === $updated ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_failed', __( 'Ticket konnte nicht zugewiesen werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$assignment_table = $wpdb->prefix . 'wpcap_ticket_assignments';
-		$wpdb->query( $wpdb->prepare( "INSERT INTO $assignment_table (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE buyer_email=VALUES(buyer_email),attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name),status='assigned'", $ticket->ticket_id, $order->customer_email, $email, $name, current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( "INSERT INTO $assignment_table (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE buyer_email=VALUES(buyer_email),attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name),status='assigned'", $ticket->ticket_id, $order->customer_email, $email, $name, \PassCaptain\Clock::mysql() ) );
 		if ( $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_failed', __( 'Teilnehmerdaten konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		if ( is_array( $answers ) ) {
 			$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket->ticket_id ) );
@@ -111,7 +111,7 @@ final class TicketAssignments {
 			// Consents are granted/withdrawn separately (Consents, logged); this form corrects the other answers.
 			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ), array( 'skip_consent' => true, 'skip_name' => true, 'locked' => $locked ) );
 			if ( is_wp_error( $valid ) ) { $wpdb->query( 'ROLLBACK' ); return $valid; }
-			$now = current_time( 'mysql', true );
+			$now = \PassCaptain\Clock::mysql();
 			foreach ( (array) ( $valid[0]['answers'] ?? array() ) as $field_id => $value ) {
 				\PassCaptain\ParticipantFields::save_answer( (int) $ticket->ticket_id, $field_id, (string) $value, $now );
 			}
@@ -333,7 +333,7 @@ final class TicketAssignments {
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.order_id,t.ticket_type_id,t.status,t.refunded,t.attendee_email,t.transfer_count,o.starts_at FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.token_hash=%s FOR UPDATE", hash( 'sha256', $ticket_token ) ) );
 		$order = $ticket ? $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_email,payment_status FROM {$p}wpcap_orders WHERE order_id=%d", (int) $ticket->order_id ) ) : null;
 		$deadline = $ticket ? strtotime( $ticket->starts_at . ' UTC' ) - max( 0, (int) Settings::get( 'attendee_edit_hours' ) ) * HOUR_IN_SECONDS : 0;
-		if ( ! $ticket || ! $order || 'paid' !== $order->payment_status || 'valid' !== $ticket->status || (int) $ticket->refunded || $deadline <= time() ) {
+		if ( ! $ticket || ! $order || 'paid' !== $order->payment_status || 'valid' !== $ticket->status || (int) $ticket->refunded || $deadline <= \PassCaptain\Clock::now() ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_assignment_not_allowed', __( 'Die Teilnehmerdaten dieses Tickets können nicht mehr geändert werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -371,7 +371,7 @@ final class TicketAssignments {
 			$wpdb->query( 'ROLLBACK' );
 			return array( 'status' => 'unchanged' );
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_name=VALUES(attendee_name)", (int) $ticket->ticket_id, (string) $order->customer_email, (string) $ticket->attendee_email, $name, $now ) );
 		foreach ( $clean as $field_id => $value ) {
 			\PassCaptain\ParticipantFields::save_answer( (int) $ticket->ticket_id, $field_id, (string) $value, $now );

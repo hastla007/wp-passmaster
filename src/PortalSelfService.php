@@ -356,7 +356,7 @@ final class PortalSelfService {
 		if ( in_array( (int) $ticket->ticket_id, $open_ids, true ) ) { return 'requested'; }
 		if ( 'valid' !== (string) $ticket->status ) { return 'not_valid'; }
 		if ( (int) $ticket->transfer_count > 0 ) { return 'transferred'; }
-		if ( strtotime( $ticket->starts_at . ' UTC' ) - self::refund_hours() * HOUR_IN_SECONDS <= time() ) { return 'too_late'; }
+		if ( strtotime( $ticket->starts_at . ' UTC' ) - self::refund_hours() * HOUR_IN_SECONDS <= \PassCaptain\Clock::now() ) { return 'too_late'; }
 		if ( Refunds::gross_for_tickets( $order, array( (int) $ticket->ticket_id ) ) <= 0 ) { return 'comp'; }
 		return '';
 	}

@@ -85,6 +85,11 @@ Zeitabhängige Regeln testen die Module ohne Warten: Sie setzen die Uhr über de
 prüft so die Sommerzeitumstellungen in Europe/Vienna und America/New_York (siehe docs/OPERATIONS.md,
 „Zeit, Zeitzonen und Sommerzeit“).
 
+**Grep-Regel (A607):** Geschäftsregeln lesen die Zeit nur über `Clock::now()`/`Clock::mysql()`, nie über
+`time()` oder `current_time( 'mysql', true )`. `modules/zz_a607.php` prüft das: Dateien außerhalb von
+`modules/zz_a607/time-allowlist.txt` (noch nicht umgestellte Dateien) dürfen beides nicht verwenden; wer
+eine Datei umstellt, streicht sie aus der Liste (der Test meldet Einträge, die nicht mehr nötig sind).
+
 ### Blöcke und Block-Editor (A455)
 
 - **Editor-Skripte** (`tests/js/blocks.test.js`, `npm run test:js`): lädt `src/blocks/*/editor.js` mit einer Attrappe der `wp.*`-Pakete (`createElement` baut einen einfachen Baum) und prüft je Block den registrierten Namen gegen `block.json`, dass jedes verwendete Attribut deklariert ist und `save()` `null` liefert (dynamischer Block), die Vorschau in `Disabled` (A451), die Event-/Terminauswahl einschließlich nicht mehr gelisteter Auswahl (A453) sowie die Tauglichkeit für den Iframe-Editor: kein Zugriff auf `document`, nur `window.wp` und `window.WPCAP_BLOCK_*`, genau ein Element mit den Props aus `useBlockProps()` und die Vorschau darin.

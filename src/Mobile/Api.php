@@ -241,7 +241,7 @@ final class Api {
 			}
 			$context = array( 'event_ids' => Devices::event_ids( $device ), 'device_id' => (int) $device->device_id, 'area_id' => Devices::area_id( $device ) ?: absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => 'app:' . $key, 'source' => 'offline' );
 			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
-			if ( $scanned && $scanned <= time() + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
+			if ( $scanned && $scanned <= \PassCaptain\Clock::now() + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
 			// A544: an offline admission from the search of the PWA has no code, only the package hash.
 			$hash = strtolower( \PassCaptain\Http::str( $scan['ticket_hash'] ?? '' ) );

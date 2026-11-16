@@ -121,7 +121,7 @@ final class EventCard {
 			if ( isset( $row->status, $row->capacity ) ) { $occurrences[ (int) $row->occurrence_id ] = $row; }
 		}
 		if ( ! $ids ) { return array(); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$by_occurrence = array();
 		$types = array();
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', array_unique( $ids ) ) . ") AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s)", $now, $now ) ) as $type ) {
@@ -185,7 +185,7 @@ final class EventCard {
 			$badges[] = array( 'key' => 'cancelled', 'label' => __( 'Abgesagt', 'pass-captain' ) );
 		} else {
 			$moved = (string) ( $occurrence->rescheduled_at ?? '' );
-			if ( '' !== $moved && ( ! $th['rescheduled_days'] || strtotime( $moved . ' UTC' ) >= time() - $th['rescheduled_days'] * DAY_IN_SECONDS ) ) {
+			if ( '' !== $moved && ( ! $th['rescheduled_days'] || strtotime( $moved . ' UTC' ) >= \PassCaptain\Clock::now() - $th['rescheduled_days'] * DAY_IN_SECONDS ) ) {
 				$badges[] = array( 'key' => 'rescheduled', 'label' => __( 'Verschoben', 'pass-captain' ) );
 			}
 			if ( false !== $available && null !== $available ) {

@@ -38,7 +38,7 @@ final class Admission {
 		$linked = Definitions::linked_occurrences( $config->type_id );
 		if ( ! $linked ) { return $found; }
 		$context = (array) $context;
-		$at = null === $at ? time() : (int) $at;
+		$at = null === $at ? \PassCaptain\Clock::now() : (int) $at;
 		$wanted = absint( $context['occurrence_id'] ?? 0 );
 		if ( $wanted ) {
 			foreach ( $linked as $occ ) {

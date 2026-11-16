@@ -68,7 +68,7 @@ final class Reservations {
 		$key = $occurrence_id . '|' . $version_id . '|' . implode( ',', $zones );
 		if ( isset( self::$free[ $key ] ) ) { return self::$free[ $key ]; }
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$in = implode( ',', array_map( static function ( $zone ) use ( $wpdb ) { return $wpdb->prepare( '%s', $zone ); }, $zones ) );
 		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::t( 'seats' ) . " s WHERE s.version_id=%d AND (s.zone IN ($in) OR s.category IN ($in)) AND NOT EXISTS (SELECT 1 FROM " . self::t( 'claims' ) . " c LEFT JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE c.occurrence_id=%d AND c.active_key=s.seat_key AND " . self::active_condition( $now ) . ')', $version_id, $occurrence_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared parts.
 		return self::$free[ $key ] = $count;
@@ -110,7 +110,7 @@ final class Reservations {
 	/** Releases held claims of an occurrence (or all occurrences) that no longer block their seat. */
 	public static function release_stale( $occurrence_id = 0 ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$scope = $occurrence_id ? $wpdb->prepare( ' AND c.occurrence_id=%d', absint( $occurrence_id ) ) : '';
 		return (int) $wpdb->query(
 			'UPDATE ' . self::t( 'claims' ) . " c LEFT JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=c.order_id SET c.active_key=NULL,c.status='released',c.release_reason='stale',c.updated_at=" . $wpdb->prepare( '%s', $now ) .
@@ -159,7 +159,7 @@ final class Reservations {
 	private static function hold_expiry( $order_id ) {
 		global $wpdb;
 		$expires = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d", absint( $order_id ) ) );
-		return $expires ? $expires : gmdate( 'Y-m-d H:i:s', time() + max( 1, (int) Settings::get( 'hold_minutes' ) ) * MINUTE_IN_SECONDS );
+		return $expires ? $expires : gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + max( 1, (int) Settings::get( 'hold_minutes' ) ) * MINUTE_IN_SECONDS );
 	}
 
 	/**
@@ -213,7 +213,7 @@ final class Reservations {
 	private static function claim( $order_id, $occurrence_id, $link, array $mapping, array $explicit, array $auto, $expires ) {
 		global $wpdb;
 		self::release_stale( $occurrence_id );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$claims = self::t( 'claims' );
 		$plan = array(); // list of [type_id, seat row]
 		if ( $explicit ) {
@@ -304,7 +304,7 @@ final class Reservations {
 		global $wpdb;
 		$order_id = absint( $order_id );
 		$claims = self::t( 'claims' );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "UPDATE $claims SET status='sold',updated_at=%s WHERE order_id=%d AND status='held' AND active_key IS NOT NULL", $now, $order_id ) );
 		$recoverable = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $claims WHERE order_id=%d AND active_key IS NULL AND release_reason IN ('stale','expired') ORDER BY claim_id", $order_id ) );
 		if ( ! $recoverable ) { return; }
@@ -369,7 +369,7 @@ final class Reservations {
 			}
 			return;
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "UPDATE $claims SET ticket_id=%d,status='sold',updated_at=%s WHERE claim_id=%d", $ticket_id, $now, (int) $claim->claim_id ) );
 		$label = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT label FROM ' . self::t( 'seats' ) . ' WHERE seat_id=%d', (int) $claim->seat_id ) );
 		$wpdb->insert( self::t( 'ticket_seats' ), array(
@@ -398,7 +398,7 @@ final class Reservations {
 		if ( ! $ids ) { return; }
 		$list = implode( ',', $ids );
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'ticket_seats' ) . " WHERE order_id=%d AND ticket_id IN ($list)", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table, integer list.
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'claims' ) . " SET ticket_id=0,updated_at=%s WHERE order_id=%d AND ticket_id IN ($list)", current_time( 'mysql', true ), absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table, integer list.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'claims' ) . " SET ticket_id=0,updated_at=%s WHERE order_id=%d AND ticket_id IN ($list)", \PassCaptain\Clock::mysql(), absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table, integer list.
 	}
 
 	/**
@@ -413,7 +413,7 @@ final class Reservations {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", $order_id ) );
 		if ( ! $order ) { return; }
 		$claims = self::t( 'claims' );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$released = 0;
 		if ( in_array( $order->status, array( 'cancelled', 'expired', 'refunded' ), true ) ) {
 			$reason = 'expired' === $order->status ? 'expired' : 'order_' . $order->status;
@@ -444,7 +444,7 @@ final class Reservations {
 	/** Cron safety net: releases stale holds and seats of revoked tickets (also from other paths). */
 	public static function cleanup() {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$claims = self::t( 'claims' );
 		$wpdb->query( $wpdb->prepare( "UPDATE $claims c INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=c.order_id SET c.active_key=NULL,c.status='released',c.release_reason=IF(o.status='expired','expired',CONCAT('order_',o.status)),c.updated_at=%s WHERE c.active_key IS NOT NULL AND c.ticket_id=0 AND o.status IN ('cancelled','expired','refunded')", $now ) );
 		self::release_stale();
@@ -523,7 +523,7 @@ final class Reservations {
 		$link = Layouts::link( $occurrence->occurrence_id );
 		$version = $link ? Layouts::version( $link->version_id ) : null;
 		if ( ! $version ) { return null; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$taken = array_flip( $wpdb->get_col( $wpdb->prepare( 'SELECT c.seat_key FROM ' . self::t( 'claims' ) . " c LEFT JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE c.occurrence_id=%d AND c.active_key IS NOT NULL AND " . self::active_condition( $now ), (int) $occurrence->occurrence_id ) ) );
 		$definition = json_decode( $version->definition, true );
 		$seats = array();
