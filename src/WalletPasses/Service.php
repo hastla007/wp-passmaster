@@ -413,10 +413,9 @@ final class Service {
 	/**
 	 * Filter wpcap_ticket_mail: stores the codes while they are available in plaintext.
 	 *
-	 * One ticket: the pass is created right away (.pkpass attachment or link, Google save link).
-	 * Several tickets (audit R2 #5): no attachment per ticket and no long link per ticket; the codes are
-	 * stored, the passes are created by the job queue after the commit (ISSUE_JOB) and the mail gets one
-	 * link to a page listing the wallet buttons of all tickets (collection_url()).
+	 * Up to mail_inline_limit() tickets (A580) every pass is created right away and attached within the
+	 * attachment budget or linked (Google save link); larger orders get the "add all" links per batch
+	 * (order_links_text()) and the passes are only referenced (no .pkpass is signed in the request).
 	 */
 	public static function on_ticket_mail( $mail, $order = null, $issued = array() ) {
 		if ( ! is_array( $mail ) || ! is_array( $issued ) || ! $issued ) { return $mail; }
@@ -433,7 +432,7 @@ final class Service {
 				$passes = self::issue( (int) $entry['ticket_id'], (string) $entry['token'], $inline );
 			} catch ( \Throwable $e ) {
 				self::log( 'issue_failed', $e->getMessage() );
-				return $mail;
+				continue;
 			}
 			$any = $any || (bool) $passes;
 			if ( ! $inline ) { continue; }
@@ -443,11 +442,11 @@ final class Service {
 			foreach ( $files as $file ) { $used += (int) filesize( $file ); }
 			$text .= $part;
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), $files );
-			if ( '' !== $part ) { $mail['body'] = (string) $mail['body'] . "\n" . Mailer::with_locale( $locale, static function () { return __( 'Wallet', 'pass-captain' ); } ) . "\n" . $part; }
-			return $mail;
 		}
 		if ( ! $inline && $any ) { $text = self::order_links_text( $order ); }
-		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . __( 'Wallet', 'pass-captain' ) . "\n" . $text; }
+		// The heading in the order's language (A474), like the mail it is added to.
+		$locale = is_object( $order ) ? (string) ( $order->locale ?? '' ) : '';
+		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . Mailer::with_locale( $locale, static function () { return __( 'Wallet', 'pass-captain' ); } ) . "\n" . $text; }
 		return $mail;
 	}
 
