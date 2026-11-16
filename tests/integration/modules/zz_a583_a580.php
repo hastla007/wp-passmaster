@@ -90,7 +90,8 @@ check( 'A580/A583: one Google link saves 8 tickets with a JWT below 1,800 charac
 check( 'A580: wrong order signature → 404', is_wp_error( WebService::bundle( $a583_req( preg_replace( '/sig=[0-9a-f]{4}/', 'sig=0000', $a580_apple[0] ) ) ) ) );
 // A ticket passed on to someone else is not part of the buyer's "add all" links.
 $a580_t = tickets( $a580_r['order_id'] );
-$wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => 'other@example.com' ), array( 'ticket_id' => (int) $a580_t[0]->ticket_id ) );
+// (A581: the code went to that address – an attendee address alone leaves the code with the buyer.)
+$wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => 'other@example.com' ) + ( PassCaptain\TicketCodes::holder_ready() ? array( 'code_with_attendee' => 1 ) : array() ), array( 'ticket_id' => (int) $a580_t[0]->ticket_id ) );
 $a580_order = Orders::get( $a580_r['order_id'] );
 check( 'A580: tickets held by another person are left out of the order links', $a580_count - 1 === count( Service::order_ticket_ids( $a580_order, 'apple' ) ) && ! in_array( (int) $a580_t[0]->ticket_id, Service::order_ticket_ids( $a580_order, 'google' ), true ) );
 

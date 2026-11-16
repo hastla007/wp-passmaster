@@ -226,8 +226,11 @@ final class Service {
 	public static function order_ticket_ids( $order, $provider ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		// A581: tickets whose current code went to another address are left out; an attendee address from
+		// the checkout alone does not count (the buyer received that code).
+		$with_buyer = \PassCaptain\TicketCodes::holder_ready() ? ' OR t.code_with_attendee=0' : '';
 		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
-			"SELECT DISTINCT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_wallet_state s ON s.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_wallet_passes w ON w.ticket_id=t.ticket_id AND w.provider=%s AND w.status='active' WHERE t.order_id=%d AND t.status='valid' AND t.transfer_count=0 AND (t.attendee_email IS NULL OR t.attendee_email='' OR LOWER(t.attendee_email)=LOWER(%s)) ORDER BY t.ticket_id",
+			"SELECT DISTINCT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_wallet_state s ON s.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_wallet_passes w ON w.ticket_id=t.ticket_id AND w.provider=%s AND w.status='active' WHERE t.order_id=%d AND t.status='valid' AND t.transfer_count=0 AND (t.attendee_email IS NULL OR t.attendee_email='' OR LOWER(t.attendee_email)=LOWER(%s)$with_buyer) ORDER BY t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed SQL fragment.
 			$provider, (int) $order->order_id, (string) $order->customer_email
 		) ) );
 	}
