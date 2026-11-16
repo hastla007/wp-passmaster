@@ -596,6 +596,14 @@
 			p.appendChild(document.createTextNode(parts[1] || ''));
 			panel.appendChild(p);
 		}
+		// A600: the date into the calendar right away (.ics of the ordered date), not only via the mail.
+		const occurrence = String(form.dataset.occurrence || '');
+		if (config.icsBase && /^\d+$/.test(occurrence)) {
+			const ics = String(config.icsBase) + (String(config.icsBase).indexOf('?') === -1 ? '?' : '&') + 'id=' + occurrence;
+			const line = el('p', { class: 'wpcap-ics-link' });
+			line.appendChild(el('a', { href: ics, download: 'termin-' + occurrence + '.ics' }, t.addToCalendar || 'Add to calendar (.ics)'));
+			panel.appendChild(line);
+		}
 		const total = data.total_formatted || (typeof data.total_minor === 'number' ? money(data.total_minor, data.currency) : '');
 		if (total && Number(data.total_minor) > 0 && t.orderTotal && !(data.payment && data.payment.bank_transfer && data.payment.bank_transfer.iban)) panel.appendChild(el('p', {}, t.orderTotal.replace('%s', total)));
 		if (complete) {

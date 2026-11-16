@@ -34,6 +34,8 @@ final class PublicEvents {
 			// A456: live purchase state of the cards (cached pages); A457: current legal texts.
 			'liveUrl' => esc_url_raw( rest_url( 'pass-captain/v1/checkout/live' ) ),
 			'optionsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/checkout/options' ) ),
+			// A600: .ics download of the ordered date in the confirmation (…&id={occurrence}); '' without the calendar module.
+			'icsBase' => Modules::enabled( Modules\Calendar::class ) ? esc_url_raw( add_query_arg( 'wpcap_ics', 'occurrence', home_url( '/' ) ) ) : '',
 			'money' => Frontend\Format::js_config(),
 			// Common mail domains for the typo hint on the buyer e-mail (A553).
 			'emailDomains' => self::email_domains(),
@@ -139,6 +141,8 @@ final class PublicEvents {
 				/* translators: %d: maximum tickets per order (2 or more) */
 				'errTotal' => __( 'Es sind höchstens %d Tickets pro Person möglich.', 'pass-captain' ), // n>1: checkout.js uses errTotalOne for 1
 				'errTotalOne' => __( 'Es ist höchstens 1 Ticket pro Person möglich.', 'pass-captain' ),
+				// A600: link in the order confirmation.
+				'addToCalendar' => __( 'Termin in den Kalender eintragen (.ics)', 'pass-captain' ),
 				// A409: price of a free ticket type (same as Frontend\Format::price()).
 				'free' => __( 'kostenlos', 'pass-captain' ),
 			),

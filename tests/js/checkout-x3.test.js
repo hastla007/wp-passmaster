@@ -210,3 +210,32 @@ test('A599: the server error for an invalid attendee e-mail marks that field of 
 	assert.strictEqual(email.getAttribute('aria-invalid'), 'true');
 	assert.strictEqual(blocks[0].querySelector('[data-key="__email"]').getAttribute('aria-invalid'), null);
 });
+
+/* ------------------------------------------------------------------ A600 */
+
+async function orderConfirmation(config, answer) {
+	const env = loadCheckout({ cards: [{ occurrence: 7, billing: false }], config, i18n: { addToCalendar: 'Termin in den Kalender eintragen (.ics)' } });
+	await flush();
+	const form = env.forms[0];
+	const qty = form.querySelector('.wpcap-qty');
+	qty.value = '1';
+	qty.dispatchEvent(new FakeEvent('input', { bubbles: true }));
+	form.querySelector('[name="email"]').value = 'buyer@example.com';
+	env.answers.push(answer || response(201, { reference: 'AB12-CD34', status: 'complete', payment_status: 'paid' }));
+	form.dispatchEvent(new FakeEvent('submit', { bubbles: true }));
+	await flush();
+	return env.document.querySelector('.wpcap-confirmation');
+}
+
+test('A600: the confirmation offers the date as .ics right away', async () => {
+	const panel = await orderConfirmation({ icsBase: 'https://example.test/?wpcap_ics=occurrence' });
+	const link = panel.querySelector('.wpcap-ics-link a');
+	assert.ok(link, 'calendar link');
+	assert.strictEqual(link.getAttribute('href'), 'https://example.test/?wpcap_ics=occurrence&id=7');
+	assert.strictEqual(link.getAttribute('download'), 'termin-7.ics');
+	assert.strictEqual(link.textContent, 'Termin in den Kalender eintragen (.ics)');
+	const pending = await orderConfirmation({ icsBase: 'https://example.test/?wpcap_ics=occurrence' }, response(201, { reference: 'AB12-CD35', status: 'pending', payment_status: 'pending', hold_minutes: 30, payment: {} }));
+	assert.ok(pending.querySelector('.wpcap-ics-link a'), 'also while the payment is pending');
+	const without = await orderConfirmation({ icsBase: '' });
+	assert.strictEqual(without.querySelector('.wpcap-ics-link'), null, 'no link without the calendar module');
+});

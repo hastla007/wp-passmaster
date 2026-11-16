@@ -1632,6 +1632,11 @@ zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EU
   Formularinhalt (Vergleich über einen Hash): Wird dasselbe Formular unverändert erneut abgeschickt,
   setzt der Server dieselbe Bestellung fort (bei Stripe/Mollie mit der noch offenen Zahlungssitzung,
   bei PayPal über die PayPal-Request-Id); mit geänderter Auswahl entsteht ein neuer Versuch.
+- **Kalendereintrag in der Bestätigung** (A600): Die Bestätigung nach dem Bestellen (abgeschlossen oder
+  wartend auf Zahlung) verlinkt sofort die .ics-Datei des bestellten Termins („Termin in den Kalender eintragen
+  (.ics)“, `?wpcap_ics=occurrence&id={Termin}`, Konfiguration `WPCAP_CHECKOUT.icsBase`); ohne Kalender-Modul
+  entfällt der Link. Einen Ticket- bzw. Bestellportal-Link zeigt die Seite bewusst nicht (der Link ist ein
+  Zugangsschlüssel und kommt nur per E-Mail).
 - **Was als Erfolg gilt** (A309): nur eine JSON-Antwort mit Bestellnummer (`reference`) und `status`.
   Eine HTML-Seite (Seitencache, WAF/Bot-Schutz, Proxy-Fehler 502/504) oder eine abgeschnittene Antwort
   zeigt kein „Vielen Dank“, sondern den Hinweis, das Postfach zu prüfen oder das Formular unverändert erneut
