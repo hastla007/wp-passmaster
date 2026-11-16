@@ -851,6 +851,7 @@ final class Installer {
 		CapacityCounters::after_install( $rolled_back );
 		self::pin_legacy_credit_prefix( $previous_version );
 		self::pin_legacy_manual_provider( $previous_version );
+		self::pin_legacy_entry_window( $previous_version );
 		self::backfill_capacity_released( $previous_version );
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
@@ -1043,6 +1044,32 @@ final class Installer {
 		if ( array_key_exists( 'enabled_providers', $stored ) ) { return false; }
 		$stored['enabled_providers'] = array( 'manual' );
 		update_option( Settings::OPTION, $stored, false );
+		Settings::flush();
+		return true;
+	}
+
+	/** Option: the upgrade kept the default entry window off for this existing install (A465, admin notice). */
+	const ENTRY_WINDOW_NOTICE = 'wpcap_entry_window_pinned';
+
+	/**
+	 * A465: releases up to 1.4.0 (schema 3.5.0 and older) admitted tickets without their own admission
+	 * rule at any time; since then new installs default to an entry window (2 h before the start until
+	 * the end, `default_entry_window`). Installs that existed before and never saved the scanner
+	 * settings keep the old behaviour: the window is stored as off and an admin notice explains the
+	 * new option. A stored choice is never changed; a rollback/roll-forward does not pin again
+	 * (migration_baseline()).
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function pin_legacy_entry_window( $previous_version ) {
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.6.0', '<' ) ) { return false; }
+		$stored = get_option( Settings::OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		if ( array_key_exists( 'default_entry_window', $stored ) ) { return false; }
+		$stored['default_entry_window'] = 0;
+		update_option( Settings::OPTION, $stored, false );
+		update_option( self::ENTRY_WINDOW_NOTICE, 1, false );
 		Settings::flush();
 		return true;
 	}

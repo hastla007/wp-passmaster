@@ -20,6 +20,7 @@ final class Menu {
 		return array(
 			'wpcap_create_event' => array( EventsPage::class, 'handle_create_event' ),
 			self::SCHEMA_RETRY_ACTION => array( self::class, 'handle_schema_retry' ),
+			self::ENTRY_WINDOW_DISMISS => array( self::class, 'handle_entry_window_dismiss' ),
 			'wpcap_update_event' => array( EventsPage::class, 'handle_update_event' ),
 			'wpcap_cancel_event' => array( EventsPage::class, 'handle_cancel_event' ),
 			'wpcap_save_occurrence' => array( EventsPage::class, 'handle_save_occurrence' ),
@@ -84,6 +85,7 @@ final class Menu {
 		add_action( 'admin_notices', array( self::class, 'schema_error_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'manual_payment_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'needs_review_notice' ) );
+		add_action( 'admin_notices', array( self::class, 'entry_window_notice' ) );
 		UserScope::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
@@ -166,6 +168,41 @@ final class Menu {
 	/** Order list filtered to orders that need a decision (A337). */
 	public static function needs_review_url() {
 		return Forms::page_url( OrdersPage::SLUG, array( 'status' => 'needs_review' ) );
+	}
+
+	/** admin-post action that hides the entry-window notice (A465). */
+	const ENTRY_WINDOW_DISMISS = 'wpcap_entry_window_dismiss';
+
+	/**
+	 * A465: the upgrade kept the default entry window off for an existing install (Installer::
+	 * pin_legacy_entry_window()). Tells administrators that the option exists and how scans behave,
+	 * until they dismiss it or change the setting. Plugin pages and the dashboard only.
+	 */
+	public static function entry_window_notice() {
+		if ( ! get_option( \PassCaptain\Installer::ENTRY_WINDOW_NOTICE ) || ! current_user_can( SettingsPage::CAP ) ) { return; }
+		if ( \PassCaptain\Settings::get( 'default_entry_window' ) ) {
+			delete_option( \PassCaptain\Installer::ENTRY_WINDOW_NOTICE ); // The operator switched it on.
+			return;
+		}
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects the screen.
+		$dashboard = $screen && 'dashboard' === ( $screen->id ?? '' );
+		if ( ! $dashboard && ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) { return; }
+		echo '<div class="notice notice-info"><p><strong>' . esc_html__( 'Pass Captain: Neues Standard-Einlassfenster', 'pass-captain' ) . '</strong> ' . esc_html__( 'Neue Installationen lassen Tickets ohne eigene Einlassregel nur von 2 Stunden vor Beginn bis zum Ende des Termins ein. Für diese bestehende Installation wurde das Einlassfenster beim Update ausgeschaltet, Scans verhalten sich also wie bisher. Es lässt sich unter Einstellungen → Einlass / Scanner-Geräte einschalten.', 'pass-captain' ) . '</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="' . esc_attr( self::ENTRY_WINDOW_DISMISS ) . '">';
+		wp_nonce_field( self::ENTRY_WINDOW_DISMISS );
+		echo '<p><a class="button" href="' . esc_url( Forms::page_url( SettingsPage::SLUG, SettingsPage::url_args( 'admission' ) ) ) . '">' . esc_html__( 'Einlass-Einstellungen öffnen', 'pass-captain' ) . '</a> <button type="submit" class="button-link">' . esc_html__( 'Hinweis ausblenden', 'pass-captain' ) . '</button></p></form></div>';
+	}
+
+	/** admin-post: hides the entry-window notice (A465). */
+	public static function handle_entry_window_dismiss() {
+		if ( ! current_user_can( SettingsPage::CAP ) ) {
+			wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
+		}
+		Forms::verify( self::ENTRY_WINDOW_DISMISS );
+		delete_option( \PassCaptain\Installer::ENTRY_WINDOW_NOTICE );
+		$back = wp_get_referer();
+		Forms::redirect( $back ? $back : admin_url() );
 	}
 
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */

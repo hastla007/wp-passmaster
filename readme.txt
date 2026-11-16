@@ -140,4 +140,4 @@ Ja. Ticketseite, Bestellportal, Wartelisten- und Rechnungslinks, Zahlungsrückke
 == Upgrade Notice ==
 
 = 1.5.0 =
-Neuer Name „Pass Captain“ (früher „WP Pass Captain“). Beim Aktivieren wird die alte Kopie abgeschaltet; Daten, Webhooks und API-Adressen bleiben erhalten.
+Neuer Name „Pass Captain“ (früher „WP Pass Captain“). Beim Aktivieren wird die alte Kopie abgeschaltet; Daten, Webhooks und API-Adressen bleiben erhalten. Das neue Standard-Einlassfenster bleibt für bestehende Installationen aus.

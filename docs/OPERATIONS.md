@@ -452,6 +452,10 @@ Regeln für den Betrieb:
 
 - **Kontingentzähler nach einem Rollback:** werden beim erneuten Update automatisch neu aufgebaut (siehe
   „Kontingentzähler“, A464); bis zur Prüfung ist der Checkout langsamer.
+- **Geänderte Standardwerte:** Ein neuer Standardwert, der das Verhalten bestehender Seiten ändern würde, gilt
+  nur für Neuinstallationen. Beispiel Einlassfenster (A465): Installationen, die von Schema 3.5.0 oder älter
+  (bis 1.4.0) kommen und die Einlass-Einstellungen nie gespeichert haben, behalten „kein Einlassfenster“
+  (`default_entry_window` = 0 wird gespeichert, Admin-Hinweis bis zum Ausblenden oder Einschalten).
 - **Rollback nur des Codes** (Plugin-ZIP der Vorversion einspielen) ist innerhalb der getesteten Spanne möglich: Schemaänderungen sind rein additiv, der ältere Code ignoriert neue Tabellen/Spalten. Daten, die nur die neue Version kennt (z. B. neue Felder), bleiben erhalten, werden vom alten Code aber nicht gepflegt. Danach möglichst bald wieder vorwärts aktualisieren.
 - **Restore** immer als Paar aus Datenbank- und Plugin-Stand. Eine ältere Sicherung unter neuerem Code ist unkritisch (Upgrade läuft automatisch); eine neuere Sicherung unter älterem Code entspricht einem Code-Rollback (s. o.).
 - Den Drill vor einem Release selbst wiederholen:
