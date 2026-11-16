@@ -425,3 +425,9 @@ $ok = count( array_filter( $results, static fn( $r ) => 'OK:completed' === $r ) 
 $sold_last = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE ticket_type_id=%d AND status='valid'", $last ) );
 check( "exactly one of four parallel exchanges gets the last unit (results: " . implode( ',', $results ) . ')', 1 === $ok && 1 === $sold_last && 0 === Orders::availability( $last ) );
 check( 'losers keep their valid ticket', 3 === count( array_filter( $racers, static fn( $id ) => 'valid' === ex_ticket( $id )->status ) ) );
+// The exchange section left the cashier's shift open: later modules expect user 1 without an open shift
+// (e.g. zzzzzz_z2_payment_residuals: a back-office refund without an open shift waits as an open payout).
+if ( isset( $ex_shift ) && is_object( $ex_shift ) && ! empty( $ex_shift->session_id ) ) {
+	$ex_close = \PassCaptain\BoxOffice\Service::close_session( (int) $ex_shift->session_id, \PassCaptain\BoxOffice\Service::session_totals( (int) $ex_shift->session_id )['cash']['expected'] ?? 0, 'Testende' );
+	if ( is_wp_error( $ex_close ) ) { echo '  (shift close: ' . $ex_close->get_error_code() . ")\n"; }
+}

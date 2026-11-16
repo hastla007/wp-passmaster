@@ -19,7 +19,8 @@ echo "A637: replayed box office sale re-checks the event scope\n";
 $a637_type = make_type( 20, 10, 1000 );
 $a637_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=" . (int) $a637_type );
 $a637_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=" . $a637_occ );
-if ( ! A637Pos::open_session_for( 1 ) ) { A637Pos::open_session( 0 ); }
+$a637_opened = null;
+if ( ! A637Pos::open_session_for( 1 ) ) { $a637_opened = A637Pos::open_session( 0 ); } // Closed at the end of the module.
 $a637_key = 'a637-' . bin2hex( random_bytes( 8 ) );
 $a637_input = array( 'occurrence_id' => $a637_occ, 'quantities' => array( $a637_type => 1 ), 'method' => 'cash', 'form_key' => $a637_key );
 
@@ -47,3 +48,9 @@ $admin = PassCaptain\Rest\Controller::pos_sale( $req );
 check( 'A637: with full access the replay still works', ! is_wp_error( $admin ) && 200 === $admin->get_status() );
 
 Settings::update( array( 'seller_country' => $a637_country ) );
+// Close the shift this module opened: later modules expect user 1 without an open shift
+// (zzzzzz_z2_payment_residuals: a back-office refund without an open shift waits as an open payout).
+if ( is_object( $a637_opened ) && ! empty( $a637_opened->session_id ) ) {
+	$a637_close = A637Pos::close_session( (int) $a637_opened->session_id, A637Pos::session_totals( (int) $a637_opened->session_id )['cash']['expected'] ?? 0, 'Testende' );
+	if ( is_wp_error( $a637_close ) ) { echo '  (shift close: ' . $a637_close->get_error_code() . ")\n"; }
+}
