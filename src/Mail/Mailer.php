@@ -416,13 +416,30 @@ final class Mailer {
 		return trim( (string) preg_replace( '/[\r\n\t]+/', ' ', (string) $subject ) );
 	}
 
-	/** Plain text to safe HTML: escaped, URLs linked, line breaks kept. */
+	/**
+	 * Plain text to safe HTML: escaped, URLs linked, line breaks kept. A625: a line "Label: URL"
+	 * (e.g. "In Google Wallet speichern: https://pay.google.com/…", "Dein Ticket: https://…") becomes a
+	 * button with the label instead of a long bare URL; the text version keeps the URL.
+	 */
 	public static function text_to_html( $text ) {
-		$html = esc_html( (string) $text );
-		$html = (string) preg_replace_callback( '#https?://[^\s<>"\']+#', static function ( $m ) {
-			return '<a href="' . $m[0] . '">' . $m[0] . '</a>';
-		}, $html );
-		return nl2br( $html );
+		$lines = preg_split( '/\r\n|\r|\n/', (string) $text );
+		$out = array();
+		foreach ( $lines as $line ) {
+			if ( preg_match( '#^\s*([^:\n]{2,80}?):\s+(https?://[^\s<>"\']+)\s*$#u', $line, $m ) && false === strpos( $m[1], '://' ) ) {
+				$out[] = self::button( esc_attr( esc_url_raw( $m[2] ) ), esc_html( trim( $m[1] ) ) );
+				continue;
+			}
+			$out[] = (string) preg_replace_callback( '#https?://[^\s<>"\']+#', static function ( $u ) {
+				return '<a href="' . $u[0] . '">' . $u[0] . '</a>';
+			}, esc_html( $line ) );
+		}
+		return implode( "<br />\n", $out );
+	}
+
+	/** A625: link styled as a button (escaped URL and label), in the layout's accent colour. */
+	public static function button( $url, $label ) {
+		$color = (string) ( Layout::settings()['color'] ?? '#2271b1' );
+		return '<a href="' . $url . '" style="display:inline-block;margin:4px 0;padding:10px 18px;border-radius:4px;background:' . esc_attr( $color ) . ';color:#ffffff;text-decoration:none;font-weight:bold">' . $label . '</a>';
 	}
 
 	/** Link value for templates (URL as text, <a> in HTML). */
