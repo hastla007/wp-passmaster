@@ -85,6 +85,7 @@ Jede Kunden-Mail des zentralen Mailers und die Mails an Kund:innen von Servicebu
 
 - Schreibweise `{name}` (Kleinbuchstaben, Ziffern, Unterstrich). Ersetzung in **einem Durchgang**: Werte werden nicht erneut nach Platzhaltern durchsucht.
 - Unbekannte Platzhalter werden durch einen leeren Text ersetzt.
+- **Kein neuer Code an die bisherige Inhaber:in (A652):** `ticket_transfer_sender` und `ticket_assigned_buyer` erhalten weder `{ticket_link}` noch `{ticket_links}`, `{ticket_extras}` oder `{help_code}` (`Orders::without_code_vars()`); in eigenen Vorlagen bleiben diese Platzhalter dort leer. Den neuen Code bekommt nur die neue Inhaber:in.
 - **Text-Modus:** Werte werden unverändert eingesetzt (keine HTML-Maskierung).
 - **HTML-Modus:** Werte werden maskiert (`esc_html`, Zeilenumbrüche als `<br>`). Listen und Links (`{ticket_list}`, `{access_link}`, `{ticket_link}` …) bringen eine eigene, sichere HTML-Darstellung mit.
 - Der Betreff ist immer einzeiliger Klartext.

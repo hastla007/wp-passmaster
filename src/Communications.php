@@ -83,7 +83,9 @@ final class Communications {
 			$payload  = is_array( $payload ) ? $payload : array();
 			$template = apply_filters( 'wpcap_email_template', null, $row->template_key, $payload, (string) $row->recipient );
 			$template = Hooks::legacy_filter( 'wpcap_email_template', $template, $row->template_key, $payload );
-			$template = is_array( $template ) ? $template : ( is_array( $payload ) ? $payload : array() );
+			// A652: only a renderer (filter `wpcap_email_template`) makes a mail; the stored payload is data,
+			// never a template (no subject/body taken from it). Without a renderer: "template missing".
+			$template = is_array( $template ) ? $template : array();
 			$subject = sanitize_text_field( $template['subject'] ?? '' );
 			$body = (string) ( $template['body'] ?? '' );
 			// Through the central mailer (layout for HTML bodies, `wpcap_mail` filter); reminders keep their own editor.

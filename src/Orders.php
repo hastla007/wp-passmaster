@@ -1999,6 +1999,14 @@ final class Orders {
 		return true;
 	}
 
+	/** Mail variables that carry a ticket code (link, help code/extras); never for a previous holder (A652). */
+	const CODE_MAIL_VARS = array( 'ticket_link', 'ticket_links', 'ticket_extras', 'help_code' );
+
+	/** $vars without the variables that carry the (new) ticket code, for mails to a previous holder (A652). */
+	public static function without_code_vars( array $vars ) {
+		return array_diff_key( $vars, array_flip( self::CODE_MAIL_VARS ) );
+	}
+
 	/** Days a pending order link (A631) can be opened before it lapses; the current link stays meanwhile. */
 	const PENDING_LINK_DAYS = 7;
 
@@ -2227,7 +2235,8 @@ final class Orders {
 		if ( ! Mail\Mailer::send( 'ticket_transfer_recipient', $recipient_email, $vars, array(), (string) $order->locale, (int) $order->order_id ) ) {
 			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'pass-captain' ), array( 'status' => 502 ) );
 		}
-		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, $vars, array(), (string) $order->locale, (int) $order->order_id );
+		// A652: the previous holder learns that the ticket moved – never the new code (link, help code).
+		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, self::without_code_vars( $vars ), array(), (string) $order->locale, (int) $order->order_id );
 		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'transferred' );
 	}

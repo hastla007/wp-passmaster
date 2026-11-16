@@ -74,6 +74,8 @@ PassCaptain\Settings::update( array( 'hold_minutes' => $arch_hold ) );
 echo "Phase 1 architecture: budgeted message queue\n";
 $mq = "{$p}wpcap_message_queue";
 $wpdb->query( "DELETE FROM $mq WHERE recipient LIKE 'arch-%'" );
+// A652: the queue renders only through `wpcap_email_template` (no payload fallback).
+add_filter( 'wpcap_email_template', static function ( $tpl, $key, $payload ) { return 'arch' === $key ? $payload : $tpl; }, 10, 3 );
 for ( $i = 0; $i < 30; $i++ ) {
 	PassCaptain\Communications::enqueue( 'arch-' . $i, "arch-$i@example.com", 'arch', array( 'subject' => 'S', 'body' => 'B' ), '2000-01-01 00:00:00' );
 }

@@ -214,7 +214,7 @@ final class Types {
 				'subject' => static function () { return __( 'Ticketübertragung abgeschlossen', 'pass-captain' ); },
 				/* translators: 1: event, 2: recipient e-mail */
 				'body' => static function () { return sprintf( __( 'Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig.', 'pass-captain' ), '{event_name}', '{recipient_email}' ); },
-				'sample' => static function () { return self::sample_single_ticket() + array( 'recipient_email' => 'freundin@example.com', 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
+				'sample' => static function () { return \PassCaptain\Orders::without_code_vars( self::sample_single_ticket() ) + array( 'recipient_email' => 'freundin@example.com', 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
 			),
 			'ticket_exchanged' => array(
 				'label' => __( 'Ticketumtausch', 'pass-captain' ),
@@ -254,7 +254,7 @@ final class Types {
 				'subject' => static function () { return sprintf( __( 'Dein Ticket für %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: attendee name */
 				'body' => static function () { return "{event_name} — {ticket_name}\n{event_date}\n{event_location}\n" . sprintf( __( 'Teilnehmer: %s', 'pass-captain' ), '{attendee_name}' ) . "\n\n{ticket_link}{ticket_extras}"; },
-				'sample' => static function () { return self::sample_single_ticket() + array( 'attendee_name' => 'Alex Muster', 'attendee_email' => 'alex@example.com', 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
+				'sample' => static function () { return \PassCaptain\Orders::without_code_vars( self::sample_single_ticket() ) + array( 'attendee_name' => 'Alex Muster', 'attendee_email' => 'alex@example.com', 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
 			),
 			'ticket_assigned_buyer' => array(
 				'label' => __( 'Teilnehmerzuweisung: Käufer:in', 'pass-captain' ),

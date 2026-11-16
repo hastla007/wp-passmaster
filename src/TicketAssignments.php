@@ -138,7 +138,8 @@ final class TicketAssignments {
 			Mail\Mailer::send( 'ticket_assigned_attendee', $email, $vars, array(), (string) $order->locale, (int) $order->order_id );
 			if ( 0 !== strcasecmp( (string) $order->customer_email, $email ) ) {
 				// Tell the buyer that the previously mailed code for this ticket is no longer valid.
-				Mail\Mailer::send( 'ticket_assigned_buyer', $order->customer_email, $vars, array(), (string) $order->locale, (int) $order->order_id );
+				// A652: without the new code (link, help code) – it belongs to the new holder only.
+				Mail\Mailer::send( 'ticket_assigned_buyer', $order->customer_email, Orders::without_code_vars( $vars ), array(), (string) $order->locale, (int) $order->order_id );
 			}
 		}
 		if ( ! $rotate ) {

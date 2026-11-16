@@ -513,6 +513,8 @@ check( 'A041: a failed job claim runs no handler and leaves the job queued', 0 =
 PassCaptain\Jobs::process_due( 5 );
 check( 'A041: the next run claims and runs the job exactly once', 1 === $a41_runs && 'complete' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_jobs WHERE job_type='a41_probe'" ) );
 remove_filter( 'wpcap_process_job', $a41_handler, 10 );
+// A652: the queue renders only through `wpcap_email_template` (no payload fallback).
+add_filter( 'wpcap_email_template', static function ( $tpl, $key, $payload ) { return 'a41_probe' === $key ? $payload : $tpl; }, 10, 3 );
 PassCaptain\Communications::enqueue( 'a41m-' . uniqid(), 'a41@example.com', 'a41_probe', array( 'subject' => 'A41', 'body' => 'Hallo' ), '2000-01-01 00:00:00' );
 $GLOBALS['wpcap_test_mails'] = array();
 add_filter( 'query', $a41_fail );
