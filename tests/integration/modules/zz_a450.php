@@ -29,7 +29,7 @@ echo "A450: order form without JavaScript\n";
 $a450_type = make_type( 10, 10, 1500 );
 $a450_event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types t INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=t.occurrence_id WHERE t.ticket_type_id=$a450_type" );
 $a450_html = PublicEvents::render_shortcode( array( 'event' => $a450_event ) );
-$a450_forms = a450_forms( $a450_html );
+$a450_forms = array_values( array_filter( a450_forms( $a450_html ), static fn( $f ) => false !== strpos( $f, 'class="wpcap-checkout-form"' ) ) ); // The card also carries the (hidden) waitlist form since A456.
 check( 'order form: method="post" action="#"', 1 === count( $a450_forms ) && false !== strpos( $a450_forms[0], 'class="wpcap-checkout-form"' ) && false !== strpos( $a450_forms[0], 'method="post"' ) && false !== strpos( $a450_forms[0], 'action="#"' ) );
 check( 'order form: submit button disabled until the script enables it', 1 === preg_match( '/<button type="submit" class="wp-element-button wpcap-submit" disabled data-wpcap-requires-js>/', $a450_html ) );
 check( 'order form: noscript hint', false !== strpos( $a450_html, '<noscript><p class="wpcap-noscript">Zum Bestellen wird JavaScript benötigt.' ) );
