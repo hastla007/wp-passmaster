@@ -7,6 +7,8 @@ Ticketliste: Ticket-ID, Bestellnummer „AB12-CD34“, Hilfscode, E-Mail, Name; 
 Zugriffsbereich) mit „Umbuchen“ je Treffer, und die Ticketliste (**Tickets**) bietet „Umbuchen“ direkt je
 gültigem Ticket an (A339). Käufer:innen: Bestellportal (persönlicher Link).
 Abendkasse: öffentlicher Dienst `Exchange\Service::box_office_exchange()`.
+Der Umtausch-Verlauf in der Bestelldetailansicht zeigt die Zeit in der Website-Zeitzone, den Kanal
+übersetzt (Verwaltung, Bestellportal, Kasse, API) und die Bestellungen mit ihrer Bestellnummer (A412).
 
 Ein gültiges Ticket (nicht eingecheckt, nicht erstattet, Bestellung bezahlt) wird in eine andere
 Ticketart und/oder einen anderen Termin **desselben Events** getauscht – Mitarbeitende dürfen auch in

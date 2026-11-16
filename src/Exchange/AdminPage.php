@@ -35,6 +35,24 @@ final class AdminPage {
 		return $labels[ $status ] ?? $status;
 	}
 
+	/** A412: translated channel of an exchange (admin, portal, pos, api). */
+	public static function channel_label( $channel ) {
+		$labels = array(
+			'admin'  => __( 'Verwaltung', 'pass-captain' ),
+			'portal' => __( 'Bestellportal', 'pass-captain' ),
+			'pos'    => __( 'Kasse', 'pass-captain' ),
+			'api'    => __( 'API', 'pass-captain' ),
+		);
+		return $labels[ (string) $channel ] ?? (string) $channel;
+	}
+
+	/** A412: link to an order, labelled with its order number ("AB12-CD34") instead of the internal id. */
+	private static function order_link( $order_id ) {
+		$order = \PassCaptain\Orders::get( (int) $order_id );
+		$label = $order && '' !== (string) ( $order->public_id ?? '' ) ? \PassCaptain\Frontend\Format::order_reference( $order->public_id ) : '#' . (int) $order_id;
+		return '<a href="' . esc_url( OrdersPage::order_url( (int) $order_id ) ) . '">' . esc_html( $label ) . '</a>';
+	}
+
 	/**
 	 * Exchange by staff (admin page / order detail).
 	 *
@@ -134,9 +152,10 @@ final class AdminPage {
 			} elseif ( 'error' === (string) ( $row['refund_status'] ?? '' ) ) {
 				$settle .= ' – ' . __( 'Erstattung fehlgeschlagen, bitte manuell erstatten', 'pass-captain' );
 			}
-			$orders = '<a href="' . esc_url( OrdersPage::order_url( (int) $row['order_id'] ) ) . '">#' . (int) $row['order_id'] . '</a>';
-			if ( (int) $row['supplementary_order_id'] ) { $orders .= ' + <a href="' . esc_url( OrdersPage::order_url( (int) $row['supplementary_order_id'] ) ) . '">#' . (int) $row['supplementary_order_id'] . '</a>'; }
-			echo '<tr><td>' . esc_html( Forms::datetime( $row['created_at'], 'UTC', false ) ) . '</td><td>' . esc_html( self::type_label( (int) $row['from_type_id'] ) . ' → ' . self::type_label( (int) $row['to_type_id'] ) ) . '</td><td>' . esc_html( $row['channel'] ) . '</td><td>' . esc_html( $money( $row['difference_minor'] ) ) . '</td><td>' . esc_html( $money( $row['fee_minor'] ) ) . '</td><td>' . esc_html( $settle ) . '</td><td>' . esc_html( self::status_label( $row['status'] ) ) . '</td><td>' . $orders . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $orders is built from escaped parts.
+			$orders = self::order_link( (int) $row['order_id'] );
+			if ( (int) $row['supplementary_order_id'] ) { $orders .= ' + ' . self::order_link( (int) $row['supplementary_order_id'] ); }
+			// A412: time in the site time zone, channel translated, orders by their order number.
+			echo '<tr><td>' . esc_html( \PassCaptain\Frontend\Format::site_datetime( (string) $row['created_at'] ) ) . '</td><td>' . esc_html( self::type_label( (int) $row['from_type_id'] ) . ' → ' . self::type_label( (int) $row['to_type_id'] ) ) . '</td><td>' . esc_html( self::channel_label( $row['channel'] ) ) . '</td><td>' . esc_html( $money( $row['difference_minor'] ) ) . '</td><td>' . esc_html( $money( $row['fee_minor'] ) ) . '</td><td>' . esc_html( $settle ) . '</td><td>' . esc_html( self::status_label( $row['status'] ) ) . '</td><td>' . $orders . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $orders is built from escaped parts.
 		}
 		echo '</tbody></table>';
 	}
