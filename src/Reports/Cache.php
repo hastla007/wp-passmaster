@@ -379,6 +379,17 @@ final class Cache {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$events = array();
+		// Bulk statements (e.g. Orders::revoke_ids()) name many tickets: one query for all of them.
+		$missing = array();
+		foreach ( array_unique( array_filter( array_map( 'absint', (array) ( $ids['ticket_id'] ?? array() ) ) ) ) as $id ) {
+			if ( ! isset( self::$memo[ $p . '|ticket_id|' . $id ] ) ) { $missing[] = $id; }
+		}
+		foreach ( count( $missing ) > 1 ? array_chunk( $missing, 500 ) : array() as $chunk ) {
+			foreach ( $chunk as $id ) { self::$memo[ $p . '|ticket_id|' . $id ] = array(); }
+			foreach ( (array) $wpdb->get_results( "SELECT t.ticket_id,o.event_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id IN (" . implode( ',', $chunk ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				self::$memo[ $p . '|ticket_id|' . (int) $row->ticket_id ][] = (int) $row->event_id;
+			}
+		}
 		foreach ( $ids as $kind => $values ) {
 			foreach ( array_unique( array_filter( array_map( 'absint', $values ) ) ) as $id ) {
 				if ( 'event_id' === $kind ) { $events[] = $id; continue; }

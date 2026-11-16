@@ -253,9 +253,11 @@ $y5c_type2 = make_type( 50, 10, 0 );
 $y5c_free = Orders::create( array( 'email' => 'y5c-free@example.com', 'items' => array( array( 'ticket_type_id' => $y5c_type2, 'quantity' => 6 ) ), 'idempotency_key' => 'y5c-free-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 $y5c_ids = array_map( static fn( $t ) => (int) $t->ticket_id, Orders::tickets_for_order( $y5c_free['order_id'] ) );
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='checked_in' WHERE ticket_id=" . $y5c_ids[0] );
-$y5c_before = $wpdb->num_queries;
+// Statements of revoke_ids() itself; the report cache (A201, when registered) adds one id → event lookup for the whole statement.
+$GLOBALS['wpcap_test_query_log'] = array();
 $y5c_changed = Orders::revoke_ids( array_merge( $y5c_ids, array( $y5c_ids[1], 0 ) ) );
-$y5c_q = $wpdb->num_queries - $y5c_before;
+$y5c_q = count( array_filter( $GLOBALS['wpcap_test_query_log'], static fn( $sql ) => 0 !== strpos( ltrim( $sql ), 'SELECT t.ticket_id,o.event_id FROM' ) ) );
+unset( $GLOBALS['wpcap_test_query_log'] );
 sort( $y5c_changed );
 check( "revoke_ids: 5 valid of 6 tickets revoked in $y5c_q statements (checked-in one untouched)", array_slice( $y5c_ids, 1 ) === $y5c_changed && 2 === $y5c_q && 'checked_in' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . $y5c_ids[0] ) );
 check( 'revoke_ids: second call changes nothing', array() === Orders::revoke_ids( $y5c_ids ) );

@@ -403,6 +403,8 @@ final class Controller {
 		// A561: availability of all listed ticket types with a constant number of queries.
 		$type_ids = array();
 		foreach ( $types_of as $list ) { foreach ( $list as $type ) { $type_ids[] = (int) $type['ticket_type_id']; } }
+		// Modules load their per-occurrence data for exactly these dates in one query (A376: seat map links, buyer limits).
+		if ( $rows ) { do_action( 'wpcap_listing_occurrences', array_values( array_unique( array_map( static fn( $row ) => (int) $row->occurrence_id, $rows ) ) ), array_values( array_unique( array_map( static fn( $row ) => (int) $row->event_id, $rows ) ) ) ); }
 		// One display batch with the rows loaded above: price rules, series prices and pools of all listed
 		// types answer from grouped queries instead of several queries per ticket type (PERF-1).
 		$preloaded = array( 'types' => array(), 'occurrences' => $occurrences );
