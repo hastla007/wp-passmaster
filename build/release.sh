@@ -41,9 +41,14 @@ if [ -f "${WORK}/src/composer.json" ]; then
 	COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir="${WORK}/src" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
 	# A511: no Composer platform check in the ZIP – on a too old PHP it would end every request with a
 	# fatal error; pass-captain.php checks the versions itself and only shows an admin notice.
+	# Only enforced for trees whose composer.json opts out of the check: an older release (e.g. the
+	# previous tag rebuilt for the upgrade tests) is reproduced as it was shipped.
 	if [ -f "${WORK}/src/vendor/composer/platform_check.php" ]; then
-		echo "vendor/composer/platform_check.php must not be shipped (composer.json config.platform-check = false)." >&2
-		exit 1
+		if grep -q '"platform-check"[[:space:]]*:[[:space:]]*false' "${WORK}/src/composer.json"; then
+			echo "vendor/composer/platform_check.php must not be shipped (composer.json config.platform-check = false)." >&2
+			exit 1
+		fi
+		echo "Note: ${REF} predates config.platform-check = false; its ZIP keeps vendor/composer/platform_check.php as shipped." >&2
 	fi
 fi
 
