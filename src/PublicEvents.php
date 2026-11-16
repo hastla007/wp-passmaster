@@ -454,6 +454,15 @@ final class PublicEvents {
 			}
 		}
 		$rows = (array) $rows;
+		/**
+		 * The occurrences of an event listing are known (A376): modules load their per-occurrence/per-
+		 * event data for exactly these in one query (seat map links, buyer limits) instead of per card
+		 * or for the whole history.
+		 *
+		 * @param int[] $occurrence_ids Occurrences of the listing.
+		 * @param int[] $event_ids      Their events.
+		 */
+		do_action( 'wpcap_listing_occurrences', array_values( array_unique( array_map( static fn( $row ) => (int) $row->occurrence_id, $rows ) ) ), array_values( array_unique( array_map( static fn( $row ) => (int) $row->event_id, $rows ) ) ) );
 		$meta = array();
 		$listing = self::listing_data( $rows, $meta );
 		$card_listing = self::card_listing( $rows, $listing, $meta );

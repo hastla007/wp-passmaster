@@ -54,6 +54,7 @@ final class Allocations {
 		add_filter( 'wpcap_checkout_error_messages', array( __CLASS__, 'error_messages' ) );
 		add_action( 'wpcap_cleanup_reservations', array( Holds::class, 'auto_release_due' ), 30, 0 );
 		add_action( 'wpcap_checkout_form_fields', array( BuyerLimits::class, 'render_notice' ), 5, 2 );
+		add_action( 'wpcap_listing_occurrences', static function ( $occurrence_ids, $event_ids ) { BuyerLimits::prime( (array) $event_ids ); }, 10, 2 );
 		add_filter( 'wpcap_event_card_quantity_max', array( BuyerLimits::class, 'card_quantity_max' ), 10, 3 );
 		add_filter( 'wpcap_event_card_max_total', array( BuyerLimits::class, 'card_max_total' ), 10, 2 );
 		add_filter( 'wpcap_waitlist_join_error', array( BuyerLimits::class, 'waitlist_join_error' ), 10, 2 );

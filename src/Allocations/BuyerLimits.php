@@ -45,15 +45,29 @@ final class BuyerLimits {
 
 	/** Limits of an event: ticket_type_id (0 = whole event) => max per buyer. */
 	public static function for_event( $event_id ) {
+		$event_id = absint( $event_id );
+		if ( ! $event_id ) { return array(); }
+		if ( null === self::$limits || ! array_key_exists( $event_id, self::$limits ) ) { self::prime( array( $event_id ) ); }
+		return self::$limits[ $event_id ] ?? array();
+	}
+
+	/**
+	 * Loads the limits of these events in one query (listings: action `wpcap_listing_occurrences`,
+	 * the event card asks per card). Only the requested events – not the limits of every event ever
+	 * configured (A376).
+	 *
+	 * @param int[] $event_ids Events.
+	 */
+	public static function prime( array $event_ids ) {
 		global $wpdb;
-		if ( null === self::$limits ) {
-			// All limits in one query per request (the event card asks per card).
-			self::$limits = array();
-			foreach ( (array) $wpdb->get_results( 'SELECT event_id,ticket_type_id,max_per_buyer FROM ' . Holds::table( 'limits' ) . ' WHERE max_per_buyer>0' ) as $row ) {
+		if ( null === self::$limits ) { self::$limits = array(); }
+		$missing = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ), array_keys( self::$limits ) ) );
+		foreach ( array_chunk( $missing, 500 ) as $chunk ) {
+			foreach ( $chunk as $id ) { self::$limits[ $id ] = array(); }
+			foreach ( (array) $wpdb->get_results( 'SELECT event_id,ticket_type_id,max_per_buyer FROM ' . Holds::table( 'limits' ) . ' WHERE max_per_buyer>0 AND event_id IN (' . implode( ',', $chunk ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
 				self::$limits[ (int) $row->event_id ][ (int) $row->ticket_type_id ] = (int) $row->max_per_buyer;
 			}
 		}
-		return self::$limits[ absint( $event_id ) ] ?? array();
 	}
 
 	/** Request cache of limits (event id => type id => max); reset by flush(). */

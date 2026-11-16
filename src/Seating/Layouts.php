@@ -398,16 +398,30 @@ final class Layouts {
 	}
 
 	public static function link( $occurrence_id ) {
-		global $wpdb;
-		if ( null === self::$links ) {
-			// All links in one query per request (listings check every occurrence).
-			self::$links = array();
-			foreach ( (array) $wpdb->get_results( 'SELECT * FROM ' . self::table( 'links' ) ) as $row ) { self::$links[ (int) $row->occurrence_id ] = $row; }
-		}
-		return self::$links[ absint( $occurrence_id ) ] ?? null;
+		$occurrence_id = absint( $occurrence_id );
+		if ( ! $occurrence_id ) { return null; }
+		if ( null === self::$links || ! array_key_exists( $occurrence_id, self::$links ) ) { self::prime_links( array( $occurrence_id ) ); }
+		return self::$links[ $occurrence_id ] ?? null;
 	}
 
-	/** Request cache of seat map links; reset after writes (wpcap_availability_flushed). */
+	/**
+	 * Loads the seat map links of these occurrences in one query (listings: action
+	 * `wpcap_listing_occurrences`); later link() calls for them need no query. Only the requested
+	 * occurrences are read – not every link ever made (A376).
+	 *
+	 * @param int[] $occurrence_ids Occurrences.
+	 */
+	public static function prime_links( array $occurrence_ids ) {
+		global $wpdb;
+		if ( null === self::$links ) { self::$links = array(); }
+		$missing = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ), array_keys( self::$links ) ) );
+		foreach ( array_chunk( $missing, 500 ) as $chunk ) {
+			foreach ( $chunk as $id ) { self::$links[ $id ] = null; }
+			foreach ( (array) $wpdb->get_results( 'SELECT * FROM ' . self::table( 'links' ) . ' WHERE occurrence_id IN (' . implode( ',', $chunk ) . ')' ) as $row ) { self::$links[ (int) $row->occurrence_id ] = $row; } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+		}
+	}
+
+	/** Request cache of seat map links (occurrence id => row|null); reset after writes (wpcap_availability_flushed). */
 	private static $links = null;
 
 	public static function flush_links() {
