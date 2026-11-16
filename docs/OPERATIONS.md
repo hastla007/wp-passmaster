@@ -1135,6 +1135,8 @@ Die Blöcke `wp-pass-captain/events` und `wp-pass-captain/calendar` behalten ihr
 
 - **Bestell- und Wartelistenformular ohne JavaScript (A450):** Beide Formulare der Eventkarte (`templates/event-card.php`) sind `method="post" action="#"`, ihr Absende-Button ist `disabled data-wpcap-requires-js` und wird erst von `assets/checkout.js` freigegeben, nachdem die Absende-Handler hängen. Ohne JavaScript (oder bevor das Skript geladen ist) wird nichts gesendet – E-Mail-Adresse und Teilnehmerdaten landen nie per GET in der URL, in Server-Logs oder im Referrer; ein `<noscript>`-Hinweis erklärt das. Eigene Kopien des Templates im Theme (`<theme>/pass-captain/event-card.php`) sollten Formular-Attribute und Button entsprechend übernehmen.
 
+- **Vorschau im Editor (A451):** Die serverseitig gerenderte Vorschau (ServerSideRender) der Blöcke Events, Kalender und Terminbuchung liegt in `wp.components.Disabled`: Bestellformular, Monatsnavigation und Links lassen sich im Editor weder bedienen noch fokussieren (kein versehentliches Bestellen oder Wegnavigieren aus dem Editor); die Einstellungen in der Seitenleiste bleiben bedienbar.
+
 ## Servicebuchungen (Ressourcen, Zeitfenster, Leistungserbringer)
 
 Service-Zeitfenster (Bootsschule, Werkstatt, Beratung) werden unter **Events → Service-Zeitfenster** je Event verwaltet; Kund:innen buchen sie auf einer Seite mit dem Shortcode `[wpcap_service_booking]` bzw. dem Block „Pass Captain Terminbuchung“ (siehe unten) oder direkt über die REST-API (`POST /service-slots/{slot_id}/bookings`).

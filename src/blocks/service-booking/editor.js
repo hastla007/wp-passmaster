@@ -3,6 +3,10 @@
 	var el = element.createElement;
 	var __ = i18n.__;
 	var choices = ( window.WPCAP_BLOCK_SERVICE && window.WPCAP_BLOCK_SERVICE.events ) || [];
+	// A451: the server-rendered booking form is only a preview in the editor (not usable, not focusable).
+	function preview( child ) {
+		return components.Disabled ? el( components.Disabled, {}, child ) : child;
+	}
 	blocks.registerBlockType( 'pass-captain/service-booking', {
 		edit: function ( props ) {
 			var blockProps = blockEditor.useBlockProps();
@@ -34,7 +38,7 @@
 					)
 				),
 				attrs.eventId
-					? el( serverSideRender, { block: 'pass-captain/service-booking', attributes: attrs } )
+					? preview( el( serverSideRender, { block: 'pass-captain/service-booking', attributes: attrs } ) )
 					: el( components.Placeholder, { icon: 'clock', label: __( 'Pass Captain Terminbuchung', 'pass-captain' ), instructions: __( 'Wähle in der Seitenleiste das Event mit den Service-Zeitfenstern.', 'pass-captain' ) } )
 			);
 		},

@@ -2,6 +2,11 @@
 	'use strict';
 	var el = element.createElement;
 	var __ = i18n.__;
+	// A451: the server-rendered preview has real links (month navigation, checkout, .ics); inside
+	// Disabled they cannot be followed or focused in the editor.
+	function preview( child ) {
+		return components.Disabled ? el( components.Disabled, {}, child ) : child;
+	}
 	blocks.registerBlockType( 'wp-pass-captain/calendar', {
 		edit: function ( props ) {
 			var blockProps = blockEditor.useBlockProps ? blockEditor.useBlockProps() : {};
@@ -26,7 +31,7 @@
 						} )
 					)
 				),
-				el( serverSideRender, { block: 'wp-pass-captain/calendar', attributes: attrs } )
+				preview( el( serverSideRender, { block: 'wp-pass-captain/calendar', attributes: attrs } ) )
 			);
 		},
 		save: function () {

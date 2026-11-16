@@ -4,6 +4,11 @@
 	var __ = i18n && i18n.__ ? i18n.__ : function ( s ) { return s; };
 	// Published events and their upcoming dates (labels with date, so same-named events are distinguishable).
 	var data = window.WPCAP_BLOCK_EVENTS || { events: [] };
+	// A451: the server-rendered preview contains the real order form; inside Disabled its fields,
+	// buttons and links cannot be focused or used in the editor.
+	function preview( child ) {
+		return components && components.Disabled ? el( components.Disabled, {}, child ) : child;
+	}
 	blocks.registerBlockType( 'wp-pass-captain/events', {
 		edit: function ( props ) {
 			var attrs = props.attributes;
@@ -17,7 +22,7 @@
 					attrs.event ? el( components.SelectControl, { label: __( 'Termin', 'pass-captain' ), value: String( attrs.occurrence || 0 ), options: occurrenceOptions, onChange: function ( v ) { props.setAttributes( { occurrence: parseInt( v, 10 ) || 0 } ); } } ) : null
 				)
 			) : null;
-			return el( element.Fragment, {}, controls, el( 'div', blockProps, el( serverSideRender, { block: 'wp-pass-captain/events', attributes: attrs } ) ) );
+			return el( element.Fragment, {}, controls, el( 'div', blockProps, preview( el( serverSideRender, { block: 'wp-pass-captain/events', attributes: attrs } ) ) ) );
 		},
 		save: function () {
 			return null;
