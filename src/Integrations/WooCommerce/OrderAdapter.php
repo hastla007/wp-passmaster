@@ -168,7 +168,12 @@ final class OrderAdapter {
 		$fiscal_seller = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? absint( $product_object->get_meta( self::FISCAL_SELLER_META, true ) ) : 0;
 		$fiscal_mode = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? sanitize_key( $product_object->get_meta( self::FISCAL_MODE_META, true ) ) : 'platform_seller';
 		$p       = $wpdb->prefix;
-		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.event_id,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// SEC-V2: event staff only get rows of events assigned to them, so the 500-row limit is not used up by
+		// other events (their own types would otherwise be missing on a busy site). Per-row check below.
+		$user_id = (int) get_current_user_id();
+		$staff   = ! current_user_can( 'manage_options' ) && ! \PassCaptain\Security\SupportAccess::covers( $user_id, 'wpcap_manage_events' );
+		$where   = $staff ? $wpdb->prepare( ' WHERE e.event_id IN (SELECT s.event_id FROM %i s WHERE s.user_id=%d AND s.capability=%s)', $p . 'wpcap_event_staff', $user_id, 'wpcap_manage_events' ) : '';
+		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.event_id,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ) . $where . ' ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- $where is prepared.
 		$options = array( '' => __( '— Kein Ticketprodukt —', 'pass-captain' ) );
 		$allowed = array();
 		foreach ( $rows as $row ) {
