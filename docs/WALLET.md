@@ -25,6 +25,8 @@ define( 'WPCAP_APPLE_WWDR_CERT', '/pfad/AppleWWDRCAG4.pem' );
 
 Das Icon wird mit GD erzeugt (ohne GD: einfarbiges PNG). Ein Logo kommt nur aus einer eigenen Datei (A628): Wallet zeigt neben dem Logo ohnehin den Organisationsnamen (`logoText`, UTF-8 mit Umlauten); ein erzeugtes Text-Logo zeigte den Namen doppelt und ohne Umlaute. Eigene PNGs können als Pfad hinterlegt werden (`…@2x.png` daneben wird automatisch verwendet) oder per Filter `wpcap_wallet_apple_images` ersetzt werden.
 
+**Zwischenspeicher beim Pass-Bau (A620):** Icons und Logo werden je Einstellungs-Hash (Farben, Bildpfade samt Änderungszeit) einmal erzeugt und im Transient `wpcap_wallet_apple_images` gehalten; Zertifikate und Dienstkonto werden je Request einmal gelesen und geprüft (ein während eines langen Laufs ablaufendes Zertifikat wird erneut geprüft). Ein signiertes `.pkpass` wird für denselben Inhalt (pass.json, Bilder, Signaturzertifikat) wiederverwendet – innerhalb des Requests (z. B. mehrere Geräte, Sammelpaket) und mit persistentem Objekt-Cache (Redis/Memcached) eine Stunde lang auch über Requests hinweg, dort verschlüsselt wie die gespeicherten Codes. Ohne Objekt-Cache landen keine Pässe in der Datenbank. Jede Änderung von Ticketdaten, Code, Design oder Zertifikat ergibt einen neuen Inhalt und damit einen neu signierten Pass.
+
 Google-Pässe zeigen ein Logo (Klasse `logo`, A628) aus der Einstellung „Logo (öffentliche HTTPS-Adresse)“ (`wallet_google_logo_url`, nur `https://`), sonst dem Logo des E-Mail-Layouts, sonst dem Website-Icon; ohne HTTPS-Quelle bleibt das Feld leer. Google lädt das Bild selbst von dieser Adresse.
 
 ### Google Wallet

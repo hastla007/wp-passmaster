@@ -35,6 +35,42 @@ final class Credentials {
 	public static function apple( $check_expiry = true ) {
 		$cert_source = trim( \PassCaptain\Secrets::get( 'apple_pass_cert' ) );
 		$password = \PassCaptain\Secrets::get( 'apple_pass_key_password' );
+		// A620: parsed and checked once per request and set of sources (a file source by its mtime).
+		$key_source = \PassCaptain\Secrets::get( 'apple_pass_key' );
+		$wwdr_source = \PassCaptain\Secrets::get( 'apple_wwdr_cert' );
+		$memo = hash( 'sha256', (string) wp_json_encode( array( $cert_source, $key_source, $password, $wwdr_source, self::mtime( $cert_source ), self::mtime( $key_source ), self::mtime( $wwdr_source ), (bool) $check_expiry ) ) );
+		$known = self::$apple[ $memo ] ?? null;
+		if ( is_wp_error( $known ) ) { return $known; }
+		// A certificate that expires during a long run is checked again (A585).
+		if ( is_array( $known ) && ( ! $check_expiry || $known['valid_to'] > time() ) ) { return $known['result']; }
+		$result = self::load_apple( $cert_source, $password, $check_expiry );
+		if ( is_wp_error( $result ) ) {
+			self::$apple[ $memo ] = $result;
+		} else {
+			$valid_to = min( (int) ( self::describe_cert( $result['cert'] )['valid_to'] ?? PHP_INT_MAX ), (int) ( self::describe_cert( $result['wwdr'] )['valid_to'] ?? PHP_INT_MAX ) );
+			self::$apple[ $memo ] = array( 'result' => $result, 'valid_to' => $valid_to );
+		}
+		return $result;
+	}
+
+	/** @var array<string,mixed> Per-request results of apple() (A620). */
+	private static $apple = array();
+
+	/** @var array<string,mixed> Per-request results of google() (A620). */
+	private static $google = array();
+
+	/** Forgets the per-request results (tests, after saving new credentials). */
+	public static function reset() {
+		self::$apple = array();
+		self::$google = array();
+	}
+
+	private static function mtime( $source ) {
+		$source = (string) $source;
+		return '' !== $source && strlen( $source ) < 4096 && false === strpos( $source, '-----BEGIN' ) && is_file( $source ) ? (int) filemtime( $source ) : 0;
+	}
+
+	private static function load_apple( $cert_source, $password, $check_expiry ) {
 		$cert = '';
 		$key = '';
 		if ( preg_match( '/\.(p12|pfx)$/i', $cert_source ) && is_readable( $cert_source ) ) {
@@ -86,7 +122,14 @@ final class Credentials {
 	 * @return array{client_email:string,private_key:string,token_uri:string}|\WP_Error
 	 */
 	public static function google() {
-		$json = json_decode( self::material( \PassCaptain\Secrets::get( 'google_wallet_service_account' ) ), true );
+		$source = \PassCaptain\Secrets::get( 'google_wallet_service_account' );
+		$memo = hash( 'sha256', $source . '|' . self::mtime( $source ) );
+		if ( ! isset( self::$google[ $memo ] ) ) { self::$google[ $memo ] = self::load_google( $source ); }
+		return self::$google[ $memo ];
+	}
+
+	private static function load_google( $source ) {
+		$json = json_decode( self::material( $source ), true );
 		if ( ! is_array( $json ) || empty( $json['client_email'] ) || empty( $json['private_key'] ) ) {
 			return new \WP_Error( 'wpcap_wallet_google_credentials', __( 'Das Google-Servicekonto (JSON) fehlt oder ist ungültig.', 'pass-captain' ) );
 		}

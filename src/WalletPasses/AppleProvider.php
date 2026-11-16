@@ -132,6 +132,36 @@ class AppleProvider implements WalletProvider {
 	public function images() {
 		$bg = Settings::get( 'wallet_background_color' ) ?: '#1d2327';
 		$fg = Settings::get( 'wallet_foreground_color' ) ?: '#ffffff';
+		// A620: built once per settings hash (colours, image files and their mtimes), kept in a transient.
+		$sources = array( $bg, $fg, function_exists( 'imagecreatetruecolor' ) );
+		foreach ( array( 'wallet_apple_icon_path', 'wallet_apple_logo_path' ) as $key ) {
+			$path = trim( (string) Settings::get( $key ) );
+			$retina = preg_replace( '/\.png$/i', '@2x.png', $path );
+			$sources[] = array( $path, '' !== $path && is_file( $path ) ? filemtime( $path ) : 0, '' !== $retina && is_file( $retina ) ? filemtime( $retina ) : 0 );
+		}
+		$hash = hash( 'sha256', (string) wp_json_encode( $sources ) );
+		if ( ! isset( self::$images[ $hash ] ) ) {
+			$cached = get_transient( self::IMAGES_TRANSIENT );
+			if ( is_array( $cached ) && ( $cached['hash'] ?? '' ) === $hash && is_array( $cached['images'] ?? null ) ) {
+				self::$images[ $hash ] = array_map( 'base64_decode', $cached['images'] );
+			} else {
+				self::$images[ $hash ] = $this->build_images( $bg, $fg );
+				set_transient( self::IMAGES_TRANSIENT, array( 'hash' => $hash, 'images' => array_map( 'base64_encode', self::$images[ $hash ] ) ), DAY_IN_SECONDS ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- binary PNGs in an option.
+			}
+		}
+		return apply_filters( 'wpcap_wallet_apple_images', self::$images[ $hash ] );
+	}
+
+	/** Transient with the built images of the current settings hash (A620). */
+	const IMAGES_TRANSIENT = 'wpcap_wallet_apple_images';
+
+	/** @var array<string,array<string,string>> Images per settings hash (this request). */
+	private static $images = array();
+
+	/** @var array<string,string> Signed bundles per content hash (this request, A620). */
+	private static $bundles = array();
+
+	private function build_images( $bg, $fg ) {
 		$images = array(
 			'icon.png' => Archive::icon_png( 29, $bg, $fg ),
 			'icon@2x.png' => Archive::icon_png( 58, $bg, $fg ),
@@ -144,10 +174,15 @@ class AppleProvider implements WalletProvider {
 				$images[ $name . '@2x.png' ] = is_readable( $retina ) ? (string) file_get_contents( $retina ) : $images[ $name . '.png' ];
 			}
 		}
-		return apply_filters( 'wpcap_wallet_apple_images', $images );
+		return $images;
 	}
 
-	/** Builds the signed .pkpass bytes. */
+	/**
+	 * Builds the signed .pkpass bytes. A620: the signed bundle is reused for the same content (pass.json,
+	 * images, signing certificate) – within the request and, with a persistent object cache, across
+	 * requests (encrypted like the stored codes, 1 hour). A new update tag, code or design changes the
+	 * content and therefore the key.
+	 */
 	public function bundle( array $pass_json, $credentials = null ) {
 		$credentials = $credentials ?: Credentials::apple();
 		if ( is_wp_error( $credentials ) ) { throw new \RuntimeException( $credentials->get_error_code() ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal error code, never printed.
@@ -155,8 +190,34 @@ class AppleProvider implements WalletProvider {
 		$manifest = array();
 		foreach ( $files as $name => $bytes ) { $manifest[ $name ] = sha1( $bytes ); }
 		$files['manifest.json'] = (string) json_encode( $manifest, JSON_UNESCAPED_SLASHES );
+		$key = hash( 'sha256', $files['manifest.json'] . '|' . hash( 'sha256', $credentials['cert'] . $credentials['wwdr'] ) );
+		if ( isset( self::$bundles[ $key ] ) ) { return self::$bundles[ $key ]; }
+		$shared = self::shared_cache();
+		if ( $shared ) {
+			$box = wp_cache_get( $key, self::CACHE_GROUP );
+			$open = is_string( $box ) ? Store::decrypt( $box ) : null;
+			$bytes = is_array( $open ) ? base64_decode( (string) ( $open['b'] ?? '' ), true ) : false;
+			if ( is_string( $bytes ) && '' !== $bytes ) { return self::remember( $key, $bytes ); }
+		}
 		$files['signature'] = self::sign( $files['manifest.json'], $credentials );
-		return Archive::zip( $files );
+		$bundle = Archive::zip( $files );
+		if ( $shared ) { wp_cache_set( $key, Store::encrypt( array( 'b' => base64_encode( $bundle ) ) ), self::CACHE_GROUP, HOUR_IN_SECONDS ); } // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- binary bundle in the cache.
+		return self::remember( $key, $bundle );
+	}
+
+	/** Object cache group of the signed bundles (A620). */
+	const CACHE_GROUP = 'wpcap_wallet';
+
+	/** Whether a persistent object cache keeps bundles across requests (never the options table). */
+	private static function shared_cache() {
+		return function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_get' );
+	}
+
+	/** Keeps at most 50 bundles of this request. */
+	private static function remember( $key, $bundle ) {
+		if ( count( self::$bundles ) >= 50 ) { self::$bundles = array_slice( self::$bundles, -25, null, true ); }
+		self::$bundles[ $key ] = $bundle;
+		return $bundle;
 	}
 
 	/** Detached PKCS#7 signature (DER) of the manifest incl. the WWDR intermediate. */
