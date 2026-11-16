@@ -152,6 +152,16 @@ Zahlungs-, Reservierungs-, Erstattungs-, Absage-/Änderungs-, Übertragungs-, Wa
   Adresse) und wird gezählt (Option `wpcap_workflow_mail_handoff_stats`: angenommen, Rückfälle, letzte Entscheidung mit
   Grund `provider_missing`, `provider_incompatible`, `not_supported`, `rejected`, `provider_error`, `attachments`).
 
+### End-to-End-Prüfung mit einem Stub-Workflow-Plugin (A679)
+
+`tests/integration/modules/zz_a679.php` spielt den Vertrag mit einem Stub-Plugin durch: Workflow fehlt (Kernabläufe
+laufen, Ereignisse warten), andere Hauptversion (nie aufgerufen), später installiert (alles kommt einmal und in
+Reihenfolge an, `attempt` 2 nach vorübergehendem Fehler), PII-Redaction auch für Felder, die ein Filter einschleust,
+Duplikate (wiederholte Hooks), Replay mit Capability und `replay` = true, Pull über `since()`, Ablehnung durch das
+Plugin (z. B. dessen eigenes Pro-Recht fehlt oder ist abgelaufen: endgültig, Kern unberührt), deaktiviertes Plugin,
+Multisite (`source.site_id`) und die Commands gegen `tests/contracts/workflow_commands.json`. HPOS und klassische
+WooCommerce-Speicherung sind in der Testlaufzeit nicht unterscheidbar; die Outbox sieht nur Kernbestellungen.
+
 ## Review-Teilnahmevertrag v1
 
 Vertrag `review` 1.0.0 (A667, `src/Review/Contract.php`, gemeinsame Mechanik in `src/Suite/Contract.php`) für Review
@@ -203,7 +213,7 @@ Fixture: `tests/contracts/review.json`; `tests/integration/modules/zz_a667_a669.
 
 ## Fixtures und Tests
 
-Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
+Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow`, `workflow_commands`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
 
 - `direction: inbound` (andere rufen Pass Captain auf): `request` ist ein Beispiel mit Platzhaltern `{{name}}`, `response` ist die Shape der Antwort.
 - `direction: outbound` (Pass Captain ruft Voucher Captain oder Affiliate Captain auf): `request` ist die Shape dessen, was Pass Captain sendet, `response` ist ein Beispiel der kleinsten gültigen Antwort der Gegenseite.
