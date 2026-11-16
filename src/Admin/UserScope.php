@@ -22,9 +22,9 @@ final class UserScope {
 		add_action( 'edit_user_profile_update', array( __CLASS__, 'save' ) );
 	}
 
-	/** Raw stored scope (for the form). */
+	/** Raw stored scope of the current site (for the form, A470). */
 	public static function stored( $user_id ) {
-		$raw = get_user_meta( (int) $user_id, Access::SCOPE_META, true );
+		$raw = get_user_meta( (int) $user_id, Access::scope_meta_key(), true );
 		return Access::normalize( is_array( $raw ) ? $raw : array() );
 	}
 
@@ -34,7 +34,7 @@ final class UserScope {
 		$partners = Privacy::has_table( 'wpcap_partners' ) ? \PassCaptain\Partners\Repository::all() : array();
 		?>
 		<h2><?php esc_html_e( 'Pass Captain: Zugriffsbereich', 'pass-captain' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Optional: beschränkt diese Person zusätzlich zu ihren Event-Zuweisungen auf Spielorte und/oder Veranstalter. Leer lassen = keine zusätzliche Einschränkung. Administratoren sind nie eingeschränkt.', 'pass-captain' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Optional: beschränkt diese Person zusätzlich zu ihren Event-Zuweisungen auf Spielorte und/oder Veranstalter. Leer lassen = keine zusätzliche Einschränkung. Administratoren sind nie eingeschränkt. Gilt nur für diese Website.', 'pass-captain' ); ?></p>
 		<?php wp_nonce_field( self::NONCE, self::NONCE . '_nonce' ); ?>
 		<table class="form-table" role="presentation">
 			<tr>

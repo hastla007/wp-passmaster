@@ -37,6 +37,8 @@ final class Test_WPDB {
 	/** Posts/postmeta tables: empty (no such tables) unless a test creates them (modules/zz_a291.php, zz_a292.php). */
 	public $posts = '';
 	public $postmeta = '';
+	/** Usermeta table: empty (user meta lives in memory, $GLOBALS['p1u_user_meta']) unless a test creates one (modules/zz_a470.php). */
+	public $usermeta = '';
 	public $last_error = '';
 	public $insert_id = 0;
 	public $rows_affected = 0;
@@ -61,6 +63,8 @@ final class Test_WPDB {
 	public function db_server_info() { return (string) $this->db->server_info; }
 	public function db_version() { return preg_replace( '/[^0-9.].*/', '', $this->db_server_info() ); }
 	public function tables( $scope = 'all', $prefix = true, $blog_id = 0 ) { return array(); }
+	/** Like wpdb::get_blog_prefix(): the current prefix, or $GLOBALS['wpcap_test_blog_prefixes'][ $blog_id ]. */
+	public function get_blog_prefix( $blog_id = null ) { return null === $blog_id ? $this->prefix : (string) ( $GLOBALS['wpcap_test_blog_prefixes'][ (int) $blog_id ] ?? $this->prefix ); }
 	/**
 	 * Fault injection (A183): the first rule of $GLOBALS['wpcap_test_faults'] that matches the
 	 * statement (regex `match`, after `skip` matches, while `times` > 0) makes it fail like the server
@@ -204,7 +208,31 @@ function sanitize_textarea_field( $t ) { if ( is_array( $t ) || is_object( $t ) 
 function wp_kses_post( $t ) { return (string) $t; }
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $t ) { return trim( strip_tags( (string) $t ) ); } }
 function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ",", "." ); }
-function user_can( $u, $c ) { return true; }
+// $GLOBALS['wpcap_test_user_caps'][ user id ] = capabilities of that user (A471); users without an entry have every capability.
+function user_can( $u, $c ) { $id = is_object( $u ) ? (int) ( $u->ID ?? 0 ) : (int) $u; return isset( $GLOBALS['wpcap_test_user_caps'][ $id ] ) ? in_array( $c, (array) $GLOBALS['wpcap_test_user_caps'][ $id ], true ) : true; }
+/*
+ * Multisite (A479): $GLOBALS['wpcap_test_multisite'] switches is_multisite() on, $GLOBALS['wpcap_test_blog_id']
+ * is the current site, $GLOBALS['wpcap_test_blog_members'][ blog id ] lists the user ids of a site (sites
+ * without an entry have every user). Per-site user options use the table prefix like WordPress.
+ */
+function is_multisite() { return ! empty( $GLOBALS['wpcap_test_multisite'] ); }
+function get_current_blog_id() { return (int) ( $GLOBALS['wpcap_test_blog_id'] ?? 1 ); }
+function is_user_member_of_blog( $user_id = 0, $blog_id = 0 ) {
+	$user_id = (int) ( $user_id ?: get_current_user_id() );
+	$blog_id = (int) ( $blog_id ?: get_current_blog_id() );
+	if ( ! isset( $GLOBALS['wpcap_test_blog_members'][ $blog_id ] ) ) { return $user_id > 0; }
+	return in_array( $user_id, (array) $GLOBALS['wpcap_test_blog_members'][ $blog_id ], true );
+}
+function get_user_option( $option, $user = 0 ) {
+	$user = (int) ( $user ?: get_current_user_id() );
+	$meta = $GLOBALS['p1u_user_meta'][ $user ] ?? array();
+	$site = $GLOBALS['wpdb']->get_blog_prefix() . $option;
+	return array_key_exists( $site, $meta ) ? $meta[ $site ] : ( $meta[ $option ] ?? false );
+}
+function update_user_option( $user_id, $option, $value, $global = false ) {
+	$GLOBALS['p1u_user_meta'][ (int) $user_id ][ ( $global ? '' : $GLOBALS['wpdb']->get_blog_prefix() ) . $option ] = $value;
+	return true;
+}
 function wp_json_encode( $v, $flags = 0, $depth = 512 ) { return json_encode( $v, $flags, $depth ); }
 function wp_generate_uuid4() { return sprintf( '%04x%04x-%04x-4%03x-%04x-%012x', random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xfff ), random_int( 0x8000, 0xbfff ), random_int( 0, 0xffffffffffff ) ); }
 function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }

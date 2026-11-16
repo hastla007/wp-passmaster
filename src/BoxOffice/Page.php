@@ -264,14 +264,16 @@ final class Page {
 
 	/**
 	 * Prominent notice: the box office is not a certified cash register (RKSV / KassenSichV). It can
-	 * be dismissed per user (?wpcap_dismiss_fiscal_notice=1 with nonce; stored as user meta).
+	 * be dismissed per user and site (?wpcap_dismiss_fiscal_notice=1 with nonce; stored as user option
+	 * with the site prefix, A470: each site of a network may run its own box office; a dismissal of
+	 * earlier versions, stored network-wide, still counts).
 	 */
 	public static function render_fiscal_notice() {
 		$user_id = get_current_user_id();
 		if ( isset( $_GET['wpcap_dismiss_fiscal_notice'] ) && $user_id && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), self::FISCAL_NOTICE_META ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified here.
-			update_user_meta( $user_id, self::FISCAL_NOTICE_META, 1 );
+			update_user_option( $user_id, self::FISCAL_NOTICE_META, 1 );
 		}
-		if ( $user_id && get_user_meta( $user_id, self::FISCAL_NOTICE_META, true ) ) { return; }
+		if ( $user_id && get_user_option( self::FISCAL_NOTICE_META, $user_id ) ) { return; }
 		$dismiss = wp_nonce_url( add_query_arg( 'wpcap_dismiss_fiscal_notice', '1', self::back() ), self::FISCAL_NOTICE_META );
 		echo '<div class="notice notice-warning wpcap-fiscal-notice" role="note" style="border-left-width:6px;padding:12px 16px"><p style="font-size:1.05em"><strong>' . esc_html__( 'Wichtiger Hinweis:', 'pass-captain' ) . '</strong> '
 			. esc_html__( 'Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig.', 'pass-captain' ) . '</p><p>'

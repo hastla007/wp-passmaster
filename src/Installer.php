@@ -887,6 +887,7 @@ final class Installer {
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 		self::align_legacy_stripe_mode( $previous_version );
+		self::migrate_site_scopes( $previous_version );
 
 		// Role names are translated; before init that would load the text domain too early.
 		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
@@ -1121,6 +1122,18 @@ final class Installer {
 		Settings::update( array( 'stripe_mode' => 'live' ) );
 		Audit::record( 'stripe_mode_aligned', 'settings', 0, array( 'mode' => 'live' ) );
 		return true;
+	}
+
+	/**
+	 * Schema 3.10.18 (A470): access scopes become per-site user options; the former network-wide
+	 * user meta is copied to this site's key (Access::migrate_legacy_scopes()). Idempotent.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function migrate_site_scopes( $previous_version ) {
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.18', '<' ) ) { return 0; }
+		return Access::migrate_legacy_scopes();
 	}
 
 	/**

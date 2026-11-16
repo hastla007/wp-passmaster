@@ -88,7 +88,7 @@ check( 'without scope a staff member keeps access to every assigned event and oc
 check( 'scope assignment requires manage_options', false === Access::set_scope( 1, array( 'locations' => "Halle Nord" ) ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 Access::set_scope( 1, array( 'locations' => "  halle NORD \n\n" ) );
-check( 'administrators are never scoped (scope stored, but manage_options bypasses it)', array( 'halle NORD' ) === Access::normalize( (array) get_user_meta( 1, Access::SCOPE_META, true ) )['locations'] && null === Access::scope() && Access::can_access_event( $a119_b['event'], 'wpcap_manage_orders' ) );
+check( 'administrators are never scoped (scope stored, but manage_options bypasses it)', array( 'halle NORD' ) === Access::normalize( (array) get_user_meta( 1, Access::scope_meta_key(), true ) )['locations'] && null === Access::scope() && Access::can_access_event( $a119_b['event'], 'wpcap_manage_orders' ) );
 
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 check( 'scope applies to the non-administrator (locations, no partner limit)', array( 'locations' => array( 'halle NORD' ), 'partners' => null ) === Access::scope() );

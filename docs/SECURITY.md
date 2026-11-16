@@ -231,7 +231,13 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
    Alle Änderungen landen im Audit-Log (`staff_assignment_added`/`staff_assignment_removed`,
    `admission_area_staff_added`/`admission_area_staff_removed`, `service_resource_providers_set`). Administratoren sind nie beschränkt.
 3. **Zugriffsbereich (A119, optional je Person)** im WordPress-Profil unter „Pass Captain: Zugriffsbereich“
-   (User-Meta `wpcap_access_scope`, Filter `wpcap_access_scope`):
+   (Benutzeroption je Site `{präfix}wpcap_access_scope`, z. B. `wp_2_wpcap_access_scope`, Filter
+   `wpcap_access_scope`). Seit Schema 3.10.18 (A470) gilt ein Bereich nur auf der Site, auf der er gesetzt
+   wurde: Benutzer sind netzwerkweit, Partner-IDs und Spielorte gehören aber zu einer Site. Das Update kopiert
+   den früheren netzwerkweiten Eintrag auf jede Site, deren Mitglied die Person ist (jede Site bei ihrem
+   eigenen Update; vorhandene Site-Einträge bleiben) – am wirksamen Zugriff ändert sich dabei nichts; danach
+   sollten Administratoren die Bereiche je Site prüfen, weil Partner-IDs auf anderen Sites andere Partner
+   bezeichnen. Auf Einzelinstallationen wird der alte Schlüssel entfernt:
    - **Spielorte:** nur Termine, deren Ort (`occurrences.location`, ohne Groß-/Kleinschreibung) aufgeführt ist.
      Ein Event ist erreichbar, sobald einer seiner Termine im Bereich liegt; alles mit Terminbezug – Tickets,
      Check-ins, Bestellungen (alle Termine der Bestellung), Teilnehmer- und No-Show-Listen, Kasse,

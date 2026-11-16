@@ -12,7 +12,8 @@
  *     occurrences for a capability only reaches those occurrences with it (assigned_occurrence());
  *     capability-free occurrence checks use the union of the person's team capabilities; entry areas
  *     are enforced by the admission module (Admission\Areas::check()),
- *  3. optional scope of the user (A119, opt-in, user meta `wpcap_access_scope`):
+ *  3. optional scope of the user (A119, opt-in, user meta `<site prefix>wpcap_access_scope`, per site
+ *     like update_user_option() – A470: partner ids and locations belong to one site of a network):
  *     - locations: only occurrences whose location (occurrences.location, compared trimmed and
  *       case-insensitive) is listed; an event is reachable when at least one of its occurrences is,
  *       occurrence-level checks (orders, tickets, check-ins, lists, exports) use the exact location;
@@ -27,8 +28,56 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Access {
-	/** User meta with the scope: ['locations' => string[], 'partners' => int[], 'linked_partners' => bool]. */
+	/**
+	 * Base name of the user meta with the scope: ['locations' => string[], 'partners' => int[],
+	 * 'linked_partners' => bool]. Stored per site under scope_meta_key() (A470); the unprefixed key
+	 * of earlier versions applied to every site of a network and is no longer read.
+	 */
 	const SCOPE_META = 'wpcap_access_scope';
+
+	/**
+	 * User meta key of the scope on the current site: the site's table prefix + SCOPE_META, as
+	 * update_user_option() stores per-site options (wp_wpcap_access_scope, wp_2_wpcap_access_scope).
+	 * Users are network-wide, the partner ids and locations of a scope are not (A470).
+	 */
+	public static function scope_meta_key() {
+		global $wpdb;
+		$prefix = method_exists( $wpdb, 'get_blog_prefix' ) ? (string) $wpdb->get_blog_prefix() : (string) $wpdb->prefix;
+		return $prefix . self::SCOPE_META;
+	}
+
+	/**
+	 * Upgrade to schema 3.10.18 (A470): copies the scopes stored under the former network-wide key
+	 * to the per-site key of the current site. On a network every site the user belongs to gets the
+	 * copy on its own upgrade – exactly the scope that applied there before, so the upgrade never
+	 * widens anybody's access; administrators then adjust the per-site scopes (partner ids are
+	 * site-local). A per-site scope that exists already is kept. Single sites drop the old key.
+	 *
+	 * @return int Number of users whose scope was copied.
+	 */
+	public static function migrate_legacy_scopes() {
+		global $wpdb;
+		if ( empty( $wpdb->usermeta ) || ! function_exists( 'update_user_meta' ) ) { return 0; }
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key=%s", self::SCOPE_META ) );
+		$key = self::scope_meta_key();
+		$network = function_exists( 'is_multisite' ) && is_multisite();
+		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		$copied = 0;
+		foreach ( $rows as $row ) {
+			$user_id = (int) $row->user_id;
+			if ( ! $user_id ) { continue; }
+			if ( $network && function_exists( 'is_user_member_of_blog' ) && ! is_user_member_of_blog( $user_id, $blog ) ) { continue; }
+			$value = function_exists( 'maybe_unserialize' ) ? maybe_unserialize( $row->meta_value ) : $row->meta_value;
+			$current = get_user_meta( $user_id, $key, true );
+			if ( is_array( $value ) && ( '' === $current || false === $current || null === $current ) ) {
+				update_user_meta( $user_id, $key, self::normalize( $value ) );
+				++$copied;
+			}
+			if ( ! $network && function_exists( 'delete_user_meta' ) ) { delete_user_meta( $user_id, self::SCOPE_META ); }
+		}
+		if ( $copied ) { Audit::record( 'access_scope_migrated', 'site', $blog, array( 'users' => $copied, 'network' => $network ) ); }
+		return $copied;
+	}
 
 	/** Whether the user holds the capability (current user through current_user_can()). */
 	public static function user_has( $user_id, $capability ) {
@@ -122,7 +171,7 @@ final class Access {
 	public static function scope( $user_id = 0 ) {
 		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
 		if ( ! $user_id || self::is_global( $user_id ) ) { return null; }
-		$raw = function_exists( 'get_user_meta' ) ? get_user_meta( $user_id, self::SCOPE_META, true ) : array();
+		$raw = function_exists( 'get_user_meta' ) ? get_user_meta( $user_id, self::scope_meta_key(), true ) : array();
 		$scope = self::normalize( is_array( $raw ) ? $raw : array() );
 		if ( ! empty( $scope['linked_partners'] ) ) {
 			$linked = Privacy::has_table( 'wpcap_partner_users' ) ? Partners\Repository::partners_of_user( $user_id ) : array();
@@ -169,17 +218,20 @@ final class Access {
 		return array( 'locations' => array_values( $clean ), 'partners' => $partners, 'linked_partners' => $linked );
 	}
 
-	/** Stores the scope of a user (empty input removes it). Only administrators may call this. */
+	/**
+	 * Stores the scope of a user on the current site (empty input removes it). Only administrators
+	 * of this site may call this; other sites of a network keep their own scope (A470).
+	 */
 	public static function set_scope( $user_id, array $input ) {
 		$user_id = absint( $user_id );
 		if ( ! $user_id || ! current_user_can( 'manage_options' ) ) { return false; }
 		$scope = self::normalize( $input );
 		if ( ! $scope['locations'] && null === $scope['partners'] && ! $scope['linked_partners'] ) {
-			if ( function_exists( 'delete_user_meta' ) ) { delete_user_meta( $user_id, self::SCOPE_META ); } else { update_user_meta( $user_id, self::SCOPE_META, array() ); }
+			if ( function_exists( 'delete_user_meta' ) ) { delete_user_meta( $user_id, self::scope_meta_key() ); } else { update_user_meta( $user_id, self::scope_meta_key(), array() ); }
 		} else {
-			update_user_meta( $user_id, self::SCOPE_META, $scope );
+			update_user_meta( $user_id, self::scope_meta_key(), $scope );
 		}
-		Audit::record( 'access_scope_set', 'user', $user_id, $scope );
+		Audit::record( 'access_scope_set', 'user', $user_id, $scope + array( 'site' => function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1 ) );
 		return true;
 	}
 
