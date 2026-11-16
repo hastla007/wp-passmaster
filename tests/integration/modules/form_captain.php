@@ -55,6 +55,15 @@ ob_start(); EventForms::render_section( $wpdb->get_row( "SELECT * FROM {$p}wpcap
 check( 'event screen shows nothing without Form Captain and without assignment', '' === $html );
 
 require __DIR__ . '/form_captain/fake-contract.php';
+require __DIR__ . '/form_captain/fake-interface.php';
+if ( ! function_exists( 'has_filter' ) ) {
+	function has_filter( $hook, $callback = false ) {
+		foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() as $callbacks ) {
+			foreach ( $callbacks as $entry ) { if ( false === $callback || $entry[0] === $callback ) { return true; } }
+		}
+		return false;
+	}
+}
 $GLOBALS['fcfake']['forms'] = array(
 	array( 'id' => 7, 'public_id' => 'a1b2c3d4e5f6g7h8', 'title' => 'Anfrage', 'status' => 'published', 'version' => 1, 'fields' => array() ),
 	array( 'id' => 8, 'public_id' => 'zzzzzzzzzzzzzzz8', 'title' => 'Entwurf', 'status' => 'draft', 'version' => 0, 'fields' => array() ),
@@ -148,7 +157,7 @@ check( 'event whose dates are all cancelled is rejected', false === Adapter::che
 echo "Form Captain adapter: a submission never books\n";
 $before = fc_counts();
 do_action( 'form_captain_entry_created_v1', array( 'contract' => '1.0.0', 'entry_id' => 1, 'form_id' => 7, 'context' => array( 'purpose' => Adapter::PURPOSE, 'ref_type' => 'event', 'ref_id' => (string) $ev, 'verified' => true ), 'values' => array() ) );
-check( 'no listener on Form Captain entry events and no form action registered', empty( $GLOBALS['wpcap_test_hooks']['form_captain_entry_created_v1'] ) && ! $GLOBALS['fcfake']['actions'] );
+check( 'no listener on Form Captain entry events; the form action exists only through the opt-in connector', empty( $GLOBALS['wpcap_test_hooks']['form_captain_entry_created_v1'] ) && ! $GLOBALS['fcfake']['actions'] );
 check( 'entry event creates no order, reservation or ticket', $before === fc_counts() );
 
 echo "Form Captain adapter: removing the assignment\n";
@@ -157,3 +166,93 @@ check( 'empty field removes the assignment', ! is_wp_error( $r ) && 0 === $r['fo
 $wpdb->query( "DELETE FROM {$p}wpcap_event_forms WHERE form_id=7" );
 EventForms::flush_cache();
 check( 'form no longer accepts the purpose once unassigned everywhere', array() === Adapter::accepted_purposes( array(), 7 ) );
+
+echo "Form Captain adapter: explicit hand-over (PASS-FC-05)\n";
+use PassCaptain\Integrations\FormCaptain\Connector;
+use PassCaptain\Integrations\FormCaptain\EventRequests;
+if ( ! function_exists( 'wp_timezone_string' ) ) { function wp_timezone_string() { return 'UTC'; } }
+if ( ! function_exists( 'selected' ) ) { function selected( $a, $b = true, $echo = true ) { $r = (string) $a === (string) $b ? ' selected="selected"' : ''; if ( $echo ) { echo $r; } return $r; } }
+if ( ! function_exists( 'esc_js' ) ) { function esc_js( $t ) { return addslashes( (string) $t ); } }
+
+$connectors = apply_filters( 'form_captain_connectors_v1', array( 'other' => 'kept' ) );
+check( 'connector registered through form_captain_connectors_v1 without replacing others', 'kept' === $connectors['other'] && $connectors['pass_captain'] instanceof Connector && 'pass_captain' === $connectors['pass_captain']->key() && '1.0' === $connectors['pass_captain']->contract() );
+$connectors['pass_captain']->register_actions();
+$action = Connector::definition();
+check( 'form action pass_captain.event_registration registered by the connector', array( Connector::ACTION ) === $GLOBALS['fcfake']['actions'] && array( Connector::ACTION ) === $connectors['pass_captain']->capabilities() );
+$sensitive = array_filter( $action['mapping'], static fn( $m ) => ! empty( $m['allow_sensitive'] ) );
+check( 'explicit mapping of name, e-mail, phone, message; no sensitive field allowed', array( 'name', 'email', 'phone', 'message' ) === array_column( $action['mapping'], 'key' ) && ! $sensitive && '^1.0' === $action['contract'] && 'pass_captain' === $action['connector'] );
+check( 'connector requirements ok while the purpose is registered', true === $connectors['pass_captain']->requirements()['ok'] );
+
+$req_event = fc_event();
+$ctx  = array( 'purpose' => Adapter::PURPOSE, 'ref_type' => 'event', 'ref_id' => (string) $req_event, 'verified' => true );
+$job  = static fn( $entry, array $over = array() ) => array_merge( array( 'form_id' => 7, 'entry_id' => $entry, 'idempotency_key' => 'form-captain:1:' . $entry . ':pass_captain.event_registration:a_1', 'action_key' => Connector::ACTION, 'instance_id' => 'a_1', 'attempt' => 1, 'settings' => array(), 'values' => array( 'name' => 'Ada <b>Lovelace</b>', 'email' => 'ada@example.org', 'phone' => '+43 1 234', 'message' => "Zwei Plätze,\nbitte", 'event_id' => '999' ), 'context' => $ctx, 'test_mode' => false, 'unknown_key' => 'ignored' ), $over );
+$before = fc_counts();
+$test   = EventRequests::handle_job( $job( 0, array( 'test_mode' => true, 'context' => array() ) ) );
+check( 'test mode: success without side effects', 'success' === $test['status'] && 'test_ok' === $test['code'] && 0 === EventRequests::count_for_event( $req_event ) );
+$r1 = EventRequests::handle_job( $job( 501 ) );
+$row = $r1['remote_id'] ?? '' ? EventRequests::get( (int) substr( $r1['remote_id'], strlen( 'pass-request-' ) ) ) : null;
+check( 'delivery creates one request "to review" with sanitized mapped values', 'success' === $r1['status'] && 'created' === $r1['code'] && $row && 'review' === $row->status && 'Ada Lovelace' === $row->name && 'ada@example.org' === $row->email && 501 === (int) $row->entry_id );
+check( 'event comes from the verified context, not from a form field', $row && $req_event === (int) $row->event_id );
+$r2 = EventRequests::handle_job( $job( 501, array( 'attempt' => 2 ) ) );
+check( 'repeated delivery returns the same request and stores nothing twice', 'success' === $r2['status'] && $r1['remote_id'] === $r2['remote_id'] && 1 === EventRequests::count_for_event( $req_event ) );
+check( 'a request creates no order, reservation or ticket', $before === fc_counts() );
+$bad = EventRequests::handle_job( $job( 502, array( 'context' => array() ) ) );
+check( 'no verified context: fail context_missing', 'fail' === $bad['status'] && 'context_missing' === $bad['code'] );
+$bad = EventRequests::handle_job( $job( 503, array( 'context' => array( 'verified' => false ) + $ctx ) ) );
+check( 'unverified context: fail', 'fail' === $bad['status'] && 'context_missing' === $bad['code'] );
+$bad = EventRequests::handle_job( $job( 504, array( 'context' => array( 'purpose' => 'other.purpose' ) + $ctx ) ) );
+check( 'context of another purpose: fail', 'fail' === $bad['status'] );
+$bad = EventRequests::handle_job( $job( 505, array( 'idempotency_key' => '' ) ) );
+check( 'missing idempotency key: fail', 'fail' === $bad['status'] && 'missing_idempotency_key' === $bad['code'] );
+$gone = fc_event();
+Orders::cancel_event( $gone );
+$bad = EventRequests::handle_job( $job( 506, array( 'context' => array( 'ref_id' => (string) $gone ) + $ctx ) ) );
+check( 'cancelled event: fail event_cancelled, nothing stored', 'fail' === $bad['status'] && 'event_cancelled' === $bad['code'] && 0 === EventRequests::count_for_event( $gone ) );
+$bad = EventRequests::handle_job( $job( 507, array( 'context' => array( 'ref_id' => '99999999' ) + $ctx ) ) );
+check( 'unknown event: fail event_not_found', 'fail' === $bad['status'] && 'event_not_found' === $bad['code'] );
+
+echo "Form Captain adapter: reviewing requests\n";
+$request_id = (int) $row->request_id;
+ob_start(); EventForms::render_section( $wpdb->get_row( "SELECT * FROM {$p}wpcap_events WHERE event_id=$req_event" ), true ); $html = ob_get_clean();
+check( 'event screen lists the request with book and reject actions', false !== strpos( $html, 'Ada Lovelace' ) && false !== strpos( $html, EventRequests::ACTION_BOOK ) && false !== strpos( $html, EventRequests::ACTION_REJECT ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_orders' );
+$r = EventRequests::book( array( 'request_id' => $request_id, 'ticket_type_id' => 1, 'quantity' => 1 ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'booking needs the order capability', is_wp_error( $r ) && 'wpcap_admin_forbidden' === $r->get_error_code() );
+$foreign = make_type( 5, 10, 0 );
+$r = EventRequests::book( array( 'request_id' => $request_id, 'ticket_type_id' => $foreign, 'quantity' => 1 ) );
+check( 'ticket type of another event is rejected', is_wp_error( $r ) && 'wpcap_request_ticket_type' === $r->get_error_code() && $before === fc_counts() );
+$own_type = (int) $wpdb->get_var( "SELECT t.ticket_type_id FROM {$p}wpcap_ticket_types t INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=t.occurrence_id WHERE o.event_id=$req_event" );
+$r = EventRequests::book( array( 'request_id' => $request_id, 'ticket_type_id' => $own_type, 'quantity' => 2 ) );
+$booked = EventRequests::get( $request_id );
+check( 'manual booking creates the order through Orders::create (free tickets issued)', ! is_wp_error( $r ) && 'booked' === $booked->status && (int) $booked->order_id === $r['order_id'] && 2 === count( tickets( $r['order_id'] ) ) && 'ada@example.org' === Orders::get( $r['order_id'] )->customer_email );
+$again = EventRequests::book( array( 'request_id' => $request_id, 'ticket_type_id' => $own_type, 'quantity' => 2 ) );
+check( 'a booked request cannot be booked twice', is_wp_error( $again ) && 'wpcap_request_decided' === $again->get_error_code() && 2 === count( tickets( $r['order_id'] ) ) );
+$paid_event_type = make_type( 5, 10, 2500 );
+$paid_event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types t INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=t.occurrence_id WHERE t.ticket_type_id=$paid_event_type" );
+$rp = EventRequests::handle_job( $job( 520, array( 'context' => array( 'ref_id' => (string) $paid_event ) + $ctx ) ) );
+$paid_req = (int) substr( $rp['remote_id'], strlen( 'pass-request-' ) );
+$r = EventRequests::book( array( 'request_id' => $paid_req, 'ticket_type_id' => $paid_event_type, 'quantity' => 1 ) );
+check( 'paid ticket: order pending with manual payment hold, no ticket before payment', ! is_wp_error( $r ) && 'pending' === $r['payment_status'] && ! tickets( $r['order_id'] ) && 'manual' === Orders::get( $r['order_id'] )->payment_provider );
+$rr = EventRequests::handle_job( $job( 530 ) );
+$rej_id = (int) substr( $rr['remote_id'], strlen( 'pass-request-' ) );
+$r = EventRequests::reject( array( 'request_id' => $rej_id ) );
+check( 'reject marks the request rejected without any order', ! is_wp_error( $r ) && 'rejected' === EventRequests::get( $rej_id )->status && 0 === (int) EventRequests::get( $rej_id )->order_id );
+$noemail = EventRequests::handle_job( $job( 540, array( 'values' => array( 'name' => 'Ohne Mail', 'email' => 'kaputt' ) ) ) );
+$noemail_id = (int) substr( $noemail['remote_id'], strlen( 'pass-request-' ) );
+$r = EventRequests::book( array( 'request_id' => $noemail_id, 'ticket_type_id' => $own_type, 'quantity' => 1 ) );
+check( 'invalid e-mail is not stored and the request cannot be booked', '' === EventRequests::get( $noemail_id )->email && is_wp_error( $r ) && 'wpcap_request_email' === $r->get_error_code() );
+
+echo "Form Captain adapter: entry deletion and consent withdrawal\n";
+$open = EventRequests::handle_job( $job( 550 ) );
+$open_id = (int) substr( $open['remote_id'], strlen( 'pass-request-' ) );
+do_action( 'form_captain_entry_deleted_v1', 550, 7, 'erasure' );
+check( 'entry deleted: open request removed', null === EventRequests::get( $open_id ) );
+do_action( 'form_captain_consent_withdrawn_v1', 501, 7, 'admin' );
+$booked = EventRequests::get( $request_id );
+check( 'consent withdrawn: booked request keeps status and order, personal data removed', $booked && 'booked' === $booked->status && $booked->order_id && '' === $booked->name && '' === $booked->email && '' === $booked->message && null !== $booked->anonymized_at );
+do_action( 'form_captain_consent_withdrawn_v1', 540, 7, 'admin' );
+check( 'consent withdrawn: open request removed', null === EventRequests::get( $noemail_id ) );
+do_action( 'form_captain_entry_deleted_v1', 530, 9, 'manual' );
+check( 'deletion of another form\'s entry with the same ID changes nothing', null !== EventRequests::get( $rej_id ) && '' !== EventRequests::get( $rej_id )->name );
+check( 'removal is audited without personal data', (bool) $wpdb->get_var( "SELECT 1 FROM {$p}wpcap_audit_logs WHERE action='event_request_removed'" ) && ! $wpdb->get_var( "SELECT 1 FROM {$p}wpcap_audit_logs WHERE action LIKE 'event_request%' AND details LIKE '%ada@example.org%'" ) );

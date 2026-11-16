@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<phpunit bootstrap="bootstrap.php" colors="true" convertDeprecationsToExceptions="true" beStrictAboutOutputDuringTests="false">
+<phpunit bootstrap="bootstrap.php" cacheResult="false" colors="true" convertDeprecationsToExceptions="true" beStrictAboutOutputDuringTests="false">
 	<testsuites>
 		<testsuite name="form-captain">
 			<directory suffix="Test.php">.</directory>

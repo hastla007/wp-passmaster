@@ -11,8 +11,9 @@
  *   `form_captain_accepted_context_purposes_v1`), so nobody has to edit the form settings,
  * - renders the assigned form below the event card through `form_captain_get_render_v1()`.
  *
- * A submission is never a booking: this adapter registers no form action and no listener on
- * Form Captain entry events, so it never creates a reservation, payment or ticket. Uses only the
+ * A submission is never a booking: there is no listener on Form Captain entry events. The optional
+ * connector (Connector, EventRequests) only stores a request "to review" after an explicit opt-in;
+ * nothing creates a reservation, payment or ticket without a staff action. Uses only the
  * public Form Captain functions and hooks; never reads Form Captain tables. Without Form Captain or
  * with another contract major version the adapter stays inactive.
  *
@@ -72,6 +73,8 @@ final class Adapter {
 		add_filter( 'form_captain_accepted_context_purposes_v1', array( __CLASS__, 'accepted_purposes' ), 10, 2 );
 		add_filter( 'wp_pass_captain_event_card_html', array( __CLASS__, 'append_to_card' ), 20, 3 );
 		add_action( 'wpcap_event_admin_sections', array( EventForms::class, 'render_section' ), 10, 2 );
+		add_action( 'form_captain_entry_deleted_v1', array( EventRequests::class, 'on_entry_deleted' ), 10, 3 );
+		add_action( 'form_captain_consent_withdrawn_v1', array( EventRequests::class, 'on_consent_withdrawn' ), 10, 3 );
 	}
 
 	/** Form Captain contract functions are present (plugin active). */
@@ -119,6 +122,11 @@ final class Adapter {
 		if ( ! self::compatible() ) {
 			self::$state = 'incompatible';
 			return;
+		}
+		// Explicit hand-over (PASS-FC-05): connector with the form action, disabled until enabled in
+		// Form Captain. Form Captain collects connectors on init.
+		if ( interface_exists( 'FormCaptain\\Integrations\\ConnectorInterface' ) && ! has_filter( 'form_captain_connectors_v1', array( Connector::class, 'add' ) ) ) {
+			add_filter( 'form_captain_connectors_v1', array( Connector::class, 'add' ) );
 		}
 		// The translated label must not load translations before init (form_captain_loaded_v1 fires
 		// on plugins_loaded); registering later than the loaded hook is allowed by the contract.
