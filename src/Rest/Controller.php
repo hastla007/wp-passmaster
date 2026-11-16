@@ -165,19 +165,22 @@ final class Controller {
 			'callback' => array( __CLASS__, 'redeem_pass' ),
 			'permission_callback' => array( __CLASS__, 'scanner_permission' ),
 		) );
+		// One registration with both endpoints (issue and list) of the route.
 		register_rest_route( 'pass-captain/v1', '/member-passes', array(
-			'methods' => \WP_REST_Server::CREATABLE,
-			'callback' => array( __CLASS__, 'issue_member_pass' ),
-			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+			array(
+				'methods' => \WP_REST_Server::CREATABLE,
+				'callback' => array( __CLASS__, 'issue_member_pass' ),
+				'permission_callback' => array( __CLASS__, 'pos_permission' ),
+			),
+			array(
+				'methods' => \WP_REST_Server::READABLE,
+				'callback' => array( __CLASS__, 'list_member_passes' ),
+				'permission_callback' => array( __CLASS__, 'pos_permission' ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/member-passes/(?P<pass_id>\d+)/revoke', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'revoke_member_pass' ),
-			'permission_callback' => array( __CLASS__, 'pos_permission' ),
-		) );
-		register_rest_route( 'pass-captain/v1', '/member-passes', array(
-			'methods' => \WP_REST_Server::READABLE,
-			'callback' => array( __CLASS__, 'list_member_passes' ),
 			'permission_callback' => array( __CLASS__, 'pos_permission' ),
 		) );
 		register_rest_route( 'pass-captain/v1', '/member-passes/(?P<pass_id>\d+)/approve', array(

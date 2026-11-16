@@ -15,6 +15,7 @@ echo "W5 security: permission matrix\n";
 global $wpdb;
 $p = $wpdb->prefix;
 
+require_once dirname( __DIR__ ) . '/channels.php'; // register_rest_route() fake and WordPress stubs shared with A119/A145.
 if ( ! class_exists( 'WP_REST_Server' ) ) { class WP_REST_Server { const READABLE = 'GET'; const CREATABLE = 'POST'; const EDITABLE = 'POST, PUT, PATCH'; const DELETABLE = 'DELETE'; const ALLMETHODS = 'GET, POST, PUT, PATCH, DELETE'; } }
 if ( ! function_exists( 'is_user_logged_in' ) ) { function is_user_logged_in() { return get_current_user_id() > 0; } }
 
@@ -33,127 +34,166 @@ $pm_registrars = array(
 	'src/Modules/Sms.php' => array( \PassCaptain\Modules\Sms::class, 'register_routes' ),
 	'src/Services/Api.php' => array( \PassCaptain\Services\Api::class, 'register_routes' ),
 	'src/Modules/Fiscalization.php' => array( \PassCaptain\Modules\Fiscalization::class, 'register_routes' ),
+	// Registrars of the Arbeitsliste line (merged).
+	'src/GuestLists/Rest.php' => array( \PassCaptain\GuestLists\Rest::class, 'routes' ),
+	'src/Exchange/Portal.php' => array( \PassCaptain\Exchange\Portal::class, 'register_routes' ),
+	'src/PortalSelfService.php' => array( \PassCaptain\PortalSelfService::class, 'register_routes' ),
+	'src/ScannerDesk.php' => array( \PassCaptain\ScannerDesk::class, 'routes' ),
 );
 
 /*
  * "METHOD route" => spec:
  *   public:<why>        no authentication by design
  *   token:<why>         public permission callback, the handler requires a secret (access token, signature, code)
- *   cap:<capability>    logged-in user with the capability (event scoped in the handler where it has an event)
+ *   cap:<capability>    logged-in user with the capability (event scoped in the handler where it has an event);
+ *                       suffix |scoped-list: a list filtered to the user's events – staff of another event may get
+ *                       an answer, but never an object of event A
  *   report              cap wpcap_view_reports for the event OR developer key with reports.read for the event
  *   device              paired scanner device token (Authorization: Bearer wpcapd_…)
  *   devkey:<scope>      developer API key (X-WPCAP-Key) for the event
  *   partner:<scope>     partner API key (Authorization: Bearer wpcap_pk_…), limited to the partner's events
  */
+// REST namespace of the merged plugin: pass-captain/v1 (LegacySlug routes the former wp-pass-captain/v1 here).
 $pm_routes = array(
-	'GET wp-pass-captain/v1/events' => 'public:published events and prices (shop front)',
-	'POST wp-pass-captain/v1/checkout' => 'public:anonymous checkout; rate limited per IP and e-mail, prices from the database',
-	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})' => 'token:order access token (64 hex) required',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer' => 'token:order access token required',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend' => 'token:order access token required',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request' => 'token:order access token required; postponement refund request, always pending staff approval',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign' => 'token:order access token required',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/billing' => 'token:order access token required',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/invoice' => 'cap:wpcap_manage_orders',
-	'POST wp-pass-captain/v1/tickets/validate' => 'cap:wpcap_checkin',
-	'POST wp-pass-captain/v1/tickets/check-in' => 'cap:wpcap_checkin',
-	'POST wp-pass-captain/v1/tickets/offline-sync' => 'cap:wpcap_checkin',
-	'POST wp-pass-captain/v1/pos/sales' => 'cap:wpcap_manage_orders',
-	'POST wp-pass-captain/v1/passes/redeem' => 'cap:wpcap_checkin',
-	'POST wp-pass-captain/v1/member-passes' => 'cap:wpcap_manage_orders',
-	'POST wp-pass-captain/v1/member-passes/(?P<pass_id>\d+)/revoke' => 'cap:wpcap_manage_orders',
-	'GET wp-pass-captain/v1/events/(?P<event_id>\d+)/seats' => 'public:seat availability of a published event',
-	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/seat-maps' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/seat-holds' => 'public:short seat hold before checkout; rate limited, idempotency key',
-	'GET wp-pass-captain/v1/events/(?P<event_id>\d+)/service-slots' => 'public:open slots of a published event',
-	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/resources' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/resources/(?P<resource_id>\d+)/slots' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/service-slots/(?P<slot_id>\d+)/bookings' => 'public:slot reservation like checkout; rate limited per e-mail and IP',
-	'POST wp-pass-captain/v1/occurrences/(?P<occurrence_id>\d+)/admission-days' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/campaigns' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/payments/(?P<provider>[a-z0-9_-]+)/webhook' => 'token:provider signature (Stripe HMAC, PayPal verification, Mollie re-fetch)',
-	'GET wp-pass-captain/v1/checkout/options' => 'public:enabled payment methods and legal texts',
-	'GET wp-pass-captain/v1/availability' => 'public:remaining tickets per ticket type for cached event pages; no personal data, rate limited',
-	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/waitlist' => 'public:waitlist sign-up; response does not reveal existing entries, rate limited',
-	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/waitlist/offer' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/accept' => 'token:offer token from the e-mail required',
-	'GET wp-pass-captain/v1/events/(?P<event_id>\d+)/reports/summary' => 'report',
-	'POST wp-pass-captain/v1/developer/keys' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/developer/keys/(?P<key_id>\d+)/revoke' => 'cap:wpcap_manage_events',
-	'GET wp-pass-captain/v1/developer/events/(?P<event_id>\d+)' => 'devkey:events.read',
-	'GET wp-pass-captain/v1/events/(?P<event_id>\d+)/translations' => 'public:translation of a published event',
-	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/translations' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/tax-profiles' => 'cap:manage_options',
-	'POST wp-pass-captain/v1/app/pair' => 'token:one-time pairing code; rate limited',
-	'GET wp-pass-captain/v1/app/me' => 'device',
-	'GET wp-pass-captain/v1/app/occurrences' => 'device',
-	'GET wp-pass-captain/v1/app/occurrences/(?P<occurrence_id>\d+)/stats' => 'device',
-	'POST wp-pass-captain/v1/app/scan/validate' => 'device',
-	'POST wp-pass-captain/v1/app/scan/check-in' => 'device',
-	'POST wp-pass-captain/v1/app/scan/check-out' => 'device',
-	'POST wp-pass-captain/v1/app/scan/undo' => 'device',
-	'POST wp-pass-captain/v1/app/scan/sync' => 'device',
-	'POST wp-pass-captain/v1/app/logout' => 'device',
-	'POST wp-pass-captain/v1/admission/check-in' => 'cap:wpcap_checkin',
-	'POST wp-pass-captain/v1/admission/check-out' => 'cap:wpcap_checkin',
-	'POST wp-pass-captain/v1/admission/offline-sync' => 'cap:wpcap_checkin',
-	'GET wp-pass-captain/v1/app/offline/keys' => 'device',
-	'GET wp-pass-captain/v1/app/offline/occurrences' => 'device',
-	'GET wp-pass-captain/v1/app/offline/package' => 'device',
-	'GET wp-pass-captain/v1/app/offline/i18n' => 'public:static UI strings for the scanner app, no data',
-	'GET wp-pass-captain/v1/app/offline/manifest' => 'public:web app manifest of the scanner app (brand name, icons), no data',
+	'GET pass-captain/v1/events' => 'public:published events and prices (shop front)',
+	'POST pass-captain/v1/checkout' => 'public:anonymous checkout; rate limited per IP and e-mail, prices from the database',
+	'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})' => 'token:order access token (64 hex) required',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer' => 'token:order access token required',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend' => 'token:order access token required',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request' => 'token:order access token required; postponement refund request, always pending staff approval',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign' => 'token:order access token required',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/billing' => 'token:order access token required',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/invoice' => 'cap:wpcap_manage_orders',
+	'POST pass-captain/v1/tickets/validate' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/tickets/check-in' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/tickets/offline-sync' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/pos/sales' => 'cap:wpcap_manage_orders',
+	'POST pass-captain/v1/passes/redeem' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/member-passes' => 'cap:wpcap_manage_orders',
+	'POST pass-captain/v1/member-passes/(?P<pass_id>\d+)/revoke' => 'cap:wpcap_manage_orders',
+	// A529 (merged): the old seat API (events/{id}/seats, seat-maps, seat-holds) was replaced by Seating\Rest.
+	'GET pass-captain/v1/events/(?P<event_id>\d+)/service-slots' => 'public:open slots of a published event',
+	'POST pass-captain/v1/events/(?P<event_id>\d+)/resources' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/resources/(?P<resource_id>\d+)/slots' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/service-slots/(?P<slot_id>\d+)/bookings' => 'public:slot reservation like checkout; rate limited per e-mail and IP',
+	'POST pass-captain/v1/occurrences/(?P<occurrence_id>\d+)/admission-days' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/events/(?P<event_id>\d+)/campaigns' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/payments/(?P<provider>[a-z0-9_-]+)/webhook' => 'token:provider signature (Stripe HMAC, PayPal verification, Mollie re-fetch)',
+	'GET pass-captain/v1/checkout/options' => 'public:enabled payment methods and legal texts',
+	'GET pass-captain/v1/availability' => 'public:remaining tickets per ticket type for cached event pages; no personal data, rate limited',
+	'POST pass-captain/v1/events/(?P<event_id>\d+)/waitlist' => 'public:waitlist sign-up; response does not reveal existing entries, rate limited',
+	'POST pass-captain/v1/events/(?P<event_id>\d+)/waitlist/offer' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/accept' => 'token:offer token from the e-mail required',
+	'GET pass-captain/v1/events/(?P<event_id>\d+)/reports/summary' => 'report',
+	'POST pass-captain/v1/developer/keys' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/developer/keys/(?P<key_id>\d+)/revoke' => 'cap:wpcap_manage_events',
+	'GET pass-captain/v1/developer/events/(?P<event_id>\d+)' => 'devkey:events.read',
+	'GET pass-captain/v1/events/(?P<event_id>\d+)/translations' => 'public:translation of a published event',
+	'POST pass-captain/v1/events/(?P<event_id>\d+)/translations' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/tax-profiles' => 'cap:manage_options',
+	'POST pass-captain/v1/app/pair' => 'token:one-time pairing code; rate limited',
+	'GET pass-captain/v1/app/me' => 'device',
+	'GET pass-captain/v1/app/occurrences' => 'device',
+	'GET pass-captain/v1/app/occurrences/(?P<occurrence_id>\d+)/stats' => 'device',
+	'POST pass-captain/v1/app/scan/validate' => 'device',
+	'POST pass-captain/v1/app/scan/check-in' => 'device',
+	'POST pass-captain/v1/app/scan/check-out' => 'device',
+	'POST pass-captain/v1/app/scan/undo' => 'device',
+	'POST pass-captain/v1/app/scan/sync' => 'device',
+	'POST pass-captain/v1/app/logout' => 'device',
+	'POST pass-captain/v1/admission/check-in' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/admission/check-out' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/admission/offline-sync' => 'cap:wpcap_checkin',
+	'GET pass-captain/v1/app/offline/keys' => 'device',
+	'GET pass-captain/v1/app/offline/occurrences' => 'device',
+	'GET pass-captain/v1/app/offline/package' => 'device',
+	'GET pass-captain/v1/app/offline/i18n' => 'public:static UI strings for the scanner app, no data',
+	'GET pass-captain/v1/app/offline/manifest' => 'public:web app manifest of the scanner app (brand name, icons), no data',
 	// Fiscalization (PR #14): legal sellers, profiles, providers, documents – administrators only.
-	'GET wp-pass-captain/v1/fiscal/sellers' => 'cap:manage_options',
-	'POST wp-pass-captain/v1/fiscal/sellers' => 'cap:manage_options',
-	'POST wp-pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/profiles' => 'cap:manage_options',
-	'POST wp-pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/health-check' => 'cap:manage_options',
-	'PUT wp-pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/provider' => 'cap:manage_options',
-	'POST wp-pass-captain/v1/fiscal/documents/(?P<document_id>\d+)/reconcile' => 'cap:manage_options',
-	'POST wp-pass-captain/v1/fiscal/events/(?P<event_id>\d+)/manual-resolution' => 'cap:manage_options',
-	'POST wp-pass-captain/v1/fiscal/orders/(?P<order_id>\d+)/retry' => 'cap:manage_options',
-	'PUT wp-pass-captain/v1/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller' => 'cap:manage_options',
+	'GET pass-captain/v1/fiscal/sellers' => 'cap:manage_options',
+	'POST pass-captain/v1/fiscal/sellers' => 'cap:manage_options',
+	'POST pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/profiles' => 'cap:manage_options',
+	'POST pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/health-check' => 'cap:manage_options',
+	'PUT pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/provider' => 'cap:manage_options',
+	'POST pass-captain/v1/fiscal/documents/(?P<document_id>\d+)/reconcile' => 'cap:manage_options',
+	'POST pass-captain/v1/fiscal/events/(?P<event_id>\d+)/manual-resolution' => 'cap:manage_options',
+	'POST pass-captain/v1/fiscal/orders/(?P<order_id>\d+)/retry' => 'cap:manage_options',
+	'PUT pass-captain/v1/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller' => 'cap:manage_options',
 	// Service bookings and waitlists (W4).
-	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings' => 'token:order access token required',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:order access token required',
-	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook' => 'token:order access token required',
-	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook-options' => 'token:order access token required',
-	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/attach-order' => 'token:booking manage token and order access token required',
-	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/confirm' => 'token:booking manage token required',
-	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:booking manage token required',
-	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/rebook' => 'token:booking manage token required',
-	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/decide' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/check-in' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/no-show' => 'cap:wpcap_manage_events',
-	'POST wp-pass-captain/v1/service-slots/(?P<slot_id>\d+)/waitlist' => 'public:slot waitlist sign-up; rate limited per e-mail and IP, response reveals no other entries',
-	'GET wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)' => 'token:waitlist manage token required',
-	'POST wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept' => 'token:waitlist manage token required',
-	'POST wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/decline' => 'token:waitlist manage token required',
-	'POST wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/leave' => 'token:waitlist manage token required',
-	'POST wp-pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/decline' => 'token:offer token from the e-mail required',
-	'POST wp-pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/unsubscribe' => 'token:waitlist manage token required',
-	'POST wp-pass-captain/v1/member-passes/redeem-service' => 'token:member pass code required; rate limited per IP',
-	'GET wp-pass-captain/v1/partner/me' => 'partner:',
-	'GET wp-pass-captain/v1/partner/events' => 'partner:events:read',
-	'GET wp-pass-captain/v1/partner/events/(?P<event_id>\d+)' => 'partner:events:read',
-	'GET wp-pass-captain/v1/partner/orders' => 'partner:orders:read',
-	'GET wp-pass-captain/v1/partner/tickets' => 'partner:tickets:read',
-	'GET wp-pass-captain/v1/partner/checkins' => 'partner:checkins:read',
-	'GET wp-pass-captain/v1/partner/reports' => 'partner:reports:read',
-	'GET wp-pass-captain/v1/partner/settlements' => 'partner:settlements:read',
-	'GET wp-pass-captain/v1/partner/settlements/(?P<settlement_id>\d+)' => 'partner:settlements:read',
-	'GET wp-pass-captain/v1/seating/occurrences/(?P<occurrence_id>\d+)' => 'public:seat plan of a published occurrence',
-	'POST wp-pass-captain/v1/wallet/apple/v1/devices/(?P<device>[A-Za-z0-9]{1,128})/registrations/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:PassKit ApplePass authentication token',
-	'DELETE wp-pass-captain/v1/wallet/apple/v1/devices/(?P<device>[A-Za-z0-9]{1,128})/registrations/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:PassKit ApplePass authentication token',
-	'GET wp-pass-captain/v1/wallet/apple/v1/devices/(?P<device>[A-Za-z0-9]{1,128})/registrations/(?P<pass_type>[A-Za-z0-9.\-]{1,190})' => 'public:unauthenticated by Apple PassKit spec; returns only serials registered by that device id',
-	'GET wp-pass-captain/v1/wallet/apple/v1/passes/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:PassKit ApplePass authentication token',
-	'POST wp-pass-captain/v1/wallet/apple/v1/log' => 'public:unauthenticated by Apple PassKit spec; tight rate limits, small buffer',
-	'GET wp-pass-captain/v1/wallet/apple/download/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:signed download link (HMAC)',
-	'GET wp-pass-captain/v1/wallet/order/(?P<order>[A-Za-z0-9\-]{8,64})' => 'token:signed collection link of an order (HMAC, expiry)',
-	'POST wp-pass-captain/v1/sms/twilio/status' => 'token:X-Twilio-Signature',
-	'POST wp-pass-captain/v1/sms/twilio/inbound' => 'token:X-Twilio-Signature',
-	'POST wp-pass-captain/v1/sms/verify/request' => 'public:SMS code for the checkout opt-in (PRIV-16); same-origin check, rate limited per number, address and site, allowed mobile ranges only',
-	'POST wp-pass-captain/v1/sms/verify/confirm' => 'token:verification token from the code request plus the 6-digit code (5 attempts, 10 minutes)',
-	'POST wp-pass-captain/v1/mail/bounce' => 'token:bounce webhook token of the mail service (header or query, constant-time compare); off unless mail_bounce_webhook is enabled (R3)',
+	'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings' => 'token:order access token required',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:order access token required',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook' => 'token:order access token required',
+	'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook-options' => 'token:order access token required',
+	'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/attach-order' => 'token:booking manage token and order access token required',
+	'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/confirm' => 'token:booking manage token required',
+	'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:booking manage token required',
+	'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/rebook' => 'token:booking manage token required',
+	'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/decide' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/check-in' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/no-show' => 'cap:wpcap_manage_events',
+	'POST pass-captain/v1/service-slots/(?P<slot_id>\d+)/waitlist' => 'public:slot waitlist sign-up; rate limited per e-mail and IP, response reveals no other entries',
+	'GET pass-captain/v1/service-waitlist/(?P<entry_id>\d+)' => 'token:waitlist manage token required',
+	'POST pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept' => 'token:waitlist manage token required',
+	'POST pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/decline' => 'token:waitlist manage token required',
+	'POST pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/leave' => 'token:waitlist manage token required',
+	'POST pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/decline' => 'token:offer token from the e-mail required',
+	'POST pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/unsubscribe' => 'token:waitlist manage token required',
+	'POST pass-captain/v1/member-passes/redeem-service' => 'token:member pass code required; rate limited per IP',
+	'GET pass-captain/v1/partner/me' => 'partner:',
+	'GET pass-captain/v1/partner/events' => 'partner:events:read',
+	'GET pass-captain/v1/partner/events/(?P<event_id>\d+)' => 'partner:events:read',
+	'GET pass-captain/v1/partner/orders' => 'partner:orders:read',
+	'GET pass-captain/v1/partner/tickets' => 'partner:tickets:read',
+	'GET pass-captain/v1/partner/checkins' => 'partner:checkins:read',
+	'GET pass-captain/v1/partner/reports' => 'partner:reports:read',
+	'GET pass-captain/v1/partner/settlements' => 'partner:settlements:read',
+	'GET pass-captain/v1/partner/settlements/(?P<settlement_id>\d+)' => 'partner:settlements:read',
+	'GET pass-captain/v1/seating/occurrences/(?P<occurrence_id>\d+)' => 'public:seat plan of a published occurrence',
+	'POST pass-captain/v1/wallet/apple/v1/devices/(?P<device>[A-Za-z0-9]{1,128})/registrations/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:PassKit ApplePass authentication token',
+	'DELETE pass-captain/v1/wallet/apple/v1/devices/(?P<device>[A-Za-z0-9]{1,128})/registrations/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:PassKit ApplePass authentication token',
+	'GET pass-captain/v1/wallet/apple/v1/devices/(?P<device>[A-Za-z0-9]{1,128})/registrations/(?P<pass_type>[A-Za-z0-9.\-]{1,190})' => 'public:unauthenticated by Apple PassKit spec; returns only serials registered by that device id',
+	'GET pass-captain/v1/wallet/apple/v1/passes/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:PassKit ApplePass authentication token',
+	'POST pass-captain/v1/wallet/apple/v1/log' => 'public:unauthenticated by Apple PassKit spec; tight rate limits, small buffer',
+	'GET pass-captain/v1/wallet/apple/download/(?P<serial>[A-Za-z0-9\-]{1,190})' => 'token:signed download link (HMAC)',
+	'GET pass-captain/v1/wallet/order/(?P<order>[A-Za-z0-9\-]{8,64})' => 'token:signed collection link of an order (HMAC, expiry)',
+	'POST pass-captain/v1/sms/twilio/status' => 'token:X-Twilio-Signature',
+	'POST pass-captain/v1/sms/twilio/inbound' => 'token:X-Twilio-Signature',
+	'POST pass-captain/v1/sms/verify/request' => 'public:SMS code for the checkout opt-in (PRIV-16); same-origin check, rate limited per number, address and site, allowed mobile ranges only',
+	'POST pass-captain/v1/sms/verify/confirm' => 'token:verification token from the code request plus the 6-digit code (5 attempts, 10 minutes)',
+	'POST pass-captain/v1/mail/bounce' => 'token:bounce webhook token of the mail service (header or query, constant-time compare); off unless mail_bounce_webhook is enabled (R3)',
+	// Arbeitsliste line (merged): order portal, member pass approval, service bookings, campaigns, live state, waitlist,
+	// developer slots, scanner app search, partner sales API, wallet links, generic SMS gateway, guest lists, exchange,
+	// web scanner desk.
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})' => 'token:order access token in the body instead of the URL (A645)',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/payout-account' => 'token:order access token required (payout account for refunds, encrypted)',
+	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/exchange' => 'token:order access token required (ticket exchange in the portal)',
+	'GET pass-captain/v1/member-passes' => 'cap:wpcap_manage_orders|scoped-list',
+	'POST pass-captain/v1/member-passes/(?P<pass_id>\d+)/approve' => 'cap:wpcap_approve_comps',
+	'POST pass-captain/v1/member-passes/(?P<pass_id>\d+)/reject' => 'cap:wpcap_approve_comps',
+	'GET pass-captain/v1/service-bookings/(?P<booking_id>\d+)' => 'token:booking token verified by the permission callback (ServiceBookingFlow::token_permission)',
+	'POST pass-captain/v1/campaigns/preview' => 'public:non-binding discount preview of the checkout estimate; rate limited per client, no personal data',
+	'GET pass-captain/v1/checkout/live' => 'public:live purchase state of cached event cards (public data only, no-store)',
+	'GET pass-captain/v1/events/(?P<event_id>\d+)/waitlist/entries' => 'cap:wpcap_manage_events',
+	'GET pass-captain/v1/developer/events/(?P<event_id>\d+)/service-slots' => 'devkey:slots.read',
+	'GET pass-captain/v1/app/search' => 'device',
+	'POST pass-captain/v1/partner/orders' => 'partner:orders:write',
+	'GET pass-captain/v1/partner/catalog' => 'partner:orders:write',
+	'GET pass-captain/v1/partner/orders/(?P<order_id>[a-f0-9]{32})' => 'partner:orders:write',
+	'POST pass-captain/v1/partner/orders/(?P<order_id>[a-f0-9]{32})/confirm' => 'partner:orders:write',
+	'POST pass-captain/v1/partner/orders/(?P<order_id>[a-f0-9]{32})/cancel' => 'partner:orders:cancel',
+	'GET pass-captain/v1/partner/orders/(?P<order_id>[a-f0-9]{32})/tickets' => 'partner:tickets:issue',
+	'GET pass-captain/v1/partner/sales/statement' => 'partner:settlements:read',
+	'GET pass-captain/v1/wallet/apple/bundle' => 'token:signed wallet link (o, p, sig) checked by Service::link_tickets(); rate limited',
+	'GET pass-captain/v1/wallet/google/save' => 'token:signed wallet link (t or o/p, sig) checked by Service::link_tickets(); rate limited',
+	'POST pass-captain/v1/sms/http/status' => 'token:HMAC-SHA256 body signature of the generic HTTP SMS gateway (A141)',
+	'POST pass-captain/v1/sms/http/inbound' => 'token:HMAC-SHA256 body signature of the generic HTTP SMS gateway (A141)',
+	'GET pass-captain/v1/guestlists/search' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/guestlists/entries/(?P<entry_id>\d+)/arrive' => 'cap:wpcap_checkin',
+	'GET pass-captain/v1/guestlists/will-call' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/scanner/undo' => 'cap:wpcap_checkin',
+	'GET pass-captain/v1/scanner/stats' => 'cap:wpcap_checkin',
+	'GET pass-captain/v1/scanner/search' => 'cap:wpcap_checkin',
+	'POST pass-captain/v1/scanner/check-in-ticket' => 'cap:wpcap_checkin',
 );
 
 // admin-post / admin-ajax actions: action => required capability, or 'public:<why>' / 'token:<why>'.
@@ -214,11 +254,47 @@ $pm_admin = array(
 	'wpcap_fiscal_save_profile' => 'manage_options', 'wpcap_fiscal_assign_seller' => 'manage_options', 'wpcap_fiscal_retry_order' => 'manage_options',
 	'wpcap_fiscal_health_check' => 'manage_options', 'wpcap_fiscal_reconcile' => 'manage_options', 'wpcap_fiscal_export' => 'manage_options',
 	'wpcap_fiscal_manual_resolution' => 'manage_options', 'wpcap_fiscal_submit_efsta_void' => 'manage_options',
+	// Arbeitsliste line (merged).
+	'wpcap_schema_retry' => 'manage_options', 'wpcap_entry_window_dismiss' => 'manage_options', 'wpcap_resume_bulk_run' => 'wpcap_manage_events',
+	'wpcap_retry_allocation' => 'wpcap_manage_orders', 'wpcap_settle_unallocated' => 'wpcap_manage_orders', 'wpcap_request_attendee_data' => 'wpcap_manage_orders',
+	'wpcap_ticket_pdf' => 'wpcap_manage_orders', 'wpcap_resolve_refund' => 'wpcap_refund', 'wpcap_consent_withdraw' => 'wpcap_manage_orders',
+	'wpcap_export_consents' => 'wpcap_manage_orders', 'wpcap_correct_attendee' => 'wpcap_manage_orders', 'wpcap_checkin_ticket' => 'wpcap_checkin',
+	'wpcap_create_scanner_page' => 'publish_pages', 'wpcap_test_provider_connection' => 'manage_options', 'wpcap_campaign_create' => 'wpcap_manage_events',
+	'wpcap_campaign_status' => 'wpcap_manage_events', 'wpcap_member_pass' => 'wpcap_manage_orders', 'wpcap_tax_profile_save' => 'wpcap_view_finance',
+	'wpcap_tax_profile_activate' => 'wpcap_view_finance', 'wpcap_tax_profile_retire' => 'wpcap_view_finance', 'wpcap_getting_started' => 'manage_options',
+	'wpcap_create_sales_page' => 'manage_options', 'wpcap_operations_action' => 'manage_options', 'wpcap_doctor_repair' => 'manage_options',
+	'wpcap_workflow_mail_handoff' => 'manage_options', 'wpcap_developer_key_create' => 'manage_options', 'wpcap_developer_key_update' => 'manage_options',
+	'wpcap_developer_key_revoke' => 'manage_options', 'wpcap_service_resource_save' => 'wpcap_manage_events', 'wpcap_service_resource_delete' => 'wpcap_manage_events',
+	'wpcap_service_slot_save' => 'wpcap_manage_events', 'wpcap_service_slot_delete' => 'wpcap_manage_events', 'wpcap_service_slots_generate' => 'wpcap_manage_events',
+	'wpcap_service_provider_save' => 'wpcap_manage_events', 'wpcap_service_resource_providers' => 'wpcap_manage_events', 'wpcap_service_booking_action' => 'wpcap_manage_events',
+	'wpcap_service_booking_status' => 'wpcap_service_bookings', 'wpcap_assignment_add' => 'wpcap_manage_events', 'wpcap_assignment_remove' => 'wpcap_manage_events',
+	'wpcap_assignment_area_add' => 'wpcap_manage_events', 'wpcap_assignment_area_remove' => 'wpcap_manage_events',
+	'wpcap_alloc_create' => 'wpcap_manage_events', 'wpcap_alloc_release' => 'wpcap_manage_events', 'wpcap_alloc_update' => 'wpcap_manage_events',
+	'wpcap_alloc_seats' => 'wpcap_manage_events', 'wpcap_alloc_limits' => 'wpcap_manage_events', 'wpcap_alloc_settings' => 'wpcap_manage_events',
+	'wpcap_pos_count' => 'wpcap_manage_orders', 'wpcap_pos_movement' => 'wpcap_manage_orders', 'wpcap_pos_cashier' => 'wpcap_manage_orders',
+	'wpcap_pos_handover' => 'wpcap_manage_orders', 'wpcap_pos_handover_cancel' => 'wpcap_manage_orders', 'wpcap_pos_register' => 'manage_options',
+	'wpcap_pos_correction' => 'wpcap_manage_orders', 'wpcap_pos_zreport' => 'wpcap_manage_orders', 'wpcap_pos_zreport_csv' => 'wpcap_manage_orders',
+	'wpcap_pos_payout_receipt' => 'wpcap_manage_orders', 'wpcap_pos_pay_out' => 'wpcap_manage_orders',
+	'wpcap_exchange_ticket' => 'wpcap_manage_orders', 'wpcap_exchange_settings' => 'manage_options', 'wpcap_exchange_event_policy' => 'wpcap_manage_events',
+	'wpcap_gl_save_list' => 'wpcap_manage_events', 'wpcap_gl_archive_list' => 'wpcap_manage_events', 'wpcap_gl_add_entry' => 'wpcap_manage_events',
+	'wpcap_gl_import' => 'wpcap_manage_events', 'wpcap_gl_entry_action' => 'wpcap_manage_events', 'wpcap_gl_arrive' => 'wpcap_checkin',
+	'wpcap_gl_export' => 'wpcap_manage_events', 'wpcap_gl_print' => 'wpcap_checkin', 'wpcap_partner_statement' => 'manage_options',
+	'wpcap_pass_create' => 'wpcap_manage_events', 'wpcap_pass_save' => 'wpcap_manage_events', 'wpcap_pass_remove' => 'wpcap_manage_events', 'wpcap_pass_quota' => 'wpcap_manage_events',
+	'wpcap_print_batch_download' => 'wpcap_manage_orders', 'wpcap_print_batch_cancel' => 'wpcap_manage_orders', 'wpcap_settlement_sheet' => 'wpcap_view_reports',
+	'wpcap_series_update' => 'wpcap_manage_events', 'wpcap_series_rule_update' => 'wpcap_manage_events', 'wpcap_sms_release_held' => 'manage_options',
+	'wpcap_waitlist_entry' => 'wpcap_manage_orders', 'wpcap_waitlist_settings' => 'manage_options',
+	'wpcap_dismiss_notice' => 'manage_options',
+	'wpcap_payment_return' => 'token:return key wpcap_rk of the payment return URL (A554, admin_post_nopriv)',
+	'wpcap_waitlist_unsubscribe' => 'token:waitlist unsubscribe token from the e-mail (admin_post_nopriv)',
+	'wpcap_waitlist_confirm' => 'token:double opt-in confirmation token from the e-mail (A564, admin_post_nopriv)',
 );
 
 // Actions that are not bound to an event: any holder of the capability may use them for their own data.
 $pm_unscoped = array(
 	'wpcap_pos_open' => 'opens the cashier\'s own register session; every sale in it is checked per event',
+	// A143/A145: a new provider record belongs to no event; once assigned to resources only people who manage every
+	// event of those resources may change it (ServiceProviders::save), and assigning checks the resource's event.
+	'wpcap_service_provider_save' => 'creates a provider record without event; changing an assigned one is event-scoped',
 );
 
 /* ------------------------------------------------------------------ Route collection */
@@ -248,7 +324,7 @@ check( count( $pm_endpoints ) . ' REST endpoints, every one declared in the matr
 check( 'matrix has no stale routes' . ( $stale ? ' – ' . implode( ', ', $stale ) : '' ), ! $stale );
 $bad_public = array_filter( $pm_endpoints, static fn( $e ) => '__return_true' === $e['permission_callback'] );
 $undeclared_public = array_filter( array_keys( $bad_public ), static fn( $k ) => ! preg_match( '/^(public|token):.{10,}/', $pm_routes[ $k ] ?? '' ) );
-check( 'every route with an open permission callback is declared public/token with a justification', ! $undeclared_public );
+check( 'every route with an open permission callback is declared public/token with a justification' . ( $undeclared_public ? ' – ' . implode( ', ', $undeclared_public ) : '' ), ! $undeclared_public );
 
 /* ------------------------------------------------------------------ Fixtures */
 
@@ -339,18 +415,26 @@ function pm_snapshot() {
 	$tables = $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', str_replace( '_', '\\_', $wpdb->prefix . 'wpcap_' ) . '%' ) );
 	$sums = array();
 	foreach ( $tables as $table ) {
-		if ( preg_match( '/wpcap_(audit_logs|partner_keys|api_keys|rate_limits)$/', $table ) ) { continue; } // last_used/audit/rate-limit bookkeeping only.
+		// last_used/audit/rate-limit bookkeeping only; the unified support log (wpcap_logs) records refused attempts too.
+		if ( preg_match( '/wpcap_(audit_logs|logs|partner_keys|api_keys|rate_limits)$/', $table ) ) { continue; }
 		$row = $wpdb->get_row( "CHECKSUM TABLE `$table`", ARRAY_A );
 		$sums[ $table ] = $row['Checksum'] ?? '';
 	}
 	$options = $GLOBALS['wpcap_test_options'];
-	unset( $options['wpcap_wallet_device_log'] );
-	return array( 'tables' => $sums, 'options' => md5( serialize( $options ) ) );
+	// Monitoring counter of failed payment webhooks (Operations\Monitor, A-line): a refused signature is counted.
+	unset( $options['wpcap_wallet_device_log'], $options[ \PassCaptain\Operations\Monitor::WEBHOOK_OPTION ] );
+	return array( 'tables' => $sums, 'options' => md5( serialize( $options ) ), 'raw' => $options );
 }
 function pm_changed( $before, $after ) {
 	$diff = array();
 	foreach ( $after['tables'] as $t => $sum ) { if ( ( $before['tables'][ $t ] ?? null ) !== $sum ) { $diff[] = preg_replace( '/^.*wpcap_/', '', $t ); } }
-	if ( $before['options'] !== $after['options'] ) { $diff[] = 'options'; }
+	if ( $before['options'] !== $after['options'] ) {
+		$keys = array();
+		foreach ( array_unique( array_merge( array_keys( $before['raw'] ), array_keys( $after['raw'] ) ) ) as $k ) {
+			if ( serialize( $before['raw'][ $k ] ?? null ) !== serialize( $after['raw'][ $k ] ?? null ) ) { $keys[] = $k; }
+		}
+		$diff[] = 'options(' . implode( ',', $keys ) . ')';
+	}
 	return $diff;
 }
 
@@ -447,6 +531,11 @@ foreach ( $pm_endpoints as $key => $endpoint ) {
 		pm_persona( $persona );
 		list( $allowed, $response, $changed ) = pm_call( $endpoint, pm_request( $key, $headers ) );
 		++$pm_checked;
+		if ( ! $changed && 'staff_other_event' === $label && false !== strpos( $arg, '|scoped-list' ) && $allowed && pm_succeeded( $response ) ) {
+			$data = $response instanceof WP_REST_Response ? $response->get_data() : $response;
+			$json = (string) json_encode( $data );
+			if ( ! preg_match( '/"(event_id|pass_id)":(' . (int) $pm_event_a . '|' . (int) $pm_pass_id . ')\b/', $json ) && false === strpos( $json, 'pm-pass@' ) && false === strpos( $json, 'pm-a@' ) ) { continue; }
+		}
 		if ( ( $allowed && pm_succeeded( $response ) ) || $changed ) {
 			$pm_failures[] = "$key as $label" . ( $changed ? ' changed ' . implode( ',', $changed ) : ' succeeded' );
 		}
@@ -481,10 +570,15 @@ $pm_handlers = \PassCaptain\Admin\Menu::handlers() + array(
 	'ajax:' . \PassCaptain\Mail\Admin::ACTION_PREVIEW => array( \PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),
 	'ajax:wpcap_pos_device_status' => array( \PassCaptain\BoxOffice\Page::class, 'ajax_device_status' ),
 	'ajax:wpcap_pos_device_cancel' => array( \PassCaptain\BoxOffice\Page::class, 'ajax_device_cancel' ),
+	// Registered with class constants (Arbeitsliste line).
+	'wpcap_payment_return' => array( \PassCaptain\Payments\ReturnNotice::class, 'handle_action' ),
+	\PassCaptain\Waitlists::UNSUBSCRIBE_ACTION => array( \PassCaptain\Waitlists::class, 'handle_unsubscribe_request' ),
+	\PassCaptain\Waitlists::CONFIRM_ACTION => array( \PassCaptain\Waitlists::class, 'handle_confirm_request' ),
+	\PassCaptain\Admin\Notices::ACTION => array( \PassCaptain\Admin\Notices::class, 'handle_dismiss' ),
 );
 $src_actions = array();
 foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WPCAP_PATH . 'src' ) ) as $file ) {
-	if ( $file->isFile() && 'php' === $file->getExtension() && preg_match_all( "/add_action\(\s*'(admin_post_(?:nopriv_)?|wp_ajax_(?:nopriv_)?)([a-z0-9_]+)'/", (string) file_get_contents( $file->getPathname() ), $m, PREG_SET_ORDER ) ) {
+	if ( $file->isFile() && 'php' === $file->getExtension() && preg_match_all( "/add_action\(\s*'(admin_post_(?:nopriv_)?|wp_ajax_(?:nopriv_)?)(?!nopriv_')([a-z0-9_]+)'/", (string) file_get_contents( $file->getPathname() ), $m, PREG_SET_ORDER ) ) {
 		foreach ( $m as $hit ) { $src_actions[] = ( 0 === strpos( $hit[1], 'wp_ajax' ) ? 'ajax:' : '' ) . $hit[2]; }
 	}
 }

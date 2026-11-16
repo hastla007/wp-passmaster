@@ -43,7 +43,7 @@ final class Api {
 			array( '/service-waitlist/(?P<entry_id>\d+)/accept', \WP_REST_Server::CREATABLE, 'waitlist_accept', $public ),
 			array( '/service-waitlist/(?P<entry_id>\d+)/decline', \WP_REST_Server::CREATABLE, 'waitlist_decline', $public ),
 			array( '/service-waitlist/(?P<entry_id>\d+)/leave', \WP_REST_Server::CREATABLE, 'waitlist_leave', $public ),
-			array( '/waitlist/(?P<waitlist_id>\d+)/decline', \WP_REST_Server::CREATABLE, 'event_waitlist_decline', $public ),
+			// POST /waitlist/{id}/decline is registered by Rest\Controller (same handler, Waitlists::decline_offer()).
 			array( '/waitlist/(?P<waitlist_id>\d+)/unsubscribe', \WP_REST_Server::CREATABLE, 'event_waitlist_unsubscribe', $public ),
 			array( '/member-passes/redeem-service', \WP_REST_Server::CREATABLE, 'redeem_service_pass', $public ),
 		);
