@@ -48,7 +48,7 @@ final class Invoices {
 		if ( ! $order || 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_invoice_order_unpaid', __( 'Eine Rechnung kann erst für bezahlte Bestellungen erstellt werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT invoice_id,invoice_number FROM %i WHERE order_id=%d LIMIT 1', $p . 'wpcap_invoices', $order_id ) );
 		if ( $existing ) { return array( 'invoice_id' => (int) $existing->invoice_id, 'invoice_number' => $existing->invoice_number, 'reused' => true ); }
-		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*," . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order_id ) );
+		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*," . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.ends_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order_id ) );
 		// Lines created by a ticket exchange carry no paid amount (OrderLines): not invoiced here.
 		$items = array_values( array_filter( $items, static function ( $item ) { return ! OrderLines::is_moved_in( $item ); } ) );
 		/** Invoice lines of an order (item rows with name, event_name, starts_at, timezone); e.g. exchange fee lines. */
@@ -84,6 +84,8 @@ final class Invoices {
 		// Place-of-supply notes from the tax profile snapshots of the order lines (Sales\TaxProfiles).
 		$tax_notes = Sales\TaxProfiles::invoice_notes( $items );
 		if ( $tax_notes ) { $snapshot['tax_notes'] = $tax_notes; }
+		// PASS-INV-15: service date (start/end, local date of the occurrence) per invoice line, in line order.
+		$snapshot['service_dates'] = array_map( array( __CLASS__, 'service_dates_of' ), array_values( $items ) );
 		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
@@ -718,6 +720,30 @@ final class Invoices {
 		if ( ! empty( $seller['vat_id'] ) ) { $lines[] = __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $seller['vat_id']; }
 		if ( ! empty( $seller['tax_number'] ) ) { $lines[] = __( 'Steuernummer:', 'pass-captain' ) . ' ' . $seller['tax_number']; }
 		return $lines;
+	}
+
+	/**
+	 * Service date of an invoice line (PASS-INV-15): local start and end date (Y-m-d) of its occurrence in the
+	 * occurrence's timezone; end = start when the occurrence has no end. Empty strings when unknown.
+	 *
+	 * @return array{start:string,end:string}
+	 */
+	public static function service_dates_of( $item ) {
+		$item = (object) $item;
+		$tz = (string) ( $item->timezone ?? '' );
+		$start = '' !== (string) ( $item->starts_at ?? '' ) ? self::local_ymd( (string) $item->starts_at, $tz ) : '';
+		$end = '' !== (string) ( $item->ends_at ?? '' ) ? self::local_ymd( (string) $item->ends_at, $tz ) : $start;
+		return array( 'start' => $start, 'end' => '' !== $end && $end >= $start ? $end : $start );
+	}
+
+	private static function local_ymd( $utc, $timezone ) {
+		try {
+			$zone = new \DateTimeZone( '' !== $timezone ? $timezone : wp_timezone_string() );
+		} catch ( \Exception $e ) {
+			$zone = wp_timezone();
+		}
+		$time = strtotime( $utc . ' UTC' );
+		return false === $time ? '' : wp_date( 'Y-m-d', $time, $zone );
 	}
 
 	/** Seller-side notes printed below the totals (agent, small business). */
