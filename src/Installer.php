@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.17';
+	const DB_VERSION = '3.10.18';
 
 	public static function install() {
 		global $wpdb;
@@ -550,6 +550,9 @@ final class Installer {
 				valid_from datetime NOT NULL,
 				valid_until datetime NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				requested_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				approved_at datetime NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (pass_id),
 				UNIQUE KEY public_id (public_id),
@@ -570,13 +573,16 @@ final class Installer {
 				pass_use_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				pass_id bigint(20) unsigned NOT NULL,
 				rule_id bigint(20) unsigned NOT NULL,
+				occurrence_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				service_date date NOT NULL,
 				user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				idempotency_key char(64) NOT NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (pass_use_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
-				KEY pass_day (pass_id,service_date)
+				KEY pass_day (pass_id,service_date),
+				KEY occurrence_id (occurrence_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $campaigns (
 				campaign_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

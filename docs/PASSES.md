@@ -170,3 +170,45 @@ normale Ticketart (nur unverkauft). Admin-Post-Aktionen: `wpcap_pass_create`, `w
 Pass, Pass-Kontingent, parallele Käufe Pass/Tagesticket/Pass mit anderem Anker um den letzten Platz
 ohne Deadlock, Einlass je Tag und Event, Wiedereinlass, N aus M, Offline-Pakete, Anzeige, Absage
 eines Tages inkl. Anker und Teilerstattung, Widerruf, Vollerstattung).
+
+## Mitgliedspässe (Kern, `src/Memberships.php`)
+
+Ein Mitgliedspass ist kein Ticket, sondern ein Code mit Regeln (`wpcap_pass_rules`: Event bzw.
+Ticketart, Nutzungen pro Tag und insgesamt), der beim Einlass über `POST /pass-captain/v1/passes/redeem`
+(`token`, `ticket_type_id`, `idempotency_key`; Recht `wpcap_checkin` mit Event-Zuweisung) eingelöst wird.
+
+**Ausstellen (A481).** Ein Mitgliedspass ist freier Eintritt und wird wie eine Freikarte behandelt:
+
+- `POST /member-passes` (`email`, `valid_from`, `valid_until`, `rules`) mit `wpcap_manage_orders` und
+  Event-Zuweisung für jede Regel (Regeln ohne Event nur Administration) legt bei Mitarbeitenden ohne
+  `manage_options` nur einen **Antrag** an (Status `pending`, Antwort 202, noch kein Code, keine Mail).
+- Freigeben/Ablehnen: `POST /member-passes/{id}/approve|reject` oder Admin-Seite **Pass Captain →
+  Mitgliedspässe**, Recht `wpcap_approve_comps` mit Event-Zuweisung. **Vier-Augen-Prinzip**: die
+  beantragende Person kann den eigenen Antrag nie freigeben. Erst die Freigabe erzeugt den Code und
+  versendet die Mail `member_pass`; `approved_by`/`approved_at` werden gespeichert.
+- Administratoren (`manage_options`) stellen direkt aus (Antwort 201).
+- `GET /member-passes?status=` und die Admin-Seite listen Pässe im eigenen Event-Bereich mit Regeln,
+  Einlösungen, beantragender und freigebender Person; dort wird auch widerrufen
+  (`POST /member-passes/{id}/revoke`).
+
+**Einlösen (A480, A482).**
+
+- Der Pass wird als erstes in der Transaktion gesperrt (`FOR UPDATE`); erst danach werden
+  Idempotenzschlüssel und Nutzungen gezählt. Parallele Scans desselben Passes überschreiten
+  `uses_total`/`uses_per_day` daher nicht mehr.
+- Jede Einlösung gehört zum Termin der gescannten Ticketart (`wpcap_pass_uses.occurrence_id` und
+  `ticket_type_id`, Schema 3.10.18). Abgelehnt wird mit `wpcap_pass_occurrence` (Termin abgesagt,
+  Event abgesagt, Ticketart archiviert), `wpcap_pass_not_today` (nicht am Tag des Termins – Zeitzone
+  des Termins, Tagesgrenze `admission_day_cutoff_hour` – oder außerhalb von Einlasszeit bzw.
+  Standard-Einlassfenster) und `wpcap_pass_occurrence_full` (der Termin ist voll: freie Plätze der
+  Ticketart abzüglich der Mitgliedseinlässe des Termins, oder das optionale Kontingent
+  `wpcap_member_pass_occurrence_quota` ist erreicht). Mitgliedseinlässe eines Termins werden unter
+  der Sperre der Terminzeile gezählt.
+- Mitgliedseinlässe erscheinen in der Auswertung je Termin (`member_entries`, Berichte: „+ N
+  Mitgliedspass“) und lösen `wpcap_member_pass_redeemed` aus.
+- Offen (Entscheidung): Mitgliedseinlässe verringern nicht die online verkaufbare Menge; ein
+  Termin, der online ausverkauft ist, lässt also keine Mitglieder mehr ein, Mitglieder belegen aber
+  vorab keine Plätze.
+
+Tests: `tests/integration/modules/zz_a480_a481_a482.php` (parallele Einlösung mit zwei Prozessen,
+Terminbindung, Kapazität und Kontingent, Statistik, Antrag/Freigabe/Vier-Augen/Ablehnen/Widerruf).

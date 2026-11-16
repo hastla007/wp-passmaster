@@ -107,6 +107,21 @@ final class Controller {
 			'callback' => array( __CLASS__, 'revoke_member_pass' ),
 			'permission_callback' => array( __CLASS__, 'pos_permission' ),
 		) );
+		register_rest_route( 'pass-captain/v1', '/member-passes', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( __CLASS__, 'list_member_passes' ),
+			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+		) );
+		register_rest_route( 'pass-captain/v1', '/member-passes/(?P<pass_id>\d+)/approve', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'approve_member_pass' ),
+			'permission_callback' => array( __CLASS__, 'member_approve_permission' ),
+		) );
+		register_rest_route( 'pass-captain/v1', '/member-passes/(?P<pass_id>\d+)/reject', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'reject_member_pass' ),
+			'permission_callback' => array( __CLASS__, 'member_approve_permission' ),
+		) );
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/seats', array(
 			'methods' => \WP_REST_Server::READABLE,
 			'callback' => array( __CLASS__, 'seats' ),
@@ -714,12 +729,32 @@ final class Controller {
 		$payload = $request->get_json_params();
 		$rules = $payload['rules'] ?? array();
 		if ( ! is_array( $rules ) || ! $rules ) { return new \WP_Error( 'wpcap_pass_rules_invalid', __( 'Mindestens eine Passregel ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		foreach ( $rules as $rule ) {
-			$event_id = absint( $rule['event_id'] ?? 0 );
-			if ( ( $event_id && ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) || ( ! $event_id && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		}
+		$event_ids = array_map( static function ( $rule ) { return is_array( $rule ) ? absint( $rule['event_id'] ?? 0 ) : 0; }, $rules );
+		if ( ! Memberships::in_scope( $event_ids, Memberships::REQUEST_CAP ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$result = Memberships::issue( $payload['email'] ?? '', $payload['valid_from'] ?? '', $payload['valid_until'] ?? '', $rules );
-		return is_wp_error( $result ) ? $result : new \WP_REST_Response( array( 'pass_id' => (int) $result['pass_id'], 'status' => 'issued' ), 201 );
+		// A481: without administrator rights the pass is only requested; a second person approves it.
+		return is_wp_error( $result ) ? $result : new \WP_REST_Response( array( 'pass_id' => (int) $result['pass_id'], 'status' => 'active' === $result['status'] ? 'issued' : 'pending' ), 'active' === $result['status'] ? 201 : 202 );
+	}
+
+	public static function member_approve_permission() {
+		return is_user_logged_in() && current_user_can( Memberships::APPROVE_CAP );
+	}
+
+	public static function list_member_passes( \WP_REST_Request $request ) {
+		$rows = Memberships::list_passes( sanitize_key( (string) $request->get_param( 'status' ) ) );
+		return rest_ensure_response( array_map( static function ( $row ) {
+			return array( 'pass_id' => (int) $row->pass_id, 'email' => (string) $row->member_email, 'status' => (string) $row->status, 'valid_from' => (string) $row->valid_from, 'valid_until' => (string) $row->valid_until, 'requested_by' => (int) ( $row->requested_by ?? 0 ), 'approved_by' => (int) ( $row->approved_by ?? 0 ), 'uses' => (int) $row->uses, 'rules' => array_map( static function ( $rule ) { return array( 'event_id' => (int) $rule->event_id, 'ticket_type_id' => (int) $rule->ticket_type_id, 'uses_total' => (int) $rule->uses_total, 'uses_per_day' => (int) $rule->uses_per_day ); }, $row->rules ) );
+		}, $rows ) );
+	}
+
+	public static function approve_member_pass( \WP_REST_Request $request ) {
+		$result = Memberships::approve( absint( $request['pass_id'] ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'pass_id' => (int) $result['pass_id'], 'status' => 'issued' ) );
+	}
+
+	public static function reject_member_pass( \WP_REST_Request $request ) {
+		$result = Memberships::reject( absint( $request['pass_id'] ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'status' => 'rejected' ) );
 	}
 
 	public static function revoke_member_pass( \WP_REST_Request $request ) {
@@ -727,9 +762,7 @@ final class Controller {
 		$pass_id = absint( $request['pass_id'] );
 		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", $pass_id ) );
 		if ( ! $events ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		foreach ( $events as $event_id ) {
-			if ( ( (int) $event_id && ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) || ( ! (int) $event_id && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		}
+		if ( ! Memberships::in_scope( array_map( 'intval', $events ), Memberships::REQUEST_CAP ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$result = Memberships::revoke( $pass_id );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'status' => 'revoked' ) );
 	}

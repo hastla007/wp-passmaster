@@ -320,6 +320,8 @@ final class Data {
 		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $issued[ (int) $r->occurrence_id ] = (int) $r->n; }
 		$checked = array();
 		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(DISTINCT c.ticket_id) AS n FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND c.result='checked_in' AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $checked[ (int) $r->occurrence_id ] = (int) $r->n; }
+		// A482: entries with a membership pass (no ticket) count as admissions of their occurrence.
+		$members = \PassCaptain\Memberships::entries_by_occurrence( $ids );
 		foreach ( $occ_rows as $o ) {
 			if ( ! self::in_scope( $o->event_id, $scope, $o->occurrence_id ) ) { continue; }
 			$id = (int) $o->occurrence_id;
@@ -348,6 +350,7 @@ final class Data {
 				'issued' => $issued[ $id ] ?? 0,
 				'checked_in' => $checked[ $id ] ?? 0,
 				'checkin_rate' => ! empty( $issued[ $id ] ) ? round( 100 * ( $checked[ $id ] ?? 0 ) / $issued[ $id ], 1 ) : null,
+				'member_entries' => $members[ $id ] ?? 0,
 				'types' => $type_rows,
 			);
 		}

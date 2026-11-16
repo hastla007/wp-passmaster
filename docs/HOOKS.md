@@ -373,6 +373,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_offline_refresh_interval` | `int $seconds` (10) | Mindestabstand zweier Snapshot-Aktualisierungen eines Termins für den Offline-Scanner. |
 | `wpcap_offline_live_tickets` | `object[] $live, int $occurrence_id` | Ticketzeilen des Offline-Pakets (`ticket_id`, `token_hash`, `status`, `ticket_type_id`, `attendee_name`, `occurrence_status`, `event_status`); Module ergänzen hier gültige Tickets anderer Termine oder entfernen Zeilen. |
 | `wpcap_offline_package_types` | `array $types, object $occurrence` | Ticketart-Beschreibungen des Offline-Pakets (`id`, `name`, `areas`, `policy`, `multi`) für zusätzlich ausgelieferte Tickets. |
+| `wpcap_member_pass_occurrence_quota` | `int $quota` (0 = kein eigenes Kontingent), `int $occurrence_id, int $ticket_type_id` | Höchstzahl der Mitgliedspass-Einlässe je Termin (A482); darüber `wpcap_pass_occurrence_full`. Unabhängig davon lässt ein voller Termin keine Mitglieder ein. Siehe [PASSES.md](PASSES.md#mitgliedspässe-kern-srcmembershipsphp). |
+| `wpcap_member_pass_redeemed` (Action) | `int $pass_id, int $pass_use_id, int $occurrence_id, int $ticket_type_id` | Nach dem Commit einer Mitgliedspass-Einlösung (A482). |
 
 ### Kasse
 
