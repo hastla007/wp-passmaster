@@ -80,14 +80,13 @@ $missing = Attendees::normalize( array( $type => array( array( 'answers' => arra
 check( 'missing required answer for the second ticket is rejected with the field label', is_wp_error( $missing ) && false !== strpos( $missing->get_error_message(), 'Firma' ) );
 $raw = array(
 	$type  => array(
-		array( 'name' => 'Ada <b>L</b>', 'email' => 'ada@example.com', 'answers' => array( 'firma' => ' ACME ', 'evil' => 'x' ) ),
+		array( 'name' => 'Ada <b>L</b>', 'email' => 'ada@example.com', 'answers' => array( 'firma' => ' ACME ' ) ),
 		array( 'answers' => array( 'firma' => 'Globex', 'diet' => 'vegan' ) ),
-		array( 'answers' => array( 'firma' => 'surplus' ) ),
 	),
-	$plain => array( array( 'name' => 'ignored' ) ),
 );
 $ok = Attendees::normalize( $raw, array( $type => 2, $plain => 1 ) );
-check( 'valid answers are normalised (trimmed, unknown keys/types/surplus dropped)', is_array( $ok ) && 2 === count( $ok ) && 'ACME' === $ok[0]['answers']['firma'] && ! isset( $ok[0]['answers']['evil'] ) && 'Ada L' === $ok[0]['name'] && 'vegan' === $ok[1]['answers']['diet'] );
+// A681: unknown keys, types and surplus entries are refused (tests in modules/zz_a681.php), no longer dropped.
+check( 'valid answers are normalised (trimmed, tags stripped)', is_array( $ok ) && 2 === count( $ok ) && 'ACME' === $ok[0]['answers']['firma'] && 'Ada L' === $ok[0]['name'] && 'vegan' === $ok[1]['answers']['diet'] );
 check( 'JSON input from the checkout block is accepted', is_array( Attendees::normalize( wp_json_encode( $raw ), array( $type => 2 ) ) ) );
 $bad_email = Attendees::normalize( array( $type => array( array( 'email' => 'nope', 'answers' => array( 'firma' => 'A' ) ), array( 'answers' => array( 'firma' => 'B' ) ) ) ), array( $type => 2 ) );
 check( 'invalid attendee e-mail is rejected', is_wp_error( $bad_email ) );

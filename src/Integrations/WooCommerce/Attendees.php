@@ -99,7 +99,12 @@ final class Attendees {
 	/**
 	 * Normalises raw input (ticket_type_id => list of {name, email, answers{field_key:value}}) into
 	 * the `attendees` payload of Orders::create and validates it against the participant fields.
-	 * Unknown types, surplus entries and unknown field keys are dropped.
+	 *
+	 * A681: what the server cannot store is refused, never dropped silently – entries of ticket types
+	 * that are not in the order or need no participant data (wpcap_attendees_invalid, reason
+	 * unknown_ticket_type), more entries than tickets (wpcap_attendees_invalid), non-list input and
+	 * unknown or deactivated field keys (wpcap_attendee_field_unknown, reason field_unknown /
+	 * field_inactive). The checkout then shows the message instead of losing the answers.
 	 *
 	 * @param mixed          $raw        Raw input (array or JSON string).
 	 * @param array<int,int> $quantities ticket_type_id => quantity.
@@ -108,18 +113,38 @@ final class Attendees {
 	public static function normalize( $raw, array $quantities ) {
 		if ( is_string( $raw ) ) {
 			$raw = '' === $raw ? array() : json_decode( $raw, true );
+			if ( ! is_array( $raw ) ) {
+				return self::refused( 'malformed' );
+			}
 		}
-		$raw = is_array( $raw ) ? $raw : array();
-		$out = array();
-		foreach ( self::requirements( $quantities ) as $requirement ) {
+		if ( null !== $raw && ! is_array( $raw ) ) {
+			return self::refused( 'malformed' );
+		}
+		$raw          = is_array( $raw ) ? $raw : array();
+		$out          = array();
+		$requirements = self::requirements( $quantities );
+		$collected    = array_column( $requirements, 'ticket_type_id' );
+		foreach ( $raw as $type_id => $entries ) {
+			if ( ! in_array( absint( $type_id ), $collected, true ) ) {
+				return self::refused( 'unknown_ticket_type', absint( $type_id ) );
+			}
+			if ( ! is_array( $entries ) || array_filter( $entries, static function ( $e ) { return ! is_array( $e ); } ) ) {
+				return self::refused( 'malformed', absint( $type_id ) );
+			}
+		}
+		foreach ( $requirements as $requirement ) {
 			$type_id = $requirement['ticket_type_id'];
 			$entries = isset( $raw[ $type_id ] ) && is_array( $raw[ $type_id ] ) ? array_values( $raw[ $type_id ] ) : array();
 			$keys    = array_column( $requirement['fields'], 'key' );
+			if ( count( $entries ) > $requirement['quantity'] ) {
+				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), array( 'status' => 400, 'ticket_type_id' => $type_id, 'position' => (int) $requirement['quantity'], 'reason' => 'surplus' ) );
+			}
 			for ( $i = 0; $i < $requirement['quantity']; $i++ ) {
 				$entry   = isset( $entries[ $i ] ) && is_array( $entries[ $i ] ) ? $entries[ $i ] : array();
 				$answers = isset( $entry['answers'] ) && is_array( $entry['answers'] ) ? $entry['answers'] : array();
 				$clean   = array();
-				foreach ( $keys as $key ) {
+				// Keys the form did not offer stay in the entry, so the strict validation names them (A681).
+				foreach ( array_unique( array_merge( $keys, array_map( 'strval', array_keys( $answers ) ) ) ) as $key ) {
 					$value = $answers[ $key ] ?? '';
 					// A680: a multi-select sends the list of chosen labels.
 					$clean[ $key ] = is_array( $value ) ? array_values( array_map( 'strval', array_filter( $value, 'is_scalar' ) ) ) : ( is_scalar( $value ) ? mb_substr( trim( (string) $value ), 0, 2000 ) : '' );
@@ -140,8 +165,21 @@ final class Attendees {
 				return new \WP_Error( 'wpcap_attendee_email_invalid', __( 'Bitte eine gültige E-Mail-Adresse für die teilnehmende Person angeben oder das Feld leer lassen.', 'pass-captain' ) );
 			}
 		}
-		$valid = Orders::validate_attendees( $quantities, $out );
-		return is_wp_error( $valid ) ? $valid : $out;
+		$valid = Orders::validate_attendees( $quantities, $out, array( 'strict' => true ) );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		// Only offered keys are kept on the WooCommerce order.
+		foreach ( $out as $n => $entry ) {
+			$requirement = array_values( array_filter( $requirements, static function ( $r ) use ( $entry ) { return $r['ticket_type_id'] === $entry['ticket_type_id']; } ) );
+			$out[ $n ]['answers'] = array_intersect_key( $entry['answers'], array_flip( array_column( $requirement[0]['fields'] ?? array(), 'key' ) ) );
+		}
+		return $out;
+	}
+
+	/** Refusal of participant data that does not belong to the order (A681). */
+	private static function refused( $reason, $type_id = 0 ) {
+		return new \WP_Error( 'wpcap_attendees_invalid', __( 'Angaben zu Teilnehmenden passen nicht zu den bestellten Tickets. Bitte lade die Seite neu und prüfe die Angaben.', 'pass-captain' ), array( 'status' => 400, 'ticket_type_id' => (int) $type_id, 'reason' => $reason ) );
 	}
 
 	/** Attendee payload stored on a WooCommerce order (empty if none). */
