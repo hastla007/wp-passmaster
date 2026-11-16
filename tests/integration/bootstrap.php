@@ -240,6 +240,9 @@ $GLOBALS['wpcap_test_actions'] = array();
 
 function __( $t, $d = null ) { return $t; }
 function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; }
+// Context gettext; $GLOBALS['wpcap_test_x'][ "$context\x04$text" ] fakes a catalogue entry (A362, A515).
+if ( ! function_exists( '_x' ) ) { function _x( $t, $c, $d = null ) { return (string) ( $GLOBALS['wpcap_test_x'][ $c . "\x04" . $t ] ?? $t ); } }
+if ( ! function_exists( '_nx' ) ) { function _nx( $s, $p, $n, $c, $d = null ) { return _x( 1 === (int) $n ? $s : $p, $c, $d ); } }
 function esc_html( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
 function esc_html__( $t, $d = null ) { return esc_html( $t ); }
 function esc_html_e( $t, $d = null ) { echo esc_html( $t ); }

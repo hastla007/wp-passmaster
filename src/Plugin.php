@@ -32,6 +32,8 @@ final class Plugin {
 		}
 		LegacySlug::register();
 		NetworkInstall::register();
+		// A362: role names are stored untranslated and shown through translate_user_role().
+		add_filter( 'gettext_with_context', array( Installer::class, 'translate_role_name' ), 10, 4 );
 		// Self-healing cron: recurring events lost (cron option cleaned up by another plugin, restore, the
 		// old copy's uninstall.php) are re-scheduled on the next request; one cached option read.
 		add_action( 'init', array( __CLASS__, 'ensure_events' ), 20, 0 );

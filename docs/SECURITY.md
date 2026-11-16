@@ -170,6 +170,12 @@ Rollen-Slugs: `wpcap_ticket_admin`, `wpcap_event_manager`, `wpcap_box_office`, `
 `wpcap_partner` (Veranstalter, also Organisator eines Events), `wpcap_service_provider` (Leistungserbringer,
 z. B. Workshopleitung, Fotograf:in, Behandlungsraum), `wpcap_finance`, `wpcap_support`.
 
+**Rollennamen (A362):** In der Datenbank stehen die unübersetzten Quellnamen (`Installer::ROLE_NAMES`, wie
+WordPress „Editor“ speichert). Angezeigt werden sie übersetzt in der Sprache der ansehenden Person
+(`translate_user_role()`, Kontext „User role“, beantwortet aus dem Katalog von `pass-captain`). Namen, die
+eine frühere Version bei der Aktivierung übersetzt gespeichert hat, werden beim nächsten Aufruf auf den
+Quellnamen zurückgesetzt; von Betreibenden vergebene Namen bleiben unverändert.
+
 **Leistungserbringer (A143):** Die Rolle hat nur `wpcap_service_bookings`. Zugang entsteht ausschließlich über
 einen Leistungserbringer-Datensatz (A133, **Pass Captain → Service-Zeitfenster**, Tabellen
 `wpcap_service_providers`/`wpcap_resource_providers`): Ist ein *aktiver* Datensatz mit dem WordPress-Benutzer

@@ -949,7 +949,7 @@ final class Installer {
 		// A568: the legal texts in force at the upgrade become the first archived versions.
 		LegalVersions::archive_all();
 
-		// Role names are translated; before init that would load the text domain too early.
+		// Roles are registered on init (A362: with their source names; translated on display).
 		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
 			self::register_roles();
 		} else {
@@ -1458,7 +1458,7 @@ final class Installer {
 	 */
 	public static function maybe_upgrade( $context = null ) {
 		$context = $context ?? self::context();
-		// Role names are translated: rename only once translations may load (init), never earlier.
+		// Stored role names are compared with their translations: only once translations may load (init).
 		if ( did_action( 'init' ) ) {
 			self::rename_legacy_roles();
 		} elseif ( function_exists( 'add_action' ) ) {
@@ -1534,23 +1534,88 @@ final class Installer {
 	const LEGACY_ROLE_NAMES = array( 'wpcap_partner' => array( 'Pass Captain Partner' ) );
 
 	/**
-	 * Renames roles that still carry a former default name. A name the operator changed is kept.
-	 * Cheap: reads the already loaded roles and writes only when a rename is due.
+	 * A362: role names as stored in the database – the untranslated source names, like WordPress core
+	 * stores "Editor". They are translated on display (role_label(), the "User role" gettext context of
+	 * translate_user_role()), so the role list follows the language of the viewing user instead of the
+	 * language active at activation.
 	 */
-	public static function rename_legacy_roles() {
-		if ( ! function_exists( 'wp_roles' ) ) { return; }
-		$wp_roles = wp_roles();
-		$targets  = array( 'wpcap_partner' => __( 'Pass Captain Veranstalter', 'pass-captain' ) );
-		$changed  = false;
-		foreach ( self::LEGACY_ROLE_NAMES as $slug => $old_names ) {
+	const ROLE_NAMES = array(
+		'wpcap_ticket_admin'     => 'Pass Captain Ticket-Administration',
+		'wpcap_event_manager'    => 'Pass Captain Veranstaltungsleitung',
+		'wpcap_box_office'       => 'Pass Captain Vor-Ort-Kasse',
+		'wpcap_checkin_staff'    => 'Pass Captain Einlasspersonal',
+		'wpcap_partner'          => 'Pass Captain Veranstalter',
+		'wpcap_service_provider' => 'Pass Captain Leistungserbringer',
+		'wpcap_finance'          => 'Pass Captain Finanzbuchhaltung',
+		'wpcap_support'          => 'Pass Captain Support',
+	);
+
+	/**
+	 * A362: translated role names (slug => name in the current language). Every name is a literal
+	 * _x() call with the context "User role", so the extractor puts them into the catalogue.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function role_labels() {
+		return array(
+			'wpcap_ticket_admin'     => _x( 'Pass Captain Ticket-Administration', 'User role', 'pass-captain' ),
+			'wpcap_event_manager'    => _x( 'Pass Captain Veranstaltungsleitung', 'User role', 'pass-captain' ),
+			'wpcap_box_office'       => _x( 'Pass Captain Vor-Ort-Kasse', 'User role', 'pass-captain' ),
+			'wpcap_checkin_staff'    => _x( 'Pass Captain Einlasspersonal', 'User role', 'pass-captain' ),
+			'wpcap_partner'          => _x( 'Pass Captain Veranstalter', 'User role', 'pass-captain' ),
+			'wpcap_service_provider' => _x( 'Pass Captain Leistungserbringer', 'User role', 'pass-captain' ),
+			'wpcap_finance'          => _x( 'Pass Captain Finanzbuchhaltung', 'User role', 'pass-captain' ),
+			'wpcap_support'          => _x( 'Pass Captain Support', 'User role', 'pass-captain' ),
+		);
+	}
+
+	/** A362: translated display name of a plugin role ('' for an unknown slug). */
+	public static function role_label( $slug ) {
+		return self::role_labels()[ (string) $slug ] ?? '';
+	}
+
+	/**
+	 * A362: gettext_with_context filter. WordPress shows role names through translate_user_role()
+	 * (text domain "default", context "User role"); the plugin's stored source names are answered
+	 * from the plugin catalogue. Names an operator changed are not ours and stay as they are.
+	 *
+	 * @param string $translation Translation so far.
+	 * @param string $text        Source text.
+	 * @param string $context     Gettext context.
+	 * @param string $domain      Text domain.
+	 */
+	public static function translate_role_name( $translation, $text, $context, $domain ) {
+		if ( 'User role' !== $context || 'default' !== $domain ) { return $translation; }
+		$slug = array_search( (string) $text, self::ROLE_NAMES, true );
+		return false === $slug ? $translation : self::role_label( $slug );
+	}
+
+	/**
+	 * Stores the neutral source name for roles that still carry a former default name or a name that
+	 * an earlier version translated at activation (A362: the name in the current language, or the
+	 * current translation of a former name). A name the operator changed is kept. Cheap: reads the
+	 * already loaded roles and writes only when a rename is due.
+	 *
+	 * @param \WP_Roles|object|null $wp_roles Roles registry (default wp_roles()).
+	 */
+	public static function rename_legacy_roles( $wp_roles = null ) {
+		if ( null === $wp_roles ) {
+			if ( ! function_exists( 'wp_roles' ) ) { return; }
+			$wp_roles = wp_roles();
+		}
+		$labels  = self::role_labels();
+		$changed = false;
+		foreach ( self::ROLE_NAMES as $slug => $neutral ) {
 			$current = $wp_roles->roles[ $slug ]['name'] ?? null;
-			if ( null !== $current && in_array( $current, $old_names, true ) && isset( $targets[ $slug ] ) ) {
-				$wp_roles->roles[ $slug ]['name'] = $targets[ $slug ];
-				$wp_roles->role_names[ $slug ]    = $targets[ $slug ];
+			if ( null === $current || $neutral === $current ) { continue; }
+			$known = array_merge( self::LEGACY_ROLE_NAMES[ $slug ] ?? array(), array( $labels[ $slug ] ) );
+			if ( in_array( $current, $known, true ) ) {
+				$wp_roles->roles[ $slug ]['name'] = $neutral;
+				$wp_roles->role_names[ $slug ]    = $neutral;
 				$changed = true;
 			}
 		}
-		if ( $changed && $wp_roles->use_db ) {
+		if ( $changed && ! empty( $wp_roles->use_db ) ) {
 			update_option( $wp_roles->role_key, $wp_roles->roles );
 		}
 	}
@@ -1562,21 +1627,21 @@ final class Installer {
 	const CAPABILITIES = Capabilities::CORE;
 
 	/**
-	 * Role packages from the concept: slug => [translated name, capabilities]. Matrix in
-	 * docs/SECURITY.md ("Rollen und Capabilities").
+	 * Role packages from the concept: slug => [stored source name (A362: translated on display, see
+	 * role_label()), capabilities]. Matrix in docs/SECURITY.md ("Rollen und Capabilities").
 	 *
 	 * @return array<string, array{0: string, 1: string[]}>
 	 */
 	public static function role_definitions() {
 		return array(
-			'wpcap_ticket_admin'      => array( __( 'Pass Captain Ticket-Administration', 'pass-captain' ), self::CAPABILITIES ),
-			'wpcap_event_manager'     => array( __( 'Pass Captain Veranstaltungsleitung', 'pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
-			'wpcap_box_office'        => array( __( 'Pass Captain Vor-Ort-Kasse', 'pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
-			'wpcap_checkin_staff'     => array( __( 'Pass Captain Einlasspersonal', 'pass-captain' ), array( 'wpcap_checkin' ) ),
-			'wpcap_partner'           => array( __( 'Pass Captain Veranstalter', 'pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
-			'wpcap_service_provider'  => array( __( 'Pass Captain Leistungserbringer', 'pass-captain' ), array( 'wpcap_service_bookings' ) ),
-			'wpcap_finance'           => array( __( 'Pass Captain Finanzbuchhaltung', 'pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
-			'wpcap_support'           => array( __( 'Pass Captain Support', 'pass-captain' ), array( 'wpcap_manage_orders' ) ),
+			'wpcap_ticket_admin'      => array( self::ROLE_NAMES['wpcap_ticket_admin'], self::CAPABILITIES ),
+			'wpcap_event_manager'     => array( self::ROLE_NAMES['wpcap_event_manager'], array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
+			'wpcap_box_office'        => array( self::ROLE_NAMES['wpcap_box_office'], array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
+			'wpcap_checkin_staff'     => array( self::ROLE_NAMES['wpcap_checkin_staff'], array( 'wpcap_checkin' ) ),
+			'wpcap_partner'           => array( self::ROLE_NAMES['wpcap_partner'], array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_service_provider'  => array( self::ROLE_NAMES['wpcap_service_provider'], array( 'wpcap_service_bookings' ) ),
+			'wpcap_finance'           => array( self::ROLE_NAMES['wpcap_finance'], array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
+			'wpcap_support'           => array( self::ROLE_NAMES['wpcap_support'], array( 'wpcap_manage_orders' ) ),
 		);
 	}
 
