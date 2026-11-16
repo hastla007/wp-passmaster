@@ -46,4 +46,5 @@ check( 'waitlist form: submit disabled until the script enables it, noscript hin
 check( 'no form of the event card falls back to GET', ! array_filter( array_merge( a450_forms( $a450_html ), a450_forms( $a450_wl_html ) ), static fn( $f ) => false === strpos( $f, 'method="post"' ) ) );
 
 $a450_js = (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' );
-check( 'checkout.js enables [data-wpcap-requires-js] buttons after attaching its submit handlers', false !== strpos( $a450_js, "'.wpcap-checkout-form [data-wpcap-requires-js], .wpcap-waitlist-form [data-wpcap-requires-js]'" ) && strrpos( $a450_js, "addEventListener('submit'" ) < strpos( $a450_js, '[data-wpcap-requires-js]' ) );
+// A500: the buttons are enabled per form in init() (also for forms added later), after the delegated submit handlers.
+check( 'checkout.js enables [data-wpcap-requires-js] buttons after attaching its submit handlers', false !== strpos( $a450_js, "form.querySelectorAll('[data-wpcap-requires-js]')" ) && strrpos( $a450_js, "addEventListener('submit'" ) < strpos( $a450_js, "form.querySelectorAll('[data-wpcap-requires-js]')" ) && strpos( $a450_js, "form.querySelectorAll('[data-wpcap-requires-js]')" ) < strrpos( $a450_js, 'init(document);' ) );
