@@ -54,6 +54,27 @@ final class OrdersPage {
 	}
 
 	/**
+	 * Notice on an unpaid order whose voucher reservation was released (expiry/cancellation, A632): the
+	 * amount due still carries the discount; a late payment only issues tickets once the voucher could be
+	 * reserved again. Empty for every other order.
+	 *
+	 * @param object $order Order row.
+	 * @return string HTML.
+	 */
+	public static function voucher_released_notice( $order ) {
+		$voucher = \PassCaptain\Integrations\Vouchers\Checkout::voucher_state( (int) $order->order_id );
+		if ( ! $voucher || 'released' !== ( $voucher['status'] ?? '' ) || in_array( (string) $order->payment_status, array( 'paid', 'refunded' ), true ) ) { return ''; }
+		$text = sprintf(
+			/* translators: 1: voucher amount, 2: masked voucher code, 3: amount due without the voucher */
+			__( 'Der Gutschein (%2$s, %1$s) wurde mit Ablauf bzw. Storno der Bestellung freigegeben. Der angezeigte offene Betrag enthält noch den Gutscheinabzug; ohne Gutschein beträgt er %3$s. Eine verspätete Zahlung stellt erst Tickets aus, wenn der Gutschein erneut reserviert werden konnte, sonst wird die Bestellung zur Prüfung markiert.', 'pass-captain' ),
+			Forms::money( (int) $voucher['amount_minor'], $order->currency ),
+			\PassCaptain\Integrations\Vouchers\Checkout::masked_code( (string) ( $voucher['code_hint'] ?? '' ) ),
+			Forms::money( (int) $order->total_minor + (int) $voucher['amount_minor'], $order->currency )
+		);
+		return '<div class="notice notice-warning inline"><p>' . esc_html( $text ) . '</p></div>';
+	}
+
+	/**
 	 * Retries the ticket allocation of a paid order flagged `needs_review` (late payment without
 	 * free capacity at that moment), e.g. after capacity was freed or a transient error. Any
 	 * provider except WooCommerce (handled by its own order action).
@@ -629,6 +650,7 @@ final class OrdersPage {
 			</p></div>
 		<?php endif; ?>
 		<?php $voucher = \PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $order_id ); ?>
+		<?php echo self::voucher_released_notice( $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in the method. ?>
 		<?php if ( $voucher && 'commit_failed' === ( $voucher['status'] ?? '' ) ) : ?>
 			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in Voucher Captain manuell belasten.', 'pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
 		<?php endif; ?>

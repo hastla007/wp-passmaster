@@ -49,6 +49,51 @@ final class Checkout {
 		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 4 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'release' ) );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'refund' ), 20, 2 );
+		// A632: a late payment never issues tickets on a discount whose voucher was released.
+		add_action( 'wpcap_before_payment_confirm', array( __CLASS__, 'prepare_late_payment' ) );
+		add_filter( 'wpcap_order_recovering', array( __CLASS__, 'recovering' ), 10, 2 );
+		add_action( 'wpcap_capacity_released', array( __CLASS__, 'on_capacity_released' ), 10, 2 );
+	}
+
+	/**
+	 * Action wpcap_before_payment_confirm (outside any transaction, A632): an unpaid order whose voucher
+	 * reservation was released (hold lapsed, order expired) reserves the voucher again before the payment
+	 * is booked – the amount due still carries the voucher discount. If that fails the snapshot stays
+	 * `released` and recovering() sends the payment to review (`needs_review`/`paid_unallocated`)
+	 * instead of issuing tickets.
+	 */
+	public static function prepare_late_payment( $order_id ) {
+		$snapshot = self::snapshot( $order_id );
+		if ( ! $snapshot || 'released' !== ( $snapshot['status'] ?? '' ) ) { return; }
+		$order = Orders::get( $order_id );
+		if ( ! $order || in_array( (string) $order->payment_status, array( 'paid', 'refunded', 'cancelled' ), true ) || in_array( (string) $order->status, array( 'refunded', 'cancelled' ), true ) ) { return; }
+		$again = self::reserve_again( (int) $order_id, $order, $snapshot );
+		if ( is_wp_error( $again ) ) {
+			Audit::record( 'voucher_reserve_again_failed', 'order', (int) $order_id, array( 'error' => $again->get_error_code() ) );
+		}
+	}
+
+	/**
+	 * Filter wpcap_order_recovering (late payment re-check under the order lock, A632): a voucher that is
+	 * still released means the payment only covers the discounted amount without a voucher behind it.
+	 *
+	 * @return null|\WP_Error
+	 */
+	public static function recovering( $result, $order_id ) {
+		if ( $result instanceof \WP_Error ) { return $result; }
+		$snapshot = self::snapshot( $order_id );
+		if ( $snapshot && 'released' === ( $snapshot['status'] ?? '' ) ) {
+			return new \WP_Error( 'voucher_released', __( 'Der Gutschein der Bestellung ist nicht mehr reserviert.', 'pass-captain' ) );
+		}
+		return $result;
+	}
+
+	/**
+	 * Action wpcap_capacity_released: a late payment that went to review (no tickets) gives a voucher that
+	 * was reserved again for it back, so it does not stay blocked; a retried allocation reserves it anew.
+	 */
+	public static function on_capacity_released( $order_id, $reason = '' ) {
+		if ( 'payment_unallocated' === $reason ) { self::release( $order_id ); }
 	}
 
 	/**
@@ -207,16 +252,24 @@ final class Checkout {
 	 * @return array|\WP_Error Updated snapshot.
 	 */
 	private static function reserve_again( $order_id, $order, array $snapshot ) {
-		$again = Bridge::reserve( (array) ( $snapshot['quote'] ?? array() ), 'wpcap-order-late-' . $order->public_id );
+		// Each new late reservation after a release of an earlier one gets its own key (a retried
+		// allocation after review must not get the released reservation back from the provider).
+		$round = (int) ( $snapshot['late_rounds'] ?? 0 );
+		$suffix = $round > 0 ? '-' . ( $round + 1 ) : '';
+		if ( ! Bridge::available() ) {
+			return new \WP_Error( 'wpcap_voucher_unavailable', __( 'Gutscheine können derzeit nicht eingelöst werden.', 'pass-captain' ) );
+		}
+		$again = Bridge::reserve( (array) ( $snapshot['quote'] ?? array() ), 'wpcap-order-late-' . $order->public_id . $suffix );
 		if ( is_wp_error( $again ) ) { return $again; }
 		$amount = $again['applied_minor'] ?? ( $again['amount_minor'] ?? null );
 		if ( null !== $amount && (int) $amount !== (int) $snapshot['amount_minor'] ) {
-			Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id );
+			Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id . $suffix );
 			return new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'pass-captain' ) );
 		}
 		$snapshot['reservation'] = $again;
 		$snapshot['status'] = 'reserved';
 		$snapshot['late_reservation'] = true;
+		$snapshot['late_rounds'] = $round + 1;
 		self::save( $order_id, $snapshot );
 		Audit::record( 'voucher_reserved_again', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
 		return $snapshot;
@@ -285,8 +338,9 @@ final class Checkout {
 		$snapshot = self::snapshot( $order_id );
 		if ( ! $snapshot || 'reserved' !== $snapshot['status'] ) { return; }
 		$order = Orders::get( $order_id );
-		if ( $order && 'paid' === $order->payment_status ) { return; }
-		$result = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id );
+		if ( ! $order || 'paid' === $order->payment_status ) { return; }
+		$rounds = (int) ( $snapshot['late_rounds'] ?? 0 );
+		$result = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id . ( $rounds > 0 ? '-late-' . $rounds : '' ) );
 		if ( is_wp_error( $result ) ) {
 			Audit::record( 'voucher_release_failed', 'order', (int) $order_id, array( 'error' => $result->get_error_code() ) );
 			return;

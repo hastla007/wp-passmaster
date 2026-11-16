@@ -93,6 +93,16 @@ Berichte, Veranstalter-Abrechnungen und Wiederverkäufer-Abrechnungen lesen die 
 - **Abrechnung mit Veranstaltern**: Bei Einzweckgutscheinen, die über den Ticketdienst eingelöst werden, enthalten die Bestellzeilen 0 €; die Veranstalter-Abrechnung führt den gespeicherten Gutscheinwert (`face_value_minor`) als Zeile „Einzweckgutschein (Forderung gegen den Gutscheinverkäufer)“ ohne USt und kehrt ihn bei Erstattungen anteilig (nach Ticketanzahl) wieder um. Die Forderung zwischen Gutscheinverkäufer und Plattform ist gesondert auszugleichen.
 - **Bestehende Bestellungen** werden nicht umgebucht.
 
+## Abgelaufene Bestellungen und verspätete Zahlungen (A632)
+
+Läuft eine unbezahlte Bestellung ab oder wird sie storniert, wird die Gutscheinreservierung freigegeben (`status` `released`); der offene Betrag (`orders.total_minor`) behält den Gutscheinabzug, die Bestellansicht weist darauf hin und nennt den Betrag ohne Gutschein. Kommt danach doch eine Zahlung (Webhook, PayPal-/Mollie-Rückkehr, manuelle Bestätigung, „Zuteilung erneut versuchen“):
+
+1. Vor der Buchung und außerhalb jeder Transaktion (`wpcap_before_payment_confirm`) wird der Gutschein mit dem gespeicherten Angebot erneut reserviert (Schlüssel `wpcap-order-late-{public_id}`, bei jeder weiteren Runde mit Zähler `-2`, `-3` …; Snapshot `late_reservation`, `late_rounds`).
+2. Gelingt das nicht (Gutschein verbraucht, storniert, anderer Betrag, Voucher Captain nicht erreichbar), bleibt der Snapshot `released` und die Prüfung der späten Zahlung (`wpcap_order_recovering`) leitet die Bestellung auf `needs_review`/`paid_unallocated` (Grund `voucher_released`): **keine Tickets**, Admin-Mail, mit `late_payment_auto_refund` automatische Erstattung. Ein Fehlschlag wird als `voucher_reserve_again_failed` protokolliert.
+3. Scheitert die späte Zahlung aus einem anderen Grund (z. B. ausverkauft), wird ein erneut reservierter Gutschein wieder freigegeben; ein späteres „Zuteilung erneut versuchen“ reserviert ihn neu.
+
+Erst nach dem Bezahlt-Setzen wird der Gutschein wie gewohnt belastet (`commit`). Ein Gutschein, den Voucher Captain selbst (TTL) freigegeben hat, wird wie bisher beim Belasten erneut reserviert.
+
 ## Technische Felder (Voucher-Snapshot `orders.voucher_snapshot`)
 
 | Feld | Bedeutung |

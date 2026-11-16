@@ -1157,6 +1157,15 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
+		/**
+		 * Before a payment is confirmed, outside any transaction: modules prepare what the late payment
+		 * re-check needs and cannot do under row locks, e.g. Voucher Captain reserves a voucher again whose
+		 * reservation was released when the hold lapsed (A632). Runs for every confirmation (also repeated
+		 * ones); handlers must be idempotent and check the order state themselves.
+		 *
+		 * @param int $order_id Order.
+		 */
+		do_action( 'wpcap_before_payment_confirm', $order_id );
 		$now = Clock::mysql();
 		// Ticket types of a pending order never change, so they can be read before the transaction;
 		// they are locked right after the order row (order → types → occurrences, by id).
@@ -1347,6 +1356,8 @@ final class Orders {
 				return __( 'Das Nutzungslimit des Rabattcodes ist inzwischen ausgeschöpft.', 'pass-captain' );
 			case 'allocation_buyer_limit':
 				return __( 'Die maximale Anzahl an Tickets pro Person wäre überschritten.', 'pass-captain' );
+			case 'voucher_released':
+				return __( 'Der Gutschein der Bestellung wurde mit Ablauf der Reservierung freigegeben und konnte nicht erneut reserviert werden; die Zahlung deckt nur den Betrag nach Gutscheinabzug.', 'pass-captain' );
 		}
 		return __( 'Es ist kein Kontingent mehr frei.', 'pass-captain' );
 	}
