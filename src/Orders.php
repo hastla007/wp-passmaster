@@ -2592,46 +2592,23 @@ final class Orders {
 			$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return Mail\Blocks::issued_tickets( $entries ); } ), (string) $order->locale );
 			$attachments = array();
 			$pdf_note = '';
-			$pdf_covered = 0;
-			// No PDF with plaintext codes for a placeholder address (sale without buyer e-mail).
-			if ( ! Mail\Mailer::is_placeholder( $order->customer_email ) && apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
-				$pdf_tickets = array_map( static function ( $ticket ) {
-					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'attendee' => (string) ( $ticket['attendee'] ?? '' ), 'token' => $ticket['token'], 'help_code' => $ticket['help_code'], 'ticket_id' => (int) $ticket['ticket_id'], 'occurrence_id' => (int) $ticket['occurrence_id'], 'ticket_type_id' => (int) $ticket['ticket_type_id'], 'starts_at' => $ticket['starts_at'], 'timezone' => $ticket['timezone'] );
-				}, $issued );
-				// The PDF holds plaintext ticket codes: private directory (0700) and file (0600) with a
-				// random name in the shared temp dir, removed right after delivery.
-				$pdf_dir = self::private_temp_dir();
-				if ( $pdf_dir ) {
-					// A580: large orders are split into several PDFs, attached while they fit the mail's
-					// attachment budget; the rest is reachable through the ticket links and the portal.
-					$chunks = array_chunk( $pdf_tickets, self::ticket_pdf_chunk_size() );
-					$budget = self::attachment_budget( $order );
-					$used = 0;
-					foreach ( $chunks as $index => $chunk ) {
-						// A474: the PDF speaks the buyer's language, like the mail itself.
-						$bytes = Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $chunk ) {
-							return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
-						} );
-						if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
-						$file = $pdf_dir . '/tickets-' . $order->public_id . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf';
-						if ( false === file_put_contents( $file, $bytes ) ) { break; }
-						@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-						$attachments[] = $file;
-						$used += strlen( $bytes );
-						$pdf_covered += count( $chunk );
-					}
-					if ( $pdf_covered < count( $pdf_tickets ) ) {
-						$total = count( $pdf_tickets );
-						$pdf_note = "\n\n" . Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $pdf_covered, $total ) {
-							return sprintf(
-								/* translators: 1: number of tickets in the PDF attachments, 2: number of tickets of the order */
-								__( 'Wegen der Größenbegrenzung von E-Mails enthalten die PDF-Anhänge die ersten %1$d von %2$d Tickets. Alle Tickets kannst du über die Links oben öffnen und im Bestellportal (Link aus deiner Bestellbestätigung) als PDF herunterladen.', 'pass-captain' ),
-								$pdf_covered,
-								$total
-							);
-						} ) . "\n";
-					}
-				}
+			// No PDF with plaintext codes for a placeholder address (sale without buyer e-mail); A621:
+			// the same builder serves the resend and its retry.
+			$pdf_tickets = array_map( array( __CLASS__, 'pdf_ticket_entry' ), $issued );
+			$pdf = self::ticket_pdf_attachments( $order, $order->customer_email, $pdf_tickets );
+			$pdf_dir = $pdf['dir'];
+			$attachments = $pdf['files'];
+			$pdf_covered = $pdf['covered'];
+			if ( '' !== $pdf_dir && $pdf_covered < count( $pdf_tickets ) ) {
+				$total = count( $pdf_tickets );
+				$pdf_note = "\n\n" . Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $pdf_covered, $total ) {
+					return sprintf(
+						/* translators: 1: number of tickets in the PDF attachments, 2: number of tickets of the order */
+						__( 'Wegen der Größenbegrenzung von E-Mails enthalten die PDF-Anhänge die ersten %1$d von %2$d Tickets. Alle Tickets kannst du über die Links oben öffnen und im Bestellportal (Link aus deiner Bestellbestätigung) als PDF herunterladen.', 'pass-captain' ),
+						$pdf_covered,
+						$total
+					);
+				} ) . "\n";
 			}
 			$mail = array( 'attachments' => $attachments );
 			try {
@@ -2653,9 +2630,7 @@ final class Orders {
 					Jobs::enqueue( 'ticket-mail-retry|' . (int) $order_id . '|' . Clock::now(), 'ticket_mail_retry', array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 				}
 			} finally {
-				$attachments = array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) );
-				foreach ( $attachments as $file ) { wp_delete_file( $file ); }
-				if ( ! empty( $pdf_dir ) && is_dir( $pdf_dir ) ) { @rmdir( $pdf_dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				self::discard_attachments( array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) ), (string) $pdf_dir );
 			}
 		}
 	}
@@ -2815,6 +2790,17 @@ final class Orders {
 	}
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
+	/**
+	 * Removes the attachment files of a sent mail and their private directory.
+	 *
+	 * @param string[] $files Attachment paths.
+	 * @param string   $dir   Private directory of the ticket PDFs ('' = none).
+	 */
+	public static function discard_attachments( array $files, $dir = '' ) {
+		foreach ( $files as $file ) { if ( is_string( $file ) && '' !== $file ) { wp_delete_file( $file ); } }
+		if ( '' !== (string) $dir && is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+	}
+
 	private static function private_temp_dir() {
 		$base = rtrim( (string) get_temp_dir(), '/\\' );
 		for ( $i = 0; $i < 3; $i++ ) {
@@ -2887,6 +2873,76 @@ final class Orders {
 		return max( 0, (int) apply_filters( 'wpcap_ticket_mail_attachment_budget', 7 * 1024 * 1024, $order ) );
 	}
 
+	/**
+	 * A621: entry of the ticket PDF for one ticket (array with event, ticket, starts_at, timezone,
+	 * location, ticket_id, occurrence_id, ticket_type_id, token, help_code, attendee).
+	 */
+	public static function pdf_ticket_entry( array $ticket ) {
+		return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'attendee' => (string) ( $ticket['attendee'] ?? '' ), 'token' => $ticket['token'], 'help_code' => (string) ( $ticket['help_code'] ?? '' ), 'ticket_id' => (int) $ticket['ticket_id'], 'occurrence_id' => (int) $ticket['occurrence_id'], 'ticket_type_id' => (int) $ticket['ticket_type_id'], 'starts_at' => $ticket['starts_at'], 'timezone' => $ticket['timezone'] );
+	}
+
+	/**
+	 * A621: the ticket PDF attachments of a mail – the same builder for the ticket mail, the resend
+	 * and its retry. The PDF holds plaintext ticket codes: private directory (0700) and files (0600)
+	 * with random names in the shared temp dir. A580: large orders are split into several PDFs,
+	 * attached while they fit the mail's attachment budget. Nothing for a placeholder address or when
+	 * `wpcap_attach_ticket_pdf` is false.
+	 *
+	 * @param object $order       Order row.
+	 * @param string $recipient   Mail recipient.
+	 * @param array  $pdf_tickets pdf_ticket_entry() rows.
+	 * @return array{files: string[], covered: int, dir: string}
+	 */
+	public static function ticket_pdf_attachments( $order, $recipient, array $pdf_tickets ) {
+		$out = array( 'files' => array(), 'covered' => 0, 'dir' => '' );
+		if ( ! $pdf_tickets || Mail\Mailer::is_placeholder( (string) $recipient ) || ! apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order->order_id ) ) { return $out; }
+		$pdf_dir = self::private_temp_dir();
+		if ( ! $pdf_dir ) { return $out; }
+		$out['dir'] = $pdf_dir;
+		$chunks = array_chunk( $pdf_tickets, self::ticket_pdf_chunk_size() );
+		$budget = self::attachment_budget( $order );
+		$used = 0;
+		foreach ( $chunks as $index => $chunk ) {
+			// A474: the PDF speaks the buyer's language, like the mail itself.
+			$bytes = Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $chunk ) {
+				return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+			} );
+			if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
+			$file = $pdf_dir . '/tickets-' . $order->public_id . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf';
+			if ( false === file_put_contents( $file, $bytes ) ) { break; }
+			@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			$out['files'][] = $file;
+			$used += strlen( $bytes );
+			$out['covered'] += count( $chunk );
+		}
+		return $out;
+	}
+
+	/**
+	 * A621: attachments of a resend/retry mail to one recipient: ticket PDF (same builder as the
+	 * ticket mail) plus what modules add through `wpcap_ticket_resend_attachments` (.ics, .pkpass).
+	 *
+	 * @param object $order     Order row.
+	 * @param string $recipient Recipient.
+	 * @param array  $tickets   pdf_ticket_entry() rows with the codes of this mail.
+	 * @return array{files: string[], dir: string}
+	 */
+	private static function resend_attachments( $order, $recipient, array $tickets ) {
+		$pdf = self::ticket_pdf_attachments( $order, $recipient, $tickets );
+		if ( Mail\Mailer::is_placeholder( (string) $recipient ) ) { return array( 'files' => $pdf['files'], 'dir' => $pdf['dir'] ); }
+		$files = Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $pdf, $order, $tickets ) {
+			/**
+			 * Attachments of a resent ticket mail (A621) besides the ticket PDF: .ics files, .pkpass files.
+			 *
+			 * @param string[] $files   Attachment paths so far.
+			 * @param object   $order   Order row.
+			 * @param array[]  $tickets Tickets of this mail (ticket_id, occurrence_id, token, event, ticket …).
+			 */
+			return apply_filters( 'wpcap_ticket_resend_attachments', $pdf['files'], $order, $tickets );
+		} );
+		return array( 'files' => array_values( array_filter( (array) $files, 'is_string' ) ), 'dir' => $pdf['dir'] );
+	}
+
 	/** Event start in the event's own timezone; starts_at is stored in UTC. */
 	public static function format_start( $starts_at, $timezone ) {
 		$tz = (string) $timezone;
@@ -2954,7 +3010,7 @@ final class Orders {
 			}
 		}
 		$tickets = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid'" . ( empty( $args['skip_transferred'] ) ? '' : ' AND t.transfer_count=0' ) . " ORDER BY t.ticket_id FOR UPDATE",
+			"SELECT t.ticket_id,t.status,t.attendee_email,COALESCE(ta.attendee_name,'') AS attendee_name,t.ticket_type_id,tt.occurrence_id,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t LEFT JOIN {$wpdb->prefix}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid'" . ( empty( $args['skip_transferred'] ) ? '' : ' AND t.transfer_count=0' ) . " ORDER BY t.ticket_id FOR UPDATE",
 			$order_id
 		) );
 		// Checked-in tickets are skipped: they are used, and rotating them would only invalidate the
@@ -2978,6 +3034,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'pass-captain' ) );
 		}
 		$entries = array();
+		$codes = array();
 		$rotated = array();
 		$kept = 0;
 		$holder_ready = TicketCodes::holder_ready();
@@ -2990,6 +3047,7 @@ final class Orders {
 					$wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'code_with_attendee' => TicketCodes::to_attendee( $recipient, $order->customer_email ) ), array( 'ticket_id' => (int) $ticket->ticket_id ), array( '%d' ), array( '%d' ) );
 				}
 				++$kept;
+				$codes[ $recipient ][] = array( $ticket, $known );
 				$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $known, home_url( '/' ) ), 'ticket_id' => (int) $ticket->ticket_id );
 				continue;
 			}
@@ -3004,6 +3062,7 @@ final class Orders {
 				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 			}
 			$rotated[ (int) $ticket->ticket_id ] = $token;
+			$codes[ $recipient ][] = array( $ticket, $token );
 			$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'ticket_id' => (int) $ticket->ticket_id );
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
@@ -3023,7 +3082,17 @@ final class Orders {
 		$sent = true;
 		foreach ( $entries as $recipient => $list ) {
 			$vars = self::ticket_mail_vars( $order, $list, static function () use ( $list ) { return Mail\Blocks::code_tickets( $list ); } );
-			$sent = Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale, (int) $order->order_id ) && $sent;
+			// A621: the same attachments as the ticket mail (PDF, .ics, .pkpass) with the codes of this mail.
+			$pdf_tickets = array_map( static function ( $pair ) {
+				list( $ticket, $code ) = $pair;
+				return self::pdf_ticket_entry( array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'starts_at' => $ticket->starts_at, 'timezone' => $ticket->timezone, 'location' => $ticket->location, 'ticket_id' => (int) $ticket->ticket_id, 'occurrence_id' => (int) $ticket->occurrence_id, 'ticket_type_id' => (int) $ticket->ticket_type_id, 'attendee' => (string) $ticket->attendee_name, 'token' => $code, 'help_code' => HelpCode::for_ticket( (int) $ticket->ticket_id, $code ) ) );
+			}, $codes[ $recipient ] ?? array() );
+			$attach = self::resend_attachments( $order, $recipient, $pdf_tickets );
+			try {
+				$sent = Mail\Mailer::send( 'tickets_resend', $recipient, $vars, $attach['files'], (string) $order->locale, (int) $order->order_id ) && $sent;
+			} finally {
+				self::discard_attachments( $attach['files'], $attach['dir'] );
+			}
 		}
 		if ( ! $sent ) {
 			Audit::record( 'ticket_mail_failed', 'order', $order_id, array( 'tickets' => count( $tickets ), 'resend' => true ) );

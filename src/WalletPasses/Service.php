@@ -19,6 +19,7 @@ final class Service {
 	public static function register() {
 		add_filter( 'wp_pass_captain_wallet_provider_v1', array( __CLASS__, 'default_provider' ), 5, 2 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'on_ticket_mail' ), 20, 3 );
+		add_filter( 'wpcap_ticket_resend_attachments', array( __CLASS__, 'resend_attachments' ), 20, 3 );
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'on_ticket_changed' ), 20, 1 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'on_occurrence_changed' ), 20, 1 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'on_occurrence_changed' ), 20, 1 );
@@ -426,6 +427,37 @@ final class Service {
 		if ( ! $inline && $any ) { $text = self::order_links_text( $order ); }
 		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . __( 'Wallet', 'pass-captain' ) . "\n" . $text; }
 		return $mail;
+	}
+
+	/**
+	 * A621: wpcap_ticket_resend_attachments – the Apple Wallet .pkpass of each resent ticket (current
+	 * code), within the attachment budget; the wallet links are part of the resend text already
+	 * (wpcap_ticket_code_mail_section). Google passes are links only.
+	 */
+	public static function resend_attachments( $files, $order = null, $tickets = array() ) {
+		$files = (array) $files;
+		$apple = self::provider( 'apple' );
+		if ( ! $apple || ! is_array( $tickets ) || count( $tickets ) > self::mail_inline_limit() ) { return $files; }
+		$used = 0;
+		foreach ( $files as $file ) { $used += is_string( $file ) && is_file( $file ) ? (int) filesize( $file ) : 0; }
+		$budget = \PassCaptain\Orders::attachment_budget( $order );
+		foreach ( $tickets as $entry ) {
+			if ( empty( $entry['ticket_id'] ) || empty( $entry['token'] ) ) { continue; }
+			try {
+				Store::put_code( (int) $entry['ticket_id'], (string) $entry['token'] );
+				$ticket = self::ticket( (int) $entry['ticket_id'] );
+				if ( ! $ticket ) { continue; }
+				$pass = self::in_locale( $ticket, static function () use ( $apple, $ticket ) { return $apple->create_pass( $ticket ); } );
+			} catch ( \Throwable $e ) {
+				self::log( 'issue_failed', 'apple:' . $e->getMessage() );
+				continue;
+			}
+			$allow = $used + strlen( (string) ( $pass['bundle'] ?? '' ) ) <= $budget;
+			list( , $new ) = self::mail_parts( array( 'apple' => $pass ), array( $entry['event'] ?? '', $entry['ticket'] ?? '' ), $allow );
+			foreach ( $new as $file ) { $used += (int) filesize( $file ); }
+			$files = array_merge( $files, $new );
+		}
+		return $files;
 	}
 
 	/* ---- code rotation ---- */

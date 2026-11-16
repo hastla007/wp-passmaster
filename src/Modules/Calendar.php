@@ -26,6 +26,7 @@ final class Calendar {
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_ics' ), 1 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'attach_ics' ), 20, 3 );
+		add_filter( 'wpcap_ticket_resend_attachments', array( __CLASS__, 'resend_ics' ), 20, 3 );
 		add_filter( 'wpcap_event_card_html', array( __CLASS__, 'add_card_anchor' ), 5, 3 );
 	}
 
@@ -117,6 +118,12 @@ final class Calendar {
 			}
 		}
 		return $mail;
+	}
+
+	/** A621: wpcap_ticket_resend_attachments – the same .ics files for a resent ticket mail. */
+	public static function resend_ics( $files, $order = null, $tickets = array() ) {
+		$mail = self::attach_ics( array( 'attachments' => (array) $files ), $order, (array) $tickets );
+		return is_array( $mail ) ? (array) ( $mail['attachments'] ?? $files ) : $files;
 	}
 
 	/** Temporary files created during this request. */

@@ -129,6 +129,8 @@ Bestellungen speichern ihre Sprache (`locale`). Mails zu einer Bestellung (Ticke
 2. eigene Vorlage für die Standardsprache der Website,
 3. eingebauter Text (übersetzt in die Sprache der Bestellung, sofern eine Übersetzung vorhanden ist).
 
+**Anhänge beim Neuversand (A621):** „Tickets erneut senden“ (Verwaltung, Bestellportal) und die automatische Wiederholung einer fehlgeschlagenen Ticketmail hängen dieselben Dateien an wie die Ticketmail: Ticket-PDF mit den Codes dieser Mail (gemeinsamer Baustein `Orders::ticket_pdf_attachments()`, gleiche Größenbegrenzung), `.ics` je Termin (Kalender-Modul) und `.pkpass` (Apple Wallet) über den Filter `wpcap_ticket_resend_attachments`.
+
 **Anhänge und Zusätze (A474):** Auch was Module an die Ticketmail anhängen oder anfügen, entsteht in der Sprache der Bestellung: das Ticket-PDF, der Filter `wpcap_ticket_mail` (Rechnungs-PDF, Wallet-Texte und -Pässe, .ics, Sitzplätze) und der Filter `wpcap_ticket_code_mail_section` in Neuversand-, Übertragungs-, Zuweisungs-, Neuausstellungs- und Umtauschmails (`Orders::code_mail_section()`). Wallet-Pässe werden auch später (Abruf durch das Gerät, Google-Aktualisierung) in der Sprache der Bestellung gebaut; Google-Texte des Tickets tragen deren Sprachcode statt fest `de`; die für alle Käufer:innen gemeinsame Klasse die Website-Sprache mit Übersetzungen der Plugin-Texte (A518).
 
 Bei Mails an mehrere Ticketinhaber:innen (Absagen, Terminänderungen, Erinnerungen) gilt die Sprache der jeweiligen Bestellung; hat eine Adresse mehrere Bestellungen, die der neuesten Bestellung mit gespeicherter Sprache (A519, `Notifications::LATEST_LOCALE_SQL`; vorher die alphabetisch letzte). Wartelisten- und Pass-Mails haben keine gespeicherte Sprache und nutzen die aktuelle.
