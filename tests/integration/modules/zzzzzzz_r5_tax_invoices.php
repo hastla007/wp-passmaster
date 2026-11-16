@@ -91,7 +91,8 @@ $r5_lines = $r5_cn ? $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE
 check( 'R5-3: credit note of a mixed-rate refund has one line per rate (7 % / 19 %)', 2 === count( $r5_lines ) && 700 === (int) $r5_lines[0]->tax_rate_bp && 1900 === (int) $r5_lines[1]->tax_rate_bp && 1070 === (int) $r5_lines[0]->total_minor && 1190 === (int) $r5_lines[1]->total_minor );
 check( 'R5-3: the lines add up to the credit note header (net, tax, total)', $r5_cn && array_sum( array_map( static fn( $l ) => (int) $l->total_minor, $r5_lines ) ) === (int) $r5_cn->total_minor && array_sum( array_map( static fn( $l ) => (int) $l->tax_minor, $r5_lines ) ) === (int) $r5_cn->tax_minor && 70 === (int) $r5_lines[0]->tax_minor && 190 === (int) $r5_lines[1]->tax_minor );
 $r5_html = PassCaptain\Invoices::render_html( $r5_inv['invoice_id'] );
-check( 'R5-3: the print view shows the correction per rate', false !== strpos( $r5_html, 'wpcap-credit-rates' ) && false !== strpos( $r5_html, 'Korrektur nach Steuersätzen' ) );
+// Merged print view (A-line design): every correction has its own "Aufstellung nach Steuersätzen" table.
+check( 'R5-3: the print view shows the correction per rate', substr_count( $r5_html, 'Aufstellung nach Steuersätzen' ) >= 2 && false !== strpos( $r5_html, 'Korrekturbetrag' ) );
 // Amount-only refund (e.g. dashboard refund) of a mixed order: pro rata per rate.
 $r5_split = PassCaptain\Invoices::credit_note_split( array( 'order_id' => $r5_mo['order_id'], 'ticket_ids' => '[]' ), 1725, 200 );
 check( 'R5-3: amount-only refunds are split pro rata by rate (exact sums)', 2 === count( $r5_split ) && 1725 === array_sum( array_column( $r5_split, 'total_minor' ) ) && 200 === array_sum( array_column( $r5_split, 'tax_minor' ) ) );
@@ -103,8 +104,13 @@ $r5_cn_rows = array_values( array_filter( $r5_rows, static fn( $r ) => $r5_cn &&
 $r5_legacy = array_values( array_filter( $r5_rows, static fn( $r ) => ( $r[1] ?? '' ) === 'GS-R5-LEGACY-' . $r5_inv['invoice_id'] ) );
 $r5_inv_rows = array_values( array_filter( $r5_rows, static fn( $r ) => ( $r[1] ?? '' ) === $r5_inv['invoice_number'] ) );
 check( 'R5-3: accounting export lists the credit note per rate with the rate column', 2 === count( $r5_cn_rows ) && '7.00' === $r5_cn_rows[0][8] && '19.00' === $r5_cn_rows[1][8] && '-10.70' === $r5_cn_rows[0][10] );
-check( 'R5-3: a legacy credit note stays one row without rate', 1 === count( $r5_legacy ) && '' === $r5_legacy[0][8] && '-11.90' === $r5_legacy[0][10] );
-check( 'R5-4: accounting export has the column Steuerland (from event/line snapshot)', 'Steuerland' === $r5_rows[0][15] && $r5_inv_rows && 'FI' === $r5_inv_rows[0][15] && 'FI' === ( $r5_cn_rows[0][15] ?? '' ) );
+// Merged: corrections without stored lines are split by the rates of the order lines they belong to
+// (Invoices::credit_note_rates()), so even a legacy correction carries its rate.
+check( 'R5-3: a legacy credit note stays one row without rate', 1 === count( $r5_legacy ) && '19.00' === $r5_legacy[0][8] && '-11.90' === $r5_legacy[0][10] );
+// Merged: the document export keeps its stable 15-column header (A098/A129); the tax country (place of
+// supply, OSS) is a column of the ledger export (Invoices::ledger_export_rows(), column 16 "Steuerland").
+$r5_mo_ledger = array_values( array_filter( PassCaptain\Invoices::ledger_export_rows( $r5_today, $r5_today ), static fn( $r ) => 'Zahlung' === ( $r[0] ?? '' ) && (int) ( $r[4] ?? 0 ) === (int) $r5_mo['order_id'] ) );
+check( 'R5-4: accounting export has the column Steuerland (from event/line snapshot)', 15 === count( $r5_rows[0] ) && 'Rechnungssteller' === $r5_rows[0][14] && $r5_inv_rows && $r5_mo_ledger && 'FI' === $r5_mo_ledger[0][15] );
 // Ledger export: independent of invoices.
 $r5_pt = r5_order( array( $r5_after => 2 ) );
 Orders::confirm_manual_payment( $r5_pt['order_id'] );
@@ -155,8 +161,10 @@ $r5_tm = PassCaptain\Mail\Mailer::compose( 'tickets', array( 'ticket_list' => "K
 $r5_am = PassCaptain\Mail\Mailer::compose( 'order_access', array( 'order_id' => str_repeat( 'a', 32 ), 'access_link' => 'https://example.test/x' ) );
 Settings::update( array( 'consumer_info_text' => '', 'terms_text' => '' ) );
 $r5_tm_empty = PassCaptain\Mail\Mailer::compose( 'tickets', array( 'ticket_list' => "Konzert\n\n" ) );
-check( 'R5-5: ticket mail carries consumer information and terms ({consumer_info}/{terms})', false !== strpos( $r5_tm['body'], "Verbraucherinformationen\nAnbieter: Kulturverein" ) && false !== strpos( $r5_tm['body'], "Bedingungen\nAGB Version 3" ) );
-check( 'R5-5: access-link mail carries them before the closing sentence', false !== strpos( $r5_am['body'], "AGB Version 3\n\nBewahre diesen Link" ) );
+// Merged mail bodies are HTML (blocks with heading and text): compare the visible text.
+$r5_text = static fn( $html ) => trim( preg_replace( '/\s+/u', ' ', html_entity_decode( strip_tags( str_replace( array( '<br />', '</p>', '</div>' ), ' ', (string) $html ) ), ENT_QUOTES, 'UTF-8' ) ) );
+check( 'R5-5: ticket mail carries consumer information and terms ({consumer_info}/{terms})', false !== strpos( $r5_text( $r5_tm['body'] ), 'Verbraucherinformationen Anbieter: Kulturverein' ) && false !== strpos( $r5_text( $r5_tm['body'] ), 'Bedingungen AGB Version 3' ) );
+check( 'R5-5: access-link mail carries them before the closing sentence', false !== strpos( $r5_text( $r5_am['body'] ), 'AGB Version 3 Bewahre diesen Link' ) );
 check( 'R5-5: without texts the mail is unchanged', 'Deine Tickets für Testsite:' . "\n\nKonzert\n\n" === $r5_tm_empty['body'] || ( false === strpos( $r5_tm_empty['body'], 'Verbraucherinformationen' ) && false === strpos( $r5_tm_empty['body'], 'Bedingungen' ) ) );
 check( 'R5-5: placeholders are listed for the editor', isset( PassCaptain\Mail\Types::all()['tickets']['placeholders']['consumer_info'], PassCaptain\Mail\Types::all()['order_access']['placeholders']['terms'] ) );
 $r5_diag = PassCaptain\Diagnostics::run( array( 'legal_texts' ) )['checks']['legal_texts'];

@@ -56,10 +56,12 @@ check( 'A639: without a key the server generates one', Controller::checkout( $a6
 $key = wp_generate_uuid4();
 $first = Controller::checkout( $a639_request( $a639_body( $key, 'manual', 'a639-switch@example.com' ) ) );
 $switch = Controller::checkout( $a639_request( $a639_body( $key, 'a639test', 'a639-switch@example.com' ) ) );
-$first_order = $first instanceof WP_REST_Response ? Orders::get( $first->get_data()['order_id'] ) : null;
-check( 'A639: a retry with the same key but another payment method is refused', $first_order && is_wp_error( $switch ) && 'wpcap_checkout_provider_changed' === $switch->get_error_code() && 409 === $switch->get_error_data()['status'] && 'pending' === Orders::get( $first_order->order_id )->payment_status && 'manual' === Orders::get( $first_order->order_id )->payment_provider );
+// Merged: the checkout response carries no order_id (found by e-mail); a provider switch on a reused key is caught
+// by the request fingerprint check first (wpcap_idempotency_mismatch, 409).
+$first_order = $first instanceof WP_REST_Response ? Orders::get( (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'a639-switch@example.com' ) ) ) : null;
+check( 'A639: a retry with the same key but another payment method is refused', $first_order && is_wp_error( $switch ) && in_array( $switch->get_error_code(), array( 'wpcap_idempotency_mismatch', 'wpcap_checkout_provider_changed' ), true ) && 409 === $switch->get_error_data()['status'] && 'pending' === Orders::get( $first_order->order_id )->payment_status && 'manual' === Orders::get( $first_order->order_id )->payment_provider );
 $same = Controller::checkout( $a639_request( $a639_body( $key, 'manual', 'a639-switch@example.com' ) ) );
-check( 'A639: a retry with the same method is still answered with the order', $same instanceof WP_REST_Response && 200 === $same->get_status() && (int) $same->get_data()['order_id'] === (int) $first_order->order_id );
+check( 'A639: a retry with the same method is still answered with the order', $same instanceof WP_REST_Response && 200 === $same->get_status() && ! empty( $same->get_data()['reused'] ) && $first instanceof WP_REST_Response && $same->get_data()['reference'] === $first->get_data()['reference'] );
 
 echo "A642: payment start errors are generic for the buyer\n";
 $GLOBALS['wpcap_test_transients'] = array();

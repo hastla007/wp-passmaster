@@ -1123,7 +1123,9 @@ final class Invoices {
 			$date = $paid_at[ (int) $order->order_id ] ?? (string) $order->created_at;
 			if ( $date >= $from_utc && $date < $to_utc ) { $in_range[] = array( $order, $date ); }
 		}
-		$refunds = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id,o.payment_provider,o.provider_reference AS order_reference FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		// A refund reversed later (A348) stays booked on its day; the reversal is booked back below on its own day.
+		$reversal_ready = Refunds::provider_status_ready();
+		$refunds = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id,o.payment_provider,o.provider_reference AS order_reference FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
 		$all_ids = array_merge( array_map( static function ( $x ) { return (int) $x[0]->order_id; }, $in_range ), array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) );
 		$countries = self::item_tax_countries( $all_ids );
 		$numbers = array();
@@ -1157,6 +1159,11 @@ final class Invoices {
 		}
 		// Refunds that failed at the provider after booking (money stayed with the seller): reversal rows.
 		$failed = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id,o.payment_provider,o.provider_reference AS order_reference FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status='failed' AND r.error_message='provider_refund_failed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		if ( $reversal_ready ) {
+			// Booked refunds reversed by the provider (A348, status reversed): booked back on the reversal day.
+			$reversed = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,r.reversed_at AS updated_at,o.public_id,o.payment_provider,o.provider_reference AS order_reference FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+			$failed = array_merge( $failed, $reversed );
+		}
 		$failed_countries = self::item_tax_countries( array_map( static function ( $r ) { return (int) $r->order_id; }, $failed ) );
 		foreach ( $failed as $refund ) {
 			$items = $failed_countries[ (int) $refund->order_id ] ?? array();

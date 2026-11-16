@@ -11,7 +11,7 @@
 
 // phpcs:ignoreFile
 
-use PassCaptain\Fiscalization\Providers\HttpClient as A202Fiscal;
+use PassCaptain\Fiscalization\ProviderHttp as A202Fiscal;
 use PassCaptain\OutboundHttp;
 use PassCaptain\Settings;
 
@@ -135,20 +135,27 @@ check( 'webhook delivery goes through the guard: pinned, no redirects, 64 KB, 10
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_webhook_subscriptions SET status='disabled' WHERE subscription_id=%d", $a202_sub['subscription_id'] ) );
 
 echo "A202: callers – fiscal providers\n";
+// Merged design: the fiscal transport is Fiscalization\ProviderHttp on Security\OutboundHttp (the former
+// Providers\HttpClient is gone). Blocked targets come back as provider_endpoint_invalid; a local fiscal
+// service (efsta EFR) needs the explicit opt-in fiscal_allow_local_service instead of a fixed exception.
 http_reset();
-check( 'fiscal: plain HTTP endpoint is refused (no request sent)', 'provider_endpoint_blocked' === $a202_code( A202Fiscal::request( 'http://fiscal-a202.example/v2/sign', 'POST', array(), array( 'a' => 1 ) ) ) && array() === http_requests( 'fiscal-a202' ) );
+check( 'fiscal: plain HTTP endpoint is refused (no request sent)', 'provider_endpoint_invalid' === $a202_code( A202Fiscal::request( 'http://fiscal-a202.example/v2/sign', 'POST', array(), array( 'a' => 1 ) ) ) && array() === http_requests( 'fiscal-a202' ) );
 $a202_dns( 'fiscal-a202.example', array( '169.254.169.254' ) );
-check( 'fiscal: configured base_url resolving to the metadata address is refused', 'provider_endpoint_blocked' === $a202_code( A202Fiscal::request( 'https://fiscal-a202.example/v2/sign', 'POST' ) ) && array() === http_requests( 'fiscal-a202' ) );
+check( 'fiscal: configured base_url resolving to the metadata address is refused', 'provider_endpoint_invalid' === $a202_code( A202Fiscal::request( 'https://fiscal-a202.example/v2/sign', 'POST' ) ) && array() === http_requests( 'fiscal-a202' ) );
 $a202_dns( 'fiscal-a202.example', array( '93.184.216.34' ) );
 http_push( array( 'ok' => true ), 200, 'fiscal-a202' );
 $a202_r = A202Fiscal::request( 'https://fiscal-a202.example/auth/token', 'POST', array( 'Content-Type' => 'application/x-www-form-urlencoded', 'Authorization' => 'Basic eDp5' ), 'grant_type=client_credentials&TaxId=1' );
 $a202_req = http_requests( 'fiscal-a202' )[0] ?? array( 'args' => array(), 'headers' => array(), 'body' => '' );
-check( 'fiscal: public HTTPS endpoint is pinned; form bodies are sent as given with their content type', ! is_wp_error( $a202_r ) && 'grant_type=client_credentials&TaxId=1' === $a202_req['body'] && 'application/x-www-form-urlencoded' === $a202_req['headers']['Content-Type'] && array( 'fiscal-a202.example:443:93.184.216.34' ) === ( $a202_req['args'][ OutboundHttp::PIN_ARG ] ?? null ) && A202Fiscal::MAX_BYTES + 1 === $a202_req['args']['limit_response_size'] );
+check( 'fiscal: public HTTPS endpoint passes the guard (no redirects, size limit); form bodies are sent as given with their content type', ! is_wp_error( $a202_r ) && 'grant_type=client_credentials&TaxId=1' === $a202_req['body'] && 'application/x-www-form-urlencoded' === $a202_req['headers']['Content-Type'] && 0 === $a202_req['args']['redirection'] && A202Fiscal::MAX_BYTES === $a202_req['args']['limit_response_size'] );
+http_reset();
 http_push( array( 'Result' => 'ok' ), 200, '127.0.0.1:5618' );
-$a202_r = A202Fiscal::request( 'http://127.0.0.1:5618/state', 'GET', array(), null, array( 'exceptions' => array( 'http://127.0.0.1:5618' ) ) );
-check( 'fiscal: the fixed local efsta EFR origin is the only plain-HTTP exception', ! is_wp_error( $a202_r ) && 'provider_endpoint_blocked' === $a202_code( A202Fiscal::request( 'http://127.0.0.1:8080/state', 'GET', array(), null, array( 'exceptions' => array( 'http://127.0.0.1:5618' ) ) ) ) );
+check( 'fiscal: a local EFR endpoint is refused without the opt-in (nothing sent)', 'provider_endpoint_invalid' === $a202_code( A202Fiscal::request( 'http://127.0.0.1:5618/state', 'GET' ) ) && array() === http_requests( '127.0.0.1' ) );
+add_filter( 'wpcap_fiscal_allow_local_service', $wpcap_fiscal_local_on = static function () { return true; } );
+$a202_r = A202Fiscal::request( 'http://127.0.0.1:5618/state', 'GET' );
+check( 'fiscal: with the opt-in plain HTTP is allowed to the local network only, never to a public host', ! is_wp_error( $a202_r ) && 'provider_endpoint_invalid' === $a202_code( A202Fiscal::request( 'http://fiscal-a202.example/state', 'GET' ) ) );
+remove_filter( 'wpcap_fiscal_allow_local_service', $wpcap_fiscal_local_on );
 $a202_efsta = file_get_contents( WPCAP_PATH . 'src/Fiscalization/Providers/EfstaEfrAdapter.php' );
-check( 'efsta adapter sends every call through HttpClient with only its LOCAL_EFR exception', "const LOCAL_EFR = 'http://127.0.0.1:5618';" === ( preg_match( "/const LOCAL_EFR = '[^']+';/", $a202_efsta, $m ) ? $m[0] : '' ) && 1 === substr_count( $a202_efsta, 'return HttpClient::request(' ) && 4 === substr_count( $a202_efsta, 'self::http(' ) );
+check( 'efsta adapter sends every call through ProviderHttp and has no hard-coded local endpoint', 3 === substr_count( $a202_efsta, 'ProviderHttp::request(' ) && false === strpos( $a202_efsta, '127.0.0.1' ) && ! preg_match( '/wp_(safe_)?remote_|OutboundHttp::/', $a202_efsta ) );
 http_push( array( 'x' => str_repeat( 'y', A202Fiscal::MAX_BYTES ) ), 200, 'fiscal-a202' );
 check( 'fiscal: oversized response is refused', 'provider_response_too_large' === $a202_code( A202Fiscal::request( 'https://fiscal-a202.example/journal', 'GET' ) ) );
 
@@ -160,10 +167,12 @@ http_reset();
 $a202_r = ( new PassCaptain\Sms\HttpProvider() )->send( '+4915100000009', 'Hallo', 'a202-sms-1' );
 check( 'SMS HTTP: endpoint resolving to a private address is refused permanently, nothing sent', 'wpcap_sms_http' === $a202_code( $a202_r ) && ! empty( $a202_r->get_error_data()['permanent'] ) && array() === http_requests( 'sms-a202' ) );
 $a202_dns( 'sms-a202.example', array( '93.184.216.34' ) );
-add_filter( 'pre_http_request', $a202_smsfail = static function ( $pre, $args, $url ) { return false !== strpos( $url, 'sms-a202' ) ? new WP_Error( 'http_request_failed', 'gateway said: header Authorization=Bearer a202-s3cret rejected' ) : $pre; }, 10, 3 );
+// The merged HTTP stub lets pre_http_request short-circuit before recording (like WP_Http): the filter records the request.
+$a202_sms_seen = array();
+add_filter( 'pre_http_request', $a202_smsfail = static function ( $pre, $args, $url ) use ( &$a202_sms_seen ) { if ( false === strpos( $url, 'sms-a202' ) ) { return $pre; } $a202_sms_seen[] = array( 'url' => $url, 'args' => $args ); return new WP_Error( 'http_request_failed', 'gateway said: header Authorization=Bearer a202-s3cret rejected' ); }, 10, 3 );
 $a202_r = ( new PassCaptain\Sms\HttpProvider() )->send( '+4915100000009', 'Hallo', 'a202-sms-2' );
 remove_filter( 'pre_http_request', $a202_smsfail );
-$a202_req = http_requests( 'sms-a202' )[0] ?? array( 'args' => array() );
+$a202_req = $a202_sms_seen[0] ?? array( 'args' => array() );
 check( 'SMS HTTP: pinned request; the auth secret never appears in the (retryable) error', 'wpcap_sms_http' === $a202_code( $a202_r ) && false === strpos( $a202_r->get_error_message(), 'a202-s3cret' ) && empty( $a202_r->get_error_data()['permanent'] ) && array( 'sms-a202.example:443:93.184.216.34' ) === ( $a202_req['args'][ OutboundHttp::PIN_ARG ] ?? null ) );
 Settings::update( array( 'twilio_account_sid' => 'AC' . str_repeat( 'a', 32 ), 'twilio_auth_token' => 'a202-twilio-token', 'sms' => array_merge( $a202_sms, array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000' ) ) ) );
 $a202_dns( 'api.twilio.com', array( '127.0.0.1' ) );
@@ -183,7 +192,12 @@ class A202_Apns extends PassCaptain\WalletPasses\ApnsClient {
 	protected function request( $url, array $headers, $body, array $credentials ) { $this->calls[] = array( $url, $this->pin ); return array( 'status' => 200, 'body' => '' ); }
 }
 $a202_apns = new A202_Apns();
-check( 'APNs: host other than Apple production/sandbox is refused before cURL', 0 === $a202_apns->send( 'tok', 'pass.x', array(), 'https://evil-a202.example' ) && array() === $a202_apns->calls );
+$a202_dns( 'api.push.apple.com', array( '93.184.216.34' ) );
+$a202_dns( 'api.sandbox.push.apple.com', array( '93.184.216.34' ) );
+// Merged design (audit line): another host is never contacted – send() replaces it with the Apple production host.
+$a202_apns->send( 'tok', 'pass.x', array(), 'https://evil-a202.example' );
+check( 'APNs: a host other than Apple production/sandbox is never contacted (replaced by the production host)', 1 === count( $a202_apns->calls ) && 0 === strpos( $a202_apns->calls[0][0], 'https://api.push.apple.com/3/device/' ) && false === strpos( $a202_apns->calls[0][0], 'evil' ) );
+$a202_apns->calls = array();
 check( 'APNs: Apple host is pinned to the checked address (CURLOPT_RESOLVE)', 200 === $a202_apns->send( 'tok', 'pass.x', array(), 'https://api.sandbox.push.apple.com' ) && array( 'api.sandbox.push.apple.com:443:93.184.216.34' ) === ( $a202_apns->calls[0][1] ?? null ) );
 $a202_apns_src = file_get_contents( WPCAP_PATH . 'src/WalletPasses/ApnsClient.php' );
 check( 'APNs cURL options: pin, HTTPS only, no redirects, connect timeout, size abort', false !== strpos( $a202_apns_src, 'CURLOPT_RESOLVE ] = $this->pin' ) && false !== strpos( $a202_apns_src, 'CURLOPT_FOLLOWLOCATION => false' ) && false !== strpos( $a202_apns_src, 'CURLPROTO_HTTPS' ) && false !== strpos( $a202_apns_src, 'CURLOPT_XFERINFOFUNCTION' ) );
@@ -211,6 +225,7 @@ $a202_stripe = new ReflectionMethod( PassCaptain\Payments\StripeGateway::class, 
 $a202_stripe->setAccessible( true );
 $a202_stripe_obj = ( new ReflectionClass( PassCaptain\Payments\StripeGateway::class ) )->newInstanceWithoutConstructor();
 http_reset();
+$a202_dns( 'api.stripe.com', array( '93.184.216.34' ) );
 http_push( array( 'object' => 'balance' ), 200, 'api.stripe.com' );
 $a202_r = $a202_stripe->invoke( $a202_stripe_obj, 'GET', 'balance' );
 $a202_req = http_requests( 'api.stripe.com' )[0] ?? array( 'args' => array() );

@@ -52,7 +52,8 @@ $record_faults = array(
 	'order lock fails'             => array( '/FROM \S+wpcap_orders WHERE order_id=\d+ FOR UPDATE/', 0, 1, false ),
 	'ticket lock fails'            => array( '/FROM \S+wpcap_tickets WHERE .*\bticket_id IN .* FOR UPDATE/', 0, 1, false ),
 	'refund insert fails'          => array( '/^INSERT INTO \S+wpcap_refunds/', 0, 1, false ),
-	'order item update fails'      => array( '/UPDATE \S+wpcap_order_items SET refunded_quantity/', 0, 1, false ),
+	// Merged: the order line counts its refunded unit in CapacityRelease::release_tickets() (one UPDATE over ticket and line).
+	'order item update fails'      => array( '/UPDATE \S+wpcap_tickets t INNER JOIN \S+wpcap_order_items oi .*oi\.refunded_quantity=/', 0, 1, false ),
 	'ticket revocation fails'      => array( "/SET status='revoked' WHERE ticket_id/", 0, 1, false ),
 	'refunded flag fails'          => array( '/UPDATE \S+wpcap_tickets SET refunded=1/', 0, 1, false ),
 	'order total update fails'     => array( '/UPDATE \S+wpcap_orders SET refunded_minor/', 0, 1, false ),
@@ -197,10 +198,16 @@ check( 'outbox: a briefly failing completion is retried and succeeds', 'complete
 echo "W7: logger and private temp files\n";
 $logged = array();
 $log_cb = static function ( $level, $event, $message, $context ) use ( &$logged ) { $logged[] = array( $level, $event, $message ); };
-add_action( 'wpcap_log', $log_cb, 10, 4 );
+// Unified Log (merge): wpcap_log passes ( $entry, $event, $message, $context ); the former argument order
+// ( $level, $event, $message, $context ) is fired as wpcap_log_event.
+add_action( 'wpcap_log_event', $log_cb, 10, 4 );
+$w7_entries = array();
+$w7_entry_cb = static function ( $entry, $event ) use ( &$w7_entries ) { $w7_entries[] = array( $entry['level'] ?? '', $event ); };
+add_action( 'wpcap_log', $w7_entry_cb, 10, 2 );
 Log::error( 'w7_test_event', 'something failed', array( 'object_type' => 'order', 'object_id' => 987654, 'details' => array( 'k' => 'v' ) ) );
-remove_action( 'wpcap_log', $log_cb, 10 );
-check( 'Log::error fires wpcap_log', array( array( 'error', 'w7_test_event', 'something failed' ) ) === $logged );
+remove_action( 'wpcap_log_event', $log_cb, 10 );
+remove_action( 'wpcap_log', $w7_entry_cb, 10 );
+check( 'Log::error fires wpcap_log', array( array( 'error', 'w7_test_event', 'something failed' ) ) === $logged && array( array( 'error', 'w7_test_event' ) ) === $w7_entries );
 check( 'Log::error records to the audit table', 1 === $w7_audit( 'w7_test_event', 987654 ) );
 check( 'PHP error log is off unless WP_DEBUG_LOG or the filter enables it', false === Log::to_error_log( 'error', 'x' ) );
 $on = static function () { return true; };

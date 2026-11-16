@@ -31,6 +31,8 @@ if ( ! function_exists( 'ms_is_switched' ) ) { function ms_is_switched() { retur
 if ( ! function_exists( 'plugin_basename' ) ) { function plugin_basename( $file ) { return basename( dirname( $file ) ) . '/' . basename( $file ); } }
 if ( ! function_exists( 'wp_register_style' ) ) { function wp_register_style( $h, $src = '', $deps = array(), $ver = false ) { $GLOBALS['y6_styles'][ $h ] = $src; return true; } }
 if ( ! function_exists( 'wp_add_inline_style' ) ) { function wp_add_inline_style( $h, $css ) { $GLOBALS['y6_inline'][ $h ] = $css; return true; } }
+if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $single = false ) { return ''; } } // Admin\Notices::dismissed() (also stubbed by zzzzz_x3_residuals).
+if ( ! function_exists( 'wp_style_is' ) ) { function wp_style_is( $h, $list = 'enqueued' ) { return isset( $GLOBALS['y6_styles'][ $h ] ); } } // Assets::inline_style() needs it (else raw <style>).
 if ( ! function_exists( 'wp_die' ) ) { function wp_die( $m = '' ) { throw new RuntimeException( (string) $m ); } }
 
 /* ------------------------------------------------------------------ INT-1 */
@@ -63,7 +65,10 @@ $y6_installer = (string) file_get_contents( WPCAP_PATH . 'src/Installer.php' );
 check( 'INT-1: the installer runs the migration (DB >= 3.14.0)', false !== strpos( $y6_installer, 'Settings::migrate_uninstall_policy();' ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.14.0', '>=' ) );
 $y6_uninstall = (string) file_get_contents( WPCAP_PATH . 'uninstall.php' );
 $y6_reads_old = (bool) preg_match( "/\\$\\w+\\['delete_data_on_uninstall'\\]/", $y6_uninstall );
-check( 'INT-1: uninstall.php reads only wpcap_uninstall_policy', ! $y6_reads_old && false !== strpos( $y6_uninstall, "get_option( 'wpcap_uninstall_policy', 'keep' )" ) );
+// Merged design: the explicit policy option decides; the old settings key is read only on a site whose upgrade
+// never wrote the option (opt-in from before the migration), never when the option exists.
+$y6_policy_first = (bool) preg_match( '/get_option\( \'wpcap_uninstall_policy\', false \);\s*if \( false !== \$policy \) \{\s*return \'delete\' === \$policy;/', $y6_uninstall );
+check( 'INT-1: uninstall.php reads only wpcap_uninstall_policy', $y6_policy_first && 1 === preg_match_all( "/\\$\\w+\\['delete_data_on_uninstall'\\]/", $y6_uninstall ) );
 if ( ! $y6_reads_old ) {
 	// Old key set (as a stale 1.4 site would have it), policy "keep": running uninstall.php keeps every table.
 	$y6_s['delete_data_on_uninstall'] = 1;
@@ -261,13 +266,18 @@ $_GET = array( 'page' => 'other-plugin' );
 $y6_inline_plugin = $GLOBALS['y6_inline']['wpcap-admin'] ?? '';
 $GLOBALS['y6_inline'] = array();
 PassCaptain\Admin\Menu::admin_styles();
-check( 'WPORG-4: admin CSS via wp_add_inline_style on plugin pages only, no raw <style>', '' === $y6_css_out && false !== strpos( $y6_inline_plugin, 'input[type=checkbox]' ) && array() === $GLOBALS['y6_inline'] );
-Settings::update( array( 'mollie_api_key' => 'test_y6abcdefghijklmnopqrstuvwxyz12' ) );
-PassCaptain\Security\Vault::set_keys_for_tests( random_bytes( 32 ) ); // Key lost: the stored secret cannot be decrypted.
+// Merged: the small menu-heading CSS (wpcap-admin-menu) is added on every admin page (the menu is shown
+// everywhere); the plugin page CSS (wpcap-admin) only on the plugin's pages.
+check( 'WPORG-4: admin CSS via wp_add_inline_style on plugin pages only, no raw <style>', '' === $y6_css_out && false !== strpos( $y6_inline_plugin, 'input[type=checkbox]' ) && ! isset( $GLOBALS['y6_inline']['wpcap-admin'] ) && array() === array_diff( array_keys( $GLOBALS['y6_inline'] ), array( 'wpcap-admin-menu' ) ) );
+// Merged: credentials live in the unified Secrets vault (option wpcap_secrets); its notice for entries that
+// cannot be decrypted (key lost: sealed under an unknown key id) appears on the plugin's own screens only.
+$y6_vault_before = get_option( PassCaptain\Secrets::OPTION, array() );
+update_option( PassCaptain\Secrets::OPTION, array( 'mollie_api_key' => 'v1:0000000000:' . base64_encode( random_bytes( 48 ) ) ), false );
 $_GET = array( 'page' => 'other-plugin' );
-ob_start(); PassCaptain\Security\Vault::render_notices(); $y6_notice_other = ob_get_clean();
+ob_start(); PassCaptain\Secrets::admin_notice(); $y6_notice_other = ob_get_clean();
 $_GET = array( 'page' => 'wpcap-settings' );
-ob_start(); PassCaptain\Security\Vault::render_notices(); $y6_notice_own = ob_get_clean();
+ob_start(); PassCaptain\Secrets::admin_notice(); $y6_notice_own = ob_get_clean();
+update_option( PassCaptain\Secrets::OPTION, $y6_vault_before, false );
 $_GET = $y6_get;
 check( 'WPORG-5: vault notice only on the plugin\'s pages', '' === $y6_notice_other && false !== strpos( $y6_notice_own, 'notice-error' ) );
 Settings::update( array( 'mollie_api_key' => '' ) );

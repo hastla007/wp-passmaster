@@ -208,11 +208,16 @@ remove_action( 'litespeed_purge_url', $wpa446_ls_url, 10 );
 $GLOBALS['wpcap_test_filters']['wpcap_page_cache_adapters'] = array( 'varnish' );
 $wpa446_varnish = static function ( $c ) { return array( 'enabled' => true, 'endpoint' => 'http://127.0.0.1:6081' ) + $c; };
 add_filter( 'wpcap_page_cache_varnish', $wpa446_varnish );
-$wpa446_pre = static function ( $pre, $args, $u ) { return 0 === strpos( $u, 'http://127.0.0.1:6081/' ) ? array( 'response' => array( 'code' => 200 ), 'body' => '', 'headers' => array() ) : $pre; };
+// The merged HTTP stub (tests/integration/payments.php) lets pre_http_request short-circuit before it records a
+// request (like WP_Http), so the purge requests are recorded by this filter itself.
+$reqs = array();
+$wpa446_pre = static function ( $pre, $args, $u ) use ( &$reqs ) {
+	if ( 0 !== strpos( $u, 'http://127.0.0.1:6081/' ) ) { return $pre; }
+	$reqs[] = array( 'method' => strtoupper( $args['method'] ?? 'GET' ), 'url' => $u, 'headers' => $args['headers'] ?? array(), 'args' => $args );
+	return array( 'response' => array( 'code' => 200 ), 'body' => '', 'headers' => array() );
+};
 add_filter( 'pre_http_request', $wpa446_pre, 10, 3 );
-$before = count( $GLOBALS['wpcap_test_http_requests'] ?? array() );
 $ran = PageCache::purge_adapters( $e1, array( 'https://shop.example.com/tickets/?x=1' ), array( 'post_ids' => array( 9101 ) ) );
-$reqs = array_slice( $GLOBALS['wpcap_test_http_requests'] ?? array(), $before );
 check( 'A446 Varnish (opt-in): PURGE to the configured endpoint with the page Host header through the guard ' . json_encode( $reqs ),
 	array( 'varnish' ) === $ran && 1 === count( $reqs ) && 'PURGE' === $reqs[0]['method'] && 'http://127.0.0.1:6081/tickets/?x=1' === $reqs[0]['url'] && 'shop.example.com' === ( $reqs[0]['headers']['Host'] ?? '' ) && 0 === ( $reqs[0]['args']['redirection'] ?? null ) );
 remove_filter( 'wpcap_page_cache_varnish', $wpa446_varnish );

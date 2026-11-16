@@ -30,10 +30,16 @@ check( 'A479: each site gets its own storage key for the scanner queue', 12 === 
 check( 'A479: the user key is the same on every site (users are network-wide; device privacy rule)', $a479_owner1 === $a479_owner2 && $a479_owner1 !== Privacy::scanner_owner( 8 ) );
 check( 'A479: site and user keys contain neither ids nor URL', false === strpos( $a479_site1, 'example' ) && 1 === preg_match( '/^[a-f0-9]+$/', $a479_site1 . $a479_owner1 ) );
 check( 'A479: the scanner script receives the site key', false !== strpos( (string) file_get_contents( dirname( __DIR__, 3 ) . '/src/Privacy.php' ), "'site' => self::scanner_site()" ) && false !== strpos( (string) file_get_contents( dirname( __DIR__, 3 ) . '/assets/scanner.js' ), 'privacy.site' ) );
-$a479_js = array( 'tests/js/scanner.test.js' => 'A472: offline queues of two sites on one origin stay apart', 'tests/js/offline-scanner-sites.test.js' => 'A473: each site of the network gets its own store and pairing' );
+// After the merge the Arbeitsliste scanner tests live in tests/js/scanner-arbeitsliste.test.js (tests/js/scanner.test.js
+// is the audit line's suite); either file may carry the A472 test once the JS suites are consolidated.
+$a479_js = array( 'tests/js/scanner-arbeitsliste.test.js|tests/js/scanner.test.js' => 'A472: offline queues of two sites on one origin stay apart', 'tests/js/offline-scanner-sites.test.js' => 'A473: each site of the network gets its own store and pairing' );
 $a479_missing = array();
-foreach ( $a479_js as $a479_file => $a479_name ) {
-	if ( false === strpos( (string) @file_get_contents( dirname( __DIR__, 3 ) . '/' . $a479_file ), $a479_name ) ) { $a479_missing[] = $a479_file; }
+foreach ( $a479_js as $a479_files => $a479_name ) {
+	$a479_found = false;
+	foreach ( explode( '|', $a479_files ) as $a479_file ) {
+		if ( false !== strpos( (string) @file_get_contents( dirname( __DIR__, 3 ) . '/' . $a479_file ), $a479_name ) ) { $a479_found = true; }
+	}
+	if ( ! $a479_found ) { $a479_missing[] = $a479_files; }
 }
 check( 'A479: the cross-site browser storage tests exist (npm run test:js)' . ( $a479_missing ? ' – missing ' . implode( ', ', $a479_missing ) : '' ), ! $a479_missing );
 $GLOBALS['wpcap_test_multisite'] = false;

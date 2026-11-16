@@ -376,6 +376,12 @@ final class Refunds {
 		}
 		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
 		$provider_reference = 'manual';
+		if ( ! $gateway && in_array( (string) $order->payment_provider, array( 'stripe', 'paypal', 'mollie' ), true ) && (int) $refund['amount_minor'] > 0 ) {
+			// The online provider of the order is not available (e.g. the Mollie module was switched off): never
+			// book the refund as a manual payout – the money would be recorded as returned without moving.
+			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => 'gateway_unavailable', 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
+			return new \WP_Error( 'wpcap_refund_gateway_unavailable', __( 'Der Zahlungsanbieter dieser Bestellung ist nicht verfügbar; die Erstattung wurde nicht ausgeführt.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
 			// A final decline moved earlier attempts to a new idempotency key (provider_key()).
 			$attempt = (int) ( $refund['provider_attempt'] ?? 0 );
@@ -1052,7 +1058,9 @@ final class Refunds {
 			return 'nothing';
 		}
 		$total = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=GREATEST(0,CAST(refunded_minor AS SIGNED)-%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], $now, (int) $refund['order_id'] ) );
-		if ( false === $total || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) { return self::busy(); }
+		// The money is (partly) with the seller again: a "refunded" order is paid again (R5-8, both reversal paths).
+		$state = false === $total ? false : $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET status='complete',payment_status='paid' WHERE order_id=%d AND status='refunded' AND refunded_minor<total_minor", (int) $refund['order_id'] ) );
+		if ( false === $state || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) { return self::busy(); }
 		$credit = Invoices::reverse_credit_note( $refund_id );
 		Audit::record( 'refund_reversed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'credit_note_reversal' => is_array( $credit ) ? (string) $credit['reversal_number'] : '', 'source' => sanitize_key( $source ) ) );
 		/**

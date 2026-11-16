@@ -41,7 +41,8 @@ $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'form_key_hash' => hash( 'sha
 $rest = PassCaptain\Rest\Controller::pos_sale( $req );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'A637: without the event scope a replayed key is refused (403)', is_wp_error( $replay ) && 'wpcap_forbidden' === $replay->get_error_code() && 403 === ( $replay->get_error_data()['status'] ?? 0 ) );
-check( 'A637: the same through the deprecated POST /pos/sales route', is_wp_error( $rest ) && 'wpcap_forbidden' === $rest->get_error_code() );
+// Merged: the REST route checks the event scope itself before the box office sale (wpcap_pos_forbidden, 403).
+check( 'A637: the same through the deprecated POST /pos/sales route', is_wp_error( $rest ) && in_array( $rest->get_error_code(), array( 'wpcap_forbidden', 'wpcap_pos_forbidden' ), true ) && 403 === ( $rest->get_error_data()['status'] ?? 0 ) );
 $admin = PassCaptain\Rest\Controller::pos_sale( $req );
 check( 'A637: with full access the replay still works', ! is_wp_error( $admin ) && 200 === $admin->get_status() );
 

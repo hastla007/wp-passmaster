@@ -481,6 +481,12 @@ final class Webhooks {
 			$marked = Orders::mark_refunded( $order_id, $reason );
 			return is_wp_error( $marked ) ? $marked : 'refunded';
 		}
+		if ( 0 === $remaining && 'refunded' === $order->status && $chargeback && '' !== $reference ) {
+			// The same dispute again (funds_withdrawn, then closed as lost: same dispute id): booked once already.
+			$same = $wpdb->get_var( $wpdb->prepare( "SELECT refund_id FROM %i WHERE order_id=%d AND provider_reference IN (%s,%s) AND status='completed' LIMIT 1", $p . 'wpcap_refunds', $order_id, $reference, 'ext:' . sanitize_key( $provider ) . ':' . $reference ) );
+			if ( self::db_failed() ) { return self::db_error( $provider, $event_id, 'chargeback_lookup' ); }
+			if ( $same ) { return 'refunded'; }
+		}
 		if ( 0 === $remaining && 'refunded' === $order->status && $chargeback ) {
 			// Money pulled back a second time after the order was refunded in full: dispute the chargeback.
 			Audit::record( 'chargeback_after_refund', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => $amount ) );

@@ -157,14 +157,18 @@ $y8_long = y8_email( 191 );
 $y8_max = y8_email( 190, 'max' );
 $y8_o1 = Y8Orders::create( array( 'email' => $y8_long, 'items' => array( array( 'ticket_type_id' => $y8_type, 'quantity' => 1 ) ), 'idempotency_key' => 'y8-long-' . uniqid() ) );
 $y8_o2 = Y8Orders::create( array( 'email' => $y8_max, 'items' => array( array( 'ticket_type_id' => $y8_type, 'quantity' => 1 ) ), 'idempotency_key' => 'y8-max-' . uniqid() ) );
-check( 'QA-9: buyer e-mail of 191 characters is 400 with field "email"; 190 characters still work', 191 === strlen( $y8_long ) && false !== is_email( $y8_long ) && is_wp_error( $y8_o1 ) && 'wpcap_email_too_long' === $y8_o1->get_error_code() && 400 === $y8_o1->get_error_data()['status'] && 'email' === $y8_o1->get_error_data()['field'] && 190 === strlen( $y8_max ) && is_array( $y8_o2 ) && $y8_max === $wpdb->get_var( $wpdb->prepare( 'SELECT customer_email FROM %i WHERE order_id=%d', $p . 'wpcap_orders', $y8_o2['order_id'] ) ) );
+check( 'QA-9: buyer e-mail of 191 characters is 400 with field "email"; 190 characters still work', 191 === strlen( $y8_long ) && false !== is_email( $y8_long ) && is_wp_error( $y8_o1 ) && 'email_too_long' === ( $y8_o1->get_error_data()['reason'] ?? '' ) && 400 === $y8_o1->get_error_data()['status'] && 'email' === $y8_o1->get_error_data()['field'] && 190 === strlen( $y8_max ) && is_array( $y8_o2 ) && $y8_max === $wpdb->get_var( $wpdb->prepare( 'SELECT customer_email FROM %i WHERE order_id=%d', $p . 'wpcap_orders', $y8_o2['order_id'] ) ) );
 $y8_o3 = Y8Orders::create( array( 'email' => 'y8-att@example.com', 'items' => array( array( 'ticket_type_id' => $y8_type, 'quantity' => 1 ) ), 'attendees' => array( array( 'ticket_type_id' => $y8_type, 'name' => 'Lang', 'email' => y8_email( 200, 'guest' ) ) ), 'idempotency_key' => 'y8-att-' . uniqid() ) );
-check( 'QA-9: attendee e-mail over 190 characters is refused at checkout with field "attendees.email"', is_wp_error( $y8_o3 ) && 'wpcap_email_too_long' === $y8_o3->get_error_code() && 'attendees.email' === $y8_o3->get_error_data()['field'] );
+// Merged error contract: the generic checkout/attendee/transfer codes carry reason email_too_long (and the field or position).
+check( 'QA-9: attendee e-mail over 190 characters is refused at checkout with field "attendees.email"', is_wp_error( $y8_o3 ) && 'wpcap_attendees_invalid' === $y8_o3->get_error_code() && 'email_too_long' === ( $y8_o3->get_error_data()['reason'] ?? '' ) && 0 === ( $y8_o3->get_error_data()['position'] ?? null ) );
 $y8_t = Y8Orders::transfer_ticket( str_repeat( 'a', 32 ), str_repeat( 'b', 64 ), str_repeat( 'c', 32 ), y8_email( 195, 'friend' ) );
-check( 'QA-9: ticket transfer to an over-long address is refused with field "recipient_email"', is_wp_error( $y8_t ) && 'wpcap_email_too_long' === $y8_t->get_error_code() && 'recipient_email' === $y8_t->get_error_data()['field'] );
+check( 'QA-9: ticket transfer to an over-long address is refused with field "recipient_email"', is_wp_error( $y8_t ) && 'email_too_long' === ( $y8_t->get_error_data()['reason'] ?? '' ) && 'recipient_email' === $y8_t->get_error_data()['field'] );
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Y8 QA-V2: checkout rate limit with a persistent object cache\n";
+// The suite pins the backend to "transient" (bootstrap); this section tests the default selection.
+$y8_rl_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+unset( $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] );
 $GLOBALS['y8_ext_cache'] = true;
 $GLOBALS['y8_cache'] = array();
 wpcap_test_reset_transients();
@@ -179,6 +183,7 @@ check( 'QA-V2: checkout counts in the object cache (not a read-then-write transi
 $GLOBALS['y8_ext_cache'] = false;
 wpcap_test_reset_transients();
 check( 'without an object cache the counter table limits (no transient written)', Y8RateLimit::hit( 'y8_fb', 1, 60 ) && ! Y8RateLimit::hit( 'y8_fb', 1, 60 ) && ! isset( $GLOBALS['wpcap_test_transients']['y8_fb'] ) && 2 === Y8RateLimit::count( 'y8_fb' ) );
+if ( null !== $y8_rl_backend ) { $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $y8_rl_backend; }
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Y8 QA-V3/QA-V4: lock names and uninstall\n";
@@ -187,4 +192,4 @@ $y8_names = Y8BuyerLimits::lock_names( 'Käufer@Example.com', 7 );
 check( 'QA-V3: buyer lock names include table prefix and database (like the upgrade lock), max. 64 characters', $y8_scope === Y8Installer::lock_scope() && 'wpcap_upgrade_' . $y8_scope === Y8Installer::lock_name() && 2 === count( $y8_names ) && array() === array_filter( $y8_names, static fn( $n ) => false === strpos( $n, $y8_scope ) || strlen( $n ) > 64 ) );
 $y8_out = shell_exec( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( dirname( __DIR__ ) . '/workers/y8_uninstall_child.php' ) . ' 2>&1' );
 $y8_calls = json_decode( trim( (string) $y8_out ), true );
-check( 'QA-V4: uninstall unschedules the Action Scheduler group wp-pass-captain (also when data is kept)', is_array( $y8_calls ) && in_array( 'as:|wp-pass-captain', $y8_calls, true ) && in_array( 'cron:wpcap_process_jobs', $y8_calls, true ) );
+check( 'QA-V4: uninstall unschedules the Action Scheduler group wp-pass-captain (also when data is kept)', is_array( $y8_calls ) && in_array( 'as:|wp-pass-captain', $y8_calls, true ) && in_array( 'as:|pass-captain', $y8_calls, true ) && in_array( 'cron:wpcap_process_jobs', $y8_calls, true ) );

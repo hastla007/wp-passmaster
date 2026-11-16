@@ -61,5 +61,6 @@ $wpdb->update( "{$p}wpcap_orders", array( 'access_pending_hash' => hash( 'sha256
 Orders::clear_pending_link( $x1_oid );
 check( 'A631: clear_pending_link() (anonymisation) drops a pending link', '' === (string) $x1_row()->access_pending_hash && null === $x1_row()->access_pending_expires_at );
 $x1_src = (string) file_get_contents( WPCAP_PATH . 'src/Privacy.php' ) . (string) file_get_contents( WPCAP_PATH . 'src/Privacy/Retention.php' );
-check( 'A631: the eraser and the retention anonymisation clear pending links', 3 === substr_count( $x1_src, 'Orders::clear_pending_link(' ) );
+// Merged: every anonymisation that replaces the access token (eraser + each retention path) also clears the pending link.
+check( 'A631: the eraser and the retention anonymisation clear pending links', substr_count( $x1_src, 'Orders::clear_pending_link(' ) >= 3 && substr_count( $x1_src, 'Orders::clear_pending_link(' ) === substr_count( $x1_src, "'access_token_hash' =>" ) );
 $GLOBALS['wpcap_test_transients'] = array();

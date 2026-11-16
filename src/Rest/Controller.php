@@ -1258,6 +1258,9 @@ final class Controller {
 	public static function save_tax_profile( \WP_REST_Request $request ) {
 		$data = (array) $request->get_json_params();
 		unset( $data['tax_profile_id'] ); // Creates only; drafts are edited in the admin.
+		if ( ! isset( $data['rate_basis_points'] ) && isset( $data['rate'] ) && is_scalar( $data['rate'] ) && preg_match( '/^(\d{1,3})(?:[.,](\d{1,2}))?$/', trim( (string) $data['rate'] ), $m ) ) {
+			$data['rate_basis_points'] = (int) $m[1] * 100 + (int) str_pad( $m[2] ?? '', 2, '0' ); // "rate" in percent (documented alias).
+		}
 		$id = \PassCaptain\Tax\Profiles::save_draft( $data );
 		if ( is_wp_error( $id ) ) { return $id; }
 		return new \WP_REST_Response( array( 'tax_profile_id' => (int) $id, 'status' => 'draft', 'requires_review' => true ), 201 );
@@ -1269,7 +1272,14 @@ final class Controller {
 	}
 
 	public static function create_service_slot( \WP_REST_Request $request ) {
-		$id = ServiceBookings::create_slot( absint( $request['resource_id'] ), (array) $request->get_json_params() );
+		$payload = (array) $request->get_json_params();
+		// Strict: "Y-m-d H:i:s" (UTC) or ISO 8601 with offset; no strtotime() guessing ("tomorrow", server time zone).
+		foreach ( array( 'starts_at', 'ends_at' ) as $field ) {
+			$utc = \PassCaptain\DateInput::utc( $payload[ $field ] ?? null, $field );
+			if ( is_wp_error( $utc ) ) { return $utc; }
+			if ( null !== $utc ) { $payload[ $field ] = $utc; }
+		}
+		$id = ServiceBookings::create_slot( absint( $request['resource_id'] ), $payload );
 		return is_wp_error( $id ) ? $id : new \WP_REST_Response( array( 'slot_id' => (int) $id ), 201 );
 	}
 
