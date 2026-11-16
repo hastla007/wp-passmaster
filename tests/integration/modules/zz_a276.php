@@ -24,13 +24,18 @@ $wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $a276_event, 'start
 $a276_occ = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $a276_occ, 'name' => 'Orchestra', 'price_minor' => 0, 'currency' => 'EUR', 'capacity' => 5, 'max_per_order' => 5, 'status' => 'active' ) );
 $a276_type = (int) $wpdb->insert_id;
-$a276_order = Orders::create( array( 'email' => 'a276@example.com', 'items' => array( array( 'ticket_type_id' => $a276_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a276-1' ) );
+$a276_product = new WC_Product( 92760 );
+$a276_product->update_meta_data( A276Woo::PRODUCT_META, $a276_type );
+$GLOBALS['wpcap_test_products'][92760] = $a276_product;
 $a276_wc = new WC_Order( 92760 );
-$a276_wc->update_meta_data( A276Woo::ORDER_META, is_wp_error( $a276_order ) ? 0 : $a276_order['order_id'] );
+$a276_wc->items[] = new WC_Order_Item_Product( 92760, $a276_product, 1, '0.00', '0' );
+$a276_core = A276Woo::reserve( $a276_wc );
+A276Woo::sync_paid_order( 92760 );
 ob_start();
 A276Woo::render_customer_tickets( $a276_wc );
 $a276_html = (string) ob_get_clean();
 check( 'A276 the ticket table shows the local start time with its time zone', false !== strpos( $a276_html, "11.12.$a276_year 19:30 America/New_York" ) );
 check( 'A276 the site-time (UTC) start is not shown', false === strpos( $a276_html, "12.12.$a276_year 00:30" ) );
-if ( ! is_wp_error( $a276_order ) ) { Orders::cancel_order( $a276_order['order_id'], 'a276_cleanup' ); }
+check( 'A276 fixture: tickets issued for the WooCommerce order', is_int( $a276_core ) && 1 === count( Orders::tickets_for_order( $a276_core ) ) );
+if ( is_int( $a276_core ) ) { Orders::cancel_order( $a276_core, 'a276_cleanup' ); }
 $wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'a276_done' ), array( 'occurrence_id' => $a276_occ ) );

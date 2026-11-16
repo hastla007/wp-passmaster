@@ -78,9 +78,7 @@ final class Privacy {
 
 	/** WooCommerce order linked to a Pass Captain order (null when none or WooCommerce is missing). */
 	public static function wc_order_for_core( $core_order_id ) {
-		if ( ! function_exists( 'wc_get_orders' ) || ! absint( $core_order_id ) ) { return null; }
-		$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => OrderAdapter::ORDER_META, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-		return $orders ? $orders[0] : null;
+		return OrderAdapter::wc_order_for_core( $core_order_id ); // Verified back reference (A284).
 	}
 
 	/** wpcap_privacy_order_anonymized: the plugin eraser anonymised a (WooCommerce) order. */

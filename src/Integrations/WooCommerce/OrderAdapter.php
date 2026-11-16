@@ -457,7 +457,12 @@ final class OrderAdapter {
 		if ( ! $lines ) {
 			return null;
 		}
-		$existing = absint( $wc_order->get_meta( self::ORDER_META, true ) );
+		$existing = self::linked_core_id( $wc_order );
+		if ( ! $existing && $wc_order->get_meta( self::ORDER_META, true ) ) {
+			// A284: the stored link points to a Pass Captain order of another WooCommerce order (e.g.
+			// after uninstalling with data removal and reinstalling, the IDs start again): never touch it.
+			$wc_order->delete_meta_data( self::ORDER_META );
+		}
 		if ( $existing ) {
 			$core = Orders::get( $existing );
 			if ( $core && 'paid' === $core->payment_status ) {
@@ -637,7 +642,7 @@ final class OrderAdapter {
 		if ( ! $wc_order ) {
 			return null;
 		}
-		$core_id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
+		$core_id = self::linked_core_id( $wc_order );
 		if ( ! $core_id ) {
 			// Orders created in the admin or before the adapter was active have no hold yet.
 			$core_id = self::reserve( $wc_order );
@@ -1055,9 +1060,9 @@ final class OrderAdapter {
 	/** Adds a note to the WooCommerce order when one of its occurrences was cancelled. */
 	public static function note_cancelled_occurrence( $core_order_id, $occurrence_id ) {
 		if ( ! function_exists( 'wc_get_orders' ) ) { return; }
-		$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => self::ORDER_META, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-		if ( $orders ) {
-			$orders[0]->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'pass-captain' ) );
+		$wc_order = self::wc_order_for_core( $core_order_id );
+		if ( $wc_order ) {
+			$wc_order->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'pass-captain' ) );
 		}
 	}
 
@@ -1065,8 +1070,7 @@ final class OrderAdapter {
 	/** wpcap_exchange_refund_external: note on the WooCommerce order which difference to refund there. */
 	public static function note_exchange_refund( $exchange_id, $core_order_id, $amount_minor, $currency ) {
 		if ( ! function_exists( 'wc_get_orders' ) ) { return false; }
-		$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => self::ORDER_META, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-		$wc_order = $orders ? $orders[0] : null;
+		$wc_order = self::wc_order_for_core( $core_order_id );
 		if ( ! $wc_order ) { return false; }
 		/* translators: 1: amount, 2: currency, 3: exchange id */
 		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Ticket umgetauscht (Umtausch #%3$d). Bitte die Differenz von %1$s %2$s hier in WooCommerce erstatten (Erstattung ohne Ticketauswahl).', 'pass-captain' ), \PassCaptain\Money::number( absint( $amount_minor ), (string) $currency ), (string) $currency, absint( $exchange_id ) ) );
@@ -1075,7 +1079,53 @@ final class OrderAdapter {
 
 	private static function core_order_id( $wc_order_id ) {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
-		return $wc_order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;
+		return $wc_order ? self::linked_core_id( $wc_order ) : 0;
+	}
+
+	/**
+	 * Pass Captain order linked to a WooCommerce order – only when that order really was created for it
+	 * (A284). The link (meta _wpcap_core_order_id) survives an uninstall with data removal; after a
+	 * reinstall the IDs start again and an old WooCommerce order would point to a new, unrelated order
+	 * (cancel/refund/notes on the wrong order). The core order's idempotency key is the keyed hash of
+	 * "<WooCommerce order id>-<attempt>" (reserve()), so it proves the back reference without a schema change.
+	 *
+	 * @param \WC_Order|object $wc_order WooCommerce order.
+	 * @return int Core order ID or 0.
+	 */
+	public static function linked_core_id( $wc_order ) {
+		if ( ! is_object( $wc_order ) || ! method_exists( $wc_order, 'get_meta' ) ) { return 0; }
+		$core_id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
+		if ( ! $core_id ) { return 0; }
+		$core = Orders::get( $core_id );
+		return $core && self::belongs_to( $core, $wc_order ) ? $core_id : 0;
+	}
+
+	/** Whether the core order was created by reserve() for this WooCommerce order (any attempt). */
+	private static function belongs_to( $core, $wc_order ) {
+		$key      = (string) ( $core->idempotency_key ?? '' );
+		$wc_id    = (int) $wc_order->get_id();
+		$attempts = max( 1, absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) );
+		if ( '' === $key || $wc_id <= 0 ) { return false; }
+		for ( $attempt = $attempts; $attempt >= 1 && $attempt > $attempts - 50; $attempt-- ) {
+			if ( hash_equals( $key, hash_hmac( 'sha256', $wc_id . '-' . $attempt, 'wpcap-channel-woocommerce' ) ) ) { return true; }
+		}
+		return false;
+	}
+
+	/**
+	 * WooCommerce order linked to a Pass Captain order (null when none, WooCommerce is missing or only
+	 * stale links from before a reinstall point to it, A284).
+	 */
+	public static function wc_order_for_core( $core_order_id ) {
+		$core_order_id = absint( $core_order_id );
+		if ( ! $core_order_id || ! function_exists( 'wc_get_orders' ) ) { return null; }
+		$core = Orders::get( $core_order_id );
+		if ( ! $core ) { return null; }
+		$orders = wc_get_orders( array( 'limit' => 20, 'meta_key' => self::ORDER_META, 'meta_value' => $core_order_id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+		foreach ( (array) $orders as $wc_order ) {
+			if ( is_object( $wc_order ) && self::belongs_to( $core, $wc_order ) ) { return $wc_order; }
+		}
+		return null;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -1084,7 +1134,7 @@ final class OrderAdapter {
 
 	/** Lists tickets on the thank-you page and in "My Account → Orders". */
 	public static function render_customer_tickets( $wc_order ) {
-		$core_id = $wc_order instanceof \WC_Order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;
+		$core_id = $wc_order instanceof \WC_Order ? self::linked_core_id( $wc_order ) : 0;
 		if ( ! $core_id ) {
 			return;
 		}
@@ -1113,7 +1163,7 @@ final class OrderAdapter {
 	/** Renders the admin meta box. */
 	public static function render_meta_box( $post_or_order ) {
 		$wc_order = $post_or_order instanceof \WC_Order ? $post_or_order : wc_get_order( $post_or_order->ID ?? 0 );
-		$core_id  = $wc_order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;
+		$core_id  = $wc_order ? self::linked_core_id( $wc_order ) : 0;
 		if ( ! $core_id ) {
 			echo '<p>' . esc_html__( 'Keine Tickets in dieser Bestellung.', 'pass-captain' ) . '</p>';
 			return;
@@ -1134,7 +1184,7 @@ final class OrderAdapter {
 
 	/** Adds order actions. */
 	public static function order_actions( $actions, $wc_order = null ) {
-		if ( $wc_order instanceof \WC_Order && $wc_order->get_meta( self::ORDER_META, true ) && current_user_can( 'wpcap_manage_orders' ) ) {
+		if ( $wc_order instanceof \WC_Order && self::linked_core_id( $wc_order ) && current_user_can( 'wpcap_manage_orders' ) ) {
 			$actions['wpcap_resend_tickets'] = __( 'Pass Captain: Tickets erneut senden (neue Codes, ohne übertragene Tickets)', 'pass-captain' );
 			$actions['wpcap_retry_tickets']  = __( 'Pass Captain: Tickets erneut ausstellen', 'pass-captain' );
 		}
@@ -1147,7 +1197,9 @@ final class OrderAdapter {
 			return;
 		}
 		// A335: tickets passed on to another person keep their code (single tickets: "Neu ausstellen").
-		$result = Orders::resend_tickets( absint( $wc_order->get_meta( self::ORDER_META, true ) ), array( 'skip_transferred' => true ) );
+		$core_id = self::linked_core_id( $wc_order );
+		if ( ! $core_id ) { return; }
+		$result = Orders::resend_tickets( $core_id, array( 'skip_transferred' => true ) );
 		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet (übertragene Tickets behalten ihren Code).', 'pass-captain' ) );
 	}
 

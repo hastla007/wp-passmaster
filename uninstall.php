@@ -34,6 +34,12 @@ function wpcap_uninstall_site() {
 		$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $table ) . '`' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from SHOW TABLES for our own prefix.
 	}
 	wpcap_uninstall_options();
+	// A284: links on WooCommerce orders/lines/products (WooCommerce CRUD, only while WooCommerce is active).
+	// Otherwise a reinstall would start the IDs again and old orders would point to new, unrelated ones.
+	if ( function_exists( 'wc_get_orders' ) ) {
+		require_once __DIR__ . '/src/Integrations/WooCommerce/MetaCleanup.php';
+		PassCaptain\Integrations\WooCommerce\MetaCleanup::purge();
+	}
 	foreach ( array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_service_provider', 'wpcap_finance', 'wpcap_support' ) as $role ) {
 		remove_role( $role );
 	}

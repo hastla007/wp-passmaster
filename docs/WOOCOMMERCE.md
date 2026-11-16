@@ -98,3 +98,12 @@ wp --path=/pfad/zu/wordpress eval-file tests/wp-matrix/woocommerce-smoke.php
 ```
 
 Reihenfolge- und Mehrfachfälle aller Statuswechsel: [STATE-MACHINES.md](STATE-MACHINES.md).
+
+## Verknüpfung prüfen (A284)
+
+Die WooCommerce-Bestellung speichert die Pass-Captain-Bestellnummer (`_wpcap_core_order_id`). Diese Verknüpfung
+wird bei jeder Verwendung gegengeprüft (`OrderAdapter::linked_core_id()` / `wc_order_for_core()`): Der
+Idempotenzschlüssel der Pass-Captain-Bestellung muss aus der WooCommerce-Bestellnummer und einem Checkout-Versuch
+entstanden sein. Zeigt eine Bestellung auf eine fremde Bestellung (etwa nach Deinstallation mit Datenlöschung und
+Neuinstallation, wenn die Nummern neu beginnen), wird die Verknüpfung ignoriert und beim nächsten Checkout/Zahlungseingang
+ersetzt; die fremde Bestellung wird weder storniert noch erstattet.

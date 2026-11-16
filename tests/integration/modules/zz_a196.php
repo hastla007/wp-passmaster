@@ -34,6 +34,10 @@ if ( ! function_exists( 'wc_get_orders' ) ) {
 		$out = array();
 		foreach ( $GLOBALS['wpcap_test_orders'] ?? array() as $order ) {
 			if ( isset( $args['meta_key'] ) && (string) $order->get_meta( $args['meta_key'], true ) !== (string) ( $args['meta_value'] ?? '' ) ) { continue; }
+			// meta_query with EXISTS clauses (MetaCleanup, A284).
+			foreach ( (array) ( $args['meta_query'] ?? array() ) as $clause ) {
+				if ( is_array( $clause ) && 'EXISTS' === ( $clause['compare'] ?? '' ) && '' === (string) $order->get_meta( $clause['key'], true ) ) { continue 2; }
+			}
 			$out[] = $order;
 			if ( count( $out ) >= (int) ( $args['limit'] ?? 10 ) ) { break; }
 		}
