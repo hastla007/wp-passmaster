@@ -427,27 +427,27 @@ final class Service {
 		$used = 0;
 		foreach ( (array) ( $mail['attachments'] ?? array() ) as $file ) { $used += is_string( $file ) && is_file( $file ) ? (int) filesize( $file ) : 0; }
 		$budget = \PassCaptain\Orders::attachment_budget( $order );
+		// The mail's language (order locale) for the wallet section.
+		$locale = is_object( $order ) ? (string) ( $order->locale ?? '' ) : '';
 		foreach ( $issued as $entry ) {
 			if ( empty( $entry['ticket_id'] ) || empty( $entry['token'] ) ) { continue; }
 			try {
 				$passes = self::issue( (int) $entry['ticket_id'], (string) $entry['token'], $inline );
 			} catch ( \Throwable $e ) {
 				self::log( 'issue_failed', $e->getMessage() );
-				return $mail;
+				continue;
 			}
 			$any = $any || (bool) $passes;
 			if ( ! $inline ) { continue; }
 			// Within the attachment budget the .pkpass is attached, otherwise linked (A580).
 			$allow = $used + strlen( (string) ( $passes['apple']['bundle'] ?? '' ) ) <= $budget;
-			list( $part, $files ) = self::mail_parts( $passes, array( $entry['event'] ?? '', $entry['ticket'] ?? '' ), $allow );
+			list( $part, $files ) = Mailer::with_locale( $locale, static function () use ( $passes, $entry, $allow ) { return self::mail_parts( $passes, array( $entry['event'] ?? '', $entry['ticket'] ?? '' ), $allow ); } );
 			foreach ( $files as $file ) { $used += (int) filesize( $file ); }
 			$text .= $part;
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), $files );
-			if ( '' !== $part ) { $mail['body'] = (string) $mail['body'] . "\n" . Mailer::with_locale( $locale, static function () { return __( 'Wallet', 'pass-captain' ); } ) . "\n" . $part; }
-			return $mail;
 		}
-		if ( ! $inline && $any ) { $text = self::order_links_text( $order ); }
-		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . __( 'Wallet', 'pass-captain' ) . "\n" . $text; }
+		if ( ! $inline && $any ) { $text = Mailer::with_locale( $locale, static function () use ( $order ) { return self::order_links_text( $order ); } ); }
+		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . Mailer::with_locale( $locale, static function () { return __( 'Wallet', 'pass-captain' ); } ) . "\n" . $text; }
 		return $mail;
 	}
 

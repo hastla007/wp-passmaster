@@ -28,7 +28,8 @@ final class X2U_WPDB {
 	public function prepare( $sql, ...$args ) {
 		if ( isset( $args[0] ) && is_array( $args[0] ) ) { $args = $args[0]; }
 		$i = 0;
-		return preg_replace_callback( '/%[sd]/', function ( $m ) use ( &$i, $args ) { $v = $args[ $i++ ] ?? ''; return '%d' === $m[0] ? (string) (int) $v : "'" . $this->db->real_escape_string( (string) $v ) . "'"; }, $sql );
+		// %i (identifier, WordPress 6.2+) as used by uninstall.php: backtick-quoted.
+		return preg_replace_callback( '/%[sdi]/', function ( $m ) use ( &$i, $args ) { $v = $args[ $i++ ] ?? ''; if ( '%i' === $m[0] ) { return '`' . str_replace( '`', '``', (string) $v ) . '`'; } return '%d' === $m[0] ? (string) (int) $v : "'" . $this->db->real_escape_string( (string) $v ) . "'"; }, $sql );
 	}
 	public function query( $sql ) { $r = $this->db->query( $sql ); return $r instanceof mysqli_result ? $r->num_rows : ( $r ? $this->db->affected_rows : false ); }
 	public function get_col( $sql ) { $r = $this->db->query( $sql ); $o = array(); if ( $r instanceof mysqli_result ) { while ( $row = $r->fetch_row() ) { $o[] = $row[0]; } } return $o; }
