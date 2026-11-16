@@ -179,7 +179,7 @@ check( 'Redact::exception has no trace and no secret', array() === a194_found( $
 echo "A194: payment provider errors\n";
 $a194_type = make_type( 500, 10, 2500 );
 $a194_settings_providers = (array) Settings::get( 'enabled_providers' );
-Settings::update( array( 'enabled_providers' => array( 'manual', 'stripe', 'paypal' ), 'paypal_mode' => 'sandbox', 'paypal_client_id' => 'client-a194', 'paypal_webhook_id' => 'WH-A194' ) );
+Settings::update( array( 'enabled_providers' => array( 'manual', 'stripe', 'paypal' ), 'stripe_mode' => 'live', 'paypal_mode' => 'sandbox', 'paypal_client_id' => 'client-a194', 'paypal_webhook_id' => 'WH-A194' ) );
 $a194_outputs = array();
 $a194_checkout = static function ( $provider, $key ) use ( $a194_type ) {
 	return a194_rest( '/checkout', 'POST', array(), array( 'email' => $GLOBALS['a194_buyer'], 'items' => array( array( 'ticket_type_id' => $a194_type, 'quantity' => 1 ) ), 'provider' => $provider, 'idempotency_key' => $key, 'accept_terms' => true ) );
@@ -491,3 +491,5 @@ ini_set( 'log_errors', (string) $a194_log_ini['log_errors'] );
 $a194_done = true;
 @unlink( $a194_log );
 unset( $GLOBALS['wpcap_test_routes']['pass-captain/v1/a194-boom'] );
+// A274: the live key above needed "live"; later modules use test keys.
+Settings::update( array( 'stripe_mode' => 'test' ) );

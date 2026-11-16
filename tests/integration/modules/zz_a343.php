@@ -44,7 +44,8 @@ wpcap_test_faults_clear();
 // The process died before (or the enqueue of) the retry job: nothing is queued any more.
 $wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type='ticket_issue_retry'" );
 check( 'A343: setup – paid, no tickets, no job', 'paid' === Orders::get( $a343_m['order_id'] )->payment_status && ! tickets( $a343_m['order_id'] ) && 0 === $a343_jobs( $a343_m['order_id'] ) );
-check( 'A343: within the grace period nothing is swept', 0 === Orders::sweep_unissued() );
+Orders::sweep_unissued( 1000 ); // Other modules may leave recent paid orders without tickets behind.
+check( 'A343: within the grace period nothing is swept', 0 === $a343_jobs( $a343_m['order_id'] ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET updated_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 20 * MINUTE_IN_SECONDS ), $a343_m['order_id'] ) );
 $a343_old = Orders::create( array( 'email' => 'a343-old@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 10, 10, 1500 ), 'quantity' => 1 ) ), 'idempotency_key' => 'a343-old' ) );
 wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( 'rollback' => true ) );
@@ -53,8 +54,8 @@ wpcap_test_faults_clear();
 $wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type='ticket_issue_retry'" );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET updated_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ), $a343_old['order_id'] ) );
 check( 'A343: the hourly cron runs the sweep', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Plugin.php' ), "add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'sweep_unissued' )" ) );
-$a343_swept = Orders::sweep_unissued();
-check( 'A343: the sweep queues one retry job for the recent order only', 1 === $a343_swept && 1 === $a343_jobs( $a343_m['order_id'] ) && 0 === $a343_jobs( $a343_old['order_id'] ) && (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='ticket_issue_swept' AND object_id=%d", $a343_m['order_id'] ) ) > 0 );
+$a343_swept = Orders::sweep_unissued( 1000 );
+check( 'A343: the sweep queues one retry job for the recent order only', $a343_swept >= 1 && 1 === $a343_jobs( $a343_m['order_id'] ) && 0 === $a343_jobs( $a343_old['order_id'] ) && (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='ticket_issue_swept' AND object_id=%d", $a343_m['order_id'] ) ) > 0 );
 check( 'A343: a second sweep queues nothing more', 0 === Orders::sweep_unissued() && 1 === $a343_jobs( $a343_m['order_id'] ) );
 $wpdb->query( "UPDATE {$p}wpcap_jobs SET run_after='2000-01-01 00:00:00' WHERE job_type='ticket_issue_retry'" );
 $a343_handler = array( Orders::class, 'handle_job' );
