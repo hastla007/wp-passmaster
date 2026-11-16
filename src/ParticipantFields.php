@@ -25,7 +25,7 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class ParticipantFields {
-	const TYPES = array( 'text', 'email', 'textarea', 'checkbox', 'select', 'multiselect', 'tel', 'date', 'number' );
+	const TYPES = array( 'text', 'email', 'textarea', 'checkbox', 'select', 'multiselect', 'tel', 'date', 'number', 'radio', 'consent' ); // radio/consent: field types of the audit line (Orders::validate_attendees() checks them).
 	const CHOICE_TYPES = array( 'select', 'multiselect' );
 	const SCOPES = array( 'ticket', 'order' );
 	const MAX_OPTIONS = 50;
@@ -78,6 +78,8 @@ final class ParticipantFields {
 	public static function options( $field ) {
 		$raw = is_object( $field ) ? ( $field->options ?? '' ) : ( $field['options'] ?? '' );
 		$list = is_array( $raw ) ? $raw : json_decode( (string) $raw, true );
+		// Radio buttons (audit line) store their choices one per line.
+		if ( ! is_array( $list ) && '' !== trim( (string) $raw ) ) { $list = array_map( 'trim', preg_split( '/\r\n|\r|\n/', (string) $raw ) ); }
 		return is_array( $list ) ? array_values( array_filter( array_map( 'strval', $list ), 'strlen' ) ) : array();
 	}
 
@@ -220,7 +222,7 @@ final class ParticipantFields {
 			'help' => (string) ( $row['help_text'] ?? '' ),
 			'scope' => self::scope( $row ),
 		);
-		if ( in_array( $type, self::CHOICE_TYPES, true ) ) { $out['options'] = self::options( $row ); }
+		if ( in_array( $type, self::CHOICE_TYPES, true ) || 'radio' === $type ) { $out['options'] = self::options( $row ); }
 		return $out;
 	}
 
