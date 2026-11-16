@@ -90,7 +90,7 @@ check( 'checklist toggle handler is registered', isset( Menu::handlers()['wpcap_
 echo "A088: getting-started checklist derived from data\n";
 $a088_empty = GettingStarted::items( array() );
 check( 'nine steps, all open on an empty installation', 9 === count( $a088_empty ) && ! array_filter( $a088_empty, static fn( $i ) => $i['done'] ) && array( 'payment', 'legal', 'seller', 'event', 'occurrence', 'ticket_type', 'publish', 'scanner', 'test_order' ) === array_column( $a088_empty, 'key' ) );
-$a088_full = GettingStarted::items( array( 'payment_manual' => true, 'legal_texts' => true, 'seller' => true, 'events' => 1, 'upcoming_occurrences' => 2, 'ticket_types' => 3, 'published_events' => 1, 'devices' => 1, 'paid_orders' => 1 ) );
+$a088_full = GettingStarted::items( array( 'payment_manual' => true, 'legal_texts' => true, 'require_terms' => true, 'seller' => true, 'events' => 1, 'upcoming_occurrences' => 2, 'ticket_types' => 3, 'published_events' => 1, 'devices' => 1, 'paid_orders' => 1 ) );
 check( 'all steps done when the data is complete', 9 === count( array_filter( $a088_full, static fn( $i ) => $i['done'] ) ) );
 $a088_by = static function ( array $items ) { $o = array(); foreach ( $items as $i ) { $o[ $i['key'] ] = $i; } return $o; };
 check( 'payment counts via online gateway, bank transfer or WooCommerce', $a088_by( GettingStarted::items( array( 'payment_online' => true ) ) )['payment']['done'] && $a088_by( GettingStarted::items( array( 'woocommerce' => true ) ) )['payment']['done'] && ! $a088_by( GettingStarted::items( array( 'payment_manual' => false ) ) )['payment']['done'] );

@@ -130,7 +130,7 @@ final class SettingsPage {
 				'title' => __( 'Rechtstexte', 'pass-captain' ),
 				'tab' => 'legal',
 				'fields' => array(
-					'require_terms' => array( 'type' => 'bool', 'label' => __( 'Zustimmung im Checkout verlangen', 'pass-captain' ) ),
+					'require_terms' => array( 'type' => 'bool', 'label' => __( 'Zustimmung im Checkout verlangen', 'pass-captain' ), 'description' => __( 'Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer).', 'pass-captain' ) ),
 					'terms_text' => array( 'type' => 'html', 'label' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ) ),
 					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ) ),
 				),
@@ -391,6 +391,8 @@ final class SettingsPage {
 			if ( $before != $value ) { $changed[] = $key; } // phpcs:ignore Universal.Operators.StrictComparisons -- stored types may differ.
 		}
 		Settings::update( $values );
+		$warnings = array();
+		if ( isset( $sections['legal'] ) && '' !== self::terms_warning() ) { $warnings[] = self::terms_warning(); }
 		if ( $changed ) {
 			// Only key names are logged, never values.
 			Audit::record( 'settings_updated', 'settings', 0, array( 'keys' => $changed ) );
@@ -399,7 +401,17 @@ final class SettingsPage {
 		$secrets = array_intersect_key( $values, array_flip( \PassCaptain\Secrets::KEYS ) );
 		$saved = array_diff_key( $values, $secrets );
 		$saved['secrets_updated'] = array_keys( $secrets );
-		return array( 'saved' => $saved, 'errors' => $errors );
+		return array( 'saved' => $saved, 'errors' => $errors, 'warnings' => $warnings );
+	}
+
+	/**
+	 * Warning when the checkout asks to accept terms that have no text (A289): the buyer would
+	 * confirm "die Bedingungen" without seeing any. '' when everything is fine.
+	 */
+	public static function terms_warning() {
+		if ( ! Settings::get( 'require_terms' ) ) { return ''; }
+		if ( '' !== trim( wp_strip_all_tags( (string) Settings::get( 'terms_text' ) ) ) ) { return ''; }
+		return __( 'Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen.', 'pass-captain' );
 	}
 
 	/** enabled_providers with $provider switched on/off (order of the registry kept). */
@@ -439,8 +451,8 @@ final class SettingsPage {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_save_settings' );
 		$result = self::save( $in );
-		if ( ! is_wp_error( $result ) && $result['errors'] ) {
-			$result['warning'] = implode( ' ', $result['errors'] );
+		if ( ! is_wp_error( $result ) && ( $result['errors'] || $result['warnings'] ) ) {
+			$result['warning'] = implode( ' ', array_merge( $result['errors'], $result['warnings'] ) );
 		}
 		Forms::finish( $result, __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG, self::url_args( $in['wpcap_tab'] ?? '', $in['wpcap_section'] ?? '' ) ) );
 	}
@@ -495,6 +507,9 @@ final class SettingsPage {
 			<?php if ( ! empty( $def['provider'] ) ) { self::render_provider_status( (string) $def['provider'], $values ); } ?>
 			<?php if ( ! empty( $def['webhook'] ) ) : ?>
 				<p><?php esc_html_e( 'Webhook-URL:', 'pass-captain' ); ?> <code><?php echo esc_html( rest_url( 'pass-captain/v1/payments/' . $def['webhook'] . '/webhook' ) ); ?></code></p>
+			<?php endif; ?>
+			<?php if ( 'legal' === $id && '' !== self::terms_warning() ) : ?>
+				<div class="notice notice-warning inline"><p><?php echo esc_html( self::terms_warning() ); ?></p></div>
 			<?php endif; ?>
 			<?php if ( 'legal' === $id ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: locale code */ __( 'Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung.', 'pass-captain' ), Settings::legal_default_locale() ) ); ?></p>

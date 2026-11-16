@@ -49,9 +49,13 @@ final class GettingStarted {
 			// A291: only WooCommerce products linked to a ticket type sell tickets.
 			'woocommerce_active'  => class_exists( 'WooCommerce' ),
 			'woocommerce'         => \PassCaptain\Integrations\WooCommerce\OrderAdapter::has_linked_ticket_products(),
-			'legal_texts'         => '' !== trim( wp_strip_all_tags( (string) Settings::get( 'terms_text' ) ) ) && '' !== trim( wp_strip_all_tags( (string) Settings::get( 'consumer_info_text' ) ) ),
+			'terms_text'          => '' !== trim( wp_strip_all_tags( (string) Settings::get( 'terms_text' ) ) ),
+			'consumer_info_text'  => '' !== trim( wp_strip_all_tags( (string) Settings::get( 'consumer_info_text' ) ) ),
+			// A289: the terms are shown (and accepted) in the checkout only with require_terms.
+			'require_terms'       => (bool) Settings::get( 'require_terms' ),
 			'seller'              => '' !== trim( (string) Settings::get( 'seller_name' ) ) && '' !== trim( (string) Settings::get( 'seller_address' ) ),
 		);
+		$state['legal_texts'] = $state['terms_text'] && $state['consumer_info_text'];
 		foreach ( array( 'events', 'published_events', 'upcoming_occurrences', 'ticket_types', 'devices', 'paid_orders' ) as $key ) {
 			$state[ $key ] = (int) ( $counts[ $key ] ?? 0 );
 		}
@@ -108,8 +112,9 @@ final class GettingStarted {
 			array(
 				'key' => 'legal',
 				'label' => __( 'Rechtstexte hinterlegen', 'pass-captain' ),
-				'description' => __( 'AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) für den Checkout.', 'pass-captain' ),
-				'done' => ! empty( $state['legal_texts'] ),
+				'description' => self::legal_note( $state ),
+				// A289: done only when the buyer sees and accepts the terms in the checkout.
+				'done' => ! empty( $state['legal_texts'] ) && ! empty( $state['require_terms'] ),
 				'url' => self::settings_url( 'legal' ),
 			),
 			array(
@@ -181,6 +186,18 @@ final class GettingStarted {
 			);
 		}
 		return $out;
+	}
+
+	/** Description of the legal step: what is still missing for the checkout (A289). */
+	private static function legal_note( array $state ) {
+		$terms = ! empty( $state['terms_text'] ) || ! empty( $state['legal_texts'] );
+		if ( ! empty( $state['require_terms'] ) && ! $terms ) {
+			return __( 'Die Zustimmung im Checkout ist aktiv, aber es ist kein AGB-Text hinterlegt: Käufer bestätigen Bedingungen, die sie nicht sehen. AGB/Teilnahmebedingungen eintragen.', 'pass-captain' );
+		}
+		if ( $terms && empty( $state['require_terms'] ) ) {
+			return __( 'Die AGB sind hinterlegt, werden im Checkout aber erst angezeigt, wenn „Zustimmung im Checkout verlangen“ aktiv ist.', 'pass-captain' );
+		}
+		return __( 'AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) hinterlegen und „Zustimmung im Checkout verlangen“ aktivieren.', 'pass-captain' );
 	}
 
 	/**
