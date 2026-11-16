@@ -144,6 +144,7 @@ class FakeElement {
 		const mismatch = this.type === 'email' && this.value !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(this.value);
 		return { valid: !missing && !mismatch, valueMissing: missing, typeMismatch: mismatch };
 	}
+	checkValidity() { return this.validity.valid; }
 	appendChild(child) {
 		if (child.parentNode) child.remove();
 		child.parentNode = this;

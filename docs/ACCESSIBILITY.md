@@ -33,6 +33,10 @@ Vor 1.0 sind manuelle Tastatur- und Screenreader-Prüfungen für Checkout, Scann
 - Der zugängliche Name jedes Kalender-Links beginnt mit seinem sichtbaren Text (WCAG 2.5.3, A393): Monatseintrag „20:00 Konzert“ heißt „20:00 Konzert, 16.11.2026“, der Listen-Link „Zum Kalender (.ics)“ heißt „Zum Kalender (.ics): Konzert am 16.11.2026“. Sprachsteuerung („Klicke 20:00 Konzert“) trifft damit den Link.
 - Monatskalender auf schmalen Bildschirmen (bis 600 px, A394): Statt einer Tabelle, deren Zellen per CSS zu Blöcken werden (Tabellensemantik weg, Spaltenköpfe ausgeblendet, kein Monat am Tag), zeigt der Kalender eine echte Liste (`ol.wpcap-cal-agenda-days`) unter dem Monatstitel: je Tag mit Terminen „Montag, 16. November“ und die Termine. Auf breiten Bildschirmen bleibt die Tabelle mit Beschriftung und Spaltenköpfen; die jeweils andere Darstellung ist mit `display:none` auch für Screenreader ausgeblendet.
 
+## Bestellportal und Warteliste
+
+- Fokus nach asynchronen Aktionen (A395): Entfernt eine Aktion nach Erfolg ihren Knopf (Ticket übertragen, Erstattung anfragen im Bestellportal) oder sperrt sie das Formular (Eintragen in die Warteliste auf der Eventkarte), bekommt die Meldung `tabindex="-1"` und den Fokus – Screenreader lesen das Ergebnis vor, die Tab-Reihenfolge beginnt dort statt am Seitenanfang. Knöpfe, die während der Anfrage gesperrt waren (erneut senden, Bankverbindung, Rechnungsdaten, fehlgeschlagene Übertragung/Warteliste), bekommen den Fokus zurück, wenn er auf `<body>` gefallen ist.
+
 ## Kasse (Admin)
 
 - Termin-Auswahl im Verkauf und Kassen-Filter der Schichtliste laden die Seite nicht mehr bei jeder Änderung neu (mit der Tastatur löste jede Pfeiltaste einen Seitenwechsel aus); gewählt wird mit dem Knopf „Anzeigen“ (A314).

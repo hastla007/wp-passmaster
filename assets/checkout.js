@@ -1107,9 +1107,14 @@
 			if (!response.ok) throw new Error(data.message || t.waitlistFailed || 'Failed.');
 			message.textContent = t.waitlistJoined || '';
 			form.querySelectorAll('input,select,button').forEach(function (n) { n.disabled = true; });
+			// A395: the focused button is disabled now – keyboard focus goes to the confirmation.
+			message.setAttribute('tabindex', '-1');
+			message.focus();
 		} catch (error) {
 			message.textContent = (error && error.message) || t.waitlistFailed || 'Failed.';
 			button.disabled = false;
+			// A395: disabling the button dropped the focus to <body>; give it back.
+			if (!document.activeElement || document.activeElement === document.body) button.focus();
 		}
 	});
 	// A450: the order and waitlist forms ship with a disabled submit button (without JavaScript
