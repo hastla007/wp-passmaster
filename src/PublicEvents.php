@@ -141,7 +141,7 @@ final class PublicEvents {
 				'errTotalOne' => __( 'Es ist höchstens 1 Ticket pro Person möglich.', 'pass-captain' ),
 			),
 		) );
-		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
+		self::register_styles();
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
 		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ), 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'searchUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/search' ) ), 'checkInTicketUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/check-in-ticket' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
 			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
@@ -214,6 +214,51 @@ final class PublicEvents {
 			'searchVoid' => __( 'widerrufen/erstattet', 'pass-captain' ),
 			'searchOffline' => __( 'Die Suche funktioniert nur online. Offline bitte die Offline-Scanner-App verwenden.', 'pass-captain' ),
 		) ) );
+	}
+
+	/** Shortcodes whose output needs a stylesheet, tag => style handle (A391). */
+	const SHORTCODE_STYLES = array(
+		'wp_pass_captain_events' => 'wpcap-public',
+		'wpcap_events' => 'wpcap-public',
+		'wp_pass_captain_scanner' => 'wpcap-public',
+		'wpcap_scanner' => 'wpcap-public',
+		'wpcap_passes' => 'wpcap-public',
+		'wp_pass_captain_calendar' => 'wpcap-calendar',
+		'wpcap_calendar' => 'wpcap-calendar',
+	);
+
+	/**
+	 * Registers the front-end stylesheets (init, priority 5, and again on wp_enqueue_scripts; A391):
+	 * the blocks name them in block.json ("style"), so WordPress loads them in the <head> of pages
+	 * with the block and in the editor canvas – the preview is styled like the website.
+	 */
+	public static function register_styles() {
+		if ( ! function_exists( 'wp_register_style' ) ) { return; }
+		$styles = array( 'wpcap-public' => 'assets/public.css', 'wpcap-calendar' => 'assets/calendar/calendar.css' );
+		foreach ( $styles as $handle => $file ) {
+			if ( ! function_exists( 'wp_style_is' ) || ! wp_style_is( $handle, 'registered' ) ) { wp_register_style( $handle, WPCAP_URL . $file, array(), WPCAP_VERSION ); }
+		}
+	}
+
+	/**
+	 * wp_enqueue_scripts (A391): on a single post or page whose content contains one of the plugin's
+	 * shortcodes, its stylesheet goes into the <head> (no unstyled flash, no late <link> in the body).
+	 * Shortcodes in widgets or templates keep the enqueue at render time.
+	 *
+	 * @return string[] Enqueued handles.
+	 */
+	public static function enqueue_shortcode_styles() {
+		if ( ! function_exists( 'is_singular' ) || ! function_exists( 'has_shortcode' ) || ! is_singular() ) { return array(); }
+		$post = function_exists( 'get_post' ) ? get_post() : null;
+		$content = is_object( $post ) ? (string) ( $post->post_content ?? '' ) : '';
+		if ( '' === $content || false === strpos( $content, '[' ) ) { return array(); }
+		self::register_styles();
+		$handles = array();
+		foreach ( self::SHORTCODE_STYLES as $tag => $handle ) {
+			if ( ! isset( $handles[ $handle ] ) && has_shortcode( $content, $tag ) ) { $handles[ $handle ] = $handle; }
+		}
+		foreach ( $handles as $handle ) { wp_enqueue_style( $handle ); }
+		return array_values( $handles );
 	}
 
 	/**

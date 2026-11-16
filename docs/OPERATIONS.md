@@ -1388,6 +1388,8 @@ Die Blöcke `wp-pass-captain/events` und `wp-pass-captain/calendar` behalten ihr
 
 - **Cache-Busting der Editor-Skripte (A454):** Die Version der Editor-Skripte ist der Inhalts-Hash der Datei; nach einem Plugin-Update lädt der Editor das neue Skript statt einer zwischengespeicherten alten Fassung (siehe [RELEASE.md](RELEASE.md)).
 
+- **Stylesheets im `<head>` und im Editor (A391):** `wpcap-public` (`assets/public.css`) und `wpcap-calendar` (`assets/calendar/calendar.css`) werden auf `init` (Priorität 5) registriert und stehen in `block.json` als `style` (Events- bzw. Kalender-Block; Terminbuchung als `editorStyle`). WordPress lädt sie dadurch im `<head>` von Seiten mit dem Block und im Editor-Canvas – die Vorschau sieht aus wie auf der Website. Enthält der Inhalt eines einzelnen Beitrags/einer Seite einen Plugin-Shortcode (`[wpcap_events]`, `[wpcap_calendar]`, `[wpcap_passes]`, `[wpcap_scanner]` und die `wp_pass_captain_*`-Namen), wird das Stylesheet auf `wp_enqueue_scripts` eingebunden (`PublicEvents::enqueue_shortcode_styles()`); Shortcodes in Widgets, Template-Teilen oder Archiven binden es wie bisher beim Rendern ein.
+
 ## Servicebuchungen (Ressourcen, Zeitfenster, Leistungserbringer)
 
 Service-Zeitfenster (Bootsschule, Werkstatt, Beratung) werden unter **Events → Service-Zeitfenster** je Event verwaltet; Kund:innen buchen sie auf einer Seite mit dem Shortcode `[wpcap_service_booking]` bzw. dem Block „Pass Captain Terminbuchung“ (siehe unten) oder direkt über die REST-API (`POST /service-slots/{slot_id}/bookings`).

@@ -46,6 +46,7 @@ final class Calendar {
 
 	public static function register_block() {
 		if ( function_exists( 'register_block_type' ) ) {
+			\PassCaptain\PublicEvents::register_styles(); // block.json "style" (A391).
 			\PassCaptain\Localization::block_translations( register_block_type( WPCAP_PATH . 'src/blocks/calendar' ) );
 		}
 	}
@@ -160,7 +161,8 @@ final class Calendar {
 	/** Month or list view of the shortcode or block ($block: with the block wrapper attributes). */
 	private static function render_view( $view, $event_id, $limit, $block ) {
 		if ( function_exists( 'wp_enqueue_style' ) ) {
-			wp_enqueue_style( 'wpcap-calendar', WPCAP_URL . 'assets/calendar/calendar.css', array(), WPCAP_VERSION );
+			\PassCaptain\PublicEvents::register_styles();
+			wp_enqueue_style( 'wpcap-calendar' );
 		}
 		$wrapper = $block && function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-calendar wpcap-calendar-' . $view ) ) : '';
 		if ( 'list' === $view ) { return self::render_list( $event_id, $limit, $wrapper ); }

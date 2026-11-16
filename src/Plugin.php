@@ -122,6 +122,9 @@ final class Plugin {
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_shortcode( 'wpcap_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
+		// A391: stylesheets registered before the blocks (block.json "style"), shortcodes in the <head>.
+		add_action( 'init', array( PublicEvents::class, 'register_styles' ), 5 );
+		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'enqueue_shortcode_styles' ), 20 );
 		// A663: the core is ready – add-ons register on wpcap_loaded (public API, PublicApi::VERSION).
 		PublicApi::loaded();
 	}
@@ -229,6 +232,7 @@ final class Plugin {
 	}
 
 	public function register_blocks() {
+		PublicEvents::register_styles(); // block.json "style" (A391).
 		$block = register_block_type( WPCAP_PATH . 'src/blocks/events' );
 		Localization::block_translations( $block );
 		if ( $block && ! empty( $block->editor_script_handles ) && is_admin() ) {

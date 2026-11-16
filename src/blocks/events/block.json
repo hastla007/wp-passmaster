@@ -21,6 +21,7 @@
   },
   "render": "file:./render.php",
   "editorScript": "file:./editor.js",
+  "style": "wpcap-public",
   "attributes": {
     "event": {
       "type": "integer",
