@@ -139,19 +139,47 @@ final class Display {
 		return $out;
 	}
 
-	/** Shortcode [wpcap_passes]: list of passes with their dates and where to buy them. */
-	public static function shortcode() {
+	/**
+	 * Link where a pass is bought (A397): the ticket page of its anchor date (Kalender setting
+	 * "Seite mit dem Ticket-Shortcode", Ics::checkout_url(), with ?wpcap_occurrence= and the card
+	 * anchor); filter `wpcap_passes_buy_url` ($url, $type row). '' = no link.
+	 */
+	public static function buy_url( $type ) {
+		$url = \PassCaptain\Calendar\Ics::checkout_url( (int) $type->occurrence_id );
+		return (string) apply_filters( 'wpcap_passes_buy_url', $url, $type );
+	}
+
+	/**
+	 * Shortcode [wpcap_passes heading="2"]: list of passes with their dates and where to buy them.
+	 *
+	 * A397: loads the front-end stylesheet (cards like the event listing), links each pass to the
+	 * ticket page of its anchor date (buy_url()) and uses the heading level of the event cards
+	 * (filter `wpcap_event_card_heading_level`, default 2), changeable with heading="2"–"6" or the
+	 * filter `wpcap_passes_heading_level`.
+	 */
+	public static function shortcode( $atts = array() ) {
+		$atts = is_array( $atts ) ? $atts : array();
+		if ( function_exists( 'wp_enqueue_style' ) ) {
+			\PassCaptain\PublicEvents::register_styles();
+			wp_enqueue_style( 'wpcap-public' );
+		}
+		$level = isset( $atts['heading'] ) && is_numeric( $atts['heading'] ) ? (int) $atts['heading'] : (int) apply_filters( 'wpcap_event_card_heading_level', 2 );
+		$level = min( 6, max( 2, (int) apply_filters( 'wpcap_passes_heading_level', $level ) ) );
 		$passes = self::on_sale();
 		$html = '<div class="wpcap-passes">';
 		if ( ! $passes ) { $html .= '<p>' . esc_html__( 'Aktuell sind keine Pässe verfügbar.', 'pass-captain' ) . '</p>'; }
 		foreach ( $passes as $entry ) {
 			$type = $entry['type'];
-			$html .= '<article class="wpcap-pass"><h3>' . esc_html( $type->name ) . '</h3>';
-			$html .= '<p>' . esc_html( \PassCaptain\Frontend\Format::money( $entry['price_minor'], $type->currency ) ) . '</p>';
+			$soldout = null !== $entry['available'] && (int) $entry['available'] < 1;
+			$html .= '<article class="wpcap-pass"><h' . $level . ' class="wpcap-pass-title">' . esc_html( $type->name ) . '</h' . $level . '>';
+			$html .= '<p class="wpcap-pass-price">' . esc_html( \PassCaptain\Frontend\Format::money( $entry['price_minor'], $type->currency ) ) . '</p>';
 			$html .= '<p class="wpcap-pass-dates">' . esc_html( $entry['dates'] ) . '</p>';
 			/* translators: 1: event name, 2: date */
 			$html .= '<p>' . esc_html( sprintf( __( 'Erhältlich bei %1$s am %2$s.', 'pass-captain' ), $type->event_name, self::date( $type->starts_at, $type->timezone ) ) ) . '</p>';
-			if ( null !== $entry['available'] && (int) $entry['available'] < 1 ) { $html .= '<p class="wpcap-soldout">' . esc_html__( 'Ausverkauft', 'pass-captain' ) . '</p>'; }
+			if ( $soldout ) { $html .= '<p class="wpcap-soldout">' . esc_html__( 'Ausverkauft', 'pass-captain' ) . '</p>'; }
+			$url = $soldout ? '' : self::buy_url( $type );
+			/* translators: %s: pass name */
+			if ( '' !== $url ) { $html .= '<p><a class="wp-element-button wpcap-pass-buy" href="' . esc_url( $url ) . '">' . esc_html( sprintf( __( '„%s“ kaufen', 'pass-captain' ), $type->name ) ) . '</a></p>'; }
 			$html .= '</article>';
 		}
 		return $html . '</div>';

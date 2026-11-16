@@ -139,7 +139,7 @@ Check-in-Quote, Einlasskurve …“). Umsatz und „verkauft“ bleiben beim Ank
 - Ticketmail (`wpcap_ticket_mail`) und Mails mit neuem Code (`wpcap_ticket_code_mail_section`).
 - Eventkarte (`wpcap_event_card_html`): Termine neben dem Pass; auf Karten enthaltener
   Termine der Hinweis „Auch enthalten im Pass „X“ (erhältlich bei … am …)“.
-- Shortcode `[wpcap_passes]`: Liste der Pässe im Verkauf mit Preis, Terminen und Verkaufstermin.
+- Shortcode `[wpcap_passes]`: Liste der Pässe im Verkauf mit Preis, Terminen und Verkaufstermin. Seit A397 mit dem Stylesheet der Eventkarten (`public.css`, Karten `.wpcap-pass`), einem Knopf „„Pass“ kaufen“ zur Ticketseite des Verkaufstermins (Kalender-Einstellung „Seite mit dem Ticket-Shortcode“ bzw. Filter `wpcap_passes_buy_url`; ohne Ticketseite kein Link, ausverkaufte Pässe ohne Knopf) und der Überschriftenebene der Eventkarten (Standard `h2`, `[wpcap_passes heading="3"]` oder Filter `wpcap_passes_heading_level`).
 
 ## Absage eines Termins
 
