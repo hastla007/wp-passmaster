@@ -355,12 +355,17 @@ Zu einzelnen Fällen:
   Stripe `charge.dispute.funds_withdrawn`, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie
   `_embedded.chargebacks`/`amountChargedBack` (ohne zurückgenommene). Ein Chargeback nach einer
   vollen Erstattung bucht nichts. Er wird dem Admin gemeldet, damit er beim Anbieter widerspricht.
+- **Gewonnener Chargeback** (A419, Stripe `charge.dispute.funds_reinstated`): Typ `chargeback_reversed`.
+  Die Bestellung bleibt, wie sie ist (die Rückbuchung war als Erstattung gebucht: Tickets widerrufen,
+  Gutschrift); Audit `chargeback_reversed` (Betrag, ob eine Rückbuchung gebucht war) und Mail an die
+  Administrationsadresse. Ob Tickets neu ausgestellt oder dem Käufer der Betrag erstattet wird,
+  entscheidet der Betreiber – Pass Captain macht die Buchung nicht automatisch rückgängig.
 - **Wettlauf zwischen Fehlschlag und Zahlung.** `failed` storniert nur, solange die Zahlung unter der
   Zeilensperre noch `pending` ist (`Orders::cancel_order( …, array( 'pending' ) )`).
 
 Empfohlene Webhook-Ereignisse: Stripe `checkout.session.completed`,
 `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
-`checkout.session.expired`, `charge.refunded`, `charge.dispute.funds_withdrawn`, `refund.updated`, `refund.failed`
+`checkout.session.expired`, `charge.refunded`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated`, `refund.updated`, `refund.failed`
 (`StripeGateway::WEBHOOK_EVENTS`). PayPal
 `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`,
 `PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED` (`PayPalGateway::WEBHOOK_EVENTS`).

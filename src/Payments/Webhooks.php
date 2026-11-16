@@ -245,6 +245,21 @@ final class Webhooks {
 			// A database error keeps the event unprocessed: the provider redelivers it.
 			return is_wp_error( $cancelled ) ? $cancelled : 'cancelled';
 		}
+		if ( 'chargeback_reversed' === $type ) {
+			// A419: a chargeback was decided in the merchant's favour and the money is back. The chargeback
+			// was booked as a refund (order refunded, tickets revoked); undoing that is a decision for the
+			// operator (reissue tickets or pay the buyer back), so it is only recorded and reported.
+			$amount = max( 0, (int) ( $event['amount_minor'] ?? 0 ) );
+			$booked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d AND provider_reference=%s AND status='completed'", $order_id, (string) ( $event['provider_reference'] ?? '' ) ) );
+			Audit::record( 'chargeback_reversed', 'order', $order_id, array( 'provider' => $provider, 'reference' => (string) ( $event['provider_reference'] ?? '' ), 'amount_minor' => $amount, 'chargeback_booked' => $booked > 0, 'status' => (string) $order->status ) );
+			/* translators: %s: amount with currency */
+			$message = sprintf( __( 'Eine Rückbuchung (Chargeback) wurde zu Ihren Gunsten entschieden; der Zahlungsanbieter zahlt %s wieder aus.', 'pass-captain' ), \PassCaptain\Money::format( $amount, (string) $order->currency ) ) . ' ';
+			$message .= $booked
+				? __( 'Die Rückbuchung war als Erstattung gebucht (Tickets widerrufen, Gutschrift erstellt). Bitte entscheiden: Tickets neu ausstellen und Gutschrift stornieren oder dem Käufer den Betrag erstatten. Pass Captain ändert die Bestellung nicht automatisch.', 'pass-captain' )
+				: __( 'Zu dieser Rückbuchung ist keine Erstattung gebucht; die Bestellung bleibt unverändert. Bitte beim Zahlungsanbieter prüfen.', 'pass-captain' );
+			self::alert( $order, $message, $provider, $event );
+			return 'chargeback_reversed';
+		}
 		if ( 'refunded' === $type ) {
 			// Refund made outside the plugin (provider dashboard, chargeback). It is booked like any refund – refund
 			// row, refunded amount, credit note, voucher share and partner settlement all follow from

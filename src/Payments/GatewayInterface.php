@@ -31,14 +31,14 @@ interface GatewayInterface {
 	/**
 	 * Verify a provider webhook.
 	 *
-	 * @return array|\WP_Error Normalized event: ['event_id'=>string, 'type'=>'paid'|'payment_pending'|'failed'|'refunded'|'ignored',
+	 * @return array|\WP_Error Normalized event: ['event_id'=>string, 'type'=>'paid'|'payment_pending'|'failed'|'refunded'|'chargeback_reversed'|'ignored',
 	 *                         'order_public_id'=>string, 'provider_reference'=>string, 'amount_minor'=>int, 'currency'=>string,
 	 *                         optional 'related_references'=>string[], 'chargeback'=>bool (a "refunded" event caused by a
 	 *                         chargeback/dispute), 'cumulative'=>bool (amount_minor is the provider's running total of
 	 *                         external refunds for provider_reference; only the unbooked rest is booked), 'redeliver'=>bool (answer 503 after applying it, so the provider
 	 *                         delivers again and a follow-up change in the same provider state is applied), 'refund_states'=>array[]
 	 *                         (states of the plugin's own refunds: 'key' = refund key, 'status' = succeeded|pending|failed,
-	 *                         'reference'; applied by Refunds::apply_provider_states(), A272)]. 'payment_pending': the buyer chose a delayed method, the hold is extended (A577). How each type is applied in each order state: docs/STATE-MACHINES.md.
+	 *                         'reference'; applied by Refunds::apply_provider_states(), A272)]. 'payment_pending': the buyer chose a delayed method, the hold is extended (A577). 'chargeback_reversed': a chargeback was won and the money paid back (A419): audit and admin alert only. How each type is applied in each order state: docs/STATE-MACHINES.md.
 	 */
 	public function verify_webhook( \WP_REST_Request $request );
 

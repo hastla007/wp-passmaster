@@ -35,6 +35,7 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 		'checkout.session.expired',
 		'charge.refunded',
 		'charge.dispute.funds_withdrawn',
+		'charge.dispute.funds_reinstated',
 		'refund.updated',
 		'refund.failed',
 	);
@@ -395,6 +396,16 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 
 			case 'charge.dispute.funds_withdrawn':
 				return $this->normalize_dispute( $base, $object );
+
+			case 'charge.dispute.funds_reinstated':
+				// A419: the chargeback was won, Stripe pays the disputed amount back. Reported as
+				// "chargeback_reversed": admin alert, no automatic change of the order or tickets.
+				$won = $this->normalize_dispute( $base, $object );
+				if ( is_array( $won ) && 'refunded' === $won['type'] ) {
+					$won['type'] = 'chargeback_reversed';
+					unset( $won['chargeback'] );
+				}
+				return $won;
 		}
 		return $base;
 	}
