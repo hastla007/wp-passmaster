@@ -22,6 +22,12 @@ final class Checkin {
 	const REJECTED_ADMISSION = array( 'already_checked_in', 'daily_limit_reached', 'entry_limit_reached', 'already_inside' );
 
 	/**
+	 * Every result written to wpcap_checkins (admission, exit, undo and the rejected scans of a known
+	 * ticket); the filter of the check-in log offers these (A433, Admin\Queries::checkin_results()).
+	 */
+	const LOG_RESULTS = array( 'checked_in', 'checked_out', 'undone', 'already_checked_in', 'already_inside', 'not_checked_in', 'revoked', 'unknown', 'not_valid_today', 'daily_limit_reached', 'entry_limit_reached', 'outside_entry_window', 'wrong_area', 'area_full' );
+
+	/**
 	 * Extracts the 64-hex ticket code from a scanned value (raw code or ticket URL). A value with more
 	 * than one code (a hex run longer than 64 characters or two different codes, e.g. a keyboard
 	 * scanner typing behind the previous code, A271) has no code: '' – never the first of them.

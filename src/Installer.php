@@ -244,11 +244,12 @@ final class Installer {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (checkin_id),
 				KEY idempotency (user_id,idempotency_key),
-				KEY ticket_id (ticket_id),
+				KEY ticket_id (ticket_id,result,created_at),
 				KEY event_id (event_id),
 				KEY occurrence_day_id (occurrence_day_id),
 				KEY user_id (user_id),
-				KEY event_result_created (event_id,result,created_at)
+				KEY event_result_created (event_id,result,created_at),
+				KEY created (created_at,checkin_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $staff (
 				event_id bigint(20) unsigned NOT NULL,

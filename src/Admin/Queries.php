@@ -651,11 +651,17 @@ final class Queries {
 	public static function search_tickets( array $filters, $event_ids, $page = 1, $per_page = 30 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$from = "FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id";
+		// A432: the page is found on the tickets (and only the tables the filters need), its context and
+		// last check-ins are read for the ids of the page only.
+		$occ_join = " INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
+		$search_join = " INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id";
 		$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' ) . Access::occurrence_scope_sql( 'o' );
+		$needs_occ = '1=1' !== $where;
+		$needs_search = false;
 		$args = array();
 		$notice = null;
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
+			$needs_search = true;
 			$search = trim( (string) $filters['search'] );
 			// A545: the order number as buyers see it ("AB12-CD34") is a public id prefix, too.
 			$id_prefix = self::public_id_prefix( $search );
@@ -679,14 +685,25 @@ final class Queries {
 			}
 			$where .= ' AND (' . implode( ' OR ', $or ) . ')';
 		}
-		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
+		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); $needs_occ = true; }
 		if ( ! empty( $filters['status'] ) ) { $where .= ' AND t.status=%s'; $args[] = (string) $filters['status']; }
+		$from = "FROM {$p}wpcap_tickets t" . ( $needs_occ ? $occ_join : '' ) . ( $needs_search ? $search_join : '' );
 		$count_sql = "SELECT COUNT(*) $from WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.starts_at,o.timezone,e.name AS event_name,(SELECT MAX(c.created_at) FROM {$p}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in') AS last_checkin_at $from WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
+		$ids = $total ? array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			"SELECT t.ticket_id $from WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
 			array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
-		) );
+		) ) ) : array();
+		$rows = array();
+		if ( $ids ) {
+			$in = implode( ',', $ids );
+			$rows = (array) $wpdb->get_results( "SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.starts_at,o.timezone,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id IN ($in) ORDER BY t.ticket_id DESC" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$last = array();
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_id,MAX(created_at) AS last_checkin_at FROM {$p}wpcap_checkins WHERE ticket_id IN ($in) AND result='checked_in' GROUP BY ticket_id" ) as $checkin ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$last[ (int) $checkin->ticket_id ] = (string) $checkin->last_checkin_at;
+			}
+			foreach ( $rows as $row ) { $row->last_checkin_at = $last[ (int) $row->ticket_id ] ?? null; }
+		}
 		return array( 'rows' => $rows, 'total' => $total ) + ( null !== $notice ? array( 'notice' => $notice ) : array() );
 	}
 
@@ -700,27 +717,40 @@ final class Queries {
 	public static function checkin_log( array $filters, $event_ids, $page = 1, $per_page = 50 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$from = "FROM {$p}wpcap_checkins c LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_events e ON e.event_id=c.event_id";
-		$where = '1=1' . self::scope_sql( $event_ids, 'c.event_id' ) . Access::occurrence_scope_sql( 'o' );
+		// A433: count and page on wpcap_checkins alone (KEY created, event_result_created); the ticket
+		// chain is joined only when the user's occurrence scope needs it, names only for the page.
+		$scope_join = " LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
+		$occurrence_scope = Access::occurrence_scope_sql( 'o' );
+		$where = '1=1' . self::scope_sql( $event_ids, 'c.event_id' ) . $occurrence_scope;
 		$args = array();
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND c.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
 		if ( ! empty( $filters['result'] ) ) { $where .= ' AND c.result=%s'; $args[] = (string) $filters['result']; }
 		if ( ! empty( $filters['date_from'] ) ) { $where .= ' AND c.created_at >= %s'; $args[] = (string) $filters['date_from']; }
 		if ( ! empty( $filters['date_to'] ) ) { $where .= ' AND c.created_at < %s'; $args[] = (string) $filters['date_to']; }
+		$from = "FROM {$p}wpcap_checkins c" . ( '' !== $occurrence_scope ? $scope_join : '' );
 		$count_sql = "SELECT COUNT(*) $from WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT c.*,t.public_id AS ticket_public_id,t.order_id,tt.name AS ticket_name,o.timezone,e.name AS event_name $from WHERE $where ORDER BY c.created_at DESC, c.checkin_id DESC LIMIT %d OFFSET %d",
+		$ids = $total ? array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			"SELECT c.checkin_id $from WHERE $where ORDER BY c.created_at DESC, c.checkin_id DESC LIMIT %d OFFSET %d",
 			array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
-		) );
+		) ) ) : array();
+		$rows = array();
+		if ( $ids ) {
+			$by_id = array();
+			foreach ( (array) $wpdb->get_results( "SELECT c.*,t.public_id AS ticket_public_id,t.order_id,tt.name AS ticket_name,o.timezone,e.name AS event_name FROM {$p}wpcap_checkins c LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_events e ON e.event_id=c.event_id WHERE c.checkin_id IN (" . implode( ',', $ids ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$by_id[ (int) $row->checkin_id ] = $row;
+			}
+			foreach ( $ids as $id ) { if ( isset( $by_id[ $id ] ) ) { $rows[] = $by_id[ $id ]; } } // Order of the page.
+		}
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
-	/** Distinct check-in results present in the log. */
+	/**
+	 * Results the check-in log can be filtered by (A433: a fixed list instead of a DISTINCT scan of
+	 * the whole log; Checkin::LOG_RESULTS, filter `wpcap_checkin_log_results`).
+	 */
 	public static function checkin_results() {
-		global $wpdb;
-		$results = $wpdb->get_col( "SELECT DISTINCT result FROM {$wpdb->prefix}wpcap_checkins ORDER BY result" );
-		return array_values( array_unique( array_merge( array( 'checked_in', 'undone' ), $results ) ) );
+		return array_values( array_unique( array_map( 'sanitize_key', (array) apply_filters( 'wpcap_checkin_log_results', \PassCaptain\Checkin::LOG_RESULTS ) ) ) );
 	}
 
 	/** Refunds waiting for approval (scoped by the order's events). */
