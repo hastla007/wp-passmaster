@@ -1162,21 +1162,21 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:79–82, Rest/Controller.php:392, checkout.js:386/406: Domain-Tippfehler-Hinweis oder Bestätigungsfeld, „Adresse falsch?“ auf Bestätigung
 - [x] **A554** [WICHTIG] Rückkehr von Stripe/PayPal/Mollie auf Startseite; Abbruch hält Plätze, Neuversuch erzeugt zweite Bestellung (erweitert A307) — _R4 Käufer-UX/Checkout_ (TODO L894; Audit Runde 4)
   - src/Payments/StripeGateway.php:65–66/340–342, PayPalGateway.php:62/466, MollieGateway.php:339, ReturnNotice.php:13–29: Kaufseite als Rückkehr-URL; bei cancel Reservierung freigeben oder „Zahlung fortsetzen“; Bestellnummer zeigen
-- [ ] **A555** [WICHTIG] Verschobener Einzeltermin: Verkaufsfenster bleiben auf alten Zeiten — _R4 Zeit/Caching/Lebenszyklus_ (TODO L895; Audit Runde 4)
+- [x] **A555** [WICHTIG] Verschobener Einzeltermin: Verkaufsfenster bleiben auf alten Zeiten — _R4 Zeit/Caching/Lebenszyklus_ (TODO L895; Audit Runde 4)
   - src/Admin/EventsPage.php:213–241, :340–347: Fenster um dieselbe Differenz verschieben, Fenster außerhalb [jetzt, Ende] mit Warnung ablehnen
-- [ ] **A556** [WICHTIG] Serien: „Verkaufsstart N Tage vor Beginn“ über DST 1 h daneben — _R4 Zeit/Caching/Lebenszyklus_ (TODO L896; Audit Runde 4)
+- [x] **A556** [WICHTIG] Serien: „Verkaufsstart N Tage vor Beginn“ über DST 1 h daneben — _R4 Zeit/Caching/Lebenszyklus_ (TODO L896; Audit Runde 4)
   - src/Series/Generator.php:221–223, :653–655: modify(-N days) in Termin-Zone, DST-Test (belegt)
 - [x] **A557** [WICHTIG] Wartelisten-Einträge abgesagter/vergangener Termine bleiben dauerhaft „wartet“ — _R4 Zeit/Caching/Lebenszyklus_ (TODO L897; Audit Runde 4)
   - src/Waitlists.php:45–51, :911–918: Bei Absage/Ende/sales_end schließen (mit Mail), Portal filtern
-- [ ] **A558** [WICHTIG] Erinnerungs-Mail nennt bei späten Käufern falsche Restzeit; LIMIT 200 verzögert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L898; Audit Runde 4)
+- [x] **A558** [WICHTIG] Erinnerungs-Mail nennt bei späten Käufern falsche Restzeit; LIMIT 200 verzögert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L898; Audit Runde 4)
   - src/Modules/Reminders.php:72–79, :101, Reminders/Placeholders.php:16: {hours} aus starts_at − now, Scheduler mit Cursor
 - [x] **A559** [WICHTIG] Wallet-Pässe bei Änderung von Ort/Ende/Einlass nicht aktualisiert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L899; Audit Runde 4)
   - src/WalletPasses/Service.php:23–24, Notifications.php:52–60: An wpcap_occurrence_changed hängen
-- [ ] **A560** [WICHTIG] Checkout nicht an angezeigten Terminstand gebunden – nach Verschiebung still neuer Termin gekauft — _R4 Zeit/Caching/Lebenszyklus_ (TODO L900; Audit Runde 4)
+- [x] **A560** [WICHTIG] Checkout nicht an angezeigten Terminstand gebunden – nach Verschiebung still neuer Termin gekauft — _R4 Zeit/Caching/Lebenszyklus_ (TODO L900; Audit Runde 4)
   - src/Rest/Controller.php:317, assets/checkout.js:502–533: occurrence_revision und Preis mitsenden, 409 mit neuem Stand, Karte live nachladen
-- [ ] **A561** [WICHTIG] REST /events liefert UTC ohne Zonenkennung neben Termin-Timezone, ohne Verkaufsstatus — _R4 Zeit/Caching/Lebenszyklus_ (TODO L901; Audit Runde 4)
+- [x] **A561** [WICHTIG] REST /events liefert UTC ohne Zonenkennung neben Termin-Timezone, ohne Verkaufsstatus — _R4 Zeit/Caching/Lebenszyklus_ (TODO L901; Audit Runde 4)
   - src/Rest/Controller.php:242–290: ISO 8601 mit Offset, Verkaufsstatus/Fenster/Verfügbarkeit je Ticketart, no-store
-- [ ] **A562** [WICHTIG] Keine zentrale Lebenszyklus-Instanz für Termine — _R4 Zeit/Caching/Lebenszyklus_ (TODO L902; Audit Runde 4)
+- [x] **A562** [WICHTIG] Keine zentrale Lebenszyklus-Instanz für Termine — _R4 Zeit/Caching/Lebenszyklus_ (TODO L902; Audit Runde 4)
   - src/: Occurrence::phase($now) + Aktion wpcap_occurrence_phase_changed für Verkauf, Listen, Scanner, Warteliste, Wallet, Purge
 - [x] **A563** [WICHTIG] Ein nicht anbietbarer Eintrag blockiert die ganze Warteliste; Käuferlimit beim Eintragen ungeprüft — _R4 Eigen (Deep Dive 3)_ (TODO L903; Audit Runde 4)
   - src/Waitlists.php:267–270, :92ff.: Eintrag überspringen/markieren (blocked mit Grund), Limit beim Eintragen (belegt t2)
