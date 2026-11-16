@@ -40,7 +40,7 @@ $a449_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences 
 $a449_html = a449_render( 'events', array( 'event' => $a449_event, 'occurrence' => 0, 'className' => 'is-style-x' ) );
 $a449_wrap = get_block_wrapper_attributes( array( 'class' => 'wpcap-events' ) );
 check( 'events block: root element carries get_block_wrapper_attributes() incl. the wpcap-events class', 0 === strpos( ltrim( $a449_html ), '<div ' . $a449_wrap . '>' ) );
-check( 'events block: still renders the selected event card', false !== strpos( $a449_html, 'wpcap-checkout-form' ) && 1 === substr_count( $a449_html, '<article class="wpcap-event"' ) );
+check( 'events block: still renders the selected event card', false !== strpos( $a449_html, 'wpcap-checkout-form' ) && 1 === preg_match_all( '/<article [^>]*class="wpcap-event"/', $a449_html ) );
 $a449_sc = PublicEvents::render_shortcode( array( 'event' => $a449_event ) );
 check( 'events shortcode: plain root class without block wrapper', 0 === strpos( ltrim( $a449_sc ), '<div class="wpcap-events">' ) );
 

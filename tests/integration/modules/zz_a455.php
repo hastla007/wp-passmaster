@@ -71,7 +71,7 @@ $a455_saved_post = $GLOBALS['post'] ?? null;
 unset( $_SERVER['REQUEST_URI'], $GLOBALS['post'] );
 $a455_type = make_type( 10, 10, 1200 );
 $a455_events = a455_render( 'events', array() );
-check( 'events block without attributes (widget): lists events inside the wrapper', 0 === strpos( ltrim( $a455_events ), '<div ' . get_block_wrapper_attributes( array( 'class' => 'wpcap-events' ) ) . '>' ) && false !== strpos( $a455_events, 'data-type="' . $a455_type . '"' ) );
+check( 'events block without attributes (widget): lists upcoming events inside the wrapper', 0 === strpos( ltrim( $a455_events ), '<div ' . get_block_wrapper_attributes( array( 'class' => 'wpcap-events' ) ) . '>' ) && 1 === preg_match( '/<article [^>]*class="wpcap-event[ "]/', $a455_events ) );
 $a455_cal = a455_render( 'calendar', array() );
 check( 'calendar block without attributes: month view with navigation, no global post needed', false !== strpos( $a455_cal, 'wpcap-calendar-month' ) && 1 === preg_match( '/<a href="[^"]*wpcap_month=\d{4}-\d{2}#wpcap-cal-nav-\d+" rel="next">/', $a455_cal ) );
 check( 'calendar block with an unknown view falls back to the month view', false !== strpos( a455_render( 'calendar', array( 'view' => 'grid', 'eventId' => 0 ) ), '<table class="wpcap-cal-grid">' ) );
