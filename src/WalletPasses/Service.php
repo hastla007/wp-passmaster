@@ -434,6 +434,22 @@ final class Service {
 		$used = 0;
 		foreach ( (array) ( $mail['attachments'] ?? array() ) as $file ) { $used += is_string( $file ) && is_file( $file ) ? (int) filesize( $file ) : 0; }
 		$budget = \PassCaptain\Orders::attachment_budget( $order );
+		if ( $inline && ! $single ) {
+			// R2: codes stored, passes created by the ISSUE_JOB after the commit (no signing in the request);
+			// A583: a short Google save link per ticket (objects are inserted on click).
+			$codes = array();
+			foreach ( $entries as $entry ) { $codes[ (int) $entry['ticket_id'] ] = (string) $entry['token']; }
+			$deferred = self::defer( $codes );
+			$any = (bool) $deferred;
+			foreach ( $entries as $entry ) {
+				$link = self::provider( 'google' ) instanceof GoogleProvider && in_array( (int) $entry['ticket_id'], $deferred, true ) ? self::google_link( (int) $entry['ticket_id'] ) : '';
+				if ( '' === $link ) { continue; }
+				$text .= Mailer::with_locale( $locale, static function () use ( $entry, $link ) {
+					return implode( ' — ', array_filter( array( $entry['event'] ?? '', $entry['ticket'] ?? '' ) ) ) . "\n" . __( 'In Google Wallet speichern:', 'pass-captain' ) . ' ' . esc_url_raw( $link ) . "\n\n";
+				} );
+			}
+			$entries = array();
+		}
 		foreach ( $entries as $entry ) {
 			try {
 				$passes = self::issue( (int) $entry['ticket_id'], (string) $entry['token'], $inline && $single );
@@ -451,12 +467,12 @@ final class Service {
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), $files );
 		}
 		if ( ! $inline && $any ) {
-			$pending = count( $entries );
+			$pending = count( $entries ); // Not inline: $entries is untouched.
 			$text = Mailer::with_locale( $locale, static function () use ( $order, $pending ) { return self::order_links_text( $order, $pending ); } );
 		} elseif ( ! $single && $any && is_object( $order ) ) {
 			$url = self::collection_url( $order );
 			if ( '' !== $url ) {
-				$count = count( $entries );
+				$count = count( $codes );
 				$text .= Mailer::with_locale( $locale, static function () use ( $count, $url ) {
 					/* translators: %d: number of tickets */
 					return sprintf( __( 'Apple Wallet / Google Wallet für alle %d Tickets:', 'pass-captain' ), $count ) . ' ' . esc_url_raw( $url ) . "\n";
@@ -548,7 +564,16 @@ final class Service {
 				Store::save_pass( $ticket_id, 'apple', (string) $ticket['public_id'], (string) $apple->pass_type_id(), 'active' );
 			}
 			// Google objects are not created here: A566 – the provider gets personal data only once the buyer
-			// uses the save link (the collection page and the mail carry the full save link instead).
+			// uses the save link (the collection page and the mail carry the full save link instead). Only the
+			// local pass row (object/class id, like issue() with $build = false, A580) is stored.
+			if ( $google && method_exists( $google, 'pass_ref' ) ) {
+				try {
+					$ref = $google->pass_ref( $ticket );
+					Store::save_pass( $ticket_id, 'google', (string) $ref['serial_number'], (string) ( $ref['provider_ref'] ?? '' ), 'active' );
+				} catch ( \Throwable $e ) {
+					self::log( 'issue_failed', 'google:' . $e->getMessage() );
+				}
+			}
 		}
 		return $ok;
 	}

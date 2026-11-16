@@ -21,6 +21,12 @@ echo "A427: batch print with new codes as background job\n";
 $a427_type = make_type( 200, 50, 0 );
 $a427_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$a427_type" );
 $a427_order = Orders::create( array( 'email' => 'a427@example.com', 'items' => array( array( 'ticket_type_id' => $a427_type, 'quantity' => 45 ) ), 'idempotency_key' => 'a427-o1' ) );
+// Merged design: orders above Orders::INLINE_DELIVERY_MAX tickets are mailed by the ticket_delivery outbox job
+// (which renews the codes it mails); deliver it now so the batch below starts from the delivered codes.
+foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT job_id,payload FROM {$p}wpcap_jobs WHERE job_type=%s AND status='queued' AND payload LIKE %s", Orders::DELIVERY_JOB, '{"order_id":' . (int) $a427_order['order_id'] . ',%' ) ) as $a427_job ) {
+	Orders::handle_job( false, Orders::DELIVERY_JOB, json_decode( $a427_job->payload, true ) );
+	$wpdb->update( "{$p}wpcap_jobs", array( 'status' => 'complete' ), array( 'job_id' => (int) $a427_job->job_id ) );
+}
 $a427_hashes = static fn() => $wpdb->get_col( "SELECT CONCAT(ticket_id,':',token_hash) FROM {$p}wpcap_tickets WHERE order_id=" . (int) $a427_order['order_id'] . ' ORDER BY ticket_id' );
 $a427_ids = array_map( 'intval', $wpdb->get_col( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=" . (int) $a427_order['order_id'] . ' ORDER BY ticket_id' ) );
 // A630: one ticket transferred, one assigned to another attendee.
