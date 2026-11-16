@@ -38,7 +38,21 @@ final class DbLock {
 
 	/** Releases the lock taken with acquire(). */
 	public static function release( $purpose ) {
+		self::release_scoped( self::name( $purpose ) );
+	}
+
+	/**
+	 * Takes a lock under a name the caller already scoped to this installation (e.g. the buyer locks
+	 * of Sales\BuyerLimits, which carry Installer::lock_scope()). At most 64 characters.
+	 */
+	public static function acquire_scoped( $name, $wait = 0 ) {
 		global $wpdb;
-		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', self::name( $purpose ) ) );
+		return '1' === (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', substr( (string) $name, 0, 64 ), max( 0, (int) $wait ) ) );
+	}
+
+	/** Releases a lock taken with acquire_scoped(). */
+	public static function release_scoped( $name ) {
+		global $wpdb;
+		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', substr( (string) $name, 0, 64 ) ) );
 	}
 }

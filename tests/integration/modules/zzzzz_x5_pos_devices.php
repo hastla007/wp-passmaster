@@ -279,13 +279,14 @@ if ( function_exists( 'x5_seller' ) ) {
 }
 
 echo "Box office: card terminals – closing and migration\n";
-$x5d_closed = X5dPos::close_session( $x5d_session->session_id, 0 );
+// Merged: a cash difference needs a reason (shift close), so the till is counted with the expected amount (two cash sales).
+$x5d_closed = X5dPos::close_session( $x5d_session->session_id, PassCaptain\BoxOffice\ZReport::compute( $x5d_session->session_id )['cash']['expected'] );
 check( 'with all terminal sales decided the session closes', ! is_wp_error( $x5d_closed ) && 'closed' === $x5d_closed->status );
 $wpdb->query( "ALTER TABLE {$p}wpcap_boxoffice_sales DROP COLUMN device_started_at, DROP COLUMN device_message, DROP COLUMN device_status, DROP COLUMN device_reference, DROP COLUMN device_id" );
 $GLOBALS['wpcap_test_options']['wpcap_boxoffice_migration'] = 2;
 $x5d_migrated = X5dModule::maybe_migrate();
 $x5d_cols = $wpdb->get_col( "SHOW COLUMNS FROM {$p}wpcap_boxoffice_sales LIKE 'device%'" );
-check( 'migration 3 adds the terminal columns to existing installs (idempotent)', true === $x5d_migrated && 5 === count( $x5d_cols ) && true === X5dModule::migrate() && 3 === (int) get_option( 'wpcap_boxoffice_migration' ) );
+check( 'migration 3 adds the terminal columns to existing installs (idempotent)', true === $x5d_migrated && 5 === count( $x5d_cols ) && true === X5dModule::migrate() && X5dModule::MIGRATION_VERSION === (int) get_option( 'wpcap_boxoffice_migration' ) ); // merged: version 4 (fiscal_register_id)
 
 $GLOBALS['x5d_enabled'] = false;
 $GLOBALS['wpcap_test_user_id'] = 1;

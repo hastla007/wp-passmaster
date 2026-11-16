@@ -1,5 +1,5 @@
-// MERGE-CHECK: Arbeitsliste version of tests/js/scanner.test.js (both development lines tested the same script with
-// their own harness). Keep the checks that match the merged script; the other file is the audit-branch version.
+// Arbeitsliste version of the web scanner tests (both development lines tested the same script with their own
+// harness); the merged expectations of the audit-line version are in tests/js/scanner.test.js.
 /**
  * A271, A315, A540, A541, A542: web scanner (assets/scanner.js) in Node with a small fake DOM,
  * fake timers and a scripted fetch(). Covers: code field emptied for every scan, scans during the

@@ -1,5 +1,5 @@
-// MERGE-CHECK: Arbeitsliste version of tests/js/offline-scanner.test.js (both development lines tested the same script with
-// their own harness). Keep the checks that match the merged script; the other file is the audit-branch version.
+// Arbeitsliste version of the offline scanner tests (both development lines tested the same script with their own
+// harness); merged expectations: package needs tickets/rows, hidden device token (pair()), R2 "Eben hier eingelassen".
 /**
  * A174: logic of the offline scanner PWA (assets/offline-scanner/app.js) in Node: code normalisation,
  * signature/format/device checks of signed packages and the offline admission decision.
@@ -64,7 +64,7 @@ function sign(payload, keyId = 'k1') {
 }
 app.state.keys = { k1: { public_key: b64(keyPair.publicKey), status: 'active' } };
 app.state.deviceId = 'dev-1';
-const base = { format: 'wpcap-offline-package', v: 1, key_id: 'k1', device_id: 'dev-1', kind: 'full', occurrence: { id: 7 }, cursor: 'c1' };
+const base = { format: 'wpcap-offline-package', v: 1, key_id: 'k1', device_id: 'dev-1', kind: 'full', occurrence: { id: 7 }, cursor: 'c1', tickets: [] }; // merged verifyDoc requires the tickets list (format 1) or rows (format 2)
 
 test('normalizeCode keeps the first 64-hex run, lowercase', () => {
 	const code = 'A'.repeat(64);
@@ -293,9 +293,14 @@ async function undoApp() {
 	const w2 = loadApp({ indexedDB: idb, addEventListener() {}, history: { replaceState() {} }, withI18n: true, localStorage: { getItem: () => null, setItem() {} } });
 	await settle();
 	const a2 = w2.wpcapOffline;
+	// Merged: the device token is not reachable through wpcapOffline.state (hidden, audit line); the
+	// harness pairs the device through pair() with a stubbed answer instead.
+	w2.fetch = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ token: 'tok', device_id: 'dev-1' }) });
+	await a2.pair('ABCD-EFGH-JKLM-NPQR');
+	delete w2.fetch;
+	assert.strictEqual(a2.state.token, undefined, 'token stays hidden');
 	a2.state.keys = { k1: { public_key: b64(keyPair.publicKey), status: 'active' } };
 	a2.state.deviceId = 'dev-1';
-	a2.state.token = 'tok';
 	a2.state.selected = 7;
 	return { w2, a2, idb, log: () => Array.from(idb.stores.get('log').data.values()) };
 }
@@ -417,7 +422,11 @@ test('A544: an offline search result is admitted by hash and uploaded with ticke
 	// A second check-in of the same ticket on this device is refused like a second scan.
 	await a2.checkInResult({ hash: h, attendee_name: 'Anna Muster' });
 	await settle();
-	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Bereits verwendet');
+	// Merged (audit R2): a ticket this device admitted a moment ago is refused in yellow with the time
+	// ("Eben hier eingelassen"), the verdict "Bereits verwendet" stays in the detail line; no second entry.
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Eben hier eingelassen (vor 0 s)');
+	assert.match(String(w2.document.getElementById('result-detail').textContent), /Bereits verwendet/);
+	assert.strictEqual(log().filter((r) => true === r.ok).length, 1, 'no second admission logged (the refusal is logged as such)');
 	// Upload: the scan carries ticket_hash instead of a code.
 	w2.navigator.onLine = true;
 	const bodies = [];

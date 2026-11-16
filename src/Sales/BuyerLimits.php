@@ -168,11 +168,10 @@ final class BuyerLimits {
 	 * @return string[]|false Lock names to release, or false when a lock could not be taken.
 	 */
 	public static function acquire( $email, $user_id ) {
-		global $wpdb;
 		$wait = max( 1, (int) apply_filters( 'wpcap_buyer_limit_lock_wait', 10 ) );
 		$held = array();
 		foreach ( self::lock_names( $email, $user_id ) as $name ) {
-			if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, $wait ) ) ) {
+			if ( ! \PassCaptain\DbLock::acquire_scoped( $name, $wait ) ) {
 				self::release( $held );
 				return false;
 			}
@@ -183,9 +182,8 @@ final class BuyerLimits {
 
 	/** Releases buyer locks taken by acquire(). */
 	public static function release( $names ) {
-		global $wpdb;
 		foreach ( array_reverse( (array) $names ) as $name ) {
-			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
+			\PassCaptain\DbLock::release_scoped( $name );
 		}
 	}
 

@@ -68,10 +68,10 @@ $GLOBALS['wpcap_test_user_id'] = 0;
 $dev = Devices::pair( $pair['code'], 'A547', 'android', '1.1' );
 $GLOBALS['wpcap_test_user_id'] = 1;
 adm_in( $s['codes'][1] );
-$app_none = app_call( 'undo', 'POST', $dev['token'], array( 'code' => $s['codes'][1] ) );
+$app_none = app_call( 'undo', 'POST', $dev['token'], array( 'code' => $s['codes'][1], 'idempotency_key' => 'a547-none' /* merged: app undo needs a key (R2) */ ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 check( 'A547: app undo without reason answers ok=false, result reason_required; nothing changes', false === ( $app_none['ok'] ?? null ) && 'reason_required' === ( $app_none['result'] ?? '' ) && 'checked_in' === a547_status( $s['codes'][1] ) );
-$app_pub = app_call( 'undo', 'POST', $dev['token'], array( 'ticket_public_id' => a547_public( $s['codes'][1] ), 'reason' => 'Fehlscan' ) );
+$app_pub = app_call( 'undo', 'POST', $dev['token'], array( 'ticket_public_id' => a547_public( $s['codes'][1] ), 'reason' => 'Fehlscan', 'idempotency_key' => 'a547-pub' ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 check( 'A547: app undo by ticket_public_id with reason works', true === ( $app_pub['ok'] ?? null ) && 'undone' === ( $app_pub['result'] ?? '' ) && 'valid' === a547_status( $s['codes'][1] ) );
 

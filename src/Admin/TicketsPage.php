@@ -174,7 +174,7 @@ final class TicketsPage {
 		// undoing the check-in must not turn it back into a valid (admissible) ticket.
 		if ( (int) $row->refunded || 'paid' !== $row->payment_status || 'complete' !== $row->order_status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return Forms::error( 'wpcap_ticket_not_undoable', __( 'Der Check-in eines erstatteten oder stornierten Tickets kann nicht zurückgenommen werden.', 'pass-captain' ), 409 );
+			return Forms::error( 'wpcap_undo_refunded', __( 'Der Check-in eines erstatteten oder stornierten Tickets kann nicht zurückgenommen werden.', 'pass-captain' ), 409 );
 		}
 		$last = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id FROM %i WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $p . 'wpcap_checkins', (int) $ticket->ticket_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }

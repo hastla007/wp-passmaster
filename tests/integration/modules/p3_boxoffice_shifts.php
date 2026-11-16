@@ -54,6 +54,8 @@ if ( ! function_exists( 'check' ) ) {
 global $wpdb;
 $p = $wpdb->prefix;
 if ( ! function_exists( 'esc_js' ) ) { function esc_js( $s ) { return addslashes( (string) $s ); } }
+// The merged register screen also edits the TerminalRegistry (textarea of the audit line).
+if ( ! function_exists( 'esc_textarea' ) ) { function esc_textarea( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
 if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $path = '', $file = '' ) { return 'https://example.test/wp-content/plugins/pass-captain/' . ltrim( $path, '/' ); } }
 if ( ! function_exists( 'nocache_headers' ) ) { function nocache_headers() {} }
 // Same stubs as partners.php / zz_phase1_ux.php (admin screens, fiscal notice reads user meta).
@@ -389,7 +391,7 @@ $second = BoxOfficeModule::maybe_migrate();
 $sess = static fn( $id ) => Shifts::get( $id );
 $zl1 = ZReport::for_shift( $l1 );
 $zl2 = ZReport::for_shift( $l2 );
-check( 'migration runs once (option version 2)', true === $first && false === $second && 2 === (int) get_option( 'wpcap_boxoffice_migration' ) );
+check( 'migration runs once (option version = MIGRATION_VERSION, 4 after the merge)', true === $first && false === $second && BoxOfficeModule::MIGRATION_VERSION === (int) get_option( 'wpcap_boxoffice_migration' ) );
 check( 'closed legacy sessions are mapped to the default register with Z reports in closing order', (int) $mig_default->register_id === (int) $sess( $l1 )->register_id && (int) $mig_default->register_id === (int) $sess( $l2 )->register_id && 1 === (int) $zl1->z_number && 2 === (int) $zl2->z_number && 'migration' === $zl1->source && 1500 === (int) $zl1->grand_total_minor && 1700 === (int) $zl2->grand_total_minor && -10 === (int) $zl2->cash_difference_minor && 'Rundung' === $zl2->difference_reason && 702 === (int) $zl2->closed_by && array() === ZReport::verify( $mig_default->register_id ) );
 $l4_register = Registers::get( $sess( $l4 )->register_id );
 check( 'open legacy sessions stay open: the first on the default register, further ones on own registers', 'open' === $sess( $l3 )->status && (int) $mig_default->register_id === (int) $sess( $l3 )->open_register && (int) $l3 === (int) Shifts::open_for_register( $mig_default->register_id )->session_id && $l4_register && 'Kasse 2 (übernommen)' === $l4_register->name && (int) $l4_register->register_id === (int) $sess( $l4 )->open_register && (int) $l3 === (int) Pos::open_session_for( 703 )->session_id );

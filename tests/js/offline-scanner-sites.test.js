@@ -125,12 +125,15 @@ test('A473: each site of the network gets its own store and pairing', async () =
 	// The admin link of site B on the same device: not paired there, site A's token is not used.
 	const b = await start(d, SITE_B);
 	assert.strictEqual(b.state.api, SITE_B);
-	assert.strictEqual(b.state.token, '', 'site B starts unpaired');
+	// Merged: the token is hidden from wpcapOffline.state; the pairing shows in the device id.
+	assert.strictEqual(b.state.token, undefined, 'token never exposed');
+	assert.strictEqual(b.state.deviceId, '', 'site B starts unpaired');
 	assert.strictEqual(d.idb.store('wpcap-offline-scanner@' + SITE_B, 'kv').get('token'), undefined);
 	assert.ok(d.idb.store('wpcap-offline-scanner@' + SITE_A, 'kv').get('token'), 'site A pairing untouched');
 	// Back to site A: its pairing is still there.
 	const a2 = await start(d, SITE_A);
-	assert.strictEqual(a2.state.token, d.idb.store('wpcap-offline-scanner@' + SITE_A, 'kv').get('token'));
+	assert.strictEqual(a2.state.deviceId, d.idb.store('wpcap-offline-scanner@' + SITE_A, 'kv').get('device_id'));
+	assert.ok(a2.state.deviceId, 'site A still paired');
 });
 
 test('A473: a start without ?api= (home screen) opens the site used last', async () => {
@@ -158,9 +161,9 @@ test('A473: the store of an earlier version keeps serving its own site only', as
 	d.idb.seed('wpcap-offline-scanner', { api: SITE_A, token: 'old-token', device_id: 'dev-old' });
 	const a = await start(d, SITE_A);
 	assert.strictEqual(a.storeName(), 'wpcap-offline-scanner');
-	assert.strictEqual(a.state.token, 'old-token');
+	assert.strictEqual(a.state.deviceId, 'dev-old', 'paired with the old store (token hidden)');
 	const b = await start(d, SITE_B);
-	assert.strictEqual(b.state.token, '', 'the old pairing of site A is not used for site B');
+	assert.strictEqual(b.state.deviceId, '', 'the old pairing of site A is not used for site B');
 	assert.strictEqual(d.idb.store('wpcap-offline-scanner', 'kv').get('api'), SITE_A, 'old store still belongs to site A');
 	const plain = await start(d, '');
 	assert.strictEqual(plain.state.api, SITE_B);
