@@ -36,6 +36,12 @@ if [ -f "${WORK}/src/composer.json" ]; then
 	# Fixed autoloader class suffix (otherwise derived from a random value in some Composer versions).
 	composer config --working-dir="${WORK}/src" autoloader-suffix "WpcapRelease" >/dev/null
 	COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir="${WORK}/src" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
+	# A511: no Composer platform check in the ZIP – on a too old PHP it would end every request with a
+	# fatal error; pass-captain.php checks the versions itself and only shows an admin notice.
+	if [ -f "${WORK}/src/vendor/composer/platform_check.php" ]; then
+		echo "vendor/composer/platform_check.php must not be shipped (composer.json config.platform-check = false)." >&2
+		exit 1
+	fi
 fi
 
 # A275: translations of the block editor scripts (src/blocks/*/editor.js) as JED JSON files

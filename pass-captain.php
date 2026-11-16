@@ -53,6 +53,37 @@ if ( wpcap_take_over_legacy_copy() ) {
 	return;
 }
 
+/*
+ * A511: own PHP/WordPress version guard before the autoloader. Below the minimum the plugin does not
+ * load (no fatal error that takes the site down) and shows an admin notice instead. Keep this block
+ * parseable by old PHP versions (no 8.x syntax) and the values equal to the header above.
+ */
+if ( ! function_exists( 'wpcap_requirements_error' ) ) {
+	/** Returns why this site cannot run the plugin ('' when it can). */
+	function wpcap_requirements_error() {
+		global $wp_version;
+		if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
+			/* translators: 1: required PHP version, 2: installed PHP version */
+			return sprintf( __( 'Pass Captain benötigt PHP %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte PHP beim Hosting aktualisieren.', 'pass-captain' ), '8.2', PHP_VERSION );
+		}
+		if ( isset( $wp_version ) && version_compare( (string) $wp_version, '6.4', '<' ) ) {
+			/* translators: 1: required WordPress version, 2: installed WordPress version */
+			return sprintf( __( 'Pass Captain benötigt WordPress %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte WordPress aktualisieren.', 'pass-captain' ), '6.4', (string) $wp_version );
+		}
+		return '';
+	}
+}
+if ( '' !== wpcap_requirements_error() ) {
+	$wpcap_requirements_notice = function () {
+		if ( current_user_can( 'activate_plugins' ) ) {
+			echo '<div class="notice notice-error"><p>' . esc_html( wpcap_requirements_error() ) . '</p></div>';
+		}
+	};
+	add_action( 'admin_notices', $wpcap_requirements_notice );
+	add_action( 'network_admin_notices', $wpcap_requirements_notice );
+	return;
+}
+
 define( 'WPCAP_VERSION', '1.4.0' );
 define( 'WPCAP_FILE', __FILE__ );
 define( 'WPCAP_PATH', plugin_dir_path( __FILE__ ) );

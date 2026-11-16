@@ -52,6 +52,7 @@ Freigegeben ist nur, was die CI bei jedem Push mit der vollständigen Integratio
 | 8.4 | MySQL 8.4 | LTS |
 | 8.5 | MariaDB 11.8 | neueste PHP- und MariaDB-LTS |
 
+- **Zu alte PHP- oder WordPress-Version** (unter PHP 8.2 bzw. WordPress 6.4, z. B. nach einem PHP-Downgrade beim Hosting): Das Plugin lädt nicht und zeigt Administratoren nur einen Hinweis; die Website läuft weiter (A511). Composers eigene Plattformprüfung (`vendor/composer/platform_check.php`, beendet jede Anfrage mit einem Fatal Error) ist abgeschaltet (`config.platform-check: false`), der Release-Build bricht ab, falls sie doch im ZIP landen würde.
 - **Unterstützt:** PHP 8.2–8.5, MySQL 8.0 und 8.4, MariaDB 10.6 bis 11.8. Ältere Versionen (MySQL 5.7, MariaDB < 10.6) werden nicht getestet und sind nicht freigegeben, auch wenn das Schema dort anlegbar wäre; Transaktionserkennung (`@@in_transaction` bzw. Savepoint-Probe), Sperrverhalten und Deadlock-Wiederholungen sind nur auf den getesteten Versionen abgesichert.
 - **Echte WordPress-/WooCommerce-Installationen** prüft zusätzlich `.github/workflows/wp-matrix.yml` (WordPress 6.4/6.8/aktuell, WooCommerce 8.2.0/aktuell × HPOS/Beitragsspeicher, Release-ZIP in frischer Installation) gegen MariaDB 11.4; wöchentliche Lastgrenzen gegen MariaDB und MySQL in `load.yml`.
 - **Pro Release** wird die Matrix des Release-Commits im Abnahmeprotokoll verlinkt (`docs/release-acceptance/`); eine neue Datenbank- oder PHP-Version gilt erst als freigegeben, wenn sie in diese Matrix aufgenommen wurde und grün ist.
