@@ -1009,29 +1009,29 @@ Gesamt: 262 Aufgaben.
   - src/Admin/AuditLogPage.php:71–77, Refunds.php:114/211/263/333: mb_substr/mb_strcut, CI-Lint
 - [ ] **A479** [WICHTIG] Keine Cross-Site-Tests für Zugriff, Scanner-Speicher, Benutzerzuweisung — _R3 Multisite/i18n/Skalierung_ (TODO L816; Audit Runde 4)
   - tests/: Multisite-Tests (Subdirectory) für diese Pfade
-- [ ] **A480** [WICHTIG] Mitgliedspass: uses_total/uses_per_day bei gleichzeitigen Scans überschritten — _R3 Eigen (Deep Dive 2)_ (TODO L817; Audit Runde 4)
+- [x] **A480** [WICHTIG] Mitgliedspass: uses_total/uses_per_day bei gleichzeitigen Scans überschritten — _R3 Eigen (Deep Dive 2)_ (TODO L817; Audit Runde 4)
   - src/Memberships.php:46, :54–55 (redeem): Snapshot vor FOR UPDATE. Erst Pass sperren, dann zählen (belegt t1)
-- [ ] **A481** [WICHTIG] Kassen-/Support-Rolle können unbegrenzte Gratis-Mitgliedspässe ausstellen — _R3 Eigen (Deep Dive 2)_ (TODO L818; Audit Runde 4)
+- [x] **A481** [WICHTIG] Kassen-/Support-Rolle können unbegrenzte Gratis-Mitgliedspässe ausstellen — _R3 Eigen (Deep Dive 2)_ (TODO L818; Audit Runde 4)
   - src/Rest/Controller.php:630, :566: wpcap_approve_comps + Vier-Augen-Prinzip, Admin-Liste zum Ansehen/Widerrufen
-- [ ] **A482** [WICHTIG] Mitgliedspass-Einlösung ignoriert Kapazität, Terminstatus, Einlassstatistik — _R3 Eigen (Deep Dive 2)_ (TODO L819; Audit Runde 4)
+- [x] **A482** [WICHTIG] Mitgliedspass-Einlösung ignoriert Kapazität, Terminstatus, Einlassstatistik — _R3 Eigen (Deep Dive 2)_ (TODO L819; Audit Runde 4)
   - src/Memberships.php:51: An Termin binden, scheduled prüfen, Admission-Eintrag, optional Kontingent
 - [x] **A483** [WICHTIG] Käuferlimit mit verspäteter Zahlung umgehbar (erweitert A353) — _R3 Eigen (Deep Dive 2)_ (TODO L820; Audit Runde 4)
   - src/Allocations/BuyerLimits.php:217, :375: Im recover-Pfad Limit unter Sperre prüfen, sonst needs_review (belegt t3)
-- [ ] **A484** [WICHTIG] Käuferlimit per Plus-Adresse umgehbar — _R3 Eigen (Deep Dive 2)_ (TODO L821; Audit Runde 4)
+- [x] **A484** [WICHTIG] Käuferlimit per Plus-Adresse umgehbar — _R3 Eigen (Deep Dive 2)_ (TODO L821; Audit Runde 4)
   - src/Allocations/BuyerLimits.php:96 (normalize_email): +Zusatz für alle Domains entfernen (abschaltbar), Gmail-Punkte als Einstellung (belegt t3)
-- [ ] **A485** [WICHTIG] Rollstuhlplätze werden bei automatischer Platzvergabe zuerst vergeben; keine Begleitplätze — _R3 Eigen (Deep Dive 2)_ (TODO L822; Audit Runde 4)
+- [x] **A485** [WICHTIG] Rollstuhlplätze werden bei automatischer Platzvergabe zuerst vergeben; keine Begleitplätze — _R3 Eigen (Deep Dive 2)_ (TODO L822; Audit Runde 4)
   - src/Seating/Reservations.php:229 (free_seats): Bei Auto-Vergabe ausschließen/nachrangig, eigene Zone/Freigabe, Begleitplätze koppeln (belegt t4)
-- [ ] **A486** [WICHTIG] Verfügbarkeit sitzplatzgebundener Ticketarten ignoriert den Saalplan — _R3 Eigen (Deep Dive 2)_ (TODO L823; Audit Runde 4)
+- [x] **A486** [WICHTIG] Verfügbarkeit sitzplatzgebundener Ticketarten ignoriert den Saalplan — _R3 Eigen (Deep Dive 2)_ (TODO L823; Audit Runde 4)
   - src/Modules/Seating.php:27–29: Freie passende Plätze als Obergrenze, Warnung beim Verknüpfen (belegt t4)
-- [ ] **A487** [WICHTIG] Neue Saalplan-Version ohne Zone macht Ticketart still unverkäuflich — _R3 Eigen (Deep Dive 2)_ (TODO L824; Audit Runde 4)
+- [x] **A487** [WICHTIG] Neue Saalplan-Version ohne Zone macht Ticketart still unverkäuflich — _R3 Eigen (Deep Dive 2)_ (TODO L824; Audit Runde 4)
   - src/Seating/Layouts.php:525 (publish/upgrade_links): Zuordnungen beim Veröffentlichen prüfen, abbrechen oder Neuzuordnung verlangen (belegt t4)
-- [ ] **A488** [WICHTIG] Backoffice-/Absage-Erstattungen von Kassenbestellungen in fremde Kassenschicht gebucht — _R3 Eigen (Deep Dive 2)_ (TODO L825; Audit Runde 4)
+- [x] **A488** [WICHTIG] Backoffice-/Absage-Erstattungen von Kassenbestellungen in fremde Kassenschicht gebucht — _R3 Eigen (Deep Dive 2)_ (TODO L825; Audit Runde 4)
   - src/BoxOffice/Shifts.php:622, :646, OccurrenceCancellation.php:121: Als offene Kassen-Rückzahlung vormerken, Buchung bei tatsächlicher Auszahlung
-- [ ] **A489** [WICHTIG] Schicht wird während laufendem Verkauf geschlossen: Tickets ohne Beleg und Z-Bericht — _R3 Eigen (Deep Dive 2)_ (TODO L826; Audit Runde 4)
+- [x] **A489** [WICHTIG] Schicht wird während laufendem Verkauf geschlossen: Tickets ohne Beleg und Z-Bericht — _R3 Eigen (Deep Dive 2)_ (TODO L826; Audit Runde 4)
   - src/BoxOffice/Shifts.php:420 (close), Service.php:372/445: In close() Bestellungen stornieren; Verkaufsstatus vor Bestätigung unter Sperre prüfen
 - [x] **A490** [WICHTIG] Nach Umtausch kein Wallet-Pass mehr (erweitert A091) — _R3 Eigen (Deep Dive 2)_ (TODO L827; Audit Runde 4)
   - src/WalletPasses/Service.php:98, :210, Exchange/Service.php:715/851: issue() für neues Ticket, Link in Umtauschmail
-- [ ] **A491** [WICHTIG] Stammdaten ohne zeitliche Versionierung (Veranstalter-Zuordnung, Konditionen, Zonen) — _R3 Eigen (Deep Dive 2)_ (TODO L828; Audit Runde 4)
+- [x] **A491** [WICHTIG] Stammdaten ohne zeitliche Versionierung (Veranstalter-Zuordnung, Konditionen, Zonen) — _R3 Eigen (Deep Dive 2)_ (TODO L828; Audit Runde 4)
   - Partners/, Seating/: Gültigkeitszeiträume/Momentaufnahmen einführen
 - [ ] **A492** [WICHTIG] Anonyme Fatal Errors durch Array statt String in E-Mail-Feldern (erweitert A421; gegen A194-Stand prüfen) — _R3 QA_ (TODO L829; Audit Runde 4)
   - src/Rest/Controller.php:31, Orders.php:25/510/1461, Waitlists.php:98, ServiceBookings.php:26, Partners/Sales.php:534–538: is_string-Prüfung, args type string vor sanitize_callback; Recovery-Mails als Alarmrauschen
