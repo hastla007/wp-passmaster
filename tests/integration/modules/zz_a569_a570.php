@@ -36,7 +36,7 @@ $a569_err = static function ( $r ) { return is_wp_error( $r ) ? $r->get_error_co
 $a569_hash = static function ( $ticket_id ) { global $wpdb; return (string) $wpdb->get_var( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=" . (int) $ticket_id ); };
 
 check( 'A569: schema 3.10.18 counters wpcap_tickets.holder_changes/name_changes exist', TicketAssignments::counters_ready() );
-check( 'A569: correction rule (first name, spelling, typo = correction; other name = other person)', TicketAssignments::is_name_correction( '', 'Anna' ) && TicketAssignments::is_name_correction( 'Anna Beispiel', 'beispiel  anna' ) && TicketAssignments::is_name_correction( 'Anna Beispiel', 'Anna Beispeil' ) && TicketAssignments::is_name_correction( 'Jörg Müller', 'Jörg Mueller' ) && ! TicketAssignments::is_name_correction( 'Anna Beispiel', 'Bernd Käufer' ) );
+check( 'A569: correction rule (first name, spelling, typo = correction; other name = other person)', TicketAssignments::is_name_correction( '', 'Anna' ) && TicketAssignments::is_name_correction( 'Anna Beispiel', 'beispiel  anna' ) && TicketAssignments::is_name_correction( 'Anna Beispiel', 'Anna Beispeil' ) && TicketAssignments::is_name_correction( 'Jörg Müller', 'Jörg Mueller' ) && TicketAssignments::is_name_correction( 'Carol', 'Carol Weber' ) && ! TicketAssignments::is_name_correction( 'Anna Beispiel', 'Bernd Käufer' ) && ! TicketAssignments::is_name_correction( 'Anna Beispiel', 'Anna Schmidt' ) );
 
 $t0 = $a569_t[0];
 $h0 = $a569_hash( $t0->ticket_id );
@@ -63,7 +63,7 @@ check( 'A569: e-mail change with a new name = one holder change', 'ok' === $a569
 // Upgrade: holder changes from the audit log are carried over.
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET holder_changes=0 WHERE ticket_id=" . (int) $t1->ticket_id );
 PassCaptain\Installer::backfill_holder_changes( '3.10.17' );
-check( 'A569: upgrade carries audit-logged holder changes over to the counter', 1 === TicketAssignments::holder_changes( (int) $t1->ticket_id ) && false === PassCaptain\Installer::backfill_holder_changes( '3.10.18' ) );
+check( 'A569: upgrade carries audit-logged holder changes over to the counter', 1 === (int) $wpdb->get_var( "SELECT holder_changes FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $t1->ticket_id ) && false === PassCaptain\Installer::backfill_holder_changes( '3.10.18' ) );
 
 // --- A570: the recipient of a transfer personalises the ticket on the ticket page ---
 $t2 = $a569_t[2];

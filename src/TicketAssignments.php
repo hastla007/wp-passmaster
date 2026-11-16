@@ -193,14 +193,15 @@ final class TicketAssignments {
 	/**
 	 * Number of holder changes a ticket already had (assignment to another e-mail address or another
 	 * person's name, A569). Counted on the ticket (wpcap_tickets.holder_changes, schema 3.10.18), so an
-	 * audit-log purge no longer resets it; before that upgrade the audit entries are counted.
+	 * audit-log purge no longer resets it; the larger of counter and audit entries applies.
 	 */
 	public static function holder_changes( $ticket_id ) {
 		global $wpdb;
-		if ( self::counters_ready() ) {
-			return (int) $wpdb->get_var( $wpdb->prepare( "SELECT holder_changes FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
-		}
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE object_type='ticket' AND object_id=%d AND action='ticket_holder_changed'", absint( $ticket_id ) ) );
+		$logged = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE object_type='ticket' AND object_id=%d AND action='ticket_holder_changed'", absint( $ticket_id ) ) );
+		if ( ! self::counters_ready() ) { return $logged; }
+		// The counter is authoritative; audit entries it does not know yet (written by older code during
+		// a deferred upgrade) still count.
+		return max( $logged, (int) $wpdb->get_var( $wpdb->prepare( "SELECT holder_changes FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) ) );
 	}
 
 	/** Number of changes of the attendee name of a ticket (corrections included, A569). */
@@ -222,13 +223,18 @@ final class TicketAssignments {
 
 	/**
 	 * Whether a new attendee name is only a correction of the previous one (A569): the first name of a
-	 * ticket, the same name in another spelling (case, spaces, word order) or a small typo fix (at most
-	 * `wpcap_attendee_name_correction_distance` edits, default 2). Anything else is another person.
+	 * ticket, the same name in another spelling (case, spaces, word order), a name part added or left
+	 * out ("Carol" → "Carol Weber") or a small typo fix (at most `wpcap_attendee_name_correction_distance`
+	 * edits, default 2). Anything else is another person. Corrections count against
+	 * `wpcap_max_attendee_name_changes`, which also bounds a change of person in several small steps.
 	 */
 	public static function is_name_correction( $before, $after ) {
 		$a = self::name_key( $before );
 		$b = self::name_key( $after );
 		if ( '' === $a || $a === $b ) { return true; }
+		$wa = explode( ' ', $a );
+		$wb = explode( ' ', $b );
+		if ( ! array_diff( $wa, $wb ) || ! array_diff( $wb, $wa ) ) { return true; }
 		/**
 		 * Edits (Levenshtein distance of the normalised names) up to which a name change counts as a
 		 * correction for the same person, not as a change of the holder (A569).
