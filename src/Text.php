@@ -18,6 +18,16 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Text {
 	/**
+	 * At most $max characters of a text (A494); like cut(), but '' for arrays, objects and null.
+	 *
+	 * @param mixed $text Text.
+	 * @param int   $max  Maximum number of characters.
+	 */
+	public static function limit( $text, $max ) {
+		return self::cut( is_scalar( $text ) ? (string) $text : '', $max );
+	}
+
+	/**
 	 * At most $length characters of $text, never a broken character. Invalid UTF-8 in the input
 	 * (e.g. an earlier byte-wise cut) is replaced first, so the result is always valid UTF-8.
 	 *
