@@ -333,7 +333,7 @@ final class AdminPage {
 		echo '</form>';
 		// Event search (GET) – its fields sit in the event section above via the form attribute.
 		echo '<form id="wpcap-pa-event-search" method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '"><input type="hidden" name="partner_id" value="' . esc_attr( $partner ? (string) (int) $partner->partner_id : 'new' ) . '"></form>';
-		if ( $partner ) { self::render_event_history( $partner ); }
+		if ( $partner ) { self::render_event_history( $partner ); self::render_terms_history( $partner ); }
 	}
 
 	/** Events shown per page in the partner's event list and per search. */
@@ -393,6 +393,21 @@ final class AdminPage {
 		echo '<p><label for="wpcap-pa-event-ids">' . esc_html__( 'Event-IDs hinzufügen (kommagetrennt)', 'pass-captain' ) . '</label><br><input id="wpcap-pa-event-ids" name="add_event_ids_text" class="regular-text" inputmode="numeric" placeholder="12, 15"></p>';
 		echo '<p class="description">' . esc_html__( 'Ein Event gehört immer nur einem Veranstalter. Zum Umhängen das Event erst beim bisherigen Veranstalter lösen: Verkäufe bis dahin und ihre späteren Erstattungen bleiben beim bisherigen Veranstalter, neue Verkäufe gehen an den neuen.', 'pass-captain' ) . '</p>';
 		echo '</td></tr>';
+	}
+
+	/** Recorded versions of commission, fee and refund policy (A491). */
+	private static function render_terms_history( $partner ) {
+		$rows = Repository::terms_history( (int) $partner->partner_id );
+		if ( ! $rows ) { return; }
+		$tz = Scope::site_timezone();
+		$policies = Repository::refund_policy_labels();
+		echo '<h3>' . esc_html__( 'Verlauf der Konditionen', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Provision, Ticketgebühr und Erstattungsregel gelten für Bestellungen ab dem jeweiligen Zeitpunkt; Erstattungen folgen den Konditionen ihres Verkaufs.', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Gültig ab', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Provision', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Gebühr pro Ticket', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Erstattungsregel', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$from = $row->valid_from ? Scope::local( $row->valid_from, $tz, 'd.m.Y H:i' ) : __( 'von Beginn an', 'pass-captain' );
+			echo '<tr><td>' . esc_html( $from ) . '</td><td>' . esc_html( Forms::percent_input( (int) $row->commission_bp ) . ' %' ) . '</td><td>' . esc_html( Scope::money( (int) $row->fee_per_ticket_minor, (string) $partner->currency ) ) . '</td><td>' . esc_html( $policies[ $row->refund_policy ] ?? (string) $row->refund_policy ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	/** Assignment history of the partner's events (A448). */

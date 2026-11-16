@@ -22,6 +22,10 @@
  * never be settled twice – not even by another partner after its event was moved (A448).
  * Finalized/paid settlements are never changed again.
  *
+ * Terms (A491): commission, fee per ticket and refund policy are taken from the version of the
+ * organizer's terms that applied when the order was created (Repository::terms_at(),
+ * wpcap_partner_terms_history), so changing them affects later sales only.
+ *
  * Attribution (A448): a sale belongs to the organizer that was assigned to its event when the order
  * was created (Repository::assignments(), wpcap_partner_event_history); a refund belongs to the
  * organizer that settled the sale, or – not settled yet – the one assigned at sale time. Moving an
@@ -215,9 +219,12 @@ final class Settlements {
 	private static function line( $kind, $key, $line, $order_id, $refund_id, $occurred_at, $order_created_at, $tickets, $gross, $tax, $partner, $tz ) {
 		$net = $gross - $tax;
 		$is_refund = $refund_id > 0;
-		$policy = (string) $partner->refund_policy;
-		$commission = self::pct( $net, (int) $partner->commission_bp );
-		$fee = $tickets * (int) $partner->fee_per_ticket_minor;
+		// A491: the terms that applied when the order was created – also for its later refunds, so a
+		// correction reverses exactly what was charged on the sale.
+		$terms = Repository::terms_at( $partner, $order_created_at );
+		$policy = (string) $terms['refund_policy'];
+		$commission = self::pct( $net, (int) $terms['commission_bp'] );
+		$fee = $tickets * (int) $terms['fee_per_ticket_minor'];
 		if ( $is_refund ) {
 			if ( 'keep_all' === $policy ) { $commission = 0; }
 			if ( 'reverse_all' !== $policy ) { $fee = 0; }

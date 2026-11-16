@@ -261,6 +261,21 @@ final class Partners {
 				KEY event_id (event_id,valid_from),
 				KEY partner_id (partner_id)
 			) ENGINE=InnoDB $charset;",
+			// Settlement terms per organizer with validity (A491): commission, fee per ticket and refund
+			// policy that applied when an order was created. valid_from NULL = since always (the terms
+			// before the first recorded change). Without rows the current terms apply to every sale.
+			"CREATE TABLE {$prefix}wpcap_partner_terms_history (
+				history_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				partner_id bigint(20) unsigned NOT NULL,
+				valid_from datetime NULL,
+				commission_bp int(10) unsigned NOT NULL DEFAULT 0,
+				fee_per_ticket_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				refund_policy varchar(20) NOT NULL DEFAULT 'reverse_all',
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (history_id),
+				KEY partner_from (partner_id,valid_from)
+			) ENGINE=InnoDB $charset;",
 			// Selling via the partner API (src/Partners/Sales.php): price list / assortment per ticket type.
 			"CREATE TABLE {$prefix}wpcap_partner_prices (
 				partner_id bigint(20) unsigned NOT NULL,

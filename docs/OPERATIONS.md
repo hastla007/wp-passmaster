@@ -931,6 +931,18 @@ ganze Tabelle; Schema 3.10.7 ergänzt `wpcap_refunds.status_updated (status,upda
 `wpcap_credit_notes.issued_at` (gelesene Zeilen 14 546 → 638 bzw. 7 471 → 638 für einen Monat). Die Indizes
 legt das Upgrade über `dbDelta` an; `Installer::upgrade_indexes()` gleicht sie bei späteren Änderungen ab.
 
+**Schema 3.10.18** (A491, Konditionen mit Gültigkeit): neue Tabelle `wpcap_partner_terms_history`.
+Ändert sich beim Speichern eines Veranstalters Provision, Ticketgebühr oder Erstattungsregel, werden
+die bisherigen Konditionen „von Beginn an“ (nur beim ersten Mal) und die neuen ab dem Speicherzeitpunkt
+festgehalten (Audit `partner_terms_changed`, Verlauf auf der Veranstalter-Seite). Die Abrechnung nimmt
+je Position die Konditionen, die beim Bestelldatum galten (`Repository::terms_at()`); Erstattungen und
+Korrekturen kehren genau die beim Verkauf berechnete Provision/Gebühr um. Ohne Verlaufszeilen gelten die
+aktuellen Konditionen für alle Verkäufe (bisheriges Verhalten). Nicht versioniert sind weiterhin:
+Verkaufsmodell (`own_name`/`agent`, gilt beim Abschließen für die ganze Abrechnung), USt.-Satz auf die
+Plattformgebühr, Wiederverkäufer-Konditionen (`reseller_*`), Stammdaten wie Name/Adresse/USt-IdNr. (werden
+beim Abschließen als Momentaufnahme gespeichert) und Ticketart-/Bereichszuordnungen im Saalplan (Saalplan-
+Versionen sind unveränderlich, siehe A487).
+
 **Schema 3.10.8** (A448): neue Tabelle `wpcap_partner_event_history` (Zuordnung Event ↔ Veranstalter mit
 Gültigkeitszeitraum), `wpcap_partner_settlement_lines` bekommt `UNIQUE source_key` statt
 `partner_source (partner_id,source_key)` sowie `order_id` und `partner_event (partner_id,event_id)` – die

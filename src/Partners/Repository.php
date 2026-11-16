@@ -166,6 +166,7 @@ final class Repository {
 			$partner_id = (int) $wpdb->insert_id;
 		}
 		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Veranstalter konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
+		if ( $existing ) { self::record_terms( $existing, $row, $now ); }
 		Audit::record( $existing ? 'partner_updated' : 'partner_created', 'partner', $partner_id, array( 'commission_bp' => $commission, 'fee_per_ticket_minor' => $fee, 'refund_policy' => $row['refund_policy'], 'status' => $row['status'], 'sales_model' => $row['sales_model'], 'sales_model_changed' => $existing && SalesModel::model_of( $existing ) !== $row['sales_model'], 'role' => $row['role'], 'hold_minutes' => $row['hold_minutes'], 'cancel_window_hours' => $row['cancel_window_hours'], 'anonymous_buyer' => $row['anonymous_buyer'], 'reseller_commission_bp' => $row['reseller_commission_bp'], 'reseller_fee_minor' => $row['reseller_fee_minor'] ) );
 		return $partner_id;
 	}
@@ -332,6 +333,67 @@ final class Repository {
 			Audit::record( 'partner_events_set', 'partner', $partner_id, array( 'added' => $added, 'removed' => $removed, 'skipped' => $skipped ) );
 		}
 		return array( 'event_ids' => self::event_ids( $partner_id ), 'skipped' => $skipped, 'added' => $added, 'removed' => $removed );
+	}
+
+	/* ------------------------------------------------------------------ Terms history (A491) */
+
+	/** Settlement terms that are versioned (A491). */
+	const TERM_FIELDS = array( 'commission_bp', 'fee_per_ticket_minor', 'refund_policy' );
+
+	/** Whether the terms history table exists (schema 3.10.18). */
+	public static function terms_ready() {
+		return \PassCaptain\Privacy::has_table( 'wpcap_partner_terms_history' );
+	}
+
+	/** Request cache of terms history rows: partner_id => rows (oldest first). */
+	private static $terms = array();
+
+	/**
+	 * Records a change of commission, fee per ticket or refund policy with its start (now). The first
+	 * change also stores the previous terms as valid since always, so earlier sales keep them.
+	 */
+	private static function record_terms( $existing, array $row, $now ) {
+		global $wpdb;
+		if ( ! self::terms_ready() ) { return; }
+		$changed = false;
+		foreach ( self::TERM_FIELDS as $field ) { $changed = $changed || (string) $existing->$field !== (string) $row[ $field ]; }
+		if ( ! $changed ) { return; }
+		$table = $wpdb->prefix . 'wpcap_partner_terms_history';
+		$partner_id = (int) $existing->partner_id;
+		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE partner_id=%d LIMIT 1", $partner_id ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+			$wpdb->insert( $table, array( 'partner_id' => $partner_id, 'commission_bp' => (int) $existing->commission_bp, 'fee_per_ticket_minor' => (int) $existing->fee_per_ticket_minor, 'refund_policy' => (string) $existing->refund_policy, 'created_by' => $user, 'created_at' => $now ) );
+		}
+		$wpdb->insert( $table, array( 'partner_id' => $partner_id, 'valid_from' => $now, 'commission_bp' => (int) $row['commission_bp'], 'fee_per_ticket_minor' => (int) $row['fee_per_ticket_minor'], 'refund_policy' => (string) $row['refund_policy'], 'created_by' => $user, 'created_at' => $now ) );
+		unset( self::$terms[ $partner_id ] );
+		Audit::record( 'partner_terms_changed', 'partner', $partner_id, array( 'valid_from' => $now, 'from' => array_intersect_key( (array) $existing, array_flip( self::TERM_FIELDS ) ), 'to' => array_intersect_key( $row, array_flip( self::TERM_FIELDS ) ) ) );
+	}
+
+	/**
+	 * Terms (commission_bp, fee_per_ticket_minor, refund_policy) of an organizer that applied at a
+	 * point in time (UTC 'Y-m-d H:i:s', usually the order's creation): the last recorded version that
+	 * started before it, else the current terms.
+	 */
+	public static function terms_at( $partner, $at ) {
+		global $wpdb;
+		$partner_id = (int) $partner->partner_id;
+		$current = array( 'commission_bp' => (int) $partner->commission_bp, 'fee_per_ticket_minor' => (int) $partner->fee_per_ticket_minor, 'refund_policy' => (string) $partner->refund_policy );
+		if ( ! $partner_id || ! self::terms_ready() ) { return $current; }
+		if ( ! isset( self::$terms[ $partner_id ] ) ) {
+			self::$terms[ $partner_id ] = (array) $wpdb->get_results( $wpdb->prepare( "SELECT valid_from,commission_bp,fee_per_ticket_minor,refund_policy FROM {$wpdb->prefix}wpcap_partner_terms_history WHERE partner_id=%d ORDER BY valid_from IS NOT NULL, valid_from, history_id", $partner_id ) );
+		}
+		$found = null;
+		foreach ( self::$terms[ $partner_id ] as $version ) {
+			if ( null === $version->valid_from || '' === (string) $version->valid_from || (string) $version->valid_from <= (string) $at ) { $found = $version; }
+		}
+		return $found ? array( 'commission_bp' => (int) $found->commission_bp, 'fee_per_ticket_minor' => (int) $found->fee_per_ticket_minor, 'refund_policy' => (string) $found->refund_policy ) : $current;
+	}
+
+	/** Recorded terms versions of an organizer, newest first (admin view). */
+	public static function terms_history( $partner_id, $limit = 20 ) {
+		global $wpdb;
+		if ( ! self::terms_ready() ) { return array(); }
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partner_terms_history WHERE partner_id=%d ORDER BY valid_from IS NULL, valid_from DESC, history_id DESC LIMIT %d", absint( $partner_id ), max( 1, (int) $limit ) ) );
 	}
 
 	/* ------------------------------------------------------------------ Assignment history (A448) */
