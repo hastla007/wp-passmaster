@@ -178,6 +178,29 @@ final class Format {
 		return $text;
 	}
 
+	/**
+	 * A608: a deadline (payment due, offer or confirmation expiry) for mails and pages: date and time
+	 * in the event's time zone with that zone named ("24.12.2026 20:00 (Europe/Vienna)"), so it reads
+	 * the same way as the event date of the same mail. Without an event zone the site zone is used.
+	 *
+	 * @param string|int $utc      UTC datetime or Unix timestamp.
+	 * @param string     $timezone Event time zone ('' = site time zone).
+	 */
+	public static function deadline( $utc, $timezone = '' ) {
+		$ts = is_int( $utc ) ? $utc : strtotime( (string) $utc . ' UTC' );
+		if ( false === $ts || '' === (string) $utc ) { return ''; }
+		$zone = null;
+		if ( '' !== (string) $timezone ) {
+			try { $zone = new \DateTimeZone( (string) $timezone ); } catch ( \Exception $e ) { $zone = null; }
+		}
+		$zone = $zone ? $zone : self::site_timezone();
+		$name = $zone->getName();
+		// Offsets such as "+01:00" (site setting without a city) are shown as UTC offset.
+		$label = preg_match( '/^[+-]\d{2}:\d{2}$/', $name ) ? 'UTC' . $name : $name;
+		/* translators: 1: date and time, 2: time zone (e.g. Europe/Vienna) */
+		return sprintf( __( '%1$s (%2$s)', 'pass-captain' ), wp_date( self::datetime_format(), (int) $ts, $zone ), $label );
+	}
+
 	/** UTC timestamp string to a local date/time in the site timezone. */
 	public static function site_datetime( $utc ) {
 		$ts = strtotime( $utc . ' UTC' );
