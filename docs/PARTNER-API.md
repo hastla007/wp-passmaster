@@ -56,6 +56,7 @@ Keys werden auf der Detailseite eines Veranstalters erzeugt.
 | `reports:read` | Umsatz-/USt-/Auslastungsbericht (wie Modul „Berichte“) |
 | `settlements:read` | abgeschlossene und ausgezahlte Abrechnungen |
 | `attendees:read` | **Personenbezogene Daten**: ergänzt `customer_email` (Bestellungen) und `attendee_email` (Tickets) sowie `buyer_email` bei eigenen API-Bestellungen. Nur vergeben, wenn eine Rechtsgrundlage und ggf. ein AV-Vertrag besteht. Wiederverkäufer lesen über `/partner/orders`, `/partner/tickets` und `/partner/checkins` nur ihre eigenen Verkäufe (`wpcap_partner_orders`), nie Online-, Kassen- oder fremde Partnerkäufe der verknüpften Events. |
+| `attendees:details` | **Personenbezogene Daten** (A574): ergänzt an Tickets `attendee_name` (leer = `null`) und `answers` (Antworten auf Teilnehmerfelder als Liste `{key, label, answer}`; Einwilligungsfelder werden nie übermittelt). Unabhängig von `attendees:read` zu vergeben; gleiche Voraussetzungen (Rechtsgrundlage, ggf. AV-Vertrag). |
 | `orders:write` | **schreibend**: Katalog lesen, Reservierungen/Verkäufe anlegen und bestätigen, eigene API-Bestellungen lesen |
 | `orders:cancel` | **schreibend**: eigene API-Bestellungen stornieren (Reservierung freigeben, bezahlte im Stornofenster erstatten) |
 | `tickets:issue` | **schreibend**: Ticket-Codes eigener API-Bestellungen erhalten und erneut abrufen – nur zusammen mit `orders:write` |
@@ -118,7 +119,7 @@ Alle unter `/wp-json/pass-captain/v1`, lesend (`GET`). Schreibende Endpunkte: si
 | `/partner/events` | `events:read` | `event_id` |
 | `/partner/events/{event_id}` | `events:read` | – |
 | `/partner/orders` | `orders:read` | `event_id`, `payment_status`, `since` (bezieht sich auf `updated_at`), `page`, `per_page` (max. 100) |
-| `/partner/tickets` | `tickets:read` | `event_id`, `occurrence_id`, `status`, `since` (`issued_at`), `page`, `per_page` |
+| `/partner/tickets` | `tickets:read` | `event_id`, `occurrence_id`, `status`, `since` (bezieht sich auf `updated_at`, siehe unten), `page`, `per_page` |
 | `/partner/checkins` | `checkins:read` | `event_id`, `occurrence_id`, `since`, `page`, `per_page` |
 | `/partner/reports` | `reports:read` | `from`, `to` (`YYYY-MM-DD`, Zeitzone der Website), `event_id` |
 | `/partner/settlements` | `settlements:read` | – |
@@ -148,6 +149,15 @@ Beispiel `/partner/orders`:
   "page": 1, "per_page": 50, "total": 1
 }
 ```
+
+**Tickets inkrementell abgleichen (A574):** Jedes Ticket trägt `updated_at` (UTC, ISO 8601). Es ändert sich bei
+jeder Änderung des Tickets – Ausstellung, Widerruf, Erstattung, Übertragung, Umtausch, neuer Code, Einlass mit
+Statuswechsel, Korrektur oder Zuweisung von Teilnehmername und -antworten. `since` liefert alle Tickets mit
+`updated_at` ab diesem Zeitpunkt (vor Schema 3.10.18: nur neu ausgestellte Tickets). Empfehlung: den
+höchsten `updated_at`-Wert eines Abrufs als nächstes `since` verwenden (Grenze inklusive, Duplikate über
+`id` erkennen). Einlässe ohne Statuswechsel (Pässe, Mehrfacheinlass) liefert `/partner/checkins`. Nach dem
+Update stehen bestehende Tickets auf ihrem Ausstellungszeitpunkt. Löschungen nach Fristen (Datenschutz)
+markieren Tickets nicht als geändert.
 
 Positionen anderer Veranstalter bzw. nicht freigegebener Events werden aus Bestellungen herausgefiltert.
 `customer_email` erscheint nur mit `attendees:read`. Gelöschte oder anonymisierte Adressen (Platzhalter `…@invalid.example` nach einer Datenschutzlöschung, Kassenverkäufe ohne E-Mail) und leere Teilnehmeradressen werden als `null` ausgegeben.

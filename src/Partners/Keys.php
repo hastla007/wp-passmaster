@@ -20,8 +20,11 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Keys {
 	const TOKEN_PREFIX = 'wpcap_pk_';
-	/** Read scopes. attendees:read additionally unlocks buyer and attendee e-mail addresses. */
-	const SCOPES = array( 'events:read', 'orders:read', 'tickets:read', 'checkins:read', 'reports:read', 'settlements:read', 'attendees:read', 'orders:write', 'orders:cancel', 'tickets:issue' );
+	/**
+	 * Read scopes. attendees:read additionally unlocks buyer and attendee e-mail addresses,
+	 * attendees:details attendee names and field answers on tickets (A574).
+	 */
+	const SCOPES = array( 'events:read', 'orders:read', 'tickets:read', 'checkins:read', 'reports:read', 'settlements:read', 'attendees:read', 'attendees:details', 'orders:write', 'orders:cancel', 'tickets:issue' );
 	/** Write scopes (selling through the API, see Sales). tickets:issue requires orders:write. */
 	const WRITE_SCOPES = array( 'orders:write', 'orders:cancel', 'tickets:issue' );
 	/** Failed authentications per client address and window before the address is locked out. */
@@ -37,6 +40,7 @@ final class Keys {
 			'reports:read' => __( 'Berichte (Umsatz, Auslastung) lesen', 'pass-captain' ),
 			'settlements:read' => __( 'Abgeschlossene Abrechnungen lesen', 'pass-captain' ),
 			'attendees:read' => __( 'Personenbezogene Daten: E-Mail-Adressen von Käufer:innen und Teilnehmenden', 'pass-captain' ),
+			'attendees:details' => __( 'Personenbezogene Daten: Teilnehmernamen und Antworten auf Teilnehmerfelder (Tickets, ohne Einwilligungsfelder)', 'pass-captain' ),
 			'orders:write' => __( 'Verkaufen: Bestellungen/Reservierungen anlegen und bestätigen (Zahlung durch den Veranstalter/Wiederverkäufer)', 'pass-captain' ),
 			'orders:cancel' => __( 'Eigene API-Bestellungen stornieren (Reservierungen freigeben, bezahlte im Stornofenster erstatten)', 'pass-captain' ),
 			'tickets:issue' => __( 'Ticket-Codes eigener API-Bestellungen abrufen (nur zusammen mit orders:write)', 'pass-captain' ),

@@ -184,6 +184,7 @@ Das Plugin kennt diese Unterscheidung nicht; es setzt nur die technischen Grenze
 | Veranstalter-API lesend: `/partner/events`, `/partner/reports` | Plattform → Veranstalter | Events, Termine, Ticketarten, verkaufte Mengen; Umsatz-/USt-/Auslastungsbericht (aggregiert) | Scopes `events:read`, `reports:read` |
 | `/partner/orders`, `/partner/tickets` | Plattform → Veranstalter | Bestellungen (öffentliche ID, Status, Zahlungsanbieter, Zeitpunkte, Positionen) und Tickets (ID, Status, Ticketart, Termin) **ohne** E-Mail-Adressen | `orders:read` bzw. `tickets:read`; nur Positionen der eigenen Events; Wiederverkäufer nur eigene Verkäufe |
 | dieselben Endpunkte mit `attendees:read` | Plattform → Veranstalter | zusätzlich **Käufer-E-Mail** (`customer_email`), **Teilnehmer-E-Mail** (`attendee_email`), bei eigenen API-Bestellungen `buyer_email`; Platzhalter und gelöschte Adressen als `null` | Scope `attendees:read` – personenbezogen |
+| `/partner/tickets` mit `attendees:details` (A574) | Plattform → Veranstalter | zusätzlich **Teilnehmername** und **Antworten auf Teilnehmerfelder** (ohne Einwilligungsfelder) | Scope `attendees:details` – personenbezogen |
 | `/partner/checkins` | Plattform → Veranstalter | Check-ins (Ticket-ID, Ergebnis, Quelle, Zeit) **ohne** Mitarbeiter-IDs | `checkins:read` |
 | `/partner/settlements`, Abrechnungsansicht im Admin | Plattform → Veranstalter | Abrechnungen: Positionen mit interner Bestell-ID, Event, Beträgen; Stammdaten des Veranstalters als Schnappschuss; keine Käuferdaten | `settlements:read` bzw. zugeordneter WordPress-Benutzer; nur abgeschlossene Abrechnungen |
 | `/partner/sales/statement` (Wiederverkäufer-Abrechnung, CSV) | Plattform → Verkäufer | eigene API-Verkäufe mit Bestell-Kurzreferenz und **eigener externer Referenz** | `settlements:read` |
@@ -244,7 +245,7 @@ Checkliste:
       Einlass beim Veranstalter, lit. f für Statistik).
 - [ ] Datenschutzerklärung nennt den Veranstalter als Empfänger (der Vorschlag des Plugins enthält dafür
       einen Absatz, sobald aktive Veranstalter existieren) bzw. den Wiederverkäufer als Quelle.
-- [ ] Scopes auf das Nötige beschränkt; `attendees:read` nur, wenn die Übermittlung begründet ist.
+- [ ] Scopes auf das Nötige beschränkt; `attendees:read` und `attendees:details` nur, wenn die Übermittlung begründet ist.
 - [ ] Event-Zuweisungen für Veranstalter-Personal geprüft (Teilnehmer- und Gästelisten sind dann sichtbar).
 - [ ] Vereinbarung zur Datenweitergabe geschlossen (Klauseln unten).
 

@@ -217,6 +217,7 @@ final class TicketsPage {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_correction_failed', __( 'Die Teilnehmerdaten konnten nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
+		\PassCaptain\TicketAssignments::touch( array( (int) $ticket->ticket_id ) ); // A574: partner API "since".
 		$wpdb->query( 'COMMIT' );
 		$changes = AccessLog::correction( 'ticket', (int) $ticket->ticket_id, $before, $after, array( 'order_id' => (int) $ticket->order_id, 'event_id' => (int) $ticket->event_id, 'source' => 'admin', 'reason' => $reason ) );
 		/** Staff corrected personal data of a record (A122); $changes holds field names with masked values. */

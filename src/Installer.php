@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.21';
+	const DB_VERSION = '3.10.22';
 
 	public static function install() {
 		global $wpdb;
@@ -214,6 +214,7 @@ final class Installer {
 				capacity_released tinyint(1) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'valid',
 				issued_at datetime NOT NULL,
+				updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 				PRIMARY KEY  (ticket_id),
 				UNIQUE KEY public_id (public_id),
 				UNIQUE KEY token_hash (token_hash),
@@ -222,7 +223,8 @@ final class Installer {
 				KEY ticket_type_id (ticket_type_id),
 				KEY status (status),
 				KEY order_type_status (order_id,ticket_type_id,status),
-				KEY attendee_email (attendee_email)
+				KEY attendee_email (attendee_email),
+				KEY updated_at (updated_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $checkins (
 				checkin_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -911,6 +913,7 @@ final class Installer {
 		self::pin_legacy_manual_provider( $previous_version );
 		self::pin_legacy_entry_window( $previous_version );
 		self::backfill_capacity_released( $previous_version );
+		self::backfill_ticket_updated_at( $previous_version );
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 		self::align_legacy_stripe_mode( $previous_version );
@@ -1070,6 +1073,27 @@ final class Installer {
 		$previous = (string) strtok( (string) $previous_version, '+' );
 		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.10', '>=' ) || ! CapacityRelease::ready() ) { return false; }
 		return false !== $wpdb->query( "UPDATE {$wpdb->prefix}wpcap_tickets SET capacity_released=1 WHERE refunded=1 AND capacity_released=0" );
+	}
+
+	/**
+	 * Schema 3.10.18 (A574): wpcap_tickets.updated_at (TIMESTAMP, kept by the database on every change
+	 * of the row) is what the partner API's "since" filter for tickets compares. Existing tickets start
+	 * at their issue time instead of the upgrade time, so the first poll after the update does not
+	 * return every ticket as changed. Idempotent (only rows still carrying the column default of this
+	 * run are touched), run once per upgrade from an older schema.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function backfill_ticket_updated_at( $previous_version ) {
+		global $wpdb;
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.18', '>=' ) || ! ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' ) ) { return false; }
+		// issued_at is UTC; the TIMESTAMP column converts from the session time zone.
+		$zone = (string) $wpdb->get_var( 'SELECT @@session.time_zone' );
+		$wpdb->query( "SET time_zone='+00:00'" );
+		$done = $wpdb->query( "UPDATE {$wpdb->prefix}wpcap_tickets SET updated_at=issued_at WHERE issued_at>'1970-01-02' AND updated_at>=issued_at" );
+		if ( '' !== $zone ) { $wpdb->query( $wpdb->prepare( 'SET time_zone=%s', $zone ) ); }
+		return false !== $done;
 	}
 
 	public static function pin_legacy_credit_prefix( $previous_version ) {

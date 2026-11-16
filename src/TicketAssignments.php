@@ -95,6 +95,7 @@ final class TicketAssignments {
 			// Counted inside the transaction (row lock on the ticket), see holder_changes().
 			Audit::record( 'ticket_holder_changed', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => 'assign' ) );
 		}
+		self::touch( array( (int) $ticket->ticket_id ) ); // A574: name/answers live outside wpcap_tickets.
 		$wpdb->query( 'COMMIT' );
 		if ( $rotate ) {
 			// Another person holds the ticket now: the previous holder's consents end (logged).
@@ -148,6 +149,21 @@ final class TicketAssignments {
 		 * @param string $name  Name.
 		 */
 		return (bool) apply_filters( 'wpcap_attendee_name_has_link', $found, $name );
+	}
+
+	/**
+	 * Marks tickets as changed (wpcap_tickets.updated_at, schema 3.10.22) after a change of attendee
+	 * data that lives outside the ticket row (name, field answers), so incremental readers such as the
+	 * partner API's "since" filter see it (A574). Changes of the ticket row itself update the column
+	 * on their own (ON UPDATE CURRENT_TIMESTAMP).
+	 *
+	 * @param int[] $ticket_ids
+	 */
+	public static function touch( array $ticket_ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+		if ( ! $ids || ! ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' ) ) { return; }
+		$wpdb->query( "UPDATE {$wpdb->prefix}wpcap_tickets SET updated_at=CURRENT_TIMESTAMP WHERE ticket_id IN (" . implode( ',', $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 	}
 
 	/** Number of holder changes (code rotations) a ticket already had through assign(). */

@@ -2,7 +2,8 @@
 /**
  * Partner REST API under pass-captain/v1/partner/…, authenticated with
  * "Authorization: Bearer wpcap_pk_…" (see Keys). Read endpoints (this class) are limited to the key's
- * effective events; e-mail addresses are only included with the attendees:read scope. Write endpoints
+ * effective events; e-mail addresses are only included with the attendees:read scope, attendee names
+ * and field answers with attendees:details (A574). Write endpoints
  * for selling (orders:write, orders:cancel, tickets:issue) live in SalesApi. Reference:
  * docs/PARTNER-API.md.
  */
@@ -234,20 +235,59 @@ final class Api {
 		if ( $occurrence ) { $where .= $wpdb->prepare( ' AND tt.occurrence_id = %d', $occurrence ); }
 		$status = sanitize_key( (string) $request->get_param( 'status' ) );
 		if ( '' !== $status ) { $where .= $wpdb->prepare( ' AND t.status = %s', $status ); }
+		// A574: "since" selects tickets changed since then (issue, revocation, refund, transfer, new code,
+		// check-in status, attendee data – wpcap_tickets.updated_at, schema 3.10.18), not only new ones.
+		$tracked = self::tickets_tracked();
 		$since = self::since( $request );
-		if ( '' !== $since ) { $where .= $wpdb->prepare( ' AND t.issued_at >= %s', $since ); }
+		if ( '' !== $since ) {
+			$where .= $tracked ? $wpdb->prepare( ' AND t.updated_at >= FROM_UNIXTIME(%d)', (int) strtotime( $since . ' UTC' ) ) : $wpdb->prepare( ' AND t.issued_at >= %s', $since );
+		}
 		$where .= self::own_orders_sql( 't.order_id' ); // Resellers: tickets of their own sales only.
 		$from = "{$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id";
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $from WHERE $where" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( "SELECT t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.ticket_type_id,tt.name AS ticket_type,tt.occurrence_id,o.event_id,ord.public_id AS order_public_id FROM $from WHERE $where ORDER BY t.ticket_id LIMIT " . (int) $offset . ',' . (int) $per_page ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$changed = $tracked ? ',UNIX_TIMESTAMP(t.updated_at) AS changed_ts' : '';
+		$rows = $wpdb->get_results( "SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.ticket_type_id,tt.name AS ticket_type,tt.occurrence_id,o.event_id,ord.public_id AS order_public_id$changed FROM $from WHERE $where ORDER BY t.ticket_id LIMIT " . (int) $offset . ',' . (int) $per_page ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$pii = self::has_scope( 'attendees:read' );
+		$details = self::has_scope( 'attendees:details' ) ? self::attendee_details( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $rows ) ) : null;
 		$out = array();
 		foreach ( $rows as $t ) {
-			$row = array( 'id' => $t->public_id, 'order_id' => $t->order_public_id, 'event_id' => (int) $t->event_id, 'occurrence_id' => (int) $t->occurrence_id, 'ticket_type_id' => (int) $t->ticket_type_id, 'ticket_type' => $t->ticket_type, 'status' => $t->status, 'refunded' => (bool) $t->refunded, 'issued_at' => self::iso( $t->issued_at ) );
+			$row = array( 'id' => $t->public_id, 'order_id' => $t->order_public_id, 'event_id' => (int) $t->event_id, 'occurrence_id' => (int) $t->occurrence_id, 'ticket_type_id' => (int) $t->ticket_type_id, 'ticket_type' => $t->ticket_type, 'status' => $t->status, 'refunded' => (bool) $t->refunded, 'issued_at' => self::iso( $t->issued_at ), 'updated_at' => $tracked ? gmdate( 'Y-m-d\TH:i:s\Z', (int) $t->changed_ts ) : self::iso( $t->issued_at ) );
 			if ( $pii ) { $row['attendee_email'] = \PassCaptain\Privacy::public_email( $t->attendee_email ); }
+			if ( null !== $details ) {
+				$row['attendee_name'] = $details[ (int) $t->ticket_id ]['name'] ?? null;
+				$row['answers'] = $details[ (int) $t->ticket_id ]['answers'] ?? array();
+			}
 			$out[] = $row;
 		}
 		return self::respond( array( 'tickets' => $out, 'page' => $page, 'per_page' => $per_page, 'total' => $total ) );
+	}
+
+	/** Whether wpcap_tickets.updated_at exists (schema 3.10.18; deferred upgrade). */
+	private static function tickets_tracked() {
+		return \PassCaptain\ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' );
+	}
+
+	/**
+	 * Attendee names and field answers of tickets (scope attendees:details, A574). Consent fields are
+	 * left out (consents are recorded separately and not passed on); empty names are null.
+	 *
+	 * @param int[] $ticket_ids
+	 * @return array<int,array{name:?string,answers:array}>
+	 */
+	private static function attendee_details( array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$out = array();
+		$ticket_ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+		if ( ! $ticket_ids ) { return $out; }
+		$in = self::in_list( $ticket_ids );
+		foreach ( (array) $wpdb->get_results( "SELECT ticket_id,attendee_name FROM {$p}wpcap_ticket_assignments WHERE ticket_id IN ($in)" ) as $a ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$out[ (int) $a->ticket_id ]['name'] = '' !== (string) $a->attendee_name ? (string) $a->attendee_name : null;
+		}
+		foreach ( (array) $wpdb->get_results( "SELECT a.ticket_id,f.field_key,f.label,a.answer FROM {$p}wpcap_participant_answers a INNER JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE a.ticket_id IN ($in) AND f.consent=0 ORDER BY a.ticket_id,f.position,f.field_id" ) as $a ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$out[ (int) $a->ticket_id ]['answers'][] = array( 'key' => (string) $a->field_key, 'label' => (string) $a->label, 'answer' => (string) $a->answer );
+		}
+		return $out;
 	}
 
 	public static function checkins( $request ) {
