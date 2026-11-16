@@ -193,7 +193,8 @@ $wpcap_no_payment = ! $providers;
 		<form class="wpcap-waitlist-form" id="<?php echo esc_attr( $wpcap_wl_id ); ?>" method="post" action="#" data-event="<?php echo esc_attr( (int) $event->event_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" novalidate<?php echo $wpcap_waitlist ? '' : ' hidden'; ?>>
 			<fieldset>
 				<legend><?php esc_html_e( 'Warteliste', 'pass-captain' ); ?></legend>
-				<p><small><?php esc_html_e( 'Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail, das du innerhalb der genannten Frist annehmen kannst.', 'pass-captain' ); ?></small></p>
+				<?php $wpcap_offer_hours = (int) \PassCaptain\Waitlists::config()['offer_hours']; // A410: the real offer period. ?>
+				<p><small><?php echo esc_html( sprintf( /* translators: %d: hours an offer can be accepted */ _n( 'Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail. Du kannst es %d Stunde lang annehmen, höchstens bis zum Beginn des Termins.', 'Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail. Du kannst es %d Stunden lang annehmen, höchstens bis zum Beginn des Termins.', $wpcap_offer_hours, 'pass-captain' ), $wpcap_offer_hours ) ); ?></small></p>
 				<?php /* Every type is listed; only sold-out ones are selectable (the checkout script updates this, A456). */ ?>
 				<div class="wpcap-field wpcap-waitlist-type"<?php echo count( $wpcap_soldout ) > 1 ? '' : ' hidden'; ?>>
 					<label for="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>"><?php esc_html_e( 'Ticketart', 'pass-captain' ); ?></label>

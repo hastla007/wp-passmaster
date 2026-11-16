@@ -113,3 +113,22 @@ test('A409: a price that becomes 0 (409 price_changed) shows "kostenlos" next to
 	assert.strictEqual(form.querySelector('.wpcap-type-price').textContent, 'kostenlos');
 	assert.strictEqual(form.querySelector('.wpcap-submit').textContent, 'Kostenlos anmelden');
 });
+
+/* ------------------------------------------------------------------ A410 */
+
+test('A410: the waitlist quantity limit follows the chosen ticket type', async () => {
+	const env = loadCheckout({ markup: (h) => [waitlistCard(h)] });
+	await flush();
+	const form = env.document.querySelector('.wpcap-waitlist-form');
+	const qty = form.querySelector('[name="quantity"]');
+	const select = form.querySelector('select[name="ticket_type_id"]');
+	assert.strictEqual(qty.max, '4', 'first type: its own limit');
+	qty.value = '4';
+	select.value = '6';
+	select.dispatchEvent(new FakeEvent('change', { bubbles: true }));
+	assert.strictEqual(qty.max, '2', 'limit of the second type');
+	assert.strictEqual(qty.value, '2', 'a larger quantity is lowered to the limit');
+	select.value = '5';
+	select.dispatchEvent(new FakeEvent('change', { bubbles: true }));
+	assert.strictEqual(qty.max, '4');
+});

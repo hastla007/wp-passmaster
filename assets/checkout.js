@@ -1096,6 +1096,20 @@
 		if (!event.persisted) return;
 		document.querySelectorAll('.wpcap-checkout-form').forEach(showPending);
 	});
+	// A410: the quantity limit of the waitlist follows the chosen ticket type (option data-max).
+	function syncWaitlistMax(form) {
+		const select = form.querySelector('select[name="ticket_type_id"]');
+		const qty = form.querySelector('[name="quantity"]');
+		const option = select && select.querySelector('option[value="' + String(select.value).replace(/["\\]/g, '') + '"]');
+		const max = option ? parseInt(option.dataset.max, 10) || 0 : 0;
+		if (!qty || max < 1) return;
+		qty.max = String(max);
+		if ((Number(qty.value) || 0) > max) qty.value = String(max);
+	}
+	document.addEventListener('change', function (event) {
+		const form = event.target.name === 'ticket_type_id' && event.target.closest ? event.target.closest('.wpcap-waitlist-form') : null;
+		if (form) syncWaitlistMax(form);
+	});
 	// Waitlist on sold-out cards: POST …/events/{event}/waitlist.
 	document.addEventListener('submit', async function (event) {
 		var form = event.target;
@@ -1140,4 +1154,5 @@
 		button.disabled = false;
 		button.removeAttribute('data-wpcap-requires-js');
 	});
+	document.querySelectorAll('.wpcap-waitlist-form').forEach(syncWaitlistMax);
 })();

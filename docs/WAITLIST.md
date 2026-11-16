@@ -70,6 +70,8 @@ ihrem Verkaufsende. Die Betroffenen erhalten die Mail
 Bestellportal zeigt nur Wartelisteneinträge für Termine, die noch geplant, in der Zukunft und im
 Verkauf sind.
 
+**Formular auf der Eventkarte (A410):** Der Hinweis nennt die eingestellte Annahmefrist („Du kannst es 24 Stunden lang annehmen, höchstens bis zum Beginn des Termins.“, Einstellung „Gültigkeit eines Angebots“, `offer_hours`). Die Höchstmenge des Anzahlfelds ist die der gewählten Ticketart (`max_per_order`, `option[data-max]`) und folgt einem Wechsel der Ticketart; eine größere Anzahl wird auf sie gesenkt.
+
 ## Ablauf
 
 1. **Kontingent wird frei** – `wpcap_capacity_released` (Reservierung abgelaufen, Storno, Erstattung,
