@@ -16,8 +16,8 @@ final class ServiceResources {
 	const MAX_CAPACITY = 100;
 	/** Upper bound of slots one weekly generator run may create. */
 	const MAX_GENERATED = 500;
-	/** Booking statuses that occupy capacity (held only while unexpired). */
-	const ACTIVE_STATUSES = array( 'held', 'pending_confirmation', 'confirmed', 'checked_in', 'no_show' );
+	/** Booking statuses that occupy capacity (held only while unexpired); a no-show frees its place (A143). */
+	const ACTIVE_STATUSES = array( 'held', 'pending_confirmation', 'confirmed', 'checked_in' );
 	const MAX_BUFFER = 1440;
 	const PRICE_POLICIES = array( 'same_price', 'refund_difference' );
 	const NOSHOW_POLICIES = array( 'none', 'mark', 'forfeit' );
@@ -48,10 +48,30 @@ final class ServiceResources {
 		);
 	}
 
-	/** Effective rules of a resource (defaults merged with the stored JSON). */
+	/**
+	 * Effective rules of a resource (defaults merged with the stored JSON). A resource without rules
+	 * JSON (created on the slot screen, Admin\ServiceSlotsPage, A134) uses its rule columns instead.
+	 */
 	public static function rules( $resource ) {
 		$stored = $resource && ! empty( $resource->rules ) ? json_decode( (string) $resource->rules, true ) : array();
-		return self::sanitize_rules( is_array( $stored ) ? $stored : array() );
+		if ( ! is_array( $stored ) || ! $stored ) { $stored = self::column_rules( $resource ); }
+		return self::sanitize_rules( $stored );
+	}
+
+	/**
+	 * Rule columns of the slot screen (lead_minutes, advance_days, max_per_customer, rebook_hours,
+	 * cancel_hours; 0 = no restriction) as rule keys; empty when the row has no such columns.
+	 */
+	public static function column_rules( $resource ) {
+		if ( ! $resource || ! isset( $resource->cancel_hours ) ) { return array(); }
+		return array(
+			'cutoff_minutes' => absint( $resource->lead_minutes ?? 0 ),
+			'opens_days' => absint( $resource->advance_days ?? 0 ),
+			'max_per_customer' => absint( $resource->max_per_customer ?? 0 ),
+			'max_period' => 'total',
+			'rebook_deadline_minutes' => absint( $resource->rebook_hours ?? 0 ) * 60,
+			'cancel_deadline_minutes' => absint( $resource->cancel_hours ?? 0 ) * 60,
+		);
 	}
 
 	/** Validates and clamps a rules array; unknown keys are dropped, missing keys come from $base or the defaults. */
@@ -189,11 +209,12 @@ final class ServiceResources {
 			'buffer_before' => min( self::MAX_BUFFER, absint( $pick( 'buffer_before', 0 ) ) ),
 			'buffer_after' => min( self::MAX_BUFFER, absint( $pick( 'buffer_after', 0 ) ) ),
 			'default_duration' => $duration,
+			'duration_minutes' => $duration, // Same value for the slot screen's series generator (A133).
 			'partner_id' => $partner_id,
 			'ticket_type_id' => $ticket_type_id,
 			'rules' => wp_json_encode( $rules ),
 		);
-		$formats = array( '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%s' );
+		$formats = array( '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%d', '%d', '%d', '%s' );
 		$audit = array_diff_key( $values, array( 'rules' => 1 ) ) + array( 'rules' => $rules );
 		if ( $existing ) {
 			if ( false === $wpdb->update( $wpdb->prefix . 'wpcap_resources', $values, array( 'resource_id' => $resource_id ), $formats, array( '%d' ) ) ) {
@@ -232,7 +253,7 @@ final class ServiceResources {
 	public static function active_sql( $a = 'b' ) {
 		$a = preg_replace( '/[^a-z_]/', '', (string) $a );
 		$now = gmdate( 'Y-m-d H:i:s', strtotime( current_time( 'mysql', true ) . ' UTC' ) );
-		return "($a.status IN ('pending_confirmation','confirmed','checked_in','no_show') OR ($a.status='held' AND ($a.expires_at IS NULL OR $a.expires_at > '$now')))";
+		return "($a.status IN ('pending_confirmation','confirmed','checked_in') OR ($a.status IN ('held','pending_payment') AND ($a.expires_at IS NULL OR $a.expires_at > '$now')))";
 	}
 
 	/** Sum of held (unexpired) and confirmed quantities of a slot. */

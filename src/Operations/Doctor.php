@@ -376,7 +376,7 @@ final class Doctor {
 	/**
 	 * Service bookings that contradict their order: [kind => rows] with kinds
 	 * closed (active booking of an ended or missing order), paid_active (order paid, booking still
-	 * pending_payment with a valid hold), paid_lapsed (order paid, hold lapsed – manual check),
+	 * held (legacy: pending_payment) with a valid hold), paid_lapsed (order paid, hold lapsed – manual check),
 	 * unallocated (paid without a place and no refund).
 	 */
 	private static function booking_conflicts( $limit ) {
@@ -385,8 +385,8 @@ final class Doctor {
 		$now = self::now();
 		$base = "FROM {$p}wpcap_service_bookings b LEFT JOIN {$p}wpcap_orders o ON o.order_id=b.order_id WHERE b.order_id>0";
 		$kinds = array(
-			'closed'      => "$base AND b.status IN ('held','pending_payment','confirmed') AND (o.order_id IS NULL OR o.status IN ('cancelled','refunded','expired'))",
-			'paid_active' => $wpdb->prepare( "$base AND b.status='pending_payment' AND o.payment_status='paid' AND o.status='complete' AND (b.expires_at IS NULL OR b.expires_at > %s)", $now ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed fragment.
+			'closed'      => "$base AND b.status IN ('held','pending_payment','pending_confirmation','confirmed') AND (o.order_id IS NULL OR o.status IN ('cancelled','refunded','expired'))",
+			'paid_active' => $wpdb->prepare( "$base AND b.status IN ('held','pending_payment') AND o.payment_status='paid' AND o.status='complete' AND (b.expires_at IS NULL OR b.expires_at > %s)", $now ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed fragment.
 			'paid_lapsed' => $wpdb->prepare( "$base AND b.status IN ('pending_payment','held','expired') AND o.payment_status='paid' AND o.status='complete' AND b.expires_at IS NOT NULL AND b.expires_at <= %s", $now ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			'unallocated' => "$base AND b.status='unallocated' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_refunds r WHERE r.order_id=b.order_id AND r.status<>'rejected')",
 		);

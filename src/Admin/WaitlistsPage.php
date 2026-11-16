@@ -28,8 +28,9 @@ final class WaitlistsPage {
 		return DataPolicy::masks_pii() ? DataPolicy::mask_email( (string) $email ) : (string) $email;
 	}
 
+	/** Labels of the event waitlist statuses shown here (double opt-in sign-ups wait as `pending`, Waitlists A564). */
 	public static function status_labels() {
-		return array( 'unconfirmed' => __( 'Unbestätigt (Bestätigungslink offen)', 'pass-captain' ), 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
+		return array( 'pending' => __( 'Unbestätigt (Bestätigungslink offen)', 'pass-captain' ), 'waiting' => __( 'Wartet', 'pass-captain' ), 'offered' => __( 'Angebot gesendet', 'pass-captain' ), 'accepted' => __( 'Angenommen', 'pass-captain' ), 'expired' => __( 'Angebot abgelaufen', 'pass-captain' ) );
 	}
 
 	/**

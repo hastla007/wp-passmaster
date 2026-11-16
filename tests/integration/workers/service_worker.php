@@ -19,6 +19,8 @@
 require dirname( __DIR__ ) . '/bootstrap.php';
 if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route() { return true; } }
 $GLOBALS['wpcap_test_options']['admin_email'] = 'admin@example.com';
+// Same base settings as run.php (manual transfer enabled and configured), so paid flows work in the workers too.
+$GLOBALS['wpcap_test_options']['wpcap_settings'] = array( 'enabled_providers' => array( 'manual' ), 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Testverein' );
 $_SERVER['REMOTE_ADDR'] = '203.0.113.' . ( getmypid() % 250 );
 PassCaptain\Modules\Services::register();
 
@@ -40,7 +42,8 @@ switch ( $mode ) {
 		$id = is_array( $r ) ? $r['order_id'] : 0;
 		break;
 	case 'accept_event':
-		$r = PassCaptain\Waitlists::accept_offer( (int) $argv[3], (string) $argv[4] );
+		// A paid offer is accepted with a payment method (Waitlists, A-line): manual transfer.
+		$r = PassCaptain\Waitlists::accept_offer( (int) $argv[3], (string) $argv[4], array( 'provider' => 'manual' ) );
 		$id = is_array( $r ) ? $r['order']['order_id'] : 0;
 		break;
 	case 'accept_slot':

@@ -22,6 +22,11 @@ $GLOBALS['wpcap_test_user_id'] = 1;
 
 echo "Service passes vs event passes\n";
 list( $pp_event, $pp_type ) = svc_event( 2000 );
+// Event entry with a pass only on the day of a scheduled date inside the admission window (A482):
+// a second date of the event starting in 30 minutes carries the entry ticket type.
+$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $pp_event, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 1800 ), 'timezone' => 'Europe/Vienna', 'location' => 'Wien', 'capacity' => 0, 'status' => 'scheduled' ) );
+$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => (int) $wpdb->insert_id, 'name' => 'Eintritt', 'price_minor' => 2000, 'currency' => 'EUR', 'capacity' => 100, 'max_per_order' => 10, 'status' => 'active' ) );
+$pp_entry_type = (int) $wpdb->insert_id;
 $pp_free_res = svc_resource( $pp_event, array( 'name' => 'Freies Training', 'capacity' => 10 ) );
 $pp_slot_res = svc_resource( $pp_event, array( 'name' => 'Segelkurs', 'capacity' => 1, 'ticket_type_id' => $pp_type ) );
 $pp_other_res = svc_resource( $pp_event, array( 'name' => 'Kajak', 'capacity' => 5 ) );
@@ -36,11 +41,11 @@ $any_pass = Memberships::issue( 'any-member@svc.test', $from, $until, array( arr
 $rules = Memberships::rules( $service_pass['pass_id'] );
 check( 'service rules store scope, resource, slot mode; event fields are not used', 2 === count( $rules ) && 'service' === $rules[0]->scope && (int) $pp_free_res === (int) $rules[0]->resource_id && 'slot_bound' === $rules[1]->slot_mode && 0 === (int) $rules[0]->event_id && 'event' === Memberships::rules( $event_pass['pass_id'] )[0]->scope );
 $e_on_service = Memberships::redeem_service( $event_pass['token'], $pp_free_res, 'pp-1' );
-$s_on_event = Memberships::redeem( $service_pass['token'], $pp_type, 'pp-2' );
+$s_on_event = Memberships::redeem( $service_pass['token'], $pp_entry_type, 'pp-2' );
 check( 'an event pass cannot be used for a service resource', is_wp_error( $e_on_service ) && 'wpcap_pass_scope' === $e_on_service->get_error_code() );
 check( 'a service pass cannot be used for event entry', is_wp_error( $s_on_event ) && 'wpcap_pass_scope' === $s_on_event->get_error_code() );
-check( 'the event pass still works for event entry', 'redeemed' === ( Memberships::redeem( $event_pass['token'], $pp_type, 'pp-3' )['status'] ?? '' ) );
-check( 'scope "any" works for both when configured', 'redeemed' === ( Memberships::redeem( $any_pass['token'], $pp_type, 'pp-4' )['status'] ?? '' ) && 'redeemed' === ( Memberships::redeem_service( $any_pass['token'], $pp_other_res, 'pp-5' )['status'] ?? '' ) );
+check( 'the event pass still works for event entry', 'redeemed' === ( Memberships::redeem( $event_pass['token'], $pp_entry_type, 'pp-3' )['status'] ?? '' ) );
+check( 'scope "any" works for both when configured', 'redeemed' === ( Memberships::redeem( $any_pass['token'], $pp_entry_type, 'pp-4' )['status'] ?? '' ) && 'redeemed' === ( Memberships::redeem_service( $any_pass['token'], $pp_other_res, 'pp-5' )['status'] ?? '' ) );
 // Slot-free: direct use, per-day and total quota, idempotency.
 $sf1 = Memberships::redeem_service( $service_pass['token'], $pp_free_res, 'pp-free-1' );
 $sf1b = Memberships::redeem_service( $service_pass['token'], $pp_free_res, 'pp-free-1' );

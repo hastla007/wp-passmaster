@@ -27,6 +27,7 @@ if ( ! function_exists( 'admin_url' ) ) { function admin_url( $path = '' ) { ret
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce" value="n">'; } }
 PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0, 'require_terms' => 0 ) );
 PassCaptain\Modules\Services::register();
+PassCaptain\ServiceBookingFlow::register(); // As at plugin load (Plugin::boot): checkout link of service bookings (A135).
 
 /** Event with one ticket type (price in minor units); returns [event_id, ticket_type_id]. */
 function svc_event( $price = 0, $capacity = 500 ) {
@@ -100,7 +101,7 @@ $wpdb->insert( "{$p}wpcap_service_slots", array( 'resource_id' => $sa_res, 'star
 $legacy = (int) $wpdb->insert_id;
 $b_first = svc_book( $s1, 'first@svc.test' );
 $b_legacy = svc_book( $legacy, 'second@svc.test' );
-check( 'booking a slot that overlaps a booked slot of the same resource is rejected', ! is_wp_error( $b_first ) && is_wp_error( $b_legacy ) && 'wpcap_slot_conflict' === $b_legacy->get_error_code() );
+check( 'booking a slot that overlaps a booked slot of the same resource is rejected', ! is_wp_error( $b_first ) && is_wp_error( $b_legacy ) && 'wpcap_slot_resource_busy' === $b_legacy->get_error_code() );
 $wpdb->delete( "{$p}wpcap_service_slots", array( 'slot_id' => $legacy ) );
 $rest_res = new WP_REST_Request( 'POST' );
 $rest_res->set_param( 'resource_id', $sa_res );
@@ -117,7 +118,7 @@ $clamped = ServiceResources::sanitize_rules( array( 'cutoff_minutes' => -5, 'max
 check( 'invalid rule values are clamped or reset to defaults', 0 === $clamped['cutoff_minutes'] && 'day' === $clamped['max_period'] && 'same_price' === $clamped['price_policy'] && 1 === $clamped['confirmation_hours'] );
 $late = svc_slot( $sr_res, 2, 30 );
 $late_booking = svc_book( $late, 'rule@svc.test' );
-check( 'Buchungsschluss: booking 2h before start with a 3h cutoff is refused', is_wp_error( $late_booking ) && 'wpcap_booking_closed' === $late_booking->get_error_code() );
+check( 'Buchungsschluss: booking 2h before start with a 3h cutoff is refused', is_wp_error( $late_booking ) && 'wpcap_booking_cutoff' === $late_booking->get_error_code() );
 $admin_late = svc_book( $late, 'rule@svc.test', 1, array( 'actor' => 'admin' ) );
 check( 'staff bookings are not bound by the cutoff', ! is_wp_error( $admin_late ) );
 $far = svc_slot( $sr_res, 40 * 24, 30 );
@@ -128,7 +129,7 @@ $day_b = svc_slot_at( $sr_res, 5, '12:00', 30 );
 $ok_two = svc_book( $day_a, 'Limit@svc.test', 2 );
 $over = svc_book( $day_b, 'limit@svc.test', 2 );
 $ok_one = svc_book( $day_b, 'limit@svc.test', 1 );
-check( 'per-customer limit per day counts across slots of the resource (case-insensitive e-mail)', ! is_wp_error( $ok_two ) && is_wp_error( $over ) && 'wpcap_booking_limit' === $over->get_error_code() && ! is_wp_error( $ok_one ) );
+check( 'per-customer limit per day counts across slots of the resource (case-insensitive e-mail)', ! is_wp_error( $ok_two ) && is_wp_error( $over ) && 'wpcap_booking_customer_limit' === $over->get_error_code() && ! is_wp_error( $ok_one ) );
 $other_day = svc_slot_at( $sr_res, 7, '10:00', 30 );
 check( 'the limit resets on another day', ! is_wp_error( svc_book( $other_day, 'limit@svc.test', 3 ) ) );
 // Expired holds do not count.
