@@ -36,7 +36,7 @@
         "WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare": 1
     },
     "src/Admin/Menu.php": {
-        "Squiz.PHP.DisallowMultipleAssignments.Found": 4,
+        "Squiz.PHP.DisallowMultipleAssignments.Found": 3,
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3,
         "WordPress.WP.GlobalVariablesOverride.Prohibited": 1
     },
