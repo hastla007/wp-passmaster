@@ -120,6 +120,8 @@ final class TicketAssignments {
 			// Another person holds the ticket now: the previous holder's consents end (logged).
 			Consents::end_for_ticket( (int) $ticket->ticket_id, 'holder_change', $holder );
 			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $code, 'assign' );
+			/** A674: holder change by assignment – a transfer to another person (after the commit). */
+			do_action( 'wpcap_ticket_transferred', (int) $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => 'assign', 'holder_changes' => self::holder_changes( (int) $ticket->ticket_id ) + (int) $wpdb->get_var( $wpdb->prepare( "SELECT transfer_count FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", (int) $ticket->ticket_id ) ) ) );
 			$url = add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) );
 			$when = Orders::format_start( $ticket->starts_at, $ticket->timezone );
 			$vars = array(

@@ -112,6 +112,10 @@ final class Plugin {
 		HelpCode::register();
 		OccurrenceCancellation::register();
 		Occurrence::register(); // A562: lifecycle phases.
+		// A673–A675: post-commit domain events into the outbox (independent of webhooks) and delivery to a
+		// workflow provider of contract v1.
+		Workflow\Events::register();
+		Workflow\Outbox::register();
 		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wpcap_events', array( PublicEvents::class, 'render_shortcode' ) );

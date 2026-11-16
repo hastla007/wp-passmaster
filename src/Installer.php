@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.23';
+	const DB_VERSION = '3.10.24';
 
 	public static function install() {
 		global $wpdb;
@@ -885,6 +885,8 @@ final class Installer {
 				UNIQUE KEY version (version),
 				KEY created_at (created_at)
 			) ENGINE=InnoDB $charset;",
+			// Event outbox of the workflow contract (schema 3.10.24, A675; see Workflow\Outbox).
+			Workflow\Outbox::schema( $wpdb->prefix, $charset ),
 			"CREATE TABLE {$wpdb->prefix}wpcap_rate_limits (
 				rl_key char(40) NOT NULL,
 				hits int(10) unsigned NOT NULL DEFAULT 0,

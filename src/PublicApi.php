@@ -39,6 +39,8 @@ final class PublicApi {
 		'wpcap_refund_reversed'               => array( 'action', '1.0', 'orders' ),
 		'wpcap_tickets_issued'                => array( 'action', '1.0', 'tickets' ),
 		'wpcap_ticket_revoked'                => array( 'action', '1.0', 'tickets' ),
+		'wpcap_ticket_transferred'            => array( 'action', '1.0', 'tickets' ),
+		'wpcap_event_cancelled'               => array( 'action', '1.0', 'tickets' ),
 		'wpcap_ticket_checked_in'             => array( 'action', '1.0', 'scanner' ),
 		'wpcap_ticket_checked_out'            => array( 'action', '1.0', 'scanner' ),
 		'wpcap_occurrence_changed'            => array( 'action', '1.0', 'tickets' ),

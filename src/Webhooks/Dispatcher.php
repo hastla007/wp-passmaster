@@ -15,7 +15,29 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Dispatcher {
 	const API_VERSION = '2026-11-01';
-	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled' );
+	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled', 'ticket.transferred', 'ticket.checked_out', 'attendance.confirmed', 'occurrence.changed', 'event.cancelled', 'refund.reversed' );
+
+	/**
+	 * Payload schema version per event type (A674, field schema_version of every payload). A minor step
+	 * only adds fields; order.refunded 1.1 added refund.kind, refund.lines and refund.source (A675).
+	 */
+	const SCHEMA_VERSIONS = array(
+		'order.paid' => '1.0',
+		'order.refunded' => '1.1',
+		'order.cancelled' => '1.0',
+		'ticket.issued' => '1.0',
+		'ticket.checked_in' => '1.0',
+		'ticket.revoked' => '1.0',
+		'ticket.exchanged' => '1.0',
+		'occurrence.rescheduled' => '1.0',
+		'occurrence.cancelled' => '1.0',
+		'ticket.transferred' => '1.0',
+		'ticket.checked_out' => '1.0',
+		'attendance.confirmed' => '1.0',
+		'occurrence.changed' => '1.0',
+		'event.cancelled' => '1.0',
+		'refund.reversed' => '1.0',
+	);
 	const MAX_ATTEMPTS = 8;
 	const DISABLE_AFTER = 20;
 	const BASE_DELAY = 60;
@@ -167,7 +189,8 @@ final class Dispatcher {
 		if ( ! in_array( $type, self::EVENTS, true ) ) { return 0; }
 		$subs = $wpdb->get_results( $wpdb->prepare( 'SELECT subscription_id,events,include_pii FROM ' . self::t( 'subscriptions' ) . " WHERE status='active' AND FIND_IN_SET(%s,events)", $type ) );
 		if ( ! $subs ) { return 0; }
-		$event_id = 'evt_' . substr( hash( 'sha256', $type . '|' . $dedupe ), 0, 32 );
+		// Same id as the workflow outbox event of the same business event (Workflow\Outbox::event_id()).
+		$event_id = \PassCaptain\Workflow\Outbox::event_id( $type, $dedupe );
 		$object = apply_filters( 'wpcap_webhook_payload_object', $object, $type );
 		$created = time();
 		$queued = 0;
@@ -175,7 +198,7 @@ final class Dispatcher {
 		foreach ( $subs as $sub ) {
 			$data = $object;
 			if ( (int) $sub->include_pii && $pii ) { $data = array_merge( $data, $pii ); }
-			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'created' => $created, 'data' => array( 'object' => $data ) ) );
+			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'schema_version' => self::SCHEMA_VERSIONS[ $type ] ?? '1.0', 'created' => $created, 'data' => array( 'object' => $data ) ) );
 			$queued += (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::t( 'deliveries' ) . " (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
 		}
 		if ( $queued ) { self::schedule_soon(); }

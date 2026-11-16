@@ -26,6 +26,12 @@ final class Webhooks {
 		add_action( 'wpcap_ticket_exchanged', array( __CLASS__, 'ticket_exchanged' ), 50, 4 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'occurrence_rescheduled' ), 50, 3 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'occurrence_cancelled' ), 50, 2 );
+		// A674: further post-commit events.
+		add_action( 'wpcap_ticket_transferred', array( __CLASS__, 'ticket_transferred' ), 50, 2 );
+		add_action( 'wpcap_ticket_checked_out', array( __CLASS__, 'ticket_checked_out' ), 50, 2 );
+		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'occurrence_changed' ), 50, 3 );
+		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'event_cancelled' ), 50, 2 );
+		add_action( 'wpcap_refund_reversed', array( __CLASS__, 'refund_reversed' ), 50, 2 );
 		add_action( 'wpcap_process_jobs', array( Dispatcher::class, 'process' ), 20, 0 );
 		add_action( 'wpcap_webhooks_dispatch', array( Dispatcher::class, 'process' ), 10, 0 );
 		// Hourly (A437), not with every job run.
@@ -151,15 +157,30 @@ final class Webhooks {
 		return $o ? Dispatcher::emit( 'order.cancelled', 'order|' . (int) $order_id, $o[0], $o[1] ) : 0;
 	}
 
+	/**
+	 * refund object of order.refunded / refund.reversed: id, amount_minor, currency, ticket_ids (as
+	 * before) plus kind (tickets | amount | full), source and lines (line_id, ticket_type_id, quantity)
+	 * – the refund per order, line and ticket (A675).
+	 */
+	private static function refund_object( $refund_id, $currency ) {
+		$r = \PassCaptain\Workflow\Events::refund( $refund_id );
+		if ( ! $r ) { return array( 'id' => (int) $refund_id, 'amount_minor' => 0, 'currency' => $currency, 'ticket_ids' => array(), 'kind' => 'amount', 'source' => '', 'lines' => array() ); }
+		return array( 'id' => (int) $refund_id, 'amount_minor' => (int) $r['amount_minor'], 'currency' => $r['currency'], 'ticket_ids' => $r['ticket_ids'], 'kind' => $r['kind'], 'source' => $r['source'], 'lines' => $r['lines'] );
+	}
+
 	public static function refund_completed( $refund_id, $order_id = 0 ) {
-		global $wpdb;
 		$o = self::order_object( $order_id );
 		if ( ! $o ) { return 0; }
-		$r = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,amount_minor,currency,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE refund_id=%d", absint( $refund_id ) ) );
-		$ids = $r ? array_map( 'absint', (array) json_decode( (string) $r->ticket_ids, true ) ) : array();
-		$public = $ids ? $wpdb->get_col( 'SELECT public_id FROM ' . $wpdb->prefix . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
-		$o[0]['refund'] = array( 'id' => (int) $refund_id, 'amount_minor' => $r ? (int) $r->amount_minor : 0, 'currency' => $r ? $r->currency : $o[0]['currency'], 'ticket_ids' => array_values( $public ) );
+		$o[0]['refund'] = self::refund_object( $refund_id, $o[0]['currency'] );
 		return Dispatcher::emit( 'order.refunded', 'refund|' . (int) $refund_id, $o[0], $o[1] );
+	}
+
+	/** refund.reversed (A674/A675): a booked refund failed at the provider and was cancelled; tickets stay revoked. */
+	public static function refund_reversed( $refund_id, $order_id = 0 ) {
+		$o = self::order_object( $order_id );
+		if ( ! $o ) { return 0; }
+		$o[0]['refund'] = self::refund_object( $refund_id, $o[0]['currency'] ) + array( 'reversed' => true );
+		return Dispatcher::emit( 'refund.reversed', 'refund-reversed|' . (int) $refund_id, $o[0], $o[1] );
 	}
 
 	/**
@@ -170,7 +191,8 @@ final class Webhooks {
 		if ( 0 === strpos( (string) $reason, 'native_refund_' ) ) { return 0; }
 		$o = self::order_object( $order_id );
 		if ( ! $o ) { return 0; }
-		$o[0]['refund'] = array( 'id' => null, 'source' => sanitize_key( (string) $reason ), 'full' => true );
+		$full = \PassCaptain\Workflow\Events::full_refund( $order_id, $reason );
+		$o[0]['refund'] = array( 'id' => null, 'source' => sanitize_key( (string) $reason ), 'full' => true, 'kind' => 'full', 'ticket_ids' => $full ? $full['ticket_ids'] : array(), 'lines' => $full ? $full['lines'] : array() );
 		return Dispatcher::emit( 'order.refunded', 'order-full|' . (int) $order_id, $o[0], $o[1] );
 	}
 
@@ -188,10 +210,57 @@ final class Webhooks {
 	public static function ticket_checked_in( $ticket_id, $context = array() ) {
 		$t = self::ticket_object( $ticket_id );
 		if ( ! $t ) { return 0; }
-		$t[0]['checked_in_at'] = gmdate( 'Y-m-d\TH:i:s\Z' );
-		$t[0]['source'] = sanitize_key( is_array( $context ) ? ( $context['source'] ?? 'web' ) : 'web' );
-		// Multi-entry tickets can be checked in repeatedly: each check-in is its own event.
-		return Dispatcher::emit( 'ticket.checked_in', 'checkin|' . (int) $ticket_id . '|' . wp_generate_uuid4(), $t[0], $t[1] );
+		$context = is_array( $context ) ? $context : array();
+		$checkin_id = absint( $context['checkin_id'] ?? 0 );
+		$checked_in = $t[0];
+		$checked_in['checked_in_at'] = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$checked_in['source'] = sanitize_key( (string) ( $context['source'] ?? 'web' ) );
+		// Multi-entry tickets can be checked in repeatedly: each check-in (row) is its own event; the same
+		// check-in reported twice is one event (A675).
+		$queued = Dispatcher::emit( 'ticket.checked_in', 'checkin|' . ( $checkin_id ? $checkin_id : (int) $ticket_id . '|' . wp_generate_uuid4() ), $checked_in, $t[1] );
+		// A674: attendance.confirmed once per ticket, at its first admission.
+		$attended = $t[0] + array( 'confirmed_at' => $checked_in['checked_in_at'], 'method' => 'check_in', 'source' => $checked_in['source'] );
+		return $queued + Dispatcher::emit( 'attendance.confirmed', 'attendance|' . (int) $ticket_id, $attended, $t[1] );
+	}
+
+	/** ticket.checked_out (A674): a check-out (multi-entry tickets, areas). */
+	public static function ticket_checked_out( $ticket_id, $context = array() ) {
+		$t = self::ticket_object( $ticket_id );
+		if ( ! $t ) { return 0; }
+		$context = is_array( $context ) ? $context : array();
+		$checkin_id = absint( $context['checkin_id'] ?? 0 );
+		$t[0]['checked_out_at'] = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$t[0]['source'] = sanitize_key( (string) ( $context['source'] ?? 'web' ) );
+		return Dispatcher::emit( 'ticket.checked_out', 'checkout|' . ( $checkin_id ? $checkin_id : (int) $ticket_id . '|' . wp_generate_uuid4() ), $t[0], $t[1] );
+	}
+
+	/** ticket.transferred (A674): another person holds the ticket (portal transfer or holder change by assignment). */
+	public static function ticket_transferred( $ticket_id, $context = array() ) {
+		$t = self::ticket_object( $ticket_id );
+		if ( ! $t ) { return 0; }
+		$context = is_array( $context ) ? $context : array();
+		$t[0]['source'] = sanitize_key( (string) ( $context['source'] ?? 'portal' ) );
+		$t[0]['holder_changes'] = (int) ( $context['holder_changes'] ?? 0 );
+		return Dispatcher::emit( 'ticket.transferred', 'transferred|' . (int) $ticket_id . '|' . $t[0]['source'] . '|' . $t[0]['holder_changes'], $t[0], $t[1] );
+	}
+
+	/** occurrence.changed (A674): calendar-relevant fields changed; names of the fields and the new revision. */
+	public static function occurrence_changed( $occurrence_id, $changes = array(), $revision = 0 ) {
+		$o = self::occurrence_object( $occurrence_id );
+		if ( ! $o ) { return 0; }
+		$o['changed_fields'] = array_values( array_map( 'sanitize_key', array_keys( (array) $changes ) ) );
+		$o['revision'] = (int) $revision;
+		$key = (int) $revision > 0 ? (string) (int) $revision : md5( (string) wp_json_encode( $changes ) );
+		return Dispatcher::emit( 'occurrence.changed', 'changed|' . (int) $occurrence_id . '|' . $key, $o );
+	}
+
+	/** event.cancelled (A674): the whole event; every occurrence also sends occurrence.cancelled. */
+	public static function event_cancelled( $event_id, $context = array() ) {
+		global $wpdb;
+		$e = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", absint( $event_id ) ) );
+		if ( ! $e ) { return 0; }
+		$occurrences = array_map( 'intval', (array) ( is_array( $context ) ? ( $context['occurrence_ids'] ?? array() ) : array() ) );
+		return Dispatcher::emit( 'event.cancelled', 'event-cancelled|' . (int) $event_id, array( 'object' => 'event', 'id' => (int) $e->event_id, 'status' => (string) $e->status, 'occurrence_ids' => $occurrences ) );
 	}
 
 	public static function ticket_revoked( $ticket_id, $reason = '' ) {

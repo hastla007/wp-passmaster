@@ -369,7 +369,7 @@ final class Checkin {
 			$review_id = (int) ( ( (array) $recorded->get_error_data() )['conflict_id'] ?? 0 );
 		}
 		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array_filter( array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ), 'via' => empty( $found['help_code'] ) ? ( empty( $found['manual'] ) ? null : 'manual' ) : 'help_code' ), static function ( $v ) { return null !== $v; } ) );
-		do_action( 'wpcap_ticket_checked_in', (int) $ticket->ticket_id, $context );
+		do_action( 'wpcap_ticket_checked_in', (int) $ticket->ticket_id, $context + array( 'checkin_id' => (int) $checkin_id ) );
 		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ), self::history( (int) $ticket->ticket_id ), $review_id ? array( 'conflict_id' => $review_id, 'review' => $review ) : array() );
 	}
 
@@ -446,7 +446,7 @@ final class Checkin {
 		if ( ! $checkin_id || ! Engine::record_out( $found, $checkin_id, $context, $at, $user_id ) ) { return self::abort(); }
 		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::abort(); }
 		Audit::record( 'ticket_checked_out', 'ticket', $found['ticket_id'], array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ) ) );
-		do_action( 'wpcap_ticket_checked_out', (int) $found['ticket_id'], $context );
+		do_action( 'wpcap_ticket_checked_out', (int) $found['ticket_id'], $context + array( 'checkin_id' => (int) $checkin_id ) );
 		return array_merge( self::public_view( $found, 'checked_out' ), array( 'status' => 'checked_out' ) );
 	}
 

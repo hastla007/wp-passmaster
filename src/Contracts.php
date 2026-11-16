@@ -33,7 +33,7 @@ final class Contracts {
 	 *
 	 * @return array<string,string> public, partner, developer, app, offline (REST), voucher_provider,
 	 *                              ticket_service, checkin_service (Voucher Captain bridge), affiliate,
-	 *                              addon (public add-on hooks, PublicApi).
+	 *                              addon (public add-on hooks, PublicApi), workflow (Workflow\Contract).
 	 */
 	public static function versions() {
 		return array(
@@ -47,6 +47,7 @@ final class Contracts {
 			'checkin_service'  => Integrations\Vouchers\CheckinService::VERSION . '.0',
 			'affiliate'        => Integrations\AffiliateCaptain\Adapter::CONTRACT,
 			'addon'            => PublicApi::VERSION, // A663: public hooks for add-ons (docs/HOOKS.md).
+			'workflow'         => Workflow\Contract::VERSION, // A673: workflow provider contract (outbox events).
 		);
 	}
 

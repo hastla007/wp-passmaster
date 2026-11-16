@@ -2103,6 +2103,8 @@ final class Orders {
 		Consents::end_for_ticket( (int) $ticket->ticket_id, 'transfer', $previous_holder );
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
 		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );
+		/** A674: another person holds the ticket now (after the commit; no code, no addresses). */
+		do_action( 'wpcap_ticket_transferred', (int) $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => 'portal', 'holder_changes' => (int) $ticket->transfer_count + 1 + TicketAssignments::holder_changes( (int) $ticket->ticket_id ) ) );
 		$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
 		$vars = array(
 			'order_id' => (string) $order->public_id,
@@ -2167,6 +2169,8 @@ final class Orders {
 			'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
 		) );
 		Audit::record( 'event_cancelled', 'event', $event_id, array( 'occurrences' => count( $occurrence_ids ), 'run_id' => (int) $run->run_id ) + ( '' !== (string) $reason ? array( 'reason' => sanitize_text_field( (string) $reason ) ) : array() ) );
+		/** A674: the event is cancelled (committed); its occurrences follow in the run (wpcap_occurrence_cancelled each). */
+		do_action( 'wpcap_event_cancelled', $event_id, array( 'occurrence_ids' => $occurrence_ids, 'run_id' => (int) $run->run_id ) );
 		return self::event_cancellation_result( BulkRuns::drive( $run ) );
 	}
 
