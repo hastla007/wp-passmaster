@@ -209,6 +209,7 @@ $a115_req2->set_body( wp_json_encode( array( 'country_code' => 'ITA', 'rate_basi
 check( 'REST validation error keeps its code', is_wp_error( $e = PassCaptain\Rest\Controller::save_tax_profile( $a115_req2 ) ) && 'wpcap_tax_profile_invalid' === $e->get_error_code() );
 
 // Review page: registered in the finance area and renders.
+require_once dirname( __DIR__ ) . '/lib/admin_render_stubs.php';
 check( 'menu: "Steuerprüfung" in the finance area with handlers', 'finance' === PassCaptain\Admin\Menu::group_of( PassCaptain\Admin\TaxPage::SLUG ) && isset( PassCaptain\Admin\Menu::handlers()['wpcap_tax_profile_activate'], PassCaptain\Admin\Menu::handlers()['wpcap_tax_profile_retire'], PassCaptain\Admin\Menu::handlers()['wpcap_tax_profile_save'] ) );
 ob_start();
 try { PassCaptain\Admin\TaxPage::render(); $a115_html = ob_get_clean(); } catch ( Throwable $e ) { ob_end_clean(); $a115_html = 'EXCEPTION ' . $e->getMessage(); }

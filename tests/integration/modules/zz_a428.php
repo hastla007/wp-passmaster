@@ -89,6 +89,7 @@ check( 'A428: summary counts all revoked tickets and the cancelled order', 5 ===
 $again = EventsPage::cancel_occurrence( array( 'occurrence_id' => $a['occ'] ) );
 check( 'A428: a further click changes nothing (no mails, no refunds)', ! is_wp_error( $again ) && 5 === a428_completed_refunds( $a['orders'] ) && $counts === a428_mail_counts( $before, 'a428-' . $a['occ'] . '-' ) );
 
+require_once dirname( __DIR__ ) . '/lib/admin_render_stubs.php';
 $_GET = array( 'page' => 'pass-captain', 'view' => 'occurrence', 'occurrence_id' => $a['occ'] );
 ob_start();
 try { EventsPage::render(); } catch ( Throwable $e ) { echo 'EXCEPTION ' . $e->getMessage(); }
@@ -170,8 +171,14 @@ $sent_now = count( a428_mail_counts( $before, 'a428-' . $r['occ'] . '-', '' ) );
 PassCaptain\Jobs\TimeBudget::release_claims();
 BulkRuns::release_leases();
 $notify_runs = BulkRuns::for_object( 'notify', $r['occ'] );
-check( 'A428: abort while sending: one mail out, every holder queued', 'a428 abort' === $res_error && 1 === $sent_now && 1 === count( $notify_runs ) && 5 === BulkRuns::mail_counts( $notify_runs[0] )['total'] );
+// Merged design: the notices go through the message queue, which isolates a throwing mail hook per message
+// (Communications: retried with backoff) – the request is not aborted, the other holders get their mail.
+$notify_counts = $notify_runs ? BulkRuns::mail_counts( $notify_runs[0] ) : array();
+check( 'A428: abort while sending: one mail out, every holder queued', '' === $res_error && 4 === $sent_now && 1 === count( $notify_runs ) && 5 === (int) ( $notify_counts['total'] ?? 0 ) && 1 === (int) ( $notify_counts['waiting'] ?? 0 ) );
+// The backoff of the failed message has passed.
+$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_message_queue SET send_at=%s WHERE status='queued' AND recipient LIKE %s", '2000-01-01 00:00:00', 'a428-' . $r['occ'] . '-%' ) );
 BulkRuns::handle_job( false, 'bulk_run', array( 'run_id' => (int) $notify_runs[0]->run_id ), 0 );
+PassCaptain\Communications::process_due(); // The queue worker sends the retried message.
 $counts = a428_mail_counts( $before, 'a428-' . $r['occ'] . '-', '' );
 check( 'A428: the continuation sends the rest; nobody gets two mails', 5 === count( $counts ) && array( 1 ) === array_values( array_unique( $counts ) ) && 'complete' === BulkRuns::get( $notify_runs[0]->run_id )->status );
 remove_action( 'wpcap_occurrence_rescheduled', array( Notifications::class, 'occurrence_rescheduled' ), 10 );

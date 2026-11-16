@@ -238,6 +238,9 @@ final class TaxProfiles {
 	 */
 	public static function for_line( $type, $occurrence, $now ) {
 		if ( ! $occurrence ) { return null; }
+		// A115: an occurrence with its own venue country is resolved by Tax\Profiles (venue country, sale
+		// date, channel filter wpcap_tax_profiles_apply); both read the same profile table.
+		if ( '' !== \PassCaptain\Tax\Profiles::country( $occurrence->venue_country ?? '' ) ) { return null; }
 		$event_country = self::event_country( (int) $occurrence->event_id );
 		$country = '' !== $event_country ? $event_country : self::seller_country();
 		$class = '' !== (string) ( $type->tax_class ?? '' ) ? (string) $type->tax_class : 'standard';

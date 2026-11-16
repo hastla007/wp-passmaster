@@ -33,6 +33,17 @@ function q1_key_revoked( $key_id ) {
 }
 
 echo "A278: developer API key owner checks\n";
+// Merged DeveloperKeys::owner_can() asks user_can() (as WordPress does: via the user's roles); the test user_can()
+// stub is pointed at the registered test users (deleted ones have no capabilities) for this file.
+$q1k_saved_user_can = $GLOBALS['wpcap_test_user_can'] ?? null;
+$GLOBALS['wpcap_test_user_can'] = static function ( $u, $cap ) {
+	$id = is_object( $u ) ? (int) ( $u->ID ?? 0 ) : (int) $u;
+	if ( in_array( $id, $GLOBALS['wpcap_test_deleted_users'] ?? array(), true ) ) { return false; }
+	foreach ( $GLOBALS['wpcap_test_users'] ?? array() as $user ) {
+		if ( (int) $user->ID === $id && method_exists( $user, 'has_cap' ) ) { return $user->has_cap( $cap ); }
+	}
+	return isset( $GLOBALS['wpcap_test_user_caps'][ $id ] ) ? in_array( $cap, (array) $GLOBALS['wpcap_test_user_caps'][ $id ], true ) : true;
+};
 $q1k_ev = q1_event();
 $q1k_mgr = q1_user( 27801, array( 'wpcap_event_manager' ) );
 $wpdb->query( "INSERT INTO {$p}wpcap_event_staff (event_id,user_id,capability) VALUES ($q1k_ev,27801,'wpcap_manage_events')" );
@@ -62,3 +73,4 @@ check( 'A278 a remaining reports entry keeps the key', ! is_wp_error( $q1k_key2 
 do_action( 'delete_user', 27802, null, $q1k_rep );
 check( 'A278 delete_user revokes every key of the owner', q1_key_revoked( $q1k_key2['api_key_id'] ) && false === DeveloperKeys::authorize( q1_key_request( $q1k_key2['key'], $q1k_ev ), 'events.read', $q1k_ev ) );
 $GLOBALS['wpcap_test_transients'] = array();
+if ( null === $q1k_saved_user_can ) { unset( $GLOBALS['wpcap_test_user_can'] ); } else { $GLOBALS['wpcap_test_user_can'] = $q1k_saved_user_can; }

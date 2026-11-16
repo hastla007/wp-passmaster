@@ -136,18 +136,23 @@ foreach ( $cancel_steps as $label => list( $pattern, $skip, $silent ) ) {
 $o = odf_order( $type, 2 );
 Orders::confirm_external_payment( $o['order_id'], 'odf' );
 $faults = $odf_faults();
-$faults->fail( "/^UPDATE \S+wpcap_tickets SET status='revoked'/", 1 );
+// Merged design: all tickets are revoked by one statement, so the fault hits the order status update
+// right after it – the revocation of both tickets must be rolled back.
+$faults->fail( "/^UPDATE \S+wpcap_orders SET status='cancelled'/" );
 $r = Orders::cancel_order( $o['order_id'], 'odf' );
 $odf_restore();
-check( 'cancel: failed ticket revocation rolls back every revocation', is_wp_error( $r ) && 2 === count( tickets( $o['order_id'], 'valid' ) ) && 'paid' === Orders::get( $o['order_id'] )->payment_status );
+check( 'cancel: failure after the ticket revocation rolls back every revocation', is_wp_error( $r ) && 2 === count( tickets( $o['order_id'], 'valid' ) ) && 'paid' === Orders::get( $o['order_id'] )->payment_status );
 check( 'cancel: no cancellation side effects after rollback', 0 === odf_audit( 'order_cancelled', $o['order_id'] ) );
 check( 'cancel: retry revokes and cancels', true === Orders::cancel_order( $o['order_id'], 'odf' ) && 2 === count( tickets( $o['order_id'], 'revoked' ) ) && 'cancelled' === Orders::get( $o['order_id'] )->status );
 
 echo "Audit: mark_refunded() rolls back on database errors; refund webhook idempotent\n";
+// Merged design (A264): a full refund webhook books the refund row first and then closes the order
+// even if that booking failed (the money is back), so mark_refunded() is faulted directly here; the
+// webhook redelivery then completes it. Tickets are revoked by one statement (skip 0).
 $refund_steps = array(
 	'transaction start' => array( '/^START TRANSACTION/', 0, false ),
 	'reservation release' => array( '/^UPDATE \S+wpcap_reservations SET status=.released./', 0, false ),
-	'ticket revocation' => array( "/^UPDATE \S+wpcap_tickets SET status='revoked'/", 1, false ),
+	'ticket revocation' => array( "/^UPDATE \S+wpcap_tickets SET status='revoked'/", 0, false ),
 	'order status update' => array( "/^UPDATE \S+wpcap_orders SET status='refunded'/", 0, false ),
 	'commit' => array( '/^COMMIT/', 0, false ),
 );
@@ -157,9 +162,9 @@ foreach ( $refund_steps as $label => list( $pattern, $skip, $silent ) ) {
 	$event_id = 'odf-refund-' . md5( $label );
 	$faults = $odf_faults();
 	$faults->fail( $pattern, $skip, 1, $silent );
-	$r = Webhooks::process( 'manual', odf_event( $o, 'refunded', $event_id ) );
+	$r = Orders::mark_refunded( $o['order_id'], 'odf' );
 	$odf_restore();
-	check( "refund fault ($label): retryable error, claim released", is_wp_error( $r ) && null === odf_claim( $event_id ) );
+	check( "refund fault ($label): retryable error, claim released", PassCaptain\Errors::is_busy( $r ) && null === odf_claim( $event_id ) );
 	check( "refund fault ($label): order and tickets unchanged", 'paid' === Orders::get( $o['order_id'] )->payment_status && 2 === count( tickets( $o['order_id'], 'valid' ) ) && 0 === odf_audit( 'order_refunded', $o['order_id'] ) );
 	$r = Webhooks::process( 'manual', odf_event( $o, 'refunded', $event_id ) );
 	check( "refund fault ($label): retry refunds and revokes", 'refunded' === $r && 'refunded' === Orders::get( $o['order_id'] )->status && 2 === count( tickets( $o['order_id'], 'revoked' ) ) );
@@ -291,8 +296,9 @@ $r = Orders::resend_tickets( $o['order_id'] );
 $final = odf_hashes( $o['order_id'] );
 check( 'resend succeeds after the failures and rotates every code', true === $r && $final[0] !== $mid[0] && $final[1] !== $mid[1] );
 // R3: no row lock is held while mailing; a failed read of the tickets aborts without changes or mails.
+// (Merged read joins the attendee assignment first: t LEFT JOIN ….)
 $faults = $odf_faults();
-$faults->fail( '/FROM \S+wpcap_tickets t INNER JOIN .* WHERE t\.order_id=\d+ AND t\.status=.valid. AND t\.ticket_id IN /', 0, 2 );
+$faults->fail( '/FROM \S+wpcap_tickets t (?:LEFT|INNER) JOIN .* WHERE t\.order_id=\d+ AND t\.status=.valid. AND t\.ticket_id IN /', 0, 2 );
 $mails_buyer = odf_mails_to( $buyer );
 $r = Orders::resend_tickets( $o['order_id'] );
 $odf_restore();

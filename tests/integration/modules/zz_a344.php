@@ -24,18 +24,19 @@ $a344_run = static function () use ( $wpdb, $p ) {
 };
 
 echo "A344: WooCommerce payment confirmation under a busy database\n";
+// Table names may be backtick-quoted (%i): the fault patterns allow it (\S* after the name).
 $wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type IN ('woocommerce_paid_sync','woocommerce_refund_sync')" );
 $a344_type = make_type( 10, 10, 3000 );
 $a344_wc = woo_t_order( 7440, array( array( $a344_type, 2, '60.00' ) ), 'stripe' );
 $a344_core = Woo::reserve( $a344_wc );
 $a344_wc->status = 'processing';
-wpcap_test_fault( '/^UPDATE \S*wpcap_reservations SET status=.converted./', 'lock_timeout', array( 'rollback' => true ) );
+wpcap_test_fault( '/^UPDATE \S*wpcap_reservations\S* SET status=.converted./', 'lock_timeout', array( 'rollback' => true ) );
 $a344_r = Woo::sync_paid_order( 7440 );
 wpcap_test_faults_clear();
 $a344_paid_jobs = $a344_jobs( 'woocommerce_paid_sync' );
 check( 'A344: busy payment confirmation: no tickets yet, but a retry job for the WooCommerce order', is_wp_error( $a344_r ) && 'pending' === Orders::get( $a344_core )->payment_status && ! tickets( $a344_core ) && 1 === count( $a344_paid_jobs ) && 7440 === (int) json_decode( $a344_paid_jobs[0]->payload, true )['woo_order'] );
 check( 'A344: the order note says it is retried automatically', 1 === count( array_filter( $a344_wc->notes, static fn( $n ) => false !== strpos( $n, 'automatisch erneut' ) ) ) );
-wpcap_test_fault( '/^UPDATE \S*wpcap_reservations SET status=.converted./', 'lock_timeout', array( 'rollback' => true ) );
+wpcap_test_fault( '/^UPDATE \S*wpcap_reservations\S* SET status=.converted./', 'lock_timeout', array( 'rollback' => true ) );
 $a344_run();
 wpcap_test_faults_clear();
 check( 'A344: a job run that is still busy stays queued (backoff), without a second job or note', 1 === count( $a344_jobs( 'woocommerce_paid_sync' ) ) && 1 === count( array_filter( $a344_wc->notes, static fn( $n ) => false !== strpos( $n, 'automatisch erneut' ) ) ) );
@@ -45,12 +46,13 @@ check( 'A344: a later status hook changes nothing', true === Woo::sync_paid_orde
 
 echo "A344: WooCommerce partial refund under a busy database\n";
 $a344_refund = woo_t_refund( 7441, $a344_wc, '30.00', array( array( 0, 1, '30.00' ) ) );
-wpcap_test_fault( '/^INSERT INTO \S*wpcap_refunds \(/', 'lock_timeout', array( 'rollback' => true ) );
+wpcap_test_fault( '/^INSERT INTO \S*wpcap_refunds\S* \(/', 'lock_timeout', array( 'rollback' => true ) );
 $a344_rr = Woo::sync_refund( 7440, 7441 );
 wpcap_test_faults_clear();
 $a344_rows = static function () use ( $wpdb, $p, $a344_core ) { return $wpdb->get_results( $wpdb->prepare( "SELECT amount_minor,status FROM {$p}wpcap_refunds WHERE order_id=%d", $a344_core ) ); };
 $a344_refund_jobs = $a344_jobs( 'woocommerce_refund_sync' );
-check( 'A344: busy refund booking: nothing booked, retry job for this WooCommerce refund id', is_wp_error( $a344_rr ) && ! $a344_rows() && 1 === count( $a344_refund_jobs ) && 7441 === (int) json_decode( $a344_refund_jobs[0]->payload, true )['refund_id'] && '' === (string) $a344_refund->get_meta( Woo::REFUND_META, true ) );
+// Merged OrderAdapter::sync_refund() reports the failed booking with false (hook callback), the job carries the retry.
+check( 'A344: busy refund booking: nothing booked, retry job for this WooCommerce refund id', ( is_wp_error( $a344_rr ) || false === $a344_rr ) && ! $a344_rows() && 1 === count( $a344_refund_jobs ) && 7441 === (int) json_decode( $a344_refund_jobs[0]->payload, true )['refund_id'] && '' === (string) $a344_refund->get_meta( Woo::REFUND_META, true ) );
 $a344_run();
 $a344_booked = $a344_rows();
 check( 'A344: the retry books the refund once (one ticket refunded)', 1 === count( $a344_booked ) && 3000 === (int) $a344_booked[0]->amount_minor && 1 === count( tickets( $a344_core, 'valid' ) ) && ! $a344_jobs( 'woocommerce_refund_sync' ) && $a344_refund->get_meta( Woo::REFUND_META, true ) );

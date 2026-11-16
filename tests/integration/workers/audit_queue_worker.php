@@ -22,6 +22,15 @@ add_filter(
 	10,
 	4
 );
+// A652: the stored payload is data, never a template – the test renderer supplies subject and body.
+add_filter(
+	'wpcap_email_template',
+	static function ( $template, $key, $payload ) {
+		return 'audit_parallel' === $key ? array( 'subject' => (string) ( $payload['subject'] ?? '' ), 'body' => (string) ( $payload['body'] ?? '' ) ) : $template;
+	},
+	10,
+	3
+);
 PassCaptain\Jobs::process_due( 200 );
 PassCaptain\Communications::process_due();
 foreach ( $GLOBALS['wpcap_test_mails'] as $mail ) {

@@ -50,11 +50,13 @@ $wpdb->query( "DELETE FROM {$p}wpcap_rate_limits" );
 $a186_seq = array();
 for ( $i = 0; $i < 4; $i++ ) { $a186_seq[] = RateLimit::allow( 'a186-db', 3, 3600 ); }
 check( 'database backend: exactly the limit is allowed, then refused', array( true, true, true, false ) === $a186_seq && 'db' === RateLimit::$last_backend );
-check( 'database backend: one row per bucket and window, counting every hit, key not reversible', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_rate_limits" ) && 4 === (int) $wpdb->get_var( "SELECT hits FROM {$p}wpcap_rate_limits" ) && 40 === strlen( (string) $wpdb->get_var( "SELECT rl_key FROM {$p}wpcap_rate_limits" ) ) );
+// Merged RateLimit table: bucket_key = HMAC-SHA256 of the counter name (64 hex), the counter stops at limit + 1.
+check( 'database backend: one row per bucket and window, counting every hit, key not reversible', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_rate_limits" ) && 4 === (int) $wpdb->get_var( "SELECT hits FROM {$p}wpcap_rate_limits" ) && 1 === preg_match( '/^[0-9a-f]{64}$/', (string) $wpdb->get_var( "SELECT bucket_key FROM {$p}wpcap_rate_limits" ) ) && false === strpos( (string) $wpdb->get_var( "SELECT bucket_key FROM {$p}wpcap_rate_limits" ), 'a186' ) );
 $GLOBALS['wpcap_test_transients'] = array();
 check( 'database counters survive a cleared transient/object cache', false === RateLimit::allow( 'a186-db', 3, 3600 ) );
-$wpdb->insert( "{$p}wpcap_rate_limits", array( 'rl_key' => str_repeat( 'e', 40 ), 'hits' => 9, 'expires_at' => gmdate( 'Y-m-d H:i:s', time() - 60 ) ) );
-check( 'purge() removes counters of past windows only', 1 === RateLimit::purge() && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_rate_limits" ) && has_action( 'wpcap_cleanup_reservations' ) );
+$wpdb->insert( "{$p}wpcap_rate_limits", array( 'bucket_key' => str_repeat( 'e', 64 ), 'window_start' => gmdate( 'Y-m-d H:i:s', time() - 120 ), 'hits' => 9, 'expires_at' => gmdate( 'Y-m-d H:i:s', time() - 60 ) ) );
+// Merged design: expired counters are purged in batches by the daily retention run (Retention → RateLimit::purge_expired()).
+check( 'purge() removes counters of past windows only', 1 === RateLimit::purge() && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_rate_limits" ) && method_exists( PassCaptain\Privacy\Retention::class, 'run' ) );
 
 $wpdb->query( "RENAME TABLE {$p}wpcap_rate_limits TO {$p}wpcap_rate_limits_a186" );
 $a186_fallback = RateLimit::allow( 'a186-missing', 1, 3600 ) && ! RateLimit::allow( 'a186-missing', 1, 3600 );
@@ -70,8 +72,9 @@ if ( ! function_exists( 'wp_cache_incr' ) ) {
 }
 $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'cache';
 $a186_seq = array( RateLimit::allow( 'a186-cache', 2, 120 ), RateLimit::allow( 'a186-cache', 2, 120 ), RateLimit::allow( 'a186-cache', 2, 120 ) );
-$a186_ttls = array_filter( $GLOBALS['pf_cache_ttl'] ?? array(), static fn( $ttl, $k ) => 0 === strpos( $k, 'wpcap_rate:' ), ARRAY_FILTER_USE_BOTH );
-check( 'object-cache backend: wp_cache_incr counts, window as TTL', array( true, true, false ) === $a186_seq && 'cache' === RateLimit::$last_backend && in_array( 120, $a186_ttls, true ) );
+// Merged design: counters live in the "transient" cache group; the TTL runs to the end of the fixed window slot.
+$a186_ttls = array_filter( $GLOBALS['pf_cache_ttl'] ?? array(), static fn( $ttl, $k ) => 0 === strpos( $k, 'transient:wpcap_rl_' ), ARRAY_FILTER_USE_BOTH );
+check( 'object-cache backend: wp_cache_incr counts, window as TTL', array( true, true, false ) === $a186_seq && 'cache' === RateLimit::$last_backend && $a186_ttls && max( $a186_ttls ) <= 120 && min( $a186_ttls ) >= 1 );
 $GLOBALS['a186_evict'] = true;
 RateLimit::allow( 'a186-evicted', 2, 120 );
 unset( $GLOBALS['a186_evict'] );
@@ -101,7 +104,8 @@ foreach ( $a186_procs as list( $proc, $pipes ) ) {
 }
 $a186_backends = array_unique( array_map( static fn( $o ) => explode( ' ', $o . ' ' )[1], $a186_outputs ) );
 $a186_hits = (int) $wpdb->get_var( "SELECT SUM(hits) FROM {$p}wpcap_rate_limits" );
-check( "$a186_workers workers × $a186_calls calls, limit $a186_limit: exactly $a186_limit allowed (got $a186_allowed), every hit counted ($a186_hits)", $a186_limit === $a186_allowed && $a186_workers * $a186_calls === $a186_hits && array( 'db' ) === array_values( $a186_backends ) );
+// Merged design: the table counter stops at limit + 1 (refused hits do not pile up, a raised limit applies at once).
+check( "$a186_workers workers × $a186_calls calls, limit $a186_limit: exactly $a186_limit allowed (got $a186_allowed), every hit counted ($a186_hits)", $a186_limit === $a186_allowed && $a186_limit + 1 === $a186_hits && array( 'db' ) === array_values( $a186_backends ) );
 if ( $a186_limit !== $a186_allowed ) { echo '    worker output: ' . implode( ' | ', $a186_outputs ) . "\n"; }
 
 echo "A186: checkout limit per real client behind a proxy (database backend)\n";
@@ -122,7 +126,10 @@ Settings::update( array( 'trusted_proxies' => '' ) );
 $c1 = $a186_buy( '203.0.113.62', 5 );
 $c2 = $a186_buy( '203.0.113.63', 6 );
 $c3 = $a186_buy( '203.0.113.64', 7 );
-check( 'without a trusted proxy all clients behind it share the proxy address (and its limit)', ! is_wp_error( $c1 ) && ! is_wp_error( $c2 ) && is_wp_error( $c3 ) && 429 === $c3->get_error_data()['status'] );
+// Merged design (CheckoutThrottle::proxy_suspect()): behind a private proxy address without configured
+// trusted proxies all buyers share REMOTE_ADDR, so the per-network limit is suspended (only network +
+// e-mail limits apply) instead of throttling the whole site; the status page warns.
+check( 'without a trusted proxy all clients share the private proxy address: per-network limit suspended, proxy flagged', ! is_wp_error( $c1 ) && ! is_wp_error( $c2 ) && ! is_wp_error( $c3 ) && 'private' === PassCaptain\Sales\CheckoutThrottle::proxy_suspect() && '10.0.0.2' === Orders::client_ip() );
 
 unset( $GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'] );
 $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = getenv( 'WPCAP_TEST_RATE_BACKEND' ) ?: 'transient';

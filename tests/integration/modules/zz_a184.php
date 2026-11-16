@@ -190,13 +190,14 @@ foreach ( array( 'stripe', 'paypal', 'mollie' ) as $prov ) {
 		check( "$prov: refund before paid is deferred (5xx), applied on redelivery after the payment", 'retry' === $r1 && 'pending_payment/pending' === $mid && 'paid' === $r2 && 'refunded' === $r3 && 'refunded/refunded' === $a184_state( $o ) && 1 === a184_refund_rows( $o['order_id'] ) && ! tickets( $o['order_id'], 'valid' ) );
 	}
 
-	// 4. Paid after cancelled, then that payment refunded by the operator.
+	// 4. Paid after cancelled, then that payment refunded by the operator. Merged design (R5-11): a refund
+	// recognised as one of the payment case (Payments\Cases) answers payment_case_refund – booked nowhere either.
 	$o = $a184_new( $prov, 'pac' );
 	$alerts = a184_alerts();
 	$r1 = $is_m ? $a184_m( $o, 'pac1', 'expired' ) : $d['failed']( $o, 'pac1', 'pac-f' );
 	$r2 = $is_m ? $a184_m( $o, 'pac2', 'paid' ) : $d['paid']( $o, 'pac2', 'pac-p' );
 	$r3 = $is_m ? $a184_m( $o, 'pac2', 'paid', 2000 ) : $d['refund']( $o, 'pac2', 'pac-r', 2000 );
-	check( "$prov: paid after cancelled issues nothing and alerts; its refund books nothing", 'cancelled' === $r1 && 'paid_for_closed_order' === $r2 && 'refund_for_unpaid_order' === $r3 && 'cancelled/cancelled' === $a184_state( $o ) && ! tickets( $o['order_id'] ) && 0 === a184_refund_rows( $o['order_id'] ) && a184_alerts() === $alerts + 1 );
+	check( "$prov: paid after cancelled issues nothing and alerts; its refund books nothing", 'cancelled' === $r1 && 'paid_for_closed_order' === $r2 && in_array( $r3, array( 'refund_for_unpaid_order', 'payment_case_refund' ), true ) && 'cancelled/cancelled' === $a184_state( $o ) && ! tickets( $o['order_id'] ) && 0 === a184_refund_rows( $o['order_id'] ) && a184_alerts() === $alerts + 1 );
 
 	// 5. Paid after expired: late payment with capacity left completes the order.
 	$o = $a184_new( $prov, 'pae' );

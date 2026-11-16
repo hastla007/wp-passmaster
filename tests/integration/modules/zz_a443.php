@@ -21,7 +21,8 @@ $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_offline_state (occurrence_i
 
 $x2_a443_other = new mysqli( getenv( 'WPCAP_TEST_DB_HOST' ) ?: '127.0.0.1', getenv( 'WPCAP_TEST_DB_USER' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_PASS' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_NAME' ) ?: 'wp' );
 $x2_a443_parallel = static function ( $sql ) use ( $x2_a443_other, $p, $x2_a443_occ ) {
-	if ( 0 === strpos( (string) $sql, "INSERT IGNORE INTO {$p}wpcap_offline_state" ) ) {
+	// Table names may be backtick-quoted (prepared with %i).
+	if ( preg_match( "/^INSERT IGNORE INTO `?{$p}wpcap_offline_state\\b/", (string) $sql ) ) {
 		// Another request finished its refresh just now (version 4).
 		$x2_a443_other->query( "UPDATE {$p}wpcap_offline_state SET version=4, refreshed_at='" . gmdate( 'Y-m-d H:i:s' ) . "' WHERE occurrence_id=$x2_a443_occ" );
 	}
@@ -30,7 +31,7 @@ $x2_a443_parallel = static function ( $sql ) use ( $x2_a443_other, $p, $x2_a443_
 add_filter( 'query', $x2_a443_parallel );
 $GLOBALS['wpcap_test_query_log'] = array();
 $x2_a443_state = Package::refresh( $x2_a443_occ, false );
-$x2_a443_rebuilt = (bool) array_filter( $GLOBALS['wpcap_test_query_log'], static fn( $q ) => false !== strpos( $q, 'FROM ' . $GLOBALS['wpdb']->prefix . 'wpcap_offline_entries WHERE occurrence_id' ) );
+$x2_a443_rebuilt = (bool) array_filter( $GLOBALS['wpcap_test_query_log'], static fn( $q ) => false !== strpos( str_replace( '`', '', $q ), 'FROM ' . $GLOBALS['wpdb']->prefix . 'wpcap_offline_entries WHERE occurrence_id' ) );
 unset( $GLOBALS['wpcap_test_query_log'] );
 remove_filter( 'query', $x2_a443_parallel );
 $x2_a443_other->close();
@@ -40,7 +41,7 @@ check( 'A443: after a parallel refresh the waiting request returns the fresh sta
 $wpdb->query( "UPDATE {$p}wpcap_offline_state SET refreshed_at='" . gmdate( 'Y-m-d H:i:s', time() - 3600 ) . "' WHERE occurrence_id=$x2_a443_occ" );
 $GLOBALS['wpcap_test_query_log'] = array();
 Package::refresh( $x2_a443_occ, false );
-$x2_a443_rebuilt = (bool) array_filter( $GLOBALS['wpcap_test_query_log'], static fn( $q ) => false !== strpos( $q, 'FROM ' . $GLOBALS['wpdb']->prefix . 'wpcap_offline_entries WHERE occurrence_id' ) );
+$x2_a443_rebuilt = (bool) array_filter( $GLOBALS['wpcap_test_query_log'], static fn( $q ) => false !== strpos( str_replace( '`', '', $q ), 'FROM ' . $GLOBALS['wpdb']->prefix . 'wpcap_offline_entries WHERE occurrence_id' ) );
 unset( $GLOBALS['wpcap_test_query_log'] );
 check( 'A443: an expired snapshot is still rebuilt', $x2_a443_rebuilt );
 $wpdb->query( "DELETE FROM {$p}wpcap_offline_state WHERE occurrence_id=$x2_a443_occ" );

@@ -3648,7 +3648,8 @@ final class Orders {
 			if ( ! $ticket_ids ) { return true; }
 		}
 		$reason = empty( $payload['initial'] ) ? 'delivery_retry' : 'delivery';
-		$result = self::rotate_and_send( $order, $ticket_ids, $reason, true, array( 'hashes' => $hashes, 'mail' => 'tickets' ) );
+		// A588: a retry after a failed mail delivers the stored codes (TicketCodes) instead of new ones.
+		$result = self::rotate_and_send( $order, $ticket_ids, $reason, true, array( 'hashes' => $hashes, 'mail' => 'tickets', 'keep_codes' => 'delivery_retry' === $reason ) );
 		if ( is_wp_error( $result ) ) {
 			// No valid ticket left (revoked, checked in, transferred with its own mail): done.
 			return 'wpcap_no_resendable_tickets' === $result->get_error_code();
@@ -4033,7 +4034,8 @@ final class Orders {
 		if ( '' !== $request_key ) {
 			// A533: one resend per form submission. Checked and recorded under the order lock, so a double
 			// click (two requests) cannot rotate the codes twice; a failed resend frees the key again.
-			$marker = hash( 'sha256', 'resend|' . $order_id . '|' . $request_key );
+			// 48 hex characters: a full 64-hex hash would be masked in the audit details (Security\Redact).
+			$marker = substr( hash( 'sha256', 'resend|' . $order_id . '|' . $request_key ), 0, 48 );
 			if ( false === self::begin() ) { return $busy(); }
 			$wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_orders', $order_id ) );
 			$seen = '' === $wpdb->last_error ? $wpdb->get_row( $wpdb->prepare( "SELECT SUM(action='tickets_resend_request') AS requested,SUM(action='tickets_resend_request_failed') AS failed FROM %i WHERE object_type='order' AND object_id=%d AND action IN ('tickets_resend_request','tickets_resend_request_failed') AND details LIKE %s", $wpdb->prefix . 'wpcap_audit_logs', $order_id, '%' . $wpdb->esc_like( $marker ) . '%' ) ) : null;

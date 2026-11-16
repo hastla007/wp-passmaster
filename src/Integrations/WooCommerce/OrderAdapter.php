@@ -788,10 +788,11 @@ final class OrderAdapter {
 	 * derives for this order ID and one of its checkout attempts ("{id}-{attempt}[-{seller key}]"), or when
 	 * its payment was confirmed with the reference "woocommerce:{id}" (confirm_core()).
 	 *
-	 * @param array<int,string> $ids Core order ID => seller key ('' when not split).
+	 * @param array<int,string> $ids          Core order ID => seller key ('' when not split).
+	 * @param bool              $by_reference Whether the reference "woocommerce:{id}" counts as proof.
 	 * @return int[]
 	 */
-	private static function owned_core_ids( $wc_order, array $ids ) {
+	private static function owned_core_ids( $wc_order, array $ids, $by_reference = true ) {
 		global $wpdb;
 		$wc_id    = (int) $wc_order->get_id();
 		$attempts = min( 50, max( 1, absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) ) );
@@ -807,7 +808,7 @@ final class OrderAdapter {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,idempotency_key,provider_reference FROM %i WHERE order_id IN ($placeholders)", array_merge( array( $wpdb->prefix . 'wpcap_orders' ), array_keys( $ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 		$owned = array();
 		foreach ( (array) $rows as $row ) {
-			if ( isset( $keys[ (string) $row->idempotency_key ] ) || 'woocommerce:' . $wc_id === (string) $row->provider_reference ) {
+			if ( isset( $keys[ (string) $row->idempotency_key ] ) || ( $by_reference && 'woocommerce:' . $wc_id === (string) $row->provider_reference ) ) {
 				$owned[ (int) $row->order_id ] = true;
 			}
 		}
@@ -2198,7 +2199,9 @@ final class OrderAdapter {
 		$core = Orders::get( absint( $core_order_id ) );
 		if ( $core && preg_match( '/^' . preg_quote( self::REFERENCE_PREFIX, '/' ) . '(\d+)$/', (string) ( $core->provider_reference ?? '' ), $m ) && function_exists( 'wc_get_order' ) ) {
 			$order = wc_get_order( (int) $m[1] );
-			if ( is_object( $order ) && in_array( absint( $core_order_id ), self::core_order_ids( $order ), true ) ) {
+			// Ownership without the meta (A445: the meta may be missing or unsearchable): the core order's
+			// idempotency key derived from this WooCommerce order id – never the reference itself.
+			if ( is_object( $order ) && ( in_array( absint( $core_order_id ), self::core_order_ids( $order ), true ) || array( absint( $core_order_id ) ) === self::owned_core_ids( $order, array( absint( $core_order_id ) => '' ), false ) ) ) {
 				return $order;
 			}
 		}
