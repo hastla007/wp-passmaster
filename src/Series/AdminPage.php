@@ -128,6 +128,79 @@ final class AdminPage {
 		return isset( $in[ $key ] ) && ! is_array( $in[ $key ] ) ? (string) $in[ $key ] : $default;
 	}
 
+	/**
+	 * A521: readable summary of a series rule for the overview ("Wöchentlich (Montag, Mittwoch) ·
+	 * 19:00 Uhr Europe/Vienna · bis 31.12.2026"), dates in the site format.
+	 *
+	 * @param array $rule Stored rule (freq, interval, weekdays, month_day, nth, nth_weekday, dates, time, timezone, until, count).
+	 */
+	public static function rule_summary( array $rule ) {
+		$names = self::weekday_names();
+		$interval = max( 1, (int) ( $rule['interval'] ?? 1 ) );
+		switch ( (string) ( $rule['freq'] ?? '' ) ) {
+			case 'daily':
+				$freq = __( 'Täglich', 'pass-captain' );
+				if ( $interval > 1 ) {
+					/* translators: %d: interval in days (2 or more) */
+					$freq = sprintf( __( 'Jeden %d. Tag', 'pass-captain' ), $interval );
+				}
+				break;
+			case 'weekly':
+				$days = array_map( static function ( $d ) use ( $names ) { return $names[ (int) $d ] ?? (string) $d; }, (array) ( $rule['weekdays'] ?? array() ) );
+				$freq = __( 'Wöchentlich', 'pass-captain' );
+				if ( $interval > 1 ) {
+					/* translators: %d: interval in weeks (2 or more) */
+					$freq = sprintf( __( 'Jede %d. Woche', 'pass-captain' ), $interval );
+				}
+				if ( $days ) {
+					/* translators: 1: frequency ("Wöchentlich"), 2: list of weekdays */
+					$freq = sprintf( __( '%1$s am %2$s', 'pass-captain' ), $freq, implode( ', ', $days ) );
+				}
+				break;
+			case 'monthly_day':
+				/* translators: %d: day of the month */
+				$freq = sprintf( __( 'Monatlich am %d.', 'pass-captain' ), (int) ( $rule['month_day'] ?? 1 ) );
+				if ( $interval > 1 ) {
+					/* translators: 1: day of the month, 2: interval in months */
+					$freq = sprintf( __( 'Am %1$d. jedes %2$d. Monats', 'pass-captain' ), (int) ( $rule['month_day'] ?? 1 ), $interval );
+				}
+				break;
+			case 'monthly_nth':
+				$nth = array( '1' => __( 'ersten', 'pass-captain' ), '2' => __( 'zweiten', 'pass-captain' ), '3' => __( 'dritten', 'pass-captain' ), '4' => __( 'vierten', 'pass-captain' ), '5' => __( 'fünften', 'pass-captain' ), '-1' => __( 'letzten', 'pass-captain' ) );
+				/* translators: 1: ordinal ("ersten", "letzten"), 2: weekday */
+				$freq = sprintf( __( 'Monatlich am %1$s %2$s', 'pass-captain' ), $nth[ (string) ( $rule['nth'] ?? '1' ) ] ?? (string) ( $rule['nth'] ?? '' ), $names[ (int) ( $rule['nth_weekday'] ?? 1 ) ] ?? '' );
+				break;
+			case 'dates':
+				$n = count( (array) ( $rule['dates'] ?? array() ) );
+				/* translators: %d: number of dates in the list */
+				$freq = sprintf( _n( 'Datumsliste (%d Datum)', 'Datumsliste (%d Daten)', $n, 'pass-captain' ), $n );
+				break;
+			default:
+				$freq = (string) ( $rule['freq'] ?? '' );
+		}
+		$parts = array( $freq );
+		if ( ! empty( $rule['time'] ) && preg_match( '/^(\d{1,2}):(\d{2})$/', (string) $rule['time'], $m ) ) {
+			$time = wp_date( \PassCaptain\Frontend\Format::time_format(), gmmktime( (int) $m[1], (int) $m[2], 0, 1, 1, 2000 ), new \DateTimeZone( 'UTC' ) );
+			$parts[] = trim( $time . ' ' . (string) ( $rule['timezone'] ?? '' ) );
+		}
+		if ( ! empty( $rule['until'] ) && false !== strtotime( (string) $rule['until'] . ' 12:00:00 UTC' ) ) {
+			/* translators: %s: last date of the series */
+			$parts[] = sprintf( __( 'bis %s', 'pass-captain' ), wp_date( \PassCaptain\Frontend\Format::date_format(), (int) strtotime( (string) $rule['until'] . ' 12:00:00 UTC' ), new \DateTimeZone( 'UTC' ) ) );
+		}
+		if ( ! empty( $rule['count'] ) ) {
+			/* translators: %d: number of occurrences */
+			$parts[] = sprintf( _n( '%d Termin', '%d Termine', (int) $rule['count'], 'pass-captain' ), (int) $rule['count'] );
+		}
+		return implode( ' · ', array_filter( $parts, 'strlen' ) );
+	}
+
+	/** A521: a rule date (Y-m-d) in the site date format with its weekday. */
+	private static function rule_date( $date ) {
+		$ts = strtotime( (string) $date . ' 12:00:00 UTC' );
+		if ( false === $ts ) { return (string) $date; }
+		return wp_date( \PassCaptain\Frontend\Format::date_format(), $ts, new \DateTimeZone( 'UTC' ) ) . ' (' . self::weekday_names()[ (int) gmdate( 'N', $ts ) ] . ')';
+	}
+
 	private static function weekday_names() {
 		return array( 1 => __( 'Montag', 'pass-captain' ), 2 => __( 'Dienstag', 'pass-captain' ), 3 => __( 'Mittwoch', 'pass-captain' ), 4 => __( 'Donnerstag', 'pass-captain' ), 5 => __( 'Freitag', 'pass-captain' ), 6 => __( 'Samstag', 'pass-captain' ), 7 => __( 'Sonntag', 'pass-captain' ) );
 	}
@@ -300,8 +373,7 @@ final class AdminPage {
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Datum', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Termin', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktion', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Details', 'pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $plan['rows'] as $row ) {
 				$lines = self::edit_row_lines( $row, $timezone );
-				$when = strtotime( $row['date'] );
-				echo '<tr><td>' . esc_html( gmdate( 'd.m.Y', $when ) . ' (' . self::weekday_names()[ (int) gmdate( 'N', $when ) ] . ')' ) . '</td><td>';
+				echo '<tr><td>' . esc_html( self::rule_date( $row['date'] ) ) . '</td><td>';
 				if ( $row['occurrence_id'] ) {
 					echo '<a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\EventsPage::SLUG, array( 'view' => 'occurrence', 'occurrence_id' => (int) $row['occurrence_id'] ) ) ) . '">#' . (int) $row['occurrence_id'] . '</a>';
 				} else {
@@ -343,7 +415,7 @@ final class AdminPage {
 			$status = $item['past'] ? __( 'Vergangen – wird übersprungen', 'pass-captain' ) : ( $item['exists'] ? __( 'Existiert bereits – wird übersprungen', 'pass-captain' ) : __( 'Neu', 'pass-captain' ) );
 			if ( $item['shifted'] ) { $status .= ' · ' . __( 'wegen Zeitumstellung verschoben (die Uhrzeit gibt es an diesem Tag nicht)', 'pass-captain' ); }
 			if ( 'ambiguous' === ( $item['dst'] ?? '' ) ) { $status .= ' · ' . __( 'Uhrzeit wegen Zeitumstellung doppelt – erste (Sommerzeit) verwendet', 'pass-captain' ); }
-			echo '<tr><td>' . esc_html( gmdate( 'd.m.Y', strtotime( $item['date'] ) ) ) . ' (' . esc_html( self::weekday_names()[ (int) gmdate( 'N', strtotime( $item['date'] ) ) ] ) . ')</td><td>' . esc_html( $item['local'] . ' (UTC' . $item['offset'] . ')' ) . '</td><td>' . esc_html( $item['starts_at'] ) . '</td><td>' . esc_html( $status ) . '</td></tr>';
+			echo '<tr><td>' . esc_html( self::rule_date( $item['date'] ) ) . '</td><td>' . esc_html( $item['local'] . ' (UTC' . $item['offset'] . ')' ) . '</td><td>' . esc_html( $item['starts_at'] ) . '</td><td>' . esc_html( $status ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 		foreach ( Generator::dst_notes( $items, (string) ( $preview['definition']['rule']['timezone'] ?? '' ) ) as $note ) {
@@ -384,8 +456,8 @@ final class AdminPage {
 		foreach ( $series as $row ) {
 			$definition = json_decode( $row->definition, true );
 			$rule = $definition['rule'] ?? array();
-			$summary = ( $rule['freq'] ?? '' ) . ' · ' . ( $rule['time'] ?? '' ) . ' ' . ( $rule['timezone'] ?? '' ) . ( isset( $rule['until'] ) ? ' · ≤ ' . $rule['until'] : '' ) . ( isset( $rule['count'] ) ? ' · ' . $rule['count'] . '×' : '' );
-			echo '<tr><td>' . (int) $row->series_id . '</td><td>' . esc_html( $row->name ) . '</td><td>' . esc_html( $summary ) . '</td><td>' . (int) $row->occurrences . '</td><td>' . esc_html( Forms::datetime( $row->updated_at, 'UTC' ) ) . '</td><td><a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $row->series_id ) ) . '#wpcap-series-rules' ) . '">' . esc_html__( 'Preisstufen, Kontingente und Verlauf', 'pass-captain' ) . '</a> | <a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $row->series_id, 'edit' => 1 ) ) . '#wpcap-series-edit' ) . '">' . esc_html__( 'Serie bearbeiten', 'pass-captain' ) . '</a></td></tr>';
+			$summary = self::rule_summary( (array) $rule );
+			echo '<tr><td>' . (int) $row->series_id . '</td><td>' . esc_html( $row->name ) . '</td><td>' . esc_html( $summary ) . '</td><td>' . (int) $row->occurrences . '</td><td>' . esc_html( \PassCaptain\Frontend\Format::site_datetime( (string) $row->updated_at ) ) . '</td><td><a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $row->series_id ) ) . '#wpcap-series-rules' ) . '">' . esc_html__( 'Preisstufen, Kontingente und Verlauf', 'pass-captain' ) . '</a> | <a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $row->series_id, 'edit' => 1 ) ) . '#wpcap-series-edit' ) . '">' . esc_html__( 'Serie bearbeiten', 'pass-captain' ) . '</a></td></tr>';
 		}
 		echo '</tbody></table>';
 	}

@@ -26,6 +26,8 @@ der Transaktion der Serie; Erweiterungen kopieren eigene Einstellungen über die
 `wpcap_ticket_type_copied` (siehe [HOOKS.md](HOOKS.md)). Bereits angelegte Termine werden dabei nicht
 nachträglich angepasst.
 
+Die Liste „Gespeicherte Serien“ zeigt die Regel lesbar (z. B. „Wöchentlich am Montag, Mittwoch · 19:00 Europe/Vienna · bis 31.12.2026“, `Series\AdminPage::rule_summary()`), Daten der Vorschau im Datumsformat der Website und „Zuletzt ausgeführt“ in der Website-Zeitzone (A521).
+
 ## Serie bearbeiten (A128)
 
 Unter „Gespeicherte Serien“ → **Serie bearbeiten** (oder im Serienbereich „Seriendefinition
