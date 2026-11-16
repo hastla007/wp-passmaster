@@ -232,7 +232,8 @@ $wpdb->insert( "{$p}wpcap_service_slots", array( 'resource_id' => $a199_rules, '
 $a199_slot2 = (int) $wpdb->insert_id;
 function a199_reserve( $slot, $at, $email ) {
 	a199_at( $at );
-	$r = ServiceBookings::reserve( $slot, $email, 1, 0, 10, 'a199-' . uniqid( '', true ) );
+	// Merged ServiceBookings: the clock-driven slot stack of A199 is slot_reserve()/slot_confirm()/slot_rebook()/slot_cancel().
+	$r = ServiceBookings::slot_reserve( $slot, $email, 1, 0, 10, 'a199-' . uniqid( '', true ) );
 	return is_wp_error( $r ) ? $r->get_error_code() : $r;
 }
 check( 'advance booking (1 day = 24 h): refused at 08:59:59 CET Saturday', 'wpcap_booking_too_early' === a199_reserve( $a199_slot, '2026-03-28 07:59:59', 'a199-sb1@example.com' ) );
@@ -253,11 +254,11 @@ check( 'booking cutoff 120 min: open at 07:59:59 CEST (05:59:59 UTC)', is_array(
 check( 'booking cutoff 120 min: closed at 06:00:01 UTC (08:00:01 CEST)', 'wpcap_booking_cutoff' === a199_reserve( $a199_slot, '2026-03-29 06:00:01', 'a199-sb3@example.com' ) );
 $a199_b4 = a199_reserve( $a199_slot2, '2026-03-28 18:00:00', 'a199-sb4@example.com' );
 a199_at( '2026-03-28 18:05:00' );
-ServiceBookings::confirm( $a199_b4['booking_id'] ?? 0 );
+ServiceBookings::slot_confirm( $a199_b4['booking_id'] ?? 0 );
 a199_at( '2026-03-28 19:00:00' ); // 20:00 CET: 11 h before 08:00 CEST (07:00 UTC) start of slot 2
-$a199_rb = ServiceBookings::rebook( $a199_b4['booking_id'] ?? 0, $a199_slot );
+$a199_rb = ServiceBookings::slot_rebook( $a199_b4['booking_id'] ?? 0, $a199_slot );
 check( 'customer rebooking 11 real hours before the start is refused (12 h deadline)', is_wp_error( $a199_rb ) && 'wpcap_booking_rebook_deadline' === $a199_rb->get_error_code() );
-$a199_cn = ServiceBookings::cancel( $a199_b4['booking_id'] ?? 0 );
+$a199_cn = ServiceBookings::slot_cancel( $a199_b4['booking_id'] ?? 0 );
 check( 'customer cancellation of a confirmed booking after the 24 h deadline is refused', is_wp_error( $a199_cn ) && 'wpcap_booking_cancel_deadline' === $a199_cn->get_error_code() );
 a199_at( null );
 
