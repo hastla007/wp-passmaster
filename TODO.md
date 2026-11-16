@@ -596,7 +596,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [KRITISCH] Werkseinstellung „Überweisung“ ohne Bankverbindung verkauft — src/Settings.php:54, src/Payments/ManualGateway.php:14, BankTransfer.php:56, assets/checkout.js:384 (A265, R1 UX)
 - [x] [KRITISCH] Terminabsage über Status-Dropdown umgeht Bestätigungsseite — src/Admin/EventsPage.php:915, :189, :235 (save_occurrence → wpcap_occurrence_cancelled) (A266, R1 UX)
 - [x] [KRITISCH] „Event absagen“ in der Eventliste nur mit window.confirm — src/Admin/EventsPage.php:778–781, handle_cancel_event :638 (A267, R1 UX)
-- [ ] [KRITISCH] Service-Zeitfenster für Kunden nicht buchbar (kein Shortcode/Block) — src/Admin/ServiceSlotsPage.php:330, Rest/Controller.php:122–149, Plugin.php:73 (A268, R1 UX)
+- [x] [KRITISCH] Service-Zeitfenster für Kunden nicht buchbar (kein Shortcode/Block) — src/Admin/ServiceSlotsPage.php:330, Rest/Controller.php:122–149, Plugin.php:73 (A268, R1 UX)
 - [x] [KRITISCH] readme.txt ohne Abschnitt „External services“ — readme.txt (A269, R1 Release)
 - [x] [KRITISCH] Minifiziertes tweetnacl ohne mitgelieferten Quellverweis — assets/vendor/tweetnacl/nacl-fast.min.js, .distignore:43 (*.md) (A270, R1 Release)
 - [x] [KRITISCH] Web-Scanner hängt nächsten Scan an alten Code an – Einlass für falsches Ticket — assets/scanner.js:381, 413–419, 426, 430 (submitToken) (A271, R2 Frontend)

@@ -579,7 +579,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/EventsPage.php:915, :189, :235 (save_occurrence → wpcap_occurrence_cancelled): Tickets widerrufen, Mails/Auto-Erstattung ohne Grund, Vorschau, Bestätigung. „Abgesagt“ aus dem Formular entfernen, nur über view=cancel_occurrence
 - [x] **A267** [KRITISCH] „Event absagen“ in der Eventliste nur mit window.confirm — _R1 UX_ (TODO L598; Audit Runde 4)
   - src/Admin/EventsPage.php:778–781, handle_cancel_event :638: Fehlklick sagt alle Termine ab, widerruft Tickets, benachrichtigt Käufer. Bestätigungsseite mit Folgen, Grund, Pflicht-Checkbox wie bei Terminen
-- [ ] **A268** [KRITISCH] Service-Zeitfenster für Kunden nicht buchbar (kein Shortcode/Block) — _R1 UX_ (TODO L599; Audit Runde 4)
+- [x] **A268** [KRITISCH] Service-Zeitfenster für Kunden nicht buchbar (kein Shortcode/Block) — _R1 UX_ (TODO L599; Audit Runde 4)
   - src/Admin/ServiceSlotsPage.php:330, Rest/Controller.php:122–149, Plugin.php:73: Nur REST-Routen; Bootsschule kann ohne Entwickler nicht verkaufen. Shortcode/Block „Zeitfenster buchen“ mit Checkout-Anbindung
 - [x] **A269** [KRITISCH] readme.txt ohne Abschnitt „External services“ — _R1 Release_ (TODO L600; Audit Runde 4)
   - readme.txt: Pflicht für WordPress.org: Stripe, PayPal, Mollie, Twilio, APNs, Google Wallet, fiskaltrust, SMS-HTTP, Webhooks, Affiliate Captain mit Zweck, Daten, ToS-/Privacy-Link
