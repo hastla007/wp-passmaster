@@ -62,7 +62,7 @@ final class PortalSelfService {
 		$token = strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $token ) );
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $token ) ) { return null; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return null; }
+		if ( ! \PassCaptain\Orders::access_matches( $order, $token ) ) { return null; }
 		return $order;
 	}
 
@@ -651,7 +651,8 @@ final class PortalSelfService {
 		if ( ! RateLimit::allow( 'ticket-order-link-client|' . RateLimit::client(), 10, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'ticket-order-link|' . (int) $order->order_id, 3, DAY_IN_SECONDS ) ) {
 			return self::limited();
 		}
-		if ( ! Orders::rotate_access_link( (int) $order->order_id ) ) {
+		// A631: anyone with the ticket code can ask; the buyer's current link stays until the new one is opened.
+		if ( ! Orders::rotate_access_link( (int) $order->order_id, true ) ) {
 			return new \WP_Error( 'wpcap_mail_failed', __( 'Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 503 ) );
 		}
 		Audit::record( 'order_link_requested', 'order', (int) $order->order_id, array( 'ticket_id' => (int) $ticket->ticket_id, 'source' => 'ticket_page' ) );

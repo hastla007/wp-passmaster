@@ -746,7 +746,7 @@ final class Invoices {
 		PageCache::no_store( 'invoice' );
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
+		if ( ! Orders::access_matches( $order, $token ) ) { status_header( 404 ); exit; }
 		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", $order->order_id ) );
 		if ( ! $invoice_id ) { status_header( 404 ); exit; }
 		header( 'Referrer-Policy: no-referrer' );

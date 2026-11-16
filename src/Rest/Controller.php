@@ -692,10 +692,11 @@ final class Controller {
 		global $wpdb;
 		$public_id = sanitize_text_field( $request['public_id'] );
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', self::access_token_of( $request ) ) );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( (string) $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		unset( $order['access_token_hash'] );
+		// A645: hash_equals() runs on a string (Orders::access_matches() casts); A631: a pending link counts.
+		if ( 64 !== strlen( $access_token ) || ! Orders::access_matches( $order, $access_token ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		unset( $order['access_token_hash'], $order['order_id'] );
 		$order['total_minor'] = (int) $order['total_minor'];
 		$response = rest_ensure_response( self::prepare( 'order', $order, $request ) );
 		$query = method_exists( $request, 'get_query_params' ) ? (array) $request->get_query_params() : array();
@@ -723,7 +724,7 @@ final class Controller {
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
 		if ( 64 !== strlen( $access_token ) ) { return null; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", sanitize_text_field( (string) $public_id ) ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
+		if ( ! Orders::access_matches( $order, $access_token ) ) { return null; }
 		return $order;
 	}
 

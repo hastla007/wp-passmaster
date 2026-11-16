@@ -44,7 +44,7 @@ final class TicketPage {
 			$nonce = sanitize_text_field( wp_unslash( (string) ( $_POST['_wpnonce'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$sent = wp_verify_nonce( $nonce, 'wpcap_ticket_order_link_' . (int) $ticket->ticket_id ) ? PortalSelfService::send_order_link( $token ) : new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Seite neu.', 'pass-captain' ) );
 			/* translators: %s: masked e-mail address */
-			$link_message = is_wp_error( $sent ) ? $sent->get_error_message() : sprintf( __( 'Wir haben dir einen neuen Link zu deiner Bestellung an %s gesendet. Der bisherige Link ist damit ungültig.', 'pass-captain' ), $sent );
+			$link_message = is_wp_error( $sent ) ? $sent->get_error_message() : sprintf( __( 'Wir haben dir einen neuen Link zu deiner Bestellung an %s gesendet. Der bisherige Link gilt weiter, bis du den neuen Link zum ersten Mal öffnest.', 'pass-captain' ), $sent );
 		}
 		$link_form = '';
 		$link_ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,order_id,transfer_count,attendee_email FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", (int) $ticket->ticket_id ) );
@@ -52,7 +52,7 @@ final class TicketPage {
 		if ( $link_order && PortalSelfService::can_request_order_link( $link_ticket, $link_order ) ) {
 			$link_form = '<section class="manage"><h2>' . esc_html__( 'Bestellung verwalten', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Über den persönlichen Bestelllink kannst du Tickets als PDF herunterladen, Teilnehmer zuweisen und – falls angeboten – eine Stornierung anfragen. Du findest ihn in deiner Bestellbestätigung.', 'pass-captain' ) . '</p>'
 				. '<form method="post"><input type="hidden" name="wpcap_order_link" value="1"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( 'wpcap_ticket_order_link_' . (int) $ticket->ticket_id ) ) . '"><button type="submit" class="print">' . esc_html__( 'Neuen Bestelllink per E-Mail senden', 'pass-captain' ) . '</button></form>'
-				. '<p><small>' . esc_html__( 'Der Link geht an die E-Mail-Adresse der Bestellung; ein früher gesendeter Bestelllink wird dabei ungültig.', 'pass-captain' ) . '</small></p></section>';
+				. '<p><small>' . esc_html__( 'Der Link geht an die E-Mail-Adresse der Bestellung; ein früher gesendeter Bestelllink gilt weiter, bis der neue Link zum ersten Mal geöffnet wird.', 'pass-captain' ) . '</small></p></section>';
 		}
 		if ( '' !== $link_message ) {
 			$link_form = '<p class="notice" role="status">' . esc_html( $link_message ) . '</p>' . $link_form;

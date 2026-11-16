@@ -465,6 +465,7 @@ final class Privacy {
 			$details = 0;
 		}
 		$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'access_token_hash' => self::random_hash(), 'access_expires_at' => null, 'attendee_data' => null, 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+		Orders::clear_pending_link( $order_id ); // A631: an unused pending order link ends with the anonymisation.
 		// Billing data (name, company, address, VAT ID) of the order; issued invoices keep their own
 		// snapshot (retention duty, Art. 17 Abs. 3 lit. b DSGVO). Separate statement: the column may be
 		// missing while a deferred schema upgrade is pending.

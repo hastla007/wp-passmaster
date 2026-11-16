@@ -51,5 +51,5 @@ $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET access_token_hash='' 
 $x1_null = null;
 try { $x1_null = $x1_status( 'GET', 'header', $x1_token ); } catch ( \Throwable $e ) { $x1_null = $e; }
 $x1_ctrl = (string) file_get_contents( WPCAP_PATH . 'src/Rest/Controller.php' );
-check( 'A645: an order without token hash answers 403; the hash is cast before hash_equals (no TypeError for NULL)', is_wp_error( $x1_null ) && 403 === $x1_null->get_error_data()['status'] && false !== strpos( $x1_ctrl, "hash_equals( (string) \$order['access_token_hash']" ) );
+check( 'A645: an order without token hash answers 403; the hash is cast before hash_equals (no TypeError for NULL)', is_wp_error( $x1_null ) && 403 === $x1_null->get_error_data()['status'] && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Orders.php' ), "hash_equals( (string) ( \$order->access_token_hash ?? '' )" ) && false !== strpos( $x1_ctrl, 'Orders::access_matches( $order, $access_token )' ) );
 check( 'A645: the order route accepts GET and POST', false !== strpos( $x1_ctrl, "array( 'methods' => \\WP_REST_Server::CREATABLE, 'callback' => array( __CLASS__, 'order_status' )" ) && false !== strpos( $x1_ctrl, "array( 'methods' => \\WP_REST_Server::READABLE, 'callback' => array( __CLASS__, 'order_status' )" ) );

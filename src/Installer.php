@@ -132,6 +132,8 @@ final class Installer {
 				customer_email varchar(190) NOT NULL,
 				access_token_hash char(64) NOT NULL DEFAULT '',
 				access_expires_at datetime NULL,
+				access_pending_hash char(64) NOT NULL DEFAULT '',
+				access_pending_expires_at datetime NULL,
 				status varchar(24) NOT NULL DEFAULT 'pending_payment',
 				payment_status varchar(24) NOT NULL DEFAULT 'pending',
 				currency char(3) NOT NULL,

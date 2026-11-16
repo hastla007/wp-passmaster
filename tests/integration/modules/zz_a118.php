@@ -240,7 +240,7 @@ $d_hash = (string) Orders::get( $d_o )->access_token_hash;
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $sent = A118::send_order_link( $d_codes[ $d_t[0] ] );
 $d_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'a118-link@example.com' === $m['to'] ) );
-check( 'ticket page sends a new order link to the buyer (masked address shown), old link invalid', 'a***@example.com' === $sent && 1 === count( $d_mail ) && false !== strpos( $d_mail[0]['body'], 'wpcap_order=' . Orders::get( $d_o )->public_id ) && $d_hash !== (string) Orders::get( $d_o )->access_token_hash && 1 === a118_audit( 'order_link_requested', $d_o ) );
+check( 'ticket page sends a new order link to the buyer (masked address shown); A631: the old link stays until the new one is opened', 'a***@example.com' === $sent && 1 === count( $d_mail ) && false !== strpos( $d_mail[0]['body'], 'wpcap_order=' . Orders::get( $d_o )->public_id ) && $d_hash === (string) Orders::get( $d_o )->access_token_hash && 1 === a118_audit( 'order_link_requested', $d_o ) );
 $wpdb->update( "{$p}wpcap_tickets", array( 'transfer_count' => 1 ), array( 'ticket_id' => $d_t[1] ) );
 check( 'not offered for a ticket passed on to someone else', 'wpcap_order_link_unavailable' === a118_code( A118::send_order_link( $d_codes[ $d_t[1] ] ) ) );
 check( 'unknown ticket code → error', is_wp_error( A118::send_order_link( str_repeat( 'd', 64 ) ) ) );

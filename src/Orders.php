@@ -1999,14 +1999,73 @@ final class Orders {
 		return true;
 	}
 
-	/** Issues a new personal order access link (old link becomes invalid) and emails it. */
-	public static function rotate_access_link( $order_id ) {
+	/** Days a pending order link (A631) can be opened before it lapses; the current link stays meanwhile. */
+	const PENDING_LINK_DAYS = 7;
+
+	/**
+	 * Issues a new personal order access link and emails it.
+	 *
+	 * @param int  $order_id     Order.
+	 * @param bool $keep_current A631: the current link stays valid until the new one is opened for the
+	 *                           first time (requests by anyone holding a ticket code, e.g. a photographed
+	 *                           QR code, must not lock the buyer out). Default: the old link ends now.
+	 */
+	public static function rotate_access_link( $order_id, $keep_current = false ) {
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		if ( ! $order ) { return false; }
 		$token = bin2hex( random_bytes( 32 ) );
-		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
+		if ( $keep_current && self::pending_link_ready() ) {
+			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_pending_hash' => hash( 'sha256', $token ), 'access_pending_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + self::PENDING_LINK_DAYS * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
+		} else {
+			$fields = array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ) );
+			if ( self::pending_link_ready() ) { $fields += array( 'access_pending_hash' => '', 'access_pending_expires_at' => null ); }
+			$wpdb->update( $wpdb->prefix . 'wpcap_orders', $fields, array( 'order_id' => (int) $order->order_id ), null, array( '%d' ) );
+		}
 		return self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+	}
+
+	/** Drops a pending order link (A631), e.g. when the order is anonymised. */
+	public static function clear_pending_link( $order_id ) {
+		if ( ! self::pending_link_ready() ) { return; }
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET access_pending_hash='',access_pending_expires_at=NULL WHERE order_id=%d", absint( $order_id ) ) );
+	}
+
+	/** Whether the pending-link columns of schema 3.10.25 exist (A631). */
+	public static function pending_link_ready() {
+		return Log::has_column( 'wpcap_orders', 'access_pending_hash' );
+	}
+
+	/**
+	 * Whether $token opens the order portal of $order (row with order_id, access_token_hash,
+	 * access_expires_at): the current link while it has not expired, or a pending link (A631) – which
+	 * then becomes the current one, so the previous link ends with the first use of the new one.
+	 *
+	 * @param object|array|null $order Order row.
+	 * @param mixed             $token Access token from the link or request.
+	 */
+	public static function access_matches( $order, $token ) {
+		$order = is_array( $order ) ? (object) $order : $order;
+		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', Http::str( $token ) ) );
+		if ( ! is_object( $order ) || 64 !== strlen( $token ) ) { return false; }
+		$hash = hash( 'sha256', $token );
+		$now = Clock::mysql();
+		if ( ! empty( $order->access_expires_at ) && (string) $order->access_expires_at > $now && hash_equals( (string) ( $order->access_token_hash ?? '' ), $hash ) ) { return true; }
+		if ( empty( $order->order_id ) || ! self::pending_link_ready() ) { return false; }
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_orders';
+		$pending = $wpdb->get_row( $wpdb->prepare( "SELECT access_pending_hash,access_pending_expires_at FROM $table WHERE order_id=%d", (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+		if ( ! $pending || '' === (string) $pending->access_pending_hash || ! $pending->access_pending_expires_at || (string) $pending->access_pending_expires_at <= $now || ! hash_equals( (string) $pending->access_pending_hash, $hash ) ) { return false; }
+		$expires = gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS );
+		// Promoted once (parallel first clicks: the condition on the pending hash lets one of them write).
+		$wpdb->query( $wpdb->prepare( "UPDATE $table SET access_token_hash=%s,access_expires_at=%s,access_pending_hash='',access_pending_expires_at=NULL WHERE order_id=%d AND access_pending_hash=%s", $hash, $expires, (int) $order->order_id, $hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+		$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT access_token_hash FROM $table WHERE order_id=%d", (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+		if ( ! hash_equals( $current, $hash ) ) { return false; }
+		$order->access_token_hash = $hash;
+		$order->access_expires_at = $expires;
+		Audit::record( 'order_link_activated', 'order', (int) $order->order_id, array() );
+		return true;
 	}
 
 	/** Returns tickets of an order with event context (no tokens). */
@@ -2095,7 +2154,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= Clock::mysql() || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) {
+		if ( ! self::access_matches( $order, $access_token ) ) {
 			return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( 'paid' !== $order->payment_status ) {

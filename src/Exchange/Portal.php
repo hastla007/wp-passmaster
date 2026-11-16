@@ -36,7 +36,7 @@ final class Portal {
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $token ) ) { return null; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return null; }
+		if ( ! \PassCaptain\Orders::access_matches( $order, $token ) ) { return null; }
 		return $order;
 	}
 

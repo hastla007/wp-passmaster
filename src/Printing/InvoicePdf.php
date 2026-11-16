@@ -275,7 +275,7 @@ final class InvoicePdf {
 		$denied = new \WP_Error( 'wpcap_not_found', __( 'Nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return $denied; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return $denied; }
+		if ( ! \PassCaptain\Orders::access_matches( $order, $token ) ) { return $denied; }
 		$invoice_id = self::invoice_for_order( $order->order_id, false );
 		if ( ! $invoice_id ) { return $denied; }
 		return array( 'pdf' => self::render( $invoice_id ), 'filename' => self::filename( $invoice_id, 0 ) );
