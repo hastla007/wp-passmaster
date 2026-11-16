@@ -29,3 +29,4 @@
 @media (prefers-reduced-motion:reduce){.wpcap-service-booking *{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 .wpcap-email-hint{flex-basis:100%;margin:0}.wpcap-email-fix{margin-inline-start:.25rem}.wpcap-wrong-email{font-size:.9em}
 .wpcap-undo{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;font-size:1rem;font-weight:400}.wpcap-undo label{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.wpcap-undo-button{font-weight:700}.wpcap-undo-note{color:#7a1416;font-weight:700}
+.wpcap-scan-counter{margin:0 0 .75rem;padding:.5rem 1rem;border-radius:6px;background:#f0f6fc;color:#1d2327;font-size:1.25rem;font-weight:700}.wpcap-scan-counter small{font-weight:400;font-size:.9rem}

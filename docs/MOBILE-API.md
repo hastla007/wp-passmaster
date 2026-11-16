@@ -62,7 +62,7 @@ Authorization: Bearer wpcapd_<device>_<secret>
 | POST | `/app/pair` | Kopplung (ohne Token) |
 | GET | `/app/me` | Person, Gerät, Ablauf, freigegebene Events, Gerätebereich (`area`), Feature-Flags (`check_out`, `areas`), Serverzeit |
 | GET | `/app/occurrences` | Termine der freigegebenen Events, die laufen, noch kommen oder vor weniger als 24 h endeten (effektives Ende: `ends_at`, sonst Beginn + Standarddauer; max. 100), je Termin mit `areas` (aktive Einlassbereiche des Events) und `doors_open_at` (Einlassbeginn, ISO 8601, oder `null`) |
-| GET | `/app/occurrences/{id}/stats` | Tickets gesamt, eingecheckt, offen, von diesem Gerät eingecheckt, aktuell anwesend, Einlässe/Auslässe, Werte pro Bereich |
+| GET | `/app/occurrences/{id}/stats` | Tickets gesamt, eingecheckt, offen, mindestens einmal eingelassen (`admitted`/`admission_total`, Zähler der PWA), von diesem Gerät eingecheckt, aktuell anwesend, Einlässe/Auslässe, Werte pro Bereich |
 | POST | `/app/scan/validate` | Vorschau ohne Einlass |
 | POST | `/app/scan/check-in` | Einlass (benötigt `idempotency_key`) |
 | POST | `/app/scan/check-out` | Auslass/Check-out (benötigt `idempotency_key`) |
@@ -103,6 +103,8 @@ Ist das Gerät keinem Bereich fest zugeordnet, kann die App den Bereich pro Scan
 ```
 
 `present` = Tickets, die aktuell drinnen sind (Einlass ohne folgenden Auslass). Bei Mehrfach- und Tagestickets bleibt der Ticketstatus `valid`; maßgeblich sind dann `entries`/`present`.
+
+**Zähler „Eingecheckt 120 / 300“ (A546):** `admitted` = Tickets des Termins, die mindestens einmal eingelassen wurden (Status `checked_in` oder – bei Mehrfach-/Tagestickets – mehr Einlässe als Rücknahmen), `admission_total` = einlassfähige Tickets (gültig oder benutzt, nicht erstattet). Die Offline-Scanner-PWA zeigt diesen Zähler für den gewählten Termin (online höchstens alle 10 s abgefragt, eigene Erst-Einlässe sofort mitgezählt, noch nicht hochgeladene Offline-Einlässe addiert; ohne Server-Wert „laut Prüfpaket“ aus dem Paket und dem lokalen Protokoll). Der Web-Scanner nutzt `GET /pass-captain/v1/scanner/stats?occurrence_id=` (Cookie + REST-Nonce, Einlassrecht für den Termin; Antwort `admitted`, `total`, `remaining`, `server_time`) und zeigt den Zähler, sobald ein Termin gewählt ist – aktualisiert nach jedem Einlass und jeder Rücknahme, beim Terminwechsel und alle 30 s; offline mit „Stand hh:mm“ und „+n offline“ für die auf dem Gerät gespeicherten Einlässe.
 
 **Idempotenz:** Die App erzeugt pro Scan einen neuen Schlüssel (UUID) und verwendet ihn bei Wiederholungen nach Netzwerkfehlern erneut. Eine Wiederholung liefert dann das ursprüngliche Ergebnis mit `"replayed": true` und zählt nicht doppelt – auch wenn sie parallel zur ersten Anfrage läuft (A589): Der Schlüssel wird nach der Zeilensperre auf dem Ticket noch einmal geprüft, sodass gleichzeitige Anfragen mit demselben Schlüssel genau einen Einlass buchen und die übrigen das erste Ergebnis erhalten.
 

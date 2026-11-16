@@ -71,12 +71,14 @@ function response(status, body) {
  * options.privacy: WPCAP_SCANNER_PRIVACY (owner, site).
  */
 function loadScanner(options = {}) {
+	const opts = options || {};
 	const el = {
 		form: new FakeElement('form'), input: new FakeElement('input'), result: new FakeElement('div'), live: new FakeElement('div'),
-		mode: new FakeElement('div'), video: new FakeElement('video'), start: new FakeElement('button'), stop: new FakeElement('button'), torch: new FakeElement('button'),
+		counter: new FakeElement('p'), mode: new FakeElement('div'), video: new FakeElement('video'), start: new FakeElement('button'), stop: new FakeElement('button'), torch: new FakeElement('button'),
 	};
+	el.counter.hidden = true; // <p class="wpcap-scan-counter" hidden> in the page
 	const root = new FakeElement('div');
-	const map = { '.wpcap-scan-form': el.form, '.wpcap-scan-result': el.result, '.wpcap-scan-live': el.live, '.wpcap-scan-mode': el.mode, '.wpcap-camera': el.video, '.wpcap-camera-start': el.start, '.wpcap-camera-stop': el.stop, '.wpcap-camera-torch': el.torch };
+	const map = { '.wpcap-scan-form': el.form, '.wpcap-scan-result': el.result, '.wpcap-scan-live': el.live, '.wpcap-scan-mode': el.mode, '.wpcap-camera': el.video, '.wpcap-camera-start': el.start, '.wpcap-camera-stop': el.stop, '.wpcap-camera-torch': el.torch, '.wpcap-scan-counter': el.counter };
 	root.querySelector = (sel) => map[sel] || null;
 	el.form.querySelector = () => el.input;
 	const timers = [];
@@ -110,9 +112,10 @@ function loadScanner(options = {}) {
 		clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].done = true; },
 		requestAnimationFrame() {},
 		addEventListener() {},
-		fetch: (url, options) => { env.requests.push({ url, options, body: JSON.parse(options.body) }); return env.fetchImpl(url, options); },
+		fetch: (url, options) => { env.requests.push({ url, options, body: options && options.body ? JSON.parse(options.body) : null }); return env.fetchImpl(url, options); },
 		Date, JSON, Math, Promise, Array, String, Object, RegExp, Error, isNaN, parseInt, console,
 	};
+	Object.assign(window, opts.globals || {});
 	window.window = window;
 	vm.runInContext(source, vm.createContext(window));
 	return Object.assign(env, { window, el, logic: window.wpcapScannerLogic, queue: () => JSON.parse(window.localStorage.getItem('wpcap-offline-scans-v3-' + ((options.privacy || {}).site || 'default') + '.' + ((options.privacy || {}).owner || 'u1')) || '[]') });
@@ -463,4 +466,53 @@ test('A547: an offline-queued admission can be taken back locally (nothing was b
 	assert.strictEqual(env.queue().length, 0, 'removed from the queue');
 	assert.strictEqual(env.el.result.dataset.state, 'warning');
 	assert.strictEqual(env.requests.length, 0);
+});
+
+test('A546 logic: counter line', () => {
+	const env = loadScanner();
+	const i18n = { counter: 'Eingecheckt: %1$d / %2$d', counterQueued: '+%d offline', counterStale: 'Stand %s' };
+	assert.strictEqual(env.logic.counterText(i18n, 120, 300, 0, ''), 'Eingecheckt: 120 / 300');
+	assert.strictEqual(env.logic.counterText(i18n, 120, 300, 3, '19:42'), 'Eingecheckt: 120 / 300 · +3 offline · Stand 19:42');
+});
+
+function counterScanner() {
+	const env = loadScanner({ globals: { WPCAP_SCANNER_OCCURRENCES: { label: 'Termin', all: 'Alle', items: [ { id: 5, label: 'Konzert' } ] } } });
+	env.window.WPCAP_SCANNER.statsUrl = '/scanner/stats';
+	Object.assign(env.window.WPCAP_SCANNER.i18n, { counter: 'Eingecheckt: %1$d / %2$d', counterQueued: '+%d offline', counterStale: 'Stand %s' });
+	env.stats = { occurrence_id: 5, admitted: 10, total: 50, remaining: 40 };
+	env.fetchImpl = async (url, options) => (options.method === 'GET' ? response(200, env.stats) : response(200, { status: 'checked_in', event: 'E', ticket: 'T', ticket_public_id: 'c'.repeat(32) }));
+	return env;
+}
+async function chooseDate(env, id) {
+	const select = env.window.document.querySelector('.wpcap-scanner').find((c) => c.tagName === 'SELECT');
+	select.value = String(id);
+	select.dispatch('change');
+	await flush();
+}
+
+test('A546: the web scanner shows "checked in / total" for the chosen date and refreshes it after a scan', async () => {
+	const env = counterScanner();
+	assert.strictEqual(env.el.counter.hidden, true, 'hidden without a date');
+	await chooseDate(env, 5);
+	const stat = env.requests.find((r) => /\/scanner\/stats\?occurrence_id=5$/.test(r.url));
+	assert.ok(stat, 'stats requested for the chosen date');
+	assert.strictEqual(env.el.counter.hidden, false);
+	assert.strictEqual(env.el.counter.textContent, 'Eingecheckt: 10 / 50');
+	env.stats = { occurrence_id: 5, admitted: 11, total: 50, remaining: 39 };
+	await scan(env, T1);
+	assert.strictEqual(env.el.counter.textContent, 'Eingecheckt: 11 / 50');
+	await chooseDate(env, 0);
+	assert.strictEqual(env.el.counter.hidden, true, 'hidden for "all dates"');
+});
+
+test('A546: offline the counter keeps the last value and adds the admissions queued on this device', async () => {
+	const env = counterScanner();
+	await chooseDate(env, 5);
+	env.window.navigator.onLine = false;
+	await scan(env, T1);
+	admitButton(env).dispatch('click');
+	await flush();
+	assert.match(env.el.counter.textContent, /^Eingecheckt: 10 \/ 50 · \+1 offline/);
+	byClass(env, 'wpcap-undo-button').dispatch('click');
+	assert.strictEqual(env.el.counter.textContent.indexOf('offline'), -1, 'queued scan taken back');
 });

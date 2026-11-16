@@ -6,9 +6,12 @@
  *             it for 30 s after the own scan; the server allows it for the user's own latest admission
  *             within `wpcap_scanner_undo_seconds` (default 120 s). The app API keeps its device/area
  *             rules (A590). The guard is Checkin::undo_guard() in both undo paths.
+ * - counts(): check-in counter of an occurrence ("Eingecheckt 120 / 300", A546) for the web scanner
+ *             and – as `admitted` in /app/occurrences/{id}/stats – for the apps.
  *
  * Web routes (cookie + REST nonce, capability wpcap_checkin; event scope in Checkin/Access):
  *   POST /pass-captain/v1/scanner/undo {ticket_public_id, reason, area_id?}
+ *   GET  /pass-captain/v1/scanner/stats?occurrence_id=
  *
  * @package PassCaptain
  */
@@ -31,6 +34,7 @@ final class ScannerDesk {
 	public static function routes() {
 		$perm = array( __CLASS__, 'permission' );
 		register_rest_route( self::NS, '/scanner/undo', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_undo' ), 'permission_callback' => $perm ) );
+		register_rest_route( self::NS, '/scanner/stats', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'rest_stats' ), 'permission_callback' => $perm ) );
 	}
 
 	public static function permission() {
@@ -131,6 +135,41 @@ final class ScannerDesk {
 			return new \WP_Error( 'wpcap_undo_expired', $too_late, array( 'status' => 409, 'result' => 'undo_not_allowed' ) );
 		}
 		return true;
+	}
+
+	/**
+	 * Check-in counter of an occurrence (A546): tickets that admit (`total`: valid or used, not
+	 * refunded) and how many of them were admitted at least once (`admitted`: status checked_in, or a
+	 * repeatable ticket with more admissions than undos). The caller checks the scope.
+	 *
+	 * @return array{occurrence_id: int, total: int, admitted: int, remaining: int}|null null on a read error.
+	 */
+	public static function counts( $occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$occurrence_id = absint( $occurrence_id );
+		$row = $wpdb->get_row( $wpdb->prepare(
+			"SELECT COUNT(*) AS total, COALESCE(SUM(t.status='checked_in' OR COALESCE(c.net,0)>0),0) AS admitted FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN (SELECT c.ticket_id, SUM(c.result='checked_in')-SUM(c.result='undone') AS net FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t2 ON t2.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt2 ON tt2.ticket_type_id=t2.ticket_type_id WHERE tt2.occurrence_id=%d AND c.result IN ('checked_in','undone') GROUP BY c.ticket_id) c ON c.ticket_id=t.ticket_id WHERE tt.occurrence_id=%d AND t.status IN ('valid','checked_in') AND t.refunded=0",
+			$occurrence_id,
+			$occurrence_id
+		) );
+		if ( ! $row || '' !== $wpdb->last_error ) { return null; }
+		$total = (int) $row->total;
+		$admitted = min( $total, (int) $row->admitted );
+		return array( 'occurrence_id' => $occurrence_id, 'total' => $total, 'admitted' => $admitted, 'remaining' => max( 0, $total - $admitted ) );
+	}
+
+	/** GET /scanner/stats?occurrence_id= (web scanner counter, A546). */
+	public static function rest_stats( \WP_REST_Request $request ) {
+		$occurrence_id = absint( $request->get_param( 'occurrence_id' ) );
+		if ( ! $occurrence_id || ! Access::can_access_occurrence( $occurrence_id, 'wpcap_checkin' ) ) {
+			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
+		}
+		$counts = self::counts( $occurrence_id );
+		if ( null === $counts ) {
+			return new \WP_Error( 'wpcap_stats_retry', __( 'Der Zähler konnte gerade nicht gelesen werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		}
+		return rest_ensure_response( $counts + array( 'server_time' => gmdate( 'c' ) ) );
 	}
 
 	/** Error for the browser: status, result and message only. */

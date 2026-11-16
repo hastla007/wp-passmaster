@@ -108,7 +108,9 @@ final class Api {
 			$id = (int) $area->area_id;
 			$by_area[] = array( 'area_id' => $id, 'name' => $area->name, 'present' => $presence['by_area'][ $id ] ?? 0, 'entries' => $movement['by_area'][ $id ]['entries'] ?? 0, 'checked_out' => $movement['by_area'][ $id ]['checked_out'] ?? 0 );
 		}
-		return rest_ensure_response( array( 'occurrence_id' => (int) $occ->occurrence_id, 'tickets_total' => $valid + $checked, 'checked_in' => $checked, 'remaining' => $valid, 'checked_in_by_this_device' => $device_scans, 'present' => $presence['present'], 'entries' => $movement['entries'], 'checked_out_total' => $movement['checked_out'], 'device_area_id' => Devices::area_id( Devices::current() ), 'by_area' => $by_area ) );
+		// A546: admitted at least once (also repeatable tickets, whose status stays valid) – the counter of the PWA.
+		$counts = \PassCaptain\ScannerDesk::counts( (int) $occ->occurrence_id );
+		return rest_ensure_response( array( 'occurrence_id' => (int) $occ->occurrence_id, 'tickets_total' => $valid + $checked, 'checked_in' => $checked, 'remaining' => $valid, 'admitted' => $counts ? $counts['admitted'] : $checked, 'admission_total' => $counts ? $counts['total'] : $valid + $checked, 'checked_in_by_this_device' => $device_scans, 'present' => $presence['present'], 'entries' => $movement['entries'], 'checked_out_total' => $movement['checked_out'], 'device_area_id' => Devices::area_id( Devices::current() ), 'by_area' => $by_area ) );
 	}
 
 	public static function validate( \WP_REST_Request $request ) {

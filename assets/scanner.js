@@ -49,7 +49,18 @@
 		const value = choice === '__other' ? String(other || '') : String(choice || '');
 		return value.trim().slice(0, 255);
 	}
-	window.wpcapScannerLogic = { scanCode: scanCode, classifyAnswer: classifyAnswer, queuedAdmission: queuedAdmission, undoSecondsLeft: undoSecondsLeft, undoReason: undoReason, REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS, UNDO_MS: UNDO_MS };
+	/*
+	 * A546: counter line "Eingecheckt: 120 / 300 · +3 offline · Stand 19:42". i18n: counter,
+	 * counterQueued, counterStale; stale: time label of the last server value when it is not fresh.
+	 */
+	function counterText(i18n, admitted, total, queued, stale) {
+		const strings = i18n || {};
+		let text = (strings.counter || '%1$d / %2$d').replace('%1$d', String(admitted)).replace('%2$d', String(total));
+		if (queued > 0) text += ' · ' + (strings.counterQueued || '+%d').replace('%d', String(queued));
+		if (stale) text += ' · ' + (strings.counterStale || '%s').replace('%s', stale);
+		return text;
+	}
+	window.wpcapScannerLogic = { scanCode: scanCode, classifyAnswer: classifyAnswer, queuedAdmission: queuedAdmission, undoSecondsLeft: undoSecondsLeft, undoReason: undoReason, counterText: counterText, REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS, UNDO_MS: UNDO_MS };
 
 	const root = document.querySelector('.wpcap-scanner');
 	if (!root || !window.WPCAP_SCANNER) return;
@@ -283,6 +294,7 @@
 			if (what.queuedKey) {
 				removeSent([what.queuedKey]);
 				updateQueueButton();
+				renderCounter();
 				show('warning', t.undoneQueued || 'Offline admission discarded.');
 				input.focus();
 				return;
@@ -325,6 +337,7 @@
 				const data = await response.json().catch(function () { return null; });
 				if (response.ok && data && data.result === 'undone') {
 					show('warning', t.undone || 'Admission undone.');
+					refreshCounter();
 				} else {
 					show('error', (data && typeof data.message === 'string' && data.message) || t.systemError || 'Error');
 				}
@@ -373,7 +386,7 @@
 		});
 		if (prefs.occurrence && occ.items.some(function (i) { return String(i.id) === String(prefs.occurrence); })) select.value = String(prefs.occurrence);
 		occurrenceId = parseInt(select.value, 10) || 0;
-		select.addEventListener('change', function () { occurrenceId = parseInt(select.value, 10) || 0; prefs.occurrence = occurrenceId; savePrefs(); });
+		select.addEventListener('change', function () { occurrenceId = parseInt(select.value, 10) || 0; prefs.occurrence = occurrenceId; savePrefs(); refreshCounter(); });
 		label.appendChild(select);
 		root.insertBefore(label, form);
 	}());
@@ -451,6 +464,7 @@
 		show('warning', t.queued || 'Saved offline.');
 		offerUndo({ queuedKey: items[items.length - 1].idempotency_key });
 		updateQueueButton();
+		renderCounter();
 	}
 	// Offline the code cannot be checked: never shown as admitted. Only codes that look like a ticket are
 	// offered, and only after an explicit staff decision ("admit after a visual check") are they queued
@@ -547,14 +561,51 @@
 			syncing = false;
 			syncButton.disabled = false;
 			updateQueueButton();
+			refreshCounter();
 			// The (now hidden) sync button may have had keyboard focus; continue at the code input.
 			if (!document.activeElement || document.activeElement === document.body) input.focus();
 		}
+	}
+	/*
+	 * A546: check-in counter of the chosen date (GET /scanner/stats), refreshed after every admission
+	 * or undo, on a date change and every 30 s. Offline it keeps the last server value ("Stand …")
+	 * and adds the admissions queued on this device for that date.
+	 */
+	const counter = root.querySelector('.wpcap-scan-counter');
+	let lastCounts = null;
+	let counterTimer = 0;
+	function queuedFor(occ) {
+		return queue().filter(function (item) { return (item.direction || 'in') === 'in' && (parseInt(item.occurrence_id, 10) || 0) === occ; }).length;
+	}
+	function renderCounter() {
+		if (!counter) return;
+		if (!occurrenceId || !lastCounts || lastCounts.occurrence !== occurrenceId) { counter.hidden = true; return; }
+		counter.hidden = false;
+		counter.textContent = counterText(t, lastCounts.admitted, lastCounts.total, queuedFor(occurrenceId), lastCounts.fresh ? '' : when(new Date(lastCounts.at).toISOString()));
+	}
+	async function refreshCounter() {
+		window.clearTimeout(counterTimer);
+		counterTimer = window.setTimeout(refreshCounter, 30000);
+		if (!counter || !window.WPCAP_SCANNER.statsUrl) return;
+		if (!occurrenceId) { renderCounter(); return; }
+		const occ = occurrenceId;
+		if (navigator.onLine) {
+			try {
+				const base = window.WPCAP_SCANNER.statsUrl;
+				const response = await fetch(base + (base.indexOf('?') === -1 ? '?' : '&') + 'occurrence_id=' + occ, { method: 'GET', headers: { 'X-WP-Nonce': WPCAP_SCANNER.nonce } });
+				const data = await response.json().catch(function () { return null; });
+				if (response.ok && data && typeof data.admitted === 'number' && typeof data.total === 'number') {
+					lastCounts = { occurrence: occ, admitted: data.admitted, total: data.total, at: Date.now(), fresh: true };
+				} else if (lastCounts) { lastCounts.fresh = false; }
+			} catch (ignore) { if (lastCounts) lastCounts.fresh = false; }
+		} else if (lastCounts) { lastCounts.fresh = false; }
+		renderCounter();
 	}
 	dropExpired();
 	syncButton.addEventListener('click', syncQueue);
 	window.addEventListener('online', syncQueue);
 	updateQueueButton();
+	refreshCounter();
 
 	// Note under the current result that a scan was thrown away (the result itself stays visible).
 	function discarded(text) {
@@ -646,6 +697,7 @@
 			const lines = [[data.event, data.ticket].filter(Boolean).join(' — '), data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
 			show('success', (out ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + lines.join(' — '), { title: out ? (t.checkedOutTitle || 'OUT') : (t.admitted || 'OK'), lines: lines });
 			if (!out) offerUndo({ publicId: data.ticket_public_id });
+			refreshCounter();
 		} catch (error) {
 			show('warning', (t.systemError || 'System error – scan again.') + ' (' + error.message + ')');
 		} finally {

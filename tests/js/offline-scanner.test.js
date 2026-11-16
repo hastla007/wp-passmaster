@@ -31,7 +31,7 @@ function recordingElement() {
 function loadApp(extra) {
 	const byId = new Map();
 	const window = {
-		document: { getElementById: (id) => { if (!byId.has(id)) byId.set(id, recordingElement()); return byId.get(id); }, querySelector: () => element(), querySelectorAll: () => [], createElement: () => element(), addEventListener() {} },
+		document: { getElementById: (id) => { if (!byId.has(id)) byId.set(id, recordingElement()); return byId.get(id); }, querySelector: () => element(), querySelectorAll: () => [], createElement: () => element(), addEventListener() {}, documentElement: {}, title: '' },
 		navigator: { onLine: true },
 		location: { search: '', pathname: '/', origin: 'https://example.test', href: 'https://example.test/' },
 		crypto: require('node:crypto').webcrypto,
@@ -45,6 +45,7 @@ function loadApp(extra) {
 	window.globalThis = window;
 	const ctx = vm.createContext(window);
 	vm.runInContext(fs.readFileSync(path.join(root, 'assets/vendor/tweetnacl/nacl-fast.min.js'), 'utf8'), ctx);
+	if (window.withI18n) { vm.runInContext(fs.readFileSync(path.join(root, 'assets/offline-scanner/i18n.js'), 'utf8'), ctx); }
 	vm.runInContext(fs.readFileSync(path.join(root, 'assets/offline-scanner/app.js'), 'utf8'), ctx);
 	assert.ok(window.wpcapOffline, 'app exposes window.wpcapOffline');
 	return window;
@@ -287,7 +288,7 @@ function fakeIndexedDB() {
 const settle = async () => { for (let i = 0; i < 30; i++) { await new Promise((r) => setImmediate(r)); } };
 async function undoApp() {
 	const idb = fakeIndexedDB();
-	const w2 = loadApp({ indexedDB: idb, addEventListener() {}, history: { replaceState() {} } });
+	const w2 = loadApp({ indexedDB: idb, addEventListener() {}, history: { replaceState() {} }, withI18n: true, localStorage: { getItem: () => null, setItem() {} } });
 	await settle();
 	const a2 = w2.wpcapOffline;
 	a2.state.keys = { k1: { public_key: b64(keyPair.publicKey), status: 'active' } };
@@ -360,4 +361,33 @@ test('A547: a refused online undo is shown in red and keeps the admission', asyn
 	await settle();
 	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Rückgängig nicht möglich');
 	assert.strictEqual(log()[0].ok, true);
+});
+
+test('A546: counter from the package (admissible tickets, used in the package or on this device)', () => {
+	const e = entry([ { h: 'a', t: 1, s: 'valid' }, { h: 'b', t: 1, s: 'checked_in' }, { h: 'c', t: 1, s: 'valid' }, { h: 'r', t: 1, s: 'revoked' } ]);
+	const plain = (x) => JSON.parse(JSON.stringify(x));
+	assert.deepStrictEqual(plain(app.localCounts(e, new Set([ 'c' ]))), { admitted: 2, total: 3 });
+	assert.deepStrictEqual(plain(app.localCounts(e, null)), { admitted: 1, total: 3 });
+	assert.strictEqual(app.localCounts(null, null), null);
+	const server = { admitted: 40, total: 100, at: 5 };
+	assert.deepStrictEqual(plain(app.counterValues(server, { admitted: 1, total: 3 }, 2)), { admitted: 42, total: 100, source: 'server', at: 5 });
+	assert.strictEqual(app.counterValues(null, { admitted: 1, total: 3 }, 2).source, 'package');
+	assert.strictEqual(app.counterValues(null, null, 0), null);
+});
+
+test('A546: online the PWA shows the server counter of the selected date plus unsynced offline admissions', async () => {
+	const { w2, a2 } = await undoApp();
+	a2.state.packages[7] = entry([ { h: 'x', t: 1, s: 'valid' } ]);
+	const urls = [];
+	w2.fetch = (url) => { urls.push(url); return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ occurrence_id: 7, tickets_total: 300, checked_in: 120, admitted: 125, admission_total: 300 }) }); };
+	await a2.refreshCounts(true);
+	await settle();
+	assert.ok(urls.some((u) => /occurrences\/7\/stats$/.test(u)), 'stats of the selected date');
+	assert.strictEqual(w2.document.getElementById('counter').hidden, false);
+	assert.match(w2.document.getElementById('counter').textContent, /^Eingecheckt: 125 \/ 300/);
+	// Offline without a server value: the package count.
+	a2.state.serverCounts = {};
+	w2.navigator.onLine = false;
+	await a2.refreshCounts(true);
+	assert.match(w2.document.getElementById('counter').textContent, /^Eingecheckt: 0 \/ 1 · laut Prüfpaket/);
 });

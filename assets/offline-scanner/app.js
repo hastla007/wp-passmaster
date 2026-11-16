@@ -35,6 +35,7 @@
 		packages: {}, // occurrence_id -> { record, index: Map, meta, error }
 		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
 		busy: false, lastRefresh: 0, syncing: false,
+		serverCounts: {}, pendingIn: {}, // A546: occurrence_id -> {admitted, total, at} / unsynced offline admissions
 		undo: null, undoTimer: 0, // A547: current undo offer { key, started, occurrenceId, hash, area, publicId, open }
 		forceFull: {} // occurrence_id -> true after a broken delta chain
 	};
@@ -483,6 +484,7 @@
 		} else {
 			$('area-wrap').hidden = true;
 		}
+		renderCounter();
 	}
 
 	function renderAreas(meta) {
@@ -603,6 +605,8 @@
 				var ok = 'ok' === kind;
 				if (ok) { markAdmitted(occurrenceId, hash); }
 				showResult(kind, resultText(res.result), onlineDetail(res));
+				// A546: a first admission counts at once (the server value is fetched at most every 10 s).
+				if (ok && res.first_admission && state.serverCounts[occurrenceId]) { state.serverCounts[occurrenceId].admitted++; }
 				if (ok) { offerUndo({ key: key, occurrenceId: occurrenceId, hash: hash, area: area, publicId: res.ticket_public_id }); }
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
 			}, function (err) {
@@ -630,7 +634,53 @@
 				// Only admitted scans are uploaded; the code is kept until the upload succeeded.
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: d.ok ? code : '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'offline', decision: d.result, ok: d.ok, synced: d.ok ? 0 : 1 });
 			});
-		}).then(renderLog);
+		}).then(renderLog).then(refreshCounts);
+	}
+
+	/* ---------------- check-in counter (A546) ---------------- */
+
+	/** Counter from the verified package: admissible tickets and those used (package or this device). */
+	function localCounts(entry, admitted) {
+		if (!entry || !entry.index) { return null; }
+		var total = 0;
+		var done = 0;
+		entry.index.forEach(function (tk, hash) {
+			if ('revoked' === tk.s) { return; }
+			total++;
+			if ('checked_in' === tk.s || (admitted && admitted.has(hash))) { done++; }
+		});
+		return { admitted: done, total: total };
+	}
+	/**
+	 * Values shown: the server count (all devices) plus this device's admissions that are not
+	 * uploaded yet; without a server value the package count. source: 'server' or 'package'.
+	 */
+	function counterValues(server, local, pending) {
+		if (server) { return { admitted: Math.min(server.total, server.admitted + (pending || 0)), total: server.total, source: 'server', at: server.at }; }
+		return local ? { admitted: local.admitted, total: local.total, source: 'package', at: 0 } : null;
+	}
+	function renderCounter() {
+		var box = $('counter');
+		var occ = state.selected;
+		var v = occ ? counterValues(state.serverCounts[occ], localCounts(state.packages[occ], state.admitted[occ]), state.pendingIn[occ] || 0) : null;
+		if (!v) { box.hidden = true; return; }
+		box.hidden = false;
+		var note = 'package' === v.source ? t('laut Prüfpaket') : (Date.now() - v.at > 90000 ? t('Stand %1', fmtTime(new Date(v.at).toISOString())) : '');
+		box.textContent = t('Eingecheckt: %1 / %2', v.admitted, v.total) + (note ? ' · ' + note : '');
+	}
+	/**
+	 * Fetches the server count of the selected date (GET /app/occurrences/{id}/stats) when online –
+	 * at most every 10 s unless forced (date change, undo, package refresh); in between own online
+	 * admissions are counted locally.
+	 */
+	function refreshCounts(force) {
+		var occ = state.selected;
+		var fresh = state.serverCounts[occ] && Date.now() - state.serverCounts[occ].at < 10000;
+		if (!state.token || !occ || navigator.onLine === false || (fresh && true !== force)) { renderCounter(); return Promise.resolve(); }
+		return api('GET', 'occurrences/' + encodeURIComponent(occ) + '/stats', null, null, 5000).then(function (res) {
+			var total = 'number' === typeof res.admission_total ? res.admission_total : res.tickets_total;
+			if ('number' === typeof res.admitted && 'number' === typeof total) { state.serverCounts[occ] = { admitted: res.admitted, total: total, at: Date.now() }; }
+		}, function () { /* keep the last value */ }).then(renderCounter);
 	}
 
 	/* ---------------- undo (A547) ---------------- */
@@ -714,7 +764,7 @@
 				showResult('bad', t('Rückgängig nicht möglich'), err.network ? t('Nur online möglich.') : err.message);
 				return null;
 			});
-		}).then(renderLog);
+		}).then(renderLog).then(function () { return refreshCounts(true); });
 	}
 
 	/* ---------------- sync ---------------- */
@@ -752,6 +802,9 @@
 			entries.sort(function (a, b) { return a.scanned_at < b.scanned_at ? 1 : -1; });
 			var pending = entries.filter(function (e) { return !e.synced; }).length;
 			$('pending').textContent = t('%1 offen', pending);
+			state.pendingIn = {};
+			entries.forEach(function (e) { if (!e.synced && e.ok && 'in' === (e.direction || 'in')) { state.pendingIn[e.occurrence_id] = (state.pendingIn[e.occurrence_id] || 0) + 1; } });
+			renderCounter();
 			var log = $('log');
 			log.textContent = '';
 			entries.slice(0, 25).forEach(function (e) {
@@ -804,7 +857,7 @@
 		}).then(function () {
 			state.busy = false;
 			renderOccurrences();
-			return syncNow();
+			return syncNow().then(function () { return refreshCounts(true); });
 		});
 	}
 
@@ -998,7 +1051,7 @@
 				$('main-view').hidden = true;
 			}).then(function () { btn.disabled = false; });
 		});
-		$('occurrence').addEventListener('change', function (ev) { state.selected = Number(ev.target.value) || 0; renderPackage(); });
+		$('occurrence').addEventListener('change', function (ev) { state.selected = Number(ev.target.value) || 0; renderPackage(); refreshCounts(true); });
 		$('area').addEventListener('change', function (ev) { state.areaId = Number(ev.target.value) || 0; });
 		$('refresh').addEventListener('click', function () { refreshAll(true); });
 		$('sync').addEventListener('click', function () { syncNow(); });
@@ -1021,7 +1074,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo };
+	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts };
 
 	boot();
 }());

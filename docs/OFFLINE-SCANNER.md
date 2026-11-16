@@ -189,6 +189,11 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
     codes, see docs/SECURITY.md); offline the app asks for the QR code or the long code instead.
   - Result: large coloured box, distinct tones (WebAudio, “Sound on/off” per device) and vibration
     patterns; online results show “first admission” or “already admitted at …” from the server.
+  - **Counter (A546):** above the result the app shows “Eingecheckt: 120 / 300” for the selected
+    date: online the server value (`admitted`/`admission_total` of `/app/occurrences/{id}/stats`, at
+    most every 10 s, own first admissions counted at once) plus this device's offline admissions not
+    uploaded yet; without a server value the package count (“laut Prüfpaket”: tickets used in the
+    package or admitted on this device). An old server value shows “Stand hh:mm”.
   - **Undo (A547):** for 30 s after an admission the app offers “Rückgängig”. A reason is required
     (four presets or own text). An online admission – or an offline one that is already uploaded –
     is taken back with `POST /app/scan/undo` (`ticket_public_id`, `reason`, area of the scan); the
