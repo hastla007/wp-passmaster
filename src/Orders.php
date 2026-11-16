@@ -106,6 +106,7 @@ final class Orders {
 		// only an absolute safety cap against absurd quantities before any row is locked.
 		$line_cap = max( 1, (int) apply_filters( 'wpcap_max_line_quantity', 100 ) );
 		$clean_lines = array();
+		$shown_state = array();
 		foreach ( $lines as $line ) {
 			// Strict: booleans, negatives, fractions and arrays are invalid (absint() would turn -2 into 2).
 			$type_id = is_array( $line ) ? Http::positive_int( $line['ticket_type_id'] ?? 0 ) : 0;
@@ -116,6 +117,12 @@ final class Orders {
 			$clean_lines[ $type_id ] = ( $clean_lines[ $type_id ] ?? 0 ) + $quantity;
 			if ( $clean_lines[ $type_id ] > $line_cap ) {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
+			}
+			// A560: the state the buyer saw (occurrence revision, displayed unit price); optional.
+			if ( ! $external ) {
+				foreach ( array( 'occurrence_revision' => 'revision', 'expected_price_minor' => 'price' ) as $field => $slot ) {
+					if ( isset( $line[ $field ] ) && is_scalar( $line[ $field ] ) && preg_match( '/^\d{1,12}$/', (string) $line[ $field ] ) ) { $shown_state[ $type_id ][ $slot ] = (int) $line[ $field ]; }
+				}
 			}
 		}
 		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array(), array( 'defer_required' => ! empty( $internal['defer_attendees'] ) ) );
@@ -191,6 +198,11 @@ final class Orders {
 				}
 				if ( ! $door_sale && ( ( $type->sales_start && $type->sales_start > $now ) || ( $type->sales_end && $type->sales_end < $now ) ) ) {
 					throw new \RuntimeException( 'sales_closed' );
+				}
+				if ( isset( $shown_state[ $type_id ] ) ) {
+					// A560: checked under the occurrence lock, so a reschedule cannot slip in between.
+					$custom_error = self::shown_state_error( $shown_state[ $type_id ], $type, $occurrence, $now );
+					if ( $custom_error ) { throw new \RuntimeException( (string) $custom_error->get_error_data()['reason'] ); }
 				}
 				if ( $external && 3 === strlen( $external_currency ) ) {
 					$currency = $external_currency;
@@ -623,6 +635,59 @@ final class Orders {
 	}
 
 	/**
+	 * A560: compares what the buyer saw (items[].occurrence_revision, items[].expected_price_minor = the
+	 * displayed unit price) with the current state. A mismatch refuses the checkout (409, reason
+	 * `occurrence_changed` or `price_changed`) with the current state, so the form can show it and
+	 * the buyer confirms by submitting again. Callers that send neither field are not bound.
+	 *
+	 * @param array  $shown      revision?, price?.
+	 * @param object $type       Ticket type row (locked).
+	 * @param object $occurrence Occurrence row (locked).
+	 * @return \WP_Error|null
+	 */
+	private static function shown_state_error( array $shown, $type, $occurrence, $now ) {
+		if ( isset( $shown['revision'] ) && Calendar\Revisions::ready() && (int) $shown['revision'] !== (int) ( $occurrence->revision ?? 0 ) ) {
+			$state = self::shown_state( $occurrence, $now );
+			$where = $state['label'] . ( '' !== $state['location'] ? ', ' . $state['location'] : '' );
+			/* translators: %s: new date and time (and location) of the occurrence */
+			return new \WP_Error( 'wpcap_occurrence_changed', sprintf( __( 'Der Termin wurde inzwischen geändert – jetzt: %s. Bitte prüfe die Angaben und sende die Bestellung erneut ab.', 'pass-captain' ), $where ), array( 'status' => 409, 'reason' => 'occurrence_changed', 'state' => $state ) );
+		}
+		if ( isset( $shown['price'] ) ) {
+			$price = self::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
+			if ( $price !== (int) $shown['price'] ) {
+				$state = self::shown_state( $occurrence, $now );
+				/* translators: 1: ticket type name, 2: new price */
+				return new \WP_Error( 'wpcap_price_changed', sprintf( __( 'Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab.', 'pass-captain' ), (string) $type->name, Frontend\Format::money( $price, $type->currency ) ), array( 'status' => 409, 'reason' => 'price_changed', 'state' => $state ) );
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Current public state of an occurrence for the checkout form (A560): revision, start (ISO 8601
+	 * with offset and as display label), location and the displayed unit price of each active type.
+	 */
+	public static function shown_state( $occurrence, $now = null ) {
+		global $wpdb;
+		$now = null === $now ? Clock::mysql() : (string) $now;
+		$prices = array();
+		$formatted = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", (int) $occurrence->occurrence_id ) ) as $row ) {
+			$prices[ (int) $row->ticket_type_id ] = self::unit_price( $row, $occurrence, 1, array( 'now' => $now ) );
+			$formatted[ (int) $row->ticket_type_id ] = Frontend\Format::money( $prices[ (int) $row->ticket_type_id ], $row->currency );
+		}
+		return array(
+			'occurrence_id' => (int) $occurrence->occurrence_id,
+			'revision' => (int) ( $occurrence->revision ?? 0 ),
+			'starts_at' => Occurrence::iso( $occurrence->starts_at, $occurrence->timezone ),
+			'label' => Frontend\Format::event_start( $occurrence->starts_at, $occurrence->timezone ),
+			'location' => (string) $occurrence->location,
+			'prices' => $prices,
+			'prices_formatted' => $formatted,
+		);
+	}
+
+	/**
 	 * Error of a checkout that was rolled back; db_busy is retryable (503).
 	 *
 	 * Support log (A322): an unexpected failure (exception that is no checkout outcome, unknown
@@ -669,6 +734,12 @@ final class Orders {
 		$message = $messages[ $code ] ?? $fallback;
 		// `reason`: machine-readable cause (sold_out, occurrence_sold_out, sales_closed, …) – the message is translated.
 		$data = array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code, 'reason' => isset( $messages[ $code ] ) ? $code : 'checkout_failed' );
+		$custom_data = $custom ? $custom_error->get_error_data() : null;
+		if ( is_array( $custom_data ) && isset( $custom_data['state'] ) && ( $custom_data['reason'] ?? '' ) === $code ) {
+			// A560: the changed occurrence/price state travels with the refusal.
+			$data['reason'] = $code;
+			$data['state'] = $custom_data['state'];
+		}
 		// A known outcome is a RuntimeException with a mapped code or a module's own error (custom_error).
 		$expected = ( isset( $messages[ $code ] ) || $custom ) && ( ! $exception || $exception instanceof \RuntimeException );
 		// The abort code of an unexpected exception is its message: never stored as such (may hold data).

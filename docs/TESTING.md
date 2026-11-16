@@ -329,7 +329,7 @@ Gratisbestellung, abgelehnter Bestellung, Zahlung, Ablauf, verspäteter Zahlung 
 Storno (offen/bezahlt), Teil- und Vollerstattung, Widerruf, Umtausch (gleichpreisig, mit Aufpreis-Reservierung
 und Abschluss nach Zahlung); Reconcile repariert verpasste Writer und manipulierte Zähler (mit Alarm);
 Upgrade-Pfad (Neuaufbau, „verifying“ → „ready“); Memo-/Objekt-Cache-Invalidierung; Event-Liste mit konstanter
-Abfragezahl (3 und 12 Termine: je 8 Abfragen ohne Modulfilter) und REST-`/events` (4 Abfragen).
+Abfragezahl (3 und 12 Termine: je 8 Abfragen ohne Modulfilter) und REST-`/events` (höchstens 7 Abfragen, mit Verfügbarkeit je Ticketart).
 Der Test-`$wpdb` zählt dafür `num_queries` und ruft wie WordPress den Filter `query` auf.
 
 ## Historie: Reservierungen, Index und Aufräumen (A429, A430, A444)

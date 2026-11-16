@@ -267,10 +267,16 @@ final class Controller {
 				$occurrences[ (int) $occurrence->occurrence_id ] = $occurrence;
 			}
 		}
+		// A561: availability of all listed ticket types with a constant number of queries.
+		$type_ids = array();
+		foreach ( $types_of as $list ) { foreach ( $list as $type ) { $type_ids[] = (int) $type['ticket_type_id']; } }
+		$available = $type_ids ? Orders::availability_many( $type_ids, array( 'occurrences' => $occurrences ) ) : array();
+		$now = \PassCaptain\Clock::now();
 		foreach ( $rows as $row ) {
 			$translation = $translations[ (int) $row->event_id ] ?? null;
 			$types = $types_of[ (int) $row->occurrence_id ] ?? array();
 			$occurrence = $occurrences[ (int) $row->occurrence_id ] ?? null;
+			$phase_row = $occurrence ? $occurrence : $row;
 			$output[] = array(
 				'event_id' => (int) $row->event_id,
 				'name' => $translation ? $translation->name : $row->name,
@@ -281,7 +287,16 @@ final class Controller {
 				'ends_at' => $row->ends_at,
 				'timezone' => $row->timezone,
 				'location' => $translation && $translation->location ? $translation->location : $row->location,
-				'tickets' => array_map( static function ( $type ) use ( $occurrence ) { return array(
+				// A561: times as ISO 8601 with the offset of the occurrence's timezone (starts_at/ends_at
+				// above stay UTC "Y-m-d H:i:s" for existing clients), lifecycle phase (A562) and revision (A560).
+				'start' => \PassCaptain\Occurrence::iso( $row->starts_at, $row->timezone ),
+				'end' => \PassCaptain\Occurrence::iso( $row->ends_at, $row->timezone ),
+				'effective_end' => \PassCaptain\Occurrence::iso( \PassCaptain\Occurrence::effective_end( $row ), $row->timezone ),
+				'phase' => \PassCaptain\Occurrence::phase( $phase_row, $now ),
+				'revision' => (int) ( $occurrence->revision ?? 0 ),
+				'tickets' => array_map( static function ( $type ) use ( $occurrence, $phase_row, $available, $now, $row ) {
+					$left = array_key_exists( (int) $type['ticket_type_id'], $available ) ? $available[ (int) $type['ticket_type_id'] ] : 0;
+					return array(
 					'ticket_type_id' => (int) $type['ticket_type_id'],
 					'name' => $type['name'],
 					// Effective (tier) price; regular_price_minor is the stored list price.
@@ -290,10 +305,34 @@ final class Controller {
 					'price_label' => \PassCaptain\Orders::price_label( (object) $type, $occurrence ),
 					'currency' => $type['currency'],
 					'max_per_order' => (int) $type['max_per_order'],
+					// A561: sales status, window (ISO 8601 with offset) and remaining units (null = unlimited).
+					'sales_status' => self::sales_status( $type, $phase_row, $left, $now ),
+					'sales_start' => \PassCaptain\Occurrence::iso( $type['sales_start'], $row->timezone ),
+					'sales_end' => \PassCaptain\Occurrence::iso( $type['sales_end'], $row->timezone ),
+					'online_until' => \PassCaptain\Occurrence::iso( gmdate( 'Y-m-d H:i:s', \PassCaptain\Occurrence::online_sales_until( $phase_row, $type ) ), $row->timezone ),
+					'available' => null === $left ? null : max( 0, (int) $left ),
 				); }, $types ),
 			);
 		}
-		return rest_ensure_response( $output );
+		$response = rest_ensure_response( $output );
+		// A561: sales status and availability change by the minute – never stored by browsers or proxies.
+		if ( $response instanceof \WP_REST_Response && method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-store, max-age=0' ); }
+		return $response;
+	}
+
+	/**
+	 * Online sales status of a ticket type at $now (A561): not_started (sales_start ahead), ended
+	 * (sales_end passed or the occurrence's phase ended online sales, Occurrence), sold_out or on_sale.
+	 *
+	 * @param array    $type      Ticket type (sales_start, sales_end).
+	 * @param int|null $available Remaining units (null = unlimited).
+	 */
+	public static function sales_status( array $type, $occurrence, $available, $now ) {
+		$start = (string) ( $type['sales_start'] ?? '' );
+		$end = (string) ( $type['sales_end'] ?? '' );
+		if ( '' !== $start && strtotime( $start . ' UTC' ) > $now ) { return 'not_started'; }
+		if ( ( '' !== $end && strtotime( $end . ' UTC' ) < $now ) || \PassCaptain\Occurrence::online_sales_over( $occurrence, $type, $now ) ) { return 'ended'; }
+		return null !== $available && (int) $available < 1 ? 'sold_out' : 'on_sale';
 	}
 
 	/**

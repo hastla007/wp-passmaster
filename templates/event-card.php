@@ -52,7 +52,7 @@ $wpcap_no_payment = ! $providers;
 		</details>
 	<?php endif; ?>
 	<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
-	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="#" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" novalidate>
+	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="#" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>"<?php echo isset( $event->revision ) ? ' data-revision="' . esc_attr( (int) $event->revision ) . '"' : ''; // A560: the state shown; the checkout refuses a changed one. ?> novalidate>
 		<fieldset class="wpcap-types"<?php echo $card['max_total'] ? ' data-max-total="' . esc_attr( $card['max_total'] ) . '"' : ''; ?>>
 			<legend><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></legend>
 			<?php foreach ( array_values( $types ) as $wpcap_index => $type ) :

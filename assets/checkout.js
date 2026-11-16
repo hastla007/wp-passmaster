@@ -488,6 +488,25 @@
 		}
 		return errors;
 	}
+	// A560: the checkout refused a changed date or price (409, data.state = current state). The form
+	// takes the new state over (revision, prices, date on the card), so the next submit confirms it.
+	function applyShownState(form, data) {
+		const info = data && data.data;
+		const state = info && info.state;
+		if (!state || (info.reason !== 'occurrence_changed' && info.reason !== 'price_changed')) return;
+		if (typeof state.revision === 'number') form.dataset.revision = String(state.revision);
+		const prices = state.prices || {};
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
+			if (Object.prototype.hasOwnProperty.call(prices, qty.dataset.type)) qty.dataset.price = String(prices[qty.dataset.type]);
+		});
+		const card = form.closest('.wpcap-event');
+		const time = card && card.querySelector('.wpcap-fact-date time');
+		if (time && state.label) {
+			time.textContent = state.label;
+			if (state.starts_at) time.setAttribute('datetime', state.starts_at);
+		}
+		renderEstimate(form);
+	}
 	// Server error -> form control (data.field from the REST response).
 	function serverErrorField(form, data) {
 		const field = data && data.data && data.data.field;
@@ -653,7 +672,12 @@
 		const items = [];
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const n = Number(qty.value) || 0;
-			if (n > 0) items.push({ ticket_type_id: Number(qty.dataset.type), quantity: n });
+			if (n <= 0) return;
+			// A560: the date revision and unit price shown; the server refuses a changed state (409).
+			const item = { ticket_type_id: Number(qty.dataset.type), quantity: n };
+			if (form.dataset.revision !== undefined) item.occurrence_revision = Number(form.dataset.revision);
+			if (qty.dataset.price !== undefined) item.expected_price_minor = Number(qty.dataset.price);
+			items.push(item);
 		});
 		const attendees = [];
 		form.querySelectorAll('.wpcap-attendee').forEach(function (fs) {
@@ -731,6 +755,7 @@
 				forgetKey(form);
 				message.textContent = '';
 				if (data.code === 'wpcap_price_changed') applyNewPrices(form, data.data && data.data.prices);
+				applyShownState(form, data);
 				showErrors(form, [{ input: serverErrorField(form, data), message: data.message || t.failed || 'Failed.' }]);
 				return;
 			}

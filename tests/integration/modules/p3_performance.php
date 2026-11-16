@@ -280,7 +280,8 @@ $req = class_exists( 'WP_REST_Request' ) ? new WP_REST_Request( 'GET' ) : null;
 if ( $req ) {
 	list( $r3, $rest ) = $count( static fn() => PassCaptain\Rest\Controller::events( $req ) );
 	$rest = is_object( $rest ) && method_exists( $rest, 'get_data' ) ? $rest->get_data() : $rest;
-	check( "REST events: constant queries ($r3) and translated output", $r3 <= 4 && 12 === count( (array) $rest ) && 'Übersetzt ' . $listing_occ[0] === $rest[0]['name'] && 2 === count( $rest[0]['tickets'] ) && 2500 === $rest[0]['tickets'][0]['price_minor'] );
+	// A561: plus the availability of all listed ticket types (Orders::availability_many(), constant).
+	check( "REST events: constant queries ($r3) and translated output", $r3 <= 7&& 12 === count( (array) $rest ) && 'Übersetzt ' . $listing_occ[0] === $rest[0]['name'] && 2 === count( $rest[0]['tickets'] ) && 2500 === $rest[0]['tickets'][0]['price_minor'] );
 }
 foreach ( $module_hooks as $hook => $callbacks ) { if ( null !== $callbacks ) { $GLOBALS['wpcap_test_hooks'][ $hook ] = $callbacks; } }
 list( $qm, $html_m ) = $count( array( PublicEvents::class, 'render_shortcode' ) );

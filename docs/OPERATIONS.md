@@ -1285,6 +1285,28 @@ nicht vorbei), `over` (nach dem effektiven Ende) oder `cancelled`. Jeder Überga
   verkauft werden, A535). Scanner-Listen, Wallet-Pässe und Löschläufe können sich anhängen; Handler müssen
   idempotent sein (ein Übergang kann selten doppelt gemeldet werden).
 
+### Checkout an den angezeigten Stand gebunden (A560)
+
+Das Checkout-Formular schickt je Position die Revision des angezeigten Termins (`occurrence_revision`,
+aus `data-revision` der Eventkarte) und den angezeigten Stückpreis (`expected_price_minor`, aus
+`data-price`) mit. `Orders::create()` vergleicht beides unter der Terminsperre: Wurde der Termin
+inzwischen verschoben (Revision geändert: Beginn, Ende, Einlass, Ort, Land, Status) oder gilt ein anderer
+Preis, wird die Bestellung mit `409` abgelehnt (`data.reason` `occurrence_changed` bzw. `price_changed`,
+`data.state`: Revision, Beginn als ISO 8601 mit Offset und als Anzeige, Ort, aktuelle Preise je
+Ticketart). Es wird nichts reserviert. Das Formular übernimmt den neuen Stand (Datum auf der Karte,
+Preise, Revision) und zeigt die Meldung; erneutes Absenden bestätigt den neuen Stand. Aufrufer ohne
+diese Felder (API-Clients, WooCommerce, Kasse, Wartelistenangebote) sind nicht gebunden. Die Felder
+werden nie als Preis verwendet.
+
+### REST `/events`: Zeiten mit Offset, Verkaufsstatus (A561)
+
+Neben `starts_at`/`ends_at` (UTC, „Y-m-d H:i:s“, unverändert) liefert jeder Termin `start`, `end`,
+`effective_end` als ISO 8601 mit dem Offset seiner Zeitzone (z. B. `2027-07-01T20:00:00+02:00`),
+`phase` (A562) und `revision` (A560). Jede Ticketart hat `sales_status` (`on_sale`, `not_started`,
+`ended`, `sold_out`), `sales_start`/`sales_end` (ISO 8601 oder `null`), `online_until` (Ende des
+Online-Verkaufs nach Termin-Phase) und `available` (verbleibende Stück, `null` = unbegrenzt). Die Antwort
+trägt `Cache-Control: no-store`. Vertrag `public` 1.1.
+
 ## Geldbeträge, Rundung und Währungen (A200)
 
 Beträge werden als Ganzzahlen in der **Nebeneinheit der Bestellwährung** gespeichert (EUR: Cent, JPY: Yen

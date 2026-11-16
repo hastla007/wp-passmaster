@@ -12,7 +12,7 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 
 | Schnittstelle | Vertrag | Version | Dokumentation |
 |---|---|---|---|
-| Öffentliche REST-API (`pass-captain/v1`: Events, Checkout, Bestellportal, …) | `public` | 1.0 | [SECURITY.md](SECURITY.md) |
+| Öffentliche REST-API (`pass-captain/v1`: Events, Checkout, Bestellportal, …) | `public` | 1.1 (1.1: `/events` mit Zeiten in ISO 8601 mit Offset, Phase, Revision und Verkaufsstatus je Ticketart; Checkout-Positionen mit optionalem `occurrence_revision`/`expected_price_minor`, siehe [OPERATIONS.md](OPERATIONS.md#checkout-an-den-angezeigten-stand-gebunden-a560)) | [SECURITY.md](SECURITY.md) |
 | Partner-API (`/partner/…`) | `partner` | 1.0 (Header `X-WPCAP-Partner-API: 1`) | [PARTNER-API.md](PARTNER-API.md) |
 | Entwickler-API (`X-WPCAP-Key`) | `developer` | 1.0 | [SECURITY.md](SECURITY.md) |
 | Mobile-App-API (`/app/…`) | `app` | 1.1 (`api_version` in `/app/me`) | [MOBILE-API.md](MOBILE-API.md) |

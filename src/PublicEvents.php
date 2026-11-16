@@ -219,7 +219,7 @@ final class PublicEvents {
 		if ( absint( $atts['occurrence'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $atts['occurrence'] ); }
 		$args[] = max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) );
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where} ORDER BY o.starts_at ASC LIMIT %d",
+			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where} ORDER BY o.starts_at ASC LIMIT %d",
 			...$args
 		) );
 		$meta = array();
