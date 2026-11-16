@@ -200,6 +200,11 @@ class AppleProvider implements WalletProvider {
 			$status = $client->send( $registration->push_token, $registration->pass_type_id, $credentials, $host );
 			$sent[ $registration->push_token ] = $status;
 			if ( 410 === $status ) { Store::delete_push_token( $registration->push_token ); continue; }
+			if ( 429 === $status ) {
+				// A422: APNs rate limit – no further pushes in this run, the sync retries later.
+				Service::rate_limited( 'apple', 60 );
+				return false;
+			}
 			if ( 200 !== $status && 400 !== $status ) { $ok = false; }
 		}
 		return $ok;

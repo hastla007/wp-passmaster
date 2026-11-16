@@ -266,6 +266,8 @@ class GoogleProvider implements WalletProvider {
 		if ( is_wp_error( $res ) ) { return array( 'code' => 0, 'body' => null ); }
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		if ( 401 === $code ) { delete_transient( 'wpcap_wallet_google_token' ); }
+		// A422: rate limit – the sync stops calling Google in this run and retries after Retry-After.
+		if ( 429 === $code ) { Service::rate_limited( 'google', (int) wp_remote_retrieve_header( $res, 'retry-after' ) ); }
 		return array( 'code' => $code, 'body' => json_decode( wp_remote_retrieve_body( $res ), true ) );
 	}
 }

@@ -600,7 +600,49 @@ final class Service {
 		if ( self::JOB !== $type ) { return $handled; }
 		$occurrences = (array) ( $payload['occurrence_ids'] ?? array() );
 		if ( ! empty( $payload['occurrence_id'] ) ) { $occurrences[] = (int) $payload['occurrence_id']; }
-		return self::process( (array) ( $payload['ticket_ids'] ?? array() ), $occurrences );
+		return self::process( (array) ( $payload['ticket_ids'] ?? array() ), $occurrences, (int) ( $payload['retry'] ?? 0 ) );
+	}
+
+	/** Follow-up jobs for the failed part of a sync before it is given up (A422). */
+	const MAX_RETRIES = 10;
+
+	/** @var array<string,int> Provider => seconds to wait, set when a provider answered 429 in this run (A422). */
+	private static $rate_limited = array();
+
+	/**
+	 * A provider answered 429 (rate limit): no further calls to it in this run, the rest of the work
+	 * is retried after $seconds (Retry-After, at least 60 s, at most one hour).
+	 */
+	public static function rate_limited( $provider, $seconds = 0 ) {
+		$seconds = max( 60, min( HOUR_IN_SECONDS, (int) $seconds ) );
+		self::$rate_limited[ (string) $provider ] = max( $seconds, (int) ( self::$rate_limited[ (string) $provider ] ?? 0 ) );
+	}
+
+	/** Whether a provider answered 429 in this run. */
+	public static function is_rate_limited( $provider ) {
+		return isset( self::$rate_limited[ (string) $provider ] );
+	}
+
+	/**
+	 * Queues the failed part of a sync as a new job (A422): only the tickets and classes that failed,
+	 * due after the rate limit's Retry-After or an exponential backoff (1 min … 1 h). After
+	 * MAX_RETRIES follow-ups the rest is given up and logged (Wallet page).
+	 *
+	 * @return bool False when the follow-up job could not be written (the caller retries everything).
+	 */
+	private static function requeue_failed( array $ticket_ids, array $occurrence_ids, $retry ) {
+		$retry = (int) $retry + 1;
+		if ( $retry > self::MAX_RETRIES ) {
+			self::log( 'sync_gave_up', sprintf( 'tickets:%d classes:%d', count( $ticket_ids ), count( $occurrence_ids ) ) );
+			return true;
+		}
+		$delay = max( (int) ( self::$rate_limited ? max( self::$rate_limited ) : 0 ), min( HOUR_IN_SECONDS, 60 * ( 2 ** ( $retry - 1 ) ) ) );
+		$payload = array( 'ticket_ids' => array_values( array_unique( array_map( 'intval', $ticket_ids ) ) ), 'occurrence_ids' => array_values( array_unique( array_map( 'intval', $occurrence_ids ) ) ), 'retry' => $retry );
+		$key = 'wallet-sync-retry-' . md5( wp_json_encode( $payload ) . microtime( true ) . random_int( 0, PHP_INT_MAX ) );
+		$queued = true === Jobs::enqueue( $key, self::JOB, $payload, gmdate( 'Y-m-d H:i:s', time() + $delay ) );
+		if ( ! $queued ) { self::log( 'queue_failed', 'wallet_sync_retry' ); }
+		if ( self::$rate_limited ) { self::log( 'rate_limited', implode( ',', array_keys( self::$rate_limited ) ) . ' retry_in:' . $delay ); }
+		return $queued;
 	}
 
 	/**
@@ -618,19 +660,29 @@ final class Service {
 		return $ticket;
 	}
 
-	/** Sends Apple pushes and Google updates. Idempotent; false = retry later. */
-	public static function process( array $ticket_ids, $occurrence_ids = array() ) {
+	/**
+	 * Sends Apple pushes and Google updates. Idempotent. A422: the result is kept per pass and class –
+	 * only what failed is queued again as a new job (requeue_failed()), passes already updated are not
+	 * sent a second time; after a 429 no further calls go to that provider in this run.
+	 *
+	 * @param int $retry Number of the follow-up job (0 for the first run).
+	 * @return bool False only when the failed part could not be queued (the caller retries everything).
+	 */
+	public static function process( array $ticket_ids, $occurrence_ids = array(), $retry = 0 ) {
 		$apple = self::provider( 'apple' );
 		$google = self::provider( 'google' );
-		$ok = true;
+		self::$rate_limited = array();
+		$failed_classes = array();
+		$failed_tickets = array();
 		if ( $google && method_exists( $google, 'update_class' ) ) {
 			foreach ( array_unique( array_map( 'intval', (array) $occurrence_ids ) ) as $occurrence_id ) {
+				if ( self::is_rate_limited( 'google' ) ) { $failed_classes[] = $occurrence_id; continue; }
 				$ticket = $occurrence_id ? self::class_ticket( $occurrence_id ) : null;
 				try {
-					if ( $ticket ) { $ok = self::in_locale( $ticket, static function () use ( $google, $ticket ) { return $google->update_class( $ticket ); } ) && $ok; }
+					if ( $ticket && ! self::in_locale( $ticket, static function () use ( $google, $ticket ) { return $google->update_class( $ticket ); } ) ) { $failed_classes[] = $occurrence_id; }
 				} catch ( \Throwable $e ) {
 					self::log( 'push_failed', 'google_class:' . $e->getMessage() );
-					$ok = false;
+					$failed_classes[] = $occurrence_id;
 				}
 			}
 		}
@@ -638,20 +690,24 @@ final class Service {
 			$ticket = null;
 			foreach ( Store::passes( $ticket_id ) as $pass ) {
 				$row = (array) $pass;
+				if ( self::is_rate_limited( (string) $pass->provider ) ) { $failed_tickets[] = (int) $ticket_id; continue; }
 				try {
+					$done = true;
 					if ( 'apple' === $pass->provider && $apple ) {
-						$ok = ( method_exists( $apple, 'notify' ) ? $apple->notify( $pass->serial_number ) : $apple->revoke_pass( $row ) ) && $ok;
+						$done = method_exists( $apple, 'notify' ) ? $apple->notify( $pass->serial_number ) : $apple->revoke_pass( $row );
 					} elseif ( 'google' === $pass->provider && $google ) {
 						$ticket = $ticket ?: self::ticket( $ticket_id );
-						$ok = ( 'retired' === $pass->status ? $google->revoke_pass( $row ) : ( $ticket && self::in_locale( $ticket, static function () use ( $google, $ticket, $row ) { return $google->update_pass( $ticket, $row ); } ) ) ) && $ok;
+						$done = 'retired' === $pass->status ? $google->revoke_pass( $row ) : ( $ticket && self::in_locale( $ticket, static function () use ( $google, $ticket, $row ) { return $google->update_pass( $ticket, $row ); } ) );
 					}
+					if ( ! $done ) { $failed_tickets[] = (int) $ticket_id; }
 				} catch ( \Throwable $e ) {
 					self::log( 'push_failed', $pass->provider . ':' . $e->getMessage() );
-					$ok = false;
+					$failed_tickets[] = (int) $ticket_id;
 				}
 			}
 		}
-		return $ok;
+		if ( ! $failed_tickets && ! $failed_classes ) { return true; }
+		return self::requeue_failed( $failed_tickets, $failed_classes, $retry );
 	}
 
 	/* ---- Apple bundle for the web service ---- */
