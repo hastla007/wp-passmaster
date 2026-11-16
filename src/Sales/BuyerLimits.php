@@ -245,7 +245,7 @@ final class BuyerLimits {
 				$left = max( 0, (int) $limit->max_quantity - $used );
 				$message = $left > 0
 					/* translators: 1: maximum per person, 2: tickets still possible */
-					? sprintf( __( 'Pro Person sind hierfür höchstens %1$d Tickets möglich. Du kannst noch %2$d Ticket(s) buchen.', 'pass-captain' ), (int) $limit->max_quantity, $left )
+					? sprintf( _n( 'Pro Person sind hierfür höchstens %1$d Tickets möglich. Du kannst noch %2$d Ticket buchen.', 'Pro Person sind hierfür höchstens %1$d Tickets möglich. Du kannst noch %2$d Tickets buchen.', $left, 'pass-captain' ), (int) $limit->max_quantity, $left )
 					/* translators: %d: maximum per person */
 					: sprintf( __( 'Pro Person sind hierfür höchstens %d Tickets möglich. Dieses Limit ist mit deinen bisherigen Bestellungen bereits erreicht.', 'pass-captain' ), (int) $limit->max_quantity );
 				return new \WP_Error( 'buyer_limit', $message, array( 'status' => 409, 'limit_id' => (int) $limit->limit_id, 'remaining' => $left ) );

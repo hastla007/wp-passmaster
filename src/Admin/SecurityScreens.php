@@ -89,7 +89,7 @@ final class SecurityScreens {
 	public static function render_support() {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		SupportAccess::expire_due();
-		$labels = array( 'wpcap_manage_orders' => __( 'Bestellungen ansehen/bearbeiten', 'pass-captain' ), 'wpcap_checkin' => __( 'Einlass', 'pass-captain' ), 'wpcap_view_reports' => __( 'Berichte', 'pass-captain' ) );
+		$labels = array( 'wpcap_manage_orders' => __( 'Bestellungen ansehen/bearbeiten', 'pass-captain' ), 'wpcap_checkin' => _x( 'Einlass', 'admission (check-in area of work)', 'pass-captain' ), 'wpcap_view_reports' => __( 'Berichte', 'pass-captain' ) );
 		$status = array( 'active' => __( 'Aktiv', 'pass-captain' ), 'expired' => __( 'Abgelaufen', 'pass-captain' ), 'revoked' => __( 'Widerrufen', 'pass-captain' ) );
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Supportzugriff', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
