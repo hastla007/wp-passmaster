@@ -697,7 +697,9 @@
 			terms_version: termsVersion ? termsVersion.value : '',
 			locale: formLocale ? formLocale.value : '',
 			voucher_code: voucher ? voucher.value.trim() : '',
-			code: single ? single.value.trim() : ''
+			code: single ? single.value.trim() : '',
+			// A576: the unit prices shown on the card; the server refuses an order that would cost more.
+			expected_prices: shownPrices(form)
 		}, extra);
 		// The idempotency key belongs to exactly this content (A309/A310): the same form sent again after
 		// an unclear answer or after "back" from the payment page continues that order; a changed form is
@@ -726,6 +728,7 @@
 				// was cancelled), so the next submit starts a new one.
 				forgetKey(form);
 				message.textContent = '';
+				if (data.code === 'wpcap_price_changed') applyNewPrices(form, data.data && data.data.prices);
 				showErrors(form, [{ input: serverErrorField(form, data), message: data.message || t.failed || 'Failed.' }]);
 				return;
 			}
@@ -758,6 +761,27 @@
 			if (!done && hadFocus && (!document.activeElement || document.activeElement === document.body)) button.focus();
 		}
 	});
+
+	/* ---------------------------------------------------------------- Price snapshot (A576) */
+
+	// Unit prices (minor units) of the selected ticket types as shown on the card (data-price).
+	function shownPrices(form) {
+		const prices = {};
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
+			if ((Number(qty.value) || 0) > 0 && /^\d+$/.test(String(qty.dataset.price || ''))) prices[qty.dataset.type] = Number(qty.dataset.price);
+		});
+		return prices;
+	}
+	// 409 price_changed: the card takes over the current prices, so the estimate is right and a new
+	// submit (after the buyer saw the message) is accepted.
+	function applyNewPrices(form, prices) {
+		if (!prices || typeof prices !== 'object') return;
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
+			const row = prices[qty.dataset.type];
+			if (row && Number.isInteger(row.unit_minor)) qty.dataset.price = String(row.unit_minor);
+		});
+		renderEstimate(form);
+	}
 
 	/* ---------------------------------------------------------------- Pending order (A310) */
 

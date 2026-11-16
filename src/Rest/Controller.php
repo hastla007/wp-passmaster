@@ -317,7 +317,7 @@ final class Controller {
 				$params['voucher_code'] = $single_code;
 			}
 		}
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'terms_version', 'locale', 'voucher_code', 'billing' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'terms_version', 'locale', 'voucher_code', 'billing', 'expected_prices' ) ) ) );
 		$provider_id = sanitize_key( \PassCaptain\Http::str( $params['provider'] ?? 'manual' ) );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );

@@ -75,6 +75,18 @@ final class Orders {
 		$line_totals = ( $external && is_array( $internal['line_totals'] ?? null ) ) ? array_map( 'absint', $internal['line_totals'] ) : array();
 		$external_currency = $external ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $internal['currency'] ?? '' ) ) ) : '';
 		$skip_rate_limit = $external || ! empty( $internal['skip_rate_limit'] );
+		// A576: unit prices the buyer was shown (type_id => minor units). Only an upper bound: a price that
+		// rose since the page was rendered is refused (409 price_changed); a lower one is charged as is.
+		$expected_prices = array();
+		if ( ! $external && is_array( $payload['expected_prices'] ?? null ) ) {
+			foreach ( $payload['expected_prices'] as $expected_type => $expected_minor ) {
+				$expected_type = Http::positive_int( $expected_type );
+				if ( $expected_type && ( is_int( $expected_minor ) || ( is_string( $expected_minor ) && ctype_digit( $expected_minor ) ) ) ) {
+					$expected_prices[ $expected_type ] = (int) $expected_minor;
+				}
+			}
+		}
+		$changed_prices = array();
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
 		if ( '' !== $wpdb->last_error ) {
@@ -222,11 +234,19 @@ final class Orders {
 					if ( $unit_price !== (int) $type->price_minor ) {
 						$price_rules[ $type_id ] = array( 'base_minor' => (int) $type->price_minor, 'unit_minor' => $unit_price );
 					}
+					// A576: never charge more than the buyer was shown (early bird ended, demand tier, cached page).
+					if ( isset( $expected_prices[ $type_id ] ) && $unit_price > $expected_prices[ $type_id ] ) {
+						$changed_prices[ $type_id ] = array( 'shown_minor' => $expected_prices[ $type_id ], 'unit_minor' => $unit_price, 'formatted' => Frontend\Format::money( $unit_price, $type->currency ), 'name' => (string) $type->name );
+					}
 				}
 				$type->price_minor = $unit_price;
 				$line_total = array_key_exists( $type_id, $line_totals ) ? (int) $line_totals[ $type_id ] : $unit_price * $quantity;
 				$total += $line_total;
 				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total );
+			}
+			if ( $changed_prices ) {
+				$custom_error = self::price_changed_error( $changed_prices );
+				throw new \RuntimeException( 'price_changed' );
 			}
 			$subtotal = $total;
 			$campaign_codes = $external ? array() : ( $payload['campaign_codes'] ?? array() );
@@ -584,6 +604,25 @@ final class Orders {
 	}
 
 	/**
+	 * A576: 409 for a checkout whose unit price rose above the price shown in the form. data.prices
+	 * (type_id => {shown_minor, unit_minor, formatted}) lets the form show the new price; nothing was booked.
+	 *
+	 * @param array $changed type_id => {shown_minor, unit_minor, formatted, name}.
+	 */
+	private static function price_changed_error( array $changed ) {
+		$names = array();
+		$prices = array();
+		foreach ( $changed as $type_id => $row ) {
+			/* translators: 1: ticket type, 2: new price */
+			$names[] = sprintf( __( '„%1$s“ jetzt %2$s', 'pass-captain' ), $row['name'], $row['formatted'] );
+			$prices[ (int) $type_id ] = array( 'shown_minor' => (int) $row['shown_minor'], 'unit_minor' => (int) $row['unit_minor'], 'formatted' => (string) $row['formatted'] );
+		}
+		/* translators: %s: list of ticket types with their new price */
+		$message = sprintf( __( 'Der Preis hat sich seit dem Laden der Seite geändert (%s). Bitte prüfe die Summe und bestelle erneut.', 'pass-captain' ), implode( ', ', $names ) );
+		return new \WP_Error( 'wpcap_price_changed', $message, array( 'status' => 409, 'reason' => 'price_changed', 'field' => 'items', 'prices' => $prices ) );
+	}
+
+	/**
 	 * Error of a checkout that was rolled back; db_busy is retryable (503).
 	 *
 	 * Support log (A322): an unexpected failure (exception that is no checkout outcome, unknown
@@ -617,6 +656,9 @@ final class Orders {
 				return self::reused_order( $existing );
 			}
 			$code = 'db_busy';
+		}
+		if ( 'price_changed' === $code && $custom_error instanceof \WP_Error ) {
+			return $custom_error;
 		}
 		if ( 'billing_required' === $code ) {
 			return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );

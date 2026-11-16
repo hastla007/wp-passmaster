@@ -1292,3 +1292,11 @@ zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EU
   wartet noch auf die Zahlung“ mit „Zahlung fortsetzen“. Nach der Rückkehr mit `wpcap_payment=success`,
   `pending` oder `cancelled` und nach Ablauf der Reservierung ist der Eintrag weg. Ein zweites Absenden,
   während die erste Anfrage noch läuft, wird ignoriert.
+- **Preis-Snapshot** (A576): Das Formular schickt die angezeigten Stückpreise der gewählten Ticketarten mit
+  (`expected_prices`: `{ "<Ticketart-Id>": <Nebeneinheiten> }`). Ist ein Stückpreis inzwischen höher
+  (Frühbucher abgelaufen, Nachfragestufe erreicht, Seite aus dem Cache), lehnt `Orders::create()` ab:
+  HTTP 409, Code `wpcap_price_changed`, `data.reason` `price_changed`, `data.field` `items`,
+  `data.prices` je Ticketart `shown_minor`, `unit_minor`, `formatted` – es wird nichts gebucht. Die Karte
+  übernimmt die neuen Preise, zeigt die Meldung, und der nächste Klick bestellt zum neuen Preis. Ein
+  niedrigerer Preis wird ohne Rückfrage berechnet. Ohne `expected_prices` (eigene API-Clients) und für
+  vertrauenswürdige Kanäle mit eigenem Preis (WooCommerce, Kasse, Partner) gilt die Prüfung nicht.

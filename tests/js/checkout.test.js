@@ -271,3 +271,23 @@ test('A553: confirmation panel says what to do if the address is wrong', async (
 	assert.strictEqual(panel.querySelector('.wpcap-wrong-email').textContent, I18N.wrongEmail);
 });
 
+test('A576: the shown unit prices of the selected types travel with the order', async () => {
+	const env = loadCheckout({ cards: [{ types: [{ id: 5, price: 2500, name: 'Standard' }, { id: 6, price: 900, name: 'Ermäßigt' }] }] });
+	await submit(env, env.forms[0], { qty: 2 });
+	assert.deepStrictEqual(env.requests[0].body.expected_prices, { 5: 2500 }, 'only selected types, in minor units');
+});
+
+test('A576: price_changed shows the message, takes over the new price and the next submit is a new attempt', async () => {
+	const env = loadCheckout();
+	const form = env.forms[0];
+	env.answers.push(response(409, { code: 'wpcap_price_changed', message: 'Der Preis hat sich seit dem Laden der Seite geändert („Standard“ jetzt 30,00 €).', data: { status: 409, field: 'items', prices: { 5: { shown_minor: 2500, unit_minor: 3000, formatted: '30,00 €' } } } }));
+	await submit(env, form, { qty: 2 });
+	assert.ok(/30,00/.test(form.querySelector('.wpcap-error-summary').textContent), 'new price in the error summary');
+	assert.strictEqual(form.querySelector('.wpcap-qty').dataset.price, '3000');
+	assert.ok(/60,00/.test(form.querySelector('.wpcap-estimate').textContent), 'estimate with the new price');
+	assert.strictEqual(env.document.querySelector('.wpcap-confirmation'), null);
+	await submit(env, form, { qty: 2 });
+	assert.deepStrictEqual(env.requests[1].body.expected_prices, { 5: 3000 });
+	assert.notStrictEqual(env.requests[1].body.idempotency_key, env.requests[0].body.idempotency_key);
+});
+
