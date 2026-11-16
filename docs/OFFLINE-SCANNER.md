@@ -152,7 +152,13 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 - **Language:** the link also passes `?lang=` (WordPress user locale). The app remembers it on the
   device for offline starts and otherwise falls back to the browser language, then German. Dates use
   the matching locale. Add a language by adding a catalog to `i18n.js` (keys = German source text).
-  Only **same-origin** API bases are accepted. HTTPS (or localhost) is required for the service
+  Only **same-origin** API bases are accepted, and only the app API itself (A649): the path must end
+  with `/wp-json/pass-captain/v1/app/` (or the legacy namespace `/wp-json/wp-pass-captain/v1/app/`),
+  or the base is the plain permalink form `…/?rest_route=/pass-captain/v1/app/` without further
+  parameters. Anything else in `?api=`, in the pairing QR or in storage is ignored (the app derives
+  the base from its own location instead), so the device token never goes to another path of the
+  same host. Sites with a changed REST prefix get the `?rest_route=` form in the admin link and the
+  pairing QR (`Mobile\Devices::api_base()`). HTTPS (or localhost) is required for the service
   worker and WebCrypto.
 - **Pairing:** enter the pairing code, or paste the JSON payload of the pairing QR. The device token
   and public keys are stored in IndexedDB.

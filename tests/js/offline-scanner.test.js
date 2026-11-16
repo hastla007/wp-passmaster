@@ -35,7 +35,7 @@ function loadApp() {
 		navigator: { onLine: true },
 		location: { search: '', pathname: '/', origin: 'https://example.test', href: 'https://example.test/' },
 		crypto: require('node:crypto').webcrypto,
-		TextEncoder, URLSearchParams, Date, Map, Set, JSON, Promise, Uint8Array, Array, String, Math, Error, Object, RegExp, isNaN,
+		TextEncoder, URL, URLSearchParams, Date, Map, Set, JSON, Promise, Uint8Array, Array, String, Math, Error, Object, RegExp, isNaN,
 		atob: (s) => Buffer.from(s, 'base64').toString('binary'),
 		setInterval() {}, setTimeout() {}, clearTimeout() {}, console,
 	};
@@ -235,4 +235,24 @@ test('A543: a hash replaced by a new code is "replaced" offline; online refusals
 	assert.match(w.document.getElementById('result-detail').textContent, /übertragen/);
 	app.state.selected = 0;
 	app.state.token = '';
+});
+
+test('A649: only the app API of this site is accepted as API base (?api=, pairing QR, storage)', () => {
+	const ok = (u) => app.apiBaseOk(u);
+	assert.strictEqual(ok('https://example.test/wp-json/pass-captain/v1/app/'), true);
+	assert.strictEqual(ok('https://example.test/sub/wp-json/pass-captain/v1/app/'), true);
+	assert.strictEqual(ok('https://example.test/wp-json/wp-pass-captain/v1/app/'), true, 'legacy namespace');
+	assert.strictEqual(ok('https://example.test/?rest_route=/pass-captain/v1/app/'), true);
+	assert.strictEqual(ok('https://example.test/index.php?rest_route=/pass-captain/v1/app/'), true);
+	assert.strictEqual(ok('https://evil.test/wp-json/pass-captain/v1/app/'), false, 'other host');
+	assert.strictEqual(ok('https://example.test/wp-content/uploads/x.php'), false, 'other path of the same host');
+	assert.strictEqual(ok('https://example.test/wp-json/other/v1/'), false);
+	assert.strictEqual(ok('https://example.test/wp-json/pass-captain/v1/app/x'), false);
+	assert.strictEqual(ok('https://example.test/wp-json/pass-captain/v1/app/?log=1'), false, 'extra query');
+	assert.strictEqual(ok('https://example.test/?rest_route=/other/v1/'), false);
+	assert.strictEqual(ok('https://example.test/?rest_route=/pass-captain/v1/app/&x=1'), false);
+	assert.strictEqual(ok('https://u:p@example.test/wp-json/pass-captain/v1/app/'), false);
+	assert.strictEqual(ok('https://example.test/x/../wp-json/pass-captain/v1/app/'), true, 'dot segments are resolved');
+	assert.strictEqual(ok('javascript:alert(1)'), false);
+	assert.strictEqual(ok(''), false);
 });

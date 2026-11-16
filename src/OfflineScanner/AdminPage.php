@@ -27,7 +27,7 @@ final class AdminPage {
 	public static function app_url() {
 		$base = defined( 'WPCAP_URL' ) ? WPCAP_URL : '';
 		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
-		return $base . 'assets/offline-scanner/index.html?api=' . rawurlencode( rest_url( 'pass-captain/v1/app/' ) ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
+		return $base . 'assets/offline-scanner/index.html?api=' . rawurlencode( \PassCaptain\Mobile\Devices::api_base() ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
 	}
 
 	public static function save_rules( array $in ) {

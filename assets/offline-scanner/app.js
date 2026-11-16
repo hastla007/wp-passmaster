@@ -240,9 +240,23 @@
 		var i = path.indexOf('/wp-content/');
 		return location.origin + (i >= 0 ? path.slice(0, i) : '') + '/wp-json/pass-captain/v1/app/';
 	}
-	/** Only same-origin API bases are accepted (the token must never go to another host). */
-	function sameOrigin(url) {
-		try { return new URL(url, location.href).origin === location.origin; } catch (e) { return false; }
+	var API_ROUTES = ['/pass-captain/v1/app/', '/wp-pass-captain/v1/app/'];
+	/**
+	 * A649: an API base (from ?api=, the pairing QR code or storage) must be the app API of this site –
+	 * same origin (the token must never go to another host) and the path …/wp-json/pass-captain/v1/app/ (or the legacy namespace), or the plain
+	 * permalink form ?rest_route=/pass-captain/v1/app/ – so the device token never goes to another
+	 * path of the same host (an upload, another plugin's route, a page that logs headers).
+	 */
+	function apiBaseOk(url) {
+		var u;
+		try { u = new URL(String(url || ''), location.href); } catch (e) { return false; }
+		if (u.origin !== location.origin || u.username || u.password || u.hash) { return false; }
+		if (u.search) {
+			var keys = [];
+			u.searchParams.forEach(function (value, key) { keys.push(key); });
+			return 1 === keys.length && 'rest_route' === keys[0] && API_ROUTES.indexOf(u.searchParams.get('rest_route')) >= 0 && /\/(index\.php)?$/.test(u.pathname);
+		}
+		return API_ROUTES.some(function (route) { var suffix = '/wp-json' + route; return u.pathname.slice(-suffix.length) === suffix; });
 	}
 	function endpoint(route, query) {
 		var base = state.api;
@@ -808,7 +822,7 @@
 			try {
 				var qr = JSON.parse(input);
 				if ('wpcap-pair' === qr.type && qr.code) {
-					if (qr.api && !sameOrigin(qr.api)) { throw new Error(t('Der Kopplungscode gehört zu einem anderen Server.')); }
+					if (qr.api && !apiBaseOk(qr.api)) { throw new Error(t('Der Kopplungscode gehört zu einem anderen Server.')); }
 					// A code of another site of the network: pair in that site's own store (A473).
 					if (qr.api) { useSite(qr.api); }
 					input = qr.code;
@@ -852,14 +866,14 @@
 		}
 		if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {}); }
 		var param = new URLSearchParams(location.search).get('api');
-		param = param && sameOrigin(param) ? param : '';
+		param = param && apiBaseOk(param) ? param : '';
 		var current = '';
 		try { current = localStorage.getItem(CURRENT_API_KEY) || ''; } catch (e) { current = ''; }
 		// Site: ?api= of the admin link, else the site used last, else the pairing of an older version.
 		legacyApiBase().then(function (legacy) {
 			state.legacyApi = legacy;
-			var apiBase = param || (sameOrigin(current) ? current : '') || legacy || deriveApi();
-			if (!sameOrigin(apiBase)) { apiBase = deriveApi(); }
+			var apiBase = param || (apiBaseOk(current) ? current : '') || legacy || deriveApi();
+			if (!apiBaseOk(apiBase)) { apiBase = deriveApi(); }
 			useSite(apiBase);
 			return Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log')]);
 		}).then(function (v) {
@@ -913,7 +927,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera };
+	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera };
 
 	boot();
 }());
