@@ -190,12 +190,12 @@ Stand in `main` am 13.11.2026: kein Lizenzcode vorhanden (per Suche nach `Licens
 ### A. Kern-Plugin (dieses Repository)
 
 - [ ] **A1 · Lizenz-PRs schließen.** PR #20 (Aktivierung), #21 (Updater), #22 (Rechte-Helfer) und #23 (Offline-Cache) nach dem Übertrag ins Add-on (B2) schließen, die Branches `codex/wplc-*` löschen.
-- [ ] **A2 · Wächtertest in CI.** Ein Test schlägt fehl, sobald im Kern-Plugin Lizenzcode auftaucht: Klassen oder Aufrufe mit `LicenseClient`, die Route `wplc/v1`, ein Header `Update URI`, eigene Filter auf `pre_set_site_transient_update_plugins` oder `plugins_api`, Abfragen wie `allows_entitlement`.
-- [ ] **A3 · Funktionsinventar festschreiben.** Jede vorhandene Funktion als „Kern, dauerhaft frei“ dokumentieren (`docs/FREE-PREMIUM.md`). Bereits ausgelieferte Funktionen werden nie nachträglich gesperrt oder ins Add-on verschoben.
+- [x] **A2 · Wächtertest in CI.** Ein Test schlägt fehl, sobald im Kern-Plugin Lizenzcode auftaucht: Klassen oder Aufrufe mit `LicenseClient`, die Route `wplc/v1`, ein Header `Update URI`, eigene Filter auf `pre_set_site_transient_update_plugins` oder `plugins_api`, Abfragen wie `allows_entitlement`.
+- [x] **A3 · Funktionsinventar festschreiben.** Jede vorhandene Funktion als „Kern, dauerhaft frei“ dokumentieren (`docs/FREE-PREMIUM.md`). Bereits ausgelieferte Funktionen werden nie nachträglich gesperrt oder ins Add-on verschoben.
 - [ ] **A4 · Erweiterungspunkte für das Add-on.** Hooks für Admin-Navigation, Einstellungen, Zahlungs- und Scanner-Adapter, Berichte und Exporte festlegen; die bestehenden Adapter-Verträge als Andockpunkte nutzen. Jeden Hook dokumentieren, als öffentliche API versionieren und mit einem Test absichern.
 - [ ] **A5 · Kern funktioniert allein.** Automatischer Test: alle Kernabläufe laufen ohne installiertes Add-on und ohne Netzwerkzugriff; das Kern-Plugin ruft den Lizenzserver nie auf.
 - [ ] **A6 · Hinweise auf das Add-on.** Höchstens dezent, wegklickbar und nur auf den eigenen Adminseiten (Richtlinie 11). Keine Menüpunkte, Schalter oder Felder, die sichtbar sind und erst nach Kauf funktionieren.
-- [ ] **A7 · readme.txt für WordPress.org.** Abschnitt `== External services ==` für jeden externen Aufruf des Kerns, korrekte Header (`Tested up to`, `Stable tag`, Lizenz GPL-2.0-or-later), keine Aussage, die eine Lizenz voraussetzt.
+- [x] **A7 · readme.txt für WordPress.org.** Abschnitt `== External services ==` für jeden externen Aufruf des Kerns, korrekte Header (`Tested up to`, `Stable tag`, Lizenz GPL-2.0-or-later), keine Aussage, die eine Lizenz voraussetzt.
 - [x] **A7b · Name und Slug prüfen.** Umbenannt in „Pass Captain“ (WordPress.org erlaubt kein „WP“ im Namen): Hauptdatei `pass-captain.php`, ZIP- und Ordnername `pass-captain`, Textdomain `pass-captain` (gleich dem Slug), Übersetzungsdateien `languages/pass-captain-*`. Die alte Kopie `wp-pass-captain/wp-pass-captain.php` wird automatisch übernommen. Unverändert bleiben bewusst REST-Namensraum `wp-pass-captain/v1`, Blocknamen, Admin-Seiten-Slug, Theme-Vorlagenordner, Shortcodes, Präfix `wpcap_` und die Action-Scheduler-Gruppe – sie sind öffentliche Schnittstellen bzw. gespeicherte Daten. Offen: Repository-Name `wp-passmaster` (nur GitHub, nicht relevant für WordPress.org).
 - [ ] **A8 · Plugin Check.** Das offizielle Prüfwerkzeug „Plugin Check“ ohne Fehler durchlaufen lassen und als CI-Schritt aufnehmen.
 - [ ] **A9 · Einreichung.** Plugin bei WordPress.org einreichen, Rückfragen des Review-Teams abarbeiten, danach Veröffentlichung per SVN-Deploy aus der CI einrichten.
@@ -663,13 +663,13 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [WICHTIG] Serien-Vorlage kopiert Teilnehmerfelder und Einlassprüfungen nicht — src/Series/Generator.php:272–286, Series/AdminPage.php:166 (A332, R2 UX)
 - [ ] [WICHTIG] Zwei konkurrierende Wege für Terminserien; Ticketart/Feld nicht auf alle Termine anwendbar — src/Admin/EventsPage.php:799, :983–1015 (A333, R2 UX)
 - [ ] [WICHTIG] Ticketart nach Verkaufsstart ohne Warnung änderbar (Preis/Steuer) — src/Admin/EventsPage.php:1017–1043 (A334, R2 UX)
-- [ ] [WICHTIG] „Tickets erneut senden“ (Admin) entwertet auch übertragene Tickets — src/Admin/OrdersPage.php:555, Orders.php:1780–1806 (A335, R2 UX)
-- [ ] [WICHTIG] Bestellung nicht per Name findbar; Bestellnummer Liste ≠ Mail — src/Admin/Queries.php:346, OrdersPage.php:275/292 (A336, R2 UX)
-- [ ] [WICHTIG] Bezahlt ohne Ticket (needs_review) im Admin unsichtbar — src/Orders.php:1069–1076, Admin/Menu.php:205 (A337, R2 UX)
-- [ ] [WICHTIG] Manueller Check-in aus dem Admin nicht möglich, Web-Scanner nicht auffindbar — src/Admin/TicketsPage.php:262–288, PublicEvents.php:377 (A338, R2 UX)
-- [ ] [WICHTIG] Umbuchen auf anderen Termin nur über versteckten Pfad — src/Exchange/AdminPage.php:117–167 (A339, R2 UX)
-- [ ] [WICHTIG] Erstatten ohne Betragsvorschau, „Alle“ überstimmt Einzelauswahl still — src/Admin/OrdersPage.php:478/511/525 (A340, R2 UX)
-- [ ] [WICHTIG] Wartelisten-Admin ohne Terminspalte, unklare „Rang/Position“ — src/Waitlists/AdminPage.php:116–120, Waitlists.php:989 (A341, R2 UX)
+- [x] [WICHTIG] „Tickets erneut senden“ (Admin) entwertet auch übertragene Tickets — src/Admin/OrdersPage.php:555, Orders.php:1780–1806 (A335, R2 UX)
+- [x] [WICHTIG] Bestellung nicht per Name findbar; Bestellnummer Liste ≠ Mail — src/Admin/Queries.php:346, OrdersPage.php:275/292 (A336, R2 UX)
+- [x] [WICHTIG] Bezahlt ohne Ticket (needs_review) im Admin unsichtbar — src/Orders.php:1069–1076, Admin/Menu.php:205 (A337, R2 UX)
+- [x] [WICHTIG] Manueller Check-in aus dem Admin nicht möglich, Web-Scanner nicht auffindbar — src/Admin/TicketsPage.php:262–288, PublicEvents.php:377 (A338, R2 UX)
+- [x] [WICHTIG] Umbuchen auf anderen Termin nur über versteckten Pfad — src/Exchange/AdminPage.php:117–167 (A339, R2 UX)
+- [x] [WICHTIG] Erstatten ohne Betragsvorschau, „Alle“ überstimmt Einzelauswahl still — src/Admin/OrdersPage.php:478/511/525 (A340, R2 UX)
+- [x] [WICHTIG] Wartelisten-Admin ohne Terminspalte, unklare „Rang/Position“ — src/Waitlists/AdminPage.php:116–120, Waitlists.php:989 (A341, R2 UX)
 - [ ] [WICHTIG] Frontend: pro Termin vollständiges Checkout-Formular; Kalender-Anker auf nicht gerenderte Karten — src/PublicEvents.php:147–190, templates/event-card.php, Calendar/Ics.php:150 (A342, R2 UX)
 - [x] [WICHTIG] Bezahlte Bestellung ohne Tickets wird nie automatisch nachbearbeitet — src/Orders.php:1089–1092, :1002–1005 (confirm_external_payment), Webhooks.php:121/142–147 (A343, R2 API)
 - [x] [WICHTIG] WooCommerce: Zahlungsbestätigung und Teilerstattung ohne Wiederholung bei „busy“ — src/Integrations/WooCommerce/OrderAdapter.php:669–674, :797–803 (A344, R2 API)
@@ -797,13 +797,13 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [WICHTIG] Scanner-Kopplung und Hilfscode am Einlass je öffentlicher IP limitiert (Venue-NAT) — src/Mobile/Api.php:50, HelpCode.php:186 (A460, R3 Caching)
 - [ ] [WICHTIG] Apple-Wallet-Webservice antwortet bei Ratenlimit mit 401 statt 429 — src/WalletPasses/WebService.php:53, :65 (A461, R3 Caching)
 - [ ] [WICHTIG] Token-Seiten ohne DONOTCACHEPAGE; Angebots-Nonce kürzer als Angebot (erweitert A283) — src/Waitlists.php:83/870/889/1053/1075, Printing/InvoicePdf.php:288, Payments/ReturnNotice.php:23–29 (A462, R3 Caching)
-- [ ] [WICHTIG] Rollback auf 1.4.0 legt alle Zahlungs-Zugangsdaten still (Secrets-Vault) — src/Secrets.php:270–293, docs/OPERATIONS.md:269–278 (A463, R3 Lifecycle)
-- [ ] [WICHTIG] Rollback und erneutes Update: Kapazitätszähler bleiben falsch → Überverkauf — src/CapacityCounters.php:154–158, :519–520 (A464, R3 Lifecycle)
-- [ ] [WICHTIG] Neuer Standard Einlassfenster gilt nach Update ohne Hinweis/Pinning — src/Settings.php:111, Admission/Engine.php:86–99, Checkin.php:140/214 (A465, R3 Lifecycle)
-- [ ] [WICHTIG] Dauerhaft fehlschlagendes Schema-Upgrade läuft endlos und teuer — src/Installer.php:797–803, :1017–1050, Plugin.php:18 (A466, R3 Lifecycle)
-- [ ] [WICHTIG] Deinstallation löscht Optionen per Roh-SQL, persistenter Objekt-Cache bleibt — uninstall.php:36 (A467, R3 Lifecycle)
-- [ ] [WICHTIG] rebuild_all() der Kapazitätszähler synchron im Upgrade-Request über die gesamte Historie — src/CapacityCounters.php:608–615, Installer.php:809 (A468, R3 Lifecycle)
-- [ ] [WICHTIG] Rollback-Drill prüft keine Zustände außerhalb des Schemas (Secrets, Zähler, Optionen, Standardwerte) — tests/restore/drill.sh (A469, R3 Lifecycle)
+- [x] [WICHTIG] Rollback auf 1.4.0 legt alle Zahlungs-Zugangsdaten still (Secrets-Vault) — src/Secrets.php:270–293, docs/OPERATIONS.md:269–278 (A463, R3 Lifecycle)
+- [x] [WICHTIG] Rollback und erneutes Update: Kapazitätszähler bleiben falsch → Überverkauf — src/CapacityCounters.php:154–158, :519–520 (A464, R3 Lifecycle)
+- [x] [WICHTIG] Neuer Standard Einlassfenster gilt nach Update ohne Hinweis/Pinning — src/Settings.php:111, Admission/Engine.php:86–99, Checkin.php:140/214 (A465, R3 Lifecycle)
+- [x] [WICHTIG] Dauerhaft fehlschlagendes Schema-Upgrade läuft endlos und teuer — src/Installer.php:797–803, :1017–1050, Plugin.php:18 (A466, R3 Lifecycle)
+- [x] [WICHTIG] Deinstallation löscht Optionen per Roh-SQL, persistenter Objekt-Cache bleibt — uninstall.php:36 (A467, R3 Lifecycle)
+- [x] [WICHTIG] rebuild_all() der Kapazitätszähler synchron im Upgrade-Request über die gesamte Historie — src/CapacityCounters.php:608–615, Installer.php:809 (A468, R3 Lifecycle)
+- [x] [WICHTIG] Rollback-Drill prüft keine Zustände außerhalb des Schemas (Secrets, Zähler, Optionen, Standardwerte) — tests/restore/drill.sh (A469, R3 Lifecycle)
 - [ ] [WICHTIG] Zugriffs-Scope als netzwerkweite User-Meta mit Site-lokalen IDs — src/Access.php:30/125/170–181, Admin/UserScope.php:26–72, BoxOffice/Page.php:271 (A470, R3 Multisite/i18n/Skalierung)
 - [ ] [WICHTIG] Eventleitung holt beliebige Netzwerk-Benutzer in die Site (add_cap) und verrät Kontoexistenz — src/Admin/EventsPage.php:482–505, StaffAssignments.php:51–57, Admission/RulesPage.php:87–97 (A471, R3 Multisite/i18n/Skalierung)
 - [ ] [WICHTIG] Offline-Warteschlange des Web-Scanners zwischen Subdirectory-Sites geteilt → Scans gehen verloren — assets/scanner.js:15–35, :321–345, Privacy.php:104–106 (A472, R3 Multisite/i18n/Skalierung)
@@ -882,7 +882,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [WICHTIG] Web-Scanner offline: derselbe Code auf demselben Gerät beliebig oft einlassbar — assets/scanner.js:290–318 (A542, R4 Käufer-UX/Einlass)
 - [ ] [WICHTIG] Übertragene/neu ausgestellte Tickets melden „nicht gefunden“ statt Grund; „Widerrufen“ ohne Grund — src/Checkin.php:93, :428, Orders.php:1459–1508/2028/2087, TicketAssignments.php:70 (A543, R4 Käufer-UX/Einlass)
 - [ ] [WICHTIG] Am Scanner keine manuelle Suche (Name/E-Mail/Bestellnummer), auch offline nicht — assets/scanner.js, PublicEvents.php:377–395, offline-scanner/index.html:55–58, OfflineScanner/Package.php:136–138 (A544, R4 Käufer-UX/Einlass)
-- [ ] [WICHTIG] Admin-Ticketsuche findet angezeigte Bestellnummer „AB12-CD34“ und Hilfscodes nicht (erweitert A336) — src/Admin/Queries.php:418–423, Frontend/Format.php:39–41 (A545, R4 Käufer-UX/Einlass)
+- [x] [WICHTIG] Admin-Ticketsuche findet angezeigte Bestellnummer „AB12-CD34“ und Hilfscodes nicht (erweitert A336) — src/Admin/Queries.php:418–423, Frontend/Format.php:39–41 (A545, R4 Käufer-UX/Einlass)
 - [ ] [WICHTIG] Kein Check-in-Zähler (eingecheckt/gesamt) in Web-Scanner und PWA — assets/scanner.js, offline-scanner/app.js:374–392, Mobile/Api.php:92 (A546, R4 Käufer-UX/Einlass)
 - [ ] [WICHTIG] „Rückgängig“ für Fehl-Check-in fehlt am Scanner; Grund im Admin optional — assets/scanner.js, offline-scanner/app.js, Mobile/Api.php:38/146, Admin/TicketsPage.php:282 (A547, R4 Käufer-UX/Einlass)
 - [ ] [WICHTIG] PWA: Ergebnis bleibt unbegrenzt stehen, kein Vollbild, kleine Schrift — assets/offline-scanner/app.js:164–171, app.css:23–29, index.html:44–47 (A548, R4 Käufer-UX/Einlass)

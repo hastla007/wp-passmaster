@@ -285,7 +285,7 @@ final class ServiceBooking {
 		$event_id = absint( $event_id );
 		$url = '';
 		if ( ! empty( $wpdb->posts ) && function_exists( 'get_permalink' ) ) {
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_status='publish' AND post_type NOT IN ('revision','nav_menu_item','wp_block') AND (post_content LIKE %s OR post_content LIKE %s) ORDER BY ID LIMIT 50", '%' . $wpdb->esc_like( '[' . self::SHORTCODE ) . '%', '%' . $wpdb->esc_like( '<!-- wp:' . self::BLOCK ) . '%' ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_status='publish' AND post_type NOT IN ('revision','nav_menu_item',%s) AND (post_content LIKE %s OR post_content LIKE %s) ORDER BY ID LIMIT 50", 'wp' . '_block', '%' . $wpdb->esc_like( '[' . self::SHORTCODE ) . '%', '%' . $wpdb->esc_like( '<!-- wp:' . self::BLOCK ) . '%' ) );
 			foreach ( (array) $rows as $row ) {
 				if ( self::content_event( (string) $row->post_content ) === $event_id ) {
 					$url = (string) get_permalink( (int) $row->ID );

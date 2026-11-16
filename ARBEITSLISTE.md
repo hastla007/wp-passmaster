@@ -713,19 +713,19 @@ Gesamt: 262 Aufgaben.
   - src/Admin/EventsPage.php:799, :983–1015: Auf „Serientermine“ verweisen/ersetzen; „auf alle Termine anwenden“
 - [ ] **A334** [WICHTIG] Ticketart nach Verkaufsstart ohne Warnung änderbar (Preis/Steuer) — _R2 UX_ (TODO L665; Audit Runde 4)
   - src/Admin/EventsPage.php:1017–1043: Hinweis „X verkauft, gilt nur für neue Bestellungen“, Bestätigung bei Steuer/Preis
-- [ ] **A335** [WICHTIG] „Tickets erneut senden“ (Admin) entwertet auch übertragene Tickets — _R2 UX_ (TODO L666; Audit Runde 4)
+- [x] **A335** [WICHTIG] „Tickets erneut senden“ (Admin) entwertet auch übertragene Tickets — _R2 UX_ (TODO L666; Audit Runde 4)
   - src/Admin/OrdersPage.php:555, Orders.php:1780–1806: Standard: Neuversand ohne Rotation; Rotation bewusst; skip_transferred
-- [ ] **A336** [WICHTIG] Bestellung nicht per Name findbar; Bestellnummer Liste ≠ Mail — _R2 UX_ (TODO L667; Audit Runde 4)
+- [x] **A336** [WICHTIG] Bestellung nicht per Name findbar; Bestellnummer Liste ≠ Mail — _R2 UX_ (TODO L667; Audit Runde 4)
   - src/Admin/Queries.php:346, OrdersPage.php:275/292: order_reference anzeigen, Suche auf Rechnungs-/Teilnehmernamen
-- [ ] **A337** [WICHTIG] Bezahlt ohne Ticket (needs_review) im Admin unsichtbar — _R2 UX_ (TODO L668; Audit Runde 4)
+- [x] **A337** [WICHTIG] Bezahlt ohne Ticket (needs_review) im Admin unsichtbar — _R2 UX_ (TODO L668; Audit Runde 4)
   - src/Orders.php:1069–1076, Admin/Menu.php:205: Menü-Zähler, Admin-Hinweis mit Filterlink
-- [ ] **A338** [WICHTIG] Manueller Check-in aus dem Admin nicht möglich, Web-Scanner nicht auffindbar — _R2 UX_ (TODO L669; Audit Runde 4)
+- [x] **A338** [WICHTIG] Manueller Check-in aus dem Admin nicht möglich, Web-Scanner nicht auffindbar — _R2 UX_ (TODO L669; Audit Runde 4)
   - src/Admin/TicketsPage.php:262–288, PublicEvents.php:377: Button „Einchecken“ (Termin/Bereich), Admin-Seite „Web-Scanner öffnen“
-- [ ] **A339** [WICHTIG] Umbuchen auf anderen Termin nur über versteckten Pfad — _R2 UX_ (TODO L670; Audit Runde 4)
+- [x] **A339** [WICHTIG] Umbuchen auf anderen Termin nur über versteckten Pfad — _R2 UX_ (TODO L670; Audit Runde 4)
   - src/Exchange/AdminPage.php:117–167: Ticketsuche auf Umtausch-Seite, Aktion in Tickets-Tabelle
-- [ ] **A340** [WICHTIG] Erstatten ohne Betragsvorschau, „Alle“ überstimmt Einzelauswahl still — _R2 UX_ (TODO L671; Audit Runde 4)
+- [x] **A340** [WICHTIG] Erstatten ohne Betragsvorschau, „Alle“ überstimmt Einzelauswahl still — _R2 UX_ (TODO L671; Audit Runde 4)
   - src/Admin/OrdersPage.php:478/511/525: Summe/Weg live, in Bestätigung; „Alle“ deaktiviert Einzelauswahl sichtbar
-- [ ] **A341** [WICHTIG] Wartelisten-Admin ohne Terminspalte, unklare „Rang/Position“ — _R2 UX_ (TODO L672; Audit Runde 4)
+- [x] **A341** [WICHTIG] Wartelisten-Admin ohne Terminspalte, unklare „Rang/Position“ — _R2 UX_ (TODO L672; Audit Runde 4)
   - src/Waitlists/AdminPage.php:116–120, Waitlists.php:989: Spalte Termin, verständliche Bezeichnungen
 - [ ] **A342** [WICHTIG] Frontend: pro Termin vollständiges Checkout-Formular; Kalender-Anker auf nicht gerenderte Karten — _R2 UX_ (TODO L673; Audit Runde 4)
   - src/PublicEvents.php:147–190, templates/event-card.php, Calendar/Ics.php:150: Eine Karte je Event mit Terminauswahl; Kalender mit occurrence=
@@ -975,19 +975,19 @@ Gesamt: 262 Aufgaben.
   - src/WalletPasses/WebService.php:53, :65: 429/503 mit Retry-After, Limit je Seriennummer/Gerät
 - [ ] **A462** [WICHTIG] Token-Seiten ohne DONOTCACHEPAGE; Angebots-Nonce kürzer als Angebot (erweitert A283) — _R3 Caching_ (TODO L799; Audit Runde 4)
   - src/Waitlists.php:83/870/889/1053/1075, Printing/InvoicePdf.php:288, Payments/ReturnNotice.php:23–29: Überall DONOTCACHEPAGE + nocache_headers (auch 404), Angebotsseite ohne Nonce oder mit langer Gültigkeit
-- [ ] **A463** [WICHTIG] Rollback auf 1.4.0 legt alle Zahlungs-Zugangsdaten still (Secrets-Vault) — _R3 Lifecycle_ (TODO L800; Audit Runde 4)
+- [x] **A463** [WICHTIG] Rollback auf 1.4.0 legt alle Zahlungs-Zugangsdaten still (Secrets-Vault) — _R3 Lifecycle_ (TODO L800; Audit Runde 4)
   - src/Secrets.php:270–293, docs/OPERATIONS.md:269–278: Doku: vor Rollback Konstanten/Neueingabe; Drill mit Stripe-Schlüsseln; ggf. Klartext-Fallback bis Major
-- [ ] **A464** [WICHTIG] Rollback und erneutes Update: Kapazitätszähler bleiben falsch → Überverkauf — _R3 Lifecycle_ (TODO L801; Audit Runde 4)
+- [x] **A464** [WICHTIG] Rollback und erneutes Update: Kapazitätszähler bleiben falsch → Überverkauf — _R3 Lifecycle_ (TODO L801; Audit Runde 4)
   - src/CapacityCounters.php:154–158, :519–520: Rollback erkennen (db_version < max) → Zähler neu aufbauen
-- [ ] **A465** [WICHTIG] Neuer Standard Einlassfenster gilt nach Update ohne Hinweis/Pinning — _R3 Lifecycle_ (TODO L802; Audit Runde 4)
+- [x] **A465** [WICHTIG] Neuer Standard Einlassfenster gilt nach Update ohne Hinweis/Pinning — _R3 Lifecycle_ (TODO L802; Audit Runde 4)
   - src/Settings.php:111, Admission/Engine.php:86–99, Checkin.php:140/214: Für Bestandsinstallationen default_entry_window=0 festschreiben oder Upgrade Notice + Admin-Hinweis
-- [ ] **A466** [WICHTIG] Dauerhaft fehlschlagendes Schema-Upgrade läuft endlos und teuer — _R3 Lifecycle_ (TODO L803; Audit Runde 4)
+- [x] **A466** [WICHTIG] Dauerhaft fehlschlagendes Schema-Upgrade läuft endlos und teuer — _R3 Lifecycle_ (TODO L803; Audit Runde 4)
   - src/Installer.php:797–803, :1017–1050, Plugin.php:18: Fehlversuch mit Zeitstempel, Backoff/Knopf; nach fehlgeschlagener Erstinstallation keine Events planen
-- [ ] **A467** [WICHTIG] Deinstallation löscht Optionen per Roh-SQL, persistenter Objekt-Cache bleibt — _R3 Lifecycle_ (TODO L804; Audit Runde 4)
+- [x] **A467** [WICHTIG] Deinstallation löscht Optionen per Roh-SQL, persistenter Objekt-Cache bleibt — _R3 Lifecycle_ (TODO L804; Audit Runde 4)
   - uninstall.php:36: delete_option je Option, alloptions-Cache leeren
-- [ ] **A468** [WICHTIG] rebuild_all() der Kapazitätszähler synchron im Upgrade-Request über die gesamte Historie — _R3 Lifecycle_ (TODO L805; Audit Runde 4)
+- [x] **A468** [WICHTIG] rebuild_all() der Kapazitätszähler synchron im Upgrade-Request über die gesamte Historie — _R3 Lifecycle_ (TODO L805; Audit Runde 4)
   - src/CapacityCounters.php:608–615, Installer.php:809: Resumierbarer Job mit Cursor, Version unabhängig speichern
-- [ ] **A469** [WICHTIG] Rollback-Drill prüft keine Zustände außerhalb des Schemas (Secrets, Zähler, Optionen, Standardwerte) — _R3 Lifecycle_ (TODO L806; Audit Runde 4)
+- [x] **A469** [WICHTIG] Rollback-Drill prüft keine Zustände außerhalb des Schemas (Secrets, Zähler, Optionen, Standardwerte) — _R3 Lifecycle_ (TODO L806; Audit Runde 4)
   - tests/restore/drill.sh: Drill mit Provider-Schlüsseln, Verkäufen im Altcode über >2 Tage simulierte Zeit, danach Kapazität und Zahlungsfähigkeit prüfen
 - [ ] **A470** [WICHTIG] Zugriffs-Scope als netzwerkweite User-Meta mit Site-lokalen IDs — _R3 Multisite/i18n/Skalierung_ (TODO L807; Audit Runde 4)
   - src/Access.php:30/125/170–181, Admin/UserScope.php:26–72, BoxOffice/Page.php:271: get/update_user_option, Migration auf Hauptsite
@@ -1142,7 +1142,7 @@ Gesamt: 262 Aufgaben.
   - src/Checkin.php:93, :428, Orders.php:1459–1508/2028/2087, TicketAssignments.php:70: Abgelöste Hashes mit Grund/Zeit aufbewahren, eigenes Ergebnis „Code ersetzt“, Widerrufsgrund mitgeben
 - [ ] **A544** [WICHTIG] Am Scanner keine manuelle Suche (Name/E-Mail/Bestellnummer), auch offline nicht — _R4 Käufer-UX/Einlass_ (TODO L884; Audit Runde 4)
   - assets/scanner.js, PublicEvents.php:377–395, offline-scanner/index.html:55–58, OfflineScanner/Package.php:136–138: Suchfeld online (REST mit Pii-Regeln) und offline (Paket), dann Einchecken
-- [ ] **A545** [WICHTIG] Admin-Ticketsuche findet angezeigte Bestellnummer „AB12-CD34“ und Hilfscodes nicht (erweitert A336) — _R4 Käufer-UX/Einlass_ (TODO L885; Audit Runde 4)
+- [x] **A545** [WICHTIG] Admin-Ticketsuche findet angezeigte Bestellnummer „AB12-CD34“ und Hilfscodes nicht (erweitert A336) — _R4 Käufer-UX/Einlass_ (TODO L885; Audit Runde 4)
   - src/Admin/Queries.php:418–423, Frontend/Format.php:39–41: Suchbegriff normalisieren, Hilfscode suchbar
 - [ ] **A546** [WICHTIG] Kein Check-in-Zähler (eingecheckt/gesamt) in Web-Scanner und PWA — _R4 Käufer-UX/Einlass_ (TODO L886; Audit Runde 4)
   - assets/scanner.js, offline-scanner/app.js:374–392, Mobile/Api.php:92: Zählerleiste online (stats) und offline (Paket + Log)
@@ -1390,14 +1390,14 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
 
 Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06/-08/-14 weitgehend vorhanden, FE-10 = A230, FE-11 → A345/A589/A592/A593, FE-15 = PR #14/A220–A224, FE-16 = A527, FE-17 = A268, FE-20 = PASS-WF, A6 = A301, A7 = A269/A300/A304, A8 = A305, A9 = A304/A305/A386) sind nicht doppelt angelegt.
 
-- [ ] **A659** [WICHTIG] Umbenennung: Theme-Overrides im alten Ordner wp-pass-captain/ (event-card.php) werden still ignoriert – Fallback und Hinweis — _Konzept 15.11._ (TODO L199; Konzept/Roadmap 2026-11-15)
-- [ ] **A660** [WICHTIG] Umbenennung: Action-Scheduler-Gruppe wp-pass-captain – alte geplante Aktionen erkennen, keine Doppeleinträge — _Konzept 15.11._ (TODO L199; Konzept/Roadmap 2026-11-15)
-- [ ] **A661** [WICHTIG] Wächtertest in CI: kein Lizenzcode im Kern (LicenseClient, wplc/v1, Update URI, Update-Transient-/plugins_api-Filter, allows_entitlement), nur ausgelieferte Dateien — _Konzept 15.11._ (TODO L193; Konzept/Roadmap 2026-11-15)
-- [ ] **A662** [WICHTIG] docs/FREE-PREMIUM.md: Funktionsinventar „Kern, dauerhaft frei“ für alle ausgelieferten Module — _Konzept 15.11._ (TODO L194; Konzept/Roadmap 2026-11-15)
+- [x] **A659** [WICHTIG] Umbenennung: Theme-Overrides im alten Ordner wp-pass-captain/ (event-card.php) werden still ignoriert – Fallback und Hinweis — _Konzept 15.11._ (TODO L199; Konzept/Roadmap 2026-11-15)
+- [x] **A660** [WICHTIG] Umbenennung: Action-Scheduler-Gruppe wp-pass-captain – alte geplante Aktionen erkennen, keine Doppeleinträge — _Konzept 15.11._ (TODO L199; Konzept/Roadmap 2026-11-15)
+- [x] **A661** [WICHTIG] Wächtertest in CI: kein Lizenzcode im Kern (LicenseClient, wplc/v1, Update URI, Update-Transient-/plugins_api-Filter, allows_entitlement), nur ausgelieferte Dateien — _Konzept 15.11._ (TODO L193; Konzept/Roadmap 2026-11-15)
+- [x] **A662** [WICHTIG] docs/FREE-PREMIUM.md: Funktionsinventar „Kern, dauerhaft frei“ für alle ausgelieferten Module — _Konzept 15.11._ (TODO L194; Konzept/Roadmap 2026-11-15)
 - [ ] **A663** [WICHTIG] Öffentliche, versionierte Add-on-API: Einstellungs-Tab-Filter, Hooks für Berichte/Exporte/Scanner-Adapter, Ladeaktion wpcap_loaded, HOOKS.md öffentlich vs. intern, CI-Abgleich — _Konzept 15.11._ (TODO L195; Konzept/Roadmap 2026-11-15)
 - [ ] **A664** [OPTIMIERUNG] Test „Kern läuft allein“: alle Kernabläufe ohne Add-on, kein Aufruf eines Lizenzservers — _Konzept 15.11._ (TODO L196; Konzept/Roadmap 2026-11-15)
-- [ ] **A665** [OPTIMIERUNG] Doku angleichen: EXTENSIONS.md, ROADMAP_31_50 §49, RELEASE.md auf „Kern frei, Premium im Add-on“ — _Konzept 15.11._ (TODO L202; Konzept/Roadmap 2026-11-15)
-- [ ] **A666** [WICHTIG] Verwaiste Fiskal-Adapter (AdapterInterface fehlt) werden ausgeliefert und in readme.txt als Modul beworben – bis PR #14 aus ZIP/readme nehmen — _Konzept 15.11._ (TODO L198; Konzept/Roadmap 2026-11-15)
+- [x] **A665** [OPTIMIERUNG] Doku angleichen: EXTENSIONS.md, ROADMAP_31_50 §49, RELEASE.md auf „Kern frei, Premium im Add-on“ — _Konzept 15.11._ (TODO L202; Konzept/Roadmap 2026-11-15)
+- [x] **A666** [WICHTIG] Verwaiste Fiskal-Adapter (AdapterInterface fehlt) werden ausgeliefert und in readme.txt als Modul beworben – bis PR #14 aus ZIP/readme nehmen — _Konzept 15.11._ (TODO L198; Konzept/Roadmap 2026-11-15)
 - [ ] **A667** [WICHTIG] Review-Teilnahmevertrag v1 (experience_completed): erster gültiger Einlass, Undo-/Refund-/Absage-Korrektur, Sprache, ohne PII — _Konzept 15.11._ (TODO L978; Konzept/Roadmap 2026-11-15)
 - [ ] **A668** [OPTIMIERUNG] Kontakt-Resolver für Einladungen mit eigener Capability und Audit (Ereignisse ohne E-Mail/Name) — _Konzept 15.11._ (TODO L979; Konzept/Roadmap 2026-11-15)
 - [ ] **A669** [OPTIMIERUNG] Ausschluss-/Korrekturereignisse: Ticket-Transfer, Event-Absage auf Event-Ebene, No-show für Eventtickets, idempotent — _Konzept 15.11._ (TODO L980; Konzept/Roadmap 2026-11-15)

@@ -728,7 +728,7 @@ final class OrderAdapter {
 		$wc_id   = (int) $wc_order->get_id();
 		$type    = 'refund' === $kind ? 'woocommerce_refund_sync' : 'woocommerce_paid_sync';
 		$key     = 'refund' === $kind ? 'woocommerce-refund-sync|' . absint( $refund_id ) : 'woocommerce-paid-sync|' . $wc_id;
-		$payload = 'refund' === $kind ? array( 'wc_order_id' => $wc_id, 'refund_id' => absint( $refund_id ) ) : array( 'wc_order_id' => $wc_id );
+		$payload = 'refund' === $kind ? array( 'woo_order' => $wc_id, 'refund_id' => absint( $refund_id ) ) : array( 'woo_order' => $wc_id );
 		$queued  = \PassCaptain\Jobs::enqueue( $key . '|' . time(), $type, $payload, gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
 		if ( true !== $queued ) {
 			return false; // Not even the job could be stored: the caller's note asks for a manual retry.
@@ -756,11 +756,11 @@ final class OrderAdapter {
 	 */
 	public static function handle_job( $handled, $type, $payload = array() ) {
 		if ( 'woocommerce_paid_sync' === $type ) {
-			$result = self::sync_paid_order( absint( $payload['wc_order_id'] ?? 0 ), false, true );
+			$result = self::sync_paid_order( absint( $payload['woo_order'] ?? 0 ), false, true );
 			return ! ( is_wp_error( $result ) && self::is_transient( $result ) );
 		}
 		if ( 'woocommerce_refund_sync' === $type ) {
-			$result = self::sync_refund( absint( $payload['wc_order_id'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ), true );
+			$result = self::sync_refund( absint( $payload['woo_order'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ), true );
 			return ! ( is_wp_error( $result ) && self::is_transient( $result ) );
 		}
 		return $handled;

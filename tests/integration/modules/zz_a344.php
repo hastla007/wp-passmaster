@@ -33,7 +33,7 @@ wpcap_test_fault( '/^UPDATE \S*wpcap_reservations SET status=.converted./', 'loc
 $a344_r = Woo::sync_paid_order( 7440 );
 wpcap_test_faults_clear();
 $a344_paid_jobs = $a344_jobs( 'woocommerce_paid_sync' );
-check( 'A344: busy payment confirmation: no tickets yet, but a retry job for the WooCommerce order', is_wp_error( $a344_r ) && 'pending' === Orders::get( $a344_core )->payment_status && ! tickets( $a344_core ) && 1 === count( $a344_paid_jobs ) && 7440 === (int) json_decode( $a344_paid_jobs[0]->payload, true )['wc_order_id'] );
+check( 'A344: busy payment confirmation: no tickets yet, but a retry job for the WooCommerce order', is_wp_error( $a344_r ) && 'pending' === Orders::get( $a344_core )->payment_status && ! tickets( $a344_core ) && 1 === count( $a344_paid_jobs ) && 7440 === (int) json_decode( $a344_paid_jobs[0]->payload, true )['woo_order'] );
 check( 'A344: the order note says it is retried automatically', 1 === count( array_filter( $a344_wc->notes, static fn( $n ) => false !== strpos( $n, 'automatisch erneut' ) ) ) );
 wpcap_test_fault( '/^UPDATE \S*wpcap_reservations SET status=.converted./', 'lock_timeout', array( 'rollback' => true ) );
 $a344_run();
