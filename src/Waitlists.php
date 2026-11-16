@@ -1290,6 +1290,10 @@ final class Waitlists {
 		$row = self::open_offer( $waitlist_id, $token );
 		$busy = is_wp_error( $row );
 		$row = $busy ? null : $row;
+		// A317: the offer was already answered with this link (mail link opened again, back button):
+		// show the result with its payment status instead of "invalid".
+		$done = ( ! $row && ! $busy ) ? self::answered_result_url( $waitlist_id, $token ) : '';
+		if ( '' !== $done ) { self::redirect( $done ); return; }
 		status_header( $row ? 200 : ( $busy ? 503 : 410 ) );
 		$order = $row ? Orders::get( (int) $row->order_id ) : null;
 		$names = $row ? self::mail_names( $row->event_id, $row->ticket_type_id ) : array();
@@ -1306,7 +1310,7 @@ final class Waitlists {
 		echo '<dt>' . esc_html__( 'Anzahl', 'pass-captain' ) . '</dt><dd>' . esc_html( (string) (int) $row->quantity ) . '</dd>';
 		echo '<dt>' . esc_html__( 'Preis', 'pass-captain' ) . '</dt><dd>' . esc_html( Frontend\Format::money( (int) $order->total_minor, $order->currency ) ) . '</dd>';
 		echo '<dt>' . esc_html__( 'Reserviert bis', 'pass-captain' ) . '</dt><dd>' . esc_html( wp_date( 'd.m.Y H:i T', strtotime( $row->offer_expires_at . ' UTC' ) ) ) . '</dd></dl>';
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-offer-form">';
 		wp_nonce_field( 'wpcap_accept_waitlist_' . $waitlist_id );
 		echo '<input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) $waitlist_id ) . '"><input type="hidden" name="token" value="' . esc_attr( $token ) . '">';
 		echo self::attendee_form_html( (int) $order->order_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in attendee_form_html().
@@ -1322,7 +1326,9 @@ final class Waitlists {
 		if ( $gateways && Settings::get( 'require_terms' ) ) {
 			echo '<p><label><input type="checkbox" name="accept_terms" value="1" required> ' . esc_html__( 'Ich akzeptiere die Bedingungen und Verbraucherinformationen.', 'pass-captain' ) . '</label></p>';
 		}
-		echo '<p><button type="submit" name="decision" value="accept">' . esc_html__( 'Angebot annehmen', 'pass-captain' ) . '</button> <button type="submit" name="decision" value="decline" formnovalidate>' . esc_html__( 'Angebot ablehnen', 'pass-captain' ) . '</button></p></form></main></body></html>';
+		echo '<p><button type="submit" name="decision" value="accept">' . esc_html__( 'Angebot annehmen', 'pass-captain' ) . '</button> <button type="submit" name="decision" value="decline" formnovalidate>' . esc_html__( 'Angebot ablehnen', 'pass-captain' ) . '</button></p></form>';
+		echo self::submit_once_script(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static script.
+		echo '</main></body></html>';
 		exit;
 	}
 
@@ -1373,11 +1379,26 @@ final class Waitlists {
 	public static function handle_accept_request() {
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
+		$decision = sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
+		if ( 'pay' === $decision ) {
+			// "Jetzt bezahlen" on the result page (A317): authorised by the result key, not the offer token.
+			$target = self::pay_target( $waitlist_id, sanitize_text_field( wp_unslash( (string) ( $_POST['wl'] ?? '' ) ) ) );
+			self::redirect( $target, 0 !== strpos( $target, home_url() ) );
+			return;
+		}
 		$token = preg_replace( '/[^a-f0-9]/', '', strtolower( sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) ) ) );
-		$decline = 'decline' === sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
+		$decline = 'decline' === $decision;
 		// Attendee data (A536) is sanitised field by field in Orders::validate_attendees().
 		$attendees = isset( $_POST['attendees'] ) && is_array( $_POST['attendees'] ) ? wp_unslash( $_POST['attendees'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated per configured field.
 		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => ! empty( $_POST['accept_terms'] ), 'attendees' => $attendees ) );
+		// A317: Post/Redirect/Get. An answered offer goes to its result page (reload and back never post
+		// again); a paid acceptance with a hosted payment page goes straight there. A second submit of an
+		// offer that was just answered (double click) lands on the same result page.
+		$target = self::answer_target( $waitlist_id, $token, $result );
+		if ( '' !== $target ) {
+			self::redirect( $target, 0 !== strpos( $target, home_url() ) );
+			return;
+		}
 		PageCache::no_store( 'waitlist_result' );
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		/* translators: %s: site name */
@@ -1387,31 +1408,161 @@ final class Waitlists {
 			echo '<h1>' . esc_html__( 'Bitte Angaben prüfen', 'pass-captain' ) . '</h1><p role="alert">' . esc_html( $result->get_error_message() ) . '</p><p><a href="' . esc_url( add_query_arg( array( 'wpcap_waitlist_accept' => $waitlist_id, 'token' => $token ), home_url( '/' ) ) ) . '">' . esc_html__( 'Zurück zum Angebot', 'pass-captain' ) . '</a></p>';
 		} elseif ( is_wp_error( $result ) ) {
 			echo '<h1>' . esc_html__( 'Angebot nicht verfügbar', 'pass-captain' ) . '</h1><p>' . esc_html( $result->get_error_message() ) . '</p>';
-		} elseif ( $decline ) {
-			echo '<h1>' . esc_html__( 'Angebot abgelehnt', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p>';
-		} else {
-			echo '<h1>' . esc_html__( 'Angebot angenommen', 'pass-captain' ) . '</h1>';
-			if ( 'complete' === ( $result['order']['status'] ?? '' ) ) {
-				echo '<p>' . esc_html__( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'pass-captain' ) . '</p>';
-			} else {
-				echo '<p>' . esc_html__( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet.', 'pass-captain' ) . '</p>';
-				$payment = $result['payment'] ?? array();
-				if ( ! empty( $payment['redirect_url'] ) ) {
-					echo '<p><a href="' . esc_url( $payment['redirect_url'] ) . '">' . esc_html__( 'Jetzt bezahlen', 'pass-captain' ) . '</a></p>';
-				}
-				if ( ! empty( $payment['bank_transfer'] ) && is_array( $payment['bank_transfer'] ) ) {
-					$bank = $payment['bank_transfer'];
-					echo '<dl>';
-					foreach ( array( 'amount' => __( 'Betrag', 'pass-captain' ), 'recipient' => __( 'Empfänger', 'pass-captain' ), 'iban' => 'IBAN', 'bic' => 'BIC', 'remittance' => __( 'Verwendungszweck', 'pass-captain' ), 'due_date' => __( 'Zahlbar bis', 'pass-captain' ) ) as $key => $label ) {
-						if ( '' !== (string) ( $bank[ $key ] ?? '' ) ) { echo '<dt>' . esc_html( $label ) . '</dt><dd>' . esc_html( (string) $bank[ $key ] ) . '</dd>'; }
-					}
-					echo '</dl>';
-				} elseif ( ! empty( $payment['instructions'] ) ) {
-					echo '<p>' . esc_html( (string) $payment['instructions'] ) . '</p>';
-				}
-			}
 		}
 		echo '</main></body></html>';
+		exit;
+	}
+
+	/* ---------------------------------------------------------------------------------------------
+	 * A317: result page of an answered offer (Post/Redirect/Get).
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** Transient that remembers which offer token answered an entry (reload, double click, mail link again). */
+	private static function answered_key( $waitlist_id ) {
+		return 'wpcap_wl_answered_' . absint( $waitlist_id );
+	}
+
+	/**
+	 * Key of the result page: keyed hash of entry and order. The offer token is cleared on acceptance,
+	 * so the result link carries its own authorisation (no personal data in the URL).
+	 */
+	public static function result_key( $waitlist_id, $public_id ) {
+		return substr( hash_hmac( 'sha256', 'wpcap-waitlist-result|' . absint( $waitlist_id ) . '|' . (string) $public_id, wp_salt( 'auth' ) ), 0, 32 );
+	}
+
+	/** Result page URL of an entry ('' without order). */
+	public static function result_url( $waitlist_id ) {
+		global $wpdb;
+		$public_id = (string) $wpdb->get_var( $wpdb->prepare( "SELECT o.public_id FROM {$wpdb->prefix}wpcap_waitlist w INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=w.order_id WHERE w.waitlist_id=%d", absint( $waitlist_id ) ) );
+		if ( '' === $public_id ) { return ''; }
+		return home_url( '/' ) . '?' . http_build_query( array( 'wpcap_waitlist_result' => absint( $waitlist_id ), 'wl' => self::result_key( $waitlist_id, $public_id ) ) );
+	}
+
+	/** Result URL if this token already answered the entry, else ''. */
+	public static function answered_result_url( $waitlist_id, $token ) {
+		$hash = get_transient( self::answered_key( $waitlist_id ) );
+		$token = strtolower( (string) preg_replace( '/[^a-f0-9]/i', '', (string) $token ) );
+		if ( ! is_string( $hash ) || 64 !== strlen( $token ) || ! hash_equals( $hash, hash( 'sha256', $token ) ) ) { return ''; }
+		return self::result_url( $waitlist_id );
+	}
+
+	/**
+	 * Where the answer POST continues ('' = render the error page): the provider's payment page for a
+	 * paid acceptance, else the result page; for an offer answered just before by the same token the
+	 * result page as well.
+	 *
+	 * @param array|\WP_Error $result accept_offer()/decline_offer() result.
+	 */
+	public static function answer_target( $waitlist_id, $token, $result ) {
+		if ( is_wp_error( $result ) ) {
+			return 'wpcap_waitlist_offer_invalid' === $result->get_error_code() ? self::answered_result_url( $waitlist_id, $token ) : '';
+		}
+		set_transient( self::answered_key( $waitlist_id ), hash( 'sha256', strtolower( (string) $token ) ), 30 * DAY_IN_SECONDS );
+		$redirect = (string) ( $result['payment']['redirect_url'] ?? '' );
+		if ( preg_match( '#^https://#i', $redirect ) ) { return $redirect; }
+		return self::result_url( $waitlist_id );
+	}
+
+	/** Entry and order for a result key, or null. */
+	private static function result_row( $waitlist_id, $key ) {
+		$row = self::get( $waitlist_id );
+		$order = $row && $row->order_id ? Orders::get( (int) $row->order_id ) : null;
+		if ( ! $order || ! is_string( $key ) || ! hash_equals( self::result_key( $waitlist_id, $order->public_id ), $key ) ) { return null; }
+		return array( $row, $order );
+	}
+
+	/**
+	 * Target of "Jetzt bezahlen" on the result page: the (still open or a new) payment session of the
+	 * accepted offer's order; the result page itself when there is nothing to pay.
+	 */
+	public static function pay_target( $waitlist_id, $key ) {
+		$found = self::result_row( $waitlist_id, $key );
+		if ( ! $found ) { return home_url( '/' ); }
+		list( $row, $order ) = $found;
+		$back = self::result_url( $waitlist_id );
+		if ( 'accepted' !== $row->status || 'pending' !== $order->payment_status || ! Orders::hold_end( (int) $order->order_id ) ) { return $back; }
+		$gateway = Payments\Registry::get( (string) $order->payment_provider );
+		if ( ! $gateway || 'manual' === $gateway->id() ) { return $back; }
+		$payment = $gateway->create_payment( (array) $order, array_map( static function ( $item ) { return (array) $item; }, Orders::items_for_order( (int) $order->order_id ) ) );
+		if ( is_wp_error( $payment ) || empty( $payment['redirect_url'] ) || ! preg_match( '#^https://#i', (string) $payment['redirect_url'] ) ) { return $back; }
+		if ( ! empty( $payment['provider_reference'] ) ) { Orders::set_provider_reference( (int) $order->order_id, $payment['provider_reference'] ); }
+		return (string) $payment['redirect_url'];
+	}
+
+	/** Result page body (without page frame): answer and payment status of the order. */
+	public static function result_html( $waitlist_id, $key ) {
+		$found = self::result_row( $waitlist_id, $key );
+		if ( ! $found ) {
+			return '<h1>' . esc_html__( 'Wartelistenangebot', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'pass-captain' ) . '</p>';
+		}
+		list( $row, $order ) = $found;
+		if ( 'declined' === $row->status ) {
+			return '<h1>' . esc_html__( 'Angebot abgelehnt', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p>';
+		}
+		$out = '<h1>' . esc_html__( 'Angebot angenommen', 'pass-captain' ) . '</h1>';
+		/* translators: %s: short order number */
+		$out .= '<p>' . esc_html( sprintf( __( 'Bestellnummer: %s', 'pass-captain' ), Frontend\Format::order_reference( $order->public_id ) ) ) . '</p>';
+		if ( 'paid' === $order->payment_status ) {
+			return $out . '<p>' . esc_html__( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'pass-captain' ) . '</p>';
+		}
+		$until = Orders::hold_end( (int) $order->order_id );
+		if ( 'pending' !== $order->payment_status || ! $until ) {
+			return $out . '<p>' . esc_html__( 'Die Reservierung ist abgelaufen, ohne dass eine Zahlung eingegangen ist. Die Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p>';
+		}
+		/* translators: %s: date and time the reservation ends */
+		$out .= '<p>' . esc_html( sprintf( __( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung (bis %s). Den Link zu deiner Bestellung haben wir dir per E-Mail gesendet.', 'pass-captain' ), wp_date( 'd.m.Y H:i T', $until ) ) ) . '</p>';
+		if ( Payments\BankTransfer::applies( $order ) ) {
+			$bank = Payments\BankTransfer::details( $order );
+			if ( ! empty( $bank['transfer'] ) ) {
+				$out .= '<dl>';
+				foreach ( array( 'amount' => __( 'Betrag', 'pass-captain' ), 'recipient' => __( 'Empfänger', 'pass-captain' ), 'iban' => 'IBAN', 'bic' => 'BIC', 'remittance' => __( 'Verwendungszweck', 'pass-captain' ), 'due_date' => __( 'Zahlbar bis', 'pass-captain' ) ) as $field => $label ) {
+					if ( '' !== (string) ( $bank[ $field ] ?? '' ) ) { $out .= '<dt>' . esc_html( $label ) . '</dt><dd>' . esc_html( (string) $bank[ $field ] ) . '</dd>'; }
+				}
+				$out .= '</dl>';
+			} elseif ( '' !== (string) ( $bank['instructions'] ?? '' ) ) {
+				$out .= '<p>' . esc_html( (string) $bank['instructions'] ) . '</p>';
+			}
+			return $out;
+		}
+		$out .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-offer-form">';
+		$out .= wp_nonce_field( 'wpcap_accept_waitlist_' . absint( $waitlist_id ), '_wpnonce', true, false );
+		$out .= '<input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) absint( $waitlist_id ) ) . '"><input type="hidden" name="wl" value="' . esc_attr( $key ) . '">';
+		$out .= '<p><button type="submit" name="decision" value="pay">' . esc_html__( 'Jetzt bezahlen', 'pass-captain' ) . '</button></p></form>';
+		return $out . self::submit_once_script();
+	}
+
+	/** template_redirect: ?wpcap_waitlist_result=<id>&wl=<key>. */
+	public static function maybe_render_result_page() {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- capability link (result key).
+		$waitlist_id = absint( $_GET['wpcap_waitlist_result'] ?? 0 );
+		$key = sanitize_text_field( wp_unslash( (string) ( $_GET['wl'] ?? '' ) ) );
+		// phpcs:enable
+		if ( ! $waitlist_id ) { return; }
+		PageCache::no_store( 'waitlist_result' );
+		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		/* translators: %s: site name */
+		self::page_head( sprintf( __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) );
+		echo self::result_html( $waitlist_id, $key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in result_html().
+		echo '</main></body></html>';
+		exit;
+	}
+
+	/**
+	 * Locks the offer form after the first submit (A317): a double click or Enter sends one answer.
+	 * The clicked decision travels in a hidden field, because disabled buttons are not submitted.
+	 */
+	private static function submit_once_script() {
+		return '<script>document.querySelectorAll(".wpcap-offer-form").forEach(function(f){f.addEventListener("submit",function(e){if(f.dataset.sent){e.preventDefault();return;}f.dataset.sent="1";var b=e.submitter;if(b&&b.name){var h=document.createElement("input");h.type="hidden";h.name=b.name;h.value=b.value;f.appendChild(h);}setTimeout(function(){f.querySelectorAll("button").forEach(function(x){x.disabled=true;});},0);});});</script>';
+	}
+
+	/** 303 to $url and stop; external (payment provider) URLs via wp_redirect. */
+	private static function redirect( $url, $external = false ) {
+		nocache_headers();
+		if ( $external ) {
+			wp_redirect( $url, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- payment page URL from the gateway.
+		} else {
+			wp_safe_redirect( $url, 303 );
+		}
 		exit;
 	}
 }

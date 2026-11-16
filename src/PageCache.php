@@ -47,6 +47,7 @@ final class PageCache {
 		'wpcap_order' => 'portal',
 		'wpcap_waitlist_accept' => 'waitlist_offer',
 		'wpcap_waitlist_unsubscribe' => 'waitlist_unsubscribe',
+		'wpcap_waitlist_result' => 'waitlist_result',
 		'wpcap_invoice' => 'invoice',
 		'wpcap_invoice_pdf' => 'invoice_pdf',
 		'wpcap_payment' => 'payment_return',

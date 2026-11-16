@@ -91,6 +91,18 @@ Verkauf sind.
      Zahlungsbestätigung (`wpcap_order_paid`) wird der Eintrag `paid`.
 7. **Ablehnung** – der Eintrag wird `declined`, die Platzhalter-Bestellung storniert; die Plätze gehen
    an den nächsten Eintrag.
+   - **Ergebnisseite, Doppelklick, Neuladen (A317)**: Annehmen und Ablehnen antworten mit
+     Post/Redirect/Get. Nach einer Annahme mit Stripe/PayPal/Mollie geht es direkt zur Zahlungsseite,
+     sonst (Überweisung, kostenlos, Ablehnung) auf die Ergebnisseite
+     `/?wpcap_waitlist_result={id}&wl={Schlüssel}` (Schlüssel: HMAC aus Eintrag und Bestellung mit dem
+     WordPress-Salt, ohne personenbezogene Daten). Sie zeigt Ablehnung bzw. Annahme mit Bestellnummer und
+     Zahlungsstand: abgeschlossen, wartet auf Zahlung (mit Reservierungsende und Bankdaten bzw. *Jetzt
+     bezahlen*, das die offene Zahlungssitzung derselben Bestellung fortsetzt) oder Reservierung abgelaufen.
+     Das Formular sperrt sich nach dem ersten Absenden; kommt trotzdem ein zweites Absenden an oder wird
+     der Mail-Link nach der Antwort erneut geöffnet, erkennt das Plugin den Angebots-Token (Transient
+     `wpcap_wl_answered_{id}`, 30 Tage) und leitet auf dieselbe Ergebnisseite statt „Angebot nicht
+     verfügbar“. Eingabefehler (Pflichtfeld, Bedingungen) zeigen weiter „Bitte Angaben prüfen“ mit Link
+     zurück zum Angebot.
 8. **Ablauf** – läuft die Reservierung eines offenen oder angenommenen, unbezahlten Angebots ab, setzt
    der Kern-Cleanup die Bestellung auf `expired`; der Eintrag wird `expired` und die Plätze werden
    erneut angeboten. Die Warteliste prüft abgelaufene Angebote zusätzlich selbst (5-Minuten-Job und
