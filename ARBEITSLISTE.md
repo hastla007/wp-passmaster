@@ -1137,7 +1137,7 @@ Gesamt: 262 Aufgaben.
   - src/Partners/Settlements.php:196–200: Momentaufnahme je Verkauf oder Versionierung ab Datum
 - [ ] **A524** [OPTIMIERUNG] Mitgliedspass-Laufzeit endet bei reinem Datum um 00:00 UTC; uses_per_day=0 unmöglich — _R3 Eigen (Deep Dive 2)_ (TODO L876; Audit Runde 4)
   - src/Memberships.php:28, :50: Tagesende in Event-/Site-Zone, 0 = unbegrenzt
-- [ ] **A525** [OPTIMIERUNG] Warteschlange verschobener Kassen-Stornos als Option ohne Sperre (PLAUSIBEL) — _R3 Eigen (Deep Dive 2)_ (TODO L877; Audit Runde 4)
+- [x] **A525** [OPTIMIERUNG] Warteschlange verschobener Kassen-Stornos als Option ohne Sperre (PLAUSIBEL) — _R3 Eigen (Deep Dive 2)_ (TODO L877; Audit Runde 4)
   - src/BoxOffice/Shifts.php:693: Eigene Tabelle/Spalte deferred
 - [ ] **A526** [OPTIMIERUNG] Fehlend: anteilige Erstattung von Pässen nach Teilnutzung — _R3 Eigen (Deep Dive 2)_ (TODO L878; Audit Runde 4)
   - src/Refunds.php:78–93: Anteiligen Betrag vorschlagen

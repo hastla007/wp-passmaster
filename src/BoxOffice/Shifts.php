@@ -823,14 +823,41 @@ final class Shifts {
 	/** Option holding refund IDs of POS sales whose storno still has to be booked into a shift. */
 	const DEFERRED_OPTION = 'wpcap_pos_deferred_refunds';
 
+	/** DB lock name of the deferred queue (A525: read-modify-write of the option across requests). */
+	const DEFERRED_LOCK = 'pos_deferred_refunds';
+
+	/** Runs $change( array $queue ): array under the queue lock; false when the lock could not be taken. */
+	private static function change_deferred( callable $change ) {
+		if ( ! \PassCaptain\DbLock::acquire( self::DEFERRED_LOCK, 5 ) ) { return false; }
+		try {
+			if ( function_exists( 'wp_cache_delete' ) ) {
+				// Read the option fresh from the database (another request may have changed it).
+				wp_cache_delete( self::DEFERRED_OPTION, 'options' );
+				wp_cache_delete( 'alloptions', 'options' );
+			}
+			$queue = array_values( array_unique( array_map( 'intval', (array) get_option( self::DEFERRED_OPTION, array() ) ) ) );
+			$next = array_values( array_unique( array_map( 'intval', (array) $change( $queue ) ) ) );
+			if ( $next !== $queue ) { update_option( self::DEFERRED_OPTION, $next, false ); }
+			return $next;
+		} finally {
+			\PassCaptain\DbLock::release( self::DEFERRED_LOCK );
+		}
+	}
+
 	/** Queues a refund for booking into the next opened shift. */
 	public static function defer_refund( $refund_id ) {
-		$queue = array_map( 'intval', (array) get_option( self::DEFERRED_OPTION, array() ) );
-		if ( ! in_array( (int) $refund_id, $queue, true ) ) {
-			$queue[] = (int) $refund_id;
-			update_option( self::DEFERRED_OPTION, $queue, false );
-			Audit::record( 'pos_refund_deferred', 'refund', (int) $refund_id, array() );
+		$added = false;
+		$result = self::change_deferred( static function ( array $queue ) use ( $refund_id, &$added ) {
+			if ( ! in_array( (int) $refund_id, $queue, true ) ) { $queue[] = (int) $refund_id; $added = true; }
+			return $queue;
+		} );
+		if ( false === $result ) {
+			// Lock not available: never lose a storno; the queue is retried by the next defer/booking.
+			\PassCaptain\Log::write( 'error', 'pos_refund_defer_busy', 'Deferred POS refund queue busy', array( 'refund_id' => (int) $refund_id ) );
+			return false;
 		}
+		if ( $added ) { Audit::record( 'pos_refund_deferred', 'refund', (int) $refund_id, array() ); }
+		return true;
 	}
 
 	/**
@@ -842,14 +869,24 @@ final class Shifts {
 		if ( ! $queue ) { return 0; }
 		$shift = self::get( $shift_id );
 		if ( ! $shift || 'open' !== $shift->status ) { return 0; }
+		// A525: one booking run at a time; two shifts opened in parallel never book the same storno twice.
+		if ( ! \PassCaptain\DbLock::acquire( self::DEFERRED_LOCK . '_run', 0 ) ) { return 0; }
 		$booked = 0;
-		foreach ( $queue as $refund_id ) {
-			// Taken off the queue first; book_refund() queues it again if it still cannot be booked
-			// (e.g. other currency). Refunds that are no POS sale (anymore) simply drop out.
-			$current = array_map( 'intval', (array) get_option( self::DEFERRED_OPTION, array() ) );
-			update_option( self::DEFERRED_OPTION, array_values( array_diff( $current, array( $refund_id ) ) ), false );
-			$movement = self::book_refund( $refund_id, false, $shift );
-			if ( $movement && ! is_wp_error( $movement ) ) { ++$booked; }
+		try {
+			foreach ( $queue as $refund_id ) {
+				// Taken off the queue first (under the queue lock); book_refund() queues it again if it still cannot
+				// be booked (e.g. other currency). Refunds that are no POS sale (anymore) simply drop out.
+				$taken = false;
+				$result = self::change_deferred( static function ( array $current ) use ( $refund_id, &$taken ) {
+					$taken = in_array( (int) $refund_id, $current, true );
+					return array_diff( $current, array( (int) $refund_id ) );
+				} );
+				if ( false === $result || ! $taken ) { continue; }
+				$movement = self::book_refund( $refund_id, false, $shift );
+				if ( $movement && ! is_wp_error( $movement ) ) { ++$booked; }
+			}
+		} finally {
+			\PassCaptain\DbLock::release( self::DEFERRED_LOCK . '_run' );
 		}
 		return $booked;
 	}
