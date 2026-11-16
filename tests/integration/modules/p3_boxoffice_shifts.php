@@ -201,14 +201,14 @@ $as( 509, $cashier );
 $no_shift_storno = Pos::storno( $sale_r2->sale_id, 'nach Abschluss' );
 $refunds_before = count( Refunds::for_order( $sale_r2->order_id ) );
 $no_shift_refund = Refunds::request( (int) $sale_r2->order_id, array(), 'Rückgabe', 'p3-noshift-' . uniqid() );
-$failed_refund = Refunds::for_order( $sale_r2->order_id );
-check( 'storno/refund of a cash sale needs an open shift (storno refused upfront, refund fails retryably)', is_wp_error( $no_shift_storno ) && 'wpcap_pos_no_shift' === $no_shift_storno->get_error_code() && 0 === $refunds_before && is_wp_error( $no_shift_refund ) && 'wpcap_pos_no_shift' === $no_shift_refund->get_error_code() && 'failed' === end( $failed_refund )['status'] && 1 === count( tickets( $sale_r2->order_id, 'valid' ) ) );
+$open_payout = is_wp_error( $no_shift_refund ) ? null : Shifts::payout_for_refund( (int) $no_shift_refund['refund_id'] );
+// A488: a refund from the back office is no payout at a till – it waits as an open payout instead of
+// failing or landing in a foreign shift; the cashier who pays it out books it into the own shift.
+check( 'cash storno needs an open shift; a back-office refund without shift becomes an open payout (A488)', is_wp_error( $no_shift_storno ) && 'wpcap_pos_no_shift' === $no_shift_storno->get_error_code() && 0 === $refunds_before && ! is_wp_error( $no_shift_refund ) && 'completed' === $no_shift_refund['status'] && $open_payout && 'open' === $open_payout->status && 1190 === (int) $open_payout->amount_minor && 0 === count( tickets( $sale_r2->order_id, 'valid' ) ) && null === $wpdb->get_row( "SELECT movement_id FROM {$p}wpcap_boxoffice_movements WHERE refund_id=" . (int) $no_shift_refund['refund_id'] ) );
 $as( 505, $cashier );
 $s_r2b = Shifts::open( $r2->register_id, array( 'float_minor' => 2000 ) );
-$as( 509, $cashier );
-$retried = Refunds::execute( (int) end( $failed_refund )['refund_id'] );
-$retry_mv = $wpdb->get_row( "SELECT * FROM {$p}wpcap_boxoffice_movements WHERE refund_id=" . (int) end( $failed_refund )['refund_id'] );
-check( 'once a shift is open on the register the refund is executed and booked there', 'completed' === ( $retried['status'] ?? '' ) && $retry_mv && (int) $s_r2b->session_id === (int) $retry_mv->shift_id && -1190 === (int) $retry_mv->amount_minor && 'voided' === Pos::sale( $sale_r2->sale_id )->status && (string) $retry_mv->receipt_number === (string) Pos::sale( $sale_r2->sale_id )->storno_receipt_number );
+$retry_mv = Shifts::pay_out( (int) $open_payout->payout_id, (int) $s_r2b->session_id );
+check( 'the cashier pays the open payout out: booked into the own open shift', ! is_wp_error( $retry_mv ) && (int) $s_r2b->session_id === (int) $retry_mv->shift_id && -1190 === (int) $retry_mv->amount_minor && 'voided' === Pos::sale( $sale_r2->sale_id )->status && '' !== (string) $retry_mv->receipt_number && 'paid' === Shifts::payout( $open_payout->payout_id )->status );
 
 echo "Box office shifts: partial storno\n";
 $as( 503, $cashier );

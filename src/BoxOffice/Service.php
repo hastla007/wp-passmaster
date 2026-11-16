@@ -375,7 +375,22 @@ final class Service {
 		$order_id = (int) $order['order_id'];
 		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'order_id' => $order_id ), array( 'sale_id' => $sale_id ) );
 
-		// 3. Payment confirmation and issuance, then booking.
+		// 3. A489: the shift must still be open (not counting/closed) right before the payment is
+		// confirmed and the tickets are issued – checked under the shift lock that counting and closing
+		// take, too. A count/close that comes later sees this pending sale as "in progress" and waits.
+		$wpdb->query( 'START TRANSACTION' );
+		$locked_shift = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", (int) $session->session_id ) );
+		$locked_sale = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale_id ) );
+		if ( ! $locked_shift || 'open' !== $locked_shift->status || ! $locked_sale || 'pending' !== $locked_sale->status ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_boxoffice_sales SET status='failed' WHERE sale_id=%d AND status='pending'", $sale_id ) );
+			$wpdb->query( 'COMMIT' );
+			Orders::cancel_order( $order_id, 'pos_session_closed', array( 'pending' ) );
+			Audit::record( 'pos_sale_failed', 'order', $order_id, array( 'sale_id' => $sale_id, 'reason' => 'session_not_open' ) );
+			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassenschicht wird gerade gezählt oder wurde geschlossen. Der Verkauf wurde nicht gebucht; es wurden keine Tickets ausgestellt.', 'pass-captain' ), 409 );
+		}
+		$wpdb->query( 'COMMIT' );
+
+		// 4. Payment confirmation and issuance, then booking.
 		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
 		$confirmed = Orders::confirm_external_payment( $order_id, 'pos:' . $method . ( '' !== $reference ? ':' . $reference : '' ) );
 		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
@@ -565,12 +580,14 @@ final class Service {
 		$key = $partial ? 'pos-storno-' . (int) $sale->sale_id . '-t' . substr( md5( implode( ',', $targets ) ), 0, 12 ) . '-' . (int) $sale->storno_attempt : self::storno_key( $sale->sale_id, (int) $sale->storno_attempt );
 		$text = 'POS-Storno ' . $sale->receipt_number . ( '' !== (string) $reason ? ': ' . $reason : '' ) . ( $checked_in ? ' [' . __( 'eingecheckt, Ausnahme:', 'pass-captain' ) . ' ' . $override_reason . ']' : '' );
 		Shifts::$storno_override = $checked_in ? $override_reason : '';
+		Shifts::$at_till = true;
 		// The box office checked its own exception (reason + capability) above.
 		$refund = Refunds::request( (int) $sale->order_id, $partial ? $targets : array(), $text, $key, $checked_in ? array( 'allow_used' => true ) : array() );
 		if ( ! is_wp_error( $refund ) && 'completed' === $refund['status'] ) {
 			self::on_refund_completed( (int) $refund['refund_id'], (int) $sale->order_id );
 		}
 		Shifts::$storno_override = '';
+		Shifts::$at_till = false;
 		if ( is_wp_error( $refund ) ) { return $refund; }
 		if ( $checked_in ) {
 			Audit::record( 'pos_storno_override', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'ticket_ids' => $checked_in, 'reason' => $override_reason, 'refund_id' => (int) $refund['refund_id'] ) );
@@ -640,7 +657,8 @@ final class Service {
 		$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_boxoffice_sales WHERE order_id=%d", (int) $refund['order_id'] ) );
 		if ( ! $sale || ! self::is_booked( $sale ) ) { return; }
 		$movement = Shifts::book_refund( (int) $refund['refund_id'], false );
-		$movement = is_wp_error( $movement ) ? null : $movement;
+		// An open payout (A488) has no movement (and no payout receipt) yet.
+		$movement = is_wp_error( $movement ) || ! isset( $movement->movement_id ) ? null : $movement;
 		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", (int) $refund['order_id'] ) );
 		if ( $remaining > 0 ) { return; }
 		$wpdb->query( 'START TRANSACTION' );

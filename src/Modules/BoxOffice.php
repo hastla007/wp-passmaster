@@ -53,7 +53,9 @@ final class BoxOffice {
 			$ids = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT session_id FROM {$p}wpcap_boxoffice_sessions WHERE status<>'open' AND closed_at IS NOT NULL AND closed_at<%s LIMIT 200", $cutoff ) ) );
 			if ( ! $ids ) { break; }
 			$list = implode( ',', $ids );
-			foreach ( array( 'zreports' => 'shift_id', 'counts' => 'shift_id', 'movements' => 'shift_id', 'shift_cashiers' => 'shift_id', 'handovers' => 'from_shift_id', 'sales' => 'session_id' ) as $table => $column ) {
+			$tables = array( 'zreports' => 'shift_id', 'counts' => 'shift_id', 'movements' => 'shift_id', 'shift_cashiers' => 'shift_id', 'handovers' => 'from_shift_id', 'sales' => 'session_id' );
+			if ( \PassCaptain\BoxOffice\Shifts::payouts_ready() ) { $tables['payouts'] = 'shift_id'; } // Paid payouts (A488).
+			foreach ( $tables as $table => $column ) {
 				$wpdb->query( "DELETE FROM {$p}wpcap_boxoffice_{$table} WHERE {$column} IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ints, fixed names.
 			}
 			$done += (int) $wpdb->query( "DELETE FROM {$p}wpcap_boxoffice_sessions WHERE session_id IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -203,6 +205,27 @@ final class BoxOffice {
 				KEY shift_kind (shift_id,kind),
 				KEY sale_id (sale_id)
 			) ENGINE=InnoDB $charset;",
+			// A488: refunds of cash/card sales from the back office, paid out later at a till.
+			"CREATE TABLE {$prefix}wpcap_boxoffice_payouts (
+				payout_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				refund_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NOT NULL,
+				sale_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				register_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL DEFAULT 'EUR',
+				method varchar(20) NOT NULL DEFAULT 'cash',
+				amount_minor bigint(20) NOT NULL DEFAULT 0,
+				status varchar(20) NOT NULL DEFAULT 'open',
+				shift_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				movement_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				paid_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				paid_at datetime NULL,
+				PRIMARY KEY  (payout_id),
+				UNIQUE KEY refund_id (refund_id),
+				KEY status (status,currency)
+			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$prefix}wpcap_boxoffice_handovers (
 				handover_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				register_id bigint(20) unsigned NOT NULL,
@@ -317,6 +340,7 @@ final class BoxOffice {
 			'wpcap_pos_zreport'      => array( ShiftPage::class, 'handle_zreport' ),
 			'wpcap_pos_zreport_csv'  => array( ShiftPage::class, 'handle_zreport_csv' ),
 			'wpcap_pos_payout_receipt' => array( ShiftPage::class, 'handle_payout_receipt' ),
+			'wpcap_pos_pay_out'      => array( ShiftPage::class, 'handle_pay_out' ),
 			'wpcap_pos_receipt'      => array( Page::class, 'handle_receipt' ),
 			'wpcap_pos_tickets'      => array( Page::class, 'handle_tickets' ),
 			'wpcap_pos_availability' => array( Page::class, 'handle_availability' ),

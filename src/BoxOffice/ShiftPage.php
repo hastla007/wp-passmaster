@@ -192,6 +192,24 @@ final class ShiftPage {
 			echo '</label> <label>' . esc_html__( 'Betrag', 'pass-captain' ) . ' <input type="text" inputmode="decimal" name="amount" size="8" required></label> <label>' . esc_html__( 'Grund', 'pass-captain' ) . ' <input type="text" name="reason" size="30" maxlength="255" required></label> <button class="button">' . esc_html__( 'Buchen', 'pass-captain' ) . '</button></p></form>';
 		}
 
+		// A488: refunds from the back office that wait for the payout at a till.
+		$payouts = Shifts::open_payouts( $cur );
+		if ( $payouts ) {
+			echo '<h3>' . esc_html__( 'Offene Kassen-Rückzahlungen', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Erstattungen aus der Verwaltung (Bestellung, Freigabe, Absage), die noch nicht an der Kasse ausgezahlt wurden. Erst „Auszahlen“ bucht sie in diese Schicht.', 'pass-captain' ) . '</p>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Beleg', 'pass-captain' ) . '</th><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Betrag', 'pass-captain' ) . '</th><th>' . esc_html__( 'Erstattet am', 'pass-captain' ) . '</th><th></th></tr></thead><tbody>';
+			foreach ( $payouts as $payout ) {
+				echo '<tr><td>' . esc_html( (string) $payout->receipt_number ) . '</td><td>' . esc_html( Service::method_label( $payout->method ) ) . '</td><td>' . esc_html( Scope::money( (int) $payout->amount_minor, $payout->currency ) ) . '</td><td>' . esc_html( Scope::local( $payout->created_at, $tz ) ) . '</td><td>';
+				if ( $can && 'open' === $shift->status ) {
+					Forms::open_form( 'wpcap_pos_pay_out', 'wpcap_pos_pay_out_' . (int) $payout->payout_id );
+					Forms::hidden( 'shift_id', (int) $shift->session_id );
+					Forms::hidden( 'payout_id', (int) $payout->payout_id );
+					echo '<button class="button">' . esc_html__( 'Auszahlen', 'pass-captain' ) . '</button></form>';
+				}
+				echo '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+
 		// Count and close.
 		echo '<h3>' . esc_html__( 'Kassenabschluss', 'pass-captain' ) . '</h3>';
 		$count = $view['count'];
@@ -243,6 +261,13 @@ final class ShiftPage {
 		$shift_id = Forms::int( $in, 'shift_id' );
 		Forms::verify( 'wpcap_pos_cashier_' . $shift_id );
 		Forms::finish( Shifts::add_cashier( $shift_id, Forms::int( $in, 'user_id' ) ), __( 'Kassierer hinzugefügt.', 'pass-captain' ), self::url( 'shift' ) );
+	}
+
+	public static function handle_pay_out() {
+		Forms::require_any_cap( array( Service::CAP ) );
+		$in = Forms::post();
+		Forms::verify( 'wpcap_pos_pay_out_' . Forms::int( $in, 'payout_id' ) );
+		Forms::finish( Shifts::pay_out( Forms::int( $in, 'payout_id' ), Forms::int( $in, 'shift_id' ) ), __( 'Auszahlung gebucht.', 'pass-captain' ), self::url( 'shift' ) );
 	}
 
 	public static function handle_movement() {

@@ -706,7 +706,23 @@ Offene Stornos, die auf Freigabe warten, und bezahlte, noch nicht gebuchte Verk�
 **Storno und Erstattung von Kassenverkäufen**:
 
 - Storno ist auch nach dem Schichtabschluss möglich (Belegsuche auf dem Reiter „Verkauf“), ganz oder für einzelne Tickets. Die Auszahlung wird mit eigenem Stornobeleg (Belegnummernkreis der Kasse) als negative Buchung in die Schicht des Verkaufs gebucht, solange sie offen ist, sonst in die offene Schicht der handelnden Person oder der Kasse des Verkaufs.
-- Bar- und Kartenauszahlungen brauchen eine offene Schicht. Das gilt auch für Erstattungen über die Bestellung oder automatische Erstattungen (z. B. Terminabsage): Ohne offene Schicht schlägt die Erstattung fehl und kann nach dem Öffnen einer Schicht erneut ausgeführt werden. Freikarten- und Rechnungs-Erstattungen werden gebucht, wenn eine Schicht offen ist.
+- Bar- und Kartenauszahlungen an der Kasse (Storno) brauchen eine offene Schicht der handelnden Person.
+- **Erstattungen aus der Verwaltung** (Bestellung, Freigabe einer Erstattung, automatische Erstattung bei
+  Terminabsage) bewegen an keiner Kasse Geld (A488). Hat die handelnde Person selbst eine offene
+  Schicht, wird die Auszahlung dort gebucht; sonst wird sie als **offene Kassen-Rückzahlung** vorgemerkt
+  (Tabelle `wpcap_boxoffice_payouts`, Schema 3.10.18, Audit `pos_payout_open`) – nie in die Schicht
+  einer anderen Kassierkraft. Die Erstattung selbst ist abgeschlossen (Tickets widerrufen, Plätze frei).
+  Auf dem Reiter „Schicht“ listet „Offene Kassen-Rückzahlungen“ diese Beträge; „Auszahlen“ bucht sie
+  mit Auszahlungsbeleg in die eigene offene Schicht (nur Kassierkräfte der Schicht, je Erstattung
+  einmal, Audit `pos_payout_paid`). Freikarten- und Rechnungs-Erstattungen werden wie bisher in die
+  nächste offene Schicht gebucht.
+- **Zählen/Abschließen während eines Verkaufs** (A489): Ein Verkauf prüft unter der Schichtsperre,
+  dass die Schicht noch offen ist, bevor die Zahlung bestätigt und Tickets ausgestellt werden; sonst
+  wird die Bestellung ohne Tickets storniert. Solange ein Verkauf der Schicht noch gebucht wird
+  (höchstens 2 Minuten, Zahlung noch nicht bestätigt), lehnen Zählung und Abschluss mit
+  `wpcap_pos_sale_in_progress` ab. Beim Abschluss werden unvollständige Verkäufe als fehlgeschlagen
+  markiert und ihre unbestätigten Bestellungen storniert – kein Ticket bleibt ohne Beleg und
+  Z-Bericht.
 - Eingecheckte Tickets werden an der Kasse nur mit der Berechtigung `wpcap_boxoffice_override` (oder als Administrator) und Angabe eines Grunds storniert; der Grund steht auf der Buchung, im Stornobeleg und im Audit-Log (`pos_storno_override`).
 
 **Aktualisierung bestehender Installationen**: Kassensitzungen aus früheren Versionen werden einmalig der Standardkasse „Hauptkasse“ zugeordnet (Option `wpcap_boxoffice_migration` = 2). Abgeschlossene Sitzungen erhalten in der Reihenfolge ihres Abschlusses je einen Z-Bericht (Herkunft „übernommen“, Werte aus der gespeicherten Sitzung, Grand Total läuft weiter). Offene Sitzungen laufen als Schicht weiter; gab es mehrere, erhält jede weitere eine eigene Kasse „Kasse n (übernommen)“. Verkäufe und Sitzungsdaten bleiben unverändert.

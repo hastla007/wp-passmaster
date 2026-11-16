@@ -24,6 +24,7 @@ namespace PassCaptain\BoxOffice;
 
 use PassCaptain\Audit;
 use PassCaptain\Invoices;
+use PassCaptain\Orders;
 use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -34,9 +35,14 @@ final class Shifts {
 	/** Users with this capability see expected amounts of blind counts and all Z reports. */
 	const FINANCE_CAP = 'wpcap_view_finance';
 	const ACTIVE = array( 'open', 'counting' );
+	/** A pending sale younger than this (seconds) whose order is not confirmed yet is still being processed (A489). */
+	const SALE_IN_FLIGHT_SECONDS = 120;
 
 	/** Override reason of a POS storno in progress (set by Service::storno for the payout movement). */
 	public static $storno_override = '';
+
+	/** True while a cashier stornos a sale at the till (Service::storno): the payout happens right now. */
+	public static $at_till = false;
 
 	private static function t( $name ) {
 		global $wpdb;
@@ -280,6 +286,21 @@ final class Shifts {
 		return max( $full, $partial );
 	}
 
+	/**
+	 * Pending sales of the shift that are still being processed (A489): sale row younger than
+	 * SALE_IN_FLIGHT_SECONDS whose order does not exist yet or is not confirmed. Counting or closing
+	 * now would leave their tickets without receipt and Z report. Run it after taking the shift lock.
+	 */
+	public static function sales_in_flight( $shift_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales s LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' AND (ord.order_id IS NULL OR ord.payment_status='pending') AND s.created_at>%s", absint( $shift_id ), gmdate( 'Y-m-d H:i:s', strtotime( self::now() . ' UTC' ) - self::SALE_IN_FLIGHT_SECONDS ) ) );
+	}
+
+	private static function in_flight_error() {
+		return self::error( 'wpcap_pos_sale_in_progress', __( 'Ein Verkauf dieser Schicht wird gerade gebucht. Bitte einen Moment warten und dann erneut zählen bzw. abschließen.', 'pass-captain' ), 409 );
+	}
+
 	/** Checks that block counting/closing: pending stornos, paid but unbooked sales. */
 	public static function close_blockers( $shift ) {
 		global $wpdb;
@@ -322,6 +343,7 @@ final class Shifts {
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}sessions WHERE session_id=%d FOR UPDATE", $shift->session_id ) );
 		if ( ! $locked || ! in_array( $locked->status, self::ACTIVE, true ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 ); }
+		if ( 'open' === $locked->status && self::sales_in_flight( $shift->session_id ) ) { $wpdb->query( 'ROLLBACK' ); return self::in_flight_error(); }
 		// Blind count: one count by the cashiers; a recount only by a register manager / finance.
 		if ( $blind && 'counting' === $locked->status ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -409,13 +431,14 @@ final class Shifts {
 			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 );
 		}
 		$count = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}counts WHERE shift_id=%d AND kind='closing' ORDER BY count_id DESC LIMIT 1", $shift->session_id ) );
-		$unfinished = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id,ord.payment_status FROM {$p}sales s LEFT JOIN {$wp}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' FOR UPDATE", $shift->session_id ) );
+		$unfinished = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id,s.order_id,ord.payment_status FROM {$p}sales s LEFT JOIN {$wp}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' FOR UPDATE", $shift->session_id ) );
 		foreach ( $unfinished as $row ) {
 			if ( 'paid' === $row->payment_status ) {
 				$wpdb->query( 'ROLLBACK' );
 				return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'pass-captain' ), 409 );
 			}
 		}
+		if ( self::sales_in_flight( $shift->session_id ) ) { $wpdb->query( 'ROLLBACK' ); return self::in_flight_error(); }
 		foreach ( $unfinished as $row ) {
 			$wpdb->update( "{$p}sales", array( 'status' => 'failed' ), array( 'sale_id' => (int) $row->sale_id, 'status' => 'pending' ) );
 		}
@@ -479,6 +502,11 @@ final class Shifts {
 			if ( ! $handover_id ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_handover', __( 'Die Übergabe konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		}
 		$wpdb->query( 'COMMIT' );
+		// A489: unfinished sales were marked failed above; their unconfirmed orders are cancelled, so no
+		// ticket of this shift can be issued without receipt and Z report any more.
+		foreach ( $unfinished as $row ) {
+			if ( (int) $row->order_id && 'pending' === (string) $row->payment_status ) { Orders::cancel_order( (int) $row->order_id, 'pos_session_closed', array( 'pending' ) ); }
+		}
 		$z = ZReport::get( $z_id );
 		Audit::record( 'pos_session_closed', 'pos_session', (int) $locked->session_id, array( 'z_id' => $z_id, 'z_number' => (int) $z->z_number, 'register_id' => (int) $register->register_id, 'expected_cash_minor' => $totals['cash']['expected'], 'counted_minor' => (int) $count->cash_minor, 'difference_minor' => $cash_diff, 'card_difference_minor' => $card_diff, 'reason' => $reason, 'failed_unfinished' => count( $unfinished ) ) );
 		if ( $handover_id ) {
@@ -651,7 +679,20 @@ final class Shifts {
 		if ( $existing ) { return $existing; }
 		$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'sales' ) . ' WHERE order_id=%d', (int) $refund['order_id'] ) );
 		if ( ! $sale || ! Service::is_booked( $sale ) ) { return null; }
-		$target = $shift && 'open' === $shift->status && $shift->currency === $sale->currency ? $shift : self::target_shift_for_sale( $sale );
+		if ( $shift && 'open' === $shift->status && $shift->currency === $sale->currency ) {
+			$target = $shift;
+		} elseif ( self::needs_shift( $sale->payment_method ) && ! self::$at_till && self::payouts_ready() ) {
+			// A488: a refund from the back office (order screen, approval, event cancellation) moves no
+			// money at any till yet. It is booked into the shift of whoever pays it out: the current
+			// user's own open shift, else it waits as an open box office payout (pay_out()).
+			$payout = self::payout_for_refund( (int) $refund['refund_id'] );
+			if ( $payout ) { return $payout; }
+			$mine = self::current_for_user( get_current_user_id(), array( 'open' ) );
+			if ( ! $mine || $mine->currency !== $sale->currency ) { return self::open_payout( $refund, $sale ); }
+			$target = $mine;
+		} else {
+			$target = self::target_shift_for_sale( $sale );
+		}
 		if ( ! $target ) {
 			if ( $require_shift && self::needs_shift( $sale->payment_method ) ) {
 				return self::error( 'wpcap_pos_no_shift', __( 'Für die Auszahlung einer Kassenbestellung (bar oder Karte) muss eine Kassenschicht geöffnet sein. Bitte eine Schicht öffnen und die Erstattung erneut ausführen.', 'pass-captain' ), 409 );
@@ -683,6 +724,81 @@ final class Shifts {
 			self::defer_refund( (int) $refund['refund_id'] );
 			return null;
 		}
+		return $movement;
+	}
+
+	/* ------------------------------------------------------------------ open payouts (A488) */
+
+	/** Whether the payouts table exists (schema 3.10.18; deferred upgrades). */
+	public static function payouts_ready() {
+		global $wpdb;
+		static $ready = array();
+		$table = self::t( 'payouts' );
+		if ( empty( $ready[ $table ] ) ) { $ready[ $table ] = (bool) $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ); }
+		return $ready[ $table ];
+	}
+
+	/**
+	 * Records an open box office payout for a refund of a cash/card sale (idempotent per refund).
+	 *
+	 * @return object|null Payout row (no movement yet).
+	 */
+	public static function open_payout( array $refund, $sale ) {
+		global $wpdb;
+		$table = self::t( 'payouts' );
+		$register_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT register_id FROM ' . self::t( 'sessions' ) . ' WHERE session_id=%d', (int) $sale->session_id ) );
+		$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (refund_id,order_id,sale_id,register_id,currency,method,amount_minor,status,created_by,created_at) VALUES (%d,%d,%d,%d,%s,%s,%d,'open',%d,%s)", (int) $refund['refund_id'], (int) $refund['order_id'], (int) $sale->sale_id, $register_id, $sale->currency, $sale->payment_method, (int) $refund['amount_minor'], get_current_user_id(), self::now() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$payout = self::payout_for_refund( (int) $refund['refund_id'] );
+		if ( $payout && $inserted ) {
+			Audit::record( 'pos_payout_open', 'refund', (int) $refund['refund_id'], array( 'payout_id' => (int) $payout->payout_id, 'order_id' => (int) $refund['order_id'], 'amount_minor' => (int) $refund['amount_minor'], 'method' => $sale->payment_method ) );
+		}
+		return $payout;
+	}
+
+	public static function payout_for_refund( $refund_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'payouts' ) . ' WHERE refund_id=%d', absint( $refund_id ) ) );
+	}
+
+	public static function payout( $payout_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'payouts' ) . ' WHERE payout_id=%d', absint( $payout_id ) ) );
+	}
+
+	/** Open payouts (optionally of one currency), oldest first, with the receipt number of the sale. */
+	public static function open_payouts( $currency = '' ) {
+		global $wpdb;
+		if ( ! self::payouts_ready() ) { return array(); }
+		$where = '' !== $currency ? $wpdb->prepare( ' AND p.currency=%s', $currency ) : '';
+		return (array) $wpdb->get_results( 'SELECT p.*,s.receipt_number FROM ' . self::t( 'payouts' ) . ' p LEFT JOIN ' . self::t( 'sales' ) . " s ON s.sale_id=p.sale_id WHERE p.status='open'{$where} ORDER BY p.payout_id LIMIT 200" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared where clause.
+	}
+
+	/**
+	 * A cashier pays an open payout out at the till (A488): the refund is booked into the cashier's
+	 * open shift (negative movement with payout receipt) and the payout marked paid. The payout is
+	 * claimed first, so two cashiers cannot pay out the same refund.
+	 *
+	 * @return object|\WP_Error Movement row.
+	 */
+	public static function pay_out( $payout_id, $shift_id ) {
+		global $wpdb;
+		$payout = self::payout( $payout_id );
+		$shift = self::get( $shift_id );
+		$table = self::t( 'payouts' );
+		if ( ! $payout ) { return self::error( 'wpcap_pos_payout', __( 'Auszahlung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! $shift || 'open' !== $shift->status ) { return self::error( 'wpcap_pos_no_shift', __( 'Auszahlungen werden in eine offene Schicht gebucht. Bitte zuerst eine Schicht öffnen.', 'pass-captain' ), 409 ); }
+		if ( ! self::is_cashier( $shift, get_current_user_id() ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Kassierkräfte der Schicht können auszahlen.', 'pass-captain' ), 403 ); }
+		if ( ! \PassCaptain\Reports\Scope::can_order( (int) $payout->order_id, Service::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		if ( $payout->currency !== $shift->currency ) { return self::error( 'wpcap_pos_currency', __( 'Die Währung der Auszahlung passt nicht zur Schicht.', 'pass-captain' ) ); }
+		$claimed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='paying',paid_by=%d,paid_at=%s,shift_id=%d WHERE payout_id=%d AND status='open'", get_current_user_id(), self::now(), (int) $shift->session_id, (int) $payout->payout_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		if ( 1 !== (int) $claimed ) { return self::error( 'wpcap_pos_payout_done', __( 'Diese Erstattung wurde bereits ausgezahlt.', 'pass-captain' ), 409 ); }
+		$movement = self::book_refund( (int) $payout->refund_id, true, $shift );
+		if ( ! $movement || is_wp_error( $movement ) || ! isset( $movement->movement_id ) ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='open',paid_by=0,paid_at=NULL,shift_id=0 WHERE payout_id=%d AND status='paying'", (int) $payout->payout_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+			return is_wp_error( $movement ) ? $movement : self::error( 'wpcap_pos_payout', __( 'Die Auszahlung konnte nicht gebucht werden.', 'pass-captain' ), 500 );
+		}
+		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='paid',movement_id=%d WHERE payout_id=%d", (int) $movement->movement_id, (int) $payout->payout_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		Audit::record( 'pos_payout_paid', 'refund', (int) $payout->refund_id, array( 'payout_id' => (int) $payout->payout_id, 'movement_id' => (int) $movement->movement_id, 'shift_id' => (int) $shift->session_id ) );
 		return $movement;
 	}
 
