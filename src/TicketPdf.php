@@ -168,7 +168,7 @@ final class TicketPdf {
 		$dir = TempFiles::private_dir();
 		if ( ! $dir ) { return $out; }
 		$out['dir'] = $dir;
-		$file = $dir . '/tickets-' . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $order->public_id ?? 'order' ) ) . '.pdf';
+		$file = $dir . '/tickets-' . preg_replace( '/[^A-Za-z0-9_-]/', '', Frontend\Format::order_reference( (string) ( $order->public_id ?? 'order' ) ) ) . '.pdf'; // A091: readable order number.
 		$names = self::attendee_names( array_column( $issued, 'ticket_id' ) );
 		$ok = Mail\Mailer::with_locale( $locale, static function () use ( $file, $issued, $names, $locale ) {
 			$tickets = array_map( static function ( $ticket ) use ( $names ) {

@@ -4000,7 +4000,7 @@ final class Orders {
 				return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
 			} );
 			if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
-			$file = $pdf_dir . '/tickets-' . $order->public_id . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf';
+			$file = $pdf_dir . '/tickets-' . Frontend\Format::order_reference( (string) $order->public_id ) . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf'; // A091: readable order number.
 			if ( false === file_put_contents( $file, $bytes ) ) { break; }
 			@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			$out['files'][] = $file;

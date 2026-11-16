@@ -89,7 +89,7 @@ final class TicketAttachment {
 		$budget = \PassCaptain\Orders::attachment_budget( $order );
 		$used = 0;
 		$covered = 0;
-		$public = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $order->public_id ?? 'order' ) );
+		$public = preg_replace( '/[^A-Za-z0-9_-]/', '', \PassCaptain\Frontend\Format::order_reference( (string) ( $order->public_id ?? 'order' ) ) ); // A091: readable order number.
 		foreach ( $chunks as $index => $chunk ) {
 			$part = TicketPdf::mail_attachment( $order, $chunk );
 			$file = (string) ( $part['files'][0] ?? '' );

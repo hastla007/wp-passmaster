@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T18:49:11+00:00\n"
+"POT-Creation-Date: 2026-11-16T19:00:46+00:00\n"
 "PO-Revision-Date: 2026-11-14 17:14+0000\n"
 "Language: en_US\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -412,9 +412,9 @@ msgstr "Name"
 #: src/Mail/Types.php:686
 #: src/OfflineScanner/AdminPage.php:135
 #: src/Partners/AdminPage.php:437
-#: src/Partners/Settlements.php:798
-#: src/Partners/Settlements.php:926
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:804
+#: src/Partners/Settlements.php:932
+#: src/Partners/Settlements.php:942
 #: src/Partners/Statement.php:173
 #: src/Printing/Page.php:174
 #: src/Privacy.php:226
@@ -1338,8 +1338,8 @@ msgstr "Database update failed"
 #: src/Allocations/AdminPage.php:344
 #: src/Consents.php:619
 #: src/Modules/Fiscalization.php:1394
-#: src/Partners/Settlements.php:798
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:804
+#: src/Partners/Settlements.php:942
 #: src/Partners/Statement.php:173
 #: src/Printing/AttendeeList.php:42
 #: src/Printing/NoShowList.php:56
@@ -1402,7 +1402,7 @@ msgstr "Invoice"
 #: src/BoxOffice/ZReport.php:420
 #: src/Modules/Fiscalization.php:1464
 #: src/Partners/Settlements.php:68
-#: src/Partners/Settlements.php:798
+#: src/Partners/Settlements.php:804
 #: src/Partners/Statement.php:174
 msgid "Erstattung"
 msgstr "Refund"
@@ -2411,9 +2411,9 @@ msgstr "Ticket type"
 #: src/Allocations/AdminPage.php:311
 #: src/BoxOffice/ShiftPage.php:180
 #: src/BoxOffice/ShiftPage.php:190
-#: src/Partners/Settlements.php:798
-#: src/Partners/Settlements.php:919
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:804
+#: src/Partners/Settlements.php:925
+#: src/Partners/Settlements.php:942
 #: src/Partners/Statement.php:173
 #: src/Sales/AdminSections.php:175
 #: src/Series/AdminPage.php:580
@@ -2860,8 +2860,8 @@ msgstr "SMS"
 #: src/Admin/Dashboard.php:143
 #: src/Modules/Wallet.php:79
 #: src/WalletPasses/AdminPage.php:163
-#: src/WalletPasses/Service.php:482
-#: src/WalletPasses/Service.php:739
+#: src/WalletPasses/Service.php:504
+#: src/WalletPasses/Service.php:761
 msgid "Wallet"
 msgstr "Wallet"
 
@@ -3727,7 +3727,7 @@ msgstr "Phone"
 #: src/Admin/OrdersPage.php:1195
 #: src/Allocations/AdminPage.php:344
 #: src/Exchange/AdminPage.php:146
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:942
 #: src/Partners/Statement.php:173
 #: src/Series/AdminPage.php:374
 #: src/Series/AdminPage.php:414
@@ -5095,10 +5095,10 @@ msgstr "Hide checklist"
 #: src/GuestLists/Page.php:268
 #: src/GuestLists/Service.php:676
 #: src/OrderPortal.php:169
-#: src/Partners/Settlements.php:798
-#: src/Partners/Settlements.php:919
-#: src/Partners/Settlements.php:926
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:804
+#: src/Partners/Settlements.php:925
+#: src/Partners/Settlements.php:932
+#: src/Partners/Settlements.php:942
 #: src/Partners/Statement.php:173
 #: src/Payments/PayPalGateway.php:824
 #: src/Payments/StripeGateway.php:795
@@ -6152,6 +6152,7 @@ msgstr "Order #%d"
 #: src/Payments/BankTransfer.php:68
 #: src/Payments/StripeGateway.php:225
 #: src/PublicEvents.php:120
+#: src/TicketPage.php:103
 #, php-format
 msgid "Bestellung %s"
 msgstr "Order %s"
@@ -6695,7 +6696,7 @@ msgid "Bestell-ID"
 msgstr "Order ID"
 
 #: src/Admin/OrdersPage.php:663
-#: src/Partners/Settlements.php:798
+#: src/Partners/Settlements.php:804
 msgid "Datum (UTC)"
 msgstr "Date (UTC)"
 
@@ -6952,7 +6953,7 @@ msgid "Der Text dieser Fassung ist nicht archiviert (Bestellung vor dem Archiv, 
 msgstr "The text of this version is not archived (order placed before the archive, schema 3.10.21)."
 
 #: src/Admin/OrdersPage.php:907
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:942
 #: src/Privacy.php:167
 msgid "Positionen"
 msgstr "Line items"
@@ -8049,11 +8050,11 @@ msgstr "Resources are bookable things or people (e.g. rooms, guides, equipment) 
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/UserScope.php:49
 #: src/Integrations/ConnectorsPage.php:249
-#: src/Modules/Partners.php:344
+#: src/Modules/Partners.php:346
 #: src/Partners/AdminPage.php:244
 #: src/Partners/AdminPage.php:668
 #: src/Partners/AdminPage.php:684
-#: src/Partners/Settlements.php:873
+#: src/Partners/Settlements.php:879
 msgid "Veranstalter"
 msgstr "Organizer"
 
@@ -9062,7 +9063,7 @@ msgid "0 = ohne Begrenzung. Begrenzt Erinnerungen und andere Mails aus der Warte
 msgstr "0 = no limit. Limits reminders and other emails from the queue to your mail provider’s limit; the rest goes out in the next runs. If the provider reports a limit, the email is retried later instead of discarded."
 
 #: src/Admin/SettingsPage.php:223
-#: src/Partners/Settlements.php:997
+#: src/Partners/Settlements.php:1003
 msgid "Rechnungssteller"
 msgstr "Invoice issuer"
 
@@ -11278,14 +11279,14 @@ msgstr "Correction of invoice %s"
 #. translators: %s: commission percent
 #. translators: %s: percent
 #: src/Api/Invoices.php:341
-#: src/Partners/Settlements.php:907
+#: src/Partners/Settlements.php:913
 #, php-format
 msgid "Provision %s vom Nettoumsatz"
 msgstr "Commission %s of net revenue"
 
 #. translators: %s: percent
 #: src/Api/Invoices.php:342
-#: src/Partners/Settlements.php:908
+#: src/Partners/Settlements.php:914
 msgid "Ticketgebühren"
 msgstr "Ticket fees"
 
@@ -12271,7 +12272,7 @@ msgstr "Operator %d"
 #: src/BoxOffice/Service.php:1213
 #: src/Invoices.php:720
 #: src/Invoices.php:758
-#: src/Partners/Settlements.php:871
+#: src/Partners/Settlements.php:877
 msgid "USt-IdNr.:"
 msgstr "VAT ID:"
 
@@ -12663,11 +12664,11 @@ msgstr "Opened"
 #: src/BoxOffice/ZReport.php:373
 #: src/Invoices.php:871
 #: src/Invoices.php:882
-#: src/Partners/Settlements.php:798
 #: src/Partners/Settlements.php:804
-#: src/Partners/Settlements.php:926
-#: src/Partners/Settlements.php:931
-#: src/Partners/Settlements.php:975
+#: src/Partners/Settlements.php:810
+#: src/Partners/Settlements.php:932
+#: src/Partners/Settlements.php:937
+#: src/Partners/Settlements.php:981
 #: src/Partners/Statement.php:173
 #: src/Printing/InvoicePdf.php:148
 #: src/Printing/InvoicePdf.php:199
@@ -13064,13 +13065,13 @@ msgstr "VAT"
 #: src/Invoices.php:871
 #: src/Invoices.php:882
 #: src/Partners/AdminPage.php:684
-#: src/Partners/Settlements.php:798
 #: src/Partners/Settlements.php:804
-#: src/Partners/Settlements.php:919
-#: src/Partners/Settlements.php:926
-#: src/Partners/Settlements.php:931
-#: src/Partners/Settlements.php:936
-#: src/Partners/Settlements.php:975
+#: src/Partners/Settlements.php:810
+#: src/Partners/Settlements.php:925
+#: src/Partners/Settlements.php:932
+#: src/Partners/Settlements.php:937
+#: src/Partners/Settlements.php:942
+#: src/Partners/Settlements.php:981
 #: src/Partners/Statement.php:173
 #: src/Printing/InvoicePdf.php:150
 #: src/Printing/InvoicePdf.php:201
@@ -14142,7 +14143,7 @@ msgid "Von → Nach"
 msgstr "From → To"
 
 #: src/Exchange/AdminPage.php:146
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:942
 #: src/Partners/Statement.php:173
 msgid "Gebühr"
 msgstr "Fee"
@@ -15898,7 +15899,7 @@ msgstr "Unknown scope of the calendar subscription."
 #: src/Partners/Repository.php:401
 #: src/Partners/Sales.php:291
 #: src/Partners/Sales.php:339
-#: src/Partners/Settlements.php:553
+#: src/Partners/Settlements.php:559
 msgid "Veranstalter nicht gefunden."
 msgstr "Organizer not found."
 
@@ -17052,9 +17053,9 @@ msgstr "Breakdown by tax rate"
 #. translators: 1: period, 2: date
 #: src/Invoices.php:871
 #: src/Invoices.php:882
-#: src/Partners/Settlements.php:931
-#: src/Partners/Settlements.php:936
-#: src/Partners/Settlements.php:975
+#: src/Partners/Settlements.php:937
+#: src/Partners/Settlements.php:942
+#: src/Partners/Settlements.php:981
 #: src/Printing/InvoicePdf.php:153
 #: src/Printing/InvoicePdf.php:204
 #: src/Reports/Data.php:754
@@ -17067,7 +17068,7 @@ msgstr "VAT rate"
 #. translators: %s: fee per ticket
 #: src/Invoices.php:875
 #: src/Invoices.php:885
-#: src/Partners/Settlements.php:1005
+#: src/Partners/Settlements.php:1011
 #: src/Printing/InvoicePdf.php:160
 #: src/Printing/InvoicePdf.php:210
 msgid "Nettobetrag"
@@ -17085,7 +17086,7 @@ msgstr "VAT %s %%"
 
 #. translators: %s: rate
 #: src/Invoices.php:877
-#: src/Partners/Settlements.php:1011
+#: src/Partners/Settlements.php:1017
 #: src/Printing/InvoicePdf.php:168
 msgid "Rechnungsbetrag"
 msgstr "Invoice total"
@@ -17122,8 +17123,9 @@ msgstr "Cancelled on %s: the refund failed at the payment provider; the amount w
 msgid "Storniert durch Beleg %1$s vom %2$s (Erstattung beim Zahlungsanbieter gescheitert)"
 msgstr "Voided by document %1$s of %2$s (refund failed at the payment provider)"
 
+#. translators: %s: short order number
 #: src/Invoices.php:892
-#: src/Partners/Settlements.php:942
+#: src/Partners/Settlements.php:948
 #: src/TicketPage.php:103
 msgid "Drucken oder als PDF speichern"
 msgstr "Print or save as PDF"
@@ -19573,7 +19575,7 @@ msgstr "ISO code, e.g. DE, NL, BE (optional)."
 msgid "Pass Captain Veranstalter-Kontakte"
 msgstr "Pass Captain organizer contacts"
 
-#: src/Modules/Partners.php:345
+#: src/Modules/Partners.php:347
 #: src/Partners/AdminPage.php:660
 msgid "Veranstalter-Abrechnungen"
 msgstr "Organizer settlements"
@@ -23013,9 +23015,9 @@ msgid "Provision, Ticketgebühr und Erstattungsregel gelten für Bestellungen ab
 msgstr "Commission, ticket fee and refund rule apply to orders from the respective point in time; refunds follow the terms of their sale."
 
 #: src/Partners/AdminPage.php:423
-#: src/Partners/Settlements.php:798
-#: src/Partners/Settlements.php:926
-#: src/Partners/Settlements.php:936
+#: src/Partners/Settlements.php:804
+#: src/Partners/Settlements.php:932
+#: src/Partners/Settlements.php:942
 #: src/Partners/Statement.php:173
 msgid "Provision"
 msgstr "Commission"
@@ -23418,10 +23420,10 @@ msgid "Abrechnungen sind nur mit API-Keys ohne Event-Einschränkung abrufbar."
 msgstr "Settlements can only be retrieved with API keys that have no event restriction."
 
 #: src/Partners/Api.php:408
-#: src/Partners/Settlements.php:590
-#: src/Partners/Settlements.php:640
-#: src/Partners/Settlements.php:692
-#: src/Partners/Settlements.php:704
+#: src/Partners/Settlements.php:596
+#: src/Partners/Settlements.php:646
+#: src/Partners/Settlements.php:698
+#: src/Partners/Settlements.php:710
 msgid "Abrechnung nicht gefunden."
 msgstr "Settlement not found."
 
@@ -23775,7 +23777,7 @@ msgid "Storno durch Veranstalter-API"
 msgstr "Canceled via organizer API"
 
 #: src/Partners/SalesApi.php:122
-#: src/Partners/Settlements.php:554
+#: src/Partners/Settlements.php:560
 msgid "Ungültiger Abrechnungszeitraum (JJJJ-MM)."
 msgstr "Invalid settlement period (YYYY-MM)."
 
@@ -23861,401 +23863,401 @@ msgstr "Single-purpose voucher (receivable from the voucher seller)"
 msgid "Einzweckgutschein zurückgegeben (Erstattung)"
 msgstr "Single-purpose voucher returned (refund)"
 
-#: src/Partners/Settlements.php:556
+#: src/Partners/Settlements.php:562
 msgid "Für zukünftige Zeiträume kann keine Abrechnung erstellt werden."
 msgstr "A settlement cannot be created for future periods."
 
 #. translators: %s: period
-#: src/Partners/Settlements.php:560
+#: src/Partners/Settlements.php:566
 #, php-format
 msgid "Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet."
 msgstr "A finalized settlement already exists up to %s. Later changes will be settled as a correction in the next period."
 
-#: src/Partners/Settlements.php:575
+#: src/Partners/Settlements.php:581
 msgid "Für diesen Veranstalter und Zeitraum gibt es bereits eine Abrechnung."
 msgstr "A settlement already exists for this organizer and period."
 
-#: src/Partners/Settlements.php:584
+#: src/Partners/Settlements.php:590
 msgid "Abgeschlossene Abrechnungen können nicht mehr geändert werden. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet."
 msgstr "Finalized settlements can no longer be changed. Later changes will be settled as a correction in the next period."
 
-#: src/Partners/Settlements.php:642
+#: src/Partners/Settlements.php:648
 msgid "Der Abrechnungszeitraum ist noch nicht beendet."
 msgstr "The settlement period has not ended yet."
 
-#: src/Partners/Settlements.php:644
+#: src/Partners/Settlements.php:650
 msgid "Bitte zuerst die Entwürfe früherer Zeiträume abschließen oder löschen."
 msgstr "Please finalize or delete the drafts of earlier periods first."
 
 #. translators: %s: missing fields
-#: src/Partners/Settlements.php:652
+#: src/Partners/Settlements.php:658
 #, php-format
 msgid "Gutschrift nicht möglich – beim Veranstalter fehlen: %s."
 msgstr "Self-billing invoice not possible – the organizer is missing: %s."
 
-#: src/Partners/Settlements.php:668
+#: src/Partners/Settlements.php:674
 msgid "Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen."
 msgstr "Some line items have already been settled in another settlement. Please recalculate."
 
-#: src/Partners/Settlements.php:681
+#: src/Partners/Settlements.php:687
 msgid "Abrechnung konnte nicht abgeschlossen werden."
 msgstr "Settlement could not be finalized."
 
-#: src/Partners/Settlements.php:693
+#: src/Partners/Settlements.php:699
 msgid "Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden."
 msgstr "Only finalized settlements can be marked as paid out."
 
-#: src/Partners/Settlements.php:751
+#: src/Partners/Settlements.php:757
 msgid "Entwurf Provisionsrechnung"
 msgstr "Commission invoice draft"
 
-#: src/Partners/Settlements.php:751
+#: src/Partners/Settlements.php:757
 msgid "Provisionsrechnung"
 msgstr "Commission invoice"
 
 #. translators: 1: Gutschrift number, 2: invoice number
-#: src/Partners/Settlements.php:755
+#: src/Partners/Settlements.php:761
 msgid "Entwurf Gutschrift und Rechnung über Plattformgebühren"
 msgstr "Draft self-billing invoice and invoice for platform fees"
 
 #. translators: 1: Gutschrift number, 2: invoice number
-#: src/Partners/Settlements.php:755
+#: src/Partners/Settlements.php:761
 #, php-format
 msgid "Gutschrift %1$s und Rechnung %2$s"
 msgstr "Self-billing invoice %1$s and invoice %2$s"
 
-#: src/Partners/Settlements.php:757
+#: src/Partners/Settlements.php:763
 msgid "Abrechnungsentwurf"
 msgstr "Settlement draft"
 
-#: src/Partners/Settlements.php:757
-#: src/Partners/Settlements.php:765
+#: src/Partners/Settlements.php:763
+#: src/Partners/Settlements.php:771
 msgid "Veranstalter-Abrechnung"
 msgstr "Organizer settlement"
 
-#: src/Partners/Settlements.php:763
+#: src/Partners/Settlements.php:769
 msgid "Provisionsrechnung (Vermittler)"
 msgstr "Commission invoice (agent)"
 
-#: src/Partners/Settlements.php:764
+#: src/Partners/Settlements.php:770
 msgid "Gutschrift + Gebührenrechnung (Eigenhändler)"
 msgstr "Self-billing invoice + fee invoice (own-name seller)"
 
-#: src/Partners/Settlements.php:785
+#: src/Partners/Settlements.php:791
 msgid "(nicht entschlüsselbar)"
 msgstr "(cannot be decrypted)"
 
-#: src/Partners/Settlements.php:798
+#: src/Partners/Settlements.php:804
 msgid "Ursprungsperiode"
 msgstr "Originating period"
 
-#: src/Partners/Settlements.php:798
 #: src/Partners/Settlements.php:804
+#: src/Partners/Settlements.php:810
 #: src/Partners/Statement.php:173
 msgid "USt-Satz %"
 msgstr "VAT rate %"
 
 #. translators: 1: period, 2: date
-#: src/Partners/Settlements.php:798
 #: src/Partners/Settlements.php:804
-#: src/Partners/Settlements.php:919
-#: src/Partners/Settlements.php:931
-#: src/Partners/Settlements.php:975
+#: src/Partners/Settlements.php:810
+#: src/Partners/Settlements.php:925
+#: src/Partners/Settlements.php:937
+#: src/Partners/Settlements.php:981
 #: src/Partners/Statement.php:173
 #: src/Reports/Data.php:744
 #: src/Reports/Page.php:317
 msgid "USt"
 msgstr "VAT"
 
-#: src/Partners/Settlements.php:798
-#: src/Partners/Settlements.php:926
+#: src/Partners/Settlements.php:804
+#: src/Partners/Settlements.php:932
 msgid "Ticketgebühr"
 msgstr "Ticket fee"
 
-#: src/Partners/Settlements.php:809
+#: src/Partners/Settlements.php:815
 #: src/Reports/Data.php:814
 #: src/Reports/Page.php:151
 #: src/Reports/Page.php:181
 msgid "Verkaufte Tickets"
 msgstr "Tickets sold"
 
-#: src/Partners/Settlements.php:810
+#: src/Partners/Settlements.php:816
 #: src/Reports/Data.php:744
 #: src/Reports/Data.php:814
 msgid "Erstattete Tickets"
 msgstr "Refunded tickets"
 
-#: src/Partners/Settlements.php:811
+#: src/Partners/Settlements.php:817
 msgid "Freikarten (nicht abgerechnet)"
 msgstr "Complimentary tickets (not settled)"
 
-#: src/Partners/Settlements.php:816
+#: src/Partners/Settlements.php:822
 msgid "Auszahlungskonto"
 msgstr "Payout account"
 
-#: src/Partners/Settlements.php:827
+#: src/Partners/Settlements.php:833
 msgid "Gutschrift netto"
 msgstr "Self-billing invoice net"
 
-#: src/Partners/Settlements.php:828
+#: src/Partners/Settlements.php:834
 msgid "Gutschrift USt"
 msgstr "Self-billing invoice VAT"
 
-#: src/Partners/Settlements.php:829
+#: src/Partners/Settlements.php:835
 msgid "Gutschrift brutto"
 msgstr "Self-billing invoice gross"
 
-#: src/Partners/Settlements.php:833
-#: src/Partners/Settlements.php:892
-#: src/Partners/Settlements.php:903
+#: src/Partners/Settlements.php:839
+#: src/Partners/Settlements.php:898
+#: src/Partners/Settlements.php:909
 msgid "Erstattungen brutto"
 msgstr "Gross refunds"
 
-#: src/Partners/Settlements.php:834
+#: src/Partners/Settlements.php:840
 msgid "davon Korrekturen/Nachträge aus Vorperioden"
 msgstr "of which corrections/adjustments from previous periods"
 
-#: src/Partners/Settlements.php:835
-#: src/Partners/Settlements.php:904
+#: src/Partners/Settlements.php:841
+#: src/Partners/Settlements.php:910
 msgid "Ticketumsatz brutto nach Erstattungen"
 msgstr "Gross ticket revenue after refunds"
 
-#: src/Partners/Settlements.php:836
+#: src/Partners/Settlements.php:842
 msgid "darin USt"
 msgstr "of which VAT"
 
-#: src/Partners/Settlements.php:837
-#: src/Partners/Settlements.php:906
+#: src/Partners/Settlements.php:843
+#: src/Partners/Settlements.php:912
 msgid "Ticketumsatz netto"
 msgstr "Net ticket revenue"
 
-#: src/Partners/Settlements.php:838
+#: src/Partners/Settlements.php:844
 msgid "Provision (netto)"
 msgstr "Commission (net)"
 
-#: src/Partners/Settlements.php:839
+#: src/Partners/Settlements.php:845
 msgid "Ticketgebühren (netto)"
 msgstr "Ticket fees (net)"
 
-#: src/Partners/Settlements.php:840
+#: src/Partners/Settlements.php:846
 msgid "Plattformgebühr netto"
 msgstr "Net platform fee"
 
-#: src/Partners/Settlements.php:841
+#: src/Partners/Settlements.php:847
 msgid "USt auf Plattformgebühr"
 msgstr "VAT on platform fee"
 
-#: src/Partners/Settlements.php:842
+#: src/Partners/Settlements.php:848
 msgid "Plattformgebühr brutto"
 msgstr "Gross platform fee"
 
-#: src/Partners/Settlements.php:843
+#: src/Partners/Settlements.php:849
 msgid "Auszahlungsbetrag"
 msgstr "Payout amount"
 
-#: src/Partners/Settlements.php:873
+#: src/Partners/Settlements.php:879
 msgid "Aussteller"
 msgstr "Issuer"
 
-#: src/Partners/Settlements.php:875
+#: src/Partners/Settlements.php:881
 msgid "Entwurf – nicht abgeschlossen, Werte können sich noch ändern"
 msgstr "Draft – not finalized, values may still change"
 
 #. translators: 1: period, 2: date
-#: src/Partners/Settlements.php:876
+#: src/Partners/Settlements.php:882
 #, php-format
 msgid "Zeitraum: %1$s · Erstellt: %2$s"
 msgstr "Period: %1$s · Created: %2$s"
 
 #. translators: 1: date, 2: reference
-#: src/Partners/Settlements.php:877
+#: src/Partners/Settlements.php:883
 #, php-format
 msgid "Ausgezahlt am %1$s %2$s"
 msgstr "Paid out on %1$s %2$s"
 
 #. translators: 1: commission, 2: fee, 3: VAT
-#: src/Partners/Settlements.php:878
+#: src/Partners/Settlements.php:884
 #, php-format
 msgid "Konditionen: Provision %1$s vom Nettoumsatz, Ticketgebühr %2$s pro Ticket, USt auf Plattformgebühr %3$s"
 msgstr "Terms: commission %1$s of net revenue, ticket fee %2$s per ticket, VAT on platform fee %3$s"
 
-#: src/Partners/Settlements.php:882
+#: src/Partners/Settlements.php:888
 msgid "Teil B – Rechnung über Plattformgebühren"
 msgstr "Part B – Invoice for platform fees"
 
-#: src/Partners/Settlements.php:883
+#: src/Partners/Settlements.php:889
 msgid "Teil C – Verrechnung"
 msgstr "Part C – Offsetting"
 
-#: src/Partners/Settlements.php:884
+#: src/Partners/Settlements.php:890
 msgid "Gutschriftsbetrag (Teil A)"
 msgstr "Self-billing invoice amount (Part A)"
 
-#: src/Partners/Settlements.php:885
+#: src/Partners/Settlements.php:891
 msgid "abzüglich Rechnungsbetrag Plattformgebühren (Teil B)"
 msgstr "less invoice amount for platform fees (Part B)"
 
-#: src/Partners/Settlements.php:889
+#: src/Partners/Settlements.php:895
 msgid "Informative Aufstellung: vereinnahmte Ticketerlöse (keine Rechnung)"
 msgstr "Informational statement: ticket revenue collected (not an invoice)"
 
-#: src/Partners/Settlements.php:889
+#: src/Partners/Settlements.php:895
 msgid "Die Ticketerlöse wurden im Namen und für Rechnung des Veranstalters vereinnahmt. Die Kundenrechnungen wurden im Namen des Veranstalters ausgestellt; die Umsatzsteuer auf die Ticketumsätze schuldet der Veranstalter."
 msgstr "The ticket revenue was collected in the name and on behalf of the organizer. The customer invoices were issued in the name of the organizer; the organizer owes the VAT on the ticket sales."
 
-#: src/Partners/Settlements.php:891
-#: src/Partners/Settlements.php:902
+#: src/Partners/Settlements.php:897
+#: src/Partners/Settlements.php:908
 msgid "Ticketumsatz brutto (Verkäufe)"
 msgstr "Gross ticket revenue (sales)"
 
-#: src/Partners/Settlements.php:893
+#: src/Partners/Settlements.php:899
 msgid "Vereinnahmte Ticketerlöse nach Erstattungen"
 msgstr "Ticket revenue collected after refunds"
 
-#: src/Partners/Settlements.php:894
+#: src/Partners/Settlements.php:900
 msgid "darin enthaltene USt (Schuldner: Veranstalter)"
 msgstr "of which VAT (owed by: organizer)"
 
-#: src/Partners/Settlements.php:895
+#: src/Partners/Settlements.php:901
 msgid "abzüglich Provisionsrechnung (brutto)"
 msgstr "less commission invoice (gross)"
 
-#: src/Partners/Settlements.php:900
+#: src/Partners/Settlements.php:906
 msgid "Abrechnung"
 msgstr "Settlement"
 
-#: src/Partners/Settlements.php:905
+#: src/Partners/Settlements.php:911
 msgid "darin enthaltene USt"
 msgstr "of which VAT"
 
 #. translators: %s: percent
-#: src/Partners/Settlements.php:909
+#: src/Partners/Settlements.php:915
 #, php-format
 msgid "USt %s auf Plattformgebühr"
 msgstr "VAT %s on platform fee"
 
 #. translators: %s: amount
-#: src/Partners/Settlements.php:915
+#: src/Partners/Settlements.php:921
 #, php-format
 msgid "Enthält Korrekturen und Nachträge aus bereits abgeschlossenen Vorperioden: %s brutto."
 msgstr "Includes corrections and adjustments from previously finalized periods: %s gross."
 
-#: src/Partners/Settlements.php:918
+#: src/Partners/Settlements.php:924
 msgid "Anlage: Einzelaufstellung"
 msgstr "Annex: itemized statement"
 
-#: src/Partners/Settlements.php:919
+#: src/Partners/Settlements.php:925
 msgid "Übersicht nach Art"
 msgstr "Overview by type"
 
-#: src/Partners/Settlements.php:926
+#: src/Partners/Settlements.php:932
 msgid "Nach Event"
 msgstr "By event"
 
-#: src/Partners/Settlements.php:931
+#: src/Partners/Settlements.php:937
 msgid "Ticketumsatz nach Steuersatz (Kundenverkauf)"
 msgstr "Ticket sales by tax rate (customer sales)"
 
-#: src/Partners/Settlements.php:953
+#: src/Partners/Settlements.php:959
 msgid "Zwischensumme vor Verrechnung"
 msgstr "Subtotal before offsetting"
 
-#: src/Partners/Settlements.php:954
+#: src/Partners/Settlements.php:960
 msgid "abzüglich von dir selbst vereinnahmte Ticketerlöse (eigene API-Verkäufe, nach Erstattungen)"
 msgstr "less ticket revenue collected by you (own API sales, after refunds)"
 
-#: src/Partners/Settlements.php:955
+#: src/Partners/Settlements.php:961
 msgid "Saldovortrag aus der vorigen Abrechnung"
 msgstr "Balance carried forward from the previous settlement"
 
-#: src/Partners/Settlements.php:957
-#: src/Partners/Settlements.php:962
+#: src/Partners/Settlements.php:963
+#: src/Partners/Settlements.php:968
 msgid "Auszahlungsbetrag an Veranstalter"
 msgstr "Payout amount to organizer"
 
-#: src/Partners/Settlements.php:958
+#: src/Partners/Settlements.php:964
 msgid "Offener Saldo, wird mit der nächsten Abrechnung verrechnet"
 msgstr "Outstanding balance, offset against the next settlement"
 
-#: src/Partners/Settlements.php:959
+#: src/Partners/Settlements.php:965
 msgid "Forderung an Veranstalter (bitte überweisen)"
 msgstr "Receivable from organizer (please transfer)"
 
-#: src/Partners/Settlements.php:962
+#: src/Partners/Settlements.php:968
 msgid "Forderung an Veranstalter"
 msgstr "Receivable from organizer"
 
-#: src/Partners/Settlements.php:969
-#: src/Partners/Settlements.php:995
+#: src/Partners/Settlements.php:975
+#: src/Partners/Settlements.php:1001
 msgid "(Nummer wird beim Abschließen vergeben)"
 msgstr "(number is assigned on completion)"
 
 #. translators: %s: number
-#: src/Partners/Settlements.php:970
+#: src/Partners/Settlements.php:976
 #, php-format
 msgid "Teil A – Gutschrift %s"
 msgstr "Part A – Self-billing invoice %s"
 
 #. translators: %s: number
-#: src/Partners/Settlements.php:971
+#: src/Partners/Settlements.php:977
 msgid "Abrechnung im Gutschriftsverfahren: Der Leistungsempfänger rechnet über die Leistung des Veranstalters ab (§ 14 Abs. 2 Satz 2 UStG; Österreich: § 11 Abs. 7 UStG). Der Veranstalter kann der Gutschrift widersprechen; sie verliert damit ihre Wirkung als Rechnung."
 msgstr "Settlement by self-billing: the recipient of the service invoices the organizer’s service (§ 14 Abs. 2 Satz 2 UStG; Austria: § 11 Abs. 7 UStG). The organizer may object to the self-billing invoice; it then loses its effect as an invoice."
 
-#: src/Partners/Settlements.php:972
+#: src/Partners/Settlements.php:978
 msgid "Leistender Unternehmer (Gutschriftsempfänger)"
 msgstr "Supplier (recipient of the self-billing invoice)"
 
-#: src/Partners/Settlements.php:973
+#: src/Partners/Settlements.php:979
 msgid "Leistungsempfänger (Gutschriftsaussteller)"
 msgstr "Customer (issuer of the self-billing invoice)"
 
 #. translators: 1: period, 2: date
-#: src/Partners/Settlements.php:974
+#: src/Partners/Settlements.php:980
 #, php-format
 msgid "Leistung: Durchführung der Veranstaltungen und Einräumung der Eintrittsberechtigungen laut Anlage (Leistungskommission, Verkauf durch die Plattform im eigenen Namen für Rechnung des Veranstalters). Leistungszeitraum: %1$s. Gutschriftsdatum: %2$s."
 msgstr "Service: staging of the events and granting of admission rights as per annex (commission agreement, sale by the platform in its own name on behalf of the organizer). Service period: %1$s. Self-billing invoice date: %2$s."
 
-#: src/Partners/Settlements.php:980
+#: src/Partners/Settlements.php:986
 msgid "Gutschriftsbetrag"
 msgstr "Self-billing invoice amount"
 
-#: src/Partners/Settlements.php:984
-#: src/Partners/Settlements.php:1013
+#: src/Partners/Settlements.php:990
+#: src/Partners/Settlements.php:1019
 msgid "Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG)."
 msgstr "The recipient of the service owes the tax (§ 13b UStG / Art. 196 VAT Directive / § 19 Abs. 1 öUStG)."
 
-#: src/Partners/Settlements.php:998
+#: src/Partners/Settlements.php:1004
 msgid "Rechnungsempfänger"
 msgstr "Invoice recipient"
 
-#: src/Partners/Settlements.php:1000
+#: src/Partners/Settlements.php:1006
 msgid "Rechnung über Vermittlungsleistungen"
 msgstr "Invoice for intermediary services"
 
 #. translators: %s: period
-#: src/Partners/Settlements.php:1002
+#: src/Partners/Settlements.php:1008
 #, php-format
 msgid "Leistung: Vermittlung und Abwicklung des Ticketverkaufs für die Veranstaltungen laut Anlage. Leistungszeitraum: %s."
 msgstr "Service: intermediation and processing of ticket sales for the events as per annex. Service period: %s."
 
 #. translators: 1: percent, 2: net revenue
-#: src/Partners/Settlements.php:1003
+#: src/Partners/Settlements.php:1009
 #, php-format
 msgid "Provision %1$s auf Netto-Ticketumsatz %2$s"
 msgstr "Commission %1$s on net ticket revenue %2$s"
 
 #. translators: %s: fee per ticket
-#: src/Partners/Settlements.php:1004
+#: src/Partners/Settlements.php:1010
 #, php-format
 msgid "Ticketgebühren (%s je Ticket)"
 msgstr "Ticket fees (%s per ticket)"
 
-#: src/Partners/Settlements.php:1007
+#: src/Partners/Settlements.php:1013
 msgid "Umsatzsteuer (Reverse Charge)"
 msgstr "VAT (reverse charge)"
 
 #. translators: %s: percent
-#: src/Partners/Settlements.php:1007
+#: src/Partners/Settlements.php:1013
 #, php-format
 msgid "Umsatzsteuer %s"
 msgstr "VAT %s"
@@ -25903,7 +25905,7 @@ msgid "Umtausch (von/nach, Differenz, Gebühr, Status, Zeit UTC)"
 msgstr "Exchange (from/to, difference, fee, status, time UTC)"
 
 #: src/Privacy.php:379
-#: src/WalletPasses/Service.php:650
+#: src/WalletPasses/Service.php:672
 msgid "Wallet-Pässe"
 msgstr "Wallet passes"
 
@@ -28881,7 +28883,7 @@ msgid "Apple-Wallet-Schlüsselpasswort"
 msgstr "Apple Wallet key password"
 
 #: src/Secrets.php:438
-#: src/WalletPasses/Service.php:1075
+#: src/WalletPasses/Service.php:1097
 msgid "Apple-WWDR-Zertifikat"
 msgstr "Apple WWDR certificate"
 
@@ -30966,9 +30968,22 @@ msgstr "Send new order link by email"
 msgid "Der Link geht an die E-Mail-Adresse der Bestellung; ein früher gesendeter Bestelllink gilt weiter, bis der neue Link zum ersten Mal geöffnet wird."
 msgstr "The link goes to the order’s email address; a previously sent order link remains valid until the new link is opened for the first time."
 
+#. translators: %s: short order number
 #: src/TicketPage.php:103
 msgid "Ticket QR-Code"
 msgstr "Ticket QR code"
+
+#. translators: %s: short order number
+#: src/TicketPage.php:103
+#: src/WalletPasses/Service.php:681
+msgid "Zu Apple Wallet hinzufügen"
+msgstr "Add to Apple Wallet"
+
+#. translators: %s: short order number
+#: src/TicketPage.php:103
+#: src/WalletPasses/Service.php:682
+msgid "In Google Wallet speichern"
+msgstr "Save to Google Wallet"
 
 #: src/TicketPage.php:134
 msgid "Es wurde nichts geändert."
@@ -31837,89 +31852,81 @@ msgid "Pass Captain Wallet:"
 msgstr "Pass Captain Wallet:"
 
 #. translators: %d: ticket number
-#: src/WalletPasses/Service.php:300
+#: src/WalletPasses/Service.php:322
 #, php-format
 msgid "Ticket %d zu Apple Wallet hinzufügen:"
 msgstr "Add ticket %d to Apple Wallet:"
 
 #. translators: %d: ticket number
-#: src/WalletPasses/Service.php:302
+#: src/WalletPasses/Service.php:324
 #, php-format
 msgid "Ticket %d in Google Wallet speichern:"
 msgstr "Save ticket %d to Google Wallet:"
 
 #. translators: 1: first ticket number, 2: last ticket number
-#: src/WalletPasses/Service.php:305
+#: src/WalletPasses/Service.php:327
 #, php-format
 msgid "Tickets %1$d–%2$d zu Apple Wallet hinzufügen:"
 msgstr "Add tickets %1$d–%2$d to Apple Wallet:"
 
 #. translators: 1: first ticket number, 2: last ticket number
-#: src/WalletPasses/Service.php:308
+#: src/WalletPasses/Service.php:330
 #, php-format
 msgid "Tickets %1$d–%2$d in Google Wallet speichern:"
 msgstr "Save tickets %1$d–%2$d to Google Wallet:"
 
 #. translators: %s: file name
-#: src/WalletPasses/Service.php:388
+#: src/WalletPasses/Service.php:410
 #, php-format
 msgid "Zu Apple Wallet hinzufügen: Anhang %s öffnen"
 msgstr "Add to Apple Wallet: open attachment %s"
 
-#: src/WalletPasses/Service.php:394
+#: src/WalletPasses/Service.php:416
 msgid "Zu Apple Wallet hinzufügen:"
 msgstr "Add to Apple Wallet:"
 
-#: src/WalletPasses/Service.php:398
-#: src/WalletPasses/Service.php:448
+#: src/WalletPasses/Service.php:420
+#: src/WalletPasses/Service.php:470
 msgid "In Google Wallet speichern:"
 msgstr "Save to Google Wallet:"
 
 #. translators: %d: number of tickets
-#: src/WalletPasses/Service.php:478
+#: src/WalletPasses/Service.php:500
 #, php-format
 msgid "Apple Wallet / Google Wallet für %d Ticket:"
 msgid_plural "Apple Wallet / Google Wallet für alle %d Tickets:"
 msgstr[0] "Apple Wallet / Google Wallet for %d ticket:"
 msgstr[1] "Apple Wallet / Google Wallet for all %d tickets:"
 
-#: src/WalletPasses/Service.php:652
+#: src/WalletPasses/Service.php:674
 msgid "Wallet-Pässe deiner Tickets"
 msgstr "Wallet passes for your tickets"
 
-#: src/WalletPasses/Service.php:654
+#: src/WalletPasses/Service.php:676
 msgid "Für diese Bestellung sind keine Wallet-Pässe (mehr) verfügbar. Übertragene oder neu ausgestellte Tickets erhalten ihre Pässe mit der jeweiligen E-Mail."
 msgstr "No wallet passes are (any longer) available for this order. Transferred or reissued tickets receive their passes with the respective email."
 
-#: src/WalletPasses/Service.php:659
-msgid "Zu Apple Wallet hinzufügen"
-msgstr "Add to Apple Wallet"
-
-#: src/WalletPasses/Service.php:660
-msgid "In Google Wallet speichern"
-msgstr "Save to Google Wallet"
-
-#: src/WalletPasses/Service.php:663
+#: src/WalletPasses/Service.php:685
 msgid "Diesen persönlichen Link nicht teilen: Er enthält gültige Tickets."
 msgstr "Do not share this personal link: it contains valid tickets."
 
-#: src/WalletPasses/Service.php:1075
+#: src/WalletPasses/Service.php:1097
 msgid "Apple-Wallet-Zertifikat (Pass Type ID)"
 msgstr "Apple Wallet certificate (Pass Type ID)"
 
 #. translators: 1: certificate, 2: date
-#: src/WalletPasses/Service.php:1080
+#: src/WalletPasses/Service.php:1102
 #, php-format
 msgid "%1$s ist am %2$s abgelaufen: Wallet-Pässe können nicht mehr signiert oder aktualisiert werden."
 msgstr "%1$s expired on %2$s: wallet passes can no longer be signed or updated."
 
 #. translators: 1: certificate, 2: date
-#: src/WalletPasses/Service.php:1083
+#: src/WalletPasses/Service.php:1105
 #, php-format
 msgid "%1$s läuft am %2$s ab. Bitte rechtzeitig erneuern."
 msgstr "%1$s expires on %2$s. Please renew it in good time."
 
-#: src/WalletPasses/Service.php:1089
+#: src/WalletPasses/Service.php:1111
 msgid "Apple Push (APNs) lehnt das Wallet-Zertifikat ab (HTTP 403). Pass-Aktualisierungen erreichen die Geräte nicht; bitte Zertifikat und Pass-Type-ID prüfen."
 msgstr "Apple Push (APNs) rejects the wallet certificate (HTTP 403). Pass updates do not reach the devices; please check the certificate and Pass Type ID."
 

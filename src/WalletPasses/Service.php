@@ -233,6 +233,28 @@ final class Service {
 		return max( 0, (int) apply_filters( 'wpcap_wallet_mail_inline_limit', 10 ) );
 	}
 
+	/**
+	 * A091: wallet links of one ticket for its ticket page – Apple download (signed, current generation) and the
+	 * Google save link, each only when the provider is configured and the ticket has a pass state.
+	 *
+	 * @return array{apple?:string,google?:string}
+	 */
+	public static function ticket_links( $ticket_id ) {
+		global $wpdb;
+		$out = array();
+		if ( ! Store::state( $ticket_id ) ) { return $out; }
+		if ( self::provider( 'apple' ) ) {
+			$public = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT public_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
+			$url = '' !== $public ? self::download_url( $public ) : '';
+			if ( '' !== $url ) { $out['apple'] = $url; }
+		}
+		if ( self::provider( 'google' ) ) {
+			$url = self::google_link( $ticket_id );
+			if ( '' !== $url ) { $out['google'] = $url; }
+		}
+		return $out;
+	}
+
 	/** Short "Save to Google Wallet" link of the ticket's current generation (signed, no ticket data). */
 	public static function google_link( $ticket_id ) {
 		global $wpdb;

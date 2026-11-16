@@ -205,8 +205,9 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - assets/scanner.js ohne Ton/Vibration/Erstnutzungsanzeige; kein Hilfscode (short_code nur Gästelisten)
 - [ ] **A090** Saalplan mobil: Sitzgröße, Zoom/Pan, Legende mit Form, Liste — _OFFEN_ (TODO L405; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - assets/seating/picker.js:133-160 Legende nur Farbe, kein Zoom/Pan, Liste nur eingeklappt (details)
-- [ ] **A091** Ticketseite/PDF: Teilnehmer, Adresse, Einlass, Bestellnr., Wallet, Dateiname — _OFFEN_ (TODO L406; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A091** Ticketseite/PDF: Teilnehmer, Adresse, Einlass, Bestellnr., Wallet, Dateiname — _OFFEN_ (TODO L406; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/TicketPage.php:30 ohne Teilnehmer/Bestellnr./Wallet; PDF-Name tickets-<public_id>.pdf (Orders.php:1428)
+  - Erledigt: Ticketseite mit Bestellnummer und Wallet-Knöpfen (`WalletPasses\Service::ticket_links()`), Inhabername und Alters-/Ausweishinweis (A614), Einlasszeit und Ort waren schon da; PDF-Anhänge heißen `tickets-<Bestellnummer>.pdf` (lesbar statt 32-stelliger ID). Test zz_a091.
 - [x] **A092** Einlasszeit als Feld am Termin, Zutritt davor verhindern — _TEILWEISE_ (TODO L407; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Nur relatives Einlassfenster (Admission/Engine.php:79-90); kein Doors-Feld in Occurrences-Schema (Installer.php:73-88)
 - [x] **A093** Kapazität pro Einlassbereich am Einlass durchsetzen — _OFFEN_ (TODO L408; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
