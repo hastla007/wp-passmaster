@@ -441,7 +441,10 @@ final class Service {
 		foreach ( $tickets as $entry ) {
 			if ( empty( $entry['ticket_id'] ) || empty( $entry['token'] ) ) { continue; }
 			try {
-				Store::put_code( (int) $entry['ticket_id'], (string) $entry['token'] );
+				// Only tickets whose current wallet generation holds this code (issuance or the rotation
+				// hook stored it); storing it again would start another generation.
+				$state = Store::state( (int) $entry['ticket_id'] );
+				if ( ! $state || ! hash_equals( (string) $state->code_hash, hash( 'sha256', (string) $entry['token'] ) ) ) { continue; }
 				$ticket = self::ticket( (int) $entry['ticket_id'] );
 				if ( ! $ticket ) { continue; }
 				$pass = self::in_locale( $ticket, static function () use ( $apple, $ticket ) { return $apple->create_pass( $ticket ); } );
