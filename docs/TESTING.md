@@ -210,6 +210,10 @@ Gefundene und behobene Fehler: Der Verfügbarkeits-Zwischenspeicher je Anfrage (
 Steuerprofil-Cache (`Tax\Profiles`, u. a. Veranstaltungsland je Termin-ID) und die Schema-Bereitschaft
 (`OrderLines::ready()`, `Tax\Profiles::ready()`) waren nicht an die Site gebunden – nach `switch_to_blog()`
 lieferten sie Werte der vorherigen Site für dieselbe ID.
+A517 ergänzt die übrigen Anfrage-Caches ohne Präfix im Schlüssel (Teamzuweisungen `StaffAssignments`, Ressourcen von
+Leistungserbringern, aktive Rabattcodes `Campaigns`, Hilfscodes, archivierte Rechtstexte, Serienpreise,
+Partnerkonditionen, Umtausch-Nachbuchungen): `Plugin::site_cache_flushers()` leert sie bei `switch_blog`
+(`modules/zz_a517.php`). Ein neuer solcher Cache gehört in diese Liste.
 
 ## Multisite: Cross-Site-Tests (A479)
 

@@ -21,6 +21,11 @@ final class LegalVersions {
 	/** Versions known to be archived in this request. */
 	private static $known = array();
 
+	/** Forgets the request cache (another site after switch_blog, A517). */
+	public static function flush() {
+		self::$known = array();
+	}
+
 	/** Whether the archive table exists (schema 3.10.21; deferred upgrades). */
 	public static function ready() {
 		return Privacy::has_table( 'wpcap_legal_versions' );

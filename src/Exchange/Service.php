@@ -50,6 +50,11 @@ final class Service {
 	/** Supplementary order ids of the current request (order_id => bool). */
 	private static $supplement_cache = array();
 
+	/** Forgets the request cache (another site after switch_blog, A517). */
+	public static function flush_cache() {
+		self::$supplement_cache = array();
+	}
+
 	public static function register() {
 		add_filter( 'wpcap_issue_order_lines', array( __CLASS__, 'filter_issue_lines' ), 10, 2 );
 		add_filter( 'wpcap_invoice_items', array( __CLASS__, 'invoice_items' ), 10, 2 );

@@ -348,6 +348,11 @@ final class Repository {
 	/** Request cache of terms history rows: partner_id => rows (oldest first). */
 	private static $terms = array();
 
+	/** Forgets the request cache (another site after switch_blog, A517). */
+	public static function flush_terms() {
+		self::$terms = array();
+	}
+
 	/**
 	 * Records a change of commission, fee per ticket or refund policy with its start (now). The first
 	 * change also stores the previous terms as valid since always, so earlier sales keep them.

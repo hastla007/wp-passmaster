@@ -79,6 +79,7 @@ final class Plugin {
 		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
 		// Multisite: request caches belong to one site; switch_to_blog() must not reuse them (A182).
 		add_action( 'switch_blog', array( Orders::class, 'site_switched' ), 10, 0 );
+		foreach ( self::site_cache_flushers() as $flush ) { add_action( 'switch_blog', $flush, 10, 0 ); }
 		add_filter( 'wpcap_process_job', array( Orders::class, 'handle_job' ), 10, 4 );
 		CapacityCounters::register();
 		// Report caches: generation keys bumped by every write to the report tables (A201).
@@ -227,6 +228,27 @@ final class Plugin {
 	 */
 	public static function cron_hooks() {
 		return array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_workflow_dispatch', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK, Waitlists::HOOK, PageCache::SALES_HOOK, Mollie\MollieGateway::REFRESH_HOOK, NetworkInstall::HOOK );
+	}
+
+	/**
+	 * Request caches holding data of the current site that are not keyed by table prefix: emptied on
+	 * switch_blog, so switch_to_blog() never answers with the previous site's staff assignments,
+	 * provider resources, discount codes, … (A517, completes A182; module caches flush through
+	 * Orders::site_switched() → wpcap_availability_flushed). A new such cache belongs here.
+	 *
+	 * @return callable[]
+	 */
+	public static function site_cache_flushers() {
+		return array(
+			array( StaffAssignments::class, 'flush' ),
+			array( ServiceProviders::class, 'flush' ),
+			array( Campaigns::class, 'flush' ),
+			array( HelpCode::class, 'flush' ),
+			array( LegalVersions::class, 'flush' ),
+			array( Series\Pricing::class, 'flush_cache' ),
+			array( Partners\Repository::class, 'flush_terms' ),
+			array( Exchange\Service::class, 'flush_cache' ),
+		);
 	}
 
 	public static function deactivate( $network_wide = false ) {
