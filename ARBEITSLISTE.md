@@ -1138,17 +1138,17 @@ Gesamt: 262 Aufgaben.
   - assets/scanner.js:390, :396–399, enqueue :290–292: Schlüssel des Online-Versuchs an enqueue weitergeben
 - [x] **A542** [WICHTIG] Web-Scanner offline: derselbe Code auf demselben Gerät beliebig oft einlassbar — _R4 Käufer-UX/Einlass_ (TODO L882; Audit Runde 4)
   - assets/scanner.js:290–318: Vor Anzeige in lokaler Queue suchen, Treffer rot mit Uhrzeit
-- [ ] **A543** [WICHTIG] Übertragene/neu ausgestellte Tickets melden „nicht gefunden“ statt Grund; „Widerrufen“ ohne Grund — _R4 Käufer-UX/Einlass_ (TODO L883; Audit Runde 4)
+- [x] **A543** [WICHTIG] Übertragene/neu ausgestellte Tickets melden „nicht gefunden“ statt Grund; „Widerrufen“ ohne Grund — _R4 Käufer-UX/Einlass_ (TODO L883; Audit Runde 4)
   - src/Checkin.php:93, :428, Orders.php:1459–1508/2028/2087, TicketAssignments.php:70: Abgelöste Hashes mit Grund/Zeit aufbewahren, eigenes Ergebnis „Code ersetzt“, Widerrufsgrund mitgeben
-- [ ] **A544** [WICHTIG] Am Scanner keine manuelle Suche (Name/E-Mail/Bestellnummer), auch offline nicht — _R4 Käufer-UX/Einlass_ (TODO L884; Audit Runde 4)
+- [x] **A544** [WICHTIG] Am Scanner keine manuelle Suche (Name/E-Mail/Bestellnummer), auch offline nicht — _R4 Käufer-UX/Einlass_ (TODO L884; Audit Runde 4)
   - assets/scanner.js, PublicEvents.php:377–395, offline-scanner/index.html:55–58, OfflineScanner/Package.php:136–138: Suchfeld online (REST mit Pii-Regeln) und offline (Paket), dann Einchecken
 - [x] **A545** [WICHTIG] Admin-Ticketsuche findet angezeigte Bestellnummer „AB12-CD34“ und Hilfscodes nicht (erweitert A336) — _R4 Käufer-UX/Einlass_ (TODO L885; Audit Runde 4)
   - src/Admin/Queries.php:418–423, Frontend/Format.php:39–41: Suchbegriff normalisieren, Hilfscode suchbar
-- [ ] **A546** [WICHTIG] Kein Check-in-Zähler (eingecheckt/gesamt) in Web-Scanner und PWA — _R4 Käufer-UX/Einlass_ (TODO L886; Audit Runde 4)
+- [x] **A546** [WICHTIG] Kein Check-in-Zähler (eingecheckt/gesamt) in Web-Scanner und PWA — _R4 Käufer-UX/Einlass_ (TODO L886; Audit Runde 4)
   - assets/scanner.js, offline-scanner/app.js:374–392, Mobile/Api.php:92: Zählerleiste online (stats) und offline (Paket + Log)
-- [ ] **A547** [WICHTIG] „Rückgängig“ für Fehl-Check-in fehlt am Scanner; Grund im Admin optional — _R4 Käufer-UX/Einlass_ (TODO L887; Audit Runde 4)
+- [x] **A547** [WICHTIG] „Rückgängig“ für Fehl-Check-in fehlt am Scanner; Grund im Admin optional — _R4 Käufer-UX/Einlass_ (TODO L887; Audit Runde 4)
   - assets/scanner.js, offline-scanner/app.js, Mobile/Api.php:38/146, Admin/TicketsPage.php:282: 30 s Rückgängig mit Pflicht-Grund am Gerät, Grund im Admin Pflicht
-- [ ] **A548** [WICHTIG] PWA: Ergebnis bleibt unbegrenzt stehen, kein Vollbild, kleine Schrift — _R4 Käufer-UX/Einlass_ (TODO L888; Audit Runde 4)
+- [x] **A548** [WICHTIG] PWA: Ergebnis bleibt unbegrenzt stehen, kein Vollbild, kleine Schrift — _R4 Käufer-UX/Einlass_ (TODO L888; Audit Runde 4)
   - assets/offline-scanner/app.js:164–171, app.css:23–29, index.html:44–47: Haltezeit + Rücksetzen, Vollbild-Overlay mit Uhrzeit/Kurzcode
 - [x] **A549** [WICHTIG] Teilnehmerdaten gehen beim Korrigieren der Menge verloren — _R4 Käufer-UX/Checkout_ (TODO L889; Audit Runde 4)
   - assets/checkout.js:40–52, :431–437: Blöcke je Slot zwischenspeichern, Neuberechnung bei change/verzögert
@@ -1364,7 +1364,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - source im Web-Scanner fest auf web.
 - [ ] **A648** [OPTIMIERUNG] Wallet: push_token für alle Pässe eines Geräts, globales serve_raw, Schlüssel doppelt genutzt — _Sicherheitsaudit 14.11. #21_ (TODO L1084; Sicherheitsaudit 2026-11-14)
   - Update auf die Seriennummer beschränken, eigene Response statt __wpcap_raw, abgeleiteter HMAC-Schlüssel.
-- [ ] **A649** [OPTIMIERUNG] Offline-Scanner übernimmt ?api= ohne Pfadprüfung — _Sicherheitsaudit 14.11. #22_ (TODO L1085; Sicherheitsaudit 2026-11-14)
+- [x] **A649** [OPTIMIERUNG] Offline-Scanner übernimmt ?api= ohne Pfadprüfung — _Sicherheitsaudit 14.11. #22_ (TODO L1085; Sicherheitsaudit 2026-11-14)
   - Pfad muss auf /wp-json/pass-captain/v1/app/ enden (oder Alt-Namensraum).
 - [ ] **A650** [OPTIMIERUNG] Bestellliste zeigt Bestellungen mit Fremd-Events; Kampagnencode-Orakel (409) — _Sicherheitsaudit 14.11. #23_ (TODO L1086; Sicherheitsaudit 2026-11-14)
   - Nur Bestellungen mit allen Events im Scope bzw. Fremdanteile ausblenden; Code-Konflikt neutral melden.
