@@ -35,7 +35,7 @@ $a183_first_occurrence = (int) $wpdb->get_var( "SELECT COALESCE(MAX(occurrence_i
 $wpdb->query( "UPDATE {$p}wpcap_jobs SET status='a183_parked' WHERE status IN ('queued','running')" );
 
 $a183_job_handler = array( Orders::class, 'handle_job' );
-add_filter( 'wpcap_process_job', $a183_job_handler, 10, 3 );
+add_filter( 'wpcap_process_job', $a183_job_handler, 10, 4 ); // Same signature as the plugin's registration (job id as 4th argument).
 
 /** The next cron runs of the issuance safety net (Orders::issue_failed() queues a retry job). */
 function a183_run_issue_jobs() {
