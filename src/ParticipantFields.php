@@ -101,6 +101,10 @@ final class ParticipantFields {
 		if ( in_array( $type, self::CHOICE_TYPES, true ) && ! $out ) {
 			return new \WP_Error( 'wpcap_field_options', __( 'Bitte mindestens eine Auswahlmöglichkeit angeben (eine je Zeile).', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		if ( in_array( $type, array( 'select', 'radio' ), true ) && 1 === count( $out ) ) {
+			// Audit R6 #8: a single-choice field with one option is no choice (use a checkbox or a text).
+			return new \WP_Error( 'wpcap_field_options', __( 'Bitte mindestens zwei Auswahlmöglichkeiten angeben (eine je Zeile).', 'pass-captain' ), array( 'status' => 400 ) );
+		}
 		if ( count( $out ) > self::MAX_OPTIONS ) {
 			/* translators: %d: maximum number of choices */
 			return new \WP_Error( 'wpcap_field_options', sprintf( __( 'Höchstens %d Auswahlmöglichkeiten.', 'pass-captain' ), self::MAX_OPTIONS ), array( 'status' => 400 ) );
