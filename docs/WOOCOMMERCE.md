@@ -72,7 +72,7 @@ Ticketkategorien mit Saalplan sind über WooCommerce kaufbar: WooCommerce zeigt 
 
 ## Anzeige und Verwaltung
 
-- Danke-Seite und „Mein Konto → Bestellungen“ zeigen die Tickets mit Status. Die Ticket-Links mit QR-Code kommen per E-Mail, weil nur Hashes der Ticketcodes gespeichert werden.
+- Danke-Seite und „Mein Konto → Bestellungen“ zeigen die Tickets mit Status. Die Ticket-Links mit QR-Code kommen per E-Mail, weil nur Hashes der Ticketcodes gespeichert werden. Terminzeiten stehen dort (wie in der Produktauswahl „Pass Captain Ticketkategorie“ und in der Bestell-Metabox) in der Zeitzone des Termins mit Zonenangabe, nicht in der Zeitzone der Website.
 - Die Bestellansicht im Admin hat eine Meta-Box „Pass Captain Tickets“ und die Bestellaktionen **Tickets erneut senden (neue Codes)** und **Tickets erneut ausstellen** (z. B. nachdem eine `needs_review`-Bestellung durch Freigabe von Kontingent geklärt wurde). Beide erfordern die Berechtigung `wpcap_manage_orders`.
 
 ## Grenzen

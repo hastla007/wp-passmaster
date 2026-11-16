@@ -123,7 +123,7 @@ final class OrderAdapter {
 		$rows    = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$options = array( '' => __( '— Kein Ticketprodukt —', 'pass-captain' ) );
 		foreach ( $rows as $row ) {
-			$label = sprintf( '%1$s · %2$s · %3$s', $row->event_name, mysql2date( 'd.m.Y H:i', get_date_from_gmt( $row->starts_at ), true ), $row->name );
+			$label = sprintf( '%1$s · %2$s · %3$s', $row->event_name, Orders::format_start( $row->starts_at, $row->timezone ), $row->name );
 			if ( 'published' !== $row->event_status || 'active' !== $row->status ) {
 				$label .= ' (' . __( 'nicht im Verkauf', 'pass-captain' ) . ')';
 			}
@@ -1174,7 +1174,8 @@ final class OrderAdapter {
 		);
 		echo '<table class="shop_table wpcap-ticket-table"><thead><tr><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ticket', 'pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $tickets as $ticket ) {
-			$when = mysql2date( 'd.m.Y H:i', get_date_from_gmt( $ticket->starts_at ), true );
+			// Local time of the occurrence (with its time zone), not of the site (A276).
+			$when = Orders::format_start( $ticket->starts_at, $ticket->timezone ?? '' );
 			echo '<tr><td>' . esc_html( $ticket->event_name . ' · ' . $when ) . '</td><td>' . esc_html( $ticket->ticket_name ) . '</td><td>' . esc_html( $labels[ $ticket->status ] ?? $ticket->status ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
