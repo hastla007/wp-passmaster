@@ -928,3 +928,18 @@ npm run test:js   # node:test – Logik der Offline-App (Code-Normalisierung, Pa
 ```
 
 Die Offline-App wird dazu in einer Node-Sandbox mit minimalen Browser-Attrappen geladen (`tests/js/offline-scanner.test.js`) und über `window.wpcapOffline` geprüft: manipulierte Pakete, fremde Geräte, unbekannte/abgelaufene Schlüssel, Doppel-Einlass, Mehrfacheinlass, Bereichsbeschränkung, Einlass-ab-Zeit und abgelaufene Pakete. Beides läuft im CI-Job `php`. Globale Daten aus `wp_localize_script()` sind in `eslint.config.mjs` als `readonly` deklariert – neue lokalisierte Objekte dort eintragen.
+## Zwei-Plugin-Test mit Form Captain (`tests/form-captain/`)
+
+Prüft den Form-Captain-Adapter gegen das echte Form Captain (Signatur, Zweckregistrierung, Einsendung). Nutzt die
+WordPress-Testbibliothek, PHPUnit und die Testkonfiguration eines Form-Captain-Checkouts mit `vendor/`; braucht
+eine Wegwerf-Datenbank (`WP_TESTS_DB_NAME`, `_USER`, `_PASSWORD`, `_HOST`, Standard `wp`/`wp`@`localhost`).
+
+```bash
+FORM_CAPTAIN_DIR=/pfad/zu/wp-formmaster WP_TESTS_DB_NAME=wp_passfc_tests \
+  php "$FORM_CAPTAIN_DIR/vendor/bin/phpunit" -c tests/form-captain/phpunit.xml
+```
+
+Abgedeckt: Zweck `pass.event_registration` registriert, nur veröffentlichte Formulare zuordenbar, Einsendung mit
+verifiziertem Eventkontext erzeugt keine Bestellung/Reservierung/Ticket, manipulierte Event-ID →
+`context_signature_invalid`, abgesagtes Event → `context_ref_rejected`, Event-Karte mit Formular und gültigem
+Kontext. Nicht in CI (braucht einen Form-Captain-Checkout).

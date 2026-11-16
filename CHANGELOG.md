@@ -818,6 +818,16 @@ Version 1.5.0 ist die erste Version mit den Erweiterungspunkten für Add-ons (Ab
 - Fehlgeschlagene Rückbuchungen des Gutscheinanteils werden als Job wiederholt; endgültige Fehler gehen per Mail an den Admin.
 - Manuelle Zahlung (Überweisung, Haltezeit 72 h): höchstens 2 offene unbezahlte Bestellungen je E-Mail-Adresse und 5 je Besucher innerhalb der Haltezeit (Filter `wpcap_manual_open_orders_per_email`, `wpcap_manual_orders_per_client`), damit niemand anonym Kontingente blockiert.
 - Umsatzsteuer von Teilerstattungen rabattierter Bestellungen korrigiert; Partnerabrechnung zählt bei Mehrzweckgutscheinen Bar- und Gutscheinanteil der Erstattung; Provisionsrechnung einer Kleinunternehmer-Plattform ohne Umsatzsteuer mit Hinweis.
+### Form Captain: Formular zum Event
+- Optionaler Adapter für Form Captain (Contract 1.1.0): In der Event-Adminseite lässt sich ein veröffentlichtes Form-Captain-Formular (ID oder öffentliche ID) zuordnen; es erscheint in der Event-Karte nach dem Checkout. Das Formular erhält einen signierten Bezug auf das Event (Kontextzweck `pass.event_registration`); Form Captain lehnt manipulierte Event-IDs und Einsendungen zu abgesagten Events ab.
+- Eine Einsendung ist keine Buchung: keine Reservierung, keine Zahlung, kein Ticket. Ohne Form Captain ändert sich nichts.
+- Neue Tabelle `wpcap_event_forms`, neue Action `wpcap_event_admin_sections` (Abschnitte auf der Event-Adminseite).
+
+### Neuer Name: Pass Captain
+- Das Plugin heißt jetzt „Pass Captain“ (WordPress.org erlaubt kein „WP“ im Plugin-Namen). Hauptdatei `pass-captain.php`, Plugin-Ordner und ZIP `pass-captain`, Textdomain `pass-captain`, Übersetzungsdateien `languages/pass-captain-*.po/.mo`.
+- Umstieg: die neue Version installieren und aktivieren. Ist die alte Kopie `wp-pass-captain/wp-pass-captain.php` noch aktiv, übernimmt die neue Kopie deren Aktivierung (auf Multisite auch die Netzwerkaktivierung) – ohne Deaktivierungs- oder Deinstallationsroutine der alten Kopie. Daten, Einstellungen und Zeitpläne bleiben erhalten. Danach kann die alte Kopie gelöscht werden: Ihre Deinstallation entfernt dabei nie Daten, auch wenn „Daten beim Löschen entfernen“ aktiv ist, und die dabei gelöschten Zeitpläne legt die neue Kopie beim nächsten Seitenaufruf neu an.
+- Unverändert (öffentliche Schnittstellen und gespeicherte Daten): REST-Namensraum `wp-pass-captain/v1` (Webhooks, Scanner-Apps, Wallet), Blocknamen `wp-pass-captain/*`, Admin-Seite `wp-pass-captain`, Theme-Vorlagenordner `wp-pass-captain/`, Shortcodes `wp_pass_captain_*`, Hooks, Präfix `wpcap_`, Action-Scheduler-Gruppe `wp-pass-captain`.
+- Eigene Übersetzungen unter `wp-content/languages/plugins/` müssen von `wp-pass-captain-*` in `pass-captain-*` umbenannt werden.
 
 ### Zusammenspiel mit WP Voucher Captain
 - Ticketdienst: `get()` liefert zusätzlich Event, Ticketart, Beginn (Ortszeit) und Empfänger einer Umwandlung (für „2 Tickets für … am …, gesendet an …“ im Kundenkonto); neues `resend_tickets()` sendet die Tickets einer Umwandlung erneut (neue Codes, höchstens 3-mal pro Stunde wie im Bestellportal).
