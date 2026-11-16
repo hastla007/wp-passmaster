@@ -87,7 +87,9 @@ final class Notifications {
 		$sent = 0;
 		$deferred = isset( self::$deferred[ absint( $occurrence_id ) ] );
 		if ( ! $deferred && Revisions::event_notifies( $occ->event_id ) ) {
-			$sent = self::send_all( $occ, 'notify|' . (int) $occ->occurrence_id . '|rescheduled|' . md5( $old_starts_at . '>' . $new_starts_at . '|' . uniqid( '', true ) ), array( 'mail' => 'occurrence_rescheduled', 'old' => (string) $old_starts_at, 'new' => (string) $new_starts_at ) );
+			// One notice run per change (old > new at this revision): a repeated hook for the same change
+			// mails nobody twice (R3 #8), a later change – even back and forth – is a new run.
+			$sent = self::send_all( $occ, 'notify|' . (int) $occ->occurrence_id . '|rescheduled|' . md5( $old_starts_at . '>' . $new_starts_at . '|r' . (int) ( $occ->revision ?? 0 ) ), array( 'mail' => 'occurrence_rescheduled', 'old' => (string) $old_starts_at, 'new' => (string) $new_starts_at ) );
 		}
 		Audit::record( 'occurrence_rescheduled', 'occurrence', absint( $occurrence_id ), array( 'old' => $old_starts_at, 'new' => $new_starts_at, 'notified' => $sent ) + ( $deferred ? array( 'combined' => true ) : array() ) );
 		return $sent;

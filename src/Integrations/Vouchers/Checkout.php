@@ -71,7 +71,7 @@ final class Checkout {
 		if ( ! $order || in_array( (string) $order->payment_status, array( 'paid', 'refunded', 'cancelled' ), true ) || in_array( (string) $order->status, array( 'refunded', 'cancelled' ), true ) ) { return; }
 		$again = self::reserve_again( (int) $order_id, $order, $snapshot );
 		if ( is_wp_error( $again ) ) {
-			Audit::record( 'voucher_reserve_again_failed', 'order', (int) $order_id, array( 'error' => $again->get_error_code() ) );
+			\PassCaptain\Log::error( 'voucher_reserve_again_failed', 'voucher reserve again failed', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $again->get_error_code() ) ) );
 		}
 	}
 
@@ -140,7 +140,7 @@ final class Checkout {
 				// Timeout/exception: the provider may have reserved before failing. Nothing was written on our
 				// side; release the key so no voucher amount stays blocked (contract: release by idempotency key).
 				Bridge::release( array( 'idempotency_key' => $key, 'order_reference' => 'wpcap:' . $order->public_id ), 'wpcap-release-' . $order->public_id );
-				Audit::record( 'voucher_reserve_failed', 'order', (int) $order_id, array( 'error' => $reservation->get_error_code() ) );
+				\PassCaptain\Log::error( 'voucher_reserve_failed', 'voucher reserve failed', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $reservation->get_error_code() ) ) );
 			}
 			return self::user_error( $reservation );
 		}
@@ -428,7 +428,6 @@ final class Checkout {
 			// system refunds each key once), a final one is flagged and the admin is told.
 			$final = $from_job ? $final_attempt : ! self::is_temporary( $result );
 			\PassCaptain\Log::error( 'voucher_refund_failed', 'Voucher refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code() ) ) );
-			Audit::record( 'voucher_refund_failed', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code(), 'retry' => ! $final ) );
 			$snapshot['failed_refund_ids'] = array_values( array_unique( array_merge( array_map( 'absint', (array) ( $snapshot['failed_refund_ids'] ?? array() ) ), array( absint( $refund_id ) ) ) ) );
 			self::save( $order_id, $snapshot );
 			if ( $final ) {

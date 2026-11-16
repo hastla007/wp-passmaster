@@ -315,7 +315,7 @@ final class Communications {
 			return $out;
 		}
 		$template = apply_filters( 'wpcap_email_template', null, $row->template_key, $payload, (string) $row->recipient );
-		$template = Hooks::legacy_filter( 'wpcap_email_template', $template, $row->template_key, $payload );
+		$template = Hooks::legacy_filter( 'wpcap_email_template', $template, $row->template_key, $payload, (string) $row->recipient ); // Same arguments for callbacks of the former name (recipient: unsubscribe headers, opt-outs).
 		$template = is_array( $template ) ? $template : array();
 		$out['temp_files'] = (array) ( $template['temp_files'] ?? array() );
 		if ( ! empty( $template['skip'] ) ) {

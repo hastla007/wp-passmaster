@@ -529,7 +529,7 @@ final class Webhooks {
 				// A264: refund row, credit note and refunded total are still missing. The 5xx makes the
 				// provider redeliver the event; record_external() is idempotent per key, so the
 				// redelivery books exactly the missing refund (the order is already "refunded").
-				Audit::record( 'external_refund_booking_failed', 'order', $order_id, array( 'provider' => $provider, 'event' => $event_id, 'error' => $booking_error->get_error_code() ) );
+				\PassCaptain\Log::error( 'external_refund_booking_failed', 'external refund booking failed', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'provider' => $provider, 'event' => $event_id, 'error' => $booking_error->get_error_code() ) ) );
 				return new \WP_Error( 'wpcap_refund_booking_retry', 'Order marked refunded, refund booking failed; retry later.', array( 'status' => 503, 'retryable' => true ) );
 			}
 			return 'refunded';

@@ -49,7 +49,7 @@ try { Jobs::process_due( 200 ); } catch ( \Throwable $e ) { $r3_threw = true; }
 $r3_poison = $r3_job( $r3_poison_key );
 check( 'process_due() survives the exception and runs the job queued behind it', ! $r3_threw && 'complete' === $r3_job( $r3_ok_key )->status );
 check( 'poison job: queued again with backoff (run_after in the future), attempt counted, last_error kept', 'queued' === $r3_poison->status && 1 === (int) $r3_poison->attempts && $r3_future( $r3_poison->run_after ) && false !== strpos( (string) $r3_poison->last_error, 'connector exploded' ) );
-check( 'last_error and log entry are redacted (no plain e-mail address)', false === strpos( (string) $r3_poison->last_error, 'anna@example.com' ) && (bool) array_filter( $r3_logs, static fn( $l ) => 'queue_handler_exception' === $l['event'] && false === strpos( $l['message'], 'anna@example.com' ) ) );
+check( 'last_error and log entry are redacted (no plain e-mail address)', false === strpos( (string) $r3_poison->last_error, 'anna@example.com' ) && (bool) array_filter( $r3_logs, static fn( $l ) => in_array( $l['event'], array( 'queue_handler_exception', 'job' ), true ) && false !== strpos( $l['message'], 'connector exploded' ) && false === strpos( $l['message'], 'anna@example.com' ) ) ); // Merged Log: channel "job".
 check( 'no claim left open after the exception', 0 === TimeBudget::open_claims() );
 Jobs::process_due( 200 );
 check( 'the poison job is not claimed again before its backoff ends', 1 === (int) $r3_job( $r3_poison_key )->attempts );
@@ -72,8 +72,9 @@ $r3_boom_to = 'r3-boom-' . uniqid() . '@example.com';
 $r3_fine_to = 'r3-fine-' . uniqid() . '@example.com';
 Communications::enqueue( 'r3-' . $r3_boom_to, $r3_boom_to, 'r3_boom', array( 'subject' => 'S', 'body' => 'B' ), gmdate( 'Y-m-d H:i:s', time() - 120 ) );
 Communications::enqueue( 'r3-' . $r3_fine_to, $r3_fine_to, 'r3_fine', array( 'subject' => 'Hallo', 'body' => 'Welt' ), gmdate( 'Y-m-d H:i:s', time() - 60 ) );
-$r3_tpl = static function ( $template, $key ) { if ( 'r3_boom' === $key ) { throw new LogicException( 'template broken' ); } return $template; };
-add_filter( 'wp_pass_captain_email_template_v1', $r3_tpl, 10, 2 );
+// r3_fine is a real (test) template: the merged queue never sends the payload itself as subject/body (A652).
+$r3_tpl = static function ( $template, $key, $payload = array() ) { if ( 'r3_boom' === $key ) { throw new LogicException( 'template broken' ); } if ( 'r3_fine' === $key ) { return array( 'subject' => (string) ( $payload['subject'] ?? '' ), 'body' => (string) ( $payload['body'] ?? '' ) ); } return $template; };
+add_filter( 'wp_pass_captain_email_template_v1', $r3_tpl, 10, 3 );
 $r3_threw = false;
 try { Communications::process_due(); } catch ( \Throwable $e ) { $r3_threw = true; }
 remove_filter( 'wp_pass_captain_email_template_v1', $r3_tpl, 10 );
@@ -109,7 +110,10 @@ remove_filter( 'wpcap_sms_providers', $r3_sms_providers, 10 );
 echo "R3 #8: sender (From, Reply-To, envelope sender)\n";
 Settings::update( array( 'mail_from_email' => '', 'mail_from_name' => '', 'mail_reply_to' => '' ) );
 $r3_prep = Mailer::prepare( 'x@example.com', array( 'subject' => 'S', 'body' => 'B', 'format' => 'text' ) );
-check( 'without configuration no From/Reply-To header is forced (WordPress or SMTP plugin decides)', ! array_filter( $r3_prep['headers'], static fn( $h ) => 0 === stripos( $h, 'From:' ) || 0 === stripos( $h, 'Reply-To:' ) ) );
+// Merged sender (A296): no From is forced (WordPress or the SMTP plugin decides, SPF/DKIM match); replies go to the
+// admin e-mail while no own From address is configured (replies to wordpress@… would be lost).
+$r3_admin_reply = '' !== (string) get_option( 'admin_email' ) ? array( 'Reply-To: ' . get_option( 'admin_email' ) ) : array();
+check( 'without configuration no From header is forced (WordPress or SMTP plugin decides), Reply-To is the admin e-mail', ! array_filter( $r3_prep['headers'], static fn( $h ) => 0 === stripos( $h, 'From:' ) ) && array_values( array_filter( $r3_prep['headers'], static fn( $h ) => 0 === stripos( $h, 'Reply-To:' ) ) ) === $r3_admin_reply );
 check( 'status page warns about the missing sender address', (bool) array_filter( Mailer::sender_issues(), static fn( $i ) => 'warning' === $i['severity'] && false !== strpos( $i['message'], 'Absenderadresse' ) ) );
 check( 'settings defaults exist (mail_from_email, mail_from_name, mail_reply_to)', array_key_exists( 'mail_from_email', Settings::defaults() ) && array_key_exists( 'mail_from_name', Settings::defaults() ) && array_key_exists( 'mail_reply_to', Settings::defaults() ) );
 check( 'settings page validates the addresses', is_wp_error( PassCaptain\Admin\SettingsPage::sanitize_mail_address( 'kein-mail' ) ) && 'tickets@example.test' === PassCaptain\Admin\SettingsPage::sanitize_mail_address( ' tickets@example.test ' ) && '' === PassCaptain\Admin\SettingsPage::sanitize_mail_address( '' ) );
@@ -145,16 +149,19 @@ $r3_event = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE
 foreach ( array( 'a', 'b', 'c' ) as $r3_i ) {
 	Orders::create( array( 'email' => "r3-res-$r3_i@example.com", 'items' => array( array( 'ticket_type_id' => $r3_type, 'quantity' => 1 ) ), 'idempotency_key' => "r3-res-$r3_i-" . uniqid() ), array( 'skip_rate_limit' => true ) );
 }
-Communications::$inline_seconds = 0; // A request without time left: everything stays queued.
+// Merged line (A428): a reschedule notice is a resumable run (BulkRuns, kind notify): one queued mail per
+// holder (template wpcap_bulk_{run}, dedupe per run and recipient, rendered at send time), sent within the
+// request's time budget, the rest by the queue worker.
 $r3_mails = count( $GLOBALS['wpcap_test_mails'] );
 $r3_n = PassCaptain\Notifications::occurrence_rescheduled( $r3_occ, '2031-01-01 18:00:00', '2031-01-08 18:00:00' );
-$r3_ref = 'resched|' . $r3_occ . '|2031-01-08 18:00:00';
-check( 'reschedule queues one message per holder and sends nothing in the request', 3 === $r3_n && $r3_mails === count( $GLOBALS['wpcap_test_mails'] ) && 3 === Communications::progress( $r3_ref )['queued'] );
-check( 'dedupe key resched|occ|new start|e-mail: a repeated hook queues nothing twice', 3 === PassCaptain\Notifications::occurrence_rescheduled( $r3_occ, '2031-01-01 18:00:00', '2031-01-08 18:00:00' ) && 3 === array_sum( Communications::progress( $r3_ref ) ) );
-check( 'queued row is a typed mail (rendered at send time)', 'mail_occurrence_rescheduled' === $r3_msg( 'r3-res-a@example.com' )->template_key );
-$r3_drain( $r3_ref );
+$r3_runs = PassCaptain\BulkRuns::for_object( 'notify', $r3_occ );
+$r3_run = $r3_runs[0] ?? null;
+$r3_rows = $r3_run ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE template_key=%s', $r3_mq, PassCaptain\BulkRuns::MAIL_PREFIX . (int) $r3_run->run_id ) ) : 0;
+check( 'reschedule queues one message per holder and sends nothing in the request', 3 === $r3_n && 1 === count( $r3_runs ) && 3 === $r3_rows );
+check( 'dedupe key resched|occ|new start|e-mail: a repeated hook queues nothing twice', 3 === PassCaptain\Notifications::occurrence_rescheduled( $r3_occ, '2031-01-01 18:00:00', '2031-01-08 18:00:00' ) && 1 === count( PassCaptain\BulkRuns::for_object( 'notify', $r3_occ ) ) && 3 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE template_key LIKE %s AND recipient LIKE 'r3-res-%%'", $r3_mq, PassCaptain\BulkRuns::MAIL_PREFIX . '%' ) ) );
+check( 'queued row is a typed mail (rendered at send time)', 0 === strpos( (string) $r3_msg( 'r3-res-a@example.com' )->template_key, PassCaptain\BulkRuns::MAIL_PREFIX ) );
 $r3_new = array_slice( $GLOBALS['wpcap_test_mails'], $r3_mails );
-check( 'the worker sends them: rendered template with the new date', 3 === count( array_filter( $r3_new, static fn( $m ) => str_starts_with( $m['subject'], 'Terminänderung' ) && false !== strpos( $m['body'], '08.01.2031' ) ) ) && 3 === Communications::progress( $r3_ref )['sent'] );
+check( 'the worker sends them: rendered template with the new date', 3 === count( array_filter( $r3_new, static fn( $m ) => str_starts_with( $m['subject'], 'Terminänderung' ) && false !== strpos( $m['body'], '08.01.2031' ) ) ) && $r3_run && 3 === PassCaptain\BulkRuns::mail_counts( $r3_run )['sent'] );
 Communications::$inline_seconds = 10;
 $r3_mails = count( $GLOBALS['wpcap_test_mails'] );
 PassCaptain\Notifications::occurrence_rescheduled( $r3_occ, '2031-01-08 18:00:00', '2031-01-15 18:00:00' );
@@ -163,18 +170,25 @@ $r3_hooked = ! empty( $GLOBALS['wpcap_test_hooks']['wpcap_occurrence_rescheduled
 if ( ! $r3_hooked ) { add_action( 'wpcap_occurrence_rescheduled', array( PassCaptain\Notifications::class, 'occurrence_rescheduled' ), 10, 3 ); }
 $r3_save = PassCaptain\Admin\EventsPage::save_occurrence( array( 'event_id' => $r3_event, 'occurrence_id' => $r3_occ, 'starts_at' => '2031-02-01T20:00', 'timezone' => 'UTC', 'location' => 'Wien', 'capacity' => 0, 'status' => 'scheduled' ) );
 if ( ! $r3_hooked ) { remove_action( 'wpcap_occurrence_rescheduled', array( PassCaptain\Notifications::class, 'occurrence_rescheduled' ), 10 ); }
-check( 'admin result carries the notification progress of the reschedule', ! is_wp_error( $r3_save ) && ! empty( $r3_save['rescheduled'] ) && 3 === array_sum( (array) ( $r3_save['notifications'] ?? array() ) ) );
+// Merged admin flow: the notice shows the progress of the occurrence's latest notify run (EventsPage::handle_save_occurrence()).
+$r3_last = PassCaptain\BulkRuns::for_object( 'notify', $r3_occ, 1 )[0] ?? null;
+check( 'admin result carries the notification progress of the reschedule', ! is_wp_error( $r3_save ) && ! empty( $r3_save['rescheduled'] ) && $r3_last && 3 === PassCaptain\BulkRuns::mail_counts( $r3_last )['total'] );
 
 echo "R3 #8: event cancellation mails are queued per recipient\n";
 Communications::$inline_seconds = 0;
 $r3_mails = count( $GLOBALS['wpcap_test_mails'] );
 $r3_cancel = Orders::cancel_event( $r3_event );
-$r3_cref = 'event-cancel|' . $r3_event;
-check( 'cancel_event queues one mail per recipient (no SMTP in the request)', ! is_wp_error( $r3_cancel ) && 3 === $r3_cancel['notified_count'] && 3 === Communications::progress( $r3_cref )['queued'] && ! array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $r3_mails ), static fn( $m ) => str_starts_with( $m['subject'], 'Eventabsage' ) ) );
-check( 'result reports the queue progress for the admin notice', 3 === (int) ( $r3_cancel['notifications']['queued'] ?? 0 ) );
-check( 'dedupe key event-cancel|event|e-mail', true === Communications::enqueue_mail( $r3_cref . '|r3-res-a@example.com', 'r3-res-a@example.com', 'event_cancelled', array( 'event_name' => 'X' ), '', $r3_cref ) && 3 === array_sum( Communications::progress( $r3_cref ) ) );
-$r3_drain( $r3_cref );
-check( 'worker sends the event cancellation mails', 3 === count( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $r3_mails ), static fn( $m ) => str_starts_with( $m['subject'], 'Eventabsage' ) ) ) && 3 === Communications::progress( $r3_cref )['sent'] );
+// Merged line (A428): the event cancellation is a resumable run; its event mails are queued per recipient
+// first (template wpcap_bulk_{run}, dedupe per run and recipient) and sent by the run / the queue worker.
+$r3_crun = ! is_wp_error( $r3_cancel ) ? PassCaptain\BulkRuns::get( (int) ( $r3_cancel['run_id'] ?? 0 ) ) : null;
+$r3_ckey = $r3_crun ? PassCaptain\BulkRuns::MAIL_PREFIX . (int) $r3_crun->run_id : '';
+$r3_crows = $r3_crun ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE template_key=%s', $r3_mq, $r3_ckey ) ) : 0;
+check( 'cancel_event queues one mail per recipient (no SMTP in the request)', ! is_wp_error( $r3_cancel ) && 3 === $r3_cancel['notified_count'] && 3 === $r3_crows );
+check( 'result reports the queue progress for the admin notice', $r3_crun && 3 === PassCaptain\BulkRuns::mail_counts( $r3_crun )['total'] && ! empty( $r3_cancel['complete'] ) );
+$r3_before_again = count( $GLOBALS['wpcap_test_mails'] );
+if ( $r3_crun ) { PassCaptain\BulkRuns::handle_job( false, 'bulk_run', array( 'run_id' => (int) $r3_crun->run_id ), 0 ); }
+check( 'dedupe key event-cancel|event|e-mail', 3 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE template_key=%s', $r3_mq, $r3_ckey ) ) && $r3_before_again === count( $GLOBALS['wpcap_test_mails'] ) );
+check( 'worker sends the event cancellation mails', 3 === count( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $r3_mails ), static fn( $m ) => str_starts_with( $m['subject'], 'Eventabsage' ) ) ) && $r3_crun && 3 === PassCaptain\BulkRuns::mail_counts( $r3_crun )['sent'] );
 Communications::$inline_seconds = 10;
 
 echo "R3 #8/#11: occurrence cancellation mails per recipient, small refund batches with deadline\n";
@@ -283,7 +297,8 @@ foreach ( $r3_log as $i => $sql ) { if ( 0 === stripos( ltrim( $sql ), 'START TR
 $r3_locks = array_filter( $r3_log, static fn( $sql ) => false !== stripos( $sql, 'wpcap_tickets' ) && false !== stripos( $sql, 'FOR UPDATE' ) );
 check( 'resend takes no ticket row lock (no SELECT … FOR UPDATE)', true === $r3_res && array() === $r3_locks );
 check( 'the first mail goes out before any transaction starts (prepare → send → short compare-and-set)', $r3_at_mail && null !== $r3_first_tx && $r3_at_mail[0] <= $r3_first_tx );
-check( 'compare-and-set on the previous hash', (bool) array_filter( $r3_log, static fn( $sql ) => (bool) preg_match( "/^UPDATE \\S*wpcap_tickets\\S* SET token_hash='[a-f0-9]{64}' WHERE ticket_id=\\d+ AND status='valid' AND token_hash='[a-f0-9]{64}'/", $sql ) ) );
+// Merged line: the code also records whether it was issued with the attendee (code_with_attendee).
+check( 'compare-and-set on the previous hash', (bool) array_filter( $r3_log, static fn( $sql ) => (bool) preg_match( "/^UPDATE \\S*wpcap_tickets\\S* SET token_hash='[a-f0-9]{64}'(,[a-z_]+=[0-9]+)* WHERE ticket_id=\\d+ AND status='valid' AND token_hash='[a-f0-9]{64}'/", $sql ) ) );
 $r3_smails = array_slice( $GLOBALS['wpcap_test_mails'], $r3_mails );
 check( 'resend mails carry the ticket PDF (buyer: 2 tickets, guest: 1)', 2 === count( $r3_smails ) && ! array_filter( $r3_smails, static fn( $m ) => 1 !== count( $m['files'] ) ) );
 check( 'every code changed', ! array_intersect( $r3_before, $r3_hashes( $r3_so['order_id'] ) ) );
@@ -319,7 +334,8 @@ PassCaptain\Log::error( 'r3_db_down_failed', 'probe while the database refuses w
 wpcap_faults_restore();
 $wpdb = $GLOBALS['wpdb'];
 remove_filter( 'wpcap_error_log', $r3_errlog, 10 );
-check( 'audit insert failed: the entry is written to the PHP error log (redacted) instead of being lost', (bool) array_filter( $r3_lines, static fn( $l ) => false !== strpos( $l, 'r3_db_down_failed' ) && false !== strpos( $l, 'audit log unavailable' ) ) );
+// Merged Log: error-level entries always reach the PHP error log (redacted); the support log table keeps it, too.
+check( 'audit insert failed: the entry is written to the PHP error log (redacted) instead of being lost', (bool) array_filter( $r3_lines, static fn( $l ) => false !== strpos( $l, 'r3_db_down_failed' ) && false !== strpos( $l, 'probe while the database refuses writes' ) ) );
 $r3_logs = array();
 $r3_io = Orders::create( array( 'email' => 'r3-issue@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 5, 0 ), 'quantity' => 1 ) ), 'idempotency_key' => 'r3-issue-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 $r3_f = wpcap_faults();
@@ -336,7 +352,8 @@ $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE job_type='ticket_issue' AND 
 echo "R3 #11: Action Scheduler continuation only counts pending actions\n";
 if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 	function as_enqueue_async_action( $hook, $args = array(), $group = '' ) { $GLOBALS['r3_as'][] = array( 'hook' => $hook, 'args' => $args, 'status' => 'pending' ); return count( $GLOBALS['r3_as'] ); }
-	function as_has_scheduled_action( $hook, $args = null, $group = '' ) { foreach ( $GLOBALS['r3_as'] ?? array() as $a ) { if ( $a['hook'] === $hook && in_array( $a['status'], array( 'pending', 'in-progress' ), true ) ) { return true; } } return false; }
+	// Groups matter: the merged code also looks for actions left in the pre-rename group (LegacySlug).
+	function as_has_scheduled_action( $hook, $args = null, $group = '' ) { foreach ( $GLOBALS['r3_as'] ?? array() as $a ) { if ( $a['hook'] === $hook && ( '' === $group || ( $a['group'] ?? 'pass-captain' ) === $group ) && in_array( $a['status'], array( 'pending', 'in-progress' ), true ) ) { return true; } } return false; }
 	function as_get_scheduled_actions( $q = array(), $return = 'objects' ) { $ids = array(); foreach ( $GLOBALS['r3_as'] ?? array() as $i => $a ) { if ( $a['hook'] === ( $q['hook'] ?? '' ) && $a['args'] === ( $q['args'] ?? array() ) && $a['status'] === ( $q['status'] ?? '' ) ) { $ids[] = $i + 1; } } return $ids; }
 }
 $GLOBALS['r3_as'] = array( array( 'hook' => 'wpcap_process_jobs', 'args' => array( 'continue' ), 'status' => 'in-progress' ) );
