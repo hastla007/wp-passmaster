@@ -217,9 +217,11 @@ WordPress mit Cache je Prozess, damit parallele Prozesse sie teilen) und eigene 
 (`WPCAP_UPGRADE_PREFIX`, Standard `wpupg_`, plus Kürzel je Szenario; vorher und nachher gelöscht,
 `WPCAP_UPGRADE_KEEP=1` behält sie).
 
-Vorgängerstände: jedes Git-Tag `v*`, der Commit vor der letzten Änderung von `Installer::DB_VERSION` und
-weitere Refs aus `WPCAP_UPGRADE_REFS` (kommagetrennt). Jeder Stand wird von seinem **eigenen** Code angelegt
-(`git archive` des Tags, dessen Installer und Test-Bootstrap; `tests/upgrade/legacy.php`), jede Tabelle mit
+Vorgängerstände: jedes Git-Tag `v*`, der Commit vor der letzten Änderung von `Installer::DB_VERSION` auf der
+eigenen Linie (`--first-parent`; ist diese Änderung ein Merge, zusätzlich die Spitze jeder hineingemergten
+Linie, z. B. Schema 3.10.27 des „theirs“-Strangs von 1.5) und weitere Refs aus `WPCAP_UPGRADE_REFS`
+(kommagetrennt). Jeder Stand wird von seinem **eigenen** Code angelegt
+(`git archive` des Tags, dessen Installer und Test-Bootstrap-Verzeichnis; `tests/upgrade/legacy.php`), jede Tabelle mit
 drei Zeilen gefüllt (alle Spalten belegt, dazu eine bezahlte Bestellung und eine aktive Reservierung), in den
 Einstellungen ein Klartext-Zugangsdatum und kein Gutschriftpräfix. Dann führt `tests/upgrade/worker.php`
 `Installer::maybe_upgrade( 'cron' )` des aktuellen Codes aus. Geprüft wird je Stand:
@@ -227,10 +229,15 @@ Einstellungen ein Klartext-Zugangsdatum und kein Gutschriftpräfix. Dann führt 
 - Tabellen, Spalten (Typ, NULL, Vorgabe, Extra, Kollation) und Indizes gleichen einer Neuinstallation
   (`information_schema`; die Spaltenreihenfolge zählt nicht, `dbDelta` hängt neue Spalten hinten an);
 - Schema-Version und `wpcap_db_version_max` aktuell, Version genau einmal geschrieben;
-- alle vorhandenen Zeilen unverändert (alte Spalten; ausgenommen der abgeleitete Cache `wpcap_alloc_buyers`);
+- alle vorhandenen Zeilen unverändert (alte Spalten; ausgenommen der abgeleitete Cache `wpcap_alloc_buyers`
+  und die Minutenzähler `wpcap_rate_limits`). Gewollte Umwandlungen werden in ihrer neuen Form verglichen:
+  in place verschlüsselte Spalten (`ENCRYPTED_COLUMNS`: Webhook-Secrets, Partner-Auszahlungsdaten) müssen
+  Chiffrat sein und zum alten Wert entschlüsseln (`worker.php decrypt`), umbenannte Spalten
+  (`RENAMED_COLUMNS`: Kassen-`register_id` → `fiscal_register_id` der Audit-Linie) gleichen dem neuen Namen;
 - einmalige Datenmigrationen genau einmal (Protokoll aller Optionsschreibvorgänge): Gutschriftpräfix „GS“
-  festgeschrieben (Stände vor 3.8.3), Zugangsdaten in den Tresor verschoben (ein Audit-Eintrag),
-  Kontingentzähler neu aufgebaut und ohne Abweichung, Kassen- und Käuferlimit-Migration;
+  festgeschrieben (Stände vor 3.8.3 und Stände der Audit-Linie), Zugangsdaten in den Tresor verschoben (genau
+  ein Audit-Eintrag `secrets_moved_to_store` oder `secrets_migrated`, nur Namen), Kontingentzähler neu
+  aufgebaut und ohne Abweichung, Kassen-, Partnerabrechnungs- (A448) und Käuferlimit-Migration;
 - ein zweiter Upgrade-Lauf ändert nichts (`SHOW CREATE TABLE`, Optionen).
 
 Zusätzlich mit dem ältesten Tag: Abbruch mitten im Schema (Ausnahme bei der dritten DDL-Anweisung) und mitten
@@ -243,7 +250,10 @@ Gefundene und behobene Fehler (13.11.2026): Upgrades von 1.1.0/1.2.0 behielten d
 `wpcap_order_items.type_order`, alle Stände bis 1.4.0 den vollen Index auf `wallet_registrations.push_token`
 statt des Präfixindex (191) – `dbDelta` ändert und löscht keine Indizes. Behoben mit
 `Installer::upgrade_indexes()` (Schema 3.10.4, siehe OPERATIONS.md). Lauf lokal (MariaDB, WordPress 7.1.4):
-123 Prüfungen, 0 Fehler, 15–25 Sekunden. CI: Pflichtschritt im Job `integration` (alle DB-/PHP-Kombinationen,
+123 Prüfungen, 0 Fehler, 15–25 Sekunden. Nach dem Merge der beiden 1.5-Linien (16.11.2026, Schema 3.18.0):
+Upgrades von der Audit-Linie (3.17.7) behielten die Vorgabe 600 für `wpcap_api_keys.rate_limit` (neu 0 =
+Standardlimit), weil `dbDelta` Vorgaben nur in Anführungszeichen vergleicht – behoben mit `DEFAULT '0'`.
+146 Prüfungen, 0 Fehler (Tags 1.1.0–1.4.0, Audit-Linie 3.17.7, „theirs“-Linie 3.10.27). CI: Pflichtschritt im Job `integration` (alle DB-/PHP-Kombinationen,
 volle Git-Historie).
 
 ## Kern läuft allein (A664)
