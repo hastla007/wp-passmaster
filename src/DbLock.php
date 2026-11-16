@@ -47,12 +47,12 @@ final class DbLock {
 	 */
 	public static function acquire_scoped( $name, $wait = 0 ) {
 		global $wpdb;
-		return '1' === (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', substr( (string) $name, 0, 64 ), max( 0, (int) $wait ) ) );
+		return '1' === (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', Text::cut( (string) $name, 64 ), max( 0, (int) $wait ) ) );
 	}
 
 	/** Releases a lock taken with acquire_scoped(). */
 	public static function release_scoped( $name ) {
 		global $wpdb;
-		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', substr( (string) $name, 0, 64 ) ) );
+		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', Text::cut( (string) $name, 64 ) ) );
 	}
 }

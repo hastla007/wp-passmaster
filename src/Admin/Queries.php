@@ -87,8 +87,12 @@ final class Queries {
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 	}
 
-	public static function occurrences_for_event( $event_id ) {
+	/** @param int $limit 0 = all dates; otherwise at most that many (A476: no full list where a few suffice). */
+	public static function occurrences_for_event( $event_id, $limit = 0 ) {
 		global $wpdb;
+		if ( $limit > 0 ) {
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d ORDER BY starts_at, occurrence_id LIMIT %d', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ), absint( $limit ) ) );
+		}
 		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d ORDER BY starts_at, occurrence_id', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) );
 	}
 

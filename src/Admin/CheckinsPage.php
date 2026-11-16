@@ -70,6 +70,8 @@ final class CheckinsPage {
 			$last = Queries::last_occurrence( $event_id ); // A476: one row, not every date of the event.
 			if ( $last ) { $timezone = $last->timezone; }
 		}
+		// Presence panel: the first 50 dates of the selected event (render_presence() lists at most 50).
+		$occurrences = $event_id ? Queries::occurrences_for_event( $event_id, 50 ) : array();
 		list( $from_utc, $to_utc ) = self::date_bounds( $date_from, $date_to, $timezone );
 		$page = Forms::current_page();
 		$per_page = 50;

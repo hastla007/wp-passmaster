@@ -193,10 +193,10 @@ final class Settings {
 		return self::$all[1];
 	}
 
-	/** One setting. */
-	public static function get( $key ) {
+	/** One setting; $fallback when it is unknown (not stored and no default in defaults()). */
+	public static function get( $key, $fallback = null ) {
 		$all = self::all();
-		return $all[ $key ] ?? null;
+		return $all[ $key ] ?? $fallback;
 	}
 
 	/**
