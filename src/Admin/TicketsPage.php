@@ -1,6 +1,6 @@
 <?php
 /**
- * Tickets admin: search, revoke or reissue a valid ticket, undo a check-in.
+ * Tickets admin: search, revoke or reissue a valid ticket, check a ticket in manually, undo a check-in.
  *
  * @package PassCaptain
  */
@@ -89,6 +89,38 @@ final class TicketsPage {
 			return Forms::error( $result->get_error_code(), $result->get_error_message(), (int) ( $data['status'] ?? 409 ) );
 		}
 		return $result + array( 'public_id' => $ticket->public_id );
+	}
+
+	/**
+	 * Manual check-in of a valid ticket from the ticket list (A338), e.g. when the guest's code cannot
+	 * be read. Requires wpcap_checkin for the ticket's occurrence; runs through Checkin::perform_ticket()
+	 * with every rule of a scan (occurrence, area, admission policy, area capacity). The form's
+	 * idempotency key makes a double submit harmless.
+	 *
+	 * @param array $in ticket_id, area_id (entrance area, when the event has areas), idempotency_key.
+	 * @return array|\WP_Error
+	 */
+	public static function checkin_ticket( array $in ) {
+		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
+		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_occurrence( $ticket->occurrence_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
+		$key = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $in['idempotency_key'] ?? '' ) );
+		$context = array( 'area_id' => Forms::int( $in, 'area_id' ), 'source' => 'admin' );
+		if ( strlen( $key ) >= 16 ) { $context['idempotency_key'] = 'admin-checkin|' . $key; }
+		$result = \PassCaptain\Checkin::perform_ticket( (int) $ticket->ticket_id, $context );
+		if ( is_wp_error( $result ) ) {
+			$status = (int) ( ( (array) $result->get_error_data() )['status'] ?? 409 );
+			return Forms::error( $result->get_error_code(), $result->get_error_message(), 403 === $status ? 403 : 409 );
+		}
+		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id, 'replayed' => ! empty( $result['replayed'] ) );
+	}
+
+	/** Active entrance areas the current user may admit to for an event (empty without the admission module). */
+	private static function checkin_areas( $event_id ) {
+		if ( ! \PassCaptain\Modules::enabled( \PassCaptain\Modules\Admission::class ) || ! \PassCaptain\Privacy::has_table( 'wpcap_admission_areas' ) ) { return array(); }
+		$areas = array();
+		foreach ( \PassCaptain\Admission\Areas::selectable( array( (int) $event_id ) ) as $area ) { $areas[ (int) $area->area_id ] = (string) $area->name; }
+		return $areas;
 	}
 
 	/**
@@ -199,6 +231,14 @@ final class TicketsPage {
 		Forms::finish( $result, $message, self::back_url( $in ) );
 	}
 
+	public static function handle_checkin_ticket() {
+		Forms::require_any_cap( array( 'wpcap_checkin' ) );
+		$in = Forms::post();
+		Forms::verify( 'wpcap_checkin_ticket_' . Forms::int( $in, 'ticket_id' ) );
+		$result = self::checkin_ticket( $in );
+		Forms::finish( $result, is_wp_error( $result ) || empty( $result['replayed'] ) ? __( 'Ticket eingecheckt.', 'pass-captain' ) : __( 'Das Ticket war bereits mit diesem Formular eingecheckt.', 'pass-captain' ), self::back_url( $in ) );
+	}
+
 	public static function handle_undo_checkin() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_undo_checkin_' . Forms::int( $in, 'ticket_id' ) );
@@ -228,7 +268,9 @@ final class TicketsPage {
 		foreach ( self::STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
 		?>
 		<div class="wrap wpcap-admin">
-		<h1><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></h1>
+		<h1 class="wp-heading-inline"><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></h1>
+		<?php if ( current_user_can( 'wpcap_checkin' ) ) : ?> <a class="page-title-action" href="<?php echo esc_url( Forms::page_url( ScannerPage::SLUG ) ); ?>"><?php esc_html_e( 'Web-Scanner öffnen', 'pass-captain' ); ?></a><?php endif; ?>
+		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
@@ -293,6 +335,20 @@ final class TicketsPage {
 								<button class="button" type="submit"><?php esc_html_e( 'Korrektur speichern', 'pass-captain' ); ?></button></p>
 								<p class="description"><?php esc_html_e( 'Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Neu ausstellen“ verwenden.', 'pass-captain' ); ?></p>
 								</form></details>
+							<?php endif; ?>
+							<?php if ( 'valid' === $ticket->status && $can_checkin ) : ?>
+								<?php
+								$areas = self::checkin_areas( (int) $ticket->event_id );
+								Forms::open_form( 'wpcap_checkin_ticket', 'wpcap_checkin_ticket_' . $ticket->ticket_id );
+								Forms::hidden( 'ticket_id', $ticket->ticket_id );
+								Forms::hidden( 'return_search', $filters['search'] );
+								Forms::hidden( 'idempotency_key', wp_generate_uuid4() );
+								if ( $areas ) {
+									Forms::select( 'area_id', array( 0 => __( '– Einlassbereich –', 'pass-captain' ) ) + $areas, 0, '', 'aria-label="' . esc_attr__( 'Einlassbereich', 'pass-captain' ) . '"' );
+								}
+								?>
+								<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket jetzt einchecken? Das gilt wie ein Scan am Einlass.', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Einchecken', 'pass-captain' ); ?></button>
+								</form>
 							<?php endif; ?>
 							<?php if ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
 								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>

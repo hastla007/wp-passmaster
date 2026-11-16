@@ -87,12 +87,14 @@ final class Checkin {
 	 */
 	public static function lookup( $code, $at = null, $strict = true, array $context = array() ) {
 		$input = $code;
-		if ( self::has_multiple_codes( $input ) ) {
+		// Staff check-in by ticket id from the admin (perform_ticket(), A338): no code involved.
+		$direct = self::$direct_ticket;
+		if ( ! $direct && self::has_multiple_codes( $input ) ) {
 			return new \WP_Error( 'wpcap_ticket_ambiguous', __( 'Mehrere Ticketcodes in einer Eingabe – nichts geprüft. Bitte jedes Ticket einzeln scannen.', 'pass-captain' ), array( 'status' => 400, 'result' => 'invalid_code' ) );
 		}
-		$code = self::normalize_code( $code );
+		$code = $direct ? '' : self::normalize_code( $code );
 		$help_ticket = 0;
-		if ( '' === $code ) {
+		if ( ! $direct && '' === $code ) {
 			// Staff-only fallback: the short help code printed next to the QR code (rate-limited).
 			$help_ticket = HelpCode::resolve( $input );
 			if ( is_wp_error( $help_ticket ) ) { return $help_ticket; }
@@ -105,14 +107,15 @@ final class Checkin {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE " . ( $help_ticket ? 't.ticket_id=%d' : 't.token_hash=%s' ) . ' LIMIT 1',
-			$help_ticket ? $help_ticket : hash( 'sha256', $code )
+			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE " . ( $direct || $help_ticket ? 't.ticket_id=%d' : 't.token_hash=%s' ) . ' LIMIT 1',
+			$direct ? $direct : ( $help_ticket ? $help_ticket : hash( 'sha256', $code ) )
 		) );
 		// A failed lookup is no unknown ticket (A183): the scanner must retry, not refuse the guest.
 		if ( ! $row && '' !== $wpdb->last_error ) { return self::retry_error(); }
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
 		if ( $help_ticket ) { $found['help_code'] = true; }
+		if ( $direct ) { $found['manual'] = true; }
 		// [Passes] Extension point: a ticket may be valid for another occurrence than the one of its
 		// ticket type (multi-date/festival passes). Modules return $found bound to that occurrence
 		// (occurrence_id, event_id, event_name, starts_at, ends_at, timezone and the statuses below);
@@ -175,6 +178,30 @@ final class Checkin {
 	 */
 	public static function perform( $code, array $context = array() ) {
 		return self::publish( self::perform_internal( $code, $context ) );
+	}
+
+	/** Ticket id of a staff check-in without code (perform_ticket()); 0 otherwise. */
+	private static $direct_ticket = 0;
+
+	/**
+	 * Checks a ticket in by its id – staff at the admin ticket list (A338), e.g. when the guest has no
+	 * readable code. Exactly the same rules as a scan: event scope of wpcap_checkin (Access), occurrence
+	 * and area restrictions, admission policies, area capacity, idempotency key. Logged with source
+	 * `admin` unless the context names another one; the audit entry carries `via: manual`.
+	 *
+	 * @param int   $ticket_id Ticket.
+	 * @param array $context   Same keys as perform() (occurrence_id, area_id, idempotency_key, …).
+	 * @return array|\WP_Error
+	 */
+	public static function perform_ticket( $ticket_id, array $context = array() ) {
+		$ticket_id = absint( $ticket_id );
+		if ( ! $ticket_id ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		self::$direct_ticket = $ticket_id;
+		try {
+			return self::perform( '', $context + array( 'source' => 'admin' ) );
+		} finally {
+			self::$direct_ticket = 0;
+		}
 	}
 
 	private static function perform_internal( $code, array $context ) {
@@ -267,7 +294,7 @@ final class Checkin {
 			$review = self::offline_conflict( new \WP_Error( 'wpcap_backdated_admission', '', array( 'result' => 'backdated_admission' ) ), $found, $context, $key, $checkin_id );
 			$review_id = (int) ( ( (array) $review->get_error_data() )['conflict_id'] ?? 0 );
 		}
-		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array_filter( array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ), 'via' => empty( $found['help_code'] ) ? null : 'help_code' ), static function ( $v ) { return null !== $v; } ) );
+		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array_filter( array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ), 'via' => empty( $found['help_code'] ) ? ( empty( $found['manual'] ) ? null : 'manual' ) : 'help_code' ), static function ( $v ) { return null !== $v; } ) );
 		do_action( 'wpcap_ticket_checked_in', (int) $ticket->ticket_id, $context );
 		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ), self::history( (int) $ticket->ticket_id ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() );
 	}

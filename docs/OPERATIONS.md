@@ -868,6 +868,21 @@ Solche Bestellungen sind im Admin sichtbar:
 
 Im Bestelldetail stehen „Zuteilung erneut versuchen“ (nach Freigabe von Kontingent) bzw. die Erstattung.
 
+### Einchecken im Admin und Web-Scanner (A338)
+
+**Tickets → Einchecken** checkt ein gültiges Ticket ohne Scan ein (z. B. wenn der Code nicht lesbar ist und
+kein Hilfscode zur Hand ist). Es gelten dieselben Regeln wie am Scanner (`Checkin::perform_ticket()`): Recht
+`wpcap_checkin` mit Event-/Termin-Zuweisung und Zugriffsbereich, Terminabsage, Einlassfenster und -regeln,
+Einlassbereich (Auswahl, wenn das Event Bereiche hat; zugewiesene Bereiche der Person gelten) und
+Bereichskapazität. Das Formular trägt einen Idempotenzschlüssel; ein doppelter Klick checkt nicht zweimal
+ein. Der Check-in steht im Protokoll mit Quelle `admin` und im Audit-Log mit `via: manual`.
+
+Der Web-Scanner ist eine normale Seite mit dem Shortcode `[wpcap_scanner]` (Anmeldung mit
+`wpcap_checkin` nötig, nie gecacht). **Einlass → Web-Scanner** verlinkt alle Seiten mit dem Shortcode
+(„Web-Scanner öffnen“, auch als Knopf auf den Seiten Tickets und Check-ins). Gibt es keine, kann eine
+Person mit `publish_pages` dort die Seite „Einlass-Scanner“ anlegen lassen (Audit `scanner_page_created`);
+eigene Scanner-Seiten lassen sich über den Filter `wpcap_scanner_pages` ergänzen.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und

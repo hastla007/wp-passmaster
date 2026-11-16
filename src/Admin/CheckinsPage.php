@@ -76,7 +76,9 @@ final class CheckinsPage {
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $date_from, 'date_to' => $date_to ) ) );
 		?>
 		<div class="wrap wpcap-admin">
-		<h1><?php esc_html_e( 'Check-ins', 'pass-captain' ); ?></h1>
+		<h1 class="wp-heading-inline"><?php esc_html_e( 'Check-ins', 'pass-captain' ); ?></h1>
+		<?php if ( current_user_can( 'wpcap_checkin' ) ) : ?> <a class="page-title-action" href="<?php echo esc_url( Forms::page_url( ScannerPage::SLUG ) ); ?>"><?php esc_html_e( 'Web-Scanner öffnen', 'pass-captain' ); ?></a><?php endif; ?>
+		<hr class="wp-header-end">
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id, '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
