@@ -3481,7 +3481,7 @@ final class Orders {
 		}, $issued );
 		$placeholder = Mail\Mailer::is_placeholder( (string) $order->customer_email );
 		$pdf = $placeholder ? array( 'files' => array(), 'dir' => '', 'notice' => '' ) : Mail\TicketAttachment::create( $order, $issued );
-		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, (bool) $pdf['files'] );
+		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, $pdf['files'] && '' === (string) ( $pdf['notice'] ?? '' ) ); // A580: a partial PDF set keeps the full list.
 		$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted, $pdf ) { return self::with_note( Mail\Blocks::issued_tickets( $listed ), $omitted, $pdf['notice'] ); } ), (string) $order->locale );
 		if ( ! $message ) {
 			Mail\TicketAttachment::remove( $pdf );
@@ -4286,7 +4286,7 @@ final class Orders {
 			} );
 			$files = array_values( array_filter( (array) $files, 'is_string' ) );
 		}
-		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, (bool) $pdf['files'] );
+		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, $pdf['files'] && '' === (string) ( $pdf['notice'] ?? '' ) ); // A580: a partial PDF set keeps the full list.
 		$vars = self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted, $pdf ) { return self::with_note( Mail\Blocks::code_tickets( $listed ), $omitted, (string) ( $pdf['notice'] ?? '' ) ); } );
 		try {
 			return (bool) Mail\Mailer::send( 'tickets_resend', $recipient, $vars, $files, (string) $order->locale, (int) $order->order_id );

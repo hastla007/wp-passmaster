@@ -273,11 +273,12 @@ final class Service {
 	}
 
 	/** "Add all" links of an order: provider => list of [url, first, last]. */
-	public static function order_links( $order ) {
+	public static function order_links( $order, $pending = 0 ) {
 		$out = array();
 		foreach ( array( 'apple' => 'wallet/apple/bundle', 'google' => 'wallet/google/save' ) as $key => $route ) {
 			if ( ! self::provider( $key ) ) { continue; }
-			$count = count( self::order_ticket_ids( $order, $key ) );
+			// $pending: tickets of a ticket mail whose new codes commit only after the mail (outbox delivery).
+			$count = max( count( self::order_ticket_ids( $order, $key ) ), absint( $pending ) );
 			$size = self::batch_size( $key );
 			for ( $part = 0; $part * $size < $count; $part++ ) {
 				$url = add_query_arg( array( 'o' => (string) $order->public_id, 'p' => $part + 1, 'sig' => self::order_sig( $key, $order ) ), rest_url( WebService::NS . '/' . $route ) );
@@ -288,9 +289,9 @@ final class Service {
 	}
 
 	/** Mail text with the "add all" links of an order ('' without passes). */
-	private static function order_links_text( $order ) {
+	private static function order_links_text( $order, $pending = 0 ) {
 		$text = '';
-		foreach ( self::order_links( $order ) as $key => $links ) {
+		foreach ( self::order_links( $order, $pending ) as $key => $links ) {
 			foreach ( $links as $link ) {
 				list( $url, $first, $last ) = $link;
 				if ( $first === $last ) {
@@ -413,41 +414,56 @@ final class Service {
 	/**
 	 * Filter wpcap_ticket_mail: stores the codes while they are available in plaintext.
 	 *
-	 * One ticket: the pass is created right away (.pkpass attachment or link, Google save link).
-	 * Several tickets (audit R2 #5): no attachment per ticket and no long link per ticket; the codes are
-	 * stored, the passes are created by the job queue after the commit (ISSUE_JOB) and the mail gets one
-	 * link to a page listing the wallet buttons of all tickets (collection_url()).
+	 * One ticket: the pass is created right away (.pkpass attachment within the attachment budget or
+	 * link, short Google save link).
+	 * Several tickets up to mail_inline_limit() (audit R2 #5 + A583): no .pkpass is signed or attached
+	 * during the request; the codes and pass rows are stored (passes are built on download), the mail
+	 * lists the short per-ticket links plus one link to the page with the wallet buttons of all tickets
+	 * (collection_url()).
+	 * Larger orders (A580): no per-ticket links, one "add all" link per batch (order_links()).
 	 */
 	public static function on_ticket_mail( $mail, $order = null, $issued = array() ) {
 		if ( ! is_array( $mail ) || ! is_array( $issued ) || ! $issued ) { return $mail; }
+		$entries = array_values( array_filter( $issued, static function ( $entry ) { return ! empty( $entry['ticket_id'] ) && ! empty( $entry['token'] ); } ) );
+		if ( ! $entries || ( ! self::provider( 'apple' ) && ! self::provider( 'google' ) ) ) { return $mail; }
+		$locale = is_object( $order ) ? (string) ( $order->locale ?? '' ) : '';
 		$text = '';
-		// A580: large orders get one "add all" link per batch instead of a .pkpass + links per ticket.
-		$inline = count( $issued ) <= self::mail_inline_limit() || ! is_object( $order );
+		$inline = count( $entries ) <= self::mail_inline_limit() || ! is_object( $order );
+		$single = 1 === count( $entries );
 		$any = false;
 		$used = 0;
 		foreach ( (array) ( $mail['attachments'] ?? array() ) as $file ) { $used += is_string( $file ) && is_file( $file ) ? (int) filesize( $file ) : 0; }
 		$budget = \PassCaptain\Orders::attachment_budget( $order );
-		foreach ( $issued as $entry ) {
-			if ( empty( $entry['ticket_id'] ) || empty( $entry['token'] ) ) { continue; }
+		foreach ( $entries as $entry ) {
 			try {
-				$passes = self::issue( (int) $entry['ticket_id'], (string) $entry['token'], $inline );
+				$passes = self::issue( (int) $entry['ticket_id'], (string) $entry['token'], $inline && $single );
 			} catch ( \Throwable $e ) {
 				self::log( 'issue_failed', $e->getMessage() );
-				return $mail;
+				continue;
 			}
 			$any = $any || (bool) $passes;
 			if ( ! $inline ) { continue; }
-			// Within the attachment budget the .pkpass is attached, otherwise linked (A580).
-			$allow = $used + strlen( (string) ( $passes['apple']['bundle'] ?? '' ) ) <= $budget;
-			list( $part, $files ) = self::mail_parts( $passes, array( $entry['event'] ?? '', $entry['ticket'] ?? '' ), $allow );
+			// Within the attachment budget the .pkpass of a single ticket is attached, otherwise linked (A580, R2).
+			$allow = $single && $used + strlen( (string) ( $passes['apple']['bundle'] ?? '' ) ) <= $budget;
+			list( $part, $files ) = Mailer::with_locale( $locale, static function () use ( $passes, $entry, $allow ) { return self::mail_parts( $passes, array( $entry['event'] ?? '', $entry['ticket'] ?? '' ), $allow ); } );
 			foreach ( $files as $file ) { $used += (int) filesize( $file ); }
 			$text .= $part;
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), $files );
-			if ( '' !== $part ) { $mail['body'] = (string) $mail['body'] . "\n" . Mailer::with_locale( $locale, static function () { return __( 'Wallet', 'pass-captain' ); } ) . "\n" . $part; }
-			return $mail;
 		}
-		if ( ! $inline && $any ) { $text = self::order_links_text( $order ); }
-		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . __( 'Wallet', 'pass-captain' ) . "\n" . $text; }
+		if ( ! $inline && $any ) {
+			$pending = count( $entries );
+			$text = Mailer::with_locale( $locale, static function () use ( $order, $pending ) { return self::order_links_text( $order, $pending ); } );
+		} elseif ( ! $single && $any && is_object( $order ) ) {
+			$url = self::collection_url( $order );
+			if ( '' !== $url ) {
+				$count = count( $entries );
+				$text .= Mailer::with_locale( $locale, static function () use ( $count, $url ) {
+					/* translators: %d: number of tickets */
+					return sprintf( __( 'Apple Wallet / Google Wallet für alle %d Tickets:', 'pass-captain' ), $count ) . ' ' . esc_url_raw( $url ) . "\n";
+				} );
+			}
+		}
+		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . Mailer::with_locale( $locale, static function () { return __( 'Wallet', 'pass-captain' ); } ) . "\n" . $text; }
 		return $mail;
 	}
 
@@ -633,9 +649,15 @@ final class Service {
 	 */
 	public static function on_code_rotated( $ticket_id, $code, $reason = '' ) {
 		$state = Store::state( $ticket_id );
-		if ( ! $state || ! is_string( $code ) || hash_equals( (string) $state->code_hash, hash( 'sha256', $code ) ) ) { return array(); }
+		if ( ! $state || ! is_string( $code ) ) { return array(); }
 		global $wpdb;
 		$current = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT token_hash FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
+		if ( hash_equals( (string) $state->code_hash, hash( 'sha256', $code ) ) ) {
+			// The ticket mail stored this code before the rotation committed (outbox delivery: mail first,
+			// then commit): its pass rows were saved as voided then – activate them now.
+			if ( hash_equals( $current, hash( 'sha256', $code ) ) && self::sync_ticket( (int) $ticket_id ) ) { self::queue( array( (int) $ticket_id ) ); }
+			return array();
+		}
 		if ( ! hash_equals( $current, hash( 'sha256', $code ) ) ) { return array(); }
 		foreach ( Store::passes( $ticket_id, 'google' ) as $old ) { Store::set_pass_status( $old->wallet_pass_id, 'retired' ); }
 		if ( in_array( (string) $reason, self::DEFERRED_REASONS, true ) ) {

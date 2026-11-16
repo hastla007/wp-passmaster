@@ -66,9 +66,19 @@ $a583_old = WebService::google_save( $a583_req( $a583_g[0] ) );
 check( 'A583: after a code rotation the old link is invalid (404)', is_wp_error( $a583_old ) && 404 === ( $a583_old->get_error_data()['status'] ?? 0 ) );
 
 /* ---- A580: large order ---- */
+// Merged design: orders above Orders::INLINE_DELIVERY_MAX tickets are mailed by the ticket_delivery outbox
+// job (no PDF/wallet/SMTP work in the checkout request); the test runs that job like the queue would.
+$a580_deliver = static function ( $order_id ) {
+	global $wpdb;
+	foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT job_id,payload FROM {$wpdb->prefix}wpcap_jobs WHERE job_type=%s AND status='queued' AND payload LIKE %s", Orders::DELIVERY_JOB, '{"order_id":' . (int) $order_id . ',%' ) ) as $job ) {
+		Orders::handle_job( false, Orders::DELIVERY_JOB, json_decode( $job->payload, true ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_jobs", array( 'status' => 'complete' ), array( 'job_id' => (int) $job->job_id ) );
+	}
+};
 $a580_count = 25;
 http_reset();
 $a580_r = Orders::create( array( 'email' => 'a580@example.com', 'items' => array( array( 'ticket_type_id' => $a583_type, 'quantity' => $a580_count ) ), 'idempotency_key' => 'a580-1' ) );
+$a580_deliver( $a580_r['order_id'] );
 $a580_mail = wpr7_ticket_mail( 'a580@example.com' );
 $a580_files = $a580_mail['files'] ?? array();
 $a580_apple = $a583_links( $a580_mail['body'], 'apple/bundle' );
@@ -102,7 +112,8 @@ add_filter( 'wpcap_ticket_pdf_chunk_size', $a580_chunk = static fn() => 10 );
 $a580_pdf_ten = strlen( PassCaptain\TicketPdf::render( array_fill( 0, 10, array( 'event' => 'Konzert', 'ticket' => 'Standard', 'when' => '01.01.2027 20:00', 'location' => 'Wien', 'token' => str_repeat( 'a', 64 ), 'help_code' => 'ABCD-EFGH' ) ) ) );
 add_filter( 'wpcap_ticket_mail_attachment_budget', $a580_budget = static fn() => (int) ( 2.5 * $a580_pdf_ten ) );
 http_reset();
-Orders::create( array( 'email' => 'a580b@example.com', 'items' => array( array( 'ticket_type_id' => $a583_type, 'quantity' => $a580_count ) ), 'idempotency_key' => 'a580-2' ) );
+$a580_r2 = Orders::create( array( 'email' => 'a580b@example.com', 'items' => array( array( 'ticket_type_id' => $a583_type, 'quantity' => $a580_count ) ), 'idempotency_key' => 'a580-2' ) );
+$a580_deliver( $a580_r2['order_id'] );
 remove_filter( 'wpcap_ticket_pdf_chunk_size', $a580_chunk );
 remove_filter( 'wpcap_ticket_mail_attachment_budget', $a580_budget );
 $a580_mail2 = wpr7_ticket_mail( 'a580b@example.com' );
