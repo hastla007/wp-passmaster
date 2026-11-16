@@ -86,6 +86,55 @@ jobs:
           WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
         run: bash tests/wp-matrix/rename-takeover-ms.sh "$RUNNER_TEMP/old.zip" build/dist/pass-captain.zip "$RUNNER_TEMP/rename-ms"
 
+  plugin-check:
+    # A305: WordPress "Plugin Check" (PCP, the WordPress.org review tool) against the built ZIP in a
+    # throw-away WordPress. Required job: fails on Plugin Check errors that are not in the baseline
+    # tests/plugin-check/baseline.json (known backlog, see docs/RELEASE.md "Plugin Check"); warnings are
+    # reported in the uploaded result only. PCP is pinned so new checks arrive by a deliberate bump.
+    runs-on: ubuntu-latest
+    env:
+      PCP_VERSION: '2.2.0'
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, zip
+          coverage: none
+      - name: Build the plugin ZIP
+        run: bash build/release.sh
+      - name: Throw-away WordPress with Plugin Check ${{ env.PCP_VERSION }} and the ZIP
+        run: |
+          mkdir -p "$RUNNER_TEMP/pcp" && cd "$RUNNER_TEMP/pcp"
+          wp core download --locale=en_US
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp core install --url=http://localhost --title=PCP --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          wp plugin install plugin-check --version="$PCP_VERSION" --activate
+          wp plugin install "$GITHUB_WORKSPACE/build/dist/pass-captain.zip"
+      - name: Plugin Check (category plugin_repo), new errors fail
+        run: |
+          wp --path="$RUNNER_TEMP/pcp" plugin check pass-captain --format=json --categories=plugin_repo > "$RUNNER_TEMP/pcp-result.txt"
+          php tests/plugin-check/compare.php "$RUNNER_TEMP/pcp-result.txt" tests/plugin-check/baseline.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plugin-check-result
+          path: ${{ runner.temp }}/pcp-result.txt
+
   woocommerce:
     # A127: the WooCommerce adapter against installed WooCommerce versions, HPOS and posts storage.
     runs-on: ubuntu-latest
