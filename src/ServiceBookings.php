@@ -1226,7 +1226,7 @@ final class ServiceBookings {
 			if ( is_wp_error( $refund ) || 'failed' === $state ) { return __( 'Die Erstattung wird gerade bearbeitet; du erhältst eine eigene Bestätigung, sobald sie ausgeführt ist.', 'pass-captain' ); }
 			if ( 'pending_approval' === $state ) { return __( 'Die Erstattung wird geprüft und anschließend ausgeführt.', 'pass-captain' ); }
 			/* translators: %s: amount */
-			return $amount > 0 ? sprintf( __( 'Erstattet werden %s (Zahlungsmittel bzw. Gutschein).', 'pass-captain' ), number_format_i18n( $amount / 100, 2 ) . ' ' . $currency ) : '';
+			return $amount > 0 ? sprintf( __( 'Erstattet werden %s (Zahlungsmittel bzw. Gutschein).', 'pass-captain' ), \PassCaptain\Money::format( (int) $amount, (string) $currency ) ) : '';
 		};
 		$vars['reason'] = (string) ( $extra['reason'] ?? '' );
 		if ( isset( $extra['old_slot'] ) && $extra['old_slot'] ) {
@@ -1264,7 +1264,7 @@ final class ServiceBookings {
 			'old_slot_date' => '',
 			'fee_info' => static function () use ( $fee, $fee_currency ) {
 				/* translators: %s: amount */
-				return $fee > 0 ? sprintf( __( 'Laut Buchungsbedingungen wird eine Gebühr von %s fällig.', 'pass-captain' ), number_format_i18n( $fee / 100, 2 ) . ' ' . $fee_currency ) : '';
+				return $fee > 0 ? sprintf( __( 'Laut Buchungsbedingungen wird eine Gebühr von %s fällig.', 'pass-captain' ), \PassCaptain\Money::format( (int) $fee, (string) $fee_currency ) ) : '';
 			},
 		);
 	}
