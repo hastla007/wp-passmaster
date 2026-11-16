@@ -238,6 +238,14 @@ final class Service {
 	/** Result for a form key that already has a sale row (replay, resume or failure). */
 	private static function existing_result( $existing ) {
 		if ( (int) $existing->cashier_id !== get_current_user_id() ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'pass-captain' ) ); }
+		// A637: a replayed form key is checked against the cashier's event scope as it is now (a scope
+		// removed since the sale must not resume, book or reveal it).
+		$occurrence_id = (int) ( $existing->occurrence_id ?? 0 );
+		$order_id = (int) ( $existing->order_id ?? 0 );
+		$in_scope = ( ! $occurrence_id || Scope::can_occurrence( $occurrence_id, self::CAP ) ) && ( ! $order_id || Scope::can_order( $order_id, self::CAP ) );
+		if ( ! $in_scope || ( ! $occurrence_id && ! $order_id ) ) {
+			return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 );
+		}
 		if ( 'pending' === $existing->status ) {
 			if ( ! $existing->order_id ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'pass-captain' ), 409 ); }
 			return self::finalize( $existing->sale_id );

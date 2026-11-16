@@ -655,6 +655,8 @@ Die Kasse arbeitet mit **Kassen** (Schubladen) und **Schichten**. Sie ersetzt ke
 
 **Schicht öffnen** (Reiter „Verkauf“ ohne offene Schicht): Kasse wählen, Wechselgeld zählen (Betrag oder Stückelung nach Scheinen und Münzen). Weitere Kassierer können der Schicht hinzugefügt werden (Reiter „Schicht“); jede Person arbeitet in höchstens einer offenen Schicht. Verkäufe werden der Schicht zugeordnet, in der die Person arbeitet.
 
+**Wiederholtes Absenden** eines Verkaufs (gleicher Formularschlüssel, auch über die alte Route `POST /pos/sales`) liefert den bestehenden Verkauf bzw. bucht ihn fertig – nur für dieselbe Person und nur, solange sie noch Zugriff auf Event und Termin des Verkaufs hat (A637); sonst `wpcap_forbidden` (403).
+
 **Einlagen und Entnahmen** (Reiter „Schicht“): immer mit Betrag und Grund; sie verändern den Soll-Bestand.
 
 **Zählung und Abschluss** (Reiter „Schicht“):
