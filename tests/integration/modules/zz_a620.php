@@ -27,11 +27,13 @@ $a620_changed['location'] = 'Wels';
 $a620_three = $a620_apple->bundle( $a620_apple->pass_json( $a620_changed ) );
 check( 'A620: changed content builds a new bundle', $a620_three !== $a620_one && false !== strpos( wpr7_unzip( $a620_three )['pass.json'] ?? '', 'Wels' ) );
 
-// Images: kept per settings hash in a transient, rebuilt when the design changes.
+// Images: kept per settings hash in a transient, rebuilt when the design changes. A colour no earlier
+// file used, so this request builds (and stores) them now.
+Settings::update( array( 'wallet_background_color' => '#620620' ) );
 $a620_images = $a620_apple->images();
 $a620_cached = get_transient( AppleProvider::IMAGES_TRANSIENT );
 check( 'A620: the built images are kept in a transient with their settings hash', is_array( $a620_cached ) && 64 === strlen( (string) ( $a620_cached['hash'] ?? '' ) ) && base64_decode( $a620_cached['images']['icon.png'] ?? '' ) === $a620_images['icon.png'] );
-Settings::update( array( 'wallet_background_color' => '#336699' ) );
+Settings::update( array( 'wallet_background_color' => '#620621' ) );
 $a620_new_images = $a620_apple->images();
 check( 'A620: a changed colour rebuilds the images (new hash)', $a620_new_images['icon.png'] !== $a620_images['icon.png'] && get_transient( AppleProvider::IMAGES_TRANSIENT )['hash'] !== $a620_cached['hash'] );
 $a620_four = $a620_apple->bundle( $a620_apple->pass_json( $a620_ticket ) );
