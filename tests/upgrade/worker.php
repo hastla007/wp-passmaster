@@ -10,9 +10,11 @@
  * - the data migrations modules hang on update_option_wpcap_db_version.
  * Every option write is logged to {prefix}upgrade_log (run.php counts one-off migrations with it).
  *
- * Usage: php tests/upgrade/worker.php <prefix> <action> [--fail-ddl=N] [--fail-option=NAME] [--slow-ms=N] [--start-at=UNIXTIME]
+ * Usage: php tests/upgrade/worker.php <prefix> <action> [--fail-ddl=N] [--fail-option=NAME] [--slow-ms=N] [--start-at=UNIXTIME] [--input=FILE]
  *   action upgrade: Installer::maybe_upgrade( 'cron' ); prints JSON {ran, exception, lock_free, version}.
- *   action info:    prints JSON {version, lock_name, drift}.
+ *   action info:    prints JSON {version, lock_name, drift, boxoffice_migration, partners_migration}.
+ *   action decrypt: reads a JSON list of [stored value, vault context] from --input and prints
+ *                   {values: [{encrypted, plain}]} (Security\Vault, same salts as the upgrade workers).
  *
  * @package PassCaptain
  */
@@ -21,8 +23,8 @@
 
 $prefix = (string) ( $argv[1] ?? '' );
 $action = (string) ( $argv[2] ?? '' );
-if ( ! preg_match( '/^[a-z0-9_]+_$/', $prefix ) || ! in_array( $action, array( 'upgrade', 'info' ), true ) ) {
-	fwrite( STDERR, "usage: worker.php <prefix> upgrade|info [options]\n" );
+if ( ! preg_match( '/^[a-z0-9_]+_$/', $prefix ) || ! in_array( $action, array( 'upgrade', 'info', 'decrypt' ), true ) ) {
+	fwrite( STDERR, "usage: worker.php <prefix> upgrade|info|decrypt [options]\n" );
 	exit( 2 );
 }
 $opts = array();
@@ -149,6 +151,8 @@ $wpcap_upgrade_migrations = array(
 	array( PassCaptain\Modules\BoxOffice::class, 'migrate' ),
 	array( PassCaptain\Allocations\BuyerLimits::class, 'maybe_migrate_keys' ),
 	array( PassCaptain\Modules\GuestLists::class, 'grant_caps' ),
+	// A448: globally unique settlement source keys; replaces the unique index (partner_id, source_key).
+	array( PassCaptain\Modules\Partners::class, 'migrate' ),
 );
 foreach ( $wpcap_upgrade_migrations as $callback ) {
 	add_action( 'add_option_wpcap_db_version', $callback, 10, 0 );
@@ -189,8 +193,24 @@ if ( 'info' === $action ) {
 			'version'   => Installer::version(),
 			'lock_name' => Installer::lock_name(),
 			'drift'     => PassCaptain\CapacityCounters::drift(),
+			// Target versions of the module data migrations (run.php expects exactly one write each).
+			'boxoffice_migration' => PassCaptain\Modules\BoxOffice::MIGRATION_VERSION,
+			'partners_migration'  => PassCaptain\Modules\Partners::MIGRATION_VERSION,
 		)
 	);
+	exit( 0 );
+}
+
+if ( 'decrypt' === $action ) {
+	$out = array();
+	foreach ( (array) json_decode( (string) file_get_contents( (string) ( $opts['input'] ?? '' ) ), true ) as $pair ) {
+		$stored = (string) ( $pair[0] ?? '' );
+		$out[] = array(
+			'encrypted' => PassCaptain\Security\Vault::is_encrypted( $stored ),
+			'plain'     => PassCaptain\Security\Vault::decrypt( $stored, (string) ( $pair[1] ?? '' ) ),
+		);
+	}
+	echo "\n" . json_encode( array( 'values' => $out ) );
 	exit( 0 );
 }
 
