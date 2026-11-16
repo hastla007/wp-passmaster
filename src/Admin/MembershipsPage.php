@@ -38,6 +38,7 @@ final class MembershipsPage {
 	}
 
 	public static function handle_decide() {
+		Forms::require_any_cap( array( self::CAP, Memberships::APPROVE_CAP ) );
 		$in = Forms::post();
 		Forms::verify( 'wpcap_member_pass_' . Forms::int( $in, 'pass_id' ) );
 		$labels = array( 'approve' => __( 'Mitgliedspass freigegeben und versendet.', 'pass-captain' ), 'reject' => __( 'Antrag abgelehnt.', 'pass-captain' ), 'revoke' => __( 'Mitgliedspass widerrufen.', 'pass-captain' ) );
