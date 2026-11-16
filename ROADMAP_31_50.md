@@ -74,9 +74,9 @@ Schutzgrenzen und Meldungshinweise in `docs/SECURITY.md`; externe Prüfung, Pene
 
 Sichtbare Fokusse, Mindestzielhöhen und Reduced-Motion-Regel ergänzt; Statusmeldungen hatten bereits `aria-live`. Manuelle Tastatur-/Screenreader-Prüfung und Kontrast-/Zoom-Audit stehen aus.
 
-## 49. Erweiterungs- und Lizenzmodell — Richtlinie dokumentiert
+## 49. Erweiterungs- und Lizenzmodell — Kern frei, Premium im separaten Add-on
 
-`docs/EXTENSIONS.md` hält GPL-Kern, opt-in Connector-Vertrag und Lizenzserver-unabhängiges Ticketverhalten fest. Kommerzielles Lizenz-/Update-System wird nicht angeboten.
+Entscheidung vom 13.11.2026: Das Kern-Plugin bleibt vollständig frei (GPL, ohne Lizenzprüfung, gesperrte Funktionen oder eigenen Updater, Updates über WordPress.org); alles bereits Ausgelieferte ist „Kern, dauerhaft frei“ (`docs/FREE-PREMIUM.md`). Premiumfunktionen kommen ausschließlich in das separate Add-on `pass-captain-pro` mit eigenem Shop und eigenem Updater; nur das Add-on spricht mit WP License Captain. `docs/EXTENSIONS.md` beschreibt die Andockpunkte (Hooks, Adapter- und Connector-Verträge) und das lizenzserver-unabhängige Ticketverhalten; `tests/license-guard.php` verhindert Lizenz-/Updater-Code im Kern. Offen: Add-on-Repository und öffentliche, versionierte Add-on-API.
 
 ## 50. Stabiler 1.0-Release und Wartungsbetrieb — Vorbereitung dokumentiert
 
