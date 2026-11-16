@@ -22,7 +22,8 @@ $q1s_book = static function ( $minutes, $email ) use ( $wpdb, $q1s_res ) {
 	$start = time() + $minutes * 60;
 	$wpdb->insert( "{$wpdb->prefix}wpcap_service_slots", array( 'resource_id' => $q1s_res, 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $start + 3600 ), 'capacity' => 5, 'status' => 'open' ) );
 	$GLOBALS['wpcap_test_transients'] = array();
-	$r = PassCaptain\ServiceBookings::reserve( (int) $wpdb->insert_id, $email, 1, 0, 10, 'a279-' . uniqid( '', true ) );
+	// Merged ServiceBookings: the token-based booking flow (ServiceBookingFlow) uses the slot_* stack.
+	$r = PassCaptain\ServiceBookings::slot_reserve( (int) $wpdb->insert_id, $email, 1, 0, 10, 'a279-' . uniqid( '', true ) );
 	return is_array( $r ) ? array( (int) $r['booking_id'], (string) ( $r['token'] ?? '' ) ) : array( 0, '' );
 };
 list( $q1s_b1, $q1s_t1 ) = $q1s_book( 19 * 1440, 'a279-1@example.com' );
