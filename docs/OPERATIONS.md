@@ -1370,6 +1370,13 @@ Prüfung und Speichern nicht mehr unter die verkaufte Menge drücken. Hält ein 
 das Speichern `wpcap_type_busy`. Aufrufe ohne Revision (Übernahme auf weitere Termine, Integrationen) werden nur
 unter der Sperre geprüft.
 
+### Ticketaktionen melden nur geprüfte Schreibvorgänge (A532)
+
+„Widerrufen“, „Check-in zurücknehmen“ und „Teilnehmerdaten korrigieren“ (Ticketliste, Web-Scanner, App) prüfen jeden
+Schreibschritt und das COMMIT. Schlägt einer fehl (Sperr-Timeout, Verbindungsabbruch), wird zurückgerollt und ein
+Fehler gemeldet (`wpcap_db_busy` bzw. `wpcap_correction_failed`); Erfolgsmeldung, Audit-Eintrag und Folgeaktionen
+(Wallet, Webhooks, Wartelisten) gibt es nur nach einem bestätigten COMMIT.
+
 ### Ticketarten und Teilnehmerfelder auf alle Termine anwenden; Serien (A333)
 
 Hat das Event weitere kommende Termine, bietet das Ticketart-Formular „Auch für die gleichnamige Ticketart an N

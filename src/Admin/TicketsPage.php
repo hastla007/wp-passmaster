@@ -45,7 +45,12 @@ final class TicketsPage {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$release = Forms::flag( $in, 'release_capacity' );
-		$wpdb->query( 'START TRANSACTION' );
+		$busy = static function () use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Forms::error( 'wpcap_db_busy', __( 'Das Ticket konnte gerade nicht widerrufen werden. Bitte erneut versuchen.', 'pass-captain' ), 503 );
+		};
+		// A532: every step is checked; a failed write rolls back and is reported, never shown as done.
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		// Order row first (same lock order as refunds and exchanges), then the ticket.
 		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $ticket->order_id ) );
 		// A537: while a refund of the ticket is pending or running, the refund decides about it.
@@ -56,18 +61,16 @@ final class TicketsPage {
 				? Forms::error( 'wpcap_db_busy', __( 'Das Ticket konnte gerade nicht widerrufen werden. Bitte erneut versuchen.', 'pass-captain' ), 503 )
 				: Forms::error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ), 409 );
 		}
-		$updated = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", (int) $ticket->ticket_id ) );
-		if ( 1 !== $updated ) {
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", (int) $ticket->ticket_id ) );
+		if ( false === $updated ) { return $busy(); }
+		if ( 1 !== (int) $updated ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_ticket_not_valid', __( 'Nur gültige (nicht eingecheckte) Tickets können widerrufen werden.', 'pass-captain' ), 409 );
 		}
 		// The unit is released once per ticket and recorded on it (CapacityRelease): a later refund or
 		// exchange of the same ticket never releases it again (A538).
 		$released = $release ? \PassCaptain\CapacityRelease::release_tickets( (int) $ticket->order_id, array( (int) $ticket->ticket_id ) ) : array();
-		if ( false === $released || false === $wpdb->query( 'COMMIT' ) ) {
-			$wpdb->query( 'ROLLBACK' );
-			return Forms::error( 'wpcap_db_busy', __( 'Das Ticket konnte gerade nicht widerrufen werden. Bitte erneut versuchen.', 'pass-captain' ), 503 );
-		}
+		if ( false === $released || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'ticket_revoked', 'ticket', (int) $ticket->ticket_id, array( 'order_id' => (int) $ticket->order_id, 'event_id' => (int) $ticket->event_id, 'reason' => $reason, 'capacity_released' => $release ) );
 		do_action( 'wpcap_ticket_revoked', (int) $ticket->ticket_id, $reason );
 		// Waitlists and allocation holds get the released unit (A578).
@@ -155,6 +158,7 @@ final class TicketsPage {
 		// Earlier undo rows are applied to the admission log first, so the guard sees the admission
 		// that is taken back now.
 		\PassCaptain\Admission\Engine::state_for_update( (int) $ticket->ticket_id );
+		if ( '' !== $wpdb->last_error ) { return $busy(); }
 		$guard = \PassCaptain\Checkin::undo_guard( (int) $ticket->ticket_id, $context );
 		if ( is_wp_error( $guard ) ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -166,7 +170,7 @@ final class TicketsPage {
 		$source = '' !== $source ? $source : 'admin';
 		$updated = $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) );
 		if ( 1 !== (int) $updated ) { return $busy(); }
-		$wpdb->insert( "{$p}wpcap_checkins", array(
+		$logged = $wpdb->insert( "{$p}wpcap_checkins", array(
 			'ticket_id' => (int) $ticket->ticket_id,
 			'event_id' => (int) $ticket->event_id,
 			'occurrence_day_id' => $last ? (int) $last->occurrence_day_id : 0,
@@ -176,7 +180,7 @@ final class TicketsPage {
 			'source' => $source,
 			'created_at' => $now,
 		), array( '%d', '%d', '%d', '%d', '%s', '%d', '%s', '%s' ) );
-		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
+		if ( 1 !== (int) $logged || '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'checkin_undone', 'ticket', (int) $ticket->ticket_id, array( 'event_id' => (int) $ticket->event_id, 'reason' => Forms::text( $in, 'reason', 255 ), 'device_id' => $device_id, 'area_id' => (int) $guard['area_id'], 'source' => $source ) );
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
 	}
@@ -210,15 +214,17 @@ final class TicketsPage {
 		if ( AccessLog::diff( $before, $after ) === array() ) {
 			return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id, 'changed' => false );
 		}
-		$wpdb->query( 'START TRANSACTION' );
-		$wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => (int) $ticket->ticket_id ), array( '%s' ), array( '%d' ) );
-		$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", (int) $ticket->ticket_id, (string) $ticket->customer_email, $email, $name, current_time( 'mysql', true ) ) );
-		if ( $wpdb->last_error ) {
+		$failed = static function () use ( $wpdb ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_correction_failed', __( 'Die Teilnehmerdaten konnten nicht gespeichert werden.', 'pass-captain' ), 500 );
-		}
+		};
+		// A532: each write and the COMMIT are checked; nothing is reported or audited as corrected otherwise.
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
+		$ticket_saved = $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => (int) $ticket->ticket_id ), array( '%s' ), array( '%d' ) );
+		$assignment_saved = false === $ticket_saved ? false : $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", (int) $ticket->ticket_id, (string) $ticket->customer_email, $email, $name, current_time( 'mysql', true ) ) );
+		if ( false === $assignment_saved || $wpdb->last_error ) { return $failed(); }
 		\PassCaptain\TicketAssignments::touch( array( (int) $ticket->ticket_id ) ); // A574: partner API "since".
-		$wpdb->query( 'COMMIT' );
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $failed(); }
 		$changes = AccessLog::correction( 'ticket', (int) $ticket->ticket_id, $before, $after, array( 'order_id' => (int) $ticket->order_id, 'event_id' => (int) $ticket->event_id, 'source' => 'admin', 'reason' => $reason ) );
 		/** Staff corrected personal data of a record (A122); $changes holds field names with masked values. */
 		do_action( 'wpcap_record_corrected', 'ticket', (int) $ticket->ticket_id, $changes );
