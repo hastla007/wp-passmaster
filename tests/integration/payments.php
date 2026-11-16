@@ -30,7 +30,7 @@ if ( ! function_exists( 'wp_remote_request' ) ) {
 		// Like WP_Http: pre_http_request short-circuits, http_api_curl sees the cURL handle and the arguments.
 		$pre = apply_filters( 'pre_http_request', false, $args, $url );
 		if ( false !== $pre ) { return $pre; }
-		if ( function_exists( 'curl_init' ) && has_action( 'http_api_curl' ) ) { $handle = curl_init(); do_action( 'http_api_curl', $handle, $args, $url ); curl_close( $handle ); }
+		if ( function_exists( 'curl_init' ) && has_action( 'http_api_curl' ) ) { $handle = curl_init(); do_action( 'http_api_curl', $handle, $args, $url ); unset( $handle ); } // No curl_close(): a no-op since PHP 8.0, deprecated in 8.5.
 		foreach ( $GLOBALS['wpcap_test_http_queue'] as $i => $entry ) {
 			// A WP_Error (transport failure) answers any URL; array( 'error' => WP_Error, 'match' => … ) only matching ones.
 			$match = is_array( $entry ) ? (string) ( $entry['match'] ?? '' ) : '';

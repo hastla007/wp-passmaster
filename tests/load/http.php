@@ -152,7 +152,7 @@ function fire( array $requests, $concurrency ) {
 			unset( $active[ (int) $ch ] );
 			$rows[ $req['i'] ] = array( 'code' => curl_getinfo( $ch, CURLINFO_HTTP_CODE ), 'ms' => curl_getinfo( $ch, CURLINFO_TOTAL_TIME ) * 1000, 'body' => json_decode( (string) curl_multi_getcontent( $ch ), true ) ?: array() );
 			curl_multi_remove_handle( $mh, $ch );
-			curl_close( $ch );
+			unset( $ch ); // No curl_close(): a no-op since PHP 8.0, deprecated in 8.5.
 			if ( $queue ) { $add(); }
 		}
 	} while ( $active );
