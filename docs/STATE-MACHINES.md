@@ -85,6 +85,14 @@ Anbieter-Ereignis wird in `wpcap_payment_events` genau einmal angewendet:
 
 `processed` ist ein **Endzustand**.
 
+**Hinweis nach der Rückkehr von PayPal (A349):** Der Hinweis „Zahlung fehlgeschlagen, es wurde nichts
+abgebucht“ (`?wpcap_payment=failed`) erscheint nur, wenn sicher nichts eingezogen wurde: PayPal lehnt den
+Capture ab (Status `DECLINED`/`FAILED` oder Client-Fehler 400/404/422) oder es wurde gar kein Capture versucht
+(unbekannte Bestellung, fremdes Token). Bei unklarem Ausgang (Netzwerkfehler, 5xx, Timeout) und wenn der
+Capture gelang, die Buchung hier aber nicht (Datenbank ausgelastet, Betrag passt nicht, Prüfung nötig),
+heißt es „Zahlung wird noch verarbeitet“ (`pending`); Webhook bzw. Admin klären den Rest
+(`PayPalGateway::return_state()`). „Erfolgreich“ nur bei `paid`, `already_paid` oder `duplicate`.
+
 ## Erstattung (`wpcap_refunds.status`)
 
 | Von → nach | Auslöser |

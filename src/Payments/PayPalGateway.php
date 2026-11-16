@@ -112,15 +112,27 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		$public_id = sanitize_text_field( wp_unslash( (string) ( $_GET['order'] ?? '' ) ) );
 		$token = sanitize_text_field( wp_unslash( (string) ( $_GET['token'] ?? '' ) ) );
 		// phpcs:enable
-		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '' );
-		if ( is_wp_error( $result ) ) {
-			$status = 'failed';
-		} else {
-			$status = 'pending' === $result ? 'pending' : 'success';
-		}
+		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '', array( 'not_charged' => true ) );
 		nocache_headers();
-		wp_safe_redirect( self::return_url( $status, $public_id ) );
+		wp_safe_redirect( self::return_url( self::return_state( $result ), $public_id ), 302 );
 		exit;
+	}
+
+	/**
+	 * Notice shown after the return from PayPal (A349). "failed" ("nothing was charged") only when no
+	 * capture can have happened: PayPal declined it, the capture was refused as a client error
+	 * (400/404/422), or no capture was attempted at all (unknown order, foreign token). A capture that
+	 * succeeded but could not be booked here (database busy, amount mismatch, needs review) and every
+	 * unclear outcome (network error, 5xx, timeout) show "pending": the webhook or the admin settles it.
+	 *
+	 * @param string|\WP_Error $result handle_return() result.
+	 * @return string success|pending|failed
+	 */
+	public static function return_state( $result ) {
+		if ( is_wp_error( $result ) ) {
+			return empty( ( (array) $result->get_error_data() )['not_charged'] ) ? 'pending' : 'failed';
+		}
+		return in_array( (string) $result, array( 'paid', 'already_paid', 'duplicate' ), true ) ? 'success' : 'pending';
 	}
 
 	/**
@@ -134,15 +146,19 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		$paypal_order_id = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) $paypal_order_id );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
 		if ( ! $order || '' === $paypal_order_id ) {
-			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'not_charged' => true ) );
 		}
 		if ( 'paid' === $order->payment_status ) { return 'paid'; }
 		if ( (string) $order->provider_reference !== $paypal_order_id ) {
-			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400, 'not_charged' => true ) );
 		}
 		$event = self::capture( $paypal_order_id );
 		if ( is_wp_error( $event ) ) { return $event; }
 		if ( 'pending' === $event['type'] ) { return 'pending'; }
+		if ( 'failed' === $event['type'] ) {
+			// PayPal declined the capture (status DECLINED/FAILED): nothing was charged.
+			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'pass-captain' ), array( 'not_charged' => true ) );
+		}
 		if ( 'paid' !== $event['type'] || $event['order_public_id'] !== $public_id ) {
 			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'pass-captain' ) );
 		}
@@ -267,7 +283,14 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		if ( is_wp_error( $result ) ) {
 			// Already captured (e.g. by the webhook without the same request id): read the order instead.
 			$data = (array) $result->get_error_data();
-			if ( 422 !== (int) ( $data['status'] ?? 0 ) || 'ORDER_ALREADY_CAPTURED' !== ( $data['issue'] ?? '' ) ) { return $result; }
+			if ( 422 !== (int) ( $data['status'] ?? 0 ) || 'ORDER_ALREADY_CAPTURED' !== ( $data['issue'] ?? '' ) ) {
+				// A client error (400/404/422, e.g. INSTRUMENT_DECLINED, ORDER_NOT_APPROVED) means PayPal did not
+				// capture; network errors, 5xx, 401 and 429 leave it open (A349).
+				if ( in_array( (int) ( $data['status'] ?? 0 ), array( 400, 404, 422 ), true ) ) {
+					return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array_merge( $data, array( 'not_charged' => true ) ) );
+				}
+				return $result;
+			}
 			$result = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $paypal_order_id ) );
 			if ( is_wp_error( $result ) ) { return $result; }
 		}
