@@ -57,6 +57,18 @@ foreach ( array( 'fiskaltrust', 'efsta' ) as $service ) {
 }
 $check( 'fiscalization adapters are only shipped together with their interface', ! $fiscal_shipped || in_array( 'src/Fiscalization/AdapterInterface.php', $shipped, true ) );
 $check( 'every External services entry links terms/privacy or names the operator-chosen recipient', ! array_filter( preg_split( '/^= /m', $services ), static fn( $part ) => '' !== trim( $part ) && 0 !== strpos( $part, 'Pass Captain' ) && 0 !== strpos( $part, 'Keine externen' ) && false === strpos( $part, 'https://' ) && false === strpos( $part, 'Betreiber' ) ) );
+// A662: docs/FREE-PREMIUM.md lists every module of the module registry (src/Modules/*.php, see
+// Modules::classes()) as "Kern, dauerhaft frei" and names every directory and class file under src/.
+$free = (string) @file_get_contents( $root . '/docs/FREE-PREMIUM.md' );
+$module_ids = array_map( static fn( $f ) => basename( $f, '.php' ), (array) glob( $root . '/src/Modules/*.php' ) );
+$unlisted = array_filter( $module_ids, static fn( $id ) => ! preg_match( '/^\|\s*`' . preg_quote( $id, '/' ) . '`\s*\|.*\|\s*Kern, dauerhaft frei\s*\|\s*$/m', $free ) );
+$check( 'docs/FREE-PREMIUM.md lists every module as "Kern, dauerhaft frei"' . ( $unlisted ? ' – missing ' . implode( ', ', $unlisted ) : '' ), $module_ids && ! $unlisted );
+$listed_ids = preg_match_all( '/^\|\s*`([A-Za-z]+)`\s*\|/m', (string) strstr( (string) strstr( $free, '## Inventar: Module' ), '## Inventar: Kernbereiche', true ), $rows ) ? $rows[1] : array();
+$stale = array_diff( $listed_ids, $module_ids );
+$check( 'docs/FREE-PREMIUM.md module table has no removed modules' . ( $stale ? ' – ' . implode( ', ', $stale ) : '' ), ! $stale );
+$src_entries = array_merge( array_map( static fn( $d ) => 'src/' . basename( $d ) . '/', (array) glob( $root . '/src/*', GLOB_ONLYDIR ) ), array_map( static fn( $f ) => 'src/' . basename( $f ), (array) glob( $root . '/src/*.php' ) ) );
+$unnamed = array_filter( $src_entries, static fn( $e ) => false === strpos( $free, '`' . $e . '`' ) );
+$check( 'docs/FREE-PREMIUM.md names every directory and class file under src/' . ( $unnamed ? ' – missing ' . implode( ', ', $unnamed ) : '' ), ! $unnamed );
 // A270: tweetnacl ships with its readable source and a source reference that is not Markdown.
 $nacl = $root . '/assets/vendor/tweetnacl/';
 $nacl_source = (string) @file_get_contents( $nacl . 'SOURCE.txt' );
