@@ -47,4 +47,18 @@ final class Text {
 		$cut = self::cut( $text, $length );
 		return mb_strlen( $cut, 'UTF-8' ) < mb_strlen( mb_scrub( $text, 'UTF-8' ), 'UTF-8' ) ? $cut . '…' : $cut;
 	}
+
+	/**
+	 * Plain text of a stored value for outputs that are not HTML (A497): CSV, iCalendar, PDF, wallet
+	 * passes, text mails and subjects. sanitize_text_field() stores a lone "<" as "&lt;" (and names may
+	 * carry other entities such as "&amp;"); HTML output shows them correctly (esc_html() does not
+	 * encode existing entities twice), plain-text output must decode them. Only complete entities
+	 * ("&lt;", "&#60;") are decoded – "a&b" or a URL with "&lang=de" stays as it is.
+	 *
+	 * @param mixed $text Stored text ('' for arrays, objects and null).
+	 */
+	public static function plain( $text ) {
+		$text = is_scalar( $text ) ? (string) $text : '';
+		return false === strpos( $text, '&' ) ? $text : html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	}
 }

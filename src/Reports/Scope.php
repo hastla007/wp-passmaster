@@ -62,10 +62,14 @@ final class Scope {
 		return Access::order_in_scope( $order_id );
 	}
 
-	/** CSV cell that spreadsheet programs never evaluate as a formula. */
+	/**
+	 * CSV cell that spreadsheet programs never evaluate as a formula. Stored HTML entities are decoded
+	 * first (A497: "Kids &lt;3" is "Kids <3" in the export) – before the formula check, so "&#61;1+1"
+	 * is guarded like "=1+1".
+	 */
 	public static function csv_cell( $value ) {
 		if ( is_int( $value ) || is_float( $value ) ) { return (string) $value; }
-		$text = str_replace( array( "\r\n", "\r", "\n" ), ' ', (string) $value );
+		$text = str_replace( array( "\r\n", "\r", "\n" ), ' ', \PassCaptain\Text::plain( $value ) );
 		if ( preg_match( '/^-?\d+(?:\.\d+)?$/', $text ) ) { return $text; } // Plain numbers cannot be formulas.
 		return preg_match( '/^[=+\-@\t\r]/', $text ) || preg_match( '/^\s+[=+\-@]/', $text ) ? "'" . $text : $text;
 	}

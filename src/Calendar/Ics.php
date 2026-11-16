@@ -23,9 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Ics {
 	const PRODID = '-//Pass Captain//Event Calendar//DE';
 
-	/** Escapes a TEXT property value (RFC 5545 3.3.11). */
+	/** Escapes a TEXT property value (RFC 5545 3.3.11); stored HTML entities are decoded first (A497). */
 	public static function escape_text( $value ) {
-		$value = str_replace( array( "\r\n", "\r" ), "\n", (string) $value );
+		$value = str_replace( array( "\r\n", "\r" ), "\n", \PassCaptain\Text::plain( $value ) );
 		return str_replace( array( '\\', ';', ',', "\n" ), array( '\\\\', '\\;', '\\,', '\\n' ), $value );
 	}
 

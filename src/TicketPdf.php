@@ -112,8 +112,9 @@ final class TicketPdf {
 		return $pdf;
 	}
 
-	/** UTF-8 to WinAnsi (Helvetica) with PDF string escaping; unsupported characters become "?". */
+	/** UTF-8 to WinAnsi (Helvetica) with PDF string escaping; unsupported characters become "?". Stored entities are decoded (A497). */
 	private static function escape( $str ) {
+		$str = Text::plain( $str );
 		$str = function_exists( 'mb_convert_encoding' ) ? mb_convert_encoding( $str, 'Windows-1252', 'UTF-8' ) : $str;
 		return str_replace( array( '\\', '(', ')', "\r", "\n" ), array( '\\\\', '\\(', '\\)', ' ', ' ' ), $str );
 	}

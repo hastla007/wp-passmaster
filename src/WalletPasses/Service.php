@@ -77,6 +77,8 @@ final class Service {
 		$state = Store::state( $ticket_id );
 		$secrets = Store::secrets( $state );
 		$row['attendee_name'] = (string) ( $row['attendee_name'] ?? '' );
+		// Pass fields are plain text: stored entities ("Kids &lt;3") are decoded (A497).
+		foreach ( array( 'event_name', 'ticket_name', 'location', 'attendee_name' ) as $plain_key ) { $row[ $plain_key ] = \PassCaptain\Text::plain( $row[ $plain_key ] ?? '' ); }
 		// A474: passes are (re)built in the buyer's language, whatever the request's locale is.
 		$row['locale'] = \PassCaptain\Mail\Mailer::normalize_locale( (string) ( $row['locale'] ?? '' ) );
 		/**

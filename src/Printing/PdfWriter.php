@@ -45,7 +45,7 @@ final class PdfWriter {
 
 	/** Shortens $text with "…" so it fits into $max_width. */
 	public static function fit( $text, $size, $max_width, $bold = false ) {
-		$text = (string) $text;
+		$text = \PassCaptain\Text::plain( $text );
 		if ( self::text_width( $text, $size, $bold ) <= $max_width ) { return $text; }
 		while ( '' !== $text && self::text_width( $text . '...', $size, $bold ) > $max_width ) {
 			$text = function_exists( 'mb_substr' ) ? mb_substr( $text, 0, -1 ) : substr( $text, 0, -1 );
@@ -57,7 +57,7 @@ final class PdfWriter {
 	public static function wrap( $text, $size, $max_width, $bold = false ) {
 		$lines = array();
 		$line = '';
-		foreach ( preg_split( '/\s+/u', trim( (string) $text ) ) as $word ) {
+		foreach ( preg_split( '/\s+/u', trim( \PassCaptain\Text::plain( $text ) ) ) as $word ) {
 			$candidate = '' === $line ? $word : $line . ' ' . $word;
 			if ( '' !== $line && self::text_width( $candidate, $size, $bold ) > $max_width ) {
 				$lines[] = $line;
@@ -74,7 +74,8 @@ final class PdfWriter {
 	 * Text at baseline ($x,$y) from bottom-left. $align: left|center|right ($x is the anchor).
 	 */
 	public function text( $x, $y, $size, $text, $bold = false, $align = 'left' ) {
-		$text = (string) $text;
+		// PDF text is plain text: stored entities ("Kids &lt;3") are decoded (A497).
+		$text = \PassCaptain\Text::plain( $text );
 		if ( '' === $text ) { return $this; }
 		if ( 'center' === $align ) { $x -= self::text_width( $text, $size, $bold ) / 2; }
 		elseif ( 'right' === $align ) { $x -= self::text_width( $text, $size, $bold ); }

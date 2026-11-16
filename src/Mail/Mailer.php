@@ -364,10 +364,11 @@ final class Mailer {
 	/** One placeholder value in the requested format. */
 	private static function value( $value, $html ) {
 		if ( is_array( $value ) ) {
-			return (string) ( $html ? ( $value['html'] ?? esc_html( (string) ( $value['text'] ?? '' ) ) ) : ( $value['text'] ?? '' ) );
+			return (string) ( $html ? ( $value['html'] ?? esc_html( (string) ( $value['text'] ?? '' ) ) ) : \PassCaptain\Text::plain( $value['text'] ?? '' ) );
 		}
 		if ( is_bool( $value ) || null === $value || is_object( $value ) ) { return ''; }
-		return $html ? nl2br( esc_html( (string) $value ) ) : (string) $value;
+		// Text mails and subjects are plain text: stored entities ("Kids &lt;3") are decoded (A497).
+		return $html ? nl2br( esc_html( (string) $value ) ) : \PassCaptain\Text::plain( (string) $value );
 	}
 
 	/** Whether a string contains common HTML markup (anything else, e.g. "<x>", counts as text). */
