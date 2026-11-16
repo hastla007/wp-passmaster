@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# A new push supersedes the running check of the same branch (main keeps every run).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 permissions:
   contents: read
 
