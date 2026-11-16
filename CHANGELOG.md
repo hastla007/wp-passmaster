@@ -2,6 +2,12 @@
 
 ## Unveröffentlicht
 
+### Form Captain: Formular zum Event
+- Optionaler Adapter für Form Captain (Contract 1.1.0): In der Event-Adminseite lässt sich ein veröffentlichtes Form-Captain-Formular (ID oder öffentliche ID) zuordnen; es erscheint in der Event-Karte nach dem Checkout. Das Formular erhält einen signierten Bezug auf das Event (Kontextzweck `pass.event_registration`); Form Captain lehnt manipulierte Event-IDs und Einsendungen zu abgesagten Events ab.
+- Eine Einsendung ist keine Buchung: keine Reservierung, keine Zahlung, kein Ticket. Ohne Form Captain ändert sich nichts.
+- Neue Tabelle `wpcap_event_forms`, neue Action `wpcap_event_admin_sections` (Abschnitte auf der Event-Adminseite).
+- Übergabe von Einsendungen (Opt-in): Connector „Pass Captain (Event-Anfragen)“ mit der Formularaktion `pass_captain.event_registration`. Jede Einsendung mit geprüftem Eventbezug wird zu einer Anfrage „zu prüfen“ im Event (Name, E-Mail, Telefon, Nachricht). Das Personal legt daraus manuell eine Buchung an oder lehnt sie ab. Doppelte Zustellung legt nichts doppelt an. Löschung oder Einwilligungswiderruf in Form Captain entfernt offene Anfragen und anonymisiert bearbeitete. Neue Tabelle `wpcap_event_requests`.
+
 ### Neuer Name: Pass Captain
 - Das Plugin heißt jetzt „Pass Captain“ (WordPress.org erlaubt kein „WP“ im Plugin-Namen). Hauptdatei `pass-captain.php`, Plugin-Ordner und ZIP `pass-captain`, Textdomain `pass-captain`, Übersetzungsdateien `languages/pass-captain-*.po/.mo`.
 - Umstieg: die neue Version installieren und aktivieren. Ist die alte Kopie `wp-pass-captain/wp-pass-captain.php` noch aktiv, übernimmt die neue Kopie deren Aktivierung (auf Multisite auch die Netzwerkaktivierung) – ohne Deaktivierungs- oder Deinstallationsroutine der alten Kopie. Daten, Einstellungen und Zeitpläne bleiben erhalten. Danach kann die alte Kopie gelöscht werden: Ihre Deinstallation entfernt dabei nie Daten, auch wenn „Daten beim Löschen entfernen“ aktiv ist, und die dabei gelöschten Zeitpläne legt die neue Kopie beim nächsten Seitenaufruf neu an.
