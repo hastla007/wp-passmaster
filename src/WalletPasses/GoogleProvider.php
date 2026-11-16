@@ -76,8 +76,8 @@ class GoogleProvider implements WalletProvider {
 		return apply_filters( 'wpcap_wallet_google_object', $object, $ticket );
 	}
 
-	/** "Save to Google Wallet" URL with the class and object embedded in the JWT. */
-	public function save_url( array $ticket ) {
+	/** Signed "Save to Google Wallet" URL for a payload (eventTicketClasses / eventTicketObjects). */
+	private function signed_save_url( array $payload ) {
 		$account = Credentials::google();
 		if ( is_wp_error( $account ) ) { throw new \RuntimeException( $account->get_error_code() ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal error code, never printed.
 		$claims = array(
@@ -86,15 +86,59 @@ class GoogleProvider implements WalletProvider {
 			'typ' => 'savetowallet',
 			'iat' => time(),
 			'origins' => array( home_url( '/' ) ),
-			'payload' => array( 'eventTicketClasses' => array( $this->class_payload( $ticket ) ), 'eventTicketObjects' => array( $this->object_payload( $ticket ) ) ),
+			'payload' => $payload,
 		);
 		return self::SAVE_URL . Jwt::sign( $claims, $account['private_key'] );
 	}
 
+	/**
+	 * "Save to Google Wallet" URL with the class and object embedded in the JWT ("fat" JWT). Only a
+	 * fallback for one ticket when the Wallet API is unreachable: such URLs exceed 1,800 characters.
+	 */
+	public function save_url( array $ticket ) {
+		return $this->signed_save_url( array( 'eventTicketClasses' => array( $this->class_payload( $ticket ) ), 'eventTicketObjects' => array( $this->object_payload( $ticket ) ) ) );
+	}
+
+	/**
+	 * A583: short save URL for several tickets. Inserts the classes and objects through the Wallet
+	 * API first (on the customer's click), so the JWT only carries the object IDs. Returns '' when the
+	 * API is not reachable (caller may fall back to save_url() for a single ticket).
+	 *
+	 * @param array[] $tickets Service::ticket() rows with code.
+	 */
+	public function save_url_for( array $tickets ) {
+		$classes = array();
+		$objects = array();
+		foreach ( $tickets as $ticket ) {
+			$class_id = $this->class_id( $ticket['occurrence_id'] );
+			if ( ! isset( $classes[ $class_id ] ) ) {
+				$res = $this->api( 'POST', 'eventTicketClass', $this->class_payload( $ticket ) );
+				if ( ! in_array( $res['code'], array( 200, 409 ), true ) ) { return ''; }
+				if ( 409 === $res['code'] && ! $this->update_class( $ticket ) ) { return ''; }
+				$classes[ $class_id ] = true;
+			}
+			$object = $this->object_payload( $ticket );
+			$res = $this->api( 'POST', 'eventTicketObject', $object );
+			if ( 409 === $res['code'] ) {
+				// Already inserted (an earlier click or a sync): bring it to the current state.
+				$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
+			}
+			if ( 200 !== $res['code'] ) { return ''; }
+			$objects[] = array( 'id' => $object['id'] ); // Inserted already: the ID is enough (no class, no data).
+		}
+		return $objects ? $this->signed_save_url( array( 'eventTicketObjects' => $objects ) ) : '';
+	}
+
 	/* ---- ProviderInterface ---- */
 
+	/** Identifiers of the pass without building anything (A580: large orders). */
+	public function pass_ref( array $ticket ) {
+		return array( 'provider' => 'google', 'serial_number' => $this->object_id( $ticket ), 'provider_ref' => $this->class_id( $ticket['occurrence_id'] ) );
+	}
+
+	/** The save link is a short link of the plugin (Service::google_link()), signed at the customer's click. */
 	public function create_pass( array $ticket ) {
-		return array( 'provider' => 'google', 'serial_number' => $this->object_id( $ticket ), 'provider_ref' => $this->class_id( $ticket['occurrence_id'] ), 'save_url' => $this->save_url( $ticket ) );
+		return $this->pass_ref( $ticket );
 	}
 
 	/** Brings the object to the current state; creates it when the customer has not saved it yet. */

@@ -176,6 +176,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 |---|---|---|
 | `wpcap_ticket_mail` | `array $mail` (`subject`, `body`, `attachments`), `object $order, array $issued` | Ticket-E-Mail anpassen. `$issued` je Ticket: `ticket_id`, `ticket_type_id`, `occurrence_id`, `token` (Klartext, nur hier), `event`, `ticket`, `starts_at`, `timezone`, `location`. `subject`/`body` sind bereits aus der (ggf. angepassten) Vorlage `tickets` gerendert; im HTML-Modus wird angehängter Klartext automatisch maskiert und umbrochen. Angehängte Dateien werden nach dem Versand gelöscht. Das Kalender-Modul hängt hier `.ics`-Dateien an (Priorität 20). |
 | `wpcap_attach_ticket_pdf` | `bool $attach, int $order_id` | PDF-Tickets anhängen. |
+| `wpcap_ticket_pdf_chunk_size` | `int $size` (50) | Tickets je PDF-Anhang der Ticketmail; größere Bestellungen erhalten mehrere PDFs (A580). |
+| `wpcap_ticket_mail_attachment_budget` | `int $bytes` (7 MB), `object\|null $order` | Höchstgröße aller Anhänge der Ticketmail vor der Kodierung; weitere PDF-Teile und `.pkpass`-Dateien entfallen dann (Hinweis bzw. Link in der Mail), A580. |
 | `wpcap_mail_types` | `array $types` | Registry der Kunden-Mails (`PassCaptain\Mail\Types`): eigene Typen ergänzen oder Labels/Standardtexte ändern (Kern-Typen können nicht entfernt werden). Siehe [MAIL-TEMPLATES.md](MAIL-TEMPLATES.md). |
 | `wpcap_mail` | `array $message, string $to` | Jede Kunden-Mail des zentralen Mailers vor dem Versand (`type`, `subject`, `body`, `format`, `attachments`, `locale`, optional `headers`; bei eingebauten HTML-Texten zusätzlich `text_body`/`text_for` – die Textversion gilt nur, solange `body` unverändert bleibt). |
 | `wpcap_mail_default_format` | `string $format, string $type` | Format der eingebauten Standardtexte ohne eigene Vorlage: `html` (Standard, mit Layout und Textversion) oder `text`; `$type` ist der Mail-Typ bzw. `reminder` für Erinnerungen. Gespeicherte Vorlagen behalten ihr Format. |
@@ -254,6 +256,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_wallet_apple_images` | `array $images` | Bilder des Passes (Dateiname → Bytes). |
 | `wpcap_wallet_apns_client` | `ApnsClient|null $client` | Eigener APNs-Client (Tests). |
 | `wpcap_wallet_google_class` | `array $class, array $ticket` | Google-Wallet-EventTicketClass. |
+| `wpcap_wallet_mail_inline_limit` | `int $limit` (10) | Bis zu dieser Ticketanzahl enthält die Ticketmail Wallet-Pässe/-Links je Ticket; darüber „Alle hinzufügen“-Links je Paket (A580). |
+| `wpcap_wallet_batch_size` | `int $size, string $provider` | Tickets je „Alle hinzufügen“-Link: Apple `.pkpasses` (Standard und Maximum 10), Google-Speichern-Link mit Objekt-IDs (Standard und Maximum 8, gemessen ~1.500 Zeichen), A580/A583. |
 | `wpcap_wallet_health_issues` | `array $issues` | Befunde des Site-Health-Tests „Pass Captain Wallet“ und des Admin-Hinweises (A584/A585): Liste aus `key`, `status` (`critical`/`recommended`), `message`. |
 | `wpcap_wallet_google_object` | `array $object, array $ticket` | Google-Wallet-EventTicketObject. |
 

@@ -32,6 +32,11 @@ class AppleProvider implements WalletProvider {
 
 	/* ---- ProviderInterface ---- */
 
+	/** Identifiers of the pass without building/signing the bundle (A580: large orders). */
+	public function pass_ref( array $ticket ) {
+		return array( 'provider' => 'apple', 'serial_number' => (string) $ticket['public_id'], 'provider_ref' => $this->pass_type_id() );
+	}
+
 	public function create_pass( array $ticket ) {
 		return array( 'provider' => 'apple', 'serial_number' => (string) $ticket['public_id'], 'provider_ref' => $this->pass_type_id(), 'bundle' => $this->bundle( $this->pass_json( $ticket ) ) );
 	}

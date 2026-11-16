@@ -2142,6 +2142,8 @@ final class Orders {
 			}, $issued );
 			$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return Mail\Blocks::issued_tickets( $entries ); } ), (string) $order->locale );
 			$attachments = array();
+			$pdf_note = '';
+			$pdf_covered = 0;
 			// No PDF with plaintext codes for a placeholder address (sale without buyer e-mail).
 			if ( ! Mail\Mailer::is_placeholder( $order->customer_email ) && apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
 				$pdf_tickets = array_map( static function ( $ticket ) {
@@ -2151,17 +2153,35 @@ final class Orders {
 				// random name in the shared temp dir, removed right after delivery.
 				$pdf_dir = self::private_temp_dir();
 				if ( $pdf_dir ) {
-					$file = $pdf_dir . '/tickets-' . $order->public_id . '.pdf';
-					if ( false !== file_put_contents( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
+					// A580: large orders are split into several PDFs, attached while they fit the mail's
+					// attachment budget; the rest is reachable through the ticket links and the portal.
+					$chunks = array_chunk( $pdf_tickets, self::ticket_pdf_chunk_size() );
+					$budget = self::attachment_budget( $order );
+					$used = 0;
+					foreach ( $chunks as $index => $chunk ) {
+						$bytes = TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+						if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
+						$file = $pdf_dir . '/tickets-' . $order->public_id . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf';
+						if ( false === file_put_contents( $file, $bytes ) ) { break; }
 						@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 						$attachments[] = $file;
+						$used += strlen( $bytes );
+						$pdf_covered += count( $chunk );
+					}
+					if ( $pdf_covered < count( $pdf_tickets ) ) {
+						$pdf_note = "\n\n" . sprintf(
+							/* translators: 1: number of tickets in the PDF attachments, 2: number of tickets of the order */
+							__( 'Wegen der Größenbegrenzung von E-Mails enthalten die PDF-Anhänge die ersten %1$d von %2$d Tickets. Alle Tickets kannst du über die Links oben öffnen und im Bestellportal (Link aus deiner Bestellbestätigung) als PDF herunterladen.', 'pass-captain' ),
+							$pdf_covered,
+							count( $pdf_tickets )
+						) . "\n";
 					}
 				}
 			}
 			$mail = array( 'attachments' => $attachments );
 			try {
 				// Legacy filter: receives and may change subject/body/attachments of the rendered template.
-				$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => $message['subject'], 'body' => $message['body'], 'attachments' => $attachments ), $order, $issued );
+				$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => $message['subject'], 'body' => $message['body'] . $pdf_note, 'attachments' => $attachments ), $order, $issued );
 				$mail = is_array( $mail ) ? $mail : array( 'attachments' => $attachments );
 				$delivered = Mail\Mailer::deliver( $order->customer_email, array( 'order_id' => (int) $order->order_id ) + Mail\Mailer::apply_filtered( $message, $mail ) );
 				if ( ! $delivered ) {
@@ -2365,6 +2385,30 @@ final class Orders {
 			'ticket_list' => $list,
 			'ticket_links' => Mail\Blocks::links( array_column( $entries, 'url' ) ),
 		);
+	}
+
+	/** Tickets per attached ticket PDF (A580). */
+	public static function ticket_pdf_chunk_size() {
+		/**
+		 * Tickets per PDF attachment of the ticket mail; larger orders get several PDFs (A580).
+		 *
+		 * @param int $size Default 50 (about 1 MB).
+		 */
+		return max( 1, (int) apply_filters( 'wpcap_ticket_pdf_chunk_size', 50 ) );
+	}
+
+	/**
+	 * Attachment budget of a ticket mail in bytes (A580). Measured: ~21 KB PDF and ~10–20 KB .pkpass
+	 * per ticket, base64 adds a third; 7 MB raw stays below the 10 MB limit of many mailboxes.
+	 */
+	public static function attachment_budget( $order = null ) {
+		/**
+		 * Maximum total size (bytes, before encoding) of the ticket mail's attachments (A580).
+		 *
+		 * @param int         $bytes Default 7 MB.
+		 * @param object|null $order Order row.
+		 */
+		return max( 0, (int) apply_filters( 'wpcap_ticket_mail_attachment_budget', 7 * 1024 * 1024, $order ) );
 	}
 
 	/** Event start in the event's own timezone; starts_at is stored in UTC. */

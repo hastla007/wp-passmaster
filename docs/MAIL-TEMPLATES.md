@@ -41,6 +41,13 @@ Jede Änderung an Beginn, Ende, Einlass, Ort, Veranstaltungsland oder Status ein
 - **Abschalten je Event:** *Events → Event bearbeiten → Änderungsmitteilungen*. Ohne Haken gehen weder `occurrence_rescheduled` noch `occurrence_changed`; Absagen werden immer mitgeteilt.
 - Empfänger sind wie bei der Terminänderung die Inhaber:innen gültiger Tickets (Teilnehmer-Adresse, sonst Käufer:in), je Adresse eine Mail in der Sprache der Bestellung. Im Änderungsverlauf des Termins erscheint der Eintrag „Ticketinhaber:innen über Änderung informiert“.
 
+## Größe der Ticketmail (A580)
+
+Gemessen: ein Ticket-PDF braucht rund 20 KB je Ticket, ein `.pkpass` 10–20 KB; Base64 im Mailversand kommt mit einem Drittel dazu. Ohne Grenze wäre eine Mail mit 1.000 Tickets 26–40 MB groß (Gmail und viele Postfächer nehmen 10–25 MB an), und die langen Google-Links ließen Gmail die Mail ab etwa 22 Tickets kürzen. Deshalb:
+
+- **Geteilte PDFs:** höchstens 50 Tickets je PDF (`tickets-{bestellung}-1.pdf`, `-2.pdf` …; Filter `wpcap_ticket_pdf_chunk_size`). Angehängt wird, solange die Anhänge zusammen das **Anhangsbudget** von 7 MB nicht überschreiten (Filter `wpcap_ticket_mail_attachment_budget`, Bytes vor der Kodierung); das erste PDF immer. Fehlen Tickets in den Anhängen, sagt die Mail, welche die PDFs enthalten, und verweist auf die Ticketlinks und das Bestellportal.
+- **Wallet:** bis 10 Tickets (Filter `wpcap_wallet_mail_inline_limit`) je Ticket ein `.pkpass` (solange es ins Budget passt, sonst Download-Link) und ein kurzer Google-Link; bei größeren Bestellungen stattdessen „Alle hinzufügen“-Links je Paket (Apple: `.pkpasses` mit 10 Pässen, Google: 8 Tickets je Link), siehe docs/WALLET.md.
+
 ## Standardformat: HTML (A101)
 
 Prüfung der Formate (Stand A101):

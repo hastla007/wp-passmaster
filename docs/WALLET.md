@@ -33,6 +33,8 @@ Icons/Logo werden mit GD erzeugt (ohne GD: einfarbige PNGs); eigene PNGs können
 
 Neue Klassen stehen bei Google zunächst auf `UNDER_REVIEW`; für den Livebetrieb muss der Aussteller freigeschaltet sein.
 
+**Speichern-Link (A583):** Die Mail enthält keinen Google-JWT mehr, sondern einen kurzen, signierten Link des Plugins (`/wp-json/pass-captain/v1/wallet/google/save?t={ticket}&sig=…`, HMAC über Ticket und aktuelle Pass-Generation – nach einer Code-Erneuerung ungültig). Erst beim Klick legt das Plugin Klasse und Objekt über die Wallet-API an (`POST`, bei 409 `PATCH` auf den aktuellen Stand) und leitet mit `302` auf `https://pay.google.com/gp/v/save/{jwt}` weiter; der JWT enthält dann nur noch die Objekt-IDs (gemessen rund 720 Zeichen für ein Ticket und rund 1.470 für 8 Tickets, statt über 1.800 für ein einzelnes vollständiges Objekt). Daten gehen so erst auf Klick der Kundin an Google. Ist die API nicht erreichbar, bekommt ein einzelnes Ticket als Rückfall den vollständigen JWT; für mehrere Tickets erscheint ein Hinweis (503), es später erneut zu versuchen.
+
 ## Was im Pass steht
 
 | | Apple (`pass.json`) | Google |
@@ -61,7 +63,7 @@ Konsequenzen:
 - Wer Datenbank **und** Schlüssel (wp-config.php) besitzt, kann die Codes von Tickets mit Wallet-Pass entschlüsseln. Mit nur einem Datenbank-Dump ist das nicht möglich. Ohne Wallet bleibt der Kern bei „nur Hash“.
 - Werden die WordPress-Salts bzw. `WPCAP_WALLET_ENCRYPTION_KEY` geändert, lassen sich gespeicherte Codes nicht mehr öffnen (A584). „Nicht entschlüsselbar“ heißt dabei **nicht** „ungültig“: Geräte erhalten beim Abruf `304 Not Modified` und behalten ihren letzten gültigen Pass, Google-Objekte werden ohne `state`/`barcode` gepatcht (bleiben also aktiv mit Code) und fehlende Google-Objekte werden nicht ohne Code angelegt; der Download-Link antwortet mit 503 und Hinweis. Widerrufene, erstattete oder abgesagte Tickets werden weiterhin ungültig. Das Modul merkt sich einen Fingerabdruck des Schlüssels (Option `wpcap_wallet_key_check`); ändert er sich, meldet der Site-Health-Test „Pass Captain Wallet“ einen kritischen Befund und Administrator:innen sehen einen Hinweis mit der Abhilfe (bisherigen Schlüssel als `WPCAP_WALLET_ENCRYPTION_KEY` wiederherstellen oder Tickets erneut senden). Solange der Schlüssel nur aus den Salts abgeleitet wird, empfiehlt Site Health (und die Wallet-Seite) eine eigene, stabile Konstante `WPCAP_WALLET_ENCRYPTION_KEY`. Ein bereits versendeter Apple-Download-Link ist mit dem Schlüssel signiert und wird nach einer Schlüsseländerung ungültig.
 - Der fertige Pass wird nicht gespeichert, sondern bei Bedarf aus aktuellen Daten neu gebaut und signiert.
-- Der Google-Speichern-Link (JWT) und der Apple-Download-Link enthalten bzw. liefern den Code – sie stehen nur in der Mail, die den Code ohnehin enthält. Der Download-Link ist mit einem HMAC über Seriennummer und aktuelle Token-Generation signiert und wird bei einer Code-Erneuerung ungültig.
+- Der Google-Speichern-Link und der Apple-Download-Link liefern den Code – sie stehen nur in der Mail, die den Code ohnehin enthält. Der Download-Link ist mit einem HMAC über Seriennummer und aktuelle Token-Generation signiert und wird bei einer Code-Erneuerung ungültig.
 
 ## Aktualisierungen
 
@@ -99,6 +101,10 @@ Basis: `https://example.com/wp-json/pass-captain/v1/wallet/apple` (= `webService
 | GET | `/v1/passes/{passTypeIdentifier}/{serialNumber}` | 200 `.pkpass` mit `Last-Modified` und `ETag`, 304 bei passendem `If-None-Match` bzw. `If-Modified-Since`, 401 |
 | POST | `/v1/log` | 200; ohne Authentifizierung (Apple-Vorgabe), daher eigener kleiner Puffer (10 Einträge, max. 3 Zeilen je Aufruf, 5 Aufrufe/Stunde je Client, 30/Stunde gesamt), getrennt vom Server-Protokoll, Tokens entfernt |
 | GET | `/download/{serialNumber}?sig=…` | Download-Link aus der Mail |
+| GET | `/bundle?o={bestellung}&p={paket}&sig=…` | A580: „Alle zu Apple Wallet hinzufügen“ – bis zu 10 Pässe der Bestellung als `application/vnd.apple.pkpasses` (iOS 15+) |
+| GET | `/wp-json/pass-captain/v1/wallet/google/save?t=…&sig=…` bzw. `?o=…&p=…&sig=…` | A583: kurzer Google-Speichern-Link (ein Ticket bzw. ein Paket von bis zu 8 Tickets der Bestellung), 302 zu Google |
+
+**„Alle hinzufügen“ (A580):** Ab mehr als 10 Tickets (Filter `wpcap_wallet_mail_inline_limit`) hängt die Ticketmail keine `.pkpass` je Ticket mehr an und listet keine Links je Ticket, sondern je Paket einen Apple- und einen Google-Link („Tickets 1–10 zu Apple Wallet hinzufügen“). Codes und Pass-Zeilen werden trotzdem für jedes Ticket gespeichert; die Pässe werden beim Abruf gebaut. Ein Paket umfasst die gültigen Tickets, die noch bei der Käuferin liegen (nicht übertragen, keiner anderen Adresse zugewiesen – wie beim PDF im Bestellportal). Die Signatur hängt am Zugangstoken der Bestellung: ein neuer Bestelllink macht auch diese Links ungültig.
 
 APNs: HTTP/2-POST an `https://api.push.apple.com/3/device/{pushToken}` (Sandbox einstellbar) mit dem Pass-Type-ID-Zertifikat als Client-Zertifikat, `apns-topic` = Pass Type ID, Payload `{}`. Benötigt cURL mit HTTP/2.
 
@@ -109,4 +115,4 @@ Update-Tags (für `passesUpdatedSince`, `Last-Modified`, `ETag`) liegen bei jede
 - Bestellportal: Das Portal (`OrderPortal`, Template) bietet keinen Hook für zusätzliche Links je Ticket; Wallet-Buttons dort benötigen eine Kernerweiterung (z. B. Filter je Ticketzeile). Der Code ist dort ohnehin nicht im Klartext verfügbar – das Portal könnte aber `Service::download_url()` für vorhandene Apple-Pässe anzeigen.
 - Tickets, die vor Aktivierung des Moduls ausgestellt wurden, erhalten erst nach einer Code-Erneuerung (z. B. „Tickets erneut senden“) einen Pass.
 - Check-in ändert den Pass nicht.
-- Google-Speichern-Links enthalten Klasse und Objekt vollständig („fat JWT“); sehr lange Texte können die URL-Länge überschreiten.
+- Google-Speichern-Links: siehe oben (A583) – der vollständige JWT („fat JWT“) wird nur noch als Rückfall für ein einzelnes Ticket erzeugt, wenn die Wallet-API beim Klick nicht erreichbar ist.

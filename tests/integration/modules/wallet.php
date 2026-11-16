@@ -131,7 +131,7 @@ $codes = ticket_code_for( $r['order_id'] );
 $code = $codes[0] ?? '';
 $ticket = tickets( $r['order_id'] )[0];
 $pkpass_name = 'ticket-' . substr( $ticket->public_id, 0, 12 ) . '.pkpass';
-check( 'wallet mail: .pkpass attached and Google link added', isset( $mail['files'][ $pkpass_name ] ) && false !== strpos( $mail['body'], 'Zu Apple Wallet hinzufügen' ) && false !== strpos( $mail['body'], 'In Google Wallet speichern: https://pay.google.com/gp/v/save/' ) );
+check( 'wallet mail: .pkpass attached and Google link added', isset( $mail['files'][ $pkpass_name ] ) && false !== strpos( $mail['body'], 'Zu Apple Wallet hinzufügen' ) && false !== strpos( $mail['body'], 'In Google Wallet speichern: https://example.test/wp-json/pass-captain/v1/wallet/google/save?t=' ) );
 check( 'wallet mail: temporary .pkpass removed after sending', ! file_exists( trailingslashit( get_temp_dir() ) . $pkpass_name ) );
 $files = wpw_unzip( $mail['files'][ $pkpass_name ] ?? '' );
 $expected = array( 'icon.png', 'icon@2x.png', 'logo.png', 'logo@2x.png', 'manifest.json', 'pass.json', 'signature' );
@@ -160,8 +160,14 @@ $rows = Store::passes( $ticket->ticket_id );
 check( 'wallet_passes rows for apple and google', 2 === count( $rows ) && 'apple' === $rows[0]->provider && $ticket->public_id === $rows[0]->serial_number && 'google' === $rows[1]->provider );
 
 /* ---- Google save JWT ---- */
-preg_match( '#https://pay\.google\.com/gp/v/save/(\S+)#', $mail['body'], $gm );
-$jwt = $gm[1] ?? '';
+// A583: the mail carries a short signed link; following it (Wallet API unreachable here) falls back
+// to the single-ticket JWT with class and object.
+preg_match( '#(https://example\.test/wp-json/pass-captain/v1/wallet/google/save\S+)#', $mail['body'], $glm );
+parse_str( (string) parse_url( $glm[1] ?? '', PHP_URL_QUERY ), $glq );
+$gsave = WebService::google_save( wpw_rest( 'GET', $glq ) );
+$glocation = is_wp_error( $gsave ) ? '' : (string) ( $gsave->get_data()['headers']['Location'] ?? '' );
+check( 'google save link: 302 to pay.google.com', ! is_wp_error( $gsave ) && 302 === $gsave->get_status() && str_starts_with( $glocation, 'https://pay.google.com/gp/v/save/' ) );
+$jwt = substr( $glocation, strlen( 'https://pay.google.com/gp/v/save/' ) );
 list( $jh, $jc, $js ) = wpw_jwt_parts( $jwt ) + array( '', '', '' );
 $header = json_decode( $jh, true );
 $claims = json_decode( $jc, true );
@@ -283,7 +289,7 @@ preg_match( '/wpcap_ticket=([a-f0-9]{64})/', $resent['body'], $nm );
 $new_code = $nm[1] ?? '';
 $filtered = array( 'message' => $resent['body'] );
 $state2 = Store::state( $ticket2->ticket_id );
-check( 'rotation: core hook starts a new generation and the resend mail carries wallet links', 2 === (int) $state2->generation && hash( 'sha256', $new_code ) === $state2->code_hash && false !== strpos( $filtered['message'], '/wallet/apple/download/' . $ticket2->public_id ) && false !== strpos( $filtered['message'], 'pay.google.com/gp/v/save/' ) );
+check( 'rotation: core hook starts a new generation and the resend mail carries wallet links', 2 === (int) $state2->generation && hash( 'sha256', $new_code ) === $state2->code_hash && false !== strpos( $filtered['message'], '/wallet/apple/download/' . $ticket2->public_id ) && false !== strpos( $filtered['message'], '/wallet/google/save?t=' ) );
 check( 'rotation: devices of the old generation are pushed', 1 === count( $wpw_apns->calls ) );
 $old = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2 ) ) );
 check( 'rotation: old auth token gets a voided pass without the new code', true === ( $old['voided'] ?? false ) && ! isset( $old['barcodes'] ) && $auth2 === $old['authenticationToken'] );

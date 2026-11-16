@@ -1,7 +1,8 @@
 <?php
 /**
- * Apple PassKit web service under /wp-json/pass-captain/v1/wallet/apple/v1/… plus the signed
- * .pkpass download link used in mails (/wallet/apple/download/{serial}?sig=…).
+ * Apple PassKit web service under /wp-json/pass-captain/v1/wallet/apple/v1/… plus the signed links
+ * used in mails: .pkpass download (/wallet/apple/download/{serial}?sig=…), .pkpasses bundle of an
+ * order (/wallet/apple/bundle?o=…&p=…&sig=…) and the short Google save link (/wallet/google/save).
  *
  * Device requests authenticate with "Authorization: ApplePass <authenticationToken>"; tokens are
  * random per pass generation and stored as SHA-256 hashes.
@@ -31,6 +32,53 @@ final class WebService {
 		register_rest_route( self::NS, $base . '/v1/passes/(?P<pass_type>[A-Za-z0-9.\-]{1,190})/(?P<serial>[A-Za-z0-9\-]{1,190})', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'latest_pass' ), 'permission_callback' => '__return_true' ) );
 		register_rest_route( self::NS, $base . '/v1/log', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'log' ), 'permission_callback' => '__return_true' ) );
 		register_rest_route( self::NS, $base . '/download/(?P<serial>[A-Za-z0-9\-]{1,190})', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'download' ), 'permission_callback' => '__return_true' ) );
+		// A580: several Apple passes of an order as one .pkpasses bundle ("add all").
+		register_rest_route( self::NS, $base . '/bundle', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'bundle' ), 'permission_callback' => '__return_true' ) );
+		// A583: short "Save to Google Wallet" link; objects are inserted on click, the JWT only carries IDs.
+		register_rest_route( self::NS, '/wallet/google/save', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'google_save' ), 'permission_callback' => '__return_true' ) );
+	}
+
+	private static function invalid_link() {
+		return new \WP_Error( 'wpcap_wallet_link', __( 'Dieser Wallet-Link ist ungültig oder wurde durch einen neueren ersetzt.', 'pass-captain' ), array( 'status' => 404 ) );
+	}
+
+	private static function link_params( \WP_REST_Request $request ) {
+		$out = array();
+		foreach ( array( 't', 'o', 'p', 'sig' ) as $key ) { $out[ $key ] = (string) $request->get_param( $key ); }
+		return $out;
+	}
+
+	/** GET /wallet/google/save?t=…&sig=… (one ticket) or ?o=…&p=…&sig=… (batch of an order): 302 to Google. */
+	public static function google_save( \WP_REST_Request $request ) {
+		if ( ! RateLimit::allow( 'wallet_gsave_' . RateLimit::client(), 30, MINUTE_IN_SECONDS ) || ! Service::provider( 'google' ) ) { return self::invalid_link(); }
+		$tickets = Service::link_tickets( 'google', self::link_params( $request ) );
+		if ( ! $tickets ) { return self::invalid_link(); }
+		$url = Service::google_save_url( $tickets );
+		if ( '' === $url ) {
+			return new \WP_Error( 'wpcap_wallet_unavailable', __( 'Google Wallet ist gerade nicht erreichbar. Bitte versuche es in ein paar Minuten erneut.', 'pass-captain' ), array( 'status' => 503 ) );
+		}
+		return new \WP_REST_Response( array( '__wpcap_raw' => '', 'headers' => array( 'Location' => $url, 'Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer' ) ), 302 );
+	}
+
+	/** GET /wallet/apple/bundle?o=…&p=…&sig=…: the batch's passes as application/vnd.apple.pkpasses. */
+	public static function bundle( \WP_REST_Request $request ) {
+		if ( ! RateLimit::allow( 'wallet_dl_' . RateLimit::client(), 60, MINUTE_IN_SECONDS ) || ! Service::provider( 'apple' ) ) { return self::invalid_link(); }
+		$params = self::link_params( $request );
+		unset( $params['t'] );
+		$tickets = Service::link_tickets( 'apple', $params );
+		if ( ! $tickets ) { return self::invalid_link(); }
+		$files = array();
+		foreach ( $tickets as $i => $ticket ) {
+			try {
+				$built = Service::apple_bundle( (string) $ticket['public_id'], null );
+			} catch ( \Throwable $e ) {
+				Service::log( 'build_failed', $e->getMessage() );
+				$built = null;
+			}
+			if ( $built && ! empty( $built['bundle'] ) ) { $files[ sprintf( 'ticket-%02d.pkpass', $i + 1 ) ] = $built['bundle']; }
+		}
+		if ( ! $files ) { return new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
+		return new \WP_REST_Response( array( '__wpcap_raw' => Archive::zip( $files ), 'headers' => array( 'Content-Type' => 'application/vnd.apple.pkpasses', 'Content-Disposition' => 'attachment; filename="tickets.pkpasses"', 'Cache-Control' => 'no-store' ) ), 200 );
 	}
 
 	private static function unauthorized() {
@@ -131,7 +179,7 @@ final class WebService {
 		$state = $pass ? Store::state( $pass->ticket_id ) : null;
 		$sig = (string) $request->get_param( 'sig' );
 		if ( ! RateLimit::allow( 'wallet_dl_' . RateLimit::client(), 60, MINUTE_IN_SECONDS ) || ! $state || ! hash_equals( Service::download_sig( $serial, $state ), $sig ) ) {
-			return new \WP_Error( 'wpcap_wallet_link', __( 'Dieser Wallet-Link ist ungültig oder wurde durch einen neueren ersetzt.', 'pass-captain' ), array( 'status' => 404 ) );
+			return self::invalid_link();
 		}
 		try {
 			$built = Service::apple_bundle( $serial, null );

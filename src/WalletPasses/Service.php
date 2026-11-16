@@ -105,9 +105,11 @@ final class Service {
 	/**
 	 * Stores the code and creates the provider passes of one ticket.
 	 *
+	 * @param bool $build false: only store the code and the pass rows (no .pkpass is signed), for
+	 *                    large orders whose mail carries "add all" links instead (A580).
 	 * @return array{apple?:array,google?:array}
 	 */
-	public static function issue( $ticket_id, $code ) {
+	public static function issue( $ticket_id, $code, $build = true ) {
 		$apple = self::provider( 'apple' );
 		$google = self::provider( 'google' );
 		if ( ! $apple && ! $google ) { return array(); }
@@ -120,9 +122,10 @@ final class Service {
 		foreach ( array( 'apple' => $apple, 'google' => $google ) as $key => $provider ) {
 			if ( ! $provider ) { continue; }
 			try {
-				$pass = $provider->create_pass( $ticket );
+				$pass = ! $build && method_exists( $provider, 'pass_ref' ) ? $provider->pass_ref( $ticket ) : $provider->create_pass( $ticket );
 				Store::save_pass( $ticket_id, $key, (string) $pass['serial_number'], (string) ( $pass['provider_ref'] ?? '' ), $ticket['voided'] ? 'voided' : 'active' );
 				if ( 'apple' === $key ) { $pass['download_url'] = self::download_url( $pass['serial_number'] ); }
+				if ( 'google' === $key && $provider instanceof GoogleProvider ) { $pass['save_url'] = self::google_link( $ticket_id ); }
 				$out[ $key ] = $pass;
 			} catch ( \Throwable $e ) {
 				self::log( 'issue_failed', $key . ':' . $e->getMessage() );
@@ -150,6 +153,156 @@ final class Service {
 
 	public static function download_sig( $serial, $state ) {
 		return hash_hmac( 'sha256', 'dl|' . $serial . '|' . $state->auth_token_hash, Store::key() );
+	}
+
+	/* ---- short Google links and "add all" links (A583, A580) ---- */
+
+	/** Tickets per Google save JWT (object IDs only) and per Apple .pkpasses bundle. */
+	public static function batch_size( $provider ) {
+		$default = 'google' === $provider ? 8 : 10;
+		/**
+		 * Tickets per "add all" wallet link: Google object IDs per save JWT (default and maximum 8;
+		 * measured ~1,500 characters, below the 1,800 Google recommends) or Apple passes per
+		 * .pkpasses bundle (default and maximum 10).
+		 *
+		 * @param int    $size
+		 * @param string $provider 'apple' or 'google'.
+		 */
+		return max( 1, min( $default, (int) apply_filters( 'wpcap_wallet_batch_size', $default, $provider ) ) );
+	}
+
+	/** Up to this many tickets a ticket mail lists wallet links (and .pkpass files) per ticket. */
+	public static function mail_inline_limit() {
+		/**
+		 * Tickets per ticket mail up to which wallet passes are attached/linked per ticket (A580);
+		 * larger orders get one "add all" link per batch instead.
+		 *
+		 * @param int $limit Default 10.
+		 */
+		return max( 0, (int) apply_filters( 'wpcap_wallet_mail_inline_limit', 10 ) );
+	}
+
+	/** Short "Save to Google Wallet" link of the ticket's current generation (signed, no ticket data). */
+	public static function google_link( $ticket_id ) {
+		global $wpdb;
+		$state = Store::state( $ticket_id );
+		$public = (string) $wpdb->get_var( $wpdb->prepare( "SELECT public_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		if ( ! $state || '' === $public ) { return ''; }
+		return add_query_arg( array( 't' => $public, 'sig' => self::google_ticket_sig( $public, $state ) ), rest_url( WebService::NS . '/wallet/google/save' ) );
+	}
+
+	public static function google_ticket_sig( $public_id, $state ) {
+		return hash_hmac( 'sha256', 'gsave|' . $public_id . '|' . $state->auth_token_hash, Store::key() );
+	}
+
+	/**
+	 * Signature of the order-wide "add all" links. Bound to the order's access token: a new order
+	 * link (portal) invalidates them, like the portal link itself.
+	 */
+	public static function order_sig( $kind, $order ) {
+		return hash_hmac( 'sha256', 'wallet-all|' . $kind . '|' . $order->public_id . '|' . (string) $order->access_token_hash, Store::key() );
+	}
+
+	/**
+	 * Tickets an "add all" link of the order covers: valid tickets that the buyer still holds (not
+	 * passed on or assigned to another e-mail address – like the portal PDF), with a pass of the provider.
+	 *
+	 * @return int[] Ticket ids in issuance order.
+	 */
+	public static function order_ticket_ids( $order, $provider ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+			"SELECT DISTINCT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_wallet_state s ON s.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_wallet_passes w ON w.ticket_id=t.ticket_id AND w.provider=%s AND w.status='active' WHERE t.order_id=%d AND t.status='valid' AND t.transfer_count=0 AND (t.attendee_email IS NULL OR t.attendee_email='' OR LOWER(t.attendee_email)=LOWER(%s)) ORDER BY t.ticket_id",
+			$provider, (int) $order->order_id, (string) $order->customer_email
+		) ) );
+	}
+
+	/** "Add all" links of an order: provider => list of [url, first, last]. */
+	public static function order_links( $order ) {
+		$out = array();
+		foreach ( array( 'apple' => 'wallet/apple/bundle', 'google' => 'wallet/google/save' ) as $key => $route ) {
+			if ( ! self::provider( $key ) ) { continue; }
+			$count = count( self::order_ticket_ids( $order, $key ) );
+			$size = self::batch_size( $key );
+			for ( $part = 0; $part * $size < $count; $part++ ) {
+				$url = add_query_arg( array( 'o' => (string) $order->public_id, 'p' => $part + 1, 'sig' => self::order_sig( $key, $order ) ), rest_url( WebService::NS . '/' . $route ) );
+				$out[ $key ][] = array( $url, $part * $size + 1, min( $count, ( $part + 1 ) * $size ) );
+			}
+		}
+		return $out;
+	}
+
+	/** Mail text with the "add all" links of an order ('' without passes). */
+	private static function order_links_text( $order ) {
+		$text = '';
+		foreach ( self::order_links( $order ) as $key => $links ) {
+			foreach ( $links as $link ) {
+				list( $url, $first, $last ) = $link;
+				if ( $first === $last ) {
+					$label = 'apple' === $key
+						/* translators: %d: ticket number */
+						? sprintf( __( 'Ticket %d zu Apple Wallet hinzufügen:', 'pass-captain' ), $first )
+						/* translators: %d: ticket number */
+						: sprintf( __( 'Ticket %d in Google Wallet speichern:', 'pass-captain' ), $first );
+				} elseif ( 'apple' === $key ) {
+					/* translators: 1: first ticket number, 2: last ticket number */
+					$label = sprintf( __( 'Tickets %1$d–%2$d zu Apple Wallet hinzufügen:', 'pass-captain' ), $first, $last );
+				} else {
+					/* translators: 1: first ticket number, 2: last ticket number */
+					$label = sprintf( __( 'Tickets %1$d–%2$d in Google Wallet speichern:', 'pass-captain' ), $first, $last );
+				}
+				$text .= $label . ' ' . esc_url_raw( $url ) . "\n";
+			}
+		}
+		return '' === $text ? '' : $text . "\n";
+	}
+
+	/**
+	 * Tickets a signed wallet link stands for (A580/A583): one ticket (t + sig over its current
+	 * generation, Google) or one batch of an order (o, p, sig). Voided tickets and tickets whose code
+	 * is not available are left out.
+	 *
+	 * @return array[]|null Service::ticket() rows, null for an invalid link.
+	 */
+	public static function link_tickets( $provider, array $params ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$sig = (string) ( $params['sig'] ?? '' );
+		if ( 'google' === $provider && ! empty( $params['t'] ) ) {
+			$public = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $params['t'] ) );
+			$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE public_id=%s", $public ) );
+			$state = $id ? Store::state( $id ) : null;
+			if ( ! $state || ! hash_equals( self::google_ticket_sig( $public, $state ), $sig ) ) { return null; }
+			$ids = array( $id );
+		} else {
+			$public = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) ( $params['o'] ?? '' ) ) );
+			$order = '' === $public ? null : $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email,access_token_hash FROM {$p}wpcap_orders WHERE public_id=%s", $public ) );
+			if ( ! $order || ! hash_equals( self::order_sig( $provider, $order ), $sig ) ) { return null; }
+			$size = self::batch_size( $provider );
+			$ids = array_slice( self::order_ticket_ids( $order, $provider ), max( 0, (int) ( $params['p'] ?? 1 ) - 1 ) * $size, $size );
+		}
+		$out = array();
+		foreach ( $ids as $id ) {
+			$ticket = self::ticket( $id );
+			if ( $ticket && empty( $ticket['voided'] ) && '' !== (string) ( $ticket['code'] ?? '' ) ) { $out[] = $ticket; }
+		}
+		return $out;
+	}
+
+	/** Google save URL for the tickets of a link: object IDs only, single-ticket fat JWT as fallback. */
+	public static function google_save_url( array $tickets ) {
+		$google = self::provider( 'google' );
+		if ( ! $google instanceof GoogleProvider || ! $tickets ) { return ''; }
+		try {
+			$url = $google->save_url_for( $tickets );
+			if ( '' === $url && 1 === count( $tickets ) ) { $url = $google->save_url( $tickets[0] ); }
+		} catch ( \Throwable $e ) {
+			self::log( 'save_failed', 'google:' . $e->getMessage() );
+			return '';
+		}
+		if ( '' === $url ) { self::log( 'save_failed', 'google:api' ); }
+		return $url;
 	}
 
 	/** Mail text and attachments for created passes. */
@@ -204,18 +357,30 @@ final class Service {
 	public static function on_ticket_mail( $mail, $order = null, $issued = array() ) {
 		if ( ! is_array( $mail ) || ! is_array( $issued ) || ! $issued ) { return $mail; }
 		$text = '';
+		// A580: large orders get one "add all" link per batch instead of a .pkpass + links per ticket.
+		$inline = count( $issued ) <= self::mail_inline_limit() || ! is_object( $order );
+		$any = false;
+		$used = 0;
+		foreach ( (array) ( $mail['attachments'] ?? array() ) as $file ) { $used += is_string( $file ) && is_file( $file ) ? (int) filesize( $file ) : 0; }
+		$budget = \PassCaptain\Orders::attachment_budget( $order );
 		foreach ( $issued as $entry ) {
 			if ( empty( $entry['ticket_id'] ) || empty( $entry['token'] ) ) { continue; }
 			try {
-				$passes = self::issue( (int) $entry['ticket_id'], (string) $entry['token'] );
+				$passes = self::issue( (int) $entry['ticket_id'], (string) $entry['token'], $inline );
 			} catch ( \Throwable $e ) {
 				self::log( 'issue_failed', $e->getMessage() );
 				continue;
 			}
-			list( $part, $files ) = self::mail_parts( $passes, array( $entry['event'] ?? '', $entry['ticket'] ?? '' ), true );
+			$any = $any || (bool) $passes;
+			if ( ! $inline ) { continue; }
+			// Within the attachment budget the .pkpass is attached, otherwise linked (A580).
+			$allow = $used + strlen( (string) ( $passes['apple']['bundle'] ?? '' ) ) <= $budget;
+			list( $part, $files ) = self::mail_parts( $passes, array( $entry['event'] ?? '', $entry['ticket'] ?? '' ), $allow );
+			foreach ( $files as $file ) { $used += (int) filesize( $file ); }
 			$text .= $part;
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), $files );
 		}
+		if ( ! $inline && $any ) { $text = self::order_links_text( $order ); }
 		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . __( 'Wallet', 'pass-captain' ) . "\n" . $text; }
 		return $mail;
 	}
