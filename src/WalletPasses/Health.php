@@ -5,6 +5,8 @@
  * - A584: the code store key comes from the WordPress auth salt (no WPCAP_WALLET_ENCRYPTION_KEY) –
  *   recommended; the key changed since the stored codes were encrypted – critical (passes cannot be
  *   rebuilt; they keep their last state, nothing is voided).
+ * - A585: Apple pass/WWDR certificate expires within Credentials::EXPIRY_WARNING_DAYS – recommended,
+ *   shown on every admin screen; expired – critical (Apple Wallet then counts as not configured).
  */
 namespace PassCaptain\WalletPasses;
 
@@ -39,6 +41,24 @@ final class Health {
 		}
 		if ( $changed ) {
 			$out[] = array( 'key' => 'key_changed', 'status' => 'critical', 'message' => __( 'Der Schlüssel für die gespeicherten Wallet-Ticketcodes hat sich geändert (neue WordPress-Salts oder geänderte WPCAP_WALLET_ENCRYPTION_KEY). Bestehende Wallet-Pässe können nicht mehr aktualisiert werden; sie behalten ihren letzten Stand, die Tickets bleiben gültig. Stelle den bisherigen Schlüssel wieder her (als WPCAP_WALLET_ENCRYPTION_KEY in wp-config.php) oder sende betroffene Tickets erneut.', 'pass-captain' ) );
+		}
+		if ( Settings::get( 'wallet_apple_enabled' ) ) {
+			$material = Credentials::apple( false );
+			if ( is_array( $material ) ) {
+				foreach ( array( 'cert' => __( 'Pass-Type-ID-Zertifikat', 'pass-captain' ), 'wwdr' => __( 'Apple-WWDR-Zwischenzertifikat', 'pass-captain' ) ) as $which => $label ) {
+					$info = Credentials::describe_cert( $material[ $which ] );
+					if ( ! $info ) { continue; }
+					$date = gmdate( 'd.m.Y', $info['valid_to'] );
+					if ( $info['valid_to'] <= time() ) {
+						/* translators: 1: certificate name, 2: date */
+						$out[] = array( 'key' => 'apple_' . $which . '_expired', 'status' => 'critical', 'message' => sprintf( __( '%1$s ist am %2$s abgelaufen. Es werden keine Apple-Wallet-Pässe mehr erstellt oder aktualisiert, bis ein neues Zertifikat hinterlegt ist.', 'pass-captain' ), $label, $date ) );
+					} elseif ( $info['valid_to'] < time() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS ) {
+						$days = max( 1, (int) ceil( ( $info['valid_to'] - time() ) / DAY_IN_SECONDS ) );
+						/* translators: 1: certificate name, 2: date, 3: number of days */
+						$out[] = array( 'key' => 'apple_' . $which . '_expiring', 'status' => 'recommended', 'message' => sprintf( _n( '%1$s läuft am %2$s ab (in %3$d Tag). Bitte rechtzeitig im Apple-Developer-Konto erneuern und hier hinterlegen; danach werden keine Apple-Wallet-Pässe mehr erstellt.', '%1$s läuft am %2$s ab (in %3$d Tagen). Bitte rechtzeitig im Apple-Developer-Konto erneuern und hier hinterlegen; danach werden keine Apple-Wallet-Pässe mehr erstellt.', $days, 'pass-captain' ), $label, $date, $days ) );
+					}
+				}
+			}
 		}
 		if ( 'salt' === Store::key_source() ) {
 			$out[] = array( 'key' => 'key_from_salt', 'status' => 'recommended', 'message' => __( 'Die Wallet-Ticketcodes werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Werden die Salts erneuert (z. B. nach einem Sicherheitsvorfall), lassen sich bestehende Wallet-Pässe nicht mehr aktualisieren. Lege in wp-config.php eine eigene, dauerhafte Konstante WPCAP_WALLET_ENCRYPTION_KEY an (vor dem ersten Wallet-Pass oder mit dem bisherigen Salt-Wert).', 'pass-captain' ) );
@@ -90,6 +110,6 @@ final class Health {
 
 	/** Recommendations that are shown on every admin screen (time-critical ones). */
 	private static function notice_everywhere( $key ) {
-		return in_array( $key, array(), true );
+		return in_array( $key, array( 'apple_cert_expiring', 'apple_wwdr_expiring' ), true );
 	}
 }

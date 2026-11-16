@@ -21,6 +21,7 @@ define( 'WPCAP_APPLE_WWDR_CERT', '/pfad/AppleWWDRCAG4.pem' );
    Alternativ Umgebungsvariablen gleichen Namens oder die Felder auf der Wallet-Seite (dann verschlüsselt in der Option `wpcap_secrets` gespeichert, siehe docs/OPERATIONS.md „Zugangsdaten / Secrets“).
 3. Auf der Wallet-Seite Pass Type ID, Team-ID (10 Zeichen) eintragen und „Apple Wallet aktiv“ setzen. Die Statusübersicht zeigt Gültigkeit von Pass- und WWDR-Zertifikat, ob Schlüssel und Zertifikat zusammenpassen und ob die Pass Type ID zum Zertifikat gehört. „Test-Pass herunterladen“ erzeugt einen signierten Beispielpass.
 4. Versand: als `.pkpass`-Anhang (Standard) oder als signierter Download-Link.
+5. Ablauf der Zertifikate (A585): Das Pass-Type-ID-Zertifikat gilt ein Jahr. 30 Tage vor Ablauf von Pass- oder WWDR-Zertifikat meldet der Site-Health-Test „Pass Captain Wallet“ eine Empfehlung und Administrator:innen sehen auf jeder Admin-Seite einen Hinweis. Ein **abgelaufenes** Zertifikat gilt als „nicht konfiguriert“: Es werden keine Apple-Pässe mehr erstellt oder per Push aktualisiert (statt Pässe mit ungültiger Signatur zu verschicken), Site Health meldet den Befund als kritisch; Google Wallet ist davon nicht betroffen. Nach dem Hinterlegen eines neuen Zertifikats arbeitet Apple Wallet sofort wieder.
 
 Icons/Logo werden mit GD erzeugt (ohne GD: einfarbige PNGs); eigene PNGs können als Pfad hinterlegt werden (`…@2x.png` daneben wird automatisch verwendet) oder per Filter `wpcap_wallet_apple_images` ersetzt werden.
 

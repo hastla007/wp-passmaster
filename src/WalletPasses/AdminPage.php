@@ -66,6 +66,7 @@ final class AdminPage {
 	/** Configuration status for display. */
 	public static function status() {
 		$apple = Credentials::apple();
+		$apple_material = is_wp_error( $apple ) && 'wpcap_wallet_apple_cert_expired' === $apple->get_error_code() ? Credentials::apple( false ) : $apple;
 		$google = Credentials::google();
 		$status = array(
 			'extensions' => array(
@@ -78,9 +79,9 @@ final class AdminPage {
 			'apple' => array( 'enabled' => (bool) Settings::get( 'wallet_apple_enabled' ), 'configured' => ( new AppleProvider() )->is_configured(), 'error' => is_wp_error( $apple ) ? \PassCaptain\Redact::text( $apple->get_error_message() ) : '', 'cert' => null, 'wwdr' => null ),
 			'google' => array( 'enabled' => (bool) Settings::get( 'wallet_google_enabled' ), 'configured' => ( new GoogleProvider() )->is_configured(), 'error' => is_wp_error( $google ) ? \PassCaptain\Redact::text( $google->get_error_message() ) : '', 'account' => is_array( $google ) ? $google['client_email'] : '' ),
 		);
-		if ( is_array( $apple ) ) {
-			$status['apple']['cert'] = Credentials::describe_cert( $apple['cert'] );
-			$status['apple']['wwdr'] = Credentials::describe_cert( $apple['wwdr'] );
+		if ( is_array( $apple_material ) ) {
+			$status['apple']['cert'] = Credentials::describe_cert( $apple_material['cert'] );
+			$status['apple']['wwdr'] = Credentials::describe_cert( $apple_material['wwdr'] );
 			$uid = (string) ( $status['apple']['cert']['uid'] ?? '' );
 			if ( '' !== $uid && $uid !== Settings::get( 'wallet_apple_pass_type_id' ) ) {
 				/* translators: %s: pass type id from the certificate */
@@ -133,7 +134,7 @@ final class AdminPage {
 		echo '<tr><th>' . esc_html( $label ) . '</th><td>';
 		if ( ! $cert ) { echo '—'; } else {
 			$expired = $cert['valid_to'] < time();
-			$soon = ! $expired && $cert['valid_to'] < time() + 30 * DAY_IN_SECONDS;
+			$soon = ! $expired && $cert['valid_to'] < time() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS;
 			echo esc_html( $cert['subject'] ) . '<br>' . esc_html( sprintf( /* translators: 1: from date, 2: to date */ __( 'gültig von %1$s bis %2$s', 'pass-captain' ), gmdate( 'd.m.Y', $cert['valid_from'] ), gmdate( 'd.m.Y', $cert['valid_to'] ) ) );
 			if ( $expired || $soon ) { echo ' <strong style="color:#d63638">' . esc_html( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'läuft bald ab', 'pass-captain' ) ) . '</strong>'; }
 		}

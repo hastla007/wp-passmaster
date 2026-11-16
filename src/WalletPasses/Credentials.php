@@ -26,9 +26,13 @@ final class Credentials {
 	/**
 	 * Apple pass signing credentials.
 	 *
+	 * An expired pass certificate or WWDR certificate counts as "not configured" (A585): Apple rejects
+	 * such passes, so none are issued and the admin is warned (Health) instead of mailing broken passes.
+	 *
+	 * @param bool $check_expiry false: also return expired material (status page shows the dates).
 	 * @return array{cert:string,key:string,password:string,wwdr:string}|\WP_Error
 	 */
-	public static function apple() {
+	public static function apple( $check_expiry = true ) {
 		$cert_source = trim( \PassCaptain\Secrets::get( 'apple_pass_cert' ) );
 		$password = \PassCaptain\Secrets::get( 'apple_pass_key_password' );
 		$cert = '';
@@ -55,8 +59,26 @@ final class Credentials {
 		if ( ! $pkey || ! openssl_x509_check_private_key( $cert, $pkey ) ) {
 			return new \WP_Error( 'wpcap_wallet_apple_key_invalid', __( 'Der private Schlüssel passt nicht zum Pass-Type-ID-Zertifikat oder das Passwort ist falsch.', 'pass-captain' ) );
 		}
+		if ( $check_expiry ) {
+			foreach ( array( 'cert' => $cert, 'wwdr' => $wwdr ) as $which => $pem ) {
+				$info = self::describe_cert( $pem );
+				if ( $info && $info['valid_to'] <= time() ) {
+					return new \WP_Error(
+						'wpcap_wallet_apple_cert_expired',
+						'cert' === $which
+							/* translators: %s: expiry date */
+							? sprintf( __( 'Das Pass-Type-ID-Zertifikat ist am %s abgelaufen. Apple Wallet ist deaktiviert, bis ein neues Zertifikat hinterlegt ist.', 'pass-captain' ), gmdate( 'd.m.Y', $info['valid_to'] ) )
+							/* translators: %s: expiry date */
+							: sprintf( __( 'Das Apple-WWDR-Zwischenzertifikat ist am %s abgelaufen. Apple Wallet ist deaktiviert, bis ein aktuelles WWDR-Zertifikat hinterlegt ist.', 'pass-captain' ), gmdate( 'd.m.Y', $info['valid_to'] ) )
+					);
+				}
+			}
+		}
 		return array( 'cert' => $cert, 'key' => $key, 'password' => (string) $password, 'wwdr' => $wwdr );
 	}
+
+	/** Days a certificate expiry is announced in advance (Site Health, admin notice). */
+	const EXPIRY_WARNING_DAYS = 30;
 
 	/**
 	 * Google service account (JSON key file contents).
