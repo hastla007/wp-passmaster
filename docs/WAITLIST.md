@@ -156,7 +156,7 @@ Platzhalter in einer angepassten Vorlage, hängt das Plugin den Standardsatz mit
   Link ist dann ungültig.
 - **Kein Austragen per GET:** Der Link öffnet nur eine Bestätigungsseite (Event, Ticketart, Anzahl,
   Status; bei offenem Angebot der Hinweis, dass die Tickets sofort freigegeben werden). Erst das
-  Formular (POST an `admin-post.php`, Aktion `wpcap_waitlist_unsubscribe`, Nonce) trägt aus. So lösen
+  Formular (POST an `admin-post.php`, Aktion `wpcap_waitlist_unsubscribe`, Formularnachweis) trägt aus. So lösen
   Mail-Scanner und Link-Vorschauen nichts aus.
 - **Wirkung:** Status `removed`, E-Mail-Adresse geleert, E-Mail-Hash ersetzt (wie bei der
   Aufbewahrungsfrist), Angebots-Token entfernt. Ein offenes Angebot wird zurückgezogen: die
@@ -237,7 +237,15 @@ Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in
 | `POST /waitlist/{id}/decline` | Token | Angebot ablehnen (`token`). |
 
 Das Austragen und die Double-Opt-in-Bestätigung laufen bewusst nicht über REST, sondern über die
-jeweilige Bestätigungsseite (POST + Nonce) bzw. das Bestellportal.
+jeweilige Bestätigungsseite (POST + Formularnachweis bzw. Nonce) bzw. das Bestellportal.
+
+**Formularnachweis statt Nonce (A462):** Angebotsseite (Annehmen/Ablehnen), Abmeldeseite und „Jetzt bezahlen“
+auf der Ergebnisseite tragen im Feld `_wpcap_sig` einen HMAC über Art, Eintrag und das Geheimnis des Links
+(Angebots-Token, Abmelde-Token bzw. Ergebnisschlüssel; `Waitlists::form_sig()`). Ein WordPress-Nonce lebt nur
+12–24 Stunden und hängt am Anmeldestatus – ein Angebot mit `offer_hours` 24 oder mehr, am Vorabend geöffnet,
+scheiterte am nächsten Morgen mit „Link abgelaufen“. Der Nachweis läuft nicht ab und gilt nur zusammen mit dem
+Link; Formulare, die vor dem Update geöffnet wurden, werden weiter über ihren Nonce geprüft. Alle Seiten und
+ihre 303-Weiterleitungen sind `no-store` (`PageCache::no_store()`).
 
 ## Hinweise
 

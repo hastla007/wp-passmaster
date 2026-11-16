@@ -124,8 +124,9 @@ und Seiten mit Event-Liste oder Kalender werden bei jeder Änderung **gezielt ge
   (`Cache-Control: no-cache, must-revalidate, max-age=0, no-store, private`) und lösen
   `litespeed_control_set_nocache` aus – auch in ihren 404-Zweigen (`PageCache::no_store()`, Action
   `wpcap_page_no_store`): Ticketseite, Bestellportal, Rechnung (HTML und PDF, auch Fehlerantworten),
-  Wartelisten-Angebot und -Abmeldung samt Ergebnisseiten, Rückkehr von der Zahlungsseite und die Seite mit
-  dem Web-Scanner-Shortcode. Für Rückkehrhinweis und Scanner greift das bereits auf `template_redirect`
+  Wartelisten-Angebot und -Abmeldung samt Ergebnisseiten und deren 303-Weiterleitungen, Rückkehr von der
+  Zahlungsseite und die Seite mit dem Web-Scanner-Shortcode. Formulare dieser Seiten tragen keine kurzlebigen
+  Nonces mehr, sondern an den Link gebundene Nachweise (A459, A462) – eine lange offene Seite bleibt benutzbar. Für Rückkehrhinweis und Scanner greift das bereits auf `template_redirect`
   (Priorität 0), also bevor das Theme Header sendet.
 - **Purge bei Änderungen:** Jede Änderung, die eine öffentliche Seite verändert, löst am Requestende die Action
   `wpcap_purge_page_cache( $event_id, $urls, $context )` aus – je Event einmal: Event angelegt/geändert/abgesagt,

@@ -56,7 +56,7 @@ final class Waitlists {
 	/** Query argument of the personal unsubscribe link (with `token`). */
 	const UNSUBSCRIBE_QUERY = 'wpcap_waitlist_unsubscribe';
 
-	/** admin-post action of the unsubscribe confirmation (POST + nonce). */
+	/** admin-post action of the unsubscribe confirmation (POST + form proof). */
 	const UNSUBSCRIBE_ACTION = 'wpcap_waitlist_unsubscribe';
 
 	/** Query argument of the confirmation link (double opt-in, A564; with `token`). */
@@ -64,6 +64,9 @@ final class Waitlists {
 
 	/** admin-post action of the confirmation (POST + nonce). */
 	const CONFIRM_ACTION = 'wpcap_waitlist_confirm';
+
+	/** POST field of the form proof (form_sig()) on the offer, unsubscribe and result pages (A462). */
+	const SIG_FIELD = '_wpcap_sig';
 
 	/** Minutes an accepted free offer keeps its hold at least while the order is completed. */
 	const ACCEPT_GUARD_MINUTES = 15;
@@ -1298,9 +1301,34 @@ final class Waitlists {
 			: __( 'Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht.', 'pass-captain' );
 		$html .= '<p>' . esc_html( $note ) . '</p>';
 		$html .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( self::UNSUBSCRIBE_ACTION . '_' . $waitlist_id ) ) . '">';
+		$html .= '<input type="hidden" name="' . esc_attr( self::SIG_FIELD ) . '" value="' . esc_attr( self::form_sig( 'unsubscribe', $waitlist_id, $token ) ) . '">';
 		$html .= '<input type="hidden" name="action" value="' . esc_attr( self::UNSUBSCRIBE_ACTION ) . '"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) $waitlist_id ) . '"><input type="hidden" name="token" value="' . esc_attr( strtolower( (string) $token ) ) . '">';
 		$html .= '<p><button type="submit">' . esc_html__( 'Jetzt von der Warteliste austragen', 'pass-captain' ) . '</button></p></form>';
 		return array( 200, $html );
+	}
+
+	/**
+	 * Proof of an offer, unsubscribe or "Jetzt bezahlen" form (A462): keyed hash of the entry and the
+	 * secret of its link (offer token, unsubscribe token, result key). Unlike a WordPress nonce it does
+	 * not depend on the login state and does not expire after 12–24 hours, so an offer that is open
+	 * longer (offer_hours) or a page opened in the morning can still be answered; it stops working with
+	 * the link itself.
+	 *
+	 * @param string $kind offer, unsubscribe or pay.
+	 */
+	public static function form_sig( $kind, $waitlist_id, $secret ) {
+		$secret = strtolower( (string) preg_replace( '/[^a-f0-9]/i', '', (string) $secret ) );
+		return hash_hmac( 'sha256', 'wpcap-waitlist-form|' . sanitize_key( $kind ) . '|' . absint( $waitlist_id ) . '|' . $secret, function_exists( 'wp_salt' ) ? wp_salt( 'nonce' ) : ABSPATH );
+	}
+
+	/**
+	 * Checks the form proof of a POST; forms rendered before the update carry only the WordPress
+	 * nonce, which is still accepted (check_admin_referer(), which ends the request when it fails).
+	 */
+	private static function verify_form( $kind, $waitlist_id, $secret, $nonce_action ) {
+		$sig = strtolower( sanitize_text_field( wp_unslash( (string) ( $_POST[ self::SIG_FIELD ] ?? '' ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this is the check.
+		if ( '' !== (string) $secret && 64 === strlen( $sig ) && hash_equals( self::form_sig( $kind, $waitlist_id, $secret ), $sig ) ) { return; }
+		check_admin_referer( $nonce_action );
 	}
 
 	/** template_redirect: confirmation page of a personal unsubscribe link. */
@@ -1318,15 +1346,17 @@ final class Waitlists {
 		exit;
 	}
 
-	/** admin-post (POST only, nonce): performs the unsubscribe confirmed on the page. */
+	/** admin-post (POST only, form proof): performs the unsubscribe confirmed on the page. */
 	public static function handle_unsubscribe_request() {
 		if ( ! Http::is_post() ) {
 			status_header( 405 );
 			exit;
 		}
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_form() checks the form proof (or the nonce of older pages) before anything changes.
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
-		check_admin_referer( self::UNSUBSCRIBE_ACTION . '_' . $waitlist_id );
 		$token = sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		self::verify_form( 'unsubscribe', $waitlist_id, $token, self::UNSUBSCRIBE_ACTION . '_' . $waitlist_id );
 		$result = self::unsubscribe( $waitlist_id, $token, 'link' );
 		PageCache::no_store( 'waitlist_result' );
 		status_header( is_wp_error( $result ) ? (int) ( $result->get_error_data()['status'] ?? 409 ) : 200 );
@@ -1609,7 +1639,9 @@ final class Waitlists {
 		}
 		echo self::offer_details_html( $row, $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in offer_details_html().
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-offer-form">';
-		wp_nonce_field( 'wpcap_accept_waitlist_' . $waitlist_id );
+		// A462: the offer may stay open longer than a WordPress nonce lives (offer_hours > 12–24 h);
+		// the form proof is bound to the offer token instead and never expires on its own.
+		echo '<input type="hidden" name="' . esc_attr( self::SIG_FIELD ) . '" value="' . esc_attr( self::form_sig( 'offer', $waitlist_id, $token ) ) . '">';
 		echo '<input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) $waitlist_id ) . '"><input type="hidden" name="token" value="' . esc_attr( $token ) . '">';
 		echo self::attendee_form_html( (int) $order->order_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in attendee_form_html().
 		if ( count( $gateways ) > 1 ) {
@@ -1701,20 +1733,24 @@ final class Waitlists {
 	}
 
 	public static function handle_accept_request() {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_form() checks the form proof (or the nonce of older pages) before anything changes.
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
-		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
 		$decision = sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
 		if ( 'pay' === $decision ) {
 			// "Jetzt bezahlen" on the result page (A317): authorised by the result key, not the offer token.
-			$target = self::pay_target( $waitlist_id, sanitize_text_field( wp_unslash( (string) ( $_POST['wl'] ?? '' ) ) ) );
+			$key = sanitize_text_field( wp_unslash( (string) ( $_POST['wl'] ?? '' ) ) );
+			self::verify_form( 'pay', $waitlist_id, $key, 'wpcap_accept_waitlist_' . $waitlist_id );
+			$target = self::pay_target( $waitlist_id, $key );
 			self::redirect( $target, 0 !== strpos( $target, home_url() ) );
 			return;
 		}
 		$token = preg_replace( '/[^a-f0-9]/', '', strtolower( sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) ) ) );
+		self::verify_form( 'offer', $waitlist_id, $token, 'wpcap_accept_waitlist_' . $waitlist_id );
 		$decline = 'decline' === $decision;
 		// Attendee data (A536) is sanitised field by field in Orders::validate_attendees().
 		$attendees = isset( $_POST['attendees'] ) && is_array( $_POST['attendees'] ) ? wp_unslash( $_POST['attendees'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated per configured field.
 		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => ! empty( $_POST['accept_terms'] ), 'terms_version' => sanitize_text_field( wp_unslash( (string) ( $_POST['terms_version'] ?? '' ) ) ), 'locale' => sanitize_text_field( wp_unslash( (string) ( $_POST['locale'] ?? '' ) ) ), 'attendees' => $attendees ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 		// A317: Post/Redirect/Get. An answered offer goes to its result page (reload and back never post
 		// again); a paid acceptance with a hosted payment page goes straight there. A second submit of an
 		// offer that was just answered (double click) lands on the same result page.
@@ -1849,7 +1885,7 @@ final class Waitlists {
 			return $out;
 		}
 		$out .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-offer-form">';
-		$out .= wp_nonce_field( 'wpcap_accept_waitlist_' . absint( $waitlist_id ), '_wpnonce', true, false );
+		$out .= '<input type="hidden" name="' . esc_attr( self::SIG_FIELD ) . '" value="' . esc_attr( self::form_sig( 'pay', $waitlist_id, $key ) ) . '">';
 		$out .= '<input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) absint( $waitlist_id ) ) . '"><input type="hidden" name="wl" value="' . esc_attr( $key ) . '">';
 		$out .= '<p><button type="submit" name="decision" value="pay">' . esc_html__( 'Jetzt bezahlen', 'pass-captain' ) . '</button></p></form>';
 		return $out . self::submit_once_script();
@@ -1881,7 +1917,8 @@ final class Waitlists {
 
 	/** 303 to $url and stop; external (payment provider) URLs via wp_redirect. */
 	private static function redirect( $url, $external = false ) {
-		nocache_headers();
+		// A462: the 303 of a personal link (result page, payment page) is never stored by a page cache.
+		PageCache::no_store( 'waitlist_result' );
 		if ( $external ) {
 			wp_redirect( $url, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- payment page URL from the gateway.
 		} else {
