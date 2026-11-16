@@ -19,6 +19,8 @@ http_reset();
 $a422_r = Orders::create( array( 'email' => 'a422@example.com', 'items' => array( array( 'ticket_type_id' => $a422_type, 'quantity' => 3 ) ), 'idempotency_key' => 'a422-1' ) );
 Service::flush();
 $a422_ids = array_map( static fn( $t ) => (int) $t->ticket_id, tickets( $a422_r['order_id'] ) );
+// Merged (R2): passes of a multi-ticket mail are created by the wallet_issue job after the commit.
+Service::issue_deferred( $a422_ids );
 foreach ( $a422_ids as $a422_id ) {
 	foreach ( Store::passes( $a422_id, 'google' ) as $a422_pass ) { Store::mark_remote( 'google', $a422_pass->serial_number ); }
 }
