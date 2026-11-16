@@ -124,7 +124,7 @@ $r1 = w6sm_event( $o, 'refunded', 'w6sm-ref-first-' . uniqid() );
 // a retryable 5xx (the provider redelivers it); once the hold lapsed, the redelivery cancels the order.
 check( 'refund webhook before the paid webhook: nothing booked, retryable 5xx, order still pending with its holds', is_wp_error( $r1 ) && 'wpcap_refund_before_payment' === $r1->get_error_code() && ! empty( $r1->get_error_data()['retryable'] ) && 'pending' === Orders::get( $o['order_id'] )->payment_status && 0 < (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=" . (int) $o['order_id'] . " AND status='active'" ) && ! Orders::tickets_for_order( $o['order_id'] ) );
 $wpdb->query( "UPDATE {$p}wpcap_reservations SET expires_at='" . gmdate( 'Y-m-d H:i:s', time() - 60 ) . "' WHERE order_id=" . (int) $o['order_id'] );
-Orders::expire_holds();
+Orders::expire_holds( 100000 ); // all lapsed holds: earlier modules may leave more than one batch (200) of older pending orders
 $r1b = w6sm_event( $o, 'refunded', 'w6sm-ref-first-redelivered-' . uniqid() );
 check( 'redelivered refund after the hold lapsed: order cancelled (never refunded), holds released, no tickets', 'cancelled_unpaid' === $r1b && 'cancelled|cancelled' === w6sm_status( $o['order_id'] ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=" . (int) $o['order_id'] . " AND status='active'" ) && ! Orders::tickets_for_order( $o['order_id'] ) );
 check( 'refund webhook of an unpaid order: no refund record, refunded amount unchanged, audited', array() === PassCaptain\Refunds::for_order( $o['order_id'] ) && 0 === (int) Orders::get( $o['order_id'] )->refunded_minor && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='refund_before_payment' AND object_id=" . (int) $o['order_id'] ) && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='provider_refund_unpaid_cancelled' AND object_id=" . (int) $o['order_id'] ) );
@@ -133,7 +133,7 @@ $r2 = w6sm_event( $o, 'paid', 'w6sm-paid-late-' . uniqid() );
 check( 'late paid webhook for the cancelled order issues nothing and alerts the admin', 'paid_for_closed_order' === $r2 && 'cancelled|cancelled' === w6sm_status( $o['order_id'] ) && ! Orders::tickets_for_order( $o['order_id'] ) && 1 === w6sm_admin_mails( $mails ) );
 $o = w6sm_order( $sm_type );
 $wpdb->query( "UPDATE {$p}wpcap_reservations SET expires_at='" . gmdate( 'Y-m-d H:i:s', time() - 60 ) . "' WHERE order_id=" . (int) $o['order_id'] );
-Orders::expire_holds();
+Orders::expire_holds( 100000 ); // all lapsed holds: earlier modules may leave more than one batch (200) of older pending orders
 $r3 = w6sm_event( $o, 'refunded', 'w6sm-ref-expired-' . uniqid() );
 check( 'refund webhook of an expired (never paid) order cancels it, never refunded', 'cancelled_unpaid' === $r3 && 'cancelled|cancelled' === w6sm_status( $o['order_id'] ) );
 $o = w6sm_order( $sm_type );
@@ -164,16 +164,16 @@ check( 'amount mismatch never issues tickets', 'amount_mismatch' === w6sm_event(
 
 $o = w6sm_order( $sm_type );
 $wpdb->query( "UPDATE {$p}wpcap_reservations SET expires_at='" . gmdate( 'Y-m-d H:i:s', time() - 60 ) . "' WHERE order_id=" . (int) $o['order_id'] );
-Orders::expire_holds();
+Orders::expire_holds( 100000 ); // all lapsed holds: earlier modules may leave more than one batch (200) of older pending orders
 check( 'expired order: holds expired', 'expired|expired' === w6sm_status( $o['order_id'] ) );
 check( 'late payment after expiry recovers the order (capacity free)', 'paid' === w6sm_event( $o, 'paid', 'w6sm-late-' . uniqid() ) && 'complete|paid' === w6sm_status( $o['order_id'] ) && 2 === count( tickets( $o['order_id'], 'valid' ) ) );
-Orders::expire_holds();
+Orders::expire_holds( 100000 ); // all lapsed holds: earlier modules may leave more than one batch (200) of older pending orders
 check( 'expiry sweep never touches a paid order', 'complete|paid' === w6sm_status( $o['order_id'] ) );
 
 $tiny = make_type( 1, 10, 1000 );
 $o = w6sm_order( $tiny, 1 );
 $wpdb->query( "UPDATE {$p}wpcap_reservations SET expires_at='" . gmdate( 'Y-m-d H:i:s', time() - 60 ) . "' WHERE order_id=" . (int) $o['order_id'] );
-Orders::expire_holds();
+Orders::expire_holds( 100000 ); // all lapsed holds: earlier modules may leave more than one batch (200) of older pending orders
 $thief = w6sm_order( $tiny, 1 );
 Orders::confirm_manual_payment( $thief['order_id'] );
 $nr = w6sm_event( $o, 'paid', 'w6sm-nr-' . uniqid() );
@@ -279,7 +279,7 @@ for ( $s = 0; $s < $sequences; $s++ ) {
 			case 'cancel': Orders::cancel_order( $oid, 'w6' ); break;
 			case 'expire':
 				$wpdb->query( "UPDATE {$p}wpcap_reservations SET expires_at='" . gmdate( 'Y-m-d H:i:s', time() - 60 ) . "' WHERE order_id=$oid AND status='active'" );
-				Orders::expire_holds();
+				Orders::expire_holds( 100000 ); // all lapsed holds: earlier modules may leave more than one batch (200) of older pending orders
 				break;
 			case 'manual': Orders::confirm_manual_payment( $oid ); break;
 			case 'checkin':
