@@ -29,6 +29,8 @@ done
 FORBIDDEN='(^|/)(tests?|\.github|\.claude|node_modules|build|docs/release-acceptance)/|(^|/)(phpcs\.xml(\.dist)?|phpunit\.xml(\.dist)?|phpstan\.neon(\.dist)?|eslint\.config\.mjs|package(-lock)?\.json|composer\.lock|\.distignore|\.gitignore|\.gitattributes|\.editorconfig|TODO\.md|ARBEITSLISTE\.md|CLAUDE\.md)$|\.map$|(^|/)vendor/(squizlabs|wp-coding-standards|phpcompatibility|dealerdirect|phpcsstandards|phpunit|bin)/'
 HITS="$(grep -E "$FORBIDDEN" <<<"$LIST" || true)"
 [ -z "$HITS" ] && ok "no development files in the ZIP" || bad "development files in the ZIP: $(head -n 10 <<<"$HITS" | tr '\n' ' ')"
+# A666: fiscalization adapters are not shipped until the fiscalization core (PR #14) is merged (.distignore).
+grep -q "^$SLUG/src/Fiscalization/" <<<"$LIST" && bad "unfinished fiscalization adapters in the ZIP" || ok "no fiscalization adapters in the ZIP"
 grep -qE '\.php$' <<<"$(grep "^$SLUG/vendor/composer/" <<<"$LIST")" && ok "optimized Composer autoloader present" || bad "Composer autoloader missing"
 
 # --- 2. fresh install from the ZIP ---------------------------------------------------------------

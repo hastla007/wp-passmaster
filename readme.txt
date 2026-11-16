@@ -85,13 +85,6 @@ Wann: Wenn ein Käufer „Zu Google Wallet hinzufügen“ nutzt, sowie bei Ände
 Daten: Event-Name, Datum, Ort, Ticketart, Ticket-Code (QR-Inhalt), Ticketstatus und – falls erfasst – Name des Teilnehmers; für OAuth eine mit dem Dienstkonto des Betreibers signierte Anfrage (Dienstkonto-E-Mail, Scope).
 Bedingungen: https://developers.google.com/terms – Datenschutz: https://policies.google.com/privacy
 
-= fiskaltrust und efsta (Fiskalisierung der Kasse, Modul) =
-
-Wofür: Signierung bzw. Registrierung von Kassenbelegen der Abendkasse nach nationalen Fiskalvorschriften.
-Wann: Nur wenn in der Kasse eine Fiskalisierung mit fiskaltrust (POS System API) oder efsta (Cloud-EFR) eingerichtet ist: beim Verbindungstest, beim Abschluss eines Kassenbelegs und beim Abfragen seines Status. Eine lokale efsta-EFR (127.0.0.1) ist kein externer Dienst.
-Daten: Belegdaten (Positionen, Beträge, Steuersätze, Zahlart, Belegnummer, Zeitpunkt), Kassen-ID und Zugangsdaten des Betreibers; keine Käuferdaten. Endpunkt laut Konfiguration (z. B. possystem-api-sandbox.fiskaltrust.eu).
-fiskaltrust: https://fiskaltrust.eu (Bedingungen und Datenschutz laut Vertrag mit fiskaltrust) – efsta: https://www.efsta.eu (Bedingungen und Datenschutz laut Vertrag mit efsta)
-
 = Ausgehende Webhooks (vom Betreiber eingetragene Adressen) =
 
 Wofür: Benachrichtigung externer Systeme des Betreibers (z. B. CRM, Buchhaltung) über Ereignisse.

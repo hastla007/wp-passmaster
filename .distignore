@@ -51,3 +51,9 @@ AGENTS.md
 Thumbs.db
 *.swp
 *~
+
+# Fiscalization adapters (A666): they implement PassCaptain\Fiscalization\AdapterInterface, which only the
+# fiscalization core (draft PR #14) adds; nothing loads them yet. They stay in the repository (tests, PR #14)
+# but are not shipped and not advertised in readme.txt. Remove this rule together with merging PR #14 and
+# restore the "fiskaltrust und efsta" entry under External services (tests/consistency.php checks both).
+/src/Fiscalization/

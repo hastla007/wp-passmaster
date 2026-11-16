@@ -10,7 +10,10 @@
   "autoload": {
     "psr-4": {
       "PassCaptain\\": "src/"
-    }
+    },
+    "exclude-from-classmap": [
+      "src/Fiscalization/"
+    ]
   },
   "config": {
     "platform": {

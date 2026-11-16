@@ -35,17 +35,27 @@ $check( 'README.md doc links resolve' . ( $broken ? ' – ' . implode( ', ', $br
 $services = (string) ( preg_match( '/^== External services ==\n(.*?)^== (?!External)/ms', $readme, $m ) ? $m[1] : '' );
 $check( 'readme.txt has an "== External services ==" section', '' !== $services );
 $local_hosts = array( 'developer.wordpress.org', 'example.com', 'github.com', 'www.googleapis.com' ); // Doc links, samples, OAuth scope identifier.
+// A666: only code that ships in the ZIP (.distignore) counts – excluded code is not advertised either.
+require __DIR__ . '/shipped-files.php';
+$shipped = wpcap_shipped_files( $root );
 $hosts = array();
-foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/src', FilesystemIterator::SKIP_DOTS ) ) as $file ) {
-	if ( 'php' !== $file->getExtension() ) { continue; }
-	preg_match_all( '#https://([a-z0-9.-]+\.[a-z]{2,})#', (string) file_get_contents( (string) $file ), $found );
+foreach ( $shipped as $file ) {
+	if ( 0 !== strpos( $file, 'src/' ) || '.php' !== substr( $file, -4 ) ) { continue; }
+	preg_match_all( '#https://([a-z0-9.-]+\.[a-z]{2,})#', (string) file_get_contents( $root . '/' . $file ), $found );
 	$hosts = array_merge( $hosts, $found[1] );
 }
 $undocumented = array_filter( array_unique( $hosts ), static fn( $h ) => ! in_array( $h, $local_hosts, true ) && false === strpos( $services, $h ) );
 $check( 'every remote host in src/ is listed under External services' . ( $undocumented ? ' – missing ' . implode( ', ', $undocumented ) : '' ), ! $undocumented );
-foreach ( array( 'Stripe', 'PayPal', 'Mollie', 'Twilio', 'SMS-HTTP', 'Apple', 'Google Wallet', 'fiskaltrust', 'efsta', 'Webhooks', 'Affiliate Captain', 'Voucher Captain' ) as $service ) {
+foreach ( array( 'Stripe', 'PayPal', 'Mollie', 'Twilio', 'SMS-HTTP', 'Apple', 'Google Wallet', 'Webhooks', 'Affiliate Captain', 'Voucher Captain' ) as $service ) {
 	$check( "External services names $service", false !== stripos( $services, $service ) );
 }
+// A666: the fiscalization adapters are excluded from the ZIP until the fiscalization core (PR #14) is
+// merged; readme.txt names fiskaltrust/efsta exactly when their adapters ship.
+$fiscal_shipped = (bool) array_filter( $shipped, static fn( $f ) => 0 === strpos( $f, 'src/Fiscalization/' ) );
+foreach ( array( 'fiskaltrust', 'efsta' ) as $service ) {
+	$check( "readme.txt names $service only while its adapter ships (" . ( $fiscal_shipped ? 'shipped' : 'not shipped' ) . ')', $fiscal_shipped === ( false !== stripos( $readme, $service ) ) );
+}
+$check( 'fiscalization adapters are only shipped together with their interface', ! $fiscal_shipped || in_array( 'src/Fiscalization/AdapterInterface.php', $shipped, true ) );
 $check( 'every External services entry links terms/privacy or names the operator-chosen recipient', ! array_filter( preg_split( '/^= /m', $services ), static fn( $part ) => '' !== trim( $part ) && 0 !== strpos( $part, 'Pass Captain' ) && 0 !== strpos( $part, 'Keine externen' ) && false === strpos( $part, 'https://' ) && false === strpos( $part, 'Betreiber' ) ) );
 // A270: tweetnacl ships with its readable source and a source reference that is not Markdown.
 $nacl = $root . '/assets/vendor/tweetnacl/';
