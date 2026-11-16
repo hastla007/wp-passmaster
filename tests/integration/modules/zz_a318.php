@@ -48,7 +48,7 @@ if ( ! function_exists( 'a318_luminance' ) ) {
 
 $a318_files = array( 'assets/public.css', 'assets/calendar/calendar.css' );
 // Containers that set text and background themselves: descendants may set only one of them.
-$a318_paired_containers = array( '.wpcap-bank', '.wpcap-error-summary', '.wpcap-confirmation', '.wpcap-cal-has-events', '.wpcap-scan-overlay', '.wpcap-scan-mode', '.wpcap-overlay-hint', '.wpcap-step' );
+$a318_paired_containers = array( '.wpcap-bank', '.wpcap-error-summary', '.wpcap-confirmation', '.wpcap-cal-has-events', '.wpcap-scan-overlay', '.wpcap-scan-mode', '.wpcap-overlay-hint', '.wpcap-step', '.wpcap-service-booking' );
 $a318_problems = array();
 $a318_low = array();
 foreach ( $a318_files as $a318_file ) {
