@@ -74,6 +74,11 @@ jeder App-Aufruf mit 401 `wpcap_device_unauthenticated`.
 | POST | `/app/scan/undo` | Einlass zurücknehmen (benötigt `idempotency_key`, optional `reason`); siehe unten |
 | POST | `/app/scan/sync` | Offline-Scans hochladen (1–200) |
 | POST | `/app/logout` | Gerät widerrufen |
+| GET | `/app/offline/keys` | Öffentliche Schlüssel für Offline-Pakete und signierte QR-Codes (siehe [OFFLINE-SCANNER.md](OFFLINE-SCANNER.md)) |
+| GET | `/app/offline/occurrences` | Termine, für die dieses Gerät Offline-Pakete halten darf, mit ihren Regeln |
+| GET | `/app/offline/package` | Signiertes Offline-Paket (voll oder als Delta mit `since`) |
+| GET | `/app/offline/i18n` | Übersetzungstabelle der Scanner-Web-App (ohne Token, enthält nur Oberflächentexte) |
+| GET | `/app/offline/manifest` | Web-App-Manifest der Scanner-Web-App (ohne Token, enthält keine Daten) |
 
 ### Scan-Anfragen
 
@@ -191,9 +196,12 @@ Optional: Einlassfenster in Minuten vor Beginn/nach Ende sowie tägliche Einlass
 ## 7. Versionierung und Ausbau
 
 - Die Version steht in `/app/me` als `api_version` (aktuell `1.1`: Check-out, Bereiche, erweiterte Statistik und Ergebnis-Codes; abwärtskompatibel). Änderungen, die bestehende Apps brechen, bekommen einen neuen Pfad (`/app/v2/…`). Neue Felder sind jederzeit möglich, Apps müssen unbekannte Felder ignorieren.
-- **Geplant (nicht umgesetzt):**
-  - Offline-Prüfpaket: signierte Liste gültiger Ticket-Hashes pro Termin für echte Offline-Validierung.
-  - Push-Benachrichtigung bei Gerätewiderruf.
-  - Suche nach Teilnehmenden mit eigenem Recht.
-  - Badge-Druck.
-  - Gerätebindung per App Attest / Play Integrity.
+- **Mindestversion des Kerns:** Alle Routen dieser Datei sind in Pass Captain 1.5.0 vorhanden; ältere Versionen kennen einen Teil davon nicht (zum Beispiel `/app/offline/manifest`). Eine App prüft deshalb nicht die Plugin-Version, sondern `api_version` und die Feature-Flags (`features`) aus `/app/me` sowie `package_formats` aus der Kopplungsantwort. Fehlt ein Flag, bietet die App die Funktion nicht an.
+- **Umgesetzt seit der ersten Fassung dieser Liste:** das Offline-Prüfpaket (signierte Liste gültiger Ticket-Hashes je Termin, Routen `/app/offline/*`, beschrieben in [OFFLINE-SCANNER.md](OFFLINE-SCANNER.md)).
+- **Nicht umgesetzt (kein Bestandteil von Version 1.1):**
+  - Push-Benachrichtigung bei Gerätewiderruf. Ein widerrufenes Gerät erfährt den Widerruf bei der nächsten Anfrage (401).
+  - Suche nach Teilnehmenden (Name, Bestellung) über die App-Routen. Die Suche gibt es nur im Admin.
+  - Sammelaktionen (mehrere Tickets in einer Anfrage ein- oder auslassen) außer dem Hochladen von Offline-Scans über `/app/scan/sync`.
+  - Blättern mit Cursor: `/app/occurrences` liefert höchstens 100 Termine ab gestern ohne Fortsetzung.
+  - Badge-Druck aus der App.
+  - Gerätebindung per App Attest / Play Integrity. Die Bindung besteht aus dem Geräte-Token; siehe Abschnitt 1.

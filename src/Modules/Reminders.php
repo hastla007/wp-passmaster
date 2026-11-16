@@ -192,11 +192,18 @@ final class Reminders {
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email))=%s", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $payload['occurrence_id'], strtolower( (string) $recipient ) ) );
 	}
 
-	/** Cancels queued reminders that are no longer valid. Returns the number cancelled. */
+	/**
+	 * Cancels queued reminders that are no longer valid. Returns the number cancelled.
+	 *
+	 * Rows are checked in the order the message queue sends them (send_at, message_id) and at least as
+	 * many as one queue run can send, so a reminder is always checked before it can go out, also with a
+	 * backlog larger than one batch or a raised `wpcap_message_batch_size`.
+	 */
 	public static function purge_stale() {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_message_queue';
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT message_id,recipient,payload FROM %i WHERE status='queued' AND template_key=%s LIMIT 500", $table, self::TEMPLATE ) );
+		$limit = max( 500, (int) apply_filters( 'wpcap_message_batch_size', Communications::BATCH_SIZE ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT message_id,recipient,payload FROM %i WHERE status='queued' AND template_key=%s ORDER BY send_at,message_id LIMIT %d", $table, self::TEMPLATE, $limit ) );
 		$cancelled = 0;
 		foreach ( $rows as $row ) {
 			$payload = json_decode( (string) $row->payload, true );
