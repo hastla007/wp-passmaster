@@ -466,10 +466,11 @@ $w9_prefixes = array( 1 => $wpdb->prefix, 2 => $wpdb->prefix . '2_' );
 $GLOBALS['w9_blog_stack'] = array();
 $GLOBALS['w9_blog'] = 1;
 if ( ! function_exists( 'switch_to_blog' ) ) {
-	function switch_to_blog( $id ) { global $wpdb; $GLOBALS['w9_blog_stack'][] = $GLOBALS['w9_blog']; $GLOBALS['w9_blog'] = (int) $id; $wpdb->prefix = $GLOBALS['w9_prefixes'][ (int) $id ]; return true; }
-	function restore_current_blog() { global $wpdb; $GLOBALS['w9_blog'] = array_pop( $GLOBALS['w9_blog_stack'] ) ?? 1; $wpdb->prefix = $GLOBALS['w9_prefixes'][ $GLOBALS['w9_blog'] ]; return true; }
-	function get_current_blog_id() { return $GLOBALS['w9_blog'] ?? 1; }
+	function switch_to_blog( $id ) { global $wpdb; $GLOBALS['w9_blog_stack'][] = $GLOBALS['w9_blog']; $GLOBALS['w9_blog'] = (int) $id; $GLOBALS['wpcap_test_blog_id'] = (int) $id; $wpdb->prefix = $GLOBALS['w9_prefixes'][ (int) $id ]; return true; }
+	function restore_current_blog() { global $wpdb; $GLOBALS['w9_blog'] = array_pop( $GLOBALS['w9_blog_stack'] ) ?? 1; $GLOBALS['wpcap_test_blog_id'] = $GLOBALS['w9_blog']; $wpdb->prefix = $GLOBALS['w9_prefixes'][ $GLOBALS['w9_blog'] ]; return true; }
 }
+// bootstrap.php may already define get_current_blog_id() (multisite stubs reading wpcap_test_blog_id): keep both in sync.
+if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return (int) ( $GLOBALS['wpcap_test_blog_id'] ?? $GLOBALS['w9_blog'] ?? 1 ); } }
 $GLOBALS['w9_prefixes'] = $w9_prefixes;
 // Site 2: own schema with its own prefix.
 $wpdb->prefix = $w9_prefixes[2];

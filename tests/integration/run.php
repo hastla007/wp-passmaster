@@ -360,6 +360,7 @@ foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $cor
 }
 foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
 	if ( '' !== $wpcap_only && ! preg_match( '#' . $wpcap_only . '#', basename( $module_test, '.php' ) ) ) { continue; }
+	if ( '' !== (string) getenv( 'WPCAP_TEST_SKIP' ) && preg_match( '#' . getenv( 'WPCAP_TEST_SKIP' ) . '#', basename( $module_test, '.php' ) ) ) { continue; }
 	try {
 		require $module_test;
 	} catch ( \Throwable $wpcap_module_error ) {
