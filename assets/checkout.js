@@ -708,6 +708,8 @@
 		if (form.dataset.key && form.dataset.keyFor !== fingerprint) forgetKey(form);
 		if (!form.dataset.key) { form.dataset.key = uuid(); form.dataset.keyFor = fingerprint; }
 		body.idempotency_key = form.dataset.key;
+		// A554: Stripe/PayPal/Mollie send the buyer back to this page (the server accepts only URLs of this site).
+		body.return_url = String(window.location.href || '').split('#')[0];
 		// Disabling the focused button drops keyboard focus to <body>; remember it to restore it afterwards.
 		const hadFocus = document.activeElement === button;
 		button.disabled = true;

@@ -130,8 +130,9 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		$value = self::format_amount( $total, $currency );
 		if ( is_wp_error( $value ) ) { return $value; }
 		$experience = array(
-			'return_url' => add_query_arg( array( 'wpcap_paypal_return' => '1', 'order' => $public_id ), home_url( '/' ) ),
-			'cancel_url' => self::return_url( 'cancel', $public_id ),
+			// Back to the checkout page (A554); the return handler runs there on template_redirect.
+			'return_url' => ReturnNotice::with_args( ReturnNotice::base_of( $order ), array( 'wpcap_paypal_return' => '1', 'order' => $public_id ) ),
+			'cancel_url' => self::return_url( 'cancel', $public_id, ReturnNotice::base_of( $order ) ),
 			'user_action' => 'PAY_NOW',
 			'shipping_preference' => 'NO_SHIPPING',
 		);
@@ -179,7 +180,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		// phpcs:enable
 		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '', array( 'not_charged' => true ) );
 		nocache_headers();
-		wp_safe_redirect( self::return_url( self::return_state( $result ), $public_id ), 302 );
+		wp_safe_redirect( self::return_url( self::return_state( $result ), $public_id, ReturnNotice::current_base() ), 302 );
 		exit;
 	}
 
@@ -656,8 +657,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 127 ) : substr( $summary, 0, 127 );
 	}
 
-	private static function return_url( $status, $public_id ) {
-		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
-		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'paypal' );
+	private static function return_url( $status, $public_id, $base = '' ) {
+		return ReturnNotice::url( $status, $public_id, $base, 'paypal' );
 	}
 }

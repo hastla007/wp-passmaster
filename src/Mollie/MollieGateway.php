@@ -114,7 +114,8 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 			'amount' => array( 'currency' => $currency, 'value' => $value ),
 			/* translators: %s: order number */
 			'description' => mb_substr( sprintf( __( 'Bestellung %s', 'pass-captain' ), $public_id ), 0, 255 ),
-			'redirectUrl' => add_query_arg( array( 'wpcap_mollie_return' => '1', 'order' => $public_id ), home_url( '/' ) ),
+			// Back to the checkout page (A554); the return handler runs there on template_redirect.
+			'redirectUrl' => \PassCaptain\Payments\ReturnNotice::with_args( \PassCaptain\Payments\ReturnNotice::base_of( $order ), array( 'wpcap_mollie_return' => '1', 'order' => $public_id ) ),
 			'webhookUrl' => self::webhook_url(),
 			'metadata' => array( 'order' => $public_id ),
 		);
@@ -481,8 +482,14 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 	}
 
 	/** Return URL with the standard notice (?wpcap_payment=…). */
-	public static function return_url( $status, $public_id ) {
-		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
-		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'mollie' );
+	public static function return_url( $status, $public_id, $base = '' ) {
+		return \PassCaptain\Payments\ReturnNotice::url( $status, $public_id, $base, 'mollie' );
+	}
+
+	/** Buyer cancelled on the return page (A554): cancel a still open Mollie payment; errors are ignored. */
+	public function abandon_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 !== strpos( $reference, 'tr_' ) ) { return; }
+		self::api( 'DELETE', 'payments/' . rawurlencode( $reference ) );
 	}
 }

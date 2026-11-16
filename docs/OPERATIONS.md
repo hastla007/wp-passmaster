@@ -187,7 +187,7 @@ add_action( 'wpcap_purge_page_cache', static function ( $event_id, $urls, $conte
 | Bestellportal | `/?wpcap_order=<id>&wpcap_access=<64 Hex>` |
 | Rechnung (Käufer) | `/?wpcap_invoice=<id>&wpcap_access=…`, PDF `/?wpcap_invoice_pdf=<id>&wpcap_access=…` |
 | Warteliste | Angebot `/?wpcap_waitlist_accept=<id>&token=…`, Abmeldung `/?wpcap_waitlist_unsubscribe=<id>&token=…`, Formulare an `wp-admin/admin-post.php` |
-| Rückkehr von der Zahlung | `/?wpcap_payment=<status>&order=<id>`, PayPal `/?wpcap_paypal_return=1…`, Mollie `/?wpcap_mollie_return=1…` |
+| Rückkehr von der Zahlung | Checkout-Seite (sonst Startseite) mit `?wpcap_payment=<status>&order=<id>&wpcap_rk=…`, PayPal `?wpcap_paypal_return=1…`, Mollie `?wpcap_mollie_return=1…`; Aktionen „Zahlung fortsetzen“/„Bestellung stornieren“ an `wp-admin/admin-post.php` (`action=wpcap_payment_return`) |
 | Web-Scanner | Seite mit `[wp_pass_captain_scanner]`/`[wpcap_scanner]` |
 | REST-API | `/wp-json/pass-captain/v1/*` (ohne Permalinks `/?rest_route=/pass-captain/v1/…`) – Checkout, Verfügbarkeit, Scanner-App, Wallet, Webhooks |
 
@@ -1300,3 +1300,15 @@ zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EU
   übernimmt die neuen Preise, zeigt die Meldung, und der nächste Klick bestellt zum neuen Preis. Ein
   niedrigerer Preis wird ohne Rückfrage berechnet. Ohne `expected_prices` (eigene API-Clients) und für
   vertrauenswürdige Kanäle mit eigenem Preis (WooCommerce, Kasse, Partner) gilt die Prüfung nicht.
+- **Rückkehr von Stripe/PayPal/Mollie** (A554): Das Formular schickt seine Seiten-URL als `return_url`;
+  angenommen werden nur http(s)-URLs mit dem Host der Website (ohne Benutzerdaten, ohne Fragment, ohne
+  Rückkehr-Parameter), sonst gilt die Startseite. Erfolgs-, Abbruch- und Rückkehr-URLs (auch die PayPal- und
+  Mollie-Rückkehr mit Capture) liegen auf dieser Seite. Der Hinweis nennt die Bestellnummer. Nach einem Abbruch
+  (`cancel`) oder Fehlschlag (`failed`) bietet er, solange die Reservierung läuft, „Zahlung fortsetzen“ (die
+  noch offene Sitzung derselben Bestellung bzw. eine neue für sie – nie eine zweite Bestellung) und
+  „Bestellung stornieren“: Die Bestellung wird storniert (`buyer_cancelled_on_return`, Audit
+  `order_cancelled_by_buyer`), die Plätze sind sofort frei, eine offene Stripe-Sitzung wird beendet
+  (`expire`), eine offene Mollie-Zahlung abgebrochen; danach `wpcap_payment=cancelled`. Berechtigt sind die
+  Aktionen über `wpcap_rk`, einen mit dem WordPress-Salt gebildeten Schlüssel der Bestellung, der nur in den
+  Rückkehr-URLs steht. Ohne Aktion verfällt die Reservierung wie bisher von selbst. Die Ausgabe des Hinweises
+  hängt weiter an `wp_body_open` (Rückfall für Themes ohne diesen Hook: A307).

@@ -174,7 +174,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 |---|---|---|
 | `wpcap_payment_gateways` | `GatewayInterface[] $gateways` | Weitere Zahlungsadapter registrieren (z. B. Mollie). |
 | `wpcap_payment_settings_url` | `string $url` (''), `string $provider_id` | Einstellungsseite eines Zahlungsadapters ohne eigenen Abschnitt im Reiter **Einstellungen → Zahlungsarten**; der Reiter verlinkt sie in seiner Unternavigation und in der Übersicht (Mollie: eigene Modulseite). |
-| `wpcap_payment_return_url` | `string $url, string $status, string $public_id, string $provider` | Rückkehr-URL nach der Zahlungsseite (`success`, `pending`, `failed`, `cancel`). |
+| `wpcap_payment_return_url` | `string $url, string $status, string $public_id, string $provider` | Rückkehr-URL nach der Zahlungsseite (`success`, `pending`, `failed`, `cancel`, nach Storno durch die Käuferin `cancelled`; `$provider` dann `return`). Basis ist seit A554 die Seite, auf der der Checkout lief (`return_url` des Formulars, nur URLs dieser Website), sonst die Startseite; die URL trägt `wpcap_rk` (Schlüssel für „Zahlung fortsetzen“/„Bestellung stornieren“), der beim Filtern erhalten bleiben muss. |
 | `wpcap_stripe_session_params` | `array $params, array $order, array $items` | Parameter der Stripe Checkout Session. |
 | `wpcap_paypal_order_body` | `array $body, array $order, array $items` | Body der PayPal-Order. |
 | `wpcap_mollie_webhook_ip_limit` | `int $limit` (120) | Mollie-Webhook-Abfragen bekannter Zahlungen je IP und Minute (darüber HTTP 429). |

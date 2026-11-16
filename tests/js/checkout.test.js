@@ -271,6 +271,17 @@ test('A553: confirmation panel says what to do if the address is wrong', async (
 	assert.strictEqual(panel.querySelector('.wpcap-wrong-email').textContent, I18N.wrongEmail);
 });
 
+test('A554: the checkout sends its page as return_url (without fragment), outside the key fingerprint', async () => {
+	const env = loadCheckout();
+	env.window.location.href = 'https://example.test/tickets/?lang=de#wpcap-occ-7';
+	env.answers.push(response(200, '<html></html>', { json: false }));
+	await submit(env, env.forms[0]);
+	env.window.location.href = 'https://example.test/tickets/?lang=de';
+	await submit(env, env.forms[0]);
+	assert.strictEqual(env.requests[0].body.return_url, 'https://example.test/tickets/?lang=de');
+	assert.strictEqual(env.requests[1].body.idempotency_key, env.requests[0].body.idempotency_key);
+});
+
 test('A576: the shown unit prices of the selected types travel with the order', async () => {
 	const env = loadCheckout({ cards: [{ types: [{ id: 5, price: 2500, name: 'Standard' }, { id: 6, price: 900, name: 'Ermäßigt' }] }] });
 	await submit(env, env.forms[0], { qty: 2 });

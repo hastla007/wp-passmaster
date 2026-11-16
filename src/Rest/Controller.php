@@ -390,6 +390,8 @@ final class Controller {
 				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$items = array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( $result['order_id'] ) );
+			// A554: hosted payment pages return to the page the checkout ran on (only URLs of this site).
+			$order['return_base'] = \PassCaptain\Payments\ReturnNotice::base( \PassCaptain\Http::str( $params['return_url'] ?? '' ) );
 			$payment = $gateway->create_payment( $order, $items );
 			if ( is_wp_error( $payment ) ) {
 				// Only while still unpaid (A639): a concurrent confirmation of a retried attempt keeps its payment.

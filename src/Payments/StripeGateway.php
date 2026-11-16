@@ -179,8 +179,8 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 		$params = array(
 			'mode' => 'payment',
 			'currency' => strtolower( $currency ),
-			'success_url' => self::return_url( 'success', $public_id ),
-			'cancel_url' => self::return_url( 'cancel', $public_id ),
+			'success_url' => self::return_url( 'success', $public_id, ReturnNotice::base_of( $order ) ),
+			'cancel_url' => self::return_url( 'cancel', $public_id, ReturnNotice::base_of( $order ) ),
 			'client_reference_id' => $public_id,
 			'expires_at' => self::session_expiry( $order ),
 			// One line with the exact order total: discounts and rounding can never make Stripe charge a different amount.
@@ -576,10 +576,20 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 250 ) : substr( $summary, 0, 250 );
 	}
 
-	/** Return URL for the buyer after the hosted payment page. */
-	public static function return_url( $status, $public_id ) {
-		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
-		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'stripe' );
+	/** Return URL for the buyer after the hosted payment page: the checkout page ($base, A554) or the home page. */
+	public static function return_url( $status, $public_id, $base = '' ) {
+		return ReturnNotice::url( $status, $public_id, $base, 'stripe' );
+	}
+
+	/**
+	 * The buyer cancelled the order on the return page (A554): the still open Checkout Session is
+	 * expired, so it cannot be paid afterwards. Errors are ignored (a later payment of a cancelled
+	 * order goes through the late-payment handling).
+	 */
+	public function abandon_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 !== strpos( $reference, 'cs_' ) ) { return; }
+		$this->api( 'POST', 'checkout/sessions/' . rawurlencode( $reference ) . '/expire', array(), 'wpcap-expire-' . $reference );
 	}
 
 	/** Plugin minor units → Stripe amount. */

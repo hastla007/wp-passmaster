@@ -127,7 +127,7 @@ final class Mollie {
 		// phpcs:enable
 		$state = self::handle_return( $public_id );
 		nocache_headers();
-		wp_safe_redirect( MollieGateway::return_url( $state, $public_id ) );
+		wp_safe_redirect( MollieGateway::return_url( $state, $public_id, \PassCaptain\Payments\ReturnNotice::current_base() ) );
 		exit;
 	}
 

@@ -35,6 +35,7 @@ $wpa145_extra_post = array(
 	'wpcap_print_invoice' => array( PassCaptain\Invoices::class, 'handle_admin_print' ),
 	'wpcap_export_accounting' => array( PassCaptain\Invoices::class, 'handle_export' ),
 	'wpcap_accept_waitlist' => array( PassCaptain\Waitlists::class, 'handle_accept_request' ),
+	'wpcap_payment_return' => array( PassCaptain\Payments\ReturnNotice::class, 'handle_action' ), // A554: keyed by wpcap_rk.
 	PassCaptain\Waitlists::UNSUBSCRIBE_ACTION => array( PassCaptain\Waitlists::class, 'handle_unsubscribe_request' ),
 );
 $wpa145_ajax = array(
@@ -298,7 +299,7 @@ foreach ( array_unique( $wpa145_all_keys ) as $wpa145_k ) {
 
 // Public admin-post actions (also registered for visitors): the token of the waitlist offer or link is
 // verified by the function they call (tests in zz_a158.php / waitlist tests).
-$wpa145_public_post = array( 'wpcap_accept_waitlist', PassCaptain\Waitlists::UNSUBSCRIBE_ACTION );
+$wpa145_public_post = array( 'wpcap_accept_waitlist', PassCaptain\Waitlists::UNSUBSCRIBE_ACTION, 'wpcap_payment_return' );
 $wpa145_nopriv = array_values( array_unique( $wpa145_scanned['nopriv'] ) );
 sort( $wpa145_nopriv );
 $wpa145_public_sorted = $wpa145_public_post;
