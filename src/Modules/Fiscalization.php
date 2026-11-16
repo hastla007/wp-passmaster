@@ -419,6 +419,7 @@ final class Fiscalization {
 				'fiscal_applicability' => $mapping->profile_status, 'seller_snapshot' => wp_json_encode( $seller_snapshot ),
 				'created_at' => $now,
 			) );
+			// @phpstan-ignore notIdentical.alwaysFalse ($wpdb->insert() above resets and sets last_error; PHPStan keeps the earlier narrowing.)
 			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			if ( 'not_required' === $mapping->profile_status ) { continue; }
 			$adapter = Registry::get( $mapping->provider_id );

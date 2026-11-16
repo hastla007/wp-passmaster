@@ -193,7 +193,7 @@ final class TicketAssignments {
 		global $wpdb;
 		$ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
 		if ( ! $ids || ! ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' ) ) { return; }
-		$wpdb->query( "UPDATE {$wpdb->prefix}wpcap_tickets SET updated_at=CURRENT_TIMESTAMP WHERE ticket_id IN (" . implode( ',', $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET updated_at=CURRENT_TIMESTAMP WHERE ticket_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ) );
 	}
 
 	/** Whether the change counters exist on wpcap_tickets (schema 3.10.22, A569; deferred upgrade). */

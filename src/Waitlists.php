@@ -1019,7 +1019,7 @@ final class Waitlists {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return array(); }
 		$out = array();
-		foreach ( (array) $wpdb->get_results( 'SELECT ' . ParticipantFields::columns() . " FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN (" . implode( ',', $type_ids ) . ") AND status='active' ORDER BY position,field_id" ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . " FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ") AND status='active' ORDER BY position,field_id", $type_ids ) ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ParticipantFields::columns() is a column list from literals.
 			$out[ (int) $field->ticket_type_id ][] = $field;
 		}
 		return $out;
@@ -1097,7 +1097,7 @@ final class Waitlists {
 		}
 		$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET status='accepted',offer_token_hash='',updated_at=%s WHERE waitlist_id=%d AND status='offered'", $now, (int) $row->waitlist_id ) );
 		$until = gmdate( 'Y-m-d H:i:s', Clock::now() + max( 1, (int) $minutes ) * MINUTE_IN_SECONDS );
-		$extended = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE reservation_id IN (" . implode( ',', $held ) . ')', $until ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$extended = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE reservation_id IN (" . implode( ',', array_fill( 0, count( $held ), '%d' ) ) . ')', array_merge( array( $until ), $held ) ) );
 		$assigned = true;
 		$order_update = null === $attendees ? array() : array( 'attendee_data' => (string) $attendees );
 		if ( null === $locale ) { $locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }

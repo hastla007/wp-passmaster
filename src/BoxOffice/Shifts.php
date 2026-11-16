@@ -61,13 +61,13 @@ final class Shifts {
 
 	public static function get( $shift_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'sessions' ) . ' WHERE session_id=%d', absint( $shift_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE session_id=%d', self::t( 'sessions' ), absint( $shift_id ) ) );
 	}
 
 	/** The open (or counting) shift of a register, if any. */
 	public static function open_for_register( $register_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'sessions' ) . ' WHERE open_register=%d', absint( $register_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE open_register=%d', self::t( 'sessions' ), absint( $register_id ) ) );
 	}
 
 	/** Active shift the user works in (as opener or added cashier). */
@@ -85,7 +85,7 @@ final class Shifts {
 	public static function cashiers( $shift_id ) {
 		global $wpdb;
 		$shift = self::get( $shift_id );
-		$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM ' . self::t( 'shift_cashiers' ) . ' WHERE shift_id=%d ORDER BY added_at,user_id', absint( $shift_id ) ) ) );
+		$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM %i WHERE shift_id=%d ORDER BY added_at,user_id', self::t( 'shift_cashiers' ), absint( $shift_id ) ) ) );
 		if ( $shift ) { array_unshift( $ids, (int) $shift->user_id ); }
 		return array_values( array_unique( $ids ) );
 	}
@@ -121,33 +121,33 @@ final class Shifts {
 
 	public static function latest_count( $shift_id, $kind = 'closing' ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'counts' ) . ' WHERE shift_id=%d AND kind=%s ORDER BY count_id DESC LIMIT 1', absint( $shift_id ), $kind ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE shift_id=%d AND kind=%s ORDER BY count_id DESC LIMIT 1', self::t( 'counts' ), absint( $shift_id ), $kind ) );
 	}
 
 	public static function counts( $shift_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'counts' ) . ' WHERE shift_id=%d ORDER BY count_id', absint( $shift_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE shift_id=%d ORDER BY count_id', self::t( 'counts' ), absint( $shift_id ) ) );
 	}
 
 	public static function movements( $shift_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'movements' ) . ' WHERE shift_id=%d ORDER BY movement_id', absint( $shift_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE shift_id=%d ORDER BY movement_id', self::t( 'movements' ), absint( $shift_id ) ) );
 	}
 
 	public static function movement( $movement_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'movements' ) . ' WHERE movement_id=%d', absint( $movement_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE movement_id=%d', self::t( 'movements' ), absint( $movement_id ) ) );
 	}
 
 	public static function handover( $handover_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'handovers' ) . ' WHERE handover_id=%d', absint( $handover_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE handover_id=%d', self::t( 'handovers' ), absint( $handover_id ) ) );
 	}
 
 	/** Pending handovers addressed to a user. */
 	public static function handovers_for( $user_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'handovers' ) . " WHERE to_user=%d AND status='pending' ORDER BY handover_id", absint( $user_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE to_user=%d AND status='pending' ORDER BY handover_id", self::t( 'handovers' ), absint( $user_id ) ) );
 	}
 
 	/**
@@ -210,7 +210,7 @@ final class Shifts {
 		$now = self::now();
 
 		$wpdb->query( 'START TRANSACTION' );
-		$wpdb->get_row( $wpdb->prepare( 'SELECT register_id FROM ' . Registers::table() . ' WHERE register_id=%d FOR UPDATE', $register->register_id ) );
+		$wpdb->get_row( $wpdb->prepare( 'SELECT register_id FROM %i WHERE register_id=%d FOR UPDATE', Registers::table(), $register->register_id ) );
 		// Plain reads after the register lock (no gap locks: they could deadlock opens of other registers).
 		if ( $wpdb->get_row( $wpdb->prepare( "SELECT session_id FROM {$p}sessions WHERE open_register=%d", $register->register_id ) ) ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -281,7 +281,7 @@ final class Shifts {
 		if ( ! $user_id || ( function_exists( 'user_can' ) && ! user_can( $user_id, Service::CAP ) ) ) { return self::error( 'wpcap_pos_cashier', __( 'Dieser Benutzer darf nicht kassieren.', 'pass-captain' ) ); }
 		if ( self::is_cashier( $shift, $user_id ) ) { return $shift; }
 		if ( self::current_for_user( $user_id ) ) { return self::error( 'wpcap_pos_shift_active', __( 'Dieser Benutzer arbeitet bereits in einer anderen offenen Schicht.', 'pass-captain' ), 409 ); }
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::t( 'shift_cashiers' ) . " (shift_id,user_id,role,added_by,added_at) VALUES (%d,%d,'cashier',%d,%s)", $shift->session_id, $user_id, get_current_user_id(), self::now() ) );
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (shift_id,user_id,role,added_by,added_at) VALUES (%d,%d,'cashier',%d,%s)", self::t( 'shift_cashiers' ), $shift->session_id, $user_id, get_current_user_id(), self::now() ) );
 		Audit::record( 'pos_cashier_added', 'pos_session', (int) $shift->session_id, array( 'user_id' => $user_id ) );
 		return self::get( $shift->session_id );
 	}
@@ -440,7 +440,7 @@ final class Shifts {
 		$p = self::t( '' );
 		$wp = $wpdb->prefix;
 		$wpdb->query( 'START TRANSACTION' );
-		$register = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Registers::table() . ' WHERE register_id=%d FOR UPDATE', $shift->register_id ) );
+		$register = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE register_id=%d FOR UPDATE', Registers::table(), $shift->register_id ) );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}sessions WHERE session_id=%d FOR UPDATE", $shift->session_id ) );
 		if ( ! $register || ! $locked || 'counting' !== $locked->status ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -691,9 +691,9 @@ final class Shifts {
 		global $wpdb;
 		$refund = Refunds::get( $refund_id );
 		if ( ! $refund ) { return null; }
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'movements' ) . ' WHERE refund_id=%d', (int) $refund['refund_id'] ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE refund_id=%d', self::t( 'movements' ), (int) $refund['refund_id'] ) );
 		if ( $existing ) { return $existing; }
-		$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'sales' ) . ' WHERE order_id=%d', (int) $refund['order_id'] ) );
+		$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d', self::t( 'sales' ), (int) $refund['order_id'] ) );
 		if ( ! $sale || ! Service::is_booked( $sale ) ) { return null; }
 		if ( $shift && 'open' === $shift->status && $shift->currency === $sale->currency ) {
 			$target = $shift;
@@ -763,7 +763,7 @@ final class Shifts {
 	public static function open_payout( array $refund, $sale ) {
 		global $wpdb;
 		$table = self::t( 'payouts' );
-		$register_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT register_id FROM ' . self::t( 'sessions' ) . ' WHERE session_id=%d', (int) $sale->session_id ) );
+		$register_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT register_id FROM %i WHERE session_id=%d', self::t( 'sessions' ), (int) $sale->session_id ) );
 		$inserted = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (refund_id,order_id,sale_id,register_id,currency,method,amount_minor,status,created_by,created_at) VALUES (%d,%d,%d,%d,%s,%s,%d,'open',%d,%s)", (int) $refund['refund_id'], (int) $refund['order_id'], (int) $sale->sale_id, $register_id, $sale->currency, $sale->payment_method, (int) $refund['amount_minor'], get_current_user_id(), self::now() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		$payout = self::payout_for_refund( (int) $refund['refund_id'] );
 		if ( $payout && $inserted ) {
@@ -774,20 +774,21 @@ final class Shifts {
 
 	public static function payout_for_refund( $refund_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'payouts' ) . ' WHERE refund_id=%d', absint( $refund_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE refund_id=%d', self::t( 'payouts' ), absint( $refund_id ) ) );
 	}
 
 	public static function payout( $payout_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'payouts' ) . ' WHERE payout_id=%d', absint( $payout_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE payout_id=%d', self::t( 'payouts' ), absint( $payout_id ) ) );
 	}
 
 	/** Open payouts (optionally of one currency), oldest first, with the receipt number of the sale. */
 	public static function open_payouts( $currency = '' ) {
 		global $wpdb;
 		if ( ! self::payouts_ready() ) { return array(); }
-		$where = '' !== $currency ? $wpdb->prepare( ' AND p.currency=%s', $currency ) : '';
-		return (array) $wpdb->get_results( 'SELECT p.*,s.receipt_number FROM ' . self::t( 'payouts' ) . ' p LEFT JOIN ' . self::t( 'sales' ) . " s ON s.sale_id=p.sale_id WHERE p.status='open'{$where} ORDER BY p.payout_id LIMIT 200" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared where clause.
+		return (array) ( '' !== $currency
+			? $wpdb->get_results( $wpdb->prepare( "SELECT p.*,s.receipt_number FROM %i p LEFT JOIN %i s ON s.sale_id=p.sale_id WHERE p.status='open' AND p.currency=%s ORDER BY p.payout_id LIMIT 200", self::t( 'payouts' ), self::t( 'sales' ), $currency ) )
+			: $wpdb->get_results( $wpdb->prepare( "SELECT p.*,s.receipt_number FROM %i p LEFT JOIN %i s ON s.sale_id=p.sale_id WHERE p.status='open' ORDER BY p.payout_id LIMIT 200", self::t( 'payouts' ), self::t( 'sales' ) ) ) );
 	}
 
 	/**

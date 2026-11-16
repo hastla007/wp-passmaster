@@ -78,20 +78,20 @@ final class Service {
 	/** Exchange row as array, or null. */
 	public static function get( $exchange_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE exchange_id=%d', absint( $exchange_id ) ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE exchange_id=%d', self::table(), absint( $exchange_id ) ), ARRAY_A );
 		return $row ? $row : null;
 	}
 
 	/** Exchanges of an order (as original or supplementary order), newest first. */
 	public static function for_order( $order_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE order_id=%d OR supplementary_order_id=%d ORDER BY exchange_id DESC', absint( $order_id ), absint( $order_id ) ), ARRAY_A );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d OR supplementary_order_id=%d ORDER BY exchange_id DESC', self::table(), absint( $order_id ), absint( $order_id ) ), ARRAY_A );
 	}
 
 	/** Exchange whose supplementary order is $order_id, or null. */
 	public static function for_supplement( $order_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE supplementary_order_id=%d ORDER BY exchange_id DESC LIMIT 1', absint( $order_id ) ), ARRAY_A );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE supplementary_order_id=%d ORDER BY exchange_id DESC LIMIT 1', self::table(), absint( $order_id ) ), ARRAY_A );
 		return $row ? $row : null;
 	}
 
@@ -105,7 +105,7 @@ final class Service {
 		global $wpdb;
 		$ids = array_values( array_filter( array_unique( array_map( 'absint', $order_ids ) ), static function ( $id ) { return $id && ! isset( self::$supplement_cache[ $id ] ); } ) );
 		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
-			$found = array_flip( array_map( 'intval', (array) $wpdb->get_col( 'SELECT DISTINCT supplementary_order_id FROM ' . self::table() . ' WHERE supplementary_order_id IN (' . implode( ',', $chunk ) . ')' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$found = array_flip( array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT supplementary_order_id FROM %i WHERE supplementary_order_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', array_merge( array( self::table() ), $chunk ) ) ) ) );
 			foreach ( $chunk as $id ) { self::$supplement_cache[ $id ] = isset( $found[ $id ] ); }
 		}
 	}
@@ -170,9 +170,9 @@ final class Service {
 	/** Completed exchanges in the chain of a ticket (all predecessors and the ticket itself). */
 	public static function exchange_count( $ticket_id ) {
 		global $wpdb;
-		$root = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT root_ticket_id FROM ' . self::table() . " WHERE new_ticket_id=%d AND status='completed' LIMIT 1", absint( $ticket_id ) ) );
+		$root = (int) $wpdb->get_var( $wpdb->prepare( "SELECT root_ticket_id FROM %i WHERE new_ticket_id=%d AND status='completed' LIMIT 1", self::table(), absint( $ticket_id ) ) );
 		if ( ! $root ) { return 0; }
-		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::table() . " WHERE root_ticket_id=%d AND status='completed'", $root ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE root_ticket_id=%d AND status='completed'", self::table(), $root ) );
 	}
 
 	/**
@@ -293,9 +293,9 @@ final class Service {
 	public static function ticket_value( $ticket ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$recorded = $wpdb->get_var( $wpdb->prepare( 'SELECT new_value_minor FROM ' . self::table() . " WHERE new_ticket_id=%d AND status='completed' ORDER BY exchange_id DESC LIMIT 1", (int) $ticket->ticket_id ) );
+		$recorded = $wpdb->get_var( $wpdb->prepare( "SELECT new_value_minor FROM %i WHERE new_ticket_id=%d AND status='completed' ORDER BY exchange_id DESC LIMIT 1", self::table(), (int) $ticket->ticket_id ) );
 		if ( null !== $recorded ) { return (int) $recorded; }
-		$line = $wpdb->get_row( $wpdb->prepare( 'SELECT COALESCE(SUM(' . \PassCaptain\OrderLines::paid( 'line_total_minor', '' ) . '),0) AS gross,COALESCE(SUM(' . \PassCaptain\OrderLines::paid( 'quantity', '' ) . "),0) AS qty FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", (int) $ticket->order_id, (int) $ticket->ticket_type_id ) );
+		$line = $wpdb->get_row( $wpdb->prepare( 'SELECT COALESCE(SUM(' . \PassCaptain\OrderLines::paid( 'line_total_minor', '' ) . '),0) AS gross,COALESCE(SUM(' . \PassCaptain\OrderLines::paid( 'quantity', '' ) . "),0) AS qty FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", (int) $ticket->order_id, (int) $ticket->ticket_type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- OrderLines::paid() returns a static column expression built from literals.
 		$order = Orders::get( (int) $ticket->order_id );
 		if ( ! $line || ! $order || (int) $line->qty < 1 ) { return 0; }
 		$unit = (int) round( (int) $line->gross / (int) $line->qty );
@@ -439,7 +439,7 @@ final class Service {
 		$key = sanitize_text_field( (string) ( $args['idempotency_key'] ?? '' ) );
 		$key_hash = '' !== $key ? hash( 'sha256', 'exchange|' . absint( $ticket_id ) . '|' . $key ) : null;
 		if ( $key_hash ) {
-			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE idempotency_key=%s', $key_hash ), ARRAY_A );
+			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', self::table(), $key_hash ), ARRAY_A );
 			if ( $existing ) { return $existing + array( 'reused' => true ); }
 		}
 		$ticket = self::ticket( $ticket_id );
@@ -448,7 +448,7 @@ final class Service {
 		$valid = self::validate( $ticket, $target, $channel, $policy );
 		if ( is_wp_error( $valid ) ) {
 			// A double submit after the exchange completed must not report an error.
-			$done = $ticket ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . " WHERE old_ticket_id=%d AND to_type_id=%d AND status IN ('completed','pending_payment') ORDER BY exchange_id DESC LIMIT 1", (int) $ticket->ticket_id, absint( $target_type_id ) ), ARRAY_A ) : null;
+			$done = $ticket ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE old_ticket_id=%d AND to_type_id=%d AND status IN ('completed','pending_payment') ORDER BY exchange_id DESC LIMIT 1", self::table(), (int) $ticket->ticket_id, absint( $target_type_id ) ), ARRAY_A ) : null;
 			if ( $done && 'completed' === $done['status'] && 'valid' !== $ticket->status && empty( $key_hash ) ) { return $done + array( 'reused' => true ); }
 			return $valid;
 		}
@@ -457,7 +457,7 @@ final class Service {
 		// Read before the lock phase (the transaction may only use locking reads until all locks are held).
 		$value = self::ticket_value( $ticket );
 		// Double submit of a pending upgrade (the target may be held by that very exchange).
-		$open = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1', (int) $ticket->ticket_id, self::PENDING ), ARRAY_A );
+		$open = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1', self::table(), (int) $ticket->ticket_id, self::PENDING ), ARRAY_A );
 		if ( $open && self::supplement_open( (int) $open['supplementary_order_id'], $now ) ) {
 			if ( (int) $open['to_type_id'] === (int) $target->ticket_type_id ) { return $open + array( 'reused' => true ); }
 			return self::map_error( 'exchange_pending' );
@@ -512,10 +512,10 @@ final class Service {
 			if ( $refund_open ) { throw new \RuntimeException( 'refund_open' ); }
 			// Under the ticket lock: a concurrent request with the same key or a pending exchange won.
 			if ( $key_hash ) {
-				$again = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE idempotency_key=%s', $key_hash ), ARRAY_A );
+				$again = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', self::table(), $key_hash ), ARRAY_A );
 				if ( $again ) { $wpdb->query( 'ROLLBACK' ); return $again + array( 'reused' => true ); }
 			}
-			$pending = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1', (int) $ticket->ticket_id, self::PENDING ), ARRAY_A );
+			$pending = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1', self::table(), (int) $ticket->ticket_id, self::PENDING ), ARRAY_A );
 			if ( $pending && self::supplement_open( (int) $pending['supplementary_order_id'], $now ) ) {
 				if ( (int) $pending['to_type_id'] === (int) $target->ticket_type_id ) { $wpdb->query( 'ROLLBACK' ); return $pending + array( 'reused' => true ); }
 				throw new \RuntimeException( 'exchange_pending' );
@@ -613,7 +613,7 @@ final class Service {
 	/** First ticket of an exchange chain. */
 	private static function root_of( $ticket_id ) {
 		global $wpdb;
-		$root = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT root_ticket_id FROM ' . self::table() . " WHERE new_ticket_id=%d AND status='completed' LIMIT 1", absint( $ticket_id ) ) );
+		$root = (int) $wpdb->get_var( $wpdb->prepare( "SELECT root_ticket_id FROM %i WHERE new_ticket_id=%d AND status='completed' LIMIT 1", self::table(), absint( $ticket_id ) ) );
 		return $root ? $root : absint( $ticket_id );
 	}
 
@@ -695,7 +695,7 @@ final class Service {
 			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=quantity WHERE order_id=%d AND ticket_type_id=%d", (int) $row['supplementary_order_id'], (int) $target_type->ticket_type_id ) );
 			if ( self::seating_enabled() ) {
 				// Seat held/sold for the supplementary order moves to the original order.
-				$wpdb->query( $wpdb->prepare( 'UPDATE ' . \PassCaptain\Seating\Layouts::table( 'claims' ) . ' SET order_id=%d,updated_at=%s WHERE order_id=%d AND ticket_type_id=%d AND ticket_id=0 AND active_key IS NOT NULL', (int) $order->order_id, $now, (int) $row['supplementary_order_id'], (int) $target_type->ticket_type_id ) );
+				$wpdb->query( $wpdb->prepare( 'UPDATE %i SET order_id=%d,updated_at=%s WHERE order_id=%d AND ticket_type_id=%d AND ticket_id=0 AND active_key IS NOT NULL', \PassCaptain\Seating\Layouts::table( 'claims' ), (int) $order->order_id, $now, (int) $row['supplementary_order_id'], (int) $target_type->ticket_type_id ) );
 			}
 		} else {
 			self::claim_seat( (int) $order->order_id, (object) array_merge( (array) $target_type, array( 'event_id' => (int) $target_occ->event_id ) ), $seat_id );
@@ -1091,7 +1091,7 @@ final class Service {
 			}
 			$order = $orders[ (int) $exchange['order_id'] ] ?? null;
 			$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $exchange['old_ticket_id'] ) );
-			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE exchange_id=%d FOR UPDATE', absint( $exchange_id ) ), ARRAY_A );
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE exchange_id=%d FOR UPDATE', self::table(), absint( $exchange_id ) ), ARRAY_A );
 			$supp = $wpdb->get_row( $wpdb->prepare( "SELECT payment_status FROM {$p}wpcap_orders WHERE order_id=%d", (int) $exchange['supplementary_order_id'] ) );
 			if ( ! $row || self::COMPLETED === $row['status'] || self::REVIEW === $row['status'] || ! $supp || 'paid' !== $supp->payment_status ) {
 				$wpdb->query( 'COMMIT' );
@@ -1165,14 +1165,14 @@ final class Service {
 			$order = Orders::get( $order_id );
 			if ( $order && 'paid' !== $order->payment_status ) {
 				$status = 'expired' === $order->status ? self::EXPIRED : self::CANCELLED;
-				$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . ' SET status=%s,pending_ticket_id=NULL,updated_at=%s WHERE exchange_id=%d AND status=%s', $status, \PassCaptain\Clock::mysql(), (int) $exchange['exchange_id'], self::PENDING ) );
+				$changed = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET status=%s,pending_ticket_id=NULL,updated_at=%s WHERE exchange_id=%d AND status=%s', self::table(), $status, \PassCaptain\Clock::mysql(), (int) $exchange['exchange_id'], self::PENDING ) );
 				if ( $changed ) {
 					Audit::record( 'ticket_exchange_' . $status, 'ticket', (int) $exchange['old_ticket_id'], array( 'exchange_id' => (int) $exchange['exchange_id'], 'supplementary_order_id' => $order_id ) );
 				}
 			}
 			return;
 		}
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT supplementary_order_id FROM ' . self::table() . ' WHERE order_id=%d AND status=%s', $order_id, self::PENDING ) ) as $pending ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT supplementary_order_id FROM %i WHERE order_id=%d AND status=%s', self::table(), $order_id, self::PENDING ) ) as $pending ) {
 			Orders::cancel_order( (int) $pending->supplementary_order_id, 'exchange_original_closed' );
 		}
 	}
@@ -1189,7 +1189,7 @@ final class Service {
 
 	private static function cancel_pending_for_ticket( $ticket_id, $reason ) {
 		global $wpdb;
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT supplementary_order_id FROM ' . self::table() . ' WHERE old_ticket_id=%d AND status=%s', absint( $ticket_id ), self::PENDING ) ) as $pending ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT supplementary_order_id FROM %i WHERE old_ticket_id=%d AND status=%s', self::table(), absint( $ticket_id ), self::PENDING ) ) as $pending ) {
 			$supp = Orders::get( (int) $pending->supplementary_order_id );
 			if ( $supp && 'pending' === $supp->payment_status ) { Orders::cancel_order( (int) $pending->supplementary_order_id, 'exchange_' . $reason ); }
 		}
@@ -1208,7 +1208,7 @@ final class Service {
 		foreach ( array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) ) as $ticket_id ) {
 			$guard = 0;
 			while ( $ticket_id && $guard++ < 50 ) {
-				$exchange = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . " WHERE new_ticket_id=%d AND status='completed' LIMIT 1", $ticket_id ), ARRAY_A );
+				$exchange = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE new_ticket_id=%d AND status='completed' LIMIT 1", self::table(), $ticket_id ), ARRAY_A );
 				if ( ! $exchange ) { break; }
 				$supp = (int) $exchange['supplementary_order_id'] ? Orders::get( (int) $exchange['supplementary_order_id'] ) : null;
 				if ( $supp && 'paid' === $supp->payment_status ) {

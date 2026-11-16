@@ -314,9 +314,9 @@ final class Types {
 				'placeholders' => self::ticket_placeholders(),
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'pass-captain' ), '{site_name}' ); },
-				/* translators: %s: site name */
 				// A568: the confirmation carries the contract texts of the order's version ({contract_texts};
 				// without a known order the current texts of the settings, see legal_vars()).
+				/* translators: %s: site name */
 				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}{contract_texts}"; },
 				'vars' => static function () { return self::legal_vars(); },
 				'sample' => static function () { return self::sample_ticket_vars( false ); },

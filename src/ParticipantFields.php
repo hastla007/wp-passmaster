@@ -300,7 +300,7 @@ final class ParticipantFields {
 		if ( ! $tickets ) { return array(); }
 		$types = implode( ',', array_unique( array_map( static function ( $t ) { return (int) $t->ticket_type_id; }, $tickets ) ) );
 		$fields = array();
-		foreach ( (array) $wpdb->get_results( "SELECT field_id,ticket_type_id,label FROM {$p}wpcap_participant_fields WHERE ticket_type_id IN ($types) AND status='active' AND required=1" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id' ) as $f ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $wpdb->get_results( "SELECT field_id,ticket_type_id,label FROM {$p}wpcap_participant_fields WHERE ticket_type_id IN ($types) AND status='active' AND required=1" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id' ) as $f ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- (int) cast integer list; the consent condition is a literal.
 			$fields[ (int) $f->ticket_type_id ][ (int) $f->field_id ] = (string) $f->label;
 		}
 		$names = array();

@@ -526,7 +526,7 @@ final class Data {
 		global $wpdb;
 		foreach ( array_chunk( $order_ids, self::BLOCK ) as $block ) {
 			$orders = array();
-			foreach ( (array) $wpdb->get_results( "SELECT $columns FROM {$wpdb->prefix}wpcap_orders WHERE order_id IN (" . implode( ',', array_map( 'absint', $block ) ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed columns, integer list.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT $columns FROM {$wpdb->prefix}wpcap_orders WHERE order_id IN (" . implode( ',', array_fill( 0, count( $block ), '%d' ) ) . ')', array_map( 'absint', $block ) ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $columns is a fixed column list from the callers.
 				$orders[ (int) $row->order_id ] = $row;
 			}
 			$lines = self::lines_by_order( $block, $line_sql );
@@ -582,7 +582,7 @@ final class Data {
 			// Sold and comps per ticket type in one pass over the lines (A434: was two correlated SUMs per type).
 			$by_type = array();
 			foreach ( $types as $t ) { $by_type[ (int) $t->ticket_type_id ] = $t; }
-			foreach ( (array) $wpdb->get_results( "SELECT oi.ticket_type_id,SUM(IF(ord.payment_provider IN ($comp_in),0,oi.quantity-oi.refunded_quantity)) AS sold,SUM(IF(ord.payment_provider IN ($comp_in),oi.quantity-oi.refunded_quantity,0)) AS comps FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN (" . implode( ',', array_keys( $by_type ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY oi.ticket_type_id" ) as $sum ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, fixed provider list.
+			foreach ( (array) $wpdb->get_results( "SELECT oi.ticket_type_id,SUM(IF(ord.payment_provider IN ($comp_in),0,oi.quantity-oi.refunded_quantity)) AS sold,SUM(IF(ord.payment_provider IN ($comp_in),oi.quantity-oi.refunded_quantity,0)) AS comps FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN (" . implode( ',', array_keys( $by_type ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY oi.ticket_type_id" ) as $sum ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer list (int keys), fixed provider list from comp_sql().
 				$by_type[ (int) $sum->ticket_type_id ]->sold = (int) $sum->sold;
 				$by_type[ (int) $sum->ticket_type_id ]->comps = (int) $sum->comps;
 			}

@@ -334,7 +334,7 @@ final class Reminders {
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.starts_at,o.status,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) ( $payload['occurrence_id'] ?? 0 ) ) );
 		if ( ! $occ || 'scheduled' !== $occ->status || 'published' !== $occ->event_status || $occ->starts_at !== ( $payload['starts_at'] ?? '' ) || strtotime( $occ->starts_at . ' UTC' ) <= \PassCaptain\Clock::now() ) { return false; }
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(" . \PassCaptain\TicketCodes::holder_email_sql() . ")=%s", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $payload['occurrence_id'], strtolower( (string) $recipient ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(" . \PassCaptain\TicketCodes::holder_email_sql() . ")=%s", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $payload['occurrence_id'], strtolower( (string) $recipient ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- TicketCodes::holder_email_sql() returns one of two fixed column expressions.
 	}
 
 	/**
@@ -409,7 +409,7 @@ final class Reminders {
 		$p = $wpdb->prefix;
 		$lines = array();
 		if ( '' !== (string) $recipient ) {
-			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(" . \PassCaptain\TicketCodes::holder_email_sql() . ")=%s ORDER BY t.ticket_id LIMIT 50", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', absint( $occurrence_id ), strtolower( (string) $recipient ) ) );
+			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(" . \PassCaptain\TicketCodes::holder_email_sql() . ")=%s ORDER BY t.ticket_id LIMIT 50", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', absint( $occurrence_id ), strtolower( (string) $recipient ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- TicketCodes::holder_email_sql() returns one of two fixed column expressions.
 			foreach ( $ids as $id ) {
 				$code = \PassCaptain\PortalSelfService::current_code( (int) $id );
 				if ( '' !== $code ) { $lines[] = __( 'Dein Ticket:', 'pass-captain' ) . ' ' . add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) ); }

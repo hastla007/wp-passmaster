@@ -400,7 +400,7 @@ final class Cache {
 		}
 		foreach ( count( $missing ) > 1 ? array_chunk( $missing, 500 ) : array() as $chunk ) {
 			foreach ( $chunk as $id ) { self::$memo[ $p . '|ticket_id|' . $id ] = array(); }
-			foreach ( (array) $wpdb->get_results( "SELECT t.ticket_id,o.event_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id IN (" . implode( ',', $chunk ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,o.event_id FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', $chunk ) ) as $row ) {
 				self::$memo[ $p . '|ticket_id|' . (int) $row->ticket_id ][] = (int) $row->event_id;
 			}
 		}

@@ -199,7 +199,7 @@ final class ScannerDesk {
 		$events = array_filter( array_map( 'absint', $context['event_ids'] ) );
 		if ( ! $events ) { return array(); }
 		global $wpdb;
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT o.occurrence_id FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id IN (" . implode( ',', $events ) . ") AND o.status<>'cancelled' AND " . Occurrence::end_sql( 'o' ) . ' >= %s AND o.starts_at <= %s ORDER BY o.starts_at LIMIT 100', Clock::mysql( -DAY_IN_SECONDS ), Clock::mysql( 7 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, static expression.
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT o.occurrence_id FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id IN (" . implode( ',', array_fill( 0, count( $events ), '%d' ) ) . ") AND o.status<>'cancelled' AND " . Occurrence::end_sql( 'o' ) . ' >= %s AND o.starts_at <= %s ORDER BY o.starts_at LIMIT 100', array_merge( array_values( $events ), array( Clock::mysql( -DAY_IN_SECONDS ), Clock::mysql( 7 * DAY_IN_SECONDS ) ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 		return array_values( array_filter( array_map( 'intval', (array) $ids ), static function ( $id ) { return Access::can_access_occurrence( $id, 'wpcap_checkin' ); } ) );
 	}
 
@@ -243,7 +243,7 @@ final class ScannerDesk {
 		if ( ! $or ) { return array( 'results' => array(), 'more' => false, 'fields' => $fields ); }
 		$args[] = self::SEARCH_LIMIT + 1;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.public_id,t.status,t.refunded,t.attendee_email,ta.attendee_name,ta.attendee_email AS assigned_email,ord.public_id AS order_public_id,ord.customer_email,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id IN (" . implode( ',', array_map( 'absint', $occurrences ) ) . ') AND (' . implode( ' OR ', $or ) . ") ORDER BY (t.status='valid' AND t.refunded=0) DESC, o.starts_at, t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, fixed conditions.
+			"SELECT t.public_id,t.status,t.refunded,t.attendee_email,ta.attendee_name,ta.attendee_email AS assigned_email,ord.public_id AS order_public_id,ord.customer_email,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id IN (" . implode( ',', array_map( 'absint', $occurrences ) ) . ') AND (' . implode( ' OR ', $or ) . ") ORDER BY (t.status='valid' AND t.refunded=0) DESC, o.starts_at, t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- absint() integer list; $or holds fixed conditions with placeholders.
 			$args
 		) );
 		if ( '' !== $wpdb->last_error ) {

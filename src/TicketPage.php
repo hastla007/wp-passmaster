@@ -135,7 +135,7 @@ final class TicketPage {
 		if ( ! $open ) {
 			return '' !== $notice ? '<p class="notice" id="wpcap-attendee" role="status">' . esc_html( $notice ) . '</p>' : '';
 		}
-		$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . " FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', (int) $ticket->ticket_type_id ) );
+		$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . " FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', (int) $ticket->ticket_type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ParticipantFields::columns() is a column list from literals; the consent condition is a literal.
 		$answers = array();
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT field_id,answer FROM {$p}wpcap_participant_answers WHERE ticket_id=%d", (int) $ticket->ticket_id ) ) as $a ) { $answers[ (int) $a->field_id ] = (string) $a->answer; }
 		$html = '<section class="manage" id="wpcap-attendee"><h2>' . esc_html__( 'Teilnehmerdaten', 'pass-captain' ) . '</h2>';

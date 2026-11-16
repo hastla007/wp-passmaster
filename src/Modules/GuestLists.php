@@ -54,8 +54,8 @@ final class GuestLists {
 		$p = $wpdb->prefix;
 		$days = \PassCaptain\Privacy\Retention::attendee_days() ?: \PassCaptain\Privacy\Retention::default_attendee_days();
 		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
-		$counts['guest_entries'] = (int) $wpdb->query( $wpdb->prepare(
-			"UPDATE {$p}wpcap_guest_entries g INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET g.name=%s,g.email='',g.company='',g.note='',g.updated_at=%s WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND (g.name<>%s OR g.email<>'' OR g.company<>'' OR g.note<>'')",
+		$counts['guest_entries'] = (int) $wpdb->query( $wpdb->prepare( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
+			"UPDATE {$p}wpcap_guest_entries g INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET g.name=%s,g.email='',g.company='',g.note='',g.updated_at=%s WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND (g.name<>%s OR g.email<>'' OR g.company<>'' OR g.note<>'')", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 			__( 'Gast (gelöscht)', 'pass-captain' ),
 			gmdate( 'Y-m-d H:i:s', (int) $now ),
 			$cutoff,
@@ -63,18 +63,18 @@ final class GuestLists {
 		) );
 		// The guest's comp order (paid 0 € order, kept for reports) and its tickets carry the guest's
 		// e-mail and attendee names too: replaced/cleared after the same period.
-		$counts['guest_comp_orders'] = (int) $wpdb->query( $wpdb->prepare(
-			"UPDATE {$p}wpcap_orders ord INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=ord.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET ord.customer_email=CONCAT('guestlist+',LEFT(SHA2(CONCAT('guestlist|',g.entry_id),256),16),'@invalid.example'),ord.billing=NULL,ord.updated_at=%s WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND ord.customer_email NOT LIKE %s",
+		$counts['guest_comp_orders'] = (int) $wpdb->query( $wpdb->prepare( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
+			"UPDATE {$p}wpcap_orders ord INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=ord.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET ord.customer_email=CONCAT('guestlist+',LEFT(SHA2(CONCAT('guestlist|',g.entry_id),256),16),'@invalid.example'),ord.billing=NULL,ord.updated_at=%s WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND ord.customer_email NOT LIKE %s", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 			gmdate( 'Y-m-d H:i:s', (int) $now ),
 			$cutoff,
 			'%@invalid.example'
 		) );
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=t.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET t.attendee_email='' WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND t.attendee_email<>''",
+		$wpdb->query( $wpdb->prepare( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
+			"UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=t.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET t.attendee_email='' WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND t.attendee_email<>''", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 			$cutoff
 		) );
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE {$p}wpcap_ticket_assignments ta INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=ta.ticket_id INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=t.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET ta.attendee_name='',ta.attendee_email='',ta.buyer_email='' WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'' OR ta.buyer_email<>'')",
+		$wpdb->query( $wpdb->prepare( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
+			"UPDATE {$p}wpcap_ticket_assignments ta INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=ta.ticket_id INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=t.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET ta.attendee_name='',ta.attendee_email='',ta.buyer_email='' WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . "<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'' OR ta.buyer_email<>'')", // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 			$cutoff
 		) );
 		return $counts;

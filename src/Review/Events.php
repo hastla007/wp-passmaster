@@ -132,7 +132,7 @@ final class Events {
 	/** Whether an outbox event with this id exists. */
 	private static function recorded( $event_id ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT outbox_id FROM ' . Outbox::table() . ' WHERE event_id=%s', (string) $event_id ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT outbox_id FROM %i WHERE event_id=%s', Outbox::table(), (string) $event_id ) );
 	}
 
 	private static function now() {
@@ -213,7 +213,7 @@ final class Events {
 		$context = is_array( $context ) ? $context : array();
 		$previous = null;
 		if ( Outbox::multi_ready() ) {
-			$payload = $wpdb->get_var( $wpdb->prepare( 'SELECT payload FROM ' . Outbox::table() . " WHERE contract='review' AND event_type='experience_completed' AND subject_id=%s ORDER BY outbox_id DESC LIMIT 1", self::public_id( $ticket_id ) ) );
+			$payload = $wpdb->get_var( $wpdb->prepare( "SELECT payload FROM %i WHERE contract='review' AND event_type='experience_completed' AND subject_id=%s ORDER BY outbox_id DESC LIMIT 1", Outbox::table(), self::public_id( $ticket_id ) ) );
 			$decoded = $payload ? json_decode( (string) $payload, true ) : null;
 			$previous = is_array( $decoded ) ? ( $decoded['data']['recipient_ref'] ?? null ) : null;
 		}
@@ -259,12 +259,13 @@ final class Events {
 			WHERE t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND o.status<>'cancelled' AND e.status<>'cancelled'
 			AND COALESCE(o.ends_at,o.starts_at)<%s AND COALESCE(o.ends_at,o.starts_at)>=%s
 			AND COALESCE((SELECT SUM(c.result='checked_in')-SUM(c.result='undone') FROM {$p}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result IN ('checked_in','undone')),0)<=0
-			AND NOT EXISTS (SELECT 1 FROM " . Outbox::table() . " x WHERE x.event_id=CONCAT('evt_',LEFT(SHA2(CONCAT('experience_excluded|rv-ex|',t.ticket_id,'|no_show'),256),32)))
+			AND NOT EXISTS (SELECT 1 FROM %i x WHERE x.event_id=CONCAT('evt_',LEFT(SHA2(CONCAT('experience_excluded|rv-ex|',t.ticket_id,'|no_show'),256),32)))
 			ORDER BY t.ticket_id LIMIT %d",
 			$until,
 			$from,
+			Outbox::table(),
 			self::NO_SHOW_BATCH
-		) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name of the outbox.
+		) );
 		$n = 0;
 		foreach ( (array) $ids as $ticket_id ) { $n += self::exclude( (int) $ticket_id, 'no_show' ) ? 1 : 0; }
 		return $n;
