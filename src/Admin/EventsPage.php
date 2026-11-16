@@ -37,28 +37,38 @@ final class EventsPage {
 		$timezone = Forms::text( $in, 'timezone', 64 );
 		$ticket_name = Forms::text( $in, 'ticket_name' );
 		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) ?: 'EUR' );
-		if ( '' === $name || '' === $ticket_name || ! in_array( $currency, Localization::currencies(), true ) || ! Forms::is_valid_timezone( $timezone ) ) {
-			return Forms::error( 'wpcap_event_invalid', __( 'Bitte prüfe die Eventdaten.', 'pass-captain' ) );
+		// A297: each check names its field (the form marks it and keeps the input).
+		if ( '' === $name ) {
+			return Forms::error( 'wpcap_event_invalid', __( 'Bitte einen Eventnamen angeben.', 'pass-captain' ), 400, 'name' );
+		}
+		if ( ! Forms::is_valid_timezone( $timezone ) ) {
+			return Forms::error( 'wpcap_event_invalid', __( 'Die Zeitzone ist ungültig.', 'pass-captain' ), 400, 'timezone' );
+		}
+		if ( '' === $ticket_name ) {
+			return Forms::error( 'wpcap_event_invalid', __( 'Bitte einen Namen für die Ticketkategorie angeben.', 'pass-captain' ), 400, 'ticket_name' );
+		}
+		if ( ! in_array( $currency, Localization::currencies(), true ) ) {
+			return Forms::error( 'wpcap_event_invalid', __( 'Die Währung ist ungültig.', 'pass-captain' ), 400, 'currency' );
 		}
 		$dst_notes = array(); // A102: DST gap → rejected, ambiguous time → first instance with a note.
 		$start_utc = Forms::local_to_utc_checked( $in['starts_at'] ?? '', $timezone, $dst_notes );
-		if ( is_wp_error( $start_utc ) ) { return $start_utc; }
+		if ( is_wp_error( $start_utc ) ) { return Forms::with_field( $start_utc, 'starts_at' ); }
 		if ( null === $start_utc ) {
-			return Forms::error( 'wpcap_event_start', __( 'Beginn oder Ende des Events ist ungültig.', 'pass-captain' ) );
+			return Forms::error( 'wpcap_event_start', __( 'Der Beginn fehlt oder ist ungültig.', 'pass-captain' ), 400, 'starts_at' );
 		}
 		$duration = 0;
 		if ( '' !== trim( (string) ( $in['ends_at'] ?? '' ) ) ) {
 			$end_utc = Forms::local_to_utc_checked( $in['ends_at'], $timezone, $dst_notes );
-			if ( is_wp_error( $end_utc ) ) { return $end_utc; }
+			if ( is_wp_error( $end_utc ) ) { return Forms::with_field( $end_utc, 'ends_at' ); }
 			if ( null === $end_utc || $end_utc <= $start_utc ) {
-				return Forms::error( 'wpcap_event_end', __( 'Beginn oder Ende des Events ist ungültig.', 'pass-captain' ) );
+				return Forms::error( 'wpcap_event_end', __( 'Das Ende ist ungültig oder liegt nicht nach dem Beginn.', 'pass-captain' ), 400, 'ends_at' );
 			}
 			$duration = strtotime( $end_utc . ' UTC' ) - strtotime( $start_utc . ' UTC' );
 		}
 		$price = Forms::parse_money( $in['price'] ?? '0', Forms::currency_decimals( $currency ) );
-		if ( null === $price ) { return Forms::error( 'wpcap_event_price', __( 'Der Preis ist ungültig.', 'pass-captain' ) ); }
+		if ( null === $price ) { return Forms::error( 'wpcap_event_price', __( 'Der Preis ist ungültig. Beispiel: 12,50', 'pass-captain' ), 400, 'price' ); }
 		$tax_bp = Forms::parse_percent_bp( $in['tax_rate'] ?? '' );
-		if ( null === $tax_bp ) { return Forms::error( 'wpcap_event_tax', __( 'Der Steuersatz ist ungültig.', 'pass-captain' ) ); }
+		if ( null === $tax_bp ) { return Forms::error( 'wpcap_event_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ), 400, 'tax_rate' ); }
 		$status = Forms::choice( $in, 'status', array( 'draft', 'published' ), 'draft' );
 		$repeat = Forms::choice( $in, 'repeat_frequency', array( 'none', 'weekly' ), 'none' );
 		$repeat_count = 'weekly' === $repeat ? min( 12, max( 1, Forms::int( $in, 'repeat_count', 1 ) ) ) : 1;
@@ -203,8 +213,11 @@ final class EventsPage {
 		}
 		$name = Forms::text( $in, 'name' );
 		$status = $in['status'] ?? $event->status;
-		if ( '' === $name || ! in_array( $status, array( 'draft', 'published' ), true ) ) {
-			return Forms::error( 'wpcap_event_invalid', __( 'Bitte prüfe die Eventdaten.', 'pass-captain' ) );
+		if ( '' === $name ) {
+			return Forms::error( 'wpcap_event_invalid', __( 'Bitte einen Eventnamen angeben.', 'pass-captain' ), 400, 'name' );
+		}
+		if ( ! in_array( $status, array( 'draft', 'published' ), true ) ) {
+			return Forms::error( 'wpcap_event_invalid', __( 'Der Status ist ungültig.', 'pass-captain' ), 400, 'status' );
 		}
 		global $wpdb;
 		$data = array(
@@ -254,19 +267,19 @@ final class EventsPage {
 			return Forms::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'pass-captain' ), 409 );
 		}
 		$timezone = Forms::text( $in, 'timezone', 64 );
-		if ( ! Forms::is_valid_timezone( $timezone ) ) { return Forms::error( 'wpcap_timezone', __( 'Die Zeitzone ist ungültig.', 'pass-captain' ) ); }
+		if ( ! Forms::is_valid_timezone( $timezone ) ) { return Forms::error( 'wpcap_timezone', __( 'Die Zeitzone ist ungültig.', 'pass-captain' ), 400, 'timezone' ); }
 		$dst_notes = array(); // A102: DST gap → rejected, ambiguous time → first instance with a note.
 		$starts = Forms::local_to_utc_checked( $in['starts_at'] ?? '', $timezone, $dst_notes );
-		if ( is_wp_error( $starts ) ) { return $starts; }
-		if ( null === $starts ) { return Forms::error( 'wpcap_occurrence_start', __( 'Der Beginn ist ungültig.', 'pass-captain' ) ); }
+		if ( is_wp_error( $starts ) ) { return Forms::with_field( $starts, 'starts_at' ); }
+		if ( null === $starts ) { return Forms::error( 'wpcap_occurrence_start', __( 'Der Beginn ist ungültig.', 'pass-captain' ), 400, 'starts_at' ); }
 		$ends = null;
 		if ( '' !== trim( (string) ( $in['ends_at'] ?? '' ) ) ) {
 			$ends = Forms::local_to_utc_checked( $in['ends_at'], $timezone, $dst_notes );
-			if ( is_wp_error( $ends ) ) { return $ends; }
-			if ( null === $ends || $ends <= $starts ) { return Forms::error( 'wpcap_occurrence_end', __( 'Das Ende muss nach dem Beginn liegen.', 'pass-captain' ) ); }
+			if ( is_wp_error( $ends ) ) { return Forms::with_field( $ends, 'ends_at' ); }
+			if ( null === $ends || $ends <= $starts ) { return Forms::error( 'wpcap_occurrence_end', __( 'Das Ende muss nach dem Beginn liegen.', 'pass-captain' ), 400, 'ends_at' ); }
 		}
 		$doors = \PassCaptain\DoorsOpen::parse( $in['doors_open_at'] ?? '', $timezone, $starts );
-		if ( is_wp_error( $doors ) ) { return Forms::error( $doors->get_error_code(), $doors->get_error_message() ); }
+		if ( is_wp_error( $doors ) ) { return Forms::error( $doors->get_error_code(), $doors->get_error_message(), 400, 'doors_open_at' ); }
 		$capacity = Forms::int( $in, 'capacity' );
 		// A266/A356: the status is not edited here. Cancelling goes through the confirmation page
 		// (cancel_occurrence(): consequences, reason, confirmation); a cancelled occurrence stays
@@ -436,23 +449,25 @@ final class EventsPage {
 		if ( ! $occ ) { return Forms::error( 'wpcap_occurrence_missing', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_occurrence( $occ->occurrence_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$name = Forms::text( $in, 'name' );
-		if ( '' === $name ) { return Forms::error( 'wpcap_type_name', __( 'Bitte einen Namen für die Ticketart angeben.', 'pass-captain' ) ); }
+		if ( '' === $name ) { return Forms::error( 'wpcap_type_name', __( 'Bitte einen Namen für die Ticketart angeben.', 'pass-captain' ), 400, 'name' ); }
 		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) );
-		if ( ! in_array( $currency, Localization::currencies(), true ) ) { return Forms::error( 'wpcap_type_currency', __( 'Die Währung ist ungültig.', 'pass-captain' ) ); }
+		if ( ! in_array( $currency, Localization::currencies(), true ) ) { return Forms::error( 'wpcap_type_currency', __( 'Die Währung ist ungültig.', 'pass-captain' ), 400, 'currency' ); }
 		$price = Forms::parse_money( $in['price'] ?? '', Forms::currency_decimals( $currency ) );
-		if ( null === $price ) { return Forms::error( 'wpcap_type_price', __( 'Der Preis ist ungültig. Beispiel: 12,50', 'pass-captain' ) ); }
+		if ( null === $price ) { return Forms::error( 'wpcap_type_price', __( 'Der Preis ist ungültig. Beispiel: 12,50', 'pass-captain' ), 400, 'price' ); }
 		$tax_bp = Forms::parse_percent_bp( $in['tax_rate'] ?? '' );
-		if ( null === $tax_bp ) { return Forms::error( 'wpcap_type_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ) ); }
+		if ( null === $tax_bp ) { return Forms::error( 'wpcap_type_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ), 400, 'tax_rate' ); }
 		$max = Forms::int( $in, 'max_per_order', 10 );
-		if ( $max < 1 || $max > 100 ) { return Forms::error( 'wpcap_type_max', __( 'Die maximale Anzahl pro Bestellung muss zwischen 1 und 100 liegen.', 'pass-captain' ) ); }
+		if ( $max < 1 || $max > 100 ) { return Forms::error( 'wpcap_type_max', __( 'Die maximale Anzahl pro Bestellung muss zwischen 1 und 100 liegen.', 'pass-captain' ), 400, 'max_per_order' ); }
 		$sales = array();
 		foreach ( array( 'sales_start', 'sales_end' ) as $key ) {
 			$raw = trim( (string) ( $in[ $key ] ?? '' ) );
 			$sales[ $key ] = '' === $raw ? null : Forms::local_to_utc( $raw, $occ->timezone );
-			if ( '' !== $raw && null === $sales[ $key ] ) { return Forms::error( 'wpcap_type_sales', __( 'Der Verkaufszeitraum ist ungültig.', 'pass-captain' ) ); }
+			if ( '' !== $raw && null === $sales[ $key ] ) {
+				return Forms::error( 'wpcap_type_sales', 'sales_start' === $key ? __( 'Der Verkaufsstart ist ungültig.', 'pass-captain' ) : __( 'Das Verkaufsende ist ungültig.', 'pass-captain' ), 400, $key );
+			}
 		}
 		if ( $sales['sales_start'] && $sales['sales_end'] && $sales['sales_end'] <= $sales['sales_start'] ) {
-			return Forms::error( 'wpcap_type_sales', __( 'Das Verkaufsende muss nach dem Verkaufsstart liegen.', 'pass-captain' ) );
+			return Forms::error( 'wpcap_type_sales', __( 'Das Verkaufsende muss nach dem Verkaufsstart liegen.', 'pass-captain' ), 400, 'sales_end' );
 		}
 		$checks = \PassCaptain\AdmissionChecks::parse( $in );
 		if ( is_wp_error( $checks ) ) { return Forms::error( $checks->get_error_code(), $checks->get_error_message() ); }
@@ -1030,20 +1045,26 @@ final class EventsPage {
 
 		<h2 id="wpcap-create-event"><?php esc_html_e( 'Event anlegen', 'pass-captain' ); ?></h2>
 		<p><?php esc_html_e( 'Neue Events starten als Entwurf. Zeiten werden in der gewählten Zeitzone eingegeben.', 'pass-captain' ); ?></p>
-		<?php Forms::open_form( 'wpcap_create_event' ); ?>
+		<?php
+		// A297: after a validation error the form shows the input again and marks the field.
+		$old = Forms::old( 'wpcap_create_event' );
+		$v = static function ( $key, $default ) use ( $old ) { return Forms::old_value( $old, $key, $default ); };
+		$bad = static function ( $key ) use ( $old ) { return Forms::invalid_attr( $old, $key ); };
+		Forms::open_form( 'wpcap_create_event' );
+		?>
 			<table class="form-table"><tbody>
-			<tr><th><label for="wpcap-name"><?php esc_html_e( 'Eventname', 'pass-captain' ); ?></label></th><td><input id="wpcap-name" name="name" type="text" class="regular-text" required maxlength="190"></td></tr>
-			<tr><th><label for="wpcap-description"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-description" name="description" class="large-text" rows="4"></textarea></td></tr>
-			<tr><th><label for="wpcap-start"><?php esc_html_e( 'Beginn', 'pass-captain' ); ?></label></th><td><input id="wpcap-start" name="starts_at" type="datetime-local" required> <?php Forms::timezone_select( 'timezone', wp_timezone_string() ); ?></td></tr>
-			<tr><th><label for="wpcap-end"><?php esc_html_e( 'Ende (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-end" name="ends_at" type="datetime-local"></td></tr>
-			<tr><th><label for="wpcap-repeat"><?php esc_html_e( 'Terminserie', 'pass-captain' ); ?></label></th><td><select id="wpcap-repeat" name="repeat_frequency"><option value="none"><?php esc_html_e( 'Einmalig', 'pass-captain' ); ?></option><option value="weekly"><?php esc_html_e( 'Wöchentlich', 'pass-captain' ); ?></option></select> <label><?php esc_html_e( 'Anzahl Termine (max. 12)', 'pass-captain' ); ?> <input type="number" name="repeat_count" min="1" max="12" value="1"></label></td></tr>
-			<tr><th><label for="wpcap-location"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></label></th><td><input id="wpcap-location" name="location" type="text" class="regular-text" maxlength="190"></td></tr>
-			<tr><th><label for="wpcap-event-capacity"><?php esc_html_e( 'Kontingent pro Termin', 'pass-captain' ); ?></label></th><td><input id="wpcap-event-capacity" name="event_capacity" type="number" min="0" value="0"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-type-name"><?php esc_html_e( 'Ticketkategorie', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-name" name="ticket_name" type="text" value="Standard" required maxlength="190"></td></tr>
-			<tr><th><label for="wpcap-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-price" name="price" type="text" inputmode="decimal" value="0,00" required size="10"> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), 'EUR', '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' ); ?></td></tr>
-			<tr><th><label for="wpcap-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tax" name="tax_rate" type="text" inputmode="decimal" value="0" size="6"> <span class="description"><?php esc_html_e( 'z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-type-capacity"><?php esc_html_e( 'Ticketkontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-capacity" name="ticket_capacity" type="number" min="0" value="0"></td></tr>
-			<tr><th><label for="wpcap-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), 'draft', 'wpcap-status' ); ?></td></tr>
+			<tr><th><label for="wpcap-name"><?php esc_html_e( 'Eventname', 'pass-captain' ); ?></label></th><td><input id="wpcap-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $v( 'name', '' ) ); ?>"<?php echo $bad( 'name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-description"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-description" name="description" class="large-text" rows="4"><?php echo esc_textarea( $v( 'description', '' ) ); ?></textarea></td></tr>
+			<tr><th><label for="wpcap-start"><?php esc_html_e( 'Beginn', 'pass-captain' ); ?></label></th><td><input id="wpcap-start" name="starts_at" type="datetime-local" required value="<?php echo esc_attr( $v( 'starts_at', '' ) ); ?>"<?php echo $bad( 'starts_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::timezone_select( 'timezone', $v( 'timezone', wp_timezone_string() ), '', 'aria-label="' . esc_attr__( 'Zeitzone', 'pass-captain' ) . '"' . $bad( 'timezone' ) ); ?></td></tr>
+			<tr><th><label for="wpcap-end"><?php esc_html_e( 'Ende (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-end" name="ends_at" type="datetime-local" value="<?php echo esc_attr( $v( 'ends_at', '' ) ); ?>"<?php echo $bad( 'ends_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-repeat"><?php esc_html_e( 'Terminserie', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'repeat_frequency', array( 'none' => __( 'Einmalig', 'pass-captain' ), 'weekly' => __( 'Wöchentlich', 'pass-captain' ) ), $v( 'repeat_frequency', 'none' ), 'wpcap-repeat' ); ?> <label><?php esc_html_e( 'Anzahl Termine (max. 12)', 'pass-captain' ); ?> <input type="number" name="repeat_count" min="1" max="12" value="<?php echo esc_attr( $v( 'repeat_count', '1' ) ); ?>"></label></td></tr>
+			<tr><th><label for="wpcap-location"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></label></th><td><input id="wpcap-location" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $v( 'location', '' ) ); ?>"></td></tr>
+			<tr><th><label for="wpcap-event-capacity"><?php esc_html_e( 'Kontingent pro Termin', 'pass-captain' ); ?></label></th><td><input id="wpcap-event-capacity" name="event_capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'event_capacity', '0' ) ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-type-name"><?php esc_html_e( 'Ticketkategorie', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-name" name="ticket_name" type="text" value="<?php echo esc_attr( $v( 'ticket_name', 'Standard' ) ); ?>" required maxlength="190"<?php echo $bad( 'ticket_name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-price" name="price" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'price', '0,00' ) ); ?>" required size="10"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $v( 'currency', 'EUR' ), '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?></td></tr>
+			<tr><th><label for="wpcap-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tax" name="tax_rate" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'tax_rate', '0' ) ); ?>" size="6"<?php echo $bad( 'tax_rate' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-type-capacity"><?php esc_html_e( 'Ticketkontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-capacity" name="ticket_capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'ticket_capacity', '0' ) ); ?>"></td></tr>
+			<tr><th><label for="wpcap-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $v( 'status', 'draft' ), 'wpcap-status' ); ?></td></tr>
 			</tbody></table>
 			<?php submit_button( __( 'Event speichern', 'pass-captain' ) ); ?>
 		</form>
@@ -1093,11 +1114,15 @@ final class EventsPage {
 
 		<h2><?php esc_html_e( 'Eventdaten', 'pass-captain' ); ?></h2>
 		<?php if ( $editable ) : ?>
-			<?php Forms::open_form( 'wpcap_update_event' ); Forms::hidden( 'event_id', $event->event_id ); ?>
+			<?php
+			$old = Forms::old( 'wpcap_update_event', array( 'event_id' => (int) $event->event_id ) ); // A297.
+			Forms::open_form( 'wpcap_update_event' );
+			Forms::hidden( 'event_id', $event->event_id );
+			?>
 			<table class="form-table"><tbody>
-				<tr><th><label for="wpcap-ev-name"><?php esc_html_e( 'Eventname', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $event->name ); ?>"></td></tr>
-				<tr><th><label for="wpcap-ev-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-ev-desc" name="description" class="large-text" rows="5"><?php echo esc_textarea( $event->description ); ?></textarea></td></tr>
-				<tr><th><label for="wpcap-ev-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $event->status, 'wpcap-ev-status' ); ?></td></tr>
+				<tr><th><label for="wpcap-ev-name"><?php esc_html_e( 'Eventname', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( Forms::old_value( $old, 'name', $event->name ) ); ?>"<?php echo Forms::invalid_attr( $old, 'name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+				<tr><th><label for="wpcap-ev-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-ev-desc" name="description" class="large-text" rows="5"><?php echo esc_textarea( Forms::old_value( $old, 'description', (string) $event->description ) ); ?></textarea></td></tr>
+				<tr><th><label for="wpcap-ev-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), Forms::old_value( $old, 'status', $event->status ), 'wpcap-ev-status' ); ?></td></tr>
 				<?php if ( Revisions::ready() ) : ?>
 				<tr><th scope="row"><?php esc_html_e( 'Änderungsmitteilungen', 'pass-captain' ); ?></th><td><?php Forms::hidden( 'notify_changes_shown', 1 ); ?><label><input type="checkbox" name="notify_changes" value="1"<?php checked( 1 === (int) ( $event->notify_changes ?? 1 ) ); ?>> <?php esc_html_e( 'Ticketinhaber:innen per E-Mail informieren, wenn sich Zeit, Ort oder Einlass eines Termins ändern (mit aktualisierter Kalenderdatei)', 'pass-captain' ); ?></label><p class="description"><?php esc_html_e( 'Absagen werden unabhängig davon immer mitgeteilt.', 'pass-captain' ); ?></p></td></tr>
 				<?php endif; ?>
@@ -1167,20 +1192,23 @@ final class EventsPage {
 
 	private static function occurrence_form( $occ, $event_id, $default_tz ) {
 		$tz = $occ ? $occ->timezone : $default_tz;
+		// A297: input of a failed save of exactly this form (new date or this date) is shown again.
+		$old = Forms::old( 'wpcap_save_occurrence', array( 'event_id' => (int) $event_id, 'occurrence_id' => $occ ? (int) $occ->occurrence_id : 0 ) );
+		$tz = Forms::old_value( $old, 'timezone', $tz );
 		Forms::open_form( 'wpcap_save_occurrence' );
 		Forms::hidden( 'event_id', $event_id );
 		Forms::hidden( 'occurrence_id', $occ ? $occ->occurrence_id : 0 );
 		?>
 		<table class="form-table"><tbody>
-			<tr><th><label for="wpcap-occ-start"><?php esc_html_e( 'Beginn (Ortszeit)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-start" name="starts_at" type="datetime-local" required value="<?php echo esc_attr( $occ ? Forms::utc_to_local( $occ->starts_at, $tz ) : '' ); ?>"></td></tr>
-			<tr><th><label for="wpcap-occ-end"><?php esc_html_e( 'Ende (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-end" name="ends_at" type="datetime-local" value="<?php echo esc_attr( $occ ? Forms::utc_to_local( $occ->ends_at, $tz ) : '' ); ?>"></td></tr>
-			<tr><th><label for="wpcap-occ-doors"><?php esc_html_e( 'Einlass ab (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-doors" name="doors_open_at" type="datetime-local" aria-describedby="wpcap-occ-doors-help" value="<?php echo esc_attr( $occ && ! empty( $occ->doors_open_at ) ? Forms::utc_to_local( $occ->doors_open_at, $tz ) : '' ); ?>"> <span class="description" id="wpcap-occ-doors-help"><?php esc_html_e( 'Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn.', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-occ-tz"><?php esc_html_e( 'Zeitzone', 'pass-captain' ); ?></label></th><td><?php Forms::timezone_select( 'timezone', $tz, 'wpcap-occ-tz' ); ?></td></tr>
-			<tr><th><label for="wpcap-occ-loc"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-loc" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $occ ? $occ->location : '' ); ?>"></td></tr>
+			<tr><th><label for="wpcap-occ-start"><?php esc_html_e( 'Beginn (Ortszeit)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-start" name="starts_at" type="datetime-local" required value="<?php echo esc_attr( Forms::old_value( $old, 'starts_at', $occ ? Forms::utc_to_local( $occ->starts_at, $tz ) : '' ) ); ?>"<?php echo Forms::invalid_attr( $old, 'starts_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-occ-end"><?php esc_html_e( 'Ende (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-end" name="ends_at" type="datetime-local" value="<?php echo esc_attr( Forms::old_value( $old, 'ends_at', $occ ? Forms::utc_to_local( $occ->ends_at, $tz ) : '' ) ); ?>"<?php echo Forms::invalid_attr( $old, 'ends_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-occ-doors"><?php esc_html_e( 'Einlass ab (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-doors" name="doors_open_at" type="datetime-local" aria-describedby="wpcap-occ-doors-help" value="<?php echo esc_attr( Forms::old_value( $old, 'doors_open_at', $occ && ! empty( $occ->doors_open_at ) ? Forms::utc_to_local( $occ->doors_open_at, $tz ) : '' ) ); ?>"<?php echo Forms::invalid_attr( $old, 'doors_open_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description" id="wpcap-occ-doors-help"><?php esc_html_e( 'Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn.', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-occ-tz"><?php esc_html_e( 'Zeitzone', 'pass-captain' ); ?></label></th><td><?php Forms::timezone_select( 'timezone', $tz, 'wpcap-occ-tz', 'aria-label="' . esc_attr__( 'Zeitzone', 'pass-captain' ) . '"' . Forms::invalid_attr( $old, 'timezone' ) ); ?></td></tr>
+			<tr><th><label for="wpcap-occ-loc"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-loc" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( Forms::old_value( $old, 'location', $occ ? $occ->location : '' ) ); ?>"></td></tr>
 			<?php if ( \PassCaptain\Tax\Profiles::ready() ) : ?>
-			<tr><th><label for="wpcap-occ-country"><?php esc_html_e( 'Veranstaltungsland', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-country" name="venue_country" type="text" size="3" maxlength="2" pattern="[A-Za-z]{2}" style="text-transform:uppercase" aria-describedby="wpcap-occ-country-help" value="<?php echo esc_attr( $occ ? (string) ( $occ->venue_country ?? '' ) : '' ); ?>"> <span class="description" id="wpcap-occ-country-help"><?php echo esc_html( sprintf( /* translators: %s: seller country code from the settings */ __( 'ISO-Code, z. B. AT. Leistungsort für die Umsatzsteuer auf Eintrittskarten (Steuerprofile). Leer = Land des Rechnungsstellers (%s).', 'pass-captain' ), \PassCaptain\Tax\Profiles::seller_country() ) ); ?></span></td></tr>
+			<tr><th><label for="wpcap-occ-country"><?php esc_html_e( 'Veranstaltungsland', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-country" name="venue_country" type="text" size="3" maxlength="2" pattern="[A-Za-z]{2}" style="text-transform:uppercase" aria-describedby="wpcap-occ-country-help" value="<?php echo esc_attr( Forms::old_value( $old, 'venue_country', $occ ? (string) ( $occ->venue_country ?? '' ) : '' ) ); ?>"> <span class="description" id="wpcap-occ-country-help"><?php echo esc_html( sprintf( /* translators: %s: seller country code from the settings */ __( 'ISO-Code, z. B. AT. Leistungsort für die Umsatzsteuer auf Eintrittskarten (Steuerprofile). Leer = Land des Rechnungsstellers (%s).', 'pass-captain' ), \PassCaptain\Tax\Profiles::seller_country() ) ); ?></span></td></tr>
 			<?php endif; ?>
-			<tr><th><label for="wpcap-occ-cap"><?php esc_html_e( 'Kontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $occ ? (int) $occ->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-occ-cap"><?php esc_html_e( 'Kontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( Forms::old_value( $old, 'capacity', (string) ( $occ ? (int) $occ->capacity : 0 ) ) ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
 			<?php if ( $occ ) : ?>
 			<tr><th scope="row"><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $occ->status ) ); ?>
 				<?php if ( 'cancelled' === $occ->status ) : ?>
@@ -1291,28 +1319,37 @@ final class EventsPage {
 	}
 
 	private static function ticket_type_form( $type, $occ ) {
-		$currency = $type ? $type->currency : 'EUR';
+		// A297: input of a failed save of exactly this form (new type or this type) is shown again.
+		$old = Forms::old( 'wpcap_save_ticket_type', array( 'occurrence_id' => (int) $occ->occurrence_id, 'ticket_type_id' => $type ? (int) $type->ticket_type_id : 0 ) );
+		$v = static function ( $key, $default ) use ( $old ) { return Forms::old_value( $old, $key, $default ); };
+		$bad = static function ( $key ) use ( $old ) { return Forms::invalid_attr( $old, $key ); };
+		$currency = $v( 'currency', $type ? $type->currency : 'EUR' );
 		Forms::open_form( 'wpcap_save_ticket_type' );
 		Forms::hidden( 'occurrence_id', $occ->occurrence_id );
 		Forms::hidden( 'ticket_type_id', $type ? $type->ticket_type_id : 0 );
 		?>
 		<table class="form-table"><tbody>
-			<tr><th><label for="wpcap-tt-name"><?php esc_html_e( 'Name', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $type ? $type->name : '' ); ?>"></td></tr>
-			<tr><th><label for="wpcap-tt-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( Forms::money_input( $type ? $type->price_minor : 0, Forms::currency_decimals( $currency ) ) ); ?>"> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $currency ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-tt-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-tax" name="tax_rate" type="text" inputmode="decimal" size="6" value="<?php echo esc_attr( Forms::percent_input( $type ? $type->tax_rate_bp : 0 ) ); ?>"> <span class="description"><?php esc_html_e( 'Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-tt-taxclass"><?php esc_html_e( 'Steuerklasse (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-taxclass" name="tax_class" type="text" size="16" maxlength="64" pattern="[a-z0-9_-]*" aria-describedby="wpcap-tt-taxclass-help" value="<?php echo esc_attr( $type ? (string) ( $type->tax_class ?? '' ) : '' ); ?>"> <span class="description" id="wpcap-tt-taxclass-help"><?php esc_html_e( 'z. B. culture. Gibt es für das Veranstaltungsland ein aktives Steuerprofil dieser Klasse, gilt dessen Satz; sonst der Steuersatz oben.', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-tt-cap"><?php esc_html_e( 'Kontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $type ? (int) $type->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $type ? (int) $type->max_per_order : 10 ); ?>"></td></tr>
-			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
-			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termine) gilt online höchstens bis Terminende', 'pass-captain' ); ?></span></td></tr>
-			<?php $checks = \PassCaptain\AdmissionChecks::for_type( $type ? $type : 0 ); ?>
+			<tr><th><label for="wpcap-tt-name"><?php esc_html_e( 'Name', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $v( 'name', $type ? $type->name : '' ) ); ?>"<?php echo $bad( 'name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-tt-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( $v( 'price', Forms::money_input( $type ? $type->price_minor : 0, Forms::currency_decimals( $currency ) ) ) ); ?>"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $currency, '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-tax" name="tax_rate" type="text" inputmode="decimal" size="6" value="<?php echo esc_attr( $v( 'tax_rate', Forms::percent_input( $type ? $type->tax_rate_bp : 0 ) ) ); ?>"<?php echo $bad( 'tax_rate' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-taxclass"><?php esc_html_e( 'Steuerklasse (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-taxclass" name="tax_class" type="text" size="16" maxlength="64" pattern="[a-z0-9_-]*" aria-describedby="wpcap-tt-taxclass-help" value="<?php echo esc_attr( $v( 'tax_class', $type ? (string) ( $type->tax_class ?? '' ) : '' ) ); ?>"> <span class="description" id="wpcap-tt-taxclass-help"><?php esc_html_e( 'z. B. culture. Gibt es für das Veranstaltungsland ein aktives Steuerprofil dieser Klasse, gilt dessen Satz; sonst der Steuersatz oben.', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-cap"><?php esc_html_e( 'Kontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'capacity', (string) ( $type ? (int) $type->capacity : 0 ) ) ); ?>"<?php echo $bad( 'capacity' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $v( 'max_per_order', (string) ( $type ? (int) $type->max_per_order : 10 ) ) ); ?>"<?php echo $bad( 'max_per_order' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $v( 'sales_start', $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ) ); ?>"<?php echo $bad( 'sales_start' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $v( 'sales_end', $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ) ); ?>"<?php echo $bad( 'sales_end' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termine) gilt online höchstens bis Terminende', 'pass-captain' ); ?></span></td></tr>
+			<?php
+			$checks = \PassCaptain\AdmissionChecks::for_type( $type ? $type : 0 );
+			if ( $old ) {
+				$checks = array( 'id_check' => Forms::old_flag( $old, 'id_check', false ), 'min_age' => (int) $v( 'min_age', '0' ), 'staff_note' => $v( 'staff_note', '' ) ) + $checks;
+			}
+			?>
 			<tr><th><?php esc_html_e( 'Einlasskontrolle', 'pass-captain' ); ?></th><td>
 				<label><input type="checkbox" name="id_check" value="1" <?php echo $checks['id_check'] ? 'checked' : ''; ?>> <?php esc_html_e( 'Ausweis prüfen', 'pass-captain' ); ?></label><br>
 				<label><?php esc_html_e( 'Mindestalter', 'pass-captain' ); ?> <input name="min_age" type="number" min="0" max="99" class="small-text" value="<?php echo esc_attr( $checks['min_age'] ? (string) $checks['min_age'] : '' ); ?>"></label><br>
 				<label><?php esc_html_e( 'Hinweis für das Einlasspersonal', 'pass-captain' ); ?> <input name="staff_note" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $checks['staff_note'] ); ?>"></label>
 				<p class="description"><?php esc_html_e( 'Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt.', 'pass-captain' ); ?></p>
 			</td></tr>
-			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $type ? $type->status : 'active', 'wpcap-tt-status' ); ?></td></tr>
+			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $v( 'status', $type ? $type->status : 'active' ), 'wpcap-tt-status' ); ?></td></tr>
 		</tbody></table>
 		<?php submit_button( $type ? __( 'Ticketart speichern', 'pass-captain' ) : __( 'Ticketart hinzufügen', 'pass-captain' ) ); ?>
 		</form>

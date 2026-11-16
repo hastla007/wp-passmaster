@@ -2,6 +2,14 @@
 
 Die öffentliche Checkout- und Scanner-Oberfläche enthält Statusmeldungen mit `aria-live`, sichtbare Tastaturfokusse, Mindesthöhen für Schaltflächen und eine Reduced-Motion-Regel. Das ist eine Implementierungsbasis, keine WCAG-Konformitätsaussage.
 
+**Admin-Formulare mit Fehlern (A297):** Scheitert das Speichern von „Event anlegen“, Eventdaten, Termin oder
+Ticketart an einer Eingabe, nennt die Fehlermeldung das betroffene Feld; nach der Weiterleitung zeigt das
+Formular die Eingaben wieder an und markiert das Feld mit `aria-invalid="true"` und Fokus (`autofocus`). Die
+Eingaben liegen dafür fünf Minuten in einem Transient des Benutzers (`Forms::remember_input()`, ohne Nonce,
+Referer und schlüsselartige Felder) und werden beim ersten Anzeigen genau dieses Formulars verbraucht. Nur
+Formulare aus `Forms::remember_input_actions()` (Filter `wpcap_admin_remember_input_actions`) speichern
+Eingaben.
+
 Vor 1.0 sind manuelle Tastatur- und Screenreader-Prüfungen für Checkout, Scanner und WordPress-Admin nötig. Dabei müssen Fehlertexte, Fokusreihenfolge, Zoom bis 200 %, Kontrast, QR-Code-Fallback und Kamera-Berechtigungsfehler geprüft werden. Automatische Prüfungen allein reichen nicht.
 
 ## Checkout-Formular

@@ -329,9 +329,101 @@ final class Forms {
 		return array_values( array_unique( array_filter( array_map( 'sanitize_key', array_filter( $value, 'is_scalar' ) ) ) ) );
 	}
 
-	/** Builds a WP_Error for admin handlers. */
-	public static function error( $code, $message, $status = 400 ) {
-		return new \WP_Error( $code, $message, array( 'status' => $status ) );
+	/**
+	 * Builds a WP_Error for admin handlers.
+	 *
+	 * @param string $code    Error code.
+	 * @param string $message Message (names the field, A297).
+	 * @param int    $status  HTTP status.
+	 * @param string $field   Name of the form field the error belongs to ('' = none); the form marks it.
+	 */
+	public static function error( $code, $message, $status = 400, $field = '' ) {
+		$data = array( 'status' => $status );
+		if ( '' !== (string) $field ) { $data['field'] = (string) $field; }
+		return new \WP_Error( $code, $message, $data );
+	}
+
+	/** The same error with the form field it belongs to (e.g. a DST error of a date field). */
+	public static function with_field( \WP_Error $error, $field ) {
+		$data = $error->get_error_data();
+		return self::error( $error->get_error_code(), $error->get_error_message(), is_array( $data ) ? (int) ( $data['status'] ?? 400 ) : 400, $field );
+	}
+
+	/* ---------------------------------------------------------------------------------------------
+	 * Input of a failed form (A297): kept for one redisplay instead of being discarded.
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** Transient prefix (per user) of the input of the last failed form. */
+	const OLD_INPUT = 'wpcap_admin_old_input_';
+
+	/**
+	 * admin-post actions whose input is kept after a validation error (filter
+	 * `wpcap_admin_remember_input_actions`). Only forms that show it again are listed, so no other
+	 * input (attendee data, credentials) is stored.
+	 *
+	 * @return string[]
+	 */
+	public static function remember_input_actions() {
+		return (array) apply_filters( 'wpcap_admin_remember_input_actions', array( 'wpcap_create_event', 'wpcap_update_event', 'wpcap_save_occurrence', 'wpcap_save_ticket_type' ) );
+	}
+
+	/**
+	 * Keeps the submitted input of a failed form for five minutes (current user only) together with
+	 * the field the error names. Hidden WordPress fields and secret-like keys are never stored.
+	 */
+	public static function remember_input( \WP_Error $error, ?array $post = null ) {
+		$post = null === $post ? self::post() : $post;
+		$action = isset( $post['action'] ) && is_scalar( $post['action'] ) ? sanitize_key( (string) $post['action'] ) : '';
+		if ( '' === $action || ! in_array( $action, self::remember_input_actions(), true ) ) { return false; }
+		$input = array();
+		foreach ( $post as $key => $value ) {
+			$key = (string) $key;
+			if ( '' === $key || '_' === $key[0] || 'action' === $key || preg_match( '/(secret|password|token|nonce|_key$)/i', $key ) ) { continue; }
+			if ( is_scalar( $value ) ) {
+				$input[ $key ] = substr( (string) $value, 0, 20000 );
+			} elseif ( is_array( $value ) ) {
+				$input[ $key ] = array_map( 'strval', array_slice( array_filter( $value, 'is_scalar' ), 0, 200, true ) );
+			}
+		}
+		$data = $error->get_error_data();
+		$field = is_array( $data ) && isset( $data['field'] ) && is_scalar( $data['field'] ) ? sanitize_key( (string) $data['field'] ) : '';
+		set_transient( self::OLD_INPUT . get_current_user_id(), array( 'action' => $action, 'input' => $input, 'field' => $field ), 5 * MINUTE_IN_SECONDS );
+		return true;
+	}
+
+	/**
+	 * Input kept for a form (once; it is removed when a form takes it). $match ties it to one form
+	 * instance, e.g. array( 'ticket_type_id' => 12 ) for the edit form of one ticket type.
+	 *
+	 * @param string $action admin-post action of the form.
+	 * @param array  $match  Hidden field values the kept input must have.
+	 * @return array input, field – or array() when nothing is kept for this form.
+	 */
+	public static function old( $action, array $match = array() ) {
+		$key = self::OLD_INPUT . get_current_user_id();
+		$stored = get_transient( $key );
+		if ( ! is_array( $stored ) || ( $stored['action'] ?? '' ) !== $action ) { return array(); }
+		$input = (array) ( $stored['input'] ?? array() );
+		foreach ( $match as $name => $value ) {
+			if ( (string) ( $input[ $name ] ?? '' ) !== (string) $value ) { return array(); }
+		}
+		delete_transient( $key );
+		return array( 'input' => $input, 'field' => (string) ( $stored['field'] ?? '' ) );
+	}
+
+	/** Kept value of a field, else $default (the stored value). */
+	public static function old_value( array $old, $key, $default ) {
+		return $old && array_key_exists( $key, $old['input'] ) && is_scalar( $old['input'][ $key ] ) ? (string) $old['input'][ $key ] : $default;
+	}
+
+	/** Kept state of a checkbox, else $default. A kept form without the box means unticked. */
+	public static function old_flag( array $old, $key, $default ) {
+		return $old ? ! empty( $old['input'][ $key ] ) : (bool) $default;
+	}
+
+	/** ' aria-invalid="true" autofocus' for the field the error named. */
+	public static function invalid_attr( array $old, $key ) {
+		return $old && $key === $old['field'] ? ' aria-invalid="true" autofocus' : '';
 	}
 
 	/** Standard "no permission" error. */
@@ -403,6 +495,7 @@ final class Forms {
 				wp_die( esc_html( $result->get_error_message() ), '', array( 'response' => 403, 'back_link' => true ) );
 			}
 			self::flash( 'error', $result->get_error_message() );
+			self::remember_input( $result ); // A297: the form shows the input again.
 			self::redirect( '' !== $error_url ? $error_url : $url );
 		}
 		if ( '' !== $success ) { self::flash( 'success', $success ); }
