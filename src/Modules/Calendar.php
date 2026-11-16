@@ -135,6 +135,7 @@ final class Calendar {
 	 */
 	public static function occurrences( $from_utc, $to_utc, $event_id = 0, $limit = 200, $with_cancelled = false ) {
 		global $wpdb;
+		if ( (int) $event_id < 0 ) { return array(); } // A503: invalid event attribute – no dates rather than all.
 		$p = $wpdb->prefix;
 		$status = $with_cancelled ? "o.status IN ('scheduled','cancelled')" : "o.status='scheduled'";
 		$sql = "SELECT o.*,e.name AS event_name," . EventCard::rescheduled_sql( 'o' ) . " AS rescheduled_at FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status='published' AND $status AND o.starts_at>=%s AND o.starts_at<%s";
@@ -145,9 +146,27 @@ final class Calendar {
 		return $wpdb->get_results( $wpdb->prepare( $sql, $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built from literals.
 	}
 
-	public static function render_shortcode( $atts = array() ) {
-		$atts = function_exists( 'shortcode_atts' ) ? shortcode_atts( array( 'view' => 'month', 'event' => 0, 'limit' => 50 ), (array) $atts, 'wp_pass_captain_calendar' ) : array_merge( array( 'view' => 'month', 'event' => 0, 'limit' => 50 ), (array) $atts );
-		return self::render_view( 'list' === $atts['view'] ? 'list' : 'month', absint( $atts['event'] ), absint( $atts['limit'] ), false );
+	/**
+	 * [wpcap_calendar view="month|list" event="12" limit="50"]. A503: the attribute filter runs under
+	 * the tag used (shortcode_atts_wpcap_calendar, plus the long name), an invalid event shows no
+	 * dates instead of all events, and editors see a hint for every invalid attribute.
+	 */
+	public static function render_shortcode( $atts = array(), $content = '', $tag = '' ) {
+		$raw = is_array( $atts ) ? $atts : array();
+		$defaults = array( 'view' => 'month', 'event' => 0, 'limit' => 50 );
+		$atts = function_exists( 'shortcode_atts' ) ? \PassCaptain\PublicEvents::shortcode_atts( $defaults, $raw, $tag, 'wp_pass_captain_calendar' ) : array_merge( $defaults, $raw );
+		$problems = \PassCaptain\PublicEvents::invalid_shortcode_atts( $atts, array( 'view' => array( 'month', 'list' ), 'event' => 'id', 'limit' => 'count' ), $raw );
+		$event = isset( $problems['event'] ) ? -1 : absint( $atts['event'] );
+		$limit = isset( $problems['limit'] ) ? 50 : absint( $atts['limit'] );
+		$html = self::render_view( 'list' === strtolower( trim( (string) $atts['view'] ) ) ? 'list' : 'month', $event, $limit, false );
+		if ( ! $problems && $event > 0 && \PassCaptain\PublicEvents::can_see_shortcode_notice() && ! self::event_is_public( $event ) ) { $problems['event'] = (string) $event; }
+		return \PassCaptain\PublicEvents::shortcode_notice( $problems, '' !== (string) $tag ? (string) $tag : 'wp_pass_captain_calendar' ) . $html;
+	}
+
+	/** Whether an event is published (A503 hint for a calendar of an unknown event). */
+	private static function event_is_public( $event_id ) {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d AND status='published'", absint( $event_id ) ) );
 	}
 
 	/**

@@ -268,9 +268,90 @@ final class PublicEvents {
 	 * occurrences, optionally only of one event or one occurrence (also the block attributes).
 	 * A342: one card per event by default (dates="each": one card per date as before).
 	 */
-	public static function render_shortcode( $atts = array() ) {
-		$atts = shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50, 'dates' => '' ), is_array( $atts ) ? $atts : array(), 'wp_pass_captain_events' );
-		return self::render_listing( $atts, '' );
+	public static function render_shortcode( $atts = array(), $content = '', $tag = '' ) {
+		$raw = is_array( $atts ) ? $atts : array();
+		$atts = self::shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50, 'dates' => '' ), $raw, $tag, 'wp_pass_captain_events' );
+		// A503: an invalid value no longer falls back silently to "all events" (or the defaults).
+		$problems = self::invalid_shortcode_atts( $atts, array( 'event' => 'id', 'occurrence' => 'id', 'limit' => 'count', 'dates' => array( '', 'each' ) ), $raw );
+		$broken = isset( $problems['event'] ) || isset( $problems['occurrence'] );
+		foreach ( array_keys( $problems ) as $key ) { $atts[ $key ] = 'limit' === $key ? 50 : ( 'dates' === $key ? '' : 0 ); }
+		$atts['none'] = $broken;
+		$html = self::render_listing( $atts, '' );
+		if ( ! $problems && false !== strpos( $html, 'wpcap-events-empty' ) && self::can_see_shortcode_notice() ) {
+			$problems = self::unknown_shortcode_ids( $atts );
+		}
+		return self::shortcode_notice( $problems, '' !== (string) $tag ? (string) $tag : 'wp_pass_captain_events' ) . $html;
+	}
+
+	/**
+	 * shortcode_atts() with the filter tag of the shortcode actually used (A503: [wpcap_events] runs
+	 * `shortcode_atts_wpcap_events`); the filter of the long name (`shortcode_atts_{$legacy}`) still
+	 * runs for the short name, so existing filters keep working.
+	 */
+	public static function shortcode_atts( array $pairs, array $atts, $tag, $legacy ) {
+		$tag = '' !== (string) $tag ? (string) $tag : (string) $legacy;
+		$out = shortcode_atts( $pairs, $atts, $tag );
+		if ( $tag !== $legacy && function_exists( 'apply_filters' ) ) { $out = (array) apply_filters( 'shortcode_atts_' . $legacy, $out, $pairs, $atts, $legacy ); }
+		return $out;
+	}
+
+	/**
+	 * Attributes that were given with an unusable value (A503): rule "id" (positive integer or 0),
+	 * "count" (positive integer) or a list of allowed values. Only attributes present in $raw count.
+	 *
+	 * @return array key => given value.
+	 */
+	public static function invalid_shortcode_atts( array $atts, array $rules, array $raw ) {
+		$out = array();
+		foreach ( $rules as $key => $rule ) {
+			if ( ! array_key_exists( $key, $raw ) ) { continue; }
+			$value = is_scalar( $atts[ $key ] ) ? trim( (string) $atts[ $key ] ) : '';
+			$ok = is_array( $rule ) ? in_array( strtolower( $value ), $rule, true ) : ( 1 === preg_match( '/^\d{1,10}$/', $value ) && ( 'id' === $rule || (int) $value > 0 ) );
+			if ( ! $ok ) { $out[ $key ] = is_scalar( $atts[ $key ] ) ? (string) $atts[ $key ] : ''; }
+		}
+		return $out;
+	}
+
+	/** Whether the visitor may see shortcode hints (editors; never in feeds or REST output). */
+	public static function can_see_shortcode_notice() {
+		if ( ( function_exists( 'is_feed' ) && is_feed() ) || ( defined( 'REST_REQUEST' ) && REST_REQUEST && ! self::is_block_preview() ) ) { return false; }
+		return function_exists( 'current_user_can' ) && current_user_can( 'edit_posts' );
+	}
+
+	/** event/occurrence ids of the shortcode that are not (or no longer) public: key => id. */
+	private static function unknown_shortcode_ids( array $atts ) {
+		global $wpdb;
+		$out = array();
+		$event = absint( $atts['event'] ?? 0 );
+		$occurrence = absint( $atts['occurrence'] ?? 0 );
+		if ( $event && ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d AND status='published'", $event ) ) ) { $out['event'] = (string) $event; }
+		if ( $occurrence && ! $wpdb->get_var( $wpdb->prepare( "SELECT o.occurrence_id FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND e.status='published'", $occurrence ) ) ) { $out['occurrence'] = (string) $occurrence; }
+		return $out;
+	}
+
+	/**
+	 * Hint for editors above a shortcode with unusable attributes (A503); visitors see nothing.
+	 *
+	 * @param array  $problems key => given value.
+	 * @param string $tag      Shortcode name.
+	 */
+	public static function shortcode_notice( array $problems, $tag ) {
+		if ( ! $problems || ! self::can_see_shortcode_notice() ) { return ''; }
+		$items = array();
+		foreach ( $problems as $key => $value ) {
+			/* translators: 1: attribute name, 2: value as written in the shortcode */
+			$items[] = sprintf( __( '%1$s="%2$s" ist ungültig oder verweist auf nichts Veröffentlichtes', 'pass-captain' ), $key, $value );
+		}
+		/* translators: 1: shortcode name, 2: list of problems */
+		$text = sprintf( __( 'Hinweis für Redakteur:innen zum Shortcode [%1$s]: %2$s. Besucher sehen diesen Hinweis nicht.', 'pass-captain' ), $tag, implode( '; ', $items ) );
+		return '<p class="wpcap-shortcode-notice" role="note">' . esc_html( $text ) . '</p>';
+	}
+
+	/** Whether the request renders the block preview of the editor (REST block renderer). */
+	public static function is_block_preview() {
+		$uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only compared.
+		$route = isset( $_GET['rest_route'] ) && is_string( $_GET['rest_route'] ) ? sanitize_text_field( wp_unslash( $_GET['rest_route'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only compared.
+		return false !== strpos( $uri . ' ' . $route, '/block-renderer/' );
 	}
 
 	/**
@@ -320,6 +401,7 @@ final class PublicEvents {
 		$args = array();
 		if ( absint( $atts['event'] ) ) { $where .= ' AND e.event_id=%d'; $args[] = absint( $atts['event'] ); }
 		if ( absint( $atts['occurrence'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $atts['occurrence'] ); }
+		if ( ! empty( $atts['none'] ) ) { $where .= ' AND 1=0'; } // A503: invalid event/occurrence attribute – no "all events".
 		$sql = "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where}";
 		$rows = $wpdb->get_results( $wpdb->prepare( $sql . ' ORDER BY o.starts_at ASC LIMIT %d', ...array_merge( $args, array( max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) ) ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built from literals.
 		$requested = absint( $atts['occurrence'] ) ? 0 : self::requested_occurrence();
