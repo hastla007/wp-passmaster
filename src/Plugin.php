@@ -178,9 +178,20 @@ final class Plugin {
 	}
 
 	private static function activate_site() {
+		// A512: behind the upgrade lock like every other schema run, so an activation never runs dbDelta
+		// in parallel with an upgrade of the same site (cron, admin request, WP-CLI). It waits a little
+		// (filter `wpcap_activation_lock_wait`, seconds, default 20); is the lock still taken, the
+		// running upgrade finishes the schema and init (ensure_events) schedules the jobs afterwards.
+		$installed = false;
+		$ran = Installer::run_locked(
+			static function () use ( &$installed ) {
+				$installed = Installer::install();
+			},
+			max( 0, (int) apply_filters( 'wpcap_activation_lock_wait', 20 ) )
+		);
 		// A failed first install (missing tables/columns) schedules no recurring events: their handlers
 		// would run against a schema that is not there (A466). The next admin request retries.
-		if ( false === Installer::install() ) { return false; }
+		if ( ! $ran || false === $installed ) { return false; }
 		self::schedule_events();
 		return true;
 	}

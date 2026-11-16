@@ -1451,13 +1451,13 @@ final class Installer {
 
 	/**
 	 * Runs $callback while holding the upgrade lock (MySQL GET_LOCK, released automatically if the
-	 * process dies). Does not wait: returns false without running $callback when another request
-	 * holds the lock.
+	 * process dies). By default it does not wait: returns false without running $callback when another
+	 * request holds the lock; $wait seconds lets it wait that long first (activation, A512).
 	 */
-	public static function run_locked( callable $callback ) {
+	public static function run_locked( callable $callback, $wait = 0 ) {
 		global $wpdb;
 		$name = self::lock_name();
-		if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $name ) ) ) { return false; }
+		if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, max( 0, (int) $wait ) ) ) ) { return false; }
 		try {
 			call_user_func( $callback );
 		} finally {

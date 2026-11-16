@@ -525,6 +525,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Filter | Wert, Argumente | Zweck |
 |---|---|---|
+| `wpcap_activation_lock_wait` | `int $seconds` (20) | So lange wartet die Aktivierung auf die Upgrade-Sperre, wenn gerade ein anderes Schema-Upgrade derselben Site läuft; danach überlässt sie das Schema diesem Lauf (A512). |
 | `wpcap_network_install_batch` | `int $sites` (25) | Höchstzahl der Sites je Lauf des Cron-Ereignisses `wpcap_network_install` nach netzwerkweiter Aktivierung (A287). |
 | `wpcap_network_install_budget` | `int $seconds` (15) | Zeitbudget je Lauf von `wpcap_network_install`; danach plant sich der Lauf neu ein (A287). |
 | `wpcap_modules` | `string[] $classes` | Liste der Modulklassen (`src/Modules`). |
