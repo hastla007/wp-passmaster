@@ -433,6 +433,8 @@ Entfernt werden: die Werte aller Einstellungen aus `Secrets::KEYS` (auch aus Kon
 
 **Textlängen (A494):** Freitext wird vor dem Speichern mit `Text::limit()` auf die Spaltenbreite in Zeichen gekürzt (`varchar(N)` zählt Zeichen), nie per `substr()` in Bytes: ein Schnitt mitten in „é“ ergab ungültiges UTF-8, das die Datenbank bei jedem Versuch ablehnte (Erstattungsgrund und Stornierungsanfrage im Bestellportal, Ablehnungsnotiz, Fehlertexte, Zahlungsreferenzen, Veranstalter-Stammdaten, Partner-Storno, Abrechnungszeilen). Ungültige Bytefolgen im Text werden dabei ersetzt. Getestet in `tests/integration/modules/zz_a494.php`.
 
+**CSV-Exporte (A495):** Alle CSV-Dateien (Berichte, Teilnehmer- und No-Show-Listen, Gästelisten, Einwilligungen, Kassen-Z-Bericht, Veranstalter- und Terminabrechnungen, Buchhaltungs- und DATEV-Export) entstehen in `Reports\Scope::csv()`: jede Zelle, die mit `=`, `+`, `-`, `@`, Tab oder Wagenrücklauf beginnt (auch nach Leerzeichen), bekommt ein führendes `'`; reine Zahlen bleiben unverändert. Angeführt wird nur nach RFC 4180 (verdoppelte Anführungszeichen, kein Backslash-Escape) – sonst schloss ein Name wie `x\";=1+1;\"` das Feld in Excel/LibreOffice vorzeitig und `=1+1` wurde zur eigenen Formelzelle. Getestet in `tests/integration/modules/zz_a495.php`.
+
 ## Offenlegung
 
 Sicherheitsprobleme bitte über GitHubs private Meldemöglichkeit des Repositorys melden, sofern sie aktiviert ist. Keine Ticketcodes, Kundendaten, API-Schlüssel oder funktionsfähigen Exploits in öffentlichen Issues posten. Eine unabhängige Prüfung und ein formeller Incident-Prozess stehen noch aus.

@@ -748,17 +748,20 @@ final class Invoices {
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=' . ( $datev ? 'windows-1252' : 'utf-8' ) );
 		header( 'Content-Disposition: attachment; filename="pass-captain-' . ( $datev ? 'buchungsstapel' : 'buchhaltung' ) . '-' . $from . '-' . $to . '.csv"' );
-		$out = fopen( 'php://output', 'w' );
-		if ( ! $datev ) { fwrite( $out, "\xEF\xBB\xBF" ); }
-		foreach ( $rows as $row ) {
-			if ( $datev ) {
-				// DATEV import expects ANSI (Windows-1252).
-				$row = array_map( static function ( $cell ) { return mb_convert_encoding( (string) $cell, 'Windows-1252', 'UTF-8' ); }, $row );
-			}
-			fputcsv( $out, $row, ';', '"', '' ); // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
-		}
-		fclose( $out );
+		echo self::export_csv( $rows, $datev ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV download.
 		exit;
+	}
+
+	/**
+	 * CSV text of the accounting export (export_rows()) or the DATEV batch (datev_rows()) through the
+	 * shared writer Reports\Scope::csv(): formula guard per cell, RFC 4180 quoting (A495). The DATEV
+	 * import expects ANSI (Windows-1252) without byte order mark.
+	 *
+	 * @param array[] $rows  Rows.
+	 * @param bool    $datev DATEV format.
+	 */
+	public static function export_csv( array $rows, $datev = false ) {
+		return Reports\Scope::csv( $rows, $datev ? array( 'encoding' => 'Windows-1252', 'bom' => false ) : array() );
 	}
 
 	/**

@@ -70,10 +70,21 @@ final class Scope {
 		return preg_match( '/^[=+\-@\t\r]/', $text ) || preg_match( '/^\s+[=+\-@]/', $text ) ? "'" . $text : $text;
 	}
 
-	/** CSV text (semicolon separated, UTF-8 BOM) from rows; every cell passes csv_cell(). */
-	public static function csv( array $rows ) {
+	/**
+	 * CSV text (semicolon separated) from rows; every cell passes csv_cell(). The one CSV writer of the
+	 * plugin (reports, attendee/no-show lists, settlements, accounting export).
+	 *
+	 * Quoting is RFC 4180 only (escape character ''): with the escape character "\" a cell like
+	 * `x\";=1+1;\"` was written so that spreadsheet programs closed the field early and read `=1+1`
+	 * as a cell of its own (A495) – csv_cell() only sees the start of the cell.
+	 *
+	 * @param array $rows Rows (arrays of cells).
+	 * @param array $args bom (bool, default true: UTF-8 byte order mark), encoding (default 'UTF-8';
+	 *                    e.g. 'Windows-1252' for the DATEV import: cells are converted, no BOM).
+	 */
+	public static function csv( array $rows, array $args = array() ) {
 		$out = fopen( 'php://temp', 'w+' );
-		self::write_csv( $out, $rows );
+		self::write_csv( $out, $rows, 0, $args );
 		rewind( $out );
 		$csv = (string) stream_get_contents( $out );
 		fclose( $out );
@@ -88,11 +99,18 @@ final class Scope {
 	 * @param resource $out  Stream.
 	 * @param iterable $rows Rows (first row = header).
 	 */
-	public static function write_csv( $out, $rows, $flush_every = 0 ) {
-		fwrite( $out, "\xEF\xBB\xBF" );
+	public static function write_csv( $out, $rows, $flush_every = 0, array $args = array() ) {
+		// A495: RFC 4180 quoting without a backslash escape – `\"` cannot end a quoted cell early.
+		$encoding = (string) ( $args['encoding'] ?? 'UTF-8' );
+		$utf8 = 'UTF-8' === strtoupper( $encoding );
+		if ( $utf8 && ( $args['bom'] ?? true ) ) { fwrite( $out, "\xEF\xBB\xBF" ); }
 		$n = 0;
 		foreach ( $rows as $row ) {
-			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '\\' );
+			$cells = array_map( array( __CLASS__, 'csv_cell' ), (array) $row );
+			if ( ! $utf8 ) {
+				$cells = array_map( static function ( $cell ) use ( $encoding ) { return mb_convert_encoding( $cell, $encoding, 'UTF-8' ); }, $cells );
+			}
+			fputcsv( $out, $cells, ';', '"', '' );
 			if ( $flush_every && 0 === ++$n % $flush_every ) {
 				fflush( $out );
 				self::flush_output();
