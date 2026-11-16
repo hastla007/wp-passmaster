@@ -168,7 +168,7 @@ final class Waitlists {
 		if ( is_wp_error( $refused ) ) { return $refused; }
 		// A644: limits after validation. The client counts every valid request; the address (anyone can
 		// type it) only counts sign-ups that send a mail, so junk requests cannot lock it out.
-		$email_bucket = 'waitlist|' . $email . '|' . $event_id;
+		$email_bucket = 'waitlist|' . strtolower( $email ) . '|' . $event_id; // Y1: one bucket per address, whatever the case.
 		// One network (IPv6 /64) is also limited across all events (audit Y1, filter wp_pass_captain_waitlist_ip_limit_v1).
 		if ( ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT
 			|| ! RateLimit::hit( 'wpcap_waitlist_ipall_' . RateLimit::hash( RateLimit::client_network() ), self::ip_limit_per_hour(), HOUR_IN_SECONDS ) ) {
@@ -1670,7 +1670,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || 64 !== strlen( $token ) || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		PageCache::no_store( 'waitlist_offer' );
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		Security\PrivatePage::send(); // No page cache, no framing, no indexing, no referrer (secret link, audit FE-7).
 		$row = self::open_offer( $waitlist_id, $token );
 		$busy = is_wp_error( $row );
 		$row = $busy ? null : $row;
@@ -1789,6 +1789,7 @@ final class Waitlists {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_form() checks the form proof (or the nonce of older pages) before anything changes.
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		$decision = sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
+		Security\PrivatePage::send(); // The answer pages carry the offer/result token (audit FE-7).
 		if ( 'pay' === $decision ) {
 			// "Jetzt bezahlen" on the result page (A317): authorised by the result key, not the offer token.
 			$key = sanitize_text_field( wp_unslash( (string) ( $_POST['wl'] ?? '' ) ) );

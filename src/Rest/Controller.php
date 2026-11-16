@@ -1039,8 +1039,12 @@ final class Controller {
 		$payload = is_array( $payload ) ? $payload : array();
 		$rules = $payload['rules'] ?? array();
 		if ( ! is_array( $rules ) || ! $rules || count( $rules ) > 50 ) { return new \WP_Error( 'wpcap_pass_rules_invalid', __( 'Mindestens eine Passregel ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$event_ids = array_map( static function ( $rule ) { return is_array( $rule ) ? absint( $rule['event_id'] ?? 0 ) : 0; }, $rules );
-		if ( ! Memberships::in_scope( $event_ids, Memberships::REQUEST_CAP ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! method_exists( Memberships::class, 'validate_rule_for_current_user' ) ) {
+			// Fallback pre-check on the raw event ids; validate_rule_for_current_user() below is the complete check
+			// (event derived from the ticket type, resource scope of service rules, "any" and global rules).
+			$event_ids = array_map( static function ( $rule ) { return is_array( $rule ) ? absint( $rule['event_id'] ?? 0 ) : 0; }, $rules );
+			if ( ! Memberships::in_scope( $event_ids, Memberships::REQUEST_CAP ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		}
 		// Same scope check as the admin screen for every rule (event via ticket type, resource, "any", global rules).
 		$normalized = array();
 		foreach ( $rules as $rule ) {
@@ -1081,7 +1085,9 @@ final class Controller {
 		$pass_id = absint( $request['pass_id'] );
 		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", $pass_id ) );
 		if ( ! $events ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		if ( ! Memberships::in_scope( array_map( 'intval', $events ), Memberships::REQUEST_CAP ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		// current_user_can_manage_pass() is the complete check (service rules: managed resource); the raw event
+		// check is the fallback (it would refuse every service pass to non-administrators).
+		if ( ! method_exists( Memberships::class, 'current_user_can_manage_pass' ) && ! Memberships::in_scope( array_map( 'intval', $events ), Memberships::REQUEST_CAP ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		if ( method_exists( Memberships::class, 'current_user_can_manage_pass' ) && ! Memberships::current_user_can_manage_pass( $pass_id ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$result = Memberships::revoke( $pass_id );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'status' => 'revoked' ) );
