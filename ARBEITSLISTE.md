@@ -575,9 +575,9 @@ Gesamt: 262 Aufgaben.
   - src/Payments/Webhooks.php ~213–229 (apply, refunded): WP_Error aus Refunds::record_external() bei $full ignoriert → refunded ohne wpcap_refunds-Zeile, keine Gutschrift, keine Neuzustellung. Retryable Fehler nach mark_refunded zurückgeben (prüfen, ob A183 das schon abdeckt)
 - [x] **A265** [KRITISCH] Werkseinstellung „Überweisung“ ohne Bankverbindung verkauft — _R1 UX_ (TODO L596; Audit Runde 4)
   - src/Settings.php:54, src/Payments/ManualGateway.php:14, BankTransfer.php:56, assets/checkout.js:384: manual standardmäßig aktiv, is_available() immer true; Käufer sieht Überweisungsaufforderung ohne Empfänger/IBAN, Plätze 72 h blockiert. Nur mit IBAN/Zahlungshinweis verfügbar, nicht standardmäßig aktiv, „nicht vollständig konfiguriert“ anzeigen
-- [ ] **A266** [KRITISCH] Terminabsage über Status-Dropdown umgeht Bestätigungsseite — _R1 UX_ (TODO L597; Audit Runde 4)
+- [x] **A266** [KRITISCH] Terminabsage über Status-Dropdown umgeht Bestätigungsseite — _R1 UX_ (TODO L597; Audit Runde 4)
   - src/Admin/EventsPage.php:915, :189, :235 (save_occurrence → wpcap_occurrence_cancelled): Tickets widerrufen, Mails/Auto-Erstattung ohne Grund, Vorschau, Bestätigung. „Abgesagt“ aus dem Formular entfernen, nur über view=cancel_occurrence
-- [ ] **A267** [KRITISCH] „Event absagen“ in der Eventliste nur mit window.confirm — _R1 UX_ (TODO L598; Audit Runde 4)
+- [x] **A267** [KRITISCH] „Event absagen“ in der Eventliste nur mit window.confirm — _R1 UX_ (TODO L598; Audit Runde 4)
   - src/Admin/EventsPage.php:778–781, handle_cancel_event :638: Fehlklick sagt alle Termine ab, widerruft Tickets, benachrichtigt Käufer. Bestätigungsseite mit Folgen, Grund, Pflicht-Checkbox wie bei Terminen
 - [ ] **A268** [KRITISCH] Service-Zeitfenster für Kunden nicht buchbar (kein Shortcode/Block) — _R1 UX_ (TODO L599; Audit Runde 4)
   - src/Admin/ServiceSlotsPage.php:330, Rest/Controller.php:122–149, Plugin.php:73: Nur REST-Routen; Bootsschule kann ohne Entwickler nicht verkaufen. Shortcode/Block „Zeitfenster buchen“ mit Checkout-Anbindung
@@ -751,11 +751,11 @@ Gesamt: 262 Aufgaben.
   - Payments/*, Refunds.php: Reconciliation je Anbieter über wpcap_refund/wpcap_order-Metadaten (blinder Fleck)
 - [x] **A353** [WICHTIG] Rabattcode-Limit durch späte Zahlung umgangen — _R2 Eigen_ (TODO L684; Audit Runde 4)
   - src/Orders.php:1559 (expire_holds → release_for_order), Campaigns.php:162 (commit_for_order): Bei später Zahlung Code unter Sperre neu einlösen, sonst needs_review (belegt)
-- [ ] **A354** [WICHTIG] Auto-Erstattung bei Terminabsage scheitert bei jedem eingecheckten Ticket bzw. Rolle ohne Recht/2FA — _R2 Eigen_ (TODO L685; Audit Runde 4)
+- [x] **A354** [WICHTIG] Auto-Erstattung bei Terminabsage scheitert bei jedem eingecheckten Ticket bzw. Rolle ohne Recht/2FA — _R2 Eigen_ (TODO L685; Audit Runde 4)
   - src/OccurrenceCancellation.php:122, Passes/Cancellation.php:165: system/allow_used übergeben, Wiederholungsjob (belegt)
 - [x] **A355** [WICHTIG] DSGVO-Löschung anonymisiert Bestellung mit offener Zahlung – spätere Tickets an Platzhalter — _R2 Eigen_ (TODO L686; Audit Runde 4)
   - src/Privacy.php:296–307, :403: Offene Bestellungen vorher stornieren oder Löschung zurückstellen (belegt)
-- [ ] **A356** [WICHTIG] Abgesagter Termin lässt sich wieder auf „Geplant“ setzen; widerrufene Tickets blockieren Kontingent — _R2 Eigen_ (TODO L687; Audit Runde 4)
+- [x] **A356** [WICHTIG] Abgesagter Termin lässt sich wieder auf „Geplant“ setzen; widerrufene Tickets blockieren Kontingent — _R2 Eigen_ (TODO L687; Audit Runde 4)
   - src/Admin/EventsPage.php:190, :918: cancelled → scheduled serverseitig ablehnen; eigener Reaktivierungsablauf (belegt)
 - [x] **A357** [WICHTIG] Nach Widerruf/Umtausch zahlt Erstattung zu viel aus, Bestellung wird nie „erstattet“ — _R2 Eigen_ (TODO L688; Audit Runde 4)
   - src/Refunds.php:587–589 (calculate), :357–360, :486: Vollständigkeit über Ticketwert; mark_refunded nur valid/checked_in zählen (belegt)
@@ -902,7 +902,7 @@ Gesamt: 262 Aufgaben.
 
 - [x] **A427** [KRITISCH] Massen-PDF „mit neuen Codes“ entwertet Tickets bei Timeout/Speichermangel — _R2 DB/Performance_ (TODO L761; Audit Runde 4)
   - src/Printing/Templates.php:318–348, PdfWriter.php:119, Printing/Page.php:143: Codes werden vor dem Rendern ohne Transaktion rotiert, neue Codes nie gespeichert; ab ~2.500 Tickets Abbruch → alle ungültig. Erst rendern, dann rotieren; Hintergrundjob in Blöcken, Datei streamen, Obergrenze
-- [ ] **A428** [KRITISCH] Termin-/Eventabsage und Verschiebung synchron im Admin-Request, nicht wiederaufnehmbar — _R2 DB/Performance_ (TODO L762; Audit Runde 4)
+- [x] **A428** [KRITISCH] Termin-/Eventabsage und Verschiebung synchron im Admin-Request, nicht wiederaufnehmbar — _R2 DB/Performance_ (TODO L762; Audit Runde 4)
   - src/OccurrenceCancellation.php:42–134, Admin/EventsPage.php:283–298, Passes/Cancellation.php:105–150, Notifications.php:72–82/190–205: Refunds per HTTP und Mails je Bestellung im Request; Abbruch lässt Rest gültig/unbenachrichtigt, erneuter Klick endet sofort. Statuswechsel + Widerruf batchen, Refunds/Mails als idempotente Jobs mit Fortschritt (ersetzt den älteren TODO-Punkt „Absage als Hintergrundjob“)
 - [x] **A429** [KRITISCH] Checkout-Kapazitätsprüfung scannt alle historischen Reservierungen unter Kapazitäts-Locks — _R2 DB/Performance_ (TODO L763; Audit Runde 4)
   - src/Orders.php:600, :613 (capacity_error_counted), CapacityCounters.php:132: type=ALL; 524k Reservierungen → 0,7 s je Prüfung, Checkouts serialisiert. Index (ticket_type_id, counted_qty)/indexfähige Bedingung, alte Reservierungen löschen
@@ -918,7 +918,7 @@ Gesamt: 262 Aufgaben.
   - src/Reports/Data.php:163–181, Invoices.php:700–716, Reports/Settlement.php:158, Partners/Statement.php:46: 24k Bestellungen: 24k Queries, 163 MB. Vorladen per IN/JOIN, blockweise, per php://output streamen
 - [ ] **A435** [WICHTIG] Partner-Abrechnung verarbeitet jedes Mal die gesamte Historie — _R2 DB/Performance_ (TODO L769; Audit Runde 4)
   - src/Partners/Settlements.php:105–130: Auf unabgerechnete Quellen/Wasserstand in SQL begrenzen, blockweise
-- [ ] **A436** [WICHTIG] GROUP_CONCAT-Abschneidung bei der Pass-Absage — _R2 DB/Performance_ (TODO L770; Audit Runde 4)
+- [x] **A436** [WICHTIG] GROUP_CONCAT-Abschneidung bei der Pass-Absage — _R2 DB/Performance_ (TODO L770; Audit Runde 4)
   - src/Passes/Cancellation.php:119, :165: Ticket-IDs je Bestellung separat lesen (wie OccurrenceCancellation)
 - [ ] **A437** [WICHTIG] Webhook-Aufräumjob alle 5 min Full Scan, DELETE ohne LIMIT — _R2 DB/Performance_ (TODO L771; Audit Runde 4)
   - src/Webhooks/Dispatcher.php:302–305, Modules/Webhooks.php:31: KEY (status, updated_at), DELETE … LIMIT 1000 mit Zeitbudget, höchstens stündlich
@@ -1122,9 +1122,9 @@ Gesamt: 262 Aufgaben.
 
 ### Audit Runde 6 – Ticketing: Transaktionen, Ticket-Sicherheit, Dokumente/Mail/Wallet, Zeit/Caching, Käufer-UX/Einlass, Eigen-Audit (13.11.2026, Snapshot a1b11e5)
 
-- [ ] **A535** [KRITISCH] Mehrtägige Termine: Online-Verkauf endet beim Beginn, Web-Scanner und App verlieren den Termin nach 24 h — _R4 Zeit/Caching/Lebenszyklus_ (TODO L875; Audit Runde 4)
+- [x] **A535** [KRITISCH] Mehrtägige Termine: Online-Verkauf endet beim Beginn, Web-Scanner und App verlieren den Termin nach 24 h — _R4 Zeit/Caching/Lebenszyklus_ (TODO L875; Audit Runde 4)
   - src/Orders.php:152–154, PublicEvents.php:156/362–364, Mobile/Api.php:77: Überall COALESCE(ends_at, starts_at) für „läuft noch“, sales_end bis ends_at; Einlass Tag 2/3 sonst ohne Terminprüfung (belegt)
-- [ ] **A536** [KRITISCH] Warteliste bietet bei Ticketarten mit Pflicht-Teilnehmerfeld nie etwas an — _R4 Eigen (Deep Dive 3)_ (TODO L876; Audit Runde 4)
+- [x] **A536** [KRITISCH] Warteliste bietet bei Ticketarten mit Pflicht-Teilnehmerfeld nie etwas an — _R4 Eigen (Deep Dive 3)_ (TODO L876; Audit Runde 4)
   - src/Waitlists.php:324, :269, Orders.php:87: Teilnehmerdaten erst auf der Annahmeseite erfassen, Pflichtfelder bei Angebotsanlage überspringen (belegt t1)
 - [x] **A537** [KRITISCH] Freigegebene Erstattung nach Umtausch: Geld zurück, neues Ticket gültig, Ticketart überverkauft — _R4 Transaktionen/Concurrency_ (TODO L877; Audit Runde 4)
   - src/Refunds.php:602–616 (execution_conflict), :380–391, Exchange/Service.php:167/459: execution_conflict verlangt valid/checked_in; Umtausch/Widerruf/Übertragung bei offener Erstattung sperren (belegt t2)
@@ -1166,7 +1166,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/EventsPage.php:213–241, :340–347: Fenster um dieselbe Differenz verschieben, Fenster außerhalb [jetzt, Ende] mit Warnung ablehnen
 - [ ] **A556** [WICHTIG] Serien: „Verkaufsstart N Tage vor Beginn“ über DST 1 h daneben — _R4 Zeit/Caching/Lebenszyklus_ (TODO L896; Audit Runde 4)
   - src/Series/Generator.php:221–223, :653–655: modify(-N days) in Termin-Zone, DST-Test (belegt)
-- [ ] **A557** [WICHTIG] Wartelisten-Einträge abgesagter/vergangener Termine bleiben dauerhaft „wartet“ — _R4 Zeit/Caching/Lebenszyklus_ (TODO L897; Audit Runde 4)
+- [x] **A557** [WICHTIG] Wartelisten-Einträge abgesagter/vergangener Termine bleiben dauerhaft „wartet“ — _R4 Zeit/Caching/Lebenszyklus_ (TODO L897; Audit Runde 4)
   - src/Waitlists.php:45–51, :911–918: Bei Absage/Ende/sales_end schließen (mit Mail), Portal filtern
 - [ ] **A558** [WICHTIG] Erinnerungs-Mail nennt bei späten Käufern falsche Restzeit; LIMIT 200 verzögert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L898; Audit Runde 4)
   - src/Modules/Reminders.php:72–79, :101, Reminders/Placeholders.php:16: {hours} aus starts_at − now, Scheduler mit Cursor
@@ -1178,7 +1178,7 @@ Gesamt: 262 Aufgaben.
   - src/Rest/Controller.php:242–290: ISO 8601 mit Offset, Verkaufsstatus/Fenster/Verfügbarkeit je Ticketart, no-store
 - [ ] **A562** [WICHTIG] Keine zentrale Lebenszyklus-Instanz für Termine — _R4 Zeit/Caching/Lebenszyklus_ (TODO L902; Audit Runde 4)
   - src/: Occurrence::phase($now) + Aktion wpcap_occurrence_phase_changed für Verkauf, Listen, Scanner, Warteliste, Wallet, Purge
-- [ ] **A563** [WICHTIG] Ein nicht anbietbarer Eintrag blockiert die ganze Warteliste; Käuferlimit beim Eintragen ungeprüft — _R4 Eigen (Deep Dive 3)_ (TODO L903; Audit Runde 4)
+- [x] **A563** [WICHTIG] Ein nicht anbietbarer Eintrag blockiert die ganze Warteliste; Käuferlimit beim Eintragen ungeprüft — _R4 Eigen (Deep Dive 3)_ (TODO L903; Audit Runde 4)
   - src/Waitlists.php:267–270, :92ff.: Eintrag überspringen/markieren (blocked mit Grund), Limit beim Eintragen (belegt t2)
 - [ ] **A564** [WICHTIG] Warteliste ohne E-Mail-Bestätigung, Angebote halten Kontingent bis 24 h (erweitert A279/A280) — _R4 Eigen (Deep Dive 3)_ (TODO L904; Audit Runde 4)
   - src/Waitlists.php:92–143, :307–355: Double-Opt-in vor waiting
