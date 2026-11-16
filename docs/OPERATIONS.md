@@ -1220,6 +1220,13 @@ ist die Grenze erreicht, sagt die Seite das. Namen und E-Mails sind nur suchbar,
 PII-Matrix im Klartext sehen darf (`wpcap_pii_can_view`), und alle Treffer bleiben auf den Zugriffsbereich der
 Person beschränkt.
 
+Die Ticketsuche sucht jedes Feld über seinen Index statt mit `LIKE '%…%'` über alle Tabellen (A441): Ticket- und
+Bestellnummern sowie E-Mail-Adressen (Käufer, Ticket, Zuweisung) vom **Anfang** an (z. B. `anna@` oder die
+vollständige Adresse; ein Domainteil wie `example.com` allein findet nichts mehr), Teilnehmernamen ab dem Anfang
+des Namens oder eines Wortes (Vor- oder Nachname, Index `attendee_name` auf `wpcap_ticket_assignments`, Schema
+3.10.25). Je Feld werden höchstens 1000 Treffer gelesen; darüber zeigt die Seite einen Hinweis, die Suche genauer
+zu fassen.
+
 ### Bezahlt ohne Ticket: „Prüfung nötig“ (A337)
 
 Kommt eine Zahlung erst nach Ablauf der Reservierung und ist kein Kontingent mehr frei (oder der Termin

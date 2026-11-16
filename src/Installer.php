@@ -552,7 +552,9 @@ final class Installer {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (assignment_id),
 				UNIQUE KEY ticket_id (ticket_id),
-				KEY buyer_email (buyer_email)
+				KEY buyer_email (buyer_email),
+				KEY attendee_email (attendee_email,ticket_id),
+				KEY attendee_name (attendee_name,ticket_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $member_passes (
 				pass_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

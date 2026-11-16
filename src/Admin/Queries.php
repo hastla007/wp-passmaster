@@ -668,40 +668,25 @@ final class Queries {
 		// A432: the page is found on the tickets (and only the tables the filters need), its context and
 		// last check-ins are read for the ids of the page only.
 		$occ_join = " INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
-		$search_join = " INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id";
 		$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' ) . Access::occurrence_scope_sql( 'o' );
 		$needs_occ = '1=1' !== $where;
-		$needs_search = false;
 		$args = array();
 		$notice = null;
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
-			$needs_search = true;
+			// A441: the matching tickets are collected first, one indexed lookup per field, instead of
+			// six LIKE '%x%' over a six-table join; the page is then built on these ids.
 			$search = trim( (string) $filters['search'] );
-			// A545: the order number as buyers see it ("AB12-CD34") is a public id prefix, too.
-			$id_prefix = self::public_id_prefix( $search );
-			$prefix = self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%';
-			$part = '%' . self::like( $search ) . '%';
-			// Only fields the user may see are searchable (A119: no probing of masked e-mails/names).
-			$columns = array( 't.public_id' => $prefix, 'ord.public_id' => $prefix );
-			if ( \PassCaptain\Pii::can_view( 'buyer_email' ) ) { $columns['ord.customer_email'] = $part; }
-			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) { $columns['t.attendee_email'] = $part; $columns['ta.attendee_email'] = $part; }
-			if ( \PassCaptain\Pii::can_view( 'attendee_name' ) ) { $columns['ta.attendee_name'] = $part; }
-			$or = array_map( static function ( $column ) { return $column . ' LIKE %s'; }, array_keys( $columns ) );
-			array_push( $args, ...array_values( $columns ) );
-			// The full ticket code or ticket link (64 hex) – whoever holds it holds the ticket anyway.
-			$code = \PassCaptain\Checkin::normalize_code( $search );
-			if ( '' !== $code ) { $or[] = 't.token_hash=%s'; $args[] = hash( 'sha256', $code ); }
-			// The help code printed under the QR code: rate-limited lookup like at the scanner (HelpCode).
-			if ( \PassCaptain\HelpCode::looks_like( $search ) ) {
-				$help_ticket = \PassCaptain\HelpCode::resolve( $search );
-				if ( is_wp_error( $help_ticket ) ) { $notice = $help_ticket->get_error_message(); }
-				if ( is_int( $help_ticket ) && $help_ticket > 0 ) { $or[] = 't.ticket_id=%d'; $args[] = $help_ticket; }
+			$capped = false;
+			$matches = self::ticket_search_ids( $search, $capped, $notice );
+			if ( $capped ) {
+				/* translators: %d: maximum number of matches per field */
+				$notice = sprintf( __( 'Mehr als %d Treffer – bitte die Suche genauer fassen (z. B. vollständige E-Mail-Adresse oder Bestellnummer).', 'pass-captain' ), self::TICKET_SEARCH_MAX );
 			}
-			$where .= ' AND (' . implode( ' OR ', $or ) . ')';
+			$where .= ' AND t.ticket_id IN (' . ( $matches ? implode( ',', $matches ) : '0' ) . ')';
 		}
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); $needs_occ = true; }
 		if ( ! empty( $filters['status'] ) ) { $where .= ' AND t.status=%s'; $args[] = (string) $filters['status']; }
-		$from = "FROM {$p}wpcap_tickets t" . ( $needs_occ ? $occ_join : '' ) . ( $needs_search ? $search_join : '' );
+		$from = "FROM {$p}wpcap_tickets t" . ( $needs_occ ? $occ_join : '' );
 		$count_sql = "SELECT COUNT(*) $from WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
 		$ids = $total ? array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
@@ -719,6 +704,70 @@ final class Queries {
 			foreach ( $rows as $row ) { $row->last_checkin_at = $last[ (int) $row->ticket_id ] ?? null; }
 		}
 		return array( 'rows' => $rows, 'total' => $total ) + ( null !== $notice ? array( 'notice' => $notice ) : array() );
+	}
+
+	/** Matches read per search field (A441); more means the search is too broad. */
+	const TICKET_SEARCH_MAX = 1000;
+
+	/**
+	 * Ticket ids matching a ticket search (A441). Every field is looked up on its own index:
+	 * ticket and order numbers by prefix (also "AB12-CD34" as shown to buyers), e-mail addresses by
+	 * prefix (buyer, ticket, assignment), attendee names by prefix of the name or of one of its words
+	 * (the word search reads only the name index of wpcap_ticket_assignments), the full ticket code
+	 * exactly and the help code through the rate-limited HelpCode lookup. Names and e-mails only for
+	 * users who may see them (A119).
+	 *
+	 * @param string      $search Search input (trimmed).
+	 * @param bool        $capped Set when a field had more than TICKET_SEARCH_MAX matches.
+	 * @param string|null $notice Set to the help-code rate-limit message.
+	 * @return int[]
+	 */
+	private static function ticket_search_ids( $search, &$capped, &$notice ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$max = self::TICKET_SEARCH_MAX + 1;
+		$id_prefix = self::public_id_prefix( $search );
+		$lower = function_exists( 'mb_strtolower' ) ? mb_strtolower( $search ) : strtolower( $search );
+		$number = self::like( '' !== $id_prefix ? $id_prefix : $lower ) . '%';
+		$text = self::like( $lower ) . '%';
+		$queries = array(
+			$wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE public_id LIKE %s LIMIT %d", $number, $max ),
+			$wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id WHERE ord.public_id LIKE %s LIMIT %d", $number, $max ),
+		);
+		if ( mb_strlen( $search ) >= 2 ) {
+			// Only fields the user may see are searchable (A119: no probing of masked e-mails/names).
+			if ( \PassCaptain\Pii::can_view( 'buyer_email' ) ) {
+				$queries[] = $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id WHERE ord.customer_email LIKE %s LIMIT %d", $text, $max );
+			}
+			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) {
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE attendee_email LIKE %s LIMIT %d", $text, $max );
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_ticket_assignments WHERE attendee_email LIKE %s LIMIT %d", $text, $max );
+			}
+			if ( \PassCaptain\Pii::can_view( 'attendee_name' ) ) {
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_ticket_assignments WHERE attendee_name LIKE %s LIMIT %d", $text, $max );
+				// Last name or a later word: scans only KEY attendee_name (name, ticket id), no join.
+				$queries[] = $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_ticket_assignments WHERE attendee_name LIKE %s LIMIT %d", '% ' . $text, $max );
+			}
+		}
+		$ids = array();
+		foreach ( $queries as $sql ) {
+			$found = array_map( 'intval', (array) $wpdb->get_col( $sql ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
+			if ( count( $found ) > self::TICKET_SEARCH_MAX ) { $capped = true; $found = array_slice( $found, 0, self::TICKET_SEARCH_MAX ); }
+			foreach ( $found as $id ) { $ids[ $id ] = $id; }
+		}
+		// The full ticket code or ticket link (64 hex) – whoever holds it holds the ticket anyway.
+		$code = \PassCaptain\Checkin::normalize_code( $search );
+		if ( '' !== $code ) {
+			$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE token_hash=%s", hash( 'sha256', $code ) ) );
+			if ( $id ) { $ids[ $id ] = $id; }
+		}
+		// The help code printed under the QR code: rate-limited lookup like at the scanner (HelpCode).
+		if ( \PassCaptain\HelpCode::looks_like( $search ) ) {
+			$help_ticket = \PassCaptain\HelpCode::resolve( $search );
+			if ( is_wp_error( $help_ticket ) ) { $notice = $help_ticket->get_error_message(); }
+			if ( is_int( $help_ticket ) && $help_ticket > 0 ) { $ids[ $help_ticket ] = $help_ticket; }
+		}
+		return array_values( $ids );
 	}
 
 	/**
