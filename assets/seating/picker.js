@@ -91,7 +91,7 @@
 		const zone = (this.data.zones.find(function (z) { return z.key === seat.zone; }) || {}).name;
 		const cat = (this.data.categories.find(function (c) { return c.key === seat.category; }) || {}).name;
 		const state = this.selected.has(seat.id) ? t.selected : (seat.status === 'free' ? t.free : t.taken);
-		return [seat.label, zone, cat, seat.accessible ? t.accessible : '', state].filter(Boolean).join(', ');
+		return [seat.label, zone, cat, seat.accessible ? t.accessible : '', seat.companion ? t.companion : '', state].filter(Boolean).join(', ');
 	};
 
 	Picker.prototype.toggle = function (id) {
@@ -172,7 +172,7 @@
 			groups[key].seats.forEach(function (seat) {
 				const label = h('label', {}, fs);
 				const box = h('input', { type: 'checkbox', value: String(seat.id) }, label);
-				label.appendChild(document.createTextNode(' ' + seat.seat + (seat.accessible ? ' ♿' : '')));
+				label.appendChild(document.createTextNode(' ' + seat.seat + (seat.accessible ? ' ♿' : '') + (seat.companion ? ' +' : '')));
 				box.addEventListener('change', function () { self.toggle(seat.id); });
 				self.checks.set(seat.id, box);
 			});

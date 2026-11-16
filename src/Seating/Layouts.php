@@ -30,6 +30,11 @@ final class Layouts {
 		return $wpdb->prefix . 'wpcap_seating_' . $name;
 	}
 
+	/** Whether wpcap_seating_seats.is_companion exists (schema 3.10.18, A485; deferred upgrades). */
+	public static function companion_ready() {
+		return \PassCaptain\Log::has_column( 'wpcap_seating_seats', 'is_companion' );
+	}
+
 	public static function schema( $prefix, $charset ) {
 		$t = $prefix . 'wpcap_seating_';
 		return array(
@@ -71,6 +76,7 @@ final class Layouts {
 				zone varchar(64) NOT NULL DEFAULT '',
 				category varchar(64) NOT NULL DEFAULT '',
 				is_accessible tinyint(1) unsigned NOT NULL DEFAULT 0,
+				is_companion tinyint(1) unsigned NOT NULL DEFAULT 0,
 				pos_x decimal(9,2) NOT NULL DEFAULT 0,
 				pos_y decimal(9,2) NOT NULL DEFAULT 0,
 				sort_order int(10) unsigned NOT NULL DEFAULT 0,
@@ -173,7 +179,9 @@ final class Layouts {
 	 *
 	 * Format: { width, height, zones:[{key,name,color}], categories:[{key,name,color}],
 	 *   groups:[{key,type:row|block|table|standing,label,x,y,w,h,zone,category,capacity,accessible}],
-	 *   seats:[{key,group,row,label,x,y,zone,category,accessible}] }
+	 *   seats:[{key,group,row,label,x,y,zone,category,accessible,companion}] }
+	 * `companion` marks a companion seat next to a wheelchair space (A485): only sold together with an
+	 * accessible seat and never assigned automatically.
 	 *
 	 * @return array|\WP_Error
 	 */
@@ -260,6 +268,7 @@ final class Layouts {
 				'zone' => isset( $out['zones'][ $zone ] ) ? $zone : '',
 				'category' => isset( $out['categories'][ $category ] ) ? $category : '',
 				'accessible' => ! empty( $seat['accessible'] ),
+				'companion' => ! empty( $seat['companion'] ) && empty( $seat['accessible'] ),
 			);
 		}
 		$out['zones'] = array_values( $out['zones'] );
@@ -300,6 +309,7 @@ final class Layouts {
 				'zone' => '' !== $seat['zone'] ? $seat['zone'] : ( $group['zone'] ?? '' ),
 				'category' => '' !== $seat['category'] ? $seat['category'] : ( $group['category'] ?? '' ),
 				'accessible' => $seat['accessible'] ? 1 : 0,
+				'companion' => ! empty( $seat['companion'] ) ? 1 : 0,
 				'pos_x' => $seat['x'],
 				'pos_y' => $seat['y'],
 				'sort_order' => ++$order,
@@ -320,6 +330,7 @@ final class Layouts {
 					'zone' => $group['zone'],
 					'category' => $group['category'],
 					'accessible' => ! empty( $group['accessible'] ) ? 1 : 0,
+					'companion' => 0,
 					'pos_x' => round( $group['x'] + $group['w'] / 2, 2 ),
 					'pos_y' => round( $group['y'] + $group['h'] / 2, 2 ),
 					'sort_order' => ++$order,
@@ -512,12 +523,13 @@ final class Layouts {
 			$inserted = $wpdb->insert( self::table( 'versions' ), array( 'layout_id' => (int) $layout->layout_id, 'event_id' => (int) $layout->event_id, 'version' => $version, 'name' => $layout->name, 'definition' => wp_json_encode( $normalized ), 'seat_count' => count( $rows ), 'created_by' => get_current_user_id(), 'created_at' => $now ) );
 			$version_id = (int) $wpdb->insert_id;
 			if ( ! $inserted || ! $version_id ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Version konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
+			$companions = self::companion_ready();
 			foreach ( array_chunk( array_values( $rows ), 200 ) as $chunk ) {
 				$values = array();
 				foreach ( $chunk as $row ) {
-					$values[] = $wpdb->prepare( '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d)', $version_id, $row['seat_key'], $row['kind'], $row['group_key'], $row['row_label'], $row['seat_label'], $row['label'], $row['zone'], $row['category'], $row['accessible'], $row['pos_x'], $row['pos_y'], $row['sort_order'] );
+					$values[] = $wpdb->prepare( '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d' . ( $companions ? ',%d' : '' ) . ')', array_merge( array( $version_id, $row['seat_key'], $row['kind'], $row['group_key'], $row['row_label'], $row['seat_label'], $row['label'], $row['zone'], $row['category'], $row['accessible'], $row['pos_x'], $row['pos_y'], $row['sort_order'] ), $companions ? array( (int) ( $row['companion'] ?? 0 ) ) : array() ) );
 				}
-				$ok = $wpdb->query( 'INSERT INTO ' . self::table( 'seats' ) . ' (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', $values ) );
+				$ok = $wpdb->query( 'INSERT INTO ' . self::table( 'seats' ) . ' (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order' . ( $companions ? ',is_companion' : '' ) . ') VALUES ' . implode( ',', $values ) );
 				if ( false === $ok ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Sitzplätze konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'layouts' ) . ' SET published_version=%d,updated_at=%s WHERE layout_id=%d', $version, $now, (int) $layout->layout_id ) );

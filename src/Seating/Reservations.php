@@ -49,6 +49,7 @@ final class Reservations {
 			'seat_quantity_mismatch' => __( 'Die Anzahl der gewählten Sitzplätze muss je Ticketart der bestellten Menge entsprechen.', 'pass-captain' ),
 			'seat_selection_invalid' => __( 'Die Sitzplatzauswahl ist ungültig.', 'pass-captain' ),
 			'seat_sold_out' => __( 'Für diese Ticketart sind keine passenden Sitzplätze mehr frei.', 'pass-captain' ),
+			'seat_companion_only' => __( 'Begleitplätze können nur zusammen mit einem Rollstuhlplatz gebucht werden (höchstens ein Begleitplatz je Rollstuhlplatz).', 'pass-captain' ),
 		) );
 	}
 
@@ -194,6 +195,14 @@ final class Reservations {
 				}
 			}
 		}
+		// A485: a companion seat is only sold together with a wheelchair space (at most one per space).
+		$accessible = 0;
+		$companions = 0;
+		foreach ( $plan as $entry ) {
+			$accessible += (int) $entry[1]->is_accessible;
+			$companions += (int) ( $entry[1]->is_companion ?? 0 );
+		}
+		if ( $companions > $accessible ) { throw new \RuntimeException( 'seat_companion_only' ); }
 		$taken_keys = array();
 		foreach ( $plan as $entry ) { $taken_keys[] = $entry[1]->seat_key; }
 		foreach ( $auto as $type_id => $quantity ) {
@@ -225,14 +234,24 @@ final class Reservations {
 		}
 	}
 
-	/** Best available free seats of a version in the given zones/categories, locked FOR UPDATE. */
+	/**
+	 * Best available free seats of a version in the given zones/categories, locked FOR UPDATE.
+	 * Wheelchair spaces and companion seats are kept for the people who need them (A485): automatic
+	 * assignment (box office, WooCommerce, adapters, late-payment recovery) never picks a companion
+	 * seat, and a wheelchair space only when the filter `wpcap_seating_auto_assign_accessible` allows
+	 * it – then after all other seats.
+	 */
 	private static function free_seats( $occurrence_id, $version_id, array $zones, $limit, array $exclude_keys = array() ) {
 		global $wpdb;
 		if ( ! $zones || $limit < 1 ) { return array(); }
 		$zone_list = implode( ',', array_map( static function ( $zone ) use ( $wpdb ) { return $wpdb->prepare( '%s', $zone ); }, $zones ) );
 		$exclude = $exclude_keys ? ' AND s.seat_key NOT IN (' . implode( ',', array_map( static function ( $key ) use ( $wpdb ) { return $wpdb->prepare( '%s', $key ); }, $exclude_keys ) ) . ')' : '';
+		/** Whether automatic seat assignment may use wheelchair spaces (after all other seats). */
+		$allow = (bool) apply_filters( 'wpcap_seating_auto_assign_accessible', false, (int) $occurrence_id );
+		$filter = ( Layouts::companion_ready() ? ' AND s.is_companion=0' : '' ) . ( $allow ? '' : ' AND s.is_accessible=0' );
+		$order = $allow ? 's.is_accessible,' : '';
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT s.* FROM ' . self::t( 'seats' ) . " s WHERE s.version_id=%d AND (s.zone IN ($zone_list) OR s.category IN ($zone_list)){$exclude} AND NOT EXISTS (SELECT 1 FROM " . self::t( 'claims' ) . ' c WHERE c.occurrence_id=%d AND c.active_key=s.seat_key) ORDER BY s.sort_order,s.seat_id LIMIT %d FOR UPDATE',
+			'SELECT s.* FROM ' . self::t( 'seats' ) . " s WHERE s.version_id=%d AND (s.zone IN ($zone_list) OR s.category IN ($zone_list)){$exclude}{$filter} AND NOT EXISTS (SELECT 1 FROM " . self::t( 'claims' ) . " c WHERE c.occurrence_id=%d AND c.active_key=s.seat_key) ORDER BY {$order}s.sort_order,s.seat_id LIMIT %d FOR UPDATE",
 			$version_id,
 			$occurrence_id,
 			$limit
@@ -458,6 +477,7 @@ final class Reservations {
 				'zone' => $seat->zone,
 				'category' => $seat->category,
 				'accessible' => (bool) $seat->is_accessible,
+				'companion' => ! empty( $seat->is_companion ),
 				'x' => (float) $seat->pos_x,
 				'y' => (float) $seat->pos_y,
 				'status' => isset( $taken[ $seat->seat_key ] ) ? 'taken' : 'free',

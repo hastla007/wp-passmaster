@@ -18,6 +18,7 @@ final class Picker {
 			'taken' => __( 'belegt', 'pass-captain' ),
 			'selected' => __( 'ausgewählt', 'pass-captain' ),
 			'accessible' => __( 'rollstuhlgerecht', 'pass-captain' ),
+			'companion' => __( 'Begleitplatz (nur mit Rollstuhlplatz)', 'pass-captain' ),
 			'listToggle' => __( 'Plätze als Liste anzeigen', 'pass-captain' ),
 			'yourSeats' => __( 'Deine Plätze', 'pass-captain' ),
 			'none' => __( 'Noch keine Plätze gewählt.', 'pass-captain' ),

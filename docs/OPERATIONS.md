@@ -585,6 +585,22 @@ sha256sum build/dist/pass-captain.zip
 
 ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.txt` vergleichen. Gleiche Summe = das ZIP stammt genau aus diesem Commit (gleiche Composer-Version vorausgesetzt; die CI nutzt Composer 2 aus `shivammathur/setup-php`). Der Release-Workflow veröffentlicht nur nach erfolgreicher CI auf `main` (genau der getestete Commit), bei Tags `v*` oder manuell von `main`.
 
+## Saalpläne: Rollstuhl- und Begleitplätze (A485)
+
+- Im Saalplan-Editor wird ein Platz als **rollstuhlgerecht** (♿) oder als **Begleitplatz** (+, nur
+  zusammen mit einem Rollstuhlplatz) markiert; beides zugleich geht nicht. Spalte
+  `wpcap_seating_seats.is_companion` (Schema 3.10.18); Versionen, die vor dem Update veröffentlicht
+  wurden, haben keine Begleitplätze.
+- **Automatische Platzvergabe** (Kasse, WooCommerce, Adapter, Neuvergabe nach später Zahlung)
+  vergibt Begleitplätze nie und Rollstuhlplätze nur, wenn der Filter
+  `wpcap_seating_auto_assign_accessible` es erlaubt – dann erst nach allen anderen Plätzen. Sind nur
+  noch solche Plätze frei, meldet die automatische Vergabe „keine passenden Sitzplätze“.
+- In der Sitzplatzwahl kann jede Person einen Rollstuhlplatz wählen (Selbstauskunft). Ein
+  Begleitplatz wird nur zusammen mit einem Rollstuhlplatz derselben Bestellung verkauft (höchstens
+  ein Begleitplatz je Rollstuhlplatz, Fehler `seat_companion_only`). Wer Rollstuhlplätze nur nach
+  Rücksprache vergeben will, legt sie in einen eigenen Bereich und ordnet ihn einer eigenen,
+  nicht öffentlich verkauften Ticketart zu.
+
 ## Kasse: keine Registrierkasse
 
 Die Kasse (Menü **Pass Captain → Kasse**) bucht Verkäufe vor Ort als Bestellungen, erzeugt Belege mit fortlaufender Nummer und einen Kassenabschluss. Sie ist **keine** Registrierkasse im fiskalrechtlichen Sinn:

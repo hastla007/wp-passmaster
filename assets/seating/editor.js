@@ -229,7 +229,7 @@
 			}
 			const gEl = el('g', { 'data-seat': s.key, class: 'wpcap-se-seat' + (selection.has(s.key) ? ' is-selected' : '') + (isLocked(s) ? ' is-locked' : '') }, svg);
 			el('circle', { cx: s.x, cy: s.y, r: R, fill: colorOf('categories', s.category), stroke: colorOf('zones', s.zone) }, gEl);
-			el('text', { x: s.x, y: s.y + 3.5, 'text-anchor': 'middle', class: 'wpcap-se-label' }, gEl).textContent = s.accessible ? '♿' : s.label;
+			el('text', { x: s.x, y: s.y + 3.5, 'text-anchor': 'middle', class: 'wpcap-se-label' }, gEl).textContent = s.accessible ? '♿' : (s.companion ? '+' : s.label);
 			el('title', {}, gEl).textContent = (s.row ? s.row + ', ' : '') + s.label + (isLocked(s) ? ' – ' + (t.locked || 'locked') : '');
 		});
 		field.value = JSON.stringify(draft);
@@ -368,6 +368,7 @@
 		const zone = listSelect(panel, t.zone || 'Bereich', 'zones', seats.every(function (s) { return s.zone === seats[0].zone; }) ? seats[0].zone : '');
 		const cat = listSelect(panel, t.category || 'Kategorie', 'categories', seats.every(function (s) { return s.category === seats[0].category; }) ? seats[0].category : '');
 		const accWrap = h('label', {}, panel); const acc = h('input', { type: 'checkbox' }, accWrap); acc.checked = seats.every(function (s) { return s.accessible; }); accWrap.appendChild(document.createTextNode(' ' + (t.accessible || 'rollstuhlgerecht')));
+		const compWrap = h('label', {}, panel); const comp = h('input', { type: 'checkbox' }, compWrap); comp.checked = seats.every(function (s) { return s.companion; }); compWrap.appendChild(document.createTextNode(' ' + (t.companion || 'Begleitplatz')));
 		const renumber = single ? null : numberInput(panel, (t.renumber || 'Neu nummerieren ab (leer = nein)'), '', 0, 9999);
 		if (renumber) renumber.value = '';
 		[row, label, zone, cat, renumber].forEach(function (input) { if (input && anyLocked) input.disabled = true; });
@@ -379,6 +380,7 @@
 					if (cat.value || single) s.category = cat.value;
 				}
 				s.accessible = isLocked(s) ? s.accessible : acc.checked;
+				s.companion = isLocked(s) ? s.companion : (comp.checked && !s.accessible);
 			});
 			if (single && label.value.trim() && !isLocked(single)) single.label = label.value.trim();
 			if (renumber && renumber.value !== '' && !anyLocked) {

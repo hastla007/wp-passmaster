@@ -177,6 +177,7 @@ final class AdminPage {
 			'seat' => __( 'Platz', 'pass-captain' ),
 			'renumber' => __( 'Neu nummerieren ab (leer = nein)', 'pass-captain' ),
 			'accessible' => __( 'rollstuhlgerecht', 'pass-captain' ),
+			'companion' => __( 'Begleitplatz (nur mit Rollstuhlplatz)', 'pass-captain' ),
 			/* translators: %s: list name (zone or category) */
 			'addNamed' => __( '%s hinzufügen', 'pass-captain' ),
 			'help' => __( 'Klicken wählt einen Platz, Umschalt+Klick erweitert die Auswahl, Doppelklick wählt die ganze Gruppe. Ziehen oder Pfeiltasten verschieben (Umschalt: 1 px), Entf löscht, Esc hebt die Auswahl auf.', 'pass-captain' ),

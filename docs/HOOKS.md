@@ -139,6 +139,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_checkout_billing_enabled` | `bool $enabled` (true), `object\|null $event` (`null` in der Terminbuchung) | Abschnitt „Rechnung mit Firmen-/Adressdaten“ im Checkout-Formular (`templates/event-card.php`) und in der Terminbuchung für kostenpflichtige Ressourcen anzeigen. |
 | `wpcap_developer_key_rate_limit` | `int $limit` (eigenes Limit des Schlüssels, sonst 600), `int $api_key_id`, `int $own` (gespeichertes Limit, 0 = Standard) | Anfragen pro Minute für einen Entwickler-API-Schlüssel (`DeveloperKeys::rate_limit()`, A161); Rückgabe mindestens 1. |
 | `wpcap_seating_availability_limit` | `int $limit` (120) | Abrufe der Sitzplatzverfügbarkeit je Client und Minute. |
+| `wpcap_seating_auto_assign_accessible` | `bool $allow` (false), `int $occurrence_id` | Ob die automatische Platzvergabe Rollstuhlplätze nutzen darf (dann nach allen anderen Plätzen); Begleitplätze vergibt sie nie (A485). Siehe [OPERATIONS.md](OPERATIONS.md#saalpläne-rollstuhl--und-begleitplätze-a485). |
 | `wpcap_now` | `int $timestamp` (`time()`) | Aktuelle Zeit der Geschäftsregeln (`PassCaptain\Clock`): Reservierungen, Verkaufsfenster, Erinnerungen, Servicebuchungsfristen, Wartelistenangebote, Kalender-DTSTAMP, Standardzeiträume der Berichte (Tests/Simulation, A199). |
 | `wpcap_checkin_now` | `int $timestamp` | Zeitpunkt für Einlassentscheidungen (Tests/Simulation); Ausgangswert ist `Clock::now()`. |
 | `wpcap_user_has_2fa` | `bool $has, int $user_id` | Zwei-Faktor-Status für Erstattungen. |
