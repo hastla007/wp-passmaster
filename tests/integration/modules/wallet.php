@@ -134,14 +134,14 @@ $pkpass_name = 'ticket-' . substr( $ticket->public_id, 0, 12 ) . '.pkpass';
 check( 'wallet mail: .pkpass attached and Google link added', isset( $mail['files'][ $pkpass_name ] ) && false !== strpos( $mail['body'], 'Zu Apple Wallet hinzufügen' ) && false !== strpos( $mail['body'], 'In Google Wallet speichern: https://example.test/wp-json/pass-captain/v1/wallet/google/save?t=' ) );
 check( 'wallet mail: temporary .pkpass removed after sending', ! file_exists( trailingslashit( get_temp_dir() ) . $pkpass_name ) );
 $files = wpw_unzip( $mail['files'][ $pkpass_name ] ?? '' );
-$expected = array( 'icon.png', 'icon@2x.png', 'logo.png', 'logo@2x.png', 'manifest.json', 'pass.json', 'signature' );
+$expected = array( 'icon.png', 'icon@2x.png', 'manifest.json', 'pass.json', 'signature' ); // A628: no generated text logo.
 $names = array_keys( $files ); sort( $names );
 check( 'pkpass: zip contains pass.json, manifest, signature and @1x/@2x images', $expected === $names );
 $manifest = json_decode( $files['manifest.json'] ?? '{}', true );
-$hashes_ok = count( $manifest ) === 5;
+$hashes_ok = count( $manifest ) === 3; // pass.json + two icons (A628: no generated logo)
 foreach ( (array) $manifest as $name => $sha ) { $hashes_ok = $hashes_ok && isset( $files[ $name ] ) && sha1( $files[ $name ] ) === $sha; }
 check( 'pkpass: manifest has SHA-1 of every file except manifest/signature', $hashes_ok && ! isset( $manifest['signature'] ) );
-check( 'pkpass: images are PNGs of the right size', 58 === getimagesizefromstring( $files['icon@2x.png'] )[0] && 29 === getimagesizefromstring( $files['icon.png'] )[0] && 320 === getimagesizefromstring( $files['logo@2x.png'] )[0] );
+check( 'pkpass: images are PNGs of the right size', 58 === getimagesizefromstring( $files['icon@2x.png'] )[0] && 29 === getimagesizefromstring( $files['icon.png'] )[0] );
 $certs = array();
 check( 'pkpass: detached PKCS#7 signature verifies against the WWDR CA', wpw_verify_signature( $files['manifest.json'], $files['signature'], $wpw_dir . '/ca.pem', $certs ) && 2 === count( $certs ) );
 check( 'pkpass: tampered manifest fails verification', ! wpw_verify_signature( str_replace( 'pass.json', 'pass.jsoN', $files['manifest.json'] ), $files['signature'], $wpw_dir . '/ca.pem' ) );

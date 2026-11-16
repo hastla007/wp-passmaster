@@ -59,6 +59,7 @@ final class Wallet {
 			'wallet_apple_delivery'         => 'attachment',
 			'wallet_apple_icon_path'        => '',
 			'wallet_apple_logo_path'        => '',
+			'wallet_google_logo_url'        => '',
 			'wallet_apns_host'              => 'https://api.push.apple.com',
 			'apple_pass_cert'               => '',
 			'apple_pass_key'                => '',

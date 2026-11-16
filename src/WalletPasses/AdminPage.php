@@ -33,6 +33,11 @@ final class AdminPage {
 			'wallet_apple_icon_path' => Forms::text( $in, 'wallet_apple_icon_path', 500 ),
 			'wallet_apple_logo_path' => Forms::text( $in, 'wallet_apple_logo_path', 500 ),
 		);
+		$logo_url = esc_url_raw( Forms::text( $in, 'wallet_google_logo_url', 500 ) );
+		if ( '' !== $logo_url && 0 !== stripos( $logo_url, 'https://' ) ) {
+			return Forms::error( 'wpcap_wallet_logo_url', __( 'Die Logo-Adresse für Google Wallet muss mit https:// beginnen.', 'pass-captain' ) );
+		}
+		$values['wallet_google_logo_url'] = $logo_url;
 		$pass_type = Forms::text( $in, 'wallet_apple_pass_type_id', 190 );
 		if ( '' !== $pass_type && ! preg_match( '/^pass\.[A-Za-z0-9.\-]+$/', $pass_type ) ) {
 			return Forms::error( 'wpcap_wallet_pass_type', __( 'Die Pass Type ID muss mit "pass." beginnen.', 'pass-captain' ) );
@@ -187,7 +192,7 @@ final class AdminPage {
 		Forms::select( 'wallet_apns_host', array( 'https://api.push.apple.com' => __( 'Produktion', 'pass-captain' ), 'https://api.sandbox.push.apple.com' => __( 'Sandbox', 'pass-captain' ) ), $s['wallet_apns_host'] );
 		echo '</td></tr>';
 		self::text_row( 'wallet_apple_icon_path', __( 'Eigenes Icon (PNG-Pfad, 29×29)', 'pass-captain' ), $s['wallet_apple_icon_path'], __( 'Optional; …@2x.png daneben wird mitverwendet. Ohne Angabe wird ein Icon erzeugt.', 'pass-captain' ) );
-		self::text_row( 'wallet_apple_logo_path', __( 'Eigenes Logo (PNG-Pfad, max. 160×50)', 'pass-captain' ), $s['wallet_apple_logo_path'] );
+		self::text_row( 'wallet_apple_logo_path', __( 'Eigenes Logo (PNG-Pfad, max. 160×50)', 'pass-captain' ), $s['wallet_apple_logo_path'], __( 'Optional. Ohne Logo zeigt Wallet nur den Namen des Veranstalters.', 'pass-captain' ) );
 		self::secret_row( 'apple_pass_cert', __( 'Pass-Type-ID-Zertifikat (PEM oder .p12)', 'pass-captain' ) );
 		self::secret_row( 'apple_pass_key', __( 'Privater Schlüssel (PEM)', 'pass-captain' ) );
 		self::secret_row( 'apple_pass_key_password', __( 'Schlüssel-Passwort', 'pass-captain' ) );
@@ -195,6 +200,7 @@ final class AdminPage {
 		echo '</tbody></table><h2>' . esc_html__( 'Google Wallet', 'pass-captain' ) . '</h2><table class="form-table"><tbody>';
 		echo '<tr><th>' . esc_html__( 'Aktiv', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="wallet_google_enabled" value="1"' . checked( (int) $s['wallet_google_enabled'], 1, false ) . '> ' . esc_html__( '„In Google Wallet speichern“-Link versenden', 'pass-captain' ) . '</label></td></tr>';
 		self::text_row( 'wallet_google_issuer_id', __( 'Aussteller-ID (Issuer ID)', 'pass-captain' ), $s['wallet_google_issuer_id'] );
+		self::text_row( 'wallet_google_logo_url', __( 'Logo (öffentliche HTTPS-Adresse)', 'pass-captain' ), (string) ( $s['wallet_google_logo_url'] ?? '' ), __( 'Optional; quadratisch, mindestens 660×660 Pixel. Ohne Angabe wird das Logo des E-Mail-Layouts bzw. das Website-Icon verwendet.', 'pass-captain' ) );
 		self::secret_row( 'google_wallet_service_account', __( 'Servicekonto-Schlüssel (JSON)', 'pass-captain' ) );
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );

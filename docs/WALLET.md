@@ -23,7 +23,9 @@ define( 'WPCAP_APPLE_WWDR_CERT', '/pfad/AppleWWDRCAG4.pem' );
 4. Versand: als `.pkpass`-Anhang (Standard) oder als signierter Download-Link.
 5. Ablauf der Zertifikate (A585): Das Pass-Type-ID-Zertifikat gilt ein Jahr. 30 Tage vor Ablauf von Pass- oder WWDR-Zertifikat meldet der Site-Health-Test „Pass Captain Wallet“ eine Empfehlung und Administrator:innen sehen auf jeder Admin-Seite einen Hinweis. Ein **abgelaufenes** Zertifikat gilt als „nicht konfiguriert“: Es werden keine Apple-Pässe mehr erstellt oder per Push aktualisiert (statt Pässe mit ungültiger Signatur zu verschicken), Site Health meldet den Befund als kritisch; Google Wallet ist davon nicht betroffen. Nach dem Hinterlegen eines neuen Zertifikats arbeitet Apple Wallet sofort wieder.
 
-Icons/Logo werden mit GD erzeugt (ohne GD: einfarbige PNGs); eigene PNGs können als Pfad hinterlegt werden (`…@2x.png` daneben wird automatisch verwendet) oder per Filter `wpcap_wallet_apple_images` ersetzt werden.
+Das Icon wird mit GD erzeugt (ohne GD: einfarbiges PNG). Ein Logo kommt nur aus einer eigenen Datei (A628): Wallet zeigt neben dem Logo ohnehin den Organisationsnamen (`logoText`, UTF-8 mit Umlauten); ein erzeugtes Text-Logo zeigte den Namen doppelt und ohne Umlaute. Eigene PNGs können als Pfad hinterlegt werden (`…@2x.png` daneben wird automatisch verwendet) oder per Filter `wpcap_wallet_apple_images` ersetzt werden.
+
+Google-Pässe zeigen ein Logo (Klasse `logo`, A628) aus der Einstellung „Logo (öffentliche HTTPS-Adresse)“ (`wallet_google_logo_url`, nur `https://`), sonst dem Logo des E-Mail-Layouts, sonst dem Website-Icon; ohne HTTPS-Quelle bleibt das Feld leer. Google lädt das Bild selbst von dieser Adresse.
 
 ### Google Wallet
 

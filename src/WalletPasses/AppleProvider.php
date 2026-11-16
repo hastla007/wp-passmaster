@@ -123,15 +123,18 @@ class AppleProvider implements WalletProvider {
 
 	/* ---- bundle ---- */
 
-	/** icon.png, icon@2x.png, logo.png, logo@2x.png (operator files from settings or generated). */
+	/**
+	 * icon.png, icon@2x.png (operator files from settings or generated) and logo.png, logo@2x.png
+	 * (only an operator file). A628: no generated logo – Wallet already shows the organisation name
+	 * as logoText (UTF-8, umlauts intact) next to the logo; a generated text logo showed the name
+	 * twice and could only draw ASCII.
+	 */
 	public function images() {
 		$bg = Settings::get( 'wallet_background_color' ) ?: '#1d2327';
 		$fg = Settings::get( 'wallet_foreground_color' ) ?: '#ffffff';
 		$images = array(
 			'icon.png' => Archive::icon_png( 29, $bg, $fg ),
 			'icon@2x.png' => Archive::icon_png( 58, $bg, $fg ),
-			'logo.png' => Archive::logo_png( 160, 50, self::organization(), $fg ),
-			'logo@2x.png' => Archive::logo_png( 320, 100, self::organization(), $fg ),
 		);
 		foreach ( array( 'icon' => 'wallet_apple_icon_path', 'logo' => 'wallet_apple_logo_path' ) as $name => $key ) {
 			$path = trim( (string) Settings::get( $key ) );

@@ -101,7 +101,27 @@ class GoogleProvider implements WalletProvider {
 			$class['messages'] = array( array( 'id' => 'wpcap_cancelled', 'header' => __( 'Abgesagt', 'pass-captain' ), 'body' => __( 'Die Veranstaltung wurde abgesagt.', 'pass-captain' ) ) );
 		}
 		if ( '' !== (string) $ticket['location'] ) { $class['venue'] = array( 'name' => self::text( $ticket['location'], $ticket ), 'address' => self::text( $ticket['location'], $ticket ) ); }
+		// A628: the operator's logo (Google loads it from a public HTTPS URL).
+		$logo = self::logo_url();
+		if ( '' !== $logo ) {
+			$class['logo'] = array( 'sourceUri' => array( 'uri' => $logo ), 'contentDescription' => self::text( AppleProvider::organization(), $ticket ) );
+		}
 		return apply_filters( 'wpcap_wallet_google_class', $class, $ticket );
+	}
+
+	/**
+	 * Logo of the Google pass (A628): setting wallet_google_logo_url, else the logo of the mail layout,
+	 * else the site icon – only public HTTPS URLs ('' without).
+	 */
+	public static function logo_url() {
+		$layout = (array) Settings::get( 'mail_layout' );
+		$candidates = array( (string) Settings::get( 'wallet_google_logo_url' ), (string) ( $layout['logo_url'] ?? '' ) );
+		if ( function_exists( 'get_site_icon_url' ) ) { $candidates[] = (string) get_site_icon_url( 660 ); }
+		foreach ( $candidates as $url ) {
+			$url = trim( $url );
+			if ( 0 === stripos( $url, 'https://' ) && false !== filter_var( $url, FILTER_VALIDATE_URL ) ) { return $url; }
+		}
+		return '';
 	}
 
 	public function object_payload( array $ticket ) {
