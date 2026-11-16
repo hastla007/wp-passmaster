@@ -32,7 +32,7 @@ echo "A475: stable Google Wallet ids\n";
 $wpdb->query( "DELETE FROM {$p}wpcap_wallet_passes WHERE provider='google'" );
 unset( $GLOBALS['wpcap_test_options'][ GoogleProvider::SITE_KEY_OPTION ] );
 // An install from before: passes were issued under the hash of an earlier address.
-$wpdb->insert( "{$p}wpcap_wallet_passes", array( 'ticket_id' => 999001, 'provider' => 'google', 'provider_ref' => '3388000000022.wpcap_0badc0de_o5', 'serial_number' => '3388000000022.wpcap_0badc0de_tx_g1', 'status' => 'active', 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$wpdb->insert( "{$p}wpcap_wallet_passes", array( 'ticket_id' => 999001, 'provider' => 'google', 'provider_ref' => '3388000000022.wpcap_0badc0de_o5', 'serial_number' => '3388000000022.wpcap_0badc0de_tx_g1', 'status' => 'active', 'updated_at' => gmdate( 'Y-m-d H:i:s' ), 'remote_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $a475 = new A475_Google();
 check( 'A475: the site key of passes issued before is kept (not today\'s home_url hash)', '0badc0de' === GoogleProvider::site_key() && '3388000000022.wpcap_0badc0de_o9' === $a475->class_id( 9 ) );
 check( 'A475: the key is stored once', '0badc0de' === ( $GLOBALS['wpcap_test_options'][ GoogleProvider::SITE_KEY_OPTION ] ?? '' ) );
@@ -43,7 +43,7 @@ unset( $GLOBALS['wpcap_test_options'][ GoogleProvider::SITE_KEY_OPTION ] );
 check( 'A475: a fresh install derives the key from the home URL as before and stores it', substr( hash( 'sha256', home_url( '/' ) ), 0, 8 ) === GoogleProvider::site_key() && isset( $GLOBALS['wpcap_test_options'][ GoogleProvider::SITE_KEY_OPTION ] ) );
 
 // Updates address the ids stored with the pass, even when they differ from the computed ones.
-$a475_row = array( 'serial_number' => '3388000000022.wpcap_11112222_tabc_g1', 'provider_ref' => '3388000000022.wpcap_11112222_o77', 'status' => 'active' );
+$a475_row = array( 'serial_number' => '3388000000022.wpcap_11112222_tabc_g1', 'provider_ref' => '3388000000022.wpcap_11112222_o77', 'status' => 'active', 'remote_at' => '2026-11-01 10:00:00' ); // Saved by the buyer (A566).
 $a475->update_pass( $a475_ticket, $a475_row );
 $a475_patch = $a475->calls[0] ?? array( '', '', array() );
 check( 'A475: object update uses the stored object id and class id', 'PATCH' === $a475_patch[0] && 'eventTicketObject/' . rawurlencode( $a475_row['serial_number'] ) === $a475_patch[1] && $a475_row['provider_ref'] === ( $a475_patch[2]['classId'] ?? '' ) );
@@ -67,7 +67,7 @@ $a475_occ = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p
 $GLOBALS['wpcap_test_transients'] = array();
 $a475_order = PassCaptain\Orders::create( array( 'email' => 'a475@example.com', 'items' => array( array( 'ticket_type_id' => $a475_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a475-' . uniqid() ) );
 $a475_tid = is_wp_error( $a475_order ) ? 0 : (int) ( tickets( $a475_order['order_id'] )[0]->ticket_id ?? 0 );
-$wpdb->insert( "{$p}wpcap_wallet_passes", array( 'ticket_id' => $a475_tid, 'provider' => 'google', 'provider_ref' => '3388000000022.wpcap_11112222_o' . $a475_occ, 'serial_number' => '3388000000022.wpcap_11112222_tq_g1', 'status' => 'active', 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$wpdb->insert( "{$p}wpcap_wallet_passes", array( 'ticket_id' => $a475_tid, 'provider' => 'google', 'provider_ref' => '3388000000022.wpcap_11112222_o' . $a475_occ, 'serial_number' => '3388000000022.wpcap_11112222_tq_g1', 'status' => 'active', 'updated_at' => gmdate( 'Y-m-d H:i:s' ), 'remote_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $a475_method = new ReflectionMethod( Service::class, 'class_ticket' );
 $a475_method->setAccessible( true );
 $a475_class_ticket = $a475_method->invoke( null, $a475_occ );

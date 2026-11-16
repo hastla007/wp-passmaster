@@ -111,9 +111,9 @@ Orders::resend_tickets( $a566_r2['order_id'] );
 Service::flush();
 check( 'A566: rotation of a never-saved pass sends nothing to Google', 0 === count( http_requests( 'walletobjects' ) ) && 'retired' === Store::passes( $a566_t2, 'google' )[0]->status );
 
-// Legacy passes from before schema 3.10.18 keep being updated (never created).
+// Legacy passes from before schema 3.10.21 keep being updated (never created).
 $wpdb->query( "UPDATE {$p}wpcap_wallet_passes SET remote_at=NULL WHERE provider='google'" );
-$a566_marked = PassCaptain\Installer::mark_legacy_google_passes( '3.10.17' );
-check( 'A566: upgrade marks existing Google passes as possibly saved (they stay in sync)', $a566_marked > 0 && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_passes WHERE provider='google' AND remote_at IS NULL" ) && 0 === PassCaptain\Installer::mark_legacy_google_passes( '3.10.18' ) );
+$a566_marked = PassCaptain\Installer::mark_legacy_google_passes( '3.10.20' );
+check( 'A566: upgrade marks existing Google passes as possibly saved (they stay in sync)', $a566_marked > 0 && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_passes WHERE provider='google' AND remote_at IS NULL" ) && 0 === PassCaptain\Installer::mark_legacy_google_passes( '3.10.21' ) );
 
 wpr7_wallet_disable();

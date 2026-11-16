@@ -154,7 +154,7 @@ final class Store {
 		return (int) $wpdb->insert_id;
 	}
 
-	/** Whether wpcap_wallet_passes has `remote_at` (schema 3.10.18, A566; deferred upgrades). */
+	/** Whether wpcap_wallet_passes has `remote_at` (schema 3.10.21, A566; deferred upgrades). */
 	public static function remote_ready() {
 		return \PassCaptain\ServiceBookings::has_column( 'wpcap_wallet_passes', 'remote_at' );
 	}
