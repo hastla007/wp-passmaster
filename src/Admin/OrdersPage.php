@@ -226,6 +226,7 @@ final class OrdersPage {
 				'starts_at' => (string) $ticket->starts_at,
 				'timezone' => (string) $ticket->timezone,
 				'help_code' => \PassCaptain\HelpCode::for_ticket( (int) $ticket->ticket_id, $code ),
+				'ticket_id' => (int) $ticket->ticket_id,
 			);
 		}
 		if ( ! $entries ) {

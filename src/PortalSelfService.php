@@ -274,6 +274,7 @@ final class PortalSelfService {
 				'starts_at' => (string) $ticket->starts_at,
 				'timezone' => (string) $ticket->timezone,
 				'help_code' => HelpCode::for_ticket( (int) $ticket->ticket_id, $code ),
+				'ticket_id' => (int) $ticket->ticket_id,
 			);
 		}
 		$content = TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );

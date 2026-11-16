@@ -188,6 +188,7 @@ final class Mailer {
 		}
 		$message = apply_filters( 'wpcap_mail', $message, $to );
 		if ( ! is_array( $message ) ) { return false; }
+		list( $to, $message ) = self::recipients( $to, $message );
 		$prepared = self::prepare( $to, $message );
 		$from_name = self::sender()['name'];
 		$apply_name = static function () use ( $from_name ) { return $from_name; };
@@ -213,6 +214,37 @@ final class Mailer {
 		}
 		self::log_outcome( (bool) $sent, $to, $message );
 		return (bool) $sent;
+	}
+
+	/**
+	 * Filter wpcap_mail_recipients (A331): recipients of a customer mail as ['to' => string|string[],
+	 * 'cc' => string[], 'bcc' => string[]] (e.g. a copy to the organiser). Invalid addresses are
+	 * dropped, at most 10 per field; without a valid "to" the original recipient stays. Cc/Bcc become
+	 * mail headers.
+	 *
+	 * @return array [to, message]
+	 */
+	private static function recipients( $to, array $message ) {
+		$filtered = apply_filters( 'wpcap_mail_recipients', array( 'to' => $to, 'cc' => array(), 'bcc' => array() ), $message );
+		if ( ! is_array( $filtered ) ) { return array( $to, $message ); }
+		$clean = static function ( $list ) {
+			$list = is_array( $list ) ? $list : explode( ',', (string) $list );
+			$out = array();
+			foreach ( $list as $address ) {
+				$address = is_string( $address ) ? sanitize_email( $address ) : '';
+				if ( is_email( $address ) && ! self::is_placeholder( $address ) ) { $out[ strtolower( $address ) ] = $address; }
+			}
+			return array_slice( array_values( $out ), 0, 10 );
+		};
+		$new_to = $clean( $filtered['to'] ?? array() );
+		if ( $new_to ) { $to = 1 === count( $new_to ) && ! is_array( $to ) ? $new_to[0] : $new_to; }
+		$headers = (array) ( $message['headers'] ?? array() );
+		foreach ( array( 'cc' => 'Cc', 'bcc' => 'Bcc' ) as $field => $header ) {
+			$list = $clean( $filtered[ $field ] ?? array() );
+			if ( $list ) { $headers[] = $header . ': ' . implode( ', ', $list ); }
+		}
+		$message['headers'] = $headers;
+		return array( $to, $message );
 	}
 
 	/**

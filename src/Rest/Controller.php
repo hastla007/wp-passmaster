@@ -273,6 +273,21 @@ final class Controller {
 		) );
 	}
 
+	/**
+	 * Filters wpcap_rest_prepare_event, wpcap_rest_prepare_order and wpcap_rest_prepare_developer_event
+	 * (A331): add fields to a REST item. Additive only – the contract fields of the item (tests/contracts/)
+	 * cannot be removed, renamed or changed by a filter; only new keys are taken over.
+	 *
+	 * @param string $resource event, order, developer_event.
+	 * @param array  $item     Item as the contract defines it.
+	 * @param mixed  ...$args  Source row and/or WP_REST_Request.
+	 */
+	public static function prepare( $resource, array $item, ...$args ) {
+		$filtered = apply_filters( 'wpcap_rest_prepare_' . $resource, $item, ...$args );
+		if ( ! is_array( $filtered ) ) { return $item; }
+		return $item + array_diff_key( $filtered, $item );
+	}
+
 	public static function events( \WP_REST_Request $request ) {
 		global $wpdb;
 		// Upcoming occurrences plus running ones with a ticket type still on sale online (A535).
@@ -308,7 +323,7 @@ final class Controller {
 			$types = $types_of[ (int) $row->occurrence_id ] ?? array();
 			$occurrence = $occurrences[ (int) $row->occurrence_id ] ?? null;
 			$phase_row = $occurrence ? $occurrence : $row;
-			$output[] = array(
+			$output[] = self::prepare( 'event', array(
 				'event_id' => (int) $row->event_id,
 				'name' => $translation ? $translation->name : $row->name,
 				'slug' => $row->slug,
@@ -343,7 +358,7 @@ final class Controller {
 					'online_until' => \PassCaptain\Occurrence::iso( gmdate( 'Y-m-d H:i:s', \PassCaptain\Occurrence::online_sales_until( $phase_row, $type ) ), $row->timezone ),
 					'available' => null === $left ? null : max( 0, (int) $left ),
 				); }, $types ),
-			);
+			), $row, $request );
 		}
 		$response = rest_ensure_response( $output );
 		// A561: sales status and availability change by the minute – never stored by browsers or proxies.
@@ -584,7 +599,7 @@ final class Controller {
 		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		unset( $order['access_token_hash'] );
 		$order['total_minor'] = (int) $order['total_minor'];
-		return rest_ensure_response( $order );
+		return rest_ensure_response( self::prepare( 'order', $order, $request ) );
 	}
 
 	public static function transfer_ticket( \WP_REST_Request $request ) {
@@ -954,7 +969,7 @@ final class Controller {
 		global $wpdb;
 		// Authorised (and rate limited) once in developer_key_permission().
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,slug,description,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", absint( $request['event_id'] ) ), ARRAY_A );
-		return $event ? rest_ensure_response( $event ) : new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+		return $event ? rest_ensure_response( self::prepare( 'developer_event', $event, $request ) ) : new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 	}
 
 	/** GET /developer/events/{id}/service-slots: scope slots.read (DeveloperKeys::ROUTES). */

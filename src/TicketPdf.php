@@ -36,9 +36,27 @@ final class TicketPdf {
 				$event_id = $occurrence_id ? (int) Reports\Scope::occurrence_event( $occurrence_id ) : 0;
 				$bodies[ $occurrence_id ] = $event_id ? Templates::body_for_event( $event_id, 'ticket' ) : Templates::default_body( 'ticket' );
 			}
-			Templates::pages( 'ticket', array( self::values( $ticket, $meta ) ), $bodies[ $occurrence_id ], $pdf );
+			Templates::pages( 'ticket', array( self::values( self::data( $ticket, $meta ), $meta ) ), $bodies[ $occurrence_id ], $pdf );
 		}
 		return $pdf->output( (string) ( $meta['title'] ?? __( 'Tickets', 'pass-captain' ) ) );
+	}
+
+	/** Fields a filter can never change: the code and the help code (scanning must keep working). */
+	const FIXED_FIELDS = array( 'token', 'help_code' );
+
+	/**
+	 * Filter wpcap_ticket_pdf_data (A331): display data of one ticket page (event, ticket, when,
+	 * location, seat, attendee, ticket_id when known, further keys for the layout filter). The ticket
+	 * code and help code always stay as issued.
+	 */
+	public static function data( array $ticket, array $meta = array() ) {
+		$filtered = apply_filters( 'wpcap_ticket_pdf_data', $ticket, $meta );
+		$filtered = is_array( $filtered ) ? $filtered : $ticket;
+		foreach ( self::FIXED_FIELDS as $field ) {
+			unset( $filtered[ $field ] );
+			if ( array_key_exists( $field, $ticket ) ) { $filtered[ $field ] = $ticket[ $field ]; }
+		}
+		return $filtered;
 	}
 
 	/** Placeholder values of the ticket layout for one ticket entry. */

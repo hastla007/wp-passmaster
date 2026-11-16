@@ -143,6 +143,9 @@ final class Orders {
 		$billing = ( $external && is_array( $internal['billing'] ?? null ) ) ? Billing::sanitize( $internal['billing'] ) : Billing::validate( $payload['billing'] ?? null );
 		if ( is_wp_error( $billing ) ) { return $billing; }
 		$billing = $billing && ! Billing::is_empty( $billing ) ? $billing : array();
+		// A331: own checkout rules of add-ons/modules, before anything is locked or written.
+		$veto = self::checkout_veto( $email, $clean_lines, $payload, $internal, $namespace, $external );
+		if ( is_wp_error( $veto ) ) { return $veto; }
 
 		// Keep anonymous checkout abuse bounded without retaining raw IP addresses (RateLimit: keyed hashes,
 		// atomic across workers). Per IP+email and per IP alone, so rotating email addresses cannot bypass it.
@@ -420,6 +423,11 @@ final class Orders {
 		}
 
 		$pending = $total || $external;
+		/**
+		 * A331: the order is committed (fires once per new order, never for a reused idempotency key),
+		 * before the payment of a free order and before any mail. Handlers must not throw.
+		 */
+		do_action( 'wpcap_order_created', $order_id, array( 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'external' => $external, 'pending_payment' => (bool) $pending, 'total_minor' => (int) $total, 'currency' => (string) $currency ) );
 		$issued = null;
 		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
@@ -437,6 +445,29 @@ final class Orders {
 			return $issued;
 		}
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+	}
+
+	/**
+	 * Filter wpcap_checkout_validate (A331): own checkout rules (e.g. of an add-on) before the order
+	 * transaction. Returning a WP_Error refuses the checkout with that error (status 400 unless the
+	 * error names one); any other value lets it pass. Not called for a reused idempotency key.
+	 *
+	 * @param array $lines Ticket type id => quantity.
+	 * @return true|\WP_Error
+	 */
+	private static function checkout_veto( $email, array $lines, array $payload, array $internal, $namespace, $external ) {
+		$context = array(
+			'email' => (string) $email,
+			'items' => $lines,
+			'payload' => $payload,
+			'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ),
+			'external' => (bool) $external,
+		);
+		$result = apply_filters( 'wpcap_checkout_validate', true, $context );
+		if ( ! is_wp_error( $result ) ) { return true; }
+		$data = $result->get_error_data();
+		if ( is_array( $data ) && ! empty( $data['status'] ) ) { return $result; }
+		return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array_merge( is_array( $data ) ? $data : array(), array( 'status' => 400 ) ) );
 	}
 
 	/** Stores attendee name/e-mail and custom field answers for one ticket. */
@@ -2375,7 +2406,7 @@ final class Orders {
 			// No PDF with plaintext codes for a placeholder address (sale without buyer e-mail).
 			if ( ! Mail\Mailer::is_placeholder( $order->customer_email ) && apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
 				$pdf_tickets = array_map( static function ( $ticket ) {
-					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'attendee' => (string) ( $ticket['attendee'] ?? '' ), 'token' => $ticket['token'], 'help_code' => $ticket['help_code'], 'occurrence_id' => (int) $ticket['occurrence_id'], 'ticket_type_id' => (int) $ticket['ticket_type_id'], 'starts_at' => $ticket['starts_at'], 'timezone' => $ticket['timezone'] );
+					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'attendee' => (string) ( $ticket['attendee'] ?? '' ), 'token' => $ticket['token'], 'help_code' => $ticket['help_code'], 'ticket_id' => (int) $ticket['ticket_id'], 'occurrence_id' => (int) $ticket['occurrence_id'], 'ticket_type_id' => (int) $ticket['ticket_type_id'], 'starts_at' => $ticket['starts_at'], 'timezone' => $ticket['timezone'] );
 				}, $issued );
 				// The PDF holds plaintext ticket codes: private directory (0700) and file (0600) with a
 				// random name in the shared temp dir, removed right after delivery.
