@@ -18,7 +18,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 - Veröffentliche Events können abgesagt werden; Käufer werden benachrichtigt und unbezahlte Reservierungen aufgehoben.
 - REST-Grundlagen für Sitzpläne, Service-Slots, POS-Verkäufe, Offline-Scan-Synchronisierung, Einlassregeln pro Tag und Teilnehmerzuweisung sind enthalten.
 - Transaktionale Rechnungsnummern, geplanter Mailversand und Mitgliedspässe mit Nutzungslimits sind als Basismodule verfügbar.
-- Eventkarten können über `templates/event-card.php` im Theme überschrieben werden. Währungen und Wallet-Provider sind erweiterbar.
+- Eventkarten können im Theme über `pass-captain/event-card.php` überschrieben werden (Vorlage: `templates/event-card.php`; der frühere Ordner `wp-pass-captain/` wird weiter gelesen, siehe [RENAME.md](docs/RENAME.md)). Währungen und Wallet-Provider sind erweiterbar.
 - Kampagnencodes können Prozent- oder Festbetragsrabatte mit Event-/Ticketbereich und atomarem globalem Nutzungsmaximum anwenden; angewandte Preiswerte werden im Auftrag gespeichert. Stapelregeln sind einstellbar: höchstens 1–5 Codes je Bestellung, nacheinander anwenden oder nur den günstigsten Code, einzelne Codes „nicht kombinierbar“.
 - Wartelisten nehmen Einträge auf (ohne zu verraten, ob eine Adresse schon eingetragen ist) und senden zeitlich begrenzte Angebote. Wer ein Angebot annimmt, bekommt direkt eine Bestellung mit Reservierung, sofern das Ticket noch verfügbar ist.
 - Rollenbeschränkte Veranstaltungsberichte zeigen bezahlte Bestellungen, verkaufte Tickets, Bruttosummen pro Währung und Einlasszahlen.

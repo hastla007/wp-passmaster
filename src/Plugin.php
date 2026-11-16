@@ -191,7 +191,10 @@ final class Plugin {
 			foreach ( self::cron_hooks() as $hook ) {
 				wp_unschedule_hook( $hook );
 			}
-			if ( function_exists( 'as_unschedule_all_actions' ) ) { as_unschedule_all_actions( '', array(), 'pass-captain' ); }
+			if ( function_exists( 'as_unschedule_all_actions' ) ) {
+				as_unschedule_all_actions( '', array(), Jobs\TimeBudget::AS_GROUP );
+				as_unschedule_all_actions( '', array(), LegacySlug::LEGACY_AS_GROUP );
+			}
 			if ( is_multisite() && $network_wide ) { restore_current_blog(); }
 		}
 	}

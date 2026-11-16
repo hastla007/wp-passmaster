@@ -232,6 +232,8 @@ function wp_mail( $to, $subject, $body, $headers = '', $attachments = array() ) 
 	$GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body', 'files', 'html', 'headers' );
 	return true;
 }
+// Theme lookup (A659): child theme first, then parent; $GLOBALS['wpcap_test_theme_dirs'] lists the theme folders (default: none).
+function locate_template( $names, $load = false, $once = true, $args = array() ) { foreach ( (array) $names as $n ) { foreach ( (array) ( $GLOBALS['wpcap_test_theme_dirs'] ?? array() ) as $d ) { if ( '' !== (string) $n && is_file( $d . '/' . $n ) ) { return $d . '/' . $n; } } } return ''; }
 function get_temp_dir() { return sys_get_temp_dir() . '/'; }
 function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function get_bloginfo( $k = '' ) { return 'Testsite'; }

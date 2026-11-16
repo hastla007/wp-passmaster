@@ -15,6 +15,8 @@ translate.wordpress.org geladen werden.
 | REST-Namensraum | `/wp-json/wp-pass-captain/v1/…` | `/wp-json/pass-captain/v1/…` |
 | Admin-Seiten | `admin.php?page=wp-pass-captain…` | `admin.php?page=pass-captain…` |
 | Release-ZIP | `wp-pass-captain.zip` | `pass-captain.zip` |
+| Theme-Vorlagen (Eventkarte) | `<theme>/wp-pass-captain/event-card.php` | `<theme>/pass-captain/event-card.php` (alter Ordner wird weiter gelesen, siehe unten) |
+| Action-Scheduler-Gruppe der Folgeläufe | `wp-pass-captain` | `pass-captain` (ausstehende Aktionen werden übernommen, siehe unten) |
 
 **Unverändert:** alle Daten (Tabellen `{prefix}wpcap_*`, Optionen `wpcap_*`), Rollen und Rechte, PHP-Namensraum
 `PassCaptain`, Hooks und Shortcodes (`wpcap_*`, die älteren Namen `wp_pass_captain_*` bleiben als Aliase), die
@@ -51,12 +53,32 @@ Externe Systeme müssen nicht sofort umgestellt werden:
   - gekoppelte Scanner-Apps, Offline-Scanner und Partner-/Entwickler-API-Integrationen.
 - **Admin:** Lesezeichen auf `admin.php?page=wp-pass-captain…` leiten auf die neuen Seiten um.
 
+- **Theme-Vorlagen (A659):** Eine überschriebene Eventkarte im alten Theme-Ordner
+  `<theme>/wp-pass-captain/event-card.php` wird weiter verwendet, solange es keine im neuen Ordner
+  `<theme>/pass-captain/` gibt (Child-Theme vor Eltern-Theme, wie bei `locate_template()`); der neue Ordner hat
+  immer Vorrang. Wird die alte Datei benutzt, zeigt der Admin-Bereich Nutzer:innen mit dem Recht
+  `switch_themes` einen Hinweis mit dem Pfad der Datei (relativ zum Themes-Ordner, je Person ausblendbar), und
+  WordPress meldet bei `WP_DEBUG` einmal pro Aufruf eine Veraltet-Meldung (`_deprecated_file()`). Sobald die
+  Datei verschoben oder gelöscht ist, verschwindet der Hinweis von selbst. Die Unterstützung des alten Ordners
+  entfällt frühestens in einer späteren Hauptversion – Themes sollten die Datei jetzt verschieben.
+- **Action Scheduler (A660):** Folgeläufe der Warteschlangen (`wpcap_process_messages`, `wpcap_process_jobs`,
+  `wpcap_webhooks_dispatch`, `wpcap_waitlist_process` mit Argument `continue`) lagen bis 1.4 in der Gruppe
+  `wp-pass-captain`, jetzt in `pass-captain`. Beim ersten `action_scheduler_init` nach dem Update werden
+  ausstehende Aktionen der alten Gruppe ausgeplant und – falls in der neuen Gruppe noch keine wartet – dort
+  einmal neu eingeplant (Option `wpcap_legacy_as_group_migrated`, Audit `legacy_action_scheduler_group_migrated`).
+  Bis dahin zählt eine wartende Aktion der alten Gruppe als „bereits eingeplant“, es entsteht kein zweiter Lauf.
+  Das Deaktivieren entfernt Aktionen beider Gruppen.
+
 Empfehlung: Webhook-URLs bei den Zahlungs- und SMS-Anbietern auf `/wp-json/pass-captain/v1/…` umstellen (die
 aktuellen Adressen stehen in den Einstellungen) und Partnern den neuen Namensraum mitteilen. Der alte Namensraum
 bleibt mindestens für die Lebensdauer der ausgegebenen Wallet-Pässe erhalten.
 
 ## Abgesichert durch Tests
 
+- `tests/integration/modules/zz_a659.php`: Eventkarte aus dem alten Theme-Ordner, Vorrang des neuen Ordners,
+  Hinweis (Rechte, Ausblenden mit Nonce, verschwindet nach dem Verschieben), Veraltet-Meldung.
+- `tests/integration/modules/zz_a660.php`: ausstehende Action-Scheduler-Aktionen der alten Gruppe werden erkannt
+  (kein Doppeleintrag), einmal übernommen und beim Deaktivieren entfernt.
 - `tests/integration/modules/zz_legacy_slug.php`: Weiterleitung, Header, Signatur-URL, Admin-Slugs, Pausieren und
   Wiederherstellen der Datenlöschung, kein alter Slug außerhalb der Kompatibilitätsschicht.
 - `tests/wp-matrix/rename-takeover.sh` (CI, jede WordPress-Version der Matrix): echte Website mit dem

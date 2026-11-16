@@ -19,6 +19,9 @@ final class TimeBudget {
 	/** Default seconds of queue work per cron hook (filter: wpcap_cron_time_budget). */
 	const DEFAULT_SECONDS = 20;
 
+	/** Action Scheduler group of follow-up runs (before the rename: LegacySlug::LEGACY_AS_GROUP). */
+	const AS_GROUP = 'pass-captain';
+
 	/** Cron hooks whose workers share one deadline. */
 	const HOOKS = array( 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_waitlist_process' );
 
@@ -66,8 +69,9 @@ final class TimeBudget {
 	public static function continue_later( $hook ) {
 		$args = array( 'continue' );
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			if ( ! function_exists( 'as_has_scheduled_action' ) || ! as_has_scheduled_action( $hook, $args, 'pass-captain' ) ) {
-				as_enqueue_async_action( $hook, $args, 'pass-captain' );
+			// A follow-up run still pending in the pre-rename group counts as well (no second run).
+			if ( ! function_exists( 'as_has_scheduled_action' ) || ( ! as_has_scheduled_action( $hook, $args, self::AS_GROUP ) && ! \PassCaptain\LegacySlug::has_legacy_action( $hook, $args ) ) ) {
+				as_enqueue_async_action( $hook, $args, self::AS_GROUP );
 			}
 			return true;
 		}

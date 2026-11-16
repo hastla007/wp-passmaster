@@ -12,6 +12,10 @@
  * - Old plugin copy (folder wp-pass-captain, legacy-slug): taken over on activation (see pass-captain.php);
  *   while its folder still exists, "delete data on uninstall" is paused – deleting the old copy runs
  *   its uninstall.php against the same tables. Cron events it removes on uninstall are re-scheduled.
+ * - Action Scheduler: follow-up runs were queued in the group <old slug>; pending ones are moved to the
+ *   group pass-captain once (action_scheduler_init) and count as queued until then (no duplicates).
+ * - Theme overrides in the old template folder (<theme>/<old>/event-card.php) are still used, with a
+ *   deprecation note and an admin notice until the theme moves them to <theme>/pass-captain/.
  *
  * @package PassCaptain
  */
@@ -27,6 +31,8 @@ final class LegacySlug {
 	const LEGACY_BASENAME = 'wp-pass-captain/wp-pass-captain.php'; // legacy-slug
 	const NS              = 'pass-captain/v1';
 	const LEGACY_NS       = 'wp-pass-captain/v1'; // legacy-slug
+	/** Action Scheduler group of follow-up runs before the rename (Jobs\TimeBudget::continue_later()). */
+	const LEGACY_AS_GROUP = self::LEGACY_SLUG;
 
 	/** Option: the delete-data setting was switched off while the old copy exists (value: 1). */
 	const PARKED_OPTION = 'wpcap_uninstall_delete_parked';
@@ -34,6 +40,12 @@ final class LegacySlug {
 	const TAKEOVER_OPTION = 'wpcap_legacy_takeover';
 	/** Network option: an old copy was present at the last check (to notice its removal). */
 	const SEEN_OPTION = 'wpcap_legacy_copy_seen';
+	/** Option: pending Action Scheduler actions of the old group were moved (value: 1). */
+	const AS_MIGRATED_OPTION = 'wpcap_legacy_as_group_migrated';
+	/** Option: theme templates found only in the old folder (template name => path relative to the themes dir). */
+	const THEME_TEMPLATE_OPTION = 'wpcap_legacy_theme_templates';
+	/** User meta: the notice about old theme templates was dismissed (value: the list it was dismissed for). */
+	const THEME_NOTICE_META = 'wpcap_legacy_theme_notice_dismissed';
 
 	/** Whether the REST request being dispatched came in under the old namespace. */
 	private static $legacy_request = false;
@@ -51,6 +63,35 @@ final class LegacySlug {
 		add_action( 'admin_init', array( __CLASS__, 'watch_legacy_copy' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'theme_template_notice' ) );
+		add_action( 'action_scheduler_init', array( __CLASS__, 'migrate_action_scheduler_group' ) );
+	}
+
+	/** Whether a pending action for $hook/$args is still queued in the pre-rename Action Scheduler group. */
+	public static function has_legacy_action( $hook, array $args = array() ) {
+		return function_exists( 'as_has_scheduled_action' ) && (bool) as_has_scheduled_action( $hook, $args, self::LEGACY_AS_GROUP );
+	}
+
+	/**
+	 * action_scheduler_init, once per site: pending follow-up runs of the old group are unscheduled and,
+	 * where none is queued in the new group yet, queued there again (Jobs\TimeBudget::continue_later()).
+	 * Without this, continue_later() would not see them and queue a second run of the same worker.
+	 *
+	 * @return int Number of hooks whose old-group actions were moved.
+	 */
+	public static function migrate_action_scheduler_group() {
+		if ( get_option( self::AS_MIGRATED_OPTION ) || ! function_exists( 'as_has_scheduled_action' ) || ! function_exists( 'as_unschedule_all_actions' ) ) { return 0; }
+		$moved = 0;
+		$args  = array( 'continue' );
+		foreach ( Jobs\TimeBudget::HOOKS as $hook ) {
+			if ( ! as_has_scheduled_action( $hook, $args, self::LEGACY_AS_GROUP ) ) { continue; }
+			as_unschedule_all_actions( $hook, $args, self::LEGACY_AS_GROUP );
+			Jobs\TimeBudget::continue_later( $hook );
+			++$moved;
+		}
+		update_option( self::AS_MIGRATED_OPTION, 1 );
+		if ( $moved ) { Audit::record( 'legacy_action_scheduler_group_migrated', 'plugin', 0, array( 'hooks' => $moved ) ); }
+		return $moved;
 	}
 
 	/** rest_pre_dispatch: /<old>/v1/… → /pass-captain/v1/… (the request object is matched afterwards). */
@@ -227,5 +268,83 @@ final class LegacySlug {
 			echo ' ' . esc_html__( '„Beim Löschen des Plugins alle Daten entfernen“ ist so lange pausiert und wird danach automatisch wieder eingeschaltet.', 'pass-captain' );
 		}
 		echo '</p></div>';
+	}
+
+	/**
+	 * Theme override in the folder used before the rename (<theme>/<old slug>/<name>), or ''. Still used so
+	 * a customised event card does not silently fall back to the bundled one after the update; the first
+	 * use is remembered for the admin notice and reported via _deprecated_file() (WP_DEBUG only).
+	 */
+	public static function legacy_theme_template( $name ) {
+		$name     = basename( (string) $name );
+		$template = function_exists( 'locate_template' ) ? (string) locate_template( self::LEGACY_SLUG . '/' . $name ) : '';
+		if ( '' === $template ) { return ''; }
+		$seen = (array) get_option( self::THEME_TEMPLATE_OPTION, array() );
+		$path = self::theme_relative( $template );
+		if ( ( $seen[ $name ] ?? null ) !== $path ) {
+			$seen[ $name ] = $path;
+			update_option( self::THEME_TEMPLATE_OPTION, $seen, false );
+		}
+		static $reported = array();
+		if ( ! isset( $reported[ $name ] ) && function_exists( '_deprecated_file' ) ) {
+			$reported[ $name ] = true;
+			_deprecated_file( esc_html( $path ), '1.5.0', esc_html( 'pass-captain/' . $name ) );
+		}
+		return $template;
+	}
+
+	/** Template path relative to the themes directory (no server paths in notices). */
+	private static function theme_relative( $file ) {
+		$file = str_replace( '\\', '/', (string) $file );
+		$root = function_exists( 'get_theme_root' ) ? str_replace( '\\', '/', (string) get_theme_root() ) : '';
+		if ( '' !== $root && 0 === strpos( $file, rtrim( $root, '/' ) . '/' ) ) { return substr( $file, strlen( rtrim( $root, '/' ) ) + 1 ); }
+		return basename( dirname( dirname( $file ) ) ) . '/' . basename( dirname( $file ) ) . '/' . basename( $file );
+	}
+
+	/**
+	 * Old theme templates that are still in use: entries whose file still exists in the old folder and
+	 * has no counterpart in the new one (moved or deleted templates drop out of the list).
+	 *
+	 * @return array template name => path relative to the themes directory.
+	 */
+	public static function legacy_theme_templates() {
+		$seen = (array) get_option( self::THEME_TEMPLATE_OPTION, array() );
+		if ( ! $seen || ! function_exists( 'locate_template' ) ) { return array(); }
+		$active = array();
+		foreach ( $seen as $name => $path ) {
+			$name = basename( (string) $name );
+			if ( '' === (string) locate_template( 'pass-captain/' . $name ) && '' !== (string) locate_template( self::LEGACY_SLUG . '/' . $name ) ) {
+				$active[ $name ] = (string) $path;
+			}
+		}
+		if ( $active !== $seen ) {
+			if ( $active ) { update_option( self::THEME_TEMPLATE_OPTION, $active, false ); } else { delete_option( self::THEME_TEMPLATE_OPTION ); }
+		}
+		return $active;
+	}
+
+	/** Admin notice while the theme overrides templates only in the old folder (dismissible per user). */
+	public static function theme_template_notice() {
+		if ( ! current_user_can( 'switch_themes' ) ) { return; }
+		$templates = self::legacy_theme_templates();
+		if ( ! $templates ) { return; }
+		$user_id = get_current_user_id();
+		$key     = md5( (string) wp_json_encode( $templates ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified here.
+		if ( isset( $_GET['wpcap_dismiss_theme_notice'] ) && $user_id && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), self::THEME_NOTICE_META ) ) {
+			update_user_meta( $user_id, self::THEME_NOTICE_META, $key );
+		}
+		if ( $user_id && get_user_meta( $user_id, self::THEME_NOTICE_META, true ) === $key ) { return; }
+		$dismiss = wp_nonce_url( add_query_arg( 'wpcap_dismiss_theme_notice', '1' ), self::THEME_NOTICE_META );
+		echo '<div class="notice notice-warning"><p>';
+		echo esc_html(
+			sprintf(
+				/* translators: 1: theme template path(s) in the old folder, 2: new folder name */
+				__( 'Ihr Theme überschreibt Vorlagen von Pass Captain noch im früheren Ordner (%1$s). Sie werden weiter verwendet, bitte verschieben Sie sie aber in den Ordner „%2$s“ im Theme – die Unterstützung des alten Ordners entfällt in einer künftigen Version.', 'pass-captain' ),
+				implode( ', ', $templates ),
+				'pass-captain/'
+			)
+		);
+		echo ' <a href="' . esc_url( $dismiss ) . '">' . esc_html__( 'Hinweis für mich ausblenden', 'pass-captain' ) . '</a></p></div>';
 	}
 }

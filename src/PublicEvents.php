@@ -216,7 +216,7 @@ final class PublicEvents {
 				<?php
 				// Badges, seats left, price and the event's other dates (theme templates may ignore it).
 				$card = Frontend\EventCard::context( $event, $types, $card_listing );
-				$template = locate_template( 'pass-captain/event-card.php' );
+				$template = self::theme_template( 'event-card.php' );
 				if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
 				ob_start();
 				include $template;
@@ -228,6 +228,17 @@ final class PublicEvents {
 		</div>
 		<?php
 		return ob_get_clean();
+	}
+
+	/**
+	 * Theme override of a front-end template: `<theme>/pass-captain/<name>` (child theme first), else
+	 * the folder used before the rename (see LegacySlug::legacy_theme_template()); '' when the theme
+	 * has none.
+	 */
+	public static function theme_template( $name ) {
+		$name     = basename( (string) $name );
+		$template = locate_template( 'pass-captain/' . $name );
+		return $template ? $template : LegacySlug::legacy_theme_template( $name );
 	}
 
 	/**
