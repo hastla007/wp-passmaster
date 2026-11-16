@@ -49,7 +49,8 @@ list( $a452_second_prev ) = a452_links( $a452_second );
 check( 'base is the request URL, not the permalink of the global post', 0 === strpos( $a452_first_next, '/veranstaltungen/sommer/?' ) );
 check( 'first calendar: own parameter wpcap_month, keeps the other query parameters and the second calendar\'s month', '/veranstaltungen/sommer/?ref=nl&wpcap_month_2=' . $a452_later->format( 'Y-m' ) . '&wpcap_month=' . $a452_next . '#wpcap-cal-nav-1' === $a452_first_next );
 check( 'second calendar: parameter wpcap_month_2 replaced, not duplicated', '/veranstaltungen/sommer/?ref=nl&wpcap_month_2=' . ( clone $a452_later )->modify( '-1 month' )->format( 'Y-m' ) . '#wpcap-cal-nav-2' === $a452_second_prev );
-check( 'list views do not take a month parameter', false === strpos( $a452_list, 'wpcap_month' ) );
+// A342: links of a list view to the cards on this page keep the other query parameters (also another calendar's month), but the list adds no month parameter or navigation of its own.
+check( 'list views do not take a month parameter', false === strpos( $a452_list, 'wpcap-cal-nav' ) && ! preg_match( '/[?&;]wpcap_month=/', $a452_list ) );
 check( 'each calendar shows its own month', 1 === preg_match( '/<caption>([^<]+)<\/caption>/', $a452_first, $a452_c1 ) && 1 === preg_match( '/<caption>([^<]+)<\/caption>/', $a452_second, $a452_c2 ) && $a452_c1[1] !== $a452_c2[1] && str_ends_with( $a452_c2[1], ' ' . $a452_later->format( 'Y' ) ) );
 check( 'navigation anchors are unique per calendar', false !== strpos( $a452_first, 'id="wpcap-cal-nav-1"' ) && false !== strpos( $a452_second, 'id="wpcap-cal-nav-2"' ) );
 
