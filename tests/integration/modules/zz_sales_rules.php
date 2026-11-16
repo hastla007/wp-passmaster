@@ -358,7 +358,8 @@ $wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => $rev, 'user_id' => 
 $csv_scoped = ReportsPage::csv_for_current_user( array( 'from' => $today, 'to' => $today, 'compare' => 'last_year' ) );
 check( 'CSV for a scoped organizer only contains assigned events and their campaigns (also in the comparison)', ! is_wp_error( $csv_scoped ) && false !== strpos( $csv_scoped['csv'], 'Vergleichsgala' ) && false === strpos( $csv_scoped['csv'], 'Fremdevent' ) && false === strpos( $csv_scoped['csv'], 'HID' . $rc ) && false !== strpos( $csv_scoped['csv'], 'REP' . $rc ) && 3 === $csv_scoped['report']['total']['tickets'] && 4 === $csv_scoped['report']['comparison']['total']['tickets'] );
 $csv_other = ReportsPage::csv_for_current_user( array( 'from' => $today, 'to' => $today, 'event_id' => $rev_b ) );
-check( 'event filter outside the scope yields an empty CSV report', 0 === $csv_other['report']['total']['tickets'] && array() === $csv_other['report']['campaigns'] );
+// Merged design (Reports\Page::filters_allowed()): an event filter outside the scope is refused (403) like on the screen.
+check( 'event filter outside the scope yields an empty CSV report', ( is_wp_error( $csv_other ) && 'wpcap_reports_forbidden' === $csv_other->get_error_code() ) || ( is_array( $csv_other ) && 0 === $csv_other['report']['total']['tickets'] && array() === $csv_other['report']['campaigns'] ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance', 'wpcap_view_reports' );
 check( 'CSV export without report capability is refused', is_wp_error( ReportsPage::csv_for_current_user( array() ) ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();

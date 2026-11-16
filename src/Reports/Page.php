@@ -339,8 +339,8 @@ final class Page {
 	/**
 	 * CSV export for the current user (testable without a request): the same role scope as the
 	 * screen (finance/administrators all events, wpcap_view_reports only assigned events), applied to
-	 * every section including campaigns and the comparison period. An event filter outside the
-	 * scope yields an empty report.
+	 * every section including campaigns and the comparison period. An event or occurrence filter
+	 * outside the scope is refused (403, filters_allowed()), as on the screen.
 	 *
 	 * @return array|\WP_Error {csv, filename, report}
 	 */
