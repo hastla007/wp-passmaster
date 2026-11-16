@@ -6,6 +6,11 @@ Das Add-on und andere Erweiterungen docken nur über öffentliche, versionierte 
 
 Hintergrundadapter können idempotente Jobs über `PassCaptain\Jobs::enqueue()` einplanen. Ein Handler registriert einen Filter auf `wpcap_process_job` und gibt `true` zurück, wenn der Job erfolgreich und wiederholbar verarbeitet wurde; andernfalls (auch bei einer Exception) wird er mit Backoff erneut versucht und nach acht Läufen als `dead_letter` markiert. Jobs laufen mindestens einmal – Handler müssen idempotent sein (siehe [OPERATIONS.md](OPERATIONS.md#garantien-bei-worker-fehlern-und-neustarts-a188)).
 
+
+## Connectoren BoatingSchool und LearnBoating (Pass Captain Pro)
+
+Die Connectoren zu BoatingSchool und LearnBoating sind eigene Plugins von Pass Captain Pro (Entscheidung 17, 16.11.2026): getrennt installiert, nur mit gültiger Lizenz. Sie docken ausschließlich über den Connector-Vertrag an (Registrierung über `wp_pass_captain_connectors_v1`, Ausführung nur nach Freigabe in `wpcap_enabled_connectors`), lesen keine Kerntabellen direkt und bringen Lizenzclient und Updater selbst mit. Regeln wie „Kauf oder Gutscheineinlösung löst Kurszugang, Ticket oder beides aus“ liegen im Connector. Fehlt die Lizenz, stoppt nur dessen Synchronisierung; Verkauf, Tickets und Einlass im Kern laufen weiter. Offene Punkte: [FREE-PREMIUM.md](FREE-PREMIUM.md#connectoren-boatingschool-und-learnboating-entscheidung-17-16112026), TODO.md Abschnitt C.
+
 ## Affiliate Captain
 
 `src/Integrations/AffiliateCaptain/Adapter.php` verbindet Pass Captain mit Affiliate Captain über dessen öffentlichen Vertrag v1 (`wpac_record_sale()`, `wpac_record_refund()`, `wpac_resolve_partner_code()`, `wpac_current_touch()`). Kein Zugriff auf Tabellen von Affiliate Captain; ohne Affiliate Captain oder bei anderer Vertrags-Hauptversion (bzw. wenn `wpac_contract_version()` scheitert) ist der Adapter inaktiv, jede Minor-Version von 1.x wird akzeptiert. Ausnahmen und Timeouts von Affiliate Captain brechen den Pass-Captain-Ablauf nie ab: Sie werden als `affiliate_sale_failed` auditiert, die Bestellung gilt dann als nicht gemeldet und wird beim nächsten `wpcap_order_paid` genau einmal gemeldet. Versionsregel und Vertrags-Fixtures: [CONTRACTS.md](CONTRACTS.md).
