@@ -16,7 +16,7 @@ $p = $wpdb->prefix;
 
 echo "A431: Mollie webhook lookup and rate limit\n";
 $a431_cols = array_map( static fn( $r ) => $r->Column_name . ( null !== $r->Sub_part ? '(' . $r->Sub_part . ')' : '' ), (array) $wpdb->get_results( "SHOW INDEX FROM {$p}wpcap_orders WHERE Key_name='provider_ref'" ) );
-check( 'schema 3.10.18: orders KEY provider_ref (payment_provider, provider_reference(64))', version_compare( Installer::DB_VERSION, '3.10.18', '>=' ) && array( 'payment_provider', 'provider_reference(64)' ) === $a431_cols );
+check( 'schema 3.10.23: orders KEY provider_ref (payment_provider, provider_reference(64))', version_compare( Installer::DB_VERSION, '3.10.18', '>=' ) && array( 'payment_provider', 'provider_reference(64)' ) === $a431_cols );
 
 // A few hundred orders of other providers, one Mollie order from before wpcap_mollie_payments existed.
 $a431_now = gmdate( 'Y-m-d H:i:s' );

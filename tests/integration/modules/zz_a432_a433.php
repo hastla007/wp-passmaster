@@ -17,7 +17,7 @@ $p = $wpdb->prefix;
 
 echo "A432/A433: ticket list and check-in log at scale\n";
 $a432_cols = static fn( $table, $key ) => array_map( static fn( $r ) => $r->Column_name, (array) $wpdb->get_results( "SHOW INDEX FROM {$p}wpcap_$table WHERE Key_name='$key'" ) );
-check( 'schema 3.10.18: checkins KEY ticket_id (ticket_id, result, created_at) and KEY created (created_at, checkin_id)',
+check( 'schema 3.10.23: checkins KEY ticket_id (ticket_id, result, created_at) and KEY created (created_at, checkin_id)',
 	version_compare( Installer::DB_VERSION, '3.10.18', '>=' )
 	&& array( 'ticket_id', 'result', 'created_at' ) === $a432_cols( 'checkins', 'ticket_id' )
 	&& array( 'created_at', 'checkin_id' ) === $a432_cols( 'checkins', 'created' ) );

@@ -141,7 +141,7 @@ function wpcap_sql_findings( array $unit ) {
 			$keyword = $match[1][0];
 			$before = substr( $text, max( 0, $match[0][1] - 12 ), min( 12, $match[0][1] ) );
 			$after = $match[2][0];
-			if ( 'UPDATE' === $keyword && preg_match( '/(KEY|FOR)\s+$/', $before ) ) { continue; } // ON DUPLICATE KEY UPDATE, FOR UPDATE.
+			if ( 'UPDATE' === $keyword && preg_match( '/(KEY|FOR|ON)\s+$/', $before ) ) { continue; } // ON DUPLICATE KEY UPDATE, FOR UPDATE, column ON UPDATE CURRENT_TIMESTAMP.
 			if ( 'FROM' === $keyword && preg_match( '/\b(YEAR|MONTH|DAY|HOUR|MINUTE|SECOND|LEADING|TRAILING|BOTH)\s+$/', $before ) ) { continue; } // EXTRACT/TRIM.
 			if ( '' === $after || WPCAP_SQL_DYNAMIC === $after[0] || '(' === $after[0] ) { continue; }
 			if ( preg_match( '/^`' . WPCAP_SQL_DYNAMIC . '/', $after ) ) { continue; }
