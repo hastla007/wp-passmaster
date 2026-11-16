@@ -91,7 +91,7 @@ final class Waitlists {
 		// A565: people on the waitlist learn about a new date or location.
 		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'on_occurrence_changed' ), 30, 2 );
 		add_filter( 'wpcap_privacy_retention_steps', array( __CLASS__, 'retention_step' ), 10, 3 );
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
 	/**

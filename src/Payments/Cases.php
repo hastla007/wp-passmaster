@@ -27,7 +27,7 @@ final class Cases {
 	const KINDS = array( 'paid_for_closed_order', 'double_payment', 'refund_failed' );
 
 	public static function register() {
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
 	private static function table() {
