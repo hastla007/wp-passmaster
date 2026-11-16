@@ -438,6 +438,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Filter | Wert, Argumente | Zweck |
 |---|---|---|
+| `wpcap_network_install_batch` | `int $sites` (25) | Höchstzahl der Sites je Lauf des Cron-Ereignisses `wpcap_network_install` nach netzwerkweiter Aktivierung (A287). |
+| `wpcap_network_install_budget` | `int $seconds` (15) | Zeitbudget je Lauf von `wpcap_network_install`; danach plant sich der Lauf neu ein (A287). |
 | `wpcap_modules` | `string[] $classes` | Liste der Modulklassen (`src/Modules`). |
 | `wp_pass_captain_connectors_v1` | `ConnectorInterface[] $connectors` | Connectoren registrieren. |
 | `wpcap_process_job` | `bool $handled, string $job_type, array $payload, int $job_id` | Hintergrundjobs aus `wpcap_jobs` verarbeiten (`true` = erledigt; `WP_Error`, `false` oder eine Exception = gescheitert, erneuter Versuch mit Backoff, nach 8 Läufen `dead_letter`). Ein gescheiterter Lauf sollte ein `WP_Error` liefern: Code und Text werden `last_error` und damit der Grund des Dead Letters (A325); bei `false` steht dort nur „ohne Fehlerangabe“ (plus ein `wp_mail`-Fehler des Laufs). Einträge ins Support-Protokoll und Mails während des Laufs werden der Bestellung/dem Ticket/Termin aus `order_id`/`ticket_id`/`occurrence_id` des Inhalts zugeordnet. Ausführung **mindestens einmal**: Handler müssen idempotent sein – stirbt der Worker nach der Wirkung, aber vor dem Abschluss, läuft der Job erneut (`$job_id` erkennt die Wiederholung). Siehe [OPERATIONS.md](OPERATIONS.md#hintergrundverarbeitung-wp-cron). |

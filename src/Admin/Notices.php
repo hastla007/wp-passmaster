@@ -21,7 +21,7 @@ final class Notices {
 	const ACTION = 'wpcap_dismiss_notice';
 
 	public static function register() {
-		add_action( 'admin_post_' . self::ACTION, array( __CLASS__, 'handle_dismiss' ) );
+		add_action( 'admin_post_' . Notices::ACTION, array( __CLASS__, 'handle_dismiss' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'addon_notices' ), 50 );
 	}
 
@@ -68,12 +68,13 @@ final class Notices {
 
 	/** admin-post: dismisses a notice for the current user and returns to the page. */
 	public static function handle_dismiss() {
+		// The dismissible notices are shown to administrators only.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
+		}
 		$id = isset( $_POST['notice'] ) ? sanitize_key( wp_unslash( $_POST['notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified below.
 		Forms::verify( self::ACTION . '_' . $id );
 		$version = isset( $_POST['version'] ) ? sanitize_text_field( wp_unslash( $_POST['version'] ) ) : '1'; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified by Forms::verify() above.
-		if ( ! is_user_logged_in() ) {
-			wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
-		}
 		self::dismiss( $id, $version );
 		$back = wp_get_referer();
 		Forms::redirect( $back ? $back : admin_url() );

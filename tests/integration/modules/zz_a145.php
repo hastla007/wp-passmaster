@@ -38,6 +38,7 @@ $wpa145_extra_post = array(
 	'wpcap_payment_return' => array( PassCaptain\Payments\ReturnNotice::class, 'handle_action' ), // A554: keyed by wpcap_rk.
 	PassCaptain\Waitlists::UNSUBSCRIBE_ACTION => array( PassCaptain\Waitlists::class, 'handle_unsubscribe_request' ),
 	PassCaptain\Waitlists::CONFIRM_ACTION => array( PassCaptain\Waitlists::class, 'handle_confirm_request' ), // A564: double opt-in, keyed by the confirmation token.
+	PassCaptain\Admin\Notices::ACTION => array( PassCaptain\Admin\Notices::class, 'handle_dismiss' ), // A301: manage_options.
 );
 $wpa145_ajax = array(
 	PassCaptain\Mail\Admin::ACTION_PREVIEW => array( PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),
