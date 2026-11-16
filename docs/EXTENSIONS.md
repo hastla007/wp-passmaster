@@ -96,6 +96,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_report_data_v1` | 1.5.0 |
 | `wp_pass_captain_report_metrics_v1` | 1.5.0 |
 | `wp_pass_captain_report_tabs_v1` | 1.5.0 |
+| `wp_pass_captain_review_provider_v1` | 1.5.0 |
 | `wp_pass_captain_scanner_adapters_v1` | 1.5.0 |
 | `wp_pass_captain_settings_defaults_v1` | 1.5.0 |
 | `wp_pass_captain_settings_sections_v1` | 1.5.0 |
@@ -108,6 +109,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_voucher_tickets_revoked_v1` | 1.2.0 |
 | `wp_pass_captain_waitlist_ip_limit_v1` | 1.5.0 |
 | `wp_pass_captain_wallet_provider_v1` | 0.2.0 |
+| `wp_pass_captain_workflow_provider_v1` | 1.5.0 |
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
 | `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
 | `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |

@@ -1,6 +1,6 @@
 <?php
 /**
- * Public, versioned add-on API (A663): the hooks add-ons (e.g. pass-captain-pro) and other plugins may
+ * Public, versioned add-on API (A663): the hooks add-ons (e.g. the premium add-on) and other plugins may
  * rely on. Everything else in docs/HOOKS.md is an internal extension point that can change in a minor
  * release.
  *
