@@ -2170,7 +2170,7 @@ final class Orders {
 			// whose worker died before the "complete" mark, or a manual resend): no second mail.
 			return true;
 		}
-		$result = self::resend_tickets( $order_id, array( 'from_job' => true ) );
+		$result = self::resend_tickets( $order_id, array( 'from_job' => true, 'skip_transferred' => ! empty( $payload['skip_transferred'] ) ) );
 		if ( is_wp_error( $result ) && 'wpcap_no_resendable_tickets' === $result->get_error_code() ) { return true; }
 		return true === $result;
 	}
@@ -2396,12 +2396,34 @@ final class Orders {
 		if ( ! $sent ) {
 			Audit::record( 'ticket_mail_failed', 'order', $order_id, array( 'tickets' => count( $tickets ), 'resend' => true ) );
 			if ( empty( $args['from_job'] ) ) {
-				Jobs::enqueue( 'ticket-mail-retry|' . $order_id . '|' . Clock::now(), 'ticket_mail_retry', array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
+				// A335: the retry keeps the scope of this resend, so it never rotates the codes of tickets
+				// passed on to someone else when this resend left them alone.
+				Jobs::enqueue( 'ticket-mail-retry|' . $order_id . '|' . Clock::now(), 'ticket_mail_retry', self::mail_retry_payload( $order_id, ! empty( $args['skip_transferred'] ) ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 			}
 			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt.', 'pass-captain' ) );
 		}
-		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) );
+		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) + ( empty( $args['skip_transferred'] ) ? array() : array( 'skip_transferred' => true ) ) );
 		return true;
+	}
+
+	/**
+	 * Payload of a ticket_mail_retry job. A resend that left transferred tickets alone (A335) keeps
+	 * that scope in its retry; the plain form {order_id} is the payload of a full resend.
+	 */
+	public static function mail_retry_payload( $order_id, $skip_transferred = false ) {
+		return array( 'order_id' => absint( $order_id ) ) + ( $skip_transferred ? array( 'skip_transferred' => true ) : array() );
+	}
+
+	/**
+	 * Valid ticket counts of an order for the admin resend form (A335): all valid tickets and those
+	 * passed on to another person (transfer), which keep their code unless the resend includes them.
+	 *
+	 * @return array{valid:int,transferred:int}
+	 */
+	public static function resend_counts( $order_id ) {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS valid_count,COALESCE(SUM(transfer_count>0),0) AS transferred FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND status='valid'", absint( $order_id ) ) );
+		return array( 'valid' => $row ? (int) $row->valid_count : 0, 'transferred' => $row ? (int) $row->transferred : 0 );
 	}
 
 	/**

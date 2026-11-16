@@ -129,13 +129,38 @@ final class OrdersPage {
 		return array( 'order_id' => (int) $order->order_id );
 	}
 
-	/** Resends tickets with fresh codes. */
+	/**
+	 * Resends tickets with fresh codes (ticket codes are only stored hashed, so a resend always means
+	 * new codes). A335: by default tickets passed on to another person (transfer) keep their code –
+	 * the resend must not invalidate the recipient's QR code or print. Including them is a deliberate
+	 * choice (scope "all"); the recipients then receive the new code at their own address.
+	 *
+	 * @param array $in order_id, scope ('own' default | 'all').
+	 * @return array|\WP_Error {order_id, sent, kept}
+	 */
 	public static function resend_tickets( array $in ) {
 		$order = self::order_for_action( $in );
 		if ( is_wp_error( $order ) ) { return $order; }
-		$result = Orders::resend_tickets( $order->order_id );
+		$all = 'all' === Forms::choice( $in, 'scope', array( 'own', 'all' ), 'own' );
+		$counts = Orders::resend_counts( (int) $order->order_id );
+		if ( ! $all && $counts['valid'] > 0 && $counts['valid'] === $counts['transferred'] ) {
+			return Forms::error( 'wpcap_resend_only_transferred', __( 'Alle gültigen Tickets dieser Bestellung wurden an andere Personen übertragen und behalten ihren Code. Um sie trotzdem neu auszustellen, „Auch übertragene Tickets“ wählen oder einzelne Tickets unter „Tickets“ neu ausstellen.', 'pass-captain' ), 409 );
+		}
+		$result = Orders::resend_tickets( $order->order_id, $all ? array() : array( 'skip_transferred' => true ) );
 		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
-		return array( 'order_id' => (int) $order->order_id );
+		$kept = $all ? 0 : $counts['transferred'];
+		return array( 'order_id' => (int) $order->order_id, 'sent' => $counts['valid'] - $kept, 'kept' => $kept );
+	}
+
+	/** Success message of resend_tickets(). */
+	private static function resend_message( array $result ) {
+		/* translators: %d: number of tickets */
+		$message = sprintf( _n( '%d Ticket wurde mit neuem Code erneut gesendet.', '%d Tickets wurden mit neuen Codes erneut gesendet.', (int) $result['sent'], 'pass-captain' ), (int) $result['sent'] );
+		if ( (int) $result['kept'] ) {
+			/* translators: %d: number of transferred tickets */
+			$message .= ' ' . sprintf( _n( '%d übertragenes Ticket behält seinen Code.', '%d übertragene Tickets behalten ihren Code.', (int) $result['kept'], 'pass-captain' ), (int) $result['kept'] );
+		}
+		return $message;
 	}
 
 	/**
@@ -303,7 +328,8 @@ final class OrdersPage {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_resend_tickets_' . $order_id );
-		Forms::finish( self::resend_tickets( $in ), __( 'Tickets wurden mit neuen Codes erneut gesendet.', 'pass-captain' ), self::order_url( $order_id ) );
+		$result = self::resend_tickets( $in );
+		Forms::finish( $result, is_wp_error( $result ) ? '' : self::resend_message( $result ), self::order_url( $order_id ) );
 	}
 
 	public static function handle_refund() {
@@ -461,7 +487,7 @@ final class OrdersPage {
 		<?php endif; ?>
 		<?php
 		global $wpdb;
-		$mail_retry = $wpdb->get_row( $wpdb->prepare( "SELECT status,attempts FROM {$wpdb->prefix}wpcap_jobs WHERE job_type='ticket_mail_retry' AND payload=%s AND status IN ('queued','running','dead_letter') ORDER BY job_id DESC LIMIT 1", wp_json_encode( array( 'order_id' => (int) $order_id ) ) ) );
+		$mail_retry = $wpdb->get_row( $wpdb->prepare( "SELECT status,attempts FROM {$wpdb->prefix}wpcap_jobs WHERE job_type='ticket_mail_retry' AND payload IN (%s,%s) AND status IN ('queued','running','dead_letter') ORDER BY job_id DESC LIMIT 1", wp_json_encode( Orders::mail_retry_payload( $order_id ) ), wp_json_encode( Orders::mail_retry_payload( $order_id, true ) ) ) );
 		if ( $mail_retry ) :
 			?>
 			<div class="notice notice-<?php echo 'dead_letter' === $mail_retry->status ? 'error' : 'warning'; ?> inline"><p><?php echo esc_html( 'dead_letter' === $mail_retry->status ? __( 'Die Ticket-E-Mail konnte auch nach mehreren Versuchen nicht zugestellt werden. Bitte E-Mail-Adresse und Mailversand prüfen und „Tickets erneut senden“ verwenden.', 'pass-captain' ) : __( 'Die Ticket-E-Mail konnte nicht zugestellt werden; ein neuer Versuch (mit neuen Ticketcodes) ist geplant.', 'pass-captain' ) ); ?></p></div>
@@ -657,12 +683,30 @@ final class OrdersPage {
 			echo '<input type="text" name="reason" placeholder="' . esc_attr__( 'Grund (optional)', 'pass-captain' ) . '" maxlength="255"> ';
 			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form> ';
 		}
-		if ( $can_resend ) {
-			Forms::open_form( 'wpcap_resend_tickets', 'wpcap_resend_tickets_' . $order->order_id, 'style="display:inline"' );
-			Forms::hidden( 'order_id', $order->order_id );
-			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.', 'pass-captain' ) ) . '\')">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</button></form>';
-		}
 		echo '</p>';
+		if ( $can_resend ) { self::render_resend_form( $order ); }
+	}
+
+	/**
+	 * "Tickets erneut senden" (A335): which tickets get new codes. Default: only tickets that were not
+	 * passed on to someone else; transferred tickets are included only on explicit choice.
+	 */
+	private static function render_resend_form( $order ) {
+		$counts = Orders::resend_counts( (int) $order->order_id );
+		$id = 'wpcap-resend-' . (int) $order->order_id;
+		Forms::open_form( 'wpcap_resend_tickets', 'wpcap_resend_tickets_' . $order->order_id, 'class="wpcap-resend-form"' );
+		Forms::hidden( 'order_id', $order->order_id );
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</legend>';
+		echo '<p class="description" id="' . esc_attr( $id . '-help' ) . '">' . esc_html__( 'Ticketcodes werden nur verschlüsselt gespeichert. Beim erneuten Senden bekommen die Tickets daher neue Codes; bisher gesendete Codes und Ausdrucke dieser Tickets werden ungültig.', 'pass-captain' ) . '</p>';
+		if ( $counts['transferred'] ) {
+			/* translators: %d: number of transferred tickets */
+			echo '<p><label><input type="radio" name="scope" value="own" checked> ' . esc_html( sprintf( _n( 'Nur nicht übertragene Tickets (empfohlen) – %d übertragenes Ticket behält seinen Code', 'Nur nicht übertragene Tickets (empfohlen) – %d übertragene Tickets behalten ihren Code', $counts['transferred'], 'pass-captain' ), $counts['transferred'] ) ) . '</label><br>';
+			echo '<label><input type="radio" name="scope" value="all"> ' . esc_html__( 'Auch übertragene Tickets: deren Empfänger:innen erhalten einen neuen Code, ihr bisheriger wird ungültig', 'pass-captain' ) . '</label></p>';
+		} else {
+			Forms::hidden( 'scope', 'own' );
+		}
+		echo '</fieldset>';
+		echo '<button class="button" type="submit" aria-describedby="' . esc_attr( $id . '-help' ) . '" onclick="var a=this.form.querySelector(\'input[name=scope][value=all]\');return window.confirm(a&&a.checked?\'' . esc_js( __( 'Alle Tickets inklusive übertragener erneut senden? Die bisherigen Codes aller dieser Tickets werden ungültig.', 'pass-captain' ) ) . '\':\'' . esc_js( __( 'Tickets erneut senden? Die bisherigen Codes dieser Tickets werden ungültig; übertragene Tickets behalten ihren Code.', 'pass-captain' ) ) . '\')">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</button></form>';
 	}
 
 	/**

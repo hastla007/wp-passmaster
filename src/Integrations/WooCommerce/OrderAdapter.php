@@ -1117,7 +1117,7 @@ final class OrderAdapter {
 	/** Adds order actions. */
 	public static function order_actions( $actions, $wc_order = null ) {
 		if ( $wc_order instanceof \WC_Order && $wc_order->get_meta( self::ORDER_META, true ) && current_user_can( 'wpcap_manage_orders' ) ) {
-			$actions['wpcap_resend_tickets'] = __( 'Pass Captain: Tickets erneut senden (neue Codes)', 'pass-captain' );
+			$actions['wpcap_resend_tickets'] = __( 'Pass Captain: Tickets erneut senden (neue Codes, ohne übertragene Tickets)', 'pass-captain' );
 			$actions['wpcap_retry_tickets']  = __( 'Pass Captain: Tickets erneut ausstellen', 'pass-captain' );
 		}
 		return $actions;
@@ -1128,8 +1128,9 @@ final class OrderAdapter {
 		if ( ! current_user_can( 'wpcap_manage_orders' ) ) {
 			return;
 		}
-		$result = Orders::resend_tickets( absint( $wc_order->get_meta( self::ORDER_META, true ) ) );
-		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet.', 'pass-captain' ) );
+		// A335: tickets passed on to another person keep their code (single tickets: "Neu ausstellen").
+		$result = Orders::resend_tickets( absint( $wc_order->get_meta( self::ORDER_META, true ) ), array( 'skip_transferred' => true ) );
+		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet (übertragene Tickets behalten ihren Code).', 'pass-captain' ) );
 	}
 
 	/** Order action: retry issuance (e.g. after resolving a needs_review order). */

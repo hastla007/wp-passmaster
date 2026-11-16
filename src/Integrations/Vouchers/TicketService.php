@@ -436,7 +436,8 @@ final class TicketService {
 			/* translators: %d: allowed resends per hour */
 			return self::error( 'wpcap_resend_rate_limited', sprintf( _n( 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', $limit, 'pass-captain' ), $limit ), 429 );
 		}
-		$result = Orders::resend_tickets( (int) $order->order_id );
+		// Like the order portal (A335): tickets passed on to another person keep their code.
+		$result = Orders::resend_tickets( (int) $order->order_id, array( 'skip_transferred' => true ) );
 		if ( is_wp_error( $result ) ) {
 			return self::error( $result->get_error_code(), $result->get_error_message(), 409, 'wpcap_mail_failed' === $result->get_error_code() );
 		}

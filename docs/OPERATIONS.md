@@ -821,6 +821,22 @@ des Webroots wählen; bei mehreren Webservern ein gemeinsames Verzeichnis) und w
 fehlgeschlagen beendet. Audit: `print_batch_created`, `print_batch_delivered`, `ticket_codes_rotated`,
 `print_batch_cancelled`, `print_batch_failed`.
 
+## Bestellungen und Tickets im Admin
+
+### Tickets erneut senden (A335)
+
+Ticketcodes werden nur als Hash gespeichert; „Tickets erneut senden“ (Bestelldetail) stellt deshalb immer
+neue Codes aus, die bisherigen Codes und Ausdrucke dieser Tickets werden ungültig. Standard ist **„Nur nicht
+übertragene Tickets“**: Tickets, die die Käufer:in an eine andere Person übertragen hat (`transfer_count > 0`),
+behalten ihren Code – sonst würde der Neuversand den QR-Code der Empfänger:in entwerten. Nur mit der bewusst
+gewählten Option **„Auch übertragene Tickets“** bekommen auch sie neue Codes; die Empfänger:innen erhalten
+diese an ihre eigene Adresse. Sind alle gültigen Tickets übertragen, lehnt der Standard ab und verweist auf
+diese Option bzw. auf **Tickets → Neu ausstellen** für einzelne Tickets. Die Meldung nennt, wie viele Tickets
+neu gesendet wurden und wie viele ihren Code behalten. Scheitert die Mail, behält der automatische
+Wiederholungsjob (`ticket_mail_retry`, Payload `{"order_id":…,"skip_transferred":true}`) diesen Umfang.
+Bestellportal, WooCommerce-Bestellaktion und der Voucher-Captain-Neuversand nehmen übertragene Tickets
+ebenfalls aus.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und
