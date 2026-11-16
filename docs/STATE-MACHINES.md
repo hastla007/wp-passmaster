@@ -93,6 +93,19 @@ Capture gelang, die Buchung hier aber nicht (Datenbank ausgelastet, Betrag passt
 heißt es „Zahlung wird noch verarbeitet“ (`pending`); Webhook bzw. Admin klären den Rest
 (`PayPalGateway::return_state()`). „Erfolgreich“ nur bei `paid`, `already_paid` oder `duplicate`.
 
+**PayPal `CHECKOUT.ORDER.APPROVED` und Rückkehr (A641):** Eingezogen (Capture) wird nur, wenn die
+PayPal-Order zu einer bekannten PayPal-Bestellung dieser Website gehört (`custom_id`/`reference_id`, gespeicherte
+`provider_reference` = PayPal-Order-ID) und diese noch zahlbar ist (`pending` oder abgelaufene Reservierung, nicht
+storniert, erstattet oder zur Prüfung markiert). Sonst wird nichts eingezogen (Audit `paypal_approval_not_captured`,
+Rückkehr mit „nichts abgebucht“). Stripe-Sitzungen werden nur über `metadata.wpcap_order` zugeordnet, nicht mehr
+über `client_reference_id`.
+
+**Erstattungen anderer Zahlungen (A640):** Externe Erstattungen und Rückbuchungen (`refunded`) gelten nur für die
+auf der Bestellung gespeicherte Zahlung. Nennt das Ereignis eine andere Zahlung derselben Bestellung (Stripe:
+PaymentIntent der Charge, PayPal: Capture bzw. PayPal-Order, Mollie: Zahlung) – typischerweise die Erstattung einer
+Doppelzahlung –, wird nichts gebucht und kein Ticket widerrufen (Ergebnis `refund_other_payment`, Audit
+`refund_of_other_payment`, Admin-Mail).
+
 **Mollie `authorized` (A351):** Pay-later-Methoden (Klarna, Riverty, Billie) enden bei Mollie in
 `authorized` und brauchen Bestellpositionen, Rechnungsadresse und einen separaten Capture. Das Plugin bietet sie
 nicht an (nicht in der Methodenliste der Einstellungen, gespeicherte Altwerte werden ignoriert, aus der an

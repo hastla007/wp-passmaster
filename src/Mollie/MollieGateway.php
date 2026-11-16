@@ -280,6 +280,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 				// Money pulled back by the bank/card issuer: same consequences as an external refund.
 				$event['event_id'] = 'mollie-' . $id . '-chargeback-' . $chargeback;
 				$event['type'] = 'refunded';
+				$event['payment_references'] = array( $id );
 				$event['chargeback'] = true;
 				$event['cumulative'] = true;
 				$event['amount_minor'] = $chargeback + $external;
@@ -289,6 +290,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 				// Refund made outside the plugin (Mollie dashboard); cumulative external amount.
 				$event['event_id'] = 'mollie-' . $id . '-refunded-' . $external;
 				$event['type'] = 'refunded';
+				$event['payment_references'] = array( $id );
 				$event['cumulative'] = true;
 				$event['amount_minor'] = $external;
 				return $event;

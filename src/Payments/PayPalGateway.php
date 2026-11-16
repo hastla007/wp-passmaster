@@ -209,13 +209,17 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		global $wpdb;
 		$public_id = sanitize_text_field( (string) $public_id );
 		$paypal_order_id = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) $paypal_order_id );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
 		if ( ! $order || '' === $paypal_order_id ) {
 			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'not_charged' => true ) );
 		}
 		if ( 'paid' === $order->payment_status ) { return 'paid'; }
 		if ( (string) $order->provider_reference !== $paypal_order_id ) {
 			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400, 'not_charged' => true ) );
+		}
+		if ( ! self::payable( $order ) ) {
+			// Closed or already settled (cancelled, refunded, under review): nothing is captured (A641).
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Die Bestellung kann nicht mehr bezahlt werden.', 'pass-captain' ), array( 'status' => 409, 'not_charged' => true ) );
 		}
 		$event = self::capture( $paypal_order_id );
 		if ( is_wp_error( $event ) ) { return $event; }
@@ -399,6 +403,11 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 			case 'CHECKOUT.ORDER.APPROVED':
 				// Buyer approved but may never return to the site: capture here as well.
 				if ( empty( $resource['id'] ) ) { return $ignored; }
+				// A641: only a PayPal order this site created for a known, still payable order is captured –
+				// checked before the capture, so no money is taken that no order can book.
+				$known = self::approved_order_payable( $resource );
+				if ( is_wp_error( $known ) ) { return $known; }
+				if ( ! $known ) { return $ignored; }
 				$captured = self::capture( (string) $resource['id'] );
 				if ( is_wp_error( $captured ) ) {
 					return new \WP_Error( $captured->get_error_code(), $captured->get_error_message(), array( 'status' => 503 ) );
@@ -473,12 +482,39 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 				return new \WP_Error( $capture->get_error_code(), $capture->get_error_message(), array( 'status' => 503 ) );
 			}
 			if ( '' === $base['order_public_id'] ) { $base['order_public_id'] = (string) ( $capture['custom_id'] ?? '' ); }
+			// The refunded payment (A640): the capture, and its PayPal order (stored until the capture id is known).
+			$base['payment_references'] = array_values( array_filter( array( $capture_id, (string) ( $capture['supplementary_data']['related_ids']['order_id'] ?? '' ) ) ) );
 			if ( 'REFUNDED' === ( $capture['status'] ?? '' ) ) {
 				$base['amount_minor'] = self::parse_amount( (string) ( $capture['amount']['value'] ?? '' ), $currency );
 			}
 		}
 		if ( '' === $base['order_public_id'] ) { $base['type'] = 'ignored'; }
 		return $base;
+	}
+
+	/** Whether an order row (status, payment_status) may still take a payment: pending or a lapsed hold. */
+	private static function payable( $order ) {
+		return in_array( (string) $order->payment_status, array( 'pending', 'expired' ), true ) && ! in_array( (string) ( $order->status ?? '' ), array( 'cancelled', 'refunded', 'needs_review' ), true );
+	}
+
+	/**
+	 * CHECKOUT.ORDER.APPROVED (A641): the approved PayPal order names a Pass Captain order (custom_id or
+	 * reference_id) that uses PayPal, stores exactly this PayPal order id and is still payable.
+	 *
+	 * @return bool|\WP_Error WP_Error (503) when the lookup failed.
+	 */
+	private static function approved_order_payable( array $resource ) {
+		global $wpdb;
+		$unit = is_array( $resource['purchase_units'][0] ?? null ) ? $resource['purchase_units'][0] : array();
+		$public_id = sanitize_text_field( (string) ( $unit['custom_id'] ?? ( $unit['reference_id'] ?? '' ) ) );
+		if ( '' === $public_id ) { return false; }
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
+		if ( '' !== $wpdb->last_error ) { return new \WP_Error( 'wpcap_paypal_lookup', 'Lookup failed.', array( 'status' => 503 ) ); }
+		if ( ! $order || (string) $order->provider_reference !== (string) $resource['id'] || ! self::payable( $order ) ) {
+			Audit::record( 'paypal_approval_not_captured', 'order', $order ? (int) $order->order_id : 0, array( 'paypal_order' => substr( sanitize_text_field( (string) $resource['id'] ), 0, 64 ) ) );
+			return false;
+		}
+		return true;
 	}
 
 	/** The order's provider_reference is the capture id after payment, else the PayPal order id. */

@@ -152,6 +152,17 @@ final class Webhooks {
 		return ! $refs || '' === $current || in_array( $current, $refs, true );
 	}
 
+	/**
+	 * True when a refund/chargeback event concerns the payment stored on the order (A640). Gateways name
+	 * the refunded payment in `payment_references` (Stripe: PaymentIntent, PayPal: capture and PayPal
+	 * order, Mollie: payment); without them, or without a stored reference, it cannot be told (true).
+	 */
+	private static function refund_of_current_attempt( $order, array $event ) {
+		$refs = array_values( array_filter( array_map( 'strval', (array) ( $event['payment_references'] ?? array() ) ) ) );
+		$current = (string) $order->provider_reference;
+		return ! $refs || '' === $current || in_array( $current, $refs, true );
+	}
+
 	/** Applies a claimed event; returns a result label or WP_Error for retryable failures. */
 	private static function apply( $provider, $event_id, $order_id, array $event ) {
 		global $wpdb;
@@ -251,6 +262,13 @@ final class Webhooks {
 				// no refund row, no credit note, the order stays closed.
 				Audit::record( 'refund_for_unpaid_order', 'order', $order_id, array( 'provider' => $provider, 'status' => $order->status, 'chargeback' => $chargeback ) );
 				return 'refund_for_unpaid_order';
+			}
+			if ( ! self::refund_of_current_attempt( $order, $event ) ) {
+				// A640: refund (or chargeback) of another payment of this order, e.g. the second payment of a
+				// double payment. The booked payment is untouched: no refund row, no revoked tickets.
+				Audit::record( 'refund_of_other_payment', 'order', $order_id, array( 'provider' => $provider, 'reference' => (string) ( $event['provider_reference'] ?? '' ), 'amount_minor' => max( 0, (int) ( $event['amount_minor'] ?? 0 ) ), 'chargeback' => $chargeback ) );
+				self::alert( $order, __( 'Beim Zahlungsanbieter wurde eine Erstattung bzw. Rückbuchung einer anderen Zahlung dieser Bestellung gemeldet (z. B. einer Doppelzahlung). Die gebuchte Zahlung und die Tickets bleiben unverändert; bitte beim Anbieter prüfen.', 'pass-captain' ), $provider, $event );
+				return 'refund_other_payment';
 			}
 			// Money a native refund is paying out right now belongs to that refund (A346): it is not open
 			// for an external refund, and its own provider event never books it a second time.

@@ -359,7 +359,9 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 			case 'checkout.session.async_payment_succeeded':
 			case 'checkout.session.async_payment_failed':
 			case 'checkout.session.expired':
-				$base['order_public_id'] = (string) ( $object['metadata']['wpcap_order'] ?? ( $object['client_reference_id'] ?? '' ) );
+				// Only our own metadata maps a session to an order (A641): client_reference_id can be set by
+				// any integration on the same Stripe account.
+				$base['order_public_id'] = (string) ( $object['metadata']['wpcap_order'] ?? '' );
 				$base['amount_minor'] = self::from_stripe_amount( (int) ( $object['amount_total'] ?? 0 ), $base['currency'] );
 				$intent = self::id_of( $object['payment_intent'] ?? '' );
 				$base['provider_reference'] = '' !== $intent ? $intent : (string) ( $object['id'] ?? '' );
@@ -408,6 +410,8 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 	 */
 	private function normalize_refund( array $base, array $charge ) {
 		$base['provider_reference'] = (string) ( $charge['id'] ?? '' );
+		// The refunded payment (A640): orders store the PaymentIntent (or, before the payment, the session).
+		$base['payment_references'] = array_values( array_filter( array( self::id_of( $charge['payment_intent'] ?? '' ), (string) ( $charge['id'] ?? '' ) ) ) );
 		$public_id = $this->order_of( $charge );
 		if ( is_wp_error( $public_id ) ) { return $public_id; }
 		if ( '' === $public_id ) { return $base; }
@@ -464,6 +468,7 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 	 */
 	private function normalize_dispute( array $base, array $dispute ) {
 		$base['provider_reference'] = (string) ( $dispute['id'] ?? '' );
+		$base['payment_references'] = array_values( array_filter( array( self::id_of( $dispute['payment_intent'] ?? '' ), self::id_of( $dispute['charge'] ?? '' ) ) ) );
 		$public_id = $this->order_of( $dispute );
 		if ( is_wp_error( $public_id ) ) { return $public_id; }
 		if ( '' === $public_id ) { return $base; }

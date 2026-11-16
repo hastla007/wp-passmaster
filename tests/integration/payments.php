@@ -208,7 +208,7 @@ $rq = http_requests( '/v1/refunds' )[0] ?? array( 'body' => '', 'headers' => arr
 $rf = form_body( $rq );
 check( 'native refund completes with Stripe refund id', ! is_wp_error( $sr ) && 'completed' === $sr['status'] && 're_1' === $sr['provider_reference'] );
 check( 'refund uses payment intent, amount and idempotency key', 'pi_' . substr( $so['public_id'], 0, 12 ) === ( $rf['payment_intent'] ?? '' ) && (string) $sr['amount_minor'] === $rf['amount'] && 'wpcap-refund-' . $sr['refund_id'] === $rq['headers']['Idempotency-Key'] && ! empty( $rf['metadata']['wpcap_refund'] ) );
-$charge = array( 'id' => 'evt_ref1', 'type' => 'charge.refunded', 'data' => array( 'object' => array( 'id' => 'ch_1', 'object' => 'charge', 'amount' => 4500, 'amount_refunded' => 2250, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => 'pi_x', 'metadata' => array( 'wpcap_order' => $so['public_id'] ), 'refunds' => array( 'data' => array( array( 'id' => 're_1', 'amount' => 2250, 'metadata' => array( 'wpcap_refund' => 'wpcap-refund-1' ) ) ) ) ) ) );
+$charge = array( 'id' => 'evt_ref1', 'type' => 'charge.refunded', 'data' => array( 'object' => array( 'id' => 'ch_1', 'object' => 'charge', 'amount' => 4500, 'amount_refunded' => 2250, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => 'pi_' . substr( $so['public_id'], 0, 12 ), 'metadata' => array( 'wpcap_order' => $so['public_id'] ), 'refunds' => array( 'data' => array( array( 'id' => 're_1', 'amount' => 2250, 'metadata' => array( 'wpcap_refund' => 'wpcap-refund-1' ) ) ) ) ) ) );
 $own = stripe_deliver( $stripe, $charge );
 check( 'charge.refunded for the plugin\'s own partial refund does not revoke more tickets', 'ignored' === $own && 1 === count( tickets( $so['order_id'], 'valid' ) ) );
 http_reset();
