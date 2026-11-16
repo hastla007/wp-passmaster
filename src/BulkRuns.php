@@ -92,7 +92,7 @@ final class BulkRuns {
 		global $wpdb;
 		$phases = array( 'occurrence_cancel' => 'orders', 'event_cancel' => 'mails_plan', 'notify' => 'queue' );
 		$row = array(
-			'run_key' => substr( (string) $key, 0, 120 ),
+			'run_key' => \PassCaptain\Text::cut( (string) $key, 120 ),
 			'kind' => (string) $kind,
 			'object_id' => absint( $object_id ),
 			'status' => 'running',

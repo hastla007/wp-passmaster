@@ -73,7 +73,7 @@ final class EventsPage {
 		$repeat = Forms::choice( $in, 'repeat_frequency', array( 'none', 'weekly' ), 'none' );
 		$repeat_count = 'weekly' === $repeat ? min( 12, max( 1, Forms::int( $in, 'repeat_count', 1 ) ) ) : 1;
 		$now = current_time( 'mysql', true );
-		$slug = substr( sanitize_title( $name ), 0, 180 ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
+		$slug = \PassCaptain\Text::cut( sanitize_title( $name ), 180 ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
 
 		global $wpdb;
 		$p = $wpdb->prefix;

@@ -114,9 +114,9 @@ final class Adapter {
 		}
 		if ( is_array( $touch ) && ! empty( $touch['code'] ) ) {
 			$referral['touch'] = array(
-				'code'       => substr( sanitize_text_field( (string) $touch['code'] ), 0, 64 ),
+				'code'       => \PassCaptain\Text::cut( sanitize_text_field( (string) $touch['code'] ), 64 ),
 				'method'     => in_array( $touch['method'] ?? '', array( 'link', 'cookie', 'app' ), true ) ? $touch['method'] : 'link',
-				'campaign'   => substr( sanitize_text_field( (string) ( $touch['campaign'] ?? '' ) ), 0, 100 ),
+				'campaign'   => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $touch['campaign'] ?? '' ) ), 100 ),
 				'content_id' => absint( $touch['content_id'] ?? 0 ),
 				'ts'         => absint( $touch['ts'] ?? 0 ),
 			);
@@ -254,7 +254,7 @@ final class Adapter {
 		}
 		return self::call(
 			'wpac_record_refund',
-			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => 'refund-' . (int) $refund->refund_id, 'type' => 'refund', 'items' => $lines, 'reason' => substr( sanitize_text_field( (string) $refund->reason ), 0, 100 ) ),
+			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => 'refund-' . (int) $refund->refund_id, 'type' => 'refund', 'items' => $lines, 'reason' => \PassCaptain\Text::cut( sanitize_text_field( (string) $refund->reason ), 100 ) ),
 			$order->order_id,
 			'affiliate_refund'
 		);
@@ -275,7 +275,7 @@ final class Adapter {
 		if ( ! $order ) { return null; }
 		return self::call(
 			'wpac_record_refund',
-			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => $refund_id . '-' . (int) $order->order_id, 'type' => $type, 'full' => true, 'reason' => substr( sanitize_text_field( (string) $reason ), 0, 100 ) ),
+			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => $refund_id . '-' . (int) $order->order_id, 'type' => $type, 'full' => true, 'reason' => \PassCaptain\Text::cut( sanitize_text_field( (string) $reason ), 100 ) ),
 			$order->order_id,
 			'affiliate_refund'
 		);

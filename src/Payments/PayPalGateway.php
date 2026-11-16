@@ -279,7 +279,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 			'amount' => array( 'value' => $value, 'currency_code' => $currency ),
 			// Marks plugin refunds ("wpcap-refund-{id}") so their PAYMENT.CAPTURE.REFUNDED webhook is not booked
 			// a second time, and lets Refunds find the refund again after an unclear answer (find_refund()).
-			'custom_id' => substr( (string) $idempotency_key, 0, 127 ),
+			'custom_id' => \PassCaptain\Text::cut( (string) $idempotency_key, 127 ),
 		);
 		// Transport errors, timeouts, 5xx and 409 come back marked as "outcome unknown" (api()).
 		$result = self::api( 'POST', '/v2/payments/captures/' . rawurlencode( $capture_id ) . '/refund', $body, (string) $idempotency_key );
@@ -654,7 +654,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 			$parts[] = trim( (string) ( $item['event_name'] ?? '' ) . ' – ' . (string) ( $item['name'] ?? '' ), ' –' ) . ' × ' . (int) ( $item['quantity'] ?? 1 );
 		}
 		$summary = $parts ? implode( ', ', $parts ) : __( 'Tickets', 'pass-captain' );
-		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 127 ) : substr( $summary, 0, 127 );
+		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 127 ) : \PassCaptain\Text::cut( $summary, 127 );
 	}
 
 	private static function return_url( $status, $public_id, $base = '' ) {

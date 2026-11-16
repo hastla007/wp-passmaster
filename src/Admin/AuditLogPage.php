@@ -73,7 +73,7 @@ final class AuditLogPage {
 		if ( ! is_array( $data ) ) { return (string) $details; }
 		unset( $data['fp'] );
 		$text = (string) wp_json_encode( $data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-		return strlen( $text ) > 400 ? substr( $text, 0, 400 ) . '…' : $text;
+		return \PassCaptain\Text::ellipsis( $text, 400 );
 	}
 
 	public static function render() {

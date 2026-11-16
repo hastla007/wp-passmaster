@@ -56,7 +56,7 @@ final class AdminPage {
 			if ( in_array( self::secret_source( $key ), array( 'constant', 'env' ), true ) ) { continue; }
 			if ( Forms::flag( $in, $key . '_clear' ) ) { $values[ $key ] = ''; continue; }
 			$value = trim( str_replace( "\r\n", "\n", (string) ( $in[ $key ] ?? '' ) ) );
-			if ( '' !== $value ) { $values[ $key ] = substr( $value, 0, 20000 ); }
+			if ( '' !== $value ) { $values[ $key ] = \PassCaptain\Text::cut( $value, 20000 ); }
 		}
 		Settings::update( $values );
 		Audit::record( 'wallet_settings_saved', 'settings', 0, array( 'apple' => $values['wallet_apple_enabled'], 'google' => $values['wallet_google_enabled'] ) );

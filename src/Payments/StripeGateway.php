@@ -573,7 +573,7 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 			$parts[] = $name . ' × ' . (int) ( $item['quantity'] ?? 1 );
 		}
 		$summary = $parts ? implode( ', ', $parts ) : __( 'Tickets', 'pass-captain' );
-		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 250 ) : substr( $summary, 0, 250 );
+		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 250 ) : \PassCaptain\Text::cut( $summary, 250 );
 	}
 
 	/** Return URL for the buyer after the hosted payment page: the checkout page ($base, A554) or the home page. */

@@ -204,7 +204,7 @@ final class Queues {
 		$error = \PassCaptain\Redact::text( (string) $error );
 		$error = (string) preg_replace( '/[^\s@<>"\']+@[^\s@<>"\']+/', '***@***', $error );
 		$error = trim( (string) preg_replace( '/\s+/', ' ', $error ) );
-		return function_exists( 'mb_substr' ) ? mb_substr( $error, 0, 190 ) : substr( $error, 0, 190 );
+		return function_exists( 'mb_substr' ) ? mb_substr( $error, 0, 190 ) : \PassCaptain\Text::cut( $error, 190 );
 	}
 
 	/** IDs of all failed items of a queue (oldest first, at most MAX_BULK). */

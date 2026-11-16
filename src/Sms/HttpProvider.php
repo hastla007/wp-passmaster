@@ -69,11 +69,11 @@ final class HttpProvider implements ProviderInterface {
 		}
 		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$ref = is_array( $data ) ? (string) ( $data['id'] ?? ( $data['message_id'] ?? '' ) ) : '';
-		$out = array( 'status' => 'sent', 'provider_ref' => substr( sanitize_text_field( $ref ), 0, 64 ) );
+		$out = array( 'status' => 'sent', 'provider_ref' => \PassCaptain\Text::cut( sanitize_text_field( $ref ), 64 ) );
 		// Optional fields of the gateway response: price, currency, segments.
 		if ( is_array( $data ) && isset( $data['price'] ) && is_numeric( $data['price'] ) ) {
 			$out['price'] = (string) $data['price'];
-			$out['currency'] = strtoupper( substr( sanitize_text_field( (string) ( $data['currency'] ?? '' ) ), 0, 3 ) );
+			$out['currency'] = strtoupper( \PassCaptain\Text::cut( sanitize_text_field( (string) ( $data['currency'] ?? '' ) ), 3 ) );
 		}
 		if ( is_array( $data ) && isset( $data['segments'] ) && is_numeric( $data['segments'] ) ) { $out['segments'] = (int) $data['segments']; }
 		return $out;

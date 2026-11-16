@@ -216,7 +216,7 @@ final class AccessLog {
 	}
 
 	private static function first_char( $text ) {
-		return function_exists( 'mb_substr' ) ? (string) mb_substr( (string) $text, 0, 1 ) : substr( (string) $text, 0, 1 );
+		return \PassCaptain\Text::cut( (string) $text, 1 );
 	}
 
 	/**

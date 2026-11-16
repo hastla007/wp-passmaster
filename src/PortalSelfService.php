@@ -444,7 +444,7 @@ final class PortalSelfService {
 			$lines[] = $ticket->event_name . ' — ' . $ticket->ticket_name . ', ' . Orders::format_start( $ticket->starts_at, $ticket->timezone );
 		}
 		$reason = trim( preg_replace( '/\s+/', ' ', sanitize_textarea_field( (string) ( $in['reason'] ?? '' ) ) ) );
-		$reason = function_exists( 'mb_substr' ) ? mb_substr( $reason, 0, 200 ) : substr( $reason, 0, 200 );
+		$reason = function_exists( 'mb_substr' ) ? mb_substr( $reason, 0, 200 ) : \PassCaptain\Text::cut( $reason, 200 );
 		$result = Refunds::request( (int) $order->order_id, $ticket_ids, $reason, $refund_key, array( 'system' => true, 'require_approval' => true, 'source' => self::SOURCE ) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		$refund_id = (int) $result['refund_id'];

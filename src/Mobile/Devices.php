@@ -91,7 +91,7 @@ final class Devices {
 			'secret_hash' => hash( 'sha256', $secret ),
 			'label' => mb_substr( sanitize_text_field( $label ?: $pairing->label ), 0, 190 ),
 			'platform' => substr( sanitize_key( $platform ), 0, 32 ),
-			'app_version' => substr( sanitize_text_field( $app_version ), 0, 32 ),
+			'app_version' => \PassCaptain\Text::cut( sanitize_text_field( $app_version ), 32 ),
 			'event_ids' => $pairing->event_ids,
 			'expires_at' => $expires,
 			'created_at' => $now,

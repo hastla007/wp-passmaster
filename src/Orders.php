@@ -51,7 +51,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 
-		$key = substr( sanitize_text_field( Http::str( $payload['idempotency_key'] ?? '' ) ), 0, 191 );
+		$key = \PassCaptain\Text::cut( sanitize_text_field( Http::str( $payload['idempotency_key'] ?? '' ) ), 191 );
 		if ( '' === $key ) {
 			$key = wp_generate_uuid4();
 		}
@@ -1549,7 +1549,7 @@ final class Orders {
 		// No tickets, no refund row: the order total is booked as refunded, so the provider's refund
 		// webhook finds nothing left to book.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET refunded_minor=total_minor WHERE order_id=%d AND status='refunded'", (int) $order_id ) );
-		Audit::record( 'late_payment_refunded', 'order', (int) $order_id, array( 'reason' => sanitize_key( $reason ), 'provider_reference' => substr( sanitize_text_field( (string) $result ), 0, 191 ), 'amount_minor' => (int) $order->total_minor ) );
+		Audit::record( 'late_payment_refunded', 'order', (int) $order_id, array( 'reason' => sanitize_key( $reason ), 'provider_reference' => \PassCaptain\Text::cut( sanitize_text_field( (string) $result ), 191 ), 'amount_minor' => (int) $order->total_minor ) );
 		return true;
 	}
 
@@ -1593,14 +1593,14 @@ final class Orders {
 				Audit::record( 'unallocated_refund_failed', 'order', $order_id, array( 'error' => $result->get_error_code() ) );
 				return $result;
 			}
-			$reference = substr( sanitize_text_field( (string) $result ), 0, 191 );
+			$reference = \PassCaptain\Text::cut( sanitize_text_field( (string) $result ), 191 );
 		} elseif ( 'external' !== $mode ) {
 			return new \WP_Error( 'wpcap_refund_mode', __( 'Unbekannte Art der Erstattung.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$marked = self::mark_refunded( $order_id, 'provider' === $mode ? 'unallocated_refunded' : 'unallocated_refunded_externally' );
 		if ( true !== $marked ) { return $marked; } // mark_refunded() queued its own repair; a repeated provider call is idempotent.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET refunded_minor=total_minor WHERE order_id=%d AND status='refunded'", $order_id ) );
-		Audit::record( 'unallocated_settled', 'order', $order_id, array( 'mode' => 'provider' === $mode ? 'provider' : 'external', 'provider_reference' => $reference, 'amount_minor' => (int) $order->total_minor, 'note' => substr( sanitize_text_field( (string) $note ), 0, 255 ) ) );
+		Audit::record( 'unallocated_settled', 'order', $order_id, array( 'mode' => 'provider' === $mode ? 'provider' : 'external', 'provider_reference' => $reference, 'amount_minor' => (int) $order->total_minor, 'note' => \PassCaptain\Text::cut( sanitize_text_field( (string) $note ), 255 ) ) );
 		return true;
 	}
 
@@ -1937,7 +1937,7 @@ final class Orders {
 	/** Stores the provider's payment reference (session/order id). */
 	public static function set_provider_reference( $order_id, $reference ) {
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'provider_reference' => substr( sanitize_text_field( $reference ), 0, 191 ) ), array( 'order_id' => absint( $order_id ) ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'provider_reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ) ), array( 'order_id' => absint( $order_id ) ) );
 	}
 
 	/**

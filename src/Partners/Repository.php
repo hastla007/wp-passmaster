@@ -122,7 +122,7 @@ final class Repository {
 		$partner_id = absint( $partner_id );
 		$existing = $partner_id ? self::get( $partner_id ) : null;
 		if ( $partner_id && ! $existing ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$name = substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 190 );
+		$name = \PassCaptain\Text::cut( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 190 );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_partner_name', __( 'Bitte einen Namen angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$email = sanitize_email( (string) ( $data['contact_email'] ?? '' ) );
 		if ( '' !== $email && ! is_email( $email ) ) { return new \WP_Error( 'wpcap_partner_email', __( 'Die Kontakt-E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
@@ -142,12 +142,12 @@ final class Repository {
 		$now = current_time( 'mysql', true );
 		$row = array(
 			'name' => $name,
-			'contact_name' => substr( sanitize_text_field( (string) ( $data['contact_name'] ?? '' ) ), 0, 190 ),
+			'contact_name' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $data['contact_name'] ?? '' ) ), 190 ),
 			'contact_email' => $email,
-			'contact_phone' => substr( sanitize_text_field( (string) ( $data['contact_phone'] ?? '' ) ), 0, 64 ),
-			'billing_address' => substr( sanitize_textarea_field( (string) ( $data['billing_address'] ?? '' ) ), 0, 2000 ),
-			'vat_id' => substr( sanitize_text_field( (string) ( $data['vat_id'] ?? '' ) ), 0, 64 ),
-			'payout_details' => substr( sanitize_textarea_field( (string) ( $data['payout_details'] ?? '' ) ), 0, 2000 ),
+			'contact_phone' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $data['contact_phone'] ?? '' ) ), 64 ),
+			'billing_address' => \PassCaptain\Text::cut( sanitize_textarea_field( (string) ( $data['billing_address'] ?? '' ) ), 2000 ),
+			'vat_id' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $data['vat_id'] ?? '' ) ), 64 ),
+			'payout_details' => \PassCaptain\Text::cut( sanitize_textarea_field( (string) ( $data['payout_details'] ?? '' ) ), 2000 ),
 			'currency' => $currency,
 			'commission_bp' => $commission,
 			'fee_per_ticket_minor' => $fee,
@@ -155,7 +155,7 @@ final class Repository {
 			'refund_policy' => in_array( $data['refund_policy'] ?? '', self::REFUND_POLICIES, true ) ? $data['refund_policy'] : 'reverse_all',
 			'settlement_start' => '' !== $start ? $start : ( $existing ? $existing->settlement_start : gmdate( 'Y-m-01' ) ),
 			'status' => in_array( $data['status'] ?? '', self::STATUSES, true ) ? $data['status'] : 'active',
-			'notes' => substr( sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ), 0, 5000 ),
+			'notes' => \PassCaptain\Text::cut( sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ), 5000 ),
 			'updated_at' => $now,
 		) + $seller + $sales;
 		if ( $existing ) {
@@ -202,13 +202,13 @@ final class Repository {
 		if ( '' !== $checked && ! \PassCaptain\Reports\Data::valid_date( $checked ) ) { return new \WP_Error( 'wpcap_partner_vat_checked', __( 'Ungültiges Datum der USt-IdNr.-Prüfung.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		return array(
 			'sales_model' => $model,
-			'legal_name' => substr( sanitize_text_field( (string) $pick( 'legal_name', '' ) ), 0, 190 ),
+			'legal_name' => \PassCaptain\Text::cut( sanitize_text_field( (string) $pick( 'legal_name', '' ) ), 190 ),
 			'country' => $country,
-			'tax_number' => substr( sanitize_text_field( (string) $pick( 'tax_number', '' ) ), 0, 64 ),
+			'tax_number' => \PassCaptain\Text::cut( sanitize_text_field( (string) $pick( 'tax_number', '' ) ), 64 ),
 			'vat_id_checked_at' => '' !== $checked ? $checked : null,
 			'invoice_prefix' => $prefix,
 			'small_business' => (int) (bool) $pick( 'small_business', 0 ),
-			'small_business_note' => substr( sanitize_text_field( (string) $pick( 'small_business_note', '' ) ), 0, 255 ),
+			'small_business_note' => \PassCaptain\Text::cut( sanitize_text_field( (string) $pick( 'small_business_note', '' ) ), 255 ),
 		);
 	}
 
@@ -237,7 +237,7 @@ final class Repository {
 		if ( $fee < 0 ) { return new \WP_Error( 'wpcap_partner_fee', __( 'Die Ticketgebühr darf nicht negativ sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		return array(
 			'role' => $role,
-			'sales_channel' => substr( sanitize_text_field( (string) $pick( 'sales_channel', '' ) ), 0, 64 ),
+			'sales_channel' => \PassCaptain\Text::cut( sanitize_text_field( (string) $pick( 'sales_channel', '' ) ), 64 ),
 			'hold_minutes' => $hold,
 			'cancel_window_hours' => $window,
 			'anonymous_buyer' => (int) (bool) $pick( 'anonymous_buyer', 0 ),

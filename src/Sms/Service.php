@@ -494,15 +494,15 @@ final class Service {
 		$params = self::request_params( $request );
 		$map = self::http_status_map();
 		$status = (string) ( $map[ strtolower( sanitize_text_field( (string) ( $params['status'] ?? '' ) ) ) ] ?? '' );
-		$error = substr( sanitize_text_field( (string) ( $params['error_code'] ?? '' ) ), 0, 20 );
+		$error = \PassCaptain\Text::cut( sanitize_text_field( (string) ( $params['error_code'] ?? '' ) ), 20 );
 		$price = isset( $params['price'] ) && is_scalar( $params['price'] ) ? (string) $params['price'] : null;
-		$currency = substr( sanitize_text_field( (string) ( $params['currency'] ?? '' ) ), 0, 3 );
+		$currency = \PassCaptain\Text::cut( sanitize_text_field( (string) ( $params['currency'] ?? '' ) ), 3 );
 		$updated = 0;
 		if ( in_array( $status, array( 'delivered', 'undelivered', 'failed', 'sent' ), true ) ) {
 			if ( preg_match( '/^wpcap-sms-(\d+)$/', (string) ( $params['reference'] ?? '' ), $m ) ) {
 				$updated = self::apply_status( 'http', '', $status, $error, $price, $currency, (int) $m[1] );
 			} else {
-				$ref = substr( sanitize_text_field( (string) ( $params['id'] ?? ( $params['message_id'] ?? '' ) ) ), 0, 64 );
+				$ref = \PassCaptain\Text::cut( sanitize_text_field( (string) ( $params['id'] ?? ( $params['message_id'] ?? '' ) ) ), 64 );
 				if ( '' !== $ref ) { $updated = self::apply_status( 'http', $ref, $status, $error, $price, $currency ); }
 			}
 		}

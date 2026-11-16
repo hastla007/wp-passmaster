@@ -570,7 +570,7 @@ final class Settlements {
 		$p = $wpdb->prefix;
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_partner_settlement_lines WHERE settlement_id=%d", (int) $s->settlement_id ) );
 		foreach ( $result['lines'] as $line ) {
-			$wpdb->insert( "{$p}wpcap_partner_settlement_lines", array_merge( $line, array( 'settlement_id' => (int) $s->settlement_id, 'partner_id' => (int) $s->partner_id, 'event_name' => substr( $line['event_name'], 0, 190 ) ) ) );
+			$wpdb->insert( "{$p}wpcap_partner_settlement_lines", array_merge( $line, array( 'settlement_id' => (int) $s->settlement_id, 'partner_id' => (int) $s->partner_id, 'event_name' => \PassCaptain\Text::cut( $line['event_name'], 190 ) ) ) );
 		}
 		$t = $result['totals'];
 		$model = (string) ( $t['sales_model'] ?? SalesModel::OWN_NAME );
@@ -658,8 +658,8 @@ final class Settlements {
 		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'finalized' !== $s->status ) { return new \WP_Error( 'wpcap_settlement_state', __( 'Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partner_settlements SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $now, substr( sanitize_text_field( (string) $reference ), 0, 190 ), $now, (int) $s->settlement_id ) );
-		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => substr( sanitize_text_field( (string) $reference ), 0, 190 ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partner_settlements SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $now, \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 190 ), $now, (int) $s->settlement_id ) );
+		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 190 ) ) );
 		return self::get( $settlement_id );
 	}
 

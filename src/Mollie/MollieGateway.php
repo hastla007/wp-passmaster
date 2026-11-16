@@ -346,7 +346,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 			if ( is_wp_error( $capture ) ) {
 				return new \WP_Error( 'wpcap_mollie_capture', $capture->get_error_message(), array( 'status' => 503 ) );
 			}
-			\PassCaptain\Audit::record( 'mollie_authorization_captured', 'order', (int) $order->order_id, array( 'payment' => $id, 'capture' => substr( sanitize_text_field( (string) ( $capture['id'] ?? '' ) ), 0, 64 ) ) );
+			\PassCaptain\Audit::record( 'mollie_authorization_captured', 'order', (int) $order->order_id, array( 'payment' => $id, 'capture' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $capture['id'] ?? '' ) ), 64 ) ) );
 		}
 		$event['type'] = 'payment_pending';
 		return $event;

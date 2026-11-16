@@ -69,7 +69,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 		if ( ! $pay_case ) { return new \WP_Error( 'fiskaltrust_payment_mapping_missing', __( 'Zahlungsart ist in fiskaltrust nicht zugeordnet.', 'pass-captain' ) ); }
 		$reference = (string) ( $document['idempotency_key'] ?? '' );
 		$payload = array(
-			'cbReceiptReference' => substr( 'WPC-' . $reference, 0, 128 ),
+			'cbReceiptReference' => \PassCaptain\Text::cut( 'WPC-' . $reference, 128 ),
 			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z' ),
 			'cbChargeItems' => $lines,
 			'cbPayItems' => array( array( 'Description' => $payment_method, 'Amount' => (float) HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ), 'ftPayItemCase' => $pay_case ) ),

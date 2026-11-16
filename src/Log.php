@@ -188,7 +188,7 @@ final class Log {
 		foreach ( array_keys( $ids ) as $key ) { unset( $context[ $key ] ); }
 		$channel = substr( sanitize_key( (string) $channel ), 0, 32 );
 		$message = Redact::text( str_replace( array( "\r", "\n" ), ' ', (string) $message ) );
-		$message = function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 500 ) : substr( $message, 0, 500 );
+		$message = function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 500 ) : \PassCaptain\Text::cut( $message, 500 );
 		$context = self::clean_context( $context );
 		$entry = array(
 			'created_at'    => current_time( 'mysql', true ),

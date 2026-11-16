@@ -269,7 +269,7 @@ final class Redact {
 	public static function internal_error( $e, $context = '' ) {
 		$reference = Log::new_reference();
 		// Support log (A327): stored with the reference the client sees; also written to the PHP error log.
-		Log::exception( 'rest', $e, array( 'reference' => $reference, 'route' => substr( (string) $context, 0, 190 ) ) );
+		Log::exception( 'rest', $e, array( 'reference' => $reference, 'route' => \PassCaptain\Text::cut( (string) $context, 190 ) ) );
 		return new \WP_Error(
 			'wpcap_internal_error',
 			/* translators: %s: error reference for support */

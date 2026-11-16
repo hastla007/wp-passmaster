@@ -380,7 +380,7 @@ final class Forms {
 			$key = (string) $key;
 			if ( '' === $key || '_' === $key[0] || 'action' === $key || preg_match( '/(secret|password|token|nonce|_key$)/i', $key ) ) { continue; }
 			if ( is_scalar( $value ) ) {
-				$input[ $key ] = substr( (string) $value, 0, 20000 );
+				$input[ $key ] = \PassCaptain\Text::cut( (string) $value, 20000 );
 			} elseif ( is_array( $value ) ) {
 				$input[ $key ] = array_map( 'strval', array_slice( array_filter( $value, 'is_scalar' ), 0, 200, true ) );
 			}

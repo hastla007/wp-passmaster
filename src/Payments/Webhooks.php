@@ -60,7 +60,7 @@ final class Webhooks {
 	public static function process( $provider, array $event ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$event_id = substr( sanitize_text_field( (string) ( $event['event_id'] ?? '' ) ), 0, 191 );
+		$event_id = \PassCaptain\Text::cut( sanitize_text_field( (string) ( $event['event_id'] ?? '' ) ), 191 );
 		if ( '' === $event_id ) {
 			return new \WP_Error( 'wpcap_webhook_event_id', 'Missing event id.' );
 		}
@@ -212,7 +212,7 @@ final class Webhooks {
 				return 'paid_for_closed_order';
 			}
 			if ( ! empty( $event['provider_reference'] ) ) {
-				$wpdb->update( "{$p}wpcap_orders", array( 'provider_reference' => substr( sanitize_text_field( $event['provider_reference'] ), 0, 191 ) ), array( 'order_id' => $order_id ) );
+				$wpdb->update( "{$p}wpcap_orders", array( 'provider_reference' => \PassCaptain\Text::cut( sanitize_text_field( $event['provider_reference'] ), 191 ) ), array( 'order_id' => $order_id ) );
 			}
 			$confirmed = Orders::confirm_external_payment( $order_id, $provider . ':' . $event_id );
 			if ( is_wp_error( $confirmed ) ) {

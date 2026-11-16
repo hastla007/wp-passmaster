@@ -422,6 +422,21 @@ vendor/bin/phpcs -q --report=summary
 
 CI (`ci.yml`, Job `php`) bricht bei **Fehlern** ab; Warnungen werden angezeigt. Stand 13.11.2026: 0 Fehler. Die rund 1 580 Warnungen stammen fast vollständig aus `WordPress.DB.PreparedSQL` für interpolierte Tabellennamen (`{$wpdb->prefix}wpcap_…`) und Integer-Listen – sie werden schrittweise abgebaut; neue Abfragen sollen Werte immer über `$wpdb->prepare()` übergeben. Zusätzlich prüft `composer audit` die Abhängigkeiten auf bekannte Sicherheitslücken.
 
+**UTF-8-sicheres Kürzen (A478):**
+
+```bash
+php tests/utf8-substr-check.php --self-test   # src/
+```
+
+Text wird mit `PassCaptain\Text::cut( $text, $zeichen )` gekürzt (Zeichen statt Bytes, ungültiges UTF-8 wird
+ersetzt). Ein byteweises `substr()` kann ein Mehrbyte-Zeichen halbieren: `wp_json_encode()` liefert dann `false`
+(leere Audit-Details), `esc_html()` einen leeren Text, und eine Datenbank im Strict-Modus lehnt den ganzen
+Schreibvorgang ab („Incorrect string value“). Die Prüfung meldet jedes `substr( $x, 0, N )`, dessen erstes
+Argument Text ist (`sanitize_text_field()`, `sanitize_textarea_field()`, `__()`, `Redact::text()`,
+`get_error_message()`, Variablen wie `$reason`, `$note`, `$message`) oder das auf 100 und mehr Bytes kürzt.
+Ausnahmen (ASCII-Werte mit Byte-Grenze, z. B. HTTP-Header `Idempotency-Key`) stehen mit Begründung in
+`WPCAP_SUBSTR_ALLOW`. Läuft im CI-Job `php`.
+
 Noch offen: PHPStan mit WordPress-Stubs (in dieser Umgebung nicht installierbar, weil Composer keine GitHub-Downloads erhält; sollte in CI mit Baseline nachgezogen werden).
 
 ## JavaScript: Lint und Logiktests (A174)

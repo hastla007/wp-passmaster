@@ -45,7 +45,7 @@ final class PosGateway implements GatewayInterface {
 			// A local check (e.g. no open shift): nothing was paid out, a clear failure (A272).
 			if ( is_wp_error( $booked ) ) { return \PassCaptain\Refunds::definitive( $booked ); }
 		}
-		return substr( $this->id . ':' . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $idempotency_key ), 0, 191 );
+		return \PassCaptain\Text::cut( $this->id . ':' . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $idempotency_key ), 191 );
 	}
 
 	/** wpcap_payment_gateways filter. */

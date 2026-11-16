@@ -81,7 +81,7 @@ final class Keys {
 		$secret = bin2hex( random_bytes( 32 ) );
 		$saved = $wpdb->insert( "{$wpdb->prefix}wpcap_partner_keys", array(
 			'partner_id' => (int) $partner->partner_id,
-			'label' => substr( sanitize_text_field( (string) ( $args['label'] ?? '' ) ), 0, 190 ),
+			'label' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $args['label'] ?? '' ) ), 190 ),
 			'public_prefix' => $prefix,
 			'secret_hash' => hash( 'sha256', $secret ),
 			'scopes' => implode( ',', $scopes ),
@@ -286,6 +286,6 @@ final class Keys {
 	}
 
 	public static function audit_failure( $reason, $key, $ip, $route, array $extra = array() ) {
-		Audit::record( 'partner_key_auth_failed', 'partner_key', $key ? (int) $key->key_id : 0, array_merge( array( 'reason' => $reason, 'partner_id' => $key ? (int) $key->partner_id : 0, 'route' => substr( (string) $route, 0, 120 ), 'ip' => self::anonymise_ip( $ip ) ), $extra ) );
+		Audit::record( 'partner_key_auth_failed', 'partner_key', $key ? (int) $key->key_id : 0, array_merge( array( 'reason' => $reason, 'partner_id' => $key ? (int) $key->partner_id : 0, 'route' => \PassCaptain\Text::cut( (string) $route, 120 ), 'ip' => self::anonymise_ip( $ip ) ), $extra ) );
 	}
 }

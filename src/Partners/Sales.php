@@ -135,7 +135,7 @@ final class Sales {
 			'key_id' => absint( $sale['key_id'] ?? 0 ),
 			'mode' => in_array( $sale['mode'] ?? '', self::MODES, true ) ? $sale['mode'] : 'reserve',
 			'channel' => substr( (string) ( $sale['channel'] ?? '' ), 0, 64 ),
-			'external_reference' => substr( (string) ( $sale['external_reference'] ?? '' ), 0, 100 ),
+			'external_reference' => \PassCaptain\Text::cut( (string) ( $sale['external_reference'] ?? '' ), 100 ),
 			'anonymous' => empty( $sale['anonymous'] ) ? 0 : 1,
 			'request_hash' => (string) ( $sale['request_hash'] ?? '' ),
 			'created_at' => $now,
@@ -721,7 +721,7 @@ final class Sales {
 		$order_id = (int) $order->order_id;
 		$unknown = self::unknown_fields( $body, array( 'reason' ) );
 		if ( $unknown ) { self::audit( $ctx, 'cancel', $order_id, $unknown ); return $unknown; }
-		$reason = is_array( $body ) && is_string( $body['reason'] ?? null ) ? substr( sanitize_text_field( $body['reason'] ), 0, 190 ) : '';
+		$reason = is_array( $body ) && is_string( $body['reason'] ?? null ) ? \PassCaptain\Text::cut( sanitize_text_field( $body['reason'] ), 190 ) : '';
 		$now = current_time( 'mysql', true );
 		$done = static function ( $extra = array() ) use ( $ctx, $order_id ) {
 			$order = Orders::get( $order_id );

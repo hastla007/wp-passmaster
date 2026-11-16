@@ -26,6 +26,8 @@ jobs:
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: SQL table prefixes, no hard-coded wp_, no direct WooCommerce order table queries (docs/TESTING.md)
         run: php tests/sql-prefix-check.php --self-test
+      - name: No byte-wise substr() on text – UTF-8 safe truncation via Text::cut() (A478, docs/TESTING.md)
+        run: php tests/utf8-substr-check.php --self-test
       - name: PHPCS (WordPress security, SQL, i18n, PHP compatibility – fails on errors)
         run: vendor/bin/phpcs -q --report=summary
       - name: Composer security audit (fails on known vulnerabilities, also in dev dependencies)
