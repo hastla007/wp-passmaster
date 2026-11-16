@@ -459,6 +459,24 @@ final class Queries {
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
+	/**
+	 * Number of paid orders without tickets that need a decision (`needs_review`: payment after the
+	 * hold expired without free capacity) the current user may see (A337: menu counter, admin notice).
+	 * Same scope as the order list (search_orders()); uses the status index.
+	 *
+	 * @param int[]|null $event_ids Scope (null = all events).
+	 */
+	public static function needs_review_count( $event_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$scope = '';
+		if ( null !== $event_ids ) {
+			if ( ! $event_ids ) { return 0; }
+			$scope = " AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=ord.order_id" . self::scope_sql( $event_ids, 'fo.event_id' ) . Access::occurrence_scope_sql( 'fo' ) . ')';
+		}
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders ord WHERE ord.status='needs_review'{$scope}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope from scope_sql()/occurrence_scope_sql().
+	}
+
 	/** Order items with tax, event and occurrence context. */
 	public static function order_items( $order_id ) {
 		global $wpdb;

@@ -1337,6 +1337,8 @@ final class Orders {
 		$text .= "\n\n" . ( $auto
 			? __( 'Die Zahlung wird automatisch erstattet.', 'pass-captain' )
 			: __( 'Bitte manuell klären (Zuteilung erneut versuchen oder erstatten).', 'pass-captain' ) );
+		// A337: straight to the order (also listed under Bestellungen with the status filter "Prüfung nötig").
+		if ( function_exists( 'admin_url' ) ) { $text .= "\n\n" . Admin\OrdersPage::order_url( (int) $order->order_id ); }
 		wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne Tickets', 'pass-captain' ), $text );
 	}
 

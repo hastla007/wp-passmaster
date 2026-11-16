@@ -80,6 +80,7 @@ final class Menu {
 		add_action( 'admin_footer', array( self::class, 'menu_heading_script' ) );
 		add_action( 'admin_notices', array( self::class, 'schema_error_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'manual_payment_notice' ) );
+		add_action( 'admin_notices', array( self::class, 'needs_review_notice' ) );
 		UserScope::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
@@ -105,6 +106,33 @@ final class Menu {
 		$dashboard = $screen && 'dashboard' === ( $screen->id ?? '' );
 		if ( ! $dashboard && ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) { return; }
 		echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Pass Captain: Die Zahlungsart „Überweisung“ ist aktiviert, aber nicht vollständig konfiguriert.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Empfänger und IBAN bzw. ein Zahlungshinweis. Bis dahin wird Überweisung im Checkout nicht angeboten.', 'pass-captain' ) . ' <a href="' . esc_url( SettingsPage::provider_url( 'manual' ) ) . '">' . esc_html__( 'Überweisung einrichten', 'pass-captain' ) . '</a></p></div>';
+	}
+
+	/**
+	 * Paid orders without tickets (`needs_review`, A337): staff who handle orders see how many are
+	 * waiting for a decision, with a link to the filtered order list – on the plugin's pages and the
+	 * dashboard, scoped to the events they may access. Not repeated on the filtered list itself.
+	 */
+	public static function needs_review_notice() {
+		if ( ! current_user_can( OrdersPage::CAP ) ) { return; }
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- only selects the screen.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		$status = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		$dashboard = $screen && 'dashboard' === ( $screen->id ?? '' );
+		if ( ! $dashboard && ! str_starts_with( $page, 'wpcap' ) && self::SLUG !== $page ) { return; }
+		if ( OrdersPage::SLUG === $page && 'needs_review' === $status ) { return; }
+		$count = Queries::needs_review_count( Queries::event_ids_for( OrdersPage::CAP ) );
+		if ( ! $count ) { return; }
+		/* translators: %d: number of orders */
+		$text = sprintf( _n( 'Pass Captain: %d bezahlte Bestellung ohne Tickets muss geklärt werden.', 'Pass Captain: %d bezahlte Bestellungen ohne Tickets müssen geklärt werden.', $count, 'pass-captain' ), $count );
+		echo '<div class="notice notice-warning wpcap-needs-review-notice"><p><strong>' . esc_html( $text ) . '</strong> ' . esc_html__( 'Die Zahlung kam nach Ablauf der Reservierung und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung erstatten.', 'pass-captain' ) . ' <a href="' . esc_url( self::needs_review_url() ) . '">' . esc_html__( 'Bestellungen anzeigen', 'pass-captain' ) . '</a></p></div>';
+	}
+
+	/** Order list filtered to orders that need a decision (A337). */
+	public static function needs_review_url() {
+		return Forms::page_url( OrdersPage::SLUG, array( 'status' => 'needs_review' ) );
 	}
 
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
@@ -223,9 +251,14 @@ final class Menu {
 	public static function entries() {
 		$pending = current_user_can( Refunds::APPROVE_CAP ) ? count( Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) ) ) : 0;
 		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
+		// A337: paid orders without tickets waiting for a decision.
+		$review = current_user_can( OrdersPage::CAP ) ? Queries::needs_review_count( Queries::event_ids_for( OrdersPage::CAP ) ) : 0;
+		/* translators: %d: number of orders */
+		$review_label = $review ? sprintf( _n( '%d Bestellung muss geklärt werden', '%d Bestellungen müssen geklärt werden', $review, 'pass-captain' ), $review ) : '';
+		$orders_title = __( 'Bestellungen', 'pass-captain' ) . ( $review ? ' <span class="awaiting-mod" title="' . esc_attr( $review_label ) . '"><span aria-hidden="true">' . (int) $review . '</span><span class="screen-reader-text">' . esc_html( $review_label ) . '</span></span>' : '' );
 		$entries = array(
 			array( self::SLUG, __( 'Events', 'pass-captain' ), __( 'Events', 'pass-captain' ), EventsPage::CAP, array( EventsPage::class, 'render' ), '' ),
-			array( OrdersPage::SLUG, __( 'Bestellungen', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), OrdersPage::CAP, array( OrdersPage::class, 'render' ), '' ),
+			array( OrdersPage::SLUG, __( 'Bestellungen', 'pass-captain' ), $orders_title, OrdersPage::CAP, array( OrdersPage::class, 'render' ), '' ),
 			array( TicketsPage::SLUG, __( 'Tickets', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), TicketsPage::menu_cap(), array( TicketsPage::class, 'render' ), '' ),
 			array( CheckinsPage::SLUG, __( 'Check-ins', 'pass-captain' ), __( 'Check-ins', 'pass-captain' ), CheckinsPage::menu_cap(), array( CheckinsPage::class, 'render' ), '' ),
 			array( RefundsPage::SLUG, __( 'Erstattungen', 'pass-captain' ), $refund_title, RefundsPage::menu_cap(), array( RefundsPage::class, 'render' ), '' ),

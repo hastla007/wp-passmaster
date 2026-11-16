@@ -855,6 +855,19 @@ ist die Grenze erreicht, sagt die Seite das. Namen und E-Mails sind nur suchbar,
 PII-Matrix im Klartext sehen darf (`wpcap_pii_can_view`), und alle Treffer bleiben auf den Zugriffsbereich der
 Person beschränkt.
 
+### Bezahlt ohne Ticket: „Prüfung nötig“ (A337)
+
+Kommt eine Zahlung erst nach Ablauf der Reservierung und ist kein Kontingent mehr frei (oder der Termin
+abgesagt/vorbei), wird die Bestellung `needs_review` / `paid_unallocated` und es entstehen keine Tickets.
+Solche Bestellungen sind im Admin sichtbar:
+- Der Menüpunkt **Bestellungen** trägt einen Zähler (nur für Personen mit `wpcap_manage_orders`, gezählt im
+  eigenen Zugriffsbereich wie die Bestellliste).
+- Auf den Plugin-Seiten und im Dashboard erscheint ein Hinweis mit Link auf die gefilterte Liste
+  (`admin.php?page=wpcap-orders&status=needs_review`); auf dieser Liste selbst nicht.
+- Die Alarm-Mail an die Admin-Adresse enthält den direkten Link auf das Bestelldetail.
+
+Im Bestelldetail stehen „Zuteilung erneut versuchen“ (nach Freigabe von Kontingent) bzw. die Erstattung.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und
