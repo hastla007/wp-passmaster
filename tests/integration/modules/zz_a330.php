@@ -129,7 +129,8 @@ PdfWriter::reset_fonts();
 $a330_fb = TicketPdf::render( array( array( 'event' => 'Łódź Café', 'ticket' => 'Иван', 'when' => 'x', 'token' => str_repeat( 'c', 64 ) ) ), array( 'title' => 'T' ) );
 remove_filter( 'wpcap_pdf_fonts', $a330_nofont );
 PdfWriter::reset_fonts();
-check( 'A330 fallback: without a font file the PDF uses Helvetica (WinAnsi), transliterates Polish (ł → l, ź → z), keeps ó/é, "?" for Cyrillic', a330_pdf_ok( $a330_fb, 1 ) && false !== strpos( $a330_fb, '/BaseFont /Helvetica /Encoding /WinAnsiEncoding' ) && false !== strpos( $a330_fb, '(L' . "\xF3" . 'dz Caf' . "\xE9" . ') Tj' ) && false !== strpos( $a330_fb, '(????) Tj' ) && false === strpos( $a330_fb, '/FontFile2' ) );
+// Merged PdfWriter::winansi() (audit R2 #5): Cyrillic is transliterated too (Иван → Ivan) instead of "????".
+check( 'A330 fallback: without a font file the PDF uses Helvetica (WinAnsi), transliterates Polish (ł → l, ź → z), keeps ó/é, transliterates Cyrillic', a330_pdf_ok( $a330_fb, 1 ) && false !== strpos( $a330_fb, '/BaseFont /Helvetica /Encoding /WinAnsiEncoding' ) && false !== strpos( $a330_fb, '(L' . "\xF3" . 'dz Caf' . "\xE9" . ') Tj' ) && false !== strpos( $a330_fb, '(Ivan) Tj' ) && false === strpos( $a330_fb, '(????) Tj' ) && false === strpos( $a330_fb, '/FontFile2' ) );
 check( 'A330: the bundled font is back afterwards', PdfWriter::unicode_available() );
 // An OpenType/CFF or broken file is rejected (fallback instead of a corrupt PDF).
 check( 'A330: non-TrueType files are rejected', null === PassCaptain\Printing\TrueTypeFont::load( __FILE__ ) );

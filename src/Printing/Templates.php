@@ -218,9 +218,15 @@ final class Templates {
 					$cursor -= $caption * 0.3;
 				}
 			}
+			// Ticket layout (audit R2 #8): long texts such as event names wrap onto a second line instead of
+			// being cut; labels (badges, name tags) keep one line.
+			$parts = $full ? PdfWriter::wrap( $text, $size, $text_w, $line['bold'], 2 ) : array( PdfWriter::fit( $text, $size, $text_w, $line['bold'] ) );
 			if ( $cursor - $size * 1.25 < $y - 0.5 ) { break; }
-			$cursor -= $size * 1.2;
-			$pdf->text( $anchor, $cursor, $size, PdfWriter::fit( $text, $size, $text_w, $line['bold'] ), $line['bold'], 'center' === $align ? 'center' : 'left' );
+			foreach ( $parts as $index => $part ) {
+				if ( $index > 0 && $cursor - $size * 1.25 < $y - 0.5 ) { break; }
+				$cursor -= $size * 1.2;
+				$pdf->text( $anchor, $cursor, $size, $part, $line['bold'], 'center' === $align ? 'center' : 'left' );
+			}
 			$cursor -= $size * 0.25;
 		}
 	}
