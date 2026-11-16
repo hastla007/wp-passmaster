@@ -38,6 +38,102 @@ final class Reminders {
 		add_filter( 'wpcap_email_template', array( __CLASS__, 'render_template' ), 10, 4 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'purge_stale' ), 20, 0 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'purge_stale' ), 20, 0 );
+		// A689: opt-out link and RFC 8058 one-click unsubscribe (List-Unsubscribe-Post).
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_handle_optout' ), 1, 0 );
+	}
+
+	/* ---------------------------------------------------------------- Opt-out (A623, A689) */
+
+	/** Option with the opted-out recipients: keyed e-mail hash => opt-out time (UTC). */
+	const OPTOUT_OPTION = 'wpcap_reminder_optouts';
+
+	/** Query argument of the opt-out link. */
+	const OPTOUT_QUERY = 'wpcap_reminder_optout';
+
+	/** Pseudonymous reference of a recipient (keyed hash, no address in links or the option). */
+	public static function optout_ref( $email ) {
+		return \PassCaptain\Consents::subject_hash( (string) $email );
+	}
+
+	/** Signature of an opt-out link for $ref. */
+	public static function optout_sig( $ref ) {
+		return hash_hmac( 'sha256', 'reminder-optout|' . (string) $ref, wp_salt( 'auth' ) );
+	}
+
+	/** Personal opt-out link of a recipient ('' for invalid addresses). */
+	public static function optout_url( $email ) {
+		$ref = self::optout_ref( $email );
+		return '' === $ref ? '' : add_query_arg( array( self::OPTOUT_QUERY => $ref, 'sig' => self::optout_sig( $ref ) ), home_url( '/' ) );
+	}
+
+	/** Whether the recipient opted out of reminder mails. */
+	public static function is_opted_out( $email ) {
+		$ref = self::optout_ref( $email );
+		if ( '' === $ref ) { return false; }
+		$list = get_option( self::OPTOUT_OPTION, array() );
+		return is_array( $list ) && isset( $list[ $ref ] );
+	}
+
+	/**
+	 * Records an opt-out from a signed link. Queued reminders of that recipient are cancelled when they
+	 * are due (render_template()).
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function opt_out( $ref, $sig ) {
+		$ref = strtolower( (string) $ref );
+		if ( ! preg_match( '/^[a-f0-9]{64}$/', $ref ) || ! hash_equals( self::optout_sig( $ref ), (string) $sig ) ) {
+			return new \WP_Error( 'wpcap_optout_invalid', __( 'Der Abmeldelink ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$list = get_option( self::OPTOUT_OPTION, array() );
+		$list = is_array( $list ) ? $list : array();
+		if ( ! isset( $list[ $ref ] ) ) {
+			$list[ $ref ] = \PassCaptain\Clock::mysql();
+			update_option( self::OPTOUT_OPTION, $list, false );
+			\PassCaptain\Audit::record( 'reminder_opt_out', 'system', 0, array( 'ref' => substr( $ref, 0, 12 ) ) );
+		}
+		return true;
+	}
+
+	/** List-Unsubscribe headers of a reminder to $email (RFC 2369 / RFC 8058 one-click). */
+	public static function optout_headers( $email ) {
+		$url = self::optout_url( $email );
+		return '' === $url ? array() : array( 'List-Unsubscribe: <' . esc_url_raw( $url ) . '>', 'List-Unsubscribe-Post: List-Unsubscribe=One-Click' );
+	}
+
+	/**
+	 * template_redirect: the opt-out link. GET shows a confirmation button (link scanners must not
+	 * unsubscribe anybody); POST – the button or a mail client's one-click request – records it.
+	 */
+	public static function maybe_handle_optout() {
+		// phpcs:disable WordPress.Security.NonceVerification -- capability link (signed reference), no state change on GET.
+		if ( ! isset( $_GET[ self::OPTOUT_QUERY ] ) ) { return; }
+		$ref = sanitize_key( wp_unslash( (string) $_GET[ self::OPTOUT_QUERY ] ) );
+		$sig = sanitize_key( wp_unslash( (string) ( $_GET['sig'] ?? '' ) ) );
+		// phpcs:enable WordPress.Security.NonceVerification
+		\PassCaptain\PageCache::no_store( 'reminder_optout' );
+		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		list( $code, $html ) = self::optout_page( $ref, $sig, \PassCaptain\Http::is_post() );
+		status_header( $code );
+		echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . esc_html__( 'Erinnerungen abbestellen', 'pass-captain' ) . '</title></head><body><main style="max-width:36rem;margin:2rem auto;padding:0 1rem;font:16px/1.5 system-ui,sans-serif">' . $html . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in optout_page().
+		exit;
+	}
+
+	/**
+	 * Status and HTML (escaped) of the opt-out page.
+	 *
+	 * @return array{0:int,1:string}
+	 */
+	public static function optout_page( $ref, $sig, $post ) {
+		if ( ! preg_match( '/^[a-f0-9]{64}$/', (string) $ref ) || ! hash_equals( self::optout_sig( (string) $ref ), (string) $sig ) ) {
+			return array( 400, '<h1>' . esc_html__( 'Link ungültig', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Der Abmeldelink ist ungültig.', 'pass-captain' ) . '</p>' );
+		}
+		if ( $post ) {
+			self::opt_out( $ref, $sig );
+			return array( 200, '<h1>' . esc_html__( 'Erinnerungen abbestellt', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Du erhältst keine Erinnerungs-E-Mails zu deinen Terminen mehr. Ticketmails und wichtige Mitteilungen wie Absagen oder Terminänderungen bekommst du weiterhin.', 'pass-captain' ) . '</p>' );
+		}
+		$action = add_query_arg( array( self::OPTOUT_QUERY => $ref, 'sig' => $sig ), home_url( '/' ) );
+		return array( 200, '<h1>' . esc_html__( 'Erinnerungen abbestellen', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Möchtest du keine Erinnerungs-E-Mails zu deinen Terminen mehr erhalten? Ticketmails und Mitteilungen zu Absagen oder Terminänderungen bekommst du weiterhin.', 'pass-captain' ) . '</p><form method="post" action="' . esc_attr( esc_url_raw( $action ) ) . '"><button type="submit" style="padding:.6rem 1rem">' . esc_html__( 'Erinnerungen abbestellen', 'pass-captain' ) . '</button></form>' );
 	}
 
 	public static function settings_defaults() {
@@ -164,6 +260,7 @@ final class Reminders {
 		$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(" . \PassCaptain\TicketCodes::holder_email_sql() . ") AS email,COUNT(*) AS tickets," . \PassCaptain\Notifications::LATEST_LOCALE_SQL . " AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
 		foreach ( $holders as $holder ) {
 			if ( ! is_email( $holder->email ) ) { continue; }
+			if ( self::is_opted_out( $holder->email ) ) { continue; } // A689.
 			$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
 			if ( self::already_queued( $key ) ) { continue; }
 			$payload = array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets );
@@ -218,6 +315,8 @@ final class Reminders {
 	 */
 	public static function render_template( $template, $key = '', $payload = array(), $recipient = '' ) {
 		if ( self::TEMPLATE !== $key || ! is_array( $payload ) ) { return $template; }
+		// A689: opted out after the reminder was queued – it is cancelled, not sent.
+		if ( '' !== (string) $recipient && self::is_opted_out( (string) $recipient ) ) { return array( 'skip' => 'opted_out' ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", (int) ( $payload['occurrence_id'] ?? 0 ) ) );
@@ -229,10 +328,15 @@ final class Reminders {
 			// A558: {hours} is the remaining time when the mail goes out, not the stage it was queued for.
 			$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => self::hours_left( $occ->starts_at ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ), 'ticket_links' => self::ticket_links( (int) $occ->occurrence_id, (string) $recipient ) ) );
 			$body = Placeholders::render( $texts['body'], $vars );
+			$optout = '' !== (string) $recipient ? self::optout_url( (string) $recipient ) : '';
+			if ( '' !== $optout ) {
+				/* translators: %s: personal opt-out link */
+				$body .= "\n\n" . sprintf( __( 'Keine Erinnerungen mehr per E-Mail erhalten? Hier abbestellen %s', 'pass-captain' ), $optout );
+			}
 			// The reminder editor is plain text: in HTML mode the rendered text is escaped as a whole
 			// (values included), URLs become links and the layout adds the plain-text alternative.
 			$html = 'html' === \PassCaptain\Mail\Templates::default_format( 'reminder' );
-			return array( 'subject' => Placeholders::render( $texts['subject'], $vars ), 'body' => $html ? \PassCaptain\Mail\Mailer::text_to_html( $body ) : $body, 'format' => $html ? 'html' : 'text', 'locale' => $locale );
+			return array( 'subject' => Placeholders::render( $texts['subject'], $vars ), 'body' => $html ? \PassCaptain\Mail\Mailer::text_to_html( $body ) : $body, 'format' => $html ? 'html' : 'text', 'locale' => $locale, 'headers' => '' !== (string) $recipient ? self::optout_headers( (string) $recipient ) : array() );
 		} );
 	}
 

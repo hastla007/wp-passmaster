@@ -141,6 +141,7 @@ final class SettingsPage {
 				'tab' => 'general',
 				'fields' => array(
 					'mail_from_name' => array( 'type' => 'text', 'label' => __( 'Absendername', 'pass-captain' ), 'description' => __( 'Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain).', 'pass-captain' ) ),
+					'mail_rate_per_minute' => array( 'type' => 'int', 'label' => __( 'Geplante Mails je Minute (höchstens)', 'pass-captain' ), 'min' => 0, 'max' => 10000, 'description' => __( '0 = ohne Begrenzung. Begrenzt Erinnerungen und andere Mails aus der Warteschlange auf das Limit deines Mail-Anbieters; der Rest geht in den nächsten Läufen hinaus. Meldet der Anbieter ein Limit, wird die Mail später erneut versucht statt verworfen.', 'pass-captain' ) ),
 					'mail_reply_to' => array( 'type' => 'email', 'label' => __( 'Antwort an (E-Mail-Adresse)', 'pass-captain' ), 'description' => __( 'Antworten der Käufer gehen an diese Adresse. Leer = Administrator-E-Mail der Website.', 'pass-captain' ) ),
 				),
 			),

@@ -38,6 +38,46 @@ final class Communications {
 	/** Maximum messages per run (filter: wpcap_message_batch_size); the time budget usually ends a run first. */
 	const BATCH_SIZE = 500;
 
+	/** A623: deferrals of one message because of a provider limit before it counts as a failure. */
+	const MAX_LIMIT_DEFERRALS = 24;
+
+	/**
+	 * A623: queued mails per minute (setting mail_rate_per_minute, filter wpcap_message_rate_per_minute);
+	 * 0 = unlimited.
+	 */
+	public static function rate_per_minute() {
+		/**
+		 * Maximum queued mails sent per minute (A623), e.g. the limit of the mail provider. 0 = no limit.
+		 *
+		 * @param int $rate Setting `mail_rate_per_minute`.
+		 */
+		return max( 0, (int) apply_filters( 'wpcap_message_rate_per_minute', (int) Settings::get( 'mail_rate_per_minute', 0 ) ) );
+	}
+
+	/** A623: mails of the queue sent during the last minute (needs sent_at, schema 3.10.16). */
+	private static function sent_last_minute( $now_ts ) {
+		global $wpdb;
+		if ( ! Log::has_column( 'wpcap_message_queue', 'sent_at' ) ) { return 0; }
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_message_queue WHERE status='sent' AND sent_at>%s", gmdate( 'Y-m-d H:i:s', (int) $now_ts - MINUTE_IN_SECONDS ) ) );
+	}
+
+	/**
+	 * A623: whether a mail failure is a provider limit (rate, quota, "too many", SMTP 421/450/451/452,
+	 * enhanced status 4.7.x) – such a mail is deferred, not counted as a failed attempt.
+	 *
+	 * @param string $reason Error text of the mailer.
+	 */
+	public static function is_limit_error( $reason ) {
+		$hit = (bool) preg_match( '/rate.?limit|quota|too many|throttl|try again later|limit exceeded|sending limit|\b(?:421|450|451|452)\b|\b4\.7\.\d+\b/i', (string) $reason );
+		/**
+		 * Whether a mail error means "provider limit, retry later" (A623).
+		 *
+		 * @param bool   $hit    Built-in detection.
+		 * @param string $reason Error text.
+		 */
+		return (bool) apply_filters( 'wpcap_mail_limit_error', $hit, (string) $reason );
+	}
+
 	/**
 	 * Sends due messages until the time budget (Jobs\TimeBudget, ~20 s) or the batch size is used up.
 	 * When due messages remain, an immediate follow-up run is scheduled instead of waiting for the
@@ -64,11 +104,15 @@ final class Communications {
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", $stale ) );
 		$limit = max( 1, (int) apply_filters( 'wpcap_message_batch_size', self::BATCH_SIZE ) );
+		// A623: at most rate_per_minute() mails per minute; the rest waits for the next run.
+		$rate = self::rate_per_minute();
+		$budget = $rate > 0 ? max( 0, $rate - self::sent_last_minute( Clock::now() ) ) : PHP_INT_MAX;
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
 		$drained = false;
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
+			if ( $budget <= 0 ) { break; }
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; } // No row lock without a transaction.
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND send_at<=%s$filter ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $filter is prepared above.
 			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
@@ -86,6 +130,13 @@ final class Communications {
 			// A652: only a renderer (filter `wpcap_email_template`) makes a mail; the stored payload is data,
 			// never a template (no subject/body taken from it). Without a renderer: "template missing".
 			$template = is_array( $template ) ? $template : array();
+			if ( ! empty( $template['skip'] ) ) {
+				// A689: the recipient opted out (or the message is obsolete) – cancelled, never sent.
+				$wpdb->update( $table, array( 'status' => 'cancelled', 'locked_at' => null, 'last_error' => sanitize_key( (string) $template['skip'] ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+				Jobs\TimeBudget::finished( $table, (int) $row->message_id );
+				++$processed;
+				continue;
+			}
 			$subject = sanitize_text_field( $template['subject'] ?? '' );
 			$body = (string) ( $template['body'] ?? '' );
 			// Through the central mailer (layout for HTML bodies, `wpcap_mail` filter); reminders keep their own editor.
@@ -97,10 +148,11 @@ final class Communications {
 			$sent = Log::scope( $scope, static function () use ( $composed, $template, $row, $subject, $body ) {
 				return $composed
 					? Mail\Mailer::deliver( $row->recipient, $template['message'] )
-					: '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
+					: '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ), 'headers' => array_values( array_filter( (array) ( $template['headers'] ?? array() ), 'is_string' ) ) ) );
 			} );
 			Mail\TempFiles::release( array_filter( (array) ( $template['temp_files'] ?? array() ), 'is_string' ) ); // A626.
 			if ( $sent ) {
+				--$budget;
 				$done = array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null );
 				$done_formats = array( '%s', '%s', '%s' );
 				if ( Log::has_column( 'wpcap_message_queue', 'sent_at' ) ) {
@@ -124,6 +176,17 @@ final class Communications {
 					/* translators: %s: message template key */
 					$reason = sprintf( __( 'Für die Vorlage %s gibt es keinen Betreff oder Text (Vorlage fehlt oder Modul deaktiviert).', 'pass-captain' ), (string) $row->template_key );
 				}
+				$deferrals = (int) ( $payload['_limit_deferrals'] ?? 0 );
+				if ( self::is_limit_error( $reason ) && $deferrals < self::MAX_LIMIT_DEFERRALS ) {
+					// A623: provider limit – try again in 15 minutes without using up an attempt, and stop
+					// this run (the next mails would hit the same limit).
+					$payload['_limit_deferrals'] = $deferrals + 1;
+					$wpdb->update( $table, array( 'status' => 'queued', 'attempts' => (int) $row->attempts, 'payload' => wp_json_encode( $payload ), 'send_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 15 * MINUTE_IN_SECONDS ), 'locked_at' => null, 'last_error' => Operations\Queues::safe_error( $reason ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%d', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+					Jobs\TimeBudget::finished( $table, (int) $row->message_id );
+					++$processed;
+					$budget = 0;
+					continue;
+				}
 				$wpdb->update( $table, array( 'status' => $tries >= 5 ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => Operations\Queues::safe_error( $reason ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 				if ( $tries >= 5 ) {
 					Log::error( 'mail', 'Queued message failed for good: ' . sanitize_key( (string) $row->template_key ) . ' – ' . $reason, $scope + array( 'message_id' => (int) $row->message_id ) );
@@ -131,6 +194,10 @@ final class Communications {
 			}
 			Jobs\TimeBudget::finished( $table, (int) $row->message_id );
 			++$processed;
+		}
+		if ( $rate > 0 && $budget <= 0 && ! $drained ) {
+			// A623: rate used up – the five-minute cron continues; no immediate follow-up run.
+			return $processed;
 		}
 		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s$filter LIMIT 1", $now ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $filter is prepared above.
 			Jobs\TimeBudget::continue_later( 'wpcap_process_messages' );

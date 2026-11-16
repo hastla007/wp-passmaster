@@ -126,6 +126,7 @@ final class Settings {
 			// A296: sender name and reply-to address of buyer mails ('' = seller name or site name / admin e-mail).
 			'mail_from_name'            => '',
 			'mail_reply_to'             => '',
+			'mail_rate_per_minute'      => 0,
 		);
 	}
 
