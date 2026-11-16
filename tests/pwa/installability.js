@@ -27,7 +27,11 @@ async function run(label, contextOptions) {
 	const page = await context.newPage();
 	const errors = [];
 	page.on('pageerror', (e) => errors.push(String(e)));
-	page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+	// Network messages ("Failed to load resource …") are judged by URL below, not as script errors:
+	// this test serves only the static app, so REST calls (/wp-json/…, e.g. the site translation table
+	// /app/offline/i18n that the app loads when online) cannot answer, and the offline step disconnects.
+	page.on('console', (m) => { if (m.type() === 'error' && ! /^Failed to load resource/.test(m.text())) errors.push(m.text()); });
+	page.on('response', (r) => { if (r.status() >= 400 && r.url().indexOf('/wp-json/') === -1) errors.push(`${r.status()} ${r.url()}`); });
 	await page.goto(URL);
 	await page.waitForSelector('#pair-view:not([hidden])', { timeout: 10000 });
 	const manifest = await page.evaluate(async () => (await fetch(document.querySelector('link[rel=manifest]').href)).json());
