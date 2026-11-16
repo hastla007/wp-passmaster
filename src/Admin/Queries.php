@@ -339,6 +339,41 @@ final class Queries {
 		return $out;
 	}
 
+	/**
+	 * Public id prefix of a typed order or ticket number (A336/A545): the short order number as shown
+	 * in mails, the portal and payment references ("AB12-CD34", "ab12 cd34", "Bestellung AB12-CD34",
+	 * "#AB12CD34") or a longer part of the public id, lower case without separators. '' when the input
+	 * is no such number.
+	 */
+	public static function public_id_prefix( $search ) {
+		$value = strtolower( trim( (string) $search ) );
+		$value = (string) preg_replace( '/^(?:bestellung|bestellnummer|order|ticket)\s*(?:nr\.?|nummer)?\s*:?\s*/u', '', $value );
+		$hex = (string) preg_replace( '/[\s\-#]+/', '', $value );
+		return 1 === preg_match( '/^[a-f0-9]{4,32}$/', $hex ) ? $hex : '';
+	}
+
+	/**
+	 * SQL condition "every word of the search occurs in the billing data" (A336: buyer name/company in
+	 * the billing JSON). Each word is matched as typed and in its JSON-escaped form (non-ASCII letters are
+	 * stored as \uXXXX). Empty when the search has no word of at least two characters.
+	 *
+	 * @param string $column Column holding the billing JSON.
+	 * @param string $search Search input.
+	 * @return array{0:string,1:string[]} SQL fragment and its arguments.
+	 */
+	public static function billing_words_sql( $column, $search ) {
+		$words = array_slice( array_values( array_filter( preg_split( '/\s+/u', trim( (string) $search ) ) ?: array(), static function ( $w ) { return mb_strlen( $w ) >= 2; } ) ), 0, 4 );
+		$parts = array();
+		$args = array();
+		foreach ( $words as $word ) {
+			$escaped = substr( (string) wp_json_encode( $word ), 1, -1 );
+			$variants = array_unique( array( $word, $escaped ) );
+			$parts[] = '(' . implode( ' OR ', array_fill( 0, count( $variants ), $column . ' LIKE %s' ) ) . ')';
+			foreach ( $variants as $variant ) { $args[] = '%' . self::like( $variant ) . '%'; }
+		}
+		return $parts ? array( '(' . implode( ' AND ', $parts ) . ')', $args ) : array( '', array() );
+	}
+
 	/* --------------------------------------------------------------------------------------------- */
 
 	/** Distinct event ids an order has items for. */
@@ -366,7 +401,9 @@ final class Queries {
 	/**
 	 * Order search with filters.
 	 *
-	 * @param array      $filters   status, payment_status, search (public id prefix or e-mail part), event_id.
+	 * @param array      $filters   status, payment_status, search (order number "AB12-CD34" or public id
+	 *                              prefix, e-mail part, billing name/company, attendee name or e-mail,
+	 *                              ticket number), event_id.
 	 * @param int[]|null $event_ids Scope.
 	 * @return array{rows: object[], total: int}
 	 */
@@ -379,11 +416,30 @@ final class Queries {
 		if ( ! empty( $filters['payment_status'] ) ) { $where .= ' AND ord.payment_status=%s'; $args[] = (string) $filters['payment_status']; }
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
 			$search = trim( (string) $filters['search'] );
-			$where .= ' AND (ord.public_id LIKE %s OR ord.customer_email LIKE %s)';
+			$part = '%' . self::like( $search ) . '%';
 			// Short order numbers / payment references ("Bestellung 3F2A-9C1E") are public id prefixes.
-			$id_prefix = preg_match( '/^(?:bestellung\s+)?([a-f0-9]{4})[\s-]?([a-f0-9]{4})$/i', $search, $m ) ? $m[1] . $m[2] : $search;
-			$args[] = self::like( strtolower( $id_prefix ) ) . '%';
-			$args[] = '%' . self::like( $search ) . '%';
+			$id_prefix = self::public_id_prefix( $search );
+			$or = array( 'ord.public_id LIKE %s', 'ord.customer_email LIKE %s' );
+			array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', $part );
+			// A336: buyer name/company (billing data) and attendee names, as far as the user may see them.
+			if ( \PassCaptain\Pii::can_view( 'buyer_name' ) || \PassCaptain\Pii::can_view( 'billing' ) ) {
+				list( $billing_sql, $billing_args ) = self::billing_words_sql( 'ord.billing', $search );
+				if ( '' !== $billing_sql ) { $or[] = $billing_sql; array_push( $args, ...$billing_args ); }
+			}
+			if ( \PassCaptain\Pii::can_view( 'attendee_name' ) ) {
+				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st INNER JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND sa.attendee_name LIKE %s)";
+				$args[] = $part;
+			}
+			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) {
+				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st LEFT JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND (st.attendee_email LIKE %s OR sa.attendee_email LIKE %s))";
+				array_push( $args, $part, $part );
+			}
+			if ( '' !== $id_prefix && strlen( $id_prefix ) >= 8 ) {
+				// A ticket number of the order (ticket list, PDF) finds the order, too.
+				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st WHERE st.order_id=ord.order_id AND st.public_id LIKE %s)";
+				$args[] = self::like( $id_prefix ) . '%';
+			}
+			$where .= ' AND (' . implode( ' OR ', $or ) . ')';
 		}
 		$items_join = "SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=ord.order_id";
 		if ( ! empty( $filters['event_id'] ) ) {
@@ -440,7 +496,8 @@ final class Queries {
 	/**
 	 * Ticket search.
 	 *
-	 * @param array      $filters   search (ticket/order public id prefix, buyer or attendee e-mail/name part), event_id, status.
+	 * @param array      $filters   search (ticket/order number – also "AB12-CD34" as shown to buyers –, help
+	 *                              code, full ticket code or link, buyer or attendee e-mail/name part), event_id, status.
 	 * @param int[]|null $event_ids Scope.
 	 * @return array{rows: object[], total: int}
 	 */
@@ -450,17 +507,30 @@ final class Queries {
 		$from = "FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id";
 		$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' ) . Access::occurrence_scope_sql( 'o' );
 		$args = array();
+		$notice = null;
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
 			$search = trim( (string) $filters['search'] );
-			$prefix = self::like( strtolower( $search ) ) . '%';
+			// A545: the order number as buyers see it ("AB12-CD34") is a public id prefix, too.
+			$id_prefix = self::public_id_prefix( $search );
+			$prefix = self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%';
 			$part = '%' . self::like( $search ) . '%';
 			// Only fields the user may see are searchable (A119: no probing of masked e-mails/names).
 			$columns = array( 't.public_id' => $prefix, 'ord.public_id' => $prefix );
 			if ( \PassCaptain\Pii::can_view( 'buyer_email' ) ) { $columns['ord.customer_email'] = $part; }
 			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) { $columns['t.attendee_email'] = $part; $columns['ta.attendee_email'] = $part; }
 			if ( \PassCaptain\Pii::can_view( 'attendee_name' ) ) { $columns['ta.attendee_name'] = $part; }
-			$where .= ' AND (' . implode( ' OR ', array_map( static function ( $column ) { return $column . ' LIKE %s'; }, array_keys( $columns ) ) ) . ')';
+			$or = array_map( static function ( $column ) { return $column . ' LIKE %s'; }, array_keys( $columns ) );
 			array_push( $args, ...array_values( $columns ) );
+			// The full ticket code or ticket link (64 hex) – whoever holds it holds the ticket anyway.
+			$code = \PassCaptain\Checkin::normalize_code( $search );
+			if ( '' !== $code ) { $or[] = 't.token_hash=%s'; $args[] = hash( 'sha256', $code ); }
+			// The help code printed under the QR code: rate-limited lookup like at the scanner (HelpCode).
+			if ( \PassCaptain\HelpCode::looks_like( $search ) ) {
+				$help_ticket = \PassCaptain\HelpCode::resolve( $search );
+				if ( is_wp_error( $help_ticket ) ) { $notice = $help_ticket->get_error_message(); }
+				if ( is_int( $help_ticket ) && $help_ticket > 0 ) { $or[] = 't.ticket_id=%d'; $args[] = $help_ticket; }
+			}
+			$where .= ' AND (' . implode( ' OR ', $or ) . ')';
 		}
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
 		if ( ! empty( $filters['status'] ) ) { $where .= ' AND t.status=%s'; $args[] = (string) $filters['status']; }
@@ -470,7 +540,7 @@ final class Queries {
 			"SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.starts_at,o.timezone,e.name AS event_name,(SELECT MAX(c.created_at) FROM {$p}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in') AS last_checkin_at $from WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
 			array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
 		) );
-		return array( 'rows' => $rows, 'total' => $total );
+		return array( 'rows' => $rows, 'total' => $total ) + ( null !== $notice ? array( 'notice' => $notice ) : array() );
 	}
 
 	/**

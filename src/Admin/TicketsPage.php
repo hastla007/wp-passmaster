@@ -232,12 +232,13 @@ final class TicketsPage {
 		<?php Forms::render_notices(); ?>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, E-Mail oder Name', 'pass-captain' ); ?>">
+			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name', 'pass-captain' ); ?>">
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope, array( (int) $filters['event_id'] ) ), $filters['event_id'] ); ?>
 			<?php Forms::select( 'status', $status_options, $filters['status'] ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 		</form>
 		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>
+		<?php if ( ! empty( $data['notice'] ) ) : ?><div class="notice notice-warning inline"><p><?php echo esc_html( $data['notice'] ); ?></p></div><?php endif; ?>
 		<?php if ( ! $has_filter ) : ?>
 			<p><?php esc_html_e( 'Bitte nach Ticket, Käufer oder Teilnehmer suchen oder ein Event wählen.', 'pass-captain' ); ?></p>
 		<?php else : ?>
@@ -265,6 +266,7 @@ final class TicketsPage {
 						<td>
 							<?php if ( $can_orders ) : ?><a href="<?php echo esc_url( OrdersPage::order_url( $ticket->order_id ) ); ?>"><?php echo esc_html( $buyer_email ); ?></a>
 							<?php else : ?><?php echo esc_html( $buyer_email ); ?><?php endif; ?>
+							<br><small><?php echo esc_html( sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'pass-captain' ), \PassCaptain\Frontend\Format::order_reference( $ticket->order_public_id ) ) ); ?></small>
 						</td>
 						<td><?php echo esc_html( trim( $attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 						<td>

@@ -837,6 +837,24 @@ Wiederholungsjob (`ticket_mail_retry`, Payload `{"order_id":…,"skip_transferre
 Bestellportal, WooCommerce-Bestellaktion und der Voucher-Captain-Neuversand nehmen übertragene Tickets
 ebenfalls aus.
 
+### Bestellungen und Tickets finden (A336, A545)
+
+Die Bestellliste zeigt die kurze Bestellnummer aus Mails, Bestellportal und Zahlungsreferenz („AB12-CD34“;
+die volle ID steht im Tooltip und im Bestelldetail) und unter der E-Mail den Namen bzw. die Firma aus den
+Rechnungsdaten. Die Suche findet Bestellungen über
+- die Bestellnummer – auch klein, ohne Bindestrich, mit Leerzeichen oder als „Bestellung AB12-CD34“ –,
+- einen Teil der Käufer-E-Mail,
+- Vor-/Nachname oder Firma der Rechnungsdaten (jedes Wort muss vorkommen, Umlaute werden gefunden),
+- Teilnehmername und Teilnehmer-E-Mail und
+- eine Ticketnummer der Bestellung (mindestens 8 Zeichen).
+
+Die Ticketsuche (**Tickets**) akzeptiert zusätzlich die kurze Bestellnummer, den **Hilfscode** unter dem
+QR-Code (z. B. `K7QM-4XWA`, Groß-/Kleinschreibung und Bindestrich egal) sowie den vollständigen Ticketcode oder
+Ticketlink. Hilfscode-Suchen zählen gegen dieselben Grenzen wie am Scanner (`wpcap_help_code_rate_limits`);
+ist die Grenze erreicht, sagt die Seite das. Namen und E-Mails sind nur suchbar, wenn die Person sie laut
+PII-Matrix im Klartext sehen darf (`wpcap_pii_can_view`), und alle Treffer bleiben auf den Zugriffsbereich der
+Person beschränkt.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und

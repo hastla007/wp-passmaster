@@ -403,7 +403,7 @@ final class OrdersPage {
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', 'aria-label="' . esc_attr__( 'Bestellstatus', 'pass-captain' ) . '"' ); ?>
 			<?php Forms::select( 'payment_status', $payment_options, $filters['payment_status'], '', 'aria-label="' . esc_attr__( 'Zahlungsstatus', 'pass-captain' ) . '"' ); ?>
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
-			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>">
+			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer, E-Mail oder Name', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer, E-Mail oder Name', 'pass-captain' ); ?>">
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
 		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>
@@ -411,7 +411,7 @@ final class OrdersPage {
 			<thead><tr>
 				<th><?php esc_html_e( 'Bestellung', 'pass-captain' ); ?></th>
 				<th><?php esc_html_e( 'Datum', 'pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'E-Mail', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th>
 				<th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
 				<th><?php esc_html_e( 'Summe', 'pass-captain' ); ?></th>
 				<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
@@ -421,9 +421,9 @@ final class OrdersPage {
 			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Bestellungen gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $data['rows'] as $order ) : ?>
 				<tr>
-					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( substr( $order->public_id, 0, 12 ) ); ?>…</code></a></td>
+					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>" title="<?php echo esc_attr( $order->public_id ); ?>"><code><?php echo esc_html( \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ); ?></code></a></td>
 					<td><?php echo esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) ); ?></td>
-					<td><?php echo esc_html( $order->customer_email ); ?></td>
+					<td><?php echo esc_html( $order->customer_email ); ?><?php $buyer_name = self::buyer_name( $order ); ?><?php if ( '' !== $buyer_name ) : ?><br><small><?php echo esc_html( $buyer_name ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
 					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td>
@@ -434,6 +434,15 @@ final class OrdersPage {
 		</table>
 		<?php
 		Forms::pagination( $data['total'], $page, $per_page, $base );
+	}
+
+	/** Billing name or company of an order for the list (A336), masked like elsewhere when not visible. */
+	private static function buyer_name( $order ) {
+		$billing = \PassCaptain\Billing::for_order( $order );
+		if ( ! $billing ) { return ''; }
+		$name = trim( (string) ( $billing['first_name'] ?? '' ) . ' ' . (string) ( $billing['last_name'] ?? '' ) );
+		$name = '' !== $name ? $name : (string) ( $billing['company'] ?? '' );
+		return \PassCaptain\Pii::show( 'buyer_name', $name );
 	}
 
 	/** Finds the WooCommerce order id that references a core order (read-only hint). */
@@ -768,7 +777,7 @@ final class OrdersPage {
 				<tr>
 					<td><?php echo esc_html( Forms::datetime( $refund['created_at'], wp_timezone_string(), false ) ); ?></td>
 					<?php if ( $queue ) : ?>
-						<td><a href="<?php echo esc_url( self::order_url( $refund['order_id'] ) ); ?>"><code><?php echo esc_html( substr( (string) ( $refund['order_public_id'] ?? '' ), 0, 12 ) ); ?>…</code></a><br><small><?php echo esc_html( (string) ( $refund['customer_email'] ?? '' ) ); ?></small></td>
+						<td><a href="<?php echo esc_url( self::order_url( $refund['order_id'] ) ); ?>"><code><?php echo esc_html( \PassCaptain\Frontend\Format::order_reference( (string) ( $refund['order_public_id'] ?? '' ) ) ); ?></code></a><br><small><?php echo esc_html( (string) ( $refund['customer_email'] ?? '' ) ); ?></small></td>
 						<td><?php echo esc_html( (string) ( $refund['event_names'] ?? '' ) ); ?></td>
 					<?php endif; ?>
 					<td><?php echo esc_html( Forms::money( $refund['amount_minor'], $refund['currency'] ?: $currency ) ); ?><br><small><?php echo esc_html( sprintf( /* translators: %s: tax amount */ __( 'davon Steuer %s', 'pass-captain' ), Forms::money( $refund['tax_minor'], $refund['currency'] ?: $currency ) ) ); ?></small></td>
