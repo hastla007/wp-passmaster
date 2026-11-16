@@ -25,6 +25,11 @@
 		if (text) node.textContent = text;
 		return node;
 	}
+	// Element with this id inside root (A308): never an element of another card on the page.
+	function byIdIn(root, id) {
+		if (!root || !id) return null;
+		return root.querySelector('[id="' + String(id).replace(/["\\]/g, '\\$&') + '"]');
+	}
 	let uid = 0;
 	function ensureId(node, prefix) {
 		if (!node.id) node.id = (prefix || 'wpcap-f') + '-' + (++uid) + '-' + Math.random().toString(16).slice(2, 6);
@@ -359,7 +364,7 @@
 	function markField(input, text) {
 		const id = ensureId(input, 'wpcap-field');
 		const errorId = id + '-error';
-		if (document.getElementById(errorId)) return;
+		if (byIdIn(input.form || input.closest('form'), errorId)) return;
 		const note = el('p', { id: errorId, class: 'wpcap-field-error' }, text);
 		const wrapper = input.closest('.wpcap-field');
 		if (wrapper) {
@@ -501,7 +506,8 @@
 	function syncBilling(form) {
 		const toggle = form.querySelector('[name="billing_enabled"]');
 		if (!toggle) return;
-		const box = document.getElementById(toggle.getAttribute('aria-controls'));
+		// Within this form only (A308): another card of the same date may carry the same ids (theme templates).
+		const box = byIdIn(form, toggle.getAttribute('aria-controls')) || form.querySelector('.wpcap-billing-fields');
 		if (box) box.hidden = !toggle.checked;
 	}
 	function billingPayload(form) {

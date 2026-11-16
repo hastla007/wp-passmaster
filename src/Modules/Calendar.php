@@ -118,9 +118,10 @@ final class Calendar {
 		self::$temp_files = array();
 	}
 
-	/** Gives each event card an anchor (#wpcap-occ-{id}) the calendar can link to. */
+	/** Gives each event card an anchor (#wpcap-occ-{id}) the calendar can link to; only the first card of a date (A308). */
 	public static function add_card_anchor( $html, $event = null, $types = null ) {
 		if ( ! is_object( $event ) || empty( $event->occurrence_id ) || false !== strpos( (string) $html, 'id="wpcap-occ-' ) ) { return $html; }
+		if ( preg_match( '/-i\d+$/', \PassCaptain\Frontend\EventCard::form_id_in( $html ) ) ) { return $html; }
 		return preg_replace( '/<article class="wpcap-event"/', '<article id="wpcap-occ-' . absint( $event->occurrence_id ) . '" class="wpcap-event"', (string) $html, 1 );
 	}
 

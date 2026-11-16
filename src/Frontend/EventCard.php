@@ -16,6 +16,33 @@ use PassCaptain\Orders;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class EventCard {
+	/** @var int[] Cards rendered per occurrence in this request (form_id()). */
+	private static $rendered = array();
+
+	/**
+	 * Unique id prefix of one rendered card's form (A308). The first card of an occurrence keeps
+	 * `wpcap-{occurrence}` (theme CSS, anchors, filters); further cards of the same occurrence on the
+	 * page (widget, archive, a second shortcode) get `wpcap-{occurrence}-i{n}`, so labels, the
+	 * billing toggle and error links never point into another card. The non-numeric "i" keeps the
+	 * prefix apart from the field ids `wpcap-{occurrence}-{ticket type}`.
+	 */
+	public static function form_id( $occurrence_id ) {
+		$occurrence_id = (int) $occurrence_id;
+		$n = ( self::$rendered[ $occurrence_id ] ?? 0 ) + 1;
+		self::$rendered[ $occurrence_id ] = $n;
+		return 'wpcap-' . $occurrence_id . ( $n > 1 ? '-i' . $n : '' );
+	}
+
+	/** Starts a new page for form_id() (one request renders one page; tests and CLI renders reuse the process). */
+	public static function reset_form_ids() {
+		self::$rendered = array();
+	}
+
+	/** Id prefix of the checkout form in rendered card HTML ('' if none), e.g. for `wpcap_event_card_html` filters. */
+	public static function form_id_in( $html ) {
+		return preg_match( '/<form class="wpcap-checkout-form" id="([^"]+)"/', (string) $html, $m ) ? html_entity_decode( $m[1], ENT_QUOTES ) : '';
+	}
+
 	/**
 	 * few_left: seats left at or below which "Wenige Plätze" is shown (0 = never);
 	 * rescheduled_days: how long after a reschedule "Verschoben" is shown (0 = until the date);

@@ -93,10 +93,12 @@ final class Display {
 	public static function event_card( $html, $event = null, $types = array() ) {
 		if ( ! is_string( $html ) || ! $event ) { return $html; }
 		$occurrence_id = (int) ( $event->occurrence_id ?? 0 );
+		// The card's own id prefix (A308: a second card of the same date has its own).
+		$form_id = \PassCaptain\Frontend\EventCard::form_id_in( $html ) ?: 'wpcap-' . $occurrence_id;
 		foreach ( (array) $types as $type ) {
 			$valid = self::valid_for( (int) $type->ticket_type_id );
 			if ( '' === $valid ) { continue; }
-			$for = 'for="' . esc_attr( 'wpcap-' . $occurrence_id . '-' . (int) $type->ticket_type_id ) . '"';
+			$for = 'for="' . esc_attr( $form_id . '-' . (int) $type->ticket_type_id ) . '"';
 			$pos = strpos( $html, $for );
 			$end = false === $pos ? false : strpos( $html, '</label>', $pos );
 			if ( false === $end ) { continue; }

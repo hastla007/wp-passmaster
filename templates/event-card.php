@@ -10,7 +10,8 @@
  * (.wpcap-field) for inline error messages.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-$form_id = 'wpcap-' . (int) $event->occurrence_id;
+// Unique per rendered card (A308): two cards of the same date on one page must not share ids.
+$form_id = \PassCaptain\Frontend\EventCard::form_id( $event->occurrence_id );
 $wpcap_level = min( 6, max( 2, (int) apply_filters( 'wpcap_event_card_heading_level', 2 ) ) );
 $wpcap_heading = 'h' . $wpcap_level;
 $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
@@ -51,7 +52,7 @@ $wpcap_no_payment = ! $providers;
 		</details>
 	<?php endif; ?>
 	<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
-	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" novalidate>
+	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" novalidate>
 		<fieldset class="wpcap-types"<?php echo $card['max_total'] ? ' data-max-total="' . esc_attr( $card['max_total'] ) . '"' : ''; ?>>
 			<legend><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></legend>
 			<?php foreach ( array_values( $types ) as $wpcap_index => $type ) :

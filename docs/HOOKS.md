@@ -89,6 +89,15 @@ Die Terminbuchung (A268) löst nach erfolgreicher Buchung das JS-Ereignis `wpcap
 auf `document` aus (`detail`: `root`, `booking_id`, `status` – `confirmed` oder `pending_payment` –, `order`
 mit `public_id`, `reference`, `payment` bei kostenpflichtigen Ressourcen), z. B. für Analytics ohne personenbezogene Daten.
 
+Ids der Eventkarte (A308): Das Template holt die Id-Basis des Formulars über
+`\PassCaptain\Frontend\EventCard::form_id( $event->occurrence_id )`. Die erste Karte eines Termins auf der
+Seite behält `wpcap-{Termin}`, jede weitere (zweiter Shortcode, Widget, Archiv) bekommt
+`wpcap-{Termin}-i{n}`; alle Feld-Ids hängen daran (`{Basis}-{Ticketart}`, `{Basis}-email`,
+`{Basis}-billing-fields` …). Filter auf `wpcap_event_card_html` ermitteln die Basis der Karte mit
+`EventCard::form_id_in( $html )` statt sie aus der Termin-Id zu bauen; der Kalender-Anker
+`wpcap-occ-{Termin}` steht nur an der ersten Karte. Eigene Theme-Templates sollten `form_id()` ebenfalls
+verwenden; `checkout.js` sucht Rechnungsfelder und Fehlermeldungen ohnehin nur innerhalb des eigenen Formulars.
+
 Die WP-Cron-Hooks des Plugins stehen unter [Cron-Hooks](#cron-hooks).
 
 ## Filter und themenbezogene Actions
