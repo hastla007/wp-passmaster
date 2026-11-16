@@ -28,6 +28,10 @@ Vor 1.0 sind manuelle Tastatur- und Screenreader-Prüfungen für Checkout, Scann
 - Käufer-E-Mail: Liegt die Domain nahe an einer verbreiteten Mail-Domain (`gmial.com` → `gmail.com`, Filter `wpcap_checkout_email_domains`) oder ist die Endung vertippt (`.con`, `.dee`), erscheint unter dem Feld „Meintest du …?“ mit einem Knopf zum Übernehmen (Live-Region, per `aria-describedby` mit dem Feld verbunden). Beim ersten Absenden mit dieser Adresse hält das Formular einmal an; wird dieselbe Adresse erneut abgeschickt, geht die Bestellung durch. Die Bestätigung sagt, was bei falscher Adresse zu tun ist (A553). Eine Selbstkorrektur der Adresse nach der Bestellung gibt es nicht.
 - Saalplan: Die Liste „Deine Plätze“ wird nur neu aufgebaut, wenn sich die Auswahl ändert – nicht bei der Aktualisierung alle 30 Sekunden. Liegt der Fokus in der Liste, bleibt er beim selben Bedienelement desselben Platzes; nach „Entfernen“ springt er zum Knopf des nächsten (sonst vorherigen) Platzes, bei leerer Liste auf die Überschrift. Ein Stehplatz-Zahlenfeld wird während der Eingabe nicht überschrieben (A312).
 
+## Kalender
+
+- Der zugängliche Name jedes Kalender-Links beginnt mit seinem sichtbaren Text (WCAG 2.5.3, A393): Monatseintrag „20:00 Konzert“ heißt „20:00 Konzert, 16.11.2026“, der Listen-Link „Zum Kalender (.ics)“ heißt „Zum Kalender (.ics): Konzert am 16.11.2026“. Sprachsteuerung („Klicke 20:00 Konzert“) trifft damit den Link.
+
 ## Kasse (Admin)
 
 - Termin-Auswahl im Verkauf und Kassen-Filter der Schichtliste laden die Seite nicht mehr bei jeder Änderung neu (mit der Tastatur löste jede Pfeiltaste einen Seitenwechsel aus); gewählt wird mit dem Knopf „Anzeigen“ (A314).

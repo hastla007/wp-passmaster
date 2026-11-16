@@ -271,8 +271,10 @@ final class Calendar {
 			$out .= $cancelled ? '<span class="wpcap-cal-link">' . esc_html( $row->event_name ) . '</span>' : '<a class="wpcap-cal-link" href="' . esc_url( self::link_for( $row ) ) . '">' . esc_html( $row->event_name ) . '</a>';
 			if ( '' !== (string) $row->location ) { $out .= ' <span class="wpcap-cal-location">' . esc_html( $row->location ) . '</span>'; }
 			$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() );
-			/* translators: %s: event name */
-			$out .= $cancelled ? '' : ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( sprintf( __( '%s zum Kalender hinzufügen (.ics)', 'pass-captain' ), $row->event_name ) ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'pass-captain' ) . '</a>';
+			// A393: the accessible name starts with the visible link text and names the event and date.
+			/* translators: 1: visible link text "Zum Kalender (.ics)", 2: event name, 3: date */
+			$ics_label = sprintf( __( '%1$s: %2$s am %3$s', 'pass-captain' ), __( 'Zum Kalender (.ics)', 'pass-captain' ), $row->event_name, self::local( $row, 'd.m.Y' ) );
+			$out .= $cancelled ? '' : ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( $ics_label ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'pass-captain' ) . '</a>';
 			$out .= '</li>';
 		}
 		return $out . '</ul></div>';
@@ -367,11 +369,10 @@ final class Calendar {
 			if ( $items ) {
 				$out .= '<ul>';
 				foreach ( $items as $row ) {
-					$time = self::time_label( $row, $tz );
-					/* translators: 1: event name, 2: time */
-					$label = sprintf( __( '%1$s um %2$s', 'pass-captain' ), $row->event_name, $time );
-					$text = esc_html( $time . ' ' . $row->event_name );
-					$out .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $label . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
+					$visible = self::time_label( $row, $tz ) . ' ' . $row->event_name;
+					$text = esc_html( $visible );
+					// A393: the accessible name starts with the visible text (WCAG 2.5.3) and adds the date.
+					$out .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $visible . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
 					$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
 				}
 				$out .= '</ul>';

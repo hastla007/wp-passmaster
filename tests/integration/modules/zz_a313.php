@@ -48,7 +48,7 @@ $a313_grid = Calendar::render_month( $a313_month, $a313_event );
 $a313_abbr = $a313_local->format( 'T' );
 check( 'A313: occurrence shows on the day of its own timezone with its local time and zone abbreviation', false !== strpos( a313_cell( $a313_grid, $a313_month . '-10' ), '#wpcap-occ-' . $a313_occ ) && false !== strpos( a313_cell( $a313_grid, $a313_month . '-10' ), '23:30 ' . $a313_abbr . ' Broadway Abend' ) );
 check( 'A313: not on the day of the site timezone', false === strpos( a313_cell( $a313_grid, $a313_month . '-11' ), '#wpcap-occ-' . $a313_occ ) );
-check( 'A313: the aria label names the same local date as the cell', false !== strpos( $a313_grid, 'Broadway Abend um 23:30 ' . $a313_abbr . ', 10.' . substr( $a313_month, 5, 2 ) . '.' . substr( $a313_month, 0, 4 ) ) );
+check( 'A313: the aria label names the same local date as the cell', false !== strpos( $a313_grid, 'aria-label="23:30 ' . $a313_abbr . ' Broadway Abend, 10.' . substr( $a313_month, 5, 2 ) . '.' . substr( $a313_month, 0, 4 ) ) );
 check( 'A313: a late date on the last local day stays in its month', false !== strpos( a313_cell( $a313_grid, $a313_month . '-' . $a313_last ), '#wpcap-occ-' . $a313_occ2 ) && false === strpos( Calendar::render_month( $a313_next_month, $a313_event ), '#wpcap-occ-' . $a313_occ2 ) );
 check( 'A313: same offset as the site: time without zone abbreviation', false !== strpos( a313_cell( $a313_grid, $a313_month . '-15' ), '>19:00 Broadway Abend</a>' ) );
 
