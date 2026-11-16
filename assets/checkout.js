@@ -733,7 +733,7 @@
 					list.appendChild(dd);
 				});
 				panel.appendChild(list);
-				if (bank.girocode && 0 === String(bank.girocode).indexOf('data:image/svg+xml;base64,')) {
+				if (bank.girocode && 0 === String(bank.girocode).indexOf('data:image/svg+xml,')) {
 					const fig = el('figure', { class: 'wpcap-girocode' });
 					fig.appendChild(el('img', { src: bank.girocode, width: '180', height: '180', alt: t.girocodeAlt || '' }));
 					if (t.girocode) fig.appendChild(el('figcaption', {}, t.girocode));

@@ -90,7 +90,7 @@ final class BankTransfer {
 		// A601: GiroCode (EPC QR) for banking apps; only SEPA credit transfers in EUR.
 		$payload = $details['transfer'] ? self::epc_payload( $details ) : '';
 		$svg = '' !== $payload && (bool) apply_filters( 'wpcap_bank_girocode', true, $order ) ? \PassCaptain\QrCode::svg( $payload, 180 ) : '';
-		$details['girocode'] = '' !== $svg ? 'data:image/svg+xml;base64,' . base64_encode( $svg ) : '';
+		$details['girocode'] = '' !== $svg ? 'data:image/svg+xml,' . rawurlencode( $svg ) : '';
 		return $details;
 	}
 

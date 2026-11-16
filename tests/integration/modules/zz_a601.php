@@ -18,6 +18,6 @@ check( 'A601: name and remittance are cut to the EPC limits (70/140)', 70 === mb
 $a601_saved = array( \PassCaptain\Settings::get( 'bank_iban' ), \PassCaptain\Settings::get( 'bank_recipient' ) );
 \PassCaptain\Settings::update( array( 'bank_iban' => 'DE89370400440532013000', 'bank_recipient' => 'Theater Muster GmbH' ) );
 $a601_d = BankTransfer::details( (object) array( 'order_id' => 0, 'public_id' => str_repeat( 'a', 32 ), 'total_minor' => 1500, 'currency' => 'EUR' ) );
-check( 'A601: the bank details carry the GiroCode as SVG data URI', 0 === strpos( (string) ( $a601_d['girocode'] ?? '' ), 'data:image/svg+xml;base64,' ) && false !== strpos( (string) base64_decode( substr( $a601_d['girocode'], 26 ) ), '<svg' ) );
+check( 'A601: the bank details carry the GiroCode as SVG data URI', 0 === strpos( (string) ( $a601_d['girocode'] ?? '' ), 'data:image/svg+xml,' ) && false !== strpos( rawurldecode( substr( $a601_d['girocode'], 19 ) ), '<svg' ) );
 \PassCaptain\Settings::update( array( 'bank_iban' => (string) $a601_saved[0], 'bank_recipient' => (string) $a601_saved[1] ) );
 check( 'A601: portal and checkout show it, the checkout has copy buttons', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/OrderPortal.php' ), 'wpcap-girocode' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' ), 'navigator.clipboard.writeText' ) );
