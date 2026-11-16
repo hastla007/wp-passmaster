@@ -241,7 +241,7 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
    `admission_area_staff_added`/`admission_area_staff_removed`, `service_resource_providers_set`). Administratoren sind nie beschränkt.
 3. **Zugriffsbereich (A119, optional je Person)** im WordPress-Profil unter „Pass Captain: Zugriffsbereich“
    (Benutzeroption je Site `{präfix}wpcap_access_scope`, z. B. `wp_2_wpcap_access_scope`, Filter
-   `wpcap_access_scope`). Seit Schema 3.10.18 (A470) gilt ein Bereich nur auf der Site, auf der er gesetzt
+   `wpcap_access_scope`). Seit Schema 3.10.19 (A470) gilt ein Bereich nur auf der Site, auf der er gesetzt
    wurde: Benutzer sind netzwerkweit, Partner-IDs und Spielorte gehören aber zu einer Site. Das Update kopiert
    den früheren netzwerkweiten Eintrag auf jede Site, deren Mitglied die Person ist (jede Site bei ihrem
    eigenen Update; vorhandene Site-Einträge bleiben) – am wirksamen Zugriff ändert sich dabei nichts; danach

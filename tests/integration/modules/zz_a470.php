@@ -109,7 +109,7 @@ foreach ( array( 42, 43, 44 ) as $a470_u ) {
 // User 43 only belongs to site 1; user 44 already has a site 2 scope of its own.
 $GLOBALS['wpcap_test_blog_members'] = array( 1 => array( 1, 41, 42, 43, 44 ), 2 => array( 1, 41, 42, 44 ) );
 $GLOBALS['p1u_user_meta'][44][ $a470_s2 . 'wpcap_access_scope' ] = array( 'locations' => array( 'Graz' ), 'partners' => null, 'linked_partners' => false );
-check( 'A470: no copy for fresh installs or schema 3.10.18+', 0 === Installer::migrate_site_scopes( '' ) && 0 === Installer::migrate_site_scopes( '3.10.18' ) );
+check( 'A470: no copy for fresh installs or schema 3.10.19+', 0 === Installer::migrate_site_scopes( '' ) && 0 === Installer::migrate_site_scopes( '3.10.19' ) );
 check( 'A470: site 1 upgrade copies the scope of its three members', 3 === Installer::migrate_site_scopes( '3.10.17' ) && array( 'Linz' ) === ( $GLOBALS['p1u_user_meta'][42][ $a470_s1 . 'wpcap_access_scope' ]['locations'] ?? null ) );
 a470_switch( 2 );
 check( 'A470: site 2 upgrade copies only to its members and keeps an existing site scope', 1 === Installer::migrate_site_scopes( '3.10.17' ) && array( 'Linz' ) === ( $GLOBALS['p1u_user_meta'][42][ $a470_s2 . 'wpcap_access_scope' ]['locations'] ?? null ) && ! isset( $GLOBALS['p1u_user_meta'][43][ $a470_s2 . 'wpcap_access_scope' ] ) && array( 'Graz' ) === $GLOBALS['p1u_user_meta'][44][ $a470_s2 . 'wpcap_access_scope' ]['locations'] );

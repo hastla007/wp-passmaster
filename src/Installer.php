@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.18';
+	const DB_VERSION = '3.10.19';
 
 	public static function install() {
 		global $wpdb;
@@ -1125,14 +1125,14 @@ final class Installer {
 	}
 
 	/**
-	 * Schema 3.10.18 (A470): access scopes become per-site user options; the former network-wide
+	 * Schema 3.10.19 (A470): access scopes become per-site user options; the former network-wide
 	 * user meta is copied to this site's key (Access::migrate_legacy_scopes()). Idempotent.
 	 *
 	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
 	 */
 	public static function migrate_site_scopes( $previous_version ) {
 		$previous = (string) strtok( (string) $previous_version, '+' );
-		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.18', '<' ) ) { return 0; }
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.19', '<' ) ) { return 0; }
 		return Access::migrate_legacy_scopes();
 	}
 

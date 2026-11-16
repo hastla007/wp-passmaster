@@ -47,7 +47,7 @@ final class Access {
 	}
 
 	/**
-	 * Upgrade to schema 3.10.18 (A470): copies the scopes stored under the former network-wide key
+	 * Upgrade to schema 3.10.19 (A470): copies the scopes stored under the former network-wide key
 	 * to the per-site key of the current site. On a network every site the user belongs to gets the
 	 * copy on its own upgrade – exactly the scope that applied there before, so the upgrade never
 	 * widens anybody's access; administrators then adjust the per-site scopes (partner ids are

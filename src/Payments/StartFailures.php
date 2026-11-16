@@ -58,7 +58,7 @@ final class StartFailures {
 		 */
 		do_action( 'wpcap_payment_start_failed', absint( $order_id ), $provider, $error, $reference );
 		// A642: the order's audit trail keeps the redacted provider code and text as well.
-		\PassCaptain\Audit::record( 'payment_start_failed', 'order', absint( $order_id ), array( 'provider' => $provider, 'flow' => sanitize_key( (string) $flow ), 'error' => sanitize_key( (string) $error->get_error_code() ), 'message' => substr( \PassCaptain\Redact::text( (string) $error->get_error_message() ), 0, 300 ), 'reference' => $reference ) );
+		\PassCaptain\Audit::record( 'payment_start_failed', 'order', absint( $order_id ), array( 'provider' => $provider, 'flow' => sanitize_key( (string) $flow ), 'error' => sanitize_key( (string) $error->get_error_code() ), 'message' => \PassCaptain\Text::cut( \PassCaptain\Redact::text( (string) $error->get_error_message() ), 300 ), 'reference' => $reference ) );
 		// Buyers never see the provider's error code either (A642), only the generic one of the flow.
 		return new \WP_Error(
 			'' !== (string) $code ? (string) $code : 'wpcap_payment_start_failed',

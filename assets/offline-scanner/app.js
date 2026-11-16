@@ -910,7 +910,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera };
+	window.wpcapOffline = { pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera };
 
 	boot();
 }());

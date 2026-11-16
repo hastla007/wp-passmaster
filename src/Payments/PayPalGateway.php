@@ -512,7 +512,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
 		if ( '' !== $wpdb->last_error ) { return new \WP_Error( 'wpcap_paypal_lookup', 'Lookup failed.', array( 'status' => 503 ) ); }
 		if ( ! $order || (string) $order->provider_reference !== (string) $resource['id'] || ! self::payable( $order ) ) {
-			Audit::record( 'paypal_approval_not_captured', 'order', $order ? (int) $order->order_id : 0, array( 'paypal_order' => substr( sanitize_text_field( (string) $resource['id'] ), 0, 64 ) ) );
+			Audit::record( 'paypal_approval_not_captured', 'order', $order ? (int) $order->order_id : 0, array( 'paypal_order' => \PassCaptain\Text::cut( sanitize_text_field( (string) $resource['id'] ), 64 ) ) );
 			return false;
 		}
 		return true;
