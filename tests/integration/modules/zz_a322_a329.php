@@ -50,7 +50,7 @@ ini_set( 'error_log', $r4_php_log );
 $r4_last = static function () use ( $wpdb, $p ) { return (int) $wpdb->get_var( "SELECT COALESCE(MAX(log_id),0) FROM {$p}wpcap_logs" ); };
 $r4_since = static function ( $from ) use ( $wpdb, $p ) { return (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_logs WHERE log_id>%d ORDER BY log_id", $from ), ARRAY_A ); };
 
-check( 'A327: support log table exists (schema 3.10.15) and Log::ready()', Log::ready() && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.15', '>=' ) );
+check( 'A327: support log table exists (schema 3.10.16) and Log::ready()', Log::ready() && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.16', '>=' ) );
 check( 'A327: message queue and jobs carry an order_id column', Log::has_column( 'wpcap_message_queue', 'order_id' ) && Log::has_column( 'wpcap_message_queue', 'sent_at' ) && Log::has_column( 'wpcap_jobs', 'order_id' ) );
 $r4_from = $r4_last();
 update_option( Log::DEBUG_SINCE_OPTION, 0 );
@@ -260,7 +260,7 @@ $r4_sources = array_count_values( array_column( $r4_entries, 'source' ) );
 check( 'A328: history combines audit, mails, jobs and the support log', ! empty( $r4_sources['audit'] ) && ! empty( $r4_sources['mail'] ) && ! empty( $r4_sources['job'] ) && ! empty( $r4_sources['log'] ) );
 check( 'A328: history is sorted newest first', $r4_entries === array_values( ( static function ( $e ) { usort( $e, static fn( $a, $b ) => strcmp( $b['at'], $a['at'] ) ); return $e; } )( $r4_entries ) ) );
 check( 'A328: history holds no buyer address or ticket code', false === strpos( json_encode( $r4_entries ), 'r4-job@example.com' ) && false === strpos( json_encode( $r4_entries ), 'r4-q@example.com' ) );
-// Jobs queued before schema 3.10.15 (no order_id column value) are found by their payload.
+// Jobs queued before schema 3.10.16 (no order_id column value) are found by their payload.
 Jobs::enqueue( 'r4-legacy-' . uniqid(), 'r4_legacy', array( 'order_id' => $r4_job_order_id ) );
 $wpdb->query( "UPDATE {$p}wpcap_jobs SET order_id=0 WHERE job_type='r4_legacy'" );
 Jobs::enqueue( 'r4-other-' . uniqid(), 'r4_other', array( 'order_id' => (int) ( $r4_job_order_id . '1' ) ) );

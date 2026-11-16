@@ -13,7 +13,7 @@ final class Communications {
 	/**
 	 * Queues a message (deduplicated by $key).
 	 *
-	 * @param int $order_id Order the message belongs to (order history, dead letters; schema 3.10.15).
+	 * @param int $order_id Order the message belongs to (order history, dead letters; schema 3.10.16).
 	 *                      0 = payload order_id, else the current support log scope.
 	 */
 	public static function enqueue( $key, $email, $template, array $payload, $send_at = '', $order_id = 0 ) {

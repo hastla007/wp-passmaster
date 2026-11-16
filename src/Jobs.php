@@ -31,7 +31,7 @@ final class Jobs {
 		$row = array( 'idempotency_key' => hash( 'sha256', $key ), 'job_type' => $type, 'payload' => wp_json_encode( $payload ), 'run_after' => $run_after ? sanitize_text_field( $run_after ) : current_time( 'mysql', true ), 'status' => 'queued', 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) );
 		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
 		// A326/A328: the order a job belongs to (payload order_id, else the current log scope), for the
-		// dead-letter list and the order history (schema 3.10.15).
+		// dead-letter list and the order history (schema 3.10.16).
 		$order_id = absint( $payload['order_id'] ?? ( Log::current_scope()['order_id'] ?? 0 ) );
 		if ( $order_id && Log::has_column( 'wpcap_jobs', 'order_id' ) ) {
 			$row['order_id'] = $order_id;

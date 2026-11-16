@@ -4,7 +4,7 @@
  * messages of the plugin, with levels, channels, a reference ("Fehler-ID") per entry and the
  * order/ticket/occurrence an entry belongs to.
  *
- * - Storage: table {prefix}wpcap_logs (schema 3.10.15). Before the upgrade, or when the insert fails,
+ * - Storage: table {prefix}wpcap_logs (schema 3.10.16). Before the upgrade, or when the insert fails,
  *   entries go to the PHP error log (Redact::log()); entries of level error and above always go there
  *   too, so the host's log keeps them.
  * - Levels: debug < info < notice < warning < error < critical. Without debug mode only info and
@@ -68,7 +68,7 @@ final class Log {
 		self::settings_changed( array(), $value );
 	}
 
-	/** Schema 3.10.15 present. */
+	/** Schema 3.10.16 present. */
 	public static function ready() {
 		global $wpdb;
 		$key = (string) $wpdb->prefix;
@@ -80,7 +80,7 @@ final class Log {
 	}
 
 	/**
-	 * Whether a column of schema 3.10.15 exists: wpcap_message_queue.order_id/sent_at and
+	 * Whether a column of schema 3.10.16 exists: wpcap_message_queue.order_id/sent_at and
 	 * wpcap_jobs.order_id (only a positive answer is cached).
 	 */
 	public static function has_column( $table, $column ) {

@@ -2,7 +2,7 @@
 /**
  * "Verlauf" of an order (A328): one timeline for support from the audit log (order and its tickets),
  * the payment events, the queued and sent e-mails, the background jobs and the support log, newest
- * first. The order id is the correlation id across these sources (schema 3.10.15 stores it on
+ * first. The order id is the correlation id across these sources (schema 3.10.16 stores it on
  * queued messages and jobs; older jobs are matched by their payload). Shown are types, states,
  * errors and references – never ticket codes, recipients or mail content.
  *
@@ -76,7 +76,7 @@ final class OrderHistory {
 		}
 
 		$job_where = Log::has_column( 'wpcap_jobs', 'order_id' ) ? $wpdb->prepare( 'order_id=%d OR ', $order_id ) : '';
-		// Jobs queued before schema 3.10.15 have no order_id: matched by their payload ({"order_id":N,…}).
+		// Jobs queued before schema 3.10.16 have no order_id: matched by their payload ({"order_id":N,…}).
 		$jobs = $wpdb->get_results( $wpdb->prepare( "SELECT job_id,job_type,status,attempts,last_error,created_at,updated_at FROM {$p}wpcap_jobs WHERE {$job_where}(payload LIKE %s AND payload REGEXP %s) ORDER BY job_id DESC LIMIT %d", '%' . addcslashes( '"order_id":' . $order_id, '_%\\' ) . '%', '"order_id":' . $order_id . '[,}]', $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
 		foreach ( (array) $jobs as $row ) {
 			$out[] = array(

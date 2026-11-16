@@ -257,7 +257,7 @@ Der Reiter **Bericht** des Website-Zustands enthält den Abschnitt „Pass Capta
 
 ## Support-Protokoll (A327)
 
-Fehler, Warnungen und Hinweise des Plugins landen im **Support-Protokoll** (Tabelle `wpcap_logs`, Schema 3.10.15, Klasse `PassCaptain\Log`). Vor dem Datenbank-Update und wenn das Schreiben scheitert, gehen die Einträge ins PHP-Fehlerprotokoll (`debug.log` mit `WP_DEBUG_LOG`); Einträge der Stufe `error` und `critical` stehen immer zusätzlich dort.
+Fehler, Warnungen und Hinweise des Plugins landen im **Support-Protokoll** (Tabelle `wpcap_logs`, Schema 3.10.16, Klasse `PassCaptain\Log`). Vor dem Datenbank-Update und wenn das Schreiben scheitert, gehen die Einträge ins PHP-Fehlerprotokoll (`debug.log` mit `WP_DEBUG_LOG`); Einträge der Stufe `error` und `critical` stehen immer zusätzlich dort.
 
 - **Eintrag**: Zeit, Stufe (`debug` < `info` < `notice` < `warning` < `error` < `critical`), Bereich (`checkout`, `payment`, `webhook`, `job`, `mail`, `rest`, …), **Fehler-ID** (12 Hex-Zeichen), Request-ID (gleich für alle Einträge eines Aufrufs), Bestellung/Ticket/Termin und ein strukturierter Kontext. Ausnahmen werden mit Klasse, Code, Datei:Zeile und dem letzten Datenbankfehler gespeichert, nie mit Stacktrace.
 - **Keine Geheimnisse, Codes oder vollen Personendaten**: Meldung und Kontext laufen durch `Redact` (Secrets, Karten, IBAN, E-Mail-Adressen); Kontextschlüssel, die Ticketcodes, Zugangslinks, Tokens, Namen, Adressen oder Telefonnummern tragen können, werden verworfen.
@@ -269,7 +269,7 @@ Fehler, Warnungen und Hinweise des Plugins landen im **Support-Protokoll** (Tabe
 
 ### Verlauf einer Bestellung (A328)
 
-Die Bestellansicht hat den Abschnitt **„Verlauf“**: Audit-Einträge der Bestellung und ihrer Tickets, Zahlungsereignisse (`wpcap_payment_events`), E-Mails der Warteschlange (mit Versandzeit `sent_at`), Hintergrundjobs (mit letztem Fehler) und die Einträge des Support-Protokolls (mit Fehler-ID, darunter jede versendete oder gescheiterte Plugin-E-Mail), neueste zuerst. Die Bestell-ID ist die Korrelations-ID: Schema 3.10.15 speichert sie in `wpcap_message_queue.order_id` und `wpcap_jobs.order_id`; ältere Jobs werden über ihren Inhalt (`"order_id":N`) gefunden. Empfänger, Inhalte und Ticketcodes erscheinen nicht.
+Die Bestellansicht hat den Abschnitt **„Verlauf“**: Audit-Einträge der Bestellung und ihrer Tickets, Zahlungsereignisse (`wpcap_payment_events`), E-Mails der Warteschlange (mit Versandzeit `sent_at`), Hintergrundjobs (mit letztem Fehler) und die Einträge des Support-Protokolls (mit Fehler-ID, darunter jede versendete oder gescheiterte Plugin-E-Mail), neueste zuerst. Die Bestell-ID ist die Korrelations-ID: Schema 3.10.16 speichert sie in `wpcap_message_queue.order_id` und `wpcap_jobs.order_id`; ältere Jobs werden über ihren Inhalt (`"order_id":N`) gefunden. Empfänger, Inhalte und Ticketcodes erscheinen nicht.
 
 ### Betriebsübersicht: Rückstände und Dead Letters (A163)
 

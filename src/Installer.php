@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.15';
+	const DB_VERSION = '3.10.16';
 
 	public static function install() {
 		global $wpdb;
@@ -800,7 +800,7 @@ final class Installer {
 				KEY job_type (job_type,status),
 				KEY order_id (order_id)
 			) ENGINE=InnoDB $charset;",
-			// Support log (schema 3.10.15, A327; see Log).
+			// Support log (schema 3.10.16, A327; see Log).
 			"CREATE TABLE {$wpdb->prefix}wpcap_logs (
 				log_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				created_at datetime NOT NULL,
