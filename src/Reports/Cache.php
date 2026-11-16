@@ -226,6 +226,7 @@ final class Cache {
 		// One of our lookups failed inside a transaction (lost connection, deadlock victim): the transaction
 		// may be gone, so the caller's write must not run on its own (autocommit after a reconnect). An
 		// empty statement makes wpdb::query() return false; the lookup's error stays in last_error.
+		// @phpstan-ignore booleanAnd.alwaysFalse, notIdentical.alwaysFalse (inspect() runs queries that set last_error; PHPStan keeps the earlier narrowing.)
 		if ( $in_tx && '' !== (string) $wpdb->last_error ) { return ''; }
 		return $query;
 	}
