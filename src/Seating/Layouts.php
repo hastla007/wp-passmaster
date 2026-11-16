@@ -271,11 +271,34 @@ final class Layouts {
 				'companion' => ! empty( $seat['companion'] ) && empty( $seat['accessible'] ),
 			);
 		}
+		// A528: standing spots get the keys "{group}-{n}" (expand()). A seat or another standing area with
+		// the same key would make spots disappear silently – refused, naming the key.
+		$taken = array_fill_keys( array_map( 'strval', array_keys( $out['seats'] ) ), true );
+		foreach ( $out['groups'] as $group ) {
+			if ( 'standing' !== $group['type'] ) { continue; }
+			for ( $n = 1; $n <= $group['capacity']; $n++ ) {
+				$spot = self::standing_key( $group['key'], $n );
+				if ( isset( $taken[ $spot ] ) ) {
+					return new \WP_Error(
+						'wpcap_seating_standing_key',
+						/* translators: 1: key of a standing spot, 2: standing area key */
+						sprintf( __( 'Der Stehplatz „%1$s“ des Stehbereichs „%2$s“ hat denselben Schlüssel wie ein Sitzplatz oder ein anderer Stehplatz. Bitte den Schlüssel des Stehbereichs oder des Sitzplatzes ändern.', 'pass-captain' ), $spot, $group['key'] ),
+						array( 'status' => 400, 'seat_key' => $spot )
+					);
+				}
+				$taken[ $spot ] = true;
+			}
+		}
 		$out['zones'] = array_values( $out['zones'] );
 		$out['categories'] = array_values( $out['categories'] );
 		$out['groups'] = array_values( $out['groups'] );
 		$out['seats'] = array_values( $out['seats'] );
 		return $out;
+	}
+
+	/** Key of standing spot $n of a standing area (A528: also used for the collision check). */
+	public static function standing_key( $group_key, $n ) {
+		return substr( (string) $group_key, 0, 54 ) . '-' . (int) $n;
 	}
 
 	/** Display label of a seat. */
@@ -318,8 +341,8 @@ final class Layouts {
 		foreach ( $groups as $group ) {
 			if ( 'standing' !== $group['type'] ) { continue; }
 			for ( $n = 1; $n <= $group['capacity']; $n++ ) {
-				$key = substr( $group['key'], 0, 54 ) . '-' . $n;
-				if ( isset( $rows[ $key ] ) ) { continue; }
+				$key = self::standing_key( $group['key'], $n );
+				if ( isset( $rows[ $key ] ) ) { continue; } // Refused by normalize() (A528); older stored drafts only.
 				$rows[ $key ] = array(
 					'seat_key' => $key,
 					'kind' => 'standing',

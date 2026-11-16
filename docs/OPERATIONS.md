@@ -676,6 +676,14 @@ ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.tx
   Rücksprache vergeben will, legt sie in einen eigenen Bereich und ordnet ihn einer eigenen,
   nicht öffentlich verkauften Ticketart zu.
 
+## Saalpläne: Stehbereiche (A528)
+
+- Ein Stehbereich mit Kapazität *n* wird beim Veröffentlichen zu *n* Stehplätzen mit den Schlüsseln
+  `{Schlüssel des Bereichs}-1` … `-n` (Bereichsschlüssel auf 54 Zeichen gekürzt). Hat ein Sitzplatz oder ein
+  Stehplatz eines anderen Bereichs denselben Schlüssel, lehnen Speichern und Veröffentlichen den Plan mit
+  `wpcap_seating_standing_key` ab und nennen den Schlüssel – bisher fiel der Stehplatz still weg, sodass
+  weniger Stehplätze verkauft wurden als eingestellt.
+
 ## Saalpläne: Verfügbarkeit und neue Versionen (A486, A487)
 
 - **Verfügbarkeit:** Ist eine Ticketart eines Termins Bereichen/Kategorien des Saalplans
