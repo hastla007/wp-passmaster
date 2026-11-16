@@ -986,6 +986,8 @@ final class EventsPage {
 			'tel' => __( 'Telefon', 'pass-captain' ),
 			'date' => __( 'Datum', 'pass-captain' ),
 			'number' => __( 'Zahl', 'pass-captain' ),
+			'radio' => __( 'Optionsfelder (eine Auswahl)', 'pass-captain' ),
+			'consent' => __( 'Einwilligung (protokolliert)', 'pass-captain' ),
 		);
 	}
 
@@ -1850,7 +1852,7 @@ final class EventsPage {
 		foreach ( $fields as $field ) {
 			if ( (int) $field->field_id === $edit_field_id ) { $edit_field = $field; }
 		}
-		$type_labels = self::field_type_labels() + array( 'radio' => __( 'Optionsfelder (eine Auswahl)', 'pass-captain' ), 'consent' => __( 'Einwilligung (protokolliert)', 'pass-captain' ) );
+		$type_labels = self::field_type_labels();
 		$type_url = self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $ticket_type_id ) );
 		?>
 		<p><a href="<?php echo esc_url( self::url( array( 'view' => 'occurrence', 'occurrence_id' => $type->occurrence_id ) ) ); ?>"><?php echo esc_html( '← ' . ( $event ? $event->name . ', ' : '' ) . Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?></a></p>

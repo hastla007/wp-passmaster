@@ -117,7 +117,9 @@ $a317_shtml = Waitlists::result_html( $a317_sid, $a317_sq['wl'] );
 ob_end_clean();
 check( 'A317 result page for a hosted payment: "Jetzt bezahlen", form locked after the first submit', false !== strpos( $a317_shtml, 'value="pay"' ) && false !== strpos( $a317_shtml, 'f.dataset.sent' ) );
 http_reset();
-http_push( array( 'id' => 'cs_a317', 'url' => 'https://checkout.stripe.com/c/pay/cs_a317', 'status' => 'open' ), 200, '/v1/checkout/sessions/cs_a317' );
+// Merged StripeGateway: an open session is reused only while it charges exactly the order total in its currency.
+$a317_sorder = $wpdb->get_row( $wpdb->prepare( "SELECT total_minor,currency FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'a317-stripe@example.com' ) );
+http_push( array( 'id' => 'cs_a317', 'url' => 'https://checkout.stripe.com/c/pay/cs_a317', 'status' => 'open', 'currency' => strtolower( (string) $a317_sorder->currency ), 'amount_total' => (int) $a317_sorder->total_minor ), 200, '/v1/checkout/sessions/cs_a317' );
 $a317_pay = $a317_post( array( 'waitlist_id' => $a317_sid, 'wl' => $a317_sq['wl'], 'decision' => 'pay' ) );
 check( 'A317 "Jetzt bezahlen" continues the open payment session of the same order', 'https://checkout.stripe.com/c/pay/cs_a317' === $a317_pay );
 $a317_badpay = $a317_post( array( 'waitlist_id' => $a317_sid, 'wl' => str_repeat( 'b', 32 ), 'decision' => 'pay' ) );
