@@ -13,6 +13,8 @@ export default [
 			globals: {
 				...globals.browser,
 				wp: 'readonly', jQuery: 'readonly', jsQR: 'readonly', nacl: 'readonly',
+				// Unit-test hook: scripts export their helpers when loaded by node:test (typeof module guard).
+				module: 'readonly',
 				// Data handed over by wp_localize_script() / inline scripts (src/).
 				WPCAP_ADMISSION: 'readonly', WPCAP_CHECKOUT: 'readonly', WPCAP_SCANNER: 'readonly', WPCAP_SMS: 'readonly',
 				WPCAP_BLOCK_EVENTS: 'readonly', WPCAP_SCANNER_OCCURRENCES: 'readonly', WPCAP_SCANNER_PRIVACY: 'readonly',
