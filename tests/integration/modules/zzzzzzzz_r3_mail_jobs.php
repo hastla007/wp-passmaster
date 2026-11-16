@@ -76,7 +76,11 @@ Communications::enqueue( 'r3-' . $r3_fine_to, $r3_fine_to, 'r3_fine', array( 'su
 $r3_tpl = static function ( $template, $key, $payload = array() ) { if ( 'r3_boom' === $key ) { throw new LogicException( 'template broken' ); } if ( 'r3_fine' === $key ) { return array( 'subject' => (string) ( $payload['subject'] ?? '' ), 'body' => (string) ( $payload['body'] ?? '' ) ); } return $template; };
 add_filter( 'wp_pass_captain_email_template_v1', $r3_tpl, 10, 3 );
 $r3_threw = false;
+// Earlier modules may leave more due messages than one batch: park them while this check runs.
+$r3_parked = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM %i WHERE status='queued' AND recipient NOT IN (%s,%s)", $r3_mq, $r3_boom_to, $r3_fine_to ) ) );
+if ( $r3_parked ) { $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='r3_parked' WHERE message_id IN (" . implode( ',', $r3_parked ) . ')', $r3_mq ) ); }
 try { Communications::process_due(); } catch ( \Throwable $e ) { $r3_threw = true; }
+if ( $r3_parked ) { $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='queued' WHERE message_id IN (" . implode( ',', $r3_parked ) . ')', $r3_mq ) ); }
 remove_filter( 'wp_pass_captain_email_template_v1', $r3_tpl, 10 );
 check( 'mail queue survives the exception and sends the next message', ! $r3_threw && 'sent' === $r3_msg( $r3_fine_to )->status );
 check( 'failing message: queued with backoff and the exception as last_error', 'queued' === $r3_msg( $r3_boom_to )->status && $r3_future( $r3_msg( $r3_boom_to )->send_at ) && false !== strpos( (string) $r3_msg( $r3_boom_to )->last_error, 'template broken' ) );
