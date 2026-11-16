@@ -62,6 +62,15 @@ Zeitabhängige Regeln testen die Module ohne Warten: Sie setzen die Uhr über de
 prüft so die Sommerzeitumstellungen in Europe/Vienna und America/New_York (siehe docs/OPERATIONS.md,
 „Zeit, Zeitzonen und Sommerzeit“).
 
+### Blöcke und Block-Editor (A455)
+
+- **Editor-Skripte** (`tests/js/blocks.test.js`, `npm run test:js`): lädt `src/blocks/*/editor.js` mit einer Attrappe der `wp.*`-Pakete (`createElement` baut einen einfachen Baum) und prüft je Block den registrierten Namen gegen `block.json`, dass jedes verwendete Attribut deklariert ist und `save()` `null` liefert (dynamischer Block), die Vorschau in `Disabled` (A451), die Event-/Terminauswahl einschließlich nicht mehr gelisteter Auswahl (A453) sowie die Tauglichkeit für den Iframe-Editor: kein Zugriff auf `document`, nur `window.wp` und `window.WPCAP_BLOCK_*`, genau ein Element mit den Props aus `useBlockProps()` und die Vorschau darin.
+- **Blockvalidierung und Rendern** (`modules/zz_a455.php`): jedes Verzeichnis unter `src/blocks/` hat ein gültiges `block.json` mit gespeichertem Namen (RENAME.md), `apiVersion` 3 (der Editor wird nur als Iframe geladen, wenn alle Blöcke v3 sind), Titel/Kategorie/Icon/Textdomain, vorhandene `render.php`/`editor.js`/`editor.asset.php`, gültige Attributtypen und passende Standardwerte, `supports.html = false` und eine Registrierung per `register_block_type()`. Gerendert wird ohne globalen Beitrag und ohne Request-URL mit leeren bzw. veralteten Attributen – so wie in Widget-Bereichen und Template-Teilen.
+- **Website-Ausgabe** (`modules/zz_a449.php`, `zz_a452.php`): Block-Wrapper-Attribute am äußeren Element; Monatsnavigation aus der Request-URL mit eigenem Parameter je Kalender.
+- **Asset-Versionen** (`tests/consistency.php`, A454): Version = Inhalts-Hash von `editor.js`, Abhängigkeiten decken alle `window.wp.*`-Pakete ab.
+
+Offen (Produktentscheidung, A455): eigene Event-URLs bzw. Event-Einzelseiten mit Theme-Template gibt es nicht; Events erscheinen nur über Shortcode oder Block auf normalen Seiten. Ob ein öffentlicher Beitragstyp/Rewrite für Events kommt, ist zu entscheiden (Auswirkungen auf SEO, Seitencache-Purge `wpcap_purge_page_cache`, Kalender-Links und Übersetzungen).
+
 ## Upgrade-Tests je Vorgängerversion (`tests/upgrade/`, A181)
 
 ```bash

@@ -2,6 +2,9 @@
  * Block editor scripts (src/blocks/{events,calendar,service-booking}/editor.js) in Node with a
  * stand-in of the wp.* globals: createElement builds a plain tree that the tests walk.
  * A451: the ServerSideRender preview sits inside wp.components.Disabled.
+ * A453: event/date selection, including a saved selection that is no longer listed.
+ * A455: editor script ↔ block.json, dynamic save, iframe editor (no document access, only wp.* and
+ *       the WPCAP_BLOCK_* inline data, one element with the useBlockProps() props).
  */
 'use strict';
 const test = require('node:test');
@@ -129,4 +132,41 @@ test('A453: choosing another event resets the date', () => {
 	const { tree, changes } = block.edit({ event: 5, occurrence: 51 });
 	selects(tree).Event.onChange('6');
 	assert.deepStrictEqual(plain(changes), [{ event: 6, occurrence: 0 }]);
+});
+
+/* ------------------------------------------------------------------ A455 */
+
+for (const c of CASES) {
+	const dir = path.join(BLOCKS, c.dir);
+	const json = JSON.parse(fs.readFileSync(path.join(dir, 'block.json'), 'utf8'));
+	const source = fs.readFileSync(path.join(dir, 'editor.js'), 'utf8');
+
+	test('A455: ' + c.name + ' editor script matches block.json', () => {
+		const block = loadBlock(c.dir);
+		assert.strictEqual(block.name, json.name);
+		assert.strictEqual(json.apiVersion, 3);
+		const used = [...new Set([...source.matchAll(/attrs\.([A-Za-z]+)/g)].map((m) => m[1]))];
+		assert.ok(used.length > 0);
+		used.forEach((name) => assert.ok(Object.prototype.hasOwnProperty.call(json.attributes, name), name + ' is declared in block.json'));
+		assert.strictEqual(block.settings.save(), null, 'dynamic block: save() returns null');
+	});
+
+	test('A455: ' + c.name + ' works in the iframed editor', () => {
+		// The script runs in the editor window while the canvas is an iframe: no direct DOM access,
+		// only wp.* packages and the inline data handed over by PHP.
+		assert.ok(!/\bdocument\b/.test(source), 'no document access');
+		const globals = [...source.matchAll(/window\.([A-Za-z_]+)/g)].map((m) => m[1]);
+		globals.forEach((g) => assert.ok(g === 'wp' || /^WPCAP_BLOCK_/.test(g), 'window.' + g + ' is allowed'));
+		// apiVersion 3: exactly one element carries the props from useBlockProps(), the preview is inside it.
+		const { tree } = loadBlock(c.dir).edit(c.attributes);
+		const wrappers = nodes(tree).filter((n) => n.node.props && n.node.props.className === 'block-editor-block');
+		assert.strictEqual(wrappers.length, 1, 'exactly one element carries the block props');
+		assert.ok(find(wrappers[0].node, 'ServerSideRender').length + find(wrappers[0].node, 'Placeholder').length >= 1, 'preview inside the block wrapper');
+	});
+}
+
+test('A455: events block without choices data (no inline script) still renders its controls', () => {
+	const { tree } = loadBlock('events').edit({ event: 0, occurrence: 0 });
+	assert.strictEqual(find(tree, 'SelectControl').length, 1);
+	assert.strictEqual(find(tree, 'ServerSideRender').length, 1);
 });
