@@ -2159,6 +2159,46 @@ final class Orders {
 		return null !== $wpdb->get_var( $wpdb->prepare( "SELECT audit_id FROM {$p}wpcap_audit_logs WHERE action='tickets_resent' AND object_type='order' AND object_id=%d AND created_at>=%s LIMIT 1", absint( $order_id ), $queued ) );
 	}
 
+	/** Seconds a paid order may be without tickets before the sweep queues an issuance (A343). */
+	const UNISSUED_GRACE = 600;
+
+	/** Paid orders older than this are left to the Doctor check (no automatic mail of old tickets). */
+	const UNISSUED_LOOKBACK = 2 * DAY_IN_SECONDS;
+
+	/**
+	 * Cron (wpcap_cleanup_reservations): paid orders that still have no ticket some minutes after the
+	 * payment get a `ticket_issue_retry` job (A343). Covers every way a payment is confirmed (webhook,
+	 * return page, WooCommerce, partner sale, manual confirmation) when the issuance after the
+	 * committed payment never ran – process killed, timeout, failed job enqueue – or its retries ended
+	 * as dead letter. One job per order (fixed key): a job that issues nothing (e.g. an exchange
+	 * supplement, whose ticket lives on the original order) is not queued again. Orders paid more than
+	 * two days ago are only reported (Doctor check `paid_orders_without_tickets`).
+	 *
+	 * @param int $limit Orders per run.
+	 * @return int Jobs queued.
+	 */
+	public static function sweep_unissued( $limit = 50 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = Clock::now();
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT o.order_id FROM {$p}wpcap_orders o WHERE o.payment_status='paid' AND o.status='complete' AND o.updated_at < %s AND o.updated_at >= %s AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items oi WHERE oi.order_id=o.order_id AND oi.quantity > oi.refunded_quantity) AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_tickets t WHERE t.order_id=o.order_id) ORDER BY o.order_id LIMIT %d",
+			gmdate( 'Y-m-d H:i:s', $now - self::UNISSUED_GRACE ),
+			gmdate( 'Y-m-d H:i:s', $now - self::UNISSUED_LOOKBACK ),
+			max( 1, absint( $limit ) )
+		) );
+		$queued = 0;
+		foreach ( array_map( 'intval', (array) $ids ) as $order_id ) {
+			$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE idempotency_key=%s", hash( 'sha256', 'ticket-issue-sweep|' . $order_id ) ) );
+			if ( $before ) { continue; } // Already swept once: the Doctor check reports what is still open.
+			if ( true === Jobs::enqueue( 'ticket-issue-sweep|' . $order_id, 'ticket_issue_retry', array( 'order_id' => $order_id ) ) ) {
+				Audit::record( 'ticket_issue_swept', 'order', $order_id, array() );
+				++$queued;
+			}
+		}
+		return $queued;
+	}
+
 	/**
 	 * Ticket issuance hit a database error: nothing was issued, the order stays paid with its
 	 * attendee data, and a later call (webhook retry, resend, "Zuteilung erneut versuchen") issues it.

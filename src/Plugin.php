@@ -66,6 +66,8 @@ final class Plugin {
 		add_action( 'wpcap_cleanup_reservations', array( Refunds::class, 'repair_stuck' ), 40, 0 );
 		// Reconciles refunds with an unknown outcome at the provider (A272).
 		add_filter( 'wpcap_process_job', array( Refunds::class, 'handle_job' ), 10, 4 );
+		// Paid orders whose issuance never ran get a retry job (A343).
+		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'sweep_unissued' ), 45, 0 );
 		add_action( 'wpcap_cleanup_reservations', array( RateLimit::class, 'purge' ), 50, 0 );
 		// Finished reservations, jobs, seat holds and payment events (A444).
 		add_action( 'wpcap_cleanup_reservations', array( Privacy\Retention::class, 'housekeeping' ), 60, 0 );
