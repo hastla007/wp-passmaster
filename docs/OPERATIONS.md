@@ -1291,6 +1291,17 @@ A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter 
 
 Tickets, die bereits zum Einlass genutzt wurden (Status „eingecheckt“, ein nicht zurückgenommener Check-in oder ein Eintritt im Einlassmodul), werden in der Bestellansicht nur erstattet, wenn eine Person mit `wpcap_approve_refunds` im Feld „Ausnahme für bereits eingelassene Tickets“ eine Begründung angibt. Die Erstattung landet dann immer in „Erstattungen zur Freigabe“ (Vier-Augen-Prinzip), Grund und Ausnahme stehen im Erstattungsgrund und im Audit-Log. Automatische Erstattungen bei Terminabsage sowie Kassen-Stornos (mit eigener Ausnahme an der Kasse) sind davon nicht betroffen; das Bestellportal bietet eingelassene Tickets gar nicht zur Stornierung an.
 
+### Ticketart nach Verkaufsstart ändern (A334)
+
+Hat eine Ticketart bereits Bestellungen (bezahlt oder offen), zeigt ihr Formular „Bereits verkauft: N Tickets
+verkauft“ und den Hinweis, dass Änderungen an Preis, Steuersatz oder Steuerklasse nur für neue Bestellungen
+gelten – bestehende Bestellungen, Tickets, Rechnungen und Erstattungen behalten Preis und Steuer ihrer Bestellung
+(Preis-Snapshot). Eine solche Änderung wird nur mit dem Häkchen „Preis-/Steueränderung trotz verkaufter Tickets
+übernehmen“ (`confirm_sold_change`) gespeichert, sonst abgelehnt (`wpcap_type_sold_change`, 409; das Formular
+zeigt die Eingaben wieder an). Nach dem Speichern wiederholt eine Warnung, was die Änderung nicht betrifft; die
+Änderung steht wie bisher im Termin-Verlauf (A114). Name, Kontingent, Verkaufsfenster und Status lassen sich
+ohne Bestätigung ändern; die Währung bleibt nach der ersten Bestellung gesperrt.
+
 ### Termin- und Eventabsage (A266, A267, A356)
 
 Termine und ganze Events werden nur über eine **Bestätigungsseite** abgesagt: „Absagen …“ beim Termin (`view=cancel_occurrence`) bzw. „Event absagen …“ in der Eventliste und auf der Eventseite (`view=cancel_event`). Die Seite nennt die Folgen (Termine, zu widerrufende Tickets, zu stornierende offene Bestellungen, automatische oder offene Erstattungen, WooCommerce-Bestellungen, Empfänger der Absage-Mail), verlangt einen **Grund** (Audit-Log) und eine **Bestätigung per Checkbox**; ohne beides lehnt der Server ab (`wpcap_cancel_reason`, `wpcap_cancel_confirm`).

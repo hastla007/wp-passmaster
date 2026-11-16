@@ -531,6 +531,12 @@ final class EventsPage {
 				/* translators: %d: sold tickets */
 				return Forms::error( 'wpcap_capacity_below_sold', sprintf( _n( 'Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken.', 'Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken.', $sold, 'pass-captain' ), $sold) );
 			}
+			// A334: price, tax rate or tax class of a type that already has orders: only with an
+			// explicit confirmation – the change applies to new orders only.
+			$sold_change = self::sold_pricing_changes( $old, $price, $tax_bp, array_key_exists( 'tax_class', $in ) ? substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 ) : null );
+			if ( $sold_change && ! Forms::flag( $in, 'confirm_sold_change' ) ) {
+				return Forms::error( 'wpcap_type_sold_change', self::sold_change_message( $sold, $sold_change ) . ' ' . __( 'Bitte bestätige die Änderung mit dem Häkchen unter dem Formular.', 'pass-captain' ), 409, 'confirm_sold_change' );
+			}
 		}
 		$data = array(
 			'name' => $name,
@@ -591,7 +597,37 @@ final class EventsPage {
 		\PassCaptain\PageCache::event_changed( (int) $occ->event_id, 'ticket_type', (int) $occ->occurrence_id );
 		// A535: a sales end after the occurrence's (effective) end is saved, but online sales stop at the end.
 		$warning = \PassCaptain\Occurrence::sales_end_warning( $occ, (string) $sales['sales_end'] );
+		if ( ! empty( $sold_change ) ) {
+			// A334: the confirmed change is recorded with what it did not change.
+			$warning = trim( self::sold_change_message( (int) $sold, $sold_change ) . ' ' . $warning );
+		}
 		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id ) + ( '' !== $warning ? array( 'warning' => $warning ) : array() );
+	}
+
+	/**
+	 * Price-relevant fields that change on a ticket type with orders (A334): price_minor,
+	 * tax_rate_bp, tax_class ($tax_class null = not submitted). Empty without orders.
+	 *
+	 * @return string[]
+	 */
+	public static function sold_pricing_changes( $old, $price, $tax_bp, $tax_class = null ) {
+		$changed = array();
+		if ( (int) $price !== (int) $old->price_minor ) { $changed[] = 'price_minor'; }
+		if ( (int) $tax_bp !== (int) $old->tax_rate_bp ) { $changed[] = 'tax_rate_bp'; }
+		if ( null !== $tax_class && (string) $tax_class !== (string) ( $old->tax_class ?? '' ) ) { $changed[] = 'tax_class'; }
+		return $changed && Queries::type_has_orders( (int) $old->ticket_type_id ) ? $changed : array();
+	}
+
+	/** "Bereits N Tickets verkauft: der neue Preis gilt nur für neue Bestellungen …" (A334). */
+	private static function sold_change_message( $sold, array $changed ) {
+		$labels = array( 'price_minor' => __( 'Preis', 'pass-captain' ), 'tax_rate_bp' => __( 'Steuersatz', 'pass-captain' ), 'tax_class' => __( 'Steuerklasse', 'pass-captain' ) );
+		$what = implode( ', ', array_intersect_key( $labels, array_flip( $changed ) ) );
+		return sprintf(
+			/* translators: 1: number of sold tickets, 2: changed fields, e.g. "Preis, Steuersatz" */
+			_n( 'Von dieser Ticketart ist bereits %1$d Ticket verkauft (bzw. Bestellungen sind offen): Die Änderung (%2$s) gilt nur für neue Bestellungen. Bestehende Bestellungen, Tickets, Rechnungen und Erstattungen behalten Preis und Steuer der Bestellung.', 'Von dieser Ticketart sind bereits %1$d Tickets verkauft (bzw. Bestellungen sind offen): Die Änderung (%2$s) gilt nur für neue Bestellungen. Bestehende Bestellungen, Tickets, Rechnungen und Erstattungen behalten Preis und Steuer der Bestellung.', (int) $sold, 'pass-captain' ),
+			(int) $sold,
+			$what
+		);
 	}
 
 	/** Creates or updates a participant field. The key is fixed after creation. */
@@ -1412,6 +1448,12 @@ final class EventsPage {
 				<p class="description"><?php esc_html_e( 'Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt.', 'pass-captain' ); ?></p>
 			</td></tr>
 			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $v( 'status', $type ? $type->status : 'active' ), 'wpcap-tt-status' ); ?></td></tr>
+			<?php if ( $type && Queries::type_has_orders( (int) $type->ticket_type_id ) ) : $wpcap_sold = Queries::sold_for_type( (int) $type->ticket_type_id ); ?>
+			<tr><th><?php esc_html_e( 'Bereits verkauft', 'pass-captain' ); ?></th><td>
+				<p class="description" id="wpcap-tt-sold-note"><strong><?php echo esc_html( sprintf( /* translators: %d: sold tickets */ _n( '%d Ticket verkauft.', '%d Tickets verkauft.', $wpcap_sold, 'pass-captain' ), $wpcap_sold ) ); ?></strong> <?php esc_html_e( 'Änderungen an Preis, Steuersatz oder Steuerklasse gelten nur für neue Bestellungen; bestehende Bestellungen, Tickets, Rechnungen und Erstattungen bleiben unverändert.', 'pass-captain' ); ?></p>
+				<label><input type="checkbox" name="confirm_sold_change" value="1" aria-describedby="wpcap-tt-sold-note"<?php echo $bad( 'confirm_sold_change' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php esc_html_e( 'Preis-/Steueränderung trotz verkaufter Tickets übernehmen', 'pass-captain' ); ?></label>
+			</td></tr>
+			<?php endif; ?>
 		</tbody></table>
 		<?php submit_button( $type ? __( 'Ticketart speichern', 'pass-captain' ) : __( 'Ticketart hinzufügen', 'pass-captain' ) ); ?>
 		</form>
