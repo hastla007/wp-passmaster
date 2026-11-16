@@ -204,7 +204,7 @@ final class Page {
 	private static function occurrence_options( $event_id, $with_all = false ) {
 		$out = $with_all ? array( 0 => __( 'Alle Termine', 'pass-captain' ) ) : array();
 		// Scheduled dates only; running/upcoming first (default), past ones marked (Queries::occurrence_choices()).
-		$rows = Queries::occurrences_for_event( $event_id );
+		$rows = Queries::occurrence_window( $event_id )['rows']; // A476: bounded (next dates, then recent ones).
 		foreach ( $rows as $o ) { $o->label = Scope::local( $o->starts_at, $o->timezone ) . ( $o->location ? ' – ' . $o->location : '' ); }
 		return $out + Queries::occurrence_choices( $rows );
 	}

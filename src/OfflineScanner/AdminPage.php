@@ -127,10 +127,11 @@ final class AdminPage {
 
 	private static function render_event( $event_id ) {
 		$rules = Rules::get( $event_id );
-		$occurrences = Queries::occurrences_for_event( $event_id );
-		$occ_labels = array( 0 => __( 'Alle Termine', 'pass-captain' ) );
-		foreach ( $occurrences as $occ ) { $occ_labels[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone ); }
 		$assigned = Assignments::for_event( $event_id );
+		// A476: a bounded window of dates (next ones, or from the chosen day) plus every assigned date.
+		$window = Queries::occurrence_window( $event_id, array_map( static function ( $row ) { return (int) $row->occurrence_id; }, (array) $assigned ), Forms::query_arg( 'occ_from' ) );
+		$occ_labels = array( 0 => __( 'Alle Termine', 'pass-captain' ) );
+		foreach ( $window['rows'] as $occ ) { $occ_labels[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone ); }
 		$candidates = Assignments::candidates( $event_id );
 		$show_names = (bool) Settings::get( 'scanner_show_attendee' );
 		?>
@@ -168,6 +169,7 @@ final class AdminPage {
 				<label><?php esc_html_e( 'Termin', 'pass-captain' ); ?> <?php Forms::select( 'occurrence_id', $occ_labels, 0 ); ?></label>
 				<button class="button button-primary"><?php esc_html_e( 'Zuweisen', 'pass-captain' ); ?></button></p>
 			</form>
+			<?php Forms::occurrence_window_filter( $window, self::SLUG, array( 'event_id' => $event_id ) ); ?>
 		<?php else : ?>
 			<p class="description"><?php esc_html_e( 'Keine aktiven, für dieses Event gekoppelten Geräte. Zuerst unter „Scanner-Geräte“ einen Kopplungscode für dieses Event erstellen und im Offline-Scanner eingeben.', 'pass-captain' ); ?></p>
 		<?php endif; ?>

@@ -567,6 +567,24 @@ final class Forms {
 		echo '</div></div>';
 	}
 
+	/**
+	 * Note and date filter under a bounded occurrence list (Queries::occurrence_window(), A476):
+	 * "x of y dates shown" and a GET form "dates from" (parameter occ_from) that moves the window.
+	 * Prints nothing when every date is listed and no filter is set.
+	 *
+	 * @param array $window Result of Queries::occurrence_window().
+	 * @param array $args   Further query arguments of the page (e.g. event_id).
+	 */
+	public static function occurrence_window_filter( array $window, $slug, array $args = array() ) {
+		if ( empty( $window['more'] ) && '' === (string) ( $window['from'] ?? '' ) ) { return; }
+		echo '<form method="get" class="wpcap-occurrence-window"><input type="hidden" name="page" value="' . esc_attr( $slug ) . '">';
+		foreach ( $args as $key => $value ) { echo '<input type="hidden" name="' . esc_attr( (string) $key ) . '" value="' . esc_attr( (string) $value ) . '">'; }
+		/* translators: 1: dates listed, 2: dates of the event */
+		echo '<p class="description">' . esc_html( sprintf( __( '%1$d von %2$d Terminen werden angezeigt (die nächsten ab dem gewählten Tag, ohne Auswahl ab heute).', 'pass-captain' ), count( (array) $window['rows'] ), (int) $window['total'] ) ) . ' ';
+		echo '<label>' . esc_html__( 'Termine ab', 'pass-captain' ) . ' <input type="date" name="occ_from" value="' . esc_attr( (string) ( $window['from'] ?? '' ) ) . '"></label> ';
+		echo '<button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></p></form>';
+	}
+
 	/** Current page number from the query string. */
 	public static function current_page() {
 		return max( 1, absint( $_GET['paged'] ?? 1 ) ); // phpcs:ignore WordPress.Security.NonceVerification

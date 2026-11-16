@@ -139,8 +139,11 @@ final class AdminPage {
 		Forms::hidden( 'event_id', $event_id );
 		if ( $series_id ) { Forms::hidden( 'series_id', (int) $series_id ); }
 		$occurrences = array( '0' => __( '— keine Ticketarten kopieren —', 'pass-captain' ) );
-		foreach ( Queries::occurrences_for_event( $event_id ) as $occ ) {
-			$count = count( Queries::ticket_types_for_occurrence( $occ->occurrence_id ) );
+		// A476: the template date is chosen from a bounded window (next dates first), with one count query.
+		$window = Queries::occurrence_window( $event_id, array( (int) self::value( $in, 'template_occurrence_id', '0' ) ) );
+		$type_counts = Queries::ticket_type_counts( array_map( static function ( $o ) { return (int) $o->occurrence_id; }, $window['rows'] ) );
+		foreach ( $window['rows'] as $occ ) {
+			$count = $type_counts[ (int) $occ->occurrence_id ] ?? 0;
 			/* translators: 1: date, 2: number of ticket types */
 			$occurrences[ (int) $occ->occurrence_id ] = sprintf( __( '%1$s (%2$d Ticketarten)', 'pass-captain' ), Forms::datetime( $occ->starts_at, $occ->timezone ), $count );
 		}

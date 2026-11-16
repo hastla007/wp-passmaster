@@ -63,8 +63,8 @@ final class CheckinsPage {
 		$date_to = Forms::query_arg( 'date_to' );
 		$timezone = wp_timezone_string();
 		if ( $event_id ) {
-			$occurrences = Queries::occurrences_for_event( $event_id );
-			if ( $occurrences ) { $timezone = $occurrences[0]->timezone; }
+			$last = Queries::last_occurrence( $event_id ); // A476: one row, not every date of the event.
+			if ( $last ) { $timezone = $last->timezone; }
 		}
 		list( $from_utc, $to_utc ) = self::date_bounds( $date_from, $date_to, $timezone );
 		$page = Forms::current_page();

@@ -284,6 +284,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Hook | Wert, Argumente | Zweck |
 |---|---|---|
+| `wpcap_admin_occurrences_per_page` | `int $count` (50) | A476: Termine je Seite auf der Event-Detailseite (1–500; ohne `paged` öffnet die Seite mit dem nächsten Termin). |
+| `wpcap_admin_occurrence_choices` | `int $count` (200) | A476: Höchstzahl Termine in Terminauswahlen und Formularen je Termin (Zuweisungen, Einlassregeln, Offline-Scanner, Serienvorlage, Saalplan, Gästelisten); mit „Termine ab“ verschiebbar. |
 | `wpcap_schema_retry_delay` | `int $seconds`, `int $attempts` | Wartezeit bis zum nächsten automatischen Versuch eines fehlgeschlagenen Schema-Upgrades (A466; Standard 5 Minuten, je Fehlversuch verdoppelt, höchstens 6 Stunden). Admin-, Cron- und Frontend-Aufrufe warten so lange, WP-CLI (`wp pass-captain upgrade`) und der Knopf im Admin-Hinweis versuchen es sofort. |
 | `wpcap_bulk_run_batch_size` | `int $size` | Zeilen je Schritt eines Absage-/Benachrichtigungslaufs (Standard 200, 1–1000; A428). |
 | `wpcap_bulk_mail` | `array\|null $spec, array $payload` | Baut eine in einem Lauf (A428) eingereihte Mail eines Moduls beim Versand: `['type' => Mailtyp, 'vars' => Platzhalter]` (optional `ics` => Termin-ID). Das Pass-Modul baut so `pass_kept`/`pass_revoked`. |

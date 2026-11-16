@@ -120,6 +120,23 @@ final class Queries {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
 	}
 
+	/**
+	 * Number of ticket types per occurrence (one query, A476).
+	 *
+	 * @param int[] $occurrence_ids Occurrences.
+	 * @return array<int,int>
+	 */
+	public static function ticket_type_counts( array $occurrence_ids ) {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$out = array();
+		foreach ( (array) $wpdb->get_results( "SELECT occurrence_id, COUNT(*) AS n FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', $ids ) . ') GROUP BY occurrence_id' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$out[ (int) $row->occurrence_id ] = (int) $row->n;
+		}
+		return $out;
+	}
+
 	/** Participant field with event context. */
 	public static function participant_field( $field_id ) {
 		global $wpdb;
@@ -151,6 +168,118 @@ final class Queries {
 		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", absint( $occurrence_id ) ) );
 		/** Sold units shown for an occurrence; modules add units counted there (e.g. passes anchored elsewhere). */
 		return (int) apply_filters( 'wpcap_occurrence_sold', $sold, absint( $occurrence_id ) );
+	}
+
+	/**
+	 * Sold units of several occurrences with one GROUP BY query (A476; same rule and filter as
+	 * sold_for_occurrence()).
+	 *
+	 * @param int[] $occurrence_ids Occurrences.
+	 * @return array<int,int> occurrence_id => sold units.
+	 */
+	public static function sold_for_occurrences( array $occurrence_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$sold = array_fill_keys( $ids, 0 );
+		$rows = $wpdb->get_results( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', $ids ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $rows as $row ) { $sold[ (int) $row->occurrence_id ] = (int) $row->sold; }
+		foreach ( $sold as $id => $units ) {
+			/** See sold_for_occurrence(). */
+			$sold[ $id ] = (int) apply_filters( 'wpcap_occurrence_sold', $units, $id );
+		}
+		return $sold;
+	}
+
+	/** Occurrences per page on the event detail page (A476; filter wpcap_admin_occurrences_per_page). */
+	public static function occurrences_per_page() {
+		return max( 1, min( 500, (int) apply_filters( 'wpcap_admin_occurrences_per_page', 50 ) ) );
+	}
+
+	/**
+	 * One page of an event's occurrences (A476: long series are no longer rendered at once). Without
+	 * a page number the page holding the next occurrence that is not over (start less than 12 hours
+	 * ago) is shown, so a daily series of several years opens at "today".
+	 *
+	 * @return array{rows: object[], total: int, page: int, pages: int, per_page: int}
+	 */
+	public static function occurrence_page( $event_id, $page = 0, $per_page = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_id = absint( $event_id );
+		$per_page = $per_page ? max( 1, (int) $per_page ) : self::occurrences_per_page();
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d", $event_id ) );
+		$pages = max( 1, (int) ceil( $total / $per_page ) );
+		$page = (int) $page;
+		if ( $page < 1 ) {
+			$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at < %s", $event_id, gmdate( 'Y-m-d H:i:s', time() - 12 * HOUR_IN_SECONDS ) ) );
+			$page = $before >= $total ? $pages : intdiv( $before, $per_page ) + 1;
+		}
+		$page = min( max( 1, $page ), $pages );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at, occurrence_id LIMIT %d OFFSET %d", $event_id, $per_page, ( $page - 1 ) * $per_page ) );
+		return array( 'rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages, 'per_page' => $per_page );
+	}
+
+	/** Latest occurrence of an event (default time zone of a new occurrence) or null. */
+	public static function last_occurrence( $event_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at DESC, occurrence_id DESC LIMIT 1", absint( $event_id ) ) );
+	}
+
+	/** Cancelled occurrences of an event (ids), for the progress of their cancellation runs. */
+	public static function cancelled_occurrence_ids( $event_id, $limit = 50 ) {
+		global $wpdb;
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND status='cancelled' ORDER BY starts_at DESC LIMIT %d", absint( $event_id ), max( 1, (int) $limit ) ) ) );
+	}
+
+	/** Choices offered in an occurrence select (A476; filter wpcap_admin_occurrence_choices, default 200). */
+	public static function occurrence_choice_limit() {
+		return max( 1, min( 2000, (int) apply_filters( 'wpcap_admin_occurrence_choices', 200 ) ) );
+	}
+
+	/**
+	 * Bounded occurrence list of an event for selects and per-occurrence forms (A476): the next
+	 * occurrences from $from (Y-m-d, site time zone; default: those not over yet) in ascending
+	 * order, filled up with the most recent earlier ones, at most $limit; occurrences in $keep (e.g.
+	 * already assigned or selected) are always included. A series with thousands of dates no longer
+	 * renders thousands of options.
+	 *
+	 * @param int[] $keep Occurrence ids that must be part of the list.
+	 * @return array{rows: object[], total: int, more: bool, from: string}
+	 */
+	public static function occurrence_window( $event_id, array $keep = array(), $from = '', $limit = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_id = absint( $event_id );
+		$limit = $limit ? max( 1, (int) $limit ) : self::occurrence_choice_limit();
+		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) ? (string) $from : '';
+		$since = '' !== $from ? self::local_day_start_utc( $from ) : gmdate( 'Y-m-d H:i:s', time() - 12 * HOUR_IN_SECONDS );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d", $event_id ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at >= %s ORDER BY starts_at, occurrence_id LIMIT %d", $event_id, $since, $limit ) );
+		if ( count( $rows ) < $limit ) {
+			$earlier = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d AND starts_at < %s ORDER BY starts_at DESC, occurrence_id DESC LIMIT %d", $event_id, $since, $limit - count( $rows ) ) );
+			$rows = array_merge( array_reverse( $earlier ), $rows );
+		}
+		$seen = array();
+		foreach ( $rows as $row ) { $seen[ (int) $row->occurrence_id ] = true; }
+		$missing = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $keep ) ) ), array_keys( $seen ) ) );
+		if ( $missing ) {
+			$extra = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d AND occurrence_id IN (" . implode( ',', $missing ) . ')', $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = array_merge( $rows, $extra );
+			usort( $rows, static function ( $a, $b ) { return array( $a->starts_at, (int) $a->occurrence_id ) <=> array( $b->starts_at, (int) $b->occurrence_id ); } );
+		}
+		return array( 'rows' => $rows, 'total' => $total, 'more' => $total > count( $rows ), 'from' => $from );
+	}
+
+	/** UTC start of a local calendar day (site time zone). */
+	private static function local_day_start_utc( $date ) {
+		try {
+			$tz = function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' );
+			return ( new \DateTimeImmutable( $date . ' 00:00:00', $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		} catch ( \Exception $e ) {
+			return $date . ' 00:00:00';
+		}
 	}
 
 	/** Sold units of a ticket type (paid, not refunded). */

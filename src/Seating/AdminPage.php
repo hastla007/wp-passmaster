@@ -227,7 +227,10 @@ final class AdminPage {
 		foreach ( array( 'zones' => __( 'Bereich', 'pass-captain' ), 'categories' => __( 'Kategorie', 'pass-captain' ) ) as $list => $label ) {
 			foreach ( (array) ( $definition[ $list ] ?? array() ) as $item ) { $keys[ $item['key'] ] = $label . ': ' . $item['name']; }
 		}
-		foreach ( Queries::occurrences_for_event( $layout->event_id ) as $occurrence ) {
+		// A476: a bounded window of dates (next ones, or from the chosen day) instead of every date.
+		$window = Queries::occurrence_window( (int) $layout->event_id, array(), Forms::query_arg( 'occ_from' ) );
+		Forms::occurrence_window_filter( $window, self::SLUG, array( 'layout_id' => (int) $layout->layout_id ) );
+		foreach ( $window['rows'] as $occurrence ) {
 			$link = Layouts::link( $occurrence->occurrence_id );
 			$mapping = Layouts::type_zones( $occurrence->occurrence_id );
 			echo '<div class="wpcap-seating-link"><h3>' . esc_html( Forms::datetime( $occurrence->starts_at, $occurrence->timezone ) ) . ( $occurrence->location ? ' · ' . esc_html( $occurrence->location ) : '' ) . '</h3>';

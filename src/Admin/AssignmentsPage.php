@@ -128,12 +128,14 @@ final class AssignmentsPage {
 		$team = Queries::staff_for_event( $event_id );
 		$members = array();
 		foreach ( $team as $row ) { $members[ (int) $row->user_id ][] = (string) $row->capability; }
-		$occurrences = array();
-		foreach ( Queries::occurrences_for_event( $event_id ) as $occurrence ) {
-			if ( Access::can_access_occurrence( (int) $occurrence->occurrence_id, self::CAP ) ) { $occurrences[ (int) $occurrence->occurrence_id ] = $occurrence; }
-		}
 		$assignments = array( 'occurrence' => array() );
 		foreach ( StaffAssignments::for_event( $event_id ) as $row ) { $assignments[ $row->scope ][] = $row; }
+		// A476: a bounded window of dates (next ones, or from the chosen day) plus every assigned date.
+		$window = Queries::occurrence_window( $event_id, array_map( static function ( $a ) { return (int) $a->object_id; }, $assignments['occurrence'] ), Forms::query_arg( 'occ_from' ) );
+		$occurrences = array();
+		foreach ( $window['rows'] as $occurrence ) {
+			if ( Access::can_access_occurrence( (int) $occurrence->occurrence_id, self::CAP ) ) { $occurrences[ (int) $occurrence->occurrence_id ] = $occurrence; }
+		}
 
 		// Event team overview (read-only) with the narrowing per capability.
 		echo '<h2>' . esc_html__( 'Event-Team', 'pass-captain' ) . '</h2>';
@@ -177,6 +179,7 @@ final class AssignmentsPage {
 			Forms::select( 'object_id', $occ_options, '', 'wpcap-assign-occ' );
 			echo ' <button class="button">' . esc_html__( 'Zuweisen', 'pass-captain' ) . '</button></p></form>';
 		}
+		Forms::occurrence_window_filter( $window, self::SLUG, array( 'event_id' => $event_id ) );
 
 		// Entry areas (admission module).
 		if ( self::areas_available() ) {

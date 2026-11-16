@@ -1153,8 +1153,13 @@ final class EventsPage {
 		$event = Queries::event( $event_id );
 		if ( ! $event || ! Access::can_access_event( $event_id, self::CAP ) ) { self::denied(); return; }
 		$editable = 'cancelled' !== $event->status;
-		$occurrences = Queries::occurrences_for_event( $event_id );
-		$default_tz = $occurrences ? end( $occurrences )->timezone : wp_timezone_string();
+		// A476: one page of occurrences (default: the page with the next date), sold units of the page
+		// in one query instead of one query per occurrence.
+		$occ_page = Queries::occurrence_page( $event_id, Forms::query_arg( 'paged', '' ) !== '' ? Forms::current_page() : 0 );
+		$occurrences = $occ_page['rows'];
+		$sold = Queries::sold_for_occurrences( array_map( static function ( $o ) { return (int) $o->occurrence_id; }, $occurrences ) );
+		$last = Queries::last_occurrence( $event_id );
+		$default_tz = $last ? $last->timezone : wp_timezone_string();
 		?>
 		<p><a href="<?php echo esc_url( self::url() ); ?>"><?php esc_html_e( '← Zur Eventliste', 'pass-captain' ); ?></a></p>
 		<h1><?php echo esc_html( $event->name ); ?> <span class="subtitle"><?php echo esc_html( Forms::status_label( $event->status ) ); ?></span></h1>
@@ -1185,7 +1190,8 @@ final class EventsPage {
 			<p><?php esc_html_e( 'Dieses Event wurde abgesagt und kann nicht mehr bearbeitet werden.', 'pass-captain' ); ?></p>
 		<?php endif; ?>
 
-		<h2><?php esc_html_e( 'Termine', 'pass-captain' ); ?></h2>
+		<h2 id="wpcap-occurrences"><?php esc_html_e( 'Termine', 'pass-captain' ); ?></h2>
+		<?php if ( $occ_page['pages'] > 1 ) { Forms::pagination( $occ_page['total'], $occ_page['page'], $occ_page['per_page'], self::event_url( $event_id ) ); } ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Beginn', 'pass-captain' ); ?></th>
@@ -1202,7 +1208,7 @@ final class EventsPage {
 					<td><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?><?php $doors = \PassCaptain\DoorsOpen::label( $occ->doors_open_at ?? null, $occ->timezone, $occ->starts_at ); ?><?php if ( '' !== $doors ) : ?><br><span class="description"><?php echo esc_html( $doors ); ?></span><?php endif; ?></td>
 					<td><?php echo esc_html( $occ->ends_at ? Forms::datetime( $occ->ends_at, $occ->timezone, false ) : '—' ); ?></td>
 					<td><?php echo esc_html( $occ->location ); ?></td>
-					<td><?php echo esc_html( Queries::sold_for_occurrence( $occ->occurrence_id ) . ' / ' . ( (int) $occ->capacity ? (int) $occ->capacity : '∞' ) ); ?></td>
+					<td><?php echo esc_html( ( $sold[ (int) $occ->occurrence_id ] ?? 0 ) . ' / ' . ( (int) $occ->capacity ? (int) $occ->capacity : '∞' ) ); ?></td>
 					<td><?php echo esc_html( Forms::status_label( $occ->status ) ); ?></td>
 					<td>
 						<a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'occurrence', 'occurrence_id' => $occ->occurrence_id ) ) ); ?>"><?php esc_html_e( 'Bearbeiten & Ticketarten', 'pass-captain' ); ?></a>
@@ -1214,6 +1220,7 @@ final class EventsPage {
 			<?php endforeach; ?>
 			</tbody>
 		</table>
+		<?php if ( $occ_page['pages'] > 1 ) { Forms::pagination( $occ_page['total'], $occ_page['page'], $occ_page['per_page'], self::event_url( $event_id ) ); } ?>
 
 		<?php if ( \PassCaptain\Consents::ready() && Access::can_access_event( $event_id, OrdersPage::CAP ) ) : ?>
 			<p><a class="button" href="<?php echo esc_url( \PassCaptain\Consents::export_url( $event_id ) ); ?>"><?php esc_html_e( 'Einwilligungen exportieren (CSV)', 'pass-captain' ); ?></a> <span class="description"><?php esc_html_e( 'Alle Erteilungen und Widerrufe mit Textfassung, Quelle und aktuellem Stand; der Export wird im Audit-Protokoll vermerkt.', 'pass-captain' ); ?></span></p>
@@ -1224,17 +1231,18 @@ final class EventsPage {
 			<?php self::occurrence_form( null, (int) $event->event_id, $default_tz ); ?>
 		<?php endif; ?>
 
-		<?php self::render_runs_for_event( $event, $occurrences ); ?>
+		<?php self::render_runs_for_event( $event ); ?>
 
 		<?php self::render_staff( $event ); ?>
 		<?php
 	}
 
 	/** Progress of the event's cancellation run and of single occurrence cancellations (A428). */
-	private static function render_runs_for_event( $event, array $occurrences ) {
+	private static function render_runs_for_event( $event ) {
 		$runs = array( BulkRuns::event_run( (int) $event->event_id ) );
-		foreach ( $occurrences as $occ ) {
-			if ( 'cancelled' === $occ->status ) { $runs[] = BulkRuns::occurrence_run( (int) $occ->occurrence_id ); }
+		// The most recently cancelled occurrences of the whole event, not only of the shown page (A476).
+		foreach ( Queries::cancelled_occurrence_ids( (int) $event->event_id ) as $occurrence_id ) {
+			$runs[] = BulkRuns::occurrence_run( $occurrence_id );
 		}
 		BulkRuns::render_progress( $runs );
 	}

@@ -451,6 +451,13 @@ angezeigt.
 
 ## Große Events: Listen im Admin
 
+- **Termine langer Serien (A476):** Die Event-Detailseite zeigt 50 Termine je Seite (Filter
+  `wpcap_admin_occurrences_per_page`) und öffnet mit der Seite des nächsten Termins; die verkauften Plätze der
+  Seite kommen aus einer Abfrage (vorher eine Umsatzabfrage je Termin). Terminauswahlen und Formulare je Termin
+  (Zuweisungen, Einlassregeln, Offline-Scanner, Serienvorlage, Saalplan-Verknüpfung, Gästelisten) zeigen höchstens
+  200 Termine (Filter `wpcap_admin_occurrence_choices`): die nächsten, aufgefüllt mit den zuletzt vergangenen;
+  bereits zugewiesene Termine immer. Darunter steht „x von y Terminen werden angezeigt“ mit dem Feld
+  **Termine ab**, das das Fenster auf einen Tag verschiebt.
 - **Teilnehmer- und No-Show-Liste (A477):** Druckansicht und CSV lesen die Tickets blockweise (500 je Block,
   Filter `wpcap_attendee_list_chunk`; Reihenfolge wie bisher nach Name, dann Ticket) und schreiben jeden Block
   sofort aus (gestreamt, Ausgabepuffer werden vorher geleert). Teilnehmerantworten und Einlassprotokoll werden

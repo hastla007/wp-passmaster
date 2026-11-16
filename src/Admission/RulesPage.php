@@ -219,7 +219,9 @@ final class RulesPage {
 
 		<h2><?php esc_html_e( 'Regeln pro Tickettyp', 'pass-captain' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Zeiten gelten in der Zeitzone des Termins. Einlassfenster: Minuten vor Beginn bzw. nach Ende (leer = unbegrenzt, 0 = genau ab Beginn/bis Ende). Tägliche Einlasszeit optional (HH:MM). Ohne eigene Regel gilt einmaliger Einlass bzw. die Tagesregeln des Termins.', 'pass-captain' ); ?></p>
-		<?php foreach ( Queries::occurrences_for_event( $event_id ) as $occ ) : ?>
+		<?php $window = Queries::occurrence_window( $event_id, array(), Forms::query_arg( 'occ_from' ) ); // A476: bounded, next dates first. ?>
+		<?php Forms::occurrence_window_filter( $window, self::SLUG, array( 'event_id' => $event_id ) ); ?>
+		<?php foreach ( $window['rows'] as $occ ) : ?>
 			<h3><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) . ( $occ->ends_at ? ' – ' . Forms::datetime( $occ->ends_at, $occ->timezone, false ) : '' ) ); ?></h3>
 			<?php foreach ( Queries::ticket_types_for_occurrence( $occ->occurrence_id ) as $type ) :
 				$policy = Policies::for_type( $type->ticket_type_id );
