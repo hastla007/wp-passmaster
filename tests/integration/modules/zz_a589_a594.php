@@ -111,7 +111,10 @@ $req = new WP_REST_Request( 'POST' );
 $req->set_param( 'scans', array( array( 'token' => $s['codes'][0], 'idempotency_key' => 'r1-back-1', 'scanned_at' => gmdate( 'c', time() - 5 * 3600 ) ) ) );
 $back = r1_data( AdmissionRest::offline_sync( $req ) );
 $conf = r1_conflicts( r1_tid( $s['codes'][0] ) );
-check( 'A592: backdated offline upload into a closed window (no policy) is admitted but always recorded for review', 'conflict' === ( $back['results'][0]['status'] ?? '' ) && ! empty( $back['results'][0]['admitted'] ) && 1 === count( $conf ) && 'backdated_admission' === $conf[0]->result && 'open' === $conf[0]->status );
+// Merged (R4): a web scanner upload older than 1 h is evaluated at upload time, so a scan claimed 5 h ago
+// into a window that is closed now is not admitted; it is still always recorded for review (A592).
+// Paired-device uploads inside the window are admitted and reviewed as backdated_admission (r4_scanner).
+check( 'A592: backdated web upload (5 h) into a closed window (no policy) is not admitted but always recorded for review', 'conflict' === ( $back['results'][0]['status'] ?? '' ) && 'outside_entry_window' === ( $back['results'][0]['result'] ?? '' ) && empty( $back['results'][0]['admitted'] ) && 'valid' === r1_ticket( r1_tid( $s['codes'][0] ) )->status && 1 === count( $conf ) && 'open' === $conf[0]->status );
 $s = r1_setup( 1 );
 $nodev = Checkin::perform( $s['codes'][0], array( 'device_id' => 999, 'event_ids' => array(), 'idempotency_key' => 'r1-dev-1', 'source' => 'app' ) );
 check( 'A592: a device without events scans nothing (empty event list fails closed)', 'wrong_event' === adm_r( $nodev ) && 'valid' === r1_ticket( r1_tid( $s['codes'][0] ) )->status );
@@ -157,8 +160,15 @@ adm_in( $s['codes'][0], null, array( 'area_id' => $sued ) );
 adm_in( $s['codes'][1], null, array( 'area_id' => $nord ) );
 $GLOBALS['wpcap_test_user_id'] = 8;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
+// Merged: plain staff may only undo own scans of the last minutes (R4 undo window); a role from
+// undo_roles may undo admissions of others – the area binding (A590) still applies to it.
+PassCaptain\Security\Policy::register(); // undo_roles is a Policy setting (registered by Plugin::boot()).
+PassCaptain\Settings::update( array( 'undo_roles' => 'wpcap_checkin_staff' ) );
+$GLOBALS['wpcap_test_filters']['wpcap_checkout_user_roles'] = array( 'wpcap_checkin_staff' );
 $undo_other = TicketsPage::undo_checkin( array( 'ticket_id' => r1_tid( $s['codes'][0] ), 'reason' => 'x' ) );
 $undo_own = TicketsPage::undo_checkin( array( 'ticket_id' => r1_tid( $s['codes'][1] ), 'reason' => 'Fehlscan' ) );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_checkout_user_roles'] );
+PassCaptain\Settings::update( array( 'undo_roles' => '' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
 $undo_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_checkins WHERE ticket_id=" . r1_tid( $s['codes'][1] ) . " AND result='undone'" );
@@ -177,8 +187,8 @@ $r1_device = (int) $wpdb->get_var( $wpdb->prepare( "SELECT device_id FROM {$p}wp
 $GLOBALS['wpcap_test_user_id'] = 1;
 adm_in( $s['codes'][2], null, array( 'area_id' => $sued ) );
 adm_in( $s['codes'][3], null, array( 'area_id' => $nord ) );
-$app_other = app_call( 'undo', 'POST', $r1_token, array( 'code' => $s['codes'][2], 'reason' => 'x' ) );
-$app_own = app_call( 'undo', 'POST', $r1_token, array( 'code' => $s['codes'][3], 'reason' => 'Fehlscan' ) );
+$app_other = app_call( 'undo', 'POST', $r1_token, array( 'code' => $s['codes'][2], 'reason' => 'x', 'idempotency_key' => 'a590-other' /* merged: app undo needs a key (R2) */ ) );
+$app_own = app_call( 'undo', 'POST', $r1_token, array( 'code' => $s['codes'][3], 'reason' => 'Fehlscan', 'idempotency_key' => 'a590-own' ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 $app_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_checkins WHERE ticket_id=" . r1_tid( $s['codes'][3] ) . " AND result='undone'" );
 check( 'A590: app undo of an admission through another area is refused (wrong_area)', false === ( $app_other['ok'] ?? null ) && 'wrong_area' === ( $app_other['result'] ?? '' ) && 'checked_in' === r1_ticket( r1_tid( $s['codes'][2] ) )->status );

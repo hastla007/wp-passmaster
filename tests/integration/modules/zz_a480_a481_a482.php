@@ -15,7 +15,7 @@
 if ( PHP_SAPI === 'cli' && isset( $argv ) && in_array( '--member-child', $argv, true ) && realpath( $argv[0] ) === __FILE__ ) {
 	require_once dirname( __DIR__ ) . '/bootstrap.php';
 	$GLOBALS['wpcap_test_hooks']['query'][10][] = array( static function ( $sql ) {
-		if ( false !== strpos( $sql, 'wpcap_member_passes WHERE token_hash' ) && empty( $GLOBALS['a480_slept'] ) ) { $GLOBALS['a480_slept'] = 1; sleep( 3 ); }
+		if ( preg_match( '/wpcap_member_passes`? WHERE token_hash/', $sql ) && empty( $GLOBALS['a480_slept'] ) ) { $GLOBALS['a480_slept'] = 1; sleep( 3 ); }
 		return $sql;
 	}, 1 );
 	$r = PassCaptain\Memberships::redeem( $argv[2], (int) $argv[3], $argv[4] );
@@ -109,7 +109,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 $a48_ok = Memberships::approve( $a48_req['pass_id'] );
 $a48_row = Memberships::get( $a48_req['pass_id'] );
 $a48_last = end( $GLOBALS['wpcap_test_mails'] );
-check( 'A481: a second person with wpcap_approve_comps approves; the code is mailed only now', ! is_wp_error( $a48_ok ) && 'active' === $a48_row->status && 8 === (int) $a48_row->approved_by && hash( 'sha256', $a48_ok['token'] ) === $a48_row->token_hash && $a48_last && 'antrag@example.com' === $a48_last['to'] && false !== strpos( $a48_last['body'] . $a48_last['html'], $a48_ok['token'] ) );
+check( 'A481: a second person with wpcap_approve_comps approves; the code is mailed only now', ! is_wp_error( $a48_ok ) && 'active' === $a48_row->status && 8 === (int) $a48_row->approved_by && hash( 'sha256', $a48_ok['token'] ) === $wpdb->get_var( $wpdb->prepare( 'SELECT token_hash FROM %i WHERE pass_id=%d', $p . 'wpcap_member_passes', $a48_req['pass_id'] ) ) /* Memberships::get() never returns token_hash */ && $a48_last && 'antrag@example.com' === $a48_last['to'] && false !== strpos( $a48_last['body'] . $a48_last['html'], $a48_ok['token'] ) );
 check( 'A481: an approved request cannot be approved twice', is_wp_error( Memberships::approve( $a48_req['pass_id'] ) ) );
 $a48_listed = array_map( static function ( $r ) { return (int) $r->pass_id; }, Memberships::list_passes() );
 check( 'A481: the admin list shows passes in scope (incl. the approved one)', in_array( (int) $a48_req['pass_id'], $a48_listed, true ) && ! in_array( (int) $a48_cp['pass_id'], $a48_listed, true ) );
