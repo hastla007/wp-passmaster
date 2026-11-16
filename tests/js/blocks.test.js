@@ -170,3 +170,18 @@ test('A455: events block without choices data (no inline script) still renders i
 	assert.strictEqual(find(tree, 'SelectControl').length, 1);
 	assert.strictEqual(find(tree, 'ServerSideRender').length, 1);
 });
+
+/* ------------------------------------------------------------------ A360 */
+
+test('A360: ID attributes of every block are integers and the editor scripts declare their wp.* packages', () => {
+	for (const c of CASES) {
+		const dir = path.join(BLOCKS, c.dir);
+		const json = JSON.parse(fs.readFileSync(path.join(dir, 'block.json'), 'utf8'));
+		Object.keys(json.attributes).forEach((name) => {
+			assert.notStrictEqual(json.attributes[name].type, 'number', c.name + ': ' + name + ' is "integer", not "number"');
+			if (/^(event|occurrence|eventId|resourceId|limit)$/.test(name)) assert.strictEqual(json.attributes[name].type, 'integer', c.name + ': ' + name);
+		});
+		const asset = fs.readFileSync(path.join(dir, 'editor.asset.php'), 'utf8');
+		['wp-components', 'wp-i18n'].forEach((dep) => assert.ok(asset.includes("'" + dep + "'"), c.name + ' depends on ' + dep));
+	}
+});

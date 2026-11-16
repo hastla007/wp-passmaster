@@ -23,11 +23,11 @@
   "editorScript": "file:./editor.js",
   "attributes": {
     "event": {
-      "type": "number",
+      "type": "integer",
       "default": 0
     },
     "occurrence": {
-      "type": "number",
+      "type": "integer",
       "default": 0
     },
     "perDate": {
