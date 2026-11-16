@@ -31,6 +31,7 @@ Vor 1.0 sind manuelle Tastatur- und Screenreader-Prüfungen für Checkout, Scann
 ## Kalender
 
 - Der zugängliche Name jedes Kalender-Links beginnt mit seinem sichtbaren Text (WCAG 2.5.3, A393): Monatseintrag „20:00 Konzert“ heißt „20:00 Konzert, 16.11.2026“, der Listen-Link „Zum Kalender (.ics)“ heißt „Zum Kalender (.ics): Konzert am 16.11.2026“. Sprachsteuerung („Klicke 20:00 Konzert“) trifft damit den Link.
+- Monatskalender auf schmalen Bildschirmen (bis 600 px, A394): Statt einer Tabelle, deren Zellen per CSS zu Blöcken werden (Tabellensemantik weg, Spaltenköpfe ausgeblendet, kein Monat am Tag), zeigt der Kalender eine echte Liste (`ol.wpcap-cal-agenda-days`) unter dem Monatstitel: je Tag mit Terminen „Montag, 16. November“ und die Termine. Auf breiten Bildschirmen bleibt die Tabelle mit Beschriftung und Spaltenköpfen; die jeweils andere Darstellung ist mit `display:none` auch für Screenreader ausgeblendet.
 
 ## Kasse (Admin)
 

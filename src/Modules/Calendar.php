@@ -309,8 +309,12 @@ final class Calendar {
 	 * and time the event card, ticket, mail and .ics show (a time whose zone differs from the site's
 	 * carries the zone abbreviation). The month, "today" and the navigation follow the site
 	 * timezone. Only upcoming dates are listed, so the current month (and earlier ones) has no
-	 * "previous month" link; every other month links back to the current one. On narrow screens,
-	 * where the column headers are hidden, each day shows its weekday.
+	 * "previous month" link; every other month links back to the current one.
+	 *
+	 * A394: on narrow screens the table is replaced by an agenda (.wpcap-cal-agenda, hidden on wide
+	 * screens): the month as title and a list of the days with dates, each with weekday, day and
+	 * month ("Montag, 16. November") and its entries – a real list instead of table cells without
+	 * column headers.
 	 */
 	public static function render_month( $month = '', $event_id = 0, $wrapper = '', $instance = 1 ) {
 		$tz = self::site_timezone();
@@ -356,6 +360,7 @@ final class Calendar {
 			$out .= '<th scope="col"><abbr title="' . esc_attr( $day ) . '">' . esc_html( $short[ $i ] ) . '</abbr></th>';
 		}
 		$out .= '</tr></thead><tbody><tr>';
+		$agenda = '';
 		$offset = (int) $first->format( 'N' ) - 1;
 		for ( $i = 0; $i < $offset; $i++ ) { $out .= '<td class="wpcap-cal-empty" aria-hidden="true"></td>'; }
 		$count = (int) $first->format( 't' );
@@ -364,18 +369,21 @@ final class Calendar {
 			$items = $by_day[ $date ] ?? array();
 			$classes = array_filter( array( $items ? 'wpcap-cal-has-events' : '', $date === $today ? 'wpcap-cal-today' : '' ) );
 			$out .= '<td' . ( $classes ? ' class="' . esc_attr( implode( ' ', $classes ) ) . '"' : '' ) . ( $date === $today ? ' aria-current="date"' : '' ) . '>';
-			// The weekday is only visible on narrow screens, where the column headers are hidden.
-			$out .= '<span class="wpcap-cal-day"><span class="wpcap-cal-wd">' . esc_html( $short[ ( $offset + $d - 1 ) % 7 ] ) . '</span> <time datetime="' . esc_attr( $date ) . '">' . (int) $d . '</time></span>';
+			$out .= '<span class="wpcap-cal-day"><time datetime="' . esc_attr( $date ) . '">' . (int) $d . '</time></span>';
 			if ( $items ) {
-				$out .= '<ul>';
+				$entries = '<ul>';
 				foreach ( $items as $row ) {
 					$visible = self::time_label( $row, $tz ) . ' ' . $row->event_name;
 					$text = esc_html( $visible );
 					// A393: the accessible name starts with the visible text (WCAG 2.5.3) and adds the date.
-					$out .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $visible . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
-					$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
+					$entries .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $visible . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
+					$entries .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
 				}
-				$out .= '</ul>';
+				$entries .= '</ul>';
+				$out .= $entries;
+				/* translators: 1: weekday, 2: day of the month, 3: month name */
+				$day_label = sprintf( __( '%1$s, %2$d. %3$s', 'pass-captain' ), $days[ ( $offset + $d - 1 ) % 7 ], $d, $months[ (int) $first->format( 'n' ) ] );
+				$agenda .= '<li class="wpcap-cal-agenda-day wpcap-cal-has-events' . ( $date === $today ? ' wpcap-cal-today' : '' ) . '"' . ( $date === $today ? ' aria-current="date"' : '' ) . '><p class="wpcap-cal-agenda-date"><time datetime="' . esc_attr( $date ) . '">' . esc_html( $day_label ) . '</time></p>' . $entries . '</li>';
 			}
 			$out .= '</td>';
 			if ( 0 === ( $offset + $d ) % 7 && $d < $count ) { $out .= '</tr><tr>'; }
@@ -383,6 +391,8 @@ final class Calendar {
 		$rest = ( 7 - ( $offset + $count ) % 7 ) % 7;
 		for ( $i = 0; $i < $rest; $i++ ) { $out .= '<td class="wpcap-cal-empty" aria-hidden="true"></td>'; }
 		$out .= '</tr></tbody></table>';
+		// A394: the list for narrow screens (CSS shows either the table or this list).
+		$out .= '<div class="wpcap-cal-agenda"><p class="wpcap-cal-agenda-title">' . esc_html( $title ) . '</p>' . ( '' !== $agenda ? '<ol class="wpcap-cal-agenda-days">' . $agenda . '</ol>' : '' ) . '</div>';
 		if ( ! $by_day ) { $out .= '<p>' . esc_html__( 'In diesem Monat sind keine Termine geplant.', 'pass-captain' ) . '</p>'; }
 		return $out . '</div>';
 	}

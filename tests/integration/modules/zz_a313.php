@@ -4,7 +4,7 @@
  * A313: month calendar puts every occurrence on the day of its own timezone (the time shown is
  * that zone's, so day and time agree with card, ticket and .ics), marks foreign zones, hides
  * "previous month" in the current month, links back to the current month, marks today and shows
- * the weekday on narrow screens.
+ * the weekday on narrow screens (since A394 in the agenda list).
  */
 use PassCaptain\Modules\Calendar;
 
@@ -59,9 +59,8 @@ check( 'A313: today is marked', 1 === substr_count( $a313_now_grid, 'aria-curren
 check( 'A313: later month links back and to the current month', false !== strpos( $a313_grid, 'rel="prev"' ) && 1 === preg_match( '#<a class="wpcap-cal-current" href="[^"]*wpcap_month=' . $a313_current . '[^"]*">#', $a313_grid ) && false === strpos( $a313_grid, 'aria-current="date"' ) );
 $a313_past = Calendar::render_month( ( new DateTime( $a313_current . '-01', $a313_site ) )->modify( '-3 month' )->format( 'Y-m' ) );
 check( 'A313: a past month (typed URL) has no "previous" link but a way back', false === strpos( $a313_past, 'rel="prev"' ) && false !== strpos( $a313_past, 'wpcap-cal-current' ) );
-$a313_first_wd = (int) ( new DateTime( $a313_month . '-01', $a313_site ) )->format( 'N' ) - 1;
-$a313_names = array( 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So' );
-check( 'A313: every day carries its weekday (shown on narrow screens)', false !== strpos( a313_cell( $a313_grid, $a313_month . '-01' ), '<span class="wpcap-cal-wd">' . $a313_names[ $a313_first_wd ] . '</span>' ) && (int) ( new DateTime( $a313_month . '-01' ) )->format( 't' ) === substr_count( $a313_grid, 'class="wpcap-cal-wd"' ) );
-$a313_css = (string) file_get_contents( WPCAP_PATH . 'assets/calendar/calendar.css' );
-check( 'A313: CSS hides the weekday on wide screens and shows it in the mobile layout', false !== strpos( $a313_css, '.wpcap-cal-wd{display:none}' ) && false !== strpos( $a313_css, '.wpcap-cal-grid .wpcap-cal-wd{display:inline}' ) );
+// A394 replaced the weekday spans of the grid by the agenda list of narrow screens (tests in zz_a394.php).
+$a313_names = array( 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag' );
+$a313_wd10 = $a313_names[ (int) ( new DateTime( $a313_month . '-10', $a313_site ) )->format( 'N' ) - 1 ];
+check( 'A313: on narrow screens every day with dates carries its weekday (agenda list)', false !== strpos( $a313_grid, '<time datetime="' . $a313_month . '-10">' . $a313_wd10 . ', 10. ' ) );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='cancelled' WHERE event_id=$a313_event" );
