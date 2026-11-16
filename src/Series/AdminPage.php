@@ -55,6 +55,7 @@ final class AdminPage {
 	}
 
 	public static function handle_update() {
+		Forms::require_any_cap( array( Generator::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( self::NONCE );
 		$post = Forms::post();
 		$series_id = Forms::int( $post, 'series_id' );
@@ -473,6 +474,7 @@ final class AdminPage {
 	}
 
 	public static function handle_rule_save() {
+		Forms::require_any_cap( array( Generator::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
 		$series_id = Forms::int( $in, 'series_id' );
@@ -503,6 +505,7 @@ final class AdminPage {
 	}
 
 	public static function handle_pool_save() {
+		Forms::require_any_cap( array( Generator::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
 		$series_id = Forms::int( $in, 'series_id' );
@@ -511,6 +514,7 @@ final class AdminPage {
 	}
 
 	public static function handle_pool_update() {
+		Forms::require_any_cap( array( Generator::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
 		$result = Pools::update_capacity( Forms::int( $in, 'pool_id' ), Forms::int( $in, 'capacity' ) );
@@ -518,6 +522,7 @@ final class AdminPage {
 	}
 
 	public static function handle_pool_delete() {
+		Forms::require_any_cap( array( Generator::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
 		$result = Pools::delete( Forms::int( $in, 'pool_id' ) );

@@ -53,6 +53,7 @@ final class AdminPage {
 	}
 
 	public static function handle_save() {
+		Forms::require_any_cap( array( Layouts::CAP ) ); // A145: no lookup before the capability check.
 		$in = Forms::post();
 		$layout_id = Forms::int( $in, 'layout_id' );
 		Forms::verify( 'wpcap_seating_save_' . $layout_id );
@@ -66,6 +67,7 @@ final class AdminPage {
 	}
 
 	public static function handle_link() {
+		Forms::require_any_cap( array( Layouts::CAP ) ); // A145: no lookup before the capability check.
 		$in = Forms::post();
 		Forms::verify( 'wpcap_seating_link' );
 		Forms::finish( self::link( $in ), __( 'Saalplan mit dem Termin verknüpft.', 'pass-captain' ), self::url( array( 'layout_id' => Forms::int( $in, 'layout_id' ) ) ) );

@@ -433,6 +433,7 @@ final class Page {
 	}
 
 	public static function handle_storno() {
+		Forms::require_any_cap( array( Service::CAP ) ); // A145: no lookup before the capability check.
 		$in = Forms::post();
 		$sale_id = Forms::int( $in, 'sale_id' );
 		Forms::verify( 'wpcap_pos_storno_' . $sale_id );
