@@ -39,7 +39,9 @@ function wpcap_po_parse( $file ) {
 	return $entries;
 }
 function wpcap_placeholders( $s ) {
-	preg_match_all( '/%(?:\d+\$)?[-+ 0#]*\d*(?:\.\d+)?[sdfFuxXeEgGc]|%%/', $s, $p );
+	// N14: no space flag. Prose such as "in % des Ticketwerts" or "20 % günstiger" is not a placeholder;
+	// the plugin never uses the printf space flag, so "% d" was only ever a false alarm.
+	preg_match_all( '/%(?:\d+\$)?[-+0#]*\d*(?:\.\d+)?[sdfFuxXeEgGc]|%%/', $s, $p );
 	$printf = array_map( static fn( $x ) => preg_replace( '/^%\d+\$/', '%', $x ), $p[0] );
 	sort( $printf );
 	preg_match_all( '/\{[a-z_][a-z0-9_]*\}/', $s, $b );
