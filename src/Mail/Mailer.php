@@ -417,18 +417,65 @@ final class Mailer {
 		return preg_match( '/^[a-z]{2,3}(?:_[A-Za-z0-9]{2,8}){0,2}$/', $locale ) ? $locale : '';
 	}
 
-	/** Runs $callback in the given locale and restores the previous one afterwards. */
+	/**
+	 * Runs $callback in the given locale and restores the previous one afterwards.
+	 *
+	 * switch_to_locale() refuses locales without an installed WordPress core language pack. The plugin
+	 * ships its own catalogues (languages/pass-captain-<locale>.mo), so the buyer's mail would fall back to
+	 * the site language although a translation exists (A306). In that case only the plugin's text domain
+	 * is loaded for the buyer's locale (a translate.wordpress.org language pack in wp-content/languages/plugins
+	 * wins over the bundled file) and the site's catalogue is restored afterwards. Dates and numbers then
+	 * keep the site's format (WordPress' own strings stay in the site language).
+	 */
 	public static function with_locale( $locale, callable $callback ) {
 		$locale = self::normalize_locale( $locale );
 		$switched = false;
+		$plugin_only = false;
 		if ( '' !== $locale && $locale !== self::current_locale() && function_exists( 'switch_to_locale' ) ) {
 			$switched = (bool) switch_to_locale( $locale );
+			if ( ! $switched ) { $plugin_only = self::load_plugin_catalog( $locale ); }
 		}
 		try {
 			return $callback();
 		} finally {
 			if ( $switched && function_exists( 'restore_previous_locale' ) ) { restore_previous_locale(); }
+			if ( $plugin_only ) { self::restore_plugin_catalog(); }
 		}
+	}
+
+	/** The plugin catalogue (.mo) for a locale: language pack first, then the bundled file; '' when none. */
+	public static function plugin_catalog( $locale ) {
+		$locale = self::normalize_locale( $locale );
+		if ( '' === $locale ) { return ''; }
+		$candidates = array();
+		if ( defined( 'WP_LANG_DIR' ) ) { $candidates[] = WP_LANG_DIR . '/plugins/pass-captain-' . $locale . '.mo'; }
+		$candidates[] = WPCAP_PATH . 'languages/pass-captain-' . $locale . '.mo';
+		foreach ( $candidates as $file ) {
+			if ( is_readable( $file ) ) { return $file; }
+		}
+		return '';
+	}
+
+	/** Loads only the plugin's text domain in $locale (core language pack missing). */
+	private static function load_plugin_catalog( $locale ) {
+		$file = self::plugin_catalog( $locale );
+		if ( '' === $file || ! function_exists( 'load_textdomain' ) || ! function_exists( 'unload_textdomain' ) ) { return false; }
+		unload_textdomain( 'pass-captain', true );
+		if ( ! load_textdomain( 'pass-captain', $file, $locale ) ) {
+			self::restore_plugin_catalog();
+			return false;
+		}
+		\PassCaptain\Settings::flush();
+		return true;
+	}
+
+	/** Reloads the plugin's text domain for the current (site/user) locale. */
+	private static function restore_plugin_catalog() {
+		unload_textdomain( 'pass-captain', true );
+		if ( function_exists( 'load_plugin_textdomain' ) && function_exists( 'plugin_basename' ) ) {
+			load_plugin_textdomain( 'pass-captain', false, dirname( plugin_basename( WPCAP_FILE ) ) . '/languages' );
+		}
+		\PassCaptain\Settings::flush();
 	}
 }
 
