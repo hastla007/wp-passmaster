@@ -13,7 +13,7 @@ final class Picker {
 		return array(
 			'title' => __( 'Sitzplätze wählen', 'pass-captain' ),
 			'loading' => __( 'Saalplan wird geladen …', 'pass-captain' ),
-			'loadFailed' => __( 'Der Saalplan konnte nicht geladen werden. Bitte lade die Seite neu.', 'pass-captain' ),
+			'loadFailed' => __( 'Der Saalplan konnte nicht geladen werden. Wir versuchen es automatisch erneut.', 'pass-captain' ),
 			'free' => __( 'frei', 'pass-captain' ),
 			'taken' => __( 'belegt', 'pass-captain' ),
 			'selected' => __( 'ausgewählt', 'pass-captain' ),

@@ -39,20 +39,30 @@
 
 	Picker.prototype.say = function (text) { this.status.textContent = text; };
 
+	// A392: until the map was built once, a failed load is retried (after 5, 10, 20, 30 s, and with
+	// the 30 s refresh); the first answer that arrives builds the map, without reloading the page.
 	Picker.prototype.load = function (first) {
 		const self = this;
 		if (first) this.say(this.t.loading || '…');
+		window.clearTimeout(this.retryTimer);
 		fetch(this.url, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
 			if (!r.ok) throw new Error('http');
 			return r.json();
 		}).then(function (data) {
+			if (!data || !Array.isArray(data.seats)) throw new Error('data');
+			const built = !!self.nodes;
 			self.data = data;
 			self.byId = new Map(data.seats.map(function (seat) { return [seat.id, seat]; }));
 			let lost = false;
 			self.selected.forEach(function (type, id) { const seat = self.byId.get(id); if (!seat || seat.status !== 'free') { self.selected.delete(id); lost = true; } });
-			if (first) self.build(); else self.update();
-			self.say(lost ? self.t.seatTaken : (first ? self.t.help || '' : self.status.textContent));
-		}).catch(function () { if (first) self.say(self.t.loadFailed || 'Error'); });
+			if (built) self.update(); else self.build();
+			self.say(lost ? self.t.seatTaken : (built ? self.status.textContent : self.t.help || ''));
+		}).catch(function () {
+			if (self.nodes) return; // Map shown: keep it, the next refresh updates it.
+			self.say(self.t.loadFailed || 'Error');
+			self.retries = (self.retries || 0) + 1;
+			self.retryTimer = window.setTimeout(function () { self.load(false); }, Math.min(30000, 5000 * Math.pow(2, self.retries - 1)));
+		});
 	};
 
 	Picker.prototype.quantities = function () {

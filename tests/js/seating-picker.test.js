@@ -17,7 +17,8 @@ function seat(id, x) { return { id, kind: 'seat', label: 'Reihe 1, Platz ' + id,
 
 async function flush() { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); }
 
-async function load() {
+async function load(opts) {
+	opts = opts || {};
 	const doc = new FakeDocument();
 	const h = builder(doc);
 	const clock = timers();
@@ -30,7 +31,12 @@ async function load() {
 	const sandbox = {
 		document: doc, Event: FakeEvent, CustomEvent: FakeCustomEvent, JSON, Map, Math, Number, String, Array, Object, Promise, parseInt,
 		setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, setInterval: clock.setInterval, clearInterval: clock.clearInterval,
-		fetch: async () => { fetches++; return { ok: true, json: async () => JSON.parse(JSON.stringify(data)) }; },
+		fetch: async () => {
+			fetches++;
+			if (opts.fail && fetches <= opts.fail) return { ok: false, status: 503, json: async () => ({}) };
+			const body = opts.answer ? opts.answer(fetches, data) : data;
+			return { ok: true, json: async () => JSON.parse(JSON.stringify(body)) };
+		},
 	};
 	sandbox.window = sandbox;
 	vm.createContext(sandbox);
@@ -42,6 +48,8 @@ async function load() {
 		pick(id) { box.querySelector('.wpcap-seat[data-id="' + id + '"]').dispatchEvent(new FakeEvent('click')); },
 		button(id) { return box.querySelector('li[data-seat="' + id + '"] .wpcap-seating-remove'); },
 		async refresh() { clock.run(30000); await flush(); },
+		async wait(ms) { clock.run(ms); await flush(); },
+		form,
 	};
 	return api;
 }
@@ -78,4 +86,31 @@ test('A312: "Entfernen" moves focus to the next, else previous seat, else the he
 	assert.strictEqual(c.doc.activeElement, heading, 'heading when the list is empty');
 	assert.strictEqual(heading.getAttribute('tabindex'), '-1');
 	assert.strictEqual(c.box.querySelector('.wpcap-seating-status').textContent, 'Reihe 1, Platz 1 entfernt.');
+});
+
+/* ------------------------------------------------------------------ A392 */
+
+test('A392: after a failed first load the map is built by the retry, without a page reload', async () => {
+	const c = await load({ fail: 2 });
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 0, 'no map after the failed load');
+	assert.strictEqual(c.fetches, 1);
+	await c.wait(5000);
+	assert.strictEqual(c.fetches, 2, 'retried after 5 s');
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 0, 'second attempt failed too');
+	await c.wait(10000);
+	assert.strictEqual(c.fetches, 3, 'next retry after 10 s');
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 3, 'map built by the successful retry');
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seating-legend').length, 1, 'built once');
+	c.pick(1);
+	await c.refresh();
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seating-legend').length, 1, 'the refresh updates instead of building again');
+	assert.strictEqual(c.box.querySelector('.wpcap-seat[data-id="1"]').getAttribute('aria-checked'), 'true');
+});
+
+test('A392: a failed refresh keeps the map that is shown', async () => {
+	const c = await load({ answer: (n, data) => (n === 2 ? { error: true } : data) });
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 3);
+	await c.refresh();
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 3);
+	assert.notStrictEqual(c.box.querySelector('.wpcap-seating-status').textContent, 'Error');
 });

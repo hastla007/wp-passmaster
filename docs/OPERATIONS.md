@@ -690,6 +690,11 @@ ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.tx
   keiner ihrer Plätze mehr existiert; die Meldung nennt die Ticketarten. Dann entweder die Bereiche im
   Entwurf wiederherstellen oder ohne Umstellung veröffentlichen und jeden Termin danach mit neuer
   Zuordnung verknüpfen.
+- **Laden im Checkout (A392):** Schlägt das erste Laden des Saalplans fehl (Netz, Ratenbegrenzung,
+  Serverfehler), versucht der Platzwähler (`assets/seating/picker.js`) es nach 5, 10, 20 und dann
+  alle 30 Sekunden erneut und baut den Plan beim ersten erfolgreichen Abruf auf – ein Neuladen der
+  Seite ist nicht nötig. Ein fehlgeschlagener Abruf, während der Plan schon angezeigt wird, lässt
+  ihn unverändert.
 
 ## Kasse: keine Registrierkasse
 
