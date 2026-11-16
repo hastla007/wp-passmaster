@@ -97,3 +97,14 @@ Eigenes Repository, eigener Slug, eigene Textdomain, eigener Namespace; Plugin-H
 mit Präfix `pass.`), signierten Offline-Cache und den Updater. Fehlt ein Recht, ist nur die jeweilige
 Add-on-Funktion aus; der Kern bleibt unberührt. Welche neuen Funktionen dort entstehen, ist eine
 Produktentscheidung – keine davon darf eine Funktion aus dem Inventar oben ersetzen oder sperren.
+
+### Connectoren BoatingSchool und LearnBoating (Entscheidung 17, 16.11.2026)
+
+Die Connectoren zu den Kursplattformen BoatingSchool und LearnBoating gehören zu **Pass Captain Pro**. Jeder
+ist ein **eigenes Plugin**, wird getrennt installiert und arbeitet nur mit **gültiger Lizenz**. Lizenzclient,
+Rechteprüfung und Updater liegen im Connector (bzw. im Pro-Add-on), nie im Kern. Der Kern liefert nur den
+freien, versionierten Connector-Vertrag (`PassCaptain\Integrations\ConnectorInterface`,
+`wp_pass_captain_connectors_v1`, Opt-in `wpcap_enabled_connectors`, siehe [HOOKS.md](HOOKS.md)) und prüft keine
+Lizenz. Läuft die Lizenz ab, stoppt nur die weitere Synchronisierung; Tickets und Kurszugänge bleiben gültig.
+Offene Punkte (Produkt- oder Rechteschlüssel, Umfang der Kundenfreigabe): TODO.md Abschnitt C, ARBEITSLISTE.md
+Phase 13 (A701–A708).
