@@ -90,4 +90,5 @@ Forms::occurrence_window_filter( array( 'rows' => array(), 'total' => 0, 'more' 
 check( 'A476: complete short lists get no filter note', '' === ob_get_clean() && 130 === count( $a476_small['rows'] ) && ! $a476_small['more'] );
 $a476_src = '';
 foreach ( array( 'src/Admin/AssignmentsPage.php', 'src/Admission/RulesPage.php', 'src/OfflineScanner/AdminPage.php', 'src/Series/AdminPage.php', 'src/Seating/AdminPage.php', 'src/GuestLists/Page.php', 'src/Admin/CheckinsPage.php' ) as $f ) { $a476_src .= file_get_contents( dirname( __DIR__, 3 ) . '/' . $f ); }
-check( 'A476: no admin page lists every date of an event any more', false === strpos( $a476_src, 'Queries::occurrences_for_event(' ) );
+// A bounded call (second argument = LIMIT, e.g. the check-in presence panel's first 50 dates) is allowed.
+check( 'A476: no admin page lists every date of an event any more', 0 === preg_match( '/Queries::occurrences_for_event\(\s*[^,()]+\)/', $a476_src ) );

@@ -483,7 +483,9 @@ final class Webhooks {
 		}
 		if ( 0 === $remaining && 'refunded' === $order->status && $chargeback && '' !== $reference ) {
 			// The same dispute again (funds_withdrawn, then closed as lost: same dispute id): booked once already.
-			$same = $wpdb->get_var( $wpdb->prepare( "SELECT refund_id FROM %i WHERE order_id=%d AND provider_reference IN (%s,%s) AND status='completed' LIMIT 1", $p . 'wpcap_refunds', $order_id, $reference, 'ext:' . sanitize_key( $provider ) . ':' . $reference ) );
+			// Only a booked chargeback counts: Mollie names the payment as reference, so an earlier
+			// dashboard refund of the same payment is not the same dispute.
+			$same = $wpdb->get_var( $wpdb->prepare( "SELECT refund_id FROM %i WHERE order_id=%d AND provider_reference IN (%s,%s) AND status='completed' AND reason=%s LIMIT 1", $p . 'wpcap_refunds', $order_id, $reference, 'ext:' . sanitize_key( $provider ) . ':' . $reference, $reason ) );
 			if ( self::db_failed() ) { return self::db_error( $provider, $event_id, 'chargeback_lookup' ); }
 			if ( $same ) { return 'refunded'; }
 		}

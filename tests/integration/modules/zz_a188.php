@@ -20,6 +20,12 @@ $GLOBALS['wpcap_test_transients'] = array();
 // Only the jobs of this file are due while it runs (restored at the end).
 $wpdb->query( "UPDATE $jt SET status='a188_parked' WHERE status IN ('queued','running')" );
 $a188_orders_handler = array( Orders::class, 'handle_job' );
+// The plugin registers Orders::handle_job once with 4 arguments (job id). An earlier module of the full run
+// may have left a copy registered with 3 arguments (the test hook stub keeps duplicates and remove_filter()
+// drops only the first one), which would run without the job id and skip the "resent since queued" check.
+// Exactly one 4-argument registration while this file runs; the plugin's registration is restored at the end.
+$a188_plugin_handler = false;
+while ( remove_filter( 'wpcap_process_job', $a188_orders_handler, 10 ) ) { $a188_plugin_handler = true; }
 add_filter( 'wpcap_process_job', $a188_orders_handler, 10, 4 );
 
 $a188_job = static function ( $key ) use ( $wpdb, $jt ) {
@@ -163,3 +169,4 @@ $wpdb->query( "DELETE FROM $jt WHERE job_type IN ('a188_race','a188_stale','tick
 $wpdb->query( "DELETE FROM {$p}wpcap_audit_logs WHERE action='a188_ran'" );
 $wpdb->query( "UPDATE $jt SET status='queued' WHERE status='a188_parked'" );
 remove_filter( 'wpcap_process_job', $a188_orders_handler, 10 );
+if ( $a188_plugin_handler ) { add_filter( 'wpcap_process_job', $a188_orders_handler, 10, 4 ); }

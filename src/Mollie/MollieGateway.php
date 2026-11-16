@@ -134,7 +134,9 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		if ( 'banktransfer' === $method ) {
 			// The transfer expires with the extended hold, not Mollie's default (~12 days): a transfer after
 			// the tickets were released would only end in the late-payment re-check. Mollie's earliest due
-			// date is tomorrow.
+			// date is tomorrow. The buyer chose bank transfer: the hold must last until the transfer can arrive
+			// (QA-6), so it is extended first and the due date names the extended hold end.
+			if ( ! empty( $order['order_id'] ) ) { \PassCaptain\Payments\Webhooks::extend_for_delayed_payment( (object) $order, 'mollie' ); }
 			$body['dueDate'] = ! empty( $order['order_id'] ) ? self::due_date( (object) $order ) : gmdate( 'Y-m-d', \PassCaptain\Clock::now() + DAY_IN_SECONDS );
 		}
 		$body = apply_filters( 'wpcap_mollie_payment_body', $body, $order, $items );
@@ -144,10 +146,6 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 			return new \WP_Error( 'wpcap_mollie_response', __( 'Unerwartete Antwort von Mollie.', 'pass-captain' ) );
 		}
 		self::remember( $payment['id'], $order );
-		if ( 'banktransfer' === $method && ! empty( $order['order_id'] ) ) {
-			// The buyer chose bank transfer: the hold must last until the transfer can arrive (QA-6).
-			\PassCaptain\Payments\Webhooks::extend_for_delayed_payment( (object) $order, 'mollie' );
-		}
 		return self::payment_result( $payment );
 	}
 

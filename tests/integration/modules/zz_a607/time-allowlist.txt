@@ -85,7 +85,6 @@ Ops/Heartbeat.php
 Ops/Network.php
 Ops/Status.php
 Orders.php
-Orders/PortalAccess.php
 PageCache.php
 Partners/AdminPage.php
 Partners/Keys.php

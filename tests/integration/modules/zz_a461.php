@@ -16,10 +16,12 @@ $a461_fx = wpr7_wallet_enable();
 $a461_type = make_type( 10, 10, 0 );
 $a461_r = Orders::create( array( 'email' => 'a461@example.com', 'items' => array( array( 'ticket_type_id' => $a461_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a461-' . uniqid() ) );
 $a461_tickets = tickets( $a461_r['order_id'] );
-$a461_mail = wpr7_ticket_mail( 'a461@example.com' );
+// Merged design (R2): the mail of an order with several tickets carries no .pkpass; the passes are created
+// by the wallet issue job after the commit. Run it and read the token from the pass the web service serves.
+PassCaptain\WalletPasses\Service::issue_deferred( array_map( static fn( $t ) => (int) $t->ticket_id, $a461_tickets ) );
 $a461_auth = array();
 foreach ( $a461_tickets as $a461_t ) {
-	$a461_pj = json_decode( wpr7_unzip( $a461_mail['files'][ 'ticket-' . substr( $a461_t->public_id, 0, 12 ) . '.pkpass' ] ?? '' )['pass.json'] ?? '{}', true );
+	$a461_pj = wpr7_served_pass( (int) $a461_t->ticket_id );
 	$a461_auth[ $a461_t->public_id ] = (string) ( $a461_pj['authenticationToken'] ?? '' );
 }
 check( 'A461 setup: two passes with tokens', 2 === count( array_filter( $a461_auth ) ) );
