@@ -351,7 +351,7 @@ check( 'gate returning true lets the checkout through', ! is_wp_error( $x5_ok ) 
 /* ================================================================== (f) API scopes and Api\Auth */
 
 echo "X5: developer API scopes and Api\\Auth::request_can()\n";
-check( 'core scopes unchanged without filter', array( 'events.read', 'reports.read' ) === array_keys( DeveloperKeys::scopes() ) && array_keys( DeveloperKeys::scopes() ) === array_keys( ApiKeysPage::scope_labels() ) );
+check( 'core scopes unchanged without filter', array( 'events.read', 'reports.read', 'slots.read' ) === array_keys( DeveloperKeys::scopes() ) /* merged: slots.read of the services line */ && array_keys( DeveloperKeys::scopes() ) === array_keys( ApiKeysPage::scope_labels() ) );
 $x5_scopes = static function ( $scopes ) {
 	$scopes['orders.write'] = 'Bestellungen anlegen (orders.write)';
 	$scopes['events.read'] = 'Hijack';
@@ -361,7 +361,7 @@ $x5_scopes = static function ( $scopes ) {
 };
 add_filter( 'wp_pass_captain_api_scopes_v1', $x5_scopes );
 $x5_all = DeveloperKeys::scopes();
-check( 'add-on scopes are registered (valid ids only, core labels kept, empty label = id)', array( 'events.read', 'reports.read', 'orders.write', 'tickets.write' ) === array_keys( $x5_all ) && 'Event-Daten lesen (events.read)' === $x5_all['events.read'] && 'tickets.write' === $x5_all['tickets.write'] );
+check( 'add-on scopes are registered (valid ids only, core labels kept, empty label = id)', array( 'events.read', 'reports.read', 'slots.read', 'orders.write', 'tickets.write' ) === array_keys( $x5_all ) && 'Eventdaten lesen (Name, Beschreibung, Status)' === $x5_all['events.read'] && 'tickets.write' === $x5_all['tickets.write'] );
 check( 'add-on scopes appear on the API key admin page', isset( ApiKeysPage::scope_labels()['orders.write'] ) );
 $x5_api_event = pa_event_of_type( make_type( 5 ) );
 $x5_other_event = pa_event_of_type( make_type( 5 ) );
