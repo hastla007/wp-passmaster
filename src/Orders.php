@@ -3312,8 +3312,12 @@ final class Orders {
 	private static function issue_and_email_attempt( $order_id ) {
 		// Fiscal modules submit every seller-specific receipt before tickets can be issued. A blocked order is
 		// not an issuance failure: the fiscal module retries and calls this again once its receipts are confirmed.
-		if ( ! apply_filters( 'wpcap_order_fiscal_ready', true, absint( $order_id ) ) ) { return true; }
 		global $wpdb;
+		if ( ! apply_filters( 'wpcap_order_fiscal_ready', true, absint( $order_id ) ) ) {
+			// A database error in the fiscal check is not a blocked receipt: it is an issuance failure
+			// (retry job), so the order does not stay without tickets after a lost connection (A183).
+			return '' !== (string) $wpdb->last_error ? self::issue_failed( absint( $order_id ), 'fiscal_ready' ) : true;
+		}
 		$order_id = absint( $order_id );
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		// Serialise issuance per order so concurrent payment callbacks cannot create duplicates.

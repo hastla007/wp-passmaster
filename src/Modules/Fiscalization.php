@@ -382,7 +382,7 @@ final class Fiscalization {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
 			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id LEFT JOIN %i c ON c.seller_id=s.seller_id LEFT JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $p . 'wpcap_ticket_sellers', $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs', $p . 'wpcap_fiscal_profiles', $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
 			// A failed lookup must not look like "not mapped" (that would sell without receipt): fail closed.
-			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			if ( ! $mapping ) {
 				$unmapped_types[] = $type_id;
 				continue;
@@ -419,7 +419,7 @@ final class Fiscalization {
 				'fiscal_applicability' => $mapping->profile_status, 'seller_snapshot' => wp_json_encode( $seller_snapshot ),
 				'created_at' => $now,
 			) );
-			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			if ( 'not_required' === $mapping->profile_status ) { continue; }
 			$adapter = Registry::get( $mapping->provider_id );
 			if ( ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
@@ -462,7 +462,7 @@ final class Fiscalization {
 				"SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM %i s LEFT JOIN %i c ON c.seller_id=s.seller_id LEFT JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE s.seller_id=%d", $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs', $p . 'wpcap_fiscal_profiles',
 				$channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $seller_id
 			) );
-			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			if ( ! $mapping || 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) { throw new \RuntimeException( 'fiscal_extra_seller_profile_unavailable' ); }
 			$has_mapping = true;
 			if ( 'not_required' === $mapping->profile_status ) { continue; }
@@ -522,7 +522,7 @@ final class Fiscalization {
 				'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'snapshot' => wp_json_encode( $snapshot ),
 				'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ),
 			) );
-			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			$document_id = (int) $wpdb->insert_id;
 			foreach ( $group['items'] as $item ) {
 				if ( empty( $item['ticket_type_id'] ) ) { continue; }
@@ -530,7 +530,7 @@ final class Fiscalization {
 					'document_id' => $document_id, 'ticket_type_id' => (int) $item['ticket_type_id'], 'seller_mode' => $item['seller_mode'],
 					'quantity' => (int) $item['quantity'], 'gross_minor' => (int) $item['gross_minor'], 'tax_rate_bp' => (int) $item['tax_rate_bp'], 'tax_minor' => (int) $item['tax_minor'],
 				) );
-				if ( false === $saved ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+				if ( false === $saved ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			}
 		}
 	}
