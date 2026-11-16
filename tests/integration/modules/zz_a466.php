@@ -102,7 +102,7 @@ check( 'the upgrade lock is released after an aborted attempt', '1' === (string)
 
 // No events after a failed install: activation and the deferred upgrade only schedule after success.
 $a466_src = (string) file_get_contents( dirname( __DIR__, 3 ) . '/src/Plugin.php' );
-check( 'activation schedules no events when install() failed', false !== strpos( $a466_src, "if ( false === Installer::install() ) { return false; }\n\t\tself::schedule_events();" ) );
+check( 'activation schedules no events when install() failed', false !== strpos( $a466_src, "if ( ! \$ran || false === \$installed ) { return false; }\n\t\tself::schedule_events();" ) ); // A512: install() runs inside Installer::run_locked().
 $a466_isrc = (string) file_get_contents( dirname( __DIR__, 3 ) . '/src/Installer.php' );
 check( 'maybe_upgrade() reports a failed install as not run (no events scheduled after it)', false !== strpos( $a466_isrc, '$ran = false !== self::install();' ) );
 check( 'a completed install clears the marker of its attempt (bootstrap install left none)', false === $a466_options[ Installer::ATTEMPT_OPTION ] );
