@@ -66,8 +66,9 @@ $new = array_values( array_filter( $rows, static fn( $r ) => 'queued' === $r->st
 check( 'a moved start or the next offset produces new reminders (2 h stage)', 2 === count( $new ) && 2 === json_decode( $new[0]->payload, true )['hours'] );
 
 echo "Reminders: template rendering and sending\n";
+// A558: {hours} is the real remaining time (start in 1 h), not the 2 h stage it was queued for.
 $tpl = Reminders::render_template( null, 'wpcap_reminder', json_decode( $new[0]->payload, true ) );
-check( 'template renders placeholders from settings', is_array( $tpl ) && 0 === strpos( $tpl['subject'], 'Erinnerung: Konzert am ' ) && false !== strpos( $tpl['body'], 'Noch 2 Stunden: Konzert' ) && false !== strpos( $tpl['body'], 'Europe/Vienna' ) && false !== strpos( $tpl['body'], 'Tickets: 1' ) && false !== strpos( $tpl['body'], 'wpcap_ics=occurrence' ) );
+check( 'template renders placeholders from settings', is_array( $tpl ) && 0 === strpos( $tpl['subject'], 'Erinnerung: Konzert am ' ) && false !== strpos( $tpl['body'], 'Noch 1 Stunden: Konzert' ) && false !== strpos( $tpl['body'], 'Europe/Vienna' ) && false !== strpos( $tpl['body'], 'Tickets: 1' ) && false !== strpos( $tpl['body'], 'wpcap_ics=occurrence' ) );
 check( 'other templates are untouched', 'x' === Reminders::render_template( 'x', 'other', array() ) );
 $GLOBALS['wpcap_test_mails'] = array();
 Communications::process_due();

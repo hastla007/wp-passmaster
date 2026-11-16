@@ -93,35 +93,90 @@ final class Reminders {
 		return 0;
 	}
 
-	/** Queues due reminders. Returns the number of newly queued e-mails and SMS. */
+	/**
+	 * Hours until the start as named in {hours} (A558): the real remaining time when the message is
+	 * rendered (a late buyer queued at the 24 h stage 5 hours before the start reads "5"), rounded,
+	 * at least 1.
+	 */
+	public static function hours_left( $starts_at, $now = null ) {
+		$now = $now ?? \PassCaptain\Clock::now();
+		$left = (int) strtotime( (string) $starts_at . ' UTC' ) - (int) $now;
+		return max( 1, (int) round( $left / HOUR_IN_SECONDS ) );
+	}
+
+	/** Occurrences per batch of schedule_due() (keyset pagination, A558). */
+	const BATCH = 200;
+
+	/** Batches per run; the next run continues after the cursor (option CURSOR). */
+	const MAX_BATCHES = 25;
+
+	/** Option holding the keyset cursor ("starts_at|occurrence_id") of an unfinished run. */
+	const CURSOR = 'wpcap_reminders_cursor';
+
+	/**
+	 * Queues due reminders. Returns the number of newly queued e-mails and SMS.
+	 *
+	 * A558: all occurrences within the largest offset are walked in batches of BATCH (by start,
+	 * then id) instead of only the first 200, so a busy window no longer delays later dates. A run
+	 * stops after MAX_BATCHES batches and stores a cursor; the next run continues there and starts
+	 * from the beginning once the end was reached.
+	 */
 	public static function schedule_due( $now = null ) {
 		global $wpdb;
 		$c = self::config();
 		if ( empty( $c['enabled'] ) || ! $c['offsets'] ) { return 0; }
-		$p = $wpdb->prefix;
 		$now = $now ?? \PassCaptain\Clock::now();
-		$occurrences = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s ORDER BY o.starts_at LIMIT 200", gmdate( 'Y-m-d H:i:s', $now ), gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS ) ) );
+		$cursor = explode( '|', (string) get_option( self::CURSOR, '' ) );
+		$after = 2 === count( $cursor ) && $cursor[0] > gmdate( 'Y-m-d H:i:s', $now ) ? array( $cursor[0], absint( $cursor[1] ) ) : array( gmdate( 'Y-m-d H:i:s', $now ), PHP_INT_MAX );
+		$until = gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS );
 		$queued = 0;
-		foreach ( $occurrences as $occ ) {
-			$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
-			if ( ! $stage ) { continue; }
-			$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
-			foreach ( $holders as $holder ) {
-				if ( ! is_email( $holder->email ) ) { continue; }
-				$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
-				if ( self::already_queued( $key ) ) { continue; }
-				$payload = array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets );
-				$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) ( $holder->locale ?? '' ) );
-				if ( '' !== $locale ) { $payload['locale'] = $locale; } // A587: language of the holder's order.
-				$result = Communications::enqueue( $key, $holder->email, self::TEMPLATE, $payload );
-				if ( true === $result ) { ++$queued; }
+		for ( $batch = 0; $batch < self::MAX_BATCHES; $batch++ ) {
+			$occurrences = self::due_batch( $after, $until );
+			foreach ( $occurrences as $occ ) { $queued += self::schedule_occurrence( $occ, $c, $now ); }
+			if ( count( $occurrences ) < self::BATCH ) {
+				delete_option( self::CURSOR );
+				return $queued;
 			}
-			if ( ! empty( $c['sms'] ) && '' !== trim( (string) $c['sms_body'] ) && class_exists( SmsService::class ) ) {
-				$orders = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid'", (int) $occ->occurrence_id ) );
-				$body = Placeholders::render( $c['sms_body'], array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => $stage ) ) );
-				foreach ( $orders as $order_id ) {
-					if ( true === SmsService::enqueue( 'sms|reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . (int) $order_id, (int) $order_id, (int) $occ->occurrence_id, 'reminder', $body ) ) { ++$queued; }
-				}
+			$last = end( $occurrences );
+			$after = array( (string) $last->starts_at, (int) $last->occurrence_id );
+		}
+		update_option( self::CURSOR, $after[0] . '|' . $after[1], false );
+		return $queued;
+	}
+
+	/**
+	 * Next batch of scheduled occurrences starting after the keyset ( starts_at, occurrence_id ) and
+	 * at the latest at $until. PHP_INT_MAX as id: everything after that start only.
+	 */
+	private static function due_batch( array $after, $until ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND ( o.starts_at>%s OR ( o.starts_at=%s AND o.occurrence_id>%d ) ) AND o.starts_at<=%s ORDER BY o.starts_at,o.occurrence_id LIMIT %d", $after[0], $after[0], (int) $after[1], $until, self::BATCH ) );
+	}
+
+	/** Queues the current stage of one occurrence for its holders (e-mail and SMS). */
+	private static function schedule_occurrence( $occ, array $c, $now ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$queued = 0;
+		$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
+		if ( ! $stage ) { return 0; }
+		$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
+		foreach ( $holders as $holder ) {
+			if ( ! is_email( $holder->email ) ) { continue; }
+			$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
+			if ( self::already_queued( $key ) ) { continue; }
+			$payload = array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets );
+			$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) ( $holder->locale ?? '' ) );
+			if ( '' !== $locale ) { $payload['locale'] = $locale; } // A587: language of the holder's order.
+			$result = Communications::enqueue( $key, $holder->email, self::TEMPLATE, $payload );
+			if ( true === $result ) { ++$queued; }
+		}
+		if ( ! empty( $c['sms'] ) && '' !== trim( (string) $c['sms_body'] ) && class_exists( SmsService::class ) ) {
+			$orders = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT t.order_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid'", (int) $occ->occurrence_id ) );
+			$body = Placeholders::render( $c['sms_body'], array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => self::hours_left( $occ->starts_at, $now ) ) ) );
+			foreach ( $orders as $order_id ) {
+				if ( true === SmsService::enqueue( 'sms|reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . (int) $order_id, (int) $order_id, (int) $occ->occurrence_id, 'reminder', $body ) ) { ++$queued; }
 			}
 		}
 		return $queued;
@@ -171,7 +226,8 @@ final class Reminders {
 		return \PassCaptain\Mail\Mailer::with_locale( $locale, static function () use ( $occ, $payload, $locale, $recipient ) {
 			$c = self::config();
 			$texts = self::texts( $c, $locale );
-			$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => (int) ( $payload['hours'] ?? 0 ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ), 'ticket_links' => self::ticket_links( (int) $occ->occurrence_id, (string) $recipient ) ) );
+			// A558: {hours} is the remaining time when the mail goes out, not the stage it was queued for.
+			$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => self::hours_left( $occ->starts_at ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ), 'ticket_links' => self::ticket_links( (int) $occ->occurrence_id, (string) $recipient ) ) );
 			$body = Placeholders::render( $texts['body'], $vars );
 			// The reminder editor is plain text: in HTML mode the rendered text is escaped as a whole
 			// (values included), URLs become links and the layout adds the plain-text alternative.
