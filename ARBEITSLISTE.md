@@ -659,11 +659,11 @@ Gesamt: 262 Aufgaben.
   - src/Mail/Mailer.php:340–349 (switch_to_locale): Bei gescheitertem Wechsel Plugin-Katalog per load_textdomain nachladen bzw. im Admin warnen
 - [ ] **A307** [WICHTIG] Zahlungsrückkehr-Bestätigung nur über wp_body_open, kein Portal-Link — _R1 Release_ (TODO L638; Audit Runde 4)
   - src/Payments/ReturnNotice.php:9, :24–29, assets/checkout.js:381: Rückfall über the_content/Shortcode-Ausgabe, sicherer Portal-Link auf der Bestätigung
-- [ ] **A308** [WICHTIG] Doppelte IDs bei zwei Karten desselben Termins; Rechnungs-Schalter steuert falsche Karte — _R2 Frontend_ (TODO L639; Audit Runde 4)
+- [x] **A308** [WICHTIG] Doppelte IDs bei zwei Karten desselben Termins; Rechnungs-Schalter steuert falsche Karte — _R2 Frontend_ (TODO L639; Audit Runde 4)
   - templates/event-card.php:12/102/108, assets/checkout.js:350: Instanz-ID je Render, form.querySelector statt getElementById
-- [ ] **A309** [WICHTIG] Checkout zeigt „Vielen Dank“ bei Nicht-JSON-Antwort, Zahlungsweiterleitung verloren — _R2 Frontend_ (TODO L640; Audit Runde 4)
+- [x] **A309** [WICHTIG] Checkout zeigt „Vielen Dank“ bei Nicht-JSON-Antwort, Zahlungsweiterleitung verloren — _R2 Frontend_ (TODO L640; Audit Runde 4)
   - assets/checkout.js:516–535: Erfolg nur bei gültigem JSON mit reference/status
-- [ ] **A310** [WICHTIG] Zurück aus Stripe/PayPal (bfcache) erzeugt zweite Bestellung — _R2 Frontend_ (TODO L641; Audit Runde 4)
+- [x] **A310** [WICHTIG] Zurück aus Stripe/PayPal (bfcache) erzeugt zweite Bestellung — _R2 Frontend_ (TODO L641; Audit Runde 4)
   - assets/checkout.js:521–531: pageshow persisted behandeln, Key erst nach Abschluss löschen, auf bestehende Bestellung verweisen
 - [x] **A311** [WICHTIG] Teilnehmerbereich als Live-Region liest bei jeder Mengenänderung alles vor — _R2 Frontend_ (TODO L642; Audit Runde 4)
   - templates/event-card.php:83, assets/checkout.js:44–67: aria-live entfernen, kurzer Hinweis über .wpcap-qty-live
@@ -675,9 +675,9 @@ Gesamt: 262 Aufgaben.
   - src/BoxOffice/Page.php:104, ShiftPage.php:316: „Anzeigen“-Button statt onchange-Submit
 - [x] **A315** [WICHTIG] WAF-/HTML-Fehler zeigt am Web-Scanner „KEIN EINLASS“ — _R2 Frontend_ (TODO L646; Audit Runde 4)
   - assets/scanner.js:401–419, offline-scanner/app.js:494–499: Nur wpcap_-JSON-Fehler als Ablehnung, sonst gelbe Systemwarnung
-- [ ] **A316** [WICHTIG] Kamera-Start doppelt angetippt: erster Stream bleibt an — _R2 Frontend_ (TODO L647; Audit Runde 4)
+- [x] **A316** [WICHTIG] Kamera-Start doppelt angetippt: erster Stream bleibt an — _R2 Frontend_ (TODO L647; Audit Runde 4)
   - assets/scanner.js:504–520, offline-scanner/app.js:623–633: Button sofort sperren/Flag, alten Stream stoppen
-- [ ] **A317** [WICHTIG] Wartelisten-Angebotsseite ohne Doppelklick-/Reload-Schutz — _R2 Frontend_ (TODO L648; Audit Runde 4)
+- [x] **A317** [WICHTIG] Wartelisten-Angebotsseite ohne Doppelklick-/Reload-Schutz — _R2 Frontend_ (TODO L648; Audit Runde 4)
   - src/Waitlists.php:1059, 1067ff. (handle_accept_request): PRG mit Ergebnisseite, Buttons sperren, angenommenes Angebot mit Bezahlstatus zeigen
 - [x] **A318** [WICHTIG] Dunkle Themes: Kontrast 1,1–2,6:1 (Kalender, Fehlertexte) — _R2 Frontend_ (TODO L649; Audit Runde 4)
   - assets/calendar/calendar.css, assets/public.css: Farben paarweise, Custom Properties, color-scheme/Dark-Block
@@ -1160,7 +1160,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/EventsPage.php:25, checkout.js:33–60, Orders.php:510–517: Typen date/select/tel/number, Pflicht-Schalter Teilnehmername, Übernahme-Knopf
 - [x] **A553** [WICHTIG] Kein Schutz gegen Tippfehler in der Käufer-E-Mail — _R4 Käufer-UX/Checkout_ (TODO L893; Audit Runde 4)
   - templates/event-card.php:79–82, Rest/Controller.php:392, checkout.js:386/406: Domain-Tippfehler-Hinweis oder Bestätigungsfeld, „Adresse falsch?“ auf Bestätigung
-- [ ] **A554** [WICHTIG] Rückkehr von Stripe/PayPal/Mollie auf Startseite; Abbruch hält Plätze, Neuversuch erzeugt zweite Bestellung (erweitert A307) — _R4 Käufer-UX/Checkout_ (TODO L894; Audit Runde 4)
+- [x] **A554** [WICHTIG] Rückkehr von Stripe/PayPal/Mollie auf Startseite; Abbruch hält Plätze, Neuversuch erzeugt zweite Bestellung (erweitert A307) — _R4 Käufer-UX/Checkout_ (TODO L894; Audit Runde 4)
   - src/Payments/StripeGateway.php:65–66/340–342, PayPalGateway.php:62/466, MollieGateway.php:339, ReturnNotice.php:13–29: Kaufseite als Rückkehr-URL; bei cancel Reservierung freigeben oder „Zahlung fortsetzen“; Bestellnummer zeigen
 - [ ] **A555** [WICHTIG] Verschobener Einzeltermin: Verkaufsfenster bleiben auf alten Zeiten — _R4 Zeit/Caching/Lebenszyklus_ (TODO L895; Audit Runde 4)
   - src/Admin/EventsPage.php:213–241, :340–347: Fenster um dieselbe Differenz verschieben, Fenster außerhalb [jetzt, Ende] mit Warnung ablehnen
@@ -1204,7 +1204,7 @@ Gesamt: 262 Aufgaben.
   - src/Partners/Api.php:238, Installer.php:195–217: updated_at an Tickets, since darauf; Namen/Antworten mit eigenem Scope
 - [x] **A575** [WICHTIG] Umtausch eines Tickets gibt das gesamte Kontingent der Bestellung zurück — _R4 Transaktionen/Concurrency_ (TODO L915; Audit Runde 4)
   - src/Exchange/Service.php:754, Allocations/Holds.php:300–303: Jeden Grund mit ticket_type_id/quantity als Teilfreigabe (belegt t4c)
-- [ ] **A576** [WICHTIG] Checkout ohne Preisprüfung: Käufer zahlt mehr als angezeigt — _R4 Transaktionen/Concurrency_ (TODO L916; Audit Runde 4)
+- [x] **A576** [WICHTIG] Checkout ohne Preisprüfung: Käufer zahlt mehr als angezeigt — _R4 Transaktionen/Concurrency_ (TODO L916; Audit Runde 4)
   - src/Orders.php:191–200, Series/Pricing.php:270ff., assets/checkout.js:84: Preis-Snapshot mitsenden, 409 price_changed (belegt t5; vgl. Caching-Befund)
 - [x] **A577** [WICHTIG] Stripe-Sitzung lebt 10 min länger als die Reservierung → bezahlt ohne Ticket — _R4 Transaktionen/Concurrency_ (TODO L917; Audit Runde 4)
   - src/Payments/StripeGateway.php:319–325, Rest/Controller.php:324: Sitzungsende = Reservierungsende, verzögerte Zahlarten nur mit langer Reservierung (belegt t7)
