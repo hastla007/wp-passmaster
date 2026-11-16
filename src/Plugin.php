@@ -209,7 +209,7 @@ final class Plugin {
 	 * @return string[]
 	 */
 	public static function cron_hooks() {
-		return array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK, Waitlists::HOOK, PageCache::SALES_HOOK, Mollie\MollieGateway::REFRESH_HOOK, NetworkInstall::HOOK );
+		return array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_workflow_dispatch', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK, Waitlists::HOOK, PageCache::SALES_HOOK, Mollie\MollieGateway::REFRESH_HOOK, NetworkInstall::HOOK );
 	}
 
 	public static function deactivate( $network_wide = false ) {

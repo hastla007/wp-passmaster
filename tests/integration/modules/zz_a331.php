@@ -75,7 +75,7 @@ check( 'A331: the rendered PDF shows the filtered data and keeps the issued code
 // REST: additive prepare filters.
 add_filter( 'wpcap_rest_prepare_event', static function ( $item ) { $item['addon_badge'] = 'neu'; unset( $item['name'] ); $item['event_id'] = 'x'; return $item; } );
 add_filter( 'wpcap_rest_prepare_order', static function ( $item ) { $item['addon_points'] = 5; $item['status'] = 'hacked'; return $item; } );
-$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id SET e.name='A331 Event' WHERE tt.ticket_type_id=%d", $a331_type ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id SET e.name='A331 Event',o.starts_at=%s WHERE tt.ticket_type_id=%d", gmdate( 'Y-m-d H:i:s', time() + 120 ), $a331_type ) ); // First upcoming date (the list holds 100).
 $a331_events = Controller::events( new WP_REST_Request( 'GET', '/pass-captain/v1/events' ) );
 $a331_events = $a331_events instanceof WP_REST_Response ? $a331_events->get_data() : $a331_events;
 $a331_item = null;

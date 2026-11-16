@@ -39,7 +39,7 @@ final class Outbox {
 		return $wpdb->prefix . self::TABLE;
 	}
 
-	/** Whether the outbox table exists (schema 3.10.18; a deferred upgrade may still be pending). */
+	/** Whether the outbox table exists (schema 3.10.24; a deferred upgrade may still be pending). */
 	public static function ready() {
 		return \PassCaptain\Privacy::has_table( self::TABLE );
 	}
