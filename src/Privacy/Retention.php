@@ -422,22 +422,54 @@ final class Retention {
 		return $count;
 	}
 
-	/** Old check-ins keep ticket, time and result but lose the scanning staff user and device. */
+	/** Option: check-ins created before this UTC time are already anonymised (cursor of step_checkin_staff). */
+	const CHECKIN_STAFF_CURSOR = 'wpcap_retention_checkin_staff_cursor';
+
+	/** A full pass over all old check-ins at least this often (rows imported with old dates). */
+	const CHECKIN_STAFF_FULL_PASS = 7 * DAY_IN_SECONDS;
+
+	/**
+	 * Old check-ins keep ticket, time and result but lose the scanning staff user and device.
+	 *
+	 * A439: walks KEY created (created_at,checkin_id) in order from a stored cursor, so a daily run
+	 * reads only the check-ins that became due since the last one – not every anonymised row older
+	 * than the cutoff again. The cursor never passes the real cutoff (time() − days), and every
+	 * CHECKIN_STAFF_FULL_PASS the walk starts from the beginning.
+	 */
 	private static function step_checkin_staff( $now, $deadline ) {
 		$days = self::days( 'checkin_staff' );
 		if ( ! $days ) { return 0; }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
-		return self::loop(
+		$state = get_option( self::CHECKIN_STAFF_CURSOR, array() );
+		$state = is_array( $state ) ? $state : array();
+		$full = (int) ( $state['full_at'] ?? 0 ) + self::CHECKIN_STAFF_FULL_PASS <= time();
+		$from = $full ? '' : (string) ( $state['at'] ?? '' );
+		if ( '' !== $from && $from >= $cutoff ) { return 0; }
+		$cap = self::utc( min( $now, time() ) - $days * DAY_IN_SECONDS );
+		$last = '';
+		$rest = false;
+		$total = self::loop(
 			$deadline,
-			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT checkin_id FROM {$p}wpcap_checkins WHERE created_at<%s AND (user_id<>0 OR device_id<>0) LIMIT %d", $cutoff, self::BATCH ) );
+			static function () use ( $wpdb, $p, $cutoff, &$from, &$last, &$rest ) {
+				$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT checkin_id,created_at FROM {$p}wpcap_checkins WHERE created_at>=%s AND created_at<%s AND (user_id<>0 OR device_id<>0) ORDER BY created_at,checkin_id LIMIT %d", '' === $from ? '1000-01-01 00:00:00' : $from, $cutoff, self::BATCH ) );
+				$last = $rows ? (string) end( $rows )->created_at : '';
+				$rest = count( $rows ) >= self::BATCH;
+				return array_map( static fn( $row ) => (int) $row->checkin_id, $rows );
 			},
-			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "UPDATE {$p}wpcap_checkins SET user_id=0,device_id=0 WHERE checkin_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			static function ( $ids ) use ( $wpdb, $p, &$from, &$last ) {
+				$changed = (int) $wpdb->query( "UPDATE {$p}wpcap_checkins SET user_id=0,device_id=0 WHERE checkin_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				// Rows of the batch's last second may continue in the next batch: resume at that second.
+				if ( $changed && '' !== $last ) { $from = $last; }
+				return $changed;
 			}
 		);
+		// Everything before the cutoff is done unless the last batch was full (budget ran out).
+		$at = $rest ? $from : $cutoff;
+		$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? time() : (int) ( $state['full_at'] ?? 0 ) );
+		update_option( self::CHECKIN_STAFF_CURSOR, $state, false );
+		return $total;
 	}
 
 	private static function step_audit_logs( $now, $deadline ) {

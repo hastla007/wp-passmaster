@@ -751,7 +751,7 @@ Für Bar- und Kartenzahlungen vor Ort deshalb eine zertifizierte Kasse verwenden
 | Teilnehmerangaben unbezahlter (abgelaufener/stornierter) Bestellungen | 1 Tag | `attendee_data` geleert |
 | Käufer-E-Mail nie bezahlter Bestellungen (ohne Ticket, ohne Rechnung) | 90 Tage (Einstellung) | durch Platzhalter `deleted+…@invalid.example` ersetzt |
 | Versandte/fehlgeschlagene Nachrichten der Warteschlange | 30 Tage / 365 Tage (Einstellungen) | Empfänger und Inhalt geleert / Zeile gelöscht |
-| Einlassprotokoll: Mitarbeitende und Gerät | 365 Tage (Einstellung) | `user_id`/`device_id` = 0 (Zeit, Ergebnis, Ticket bleiben) |
+| Einlassprotokoll: Mitarbeitende und Gerät | 365 Tage (Einstellung) | `user_id`/`device_id` = 0 (Zeit, Ergebnis, Ticket bleiben). Der Lauf liest über `KEY created` ab einem gespeicherten Stand (`wpcap_retention_checkin_staff_cursor`) nur neu fällige Einträge; nachträglich mit altem Datum eingefügte Einträge erfasst der wöchentliche Volldurchlauf (A439) |
 | Audit-Log (inkl. Protokoll der Zugriffe auf Personendaten, Exporte, Rollenänderungen und Korrekturen, siehe [SECURITY.md](SECURITY.md#audit-log-zugriffe-auf-personenbezogene-daten); einsehbar unter Pass Captain → Audit-Log) | 730 Tage (Einstellung) | gelöscht |
 | Wartelisteneinträge | 30 Tage nach Terminende (Einstellung; bei eventweiten Einträgen nach dem letzten Termin; `wpcap_privacy_retention_days`, Schritt `waitlist`) | E-Mail geleert, Hash ersetzt; Status bleibt (offene Angebote nicht) |
 | Gästelisten-Einträge | wie Teilnehmername/-E-Mail | Name, E-Mail, Firma, Notiz geleert; Anzahl/Status bleiben |

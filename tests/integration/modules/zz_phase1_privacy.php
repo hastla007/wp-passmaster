@@ -96,6 +96,8 @@ $wpdb->insert( "{$p}wpcap_message_queue", array( 'dedupe_key' => hash( 'sha256',
 $m3 = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => $otid, 'event_id' => 1, 'user_id' => 7, 'result' => 'checked_in', 'device_id' => 3, 'source' => 'app', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 380 * 86400 ) ) );
 $c1 = (int) $wpdb->insert_id;
+// A439: a check-in back-dated behind the step's cursor waits for the weekly full pass; start one now.
+delete_option( PassCaptain\Privacy\Retention::CHECKIN_STAFF_CURSOR );
 $wpdb->insert( "{$p}wpcap_audit_logs", array( 'user_id' => 1, 'action' => 'p1p_old', 'object_type' => 'test', 'object_id' => 0, 'details' => '{}', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 800 * 86400 ) ) );
 $a1 = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_audit_logs", array( 'user_id' => 1, 'action' => 'p1p_new', 'object_type' => 'test', 'object_id' => 0, 'details' => '{}', 'created_at' => gmdate( 'Y-m-d H:i:s', time() - 100 * 86400 ) ) );
