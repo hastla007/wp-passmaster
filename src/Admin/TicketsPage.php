@@ -182,6 +182,8 @@ final class TicketsPage {
 		), array( '%d', '%d', '%d', '%d', '%s', '%d', '%s', '%s' ) );
 		if ( 1 !== (int) $logged || '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'checkin_undone', 'ticket', (int) $ticket->ticket_id, array( 'event_id' => (int) $ticket->event_id, 'reason' => Forms::text( $in, 'reason', 255 ), 'device_id' => $device_id, 'area_id' => (int) $guard['area_id'], 'source' => $source ) );
+		/** A667: an admission was taken back (after the commit); context: source. */
+		do_action( 'wpcap_checkin_undone', (int) $ticket->ticket_id, array( 'source' => $source ) );
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
 	}
 

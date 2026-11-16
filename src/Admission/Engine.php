@@ -258,6 +258,8 @@ final class Engine {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-1,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $undo_id, $now, (int) $found['ticket_id'] ) );
 		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => mb_substr( sanitize_text_field( (string) $reason ), 0, 255 ), 'device_id' => $device_id, 'area_id' => (int) $guard['area_id'], 'source' => $source ) );
+		/** A667: an admission was taken back (after the commit); context: source. */
+		do_action( 'wpcap_checkin_undone', (int) $found['ticket_id'], array( 'source' => $source ) );
 		return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'] );
 	}
 

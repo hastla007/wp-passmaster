@@ -11,6 +11,10 @@
  * outbox until the retention period ends and reach a provider installed later (replay). Payloads
  * contain no personal data and no ticket codes (Contract::sanitize()).
  *
+ * The outbox serves every Captain-Suite contract (CONTRACTS, A667): each row belongs to one contract
+ * (column `contract`, schema 3.10.25) and is delivered to that contract's provider only – workflow
+ * events to the workflow provider, review events (Review\Contract) to the review provider.
+ *
  * @package PassCaptain
  */
 
@@ -25,8 +29,27 @@ final class Outbox {
 	const MAX_ATTEMPTS = 8;
 	const RETENTION_DAYS = 30;
 
-	/** Status of the last delivery run, for diagnostics: option wpcap_workflow_status. */
+	/** Status of the last delivery run, for diagnostics: option wpcap_workflow_status (per contract: wpcap_{name}_status). */
 	const STATUS_OPTION = 'wpcap_workflow_status';
+
+	/** Contracts served by the outbox: name => contract class. */
+	const CONTRACTS = array(
+		'workflow' => Contract::class,
+		'review'   => \PassCaptain\Review\Contract::class,
+	);
+
+	/** Contract class of an event type (null for unknown types). */
+	public static function contract_for( $type ) {
+		foreach ( self::CONTRACTS as $class ) {
+			if ( $class::known( $type ) ) { return $class; }
+		}
+		return null;
+	}
+
+	/** Whether rows carry their contract (schema 3.10.25); before that the outbox is workflow-only. */
+	public static function multi_ready() {
+		return \PassCaptain\Log::has_column( self::TABLE, 'contract' );
+	}
 
 	public static function register() {
 		add_action( 'wpcap_process_jobs', array( __CLASS__, 'deliver' ), 22, 0 );
@@ -47,6 +70,7 @@ final class Outbox {
 	public static function schema( $prefix, $charset ) {
 		return "CREATE TABLE {$prefix}" . self::TABLE . " (
 				outbox_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				contract varchar(20) NOT NULL DEFAULT 'workflow',
 				event_id varchar(40) NOT NULL,
 				event_type varchar(40) NOT NULL,
 				schema_version varchar(10) NOT NULL DEFAULT '',
@@ -64,6 +88,7 @@ final class Outbox {
 				PRIMARY KEY  (outbox_id),
 				UNIQUE KEY event_id (event_id),
 				KEY due (status,next_attempt_at),
+				KEY contract_due (contract,status,next_attempt_at),
 				KEY subject (subject_type,subject_id),
 				KEY created_at (created_at)
 			) ENGINE=InnoDB $charset;";
@@ -91,7 +116,8 @@ final class Outbox {
 		$event_id = self::insert( $type, $dedupe, $subject_id, $data, $occurred_at );
 		$wpdb->last_error = $error;
 		if ( false === $event_id ) { return false; }
-		if ( function_exists( 'wp_schedule_single_event' ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( 'wpcap_workflow_dispatch' ) && has_filter( Contract::FILTER ) ) {
+		$class = self::contract_for( $type );
+		if ( function_exists( 'wp_schedule_single_event' ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( 'wpcap_workflow_dispatch' ) && $class && has_filter( $class::FILTER ) ) {
 			wp_schedule_single_event( time() + 5, 'wpcap_workflow_dispatch' );
 		}
 		return $event_id;
@@ -100,16 +126,24 @@ final class Outbox {
 	/** Writes the outbox row; event id or false. */
 	private static function insert( $type, $dedupe, $subject_id, array $data, $occurred_at ) {
 		global $wpdb;
-		if ( ! Contract::known( $type ) || ! self::ready() ) { return false; }
-		/** Internal: data of a workflow event before the allowlist is applied (fields outside it are dropped). */
+		$class = self::contract_for( $type );
+		if ( ! $class || ! self::ready() ) { return false; }
+		$multi = self::multi_ready();
+		if ( Contract::class !== $class && ! $multi ) { return false; } // Other contracts need schema 3.10.25.
+		/** Internal: data of a suite contract event before the allowlist is applied (fields outside it are dropped). */
 		$data = (array) apply_filters( 'wpcap_workflow_event_data', $data, $type );
-		$data = Contract::sanitize( $type, $data, $dropped );
-		if ( $dropped ) { \PassCaptain\Log::debug( 'workflow', 'wpcap_workflow_field_not_allowed: ' . $type, array( 'fields' => array_slice( $dropped, 0, 20 ) ) ); }
+		$data = $class::sanitize( $type, $data, $dropped );
+		if ( $dropped ) { \PassCaptain\Log::debug( $class::NAME, $class::code( 'field_not_allowed' ) . ': ' . $type, array( 'fields' => array_slice( $dropped, 0, 20 ) ) ); }
 		$occurred_at = null === $occurred_at ? time() : (int) $occurred_at;
 		$event_id = self::event_id( $type, $dedupe );
-		$envelope = Contract::envelope( $event_id, $type, $subject_id, $data, $occurred_at );
+		$envelope = $class::envelope( $event_id, $type, $subject_id, $data, $occurred_at );
 		$now = current_time( 'mysql', true );
-		$inserted = (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::table() . " (event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", $event_id, $type, Contract::schema_version( $type ), Contract::subject( $type ), substr( (string) $subject_id, 0, 64 ), (string) wp_json_encode( $envelope ), gmdate( 'Y-m-d H:i:s', $occurred_at ), $now, $now ) );
+		$values = array( $event_id, $type, $class::schema_version( $type ), $class::subject( $type ), substr( (string) $subject_id, 0, 64 ), (string) wp_json_encode( $envelope ), gmdate( 'Y-m-d H:i:s', $occurred_at ), $now, $now );
+		if ( $multi ) {
+			$inserted = (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::table() . " (contract,event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", array_merge( array( $class::NAME ), $values ) ) );
+		} else {
+			$inserted = (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::table() . " (event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", $values ) );
+		}
 		if ( 1 !== $inserted ) { return false; }
 		/** Internal: a workflow event was recorded (envelope without sequence). */
 		do_action( 'wpcap_workflow_event_recorded', $envelope );
@@ -127,19 +161,30 @@ final class Outbox {
 	}
 
 	/**
-	 * Delivers due events to the provider (cron). Returns the number of attempts.
+	 * Delivers due events to the provider of each contract (cron). Returns the number of attempts.
 	 *
-	 * @param int $limit Maximum attempts in this run.
+	 * @param int $limit Maximum attempts in this run (per contract).
 	 */
 	public static function deliver( $limit = 50 ) {
-		global $wpdb;
 		if ( ! self::ready() ) { return 0; }
-		$provider = Contract::provider( $status );
-		self::remember_status( $status );
+		$done = 0;
+		foreach ( self::CONTRACTS as $name => $class ) {
+			if ( 'workflow' !== $name && ! self::multi_ready() ) { continue; }
+			$done += self::deliver_contract( $class, $limit );
+		}
+		return $done;
+	}
+
+	/** Delivery run of one contract. */
+	private static function deliver_contract( $class, $limit ) {
+		global $wpdb;
+		$provider = $class::provider( $status );
+		self::remember_status( $status, $class );
 		if ( ! $provider ) { return 0; }
 		$t = self::table();
+		$scope = self::multi_ready() ? $wpdb->prepare( ' AND contract=%s', $class::NAME ) : '';
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 50;
-		$wpdb->query( $wpdb->prepare( "UPDATE $t SET status='pending',locked_at=NULL WHERE status='delivering' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE $t SET status='pending',locked_at=NULL WHERE status='delivering' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) . $scope ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
 		$done = 0;
 		for ( $i = 0; $i < $limit; $i++ ) {
@@ -147,18 +192,18 @@ final class Outbox {
 			$now = current_time( 'mysql', true );
 			// Due events in sequence order. A failing event does not hold back later ones: providers order
 			// by `sequence` and treat events idempotently (at-least-once delivery).
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $t WHERE status='pending' AND next_attempt_at<=%s ORDER BY outbox_id LIMIT 1", $now ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $t WHERE status='pending' AND next_attempt_at<=%s", $now ) . $scope . ' ORDER BY outbox_id LIMIT 1' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 			if ( ! $row ) { break; }
 			$claimed = $wpdb->query( $wpdb->prepare( "UPDATE $t SET status='delivering',locked_at=%s WHERE outbox_id=%d AND status='pending'", $now, (int) $row->outbox_id ) );
 			if ( 1 !== (int) $claimed ) { continue; }
-			self::attempt( $provider, $row );
+			self::attempt( $provider, $row, $class );
 			++$done;
 		}
 		return $done;
 	}
 
 	/** One delivery attempt of a claimed row. */
-	private static function attempt( $provider, $row ) {
+	private static function attempt( $provider, $row, $class = Contract::class ) {
 		global $wpdb;
 		// Delivered before and queued again (replay()): the provider sees replay = true.
 		$envelope = self::envelope_of( $row, ! empty( $row->delivered_at ) );
@@ -166,8 +211,9 @@ final class Outbox {
 		$now = current_time( 'mysql', true );
 		$code = '';
 		$retry = true;
+		$provider_error = $class::code( 'provider_error' );
 		if ( null === $envelope ) {
-			$code = 'wpcap_workflow_provider_error';
+			$code = $provider_error;
 			$retry = false;
 		} else {
 			try {
@@ -179,32 +225,33 @@ final class Outbox {
 				if ( is_wp_error( $result ) ) {
 					$data = (array) $result->get_error_data();
 					$code = sanitize_key( (string) $result->get_error_code() );
-					$retry = 'wpcap_workflow_rejected' !== $code && ( ! array_key_exists( 'retryable', $data ) || ! empty( $data['retryable'] ) );
+					$retry = $class::code( 'rejected' ) !== $code && ( ! array_key_exists( 'retryable', $data ) || ! empty( $data['retryable'] ) );
 				} else {
-					$code = 'wpcap_workflow_provider_error';
+					$code = $provider_error;
 				}
 			} catch ( \Throwable $e ) {
-				$code = 'wpcap_workflow_provider_error';
+				$code = $provider_error;
 			}
 		}
 		$final = ! $retry || $attempts >= (int) apply_filters( 'wpcap_workflow_max_attempts', self::MAX_ATTEMPTS );
 		$wpdb->update( self::table(), array(
 			'status' => $final ? 'failed' : 'pending',
 			'attempts' => $attempts,
-			'last_error' => \PassCaptain\Text::cut( '' !== $code ? $code : 'wpcap_workflow_provider_error', 190 ),
+			'last_error' => \PassCaptain\Text::cut( '' !== $code ? $code : $provider_error, 190 ),
 			'locked_at' => null,
 			'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + \PassCaptain\Webhooks\Dispatcher::backoff( $attempts ) ),
 		), array( 'outbox_id' => (int) $row->outbox_id ) );
 		if ( $final ) {
-			\PassCaptain\Log::warning( 'workflow', 'Workflow event not delivered: ' . $row->event_type, array( 'code' => $code, 'attempts' => $attempts, 'sequence' => (int) $row->outbox_id ) );
+			\PassCaptain\Log::warning( $class::NAME, 'Suite contract event not delivered: ' . $row->event_type, array( 'code' => $code, 'attempts' => $attempts, 'sequence' => (int) $row->outbox_id ) );
 		}
 	}
 
-	private static function remember_status( array $status ) {
-		$previous = get_option( self::STATUS_OPTION );
+	private static function remember_status( array $status, $class = Contract::class ) {
+		$option = $class::status_option();
+		$previous = get_option( $option );
 		$state = array( 'state' => (string) ( $status['state'] ?? '' ), 'version' => (string) ( $status['version'] ?? '' ), 'code' => (string) ( $status['code'] ?? '' ) );
 		if ( ! is_array( $previous ) || array_intersect_key( $previous, $state ) !== $state ) {
-			update_option( self::STATUS_OPTION, $state + array( 'checked_at' => current_time( 'mysql', true ) ), false );
+			update_option( $option, $state + array( 'checked_at' => current_time( 'mysql', true ) ), false );
 		}
 	}
 
@@ -213,16 +260,19 @@ final class Outbox {
 	 *
 	 * @param int      $after_sequence Last sequence the provider has (0 = from the oldest kept event).
 	 * @param int      $limit          1–500.
-	 * @param string[] $types          Only these types (empty = all).
+	 * @param string[] $types          Only these types (empty = all of the contract).
+	 * @param string   $contract       Contract name (workflow, review).
 	 * @return array[] Envelopes in sequence order (replay = true).
 	 */
-	public static function since( $after_sequence = 0, $limit = 100, array $types = array() ) {
+	public static function since( $after_sequence = 0, $limit = 100, array $types = array(), $contract = 'workflow' ) {
 		global $wpdb;
-		if ( ! self::ready() ) { return array(); }
+		$class = self::CONTRACTS[ (string) $contract ] ?? null;
+		if ( ! $class || ! self::ready() || ( 'workflow' !== $contract && ! self::multi_ready() ) ) { return array(); }
 		$limit = max( 1, min( 500, (int) $limit ) );
-		$types = array_values( array_filter( array_map( 'strval', $types ), array( Contract::class, 'known' ) ) );
+		$types = array_values( array_filter( array_map( 'strval', $types ), array( $class, 'known' ) ) );
 		$where = $types ? ' AND event_type IN (' . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ')' : '';
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT outbox_id,payload,attempts FROM ' . self::table() . " WHERE outbox_id>%d$where ORDER BY outbox_id LIMIT %d", array_merge( array( absint( $after_sequence ) ), $types, array( $limit ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
+		$where .= self::multi_ready() ? $wpdb->prepare( ' AND contract=%s', $class::NAME ) : '';
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT outbox_id,payload,attempts FROM ' . self::table() . " WHERE outbox_id>%d$where ORDER BY outbox_id LIMIT %d", array_merge( array( absint( $after_sequence ) ), $types, array( $limit ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- placeholders only / prepared fragment.
 		$out = array();
 		foreach ( (array) $rows as $row ) {
 			$row->attempts = -1; // Pulled events are not delivery attempts.
@@ -234,19 +284,23 @@ final class Outbox {
 
 	/**
 	 * Queues the events from a sequence number on again (provider lost data, new provider). Needs
-	 * Contract::CAPABILITY; audited.
+	 * the contract's CAPABILITY; audited.
 	 *
+	 * @param int    $from_sequence First sequence to queue again.
+	 * @param string $contract      Contract name (workflow, review).
 	 * @return int|\WP_Error Number of events queued again.
 	 */
-	public static function replay( $from_sequence = 0 ) {
+	public static function replay( $from_sequence = 0, $contract = 'workflow' ) {
 		global $wpdb;
-		if ( ! current_user_can( Contract::CAPABILITY ) ) {
-			return new \WP_Error( 'wpcap_workflow_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) );
+		$class = self::CONTRACTS[ (string) $contract ] ?? Contract::class;
+		if ( ! current_user_can( $class::CAPABILITY ) ) {
+			return new \WP_Error( $class::code( 'forbidden' ), __( 'Keine Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( ! self::ready() ) { return 0; }
+		$scope = self::multi_ready() ? $wpdb->prepare( ' AND contract=%s', $class::NAME ) : '';
 		$now = current_time( 'mysql', true );
-		$count = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET status='pending',attempts=0,last_error='',next_attempt_at=%s,locked_at=NULL WHERE outbox_id>=%d AND status<>'delivering'", $now, absint( $from_sequence ) ) );
-		Audit::record( 'workflow_replay', 'workflow', absint( $from_sequence ), array( 'events' => $count ) );
+		$count = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET status='pending',attempts=0,last_error='',next_attempt_at=%s,locked_at=NULL WHERE outbox_id>=%d AND status<>'delivering'", $now, absint( $from_sequence ) ) . $scope ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
+		Audit::record( $class::NAME . '_replay', $class::NAME, absint( $from_sequence ), array( 'events' => $count ) );
 		return $count;
 	}
 

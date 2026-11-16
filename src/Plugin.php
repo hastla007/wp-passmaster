@@ -120,6 +120,8 @@ final class Plugin {
 		// workflow provider of contract v1.
 		Workflow\Events::register();
 		Workflow\Outbox::register();
+		// A667/A669: review participation contract v1 (experience_completed and corrections, same outbox).
+		Review\Events::register();
 		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wpcap_events', array( PublicEvents::class, 'render_shortcode' ) );

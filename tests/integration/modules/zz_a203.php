@@ -117,7 +117,7 @@ foreach ( glob( dirname( __DIR__, 2 ) . '/contracts/*.json' ) as $a203_file ) {
 	$a203_fixture_ok = $a203_fixture_ok && is_array( $a203_fx ) && isset( $a203_versions[ $a203_fx['contract'] ?? '' ] ) && Contracts::compatible( $a203_fx['version'] ?? '', $a203_versions[ $a203_fx['contract'] ] ) && ! empty( $a203_fx['endpoints'] );
 }
 sort( $a203_fixture_names );
-check( 'every interface has a fixture file; each names a known contract of the current major version', $a203_fixture_ok && array( 'affiliate', 'app', 'developer', 'offline', 'partner', 'public', 'voucher-bridge', 'workflow' ) === $a203_fixture_names );
+check( 'every interface has a fixture file; each names a known contract of the current major version', $a203_fixture_ok && array( 'affiliate', 'app', 'developer', 'offline', 'partner', 'public', 'review', 'voucher-bridge', 'workflow' ) === $a203_fixture_names );
 check( 'contract versions follow the interface constants (app 1.1, partner 1, offline package 1, bridge 1)', PassCaptain\Mobile\Api::VERSION === $a203_versions['app'] && 1 === Contracts::major( $a203_versions['partner'] ) && 1 === Contracts::major( $a203_versions['offline'] ) && '1.0' === $a203_versions['voucher_provider'] && 1 === Contracts::major( $a203_versions['affiliate'] ) );
 
 echo "A203: REST contract version negotiation\n";

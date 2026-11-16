@@ -22,6 +22,7 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 | Affiliate Captain (`wpac_record_sale()`, `wpac_record_refund()`) | `affiliate` | 1.0.0 | [EXTENSIONS.md](EXTENSIONS.md) |
 | Ausgehende Webhooks (signierte POSTs, [WEBHOOKS.md](WEBHOOKS.md)) | `webhooks` | `api_version` 2026-11-01, `schema_version` je Ereignistyp (1.0; `order.refunded` 1.1) | [WEBHOOKS.md](WEBHOOKS.md) |
 | Workflow-Provider (`wp_pass_captain_workflow_provider_v1`, Ereignis-Outbox) | `workflow` | 1.0.0 (`PassCaptain\Workflow\Contract::VERSION`, Schema-Version je Ereignistyp) | [unten](#workflow-providervertrag-v1) |
+| Review-Provider (`wp_pass_captain_review_provider_v1`, Teilnahmevertrag `experience_completed`) | `review` | 1.0.0 (`PassCaptain\Review\Contract::VERSION`) | [unten](#review-teilnahmevertrag-v1) |
 | Öffentliche Add-on-API (Hooks für `pass-captain-pro` und andere Plugins, `wpcap_loaded`) | `addon` | 1.0.0 (`PassCaptain\PublicApi::VERSION`) | [HOOKS.md](HOOKS.md#öffentliche-add-on-api) |
 
 ## REST: Versionsangabe des Clients
@@ -104,9 +105,46 @@ privaten Klassen, keine Tabellen.
 Fixture: `tests/contracts/workflow.json` (Envelope-Shape je Ereignistyp); `tests/integration/modules/zz_a673_a675.php`
 prüft echte Abläufe dagegen.
 
+## Review-Teilnahmevertrag v1
+
+Vertrag `review` 1.0.0 (A667, `src/Review/Contract.php`, gemeinsame Mechanik in `src/Suite/Contract.php`) für Review
+Captain oder jedes andere Plugin, das nach einer **tatsächlichen Teilnahme** um eine Bewertung bitten will. Pass
+Captain ist Quelle für Event, Ticket, Absage, Erstattung und Einlass; Einladung, Frequenzlimit, Opt-out, Versand und
+Bewertungsdaten gehören dem Provider. Der Kern bleibt ohne Provider unverändert und prüft keine Lizenzen.
+
+- **Registrierung:** Filter `wp_pass_captain_review_provider_v1` (Argumente `null`, Hauptversion `1`) liefert ein Objekt
+  mit `receive( array $envelope )` und optional `contract_version()`; eine andere Hauptversion wird nie aufgerufen
+  (`wpcap_review_contract_version`). Letzter Zustand in der Option `wpcap_review_status`.
+- **Zustellung:** dieselbe Ereignis-Outbox wie beim Workflow-Vertrag (Spalte `contract` = `review`, Schema 3.10.25),
+  eigene Zustellung an den Review-Provider mit Reihenfolge, Backoff, höchstens 8 Versuchen und Aufbewahrung 30 Tage;
+  Antworten und Fehlercodes wie beim Workflow-Vertrag mit Präfix `wpcap_review_`. Nachholen:
+  `Outbox::since( $sequence, $limit, array(), 'review' )`, erneut zustellen: `Outbox::replay( $sequence, 'review' )`.
+- **Ereignisse** (Schema-Version je Typ 1.0):
+  - `experience_completed` – einmal je Teilnahme beim **ersten gültigen Einlass** (`wpcap_ticket_checked_in`) oder bei
+    einer ausdrücklich zugelassenen Teilnahmebestätigung (`wpcap_attendance_confirmed`, Command `attendance.confirm`),
+    nie bei Kauf, Ticketversand oder bloßer Einlösung; nur für bezahlte, nicht erstattete Tickets nicht abgesagter
+    Termine/Events. Daten: `participation_id` (öffentliche Ticket-ID), `experience_id` (`occurrence:<id>`), `event_id`,
+    `occurrence_id`, `ticket_type_id`, `recipient_ref`, `locale` (Sprache der Bestellung), `outcome` `attended`,
+    `completed_at`, `method` (`check_in`|`confirmed`), `source`. Erst nach einer Rücknahme des Einlasses kann eine
+    Teilnahme erneut abgeschlossen werden (neuer Zyklus, neue Ereignis-ID).
+  - `experience_excluded` (A669) – Korrektur je Teilnahme, `reason`: `check_in_undone` (kein gültiger Einlass mehr;
+    Aktion `wpcap_checkin_undone`), `refunded`, `revoked` (auch Storno), `transferred` (mit
+    `previous_recipient_ref` = Empfängerreferenz des letzten Abschlusses) und `no_show` (Cron: gültige Eventtickets
+    ohne Einlass 6 h nach Terminende, Filter `wpcap_review_no_show_grace_hours`, für Termine der letzten 14 Tage).
+  - `experience_cancelled` (A669) – abgesagter Termin bzw. abgesagtes Event **einmal auf Erlebnisebene**
+    (`scope` `occurrence`|`event`, `experience_id` `occurrence:<id>` bzw. `event:<id>`, `occurrence_ids`) statt je Ticket.
+- **Idempotenz:** Ereignis-IDs sind stabil (Typ + Teilnahme + Grund/Zyklus); wiederholte Hooks, Mehrfacheinlässe und
+  wiederholte Erstattungs-Webhooks erzeugen nichts Neues. „Höchstens eine Anfrage je Erlebnis und Empfänger“ sichert
+  der Provider mit `experience_id` + `recipient_ref`.
+- **Keine Personendaten:** keine E-Mail, kein Name, kein Ticket- oder Hilfscode. `recipient_ref` (`rcp_…`) ist eine
+  undurchsichtige Referenz der aktuellen Inhaberin bzw. des aktuellen Inhabers und ändert sich mit jedem
+  Inhaberwechsel.
+
+Fixture: `tests/contracts/review.json`; `tests/integration/modules/zz_a667_a669.php` prüft echte Abläufe dagegen.
+
 ## Fixtures und Tests
 
-Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
+Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
 
 - `direction: inbound` (andere rufen Pass Captain auf): `request` ist ein Beispiel mit Platzhaltern `{{name}}`, `response` ist die Shape der Antwort.
 - `direction: outbound` (Pass Captain ruft Voucher Captain oder Affiliate Captain auf): `request` ist die Shape dessen, was Pass Captain sendet, `response` ist ein Beispiel der kleinsten gültigen Antwort der Gegenseite.
