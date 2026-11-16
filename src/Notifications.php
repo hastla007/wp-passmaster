@@ -115,11 +115,18 @@ final class Notifications {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) );
 	}
 
-	/** Distinct recipients (attendee e-mail, otherwise buyer) of valid tickets with their locale. */
+	/**
+	 * A519: SQL aggregate for the language of a recipient with several orders (grouped rows over
+	 * `ord`): the locale of the newest order that has one – not MAX(locale), which picked the
+	 * alphabetically last language ("nl_NL" over "de_DE").
+	 */
+	const LATEST_LOCALE_SQL = "SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(ord.locale,'') ORDER BY ord.order_id DESC SEPARATOR ','),',',1)";
+
+	/** Distinct recipients (attendee e-mail, otherwise buyer) of valid tickets with their locale (A519: of the newest order). */
 	private static function recipients( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", absint( $occurrence_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email," . self::LATEST_LOCALE_SQL . " AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", absint( $occurrence_id ) ) );
 	}
 
 	/** Local date and time (A384: Format::datetime_format() of the mail's language) of a UTC datetime in the occurrence's timezone ('' for empty). */
