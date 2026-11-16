@@ -295,6 +295,9 @@ final class Generator {
 				// A332: ID/age check and staff note of the template type.
 				$data += array( 'id_check' => (int) $type->id_check, 'min_age' => (int) $type->min_age, 'staff_note' => (string) $type->staff_note );
 			}
+			if ( property_exists( $type, 'attendee_name_required' ) && \PassCaptain\ParticipantFields::name_switch_ready() ) {
+				$data['attendee_name_required'] = (int) $type->attendee_name_required; // A552.
+			}
 			$ok = $wpdb->insert( "{$p}wpcap_ticket_types", $data );
 			if ( ! $ok ) { throw new \RuntimeException( 'type_insert' ); }
 			$new_type = (int) $wpdb->insert_id;

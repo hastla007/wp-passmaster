@@ -452,7 +452,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Hook | Wert, Argumente | Zweck |
 |---|---|---|
-| `wpcap_woocommerce_collect_attendees` | `bool $collect, int $type_id` | Ob der WooCommerce-Checkout Teilnehmerdaten je Ticket abfragt (Standard: nur wenn Teilnehmerfelder konfiguriert sind). |
+| `wpcap_woocommerce_collect_attendees` | `bool $collect, int $type_id` | Ob der WooCommerce-Checkout Teilnehmerdaten je Ticket abfragt (Standard: nur wenn Teilnehmerfelder konfiguriert sind oder der Teilnehmername verlangt wird, A552). |
+| `wpcap_attendee_name_required` | `bool $required, int $type_id` | A552: Ob jedes Ticket der Ticketart einen Teilnehmernamen braucht (Standard: Schalter „Name für jedes Ticket verlangen“ der Ticketart). |
 | `wpcap_woocommerce_vat_meta_keys` | `string[] $keys, WC_Order $wc_order` | Bestell-Metaschlüssel, aus denen die UID-Nummer gelesen wird (erster nicht leerer Wert). |
 | `wpcap_woocommerce_billing` | `array $billing, WC_Order $wc_order` | Aus der WooCommerce-Bestellung übernommene Rechnungsdaten (`company`, `first_name`, `last_name`, `street`, `postcode`, `city`, `country`, `vat_id`, `po_number`). |
 | `wpcap_woocommerce_hold_fulfilment` | `bool $hold` (false), `WC_Order $wc_order` | Ticketausgabe einer bezahlten Bestellung zurückhalten (z. B. Voucher Captain bei nicht belastbarer Geschenkkarte); die Reservierung bleibt, Tickets folgen nach erneutem Statuswechsel. |

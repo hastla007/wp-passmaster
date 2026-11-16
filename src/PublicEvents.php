@@ -78,6 +78,10 @@ final class PublicEvents {
 				/* translators: %d: number of attendee blocks (2 or more) */
 				'attendeesMany' => __( 'Weiter unten: Angaben für %d Teilnehmende.', 'pass-captain' ), // n>1: checkout.js uses attendeesOne for 1
 				'name' => __( 'Name', 'pass-captain' ),
+				// A552/A680: attendee blocks.
+				'sameAsBuyer' => __( 'Meine Angaben übernehmen', 'pass-captain' ),
+				'perOrder' => __( '(für die ganze Bestellung)', 'pass-captain' ),
+				'choose' => __( 'Bitte wählen', 'pass-captain' ),
 				'email' => __( 'E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)', 'pass-captain' ),
 				/* translators: %s: formatted amount */
 				'estimate' => __( 'Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)', 'pass-captain' ),
@@ -784,7 +788,7 @@ final class PublicEvents {
 		$by_occurrence = array();
 		$all_types = array();
 		// Once an occurrence has started only ticket types with a sales_end ahead stay on sale (A535).
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.price_minor,tt.currency,tt.capacity,tt.max_per_order,tt.tax_rate_bp" . ( AdmissionChecks::ready() ? ',tt.id_check,tt.min_age' : '' ) . " FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.occurrence_id IN ($occ_in) AND tt.status='active' AND (tt.sales_start IS NULL OR tt.sales_start <= %s) AND (tt.sales_end IS NULL OR tt.sales_end >= %s) AND " . Occurrence::type_sale_sql( 'tt', 'o', $now ) . ' ORDER BY tt.ticket_type_id', $now, $now ) ) as $type ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list and prepared fragment.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.price_minor,tt.currency,tt.capacity,tt.max_per_order,tt.tax_rate_bp" . ( AdmissionChecks::ready() ? ',tt.id_check,tt.min_age' : '' ) . ( ParticipantFields::name_switch_ready() ? ',tt.attendee_name_required' : '' ) . " FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.occurrence_id IN ($occ_in) AND tt.status='active' AND (tt.sales_start IS NULL OR tt.sales_start <= %s) AND (tt.sales_end IS NULL OR tt.sales_end >= %s) AND " . Occurrence::type_sale_sql( 'tt', 'o', $now ) . ' ORDER BY tt.ticket_type_id', $now, $now ) ) as $type ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list and prepared fragment.
 			$by_occurrence[ (int) $type->occurrence_id ][] = $type;
 			$all_types[ (int) $type->ticket_type_id ] = $type;
 		}
@@ -800,10 +804,9 @@ final class PublicEvents {
 		$type_in = implode( ',', array_keys( $all_types ) );
 		$fields = array();
 		// Only field definitions are exposed (no answers); used to render attendee inputs.
-		foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,field_key AS `key`,label,field_type AS type,required,purpose FROM {$p}wpcap_participant_fields WHERE ticket_type_id IN ($type_in) AND status='active' ORDER BY position,field_id", ARRAY_A ) as $field ) {
-			$type_id = (int) $field['ticket_type_id'];
-			unset( $field['ticket_type_id'] );
-			$fields[ $type_id ][] = $field;
+		foreach ( (array) $wpdb->get_results( 'SELECT ' . ParticipantFields::columns() . " FROM {$p}wpcap_participant_fields WHERE ticket_type_id IN ($type_in) AND status='active' ORDER BY position,field_id", ARRAY_A ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, static columns.
+			// A680: type, help text, scope and choices; never answers.
+			$fields[ (int) $field['ticket_type_id'] ][] = ParticipantFields::public_definition( $field );
 		}
 		$available = Orders::availability_many( array_keys( $all_types ), array( 'occurrences' => $occurrences ) );
 		foreach ( $by_occurrence as $occ_id => $types ) {
@@ -815,6 +818,7 @@ final class PublicEvents {
 				$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
 				$type->available = array_key_exists( (int) $type->ticket_type_id, $available ) ? $available[ (int) $type->ticket_type_id ] : 0;
 				$type->fields = $fields[ (int) $type->ticket_type_id ] ?? array();
+				$type->name_required = ParticipantFields::name_required( (int) $type->ticket_type_id, $type ); // A552 (no extra query).
 			}
 		}
 		return $by_occurrence;

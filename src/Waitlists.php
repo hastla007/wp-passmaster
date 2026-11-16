@@ -1009,7 +1009,7 @@ final class Waitlists {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return array(); }
 		$out = array();
-		foreach ( (array) $wpdb->get_results( "SELECT field_id,ticket_type_id,field_key,label,field_type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN (" . implode( ',', $type_ids ) . ") AND status='active' ORDER BY position,field_id" ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $wpdb->get_results( 'SELECT ' . ParticipantFields::columns() . " FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN (" . implode( ',', $type_ids ) . ") AND status='active' ORDER BY position,field_id" ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$out[ (int) $field->ticket_type_id ][] = $field;
 		}
 		return $out;
@@ -1728,6 +1728,9 @@ final class Waitlists {
 						$html .= '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . $required . '> ' . $label . '</label>' . $hint . '</p>';
 					} elseif ( 'textarea' === $field->field_type ) {
 						$html .= '<p><label for="' . esc_attr( $fid ) . '">' . $label . '</label><br><textarea id="' . esc_attr( $fid ) . '" name="' . esc_attr( $name ) . '" maxlength="2000"' . $required . '></textarea>' . $hint . '</p>';
+					} elseif ( '' !== ( $control = ParticipantFields::control_html( $field, array( 'id' => $fid, 'name' => $name ) ) ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.Found, Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure
+						// A680: select, multi-select, phone, date, number.
+						$html .= '<p><label for="' . esc_attr( $fid ) . '">' . $label . '</label><br>' . $control . $hint . '</p>';
 					} else {
 						$html .= '<p><label for="' . esc_attr( $fid ) . '">' . $label . '</label><br><input type="' . ( 'email' === $field->field_type ? 'email' : 'text' ) . '" id="' . esc_attr( $fid ) . '" name="' . esc_attr( $name ) . '" maxlength="2000"' . $required . '>' . $hint . '</p>';
 					}

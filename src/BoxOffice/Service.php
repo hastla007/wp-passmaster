@@ -183,9 +183,10 @@ final class Service {
 	/** Active participant fields of a ticket type in checkout order (same columns as the public checkout). */
 	public static function participant_fields( $ticket_type_id ) {
 		global $wpdb;
-		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ), ARRAY_A );
+		$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . \PassCaptain\ParticipantFields::columns() . " FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
 		return array_map( static function ( $f ) {
-			return array( 'key' => (string) $f['key'], 'label' => (string) $f['label'], 'type' => (string) $f['type'], 'required' => (bool) (int) $f['required'], 'purpose' => (string) ( $f['purpose'] ?? '' ) );
+			// A680: same definition as the public checkout (type, choices, help text, scope).
+			return array( 'required' => (bool) (int) $f['required'] ) + \PassCaptain\ParticipantFields::public_definition( $f );
 		}, (array) $fields );
 	}
 

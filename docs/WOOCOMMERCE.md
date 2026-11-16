@@ -65,7 +65,7 @@ Die Reservierungsdauer entspricht mindestens der WooCommerce-Einstellung „Lage
 
 ## Angaben zu Teilnehmenden und Saalpläne
 
-Hat eine Ticketkategorie Teilnehmerfelder, fragt der Checkout je Ticket Name, E-Mail (beide optional) und die Felder ab; Pflichtfelder werden geprüft, bevor reserviert wird.
+Hat eine Ticketkategorie Teilnehmerfelder, fragt der Checkout je Ticket Name, E-Mail (beide optional) und die Felder ab; Pflichtfelder werden geprüft, bevor reserviert wird. Es gelten dieselben Feldtypen (auch Auswahl, Mehrfachauswahl, Telefon, Datum, Zahl), Hilfetexte, Felder der Bestellebene und der Schalter „Name für jedes Ticket verlangen“ wie im eigenen Checkout (siehe [OPERATIONS.md](OPERATIONS.md#teilnehmerfelder-feldtypen-ebene-teilnehmername-und-versionen-a552-a680)).
 
 - **Klassischer Checkout** (Shortcode): Felder nach den Bestellnotizen (`woocommerce_after_order_notes`), Prüfung in `woocommerce_after_checkout_validation`.
 - **Checkout-Block:** ein kleiner innerer Block im Schritt „Kontaktinformationen“ (`assets/woocommerce/attendees.js`, ohne Build). Der Warenkorb liefert die nötigen Felder über die Store API (`extensions.wpcap.attendee_types`), die Antworten gehen als Checkout-Erweiterungsdaten (`extensions.wpcap.attendees`, JSON) zurück. Fehlende Pflichtangaben sperren „Bestellung aufgeben“ über den Validierungs-Store von WooCommerce; der Server prüft erneut.

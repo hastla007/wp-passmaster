@@ -1753,3 +1753,36 @@ zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EU
   Client; Audit `order_access_link_resent`), danach bestätigt die Seite die maskierte Adresse
   (`wpcap_portal=sent`). Der Zugangslink selbst erscheint nie auf der Seite, weil Rückkehr-URLs in
   Browserverlauf, Proxys oder Screenshots landen können. WooCommerce-Bestellungen bekommen den Knopf nicht.
+
+## Teilnehmerfelder: Feldtypen, Ebene, Teilnehmername und Versionen (A552, A680)
+
+Teilnehmerfelder werden je Ticketart unter **Events → Termin → Ticketart → Teilnehmerfelder** angelegt
+(`PassCaptain\ParticipantFields`, Schema 3.10.25). Derselbe Feldvertrag gilt im eigenen Checkout, an der
+Abendkasse, in beiden WooCommerce-Checkouts, beim Annehmen eines Wartelistenangebots, auf der Ticketseite und im
+Bestellportal.
+
+- **Feldtypen:** Text, E-Mail, mehrzeiliger Text, Checkbox, **Auswahl**, **Mehrfachauswahl**, **Telefon**,
+  **Datum** und **Zahl**. Auswahl und Mehrfachauswahl brauchen mindestens eine Auswahlmöglichkeit (eine je Zeile,
+  höchstens 50, doppelte werden zusammengefasst; bei der Mehrfachauswahl ohne Komma). Der Server nimmt nur
+  angebotene Möglichkeiten an; eine Mehrfachauswahl wird als „A, B“ in der Reihenfolge der Möglichkeiten
+  gespeichert. Telefon: Ziffern, Leerzeichen und `+ ( ) / - .`, 5–30 Zeichen, mindestens 5 Ziffern. Datum:
+  `JJJJ-MM-TT`. Zahl: ganze Zahl oder Dezimalzahl (Komma wird zum Punkt). Ungültige Eingaben werden abgelehnt
+  (`wpcap_attendee_field_invalid` mit Ticketart, Position und Feldschlüssel), nie still als leer gespeichert.
+- **Hilfetext:** steht unter dem Feld (mit `aria-describedby` verbunden), zusätzlich zum Zweck.
+- **Ebene:** „Für jedes Ticket“ oder „Einmal je Bestellung“. Ein Feld der Bestellebene wird je Ticketart einmal
+  abgefragt (im ersten Teilnehmerblock der Ticketart) und an jedem Ticket dieser Art gespeichert – Exporte,
+  Aufbewahrungsfristen und Löschung arbeiten deshalb unverändert je Ticket. Eine Einwilligung ist immer je
+  Ticketperson und kann nicht auf Bestellebene liegen.
+- **Teilnehmername je Ticket:** Schalter „Name für jedes Ticket verlangen“ an der Ticketart
+  (`attendee_name_required`, Filter `wpcap_attendee_name_required`). Dann braucht jedes Ticket einen Namen
+  (`wpcap_attendee_field_required`, `field_key` `__name`) – auch wenn sonst keine Teilnehmerfelder bestehen; der
+  WooCommerce-Checkout fragt die Angaben dann ebenfalls ab. Korrekturen einzelner Angaben auf der Ticketseite und
+  aufgeschobene Wartelistenangaben sind davon ausgenommen.
+- **„Meine Angaben übernehmen“:** Der erste Teilnehmerblock des Checkouts hat einen Knopf, der E-Mail und
+  Rechnungsname der Käuferin bzw. des Käufers in den Block kopiert. API-Clients setzen je Teilnehmer
+  `same_as_buyer: true`; leere Name-/E-Mail-Felder werden dann aus der Käufer-E-Mail und dem Rechnungsnamen gefüllt.
+- **Versionen:** Ändern sich Bezeichnung, Typ, Auswahlmöglichkeiten, Pflicht oder Ebene, steigt die Version des
+  Feldes (Spalte `version`, in der Liste als „v2“ usw.). Das Audit-Protokoll (`participant_field_updated`) hält
+  jede Fassung mit Version fest, und jede Antwort speichert die Version, unter der sie gegeben wurde
+  (`wpcap_participant_answers.field_version`; 0 = vor Schema 3.10.25). Hilfetext, Zweck, Reihenfolge und
+  Aufbewahrung ändern die Version nicht.

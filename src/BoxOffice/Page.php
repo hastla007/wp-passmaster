@@ -313,6 +313,8 @@ final class Page {
 				$answers = array();
 				foreach ( is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array() as $key => $value ) {
 					if ( is_scalar( $value ) ) { $answers[ sanitize_key( (string) $key ) ] = (string) $value; }
+					// A680: a multi-select sends a list of chosen labels (validated against the choices).
+					elseif ( is_array( $value ) ) { $answers[ sanitize_key( (string) $key ) ] = array_values( array_map( 'strval', array_filter( $value, 'is_scalar' ) ) ); }
 				}
 				$attendees[ absint( $type_id ) ][] = array(
 					'name' => is_scalar( $entry['name'] ?? null ) ? (string) $entry['name'] : '',

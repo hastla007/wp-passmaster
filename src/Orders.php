@@ -138,7 +138,10 @@ final class Orders {
 				}
 			}
 		}
-		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array(), array( 'defer_required' => ! empty( $internal['defer_attendees'] ) ) );
+		// A552: "same as buyer" per ticket takes the buyer address and the billing name (if given).
+		$buyer_billing = is_array( $internal['billing'] ?? null ) ? $internal['billing'] : ( is_array( $payload['billing'] ?? null ) ? $payload['billing'] : array() );
+		$buyer = array( 'email' => $email, 'name' => trim( Http::str( $buyer_billing['first_name'] ?? '' ) . ' ' . Http::str( $buyer_billing['last_name'] ?? '' ) ) );
+		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array(), array( 'defer_required' => ! empty( $internal['defer_attendees'] ), 'buyer' => $buyer, 'strict' => ! empty( $internal['strict_attendees'] ) ) );
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
 		// Consent proof (A116): text version shown, time, source, locale; recorded at issuance.
 		$consent_source = Consents::source_for_channel( $internal['source'] ?? $namespace );
@@ -493,7 +496,7 @@ final class Orders {
 			}
 		}
 		foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
-			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket_id, absint( $field_id ), (string) $value, $now, $now ) ) ) { return false; }
+			if ( ! ParticipantFields::save_answer( $ticket_id, $field_id, (string) $value, $now ) ) { return false; }
 		}
 		Consents::record_checkout( $ticket_id, $order, $attendee );
 		return '' === $wpdb->last_error;
@@ -588,6 +591,12 @@ final class Orders {
 	 * $options['defer_required'] required fields may stay empty (waitlist offer orders: the data is
 	 * collected and fully validated when the offer is accepted, A536).
 	 *
+	 * Field types, choices, order-level fields and versions: ParticipantFields (A680). Ticket types
+	 * with "attendee name required" need a name on every ticket (A552; $options['skip_name'] for
+	 * corrections of answers alone). An entry with `same_as_buyer` takes name/e-mail from
+	 * $options['buyer'] (['email', 'name']). With $options['strict'] (A681) entries of other ticket
+	 * types and unknown or deactivated field keys are refused instead of dropped.
+	 *
 	 * Errors carry which attendee is meant (A551): `ticket_type_id`, `position` (0-based n-th ticket
 	 * of that type), `index` (0-based position in the submitted list, when that entry was sent) and
 	 * `field_key` (participant field) in the error data.
@@ -600,8 +609,27 @@ final class Orders {
 		$out = array();
 		$skip_consent = ! empty( $options['skip_consent'] ) && Consents::ready();
 		$defer_required = ! empty( $options['defer_required'] );
+		// A681: strict channels (WooCommerce) refuse what they cannot store instead of dropping it silently.
+		$strict = ! empty( $options['strict'] );
+		$buyer = is_array( $options['buyer'] ?? null ) ? $options['buyer'] : array();
+		$known_types = array_map( 'intval', array_keys( $lines ) );
+		if ( $strict ) {
+			foreach ( $attendees as $index => $entry ) {
+				if ( ! is_array( $entry ) || ! in_array( absint( $entry['ticket_type_id'] ?? 0 ), $known_types, true ) ) {
+					return new \WP_Error( 'wpcap_attendees_invalid', __( 'Angaben zu Teilnehmenden passen nicht zu den bestellten Tickets.', 'pass-captain' ), array( 'status' => 400, 'index' => (int) $index, 'reason' => 'unknown_ticket_type' ) );
+				}
+			}
+		}
 		foreach ( $lines as $type_id => $quantity ) {
-			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) );
+			$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . ",status FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d" . ( $strict ? '' : " AND status='active'" ) . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
+			// Inactive fields are only read to tell "no longer offered" from "unknown" (A681).
+			$inactive = array();
+			foreach ( $fields as $k => $field ) {
+				if ( 'active' !== $field->status ) { $inactive[] = (string) $field->field_key; unset( $fields[ $k ] ); }
+			}
+			$fields = array_values( $fields );
+			// Corrections of answers alone (ticket page, assignment) leave the name as it is: skip_name.
+			$name_required = ! $defer_required && empty( $options['skip_name'] ) && ParticipantFields::name_required( $type_id );
 			$given = array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } );
 			// Position of each entry in the submitted list: error data names the attendee (A551).
 			$given_index = array_keys( $given );
@@ -609,31 +637,52 @@ final class Orders {
 			$where = static function ( $i, $field = null ) use ( $type_id, $given_index ) {
 				$data = array( 'status' => 400, 'ticket_type_id' => (int) $type_id, 'position' => (int) $i );
 				if ( isset( $given_index[ $i ] ) ) { $data['index'] = (int) $given_index[ $i ]; }
-				if ( $field ) { $data['field_key'] = (string) $field->field_key; }
+				if ( $field ) { $data['field_key'] = is_object( $field ) ? (string) $field->field_key : (string) $field; }
 				return $data;
 			};
 			if ( count( $given ) > $quantity ) {
 				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), $where( (int) $quantity ) );
 			}
-			$needs_all = ! $defer_required && (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
+			if ( $strict ) {
+				$keys = array_map( static function ( $f ) { return (string) $f->field_key; }, $fields );
+				foreach ( $given as $i => $entry ) {
+					$sent = is_array( $entry['answers'] ?? null ) ? array_keys( $entry['answers'] ) : array();
+					foreach ( array_diff( array_map( 'strval', $sent ), $keys ) as $unknown ) {
+						$closed = in_array( $unknown, $inactive, true );
+						return new \WP_Error(
+							'wpcap_attendee_field_unknown',
+							$closed ? __( 'Ein Teilnehmerfeld wird nicht mehr abgefragt. Bitte lade die Seite neu und prüfe die Angaben.', 'pass-captain' ) : __( 'Die Angaben zu Teilnehmenden enthalten ein unbekanntes Feld. Bitte lade die Seite neu.', 'pass-captain' ),
+							$where( $i, sanitize_key( $unknown ) ) + array( 'reason' => $closed ? 'field_inactive' : 'field_unknown' )
+						);
+					}
+				}
+			}
+			// A680: order-level fields are asked once per order and ticket type (first entry of the type).
+			$order_fields = array_values( array_filter( $fields, static function ( $f ) { return 'order' === ParticipantFields::scope( $f ); } ) );
+			$ticket_fields = array_values( array_filter( $fields, static function ( $f ) { return 'order' !== ParticipantFields::scope( $f ); } ) );
+			$order_clean = array();
+			$first = is_array( $given[0]['answers'] ?? null ) ? $given[0]['answers'] : array();
+			foreach ( $order_fields as $field ) {
+				list( $value, $error ) = ParticipantFields::normalize( $field, $first[ $field->field_key ] ?? '' );
+				if ( $error ) { return new \WP_Error( 'wpcap_attendee_field_invalid', ParticipantFields::invalid_message( $field ), $where( 0, $field ) ); }
+				if ( (int) $field->required && '' === $value && ! $defer_required ) {
+					/* translators: %s: field label */
+					return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für die Bestellung ausfüllen.', 'pass-captain' ), $field->label ), $where( 0, $field ) );
+				}
+				if ( '' !== $value ) { $order_clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
+			}
+			$needs_all = ! $defer_required && ( $name_required || (bool) array_filter( $ticket_fields, static function ( $f ) { return (int) $f->required; } ) );
 			for ( $i = 0; $i < $quantity; $i++ ) {
 				$entry = $given[ $i ] ?? null;
-				if ( ! $entry && ! $needs_all ) { continue; }
+				if ( ! $entry && ! $needs_all && ! $order_clean ) { continue; }
 				$entry = is_array( $entry ) ? $entry : array();
 				$answers = is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array();
 				$clean = array();
-				foreach ( $fields as $field ) {
-					$value = $answers[ $field->field_key ] ?? '';
-					$value = is_scalar( $value ) ? trim( (string) $value ) : '';
-					// A498: sanitize_email() turns "kein-mail" into "" – an entered but invalid address must not pass as empty.
-					$bad_email = false;
-					if ( 'email' === $field->field_type ) { $value = Http::optional_email( $value ); $bad_email = false === $value; $value = (string) $value; }
-					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
-					elseif ( 'checkbox' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
-					else { $value = sanitize_text_field( $value ); }
-					if ( $bad_email ) {
-						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
+				foreach ( $ticket_fields as $field ) {
+					// A498: sanitize_email() turns "kein-mail" into "" – an entered but invalid value must not pass as empty.
+					list( $value, $error ) = ParticipantFields::normalize( $field, $answers[ $field->field_key ] ?? '' );
+					if ( $error ) {
+						return new \WP_Error( 'wpcap_attendee_field_invalid', ParticipantFields::invalid_message( $field ), $where( $i, $field ) );
 					}
 					if ( (int) $field->required && '' === $value && ! $defer_required ) {
 						/* translators: %s: field label */
@@ -641,7 +690,18 @@ final class Orders {
 					}
 					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
 				}
-				$email = Http::email( $entry['email'] ?? '' );
+				// A552: "same as buyer" takes the buyer's address (and billing name) for this ticket.
+				$same = ! empty( $entry['same_as_buyer'] ) && $buyer;
+				$name = mb_substr( sanitize_text_field( Http::str( $entry['name'] ?? '' ) ), 0, 190 );
+				$raw_email = $entry['email'] ?? '';
+				if ( $same ) {
+					if ( '' === $name ) { $name = mb_substr( sanitize_text_field( Http::str( $buyer['name'] ?? '' ) ), 0, 190 ); }
+					if ( '' === trim( Http::str( $raw_email ) ) ) { $raw_email = $buyer['email'] ?? ''; }
+				}
+				if ( $name_required && '' === $name ) {
+					return new \WP_Error( 'wpcap_attendee_field_required', __( 'Bitte den Namen für jedes Ticket angeben.', 'pass-captain' ), $where( $i, '__name' ) );
+				}
+				$email = Http::email( $raw_email );
 				if ( Http::email_too_long( $email ) ) {
 					// A493: a valid but overlong address would fail at the tickets/assignments column at issuance.
 					return new \WP_Error( 'wpcap_attendees_invalid', self::email_too_long_message(), $where( $i ) + array( 'reason' => 'email_too_long' ) );
@@ -656,9 +716,9 @@ final class Orders {
 				}
 				$out[] = array(
 					'ticket_type_id' => (int) $type_id,
-					'name' => mb_substr( sanitize_text_field( Http::str( $entry['name'] ?? '' ) ), 0, 190 ),
+					'name' => $name,
 					'email' => is_email( $email ) ? $email : '',
-					'answers' => $clean,
+					'answers' => $clean + $order_clean,
 				);
 			}
 		}

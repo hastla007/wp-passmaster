@@ -105,11 +105,11 @@ final class TicketAssignments {
 		if ( is_array( $answers ) ) {
 			$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket->ticket_id ) );
 			// Consents are granted/withdrawn separately (Consents, logged); this form corrects the other answers.
-			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ), array( 'skip_consent' => true ) );
+			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ), array( 'skip_consent' => true, 'skip_name' => true ) );
 			if ( is_wp_error( $valid ) ) { $wpdb->query( 'ROLLBACK' ); return $valid; }
 			$now = current_time( 'mysql', true );
 			foreach ( (array) ( $valid[0]['answers'] ?? array() ) as $field_id => $value ) {
-				$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket->ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
+				\PassCaptain\ParticipantFields::save_answer( (int) $ticket->ticket_id, $field_id, (string) $value, $now );
 			}
 		}
 		// Counted inside the transaction (row lock on the ticket), see holder_changes() and name_changes().
@@ -341,7 +341,7 @@ final class TicketAssignments {
 		}
 		$clean = array();
 		if ( is_array( $answers ) ) {
-			$valid = Orders::validate_attendees( array( (int) $ticket->ticket_type_id => 1 ), array( array( 'ticket_type_id' => (int) $ticket->ticket_type_id, 'answers' => $answers ) ), array( 'skip_consent' => true ) );
+			$valid = Orders::validate_attendees( array( (int) $ticket->ticket_type_id => 1 ), array( array( 'ticket_type_id' => (int) $ticket->ticket_type_id, 'answers' => $answers ) ), array( 'skip_consent' => true, 'skip_name' => true ) );
 			if ( is_wp_error( $valid ) ) {
 				$wpdb->query( 'ROLLBACK' );
 				return $valid;
@@ -363,7 +363,7 @@ final class TicketAssignments {
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_name=VALUES(attendee_name)", (int) $ticket->ticket_id, (string) $order->customer_email, (string) $ticket->attendee_email, $name, $now ) );
 		foreach ( $clean as $field_id => $value ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", (int) $ticket->ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
+			\PassCaptain\ParticipantFields::save_answer( (int) $ticket->ticket_id, $field_id, (string) $value, $now );
 		}
 		if ( '' !== $wpdb->last_error ) {
 			$wpdb->query( 'ROLLBACK' );

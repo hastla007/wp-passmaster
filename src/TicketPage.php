@@ -97,7 +97,7 @@ final class TicketPage {
 		if ( ! $open ) {
 			return '' !== $notice ? '<p class="notice" id="wpcap-attendee" role="status">' . esc_html( $notice ) . '</p>' : '';
 		}
-		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', (int) $ticket->ticket_type_id ) );
+		$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . " FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', (int) $ticket->ticket_type_id ) );
 		$answers = array();
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT field_id,answer FROM {$p}wpcap_participant_answers WHERE ticket_id=%d", (int) $ticket->ticket_id ) ) as $a ) { $answers[ (int) $a->field_id ] = (string) $a->answer; }
 		$html = '<section class="manage" id="wpcap-attendee"><h2>' . esc_html__( 'Teilnehmerdaten', 'pass-captain' ) . '</h2>';
@@ -112,7 +112,7 @@ final class TicketPage {
 				$input = '<textarea name="' . $name . '"' . ( (int) $field->required ? ' required' : '' ) . '>' . esc_html( $value ) . '</textarea>';
 			} elseif ( 'checkbox' === $field->field_type ) {
 				$input = '<input type="hidden" name="' . $name . '" value=""><input type="checkbox" name="' . $name . '" value="1"' . ( '1' === $value ? ' checked' : '' ) . '>';
-			} else {
+			} elseif ( '' === ( $input = ParticipantFields::control_html( $field, array( 'name' => 'wpcap_answer[' . $field->field_key . ']' ), $value ) ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.Found, Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure
 				$input = '<input type="' . ( 'email' === $field->field_type ? 'email' : 'text' ) . '" name="' . $name . '" value="' . esc_attr( $value ) . '"' . ( (int) $field->required ? ' required' : '' ) . '>';
 			}
 			$html .= '<p><label>' . $label . '<br>' . $input . '</label></p>';
@@ -136,7 +136,8 @@ final class TicketPage {
 		if ( ! wp_verify_nonce( $nonce, 'wpcap_ticket_attendee_' . (int) $ticket->ticket_id ) ) {
 			return new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Seite neu.', 'pass-captain' ) );
 		}
-		$answers = isset( $post['wpcap_answer'] ) && is_array( $post['wpcap_answer'] ) ? array_map( static function ( $v ) { return is_scalar( $v ) ? (string) $v : ''; }, $post['wpcap_answer'] ) : array();
+		// A680: a multi-select posts a list of chosen labels.
+		$answers = isset( $post['wpcap_answer'] ) && is_array( $post['wpcap_answer'] ) ? array_map( static function ( $v ) { return is_array( $v ) ? array_values( array_map( 'strval', array_filter( $v, 'is_scalar' ) ) ) : ( is_scalar( $v ) ? (string) $v : '' ); }, $post['wpcap_answer'] ) : array();
 		$result = TicketAssignments::update_by_holder( $token, (string) ( $post['attendee_name'] ?? '' ), $answers );
 		return is_wp_error( $result ) ? $result : (string) $result['status'];
 	}

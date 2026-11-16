@@ -84,7 +84,13 @@
 					var input;
 					if (field.type === 'textarea') { input = el('textarea', { id: id, name: name, rows: '2', cols: '40' }); }
 					else if (field.type === 'checkbox') { input = el('input', { id: id, name: name, type: 'checkbox', value: '1' }); }
-					else { input = el('input', { id: id, name: name, type: field.type === 'email' ? 'email' : 'text', size: '30' }); }
+					else if (field.type === 'select' || field.type === 'multiselect') {
+						// A680: choices; a multi-select sends the list of chosen labels.
+						input = el('select', { id: id, name: name + (field.type === 'multiselect' ? '[]' : '') });
+						if (field.type === 'multiselect') { input.multiple = true; } else { input.appendChild(el('option', { value: '' }, '–')); }
+						(field.options || []).forEach(function (option) { input.appendChild(el('option', { value: option }, option)); });
+					}
+					else { input = el('input', { id: id, name: name, type: ({ email: 'email', tel: 'tel', date: 'date' })[field.type] || 'text', size: '30' }); }
 					if (field.required) { input.required = true; }
 					labelled(fs, id, field.label + (field.required ? ' *' : ''), input);
 					if (field.purpose) { fs.appendChild(el('p', { 'class': 'description' }, field.purpose)); }

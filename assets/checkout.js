@@ -61,12 +61,55 @@
 		if (!node.id) node.id = (prefix || 'wpcap-f') + '-' + (++uid) + '-' + Math.random().toString(16).slice(2, 6);
 		return node.id;
 	}
+	// Input for a participant field (A680): text, e-mail, textarea, checkbox, select, multi-select
+	// (a group of checkboxes, data-multi), phone, date and number.
 	function fieldInput(field, id) {
-		const type = field.type === 'email' ? 'email' : (field.type === 'checkbox' ? 'checkbox' : 'text');
-		const input = field.type === 'textarea' ? el('textarea', { id: id, 'data-key': field.key }) : el('input', { id: id, type: type, 'data-key': field.key });
+		let input;
+		if (field.type === 'textarea') {
+			input = el('textarea', { id: id, 'data-key': field.key });
+		} else if (field.type === 'select') {
+			input = el('select', { id: id, 'data-key': field.key });
+			input.appendChild(el('option', { value: '' }, t.choose || '–'));
+			(field.options || []).forEach(function (option) { input.appendChild(el('option', { value: option }, option)); });
+		} else if (field.type === 'multiselect') {
+			input = el('span', { id: id, role: 'group', 'data-key': field.key, 'data-multi': '1', class: 'wpcap-multi' });
+			(field.options || []).forEach(function (option, i) {
+				const box = el('input', { id: id + '-o' + i, type: 'checkbox', value: option });
+				const label = el('label', { for: id + '-o' + i }, option);
+				const row = el('span', { class: 'wpcap-multi-option' });
+				row.appendChild(box);
+				row.appendChild(label);
+				input.appendChild(row);
+			});
+			return input;
+		} else {
+			const types = { email: 'email', checkbox: 'checkbox', tel: 'tel', date: 'date' };
+			input = el('input', { id: id, type: types[field.type] || 'text', 'data-key': field.key });
+			if (field.type === 'tel') input.setAttribute('autocomplete', 'off');
+			if (field.type === 'number') input.setAttribute('inputmode', 'decimal');
+		}
 		if (Number(field.required)) input.required = true;
-		if (type === 'checkbox') input.value = '1';
+		if (input.type === 'checkbox') input.value = '1';
 		return input;
+	}
+	// Value of a participant input: checkbox '1'/'', multi-select the list of ticked choices.
+	function fieldValue(input) {
+		if (input.dataset.multi) {
+			return Array.prototype.slice.call(input.querySelectorAll('input[type="checkbox"]:checked')).map(function (box) { return box.value; });
+		}
+		return input.type === 'checkbox' ? (input.checked ? '1' : '') : input.value;
+	}
+	// A552: "same as buyer" copies the buyer's e-mail and billing name into the attendee block.
+	function copyBuyer(form, fs) {
+		const email = form.querySelector('[name="email"]');
+		const first = form.querySelector('[name="billing_first_name"]');
+		const last = form.querySelector('[name="billing_last_name"]');
+		const name = [first ? first.value.trim() : '', last ? last.value.trim() : ''].filter(Boolean).join(' ');
+		const nameInput = fs.querySelector('[data-key="__name"]');
+		const emailInput = fs.querySelector('[data-key="__email"]');
+		if (emailInput && email) emailInput.value = email.value.trim();
+		if (nameInput && name) nameInput.value = name;
+		(nameInput && !nameInput.value ? nameInput : emailInput || nameInput).focus();
 	}
 	// Attendee blocks per slot ("<ticket type>-<n>") and form. A block that is no longer needed
 	// (quantity lowered, field emptied while typing a new number) is only detached, so its entries
@@ -92,6 +135,7 @@
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const n = Math.max(0, Number(qty.value) || 0);
 			const fields = JSON.parse(qty.dataset.fields || '[]');
+			const nameRequired = qty.dataset.nameRequired === '1';
 			for (let i = 0; i < n; i++) {
 				count++;
 				const slot = qty.dataset.type + '-' + i;
@@ -106,16 +150,32 @@
 				const fs = el('fieldset', { 'data-slot': slot, 'data-type': qty.dataset.type, class: 'wpcap-attendee' });
 				fs.appendChild(el('legend', {}, attendeeLegend(count, qty.dataset.name)));
 				const base = 'wpcap-att-' + slot + '-' + Math.random().toString(16).slice(2, 8);
-				const nameLabel = el('label', { for: base + '-name' }, t.name || 'Name');
+				if (count === 1) {
+					const same = el('button', { type: 'button', class: 'wpcap-same-as-buyer' }, t.sameAsBuyer || 'Same as buyer');
+					same.addEventListener('click', function () { copyBuyer(form, fs); });
+					fs.appendChild(same);
+				}
+				const nameLabel = el('label', { for: base + '-name' }, (t.name || 'Name') + (nameRequired ? ' *' : ''));
 				fs.appendChild(nameLabel);
-				fs.appendChild(el('input', { id: base + '-name', type: 'text', 'data-key': '__name', autocomplete: 'section-att' + count + ' name', maxlength: '190' }));
+				const nameInput = el('input', { id: base + '-name', type: 'text', 'data-key': '__name', autocomplete: 'section-att' + count + ' name', maxlength: '190' });
+				if (nameRequired) nameInput.required = true;
+				fs.appendChild(nameInput);
 				fs.appendChild(el('label', { for: base + '-email' }, t.email || 'E-mail'));
 				fs.appendChild(el('input', { id: base + '-email', type: 'email', 'data-key': '__email', autocomplete: 'off' }));
 				fields.forEach(function (field, index) {
+					// A680: order-level fields are asked once, in the first block of the ticket type.
+					if (field.scope === 'order' && i > 0) return;
 					const id = base + '-f' + index;
-					fs.appendChild(el('label', { for: id }, field.label + (Number(field.required) ? ' *' : '')));
-					fs.appendChild(fieldInput(field, id));
-					if (field.purpose) fs.appendChild(el('small', {}, field.purpose));
+					const text = field.label + (field.scope === 'order' ? ' ' + (t.perOrder || '') : '') + (Number(field.required) ? ' *' : '');
+					const label = el('label', { for: id, id: id + '-label' }, text.replace(/\s+/g, ' ').trim());
+					const input = fieldInput(field, id);
+					if (input.dataset.multi) { label.removeAttribute('for'); input.setAttribute('aria-labelledby', id + '-label'); }
+					fs.appendChild(label);
+					fs.appendChild(input);
+					const notes = [];
+					if (field.help) { fs.appendChild(el('small', { id: id + '-help' }, field.help)); notes.push(id + '-help'); }
+					if (field.purpose) { fs.appendChild(el('small', { id: id + '-purpose' }, field.purpose)); notes.push(id + '-purpose'); }
+					if (notes.length) input.setAttribute('aria-describedby', notes.join(' '));
 				});
 				cache[slot] = fs;
 				box.appendChild(fs);
@@ -554,7 +614,7 @@
 			const quoted = /„([^“]+)“/.exec(data.message || '');
 			if (quoted) {
 				const match = inputs.filter(function (input) { return labelText(input) === quoted[1]; });
-				const empty = match.filter(function (input) { return input.type === 'checkbox' ? !input.checked : !input.value.trim(); });
+				const empty = match.filter(function (input) { const v = fieldValue(input); return Array.isArray(v) ? !v.length : !String(v).trim(); });
 				if (empty.length || match.length) return (empty.length ? empty : match)[0];
 			}
 			return inputs[0] || null;
@@ -714,7 +774,7 @@
 		form.querySelectorAll('.wpcap-attendee').forEach(function (fs) {
 			const entry = { ticket_type_id: Number(fs.dataset.type), answers: {} };
 			fs.querySelectorAll('[data-key]').forEach(function (input) {
-				const value = input.type === 'checkbox' ? (input.checked ? '1' : '') : input.value;
+				const value = fieldValue(input);
 				if (input.dataset.key === '__name') entry.name = value;
 				else if (input.dataset.key === '__email') entry.email = value;
 				else entry.answers[input.dataset.key] = value;
