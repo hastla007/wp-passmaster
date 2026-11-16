@@ -908,21 +908,21 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:600, :613 (capacity_error_counted), CapacityCounters.php:132: type=ALL; 524k Reservierungen → 0,7 s je Prüfung, Checkouts serialisiert. Index (ticket_type_id, counted_qty)/indexfähige Bedingung, alte Reservierungen löschen
 - [x] **A430** [WICHTIG] Kapazitäts-Reconcile-Cron alle 5 min über gesamte Reservierungshistorie — _R2 DB/Performance_ (TODO L764; Audit Runde 4)
   - src/CapacityCounters.php:486–516: Full Scan + doppelte korrelierte SUMs (~2 s/Lauf). Aufräumen, indexieren, nur counted_qty>0
-- [ ] **A431** [WICHTIG] Mollie-Webhook macht vor dem Rate-Limit einen Full Scan auf wpcap_orders — _R2 DB/Performance_ (TODO L765; Audit Runde 4)
+- [x] **A431** [WICHTIG] Mollie-Webhook macht vor dem Rate-Limit einen Full Scan auf wpcap_orders — _R2 DB/Performance_ (TODO L765; Audit Runde 4)
   - src/Mollie/MollieGateway.php:128–131, :190–194: Erst RateLimit, nur wpcap_mollie_payments per PK; oder Index (payment_provider, provider_reference)
-- [ ] **A432** [WICHTIG] Admin-Ticketliste wertet last_checkin_at für alle Tickets aus — _R2 DB/Performance_ (TODO L766; Audit Runde 4)
+- [x] **A432** [WICHTIG] Admin-Ticketliste wertet last_checkin_at für alle Tickets aus — _R2 DB/Performance_ (TODO L766; Audit Runde 4)
   - src/Admin/Queries.php:434 (search_tickets): 1,4 s bei 200k Tickets. Letzte Check-ins in zweiter Query nur für die Seite
-- [ ] **A433** [WICHTIG] Check-in-Protokoll ohne passende Indizes — _R2 DB/Performance_ (TODO L767; Audit Runde 4)
+- [x] **A433** [WICHTIG] Check-in-Protokoll ohne passende Indizes — _R2 DB/Performance_ (TODO L767; Audit Runde 4)
   - src/Admin/Queries.php:447–470: KEY (created_at, checkin_id), COUNT ohne Joins, Ergebnis-Werte als Konstante
-- [ ] **A434** [WICHTIG] Umsatzbericht, Buchhaltungs-/DATEV-Export, Abrechnungen mit N+1 und alles im Speicher — _R2 DB/Performance_ (TODO L768; Audit Runde 4)
+- [x] **A434** [WICHTIG] Umsatzbericht, Buchhaltungs-/DATEV-Export, Abrechnungen mit N+1 und alles im Speicher — _R2 DB/Performance_ (TODO L768; Audit Runde 4)
   - src/Reports/Data.php:163–181, Invoices.php:700–716, Reports/Settlement.php:158, Partners/Statement.php:46: 24k Bestellungen: 24k Queries, 163 MB. Vorladen per IN/JOIN, blockweise, per php://output streamen
-- [ ] **A435** [WICHTIG] Partner-Abrechnung verarbeitet jedes Mal die gesamte Historie — _R2 DB/Performance_ (TODO L769; Audit Runde 4)
+- [x] **A435** [WICHTIG] Partner-Abrechnung verarbeitet jedes Mal die gesamte Historie — _R2 DB/Performance_ (TODO L769; Audit Runde 4)
   - src/Partners/Settlements.php:105–130: Auf unabgerechnete Quellen/Wasserstand in SQL begrenzen, blockweise
 - [x] **A436** [WICHTIG] GROUP_CONCAT-Abschneidung bei der Pass-Absage — _R2 DB/Performance_ (TODO L770; Audit Runde 4)
   - src/Passes/Cancellation.php:119, :165: Ticket-IDs je Bestellung separat lesen (wie OccurrenceCancellation)
-- [ ] **A437** [WICHTIG] Webhook-Aufräumjob alle 5 min Full Scan, DELETE ohne LIMIT — _R2 DB/Performance_ (TODO L771; Audit Runde 4)
+- [x] **A437** [WICHTIG] Webhook-Aufräumjob alle 5 min Full Scan, DELETE ohne LIMIT — _R2 DB/Performance_ (TODO L771; Audit Runde 4)
   - src/Webhooks/Dispatcher.php:302–305, Modules/Webhooks.php:31: KEY (status, updated_at), DELETE … LIMIT 1000 mit Zeitbudget, höchstens stündlich
-- [ ] **A438** [WICHTIG] Lasttests ohne Historie und ohne Admin-/Massenoperationen — _R2 DB/Performance_ (TODO L772; Audit Runde 4)
+- [x] **A438** [WICHTIG] Lasttests ohne Historie und ohne Admin-/Massenoperationen — _R2 DB/Performance_ (TODO L772; Audit Runde 4)
   - tests/load: Profile mit Jahren an Reservierungen/Check-ins/Zustellungen; Absagen, Batch-PDF, Berichte, Exporte bei 10k–100k
 - [ ] **A439** [OPTIMIERUNG] Retention-Schritt checkin_staff ohne Index — _R2 DB/Performance_ (TODO L773; Audit Runde 4)
   - src/Privacy/Retention.php:345: Index (created_at, checkin_id)
