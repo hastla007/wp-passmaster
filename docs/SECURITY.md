@@ -370,6 +370,14 @@ Wirkung im Plugin:
 
 - **Scanner** (Web, Scanner-App, Offline-Paket): nie Käuferdaten; Teilnehmername nur mit der Einstellung –
   auch für volle Profile, denn der Scan-Bildschirm ist öffentlich sichtbar.
+- **Bestelllisten und Rabattcodes im eingeschränkten Zugriff (A650):** Bestellliste, Prüfliste („needs_review“) und
+  Erstattungsfreigaben zeigen eingeschränkten Personen nur Bestellungen, deren Positionen **alle** in ihren Events
+  (und Terminen) liegen – wie beim Öffnen einer Bestellung (`Queries::can_access_order()`); Bestellungen mit Tickets
+  fremder Events (E-Mail, Summe, fremder Eventname) erscheinen dort nicht mehr (`Queries::order_scope_sql()`).
+  Rabattcodes sind eventübergreifend eindeutig: Ist ein Code vergeben, lautet die Antwort neutral
+  `wpcap_campaign_code_unavailable` (400), Fehlversuche werden je Person begrenzt (10 je Stunde, Filter
+  `wpcap_campaign_code_conflict_limit`, danach 429) und protokolliert (Audit `campaign_code_conflict`, nur ein
+  Hash des Codes), damit niemand Codes anderer Veranstalter durch Ausprobieren findet.
 - **Leere Eventmengen (A638):** Prüfungen über „alle Events eines Objekts“ schlagen bei leerer Menge fehl statt
   durch: Rechnung per REST (`/orders/{id}/invoice`) für eine Bestellung ohne Ticketpositionen nur für
   Administratoren; ein Gerät ohne freigegebene Events scannt nichts und erzeugt keine Einlasskonflikte.

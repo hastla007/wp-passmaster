@@ -247,6 +247,25 @@ final class Campaigns {
 		return $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 	}
 
+	/** Failed code choices (code taken) per person and hour before 429 (A650; filter `wpcap_campaign_code_conflict_limit`). */
+	const CODE_CONFLICT_LIMIT = 10;
+
+	/**
+	 * A650: neutral refusal of a code that cannot be used (taken – possibly by another organiser),
+	 * limited per person and hour; administrators (all codes visible anyway) are not limited.
+	 */
+	private static function code_unavailable( $code ) {
+		$user = (int) get_current_user_id();
+		if ( ! current_user_can( 'manage_options' ) ) {
+			$limit = max( 1, (int) apply_filters( 'wpcap_campaign_code_conflict_limit', self::CODE_CONFLICT_LIMIT ) );
+			if ( ! RateLimit::allow( 'campaign-code-conflict|' . $user, $limit, HOUR_IN_SECONDS ) ) {
+				return new \WP_Error( 'wpcap_rate_limited', __( 'Zu viele Versuche. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+			}
+			Audit::record( 'campaign_code_conflict', 'user', $user, array( 'code_hash' => substr( hash( 'sha256', (string) $code ), 0, 16 ) ) );
+		}
+		return new \WP_Error( 'wpcap_campaign_code_unavailable', __( 'Dieser Code kann nicht verwendet werden. Bitte wähle einen anderen Code.', 'pass-captain' ), array( 'status' => 400, 'field' => 'code' ) );
+	}
+
 	/**
 	 * Creates a code. starts_at/ends_at are UTC "Y-m-d H:i:s" (or empty for open); callers convert
 	 * local input first (admin form: Forms::local_to_utc(), REST: window_bound(), A616).
@@ -272,6 +291,11 @@ final class Campaigns {
 		if ( $window['starts_at'] && $window['ends_at'] && $window['ends_at'] <= $window['starts_at'] ) {
 			return new \WP_Error( 'wpcap_campaign_dates', __( 'Das Ende der Gültigkeit muss nach dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400, 'field' => 'ends_at' ) );
 		}
+		// A650: codes are unique across all events, so "taken" tells a scoped organiser that a code of
+		// another organiser exists. The answer is neutral, failed attempts are limited per person and
+		// logged, so codes of foreign events cannot be found by trying.
+		$taken = (int) $wpdb->get_var( $wpdb->prepare( "SELECT campaign_id FROM {$wpdb->prefix}wpcap_campaigns WHERE code=%s", $code ) );
+		if ( $taken ) { return self::code_unavailable( $code ); }
 		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_campaigns', array(
 			'event_id' => absint( $data['event_id'] ?? 0 ), 'ticket_type_id' => absint( $data['ticket_type_id'] ?? 0 ), 'code' => $code,
 			'name' => sanitize_text_field( $data['name'] ?? $code ), 'kind' => $kind, 'discount_value' => $value, 'currency' => $currency,
@@ -280,7 +304,11 @@ final class Campaigns {
 			'status' => 'active', 'created_at' => current_time( 'mysql', true ),
 			'stacking' => 'exclusive' === ( $data['stacking'] ?? '' ) ? 'exclusive' : 'combinable',
 		), array( '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
-		if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		if ( false === $inserted ) {
+			// A parallel request took the code (unique index): the same neutral answer.
+			if ( false !== stripos( (string) $wpdb->last_error, 'duplicate' ) ) { return self::code_unavailable( $code ); }
+			return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
 		$campaign_id = (int) $wpdb->insert_id; // Before the audit insert changes insert_id.
 		self::flush();
 		Audit::record( 'campaign_created', 'campaign', $campaign_id, array( 'code' => $code, 'kind' => $kind, 'stacking' => 'exclusive' === ( $data['stacking'] ?? '' ) ? 'exclusive' : 'combinable' ) );

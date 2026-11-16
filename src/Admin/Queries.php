@@ -528,6 +528,25 @@ final class Queries {
 	}
 
 	/**
+	 * A650: SQL condition for orders the user may see in lists – like can_access_order(): at least one
+	 * line and every line in an event (and occurrence) of the scope. An order that also holds tickets of
+	 * a foreign event is not listed (its e-mail, total and the foreign event name would show).
+	 *
+	 * @param int[]|null $event_ids Scope (null = all events).
+	 * @param string     $order_col Column holding the order id (e.g. ord.order_id).
+	 */
+	public static function order_scope_sql( $event_ids, $order_col ) {
+		if ( null === $event_ids ) { return ''; }
+		if ( ! $event_ids ) { return ' AND 1=0'; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_col = preg_replace( '/[^A-Za-z0-9_.]/', '', (string) $order_col );
+		$lines = "SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=$order_col";
+		$in_scope = '(1=1' . self::scope_sql( $event_ids, 'fo.event_id' ) . Access::occurrence_scope_sql( 'fo' ) . ')';
+		return " AND EXISTS ($lines) AND NOT EXISTS ($lines AND NOT $in_scope)";
+	}
+
+	/**
 	 * Order search with filters.
 	 *
 	 * @param array      $filters   status, payment_status, search (order number "AB12-CD34" or public id
@@ -575,9 +594,7 @@ final class Queries {
 			$where .= " AND EXISTS ($items_join AND fo.event_id=%d)";
 			$args[] = absint( $filters['event_id'] );
 		}
-		if ( null !== $event_ids ) {
-			$where .= $event_ids ? " AND EXISTS ($items_join" . self::scope_sql( $event_ids, 'fo.event_id' ) . Access::occurrence_scope_sql( 'fo' ) . ')' : ' AND 1=0';
-		}
+		$where .= self::order_scope_sql( $event_ids, 'ord.order_id' );
 		$count_sql = "SELECT COUNT(*) FROM {$p}wpcap_orders ord WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
 		$list_args = array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) );
@@ -598,11 +615,8 @@ final class Queries {
 	public static function needs_review_count( $event_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$scope = '';
-		if ( null !== $event_ids ) {
-			if ( ! $event_ids ) { return 0; }
-			$scope = " AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=ord.order_id" . self::scope_sql( $event_ids, 'fo.event_id' ) . Access::occurrence_scope_sql( 'fo' ) . ')';
-		}
+		if ( null !== $event_ids && ! $event_ids ) { return 0; }
+		$scope = self::order_scope_sql( $event_ids, 'ord.order_id' );
 		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders ord WHERE ord.status='needs_review'{$scope}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope from scope_sql()/occurrence_scope_sql().
 	}
 
@@ -757,10 +771,7 @@ final class Queries {
 	public static function pending_refunds( $event_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$scope = '';
-		if ( null !== $event_ids ) {
-			$scope = $event_ids ? " AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=r.order_id" . self::scope_sql( $event_ids, 'fo.event_id' ) . ')' : ' AND 1=0';
-		}
+		$scope = self::order_scope_sql( $event_ids, 'r.order_id' ); // A650: only orders entirely in scope.
 		return $wpdb->get_results( "SELECT r.*,ord.public_id AS order_public_id,ord.customer_email,ord.payment_provider,(SELECT GROUP_CONCAT(DISTINCT e.name SEPARATOR ', ') FROM {$p}wpcap_order_items ei INNER JOIN {$p}wpcap_ticket_types et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN {$p}wpcap_occurrences eo ON eo.occurrence_id=et.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=eo.event_id WHERE ei.order_id=r.order_id) AS event_names FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='pending_approval'{$scope} ORDER BY r.created_at, r.refund_id LIMIT 200" );
 	}
 }
