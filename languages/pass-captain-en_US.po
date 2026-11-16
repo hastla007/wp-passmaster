@@ -94,8 +94,8 @@ msgstr "Activation refused"
 #: src/Admission/RulesPage.php:79
 #: src/Admission/RulesPage.php:88
 #: src/Admission/RulesPage.php:101
-#: src/BoxOffice/Service.php:340
-#: src/BoxOffice/Service.php:387
+#: src/BoxOffice/Service.php:352
+#: src/BoxOffice/Service.php:399
 #: src/Consents.php:611
 #: src/DeveloperKeys.php:118
 #: src/Exchange/Service.php:1272
@@ -126,7 +126,7 @@ msgstr "Activation refused"
 #: src/Series/Pricing.php:188
 #: src/Series/Pricing.php:216
 #: src/Series/Pricing.php:238
-#: src/ServiceBookings.php:1595
+#: src/ServiceBookings.php:1604
 #: src/ServiceProviders.php:145
 #: src/StaffAssignments.php:227
 #: src/StaffAssignments.php:248
@@ -219,9 +219,9 @@ msgstr "API key revoked."
 #: src/BoxOffice/Page.php:544
 #: src/BoxOffice/Registers.php:73
 #: src/BoxOffice/Service.php:139
-#: src/BoxOffice/Service.php:371
-#: src/BoxOffice/Service.php:998
-#: src/BoxOffice/Service.php:1083
+#: src/BoxOffice/Service.php:383
+#: src/BoxOffice/Service.php:1010
+#: src/BoxOffice/Service.php:1095
 #: src/BoxOffice/ShiftPage.php:154
 #: src/BoxOffice/ShiftPage.php:408
 #: src/BoxOffice/ShiftPage.php:418
@@ -1788,7 +1788,7 @@ msgstr "Code"
 
 #: src/Admin/CampaignsPage.php:245
 #: src/Admin/OrdersPage.php:945
-#: src/BoxOffice/Service.php:1221
+#: src/BoxOffice/Service.php:1233
 #: src/Invoices.php:868
 #: src/Printing/InvoicePdf.php:115
 #: src/Reports/Data.php:773
@@ -2911,10 +2911,6 @@ msgstr[1] "%1$d orders, %2$s"
 msgid "Keine bezahlten Bestellungen"
 msgstr "No paid orders"
 
-#: src/Admin/DashboardWidget.php:108
-msgid "Offen"
-msgstr "Open"
-
 #. translators: %d: number of orders
 #: src/Admin/DashboardWidget.php:112
 #, php-format
@@ -3451,7 +3447,7 @@ msgstr "The event is published but cannot be booked yet:"
 #: src/Sales/PriceRules.php:111
 #: src/Seating/Layouts.php:494
 #: src/Series/Generator.php:71
-#: src/ServiceBookings.php:1645
+#: src/ServiceBookings.php:1654
 msgid "Event nicht gefunden."
 msgstr "Event not found."
 
@@ -6189,7 +6185,7 @@ msgstr "Order #%d"
 #: src/Admin/OperationsPage.php:344
 #: src/Admin/OrdersPage.php:791
 #: src/Admin/TicketsPage.php:478
-#: src/BoxOffice/Service.php:704
+#: src/BoxOffice/Service.php:716
 #: src/Mail/Types.php:384
 #: src/Mollie/MollieGateway.php:123
 #: src/Mollie/MollieGateway.php:469
@@ -7686,12 +7682,12 @@ msgid "Für diesen Termin zuweisen"
 msgstr "Assign for this date"
 
 #: src/Admin/ServiceSlotsPage.php:41
-#: src/ServiceBookings.php:1706
+#: src/ServiceBookings.php:1715
 msgid "Zeitfenster ist ungültig."
 msgstr "Invalid time slot."
 
 #: src/Admin/ServiceSlotsPage.php:66
-#: src/ServiceBookings.php:1599
+#: src/ServiceBookings.php:1608
 #: src/ServiceProviders.php:144
 msgid "Ressource oder Zeitfenster nicht gefunden."
 msgstr "Resource or time slot not found."
@@ -7699,8 +7695,8 @@ msgstr "Resource or time slot not found."
 #: src/Admin/ServiceSlotsPage.php:72
 #: src/Admin/ServiceSlotsPage.php:80
 #: src/Admin/ServicesPage.php:44
-#: src/ServiceBookings.php:1714
-#: src/ServiceBookings.php:1744
+#: src/ServiceBookings.php:1723
+#: src/ServiceBookings.php:1753
 msgid "Keine Berechtigung für diese Ressource."
 msgstr "You do not have permission for this resource."
 
@@ -7723,7 +7719,7 @@ msgstr "Service providers of the resource saved."
 #: src/ServiceBookingFlow.php:292
 #: src/ServiceBookingFlow.php:409
 #: src/ServiceBookings.php:1296
-#: src/ServiceBookings.php:1943
+#: src/ServiceBookings.php:1952
 msgid "Buchung nicht gefunden."
 msgstr "Booking not found."
 
@@ -10195,7 +10191,7 @@ msgid "Bitte einen Grund für die Korrektur angeben."
 msgstr "Please enter a reason for the correction."
 
 #: src/Admin/TicketsPage.php:232
-#: src/BoxOffice/Service.php:426
+#: src/BoxOffice/Service.php:438
 #: src/GuestLists/Service.php:240
 #: src/GuestLists/Service.php:458
 msgid "Die E-Mail-Adresse ist ungültig."
@@ -11903,7 +11899,7 @@ msgid "(nicht gebucht)"
 msgstr "(not booked)"
 
 #: src/BoxOffice/Page.php:296
-#: src/BoxOffice/Service.php:1214
+#: src/BoxOffice/Service.php:1226
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:210
 msgid "Beleg"
@@ -12062,153 +12058,153 @@ msgstr "No register available."
 msgid "Es gibt eine Kassendifferenz. Bitte einen Grund angeben."
 msgstr "There is a cash discrepancy. Please enter a reason."
 
-#: src/BoxOffice/Service.php:333
-#: src/BoxOffice/Service.php:373
+#: src/BoxOffice/Service.php:345
+#: src/BoxOffice/Service.php:385
 msgid "Das Formular ist ungültig. Bitte neu laden."
 msgstr "The form is invalid. Please reload."
 
-#: src/BoxOffice/Service.php:343
-#: src/BoxOffice/Service.php:603
+#: src/BoxOffice/Service.php:355
+#: src/BoxOffice/Service.php:615
 msgid "Dieser Verkauf wird gerade verarbeitet."
 msgstr "This sale is currently being processed."
 
-#: src/BoxOffice/Service.php:350
-#: src/BoxOffice/Service.php:601
+#: src/BoxOffice/Service.php:362
+#: src/BoxOffice/Service.php:613
 msgid "Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen."
 msgstr "This sale was not booked. Please enter it again."
 
-#: src/BoxOffice/Service.php:382
-#: src/BoxOffice/Service.php:552
+#: src/BoxOffice/Service.php:394
+#: src/BoxOffice/Service.php:564
 msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Please open a cash session first."
 
-#: src/BoxOffice/Service.php:383
+#: src/BoxOffice/Service.php:395
 msgid "Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen."
 msgstr "This register is no longer approved. Please close the session and open an approved register."
 
-#: src/BoxOffice/Service.php:389
+#: src/BoxOffice/Service.php:401
 msgid "Diese Kasse verkauft nur Tickets für ein anderes Event."
 msgstr "This register only sells tickets for a different event."
 
-#: src/BoxOffice/Service.php:393
+#: src/BoxOffice/Service.php:405
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
 msgstr "Cash and card payments at the box office require a certified cash register solution in Germany and Austria (TSE/RKSV). Pass Captain does not sign receipts. Please choose complimentary ticket or invoice, or confirm in the receipt settings that these sales are recorded in a certified cash register."
 
-#: src/BoxOffice/Service.php:395
-#: src/BoxOffice/Service.php:402
+#: src/BoxOffice/Service.php:407
+#: src/BoxOffice/Service.php:414
 msgid "Bitte eine Zahlart wählen."
 msgstr "Please select a payment method."
 
-#: src/BoxOffice/Service.php:397
+#: src/BoxOffice/Service.php:409
 msgid "Freikarten an der Kasse brauchen die Berechtigung zur Freigabe von Freikarten."
 msgstr "Complimentary tickets at the box office require the permission to approve complimentary tickets."
 
-#: src/BoxOffice/Service.php:405
+#: src/BoxOffice/Service.php:417
 msgid "Bitte ein Kartenterminal wählen."
 msgstr "Please choose a card terminal."
 
-#: src/BoxOffice/Service.php:418
+#: src/BoxOffice/Service.php:430
 #: src/Seating/Layouts.php:678
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
 msgstr "A ticket type does not belong to this date."
 
-#: src/BoxOffice/Service.php:419
+#: src/BoxOffice/Service.php:431
 msgid "Die Währung der Ticketart passt nicht zur Kassensitzung."
 msgstr "The ticket type's currency does not match the cash session."
 
-#: src/BoxOffice/Service.php:423
+#: src/BoxOffice/Service.php:435
 msgid "Bitte mindestens ein Ticket wählen."
 msgstr "Please select at least one ticket."
 
-#: src/BoxOffice/Service.php:427
+#: src/BoxOffice/Service.php:439
 msgid "Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich."
 msgstr "The buyer's email address is required for payment by invoice."
 
-#: src/BoxOffice/Service.php:455
-#: src/BoxOffice/Service.php:570
-#: src/BoxOffice/Service.php:655
+#: src/BoxOffice/Service.php:467
+#: src/BoxOffice/Service.php:582
+#: src/BoxOffice/Service.php:667
 msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "The sale could not be saved."
 
-#: src/BoxOffice/Service.php:486
+#: src/BoxOffice/Service.php:498
 msgid "Für eine Rechnung über diesem Betrag sind Name und Anschrift des Käufers nötig. Bitte unter „Rechnung auf Firma/Adresse“ ausfüllen."
 msgstr "An invoice above this amount requires the buyer’s name and address. Please fill them in under “Invoice to company/address”."
 
-#: src/BoxOffice/Service.php:494
+#: src/BoxOffice/Service.php:506
 msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
 msgstr "The sale could not be saved. Please submit it again."
 
-#: src/BoxOffice/Service.php:515
+#: src/BoxOffice/Service.php:527
 msgid "Die Kassenschicht wird gerade gezählt oder wurde geschlossen. Der Verkauf wurde nicht gebucht; es wurden keine Tickets ausgestellt."
 msgstr "The register shift is currently being counted or has been closed. The sale was not booked; no tickets were issued."
 
-#: src/BoxOffice/Service.php:531
-#: src/BoxOffice/Service.php:691
-#: src/BoxOffice/Service.php:796
-#: src/BoxOffice/Service.php:853
+#: src/BoxOffice/Service.php:543
+#: src/BoxOffice/Service.php:703
+#: src/BoxOffice/Service.php:808
+#: src/BoxOffice/Service.php:865
 msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
 msgstr "The sale could not be booked just now. Please submit it again."
 
-#: src/BoxOffice/Service.php:555
-#: src/BoxOffice/Service.php:600
-#: src/BoxOffice/Service.php:682
-#: src/BoxOffice/Service.php:995
+#: src/BoxOffice/Service.php:567
+#: src/BoxOffice/Service.php:612
+#: src/BoxOffice/Service.php:694
+#: src/BoxOffice/Service.php:1007
 msgid "Verkauf nicht gefunden."
 msgstr "Sale not found."
 
-#: src/BoxOffice/Service.php:606
+#: src/BoxOffice/Service.php:618
 msgid "Die Zahlung am Kartenterminal ist noch nicht bestätigt. Der Verkauf wird erst danach gebucht."
 msgstr "The payment at the card terminal has not been confirmed yet. The sale will only be booked afterwards."
 
-#: src/BoxOffice/Service.php:620
+#: src/BoxOffice/Service.php:632
 msgid "Der Fiskalbeleg konnte nicht erstellt werden. Es wurden keine Tickets ausgegeben und der Verkauf wurde nicht gebucht. Bitte unter Fiskalisierung prüfen und erneut versuchen, dann „Nachbuchen“."
 msgstr "The fiscal receipt could not be created. No tickets were issued and the sale was not booked. Please check under Fiscalization, retry, then use “Book retroactively”."
 
-#: src/BoxOffice/Service.php:623
+#: src/BoxOffice/Service.php:635
 msgid "Der Fiskalbeleg ist noch nicht vom Anbieter bestätigt. Tickets werden erst danach ausgegeben; der Verkauf bleibt offen. Bitte später „Nachbuchen“."
 msgstr "The provider has not confirmed the fiscal receipt yet. Tickets are only issued afterwards; the sale stays open. Please use “Book retroactively” later."
 
-#: src/BoxOffice/Service.php:625
+#: src/BoxOffice/Service.php:637
 msgid "Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen."
 msgstr "The order is not paid or not all tickets were issued. The sale was not booked; please check the order."
 
-#: src/BoxOffice/Service.php:644
+#: src/BoxOffice/Service.php:656
 msgid "Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert."
 msgstr "The cash register session has been closed in the meantime. The sale was not booked and the tickets were cancelled."
 
-#: src/BoxOffice/Service.php:685
-#: src/BoxOffice/Service.php:881
+#: src/BoxOffice/Service.php:697
+#: src/BoxOffice/Service.php:893
 msgid "Das Kartenterminal ist nicht mehr verfügbar."
 msgstr "The card terminal is no longer available."
 
-#: src/BoxOffice/Service.php:686
+#: src/BoxOffice/Service.php:698
 msgid "Für einen Betrag von 0,00 bitte „Freikarte“ wählen."
 msgstr "For an amount of 0.00 please choose “Complimentary ticket”."
 
-#: src/BoxOffice/Service.php:752
-#: src/BoxOffice/Service.php:877
-#: src/BoxOffice/Service.php:906
+#: src/BoxOffice/Service.php:764
+#: src/BoxOffice/Service.php:889
+#: src/BoxOffice/Service.php:918
 msgid "Kein Kassenverkauf mit Terminalzahlung gefunden."
 msgstr "No box office sale with a terminal payment found."
 
-#: src/BoxOffice/Service.php:764
+#: src/BoxOffice/Service.php:776
 msgid "Die Zahlungsreferenz fehlt."
 msgstr "The payment reference is missing."
 
-#: src/BoxOffice/Service.php:770
+#: src/BoxOffice/Service.php:782
 msgid "Dieser Verkauf wurde bereits mit einer anderen Terminalzahlung bestätigt. Die zweite Zahlung bitte am Terminal erstatten."
 msgstr "This sale has already been confirmed with a different terminal payment. Please refund the second payment on the terminal."
 
-#: src/BoxOffice/Service.php:777
+#: src/BoxOffice/Service.php:789
 msgid "Für diesen Verkauf wird keine Terminalzahlung mehr erwartet (abgebrochen, fehlgeschlagen oder abgelaufen). Eine dennoch erfolgte Zahlung bitte am Terminal erstatten."
 msgstr "No terminal payment is expected for this sale any more (cancelled, failed or expired). Please refund any payment made anyway on the terminal."
 
-#: src/BoxOffice/Service.php:785
+#: src/BoxOffice/Service.php:797
 msgid "Pass Captain: Terminalzahlung prüfen"
 msgstr "Pass Captain: check terminal payment"
 
 #. translators: 1: order id, 2: terminal reference, 3: description of the difference
-#: src/BoxOffice/Service.php:787
+#: src/BoxOffice/Service.php:799
 #, php-format
 msgid ""
 "Bestellung %1$s (Terminal-Referenz %2$s): %3$s\n"
@@ -12220,165 +12216,165 @@ msgstr ""
 "The sale was not recorded. Please refund the amount charged on the terminal there and record the sale again."
 
 #. translators: 1: charged amount, 2: order amount
-#: src/BoxOffice/Service.php:822
+#: src/BoxOffice/Service.php:834
 #, php-format
 msgid "Am Terminal wurde %1$s belastet, die Bestellung beträgt %2$s."
 msgstr "%1$s was charged on the terminal; the order amounts to %2$s."
 
 #. translators: 1: charged currency, 2: order currency
-#: src/BoxOffice/Service.php:826
+#: src/BoxOffice/Service.php:838
 #, php-format
 msgid "Das Terminal meldet die Währung %1$s statt %2$s."
 msgstr "The terminal reports the currency %1$s instead of %2$s."
 
-#: src/BoxOffice/Service.php:840
+#: src/BoxOffice/Service.php:852
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "The payment at the terminal failed. The sale was not booked; please try again or choose another payment method."
 
-#: src/BoxOffice/Service.php:841
+#: src/BoxOffice/Service.php:853
 msgid "Die Zahlung am Terminal wurde abgebrochen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "The payment at the terminal was cancelled. The sale was not booked; please try again or choose another payment method."
 
-#: src/BoxOffice/Service.php:842
+#: src/BoxOffice/Service.php:854
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Timeout: no payment was confirmed at the terminal. The sale was not booked; please try again or choose another payment method."
 
-#: src/BoxOffice/Service.php:843
+#: src/BoxOffice/Service.php:855
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Der Verkauf wurde nicht gebucht; bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "The amount charged on the terminal does not match the order. The sale was not recorded; please refund the payment on the terminal and record the sale again."
 
-#: src/BoxOffice/Service.php:914
+#: src/BoxOffice/Service.php:926
 msgid "Die Zahlung konnte am Terminal nicht abgebrochen werden (z. B. Karte bereits vorgelegt). Bitte das Ergebnis am Terminal abwarten."
 msgstr "The payment could not be cancelled on the terminal (e.g. card already presented). Please wait for the result on the terminal."
 
-#: src/BoxOffice/Service.php:932
+#: src/BoxOffice/Service.php:944
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "The amount charged on the terminal does not match the order. Please refund the payment on the terminal and record the sale again."
 
-#: src/BoxOffice/Service.php:933
+#: src/BoxOffice/Service.php:945
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "The payment at the terminal failed. Please try again or choose another payment method."
 
-#: src/BoxOffice/Service.php:934
+#: src/BoxOffice/Service.php:946
 msgid "Die Zahlung am Terminal wurde abgebrochen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "The payment at the terminal was cancelled. Please try again or choose another payment method."
 
-#: src/BoxOffice/Service.php:935
+#: src/BoxOffice/Service.php:947
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Timeout: no payment was confirmed at the terminal. Please try again or choose another payment method."
 
-#: src/BoxOffice/Service.php:942
+#: src/BoxOffice/Service.php:954
 msgid "Die Kartenzahlung ist bestätigt."
 msgstr "The card payment is confirmed."
 
-#: src/BoxOffice/Service.php:997
+#: src/BoxOffice/Service.php:1009
 #: src/BoxOffice/Shifts.php:347
 #: src/BoxOffice/Shifts.php:418
 #: src/BoxOffice/Shifts.php:586
 msgid "Kassensitzung nicht gefunden."
 msgstr "Cash session not found."
 
-#: src/BoxOffice/Service.php:1003
+#: src/BoxOffice/Service.php:1015
 msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "You can only void sales from your own cash session."
 
-#: src/BoxOffice/Service.php:1014
+#: src/BoxOffice/Service.php:1026
 msgid "Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert."
 msgstr "The selected tickets do not belong to this sale or have already been voided."
 
-#: src/BoxOffice/Service.php:1020
+#: src/BoxOffice/Service.php:1032
 msgid "Mindestens ein Ticket wurde bereits eingecheckt. Für den Storno bitte einen Grund für die Ausnahme angeben."
 msgstr "At least one ticket has already been checked in. Please enter a reason for the exception to void it."
 
-#: src/BoxOffice/Service.php:1021
+#: src/BoxOffice/Service.php:1033
 msgid "Mindestens ein Ticket wurde bereits eingecheckt und kann an der Kasse nicht storniert werden."
 msgstr "At least one ticket has already been checked in and cannot be voided at the box office."
 
-#: src/BoxOffice/Service.php:1024
+#: src/BoxOffice/Service.php:1036
 msgid "Für die Auszahlung muss eine Kassenschicht geöffnet sein. Bitte zuerst eine Schicht öffnen."
 msgstr "A cash register shift must be open for the payout. Please open a shift first."
 
-#: src/BoxOffice/Service.php:1029
+#: src/BoxOffice/Service.php:1041
 msgid "eingecheckt, Ausnahme:"
 msgstr "checked in, exception:"
 
-#: src/BoxOffice/Service.php:1052
+#: src/BoxOffice/Service.php:1064
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
 msgstr "The cancellation was rejected or failed. Please try again."
 
-#: src/BoxOffice/Service.php:1082
+#: src/BoxOffice/Service.php:1094
 msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "There is no cancellation pending for this sale."
 
 #. translators: %d: user ID
-#: src/BoxOffice/Service.php:1137
+#: src/BoxOffice/Service.php:1149
 #, php-format
 msgid "Bediener %d"
 msgstr "Operator %d"
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:1213
+#: src/BoxOffice/Service.php:1225
 #: src/Invoices.php:720
 #: src/Invoices.php:758
 #: src/Partners/Settlements.php:877
 msgid "USt-IdNr.:"
 msgstr "VAT ID:"
 
-#: src/BoxOffice/Service.php:1214
+#: src/BoxOffice/Service.php:1226
 #: src/BoxOffice/ZReport.php:442
 msgid "STORNOBELEG"
 msgstr "VOID RECEIPT"
 
-#: src/BoxOffice/Service.php:1215
+#: src/BoxOffice/Service.php:1227
 #: src/BoxOffice/ZReport.php:443
 msgid "Beleg-Nr.:"
 msgstr "Receipt no.:"
 
-#: src/BoxOffice/Service.php:1216
+#: src/BoxOffice/Service.php:1228
 msgid "Storno zu Beleg"
 msgstr "Void of receipt"
 
-#: src/BoxOffice/Service.php:1217
+#: src/BoxOffice/Service.php:1229
 #: src/BoxOffice/ZReport.php:444
 #: src/Printing/InvoicePdf.php:187
 msgid "Datum:"
 msgstr "Date:"
 
-#: src/BoxOffice/Service.php:1217
+#: src/BoxOffice/Service.php:1229
 #: src/BoxOffice/ZReport.php:444
 msgid "Kasse/Schicht/Bediener:"
 msgstr "Register/Shift/Operator:"
 
-#: src/BoxOffice/Service.php:1222
+#: src/BoxOffice/Service.php:1234
 msgid "SUMME"
 msgstr "TOTAL"
 
 #. translators: 1: VAT rate in percent, 2: net amount
 #. translators: 1: rate, 2: net
-#: src/BoxOffice/Service.php:1224
+#: src/BoxOffice/Service.php:1236
 #: src/BoxOffice/ZReport.php:448
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr "VAT %1$s %%: net %2$s"
 
-#: src/BoxOffice/Service.php:1226
+#: src/BoxOffice/Service.php:1238
 #: src/BoxOffice/ZReport.php:450
 msgid "Zahlart:"
 msgstr "Payment method:"
 
-#: src/BoxOffice/Service.php:1228
+#: src/BoxOffice/Service.php:1240
 msgid "Gegeben"
 msgstr "Tendered"
 
-#: src/BoxOffice/Service.php:1228
+#: src/BoxOffice/Service.php:1240
 msgid "Rückgeld"
 msgstr "Change"
 
-#: src/BoxOffice/Service.php:1230
+#: src/BoxOffice/Service.php:1242
 msgid "Bestellung:"
 msgstr "Order:"
 
-#: src/BoxOffice/Service.php:1233
+#: src/BoxOffice/Service.php:1245
 #: src/BoxOffice/ZReport.php:451
 #: src/Printing/AttendeeList.php:181
 #: src/Printing/NoShowList.php:108
@@ -30447,83 +30443,83 @@ msgstr "Cancellations are only possible until %s before the start."
 msgid "Der Termin hat bereits begonnen und kann nicht mehr storniert werden."
 msgstr "The appointment has already started and can no longer be canceled."
 
-#: src/ServiceBookings.php:1558
+#: src/ServiceBookings.php:1567
 msgid "Die Ressource ist zu dieser Zeit (inklusive Vor- und Nachbereitung) bereits gebucht."
 msgstr "The resource is already booked at this time (including preparation and follow-up)."
 
-#: src/ServiceBookings.php:1559
+#: src/ServiceBookings.php:1568
 msgid "Die Leistungserbringerin bzw. der Leistungserbringer ist zu dieser Zeit bereits für eine andere Buchung eingeteilt."
 msgstr "The service provider is already assigned to another booking at this time."
 
-#: src/ServiceBookings.php:1576
+#: src/ServiceBookings.php:1585
 msgid "Das Zeitfenster überschneidet sich (inklusive Puffer vorher/danach) mit einem anderen Zeitfenster dieser Ressource."
 msgstr "The time slot overlaps (including buffer before/after) with another time slot of this resource."
 
-#: src/ServiceBookings.php:1622
+#: src/ServiceBookings.php:1631
 #: src/ServiceResources.php:187
 msgid "Ressourcenname fehlt."
 msgstr "Resource name is missing."
 
-#: src/ServiceBookings.php:1634
+#: src/ServiceBookings.php:1643
 msgid "Die Ticketart für den Preis gehört nicht zu diesem Event."
 msgstr "The ticket type for the price does not belong to this event."
 
-#: src/ServiceBookings.php:1649
+#: src/ServiceBookings.php:1658
 #: src/ServiceResources.php:221
 #: src/ServiceResources.php:228
 msgid "Ressource konnte nicht gespeichert werden."
 msgstr "Resource could not be saved."
 
-#: src/ServiceBookings.php:1686
+#: src/ServiceBookings.php:1695
 msgid "Die Ressource hat Buchungen und kann nicht gelöscht werden. Deaktiviere sie stattdessen."
 msgstr "The resource has bookings and cannot be deleted. Deactivate it instead."
 
-#: src/ServiceBookings.php:1723
+#: src/ServiceBookings.php:1732
 #: src/ServiceResources.php:295
 msgid "Zeitfenster konnte nicht gespeichert werden."
 msgstr "Time slot could not be saved."
 
-#: src/ServiceBookings.php:1745
+#: src/ServiceBookings.php:1754
 msgid "Die Angaben für die Zeitfenster-Serie sind ungültig (Zeitraum höchstens 366 Tage, Uhrzeiten von–bis, mindestens ein Wochentag)."
 msgstr "The details for the time slot series are invalid (period at most 366 days, times from–to, at least one weekday)."
 
 #. translators: %d: number of booked places
 #. translators: %d: booked places
-#: src/ServiceBookings.php:1823
+#: src/ServiceBookings.php:1832
 #: src/ServiceResources.php:372
 #, php-format
 msgid "Die Kapazität darf nicht unter die bereits gebuchten Plätze (%d) sinken."
 msgstr "The capacity must not drop below the seats already booked (%d)."
 
-#: src/ServiceBookings.php:1831
+#: src/ServiceBookings.php:1840
 msgid "Das Zeitfenster hat Buchungen; die Uhrzeit kann nicht mehr geändert werden. Schließe es und lege ein neues an."
 msgstr "The time slot has bookings; its time can no longer be changed. Close it and create a new one."
 
-#: src/ServiceBookings.php:1853
+#: src/ServiceBookings.php:1862
 msgid "Das Zeitfenster hat Buchungen und kann nicht gelöscht werden. Schließe es stattdessen."
 msgstr "The time slot has bookings and cannot be deleted. Close it instead."
 
-#: src/ServiceBookings.php:1941
+#: src/ServiceBookings.php:1950
 msgid "Unbekannter Buchungsstatus."
 msgstr "Unknown booking status."
 
-#: src/ServiceBookings.php:1944
+#: src/ServiceBookings.php:1953
 msgid "Keine Berechtigung für diese Buchung."
 msgstr "No permission for this booking."
 
-#: src/ServiceBookings.php:1947
+#: src/ServiceBookings.php:1956
 msgid "Bestätigen ist nur für eine aktive Reservierung möglich."
 msgstr "Confirming is only possible for an active reservation."
 
-#: src/ServiceBookings.php:1948
+#: src/ServiceBookings.php:1957
 msgid "Kostenpflichtige Buchungen werden mit der Zahlung bestätigt."
 msgstr "Paid bookings are confirmed with the payment."
 
-#: src/ServiceBookings.php:1957
+#: src/ServiceBookings.php:1966
 msgid "Nicht erschienen kann nur für eine bestätigte Buchung markiert werden."
 msgstr "No-show can only be marked for a confirmed booking."
 
-#: src/ServiceBookings.php:1958
+#: src/ServiceBookings.php:1967
 msgid "Nicht erschienen kann erst ab Beginn des Zeitfensters markiert werden."
 msgstr "No-show can only be marked from the start of the time slot."
 
@@ -32464,3 +32460,8 @@ msgstr "booking"
 msgctxt "block keyword"
 msgid "Service"
 msgstr "service"
+
+#: src/Admin/DashboardWidget.php:108
+msgctxt "dashboard widget: open tasks"
+msgid "Offen"
+msgstr "Open"
