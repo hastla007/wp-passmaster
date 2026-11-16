@@ -39,16 +39,53 @@ final class AttendeeList {
 	/** Header row for the level. */
 	public static function header( $occurrence_id, $level ) {
 		if ( 'full' !== $level ) { return array( __( 'Name', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Status', 'pass-captain' ) ); }
-		$header = array( __( 'Ticket', 'pass-captain' ), __( 'Name', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'E-Mail Teilnehmer', 'pass-captain' ), __( 'E-Mail Besteller', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ) );
+		$header = array( __( 'Ticket', 'pass-captain' ), __( 'Name', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'E-Mail Teilnehmer', 'pass-captain' ), __( 'E-Mail Besteller', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Termin', 'pass-captain' ), __( 'Sitzplatz', 'pass-captain' ), __( 'Eingecheckt um', 'pass-captain' ), __( 'Bereich', 'pass-captain' ) );
 		foreach ( self::fields( $occurrence_id ) as $f ) { $header[] = $f->label; }
 		return $header;
 	}
 
-	/** Participant fields of the occurrence's ticket types in list order. */
+	/** Active participant fields of the occurrence's ticket types in list order (A611: no removed fields). */
 	private static function fields( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT f.field_id,f.label FROM {$p}wpcap_participant_fields f INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=f.ticket_type_id WHERE tt.occurrence_id=%d ORDER BY f.position,f.field_id", absint( $occurrence_id ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT f.field_id,f.label FROM {$p}wpcap_participant_fields f INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=f.ticket_type_id WHERE tt.occurrence_id=%d AND f.status='active' ORDER BY f.position,f.field_id", absint( $occurrence_id ) ) );
+	}
+
+	/**
+	 * A611: first admission time (site time) and entrance area of the latest admission at this occurrence, per
+	 * ticket of one block: from the admission log (also passes and repeat entries), else the check-in log.
+	 *
+	 * @param object[] $tickets Tickets of one block.
+	 * @return array<int,array{at:string,area:string}>
+	 */
+	private static function admissions( $occurrence_id, array $tickets, $timezone ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets );
+		if ( ! $ids ) { return array(); }
+		$in = implode( ',', $ids );
+		$out = array();
+		$local = static function ( $utc ) use ( $timezone ) { return $utc ? Scope::local( (string) $utc, (string) $timezone ) : ''; };
+		$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null; // The admission log belongs to an optional module.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- table names from $wpdb->prefix, integer lists of one block.
+		$entries = $wpdb->get_results( $wpdb->prepare( "SELECT e.ticket_id,MIN(e.entered_at) AS first_at,MAX(e.entry_id) AS last_id FROM {$p}wpcap_admission_entries e WHERE e.ticket_id IN ($in) AND e.occurrence_id=%d AND e.direction='in' AND e.undone=0 GROUP BY e.ticket_id", absint( $occurrence_id ) ) );
+		$last_ids = array();
+		foreach ( (array) $entries as $e ) {
+			$out[ (int) $e->ticket_id ] = array( 'at' => $local( $e->first_at ), 'area' => '' );
+			$last_ids[ (int) $e->last_id ] = (int) $e->ticket_id;
+		}
+		if ( $last_ids ) {
+			$areas = $wpdb->get_results( "SELECT e.entry_id,a.name FROM {$p}wpcap_admission_entries e INNER JOIN {$p}wpcap_admission_areas a ON a.area_id=e.area_id WHERE e.entry_id IN (" . implode( ',', array_keys( $last_ids ) ) . ')' );
+			foreach ( (array) $areas as $a ) { $out[ $last_ids[ (int) $a->entry_id ] ]['area'] = (string) $a->name; }
+		}
+		$missing = array_values( array_diff( $ids, array_keys( $out ) ) );
+		if ( $missing ) {
+			$rows = $wpdb->get_results( "SELECT ticket_id,MIN(created_at) AS first_at FROM {$p}wpcap_checkins WHERE ticket_id IN (" . implode( ',', $missing ) . ") AND result='checked_in' GROUP BY ticket_id" );
+			foreach ( (array) $rows as $r ) { $out[ (int) $r->ticket_id ] = array( 'at' => $local( $r->first_at ), 'area' => '' ); }
+		}
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared
+		if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
+		return $out;
 	}
 
 	/**
@@ -63,6 +100,8 @@ final class AttendeeList {
 		$p = $wpdb->prefix;
 		$status_labels = array( 'valid' => __( 'Gültig', 'pass-captain' ), 'checked_in' => __( 'Eingecheckt', 'pass-captain' ) );
 		$fields = 'full' === $level ? self::fields( $occurrence_id ) : array();
+		$occ = 'full' === $level ? $wpdb->get_row( $wpdb->prepare( 'SELECT starts_at,timezone FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', absint( $occurrence_id ) ) ) : null;
+		$when = $occ ? Scope::local( (string) $occ->starts_at, (string) $occ->timezone ) : '';
 		foreach ( Templates::ticket_blocks( $occurrence_id, array( 'valid', 'checked_in' ), self::chunk_size() ) as $tickets ) {
 			// A573: the status says whether the ticket was admitted at this occurrence (also passes and
 			// repeatable policies, whose ticket status stays valid).
@@ -79,9 +118,12 @@ final class AttendeeList {
 					$answers[ (int) $a->ticket_id ][ (int) $a->field_id ] = $a->answer;
 				}
 			}
+			$entries = self::admissions( $occurrence_id, $tickets, $occ ? (string) $occ->timezone : 'UTC' );
 			foreach ( $tickets as $t ) {
 				$buyer = false !== strpos( (string) $t->customer_email, '@invalid.example' ) ? '' : $t->customer_email;
-				$row = array( substr( $t->public_id, 0, 12 ), $t->attendee_name, $t->ticket_name, $status_labels[ $t->status ] ?? $t->status, $t->attendee_email, $buyer, $t->order_public_id );
+				$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $t->ticket_id, (array) $t );
+				$entry = 'checked_in' === $t->status ? ( $entries[ (int) $t->ticket_id ] ?? array( 'at' => '', 'area' => '' ) ) : array( 'at' => '', 'area' => '' );
+				$row = array( substr( $t->public_id, 0, 12 ), $t->attendee_name, $t->ticket_name, $status_labels[ $t->status ] ?? $t->status, $t->attendee_email, $buyer, $t->order_public_id, $when, $seat, $entry['at'], $entry['area'] );
 				foreach ( $fields as $f ) { $row[] = $answers[ (int) $t->ticket_id ][ (int) $f->field_id ] ?? ''; }
 				yield $row;
 			}

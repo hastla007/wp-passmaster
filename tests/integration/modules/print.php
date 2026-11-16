@@ -137,7 +137,7 @@ echo "Print: attendee lists\n";
 $full = AttendeeList::rows( $pocc, 'full' );
 $basic = AttendeeList::rows( $pocc, 'basic' );
 $flat_basic = implode( '|', array_merge( ...$basic ) );
-check( 'event managers get the full list incl. e-mail, order and answers', 'Firma' === end( $full[0] ) && 4 === count( $full ) && in_array( 'ada@example.com', array_column( $full, 4 ), true ) && in_array( 'ACME', array_column( $full, 7 ), true ) );
+check( 'event managers get the full list incl. e-mail, order and answers', 'Firma' === end( $full[0] ) && 4 === count( $full ) && in_array( 'ada@example.com', array_column( $full, 4 ), true ) && in_array( 'ACME', array_column( $full, 11 ), true ) ); // A611: date, seat, check-in time and area before the answers.
 check( 'check-in staff only gets name, ticket type and status', 3 === count( $basic[0] ) && false === strpos( $flat_basic, '@' ) && false === strpos( $flat_basic, 'ACME' ) );
 check( 'access level follows capability', 'full' === AttendeeList::access_level( $pocc ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events' );

@@ -96,7 +96,6 @@ funktioniert ohne es vollständig ([FREE-PREMIUM.md](FREE-PREMIUM.md)).
 | `wpcap_export_formats` | Filter | 1.0 | Exporte | Weitere Formate des Buchhaltungsexports: `id => ['label', 'rows' => callable( $from, $to ): array[]]` (erste Zeile = Kopf). Schaltfläche auf der Berichtsseite; Download als UTF-8-CSV (Semikolon) mit derselben Berechtigung, Nonce und Audit-Eintrag (`accounting_exported`, `format` = id) wie der eingebaute Export; Formelzeichen am Zellanfang werden entschärft. `csv` und `datev` sind reserviert. |
 | `wpcap_payment_gateways` | Filter | 1.0 | Zahlungen | Zahlungsadapter registrieren (`GatewayInterface`). |
 | `wp_pass_captain_checkin_service_v1` | Filter | 1.0 | Scanner | Check-in-Dienst für fremde Scanner ([VOUCHERS.md](VOUCHERS.md)). |
-| `wp_pass_captain_ticket_read_v1` | Filter | 1.0 | Tickets | Lesemodell eines Tickets (`wpcap_get_ticket()`, Vertrag `ticket_read`, A709): `array $data`, `object $row`. Nur Schlüssel ergänzen, nie personenbezogene Daten ([CONTRACTS.md](CONTRACTS.md)). |
 
 Nicht enthalten ist ein Gebühren-Filter `wpcap_order_fees` (A331): Bestellgebühren brauchen ein eigenes
 Datenmodell (eigene Rechnungszeile, USt-Behandlung, Erstattung, Preisangabe im Checkout) – das ist eine offene

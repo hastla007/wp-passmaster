@@ -731,17 +731,26 @@ final class Queries {
 		}
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); $needs_occ = true; }
 		if ( ! empty( $filters['status'] ) ) { $where .= ' AND t.status=%s'; $args[] = (string) $filters['status']; }
+		// A684: date and ticket type filters, sort order of the attendee management.
+		if ( ! empty( $filters['occurrence_id'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $filters['occurrence_id'] ); $needs_occ = true; }
+		if ( ! empty( $filters['ticket_type_id'] ) ) { $where .= ' AND t.ticket_type_id=%d'; $args[] = absint( $filters['ticket_type_id'] ); }
+		$orderby = self::ticket_order( (string) ( $filters['orderby'] ?? '' ) );
+		if ( false !== strpos( $orderby, 'o.' ) || false !== strpos( $orderby, 'tt.' ) ) { $needs_occ = true; }
+		$name_join = false !== strpos( $orderby, 'ta.' ) ? " LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id" : '';
 		$from = "FROM {$p}wpcap_tickets t" . ( $needs_occ ? $occ_join : '' );
 		$count_sql = "SELECT COUNT(*) $from WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
 		$ids = $total ? array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
-			"SELECT t.ticket_id $from WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
+			"SELECT t.ticket_id $from$name_join WHERE $where ORDER BY $orderby LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed fragments: joins, WHERE with placeholders, ORDER BY from ticket_order().
 			array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
 		) ) ) : array();
 		$rows = array();
 		if ( $ids ) {
 			$in = implode( ',', $ids );
-			$rows = (array) $wpdb->get_results( "SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id IN ($in) ORDER BY t.ticket_id DESC" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = (array) $wpdb->get_results( "SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			// The page keeps the order of the id query (A684 sort orders); sorted here, not with a filesort (A432).
+			$pos = array_flip( $ids );
+			usort( $rows, static function ( $a, $b ) use ( $pos ) { return $pos[ (int) $a->ticket_id ] <=> $pos[ (int) $b->ticket_id ]; } );
 			$last = array();
 			foreach ( (array) $wpdb->get_results( "SELECT ticket_id,MAX(created_at) AS last_checkin_at FROM {$p}wpcap_checkins WHERE ticket_id IN ($in) AND result='checked_in' GROUP BY ticket_id" ) as $checkin ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 				$last[ (int) $checkin->ticket_id ] = (string) $checkin->last_checkin_at;
@@ -749,6 +758,28 @@ final class Queries {
 			foreach ( $rows as $row ) { $row->last_checkin_at = $last[ (int) $row->ticket_id ] ?? null; }
 		}
 		return array( 'rows' => $rows, 'total' => $total ) + ( null !== $notice ? array( 'notice' => $notice ) : array() );
+	}
+
+	/** A684: sort orders of the ticket list (key => label); the SQL comes from ticket_order(). */
+	public static function ticket_orders() {
+		return array(
+			'newest' => __( 'Neueste zuerst', 'pass-captain' ),
+			'oldest' => __( 'Älteste zuerst', 'pass-captain' ),
+			'date' => __( 'Nach Termin', 'pass-captain' ),
+			'type' => __( 'Nach Ticketart', 'pass-captain' ),
+			'name' => __( 'Nach Name', 'pass-captain' ),
+		);
+	}
+
+	/** ORDER BY clause of a sort key (fixed SQL, unknown keys fall back to newest first). */
+	public static function ticket_order( $key ) {
+		$map = array(
+			'oldest' => 't.ticket_id ASC',
+			'date' => 'o.starts_at ASC, t.ticket_id ASC',
+			'type' => 'tt.name ASC, t.ticket_id ASC',
+			'name' => "COALESCE(NULLIF(ta.attendee_name,''),'~') ASC, t.ticket_id ASC",
+		);
+		return $map[ $key ] ?? 't.ticket_id DESC';
 	}
 
 	/** Matches read per search field (A441); more means the search is too broad. */

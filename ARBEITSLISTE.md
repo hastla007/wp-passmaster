@@ -1314,8 +1314,9 @@ Gesamt: 262 Aufgaben.
   - src/Mobile/Api.php:185–186, OfflineScanner/Sync.php:44, Admission/Rest.php:67: Offset Pflicht (sonst 400), Doku
 - [x] **A610** [OPTIMIERUNG] Saalplan bei abgesagtem/vergangenem Termin: nur „Laden fehlgeschlagen“, Formular aktiv — _R4 Zeit/Caching/Lebenszyklus_ (TODO L965; Audit Runde 4)
   - src/Seating/Reservations.php:442, Seating/Rest.php:25–27, assets/seating/picker.js:55: occurrence_status/sales_open liefern, Picker und Kauf sperren
-- [ ] **A611** [OPTIMIERUNG] Teilnehmer-Export unvollständig (Check-in-Zeit, Sitz, Termin, Bereich, Status bei Pässen) — _R4 Eigen (Deep Dive 3)_ (TODO L966; Audit Runde 4)
+- [x] **A611** [OPTIMIERUNG] Teilnehmer-Export unvollständig (Check-in-Zeit, Sitz, Termin, Bereich, Status bei Pässen) — _R4 Eigen (Deep Dive 3)_ (TODO L966; Audit Runde 4)
   - src/Printing/AttendeeList.php:44–60: Spalten ergänzen, Status aus Einlassprotokoll, nur aktive Felder, streamen
+  - Erledigt: volle Liste mit Termin, Sitzplatz (`wpcap_ticket_seat_label`), Check-in-Zeit (Ortszeit, Einlassprotokoll des Termins, sonst Check-in-Protokoll) und Bereich der letzten Einlassbuchung; nur aktive Teilnehmerfelder; weiter blockweise gestreamt; Test zz_a611.
 - [x] **A612** [OPTIMIERUNG] Webhooks ohne Einwilligungsstand/Consent-Ereignisse — _R4 Eigen (Deep Dive 3)_ (TODO L967; Audit Runde 4)
   - src/Webhooks/Dispatcher.php:18, Consents.php:383–386: consent.granted/withdrawn, Consent-Feld im Payload
 - [x] **A613** [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — _R4 Eigen (Deep Dive 3)_ (TODO L968; Audit Runde 4)
@@ -1463,7 +1464,8 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [x] **A681** [OPTIMIERUNG] Woo-Checkouts: unbekannte/nicht freigegebene Teilnehmerfelder ablehnen statt still verwerfen, Fehlerpfade testen — _Konzept 15.11._ (TODO L1019; Konzept/Roadmap 2026-11-15)
 - [x] **A682** [OPTIMIERUNG] Fehlende Teilnehmerangaben vor Versand gezielt nachfordern (Mail, Anzeige je Ticket) — _Konzept 15.11._ (TODO L1020; Konzept/Roadmap 2026-11-15)
 - [x] **A683** [OPTIMIERUNG] Self-Service: gesperrte Felder und Fristen je Feld konfigurierbar — _Konzept 15.11._ (TODO L1021; Konzept/Roadmap 2026-11-15)
-- [ ] **A684** [OPTIMIERUNG] Teilnehmerverwaltung: Filter nach Event/Termin/Ticketart/Status, Sortierung, vollständiger Export — _Konzept 15.11._ (TODO L1022; Konzept/Roadmap 2026-11-15)
+- [x] **A684** [OPTIMIERUNG] Teilnehmerverwaltung: Filter nach Event/Termin/Ticketart/Status, Sortierung, vollständiger Export — _Konzept 15.11._ (TODO L1022; Konzept/Roadmap 2026-11-15)
+  - Erledigt: Ticketliste (`Admin/TicketsPage`, `Queries::search_tickets`) mit Termin- und Ticketart-Filter (nach Eventwahl), Sortierung (neueste/älteste, Termin, Ticketart, Name), Zustand bleibt nach Aktionen und beim Blättern erhalten, CSV-Teilnehmerliste des gewählten Termins (A611-Spalten); Test zz_a684.
 - [ ] **A685** [OPTIMIERUNG] Ticketdesign: Logo, Farben, mehrere barrierearme Startvorlagen — _Konzept 15.11._ (TODO L1028; Konzept/Roadmap 2026-11-15)
 - [ ] **A686** [OPTIMIERUNG] Druck: Teilnehmerfeld-Mapping, weitere Etikettenformate, Sortierung, Vorschau — _Konzept 15.11._ (TODO L1029; Konzept/Roadmap 2026-11-15)
 - [ ] **A687** [OPTIMIERUNG] Mobile-API: Suche, Batch-Aktionen, Mindest-Core-Version; MOBILE-API.md aktualisieren (§7 veraltet, alter Shortcode) — _Konzept 15.11._ (TODO L1034; Konzept/Roadmap 2026-11-15)
