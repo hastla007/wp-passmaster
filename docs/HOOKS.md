@@ -8,7 +8,7 @@ Erweiterungspunkte. Externe Systeme sollten statt PHP-Hooks die signierten
 [ausgehenden Webhooks](WEBHOOKS.md) verwenden.
 
 Lesende Funktionen ohne Hook (Lesefassade `wpcap_get_order_state()`, `wpcap_get_ticket_state()`,
-`wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()`, seit 1.5.0 mit Vertrag 1.2.0)
+`wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()`, seit 1.6.0 mit Vertrag 1.2.0)
 stehen mit ihren Rückgabeschlüsseln in [EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände); sie liefern den
 Zustand zu den IDs, die die Actions unten übergeben.
 

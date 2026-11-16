@@ -1,13 +1,16 @@
 # Änderungsprotokoll
 
-## 1.5.0 – 2026-11-16
+## 1.6.0 – 2026-11-16
 
-Version 1.5.0 ist die erste Version mit den Erweiterungspunkten für Add-ons (Abschnitt „Add-on-Schnittstellen“ weiter unten). Neu ist die Konstante `WPCAP_CONTRACT_VERSION` (Wert `1.2.0`; `1.1.0` bis zum Nachtrag der Lesefassade am 16.11.2026): Sie nennt die Version des Erweiterungsvertrags, die Tabelle „Versionen der Erweiterungspunkte“ in `docs/EXTENSIONS.md` nennt je Hook die Plugin-Version, seit der er besteht. Add-ons, die diese Hooks brauchen, setzen Pass Captain 1.5.0 voraus.
+Version 1.6.0 ergänzt den Erweiterungsvertrag um die Lesefassade (`WPCAP_CONTRACT_VERSION` `1.1.0` → `1.2.0`, additiv). Sie kam zunächst als Nachtrag in den noch nicht veröffentlichten Stand 1.5.0; weil sie den Vertrag erweitert, trägt sie eine eigene Plugin-Version. Add-ons, die sie brauchen, setzen Pass Captain 1.6.0 beziehungsweise Vertragsversion 1.2.0 voraus. Keine Änderung am Datenbankschema.
 
-### Nachträge vom 16.11.2026
 - **Lesefassade für Zustände (Vertragsversion 1.2.0, additiv):** `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()` und `wpcap_get_event_state()` (Klasse `PassCaptain\Api\ReadFacade`) liefern den Zustand zu einer Datensatz-ID oder – bei Bestellung und Ticket – zur `public_id`: IDs, Status, Beträge in Kleinsteinheiten mit Währung, Anzahlen und Zeitpunkte in UTC, nie Namen, E-Mail-Adressen, Codes oder Freitext. Nur lesend, ohne Rechteprüfung (der Aufrufer entscheidet über die Anzeige). Beschreibung in `docs/EXTENSIONS.md`, Abschnitt „Lesefassade für Zustände“. Kontakt und Einwilligung zu einem Ticket sind nicht enthalten (offen, F-13).
 - **Erinnerungen:** Veraltete Erinnerungen (nach Erstattung, Stornierung, Abmeldung, Terminwechsel oder Absage) werden in der Reihenfolge des Versands aussortiert und in mindestens der Menge, die ein Lauf senden kann. Vorher konnte bei einer per Filter `wpcap_message_batch_size` über 500 angehobenen Stapelgröße eine veraltete Erinnerung ungeprüft hinausgehen.
 - **Dokumentation:** `docs/MOBILE-API.md` nennt die Routen `/app/offline/*` und führt das ausgelieferte Offline-Paket nicht mehr als geplant; Tests vergleichen `docs/MOBILE-API.md` und `docs/SUITE-EVENTS.md` mit dem Code.
+
+## 1.5.0 – 2026-11-16
+
+Version 1.5.0 ist die erste Version mit den Erweiterungspunkten für Add-ons (Abschnitt „Add-on-Schnittstellen“ weiter unten). Neu ist die Konstante `WPCAP_CONTRACT_VERSION` (Wert `1.1.0`; Version 1.6.0 hebt sie mit der Lesefassade auf `1.2.0`): Sie nennt die Version des Erweiterungsvertrags, die Tabelle „Versionen der Erweiterungspunkte“ in `docs/EXTENSIONS.md` nennt je Hook die Plugin-Version, seit der er besteht. Add-ons, die diese Hooks brauchen, setzen Pass Captain 1.5.0 voraus.
 
 ### Wichtige Verhaltensänderungen beim Update
 - **Datenbankschema 3.17.7** (über 3.17.0–3.17.6): neue Tabellen `wpcap_checkin_claims`, `wpcap_credit_note_lines`, `wpcap_payment_cases`, `wpcap_mail_suppressions`; neue Spalten u. a. `ticket_types.visibility/access_codes/description/position/attendee_name`, `orders.customer_name/attribution`, `refunds.deducted_minor`, `wallet_passes.synced_at`. Die Aktualisierung läuft automatisch.

@@ -1,6 +1,6 @@
 # Ereignisse des Kerns für andere Captain-Plugins (Ist-Stand)
 
-Stand: 16.11.2026, Plugin 1.5.0. Dieses Dokument beschreibt nur, was Pass Captain **heute** aussendet. Es ist
+Stand: 16.11.2026, Plugin 1.6.0. Dieses Dokument beschreibt nur, was Pass Captain **heute** aussendet. Es ist
 kein Vertrag mit Workflow Captain, Review Captain oder Form Captain: Eine gemeinsame Spezifikation der Suite
 gibt es noch nicht (siehe [Was vor einer Anbindung festzulegen ist](#was-vor-einer-anbindung-festzulegen-ist)).
 
@@ -22,7 +22,7 @@ besteht nicht.
 ## PHP-Actions nach dem fachlichen Ereignis
 
 Alle Actions übergeben interne Datenbank-IDs. Öffentliche IDs (`public_id`) und den Zustand von Bestellung, Ticket,
-Erstattung, Termin und Event lädt der Empfänger seit Vertragsversion 1.2.0 über die Lesefassade
+Erstattung, Termin und Event lädt der Empfänger seit Vertragsversion 1.2.0 (Plugin 1.6.0) über die Lesefassade
 `wpcap_get_*_state()` / `PassCaptain\Api\ReadFacade` (ohne personenbezogene Daten und Codes, siehe
 [EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)).
 

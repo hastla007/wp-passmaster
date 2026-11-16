@@ -39,15 +39,14 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 |---|---|---|
 | 1.0.0 (nachträglich benannt, Konstante fehlt) | bis 1.4.0 | die Erweiterungspunkte mit „seit“ kleiner als 1.5.0 |
 | 1.1.0 | 1.5.0 | zusätzlich alle Erweiterungspunkte mit „seit 1.5.0“ (Stand des Release-Kandidaten bis zum 16.11.2026) |
-| 1.2.0 | 1.5.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
+| 1.2.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
 	&& defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '2.0.0', '<' );
 ```
 
-Die Lesefassade kam als Nachtrag in den noch nicht veröffentlichten Stand 1.5.0. Wer sie braucht, prüft deshalb die
-Vertragsversion, nicht die Plugin-Version:
+Die Lesefassade besteht seit Plugin 1.6.0 (Vertrag 1.2.0). Wer sie braucht, prüft am besten die Vertragsversion:
 
 ```php
 $has_read_facade = defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '1.2.0', '>=' )
@@ -110,7 +109,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_waitlist_ip_limit_v1` | 1.5.0 |
 | `wp_pass_captain_wallet_provider_v1` | 0.2.0 |
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
-| `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.2.0) |
+| `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.6.0 (Vertrag 1.2.0) |
 | `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
 | `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |
 | `PassCaptain\BoxOffice\Service::confirm_device_payment()`, `wpcap_confirm_pos_payment()` | 1.5.0 |
@@ -409,18 +408,18 @@ Add-ons verwenden die Filter.
 
 ## Lesefassade für Zustände
 
-Seit Vertragsversion 1.2.0 (Plugin 1.5.0) liest ein Add-on den Zustand von Bestellungen, Tickets, Erstattungen,
+Seit Vertragsversion 1.2.0 (Plugin 1.6.0) liest ein Add-on den Zustand von Bestellungen, Tickets, Erstattungen,
 Terminen und Events über eine dokumentierte Lese-API statt über interne Klassen wie `Orders::get()` oder
 `Admin\Queries::ticket_context()` (die bleiben intern und ohne Versionszusage). Jede Funktion liefert ein flaches
 Array oder `null`, wenn es den Datensatz nicht gibt oder die ID ungültig ist.
 
 | Funktion | Methode | ID-Argument | seit |
 |---|---|---|---|
-| `wpcap_get_order_state( $id )` | `PassCaptain\Api\ReadFacade::order( $id )` | `order_id` (int oder Ziffernfolge) oder `public_id` (32 Hex-Zeichen) | 1.5.0 (Vertrag 1.2.0) |
-| `wpcap_get_ticket_state( $id )` | `ReadFacade::ticket( $id )` | `ticket_id` oder `public_id` (32 Hex-Zeichen) | 1.5.0 (Vertrag 1.2.0) |
-| `wpcap_get_refund_state( $id )` | `ReadFacade::refund( $id )` | `refund_id` (Erstattungen haben keine `public_id`) | 1.5.0 (Vertrag 1.2.0) |
-| `wpcap_get_occurrence_state( $id )` | `ReadFacade::occurrence( $id )` | `occurrence_id` | 1.5.0 (Vertrag 1.2.0) |
-| `wpcap_get_event_state( $id )` | `ReadFacade::event( $id )` | `event_id` | 1.5.0 (Vertrag 1.2.0) |
+| `wpcap_get_order_state( $id )` | `PassCaptain\Api\ReadFacade::order( $id )` | `order_id` (int oder Ziffernfolge) oder `public_id` (32 Hex-Zeichen) | 1.6.0 (Vertrag 1.2.0) |
+| `wpcap_get_ticket_state( $id )` | `ReadFacade::ticket( $id )` | `ticket_id` oder `public_id` (32 Hex-Zeichen) | 1.6.0 (Vertrag 1.2.0) |
+| `wpcap_get_refund_state( $id )` | `ReadFacade::refund( $id )` | `refund_id` (Erstattungen haben keine `public_id`) | 1.6.0 (Vertrag 1.2.0) |
+| `wpcap_get_occurrence_state( $id )` | `ReadFacade::occurrence( $id )` | `occurrence_id` | 1.6.0 (Vertrag 1.2.0) |
+| `wpcap_get_event_state( $id )` | `ReadFacade::event( $id )` | `event_id` | 1.6.0 (Vertrag 1.2.0) |
 
 Rückgabe (alle Schlüssel immer vorhanden, `version` = `ReadFacade::VERSION` = 1; Beträge sind Ganzzahlen in
 Kleinsteinheiten von `currency`; Zeitpunkte in UTC als RFC 3339 mit `Z` oder `null`; Benutzer-IDs `null`, wenn
