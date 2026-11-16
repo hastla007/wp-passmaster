@@ -826,8 +826,9 @@ Gesamt: 262 Aufgaben.
   - src/Modules/GuestLists.php:131–141, uninstall.php:41: Cap-Liste aus gemeinsamer Konstante inkl. Modul-Caps
 - [ ] **A373** [OPTIMIERUNG] Ticketausstellung/PDF/Mail synchron im Webhook; ServiceBookingFlow per wp_mail — _R1 Architektur_ (TODO L719; Audit Runde 4)
   - src/Payments/Webhooks.php:121, Orders.php:1569–1680, ServiceBookingFlow.php:190/205: Versand nach COMMIT als Job; Servicebuchungen über Mailer::deliver()
-- [ ] **A374** [OPTIMIERUNG] Wallet-Push inline auf shutdown (bis 20 Tickets) — _R1 Architektur_ (TODO L720; Audit Runde 4)
+- [x] **A374** [OPTIMIERUNG] Wallet-Push inline auf shutdown (bis 20 Tickets) — _R1 Architektur_ (TODO L720; Audit Runde 4)
   - src/WalletPasses/Service.php:315–331: Nur einreihen, im Job pushen
+  - Erledigt: Am Ende einer Web-Anfrage (`shutdown`) reiht `Service::flush_on_shutdown()` nur einen Job ein; gepusht wird im Job-Worker. Filter `wpcap_wallet_inline_limit` (Standard 0) erlaubt wieder sofortiges Pushen; explizites `Service::flush()` (CLI/Jobs) bleibt unverändert. Test in wallet.php.
 - [x] **A375** [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — _R1 Architektur_ (TODO L721; Audit Runde 4)
   - src/Operations/SiteHealth.php:80–88: Loopback ohne Cookie; Hinweis bei Forwarded-Headern ohne trusted_proxies
   - Erledigt: Website-Zustand-Tests `wpcap_rest_anonymous` (Abruf ohne Cookie, 401/403 kritisch, Loopback-Fehler Empfehlung, 6 h Cache) und `wpcap_proxy` (`CheckoutThrottle::status_issue()`, Link auf Tab „Erweitert“); Proxy-Hinweistexte zeigen jetzt auf „Einstellungen → Erweitert“. Test zz_a375.
