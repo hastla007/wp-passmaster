@@ -517,10 +517,13 @@ final class PortalSelfService {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		$public_id = (string) $request['public_id'];
-		if ( ! self::verify_refund_proof( (string) ( $params['nonce'] ?? '' ), $public_id, (string) ( $params['access_token'] ?? '' ) ) ) {
+		// SEC-7: the portal sends the token in the X-WPCAP-Access-Token header; the body field still works.
+		$token = (string) \PassCaptain\Rest\Credentials::token( $request );
+		if ( '' === $token ) { $token = (string) ( $params['access_token'] ?? '' ); }
+		if ( ! self::verify_refund_proof( (string) ( $params['nonce'] ?? '' ), $public_id, $token ) ) {
 			return new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
-		$result = self::request_refund( $public_id, (string) ( $params['access_token'] ?? '' ), $params );
+		$result = self::request_refund( $public_id, $token, $params );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
