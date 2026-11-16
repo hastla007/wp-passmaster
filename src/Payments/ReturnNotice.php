@@ -19,10 +19,16 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class ReturnNotice {
 	/** Query arguments of the return URLs; stripped from a page URL before it becomes a return base. */
-	const ARGS = array( 'wpcap_payment', 'order', 'wpcap_rk', 'wpcap_paypal_return', 'wpcap_mollie_return', 'token', 'PayerID', 'session_id' );
+	const ARGS = array( 'wpcap_payment', 'order', 'wpcap_rk', 'wpcap_paypal_return', 'wpcap_mollie_return', 'token', 'PayerID', 'session_id', 'wpcap_portal' );
+
+	/** Whether the notice was printed in this request (wp_body_open, the_content or the event list). */
+	private static $shown = false;
 
 	public static function register() {
 		add_action( 'wp_body_open', array( __CLASS__, 'render' ) );
+		// A307: themes without wp_body_open (many classic themes): the notice goes in front of the page
+		// content, or in front of the event list ([wpcap_events] / block) – once per request.
+		add_filter( 'the_content', array( __CLASS__, 'prepend_to_content' ), 5 );
 		add_action( 'admin_post_wpcap_payment_return', array( __CLASS__, 'handle_action' ) );
 		add_action( 'admin_post_nopriv_wpcap_payment_return', array( __CLASS__, 'handle_action' ) );
 	}
@@ -107,7 +113,7 @@ final class ReturnNotice {
 	}
 
 	/** Notice HTML for a return state; '' for unknown states. */
-	public static function html( $state, $public_id = '', $key = '' ) {
+	public static function html( $state, $public_id = '', $key = '', $portal = '' ) {
 		$message = self::message( $state );
 		if ( '' === $message ) { return ''; }
 		$color = in_array( $state, array( 'success', 'pending', 'cancelled' ), true ) ? '#146c2e' : '#b32d2e';
@@ -127,20 +133,70 @@ final class ReturnNotice {
 			$out .= '<button type="submit" name="decision" value="resume" class="wp-element-button">' . esc_html__( 'Zahlung fortsetzen', 'pass-captain' ) . '</button> ';
 			$out .= '<button type="submit" name="decision" value="cancel" class="wp-element-button">' . esc_html__( 'Bestellung stornieren', 'pass-captain' ) . '</button></form>';
 		}
+		$out .= self::portal_html( $state, $public_id, $key, $portal );
 		return $out . '</div>';
 	}
 
-	public static function render() {
+	/**
+	 * A307: way to the order portal. The page never shows the personal access link itself (it is only
+	 * stored as a hash and travels by e-mail; a return URL can end up in browser histories, proxies or
+	 * screenshots). With the keyed return URL the buyer can have a new link sent to the order's e-mail
+	 * address (rate-limited; the previous link becomes invalid).
+	 */
+	private static function portal_html( $state, $public_id, $key, $portal ) {
+		$order = self::keyed_order( $public_id, $key );
+		if ( ! $order || 'woocommerce' === (string) $order->payment_provider || 'cancelled' === $state ) { return ''; }
+		if ( 'sent' === $portal ) {
+			/* translators: %s: masked e-mail address */
+			return '<p class="wpcap-portal-link" role="status">' . esc_html( sprintf( __( 'Wir haben einen neuen Link zu deiner Bestellung an %s gesendet. Der bisherige Link ist damit ungültig.', 'pass-captain' ), Format::mask_email( (string) $order->customer_email ) ) ) . '</p>';
+		}
+		if ( 'limited' === $portal ) {
+			return '<p class="wpcap-portal-link" role="status">' . esc_html__( 'Der Link wurde gerade erst gesendet. Bitte sieh in deinem Postfach (auch im Spam-Ordner) nach oder versuche es später erneut.', 'pass-captain' ) . '</p>';
+		}
+		$out = '<p class="wpcap-portal-link">' . esc_html__( 'Tickets, Rechnung und Teilnehmerangaben verwaltest du über den persönlichen Link zu deiner Bestellung, den wir dir per E-Mail gesendet haben.', 'pass-captain' ) . '</p>';
+		$out .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-portal-request">';
+		$out .= '<input type="hidden" name="action" value="wpcap_payment_return"><input type="hidden" name="order" value="' . esc_attr( $order->public_id ) . '"><input type="hidden" name="wpcap_rk" value="' . esc_attr( $key ) . '"><input type="hidden" name="state" value="' . esc_attr( $state ) . '"><input type="hidden" name="back" value="' . esc_attr( self::current_base() ) . '">';
+		$out .= '<button type="submit" name="decision" value="portal_link" class="wp-element-button">' . esc_html__( 'Link zur Bestellung erneut per E-Mail senden', 'pass-captain' ) . '</button></form>';
+		return $out;
+	}
+
+	/** Order of a keyed return URL in any state, or null. */
+	private static function keyed_order( $public_id, $key ) {
+		global $wpdb;
+		$public_id = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $public_id ) );
+		if ( 32 !== strlen( $public_id ) || ! is_string( $key ) || ! hash_equals( self::key( $public_id ), $key ) ) { return null; }
+		return $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email,status,payment_provider FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+	}
+
+	/** The notice for the current request, once ('' when there is none or it was printed already). */
+	public static function take() {
+		if ( self::$shown ) { return ''; }
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- display only; actions are POSTed and keyed.
 		$state = sanitize_key( wp_unslash( $_GET['wpcap_payment'] ?? '' ) );
-		if ( '' === self::message( $state ) ) { return; }
+		if ( '' === self::message( $state ) ) { return ''; }
 		$public_id = sanitize_text_field( wp_unslash( (string) ( $_GET['order'] ?? '' ) ) );
 		$key = sanitize_text_field( wp_unslash( (string) ( $_GET['wpcap_rk'] ?? '' ) ) );
+		$portal = sanitize_key( wp_unslash( (string) ( $_GET['wpcap_portal'] ?? '' ) ) );
 		// phpcs:enable
 		// A283: the banner belongs to one buyer. Headers were sent by template_redirect already
 		// (PageCache::maybe_no_store_request()); DONOTCACHEPAGE still keeps page-cache plugins away.
 		\PassCaptain\PageCache::no_store( 'payment_return' );
-		echo self::html( $state, $public_id, $key ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
+		self::$shown = true;
+		return self::html( $state, $public_id, $key, $portal );
+	}
+
+	/** the_content fallback (A307): main query, in the loop, notice not printed yet. */
+	public static function prepend_to_content( $content ) {
+		if ( self::$shown || ! function_exists( 'in_the_loop' ) || ! in_the_loop() || ! is_main_query() ) { return $content; }
+		return self::take() . $content;
+	}
+
+	/** Tests: forget that the notice was printed. */
+	public static function reset() { self::$shown = false; }
+
+	/** wp_body_open: prints the notice (once per request, see take()). */
+	public static function render() {
+		echo self::take(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
 	}
 
 	/**
@@ -166,6 +222,7 @@ final class ReturnNotice {
 		$key = sanitize_text_field( (string) ( $post['wpcap_rk'] ?? '' ) );
 		$back = self::base( (string) ( $post['back'] ?? '' ) );
 		$decision = sanitize_key( (string) ( $post['decision'] ?? '' ) );
+		if ( 'portal_link' === $decision ) { return self::send_portal_link( $public_id, $key, $back, sanitize_key( (string) ( $post['state'] ?? '' ) ) ); }
 		$order = self::open_order( $public_id, $key );
 		$target = self::url( self::paid( $public_id, $key ) ? 'success' : 'failed', $public_id, $back, 'return' );
 		if ( $order && 'cancel' === $decision ) {
@@ -187,5 +244,18 @@ final class ReturnNotice {
 			}
 		}
 		return $target;
+	}
+
+	/** "Link erneut senden" (A307): new access link by e-mail to the order's address, rate-limited. */
+	private static function send_portal_link( $public_id, $key, $back, $state ) {
+		$state = '' !== self::message( $state ) ? $state : 'pending';
+		$order = self::keyed_order( $public_id, $key );
+		if ( ! $order || 'woocommerce' === (string) $order->payment_provider ) { return self::url( $state, $public_id, $back, 'return' ); }
+		$allowed = \PassCaptain\RateLimit::allow( 'return-portal-client|' . \PassCaptain\RateLimit::client(), 10, HOUR_IN_SECONDS )
+			&& \PassCaptain\RateLimit::allow( 'return-portal|' . $order->public_id, 2, HOUR_IN_SECONDS );
+		$sent = $allowed && Orders::rotate_access_link( (int) $order->order_id );
+		if ( $sent ) { Audit::record( 'order_access_link_resent', 'order', (int) $order->order_id, array( 'source' => 'payment_return' ) ); }
+		$url = self::url( $state, $order->public_id, $back, 'return' );
+		return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . 'wpcap_portal=' . ( $sent ? 'sent' : 'limited' );
 	}
 }

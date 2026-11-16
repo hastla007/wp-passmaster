@@ -292,7 +292,8 @@ final class PublicEvents {
 			<?php if ( ! $shown ) : ?><p class="wpcap-events-empty"><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
 		</div>
 		<?php
-		return ob_get_clean();
+		// A307: payment return notice in front of the event list when the theme has no wp_body_open.
+		return Payments\ReturnNotice::take() . ob_get_clean();
 	}
 
 	/**

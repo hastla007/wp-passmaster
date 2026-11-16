@@ -1579,4 +1579,13 @@ zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EU
   (`expire`), eine offene Mollie-Zahlung abgebrochen; danach `wpcap_payment=cancelled`. Berechtigt sind die
   Aktionen über `wpcap_rk`, einen mit dem WordPress-Salt gebildeten Schlüssel der Bestellung, der nur in den
   Rückkehr-URLs steht. Ohne Aktion verfällt die Reservierung wie bisher von selbst. Die Ausgabe des Hinweises
-  hängt weiter an `wp_body_open` (Rückfall für Themes ohne diesen Hook: A307).
+  hängt an `wp_body_open`.
+- **Rückkehr-Hinweis ohne `wp_body_open` und Weg zum Bestellportal** (A307): Themes ohne `wp_body_open` (viele
+  klassische Themes) zeigen den Hinweis über den Filter `the_content` (Hauptabfrage, in der Schleife) vor dem
+  Seiteninhalt bzw. vor der Eventliste (`[wpcap_events]`/Block) – je Anfrage genau einmal. Der Hinweis erklärt
+  den persönlichen Bestelllink aus der E-Mail und bietet „Link zur Bestellung erneut per E-Mail senden“: Mit dem
+  Schlüssel `wpcap_rk` der Rückkehr-URL wird ein neuer Zugangslink an die E-Mail-Adresse der Bestellung gesendet
+  (`Orders::rotate_access_link()`, der bisherige Link wird ungültig; höchstens 2 je Bestellung und Stunde, 10 je
+  Client; Audit `order_access_link_resent`), danach bestätigt die Seite die maskierte Adresse
+  (`wpcap_portal=sent`). Der Zugangslink selbst erscheint nie auf der Seite, weil Rückkehr-URLs in
+  Browserverlauf, Proxys oder Screenshots landen können. WooCommerce-Bestellungen bekommen den Knopf nicht.
