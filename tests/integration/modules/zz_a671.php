@@ -36,6 +36,7 @@ final class X6m2_Review_Stub {
 	public $skipped = array();
 	public $opt_out = array();
 	public $types = array();
+	public $cancelled = array();
 	public function contract_version() { return '1.0.0'; }
 	public function receive( array $env ) {
 		$this->types[] = $env['type'];
@@ -45,6 +46,7 @@ final class X6m2_Review_Stub {
 		} elseif ( 'experience_excluded' === $env['type'] ) {
 			unset( $this->queue[ $d['participation_id'] ] );
 		} elseif ( 'experience_cancelled' === $env['type'] ) {
+			$this->cancelled[] = $d['experience_id'];
 			foreach ( $this->queue as $id => $q ) {
 				if ( in_array( (int) substr( $q['experience_id'], 11 ), (array) $d['occurrence_ids'], true ) ) { unset( $this->queue[ $id ] ); }
 			}
@@ -130,14 +132,15 @@ check( 'A671: refund after admission – no request (excluded before the plugin 
 check( 'A671: no-show – no request', 0 === $x6m2_sent( $t_noshow ) && in_array( 'experience_excluded', $x6m2_stub->types, true ) );
 check( 'A671: opt-out (the plugin\'s own list) – no request, although the resolver allowed it', 0 === $x6m2_sent( $t_optout ) && 'opt_out' === ( $x6m2_stub->skipped[ (string) $t_optout->public_id ] ?? '' ) );
 check( 'A671: transferred before admission – the request goes to the new holder', 1 === $x6m2_sent( $t_transfer ) && in_array( 'neu@example.com', array_column( $x6m2_stub->sent, 'email' ), true ) );
-check( 'A671: cancelled date – no request (experience_cancelled once, no completion)', 0 === $x6m2_sent( $t_cancel ) && 1 === count( array_keys( $x6m2_stub->types, 'experience_cancelled', true ) ) );
-check( 'A671: acceptance – exactly the attended, not excluded experiences got one request each', 3 === count( $x6m2_stub->sent ) );
+check( 'A671: cancelled date – no request (experience_cancelled once, no completion)', 0 === $x6m2_sent( $t_cancel ) && 1 === count( array_keys( $x6m2_stub->cancelled, 'occurrence:' . $x6m2_occ_b, true ) ) );
+$x6m2_mine = static fn() => array_sum( array_map( $x6m2_sent, $x6m2_t ) );
+check( 'A671: acceptance – exactly the attended, not excluded experiences got one request each', 3 === $x6m2_mine() );
 
 // Replay and a second delivery do not lead to a second request.
 Outbox::replay( 0, 'review' );
 Outbox::deliver();
 $x6m2_stub->flush();
-check( 'A671: replay of all review events – still one request per experience and recipient', 3 === count( $x6m2_stub->sent ) );
+check( 'A671: replay of all review events – still one request per experience and recipient', 3 === $x6m2_mine() && 1 === max( array_map( $x6m2_sent, $x6m2_t ) ) );
 // The core never sends review events for purchase, dispatch or generic events.
 check( 'A671: only the three participation event types reach the plugin', ! array_diff( array_unique( $x6m2_stub->types ), array( 'experience_completed', 'experience_excluded', 'experience_cancelled' ) ) );
 check( 'A671: every resolver call of the plugin was audited without the contact', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='review_contact_resolved' AND details LIKE '%@%'" ) && (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='review_contact_resolved' AND details LIKE '%stub-review%'" ) >= 4 );

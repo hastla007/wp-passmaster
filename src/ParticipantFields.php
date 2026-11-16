@@ -232,7 +232,7 @@ final class ParticipantFields {
 	 */
 	public static function control_html( $field, array $attrs, $value = '' ) {
 		$type = self::type( $field );
-		$required = ! empty( is_object( $field ) ? $field->required : ( $field['required'] ?? 0 ) );
+		$required = ! empty( ( (array) $field )['required'] );
 		$attr = static function ( array $a ) {
 			$out = '';
 			foreach ( $a as $k => $v ) { $out .= ' ' . esc_attr( $k ) . '="' . esc_attr( (string) $v ) . '"'; }
