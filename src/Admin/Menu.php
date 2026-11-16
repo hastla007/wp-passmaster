@@ -249,9 +249,33 @@ final class Menu {
 		echo '<div class="notice notice-error"><p><strong>' . esc_html( $title ) . '</strong> ' . esc_html__( 'Veröffentlichte Events können auf der Website nicht gebucht werden; die Eventkarten zeigen „Online-Verkauf derzeit nicht möglich“.', 'pass-captain' ) . ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Zahlungsart einrichten', 'pass-captain' ) . '</a></p></div>';
 	}
 
+	/**
+	 * Text colour of the menu area headings per core admin colour scheme (body class
+	 * admin-color-{scheme}, A396): the submenu background differs per scheme, a fixed light grey was
+	 * unreadable on "Hell" (light). Every pair has at least 4.5:1 except "Ozean" (#fff on #627c83,
+	 * 4.4:1 – the best the scheme allows); other schemes (also third-party) keep the default.
+	 */
+	const MENU_HEADING_COLORS = array(
+		'light' => array( '#50575e', 'rgba(0,0,0,.15)' ),
+		'blue' => array( '#1d2327', 'rgba(0,0,0,.2)' ),
+		'ocean' => array( '#fff', 'rgba(255,255,255,.3)' ),
+		'sunrise' => array( '#fff', 'rgba(255,255,255,.3)' ),
+	);
+
+	/** CSS of the menu area headings: default (dark schemes) plus the MENU_HEADING_COLORS overrides. */
+	public static function menu_heading_css() {
+		$sel = static function ( $prefix ) { return $prefix . '#adminmenu li.wpcap-menu-heading a,' . $prefix . '#adminmenu li.wpcap-menu-heading .wpcap-menu-heading-label'; };
+		$css = '#adminmenu li.wpcap-menu-heading{margin-top:6px;padding-top:4px;border-top:1px solid rgba(240,246,252,.15)}' . $sel( '' ) . '{display:block;padding:5px 12px 1px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#c3c4c7;pointer-events:none;cursor:default}';
+		foreach ( self::MENU_HEADING_COLORS as $scheme => $colors ) {
+			$body = 'body.admin-color-' . $scheme . ' ';
+			$css .= $body . '#adminmenu li.wpcap-menu-heading{border-top-color:' . $colors[1] . '}' . $sel( $body ) . '{color:' . $colors[0] . '}';
+		}
+		return $css;
+	}
+
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
 	public static function admin_styles() {
-		\PassCaptain\Assets::inline_style( 'wpcap-admin-menu', '#adminmenu li.wpcap-menu-heading{margin-top:6px;padding-top:4px;border-top:1px solid rgba(240,246,252,.15)}#adminmenu li.wpcap-menu-heading a,#adminmenu li.wpcap-menu-heading .wpcap-menu-heading-label{display:block;padding:5px 12px 1px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#c3c4c7;pointer-events:none;cursor:default}' );
+		\PassCaptain\Assets::inline_style( 'wpcap-admin-menu', self::menu_heading_css() );
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
 		if ( ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) { return; }
 		\PassCaptain\Assets::inline_style( 'wpcap-admin', '#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}#wpbody-content .wpcap-admin details>summary{min-height:24px;padding:2px 0;line-height:24px;cursor:pointer}#wpbody-content .wpcap-admin .button-link{min-height:24px;min-width:24px;padding:2px 0;line-height:20px}' );
