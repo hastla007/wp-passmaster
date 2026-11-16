@@ -66,7 +66,12 @@ final class DevicesPage {
 		<p><?php esc_html_e( 'Koppelt eine Scanner-App mit deinem Konto. Das Gerät erhält einen persönlichen, ablaufenden Zugang nur für die gewählten Events und kann jederzeit widerrufen werden.', 'pass-captain' ); ?></p>
 		<?php if ( is_array( $pairing ) ) : $qr = QrCode::data_uri( $pairing['qr_payload'] ); ?>
 			<div class="notice notice-success inline"><p><strong><?php esc_html_e( 'Kopplungscode (nur einmal gültig):', 'pass-captain' ); ?></strong> <code><?php echo esc_html( implode( '-', str_split( $pairing['code'], 4 ) ) ); ?></code><br><?php echo esc_html( sprintf( /* translators: %s: time */ __( 'Gültig bis %s.', 'pass-captain' ), Forms::datetime( $pairing['expires_at'], wp_timezone_string() ) ) ); ?></p>
-			<?php if ( $qr ) : ?><p><img src="<?php echo esc_attr( $qr ); ?>" width="220" height="220" alt="<?php esc_attr_e( 'Kopplungs-QR-Code', 'pass-captain' ); ?>"></p><?php else : ?><p><?php esc_html_e( 'QR-Bibliothek nicht installiert – den Code in der App manuell eingeben.', 'pass-captain' ); ?></p><?php endif; ?></div>
+			<?php if ( $qr ) : ?><p><img src="<?php echo esc_attr( $qr ); ?>" width="220" height="220" alt="<?php esc_attr_e( 'Kopplungs-QR-Code', 'pass-captain' ); ?>"></p><?php else : ?><p><?php esc_html_e( 'QR-Bibliothek nicht installiert – den Code in der App manuell eingeben.', 'pass-captain' ); ?></p><?php endif; ?>
+			<?php if ( ! empty( $pairing['pwa_url'] ) && \PassCaptain\Modules::enabled( \PassCaptain\Modules\OfflineScanner::class ) ) : $pwa_qr = QrCode::data_uri( $pairing['pwa_url'] ); // A597: open and pair the offline scanner with one scan. ?>
+				<p><strong><?php esc_html_e( 'Offline-Scanner (Web-App) direkt koppeln:', 'pass-captain' ); ?></strong> <?php esc_html_e( 'Mit der Kamera des Aushilfs-Smartphones scannen – die Web-App öffnet sich und wird sofort gekoppelt.', 'pass-captain' ); ?></p>
+				<?php if ( $pwa_qr ) : ?><p><img src="<?php echo esc_attr( $pwa_qr ); ?>" width="220" height="220" alt="<?php esc_attr_e( 'QR-Code: Offline-Scanner öffnen und koppeln', 'pass-captain' ); ?>"></p><?php endif; ?>
+				<p><a href="<?php echo esc_url( $pairing['pwa_url'] ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Offline-Scanner auf diesem Gerät öffnen und koppeln', 'pass-captain' ); ?></a></p>
+			<?php endif; ?></div>
 			<?php delete_transient( self::pairing_key() ); ?>
 		<?php endif; ?>
 		<h2><?php esc_html_e( 'Neues Gerät koppeln', 'pass-captain' ); ?></h2>

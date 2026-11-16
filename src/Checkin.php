@@ -452,7 +452,40 @@ final class Checkin {
 		}
 		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array_filter( array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ), 'via' => empty( $found['help_code'] ) ? ( empty( $found['manual'] ) ? null : 'manual' ) : 'help_code' ), static function ( $v ) { return null !== $v; } ) );
 		do_action( 'wpcap_ticket_checked_in', (int) $ticket->ticket_id, $context + array( 'checkin_id' => (int) $checkin_id ) );
-		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ), self::history( (int) $ticket->ticket_id ), $review_id ? array( 'conflict_id' => $review_id, 'review' => $review ) : array() );
+		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ), self::history( (int) $ticket->ticket_id ), $review_id ? array( 'conflict_id' => $review_id, 'review' => $review ) : array(), self::group( (int) $ticket->ticket_id, (int) $found['occurrence_id'], $context ) );
+	}
+
+	/** Group size shown after a scan (filter wpcap_scanner_group_max, 0 switches it off). */
+	const GROUP_MAX = 20;
+
+	/**
+	 * A596: further valid tickets of the same order for this occurrence after an online admission, so staff can
+	 * admit a group with one tap (the client checks each in through /scanner/check-in-ticket, with all rules of a
+	 * scan). Not for offline uploads. Names follow the scanner setting and the PII matrix like the scan itself.
+	 *
+	 * @return array{group?: array<int,array{ticket_public_id:string,ticket:string,attendee_name?:string}>}
+	 */
+	private static function group( $ticket_id, $occurrence_id, array $context ) {
+		$max = max( 0, min( 100, (int) apply_filters( 'wpcap_scanner_group_max', self::GROUP_MAX ) ) );
+		if ( ! $max || ! empty( $context['offline'] ) || 'offline' === ( $context['source'] ?? '' ) ) { return array(); }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.public_id,tt.name AS ticket_name,COALESCE(ta.attendee_name,'') AS attendee_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_tickets self ON self.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE self.ticket_id=%d AND t.ticket_id<>%d AND t.status='valid' AND t.refunded=0 AND tt.occurrence_id=%d ORDER BY t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from $wpdb->prefix.
+			absint( $ticket_id ),
+			absint( $ticket_id ),
+			absint( $occurrence_id ),
+			$max
+		) );
+		if ( ! $rows ) { return array(); }
+		$names = Settings::get( 'scanner_show_attendee' ) && Pii::can_view( 'attendee_name' );
+		$group = array();
+		foreach ( $rows as $row ) {
+			$item = array( 'ticket_public_id' => (string) $row->public_id, 'ticket' => (string) $row->ticket_name );
+			if ( $names && '' !== (string) $row->attendee_name ) { $item['attendee_name'] = (string) $row->attendee_name; }
+			$group[] = $item;
+		}
+		return array( 'group' => $group );
 	}
 
 	/** Offline upload of a paired device (Mobile API / offline scanner app): the device admitted the person. */
@@ -908,7 +941,7 @@ final class Checkin {
 	}
 
 	/** Scanner fields passed on to clients with a refused scan (besides result, message, event, ticket). */
-	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code', 'revoked_reason', 'replaced_reason', 'replaced_at', 'timezone' );
+	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'first_checked_in_by', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code', 'revoked_reason', 'replaced_reason', 'replaced_at', 'timezone' );
 
 	/**
 	 * Admission history of a ticket for the scanner result: first and latest admission (UTC, ISO
@@ -919,20 +952,43 @@ final class Checkin {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ticket_id = absint( $ticket_id );
-		$stats = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n,MIN(entered_at) AS first_at,MAX(entry_id) AS last_id FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0", $ticket_id ) );
+		$stats = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n,MIN(entered_at) AS first_at,MIN(entry_id) AS first_id,MAX(entry_id) AS last_id FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0", $ticket_id ) );
 		$last = $stats && (int) $stats->n ? $wpdb->get_row( $wpdb->prepare( "SELECT e.entered_at,a.name AS area_name FROM {$p}wpcap_admission_entries e LEFT JOIN {$p}wpcap_admission_areas a ON a.area_id=e.area_id WHERE e.entry_id=%d", (int) $stats->last_id ) ) : null;
 		if ( ! $stats || ! (int) $stats->n ) {
 			// Admissions from before the admission log: the check-in log.
-			$legacy = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(result='checked_in')-SUM(result='undone') AS n,MIN(CASE WHEN result='checked_in' THEN created_at END) AS first_at,MAX(CASE WHEN result='checked_in' THEN created_at END) AS last_at FROM {$p}wpcap_checkins WHERE ticket_id=%d", $ticket_id ) );
+			$legacy = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(result='checked_in')-SUM(result='undone') AS n,MIN(CASE WHEN result='checked_in' THEN created_at END) AS first_at,MAX(CASE WHEN result='checked_in' THEN created_at END) AS last_at,MIN(CASE WHEN result='checked_in' THEN checkin_id END) AS first_id FROM {$p}wpcap_checkins WHERE ticket_id=%d", $ticket_id ) );
 			if ( ! $legacy || (int) $legacy->n <= 0 || ! $legacy->first_at ) { return array(); }
-			return array( 'admissions' => (int) $legacy->n, 'first_admission' => 1 === (int) $legacy->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $legacy->first_at . ' UTC' ) ), 'last_checked_in_at' => gmdate( 'c', strtotime( $legacy->last_at . ' UTC' ) ) );
+			$first = $wpdb->get_row( $wpdb->prepare( 'SELECT device_id,user_id FROM %i WHERE checkin_id=%d', $p . 'wpcap_checkins', (int) $legacy->first_id ) );
+			return array_filter( array( 'admissions' => (int) $legacy->n, 'first_admission' => 1 === (int) $legacy->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $legacy->first_at . ' UTC' ) ), 'last_checked_in_at' => gmdate( 'c', strtotime( $legacy->last_at . ' UTC' ) ), 'first_checked_in_by' => $first ? self::admitted_by( (int) $first->device_id, (int) $first->user_id ) : '' ), static function ( $v ) { return '' !== $v; } );
 		}
 		$out = array( 'admissions' => (int) $stats->n, 'first_admission' => 1 === (int) $stats->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $stats->first_at . ' UTC' ) ) );
+		// A595: who admitted first (device label or staff name), so staff can check a double scan.
+		$first = $wpdb->get_row( $wpdb->prepare( 'SELECT device_id,user_id FROM %i WHERE entry_id=%d', $p . 'wpcap_admission_entries', (int) $stats->first_id ) );
+		$by = $first ? self::admitted_by( (int) $first->device_id, (int) $first->user_id ) : '';
+		if ( '' !== $by ) { $out['first_checked_in_by'] = $by; }
 		if ( $last ) {
 			$out['last_checked_in_at'] = gmdate( 'c', strtotime( $last->entered_at . ' UTC' ) );
 			if ( '' !== (string) $last->area_name ) { $out['last_checked_in_area'] = (string) $last->area_name; }
 		}
 		return $out;
+	}
+
+	/**
+	 * A595: who performed an admission – the label of the scanner device, else the staff member's display name;
+	 * '' when unknown. Staff names only, never buyer data.
+	 */
+	public static function admitted_by( $device_id, $user_id ) {
+		global $wpdb;
+		if ( $device_id > 0 ) {
+			$label = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT label FROM %i WHERE device_id=%d', $wpdb->prefix . 'wpcap_scanner_devices', absint( $device_id ) ) );
+			/* translators: %d: device number */
+			return '' !== trim( $label ) ? trim( $label ) : sprintf( __( 'Gerät %d', 'pass-captain' ), (int) $device_id );
+		}
+		if ( $user_id > 0 && function_exists( 'get_userdata' ) ) {
+			$user = get_userdata( (int) $user_id );
+			return $user && '' !== (string) $user->display_name ? (string) $user->display_name : '';
+		}
+		return '';
 	}
 
 	/** Data shown to scanning staff (no buyer e-mail, no payment data). */

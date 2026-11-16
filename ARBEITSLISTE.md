@@ -1282,14 +1282,18 @@ Gesamt: 262 Aufgaben.
   - src/Rest/Controller.php:503–521, PortalSelfService.php:150ff., Orders.php:1481: Selbstbedienungs-Rotation ab Einlassbeginn bzw. nach Paketausgabe sperren
 - [x] **A594** [WICHTIG] Einlass-Garantien nur im Normalpfad getestet — _R4 Ticket-Sicherheit_ (TODO L949; Audit Runde 4)
   - tests/: Tests für parallele Retries, Client-Zeit/-Quelle, Statuswechsel außerhalb Checkin
-- [ ] **A595** [OPTIMIERUNG] Doppelscan-Anzeige ohne Gerät/Person, nicht in Ortszeit; PWA offline ohne Zeit (erweitert A089) — _R4 Käufer-UX/Einlass_ (TODO L950; Audit Runde 4)
+- [x] **A595** [OPTIMIERUNG] Doppelscan-Anzeige ohne Gerät/Person, nicht in Ortszeit; PWA offline ohne Zeit (erweitert A089) — _R4 Käufer-UX/Einlass_ (TODO L950; Audit Runde 4)
   - src/Checkin.php:468–486, scanner.js:101–108, app.js:103–106/173–181: device_label/Name im Payload, Termin-TZ, lokale Zeit aus Log
-- [ ] **A596** [OPTIMIERUNG] Keine Gruppen-Check-in-Funktion — _R4 Käufer-UX/Einlass_ (TODO L951; Audit Runde 4)
+  - Erledigt: Doppelscan nennt zusätzlich, wer zuerst eingelassen hat (`first_checked_in_by`: Gerätename bzw. Mitarbeitende, `Checkin::admitted_by()`), Web-Scanner und PWA; die PWA zeigt offline die Ortszeit des früheren Einlasses auf diesem Gerät; Test zz_a595_a598.
+- [x] **A596** [OPTIMIERUNG] Keine Gruppen-Check-in-Funktion — _R4 Käufer-UX/Einlass_ (TODO L951; Audit Runde 4)
   - assets/scanner.js, offline-scanner/app.js, Checkin.php: Weitere gültige Tickets der Bestellung anzeigen, Auswahl einchecken
-- [ ] **A597** [OPTIMIERUNG] Kopplung für Aushilfen umständlich (QR in PWA nicht nutzbar, maxlength 40, zweiter Admin-Schritt) — _R4 Käufer-UX/Einlass_ (TODO L952; Audit Runde 4)
+  - Erledigt: nach einem Online-Einlass liefert der Server die weiteren gültigen Tickets der Bestellung für den Termin (`group`, max. 20, Filter `wpcap_scanner_group_max`); der Web-Scanner checkt die Auswahl über `/scanner/check-in-ticket` mit allen Scan-Regeln ein. Offline-PWA bewusst ohne (Bestelldaten nicht im Prüfpaket).
+- [x] **A597** [OPTIMIERUNG] Kopplung für Aushilfen umständlich (QR in PWA nicht nutzbar, maxlength 40, zweiter Admin-Schritt) — _R4 Käufer-UX/Einlass_ (TODO L952; Audit Runde 4)
   - src/Admin/DevicesPage.php:66–68, Mobile/Devices.php:19/62/189–194, offline-scanner/index.html:26, app.js:672–751: QR als PWA-URL ?pair=CODE, Events automatisch zuweisen, maxlength entfernen
-- [ ] **A598** [OPTIMIERUNG] PWA „Gerät entkoppeln“ trotz nicht synchronisierter Einlässe (erweitert A345) — _R4 Käufer-UX/Einlass_ (TODO L953; Audit Runde 4)
+  - Erledigt: Kopplung liefert `pwa_url` (Code im URL-Fragment), Geräteseite zeigt dafür einen QR-Code; die PWA koppelt beim Öffnen mit `#pair=` sofort, maxlength 512; das Gerät wird den Events mit aktivem Offline-Einlass automatisch zugewiesen (`Assignments::assign_paired`).
+- [x] **A598** [OPTIMIERUNG] PWA „Gerät entkoppeln“ trotz nicht synchronisierter Einlässe (erweitert A345) — _R4 Käufer-UX/Einlass_ (TODO L953; Audit Runde 4)
   - assets/offline-scanner/app.js:696–702: Bei pending>0 sperren oder Sync/Export erzwingen
+  - Erledigt: „Gerät entkoppeln“ synchronisiert zuerst; bleiben Scans offen, nur nach Eingabe der Anzahl offener Scans.
 - [x] **A599** [OPTIMIERUNG] Ungültige Teilnehmer-E-Mail serverseitig still verworfen — _R4 Käufer-UX/Checkout_ (TODO L954; Audit Runde 4)
   - src/Orders.php:515–516: 400 mit field=attendees
 - [x] **A600** [OPTIMIERUNG] Bestätigung ohne Kalendereintrag/Ticketlink — _R4 Käufer-UX/Checkout_ (TODO L955; Audit Runde 4)

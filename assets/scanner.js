@@ -202,6 +202,7 @@
 		} else if (data.first_checked_in_at) {
 			let line = (t.alreadyAt || '%s').replace('%s', when(data.first_checked_in_at, data.timezone));
 			if (data.last_checked_in_at && data.admissions > 1) line += ', ' + (t.lastAt || '%s').replace('%s', when(data.last_checked_in_at, data.timezone));
+			if (data.first_checked_in_by) line += ' ' + (t.byWhom || '(%s)').replace('%s', data.first_checked_in_by); // A595: device or person
 			if (data.last_checked_in_area) line += ' · ' + (t.atArea || '%s').replace('%s', data.last_checked_in_area);
 			lines.push(line);
 		}
@@ -677,7 +678,59 @@
 		const lines = [[data.event, data.ticket].filter(Boolean).join(' — '), data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
 		show('success', (out ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + lines.join(' — '), { title: out ? (t.checkedOutTitle || 'OUT') : (t.admitted || 'OK'), lines: lines });
 		if (!out) offerUndo({ publicId: data.ticket_public_id });
+		if (!out && Array.isArray(data.group) && data.group.length) offerGroup(data.group);
 		refreshCounter();
+	}
+	/*
+	 * A596: group check-in. After an admission the server lists further valid tickets of the same order for this
+	 * date; staff tick the people present and admit them in one go (each through /scanner/check-in-ticket, so
+	 * every rule of a scan applies).
+	 */
+	function offerGroup(group) {
+		if (!window.WPCAP_SCANNER.checkInTicketUrl) return;
+		const box = document.createElement('fieldset');
+		box.className = 'wpcap-group';
+		const legend = document.createElement('legend');
+		legend.textContent = (t.groupTitle || 'More tickets in this order (%d)').replace('%d', String(group.length));
+		box.appendChild(legend);
+		const boxes = group.map(function (item) {
+			const label = document.createElement('label');
+			label.className = 'wpcap-group-item';
+			const check = document.createElement('input');
+			check.type = 'checkbox';
+			check.checked = true;
+			check.value = item.ticket_public_id;
+			label.appendChild(check);
+			label.appendChild(document.createTextNode(' ' + [item.ticket, item.attendee_name || ''].filter(Boolean).join(' – ')));
+			box.appendChild(label);
+			return check;
+		});
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'button button-primary wpcap-group-checkin';
+		const label = function () { button.textContent = (t.groupCheckin || 'Check in selected (%d)').replace('%d', String(boxes.filter(function (b) { return b.checked; }).length)); };
+		boxes.forEach(function (b) { b.addEventListener('change', label); });
+		label();
+		button.addEventListener('click', async function () {
+			const ids = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+			if (!ids.length) return;
+			button.disabled = true;
+			let ok = 0;
+			let failed = 0;
+			for (const id of ids) {
+				try {
+					const response = await fetch(window.WPCAP_SCANNER.checkInTicketUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ ticket_public_id: id, occurrence_id: occurrenceId, area_id: areaId, idempotency_key: uuid() }) });
+					if (response.ok) { ok++; } else { failed++; }
+				} catch (ignore) { failed++; }
+			}
+			box.remove();
+			const lines = [(t.groupDone || '%d more admitted').replace('%d', String(ok))].concat(failed ? [(t.groupFailed || '%d not admitted – scan them individually').replace('%d', String(failed))] : []);
+			show(failed ? 'warning' : 'success', lines.join(' — '), { lines: lines });
+			refreshCounter();
+			input.focus();
+		});
+		box.appendChild(button);
+		result.appendChild(box);
 	}
 	async function submitToken(token) {
 		token = String(token || '').trim();

@@ -53,6 +53,26 @@ final class Assignments {
 		return array( 'device_id' => (int) $device->device_id, 'event_id' => $event_id, 'occurrence_id' => $occurrence_id );
 	}
 
+	/**
+	 * A597: a freshly paired device gets the events of its pairing for offline use right away (event-wide), when
+	 * offline admission is switched on for the event – no second step in the admin. Recorded as assigned by the
+	 * person who created the pairing.
+	 *
+	 * @param int[] $event_ids Events of the pairing.
+	 * @return int[] Events assigned.
+	 */
+	public static function assign_paired( $device_id, array $event_ids, $by_user ) {
+		global $wpdb;
+		$done = array();
+		foreach ( array_unique( array_map( 'absint', $event_ids ) ) as $event_id ) {
+			if ( ! $event_id || ! Rules::enabled( $event_id ) ) { continue; }
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,0,%d,%s)', self::table(), absint( $device_id ), $event_id, absint( $by_user ), current_time( 'mysql', true ) ) );
+			$done[] = $event_id;
+		}
+		if ( $done ) { Audit::record( 'offline_device_assigned', 'device', absint( $device_id ), array( 'event_ids' => $done, 'occurrence_id' => 0, 'via' => 'pairing' ) ); }
+		return $done;
+	}
+
 	public static function unassign( $device_id, $event_id, $occurrence_id = 0 ) {
 		global $wpdb;
 		$wpdb->delete( self::table(), array( 'device_id' => absint( $device_id ), 'event_id' => absint( $event_id ), 'occurrence_id' => absint( $occurrence_id ) ), array( '%d', '%d', '%d' ) );

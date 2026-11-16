@@ -395,7 +395,7 @@
 			return res.admissions > 1 && res.first_checked_in_at ? t('Einlass Nr. %1 – zuerst eingelassen um %2', res.admissions, fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) : '';
 		}
 		if (!res.first_checked_in_at) { return ''; }
-		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : '');
+		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) + (res.first_checked_in_by ? ' ' + t('durch %1', res.first_checked_in_by) : '') + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : ''); // A595: device or person
 	}
 	function onlineDetail(res) {
 		// A543: refusals carry the server's reason ("Code ersetzt: … übertragen …", "widerrufen: umgetauscht").
@@ -1064,7 +1064,10 @@
 		if (ago >= 0) {
 			showResult('warn', t('Eben hier eingelassen (vor %d s)', Math.round(ago / 1000)), [resultText(result)].concat(details).filter(Boolean).join(' · '), true);
 		} else {
-			showResult('bad', resultText(result), details.filter(Boolean).join(' · '), true);
+			// A595: offline the server history is missing; show when this device admitted the ticket (occurrence time zone).
+			var ins = LOCAL_REPEAT.indexOf(result) >= 0 ? localOf(occurrenceId, hash).ins : [];
+			var lines = ins.length ? [t('Auf diesem Gerät eingelassen um %1', fmtTime(new Date(Math.max.apply(null, ins)).toISOString(), zoneOf(occurrenceId)))].concat(details) : details;
+			showResult('bad', resultText(result), lines.filter(Boolean).join(' · '), true);
 		}
 	}
 
@@ -1687,8 +1690,29 @@
 		});
 	}
 
+	/**
+	 * A598: unpairing clears the scan log. With unsynchronised admissions the app syncs first; if scans are
+	 * still open (offline), unpairing needs the number of open scans typed in – a mistaken tap must not throw
+	 * away admissions that the server has not seen yet.
+	 */
 	function unpair() {
-		if (!window.confirm(t('Gerät entkoppeln? Nicht synchronisierte Scans gehen verloren.'))) { return; }
+		var open = state.pendingCount;
+		if (!open) {
+			if (window.confirm(t('Gerät entkoppeln? Nicht synchronisierte Scans gehen verloren.'))) { doUnpair(); }
+			return;
+		}
+		syncNow().catch(function () {}).then(function () {
+			open = state.pendingCount;
+			if (!open) {
+				if (window.confirm(t('Alle Scans sind synchronisiert. Gerät jetzt entkoppeln?'))) { doUnpair(); }
+				return;
+			}
+			var typed = window.prompt(t('%1$d Scans sind noch nicht synchronisiert und gingen beim Entkoppeln verloren. Bitte zuerst mit Internetverbindung synchronisieren. Zum Entkoppeln trotzdem die Zahl %1$d eingeben:', open));
+			if (null !== typed && String(typed).trim() === String(open)) { doUnpair(); }
+		});
+	}
+
+	function doUnpair() {
 		var logout = state.token ? api('POST', 'logout', {}).catch(function () {}) : Promise.resolve();
 		logout.then(function () {
 			return Promise.all(['kv', 'packages', 'log'].map(function (s) { return idb(s, 'readwrite', function (st) { st.clear(); }); }));
@@ -1794,6 +1818,10 @@
 			return;
 		}
 		if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {}); }
+		// A597: #pair=CODE from the admin's pairing QR – paired right after start (the fragment never reaches the server).
+		var pairMatch = /(?:^#|&)pair=([A-Za-z0-9-]{16,64})/.exec(location.hash || '');
+		var pairCode = pairMatch ? pairMatch[1] : '';
+		if (pairCode) { history.replaceState(null, '', location.pathname + location.search); }
 		var param = new URLSearchParams(location.search).get('api');
 		// Site (A473): ?api= of the admin link, else the site used last, else the pairing of an older
 		// version. Every site has its own store, so a crafted ?api= can never redirect the token or the
@@ -1832,6 +1860,10 @@
 					renderOccurrences();
 					renderLog();
 					refreshAll(true);
+				} else if (pairCode && $('pair-code')) {
+					$('pair-code').value = pairCode;
+					var form = $('pair-form');
+					if (form.requestSubmit) { form.requestSubmit(); } else { form.dispatchEvent(new Event('submit', { cancelable: true })); }
 				}
 				loadI18n();
 			});
@@ -1844,7 +1876,7 @@
 			pair($('pair-code').value, $('pair-label').value.trim()).then(function () {
 				showView();
 				renderOccurrences();
-				showResult('ok', t('Gekoppelt'), t('Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.'));
+				showResult('ok', t('Gekoppelt'), t('Freigegebene Events werden geladen. Fehlt ein Event, im Admin unter „Offline-Scanner“ zuweisen.'));
 				return refreshAll(true);
 			}).catch(function (err) {
 				showResult('bad', t('Kopplung fehlgeschlagen'), err && err.message);

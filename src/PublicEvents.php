@@ -74,6 +74,16 @@ final class PublicEvents {
 			'lastAt' => __( 'zuletzt um %s', 'pass-captain' ),
 			/* translators: %s: name of the entrance area */
 			'atArea' => __( 'Bereich: %s', 'pass-captain' ),
+			/* translators: %s: scanner device or staff member (A595) */
+			'byWhom' => __( 'durch %s', 'pass-captain' ),
+			/* translators: %d: number of further tickets in the order (A596) */
+			'groupTitle' => __( 'Weitere Tickets dieser Bestellung (%d)', 'pass-captain' ),
+			/* translators: %d: number of selected tickets */
+			'groupCheckin' => __( 'Ausgewählte einchecken (%d)', 'pass-captain' ),
+			/* translators: %d: number of tickets admitted */
+			'groupDone' => __( '%d weitere eingelassen', 'pass-captain' ),
+			/* translators: %d: number of tickets not admitted */
+			'groupFailed' => __( '%d nicht eingelassen – bitte einzeln scannen', 'pass-captain' ),
 			'viaHelpCode' => __( 'Per Hilfscode geprüft – Ticketinhaber ggf. mit Ausweis abgleichen.', 'pass-captain' ),
 			'helpOffline' => __( 'Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.', 'pass-captain' ),
 			'rateLimited' => __( 'Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden.', 'pass-captain' ),
