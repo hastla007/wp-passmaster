@@ -267,7 +267,7 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
 **Öffentliche REST-Routen** (bewusst ohne Anmeldung; Schutz durch Zugangstoken, Signatur, Rate-Limit oder nur
 öffentliche Daten): Eventliste, Checkout, Checkout-Optionen und Live-Kaufzustand der Eventkarten (`/checkout/live`, A456: nur öffentliche Daten, `no-store`, je Client begrenzt), Bestellportal (`/orders/{id}` sowie
 `transfer`, `resend`, `assign`, `billing`, `payout-account`, `exchange`, `refund-request` – Zugangstoken im Callback, bei `refund-request` zusätzlich der Formularnachweis, A459),
-Sitzplätze und Sitzplatz-Holds, Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
+Sitzplätze der alten Sitzpläne (die alte Route `POST /events/{id}/seat-holds` antwortet seit A646 mit 410 – ihre Holds waren nie an eine Bestellung gebunden; ein neuer Sitzplan setzt ältere veröffentlichte Versionen auf `retired`, deren Plätze nicht mehr reservierbar sind), Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
 Angebot annehmen/ablehnen mit Token), Event-Übersetzung lesen, Zahlungs-Webhooks (Anbietersignatur),
 SMS-Statusrückmeldungen und eingehende SMS (Twilio: `X-Twilio-Signature`; generischer HTTP-Anbieter:
 HMAC-SHA256 über den Rohinhalt bzw. über `{Zeitstempel}.{Rohinhalt}` mit `sms_http_webhook_secret`, ohne Schlüssel immer 403;
