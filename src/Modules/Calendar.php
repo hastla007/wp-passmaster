@@ -183,6 +183,8 @@ final class Calendar {
 			\PassCaptain\PublicEvents::register_styles();
 			wp_enqueue_style( 'wpcap-calendar' );
 		}
+		// A499: in feeds and REST responses the month grid (navigation, table) becomes the list.
+		if ( \PassCaptain\PublicEvents::slim_output( 'calendar' ) ) { $view = 'list'; }
 		$wrapper = $block && function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-calendar wpcap-calendar-' . $view ) ) : '';
 		if ( 'list' === $view ) { return self::render_list( $event_id, $limit, $wrapper ); }
 		// A452: every month calendar of the page has its own parameter (wpcap_month, wpcap_month_2, …),
@@ -211,7 +213,8 @@ final class Calendar {
 	 */
 	public static function nav_url( $param, $value, $fragment = '' ) {
 		$uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only rebuilt into a relative URL, escaped on output.
-		$rest = defined( 'REST_REQUEST' ) && REST_REQUEST;
+		// A499: feeds link to the post (the request URL is the feed's) like REST responses.
+		$rest = ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ( function_exists( 'is_feed' ) && is_feed() );
 		if ( $rest || '' === $uri || '/' !== $uri[0] ) {
 			$uri = function_exists( 'get_permalink' ) ? (string) get_permalink() : '';
 			if ( '' === $uri ) { $uri = home_url( '/' ); }

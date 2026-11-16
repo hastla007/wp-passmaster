@@ -347,6 +347,41 @@ final class PublicEvents {
 		return '<p class="wpcap-shortcode-notice" role="note">' . esc_html( $text ) . '</p>';
 	}
 
+	/**
+	 * A499: whether the shortcode/block output goes to a feed or a REST response (content.rendered of
+	 * /wp/v2/posts, headless frontends, apps) – not the editor's block preview. There an order form
+	 * without its script makes no sense; the output is a plain list of dates with links (slim_listing(),
+	 * calendar: list view). Filter `wpcap_slim_output` ($slim, $what = 'events'|'calendar') switches it.
+	 */
+	public static function slim_output( $what = 'events' ) {
+		$slim = ( function_exists( 'is_feed' ) && is_feed() ) || ( defined( 'REST_REQUEST' ) && REST_REQUEST && ! self::is_block_preview() );
+		return (bool) apply_filters( 'wpcap_slim_output', $slim, (string) $what );
+	}
+
+	/**
+	 * Plain list of the listed dates (A499): event name linked to its card on the page
+	 * (occurrence_link(); in feeds and REST responses based on the post's permalink), date, place and
+	 * "Vorverkauf ab …" for dates not on sale yet. No form, no scripts, no ids.
+	 *
+	 * @param object[] $cards   Listing rows (one per card).
+	 * @param array    $listing occurrence_id => ticket types on sale.
+	 * @param array    $presale occurrence_id => sales start.
+	 * @param string   $wrapper Attributes of the root element ('' = class="wpcap-events").
+	 */
+	private static function slim_listing( array $cards, array $listing, array $presale, $wrapper ) {
+		$items = '';
+		foreach ( $cards as $event ) {
+			$occ = (int) $event->occurrence_id;
+			if ( empty( $listing[ $occ ] ) && ! isset( $presale[ $occ ] ) ) { continue; }
+			$items .= '<li><a href="' . esc_url( self::occurrence_link( $occ ) ) . '">' . esc_html( $event->name ) . '</a> – <time datetime="' . esc_attr( Frontend\EventCard::iso( $event->starts_at ) ) . '">' . esc_html( Frontend\Format::event_start( $event->starts_at, $event->timezone ) ) . '</time>'
+				. ( $event->location ? ', ' . esc_html( $event->location ) : '' )
+				/* translators: %s: date and time the online sale starts */
+				. ( isset( $presale[ $occ ] ) ? ' (' . esc_html( sprintf( __( 'Vorverkauf ab %s', 'pass-captain' ), Frontend\Format::event_start( $presale[ $occ ], $event->timezone ) ) ) . ')' : '' ) . '</li>';
+		}
+		$body = '' !== $items ? '<ul class="wpcap-events-list">' . $items . '</ul>' : '<p class="wpcap-events-empty">' . esc_html__( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ) . '</p>';
+		return '<div ' . ( '' !== $wrapper ? $wrapper : 'class="wpcap-events"' ) . '>' . $body . '</div>';
+	}
+
 	/** Whether the request renders the block preview of the editor (REST block renderer). */
 	public static function is_block_preview() {
 		$uri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] ) ? (string) wp_unslash( $_SERVER['REQUEST_URI'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- only compared.
@@ -420,6 +455,7 @@ final class PublicEvents {
 		$presale = self::presale_starts( $rows, $listing );
 		$grouped = 'each' !== (string) ( $atts['dates'] ?? '' ) && ! absint( $atts['occurrence'] );
 		$cards = $grouped ? self::card_rows( $rows, $listing, $presale, $requested ) : $rows;
+		if ( self::slim_output( 'events' ) ) { return self::slim_listing( $cards, $listing, $presale, $wrapper ); }
 		$shown = 0;
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );
