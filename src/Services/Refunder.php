@@ -48,7 +48,10 @@ final class Refunder {
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
-		if ( ! $order || 'paid' !== $order->payment_status ) {
+		// An order whose tickets are all revoked is marked refunded even if money is left (PAY-9: the first
+		// payment of a booking moved to a supplementary order); an amount-only refund may take the rest.
+		$rest_open = $order && ! $ticket_ids && null !== $amount_minor && 'refunded' === $order->payment_status && (int) $order->refunded_minor < (int) $order->total_minor;
+		if ( ! $order || ( 'paid' !== $order->payment_status && ! $rest_open ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
