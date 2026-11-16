@@ -296,7 +296,7 @@ $ctx = $inline ? json_decode( preg_replace( '/^window\.WPCAP_SCANNER_PRIVACY=|;$
 check( 'scanner: per-user owner key (not the raw user ID) and 24 h queue lifetime before the script', ( ! $p1p_own_assets && Privacy::scanner_owner( 5 ) !== Privacy::scanner_owner( 6 ) ) || is_array( $ctx ) && 'before' === $inline[2] && 24 === $ctx['maxAgeHours'] && Privacy::scanner_owner( 5 ) === $ctx['owner'] && '5' !== $ctx['owner'] && Privacy::scanner_owner( 6 ) !== $ctx['owner'] && false !== strpos( $ctx['i18n']['expired'], '24 Stunden' ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 $js = file_get_contents( WPCAP_PATH . 'assets/scanner.js' );
-check( 'scanner.js: queue key per owner, legacy/foreign queues removed, no 7-day lifetime', false !== strpos( $js, "queuePrefix + owner" ) && false !== strpos( $js, 'removeItem' ) && false === strpos( $js, '7 * 24 * 3600' ) );
+check( 'scanner.js: queue key per site and owner (A472), legacy/foreign queues removed, no 7-day lifetime', false !== strpos( $js, "queuePrefix + site + '.' + owner" ) && false !== strpos( $js, 'removeItem' ) && false === strpos( $js, '7 * 24 * 3600' ) );
 check( 'partner API: placeholder and empty addresses become null', null === Privacy::public_email( 'deleted+abc@invalid.example' ) && null === Privacy::public_email( 'boxoffice+x@INVALID.example' ) && null === Privacy::public_email( '' ) && 'a@example.com' === Privacy::public_email( 'a@example.com' ) );
 $api_src = file_get_contents( WPCAP_PATH . 'src/Partners/Api.php' );
 check( 'partner API: e-mail fields go through Privacy::public_email()', 2 === substr_count( $api_src, 'Privacy::public_email(' ) );
