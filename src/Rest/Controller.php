@@ -36,10 +36,12 @@ final class Controller {
 				'items' => array( 'required' => true, 'type' => 'array' ),
 			),
 		) );
+		// A645: the access token belongs in the header X-WPCAP-Access-Token or a POST body; GET with
+		// ?access_token= still works for now but is answered with Deprecation: true (A370).
+		$order_token = array( 'access_token' => array( 'type' => 'string', 'maxLength' => 64, 'validate_callback' => 'rest_validate_request_arg' ) );
 		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})', array(
-			'methods' => \WP_REST_Server::READABLE,
-			'callback' => array( __CLASS__, 'order_status' ),
-			'permission_callback' => '__return_true',
+			array( 'methods' => \WP_REST_Server::READABLE, 'callback' => array( __CLASS__, 'order_status' ), 'permission_callback' => '__return_true', 'args' => $order_token ),
+			array( 'methods' => \WP_REST_Server::CREATABLE, 'callback' => array( __CLASS__, 'order_status' ), 'permission_callback' => '__return_true', 'args' => $order_token ),
 		) );
 		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/transfer', array(
 			'methods' => \WP_REST_Server::CREATABLE,
@@ -585,16 +587,49 @@ final class Controller {
 		return $response;
 	}
 
+	/** Cache-Control of every answer of the plugin namespace that sets none itself (A370, A505). */
+	const NO_STORE = 'no-store, no-cache, must-revalidate, max-age=0, private';
+
+	/**
+	 * rest_post_dispatch (A370, A505): answers of the plugin namespace carry live data (availability,
+	 * order and booking states, scanner results) or token-protected data and are never stored by
+	 * browsers, proxies or CDNs – unless the route set its own Cache-Control.
+	 */
+	public static function cache_headers( $response, $server = null, $request = null ) {
+		unset( $server );
+		if ( ! is_object( $response ) || ! method_exists( $response, 'header' ) || ! is_object( $request ) || ! method_exists( $request, 'get_route' ) ) { return $response; }
+		if ( 0 !== strpos( (string) $request->get_route(), '/pass-captain/' ) ) { return $response; }
+		$headers = method_exists( $response, 'get_headers' ) ? array_change_key_case( (array) $response->get_headers(), CASE_LOWER ) : array();
+		if ( ! isset( $headers['cache-control'] ) ) { $response->header( 'Cache-Control', self::NO_STORE ); }
+		return $response;
+	}
+
+	/** Access token of an order portal request: header X-WPCAP-Access-Token, else the parameter (A645). */
+	private static function access_token_of( \WP_REST_Request $request ) {
+		$header = \PassCaptain\Http::str( $request->get_header( 'x-wpcap-access-token' ) );
+		return '' !== $header ? $header : \PassCaptain\Http::str( $request->get_param( 'access_token' ) );
+	}
+
+	/**
+	 * Order status for the order portal (GET or POST). The token comes from the header
+	 * X-WPCAP-Access-Token or the POST body; the query string still works but is deprecated (A645).
+	 */
 	public static function order_status( \WP_REST_Request $request ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( $request['public_id'] );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $request->get_param( 'access_token' ) ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', self::access_token_of( $request ) ) );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( (string) $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		unset( $order['access_token_hash'] );
 		$order['total_minor'] = (int) $order['total_minor'];
-		return rest_ensure_response( self::prepare( 'order', $order, $request ) );
+		$response = rest_ensure_response( self::prepare( 'order', $order, $request ) );
+		$query = method_exists( $request, 'get_query_params' ) ? (array) $request->get_query_params() : array();
+		if ( '' === \PassCaptain\Http::str( $request->get_header( 'x-wpcap-access-token' ) ) && '' !== \PassCaptain\Http::str( $query['access_token'] ?? '' ) && method_exists( $response, 'header' ) ) {
+			// The token was in the URL (server and proxy logs): still answered, but marked for removal.
+			$response->header( 'Deprecation', 'true' );
+		}
+		return $response;
 	}
 
 	public static function transfer_ticket( \WP_REST_Request $request ) {

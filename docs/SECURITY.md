@@ -275,6 +275,16 @@ Scanner-App-Kopplung (`/app/pair`, einmaliger Kopplungscode) und der öffentlich
 `tests/integration/modules/zz_a119.php` zählt alle registrierten Routen auf und schlägt fehl, wenn eine neue
 Route `__return_true` nutzt, ohne in dieser Liste zu stehen.
 
+**Kein Zwischenspeichern von REST-Antworten (A370, A505):** Jede Antwort im Namespace `pass-captain/v1`, die
+keinen eigenen `Cache-Control`-Header setzt, erhält `Cache-Control: no-store, no-cache, must-revalidate,
+max-age=0, private` (`Rest\Controller::cache_headers()` an `rest_post_dispatch`) – auch für anonyme Abrufe, bei
+denen WordPress selbst keine No-Cache-Header sendet. So landen weder Live-Daten (Verfügbarkeit, Kaufzustand,
+Scannerergebnisse) noch tokengeschützte Antworten (Bestellportal, Servicebuchung) in Browser-, Proxy- oder
+CDN-Caches. Den Bestellstatus (`/orders/{id}`, A645) gibt es per `GET` mit dem Header `X-WPCAP-Access-Token`
+oder per `POST` mit `access_token` im Body; `GET …?access_token=` funktioniert übergangsweise weiter, wird aber
+mit `Deprecation: true` beantwortet, weil Tokens in URLs in Server- und Proxy-Logs landen. Die
+Servicebuchung liest ihr Token schon aus dem JSON-Body (Lesezugriff per `POST` mit Methoden-Override).
+
 Die Selbstbedienung für Servicebuchungen (`GET /service-bookings/{id}`, `POST /service-bookings/{id}/confirm|rebook|cancel`, A135)
 ist ohne Anmeldung erreichbar, aber nur mit dem persönlichen Buchungstoken aus der Reservierung (Prüfung im
 `permission_callback` `ServiceBookingFlow::token_permission`, Hash-Vergleich in konstanter Zeit; falsche Tokens zählen

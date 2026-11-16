@@ -80,6 +80,7 @@ function wpcap_test_public_rest() {
 		// A456: live purchase state of cached event cards (public data only, no-store).
 		'GET pass-captain/v1/checkout/live',
 		'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})',
+		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})', // A645: token in the body instead of the URL.
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign',

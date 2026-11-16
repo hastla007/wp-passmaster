@@ -46,6 +46,7 @@ final class Plugin {
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		add_filter( 'rest_post_dispatch', array( DeveloperKeys::class, 'retry_after_header' ) );
+		add_filter( 'rest_post_dispatch', array( Rest\Controller::class, 'cache_headers' ), 20, 3 );
 		Contracts::register();
 		Admin\Menu::register();
 		Admin\Notices::register();

@@ -69,7 +69,11 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		public function get_body() { return $this->body; }
 		public function get_json_params() { $d = json_decode( $this->body, true ); return is_array( $d ) ? $d : null; }
 		public function set_param( $k, $v ) { $this->params[ $k ] = $v; }
-		public function get_param( $k ) { return $this->params[ $k ] ?? ( $this->get_json_params()[ $k ] ?? null ); }
+		public function get_param( $k ) { return $this->params[ $k ] ?? ( $this->get_json_params()[ $k ] ?? ( $this->query[ $k ] ?? null ) ); }
+		// Query string (A645): get_param() falls back to it like WordPress does.
+		private $query = array();
+		public function set_query_params( array $q ) { $this->query = $q; }
+		public function get_query_params() { return $this->query; }
 		public function get_params() { return array_merge( (array) $this->get_json_params(), $this->params ); }
 		public function offsetExists( mixed $k ): bool { return null !== $this->get_param( $k ); }
 		public function offsetGet( mixed $k ): mixed { return $this->get_param( $k ); }
