@@ -26,7 +26,7 @@ Alle ausgehenden HTTP-Aufrufe in `src/` laufen über den zentralen Guard `PassCa
 | SMS über generischen HTTP-Anbieter (`Sms\HttpProvider`) | konfigurierbarer Endpunkt | HTTPS, öffentliche Adresse; Antwort ≤ 64 KB, 15 s; ein abgelehntes Ziel ist ein dauerhafter Fehler |
 | SMS über Twilio | `api.twilio.com` | fester Host |
 | Google Wallet | `walletobjects.googleapis.com`; `token_uri` des Dienstkontos nur `oauth2.googleapis.com`, `accounts.google.com`, `www.googleapis.com` | feste Hosts |
-| Apple Wallet (APNs, cURL direkt) | `api.push.apple.com`, `api.sandbox.push.apple.com` | feste Hosts, `CURLOPT_RESOLVE`, nur HTTPS, keine Weiterleitung, Antwort ≤ 64 KB |
+| Apple Wallet (APNs, cURL direkt) | `api.push.apple.com`, `api.sandbox.push.apple.com` | feste Hosts, `CURLOPT_RESOLVE`, nur HTTPS, keine Weiterleitung, Antwort ≤ 64 KB; beachtet `WP_HTTP_BLOCK_EXTERNAL`/`WP_ACCESSIBLE_HOSTS` und den WordPress-Proxy (`WP_PROXY_*`, CONNECT-Tunnel) |
 | Stripe, PayPal, Mollie | `api.stripe.com`, `api-m.paypal.com`/`api-m.sandbox.paypal.com`, `api.mollie.com` | feste Hosts (die URLs sind nicht konfigurierbar) |
 
 Partner-API und Voucher-Captain-Bridge rufen nichts per HTTP auf (Partner fragen die REST-API ab, die Bridge

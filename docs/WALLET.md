@@ -131,6 +131,7 @@ Basis: `https://example.com/wp-json/pass-captain/v1/wallet/apple` (= `webService
 Google: Das OAuth-Zugriffstoken (JWT-Bearer-Grant mit dem Dienstkonto) wird bis kurz vor Ablauf zwischengespeichert, gebunden an das Dienstkonto (Transient `wpcap_wallet_google_token_{Hash aus client_email, token_uri und privatem Schlüssel}`, A423): Nach dem Hochladen eines anderen Dienstkontos wird nie das Token des vorigen verwendet. Antwortet die Wallet-API mit 401 oder 403, wird das Token verworfen und beim nächsten Aufruf neu angefordert.
 
 APNs: HTTP/2-POST an `https://api.push.apple.com/3/device/{pushToken}` (Sandbox einstellbar) mit dem Pass-Type-ID-Zertifikat als Client-Zertifikat, `apns-topic` = Pass Type ID, Payload `{}`. Benötigt cURL mit HTTP/2.
+APNs: HTTP/2-POST an `https://api.push.apple.com/3/device/{pushToken}` (Sandbox einstellbar) mit dem Pass-Type-ID-Zertifikat als Client-Zertifikat, `apns-topic` = Pass Type ID, Payload `{}`. Benötigt cURL mit HTTP/2. Die WordPress-HTTP-Einstellungen gelten auch hier: Mit `WP_HTTP_BLOCK_EXTERNAL` wird nur gepusht, wenn der APNs-Host in `WP_ACCESSIBLE_HOSTS` steht; ein mit `WP_PROXY_HOST`/`WP_PROXY_PORT` (optional `WP_PROXY_USERNAME`/`WP_PROXY_PASSWORD`, `WP_PROXY_BYPASS_HOSTS`) konfigurierter Proxy wird als CONNECT-Tunnel verwendet (das Client-Zertifikat bleibt Ende-zu-Ende).
 
 Update-Tags (für `passesUpdatedSince`, `Last-Modified`, `ETag`) liegen bei jeder Änderung in einer späteren vollen Sekunde als der vorherige Tag; eine Änderung in derselben Sekunde wie der letzte Abruf wird daher nie per 304 verschluckt.
 
