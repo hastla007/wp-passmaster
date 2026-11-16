@@ -386,6 +386,8 @@ echo "W6 faults: box office sale\n";
 $GLOBALS['wpcap_test_user_id'] = 4242;
 $w6_session = W6Pos::open_session_for( 4242 );
 if ( ! $w6_session || 'open' !== $w6_session->status ) { $w6_session = W6Pos::open_session( 0 ); }
+// Cash in DE/AT needs a certified register (merged box office, wpcap_pos_fiscal_required): confirmed here.
+add_filter( 'wpcap_boxoffice_fiscal_ready', $w6_fiscal_ready = static function () { return true; } );
 $w6_pos_type = make_type( 0, 10, 1500 );
 $w6_pos_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$w6_pos_type" );
 w6_matrix(
@@ -416,6 +418,7 @@ w6_matrix(
 	},
 	'w6_recover'
 );
+remove_filter( 'wpcap_boxoffice_fiscal_ready', $w6_fiscal_ready );
 $GLOBALS['wpcap_test_user_id'] = 1;
 
 // Leave nothing due for later queue tests.

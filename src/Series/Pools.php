@@ -129,12 +129,9 @@ final class Pools {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
 		$p = $wpdb->prefix;
-		// Maintained counters (one row per type) instead of summing order lines and holds.
-		$counted = \PassCaptain\CapacityCounters::used_for_types( $type_ids, $exclude_order_id, $now );
-		if ( null !== $counted ) { return $counted; }
 		$exclude = absint( $exclude_order_id );
 		if ( ! $exclude && \PassCaptain\DisplayBatch::active() ) {
-			// Display batch: every requested type preloaded → sum the grouped usage (no query).
+			// Display batch: every requested type preloaded → sum the grouped usage (no query per type).
 			$usage = \PassCaptain\DisplayBatch::usage();
 			$batched = \PassCaptain\DisplayBatch::types();
 			if ( ! array_diff( $type_ids, array_keys( $batched ) ) ) {
@@ -143,6 +140,9 @@ final class Pools {
 				return $sum;
 			}
 		}
+		// Maintained counters (one row per type) instead of summing order lines and holds.
+		$counted = \PassCaptain\CapacityCounters::used_for_types( $type_ids, $exclude_order_id, $now );
+		if ( null !== $counted ) { return $counted; }
 		$in = implode( ',', array_fill( 0, count( $type_ids ), '%d' ) );
 		// Sold and held in ONE statement (one snapshot): a payment moving units from held to sold between
 		// two statements would be missing from both sums under READ COMMITTED.

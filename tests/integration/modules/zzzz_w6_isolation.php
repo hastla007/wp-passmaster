@@ -35,6 +35,10 @@ $w6i_forbidden = array(
 	'hard-coded table prefix' => '/[\'"` ]wp_wpcap_/',
 	'network-wide prefix for plugin tables' => '/base_prefix\s*\.\s*[\'"]wpcap_|\{\$wpdb->base_prefix\}wpcap_/',
 );
+// Reviewed posts queries of the merged line that never touch order storage: page discovery of the
+// shortcodes/blocks (page cache, scanner page, getting started, service booking page) and the
+// "products linked to ticket types" check (products are posts in every WooCommerce storage mode).
+$w6i_posts_allowed = array( 'src/PageCache.php', 'src/Admin/ScannerPage.php', 'src/Admin/GettingStarted.php', 'src/Frontend/ServiceBooking.php', 'src/Integrations/WooCommerce/OrderAdapter.php' );
 $w6i_hits = array();
 $it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WPCAP_PATH . 'src', FilesystemIterator::SKIP_DOTS ) );
 $files = 0;
@@ -44,6 +48,7 @@ foreach ( $it as $file ) {
 	foreach ( file( $file->getPathname() ) as $no => $line ) {
 		if ( preg_match( '#^\s*(\*|//)#', $line ) ) { continue; } // Comments may name tables.
 		foreach ( $w6i_forbidden as $label => $re ) {
+			if ( 'posts/postmeta (shop_order storage)' === $label && in_array( substr( $file->getPathname(), strlen( WPCAP_PATH ) ), $w6i_posts_allowed, true ) && false === stripos( $line, 'shop_order' ) ) { continue; }
 			if ( preg_match( $re, $line ) ) { $w6i_hits[] = "$label: " . substr( $file->getPathname(), strlen( WPCAP_PATH ) ) . ':' . ( $no + 1 ); }
 		}
 	}

@@ -2350,7 +2350,7 @@ final class Orders {
 		if ( ! $gateway || ! $gateway->supports_refunds() ) { return true; }
 		$result = $gateway->refund( (array) $order, (int) $order->total_minor, 'wpcap-late-refund-' . (int) $order_id );
 		if ( is_wp_error( $result ) ) {
-			Audit::record( 'late_payment_refund_failed', 'order', (int) $order_id, array( 'error' => $result->get_error_code() ) );
+			\PassCaptain\Log::error( 'late_payment_refund_failed', 'late payment refund failed', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $result->get_error_code() ) ) );
 			return $result; // The provider's reason becomes the job's last_error (A325).
 		}
 		$marked = self::mark_refunded( $order_id, 'late_payment_auto_refund' );
@@ -2399,7 +2399,7 @@ final class Orders {
 			}
 			$result = $gateway->refund( (array) $order, (int) $order->total_minor, 'wpcap-late-refund-' . $order_id );
 			if ( is_wp_error( $result ) ) {
-				Audit::record( 'unallocated_refund_failed', 'order', $order_id, array( 'error' => $result->get_error_code() ) );
+				\PassCaptain\Log::error( 'unallocated_refund_failed', 'unallocated refund failed', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'error' => $result->get_error_code() ) ) );
 				return $result;
 			}
 			$reference = \PassCaptain\Text::cut( sanitize_text_field( (string) $result ), 191 );
@@ -2579,7 +2579,7 @@ final class Orders {
 			$error = (string) $wpdb->last_error;
 			$wpdb->query( 'ROLLBACK' );
 			Log::error( 'order_state_db_error', 'Order state change hit a database error.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => \PassCaptain\Text::cut( $error, 200 ) ) ) );
-			Audit::record( 'order_cancel_failed', 'order', $order_id, array( 'step' => sanitize_key( $step ) ) );
+			\PassCaptain\Log::error( 'order_cancel_failed', 'order cancel failed', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ) ) ) );
 			if ( $order ) {
 				// Safety net for callers that cannot retry themselves (hooks, sweeps): a job repeats the
 				// cancellation, but only while the payment status is still the one seen here.
@@ -2596,6 +2596,8 @@ final class Orders {
 		}
 		if ( ! $order || in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
+			// A repeated call heals counters whose post-commit sync failed last time (idempotent).
+			if ( $order ) { CapacityCounters::sync_order_now( $order_id ); }
 			return true;
 		}
 		if ( $only_payment_status && ! in_array( (string) $order->payment_status, $only_payment_status, true ) ) {
@@ -2686,7 +2688,7 @@ final class Orders {
 			$error = (string) $wpdb->last_error;
 			$wpdb->query( 'ROLLBACK' );
 			Log::error( 'order_state_db_error', 'Order state change hit a database error.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => \PassCaptain\Text::cut( $error, 200 ) ) ) );
-			Audit::record( 'order_refund_mark_failed', 'order', $order_id, array( 'step' => sanitize_key( $step ) ) );
+			\PassCaptain\Log::error( 'order_refund_mark_failed', 'order refund mark failed', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ) ) ) );
 			Jobs::enqueue( 'order-refund-mark-retry|' . $order_id, 'order_refund_mark_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason ), gmdate( 'Y-m-d H:i:s', Clock::now() + 2 * MINUTE_IN_SECONDS ) );
 			return Errors::busy( __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'pass-captain' ), 'wpcap_db_busy', array( 'step' => (string) $step ) );
 		};
@@ -3435,7 +3437,7 @@ final class Orders {
 			}
 			$delivered = self::send_ticket_mail( $order, $issued );
 			if ( ! $delivered ) {
-				Audit::record( 'ticket_mail_failed', 'order', (int) $order_id, array( 'tickets' => count( $issued ) ) );
+				\PassCaptain\Log::error( 'ticket_mail_failed', 'ticket mail failed', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'tickets' => count( $issued ) ) ) );
 			}
 			self::finish_delivery( $delivery_key, $order_id, (bool) $delivered, array_map( 'intval', array_column( $issued, 'ticket_id' ) ) );
 		}
@@ -3527,7 +3529,6 @@ final class Orders {
 		$busy = DbSession::is_busy_error( $error ) || 'ticket_hook' === (string) $step;
 		$wpdb->query( 'ROLLBACK' );
 		Log::error( 'ticket_issue_failed', 'Ticket issuance failed and was rolled back; a retry is queued.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => \PassCaptain\Text::cut( $error, 200 ) ) ) );
-		Audit::record( 'ticket_issue_failed', 'order', absint( $order_id ), array( 'step' => (string) $step ) );
 		if ( ! self::$issuing_from_job && $order_id ) {
 			// One retry job per order and minute; the job queue retries it with backoff.
 			Jobs::enqueue( 'ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi', Clock::now() ), self::ISSUE_JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 2 * MINUTE_IN_SECONDS ) );
@@ -4062,9 +4063,9 @@ final class Orders {
 		);
 		$result = self::rotate_and_send( $order, null, 'resend', false, $scope );
 		if ( is_wp_error( $result ) ) {
-			if ( '' !== $request_marker ) { Audit::record( 'tickets_resend_request_failed', 'order', $order_id, array( 'request' => $request_marker ) ); }
+			if ( '' !== $request_marker ) { \PassCaptain\Log::error( 'tickets_resend_request_failed', 'tickets resend request failed', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'request' => $request_marker ) ) ); }
 			if ( 'wpcap_mail_failed' === $result->get_error_code() ) {
-				Audit::record( 'ticket_mail_failed', 'order', $order_id, array( 'resend' => true, 'sent' => (int) ( $result->get_error_data()['sent'] ?? 0 ) ) );
+				\PassCaptain\Log::error( 'ticket_mail_failed', 'ticket mail failed', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'resend' => true, 'sent' => (int) ( $result->get_error_data()['sent'] ?? 0 ) ) ) );
 				if ( empty( $options['from_job'] ) ) {
 					// A335: the retry keeps the scope of this resend, so it never rotates the codes of tickets
 					// passed on to someone else when this resend left them alone. A588: it sends known codes again.

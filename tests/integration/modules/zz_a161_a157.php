@@ -55,7 +55,9 @@ echo "A161: developer API keys administrable\n";
 check( 'schema 3.10.0: api_keys.rate_limit exists', version_compare( PassCaptain\Installer::DB_VERSION, '3.10.0', '>=' ) && DeveloperKeys::ready() && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_api_keys LIKE 'rate_limit'" ) );
 check( 'menu: "Entwickler-API" in the integrations area (manage_options), "Service-Zeitfenster" in events', 'settings' === Menu::group_of( DeveloperKeysPage::SLUG ) && 'manage_options' === DeveloperKeysPage::CAP && 'events' === Menu::group_of( ServiceSlotsPage::SLUG )
 	&& isset( Menu::handlers()['wpcap_developer_key_create'], Menu::handlers()['wpcap_developer_key_update'], Menu::handlers()['wpcap_developer_key_revoke'], Menu::handlers()['wpcap_service_resource_save'], Menu::handlers()['wpcap_service_resource_delete'], Menu::handlers()['wpcap_service_slot_save'], Menu::handlers()['wpcap_service_slot_delete'] )
-	&& in_array( DeveloperKeysPage::SLUG, array_column( Menu::entries(), 0 ), true ) && in_array( ServiceSlotsPage::SLUG, array_column( Menu::entries(), 0 ), true ) );
+	&& in_array( DeveloperKeysPage::SLUG, array_column( Menu::entries(), 0 ), true )
+	// Merged menu: "Service-Zeitfenster" is registered without its own entry and linked from "Ressourcen & Zeitfenster" (Admin\ServicesPage, listed).
+	&& isset( Menu::unlisted_pages()[ ServiceSlotsPage::SLUG ] ) && in_array( PassCaptain\Admin\ServicesPage::SLUG, array_column( Menu::entries(), 0 ), true ) );
 
 $z_event = ex_event( 'A161 Workshoptage' );
 $z_occ = ex_occ( $z_event );

@@ -81,10 +81,17 @@ Ereignis stabil), `type`, `api_version`, `created`, `data.object`.
 | `ticket.revoked` | `wpcap_ticket_revoked` | Ticket, zusätzlich `reason` | wie oben |
 | `occurrence.rescheduled` | `wpcap_occurrence_rescheduled` | `id`, `event_id`, `starts_at`, `ends_at`, `timezone`, `status`, `previous_starts_at` | nein |
 | `occurrence.cancelled` | `wpcap_occurrence_cancelled` | wie oben, zusätzlich `issued_tickets` | nein |
+| `occurrence.changed` | `wpcap_occurrence_changed` (A674, je Revision) | Termin, zusätzlich `changed_fields`, `revision` | nein |
+| `event.cancelled` | `wpcap_event_cancelled` (A674; jeder Termin sendet zusätzlich `occurrence.cancelled`) | `id`, `status`, `occurrence_ids` | nein |
+| `ticket.checked_out` | `wpcap_ticket_checked_out` (A674, je Auslass) | Ticket, zusätzlich `checked_out_at`, `source` | wie `ticket.issued` |
+| `attendance.confirmed` | `wpcap_ticket_checked_in`, einmal je Ticket beim ersten Einlass (A674) | Ticket, zusätzlich `confirmed_at`, `method`, `source` | wie `ticket.issued` |
+| `ticket.transferred` | `wpcap_ticket_transferred` (A674) | Ticket, zusätzlich `source`, `holder_changes` | wie `ticket.issued` |
+| `ticket.exchanged` | `wpcap_ticket_exchanged` | Ticket, zusätzlich Umtauschbeträge (`currency`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`) | wie `ticket.issued` |
+| `refund.reversed` | `wpcap_refund_reversed` (A674/A675: gebuchte Erstattung beim Anbieter gescheitert und storniert) | Bestellung, zusätzlich `refund` mit `reversed: true` | wie `order.paid` |
 
-Kein Webhook enthält einen Ticketcode, einen Namen oder Antworten aus Teilnehmerfeldern. Für Auslass
-(`wpcap_ticket_checked_out`), Event-Absage (`wpcap_event_cancelled`) und Ticketübertragung gibt es derzeit
-weder ein Connector-Ereignis noch einen Webhook.
+Kein Webhook enthält einen Ticketcode, einen Namen oder Antworten aus Teilnehmerfeldern. Für Auslass,
+Event-Absage und Ticketübertragung gibt es Webhooks (siehe oben), aber kein Connector-Ereignis; für die
+Code-Rotation (`wpcap_ticket_code_rotated`) gibt es weder ein Connector-Ereignis noch einen Webhook.
 
 ## Was vor einer Anbindung festzulegen ist
 

@@ -24,9 +24,11 @@ final class DisplayBatch {
 	 *
 	 * @param int[]    $type_ids       Ticket type ids shown on the page.
 	 * @param callable $callback       Work to do (receives nothing); its return value is returned.
+	 * @param array    $preloaded      Optional rows the caller already loaded (SELECT *): 'types' and
+	 *                                 'occurrences' (id => row); only missing ones are queried.
 	 * @return mixed
 	 */
-	public static function run( array $type_ids, callable $callback ) {
+	public static function run( array $type_ids, callable $callback, array $preloaded = array() ) {
 		global $wpdb;
 		$outer = self::$batch;
 		$type_ids = array_values( array_unique( array_filter( array_map( 'absint', $type_ids ) ) ) );
@@ -40,11 +42,22 @@ final class DisplayBatch {
 		try {
 			if ( $type_ids ) {
 				$p = $wpdb->prefix;
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ")", array_merge( array( $p . 'wpcap_ticket_types' ), $type_ids ) ) ) as $row ) {
-					self::$batch['types'][ (int) $row->ticket_type_id ] = $row;
+				$given = (array) ( $preloaded['types'] ?? array() );
+				$query_ids = array();
+				foreach ( $type_ids as $id ) {
+					if ( isset( $given[ $id ] ) && is_object( $given[ $id ] ) ) { self::$batch['types'][ $id ] = $given[ $id ]; } else { $query_ids[] = $id; }
 				}
-				$occ_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, self::$batch['types'] ) ) );
+				if ( $query_ids ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+					foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $query_ids ), '%d' ) ) . ")", array_merge( array( $p . 'wpcap_ticket_types' ), $query_ids ) ) ) as $row ) {
+						self::$batch['types'][ (int) $row->ticket_type_id ] = $row;
+					}
+				}
+				$given = (array) ( $preloaded['occurrences'] ?? array() );
+				foreach ( $given as $id => $row ) {
+					if ( is_object( $row ) ) { self::$batch['occurrences'][ (int) $id ] = $row; }
+				}
+				$occ_ids = array_values( array_diff( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, self::$batch['types'] ) ), array_keys( self::$batch['occurrences'] ) ) );
 				if ( $occ_ids ) {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 					foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ")", array_merge( array( $p . 'wpcap_occurrences' ), $occ_ids ) ) ) as $row ) {

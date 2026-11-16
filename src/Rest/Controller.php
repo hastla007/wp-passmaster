@@ -403,6 +403,13 @@ final class Controller {
 		// A561: availability of all listed ticket types with a constant number of queries.
 		$type_ids = array();
 		foreach ( $types_of as $list ) { foreach ( $list as $type ) { $type_ids[] = (int) $type['ticket_type_id']; } }
+		// Modules load their per-occurrence data for exactly these dates in one query (A376: seat map links, buyer limits).
+		if ( $rows ) { do_action( 'wpcap_listing_occurrences', array_values( array_unique( array_map( static fn( $row ) => (int) $row->occurrence_id, $rows ) ) ), array_values( array_unique( array_map( static fn( $row ) => (int) $row->event_id, $rows ) ) ) ); }
+		// One display batch with the rows loaded above: price rules, series prices and pools of all listed
+		// types answer from grouped queries instead of several queries per ticket type (PERF-1).
+		$preloaded = array( 'types' => array(), 'occurrences' => $occurrences );
+		foreach ( $type_rows ?? array() as $type_row ) { $preloaded['types'][ (int) $type_row->ticket_type_id ] = $type_row; }
+		\PassCaptain\DisplayBatch::run( $type_ids, static function () use ( $rows, $translations, $types_of, $occurrences, $type_ids, $request, &$output ) {
 		$available = $type_ids ? Orders::availability_many( $type_ids, array( 'occurrences' => $occurrences ) ) : array();
 		$now = \PassCaptain\Clock::now();
 		foreach ( $rows as $row ) {
@@ -447,6 +454,7 @@ final class Controller {
 				); }, $types ),
 			), $row, $request );
 		}
+		}, $preloaded );
 		$response = rest_ensure_response( $output );
 		// A561: sales status and availability change by the minute – never stored by browsers or proxies.
 		if ( $response instanceof \WP_REST_Response && method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-store, max-age=0' ); }
@@ -1074,6 +1082,7 @@ final class Controller {
 	}
 
 	public static function revoke_member_pass( \WP_REST_Request $request ) {
+		global $wpdb;
 		$pass_id = absint( $request['pass_id'] );
 		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", $pass_id ) );
 		if ( ! $events ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }

@@ -1651,7 +1651,7 @@ final class Installer {
 		);
 		update_option( self::ERROR_OPTION, $details, false );
 		// The admin notice (ERROR_OPTION) is the primary channel; the log reaches add-ons and, if enabled, the PHP error log.
-		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . self::retry_delay( $attempts ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
+		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . max( 0, (int) $details['next_retry'] - time() ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
 	}
 
 	/** Seconds to wait after the n-th consecutive failed upgrade (1 min, 5 min, 15 min, then hourly). */
@@ -1668,8 +1668,8 @@ final class Installer {
 	 * A newer plugin/schema version than the failed one is always tried at once.
 	 */
 	public static function retry_blocked_until( $now = null ) {
-		unset( $now );
-		return self::retry_at(); // One backoff (A466): see record_failure().
+		$at = self::retry_at(); // One backoff (A466): see record_failure().
+		return null === $now || $at > (int) $now ? $at : 0;
 	}
 
 	/**

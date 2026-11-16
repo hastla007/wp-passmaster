@@ -192,7 +192,7 @@ final class Suppression {
 	}
 
 	public static function routes() {
-		// Requests to the former namespace wp-pass-captain/v1 are routed here by LegacySlug.
+		// Requests to the former namespace (LegacySlug::LEGACY_NS) are routed here by LegacySlug.
 		register_rest_route( 'pass-captain/v1', '/mail/bounce', array(
 			'methods' => 'POST',
 			'callback' => array( __CLASS__, 'rest_bounce' ),

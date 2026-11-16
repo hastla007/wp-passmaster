@@ -398,6 +398,13 @@ final class Invoices {
 		$used_tax = $used_gross;
 		$order_id = (int) ( $refund['order_id'] ?? 0 );
 		$refund_id = (int) ( $refund['refund_id'] ?? 0 );
+		if ( null !== $history && $refund_id && ! isset( $refund['ticket_type_ids'] ) ) {
+			// The refund itself is part of the history (refund_history()): reuse its resolved ticket types.
+			foreach ( (array) $history as $row ) {
+				$row = (array) $row;
+				if ( (int) ( $row['refund_id'] ?? 0 ) === $refund_id && isset( $row['ticket_type_ids'] ) ) { $refund['ticket_type_ids'] = $row['ticket_type_ids']; break; }
+			}
+		}
 		if ( $order_id && $refund_id ) {
 			$earlier = null !== $history
 				? array_values( array_filter( array_map( static function ( $r ) { return (array) $r; }, (array) $history ), static function ( $r ) use ( $refund_id ) { return (int) $r['refund_id'] < $refund_id; } ) )
@@ -424,7 +431,20 @@ final class Invoices {
 		$out = array();
 		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
 			$out += array_fill_keys( $chunk, array() );
-			foreach ( (array) $wpdb->get_results( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE order_id IN (" . implode( ',', $chunk ) . ") AND status='completed' ORDER BY refund_id", ARRAY_A ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			// has_voucher and the ticket types of the refunded tickets come along, so refund_line_parts()
+			// needs no query per refund (PERF: reports over many refunds).
+			$rows = (array) $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$wpdb->prefix}wpcap_refunds r INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=r.order_id WHERE r.order_id IN (" . implode( ',', $chunk ) . ") AND r.status='completed' ORDER BY r.refund_id", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$ticket_ids = array();
+			foreach ( $rows as $row ) { $ticket_ids = array_merge( $ticket_ids, array_filter( array_map( 'absint', (array) json_decode( (string) $row['ticket_ids'], true ) ) ) ); }
+			$types = array();
+			foreach ( array_chunk( array_values( array_unique( $ticket_ids ) ), 1000 ) as $ids ) {
+				foreach ( (array) $wpdb->get_results( 'SELECT ticket_id,order_id,ticket_type_id FROM ' . $wpdb->prefix . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) as $t ) { $types[ (int) $t->ticket_id ] = array( (int) $t->order_id, (int) $t->ticket_type_id ); } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+			}
+			foreach ( $rows as $row ) {
+				$row['ticket_type_ids'] = array();
+				foreach ( array_filter( array_map( 'absint', (array) json_decode( (string) $row['ticket_ids'], true ) ) ) as $id ) {
+					if ( isset( $types[ $id ] ) && $types[ $id ][0] === (int) $row['order_id'] ) { $row['ticket_type_ids'][] = $types[ $id ][1]; }
+				}
 				$out[ (int) $row['order_id'] ][] = $row;
 			}
 		}
@@ -454,9 +474,9 @@ final class Invoices {
 			$counts = array();
 			$order_id = (int) ( $refund['order_id'] ?? 0 );
 			$in = implode( ',', $ids );
-			$type_ids = $order_id
+			$type_ids = isset( $refund['ticket_type_ids'] ) ? (array) $refund['ticket_type_ids'] : ( $order_id
 				? $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_id IN ($in)", $order_id ) ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
-				: $wpdb->get_col( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				: $wpdb->get_col( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($in)" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			foreach ( $type_ids as $type_id ) {
 				$counts[ (int) $type_id ] = ( $counts[ (int) $type_id ] ?? 0 ) + 1;
 			}

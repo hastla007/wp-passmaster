@@ -354,7 +354,7 @@ final class Refunds {
 			if ( false === StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( $invalid, 255 ), 'updated_at' => current_time( 'mysql', true ) ) ) || false === $wpdb->query( 'COMMIT' ) ) {
 				return self::busy();
 			}
-			Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) );
+			\PassCaptain\Log::error( 'refund_failed', 'refund failed', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) ) );
 			return new \WP_Error( 'wpcap_refund_conflict', $invalid, array( 'status' => 409 ) );
 		}
 		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'updated_at' => current_time( 'mysql', true ) ) );
@@ -401,7 +401,6 @@ final class Refunds {
 				$set = array( 'error_message' => \PassCaptain\Text::cut( Redact::text( $result->get_error_message(), false ), 255 ), 'updated_at' => current_time( 'mysql', true ) );
 				if ( $final && array_key_exists( 'provider_attempt', $refund ) ) { $set['provider_attempt'] = $attempt + 1; }
 				StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', $set, array( 'status' => 'processing' ) );
-				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code(), 'attempt' => $attempt, 'final_decline' => $final ) );
 				Log::error( 'refund_failed', 'Refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => $result->get_error_code(), 'attempt' => $attempt, 'final_decline' => $final ) ) );
 				return $result;
 			}
@@ -466,7 +465,7 @@ final class Refunds {
 			$lost = false === Orders::transaction_alive();
 			$wpdb->query( 'ROLLBACK' );
 			if ( $lost ) { CapacityCounters::repair_order( $order_id ); }
-			Audit::record( 'refund_bookkeeping_failed', 'order', $order_id, array( 'refund_id' => $refund_id ) );
+			\PassCaptain\Log::error( 'refund_bookkeeping_failed', 'refund bookkeeping failed', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'refund_id' => $refund_id ) ) );
 			return Errors::busy( __( 'Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht.', 'pass-captain' ) );
 		};
 		if ( ! $order || false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
@@ -927,7 +926,7 @@ final class Refunds {
 		}
 		$found = $gateway->find_refund( (array) $order, self::key_for( $refund_id, (int) ( $refund['provider_attempt'] ?? 0 ) ), $pending ? (string) $refund['provider_reference'] : '' );
 		if ( is_wp_error( $found ) ) {
-			Audit::record( 'refund_lookup_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id, 'error' => $found->get_error_code(), 'source' => sanitize_key( $source ) ) );
+			\PassCaptain\Log::error( 'refund_lookup_failed', 'refund lookup failed', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => (int) $refund_id, 'error' => $found->get_error_code(), 'source' => sanitize_key( $source ) ) ) );
 			return $found;
 		}
 		if ( $pending ) {
@@ -1008,7 +1007,7 @@ final class Refunds {
 			// Accepted as pending, failed before the local booking: nothing to book.
 			$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( __( 'Der Zahlungsanbieter hat die Erstattung nachträglich abgelehnt; es wurde nichts ausgezahlt.', 'pass-captain' ), 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
 			if ( false === $moved ) { return self::busy(); }
-			if ( 1 === $moved ) { Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => 'provider_failed', 'source' => sanitize_key( $source ) ) ); }
+			if ( 1 === $moved ) { \PassCaptain\Log::error( 'refund_failed', 'refund failed', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => 'provider_failed', 'source' => sanitize_key( $source ) ) ) ); }
 			return 'failed';
 		}
 		if ( 'completed' === $refund['status'] && $same && self::provider_status_ready() ) {

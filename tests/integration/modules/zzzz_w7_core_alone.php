@@ -142,7 +142,15 @@ try {
 	$checkin = Checkin::perform( (string) $ticket_mail, array( 'idempotency_key' => 'a5-scan-' . uniqid(), 'source' => 'web' ) );
 	check( 'check-in works', is_array( $checkin ) && 'checked_in' === $checkin['status'] );
 
-	$refund = Refunds::request( $paid['order_id'], array(), 'A5 manuelle Erstattung', 'a5-refund-' . uniqid() );
+	// One ticket was checked in: staff refund it only with a documented exception and a second approval (merged policy, A131).
+	$refund = Refunds::request( $paid['order_id'], array(), 'A5 manuelle Erstattung', 'a5-refund-' . uniqid(), array( 'used_override' => 'A5 Kulanz nach Einlass' ) );
+	if ( is_array( $refund ) && 'pending_approval' === ( $refund['status'] ?? '' ) ) {
+		$a5_user = $GLOBALS['wpcap_test_user_id'] ?? 1;
+		$GLOBALS['wpcap_test_user_id'] = 2;
+		Refunds::approve( (int) $refund['refund_id'] );
+		$GLOBALS['wpcap_test_user_id'] = $a5_user;
+		$refund = Refunds::get( (int) $refund['refund_id'] );
+	}
 	check( 'manual refund completes and refunds the order', is_array( $refund ) && 'completed' === $refund['status'] && 'refunded' === Orders::get( $paid['order_id'] )->payment_status );
 
 	$wpdb->query( "UPDATE {$p}wpcap_jobs SET run_after='2000-01-01 00:00:00' WHERE status='queued' AND run_after < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 1 YEAR)" );

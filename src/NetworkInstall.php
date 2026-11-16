@@ -92,6 +92,8 @@ final class NetworkInstall {
 
 	/** Installs or upgrades the current site (behind its upgrade lock; no-op when current). */
 	public static function install_site() {
+		// Sites that already have plugin data get the uninstall opt-in protection first (INT-1, cheap).
+		if ( get_option( 'wpcap_db_version' ) ) { Settings::migrate_uninstall_policy(); }
 		return Plugin::maybe_upgrade( 'cron' );
 	}
 

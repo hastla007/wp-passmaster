@@ -48,7 +48,7 @@ final class Exports {
 				'label'      => (string) ( $def['label'] ?? $id ),
 				'capability' => $cap,
 				'rows'       => $def['rows'],
-				'filename'   => (string) ( $def['filename'] ?? 'wp-pass-captain-' . $id ),
+				'filename'   => (string) ( $def['filename'] ?? 'pass-captain-' . $id ),
 			);
 		}
 		return $out;

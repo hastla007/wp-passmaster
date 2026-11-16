@@ -1248,6 +1248,11 @@ final class PublicEvents {
 			// A680: type, help text, scope and choices; never answers.
 			$fields[ (int) $field['ticket_type_id'] ][] = ParticipantFields::public_definition( $field );
 		}
+		// One display batch with the rows loaded above (no extra query): availability, price rules and
+		// series prices of all listed types answer from grouped queries, not per occurrence.
+		$full_types = array();
+		foreach ( $type_rows as $row ) { $full_types[ (int) $row->ticket_type_id ] = $row; }
+		DisplayBatch::run( array_keys( $all_types ), static function () use ( $all_types, $by_occurrence, $occurrences, $fields, $now ) {
 		$available = Orders::availability_many( array_keys( $all_types ), array( 'occurrences' => $occurrences ) );
 		foreach ( $by_occurrence as $occ_id => $types ) {
 			$occurrence = $occurrences[ $occ_id ] ?? null;
@@ -1263,6 +1268,7 @@ final class PublicEvents {
 				$type->name_required = ParticipantFields::name_required( (int) $type->ticket_type_id, $type ) || 'required' === $type->attendee_name; // A552 (no extra query) or the ticket type's attendee name setting.
 			}
 		}
+		}, array( 'types' => $full_types, 'occurrences' => $occurrences ) );
 		return $by_occurrence;
 	}
 

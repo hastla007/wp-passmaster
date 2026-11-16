@@ -334,14 +334,16 @@ final class OccurrenceCancellation {
 			if ( $checked_in ) {
 				$ticket_ids = array_values( array_diff( $ticket_ids, $checked_in ) );
 				if ( 'approval' === $policy ) {
-					$pending = Refunds::request( (int) $row->order_id, $checked_in, __( 'Termin abgesagt (bereits eingecheckt)', 'pass-captain' ), $key . '-checked-in' );
+					// System flow (A354): no staff exception needed (A131), but always the second approval.
+					$pending = Refunds::request( (int) $row->order_id, $checked_in, __( 'Termin abgesagt (bereits eingecheckt)', 'pass-captain' ), $key . '-checked-in', array( 'system' => true, 'allow_used' => true, 'require_approval' => true ) );
 					Audit::record( 'occurrence_refund_checked_in_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'tickets' => count( $checked_in ), 'status' => is_wp_error( $pending ) ? $pending->get_error_code() : (string) ( $pending['status'] ?? '' ) ) );
 				} else {
 					Audit::record( 'occurrence_refund_checked_in_skipped', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'tickets' => count( $checked_in ) ) );
 				}
 				if ( ! $ticket_ids ) { continue; }
 			}
-			$result = Refunds::request( (int) $row->order_id, $ticket_ids, __( 'Termin abgesagt', 'pass-captain' ), $key );
+			// System flow like request_refund() (A354): checked-in tickets left here are allowed by the policy.
+			$result = Refunds::request( (int) $row->order_id, $ticket_ids, __( 'Termin abgesagt', 'pass-captain' ), $key, array( 'system' => true, 'allow_used' => true ) );
 			if ( is_wp_error( $result ) || 'completed' !== ( $result['status'] ?? '' ) ) {
 				++$counts['refund_errors'];
 				Audit::record( 'occurrence_auto_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' ) ) );

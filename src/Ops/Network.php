@@ -127,7 +127,7 @@ final class Network {
 		if ( is_wp_error( $check ) ) { return $check; }
 		$overview = self::overview();
 		Audit::record( 'network_report_exported', 'network', 0, array( 'sites' => count( $overview ) ) );
-		return array( 'filename' => 'wp-pass-captain-netzwerk-' . gmdate( 'Ymd' ) . '.csv', 'csv' => Scope::csv( self::csv_rows( $overview ) ) );
+		return array( 'filename' => 'pass-captain-netzwerk-' . gmdate( 'Ymd' ) . '.csv', 'csv' => Scope::csv( self::csv_rows( $overview ) ) );
 	}
 
 	public static function handle_report() {

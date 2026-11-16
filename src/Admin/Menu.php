@@ -15,6 +15,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Menu {
 	const SLUG = 'pass-captain';
 
+	/** Module pages while add_menus() runs (built once: badges such as open conflicts count once, PERF-9). */
+	private static $module_pages = null;
+
 	/** admin-post action => handler. */
 	public static function handlers() {
 		return array(
@@ -389,6 +392,7 @@ final class Menu {
 			\PassCaptain\Brand::menu_icon(),
 			58
 		);
+		self::$module_pages = \PassCaptain\Modules::menu_pages();
 		foreach ( self::layout( self::entries() ) as $row ) {
 			if ( 'heading' === $row[0] ) {
 				// Area heading (index 4 = CSS class of the list item); menu_heading_script() turns the link into text.
@@ -407,10 +411,11 @@ final class Menu {
 			add_submenu_page( '', $page[0], $page[0], $page[1], $slug, $page[2] );
 		}
 		// Modules hidden under Einstellungen > Funktionen (hidden_modules): reachable by link, no menu entry.
-		foreach ( \PassCaptain\Modules::menu_pages()[1] as $page ) {
+		foreach ( self::$module_pages[1] as $page ) {
 			list( $slug, $title, $cap, $callback ) = array_values( (array) $page );
 			add_submenu_page( '', $title, $title, $cap, $slug, $callback );
 		}
+		self::$module_pages = null;
 		/**
 		 * The core menu is complete: add-ons add their own submenu pages under $parent_slug here (they are
 		 * listed after the core pages). Independent of modules and of the order of admin_menu callbacks.
@@ -523,7 +528,7 @@ final class Menu {
 			if ( isset( self::unlisted_pages()[ $page[0] ] ) ) { continue; }
 			$entries[] = array( $page[0], $page[1], $page[1], $page[2], $page[3], '' );
 		}
-		list( $module_pages ) = \PassCaptain\Modules::menu_pages(); // Modules hidden in "Funktionen" have no entry.
+		list( $module_pages ) = self::$module_pages ?? \PassCaptain\Modules::menu_pages(); // Modules hidden in "Funktionen" have no entry.
 		foreach ( $module_pages as $page ) {
 			$page = array_values( (array) $page );
 			list( $slug, $title, $cap, $callback ) = $page;

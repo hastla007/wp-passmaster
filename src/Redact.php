@@ -213,10 +213,8 @@ final class Redact {
 	 * @param array  $context Optional structured context (redacted, JSON).
 	 */
 	public static function log( $message, array $context = array() ) {
-		$line = 'Pass Captain: ' . self::text( (string) $message );
-		if ( $context ) { $line .= ' ' . wp_json_encode( self::value( $context ) ); }
-		$line = str_replace( array( "\r", "\n" ), ' ', $line );
-		error_log( $line ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- the plugin's central (redacted) log line.
+		// One writer for the PHP error log (Security\Redact::log(): filter wpcap_error_log, redaction of both lines).
+		Security\Redact::log( str_replace( array( "\r", "\n" ), ' ', self::text( (string) $message ) ), $context ? (array) self::value( $context ) : array() );
 	}
 
 	/* ---------------------------------------------------------------------------------------------

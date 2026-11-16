@@ -31,6 +31,7 @@ function w6p_fixture( $email, $n, $tag ) {
 	$p = $wpdb->prefix;
 	$now = gmdate( 'Y-m-d H:i:s' );
 	$types = array();
+	$occs = array();
 	foreach ( array( 'past' => -30, 'upcoming' => 30 ) as $kind => $days ) {
 		$wpdb->insert( "{$p}wpcap_events", array( 'name' => "W6 privacy $kind", 'slug' => "w6p-$tag-$kind-" . uniqid(), 'description' => '', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
 		$event = (int) $wpdb->insert_id;
@@ -39,6 +40,7 @@ function w6p_fixture( $email, $n, $tag ) {
 		$occ = (int) $wpdb->insert_id;
 		$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $occ, 'name' => 'Standard', 'price_minor' => 1190, 'currency' => 'EUR', 'capacity' => 0, 'max_per_order' => 10, 'status' => 'active', 'tax_rate_bp' => 1900 ) );
 		$types[ $kind ] = (int) $wpdb->insert_id;
+		$occs[] = $occ;
 	}
 	$first = (int) $wpdb->get_var( "SELECT COALESCE(MAX(order_id),0) FROM {$p}wpcap_orders" ) + 1;
 	$rows = array();
@@ -75,6 +77,8 @@ function w6p_fixture( $email, $n, $tag ) {
 	$friend_order = (int) $wpdb->insert_id;
 	$wpdb->insert( "{$p}wpcap_tickets", array( 'public_id' => bin2hex( random_bytes( 16 ) ), 'order_id' => $friend_order, 'ticket_type_id' => $types['upcoming'], 'token_hash' => hash( 'sha256', random_bytes( 16 ) ), 'status' => 'valid', 'issued_at' => $now, 'attendee_email' => $email ) );
 	$friend_ticket = (int) $wpdb->insert_id;
+	// Rows were written with plain SQL: the capacity counters (merged line) are rebuilt from them.
+	foreach ( $occs as $occ ) { PassCaptain\CapacityCounters::rebuild_occurrence( $occ ); }
 	return array( 'orders' => $order_ids, 'types' => $types, 'friend_order' => $friend_order, 'friend_ticket' => $friend_ticket );
 }
 function esc_sql_w6( $s ) { return str_replace( array( '\\', "'" ), array( '\\\\', "\\'" ), (string) $s ); }
@@ -85,7 +89,9 @@ function w6p_finance( array $order_ids ) {
 	$in = $order_ids ? implode( ',', array_map( 'intval', $order_ids ) ) : '0';
 	return implode( '|', array(
 		$wpdb->get_var( "SELECT CONCAT(COUNT(*),':',SUM(total_minor),':',SUM(tax_minor),':',SUM(refunded_minor),':',SUM(subtotal_minor)) FROM {$p}wpcap_orders WHERE order_id IN ($in)" ),
-		$wpdb->get_var( "SELECT CONCAT(COUNT(*),':',SUM(line_total_minor),':',SUM(tax_minor),':',SUM(refunded_quantity)) FROM {$p}wpcap_order_items WHERE order_id IN ($in)" ),
+		// Not refunded_quantity: in the merged line it also counts capacity units released by revoked tickets
+		// (CapacityRelease, A579), and the erasure revokes valid tickets through Orders::revoke_tickets().
+		$wpdb->get_var( "SELECT CONCAT(COUNT(*),':',SUM(line_total_minor),':',SUM(tax_minor),':',SUM(quantity)) FROM {$p}wpcap_order_items WHERE order_id IN ($in)" ),
 		$wpdb->get_var( "SELECT CONCAT(COUNT(*),':',SUM(amount_minor),':',SUM(tax_minor)) FROM {$p}wpcap_refunds WHERE order_id IN ($in)" ),
 		$wpdb->get_var( "SELECT CONCAT(COUNT(*),':',SUM(total_minor),':',MD5(GROUP_CONCAT(buyer_snapshot ORDER BY invoice_id))) FROM {$p}wpcap_invoices WHERE order_id IN ($in)" ),
 		$wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id IN ($in)" ),

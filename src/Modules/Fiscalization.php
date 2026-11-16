@@ -1476,29 +1476,29 @@ final class Fiscalization {
 
 	/** Admin-only REST endpoints for managing seller records, provider selection, and ticket mapping. */
 	public static function register_routes() {
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers', array(
 			array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'rest_sellers' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ) ),
 			array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_save_seller' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ) ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/profiles', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/profiles', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_save_profile' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/health-check', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/health-check', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_health_check' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\d+)/provider', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\d+)/provider', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_save_provider' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/documents/(?P<document_id>\\d+)/reconcile', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/documents/(?P<document_id>\\d+)/reconcile', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_reconcile_document' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/events/(?P<event_id>\\d+)/manual-resolution', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/events/(?P<event_id>\\d+)/manual-resolution', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_record_manual_resolution' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/orders/(?P<order_id>\\d+)/retry', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/orders/(?P<order_id>\\d+)/retry', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_retry_order' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
-		register_rest_route( 'wp-pass-captain/v1', '/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller', array(
+		register_rest_route( 'pass-captain/v1', '/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_assign_seller' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
 	}

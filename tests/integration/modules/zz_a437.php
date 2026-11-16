@@ -28,6 +28,11 @@ $GLOBALS['wpcap_test_hooks'] = $a437_hooks;
 
 // 2,500 old final deliveries, old pending ones and young final ones.
 $wpdb->query( "DELETE FROM {$p}wpcap_webhook_deliveries" );
+// The deliveries belong to active subscriptions: old pending deliveries of missing or inactive
+// subscriptions are cancelled by the cleanup (merged line, Dispatcher::cancel_stale()).
+for ( $i = 0; $i < 7; $i++ ) {
+	$wpdb->query( $wpdb->prepare( "REPLACE INTO {$p}wpcap_webhook_subscriptions (subscription_id,url,events,secret,status,created_at,updated_at) VALUES (%d,'https://example.test/a437','order.paid','x','active',%s,%s)", 9000 + $i, gmdate( 'Y-m-d H:i:s' ), gmdate( 'Y-m-d H:i:s' ) ) );
+}
 $a437_old = gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS );
 $a437_young = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
 $a437_rows = array();
@@ -72,3 +77,4 @@ if ( 'range' !== ( $a437_plan['type'] ?? '' ) ) { fwrite( STDERR, 'A437 plan: ' 
 check( 'nothing due: one DELETE as a range on KEY cleanup (no full scan)', 0 === $a437_none && 1 === count( $a437_deletes ) && 'range' === ( $a437_plan['type'] ?? '' ) && 'cleanup' === ( $a437_plan['key'] ?? '' ) );
 
 $wpdb->query( "DELETE FROM {$p}wpcap_webhook_deliveries WHERE event_id LIKE 'evt\\_a437\\_%'" );
+$wpdb->query( "DELETE FROM {$p}wpcap_webhook_subscriptions WHERE subscription_id BETWEEN 9000 AND 9006" );
