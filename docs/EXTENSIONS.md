@@ -572,7 +572,7 @@ add_action( 'rest_api_init', static function () {
 fehlender oder unbekannter Scope bzw. kein Zugriff der Key-Inhaberin auf das Event, 429 Ratenlimit (je Key und
 Minute gemeinsam mit den Kernrouten; `retry_after` und Header `Retry-After`). Danach liefert
 `Auth::key_for( $request )` den Key (`api_key_id`, `user_id` der Inhaberin, `event_id`, `scopes`) – z. B. für
-eigene Rechteprüfungen. Neue Scopes erscheinen auf der Seite „Entwickler-API-Keys“; entfernt das Add-on einen Scope,
+eigene Rechteprüfungen. Neue Scopes erscheinen auf der Seite „Entwickler-API“; entfernt das Add-on einen Scope,
 gelten Keys dafür nicht mehr.
 
 Ein Key handelt als seine Inhaberin und gilt nur, solange sie das Recht noch hat: Administratoren immer; sonst muss

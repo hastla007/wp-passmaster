@@ -509,7 +509,7 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_resolve_refund_' . Forms::int( $in, 'refund_id' ) );
 		$result = self::resolve_refund( $in );
 		$order_id = is_wp_error( $result ) ? Forms::int( $in, 'order_id' ) : $result['order_id'];
-		$url = 'operations' === ( $in['return'] ?? '' ) ? Forms::page_url( OperationsPage::SLUG ) . '#wpcap-refunds-unresolved' : self::order_url( $order_id );
+		$url = 'operations' === ( $in['return'] ?? '' ) ? OperationsPage::url() . '#wpcap-refunds-unresolved' : self::order_url( $order_id );
 		Forms::finish( $result, is_wp_error( $result ) ? '' : self::resolve_message( $result ), $url );
 	}
 

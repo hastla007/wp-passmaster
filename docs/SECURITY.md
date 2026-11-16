@@ -603,14 +603,18 @@ Seiten enden über `Http::end()` (Action `wpcap_response_end`), damit der Test s
 
 ## Entwickler-API-Schlüssel
 
-Verwaltung unter **Pass Captain → Entwickler-API** (Bereich „Einstellungen & Integrationen“, nur `manage_options`):
+Verwaltung unter **Pass Captain → Entwickler-API** (Bereich „Einstellungen & Integrationen“; die einzige
+API-Key-Seite, N04 – die frühere Seite `admin.php?page=wpcap-api-keys` leitet dorthin weiter). Administrator:innen
+(`manage_options`) sehen alle Schlüssel:
 Liste mit Präfix, Bezeichnung, angelegt von, Scopes, Event, Anlage, letzter Nutzung, Ablauf, Ratenlimit und
 Status; Anlegen (Bezeichnung, Event, Scopes, Ablauf, Ratenlimit), einmalige Anzeige des Schlüssels direkt nach
 der Anlage (gespeichert wird nur der SHA-256-Hash), Ablauf und Ratenlimit ändern, Widerrufen. Alle Aktionen
 prüfen Nonce und Recht und landen im Audit-Log (`developer_key_issued`, `developer_key_updated`,
 `developer_key_revoked`, Objekt `api_key`; nur Präfix, nie der Schlüssel). Per REST legen auch Personen mit
 `wpcap_manage_events` für ihr Event Schlüssel an (`POST /developer/keys`, optional `rate_limit`) und widerrufen
-eigene (`POST /developer/keys/{id}/revoke`).
+eigene (`POST /developer/keys/{id}/revoke`); dieselben Personen sehen auf der Seite *Entwickler-API* ohne
+`manage_options` nur die Ansicht ihres Eventbereichs (eigene Schlüssel anlegen, Ratenlimit ändern, widerrufen;
+Formular-Aktion `wpcap_api_key_action` mit Nonce, Recht und Event-Berechtigung).
 
 Jede Anfrage sendet `X-WPCAP-Key: <präfix>.<geheimnis>`. Geprüft werden: Schlüssel gültig, nicht widerrufen,
 nicht abgelaufen; Event der Anfrage = Event des Schlüssels; die Person, die den Schlüssel angelegt hat, ist

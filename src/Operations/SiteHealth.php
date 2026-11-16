@@ -141,7 +141,7 @@ final class SiteHealth {
 	}
 
 	private static function operations_link() {
-		return '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Zur Betriebsübersicht von Pass Captain', 'pass-captain' ) . '</a></p>';
+		return '<p><a href="' . esc_url( \PassCaptain\Admin\OperationsPage::url() ) . '">' . esc_html__( 'Zur Betriebsübersicht von Pass Captain', 'pass-captain' ) . '</a></p>';
 	}
 
 	/* ------------------------------------------------------------------ WP-Cron */
@@ -443,7 +443,7 @@ final class SiteHealth {
 		if ( ( ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) || ! current_user_can( 'manage_options' ) ) { return; }
 		$labels = self::critical_labels();
 		if ( ! $labels ) { return; }
-		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Der Betrieb ist gestört.', 'pass-captain' ) . '</strong></p>' . self::list_html( $labels ) . '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Betriebsübersicht öffnen', 'pass-captain' ) . '</a> · <a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Website-Zustand', 'pass-captain' ) . '</a></p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- list_html escapes.
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Der Betrieb ist gestört.', 'pass-captain' ) . '</strong></p>' . self::list_html( $labels ) . '<p><a href="' . esc_url( \PassCaptain\Admin\OperationsPage::url() ) . '">' . esc_html__( 'Betriebsübersicht öffnen', 'pass-captain' ) . '</a> · <a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Website-Zustand', 'pass-captain' ) . '</a></p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- list_html escapes.
 	}
 
 	/** Section of the Site Health info tab (filter debug_information). */

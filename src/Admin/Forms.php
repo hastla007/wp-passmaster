@@ -519,6 +519,27 @@ final class Forms {
 		return add_query_arg( array_merge( array( 'page' => $page ), $args ), admin_url( 'admin.php' ) );
 	}
 
+	/**
+	 * Tab navigation of a screen that merges several views (N02, N04). The first tab is the default
+	 * view and is linked without a tab parameter.
+	 *
+	 * @param string               $page   Page slug.
+	 * @param array<string,string> $tabs   Tab id => label (first = default view).
+	 * @param string               $active Active tab id.
+	 * @param array                $args   Further query args kept on every tab link (e.g. event_id).
+	 * @param string               $label  Accessible name of the navigation.
+	 */
+	public static function nav_tabs( $page, array $tabs, $active, array $args, $label ) {
+		$default = (string) array_key_first( $tabs );
+		echo '<nav class="nav-tab-wrapper wp-clearfix" aria-label="' . esc_attr( $label ) . '">';
+		foreach ( $tabs as $id => $title ) {
+			$current = (string) $id === (string) $active;
+			$url = self::page_url( $page, array_filter( $args ) + ( (string) $id === $default ? array() : array( 'tab' => (string) $id ) ) );
+			echo '<a class="nav-tab' . ( $current ? ' nav-tab-active' : '' ) . '" href="' . esc_url( $url ) . '"' . ( $current ? ' aria-current="page"' : '' ) . '>' . esc_html( $title ) . '</a>';
+		}
+		echo '</nav>';
+	}
+
 	/** Opens an admin-post form with action and nonce fields. */
 	public static function open_form( $action, $nonce_action = null, $attrs = '' ) {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"' . ( $attrs ? ' ' . $attrs : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput -- $attrs is a literal from callers.
