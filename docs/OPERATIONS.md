@@ -1757,7 +1757,7 @@ zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EU
 ## Teilnehmerfelder: Feldtypen, Ebene, Teilnehmername und Versionen (A552, A680)
 
 Teilnehmerfelder werden je Ticketart unter **Events → Termin → Ticketart → Teilnehmerfelder** angelegt
-(`PassCaptain\ParticipantFields`, Schema 3.10.25). Derselbe Feldvertrag gilt im eigenen Checkout, an der
+(`PassCaptain\ParticipantFields`, Schema 3.10.27). Derselbe Feldvertrag gilt im eigenen Checkout, an der
 Abendkasse, in beiden WooCommerce-Checkouts, beim Annehmen eines Wartelistenangebots, auf der Ticketseite und im
 Bestellportal.
 
@@ -1784,7 +1784,7 @@ Bestellportal.
 - **Versionen:** Ändern sich Bezeichnung, Typ, Auswahlmöglichkeiten, Pflicht oder Ebene, steigt die Version des
   Feldes (Spalte `version`, in der Liste als „v2“ usw.). Das Audit-Protokoll (`participant_field_updated`) hält
   jede Fassung mit Version fest, und jede Antwort speichert die Version, unter der sie gegeben wurde
-  (`wpcap_participant_answers.field_version`; 0 = vor Schema 3.10.25). Hilfetext, Zweck, Reihenfolge und
+  (`wpcap_participant_answers.field_version`; 0 = vor Schema 3.10.27). Hilfetext, Zweck, Reihenfolge und
   Aufbewahrung ändern die Version nicht.
 
 ### Fehlende Teilnehmerangaben nachfordern (A682)
@@ -1808,7 +1808,7 @@ Einwilligungen werden nie nachgefordert):
 
 Je Teilnehmerfeld lässt sich festlegen, ob Käufer:innen (Bestellportal, „Teilnehmer zuweisen“) und Ticketinhaber:innen
 (Ticketseite, „Teilnehmerdaten“) es selbst ändern dürfen (Spalten `self_service` `edit`|`locked` und `edit_hours`,
-Schema 3.10.25):
+Schema 3.10.27):
 
 - **Gesperrt (nur durch das Team):** Das Feld wird in beiden Formularen nur angezeigt („(nicht mehr änderbar)“).
 - **Eigene Frist:** „bis Stunden vor Beginn“ (0 = keine eigene Frist, höchstens 8760). Danach verhält sich das Feld wie

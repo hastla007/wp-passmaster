@@ -88,7 +88,7 @@ final class OrderPortal {
 				$answers[ (int) $row->ticket_id ][ (int) $row->field_id ] = $row->answer;
 			}
 		}
-		$missing = ParticipantFields::missing( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) ); // A682: shown per ticket.
+		$missing = ParticipantFields::missing( $ticket_ids, $answers ); // A682: shown per ticket (answers loaded above).
 		$has_invoice = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", $order->order_id ) );
 		$base = 'pass-captain/v1/orders/' . rawurlencode( $public_id );
 		$reference = Frontend\Format::order_reference( $order->public_id );

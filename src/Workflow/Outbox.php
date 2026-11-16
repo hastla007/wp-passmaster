@@ -12,7 +12,7 @@
  * contain no personal data and no ticket codes (Contract::sanitize()).
  *
  * The outbox serves every Captain-Suite contract (CONTRACTS, A667): each row belongs to one contract
- * (column `contract`, schema 3.10.25) and is delivered to that contract's provider only – workflow
+ * (column `contract`, schema 3.10.27) and is delivered to that contract's provider only – workflow
  * events to the workflow provider, review events (Review\Contract) to the review provider.
  *
  * @package PassCaptain
@@ -46,7 +46,7 @@ final class Outbox {
 		return null;
 	}
 
-	/** Whether rows carry their contract (schema 3.10.25); before that the outbox is workflow-only. */
+	/** Whether rows carry their contract (schema 3.10.27); before that the outbox is workflow-only. */
 	public static function multi_ready() {
 		return \PassCaptain\Log::has_column( self::TABLE, 'contract' );
 	}
@@ -129,7 +129,7 @@ final class Outbox {
 		$class = self::contract_for( $type );
 		if ( ! $class || ! self::ready() ) { return false; }
 		$multi = self::multi_ready();
-		if ( Contract::class !== $class && ! $multi ) { return false; } // Other contracts need schema 3.10.25.
+		if ( Contract::class !== $class && ! $multi ) { return false; } // Other contracts need schema 3.10.27.
 		/** Internal: data of a suite contract event before the allowlist is applied (fields outside it are dropped). */
 		$data = (array) apply_filters( 'wpcap_workflow_event_data', $data, $type );
 		$data = $class::sanitize( $type, $data, $dropped );

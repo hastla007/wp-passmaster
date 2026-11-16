@@ -126,7 +126,7 @@ Command.
   (`wpcap_workflow_command_invalid`).
 - **Capability:** der aktuelle Benutzer (der Provider handelt als Benutzer) braucht die Capability des Commands
   (`wpcap_workflow_forbidden`, 403); zusätzlich gelten die Event-Rechte des jeweiligen Dienstes.
-- **Idempotency-Key** (Pflicht, 8–64 Zeichen `[A-Za-z0-9._:-]`, Tabelle `wpcap_workflow_commands`, Schema 3.10.25):
+- **Idempotency-Key** (Pflicht, 8–64 Zeichen `[A-Za-z0-9._:-]`, Tabelle `wpcap_workflow_commands`, Schema 3.10.27):
   derselbe Key mit demselben Command und denselben Argumenten liefert das gespeicherte Ergebnis (`replayed` = true)
   bzw. denselben Fehler, ohne erneut auszuführen; derselbe Key mit anderen Argumenten ist ein Konflikt
   (`wpcap_workflow_idempotency_conflict`, 409); läuft er noch: `wpcap_workflow_command_in_progress`. Vorübergehende
@@ -172,7 +172,7 @@ Bewertungsdaten gehören dem Provider. Der Kern bleibt ohne Provider unveränder
 - **Registrierung:** Filter `wp_pass_captain_review_provider_v1` (Argumente `null`, Hauptversion `1`) liefert ein Objekt
   mit `receive( array $envelope )` und optional `contract_version()`; eine andere Hauptversion wird nie aufgerufen
   (`wpcap_review_contract_version`). Letzter Zustand in der Option `wpcap_review_status`.
-- **Zustellung:** dieselbe Ereignis-Outbox wie beim Workflow-Vertrag (Spalte `contract` = `review`, Schema 3.10.25),
+- **Zustellung:** dieselbe Ereignis-Outbox wie beim Workflow-Vertrag (Spalte `contract` = `review`, Schema 3.10.27),
   eigene Zustellung an den Review-Provider mit Reihenfolge, Backoff, höchstens 8 Versuchen und Aufbewahrung 30 Tage;
   Antworten und Fehlercodes wie beim Workflow-Vertrag mit Präfix `wpcap_review_`. Nachholen:
   `Outbox::since( $sequence, $limit, array(), 'review' )`, erneut zustellen: `Outbox::replay( $sequence, 'review' )`.

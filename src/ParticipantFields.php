@@ -13,9 +13,9 @@
  *   answer is stored on every ticket of that type, so exports, retention and deletion see it per ticket).
  * - Versioning: a change of label, type, choices, required flag or scope raises `version`; the audit
  *   log keeps the definition of every version and each answer stores the version it was given under
- *   (`wpcap_participant_answers.field_version`, 0 = before schema 3.10.25).
+ *   (`wpcap_participant_answers.field_version`, 0 = before schema 3.10.27).
  *
- * Schema 3.10.25: the new columns are used only once they exist (ready()).
+ * Schema 3.10.27: the new columns are used only once they exist (ready()).
  *
  * @package PassCaptain
  */
@@ -34,22 +34,22 @@ final class ParticipantFields {
 	/** Definition columns that start a new version when they change. */
 	const VERSIONED = array( 'label', 'field_type', 'options', 'required', 'scope' );
 
-	/** Whether the columns of schema 3.10.25 exist (options, help_text, scope, version). */
+	/** Whether the columns of schema 3.10.27 exist (options, help_text, scope, version). */
 	public static function ready() {
 		return Log::has_column( 'wpcap_participant_fields', 'version' );
 	}
 
-	/** Whether answers record the field version (schema 3.10.25). */
+	/** Whether answers record the field version (schema 3.10.27). */
 	public static function answers_versioned() {
 		return Log::has_column( 'wpcap_participant_answers', 'field_version' );
 	}
 
-	/** Whether fields carry the self-service lock and deadline (schema 3.10.25, A683). */
+	/** Whether fields carry the self-service lock and deadline (schema 3.10.27, A683). */
 	public static function locks_ready() {
 		return Log::has_column( 'wpcap_participant_fields', 'self_service' );
 	}
 
-	/** Whether ticket types carry the "attendee name required" switch (schema 3.10.25). */
+	/** Whether ticket types carry the "attendee name required" switch (schema 3.10.27). */
 	public static function name_switch_ready() {
 		return Log::has_column( 'wpcap_ticket_types', 'attendee_name_required' );
 	}
@@ -281,9 +281,10 @@ final class ParticipantFields {
 	 * requested afterwards: they are voluntary). Tickets without gaps are left out.
 	 *
 	 * @param int[] $ticket_ids Ticket IDs.
+	 * @param array<int,array<int,string>>|null $answers Answers already loaded by the caller (ticket_id => field_id => answer); null = read them.
 	 * @return array<int,string[]> ticket_id => labels of the missing data.
 	 */
-	public static function missing( array $ticket_ids ) {
+	public static function missing( array $ticket_ids, $answers = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
@@ -303,7 +304,12 @@ final class ParticipantFields {
 			}
 		}
 		$answered = array();
-		foreach ( (array) $wpdb->get_results( "SELECT ticket_id,field_id FROM {$p}wpcap_participant_answers WHERE ticket_id IN ($in) AND answer<>''" ) as $a ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		if ( is_array( $answers ) ) {
+			// Answers the caller already loaded (ticket_id => field_id => answer, A442: no second query).
+			foreach ( $answers as $tid => $by_field ) {
+				foreach ( (array) $by_field as $fid => $answer ) { if ( '' !== (string) $answer ) { $answered[ (int) $tid ][ (int) $fid ] = true; } }
+			}
+		} else foreach ( (array) $wpdb->get_results( "SELECT ticket_id,field_id FROM {$p}wpcap_participant_answers WHERE ticket_id IN ($in) AND answer<>''" ) as $a ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$answered[ (int) $a->ticket_id ][ (int) $a->field_id ] = true;
 		}
 		$out = array();
