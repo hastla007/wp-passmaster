@@ -90,7 +90,7 @@ final class TicketCodes {
 
 	/* ------------------------------------------------------------------ Holder of the code (A581) */
 
-	/** Whether wpcap_tickets.code_with_attendee exists (schema 3.10.18; deferred upgrade). */
+	/** Whether wpcap_tickets.code_with_attendee exists (schema 3.10.22; deferred upgrade). */
 	public static function holder_ready() {
 		return ServiceBookings::has_column( 'wpcap_tickets', 'code_with_attendee' );
 	}
@@ -107,7 +107,7 @@ final class TicketCodes {
 	 * Whether someone other than the buyer holds the ticket's current code (A581): the ticket was
 	 * transferred, or its current code was mailed to the attendee address (assignment to another
 	 * address, resend/reissue to the attendee). An attendee address entered at checkout alone does not
-	 * count – the ticket mail went to the buyer only. Before schema 3.10.18 the attendee address decides.
+	 * count – the ticket mail went to the buyer only. Before schema 3.10.22 the attendee address decides.
 	 *
 	 * @param object $ticket transfer_count, attendee_email, ticket_id (code_with_attendee when selected).
 	 * @param object $order  customer_email.

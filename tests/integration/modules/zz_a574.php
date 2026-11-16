@@ -1,7 +1,7 @@
 <?php
 /**
  * A574: the partner API's "since" filter for tickets selects tickets changed since then (revocation,
- * refund, transfer, attendee data) via wpcap_tickets.updated_at (schema 3.10.18), and the scope
+ * refund, transfer, attendee data) via wpcap_tickets.updated_at (schema 3.10.22), and the scope
  * attendees:details adds attendee names and field answers (no consent fields). Included from run.php
  * (uses check(), make_type(), tickets(); WP_REST_Request from payments.php).
  */
@@ -32,7 +32,7 @@ $a574_call = static function ( $token, array $params ) {
 	return $res instanceof WP_REST_Response ? $res->get_data() : $res;
 };
 
-check( 'A574: schema 3.10.18 column wpcap_tickets.updated_at exists', PassCaptain\ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.18', '>=' ) );
+check( 'A574: schema 3.10.22 column wpcap_tickets.updated_at exists', PassCaptain\ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.10.22', '>=' ) );
 
 $a574_type = make_type( 20, 10, 0 );
 $a574_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$a574_type" );
@@ -77,4 +77,4 @@ check( 'A574: without attendees:details no names or answers', is_array( $a574_r2
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET updated_at=CURRENT_TIMESTAMP WHERE order_id=%d", $a574_o['order_id'] ) );
 PassCaptain\Installer::backfill_ticket_updated_at( '3.10.17' );
 $a574_after = (int) $wpdb->get_var( $wpdb->prepare( "SELECT UNIX_TIMESTAMP(updated_at) FROM {$p}wpcap_tickets WHERE ticket_id=%d", (int) $a574_t[2]->ticket_id ) );
-check( 'A574: upgrade sets updated_at of existing tickets to their issue time (UTC)', abs( $a574_after - $a574_hour ) <= 1 && false === PassCaptain\Installer::backfill_ticket_updated_at( '3.10.18' ) );
+check( 'A574: upgrade sets updated_at of existing tickets to their issue time (UTC)', abs( $a574_after - $a574_hour ) <= 1 && false === PassCaptain\Installer::backfill_ticket_updated_at( '3.10.22' ) );

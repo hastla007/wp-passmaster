@@ -62,6 +62,10 @@ final class AttendeeList {
 		$status_labels = array( 'valid' => __( 'Gültig', 'pass-captain' ), 'checked_in' => __( 'Eingecheckt', 'pass-captain' ) );
 		$fields = 'full' === $level ? self::fields( $occurrence_id ) : array();
 		foreach ( Templates::ticket_blocks( $occurrence_id, array( 'valid', 'checked_in' ), self::chunk_size() ) as $tickets ) {
+			// A573: the status says whether the ticket was admitted at this occurrence (also passes and
+			// repeatable policies, whose ticket status stays valid).
+			$admitted = \PassCaptain\Reports\Attendance::admitted_ids( $occurrence_id, $tickets );
+			foreach ( $tickets as $t ) { $t->status = isset( $admitted[ (int) $t->ticket_id ] ) ? 'checked_in' : 'valid'; }
 			if ( 'full' !== $level ) {
 				foreach ( $tickets as $t ) { yield array( \PassCaptain\Pii::show( 'attendee_name', $t->attendee_name ), $t->ticket_name, $status_labels[ $t->status ] ?? $t->status ); }
 				continue;

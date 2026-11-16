@@ -12,17 +12,13 @@
  */
 namespace PassCaptain\Printing;
 
+use PassCaptain\Reports\Attendance;
+
 use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class NoShowList {
-	/** SQL condition "ticket t was admitted" (more checked_in than undone rows in its log). */
-	private static function admitted_sql() {
-		global $wpdb;
-		return "EXISTS (SELECT 1 FROM {$wpdb->prefix}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result IN ('checked_in','undone') GROUP BY c.ticket_id HAVING SUM(c.result='checked_in') > SUM(c.result='undone'))";
-	}
-
 	/**
 	 * Never-admitted tickets of the occurrence, block by block (rows as
 	 * Templates::tickets_for_occurrence()).
@@ -33,10 +29,9 @@ final class NoShowList {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		foreach ( Templates::ticket_blocks( $occurrence_id, array( 'valid' ), AttendeeList::chunk_size() ) as $tickets ) {
-			$ids = implode( ',', array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) );
-			// Every entry writes a "checked_in" log row and every take-back an "undone" row (scanner undo,
-			// admin undo), also for repeatable policies whose ticket status stays valid.
-			$admitted = array_flip( array_map( 'intval', $wpdb->get_col( "SELECT ticket_id FROM {$p}wpcap_checkins WHERE ticket_id IN ($ids) AND result IN ('checked_in','undone') GROUP BY ticket_id HAVING SUM(result='checked_in') > SUM(result='undone')" ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list of one block.
+			// Same rule as the report's check-in rate (A572/A573, Reports\Attendance): more "checked_in" than
+			// "undone" log rows, for passes an entry at this occurrence that was not taken back.
+			$admitted = Attendance::admitted_ids( $occurrence_id, $tickets );
 			foreach ( $tickets as $t ) {
 				if ( ! isset( $admitted[ (int) $t->ticket_id ] ) ) { yield $t; }
 			}
@@ -50,9 +45,9 @@ final class NoShowList {
 
 	/** Number of valid tickets never admitted (one query). */
 	public static function count( $occurrence_id ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE tt.occurrence_id=%d AND t.status='valid' AND NOT " . self::admitted_sql(), absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed subquery, value as placeholder.
+		$n = 0;
+		foreach ( self::ticket_stream( $occurrence_id ) as $unused ) { ++$n; }
+		return $n;
 	}
 
 	/** Header row for the level. */

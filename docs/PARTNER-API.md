@@ -153,7 +153,7 @@ Beispiel `/partner/orders`:
 **Tickets inkrementell abgleichen (A574):** Jedes Ticket trägt `updated_at` (UTC, ISO 8601). Es ändert sich bei
 jeder Änderung des Tickets – Ausstellung, Widerruf, Erstattung, Übertragung, Umtausch, neuer Code, Einlass mit
 Statuswechsel, Korrektur oder Zuweisung von Teilnehmername und -antworten. `since` liefert alle Tickets mit
-`updated_at` ab diesem Zeitpunkt (vor Schema 3.10.18: nur neu ausgestellte Tickets). Empfehlung: den
+`updated_at` ab diesem Zeitpunkt (vor Schema 3.10.22: nur neu ausgestellte Tickets). Empfehlung: den
 höchsten `updated_at`-Wert eines Abrufs als nächstes `since` verwenden (Grenze inklusive, Duplikate über
 `id` erkennen). Einlässe ohne Statuswechsel (Pässe, Mehrfacheinlass) liefert `/partner/checkins`. Nach dem
 Update stehen bestehende Tickets auf ihrem Ausstellungszeitpunkt. Löschungen nach Fristen (Datenschutz)

@@ -236,7 +236,7 @@ final class Api {
 		$status = sanitize_key( (string) $request->get_param( 'status' ) );
 		if ( '' !== $status ) { $where .= $wpdb->prepare( ' AND t.status = %s', $status ); }
 		// A574: "since" selects tickets changed since then (issue, revocation, refund, transfer, new code,
-		// check-in status, attendee data – wpcap_tickets.updated_at, schema 3.10.18), not only new ones.
+		// check-in status, attendee data – wpcap_tickets.updated_at, schema 3.10.22), not only new ones.
 		$tracked = self::tickets_tracked();
 		$since = self::since( $request );
 		if ( '' !== $since ) {
@@ -262,7 +262,7 @@ final class Api {
 		return self::respond( array( 'tickets' => $out, 'page' => $page, 'per_page' => $per_page, 'total' => $total ) );
 	}
 
-	/** Whether wpcap_tickets.updated_at exists (schema 3.10.18; deferred upgrade). */
+	/** Whether wpcap_tickets.updated_at exists (schema 3.10.22; deferred upgrade). */
 	private static function tickets_tracked() {
 		return \PassCaptain\ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' );
 	}

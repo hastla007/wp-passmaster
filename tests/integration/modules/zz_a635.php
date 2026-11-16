@@ -54,7 +54,10 @@ check( 'A635: names with a web address are refused (400 name_link)', is_wp_error
 $r = TicketAssignments::assign( $o->public_id, $tok, $tickets[1], 'Dr. Anna-Lena O’Brien-Müller Jr.', '' );
 check( 'A635: ordinary names with dots, apostrophes and hyphens stay allowed', ! is_wp_error( $r ) && 'Dr. Anna-Lena O’Brien-Müller Jr.' === a635_name( $tickets[1] ) );
 
-// Rate limit per order (with a valid link): 20 per hour (filter), then 429.
+// Rate limit per order (with a valid link): 20 per hour (filter), then 429. The test renames one ticket
+// many times: the name/holder change limits of A569 are lifted here (they are tested in zz_a569_a570).
+$GLOBALS['wpcap_test_filters']['wpcap_max_attendee_name_changes'] = 1000;
+$GLOBALS['wpcap_test_filters']['wpcap_max_holder_changes'] = 1000;
 $GLOBALS['wpcap_test_transients'] = array();
 $limited = 0;
 for ( $n = 0; $n < 22; $n++ ) {
@@ -69,3 +72,4 @@ $ok = a635_rest( $o->public_id, array( 'access_token' => $tok, 'ticket_public_id
 $blocked = a635_rest( $o->public_id, array( 'access_token' => $tok, 'ticket_public_id' => $tickets[0], 'attendee_name' => 'Zu viel' ) );
 check( 'A635: per client at most 30 requests per hour (wrong tokens count, the order budget does not)', ! is_wp_error( $ok ) && is_wp_error( $blocked ) && 'wpcap_rate_limited' === $blocked->get_error_code() && 'Noch erlaubt' === a635_name( $tickets[0] ) );
 $GLOBALS['wpcap_test_transients'] = array();
+unset( $GLOBALS['wpcap_test_filters']['wpcap_max_attendee_name_changes'], $GLOBALS['wpcap_test_filters']['wpcap_max_holder_changes'] );

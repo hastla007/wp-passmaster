@@ -327,6 +327,8 @@ final class Templates {
 		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
 		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
 		$key = "COALESCE(NULLIF(a.attendee_name,''),'~')";
+		// A573: holders of linked passes belong to every linked occurrence (same rule as tickets_for_occurrence()).
+		$which = \PassCaptain\Reports\Attendance::ticket_condition( absint( $occurrence_id ) );
 		$where = '';
 		$args = array( absint( $occurrence_id ) );
 		if ( is_array( $after ) ) {
@@ -336,8 +338,8 @@ final class Templates {
 		$args[] = max( 1, (int) $limit );
 		return (array) $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name,$key AS sort_key
-			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
-			WHERE o.occurrence_id=%d AND t.status IN ($in)$where ORDER BY $key,t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list and sort expression, values as placeholders.
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=%d INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE $which AND t.status IN ($in)$where ORDER BY $key,t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list, integer condition and sort expression, values as placeholders.
 			$args
 		) );
 	}

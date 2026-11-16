@@ -6,7 +6,7 @@
  * Holder changes – another e-mail address (new code) or another person's name (A569) – are limited by
  * `wpcap_max_holder_changes` (default 1, a transfer counts as well); every change of the name, small
  * corrections included, by `wpcap_max_attendee_name_changes` (default 3). Both are counted on the
- * ticket (wpcap_tickets.holder_changes / name_changes, schema 3.10.18) and in the audit log.
+ * ticket (wpcap_tickets.holder_changes / name_changes, schema 3.10.22) and in the audit log.
  */
 namespace PassCaptain;
 
@@ -185,14 +185,14 @@ final class TicketAssignments {
 		$wpdb->query( "UPDATE {$wpdb->prefix}wpcap_tickets SET updated_at=CURRENT_TIMESTAMP WHERE ticket_id IN (" . implode( ',', $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 	}
 
-	/** Whether the change counters exist on wpcap_tickets (schema 3.10.18, A569; deferred upgrade). */
+	/** Whether the change counters exist on wpcap_tickets (schema 3.10.22, A569; deferred upgrade). */
 	public static function counters_ready() {
 		return ServiceBookings::has_column( 'wpcap_tickets', 'holder_changes' ) && ServiceBookings::has_column( 'wpcap_tickets', 'name_changes' );
 	}
 
 	/**
 	 * Number of holder changes a ticket already had (assignment to another e-mail address or another
-	 * person's name, A569). Counted on the ticket (wpcap_tickets.holder_changes, schema 3.10.18), so an
+	 * person's name, A569). Counted on the ticket (wpcap_tickets.holder_changes, schema 3.10.22), so an
 	 * audit-log purge no longer resets it; the larger of counter and audit entries applies.
 	 */
 	public static function holder_changes( $ticket_id ) {

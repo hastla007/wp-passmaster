@@ -1081,7 +1081,7 @@ final class Installer {
 	}
 
 	/**
-	 * Schema 3.10.18 (A574): wpcap_tickets.updated_at (TIMESTAMP, kept by the database on every change
+	 * Schema 3.10.22 (A574): wpcap_tickets.updated_at (TIMESTAMP, kept by the database on every change
 	 * of the row) is what the partner API's "since" filter for tickets compares. Existing tickets start
 	 * at their issue time instead of the upgrade time, so the first poll after the update does not
 	 * return every ticket as changed. Idempotent (only rows still carrying the column default of this
@@ -1092,7 +1092,7 @@ final class Installer {
 	public static function backfill_ticket_updated_at( $previous_version ) {
 		global $wpdb;
 		$previous = (string) strtok( (string) $previous_version, '+' );
-		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.18', '>=' ) || ! ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' ) ) { return false; }
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.22', '>=' ) || ! ServiceBookings::has_column( 'wpcap_tickets', 'updated_at' ) ) { return false; }
 		// issued_at is UTC; the TIMESTAMP column converts from the session time zone.
 		$zone = (string) $wpdb->get_var( 'SELECT @@session.time_zone' );
 		$wpdb->query( "SET time_zone='+00:00'" );
@@ -1102,7 +1102,7 @@ final class Installer {
 	}
 
 	/**
-	 * Schema 3.10.18 (A569): holder and name changes are counted on the ticket. Holder changes made
+	 * Schema 3.10.22 (A569): holder and name changes are counted on the ticket. Holder changes made
 	 * before were only audit entries (`ticket_holder_changed`); they are carried over once, so the
 	 * limit keeps applying when the audit log is purged later. Idempotent (GREATEST).
 	 *
@@ -1111,13 +1111,13 @@ final class Installer {
 	public static function backfill_holder_changes( $previous_version ) {
 		global $wpdb;
 		$previous = (string) strtok( (string) $previous_version, '+' );
-		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.18', '>=' ) || ! TicketAssignments::counters_ready() ) { return false; }
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.22', '>=' ) || ! TicketAssignments::counters_ready() ) { return false; }
 		$p = $wpdb->prefix;
 		return false !== $wpdb->query( "UPDATE {$p}wpcap_tickets t INNER JOIN (SELECT object_id,COUNT(*) AS n FROM {$p}wpcap_audit_logs WHERE object_type='ticket' AND action='ticket_holder_changed' GROUP BY object_id) a ON a.object_id=t.ticket_id SET t.holder_changes=GREATEST(t.holder_changes,LEAST(a.n,255))" );
 	}
 
 	/**
-	 * Schema 3.10.18 (A581): wpcap_tickets.code_with_attendee says whether the current code was mailed
+	 * Schema 3.10.22 (A581): wpcap_tickets.code_with_attendee says whether the current code was mailed
 	 * to the attendee address instead of the buyer. Before, an attendee address alone was treated as
 	 * "held elsewhere". Existing tickets with an attendee address other than the buyer's are marked
 	 * unless the audit log shows that only the buyer received the code: no transfer, no assignment to
@@ -1129,7 +1129,7 @@ final class Installer {
 	public static function backfill_code_holder( $previous_version ) {
 		global $wpdb;
 		$previous = (string) strtok( (string) $previous_version, '+' );
-		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.18', '>=' ) || ! TicketCodes::holder_ready() ) { return false; }
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.22', '>=' ) || ! TicketCodes::holder_ready() ) { return false; }
 		$p = $wpdb->prefix;
 		$oldest = (string) $wpdb->get_var( "SELECT MIN(created_at) FROM {$p}wpcap_audit_logs" );
 		$oldest = '' !== $oldest ? $oldest : gmdate( 'Y-m-d H:i:s' );

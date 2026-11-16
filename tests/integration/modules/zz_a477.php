@@ -59,7 +59,7 @@ check( 'A477: block-wise list has every ticket once, in the same order as before
 check( 'A477: field answers are joined per block', 'Firma' === end( $a477_full[0] ) && ! array_filter( array_slice( $a477_full, 1 ), static fn( $r ) => 0 !== strpos( (string) end( $r ), 'Firma ' ) ) );
 $a477_blocks = array_filter( $a477_log, static fn( $q ) => false !== strpos( $q, 'AS sort_key' ) );
 $a477_in = array();
-foreach ( $a477_log as $q ) { if ( preg_match_all( '/\bIN \(([\d,\s]+)\)/', $q, $m ) ) { foreach ( $m[1] as $list ) { $a477_in[] = count( explode( ',', $list ) ); } } }
+foreach ( $a477_log as $q ) { if ( preg_match_all( '/ticket_id IN \(([\d,\s]+)\)/', $q, $m ) ) { foreach ( $m[1] as $list ) { $a477_in[] = count( explode( ',', $list ) ); } } }
 check( 'A477: tickets are read in blocks of 3 with LIMIT (4 block queries for 11 tickets)', 4 === count( $a477_blocks ) && ! array_filter( $a477_blocks, static fn( $q ) => ! preg_match( '/LIMIT 3\s*$/', trim( $q ) ) ) );
 check( 'A477: no IN list holds more ids than one block', $a477_in && max( $a477_in ) <= 3 );
 check( 'A477: basic list has the same rows', 12 === count( AttendeeList::rows( $a477_occ, 'basic' ) ) );

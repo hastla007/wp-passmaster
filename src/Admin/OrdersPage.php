@@ -733,7 +733,7 @@ final class OrdersPage {
 						<?php endforeach; ?>
 					</details>
 				<?php elseif ( '' !== (string) $order->terms_version ) : ?>
-					<p class="description"><?php esc_html_e( 'Der Text dieser Fassung ist nicht archiviert (Bestellung vor dem Archiv, Schema 3.10.18).', 'pass-captain' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Der Text dieser Fassung ist nicht archiviert (Bestellung vor dem Archiv, Schema 3.10.21).', 'pass-captain' ); ?></p>
 				<?php endif; ?>
 			</td></tr>
 		</tbody></table>

@@ -19,7 +19,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_transients'] = array();
 PassCaptain\ServiceBookings::flush_schema_cache();
 
-check( 'A581: schema 3.10.18 column wpcap_tickets.code_with_attendee exists', TicketCodes::holder_ready() );
+check( 'A581: schema 3.10.22 column wpcap_tickets.code_with_attendee exists', TicketCodes::holder_ready() );
 $a581_type = make_type( 20, 10, 0 );
 $a581_o = Orders::create( array( 'email' => 'kaeufer581@example.com', 'items' => array( array( 'ticket_type_id' => $a581_type, 'quantity' => 3 ) ), 'attendees' => array( array( 'ticket_type_id' => $a581_type, 'name' => 'Gast Eins', 'email' => 'gast581@example.com' ), array( 'ticket_type_id' => $a581_type, 'name' => 'Gast Zwei', 'email' => 'zwei581@example.com' ) ), 'idempotency_key' => 'a581-' . uniqid() ) );
 $a581_order = Orders::get( $a581_o['order_id'] );
@@ -56,4 +56,4 @@ $a581_flag = static function ( $id ) { global $wpdb; return (int) $wpdb->get_var
 check( 'A581: upgrade keeps "with the buyer" for tickets whose code provably went to the buyer only', 0 === $a581_flag( $a581_old->ticket_id ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET issued_at=%s WHERE ticket_id=%d", '2001-01-01 00:00:00', (int) $a581_old->ticket_id ) );
 PassCaptain\Installer::backfill_code_holder( '3.10.17' );
-check( 'A581: upgrade marks tickets older than the audit log as held elsewhere (conservative)', 1 === $a581_flag( $a581_old->ticket_id ) && false === PassCaptain\Installer::backfill_code_holder( '3.10.18' ) );
+check( 'A581: upgrade marks tickets older than the audit log as held elsewhere (conservative)', 1 === $a581_flag( $a581_old->ticket_id ) && false === PassCaptain\Installer::backfill_code_holder( '3.10.22' ) );
