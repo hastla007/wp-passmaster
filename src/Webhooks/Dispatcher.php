@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Dispatcher {
 	const API_VERSION = '2026-11-01';
-	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled', 'ticket.transferred', 'ticket.checked_out', 'attendance.confirmed', 'occurrence.changed', 'event.cancelled', 'refund.reversed' );
+	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled', 'ticket.transferred', 'ticket.checked_out', 'attendance.confirmed', 'occurrence.changed', 'event.cancelled', 'refund.reversed', 'consent.granted', 'consent.withdrawn' );
 
 	/**
 	 * Payload schema version per event type (A674, field schema_version of every payload). A minor step
@@ -37,6 +37,8 @@ final class Dispatcher {
 		'occurrence.changed' => '1.0',
 		'event.cancelled' => '1.0',
 		'refund.reversed' => '1.0',
+		'consent.granted' => '1.0', // A612: consent records of participant fields.
+		'consent.withdrawn' => '1.0',
 	);
 	const MAX_ATTEMPTS = 8;
 	const DISABLE_AFTER = 20;
@@ -206,7 +208,7 @@ final class Dispatcher {
 		foreach ( $subs as $sub ) {
 			$data = $object;
 			if ( (int) $sub->include_pii && $pii ) { $data = array_merge( $data, $pii ); }
-			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'schema_version' => self::SCHEMA_VERSIONS[ $type ] ?? '1.0', 'created' => $created, 'data' => array( 'object' => $data ) ) );
+			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'schema_version' => self::SCHEMA_VERSIONS[ $type ], 'created' => $created, 'data' => array( 'object' => $data ) ) );
 			$queued += (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", self::t( 'deliveries' ), (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
 		}
 		if ( $queued ) { self::schedule_soon(); }
@@ -319,9 +321,9 @@ final class Dispatcher {
 			$update['status'] = 'disabled';
 			$update['disabled_reason'] = 'failures';
 			Audit::record( 'webhook_subscription_auto_disabled', 'webhook', (int) $sub->subscription_id, array( 'consecutive_failures' => $failures ) );
-			if ( function_exists( 'get_option' ) && is_email( get_option( 'admin_email' ) ) ) {
+			if ( function_exists( 'get_option' ) ) {
 				/* translators: 1: webhook id, 2: failure count */
-				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Webhook deaktiviert', 'pass-captain' ), sprintf( __( 'Der Webhook #%1$d wurde nach %2$d fehlgeschlagenen Zustellversuchen in Folge deaktiviert. Ausstehende Zustellungen werden nach der Reaktivierung fortgesetzt.', 'pass-captain' ), (int) $sub->subscription_id, $failures ) );
+				\PassCaptain\Alerts::raise( 'webhook_disabled', __( 'Pass Captain: Webhook deaktiviert', 'pass-captain' ), sprintf( __( 'Der Webhook #%1$d wurde nach %2$d fehlgeschlagenen Zustellversuchen in Folge deaktiviert. Ausstehende Zustellungen werden nach der Reaktivierung fortgesetzt.', 'pass-captain' ), (int) $sub->subscription_id, $failures ) );
 			}
 		}
 		$wpdb->update( self::t( 'subscriptions' ), $update, array( 'subscription_id' => (int) $sub->subscription_id ) );

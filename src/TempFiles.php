@@ -129,6 +129,18 @@ final class TempFiles {
 		self::$tracked[] = array( (string) $file, (string) $dir );
 	}
 
+	/**
+	 * Mail attachment (N06/A626): mail queue plugins send later, so the file must outlive the request.
+	 * With a TTL (Mail\TempFiles::ttl() > 0) it is left to the hourly sweep Mail\TempFiles::purge(),
+	 * which only removes `wpcap-<hex>` directories older than the TTL; with TTL 0 it is removed at
+	 * shutdown at the latest, as before. Returns true when the file was tracked for shutdown.
+	 */
+	public static function track_attachment( $file, $dir = '' ) {
+		if ( Mail\TempFiles::ttl() > 0 && '' !== (string) $dir ) { return false; }
+		self::track( $file, $dir );
+		return true;
+	}
+
 	/** Shutdown cleanup of tracked files (idempotent). */
 	public static function cleanup() {
 		foreach ( self::$tracked as $entry ) { self::remove_with_dir( $entry[0], $entry[1] ); }

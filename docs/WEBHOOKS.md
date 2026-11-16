@@ -22,6 +22,8 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 | `order.refunded` | `wpcap_refund_completed` (Erstattung über das Plugin, auch Teilerstattung) und `wpcap_order_refunded` (Vollerstattung außerhalb des eigenen Ablaufs: WooCommerce, Dashboard des Zahlungsanbieters) | Bestellung + `refund` |
 | `refund.reversed` | `wpcap_refund_reversed` (verbuchte Erstattung beim Anbieter nachträglich gescheitert und storniert; Tickets bleiben widerrufen) | Bestellung + `refund` mit `reversed: true` |
 | `ticket.issued` | `wpcap_tickets_issued` – ein Ereignis je Ticket | Ticket |
+| `consent.granted` | `wpcap_consent_granted` (A612: Einwilligung erteilt – Checkout, Portal, Teilnehmerlink, Admin) | Einwilligung: `consent_id`, `ticket_public_id`, `order_public_id`, `field_id`, `field_key`, `text_version`, `source`, `at`, `state`; E-Mail nur mit `include_pii` |
+| `consent.withdrawn` | `wpcap_consent_withdrawn` (A612: Widerruf oder Ende durch Inhaberwechsel) | wie `consent.granted`, `state` `withdrawn` |
 | `ticket.checked_in` | `wpcap_ticket_checked_in` – jeder Einlass ein eigenes Ereignis (Mehrfacheinlass); derselbe Einlass doppelt gemeldet bleibt ein Ereignis | Ticket + `checked_in_at`, `source` |
 | `ticket.checked_out` | `wpcap_ticket_checked_out` – jeder Auslass ein Ereignis | Ticket + `checked_out_at`, `source` |
 | `attendance.confirmed` | erster gültiger Einlass eines Tickets – höchstens einmal je Ticket | Ticket + `confirmed_at`, `method` (`check_in`), `source` |

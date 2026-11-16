@@ -88,6 +88,8 @@ Ereignis stabil), `type`, `api_version`, `created`, `data.object`.
 | `ticket.transferred` | `wpcap_ticket_transferred` (A674) | Ticket, zusätzlich `source`, `holder_changes` | wie `ticket.issued` |
 | `ticket.exchanged` | `wpcap_ticket_exchanged` | Ticket, zusätzlich Umtauschbeträge (`currency`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`) | wie `ticket.issued` |
 | `refund.reversed` | `wpcap_refund_reversed` (A674/A675: gebuchte Erstattung beim Anbieter gescheitert und storniert) | Bestellung, zusätzlich `refund` mit `reversed: true` | wie `order.paid` |
+| `consent.granted` | `wpcap_consent_granted` (A612) | Einwilligung ohne Personendaten, E-Mail nur mit `include_pii` | wie `order.paid` |
+| `consent.withdrawn` | `wpcap_consent_withdrawn` (A612: Widerruf, Inhaberwechsel) | wie `consent.granted` | wie `order.paid` |
 
 Kein Webhook enthält einen Ticketcode, einen Namen oder Antworten aus Teilnehmerfeldern. Für Auslass,
 Event-Absage und Ticketübertragung gibt es Webhooks (siehe oben), aber kein Connector-Ereignis; für die

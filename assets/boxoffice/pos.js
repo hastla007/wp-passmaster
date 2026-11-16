@@ -99,18 +99,30 @@
 		schedule();
 	}
 
+	// A403: the currency's minor unit (0 JPY, 2 EUR, 3 KWD) and the site's number format, like Money::number().
+	// Read lazily: the helpers are exported (tests) before the rest of the script runs.
+	function fmt() {
+		var f = window.wpcapPos || {};
+		return { digits: typeof f.decimals === 'number' ? f.decimals : 2, point: f.decimalPoint || ',', sep: typeof f.thousandsSep === 'string' ? f.thousandsSep : '.' };
+	}
 	function money(minor) {
+		var F = fmt(), DIGITS = F.digits, POINT = F.point, SEP = F.sep;
 		var sign = minor < 0 ? '-' : '';
 		minor = Math.abs(minor);
-		return sign + Math.floor(minor / 100) + ',' + String(minor % 100).padStart(2, '0');
+		var unit = Math.pow(10, DIGITS);
+		var whole = String(Math.floor(minor / unit)).replace(/\B(?=(\d{3})+(?!\d))/g, SEP);
+		return sign + whole + (DIGITS ? POINT + String(minor % unit).padStart(DIGITS, '0') : '');
 	}
 	function parseMoney(text) {
+		var DIGITS = fmt().digits;
 		text = String(text || '').replace(/[^0-9,.]/g, '');
 		if (!text) { return null; }
 		var parts = text.replace(/\./g, ',').split(',');
-		var decimals = parts.length > 1 ? parts.pop() : '';
+		// The last separator is the decimal point (extra digits are cut); a currency without minor unit has none.
+		var decimals = parts.length > 1 && DIGITS > 0 ? parts.pop() : '';
 		var whole = parts.join('') || '0';
-		return parseInt(whole, 10) * 100 + parseInt((decimals + '00').slice(0, 2), 10);
+		var pad = new Array(DIGITS + 1).join('0');
+		return parseInt(whole, 10) * Math.pow(10, DIGITS) + (DIGITS ? parseInt((decimals + pad).slice(0, DIGITS), 10) : 0);
 	}
 	function method() {
 		var checked = form.querySelector('input[name="method"]:checked');

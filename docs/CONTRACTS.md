@@ -25,6 +25,7 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 | Workflow-Commands (`PassCaptain\Workflow\Commands::execute()`) | `workflow_commands` | 1.0.0 (`Commands::VERSION`) | [unten](#workflow-commands-v1) |
 | Review-Provider (`wp_pass_captain_review_provider_v1`, Teilnahmevertrag `experience_completed`) | `review` | 1.0.0 (`PassCaptain\Review\Contract::VERSION`) | [unten](#review-teilnahmevertrag-v1) |
 | Öffentliche Add-on-API (Hooks für `pass-captain-pro` und andere Plugins, `wpcap_loaded`) | `addon` | 1.0.0 (`PassCaptain\PublicApi::VERSION`) | [HOOKS.md](HOOKS.md#öffentliche-add-on-api) |
+| Lesefunktion Ticket → Bestellung, Event, Termin (`wpcap_get_ticket()`) | `ticket_read` | 1.0.0 (`PassCaptain\Api\Tickets::VERSION`) | [unten](#ticket-lesevertrag-v1) |
 
 ## REST: Versionsangabe des Clients
 
@@ -137,7 +138,7 @@ Command.
 ### Optionale Mails an den Workflow-Provider übergeben (A677)
 
 Optionale Mails kann die Betreiber:in je Mailtyp an den Workflow-Provider übergeben (`PassCaptain\Workflow\MailHandoff`,
-Auswahl unter **Pass Captain → Betrieb → Captain-Suite**, Option `wpcap_workflow_mail_handoff`, Recht `manage_options`,
+Auswahl unter **Pass Captain → Systemstatus → Betrieb → Captain-Suite**, Option `wpcap_workflow_mail_handoff`, Recht `manage_options`,
 Audit `workflow_mail_handoff_set`). Übergebbar ist im Kern die **Terminerinnerung** (`queue_wpcap_reminder`, Modul
 Erinnerungen); Add-ons können weitere optionale Typen über `wpcap_workflow_mail_handoff_types` anbieten. Ticket-,
 Zahlungs-, Reservierungs-, Erstattungs-, Absage-/Änderungs-, Übertragungs-, Wartelistenangebots- und Einlassmails
@@ -217,6 +218,21 @@ einem Stub-Review-Plugin durch (Plugin fehlt zunächst und holt nach, Kontakt ü
 Replay → weiterhin eine; Erstattung vor oder nach dem Einlass, abgesagter Termin, No-show und Opt-out → keine;
 Übertragung vor dem Einlass → Anfrage an die neue Inhaberin bzw. den neuen Inhaber. Kauf, Ticketversand und andere
 Ereignisse erreichen das Review-Plugin nicht.
+
+## Ticket-Lesevertrag v1
+
+Vertrag `ticket_read` 1.0.0 (A709, `src/Api/Tickets.php`) für Suite-Plugins (z. B. Review Captain Pro), die zu einem
+Ticket Bestellung, Event und Termin brauchen, ohne Datenbanktabellen zu lesen.
+
+- **Aufruf:** `wpcap_get_ticket( $ticket )` bzw. `PassCaptain\Api\Tickets::get( $ticket )` mit interner Ticket-ID
+  (int) oder öffentlicher Ticket-ID (string, z. B. die `participation_id` des Review-Vertrags). Unbekannt → `null`.
+- **Antwort:** `contract_version`, `ticket` (`id`, `public_id`, `status`, `refunded`, `checked_in` – gültiger Einlass
+  nach Abzug von Rücknahmen –, `issued_at`, `ticket_type_id`, `ticket_type_name`), `order` (`id`, `public_id`,
+  `status`, `payment_status`, `currency`), `event` (`id`, `name`, `status`), `occurrence` (`id`, `starts_at`,
+  `ends_at` in ISO 8601 UTC, `timezone`, `status`).
+- **Keine Personendaten:** keine E-Mail, kein Name, keine Teilnehmerangaben, kein Ticket-/Hilfecode, kein Token.
+- **Erweiterung:** Filter `wp_pass_captain_ticket_read_v1( array $data, object $row )` darf nur Schlüssel ergänzen
+  (nie Personendaten). Test: `tests/integration/modules/zz_a709.php`.
 
 ## Fixtures und Tests
 

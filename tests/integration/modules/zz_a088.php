@@ -28,12 +28,7 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $t
 if ( ! function_exists( 'wp_timezone_string' ) ) { function wp_timezone_string() { return 'Europe/Vienna'; } }
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $single = false ) { return $GLOBALS['p1u_user_meta'][ $u ][ $k ] ?? ''; } }
 if ( ! function_exists( 'update_user_meta' ) ) { function update_user_meta( $u, $k, $v ) { $GLOBALS['p1u_user_meta'][ $u ][ $k ] = $v; return true; } }
-if ( ! function_exists( 'add_menu_page' ) ) {
-	function add_menu_page( $page_title, $menu_title, $cap, $slug, $cb = '', $icon = '', $pos = null ) { $GLOBALS['a088_menu'][] = array( $menu_title, $cap, $slug ); return 'toplevel_page_' . $slug; }
-}
-if ( ! function_exists( 'add_submenu_page' ) ) {
-	function add_submenu_page( $parent, $page_title, $menu_title, $cap, $slug, $cb = '', $pos = null ) { $GLOBALS['submenu'][ $parent ][] = array( $menu_title, $cap, $slug, $page_title ); return $parent . '_page_' . $slug; }
-}
+require_once dirname( __DIR__ ) . '/lib/menu_stubs.php'; // Shared recorder (X5 reads the same calls).
 
 global $wpdb;
 $p = $wpdb->prefix;

@@ -103,7 +103,7 @@ final class SuiteStatus {
 		$in = Forms::post();
 		Forms::verify( self::HANDOFF_ACTION );
 		$result = MailHandoff::save( array_map( 'strval', (array) ( $in['types'] ?? array() ) ) );
-		Forms::finish( $result, __( 'Mail-Übergabe gespeichert.', 'pass-captain' ), Forms::page_url( OperationsPage::SLUG ) . '#wpcap-suite' );
+		Forms::finish( $result, __( 'Mail-Übergabe gespeichert.', 'pass-captain' ), OperationsPage::url() . '#wpcap-suite' );
 	}
 
 	public static function render() {

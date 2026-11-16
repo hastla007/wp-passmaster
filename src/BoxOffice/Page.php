@@ -137,7 +137,7 @@ final class Page {
 			}
 			echo '<div id="wpcap-pos-attendees" class="wpcap-pos-attendees"></div>';
 			echo '<noscript><p class="description">' . esc_html__( 'Für Teilnehmerangaben wird JavaScript benötigt.', 'pass-captain' ) . '</p></noscript>';
-			echo '<p><strong>' . esc_html__( 'Summe:', 'pass-captain' ) . ' <span id="wpcap-pos-total">0,00</span> ' . esc_html( $session->currency ) . '</strong></p><p>';
+			echo '<p><strong>' . esc_html__( 'Summe:', 'pass-captain' ) . ' <span id="wpcap-pos-total">' . esc_html( \PassCaptain\Money::number( 0, $session->currency ) ) . '</span> ' . esc_html( $session->currency ) . '</strong></p><p>';
 			$sale_methods = Service::sale_methods();
 			$first = (string) array_key_first( $sale_methods );
 			foreach ( $sale_methods as $key => $def ) {
@@ -173,6 +173,10 @@ final class Page {
 				'email' => __( 'E-Mail (optional)', 'pass-captain' ),
 				'heading' => __( 'Teilnehmerangaben', 'pass-captain' ),
 				'consentVersion' => __( 'Version', 'pass-captain' ),
+				// A403: amounts like Money::number() (currency minor unit, site number format).
+				'decimals' => \PassCaptain\Money::decimals( $session->currency ),
+				'decimalPoint' => \PassCaptain\Frontend\Format::js_config()['decimal'],
+				'thousandsSep' => \PassCaptain\Frontend\Format::js_config()['thousands'],
 			) ) . ';', 'before' );
 		}
 		self::render_session( $session );

@@ -74,7 +74,10 @@ $handlers = Menu::handlers();
 check( 'all feature admin-post handlers are registered', isset( $handlers['wpcap_api_key_action'], $handlers['wpcap_service_action'], $handlers['wpcap_waitlist_action'], $handlers['wpcap_waitlist_export'], $handlers['wpcap_campaign_action'], $handlers['wpcap_membership_action'] ) );
 $pages = array();
 foreach ( FeatureScreens::pages() as $page ) { $pages[ $page[0] ] = $page[2]; }
-check( 'feature pages are registered with their capabilities', array( 'wpcap-campaigns' => 'wpcap_manage_events', 'wpcap-waitlists' => 'wpcap_manage_orders', 'wpcap-services' => 'wpcap_manage_events', 'wpcap-memberships' => 'wpcap_manage_orders', 'wpcap-api-keys' => 'wpcap_manage_events' ) === $pages );
+check( 'feature pages are registered with their capabilities', array( 'wpcap-campaigns' => 'wpcap_manage_events', 'wpcap-services' => 'wpcap_manage_events', 'wpcap-memberships' => 'wpcap_manage_orders' ) === $pages );
+// N02/N04: the waitlist queue and the event-scoped API keys are parts of merged screens; their former slugs stay registered (no menu entry) and lead there.
+$legacy = Menu::legacy_pages();
+check( 'N02/N04: former slugs wpcap-waitlists and wpcap-api-keys lead to the merged screens with their capabilities', 'wpcap-waitlist' === ( $legacy['wpcap-waitlists'][0] ?? '' ) && array( 'tab' => 'queue' ) === $legacy['wpcap-waitlists'][1] && 'wpcap_manage_orders' === $legacy['wpcap-waitlists'][3] && 'wpcap-developer-keys' === ( $legacy['wpcap-api-keys'][0] ?? '' ) && in_array( $legacy['wpcap-api-keys'][3], array( 'manage_options', 'wpcap_manage_events' ), true ) );
 // Merged schema (Arbeitsliste line): the column defaults to 0 = "use the default", which DeveloperKeys::rate_limit() resolves to 600.
 $as_rate_col = $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_api_keys LIKE 'rate_limit'" );
 check( 'schema: rate_limit on api keys (0/empty resolves to the default 600) and timezone on resources, DB version >= 3.6.0', version_compare( PassCaptain\Installer::DB_VERSION, '3.6.0', '>=' ) && $as_rate_col && in_array( (string) $as_rate_col->Default, array( '0', '600' ), true ) && 600 === DeveloperKeys::rate_limit( (object) array( 'api_key_id' => 0, 'rate_limit' => (int) $as_rate_col->Default ) ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_resources LIKE 'timezone'" ) );
@@ -103,8 +106,10 @@ $event = as_event_of( $type );
 $GLOBALS['wpcap_test_nonce_checks'] = array();
 $r = as_post( array( ApiKeysPage::class, 'handle_action' ), array( 'do' => 'create', 'event_id' => $event, 'label' => 'Dashboard <b>', 'scopes' => array( 'events.read', 'reports.read', 'admin.write' ), 'rate_limit' => '3', 'expires_at' => gmdate( 'Y-m-d', time() + 30 * 86400 ) . 'T12:00' ) );
 $key_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_api_keys ORDER BY api_key_id DESC LIMIT 1" );
-$secret = $GLOBALS['wpcap_test_transients'][ ApiKeysPage::new_key_transient() ] ?? '';
-check( 'create handler checks the nonce and redirects', in_array( 'wpcap_api_key_action', $GLOBALS['wpcap_test_nonce_checks'], true ) && isset( $r['redirect'] ) && str_contains( $r['redirect'], 'page=wpcap-api-keys' ) );
+$secret_stored = (string) ( $GLOBALS['wpcap_test_transients'][ ApiKeysPage::new_key_transient() ] ?? '' );
+$secret = (string) json_decode( (string) PassCaptain\Security\Vault::decrypt( $secret_stored, 'one_time:eventkey:' . get_current_user_id() ), true );
+check( 'A507: the one-time key is not stored in plaintext', '' !== $secret && false === strpos( $secret_stored, $secret ) || ! PassCaptain\Security\Vault::available() );
+check( 'create handler checks the nonce and redirects to the merged screen "Entwickler-API" (N04)', in_array( 'wpcap_api_key_action', $GLOBALS['wpcap_test_nonce_checks'], true ) && isset( $r['redirect'] ) && str_contains( $r['redirect'], 'page=wpcap-developer-keys' ) );
 check( 'key stored hashed with scopes, label, per-key rate limit and UTC expiry', $key_row && 3 === (int) $key_row->rate_limit && array( 'events.read', 'reports.read' ) === json_decode( $key_row->scopes, true ) && 'Dashboard' === $key_row->label && hash( 'sha256', explode( '.', $secret )[1] ?? '' ) === $key_row->secret_hash && $key_row->public_prefix === explode( '.', $secret )[0] && gmdate( 'Y-m-d', time() + 30 * 86400 ) . ' 11:00:00' === $key_row->expires_at );
 $first = as_render( array( ApiKeysPage::class, 'render' ) );
 $second = as_render( array( ApiKeysPage::class, 'render' ) );
@@ -208,6 +213,7 @@ $of = as_post( array( WaitlistsPage::class, 'handle_action' ), array( 'do' => 'o
 $offered = $wpdb->get_row( "SELECT * FROM {$p}wpcap_waitlist WHERE event_id=$wl_event AND position=1" );
 $offer_mail = array_slice( $GLOBALS['wpcap_test_mails'], $mails_before );
 check( 'offer handler (nonce checked) sends the offer to position 1 and audits it', in_array( 'wpcap_waitlist_action', $GLOBALS['wpcap_test_nonce_checks'], true ) && isset( $of['redirect'] ) && 'offered' === $offered->status && 1 === count( $offer_mail ) && 'first@example.com' === $offer_mail[0]['to'] && (int) as_audit( 'waitlist_offer_sent' )->object_id === (int) $offered->waitlist_id );
+check( 'N02: the offer handler returns to the queue tab of the merged screen "Warteliste"', isset( $of['redirect'] ) && str_contains( $of['redirect'], 'page=wpcap-waitlist&' ) && str_contains( $of['redirect'], 'tab=queue' ) && str_contains( $of['redirect'], 'event_id=' . $wl_event ) );
 $second = $wpdb->get_row( "SELECT * FROM {$p}wpcap_waitlist WHERE event_id=$wl_event AND position=2" );
 $rm = WaitlistsPage::admin_action( array( 'do' => 'remove', 'id' => $second->waitlist_id ) );
 // Merged waitlist (Arbeitsliste line primary): removing closes the entry with status `removed` (retention deletes it
@@ -220,6 +226,10 @@ $audit_csv = as_audit( 'waitlist_exported' );
 check( 'CSV export lists entries with header and is audited', is_string( $csv ) && str_contains( $csv, 'Position;E-Mail' ) && str_contains( $csv, 'first@example.com' ) && str_contains( $csv, 'third@example.com' ) && ! str_contains( $csv, 'second@example.com' ) && (int) $audit_csv->object_id === $wl_event && 2 === json_decode( $audit_csv->details, true )['rows'] );
 $wl_html = as_render( array( WaitlistsPage::class, 'render' ), array( 'event_id' => (string) $wl_event ) );
 check( 'waitlist screen: labelled filters, offer button, export link with nonce', str_contains( $wl_html, '<label for="wpcap-wl-event">' ) && str_contains( $wl_html, 'Angebot an nächste Person senden' ) && str_contains( $wl_html, 'action=wpcap_waitlist_export' ) && str_contains( $wl_html, '_wpnonce=n' ) && str_contains( $wl_html, 'Angebot gesendet' ) );
+if ( ! function_exists( 'wp_timezone_string' ) ) { function wp_timezone_string() { return 'Europe/Vienna'; } }
+$wl_entries_html = html_entity_decode( as_render( array( PassCaptain\Waitlists\AdminPage::class, 'render' ), array( 'event_id' => (string) $wl_event ) ) );
+$wl_merged = html_entity_decode( $wl_html );
+check( 'N02: one waitlist screen – the former queue screen opens its tab "Warteschlange & Export" (GET filter stays on it), the entries tab links there and to the CSV export', str_contains( $wl_merged, '<h1>Warteliste</h1>' ) && str_contains( $wl_merged, 'nav-tab nav-tab-active" href="https://example.test/wp-admin/admin.php?page=wpcap-waitlist&event_id=' . $wl_event . '&tab=queue"' ) && str_contains( $wl_merged, 'name="page" value="wpcap-waitlist"><input type="hidden" name="tab" value="queue">' ) && 1 === substr_count( $wl_entries_html, '<h1>' ) && str_contains( $wl_entries_html, 'page=wpcap-waitlist&event_id=' . $wl_event . '&tab=queue' ) && str_contains( $wl_entries_html, 'action=wpcap_waitlist_export' ) && str_contains( $wl_entries_html, 'Freie Plätze jetzt anbieten' ) );
 
 echo "Admin screens: campaigns\n";
 $cp_type = make_type( 10 );

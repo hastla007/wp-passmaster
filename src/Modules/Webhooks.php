@@ -32,6 +32,9 @@ final class Webhooks {
 		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'occurrence_changed' ), 50, 3 );
 		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'event_cancelled' ), 50, 2 );
 		add_action( 'wpcap_refund_reversed', array( __CLASS__, 'refund_reversed' ), 50, 2 );
+		// A612: consent state for CRMs (both consent mechanisms; the e-mail only for include_pii subscriptions).
+		add_action( 'wpcap_consent_granted', array( __CLASS__, 'consent_granted' ), 50, 2 );
+		add_action( 'wpcap_consent_withdrawn', array( __CLASS__, 'consent_withdrawn' ), 50, 2 );
 		add_action( 'wpcap_process_jobs', array( Dispatcher::class, 'process' ), 20, 0 );
 		add_action( 'wpcap_webhooks_dispatch', array( Dispatcher::class, 'process' ), 10, 0 );
 		// Hourly (A437), not with every job run.
@@ -221,6 +224,61 @@ final class Webhooks {
 		// A674: attendance.confirmed once per ticket, at its first admission.
 		$attended = $t[0] + array( 'confirmed_at' => $checked_in['checked_in_at'], 'method' => 'check_in', 'source' => $checked_in['source'] );
 		return $queued + Dispatcher::emit( 'attendance.confirmed', 'attendance|' . (int) $ticket_id, $attended, $t[1] );
+	}
+
+	/** consent.granted (A612). */
+	public static function consent_granted( $record, $row = null ) {
+		$e = self::consent_event( 'consent.granted', $record, $row );
+		return $e ? Dispatcher::emit( 'consent.granted', $e[0], $e[1], $e[2] ) : 0;
+	}
+
+	/** consent.withdrawn (A612): also ended by a holder change. */
+	public static function consent_withdrawn( $record, $row = null ) {
+		$e = self::consent_event( 'consent.withdrawn', $record, $row );
+		return $e ? Dispatcher::emit( 'consent.withdrawn', $e[0], $e[1], $e[2] ) : 0;
+	}
+
+	/**
+	 * [dedupe, object, pii] of a consent event (null = unknown hook arguments). Accepts both hook signatures: the consent log record array of
+	 * Consents (checkbox fields with consent=1) and ( consent_id, row ) of Sales\Consents (field type consent).
+	 */
+	private static function consent_event( $type, $record, $row ) {
+		global $wpdb;
+		if ( is_array( $record ) ) {
+			$id = 'log:' . absint( $record['log_id'] ?? 0 );
+			$object = array(
+				'object' => 'consent',
+				'consent_id' => $id,
+				'ticket_public_id' => (string) ( $record['ticket_public_id'] ?? '' ),
+				'field_id' => absint( $record['field_id'] ?? 0 ),
+				'field_key' => (string) ( $record['field_key'] ?? '' ),
+				'text_version' => (string) ( $record['text_version'] ?? '' ),
+				'source' => (string) ( $record['source'] ?? '' ),
+				'at' => (string) ( $record['created_at'] ?? '' ),
+			);
+			$order_id = absint( $record['order_id'] ?? 0 );
+			$email = (string) ( $record['email'] ?? '' );
+		} elseif ( is_object( $row ) ) {
+			$id = 'consent:' . absint( $record ) . ( 'consent.withdrawn' === $type ? ':withdrawn' : '' );
+			$ticket_public = $row->ticket_id ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT public_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', (int) $row->ticket_id ) ) : '';
+			$object = array(
+				'object' => 'consent',
+				'consent_id' => 'consent:' . absint( $record ),
+				'ticket_public_id' => $ticket_public,
+				'field_id' => (int) ( $row->field_id ?? 0 ),
+				'field_key' => '',
+				'text_version' => (string) ( $row->text_version ?? '' ),
+				'source' => (string) ( 'consent.withdrawn' === $type ? ( $row->withdrawn_source ?? '' ) : ( $row->source ?? '' ) ),
+				'at' => (string) ( 'consent.withdrawn' === $type ? ( $row->withdrawn_at ?? '' ) : ( $row->created_at ?? '' ) ),
+			);
+			$order_id = (int) ( $row->order_id ?? 0 );
+			$email = (string) ( $row->subject_email ?? '' );
+		} else {
+			return null;
+		}
+		$object['order_public_id'] = $order_id ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT public_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', $order_id ) ) : '';
+		$object['state'] = 'consent.granted' === $type ? 'granted' : 'withdrawn';
+		return array( $id, $object, '' !== $email && is_email( $email ) ? array( 'attendee_email' => $email ) : array() );
 	}
 
 	/** ticket.checked_out (A674): a check-out (multi-entry tickets, areas). */

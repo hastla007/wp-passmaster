@@ -500,6 +500,8 @@ final class Orders {
 			// Not while a deferred schema upgrade (DB 3.12.0) is still pending: the column may not exist yet.
 			if ( ! empty( $internal['request_fingerprint'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) $internal['request_fingerprint'] ) && version_compare( strtok( (string) get_option( 'wpcap_db_version' ), '+' ), '3.12.0', '>=' ) ) { $order_row['request_fingerprint'] = (string) $internal['request_fingerprint']; }
 			if ( '' !== $request_hash ) { $order_row['request_hash'] = $request_hash; }
+			// A613: a free order is paid when it is created (column of schema 3.18.1; deferred upgrades omit it).
+			if ( ! ( $total || $external ) && self::schema_at_least( '3.18.1' ) ) { $order_row['paid_at'] = $now; }
 			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
 				// Only a duplicate idempotency key is a lost race; anything else is a transient error.
@@ -604,6 +606,8 @@ final class Orders {
 			do_action( 'wpcap_order_paid', $order_id );
 			$issued = self::issue_and_email( $order_id );
 		}
+		// A424: the link lasts until some time after the order's last date, not only 30 days from the purchase.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET access_expires_at=%s WHERE order_id=%d AND access_expires_at<%s", self::access_until( $order_id ), $order_id, self::access_until( $order_id ) ) );
 		if ( ! $external ) {
 			self::send_order_access_link( $email, $public_id, $access_token );
 		}
@@ -2202,7 +2206,7 @@ final class Orders {
 		}
 		// Checked like Orders::create(): after a server-side rollback the remaining statements would
 		// autocommit without the capacity re-check's locks. Guarded like every order transition (StateMachine).
-		if ( 1 !== StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'complete', array( 'payment_status' => 'paid', 'updated_at' => $now ) ) ) { return self::payment_busy( $order_id ); }
+		if ( 1 !== StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'complete', array( 'payment_status' => 'paid', 'updated_at' => $now ) + ( self::schema_at_least( '3.18.1' ) ? array( 'paid_at' => $now ) : array() ) ) ) { return self::payment_busy( $order_id ); }
 		if ( false === self::set_hold_status( $hold_ids, 'converted', array( 'active', 'expired', 'released' ) ) ) { return self::payment_busy( $order_id ); }
 		// Holds leave held_qty, the paid lines enter sold_qty – atomically with the status change.
 		if ( false === CapacityCounters::sync_order( $order_id ) ) { return self::payment_busy( $order_id ); }
@@ -2318,7 +2322,7 @@ final class Orders {
 			: __( 'Bitte manuell klären (Zuteilung erneut versuchen oder erstatten).', 'pass-captain' ) );
 		// A337: straight to the order (also listed under Bestellungen with the status filter "Prüfung nötig").
 		if ( function_exists( 'admin_url' ) ) { $text .= "\n\n" . Admin\OrdersPage::order_url( (int) $order->order_id ); }
-		wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne Tickets', 'pass-captain' ), $text );
+		\PassCaptain\Alerts::raise( 'paid_without_tickets', __( 'Pass Captain: Bezahlte Bestellung ohne Tickets', 'pass-captain' ), $text );
 	}
 
 	/**
@@ -2737,6 +2741,25 @@ final class Orders {
 	const PENDING_LINK_DAYS = 7;
 
 	/**
+	 * End of the order portal access (A424): `wpcap_order_access_days` (default 30) days from now, but at least as
+	 * many days after the end of the order's last date, so the link still works at and after the event.
+	 *
+	 * @param int $order_id Order (0 = only the days from now).
+	 * @return string UTC datetime.
+	 */
+	public static function access_until( $order_id = 0 ) {
+		global $wpdb;
+		$days = max( 1, min( 3650, (int) apply_filters( 'wpcap_order_access_days', 30 ) ) );
+		$until = Clock::now() + $days * DAY_IN_SECONDS;
+		if ( absint( $order_id ) ) {
+			$last = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(COALESCE(o.ends_at,o.starts_at)) FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) );
+			$ts = '' !== $last ? strtotime( $last . ' UTC' ) : false;
+			if ( false !== $ts ) { $until = max( $until, $ts + $days * DAY_IN_SECONDS ); }
+		}
+		return gmdate( 'Y-m-d H:i:s', $until );
+	}
+
+	/**
 	 * Issues a new personal order access link and emails it.
 	 *
 	 * @param int  $order_id     Order.
@@ -2752,7 +2775,7 @@ final class Orders {
 		if ( $keep_current && self::pending_link_ready() ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_pending_hash' => hash( 'sha256', $token ), 'access_pending_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + self::PENDING_LINK_DAYS * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
 		} else {
-			$fields = array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ) );
+			$fields = array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => self::access_until( (int) $order->order_id ) );
 			if ( self::pending_link_ready() ) { $fields += array( 'access_pending_hash' => '', 'access_pending_expires_at' => null ); }
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', $fields, array( 'order_id' => (int) $order->order_id ), null, array( '%d' ) );
 		}
@@ -2791,7 +2814,7 @@ final class Orders {
 		$table = $wpdb->prefix . 'wpcap_orders';
 		$pending = $wpdb->get_row( $wpdb->prepare( "SELECT access_pending_hash,access_pending_expires_at FROM $table WHERE order_id=%d", (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
 		if ( ! $pending || '' === (string) $pending->access_pending_hash || ! $pending->access_pending_expires_at || (string) $pending->access_pending_expires_at <= $now || ! hash_equals( (string) $pending->access_pending_hash, $hash ) ) { return false; }
-		$expires = gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS );
+		$expires = self::access_until( (int) $order->order_id );
 		// Promoted once (parallel first clicks: the condition on the pending hash lets one of them write).
 		$wpdb->query( $wpdb->prepare( "UPDATE $table SET access_token_hash=%s,access_expires_at=%s,access_pending_hash='',access_pending_expires_at=NULL WHERE order_id=%d AND access_pending_hash=%s", $hash, $expires, (int) $order->order_id, $hash ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
 		$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT access_token_hash FROM $table WHERE order_id=%d", (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
@@ -3977,7 +4000,7 @@ final class Orders {
 				return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
 			} );
 			if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
-			$file = $pdf_dir . '/tickets-' . $order->public_id . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf';
+			$file = $pdf_dir . '/tickets-' . Frontend\Format::order_reference( (string) $order->public_id ) . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf'; // A091: readable order number.
 			if ( false === file_put_contents( $file, $bytes ) ) { break; }
 			@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			$out['files'][] = $file;

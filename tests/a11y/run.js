@@ -111,7 +111,10 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 		// Detail views of the newer admin screens (fixture creates one record each).
 		{ name: 'Admin: Campaign detail', group: 'admin', url: fx.campaign_id && admin('page=wpcap-campaigns&campaign_id=' + fx.campaign_id), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: New campaign', group: 'admin', url: admin('page=wpcap-campaigns&campaign_id=new'), include: '#wpbody-content', auth: true },
-		{ name: 'Admin: Waitlist of event', group: 'admin', url: admin('page=wpcap-waitlists&event_id=' + fx.event_id), include: '#wpbody-content', auth: true },
+		// Merged screens (N02, N04): the tabs are not menu links, so they are listed here.
+		{ name: 'Admin: Waitlist of event', group: 'admin', url: admin('page=wpcap-waitlist&event_id=' + fx.event_id), include: '#wpbody-content', auth: true },
+		{ name: 'Admin: Waitlist queue and export of event', group: 'admin', url: admin('page=wpcap-waitlist&event_id=' + fx.event_id + '&tab=queue'), include: '#wpbody-content', auth: true },
+		{ name: 'Admin: Systemstatus – Betrieb', group: 'admin', url: admin('page=wpcap-status&tab=operations'), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Resource detail', group: 'admin', url: fx.resource_id && admin('page=wpcap-services&resource_id=' + fx.resource_id), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Admission rules of event', group: 'admin', url: admin('page=wpcap-admission&event_id=' + fx.event_id), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Offline scanner of event', group: 'admin', url: admin('page=wpcap-offline-scanner&event_id=' + fx.event_id), include: '#wpbody-content', auth: true },

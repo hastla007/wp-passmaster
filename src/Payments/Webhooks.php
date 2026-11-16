@@ -72,8 +72,8 @@ final class Webhooks {
 			if ( is_wp_error( $applied ) ) { return $applied; }
 		}
 		$now = current_time( 'mysql', true );
-		// A claim left in "processing" by a crashed request may be taken over after 10 minutes.
-		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $p . 'wpcap_payment_events', $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ) ) );
+		// A claim left in "processing" by a crashed request may be taken over after 10 minutes (Config webhook_lock_minutes, A408).
+		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $p . 'wpcap_payment_events', $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - \PassCaptain\Config::get( 'webhook_lock_minutes' ) * MINUTE_IN_SECONDS ) ) );
 		if ( false === $taken_over ) {
 			return self::db_error( $provider, $event_id, 'takeover' );
 		}
@@ -590,6 +590,6 @@ final class Webhooks {
 	/** Mails the site admin about a payment that needs manual action. */
 	private static function alert( $order, $message, $provider, array $event ) {
 		/* translators: 1: order id, 2: provider, 3: reference, 4: message */
-		wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Zahlung prüfen', 'pass-captain' ), sprintf( __( "Bestellung %1\$s (%2\$s, Referenz %3\$s):\n\n%4\$s", 'pass-captain' ), $order->public_id, $provider, (string) ( $event['provider_reference'] ?? '' ), $message ) );
+		\PassCaptain\Alerts::raise( 'payment_review', __( 'Pass Captain: Zahlung prüfen', 'pass-captain' ), sprintf( __( "Bestellung %1\$s (%2\$s, Referenz %3\$s):\n\n%4\$s", 'pass-captain' ), $order->public_id, $provider, (string) ( $event['provider_reference'] ?? '' ), $message ) );
 	}
 }

@@ -225,7 +225,7 @@ final class Settlements {
 			}
 		}
 		usort( $lines, static function ( $a, $b ) { return array( $a['occurred_at'], $a['item_key'] ) <=> array( $b['occurred_at'], $b['item_key'] ); } );
-		$totals = self::totals( $lines, $partner, array( 'collected_self' => $collected_self, 'carry_in' => self::carry_in( $partner, $period ) ) );
+		$totals = self::totals( $lines, $partner, array( 'collected_self' => $collected_self, 'carry_in' => self::carry_in( $partner, $period ), 'terms_at' => $end ) );
 		$totals['comp_tickets'] = $comp_tickets;
 		return array( 'lines' => $lines, 'totals' => $totals );
 	}
@@ -417,6 +417,12 @@ final class Settlements {
 
 	/** Totals of a line set under the partner's terms. */
 	public static function totals( array $lines, $partner, array $netting = array() ) {
+		// A523: sales model and fee VAT rate as they applied at the end of the period – a later change of the
+		// organizer's terms does not rewrite an open settlement (commission/fees per line already follow the sale date).
+		if ( ! empty( $netting['terms_at'] ) ) {
+			$at = Repository::terms_at( $partner, (string) $netting['terms_at'] );
+			$partner = (object) array_merge( (array) $partner, array( 'sales_model' => '' !== (string) $at['sales_model'] ? (string) $at['sales_model'] : (string) ( $partner->sales_model ?? '' ), 'fee_tax_rate_bp' => (int) $at['fee_tax_rate_bp'] ) );
+		}
 		$t = array( 'tickets_sold' => 0, 'tickets_refunded' => 0, 'sales_gross' => 0, 'sales_tax' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'corrections' => 0, 'commission' => 0, 'fee' => 0, 'rates' => array(), 'events' => array(), 'kinds' => array() );
 		foreach ( $lines as $l ) {
 			if ( 0 === $l['refund_id'] ) {

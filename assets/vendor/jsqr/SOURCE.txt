@@ -1,0 +1,14 @@
+jsQR
+====
+
+Files in this directory:
+
+  jsQR.js   unmodified, unminified distribution build (dist/jsQR.js) of jsQR, loaded by the scanner
+            SHA-256 bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859
+  LICENSE   Apache License 2.0
+
+Source repository: https://github.com/cozmo/jsQR (npm package "jsqr").
+
+The checksum pins the shipped file (A658): tests/consistency.php fails when jsQR.js changes without this
+file being updated. When updating, take dist/jsQR.js from the npm package of the new release, compare it
+with the tagged source, and record the version and the new checksum here.

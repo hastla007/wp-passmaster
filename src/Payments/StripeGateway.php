@@ -707,7 +707,7 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface, Pa
 		}
 		$args = array(
 			'method' => $method,
-			'timeout' => 15,
+			'timeout' => \PassCaptain\Config::get( 'http_timeout' ),
 			'headers' => array( 'Authorization' => 'Bearer ' . $secret ),
 		);
 		if ( 'POST' === $method ) {

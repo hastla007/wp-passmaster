@@ -85,7 +85,7 @@ final class ServiceBookings {
 		}
 		$resource_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT resource_id FROM %i WHERE slot_id=%d', $slots, $slot_id ) );
 		if ( ! $resource_id ) { return self::unavailable(); }
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		self::warm_schema(); if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		// Lock phase first (locking reads only, A133/A135): resource, the providers assigned to it, then
 		// the slot – serialises bookings of overlapping slots of the resource and of resources sharing a
 		// provider. A lock wait timeout answers a retryable 503. The first consistent read below then sees
@@ -330,7 +330,7 @@ final class ServiceBookings {
 			if ( is_wp_error( $actor ) ) { return $actor; }
 		}
 		$resource_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT resource_id FROM %i WHERE slot_id=%d', $p . 'wpcap_service_slots', (int) $booking->slot_id ) );
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		self::warm_schema(); if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$locked = self::lock( array( $resource_id ), array( (int) $booking->slot_id ) );
 		if ( is_wp_error( $locked ) ) { return $locked; }
 		$booking = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', (int) $booking->booking_id ) );
@@ -483,7 +483,7 @@ final class ServiceBookings {
 			$checked = self::actor( $ctx, self::booking( absint( $booking_id ) ) );
 			if ( is_wp_error( $checked ) ) { return $checked; }
 		}
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		self::warm_schema(); if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$booking = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', absint( $booking_id ) ) );
 		if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		if ( ! $booking ) { $wpdb->query( 'ROLLBACK' ); return self::not_found(); }
@@ -625,7 +625,7 @@ final class ServiceBookings {
 			return self::rebook_with_supplement( $booking, $old_slot, $new_slot, $old_resource, $new_resource, -$difference, $actor, $ctx );
 		}
 		if ( $open_supplement ) { return self::supplement_open_error(); }
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		self::warm_schema(); if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		// Lock order: resources by id, their providers, slots by id (lock()), then the booking.
 		$resource_ids = array_unique( array( (int) $old_resource->resource_id, (int) $new_resource->resource_id ) );
 		$slot_ids = array( (int) $old_slot->slot_id, $new_slot_id );
@@ -758,7 +758,7 @@ final class ServiceBookings {
 			Orders::cancel_order( $order_id, 'service_supplement_refused' );
 			return $error;
 		};
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $refuse( self::busy() ); }
+		self::warm_schema(); if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $refuse( self::busy() ); }
 		// Lock order: resources by id, their providers, slots by id, then the booking (as rebook()).
 		$resource_ids = array_unique( array( (int) $old_resource->resource_id, (int) $new_resource->resource_id ) );
 		sort( $resource_ids, SORT_NUMERIC );
@@ -884,7 +884,7 @@ final class ServiceBookings {
 		$old_slot_row = ServiceResources::slot( (int) $original->slot_id );
 		$new_slot_row = ServiceResources::slot( (int) $supplement->slot_id );
 		if ( ! $old_slot_row || ! $new_slot_row ) { return self::unavailable(); }
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		self::warm_schema(); if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$resource_ids = array_unique( array( (int) $old_slot_row->resource_id, (int) $new_slot_row->resource_id ) );
 		sort( $resource_ids, SORT_NUMERIC );
 		$slot_ids = array_unique( array( (int) $old_slot_row->slot_id, (int) $new_slot_row->slot_id ) );
@@ -1226,7 +1226,7 @@ final class ServiceBookings {
 			if ( is_wp_error( $refund ) || 'failed' === $state ) { return __( 'Die Erstattung wird gerade bearbeitet; du erhältst eine eigene Bestätigung, sobald sie ausgeführt ist.', 'pass-captain' ); }
 			if ( 'pending_approval' === $state ) { return __( 'Die Erstattung wird geprüft und anschließend ausgeführt.', 'pass-captain' ); }
 			/* translators: %s: amount */
-			return $amount > 0 ? sprintf( __( 'Erstattet werden %s (Zahlungsmittel bzw. Gutschein).', 'pass-captain' ), number_format_i18n( $amount / 100, 2 ) . ' ' . $currency ) : '';
+			return $amount > 0 ? sprintf( __( 'Erstattet werden %s (Zahlungsmittel bzw. Gutschein).', 'pass-captain' ), \PassCaptain\Money::format( (int) $amount, (string) $currency ) ) : '';
 		};
 		$vars['reason'] = (string) ( $extra['reason'] ?? '' );
 		if ( isset( $extra['old_slot'] ) && $extra['old_slot'] ) {
@@ -1264,7 +1264,7 @@ final class ServiceBookings {
 			'old_slot_date' => '',
 			'fee_info' => static function () use ( $fee, $fee_currency ) {
 				/* translators: %s: amount */
-				return $fee > 0 ? sprintf( __( 'Laut Buchungsbedingungen wird eine Gebühr von %s fällig.', 'pass-captain' ), number_format_i18n( $fee / 100, 2 ) . ' ' . $fee_currency ) : '';
+				return $fee > 0 ? sprintf( __( 'Laut Buchungsbedingungen wird eine Gebühr von %s fällig.', 'pass-captain' ), \PassCaptain\Money::format( (int) $fee, (string) $fee_currency ) ) : '';
 			},
 		);
 	}
@@ -1276,7 +1276,7 @@ final class ServiceBookings {
 			$partner = Partners\Repository::get( (int) $resource->partner_id );
 			$to = $partner ? (string) $partner->contact_email : '';
 		}
-		if ( ! is_email( $to ) ) { $to = (string) get_option( 'admin_email' ); }
+		if ( ! is_email( $to ) ) { $to = (string) ( Alerts::recipients( 'service_booking_partner' )[0] ?? '' ); } // A400: alert recipient.
 		if ( ! is_email( $to ) ) { return; }
 		$slot = ServiceResources::slot( (int) $booking->slot_id );
 		$vars = self::mail_vars( $booking, $slot, $resource );
@@ -1482,6 +1482,15 @@ final class ServiceBookings {
 	}
 
 	/** Whether the A133 schema (providers, resource assignment, duration) exists (deferred upgrades). */
+	/**
+	 * Fills the per-request schema caches (SHOW COLUMNS) before a transaction starts. On MySQL 8 a
+	 * data-dictionary read inside the transaction can open the read view before the row locks are
+	 * taken, so the checks after lock() would miss bookings committed meanwhile (A135 race).
+	 */
+	public static function warm_schema() {
+		self::providers_ready();
+	}
+
 	public static function providers_ready() {
 		return self::has_column( 'wpcap_resource_providers', 'provider_id' ) && self::has_column( 'wpcap_service_providers', 'partner_id' ) && self::has_column( 'wpcap_resources', 'duration_minutes' );
 	}
@@ -1812,7 +1821,7 @@ final class ServiceBookings {
 		if ( is_wp_error( $times ) ) { return $times; }
 		$capacity = min( 100, max( 1, isset( $data['capacity'] ) && '' !== (string) $data['capacity'] ? absint( $data['capacity'] ) : (int) $slot->capacity ) );
 		$status = in_array( $data['status'] ?? '', array( 'open', 'closed' ), true ) ? $data['status'] : $slot->status;
-		$wpdb->query( 'START TRANSACTION' );
+		self::warm_schema(); $wpdb->query( 'START TRANSACTION' );
 		$wpdb->get_var( $wpdb->prepare( "SELECT slot_id FROM {$wpdb->prefix}wpcap_service_slots WHERE slot_id=%d FOR UPDATE", (int) $slot->slot_id ) );
 		$booked = self::booked( $slot->slot_id );
 		if ( $capacity < $booked ) {
@@ -2069,7 +2078,7 @@ final class ServiceBookings {
 		global $wpdb;
 		$before = self::booking( $booking_id );
 		if ( ! $before ) { return self::not_found(); }
-		$wpdb->query( 'START TRANSACTION' );
+		self::warm_schema(); $wpdb->query( 'START TRANSACTION' );
 		$locked = self::lock( array( (int) $before->resource_id ), array( (int) $before->slot_id ) );
 		if ( is_wp_error( $locked ) ) { return $locked; }
 		$wpdb->get_var( $wpdb->prepare( "SELECT booking_id FROM {$wpdb->prefix}wpcap_service_bookings WHERE booking_id=%d FOR UPDATE", (int) $before->booking_id ) );

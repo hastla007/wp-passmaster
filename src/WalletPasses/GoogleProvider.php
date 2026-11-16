@@ -386,7 +386,7 @@ class GoogleProvider implements WalletProvider {
 		$now = time();
 		$assertion = Jwt::sign( array( 'iss' => $account['client_email'], 'scope' => self::SCOPE, 'aud' => $account['token_uri'], 'iat' => $now, 'exp' => $now + 3600 ), $account['private_key'] );
 		// token_uri comes from the uploaded service account JSON: only Google's token endpoints (A202).
-		$res = \PassCaptain\OutboundHttp::request( $account['token_uri'], array( 'method' => 'POST', 'timeout' => 15, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => http_build_query( array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $assertion ) ) ), array( 'context' => 'wallet_google', 'hosts' => self::TOKEN_HOSTS, 'max_bytes' => 65536 ) );
+		$res = \PassCaptain\OutboundHttp::request( $account['token_uri'], array( 'method' => 'POST', 'timeout' => \PassCaptain\Config::get( 'http_timeout' ), 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => http_build_query( array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $assertion ) ) ), array( 'context' => 'wallet_google', 'hosts' => self::TOKEN_HOSTS, 'max_bytes' => 65536 ) );
 		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) { return ''; }
 		$data = json_decode( wp_remote_retrieve_body( $res ), true );
 		$token = is_array( $data ) ? (string) ( $data['access_token'] ?? '' ) : '';
@@ -398,7 +398,7 @@ class GoogleProvider implements WalletProvider {
 	public function api( $method, $path, array $body ) {
 		$token = $this->access_token();
 		if ( '' === $token ) { return array( 'code' => 0, 'body' => null ); }
-		$res = \PassCaptain\OutboundHttp::request( self::API . $path, array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $body ) ), array( 'context' => 'wallet_google', 'hosts' => array( 'walletobjects.googleapis.com' ) ) );
+		$res = \PassCaptain\OutboundHttp::request( self::API . $path, array( 'method' => $method, 'timeout' => \PassCaptain\Config::get( 'http_timeout' ), 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $body ) ), array( 'context' => 'wallet_google', 'hosts' => array( 'walletobjects.googleapis.com' ) ) );
 		if ( is_wp_error( $res ) ) { return array( 'code' => 0, 'body' => null ); }
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		// Rejected token (expired, revoked, or the account lost its issuer permission): fetched anew next time (A423).

@@ -361,10 +361,8 @@ final class RateLimit {
 	}
 
 	private static function is_trusted( $ip, array $trusted ) {
-		foreach ( $trusted as $entry ) {
-			if ( Security\OutboundHttp::ip_in_cidr( $ip, false === strpos( $entry, '/' ) ? $entry . ( false !== strpos( $entry, ':' ) ? '/128' : '/32' ) : $entry ) ) { return true; }
-		}
-		return false;
+		// IPv4-mapped peers (::ffff:10.0.0.7) match IPv4 ranges (N03, as ClientIp::in_ranges()).
+		return ClientIp::in_ranges( (string) $ip, $trusted );
 	}
 
 	/**
@@ -390,8 +388,8 @@ final class RateLimit {
 				$chain = 'forwarded' === $name ? ClientIp::forwarded_for( $value ) : explode( ',', $value );
 				$hops = array_reverse( array_map( 'trim', $chain ) );
 				foreach ( $hops as $hop ) {
-					$hop = trim( preg_replace( '/^\[([^\]]+)\](:\d+)?$/', '$1', $hop ) );
-					if ( false === filter_var( $hop, FILTER_VALIDATE_IP ) ) { break; }
+					$hop = ClientIp::normalize( $hop ); // [IPv6]:port and IPv4:port (N03).
+					if ( '' === $hop ) { break; }
 					$ip = $hop;
 					if ( ! self::is_trusted( $hop, $trusted ) ) { break; }
 				}

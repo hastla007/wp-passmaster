@@ -209,7 +209,11 @@ Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in
 
 ## Admin
 
-*Pass Captain → Warteliste* (Recht `wpcap_manage_orders`, Event-Berechtigung wie bei Bestellungen):
+*Pass Captain → Warteliste* (Recht `wpcap_manage_orders`, Event-Berechtigung wie bei Bestellungen) ist die
+einzige Wartelisten-Seite (N02) mit zwei Reitern; die frühere Seite `admin.php?page=wpcap-waitlists` leitet auf den
+Reiter *Warteschlange & Export* weiter (Event und Termin bleiben erhalten).
+
+Reiter *Einträge*:
 
 - Einträge je Event mit Termin (Datum/Uhrzeit in der Zeitzone des Termins), Ticketart, **Platz in der
   Warteschlange** (Reihenfolge der Wartenden je Termin und Ticketart nach Priorität und Anmeldung; Platz 1
@@ -227,8 +231,19 @@ Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in
 - Einstellungen (nur Administrator:innen): automatische Angebote an/aus, Gültigkeit eines Angebots in
   Stunden (1–336), höchstens Angebote pro Durchlauf (1–100), strikte Reihenfolge, Mail bei Absage/Ende,
   Mail bei Terminänderung, E-Mail-Bestätigung (Double-Opt-in) mit Gültigkeit des Links in Stunden.
-- Unbestätigte Eintragungen stehen als *Unbestätigt (E-Mail-Bestätigung offen)* ohne Anmeldenummer in
-  der Liste und können entfernt werden.
+- Unbestätigte Eintragungen (`pending`) stehen als *Unbestätigt (E-Mail-Bestätigung offen)* ohne
+  Anmeldenummer in der Liste und können entfernt werden. Der frühere Status `unconfirmed` wird beim
+  Datenbank-Update 3.18.0 zu `pending`; Restwerte zeigen Seite und Export wie `pending`, und die
+  Datenschutz-Aufbewahrung löscht sie wie `pending` nach Ablauf des Bestätigungslinks.
+- *CSV exportieren* führt zum Export des Events (siehe unten).
+
+Reiter *Warteschlange & Export* (`Admin\WaitlistsPage`):
+
+- Einträge eines Events, optional eines Termins, je Ticketart in Warteschlangen-Reihenfolge (entfernte
+  Einträge ausgeblendet; E-Mail-Adressen im Supportprofil maskiert).
+- *Angebot an nächste Person senden* schreibt die nächste wartende Person einer Ticketart an (Audit
+  `waitlist_offer_sent`); *Entfernen* nimmt einen Eintrag aus der Warteschlange.
+- *CSV exportieren* (Nonce, Recht und Event-Berechtigung geprüft, Audit `waitlist_exported`).
 
 ## REST
 

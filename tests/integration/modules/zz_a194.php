@@ -255,7 +255,13 @@ check( 'PayPal webhook verification failure: error answer without client secret'
 
 /* ======================================================================= SMS / fiscal / wallet errors */
 echo "A194: SMS, fiscal and wallet provider failures\n";
-PassCaptain\Modules\Sms::register();
+// Register the SMS module only once: modules/sms.php may have done it already (the test hook stub, unlike
+// WordPress, does not dedupe identical callbacks – a second register() writes every consent audit row twice).
+$a194_sms_registered = false;
+foreach ( $GLOBALS['wpcap_test_hooks']['wpcap_order_creating'] ?? array() as $a194_cbs ) {
+	foreach ( $a194_cbs as $a194_cb ) { if ( array( PassCaptain\Modules\Sms::class, 'store_consent' ) === $a194_cb[0] ) { $a194_sms_registered = true; } }
+}
+if ( ! $a194_sms_registered ) { PassCaptain\Modules\Sms::register(); }
 $a194_sms_before = Settings::get( 'sms' );
 Settings::update( array( 'twilio_account_sid' => 'AC' . str_repeat( 'c3', 16 ), 'sms' => array_merge( PassCaptain\Modules\Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49' ) ) ) );
 // Merged checkout (PRIV-16): the SMS opt-in needs a confirmed number – a verified code request for it.
@@ -468,7 +474,9 @@ foreach ( $a194_fuzz_targets as $a194_target => $a194_call ) {
 			$a194_ok = $a194_r['res'] instanceof WP_Error && $a194_r['status'] >= 400 && $a194_r['status'] < 500;
 			if ( ! $a194_ok && ! $a194_r['res'] instanceof WP_Error && $a194_r['status'] < 300 && ( in_array( $a194_value, array( null, '', ' ' ), true ) || in_array( $a194_field, $a194_tolerant[ $a194_target ] ?? array(), true ) ) ) { $a194_ok = true; }
 			$a194_text = a194_text( $a194_r['res'] );
-			$a194_clean = ! $a194_r['issues'] && '' === $a194_r['output'] && false === strpos( $a194_text, '#0 ' ) && false === stripos( $a194_text, 'stack trace' ) && false === stripos( $a194_text, '.php' ) && strlen( $a194_text ) < 4000;
+			// Trace/length checks apply to error answers; an accepted checkout may carry long data (A601 GiroCode SVG).
+			$a194_err_text = $a194_r['res'] instanceof WP_Error ? $a194_text : '';
+			$a194_clean = ! $a194_r['issues'] && '' === $a194_r['output'] && false === strpos( $a194_err_text, '#0 ' ) && false === stripos( $a194_err_text, 'stack trace' ) && false === stripos( $a194_err_text, '.php' ) && strlen( $a194_err_text ) < 4000;
 			if ( ! $a194_ok || ! $a194_clean ) {
 				$a194_bad[] = "$a194_target.$a194_field=$a194_label → " . $a194_r['status'] . ' ' . substr( $a194_text, 0, 140 ) . ( $a194_r['issues'] ? ' [' . substr( $a194_r['issues'][0], 0, 160 ) . ']' : '' ) . ( '' !== $a194_r['output'] ? ' [output]' : '' );
 			}

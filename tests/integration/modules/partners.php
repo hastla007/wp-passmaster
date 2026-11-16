@@ -211,7 +211,7 @@ $tok1 = $k1['key'];
 $row1 = PartnerKeys::get( $k1['key_id'] );
 $secret1 = substr( $tok1, strlen( 'wpcap_pk_' ) + 13 );
 check( 'key format wpcap_pk_{prefix}_{secret}; only the SHA-256 hash is stored', 1 === preg_match( '/^wpcap_pk_[a-f0-9]{12}_[a-f0-9]{64}$/', $tok1 ) && hash( 'sha256', $secret1 ) === $row1->secret_hash && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_partner_keys WHERE secret_hash=%s OR scopes LIKE %s OR label LIKE %s", $secret1, '%' . $secret1 . '%', '%' . $secret1 . '%' ) ) );
-check( 'new key is shown once to the admin', $tok1 === get_transient( 'wpcap_partner_new_key_1' ) );
+check( 'new key is shown once to the admin (A507: encrypted one-time secret, gone after reading)', $tok1 === PassCaptain\Security\OneTimeSecret::take( 'partnerkey' ) && null === PassCaptain\Security\OneTimeSecret::take( 'partnerkey' ) );
 check( 'audit log records key creation', 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='partner_key_created' AND object_id=%d", $k1['key_id'] ) ) );
 
 $me = pa_call( 'me', null, $tok1 );

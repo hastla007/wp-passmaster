@@ -52,6 +52,15 @@ test('money/parseMoney: euro formatting and tolerant parsing', () => {
 	assert.equal(p.parseMoney('12,345'), 1234, 'extra decimals are cut, not rounded');
 });
 
+test('money/parseMoney follow the currency minor unit and number format (A403)', () => {
+	const jpy = load('assets/boxoffice/pos.js', { window: { wpcapPos: { decimals: 0, decimalPoint: ',', thousandsSep: '.' } } }).exports;
+	assert.equal(jpy.money(123456), '123.456');
+	assert.equal(jpy.parseMoney('1.500'), 1500, 'no minor unit: separators are thousands');
+	const kwd = load('assets/boxoffice/pos.js', { window: { wpcapPos: { decimals: 3, decimalPoint: '.', thousandsSep: ',' } } }).exports;
+	assert.equal(kwd.money(1234567), '1,234.567');
+	assert.equal(kwd.parseMoney('12.5'), 12500);
+});
+
 test('no form on the page: script stays inert', () => {
 	const env = pos({ empty: true });
 	assert.equal(env.timers.pending.size, 0);

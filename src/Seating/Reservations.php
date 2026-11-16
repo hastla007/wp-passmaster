@@ -478,7 +478,7 @@ final class Reservations {
 		}
 		if ( 0 !== $missing_total ) {
 			Audit::record( 'seat_recovery_failed', 'order', $order_id, array( 'missing_seats' => $missing_total ) );
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen', 'pass-captain' ), sprintf( /* translators: %d: order id */ __( 'Für Bestellung #%d ist die Zahlung nach Ablauf der Reservierung eingegangen; nicht alle Sitzplätze konnten erneut zugewiesen werden. Bitte manuell klären.', 'pass-captain' ), $order_id ) );
+			\PassCaptain\Alerts::raise( 'seats_missing', __( 'Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen', 'pass-captain' ), sprintf( /* translators: %d: order id */ __( 'Für Bestellung #%d ist die Zahlung nach Ablauf der Reservierung eingegangen; nicht alle Sitzplätze konnten erneut zugewiesen werden. Bitte manuell klären.', 'pass-captain' ), $order_id ) );
 		} else {
 			Audit::record( 'seats_recovered', 'order', $order_id );
 		}

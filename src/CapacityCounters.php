@@ -807,8 +807,8 @@ final class CapacityCounters {
 		do_action( 'wpcap_capacity_drift', $report );
 		if ( apply_filters( 'wpcap_capacity_drift_alert', true, $report ) && ! get_transient( 'wpcap_capacity_drift_mail' ) ) {
 			set_transient( 'wpcap_capacity_drift_mail', 1, HOUR_IN_SECONDS );
-			wp_mail(
-				get_option( 'admin_email' ),
+			\PassCaptain\Alerts::raise(
+				'capacity_resync',
 				__( 'Pass Captain: Kontingentzähler korrigiert', 'pass-captain' ),
 				sprintf(
 					/* translators: 1: number of orders, 2: number of occurrences, 3: order ids */

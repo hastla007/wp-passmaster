@@ -374,6 +374,13 @@ Service::flush();
 $big = $wpdb->get_row( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='wallet_sync' ORDER BY job_id DESC LIMIT 1" );
 check( 'dispatch: more than INLINE_LIMIT tickets go to the job queue only', 'queued' === $big->status && Service::INLINE_LIMIT + 5 === count( json_decode( $big->payload, true )['ticket_ids'] ) );
 $wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $big->job_id );
+// A374: at the end of a web request (shutdown) changed tickets are only queued; nothing is pushed inline.
+$wpw_apns->calls = array();
+Service::queue( array( (int) $ticket2->ticket_id ) );
+Service::flush_on_shutdown();
+$a374_job = $wpdb->get_row( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='wallet_sync' ORDER BY job_id DESC LIMIT 1" );
+check( 'A374: shutdown flush only queues the push (no inline provider call, job stays queued)', array() === $wpw_apns->calls && 'queued' === $a374_job->status && array( (int) $ticket2->ticket_id ) === json_decode( $a374_job->payload, true )['ticket_ids'] );
+$wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $a374_job->job_id );
 
 /* ---- Rotation for reason 'print' (Printing::rotate_codes) ---- */
 $print_code = bin2hex( random_bytes( 32 ) );

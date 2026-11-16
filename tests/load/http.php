@@ -37,6 +37,19 @@ if ( PHP_SAPI === 'cli-server' ) {
 	foreach ( array( 'wpcap_checkout_ip_limit', 'wpcap_manual_orders_per_client', 'wpcap_manual_open_orders_per_email' ) as $hook ) {
 		$GLOBALS['wp_filter'][ $hook ][10]['wpcap_load'] = array( 'function' => static fn() => PHP_INT_MAX, 'accepted_args' => 1 );
 	}
+	// Since the merged 1.5 line "manual" (bank transfer) is only offered with payment instructions or a bank
+	// account (ManualGateway::configured()); give this private server instructions without touching the site.
+	$GLOBALS['wp_filter']['option_wpcap_settings'][10]['wpcap_load'] = array(
+		'function' => static function ( $settings ) {
+			$settings = is_array( $settings ) ? $settings : array();
+			$settings['enabled_providers'] = array_values( array_unique( array_merge( (array) ( $settings['enabled_providers'] ?? array() ), array( 'manual' ) ) ) );
+			if ( '' === trim( (string) ( $settings['manual_instructions'] ?? '' ) ) ) { $settings['manual_instructions'] = 'Load test: payment on site.'; }
+			// The race for the last tickets needs the whole capacity: no A634 share cap for bank transfer holds here.
+			$settings['manual_hold_max_percent'] = 0;
+			return $settings;
+		},
+		'accepted_args' => 1,
+	);
 	chdir( $root );
 	$_SERVER['SCRIPT_FILENAME'] = $root . '/index.php';
 	require $root . '/index.php';
@@ -178,7 +191,8 @@ for ( $b = 0; $b < $cfg['buyers']; $b++ ) {
 }
 list( $rows, $wall ) = fire( $reqs, $cfg['concurrency'] );
 $by_key = array();
-foreach ( $reqs as $r ) { if ( ! empty( $rows[ $r['i'] ]['body']['order_id'] ) ) { $by_key[ $r['key'] ][] = (int) $rows[ $r['i'] ]['body']['order_id']; } }
+// The public checkout answer carries no internal ids (order_id/public_id removed); the payment reference is unique per order.
+foreach ( $reqs as $r ) { if ( ! empty( $rows[ $r['i'] ]['body']['reference'] ) ) { $by_key[ $r['key'] ][] = (string) $rows[ $r['i'] ]['body']['reference']; } }
 $split = count( array_filter( $by_key, static fn( $ids ) => count( array_unique( $ids ) ) > 1 ) );
 $sold = array_sum( array_intersect_key( $keys, $by_key ) );
 $held = (int) $wpdb->get_var( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active'" );
@@ -186,7 +200,8 @@ $s = stats( 'checkout (REST)', $rows, $wall, static fn( $r ) => 201 === $r['code
 invariant( 'no overselling', $held <= $cfg['capacity'], "held $held of {$cfg['capacity']}" );
 invariant( 'held = tickets of successful orders', $held === $sold, "sold $sold" );
 invariant( 'one order per idempotency key', 0 === $split );
-invariant( 'no unexpected errors', 0 === $s['errors'], json_encode( array_count_values( array_map( static fn( $r ) => $r['code'] . ' ' . ( $r['body']['code'] ?? '' ), array_filter( $rows, static fn( $r ) => ! in_array( $r['code'], array( 200, 201, 409 ), true ) ) ) ) ) );
+// Unexpected errors with status, code and reason (a 409 that is not sold out counts as well).
+invariant( 'no unexpected errors', 0 === $s['errors'], json_encode( array_count_values( array_map( static fn( $r ) => $r['code'] . ' ' . ( $r['body']['code'] ?? '' ) . ( isset( $r['body']['data']['reason'] ) ? '/' . $r['body']['data']['reason'] : '' ), array_filter( $rows, static fn( $r ) => ! in_array( $r['code'], array( 200, 201 ), true ) && ! ( 409 === $r['code'] && in_array( (string) ( $r['body']['data']['reason'] ?? '' ), array( 'sold_out', 'occurrence_sold_out' ), true ) ) ) ) ) ) );
 $report[] = $s;
 
 /* ---- check-in ---- */

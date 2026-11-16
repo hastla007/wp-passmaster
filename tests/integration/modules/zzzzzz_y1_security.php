@@ -449,13 +449,16 @@ check( 'every token/staff page sends the private-page headers' . ( $y1_missing ?
 $y1_plugin_src = (string) file_get_contents( WPCAP_PATH . 'src/Plugin.php' );
 check( 'the scanner page protection runs on template_redirect (before the theme prints headers)', false !== strpos( $y1_plugin_src, "add_action( 'template_redirect', array( PublicEvents::class, 'maybe_protect_scanner_page' )" ) );
 PrivatePage::reset();
-$GLOBALS['y1_post'] = (object) array( 'post_content' => '<p>Einlass</p>[wp_pass_captain_scanner]' );
+// In a full run zz_a268 defined get_post() first: it returns $GLOBALS['wpcap_test_post'] (set both).
+$y1_test_post = $GLOBALS['wpcap_test_post'] ?? null;
+$GLOBALS['y1_post'] = $GLOBALS['wpcap_test_post'] = (object) array( 'post_content' => '<p>Einlass</p>[wp_pass_captain_scanner]' );
 $y1_scanner = \PassCaptain\PublicEvents::protect_scanner_page();
 $y1_scanner_lines = PrivatePage::last_sent();
-$GLOBALS['y1_post'] = (object) array( 'post_content' => '[wp_pass_captain_events]' );
+$GLOBALS['y1_post'] = $GLOBALS['wpcap_test_post'] = (object) array( 'post_content' => '[wp_pass_captain_events]' );
 PrivatePage::reset();
 $y1_events = \PassCaptain\PublicEvents::protect_scanner_page();
 unset( $GLOBALS['y1_post'] );
+if ( null === $y1_test_post ) { unset( $GLOBALS['wpcap_test_post'] ); } else { $GLOBALS['wpcap_test_post'] = $y1_test_post; }
 check( 'a page with the scanner shortcode gets the headers, the public event page does not', true === $y1_scanner && in_array( 'X-Frame-Options: DENY', $y1_scanner_lines, true ) && false === $y1_events && array() === PrivatePage::last_sent() );
 
 /* ------------------------------------------------------------------ QA-8: array parameters */

@@ -227,9 +227,10 @@ Kalenderseite selbst.
 
 Eventseiten dürfen vom Seiten-Cache/CDN gecacht werden: Sie enthalten für Gäste keine Nonce (die REST-Nonce wird nur
 angemeldeten Käufern ausgeliefert, damit Käuferlimits „pro Konto“ greifen). Verfügbarkeit und Verkaufsfenster
-aktualisiert `assets/checkout.js` live über `GET /wp-json/pass-captain/v1/availability?types=1,2,3` (öffentlich,
-keine personenbezogenen Daten, `Cache-Control: public, max-age=5, stale-while-revalidate=10`, 120 Abrufe je Minute und
-Client-Netz): kurz nach dem Laden, genau zum nächsten Verkaufsstart (mit bis zu 2 s Streuung) und danach alle 20 s
+aktualisiert `assets/checkout.js` live über `GET /wp-json/pass-captain/v1/checkout/live?occurrences=…` (je Termin: Preis,
+Verfügbarkeit, Verkaufsfenster). Für eigene Integrationen bleibt `GET /wp-json/pass-captain/v1/availability?types=1,2,3`
+als schlanker Abruf je Ticketart erhalten (öffentlich, keine personenbezogenen Daten,
+`Cache-Control: public, max-age=5, stale-while-revalidate=10`, 120 Abrufe je Minute und Client-Netz; N11). Aktualisiert wird kurz nach dem Laden, genau zum nächsten Verkaufsstart (mit bis zu 2 s Streuung) und danach alle 20 s
 (Filter `wpcap_availability_poll_seconds`, 15–60 s), nur solange die Seite sichtbar ist. Ticketarten vor ihrem
 Verkaufsstart stehen mit „Verkauf ab …“ bzw. Countdown auf der Seite und werden zum Start freigeschaltet. Ausverkaufte
 Ticketarten bieten „Auf die Warteliste“ an (Double-Opt-in; abschaltbar mit `wpcap_waitlist_frontend`). Wer den Seiten-
@@ -256,7 +257,9 @@ Die Suche unter **Pass Captain → Bestellungen** nutzt die Indizes der Bestellt
 
 ## Systemstatus, Diagnose und Monitoring
 
-**Pass Captain → Systemstatus** (Capability `manage_options`) zeigt den Hintergrundbetrieb auf einen Blick:
+**Pass Captain → Systemstatus** (Capability `manage_options`) ist die einzige Status-Seite (N04) mit den Reitern
+*Übersicht* (dieser Abschnitt) und *Betrieb* (siehe „Betriebsübersicht“ unten; die frühere Seite
+`admin.php?page=wpcap-operations` leitet dorthin weiter). Der Reiter *Übersicht* zeigt den Hintergrundbetrieb auf einen Blick:
 
 - **WP-Cron und Worker:** je Plugin-Hook (`wpcap_process_jobs`, `wpcap_process_messages`, `wpcap_cleanup_reservations`, `wpcap_privacy_retention`) den nächsten geplanten Lauf und den **letzten erfolgreichen Lauf**. Der Webhook-Versand (`wpcap_webhooks_dispatch`) wird nicht als Cron-Ereignis gelistet, sondern über seinen Heartbeat und die Zustellungs-Queue überwacht. Jeder Worker (Jobs, E-Mails, Webhooks, SMS, Reservierungs-Bereinigung) schreibt am Ende seines Laufs einen Heartbeat (Optionen `wpcap_heartbeat_<worker>`, Zeit und Anzahl verarbeiteter Einträge). Ein Heartbeat älter als vier Intervalle (20 Minuten bei den Fünf-Minuten-Queues, 4 Stunden bei der Bereinigung) gilt als veraltet; mit `DISABLE_WP_CRON` wird dann ausdrücklich auf den fehlenden externen Cron-Job hingewiesen. Nicht geplante oder um mehr als 10 Minuten überfällige Ereignisse werden ebenfalls markiert.
 - **Warteschlangen:** offene Einträge nach Status für Job-Queue (`wpcap_jobs`, zusätzlich nach Job-Typ), E-Mail-Queue, Webhook-Zustellungen und SMS-Queue; überfällige Einträge (fällig seit über 30 Minuten) und lang laufende Claims (`locked_at` älter als 5 Minuten). Die Worker geben Claims nach 15 Minuten selbst zurück – ältere Claims bedeuten, dass seither kein Worker lief.
@@ -473,6 +476,8 @@ Das Plugin trägt eigene Prüfungen in **Werkzeuge → Website-Zustand** ein (Si
 | Zahlungs-Webhooks (`wpcap_payment_webhooks`) | ein aktiver Zahlungsanbieter mit Webhooks (ohne `manual`) hatte in `payment_webhook_hours` (48) Bestellungen, aber keine Webhook-Benachrichtigung (Tabelle `wpcap_payment_events`) | – |
 | Fehlerhafte Zahlungs-Webhooks (`wpcap_webhook_errors`, A323) | ≥ `webhook_failures` (1) abgelehnte (Signatur, Nachricht, Prüfung beim Anbieter) oder gescheiterte Webhook-Benachrichtigungen in `mail_window_hours` (24) – sofort, nicht erst nach 48 h | ≥ `webhook_exceptions_critical` (1) Absturz bei der Verarbeitung oder ≥ `webhook_failures_critical` (10) Fehler |
 | Zahlungsstart (`wpcap_payment_start`, A324) | ≥ `payment_start_failures` (1) fehlgeschlagener Zahlungsstart in `payment_start_window_minutes` (60) | ≥ `payment_start_failures_critical` (5) – „Häufung“, erscheint als Admin-Hinweis |
+| Öffentliche REST-Schnittstelle (`wpcap_rest_anonymous`, A375) | Eigener Abruf von `pass-captain/v1/events` ohne Cookie scheitert (Loopback-Fehler, andere Antwort) | HTTP 401/403 – REST für Gäste gesperrt (Checkout, Portal, Scanner betroffen); Ergebnis 6 h zwischengespeichert (`wpcap_health_rest_probe_ttl`) |
+| Proxy (`wpcap_proxy`, A375) | Weiterleitungs-Header oder private Absenderadresse ohne vertrauenswürdige Proxys (aktuelle Anfrage oder Checkout der letzten 7 Tage) | – |
 
 Alle Schwellwerte ändert der Filter `wpcap_health_thresholds` (Array, siehe [HOOKS.md](HOOKS.md)); `0` schaltet eine Anzahl-Schwelle ab:
 
@@ -512,7 +517,7 @@ Die Bestellansicht hat den Abschnitt **„Verlauf“**: Audit-Einträge der Best
 
 ### Betriebsübersicht: Rückstände und Dead Letters (A163)
 
-**Pass Captain → Einstellungen & Integrationen → Betrieb** (nur `manage_options`) zeigt die Ergebnisse der Prüfungen und je Warteschlange – Hintergrundjobs (`wpcap_jobs`), E-Mail-Warteschlange (`wpcap_message_queue`), Webhook-Zustellungen (`wpcap_webhook_deliveries`, falls das Modul installiert ist), SMS-Warteschlange (`wpcap_sms_messages`, falls das SMS-Modul installiert ist, A417) –:
+**Pass Captain → Systemstatus → Reiter Betrieb** (Bereich „Einstellungen & Integrationen“, nur `manage_options`; früher eigene Seite `wpcap-operations`) zeigt die Ergebnisse der Prüfungen und je Warteschlange – Hintergrundjobs (`wpcap_jobs`), E-Mail-Warteschlange (`wpcap_message_queue`), Webhook-Zustellungen (`wpcap_webhook_deliveries`, falls das Modul installiert ist), SMS-Warteschlange (`wpcap_sms_messages`, falls das SMS-Modul installiert ist, A417) –:
 
 - Einträge je Status, Anzahl fälliger Einträge und Wartezeit des ältesten,
 - die endgültig fehlgeschlagenen Einträge (Jobs `dead_letter`, E-Mails und Webhooks `failed`, SMS `failed`, `held` – wegen des Monatsbudgets zurückgehalten, mit Verfallsdatum – und `unknown` – Versandergebnis unklar, A416; neueste 50) mit Typ, Versuchen, **Bezug** (A326: Bestellung, Ticket, Termin, Event, Erstattung oder Lauf als Wert mit Link – nur diese Ganzzahl-IDs werden aus dem Inhalt gelesen, bei Jobs und E-Mails zusätzlich die gespeicherte Bestell-ID), letztem Fehler (A325: der Grund des Handlers – sein `WP_Error`, die Ausnahme mit Fehler-ID oder der `wp_mail`-Fehler des Laufs; bei E-Mails der Fehler des Mailers bzw. die fehlende Vorlage) (Secrets, Karten- und IBAN-Daten entfernt, E-Mail-Adressen maskiert, siehe SECURITY.md „Fehlerausgaben ohne Secrets“) und nur den **Feldnamen** des Inhalts (bei Webhooks die von `data.object`); E-Mail-Empfänger erscheinen maskiert. Inhalte, Betreffzeilen und Secrets werden nie angezeigt.
@@ -765,7 +770,7 @@ Vorrang beim Lesen: Konstante `WPCAP_<NAME>` (z. B. `WPCAP_STRIPE_SECRET_KEY`) >
 
 **Formulare:** Gespeicherte Werte werden nie angezeigt, nur „Gespeichert (verschlüsselt), endet auf …abcd“ (letzte vier Zeichen, nur bei Werten ab 12 Zeichen). Leeres Feld = Wert bleibt unverändert, die Checkbox „Gespeicherten Wert löschen“ entfernt ihn. Das Audit-Protokoll enthält nur die Namen geänderter Einstellungen, nie Werte.
 
-**Migration:** Nach dem Update verschiebt der erste Aufruf (Frontend, Admin, Cron oder WP-CLI) vorhandene Klartextwerte hinter der Upgrade-Sperre (`GET_LOCK`, wie das Schema-Upgrade) in den verschlüsselten Speicher und entfernt sie aus `wpcap_settings` (Audit-Eintrag `secrets_migrated`, nur Namen). Der Schritt ist idempotent und unabhängig von der Schema-Version (Option `wpcap_secrets_version`). Taucht später erneut ein Klartextwert in `wpcap_settings` auf (z. B. nach einem Downgrade auf eine ältere Plugin-Version und erneutem Speichern), wird er beim nächsten Aufruf wieder übernommen und entfernt. Ältere Datenbanksicherungen enthalten die Zugangsdaten weiterhin im Klartext – Sicherungen von vor dem Update entsprechend schützen oder Zugangsdaten beim Anbieter erneuern.
+**Migration:** Nach dem Update verschiebt der erste Aufruf (Frontend, Admin, Cron oder WP-CLI) vorhandene Klartextwerte hinter der Upgrade-Sperre (`GET_LOCK`, wie das Schema-Upgrade) in den verschlüsselten Speicher und entfernt sie aus `wpcap_settings` (Audit-Eintrag `secrets_moved_to_store` beim Schema-Upgrade über `Settings::migrate_secrets_to_store()`, sonst `secrets_migrated`; nur Namen). Der Schritt ist idempotent und unabhängig von der Schema-Version (Option `wpcap_secrets_version`). Taucht später erneut ein Klartextwert in `wpcap_settings` auf (z. B. nach einem Downgrade auf eine ältere Plugin-Version und erneutem Speichern), wird er beim nächsten Aufruf wieder übernommen und entfernt. Ältere Datenbanksicherungen enthalten die Zugangsdaten weiterhin im Klartext – Sicherungen von vor dem Update entsprechend schützen oder Zugangsdaten beim Anbieter erneuern.
 
 **Fail closed:** Lässt sich ein gespeicherter Wert nicht entschlüsseln (Schlüssel geändert oder fehlt, Salts erneuert, Datenbank manipuliert), gilt der Dienst als nicht eingerichtet (z. B. erscheint Stripe nicht im Checkout, Webhooks werden mangels Signaturgeheimnis abgelehnt). Ein Admin-Hinweis nennt die betroffenen Einstellungen; die Felder zeigen „nicht entschlüsselbar – bitte neu eingeben“. Werte werden dabei nie protokolliert. Website-Zustand → Info zeigt im Abschnitt „Pass Captain – Zugangsdaten“ je Einstellung nur die Quelle (Konstante, verschlüsselt gespeichert, nicht entschlüsselbar, nicht gesetzt).
 
@@ -1319,8 +1324,8 @@ stimmt daher immer mit ihm überein.
   `Soll/Haben-Kennzeichen` (`S` = Verkauf, `H` = Rechnungskorrektur/Erstattung), `WKZ Umsatz`, `Konto`
   (Geldkonto), `Gegenkonto (ohne BU-Schlüssel)` (Erlöskonto), `BU-Schlüssel`, `Belegdatum` (`TTMM`),
   `Belegfeld 1` (Beleg- bzw. Bestellnummer), `Belegfeld 2` (korrigierte Rechnung), `Buchungstext`.
-- Konten: Standard SKR03 – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit);
-  anpassbar über den Filter `wpcap_datev_accounts` (z. B. SKR04, Geldkonto je Zahlungsanbieter, BU-Schlüssel
+- Konten: Einstellung „Kontenrahmen für den DATEV-Buchungsstapel“ (Einstellungen → Rechnungen): SKR03 (Standard) – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit); SKR04 – 4400, 4300, 4200, Geldkonto 1460. Ein eigenes Geldkonto (4–8 Ziffern) ersetzt den Geldtransit;
+  darüber hinaus anpassbar über den Filter `wpcap_datev_accounts` (z. B. SKR04, Geldkonto je Zahlungsanbieter, BU-Schlüssel
   je Satz).
 - Belege im Vermittlermodell sind Umsatz des Veranstalters und werden nicht gebucht (Provision über die
   Partnerabrechnung).
@@ -2168,7 +2173,7 @@ Schema 3.10.27):
 
 ## Captain-Suite: Status der Verträge und Provider (A670, A678)
 
-**Pass Captain → Betrieb → Captain-Suite** (`Admin\SuiteStatus`, Recht `manage_options`) zeigt je Vertrag, den der
+**Pass Captain → Systemstatus → Betrieb → Captain-Suite** (`Admin\SuiteStatus`, Recht `manage_options`) zeigt je Vertrag, den der
 Kern anbietet (`workflow`, `review`; [CONTRACTS.md](CONTRACTS.md)):
 
 - **Status:** „Vertrag verfügbar – kein Plugin registriert“, „Vertrag verfügbar – Provider aktiv (spricht x.y.z)“

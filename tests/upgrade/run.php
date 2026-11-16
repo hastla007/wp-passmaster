@@ -160,7 +160,8 @@ function checkout( $ref ) {
 		$main = 'pass-captain.php';
 		exec( 'git -C ' . escapeshellarg( $root ) . ' cat-file -e ' . escapeshellarg( $ref . ':' . $main ) . ' 2>/dev/null', $unused, $has_main );
 		if ( 0 !== $has_main ) { $main = 'wp-' . $main; }
-		$cmd = 'git -C ' . escapeshellarg( $root ) . ' archive --format=tar ' . escapeshellarg( $ref ) . ' src ' . escapeshellarg( $main ) . ' tests/integration/bootstrap.php | tar -x -C ' . escapeshellarg( $dir );
+		// The whole test bootstrap directory: later bootstraps require helper files next to them (wp-sanitize.php).
+		$cmd = 'git -C ' . escapeshellarg( $root ) . ' archive --format=tar ' . escapeshellarg( $ref ) . ' src ' . escapeshellarg( $main ) . ' tests/integration | tar -x -C ' . escapeshellarg( $dir );
 		exec( $cmd . ' 2>&1', $out, $code );
 		if ( 0 !== $code ) { throw new RuntimeException( "git archive $ref failed: " . implode( "\n", $out ) ); }
 	}
@@ -295,7 +296,7 @@ function snapshot_rows( $prefix ) {
 		$cols = array_keys( $def['columns'] );
 		$lines = array_map( 'json_encode', rows( 'SELECT ' . implode( ',', array_map( static fn( $c ) => "`$c`", $cols ) ) . " FROM `$prefix$t`" ) );
 		sort( $lines );
-		$out[ $t ] = array( 'cols' => $cols, 'lines' => $lines );
+		$out[ $t ] = array( 'cols' => $cols, 'lines' => $lines, 'defs' => $def['columns'] );
 	}
 	return $out;
 }
@@ -306,17 +307,86 @@ function snapshot_rows( $prefix ) {
  */
 const DERIVED_TABLES = array(
 	'wpcap_alloc_buyers', // BuyerLimits::maybe_migrate_keys() recomputes the buyer keys from the orders.
+	// Counters of the running minute/hour only: Installer::prepare_merged_schema() drops the rl_key layout
+	// of the "theirs" line of 1.5 and dbDelta recreates the table (bucket_key).
+	'wpcap_rate_limits',
 );
+
+/**
+ * Columns a one-off data migration encrypts in place with Security\Vault: table => column => vault
+ * context ({column} is replaced by that column of the row). After the upgrade such a value must be
+ * ciphertext that decrypts to the old value; it is compared in decrypted form.
+ */
+const ENCRYPTED_COLUMNS = array(
+	// Security\Vault::migrate_webhook_secrets(): webhook signing secrets.
+	'wpcap_webhook_subscriptions' => array( 'secret' => 'webhook_secret' ),
+	// Partners\Repository::migrate_payout_details(): partner payout details (IBAN etc.).
+	'wpcap_partners'              => array( 'payout_details' => 'partner_payout:{partner_id}' ),
+);
+
+/**
+ * Columns a schema migration renames: table => old name => [new name, old column type prefix]. The
+ * old values are compared with the new column when the old column had that type.
+ */
+const RENAMED_COLUMNS = array(
+	// Modules\BoxOffice::rename_legacy_register_column() (audit line of 1.5): the string fiscal register
+	// in register_id becomes fiscal_register_id; register_id is the numeric register afterwards.
+	'wpcap_boxoffice_sessions' => array( 'register_id' => array( 'fiscal_register_id', 'varchar' ) ),
+);
+
+/** Replaces ENCRYPTED_COLUMNS values by their plaintext (marked when not encrypted or undecryptable). */
+function decrypt_columns( $prefix, $table, array $now ) {
+	global $tmp;
+	$pairs = array();
+	$where = array();
+	foreach ( $now as $i => $row ) {
+		foreach ( ENCRYPTED_COLUMNS[ $table ] as $col => $context ) {
+			if ( ! array_key_exists( $col, $row ) || '' === (string) $row[ $col ] ) { continue; }
+			$pairs[] = array( (string) $row[ $col ], preg_replace_callback( '/\{(\w+)\}/', static fn( $m ) => (string) ( $row[ $m[1] ] ?? '' ), $context ) );
+			$where[] = array( $i, $col );
+		}
+	}
+	if ( ! $pairs ) { return $now; }
+	$file = $tmp . '/decrypt-' . $prefix . $table . '.json';
+	file_put_contents( $file, json_encode( $pairs ) );
+	$result = worker( $prefix, 'decrypt', array( '--input=' . $file ) );
+	foreach ( $where as $n => list( $i, $col ) ) {
+		$r = $result['values'][ $n ] ?? null;
+		if ( ! $r || ! $r['encrypted'] ) {
+			$now[ $i ][ $col ] = '(not encrypted) ' . $now[ $i ][ $col ];
+		} elseif ( null === $r['plain'] ) {
+			$now[ $i ][ $col ] = '(undecryptable) ' . $now[ $i ][ $col ];
+		} else {
+			$now[ $i ][ $col ] = $r['plain'];
+		}
+	}
+	return $now;
+}
 
 /** Rows of $before (its columns only) that are missing or changed after the upgrade. */
 function lost_rows( $prefix, array $before ) {
 	$lost = array();
 	foreach ( $before as $t => $snap ) {
 		if ( in_array( $t, DERIVED_TABLES, true ) ) { continue; }
-		$now = rows( 'SELECT ' . implode( ',', array_map( static fn( $c ) => "`$c`", $snap['cols'] ) ) . " FROM `$prefix$t`" );
+		$select = array();
+		foreach ( $snap['cols'] as $c ) {
+			$rename = RENAMED_COLUMNS[ $t ][ $c ] ?? null;
+			$select[] = $rename && 0 === strpos( (string) ( $snap['defs'][ $c ] ?? '' ), $rename[1] ) ? "`{$rename[0]}` AS `$c`" : "`$c`";
+		}
+		$now = rows( 'SELECT ' . implode( ',', $select ) . " FROM `$prefix$t`" );
+		if ( isset( ENCRYPTED_COLUMNS[ $t ] ) ) { $now = decrypt_columns( $prefix, $t, $now ); }
 		$missing = array_diff( $snap['lines'], array_map( 'json_encode', $now ) );
 		if ( $missing ) {
-			$lost[] = "$t: " . count( $missing ) . ' of ' . count( $snap['lines'] ) . ' rows changed/missing, e.g. ' . substr( reset( $missing ), 0, 300 );
+			// Columns that differ from the most similar row now (for the report).
+			$old = json_decode( reset( $missing ), true );
+			$best = null;
+			$best_row = array();
+			foreach ( $now as $row ) {
+				$diff = array_keys( array_diff_assoc( $old, $row ) );
+				if ( null === $best || count( $diff ) < count( $best ) ) { $best = $diff; $best_row = $row; }
+			}
+			$cols = null === $best ? 'no rows left' : implode( ', ', array_map( static fn( $c ) => $c . ' ' . json_encode( $old[ $c ] ) . ' -> ' . json_encode( $best_row[ $c ] ?? null ), $best ) );
+			$lost[] = "$t: " . count( $missing ) . ' of ' . count( $snap['lines'] ) . ' rows changed/missing, e.g. changed columns: ' . substr( $cols, 0, 400 );
 		}
 	}
 	return $lost;
@@ -324,6 +394,15 @@ function lost_rows( $prefix, array $before ) {
 
 function audit_count( $prefix, $action ) {
 	return (int) rows( "SELECT COUNT(*) AS n FROM `{$prefix}wpcap_audit_logs` WHERE action=" . esc( $action ) )[0]['n'];
+}
+
+/**
+ * Audit entries for moving provider secrets out of wpcap_settings: Settings::migrate_secrets_to_store()
+ * (merged code, runs first and moves plaintext as well as "pcv1:" values: secrets_moved_to_store) or
+ * Secrets::migrate() (secrets_migrated, for what is left). Both list the key names only.
+ */
+function secret_move_audits( $prefix ) {
+	return rows( "SELECT action, details FROM `{$prefix}wpcap_audit_logs` WHERE action IN ('secrets_moved_to_store','secrets_migrated')" );
 }
 
 /** Old site settings: a plaintext provider secret (moved by Secrets::migrate) and no credit-note prefix. */
@@ -354,16 +433,21 @@ function assert_upgraded( $label, $prefix, $old_version, array $before_rows, $co
 	// One-off data migrations.
 	$settings = option( $prefix, 'wpcap_settings' );
 	$pinned = writes( $prefix, 'wpcap_settings', static fn( $o, $n ) => 'GS' === ( $n['credit_note_prefix'] ?? '' ) && 'GS' !== ( is_array( $o ) ? ( $o['credit_note_prefix'] ?? '' ) : '' ) );
-	if ( version_compare( strtok( $old_version, '+' ), '3.8.3', '<' ) ) {
+	// Schema 3.8.3 is a version of the "theirs" line of 1.5: a site from the audit line ("ours", which kept
+	// the former default GS) is pinned like a release-1.4 site (Installer::migration_previous()).
+	$credit_previous = 'ours' === option( $prefix, 'wpcap_schema_origin' ) ? '3.5.0' : strtok( $old_version, '+' );
+	if ( version_compare( $credit_previous, '3.8.3', '<' ) ) {
 		check( "$label: legacy credit-note prefix pinned exactly once", 'GS' === ( $settings['credit_note_prefix'] ?? '' ) && 1 === $pinned, "pinned $pinned times" );
 	} else {
 		check( "$label: credit-note prefix not pinned (schema already 3.8.3+)", 0 === $pinned );
 	}
 	$vault = option( $prefix, 'wpcap_secrets' );
-	check( "$label: provider secret moved to the vault exactly once", ! array_key_exists( 'stripe_secret_key', (array) $settings ) && isset( $vault['stripe_secret_key'] ) && 1 === audit_count( $prefix, 'secrets_migrated' ) && 1 === (int) option( $prefix, 'wpcap_secrets_version' ) && 1 === writes( $prefix, 'wpcap_secrets' ), 'audit ' . audit_count( $prefix, 'secrets_migrated' ) . ', vault writes ' . writes( $prefix, 'wpcap_secrets' ) );
+	$audits = secret_move_audits( $prefix );
+	check( "$label: provider secret moved to the vault exactly once", ! array_key_exists( 'stripe_secret_key', (array) $settings ) && isset( $vault['stripe_secret_key'] ) && 1 === count( $audits ) && false !== strpos( (string) ( $audits[0]['details'] ?? '' ), 'stripe_secret_key' ) && false === strpos( (string) ( $audits[0]['details'] ?? '' ), 'sk_test_upgrade_a181' ) && 1 === (int) option( $prefix, 'wpcap_secrets_version' ) && 1 === writes( $prefix, 'wpcap_secrets' ), 'audit ' . json_encode( $audits ) . ', vault writes ' . writes( $prefix, 'wpcap_secrets' ) . ', version ' . json_encode( option( $prefix, 'wpcap_secrets_version' ) ) );
 	$rebuilds = writes( $prefix, 'wpcap_capacity_counters', static fn( $o, $n ) => 'building' === ( $n['state'] ?? '' ) );
 	check( "$label: capacity counters rebuilt $counter_rebuilds time(s) and equal the source sums", $counter_rebuilds === $rebuilds && in_array( option( $prefix, 'wpcap_capacity_counters' )['state'] ?? '', array( 'verifying', 'ready' ), true ) && is_array( $info ) && array() === $info['drift'], "rebuilds $rebuilds, drift " . json_encode( $info['drift'] ?? null ) );
-	check( "$label: box office migration ran once", 2 === (int) option( $prefix, 'wpcap_boxoffice_migration' ) && 1 === writes( $prefix, 'wpcap_boxoffice_migration' ) );
+	check( "$label: box office migration ran once", is_array( $info ) && (int) $info['boxoffice_migration'] === (int) option( $prefix, 'wpcap_boxoffice_migration' ) && 1 === writes( $prefix, 'wpcap_boxoffice_migration' ), 'version ' . json_encode( option( $prefix, 'wpcap_boxoffice_migration' ) ) . ' of ' . json_encode( $info['boxoffice_migration'] ?? null ) . ', writes ' . writes( $prefix, 'wpcap_boxoffice_migration' ) );
+	check( "$label: partner settlement migration ran once", is_array( $info ) && (int) $info['partners_migration'] === (int) option( $prefix, 'wpcap_partners_migration' ) && 1 === writes( $prefix, 'wpcap_partners_migration' ), 'version ' . json_encode( option( $prefix, 'wpcap_partners_migration' ) ) . ', writes ' . writes( $prefix, 'wpcap_partners_migration' ) );
 	check( "$label: buyer-limit key migration ran at most once", 1 >= writes( $prefix, 'wpcap_alloc_key_version' ) && 0 < (int) option( $prefix, 'wpcap_alloc_key_version' ) );
 	check( "$label: no schema error recorded", false === option( $prefix, 'wpcap_schema_error' ) );
 }
@@ -399,7 +483,7 @@ try {
 	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/src' ) ) as $file ) {
 		if ( '.php' === substr( (string) $file, -4 ) ) { $hooks += preg_match_all( "/add_action\(\s*'update_option_wpcap_db_version'/", (string) file_get_contents( (string) $file ) ); }
 	}
-	check( "worker runs every update_option_wpcap_db_version migration of src/ ($hooks)", 3 === $hooks, 'update the list in tests/upgrade/worker.php' );
+	check( "worker runs every update_option_wpcap_db_version migration of src/ ($hooks)", 4 === $hooks, 'update the list in tests/upgrade/worker.php' );
 
 	echo "Upgrade tests: fresh install (reference schema)\n";
 	$fresh = $base . 'f_';
@@ -414,9 +498,17 @@ try {
 
 	// Previous versions: tags v*, the state before the latest schema bump, extra refs.
 	$refs = array_filter( explode( "\n", trim( (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . " tag -l 'v*' --sort=version:refname 2>/dev/null" ) ) ) );
-	$bump = trim( (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . " log -n 1 --format=%H -G\"const DB_VERSION = '\" -- src/Installer.php 2>/dev/null" ) );
-	if ( '' !== $bump && '' !== trim( (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . ' rev-parse --verify --quiet ' . escapeshellarg( $bump . '^' ) . ' 2>/dev/null' ) ) ) {
-		$refs[] = $bump . '^';
+	$labels = array();
+	// Latest DB_VERSION change on this line (first parents; a merge counts with its diff to the first
+	// parent), so the commit before it has this line's previous schema – not a commit of a merged-in
+	// line whose schema bump the merge superseded. When that change is a merge, the merged-in lines'
+	// tips are previous states too (sites that ran the other development line).
+	$bump = trim( (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . " log -n 1 --first-parent -m --format=%H -G\"const DB_VERSION = '\" -- src/Installer.php 2>/dev/null" ) );
+	$parents = '' === $bump ? array() : array_slice( preg_split( '/\s+/', trim( (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . ' rev-list --parents -n 1 ' . escapeshellarg( $bump ) . ' 2>/dev/null' ) ) ), 1 );
+	foreach ( array_values( $parents ) as $n => $parent ) {
+		$ref = $bump . '^' . ( $n + 1 );
+		$refs[] = $ref;
+		$labels[ $ref ] = 0 === $n ? 'before last schema bump' : 'merged line ' . ( $n + 1 ) . ' before last schema bump';
 	}
 	foreach ( array_filter( explode( ',', (string) getenv( 'WPCAP_UPGRADE_REFS' ) ) ) as $extra ) { $refs[] = trim( $extra ); }
 	$refs = array_values( array_unique( $refs ) );
@@ -425,7 +517,7 @@ try {
 
 	foreach ( $refs as $i => $ref ) {
 		$prefix = $base . 's' . $i . '_';
-		$label = ( 0 === strpos( $ref, 'v' ) ? $ref : 'before last schema bump' );
+		$label = $labels[ $ref ] ?? $ref;
 		list( $old, $before, $rebuilds ) = prepare_state( $ref, $prefix );
 		echo "Upgrade from $label (schema $old)\n";
 		check( "$label: previous state has an older schema version", version_compare( strtok( $old, '+' ), strtok( $current_version, '+' ), '<' ) );

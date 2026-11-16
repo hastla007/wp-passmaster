@@ -113,7 +113,7 @@ final class DbSession {
 			array(
 				'severity' => 'warning',
 				/* translators: %s: isolation level, e.g. READ-COMMITTED */
-				'message' => sprintf( __( 'Die Datenbank läuft mit der Transaktions-Isolation %s. Pass Captain setzt für Bestellungen, Zahlungsbestätigungen und das Aufräumen von Reservierungen selbst REPEATABLE READ; Erweiterungen, die eigene Kontingent-Transaktionen öffnen, sollten dasselbe tun (siehe docs/OPERATIONS.md).', 'pass-captain' ), implode( ' / ', $other ) ),
+				'message' => sprintf( __( 'Die Datenbank läuft mit der Transaktions-Isolation %s. Pass Captain setzt für Bestellungen, Zahlungsbestätigungen und das Aufräumen von Reservierungen selbst REPEATABLE READ; Erweiterungen, die eigene Kontingent-Transaktionen öffnen, sollten dasselbe tun.', 'pass-captain' ), implode( ' / ', $other ) ),
 			),
 		);
 	}

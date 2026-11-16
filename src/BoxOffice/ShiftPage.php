@@ -44,7 +44,7 @@ final class ShiftPage {
 	public static function denomination_fields( $prefix, $currency, $amount_name, $amount_label, $required = true ) {
 		$id = 'wpcap-denoms-' . sanitize_key( $prefix );
 		echo '<p><label>' . esc_html( $amount_label ) . ' <input type="text" inputmode="decimal" name="' . esc_attr( $amount_name ) . '" id="' . esc_attr( $id ) . '-total" size="10"' . ( $required ? ' required' : '' ) . '></label> ' . esc_html( $currency ) . '</p>';
-		echo '<details class="wpcap-denoms"><summary>' . esc_html__( 'Stückelung zählen (Scheine und Münzen)', 'pass-captain' ) . '</summary><table class="widefat striped wpcap-denoms-table" style="max-width:24rem" data-total="' . esc_attr( $id ) . '-total"><thead><tr><th>' . esc_html__( 'Wert', 'pass-captain' ) . '</th><th>' . esc_html__( 'Anzahl', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<details class="wpcap-denoms"><summary>' . esc_html__( 'Stückelung zählen (Scheine und Münzen)', 'pass-captain' ) . '</summary><table class="widefat striped wpcap-denoms-table" style="max-width:24rem" data-total="' . esc_attr( $id ) . '-total" data-decimals="' . (int) \PassCaptain\Money::decimals( $currency ) . '" data-decimal-point="' . esc_attr( \PassCaptain\Frontend\Format::js_config()['decimal'] ) . '"><thead><tr><th>' . esc_html__( 'Wert', 'pass-captain' ) . '</th><th>' . esc_html__( 'Anzahl', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( Cash::denominations( $currency ) as $value ) {
 			echo '<tr><td>' . esc_html( Cash::label( $value ) ) . '</td><td><input type="number" min="0" step="1" class="small-text" data-value="' . (int) $value . '" name="' . esc_attr( 'denoms_' . $prefix . '[' . (int) $value . ']' ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: denomination */ __( 'Anzahl %s', 'pass-captain' ), Cash::label( $value ) ) ) . '"></td></tr>';
 		}
@@ -171,6 +171,17 @@ final class ShiftPage {
 			Forms::hidden( 'shift_id', (int) $shift->session_id );
 			self::user_field( 'user_id', __( 'Kassierer hinzufügen', 'pass-captain' ), true );
 			echo ' <button class="button">' . esc_html__( 'Hinzufügen', 'pass-captain' ) . '</button></form>';
+		}
+
+		// A404: sales of this shift that have an order but no receipt yet (interrupted at the terminal or
+		// before the receipt) – they must be finished or cancelled before the shift is closed.
+		$unfinished = Service::unfinished_sales( $shift->session_id );
+		if ( $unfinished ) {
+			echo '<div class="notice notice-warning inline"><p><strong>' . esc_html( sprintf( /* translators: %d: number of sales */ _n( '%d Verkauf dieser Schicht ist noch nicht abgeschlossen (Bestellung ohne Beleg).', '%d Verkäufe dieser Schicht sind noch nicht abgeschlossen (Bestellung ohne Beleg).', count( $unfinished ), 'pass-captain' ), count( $unfinished ) ) ) . '</strong> ' . esc_html__( 'An der Kasse fortsetzen oder stornieren, bevor die Schicht geschlossen wird.', 'pass-captain' ) . '</p><ul>';
+			foreach ( $unfinished as $sale ) {
+				echo '<li>' . esc_html( sprintf( /* translators: 1: sale id, 2: time, 3: amount, 4: payment method */ __( 'Verkauf #%1$d · %2$s · %3$s · %4$s', 'pass-captain' ), (int) $sale->sale_id, Scope::local( (string) $sale->created_at, $tz, 'H:i' ), Forms::money( (int) $sale->total_minor, (string) $sale->currency ), Service::method_label( (string) $sale->payment_method ) ) ) . '</li>';
+			}
+			echo '</ul></div>';
 		}
 
 		// Movements (cash in/out, payouts, corrections).
@@ -436,7 +447,7 @@ final class ShiftPage {
 					echo '<a href="' . esc_url( self::url( 'shift', array( 'shift_id' => (int) $shift->session_id ) ) ) . '">#' . (int) $shift->session_id . '</a> · ' . esc_html( Service::user_name( $shift->user_id ) );
 				} elseif ( $handover ) {
 					echo esc_html( sprintf( /* translators: %s: user */ __( 'Übergabe an %s ausstehend', 'pass-captain' ), Service::user_name( $handover->to_user ) ) ) . ' ';
-					Forms::open_form( 'wpcap_pos_handover_cancel', 'wpcap_pos_handover_cancel_' . (int) $handover->handover_id, 'style="display:inline"' );
+					Forms::open_form( 'wpcap_pos_handover_cancel', 'wpcap_pos_handover_cancel_' . (int) $handover->handover_id, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Übergabe abbrechen?', 'pass-captain' ) . '"' );
 					Forms::hidden( 'handover_id', (int) $handover->handover_id );
 					echo '<input type="text" name="reason" size="12" required placeholder="' . esc_attr__( 'Grund', 'pass-captain' ) . '"> <button class="button-link-delete">' . esc_html__( 'Übergabe stornieren', 'pass-captain' ) . '</button></form>';
 				} else {

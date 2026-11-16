@@ -107,7 +107,11 @@ check( 'SEC-5: a repeated sign-up replaces the confirmation link (old link inval
 // Confirmation through the admin-post handler (POST only, nonce of the confirmation page).
 $_SERVER['REQUEST_METHOD'] = 'POST';
 $_POST = array( 'waitlist_id' => $z1_id, 'token' => $z1_tok_new, '_wpnonce' => 'n' );
-try { ob_start(); Waitlists::handle_confirm_request(); } catch ( Throwable $e ) { /* Http::end() / wp_die fakes throw. */ } finally { ob_end_clean(); }
+// Http::end() exits after the page; the wpcap_response_end action lets the test stop it with an exception
+// (without it the whole run ended here).
+$z1_end = static function () { throw new RuntimeException( 'z1 response end' ); };
+add_action( 'wpcap_response_end', $z1_end );
+try { ob_start(); Waitlists::handle_confirm_request(); } catch ( Throwable $e ) { /* Http::end() / wp_die fakes throw. */ } finally { ob_end_clean(); remove_action( 'wpcap_response_end', $z1_end ); }
 $_POST = array();
 unset( $_SERVER['REQUEST_METHOD'] );
 check( 'SEC-5: confirmation through the POST handler → position 2 behind the earlier confirmation', 2 === (int) z1_wl( 'z1-first@example.com' )->position && 'waiting' === z1_wl( 'z1-first@example.com' )->status );
@@ -216,7 +220,8 @@ foreach ( $z1_pages as list( $class, $method ) ) {
 }
 check( 'SEC-7: portal, ticket, invoice and invoice PDF exchange the URL token and accept the cookie' . ( $z1_missing ? ' – missing: ' . implode( ', ', $z1_missing ) : '' ), ! $z1_missing );
 check( 'SEC-7: the portal links the invoice without token when the cookie is in use', false !== strpos( z1_src( PassCaptain\OrderPortal::class, 'render_page' ), 'AccessCookie::via_cookie()' ) );
-check( 'SEC-7: the portal script sends the token in the header, not in the body', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/order-portal.js' ), "'X-WPCAP-Access-Token':TOKEN" ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'assets/order-portal.js' ), 'access_token:TOKEN' ) );
+// N11: the portal script is inline in OrderPortal::render() (assets/order-portal.js was unused and is removed).
+check( 'SEC-7: the portal script sends the token in the header, not in the body', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/OrderPortal.php' ), "'X-WPCAP-Access-Token':TOKEN" ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'src/OrderPortal.php' ), 'access_token:TOKEN' ) && ! file_exists( WPCAP_PATH . 'assets/order-portal.js' ) );
 AccessCookie::reset();
 
 /* ================================================================== SEC-V2 WooCommerce */

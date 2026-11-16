@@ -3,9 +3,11 @@
  * Live availability for cached event pages (audit R2, expert #7).
  *
  * Event pages are cached by page caches/CDNs: the remaining quantity, "Ausverkauft" and the sales
- * window in the HTML can be minutes old. The checkout script therefore asks
- * GET /pass-captain/v1/availability?types=1,2,3 when a sales start is reached and every 15–30 s
- * while the page is visible, and updates the maximum, the labels and the sold-out state.
+ * window in the HTML can be minutes old. Since the merge the plugin's own checkout script polls
+ * GET /pass-captain/v1/checkout/live (per occurrence, with legal texts and unlock codes) instead.
+ * GET /pass-captain/v1/availability?types=1,2,3 stays as the public, cacheable per-type endpoint for
+ * custom themes, widgets and integrations (N11); snapshot() also feeds the "remaining" field of a
+ * 409 checkout answer.
  *
  * The answer is public (no personal data), computed with one DisplayBatch (a fixed number of grouped
  * queries for all requested types), cacheable for 5 seconds by shared caches (max-age=5,

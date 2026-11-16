@@ -168,7 +168,12 @@ final class OrderAdapter {
 		$fiscal_seller = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? absint( $product_object->get_meta( self::FISCAL_SELLER_META, true ) ) : 0;
 		$fiscal_mode = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? sanitize_key( $product_object->get_meta( self::FISCAL_MODE_META, true ) ) : 'platform_seller';
 		$p       = $wpdb->prefix;
-		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.event_id,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// SEC-V2: event staff only get rows of events assigned to them, so the 500-row limit is not used up by
+		// other events (their own types would otherwise be missing on a busy site). Per-row check below.
+		$user_id = (int) get_current_user_id();
+		$staff   = ! current_user_can( 'manage_options' ) && ! \PassCaptain\Security\SupportAccess::covers( $user_id, 'wpcap_manage_events' );
+		$where   = $staff ? $wpdb->prepare( ' WHERE e.event_id IN (SELECT s.event_id FROM %i s WHERE s.user_id=%d AND s.capability=%s)', $p . 'wpcap_event_staff', $user_id, 'wpcap_manage_events' ) : '';
+		$rows    = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.event_id,e.name AS event_name,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ) . $where . ' ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- $where is prepared.
 		$options = array( '' => __( '— Kein Ticketprodukt —', 'pass-captain' ) );
 		$allowed = array();
 		foreach ( $rows as $row ) {
@@ -188,13 +193,13 @@ final class OrderAdapter {
 			$options = array( (string) $current => sprintf( '%1$s · %2$s (%3$s)', $type ? $type->event_name : '#' . $current, $type ? $type->name : '', __( 'keine Berechtigung für diese Veranstaltung – nicht änderbar', 'pass-captain' ) ) );
 		} elseif ( $current && ! isset( $options[ (string) $current ] ) ) {
 			/* translators: %d: ticket type ID */
-			$options[ (string) $current ] = sprintf( __( 'Unbekannte Ticketkategorie #%d', 'pass-captain' ), $current );
+			$options[ (string) $current ] = sprintf( __( 'Unbekannte Ticketart #%d', 'pass-captain' ), $current );
 		}
 		echo '<div class="options_group">';
 		woocommerce_wp_select(
 			array(
 				'id'          => self::PRODUCT_META,
-				'label'       => __( 'Pass Captain Ticketkategorie', 'pass-captain' ),
+				'label'       => __( 'Pass Captain Ticketart', 'pass-captain' ),
 				'description' => CartPricing::enabled()
 					? __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'pass-captain' )
 					: __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'pass-captain' ),
@@ -225,7 +230,7 @@ final class OrderAdapter {
 			// SEC-V2: linking or unlinking a ticket type of an event the user does not manage is refused;
 			// the product keeps its current link and seller fields (disabled field: nothing posted, no notice).
 			if ( $posted ) {
-				self::admin_error( __( 'Die Ticketkategorie wurde nicht geändert: Du darfst nur Ticketkategorien von Veranstaltungen verknüpfen, die du verwaltest.', 'pass-captain' ) );
+				self::admin_error( __( 'Die Ticketart wurde nicht geändert: Du darfst nur Ticketarten von Veranstaltungen verknüpfen, die du verwaltest.', 'pass-captain' ) );
 			}
 			return;
 		}
@@ -509,7 +514,7 @@ final class OrderAdapter {
 	public static function quantity_error( $type_id, $quantity ) {
 		$type = self::ticket_type( $type_id );
 		if ( ! $type ) {
-			return __( 'Diese Ticketkategorie existiert nicht mehr.', 'pass-captain' );
+			return __( 'Diese Ticketart existiert nicht mehr.', 'pass-captain' );
 		}
 		$name = sprintf( '%s – %s', $type->event_name, $type->name );
 		$now  = \PassCaptain\Clock::mysql();

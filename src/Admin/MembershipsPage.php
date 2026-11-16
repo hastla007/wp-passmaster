@@ -63,8 +63,8 @@ final class MembershipsPage {
 
 	public static function rule_label( $rule ) {
 		$scope = (int) $rule->event_id ? '#' . (int) $rule->event_id . ( (int) $rule->ticket_type_id ? ' / ' . __( 'Ticketart', 'pass-captain' ) . ' #' . (int) $rule->ticket_type_id : '' ) : __( 'alle Events', 'pass-captain' );
-		/* translators: 1: scope (event/ticket type), 2: uses per day, 3: total uses (0 = unlimited) */
-		return sprintf( __( '%1$s: %2$d/Tag, gesamt %3$s', 'pass-captain' ), $scope, (int) $rule->uses_per_day, (int) $rule->uses_total ? (string) (int) $rule->uses_total : '∞' );
+		/* translators: 1: scope (event/ticket type), 2: uses per day (∞ = unlimited), 3: total uses (∞ = unlimited) */
+		return sprintf( __( '%1$s: %2$s/Tag, gesamt %3$s', 'pass-captain' ), $scope, (int) $rule->uses_per_day ? (string) (int) $rule->uses_per_day : '∞', (int) $rule->uses_total ? (string) (int) $rule->uses_total : '∞' ); // A524: 0 per day = unlimited.
 	}
 
 	/** Open requests (pending passes in the user's scope) with approve/reject/revoke buttons (A481). */
@@ -131,7 +131,9 @@ final class MembershipsPage {
 	private static function validity( array $in ) {
 		$tz = FeatureScreens::site_timezone();
 		$from = Forms::local_to_utc( $in['valid_from'] ?? '', $tz );
-		$until = Forms::local_to_utc( $in['valid_until'] ?? '', $tz );
+		$until_in = trim( (string) ( $in['valid_until'] ?? '' ) );
+		// A524: a date without time means the end of that day (local time), not its start.
+		$until = Forms::local_to_utc( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $until_in ) ? $until_in . ' 23:59' : $until_in, $tz );
 		if ( null === $from || null === $until || $until <= $from ) { return Forms::error( 'wpcap_pass_validity', __( 'Bitte einen gültigen Zeitraum angeben: „Gültig bis“ muss nach „Gültig ab“ liegen.', 'pass-captain' ) ); }
 		return array( $from, $until );
 	}
@@ -203,7 +205,7 @@ final class MembershipsPage {
 
 	public static function state_label( $pass ) {
 		$now = current_time( 'mysql', true );
-		if ( 'active' !== $pass->status ) { return Forms::status_label( $pass->status ); }
+		if ( 'active' !== $pass->status ) { return Forms::status_label( $pass->status, 'order' ); }
 		if ( $pass->valid_until < $now ) { return __( 'Abgelaufen', 'pass-captain' ); }
 		if ( $pass->valid_from > $now ) { return __( 'Noch nicht gültig', 'pass-captain' ); }
 		return __( 'Aktiv', 'pass-captain' );
@@ -257,7 +259,7 @@ final class MembershipsPage {
 		FeatureScreens::row( $prefix . '-slot', __( 'Terminbindung (nur Service)', 'pass-captain' ), static function () use ( $prefix ) { Forms::select( 'slot_mode', array( 'slot_free' => __( 'Terminfrei (direkt an der Ressource)', 'pass-captain' ), 'slot_bound' => __( 'Terminpflichtig (bucht ein Zeitfenster)', 'pass-captain' ) ), 'slot_free', $prefix . '-slot' ); } );
 		FeatureScreens::input_row( $prefix . '-expires', 'expires_at', __( 'Regel gültig bis (optional)', 'pass-captain' ), '', 'datetime-local', '', __( 'Leer = bis zum Ende der Passlaufzeit.', 'pass-captain' ) );
 		FeatureScreens::input_row( $prefix . '-total', 'uses_total', __( 'Einlösungen gesamt', 'pass-captain' ), '0', 'number', 'min="0" max="65535"', __( '0 = unbegrenzt, 1 = Einmalnutzung.', 'pass-captain' ) );
-		FeatureScreens::input_row( $prefix . '-day', 'uses_per_day', __( 'Einlösungen pro Tag', 'pass-captain' ), '1', 'number', 'min="1" max="65535"' );
+		FeatureScreens::input_row( $prefix . '-day', 'uses_per_day', __( 'Einlösungen pro Tag (0 = unbegrenzt)', 'pass-captain' ), '1', 'number', 'min="0" max="65535"' );
 	}
 
 	private static function render_issue_form( $tz ) {
@@ -308,14 +310,14 @@ final class MembershipsPage {
 			$scope_label = 'event' === (string) ( $rule->scope ?? 'event' ) ? ( (int) $rule->event_id ? ( $events[ (int) $rule->event_id ] ?? '#' . (int) $rule->event_id ) : __( 'Alle Events', 'pass-captain' ) ) : self::service_rule_label( $rule );
 			echo '<tr><td>' . esc_html( $scope_label ) . '</td><td>' . esc_html( (int) $rule->ticket_type_id ? ( $types[ (int) $rule->ticket_type_id ] ?? '#' . (int) $rule->ticket_type_id ) : __( 'Alle Ticketarten', 'pass-captain' ) ) . '</td><td>' . (int) $rule->used . '</td>';
 			if ( $active ) {
-				echo '<td><label class="screen-reader-text" for="wpcap-mp-r' . esc_attr( (string) $rid ) . '-total">' . esc_html__( 'Einlösungen gesamt', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . esc_attr( (string) $rid ) . '-total" name="uses_total" min="0" max="65535" value="' . (int) $rule->uses_total . '" style="width:6em"></td><td><label class="screen-reader-text" for="wpcap-mp-r' . esc_attr( (string) $rid ) . '-day">' . esc_html__( 'Einlösungen pro Tag', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . esc_attr( (string) $rid ) . '-day" name="uses_per_day" min="1" max="65535" value="' . (int) $rule->uses_per_day . '" style="width:6em"> ';
+				echo '<td><label class="screen-reader-text" for="wpcap-mp-r' . esc_attr( (string) $rid ) . '-total">' . esc_html__( 'Einlösungen gesamt', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . esc_attr( (string) $rid ) . '-total" name="uses_total" min="0" max="65535" value="' . (int) $rule->uses_total . '" style="width:6em"></td><td><label class="screen-reader-text" for="wpcap-mp-r' . esc_attr( (string) $rid ) . '-day">' . esc_html__( 'Einlösungen pro Tag', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . esc_attr( (string) $rid ) . '-day" name="uses_per_day" min="0" max="65535" value="' . (int) $rule->uses_per_day . '" style="width:6em"> ';
 				Forms::open_form( self::ACTION, null, 'id="' . esc_attr( $form ) . '" style="display:inline"' );
 				Forms::hidden( 'do', 'save_rule' );
 				Forms::hidden( 'id', (int) $pass->pass_id );
 				Forms::hidden( 'rule_id', $rid );
 				echo '<button type="submit" class="button button-small">' . esc_html__( 'Speichern', 'pass-captain' ) . '</button></form></td>';
 			} else {
-				echo '<td>' . ( (int) $rule->uses_total ? (int) $rule->uses_total : '∞' ) . '</td><td>' . (int) $rule->uses_per_day . '</td>';
+				echo '<td>' . ( (int) $rule->uses_total ? (int) $rule->uses_total : '∞' ) . '</td><td>' . ( (int) $rule->uses_per_day ? (int) $rule->uses_per_day : '∞' ) . '</td>';
 			}
 			echo '</tr>';
 		}

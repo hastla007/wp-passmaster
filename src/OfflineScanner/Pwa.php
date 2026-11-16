@@ -97,8 +97,32 @@ final class Pwa {
 		$headers = self::headers( $file );
 		status_header( 200 );
 		foreach ( $headers as $name => $value ) { header( $name . ': ' . $value ); }
-		readfile( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- static shell file of the plugin.
+		echo self::body( $file ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static shell file of the plugin (sw.js with its cache name filled in).
 		\PassCaptain\Http::end();
+	}
+
+	/**
+	 * Content of a shell file. A506: the service worker's cache name carries a hash of all shell files and the
+	 * plugin version, so every update replaces the cached shell (no hand-bumped version in sw.js).
+	 */
+	public static function body( $file ) {
+		$body = (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local plugin file.
+		if ( 'sw.js' !== basename( (string) $file ) ) { return $body; }
+		return (string) preg_replace( "/var CACHE = 'wpcap-offline-scanner-[^']*';/", "var CACHE = 'wpcap-offline-scanner-" . self::shell_version() . "';", $body, 1 );
+	}
+
+	/** Hash of the shell files and the plugin version (12 hex characters). */
+	public static function shell_version() {
+		static $version = null;
+		if ( null !== $version ) { return $version; }
+		$ctx = hash_init( 'sha256' );
+		hash_update( $ctx, defined( 'WPCAP_VERSION' ) ? (string) WPCAP_VERSION : '' );
+		foreach ( array_unique( array_values( self::FILES ) ) as $rel ) {
+			$path = WPCAP_PATH . $rel;
+			if ( is_readable( $path ) && 'sw.js' !== basename( $rel ) ) { hash_update( $ctx, $rel . "\0" . (string) md5_file( $path ) ); }
+		}
+		$version = substr( hash_final( $ctx ), 0, 12 );
+		return $version;
 	}
 
 	/** Response headers for a shell file. */

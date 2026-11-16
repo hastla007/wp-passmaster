@@ -28,9 +28,6 @@ final class AdminPage {
 		return Repository::partners_of_user( get_current_user_id() ) ? 'read' : Settlements::MANAGE_CAP;
 	}
 
-	private static function new_key_transient() {
-		return 'wpcap_partner_new_key_' . get_current_user_id();
-	}
 
 	/* ------------------------------------------------------------------ Actions */
 
@@ -120,7 +117,7 @@ final class AdminPage {
 				$types = is_array( $in['ticket_type_ids'] ?? null ) ? Forms::ids( $in, 'ticket_type_ids' ) : array_values( array_filter( array_map( 'absint', preg_split( '/[\s,;]+/', Forms::text( $in, 'ticket_type_ids', 2000 ), -1, PREG_SPLIT_NO_EMPTY ) ) ) );
 				$key_events = array_values( array_unique( array_filter( array_merge( Forms::ids( $in, 'event_ids' ), array_map( 'absint', preg_split( '/[\s,;]+/', Forms::text( $in, 'event_ids_text', 2000 ), -1, PREG_SPLIT_NO_EMPTY ) ) ) ) ) );
 				$result = Keys::issue( $id, $scopes, array( 'label' => Forms::text( $in, 'label' ), 'event_ids' => $key_events, 'ticket_type_ids' => $types, 'ip_allowlist' => Forms::textarea( $in, 'ip_allowlist', 2000 ), 'expires_at' => $expires, 'rate_limit' => Forms::int( $in, 'rate_limit' ), 'write_rate_limit' => Forms::int( $in, 'write_rate_limit' ) ) );
-				if ( ! is_wp_error( $result ) ) { set_transient( self::new_key_transient(), $result['key'], 5 * MINUTE_IN_SECONDS ); }
+				if ( ! is_wp_error( $result ) ) { \PassCaptain\Security\OneTimeSecret::put( 'partnerkey', $result['key'], 5 * MINUTE_IN_SECONDS ); } // A507
 				return $result;
 			case 'revoke_key':
 				return Keys::revoke( $id );
@@ -587,7 +584,7 @@ final class AdminPage {
 		foreach ( self::seller_warnings( $partner ) as $warning ) { echo '<div class="notice notice-warning inline"><p>' . esc_html( $warning ) . '</p></div>'; }
 		echo '<table class="form-table"><tbody><tr><th scope="row"><label for="wpcap-pa-sales-model">' . esc_html__( 'Verkaufsmodell', 'pass-captain' ) . '</label></th><td>';
 		Forms::select( 'sales_model', SalesModel::labels(), $v( 'sales_model', SalesModel::OWN_NAME ), 'wpcap-pa-sales-model' );
-		echo '<p class="description">' . esc_html__( 'Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen. Siehe docs/SALES-MODELS.md.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<p class="description">' . esc_html__( 'Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen.', 'pass-captain' ) . '</p></td></tr>';
 		$field( 'legal_name', __( 'Rechtlicher Name (Firma laut Register)', 'pass-captain' ), $v( 'legal_name' ), 'text', 'maxlength="190"' );
 		$field( 'country', __( 'Land (ISO-Code, z. B. DE, AT)', 'pass-captain' ), $v( 'country' ), 'text', 'maxlength="2" pattern="[A-Za-z]{2}" style="width:4em"' );
 		$field( 'tax_number', __( 'Steuernummer', 'pass-captain' ), $v( 'tax_number' ), 'text', 'maxlength="64"' );
@@ -599,10 +596,9 @@ final class AdminPage {
 	}
 
 	private static function render_keys( $partner ) {
-		$new_key = get_transient( self::new_key_transient() );
+		$new_key = \PassCaptain\Security\OneTimeSecret::take( 'partnerkey' );
 		echo '<h2>' . esc_html__( 'API-Keys', 'pass-captain' ) . '</h2>';
 		if ( $new_key ) {
-			delete_transient( self::new_key_transient() );
 			echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Neuer API-Key – wird nur jetzt einmal angezeigt:', 'pass-captain' ) . '</strong><br><code style="user-select:all">' . esc_html( $new_key ) . '</code></p><p>' . esc_html__( 'Bitte sicher an den Veranstalter übermitteln. Gespeichert wird nur ein Hash.', 'pass-captain' ) . '</p></div>';
 		}
 		$keys = Keys::for_partner( $partner->partner_id );

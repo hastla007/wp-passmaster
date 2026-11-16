@@ -360,9 +360,18 @@ final class OrdersPage {
 			$one = Refunds::preview( $order, array( (int) $ticket->ticket_id ) );
 			if ( ! is_wp_error( $one ) ) { $per[ (int) $ticket->ticket_id ] = (int) $one['amount_minor']; }
 		}
+		// A526: prorated proposal for passes used at some of their dates.
+		$prorated = array();
+		if ( class_exists( \PassCaptain\Passes\Cancellation::class ) ) {
+			foreach ( $per as $ticket_id => $minor ) {
+				$share = \PassCaptain\Passes\Cancellation::prorated( $ticket_id, $minor );
+				if ( $share && $share['used'] > 0 ) { $prorated[ $ticket_id ] = $share; }
+			}
+		}
 		$all = Refunds::preview( $order, array() );
 		return array(
 			'per_ticket' => $per,
+			'prorated' => $prorated,
 			'all' => is_wp_error( $all ) ? array_sum( $per ) : (int) $all['amount_minor'],
 			'all_ids' => is_wp_error( $all ) ? array_keys( $per ) : array_map( 'intval', $all['ticket_ids'] ),
 			'route' => self::refund_route( $order ),
@@ -509,7 +518,7 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_resolve_refund_' . Forms::int( $in, 'refund_id' ) );
 		$result = self::resolve_refund( $in );
 		$order_id = is_wp_error( $result ) ? Forms::int( $in, 'order_id' ) : $result['order_id'];
-		$url = 'operations' === ( $in['return'] ?? '' ) ? Forms::page_url( OperationsPage::SLUG ) . '#wpcap-refunds-unresolved' : self::order_url( $order_id );
+		$url = 'operations' === ( $in['return'] ?? '' ) ? OperationsPage::url() . '#wpcap-refunds-unresolved' : self::order_url( $order_id );
 		Forms::finish( $result, is_wp_error( $result ) ? '' : self::resolve_message( $result ), $url );
 	}
 
@@ -556,6 +565,18 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_resend_tickets_' . $order_id );
 		$result = self::resend_tickets( $in );
 		Forms::finish( $result, is_wp_error( $result ) ? '' : self::resend_message( $result ), self::order_url( $order_id ) );
+	}
+
+	/** A424: sends the buyer a new order link; the current link stays valid until the new one is opened (A631). */
+	public static function handle_send_order_link() {
+		$in = Forms::post();
+		$order_id = Forms::int( $in, 'order_id' );
+		Forms::verify( 'wpcap_send_order_link_' . $order_id );
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { Forms::finish( $order, '', self::order_url( $order_id ) ); }
+		$sent = Orders::rotate_access_link( (int) $order->order_id, true );
+		if ( $sent ) { \PassCaptain\Audit::record( 'order_link_resent', 'order', (int) $order->order_id, array( 'by' => 'admin' ) ); }
+		Forms::finish( $sent ? true : new \WP_Error( 'wpcap_order_link_failed', __( 'Der Bestelllink konnte nicht gesendet werden.', 'pass-captain' ) ), __( 'Neuer Bestelllink gesendet. Der bisherige Link gilt, bis der neue zum ersten Mal geöffnet wird.', 'pass-captain' ), self::order_url( (int) $order->order_id ) );
 	}
 
 	public static function handle_ticket_pdf() {
@@ -717,7 +738,7 @@ final class OrdersPage {
 					<td><?php echo esc_html( $row_masked ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?><?php $buyer_name = $row_masked ? '' : self::buyer_name( $order ); ?><?php if ( '' !== $buyer_name ) : ?><br><small><?php echo esc_html( $buyer_name ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
 					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
-					<td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td>
+					<td><?php echo esc_html( Forms::status_label( $order->status, 'order' ) . ' / ' . Forms::status_label( $order->payment_status, 'order' ) ); ?></td>
 					<td><?php echo esc_html( $order->payment_provider ); ?></td>
 				</tr>
 			<?php endforeach; ?>
@@ -817,7 +838,7 @@ final class OrdersPage {
 		<?php endif; ?>
 
 		<table class="form-table"><tbody>
-			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status, 'order' ) . ' / ' . Forms::status_label( $order->payment_status, 'order' ) ); ?></td></tr>
 			<?php if ( ! empty( $order->attribution ) ) : ?>
 				<tr><th><?php esc_html_e( 'Herkunft', 'pass-captain' ); ?></th><td><code><?php echo esc_html( (string) $order->attribution ); ?></code></td></tr>
 			<?php endif; ?>
@@ -986,8 +1007,8 @@ final class OrdersPage {
 						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" class="wpcap-refund-ticket" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" data-amount="<?php echo esc_attr( (string) ( $preview['per_ticket'][ (int) $ticket->ticket_id ] ?? 0 ) ); ?>"<?php checked( in_array( (int) $ticket->ticket_id, $preselected, true ) ); ?> aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
-					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?></td>
-					<td><?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : ( in_array( (int) $ticket->ticket_id, $in_progress, true ) ? ' (' . __( 'Erstattung läuft', 'pass-captain' ) . ')' : '' ) ) ); ?></td>
+					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?><?php if ( ! empty( $preview['prorated'][ (int) $ticket->ticket_id ] ) ) : $wpcap_share = $preview['prorated'][ (int) $ticket->ticket_id ]; ?><div class="description"><?php echo esc_html( sprintf( /* translators: 1: used dates, 2: all dates, 3: prorated amount */ __( 'Pass: %1$d von %2$d Terminen genutzt – anteilige Erstattung %3$s (als Höchstbetrag eintragen).', 'pass-captain' ), $wpcap_share['used'], $wpcap_share['total'], Forms::money( $wpcap_share['suggested_minor'], $order->currency ) ) ); ?></div><?php endif; ?></td>
+					<td><?php echo esc_html( Forms::status_label( $ticket->status, 'ticket' ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : ( in_array( (int) $ticket->ticket_id, $in_progress, true ) ? ' (' . __( 'Erstattung läuft', 'pass-captain' ) . ')' : '' ) ) ); ?></td>
 					<td><?php echo esc_html( trim( (string) $ticket->attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 					<td>
 						<?php foreach ( $ticket->answers as $label => $answer ) : ?>
@@ -1072,6 +1093,11 @@ final class OrdersPage {
 		}
 		echo '</p>';
 		if ( $can_resend ) { self::render_resend_form( $order ); }
+		if ( $can_resend ) {
+			Forms::open_form( 'wpcap_send_order_link', 'wpcap_send_order_link_' . $order->order_id, 'class="wpcap-order-link-form"' );
+			Forms::hidden( 'order_id', $order->order_id );
+			echo '<p><button class="button" type="submit">' . esc_html__( 'Bestelllink erneut senden', 'pass-captain' ) . '</button> <span class="description">' . esc_html__( 'Für Rechnung und Tickets: „Tickets erneut senden“ (die Rechnung hängt an der Ticket-Mail).', 'pass-captain' ) . '</span></p></form>';
+		}
 		if ( $can_resend && \PassCaptain\ParticipantFields::missing( array_map( static function ( $t ) { return (int) $t->ticket_id; }, Orders::tickets_for_order( (int) $order->order_id ) ) ) ) {
 			// A682: ask the buyer for missing attendee data (new order link, at most once per hour).
 			Forms::open_form( 'wpcap_request_attendee_data', 'wpcap_request_attendee_data_' . $order->order_id );

@@ -125,7 +125,7 @@ final class Reminders {
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
 		list( $code, $html ) = self::optout_page( $ref, $sig, \PassCaptain\Http::is_post(), self::LEGACY_OPTOUT_QUERY );
 		status_header( $code );
-		echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . esc_html__( 'Erinnerungen abbestellen', 'pass-captain' ) . '</title></head><body><main style="max-width:36rem;margin:2rem auto;padding:0 1rem;font:16px/1.5 system-ui,sans-serif">' . $html . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in optout_page().
+		echo '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . esc_html__( 'Erinnerungen abbestellen', 'pass-captain' ) . '</title></head><body><main style="max-width:36rem;margin:2rem auto;padding:0 1rem;font:16px/1.5 system-ui,sans-serif">' . $html . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in optout_page().
 		\PassCaptain\Http::end();
 	}
 

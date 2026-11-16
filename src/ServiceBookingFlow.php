@@ -197,7 +197,7 @@ final class ServiceBookingFlow {
 		if ( is_array( $customer ) && is_email( $customer['to'] ) && ! Mail\Mailer::is_placeholder( $customer['to'] ) ) {
 			Mail\Mailer::send_plain( $customer['to'], $customer['subject'], $customer['body'] ); // A296: sender name and Reply-To.
 		}
-		$staff = array( (string) get_option( 'admin_email' ) );
+		$staff = Alerts::recipients( 'service_booking' ); // A400: alert recipient (setting alert_email, else admin e-mail).
 		foreach ( ServiceProviders::for_resource( (int) $booking->resource_id ) as $provider ) {
 			if ( 'active' === $provider->status && is_email( (string) $provider->email ) ) { $staff[] = (string) $provider->email; }
 		}
@@ -210,7 +210,7 @@ final class ServiceBookingFlow {
 		$staff_lines[] = sprintf( __( 'Kunde/Kundin: %s', 'pass-captain' ), (string) $booking->customer_email );
 		if ( 'unallocated' === $change || is_wp_error( $refund ) ) { $staff_lines[] = __( 'Bitte prüfen: Erstattung unter „Erstattungen“ kontrollieren bzw. manuell klären.', 'pass-captain' ); }
 		$mail = apply_filters( 'wpcap_service_booking_mail', array( 'to' => implode( ',', $staff ), 'subject' => $staff_subject, 'body' => implode( "\n\n", $staff_lines ) ), $change, $booking, 'staff' );
-		if ( is_array( $mail ) ) { wp_mail( $mail['to'], $mail['subject'], $mail['body'] ); }
+		if ( is_array( $mail ) ) { Mail\Mailer::send_plain( $mail['to'], $mail['subject'], $mail['body'] ); } // A373: plugin sender name/Reply-To like the customer mail.
 	}
 
 	/* ---------------------------------------------------------------------------------------------

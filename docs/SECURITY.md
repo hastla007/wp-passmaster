@@ -151,7 +151,7 @@ Request-Parameter, die als Array ankommen (`?wpcap_access[]=x`, JSON), werden al
 - Nur `GET`/`HEAD` werden umgeleitet; Formular-POSTs (Einwilligungen, Sprache) behalten ihren Inhalt.
 - Bekannte Grenze: Der erste Aufruf mit Token steht weiterhin im Zugriffslog des Webservers und ggf. in der Mail. Link-Scanner von Mailprogrammen, die keine Cookies speichern, können den Merker „Cookies blockiert“ auslösen; dann gilt für diesen Link das frühere Verhalten (Token-URL).
 
-**REST (Bestellportal, Servicebuchungen, Wartelisten):** Öffentliche Routen, die ein Käufer-Token erwarten (`GET /orders/{id}`, `GET /orders/{id}/service-bookings`, `GET …/rebook-options`, `GET /service-waitlist/{id}` sowie die POST-Routen für Übertragung, Zuweisung, erneutes Senden, Rechnungsdaten, Stornieren/Umbuchen und Wartelistenaktionen), lesen das Token zuerst aus dem Header **`X-WPCAP-Access-Token`** (`Rest\Credentials`), sonst aus dem Parameter `access_token` bzw. `token`. Das eigene Frontend (`assets/order-portal.js`) sendet nur noch den Header. Query-Parameter bleiben aus Kompatibilitätsgründen akzeptiert (Links in älteren Mails, bestehende Integrationen); sie landen aber in Zugriffslogs und sollten in neuen Integrationen nicht verwendet werden. Bei `POST /service-bookings/{id}/attach-order` trägt der Header das Bestell-Token, das Buchungs-Token bleibt Parameter. Der Header steht in der CORS-Freigabeliste (`rest_allowed_cors_headers`).
+**REST (Bestellportal, Servicebuchungen, Wartelisten):** Öffentliche Routen, die ein Käufer-Token erwarten (`GET /orders/{id}`, `GET /orders/{id}/service-bookings`, `GET …/rebook-options`, `GET /service-waitlist/{id}` sowie die POST-Routen für Übertragung, Zuweisung, erneutes Senden, Rechnungsdaten, Stornieren/Umbuchen und Wartelistenaktionen), lesen das Token zuerst aus dem Header **`X-WPCAP-Access-Token`** (`Rest\Credentials`), sonst aus dem Parameter `access_token` bzw. `token`. Das eigene Frontend (Skript des Bestellportals in `OrderPortal::render()`) sendet nur noch den Header. Query-Parameter bleiben aus Kompatibilitätsgründen akzeptiert (Links in älteren Mails, bestehende Integrationen); sie landen aber in Zugriffslogs und sollten in neuen Integrationen nicht verwendet werden. Bei `POST /service-bookings/{id}/attach-order` trägt der Header das Bestell-Token, das Buchungs-Token bleibt Parameter. Der Header steht in der CORS-Freigabeliste (`rest_allowed_cors_headers`).
 
 ## CSV-Exporte
 
@@ -552,6 +552,7 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
 **Öffentliche REST-Routen** (bewusst ohne Anmeldung; Schutz durch Zugangstoken, Signatur, Rate-Limit oder nur
 öffentliche Daten): Eventliste, Checkout, Checkout-Optionen und Live-Kaufzustand der Eventkarten (`/checkout/live`, A456: nur öffentliche Daten, `no-store`, je Client begrenzt), Bestellportal (`/orders/{id}` sowie
 `transfer`, `resend`, `assign`, `billing`, `payout-account`, `exchange`, `refund-request` – Zugangstoken im Callback, bei `refund-request` zusätzlich der Formularnachweis, A459),
+Ticketlinks anfordern (`POST /tickets/recover`, A622: immer dieselbe Antwort, 5 Anfragen je Client und Stunde, 3 Mails je Adresse und Tag; versendet nur einen einmaligen Bestätigungslink an die Inhaberadresse, neue Codes erst nach Bestätigung per POST),
 Sitzplätze laufen nur über das Saalplan-Modul (das alte Sitzplan-API mit öffentlichen Holds ist seit A529/A646 entfernt), Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
 Angebot annehmen/ablehnen mit Token), Event-Übersetzung lesen, Zahlungs-Webhooks (Anbietersignatur),
 SMS-Statusrückmeldungen und eingehende SMS (Twilio: `X-Twilio-Signature`; generischer HTTP-Anbieter:
@@ -603,14 +604,18 @@ Seiten enden über `Http::end()` (Action `wpcap_response_end`), damit der Test s
 
 ## Entwickler-API-Schlüssel
 
-Verwaltung unter **Pass Captain → Entwickler-API** (Bereich „Einstellungen & Integrationen“, nur `manage_options`):
+Verwaltung unter **Pass Captain → Entwickler-API** (Bereich „Einstellungen & Integrationen“; die einzige
+API-Key-Seite, N04 – die frühere Seite `admin.php?page=wpcap-api-keys` leitet dorthin weiter). Administrator:innen
+(`manage_options`) sehen alle Schlüssel:
 Liste mit Präfix, Bezeichnung, angelegt von, Scopes, Event, Anlage, letzter Nutzung, Ablauf, Ratenlimit und
 Status; Anlegen (Bezeichnung, Event, Scopes, Ablauf, Ratenlimit), einmalige Anzeige des Schlüssels direkt nach
 der Anlage (gespeichert wird nur der SHA-256-Hash), Ablauf und Ratenlimit ändern, Widerrufen. Alle Aktionen
 prüfen Nonce und Recht und landen im Audit-Log (`developer_key_issued`, `developer_key_updated`,
 `developer_key_revoked`, Objekt `api_key`; nur Präfix, nie der Schlüssel). Per REST legen auch Personen mit
 `wpcap_manage_events` für ihr Event Schlüssel an (`POST /developer/keys`, optional `rate_limit`) und widerrufen
-eigene (`POST /developer/keys/{id}/revoke`).
+eigene (`POST /developer/keys/{id}/revoke`); dieselben Personen sehen auf der Seite *Entwickler-API* ohne
+`manage_options` nur die Ansicht ihres Eventbereichs (eigene Schlüssel anlegen, Ratenlimit ändern, widerrufen;
+Formular-Aktion `wpcap_api_key_action` mit Nonce, Recht und Event-Berechtigung).
 
 Jede Anfrage sendet `X-WPCAP-Key: <präfix>.<geheimnis>`. Geprüft werden: Schlüssel gültig, nicht widerrufen,
 nicht abgelaufen; Event der Anfrage = Event des Schlüssels; die Person, die den Schlüssel angelegt hat, ist

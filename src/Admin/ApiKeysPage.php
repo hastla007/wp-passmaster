@@ -1,7 +1,10 @@
 <?php
 /**
- * Admin screen "Entwickler-API-Keys": create event-bound read-only keys (secret shown once),
- * list them with prefix, scopes, last use, expiry, rate limit and status, change the rate limit, revoke.
+ * Event-scoped view of the admin screen "Entwickler-API" (N04: merged into DeveloperKeysPage, which shows
+ * this view to users with wpcap_manage_events but without manage_options): create event-bound read-only
+ * keys for events in the user's scope (secret shown once), list the user's own keys with prefix, scopes,
+ * last use, expiry, rate limit and status, change the rate limit, revoke. The admin-post action stays
+ * here; the former slug SLUG redirects to the merged screen (Admin\Menu::legacy_pages()).
  *
  * @package PassCaptain
  */
@@ -14,13 +17,14 @@ use PassCaptain\DeveloperKeys;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class ApiKeysPage {
+	/** Former slug of this screen (kept for bookmarks and links; redirects to the merged screen). */
 	const SLUG = 'wpcap-api-keys';
 	const ACTION = 'wpcap_api_key_action';
 	const CAP = 'wpcap_manage_events';
 
-	/** Transient holding the freshly created key of the current user (shown once). */
+	/** Transient holding the freshly created key of the current user (encrypted, shown once; Security\OneTimeSecret, A507). */
 	public static function new_key_transient() {
-		return 'wpcap_api_key_new_' . get_current_user_id();
+		return 'wpcap_once_eventkey_' . get_current_user_id();
 	}
 
 	/** Core scopes plus the scopes of add-ons (wp_pass_captain_api_scopes_v1). */
@@ -52,7 +56,7 @@ final class ApiKeysPage {
 					return Forms::error( 'wpcap_api_key_rate', sprintf( __( 'Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen.', 'pass-captain' ), DeveloperKeys::max_rate_limit() ) );
 				}
 				$result = DeveloperKeys::issue( $event_id, $scopes, Forms::text( $in, 'label' ), $expires, $rate );
-				if ( ! is_wp_error( $result ) ) { set_transient( self::new_key_transient(), $result['key'], 5 * MINUTE_IN_SECONDS ); }
+				if ( ! is_wp_error( $result ) ) { \PassCaptain\Security\OneTimeSecret::put( 'eventkey', $result['key'], 5 * MINUTE_IN_SECONDS ); } // A507
 				return $result;
 			case 'rate_limit':
 				$rate = Forms::int( $in, 'rate_limit' );
@@ -72,7 +76,7 @@ final class ApiKeysPage {
 		$in = Forms::post();
 		$do = sanitize_key( $in['do'] ?? '' );
 		$messages = array( 'create' => __( 'API-Key erstellt. Bitte jetzt kopieren – er wird nur einmal angezeigt.', 'pass-captain' ), 'rate_limit' => __( 'Ratenlimit gespeichert.', 'pass-captain' ), 'revoke' => __( 'API-Key widerrufen.', 'pass-captain' ) );
-		Forms::finish( self::admin_action( $in ), $messages[ $do ] ?? '', Forms::page_url( self::SLUG ) );
+		Forms::finish( self::admin_action( $in ), $messages[ $do ] ?? '', DeveloperKeysPage::url() );
 	}
 
 	/** Keys visible to the current user: administrators see all, others their own keys of events in scope. */
@@ -90,15 +94,15 @@ final class ApiKeysPage {
 		return 'active';
 	}
 
+	/** Event-scoped view (called by DeveloperKeysPage::render() for users without manage_options). */
 	public static function render() {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$tz = FeatureScreens::site_timezone();
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Entwickler-API-Keys', 'pass-captain' ) . '</h1>';
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Entwickler-API', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		echo '<p>' . esc_html__( 'Lesende API-Keys für ein einzelnes Event, z. B. für eigene Dashboards. Der Key wird im Header X-WPCAP-Key gesendet. Gespeichert wird nur ein Hash; der vollständige Key wird nach dem Erstellen genau einmal angezeigt.', 'pass-captain' ) . '</p>';
-		$new = get_transient( self::new_key_transient() );
+		$new = \PassCaptain\Security\OneTimeSecret::take( 'eventkey' );
 		if ( is_string( $new ) && '' !== $new ) {
-			delete_transient( self::new_key_transient() );
 			echo '<div class="notice notice-warning"><p><label for="wpcap-new-api-key"><strong>' . esc_html__( 'Neuer API-Key (wird nur dieses eine Mal angezeigt):', 'pass-captain' ) . '</strong></label><br><input type="text" id="wpcap-new-api-key" class="large-text code" readonly value="' . esc_attr( $new ) . '" data-wpcap-select-on-focus></p></div>';
 		}
 		self::render_form( $tz );

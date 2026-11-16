@@ -584,7 +584,7 @@ final class AdminPage {
 				echo '<tr><td>' . esc_html( $rule->label ) . '</td><td>' . esc_html( $kinds[ $rule->kind ] ?? $rule->kind ) . '</td><td>' . esc_html( '' !== (string) $rule->type_name ? $rule->type_name : __( 'Alle', 'pass-captain' ) ) . '</td><td>' . esc_html( self::rule_condition( $rule, $timezone ) ) . '</td><td>' . esc_html( self::rule_price( $rule, $currency ) ) . '</td><td>' . (int) $rule->priority . '</td><td>';
 				/* translators: %s: rule label or kind */
 				echo '<a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $series_id, 'edit_rule' => (int) $rule->rule_id ) ) . '#wpcap-rule-form' ) . '" aria-label="' . esc_attr( sprintf( __( 'Preisregel „%s“ bearbeiten', 'pass-captain' ), $rule_name ) ) . '">' . esc_html__( 'Bearbeiten', 'pass-captain' ) . '</a> ';
-				Forms::open_form( 'wpcap_series_rule_delete', self::NONCE, 'style="display:inline"' );
+				Forms::open_form( 'wpcap_series_rule_delete', self::NONCE, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Regel löschen?', 'pass-captain' ) . '"' );
 				Forms::hidden( 'rule_id', (int) $rule->rule_id );
 				Forms::hidden( 'series_id', (int) $series_id );
 				/* translators: %s: rule label or kind */
@@ -661,7 +661,7 @@ final class AdminPage {
 				Forms::hidden( 'series_id', (int) $series_id );
 				$id = 'wpcap-pool-cap-' . (int) $pool->pool_id;
 				echo '<label class="screen-reader-text" for="' . esc_attr( $id ) . '">' . esc_html__( 'Neues Kontingent', 'pass-captain' ) . '</label><input id="' . esc_attr( $id ) . '" name="capacity" type="number" min="1" value="' . (int) $pool->capacity . '"> <button type="submit" class="button">' . esc_html__( 'Speichern', 'pass-captain' ) . '</button></form></td><td>';
-				Forms::open_form( 'wpcap_series_pool_delete', self::NONCE );
+				Forms::open_form( 'wpcap_series_pool_delete', self::NONCE, 'data-wpcap-confirm="' . esc_attr__( 'Kontingent-Pool löschen?', 'pass-captain' ) . '"' );
 				Forms::hidden( 'pool_id', (int) $pool->pool_id );
 				Forms::hidden( 'series_id', (int) $series_id );
 				/* translators: %s: pool name */

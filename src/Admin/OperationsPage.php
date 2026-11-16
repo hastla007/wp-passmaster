@@ -1,6 +1,7 @@
 <?php
 /**
- * "Betrieb" admin page (A163): state of the background queues (jobs, e-mails, webhook deliveries) with
+ * Tab "Betrieb" of the admin screen "Systemstatus" (A163; N04: merged into StatusPage, the former slug
+ * SLUG redirects there, see Admin\Menu::legacy_pages()): state of the background queues (jobs, e-mails, webhook deliveries) with
  * counts by status, backlog and age of the oldest due item, dead-letter/failed items without payload
  * values, and the actions "erneut versuchen" / "verwerfen" for single items and in bulk (nonce,
  * capability manage_options, audited). Also shows the Site Health results of the plugin (A164) and the data
@@ -18,12 +19,18 @@ use PassCaptain\Operations\SiteHealth;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class OperationsPage {
+	/** Former slug of this screen (kept for bookmarks and links; redirects to the merged screen). */
 	const SLUG = 'wpcap-operations';
 	const CAP = 'manage_options';
 	const ACTION = 'wpcap_operations_action';
 	/** admin-post action of a diagnosis repair. */
 	const DOCTOR_ACTION = 'wpcap_doctor_repair';
 	const PER_QUEUE = 50;
+
+	/** URL of the tab "Betrieb" of the merged screen (StatusPage). */
+	public static function url( array $args = array() ) {
+		return Forms::page_url( StatusPage::SLUG, array( 'tab' => StatusPage::TAB_OPERATIONS ) + $args );
+	}
 
 	/**
 	 * Applies a retry/discard request. Input: queue, do (retry|discard), ids[] (checkboxes), all=1
@@ -70,7 +77,7 @@ final class OperationsPage {
 				/* translators: %d: number of items */
 				: sprintf( _n( '%d Eintrag wurde verworfen.', '%d Einträge wurden verworfen.', $result['count'], 'pass-captain' ), $result['count'] );
 		}
-		Forms::finish( $result, $message, Forms::page_url( self::SLUG ) );
+		Forms::finish( $result, $message, self::url() );
 	}
 
 	/**
@@ -98,7 +105,7 @@ final class OperationsPage {
 				/* translators: %d: number of objects */
 				: sprintf( _n( '%d Objekt wurde repariert (im Audit-Log protokolliert).', '%d Objekte wurden repariert (im Audit-Log protokolliert).', $result['count'], 'pass-captain' ), $result['count'] );
 		}
-		Forms::finish( $result, $message, Forms::page_url( self::SLUG, array( 'wpcap_doctor' => 1 ) ) . '#wpcap-doctor' );
+		Forms::finish( $result, $message, self::url( array( 'wpcap_doctor' => 1 ) ) . '#wpcap-doctor' );
 	}
 
 	/** "3 h 12 min" style age. */
@@ -112,10 +119,14 @@ final class OperationsPage {
 		return sprintf( __( '%1$d h %2$d min', 'pass-captain' ), intdiv( $minutes, 60 ), $minutes % 60 );
 	}
 
+	/** Former page callback: the merged screen with the tab "Betrieb" open. */
 	public static function render() {
+		StatusPage::render( StatusPage::TAB_OPERATIONS );
+	}
+
+	/** Body of the tab "Betrieb" (inside the merged screen's wrap; capability checked again). */
+	public static function render_section() {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Betrieb', 'pass-captain' ) . '</h1>';
-		Forms::render_notices();
 		echo '<p class="description">' . esc_html__( 'Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder.', 'pass-captain' ) . '</p>';
 		self::render_health();
 		SuiteStatus::render(); // A670/A678: suite contracts, providers, last delivery, errors, fallback.
@@ -126,7 +137,6 @@ final class OperationsPage {
 		foreach ( Queues::available() as $queue => $def ) {
 			self::render_queue( $queue, $labels[ $queue ] ?? $queue, $def );
 		}
-		echo '</div>';
 	}
 
 	private static function render_health() {
@@ -167,7 +177,7 @@ final class OperationsPage {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		$debug = \PassCaptain\Log::debug_enabled();
 		echo '<p class="description">' . esc_html__( 'Fehler, Warnungen und Hinweise des Plugins mit Fehler-ID (die Käufer:innen bei Fehlern angezeigt bekommen). Geheimnisse, Ticketcodes und E-Mail-Adressen werden nicht gespeichert.', 'pass-captain' ) . ' ' . esc_html( $debug ? __( 'Der Debug-Modus ist eingeschaltet.', 'pass-captain' ) : __( 'Der Debug-Modus ist aus (Einstellungen → Support und Fehlersuche).', 'pass-captain' ) ) . '</p>';
-		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '#wpcap-log"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '">';
+		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '#wpcap-log"><input type="hidden" name="page" value="' . esc_attr( StatusPage::SLUG ) . '"><input type="hidden" name="tab" value="' . esc_attr( StatusPage::TAB_OPERATIONS ) . '">';
 		echo '<label for="wpcap-log-ref">' . esc_html__( 'Fehler-ID', 'pass-captain' ) . '</label> <input type="search" id="wpcap-log-ref" name="wpcap_log_ref" value="' . esc_attr( $args['reference'] ) . '" size="14"> ';
 		echo '<label for="wpcap-log-order">' . esc_html__( 'Bestellung (ID)', 'pass-captain' ) . '</label> <input type="number" min="0" id="wpcap-log-order" name="wpcap_log_order" value="' . esc_attr( $args['order_id'] ? (string) $args['order_id'] : '' ) . '" style="width:7em"> ';
 		echo '<label for="wpcap-log-channel">' . esc_html__( 'Bereich', 'pass-captain' ) . '</label> <input type="text" id="wpcap-log-channel" name="wpcap_log_channel" value="' . esc_attr( $args['channel'] ) . '" size="10"> ';
@@ -235,7 +245,7 @@ final class OperationsPage {
 		echo '<p class="description">' . esc_html__( 'Sucht nach widersprüchlichen Daten (Tickets, Bestellungen, Erstattungen, Reservierungen, Warteschlangen, Zähler, Nummernkreise, Servicebuchungen, Audit-Log). Die Prüfung ändert nichts; Reparaturen gibt es nur, wo das Ergebnis eindeutig ist, mit Vorschau und Eintrag im Audit-Log. Dasselbe per WP-CLI: wp pass-captain doctor', 'pass-captain' ) . '</p>';
 		$run = ! empty( $_GET['wpcap_doctor'] ); // phpcs:ignore WordPress.Security.NonceVerification -- read-only view.
 		if ( ! $run ) {
-			echo '<p><a class="button" href="' . esc_url( Forms::page_url( self::SLUG, array( 'wpcap_doctor' => 1 ) ) . '#wpcap-doctor' ) . '">' . esc_html__( 'Prüfung ausführen', 'pass-captain' ) . '</a></p>';
+			echo '<p><a class="button" href="' . esc_url( self::url( array( 'wpcap_doctor' => 1 ) ) . '#wpcap-doctor' ) . '">' . esc_html__( 'Prüfung ausführen', 'pass-captain' ) . '</a></p>';
 			return;
 		}
 		$preview = isset( $_GET['wpcap_doctor_preview'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_doctor_preview'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- read-only preview.
@@ -272,7 +282,7 @@ final class OperationsPage {
 
 	private static function render_repair( $repair, $label, $show_preview ) {
 		if ( ! $show_preview ) {
-			echo '<a class="button button-small" href="' . esc_url( Forms::page_url( self::SLUG, array( 'wpcap_doctor' => 1, 'wpcap_doctor_preview' => $repair ) ) . '#wpcap-doctor' ) . '">' . esc_html__( 'Vorschau', 'pass-captain' ) . '</a>';
+			echo '<a class="button button-small" href="' . esc_url( self::url( array( 'wpcap_doctor' => 1, 'wpcap_doctor_preview' => $repair ) ) . '#wpcap-doctor' ) . '">' . esc_html__( 'Vorschau', 'pass-captain' ) . '</a>';
 			return;
 		}
 		$preview = Doctor::repair( $repair, true, array(), 'admin' );

@@ -1,11 +1,15 @@
 /* Pass Captain box office: sums denomination counts into the amount field (no dependencies). */
 (function () {
 	'use strict';
-	function money(minor) {
-		return Math.floor(minor / 100) + ',' + String(minor % 100).padStart(2, '0');
+	// A403: minor unit and decimal point of the currency/site (data attributes from ShiftPage).
+	function money(minor, digits, point) {
+		var unit = Math.pow(10, digits);
+		return Math.floor(minor / unit) + (digits ? point + String(minor % unit).padStart(digits, '0') : '');
 	}
 	document.querySelectorAll('table.wpcap-denoms-table').forEach(function (table) {
 		var total = document.getElementById(table.getAttribute('data-total'));
+		var digits = parseInt(table.getAttribute('data-decimals') || '2', 10);
+		var point = table.getAttribute('data-decimal-point') || ',';
 		if (!total) { return; }
 		function update() {
 			var sum = 0;
@@ -18,7 +22,7 @@
 				}
 			});
 			if (used) {
-				total.value = money(sum);
+				total.value = money(sum, isNaN(digits) ? 2 : digits, point);
 				total.readOnly = true;
 			} else {
 				total.readOnly = false;

@@ -149,7 +149,7 @@ final class Invoices {
 	}
 
 	/**
-	 * Writes a temporary file (unguessable private directory, removed at shutdown at the latest) for a mail
+	 * Writes a temporary file (unguessable private directory; kept for the mail TTL, see TempFiles::track_attachment()) for a mail
 	 * attachment, e.g. an XML e-invoice. Returns the path or '' on failure.
 	 */
 	public static function temp_file( $filename, $contents ) {
@@ -157,7 +157,7 @@ final class Invoices {
 		$dir = TempFiles::private_dir();
 		if ( '' === $filename || ! $dir ) { return ''; }
 		$file = $dir . '/' . $filename;
-		TempFiles::track( $file, $dir );
+		TempFiles::track_attachment( $file, $dir ); // N06: kept for queued mails (TTL).
 		return TempFiles::put( $file, (string) $contents ) ? $file : '';
 	}
 

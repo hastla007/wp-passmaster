@@ -2,7 +2,8 @@
  * Service worker of the offline scanner: caches the app shell (cache-first, refreshed in the
  * background). API requests (wp-json) are never cached – packages (signed) and the translation
  * table (GET /app/offline/i18n) live in IndexedDB, so both are available offline.
- * Bump CACHE when shipping changed shell files.
+ * CACHE is replaced by the server with a hash of the shell files and the plugin version (Pwa::body(), A506),
+ * so every update replaces the cached shell; the value below is only used when the file is served statically.
  */
 'use strict';
 

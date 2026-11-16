@@ -31,7 +31,7 @@ $a099_original = Settings::all();
 
 echo "A099: settings tabs\n";
 $tabs = SettingsPage::tabs();
-check( 'five tabs: general, admission, payments, legal, invoices', array( 'general', 'admission', 'payments', 'legal', 'invoices' ) === array_keys( $tabs ) );
+check( 'seven tabs: general, admission, payments, legal, invoices, privacy, advanced (A378)', array( 'general', 'admission', 'payments', 'legal', 'invoices', 'privacy', 'advanced' ) === array_keys( $tabs ) );
 $per_key = array();
 foreach ( SettingsPage::field_definitions() as $section_id => $section ) {
 	foreach ( array_keys( $section['fields'] ) as $key ) { $per_key[ $key ][] = $section['tab'] ?? '?'; }
@@ -56,7 +56,7 @@ Settings::update( array(
 ) );
 $r = SettingsPage::save( array( 'wpcap_tab' => 'general', 'hold_minutes' => '20' ) );
 $all = Settings::all();
-check( 'general tab: its own unticked checkboxes are saved as off', ! is_wp_error( $r ) && 20 === $all['hold_minutes'] && 0 === $all['auto_refund_cancelled'] && 0 === $all['delete_data_on_uninstall'] );
+check( 'general tab: its own unticked checkboxes are saved as off, the uninstall checkbox (advanced tab) stays', ! is_wp_error( $r ) && 20 === $all['hold_minutes'] && 0 === $all['auto_refund_cancelled'] && 1 === (int) $all['delete_data_on_uninstall'] );
 check( 'general tab: checkboxes and values of other tabs stay untouched', 1 === (int) $all['require_terms'] && 1 === (int) $all['auto_invoice'] && 1 === (int) $all['scanner_show_attendee'] && 'live' === $all['stripe_mode'] && 'sk_keep' === PassCaptain\Secrets::get( 'stripe_secret_key' ) && 'DE02120300000000202051' === $all['bank_iban'] && 48 === (int) $all['manual_hold_hours'] && array( 'manual' ) === $all['enabled_providers'] && 'Verein' === $all['seller_name'] && 'AGB DE' === $all['terms_text'] );
 check( 'only keys of the submitted tab are written', ! array_diff( array_keys( $r['saved'] ), array_keys( $general_keys ), array( 'secrets_updated' ) ) );
 SettingsPage::save( array( 'wpcap_tab' => 'payments', 'wpcap_section' => 'stripe', 'stripe_mode' => 'test', 'wpcap_provider_toggle' => '1', 'wpcap_provider_enabled' => '1' ) );

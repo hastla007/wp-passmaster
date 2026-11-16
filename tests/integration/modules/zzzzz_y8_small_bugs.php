@@ -37,6 +37,8 @@ $GLOBALS['y8_cache'] = array();
 if ( ! function_exists( 'wp_using_ext_object_cache' ) ) { function wp_using_ext_object_cache( $using = null ) { return ! empty( $GLOBALS['y8_ext_cache'] ); } }
 if ( ! function_exists( 'wp_cache_add' ) ) { function wp_cache_add( $key, $value, $group = '', $expire = 0 ) { if ( isset( $GLOBALS['y8_cache'][ $group ][ $key ] ) ) { return false; } $GLOBALS['y8_cache'][ $group ][ $key ] = $value; return true; } }
 if ( ! function_exists( 'wp_cache_incr' ) ) { function wp_cache_incr( $key, $offset = 1, $group = '' ) { if ( ! isset( $GLOBALS['y8_cache'][ $group ][ $key ] ) ) { return false; } $GLOBALS['y8_cache'][ $group ][ $key ] += $offset; return $GLOBALS['y8_cache'][ $group ][ $key ]; } }
+/** Counter in the fake object cache; in a full run zz_a186 defined wp_cache_add/incr first (store pf_cache["group:key"]). */
+function y8_cached( $group, $key ) { return $GLOBALS['y8_cache'][ $group ][ $key ] ?? ( $GLOBALS['pf_cache'][ "$group:$key" ] ?? 0 ); }
 
 function y8_email( $length, $local = 'buyer' ) {
 	$rest = $length - strlen( $local ) - 1 - 4; // Labels and their dots before ".com".
@@ -171,19 +173,22 @@ $y8_rl_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? n
 unset( $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] );
 $GLOBALS['y8_ext_cache'] = true;
 $GLOBALS['y8_cache'] = array();
+$y8_pf_cache = $GLOBALS['pf_cache'] ?? null;
+$GLOBALS['pf_cache'] = array();
 wpcap_test_reset_transients();
-check( 'RateLimit::hit counts with wp_cache_incr in the transient group (atomic), limit enforced', Y8RateLimit::hit( 'y8_rl', 2, 60 ) && Y8RateLimit::hit( 'y8_rl', 2, 60 ) && ! Y8RateLimit::hit( 'y8_rl', 2, 60 ) && 3 === ( $GLOBALS['y8_cache']['transient']['y8_rl'] ?? 0 ) && array() === $GLOBALS['wpcap_test_transients'] );
+check( 'RateLimit::hit counts with wp_cache_incr in the transient group (atomic), limit enforced', Y8RateLimit::hit( 'y8_rl', 2, 60 ) && Y8RateLimit::hit( 'y8_rl', 2, 60 ) && ! Y8RateLimit::hit( 'y8_rl', 2, 60 ) && 3 === y8_cached( 'transient', 'y8_rl' ) && array() === $GLOBALS['wpcap_test_transients'] );
 $y8_ip = Y8Orders::client_ip();
 $y8_rl_email = 'y8-rl@example.com';
 $y8_rl = array();
 for ( $y8_n = 0; $y8_n < 9; $y8_n++ ) { $y8_rl[] = Y8Orders::create( array( 'email' => $y8_rl_email, 'items' => array( array( 'ticket_type_id' => $y8_type, 'quantity' => 1 ) ), 'idempotency_key' => 'y8-rl-' . $y8_n . uniqid() ) ); }
 $y8_rl_ok = count( array_filter( $y8_rl, static fn( $r ) => ! is_wp_error( $r ) ) );
 $y8_rl_key = 'wpcap_checkout_' . Y8Orders::rate_hash( $y8_ip . '|' . $y8_rl_email );
-check( 'QA-V2: checkout counts in the object cache (not a read-then-write transient) and refuses the 9th order', 8 === $y8_rl_ok && is_wp_error( $y8_rl[8] ) && 'wpcap_rate_limited' === $y8_rl[8]->get_error_code() && 9 === ( $GLOBALS['y8_cache']['transient'][ $y8_rl_key ] ?? 0 ) && ! isset( $GLOBALS['wpcap_test_transients'][ $y8_rl_key ] ) );
+check( 'QA-V2: checkout counts in the object cache (not a read-then-write transient) and refuses the 9th order', 8 === $y8_rl_ok && is_wp_error( $y8_rl[8] ) && 'wpcap_rate_limited' === $y8_rl[8]->get_error_code() && 9 === y8_cached( 'transient', $y8_rl_key ) && ! isset( $GLOBALS['wpcap_test_transients'][ $y8_rl_key ] ) );
 $GLOBALS['y8_ext_cache'] = false;
 wpcap_test_reset_transients();
 check( 'without an object cache the counter table limits (no transient written)', Y8RateLimit::hit( 'y8_fb', 1, 60 ) && ! Y8RateLimit::hit( 'y8_fb', 1, 60 ) && ! isset( $GLOBALS['wpcap_test_transients']['y8_fb'] ) && 2 === Y8RateLimit::count( 'y8_fb' ) );
 if ( null !== $y8_rl_backend ) { $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $y8_rl_backend; }
+if ( null === $y8_pf_cache ) { unset( $GLOBALS['pf_cache'] ); } else { $GLOBALS['pf_cache'] = $y8_pf_cache; }
 
 /* ------------------------------------------------------------------------------------------ */
 echo "Y8 QA-V3/QA-V4: lock names and uninstall\n";

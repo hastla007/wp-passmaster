@@ -74,6 +74,16 @@ final class PublicEvents {
 			'lastAt' => __( 'zuletzt um %s', 'pass-captain' ),
 			/* translators: %s: name of the entrance area */
 			'atArea' => __( 'Bereich: %s', 'pass-captain' ),
+			/* translators: %s: scanner device or staff member (A595) */
+			'byWhom' => __( 'durch %s', 'pass-captain' ),
+			/* translators: %d: number of further tickets in the order (A596) */
+			'groupTitle' => __( 'Weitere Tickets dieser Bestellung (%d)', 'pass-captain' ),
+			/* translators: %d: number of selected tickets */
+			'groupCheckin' => __( 'Ausgewählte einchecken (%d)', 'pass-captain' ),
+			/* translators: %d: number of tickets admitted */
+			'groupDone' => __( '%d weitere eingelassen', 'pass-captain' ),
+			/* translators: %d: number of tickets not admitted */
+			'groupFailed' => __( '%d nicht eingelassen – bitte einzeln scannen', 'pass-captain' ),
 			'viaHelpCode' => __( 'Per Hilfscode geprüft – Ticketinhaber ggf. mit Ausweis abgleichen.', 'pass-captain' ),
 			'helpOffline' => __( 'Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.', 'pass-captain' ),
 			'rateLimited' => __( 'Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden.', 'pass-captain' ),
@@ -220,6 +230,13 @@ final class PublicEvents {
 				'payNow' => __( 'Bitte überweise den Betrag mit diesen Angaben:', 'pass-captain' ),
 				/* translators: %s: date and time */
 				'payUntil' => __( 'Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'pass-captain' ),
+				// A601: copy buttons and GiroCode of the bank transfer details.
+				'copy' => __( 'Kopieren', 'pass-captain' ),
+				/* translators: %s: field, e.g. IBAN */
+				'copyLabel' => __( '%s kopieren', 'pass-captain' ),
+				'copied' => __( 'Kopiert', 'pass-captain' ),
+				'girocode' => __( 'Mit der Banking-App scannen (GiroCode)', 'pass-captain' ),
+				'girocodeAlt' => __( 'GiroCode: mit der Banking-App scannen, um die Überweisung vorauszufüllen', 'pass-captain' ),
 				'afterPayment' => __( 'Nach Zahlungseingang erhältst du deine Tickets per E-Mail.', 'pass-captain' ),
 				'amount' => __( 'Betrag', 'pass-captain' ),
 				'recipient' => __( 'Empfänger', 'pass-captain' ),
@@ -1108,6 +1125,40 @@ final class PublicEvents {
 		$name     = basename( (string) $name );
 		$template = locate_template( 'pass-captain/' . $name );
 		return $template ? $template : LegacySlug::legacy_theme_template( $name );
+	}
+
+	/**
+	 * A407: theme override of a whole front-end page or the mail layout. When the theme has
+	 * `pass-captain/<name>` (see theme_template()), it is rendered with $vars extracted plus `$default_html`
+	 * (the plugin's own rendering, e.g. to wrap it) and replaces the default; otherwise the default is returned.
+	 * The template escapes its own output. Filter `wpcap_template_page` gets the result.
+	 *
+	 * Pages: ticket-page.php, order-portal.php, ticket-recovery.php, email-layout.php.
+	 *
+	 * @param string $name         Template file name.
+	 * @param string $default_html Plugin rendering.
+	 * @param array  $vars         Variables for the template.
+	 */
+	public static function page( $name, $default_html, array $vars = array() ) {
+		$file = function_exists( 'locate_template' ) ? self::theme_template( $name ) : '';
+		$html = (string) $default_html;
+		if ( '' !== $file && is_readable( $file ) ) {
+			$render = static function ( $wpcap_template_file, array $wpcap_vars ) {
+				extract( $wpcap_vars, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract.extract_extract -- template variables, documented in docs/HOOKS.md.
+				ob_start();
+				include $wpcap_template_file;
+				return (string) ob_get_clean();
+			};
+			$html = $render( $file, $vars + array( 'default_html' => (string) $default_html ) );
+		}
+		/**
+		 * Rendered page/layout (A407).
+		 *
+		 * @param string $html  HTML.
+		 * @param string $name  Template name.
+		 * @param array  $vars  Template variables.
+		 */
+		return (string) apply_filters( 'wpcap_template_page', $html, (string) $name, $vars );
 	}
 
 	/**

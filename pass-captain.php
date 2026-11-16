@@ -184,7 +184,7 @@ define( 'WPCAP_VERSION', '1.5.0' );
 /*
  * Version of the extension contract for add-ons (docs/EXTENSIONS.md, "Versionen der Erweiterungspunkte"):
  * major = an extension point was removed or changed incompatibly, minor = extension points were added.
- * 1.0.0 = plugin 1.4.0, 1.1.0 = plugin 1.5.0.
+ * 1.0.0 = plugin 1.4.0, 1.1.0 = plugin 1.5.0, 1.2.0 = merged 1.5 line (Api\Invoices service_date/service_period).
  */
 define( 'WPCAP_CONTRACT_VERSION', '1.2.0' );
 define( 'WPCAP_FILE', __FILE__ );

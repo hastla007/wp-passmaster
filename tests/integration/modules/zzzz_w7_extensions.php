@@ -41,12 +41,18 @@ $defs = SettingsPage::field_definitions();
 check( 'add-on defaults are merged, core defaults cannot be replaced', 'basic' === Settings::defaults()['w7x_mode'] && 999 !== Settings::defaults()['hold_minutes'] );
 check( 'add-on section appears with its valid fields only', isset( $defs['w7x'] ) && array( 'w7x_mode', 'w7x_limit' ) === array_keys( $defs['w7x']['fields'] ) );
 check( 'core fields cannot be retyped by the filter', 'int' === $defs['general']['fields']['hold_minutes']['type'] );
+// SettingsPage::save() saves the whole form: fields missing from this partial input (bank account, policy
+// checkboxes such as support_mask_pii / waitlist_double_opt_in) end up empty. Restored below.
+$w7x_settings = get_option( Settings::OPTION, array() );
+$w7x_secrets = get_option( PassCaptain\Secrets::OPTION, array() );
 $saved = SettingsPage::save( array( 'w7x_mode' => 'pro', 'w7x_limit' => '20' ) );
 check( 'add-on fields are saved with the core form', ! is_wp_error( $saved ) && 'pro' === Settings::get( 'w7x_mode' ) && 20 === (int) Settings::get( 'w7x_limit' ) );
 $saved = SettingsPage::save( array( 'w7x_mode' => 'pro', 'w7x_limit' => '80' ) );
 check( 'sanitize callback can reject a value (error shown, old value kept)', in_array( 'Höchstens 50.', $saved['errors'], true ) && 20 === (int) Settings::get( 'w7x_limit' ) );
 remove_filter( 'wp_pass_captain_settings_defaults_v1', $x_defaults );
 remove_filter( 'wp_pass_captain_settings_sections_v1', $x_sections );
+update_option( Settings::OPTION, $w7x_settings );
+update_option( PassCaptain\Secrets::OPTION, $w7x_secrets, false );
 Settings::flush();
 
 echo "A4: admin menu entries outside modules\n";

@@ -55,7 +55,7 @@ final class Service {
 		// The stored (encrypted) code lets the order portal build a ticket PDF without a new code.
 		add_filter( 'wpcap_ticket_known_code', array( __CLASS__, 'known_code' ), 10, 2 );
 		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
-		add_action( 'shutdown', array( __CLASS__, 'flush' ), 5 );
+		add_action( 'shutdown', array( __CLASS__, 'flush_on_shutdown' ), 5 );
 	}
 
 	public static function default_provider( $provider, $key ) {
@@ -231,6 +231,28 @@ final class Service {
 		 * @param int $limit Default 10.
 		 */
 		return max( 0, (int) apply_filters( 'wpcap_wallet_mail_inline_limit', 10 ) );
+	}
+
+	/**
+	 * A091: wallet links of one ticket for its ticket page – Apple download (signed, current generation) and the
+	 * Google save link, each only when the provider is configured and the ticket has a pass state.
+	 *
+	 * @return array{apple?:string,google?:string}
+	 */
+	public static function ticket_links( $ticket_id ) {
+		global $wpdb;
+		$out = array();
+		if ( ! Store::state( $ticket_id ) ) { return $out; }
+		if ( self::provider( 'apple' ) ) {
+			$public = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT public_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
+			$url = '' !== $public ? self::download_url( $public ) : '';
+			if ( '' !== $url ) { $out['apple'] = $url; }
+		}
+		if ( self::provider( 'google' ) ) {
+			$url = self::google_link( $ticket_id );
+			if ( '' !== $url ) { $out['google'] = $url; }
+		}
+		return $out;
 	}
 
 	/** Short "Save to Google Wallet" link of the ticket's current generation (signed, no ticket data). */
@@ -839,7 +861,8 @@ final class Service {
 	 * the job queue first, so a timeout or fatal during the inline attempt cannot lose an update;
 	 * the first INLINE_LIMIT tickets are processed right away and their job is completed on success.
 	 */
-	public static function flush() {
+	public static function flush( $inline_limit = null ) {
+		$inline_limit = null === $inline_limit ? self::INLINE_LIMIT : max( 0, (int) $inline_limit );
 		$ticket_ids = array_keys( self::$pending_tickets );
 		$occurrences = array_keys( self::$pending_occurrences );
 		self::$pending_tickets = array();
@@ -851,10 +874,19 @@ final class Service {
 			$key = 'wallet-sync-' . md5( wp_json_encode( $payload ) . microtime( true ) . $i . random_int( 0, PHP_INT_MAX ) );
 			$queued = true === Jobs::enqueue( $key, self::JOB, $payload );
 			if ( ! $queued ) { self::log( 'queue_failed', 'wallet_sync' ); }
-			if ( 0 === $i && count( $chunk ) <= self::INLINE_LIMIT && self::process( $chunk, $payload['occurrence_ids'] ) && $queued ) {
+			if ( $inline_limit > 0 && 0 === $i && count( $chunk ) <= $inline_limit && self::process( $chunk, $payload['occurrence_ids'] ) && $queued ) {
 				self::complete_job( $key );
 			}
 		}
+	}
+
+	/**
+	 * A374: end of a web request – only queue the push (the job worker talks to Apple/Google), so a
+	 * checkout or webhook response never waits for the wallet providers. Filter
+	 * wpcap_wallet_inline_limit (default 0) brings back inline pushing for up to that many tickets.
+	 */
+	public static function flush_on_shutdown() {
+		self::flush( (int) apply_filters( 'wpcap_wallet_inline_limit', 0 ) );
 	}
 
 	private static function complete_job( $key ) {

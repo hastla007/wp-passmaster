@@ -60,7 +60,9 @@ final class Devices {
 		\PassCaptain\Admission\Areas::set_pairing_area( (int) $wpdb->insert_id, $area_id );
 		Audit::record( 'device_pairing_created', 'user', $user_id, array( 'event_ids' => $event_ids, 'hours' => $hours, 'area_id' => $area_id ) );
 		$payload = wp_json_encode( array( 'type' => 'wpcap-pair', 'v' => 1, 'api' => self::api_base(), 'code' => $code ) );
-		return array( 'code' => $code, 'expires_at' => $expires, 'device_hours' => $hours, 'area_id' => $area_id, 'qr_payload' => $payload );
+		// A597: link that opens the offline scanner PWA and pairs it at once (code in the fragment, never sent to the server).
+		$pwa = class_exists( \PassCaptain\OfflineScanner\AdminPage::class ) ? \PassCaptain\OfflineScanner\AdminPage::app_url() . '#pair=' . $code : '';
+		return array( 'code' => $code, 'expires_at' => $expires, 'device_hours' => $hours, 'area_id' => $area_id, 'qr_payload' => $payload, 'pwa_url' => $pwa );
 	}
 
 	/**
@@ -117,6 +119,10 @@ final class Devices {
 		if ( $area_id ) { \PassCaptain\Admission\Areas::set_device_area( $device_id, $area_id ); }
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'device_paired', 'device', $device_id, array( 'user_id' => (int) $pairing->user_id, 'platform' => sanitize_key( $platform ) ) );
+		// A597: offline use for the pairing's events where offline admission is on (no second admin step).
+		if ( class_exists( \PassCaptain\OfflineScanner\Assignments::class ) && \PassCaptain\Modules::enabled( \PassCaptain\Modules\OfflineScanner::class ) ) {
+			\PassCaptain\OfflineScanner\Assignments::assign_paired( $device_id, array_map( 'intval', (array) json_decode( (string) $pairing->event_ids, true ) ), (int) $pairing->user_id );
+		}
 		$user = get_userdata( (int) $pairing->user_id );
 		return array(
 			'token' => self::TOKEN_PREFIX . '_' . $public_id . '_' . $secret,

@@ -159,6 +159,7 @@ $r_other = $a141_http( 'status', $other, hash_hmac( 'sha256', $other, $a141_secr
 check( 'HTTP callback cannot change a message of another provider', 0 === a141_data( $r_other )['updated'] && 'sent' === $a141_msg( $o_ch['order_id'], 'wpa141-c4' )->status );
 
 echo "A141: monthly budget\n";
+$a141_admin_email = $GLOBALS['wpcap_test_options']['admin_email'] ?? null; // Restored at the end (later modules alert admin@example.com).
 $GLOBALS['wpcap_test_options']['admin_email'] = 'admin@example.com';
 unset( $GLOBALS['wpcap_test_options'][ Costs::NOTICE_OPTION ] );
 $spent = Costs::month_spent();
@@ -275,5 +276,5 @@ Sms::erase( 'wpa141-' . ( $a141_n - 1 ) . '@example.com' );
 check( 'privacy erasure of an active consent: source privacy_erasure', 'privacy_erasure' === $wpdb->get_var( "SELECT withdrawn_source FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $o8['order_id'] ) );
 
 // Switch SMS off for later test files.
-unset( $GLOBALS['wpcap_test_options']['admin_email'] );
+if ( null === $a141_admin_email ) { unset( $GLOBALS['wpcap_test_options']['admin_email'] ); } else { $GLOBALS['wpcap_test_options']['admin_email'] = $a141_admin_email; }
 Settings::update( array( 'sms_http_webhook_secret' => '', 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '', 'budget_monthly' => '' ) ) ) );

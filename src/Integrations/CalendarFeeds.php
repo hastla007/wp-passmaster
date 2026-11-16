@@ -32,7 +32,7 @@ final class CalendarFeeds {
 		return array(
 			'all' => __( 'Alle Events', 'pass-captain' ),
 			'event' => __( 'Ein Event', 'pass-captain' ),
-			'partner' => __( 'Ein Veranstalter (Partner)', 'pass-captain' ),
+			'partner' => __( 'Ein Veranstalter', 'pass-captain' ),
 		);
 	}
 

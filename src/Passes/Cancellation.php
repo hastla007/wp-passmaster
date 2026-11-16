@@ -206,8 +206,8 @@ final class Cancellation {
 		}
 		$summary['refunds_open'] = ( $summary['refunds_open'] ?? 0 ) + count( $open );
 		if ( $open && $type && $occ ) {
-			wp_mail(
-				get_option( 'admin_email' ),
+			\PassCaptain\Alerts::raise(
+				'pass_refunds_open',
 				__( 'Pass Captain: Erstattungen für abgesagte Pässe offen', 'pass-captain' ),
 				/* translators: 1: pass name, 2: event name, 3: date, 4: number of orders, 5: order ids */
 				sprintf( __( 'Der Pass „%1$s“ wurde wegen der Absage von %2$s am %3$s widerrufen. Für %4$d bezahlte Bestellungen ist noch keine Erstattung erfolgt (Bestellungen: %5$s). Die widerrufenen Pässe bleiben in der Bestellansicht erstattbar.', 'pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ), count( $open ), implode( ', ', array_map( static function ( $id ) { $o = Orders::get( $id ); return $o ? $o->public_id : (string) $id; }, $open ) ) )
@@ -221,6 +221,26 @@ final class Cancellation {
 	 * 'revoke' and a cancelled linked occurrence stay refundable (the core only covers tickets of a
 	 * cancelled anchor occurrence).
 	 */
+	/**
+	 * A526: proposal for a prorated refund of a pass ticket after partial use – value × dates not used ÷ all
+	 * linked dates (an admission at a date counts it as used). null for tickets that are no pass or when the
+	 * pass has no dates.
+	 *
+	 * @param int $ticket_id   Ticket.
+	 * @param int $value_minor Refundable value of the ticket (minor units).
+	 * @return array{total:int,used:int,suggested_minor:int}|null
+	 */
+	public static function prorated( $ticket_id, $value_minor ) {
+		global $wpdb;
+		$type_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
+		if ( ! $type_id || ! Definitions::is_pass( $type_id ) ) { return null; }
+		$dates = Definitions::occurrence_ids( $type_id );
+		$total = count( $dates );
+		if ( ! $total ) { return null; }
+		$used = min( $total, Admission::used_occurrences( (int) $ticket_id, $dates ) );
+		return array( 'total' => $total, 'used' => $used, 'suggested_minor' => intdiv( max( 0, (int) $value_minor ) * ( $total - $used ), $total ) );
+	}
+
 	public static function refundable_tickets( $rows, $order_id ) {
 		global $wpdb;
 		$pass_ids = Definitions::all_ids();

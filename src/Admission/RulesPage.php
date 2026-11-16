@@ -204,7 +204,7 @@ final class RulesPage {
 				<td><?php echo esc_html( 'active' === $area->status ? __( 'aktiv', 'pass-captain' ) : __( 'archiviert', 'pass-captain' ) ); ?></td>
 				<td>
 					<?php foreach ( Areas::staff( $area->area_id ) as $user_id ) : ?>
-						<?php Forms::open_form( 'wpcap_admission_remove_staff', 'wpcap_admission_remove_staff_' . $area->area_id . '_' . $user_id, 'style="display:inline"' ); Forms::hidden( 'area_id', $area->area_id ); Forms::hidden( 'user_id', $user_id ); ?><?php echo esc_html( Forms::user_label( $user_id ) ); ?> <button class="button-link" aria-label="<?php esc_attr_e( 'Zuweisung entfernen', 'pass-captain' ); ?>">×</button></form><br>
+						<?php Forms::open_form( 'wpcap_admission_remove_staff', 'wpcap_admission_remove_staff_' . $area->area_id . '_' . $user_id, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Person aus diesem Einlassbereich entfernen?', 'pass-captain' ) . '"' ); Forms::hidden( 'area_id', $area->area_id ); Forms::hidden( 'user_id', $user_id ); ?><?php echo esc_html( Forms::user_label( $user_id ) ); ?> <button class="button-link" aria-label="<?php esc_attr_e( 'Zuweisung entfernen', 'pass-captain' ); ?>">×</button></form><br>
 					<?php endforeach; ?>
 					<?php Forms::open_form( 'wpcap_admission_add_staff', 'wpcap_admission_add_staff_' . $area->area_id ); Forms::hidden( 'area_id', $area->area_id ); ?><input type="text" name="user" placeholder="<?php esc_attr_e( 'Login oder E-Mail', 'pass-captain' ); ?>"> <button class="button"><?php esc_html_e( 'Zuweisen', 'pass-captain' ); ?></button></form>
 				</td>

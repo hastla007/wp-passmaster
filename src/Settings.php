@@ -131,6 +131,9 @@ final class Settings {
 			'billing_required_threshold_minor' => 25000,
 			'credit_note_prefix'        => 'RK', // Rechnungskorrektur; installs from before schema 3.8.3 keep 'GS' (Installer).
 			'auto_invoice'              => 0,
+			// A380: chart of accounts of the DATEV booking batch (skr03|skr04) and an optional own money account.
+			'datev_chart'               => 'skr03',
+			'datev_contra_account'      => '',
 			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.
 			'voucher_default_purpose'   => 'multi',
 			'delete_data_on_uninstall'  => 0,
@@ -165,6 +168,7 @@ final class Settings {
 			'mail_from_email'           => '',
 			'mail_from_name'            => '',
 			'mail_reply_to'             => '',
+			'alert_email'               => '', // A400: recipient of operational alerts ('' = admin e-mail).
 			// Bounce/complaint webhook of the sending service (Mail\Suppression), off by default.
 			'mail_bounce_webhook'       => 0,
 			// Frontend\EventPage: event detail pages /{event_base}/{slug}/ with schema.org/Event.
@@ -172,6 +176,7 @@ final class Settings {
 			'event_base'                => 'event',
 			// Admin\Dashboard: modules whose menu entries are hidden (they keep running).
 			'hidden_modules'            => array(),
+			'disabled_modules'          => array(), // A299: modules switched off on the settings screen.
 			// A535: occurrences without an end time count as over after this many hours (Occurrence).
 			'occurrence_default_duration_hours' => 6,
 			// A296: mail_from_name / mail_reply_to above ('' = seller name or site name / admin e-mail).

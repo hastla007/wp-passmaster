@@ -26,14 +26,15 @@ final class FeatureScreens {
 		);
 	}
 
-	/** Submenu pages: [slug, title, capability, callback]. */
+	/**
+	 * Submenu pages: [slug, title, capability, callback]. The waitlist queue (WaitlistsPage) and the
+	 * event-scoped API keys (ApiKeysPage) are parts of merged screens (N02, N04, Menu::legacy_pages()).
+	 */
 	public static function pages() {
 		return array(
 			array( CampaignsPage::SLUG, __( 'Kampagnen', 'pass-captain' ), CampaignsPage::CAP, array( CampaignsPage::class, 'render' ) ),
-			array( WaitlistsPage::SLUG, __( 'Wartelisten', 'pass-captain' ), WaitlistsPage::CAP, array( WaitlistsPage::class, 'render' ) ),
 			array( ServicesPage::SLUG, __( 'Ressourcen & Zeitfenster', 'pass-captain' ), ServicesPage::CAP, array( ServicesPage::class, 'render' ) ),
 			array( MembershipsPage::SLUG, __( 'Mitgliedspässe', 'pass-captain' ), MembershipsPage::CAP, array( MembershipsPage::class, 'render' ) ),
-			array( ApiKeysPage::SLUG, __( 'Entwickler-API-Keys', 'pass-captain' ), ApiKeysPage::CAP, array( ApiKeysPage::class, 'render' ) ),
 		);
 	}
 

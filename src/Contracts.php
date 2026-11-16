@@ -50,6 +50,7 @@ final class Contracts {
 			'workflow'         => Workflow\Contract::VERSION, // A673: workflow provider contract (outbox events).
 			'workflow_commands' => Workflow\Commands::VERSION, // A676: workflow commands v1.
 			'review'           => Review\Contract::VERSION, // A667: review participation contract (experience_completed).
+			'ticket_read'      => Api\Tickets::VERSION, // A709: wpcap_get_ticket() read model for suite plugins.
 		);
 	}
 

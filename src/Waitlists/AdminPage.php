@@ -1,7 +1,10 @@
 <?php
 /**
- * Admin screen "Warteliste": entries per event with date, queue place, status and offer deadline, staff
- * actions (offer, skip, remove, priority, unblock, process now) and the automatic offer settings.
+ * Admin screen "Warteliste" (the only waitlist screen, N02): tab "Einträge" with the entries per event
+ * (date, queue place, status, offer deadline), staff actions (offer, skip, remove, priority, unblock,
+ * process now) and the automatic offer settings; tab "Warteschlange & Export" with the queue per ticket
+ * type and occurrence, "Angebot an nächste Person senden" and the audited CSV export
+ * (Admin\WaitlistsPage, whose former slug wpcap-waitlists redirects here, see Admin\Menu::legacy_pages()).
  * Blocked entries (A563) show the reason why they could not be offered.
  */
 namespace PassCaptain\Waitlists;
@@ -20,6 +23,21 @@ final class AdminPage {
 	const SETTINGS_CAP = 'manage_options';
 	const ACTION_ENTRY = 'wpcap_waitlist_entry';
 	const ACTION_SETTINGS = 'wpcap_waitlist_settings';
+	/** Tab with the queue per ticket type and the CSV export (formerly the screen Admin\WaitlistsPage). */
+	const TAB_QUEUE = 'queue';
+
+	/**
+	 * Slug the screen is served under: its own one, or the former slug of the queue screen while the
+	 * Waitlist module is switched off (its page and entry/settings handlers are not registered then).
+	 */
+	public static function slug() {
+		return \PassCaptain\Modules::enabled( \PassCaptain\Modules\Waitlist::class ) ? self::PAGE : \PassCaptain\Admin\WaitlistsPage::SLUG;
+	}
+
+	/** URL of the screen (tab => 'queue' opens the queue/export tab). */
+	public static function url( array $args = array() ) {
+		return Forms::page_url( self::slug(), array_filter( $args ) );
+	}
 
 	/**
 	 * Staff action on one entry (or the event): offer, skip, remove, priority, unblock, process.
@@ -85,13 +103,30 @@ final class AdminPage {
 		Forms::finish( self::save_settings( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
 	}
 
-	public static function render() {
+	/**
+	 * Renders the screen. $tab: '' = from the request (?tab=queue), 'queue' = queue/export tab (used by
+	 * Admin\WaitlistsPage::render() for the former slug). WordPress passes '' to page callbacks.
+	 */
+	public static function render( $tab = '' ) {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		$tab = sanitize_key( '' !== (string) $tab ? (string) $tab : Forms::query_arg( 'tab', '' ) );
+		$module = self::PAGE === self::slug();
+		if ( ! $module ) { $tab = self::TAB_QUEUE; } // Without the module only the queue/export view works.
+		$tab = self::TAB_QUEUE === $tab ? self::TAB_QUEUE : 'entries';
 		$event_id = absint( Forms::query_arg( 'event_id', 0 ) );
-		$events = Queries::event_options( Queries::event_ids_for( self::CAP ), array( $event_id ) );
-		if ( $event_id && ! isset( $events[ $event_id ] ) ) { $event_id = 0; }
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Warteliste', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
+		if ( $module ) {
+			$keep = array( 'event_id' => $event_id, 'occurrence_id' => absint( Forms::query_arg( 'occurrence_id', 0 ) ) );
+			Forms::nav_tabs( self::PAGE, array( 'entries' => __( 'Einträge', 'pass-captain' ), self::TAB_QUEUE => __( 'Warteschlange & Export', 'pass-captain' ) ), $tab, $keep, __( 'Bereiche der Warteliste', 'pass-captain' ) );
+		}
+		if ( self::TAB_QUEUE === $tab ) {
+			\PassCaptain\Admin\WaitlistsPage::render_section();
+			echo '</div>';
+			return;
+		}
+		$events = Queries::event_options( Queries::event_ids_for( self::CAP ), array( $event_id ) );
+		if ( $event_id && ! isset( $events[ $event_id ] ) ) { $event_id = 0; }
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '"><label for="wpcap-wl-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label> ';
 		Forms::select( 'event_id', array( 0 => __( '– Event wählen –', 'pass-captain' ) ) + $events, $event_id, 'wpcap-wl-event' );
 		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>' . Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
@@ -115,6 +150,9 @@ final class AdminPage {
 		Forms::hidden( 'op', 'process' );
 		Forms::hidden( 'event_id', $event_id );
 		echo '<button class="button">' . esc_html__( 'Freie Plätze jetzt anbieten', 'pass-captain' ) . '</button></form>';
+		if ( $rows ) {
+			echo '<p><a class="button" href="' . esc_url( \PassCaptain\Admin\WaitlistsPage::export_url( $event_id ) ) . '">' . esc_html__( 'CSV exportieren', 'pass-captain' ) . '</a></p>';
+		}
 		if ( ! $rows ) {
 			echo '<p>' . esc_html__( 'Keine Einträge für dieses Event.', 'pass-captain' ) . '</p>';
 			return;

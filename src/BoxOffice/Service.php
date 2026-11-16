@@ -240,7 +240,19 @@ final class Service {
 
 	/** Output rows of ticket_types() (runs inside the display batch). */
 	private static function ticket_type_rows( array $rows, array $seated, $occurrence ) {
+		global $wpdb;
 		$out = array();
+		$ids = array_map( static function ( $r ) { return (int) $r->ticket_type_id; }, $rows );
+		// Constant query count for the whole list: availability of all types in one go (memoised for
+		// Orders::availability()) and all participant fields in one query.
+		Orders::availability_many( $ids );
+		$fields_by_type = array_fill_keys( $ids, array() );
+		if ( $ids ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- the IN list holds integers only.
+			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN (" . implode( ',', array_map( 'intval', $ids ) ) . ") AND status='active' ORDER BY position,field_id", ARRAY_A ) as $f ) {
+				$fields_by_type[ (int) $f['ticket_type_id'] ][] = $f;
+			}
+		}
 		foreach ( $rows as $r ) {
 			$out[] = array(
 				'ticket_type_id' => (int) $r->ticket_type_id,
@@ -252,7 +264,7 @@ final class Service {
 				'tax_rate_bp' => (int) \PassCaptain\Tax\Profiles::resolve( $r, null, '', 'pos' )['rate_bp'],
 				'max_per_order' => (int) $r->max_per_order,
 				'available' => Orders::availability( $r->ticket_type_id ),
-				'fields' => self::participant_fields( $r->ticket_type_id ),
+				'fields' => self::participant_fields( $r->ticket_type_id, $fields_by_type[ (int) $r->ticket_type_id ] ?? array() ),
 				'seated' => isset( $seated[ (int) $r->ticket_type_id ] ),
 				// Why this price applies (automatic price rule, same explanation as the online checkout); '' = stored price.
 				'price_rule' => class_exists( \PassCaptain\Sales\PriceRules::class ) ? \PassCaptain\Sales\PriceRules::explanation_for( $r, $occurrence, array( 'source' => 'pos' ) ) : '',
@@ -262,10 +274,10 @@ final class Service {
 	}
 
 	/** Active participant fields of a ticket type in checkout order (same columns as the public checkout). */
-	public static function participant_fields( $ticket_type_id ) {
+	public static function participant_fields( $ticket_type_id, $rows = null ) {
 		global $wpdb;
 		// SELECT *: the column set differs between schema versions (A680 options/help/scope, consent texts).
-		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ), ARRAY_A );
+		$fields = is_array( $rows ) ? $rows : $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ), ARRAY_A );
 		return array_map( static function ( $f ) {
 			// A680: same definition as the public checkout (type, choices, help text, scope).
 			$out = array( 'required' => (bool) (int) $f['required'] ) + \PassCaptain\ParticipantFields::public_definition( $f );
@@ -780,8 +792,8 @@ final class Service {
 		if ( '' !== $mismatch ) {
 			Audit::record( 'pos_device_amount_mismatch', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reference' => $reference, 'source' => $source, 'charged_minor' => $payment['amount_minor'] ?? null, 'charged_currency' => (string) ( $payment['currency'] ?? '' ) ) );
 			$order = Orders::get( $sale->order_id );
-			wp_mail(
-				get_option( 'admin_email' ),
+			\PassCaptain\Alerts::raise(
+				'pos_terminal_mismatch',
 				__( 'Pass Captain: Terminalzahlung prüfen', 'pass-captain' ),
 				/* translators: 1: order id, 2: terminal reference, 3: description of the difference */
 				sprintf( __( "Bestellung %1\$s (Terminal-Referenz %2\$s): %3\$s\n\nDer Verkauf wurde nicht gebucht. Bitte den am Terminal belasteten Betrag dort erstatten und den Verkauf neu erfassen.", 'pass-captain' ), $order ? $order->public_id : (string) $sale->order_id, $reference, $mismatch )

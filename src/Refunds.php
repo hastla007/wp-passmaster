@@ -176,11 +176,11 @@ final class Refunds {
 		if ( (int) $saved !== $refund_id ) { return self::busy(); }
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'deducted_minor' => $calc['deducted_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin', 'checked_in_tickets' => count( $used ), 'checkin_policy' => $checkin_policy, 'self_service' => $self_service ) );
 		if ( $needs_approval && 'portal' === $source ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
+			\PassCaptain\Alerts::raise( 'refund_request_approval', __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
 			return self::get( $refund_id );
 		}
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
+			\PassCaptain\Alerts::raise( 'refund_approval', __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
 			return self::get( $refund_id );
 		}
 		return self::execute( $refund_id );
@@ -268,7 +268,7 @@ final class Refunds {
 		}
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $amount_minor, 'needs_approval' => $needs_approval, 'amount_only' => true ) );
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Money::format( $amount_minor, $order->currency ) ) );
+			\PassCaptain\Alerts::raise( 'refund_approval', __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Money::format( $amount_minor, $order->currency ) ) );
 			return self::get( $refund_id );
 		}
 		return self::execute( $refund_id );
@@ -758,7 +758,7 @@ final class Refunds {
 	public static function repair_stuck() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$cutoff = gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS );
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE status='processing' AND updated_at < %s AND (provider_reference<>'' OR error_message<>%s) ORDER BY refund_id LIMIT 50", $cutoff, self::OUTCOME_UNKNOWN ), ARRAY_A );
 		$done = 0;
 		foreach ( (array) $rows as $row ) {
@@ -878,15 +878,15 @@ final class Refunds {
 			// A348: still pending after about two days. Later webhooks still settle it.
 			Audit::record( 'refund_provider_still_pending', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id ) );
 			/* translators: 1: refund id, 2: provider refund reference */
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung beim Zahlungsanbieter noch ausstehend', 'pass-captain' ), sprintf( __( 'Die Erstattung #%1$d (Referenz %2$s) ist beim Zahlungsanbieter seit zwei Tagen ausstehend. Bitte im Konto des Anbieters prüfen. Meldet der Anbieter sie später als gescheitert, wird die Buchung automatisch storniert.', 'pass-captain' ), (int) $refund_id, (string) $refund['provider_reference'] ) );
+			\PassCaptain\Alerts::raise( 'refund_provider_pending', __( 'Pass Captain: Erstattung beim Zahlungsanbieter noch ausstehend', 'pass-captain' ), sprintf( __( 'Die Erstattung #%1$d (Referenz %2$s) ist beim Zahlungsanbieter seit zwei Tagen ausstehend. Bitte im Konto des Anbieters prüfen. Meldet der Anbieter sie später als gescheitert, wird die Buchung automatisch storniert.', 'pass-captain' ), (int) $refund_id, (string) $refund['provider_reference'] ) );
 			return;
 		}
 		if ( ! $refund || 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) { return; }
 		$order = Orders::get( (int) $refund['order_id'] );
 		Audit::record( 'refund_reconcile_exhausted', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : (string) $result ) );
 		$reference = $order ? Frontend\Format::order_reference( (string) $order->public_id ) : (string) $refund['order_id'];
-		wp_mail(
-			get_option( 'admin_email' ),
+		\PassCaptain\Alerts::raise(
+			'refund_unclear',
 			__( 'Pass Captain: Erstattung mit unklarem Ausgang', 'pass-captain' ),
 			/* translators: 1: refund id, 2: order reference, 3: amount, 4: payment provider */
 			sprintf( __( "Die Erstattung #%1\$d zu Bestellung %2\$s über %3\$s (%4\$s) konnte nicht automatisch mit dem Zahlungsanbieter abgeglichen werden. Sie wird nicht erneut ausgezahlt.\n\nBitte im Konto des Zahlungsanbieters prüfen und unter Pass Captain → Betrieb → „Erstattungen mit unklarem Ausgang“ oder in der Bestellung klären (erneut beim Anbieter prüfen oder manuell bestätigen).", 'pass-captain' ), (int) $refund_id, $reference, Money::format( (int) $refund['amount_minor'], (string) $refund['currency'] ), $order ? (string) $order->payment_provider : '' )
@@ -936,7 +936,7 @@ final class Refunds {
 		}
 		if ( null === $found ) {
 			// The call may still be on its way: "not found" counts only 10 minutes after it.
-			if ( strtotime( $refund['updated_at'] . ' UTC' ) > time() - 10 * MINUTE_IN_SECONDS ) { return 'waiting'; }
+			if ( strtotime( $refund['updated_at'] . ' UTC' ) > time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ) { return 'waiting'; }
 			$found = array(
 				'status'    => 'not_found',
 				'reference' => '',
@@ -1071,8 +1071,8 @@ final class Refunds {
 		do_action( 'wpcap_refund_reversed', $refund_id, (int) $refund['order_id'] );
 		$order = Orders::get( (int) $refund['order_id'] );
 		$public = $order ? Frontend\Format::order_reference( (string) $order->public_id ) : (string) $refund['order_id'];
-		wp_mail(
-			get_option( 'admin_email' ),
+		\PassCaptain\Alerts::raise(
+			'refund_failed',
 			__( 'Pass Captain: Erstattung beim Zahlungsanbieter gescheitert', 'pass-captain' ),
 			/* translators: 1: refund id, 2: order reference, 3: amount, 4: credit note reversal number or "–" */
 			sprintf( __( "Der Zahlungsanbieter meldet die Erstattung #%1\$d zu Bestellung %2\$s über %3\$s als gescheitert; das Geld wurde nicht an die Käuferin bzw. den Käufer ausgezahlt.\n\nDie Buchung wurde storniert: Der Betrag gilt wieder als bezahlt, die Rechnungskorrektur wurde storniert (Storno-Beleg: %4\$s). Die Tickets bleiben widerrufen.\n\nBitte in der Bestellung „Erneut auszahlen“ wählen oder den Betrag auf anderem Weg erstatten.", 'pass-captain' ), $refund_id, $public, Money::format( (int) $refund['amount_minor'], (string) $refund['currency'] ), is_array( $credit ) && '' !== (string) $credit['reversal_number'] ? (string) $credit['reversal_number'] : '–' )
@@ -1131,8 +1131,8 @@ final class Refunds {
 		}
 		$public = $order ? Frontend\Format::order_reference( (string) $order->public_id ) : (string) $refund['order_id'];
 		Audit::record( 'refund_paid_after_failure', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'reference' => $reference, 'booked' => $booked, 'source' => sanitize_key( $source ) ) );
-		wp_mail(
-			get_option( 'admin_email' ),
+		\PassCaptain\Alerts::raise(
+			'refund_paid_late',
 			__( 'Pass Captain: Erstattung doch ausgezahlt', 'pass-captain' ),
 			$booked
 				/* translators: 1: refund id, 2: order reference, 3: provider reference */
@@ -1204,7 +1204,7 @@ final class Refunds {
 	public static function is_unresolved( array $refund ) {
 		if ( 'processing' !== ( $refund['status'] ?? '' ) || '' !== (string) ( $refund['provider_reference'] ?? '' ) ) { return false; }
 		return in_array( (string) ( $refund['error_message'] ?? '' ), array( self::OUTCOME_UNKNOWN, 'needs_manual_check' ), true )
-			|| strtotime( (string) ( $refund['updated_at'] ?? '' ) . ' UTC' ) < time() - 10 * MINUTE_IN_SECONDS;
+			|| strtotime( (string) ( $refund['updated_at'] ?? '' ) . ' UTC' ) < time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS;
 	}
 
 	/**
@@ -1216,7 +1216,7 @@ final class Refunds {
 	public static function unresolved( $limit = 100 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id AS order_public_id,o.payment_provider,o.customer_email FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='processing' AND r.provider_reference='' AND (r.error_message IN (%s,'needs_manual_check') OR r.updated_at < %s) ORDER BY r.refund_id LIMIT %d", self::OUTCOME_UNKNOWN, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ), max( 1, (int) $limit ) ), ARRAY_A );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id AS order_public_id,o.payment_provider,o.customer_email FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='processing' AND r.provider_reference='' AND (r.error_message IN (%s,'needs_manual_check') OR r.updated_at < %s) ORDER BY r.refund_id LIMIT %d", self::OUTCOME_UNKNOWN, gmdate( 'Y-m-d H:i:s', time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ), max( 1, (int) $limit ) ), ARRAY_A );
 	}
 
 	/** Returns a refund row as array or null. */
@@ -1746,17 +1746,6 @@ final class Refunds {
 		}
 	}
 
-	/**
-	 * Gross and VAT shares (minor units) of the given tickets, from the order lines they belong to.
-	 *
-	 * @return int[] [gross, tax]
-	 */
-	/** VAT contained in $amount for the given tickets (their line VAT scaled to the amount). */
-	public static function tax_for_tickets( $order, array $ticket_ids, $amount ) {
-		list( , $tax, $base ) = self::line_shares( $order, $ticket_ids );
-		return $base > 0 ? min( (int) $amount, (int) round( $tax * (int) $amount / $base ) ) : 0;
-	}
-
 	/** Gross value (minor units, before order-level discounts) of the given tickets, from their order lines. */
 	public static function gross_for_tickets( $order, array $ticket_ids ) {
 		list( $gross ) = self::line_shares( $order, $ticket_ids );
@@ -1789,6 +1778,11 @@ final class Refunds {
 		return (int) round( $sum );
 	}
 
+	/**
+	 * Gross, VAT and base shares (minor units) of the given tickets, from the order lines they belong to.
+	 *
+	 * @return int[] [gross, tax, base]
+	 */
 	private static function line_shares( $order, array $ticket_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;

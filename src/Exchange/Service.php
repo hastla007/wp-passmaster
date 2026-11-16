@@ -1146,7 +1146,7 @@ final class Service {
 		}
 		if ( $review ) {
 			Audit::record( 'ticket_exchange_review', 'order', (int) $exchange['order_id'], array( 'exchange_id' => absint( $exchange_id ), 'reason' => $review, 'supplementary_order_id' => (int) $exchange['supplementary_order_id'] ) );
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Umtausch bezahlt, aber nicht durchführbar', 'pass-captain' ), sprintf( /* translators: 1: exchange id, 2: order id */ __( 'Der Aufpreis für Umtausch #%1$d (Bestellung #%2$d) wurde bezahlt, das ursprüngliche Ticket ist aber nicht mehr gültig (eingecheckt, widerrufen oder erstattet). Bitte manuell klären und den Aufpreis gegebenenfalls erstatten.', 'pass-captain' ), absint( $exchange_id ), (int) $exchange['order_id'] ) );
+			\PassCaptain\Alerts::raise( 'exchange_failed', __( 'Pass Captain: Umtausch bezahlt, aber nicht durchführbar', 'pass-captain' ), sprintf( /* translators: 1: exchange id, 2: order id */ __( 'Der Aufpreis für Umtausch #%1$d (Bestellung #%2$d) wurde bezahlt, das ursprüngliche Ticket ist aber nicht mehr gültig (eingecheckt, widerrufen oder erstattet). Bitte manuell klären und den Aufpreis gegebenenfalls erstatten.', 'pass-captain' ), absint( $exchange_id ), (int) $exchange['order_id'] ) );
 			return self::get( $exchange_id );
 		}
 		return self::after_complete( $done );

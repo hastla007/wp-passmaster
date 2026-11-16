@@ -3,7 +3,7 @@
  * Settings screen (manage_options). Covers every key of Settings::defaults(); keys added later
  * without a definition here are rendered generically under "Weitere Einstellungen".
  *
- * The screen is split into tabs (?tab=general|admission|payments|legal|invoices). A form only
+ * The screen is split into tabs (?tab=general|admission|payments|legal|invoices|privacy|advanced). A form only
  * contains the fields of its tab (on the payments tab: of one provider, ?section=…), and save()
  * only touches the keys of the submitted tab/section, so saving one tab never resets another.
  * Legal texts are kept per language (Settings::legal_texts; default language in the plain keys).
@@ -56,7 +56,7 @@ final class SettingsPage {
 			),
 			'network' => array(
 				'title' => __( 'Proxy / Client-Adresse', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'trusted_proxies' => array( 'type' => 'textarea', 'label' => __( 'Vertrauenswürdige Proxys (IP-Adressen oder CIDR-Bereiche)', 'pass-captain' ), 'overridable' => true, 'description' => __( 'Eine Adresse oder ein Bereich je Zeile, z. B. 10.0.0.0/8 oder die Adressbereiche des CDN. Nur wenn die direkte Gegenstelle (REMOTE_ADDR) hier steht, wird der Weiterleitungs-Header ausgewertet; leer = immer REMOTE_ADDR. Ratenlimits und Einwilligungsnachweise verwenden diese Adresse.', 'pass-captain' ) ),
 					'trusted_proxy_header' => array(
@@ -77,6 +77,7 @@ final class SettingsPage {
 				'title' => __( 'Funktionen', 'pass-captain' ),
 				'tab' => 'general',
 				'fields' => array(
+					'disabled_modules' => array( 'type' => 'modules', 'label' => __( 'Funktionen abschalten', 'pass-captain' ), 'description' => __( 'Abgeschaltete Funktionen registrieren keine Menüs, Seiten, Shortcodes, REST-Routen und Hintergrundaufgaben mehr. Tabellen und Einstellungen bleiben erhalten; nach dem Wiedereinschalten geht es dort weiter.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
 					'hidden_modules' => array( 'type' => 'modules', 'label' => __( 'Im Menü ausblenden', 'pass-captain' ), 'description' => __( 'Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
 				),
 			),
@@ -182,13 +183,13 @@ final class SettingsPage {
 							'multi' => __( 'Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)', 'pass-captain' ),
 							'single' => __( 'Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)', 'pass-captain' ),
 						),
-						'description' => __( 'Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md).', 'pass-captain' ),
+						'description' => __( 'Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären.', 'pass-captain' ),
 					),
 				),
 			),
 			'privacy' => array(
 				'title' => __( 'Datenschutz', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'privacy',
 				'fields' => array(
 					'attendee_retention_days' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten nach dem Event löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = Feldeinstellung verwenden.', 'pass-captain' ) ),
 					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 720 ),
@@ -211,6 +212,7 @@ final class SettingsPage {
 					'mail_from_email' => array( 'type' => 'text', 'label' => __( 'Absenderadresse', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_mail_address' ), 'description' => __( 'Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@ihre-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. Ihren SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang.', 'pass-captain' ) ),
 					'mail_from_name' => array( 'type' => 'text', 'label' => __( 'Absendername', 'pass-captain' ), 'description' => __( 'Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain).', 'pass-captain' ) ),
 					'mail_reply_to' => array( 'type' => 'email', 'label' => __( 'Antwort an (E-Mail-Adresse)', 'pass-captain' ), 'description' => __( 'Antworten der Käufer gehen an diese Adresse. Leer = die Absenderadresse; ist keine eigene Absenderadresse gesetzt, die Administrator-E-Mail der Website.', 'pass-captain' ) ),
+					'alert_email' => array( 'type' => 'email', 'label' => __( 'Betriebsalarme an', 'pass-captain' ), 'description' => __( 'Hinweise, die ein Eingreifen erfordern (Erstattung wartet auf Freigabe, Zahlung prüfen, bezahlte Bestellung ohne Tickets, Webhook deaktiviert …). Leer = die Administrator-E-Mail der Website. Die letzten Alarme stehen auch im Systemstatus.', 'pass-captain' ) ),
 					'mail_bounce_webhook' => array( 'type' => 'bool', 'label' => __( 'Bounce-/Beschwerde-Webhook des Versanddienstes annehmen', 'pass-captain' ), 'description' => \PassCaptain\Mail\Suppression::webhook_enabled()
 						/* translators: %s: webhook URL with token */
 						? sprintf( __( 'Diese URL beim Versanddienst (Postmark, SendGrid, Mailgun, Amazon SES/SNS) als Webhook für Bounces und Spam-Beschwerden eintragen: %s – unzustellbare Mails werden als fehlgeschlagen markiert und bei der Bestellung angezeigt; nach einer Beschwerde gehen keine Erinnerungen mehr an die Adresse. Die URL enthält ein geheimes Token.', 'pass-captain' ), \PassCaptain\Mail\Suppression::webhook_url() )
@@ -226,7 +228,7 @@ final class SettingsPage {
 					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'pass-captain' ) ),
 					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'pass-captain' ) ),
 					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer', 'pass-captain' ), 'description' => __( 'Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist.', 'pass-captain' ) ),
-					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md) und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
+					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
 					'tax_profile_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)', 'pass-captain' ) ),
 					'seller_small_business' => array( 'type' => 'bool', 'label' => __( 'Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)', 'pass-captain' ), 'description' => __( 'Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen).', 'pass-captain' ) ),
 					'seller_small_business_note' => array( 'type' => 'text', 'label' => __( 'Kleinunternehmer-Hinweis (leer = Standardtext für das Land)', 'pass-captain' ), 'description' => __( 'DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“', 'pass-captain' ) ),
@@ -234,25 +236,27 @@ final class SettingsPage {
 					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)', 'pass-captain' ) ),
 					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'pass-captain' ) ),
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ) ),
+					'datev_chart' => array( 'type' => 'choice', 'label' => __( 'Kontenrahmen für den DATEV-Buchungsstapel', 'pass-captain' ), 'options' => array( 'skr03' => __( 'SKR03 (Erlöse 8400/8300, Geldtransit 1360)', 'pass-captain' ), 'skr04' => __( 'SKR04 (Erlöse 4400/4300, Geldtransit 1460)', 'pass-captain' ) ), 'description' => __( 'Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts.', 'pass-captain' ) ),
+					'datev_contra_account' => array( 'type' => 'text', 'label' => __( 'Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)', 'pass-captain' ), 'description' => __( '4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters.', 'pass-captain' ) ),
 				),
 			),
 			'security' => array(
 				'title' => __( 'Sicherheit', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'fiscal_allow_local_service' => array( 'type' => 'bool', 'label' => __( 'Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)', 'pass-captain' ), 'description' => __( 'Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden.', 'pass-captain' ) ),
 				),
 			),
 			'support' => array(
 				'title' => __( 'Support und Fehlersuche', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'debug_logging' => array( 'type' => 'bool', 'label' => __( 'Fehlersuche-Protokoll (Debug-Modus) für 24 Stunden einschalten', 'pass-captain' ), 'description' => __( 'Speichert zusätzlich ausführliche Diagnose-Einträge im Support-Protokoll (Betrieb → Support-Protokoll). Schaltet sich 24 Stunden nach dem Einschalten von selbst ab; zum erneuten Einschalten aus- und wieder einschalten. Fehler und Warnungen werden immer protokolliert. Geheimnisse, Ticketcodes und E-Mail-Adressen werden nie gespeichert. Die Konstante WPCAP_DEBUG in wp-config.php hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'uninstall' => array(
 				'title' => __( 'Deinstallation', 'pass-captain' ),
-				'tab' => 'general',
+				'tab' => 'advanced',
 				'fields' => array(
 					'delete_data_on_uninstall' => array( 'type' => 'bool', 'label' => __( 'Beim Löschen des Plugins alle Daten entfernen', 'pass-captain' ), 'description' => __( 'Achtung: Events, Bestellungen, Tickets, Rechnungen, Rechnungskorrekturen, Kassen- und Fiskalbelege werden beim Löschen des Plugins unwiderruflich gelöscht. Rechnungen und Buchungsbelege unterliegen gesetzlichen Aufbewahrungspflichten (DE 10 Jahre, AT 7 Jahre): vorher Rechnungen und das Fiskal-Archiv exportieren und sicher aufbewahren.', 'pass-captain' ) ),
 				),
@@ -342,6 +346,8 @@ final class SettingsPage {
 			'payments' => __( 'Zahlungsarten', 'pass-captain' ),
 			'legal' => __( 'Rechtstexte', 'pass-captain' ),
 			'invoices' => __( 'Rechnungen', 'pass-captain' ),
+			'privacy' => __( 'Datenschutz', 'pass-captain' ),
+			'advanced' => __( 'Erweitert', 'pass-captain' ),
 		);
 	}
 
@@ -369,6 +375,16 @@ final class SettingsPage {
 		return $out;
 	}
 
+	/**
+	 * A378: the voucher section only matters with a voucher provider (Voucher Captain). Without one it
+	 * is hidden (and not saved, so the stored value stays) unless a non-default value is stored.
+	 */
+	public static function vouchers_relevant() {
+		if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) { return true; }
+		$default = Settings::defaults()['voucher_default_purpose'] ?? 'multi';
+		return Settings::get( 'voucher_default_purpose' ) !== $default;
+	}
+
 	/** Valid tab id ('' = unknown). */
 	public static function tab( $tab ) {
 		$tab = sanitize_key( is_scalar( $tab ) ? (string) $tab : '' );
@@ -389,6 +405,7 @@ final class SettingsPage {
 		$tab = self::tab( $tab );
 		if ( '' === $tab ) { return array(); }
 		$sections = array_filter( $sections, static function ( $def ) use ( $tab ) { return ( $def['tab'] ?? 'general' ) === $tab; } );
+		if ( isset( $sections['vouchers'] ) && ! self::vouchers_relevant() ) { unset( $sections['vouchers'] ); }
 		if ( 'payments' === $tab ) {
 			$section = sanitize_key( is_scalar( $section ) ? (string) $section : '' );
 			$section = isset( $sections[ $section ] ) ? $section : 'payments';
@@ -417,6 +434,16 @@ final class SettingsPage {
 	 * Markup of a secret input: never contains the value. Shows "gespeichert ••••1234" (last four
 	 * characters of long secrets), an empty replace field and a remove checkbox.
 	 */
+	/** A298: id of the WordPress editor of an HTML field (lowercase letters, digits and underscores only). */
+	private static function editor_id( $key ) {
+		return 'wpcap_set_' . preg_replace( '/[^a-z0-9_]/', '_', strtolower( (string) $key ) );
+	}
+
+	/** Id of a field's input for its label (the editor of HTML fields has its own id). */
+	private static function field_input_id( $key, array $field ) {
+		return 'html' === ( $field['type'] ?? '' ) && function_exists( 'wp_editor' ) && apply_filters( 'wpcap_settings_rich_editor', true, $key ) ? self::editor_id( $key ) : 'wpcap-set-' . $key;
+	}
+
 	public static function secret_input( $key, $id = '', $multiline = false ) {
 		$status = Settings::secret_status( $key );
 		$id = '' !== $id ? $id : 'wpcap-set-' . $key;
@@ -707,7 +734,7 @@ final class SettingsPage {
 			<table class="form-table"><tbody>
 			<?php foreach ( $def['fields'] as $key => $field ) : ?>
 				<tr>
-					<th scope="row"><label for="wpcap-set-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $field['label'] ); ?></label></th>
+					<th scope="row"><label for="<?php echo esc_attr( self::field_input_id( $key, $field ) ); ?>"><?php echo esc_html( $field['label'] ); ?></label></th>
 					<td><?php self::render_field( $key, $field, $values[ $key ] ?? null ); ?></td>
 				</tr>
 			<?php endforeach; ?>
@@ -942,6 +969,11 @@ final class SettingsPage {
 				echo '<textarea id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="large-text" rows="4">' . esc_textarea( (string) $value ) . '</textarea>';
 				break;
 			case 'html':
+				// A298: legal texts with the WordPress editor (lists, links, bold) where available; textarea otherwise.
+				if ( function_exists( 'wp_editor' ) && apply_filters( 'wpcap_settings_rich_editor', true, $key ) ) {
+					wp_editor( (string) $value, self::editor_id( $key ), array( 'textarea_name' => $key, 'media_buttons' => false, 'teeny' => true, 'textarea_rows' => 8, 'quicktags' => true ) );
+					break;
+				}
 				echo '<textarea id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="large-text" rows="8">' . esc_textarea( (string) $value ) . '</textarea>';
 				$version = 'terms_text' === $key ? Settings::terms_version( Settings::legal_default_locale() ) : '';
 				if ( '' !== $version ) {

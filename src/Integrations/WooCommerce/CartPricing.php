@@ -87,7 +87,7 @@ final class CartPricing {
 		$settings[] = array(
 			'title'    => __( 'Ticketpreise', 'pass-captain' ),
 			'desc'     => __( 'Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden', 'pass-captain' ),
-			'desc_tip' => __( 'Ticketprodukte kosten dann den Preis der Pass-Captain-Ticketkategorie inklusive aktiver Preisstufe statt des WooCommerce-Produktpreises. Der Preis wird im Warenkorb und an der Kasse laufend neu berechnet.', 'pass-captain' ),
+			'desc_tip' => __( 'Ticketprodukte kosten dann den Preis der Pass-Captain-Ticketart inklusive aktiver Preisstufe statt des WooCommerce-Produktpreises. Der Preis wird im Warenkorb und an der Kasse laufend neu berechnet.', 'pass-captain' ),
 			'id'       => self::OPTION,
 			'type'     => 'checkbox',
 			'default'  => 'no',

@@ -91,7 +91,7 @@ final class AssignmentsPage {
 
 	/** Remove button of an occurrence assignment. */
 	private static function remove_button( $assignment, $event_id ) {
-		Forms::open_form( 'wpcap_assignment_remove', 'wpcap_assignment_remove_' . (int) $assignment->assignment_id, 'style="display:inline"' );
+		Forms::open_form( 'wpcap_assignment_remove', 'wpcap_assignment_remove_' . (int) $assignment->assignment_id, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Zuweisung wirklich entfernen?', 'pass-captain' ) . '"' );
 		Forms::hidden( 'assignment_id', (int) $assignment->assignment_id );
 		Forms::hidden( 'event_id', (int) $event_id );
 		echo '<button class="button-link button-link-delete">' . esc_html__( 'Entfernen', 'pass-captain' ) . '</button></form>';
@@ -192,7 +192,7 @@ final class AssignmentsPage {
 				echo '<tr><td>' . esc_html( $area->name ) . '</td><td>';
 				foreach ( \PassCaptain\Admission\Areas::staff( $aid ) as $uid ) {
 					echo '<div>' . esc_html( Forms::user_label( $uid ) ) . ' ';
-					Forms::open_form( 'wpcap_assignment_area_remove', 'wpcap_assignment_area_remove_' . $aid . '_' . (int) $uid, 'style="display:inline"' );
+					Forms::open_form( 'wpcap_assignment_area_remove', 'wpcap_assignment_area_remove_' . $aid . '_' . (int) $uid, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Person aus diesem Bereich entfernen?', 'pass-captain' ) . '"' );
 					Forms::hidden( 'area_id', $aid );
 					Forms::hidden( 'user_id', (int) $uid );
 					Forms::hidden( 'event_id', $event_id );

@@ -186,8 +186,7 @@ final class Costs {
 			/* translators: 1: month (YYYY-MM), 2: spent / budget with currency, 3: percent */
 			$body = sprintf( __( 'Die SMS-Kosten für %1$s haben %3$d %% des Monatsbudgets erreicht (%2$s).', 'pass-captain' ), $status['month'], $amounts, $status['percent'] );
 		}
-		$to = get_option( 'admin_email' );
-		if ( is_string( $to ) && '' !== $to && is_email( $to ) ) { wp_mail( $to, $subject, $body ); }
+		\PassCaptain\Alerts::raise( 'sms_budget', $subject, $body, array( 'level' => $level ) );
 		do_action( 'wpcap_sms_budget_warning', $level, $status );
 		return true;
 	}

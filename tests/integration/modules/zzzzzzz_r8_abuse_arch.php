@@ -249,7 +249,7 @@ $r8_row = $wpdb->get_row( $wpdb->prepare( 'SELECT access_token_hash,access_expir
 $r8_mail = array_slice( $GLOBALS['wpcap_test_mails'], $r8_mails );
 $r8_token = '';
 foreach ( $r8_mail as $m ) { if ( preg_match( '/wpcap_access=([a-f0-9]{64})/', (string) $m['body'], $mm ) ) { $r8_token = $mm[1]; } }
-check( 'rotating the access link through the facade: new token hash, 30 days, the mailed link carries the new token', $r8_row && $r8_old_hash !== $r8_row->access_token_hash && '' !== $r8_token && hash( 'sha256', $r8_token ) === $r8_row->access_token_hash && abs( strtotime( $r8_row->access_expires_at . ' UTC' ) - ( time() + 30 * DAY_IN_SECONDS ) ) < 120 );
+check( 'rotating the access link through the facade: new token hash, 30 days, the mailed link carries the new token', $r8_row && $r8_old_hash !== $r8_row->access_token_hash && '' !== $r8_token && hash( 'sha256', $r8_token ) === $r8_row->access_token_hash && abs( strtotime( $r8_row->access_expires_at . ' UTC' ) - strtotime( PassCaptain\Orders::access_until( $r8_po['order_id'] ) . ' UTC' ) ) < 120 && strtotime( $r8_row->access_expires_at . ' UTC' ) >= time() + 30 * DAY_IN_SECONDS - 120 ); // A424: at least 30 days, and 30 days past the last date.
 // Merged: one implementation – Orders (with the A631 pending link); Orders\PortalAccess delegates to it.
 $r8_pa = (string) file_get_contents( WPCAP_PATH . 'src/Orders/PortalAccess.php' );
 check( 'Orders and Orders\\PortalAccess share one implementation (PortalAccess delegates)', false !== strpos( $r8_pa, 'return Orders::rotate_access_link( $order_id );' ) && false !== strpos( $r8_pa, 'return Orders::send_order_access_link( $email, $public_id, $access_token, $locale );' ) );

@@ -1,8 +1,10 @@
 <?php
 /**
- * "Systemstatus": queue backlogs and failures (jobs, e-mails, webhooks, SMS), WP-Cron health with
- * worker heartbeats, refunds that need a manual decision, schema upgrade state and the
- * diagnose/reconciliation checks. Every action needs manage_options and a nonce and is audited
+ * "Systemstatus", the only status/operations screen (N04): tab "Übersicht" with queue backlogs and
+ * failures (jobs, e-mails, webhooks, SMS), WP-Cron health with worker heartbeats, refunds that need a
+ * manual decision, schema upgrade state and the diagnose/reconciliation checks; tab "Betrieb"
+ * (OperationsPage, former slug wpcap-operations redirects here) with monitoring, suite status, support
+ * log, data consistency checks and per-queue retry/discard. Every action needs manage_options and a nonce and is audited
  * (bulk "retry all" per queue is capped per click). Also prints an admin notice on plugin pages and
  * the dashboard while the backlog is critical, and adds a dashboard widget with the critical issues.
  *
@@ -21,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class StatusPage {
 	const SLUG = 'wpcap-status';
 	const CAP = 'manage_options';
+	/** Tab with the former "Betrieb" screen (OperationsPage). */
+	const TAB_OPERATIONS = 'operations';
 
 	/** admin-post action => handler (merged into Menu::handlers()). */
 	public static function handlers() {
@@ -189,7 +193,7 @@ final class StatusPage {
 	private static function notice_screen() {
 		global $pagenow;
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects the screen.
-		if ( self::SLUG === $page ) { return false; } // The page itself lists everything.
+		if ( self::SLUG === $page || OperationsPage::SLUG === $page ) { return false; } // The page itself lists everything.
 		return str_starts_with( $page, 'wpcap' ) || Menu::SLUG === $page || ( '' === $page && 'index.php' === $pagenow );
 	}
 
@@ -230,11 +234,24 @@ final class StatusPage {
 		echo '<button type="submit" class="' . esc_attr( $class ) . '">' . esc_html( $label ) . '</button></form> ';
 	}
 
-	public static function render() {
+	/**
+	 * Renders the screen. $tab: '' = from the request (?tab=operations), 'operations' = tab "Betrieb"
+	 * (used by OperationsPage::render() for the former slug). WordPress passes '' to page callbacks.
+	 */
+	public static function render( $tab = '' ) {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		$tab = sanitize_key( '' !== (string) $tab ? (string) $tab : Forms::query_arg( 'tab', '' ) );
+		$tab = self::TAB_OPERATIONS === $tab ? self::TAB_OPERATIONS : 'overview';
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Systemstatus', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
+		Forms::nav_tabs( self::SLUG, array( 'overview' => __( 'Übersicht', 'pass-captain' ), self::TAB_OPERATIONS => __( 'Betrieb', 'pass-captain' ) ), $tab, array(), __( 'Bereiche des Systemstatus', 'pass-captain' ) );
+		if ( self::TAB_OPERATIONS === $tab ) {
+			OperationsPage::render_section();
+			echo '</div>';
+			return;
+		}
 		self::render_issues();
+		self::render_alerts();
 		self::render_cron();
 		self::render_queues();
 		self::render_failed();
@@ -255,6 +272,24 @@ final class StatusPage {
 		foreach ( $issues as $issue ) {
 			echo '<div class="notice notice-' . ( 'error' === $issue['severity'] ? 'error' : 'warning' ) . ' inline"><p>' . esc_html( $issue['message'] ) . '</p></div>';
 		}
+	}
+
+	/** A400: the latest operational alerts (also when their mail was lost) and where they are sent. */
+	private static function render_alerts() {
+		$alerts = \PassCaptain\Alerts::recent( 10 );
+		echo '<h2 id="wpcap-alerts">' . esc_html__( 'Letzte Betriebsalarme', 'pass-captain' ) . '</h2>';
+		$to = \PassCaptain\Alerts::recipients();
+		/* translators: %s: e-mail address(es) */
+		echo '<p class="description">' . esc_html( $to ? sprintf( __( 'Alarme gehen per E-Mail an: %s (Einstellungen → E-Mail-Versand).', 'pass-captain' ), implode( ', ', $to ) ) : __( 'Keine gültige Empfängeradresse für Alarme eingestellt.', 'pass-captain' ) ) . '</p>';
+		if ( ! $alerts ) {
+			echo '<p>' . esc_html__( 'Bisher keine Alarme.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Zeit', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Alarm', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $alerts as $alert ) {
+			echo '<tr><td>' . esc_html( self::time( (string) $alert['at'] ) ) . '</td><td>' . esc_html( (string) $alert['subject'] ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	private static function render_cron() {

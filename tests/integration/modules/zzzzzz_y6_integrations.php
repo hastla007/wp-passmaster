@@ -179,8 +179,10 @@ $GLOBALS['y6_switched'] = false;
 /* ------------------------------------------------------------------ INT-7 */
 echo "Y6 INT-7: deactivation clears every cron hook\n";
 $GLOBALS['y6_unscheduled'] = array();
+// In a full run zz_a467 defined the wp_unschedule_hook() stub first (it records into a467_unscheduled).
+$y6_a467_seen = count( $GLOBALS['a467_unscheduled'] ?? array() );
 if ( function_exists( 'get_current_blog_id' ) ) { Y6Plugin::deactivate(); }
-$y6_hooks = $GLOBALS['y6_unscheduled'];
+$y6_hooks = array_merge( $GLOBALS['y6_unscheduled'], array_slice( $GLOBALS['a467_unscheduled'] ?? array(), $y6_a467_seen ) );
 check( 'INT-7: deactivation removes wpcap_webhooks_dispatch and wpcap_process_fiscal_order', in_array( 'wpcap_webhooks_dispatch', Y6Plugin::CRON_HOOKS, true ) && in_array( 'wpcap_process_fiscal_order', Y6Plugin::CRON_HOOKS, true ) && ( ! function_exists( 'get_current_blog_id' ) || ( in_array( 'wpcap_webhooks_dispatch', $y6_hooks, true ) && in_array( 'wpcap_process_fiscal_order', $y6_hooks, true ) ) ) );
 $y6_fd = $wpdb->get_var( "SHOW TABLES LIKE '{$p}wpcap\\_fiscal\\_documents'" );
 if ( $y6_fd ) {
@@ -234,8 +236,8 @@ check( 'INT-10: entries that are given are still validated', is_wp_error( $y6_pa
 
 /* ------------------------------------------------------------------ INT-13 */
 echo "Y6 INT-13: deferred network activation\n";
-$y6_defer = new ReflectionMethod( Y6Plugin::class, 'defer_site_activation' );
-$y6_defer->setAccessible( true );
+// Merged design (A287): Plugin::defer_site_activation() is gone; network activation queues the sites and
+// NetworkInstall::install_site() (per site, batch or lazy) runs the uninstall opt-in migration before it installs.
 $y6_s2 = get_option( Settings::OPTION, array() );
 $y6_s2 = is_array( $y6_s2 ) ? $y6_s2 : array();
 $y6_s2b = $y6_s2; $y6_s2b['delete_data_on_uninstall'] = 1;
@@ -243,10 +245,13 @@ update_option( Settings::OPTION, $y6_s2b );
 $y6_pol = get_option( Settings::UNINSTALL_POLICY, false );
 delete_option( Settings::UNINSTALL_POLICY );
 $y6_dbv = get_option( 'wpcap_db_version' );
-update_option( 'wpcap_db_version', '3.11.0+x' );
-$y6_defer->invoke( null );
-check( 'INT-13: a deferred site gets the opt-in migration and an upgrade cron event at once', 'delete' === get_option( Settings::UNINSTALL_POLICY ) && empty( get_option( Settings::OPTION )['delete_data_on_uninstall'] ) && false !== wp_next_scheduled( PassCaptain\Installer::UPGRADE_HOOK ) );
-check( 'INT-13: the activation request installs at most a batch of sites', Y6Plugin::NETWORK_ACTIVATION_SITES > 0 && Y6Plugin::NETWORK_ACTIVATION_SECONDS > 0 );
+update_option( 'wpcap_db_version', PassCaptain\Installer::version() ); // Schema current: no full install in the test.
+Settings::flush();
+PassCaptain\NetworkInstall::install_site();
+Settings::flush();
+check( 'INT-13: a site installed after network activation gets the opt-in migration first', 'delete' === get_option( Settings::UNINSTALL_POLICY ) && empty( get_option( Settings::OPTION )['delete_data_on_uninstall'] ) );
+$y6_net_src = (string) file_get_contents( WPCAP_PATH . 'src/Plugin.php' );
+check( 'INT-13: the activation request installs only the current site, the rest in background batches', PassCaptain\NetworkInstall::BATCH > 0 && PassCaptain\NetworkInstall::BUDGET > 0 && false !== strpos( $y6_net_src, 'NetworkInstall::start()' ) );
 update_option( Settings::OPTION, $y6_s2 );
 if ( false === $y6_pol ) { delete_option( Settings::UNINSTALL_POLICY ); } else { update_option( Settings::UNINSTALL_POLICY, $y6_pol ); }
 if ( false === $y6_dbv ) { delete_option( 'wpcap_db_version' ); } else { update_option( 'wpcap_db_version', $y6_dbv ); }

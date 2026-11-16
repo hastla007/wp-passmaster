@@ -13,8 +13,10 @@
  * - optional JSON validation; error messages never contain the URL query, headers or body
  *
  * DNS resolution is filterable (`wpcap_outbound_resolve`, tests use a fake resolver). The check
- * runs right before each request; wp_safe_remote_* re-validates the host on top. A DNS rebinding
- * attacker with a TTL of 0 could still race the two lookups – see docs/SECURITY.md.
+ * runs right before each request and the connection is pinned to the checked address with
+ * CURLOPT_RESOLVE (the same `http_api_curl` hook as PassCaptain\OutboundHttp), so a second DNS answer
+ * (rebinding, TTL 0) is never used (N03). Without cURL the request is refused unless the filter
+ * `wpcap_outbound_allow_unpinned` allows it.
  */
 namespace PassCaptain\Security;
 
@@ -116,6 +118,16 @@ final class OutboundHttp {
 	 * @return true|\WP_Error
 	 */
 	public static function validate_url( $url, array $opts = array() ) {
+		$checked = self::check( $url, $opts );
+		return is_wp_error( $checked ) ? $checked : true;
+	}
+
+	/**
+	 * Validates a target URL and returns the checked addresses.
+	 *
+	 * @return array{host:string,port:int,scheme:string,ips:string[],literal:bool}|\WP_Error
+	 */
+	private static function check( $url, array $opts = array() ) {
 		$allow_local = ! empty( $opts['allow_local'] );
 		$url = trim( (string) $url );
 		$parts = function_exists( 'wp_parse_url' ) ? wp_parse_url( $url ) : parse_url( $url ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
@@ -160,7 +172,25 @@ final class OutboundHttp {
 			// Plain http is only acceptable on the local network, never across the internet.
 			return self::error( 'wpcap_outbound_https_required', __( 'Die Ziel-URL muss HTTPS verwenden.', 'pass-captain' ) );
 		}
-		return true;
+		$port = isset( $parts['port'] ) ? (int) $parts['port'] : ( 'http' === $scheme ? 80 : 443 );
+		return array( 'host' => $host, 'port' => $port, 'scheme' => $scheme, 'ips' => array_values( $ips ), 'literal' => $host_is_ip );
+	}
+
+	/**
+	 * CURLOPT_RESOLVE entry pinning the host to a checked address (IPv4 preferred); empty for IP
+	 * literals, which cannot be re-resolved.
+	 *
+	 * @param array $checked Result of check().
+	 * @return string[]
+	 */
+	public static function pin_entries( array $checked ) {
+		if ( ! empty( $checked['literal'] ) || empty( $checked['ips'] ) ) { return array(); }
+		$ip = (string) $checked['ips'][0];
+		foreach ( (array) $checked['ips'] as $candidate ) {
+			if ( filter_var( $candidate, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) { $ip = (string) $candidate; break; }
+		}
+		$ip = trim( $ip, '[]' );
+		return array( $checked['host'] . ':' . (int) $checked['port'] . ':' . ( false !== strpos( $ip, ':' ) ? '[' . $ip . ']' : $ip ) );
 	}
 
 	private static function error( $code, $message, $status = 400 ) {
@@ -175,8 +205,17 @@ final class OutboundHttp {
 	 * @return array|\WP_Error ['code' => int, 'body' => string, 'headers' => array, 'data' => array|null]
 	 */
 	public static function request( $url, array $args = array(), array $opts = array() ) {
-		$valid = self::validate_url( $url, $opts );
-		if ( is_wp_error( $valid ) ) { return $valid; }
+		$checked = self::check( $url, $opts );
+		if ( is_wp_error( $checked ) ) { return $checked; }
+		$pin = self::pin_entries( $checked );
+		if ( $pin ) {
+			if ( ! \PassCaptain\OutboundHttp::can_pin() && ! apply_filters( 'wpcap_outbound_allow_unpinned', false, 'security_outbound' ) ) {
+				return self::error( 'wpcap_outbound_unpinned', __( 'Ausgehende Anfrage abgelehnt: Ohne cURL kann die geprüfte Zieladresse nicht festgelegt werden.', 'pass-captain' ), 502 );
+			}
+			\PassCaptain\OutboundHttp::hook();
+			$args[ \PassCaptain\OutboundHttp::PIN_ARG ] = $pin;
+			if ( 'http' === $checked['scheme'] ) { $args[ \PassCaptain\OutboundHttp::PIN_ARG . '_http' ] = true; }
+		}
 		$max = max( 1024, (int) ( $opts['max_bytes'] ?? self::MAX_BYTES ) );
 		$args['redirection'] = 0;
 		$args['timeout'] = max( 1, min( self::MAX_TIMEOUT, (int) ( $args['timeout'] ?? 10 ) ) );

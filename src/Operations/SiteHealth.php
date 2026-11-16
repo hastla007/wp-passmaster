@@ -93,6 +93,8 @@ final class SiteHealth {
 			'payment_webhooks' => array( __CLASS__, 'test_payment_webhooks' ),
 			'webhook_errors'   => array( __CLASS__, 'test_webhook_errors' ),
 			'payment_start'    => array( __CLASS__, 'test_payment_start' ),
+			'rest_anonymous'   => array( __CLASS__, 'test_rest_anonymous' ),
+			'proxy'            => array( __CLASS__, 'test_proxy' ),
 		);
 		if ( self::sms_active() ) { $tests['sms'] = array( __CLASS__, 'test_sms' ); }
 		return $tests;
@@ -141,7 +143,7 @@ final class SiteHealth {
 	}
 
 	private static function operations_link() {
-		return '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Zur Betriebsübersicht von Pass Captain', 'pass-captain' ) . '</a></p>';
+		return '<p><a href="' . esc_url( \PassCaptain\Admin\OperationsPage::url() ) . '">' . esc_html__( 'Zur Betriebsübersicht von Pass Captain', 'pass-captain' ) . '</a></p>';
 	}
 
 	/* ------------------------------------------------------------------ WP-Cron */
@@ -416,6 +418,75 @@ final class SiteHealth {
 		return self::result( 'payment_start', $critical ? 'critical' : 'recommended', __( 'Pass Captain: Zahlungsstart beim Anbieter schlägt fehl', 'pass-captain' ), self::p( $intro ) . self::list_html( $lines ), self::operations_link() );
 	}
 
+	/** Transient with the last anonymous REST probe (A375). */
+	const REST_PROBE_TRANSIENT = 'wpcap_health_rest_probe';
+
+	/**
+	 * A375: probe the public events endpoint without cookies or nonce (as a buyer's browser, the
+	 * checkout and the scanner do). Security plugins and "disable REST for guests" snippets answer
+	 * 401/403 there, which silently breaks checkout, order portal and scanner. Cached six hours
+	 * (filter wpcap_health_rest_probe_ttl); the response code only, never the body.
+	 *
+	 * @return array{code:int,error:string,time:int}
+	 */
+	public static function rest_probe( $fresh = false ) {
+		$cached = $fresh ? false : get_transient( self::REST_PROBE_TRANSIENT );
+		if ( is_array( $cached ) && isset( $cached['code'] ) ) { return $cached; }
+		// Through the outbound guard (A202); allow_local: the site may reach itself on a private/loopback address.
+		$response = \PassCaptain\Security\OutboundHttp::request( rest_url( 'pass-captain/v1/events' ), array(
+			'method'    => 'GET',
+			'timeout'   => 5,
+			'cookies'   => array(),
+			'headers'   => array( 'Cache-Control' => 'no-cache', 'Accept' => 'application/json' ),
+			// Loopback: core's own Site Health loopback test uses the same filter.
+			'sslverify' => (bool) apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
+		), array( 'allow_local' => true, 'max_bytes' => 262144 ) );
+		$probe = array( 'code' => 0, 'error' => '', 'time' => time() );
+		if ( is_wp_error( $response ) ) {
+			$data = $response->get_error_data();
+			$probe['code'] = is_array( $data ) ? (int) ( $data['response_code'] ?? 0 ) : 0;
+			$probe['error'] = $probe['code'] ? '' : sanitize_text_field( $response->get_error_message() );
+		} else {
+			$probe['code'] = (int) $response['code'];
+		}
+		set_transient( self::REST_PROBE_TRANSIENT, $probe, max( MINUTE_IN_SECONDS, (int) apply_filters( 'wpcap_health_rest_probe_ttl', 6 * HOUR_IN_SECONDS ) ) );
+		return $probe;
+	}
+
+	/** A375: anonymous REST access to the plugin's public endpoints. */
+	public static function test_rest_anonymous() {
+		$probe = self::rest_probe();
+		$code = (int) $probe['code'];
+		if ( $code >= 200 && $code < 300 ) {
+			return self::result( 'rest_anonymous', 'good', __( 'Pass Captain: öffentliche REST-Schnittstelle erreichbar', 'pass-captain' ), self::p( __( 'Die öffentlichen Endpunkte (Eventliste, Checkout, Bestellstatus) antworten auch ohne Anmeldung.', 'pass-captain' ) ) );
+		}
+		if ( 401 === $code || 403 === $code ) {
+			/* translators: %d: HTTP status code, e.g. 403 */
+			$text = sprintf( __( 'Die REST-Schnittstelle lehnt Anfragen ohne Anmeldung ab (HTTP %d). Checkout, Bestellportal, Ticketseite und Scanner funktionieren für Käufer:innen dann nicht. Häufige Ursache: ein Sicherheits-Plugin oder Code-Schnipsel, der die REST-API für Gäste sperrt. Bitte den Namensraum pass-captain/v1 dort freigeben.', 'pass-captain' ), $code );
+			return self::result( 'rest_anonymous', 'critical', __( 'Pass Captain: REST-Schnittstelle für Gäste gesperrt', 'pass-captain' ), self::p( $text ) );
+		}
+		$detail = '' !== $probe['error']
+			/* translators: %s: error message of the HTTP request */
+			? sprintf( __( 'Fehler: %s', 'pass-captain' ), $probe['error'] )
+			/* translators: %d: HTTP status code */
+			: sprintf( __( 'Antwort: HTTP %d', 'pass-captain' ), $code );
+		$text = __( 'Die Website konnte ihre eigene öffentliche REST-Schnittstelle nicht abrufen. Das kann an einer gesperrten Loopback-Verbindung liegen (dann ist nur diese Prüfung betroffen) oder an einer Sperre der REST-API für Gäste. Bitte den Checkout einmal ohne Anmeldung ausprobieren.', 'pass-captain' );
+		return self::result( 'rest_anonymous', 'recommended', __( 'Pass Captain: öffentliche REST-Schnittstelle nicht prüfbar', 'pass-captain' ), self::p( $text ) . self::p( $detail ) );
+	}
+
+	/** A375: forwarding headers or private peer addresses without configured trusted proxies. */
+	public static function test_proxy() {
+		$issue = \PassCaptain\Sales\CheckoutThrottle::status_issue();
+		if ( null === $issue ) {
+			$text = \PassCaptain\RateLimit::trusted_proxies()
+				? __( 'Vertrauenswürdige Proxys sind eingetragen; Ratenlimits und Einwilligungsnachweise verwenden die Client-Adresse aus dem Weiterleitungs-Header.', 'pass-captain' )
+				: __( 'Es gibt keine Hinweise auf einen vorgeschalteten Proxy oder ein CDN; die direkte Absenderadresse wird verwendet.', 'pass-captain' );
+			return self::result( 'proxy', 'good', __( 'Pass Captain: Client-Adressen werden korrekt erkannt', 'pass-captain' ), self::p( $text ) );
+		}
+		$actions = '<p><a href="' . esc_url( \PassCaptain\Admin\Forms::page_url( \PassCaptain\Admin\SettingsPage::SLUG, array( 'tab' => 'advanced' ) ) . '#wpcap-settings-network' ) . '">' . esc_html__( 'Proxy-Einstellungen öffnen', 'pass-captain' ) . '</a></p>';
+		return self::result( 'proxy', 'recommended', __( 'Pass Captain: Proxy ohne vertrauenswürdige Adressen', 'pass-captain' ), self::p( (string) $issue['message'] ), $actions );
+	}
+
 	/* ------------------------------------------------------------------ Summary, notice, info tab */
 
 	/** Results of all tests (key => result). */
@@ -443,7 +514,7 @@ final class SiteHealth {
 		if ( ( ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) || ! current_user_can( 'manage_options' ) ) { return; }
 		$labels = self::critical_labels();
 		if ( ! $labels ) { return; }
-		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Der Betrieb ist gestört.', 'pass-captain' ) . '</strong></p>' . self::list_html( $labels ) . '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Betriebsübersicht öffnen', 'pass-captain' ) . '</a> · <a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Website-Zustand', 'pass-captain' ) . '</a></p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- list_html escapes.
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Der Betrieb ist gestört.', 'pass-captain' ) . '</strong></p>' . self::list_html( $labels ) . '<p><a href="' . esc_url( \PassCaptain\Admin\OperationsPage::url() ) . '">' . esc_html__( 'Betriebsübersicht öffnen', 'pass-captain' ) . '</a> · <a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Website-Zustand', 'pass-captain' ) . '</a></p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- list_html escapes.
 	}
 
 	/** Section of the Site Health info tab (filter debug_information). */

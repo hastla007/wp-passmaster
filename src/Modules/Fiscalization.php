@@ -1029,20 +1029,17 @@ final class Fiscalization {
 		// Log writes the audit entry (action fiscal_document_terminal_failure) and, if enabled, the PHP error log.
 		Log::error( 'fiscal_document_terminal_failure', sprintf( 'Fiscal document %d of order %d failed permanently (%s); tickets stay blocked.', (int) $doc->document_id, (int) $doc->order_id, sanitize_key( $message ) ), array( 'object_type' => 'order', 'object_id' => (int) $doc->order_id, 'details' => $details ) );
 		do_action( 'wpcap_fiscal_terminal_failure', $details );
-		$recipient = get_option( 'admin_email', '' );
-		if ( is_email( $recipient ) ) {
-			$subject = __( 'Pass Captain: Fiskalvorgang erfordert Eingriff', 'pass-captain' );
-			$body = sprintf(
-				/* translators: 1: document ID, 2: order ID, 3: seller, 4: provider ID, 5: error code */
-				__( 'Der Fiskalvorgang %1$d für Bestellung %2$d ist fehlgeschlagen. Verkäufer: %3$s. Anbieter: %4$s. Fehlercode: %5$s. Ticket-Ausgabe bleibt gesperrt, bis der Vorgang geprüft und behoben wurde.', 'pass-captain' ),
-				(int) $doc->document_id,
-				(int) $doc->order_id,
-				$seller_name,
-				sanitize_key( $doc->provider_id ),
-				sanitize_text_field( $message )
-			);
-			wp_mail( $recipient, $subject, $body );
-		}
+		$subject = __( 'Pass Captain: Fiskalvorgang erfordert Eingriff', 'pass-captain' );
+		$body = sprintf(
+			/* translators: 1: document ID, 2: order ID, 3: seller, 4: provider ID, 5: error code */
+			__( 'Der Fiskalvorgang %1$d für Bestellung %2$d ist fehlgeschlagen. Verkäufer: %3$s. Anbieter: %4$s. Fehlercode: %5$s. Ticket-Ausgabe bleibt gesperrt, bis der Vorgang geprüft und behoben wurde.', 'pass-captain' ),
+			(int) $doc->document_id,
+			(int) $doc->order_id,
+			$seller_name,
+			sanitize_key( $doc->provider_id ),
+			sanitize_text_field( $message )
+		);
+		\PassCaptain\Alerts::raise( 'fiscal_failure', $subject, $body, array( 'order_id' => (int) $doc->order_id ) );
 	}
 
 	/** Runs submission again on payment callback retries; ticket issuance is blocked until success. */

@@ -28,6 +28,9 @@ final class Data {
 	/** Channel filter: '' = all orders, 'sales' = without complimentary tickets, 'comp' = only those (Sales\Comps). */
 	const CHANNELS = array( 'sales', 'comp' );
 
+	/** A613: date the revenue of an order belongs to: order date (default) or payment date. */
+	const BASES = array( 'order', 'payment' );
+
 	/** QA-12: longest report period in days (longer ranges are shortened to the last 366 days, with a notice). */
 	const MAX_RANGE_DAYS = 366;
 
@@ -227,9 +230,15 @@ final class Data {
 
 		// Sales: ids by index (paid_created), then blocks of BLOCK orders with their lines and exchange
 		// flags (A434: no query per order, never the whole period in memory).
-		$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s" . $provider_sql . ' ORDER BY order_id', $p . 'wpcap_orders', $start, $end ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
+		// A613: by payment date (paid_at, schema 3.18.1; orders paid before it have no paid_at and count by order date).
+		$basis = 'payment' === (string) ( $filters['basis'] ?? '' ) && \PassCaptain\Orders::schema_at_least( '3.18.1' ) ? 'payment' : 'order';
+		if ( 'payment' === $basis ) {
+			$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE payment_status IN ('paid','refunded') AND ( ( paid_at >= %s AND paid_at < %s ) OR ( paid_at IS NULL AND created_at >= %s AND created_at < %s ) )" . $provider_sql . ' ORDER BY order_id', $p . 'wpcap_orders', $start, $end, $start, $end ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
+		} else {
+			$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s" . $provider_sql . ' ORDER BY order_id', $p . 'wpcap_orders', $start, $end ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
+		}
 		$order_scope = array(); // order id => in-scope [tickets, gross after discount, line total before discount, all lines before discount].
-		foreach ( self::order_blocks( $order_ids, 'order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot', $line_sql ) as list( $order_id, $order, $lines ) ) {
+		foreach ( self::order_blocks( $order_ids, 'order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot' . ( 'payment' === $basis ? ',paid_at' : '' ), $line_sql ) as list( $order_id, $order, $lines ) ) {
 			if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) {
 				$in_scope = false;
 				foreach ( $lines as $line ) {
@@ -241,7 +250,7 @@ final class Data {
 				continue;
 			}
 			$gross_lines = self::allocate_discount( $lines, (int) $order->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $order ) );
-			$day = Scope::local( $order->created_at, $tz, 'Y-m-d' );
+			$day = Scope::local( 'payment' === $basis && ! empty( $order->paid_at ) ? $order->paid_at : $order->created_at, $tz, 'Y-m-d' );
 			$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
 			$share = array( 0, 0, 0, 0 );
 			foreach ( $lines as $i => $line ) {
@@ -309,7 +318,7 @@ final class Data {
 		$compare = in_array( (string) ( $filters['compare'] ?? '' ), self::COMPARE, true ) ? (string) $filters['compare'] : '';
 		$range = $compare ? self::comparison_range( $from, $to, $compare ) : null;
 		if ( $range ) {
-			$base = self::build( array( 'from' => $range[0], 'to' => $range[1], 'event_id' => $event_filter, 'compare' => '', 'channel' => $channel ), $scope );
+			$base = self::build( array( 'from' => $range[0], 'to' => $range[1], 'event_id' => $event_filter, 'compare' => '', 'channel' => $channel, 'basis' => $basis ), $scope );
 			$comparison = array(
 				'mode' => $compare,
 				'from' => $range[0],
@@ -328,6 +337,7 @@ final class Data {
 			'to' => $to,
 			'range_clamped' => $clamped,
 			'channel' => $channel,
+			'basis' => $basis,
 			'campaigns' => $campaigns,
 			'comparison' => $comparison,
 			'timezone' => $tz,

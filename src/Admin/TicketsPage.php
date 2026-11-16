@@ -262,9 +262,76 @@ final class TicketsPage {
 	 * admin-post wrappers
 	 * =========================================================================================== */
 
+	/**
+	 * List filters from request values (A684): search, event, date, ticket type, status and sort order; ids of
+	 * dates/types only together with their event, unknown values dropped.
+	 *
+	 * @param array $q Raw values (s, event_id, occurrence_id, ticket_type_id, status, orderby).
+	 * @return array{search:string,event_id:int,occurrence_id:int,ticket_type_id:int,status:string,orderby:string}
+	 */
+	public static function filters( array $q ) {
+		$event = absint( $q['event_id'] ?? 0 );
+		$status = (string) ( $q['status'] ?? '' );
+		$orderby = (string) ( $q['orderby'] ?? '' );
+		return array(
+			'search' => trim( sanitize_text_field( (string) ( $q['s'] ?? '' ) ) ),
+			'event_id' => $event,
+			'occurrence_id' => $event ? absint( $q['occurrence_id'] ?? 0 ) : 0,
+			'ticket_type_id' => $event ? absint( $q['ticket_type_id'] ?? 0 ) : 0,
+			'status' => in_array( $status, self::STATUSES, true ) ? $status : '',
+			'orderby' => array_key_exists( $orderby, Queries::ticket_orders() ) ? $orderby : 'newest',
+		);
+	}
+
+	/** Dates of an event for the filter (id => local start). */
+	private static function occurrence_options( $event_id ) {
+		global $wpdb;
+		$out = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,starts_at,timezone FROM %i WHERE event_id=%d ORDER BY starts_at LIMIT 300', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) ) as $o ) {
+			$out[ (int) $o->occurrence_id ] = Forms::datetime( $o->starts_at, $o->timezone, false );
+		}
+		return $out;
+	}
+
+	/** Ticket types of an event (or one date) for the filter. */
+	private static function type_options( $event_id, $occurrence_id = 0 ) {
+		global $wpdb;
+		$out = array();
+		$rows = $occurrence_id
+			? $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND o.occurrence_id=%d ORDER BY tt.name LIMIT 300', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ), absint( $occurrence_id ) ) )
+			: $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,o.starts_at,o.timezone FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d ORDER BY o.starts_at,tt.name LIMIT 300', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) );
+		foreach ( (array) $rows as $t ) {
+			$out[ (int) $t->ticket_type_id ] = (string) $t->name . ( isset( $t->starts_at ) ? ' – ' . Forms::datetime( $t->starts_at, $t->timezone, false ) : '' );
+		}
+		return $out;
+	}
+
+	/** A414: back to the list with search, event, status and page of the action's origin. */
 	private static function back_url( array $in ) {
-		$search = Forms::text( $in, 'return_search', 190 );
-		return Forms::page_url( self::SLUG, '' !== $search ? array( 's' => $search ) : array() );
+		$status = Forms::text( $in, 'return_status', 32 );
+		$orderby = Forms::text( $in, 'return_orderby', 16 );
+		$args = array(
+			's' => Forms::text( $in, 'return_search', 190 ),
+			'event_id' => Forms::int( $in, 'return_event' ),
+			'occurrence_id' => Forms::int( $in, 'return_occurrence' ),
+			'ticket_type_id' => Forms::int( $in, 'return_type' ),
+			'status' => in_array( $status, self::STATUSES, true ) ? $status : '',
+			'orderby' => array_key_exists( $orderby, Queries::ticket_orders() ) && 'newest' !== $orderby ? $orderby : '',
+			'paged' => max( 0, Forms::int( $in, 'return_paged' ) ),
+		);
+		if ( 1 === $args['paged'] ) { $args['paged'] = 0; }
+		return Forms::page_url( self::SLUG, array_filter( $args ) );
+	}
+
+	/** Hidden fields carrying the list state into an action form (A414). */
+	private static function return_fields( array $filters, $page ) {
+		Forms::hidden( 'return_search', (string) $filters['search'] );
+		Forms::hidden( 'return_event', (int) $filters['event_id'] );
+		Forms::hidden( 'return_status', (string) $filters['status'] );
+		Forms::hidden( 'return_occurrence', (int) ( $filters['occurrence_id'] ?? 0 ) );
+		Forms::hidden( 'return_type', (int) ( $filters['ticket_type_id'] ?? 0 ) );
+		Forms::hidden( 'return_orderby', (string) ( $filters['orderby'] ?? '' ) );
+		Forms::hidden( 'return_paged', max( 1, (int) $page ) );
 	}
 
 	public static function handle_revoke_ticket() {
@@ -336,11 +403,14 @@ final class TicketsPage {
 		}
 		// Events offered in the filter: event-level scope plus events of assigned dates.
 		$option_scope = null === $scope ? null : array_values( array_unique( array_merge( $scope, Access::occurrence_event_ids( 'wpcap_checkin' ), Access::occurrence_event_ids( 'wpcap_manage_orders' ) ) ) );
-		$filters = array(
-			'search' => Forms::query_arg( 's' ),
-			'event_id' => absint( Forms::query_arg( 'event_id', 0 ) ),
-			'status' => in_array( Forms::query_arg( 'status' ), self::STATUSES, true ) ? Forms::query_arg( 'status' ) : '',
-		);
+		$filters = self::filters( array(
+			's' => Forms::query_arg( 's' ),
+			'event_id' => Forms::query_arg( 'event_id', 0 ),
+			'status' => Forms::query_arg( 'status' ),
+			'occurrence_id' => Forms::query_arg( 'occurrence_id', 0 ),
+			'ticket_type_id' => Forms::query_arg( 'ticket_type_id', 0 ),
+			'orderby' => Forms::query_arg( 'orderby' ),
+		) );
 		$has_filter = '' !== $filters['search'] || $filters['event_id'] || '' !== $filters['status'];
 		$page = Forms::current_page();
 		$per_page = 30;
@@ -365,8 +435,16 @@ final class TicketsPage {
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name', 'pass-captain' ); ?>">
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $option_scope, array( (int) $filters['event_id'] ) ), $filters['event_id'], '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
+			<?php if ( $filters['event_id'] ) : // A684: date and ticket type of the chosen event. ?>
+				<?php Forms::select( 'occurrence_id', array( 0 => __( 'Alle Termine', 'pass-captain' ) ) + self::occurrence_options( (int) $filters['event_id'] ), $filters['occurrence_id'], '', Forms::aria_label( __( 'Termin', 'pass-captain' ) ) ); ?>
+				<?php Forms::select( 'ticket_type_id', array( 0 => __( 'Alle Ticketarten', 'pass-captain' ) ) + self::type_options( (int) $filters['event_id'], (int) $filters['occurrence_id'] ), $filters['ticket_type_id'], '', Forms::aria_label( __( 'Ticketart', 'pass-captain' ) ) ); ?>
+			<?php endif; ?>
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
+			<?php Forms::select( 'orderby', Queries::ticket_orders(), $filters['orderby'], '', Forms::aria_label( __( 'Sortierung', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
+			<?php if ( $filters['occurrence_id'] && '' !== \PassCaptain\Printing\AttendeeList::access_level( (int) $filters['occurrence_id'] ) ) : ?>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'occurrence_id' => (int) $filters['occurrence_id'], 'format' => 'csv' ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV', 'pass-captain' ); ?></a>
+			<?php endif; ?>
 		</form>
 		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>
 		<?php if ( ! empty( $data['notice'] ) ) : ?><div class="notice notice-warning inline"><p><?php echo esc_html( $data['notice'] ); ?></p></div><?php endif; ?>
@@ -401,24 +479,24 @@ final class TicketsPage {
 						</td>
 						<td><?php echo esc_html( trim( $attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 						<td>
-							<?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : '' ) ); ?>
+							<?php echo esc_html( Forms::status_label( $ticket->status, 'ticket' ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : '' ) ); ?>
 							<?php if ( $ticket->last_checkin_at ) : ?><br><small><?php echo esc_html( Forms::datetime( $ticket->last_checkin_at, $ticket->timezone, false ) ); ?></small><?php endif; ?>
 						</td>
 						<td>
 							<?php if ( 'valid' === $ticket->status && $can_orders ) : ?>
-								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
+								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
 								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'pass-captain' ); ?>">
 								<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'pass-captain' ); ?></label>
 								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button>
 								</form>
 								<?php if ( $exchange ) : ?><p><a class="button" href="<?php echo esc_url( \PassCaptain\Exchange\AdminPage::url( array( 'ticket_id' => (int) $ticket->ticket_id ) ) ); ?>"><?php esc_html_e( 'Umbuchen', 'pass-captain' ); ?></a></p><?php endif; ?>
-								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
 								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Neu ausstellen', 'pass-captain' ); ?></button>
 								</form>
 							<?php endif; ?>
 							<?php if ( in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) && $can_orders ) : ?>
 								<details><summary><?php esc_html_e( 'Teilnehmerdaten korrigieren', 'pass-captain' ); ?></summary>
-								<?php Forms::open_form( 'wpcap_correct_attendee', 'wpcap_correct_attendee_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<?php Forms::open_form( 'wpcap_correct_attendee', 'wpcap_correct_attendee_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
 								<p><label><?php esc_html_e( 'Name', 'pass-captain' ); ?> <input type="text" name="attendee_name" maxlength="190" value="<?php echo esc_attr( (string) $ticket->attendee_name ); ?>"></label></p>
 								<p><label><?php esc_html_e( 'E-Mail', 'pass-captain' ); ?> <input type="email" name="attendee_email" maxlength="190" value="<?php echo esc_attr( (string) $email ); ?>"></label></p>
 								<p><input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>">
@@ -431,7 +509,7 @@ final class TicketsPage {
 								$areas = self::checkin_areas( (int) $ticket->event_id );
 								Forms::open_form( 'wpcap_checkin_ticket', 'wpcap_checkin_ticket_' . $ticket->ticket_id );
 								Forms::hidden( 'ticket_id', $ticket->ticket_id );
-								Forms::hidden( 'return_search', $filters['search'] );
+								self::return_fields( $filters, $page );
 								Forms::hidden( 'idempotency_key', wp_generate_uuid4() );
 								if ( $areas ) {
 									Forms::select( 'area_id', array( 0 => __( '– Einlassbereich –', 'pass-captain' ) ) + $areas, 0, '', 'aria-label="' . esc_attr__( 'Einlassbereich', 'pass-captain' ) . '"' );
@@ -441,7 +519,7 @@ final class TicketsPage {
 								</form>
 							<?php endif; ?>
 							<?php if ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
-								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
+								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
 								<input type="text" name="reason" maxlength="255" required aria-label="<?php esc_attr_e( 'Grund der Rücknahme', 'pass-captain' ); ?>" placeholder="<?php esc_attr_e( 'Grund (Pflicht)', 'pass-captain' ); ?>">
 								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>
 								</form>
@@ -451,7 +529,7 @@ final class TicketsPage {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
-			<?php Forms::pagination( $data['total'], $page, $per_page, Forms::page_url( self::SLUG, array_filter( array( 's' => $filters['search'], 'event_id' => $filters['event_id'], 'status' => $filters['status'] ) ) ) ); ?>
+			<?php Forms::pagination( $data['total'], $page, $per_page, Forms::page_url( self::SLUG, array_filter( array( 's' => $filters['search'], 'event_id' => $filters['event_id'], 'occurrence_id' => $filters['occurrence_id'], 'ticket_type_id' => $filters['ticket_type_id'], 'status' => $filters['status'], 'orderby' => 'newest' !== $filters['orderby'] ? $filters['orderby'] : '' ) ) ) ); ?>
 		<?php endif; ?>
 		</div>
 		<?php

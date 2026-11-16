@@ -169,7 +169,7 @@ final class AccessCookie {
 	}
 
 	public static function blocked_html() {
-		return '<!doctype html><html lang="' . esc_attr( str_replace( '_', '-', determine_locale() ) ) . '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html__( 'Bitte Link erneut öffnen', 'pass-captain' ) . '</title></head><body><main><h1>' . esc_html__( 'Bitte Link erneut öffnen', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Dein Browser hat das kurzlebige Sitzungs-Cookie für diese Seite nicht gespeichert. Bitte öffne den Link aus deiner E-Mail noch einmal – er funktioniert dann auch ohne Cookie.', 'pass-captain' ) . '</p></main></body></html>';
+		return '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html__( 'Bitte Link erneut öffnen', 'pass-captain' ) . '</title></head><body><main><h1>' . esc_html__( 'Bitte Link erneut öffnen', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Dein Browser hat das kurzlebige Sitzungs-Cookie für diese Seite nicht gespeichert. Bitte öffne den Link aus deiner E-Mail noch einmal – er funktioniert dann auch ohne Cookie.', 'pass-captain' ) . '</p></main></body></html>';
 	}
 
 	/** Whether the current request was authorised by the access cookie (links on the page can omit the token). */

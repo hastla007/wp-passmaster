@@ -27,7 +27,7 @@ final class AdminPage {
 	 * served from the site's own origin (Pwa, A286), not from the asset URL that may be on a CDN.
 	 */
 	public static function app_url() {
-		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : ( function_exists( 'get_locale' ) ? get_locale() : 'de_DE' );
 		return Pwa::base_url() . 'index.html?api=' . rawurlencode( \PassCaptain\Mobile\Devices::api_base() ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
 	}
 

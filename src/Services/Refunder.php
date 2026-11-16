@@ -106,7 +106,7 @@ final class Refunder {
 		if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => (int) $calc['amount_minor'], 'needs_approval' => $needs_approval, 'source' => 'service_booking', 'actor' => sanitize_key( $actor ) ) );
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, number_format_i18n( (int) $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
+			\PassCaptain\Alerts::raise( 'refund_approval', __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, \PassCaptain\Money::format( (int) $calc['amount_minor'], (string) $order->currency ) ) );
 			return Refunds::get( $refund_id );
 		}
 		return Refunds::execute( $refund_id );

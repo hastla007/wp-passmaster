@@ -188,10 +188,17 @@ final class I18n {
 			'Der Kopplungscode gehört zu einem anderen Server.' => __( 'Der Kopplungscode gehört zu einem anderen Server.', 'pass-captain' ),
 			'Offline-Scanner (PWA)' => __( 'Offline-Scanner (PWA)', 'pass-captain' ),
 			'Gerät entkoppeln? Nicht synchronisierte Scans gehen verloren.' => __( 'Gerät entkoppeln? Nicht synchronisierte Scans gehen verloren.', 'pass-captain' ),
+			/* translators: %1: time of the earlier admission on this device */
+			'Auf diesem Gerät eingelassen um %1' => __( 'Auf diesem Gerät eingelassen um %1', 'pass-captain' ),
+			/* translators: %1: scanner device or staff member who admitted first */
+			'durch %1' => __( 'durch %1', 'pass-captain' ),
+			'Alle Scans sind synchronisiert. Gerät jetzt entkoppeln?' => __( 'Alle Scans sind synchronisiert. Gerät jetzt entkoppeln?', 'pass-captain' ),
+			/* translators: %1$d: number of scans not yet synchronised (used twice) */
+			'%1$d Scans sind noch nicht synchronisiert und gingen beim Entkoppeln verloren. Bitte zuerst mit Internetverbindung synchronisieren. Zum Entkoppeln trotzdem die Zahl %1$d eingeben:' => __( '%1$d Scans sind noch nicht synchronisiert und gingen beim Entkoppeln verloren. Bitte zuerst mit Internetverbindung synchronisieren. Zum Entkoppeln trotzdem die Zahl %1$d eingeben:', 'pass-captain' ),
 			'Browser nicht unterstützt' => __( 'Browser nicht unterstützt', 'pass-captain' ),
 			'Benötigt HTTPS, WebCrypto und IndexedDB.' => __( 'Benötigt HTTPS, WebCrypto und IndexedDB.', 'pass-captain' ),
 			'Gekoppelt' => __( 'Gekoppelt', 'pass-captain' ),
-			'Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.' => __( 'Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.', 'pass-captain' ),
+			'Freigegebene Events werden geladen. Fehlt ein Event, im Admin unter „Offline-Scanner“ zuweisen.' => __( 'Freigegebene Events werden geladen. Fehlt ein Event, im Admin unter „Offline-Scanner“ zuweisen.', 'pass-captain' ),
 			'Kopplung fehlgeschlagen' => __( 'Kopplung fehlgeschlagen', 'pass-captain' ),
 			// Results, help codes, overlay (A089, A271, A315, A543, A548).
 			'Erstmals eingelassen' => __( 'Erstmals eingelassen', 'pass-captain' ),

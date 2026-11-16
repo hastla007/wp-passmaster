@@ -8,6 +8,7 @@
 // phpcs:ignoreFile
 use PassCaptain\Admin\Menu;
 use PassCaptain\Admin\OperationsPage;
+use PassCaptain\Admin\StatusPage;
 use PassCaptain\Operations\Monitor;
 use PassCaptain\Operations\Queues;
 use PassCaptain\Operations\SiteHealth;
@@ -105,7 +106,8 @@ if ( isset( Queues::available()['webhooks'] ) ) {
 }
 
 // ------------------------------------------------------------------ menu and page
-check( 'A163: page "Betrieb" sits in the settings/integrations area with manage_options', 'settings' === Menu::group_of( OperationsPage::SLUG ) && (bool) array_filter( Menu::entries(), static fn( $e ) => OperationsPage::SLUG === $e[0] && 'manage_options' === $e[3] ) );
+// N04: "Betrieb" is the tab of the screen "Systemstatus" (one menu entry, manage_options); the former slug leads there.
+check( 'A163: "Betrieb" is a tab of "Systemstatus" in the settings/integrations area with manage_options; the former slug leads there', 'settings' === Menu::group_of( StatusPage::SLUG ) && (bool) array_filter( Menu::entries(), static fn( $e ) => StatusPage::SLUG === $e[0] && 'manage_options' === $e[3] ) && ! array_filter( Menu::entries(), static fn( $e ) => OperationsPage::SLUG === $e[0] ) && StatusPage::SLUG === ( Menu::legacy_pages()[ OperationsPage::SLUG ][0] ?? '' ) && 'manage_options' === Menu::legacy_pages()[ OperationsPage::SLUG ][3] && str_contains( OperationsPage::url(), 'page=wpcap-status&tab=operations' ) );
 check( 'A163: admin-post handler registered', isset( Menu::handlers()[ OperationsPage::ACTION ] ) );
 $a163_dead[] = $a163_job( 'dead_letter', array( 'email' => 'seite@example.com' ) );
 ob_start();

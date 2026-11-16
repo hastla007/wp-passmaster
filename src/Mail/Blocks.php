@@ -16,8 +16,11 @@ final class Blocks {
 	public static function issued_tickets( array $tickets ) {
 		$text = '';
 		$html = '';
+		// A614: ticket holder and age/ID notice of the ticket type, as on the event card.
+		$names = \PassCaptain\TicketPdf::attendee_names( array_map( static function ( $t ) { return (int) ( $t['ticket_id'] ?? 0 ); }, $tickets ) );
 		foreach ( $tickets as $t ) {
-			$text .= sprintf( "%s — %s\n%s\n%s\n\n", $t['event'], $t['ticket'], $t['when'], $t['location'] );
+			$holder = \PassCaptain\AdmissionChecks::holder_line( (string) ( $t['attendee'] ?? ( $names[ (int) ( $t['ticket_id'] ?? 0 ) ] ?? '' ) ), (int) ( $t['ticket_type_id'] ?? 0 ) );
+			$text .= sprintf( "%s — %s\n%s\n%s\n", $t['event'], $t['ticket'], $t['when'], $t['location'] ) . ( '' !== $holder ? $holder . "\n" : '' ) . "\n";
 			$text .= __( 'Ticket öffnen oder drucken:', 'pass-captain' ) . ' ' . esc_url_raw( $t['url'] ) . "\n";
 			$text .= __( 'Ticket-Code:', 'pass-captain' ) . ' ' . $t['token'] . "\n";
 			$help = (string) ( $t['help_code'] ?? '' );
@@ -26,6 +29,7 @@ final class Blocks {
 			if ( '' !== $missing ) { $text .= $missing . "\n"; }
 			$text .= "\n";
 			$html .= '<p style="margin:0 0 16px"><strong>' . esc_html( $t['event'] . ' — ' . $t['ticket'] ) . '</strong><br>' . esc_html( $t['when'] ) . '<br>' . esc_html( $t['location'] ) . '<br>'
+				. ( '' !== $holder ? esc_html( $holder ) . '<br>' : '' )
 				. esc_html__( 'Ticket öffnen oder drucken:', 'pass-captain' ) . ' ' . Mailer::link( $t['url'] )['html'] . '<br>'
 				. esc_html__( 'Ticket-Code:', 'pass-captain' ) . ' <code>' . esc_html( $t['token'] ) . '</code>'
 				. ( '' !== $help ? '<br>' . esc_html( \PassCaptain\HelpCode::caption() ) . ' <strong style="font-family:monospace;letter-spacing:.1em">' . esc_html( $help ) . '</strong>' : '' )

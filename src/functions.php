@@ -50,3 +50,16 @@ if ( ! function_exists( 'wpcap_api_request_can' ) ) {
 		return PassCaptain\Api\Auth::request_can( $request, $scope, $event_id );
 	}
 }
+
+if ( ! function_exists( 'wpcap_get_ticket' ) ) {
+	/**
+	 * Ticket → order, event, occurrence without personal data (contract ticket_read 1.x, A709),
+	 * see PassCaptain\Api\Tickets::get().
+	 *
+	 * @param int|string $ticket Ticket id (int) or public ticket id (string).
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_ticket( $ticket ) {
+		return PassCaptain\Api\Tickets::get( $ticket );
+	}
+}
