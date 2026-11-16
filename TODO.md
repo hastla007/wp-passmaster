@@ -693,12 +693,12 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Rollennamen übersetzt in der DB gespeichert — src/Installer.php:1104–1124, :1080 (A362, R1 Core)
 - [ ] [OPTIMIERUNG] Falscher Übersetzerkommentar — src/Orders.php:1076 (confirm_external_payment) (A363, R1 Core)
 - [ ] [OPTIMIERUNG] Wartelisten-Queue ohne Lock; GET_LOCK-Namen nicht je Installation eindeutig — src/Waitlists.php:173–184, :207–208, :247–248, Allocations/BuyerLimits.php:145 (A364, R1 Core)
-- [ ] [OPTIMIERUNG] Web-Scanner-REST gibt interne IDs fremder Events zurück — src/Checkin.php:356–361, Rest/Controller.php:907–915 (A365, R1 Security)
-- [ ] [OPTIMIERUNG] SMS-HTTP-Callbacks ohne Replay-Schutz — src/Sms/HttpProvider.php:101–107, Sms/Service.php:481 (A366, R1 Security)
+- [x] [OPTIMIERUNG] Web-Scanner-REST gibt interne IDs fremder Events zurück — src/Checkin.php:356–361, Rest/Controller.php:907–915 (A365, R1 Security)
+- [x] [OPTIMIERUNG] SMS-HTTP-Callbacks ohne Replay-Schutz — src/Sms/HttpProvider.php:101–107, Sms/Service.php:481 (A366, R1 Security)
 - [ ] [OPTIMIERUNG] ABSPATH-Guard fehlt in ausgelieferten PHP-Dateien — src/Integrations/ConnectorInterface.php, src/blocks/*/editor.asset.php (A367, R1 Security)
 - [ ] [OPTIMIERUNG] Einlassbereiche auf jeder Frontend-Seite für Check-in-Nutzer abgefragt — src/Modules/Admission.php:22, Admission/Rest.php:82–87 (A368, R1 Architektur)
 - [ ] [OPTIMIERUNG] Erstattungs-Badge startet volle Abfrage auf jeder Admin-Seite; Index auf refunds.status fehlt — src/Admin/Menu.php:198, Queries.php:474–482 (A369, R1 Architektur)
-- [ ] [OPTIMIERUNG] Öffentliche REST-GETs mit Token ohne no-store — src/Rest/Controller.php:34–38, :469–479, ServiceBookingFlow.php:233–265 (A370, R1 Architektur)
+- [x] [OPTIMIERUNG] Öffentliche REST-GETs mit Token ohne no-store — src/Rest/Controller.php:34–38, :469–479, ServiceBookingFlow.php:233–265 (A370, R1 Architektur)
 - [x] [OPTIMIERUNG] Globaler CSS-Selektor [aria-invalid] mit !important — assets/public.css:5 (A371, R1 Architektur)
 - [ ] [OPTIMIERUNG] Deinstallation lässt wpcap_approve_comps zurück — src/Modules/GuestLists.php:131–141, uninstall.php:41 (A372, R1 Architektur)
 - [ ] [OPTIMIERUNG] Ticketausstellung/PDF/Mail synchron im Webhook; ServiceBookingFlow per wp_mail — src/Payments/Webhooks.php:121, Orders.php:1569–1680, ServiceBookingFlow.php:190/205 (A373, R1 Architektur)
@@ -748,8 +748,8 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — src/Operations/Queues.php:29–61, Sms/Service.php:314 (A417, R2 API)
 - [x] [OPTIMIERUNG] PayPal capturet per Webhook auch stornierte Bestellungen — src/Payments/PayPalGateway.php:249–257 (A418, R2 API)
 - [x] [OPTIMIERUNG] Gewonnener Stripe-Chargeback (funds_reinstated) nicht ausgewertet — src/Payments/StripeGateway.php:197–203 (A419, R2 API)
-- [ ] [OPTIMIERUNG] Checkout-Idempotenz vergleicht Warenkorb-Inhalt nicht — src/Orders.php:56–58, assets/checkout.js:472 (A420, R2 API)
-- [ ] [OPTIMIERUNG] REST-Eingaben fast ohne Schema; negative/gebrochene Mengen still umgedeutet — src/Rest/Controller.php (3/42 Routen mit args), Orders.php:72–73 (absint) (A421, R2 API/Eigen)
+- [x] [OPTIMIERUNG] Checkout-Idempotenz vergleicht Warenkorb-Inhalt nicht — src/Orders.php:56–58, assets/checkout.js:472 (A420, R2 API)
+- [x] [OPTIMIERUNG] REST-Eingaben fast ohne Schema; negative/gebrochene Mengen still umgedeutet — src/Rest/Controller.php (3/42 Routen mit args), Orders.php:72–73 (absint) (A421, R2 API/Eigen)
 - [x] [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — src/WalletPasses/Service.php:321–388 (A422, R2 API)
 - [x] [OPTIMIERUNG] Google-Wallet-Token nicht an Zugangsdaten gebunden — src/WalletPasses/GoogleProvider.php:124–136 (A423, R2 API)
 - [ ] [OPTIMIERUNG] Fehlend: Rechnung/Bestelllink erneut senden; Portalzugang nur 30 Tage — src/Mail/Types.php, Orders.php:241, OrderPortal.php:137 (A424, R2 Eigen)
@@ -839,7 +839,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Kalender-Block: Event-ID als Zahlenfeld, limit nicht einstellbar — src/blocks/calendar/editor.js:21–26, block.json:10–13 (A502, R3 Editor)
 - [x] [OPTIMIERUNG] Ungültige Shortcode-Attribute fallen still auf „alle Events“; shortcode_atts-Filter-Tag immer Altname — src/PublicEvents.php:148–152 (A503, R3 Editor)
 - [x] [OPTIMIERUNG] Doppelte IDs auch durch Sidebar/Archiv/doppeltes the_content (erweitert A308) — templates/event-card.php:12, Modules/Calendar.php:131 (A504, R3 Editor)
-- [ ] [OPTIMIERUNG] Öffentliche REST-GETs mit Live-Daten ohne Cache-Control (erweitert A370) — src/Rest/Controller.php:21/107/122/176, WalletPasses/WebService.php:83 (A505, R3 Caching)
+- [x] [OPTIMIERUNG] Öffentliche REST-GETs mit Live-Daten ohne Cache-Control (erweitert A370) — src/Rest/Controller.php:21/107/122/176, WalletPasses/WebService.php:83 (A505, R3 Caching)
 - [ ] [OPTIMIERUNG] Offline-PWA ohne Asset-Versionierung — assets/offline-scanner/sw.js:8, index.html:13/80–82 (A506, R3 Caching)
 - [ ] [OPTIMIERUNG] Einmalige Geheimnisse (API-Key, Kopplungscode) hängen an Transient zwischen POST und Redirect — src/Admin/DeveloperKeysPage.php:51/107, Partners/AdminPage.php:113/487, Admin/DevicesPage.php:28/54 (A507, R3 Caching)
 - [x] [OPTIMIERUNG] Web-Scanner-Shortcode-Seite ohne DONOTCACHEPAGE — src/PublicEvents.php:378–394 (A508, R3 Caching)
@@ -868,7 +868,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Lost Update/Rennen beim Bearbeiten von Ticketarten — src/Admin/EventsPage.php:353–386 (A531, R3 QA)
 - [x] [OPTIMIERUNG] Admin-Aktionen melden Erfolg ohne geprüfte Schreibvorgänge (Widerruf, Check-in zurücknehmen) — src/Admin/TicketsPage.php:53–55, :96–105 (A532, R3 QA)
 - [x] [OPTIMIERUNG] Doppelklick „Tickets erneut senden“ rotiert Codes zweimal (ergänzt A335) — src/Admin/OrdersPage.php:89–95 (A533, R3 QA)
-- [ ] [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — src/Orders.php:43, Rest/Controller.php:711 (A534, R3 QA)
+- [x] [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — src/Orders.php:43, Rest/Controller.php:711 (A534, R3 QA)
 
 ## Audit Runde 6 – Ticketing: Transaktionen, Ticket-Sicherheit, Dokumente/Mail/Wallet, Zeit/Caching, Käufer-UX/Einlass, Eigen-Audit (13.11.2026, Snapshot a1b11e5)
 
@@ -953,7 +953,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — src/Reports/Data.php:165 (A613, R4 Eigen (Deep Dive 3))
 - [ ] [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — templates/event-card.php:64, TicketPage.php (A614, R4 Eigen (Deep Dive 3))
 - [ ] [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — — (A615, R4 Eigen (Deep Dive 3))
-- [ ] [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — src/Rest/Controller.php:681–692, Campaigns.php:47/183 (A616, R4 Transaktionen/Concurrency)
+- [x] [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — src/Rest/Controller.php:681–692, Campaigns.php:47/183 (A616, R4 Transaktionen/Concurrency)
 - [ ] [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — src/Series/Pricing.php, Orders.php:191 (A617, R4 Transaktionen/Concurrency)
 - [ ] [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — src/TicketPdf.php:49–55, :98 (A618, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379 (A619, R4 Dokumente/Mail/Wallet)
@@ -966,9 +966,9 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Anhänge sofort nach wp_mail gelöscht – Mail-Queue-Plugins senden ohne Anhang (PLAUSIBEL) — src/Orders.php:1820–1823, Modules/Calendar.php:96, Mailer.php:332–347 (A626, R4 Dokumente/Mail/Wallet)
 - [ ] [OPTIMIERUNG] Portal-Download „alle“ ohne Obergrenze (1.000 Rotationen, 20 MB je Klick) — src/PortalSelfService.php:162–166 (A627, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58 (A628, R4 Dokumente/Mail/Wallet)
-- [ ] [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — src/OfflineScanner/Keys.php:178–233 (A629, R4 Ticket-Sicherheit)
+- [x] [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — src/OfflineScanner/Keys.php:178–233 (A629, R4 Ticket-Sicherheit)
 - [x] [OPTIMIERUNG] Massendruck mit neuen Codes entwertet übertragene/zugewiesene Tickets ohne Nachricht (erweitert A335/A427) — src/Printing/Templates.php:318–348 (A630, R4 Ticket-Sicherheit)
-- [ ] [OPTIMIERUNG] Abfotografierter QR-Code kann Bestelllink des Käufers rotieren — src/TicketPage.php:34–39, PortalSelfService.php:588–606 (A631, R4 Ticket-Sicherheit)
+- [x] [OPTIMIERUNG] Abfotografierter QR-Code kann Bestelllink des Käufers rotieren — src/TicketPage.php:34–39, PortalSelfService.php:588–606 (A631, R4 Ticket-Sicherheit)
 
 
 ## P1 – Form Captain und Review Captain Integration (neu, 15.11.2026)
@@ -1071,21 +1071,21 @@ Ohne Befund geprüft: SQL-Injection (alle Abfragen prepared oder Integer-Listen)
 ### Härtung (kein Grenzübertritt nachgewiesen)
 
 - [x] [P3][HÄRTUNG] `src/Rest/Controller.php:445–466` — `pos_sale` bestätigt bei wiederverwendetem Idempotenzschlüssel die bestehende Bestellung ohne erneute Eventprüfung; bei `reused` `Scope::can_order()` prüfen.
-- [ ] [P3][HÄRTUNG] `src/Rest/Controller.php:427–435` — `issue_invoice` lässt eine leere Eventmenge passieren (fail-open, derzeit nicht erreichbar); bei leerer Menge ablehnen. Ebenso `src/Checkin.php:306,331`: Gerätebeschränkung wird bei leerem `event_ids` übersprungen.
+- [x] [P3][HÄRTUNG] `src/Rest/Controller.php:427–435` — `issue_invoice` lässt eine leere Eventmenge passieren (fail-open, derzeit nicht erreichbar); bei leerer Menge ablehnen. Ebenso `src/Checkin.php:306,331`: Gerätebeschränkung wird bei leerem `event_ids` übersprungen.
 - [x] [P3][HÄRTUNG] `src/Rest/Controller.php:240–311,272,284,290` — Öffentlicher Checkout mit wiederverwendetem Idempotenzschlüssel: Anbieterwechsel beim Retry erzeugt eine Zahlung, die kein Webhook zuordnet (bezahlt ohne Tickets); `cancel_order` kann eine inzwischen bezahlte Bestellung treffen. Anbieterabweichung ablehnen, nur „pending“ stornieren, Mindestlänge für Schlüssel erzwingen.
 - [x] [P3][HÄRTUNG] `src/Payments/Webhooks.php:140–148` — `refunded`-Ereignisse sind nicht an die aktuelle `provider_reference` gebunden; die Erstattung einer Doppelzahlung markiert die ganze Bestellung als erstattet und widerruft Tickets. `is_current_attempt` auch hier anwenden.
 - [x] [P3][HÄRTUNG] `src/Payments/PayPalGateway.php:132–136,249–257` — Capture erfolgt, bevor geprüft ist, dass die PayPal-Order zu einer bekannten, noch zahlbaren Bestellung gehört; Reihenfolge umdrehen. `src/Payments/StripeGateway.php:183`: Fallback auf `client_reference_id` entfernen, nur `metadata.wpcap_order` verwenden.
 - [x] [P3][HÄRTUNG] `src/Rest/Controller.php:291`; `src/Payments/PayPalGateway.php:169`; `src/Payments/StripeGateway.php:282–284`; `src/Mollie/MollieGateway.php:202` — Fehlertexte der Zahlungsanbieter und interne Ergebnislabels werden an anonyme Aufrufer durchgereicht; generische Meldung liefern, Details nur loggen.
 - [x] [P3][HÄRTUNG] `src/Refunds.php:34–38,69,106` — Idempotenz-Treffer wird vor `check_actor` zurückgegeben; Nutzer mit `wpcap_approve_refunds` führen eigene Erstattungen über der Schwelle ohne zweite Person aus. Prüfung vorziehen und Vier-Augen-Regel für Freigebende klären.
-- [ ] [P3][HÄRTUNG] `src/Waitlists.php:15–18`; `src/ServiceBookings.php:15–18`; `src/Modules/Sms.php:178–187`; `src/Mobile/Api.php:50` — Limiter zählen vor der Validierung auf fremdsteuerbare Schlüssel (E-Mail, Telefonnummer, gemeinsame IP): Dritte können eine Adresse/Nummer für Warteliste, Buchung oder SMS-Opt-in bzw. die Gerätekopplung zeitweise sperren. Erst nach Validierung zählen bzw. nur bezahlte Bestellungen werten.
-- [ ] [P3][HÄRTUNG] `src/Rest/Controller.php:356–366` — `order_status` nimmt das Zugangstoken als GET-Parameter (Server-/Proxy-Logs) und ruft `hash_equals` ohne `(string)`-Cast auf einem möglichen NULL-Hash auf (HTTP 500 unter PHP 8). Token per Header/POST annehmen und casten.
-- [ ] [P3][HÄRTUNG] `src/Rest/Controller.php:516–529,730–738`; `src/Seats.php:36` — Die alten Routen `/events/{id}/seat-holds` sind nicht mit Bestellungen verknüpft und erlauben anonymes Blockieren von Legacy-Sitzen; ältere veröffentlichte Sitzplanversionen werden nie zurückgezogen. Routen entfernen oder schützen.
+- [x] [P3][HÄRTUNG] `src/Waitlists.php:15–18`; `src/ServiceBookings.php:15–18`; `src/Modules/Sms.php:178–187`; `src/Mobile/Api.php:50` — Limiter zählen vor der Validierung auf fremdsteuerbare Schlüssel (E-Mail, Telefonnummer, gemeinsame IP): Dritte können eine Adresse/Nummer für Warteliste, Buchung oder SMS-Opt-in bzw. die Gerätekopplung zeitweise sperren. Erst nach Validierung zählen bzw. nur bezahlte Bestellungen werten.
+- [x] [P3][HÄRTUNG] `src/Rest/Controller.php:356–366` — `order_status` nimmt das Zugangstoken als GET-Parameter (Server-/Proxy-Logs) und ruft `hash_equals` ohne `(string)`-Cast auf einem möglichen NULL-Hash auf (HTTP 500 unter PHP 8). Token per Header/POST annehmen und casten.
+- [x] [P3][HÄRTUNG] `src/Rest/Controller.php:516–529,730–738`; `src/Seats.php:36` — Die alten Routen `/events/{id}/seat-holds` sind nicht mit Bestellungen verknüpft und erlauben anonymes Blockieren von Legacy-Sitzen; ältere veröffentlichte Sitzplanversionen werden nie zurückgezogen. Routen entfernen oder schützen.
 - [x] [P3][HÄRTUNG] `src/Rest/Controller.php:760` — `source` beim Check-in kommt vom Client; auf `web` festlegen.
 - [x] [P3][HÄRTUNG] `src/WalletPasses/Store.php:135` — `register_device` aktualisiert `push_token` für alle Zeilen einer `device_library_id`, obwohl der Aufrufer nur für eine Seriennummer authentifiziert ist; auf diese Seriennummer beschränken. `src/WalletPasses/WebService.php:159–169`: `serve_raw` hängt global an `rest_pre_serve_request` und reagiert auf den Datenschlüssel `__wpcap_raw`; durch eigene Response-Klasse oder Routenprüfung ersetzen. `Store::key()` nicht gleichzeitig für Secretbox und Download-HMAC verwenden.
 - [x] [P3][HÄRTUNG] `assets/offline-scanner/app.js:624–634` — `?api=` wird übernommen, wenn es same-origin ist; zusätzlich verlangen, dass der Pfad auf `/wp-pass-captain/v1/app/` endet.
-- [ ] [P3][HÄRTUNG] `src/Admin/Queries.php:230–237,347–355` — Bestelllisten zeigen Bestellungen mit Positionen aus mehreren Events, sobald eines im Scope liegt (E-Mail, Summe, fremder Eventname sichtbar); nur Bestellungen listen, deren Events alle im Scope sind. `src/Campaigns.php:104`: global eindeutige Codes verraten per 409 fremde Kampagnen.
-- [ ] [P3][HÄRTUNG] `src/Privacy.php:154–162,195–236` — Der Datenschutzexport eines Käufers enthält Check-in-Protokoll und Wallet-Seriennummern auch für bereits übertragene Tickets; bei `transfer_count > 0` weglassen. `_wpcap_attendees`-Meta an nie ausgegebenen WooCommerce-Bestellungen wird weder von der Retention noch vom Löscher erfasst.
-- [ ] [P3][HÄRTUNG] `src/TicketAssignments.php:67–81`; `src/Orders.php:903–917`; `src/Communications.php:52–53` — Die Mail an den vorherigen Inhaber erhält dieselben Variablen einschließlich `ticket_link` mit neuem Code (Standardvorlagen nutzen ihn nicht); eigenes Variablen-Array ohne Link bauen. Queue-Fallback, der die gespeicherte Nutzlast als Vorlage verwendet, entfernen.
+- [x] [P3][HÄRTUNG] `src/Admin/Queries.php:230–237,347–355` — Bestelllisten zeigen Bestellungen mit Positionen aus mehreren Events, sobald eines im Scope liegt (E-Mail, Summe, fremder Eventname sichtbar); nur Bestellungen listen, deren Events alle im Scope sind. `src/Campaigns.php:104`: global eindeutige Codes verraten per 409 fremde Kampagnen.
+- [x] [P3][HÄRTUNG] `src/Privacy.php:154–162,195–236` — Der Datenschutzexport eines Käufers enthält Check-in-Protokoll und Wallet-Seriennummern auch für bereits übertragene Tickets; bei `transfer_count > 0` weglassen. `_wpcap_attendees`-Meta an nie ausgegebenen WooCommerce-Bestellungen wird weder von der Retention noch vom Löscher erfasst.
+- [x] [P3][HÄRTUNG] `src/TicketAssignments.php:67–81`; `src/Orders.php:903–917`; `src/Communications.php:52–53` — Die Mail an den vorherigen Inhaber erhält dieselben Variablen einschließlich `ticket_link` mit neuem Code (Standardvorlagen nutzen ihn nicht); eigenes Variablen-Array ohne Link bauen. Queue-Fallback, der die gespeicherte Nutzlast als Vorlage verwendet, entfernen.
 - [x] [P3][HÄRTUNG] `src/Modules/Partners.php:155`; `src/Partners/Settlements.php:98,452` — Die Sperre gegen Doppelabrechnung gilt je (Partner, Quelle); nach Umhängen eines Events auf einen anderen Veranstalter können bereits abgerechnete Verkäufe erneut abgerechnet werden. Sperre partnerübergreifend je Quelle führen. — _erledigt (A448, plattformweite Abrechnungssperre)_
 - [ ] [P3][HÄRTUNG] `.github/workflows/ci.yml`, `release.yml`; `build/release.sh:26` — Aktionen per Commit-SHA pinnen, `permissions: contents: read` und `persist-credentials: false` setzen, `composer install --no-scripts --no-plugins`, Prüfsumme/Attestierung für das ZIP veröffentlichen (ergänzt den bestehenden Release-Workflow-Befund).
 - [x] [P3][HÄRTUNG] WooCommerce — Drittanbieter-Gateways („Kauf auf Rechnung“), die vor Geldeingang `processing` setzen, lösen die Ticketausgabe aus, sofern sie nicht im Filter `wpcap_woocommerce_issue_on_completed_gateways` stehen; in `docs/WOOCOMMERCE.md` deutlich dokumentieren.

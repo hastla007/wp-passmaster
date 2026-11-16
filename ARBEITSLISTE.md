@@ -773,9 +773,9 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:1076 (confirm_external_payment): %2$s ist die Zahlungsreferenz; POT/PO neu
 - [ ] **A364** [OPTIMIERUNG] Wartelisten-Queue ohne Lock; GET_LOCK-Namen nicht je Installation eindeutig — _R1 Core_ (TODO L695; Audit Runde 4)
   - src/Waitlists.php:173–184, :207–208, :247–248, Allocations/BuyerLimits.php:145: Nur verarbeitete Typen entfernen; Lock-Namen wie Installer::lock_name() hashen
-- [ ] **A365** [OPTIMIERUNG] Web-Scanner-REST gibt interne IDs fremder Events zurück — _R1 Security_ (TODO L696; Audit Runde 4)
+- [x] **A365** [OPTIMIERUNG] Web-Scanner-REST gibt interne IDs fremder Events zurück — _R1 Security_ (TODO L696; Audit Runde 4)
   - src/Checkin.php:356–361, Rest/Controller.php:907–915: Fehlerdaten auf status/result/CLIENT_ERROR_KEYS reduzieren
-- [ ] **A366** [OPTIMIERUNG] SMS-HTTP-Callbacks ohne Replay-Schutz — _R1 Security_ (TODO L697; Audit Runde 4)
+- [x] **A366** [OPTIMIERUNG] SMS-HTTP-Callbacks ohne Replay-Schutz — _R1 Security_ (TODO L697; Audit Runde 4)
   - src/Sms/HttpProvider.php:101–107, Sms/Service.php:481: Zeitstempel in Signatur (±5 min), Message-ID-Deduplizierung
 - [ ] **A367** [OPTIMIERUNG] ABSPATH-Guard fehlt in ausgelieferten PHP-Dateien — _R1 Security_ (TODO L698; Audit Runde 4)
   - src/Integrations/ConnectorInterface.php, src/blocks/*/editor.asset.php: Guard ergänzen, CI-Prüfung für alle PHP-Dateien
@@ -783,7 +783,7 @@ Gesamt: 262 Aufgaben.
   - src/Modules/Admission.php:22, Admission/Rest.php:82–87: Nur wenn wpcap-scanner eingebunden
 - [ ] **A369** [OPTIMIERUNG] Erstattungs-Badge startet volle Abfrage auf jeder Admin-Seite; Index auf refunds.status fehlt — _R1 Architektur_ (TODO L700; Audit Runde 4)
   - src/Admin/Menu.php:198, Queries.php:474–482: Eigenes COUNT(*), Index status (A201 ergänzt status_updated – prüfen)
-- [ ] **A370** [OPTIMIERUNG] Öffentliche REST-GETs mit Token ohne no-store — _R1 Architektur_ (TODO L701; Audit Runde 4)
+- [x] **A370** [OPTIMIERUNG] Öffentliche REST-GETs mit Token ohne no-store — _R1 Architektur_ (TODO L701; Audit Runde 4)
   - src/Rest/Controller.php:34–38, :469–479, ServiceBookingFlow.php:233–265: Cache-Control: no-store; Token per Header/POST
 - [x] **A371** [OPTIMIERUNG] Globaler CSS-Selektor [aria-invalid] mit !important — _R1 Architektur_ (TODO L702; Audit Runde 4)
   - assets/public.css:5: Auf .wpcap-checkout-form einschränken
@@ -883,9 +883,9 @@ Gesamt: 262 Aufgaben.
   - src/Payments/PayPalGateway.php:249–257: Vor Capture Bestellstatus prüfen
 - [x] **A419** [OPTIMIERUNG] Gewonnener Stripe-Chargeback (funds_reinstated) nicht ausgewertet — _R2 API_ (TODO L750; Audit Runde 4)
   - src/Payments/StripeGateway.php:197–203: Admin-Alarm
-- [ ] **A420** [OPTIMIERUNG] Checkout-Idempotenz vergleicht Warenkorb-Inhalt nicht — _R2 API_ (TODO L751; Audit Runde 4)
+- [x] **A420** [OPTIMIERUNG] Checkout-Idempotenz vergleicht Warenkorb-Inhalt nicht — _R2 API_ (TODO L751; Audit Runde 4)
   - src/Orders.php:56–58, assets/checkout.js:472: request_hash speichern, bei Abweichung 409
-- [ ] **A421** [OPTIMIERUNG] REST-Eingaben fast ohne Schema; negative/gebrochene Mengen still umgedeutet — _R2 API/Eigen_ (TODO L752; Audit Runde 4)
+- [x] **A421** [OPTIMIERUNG] REST-Eingaben fast ohne Schema; negative/gebrochene Mengen still umgedeutet — _R2 API/Eigen_ (TODO L752; Audit Runde 4)
   - src/Rest/Controller.php (3/42 Routen mit args), Orders.php:72–73 (absint): args mit type/minimum/validate_callback; nur Ganzzahlen ≥ 1
 - [x] **A422** [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — _R2 API_ (TODO L753; Audit Runde 4)
   - src/WalletPasses/Service.php:321–388: Teilerfolge je Pass festhalten, nur Fehlgeschlagene neu einreihen
@@ -1059,7 +1059,7 @@ Gesamt: 262 Aufgaben.
   - src/PublicEvents.php:148–152: Hinweis für Redakteure, Filter-Tag aus $tag
 - [x] **A504** [OPTIMIERUNG] Doppelte IDs auch durch Sidebar/Archiv/doppeltes the_content (erweitert A308) — _R3 Editor_ (TODO L841; Audit Runde 4)
   - templates/event-card.php:12, Modules/Calendar.php:131: wp_unique_id() je Render, Kalender-Anker nur erste Instanz
-- [ ] **A505** [OPTIMIERUNG] Öffentliche REST-GETs mit Live-Daten ohne Cache-Control (erweitert A370) — _R3 Caching_ (TODO L842; Audit Runde 4)
+- [x] **A505** [OPTIMIERUNG] Öffentliche REST-GETs mit Live-Daten ohne Cache-Control (erweitert A370) — _R3 Caching_ (TODO L842; Audit Runde 4)
   - src/Rest/Controller.php:21/107/122/176, WalletPasses/WebService.php:83: Zentral no-store für den Namespace
 - [ ] **A506** [OPTIMIERUNG] Offline-PWA ohne Asset-Versionierung — _R3 Caching_ (TODO L843; Audit Runde 4)
   - assets/offline-scanner/sw.js:8, index.html:13/80–82: Cache-Namen/Asset-URLs an WPCAP_VERSION, fetch no-cache
@@ -1117,7 +1117,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/TicketsPage.php:53–55, :96–105: Jeden Schritt prüfen, ROLLBACK + Fehlermeldung
 - [x] **A533** [OPTIMIERUNG] Doppelklick „Tickets erneut senden“ rotiert Codes zweimal (ergänzt A335) — _R3 QA_ (TODO L870; Audit Runde 4)
   - src/Admin/OrdersPage.php:89–95: Formular-Schlüssel/Sperre je Bestellung
-- [ ] **A534** [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — _R3 QA_ (TODO L871; Audit Runde 4)
+- [x] **A534** [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — _R3 QA_ (TODO L871; Audit Runde 4)
   - src/Orders.php:43, Rest/Controller.php:711: rest_sanitize_boolean / streng true/1
 
 ### Audit Runde 6 – Ticketing: Transaktionen, Ticket-Sicherheit, Dokumente/Mail/Wallet, Zeit/Caching, Käufer-UX/Einlass, Eigen-Audit (13.11.2026, Snapshot a1b11e5)
@@ -1284,7 +1284,7 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:64, TicketPage.php: buyer_notice() und Name auf Ticketseite, Mail, PDF
 - [ ] **A615** [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — _R4 Eigen (Deep Dive 3)_ (TODO L955; Audit Runde 4)
   - —: Widget mit Verkäufen, offenen Prüfungen, nächsten Terminen
-- [ ] **A616** [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — _R4 Transaktionen/Concurrency_ (TODO L956; Audit Runde 4)
+- [x] **A616** [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — _R4 Transaktionen/Concurrency_ (TODO L956; Audit Runde 4)
   - src/Rest/Controller.php:681–692, Campaigns.php:47/183: Datum validieren, Ortszeit → UTC, reines Datum als Tagesende (belegt t5)
 - [ ] **A617** [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — _R4 Transaktionen/Concurrency_ (TODO L957; Audit Runde 4)
   - src/Series/Pricing.php, Orders.php:191: Preis je Unit staffeln oder Menge einrechnen (belegt t5)
@@ -1310,11 +1310,11 @@ Gesamt: 262 Aufgaben.
   - src/PortalSelfService.php:162–166: Max. 50 je PDF, sonst Stapel/Job
 - [x] **A628** [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — _R4 Dokumente/Mail/Wallet_ (TODO L968; Audit Runde 4)
   - src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58: Logo ohne Text, UTF-8, Google-Logo
-- [ ] **A629** [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — _R4 Ticket-Sicherheit_ (TODO L969; Audit Runde 4)
+- [x] **A629** [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — _R4 Ticket-Sicherheit_ (TODO L969; Audit Runde 4)
   - src/OfflineScanner/Keys.php:178–233: GET_LOCK/Versionsprüfung, max_expires getrennt
 - [x] **A630** [OPTIMIERUNG] Massendruck mit neuen Codes entwertet übertragene/zugewiesene Tickets ohne Nachricht (erweitert A335/A427) — _R4 Ticket-Sicherheit_ (TODO L970; Audit Runde 4)
   - src/Printing/Templates.php:318–348: Ausnehmen oder Inhaber benachrichtigen
-- [ ] **A631** [OPTIMIERUNG] Abfotografierter QR-Code kann Bestelllink des Käufers rotieren — _R4 Ticket-Sicherheit_ (TODO L971; Audit Runde 4)
+- [x] **A631** [OPTIMIERUNG] Abfotografierter QR-Code kann Bestelllink des Käufers rotieren — _R4 Ticket-Sicherheit_ (TODO L971; Audit Runde 4)
   - src/TicketPage.php:34–39, PortalSelfService.php:588–606: Alten Link bis Klick auf neuen gültig lassen oder E-Mail-Bestätigung
 
 ## Bereits erledigt (vor bzw. beim Anlegen der Liste)
@@ -1342,7 +1342,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Zielkonten für Nicht-Admins einschränken, einheitliche Fehlermeldung, Delegation in CONCEPT festhalten.
 - [x] **A637** [OPTIMIERUNG] pos_sale: wiederverwendeter Idempotenzschlüssel ohne erneute Eventprüfung — _Sicherheitsaudit 14.11. #10_ (TODO L1073; Sicherheitsaudit 2026-11-14)
   - Bei reused Scope::can_occurrence/can_order erneut prüfen.
-- [ ] **A638** [OPTIMIERUNG] issue_invoice und Gerätefilter fail-open bei leerer Eventmenge — _Sicherheitsaudit 14.11. #11_ (TODO L1074; Sicherheitsaudit 2026-11-14)
+- [x] **A638** [OPTIMIERUNG] issue_invoice und Gerätefilter fail-open bei leerer Eventmenge — _Sicherheitsaudit 14.11. #11_ (TODO L1074; Sicherheitsaudit 2026-11-14)
   - Leere Eventmenge ablehnen, Gerätebeschränkung in Checkin fail-closed.
 - [x] **A639** [OPTIMIERUNG] Checkout-Idempotenz: Anbieterwechsel beim Retry, Storno einer bezahlten Bestellung — _Sicherheitsaudit 14.11. #12_ (TODO L1075; Sicherheitsaudit 2026-11-14)
   - Anbieterabweichung bei reused ablehnen, cancel_order nur für pending, Mindestlänge des Schlüssels.
@@ -1354,11 +1354,11 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Generische Meldung an Käufer, Details nur ins Log (Rest/Controller checkout).
 - [x] **A643** [OPTIMIERUNG] Erstattung: Idempotenz-Treffer vor check_actor; Freigebende umgehen Schwelle — _Sicherheitsaudit 14.11. #16_ (TODO L1079; Sicherheitsaudit 2026-11-14)
   - check_actor vorziehen (resume/request_amount); Vier-Augen-Regel für Freigebende als Option (Entscheidung offen, technisch: Einstellung).
-- [ ] **A644** [OPTIMIERUNG] Limiter zählen vor der Validierung auf fremdsteuerbare Schlüssel (Warteliste, Buchung, SMS, Kopplung) — _Sicherheitsaudit 14.11. #17_ (TODO L1080; Sicherheitsaudit 2026-11-14)
+- [x] **A644** [OPTIMIERUNG] Limiter zählen vor der Validierung auf fremdsteuerbare Schlüssel (Warteliste, Buchung, SMS, Kopplung) — _Sicherheitsaudit 14.11. #17_ (TODO L1080; Sicherheitsaudit 2026-11-14)
   - Erst nach Validierung/Erfolg zählen; SMS-Opt-in nur bezahlter Bestellungen (mit A279/A281/A288 abstimmen).
-- [ ] **A645** [OPTIMIERUNG] order_status: Zugangstoken per GET, hash_equals ohne (string)-Cast — _Sicherheitsaudit 14.11. #18_ (TODO L1081; Sicherheitsaudit 2026-11-14)
+- [x] **A645** [OPTIMIERUNG] order_status: Zugangstoken per GET, hash_equals ohne (string)-Cast — _Sicherheitsaudit 14.11. #18_ (TODO L1081; Sicherheitsaudit 2026-11-14)
   - Token per Header/POST, Cast ergänzen, GET übergangsweise mit Deprecation.
-- [ ] **A646** [OPTIMIERUNG] Alte Seat-Hold-Routen anonym nutzbar, alte Sitzplanversionen nie zurückgezogen — _Sicherheitsaudit 14.11. #19_ (TODO L1082; Sicherheitsaudit 2026-11-14)
+- [x] **A646** [OPTIMIERUNG] Alte Seat-Hold-Routen anonym nutzbar, alte Sitzplanversionen nie zurückgezogen — _Sicherheitsaudit 14.11. #19_ (TODO L1082; Sicherheitsaudit 2026-11-14)
   - Routen entfernen oder an Bestellung binden; alte Versionen zurückziehen.
 - [x] **A647** [OPTIMIERUNG] Web-Check-in übernimmt source vom Client (offline umgeht Bereichskapazität) — _Sicherheitsaudit 14.11. #20_ (TODO L1083; Sicherheitsaudit 2026-11-14)
   - source im Web-Scanner fest auf web.
@@ -1366,11 +1366,11 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Update auf die Seriennummer beschränken, eigene Response statt __wpcap_raw, abgeleiteter HMAC-Schlüssel.
 - [x] **A649** [OPTIMIERUNG] Offline-Scanner übernimmt ?api= ohne Pfadprüfung — _Sicherheitsaudit 14.11. #22_ (TODO L1085; Sicherheitsaudit 2026-11-14)
   - Pfad muss auf /wp-json/pass-captain/v1/app/ enden (oder Alt-Namensraum).
-- [ ] **A650** [OPTIMIERUNG] Bestellliste zeigt Bestellungen mit Fremd-Events; Kampagnencode-Orakel (409) — _Sicherheitsaudit 14.11. #23_ (TODO L1086; Sicherheitsaudit 2026-11-14)
+- [x] **A650** [OPTIMIERUNG] Bestellliste zeigt Bestellungen mit Fremd-Events; Kampagnencode-Orakel (409) — _Sicherheitsaudit 14.11. #23_ (TODO L1086; Sicherheitsaudit 2026-11-14)
   - Nur Bestellungen mit allen Events im Scope bzw. Fremdanteile ausblenden; Code-Konflikt neutral melden.
-- [ ] **A651** [OPTIMIERUNG] Datenschutzexport enthält Einlass-/Wallet-Daten übertragener Tickets — _Sicherheitsaudit 14.11. #24_ (TODO L1087; Sicherheitsaudit 2026-11-14)
+- [x] **A651** [OPTIMIERUNG] Datenschutzexport enthält Einlass-/Wallet-Daten übertragener Tickets — _Sicherheitsaudit 14.11. #24_ (TODO L1087; Sicherheitsaudit 2026-11-14)
   - Bei transfer_count > 0 für den Käufer weglassen.
-- [ ] **A652** [OPTIMIERUNG] Mail an Vorbesitzer enthält ticket_link mit neuem Code; Queue-Fallback nutzt Nutzlast als Vorlage — _Sicherheitsaudit 14.11. #25_ (TODO L1088; Sicherheitsaudit 2026-11-14)
+- [x] **A652** [OPTIMIERUNG] Mail an Vorbesitzer enthält ticket_link mit neuem Code; Queue-Fallback nutzt Nutzlast als Vorlage — _Sicherheitsaudit 14.11. #25_ (TODO L1088; Sicherheitsaudit 2026-11-14)
   - Eigenes Variablen-Array ohne Link, Queue-Fallback entfernen.
 - [ ] **A653** [OPTIMIERUNG] CI/Release: Actions per SHA pinnen, permissions, persist-credentials, Composer-Flags — _Sicherheitsaudit 14.11. #27_ (TODO L1090; Sicherheitsaudit 2026-11-14)
   - SHA-Pinning, permissions: contents: read, persist-credentials: false, composer --no-scripts --no-plugins, optional Attestierung.

@@ -7,6 +7,22 @@
 - **Neuer Name „Pass Captain“, Slug `pass-captain` (für WordPress.org).** Bisher „WP Pass Captain“ mit Slug, Ordner und Textdomain `wp-pass-captain` – WordPress.org erlaubt kein „WP“ am Namensanfang, und Sprachpakete brauchen Textdomain = Slug. Geändert: Plugin-Name, Ordner/Hauptdatei `pass-captain/pass-captain.php`, Textdomain und Sprachdateien `pass-captain`, REST-Namensraum `/wp-json/pass-captain/v1/`, Admin-Seiten `page=pass-captain…`, Release-ZIP `pass-captain.zip`; die Partner-Plugins heißen in der Oberfläche „Voucher Captain“ und „Affiliate Captain“. Unverändert: Daten (`wpcap_*`), Rollen, Hooks/Shortcodes, Blocknamen. Kompatibilität (`src/LegacySlug.php`): der alte REST-Namensraum funktioniert weiter (Zahlungs- und SMS-Webhooks, bereits ausgegebene Wallet-Pässe, Apps; Antwort mit `Deprecation`/`Link`, Twilio-Signatur gegen die aufgerufene URL), alte Admin-Links leiten um, eine installierte alte Kopie wird beim Aktivieren abgeschaltet (kein Doppelladen), und solange ihr Ordner existiert, ist die Datenlöschung beim Deinstallieren pausiert, damit das Löschen der alten Kopie keine Daten entfernt. Neuer CI-Test `tests/wp-matrix/rename-takeover.sh` (echte Website mit Vorgänger-Release und Daten → Umstieg). Anleitung: docs/RENAME.md.
 
 ### Auditbefunde Runde 4–6 (Arbeitsliste A263–)
+- Einlass-Scanner nennen bei Tickets fremder Events nur noch „kein Zugriff“/„falsches Event“, ohne Eventnamen oder Status; abgelehnte Scans liefern nur Scannerfelder (A365).
+- SMS-Rückmeldungen des HTTP-Anbieters mit optional verpflichtendem signiertem Zeitstempel (±5 Minuten); jede Rückmeldung und eingehende SMS wird nur einmal verarbeitet (A366).
+- Öffentliche REST-Antworten mit Token und alle Plugin-Antworten ohne eigenen Cache-Header sind `no-store` (A370, A505).
+- Bestellstatus nimmt das Zugangstoken per Header `X-WPCAP-Access-Token` oder POST; Übergabe in der URL ist veraltet (A645).
+- Checkout-Wiederholung mit gleichem Idempotenzschlüssel, aber anderem Warenkorb wird mit 409 abgelehnt (A420).
+- Öffentliche REST-Routen prüfen Typen und Mengen per Schema; negative oder gebrochene Mengen werden abgelehnt (A421).
+- „false“, „0“ oder „no“ gelten nicht mehr als Zustimmung (AGB, SMS) (A534).
+- Gültigkeitszeiträume von Rabattcodes werden geprüft und aus Ortszeit in UTC umgerechnet; reines Enddatum gilt bis Tagesende (A616).
+- „Neuen Bestelllink senden“ auf der Ticketseite sperrt den Käufer nicht mehr aus: Der alte Link gilt, bis der neue geöffnet wird (A631).
+- Rechnungsausstellung per REST und Geräte ohne Events verhalten sich bei leerer Eventmenge sicher (A638).
+- Warteliste, Servicebuchung und SMS-Einwilligung lassen sich nicht mehr durch fremde Anfragen mit derselben Adresse/Nummer sperren (A644).
+- Alt-Sitzplan-API mit öffentlichen Holds entfernt (zusammen mit A529) (A646).
+- Eingeschränkte Bestelllisten zeigen nur Bestellungen mit Events im eigenen Bereich; vergebene Rabattcodes werden neutral gemeldet und Versuche begrenzt (A650).
+- Datenschutzauskunft des Käufers enthält für übertragene Tickets keine Daten der neuen Inhaber (A651).
+- Mails an bisherige Ticketinhaber enthalten nie den neuen Code; die Nachrichtenwarteschlange nutzt gespeicherte Daten nicht als Vorlage (A652).
+- Offline-Signaturschlüssel werden unter Datenbanksperre geändert (A629).
 - Zahlungen: Abgleich-Job fragt Stripe, PayPal und Mollie alle fünf Minuten nach offenen und kürzlich abgelaufenen/stornierten Bestellungen; verlorene Webhooks und späte Zahlungen werden idempotent nachgebucht (Audit `payment_reconciled`) (A352).
 - SMS: Nach Zeitüberschreitung oder Absturz wird nicht blind erneut über Twilio gesendet, sondern als `unknown` markiert und über die Nachrichtenliste abgeglichen (A416).
 - Betrieb: SMS-Warteschlange unter „Warteschlangen“ (erneut versuchen/verwerfen); zurückgehaltene SMS zeigen ihr Verfallsdatum und verfallen mit Audit-Eintrag (A417).
