@@ -34,6 +34,9 @@ final class Test_WPDB {
 	public function __construct_prefix() { $this->prefix = getenv( 'WPCAP_TEST_PREFIX' ) ?: 'wptest_'; }
 	/** Options table; empty here (options live in memory) unless a runner sets a DB-backed store (tests/upgrade). */
 	public $options = '';
+	/** Posts/postmeta tables: empty (no such tables) unless a test creates them (modules/zz_a291.php, zz_a292.php). */
+	public $posts = '';
+	public $postmeta = '';
 	public $last_error = '';
 	public $insert_id = 0;
 	public $rows_affected = 0;
@@ -101,6 +104,7 @@ final class Test_WPDB {
 		return null;
 	}
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'; }
+	public function esc_like( $text ) { return addcslashes( (string) $text, '_%\\' ); }
 	private function esc( $v ) { return null === $v ? 'NULL' : "'" . $this->db->real_escape_string( (string) $v ) . "'"; }
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }

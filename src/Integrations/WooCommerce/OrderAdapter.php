@@ -178,6 +178,24 @@ final class OrderAdapter {
 		return $type_id;
 	}
 
+	/**
+	 * Whether WooCommerce sells tickets at all (A291): at least one published product (or variation)
+	 * is linked to an active ticket type. WooCommerce being active alone sells nothing.
+	 * Products are posts in every WooCommerce storage mode (HPOS only moves orders).
+	 */
+	public static function has_linked_ticket_products() {
+		global $wpdb;
+		if ( ! class_exists( 'WooCommerce' ) || empty( $wpdb->posts ) || empty( $wpdb->postmeta ) ) {
+			return false;
+		}
+		return (bool) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT 1 FROM {$wpdb->postmeta} pm INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id = CAST(pm.meta_value AS UNSIGNED) WHERE pm.meta_key = %s AND p.post_type IN ('product','product_variation') AND p.post_status = 'publish' AND tt.status = 'active' LIMIT 1",
+				self::PRODUCT_META
+			)
+		);
+	}
+
 	/* ------------------------------------------------------------------ */
 	/* Cart validation                                                     */
 	/* ------------------------------------------------------------------ */

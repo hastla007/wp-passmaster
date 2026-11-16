@@ -46,7 +46,9 @@ final class GettingStarted {
 			'payment_online'      => self::online_payment_ready(),
 			'payment_manual'      => self::manual_payment_ready(),
 			'manual_incomplete'   => \PassCaptain\Payments\ManualGateway::enabled_but_incomplete(),
-			'woocommerce'         => class_exists( 'WooCommerce' ),
+			// A291: only WooCommerce products linked to a ticket type sell tickets.
+			'woocommerce_active'  => class_exists( 'WooCommerce' ),
+			'woocommerce'         => \PassCaptain\Integrations\WooCommerce\OrderAdapter::has_linked_ticket_products(),
 			'legal_texts'         => '' !== trim( wp_strip_all_tags( (string) Settings::get( 'terms_text' ) ) ) && '' !== trim( wp_strip_all_tags( (string) Settings::get( 'consumer_info_text' ) ) ),
 			'seller'              => '' !== trim( (string) Settings::get( 'seller_name' ) ) && '' !== trim( (string) Settings::get( 'seller_address' ) ),
 		);
@@ -88,7 +90,9 @@ final class GettingStarted {
 		} elseif ( ! empty( $state['payment_manual'] ) ) {
 			$payment_note = __( 'Überweisung ist mit Bankverbindung bzw. Zahlungshinweis eingerichtet.', 'pass-captain' );
 		} elseif ( ! empty( $state['woocommerce'] ) ) {
-			$payment_note = __( 'Die Zahlung läuft über den WooCommerce-Checkout.', 'pass-captain' );
+			$payment_note = __( 'Die Zahlung läuft über den WooCommerce-Checkout (Produkte mit Ticketart verknüpft).', 'pass-captain' );
+		} elseif ( ! empty( $state['woocommerce_active'] ) ) {
+			$payment_note = __( 'WooCommerce ist aktiv, aber noch kein veröffentlichtes Produkt ist mit einer Ticketart verknüpft (Produkt bearbeiten → „Pass Captain Ticketkategorie“). Alternativ eine eigene Zahlungsart einrichten.', 'pass-captain' );
 		} else {
 			$payment_note = __( 'Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen.', 'pass-captain' );
 		}

@@ -29,3 +29,19 @@ if ( ! function_exists( 'wp_die' ) ) { function wp_die( $m = '', $t = '', $a = a
 if ( ! function_exists( 'check_admin_referer' ) ) { function check_admin_referer( $a = -1, $q = '_wpnonce' ) { $GLOBALS['wpcap_test_nonce_checks'][] = $a; return 1; } }
 if ( ! class_exists( 'Wpcap_Test_Redirect' ) ) { class Wpcap_Test_Redirect extends Exception {} }
 if ( ! function_exists( 'wp_safe_redirect' ) ) { function wp_safe_redirect( $url, $status = 302 ) { throw new Wpcap_Test_Redirect( (string) $url ); } }
+
+/** Creates minimal WordPress posts/postmeta tables (test prefix) and points $wpdb at them; false drops them. */
+if ( ! function_exists( 'r6_posts_tables' ) ) {
+	function r6_posts_tables( $create = true ) {
+		global $wpdb;
+		$posts = $wpdb->prefix . 'posts';
+		$meta = $wpdb->prefix . 'postmeta';
+		$wpdb->query( "DROP TABLE IF EXISTS $meta" );
+		$wpdb->query( "DROP TABLE IF EXISTS $posts" );
+		if ( ! $create ) { $wpdb->posts = ''; $wpdb->postmeta = ''; return; }
+		$wpdb->query( "CREATE TABLE $posts (ID bigint unsigned NOT NULL AUTO_INCREMENT, post_title text NOT NULL, post_content longtext NOT NULL, post_type varchar(20) NOT NULL DEFAULT 'post', post_status varchar(20) NOT NULL DEFAULT 'publish', PRIMARY KEY (ID)) DEFAULT CHARSET=utf8mb4" );
+		$wpdb->query( "CREATE TABLE $meta (meta_id bigint unsigned NOT NULL AUTO_INCREMENT, post_id bigint unsigned NOT NULL, meta_key varchar(255) DEFAULT NULL, meta_value longtext, PRIMARY KEY (meta_id), KEY post_id (post_id)) DEFAULT CHARSET=utf8mb4" );
+		$wpdb->posts = $posts;
+		$wpdb->postmeta = $meta;
+	}
+}
