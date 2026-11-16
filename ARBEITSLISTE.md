@@ -1445,3 +1445,7 @@ Quelle: TODO.md Abschnitt C. Der Kern bleibt frei und ohne Lizenzprüfung; nur A
 - [ ] **A706** [OPTIMIERUNG] Verhalten der Connectoren bei Lizenzablauf/-sperre: keine neue Synchronisierung, Tickets und Kurszugänge bleiben gültig, Kern unverändert — _Entscheidung 17_ (TODO L229; Entscheidung 17, 16.11.2026)
 - [ ] **A707** [OPTIMIERUNG] Produktregeln im Connector: Kauf/Gutscheineinlösung → Kurszugang, Ticket oder beides; Zuordnung Kursprodukt ↔ Ticketart, idempotent, Erstattung nimmt Zugang zurück — _Entscheidung 17_ (TODO L230; Entscheidung 17, 16.11.2026)
 - [ ] **A708** [OPTIMIERUNG] Tests: Stub-Connector im Kern (Vertrag, Opt-in, Wächtertest ohne Lizenzcode), Lizenzfälle und E2E Kauf → Ticket + Kurszugang → Erstattung in den Connector-Repos — _Entscheidung 17_ (TODO L231; Entscheidung 17, 16.11.2026)
+
+## Phase 14 – Anfragen der Suite-Plugins (16.11.2026)
+
+- [ ] **A709** [OPTIMIERUNG] Öffentliche, versionierte Lesefunktion Ticket → public_id, Bestellung, Event, Termin (ohne PII) für Suite-Plugins, z. B. als Teil eines `ticket_read`-Vertrags in CONTRACTS.md (Anfrage Review Captain Pro) — _Suite 16.11._
