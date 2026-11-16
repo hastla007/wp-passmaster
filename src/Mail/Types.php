@@ -154,7 +154,7 @@ final class Types {
 			),
 			'tickets_resend' => array(
 				'label' => __( 'Tickets erneut senden', 'pass-captain' ),
-				'description' => __( 'Erneuter Versand mit neuen Ticketcodes (je Empfänger:in).', 'pass-captain' ),
+				'description' => __( 'Erneuter Versand der Tickets mit neuen oder den gespeicherten Ticketcodes (je Empfänger:in).', 'pass-captain' ),
 				'placeholders' => self::ticket_placeholders(),
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'pass-captain' ), '{site_name}' ); },

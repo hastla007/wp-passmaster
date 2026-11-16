@@ -1063,8 +1063,12 @@ fehlgeschlagen beendet. Audit: `print_batch_created`, `print_batch_delivered`, `
 
 ### Tickets erneut senden (A335)
 
-Ticketcodes werden nur als Hash gespeichert; „Tickets erneut senden“ (Bestelldetail) stellt deshalb immer
-neue Codes aus, die bisherigen Codes und Ausdrucke dieser Tickets werden ungültig. Standard ist **„Nur nicht
+„Tickets erneut senden“ (Bestelldetail) bietet zwei Varianten (A588): **„Gespeicherte Codes erneut senden“**
+(vorausgewählt) verschickt den aktuellen Code jedes Tickets noch einmal, sofern er verschlüsselt gespeichert ist
+(`TicketCodes`, A586, oder Wallet-Modul) – nichts wird ungültig, das ist der Weg für „Mail nicht angekommen“;
+Tickets ohne gespeicherten Code (vor Schema 3.10.17 ausgestellt, Speicherung abgeschaltet) erhalten dabei einen
+neuen Code. **„Neue Codes ausstellen“** macht die bisherigen Codes und Ausdrucke dieser Tickets ungültig (z. B.
+wenn ein Code weitergegeben wurde); ohne Angabe (`codes`) gilt diese Variante. Standard beim Umfang ist **„Nur nicht
 übertragene Tickets“**: Tickets, die die Käufer:in an eine andere Person übertragen hat (`transfer_count > 0`),
 behalten ihren Code – sonst würde der Neuversand den QR-Code der Empfänger:in entwerten. Nur mit der bewusst
 gewählten Option **„Auch übertragene Tickets“** bekommen auch sie neue Codes; die Empfänger:innen erhalten
@@ -1074,6 +1078,15 @@ neu gesendet wurden und wie viele ihren Code behalten. Scheitert die Mail, behä
 Wiederholungsjob (`ticket_mail_retry`, Payload `{"order_id":…,"skip_transferred":true}`) diesen Umfang.
 Bestellportal, WooCommerce-Bestellaktion und der Voucher-Captain-Neuversand nehmen übertragene Tickets
 ebenfalls aus.
+
+**Zustellung und Wiederherstellung (A588):** Die Codes der ersten Ticketmail werden beim Versand verschlüsselt
+gespeichert. Meldet `wp_mail()` einen Fehler, plant Pass Captain `ticket_mail_retry` (Audit
+`ticket_mail_failed`); der Wiederholungsjob sendet **dieselben** gespeicherten Codes (kein neuer Code, auch nach
+einem erneuten Versand, der nur einen Teil der Empfänger:innen erreicht hat). Die Anhänge der ersten Mail sind
+auf `wpcap_ticket_mail_attachment_budget` begrenzt (A580); alle Tickets bleiben über die Links, das Bestellportal
+(PDF ohne neuen Code) und „Ticket-PDF herunterladen“ im Admin erreichbar. Nicht erkannt werden Zustellfehler, die
+erst nach `wp_mail()` auftreten (Bounces): Pass Captain hat keinen Rückkanal vom Mailserver. Meldet eine
+Käufer:in, dass nichts ankam, „Gespeicherte Codes erneut senden“ verwenden oder das Ticket-PDF herunterladen.
 
 ### Bestellungen und Tickets finden (A336, A545)
 

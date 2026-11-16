@@ -2423,8 +2423,10 @@ final class Orders {
 				$mail = is_array( $mail ) ? $mail : array( 'attachments' => $attachments );
 				$delivered = Mail\Mailer::deliver( $order->customer_email, array( 'order_id' => (int) $order->order_id ) + Mail\Mailer::apply_filtered( $message, $mail ) );
 				if ( ! $delivered ) {
-					// The codes exist only in this mail: a retry sends new codes (resend), with backoff
-					// up to the job's dead letter; the order page shows the open retry.
+					// A retry resends the tickets with backoff up to the job's dead letter (the order page
+					// shows the open retry). A588: the codes of this mail are stored encrypted (TicketCodes,
+					// captured at wpcap_ticket_mail), so the retry delivers these same codes; only without
+					// the store (wpcap_store_ticket_codes = false) it sends new ones.
 					Audit::record( 'ticket_mail_failed', 'order', (int) $order_id, array( 'tickets' => count( $issued ) ) );
 					Jobs::enqueue( 'ticket-mail-retry|' . (int) $order_id . '|' . Clock::now(), 'ticket_mail_retry', array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 				}
@@ -2475,7 +2477,9 @@ final class Orders {
 			// whose worker died before the "complete" mark, or a manual resend): no second mail.
 			return true;
 		}
-		$result = self::resend_tickets( $order_id, array( 'from_job' => true, 'skip_transferred' => ! empty( $payload['skip_transferred'] ) ) );
+		// A588: the codes of the failed mail are known (stored at issuance/rotation): deliver them as they
+		// are instead of invalidating codes that may have reached some recipients.
+		$result = self::resend_tickets( $order_id, array( 'from_job' => true, 'skip_transferred' => ! empty( $payload['skip_transferred'] ), 'keep_codes' => true ) );
 		if ( is_wp_error( $result ) && 'wpcap_no_resendable_tickets' === $result->get_error_code() ) { return true; }
 		return true === $result ? true : self::job_error( $result, 'wpcap_mail_failed' );
 	}
@@ -2676,15 +2680,23 @@ final class Orders {
 	}
 
 	/**
-	 * Resends all valid tickets of a paid order with new codes (codes are stored hashed). The rotation
-	 * is serialised per order (order row lock) and atomic: either every code is replaced or none, so a
-	 * failure never leaves old codes invalid without a mail, and parallel resends cannot mail links
-	 * that a concurrent rotation already replaced. A failed mail schedules a retry job (new codes).
+	 * Resends all valid tickets of a paid order with new codes (only the hash is used for admission).
+	 * The rotation is serialised per order (order row lock) and atomic: either every code is replaced
+	 * or none, so a failure never leaves old codes invalid without a mail, and parallel resends cannot
+	 * mail links that a concurrent rotation already replaced. A failed mail schedules a retry job.
+	 *
+	 * A588: with keep_codes, a ticket whose current code is stored (TicketCodes, A586, or the wallet
+	 * module; filter wpcap_ticket_known_code) is sent again with that same code – nothing that was
+	 * already delivered, printed or added to a wallet becomes invalid; only tickets without a known code
+	 * get a new one. The retry job of a failed ticket mail always keeps codes: the codes of the failed
+	 * mail (stored at issuance) are delivered as they are, and a retry of a resend that reached only
+	 * some recipients does not invalidate the codes the others already received.
 	 *
 	 * @param int   $order_id Order ID.
 	 * @param array $args     from_job (bool, internal: the retry job reschedules itself),
 	 *                        skip_transferred (bool: buyer self-service – tickets passed on to someone
-	 *                        else keep their code, so the buyer cannot invalidate the recipient's QR code).
+	 *                        else keep their code, so the buyer cannot invalidate the recipient's QR code),
+	 *                        keep_codes (bool, A588: resend stored current codes instead of new ones).
 	 * @return true|\WP_Error
 	 */
 	public static function resend_tickets( $order_id, array $args = array() ) {
@@ -2725,11 +2737,22 @@ final class Orders {
 		}
 		$entries = array();
 		$rotated = array();
+		$kept = 0;
 		$holder_ready = TicketCodes::holder_ready();
 		foreach ( $tickets as $ticket ) {
+			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
+			$known = empty( $args['keep_codes'] ) ? '' : PortalSelfService::current_code( (int) $ticket->ticket_id );
+			if ( '' !== $known ) {
+				// A588: the stored current code is sent again; nothing is invalidated.
+				if ( $holder_ready ) {
+					$wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'code_with_attendee' => TicketCodes::to_attendee( $recipient, $order->customer_email ) ), array( 'ticket_id' => (int) $ticket->ticket_id ), array( '%d' ), array( '%d' ) );
+				}
+				++$kept;
+				$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $known, home_url( '/' ) ), 'ticket_id' => (int) $ticket->ticket_id );
+				continue;
+			}
 			$token = bin2hex( random_bytes( 32 ) );
 			CodeHistory::replacing( (int) $ticket->ticket_id, 'resend' ); // A543
-			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
 			// A581: remember who receives the new code (attendee address or buyer).
 			$set = array( 'token_hash' => hash( 'sha256', $token ) ) + ( $holder_ready ? array( 'code_with_attendee' => TicketCodes::to_attendee( $recipient, $order->customer_email ) ) : array() );
 			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', $set, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), $holder_ready ? array( '%s', '%d' ) : array( '%s' ), array( '%d', '%s' ) );
@@ -2764,12 +2787,13 @@ final class Orders {
 			Audit::record( 'ticket_mail_failed', 'order', $order_id, array( 'tickets' => count( $tickets ), 'resend' => true ) );
 			if ( empty( $args['from_job'] ) ) {
 				// A335: the retry keeps the scope of this resend, so it never rotates the codes of tickets
-				// passed on to someone else when this resend left them alone.
+				// passed on to someone else when this resend left them alone. A588: it resends the codes
+				// of this attempt (stored by the rotation hook) instead of rotating them again.
 				Jobs::enqueue( 'ticket-mail-retry|' . $order_id . '|' . Clock::now(), 'ticket_mail_retry', self::mail_retry_payload( $order_id, ! empty( $args['skip_transferred'] ) ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 			}
-			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt.', 'pass-captain' ) );
+			return new \WP_Error( 'wpcap_mail_failed', $rotated ? __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt.', 'pass-captain' ) : __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Die Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt.', 'pass-captain' ) );
 		}
-		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) + ( empty( $args['skip_transferred'] ) ? array() : array( 'skip_transferred' => true ) ) );
+		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) + ( empty( $args['skip_transferred'] ) ? array() : array( 'skip_transferred' => true ) ) + ( $kept ? array( 'kept_codes' => $kept ) : array() ) );
 		return true;
 	}
 
