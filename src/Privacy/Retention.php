@@ -2,7 +2,7 @@
 /**
  * Daily enforcement of the retention settings (storage limitation, Art. 5(1)(e) GDPR).
  *
- * After the end of an occurrence (ends_at, otherwise starts_at + 1 day) plus N days:
+ * After the end of an occurrence (Occurrence::end_sql(): ends_at, otherwise start + default duration, A606) plus N days:
  * - participant answers are deleted (N = setting attendee_retention_days, or the field's own
  *   retention_days when the setting is 0),
  * - attendee name/e-mail in ticket assignments, tickets.attendee_email and the names in offline
@@ -211,8 +211,8 @@ final class Retention {
 
 	private static function utc( $ts ) { return gmdate( 'Y-m-d H:i:s', (int) $ts ); }
 
-	/** SQL for the end of an occurrence (alias o). */
-	private static function end_sql() { return 'COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))'; }
+	/** SQL for the end of an occurrence (alias o); A606: the central definition. */
+	private static function end_sql() { return \PassCaptain\Occurrence::end_sql( 'o' ); }
 
 	/** Repeats $select (returns ids) / $apply (ids) until done or out of time. */
 	private static function loop( $deadline, callable $select, callable $apply ) {

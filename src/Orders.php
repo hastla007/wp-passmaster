@@ -13,18 +13,18 @@ final class Orders {
 	 */
 	const HOSTED_HOLD_MINUTES = 31;
 
-	/** Assumed duration of an occurrence without end time (hours), see occurrence_end(). */
-	const DEFAULT_OCCURRENCE_HOURS = 6;
+	/** Assumed duration of an occurrence without end time (hours); A606: Occurrence::DEFAULT_DURATION_HOURS. */
+	const DEFAULT_OCCURRENCE_HOURS = Occurrence::DEFAULT_DURATION_HOURS;
 
 	/**
-	 * End of an occurrence (UTC, Y-m-d H:i:s): its ends_at, else starts_at plus
-	 * DEFAULT_OCCURRENCE_HOURS – in SQL: COALESCE(ends_at, starts_at + INTERVAL 6 HOUR).
+	 * End of an occurrence (UTC, Y-m-d H:i:s). A606: delegates to Occurrence::effective_end() (ends_at,
+	 * else start + the configured default duration; SQL: Occurrence::end_sql()), the one definition of
+	 * "over" for sales, listings, scanners, wallet passes, calendar files and retention.
 	 *
 	 * @param object $occurrence Row with starts_at and ends_at.
 	 */
 	public static function occurrence_end( $occurrence ) {
-		if ( ! empty( $occurrence->ends_at ) ) { return (string) $occurrence->ends_at; }
-		return gmdate( 'Y-m-d H:i:s', strtotime( (string) $occurrence->starts_at . ' UTC' ) + self::DEFAULT_OCCURRENCE_HOURS * HOUR_IN_SECONDS );
+		return Occurrence::effective_end( $occurrence );
 	}
 
 	/**

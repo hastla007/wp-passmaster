@@ -753,7 +753,7 @@ final class CapacityCounters {
 	private static function reconcile_scope( $all ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$where = $all ? '' : $wpdb->prepare( ' WHERE COALESCE(oc.ends_at, DATE_ADD(oc.starts_at, INTERVAL 1 DAY)) >= %s', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
+		$where = $all ? '' : $wpdb->prepare( ' WHERE ' . Occurrence::end_sql( 'oc' ) . ' >= %s', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
 		$occurrences = array();
 		foreach ( (array) $wpdb->get_results( "SELECT oc.occurrence_id,oc.sold_qty,oc.held_qty FROM {$p}wpcap_occurrences oc$where" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
 			$occurrences[ (int) $row->occurrence_id ] = $row;

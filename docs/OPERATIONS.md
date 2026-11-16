@@ -743,7 +743,7 @@ Für Bar- und Kartenzahlungen vor Ort deshalb eine zertifizierte Kasse verwenden
 
 ## Datenschutz: Löschfristen, Auskunft und Löschung
 
-**Täglicher Löschlauf** (`wpcap_privacy_retention`, WordPress-Cron, Stapel zu 500 Zeilen, Zeitbudget 20 s; der nächste Lauf setzt fort). Bezugspunkt ist das Terminende (`ends_at`, sonst Beginn + 1 Tag):
+**Täglicher Löschlauf** (`wpcap_privacy_retention`, WordPress-Cron, Stapel zu 500 Zeilen, Zeitbudget 20 s; der nächste Lauf setzt fort). Bezugspunkt ist das effektive Terminende (`ends_at`, sonst Beginn + Standarddauer, `Occurrence::end_sql()`, A606):
 
 | Daten | Frist | Wirkung |
 |---|---|---|
@@ -1599,9 +1599,12 @@ und SQL (`Occurrence::end_sql()`) rechnen gleich. Es gilt für:
   ihrem Ende), kommende (Web-Scanner: eine Woche voraus) und solche, die vor weniger als 24 h endeten.
   Einlass an Tag 2/3 ist damit weiter mit Terminprüfung möglich. Dasselbe effektive Ende gilt für die
   Terminliste des Offline-Scanners und das Ablaufdatum von Apple-Wallet-Pässen (Ende + 12 h, A606).
-  Ausnahmen mit Absicht: Aufbewahrungsfristen (Datenschutz-Löschläufe, Warteliste) rechnen weiter mit
-  „Beginn + 1 Tag“ ohne Ende (großzügiger Puffer), Kalenderdateien mit 2 h Anzeigedauer
-  (`wpcap_calendar_default_duration`), der Abgleich der Kapazitätszähler mit „Beginn + 1 Tag“.
+  Seit A606 rechnen auch die Aufbewahrungsfristen (Datenschutz-Löschlauf, Warteliste, Gästelisten,
+  Käuferlimits, Partner-Ticketcodes), die Spätzahlungsprüfung (`Orders::occurrence_end()`) und der
+  Abgleich der Kapazitätszähler mit diesem effektiven Ende statt mit „Beginn + 1 Tag“; die Frist von
+  N Tagen beginnt also bei Terminen ohne Ende mit Beginn + Standarddauer. Einzige Ausnahme: die
+  Anzeigedauer von Kalenderdateien ohne Ende (`DTEND`, 2 h, `wpcap_calendar_default_duration`) – sie
+  entscheidet nicht, ob ein Termin vorbei ist.
 
 ### Lebenszyklus eines Termins (A562)
 

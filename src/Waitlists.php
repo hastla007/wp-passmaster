@@ -106,7 +106,7 @@ final class Waitlists {
 		if ( ! $days ) { $counts['waitlist'] = 0; return $counts; }
 		$p = $wpdb->prefix;
 		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
-		$end = 'COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))';
+		$end = Occurrence::end_sql( 'o' ); // A606.
 		$counts['waitlist'] = (int) $wpdb->query( $wpdb->prepare(
 			"UPDATE {$p}wpcap_waitlist w SET w.email='',w.email_hash=SHA2(CONCAT('deleted|',w.waitlist_id),256),w.offer_token_hash='',w.unsubscribe_token_hash='',w.updated_at=%s WHERE ( w.email<>'' OR w.unsubscribe_token_hash<>'' ) AND w.status<>'offered' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_occurrences o WHERE ( o.occurrence_id=w.occurrence_id OR ( w.occurrence_id=0 AND o.event_id=w.event_id ) ) AND $end>=%s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SQL.
 			gmdate( 'Y-m-d H:i:s', (int) $now ),

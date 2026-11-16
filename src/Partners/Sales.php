@@ -902,7 +902,7 @@ final class Sales {
 		$days = max( 0, (int) \PassCaptain\Privacy\Retention::days( 'partner_ticket_codes' ) );
 		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? time() : (int) $now ) - $days * DAY_IN_SECONDS );
 		$counts = (array) $counts;
-		$counts['partner_ticket_codes'] = (int) $wpdb->query( $wpdb->prepare( 'DELETE c FROM ' . self::t( 'partner_ticket_codes' ) . " c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)) < %s", $cutoff ) );
+		$counts['partner_ticket_codes'] = (int) $wpdb->query( $wpdb->prepare( 'DELETE c FROM ' . self::t( 'partner_ticket_codes' ) . " c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . " < %s", $cutoff ) );
 		// Codes whose ticket no longer exists.
 		$counts['partner_ticket_codes'] += (int) $wpdb->query( 'DELETE c FROM ' . self::t( 'partner_ticket_codes' ) . " c LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id WHERE t.ticket_id IS NULL" );
 		return $counts;

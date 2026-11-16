@@ -240,7 +240,7 @@ final class BuyerLimits {
 		$days = \PassCaptain\Privacy\Retention::attendee_days() ?: \PassCaptain\Privacy\Retention::default_attendee_days();
 		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
 		$table = Holds::table( 'buyers' );
-		$counts['buyer_limits'] = (int) $wpdb->query( $wpdb->prepare( "DELETE b FROM $table b WHERE NOT EXISTS (SELECT 1 FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id=b.event_id AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))>=%s)", $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$counts['buyer_limits'] = (int) $wpdb->query( $wpdb->prepare( "DELETE b FROM $table b WHERE NOT EXISTS (SELECT 1 FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id=b.event_id AND " . \PassCaptain\Occurrence::end_sql( 'o' ) . ">=%s)", $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		return $counts;
 	}
 
