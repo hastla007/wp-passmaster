@@ -7,6 +7,20 @@
 - **Neuer Name „Pass Captain“, Slug `pass-captain` (für WordPress.org).** Bisher „WP Pass Captain“ mit Slug, Ordner und Textdomain `wp-pass-captain` – WordPress.org erlaubt kein „WP“ am Namensanfang, und Sprachpakete brauchen Textdomain = Slug. Geändert: Plugin-Name, Ordner/Hauptdatei `pass-captain/pass-captain.php`, Textdomain und Sprachdateien `pass-captain`, REST-Namensraum `/wp-json/pass-captain/v1/`, Admin-Seiten `page=pass-captain…`, Release-ZIP `pass-captain.zip`; die Partner-Plugins heißen in der Oberfläche „Voucher Captain“ und „Affiliate Captain“. Unverändert: Daten (`wpcap_*`), Rollen, Hooks/Shortcodes, Blocknamen. Kompatibilität (`src/LegacySlug.php`): der alte REST-Namensraum funktioniert weiter (Zahlungs- und SMS-Webhooks, bereits ausgegebene Wallet-Pässe, Apps; Antwort mit `Deprecation`/`Link`, Twilio-Signatur gegen die aufgerufene URL), alte Admin-Links leiten um, eine installierte alte Kopie wird beim Aktivieren abgeschaltet (kein Doppelladen), und solange ihr Ordner existiert, ist die Datenlöschung beim Deinstallieren pausiert, damit das Löschen der alten Kopie keine Daten entfernt. Neuer CI-Test `tests/wp-matrix/rename-takeover.sh` (echte Website mit Vorgänger-Release und Daten → Umstieg). Anleitung: docs/RENAME.md.
 
 ### Auditbefunde Runde 4–6 (Arbeitsliste A263–)
+- Teilnehmerfelder: Auswahl, Mehrfachauswahl, Telefon, Datum und Zahl; Name je Ticket erzwingbar; „Meine Angaben übernehmen“ (A552).
+- Teilnehmerfelder mit Hilfetext, Abfrage einmal je Bestellung und versionierten Felddefinitionen (A680).
+- WooCommerce-Checkouts lehnen unbekannte oder nicht freigegebene Teilnehmerfelder mit klarer Meldung ab (A681).
+- Fehlende Teilnehmerangaben stehen je Ticket in Mail, Bestellansicht und Portal und lassen sich gezielt anfordern (A682).
+- Teilnehmerfelder für die Selbstbedienung sperrbar oder mit eigener Änderungsfrist (A683).
+- Review-Teilnahmevertrag v1: `experience_completed` beim ersten gültigen Einlass, ohne Personendaten, mit Korrektur bei Rücknahme, Erstattung oder Absage (A667).
+- Kontakt-Resolver für Bewertungseinladungen mit eigener Capability und Audit ohne Kontaktdaten (A668).
+- Ausschlussereignisse für Übertragung, No-show und Event-Absage, idempotent (A669).
+- Betrieb zeigt je Suite-Vertrag „verfügbar“, „inkompatibel“ oder „kein Plugin“ – ohne Lizenzprüfung im Kern (A670).
+- E2E-Matrix Ticketkauf → Einlass → Bewertungsanfrage mit Stub-Review-Plugin (A671).
+- Workflow-Commands v1 (Mail erneut senden, Ticket widerrufen, Event absagen, Termin verschieben, Teilnahme bestätigen) mit Capability, Allowlist, Idempotency-Key und Audit (A676).
+- Optionale Mails (z. B. Terminerinnerung) je Mailtyp an Workflow Captain übergebbar, protokolliert, mit nativem Rückfall (A677).
+- Adminstatus der Providerverträge mit letzter Zustellung, Rückstand, Fehler und Rückfallverhalten (A678).
+- Vertragsfixtures und E2E-Tests für den Workflow-Vertrag (A679).
 - Checkout-Skript fragt die Zahlungsarten nicht mehr bei jedem Seitenaufruf ab (A359).
 - Apple-Wallet-Pushes beachten WP_HTTP_BLOCK_EXTERNAL und den WordPress-Proxy; kein curl_close() mehr (PHP 8.5) (A361).
 - Wartelisten-Queue unter Datenbanksperre; benannte Sperren sind je Installation eindeutig (`DbLock`) (A364).
