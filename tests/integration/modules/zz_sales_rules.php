@@ -159,6 +159,7 @@ PriceRules::delete( $wk );
 // Demand step: 50 % of capacity 4 sold or held.
 $dm = PriceRules::create( $pev, array( 'kind' => 'demand', 'ticket_type_id' => $pa, 'sold_pct' => 50, 'price_mode' => 'fixed', 'amount' => '30,00', 'priority' => '50' ) );
 check( 'demand rule: 1 of 4 sold (25 %) keeps the early bird price', 1990 === Orders::unit_price( $type_a, $occ ) );
+check( 'A617: an order of 2 at 25 % reaches the 50 % step with its last unit and pays the demand price; 1 unit does not', 3000 === Orders::unit_price( $type_a, $occ, 2 ) && 1990 === Orders::unit_price( $type_a, $occ, 1 ) );
 $prd2 = sr_buy( $pa, 1, 'rule2@example.com', 'rule2' );
 check( 'demand rule: from 2 of 4 (50 %) the demand price applies (inclusive threshold)', 3000 === Orders::unit_price( $type_a, $occ ) && 1990 === (int) sr_item( $prd2['order_id'] )->unit_price_minor );
 PriceRules::delete( $dm );

@@ -6,7 +6,8 @@
  *
  * - early bird applies while now < until (UTC), last minute from starts_at − hours (inclusive),
  *   demand from sold % ≥ threshold (paid units + active holds of other orders against the type
- *   capacity, else the occurrence capacity), weekday/time slot on the occurrence's local start
+ *   capacity, else the occurrence capacity; for an order of n units the position of its last unit
+ *   counts, so a large order cannot buy past a step at the lower price, A617), weekday/time slot on the occurrence's local start
  *   (from inclusive, to exclusive, from > to wraps midnight);
  * - of all matching rules the highest priority wins (ties: higher demand threshold, older rule);
  *   event rules and the series rules of the occurrence compete in one selection.
@@ -182,7 +183,14 @@ final class PriceRules {
 			'starts_at' => $occurrence->starts_at,
 			'timezone' => $occurrence->timezone ?? 'UTC',
 			'type_name' => $type->name ?? '',
-			'sold_pct' => static function () use ( $type, $occurrence, $now ) { return Engine::sold_pct( $type, $occurrence, $now ); },
+			'sold_pct' => static function () use ( $type, $occurrence, $now, $context ) {
+				$pct = Engine::sold_pct( $type, $occurrence, $now );
+				// A617: one large order must not buy past a demand step at the lower price. The step applies when
+				// the order's last unit lands in it (units before it ≥ threshold); one unit = the stored sold %.
+				$extra = max( 0, absint( $context['quantity'] ?? 1 ) - 1 );
+				$capacity = (int) ( $type->capacity ?? 0 ) > 0 ? (int) $type->capacity : (int) ( $occurrence->capacity ?? 0 );
+				return null === $pct || ! $extra || $capacity < 1 ? $pct : $pct + 100 * $extra / $capacity;
+			},
 		) );
 	}
 

@@ -1214,7 +1214,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — templates/event-card.php:64, TicketPage.php (A614, R4 Eigen (Deep Dive 3))
 - [ ] [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — — (A615, R4 Eigen (Deep Dive 3))
 - [x] [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — src/Rest/Controller.php:681–692, Campaigns.php:47/183 (A616, R4 Transaktionen/Concurrency)
-- [ ] [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — src/Series/Pricing.php, Orders.php:191 (A617, R4 Transaktionen/Concurrency)
+- [x] [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — src/Series/Pricing.php, Orders.php:191 (A617, R4 Transaktionen/Concurrency) – erledigt: Nachfragestufen werten die Position der letzten Einheit einer Bestellung (bisher verkauft + Menge − 1); eine große Bestellung, die die Stufe erreicht, zahlt den Stufenpreis; Test in `zz_sales_rules`
 - [x] [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — src/TicketPdf.php:49–55, :98 (A618, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379 (A619, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148 (A620, R4 Dokumente/Mail/Wallet)

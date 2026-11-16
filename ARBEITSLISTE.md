@@ -1313,7 +1313,7 @@ Gesamt: 262 Aufgaben.
   - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Admin/StatusPage.php` (Dashboard-Widget „Pass Captain: Systemstatus“ mit den kritischen Befunden); Verkäufe, offene Prüfungen und nächste Termine zeigt es nicht.
 - [x] **A616** [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — _R4 Transaktionen/Concurrency_ (TODO L971; Audit Runde 4)
   - src/Rest/Controller.php:681–692, Campaigns.php:47/183: Datum validieren, Ortszeit → UTC, reines Datum als Tagesende (belegt t5)
-- [ ] **A617** [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — _R4 Transaktionen/Concurrency_ (TODO L972; Audit Runde 4)
+- [x] **A617** [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — _R4 Transaktionen/Concurrency_ (TODO L972; Audit Runde 4)
   - src/Series/Pricing.php, Orders.php:191: Preis je Unit staffeln oder Menge einrechnen (belegt t5)
 - [x] **A618** [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — _R4 Dokumente/Mail/Wallet_ (TODO L973; Audit Runde 4)
   - src/TicketPdf.php:49–55, :98: FlateDecode, QR-Module zeilenweise zusammenfassen
