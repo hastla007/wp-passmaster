@@ -56,6 +56,9 @@ $a444_job = static function ( $status, $days ) use ( $wpdb, $p, $a444_ago ) {
 };
 $a444_jobs_gone = array( $a444_job( 'complete', 40 ), $a444_job( 'cancelled', 40 ), $a444_job( 'dead_letter', 200 ) );
 $a444_jobs_keep = array( $a444_job( 'complete', 5 ), $a444_job( 'queued', 40 ), $a444_job( 'running', 40 ), $a444_job( 'dead_letter', 40 ) );
+// Old finished jobs left by earlier modules of the full run are deleted by the same run: counted apart.
+$a444_jobs_other = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type<>'a444' AND status IN ('complete','cancelled') AND run_after<%s AND updated_at<%s", $a444_ago( 30 ), $a444_ago( 30 ) ) );
+$a444_dead_other = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type<>'a444' AND status='dead_letter' AND run_after<%s AND updated_at<%s", $a444_ago( 180 ), $a444_ago( 180 ) ) );
 
 // Seat holds.
 $a444_hold = static function ( $status, $days ) use ( $wpdb, $p, $a444_ago ) {
@@ -87,7 +90,7 @@ $a444_run = Retention::housekeeping( $a444_now, 30.0 );
 remove_filter( 'wpcap_privacy_retention_days', $a444_off, 10 );
 check( 'reservations: finished rows (converted/expired/released, counted_qty 0) deleted in batches', 1204 <= (int) $a444_run['reservations'] && 0 === $a444_exists( 'wpcap_reservations', 'reservation_id', $a444_gone ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id BETWEEN 990100000 AND 990101199" ) );
 check( 'reservations: active, still counting, pending-order and recent rows stay', count( $a444_keep ) === $a444_exists( 'wpcap_reservations', 'reservation_id', array_values( $a444_keep ) ) );
-check( 'jobs: complete/discarded after 30 days, dead letters after 180 days; queued/running/recent stay', 2 === (int) $a444_run['jobs'] && 1 === (int) $a444_run['dead_jobs'] && 0 === $a444_exists( 'wpcap_jobs', 'job_id', $a444_jobs_gone ) && 4 === $a444_exists( 'wpcap_jobs', 'job_id', $a444_jobs_keep ) );
+check( 'jobs: complete/discarded after 30 days, dead letters after 180 days; queued/running/recent stay', 2 + $a444_jobs_other === (int) $a444_run['jobs'] && 1 + $a444_dead_other === (int) $a444_run['dead_jobs'] && 0 === $a444_exists( 'wpcap_jobs', 'job_id', $a444_jobs_gone ) && 4 === $a444_exists( 'wpcap_jobs', 'job_id', $a444_jobs_keep ) );
 check( 'seat holds: expired/released after 30 days; sold, active and recent stay', 2 === (int) $a444_run['seat_holds'] && 0 === $a444_exists( 'wpcap_seat_holds', 'hold_id', $a444_holds_gone ) && 3 === $a444_exists( 'wpcap_seat_holds', 'hold_id', $a444_holds_keep ) );
 check( 'payment events: step off via wpcap_privacy_retention_days (0) keeps them', 0 === (int) $a444_run['payment_events'] && 2 === $a444_exists( 'wpcap_payment_events', 'payment_event_id', $a444_events_gone ) );
 check( 'complete run reports complete', ! empty( $a444_run['complete'] ) );
