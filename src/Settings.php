@@ -168,6 +168,7 @@ final class Settings {
 			'mail_from_email'           => '',
 			'mail_from_name'            => '',
 			'mail_reply_to'             => '',
+			'alert_email'               => '', // A400: recipient of operational alerts ('' = admin e-mail).
 			// Bounce/complaint webhook of the sending service (Mail\Suppression), off by default.
 			'mail_bounce_webhook'       => 0,
 			// Frontend\EventPage: event detail pages /{event_base}/{slug}/ with schema.org/Event.

@@ -321,9 +321,9 @@ final class Dispatcher {
 			$update['status'] = 'disabled';
 			$update['disabled_reason'] = 'failures';
 			Audit::record( 'webhook_subscription_auto_disabled', 'webhook', (int) $sub->subscription_id, array( 'consecutive_failures' => $failures ) );
-			if ( function_exists( 'get_option' ) && is_email( get_option( 'admin_email' ) ) ) {
+			if ( function_exists( 'get_option' ) ) {
 				/* translators: 1: webhook id, 2: failure count */
-				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Webhook deaktiviert', 'pass-captain' ), sprintf( __( 'Der Webhook #%1$d wurde nach %2$d fehlgeschlagenen Zustellversuchen in Folge deaktiviert. Ausstehende Zustellungen werden nach der Reaktivierung fortgesetzt.', 'pass-captain' ), (int) $sub->subscription_id, $failures ) );
+				\PassCaptain\Alerts::raise( 'webhook_disabled', __( 'Pass Captain: Webhook deaktiviert', 'pass-captain' ), sprintf( __( 'Der Webhook #%1$d wurde nach %2$d fehlgeschlagenen Zustellversuchen in Folge deaktiviert. Ausstehende Zustellungen werden nach der Reaktivierung fortgesetzt.', 'pass-captain' ), (int) $sub->subscription_id, $failures ) );
 			}
 		}
 		$wpdb->update( self::t( 'subscriptions' ), $update, array( 'subscription_id' => (int) $sub->subscription_id ) );

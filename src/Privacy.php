@@ -491,16 +491,16 @@ final class Privacy {
 			$messages[] = sprintf( _n( 'Hinweis: %d Ticket anderer Käufer für bevorstehende Termine bleibt gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', 'Hinweis: %d Tickets anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', (int) $totals['attendee_upcoming'], 'pass-captain' ), $totals['attendee_upcoming'] );
 		}
 		if ( $deferred ) {
-			wp_mail(
-				get_option( 'admin_email' ),
+			\PassCaptain\Alerts::raise(
+				'erasure_deferred',
 				__( 'Pass Captain: Löschanfrage zurückgestellt', 'pass-captain' ),
 				/* translators: %d: number of orders */
 				sprintf( _n( 'Eine Löschanfrage betrifft %d Bestellung mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach wird die Bestellung automatisch anonymisiert.', 'Eine Löschanfrage betrifft %d Bestellungen mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert.', (int) $deferred, 'pass-captain' ), $deferred )
 			);
 		}
 		if ( $totals['open_payments'] ) {
-			wp_mail(
-				get_option( 'admin_email' ),
+			\PassCaptain\Alerts::raise(
+				'erasure_payment_open',
 				__( 'Pass Captain: Löschanfrage wartet auf Zahlungsklärung', 'pass-captain' ),
 				/* translators: %d: number of orders */
 				sprintf( _n( 'Eine Löschanfrage betrifft %d bezahlte Bestellung ohne Tickets, die noch geklärt werden muss (Zuteilung erneut versuchen oder erstatten). Sie wird nach der Klärung automatisch anonymisiert.', 'Eine Löschanfrage betrifft %d bezahlte Bestellungen ohne Tickets, die noch geklärt werden müssen (Zuteilung erneut versuchen oder erstatten). Sie werden nach der Klärung automatisch anonymisiert.', (int) $totals['open_payments'], 'pass-captain' ), $totals['open_payments'] )

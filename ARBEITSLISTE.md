@@ -879,8 +879,9 @@ Gesamt: 262 Aufgaben.
   - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe WP-CLI: `secrets rollback-config`, `reconcile-capacity`, `doctor`, `diagnose`, `status`, `upgrade`.
   - src/CapacityCounters.php:71: wp pass-captain order show, tickets resend, webhook reprocess, queue list/retry/discard, upgrade, secrets, mail test (doctor kam mit A204)
   - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Ops/Cli.php` (`wp pass-captain diagnose`, `wp pass-captain status`); zusammen mit `upgrade`, `reconcile-capacity`, `doctor` und `secrets rollback-config` gibt es sechs Befehle; die vorgeschlagenen Befehle für Bestellungen, Tickets, Webhooks und Queue fehlen.
-- [ ] **A400** [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — _R2 Support_ (TODO L746; Audit Runde 4)
+- [x] **A400** [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — _R2 Support_ (TODO L746; Audit Runde 4)
   - src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen): Alerts::raise() mit Empfänger-Filter, Mailer, dauerhaftem Admin-Hinweis
+  - Erledigt: `src/Alerts.php` – alle 20 direkten `wp_mail( admin_email )`-Stellen plus Fiskal-, SMS-Budget- und Service-Personal-Empfänger laufen über `Alerts::raise()`/`recipients()`; Einstellung „Betriebsalarme an“ (`alert_email`), Filter `wpcap_alert_recipients`/`wpcap_alert_send`, Action `wpcap_alert`, Absender über `Mailer::send_plain`, die letzten 30 Alarme im Systemstatus; Test zz_a400 (inkl. Quellscan: kein `wp_mail( get_option( 'admin_email' ) …` mehr).
 - [ ] **A401** [OPTIMIERUNG] Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4)
   - src/Installer.php:17, Orders.php:23, Rest/Controller.php:20: Schema je Modul auslagern, Routen je Ressource, create() zerlegen
 - [ ] **A402** [OPTIMIERUNG] Statische Klassen, keine definierte öffentliche API — _R2 Support_ (TODO L748; Audit Runde 4)

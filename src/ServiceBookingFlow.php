@@ -197,7 +197,7 @@ final class ServiceBookingFlow {
 		if ( is_array( $customer ) && is_email( $customer['to'] ) && ! Mail\Mailer::is_placeholder( $customer['to'] ) ) {
 			Mail\Mailer::send_plain( $customer['to'], $customer['subject'], $customer['body'] ); // A296: sender name and Reply-To.
 		}
-		$staff = array( (string) get_option( 'admin_email' ) );
+		$staff = Alerts::recipients( 'service_booking' ); // A400: alert recipient (setting alert_email, else admin e-mail).
 		foreach ( ServiceProviders::for_resource( (int) $booking->resource_id ) as $provider ) {
 			if ( 'active' === $provider->status && is_email( (string) $provider->email ) ) { $staff[] = (string) $provider->email; }
 		}

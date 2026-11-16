@@ -351,8 +351,8 @@ final class Checkout {
 		self::save( $order_id, $snapshot );
 		\PassCaptain\Log::error( 'voucher_commit_failed', 'Voucher redemption could not be committed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $error->get_error_code(), 'retry' => false ) ) );
 		$order = Orders::get( $order_id );
-		wp_mail(
-			get_option( 'admin_email' ),
+		\PassCaptain\Alerts::raise(
+			'voucher_charge_failed',
 			__( 'Pass Captain: Gutschein konnte nicht belastet werden', 'pass-captain' ),
 			sprintf(
 				/* translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code */
@@ -433,7 +433,7 @@ final class Checkout {
 			if ( $final ) {
 				$order = \PassCaptain\Orders::get( (int) $order_id );
 				/* translators: 1: order, 2: amount in minor units, 3: error */
-				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
+				\PassCaptain\Alerts::raise( 'voucher_refund_failed', __( 'Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
 			} elseif ( ! $from_job ) {
 				Jobs::enqueue( 'voucher-refund-' . absint( $refund_id ), self::REFUND_JOB, array( 'refund_id' => absint( $refund_id ), 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 			}

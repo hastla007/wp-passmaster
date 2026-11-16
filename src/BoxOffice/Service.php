@@ -780,8 +780,8 @@ final class Service {
 		if ( '' !== $mismatch ) {
 			Audit::record( 'pos_device_amount_mismatch', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reference' => $reference, 'source' => $source, 'charged_minor' => $payment['amount_minor'] ?? null, 'charged_currency' => (string) ( $payment['currency'] ?? '' ) ) );
 			$order = Orders::get( $sale->order_id );
-			wp_mail(
-				get_option( 'admin_email' ),
+			\PassCaptain\Alerts::raise(
+				'pos_terminal_mismatch',
 				__( 'Pass Captain: Terminalzahlung prüfen', 'pass-captain' ),
 				/* translators: 1: order id, 2: terminal reference, 3: description of the difference */
 				sprintf( __( "Bestellung %1\$s (Terminal-Referenz %2\$s): %3\$s\n\nDer Verkauf wurde nicht gebucht. Bitte den am Terminal belasteten Betrag dort erstatten und den Verkauf neu erfassen.", 'pass-captain' ), $order ? $order->public_id : (string) $sale->order_id, $reference, $mismatch )

@@ -1276,7 +1276,7 @@ final class ServiceBookings {
 			$partner = Partners\Repository::get( (int) $resource->partner_id );
 			$to = $partner ? (string) $partner->contact_email : '';
 		}
-		if ( ! is_email( $to ) ) { $to = (string) get_option( 'admin_email' ); }
+		if ( ! is_email( $to ) ) { $to = (string) ( Alerts::recipients( 'service_booking_partner' )[0] ?? '' ); } // A400: alert recipient.
 		if ( ! is_email( $to ) ) { return; }
 		$slot = ServiceResources::slot( (int) $booking->slot_id );
 		$vars = self::mail_vars( $booking, $slot, $resource );

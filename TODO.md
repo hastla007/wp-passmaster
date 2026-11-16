@@ -988,7 +988,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] [wpcap_passes] ohne Stylesheet, Kauflink, Überschriftenebene — src/Passes/Display.php:141–156 (A397, R2 Frontend)
 - [x] [OPTIMIERUNG] PWA viewport-fit=cover ohne Safe-Area-Abstände — assets/offline-scanner/index.html:5, app.css (A398, R2 Frontend)
 - [x] [OPTIMIERUNG] Nur ein WP-CLI-Befehl — src/CapacityCounters.php:71 (A399, R2 Support) – umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe WP-CLI: `secrets rollback-config`, `reconcile-capacity`, `doctor`, `diagnose`, `status`, `upgrade`
-- [ ] [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen) (A400, R2 Support)
+- [x] [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen) (A400, R2 Support)
 - [ ] [OPTIMIERUNG] Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — src/Installer.php:17, Orders.php:23, Rest/Controller.php:20 (A401, R2 Support)
 - [ ] [OPTIMIERUNG] Statische Klassen, keine definierte öffentliche API — 206/224 Klassen (A402, R2 Support)
 - [x] [OPTIMIERUNG] Mehrere Geldformatierer (A200 zentralisiert – Rest prüfen, Box-Office-JS 2 Dezimalen) — src/Modules/Sms.php:476, assets/boxoffice/pos.js, shift.js (A403, R2 Support) – erledigt: Kassen-JS (`pos.js`, `shift.js`) formatiert und parst nach Nachkommastellen der Währung und Zahlenformat der Website (vom Server übergeben); Restbeträge in ServiceBookings/Refunder über `Money::format()`; Test `zz_a403` + `tests/js/pos.test.js`

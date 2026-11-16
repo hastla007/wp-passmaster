@@ -590,6 +590,6 @@ final class Webhooks {
 	/** Mails the site admin about a payment that needs manual action. */
 	private static function alert( $order, $message, $provider, array $event ) {
 		/* translators: 1: order id, 2: provider, 3: reference, 4: message */
-		wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Zahlung prüfen', 'pass-captain' ), sprintf( __( "Bestellung %1\$s (%2\$s, Referenz %3\$s):\n\n%4\$s", 'pass-captain' ), $order->public_id, $provider, (string) ( $event['provider_reference'] ?? '' ), $message ) );
+		\PassCaptain\Alerts::raise( 'payment_review', __( 'Pass Captain: Zahlung prüfen', 'pass-captain' ), sprintf( __( "Bestellung %1\$s (%2\$s, Referenz %3\$s):\n\n%4\$s", 'pass-captain' ), $order->public_id, $provider, (string) ( $event['provider_reference'] ?? '' ), $message ) );
 	}
 }
