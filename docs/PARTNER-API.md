@@ -73,8 +73,9 @@ Keys werden auf der Detailseite eines Veranstalters erzeugt.
   Einstellungen bzw. je Key). Überschreitung: `429`. Schreibende Aufrufe (Anlegen, Bestätigen, Stornieren,
   Code-Abruf) haben zusätzlich ein eigenes Limit (Standard 30/Minute, ebenfalls global oder je Key).
 - **Sperre bei Fehlversuchen**: Nach 20 fehlgeschlagenen Anmeldungen (fehlender, ungültiger,
-  abgelaufener oder widerrufener Key) innerhalb von 10 Minuten wird die Client-Adresse für
-  10 Minuten gesperrt (`429`, auch für gültige Keys).
+  abgelaufener oder widerrufener Key) innerhalb eines festen 10-Minuten-Fensters wird die Client-Adresse
+  (IPv6: ihr /64-Netz) bis zum Ende dieses Fensters gesperrt (`429`, auch für gültige Keys); gezählt wird
+  atomar über `RateLimit` (A280, A288).
 
 Audit-Log: `partner_key_created`, `partner_key_revoked` und `partner_key_auth_failed` mit
 `reason` = `missing`, `malformed`, `invalid`, `revoked`, `expired`, `partner_inactive`,

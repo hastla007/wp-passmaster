@@ -86,6 +86,14 @@ gelegentlich ein Aufruf. Die Bucket-Namen werden mit einem Schlüssel aus `wp_sa
 stehen nie im Klartext in Datenbank oder Cache. Mit dem Filter `wpcap_rate_limit_backend` lässt sich das
 Backend erzwingen.
 
+**Fehlversuchs-Zähler (A288).** Zähler, die nur Fehlschläge zählen, prüfen vorher mit `RateLimit::hits()`
+(liest, ohne zu zählen) und zählen den Fehlschlag danach mit `RateLimit::allow()`: Buchungstokens der
+Service-Selbstbedienung, Partnercodes von Affiliate Captain, Sperre der Partner-API nach Fehlanmeldungen.
+Auch das Ratenlimit der Entwickler-API-Keys (je Key und Uhrminute), das Limit für Überweisungsbestellungen
+je Client und die „einmal je Minute protokollieren“-Merker der Partner-API laufen über `RateLimit`; keiner
+dieser Zähler nutzt mehr Transients (keine Option-Zeile je Key und Minute, kein verlorenes Hochzählen
+paralleler Anfragen).
+
 Nachweis: `tests/integration/modules/zz_a186.php` startet 8 PHP-Prozesse, die gleichzeitig je 30 Mal
 denselben Bucket mit Limit 50 zählen. Erlaubt werden genau 50 Aufrufe, gezählt werden alle 240.
 

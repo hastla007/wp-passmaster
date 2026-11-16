@@ -155,9 +155,7 @@ final class Keys {
 	public static function allow_write( $key, $route = '' ) {
 		$limit = (int) ( $key->write_rate_limit ?? 0 ) ?: max( 1, (int) ( Settings::get( 'partners' )['write_rate_limit'] ?? 30 ) );
 		if ( RateLimit::allow( 'partner_key_write_' . (int) $key->key_id, $limit, 60 ) ) { return true; }
-		$flag = 'wpcap_partner_wrl_logged_' . (int) $key->key_id;
-		if ( ! get_transient( $flag ) ) {
-			set_transient( $flag, 1, MINUTE_IN_SECONDS );
+		if ( RateLimit::allow( 'partner_wrl_logged|' . (int) $key->key_id, 1, MINUTE_IN_SECONDS ) ) {
 			self::audit_failure( 'write_rate_limited', $key, self::client_ip(), $route );
 		}
 		return new \WP_Error( 'wpcap_partner_rate_limited', __( 'Ratenlimit für schreibende Anfragen überschritten. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
@@ -220,8 +218,12 @@ final class Keys {
 		return inet_ntop( substr( $bin, 0, $keep ) . str_repeat( "\0", strlen( $bin ) - $keep ) );
 	}
 
-	private static function lock_key( $ip ) {
-		return 'wpcap_partner_lock_' . md5( \PassCaptain\ClientIp::limit_key( $ip ) ); // IPv6: per /64 (A280).
+	/**
+	 * Failed-login bucket of a client (IPv6: its /64, A280). More than FAIL_LIMIT failures within the
+	 * FAIL_WINDOW lock the client out for the rest of that window; counted atomically (A288).
+	 */
+	private static function fail_bucket( $ip ) {
+		return 'partner_auth_fail|' . \PassCaptain\ClientIp::limit_key( $ip );
 	}
 
 	/**
@@ -234,7 +236,7 @@ final class Keys {
 		global $wpdb;
 		$ip = self::client_ip();
 		$route = is_object( $request ) && method_exists( $request, 'get_route' ) ? (string) $request->get_route() : '';
-		if ( get_transient( self::lock_key( $ip ) ) ) {
+		if ( RateLimit::hits( self::fail_bucket( $ip ), self::FAIL_WINDOW ) > self::FAIL_LIMIT ) {
 			return new \WP_Error( 'wpcap_partner_locked', __( 'Zu viele fehlgeschlagene Anmeldungen. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$header = (string) $request->get_header( 'authorization' );
@@ -254,9 +256,7 @@ final class Keys {
 		$limit = (int) $key->rate_limit ?: max( 1, (int) ( Settings::get( 'partners' )['rate_limit'] ?? 120 ) );
 		if ( ! RateLimit::allow( 'partner_key_' . (int) $key->key_id, $limit, 60 ) ) {
 			// Audit the first rejection per minute only, so a misbehaving client cannot flood the log.
-			$flag = 'wpcap_partner_rl_logged_' . (int) $key->key_id;
-			if ( ! get_transient( $flag ) ) {
-				set_transient( $flag, 1, MINUTE_IN_SECONDS );
+			if ( RateLimit::allow( 'partner_rl_logged|' . (int) $key->key_id, 1, MINUTE_IN_SECONDS ) ) {
 				self::audit_failure( 'rate_limited', $key, $ip, $route );
 			}
 			return new \WP_Error( 'wpcap_partner_rate_limited', __( 'Ratenlimit überschritten. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
@@ -274,8 +274,8 @@ final class Keys {
 
 	/** Records a failed authentication/authorisation and returns the error. */
 	private static function fail( $reason, $key, $ip, $route, $status, $count_for_lockout, array $extra = array() ) {
-		if ( $count_for_lockout && ! RateLimit::allow( 'partner_auth_fail|' . \PassCaptain\ClientIp::limit_key( $ip ), self::FAIL_LIMIT, self::FAIL_WINDOW ) ) {
-			set_transient( self::lock_key( $ip ), 1, self::FAIL_WINDOW );
+		if ( $count_for_lockout ) {
+			RateLimit::allow( self::fail_bucket( $ip ), self::FAIL_LIMIT, self::FAIL_WINDOW );
 		}
 		self::audit_failure( $reason, $key, $ip, $route, $extra );
 		$messages = array(

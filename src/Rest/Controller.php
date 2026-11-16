@@ -424,12 +424,11 @@ final class Controller {
 				return new \WP_Error( 'wpcap_manual_open_orders', __( 'Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen.', 'pass-captain' ), array( 'status' => 429, 'field' => 'email' ) );
 			}
 		}
-		$key = 'wpcap_manual_client_' . Orders::rate_hash( Orders::client_ip() );
-		$count = (int) get_transient( $key );
-		if ( $count >= max( 1, (int) apply_filters( 'wpcap_manual_orders_per_client', 5 ) ) ) {
+		// Atomic across workers (A288), per client and – for IPv6 – its /48 network (A280).
+		$window = max( HOUR_IN_SECONDS, (int) $hold_minutes * MINUTE_IN_SECONDS );
+		if ( ! \PassCaptain\RateLimit::allow_client( 'manual_orders', max( 1, (int) apply_filters( 'wpcap_manual_orders_per_client', 5 ) ), $window ) ) {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
-		set_transient( $key, $count + 1, max( HOUR_IN_SECONDS, (int) $hold_minutes * MINUTE_IN_SECONDS ) );
 		return true;
 	}
 

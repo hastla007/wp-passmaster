@@ -147,12 +147,11 @@ final class Adapter {
 
 	/** Rejects unknown codes; at most 10 wrong codes per hour and client (code guessing). */
 	private static function check_code( $code ) {
-		$client = class_exists( '\PassCaptain\RateLimit' ) ? \PassCaptain\RateLimit::client() : sanitize_text_field( wp_unslash( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
-		$key    = 'wpcap_partner_fail_' . hash( 'sha256', $client . '|' . wp_salt( 'nonce' ) );
-		$fails  = (int) get_transient( $key );
-		if ( $fails >= 10 ) { throw new \RuntimeException( 'partner_code_rate_limited' ); }
+		// Atomic failure counter per client (A288; IPv6 per /64, A280): checked first, only wrong codes count.
+		$bucket = 'affiliate_code_fail|' . \PassCaptain\RateLimit::client();
+		if ( \PassCaptain\RateLimit::hits( $bucket, HOUR_IN_SECONDS ) >= 10 ) { throw new \RuntimeException( 'partner_code_rate_limited' ); }
 		if ( ! function_exists( 'wpac_resolve_partner_code' ) || ! wpac_resolve_partner_code( $code, array( 'context' => 'code', 'source' => self::SOURCE ) ) ) {
-			set_transient( $key, $fails + 1, HOUR_IN_SECONDS );
+			\PassCaptain\RateLimit::allow( $bucket, 10, HOUR_IN_SECONDS );
 			throw new \RuntimeException( 'partner_code_invalid' );
 		}
 	}

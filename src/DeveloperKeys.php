@@ -165,13 +165,12 @@ final class DeveloperKeys {
 		if ( ! Access::event_fully_in_scope( $event_id, $user_id ) ) { return false; }
 		$scopes = json_decode( $key->scopes, true );
 		if ( ! is_array( $scopes ) || ! in_array( $scope, $scopes, true ) ) { return false; }
-		$rate_key = 'wpcap_api_rate_' . (int) $key->api_key_id . '_' . gmdate( 'YmdHi' );
-		$rate = (int) get_transient( $rate_key );
-		if ( $rate >= self::rate_limit( $key ) ) {
+		// Atomic per-minute counter (A288; no option row per key and minute). The window is the clock
+		// minute, which Retry-After in permission() relies on.
+		if ( ! RateLimit::allow( 'developer_key|' . (int) $key->api_key_id, self::rate_limit( $key ), MINUTE_IN_SECONDS ) ) {
 			self::$rate_limited = true;
 			return false;
 		}
-		set_transient( $rate_key, $rate + 1, MINUTE_IN_SECONDS );
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
 		return (int) $key->user_id;
 	}

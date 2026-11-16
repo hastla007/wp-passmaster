@@ -139,7 +139,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_rate_limit_ipv6_network_factor` | `int $factor` (4) | Vielfaches des Limits, das ein ganzes IPv6-/48-Netz bei Kontingent belegenden Anfragen (Checkout, Sitz-/Service-Holds, Warteliste; `RateLimit::allow_client()`) zusammen nutzen darf (A280). |
 | `wpcap_checkout_error_field` | `string $field, WP_Error $error` | Formularfeld (`data.field`), dem ein Checkout-Fehler zugeordnet wird (z. B. `email`, `campaign_code`, `voucher_code`); leer = keinem Feld. |
 | `wpcap_manual_open_orders_per_email` | `int $limit` (2) | Offene, unbezahlte Überweisungsbestellungen (`manual`) je E-Mail-Adresse; darüber lehnt der Checkout mit HTTP 429 ab. |
-| `wpcap_manual_orders_per_client` | `int $limit` (5) | Überweisungsbestellungen je Client-IP innerhalb der Reservierungszeit (mindestens eine Stunde). |
+| `wpcap_manual_orders_per_client` | `int $limit` (5) | Überweisungsbestellungen je Client-IP (IPv6 je /64, dazu das /48-Netz mit dem Vierfachen) in einem festen Fenster von der Länge der Reservierungszeit (mindestens eine Stunde); atomar über `RateLimit::allow_client()` (A288). |
 | `wpcap_campaign_preview_rate_limit` | `int $limit` (30) | Unverbindliche Rabattvorschauen (`Campaigns::preview()`) je Client-IP in 10 Minuten. |
 | `wpcap_expire_holds_batch` | `int $limit` (200) | Bestellungen, deren Reservierungen ein Lauf von `Orders::expire_holds()` höchstens ablaufen lässt. |
 | `wpcap_issue_order_lines` | `object[] $lines, object $order` | Bestellzeilen (mit Ticketart-, Termin- und Eventspalten), die bei der Ausgabe Tickets erhalten; läuft in der Ausgabe-Transaktion mit gesperrter Bestellung. Module entfernen Zeilen ohne eigenen Einlass (z. B. die Aufpreis-Bestellung eines Umtauschs). |

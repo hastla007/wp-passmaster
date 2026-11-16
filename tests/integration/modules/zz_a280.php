@@ -47,7 +47,7 @@ check( 'A280 another /48 and IPv4 clients are unaffected', ! is_wp_error( $q1ip_
 unset( $GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'] );
 
 echo "A280: partner key lockout per /64\n";
-$q1ip_lock = new ReflectionMethod( PassCaptain\Partners\Keys::class, 'lock_key' );
+$q1ip_lock = new ReflectionMethod( PassCaptain\Partners\Keys::class, 'fail_bucket' );
 $q1ip_lock->setAccessible( true );
 check( 'A280 partner lockout key is the same inside a /64', $q1ip_lock->invoke( null, '2001:db8:9:9::1' ) === $q1ip_lock->invoke( null, '2001:db8:9:9:1:2:3:4' ) && $q1ip_lock->invoke( null, '2001:db8:9:9::1' ) !== $q1ip_lock->invoke( null, '2001:db8:9:a::1' ) );
 
