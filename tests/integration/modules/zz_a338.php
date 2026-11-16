@@ -22,7 +22,7 @@ if ( ! function_exists( 'selected' ) ) { function selected( $a, $b = true, $echo
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce" value="n">'; } }
 if ( ! function_exists( 'wp_timezone_string' ) ) { function wp_timezone_string() { return 'Europe/Vienna'; } }
 if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id = 0 ) { return 'https://example.test/?page_id=' . (int) $id; } }
-if ( ! function_exists( 'wp_insert_post' ) ) { function wp_insert_post( $data, $wp_error = false ) { $GLOBALS['a338_inserted'][] = $data; return 4711; } }
+if ( ! function_exists( 'wp_insert_post' ) ) { function wp_insert_post( $data, $wp_error = false ) { $GLOBALS['wpcap_test_inserted_posts'][] = $data; return 4711; } }
 
 echo "A338: manual check-in from the admin, web scanner findable\n";
 
@@ -96,9 +96,9 @@ ob_start();
 ScannerPage::render();
 $a338_none = ob_get_clean();
 check( 'scanner page: without a page, creation is offered', false !== strpos( $a338_none, 'value="' . ScannerPage::ACTION_CREATE . '"' ) );
-$GLOBALS['a338_inserted'] = array();
+$GLOBALS['wpcap_test_inserted_posts'] = array();
 $a338_created = ScannerPage::create_page();
-check( 'scanner page: creates a published page with the shortcode', is_array( $a338_created ) && true === $a338_created['created'] && ( ! function_exists( 'wp_insert_post' ) || ! isset( $GLOBALS['a338_inserted'][0] ) || ( '[wpcap_scanner]' === $GLOBALS['a338_inserted'][0]['post_content'] && 'publish' === $GLOBALS['a338_inserted'][0]['post_status'] ) ) );
+check( 'scanner page: creates a published page with the shortcode', is_array( $a338_created ) && true === $a338_created['created'] && ( ! function_exists( 'wp_insert_post' ) || ! isset( $GLOBALS['wpcap_test_inserted_posts'][0] ) || ( '[wpcap_scanner]' === $GLOBALS['wpcap_test_inserted_posts'][0]['post_content'] && 'publish' === $GLOBALS['wpcap_test_inserted_posts'][0]['post_status'] ) ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( ScannerPage::PAGE_CAP );
 $a338_denied = ScannerPage::create_page();
 ob_start();

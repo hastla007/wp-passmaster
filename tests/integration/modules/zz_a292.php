@@ -18,6 +18,8 @@ require_once __DIR__ . '/zz_r6_stubs.inc';
 if ( ! function_exists( 'wp_insert_post' ) ) {
 	function wp_insert_post( $post, $wp_error = false ) {
 		global $wpdb;
+		$GLOBALS['wpcap_test_inserted_posts'][] = $post;
+		if ( empty( $wpdb->posts ) ) { return 4711; } // No posts table in this test file's context (e.g. zz_a338).
 		$wpdb->insert( $wpdb->posts, array( 'post_title' => $post['post_title'], 'post_content' => $post['post_content'], 'post_type' => $post['post_type'], 'post_status' => $post['post_status'] ) );
 		return (int) $wpdb->insert_id;
 	}

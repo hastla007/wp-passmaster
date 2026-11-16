@@ -621,23 +621,23 @@ Gesamt: 262 Aufgaben.
   - src/Plugin.php:116–131 (activate), :40–46, uninstall.php:53–60: ~100 Tabellen je Site im Aktivierungs-Request → Timeout. Lazy je Site über maybe_upgrade bzw. Batches per Cron
 - [x] **A288** [WICHTIG] Verbleibende nicht-atomare Transient-Zähler (A186 unvollständig) — _R1 Architektur/Security_ (TODO L619; Audit Runde 4)
   - src/Rest/Controller.php:417 (manual_hold_limit), DeveloperKeys.php:168, ServiceBookingFlow.php:222, Partners/Keys.php:237, AffiliateCaptain/Adapter.php:144: Auf RateLimit::allow() umstellen; Developer-Key-Zähler erzeugt Option-Zeilen je Minute
-- [ ] **A289** [WICHTIG] AGB nur mit „Zustimmung verlangen“ sichtbar, Checkliste meldet trotzdem erledigt — _R1 UX_ (TODO L620; Audit Runde 4)
+- [x] **A289** [WICHTIG] AGB nur mit „Zustimmung verlangen“ sichtbar, Checkliste meldet trotzdem erledigt — _R1 UX_ (TODO L620; Audit Runde 4)
   - templates/event-card.php:161–168, Settings.php:68, GettingStarted.php:49/107: Checkliste nur mit require_terms erledigt; Warnung bei Pflicht + leerem Text
-- [ ] **A290** [WICHTIG] Checklisten-Links landen auf falschem Settings-Tab — _R1 UX_ (TODO L621; Audit Runde 4)
+- [x] **A290** [WICHTIG] Checklisten-Links landen auf falschem Settings-Tab — _R1 UX_ (TODO L621; Audit Runde 4)
   - src/Admin/GettingStarted.php:83: tab=payments|legal|invoices über SettingsPage::url_args()
-- [ ] **A291** [WICHTIG] Checkliste wertet „WooCommerce aktiv“ als Zahlung eingerichtet — _R1 UX_ (TODO L622; Audit Runde 4)
+- [x] **A291** [WICHTIG] Checkliste wertet „WooCommerce aktiv“ als Zahlung eingerichtet — _R1 UX_ (TODO L622; Audit Runde 4)
   - src/Admin/GettingStarted.php:48, :85, :91: Nur werten, wenn Ticketprodukt verknüpft ist
-- [ ] **A292** [WICHTIG] „Alles bereit“ ohne Verkaufsseite; Shortcodes/Scanner/PWA im Admin nicht erwähnt — _R1 UX_ (TODO L623; Audit Runde 4)
+- [x] **A292** [WICHTIG] „Alles bereit“ ohne Verkaufsseite; Shortcodes/Scanner/PWA im Admin nicht erwähnt — _R1 UX_ (TODO L623; Audit Runde 4)
   - src/Admin/GettingStarted.php:95–159, DevicesPage.php:65: Schritt „Verkaufsseite anlegen“ (Seite erzeugen/Shortcode kopieren), „Auf Website ansehen“, Link zu Web-Scanner/PWA
-- [ ] **A293** [WICHTIG] Veröffentlichtes Event verschwindet still, Seite leer (auch „Vorverkauf ab“) — _R1 UX_ (TODO L624; Audit Runde 4)
+- [x] **A293** [WICHTIG] Veröffentlichtes Event verschwindet still, Seite leer (auch „Vorverkauf ab“) — _R1 UX_ (TODO L624; Audit Runde 4)
   - src/PublicEvents.php:166–177, :244–248, EventsPage.php:128–158: Leerzustand nach Filter, Karte „Vorverkauf ab …“, Veröffentlichungs-Checkliste (Ticketart, Termin, Zahlung)
-- [ ] **A294** [WICHTIG] Fehlende Zahlungsart fällt erst beim Absenden auf — _R1 UX_ (TODO L625; Audit Runde 4)
+- [x] **A294** [WICHTIG] Fehlende Zahlungsart fällt erst beim Absenden auf — _R1 UX_ (TODO L625; Audit Runde 4)
   - templates/event-card.php:148–156, Rest/Controller.php:318–322: Karte „Online-Verkauf derzeit nicht möglich“ + Admin-Hinweis „Keine verfügbare Zahlungsart“
-- [ ] **A295** [WICHTIG] Webhook-Einrichtung ohne Ereignisliste, Feldhinweise, Verbindungstest — _R1 UX_ (TODO L626; Audit Runde 4)
+- [x] **A295** [WICHTIG] Webhook-Einrichtung ohne Ereignisliste, Feldhinweise, Verbindungstest — _R1 UX_ (TODO L626; Audit Runde 4)
   - src/Admin/SettingsPage.php:479, StripeGateway.php:31–35, :179–200, PayPalGateway.php:249–288: Ereignisliste je Anbieter, fehlende Felder benennen, Button „Verbindung testen“, deutsche Feldnamen
-- [ ] **A296** [WICHTIG] Kein Absender/Antwortadresse für Käufer-Mails — _R1 UX_ (TODO L627; Audit Runde 4)
+- [x] **A296** [WICHTIG] Kein Absender/Antwortadresse für Käufer-Mails — _R1 UX_ (TODO L627; Audit Runde 4)
   - src/Mail/Mailer.php:215–229: Einstellungen Absendername und „Antwort an“ (Standard Rechnungssteller/Admin-Mail)
-- [ ] **A297** [WICHTIG] Fehlerhafte Admin-Formulare verwerfen alle Eingaben, generische Meldung — _R1 UX_ (TODO L628; Audit Runde 4)
+- [x] **A297** [WICHTIG] Fehlerhafte Admin-Formulare verwerfen alle Eingaben, generische Meldung — _R1 UX_ (TODO L628; Audit Runde 4)
   - src/Admin/EventsPage.php:39–41, Forms.php:384–392: Eingaben per Transient zurückgeben, fehlerhaftes Feld benennen
 - [ ] **A298** [WICHTIG] A099 nur teilweise: Rechtstexte ohne Editor, „Zahlung vor Ort“ im Online-Checkout — _R1 UX_ (TODO L629; Audit Runde 4)
   - src/Admin/SettingsPage.php:603, ManualGateway.php:12: wp_editor für Rechtstexte; online nur „Überweisung“
@@ -997,7 +997,7 @@ Gesamt: 262 Aufgaben.
   - assets/scanner.js:15–35, :321–345, Privacy.php:104–106: Blog-ID/home_url in Owner und Schlüssel
 - [ ] **A473** [WICHTIG] Offline-PWA mit einem Datenbestand pro Origin für alle Sites — _R3 Multisite/i18n/Skalierung_ (TODO L810; Audit Runde 4)
   - assets/offline-scanner/app.js:19, :45–53, :672–731, OfflineScanner/AdminPage.php:27–31: Store je API-Basis trennen, eigene Kopplung je Site
-- [ ] **A474** [WICHTIG] Ticket-Mail mischt Sprachen: PDF, Rechnung, Wallet-Text in Request- statt Käufersprache — _R3 Multisite/i18n/Skalierung_ (TODO L811; Audit Runde 4)
+- [x] **A474** [WICHTIG] Ticket-Mail mischt Sprachen: PDF, Rechnung, Wallet-Text in Request- statt Käufersprache — _R3 Multisite/i18n/Skalierung_ (TODO L811; Audit Runde 4)
   - src/Orders.php:1788–1806, WalletPasses/Service.php:183–199, Printing/InvoicePdf.php:293–306, AppleProvider.php:61–80: Anhänge und Filter in Mailer::with_locale($order->locale), Pass-Neubau in Ticket-Locale
 - [ ] **A475** [WICHTIG] Google-Wallet-IDs hängen an home_url(): Domainwechsel trennt Pässe still ab — _R3 Multisite/i18n/Skalierung_ (TODO L812; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:26–28, :113–117, Service.php:340–345: class_id beim Ausstellen speichern, 404 protokollieren
@@ -1029,7 +1029,7 @@ Gesamt: 262 Aufgaben.
   - src/BoxOffice/Shifts.php:622, :646, OccurrenceCancellation.php:121: Als offene Kassen-Rückzahlung vormerken, Buchung bei tatsächlicher Auszahlung
 - [ ] **A489** [WICHTIG] Schicht wird während laufendem Verkauf geschlossen: Tickets ohne Beleg und Z-Bericht — _R3 Eigen (Deep Dive 2)_ (TODO L826; Audit Runde 4)
   - src/BoxOffice/Shifts.php:420 (close), Service.php:372/445: In close() Bestellungen stornieren; Verkaufsstatus vor Bestätigung unter Sperre prüfen
-- [ ] **A490** [WICHTIG] Nach Umtausch kein Wallet-Pass mehr (erweitert A091) — _R3 Eigen (Deep Dive 2)_ (TODO L827; Audit Runde 4)
+- [x] **A490** [WICHTIG] Nach Umtausch kein Wallet-Pass mehr (erweitert A091) — _R3 Eigen (Deep Dive 2)_ (TODO L827; Audit Runde 4)
   - src/WalletPasses/Service.php:98, :210, Exchange/Service.php:715/851: issue() für neues Ticket, Link in Umtauschmail
 - [ ] **A491** [WICHTIG] Stammdaten ohne zeitliche Versionierung (Veranstalter-Zuordnung, Konditionen, Zonen) — _R3 Eigen (Deep Dive 2)_ (TODO L828; Audit Runde 4)
   - Partners/, Seating/: Gültigkeitszeiträume/Momentaufnahmen einführen
@@ -1170,7 +1170,7 @@ Gesamt: 262 Aufgaben.
   - src/Waitlists.php:45–51, :911–918: Bei Absage/Ende/sales_end schließen (mit Mail), Portal filtern
 - [ ] **A558** [WICHTIG] Erinnerungs-Mail nennt bei späten Käufern falsche Restzeit; LIMIT 200 verzögert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L898; Audit Runde 4)
   - src/Modules/Reminders.php:72–79, :101, Reminders/Placeholders.php:16: {hours} aus starts_at − now, Scheduler mit Cursor
-- [ ] **A559** [WICHTIG] Wallet-Pässe bei Änderung von Ort/Ende/Einlass nicht aktualisiert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L899; Audit Runde 4)
+- [x] **A559** [WICHTIG] Wallet-Pässe bei Änderung von Ort/Ende/Einlass nicht aktualisiert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L899; Audit Runde 4)
   - src/WalletPasses/Service.php:23–24, Notifications.php:52–60: An wpcap_occurrence_changed hängen
 - [ ] **A560** [WICHTIG] Checkout nicht an angezeigten Terminstand gebunden – nach Verschiebung still neuer Termin gekauft — _R4 Zeit/Caching/Lebenszyklus_ (TODO L900; Audit Runde 4)
   - src/Rest/Controller.php:317, assets/checkout.js:502–533: occurrence_revision und Preis mitsenden, 409 mit neuem Stand, Karte live nachladen
@@ -1212,21 +1212,21 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:418–428, Admin/TicketsPage.php:56–60: Nach Commit capacity_released(tickets_revoked, type, qty) (belegt t4a/b)
 - [x] **A579** [WICHTIG] Keine Invariante „pro Ticket höchstens einmal freigegeben“; drift() erkennt falsche Bestellzeilen nicht — _R4 Transaktionen/Concurrency_ (TODO L919; Audit Runde 4)
   - src/Refunds.php, Exchange, TicketsPage, CapacityCounters::drift: Zentrale Freigabe je Ticket, Abgleich gegen gültige Tickets, Kombinationstests Erstattung×Umtausch×Widerruf×Absage
-- [ ] **A580** [WICHTIG] Ticketmail ohne Größengrenze: 26–40 MB bei 1.000 Tickets, Gmail kürzt ab ~22 Tickets mit Wallet — _R4 Dokumente/Mail/Wallet_ (TODO L920; Audit Runde 4)
+- [x] **A580** [WICHTIG] Ticketmail ohne Größengrenze: 26–40 MB bei 1.000 Tickets, Gmail kürzt ab ~22 Tickets mit Wallet — _R4 Dokumente/Mail/Wallet_ (TODO L920; Audit Runde 4)
   - src/Orders.php:1797–1823, WalletPasses/Service.php:183–199, TicketPdf.php:86–113: Ab Schwelle Portal-Link/geteilte PDFs, ein „Alle hinzufügen“-Wallet-Link (gemessen)
 - [ ] **A581** [WICHTIG] Teilnehmer-E-Mail aus Checkout: Ticket nur an Käufer, Portal verweigert dann PDF (held_elsewhere) — _R4 Dokumente/Mail/Wallet_ (TODO L921; Audit Runde 4)
   - src/Orders.php:377, :1813, PortalSelfService.php:107, Modules/Reminders.php:94: Je Teilnehmeradresse eigene Ticketmail oder held_elsewhere nur nach Übertragung/Rotation
-- [ ] **A582** [WICHTIG] Wallet-Pässe folgen Ort, Endzeit, Event-/Ticketname, Namenskorrektur nicht — _R4 Dokumente/Mail/Wallet_ (TODO L922; Audit Runde 4)
+- [x] **A582** [WICHTIG] Wallet-Pässe folgen Ort, Endzeit, Event-/Ticketname, Namenskorrektur nicht — _R4 Dokumente/Mail/Wallet_ (TODO L922; Audit Runde 4)
   - src/WalletPasses/Service.php:22–28, Notifications.php:56, TicketAssignments.php:70–90: occurrence_changed, Event-/Typ-Speichern und Teilnehmer-Updates anbinden
-- [ ] **A583** [WICHTIG] Google-Speichern-Link je Ticket mit vollem Objekt im JWT (>1.800 Zeichen) — _R4 Dokumente/Mail/Wallet_ (TODO L923; Audit Runde 4)
+- [x] **A583** [WICHTIG] Google-Speichern-Link je Ticket mit vollem Objekt im JWT (>1.800 Zeichen) — _R4 Dokumente/Mail/Wallet_ (TODO L923; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:77–89, Service.php:162: Objekte vorab per REST/Job anlegen, kurzer JWT mit allen IDs der Bestellung
-- [ ] **A584** [WICHTIG] Salt-Rotation macht alle Wallet-Pässe ungültig (voided), ohne Warnung — _R4 Dokumente/Mail/Wallet_ (TODO L924; Audit Runde 4)
+- [x] **A584** [WICHTIG] Salt-Rotation macht alle Wallet-Pässe ungültig (voided), ohne Warnung — _R4 Dokumente/Mail/Wallet_ (TODO L924; Audit Runde 4)
   - src/WalletPasses/Store.php:16–20, Service.php:81, AppleProvider.php:64, GoogleProvider.php:62: Warnung ohne WPCAP_WALLET_ENCRYPTION_KEY, nicht entschlüsselbar ≠ voided
-- [ ] **A585** [WICHTIG] Abgelaufenes Apple-Zertifikat wird weiter verwendet, nur Hinweis auf Wallet-Seite — _R4 Dokumente/Mail/Wallet_ (TODO L925; Audit Runde 4)
+- [x] **A585** [WICHTIG] Abgelaufenes Apple-Zertifikat wird weiter verwendet, nur Hinweis auf Wallet-Seite — _R4 Dokumente/Mail/Wallet_ (TODO L925; Audit Runde 4)
   - src/WalletPasses/Credentials.php:203–231, AdminPage.php:135–138: Site-Health/Admin-Hinweis 30 Tage vorher, abgelaufen = nicht konfiguriert
-- [ ] **A586** [WICHTIG] Erneuter Portal-Download ohne Wallet-Modul rotiert jedes Mal die Codes; kein Admin-PDF je Bestellung/Ticket (ergänzt A207) — _R4 Dokumente/Mail/Wallet_ (TODO L926; Audit Runde 4)
+- [x] **A586** [WICHTIG] Erneuter Portal-Download ohne Wallet-Modul rotiert jedes Mal die Codes; kein Admin-PDF je Bestellung/Ticket (ergänzt A207) — _R4 Dokumente/Mail/Wallet_ (TODO L926; Audit Runde 4)
   - src/PortalSelfService.php:139–144/186–200, Orders.php:1960ff/2058ff: Code verschlüsselt speichern (idempotentes PDF/Neuversand), Admin-Knopf „Ticket-PDF“
-- [ ] **A587** [WICHTIG] Erinnerungen nur in Website-Sprache und ohne Ticketlink — _R4 Dokumente/Mail/Wallet_ (TODO L927; Audit Runde 4)
+- [x] **A587** [WICHTIG] Erinnerungen nur in Website-Sprache und ohne Ticketlink — _R4 Dokumente/Mail/Wallet_ (TODO L927; Audit Runde 4)
   - src/Modules/Reminders.php:37–46, :98, :141–155: Locale im Payload, Vorlagen je Sprache, Platzhalter für Ticket-/Portalzugang
 - [ ] **A588** [WICHTIG] Zustellung/Wiederherstellung hängt am Klartext-Code der ersten Mail (blinder Fleck) — _R4 Dokumente/Mail/Wallet_ (TODO L928; Audit Runde 4)
   - Orders, PortalSelfService, WalletPasses: Code verschlüsselt speichern, Zustellkontrolle (Größe, Bounce)
