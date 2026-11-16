@@ -14,6 +14,7 @@ final class TicketPage {
 		add_filter( 'query_vars', static function ( $vars ) { $vars[] = 'wpcap_ticket'; $vars[] = 'wpcap_tref'; return $vars; } );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_render' ) );
 		OrderPortal::register();
+		TicketRecovery::register(); // A622
 	}
 
 	public static function maybe_render() {
@@ -43,7 +44,12 @@ final class TicketPage {
 			"SELECT t.ticket_id,t.public_id,t.ticket_type_id,t.status,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.locale FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
 			hash( 'sha256', $token )
 		) );
-		if ( ! $ticket ) { status_header( 404 ); \PassCaptain\Http::end(); }
+		if ( ! $ticket ) {
+			status_header( 404 );
+			// A622: an old or replaced link (e.g. after a reissue) leads to the holder's way back to the tickets.
+			echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><p>' . esc_html__( 'Dieses Ticket wurde nicht gefunden oder der Link ist nicht mehr gültig.', 'pass-captain' ) . ' <a href="' . esc_url( TicketRecovery::url() ) . '">' . esc_html__( 'Ticketlinks per E-Mail anfordern', 'pass-captain' ) . '</a></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
+			\PassCaptain\Http::end();
+		}
 		if ( '' !== $from_url ) {
 			// Token from the mail link → cookie, 303 to ?wpcap_tref=… without token (falls back to rendering).
 			$ref = Security\AccessCookie::ticket_ref( $token );

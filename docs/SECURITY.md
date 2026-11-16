@@ -552,6 +552,7 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
 **Öffentliche REST-Routen** (bewusst ohne Anmeldung; Schutz durch Zugangstoken, Signatur, Rate-Limit oder nur
 öffentliche Daten): Eventliste, Checkout, Checkout-Optionen und Live-Kaufzustand der Eventkarten (`/checkout/live`, A456: nur öffentliche Daten, `no-store`, je Client begrenzt), Bestellportal (`/orders/{id}` sowie
 `transfer`, `resend`, `assign`, `billing`, `payout-account`, `exchange`, `refund-request` – Zugangstoken im Callback, bei `refund-request` zusätzlich der Formularnachweis, A459),
+Ticketlinks anfordern (`POST /tickets/recover`, A622: immer dieselbe Antwort, 5 Anfragen je Client und Stunde, 3 Mails je Adresse und Tag; versendet nur einen einmaligen Bestätigungslink an die Inhaberadresse, neue Codes erst nach Bestätigung per POST),
 Sitzplätze laufen nur über das Saalplan-Modul (das alte Sitzplan-API mit öffentlichen Holds ist seit A529/A646 entfernt), Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
 Angebot annehmen/ablehnen mit Token), Event-Übersetzung lesen, Zahlungs-Webhooks (Anbietersignatur),
 SMS-Statusrückmeldungen und eingehende SMS (Twilio: `X-Twilio-Signature`; generischer HTTP-Anbieter:

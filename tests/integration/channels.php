@@ -30,6 +30,7 @@ function wpcap_test_rest_registrars() {
 		'src/Admission/Rest.php' => array( PassCaptain\Admission\Rest::class, 'routes' ),
 		'src/PortalSelfService.php' => array( PassCaptain\PortalSelfService::class, 'register_routes' ),
 		'src/ScannerDesk.php' => array( PassCaptain\ScannerDesk::class, 'routes' ),
+		'src/TicketRecovery.php' => array( PassCaptain\TicketRecovery::class, 'register_routes' ),
 		// Registrars of the audit line (merged): mail unsubscribe, service bookings API, fiscalization admin API.
 		'src/Mail/Suppression.php' => array( PassCaptain\Mail\Suppression::class, 'routes' ),
 		'src/Services/Api.php' => array( PassCaptain\Services\Api::class, 'register_routes' ),
@@ -89,6 +90,7 @@ function wpcap_test_public_rest() {
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})', // A645: token in the body instead of the URL.
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend',
+		'POST pass-captain/v1/tickets/recover', // A622: generic answer, rate limited, confirmation link to the holder only.
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/billing',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/payout-account',

@@ -1219,7 +1219,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379 (A619, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148 (A620, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Neuversand-/Retry-Mail ohne PDF, ICS, .pkpass — src/Orders.php:2036–2041, :2091–2094 (A621, R4 Dokumente/Mail/Wallet)
-- [ ] [OPTIMIERUNG] Übertragungsempfänger ohne Wiederherstellungsweg — src/Orders.php:1509–1524, TicketPage.php:252–258 (A622, R4 Dokumente/Mail/Wallet)
+- [x] [OPTIMIERUNG] Übertragungsempfänger ohne Wiederherstellungsweg — src/Orders.php:1509–1524, TicketPage.php:252–258 (A622, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Erinnerungsversand ohne Drosselung; Anbieterlimits → Mails endgültig verloren; kein List-Unsubscribe — src/Communications.php:39–80 (A623, R4 Dokumente/Mail/Wallet)
 - [x] [OPTIMIERUNG] Keine Bounce-Verarbeitung (ergänzt A328) — src/Mail/Mailer.php:321–350 (A624, R4 Dokumente/Mail/Wallet) – umgesetzt im zusammengeführten Stand, siehe `src/Mail/Suppression.php` (Bounce-Webhook `POST /mail/bounce` für generisch/Postmark/SendGrid/Mailgun/SES, Queue-Nachrichten fehlgeschlagen, Audit `mail_bounced` an der Bestellung, Beschwerden melden Erinnerungen ab); Test `zzzzzzzz_r3_mail_jobs`
 - [x] [OPTIMIERUNG] HTML-Layout: Outlook ohne MSO-Tabelle, kein Dark Mode, Wallet-Links als lange URLs — src/Mail/Layout.php:167–175, WalletPasses/Service.php:158–163, Mailer.php:449–455 (A625, R4 Dokumente/Mail/Wallet)

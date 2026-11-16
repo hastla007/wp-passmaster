@@ -1338,8 +1338,9 @@ Gesamt: 262 Aufgaben.
   - src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148: Bundle je (Serial, update_tag), Bilder je Einstellungs-Hash, Credentials statisch
 - [x] **A621** [OPTIMIERUNG] Neuversand-/Retry-Mail ohne PDF, ICS, .pkpass — _R4 Dokumente/Mail/Wallet_ (TODO L976; Audit Runde 4)
   - src/Orders.php:2036–2041, :2091–2094: Gleicher Anhangs-Builder wie issue_and_email
-- [ ] **A622** [OPTIMIERUNG] Übertragungsempfänger ohne Wiederherstellungsweg — _R4 Dokumente/Mail/Wallet_ (TODO L977; Audit Runde 4)
+- [x] **A622** [OPTIMIERUNG] Übertragungsempfänger ohne Wiederherstellungsweg — _R4 Dokumente/Mail/Wallet_ (TODO L977; Audit Runde 4)
   - src/Orders.php:1509–1524, TicketPage.php:252–258: „Meine Tickets per E-Mail anfordern“ für Inhaber-Adressen mit Rate-Limit
+  - Erledigt: `src/TicketRecovery.php` (Seite `/?wpcap_recover=1`, REST `POST /tickets/recover`): immer gleiche Antwort, 5 Anfragen je Client/Stunde, 3 Mails je Adresse/Tag; einmaliger Bestätigungslink (1 h), Bestätigung per POST stellt gültige künftige Tickets der Inhaberadresse neu aus (`Orders::reissue_ticket`), nicht nach Einlassbeginn/Offline-Paket; unbekannter Ticketlink verweist darauf; Test zz_a622.
 - [x] **A623** [OPTIMIERUNG] Erinnerungsversand ohne Drosselung; Anbieterlimits → Mails endgültig verloren; kein List-Unsubscribe — _R4 Dokumente/Mail/Wallet_ (TODO L978; Audit Runde 4)
   - src/Communications.php:39–80: Einstellbare Rate, Limit-Fehler als Aufschub, List-Unsubscribe One-Click
 - [x] **A624** [OPTIMIERUNG] Keine Bounce-Verarbeitung (ergänzt A328) — _R4 Dokumente/Mail/Wallet_ (TODO L979; Audit Runde 4)
