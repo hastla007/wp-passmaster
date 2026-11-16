@@ -49,10 +49,7 @@ $parsed = Templates::parse( "*18|{event}\n9|x\n{qr}\nplain" );
 check( 'template lines parse size, bold and QR', 18.0 === $parsed[0]['size'] && $parsed[0]['bold'] && ! $parsed[1]['bold'] && $parsed[2]['qr'] && 12.0 === $parsed[3]['size'] );
 $ticket_pdf = Templates::render( 'ticket', array( $item, $item, $item ) );
 check( 'ticket layout: valid PDF, one A4 page per ticket, escaped text', wpp_pdf_ok( $ticket_pdf, 3 ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '(Gala \\(Wien\\)) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '/MediaBox [0 0 595.28 841.89]' ) );
-check( 'QR code is drawn when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $ticket_pdf ), " re\n" ) > 200 );
-// MERGE-CHECK: the two lines drew the QR code differently (ours: > 200 rectangles, Arbeitsliste: > 150);
-// keep the check that matches the merged PdfWriter/QrCode and drop the other.
-check( 'QR code is drawn when the encoder is installed (Arbeitsliste threshold)', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_pdf_plain( $ticket_pdf ), " re\n" ) > 150 );
+check( 'QR code is drawn when the encoder is installed (merged PdfWriter/QrCode: > 200 modules drawn)', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $ticket_pdf ), " re\n" ) > 200 );
 $badge = Templates::render( 'badge', array( $item ) );
 check( 'badge layout is A6', wpp_pdf_ok( $badge, 1 ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '/MediaBox [0 0 297.64 419.53]' ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '(Ada Lovelace) Tj' ) );
 $tags = Templates::render( 'nametag', array_fill( 0, 12, $item ) );
@@ -117,16 +114,13 @@ $no_print = PrintPage::batch_request( $pocc, 'badge', false );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $default_only = PrintPage::batch_request( $pocc, 'ticket', true );
 check( 'printing needs event/order management; new codes need event management (R2)', is_wp_error( $no_codes ) && is_wp_error( $no_print ) && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
-check( 'with QR by default only undelivered (box office) tickets: customer tickets stay untouched (R2)', is_wp_error( $default_only ) && 'wpcap_print_nothing' === $default_only->get_error_code() && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
+// Merged design (A427/A630 background batch print): requesting the batch never touches a code; codes are
+// renewed only on the first download (see below), so customer tickets stay untouched at request time (R2).
+check( 'with QR by default only undelivered (box office) tickets: customer tickets stay untouched (R2)', ! is_wp_error( $default_only ) && isset( $default_only['batch'] ) && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
 $GLOBALS['wpp_rotated'] = array();
 add_action( 'wpcap_ticket_code_rotated', static function ( $ticket_id, $token, $context ) { $GLOBALS['wpp_rotated'][ $ticket_id ] = array( $token, $context ); }, 10, 3 );
-// MERGE-CHECK: two implementations of the code-renewing batch print. Arbeitsliste (A427/A630, active below):
-// background batch, codes renewed only on download and only for tickets the buyer holds. Ours: synchronous
-// PDF with options include_delivered/confirm, renewing every valid ticket. The ours variant is kept here for
-// the coordinator; enable it instead of the active block if the synchronous PrintPage::batch_request() wins:
-// $with_codes = PrintPage::batch_request( $pocc, 'ticket', true, array( 'include_delivered' => true, 'confirm' => 2 ) );
-// $after = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
-// check( 'tickets with QR: new codes for valid tickets only, checked-in tickets untouched', ! is_wp_error( $with_codes ) && wpp_pdf_ok( $with_codes['pdf'], 2 ) && $after[0] !== $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
+// Code-renewing batch print of the merged plugin (A427/A630): background batch, codes renewed only on
+// download and only for tickets the buyer holds (the synchronous variant remains only without batch tables).
 $with_codes = PrintPage::batch_request( $pocc, 'ticket', true );
 $before_dl = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
 check( 'tickets with QR: background batch, ready at once, codes unchanged until the download (A427)', ! is_wp_error( $with_codes ) && 'ready' === $with_codes['status'] && $hashes === $before_dl && array() === $GLOBALS['wpp_rotated'] );
