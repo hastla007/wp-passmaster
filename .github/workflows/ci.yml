@@ -49,6 +49,8 @@ jobs:
         run: node tests/offline-scanner-i18n.js
       - name: Release metadata consistency (version, readme, composer, changelogs, doc links)
         run: php tests/consistency.php
+      - name: No licence or updater code in the shipped core plugin (docs/FREE-PREMIUM.md)
+        run: php tests/license-guard.php --self-test
       - name: Release guard tests
         run: bash tests/release-guard.sh
       - name: Release acceptance gate tests

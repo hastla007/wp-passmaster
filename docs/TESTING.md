@@ -104,6 +104,25 @@ statt des Präfixindex (191) – `dbDelta` ändert und löscht keine Indizes. Be
 123 Prüfungen, 0 Fehler, 15–25 Sekunden. CI: Pflichtschritt im Job `integration` (alle DB-/PHP-Kombinationen,
 volle Git-Historie).
 
+## Kein Lizenz- oder Updater-Code im Kern (A661)
+
+**Wächtertest** (CI-Job `php`, nach der Konsistenzprüfung):
+
+```bash
+php tests/license-guard.php --self-test
+```
+
+Das Kern-Plugin bleibt frei (Entscheidung vom 13.11.2026, siehe [FREE-PREMIUM.md](FREE-PREMIUM.md)). Der Test
+schlägt fehl, sobald in einer **ausgelieferten** Datei auftaucht: der Lizenzclient `LicenseClient`, die Route
+`wplc/v1`, ein Plugin-Header `Update URI`, Updater-Hooks als Zeichenkette (`pre_set_site_transient_update_plugins`,
+`site_transient_update_plugins`, `plugins_api`, `plugins_api_result`, `update_plugins_{host}`) oder
+`allows_entitlement`. „Ausgeliefert“ bestimmt `tests/shipped-files.php` wie `build/release.sh`: Dateien, die
+git kennt (versioniert oder neu, nicht ignoriert), abzüglich `.distignore` (rsync-Semantik), dazu aus `vendor/`
+nur die Laufzeitpakete aus `composer.lock` (`packages`, nicht `packages-dev`). `tests/`, `docs/`, Markdown und
+Entwicklungsabhängigkeiten werden also nicht durchsucht – dort darf das Add-on beschrieben werden.
+`--self-test` prüft vorher an einem Beispielbaum, dass jede Regel anschlägt und die Ausschlüsse greifen.
+Lizenzprüfung, Rechte und Updater gehören ins Add-on `pass-captain-pro`.
+
 ## Tabellenpräfixe und Isolation (A182)
 
 **Statische Prüfung** (CI-Job `php`, vor PHPCS):
