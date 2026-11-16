@@ -235,7 +235,7 @@ $a3 = $buy( '198.51.100.1', 3 );
 $b1 = $buy( '198.51.100.2', 4 );
 check( 'limit applies per real client, not to the whole proxy', ! is_wp_error( $a1 ) && ! is_wp_error( $a2 ) && is_wp_error( $a3 ) && 429 === $a3->get_error_data()['status'] && ! is_wp_error( $b1 ) );
 $keys = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', PassCaptain\RateLimit::table() ) );
-check( 'rate-limit keys use a keyed hash, not plain sha256 of the IP', in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . Orders::rate_hash( '198.51.100.1' ) ), $keys, true ) && ! in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . hash( 'sha256', '198.51.100.1' ) ), $keys, true ) && ! in_array( hash( 'sha256', '198.51.100.1' ), $keys, true ) && array() === $GLOBALS['wpcap_test_transients'] );
+check( 'rate-limit keys use a keyed hash, not plain sha256 of the IP', in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . Orders::rate_hash( '198.51.100.1' ) ), $keys, true ) && ! in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . hash( 'sha256', '198.51.100.1' ) ), $keys, true ) && ! in_array( hash( 'sha256', '198.51.100.1' ), $keys, true ) && array() === array_filter( array_keys( $GLOBALS['wpcap_test_transients'] ), static fn( $k ) => ! preg_match( '/^wpcap_(rgen|rep)_/', $k ) ) ); // Report cache generations (A201, query filter) are no rate-limit state.
 // Merged PassCaptain\RateLimit: the table above by default; the transient fallback (no table yet) stores keyed
 // names too – window buckets as wpcap_rl_<hmac>, the checkout counters with a keyed hash of the address.
 $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'transient';

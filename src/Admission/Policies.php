@@ -41,6 +41,11 @@ final class Policies {
 	public static function for_type( $ticket_type_id ) {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', self::table(), absint( $ticket_type_id ) ) );
+		if ( '' !== (string) $wpdb->last_error ) {
+			// Failed read: no filter run (its own queries would clear last_error), callers see the error
+			// and abort instead of admitting under "no policy" (Checkin::perform_locked()).
+			return null;
+		}
 		$policy = $row ? self::normalize( $row ) : null;
 		/**
 		 * [Passes] Extension point: effective admission policy of a ticket type (null = legacy single
