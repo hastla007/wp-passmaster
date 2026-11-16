@@ -107,6 +107,10 @@ $nacl_source = (string) @file_get_contents( $nacl . 'SOURCE.txt' );
 $check( 'tweetnacl: nacl-fast.js (source) ships next to nacl-fast.min.js', is_file( $nacl . 'nacl-fast.js' ) && is_file( $nacl . 'nacl-fast.min.js' ) );
 $check( 'tweetnacl: SOURCE.txt names version, URL, license and the checksums of both files', false !== strpos( $nacl_source, '1.0.3' ) && false !== strpos( $nacl_source, 'https://github.com/dchest/tweetnacl-js' ) && false !== strpos( $nacl_source, 'Unlicense' ) && is_file( $nacl . 'nacl-fast.js' ) && false !== strpos( $nacl_source, hash_file( 'sha256', $nacl . 'nacl-fast.js' ) ) && false !== strpos( $nacl_source, hash_file( 'sha256', $nacl . 'nacl-fast.min.js' ) ) );
 $check( 'readme.txt points to the tweetnacl source reference', false !== strpos( $readme, 'assets/vendor/tweetnacl/SOURCE.txt' ) );
+// A658: the shipped jsQR build is pinned by checksum.
+$jsqr = $root . '/assets/vendor/jsqr/';
+$jsqr_source = (string) @file_get_contents( $jsqr . 'SOURCE.txt' );
+$check( 'jsQR: SOURCE.txt names origin, license and the checksum of jsQR.js', is_file( $jsqr . 'jsQR.js' ) && false !== strpos( $jsqr_source, 'https://github.com/cozmo/jsQR' ) && false !== strpos( $jsqr_source, 'Apache' ) && false !== strpos( $jsqr_source, hash_file( 'sha256', $jsqr . 'jsQR.js' ) ) );
 // A454: every block editor script has an asset file whose version is the content hash of the
 // script (cache busting: a changed editor.js gets a new ?ver=) and whose dependencies cover every
 // window.wp.* package the script uses. Expected hash: first 20 hex digits of md5 (LF line ends).

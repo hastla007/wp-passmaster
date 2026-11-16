@@ -53,6 +53,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Kept: the job runs `git fetch origin main` after checkout (private repository needs the token).
+          persist-credentials: true
           ref: ${{ env.RELEASE_SHA }}
           # Full history so the ancestry check against origin/main works.
           fetch-depth: 0
