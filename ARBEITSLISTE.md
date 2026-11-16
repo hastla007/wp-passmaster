@@ -5,6 +5,8 @@ Pro Aufgabe: umsetzen → Test → `TODO.md` abhaken → hier abhaken → Commit
 
 Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umgesetzt, **TEILWEISE** = Rest beschrieben, **ENTSCHEIDUNG** = braucht Entscheidung/externen Schritt. 10 alte Punkte waren bereits umgesetzt und sind in `TODO.md` abgehakt; 4 P1-Befunde wurden bereits behoben.
 
+Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66e9`, DB-Schema 3.18.0): 19 Punkte, die die andere Linie schon umgesetzt hatte, sind abgehakt und tragen den Hinweis „umgesetzt im zusammengeführten Stand, siehe …“ mit der Fundstelle (A132, A136–A138, A152, A166, A173, A207, A220, A221, A231, A232, A388, A426, A530, A695, A696, A699, A700). Teilumsetzungen bleiben offen und nennen den Rest (A399, A615, A687, A705); A238–A245 sind integriert, ihre Abnahme steht aus. Die offenen Aufräumarbeiten der Zusammenführung (N01–N15) stehen in `TODO.md`, Abschnitt „Zusammenführung der zwei Stränge (2026-11-16)“.
+
 
 ## Phase 1 – Kritische Fehler (P1, Audit Runde 3)
 
@@ -291,20 +293,24 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Alle Gates in CONCEPT.md:443-450 unerledigt; teils Rechtsfreigaben nötig
 - [x] **A131** Terminverschiebung und Status-/Sonderfallregeln, Refund nach Check-in — _TEILWEISE_ (TODO L114; P1 – Ticketverwaltung nach dem Kauf)
   - Verschiebung vorhanden (Admin/EventsPage.php:148, Notifications.php:18); nativer Refund erstattet eingecheckte Tickets ohne Regel/Override (Refunds.php:439), Override nur POS (BoxOffice/Service.php:437)
-- [ ] **A132** End-to-End-Abnahme Storno/Widerruf/Neuausgabe/alle Refundkombinationen — _TEILWEISE_ (TODO L115; P1 – Ticketverwaltung nach dem Kauf)
+- [x] **A132** End-to-End-Abnahme Storno/Widerruf/Neuausgabe/alle Refundkombinationen — _TEILWEISE_ (TODO L115; P1 – Ticketverwaltung nach dem Kauf)
   - Idempotenz vorhanden (Refunds.php:33-35); nur Mock-WP-Integrationstests (tests/integration/wp), keine echte E2E-Abnahmesuite aller Kombinationen
+  - (umgesetzt im zusammengeführten Stand, siehe `tests/integration/modules/zzzz_w6_state_machines.php` (doppelte, verspätete und vertauschte Ereignisse) und `docs/STATE-MACHINES.md` aus der Audit-Linie; die echte PSP-Abnahme bleibt bei TODO.md X-02)
 - [x] **A133** Dauer/Puffer und Partnerverwaltung für Ressourcen — _TEILWEISE_ (TODO L121; P1 – Bootsschul- und Servicebuchungen)
   - buffer_before/after nur gespeichert (Installer.php:274, Controller.php:730), nicht bei Slots/Überlappung erzwungen; keine Leistungserbringer-Zuordnung zu Ressourcen
 - [x] **A134** Buchungsschluss, Vorlauf, Maximalbuchungen, Umbuchungs-/Stornofristen — _OFFEN_ (TODO L123; P1 – Bootsschul- und Servicebuchungen)
   - ServiceBookings.php:33 prüft nur starts_at > jetzt und Kapazität; keine Fristen/Limits
 - [x] **A135** Umbuchung/Stornierung Servicebuchung End-to-End — _OFFEN_ (TODO L124; P1 – Bootsschul- und Servicebuchungen)
   - Nur reserve() als Hold (ServiceBookings.php:8); keine Bestätigung, Umbuchung, Storno, Zahlung oder Benachrichtigung
-- [ ] **A136** No-show-Regeln und manuelle Partnerbestätigung — _OFFEN_ (TODO L125; P1 – Bootsschul- und Servicebuchungen)
+- [x] **A136** No-show-Regeln und manuelle Partnerbestätigung — _OFFEN_ (TODO L125; P1 – Bootsschul- und Servicebuchungen)
   - Kein Code zu No-show oder Partnerbestätigung in src/ gefunden
-- [ ] **A137** Warteliste für ausgebuchte Service-Slots — _OFFEN_ (TODO L126; P1 – Bootsschul- und Servicebuchungen)
+  - (umgesetzt im zusammengeführten Stand, siehe `src/ServiceBookings.php` (Partnerbestätigung mit Frist und Erstattung bei Ablehnung, No-show-Regel mit Sperre nach N Fällen, Einstellungen in `src/Admin/ServicesPage.php`))
+- [x] **A137** Warteliste für ausgebuchte Service-Slots — _OFFEN_ (TODO L126; P1 – Bootsschul- und Servicebuchungen)
   - Waitlists.php nur für Eventtickets; kein Slot-Bezug
-- [ ] **A138** Service-Pass-Regeln getrennt von Eventtickets abnehmen — _TEILWEISE_ (TODO L127; P1 – Bootsschul- und Servicebuchungen)
+  - (umgesetzt im zusammengeführten Stand, siehe `src/ServiceWaitlist.php` (Slot-Warteliste mit befristetem Angebot, Nachrücken und Positionsabfrage))
+- [x] **A138** Service-Pass-Regeln getrennt von Eventtickets abnehmen — _TEILWEISE_ (TODO L127; P1 – Bootsschul- und Servicebuchungen)
   - Memberships.php:17 (Gültigkeit, uses_total je Regel); keine terminpflichtige Slot-Bindung, keine getrennte Abnahme
+  - (umgesetzt im zusammengeführten Stand, siehe `src/Memberships.php` (Geltungsbereich `event`/`service`/`any`, terminfrei/terminpflichtig, Einmal-/Mehrfachnutzung, Ablauf) mit getrennten Tests für Service- und Eventnutzung)
 - [ ] **A139** POS: Oberfläche, Zahlungsarten, fiskalische Belege, Druck — _TEILWEISE_ (TODO L136; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - UI BoxOffice/Page.php, Bar/Karte Service.php:34-35, Belegnummern, Druck Page.php:82; Fiskal-Adapter nicht angebunden, keine fiskalischen Belege
 - [x] **A140** iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis — _TEILWEISE_ (TODO L138; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
@@ -331,8 +337,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - 2FA nur optional für Erstattungen (Refunds.php:463, Settings.php:63); kein MFA-Zwang je Rolle, kein befristeter Supportzugriff
 - [x] **A151** Reale CI-Matrix WordPress/WooCommerce/MySQL — _OFFEN_ (TODO L162; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - .github/workflows/ci.yml: nur PHP 8.2/8.4, MariaDB 11.4, Mock-WP (tests/integration/wp); keine WP/WC/MySQL-Versionen
-- [ ] **A152** Kompatibilitäts-/Test-Baseline pro Release dokumentieren — _TEILWEISE_ (TODO L164; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+- [x] **A152** Kompatibilitäts-/Test-Baseline pro Release dokumentieren — _TEILWEISE_ (TODO L164; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - Header readme.txt:4-9 (Tested up to 7.1, WC 11.3), nicht durch echte Tests belegt; kein Baseline-Dokument je Release
+  - (umgesetzt im zusammengeführten Stand, siehe `docs/COMPATIBILITY.md`, Abschnitt „Test-Basislinie je Release“)
 - [x] **A153** Echte WordPress-/WooCommerce-Versionsmatrix in CI — _OFFEN_ (TODO L165; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - ci.yml:11 Matrix nur php: ['8.2','8.4']
 - [ ] **A154** Zahlungsmethoden pro Land/PSP/Transaktionstyp, Live-Akzeptanz — _TEILWEISE_ (TODO L167; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
@@ -359,8 +366,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Kein Monitoring, keine Site-Health-Tests oder Rückstandswarnungen im Code gefunden
 - [ ] **A165** Käufer-Sprachauswahl, Übersetzungen, Übersetzungsverwaltung, String-Prüfung — _TEILWEISE_ (TODO L251; Hintergrunddienste, Übersetzungen und Integrationen)
   - Mails in Bestell-Locale (src/Orders.php:239, src/Mail/Admin.php:30), 5 Sprachdateien; keine Käufer-Sprachauswahl, Event-Übersetzung nur REST, keine automatische String-Vollständigkeitsprüfung
-- [ ] **A166** Konkrete CRM-/Kalender-/Buchhaltungsadapter mit Mapping und Sync — _OFFEN_ (TODO L252; Hintergrunddienste, Übersetzungen und Integrationen)
+- [x] **A166** Konkrete CRM-/Kalender-/Buchhaltungsadapter mit Mapping und Sync — _OFFEN_ (TODO L252; Hintergrunddienste, Übersetzungen und Integrationen)
   - Nur Vertrag/Registry (src/Integrations/ConnectorInterface.php, ConnectorRegistry.php), keine konkreten Adapter, kein Mapping-UI
+  - (umgesetzt im zusammengeführten Stand, siehe `src/Integrations/HttpJson/` (HTTP/JSON-Connector mit Feldzuordnung, PII-Opt-in, Zustellprotokoll, Wiederholung) und `src/Integrations/CalendarFeeds.php` (tokenisierte iCalendar-Abos))
 - [ ] **A167** Bekannte Admin-A11y-Befunde beheben und erneut prüfen — _TEILWEISE_ (TODO L257; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Letzter axe-Lauf ohne Befunde (tests/a11y/report/axe-2026-11-11T21-20-54-679Z.json); manuelle Zoom-/Screenreader-Prüfung fehlt, Tastaturtest nur öffentlicher Checkout (tests/a11y/keyboard.js)
 - [x] **A168** Veralteten Fehlerbericht in docs/TESTING.md aktualisieren — _OFFEN_ (TODO L258; Abnahme, Barrierefreiheit und Releasebetrieb)
@@ -374,8 +382,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Gemischte Verkäufer werden abgelehnt (src/Partners/SalesModel.php:226-236, Test zz_sales_models.php:131); keine Regeln für Rabatte/Gebühren/Versand/Rundung je Verkäufer
 - [ ] **A172** Refunds pro Verkäufer/Belegposition zuordnen und abstimmen — _TEILWEISE_ (TODO L267; Multi-Seller-Geschäftsabläufe)
   - Refund-Zuordnung je Zeile in Abrechnung (src/Partners/Settlements.php:9-17); kein Abgleich mit Zahlungs-/Fiskalanbieterstatus, gebrauchte Tickets/Ausfälle nicht je Verkäufer
-- [ ] **A173** PHPCS mit WPCS, statische Analyse, Composer-Audit in CI — _TEILWEISE (13.11.2026: PHPCS/WPCS + PHPCompatibility + composer audit in CI, 0 Fehler; offen: PHPStan, hier nicht installierbar)_ (TODO L280; CI, statische Qualität und Artefakt)
+- [x] **A173** PHPCS mit WPCS, statische Analyse, Composer-Audit in CI — _TEILWEISE (13.11.2026: PHPCS/WPCS + PHPCompatibility + composer audit in CI, 0 Fehler; offen: PHPStan, hier nicht installierbar)_ (TODO L280; CI, statische Qualität und Artefakt)
   - .github/workflows/ci.yml:21-28 nur composer validate, php -l, node --check
+  - (umgesetzt im zusammengeführten Stand, siehe PHPStan Level 5 als blockierender CI-Schritt gegen `phpstan-baseline.neon` (`.github/workflows/ci.yml`), neben phpcs/WPCS und `composer audit`)
 - [x] **A174** JS-Lint auf alle eigenen JS-Dateien, JS-Logik testen — _OFFEN_ (TODO L281; CI, statische Qualität und Artefakt)
   - ci.yml:28 prüft nur checkout.js, scanner.js, events/editor.js; keine JS-Unit-Tests
 - [x] **A175** PHP-Integrationssuite über alle unterstützten PHP-Versionen — _OFFEN_ (TODO L282; CI, statische Qualität und Artefakt)
@@ -458,8 +467,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Benötigt Stripe-/PayPal-Sandbox-Konten; keine Tests gegen echte Anbieter-Sandbox im Repo
 - [ ] **A206** Steuerberechnung, geprüfte Gutschriften, Refund-Sonderfälle je Land — _ENTSCHEIDUNG_ (TODO L37; P0 – Reservierung, Zahlung und Ausgabe)
   - Technik vorhanden (Orders.php:210 Steuer, Invoices.php:113 Gutschrift); rechtliche/steuerliche Prüfung je Land durch Berater erforderlich
-- [ ] **A207** 256-Bit-Codes, Hash, signiertes QR-Payload entscheiden — _ENTSCHEIDUNG_ (TODO L42; P0 – QR-Ticket und Online-Check-in)
+- [x] **A207** 256-Bit-Codes, Hash, signiertes QR-Payload entscheiden — _ENTSCHEIDUNG_ (TODO L42; P0 – QR-Ticket und Online-Check-in)
   - Code erledigt (Orders.php:1384 random_bytes(32), :1390 token_hash); Entscheidung/Dokumentation zum signierten QR-Payload fehlt
+  - (umgesetzt im zusammengeführten Stand, siehe `src/Security/SignedQr.php` (optionales signiertes QR-Format `PC1`, Ed25519, Schlüssel im Vault, Rotation), Entscheidung in `docs/SECURITY.md`)
 - [ ] **A208** Unabhängiger Sicherheitsreview/Penetrationstest — _ENTSCHEIDUNG_ (TODO L58; P0 – Datenschutz und Releasefähigkeit)
   - Externer Dienstleister nötig; nicht im Code abbildbar
 - [ ] **A209** Wallet: Apple-/Google-Pass, Betreiberkonten, Zertifikate, Live-Abnahme — _ENTSCHEIDUNG_ (TODO L87; P2 – Erweiterte Eventfunktionen)
@@ -484,10 +494,12 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Benötigt fachliche Steuerberatung je Land
 - [ ] **A219** Verbraucherinfos und Storno-/Erstattungsbedingungen rechtlich prüfen — _ENTSCHEIDUNG_ (TODO L168; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - Rechtliche Prüfung je Land durch Anwalt nötig
-- [ ] **A220** PR #14 mit main abgleichen und integrieren — _ENTSCHEIDUNG_ (TODO L176; Fiskalisierung und Multi-Seller — nicht in `main`)
+- [x] **A220** PR #14 mit main abgleichen und integrieren — _ENTSCHEIDUNG_ (TODO L176; Fiskalisierung und Multi-Seller — nicht in `main`)
   - PR #14 offen (Draft), codex/multi-seller-fiscalization-core 168 Commits nicht in origin/main
-- [ ] **A221** Multi-Seller-Profile, Korbaufteilung, fiskaly/efsta/fiskaltrust in main — _ENTSCHEIDUNG_ (TODO L177; Fiskalisierung und Multi-Seller — nicht in `main`)
+  - (umgesetzt im zusammengeführten Stand, siehe `src/Fiscalization/` (PR #14 in der Audit-Linie übernommen, eine Transportschicht `Fiscalization\ProviderHttp`, Zugangsdaten im Vault); Sandbox-Abnahme bleibt bei A222)
+- [x] **A221** Multi-Seller-Profile, Korbaufteilung, fiskaly/efsta/fiskaltrust in main — _ENTSCHEIDUNG_ (TODO L177; Fiskalisierung und Multi-Seller — nicht in `main`)
   - In main nur Adapter src/Fiscalization/Providers (efsta, fiskaltrust); keine Seller-Profile, Korbaufteilung, fiskaly; hängt an PR #14
+  - (umgesetzt im zusammengeführten Stand, siehe Verkäuferprofile mit Anbieterwahl fiskaly/efsta/fiskaltrust, Fiskalbelege je Verkäuferbestellung und `BoxOffice/TerminalRegistry` aus der Audit-Linie; die Abnahme auf realen POS-/WooCommerce-Installationen bleibt extern (TODO.md X-03, X-11))
 - [ ] **A222** AT/DE/HU-Konfiguration mit Anbieter-Sandboxen testen, freigeben — _ENTSCHEIDUNG_ (TODO L178; Fiskalisierung und Multi-Seller — nicht in `main`)
   - Braucht PR #14, Sandbox-Konten und rechtlich/fachliche Freigabe
 - [ ] **A223** Refunds/Teilrefunds/Absagen providerseitig fiskalisieren — _ENTSCHEIDUNG_ (TODO L179; Fiskalisierung und Multi-Seller — nicht in `main`)
@@ -506,10 +518,12 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Alle PRs #20–23 offen; kein Lizenz-Code in src/ von main
 - [ ] **A230** Native Scanner-Apps entwickeln oder als separates Produkt ausweisen — _ENTSCHEIDUNG_ (TODO L253; Hintergrunddienste, Übersetzungen und Integrationen)
   - Produktentscheidung nötig; README.md:73 führt Apps weiter als offen, nicht als separates Produkt
-- [ ] **A231** Prozess für Sicherheitsmeldungen, Incidents, Updates, Kompatibilität festlegen — _ENTSCHEIDUNG_ (TODO L260; Abnahme, Barrierefreiheit und Releasebetrieb)
+- [x] **A231** Prozess für Sicherheitsmeldungen, Incidents, Updates, Kompatibilität festlegen — _ENTSCHEIDUNG_ (TODO L260; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Organisatorische Festlegung durch Betreiber; docs/SECURITY.md nennt formellen Incident-Prozess als ausstehend
-- [ ] **A232** Release- und Supportmodell für stabile Versionen festlegen — _ENTSCHEIDUNG_ (TODO L261; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - (umgesetzt im zusammengeführten Stand, siehe `docs/SECURITY.md`, Abschnitt „Sicherheitsprozess“ (Reaktionszeiten und Update-Bot dort als „Entscheidung offen“, TODO.md E-10))
+- [x] **A232** Release- und Supportmodell für stabile Versionen festlegen — _ENTSCHEIDUNG_ (TODO L261; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Betreiberentscheidung (Matrix, Supportkanal, Patchfristen, EOL); nichts im Repo festgelegt
+  - (umgesetzt im zusammengeführten Stand, siehe `docs/SUPPORT.md` (offene Einzelfragen dort als „Entscheidung offen“, TODO.md E-10))
 - [ ] **A233** Auszahlungsmodell an mehrere Verkäufer entscheiden und dokumentieren — _ENTSCHEIDUNG_ (TODO L268; Multi-Seller-Geschäftsabläufe)
   - Geschäfts-/Rechtsentscheidung (Zahlungsfluss, Haftung, Rechnungsaussteller) durch Betreiber/Anwalt nötig
 - [x] **A234** ~~Lizenz-PRs #20–23 einzeln und gemeinsam testen — _ENTSCHEIDUNG_~~ — entfällt im Kern-Plugin: Entscheidung 13.11.2026 „Kern frei, Premium als getrenntes Add-on“, Lizenzcode zieht ins Add-on `pass-captain-pro` (TODO „Kern-Plugin frei, Premium als getrenntes Add-on“, B2/B5–B7/B10)
@@ -522,20 +536,28 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Externe Prüfung erforderlich (docs/SECURITY.md: unabhängige Prüfung steht aus)
 - [ ] **A238** Gästelisten/Freikarten integrieren und abnehmen — _ENTSCHEIDUNG_ (TODO L365; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - src/GuestLists/* im Branch vorhanden; Branch nicht in main gemergt (git merge-base), Merge/CI/Abnahme ausstehend
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A239** Kontingente/Sperren, Sitzplatz-Sperren, Käuferlimit integrieren — _ENTSCHEIDUNG_ (TODO L366; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - src/Allocations/* (Holds, SeatHolds, BuyerLimits) im Branch; Merge nach main und Abnahme ausstehend
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A240** Kassen/Schichten/Z-Bericht integrieren, Fiskal-Hooks an PR #14 — _ENTSCHEIDUNG_ (TODO L367; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - src/BoxOffice/* im Branch; Merge ausstehend, Fiskal-Anbindung hängt an ungemergtem PR #14
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A241** Ticketumtausch/Upgrade integrieren und abnehmen — _ENTSCHEIDUNG_ (TODO L368; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - src/Exchange/* im Branch; Merge nach main und Abnahme ausstehend
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A242** Wartelisten-Angebote integrieren, parallele Annahmen real testen — _ENTSCHEIDUNG_ (TODO L369; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - src/Waitlists.php im Branch; Merge und Test auf echter Installation ausstehend
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A243** Festival-/Mehrtagespässe integrieren und real abnehmen — _ENTSCHEIDUNG_ (TODO L370; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - src/Passes/* im Branch; Merge und realer Mehrtages-Einlass-Test ausstehend
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A244** Partner-API-Verkauf fertigstellen und integrieren — _ENTSCHEIDUNG_ (TODO L371; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - src/Partners/SalesApi.php:24-32 (reservieren/bestätigen/Statement) im Branch fertig (293d2ab); Merge nach main ausstehend
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A245** Leistung 20.000+ Tickets fertigstellen, messen, dokumentieren — _ENTSCHEIDUNG_ (TODO L372; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
   - Im Branch erledigt: docs/TESTING.md:127-162 Referenzwerte, src/CapacityCounters.php; Merge nach main/Abnahme ausstehend
+  - Integriert: Der Zweig ist mit der Audit-Linie zusammengeführt (Merge `06e66e9`, DB-Schema 3.18.0); offen bleibt die Abnahme auf einer echten Installation.
 - [ ] **A246** Wartelisten-Bestellungen ohne Rabattcodes/Gutscheine/Rechnungsdaten — _ENTSCHEIDUNG_ (TODO L379; Offene Nacharbeiten aus Phase 3)
   - docs/WAITLIST.md:96 dokumentiert Einschränkung; fachliche Entscheidung offen
 - [ ] **A247** Pässe: Verkaufsende, N aus M offline, Restanzahl nach Absage — _ENTSCHEIDUNG_ (TODO L383; Offene Nacharbeiten aus Phase 3)
@@ -819,8 +841,9 @@ Gesamt: 262 Aufgaben.
   - pass-captain.php Header: Slug pass-captain und wp.org-Konto sichern; ggf. Update URI im GitHub-Build
 - [ ] **A387** [OPTIMIERUNG] Lizenz-/Premium-Updater-Pläne (A225–A236) widersprechen wp.org-Guidelines 5/8 — _R1 Release_ (TODO L733; Audit Runde 4)
   - Planung: wp.org-Build = freier Kern; Premium als separates Add-on
-- [ ] **A388** [OPTIMIERUNG] Offline-Scanner-PWA nur de/en — _R1 Release_ (TODO L734; Audit Runde 4)
+- [x] **A388** [OPTIMIERUNG] Offline-Scanner-PWA nur de/en — _R1 Release_ (TODO L734; Audit Runde 4)
   - assets/offline-scanner/i18n.js:12: Kataloge fr/it/es/nl oder JSON aus .mo erzeugen
+  - (umgesetzt im zusammengeführten Stand, siehe `GET /app/offline/i18n` in `src/OfflineScanner/Rest.php`: die PWA lädt ihre Texte für jede mitgelieferte Sprache (Deutsch und die fünf Übersetzungen) aus den Sprachdateien des Plugins)
 - [ ] **A389** [OPTIMIERUNG] Readme-Changelog ohne Inhalt, Umbenennung fehlt — _R1 Release_ (TODO L735; Audit Runde 4)
   - readme.txt:53–66: Je Version die wichtigsten Änderungen direkt in readme.txt
 - [ ] **A390** [OPTIMIERUNG] Kein RTL (dir, logische CSS-Eigenschaften) — _R2 Frontend_ (TODO L736; Audit Runde 4)
@@ -843,6 +866,7 @@ Gesamt: 262 Aufgaben.
   - assets/offline-scanner/index.html:5, app.css: env(safe-area-inset-*)
 - [ ] **A399** [OPTIMIERUNG] Nur ein WP-CLI-Befehl — _R2 Support_ (TODO L745; Audit Runde 4)
   - src/CapacityCounters.php:71: wp pass-captain order show, tickets resend, webhook reprocess, queue list/retry/discard, upgrade, secrets, mail test (doctor kam mit A204)
+  - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Ops/Cli.php` (`wp pass-captain diagnose`, `wp pass-captain status`); zusammen mit `upgrade`, `reconcile-capacity`, `doctor` und `secrets rollback-config` gibt es sechs Befehle; die vorgeschlagenen Befehle für Bestellungen, Tickets, Webhooks und Queue fehlen.
 - [ ] **A400** [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — _R2 Support_ (TODO L746; Audit Runde 4)
   - src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen): Alerts::raise() mit Empfänger-Filter, Mailer, dauerhaftem Admin-Hinweis
 - [ ] **A401** [OPTIMIERUNG] Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4)
@@ -895,8 +919,9 @@ Gesamt: 262 Aufgaben.
   - src/Mail/Types.php, Orders.php:241, OrderPortal.php:137: Rechnung als PDF an Mail/eigene Mail, Admin-Button
 - [ ] **A425** [OPTIMIERUNG] Fehlend: Vorverkaufs-/Servicegebühr — _R2 Eigen_ (TODO L771; Audit Runde 4)
   - src/Orders.php:178–203: Gebühr je Ticket/Bestellung als Position mit Steuersatz und Erstattungsregel
-- [ ] **A426** [OPTIMIERUNG] Fehlend: Event/Termin duplizieren — _R2 Eigen_ (TODO L772; Audit Runde 4)
+- [x] **A426** [OPTIMIERUNG] Fehlend: Event/Termin duplizieren — _R2 Eigen_ (TODO L772; Audit Runde 4)
   - src/Admin/Menu.php:14–60: „Event duplizieren (als Entwurf)“ mit Ticketarten, Feldern, Regeln
+  - (umgesetzt im zusammengeführten Stand, siehe `src/Admin/Duplicator.php` („Duplizieren“ für Events als Entwurf und für Termine, mit Ticketarten, Teilnehmerfeldern, Preisregeln und Käuferlimits))
 
 ### Audit Runde 4 – Nachtrag Datenbank & Performance (13.11.2026)
 
@@ -1109,8 +1134,9 @@ Gesamt: 262 Aufgaben.
   - src/Seating/Layouts.php:311–312: Kollision als Fehler, kollisionsfreie Schlüssel (belegt)
 - [x] **A529** [OPTIMIERUNG] Halbfertiges Alt-Sitzplan-API ohne Kaufpfad (öffentliche Holds, UPDATE bei jedem GET) — _R3 QA_ (TODO L881; Audit Runde 4)
   - src/Rest/Controller.php:107–121/654–667/829–851/889–897, Seats.php:8: Entfernen/deprecaten hinter Seating-Modul
-- [ ] **A530** [OPTIMIERUNG] Connector-Vertrag ist tot (dispatch nie aufgerufen, Tabelle ungenutzt; erweitert A166) — _R3 QA_ (TODO L882; Audit Runde 4)
+- [x] **A530** [OPTIMIERUNG] Connector-Vertrag ist tot (dispatch nie aufgerufen, Tabelle ungenutzt; erweitert A166) — _R3 QA_ (TODO L882; Audit Runde 4)
   - src/Integrations/ConnectorRegistry.php:8, Installer.php:681: Anbinden oder Doku/Tabelle entfernen
+  - (umgesetzt im zusammengeführten Stand, siehe `src/Integrations/ConnectorEvents.php`: Kauf, Erstattung, Storno, Ausgabe, Einlass, Terminänderung und -absage werden je Connector als Job zugestellt (`ConnectorRegistry::dispatch()`), mit Wiederholung, ohne personenbezogene Daten)
 - [x] **A531** [OPTIMIERUNG] Lost Update/Rennen beim Bearbeiten von Ticketarten — _R3 QA_ (TODO L883; Audit Runde 4)
   - src/Admin/EventsPage.php:353–386: Revisionsspalte (optimistisches Locking), Prüfung+Update unter FOR UPDATE
 - [x] **A532** [OPTIMIERUNG] Admin-Aktionen melden Erfolg ohne geprüfte Schreibvorgänge (Widerruf, Check-in zurücknehmen) — _R3 QA_ (TODO L884; Audit Runde 4)
@@ -1284,6 +1310,7 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:64, TicketPage.php: buyer_notice() und Name auf Ticketseite, Mail, PDF
 - [ ] **A615** [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — _R4 Eigen (Deep Dive 3)_ (TODO L970; Audit Runde 4)
   - —: Widget mit Verkäufen, offenen Prüfungen, nächsten Terminen
+  - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Admin/StatusPage.php` (Dashboard-Widget „Pass Captain: Systemstatus“ mit den kritischen Befunden); Verkäufe, offene Prüfungen und nächste Termine zeigt es nicht.
 - [x] **A616** [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — _R4 Transaktionen/Concurrency_ (TODO L971; Audit Runde 4)
   - src/Rest/Controller.php:681–692, Campaigns.php:47/183: Datum validieren, Ortszeit → UTC, reines Datum als Tagesende (belegt t5)
 - [ ] **A617** [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — _R4 Transaktionen/Concurrency_ (TODO L972; Audit Runde 4)
@@ -1419,6 +1446,7 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [ ] **A685** [OPTIMIERUNG] Ticketdesign: Logo, Farben, mehrere barrierearme Startvorlagen — _Konzept 15.11._ (TODO L1028; Konzept/Roadmap 2026-11-15)
 - [ ] **A686** [OPTIMIERUNG] Druck: Teilnehmerfeld-Mapping, weitere Etikettenformate, Sortierung, Vorschau — _Konzept 15.11._ (TODO L1029; Konzept/Roadmap 2026-11-15)
 - [ ] **A687** [OPTIMIERUNG] Mobile-API: Suche, Batch-Aktionen, Mindest-Core-Version; MOBILE-API.md aktualisieren (§7 veraltet, alter Shortcode) — _Konzept 15.11._ (TODO L1034; Konzept/Roadmap 2026-11-15)
+  - Teilweise umgesetzt im zusammengeführten Stand, siehe `docs/MOBILE-API.md` (§7 und Routen `/app/offline/*` berichtigt, Test in `tests/integration/modules/zzzzzzzz_z16_docs_events.php`); offen: Suche, Batch-Aktionen, Mindest-Core-Version.
 - [ ] **A688** [OPTIMIERUNG] Geräteliste: Paketablauf anzeigen; Massen-Check-in/-out mit Bestätigung, Ergebnisbericht, idempotentem Retry — _Konzept 15.11._ (TODO L1037; Konzept/Roadmap 2026-11-15)
 - [x] **A689** [OPTIMIERUNG] Erinnerungen: Opt-out und List-Unsubscribe — _Konzept 15.11._ (TODO L1054; Konzept/Roadmap 2026-11-15)
 - [ ] **A690** [OPTIMIERUNG] Konfigurierbare Begriffe (Teilnehmende/Gäste …) und weitere überschreibbare Vorlagen — _Konzept 15.11._ (TODO L1055; Konzept/Roadmap 2026-11-15)
@@ -1426,12 +1454,16 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [x] **A692** [OPTIMIERUNG] docs/WEBHOOKS.md veraltet (order.refunded existiert), Webhook-Version in die Vertragstabelle — _Konzept 15.11._ (TODO L1005; Konzept/Roadmap 2026-11-15)
 - [ ] **A693** [ENTSCHEIDUNG] Zoom-Adapter bauen? („bei Nachfrage“) — _Konzept 15.11._ (TODO L1051; Konzept/Roadmap 2026-11-15)
 - [ ] **A694** [ENTSCHEIDUNG] Mailchimp-Adapter bauen? („bei Nachfrage“) — _Konzept 15.11._ (TODO L1052; Konzept/Roadmap 2026-11-15)
-- [ ] **A695** [ENTSCHEIDUNG] Free/Pro-Zuordnung je Funktionspaket (bereits ausgelieferte Module bleiben frei) — _Konzept 15.11._ (TODO L1060; Konzept/Roadmap 2026-11-15)
-- [ ] **A696** [ENTSCHEIDUNG] Preis und Site-Staffel: FE-24 nennt 1/3/5 Sites, B4 nennt 1/5/25 — _Konzept 15.11._ (TODO L1061; Konzept/Roadmap 2026-11-15)
+- [x] **A695** [ENTSCHEIDUNG] Free/Pro-Zuordnung je Funktionspaket (bereits ausgelieferte Module bleiben frei) — _Konzept 15.11._ (TODO L1060; Konzept/Roadmap 2026-11-15)
+  - (umgesetzt im zusammengeführten Stand, siehe TODO.md PASS-FE-23 und `docs/FREE-PREMIUM.md`: Kern vollständig frei, fünf Pro-Funktionen entschieden; offen ist nur die Frage nach weiteren Pro-Funktionen (TODO.md E-05))
+- [x] **A696** [ENTSCHEIDUNG] Preis und Site-Staffel: FE-24 nennt 1/3/5 Sites, B4 nennt 1/5/25 — _Konzept 15.11._ (TODO L1061; Konzept/Roadmap 2026-11-15)
+  - (umgesetzt im zusammengeführten Stand, siehe TODO.md R16-03: entschieden ist `single`/`business`/`agency` mit 1/5/25 Live-Websites; die Preise sind TODO.md E-06)
 - [ ] **A697** [ENTSCHEIDUNG] Workflow-Vertrag ohne PII – gilt das auch gegen das bestehende Webhook-Opt-in include_pii? — _Konzept 15.11._ (TODO L1004; Konzept/Roadmap 2026-11-15)
 - [ ] **A698** [ENTSCHEIDUNG] Lizenz-PRs #20–#23 schließen und Branches codex/wplc-* löschen (Repo-Verwaltung, nach Übertrag ins Add-on) — _Konzept 15.11._ (TODO L192; Konzept/Roadmap 2026-11-15)
-- [ ] **A699** [ENTSCHEIDUNG] Add-on: Repository/Name (B1 „wp-pass-captain-pro“, neu) vs. B4/CONCEPT „pass-captain-pro“ in hastla007/captain-pro; Requires Plugins muss pass-captain lauten — _Konzept 15.11._ (TODO L206; Konzept/Roadmap 2026-11-15)
-- [ ] **A700** [ENTSCHEIDUNG] CONCEPT.md heißt durchgehend „Ticket Captain“ – auf „Pass Captain“ umstellen? — _Konzept 15.11._ (TODO L202; Konzept/Roadmap 2026-11-15)
+- [x] **A699** [ENTSCHEIDUNG] Add-on: Repository/Name (B1 „wp-pass-captain-pro“, neu) vs. B4/CONCEPT „pass-captain-pro“ in hastla007/captain-pro; Requires Plugins muss pass-captain lauten — _Konzept 15.11._ (TODO L206; Konzept/Roadmap 2026-11-15)
+  - (umgesetzt im zusammengeführten Stand, siehe TODO.md R16-05: das Add-on liegt in `hastla007/captain-pro` unter `addons/pass-captain-pro` (Slug und Textdomain `pass-captain-pro`, `Requires Plugins: pass-captain`))
+- [x] **A700** [ENTSCHEIDUNG] CONCEPT.md heißt durchgehend „Ticket Captain“ – auf „Pass Captain“ umstellen? — _Konzept 15.11._ (TODO L202; Konzept/Roadmap 2026-11-15)
+  - (umgesetzt im zusammengeführten Stand, siehe TODO.md R16-12: `CONCEPT.md` verwendet „Pass Captain“, der frühere Arbeitstitel ist als historisch gekennzeichnet)
 
 ## Phase 13 – Entscheidung 17: Connectoren BoatingSchool und LearnBoating in Pass Captain Pro (16.11.2026)
 
@@ -1442,6 +1474,7 @@ Quelle: TODO.md Abschnitt C. Der Kern bleibt frei und ohne Lizenzprüfung; nur A
 - [ ] **A703** [ENTSCHEIDUNG] Kundenfreigabe: Connectoren nur für freigegebene Kunden lizenzierbar oder für alle Pro-Kunden; Freigabe/Entzug/Protokoll im Lizenzserver — _Entscheidung 17_ (TODO L226; Entscheidung 17, 16.11.2026)
 - [ ] **A704** [WICHTIG] Plugin-Gerüst je Connector (Repo/Slug/Textdomain, Requires Plugins, WPLC-Client mit Lizenz und Updater) – außerhalb dieses Repos — _Entscheidung 17_ (TODO L227; Entscheidung 17, 16.11.2026)
 - [ ] **A705** [WICHTIG] Kern-Andockpunkte für die Connectoren fertigstellen: Connector-Vertrag stellt Ereignisse wirklich zu (A530), Ereignisse Kauf/Gutschein→Ticket/Erstattung/Einlass ohne PII, Vertragsversion, Suite-Status ohne Lizenzstatus — _Entscheidung 17_ (TODO L228; Entscheidung 17, 16.11.2026)
+  - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Integrations/ConnectorEvents.php` (Zustellung über die Job-Queue, Ereignisse Kauf/Erstattung/Einlass ohne PII, Payload-Version) und `src/Admin/SuiteStatus.php` (A670); offen: eigenes Ereignis „Gutschein eingelöst → Ticket“ und der Stub-Connector-Test (A708).
 - [ ] **A706** [OPTIMIERUNG] Verhalten der Connectoren bei Lizenzablauf/-sperre: keine neue Synchronisierung, Tickets und Kurszugänge bleiben gültig, Kern unverändert — _Entscheidung 17_ (TODO L229; Entscheidung 17, 16.11.2026)
 - [ ] **A707** [OPTIMIERUNG] Produktregeln im Connector: Kauf/Gutscheineinlösung → Kurszugang, Ticket oder beides; Zuordnung Kursprodukt ↔ Ticketart, idempotent, Erstattung nimmt Zugang zurück — _Entscheidung 17_ (TODO L230; Entscheidung 17, 16.11.2026)
 - [ ] **A708** [OPTIMIERUNG] Tests: Stub-Connector im Kern (Vertrag, Opt-in, Wächtertest ohne Lizenzcode), Lizenzfälle und E2E Kauf → Ticket + Kurszugang → Erstattung in den Connector-Repos — _Entscheidung 17_ (TODO L231; Entscheidung 17, 16.11.2026)
