@@ -947,19 +947,19 @@ Gesamt: 262 Aufgaben.
   - src/Partners/AdminPage.php:313–317, Admin/Queries.php:288–292 (LIMIT 500), Partners/Repository.php:263–276 (set_events): Falsches Verkaufsmodell/Rechnungssteller, Aussperrung, fehlende Abrechnung; N+1. AJAX-Suche/Paginierung, set_events als Diff; alle Filter-Dropdowns mit 500er-Grenze prüfen
 - [x] **A448** [KRITISCH] Event-Umhängen zwischen Veranstaltern führt zur doppelten Auszahlung — _R3 Eigen (Deep Dive 2)_ (TODO L785; Audit Runde 4)
   - src/Partners/Settlements.php:105 (compute), Partners/Repository.php:263 (set_events): Abgerechnet-Schlüssel nur je Partner; keine Zuordnungshistorie. Global prüfen, Zuordnung mit Gültigkeitszeitraum, offene Posten beim alten Veranstalter (belegt t2)
-- [ ] **A449** [WICHTIG] Block-Unterstützungen fehlen auf der Website (keine get_block_wrapper_attributes) — _R3 Editor_ (TODO L786; Audit Runde 4)
+- [x] **A449** [WICHTIG] Block-Unterstützungen fehlen auf der Website (keine get_block_wrapper_attributes) — _R3 Editor_ (TODO L786; Audit Runde 4)
   - src/blocks/events/render.php:4, calendar/render.php:6, block.json: Eigene CSS-Klasse/Block-Klasse nur im Editor, theme.json-Blockstile greifen nie. Ausgabe in Wrapper mit get_block_wrapper_attributes(), supports bewusst setzen
-- [ ] **A450** [WICHTIG] Bestell-/Wartelistenformular ohne method/action: ohne JS personenbezogene Daten per GET in der URL — _R3 Editor_ (TODO L787; Audit Runde 4)
+- [x] **A450** [WICHTIG] Bestell-/Wartelistenformular ohne method/action: ohne JS personenbezogene Daten per GET in der URL — _R3 Editor_ (TODO L787; Audit Runde 4)
   - templates/event-card.php:51, :174, assets/checkout.js:450/548: method="post" action="#", Absenden erst nach JS-Init aktivieren
-- [ ] **A451** [WICHTIG] ServerSideRender-Vorschau interaktiv statt in Disabled — _R3 Editor_ (TODO L788; Audit Runde 4)
+- [x] **A451** [WICHTIG] ServerSideRender-Vorschau interaktiv statt in Disabled — _R3 Editor_ (TODO L788; Audit Runde 4)
   - src/blocks/events/editor.js:20, calendar/editor.js:29: Vorschau in wp.components.Disabled einbetten
-- [ ] **A452** [WICHTIG] Kalender-Monatsnavigation nutzt get_permalink() des globalen Posts; zwei Kalender blättern gemeinsam — _R3 Editor_ (TODO L789; Audit Runde 4)
+- [x] **A452** [WICHTIG] Kalender-Monatsnavigation nutzt get_permalink() des globalen Posts; zwei Kalender blättern gemeinsam — _R3 Editor_ (TODO L789; Audit Runde 4)
   - src/Modules/Calendar.php:245, :153: Basis aus Request-URL, Parameter je Instanz
-- [ ] **A453** [WICHTIG] Event-Auswahl im Block auf 500 Termine begrenzt; gespeicherte Auswahl irreführend als „Alle Events“ — _R3 Editor_ (TODO L790; Audit Runde 4)
+- [x] **A453** [WICHTIG] Event-Auswahl im Block auf 500 Termine begrenzt; gespeicherte Auswahl irreführend als „Alle Events“ — _R3 Editor_ (TODO L790; Audit Runde 4)
   - src/PublicEvents.php:339 (block_choices), blocks/events/editor.js:11–16: Je Event aggregieren, fehlende Option als „Event #X (nicht mehr verfügbar)“
-- [ ] **A454** [WICHTIG] Editor-Skripte ohne Cache-Busting (Versionsnummer nicht erhöht) — _R3 Editor_ (TODO L791; Audit Runde 4)
+- [x] **A454** [WICHTIG] Editor-Skripte ohne Cache-Busting (Versionsnummer nicht erhöht) — _R3 Editor_ (TODO L791; Audit Runde 4)
   - src/blocks/*/editor.asset.php:5: filemtime/WPCAP_VERSION, CI-Prüfung Asset-Version ↔ Dateihash
-- [ ] **A455** [WICHTIG] Keine Editor-/Builder-Tests; keine eigenen Event-URLs/Templates — _R3 Editor_ (TODO L792; Audit Runde 4)
+- [x] **A455** [WICHTIG] Keine Editor-/Builder-Tests; keine eigenen Event-URLs/Templates — _R3 Editor_ (TODO L792; Audit Runde 4)
   - tests/: Blockvalidierung/Render-Tests, Iframe-Editor, Widget/Template-Teile; Event-Einzelseiten erwägen
 - [ ] **A456** [WICHTIG] Verfügbarkeit/Kaufzustand nur statisch im HTML, nie nachgeladen (Warteliste fehlt, veraltete Knappheitsangaben) — _R3 Caching_ (TODO L793; Audit Runde 4)
   - templates/event-card.php:21/75/141/173, PublicEvents.php:173, EventCard.php: No-store-Endpunkt für Verfügbarkeit/Badges/Provider/Warteliste, per JS laden; Formular und Warteliste immer ausliefern
