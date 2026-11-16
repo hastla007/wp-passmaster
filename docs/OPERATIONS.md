@@ -1217,6 +1217,15 @@ austauschbar. Regeln bei der Zeitumstellung:
   (Dedupe-Schlüssel mit der UTC-Startzeit). In der doppelten Stunde (Herbst) gibt es daher keinen zweiten
   Versand, und ein Versandzeitpunkt, der als Ortszeit in die fehlende Stunde (Frühjahr) fiele, wird nicht
   übersprungen.
+- **Kalendertage statt Dauern** gelten für Verkaufsfenster, die sich auf den Terminbeginn beziehen:
+  „Verkaufsstart N Tage vor Beginn“ von Serien zählt Ortstage (Beginn 19:00 MESZ, 14 Tage vorher =
+  19:00 MEZ), Verkaufsfenster nach Vorlage behalten ihre Ortsuhrzeit (A556); „Verkaufsende N Minuten vor
+  Beginn“ bleibt eine echte Dauer. Wird ein Einzeltermin verschoben, verschiebt die Verwaltung die
+  Verkaufsfenster seiner Ticketarten um denselben Abstand in Ortszeit (Kästchen „Verkaufszeiträume der
+  Ticketarten mit dem Beginn verschieben“, vorbelegt; Audit `ticket_type_updated` mit
+  `reason: occurrence_rescheduled`). Ein Fenster, das danach schon vorbei wäre oder erst nach dem
+  (effektiven) Terminende begänne, bleibt unverändert; die Speichermeldung nennt die Ticketart zur
+  Prüfung (A555). Rechenhilfen: `Occurrence::local_shift()`, `Occurrence::local_days_before()`.
 - **Eingegebene Ortszeiten**: Eine Zeit in der fehlenden Stunde wird beim Termin abgelehnt (mit
   Vorschlag), bei Verkaufsfenstern um die Lücke nach vorn verschoben (02:30 → 03:30); eine doppelte Zeit
   nimmt die erste (Sommerzeit). Zeitfenster-Serien von Servicebuchungen (`generate_slots`) beginnen eine

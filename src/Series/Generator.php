@@ -10,6 +10,7 @@ namespace PassCaptain\Series;
 
 use PassCaptain\Access;
 use PassCaptain\Audit;
+use PassCaptain\Occurrence;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -218,12 +219,18 @@ final class Generator {
 	/**
 	 * Sales window boundary for a new occurrence: explicit offset before start, else the template
 	 * type's offset relative to the template start, else none.
+	 *
+	 * A556: offsets in days count local calendar days in $timezone (start 20:00, 14 days before =
+	 * 20:00 local, also across a DST change); minutes are exact durations. The template's offset
+	 * is applied as the same local calendar distance (Occurrence::local_shift()).
 	 */
-	public static function sales_time( $starts_at, $offset, $unit, $template_value, $template ) {
+	public static function sales_time( $starts_at, $offset, $unit, $template_value, $template, $timezone = 'UTC' ) {
 		$start = strtotime( $starts_at . ' UTC' );
-		if ( null !== $offset ) { return gmdate( 'Y-m-d H:i:s', $start - $offset * $unit ); }
+		if ( null !== $offset ) {
+			return DAY_IN_SECONDS === (int) $unit ? Occurrence::local_days_before( $starts_at, (int) $offset, $timezone ) : gmdate( 'Y-m-d H:i:s', $start - $offset * $unit );
+		}
 		if ( $template_value && $template ) {
-			return gmdate( 'Y-m-d H:i:s', $start - ( strtotime( $template->starts_at . ' UTC' ) - strtotime( $template_value . ' UTC' ) ) );
+			return Occurrence::local_shift( $template_value, $template->starts_at, $starts_at, $timezone );
 		}
 		return null;
 	}
@@ -280,8 +287,8 @@ final class Generator {
 				'capacity' => (int) $type->capacity,
 				'max_per_order' => (int) $type->max_per_order,
 				'tax_rate_bp' => (int) $type->tax_rate_bp,
-				'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], 86400, $type->sales_start, $template ),
-				'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], 60, $type->sales_end, $template ),
+				'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], DAY_IN_SECONDS, $type->sales_start, $template, $definition['rule']['timezone'] ),
+				'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], MINUTE_IN_SECONDS, $type->sales_end, $template, $definition['rule']['timezone'] ),
 				'status' => $type->status,
 			) );
 			if ( ! $ok ) { throw new \RuntimeException( 'type_insert' ); }
@@ -649,14 +656,16 @@ final class Generator {
 		$old_start = $row['before']['starts_at'];
 		$new_start = isset( $row['changes']['starts_at'] ) ? $row['changes']['starts_at'][1] : $old_start;
 		$delta = strtotime( $new_start . ' UTC' ) - strtotime( $old_start . ' UTC' );
+		$timezone = (string) $definition['rule']['timezone'];
 		$types = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence_id ) );
 		foreach ( $types as $type ) {
 			$after = array();
-			foreach ( array( 'sales_start' => array( 'sales_start_days_before', 86400 ), 'sales_end' => array( 'sales_end_minutes_before', 60 ) ) as $field => list( $key, $unit ) ) {
+			foreach ( array( 'sales_start' => array( 'sales_start_days_before', DAY_IN_SECONDS ), 'sales_end' => array( 'sales_end_minutes_before', MINUTE_IN_SECONDS ) ) as $field => list( $key, $unit ) ) {
 				if ( null !== $definition[ $key ] ) {
-					$after[ $field ] = gmdate( 'Y-m-d H:i:s', strtotime( $new_start . ' UTC' ) - $definition[ $key ] * $unit );
+					$after[ $field ] = self::sales_time( $new_start, $definition[ $key ], $unit, null, null, $timezone );
 				} elseif ( $delta && ! empty( $type->$field ) ) {
-					$after[ $field ] = gmdate( 'Y-m-d H:i:s', strtotime( $type->$field . ' UTC' ) + $delta );
+					// Same local calendar distance as the start (A555/A556).
+					$after[ $field ] = Occurrence::local_shift( $type->$field, $old_start, $new_start, $timezone );
 				}
 			}
 			$changes = \PassCaptain\Admin\ChangeHistory::diff( (array) $type, $after );

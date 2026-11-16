@@ -348,6 +348,10 @@ final class EventsPage {
 			if ( ! $occurrence_id ) { return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
+		if ( $old && $old->starts_at !== $starts && ( empty( $in['shift_sales_windows_shown'] ) || Forms::flag( $in, 'shift_sales_windows' ) ) ) {
+			// A555: the sales windows move with the start (same local calendar distance).
+			$dst_notes = array_merge( $dst_notes, self::shift_sales_windows( $occurrence_id, (int) $event->event_id, $old, $data ) );
+		}
 		if ( $old ) {
 			// A535: ticket types whose sales end now lies after the occurrence's (effective) end.
 			$late = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(sales_end) FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' AND sales_end IS NOT NULL", $occurrence_id ) );
@@ -355,6 +359,49 @@ final class EventsPage {
 		}
 		\PassCaptain\PageCache::event_changed( (int) $event->event_id, 'occurrence', $occurrence_id ); // A446.
 		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled ) + Forms::dst_warning( $dst_notes );
+	}
+
+	/**
+	 * Moves the sales windows of a rescheduled occurrence's ticket types by the same local calendar
+	 * distance as its start (A555; 10:00 local stays 10:00 across DST). A window that would then lie
+	 * completely outside [now, effective end] – already over, or starting only after the date – is
+	 * left unchanged and named in a warning, so the admin decides.
+	 *
+	 * @param object $old  Occurrence row before the change.
+	 * @param array  $data Written occurrence values (starts_at, ends_at, timezone).
+	 * @return string[] Warnings.
+	 */
+	private static function shift_sales_windows( $occurrence_id, $event_id, $old, array $data ) {
+		global $wpdb;
+		$now = \PassCaptain\Clock::now();
+		$end = \PassCaptain\Occurrence::end_ts( $data );
+		$timezone = (string) $data['timezone'];
+		$refused = array();
+		$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,currency,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND (sales_start IS NOT NULL OR sales_end IS NOT NULL) ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
+		foreach ( (array) $types as $type ) {
+			$after = array();
+			foreach ( array( 'sales_start', 'sales_end' ) as $field ) {
+				if ( ! empty( $type->$field ) ) { $after[ $field ] = \PassCaptain\Occurrence::local_shift( $type->$field, $old->starts_at, $data['starts_at'], $timezone ); }
+			}
+			$closed = isset( $after['sales_end'] ) && strtotime( $after['sales_end'] . ' UTC' ) < $now;
+			$late = isset( $after['sales_start'] ) && strtotime( $after['sales_start'] . ' UTC' ) >= $end;
+			if ( $closed || $late ) {
+				$refused[] = $type->name;
+				continue;
+			}
+			$changes = ChangeHistory::diff( (array) $type, $after );
+			if ( ! $changes ) { continue; }
+			$wpdb->update( $wpdb->prefix . 'wpcap_ticket_types', $after, array( 'ticket_type_id' => (int) $type->ticket_type_id ) );
+			Audit::record( 'ticket_type_updated', 'ticket_type', (int) $type->ticket_type_id, array( 'occurrence_id' => (int) $occurrence_id, 'event_id' => (int) $event_id, 'type_name' => $type->name, 'currency' => $type->currency, 'reason' => 'occurrence_rescheduled', 'changes' => $changes ) );
+		}
+		if ( ! $refused ) { return array(); }
+		return array(
+			sprintf(
+				/* translators: %s: ticket type names */
+				__( 'Der Verkaufszeitraum von %s wurde nicht mitverschoben: Er wäre danach schon vorbei bzw. begänne erst nach dem Termin. Bitte den Verkaufszeitraum dieser Ticketarten prüfen.', 'pass-captain' ),
+				implode( ', ', array_map( static function ( $name ) { return '„' . $name . '“'; }, $refused ) )
+			),
+		);
 	}
 
 	/** Why a cancelled occurrence cannot be scheduled again (A356). */
@@ -1200,7 +1247,12 @@ final class EventsPage {
 		Forms::hidden( 'occurrence_id', $occ ? $occ->occurrence_id : 0 );
 		?>
 		<table class="form-table"><tbody>
-			<tr><th><label for="wpcap-occ-start"><?php esc_html_e( 'Beginn (Ortszeit)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-start" name="starts_at" type="datetime-local" required value="<?php echo esc_attr( Forms::old_value( $old, 'starts_at', $occ ? Forms::utc_to_local( $occ->starts_at, $tz ) : '' ) ); ?>"<?php echo Forms::invalid_attr( $old, 'starts_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
+			<tr><th><label for="wpcap-occ-start"><?php esc_html_e( 'Beginn (Ortszeit)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-start" name="starts_at" type="datetime-local" required value="<?php echo esc_attr( Forms::old_value( $old, 'starts_at', $occ ? Forms::utc_to_local( $occ->starts_at, $tz ) : '' ) ); ?>"<?php echo Forms::invalid_attr( $old, 'starts_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>>
+				<?php if ( $occ ) : ?>
+					<input type="hidden" name="shift_sales_windows_shown" value="1">
+					<p><label><input type="checkbox" name="shift_sales_windows" value="1"<?php checked( Forms::old_flag( $old, 'shift_sales_windows', true ) ); ?>> <?php esc_html_e( 'Verkaufszeiträume der Ticketarten mit dem Beginn verschieben (gleicher Abstand in Ortszeit)', 'pass-captain' ); ?></label></p>
+				<?php endif; ?>
+			</td></tr>
 			<tr><th><label for="wpcap-occ-end"><?php esc_html_e( 'Ende (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-end" name="ends_at" type="datetime-local" value="<?php echo esc_attr( Forms::old_value( $old, 'ends_at', $occ ? Forms::utc_to_local( $occ->ends_at, $tz ) : '' ) ); ?>"<?php echo Forms::invalid_attr( $old, 'ends_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
 			<tr><th><label for="wpcap-occ-doors"><?php esc_html_e( 'Einlass ab (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-doors" name="doors_open_at" type="datetime-local" aria-describedby="wpcap-occ-doors-help" value="<?php echo esc_attr( Forms::old_value( $old, 'doors_open_at', $occ && ! empty( $occ->doors_open_at ) ? Forms::utc_to_local( $occ->doors_open_at, $tz ) : '' ) ); ?>"<?php echo Forms::invalid_attr( $old, 'doors_open_at' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description" id="wpcap-occ-doors-help"><?php esc_html_e( 'Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-occ-tz"><?php esc_html_e( 'Zeitzone', 'pass-captain' ); ?></label></th><td><?php Forms::timezone_select( 'timezone', $tz, 'wpcap-occ-tz', 'aria-label="' . esc_attr__( 'Zeitzone', 'pass-captain' ) . '"' . Forms::invalid_attr( $old, 'timezone' ) ); ?></td></tr>

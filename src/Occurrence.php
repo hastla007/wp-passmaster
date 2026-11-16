@@ -10,6 +10,10 @@
  * day 2 and 3 of a festival). Door sales (box office) run until the effective end.
  *
  * All times are UTC ("Y-m-d H:i:s"); rows only need `starts_at` and `ends_at`.
+ *
+ * Local wall-clock arithmetic (A555/A556): local_shift() moves a time by the same local calendar
+ * distance as a rescheduled start, local_days_before() subtracts whole local days – both keep the
+ * local time of day across DST changes.
  */
 namespace PassCaptain;
 
@@ -132,5 +136,65 @@ final class Occurrence {
 			? __( 'Das Verkaufsende liegt nach dem Ende des Termins. Online verkauft wird höchstens bis zum Terminende.', 'pass-captain' )
 			/* translators: %d: default duration in hours */
 			: sprintf( _n( 'Das Verkaufsende liegt nach dem Ende des Termins (ohne Endzeit: Beginn + %d Stunde). Online verkauft wird höchstens bis dahin; für mehrtägige Termine bitte ein Ende eintragen.', 'Das Verkaufsende liegt nach dem Ende des Termins (ohne Endzeit: Beginn + %d Stunden). Online verkauft wird höchstens bis dahin; für mehrtägige Termine bitte ein Ende eintragen.', max( 1, (int) round( self::default_duration() / HOUR_IN_SECONDS ) ), 'pass-captain' ), max( 1, (int) round( self::default_duration() / HOUR_IN_SECONDS ) ) );
+	}
+
+	/* ---------------------------------------------------------------------------------------------
+	 * Local wall-clock arithmetic (A555, A556).
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** DateTimeZone of an occurrence timezone name (UTC when invalid). */
+	public static function zone( $timezone ) {
+		try {
+			return new \DateTimeZone( '' !== (string) $timezone ? (string) $timezone : 'UTC' );
+		} catch ( \Exception $e ) {
+			return new \DateTimeZone( 'UTC' );
+		}
+	}
+
+	/** Local wall-clock time ("Y-m-d H:i:s") of a UTC datetime. */
+	private static function wall( $utc, \DateTimeZone $tz ) {
+		return ( new \DateTimeImmutable( (string) $utc, new \DateTimeZone( 'UTC' ) ) )->setTimezone( $tz )->format( 'Y-m-d H:i:s' );
+	}
+
+	/** UTC datetime of a local wall-clock time (DST gap: shifted forward; ambiguous: first instance). */
+	private static function from_wall( $wall, \DateTimeZone $tz ) {
+		return ( new \DateTimeImmutable( (string) $wall, $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+	}
+
+	/**
+	 * Moves UTC $utc by the local calendar distance between $from_utc and $to_utc in $timezone, e.g.
+	 * a sales window when its occurrence moves by a week: 10:00 local stays 10:00 local, also across
+	 * a DST change. null/'' is returned unchanged.
+	 */
+	public static function local_shift( $utc, $from_utc, $to_utc, $timezone ) {
+		if ( null === $utc || '' === (string) $utc ) { return $utc; }
+		try {
+			$tz = self::zone( $timezone );
+			$delta = strtotime( self::wall( $to_utc, $tz ) . ' UTC' ) - strtotime( self::wall( $from_utc, $tz ) . ' UTC' );
+			if ( ! $delta ) { return (string) $utc; }
+			return self::from_wall( gmdate( 'Y-m-d H:i:s', strtotime( self::wall( $utc, $tz ) . ' UTC' ) + $delta ), $tz );
+		} catch ( \Exception $e ) {
+			return gmdate( 'Y-m-d H:i:s', strtotime( $utc . ' UTC' ) + strtotime( $to_utc . ' UTC' ) - strtotime( $from_utc . ' UTC' ) );
+		}
+	}
+
+	/** UTC time $days local calendar days before UTC $utc (same local time of day across DST). */
+	public static function local_days_before( $utc, $days, $timezone ) {
+		try {
+			$tz = self::zone( $timezone );
+			return self::from_wall( ( new \DateTimeImmutable( self::wall( $utc, $tz ) . ' UTC' ) )->modify( '-' . absint( $days ) . ' days' )->format( 'Y-m-d H:i:s' ), $tz );
+		} catch ( \Exception $e ) {
+			return gmdate( 'Y-m-d H:i:s', strtotime( $utc . ' UTC' ) - absint( $days ) * DAY_IN_SECONDS );
+		}
+	}
+
+	/** ISO 8601 with the offset of $timezone (e.g. 2026-12-01T20:00:00+01:00); null when empty. */
+	public static function iso( $utc, $timezone ) {
+		if ( null === $utc || '' === (string) $utc || '0000-00-00 00:00:00' === (string) $utc ) { return null; }
+		try {
+			return ( new \DateTimeImmutable( (string) $utc, new \DateTimeZone( 'UTC' ) ) )->setTimezone( self::zone( $timezone ) )->format( 'c' );
+		} catch ( \Exception $e ) {
+			return null;
+		}
 	}
 }

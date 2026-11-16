@@ -87,7 +87,7 @@ $occs = $wpdb->get_results( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrenc
 check( 'occurrences get UTC starts across DST, duration, timezone, template location and capacity', '2027-03-20 18:00:00' === $occs[0]->starts_at && '2027-04-03 17:00:00' === $occs[2]->starts_at && '2027-04-03 18:30:00' === $occs[2]->ends_at && 'Europe/Vienna' === $occs[2]->timezone && 'Stadtsaal' === $occs[0]->location && 80 === (int) $occs[0]->capacity );
 $copied = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", $occs[2]->occurrence_id ) );
 check( 'ticket types are copied with price, VAT, capacity and limits', 2 === count( $copied ) && 4500 === (int) $copied[0]->price_minor && 1300 === (int) $copied[0]->tax_rate_bp && 'reduced' === $copied[0]->tax_class && 50 === (int) $copied[0]->capacity && 6 === (int) $copied[0]->max_per_order && 'Ermäßigt' === $copied[1]->name && 2 === (int) $copied[1]->max_per_order );
-check( 'sales window is relative to the new start (30 days / 2 h before)', '2027-04-03 15:00:00' === $copied[0]->sales_end && '2027-03-04 17:00:00' === $copied[0]->sales_start && null === $copied[1]->sales_end );
+check( 'sales window is relative to the new start (30 local days = 19:00 local across DST / 2 h before, A556)', '2027-04-03 15:00:00' === $copied[0]->sales_end && '2027-03-04 18:00:00' === $copied[0]->sales_start && null === $copied[1]->sales_end );
 check( 'series definition and occurrence links are stored', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_series WHERE event_id=$series_event" ) && 4 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_series_occurrences WHERE series_id=" . (int) $run1['series_id'] ) );
 
 $run2 = Generator::create( $input );
