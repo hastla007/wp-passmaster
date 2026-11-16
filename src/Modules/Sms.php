@@ -214,6 +214,8 @@ final class Sms {
 			$enqueued = true;
 		}
 		$id = 'wpcap-sms-' . ( is_object( $event ) ? (int) $event->occurrence_id : 0 );
+		// A504: the same date can appear in several listings of one page – ids must stay unique.
+		for ( $base = $id, $n = 2; ! \PassCaptain\Frontend\EventCard::claim_anchor( $id ); ++$n ) { $id = $base . '-' . $n; }
 		echo '<fieldset class="wpcap-sms"><legend>' . esc_html__( 'SMS-Benachrichtigung (optional)', 'pass-captain' ) . '</legend>';
 		echo '<label for="' . esc_attr( $id ) . '-consent" class="wpcap-terms"><input type="checkbox" id="' . esc_attr( $id ) . '-consent" name="sms_consent" value="1"> ' . esc_html( Service::consent_text() ) . '</label>';
 		echo '<label for="' . esc_attr( $id ) . '-phone">' . esc_html__( 'Mobilnummer', 'pass-captain' ) . ' <input type="tel" id="' . esc_attr( $id ) . '-phone" name="sms_phone" autocomplete="tel" inputmode="tel" maxlength="20"></label>';
