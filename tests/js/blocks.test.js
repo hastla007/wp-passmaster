@@ -131,7 +131,8 @@ test('A453: choosing another event resets the date', () => {
 	const block = loadBlock('events', { WPCAP_BLOCK_EVENTS: CHOICES });
 	const { tree, changes } = block.edit({ event: 5, occurrence: 51 });
 	selects(tree).Event.onChange('6');
-	assert.deepStrictEqual(plain(changes), [{ event: 6, occurrence: 0 }]);
+	// Merged editor: the legacy attribute names (eventId/occurrenceId of older blocks) are cleared with it.
+	assert.deepStrictEqual(plain(changes), [{ event: 6, occurrence: 0, eventId: 0, occurrenceId: 0 }]);
 });
 
 /* ------------------------------------------------------------------ A455 */
@@ -167,7 +168,8 @@ for (const c of CASES) {
 
 test('A455: events block without choices data (no inline script) still renders its controls', () => {
 	const { tree } = loadBlock('events').edit({ event: 0, occurrence: 0 });
-	assert.strictEqual(find(tree, 'SelectControl').length, 1);
+	// Event and (audit R6 #9) layout; the date select appears once an event is chosen.
+	assert.deepStrictEqual(find(tree, 'SelectControl').map((n) => (n.props || (n.node && n.node.props) || {}).label), ['Event', 'Darstellung']);
 	assert.strictEqual(find(tree, 'ServerSideRender').length, 1);
 });
 
@@ -247,10 +249,12 @@ for (const c of CASES) {
 
 test('A501: [wpcap_events …] and [wp_pass_captain_events …] become the events block', () => {
 	const block = loadBlock('events');
-	assert.deepStrictEqual(plain(fromShortcode(block, 'wpcap_events', { event: '12', occurrence: '34' })), { event: 12, occurrence: 34, perDate: false });
-	assert.deepStrictEqual(plain(fromShortcode(block, 'wp_pass_captain_events', { dates: 'each' })), { event: 0, occurrence: 0, perDate: true });
-	assert.deepStrictEqual(plain(fromShortcode(block, 'wpcap_events', { event: 'abc' })), { event: 0, occurrence: 0, perDate: false });
-	assert.strictEqual(fromShortcode(block, 'wpcap_events', { limit: '10' }), false, 'a limit the block cannot keep: no transform');
+	// Merged block: limit and layout (audit R6 #9) are block attributes too.
+	assert.deepStrictEqual(plain(fromShortcode(block, 'wpcap_events', { event: '12', occurrence: '34' })), { event: 12, occurrence: 34, perDate: false, limit: 50, layout: 'auto' });
+	assert.deepStrictEqual(plain(fromShortcode(block, 'wp_pass_captain_events', { dates: 'each' })), { event: 0, occurrence: 0, perDate: true, limit: 50, layout: 'auto' });
+	assert.deepStrictEqual(plain(fromShortcode(block, 'wpcap_events', { event: 'abc' })), { event: 0, occurrence: 0, perDate: false, limit: 50, layout: 'auto' });
+	// Merged block keeps the limit as attribute (audit R6 #9), so such shortcodes transform too.
+	assert.strictEqual(plain(fromShortcode(block, 'wpcap_events', { limit: '10' })).limit, 10, 'the limit is kept by the block');
 	assert.ok(fromShortcode(block, 'wpcap_events', { limit: '50' }), 'the default limit is fine');
 });
 

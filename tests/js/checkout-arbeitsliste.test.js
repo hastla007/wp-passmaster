@@ -1,5 +1,5 @@
-// MERGE-CHECK: Arbeitsliste version of tests/js/checkout.test.js (both development lines tested the same script with
-// their own harness). Keep the checks that match the merged script; the other file is the audit-branch version.
+// Arbeitsliste version of tests/js/checkout.test.js (both development lines tested the same script with
+// their own harness). Both files run against the merged script; checks of removed behaviour were rewritten to the merged one.
 /**
  * Buyer checkout form (assets/checkout.js) in Node with the fake DOM from fake-dom.js.
  * A549: attendee entries survive lowering and raising the quantity again.

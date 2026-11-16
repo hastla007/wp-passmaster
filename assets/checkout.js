@@ -809,6 +809,10 @@
 			if (!qty) return;
 			qty.max = String(max);
 			if ((Number(qty.value) || 0) > max) qty.value = String(max);
+			// A type without tickets left is closed like a sold-out type of the live state (R6-10).
+			qty.disabled = max < 1;
+			const wrap = typeRow(qty);
+			if (wrap) { show(wrap.querySelector('.wpcap-qty-box'), max > 0); show(wrap.querySelector('.wpcap-soldout'), max < 1); }
 			if (!target && max > 0) target = qty;
 		});
 		renderAttendees(form);

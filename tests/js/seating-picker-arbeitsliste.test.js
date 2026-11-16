@@ -1,5 +1,5 @@
-// MERGE-CHECK: Arbeitsliste version of tests/js/seating-picker.test.js (both development lines tested the same script with
-// their own harness). Keep the checks that match the merged script; the other file is the audit-branch version.
+// Arbeitsliste version of tests/js/seating-picker.test.js (both development lines tested the same script with
+// their own harness). Both files run against the merged script; checks of removed behaviour were rewritten to the merged one.
 /**
  * A312: seat picker (assets/seating/picker.js) in Node with the fake DOM. The 30 s refresh must not
  * rebuild the list of chosen seats (keyboard focus would fall to <body>), and "Entfernen" moves

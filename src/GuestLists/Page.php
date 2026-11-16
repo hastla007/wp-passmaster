@@ -274,7 +274,7 @@ final class Page {
 			if ( 'issued' === $e->status && '' !== $e->email ) { $ops['resend'] = __( 'Erneut senden', 'pass-captain' ); }
 			if ( in_array( $e->status, array( 'requested', 'approved', 'issuing', 'issued' ), true ) ) { $ops['cancel'] = __( 'Stornieren', 'pass-captain' ); }
 			foreach ( $ops as $op => $label ) {
-				Forms::open_form( 'wpcap_gl_entry_action', null, 'style="display:inline"' . ( 'cancel' === $op ? ' onsubmit="return confirm(\'' . esc_js( __( 'Eintrag stornieren? Ausgestellte Tickets werden gesperrt.', 'pass-captain' ) ) . '\')"' : '' ) );
+				Forms::open_form( 'wpcap_gl_entry_action', null, 'style="display:inline"' . ( 'cancel' === $op ? ' data-wpcap-confirm="' . esc_attr( __( 'Eintrag stornieren? Ausgestellte Tickets werden gesperrt.', 'pass-captain' ) ) . '"' : '' ) );
 				Forms::hidden( 'entry_id', $e->entry_id );
 				Forms::hidden( 'list_id', $list->list_id );
 				Forms::hidden( 'event_id', $event_id );

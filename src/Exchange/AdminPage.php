@@ -270,7 +270,7 @@ final class AdminPage {
 		Forms::select( 'refund_policy', array( '' => __( 'Regel des Events', 'pass-captain' ), 'refund' => __( 'Differenz erstatten', 'pass-captain' ), 'none' => __( 'Keine Erstattung', 'pass-captain' ) ), '', 'wpcap-exchange-refund' );
 		echo '</td></tr><tr><th><label for="wpcap-exchange-note">' . esc_html__( 'Notiz', 'pass-captain' ) . '</label></th><td><input type="text" name="note" id="wpcap-exchange-note" class="regular-text" maxlength="255"></td></tr></table>';
 		echo \PassCaptain\Billing::fields_html( 'wpcap-exchange-billing' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in Billing::fields_html().
-		echo '<p><button class="button button-primary" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Ticket jetzt umtauschen? Der bisherige Ticketcode wird ungültig.', 'pass-captain' ) ) . '\')">' . esc_html__( 'Umtauschen', 'pass-captain' ) . '</button></p></form>';
+		echo '<p><button class="button button-primary" type="submit" data-wpcap-confirm="' . esc_attr( __( 'Ticket jetzt umtauschen? Der bisherige Ticketcode wird ungültig.', 'pass-captain' ) ) . '">' . esc_html__( 'Umtauschen', 'pass-captain' ) . '</button></p></form>';
 	}
 
 	private static function render_settings() {
