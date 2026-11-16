@@ -640,6 +640,14 @@ final class Orders {
 					// A493: a valid but overlong address would fail at the tickets/assignments column at issuance.
 					return new \WP_Error( 'wpcap_attendees_invalid', self::email_too_long_message(), $where( $i ) + array( 'reason' => 'email_too_long' ) );
 				}
+				// A599: an entered but invalid address is refused (it was dropped silently, so the ticket
+				// went to the buyer instead of the attendee). field_key "__email" names the field of the block.
+				if ( false === Http::optional_email( $entry['email'] ?? '' ) ) {
+					$label = __( 'E-Mail der Teilnehmer:in', 'pass-captain' );
+					/* translators: %s: field label */
+					$message = sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $label );
+					return new \WP_Error( 'wpcap_attendee_field_invalid', $message, $where( $i, (object) array( 'field_key' => '__email' ) ) + array( 'reason' => 'email_invalid' ) );
+				}
 				$out[] = array(
 					'ticket_type_id' => (int) $type_id,
 					'name' => mb_substr( sanitize_text_field( Http::str( $entry['name'] ?? '' ) ), 0, 190 ),

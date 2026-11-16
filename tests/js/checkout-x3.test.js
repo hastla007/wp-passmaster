@@ -190,3 +190,23 @@ test('A500: a form inserted later is set up by WPCAP.init(root) and by the wpcap
 	assert.ok(env.requests.some((r) => r.body && r.body.email === 'late@example.com'), 'the order was sent');
 	assert.ok(second.querySelector('.wpcap-confirmation') || second.querySelector('form').hidden, 'confirmation shown');
 });
+
+/* ------------------------------------------------------------------ A599 */
+
+test('A599: the server error for an invalid attendee e-mail marks that field of that block', async () => {
+	const env = loadCheckout({ cards: [{ billing: false }] });
+	await flush();
+	const form = env.forms[0];
+	const qty = form.querySelector('.wpcap-qty');
+	qty.value = '2';
+	qty.dispatchEvent(new FakeEvent('input', { bubbles: true }));
+	form.querySelector('[name="email"]').value = 'buyer@example.com';
+	const blocks = form.querySelectorAll('.wpcap-attendee');
+	assert.strictEqual(blocks.length, 2);
+	env.answers.push(response(400, { code: 'wpcap_attendee_field_invalid', message: '„E-Mail der Teilnehmer:in“ ist keine gültige E-Mail-Adresse.', data: { status: 400, field: 'attendees', ticket_type_id: 5, position: 1, index: 1, field_key: '__email', reason: 'email_invalid' } }));
+	form.dispatchEvent(new FakeEvent('submit', { bubbles: true }));
+	await flush();
+	const email = blocks[1].querySelector('[data-key="__email"]');
+	assert.strictEqual(email.getAttribute('aria-invalid'), 'true');
+	assert.strictEqual(blocks[0].querySelector('[data-key="__email"]').getAttribute('aria-invalid'), null);
+});
