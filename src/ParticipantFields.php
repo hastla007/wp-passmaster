@@ -347,7 +347,7 @@ final class ParticipantFields {
 		if ( Mail\Mailer::is_placeholder( (string) $order->customer_email ) || ! is_email( (string) $order->customer_email ) ) {
 			return new \WP_Error( 'wpcap_attendee_request_no_email', __( 'Für diese Bestellung ist keine E-Mail-Adresse hinterlegt.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		$since = gmdate( 'Y-m-d H:i:s', time() - self::REQUEST_INTERVAL );
+		$since = gmdate( 'Y-m-d H:i:s', Clock::now() - self::REQUEST_INTERVAL );
 		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE action='attendee_data_requested' AND object_type='order' AND object_id=%d AND created_at>=%s", (int) $order->order_id, $since ) ) ) {
 			return new \WP_Error( 'wpcap_attendee_request_recent', __( 'Die Angaben wurden für diese Bestellung gerade erst angefordert. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}

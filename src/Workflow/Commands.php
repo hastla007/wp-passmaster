@@ -146,7 +146,7 @@ final class Commands {
 		ksort( $clean );
 		$hash = hash( 'sha256', $command . '|' . wp_json_encode( $clean ) );
 		$t = self::table();
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$inserted = (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $t (idempotency_key,command,args_hash,status,user_id,created_at) VALUES (%s,%s,%s,'running',%d,%s)", $key, $command, $hash, get_current_user_id(), $now ) );
 		if ( 1 !== $inserted ) {
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $t WHERE idempotency_key=%s", $key ) );
@@ -176,12 +176,12 @@ final class Commands {
 				// Temporary: the key is not used up, the provider may retry it.
 				$wpdb->delete( $t, array( 'idempotency_key' => $key ) );
 			} else {
-				$wpdb->update( $t, array( 'status' => 'failed', 'result' => wp_json_encode( array( 'code' => $result->get_error_code(), 'message' => $result->get_error_message(), 'status' => $status ) ), 'finished_at' => current_time( 'mysql', true ) ), array( 'idempotency_key' => $key ) );
+				$wpdb->update( $t, array( 'status' => 'failed', 'result' => wp_json_encode( array( 'code' => $result->get_error_code(), 'message' => $result->get_error_message(), 'status' => $status ) ), 'finished_at' => \PassCaptain\Clock::mysql() ), array( 'idempotency_key' => $key ) );
 			}
 			self::audit( $command, $key, sanitize_key( $result->get_error_code() ) );
 			return $result;
 		}
-		$wpdb->update( $t, array( 'status' => 'done', 'result' => wp_json_encode( $result ), 'finished_at' => current_time( 'mysql', true ) ), array( 'idempotency_key' => $key ) );
+		$wpdb->update( $t, array( 'status' => 'done', 'result' => wp_json_encode( $result ), 'finished_at' => \PassCaptain\Clock::mysql() ), array( 'idempotency_key' => $key ) );
 		self::audit( $command, $key, 'ok' );
 		return array( 'command' => $command, 'idempotency_key' => $key, 'replayed' => false, 'result' => $result );
 	}

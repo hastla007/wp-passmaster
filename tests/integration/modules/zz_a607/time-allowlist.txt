@@ -30,7 +30,6 @@ Communications.php
 Consents.php
 DeveloperKeys.php
 Exchange/Policy.php
-Exchange/Portal.php
 GuestLists/Service.php
 Installer.php
 Integrations/Vouchers/Checkout.php
@@ -76,7 +75,6 @@ Payments/Webhooks.php
 PayoutAccount.php
 Plugin.php
 Printing/BatchJob.php
-Printing/InvoicePdf.php
 Printing/Page.php
 Printing/Templates.php
 Privacy.php

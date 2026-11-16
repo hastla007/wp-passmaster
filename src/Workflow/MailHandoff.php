@@ -110,7 +110,7 @@ final class MailHandoff {
 		$stats = get_option( self::STATS_OPTION, array() );
 		$stats = is_array( $stats ) ? $stats : array();
 		$stats[ $result ] = (int) ( $stats[ $result ] ?? 0 ) + 1;
-		$stats['last'] = array( 'result' => $result, 'type' => sanitize_key( $type ), 'reason' => $reason, 'at' => current_time( 'mysql', true ) );
+		$stats['last'] = array( 'result' => $result, 'type' => sanitize_key( $type ), 'reason' => $reason, 'at' => \PassCaptain\Clock::mysql() );
 		update_option( self::STATS_OPTION, $stats, false );
 	}
 

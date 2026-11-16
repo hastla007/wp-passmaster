@@ -72,7 +72,7 @@ final class Reconcile {
 	public static function run( $now = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::now() : (int) $now;
 		$out = array( 'checked' => 0, 'applied' => array(), 'errors' => 0 );
 		$gateways = self::gateways();
 		if ( ! $gateways ) { return $out; }
