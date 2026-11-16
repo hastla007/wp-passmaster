@@ -45,12 +45,35 @@ final class Api {
 		return is_wp_error( $device ) ? $device : true;
 	}
 
+	/**
+	 * Limits of POST /app/pair per client address (A460): `failures` failed attempts (unknown, used or
+	 * expired code) and `requests` attempts in total per `window`. Only failures have a small budget:
+	 * at a venue all devices are usually paired from one public address (NAT). Filter
+	 * `wpcap_app_pair_rate_limits`.
+	 *
+	 * @return array{failures:int,requests:int,window:int}
+	 */
+	public static function pair_limits() {
+		$defaults = array( 'failures' => 10, 'requests' => 200, 'window' => HOUR_IN_SECONDS );
+		$limits = (array) apply_filters( 'wpcap_app_pair_rate_limits', $defaults );
+		$out = array();
+		foreach ( $defaults as $key => $default ) { $out[ $key ] = max( 1, (int) ( $limits[ $key ] ?? $default ) ); }
+		return $out;
+	}
+
 	public static function pair( \WP_REST_Request $request ) {
-		if ( ! RateLimit::allow( 'pair_' . RateLimit::client(), 10, HOUR_IN_SECONDS ) ) {
+		$limits = self::pair_limits();
+		$client = RateLimit::client();
+		// Failures are checked before and counted after the attempt; successful pairings only use the large budget.
+		if ( RateLimit::hits( 'pair_fail_' . $client, $limits['window'] ) >= $limits['failures'] || ! RateLimit::allow( 'pair_all_' . $client, $limits['requests'], $limits['window'] ) ) {
 			return new \WP_Error( 'wpcap_pair_rate', __( 'Zu viele Kopplungsversuche. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$result = Devices::pair( $request->get_param( 'code' ), (string) $request->get_param( 'device_label' ), (string) $request->get_param( 'platform' ), (string) $request->get_param( 'app_version' ) );
-		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
+		if ( is_wp_error( $result ) ) {
+			RateLimit::allow( 'pair_fail_' . $client, $limits['failures'], $limits['window'] );
+			return $result;
+		}
+		return new \WP_REST_Response( $result, 201 );
 	}
 
 	public static function me( \WP_REST_Request $request ) {

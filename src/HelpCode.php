@@ -174,9 +174,10 @@ final class HelpCode {
 	}
 
 	/**
-	 * Rate limits for help-code lookups (attempts per window). Per user and per client every lookup
-	 * counts, found or not; the site-wide limit counts only unknown codes of requests within the user and
-	 * client limits (A281), so one account cannot use up the site budget of all scanners.
+	 * Rate limits for help-code lookups (attempts per window). Per user – for a paired scanner app per
+	 * device – every lookup counts, found or not. Per client address and site-wide only unknown codes
+	 * count (A281, A460): all scanners at a venue usually share one public address (NAT), so valid
+	 * lookups of many devices must not use up a common budget; guesses still do.
 	 *
 	 * @return array{user:int,client:int,site:int,window:int}
 	 */
@@ -191,9 +192,10 @@ final class HelpCode {
 	}
 
 	/**
-	 * Ticket id for a typed help code (0 when unknown) or a rate-limit error. Rate-limited per
-	 * WordPress user (staff or the scanner device's user) and per client address first; the site-wide
-	 * budget is only checked for requests within both and only consumed by unknown codes (A281).
+	 * Ticket id for a typed help code (0 when unknown) or a rate-limit error. Every lookup counts
+	 * against the WordPress user (web scanner, admin search) or the paired scanner device (app); the
+	 * client-address and site-wide budgets are only checked for requests within it and only consumed by
+	 * unknown codes (A281, A460).
 	 *
 	 * @return int|\WP_Error
 	 */
@@ -203,9 +205,10 @@ final class HelpCode {
 		if ( isset( self::$resolved[ $code ] ) ) { return self::$resolved[ $code ]; }
 		$limits = self::limits();
 		$user = (int) get_current_user_id();
-		// User and client first (short-circuit): a refused request never touches the site budget.
-		$allowed = RateLimit::allow( 'help-code|user|' . $user, $limits['user'], $limits['window'] )
-			&& RateLimit::allow( 'help-code|client|' . RateLimit::client(), $limits['client'], $limits['window'] )
+		$client = 'help-code|client|' . RateLimit::client();
+		// User/device first (short-circuit): a refused request never touches the shared budgets.
+		$allowed = RateLimit::allow( self::actor_bucket( $user ), $limits['user'], $limits['window'] )
+			&& RateLimit::hits( $client, $limits['window'] ) < $limits['client']
 			&& RateLimit::hits( 'help-code|site', $limits['window'] ) < $limits['site'];
 		if ( ! $allowed ) {
 			Audit::record( 'help_code_rate_limited', 'user', $user, array() );
@@ -214,10 +217,21 @@ final class HelpCode {
 		global $wpdb;
 		$ticket_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE help_hash=%s LIMIT 1", self::lookup_hash( $code ) ) );
 		if ( ! $ticket_id ) {
-			// Only guesses (unknown codes) use up the site-wide budget.
+			// Only guesses (unknown codes) use up the client and site-wide budgets.
+			RateLimit::allow( $client, $limits['client'], $limits['window'] );
 			RateLimit::allow( 'help-code|site', $limits['site'], $limits['window'] );
 		}
 		return self::$resolved[ $code ] = $ticket_id;
+	}
+
+	/**
+	 * Budget of the person typing (A460): the paired scanner device when the request comes from the
+	 * app (several devices are often paired by one staff account), else the WordPress user.
+	 */
+	private static function actor_bucket( $user ) {
+		$device = class_exists( Mobile\Devices::class ) ? Mobile\Devices::current() : null;
+		if ( is_object( $device ) && ! empty( $device->device_id ) ) { return 'help-code|device|' . (int) $device->device_id; }
+		return 'help-code|user|' . (int) $user;
 	}
 
 	/** Forgets per-request caches (tests). */

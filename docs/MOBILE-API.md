@@ -53,7 +53,7 @@ Authorization: Bearer wpcapd_<device>_<secret>
 - Das Token gilt nur für die gewählten Events und zusätzlich nur, solange die Person Einlassrechte für diese Events hat.
 - Es läuft automatisch ab und kann von der Person selbst oder von Admins widerrufen werden, über **Scanner-Geräte** oder `POST /app/logout`.
 - Serverseitig wird nur ein SHA-256-Hash des Secrets gespeichert.
-- Rate-Limits: 600 Anfragen pro Minute und Gerät, 10 Kopplungsversuche pro Stunde und IP-Adresse.
+- Rate-Limits: 600 Anfragen pro Minute und Gerät. Kopplung (A460): je IP-Adresse 10 **fehlgeschlagene** Versuche (unbekannter, benutzter oder abgelaufener Code) und 200 Versuche insgesamt pro Stunde – am Einlass koppeln alle Geräte meist über dieselbe öffentliche Adresse (NAT), erfolgreiche Kopplungen verbrauchen das kleine Budget daher nicht (Filter `wpcap_app_pair_rate_limits`). Hilfscodes zählen je gekoppeltem Gerät, die IP-Adresse nur für unbekannte Codes (siehe [SECURITY.md](SECURITY.md#hilfscode-für-den-einlass)).
 
 ## 2. Endpunkte
 
