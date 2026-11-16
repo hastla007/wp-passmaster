@@ -1327,7 +1327,8 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:1509–1524, TicketPage.php:252–258: „Meine Tickets per E-Mail anfordern“ für Inhaber-Adressen mit Rate-Limit
 - [x] **A623** [OPTIMIERUNG] Erinnerungsversand ohne Drosselung; Anbieterlimits → Mails endgültig verloren; kein List-Unsubscribe — _R4 Dokumente/Mail/Wallet_ (TODO L978; Audit Runde 4)
   - src/Communications.php:39–80: Einstellbare Rate, Limit-Fehler als Aufschub, List-Unsubscribe One-Click
-- [ ] **A624** [OPTIMIERUNG] Keine Bounce-Verarbeitung (ergänzt A328) — _R4 Dokumente/Mail/Wallet_ (TODO L979; Audit Runde 4)
+- [x] **A624** [OPTIMIERUNG] Keine Bounce-Verarbeitung (ergänzt A328) — _R4 Dokumente/Mail/Wallet_ (TODO L979; Audit Runde 4)
+  - Umgesetzt im zusammengeführten Stand, siehe `src/Mail/Suppression.php` (Bounce-Webhook, Test `zzzzzzzz_r3_mail_jobs`).
   - src/Mail/Mailer.php:321–350: Return-Path/VERP, Hook wpcap_mail_bounced, Markierung + Hinweis
 - [x] **A625** [OPTIMIERUNG] HTML-Layout: Outlook ohne MSO-Tabelle, kein Dark Mode, Wallet-Links als lange URLs — _R4 Dokumente/Mail/Wallet_ (TODO L980; Audit Runde 4)
   - src/Mail/Layout.php:167–175, WalletPasses/Service.php:158–163, Mailer.php:449–455: MSO-Ghost-Tabelle, color-scheme, beschriftete Wallet-Buttons
