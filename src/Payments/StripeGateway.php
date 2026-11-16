@@ -12,7 +12,7 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-final class StripeGateway implements GatewayInterface, RefundLookupInterface {
+final class StripeGateway implements GatewayInterface, RefundLookupInterface, PaymentLookupInterface {
 	const API = 'https://api.stripe.com/v1/';
 
 	/** Maximum age (and clock skew) of a webhook signature in seconds. */
@@ -212,6 +212,53 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 			return new \WP_Error( 'wpcap_stripe_response', __( 'Unerwartete Antwort von Stripe.', 'pass-captain' ) );
 		}
 		return $this->payment_result( $session );
+	}
+
+	/**
+	 * Reconciliation (A352): reads the order's Checkout Session (cs_…) or PaymentIntent (pi_…) and maps
+	 * it like the matching webhook – complete and paid → "paid", complete and unpaid → "payment_pending",
+	 * expired or canceled → "failed"; an open session → null. Event ids are stable per state, so
+	 * repeated runs are recognised as duplicates.
+	 */
+	public function find_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 === strpos( $reference, 'cs_' ) ) {
+			$session = $this->api( 'GET', 'checkout/sessions/' . rawurlencode( $reference ) );
+			if ( is_wp_error( $session ) ) { return $session; }
+			$status = (string) ( $session['status'] ?? '' );
+			if ( 'complete' === $status ) {
+				$type = 'checkout.session.completed';
+			} elseif ( 'expired' === $status ) {
+				$type = 'checkout.session.expired';
+			} else {
+				return null;
+			}
+			return $this->normalize( array( 'id' => 'reconcile-' . $reference . '-' . $status . '-' . sanitize_key( (string) ( $session['payment_status'] ?? '' ) ), 'type' => $type, 'data' => array( 'object' => $session ) ) );
+		}
+		if ( 0 === strpos( $reference, 'pi_' ) ) {
+			$intent = $this->api( 'GET', 'payment_intents/' . rawurlencode( $reference ) );
+			if ( is_wp_error( $intent ) ) { return $intent; }
+			$status = (string) ( $intent['status'] ?? '' );
+			$currency = strtoupper( (string) ( $intent['currency'] ?? '' ) );
+			$event = array(
+				'event_id' => 'reconcile-' . $reference . '-' . sanitize_key( $status ),
+				'type' => 'ignored',
+				'order_public_id' => (string) ( $intent['metadata']['wpcap_order'] ?? '' ),
+				'provider_reference' => $reference,
+				'related_references' => array( $reference ),
+				'amount_minor' => self::from_stripe_amount( (int) ( $intent['amount_received'] ?? 0 ), $currency ),
+				'currency' => $currency,
+			);
+			if ( 'succeeded' === $status ) {
+				$event['type'] = 'paid';
+			} elseif ( 'canceled' === $status ) {
+				$event['type'] = 'failed';
+			} else {
+				return null;
+			}
+			return $event;
+		}
+		return null;
 	}
 
 	/** Verifies the Stripe-Signature header and maps the event. */

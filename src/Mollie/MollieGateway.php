@@ -28,7 +28,7 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\RefundLookupInterface {
+final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\RefundLookupInterface, \PassCaptain\Payments\PaymentLookupInterface {
 	const API = 'https://api.mollie.com/v2/';
 
 	/** Currencies Mollie accepts. */
@@ -296,6 +296,17 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 			return new \WP_Error( 'wpcap_mollie_lookup', $payment->get_error_message(), array( 'status' => 404 === $status ? 404 : 503 ) );
 		}
 		return self::normalize( $payment );
+	}
+
+	/**
+	 * Reconciliation (A352): reads the order's Mollie payment and maps it like the webhook (same event
+	 * ids, so a later webhook is a duplicate). An open payment is reported as "ignored".
+	 */
+	public function find_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', $reference ) ) { return null; }
+		$payment = self::api( 'GET', 'payments/' . rawurlencode( $reference ) . '?embed=refunds,chargebacks' );
+		return is_wp_error( $payment ) ? $payment : self::normalize( $payment );
 	}
 
 	/** Maps a fetched Mollie payment to the normalized event. */

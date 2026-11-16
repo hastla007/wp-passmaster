@@ -363,6 +363,22 @@ Zu einzelnen Fällen:
 - **Wettlauf zwischen Fehlschlag und Zahlung.** `failed` storniert nur, solange die Zahlung unter der
   Zeilensperre noch `pending` ist (`Orders::cancel_order( …, array( 'pending' ) )`).
 
+**Abgleich mit dem Anbieter (A352).** Webhooks können verloren gehen (Endpunkt nicht erreichbar, falsches
+Geheimnis, Störung beim Anbieter). Alle fünf Minuten (Cron `wpcap_process_jobs`, `Payments\Reconcile`) fragt das
+Plugin den Anbieter nach höchstens 20 Bestellungen, deren Stand zurückliegen kann: `pending` mit Zahlungsreferenz
+(mindestens 10 Minuten, höchstens 7 Tage alt) und in den letzten 2 Tagen hier abgelaufene oder stornierte
+Bestellungen (`expired`/`cancelled`). Gateways mit `PaymentLookupInterface::find_payment()` – Stripe (Checkout
+Session bzw. PaymentIntent), PayPal (Bestellung/Capture; eine genehmigte Bestellung wird wie beim Webhook
+`CHECKOUT.ORDER.APPROVED` nur für eine bekannte, bezahlbare Bestellung erfasst) und Mollie (Zahlung) – liefern
+das Ereignis, das `Webhooks::process()` wie einen Webhook anwendet (Ereignis-ID je Zustand, also idempotent;
+Betragsprüfung, späte Zahlung, Doppelzahlung gelten unverändert). Angewandt werden nur `paid`,
+`payment_pending` und `failed`, letztere nur für noch offene Bestellungen; eine Zahlung für eine hier
+abgelaufene Bestellung läuft durch die Regeln der späten Zahlung. Jede Änderung steht im Audit-Log
+(`payment_reconciled`: Anbieter, Typ, Ergebnis, lokaler Stand). Dieselbe Bestellung wird erst nach einer mit
+dem Alter wachsenden Pause wieder gefragt (unter 1 h alt: 10 Minuten, unter 1 Tag: 1 Stunde, sonst 6 Stunden;
+Transient `wpcap_pay_recon_{order_id}`). Erstattungen gleichen Job `refund_reconcile` (unklarer Ausgang,
+ausstehende Erstattungen) und `Refunds::repair_stuck()` ab.
+
 Empfohlene Webhook-Ereignisse: Stripe `checkout.session.completed`,
 `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
 `checkout.session.expired`, `charge.refunded`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated`, `refund.updated`, `refund.failed`

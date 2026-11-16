@@ -14,7 +14,7 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
+final class PayPalGateway implements GatewayInterface, RefundLookupInterface, PaymentLookupInterface {
 	const SANDBOX = 'https://api-m.sandbox.paypal.com';
 	const LIVE = 'https://api-m.paypal.com';
 
@@ -238,6 +238,42 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 			return new \WP_Error( 'wpcap_paypal_amount', __( 'Der bezahlte Betrag stimmt nicht mit der Bestellung überein.', 'pass-captain' ) );
 		}
 		return Webhooks::process( 'paypal', $event );
+	}
+
+	/**
+	 * Reconciliation (A352): reads the PayPal order of a Pass Captain order. COMPLETED → the capture's
+	 * state (paid/failed; pending → null); APPROVED → handled like the webhook CHECKOUT.ORDER.APPROVED
+	 * (captured only for a known, payable order, A641); VOIDED → failed; still open → null.
+	 */
+	public function find_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( ! preg_match( '/^[A-Za-z0-9\-]{5,64}$/', $reference ) ) { return null; }
+		$paypal_order = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $reference ) );
+		if ( is_wp_error( $paypal_order ) ) {
+			// A capture id after the payment (provider_reference is updated on "paid"): nothing to reconcile.
+			return 404 === (int) ( ( (array) $paypal_order->get_error_data() )['status'] ?? 0 ) ? null : $paypal_order;
+		}
+		$status = strtoupper( (string) ( $paypal_order['status'] ?? '' ) );
+		if ( 'APPROVED' === $status ) {
+			return self::normalize( array( 'id' => 'reconcile-' . $reference . '-approved', 'event_type' => 'CHECKOUT.ORDER.APPROVED', 'resource' => $paypal_order ) );
+		}
+		$unit = is_array( $paypal_order['purchase_units'][0] ?? null ) ? $paypal_order['purchase_units'][0] : array();
+		if ( 'VOIDED' === $status ) {
+			return array( 'event_id' => 'reconcile-' . $reference . '-voided', 'type' => 'failed', 'order_public_id' => (string) ( $unit['custom_id'] ?? '' ), 'provider_reference' => $reference, 'related_references' => array( $reference ), 'amount_minor' => 0, 'currency' => '' );
+		}
+		$capture = $unit['payments']['captures'][0] ?? null;
+		if ( 'COMPLETED' !== $status || ! is_array( $capture ) || empty( $capture['id'] ) ) { return null; }
+		$event = self::capture_event( $capture, (string) ( $unit['custom_id'] ?? '' ) );
+		$event['related_references'] = array_values( array_unique( array_merge( $event['related_references'], array( $reference ) ) ) );
+		$capture_status = strtoupper( (string) ( $capture['status'] ?? '' ) );
+		if ( 'COMPLETED' === $capture_status ) {
+			$event['type'] = 'paid';
+		} elseif ( in_array( $capture_status, array( 'DECLINED', 'FAILED' ), true ) ) {
+			$event['type'] = 'failed';
+		} else {
+			return null;
+		}
+		return $event;
 	}
 
 	/** Verifies a webhook via PayPal's verify-webhook-signature API and maps it. */
