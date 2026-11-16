@@ -763,7 +763,7 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:48/172, Admin/OrdersPage.php:80: Admin-Aktion „Extern erstattet / abschließen“
 - [ ] **A359** [OPTIMIERUNG] Toter Code mit festem EUR auf jedem Frontend-Request — _R1 Core_ (TODO L690; Audit Runde 4)
   - src/PublicEvents.php:10–11: Registry::enabled(EUR) entfernen (entschlüsselt Secrets je Seitenaufruf)
-- [ ] **A360** [OPTIMIERUNG] Events-Block: Abhängigkeiten wp-components/wp-i18n fehlen, Attribute number statt integer — _R1 Core_ (TODO L691; Audit Runde 4)
+- [x] **A360** [OPTIMIERUNG] Events-Block: Abhängigkeiten wp-components/wp-i18n fehlen, Attribute number statt integer — _R1 Core_ (TODO L691; Audit Runde 4)
   - src/blocks/events/editor.asset.php:4, block.json: Abhängigkeiten ergänzen, integer
 - [ ] **A361** [OPTIMIERUNG] PHP 8.5: curl_close() deprecated; APNs umgeht WP-HTTP-Proxy-Konstanten — _R1 Core/Architektur_ (TODO L692; Audit Runde 4)
   - src/WalletPasses/ApnsClient.php:55: curl_close entfernen, WP_PROXY_*/WP_HTTP_BLOCK_EXTERNAL beachten
@@ -785,7 +785,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/Menu.php:198, Queries.php:474–482: Eigenes COUNT(*), Index status (A201 ergänzt status_updated – prüfen)
 - [ ] **A370** [OPTIMIERUNG] Öffentliche REST-GETs mit Token ohne no-store — _R1 Architektur_ (TODO L701; Audit Runde 4)
   - src/Rest/Controller.php:34–38, :469–479, ServiceBookingFlow.php:233–265: Cache-Control: no-store; Token per Header/POST
-- [ ] **A371** [OPTIMIERUNG] Globaler CSS-Selektor [aria-invalid] mit !important — _R1 Architektur_ (TODO L702; Audit Runde 4)
+- [x] **A371** [OPTIMIERUNG] Globaler CSS-Selektor [aria-invalid] mit !important — _R1 Architektur_ (TODO L702; Audit Runde 4)
   - assets/public.css:5: Auf .wpcap-checkout-form einschränken
 - [ ] **A372** [OPTIMIERUNG] Deinstallation lässt wpcap_approve_comps zurück — _R1 Architektur_ (TODO L703; Audit Runde 4)
   - src/Modules/GuestLists.php:131–141, uninstall.php:41: Cap-Liste aus gemeinsamer Konstante inkl. Modul-Caps
@@ -825,21 +825,21 @@ Gesamt: 262 Aufgaben.
   - readme.txt:53–66: Je Version die wichtigsten Änderungen direkt in readme.txt
 - [ ] **A390** [OPTIMIERUNG] Kein RTL (dir, logische CSS-Eigenschaften) — _R2 Frontend_ (TODO L721; Audit Runde 4)
   - src/TicketPage.php:58, OrderPortal.php:116, Waitlists.php:1064, Invoices.php:536, public.css, picker.css: dir per is_rtl(), padding-inline etc.
-- [ ] **A391** [OPTIMIERUNG] CSS erst beim Rendern; Block-Vorschau im Editor ungestylt — _R2 Frontend_ (TODO L722; Audit Runde 4)
+- [x] **A391** [OPTIMIERUNG] CSS erst beim Rendern; Block-Vorschau im Editor ungestylt — _R2 Frontend_ (TODO L722; Audit Runde 4)
   - src/PublicEvents.php:162, Modules/Calendar.php:148, blocks/*/block.json: style/editorStyle in block.json; has_shortcode für Shortcodes
-- [ ] **A392** [OPTIMIERUNG] Saalplan heilt sich nach fehlgeschlagenem Erstladen nicht — _R2 Frontend_ (TODO L723; Audit Runde 4)
+- [x] **A392** [OPTIMIERUNG] Saalplan heilt sich nach fehlgeschlagenem Erstladen nicht — _R2 Frontend_ (TODO L723; Audit Runde 4)
   - assets/seating/picker.js:42–55: Im Poll build() nachholen
-- [ ] **A393** [OPTIMIERUNG] Kalender-Links: sichtbarer Text nicht im zugänglichen Namen — _R2 Frontend_ (TODO L724; Audit Runde 4)
+- [x] **A393** [OPTIMIERUNG] Kalender-Links: sichtbarer Text nicht im zugänglichen Namen — _R2 Frontend_ (TODO L724; Audit Runde 4)
   - src/Modules/Calendar.php:266–268: aria-label mit sichtbarem Text beginnen
-- [ ] **A394** [OPTIMIERUNG] Monatskalender mobil ohne Datumskontext, Tabellensemantik verloren — _R2 Frontend_ (TODO L725; Audit Runde 4)
+- [x] **A394** [OPTIMIERUNG] Monatskalender mobil ohne Datumskontext, Tabellensemantik verloren — _R2 Frontend_ (TODO L725; Audit Runde 4)
   - assets/calendar/calendar.css (max-width 600px): Wochentag/Monat sichtbar, Listenstruktur
-- [ ] **A395** [OPTIMIERUNG] Fokusverlust nach asynchronen Portal-/Wartelisten-Aktionen — _R2 Frontend_ (TODO L726; Audit Runde 4)
+- [x] **A395** [OPTIMIERUNG] Fokusverlust nach asynchronen Portal-/Wartelisten-Aktionen — _R2 Frontend_ (TODO L726; Audit Runde 4)
   - src/OrderPortal.php:145ff., assets/checkout.js:571: Meldung mit tabindex=-1 fokussieren
-- [ ] **A396** [OPTIMIERUNG] Admin-Menü-Überschriften im Farbschema „Hell“ unlesbar — _R2 Frontend_ (TODO L727; Audit Runde 4)
+- [x] **A396** [OPTIMIERUNG] Admin-Menü-Überschriften im Farbschema „Hell“ unlesbar — _R2 Frontend_ (TODO L727; Audit Runde 4)
   - src/Admin/Menu.php:93: currentColor bzw. abhängig von admin_color
-- [ ] **A397** [OPTIMIERUNG] [wpcap_passes] ohne Stylesheet, Kauflink, Überschriftenebene — _R2 Frontend_ (TODO L728; Audit Runde 4)
+- [x] **A397** [OPTIMIERUNG] [wpcap_passes] ohne Stylesheet, Kauflink, Überschriftenebene — _R2 Frontend_ (TODO L728; Audit Runde 4)
   - src/Passes/Display.php:141–156: Style einbinden, verlinken, Ebene filterbar
-- [ ] **A398** [OPTIMIERUNG] PWA viewport-fit=cover ohne Safe-Area-Abstände — _R2 Frontend_ (TODO L729; Audit Runde 4)
+- [x] **A398** [OPTIMIERUNG] PWA viewport-fit=cover ohne Safe-Area-Abstände — _R2 Frontend_ (TODO L729; Audit Runde 4)
   - assets/offline-scanner/index.html:5, app.css: env(safe-area-inset-*)
 - [ ] **A399** [OPTIMIERUNG] Nur ein WP-CLI-Befehl — _R2 Support_ (TODO L730; Audit Runde 4)
   - src/CapacityCounters.php:71: wp pass-captain order show, tickets resend, webhook reprocess, queue list/retry/discard, upgrade, secrets, mail test (doctor kam mit A204)
@@ -861,9 +861,9 @@ Gesamt: 262 Aufgaben.
   - src/PublicEvents.php:179: Template-Loader mit Theme-Override für Ticketseite, Portal, Servicebuchung, Warteliste, Mail-Layout
 - [ ] **A408** [OPTIMIERUNG] Hart codierte Laufzeitwerte (Timeouts, Backoff, Claims, Limits, Service-Hold 10 min, A4, Farben) — _R2 Support_ (TODO L739; Audit Runde 4)
   - src/Payments/Webhooks.php:52, Jobs.php:27/58/59, Communications.php:67, Orders.php:96, Rest/Controller.php:324/902/505/525/537, u. a.: Config::get(key, default) mit Filter wpcap_config_{key}; Service-Hold an hold_minutes
-- [ ] **A409** [OPTIMIERUNG] „Zahlungspflichtig bestellen“ und 0,00 € bei kostenlosen Tickets — _R2 UX_ (TODO L740; Audit Runde 4)
+- [x] **A409** [OPTIMIERUNG] „Zahlungspflichtig bestellen“ und 0,00 € bei kostenlosen Tickets — _R2 UX_ (TODO L740; Audit Runde 4)
   - templates/event-card.php:169: „Kostenlos anmelden“, „kostenlos“
-- [ ] **A410** [OPTIMIERUNG] Wartelisten-Anmeldung nennt keine Frist; max vom ersten Typ — _R2 UX_ (TODO L741; Audit Runde 4)
+- [x] **A410** [OPTIMIERUNG] Wartelisten-Anmeldung nennt keine Frist; max vom ersten Typ — _R2 UX_ (TODO L741; Audit Runde 4)
   - templates/event-card.php:177/190: offer_hours einsetzen, max per JS
 - [ ] **A411** [OPTIMIERUNG] Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L742; Audit Runde 4)
   - src/Admin/OrdersPage.php:257/289, TicketsPage.php:207, EventsPage.php:732: WP_List_Table, Bulk „Zahlung bestätigen“, Leerzustand mit „Filter zurücksetzen“
@@ -1047,17 +1047,17 @@ Gesamt: 262 Aufgaben.
   - src/Admin/Forms.php:289–292, Calendar/Ics.php:127, Mail/Types.php:340: Klartext ohne Entities speichern oder an Klartext-Ausgaben dekodieren
 - [x] **A498** [WICHTIG] Längen-/Typverträge Eingabe↔Schema ungetestet; Test-wpdb und Sanitize-Stubs bilden echtes WP nicht ab — _R3 QA_ (TODO L835; Audit Runde 4)
   - tests/integration/bootstrap.php: Fuzz-/Grenzwerttest gegen echten WP-Core (tests/upgrade/.wordpress) für alle öffentlichen Eingänge
-- [ ] **A499** [OPTIMIERUNG] Shortcode/Block geben im RSS-Feed und REST content.rendered das Bestellformular aus — _R3 Editor_ (TODO L836; Audit Runde 4)
+- [x] **A499** [OPTIMIERUNG] Shortcode/Block geben im RSS-Feed und REST content.rendered das Bestellformular aus — _R3 Editor_ (TODO L836; Audit Runde 4)
   - src/PublicEvents.php:147ff., Modules/Calendar.php:149ff.: Im Feed/REST schlanke Terminliste mit Link, per Filter abschaltbar
-- [ ] **A500** [OPTIMIERUNG] checkout.js initialisiert nur beim Laden; per AJAX eingefügte Formulare unvollständig — _R3 Editor_ (TODO L837; Audit Runde 4)
+- [x] **A500** [OPTIMIERUNG] checkout.js initialisiert nur beim Laden; per AJAX eingefügte Formulare unvollständig — _R3 Editor_ (TODO L837; Audit Runde 4)
   - assets/checkout.js:200–201, :449: window.WPCAP.init(root), wpcap:init-Event/MutationObserver, Elementor-Hook
-- [ ] **A501** [OPTIMIERUNG] Blöcke ohne keywords, example, Shortcode-Transform — _R3 Editor_ (TODO L838; Audit Runde 4)
+- [x] **A501** [OPTIMIERUNG] Blöcke ohne keywords, example, Shortcode-Transform — _R3 Editor_ (TODO L838; Audit Runde 4)
   - src/blocks/*/block.json: keywords, example, transforms.from shortcode
-- [ ] **A502** [OPTIMIERUNG] Kalender-Block: Event-ID als Zahlenfeld, limit nicht einstellbar — _R3 Editor_ (TODO L839; Audit Runde 4)
+- [x] **A502** [OPTIMIERUNG] Kalender-Block: Event-ID als Zahlenfeld, limit nicht einstellbar — _R3 Editor_ (TODO L839; Audit Runde 4)
   - src/blocks/calendar/editor.js:21–26, block.json:10–13: Auswahlliste wie Events-Block, limit-Attribut
-- [ ] **A503** [OPTIMIERUNG] Ungültige Shortcode-Attribute fallen still auf „alle Events“; shortcode_atts-Filter-Tag immer Altname — _R3 Editor_ (TODO L840; Audit Runde 4)
+- [x] **A503** [OPTIMIERUNG] Ungültige Shortcode-Attribute fallen still auf „alle Events“; shortcode_atts-Filter-Tag immer Altname — _R3 Editor_ (TODO L840; Audit Runde 4)
   - src/PublicEvents.php:148–152: Hinweis für Redakteure, Filter-Tag aus $tag
-- [ ] **A504** [OPTIMIERUNG] Doppelte IDs auch durch Sidebar/Archiv/doppeltes the_content (erweitert A308) — _R3 Editor_ (TODO L841; Audit Runde 4)
+- [x] **A504** [OPTIMIERUNG] Doppelte IDs auch durch Sidebar/Archiv/doppeltes the_content (erweitert A308) — _R3 Editor_ (TODO L841; Audit Runde 4)
   - templates/event-card.php:12, Modules/Calendar.php:131: wp_unique_id() je Render, Kalender-Anker nur erste Instanz
 - [ ] **A505** [OPTIMIERUNG] Öffentliche REST-GETs mit Live-Daten ohne Cache-Control (erweitert A370) — _R3 Caching_ (TODO L842; Audit Runde 4)
   - src/Rest/Controller.php:21/107/122/176, WalletPasses/WebService.php:83: Zentral no-store für den Namespace
@@ -1250,17 +1250,17 @@ Gesamt: 262 Aufgaben.
   - src/Admin/DevicesPage.php:66–68, Mobile/Devices.php:19/62/189–194, offline-scanner/index.html:26, app.js:672–751: QR als PWA-URL ?pair=CODE, Events automatisch zuweisen, maxlength entfernen
 - [ ] **A598** [OPTIMIERUNG] PWA „Gerät entkoppeln“ trotz nicht synchronisierter Einlässe (erweitert A345) — _R4 Käufer-UX/Einlass_ (TODO L938; Audit Runde 4)
   - assets/offline-scanner/app.js:696–702: Bei pending>0 sperren oder Sync/Export erzwingen
-- [ ] **A599** [OPTIMIERUNG] Ungültige Teilnehmer-E-Mail serverseitig still verworfen — _R4 Käufer-UX/Checkout_ (TODO L939; Audit Runde 4)
+- [x] **A599** [OPTIMIERUNG] Ungültige Teilnehmer-E-Mail serverseitig still verworfen — _R4 Käufer-UX/Checkout_ (TODO L939; Audit Runde 4)
   - src/Orders.php:515–516: 400 mit field=attendees
-- [ ] **A600** [OPTIMIERUNG] Bestätigung ohne Kalendereintrag/Ticketlink — _R4 Käufer-UX/Checkout_ (TODO L940; Audit Runde 4)
+- [x] **A600** [OPTIMIERUNG] Bestätigung ohne Kalendereintrag/Ticketlink — _R4 Käufer-UX/Checkout_ (TODO L940; Audit Runde 4)
   - assets/checkout.js:368–429: .ics-Link sofort, kurzlebiger Ticketlink abwägen
 - [ ] **A601** [OPTIMIERUNG] Überweisungsseite ohne GiroCode und Kopier-Knöpfe — _R4 Käufer-UX/Checkout_ (TODO L941; Audit Runde 4)
   - assets/checkout.js:389–401, Payments/BankTransfer.php:38–59: EPC-QR (GiroCode), Kopieren für IBAN/Verwendungszweck
-- [ ] **A602** [OPTIMIERUNG] Mobile: Summe weit vom Kaufknopf, street-address auf einzeiligem Feld — _R4 Käufer-UX/Checkout_ (TODO L942; Audit Runde 4)
+- [x] **A602** [OPTIMIERUNG] Mobile: Summe weit vom Kaufknopf, street-address auf einzeiligem Feld — _R4 Käufer-UX/Checkout_ (TODO L942; Audit Runde 4)
   - templates/event-card.php:78/94/169, checkout.js:58: Sticky Summe am Button, address-line1
-- [ ] **A603** [OPTIMIERUNG] Browser-Autofill trägt Käufernamen in alle Teilnehmerblöcke (PLAUSIBEL) — _R4 Käufer-UX/Checkout_ (TODO L943; Audit Runde 4)
+- [x] **A603** [OPTIMIERUNG] Browser-Autofill trägt Käufernamen in alle Teilnehmerblöcke (PLAUSIBEL) — _R4 Käufer-UX/Checkout_ (TODO L943; Audit Runde 4)
   - assets/checkout.js:58: autocomplete="section-attN name" bzw. off ab Block 2
-- [ ] **A604** [OPTIMIERUNG] SMS-Nummer „+49 (0)151 …“ wird zu falscher Nummer — _R4 Käufer-UX/Checkout_ (TODO L944; Audit Runde 4)
+- [x] **A604** [OPTIMIERUNG] SMS-Nummer „+49 (0)151 …“ wird zu falscher Nummer — _R4 Käufer-UX/Checkout_ (TODO L944; Audit Runde 4)
   - src/Sms/Service.php:83–91: „(0)“ nach Ländervorwahl entfernen
 - [ ] **A605** [OPTIMIERUNG] Löschfrist für Finanzbelege nach UTC-Jahr statt lokalem Rechnungsjahr (GoBD, ein Jahr zu früh) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L945; Audit Runde 4)
   - src/Privacy/Retention.php:88–92: Stichtag 01.01. 00:00 Site-Zone → UTC (belegt)
@@ -1272,7 +1272,7 @@ Gesamt: 262 Aufgaben.
   - src/Payments/BankTransfer.php:54, Waitlists.php:343/1074: Fristen in Termin-Zone mit Label
 - [ ] **A609** [OPTIMIERUNG] Offline-scanned_at ohne Offset als UTC gelesen (PLAUSIBEL) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L949; Audit Runde 4)
   - src/Mobile/Api.php:185–186, OfflineScanner/Sync.php:44, Admission/Rest.php:67: Offset Pflicht (sonst 400), Doku
-- [ ] **A610** [OPTIMIERUNG] Saalplan bei abgesagtem/vergangenem Termin: nur „Laden fehlgeschlagen“, Formular aktiv — _R4 Zeit/Caching/Lebenszyklus_ (TODO L950; Audit Runde 4)
+- [x] **A610** [OPTIMIERUNG] Saalplan bei abgesagtem/vergangenem Termin: nur „Laden fehlgeschlagen“, Formular aktiv — _R4 Zeit/Caching/Lebenszyklus_ (TODO L950; Audit Runde 4)
   - src/Seating/Reservations.php:442, Seating/Rest.php:25–27, assets/seating/picker.js:55: occurrence_status/sales_open liefern, Picker und Kauf sperren
 - [ ] **A611** [OPTIMIERUNG] Teilnehmer-Export unvollständig (Check-in-Zeit, Sitz, Termin, Bereich, Status bei Pässen) — _R4 Eigen (Deep Dive 3)_ (TODO L951; Audit Runde 4)
   - src/Printing/AttendeeList.php:44–60: Spalten ergänzen, Status aus Einlassprotokoll, nur aktive Felder, streamen

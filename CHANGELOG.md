@@ -7,6 +7,30 @@
 - **Neuer Name „Pass Captain“, Slug `pass-captain` (für WordPress.org).** Bisher „WP Pass Captain“ mit Slug, Ordner und Textdomain `wp-pass-captain` – WordPress.org erlaubt kein „WP“ am Namensanfang, und Sprachpakete brauchen Textdomain = Slug. Geändert: Plugin-Name, Ordner/Hauptdatei `pass-captain/pass-captain.php`, Textdomain und Sprachdateien `pass-captain`, REST-Namensraum `/wp-json/pass-captain/v1/`, Admin-Seiten `page=pass-captain…`, Release-ZIP `pass-captain.zip`; die Partner-Plugins heißen in der Oberfläche „Voucher Captain“ und „Affiliate Captain“. Unverändert: Daten (`wpcap_*`), Rollen, Hooks/Shortcodes, Blocknamen. Kompatibilität (`src/LegacySlug.php`): der alte REST-Namensraum funktioniert weiter (Zahlungs- und SMS-Webhooks, bereits ausgegebene Wallet-Pässe, Apps; Antwort mit `Deprecation`/`Link`, Twilio-Signatur gegen die aufgerufene URL), alte Admin-Links leiten um, eine installierte alte Kopie wird beim Aktivieren abgeschaltet (kein Doppelladen), und solange ihr Ordner existiert, ist die Datenlöschung beim Deinstallieren pausiert, damit das Löschen der alten Kopie keine Daten entfernt. Neuer CI-Test `tests/wp-matrix/rename-takeover.sh` (echte Website mit Vorgänger-Release und Daten → Umstieg). Anleitung: docs/RENAME.md.
 
 ### Auditbefunde Runde 4–6 (Arbeitsliste A263–)
+- Events-Block: Attribute `event`/`occurrence` sind jetzt `integer` statt `number` (A360).
+- Der Fehlerrahmen für ungültige Felder gilt nur noch in den Plugin-Formularen und ohne `!important` (A371).
+- Stylesheets werden vor den Blöcken registriert und in block.json genannt: gestylte Blockvorschau im Editor, CSS bei Shortcodes im `<head>` (A391).
+- Saalplan: Nach fehlgeschlagenem Erstladen versucht der Platzwähler es automatisch erneut (A392).
+- Kalender: Der zugängliche Name der Links beginnt mit dem sichtbaren Text (A393).
+- Monatskalender auf schmalen Bildschirmen als Liste mit Monatstitel und Wochentag je Tag (A394).
+- Bestellportal und Warteliste: Meldungen nach asynchronen Aktionen erhalten den Fokus (A395).
+- Admin-Menü: Bereichsüberschriften in allen Farbschemata lesbar, auch „Hell“ (A396).
+- `[wpcap_passes]` lädt das Stylesheet, verlinkt zum Kauf und übernimmt die Überschriftenebene (A397).
+- Offline-Scanner: Safe-Area-Abstände zu Notch und Home-Indikator; Cache `v9` (A398).
+- Kostenlose Ticketarten zeigen „kostenlos“, der Knopf heißt dann „Kostenlos anmelden“ (A409).
+- Warteliste: Hinweis nennt die Annahmefrist, Höchstmenge folgt der gewählten Ticketart (A410).
+- RSS-Feed und REST-Ausgabe zeigen statt des Bestellformulars eine schlanke Terminliste; Filter `wpcap_slim_output` (A499).
+- Nachgeladene Eventkarten werden automatisch eingerichtet; `window.WPCAP.init()` und Ereignis `wpcap:init` (A500).
+- Blöcke mit Suchbegriffen, Inserter-Vorschau und Umwandlung aus den Shortcodes (A501).
+- Kalender-Block: Event-Auswahlliste statt ID-Feld, Anzahl der Termine einstellbar (A502).
+- Ungültige Shortcode-Attribute fallen nicht mehr still auf „alle Events“ zurück; Hinweis für Redakteur:innen (A503).
+- Termin-Anker und IDs sind über mehrere Listen einer Seite eindeutig (A504).
+- Ungültige Teilnehmer-E-Mail wird am Feld gemeldet statt still verworfen (A599).
+- Bestellbestätigung bietet den Termin sofort als .ics an (A600).
+- Mobil steht die Summe am mitlaufenden Bestellknopf; Straßenfelder mit `address-line1` (A602).
+- Autofill trägt den Käufernamen nicht mehr in alle Teilnehmerblöcke ein (A603).
+- SMS: „+49 (0)151 …“ wird korrekt zu `+49151…` normalisiert (A604).
+- Saalplan bei abgesagtem/vergangenem Termin: Grund wird angezeigt, Kauf gesperrt (A610).
 - Erweiterungspunkte für Add-ons: `wpcap_checkout_validate`, `wpcap_order_created`, `wpcap_mail_recipients`, `wpcap_ticket_pdf_data` (Code und Hilfecode bleiben fest; das Layout kommt aus der Druckvorlage), additive REST-Filter (A331).
 - Öffentliche, versionierte Add-on-API (`wpcap_loaded`, Einstellungs-Tabs, Admin-Seiten, Berichte, Exportformate); `docs/HOOKS.md` trennt öffentlich/intern, CI gleicht die Liste mit `src/` ab (A663).
 - Test „Kern läuft allein“: Kernabläufe ohne Add-on, ohne Netzwerk und ohne Lizenzserver (A664).
