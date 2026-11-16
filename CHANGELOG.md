@@ -1,5 +1,32 @@
 # Änderungsprotokoll
 
+## Unveröffentlicht – Zusammenführung
+
+Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Version 1.5.0, Abschnitt unten) und die Linie `claude/woocommerce-ticket-plugin-8q4m8q` mit ihrer Arbeitsliste (A001–A709). Der zusammengeführte Stand enthält die Funktionen beider Linien, darunter Review- und Workflow-Verträge, Ticketumtausch im Bestellportal, Ticket-PDF im Portal ohne neuen Code und PDFs mit eingebetteter Unicode-Schrift.
+
+### Wichtige Verhaltensänderungen beim Update
+- **Datenbankschema 3.18.0.** Die Aktualisierung erkennt, von welcher Linie eine Website kommt (Option `wpcap_schema_origin`: Audit-Linie, Arbeitslisten-Linie, 1.4 oder Neuinstallation), und führt die einmaligen Datenmigrationen der jeweils anderen Linie genau einmal nach, auch wenn die gespeicherte Versionsnummer schon höher ist. Die doppelten Indizes `wpcap_reservations.expiry` und `wpcap_checkins.created_checkin` werden entfernt. Die Aktualisierung läuft automatisch.
+- **REST-Namensraum `pass-captain/v1`.** Alle Routen, auch Step-up, Audit-Trail, Services und Fiskalisierung, liegen unter `/wp-json/pass-captain/v1/`. Der alte Namensraum `wp-pass-captain/v1` wird über `LegacySlug` weiter beantwortet, mit den Kopfzeilen `Deprecation` und `Link` auf die neue Adresse. Eigene Anbindungen bitte auf den neuen Namensraum umstellen.
+- **Servicebuchungen: ein Buchungsablauf.** Buchungsseite, Slot-Verwaltung, Portal und REST nutzen denselben Ablauf. Umbenannte Fehlercodes: `wpcap_slot_conflict` → `wpcap_slot_resource_busy`, `wpcap_booking_closed` → `wpcap_booking_cutoff`, `wpcap_booking_limit` → `wpcap_booking_customer_limit`, `wpcap_rebook_deadline` → `wpcap_booking_rebook_deadline`, `wpcap_rebook_price` → `wpcap_booking_rebook_price`.
+- **Rücknahme eines Einlasses bei erstatteten oder stornierten Tickets** antwortet mit `wpcap_undo_refunded`; Scanner-Apps und Web-Scanner erhalten das Ergebnis `revoked`.
+- **Kasse:** `register_id` einer Kassensitzung ist die numerische Kasse (`wpcap_boxoffice_registers`); die Registerkennung des Terminals bzw. Fiskalanbieters steht in `fiscal_register_id`. Bestehende Installationen der Audit-Linie werden beim Update umgestellt. Ein Umtausch mit Aufpreis an der Kasse braucht eine geöffnete Kassenschicht (`wpcap_pos_no_session`).
+- **Checkout-Antwort ohne `order_id` und `public_id`.** Die fortlaufende Bestellnummer und die Hälfte des Portallinks gehen nicht mehr an den Browser.
+- **Rechnungs-API (Vertragsversion 1.2.0):** `Api\Invoices::get()` liefert das Leistungsdatum (`service_date`, `service_period` je Rechnung, `service_date`/`service_date_end` je Position).
+
+### Behobene Fehler aus der Zusammenführung
+- **Servicebuchungen:** Nach einer bezahlten Umbuchung auf ein teureres Zeitfenster lief die Verarbeitung der Zusatzbestellung in eine Endlosschleife (doppelte Verarbeitung durch beide Abläufe); sie läuft jetzt einmal.
+- **Servicebuchungen (PAY-9):** Eine Stornierung nach einer Umbuchung auf ein günstigeres Zeitfenster erstattet auch den Rest der ersten Zahlung.
+- **Wallet:** Pässe und Codes wurden nur für das erste Ticket einer Ticketmail erzeugt; wieder für jedes Ticket.
+- **Tickets erneut senden:** Die Hilfscodes der neuen Codes stehen in derselben Mail; es geht keine zweite Mail nur mit Hilfscodes mehr hinaus.
+- **Partner-API:** Die Sperre nach zu vielen fehlgeschlagenen Anmeldungen griff mit dem vereinheitlichten Ratenlimit nie; sie greift wieder, sobald die Grenze erreicht ist.
+- **Steuer:** Ein Termin mit Veranstaltungsort in Österreich wurde im Checkout mit dem deutschen Steuerprofil des Verkäufers berechnet; Termine mit eigenem Veranstaltungsland nutzen dessen Profil (A115).
+- **Check-in-Protokoll:** Die Anwesenheitsanzeige erschien nie, weil die Termine nicht geladen wurden.
+- **Einstellungen:** `Settings::get()` beachtet wieder den Rückfallwert, den der Aufrufer übergibt.
+- **Checkout-Grenze für IPv6:** Ein /48-Netz teilt sich wieder das Vierfache der Grenze offener Reservierungen je Netz (A280).
+- **Mollie:** Das Fälligkeitsdatum einer Banküberweisung folgt dem tatsächlichen (verlängerten) Ende der Reservierung; Mollie nimmt keine Überweisung mehr an, nachdem die Tickets freigegeben wurden.
+- **Erstattungen:** Eine zurückgebuchte Erstattung stellt die bezahlte Bestellung wieder her, wenn danach noch Geld übrig ist, und wird im Buchhaltungsexport am Tag der Rückbuchung zurückgebucht. Eine Erstattung für eine Stripe-, PayPal- oder Mollie-Bestellung, deren Zahlungsanbieter nicht registriert ist (z. B. Mollie-Modul ausgeschaltet), schlägt fehl, statt als manuelle Auszahlung ohne Geldfluss gebucht zu werden.
+- **fiskaltrust:** Die Adapterkennung `fiskaltrust_possystem` wird auf `fiskaltrust_pos` umgestellt; die alte Kennung wird weiter erkannt.
+
 ## 1.5.0 – 2026-11-16
 
 Version 1.5.0 ist die erste Version mit den Erweiterungspunkten für Add-ons (Abschnitt „Add-on-Schnittstellen“ weiter unten). Neu ist die Konstante `WPCAP_CONTRACT_VERSION` (Wert `1.1.0`): Sie nennt die Version des Erweiterungsvertrags, die Tabelle „Versionen der Erweiterungspunkte“ in `docs/EXTENSIONS.md` nennt je Hook die Plugin-Version, seit der er besteht. Add-ons, die diese Hooks brauchen, setzen Pass Captain 1.5.0 voraus.
