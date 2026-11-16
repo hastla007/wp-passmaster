@@ -436,7 +436,7 @@ final class ShiftPage {
 					echo '<a href="' . esc_url( self::url( 'shift', array( 'shift_id' => (int) $shift->session_id ) ) ) . '">#' . (int) $shift->session_id . '</a> · ' . esc_html( Service::user_name( $shift->user_id ) );
 				} elseif ( $handover ) {
 					echo esc_html( sprintf( /* translators: %s: user */ __( 'Übergabe an %s ausstehend', 'pass-captain' ), Service::user_name( $handover->to_user ) ) ) . ' ';
-					Forms::open_form( 'wpcap_pos_handover_cancel', 'wpcap_pos_handover_cancel_' . (int) $handover->handover_id, 'style="display:inline"' );
+					Forms::open_form( 'wpcap_pos_handover_cancel', 'wpcap_pos_handover_cancel_' . (int) $handover->handover_id, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Übergabe abbrechen?', 'pass-captain' ) . '"' );
 					Forms::hidden( 'handover_id', (int) $handover->handover_id );
 					echo '<input type="text" name="reason" size="12" required placeholder="' . esc_attr__( 'Grund', 'pass-captain' ) . '"> <button class="button-link-delete">' . esc_html__( 'Übergabe stornieren', 'pass-captain' ) . '</button></form>';
 				} else {

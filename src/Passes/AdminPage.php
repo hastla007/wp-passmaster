@@ -267,7 +267,7 @@ final class AdminPage {
 		submit_button( __( 'Pass speichern', 'pass-captain' ) );
 		echo '</form>';
 		if ( ! Definitions::sold_units( $type_id ) ) {
-			Forms::open_form( 'wpcap_pass_remove' );
+			Forms::open_form( 'wpcap_pass_remove', null, 'data-wpcap-confirm="' . esc_attr__( 'Pass-Kontingent entfernen?', 'pass-captain' ) . '"' );
 			Forms::hidden( 'ticket_type_id', $type_id );
 			echo '<p><button class="button" type="submit">' . esc_html__( 'In normale Ticketart umwandeln', 'pass-captain' ) . '</button></p></form>';
 		}

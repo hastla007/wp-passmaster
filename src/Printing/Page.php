@@ -288,7 +288,7 @@ final class Page {
 				<a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_print_batch_download', 'batch' => (int) $b->batch_id ), admin_url( 'admin-post.php' ) ), 'wpcap_print_batch_download_' . (int) $b->batch_id ) ); ?>"><?php echo esc_html( 'ready' === $b->status && (int) $b->with_codes ? __( 'Herunterladen und Codes aktivieren', 'pass-captain' ) : __( 'Herunterladen', 'pass-captain' ) ); ?></a>
 			<?php endif; ?>
 			<?php if ( in_array( $b->status, array( 'rendering', 'ready' ), true ) ) : ?>
-				<?php Forms::open_form( 'wpcap_print_batch_cancel', null, 'style="display:inline"' ); Forms::hidden( 'batch', (int) $b->batch_id ); ?>
+				<?php Forms::open_form( 'wpcap_print_batch_cancel', null, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Druckauftrag abbrechen?', 'pass-captain' ) . '"' ); Forms::hidden( 'batch', (int) $b->batch_id ); ?>
 				<button class="button"><?php esc_html_e( 'Abbrechen', 'pass-captain' ); ?></button></form>
 			<?php endif; ?>
 			</td></tr>

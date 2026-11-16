@@ -521,7 +521,7 @@ final class Forms {
 
 	/** Opens an admin-post form with action and nonce fields. */
 	public static function open_form( $action, $nonce_action = null, $attrs = '' ) {
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"' . ( $attrs ? ' ' . $attrs : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput -- $attrs is a literal from callers.
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"' . ( $attrs ? ' ' . $attrs : '' ) . '>'; // phpcs:ignore WordPress.Security.EscapeOutput -- $attrs is a literal from callers (translated parts through esc_attr__()).
 		echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">';
 		wp_nonce_field( null === $nonce_action ? $action : $nonce_action );
 	}

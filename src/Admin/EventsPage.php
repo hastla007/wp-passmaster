@@ -1701,7 +1701,7 @@ final class EventsPage {
 					<td><?php echo esc_html( Forms::user_label( $row->user_id ) ); ?></td>
 					<td><?php echo esc_html( $cap_labels[ $row->capability ] ?? $row->capability ); ?></td>
 					<td>
-						<?php Forms::open_form( 'wpcap_remove_staff', null, 'style="display:inline"' ); Forms::hidden( 'event_id', $event->event_id ); Forms::hidden( 'user_id', $row->user_id ); Forms::hidden( 'capability', $row->capability ); ?>
+						<?php Forms::open_form( 'wpcap_remove_staff', null, 'style="display:inline" data-wpcap-confirm="' . esc_attr__( 'Person aus dem Personal dieses Events entfernen?', 'pass-captain' ) . '"' ); Forms::hidden( 'event_id', $event->event_id ); Forms::hidden( 'user_id', $row->user_id ); Forms::hidden( 'capability', $row->capability ); ?>
 						<button class="button-link-delete button-link" type="submit"><?php esc_html_e( 'Entfernen', 'pass-captain' ); ?></button>
 						</form>
 					</td>

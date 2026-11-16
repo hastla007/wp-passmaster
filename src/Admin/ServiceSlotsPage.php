@@ -437,7 +437,7 @@ final class ServiceSlotsPage {
 			if ( (int) $slot->booking_rows ) {
 				echo '<a href="' . esc_url( self::url( $event_id, array( 'slot' => $sid ) ) . '#wpcap-service-bookings' ) . '">' . esc_html__( 'Buchungen', 'pass-captain' ) . '</a>';
 			} else {
-				Forms::open_form( 'wpcap_service_slot_delete', 'wpcap_service_slot_delete_' . $sid );
+				Forms::open_form( 'wpcap_service_slot_delete', 'wpcap_service_slot_delete_' . $sid, 'data-wpcap-confirm="' . esc_attr__( 'Zeitfenster löschen? Das geht nur, solange es keine Buchungen gibt.', 'pass-captain' ) . '"' );
 				Forms::hidden( 'slot_id', $sid );
 				Forms::hidden( 'event_id', $event_id );
 				echo '<button class="button-link button-link-delete">' . esc_html__( 'Löschen', 'pass-captain' ) . '</button></form>';
