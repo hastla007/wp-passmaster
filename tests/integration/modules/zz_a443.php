@@ -12,6 +12,9 @@ global $wpdb;
 $p = $wpdb->prefix;
 echo "A443: offline package throttle re-checked under the lock\n";
 
+// Earlier test files switch the throttle off (interval 0); this test needs the default 10 s.
+$x2_a443_interval = $GLOBALS['wpcap_test_filters']['wpcap_offline_refresh_interval'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_offline_refresh_interval'] = 10;
 $x2_a443_type = make_type( 5 );
 $x2_a443_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$x2_a443_type" );
 $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_offline_state (occurrence_id,epoch,version,refreshed_at) VALUES (%d,%s,3,%s)", $x2_a443_occ, 'abcdefabcdef0123', gmdate( 'Y-m-d H:i:s', time() - 3600 ) ) );
@@ -42,3 +45,4 @@ unset( $GLOBALS['wpcap_test_query_log'] );
 check( 'A443: an expired snapshot is still rebuilt', $x2_a443_rebuilt );
 $wpdb->query( "DELETE FROM {$p}wpcap_offline_state WHERE occurrence_id=$x2_a443_occ" );
 $wpdb->query( "DELETE FROM {$p}wpcap_offline_entries WHERE occurrence_id=$x2_a443_occ" );
+if ( null === $x2_a443_interval ) { unset( $GLOBALS['wpcap_test_filters']['wpcap_offline_refresh_interval'] ); } else { $GLOBALS['wpcap_test_filters']['wpcap_offline_refresh_interval'] = $x2_a443_interval; }
