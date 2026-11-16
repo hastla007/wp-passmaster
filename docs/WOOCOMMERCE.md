@@ -24,6 +24,14 @@ Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nu
 | Erstattung (`woocommerce_order_refunded`) | je WooCommerce-Erstattung genau einmal: Erstattung im Pass-Captain-Erstattungsjournal buchen (Zeile in `wpcap_refunds`, erstatteter Betrag der Bestellung, Tickets als erstattet markiert und – sofern gültig – widerrufen, Kontingent frei, Gutschrift, `wpcap_refund_completed`). Mengen wählen die Tickets (gültige zuerst), der Betrag ist der Brutto-Erstattungsbetrag der Ticketpositionen; reine Betragserstattungen werden anteilig den Tickets zugerechnet. Benötigt `Refunds::record_external()` im Kern; ohne diese Methode werden wie bisher nur die erstatteten Tickets widerrufen |
 | `refunded` | war die Bestellung nie bezahlt, wird sie nur storniert (keine Erstattung gebucht). Sonst: offene WooCommerce-Erstattungen zuerst buchen (WooCommerce setzt den Status vor `woocommerce_order_refunded`), dann alle noch gültigen Tickets widerrufen, Kontingent freigeben |
 
+**Datenbank ausgelastet (A344):** Scheitert das Verbuchen einer Zahlung (Reservieren, Zahlung bestätigen,
+Tickets ausstellen) oder einer Erstattung an einem vorübergehenden Datenbankfehler (Deadlock, Lock-Timeout,
+Verbindungsabbruch; `Errors::is_busy()`), plant der Adapter einen Job ein – `woocommerce_paid_sync` je
+WooCommerce-Bestellung bzw. `woocommerce_refund_sync` je WooCommerce-Erstattungs-ID – und vermerkt das einmal
+in der Bestellnotiz. Der Job wiederholt die Synchronisierung mit Backoff (bis zum Dead Letter unter
+**Betrieb**); beide Wege sind idempotent (Tickets je Einheit einmal, Erstattung je WooCommerce-Erstattung
+einmal). Endgültige Fehler (z. B. `needs_review`) werden wie bisher nur notiert.
+
 Eingecheckte Tickets werden bei Storno oder Erstattung nicht verändert und bleiben als Einlasshistorie erhalten; die Bestellnotiz weist darauf hin.
 
 ### Serien-Preisstufen und gemeinsame Kontingente

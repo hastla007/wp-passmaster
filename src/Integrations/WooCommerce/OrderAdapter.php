@@ -99,6 +99,8 @@ final class OrderAdapter {
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'sync_refund' ), 20, 2 );
 		add_action( 'wpcap_exchange_refund_external', array( __CLASS__, 'note_exchange_refund' ), 10, 4 );
 		add_action( 'woocommerce_order_status_refunded', array( __CLASS__, 'sync_fully_refunded_order' ), 20 );
+		// Retries of a payment confirmation or refund that hit a busy database (A344).
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 
 		// Display and admin tools.
 		add_action( 'woocommerce_order_details_after_order_table', array( __CLASS__, 'render_customer_tickets' ) );
@@ -600,28 +602,42 @@ final class OrderAdapter {
 	/* Payment and lifecycle                                               */
 	/* ------------------------------------------------------------------ */
 
-	/** Converts the hold and issues tickets once WooCommerce reports a paid order. */
-	public static function sync_paid_order( $wc_order_id, $force = false ) {
+	/**
+	 * Converts the hold and issues tickets once WooCommerce reports a paid order.
+	 *
+	 * A transient database error (Errors::is_busy()) is not final (A344): the job
+	 * `woocommerce_paid_sync` repeats the sync with backoff, so a paid WooCommerce order does not
+	 * stay without tickets (and its hold does not lapse unnoticed).
+	 *
+	 * @param int  $wc_order_id WooCommerce order.
+	 * @param bool $force       Retry a needs_review order (order action).
+	 * @param bool $from_job    Called by the retry job (no new job, no repeated note).
+	 * @return true|\WP_Error|null Null when there is nothing to do.
+	 */
+	public static function sync_paid_order( $wc_order_id, $force = false, $from_job = false ) {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( ! $wc_order ) {
-			return;
+			return null;
 		}
 		$core_id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
 		if ( ! $core_id ) {
 			// Orders created in the admin or before the adapter was active have no hold yet.
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) ) {
+				if ( self::retry_later( $core_id, 'paid', $wc_order, 0, $from_job ) ) {
+					return $core_id;
+				}
 				/* translators: %s: error message */
 				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'pass-captain' ), \PassCaptain\Redact::text( $core_id->get_error_message(), false ) ) );
-				return;
+				return $core_id;
 			}
 			if ( ! $core_id ) {
-				return;
+				return null;
 			}
 		}
 		$core = Orders::get( $core_id );
 		if ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) ) {
-			return;
+			return true;
 		}
 		/**
 		 * Lets another plugin hold the ticket issuance of a paid order, e.g. Voucher Captain while a gift card
@@ -634,7 +650,7 @@ final class OrderAdapter {
 		if ( apply_filters( 'wpcap_woocommerce_hold_fulfilment', false, $wc_order ) ) {
 			Orders::extend_hold( $core_id, (int) apply_filters( 'wpcap_woocommerce_deferred_hold_minutes', 14 * DAY_IN_SECONDS / MINUTE_IN_SECONDS, $wc_order ) );
 			$wc_order->add_order_note( __( 'Pass Captain: Die Tickets bleiben reserviert und werden nach der Prüfung der Bestellung ausgestellt.', 'pass-captain' ) );
-			return;
+			return null;
 		}
 		if ( self::defers_issuance( $wc_order ) ) {
 			// Cash on delivery & co.: "processing" means "to be delivered", not "paid". Keep the hold.
@@ -644,20 +660,23 @@ final class OrderAdapter {
 				$wc_order->save();
 				$wc_order->add_order_note( __( 'Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird.', 'pass-captain' ) );
 			}
-			return;
+			return null;
 		}
 		if ( $core && 'needs_review' === $core->status && ! $force ) {
 			// Already flagged and reported; only the explicit "re-issue" order action retries.
-			return;
+			return null;
 		}
 		if ( $core && 'cancelled' === $core->status ) {
 			// A failed payment released the hold; the customer has paid on a later attempt.
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) || ! $core_id ) {
+				if ( is_wp_error( $core_id ) && self::retry_later( $core_id, 'paid', $wc_order, 0, $from_job ) ) {
+					return $core_id;
+				}
 				$message = is_wp_error( $core_id ) ? \PassCaptain\Redact::text( $core_id->get_error_message(), false ) : '';
 				/* translators: %s: error message */
 				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s', 'pass-captain' ), $message ) );
-				return;
+				return is_wp_error( $core_id ) ? $core_id : null;
 			}
 		}
 		$had_tickets = (bool) Orders::tickets_for_order( $core_id );
@@ -667,9 +686,12 @@ final class OrderAdapter {
 		}
 		$result = Orders::confirm_external_payment( $core_id, 'woocommerce:' . $wc_order->get_id() );
 		if ( is_wp_error( $result ) ) {
+			if ( self::retry_later( $result, 'paid', $wc_order, 0, $from_job ) ) {
+				return $result;
+			}
 			/* translators: %s: error message */
 			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Keine Tickets ausgestellt – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
-			return;
+			return $result;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
 		/* translators: %d: ticket count */
@@ -683,6 +705,65 @@ final class OrderAdapter {
 			$wc_order->delete_meta_data( self::ATTENDEE_META );
 			$wc_order->save();
 		}
+		return true;
+	}
+
+	/**
+	 * A344: queues the retry job for a transient database error (busy) and notes it once on the
+	 * WooCommerce order. Returns false for any other (final) error: the caller notes it as before.
+	 *
+	 * @param \WP_Error $error     Error of the sync.
+	 * @param string    $kind      'paid' (job woocommerce_paid_sync) or 'refund' (woocommerce_refund_sync).
+	 * @param \WC_Order $wc_order  WooCommerce order.
+	 * @param int       $refund_id WooCommerce refund (kind 'refund').
+	 * @param bool      $from_job  The job retries itself (backoff): no second job, no second note.
+	 */
+	private static function retry_later( \WP_Error $error, $kind, $wc_order, $refund_id = 0, $from_job = false ) {
+		if ( ! self::is_transient( $error ) ) {
+			return false;
+		}
+		if ( $from_job ) {
+			return true;
+		}
+		$wc_id   = (int) $wc_order->get_id();
+		$type    = 'refund' === $kind ? 'woocommerce_refund_sync' : 'woocommerce_paid_sync';
+		$key     = 'refund' === $kind ? 'woocommerce-refund-sync|' . absint( $refund_id ) : 'woocommerce-paid-sync|' . $wc_id;
+		$payload = 'refund' === $kind ? array( 'wc_order_id' => $wc_id, 'refund_id' => absint( $refund_id ) ) : array( 'wc_order_id' => $wc_id );
+		$queued  = \PassCaptain\Jobs::enqueue( $key . '|' . time(), $type, $payload, gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+		if ( true !== $queued ) {
+			return false; // Not even the job could be stored: the caller's note asks for a manual retry.
+		}
+		$wc_order->add_order_note(
+			'refund' === $kind
+				? __( 'Pass Captain: Die Erstattung konnte gerade nicht übernommen werden (Datenbank ausgelastet); sie wird automatisch erneut versucht.', 'pass-captain' )
+				: __( 'Pass Captain: Die Zahlung konnte gerade nicht verbucht werden (Datenbank ausgelastet); die Tickets werden automatisch erneut ausgestellt.', 'pass-captain' )
+		);
+		return true;
+	}
+
+	/**
+	 * Busy database (Errors::is_busy()) or a refund row that could not be written
+	 * (`wpcap_refund_save` of Refunds::record_external(), a database failure as well).
+	 */
+	private static function is_transient( \WP_Error $error ) {
+		return \PassCaptain\Errors::is_busy( $error ) || 'wpcap_refund_save' === $error->get_error_code();
+	}
+
+	/**
+	 * Job handler (wpcap_process_job): `woocommerce_paid_sync` and `woocommerce_refund_sync` repeat a
+	 * sync that hit a busy database. Both syncs are idempotent (tickets only once, refunds per
+	 * WooCommerce refund id). True = done (or final error), false = retry with backoff.
+	 */
+	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( 'woocommerce_paid_sync' === $type ) {
+			$result = self::sync_paid_order( absint( $payload['wc_order_id'] ?? 0 ), false, true );
+			return ! ( is_wp_error( $result ) && self::is_transient( $result ) );
+		}
+		if ( 'woocommerce_refund_sync' === $type ) {
+			$result = self::sync_refund( absint( $payload['wc_order_id'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ), true );
+			return ! ( is_wp_error( $result ) && self::is_transient( $result ) );
+		}
+		return $handled;
 	}
 
 	/**
@@ -750,16 +831,15 @@ final class OrderAdapter {
 	 * wpcap_refunds row, order refunded amount, refunded/revoked tickets, released capacity, credit
 	 * note and the wpcap_refund_completed hook. Without it only the refunded tickets are revoked.
 	 */
-	public static function sync_refund( $wc_order_id, $refund_id ) {
+	public static function sync_refund( $wc_order_id, $refund_id, $from_job = false ) {
 		$core_id = self::core_order_id( $wc_order_id );
 		$refund  = wc_get_order( absint( $refund_id ) );
 		if ( ! $core_id || ! $refund || $refund->get_meta( self::REFUND_META, true ) ) {
-			return;
+			return null;
 		}
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( $wc_order && self::can_record_refunds() ) {
-			self::record_refund( $wc_order, $refund, $core_id );
-			return;
+			return self::record_refund( $wc_order, $refund, $core_id, $from_job );
 		}
 		$revoked = 0;
 		$kept    = 0;
@@ -771,10 +851,17 @@ final class OrderAdapter {
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
 		self::note_refund( $wc_order, $revoked, $kept );
+		return true;
 	}
 
-	/** Records a WooCommerce refund through the core refund ledger. */
-	private static function record_refund( $wc_order, $refund, $core_id ) {
+	/**
+	 * Records a WooCommerce refund through the core refund ledger. A busy database queues the job
+	 * `woocommerce_refund_sync` for this WooCommerce refund id (A344); the core booking is idempotent
+	 * per refund (`woocommerce-refund-{id}`).
+	 *
+	 * @return true|\WP_Error
+	 */
+	private static function record_refund( $wc_order, $refund, $core_id, $from_job = false ) {
 		global $wpdb;
 		$plan = self::refund_plan( $wc_order, $refund, $core_id );
 		if ( $plan['ticket_ids'] || $plan['amount_minor'] > 0 ) {
@@ -794,17 +881,21 @@ final class OrderAdapter {
 				)
 			);
 			if ( is_wp_error( $result ) ) {
+				if ( $wc_order && self::retry_later( $result, 'refund', $wc_order, (int) $refund->get_id(), $from_job ) ) {
+					return $result;
+				}
 				if ( $wc_order ) {
 					/* translators: %s: error message */
 					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
 				}
-				return;
+				return $result;
 			}
 			$requested = $plan['final'] ? count( $plan['ticket_ids'] ) : array_sum( $plan['quantities'] );
 			self::note_refund( $wc_order, $valid, max( 0, $requested - $valid ) );
 		}
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
+		return true;
 	}
 
 	/** Whether the core can record refunds executed outside Pass Captain. */
