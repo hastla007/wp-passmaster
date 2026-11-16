@@ -146,13 +146,32 @@ final class Calendar {
 
 	public static function render_shortcode( $atts = array() ) {
 		$atts = function_exists( 'shortcode_atts' ) ? shortcode_atts( array( 'view' => 'month', 'event' => 0, 'limit' => 50 ), (array) $atts, 'wp_pass_captain_calendar' ) : array_merge( array( 'view' => 'month', 'event' => 0, 'limit' => 50 ), (array) $atts );
+		return self::render_view( 'list' === $atts['view'] ? 'list' : 'month', absint( $atts['event'] ), absint( $atts['limit'] ), false );
+	}
+
+	/**
+	 * Render callback of the block wp-pass-captain/calendar (render.php, A449): the block wrapper
+	 * attributes (block class, custom CSS class, alignment, spacing) go on the root element.
+	 */
+	public static function render_block( array $attributes ) {
+		return self::render_view( ( $attributes['view'] ?? '' ) === 'list' ? 'list' : 'month', absint( $attributes['eventId'] ?? 0 ), 50, true );
+	}
+
+	/** Month or list view of the shortcode or block ($block: with the block wrapper attributes). */
+	private static function render_view( $view, $event_id, $limit, $block ) {
 		if ( function_exists( 'wp_enqueue_style' ) ) {
 			wp_enqueue_style( 'wpcap-calendar', WPCAP_URL . 'assets/calendar/calendar.css', array(), WPCAP_VERSION );
 		}
-		$view = 'list' === $atts['view'] ? 'list' : 'month';
+		$wrapper = $block && function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-calendar wpcap-calendar-' . $view ) ) : '';
+		if ( 'list' === $view ) { return self::render_list( $event_id, $limit, $wrapper ); }
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- navigation only.
 		$month = isset( $_GET['wpcap_month'] ) ? sanitize_text_field( wp_unslash( $_GET['wpcap_month'] ) ) : '';
-		return 'list' === $view ? self::render_list( absint( $atts['event'] ), absint( $atts['limit'] ) ) : self::render_month( $month, absint( $atts['event'] ) );
+		return self::render_month( $month, $event_id, $wrapper );
+	}
+
+	/** Opening tag of the root element: block wrapper attributes or the plain classes. */
+	private static function open_root( $wrapper, $view ) {
+		return '<div ' . ( '' !== $wrapper ? $wrapper : 'class="wpcap-calendar wpcap-calendar-' . $view . '"' ) . '>';
 	}
 
 	/** Local date/time of an occurrence in its own timezone. */
@@ -194,9 +213,9 @@ final class Calendar {
 		return $out;
 	}
 
-	public static function render_list( $event_id = 0, $limit = 50 ) {
+	public static function render_list( $event_id = 0, $limit = 50, $wrapper = '' ) {
 		$rows = self::occurrences( current_time( 'mysql', true ), '9999-12-31 00:00:00', $event_id, $limit ?: 50, self::show_cancelled() );
-		$out = '<div class="wpcap-calendar wpcap-calendar-list">';
+		$out = self::open_root( (string) $wrapper, 'list' );
 		if ( ! $rows ) {
 			return $out . '<p>' . esc_html__( 'Aktuell sind keine Termine geplant.', 'pass-captain' ) . '</p></div>';
 		}
@@ -217,7 +236,7 @@ final class Calendar {
 	}
 
 	/** Accessible month grid (table with caption, column headers and per-day lists). */
-	public static function render_month( $month = '', $event_id = 0 ) {
+	public static function render_month( $month = '', $event_id = 0, $wrapper = '' ) {
 		$tz_name = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
 		try {
 			$tz = new \DateTimeZone( $tz_name ?: 'UTC' );
@@ -244,7 +263,7 @@ final class Calendar {
 		$days = array( __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ), __( 'Sonntag', 'pass-captain' ) );
 		$title = $months[ (int) $first->format( 'n' ) ] . ' ' . $first->format( 'Y' );
 		$base = function_exists( 'get_permalink' ) ? (string) get_permalink() : home_url( '/' );
-		$out = '<div class="wpcap-calendar wpcap-calendar-month">';
+		$out = self::open_root( (string) $wrapper, 'month' );
 		$out .= '<nav class="wpcap-cal-nav" aria-label="' . esc_attr__( 'Monat wechseln', 'pass-captain' ) . '">';
 		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $prev->format( 'Y-m' ), $base ) ) . '" rel="prev">' . esc_html__( '← Vorheriger Monat', 'pass-captain' ) . '</a> ';
 		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $next->format( 'Y-m' ), $base ) ) . '" rel="next">' . esc_html__( 'Nächster Monat →', 'pass-captain' ) . '</a></nav>';

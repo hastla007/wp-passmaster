@@ -190,8 +190,28 @@ final class PublicEvents {
 	 * optionally only of one event or one occurrence (also the block attributes).
 	 */
 	public static function render_shortcode( $atts = array() ) {
-		global $wpdb;
 		$atts = shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50 ), is_array( $atts ) ? $atts : array(), 'wp_pass_captain_events' );
+		return self::render_listing( $atts, '' );
+	}
+
+	/**
+	 * Render callback of the block wp-pass-captain/events (render.php, A449): the block wrapper
+	 * attributes (block class, custom CSS class, alignment, spacing) go on the root element, so
+	 * theme.json block styles and the classes set in the editor apply on the website too.
+	 */
+	public static function render_block( array $attributes ) {
+		$wrapper = function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-events' ) ) : '';
+		return self::render_listing( array( 'event' => absint( $attributes['event'] ?? 0 ), 'occurrence' => absint( $attributes['occurrence'] ?? 0 ), 'limit' => 50 ), $wrapper );
+	}
+
+	/**
+	 * Event listing of the shortcode and the block.
+	 *
+	 * @param array  $atts    event, occurrence, limit.
+	 * @param string $wrapper Attributes of the root element ('' = class="wpcap-events").
+	 */
+	private static function render_listing( array $atts, $wrapper ) {
+		global $wpdb;
 		// Upcoming occurrences, plus running ones (multi-day) with a ticket type still on sale (A535).
 		$where = ' AND ' . Occurrence::listable_sql( 'o', Clock::mysql() );
 		$args = array();
@@ -212,7 +232,7 @@ final class PublicEvents {
 		wp_enqueue_style( 'wpcap-public' );
 		ob_start();
 		?>
-		<div class="wpcap-events">
+		<div <?php echo '' !== $wrapper ? $wrapper : 'class="wpcap-events"'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_block_wrapper_attributes() escapes. ?>>
 			<?php foreach ( $rows as $event ) :
 				$types = $listing[ (int) $event->occurrence_id ] ?? array();
 				if ( ! $types ) {

@@ -1125,6 +1125,12 @@ Scheitert eine solche Erstattung (z. B. Anbieter nicht erreichbar, eine andere E
 
 Die Ticket-IDs einer Pass-Absage werden je Bestellung einzeln gelesen (keine `GROUP_CONCAT`-Liste, die bei vielen Tickets an `group_concat_max_len` abgeschnitten würde).
 
+## Blöcke „Pass Captain Events“ und „Pass Captain Kalender“
+
+Die Blöcke `wp-pass-captain/events` und `wp-pass-captain/calendar` behalten ihre Namen (sie stehen im gespeicherten Beitragsinhalt, siehe [RENAME.md](RENAME.md)); Shortcodes `[wpcap_events]` und `[wpcap_calendar]` liefern dieselbe Ausgabe.
+
+- **Block-Unterstützungen (A449):** Beide Blöcke unterstützen eigene CSS-Klassen, die Ausrichtung „weit“/„volle Breite“ und Außen-/Innenabstand. Auf der Website trägt das äußere Element die Block-Wrapper-Attribute (`wp-block-wp-pass-captain-events` bzw. `wp-block-wp-pass-captain-calendar`, eigene Klasse, `alignwide`/`alignfull`, Abstände) zusätzlich zu `wpcap-events` bzw. `wpcap-calendar wpcap-calendar-{month|list}`; Blockstile aus `theme.json` (`styles.blocks["wp-pass-captain/events"]`) greifen damit auch auf der Website. Die Shortcodes geben weiterhin nur die eigenen Klassen aus.
+
 ## Servicebuchungen (Ressourcen, Zeitfenster, Leistungserbringer)
 
 Service-Zeitfenster (Bootsschule, Werkstatt, Beratung) werden unter **Events → Service-Zeitfenster** je Event verwaltet; Kund:innen buchen sie auf einer Seite mit dem Shortcode `[wpcap_service_booking]` bzw. dem Block „Pass Captain Terminbuchung“ (siehe unten) oder direkt über die REST-API (`POST /service-slots/{slot_id}/bookings`).

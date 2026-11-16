@@ -1,4 +1,5 @@
 {
+  "$schema": "https://schemas.wp.org/trunk/block.json",
   "apiVersion": 3,
   "name": "wp-pass-captain/calendar",
   "version": "0.1.0",
@@ -12,7 +13,11 @@
     "eventId": { "type": "integer", "default": 0 }
   },
   "supports": {
-    "html": false
+    "html": false,
+    "className": true,
+    "customClassName": true,
+    "align": [ "wide", "full" ],
+    "spacing": { "margin": true, "padding": true }
   },
   "render": "file:./render.php",
   "editorScript": "file:./editor.js"

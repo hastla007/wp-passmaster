@@ -1,4 +1,7 @@
 <?php
-/** Dynamic block server renderer. Attributes: event, occurrence (0 = all). */
+/**
+ * Dynamic block server renderer. Attributes: event, occurrence (0 = all). The block wrapper
+ * attributes (block class, custom class, alignment, spacing) go on the root element (A449).
+ */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-echo \PassCaptain\PublicEvents::render_shortcode( array( 'event' => absint( $attributes['event'] ?? 0 ), 'occurrence' => absint( $attributes['occurrence'] ?? 0 ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+echo \PassCaptain\PublicEvents::render_block( (array) $attributes ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- renderer escapes all output.
