@@ -169,13 +169,25 @@
 	}
 	// Local date/time of a server timestamp: time only for today, else date and time.
 	const locale = document.documentElement.lang || undefined;
-	function when(iso) {
+	// A516: with the occurrence's time zone (ticket answer "timezone") the time is shown there, with the
+	// zone abbreviation when it differs from the device zone; "today" is judged in that zone too.
+	function when(iso, zone) {
 		const date = new Date(iso);
 		if (!iso || isNaN(date.getTime())) return '';
+		const tz = zone ? { timeZone: zone } : {};
 		try {
-			return date.toDateString() === new Date().toDateString()
-				? date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-				: date.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
+			const day = function (d) { return new Intl.DateTimeFormat('en-CA', Object.assign({ year: 'numeric', month: '2-digit', day: '2-digit' }, tz)).format(d); };
+			let text = day(date) === day(new Date())
+				? date.toLocaleTimeString(locale, Object.assign({ hour: '2-digit', minute: '2-digit' }, tz))
+				: date.toLocaleString(locale, Object.assign({ dateStyle: 'short', timeStyle: 'short' }, tz));
+			if (zone) {
+				const offset = function (z) { return new Intl.DateTimeFormat('en-US', Object.assign({ timeZoneName: 'longOffset' }, z ? { timeZone: z } : {})).format(date).split(' ').pop(); };
+				if (offset(zone) !== offset('')) {
+					const part = new Intl.DateTimeFormat(locale, { timeZone: zone, timeZoneName: 'short' }).formatToParts(date).filter(function (p) { return p.type === 'timeZoneName'; })[0];
+					text += ' ' + (part ? part.value : zone);
+				}
+			}
+			return text;
 		} catch (ignore) { return date.toLocaleString(); }
 	}
 	// Lines about earlier admissions ("Erstmals eingelassen", "Bereits eingelassen um 19:42 · Bereich: Nord").
@@ -184,10 +196,10 @@
 		if (!data) return lines;
 		if (admitted) {
 			if (data.first_admission) lines.push(t.firstAdmission || 'First admission');
-			else if (data.admissions > 1 && data.first_checked_in_at) lines.push((t.reentry || '%1$s %2$s').replace('%1$s', String(data.admissions)).replace('%2$s', when(data.first_checked_in_at)));
+			else if (data.admissions > 1 && data.first_checked_in_at) lines.push((t.reentry || '%1$s %2$s').replace('%1$s', String(data.admissions)).replace('%2$s', when(data.first_checked_in_at, data.timezone)));
 		} else if (data.first_checked_in_at) {
-			let line = (t.alreadyAt || '%s').replace('%s', when(data.first_checked_in_at));
-			if (data.last_checked_in_at && data.admissions > 1) line += ', ' + (t.lastAt || '%s').replace('%s', when(data.last_checked_in_at));
+			let line = (t.alreadyAt || '%s').replace('%s', when(data.first_checked_in_at, data.timezone));
+			if (data.last_checked_in_at && data.admissions > 1) line += ', ' + (t.lastAt || '%s').replace('%s', when(data.last_checked_in_at, data.timezone));
 			if (data.last_checked_in_area) line += ' · ' + (t.atArea || '%s').replace('%s', data.last_checked_in_area);
 			lines.push(line);
 		}

@@ -151,9 +151,32 @@
 		var b = crypto.getRandomValues(new Uint8Array(16));
 		return hex(b.buffer);
 	}
-	function fmtTime(iso) {
+	// A516: times of an occurrence are shown in the occurrence's time zone (not the device's); the zone
+	// abbreviation is added when it differs from the device zone at that moment.
+	function fmtTime(iso, zone) {
 		var d = new Date(iso);
-		return isNaN(d) ? '—' : d.toLocaleString(I18N.locale, { dateStyle: 'short', timeStyle: 'short' });
+		if (isNaN(d)) { return '—'; }
+		var opts = { dateStyle: 'short', timeStyle: 'short' };
+		if (zone) {
+			try {
+				var device = new Intl.DateTimeFormat('en-US', { timeZoneName: 'longOffset' }).format(d);
+				var there = new Intl.DateTimeFormat('en-US', { timeZoneName: 'longOffset', timeZone: zone }).format(d);
+				var text = d.toLocaleString(I18N.locale, { dateStyle: 'short', timeStyle: 'short', timeZone: zone });
+				if (device.split(' ').pop() !== there.split(' ').pop()) {
+					var part = new Intl.DateTimeFormat(I18N.locale, { timeZone: zone, timeZoneName: 'short' }).formatToParts(d).filter(function (p) { return 'timeZoneName' === p.type; })[0];
+					text += ' ' + (part ? part.value : zone);
+				}
+				return text;
+			} catch (e) { /* unknown zone: device time below */ }
+		}
+		return d.toLocaleString(I18N.locale, opts);
+	}
+	/** Time zone of an occurrence (package manifest or assignment list), '' when unknown. */
+	function zoneOf(occurrenceId) {
+		var p = state.packages[occurrenceId];
+		if (p && p.meta && p.meta.occurrence && p.meta.occurrence.timezone) { return p.meta.occurrence.timezone; }
+		var o = (state.occurrences || []).filter(function (x) { return Number(x.occurrence_id) === Number(occurrenceId); })[0];
+		return o && o.timezone ? o.timezone : '';
 	}
 	function el(tag, text, cls) {
 		var e = document.createElement(tag);
@@ -268,10 +291,10 @@
 		if (!res) { return ''; }
 		if (res.ok) {
 			if (res.first_admission) { return t('Erstmals eingelassen'); }
-			return res.admissions > 1 && res.first_checked_in_at ? t('Einlass Nr. %1 – zuerst eingelassen um %2', res.admissions, fmtTime(res.first_checked_in_at)) : '';
+			return res.admissions > 1 && res.first_checked_in_at ? t('Einlass Nr. %1 – zuerst eingelassen um %2', res.admissions, fmtTime(res.first_checked_in_at, zoneOf(state.selected))) : '';
 		}
 		if (!res.first_checked_in_at) { return ''; }
-		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at)) + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : '');
+		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at, zoneOf(state.selected))) + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : '');
 	}
 	function onlineDetail(res) {
 		// A543: refusals carry the server's reason ("Code ersetzt: … übertragen …", "widerrufen: umgetauscht").
@@ -486,14 +509,14 @@
 			id = Number(id);
 			var p = state.packages[id];
 			if (!list.some(function (o) { return o.occurrence_id === id; }) && p.meta) {
-				list.push({ occurrence_id: id, event: p.meta.event.name, starts_at: p.meta.occurrence.starts_at });
+				list.push({ occurrence_id: id, event: p.meta.event.name, starts_at: p.meta.occurrence.starts_at, timezone: p.meta.occurrence.timezone || '' });
 			}
 		});
 		if (!list.length) {
 			sel.appendChild(el('option', t('Keine zugewiesenen Termine'), ''));
 		}
 		list.forEach(function (o) {
-			var opt = el('option', o.event + ' – ' + fmtTime(o.starts_at));
+			var opt = el('option', o.event + ' – ' + fmtTime(o.starts_at, o.timezone || zoneOf(o.occurrence_id)));
 			opt.value = String(o.occurrence_id);
 			sel.appendChild(opt);
 		});
@@ -521,9 +544,9 @@
 			var valid = 0;
 			entry.index.forEach(function (t) { if ('revoked' !== t.s) { valid++; } });
 			var lines = [
-				m.event.name + ' · ' + fmtTime(m.occurrence.starts_at),
-				t('%1 Tickets im Paket · signiert (Ed25519, Schlüssel %2) · Stand %3', valid, m.key_id, fmtTime(m.issued_at)),
-				t('Gültig bis %1 · Doppelscans: %2', fmtTime(m.expires_at), 'first_sync_wins' === m.rules.duplicate_policy ? t('erste Synchronisierung gewinnt') : t('zur Prüfung'))
+				m.event.name + ' · ' + fmtTime(m.occurrence.starts_at, m.occurrence.timezone),
+				t('%1 Tickets im Paket · signiert (Ed25519, Schlüssel %2) · Stand %3', valid, m.key_id, fmtTime(m.issued_at, m.occurrence.timezone)),
+				t('Gültig bis %1 · Doppelscans: %2', fmtTime(m.expires_at, m.occurrence.timezone), 'first_sync_wins' === m.rules.duplicate_policy ? t('erste Synchronisierung gewinnt') : t('zur Prüfung'))
 			];
 			lines.forEach(function (l) { box.appendChild(el('div', l)); });
 			renderAreas(m);
@@ -813,7 +836,7 @@
 		var v = occ ? counterValues(state.serverCounts[occ], localCounts(state.packages[occ], state.admitted[occ]), state.pendingIn[occ] || 0) : null;
 		if (!v) { box.hidden = true; return; }
 		box.hidden = false;
-		var note = 'package' === v.source ? t('laut Prüfpaket') : (Date.now() - v.at > 90000 ? t('Stand %1', fmtTime(new Date(v.at).toISOString())) : '');
+		var note = 'package' === v.source ? t('laut Prüfpaket') : (Date.now() - v.at > 90000 ? t('Stand %1', fmtTime(new Date(v.at).toISOString(), zoneOf(occ))) : '');
 		box.textContent = t('Eingecheckt: %1 / %2', v.admitted, v.total) + (note ? ' · ' + note : '');
 	}
 	/**
@@ -958,7 +981,7 @@
 			log.textContent = '';
 			entries.slice(0, 25).forEach(function (e) {
 				var li = el('li');
-				li.appendChild(el('span', fmtTime(e.scanned_at) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.decision)));
+				li.appendChild(el('span', fmtTime(e.scanned_at, zoneOf(e.occurrence_id)) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.decision)));
 				var tag = 'undone' === e.decision ? el('span', t('zurückgenommen'), 'tag warn') : !e.synced ? el('span', t('wartet auf Sync'), 'tag warn') : e.server ? el('span', e.server.conflict ? t('Konflikt') : t('synchronisiert'), 'tag ' + (e.server.conflict ? 'bad' : 'ok')) : el('span', e.mode, 'tag');
 				li.appendChild(tag);
 				log.appendChild(li);
@@ -968,7 +991,7 @@
 			var withConflict = entries.filter(function (e) { return e.server && e.server.conflict; });
 			withConflict.forEach(function (e) {
 				var li = el('li');
-				var text = fmtTime(e.scanned_at) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.server.result);
+				var text = fmtTime(e.scanned_at, zoneOf(e.occurrence_id)) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.server.result);
 				if (e.server.offline_expired) { text += ' · ' + t('Offline-Dauer überschritten'); }
 				li.appendChild(el('span', text));
 				li.appendChild(el('span', e.server.auto_resolved ? t('automatisch geklärt') : t('zur Prüfung (#%1)', e.server.conflict_id), 'tag ' + (e.server.auto_resolved ? 'ok' : 'bad')));
@@ -1226,7 +1249,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts, searchPackage: searchPackage, searchTickets: searchTickets, checkInResult: checkInResult, holdTimes: holdTimes, shortCode: shortCode, showResult: showResult };
+	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts, searchPackage: searchPackage, searchTickets: searchTickets, checkInResult: checkInResult, holdTimes: holdTimes, shortCode: shortCode, showResult: showResult, fmtTime: fmtTime };
 
 	boot();
 }());

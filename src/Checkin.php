@@ -671,7 +671,11 @@ final class Checkin {
 		if ( '' !== $doors ) { $message .= ' ' . $doors . '.'; }
 		$data = array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id );
 		// "Already admitted at 19:42 (Nordeingang)": staff can tell a double scan from a copied ticket.
-		if ( in_array( $result, self::REJECTED_ADMISSION, true ) ) { $data += self::history( (int) $found['ticket_id'] ); }
+		if ( in_array( $result, self::REJECTED_ADMISSION, true ) ) {
+			$data += self::history( (int) $found['ticket_id'] );
+			// A516: scanners show these times in the occurrence's time zone.
+			$data['timezone'] = (string) ( $found['timezone'] ?? '' );
+		}
 		$data += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
 		if ( ! empty( $found['help_code'] ) ) { $data['help_code'] = true; }
 		if ( $revocation ) { $data['revoked_reason'] = (string) $revocation->reason; }
@@ -688,7 +692,7 @@ final class Checkin {
 	}
 
 	/** Scanner fields passed on to clients with a refused scan (besides result, message, event, ticket). */
-	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code', 'revoked_reason', 'replaced_reason', 'replaced_at' );
+	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code', 'revoked_reason', 'replaced_reason', 'replaced_at', 'timezone' );
 
 	/**
 	 * Admission history of a ticket for the scanner result: first and latest admission (UTC, ISO

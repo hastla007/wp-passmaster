@@ -234,6 +234,11 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 - **Clock:** the app takes an offset from the server time of the keys endpoint, to limit
   manipulation of the device clock. Package expiry is still enforced on the device, so a rooted
   device can bypass it. The server then flags old scans (`offline_expired`).
+- **Time zone (A516):** start times, package dates, earlier admissions and logged scans are shown in
+  the occurrence's time zone (`occurrence.timezone` of the package, `timezone` of the assignment
+  list), not the device's; the zone abbreviation is added when it differs from the device zone. The
+  web scanner does the same with the `timezone` of the ticket answer (also sent with refusals that
+  carry an admission history).
 
 Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v9`). Assets are also refreshed in the background
 (stale-while-revalidate).
