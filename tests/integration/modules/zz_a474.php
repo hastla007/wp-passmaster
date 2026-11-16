@@ -32,6 +32,8 @@ check( 'A474: the .pkpass of the ticket mail is built in the buyer locale', arra
 check( 'A474: locale restored after the mail', ! $GLOBALS['wpmt_locale_stack'] );
 $a474_tid = (int) tickets( $a474_r['order_id'] )[0]->ticket_id;
 Service::flush();
+// The buyer saved the ticket to Google Wallet: only then is the object kept up to date (A566).
+PassCaptain\WalletPasses\Store::mark_remote( 'google', PassCaptain\WalletPasses\Store::passes( $a474_tid, 'google' )[0]->serial_number );
 $a474_seen['pass'] = array();
 wpr7_served_pass( $a474_tid );
 check( 'A474: pass rebuilt for a device (request without locale) in the buyer locale', array( 'en_US' ) === ( $a474_seen['pass'] ?? array() ) );

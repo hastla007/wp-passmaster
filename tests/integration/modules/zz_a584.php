@@ -42,6 +42,8 @@ check( 'A584: changed key is critical in Site Health and shown as admin notice',
 ob_start(); Health::admin_notice(); $a584_notice = ob_get_clean();
 check( 'A584: admin notice names the remedy', false !== strpos( $a584_notice, 'WPCAP_WALLET_ENCRYPTION_KEY' ) && false !== strpos( $a584_notice, 'notice-error' ) );
 
+// The buyer saved the ticket to Google Wallet: only then is the object kept up to date (A566).
+Store::mark_remote( 'google', Store::passes( $a584_tid, 'google' )[0]->serial_number );
 // A change (e.g. new location) bumps the tag; the device must keep its valid pass instead of a voided one.
 $a584_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$a584_type" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET location='Anderswo' WHERE occurrence_id=$a584_occ" );

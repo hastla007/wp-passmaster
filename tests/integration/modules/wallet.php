@@ -227,6 +227,8 @@ http_push( array( 'access_token' => 'ya29.test', 'expires_in' => 3600 ), 200, 'o
 http_push( array( 'id' => 'x' ), 200, 'eventTicketObject/' );
 $wpw_apns->calls = array();
 $wpw_apns->statuses = array( 200, 410 );
+// A566: only objects the buyer saved (save link used) exist at Google and are updated.
+Store::mark_remote( 'google', $object['id'] );
 $rev = PassCaptain\Admin\TicketsPage::revoke_ticket( array( 'ticket_id' => $ticket->ticket_id, 'reason' => 'Test' ) );
 check( 'revoke (regression): nothing is sent while the request is still running', 0 === count( $wpw_apns->calls ) );
 Service::flush();
@@ -243,7 +245,7 @@ $assertion = json_decode( $ac, true );
 check( 'google OAuth: JWT bearer grant signed with the service account key', 'urn:ietf:params:oauth:grant-type:jwt-bearer' === ( $tq['grant_type'] ?? '' ) && 'https://www.googleapis.com/auth/wallet_object.issuer' === $assertion['scope'] && 'https://oauth2.googleapis.com/token' === $assertion['aud'] && 1 === openssl_verify( implode( '.', array_slice( explode( '.', $tq['assertion'] ), 0, 2 ) ), $as, $g_pub, OPENSSL_ALGO_SHA256 ) );
 $patch = http_requests( 'eventTicketObject/' )[0] ?? array();
 $patch_body = json_decode( $patch['body'] ?? '{}', true );
-check( 'google: object PATCHed to INACTIVE without barcode', 'PATCH' === ( $patch['method'] ?? '' ) && 'Bearer ya29.test' === $patch['headers']['Authorization'] && 'INACTIVE' === $patch_body['state'] && ! isset( $patch_body['barcode'] ) && false !== strpos( $patch['url'], rawurlencode( $object['id'] ) ) );
+check( 'google: saved object replaced (PUT) as INACTIVE without barcode and holder data (A566)', 'PUT' === ( $patch['method'] ?? '' ) && 'Bearer ya29.test' === $patch['headers']['Authorization'] && 'INACTIVE' === $patch_body['state'] && ! isset( $patch_body['barcode'] ) && ! isset( $patch_body['ticketHolderName'] ) && ! isset( $patch_body['seatInfo'] ) && false !== strpos( $patch['url'], rawurlencode( $object['id'] ) ) );
 $after = WebService::serials( wpw_rest( 'GET', array( 'device' => 'devA1b2c3', 'pass_type' => 'pass.test.wpcap', 'passesUpdatedSince' => $last ) ) );
 $vj = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $serial ), $auth ) ) );
 check( 'revoke: serial reported as updated, pass served voided without barcode', 200 === $after->get_status() && array( $serial ) === $after->get_data()['serialNumbers'] && true === $vj['voided'] && ! isset( $vj['barcodes'] ) );
@@ -272,9 +274,10 @@ $rj = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type
 check( 'reschedule: devices of all passes pushed and pass shows the new local time', 2 === count( $wpw_apns->calls ) && '2027-03-08T18:00:00+01:00' === $rj['relevantDate'] && $code2 === $rj['barcodes'][0]['message'] );
 $class_patch = json_decode( http_requests( 'eventTicketClass/' )[0]['body'] ?? '{}', true );
 $posts = array_filter( http_requests( 'walletobjects' ), static fn( $q ) => 'POST' === $q['method'] );
-check( 'reschedule: Google class PATCHed with new date; missing object inserted', '2027-03-08T18:00:00+01:00' === ( $class_patch['dateTime']['start'] ?? '' ) && 2 === count( $posts ) );
+check( 'reschedule: Google class PATCHed with new date; an object the buyer never saved is neither sent nor created (A566)', '2027-03-08T18:00:00+01:00' === ( $class_patch['dateTime']['start'] ?? '' ) && 0 === count( $posts ) && ! http_requests( 'eventTicketObject/' . $obj2_id ) );
 
 /* ---- Code rotation (resend): new generation, old devices get a voided pass ---- */
+Store::mark_remote( 'google', $obj2_id ); // The buyer saved the first generation.
 http_reset();
 http_push( array(), 200, 'eventTicketObject/' );
 http_push( array(), 404, 'eventTicketObject/' );
@@ -301,7 +304,7 @@ $new_pass = wpw_pass_json( WebService::download( wpw_rest( 'GET', array( 'serial
 check( 'rotation: new download link serves the new code', $new_code === ( $new_pass['barcodes'][0]['message'] ?? '' ) && $auth2 !== $new_pass['authenticationToken'] );
 $google_rows = Store::passes( $ticket2->ticket_id, 'google' );
 $obj_reqs = http_requests( 'eventTicketObject/' );
-check( 'rotation: old Google object retired (INACTIVE), new generation object created', 2 === count( $google_rows ) && 'retired' === $google_rows[0]->status && str_ends_with( $google_rows[1]->serial_number, '_g2' ) && 'INACTIVE' === ( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['state'] ?? '' ) );
+check( 'rotation: old Google object retired (INACTIVE, replaced without data), new generation pass row created', 2 === count( $google_rows ) && 'retired' === $google_rows[0]->status && str_ends_with( $google_rows[1]->serial_number, '_g2' ) && 'PUT' === ( $obj_reqs[0]['method'] ?? '' ) && 'INACTIVE' === ( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['state'] ?? '' ) && ! isset( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['barcode'] ) );
 check( 'rotation: repeated hook call for the same code is idempotent', array() === Service::on_code_rotated( $ticket2->ticket_id, $new_code ) );
 $wpdb->insert( "{$p}wpcap_ticket_assignments", array( 'ticket_id' => $ticket2->ticket_id, 'buyer_email' => 'wpw2@example.com', 'attendee_email' => 'neu@example.com', 'attendee_name' => 'Neue Inhaberin', 'status' => 'assigned', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 Store::register_device( 'devOld', 'pass.test.wpcap', $ticket2->public_id, 'dd00dd00dd00dd00', hash( 'sha256', $auth2 ) ); // a device still on the old generation
@@ -343,6 +346,8 @@ foreach ( tickets( $r3['order_id'] ) as $i => $t3 ) {
 	$pj3 = json_decode( wpw_unzip( $mail3['files'][ 'ticket-' . substr( $t3->public_id, 0, 12 ) . '.pkpass' ] ?? '' )['pass.json'] ?? '{}', true );
 	WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devF' . $i, 'pass_type' => 'pass.test.wpcap', 'serial' => $t3->public_id ), $pj3['authenticationToken'] ?? '', array( 'pushToken' => 'f0f0f0f0f0f0f00' . $i ) ) );
 }
+// One buyer saved a ticket of this date to Google Wallet: the class exists there (A566).
+Store::mark_remote( 'google', Store::passes( (int) tickets( $r3['order_id'] )[0]->ticket_id, 'google' )[0]->serial_number );
 http_reset();
 for ( $i = 0; $i < 4; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
 $jobs_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='wallet_sync'" );

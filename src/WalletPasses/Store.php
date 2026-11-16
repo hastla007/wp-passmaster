@@ -154,6 +154,29 @@ final class Store {
 		return (int) $wpdb->insert_id;
 	}
 
+	/** Whether wpcap_wallet_passes has `remote_at` (schema 3.10.18, A566; deferred upgrades). */
+	public static function remote_ready() {
+		return \PassCaptain\ServiceBookings::has_column( 'wpcap_wallet_passes', 'remote_at' );
+	}
+
+	/**
+	 * Whether the provider holds this pass (A566): a Google object exists only after the buyer used the
+	 * save link. Without the column (deferred upgrade) every pass counts as held, as before.
+	 *
+	 * @param object|array $pass wpcap_wallet_passes row.
+	 */
+	public static function is_remote( $pass ) {
+		$pass = (array) $pass;
+		return ! self::remote_ready() || ! empty( $pass['remote_at'] );
+	}
+
+	/** Marks a pass as held by the provider (the buyer's save link was used; first time only). */
+	public static function mark_remote( $provider, $serial ) {
+		global $wpdb;
+		if ( ! self::remote_ready() ) { return false; }
+		return (bool) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'wallet_passes' ) . ' SET remote_at=%s WHERE provider=%s AND serial_number=%s AND remote_at IS NULL', current_time( 'mysql', true ), (string) $provider, (string) $serial ) );
+	}
+
 	public static function set_pass_status( $wallet_pass_id, $status ) {
 		global $wpdb;
 		$wpdb->update( self::t( 'wallet_passes' ), array( 'status' => $status, 'updated_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );

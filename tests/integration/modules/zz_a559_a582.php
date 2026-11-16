@@ -23,6 +23,8 @@ $a559_ticket = tickets( $a559_r['order_id'] )[0];
 $a559_tid = (int) $a559_ticket->ticket_id;
 Service::flush();
 check( 'A559 setup: passes issued for the ticket', 2 === count( Store::passes( $a559_tid ) ) && wpr7_served_pass( $a559_tid ) );
+// The buyer saved the ticket to Google Wallet: only then is the object kept up to date (A566).
+Store::mark_remote( 'google', Store::passes( $a559_tid, 'google' )[0]->serial_number );
 $a559_tag = static function () use ( $a559_tid ) { return (int) Store::state( $a559_tid )->update_tag; };
 $a559_aux = static function ( $pj, $group = 'secondaryFields' ) { return array_column( $pj['eventTicket'][ $group ] ?? array(), 'value', 'key' ); };
 

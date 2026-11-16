@@ -414,6 +414,7 @@ final class Installer {
 				provider_ref varchar(190) NOT NULL DEFAULT '',
 				serial_number varchar(190) NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				remote_at datetime NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (wallet_pass_id),
 				UNIQUE KEY serial_number (serial_number),
@@ -914,6 +915,7 @@ final class Installer {
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 		self::align_legacy_stripe_mode( $previous_version );
 		self::migrate_site_scopes( $previous_version );
+		self::mark_legacy_google_passes( $previous_version );
 		// A568: the legal texts in force at the upgrade become the first archived versions.
 		LegalVersions::archive_all();
 
@@ -1162,6 +1164,20 @@ final class Installer {
 		$previous = (string) strtok( (string) $previous_version, '+' );
 		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.19', '<' ) ) { return 0; }
 		return Access::migrate_legacy_scopes();
+	}
+
+	/**
+	 * Schema 3.10.21 (A566): Google Wallet objects are only updated when they exist at Google
+	 * (`remote_at`, set when the buyer uses the save link). Whether passes from before this schema
+	 * were saved is unknown, so they keep being updated (never created) as before.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function mark_legacy_google_passes( $previous_version ) {
+		global $wpdb;
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.21', '<' ) || ! WalletPasses\Store::remote_ready() ) { return 0; }
+		return (int) $wpdb->query( "UPDATE {$wpdb->prefix}wpcap_wallet_passes SET remote_at=updated_at WHERE provider='google' AND remote_at IS NULL" );
 	}
 
 	/**

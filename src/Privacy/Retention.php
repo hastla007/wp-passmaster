@@ -257,7 +257,16 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT ta.assignment_id FROM $from INNER JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE o.starts_at<%s AND $end<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'') LIMIT %d", $cutoff, $cutoff, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "UPDATE {$p}wpcap_ticket_assignments SET attendee_name='',attendee_email='' WHERE assignment_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$tickets = array_map( 'absint', (array) $wpdb->get_col( "SELECT ticket_id FROM {$p}wpcap_ticket_assignments WHERE assignment_id IN (" . self::in_list( $ids ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$count = (int) $wpdb->query( "UPDATE {$p}wpcap_ticket_assignments SET attendee_name='',attendee_email='' WHERE assignment_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				/**
+				 * Attendee names/e-mails of these tickets were cleared by the retention run (A566):
+				 * modules that copied them elsewhere (wallet passes) remove them there too.
+				 *
+				 * @param int[] $ticket_ids
+				 */
+				if ( $tickets ) { do_action( 'wpcap_privacy_attendees_cleared', $tickets ); }
+				return $count;
 			}
 		);
 		$count += self::loop(

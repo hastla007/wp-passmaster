@@ -45,6 +45,8 @@ nur `origins` im Speichern-Link passen; das nimmt das Plugin immer aus der aktue
 
 **Speichern-Link (A583):** Die Mail enthält keinen Google-JWT mehr, sondern einen kurzen, signierten Link des Plugins (`/wp-json/pass-captain/v1/wallet/google/save?t={ticket}&sig=…`, HMAC über Ticket und aktuelle Pass-Generation – nach einer Code-Erneuerung ungültig). Erst beim Klick legt das Plugin Klasse und Objekt über die Wallet-API an (`POST`, bei 409 `PATCH` auf den aktuellen Stand) und leitet mit `302` auf `https://pay.google.com/gp/v/save/{jwt}` weiter; der JWT enthält dann nur noch die Objekt-IDs (gemessen rund 720 Zeichen für ein Ticket und rund 1.470 für 8 Tickets, statt über 1.800 für ein einzelnes vollständiges Objekt). Daten gehen so erst auf Klick der Kundin an Google. Ist die API nicht erreichbar, bekommt ein einzelnes Ticket als Rückfall den vollständigen JWT; für mehrere Tickets erscheint ein Hinweis (503), es später erneut zu versuchen.
 
+**Nur gespeicherte Objekte werden aktualisiert (A566):** Mit dem Klick auf den Speichern-Link merkt sich das Plugin, dass das Objekt bei Google existiert (`wpcap_wallet_passes.remote_at`, Schema 3.10.18). Vorher sendet keine Aktualisierung (Terminänderung, Namenskorrektur, Widerruf, Code-Erneuerung) Ticketdaten an Google, und auch die Klasse eines Termins wird erst aktualisiert, wenn dort jemand ein Ticket gespeichert hat. Antwortet Google auf eine Aktualisierung mit 404 (Objekt gelöscht), legt das Plugin es **nicht** neu an. Wird ein gespeichertes Ticket ungültig (Widerruf, Erstattung, Absage, Datenlöschung), ersetzt das Plugin das Objekt (`PUT`) durch eines mit `state` `INACTIVE` **ohne** Barcode, Inhabername und Platz; ältere Generationen nach einer Code-Erneuerung ebenso. Leert der Aufbewahrungslauf die Teilnehmernamen (`wpcap_privacy_attendees_cleared`) oder wird ein Name entfernt, wird `ticketHolderName` im gespeicherten Objekt geleert. Bei der Datenschutz-Löschung einer Bestellung (`wpcap_privacy_order_anonymized`) werden alle ihre Pässe abgeglichen. Google-Pässe aus der Zeit vor Schema 3.10.18 gelten beim Upgrade als möglicherweise gespeichert und werden weiter aktualisiert (aber nie neu angelegt).
+
 ## Was im Pass steht
 
 | | Apple (`pass.json`) | Google |
@@ -64,7 +66,7 @@ nur `origins` im Speichern-Link passen; das nimmt das Plugin immer aus der aktue
 
 ## Speicherung des Ticketcodes (Abwägung)
 
-Der Kern speichert vom Ticketcode nur den SHA-256-Hash; im Klartext existiert er nur beim Versand der Ticketmail (`wpcap_ticket_mail`). Ein Wallet-Pass muss aber später neu gebaut werden können (Apple fragt nach einem Push den aktuellen Pass ab; Google-Objekte werden per API aktualisiert oder angelegt).
+Der Kern speichert vom Ticketcode nur den SHA-256-Hash; im Klartext existiert er nur beim Versand der Ticketmail (`wpcap_ticket_mail`). Ein Wallet-Pass muss aber später neu gebaut werden können (Apple fragt nach einem Push den aktuellen Pass ab; gespeicherte Google-Objekte werden per API aktualisiert).
 
 Das Modul speichert deshalb pro Ticket in `wpcap_wallet_state` den **Ticketcode und das Apple-Authentifizierungstoken verschlüsselt** (`sodium_crypto_secretbox`, XSalsa20-Poly1305). Der Schlüssel wird per HMAC aus `WPCAP_WALLET_ENCRYPTION_KEY` (falls in `wp-config.php` definiert, empfohlen) oder sonst aus `wp_salt( 'auth' )` abgeleitet. Für die Prüfung von Geräteanfragen wird nur der Hash des Tokens verwendet.
 
@@ -79,7 +81,7 @@ Konsequenzen:
 
 | Auslöser | Hook | Wirkung |
 |---|---|---|
-| Ticket widerrufen | `wpcap_ticket_revoked` | Apple: Pass `voided`, ohne Barcode; Google: Objekt `INACTIVE` |
+| Ticket widerrufen | `wpcap_ticket_revoked` | Apple: Pass `voided`, ohne Barcode; Google (nur gespeicherte Objekte): Objekt ersetzt, `INACTIVE`, ohne Barcode, Name und Platz |
 | Termin verschoben | `wpcap_occurrence_rescheduled` | neues Datum im Pass; Google-Klasse `dateTime` aktualisiert |
 | Ort, Ende, Einlass, Status eines Termins geändert (A559) | `wpcap_occurrence_changed` | Pass und Google-Klasse (Ort, `dateTime`) neu; Apple zeigt „Neuer Ort“/„Neuer Einlass“ als Änderungshinweis |
 | Eventname geändert (A582) | `wpcap_event_updated` | alle Pässe des Events und die Google-Klassen seiner Termine |
@@ -90,7 +92,7 @@ Konsequenzen:
 | Ticketcode erneuert | siehe unten | neue Pass-Generation |
 | Ticket umgetauscht (A490) | `wpcap_ticket_revoked` (altes Ticket), `wpcap_ticket_code_issued` (neues Ticket) | alter Pass ungültig; neues Ticket bekommt Pässe, die Umtauschmail die Wallet-Links |
 
-Jede Änderung wird über einen Fingerabdruck der passrelevanten Daten erkannt (keine Pushes ohne Änderung). Hooks wie `wpcap_ticket_revoked` feuern pro Ticket (z. B. hundertfach bei einer Terminabsage); das Modul sammelt die betroffenen Tickets und Termine deshalb nur ein und verarbeitet sie **einmal am Ende des Requests** (`shutdown`). Dabei wird immer zuerst ein Job `wallet_sync` in `PassCaptain\Jobs` angelegt (Wiederholung mit Backoff), damit ein Timeout keine Aktualisierung verliert; bis zu 20 Tickets werden danach sofort verarbeitet (APNs-Push an alle registrierten Geräte, Google-`PATCH`; fehlt das Google-Objekt noch, werden Klasse und Objekt per `POST` angelegt, damit ein später benutzter Speichern-Link nicht den alten Stand anlegt) und der Job bei Erfolg abgeschlossen. Bei verschobenen oder abgesagten Terminen wird die Google-Klasse (Datum, Ort, Hinweis „Abgesagt“) immer aktualisiert, auch wenn die Tickets schon vorher über `wpcap_ticket_revoked` abgeglichen wurden. APNs-Antwort 410 entfernt die Geräte-Registrierung.
+Jede Änderung wird über einen Fingerabdruck der passrelevanten Daten erkannt (keine Pushes ohne Änderung). Hooks wie `wpcap_ticket_revoked` feuern pro Ticket (z. B. hundertfach bei einer Terminabsage); das Modul sammelt die betroffenen Tickets und Termine deshalb nur ein und verarbeitet sie **einmal am Ende des Requests** (`shutdown`). Dabei wird immer zuerst ein Job `wallet_sync` in `PassCaptain\Jobs` angelegt (Wiederholung mit Backoff), damit ein Timeout keine Aktualisierung verliert; bis zu 20 Tickets werden danach sofort verarbeitet (APNs-Push an alle registrierten Geräte, Google-`PATCH` bzw. `PUT` nur für Objekte, die die Kundin gespeichert hat; fehlt ein Objekt, wird es nicht angelegt – der Speichern-Link legt beim Klick ohnehin den aktuellen Stand an, A566) und der Job bei Erfolg abgeschlossen. Bei verschobenen oder abgesagten Terminen wird die Google-Klasse (Datum, Ort, Hinweis „Abgesagt“) immer aktualisiert, auch wenn die Tickets schon vorher über `wpcap_ticket_revoked` abgeglichen wurden. APNs-Antwort 410 entfernt die Geräte-Registrierung.
 
 ### Ticketcode-Erneuerung (erneuter Versand, Übertragung, Teilnehmerzuweisung, Neudruck)
 

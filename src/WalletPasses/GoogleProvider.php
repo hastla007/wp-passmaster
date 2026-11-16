@@ -116,8 +116,10 @@ class GoogleProvider implements WalletProvider {
 		// A584: code not decryptable but ticket valid – a PATCH without state/barcode keeps both as saved.
 		if ( Service::code_unavailable( $ticket ) ) { unset( $object['state'] ); }
 		if ( $active ) { $object['barcode'] = array( 'type' => 'QR_CODE', 'value' => (string) $ticket['code'], 'alternateText' => substr( (string) $ticket['public_id'], 0, 8 ) ); }
-		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $object['seatInfo'] = array( 'seat' => self::text( $ticket['seat'], $ticket ) ); }
-		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $object['ticketHolderName'] = (string) $ticket['attendee_name']; }
+		// A566: an invalid ticket carries no personal data (like Apple's voided older generations).
+		$personal = $active || Service::code_unavailable( $ticket );
+		if ( $personal && '' !== (string) ( $ticket['seat'] ?? '' ) ) { $object['seatInfo'] = array( 'seat' => self::text( $ticket['seat'], $ticket ) ); }
+		if ( $personal && '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $object['ticketHolderName'] = (string) $ticket['attendee_name']; }
 		return apply_filters( 'wpcap_wallet_google_object', $object, $ticket );
 	}
 
@@ -169,6 +171,8 @@ class GoogleProvider implements WalletProvider {
 				$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
 			}
 			if ( 200 !== $res['code'] ) { return ''; }
+			// A566: from now on the object exists at Google and is kept up to date.
+			Store::mark_remote( 'google', (string) $object['id'] );
 			$objects[] = array( 'id' => $object['id'] ); // Inserted already: the ID is enough (no class, no data).
 		}
 		return $objects ? $this->signed_save_url( array( 'eventTicketObjects' => $objects ) ) : '';
@@ -186,26 +190,33 @@ class GoogleProvider implements WalletProvider {
 		return $this->pass_ref( $ticket );
 	}
 
-	/** Brings the object to the current state; creates it when the customer has not saved it yet. */
+	/**
+	 * Brings an object the buyer saved to the current state (A566). Nothing is sent for an object
+	 * that was never saved (the save link inserts the current state on the buyer's click), and an
+	 * object missing at Google is never created by a sync. A valid ticket is PATCHed (a code that
+	 * cannot be decrypted keeps state and barcode, A584); an invalid one is replaced (PUT) without
+	 * barcode, holder name and seat, so Google keeps no personal data of it.
+	 */
 	public function update_pass( array $ticket, array $provider_pass ) {
+		if ( ! Store::is_remote( $provider_pass ) ) { return true; } // A566: never saved by the buyer – nothing at Google.
 		// The ids stored at issuance (A475): the object id and its class, whatever home_url() is now.
 		if ( ! empty( $provider_pass['provider_ref'] ) ) { $ticket['google_class_id'] = (string) $provider_pass['provider_ref']; }
 		$object = $this->object_payload( $ticket );
 		if ( ! empty( $provider_pass['serial_number'] ) ) { $object['id'] = (string) $provider_pass['serial_number']; }
-		$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
-		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'object ' . self::short_id( $object['id'] ) ); }
-		if ( 404 === $res['code'] && Service::code_unavailable( $ticket ) ) { return true; } // Never create an object without its code.
-		if ( 404 === $res['code'] ) {
-			$class = $this->api( 'POST', 'eventTicketClass', $this->class_payload( $ticket ) );
-			if ( ! in_array( $class['code'], array( 200, 409 ), true ) ) { return false; }
-			$res = $this->api( 'POST', 'eventTicketObject', $object );
-			return in_array( $res['code'], array( 200, 409 ), true );
-		}
-		return 200 === $res['code'];
+		$invalid = isset( $object['state'] ) && 'INACTIVE' === $object['state'];
+		// A PATCH keeps fields it does not name: a removed holder name (retention, correction) is cleared explicitly.
+		if ( ! $invalid && ! isset( $object['ticketHolderName'] ) ) { $object['ticketHolderName'] = ''; }
+		$res = $this->api( $invalid ? 'PUT' : 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
+		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'object ' . self::short_id( $object['id'] ) ); } // Never re-created (A566).
+		return in_array( $res['code'], array( 200, 404 ), true );
 	}
 
+	/** Older generation after a code rotation: replaced by an inactive object without data (A566). */
 	public function revoke_pass( array $provider_pass ) {
-		$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( (string) $provider_pass['serial_number'] ), array( 'state' => 'INACTIVE' ) );
+		if ( ! Store::is_remote( $provider_pass ) ) { return true; }
+		$object = array( 'id' => (string) $provider_pass['serial_number'], 'state' => 'INACTIVE' );
+		if ( '' !== (string) ( $provider_pass['provider_ref'] ?? '' ) ) { $object['classId'] = (string) $provider_pass['provider_ref']; }
+		$res = $this->api( 'PUT', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
 		if ( 404 === $res['code'] ) { Service::log( 'google_not_found', 'revoke ' . self::short_id( (string) $provider_pass['serial_number'] ) ); }
 		return in_array( $res['code'], array( 200, 404 ), true );
 	}

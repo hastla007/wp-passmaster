@@ -31,6 +31,9 @@ final class Service {
 		add_action( 'wpcap_ticket_attendee_updated', array( __CLASS__, 'on_ticket_changed' ), 20, 1 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_order_changed' ), 20, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 20, 2 );
+		// A566: erased or expired personal data leaves the passes too (Google objects lose the name).
+		add_action( 'wpcap_privacy_order_anonymized', array( __CLASS__, 'on_order_changed' ), 20, 1 );
+		add_action( 'wpcap_privacy_attendees_cleared', array( __CLASS__, 'on_attendees_cleared' ), 20, 1 );
 		// Fired by core on resend, transfer, participant assignment and reprint (any reason).
 		add_action( 'wpcap_ticket_code_rotated', array( __CLASS__, 'on_code_rotated' ), 10, 2 );
 		// A490: tickets issued outside the ticket mail (exchange) get their passes too.
@@ -308,7 +311,12 @@ final class Service {
 		try {
 			$url = self::in_locale( $tickets[0], static function () use ( $google, $tickets ) {
 				$url = $google->save_url_for( $tickets );
-				return '' === $url && 1 === count( $tickets ) ? $google->save_url( $tickets[0] ) : $url;
+				if ( '' === $url && 1 === count( $tickets ) ) {
+					// Fallback JWT with the full object: Google creates it when the buyer saves (A566).
+					$url = $google->save_url( $tickets[0] );
+					Store::mark_remote( 'google', $google->object_id( $tickets[0] ) );
+				}
+				return $url;
 			} );
 		} catch ( \Throwable $e ) {
 			self::log( 'save_failed', 'google:' . $e->getMessage() );
@@ -532,6 +540,14 @@ final class Service {
 
 	public static function on_refund_completed( $refund_id, $order_id = 0 ) { self::on_order_changed( $order_id ); }
 
+	/** wpcap_privacy_attendees_cleared (retention): attendee names of these tickets were removed. */
+	public static function on_attendees_cleared( $ticket_ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_map( 'absint', (array) $ticket_ids ) ) );
+		if ( ! $ids ) { return; }
+		self::sync_many( $wpdb->get_col( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_wallet_state WHERE ticket_id IN (" . implode( ',', $ids ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+	}
+
 	/** Tickets / occurrences changed in this request; dispatched once on shutdown. */
 	private static $pending_tickets = array();
 	private static $pending_occurrences = array();
@@ -584,11 +600,15 @@ final class Service {
 		return self::process( (array) ( $payload['ticket_ids'] ?? array() ), $occurrences );
 	}
 
-	/** Any ticket of an occurrence that has a Google pass (class data source), or null. */
+	/**
+	 * Any ticket of an occurrence whose Google object a buyer saved (class data source), or null:
+	 * the class only exists at Google once a save link was used (A566).
+	 */
 	private static function class_ticket( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT w.ticket_id,w.provider_ref FROM {$p}wpcap_wallet_passes w INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=w.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE w.provider='google' AND tt.occurrence_id=%d ORDER BY w.wallet_pass_id LIMIT 1", absint( $occurrence_id ) ) );
+		$remote = Store::remote_ready() ? ' AND w.remote_at IS NOT NULL' : ''; // A566: only classes with a saved object.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT w.ticket_id,w.provider_ref FROM {$p}wpcap_wallet_passes w INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=w.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE w.provider='google' AND tt.occurrence_id=%d$remote ORDER BY w.wallet_pass_id LIMIT 1", absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal fragment.
 		$ticket = $row ? self::ticket( (int) $row->ticket_id ) : null;
 		// A475: the class id stored with the issued passes, not one computed from today's home_url().
 		if ( $ticket && '' !== (string) $row->provider_ref ) { $ticket['google_class_id'] = (string) $row->provider_ref; }
