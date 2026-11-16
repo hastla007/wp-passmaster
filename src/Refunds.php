@@ -376,6 +376,12 @@ final class Refunds {
 		}
 		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
 		$provider_reference = 'manual';
+		if ( ! $gateway && in_array( (string) $order->payment_provider, array( 'stripe', 'paypal', 'mollie' ), true ) && (int) $refund['amount_minor'] > 0 ) {
+			// The online provider of the order is not available (e.g. the Mollie module was switched off): never
+			// book the refund as a manual payout – the money would be recorded as returned without moving.
+			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => 'gateway_unavailable', 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
+			return new \WP_Error( 'wpcap_refund_gateway_unavailable', __( 'Der Zahlungsanbieter dieser Bestellung ist nicht verfügbar; die Erstattung wurde nicht ausgeführt.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
 			// A final decline moved earlier attempts to a new idempotency key (provider_key()).
 			$attempt = (int) ( $refund['provider_attempt'] ?? 0 );

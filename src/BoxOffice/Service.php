@@ -1103,7 +1103,7 @@ final class Service {
 		if ( ! $sale || ! self::is_booked( $sale ) ) { return; }
 		$movement = Shifts::book_refund( (int) $refund['refund_id'], false );
 		// An open payout (A488) has no movement (and no payout receipt) yet.
-		$movement = is_wp_error( $movement ) || ! isset( $movement->movement_id ) ? null : $movement;
+		$movement = is_wp_error( $movement ) || ! isset( $movement->movement_id, $movement->receipt_number ) ? null : $movement;
 		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", (int) $refund['order_id'] ) );
 		if ( $remaining > 0 ) { return; }
 		$wpdb->query( 'START TRANSACTION' );
