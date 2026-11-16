@@ -970,11 +970,11 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Keine Hilfe-Tabs, Verweise auf nicht ausgelieferte docs/ und privates Repo, kein Action-Link — src/Admin/SettingsPage.php:156/184, Partners/AdminPage.php:475, BoxOffice/Page.php:261 (A379, R1 UX)
 - [ ] [OPTIMIERUNG] DATEV-Export ohne Kontenrahmen-Einstellung (SKR03 fest) — src/Invoices.php:790–805, Reports/Page.php:135 (A380, R1 UX)
 - [ ] [OPTIMIERUNG] Destruktive Aktionen ohne Bestätigung (Zeitfenster löschen, Personal entfernen) — src/Admin/ServiceSlotsPage.php:412–415, EventsPage.php:945 (A381, R1 UX)
-- [ ] [OPTIMIERUNG] load_plugin_textdomain für wp.org überflüssig (PCP) — pass-captain.php:83 (A382, R1 Release)
+- [ ] [OPTIMIERUNG] load_plugin_textdomain für wp.org überflüssig (PCP) — pass-captain.php:83 (A382, R1 Release) – *bewusst beibehalten, solange die Übersetzungen nur im Plugin (`languages/`) liegen und nicht über translate.wordpress.org ausgeliefert werden; Just-in-time-Laden deckt nur `WP_LANG_DIR` ab. Entfernen, sobald das Plugin auf wp.org gelistet ist (Entscheidung zusammen mit A386).*
 - [x] [OPTIMIERUNG] Plurale mit „(e)/(s)“ und zusammengesetzte Sätze — src/PublicEvents.php:50/103/106, OrderAdapter.php:915, GuestLists/Page.php:123, Modules/Sms.php:473, TicketPage.php:58 (A383, R1 Release)
 - [x] [OPTIMIERUNG] Feste deutsche Datumsformate (44× d.m.Y) in Mails/Belegen — src/Notifications.php:133, Orders.php:1759, Reminders/Placeholders.php:35, Printing/InvoicePdf.php:34 (A384, R1 Release)
-- [ ] [OPTIMIERUNG] Readme-Cron-Empfehlung für Multisite falsch — readme.txt:49–51 (A385, R1 Release)
-- [ ] [OPTIMIERUNG] Update URI / Slug- und Konto-Sicherung vor Verbreitung — pass-captain.php Header (A386, R1 Release)
+- [x] [OPTIMIERUNG] Readme-Cron-Empfehlung für Multisite falsch — readme.txt:49–51 (A385, R1 Release) – erledigt: readme.txt nennt für Multisite den Aufruf je Site (`wp site list … --url={}`), wie docs/OPERATIONS.md
+- [ ] [OPTIMIERUNG] Update URI / Slug- und Konto-Sicherung vor Verbreitung — pass-captain.php Header (A386, R1 Release) – *extern: Slug `pass-captain` auf wordpress.org reservieren und Konto absichern (2FA); ein `Update URI`-Header nur bei Verteilung außerhalb von wp.org (für wp.org verboten). Kein Code-Schritt, bis der Vertriebsweg entschieden ist.*
 - [ ] [OPTIMIERUNG] Lizenz-/Premium-Updater-Pläne (A225–A236) widersprechen wp.org-Guidelines 5/8 — Planung (A387, R1 Release)
 - [ ] [OPTIMIERUNG] Offline-Scanner-PWA nur de/en — assets/offline-scanner/i18n.js:12 (A388, R1 Release)
 - [ ] [OPTIMIERUNG] Readme-Changelog ohne Inhalt, Umbenennung fehlt — readme.txt:53–66 (A389, R1 Release)

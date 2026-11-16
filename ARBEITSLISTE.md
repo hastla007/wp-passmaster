@@ -835,7 +835,7 @@ Gesamt: 262 Aufgaben.
   - src/PublicEvents.php:50/103/106, OrderAdapter.php:915, GuestLists/Page.php:123, Modules/Sms.php:473, TicketPage.php:58: _n() mit sprintf
 - [x] **A384** [OPTIMIERUNG] Feste deutsche Datumsformate (44× d.m.Y) in Mails/Belegen — _R1 Release_ (TODO L730; Audit Runde 4)
   - src/Notifications.php:133, Orders.php:1759, Reminders/Placeholders.php:35, Printing/InvoicePdf.php:34: Zentral über Format::datetime_format()/wp_date je Empfänger-Locale
-- [ ] **A385** [OPTIMIERUNG] Readme-Cron-Empfehlung für Multisite falsch — _R1 Release_ (TODO L731; Audit Runde 4)
+- [x] **A385** [OPTIMIERUNG] Readme-Cron-Empfehlung für Multisite falsch — _R1 Release_ (TODO L731; Audit Runde 4)
   - readme.txt:49–51: wp site list … --url=-Variante
 - [ ] **A386** [OPTIMIERUNG] Update URI / Slug- und Konto-Sicherung vor Verbreitung — _R1 Release_ (TODO L732; Audit Runde 4)
   - pass-captain.php Header: Slug pass-captain und wp.org-Konto sichern; ggf. Update URI im GitHub-Build
