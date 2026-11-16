@@ -348,7 +348,7 @@ final class OrdersPage {
 			'confirm' => __( 'Jetzt %1$s erstatten? %2$s', 'pass-captain' ),
 			'pick' => __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ),
 		);
-		echo '<script>(function(){var D=' . wp_json_encode( $data ) . ';var f=document.getElementById("wpcap-refund-form");if(!f){return;}'
+		\PassCaptain\Assets::inline_script( 'wpcap-refund-form', '(function(){var D=' . wp_json_encode( $data ) . ';var f=document.getElementById("wpcap-refund-form");if(!f){return;}'
 			. 'var all=document.getElementById("wpcap-refund-all"),out=document.getElementById("wpcap-refund-amount"),boxes=f.querySelectorAll("input.wpcap-refund-ticket"),saved=[];'
 			. 'function money(m){try{return new Intl.NumberFormat(D.locale,{style:"currency",currency:D.currency}).format(m/Math.pow(10,D.decimals));}catch(e){return (m/Math.pow(10,D.decimals)).toFixed(D.decimals)+" "+D.currency;}}'
 			. 'function fmt(t,a,b){return t.replace("%1$s",a).replace("%2$d",b).replace("%2$s",b);}'
@@ -356,7 +356,7 @@ final class OrdersPage {
 			. 'function update(){out.textContent=state()||D.none;}'
 			. 'if(all){all.addEventListener("change",function(){boxes.forEach(function(b,i){if(all.checked){saved[i]=b.checked;b.checked=true;b.disabled=true;}else{b.disabled=false;b.checked=!!saved[i];}});update();});}'
 			. 'boxes.forEach(function(b){b.addEventListener("change",update);});'
-			. 'f.addEventListener("submit",function(e){var t=state();if(!t){e.preventDefault();window.alert(D.pick);return;}if(!window.confirm(fmt(D.confirm,t,D.route))){e.preventDefault();}});update();})();</script>';
+			. 'f.addEventListener("submit",function(e){var t=state();if(!t){e.preventDefault();window.alert(D.pick);return;}if(!window.confirm(fmt(D.confirm,t,D.route))){e.preventDefault();}});update();})();' );
 	}
 
 	/** Loads a pending refund the current user may decide on. */

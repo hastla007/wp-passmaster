@@ -144,7 +144,8 @@ final class Page {
 			self::render_billing_fields();
 			echo '<p><button class="button button-primary button-hero">' . esc_html__( 'Verkauf buchen', 'pass-captain' ) . '</button></p></form>';
 			$availability_url = add_query_arg( array( 'action' => 'wpcap_pos_availability', 'occurrence_id' => $occurrence_id, '_wpnonce' => wp_create_nonce( 'wpcap_pos' ) ), admin_url( 'admin-post.php' ) );
-			echo '<script>window.wpcapPos=' . wp_json_encode( array(
+			wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
+			\PassCaptain\Assets::inline_script( 'wpcap-pos', 'window.wpcapPos=' . wp_json_encode( array(
 				'availabilityUrl' => $availability_url,
 				'changeLabel' => __( 'Rückgeld:', 'pass-captain' ),
 				/* translators: 1: running ticket number, 2: ticket type */
@@ -152,8 +153,7 @@ final class Page {
 				'name' => __( 'Name', 'pass-captain' ),
 				'email' => __( 'E-Mail (optional)', 'pass-captain' ),
 				'heading' => __( 'Teilnehmerangaben', 'pass-captain' ),
-			) ) . ';</script>';
-			wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
+			) ) . ';', 'before' );
 		}
 		self::render_session( $session );
 		self::render_lookup();

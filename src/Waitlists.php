@@ -1912,7 +1912,7 @@ final class Waitlists {
 	 * The clicked decision travels in a hidden field, because disabled buttons are not submitted.
 	 */
 	private static function submit_once_script() {
-		return '<script>document.querySelectorAll(".wpcap-offer-form").forEach(function(f){f.addEventListener("submit",function(e){if(f.dataset.sent){e.preventDefault();return;}f.dataset.sent="1";var b=e.submitter;if(b&&b.name){var h=document.createElement("input");h.type="hidden";h.name=b.name;h.value=b.value;f.appendChild(h);}setTimeout(function(){f.querySelectorAll("button").forEach(function(x){x.disabled=true;});},0);});});</script>';
+		return Assets::inline_script_tag( 'document.querySelectorAll(".wpcap-offer-form").forEach(function(f){f.addEventListener("submit",function(e){if(f.dataset.sent){e.preventDefault();return;}f.dataset.sent="1";var b=e.submitter;if(b&&b.name){var h=document.createElement("input");h.type="hidden";h.name=b.name;h.value=b.value;f.appendChild(h);}setTimeout(function(){f.querySelectorAll("button").forEach(function(x){x.disabled=true;});},0);});});' );
 	}
 
 	/** 303 to $url and stop; external (payment provider) URLs via wp_redirect. */

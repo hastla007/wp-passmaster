@@ -437,6 +437,15 @@ Entfernt werden: die Werte aller Einstellungen aus `Secrets::KEYS` (auch aus Kon
 **CSV-Exporte (A495):** Alle CSV-Dateien (Berichte, Teilnehmer- und No-Show-Listen, Gästelisten, Einwilligungen, Kassen-Z-Bericht, Veranstalter- und Terminabrechnungen, Buchhaltungs- und DATEV-Export) entstehen in `Reports\Scope::csv()`: jede Zelle, die mit `=`, `+`, `-`, `@`, Tab oder Wagenrücklauf beginnt (auch nach Leerzeichen), bekommt ein führendes `'`; reine Zahlen bleiben unverändert. Angeführt wird nur nach RFC 4180 (verdoppelte Anführungszeichen, kein Backslash-Escape) – sonst schloss ein Name wie `x\";=1+1;\"` das Feld in Excel/LibreOffice vorzeitig und `=1+1` wurde zur eigenen Formelzelle. Getestet in `tests/integration/modules/zz_a495.php`.
 
 **Teilnehmerzuweisung im Bestellportal (A635):** Die öffentliche Route `POST /orders/{id}/assign` hat ein `args`-Schema (Texttypen, `attendee_name` und `attendee_email` höchstens 190 Zeichen, Token 64, Ticket-ID 32, `answers` als Objekt) und ein Rate-Limit wie Neuversand und Rechnungsdaten: 30 Anfragen je Client und Stunde, 20 je Bestellung und Stunde (nur mit gültigem Bestelllink gezählt, Filter `wpcap_portal_assign_rate_limit`). Der Name, der in die Mail an die neue Person geht, wird auf 190 Zeichen gekürzt; Namen mit Web-Adresse (`https://…`, `www.…`, `domain.tld/…`) werden mit 400 (`name_link`) abgelehnt (Filter `wpcap_attendee_name_has_link`). Getestet in `tests/integration/modules/zz_a635.php`.
+## Inline-JavaScript und Content-Security-Policy (A302)
+Das Plugin gibt kein handgeschriebenes `<script>`/`<style>` mehr aus. Admin-Seiten hängen Inline-Code an
+registrierte Handles (`wp_add_inline_script()`/`wp_add_inline_style()` über `PassCaptain\Assets`; Menü-CSS/-JS
+über `admin_enqueue_scripts`, Kassen-Konfiguration vor `wpcap-pos`, Erstattungsformular und Mail-Vorschau im
+Footer). Eigenständige Seiten ohne Theme (Bestellportal, Umtauschformular, Wartelisten-Angebot) drucken ihre Skripte
+mit `wp_get_inline_script_tag()`; ein CSP-Plugin kann so über den Filter `wp_inline_script_attributes` eine Nonce
+setzen. Weiterhin inline sind die `<style>`-Blöcke dieser eigenständigen Dokumente und der Druckansichten (eigene
+HTML-Dokumente ohne `wp_head`) sowie `onclick="window.print()"` der Druckknöpfe; eine strikte CSP ohne
+`'unsafe-inline'` für Styles/Handler braucht dort eine Ausnahme.
 
 ## Offenlegung
 

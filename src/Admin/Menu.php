@@ -84,8 +84,9 @@ final class Menu {
 
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
-		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
-		add_action( 'admin_footer', array( self::class, 'menu_heading_script' ) );
+		// A302: inline CSS/JS through registered handles (wp_add_inline_style/_script), not echoed.
+		add_action( 'admin_enqueue_scripts', array( self::class, 'admin_styles' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'menu_heading_script' ) );
 		add_action( 'admin_notices', array( self::class, 'schema_error_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'manual_payment_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'needs_review_notice' ) );
@@ -250,10 +251,10 @@ final class Menu {
 
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
 	public static function admin_styles() {
-		echo '<style>#adminmenu li.wpcap-menu-heading{margin-top:6px;padding-top:4px;border-top:1px solid rgba(240,246,252,.15)}#adminmenu li.wpcap-menu-heading a,#adminmenu li.wpcap-menu-heading .wpcap-menu-heading-label{display:block;padding:5px 12px 1px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#c3c4c7;pointer-events:none;cursor:default}</style>';
+		\PassCaptain\Assets::inline_style( 'wpcap-admin-menu', '#adminmenu li.wpcap-menu-heading{margin-top:6px;padding-top:4px;border-top:1px solid rgba(240,246,252,.15)}#adminmenu li.wpcap-menu-heading a,#adminmenu li.wpcap-menu-heading .wpcap-menu-heading-label{display:block;padding:5px 12px 1px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#c3c4c7;pointer-events:none;cursor:default}' );
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
 		if ( ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) { return; }
-		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}#wpbody-content .wpcap-admin details>summary{min-height:24px;padding:2px 0;line-height:24px;cursor:pointer}#wpbody-content .wpcap-admin .button-link{min-height:24px;min-width:24px;padding:2px 0;line-height:20px}</style>';
+		\PassCaptain\Assets::inline_style( 'wpcap-admin', '#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}#wpbody-content .wpcap-admin details>summary{min-height:24px;padding:2px 0;line-height:24px;cursor:pointer}#wpbody-content .wpcap-admin .button-link{min-height:24px;min-width:24px;padding:2px 0;line-height:20px}' );
 	}
 
 	/** First capability of the list the current user holds (fallback: the first one). */
@@ -438,6 +439,6 @@ final class Menu {
 
 	/** Turns the area headings of the menu into plain text (no dead link, no extra tab stop). */
 	public static function menu_heading_script() {
-		echo '<script>document.querySelectorAll("#adminmenu li.wpcap-menu-heading > a").forEach(function(a){var s=document.createElement("span");s.className="wpcap-menu-heading-label";s.textContent=a.textContent;a.parentNode.replaceChild(s,a);});</script>';
+		\PassCaptain\Assets::inline_script( 'wpcap-admin-menu', 'document.querySelectorAll("#adminmenu li.wpcap-menu-heading > a").forEach(function(a){var s=document.createElement("span");s.className="wpcap-menu-heading-label";s.textContent=a.textContent;a.parentNode.replaceChild(s,a);});' );
 	}
 }
