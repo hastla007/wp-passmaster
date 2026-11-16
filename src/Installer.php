@@ -224,7 +224,6 @@ final class Installer {
 				KEY order_id (order_id),
 				KEY inventory (ticket_type_id,status,expires_at),
 				KEY status_expires (status,expires_at),
-				KEY expiry (status,expires_at),
 				KEY counted_type (ticket_type_id,counted_qty)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $tickets (
@@ -276,7 +275,6 @@ final class Installer {
 				KEY occurrence_day_id (occurrence_day_id),
 				KEY user_id (user_id),
 				KEY event_result_created (event_id,result,created_at),
-				KEY created_checkin (created_at,checkin_id),
 				KEY created (created_at,checkin_id),
 				KEY device_event_result (device_id,event_id,result)
 			) ENGINE=InnoDB $charset;",
@@ -1708,6 +1706,9 @@ final class Installer {
 	const OBSOLETE_INDEXES = array(
 		// Replaced by capacity_sum (ticket_type_id,order_id,quantity,refunded_quantity), which covers it.
 		'wpcap_order_items' => array( 'type_order' ),
+		// Merge of the two lines (3.18.0): both had added the same index under another name.
+		'wpcap_reservations' => array( 'expiry' ),   // = status_expires (status,expires_at)
+		'wpcap_checkins' => array( 'created_checkin' ), // = created (created_at,checkin_id)
 	);
 
 	/**

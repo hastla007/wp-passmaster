@@ -415,7 +415,7 @@ check( 'PERF-5: initialize() only registers the CSS; it is enqueued with the che
 
 // PERF-6 / PERF-8: indexes.
 $y5_index = static function ( $table, $key ) use ( $wpdb, $p ) { return (bool) $wpdb->get_row( $wpdb->prepare( 'SHOW INDEX FROM %i WHERE Key_name=%s', $p . $table, $key ) ); };
-check( 'PERF-6/8: KEY status_expires on reservations, KEY created_checkin on check-ins, DB version >= 3.13.0', $y5_index( 'wpcap_reservations', 'status_expires' ) && $y5_index( 'wpcap_checkins', 'created_checkin' ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.13.0', '>=' ) );
+check( 'PERF-6/8: KEY status_expires on reservations, KEY created (created_at,checkin_id) on check-ins (PERF-8; the duplicate created_checkin is dropped in 3.18.0), DB version >= 3.13.0', $y5_index( 'wpcap_reservations', 'status_expires' ) && $y5_index( 'wpcap_checkins', 'created' ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.13.0', '>=' ) );
 
 // PERF-6: retention of finished holds and jobs.
 $y5h_old = gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS );
