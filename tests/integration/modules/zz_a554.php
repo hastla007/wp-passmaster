@@ -66,7 +66,8 @@ check( 'A554 a wrong key cancels nothing', 'pending' === Orders::get( $a554_orde
 
 // 6. Continue: the still open Stripe session again.
 http_reset();
-http_push( array( 'id' => 'cs_a554', 'url' => 'https://checkout.stripe.com/c/pay/cs_a554', 'status' => 'open' ), 200, '/v1/checkout/sessions/cs_a554' );
+// Merged (Y2 QA-1): an open session is reused only for the order's current amount and currency.
+http_push( array( 'id' => 'cs_a554', 'url' => 'https://checkout.stripe.com/c/pay/cs_a554', 'status' => 'open', 'amount_total' => (int) Orders::get( $a554_order['order_id'] )->total_minor, 'currency' => strtolower( (string) Orders::get( $a554_order['order_id'] )->currency ) ), 200, '/v1/checkout/sessions/cs_a554' );
 $a554_resume = ReturnNotice::perform_action( array( 'order' => $a554_order['public_id'], 'wpcap_rk' => $a554_key, 'decision' => 'resume', 'back' => 'https://example.test/konzert/' ) );
 check( 'A554 "Zahlung fortsetzen" leads to the open payment session of the same order (no new order)', 'https://checkout.stripe.com/c/pay/cs_a554' === $a554_resume && 'pending' === Orders::get( $a554_order['order_id'] )->payment_status && 0 === count( http_requests( '/v1/checkout/sessions' ) ) - count( http_requests( '/v1/checkout/sessions/cs_a554' ) ) );
 

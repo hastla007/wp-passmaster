@@ -26,6 +26,8 @@ $a265_request = static function ( array $body ) {
 	return $r;
 };
 $a265_data = static fn( $res ) => $res instanceof WP_REST_Response ? $res->get_data() : $res;
+// Merged (audit line): the checkout response carries neither order_id nor public_id – the order is found by its e-mail.
+$a265_order_of = static fn( $email ) => (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", $email ) );
 $a265_orders = static fn() => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders" );
 $a265_gateway = Registry::get( 'manual' );
 
@@ -56,6 +58,7 @@ Settings::update( array( 'manual_instructions' => 'Bitte nach Rechnung zahlen.' 
 $a265_mails = count( $GLOBALS['wpcap_test_mails'] );
 $a265_res = $a265_data( Controller::checkout( $a265_request( array( 'email' => 'a265-instr@example.com', 'items' => array( array( 'ticket_type_id' => $a265_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'a265-instr-' . uniqid() ) ) ) );
 check( 'instructions only: checkout response has no bank_transfer block, only the instruction text', is_array( $a265_res ) && ! isset( $a265_res['payment']['bank_transfer'] ) && 'Bitte nach Rechnung zahlen.' === ( $a265_res['payment']['instructions'] ?? '' ) );
+$a265_res['order_id'] = $a265_order_of( 'a265-instr@example.com' );
 $a265_details = BankTransfer::details( PassCaptain\Orders::get( $a265_res['order_id'] ) );
 check( 'instructions only: details carry no recipient, IBAN, BIC or remittance', false === $a265_details['transfer'] && '' === $a265_details['iban'] && '' === $a265_details['recipient'] && '' === $a265_details['remittance'] && array( 'Betrag', 'Zahlbar bis' ) === array_keys( BankTransfer::rows( $a265_details ) ) );
 $a265_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $a265_mails ), static fn( $m ) => 'a265-instr@example.com' === $m['to'] ) )[0] ?? array( 'body' => '' );
@@ -65,6 +68,7 @@ PassCaptain\Orders::cancel_order( $a265_res['order_id'], 'test_cleanup' );
 // --- Full account: transfer request with recipient and IBAN ---------------------------------------
 Settings::update( array( 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Kulturverein', 'manual_instructions' => '' ) );
 $a265_full = $a265_data( Controller::checkout( $a265_request( array( 'email' => 'a265-full@example.com', 'items' => array( array( 'ticket_type_id' => $a265_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'a265-full-' . uniqid() ) ) ) );
+$a265_full['order_id'] = $a265_order_of( 'a265-full@example.com' );
 $a265_bank = $a265_full['payment']['bank_transfer'] ?? array();
 check( 'with recipient and IBAN the checkout returns the transfer request', true === ( $a265_bank['transfer'] ?? null ) && 'Kulturverein' === ( $a265_bank['recipient'] ?? '' ) && 'AT61 1904 3002 3457 3201' === ( $a265_bank['iban'] ?? '' ) );
 $a265_strip = static function ( $details ) { $details['iban'] = ''; return $details; };

@@ -186,7 +186,7 @@ expire_holds_of( $r1_oi['order_id'] );
 $wpdb->update( "{$p}wpcap_ticket_types", array( 'status' => 'inactive' ), array( 'ticket_type_id' => $r1_t_i ) );
 $GLOBALS['wpcap_test_mails'] = array();
 $r1_res_i = Orders::confirm_external_payment( $r1_oi['order_id'], 'r1' );
-check( 'late payment for an inactive ticket type: needs_review + admin alert, no tickets', is_wp_error( $r1_res_i ) && 'wpcap_needs_review' === $r1_res_i->get_error_code() && ! tickets( $r1_oi['order_id'], 'valid' ) && 'paid_unallocated' === Orders::get( $r1_oi['order_id'] )->payment_status && (bool) array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => false !== strpos( (string) $m['subject'], 'geschlossenen Verkauf' ) ) );
+check( 'late payment for an inactive ticket type: needs_review + admin alert, no tickets', is_wp_error( $r1_res_i ) && 'wpcap_needs_review' === $r1_res_i->get_error_code() && ! tickets( $r1_oi['order_id'], 'valid' ) && 'paid_unallocated' === Orders::get( $r1_oi['order_id'] )->payment_status && (bool) array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => false !== strpos( (string) $m['subject'], 'ohne Tickets' ) ) ); // Merged late-payment alert (A273).
 
 // Occurrence cancellation: an expired order whose provider payment was started is cancelled too.
 list( $r1_t_x, $r1_occ_x ) = $r1_mk( 7 * DAY_IN_SECONDS );

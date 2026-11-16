@@ -38,4 +38,4 @@ list( $a131_o3, $a131_t3 ) = ex_buy( $a131_type, 1, 'a131c@example.com' );
 $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'checked_in' ), array( 'ticket_id' => $a131_t3[0] ) );
 $a131_pos = Refunds::request( $a131_o3, $a131_t3, 'POS-Storno', 'a131-pos-' . uniqid(), array( 'allow_used' => true ) );
 check( 'box office path (allow_used after its own check) is allowed', is_array( $a131_pos ) );
-check( 'the admin refund form passes the exception field', false !== strpos( file_get_contents( dirname( __DIR__, 3 ) . '/src/Admin/OrdersPage.php' ), "'used_override' => Forms::text( \$in, 'used_override', 200 )" ) );
+check( 'the admin refund form passes the exception field', 1 === preg_match( "/'used_override'(\\] = | => )Forms::text\\( \\\$in, 'used_override', 200 \\)/", (string) file_get_contents( dirname( __DIR__, 3 ) . '/src/Admin/OrdersPage.php' ) ) );
