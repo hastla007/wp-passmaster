@@ -154,6 +154,9 @@ final class Checkin {
 			$row->event_status = (string) ( $bound['event_status'] ?? $row->event_status );
 		}
 		if ( ! $strict ) { return $found; }
+		// A365: scope first – the state of a ticket of a foreign event is none of the scanner's business.
+		$scope = self::scope_error( $found, $context );
+		if ( $scope ) { return $scope; }
 		$internal = array( 'event_id' => (int) $row->event_id, 'ticket_id' => (int) $row->ticket_id, 'occurrence_id' => (int) $row->occurrence_id );
 		if ( 'cancelled' === $row->occurrence_status || 'cancelled' === $row->event_status ) { return new \WP_Error( 'wpcap_ticket_cancelled_event', __( 'Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'cancelled_event' ), $internal ) ); }
 		// A590: a refunded ticket or one of a closed order never admits, whatever its status says (a
@@ -590,8 +593,12 @@ final class Checkin {
 		return array( 'area_id' => $area_id, 'occurrence_id' => $occurrence_id );
 	}
 
-	/** Event scope, device and area restrictions; returns WP_Error or null. */
-	private static function deny( array $found, array $context, $direction = 'in' ) {
+	/**
+	 * Event scope of the scanning user and event restriction of the paired device; WP_Error or null.
+	 * Checked before anything else is said about the ticket (A365): a code of a foreign event gets
+	 * "forbidden"/"wrong_event", never its event name, cancellation, refund or entry window.
+	 */
+	private static function scope_error( array $found, array $context ) {
 		$internal = array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] );
 		if ( ! Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin' ) ) {
 			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'forbidden' ) ) );
@@ -601,6 +608,14 @@ final class Checkin {
 		if ( $device_events && ! in_array( (int) $found['event_id'], array_map( 'intval', $context['event_ids'] ), true ) ) {
 			return new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'wrong_event' ) ) );
 		}
+		return null;
+	}
+
+	/** Event scope, device and area restrictions; returns WP_Error or null. */
+	private static function deny( array $found, array $context, $direction = 'in' ) {
+		$internal = array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] );
+		$scope = self::scope_error( $found, $context );
+		if ( $scope ) { return $scope; }
 		if ( ! empty( $context['occurrence_id'] ) && (int) $context['occurrence_id'] !== (int) $found['occurrence_id'] ) {
 			return new \WP_Error( 'wpcap_wrong_occurrence', self::with_validity( __( 'Das Ticket gilt für einen anderen Termin.', 'pass-captain' ), $found ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_occurrence' ) ) );
 		}
@@ -658,6 +673,15 @@ final class Checkin {
 		if ( ! empty( $found['help_code'] ) ) { $data['help_code'] = true; }
 		if ( $revocation ) { $data['revoked_reason'] = (string) $revocation->reason; }
 		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $message, $data );
+	}
+
+	/**
+	 * Refused scan as sent to a browser or app (A365): HTTP status, stable result code, message, event
+	 * and ticket name and the CLIENT_ERROR_KEYS – no internal ids, no conflict or check-in ids.
+	 */
+	public static function client_error( \WP_Error $error ) {
+		$data = (array) $error->get_error_data();
+		return new \WP_Error( $error->get_error_code(), $error->get_error_message(), array_filter( array( 'status' => (int) ( $data['status'] ?? 409 ), 'result' => isset( $data['result'] ) ? (string) $data['result'] : null, 'ticket_status' => isset( $data['ticket_status'] ) ? (string) $data['ticket_status'] : null, 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null, 'retryable' => ! empty( $data['retryable'] ) ? true : null ) + array_intersect_key( $data, array_flip( self::CLIENT_ERROR_KEYS ) ), static function ( $v ) { return null !== $v; } ) );
 	}
 
 	/** Scanner fields passed on to clients with a refused scan (besides result, message, event, ticket). */

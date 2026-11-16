@@ -1051,7 +1051,7 @@ final class Controller {
 
 	public static function validate_ticket( \WP_REST_Request $request ) {
 		$result = \PassCaptain\Checkin::preview( \PassCaptain\Http::str( $request->get_param( 'token' ) ) );
-		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+		return is_wp_error( $result ) ? \PassCaptain\Checkin::client_error( $result ) : rest_ensure_response( $result );
 	}
 
 	/** Web scanner check-in; the logic lives in Checkin::perform() (shared with the app API). */
@@ -1059,6 +1059,6 @@ final class Controller {
 		// The source is never taken from the client (A592): "offline" would evaluate a client-chosen time
 		// and turn refusals into conflicts.
 		$result = \PassCaptain\Checkin::perform( \PassCaptain\Http::str( $request->get_param( 'token' ) ), array_filter( array( 'source' => 'web', 'idempotency_key' => sanitize_text_field( \PassCaptain\Http::str( $request->get_param( 'idempotency_key' ) ) ), 'occurrence_id' => \PassCaptain\Http::positive_int( $request->get_param( 'occurrence_id' ) ) ) ) );
-		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+		return is_wp_error( $result ) ? \PassCaptain\Checkin::client_error( $result ) : rest_ensure_response( $result );
 	}
 }

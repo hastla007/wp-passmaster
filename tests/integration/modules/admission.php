@@ -294,7 +294,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_checkin' );
 $noacc = Checkin::perform( $foreign_ok['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-x3', 'scanned_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $noacc_lookup = Checkin::perform( $foreign['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-x4', 'scanned_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
-check( 'uploader without check-in access creates no conflict (also for lookup errors)', is_wp_error( $noacc ) && is_wp_error( $noacc_lookup ) && 'cancelled_event' === $noacc_lookup->get_error_data()['result'] && empty( $noacc->get_error_data()['conflict_id'] ) && empty( $noacc_lookup->get_error_data()['conflict_id'] ) && $before_foreign === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_admission_conflicts WHERE event_id IN (" . $foreign['event'] . ',' . $foreign_ok['event'] . ')' ) );
+check( 'uploader without check-in access creates no conflict (also for lookup errors; A365: scope before the occurrence state)', is_wp_error( $noacc ) && is_wp_error( $noacc_lookup ) && 'forbidden' === $noacc_lookup->get_error_data()['result'] && empty( $noacc->get_error_data()['conflict_id'] ) && empty( $noacc_lookup->get_error_data()['conflict_id'] ) && $before_foreign === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_admission_conflicts WHERE event_id IN (" . $foreign['event'] . ',' . $foreign_ok['event'] . ')' ) );
 
 // Errors returned to clients carry no internal ids.
 $used_req = new WP_REST_Request( 'POST' );

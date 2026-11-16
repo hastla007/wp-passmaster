@@ -357,6 +357,11 @@ Wirkung im Plugin:
 
 - **Scanner** (Web, Scanner-App, Offline-Paket): nie Käuferdaten; Teilnehmername nur mit der Einstellung –
   auch für volle Profile, denn der Scan-Bildschirm ist öffentlich sichtbar.
+- **Fremde Events am Scanner (A365):** Event-Zuweisung und Gerätebindung werden vor allem anderen geprüft. Ein
+  Ticket eines Events ohne Einlassrecht ergibt immer `forbidden` bzw. `wrong_event` – ohne Eventnamen und ohne
+  Hinweis, ob der Termin abgesagt, das Ticket erstattet oder außerhalb des Einlasszeitraums ist. Abgelehnte Scans
+  liefern Web-Scanner, App und Offline-Upload nur mit `status`, `result`, `ticket_status`, Meldung, Event- und
+  Ticketname sowie den Scannerfeldern (`Checkin::CLIENT_ERROR_KEYS`) aus, nie mit internen IDs.
 - **Suche am Scanner (A544):** Bestellnummer immer; Teilnehmername und E-Mails nur durchsuchbar, wenn das Profil
   sie im Klartext sehen darf; Treffer zeigen E-Mails immer maskiert und den Namen nur mit der Scanner-Einstellung
   im Klartext. Höchstens 10 Treffer in den Terminen mit Einlassrecht, 30 Suchen pro Minute, Zugriffsprotokoll.
