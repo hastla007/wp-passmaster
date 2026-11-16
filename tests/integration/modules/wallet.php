@@ -120,7 +120,7 @@ function wpw_jwt_parts( $jwt ) { return array_map( static fn( $s ) => Jwt::b64ur
 
 /* ---- Issuance: pkpass attached, Google link in mail ---- */
 http_reset();
-delete_transient( 'wpcap_wallet_google_token' );
+PassCaptain\WalletPasses\GoogleProvider::forget_token();
 $type = make_type( 10, 10, 0 );
 $occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET starts_at='2027-03-01 18:30:00', location='Konzerthaus' WHERE occurrence_id=$occ" );

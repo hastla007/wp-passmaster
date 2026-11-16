@@ -241,12 +241,34 @@ class GoogleProvider implements WalletProvider {
 
 	/* ---- REST ---- */
 
-	/** OAuth2 access token via the JWT bearer grant (cached). */
+	/** Prefix of the cached access token (transient). */
+	const TOKEN_TRANSIENT = 'wpcap_wallet_google_token';
+
+	/**
+	 * Cache key of the access token, bound to the service account (A423): client_email, token_uri and
+	 * the private key. A new or changed service account never uses a token of the previous one.
+	 *
+	 * @param array|\WP_Error|null $account Credentials::google() (read when null).
+	 */
+	public static function token_cache_key( $account = null ) {
+		$account = null === $account ? Credentials::google() : $account;
+		if ( is_wp_error( $account ) || ! is_array( $account ) ) { return self::TOKEN_TRANSIENT; }
+		return self::TOKEN_TRANSIENT . '_' . substr( hash( 'sha256', (string) $account['client_email'] . '|' . (string) $account['token_uri'] . '|' . hash( 'sha256', (string) $account['private_key'] ) ), 0, 20 );
+	}
+
+	/** Drops the cached access token of the current service account. */
+	public static function forget_token() {
+		delete_transient( self::token_cache_key() );
+		delete_transient( self::TOKEN_TRANSIENT ); // Unbound key of versions before A423.
+	}
+
+	/** OAuth2 access token via the JWT bearer grant (cached per service account, A423). */
 	public function access_token() {
-		$cached = get_transient( 'wpcap_wallet_google_token' );
-		if ( is_string( $cached ) && '' !== $cached ) { return $cached; }
 		$account = Credentials::google();
 		if ( is_wp_error( $account ) ) { return ''; }
+		$cache_key = self::token_cache_key( $account );
+		$cached = get_transient( $cache_key );
+		if ( is_string( $cached ) && '' !== $cached ) { return $cached; }
 		$now = time();
 		$assertion = Jwt::sign( array( 'iss' => $account['client_email'], 'scope' => self::SCOPE, 'aud' => $account['token_uri'], 'iat' => $now, 'exp' => $now + 3600 ), $account['private_key'] );
 		// token_uri comes from the uploaded service account JSON: only Google's token endpoints (A202).
@@ -254,7 +276,7 @@ class GoogleProvider implements WalletProvider {
 		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) { return ''; }
 		$data = json_decode( wp_remote_retrieve_body( $res ), true );
 		$token = is_array( $data ) ? (string) ( $data['access_token'] ?? '' ) : '';
-		if ( '' !== $token ) { set_transient( 'wpcap_wallet_google_token', $token, max( 60, (int) ( $data['expires_in'] ?? 3600 ) - 120 ) ); }
+		if ( '' !== $token ) { set_transient( $cache_key, $token, max( 60, (int) ( $data['expires_in'] ?? 3600 ) - 120 ) ); }
 		return $token;
 	}
 
@@ -265,7 +287,8 @@ class GoogleProvider implements WalletProvider {
 		$res = \PassCaptain\OutboundHttp::request( self::API . $path, array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $body ) ), array( 'context' => 'wallet_google', 'hosts' => array( 'walletobjects.googleapis.com' ) ) );
 		if ( is_wp_error( $res ) ) { return array( 'code' => 0, 'body' => null ); }
 		$code = (int) wp_remote_retrieve_response_code( $res );
-		if ( 401 === $code ) { delete_transient( 'wpcap_wallet_google_token' ); }
+		// Rejected token (expired, revoked, or the account lost its issuer permission): fetched anew next time (A423).
+		if ( 401 === $code || 403 === $code ) { self::forget_token(); }
 		// A422: rate limit – the sync stops calling Google in this run and retries after Retry-After.
 		if ( 429 === $code ) { Service::rate_limited( 'google', (int) wp_remote_retrieve_header( $res, 'retry-after' ) ); }
 		return array( 'code' => $code, 'body' => json_decode( wp_remote_retrieve_body( $res ), true ) );

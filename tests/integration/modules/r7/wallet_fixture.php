@@ -78,7 +78,7 @@ if ( ! function_exists( 'wpr7_wallet_enable' ) ) {
 			'google_wallet_service_account' => json_encode( array( 'client_email' => 'wallet@test.iam.gserviceaccount.com', 'private_key' => $g_key_pem, 'token_uri' => 'https://oauth2.googleapis.com/token' ) ),
 			'wallet_organization_name' => 'Pass Captain Test',
 		) );
-		$GLOBALS['wpcap_test_transients']['wpcap_wallet_google_token'] = 'ya29.wpr7';
+		$GLOBALS['wpcap_test_transients'][ \PassCaptain\WalletPasses\GoogleProvider::token_cache_key() ] = 'ya29.wpr7';
 		$apns->calls = array();
 		array_map( 'unlink', glob( $dir . '/*' ) );
 		@rmdir( $dir );

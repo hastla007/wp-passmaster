@@ -192,7 +192,7 @@ $a202_sa = PassCaptain\Secrets::get( 'google_wallet_service_account' );
 $a202_key = openssl_pkey_new( array( 'private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA ) );
 openssl_pkey_export( $a202_key, $a202_pem );
 PassCaptain\Secrets::set( 'google_wallet_service_account', json_encode( array( 'client_email' => 'a202@test.iam.gserviceaccount.com', 'private_key' => $a202_pem, 'token_uri' => 'https://evil-a202.example/token' ) ) );
-delete_transient( 'wpcap_wallet_google_token' );
+PassCaptain\WalletPasses\GoogleProvider::forget_token();
 http_reset();
 $a202_tok = ( new PassCaptain\WalletPasses\GoogleProvider() )->access_token();
 check( 'Google Wallet: a service account with a foreign token_uri sends nothing (signed assertion stays local)', ! is_wp_error( PassCaptain\WalletPasses\Credentials::google() ) && '' === $a202_tok && array() === http_requests( 'evil-a202' ) );
@@ -202,7 +202,7 @@ http_push( array( 'id' => 'x' ), 200, 'walletobjects.googleapis.com' );
 $a202_g = ( new PassCaptain\WalletPasses\GoogleProvider() )->api( 'GET', 'eventTicketClass/a202', array() );
 $a202_req = http_requests( 'walletobjects.googleapis.com' )[0] ?? array( 'args' => array() );
 check( 'Google Wallet: token and API calls go through the guard (pinned)', 200 === $a202_g['code'] && ! empty( ( http_requests( 'oauth2.googleapis.com' )[0]['args'][ OutboundHttp::PIN_ARG ] ?? null ) ) && ! empty( $a202_req['args'][ OutboundHttp::PIN_ARG ] ) );
-delete_transient( 'wpcap_wallet_google_token' );
+PassCaptain\WalletPasses\GoogleProvider::forget_token();
 PassCaptain\Secrets::set( 'google_wallet_service_account', (string) $a202_sa );
 
 echo "A202: callers – payment providers (fixed hosts)\n";

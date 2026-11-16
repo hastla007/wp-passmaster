@@ -123,6 +123,8 @@ Basis: `https://example.com/wp-json/pass-captain/v1/wallet/apple` (= `webService
 
 **Ratenlimits (A461):** Ein Limit wird immer mit HTTP 429 und `Retry-After` (Sekunden bis zum Ende des Zeitfensters) beantwortet, nie mit 401 oder 404 – ein 401 hält das Gerät für einen ungültigen Pass, ein 404 die Käuferin für einen falschen Link. Gezählt wird je Seriennummer (authentifizierte Geräteanfragen, Standard 120/Minute), je Geräte-ID (Seriennummernliste, 120/Minute) und je Client-Adresse nur für Fehlversuche (falscher Token, unbekannte Seriennummer oder Geräte-ID; 60/Minute) – viele Telefone hinter einer Veranstaltungs- oder Mobilfunk-NAT teilen sich so kein Budget. Download- und Paket-Links zählen je Client (60/Minute), Google-Speichern-Links ebenso (30/Minute). Alle Werte über den Filter `wpcap_wallet_rate_limits`.
 
+Google: Das OAuth-Zugriffstoken (JWT-Bearer-Grant mit dem Dienstkonto) wird bis kurz vor Ablauf zwischengespeichert, gebunden an das Dienstkonto (Transient `wpcap_wallet_google_token_{Hash aus client_email, token_uri und privatem Schlüssel}`, A423): Nach dem Hochladen eines anderen Dienstkontos wird nie das Token des vorigen verwendet. Antwortet die Wallet-API mit 401 oder 403, wird das Token verworfen und beim nächsten Aufruf neu angefordert.
+
 APNs: HTTP/2-POST an `https://api.push.apple.com/3/device/{pushToken}` (Sandbox einstellbar) mit dem Pass-Type-ID-Zertifikat als Client-Zertifikat, `apns-topic` = Pass Type ID, Payload `{}`. Benötigt cURL mit HTTP/2.
 
 Update-Tags (für `passesUpdatedSince`, `Last-Modified`, `ETag`) liegen bei jeder Änderung in einer späteren vollen Sekunde als der vorherige Tag; eine Änderung in derselben Sekunde wie der letzte Abruf wird daher nie per 304 verschluckt.
