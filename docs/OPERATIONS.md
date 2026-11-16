@@ -707,8 +707,9 @@ Offene Stornos, die auf Freigabe warten, und bezahlte, noch nicht gebuchte Verk�
 
 - Storno ist auch nach dem Schichtabschluss möglich (Belegsuche auf dem Reiter „Verkauf“), ganz oder für einzelne Tickets. Die Auszahlung wird mit eigenem Stornobeleg (Belegnummernkreis der Kasse) als negative Buchung in die Schicht des Verkaufs gebucht, solange sie offen ist, sonst in die offene Schicht der handelnden Person oder der Kasse des Verkaufs.
 - Bar- und Kartenauszahlungen an der Kasse (Storno) brauchen eine offene Schicht der handelnden Person.
-- **Erstattungen aus der Verwaltung** (Bestellung, Freigabe einer Erstattung, automatische Erstattung bei
-  Terminabsage) bewegen an keiner Kasse Geld (A488). Hat die handelnde Person selbst eine offene
+- **Erstattungen aus der Verwaltung** (Bestellung, automatische Erstattung bei Terminabsage) bewegen an
+  keiner Kasse Geld (A488); ein an der Kasse beantragter Storno wird auch nach späterer Freigabe dort
+  ausgezahlt (Schicht des Verkaufs bzw. wie beim Storno). Hat die handelnde Person selbst eine offene
   Schicht, wird die Auszahlung dort gebucht; sonst wird sie als **offene Kassen-Rückzahlung** vorgemerkt
   (Tabelle `wpcap_boxoffice_payouts`, Schema 3.10.18, Audit `pos_payout_open`) – nie in die Schicht
   einer anderen Kassierkraft. Die Erstattung selbst ist abgeschlossen (Tickets widerrufen, Plätze frei).

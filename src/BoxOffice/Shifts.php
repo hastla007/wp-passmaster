@@ -681,10 +681,11 @@ final class Shifts {
 		if ( ! $sale || ! Service::is_booked( $sale ) ) { return null; }
 		if ( $shift && 'open' === $shift->status && $shift->currency === $sale->currency ) {
 			$target = $shift;
-		} elseif ( self::needs_shift( $sale->payment_method ) && ! self::$at_till && self::payouts_ready() ) {
-			// A488: a refund from the back office (order screen, approval, event cancellation) moves no
-			// money at any till yet. It is booked into the shift of whoever pays it out: the current
-			// user's own open shift, else it waits as an open box office payout (pay_out()).
+		} elseif ( self::needs_shift( $sale->payment_method ) && ! self::$at_till && 0 !== strpos( (string) $refund['reason'], 'POS-Storno' ) && self::payouts_ready() ) {
+			// A488: a refund from the back office (order screen, event cancellation) moves no money at
+			// any till yet. It is booked into the shift of whoever pays it out: the current user's own
+			// open shift, else it waits as an open box office payout (pay_out()). A storno requested at
+			// the till (also when a supervisor approves it later) is paid out there, as before.
 			$payout = self::payout_for_refund( (int) $refund['refund_id'] );
 			if ( $payout ) { return $payout; }
 			$mine = self::current_for_user( get_current_user_id(), array( 'open' ) );
