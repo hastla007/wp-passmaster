@@ -52,7 +52,7 @@ $wpcap_no_payment = ! $providers;
 		</details>
 	<?php endif; ?>
 	<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
-	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" novalidate>
+	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="#" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" novalidate>
 		<fieldset class="wpcap-types"<?php echo $card['max_total'] ? ' data-max-total="' . esc_attr( $card['max_total'] ) . '"' : ''; ?>>
 			<legend><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></legend>
 			<?php foreach ( array_values( $types ) as $wpcap_index => $type ) :
@@ -172,12 +172,14 @@ $wpcap_no_payment = ! $providers;
 				<label for="<?php echo esc_attr( $form_id . '-terms' ); ?>"><?php echo esc_html( $wpcap_has_consumer_info ? __( 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.', 'pass-captain' ) : __( 'Ich akzeptiere die Bedingungen.', 'pass-captain' ) ); ?></label>
 			</div>
 		<?php endif; ?>
-		<button type="submit" class="wp-element-button wpcap-submit"><?php esc_html_e( 'Zahlungspflichtig bestellen', 'pass-captain' ); ?></button>
+		<?php /* A450: enabled by checkout.js once its handlers are attached; without JavaScript nothing is sent. */ ?>
+		<button type="submit" class="wp-element-button wpcap-submit" disabled data-wpcap-requires-js><?php esc_html_e( 'Zahlungspflichtig bestellen', 'pass-captain' ); ?></button>
+		<noscript><p class="wpcap-noscript"><?php esc_html_e( 'Zum Bestellen wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser.', 'pass-captain' ); ?></p></noscript>
 		<p class="wpcap-message" role="status" aria-live="polite"></p>
 		<?php endif; ?>
 	</form>
 	<?php if ( $wpcap_waitlist ) : $wpcap_wl_id = $form_id . '-waitlist'; ?>
-		<form class="wpcap-waitlist-form" id="<?php echo esc_attr( $wpcap_wl_id ); ?>" data-event="<?php echo esc_attr( (int) $event->event_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" novalidate>
+		<form class="wpcap-waitlist-form" id="<?php echo esc_attr( $wpcap_wl_id ); ?>" method="post" action="#" data-event="<?php echo esc_attr( (int) $event->event_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" novalidate>
 			<fieldset>
 				<legend><?php esc_html_e( 'Warteliste', 'pass-captain' ); ?></legend>
 				<p><small><?php esc_html_e( 'Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail, das du innerhalb der genannten Frist annehmen kannst.', 'pass-captain' ); ?></small></p>
@@ -200,7 +202,8 @@ $wpcap_no_payment = ! $providers;
 					<input id="<?php echo esc_attr( $wpcap_wl_id . '-email' ); ?>" name="email" type="email" autocomplete="email" required>
 				</div>
 				<p><small><?php esc_html_e( 'Wir verwenden deine E-Mail-Adresse nur für die Warteliste dieses Termins. Ein Angebot kannst du annehmen oder ablehnen.', 'pass-captain' ); ?></small></p>
-				<button type="submit" class="wp-element-button"><?php esc_html_e( 'Auf die Warteliste setzen', 'pass-captain' ); ?></button>
+				<button type="submit" class="wp-element-button" disabled data-wpcap-requires-js><?php esc_html_e( 'Auf die Warteliste setzen', 'pass-captain' ); ?></button>
+				<noscript><p class="wpcap-noscript"><?php esc_html_e( 'Für die Warteliste wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser.', 'pass-captain' ); ?></p></noscript>
 				<p class="wpcap-message" role="status" aria-live="polite"></p>
 			</fieldset>
 		</form>

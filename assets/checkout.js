@@ -888,4 +888,10 @@
 			button.disabled = false;
 		}
 	});
+	// A450: the order and waitlist forms ship with a disabled submit button (without JavaScript
+	// nothing is sent, never as GET with the e-mail address in the URL); the handlers are attached now.
+	document.querySelectorAll('.wpcap-checkout-form [data-wpcap-requires-js], .wpcap-waitlist-form [data-wpcap-requires-js]').forEach(function (button) {
+		button.disabled = false;
+		button.removeAttribute('data-wpcap-requires-js');
+	});
 })();

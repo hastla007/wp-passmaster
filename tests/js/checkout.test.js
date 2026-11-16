@@ -7,6 +7,7 @@
  *       data.index / data.ticket_type_id + data.position / data.field_key point at the right field.
  * A553: likely typo in the buyer e-mail domain: hint with a fix button, one soft stop on submit,
  *       note on the confirmation panel.
+ * A450: the submit buttons of the order and waitlist forms ship disabled and are enabled by the script.
  */
 'use strict';
 const test = require('node:test');
@@ -56,10 +57,19 @@ function load(options) {
 		h('p', { class: 'wpcap-estimate', 'aria-live': 'polite' }),
 		h('div', { class: 'wpcap-field' }, [h('label', { for: 'f-email' }, ['Deine E-Mail-Adresse (für Tickets und Bestätigung) *']), email]),
 		attendees,
-		h('button', { type: 'submit', class: 'wpcap-submit' }, ['Zahlungspflichtig bestellen']),
+		h('button', Object.assign({ type: 'submit', class: 'wpcap-submit' }, options.buttonAttrs || {}), ['Zahlungspflichtig bestellen']),
 		h('p', { class: 'wpcap-message', role: 'status', 'aria-live': 'polite' }),
 	]);
 	const article = h('article', { class: 'wpcap-event' }, [form]);
+	if (options.waitlist) {
+		article.appendChild(h('form', { class: 'wpcap-waitlist-form', method: 'post', action: '#', 'data-event': '5', 'data-occurrence': '7', novalidate: true }, [
+			h('input', { type: 'hidden', name: 'ticket_type_id', value: '11' }),
+			h('input', { name: 'quantity', type: 'number', value: '1' }),
+			h('input', { name: 'email', type: 'email', required: true }),
+			h('button', Object.assign({ type: 'submit', class: 'wp-element-button' }, options.buttonAttrs || {}), ['Auf die Warteliste setzen']),
+			h('p', { class: 'wpcap-message', role: 'status', 'aria-live': 'polite' }),
+		]));
+	}
 	doc.body.appendChild(article);
 	const requests = [];
 	const sandbox = {
@@ -273,3 +283,24 @@ test('A553: confirmation panel says what to do if the address is wrong', async (
 	assert.strictEqual(panel.querySelector('.wpcap-wrong-email').textContent, I18N.wrongEmail);
 });
 
+
+/* ------------------------------------------------------------------ A450 */
+
+test('A450: disabled submit buttons (data-wpcap-requires-js) are enabled once the script runs', async () => {
+	const c = load({ waitlist: true, buttonAttrs: { disabled: true, 'data-wpcap-requires-js': '' } });
+	const buttons = c.doc.querySelectorAll('button[type="submit"]');
+	assert.strictEqual(buttons.length, 2);
+	buttons.forEach((b) => {
+		assert.strictEqual(b.disabled, false);
+		assert.strictEqual(b.hasAttribute('data-wpcap-requires-js'), false);
+	});
+	c.email.value = 'kauf@example.com';
+	c.type(c.qtyB, 1);
+	await c.submit();
+	assert.strictEqual(c.requests.length, 1);
+});
+
+test('A450: other disabled buttons stay disabled', () => {
+	const c = load({ buttonAttrs: { disabled: true } });
+	assert.strictEqual(c.form.querySelector('button[type="submit"]').disabled, true);
+});
