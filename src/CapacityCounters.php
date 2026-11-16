@@ -558,8 +558,8 @@ final class CapacityCounters {
 			} else {
 				$rows = array_merge(
 					// Lines and holds of recently changed orders (paid, cancelled, refunded, converted late).
-					(array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_orders o INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=o.order_id WHERE o.updated_at >= %s AND oi.counted_qty<>" . self::line_units_sql() . " LIMIT $limit", $since ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					(array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT r.order_id FROM {$p}wpcap_orders o INNER JOIN {$p}wpcap_reservations r ON r.order_id=o.order_id WHERE o.updated_at >= %s AND r.counted_qty<>IF(r.status='active',r.quantity,0) LIMIT $limit", $since ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					(array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_orders o STRAIGHT_JOIN {$p}wpcap_order_items oi ON oi.order_id=o.order_id WHERE o.updated_at >= %s AND oi.counted_qty<>" . self::line_units_sql() . " LIMIT $limit", $since ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					(array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT r.order_id FROM {$p}wpcap_orders o STRAIGHT_JOIN {$p}wpcap_reservations r ON r.order_id=o.order_id WHERE o.updated_at >= %s AND r.counted_qty<>IF(r.status='active',r.quantity,0) LIMIT $limit", $since ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					// Active holds that do not count fully (few rows: expired holds leave 'active' within minutes).
 					(array) $wpdb->get_col( "SELECT DISTINCT order_id FROM {$p}wpcap_reservations WHERE status='active' AND counted_qty<>quantity LIMIT $limit" ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				);

@@ -64,7 +64,10 @@ function wpa446_event( $capacity = 10, array $type = array() ) {
 	return array( $event, $occ, (int) $wpdb->insert_id );
 }
 function wpa446_post( $id, $content, $status = 'publish' ) {
-	return (object) array( 'ID' => $id, 'post_status' => $status, 'post_type' => 'page', 'post_content' => $content );
+	$post = (object) array( 'ID' => $id, 'post_status' => $status, 'post_type' => 'page', 'post_content' => $content );
+	// Known to whichever get_permalink() stand-in another test file defined first (e.g. zz_a268).
+	$GLOBALS['wpcap_test_posts'][ $id ] = $GLOBALS['wpcap_test_posts'][ $id ] ?? $post;
+	return $post;
 }
 
 list( $e1, $o1, $t1 ) = wpa446_event( 2 );
