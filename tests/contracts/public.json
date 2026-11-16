@@ -79,8 +79,6 @@
         "provider": "manual"
       },
       "response": {
-        "order_id": "int",
-        "public_id": "string",
         "status": "string",
         "payment_status": "string",
         "subtotal_minor": "int",

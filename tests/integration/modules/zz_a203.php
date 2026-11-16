@@ -163,8 +163,13 @@ $a203_checkout = static function ( array $body ) {
 	return wpa203_dispatch( wpa203_request( 'POST', '/checkout', $body, array(), true ), null, array( Controller::class, 'checkout' ) );
 };
 $a203_co = $a203_checkout( wpa203_req( 'public', 'POST /checkout', array( 'email' => 'wpa203-buyer@example.com', 'ticket_type_id' => $a203_type, 'idempotency_key' => 'wpa203-co-' . uniqid() ) ) );
-check( 'POST /checkout accepts the committed request example', is_array( $a203_co ) && ! empty( $a203_co['order_id'] ) && 5000 === (int) $a203_co['total_minor'] );
+// Merged design (security hardening): the checkout answer carries neither the sequential order_id nor the
+// public_id (half of the portal link) – only the short reference; the test reads the order from the database.
+$a203_order_of = static function ( $email ) use ( $wpdb, $p ) { return $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", $email ) ); };
+$a203_co_row = $a203_order_of( 'wpa203-buyer@example.com' );
+check( 'POST /checkout accepts the committed request example', is_array( $a203_co ) && ! isset( $a203_co['order_id'], $a203_co['public_id'] ) && '' !== (string) ( $a203_co['reference'] ?? '' ) && $a203_co_row && 5000 === (int) $a203_co['total_minor'] );
 wpa203_contract( 'public', 'POST /checkout', 'response', $a203_co );
+if ( $a203_co_row ) { $a203_co['order_id'] = (int) $a203_co_row->order_id; $a203_co['public_id'] = (string) $a203_co_row->public_id; }
 $a203_extra_body = wpa203_req( 'public', 'POST /checkout', array( 'email' => 'wpa203-extra@example.com', 'ticket_type_id' => $a203_type, 'idempotency_key' => 'wpa203-extra-' . uniqid() ) );
 $a203_extra_body['client_build'] = '2027.1';
 $a203_extra_body['unit_prices'] = array( $a203_type => 0 );
@@ -176,7 +181,7 @@ wpa203_contract( 'public', 'POST /checkout', 'response', $a203_extra );
 $a203_min_body = wpa203_req( 'public', 'POST /checkout', array( 'email' => 'wpa203-min@example.com', 'ticket_type_id' => $a203_type, 'idempotency_key' => 'wpa203-min-' . uniqid() ) );
 unset( $a203_min_body['provider'] );
 $a203_min = $a203_checkout( $a203_min_body );
-check( 'a missing optional request field (provider) falls back to its default', is_array( $a203_min ) && 'manual' === ( $a203_min['payment']['provider'] ?? 'manual' ) && ! empty( $a203_min['order_id'] ) );
+check( 'a missing optional request field (provider) falls back to its default', is_array( $a203_min ) && 'manual' === ( $a203_min['payment']['provider'] ?? 'manual' ) && null !== $a203_order_of( 'wpa203-min@example.com' ) );
 $a203_token = bin2hex( random_bytes( 32 ) );
 $wpdb->update( "{$p}wpcap_orders", array( 'access_token_hash' => hash( 'sha256', $a203_token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ) ), array( 'order_id' => (int) $a203_co['order_id'] ) );
 $a203_status_req = wpa203_req( 'public', 'GET /orders/{public_id}', array( 'public_id' => $a203_co['public_id'], 'access_token' => $a203_token ) );
