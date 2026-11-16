@@ -204,7 +204,7 @@ $GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] = false;
 $res_a = Privacy::erase( 'p1p-ada@example.com' );
 check( 'erase attendee: name, e-mail, answers removed; ticket stays valid', '' === $wpdb->get_var( "SELECT attendee_name FROM {$p}wpcap_ticket_assignments WHERE ticket_id=$ada" ) && '' === $wpdb->get_var( "SELECT attendee_email FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array() === $answers( $ada ) && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array( 'Initech' ) === $answers( $bob ) );
 check( 'erase attendee: wallet device registration removed, no revocation', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
-check( 'erase attendee: warns that the buyer\'s upcoming tickets stay valid', (bool) preg_grep( '/bleiben gültig/', $res_a['messages'] ) );
+check( 'erase attendee: warns that the buyer\'s upcoming tickets stay valid', (bool) preg_grep( '/bleib(?:t|en) gültig/', $res_a['messages'] ) );
 // Buyer erasure.
 $GLOBALS['p1p_scheduled'] = array();
 $bmsg = (int) $wpdb->get_var( "SELECT message_id FROM {$p}wpcap_message_queue WHERE recipient='p1p-buyer@example.com' ORDER BY message_id DESC LIMIT 1" );
