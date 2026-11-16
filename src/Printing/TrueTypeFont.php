@@ -295,7 +295,7 @@ final class TrueTypeFont {
 			$raw = substr( $this->data, $strings + $this->u16( $at + 10 ), $this->u16( $at + 8 ) );
 			$text = 1 === $this->u16( $at ) ? $raw : ( function_exists( 'mb_convert_encoding' ) ? mb_convert_encoding( $raw, 'UTF-8', 'UTF-16BE' ) : str_replace( "\0", '', $raw ) );
 			$name = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) $text );
-			if ( '' !== $name ) { return substr( $name, 0, 60 ); }
+			if ( '' !== $name ) { return \PassCaptain\Text::cut( $name, 60 ); }
 		}
 		return 'Font';
 	}
