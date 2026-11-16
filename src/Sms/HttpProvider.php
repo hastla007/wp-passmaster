@@ -79,6 +79,12 @@ final class HttpProvider implements ProviderInterface {
 		return $out;
 	}
 
+	/**
+	 * Every request carries the header Idempotency-Key (= message reference), so the service retries
+	 * after a timeout (A416). Gateways that ignore the header can send a message twice then.
+	 */
+	public function idempotent() { return true; }
+
 	/** Header carrying the callback signature (setting sms.http_signature_header). */
 	public static function signature_header() {
 		$s = (array) Settings::get( 'sms' );

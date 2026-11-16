@@ -328,7 +328,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_occurrence_default_duration` | `int $seconds` (Einstellung `occurrence_default_duration_hours`, Vorgabe 6 h) | Dauer eines Termins ohne Ende: ab wann er als vorbei gilt (Online- und Abendkassenverkauf, Eventliste, Terminlisten von Scanner und App; `PassCaptain\Occurrence`, A535). Gilt global (auch in SQL), ohne Terminbezug. |
 | `wpcap_calendar_default_duration` | `int $seconds` (7200), `object $occurrence` | Dauer für `DTEND`, wenn der Termin kein Ende hat. |
 | `wpcap_calendar_organizer` | `string $email` (Standard `''`) | E-Mail-Adresse für `ORGANIZER` in .ics-Dateien (A140). Mit Adresse wird die Datei eines einzelnen abgesagten Termins als `METHOD:CANCEL` ausgeliefert (RFC 5546 verlangt dafür einen Organizer), sonst `METHOD:PUBLISH` mit `STATUS:CANCELLED`. |
-| `wpcap_sms_providers` | `ProviderInterface[] $providers` | Weitere SMS-Adapter (`PassCaptain\Sms\ProviderInterface`). |
+| `wpcap_sms_providers` | `ProviderInterface[] $providers` | Weitere SMS-Adapter (`PassCaptain\Sms\ProviderInterface`; optional `idempotent()` und `find_sent()` für unklare Versandergebnisse, A416). |
 | `wpcap_sms_number_daily_limit` | `int $limit` (3) | SMS-Einwilligungen je Mobilnummer in 24 Stunden (Missbrauchsschutz; eine Bestätigung per SMS-Code ist nicht implementiert). |
 | `wpcap_sms_ip_hourly_limit` | `int $limit` (10) | SMS-Einwilligungen je Client-IP und Stunde. |
 | `wpcap_sms_skip_reason` | `string $reason, object $message` | Grund, eine fällige SMS nicht zu senden (leer = senden). Erinnerungs-SMS werden so bei ungültigen Tickets übersprungen. |

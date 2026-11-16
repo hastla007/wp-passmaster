@@ -23,6 +23,8 @@ final class Service {
 	const MAX_ATTEMPTS = 4;
 	/** Messages held by the budget stop are skipped after this many days. */
 	const HELD_DAYS = 7;
+	/** Seconds after an unclear send call (timeout) before the provider is asked whether it sent it (A416). */
+	const UNKNOWN_CHECK_SECONDS = 120;
 
 	/** Opt-out keywords for inbound SMS. */
 	const STOP_WORDS = array( 'STOP', 'STOPP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'ABMELDEN', 'ENDE' );
@@ -180,7 +182,7 @@ final class Service {
 		} else {
 			$changed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_consents SET phone='',withdrawn_at=%s WHERE order_id=%d AND (withdrawn_at IS NULL OR phone<>'')", $now, absint( $order_id ) ) );
 		}
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_withdrawn' WHERE order_id=%d AND status IN ('queued','sending','held')", absint( $order_id ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_withdrawn' WHERE order_id=%d AND status IN ('queued','sending','held','unknown')", absint( $order_id ) ) );
 		return $changed > 0;
 	}
 
@@ -264,7 +266,7 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$changed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_consents SET retired_at=%s WHERE order_id=%d AND retired_at IS NULL AND withdrawn_at IS NULL", current_time( 'mysql', true ), absint( $order_id ) ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_retired' WHERE order_id=%d AND status IN ('queued','held') AND purpose<>'cancellation'", absint( $order_id ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_retired' WHERE order_id=%d AND status IN ('queued','held','unknown') AND purpose<>'cancellation'", absint( $order_id ) ) );
 		self::erase_retired_numbers();
 		return $changed > 0;
 	}
@@ -273,7 +275,7 @@ final class Service {
 	public static function erase_retired_numbers() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (int) $wpdb->query( "UPDATE {$p}wpcap_sms_consents c SET c.phone='' WHERE c.retired_at IS NOT NULL AND c.phone<>'' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_sms_messages m WHERE m.consent_id=c.consent_id AND m.status IN ('queued','sending','held'))" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- no input.
+		return (int) $wpdb->query( "UPDATE {$p}wpcap_sms_consents c SET c.phone='' WHERE c.retired_at IS NOT NULL AND c.phone<>'' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_sms_messages m WHERE m.consent_id=c.consent_id AND m.status IN ('queued','sending','held','unknown'))" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- no input.
 	}
 
 	/** Retires consents of settled orders whose events are over (one day after the last start). */
@@ -316,12 +318,20 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		$provider = self::provider();
+		// A416: a claim left in "sending" (the process died during the call) is only queued again when the
+		// provider deduplicates repeated requests; otherwise the outcome is unknown (looked up, never resent blindly).
+		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
+		if ( self::resend_safe( $provider ) ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", $stale ) );
+		} else {
+			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='unknown',send_at=%s,last_error='outcome_unknown' WHERE status='sending' AND locked_at<%s", $now, $stale ) );
+		}
 		// Messages held by the budget stop and not released within HELD_DAYS are dropped.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='budget_exceeded' WHERE status='held' AND created_at<%s", gmdate( 'Y-m-d H:i:s', time() - self::HELD_DAYS * DAY_IN_SECONDS ) ) );
 		self::retire_finished();
-		$provider = self::provider();
 		if ( ! $provider ) { self::erase_retired_numbers(); return 0; }
+		self::reconcile_unknown( $provider );
 		$sent = 0;
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 25;
 		// Shared cron time budget: checked before each claim, so a claimed message is always processed.
@@ -362,6 +372,11 @@ final class Service {
 			if ( is_wp_error( $result ) ) {
 				$tries = (int) $row->attempts + 1;
 				$data = (array) $result->get_error_data();
+				if ( 'unknown' === ( $data['outcome'] ?? '' ) && ! self::resend_safe( $provider ) ) {
+					// A416: the provider may have sent it. Looked up after UNKNOWN_CHECK_SECONDS, never resent blindly.
+					$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'unknown', 'provider' => $provider->id(), 'send_at' => gmdate( 'Y-m-d H:i:s', time() + self::UNKNOWN_CHECK_SECONDS ), 'locked_at' => $now, 'last_error' => \PassCaptain\Operations\Queues::safe_error( 'outcome_unknown: ' . $result->get_error_message() ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
+					continue;
+				}
 				$final = $tries >= self::MAX_ATTEMPTS || ! empty( $data['permanent'] );
 				$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => $final ? 'failed' : 'queued', 'provider' => $provider->id(), 'send_at' => gmdate( 'Y-m-d H:i:s', time() + 60 * ( 2 ** $tries ) ), 'locked_at' => null, 'last_error' => \PassCaptain\Operations\Queues::safe_error( $result->get_error_message() ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
 				continue;
@@ -379,6 +394,61 @@ final class Service {
 		if ( $budget_hit ) { \PassCaptain\Jobs\TimeBudget::continue_later( 'wpcap_process_messages' ); }
 		self::erase_retired_numbers();
 		return $sent;
+	}
+
+	/**
+	 * Whether a message may be sent again after an unclear outcome: only when the provider declares that
+	 * it deduplicates repeated requests (optional method idempotent(), e.g. the HTTP gateway with its
+	 * Idempotency-Key header). Twilio and adapters without the method: no.
+	 */
+	public static function resend_safe( $provider ) {
+		return $provider && method_exists( $provider, 'idempotent' ) && true === $provider->idempotent();
+	}
+
+	/**
+	 * Resolves messages with an unknown send outcome (A416) through the provider's optional lookup
+	 * find_sent( $to, $body, $since ): found → sent (or the reported final status) with the provider
+	 * reference, conclusively not found → queued again, lookup error → checked again later. Without a
+	 * lookup the message stays "unknown" for a decision under Operations → Queues (retry/discard).
+	 *
+	 * @return int Messages resolved.
+	 */
+	public static function reconcile_unknown( $provider, $limit = 10 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! $provider || ! method_exists( $provider, 'find_sent' ) ) { return 0; }
+		$now = current_time( 'mysql', true );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT m.*, c.phone FROM {$p}wpcap_sms_messages m LEFT JOIN {$p}wpcap_sms_consents c ON c.consent_id=m.consent_id WHERE m.status='unknown' AND m.send_at<=%s AND m.provider IN ('',%s) ORDER BY m.message_id LIMIT %d", $now, $provider->id(), max( 1, (int) $limit ) ) );
+		$resolved = 0;
+		foreach ( (array) $rows as $row ) {
+			$since = strtotime( (string) ( $row->locked_at ?: $row->updated_at ) . ' UTC' );
+			$found = '' === (string) $row->phone ? new \WP_Error( 'wpcap_sms_no_phone', 'no_phone' ) : $provider->find_sent( (string) $row->phone, (string) $row->body, $since ? $since : time() );
+			if ( is_wp_error( $found ) ) {
+				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET send_at=%s WHERE message_id=%d AND status='unknown'", gmdate( 'Y-m-d H:i:s', time() + 15 * MINUTE_IN_SECONDS ), (int) $row->message_id ) );
+				continue;
+			}
+			if ( null === $found ) {
+				// Not at the provider: nothing went out, the next run sends it (consent re-checked there).
+				$final = (int) $row->attempts >= self::MAX_ATTEMPTS;
+				$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status=%s,send_at=%s,locked_at=NULL,last_error='not_sent_after_unknown',updated_at=%s WHERE message_id=%d AND status='unknown'", $final ? 'failed' : 'queued', $now, $now, (int) $row->message_id ) );
+				$resolved += (int) $changed;
+				continue;
+			}
+			$map = array( 'delivered' => 'delivered', 'undelivered' => 'undelivered', 'failed' => 'failed' );
+			$update = array( 'status' => $map[ (string) ( $found['status'] ?? '' ) ] ?? 'sent', 'provider' => $provider->id(), 'provider_ref' => substr( (string) $found['provider_ref'], 0, 64 ), 'locked_at' => null, 'last_error' => null, 'updated_at' => $now );
+			$costed = false;
+			if ( self::ready() ) {
+				$seg = Segments::count( $row->body );
+				$costing = array( 'segments' => $seg['segments'], 'encoding' => $seg['encoding'], 'country' => Costs::country_of( (string) $row->phone ), 'estimate' => Costs::estimate( (string) $row->phone, $seg['segments'] ) );
+				$update = array_merge( $update, self::cost_columns( $costing, array() ), array( 'sent_at' => $now, 'status_at' => $now ) );
+				$costed = true;
+			}
+			if ( 1 === (int) $wpdb->update( "{$p}wpcap_sms_messages", $update, array( 'message_id' => (int) $row->message_id, 'status' => 'unknown' ) ) ) {
+				++$resolved;
+				if ( $costed ) { Costs::after_cost(); }
+			}
+		}
+		return $resolved;
 	}
 
 	/**
@@ -548,7 +618,8 @@ final class Service {
 		}
 		$set = array();
 		foreach ( $data as $k => $v ) { $set[] = $wpdb->prepare( "$k=%s", $v ); } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal column names.
-		$guard = 'sent' === $status ? " AND status IN ('sending','sent')" : " AND status IN ('sending','sent','delivered','undelivered','failed')";
+		// A delivery report also settles a message whose send outcome was unknown (A416).
+		$guard = 'sent' === $status ? " AND status IN ('sending','unknown','sent')" : " AND status IN ('sending','unknown','sent','delivered','undelivered','failed')";
 		$where = $message_id ? $wpdb->prepare( 'provider=%s AND message_id=%d', $provider, (int) $message_id ) : $wpdb->prepare( 'provider=%s AND provider_ref=%s', $provider, $provider_ref );
 		$updated = (int) $wpdb->query( "UPDATE {$p}wpcap_sms_messages SET " . implode( ',', $set ) . " WHERE $where$guard" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- parts prepared above.
 		if ( $updated && isset( $data['cost'] ) ) { Costs::after_cost(); }
