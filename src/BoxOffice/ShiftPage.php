@@ -313,8 +313,9 @@ final class ShiftPage {
 		foreach ( $registers as $r ) { $names[ (int) $r->register_id ] = $r->name; }
 		$filter = absint( Forms::query_arg( 'register_id', '0' ) );
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( Page::SLUG ) . '"><input type="hidden" name="tab" value="shifts"><p><label>' . esc_html__( 'Kasse', 'pass-captain' ) . ' ';
-		Forms::select( 'register_id', array( 0 => __( 'Alle', 'pass-captain' ) ) + $names, $filter, '', 'onchange="this.form.submit()"' );
-		echo '</label></p></form>';
+		// No submit on change: with the keyboard every arrow key would reload the page (A314).
+		Forms::select( 'register_id', array( 0 => __( 'Alle', 'pass-captain' ) ) + $names, $filter );
+		echo '</label> <button type="submit" class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></p></form>';
 		$open = array();
 		foreach ( $registers as $r ) {
 			$s = Shifts::open_for_register( $r->register_id );

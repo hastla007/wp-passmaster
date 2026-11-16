@@ -101,8 +101,9 @@ final class Page {
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! isset( $occurrences[ $occurrence_id ] ) ) { $occurrence_id = (int) array_key_first( $occurrences ); }
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p><label>' . esc_html__( 'Termin', 'pass-captain' ) . ' ';
-		Forms::select( 'occurrence_id', $occurrences, $occurrence_id, '', 'onchange="this.form.submit()"' );
-		echo '</label></p></form>';
+		// No submit on change: with the keyboard every arrow key would reload the page (A314).
+		Forms::select( 'occurrence_id', $occurrences, $occurrence_id );
+		echo '</label> <button type="submit" class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></p></form>';
 		if ( $occurrence_id ) {
 			$types = Service::ticket_types( $occurrence_id );
 			Forms::open_form( 'wpcap_pos_sell', null, 'id="wpcap-pos-form"' );
