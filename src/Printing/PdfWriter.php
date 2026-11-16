@@ -193,14 +193,30 @@ final class PdfWriter {
 		$module = $size / ( $count + 2 );
 		$ops = array( '0 g' );
 		foreach ( $matrix as $row_index => $row ) {
+			// A618: one rectangle per horizontal run of dark modules instead of one per module.
+			$run = -1;
+			$row = array_values( $row );
+			$row[] = false;
 			foreach ( $row as $col_index => $dark ) {
-				if ( $dark ) {
-					$ops[] = sprintf( '%.2F %.2F %.2F %.2F re f', $x + ( $col_index + 1 ) * $module, $y + $size - ( $row_index + 2 ) * $module, $module, $module );
+				if ( $dark && $run < 0 ) { $run = $col_index; }
+				if ( ! $dark && $run >= 0 ) {
+					$ops[] = sprintf( '%.2F %.2F %.2F %.2F re', $x + ( $run + 1 ) * $module, $y + $size - ( $row_index + 2 ) * $module, ( $col_index - $run ) * $module, $module );
+					$run = -1;
 				}
 			}
 		}
+		// One fill for the whole code.
+		$ops[] = 'f';
 		$this->op( implode( "\n", $ops ) );
 		return true;
+	}
+
+	/**
+	 * A618: whether page content streams are compressed (FlateDecode). Default on when zlib is
+	 * available; filter `wpcap_pdf_compress` (false e.g. to inspect the PDF operators).
+	 */
+	public static function compress() {
+		return function_exists( 'gzcompress' ) && (bool) apply_filters( 'wpcap_pdf_compress', true );
 	}
 
 	private function op( $op ) {
@@ -238,7 +254,10 @@ final class PdfWriter {
 			$offsets[ $page_id ] = (int) $base + strlen( $bytes );
 			$bytes .= $page_id . " 0 obj\n" . sprintf( '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2F %.2F] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents %d 0 R >>', $page['w'], $page['h'], $content_id ) . "\nendobj\n";
 			$offsets[ $content_id ] = (int) $base + strlen( $bytes );
-			$bytes .= $content_id . " 0 obj\n" . '<< /Length ' . strlen( $content ) . " >>\nstream\n" . $content . "\nendstream" . "\nendobj\n";
+			$packed = self::compress() ? gzcompress( $content, 6 ) : false;
+			$bytes .= $content_id . " 0 obj\n" . ( false !== $packed
+				? '<< /Length ' . strlen( $packed ) . " /Filter /FlateDecode >>\nstream\n" . $packed
+				: '<< /Length ' . strlen( $content ) . " >>\nstream\n" . $content ) . "\nendstream" . "\nendobj\n";
 		}
 		return array( 'bytes' => $bytes, 'offsets' => $offsets );
 	}

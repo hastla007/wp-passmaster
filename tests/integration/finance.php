@@ -213,7 +213,7 @@ $pdf = array_values( $ticket_mail['files'] ?? array() )[0] ?? '';
 preg_match( '/startxref\n(\d+)\n%%EOF$/', $pdf, $xm );
 $xref_ok = isset( $xm[1] ) && 0 === strpos( substr( $pdf, (int) $xm[1] ), 'xref' );
 check( 'ticket mail has a valid PDF with one page per ticket', str_starts_with( $pdf, '%PDF-1.4' ) && 2 === preg_match_all( '#/Type /Page /Parent#', $pdf ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(Konzert) Tj' ) && $xref_ok );
-check( 'PDF contains the QR code when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $pdf, 're f' ) > 200 );
+check( 'PDF contains the QR code when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $pdf, " re\n" ) > 60 );
 check( 'temporary PDF file is removed after sending', ! glob( sys_get_temp_dir() . '/tickets-*.pdf' ) );
 
 echo "Door sales\n";

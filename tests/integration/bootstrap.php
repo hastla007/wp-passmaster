@@ -236,6 +236,8 @@ $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = getenv( 'WPCAP_TEST
 // A564: waitlist sign-ups need the double opt-in confirmation by default; the suites that are not about it
 // join directly (modules/zz_a564_a565.php unsets this and tests the confirmation flow).
 $GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] = false;
+// A618: PDF content streams stay uncompressed in the suites that look for PDF operators; modules/zz_a618.php tests the compression.
+$GLOBALS['wpcap_test_filters']['wpcap_pdf_compress'] = false;
 $GLOBALS['wpcap_test_actions'] = array();
 
 function __( $t, $d = null ) { return $t; }
@@ -422,7 +424,18 @@ if ( ! function_exists( 'shortcode_atts' ) ) {
  * ("(Text) Tj", PDF-escaped, UTF-8), so tests can look for printed text.
  */
 function wpcap_pdf_plain( $pdf ) {
+	// A618: content streams may be FlateDecode-compressed; inflate them (font programs carry /Length1).
 	$pdf = (string) $pdf;
+	$out = '';
+	$offset = 0;
+	while ( preg_match( '/<< \/Length (\d+) \/Filter \/FlateDecode >>\nstream\n/', $pdf, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
+		$start = $m[0][1] + strlen( $m[0][0] );
+		$raw = substr( $pdf, $start, (int) $m[1][0] );
+		$inflated = @gzuncompress( $raw );
+		$out .= substr( $pdf, $offset, $m[0][1] - $offset ) . ( false !== $inflated ? '<< /Length ' . strlen( $inflated ) . " >>\nstream\n" . $inflated : $m[0][0] . $raw );
+		$offset = $start + (int) $m[1][0];
+	}
+	$pdf = $out . substr( $pdf, $offset );
 	$maps = array();
 	foreach ( array( 'F1' => 3, 'F2' => 4 ) as $font => $id ) {
 		if ( ! preg_match( '/(?:^|\n)' . $id . ' 0 obj\n<<[^\n]*\/ToUnicode (\d+) 0 R/', $pdf, $m ) ) { continue; }
