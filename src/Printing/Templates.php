@@ -306,6 +306,62 @@ final class Templates {
 	}
 
 	/**
+	 * One block of tickets_for_occurrence() in the same order, read after a position (keyset, A477):
+	 * large events are listed block by block instead of loading every ticket at once.
+	 *
+	 * @param array{0:string,1:int}|null $after Sort key and ticket id of the last row of the previous
+	 *                                          block (null = from the start).
+	 * @return object[] Rows as tickets_for_occurrence() plus sort_key.
+	 */
+	public static function tickets_for_occurrence_after( $occurrence_id, array $statuses, $after, $limit ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
+		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		$key = "COALESCE(NULLIF(a.attendee_name,''),'~')";
+		$where = '';
+		$args = array( absint( $occurrence_id ) );
+		if ( is_array( $after ) ) {
+			$where = " AND ($key > %s OR ($key = %s AND t.ticket_id > %d))";
+			array_push( $args, (string) $after[0], (string) $after[0], (int) $after[1] );
+		}
+		$args[] = max( 1, (int) $limit );
+		return (array) $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name,$key AS sort_key
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE o.occurrence_id=%d AND t.status IN ($in)$where ORDER BY $key,t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list and sort expression, values as placeholders.
+			$args
+		) );
+	}
+
+	/**
+	 * All tickets of an occurrence in list order, one block at a time (A477): yields arrays of at most
+	 * $chunk rows (see tickets_for_occurrence_after()).
+	 *
+	 * @return \Generator<int, object[]>
+	 */
+	public static function ticket_blocks( $occurrence_id, array $statuses, $chunk ) {
+		$after = null;
+		do {
+			$rows = self::tickets_for_occurrence_after( $occurrence_id, $statuses, $after, $chunk );
+			if ( $rows ) {
+				$last = end( $rows );
+				$after = array( (string) $last->sort_key, (int) $last->ticket_id );
+				yield $rows;
+			}
+		} while ( count( $rows ) >= $chunk );
+	}
+
+	/** Number of tickets of an occurrence with the given statuses (without loading them). */
+	public static function count_for_occurrence( $occurrence_id, array $statuses ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
+		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE tt.occurrence_id=%d AND t.status IN ($in)", absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list.
+	}
+
+	/**
 	 * Print order of an occurrence's tickets without names or codes (batch job snapshot, A427):
 	 * ticket id, current code hash and whether someone other than the buyer holds the ticket
 	 * (transferred, or assigned/sent to an attendee e-mail other than the buyer's).

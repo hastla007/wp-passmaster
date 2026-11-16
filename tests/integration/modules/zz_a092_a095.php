@@ -171,4 +171,4 @@ $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events', 'wpcap_checki
 $n_lvl_none = AttendeeList::access_level( $n['occ'] );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $n_page = (string) file_get_contents( WPCAP_PATH . 'src/Printing/Page.php' );
-check( 'A095 access follows the attendee-list scope (basic for check-in staff, none without access); handler offers HTML and CSV', 'basic' === $n_lvl_basic && '' === $n_lvl_none && false !== strpos( $n_page, 'NoShowList::rows( $occurrence_id, $level )' ) && false !== strpos( $n_page, 'noshow_csv' ) );
+check( 'A095 access follows the attendee-list scope (basic for check-in staff, none without access); handler offers HTML and CSV', 'basic' === $n_lvl_basic && '' === $n_lvl_none && false !== strpos( $n_page, 'NoShowList::row_stream( $occurrence_id, $level )' ) && false !== strpos( $n_page, 'noshow_csv' ) );

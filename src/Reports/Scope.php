@@ -73,14 +73,69 @@ final class Scope {
 	/** CSV text (semicolon separated, UTF-8 BOM) from rows; every cell passes csv_cell(). */
 	public static function csv( array $rows ) {
 		$out = fopen( 'php://temp', 'w+' );
-		fwrite( $out, "\xEF\xBB\xBF" );
-		foreach ( $rows as $row ) {
-			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '\\' );
-		}
+		self::write_csv( $out, $rows );
 		rewind( $out );
 		$csv = (string) stream_get_contents( $out );
 		fclose( $out );
 		return $csv;
+	}
+
+	/**
+	 * Writes CSV (BOM, semicolons, csv_cell()) to a stream row by row; $rows may be any iterable
+	 * (a generator for large lists, A477). With $flush_every the output is flushed after that many
+	 * rows (download streaming).
+	 *
+	 * @param resource $out  Stream.
+	 * @param iterable $rows Rows (first row = header).
+	 */
+	public static function write_csv( $out, $rows, $flush_every = 0 ) {
+		fwrite( $out, "\xEF\xBB\xBF" );
+		$n = 0;
+		foreach ( $rows as $row ) {
+			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '\\' );
+			if ( $flush_every && 0 === ++$n % $flush_every ) {
+				fflush( $out );
+				self::flush_output();
+			}
+		}
+	}
+
+	/** Whether a streamed download is being sent (flush_output() pushes output to the client). */
+	private static $streaming = false;
+
+	/**
+	 * Streams a CSV download from an iterable of rows and ends the request (A477): rows are written
+	 * as they are produced instead of building the whole file in memory.
+	 *
+	 * @param iterable $rows Rows (first row = header).
+	 */
+	public static function stream_csv( $rows, $filename, $flush_every = 500 ) {
+		self::start_stream( $filename, 'text/csv; charset=utf-8' );
+		$out = fopen( 'php://output', 'w' );
+		self::write_csv( $out, $rows, max( 1, (int) $flush_every ) );
+		fclose( $out );
+		\PassCaptain\Http::end();
+	}
+
+	/**
+	 * Headers of a streamed response ($filename '' = inline, e.g. a print view) and no output
+	 * buffering in the way; flush_output() then sends what was written so far.
+	 */
+	public static function start_stream( $filename, $type ) {
+		if ( function_exists( 'nocache_headers' ) ) { nocache_headers(); }
+		if ( headers_sent() ) { return; } // Output started already (CLI, tests): plain output, no streaming.
+		header( 'Content-Type: ' . $type );
+		if ( '' !== (string) $filename ) { header( 'Content-Disposition: attachment; filename="' . preg_replace( '/[^A-Za-z0-9._-]/', '-', $filename ) . '"' ); }
+		header( 'X-Content-Type-Options: nosniff' );
+		header( 'X-Accel-Buffering: no' );
+		// Output buffers of WordPress, themes or caches would hold the whole file in memory.
+		while ( ob_get_level() > 0 && @ob_end_flush() ) {} // phpcs:ignore WordPress.PHP.NoSilencedErrors -- a buffer that cannot be removed stays.
+		self::$streaming = true;
+	}
+
+	/** Sends the output written so far during a streamed response (no-op otherwise). */
+	public static function flush_output() {
+		if ( self::$streaming ) { flush(); }
 	}
 
 	/** Sends a download response (headers + body) and ends the request. */

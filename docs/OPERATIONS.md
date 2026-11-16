@@ -449,6 +449,16 @@ angezeigt.
 - Zugriffsbereiche des Personals (Spielorte/Veranstalter, A470) und das Ausblenden des Kassen-Hinweises sind Benutzeroptionen **je Site** (`{präfix}wpcap_access_scope`, `{präfix}wpcap_pos_fiscal_notice_dismissed`). Ein Bereich, der auf Site 1 gesetzt wird, schränkt dieselbe Person auf Site 2 nicht ein. Nach dem Update auf Schema 3.10.18 hat jede Site eine Kopie des früheren netzwerkweiten Bereichs; bitte je Site prüfen (Partner-IDs sind Site-lokal).
 - Datenschutz-Auskunft und -Löschung (Werkzeuge → Personenbezogene Daten exportieren/löschen) laufen **je Site**: Exporter und Löscher lesen und ändern nur die Tabellen der Site, auf der die Anfrage bearbeitet wird. Hat eine Person auf mehreren Sites gekauft, muss die Anfrage auf jeder Site gestellt werden. Netzwerkweite Benutzer-Metadaten des Plugins (Hinweis-Schalter, Event-Zuständigkeit des Personals) enthalten keine Kundendaten und bleiben unberührt (getestet in `tests/integration/modules/zz_a196.php`).
 
+## Große Events: Listen im Admin
+
+- **Teilnehmer- und No-Show-Liste (A477):** Druckansicht und CSV lesen die Tickets blockweise (500 je Block,
+  Filter `wpcap_attendee_list_chunk`; Reihenfolge wie bisher nach Name, dann Ticket) und schreiben jeden Block
+  sofort aus (gestreamt, Ausgabepuffer werden vorher geleert). Teilnehmerantworten und Einlassprotokoll werden
+  je Block nachgeladen, Summen („11 Tickets“, „9 von 11 gültigen Tickets nicht eingelassen“) kommen aus
+  `COUNT`-Abfragen. Der Speicherbedarf hängt damit nicht mehr von der Größe des Events ab. Die Druckansicht
+  bleibt eine einzige HTML-Seite: Bei zehntausenden Tickets ist für den Ausdruck die CSV-Datei oder der
+  Stapeldruck (Hintergrundjob) die bessere Wahl.
+
 ## Datenschutz-Auskunft und -Löschung mit großen Datenmengen
 
 WordPress ruft Exporter und Löscher seitenweise auf (eine AJAX-Anfrage je Seite), bis `done` gemeldet wird. Die Seiten des Plugins sind begrenzt, damit jede Anfrage auch bei Tausenden Bestellungen einer Adresse in wenigen Sekunden fertig ist:

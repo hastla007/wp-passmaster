@@ -242,21 +242,32 @@ final class Page {
 		$format = sanitize_key( wp_unslash( $_GET['format'] ?? '' ) );
 		if ( in_array( $format, array( 'noshow_html', 'noshow_csv' ), true ) ) {
 			Audit::record( 'no_show_list_' . substr( $format, 7 ), 'occurrence', $occurrence_id, array( 'level' => $level ) );
+			// A477: both lists stream block by block (no full list in memory).
 			if ( 'noshow_csv' === $format ) {
-				Scope::send_download( Scope::csv( NoShowList::rows( $occurrence_id, $level ) ), 'no-shows-' . $occurrence_id . '.csv', 'text/csv; charset=utf-8' );
+				Scope::stream_csv( self::with_header( NoShowList::header( $level ), NoShowList::row_stream( $occurrence_id, $level ) ), 'no-shows-' . $occurrence_id . '.csv', AttendeeList::chunk_size() );
 			}
-			nocache_headers();
-			echo NoShowList::html( $occurrence_id, $level ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
-			exit;
+			Scope::start_stream( '', 'text/html; charset=utf-8' );
+			NoShowList::stream_html( $occurrence_id, $level );
+			\PassCaptain\Http::end();
 		}
 		$format = 'csv' === $format ? 'csv' : 'html';
 		Audit::record( 'attendee_list_' . $format, 'occurrence', $occurrence_id, array( 'level' => $level ) );
 		if ( 'csv' === $format ) {
-			Scope::send_download( Scope::csv( AttendeeList::rows( $occurrence_id, $level ) ), 'teilnehmer-' . $occurrence_id . '.csv', 'text/csv; charset=utf-8' );
+			Scope::stream_csv( self::with_header( AttendeeList::header( $occurrence_id, $level ), AttendeeList::row_stream( $occurrence_id, $level ) ), 'teilnehmer-' . $occurrence_id . '.csv', AttendeeList::chunk_size() );
 		}
-		nocache_headers();
-		echo AttendeeList::html( $occurrence_id, $level ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
-		exit;
+		Scope::start_stream( '', 'text/html; charset=utf-8' );
+		AttendeeList::stream_html( $occurrence_id, $level );
+		\PassCaptain\Http::end();
+	}
+
+	/**
+	 * Header row followed by the rows of a stream.
+	 *
+	 * @return \Generator<int, array>
+	 */
+	public static function with_header( array $header, $rows ) {
+		yield $header;
+		foreach ( $rows as $row ) { yield $row; }
 	}
 
 	public static function handle_settings() {
