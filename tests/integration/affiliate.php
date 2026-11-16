@@ -107,5 +107,18 @@ $by_means = ! empty( $vsnap['amount_paid_by_voucher'] );
 $expected = $by_means ? (int) $fresh->total_minor - (int) round( (int) $fresh->tax_minor * (int) $fresh->total_minor / ( (int) $fresh->total_minor + (int) $vsnap['amount_paid_by_voucher'] ) ) : (int) $fresh->total_minor - (int) $fresh->tax_minor;
 check( 'a redeemed voucher reduces the commission base to the net of what was paid', ! is_wp_error( $applied ) && (string) $vo['order_id'] === $sale['order_id'] && $expected === $sale['items'][0]['net_minor'] && $sale['items'][0]['net_minor'] < 10000 );
 echo '  (voucher ' . ( $by_means ? 'multi-purpose' : 'single-purpose' ) . ': paid ' . (int) $fresh->total_minor . ', base ' . (int) $sale['items'][0]['net_minor'] . ")\n";
+// Campaign discount + voucher: the stored line VAT is already on the discounted price, so it is scaled with
+// paid / (paid + voucher) only once (Affiliate Captain audit P2: the base was too high before).
+PassCaptain\Campaigns::create( array( 'code' => 'AFFCV20', 'kind' => 'percent', 'value' => 2000, 'currency' => 'EUR' ) );
+wpcap_test_reset_transients();
+$cv = $aff_order( $aff_type, 1, array( 'campaign_codes' => array( 'AFFCV20' ) ) );
+$cv_applied = PassCaptain\Integrations\Vouchers\Checkout::apply( $cv['order_id'], 'GIFT-15' );
+Orders::confirm_manual_payment( $cv['order_id'] );
+$cv_fresh = Orders::get( $cv['order_id'] );
+$cv_sale  = $aff_last_sale();
+$cv_snap  = json_decode( (string) $cv_fresh->voucher_snapshot, true );
+$cv_means = ! empty( $cv_snap['amount_paid_by_voucher'] );
+$cv_exp   = $cv_means ? (int) $cv_fresh->total_minor - (int) round( (int) $cv_fresh->tax_minor * (int) $cv_fresh->total_minor / ( (int) $cv_fresh->total_minor + (int) $cv_snap['amount_paid_by_voucher'] ) ) : (int) $cv_fresh->total_minor - (int) $cv_fresh->tax_minor;
+check( 'campaign discount + voucher: VAT removed once on the discounted price (base not too high)', ! is_wp_error( $cv ) && ! is_wp_error( $cv_applied ) && (int) $cv_fresh->discount_minor > 0 && (string) $cv['order_id'] === $cv_sale['order_id'] && $cv_exp === $cv_sale['items'][0]['net_minor'] );
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_affiliate_tracking_allowed'] );

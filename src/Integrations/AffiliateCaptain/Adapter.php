@@ -381,6 +381,10 @@ final class Adapter {
 		$after  = \PassCaptain\OrderLines::after_discount( $lines, $discount );
 		$weight = array_sum( $after );
 		$paid  = min( (int) $order->total_minor, $subtotal );
+		// The stored line VAT already belongs to the line after campaign discounts (Orders::create()), so
+		// the paid share is paid / (paid + voucher), not gross / line total before discounts – that would
+		// remove the discount a second time and raise the commission base (Affiliate Captain audit P2).
+		$before_voucher = $paid_by_means ? $paid + max( 0, (int) $voucher['amount_paid_by_voucher'] ) : 0;
 		$left  = $paid;
 		$last  = count( $lines ) - 1;
 		$items = array();
@@ -389,7 +393,7 @@ final class Adapter {
 			$gross = max( 0, min( $gross, $left ) );
 			$left -= $gross;
 			$end   = $line->ends_at ? $line->ends_at : $line->starts_at;
-			$tax   = $paid_by_means && (int) $line->line_total_minor > 0 ? (int) round( (int) $line->tax_minor * $gross / (int) $line->line_total_minor ) : (int) $line->tax_minor;
+			$tax   = $paid_by_means && $before_voucher > 0 ? (int) round( (int) $line->tax_minor * $paid / $before_voucher ) : (int) $line->tax_minor;
 			$net   = max( 0, $gross - $tax );
 			$items[] = array(
 				'item_id'      => (string) (int) $line->item_id,
