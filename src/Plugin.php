@@ -52,6 +52,10 @@ final class Plugin {
 		add_action( 'admin_post_' . Waitlists::UNSUBSCRIBE_ACTION, array( Waitlists::class, 'handle_unsubscribe_request' ) );
 		add_action( 'admin_post_nopriv_' . Waitlists::UNSUBSCRIBE_ACTION, array( Waitlists::class, 'handle_unsubscribe_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_unsubscribe_page' ) );
+		// A564: double opt-in confirmation (GET page with a POST button).
+		add_action( 'admin_post_' . Waitlists::CONFIRM_ACTION, array( Waitlists::class, 'handle_confirm_request' ) );
+		add_action( 'admin_post_nopriv_' . Waitlists::CONFIRM_ACTION, array( Waitlists::class, 'handle_confirm_request' ) );
+		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_confirm_page' ) );
 		Privacy::register();
 		// A277/A278: role removal or deletion takes event teams, scanner devices and API keys back.
 		UserAccess::register();

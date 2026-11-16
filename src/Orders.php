@@ -105,6 +105,8 @@ final class Orders {
 		if ( ! $external && Settings::get( 'require_terms' ) && '' !== $shown_version && $shown_version !== $terms_version ) {
 			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
+		// A568: the wording behind the stored version stays provable (archive, append-only).
+		if ( '' !== $terms_version ) { LegalVersions::archive( $order_locale ); }
 
 		// The per-type limit is the ticket type's max_per_order (checked under lock below); this is
 		// only an absolute safety cap against absurd quantities before any row is locked.
@@ -2617,6 +2619,8 @@ final class Orders {
 			'ticket_count' => count( $entries ),
 			'ticket_list' => $list,
 			'ticket_links' => Mail\Blocks::links( array_column( $entries, 'url' ) ),
+			// A568: the legal texts of the version this order was concluded under (built only when used).
+			'contract_texts' => static function () use ( $order ) { return LegalVersions::mail_block( $order ); },
 		);
 	}
 

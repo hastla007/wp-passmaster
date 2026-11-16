@@ -47,6 +47,7 @@ final class PageCache {
 		'wpcap_order' => 'portal',
 		'wpcap_waitlist_accept' => 'waitlist_offer',
 		'wpcap_waitlist_unsubscribe' => 'waitlist_unsubscribe',
+		'wpcap_waitlist_confirm' => 'waitlist_confirm',
 		'wpcap_waitlist_result' => 'waitlist_result',
 		'wpcap_invoice' => 'invoice',
 		'wpcap_invoice_pdf' => 'invoice_pdf',
@@ -91,7 +92,7 @@ final class PageCache {
 		/**
 		 * A personal page of the plugin is being sent and must not be cached (A283).
 		 *
-		 * @param string $context ticket, portal, waitlist_offer, waitlist_unsubscribe, waitlist_result,
+		 * @param string $context ticket, portal, waitlist_offer, waitlist_unsubscribe, waitlist_confirm, waitlist_result,
 		 *                        payment_return, invoice_pdf, scanner.
 		 */
 		do_action( 'wpcap_page_no_store', (string) $context );

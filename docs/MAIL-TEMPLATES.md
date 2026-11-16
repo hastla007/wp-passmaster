@@ -8,9 +8,9 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 
 | Typ | Wann | Wichtige Platzhalter |
 |---|---|---|
-| `tickets` | Tickets nach bestätigter Zahlung (mit PDF) | `{order_id}`, `{ticket_list}`, `{ticket_links}`, `{ticket_count}`, `{event_name}`, `{event_date}`, `{event_location}`, `{customer_email}` |
+| `tickets` | Tickets nach bestätigter Zahlung (mit PDF) | `{order_id}`, `{ticket_list}`, `{ticket_links}`, `{ticket_count}`, `{event_name}`, `{event_date}`, `{event_location}`, `{customer_email}`, `{contract_texts}` (A568: Bedingungen und Verbraucherinformationen in der Fassung der Bestellung mit Fassungskennung, aus dem Archiv; leer ohne Rechtstexte – steht im Standardtext nach der Ticketliste) |
 | `tickets_resend` | Tickets erneut senden (neue Codes, je Empfänger:in) | wie `tickets`; `{ticket_list}` enthält je Ticket den Link und den Zusatztext aus `wpcap_ticket_code_mail_section` (z. B. Wallet-Links) |
-| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{order_reference}`, `{access_link}`, `{order_items}` (bestellte Positionen), `{payment_instructions}` |
+| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{order_reference}`, `{access_link}`, `{order_items}` (bestellte Positionen), `{payment_instructions}`, `{contract_texts}` (wie bei `tickets`; nicht im Standardtext) |
 | `ticket_transfer_recipient` | Ticket wurde an eine Person übertragen | `{event_name}`, `{ticket_name}`, `{event_date}`, `{event_location}`, `{ticket_link}`, `{ticket_extras}` |
 | `ticket_transfer_sender` | Bestätigung der Übertragung an die Käufer:in | `{event_name}`, `{recipient_email}` |
 | `ticket_assigned_attendee` | Ticket an zugewiesene Teilnehmer:in | `{attendee_name}`, `{attendee_email}`, `{ticket_link}`, `{ticket_extras}` … |
@@ -22,9 +22,11 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `occurrence_cancelled` | Einzelner Termin abgesagt | `{event_name}`, `{event_date}`, `{event_location}`, `{timezone}`, `{refund_note}` |
 | `occurrence_rescheduled` | Termin verschoben (nur die Zeit; aktualisierte .ics im Anhang) | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}`, `{ics_url}` |
 | `occurrence_changed` | Termindetails geändert (A140): Ort, Ende, Einlass oder Veranstaltungsland – auch zusammen mit einer neuen Zeit, dann statt `occurrence_rescheduled` (eine Mail je Speichern). Höchstens einmal je Revision des Termins; aktualisierte .ics im Anhang | `{event_name}`, `{changes}` (eine Zeile „Angabe: bisher → neu“ je Änderung), `{event_date}`, `{old_date}`, `{timezone}`, `{event_location}`, `{ics_url}` |
-| `waitlist_joined` | Eintragung in die Warteliste | `{position}`, `{quantity}`, `{event_name}`, `{ticket_name}` |
-| `waitlist_closed` | Wartelistenplatz beendet: Termin abgesagt, begonnen oder Verkauf beendet (A557) | `{event_name}`, `{ticket_name}`, `{reason}` |
-| `waitlist_offer` | Platzangebot aus der Warteliste (Tickets bis zum Ablauf reserviert) | `{offer_expires}`, `{accept_link}`, `{quantity}`, `{position}`, `{event_name}`, `{ticket_name}` |
+| `waitlist_confirm` | Double-Opt-in nach der Eintragung (A564): Bestätigungslink; erst danach steht die Person auf der Warteliste | `{confirm_link}`, `{confirm_expires}`, `{confirm_hours}`, `{quantity}`, `{event_name}`, `{ticket_name}`, `{event_date}`, `{event_location}`, `{timezone}` |
+| `waitlist_joined` | Eintragung in die Warteliste (mit Double-Opt-in nach der Bestätigung) | `{position}`, `{quantity}`, `{event_name}`, `{ticket_name}`, `{event_date}`, `{event_location}`, `{timezone}` |
+| `waitlist_changed` | Beginn oder Ort des Termins geändert (A565), an Wartende und offene Angebote | `{event_name}`, `{ticket_name}`, `{old_date}`, `{old_location}`, `{event_date}`, `{event_location}`, `{timezone}`, `{quantity}`, `{status_note}`, `{unsubscribe_link}` |
+| `waitlist_closed` | Wartelistenplatz beendet: Termin abgesagt, begonnen oder Verkauf beendet (A557) | `{event_name}`, `{ticket_name}`, `{reason}`, `{event_date}`, `{event_location}`, `{timezone}` |
+| `waitlist_offer` | Platzangebot aus der Warteliste (Tickets bis zum Ablauf reserviert); der Standardtext nennt Termin mit Zeitzone und Ort (A565) | `{offer_expires}`, `{accept_link}`, `{quantity}`, `{position}`, `{event_name}`, `{ticket_name}`, `{event_date}`, `{event_location}`, `{timezone}` |
 | `member_pass` | Mitgliedspass ausgestellt | `{pass_code}`, `{valid_from}`, `{valid_until}` |
 
 In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`), `{site_url}` sowie `{terms_text}` und `{consumer_info_text}` zur Verfügung. Die Rechtstexte erscheinen in der Sprache der Mail (Locale der Bestellung) und fallen je Text auf die Standardsprache zurück, wenn für diese Sprache keine eigene Fassung gepflegt ist (**Einstellungen → Rechtstexte**). Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.

@@ -37,6 +37,7 @@ $wpa145_extra_post = array(
 	'wpcap_accept_waitlist' => array( PassCaptain\Waitlists::class, 'handle_accept_request' ),
 	'wpcap_payment_return' => array( PassCaptain\Payments\ReturnNotice::class, 'handle_action' ), // A554: keyed by wpcap_rk.
 	PassCaptain\Waitlists::UNSUBSCRIBE_ACTION => array( PassCaptain\Waitlists::class, 'handle_unsubscribe_request' ),
+	PassCaptain\Waitlists::CONFIRM_ACTION => array( PassCaptain\Waitlists::class, 'handle_confirm_request' ), // A564: double opt-in, keyed by the confirmation token.
 );
 $wpa145_ajax = array(
 	PassCaptain\Mail\Admin::ACTION_PREVIEW => array( PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),
@@ -299,12 +300,12 @@ foreach ( array_unique( $wpa145_all_keys ) as $wpa145_k ) {
 
 // Public admin-post actions (also registered for visitors): the token of the waitlist offer or link is
 // verified by the function they call (tests in zz_a158.php / waitlist tests).
-$wpa145_public_post = array( 'wpcap_accept_waitlist', PassCaptain\Waitlists::UNSUBSCRIBE_ACTION, 'wpcap_payment_return' );
+$wpa145_public_post = array( 'wpcap_accept_waitlist', PassCaptain\Waitlists::UNSUBSCRIBE_ACTION, PassCaptain\Waitlists::CONFIRM_ACTION, 'wpcap_payment_return' );
 $wpa145_nopriv = array_values( array_unique( $wpa145_scanned['nopriv'] ) );
 sort( $wpa145_nopriv );
 $wpa145_public_sorted = $wpa145_public_post;
 sort( $wpa145_public_sorted );
-check( 'public admin-post actions are exactly the visitor (nopriv) ones and pass the token to the verifying function; no visitor AJAX', $wpa145_nopriv === $wpa145_public_sorted && ! $wpa145_scanned['ajax_nopriv'] && (bool) preg_match( '/accept_offer\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post['wpcap_accept_waitlist'], 0 ) ) && (bool) preg_match( '/unsubscribe\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post[ PassCaptain\Waitlists::UNSUBSCRIBE_ACTION ], 0 ) ) );
+check( 'public admin-post actions are exactly the visitor (nopriv) ones and pass the token to the verifying function; no visitor AJAX', $wpa145_nopriv === $wpa145_public_sorted && ! $wpa145_scanned['ajax_nopriv'] && (bool) preg_match( '/accept_offer\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post['wpcap_accept_waitlist'], 0 ) ) && (bool) preg_match( '/unsubscribe\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post[ PassCaptain\Waitlists::UNSUBSCRIBE_ACTION ], 0 ) ) && (bool) preg_match( '/confirm\(\s*\$waitlist_id,\s*\$token/', $wpa145_reachable( $wpa145_all_post[ PassCaptain\Waitlists::CONFIRM_ACTION ], 0 ) ) );
 
 $wpa145_entries = array();
 foreach ( $wpa145_rest as $wpa145_key => $wpa145_ep ) {

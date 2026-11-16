@@ -151,7 +151,7 @@ Jeder Adapter läuft nur, wenn sein Plugin aktiv ist (Filter `wpcap_page_cache_a
 
 | Produkt | Purge | Nötige Ausnahmen |
 |---|---|---|
-| **WP Rocket** | `rocket_clean_post()` je Beitrag, `rocket_clean_files()` für alle URLs | „Niemals cachen (URLs)“: `/wp-json/pass-captain/(.*)`; „Niemals cachen (Query-Strings)“: `wpcap_ticket`, `wpcap_order`, `wpcap_access`, `wpcap_invoice`, `wpcap_invoice_pdf`, `wpcap_waitlist_accept`, `wpcap_waitlist_result`, `wpcap_waitlist_unsubscribe`, `wpcap_payment`, `wpcap_paypal_return`, `wpcap_mollie_return`. Die Scanner-Seite in „Niemals cachen (URLs)“ eintragen. Unter „Datei-Optimierung“ `assets/checkout.js` und `assets/scanner.js` nicht verzögern/kombinieren, falls der Checkout sonst erst nach einer Interaktion startet. |
+| **WP Rocket** | `rocket_clean_post()` je Beitrag, `rocket_clean_files()` für alle URLs | „Niemals cachen (URLs)“: `/wp-json/pass-captain/(.*)`; „Niemals cachen (Query-Strings)“: `wpcap_ticket`, `wpcap_order`, `wpcap_access`, `wpcap_invoice`, `wpcap_invoice_pdf`, `wpcap_waitlist_accept`, `wpcap_waitlist_result`, `wpcap_waitlist_unsubscribe`, `wpcap_waitlist_confirm`, `wpcap_payment`, `wpcap_paypal_return`, `wpcap_mollie_return`. Die Scanner-Seite in „Niemals cachen (URLs)“ eintragen. Unter „Datei-Optimierung“ `assets/checkout.js` und `assets/scanner.js` nicht verzögern/kombinieren, falls der Checkout sonst erst nach einer Interaktion startet. |
 | **LiteSpeed Cache** | `litespeed_purge_post` je Beitrag, `litespeed_purge_url` je URL | Cache → Ausschließen: „URIs nicht cachen“ `/wp-json/pass-captain/` und die Scanner-Seite; „Query-Strings nicht cachen“ wie bei WP Rocket. LiteSpeed beachtet `DONOTCACHEPAGE` und `litespeed_control_set_nocache` bereits; die Einträge schützen zusätzlich vor ESI/Crawler-Vorwärmung. |
 | **W3 Total Cache** | `w3tc_flush_post()` je Beitrag, `w3tc_flush_url()` je URL | Page Cache: „Seiten mit Query-Strings nicht cachen“ einschalten oder die Parameter oben unter „Abgelehnte Query-Strings“ eintragen; „Nie folgende Seiten cachen“: `wp-json/pass-captain/*` und die Scanner-Seite. |
 | **WP Super Cache** | `wpsc_delete_url_cache()` je URL | „Seiten mit GET-Parametern nicht cachen“ einschalten; unter „Abgelehnte URL-Zeichenketten“ `wpcap_` und `/wp-json/`. |
@@ -186,7 +186,7 @@ add_action( 'wpcap_purge_page_cache', static function ( $event_id, $urls, $conte
 | Ticketseite | `/?wpcap_ticket=<64 Hex>` |
 | Bestellportal | `/?wpcap_order=<id>&wpcap_access=<64 Hex>` |
 | Rechnung (Käufer) | `/?wpcap_invoice=<id>&wpcap_access=…`, PDF `/?wpcap_invoice_pdf=<id>&wpcap_access=…` |
-| Warteliste | Angebot `/?wpcap_waitlist_accept=<id>&token=…`, Ergebnis `/?wpcap_waitlist_result=<id>&wl=…`, Abmeldung `/?wpcap_waitlist_unsubscribe=<id>&token=…`, Formulare an `wp-admin/admin-post.php` |
+| Warteliste | Angebot `/?wpcap_waitlist_accept=<id>&token=…`, Ergebnis `/?wpcap_waitlist_result=<id>&wl=…`, Abmeldung `/?wpcap_waitlist_unsubscribe=<id>&token=…`, Bestätigung (Double-Opt-in) `/?wpcap_waitlist_confirm=<id>&token=…`, Formulare an `wp-admin/admin-post.php` |
 | Rückkehr von der Zahlung | Checkout-Seite (sonst Startseite) mit `?wpcap_payment=<status>&order=<id>&wpcap_rk=…`, PayPal `?wpcap_paypal_return=1…`, Mollie `?wpcap_mollie_return=1…`; Aktionen „Zahlung fortsetzen“/„Bestellung stornieren“ an `wp-admin/admin-post.php` (`action=wpcap_payment_return`) |
 | Web-Scanner | Seite mit `[wp_pass_captain_scanner]`/`[wpcap_scanner]` |
 | REST-API | `/wp-json/pass-captain/v1/*` (ohne Permalinks `/?rest_route=/pass-captain/v1/…`) – Checkout, Verfügbarkeit, Scanner-App, Wallet, Webhooks |
@@ -354,6 +354,11 @@ aber unvollständiger Überweisung auf deren Unterbereich).
 - **Rechtstexte hinterlegen**: AGB/Teilnahmebedingungen und Verbraucherinformationen **und** „Zustimmung im
   Checkout verlangen“. Ohne diese Option zeigt der Checkout die AGB nicht an. Ist die Zustimmung aktiv, der
   AGB-Text der Standardsprache aber leer, warnen Checkliste, Reiter „Rechtstexte“ und das Speichern.
+  Jede Fassung, die in Kraft war, wird unverändert archiviert (Tabelle `wpcap_legal_versions`, A568;
+  Kennung = Hash über beide Texte, wie `terms_version` der Bestellung): beim Speichern, beim Schema-Upgrade
+  und mit jeder Bestellung, deren Fassung noch fehlt. Die Bestellansicht zeigt den Text der Fassung der
+  Bestellung, der Reiter „Rechtstexte je Sprache“ die zuletzt archivierten Fassungen. Die Standard-Ticketmail
+  enthält diese Texte über `{contract_texts}`; eigene Vorlagen müssen den Platzhalter selbst aufnehmen.
 - **Verkaufsseite anlegen**: eine veröffentlichte Seite oder ein Beitrag mit `[wpcap_events]`
   (`[wp_pass_captain_events]`), dem Block „Pass Captain Events“ oder dem Kalender. „Verkaufsseite als Entwurf
   anlegen“ erzeugt die Seite „Tickets“ mit dem Shortcode und öffnet sie im Editor; erst nach dem

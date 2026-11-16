@@ -11,14 +11,32 @@ dabei**, damit niemand anderes sie in der Zwischenzeit kaufen kann.
 | `quantity` | Gewünschte Anzahl (1 bis `max_per_order` der Ticketart). |
 | `position` | Reihenfolge der Eintragung (FIFO) je Event und Ticketart. |
 | `priority` | Optional, vom Team gesetzt (−1000 … 1000). Höhere Priorität kommt zuerst, innerhalb einer Priorität entscheidet die Position. |
-| `status` | `waiting` → `offered` → `accepted` → `paid`; Endzustände `expired`, `declined`, `skipped`, `removed`, `closed` (Termin abgesagt oder vorbei); `blocked` = nicht anbietbar (siehe unten), bis das Team den Eintrag wieder aufnimmt. |
+| `status` | (`pending` →) `waiting` → `offered` → `accepted` → `paid`; `pending` = Eintragung noch nicht per E-Mail bestätigt (Double-Opt-in, siehe unten); Endzustände `expired`, `declined`, `skipped`, `removed`, `closed` (Termin abgesagt oder vorbei); `blocked` = nicht anbietbar (siehe unten), bis das Team den Eintrag wieder aufnimmt. |
 | `block_reason` | Grund für `blocked`: `buyer_limit` (Käuferlimit), `quantity_limit` (Anzahl über dem Höchstwert pro Bestellung), `attendee_data`; bei `waiting` ggf. `seats` (zuletzt mangels Sitzplätzen übersprungen). Schema 3.10.14. |
 | `order_id` | Bestellung, die das offene Angebot reserviert (0 ohne Angebot). |
 | `offer_expires_at` | Ende der Reservierung (UTC): beim Angebot die Annahmefrist, nach der Annahme das Zahlungsziel. |
+| `confirm_token_hash` | SHA-256 des Bestätigungslinks (Double-Opt-in, Schema 3.10.21); der Link selbst wird nicht gespeichert. |
+| `confirmed_at` | Zeitpunkt der Bestätigung per Link (UTC), Nachweis der Eintragung; leer bei Einträgen ohne Double-Opt-in. |
 
 Eintragen: `POST /wp-json/pass-captain/v1/events/{event_id}/waitlist` mit `occurrence_id`,
 `ticket_type_id`, `email` und optional `quantity`. Die Antwort ist immer gleich und verrät nicht, ob
 die Adresse schon eingetragen war; die Position steht in der Bestätigungsmail (`waitlist_joined`).
+
+**Double-Opt-in (A564, Standard an):** Eine neue Eintragung ist zunächst `pending` (ohne Position) und
+bekommt die Mail `waitlist_confirm` mit einem persönlichen Link `/?wpcap_waitlist_confirm={id}&token=…`
+(gespeichert wird nur der Hash). Der Link öffnet eine Bestätigungsseite (GET ändert nichts, damit
+Mail-Scanner und Linkvorschauen nicht bestätigen); erst der Knopf darauf (POST an `admin-post.php`,
+Aktion `wpcap_waitlist_confirm`, Nonce) setzt den Eintrag auf `waiting` am Ende der Schlange, speichert
+`confirmed_at`, schreibt das Audit `waitlist_confirmed`, löst `wpcap_waitlist_confirmed` aus und schickt
+`waitlist_joined` mit der Position. Unbestätigte Einträge bekommen kein Angebot und halten daher kein
+Kontingent; nach `confirm_hours` (Standard 48, 1–168) ist der Link ungültig und der stündliche Sweep
+löscht den Eintrag vollständig (Audit `waitlist_unconfirmed_deleted` nur mit Anzahl). Erneutes Eintragen
+während `pending` schickt einen neuen Link (der alte wird ungültig). Ist der Termin bis zur Bestätigung
+abgesagt, begonnen oder nicht mehr im Verkauf, wird die Bestätigung abgelehnt und der Eintrag gelöscht.
+Die Antwort des Endpunkts enthält dann `confirmation_required: true` und einen passenden Hinweis.
+Abschalten: Einstellung *E-Mail-Bestätigung (Double-Opt-in)* (`waitlist.double_opt_in = 0`) oder je
+Eintragung der Filter `wpcap_waitlist_double_opt_in` (z. B. für anderweitig geprüfte Adressen). Fehlen
+die Spalten (Schema-Upgrade ausstehend), gilt das bisherige Verhalten ohne Bestätigung.
 Einträge mit Status `expired`, `declined`, `paid` oder `blocked` dürfen sich erneut eintragen (am Ende der
 Schlange); vom Team übersprungene oder entfernte Einträge nicht. Wer sich selbst ausgetragen hat
 (siehe unten), kann sich später neu eintragen – der alte Eintrag ist anonymisiert.
@@ -42,7 +60,13 @@ Ticketart nicht mehr verkauft wird (`sales_end`); beim Phasenwechsel eines Termi
 (`wpcap_occurrence_phase_changed`, A562) geschieht das sofort. Eine Ticketart, die nach Beginn weiter
 online verkauft wird (Verkaufsende nach Beginn, mehrtägige Termine, A535), behält ihre Einträge bis zu
 ihrem Verkaufsende. Die Betroffenen erhalten die Mail
-`waitlist_closed` mit dem Grund; abschalten mit der Einstellung `waitlist.close_mail = 0`. Das
+`waitlist_closed` mit dem Grund; abschalten mit der Einstellung `waitlist.close_mail = 0`.
+
+**Verschobene Termine, neuer Ort (A565):** Ändern sich Beginn oder Ort eines Termins
+(`wpcap_occurrence_changed`), bekommen alle Wartenden und Personen mit offenem Angebot die Mail
+`waitlist_changed` mit bisherigen und neuen Angaben und dem Austragen-Link (Audit
+`waitlist_change_mailed` mit Anzahl); ein offenes Angebot bleibt gültig. Abschalten mit
+`waitlist.change_mail = 0`. Das
 Bestellportal zeigt nur Wartelisteneinträge für Termine, die noch geplant, in der Zukunft und im
 Verkauf sind.
 
@@ -76,12 +100,16 @@ Verkauf sind.
    mehrtägigen Terminen, A535). Teilnehmerdaten werden dafür nicht verlangt – Pflichtfelder der
    Ticketart werden erst bei der Annahme geprüft (A536). Das Kern-Kontingent zählt diese Reservierung; öffentliche Käufer:innen
    können die Plätze nicht kaufen. Ein Eintrag hat höchstens ein offenes Angebot.
-5. **Mail** `waitlist_offer` mit Anzahl, Frist und Link zur Angebotsseite
+5. **Mail** `waitlist_offer` mit Anzahl, Termin (Datum, Uhrzeit, Zeitzone) und Ort (A565), Frist und Link zur Angebotsseite
    (`/?wpcap_waitlist_accept={id}&token=…`). Schlägt der Versand fehl, wird das Angebot zurückgenommen
    und der Eintrag wartet weiter.
-6. **Annahme** – die Angebotsseite zeigt Event, Ticketart, Anzahl, Preis und Frist und bietet
-   *Annehmen* (mit Zahlungsart-Auswahl, falls mehrere aktiv sind, und ggf. Bestätigung der Bedingungen)
-   und *Ablehnen*. Hat die Ticketart Teilnehmerfelder, fragt die Seite je Ticket Name und Felder ab
+6. **Annahme** – die Angebotsseite zeigt Event, Termin mit Zeitzone, Ort, Ticketart, Anzahl, Preis und
+   Frist und bietet *Annehmen* (mit Zahlungsart-Auswahl, falls mehrere aktiv sind) und *Ablehnen*. Ist
+   „Zustimmung im Checkout verlangen“ aktiv, zeigt sie wie der Checkout Bedingungen und
+   Verbraucherinformationen in der Sprache der Seite und verlangt die Zustimmung – auch bei kostenlosen
+   Angeboten (A565). Die angezeigte Fassung wird mitgeschickt (`terms_version`); hat sie sich inzwischen
+   geändert, wird die Annahme abgelehnt (`wpcap_terms_changed`, das Angebot bleibt offen). Die Bestellung
+   speichert die angenommene Fassung und die Sprache, die Fassung wird archiviert (A568). Hat die Ticketart Teilnehmerfelder, fragt die Seite je Ticket Name und Felder ab
    (`attendees[i][…]` wie im Checkout, auch über `POST /waitlist/{id}/accept` mit `attendees`). Fehlt ein
    Pflichtfeld, wird die Annahme abgelehnt (`wpcap_attendee_field_required`), das Angebot bleibt offen
    und die Seite verlinkt zurück zum Formular. Die Daten landen an der Bestellung und gehen bei der
@@ -193,7 +221,10 @@ Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in
   setzt sie auf `waiting` (gleiche Position) und verarbeitet die Ticketart erneut.
 - *Freie Plätze jetzt anbieten* verarbeitet alle Ticketarten des Events sofort.
 - Einstellungen (nur Administrator:innen): automatische Angebote an/aus, Gültigkeit eines Angebots in
-  Stunden (1–336), höchstens Angebote pro Durchlauf (1–100), strikte Reihenfolge.
+  Stunden (1–336), höchstens Angebote pro Durchlauf (1–100), strikte Reihenfolge, Mail bei Absage/Ende,
+  Mail bei Terminänderung, E-Mail-Bestätigung (Double-Opt-in) mit Gültigkeit des Links in Stunden.
+- Unbestätigte Eintragungen stehen als *Unbestätigt (E-Mail-Bestätigung offen)* ohne Anmeldenummer in
+  der Liste und können entfernt werden.
 
 ## REST
 
@@ -202,11 +233,11 @@ Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in
 | `POST /events/{id}/waitlist` | öffentlich | Eintragen (`occurrence_id`, `ticket_type_id`, `email`, `quantity`). |
 | `GET /events/{id}/waitlist/entries` | Event verwalten | Einträge mit Rang und Status. |
 | `POST /events/{id}/waitlist/offer` | Event verwalten | Nächsten Eintrag einer Ticketart (`ticket_type_id`) sofort anbieten. |
-| `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`). |
+| `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`, `terms_version`, `locale`). |
 | `POST /waitlist/{id}/decline` | Token | Angebot ablehnen (`token`). |
 
-Das Austragen läuft bewusst nicht über REST, sondern über die Bestätigungsseite (POST + Nonce) bzw.
-das Bestellportal.
+Das Austragen und die Double-Opt-in-Bestätigung laufen bewusst nicht über REST, sondern über die
+jeweilige Bestätigungsseite (POST + Nonce) bzw. das Bestellportal.
 
 ## Hinweise
 

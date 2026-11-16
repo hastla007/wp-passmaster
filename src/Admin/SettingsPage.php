@@ -713,6 +713,16 @@ final class SettingsPage {
 				echo '<p class="description">' . esc_html( sprintf( __( 'Aktuelle Version für %1$s: %2$s', 'pass-captain' ), $locale, Settings::terms_version( $locale ) ) ) . '</p>';
 			}
 		}
+		// A568: archived versions (append-only); orders reference them by their version.
+		$archived = \PassCaptain\LegalVersions::recent( 10 );
+		if ( $archived ) {
+			echo '<h3>' . esc_html__( 'Archivierte Fassungen', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen.', 'pass-captain' ) . '</p>';
+			echo '<table class="widefat striped" style="max-width:40em"><thead><tr><th scope="col">' . esc_html__( 'Fassung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Sprache', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Archiviert am', 'pass-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $archived as $row ) {
+				echo '<tr><td><code>' . esc_html( (string) $row->version ) . '</code></td><td>' . esc_html( (string) $row->locale ) . '</td><td>' . esc_html( Forms::datetime( (string) $row->created_at, wp_timezone_string() ) ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
 		// Keeps the key in the request even without further languages, so saving can drop the last one.
 		echo '<input type="hidden" name="legal_texts[]" value="">';
 		echo '<p><label for="wpcap-legal-new-locale">' . esc_html__( 'Weitere Sprache hinzufügen (Locale, z. B. en_US):', 'pass-captain' ) . '</label> <input type="text" id="wpcap-legal-new-locale" name="legal_new_locale" size="12" pattern="[a-z]{2,3}(_[A-Za-z0-9]{2,8}){0,2}"></p>';

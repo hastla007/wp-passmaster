@@ -23,6 +23,9 @@ final class Waitlist {
 				'max_offers_per_run' => 10,
 				'strict_fifo' => 0,
 				'close_mail' => 1,
+				'change_mail' => 1,
+				'double_opt_in' => 1,
+				'confirm_hours' => 48,
 			),
 		);
 	}

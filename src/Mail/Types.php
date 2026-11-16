@@ -57,6 +57,7 @@ final class Types {
 			'ticket_count' => __( 'Anzahl Tickets', 'pass-captain' ),
 			'ticket_list' => __( 'Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)', 'pass-captain' ),
 			'ticket_links' => __( 'Nur die Ticket-Links, einer pro Zeile', 'pass-captain' ),
+			'contract_texts' => __( 'Bedingungen und Verbraucherinformationen in der Fassung, die bei der Bestellung galt (mit Fassungskennung; leer ohne Rechtstexte)', 'pass-captain' ),
 		);
 	}
 
@@ -67,6 +68,20 @@ final class Types {
 			'event_date' => __( 'Beginn mit Zeitzone', 'pass-captain' ),
 			'event_location' => __( 'Ort', 'pass-captain' ),
 		);
+	}
+
+	/** Date and location placeholders of the waitlist mails (A565). */
+	private static function waitlist_date_placeholders() {
+		return array(
+			'event_date' => __( 'Beginn des Termins mit Zeitzone', 'pass-captain' ),
+			'event_location' => __( 'Ort', 'pass-captain' ),
+			'timezone' => __( 'Zeitzone', 'pass-captain' ),
+		);
+	}
+
+	/** Sample date and location of the waitlist mails. */
+	private static function waitlist_date_sample() {
+		return array( 'event_date' => '15.01.2027 19:30 Europe/Vienna', 'event_location' => 'Stadthalle Wien', 'timezone' => 'Europe/Vienna' );
 	}
 
 	/** Sample ticket entries for previews. */
@@ -89,6 +104,7 @@ final class Types {
 			'ticket_count' => 2,
 			'ticket_list' => $resend ? Blocks::code_tickets( $tickets ) : Blocks::issued_tickets( $tickets ),
 			'ticket_links' => Blocks::links( array_column( $tickets, 'url' ) ),
+			'contract_texts' => \PassCaptain\LegalVersions::sample_block(),
 		);
 	}
 
@@ -109,10 +125,13 @@ final class Types {
 	 */
 	public static function order_access_vars( $public_id ) {
 		global $wpdb;
-		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ), 'order_items' => Blocks::order_items( array() ) );
+		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ), 'order_items' => Blocks::order_items( array() ), 'contract_texts' => '' );
 		if ( 32 !== strlen( $public_id ) ) { return $vars; }
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( $order ) { $vars['order_items'] = Blocks::order_items( \PassCaptain\Orders::summary_lines( (int) $order->order_id ) ); }
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency,terms_version,locale FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		if ( $order ) {
+			$vars['order_items'] = Blocks::order_items( \PassCaptain\Orders::summary_lines( (int) $order->order_id ) );
+			$vars['contract_texts'] = static function () use ( $order ) { return \PassCaptain\LegalVersions::mail_block( $order ); };
+		}
 		if ( $order && \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
 			$vars['payment_instructions'] = Blocks::payment_instructions( \PassCaptain\Payments\BankTransfer::details( $order ) );
 		}
@@ -129,7 +148,8 @@ final class Types {
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: site name */
-				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
+				// A568: the confirmation carries the contract texts of the order's version ({contract_texts}).
+				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}{contract_texts}"; },
 				'sample' => static function () { return self::sample_ticket_vars( false ); },
 			),
 			'tickets_resend' => array(
@@ -151,6 +171,7 @@ final class Types {
 					'access_link' => __( 'Persönlicher Link zur Bestellung', 'pass-captain' ),
 					'payment_instructions' => __( 'Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer', 'pass-captain' ),
 					'order_items' => __( 'Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)', 'pass-captain' ),
+					'contract_texts' => __( 'Bedingungen und Verbraucherinformationen in der Fassung, die bei der Bestellung galt (mit Fassungskennung; leer ohne Rechtstexte)', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Bestellung bei %s', 'pass-captain' ), '{site_name}' ); },
@@ -386,14 +407,52 @@ final class Types {
 					'event_name' => __( 'Event', 'pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
-				),
+				) + self::waitlist_date_placeholders(),
 				'subject' => static function () { return __( 'Du stehst auf der Warteliste', 'pass-captain' ); },
 				'body' => static function () {
 					/* translators: %d: waitlist position */
 					$intro = str_replace( '%d', '{position}', __( 'Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird.', 'pass-captain' ) );
 					return $intro . "\n\n" . Types::waitlist_unsubscribe_note();
 				},
-				'sample' => static function () { return array( 'position' => 3, 'quantity' => 2, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ); },
+				'sample' => static function () { return array( 'position' => 3, 'quantity' => 2, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ) + self::waitlist_date_sample(); },
+			),
+			'waitlist_confirm' => array(
+				'label' => __( 'Warteliste: E-Mail-Bestätigung', 'pass-captain' ),
+				'description' => __( 'Bestätigungslink nach der Eintragung (Double-Opt-in). Erst nach der Bestätigung steht die Person auf der Warteliste; unbestätigte Eintragungen werden gelöscht.', 'pass-captain' ),
+				'placeholders' => array(
+					'confirm_link' => __( 'Persönlicher Bestätigungslink', 'pass-captain' ),
+					'confirm_expires' => __( 'Ablauf des Bestätigungslinks', 'pass-captain' ),
+					'confirm_hours' => __( 'Gültigkeit des Bestätigungslinks in Stunden', 'pass-captain' ),
+					'quantity' => __( 'Gewünschte Anzahl', 'pass-captain' ),
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
+				) + self::waitlist_date_placeholders(),
+				/* translators: %s: event name placeholder */
+				'subject' => static function () { return sprintf( __( 'Bitte bestätige deinen Wartelistenplatz: %s', 'pass-captain' ), '{event_name}' ); },
+				/* translators: 1: quantity, 2: ticket type, 3: event, 4: date, 5: location, 6: confirmation link, 7: expiry */
+				'body' => static function () { return sprintf( __( "Du möchtest auf die Warteliste für %1\$s × „%2\$s“ bei „%3\$s“ (%4\$s, %5\$s).\n\nBitte bestätige deine E-Mail-Adresse über diesen Link:\n%6\$s\n\nErst nach der Bestätigung stehst du auf der Warteliste. Der Link gilt bis %7\$s; danach wird die Eintragung gelöscht. Wenn du dich nicht eingetragen hast, musst du nichts tun.", 'pass-captain' ), '{quantity}', '{ticket_name}', '{event_name}', '{event_date}', '{event_location}', '{confirm_link}', '{confirm_expires}' ); },
+				'sample' => static function () { return array( 'confirm_link' => Mailer::link( home_url( '/?wpcap_waitlist_confirm=12&token=' . str_repeat( 'c9', 32 ) ) ), 'confirm_expires' => '13.01.2027 19:30 CET', 'confirm_hours' => 48, 'quantity' => 2, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz' ) + self::waitlist_date_sample(); },
+			),
+			'waitlist_changed' => array(
+				'label' => __( 'Warteliste: Termin geändert', 'pass-captain' ),
+				'description' => __( 'Information an Wartende und Personen mit offenem Angebot, wenn Beginn oder Ort des Termins geändert wurden.', 'pass-captain' ),
+				'placeholders' => array(
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
+					'old_date' => __( 'Bisheriger Beginn mit Zeitzone', 'pass-captain' ),
+					'old_location' => __( 'Bisheriger Ort', 'pass-captain' ),
+					'quantity' => __( 'Gewünschte bzw. reservierte Anzahl', 'pass-captain' ),
+					'status_note' => __( 'Satz zum Stand (bleibt auf der Warteliste bzw. Angebot bleibt gültig)', 'pass-captain' ),
+					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
+				) + self::waitlist_date_placeholders(),
+				/* translators: %s: event name placeholder */
+				'subject' => static function () { return sprintf( __( 'Geänderter Termin auf deiner Warteliste: %s', 'pass-captain' ), '{event_name}' ); },
+				'body' => static function () {
+					/* translators: 1: event, 2: ticket type, 3: old date, 4: old location, 5: new date, 6: new location, 7: status sentence */
+					$text = sprintf( __( "Für „%1\$s“ (%2\$s), auf dessen Warteliste du stehst, haben sich Angaben geändert.\n\nBisher: %3\$s, %4\$s\nNeu: %5\$s, %6\$s\n\n%7\$s", 'pass-captain' ), '{event_name}', '{ticket_name}', '{old_date}', '{old_location}', '{event_date}', '{event_location}', '{status_note}' );
+					return $text . "\n\n" . Types::waitlist_unsubscribe_note();
+				},
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'old_date' => '15.01.2027 19:30 Europe/Vienna', 'old_location' => 'Stadthalle Wien', 'quantity' => 2, 'status_note' => __( 'Du bleibst auf der Warteliste.', 'pass-captain' ), 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ) + array( 'event_date' => '22.01.2027 20:00 Europe/Vienna', 'event_location' => 'Konzerthaus Wien', 'timezone' => 'Europe/Vienna' ); },
 			),
 			'waitlist_closed' => array(
 				'label' => __( 'Warteliste: geschlossen', 'pass-captain' ),
@@ -402,12 +461,12 @@ final class Types {
 					'event_name' => __( 'Event', 'pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
 					'reason' => __( 'Grund (Absage oder Ende)', 'pass-captain' ),
-				),
+				) + self::waitlist_date_placeholders(),
 				/* translators: %s: event name placeholder */
 				'subject' => static function () { return sprintf( __( 'Warteliste beendet: %s', 'pass-captain' ), '{event_name}' ); },
 				/* translators: 1: event, 2: ticket type, 3: reason */
 				'body' => static function () { return sprintf( __( "Dein Platz auf der Warteliste für „%1\$s“ (%2\$s) ist beendet. %3\$s\n\nDu musst nichts weiter tun; wir schreiben dir zu diesem Termin nicht mehr.", 'pass-captain' ), '{event_name}', '{ticket_name}', '{reason}' ); },
-				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'reason' => __( 'Der Termin wurde abgesagt.', 'pass-captain' ) ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'reason' => __( 'Der Termin wurde abgesagt.', 'pass-captain' ) ) + self::waitlist_date_sample(); },
 			),
 			'waitlist_offer' => array(
 				'label' => __( 'Warteliste: Platzangebot', 'pass-captain' ),
@@ -420,15 +479,18 @@ final class Types {
 					'event_name' => __( 'Event', 'pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
-				),
+				) + self::waitlist_date_placeholders(),
 				/* translators: %s: event */
 				'subject' => static function () { return sprintf( __( 'Tickets für dich reserviert: %s', 'pass-captain' ), '{event_name}' ); },
 				'body' => static function () {
 					/* translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link */
 					$offer = sprintf( __( "Gute Nachrichten: Für dich sind %1\$s × „%2\$s“ für „%3\$s“ reserviert.\n\nDie Reservierung gilt bis %4\$s. Nimm das Angebot bis dahin an und schließe die Bestellung ab, sonst geht es an die nächste Person auf der Warteliste:\n%5\$s\n\nWenn du die Tickets nicht mehr brauchst, kannst du das Angebot über denselben Link ablehnen.", 'pass-captain' ), '{quantity}', '{ticket_name}', '{event_name}', '{offer_expires}', '{accept_link}' );
-					return $offer . "\n\n" . Types::waitlist_unsubscribe_note();
+					// A565: date (with time zone) and location of the offered date.
+					/* translators: 1: date and time with time zone, 2: location */
+					$when = sprintf( __( 'Termin: %1$s, %2$s', 'pass-captain' ), '{event_date}', '{event_location}' );
+					return $offer . "\n\n" . $when . "\n\n" . Types::waitlist_unsubscribe_note();
 				},
-				'sample' => static function () { return array( 'offer_expires' => '16.01.2027 19:30 UTC', 'accept_link' => Mailer::link( home_url( '/?wpcap_waitlist_accept=12&token=' . str_repeat( 'e5', 32 ) ) ), 'quantity' => 2, 'position' => 1, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ); },
+				'sample' => static function () { return array( 'offer_expires' => '16.01.2027 19:30 UTC', 'accept_link' => Mailer::link( home_url( '/?wpcap_waitlist_accept=12&token=' . str_repeat( 'e5', 32 ) ) ), 'quantity' => 2, 'position' => 1, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ) + self::waitlist_date_sample(); },
 			),
 			'member_pass' => array(
 				'label' => __( 'Mitgliedspass', 'pass-captain' ),

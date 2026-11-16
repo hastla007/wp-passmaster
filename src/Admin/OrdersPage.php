@@ -712,7 +712,21 @@ final class OrdersPage {
 					<div class="notice notice-error inline"><p><?php echo esc_html( $sales_context->get_error_message() ); ?></p></div>
 				<?php else : ?><?php echo esc_html( $sales_label ); ?><?php endif; ?>
 			</td></tr>
-			<tr><th><?php esc_html_e( 'Version AGB/Verbraucherinfo', 'pass-captain' ); ?></th><td><?php echo esc_html( '' !== (string) $order->terms_version ? $order->terms_version : '—' ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Version AGB/Verbraucherinfo', 'pass-captain' ); ?></th><td><?php echo esc_html( '' !== (string) $order->terms_version ? $order->terms_version : '—' ); ?>
+				<?php
+				// A568: wording of the stored version from the append-only archive.
+				$legal = '' !== (string) $order->terms_version ? \PassCaptain\LegalVersions::texts( (string) $order->terms_version, (string) $order->locale ) : null;
+				if ( $legal ) :
+					?>
+					<details><summary><?php echo esc_html( $legal['archived'] ? __( 'Text dieser Fassung anzeigen', 'pass-captain' ) : __( 'Text dieser Fassung anzeigen (aktuell gültige Fassung, noch nicht archiviert)', 'pass-captain' ) ); ?></summary>
+						<?php foreach ( array( 'terms_text' => __( 'Bedingungen', 'pass-captain' ), 'consumer_info_text' => __( 'Verbraucherinformationen', 'pass-captain' ) ) as $legal_key => $legal_label ) : ?>
+							<?php if ( '' !== trim( (string) $legal[ $legal_key ] ) ) : ?><h4><?php echo esc_html( $legal_label ); ?></h4><?php echo wp_kses_post( wpautop( (string) $legal[ $legal_key ] ) ); ?><?php endif; ?>
+						<?php endforeach; ?>
+					</details>
+				<?php elseif ( '' !== (string) $order->terms_version ) : ?>
+					<p class="description"><?php esc_html_e( 'Der Text dieser Fassung ist nicht archiviert (Bestellung vor dem Archiv, Schema 3.10.18).', 'pass-captain' ); ?></p>
+				<?php endif; ?>
+			</td></tr>
 		</tbody></table>
 
 		<h2><?php esc_html_e( 'Positionen', 'pass-captain' ); ?></h2>

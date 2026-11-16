@@ -198,7 +198,9 @@ final class Privacy {
 				array( 'name' => __( 'Status', 'pass-captain' ), 'value' => $pass['status'] ),
 			) );
 		}
-		$waitlist = $wpdb->get_results( $wpdb->prepare( "SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.quantity,w.position,w.status,w.created_at,w.offered_at,w.offer_expires_at,w.order_id,e.name AS event_name,o.starts_at,ord.public_id AS offer_order FROM {$p}wpcap_waitlist w LEFT JOIN {$p}wpcap_events e ON e.event_id=w.event_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.email=%s ORDER BY w.waitlist_id LIMIT %d OFFSET %d", $email, self::EXPORT_PAGE, $offset ), ARRAY_A );
+		// A564: the double opt-in confirmation time belongs to the export (proof of the sign-up).
+		$confirmed = Waitlists::doi_ready() ? 'w.confirmed_at,' : '';
+		$waitlist = $wpdb->get_results( $wpdb->prepare( "SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.quantity,w.position,w.status,w.created_at,{$confirmed}w.offered_at,w.offer_expires_at,w.order_id,e.name AS event_name,o.starts_at,ord.public_id AS offer_order FROM {$p}wpcap_waitlist w LEFT JOIN {$p}wpcap_events e ON e.event_id=w.event_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.email=%s ORDER BY w.waitlist_id LIMIT %d OFFSET %d", $email, self::EXPORT_PAGE, $offset ), ARRAY_A );
 		foreach ( $waitlist as $entry ) {
 			$data[] = array( 'group_id' => 'pass-captain-waitlist', 'group_label' => __( 'Pass Captain Warteliste', 'pass-captain' ), 'item_id' => 'waitlist-' . $entry['waitlist_id'], 'data' => array(
 				array( 'name' => __( 'Event', 'pass-captain' ), 'value' => ( '' !== (string) $entry['event_name'] ? $entry['event_name'] . ' ' : '' ) . '(#' . $entry['event_id'] . ')' ),
@@ -208,6 +210,7 @@ final class Privacy {
 				array( 'name' => __( 'Position und Status', 'pass-captain' ), 'value' => $entry['position'] . ' / ' . $entry['status'] ),
 				array( 'name' => __( 'Erstellt / Angebot / Angebotsablauf (UTC)', 'pass-captain' ), 'value' => $entry['created_at'] . ' / ' . ( $entry['offered_at'] ?? '' ) . ' / ' . ( $entry['offer_expires_at'] ?? '' ) ),
 				array( 'name' => __( 'Angebotsbestellung', 'pass-captain' ), 'value' => (string) ( $entry['offer_order'] ?? '' ) ),
+				array( 'name' => __( 'E-Mail-Adresse bestätigt am (UTC)', 'pass-captain' ), 'value' => (string) ( $entry['confirmed_at'] ?? '' ) ),
 			) );
 		}
 		$bookings = $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.quantity,b.status,b.created_at,s.starts_at,s.ends_at,r.name AS resource_name FROM {$p}wpcap_service_bookings b LEFT JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id LEFT JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id WHERE b.customer_email=%s ORDER BY b.booking_id LIMIT %d OFFSET %d", $email, self::EXPORT_PAGE, $offset ), ARRAY_A );

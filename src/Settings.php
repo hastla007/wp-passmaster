@@ -165,6 +165,10 @@ final class Settings {
 		update_option( self::OPTION, array_merge( $stored, $values ), false );
 		self::$all = null;
 		PageCache::settings_changed( $stored, $values ); // A446: legal texts are part of every listing.
+		// A568: every wording that comes into force is archived (append-only) for later proof.
+		if ( array_intersect_key( $values, array_flip( array_merge( self::LEGAL_KEYS, array( 'legal_texts' ) ) ) ) ) {
+			LegalVersions::archive_all();
+		}
 	}
 
 	/**

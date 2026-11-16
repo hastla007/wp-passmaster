@@ -233,6 +233,9 @@ $GLOBALS['wpcap_test_transients'] = array();
 // Module tests reset RateLimit counters by clearing the transients: they run on the transient backend.
 // The atomic database/object-cache backends are tested in modules/zz_a186.php (WPCAP_TEST_RATE_BACKEND=db for workers).
 $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = getenv( 'WPCAP_TEST_RATE_BACKEND' ) ?: 'transient';
+// A564: waitlist sign-ups need the double opt-in confirmation by default; the suites that are not about it
+// join directly (modules/zz_a564_a565.php unsets this and tests the confirmation flow).
+$GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] = false;
 $GLOBALS['wpcap_test_actions'] = array();
 
 function __( $t, $d = null ) { return $t; }

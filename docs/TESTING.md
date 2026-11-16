@@ -94,6 +94,11 @@ prüft so die Sommerzeitumstellungen in Europe/Vienna und America/New_York (sieh
 
 Offen (Produktentscheidung, A455): eigene Event-URLs bzw. Event-Einzelseiten mit Theme-Template gibt es nicht; Events erscheinen nur über Shortcode oder Block auf normalen Seiten. Ob ein öffentlicher Beitragstyp/Rewrite für Events kommt, ist zu entscheiden (Auswirkungen auf SEO, Seitencache-Purge `wpcap_purge_page_cache`, Kalender-Links und Übersetzungen).
 
+Wartelisten-Eintragungen brauchen im Plugin standardmäßig die Double-Opt-in-Bestätigung (A564). Der
+Test-Bootstrap setzt `$GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] = false`, damit die
+Suites, die nicht davon handeln, direkt eintragen; `modules/zz_a564_a565.php` hebt das auf und prüft den
+Bestätigungsablauf. Die a11y-Fixture schaltet die Bestätigung per `add_filter()` ab.
+
 ## Upgrade-Tests je Vorgängerversion (`tests/upgrade/`, A181)
 
 ```bash

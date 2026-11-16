@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.20';
+	const DB_VERSION = '3.10.21';
 
 	public static function install() {
 		global $wpdb;
@@ -630,6 +630,8 @@ final class Installer {
 				priority int(11) NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'waiting',
 				block_reason varchar(40) NOT NULL DEFAULT '',
+				confirm_token_hash char(64) NOT NULL DEFAULT '',
+				confirmed_at datetime NULL,
 				offer_token_hash char(64) NOT NULL DEFAULT '',
 				unsubscribe_token_hash char(64) NOT NULL DEFAULT '',
 				offer_expires_at datetime NULL,
@@ -863,6 +865,18 @@ final class Installer {
 				KEY token_hash (token_hash),
 				KEY ticket_kind (ticket_id,kind)
 			) ENGINE=InnoDB $charset;",
+			// Archived legal text versions per language (schema 3.10.21, A568; see LegalVersions). Append-only.
+			"CREATE TABLE {$wpdb->prefix}wpcap_legal_versions (
+				legal_version_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				version varchar(64) NOT NULL,
+				locale varchar(20) NOT NULL DEFAULT '',
+				terms_text longtext NOT NULL,
+				consumer_info_text longtext NOT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (legal_version_id),
+				UNIQUE KEY version (version),
+				KEY created_at (created_at)
+			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_rate_limits (
 				rl_key char(40) NOT NULL,
 				hits int(10) unsigned NOT NULL DEFAULT 0,
@@ -900,6 +914,8 @@ final class Installer {
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 		self::align_legacy_stripe_mode( $previous_version );
 		self::migrate_site_scopes( $previous_version );
+		// A568: the legal texts in force at the upgrade become the first archived versions.
+		LegalVersions::archive_all();
 
 		// Role names are translated; before init that would load the text domain too early.
 		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {

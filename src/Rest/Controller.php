@@ -858,7 +858,7 @@ final class Controller {
 	public static function accept_waitlist_offer( \WP_REST_Request $request ) {
 		// Attendee data (participant fields) is collected on acceptance (A536); Orders::validate_attendees() sanitises it.
 		$attendees = $request->get_param( 'attendees' );
-		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => ! empty( $request->get_param( 'accept_terms' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array() ) );
+		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => ! empty( $request->get_param( 'accept_terms' ) ), 'terms_version' => \PassCaptain\Http::str( $request->get_param( 'terms_version' ) ), 'locale' => \PassCaptain\Http::str( $request->get_param( 'locale' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array() ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

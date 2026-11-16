@@ -72,6 +72,9 @@ final class AdminPage {
 			'max_offers_per_run' => max( 1, min( 100, Forms::int( $in, 'max_offers_per_run', 10 ) ) ),
 			'strict_fifo' => Forms::flag( $in, 'strict_fifo' ) ? 1 : 0,
 			'close_mail' => Forms::flag( $in, 'close_mail' ) ? 1 : 0,
+			'change_mail' => Forms::flag( $in, 'change_mail' ) ? 1 : 0,
+			'double_opt_in' => Forms::flag( $in, 'double_opt_in' ) ? 1 : 0,
+			'confirm_hours' => max( 1, min( 168, Forms::int( $in, 'confirm_hours', 48 ) ) ),
 		);
 		Settings::update( array( 'waitlist' => $values ) );
 		return array( 'saved' => $values );
@@ -125,9 +128,9 @@ final class AdminPage {
 		}
 		echo '</tr></thead><tbody>';
 		foreach ( $rows as $row ) {
-			$open = in_array( $row->status, array( 'waiting', 'offered', 'accepted', 'blocked' ), true );
+			$open = in_array( $row->status, array( 'pending', 'waiting', 'offered', 'accepted', 'blocked' ), true );
 			$order = $row->order_public_id ? '<a href="' . esc_url( \PassCaptain\Admin\OrdersPage::order_url( (int) $row->order_id ) ) . '"><code>' . esc_html( \PassCaptain\Frontend\Format::order_reference( (string) $row->order_public_id ) ) . '</code></a>' : '–';
-			echo '<tr><td>' . esc_html( $row->starts_at ? Forms::datetime( $row->starts_at, (string) ( $row->timezone ?? '' ) ) : '–' ) . '</td><td>' . esc_html( (string) $row->ticket_name ) . '</td><td>' . esc_html( $row->queue_rank ? (string) $row->queue_rank : '–' ) . '</td><td>' . esc_html( (string) (int) $row->position ) . '</td><td>' . esc_html( (string) $row->email ) . '</td><td>' . esc_html( (string) (int) $row->quantity ) . '</td><td>' . esc_html( (string) (int) $row->priority ) . '</td><td>' . esc_html( Waitlists::status_label( $row->status ) ) . ( '' !== Waitlists::block_reason_label( $row->block_reason ?? '' ) ? '<br><small>' . esc_html( Waitlists::block_reason_label( $row->block_reason ?? '' ) ) . '</small>' : '' ) . '</td><td>' . esc_html( in_array( $row->status, array( 'offered', 'accepted' ), true ) && $row->offer_expires_at ? Forms::datetime( $row->offer_expires_at, wp_timezone_string() ) : '–' ) . '</td><td>' . $order . '</td><td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $order is built from escaped parts.
+			echo '<tr><td>' . esc_html( $row->starts_at ? Forms::datetime( $row->starts_at, (string) ( $row->timezone ?? '' ) ) : '–' ) . '</td><td>' . esc_html( (string) $row->ticket_name ) . '</td><td>' . esc_html( $row->queue_rank ? (string) $row->queue_rank : '–' ) . '</td><td>' . esc_html( (int) $row->position ? (string) (int) $row->position : '–' ) . '</td><td>' . esc_html( (string) $row->email ) . '</td><td>' . esc_html( (string) (int) $row->quantity ) . '</td><td>' . esc_html( (string) (int) $row->priority ) . '</td><td>' . esc_html( Waitlists::status_label( $row->status ) ) . ( '' !== Waitlists::block_reason_label( $row->block_reason ?? '' ) ? '<br><small>' . esc_html( Waitlists::block_reason_label( $row->block_reason ?? '' ) ) . '</small>' : '' ) . '</td><td>' . esc_html( in_array( $row->status, array( 'offered', 'accepted' ), true ) && $row->offer_expires_at ? Forms::datetime( $row->offer_expires_at, wp_timezone_string() ) : '–' ) . '</td><td>' . $order . '</td><td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $order is built from escaped parts.
 			if ( 'waiting' === $row->status ) {
 				self::action_button( 'offer', $row, __( 'Jetzt anbieten', 'pass-captain' ) );
 				$field = '<input type="number" name="priority" value="' . esc_attr( (string) (int) $row->priority ) . '" min="-1000" max="1000" style="width:5em" aria-label="' . esc_attr__( 'Priorität', 'pass-captain' ) . '"> ';
@@ -155,6 +158,9 @@ final class AdminPage {
 		echo '<tr><th scope="row"><label for="wpcap-wl-max">' . esc_html__( 'Höchstens Angebote pro Durchlauf', 'pass-captain' ) . '</label></th><td><input type="number" id="wpcap-wl-max" name="max_offers_per_run" min="1" max="100" value="' . esc_attr( (string) $c['max_offers_per_run'] ) . '"></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Strikte Reihenfolge', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="strict_fifo" value="1"' . checked( ! empty( $c['strict_fifo'] ), true, false ) . '> ' . esc_html__( 'Nicht vorziehen: Passt die gewünschte Anzahl des nächsten Eintrags nicht, wird gewartet statt kleinere Einträge dahinter zu bedienen.', 'pass-captain' ) . '</label></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Bei Absage oder Terminende', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="close_mail" value="1"' . checked( ! empty( $c['close_mail'] ), true, false ) . '> ' . esc_html__( 'Wartende per E-Mail informieren, dass ihr Wartelistenplatz endet', 'pass-captain' ) . '</label><p class="description">' . esc_html__( 'Einträge abgesagter, begonnener oder nicht mehr verkaufter Termine werden immer geschlossen.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Bei Terminänderung', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="change_mail" value="1"' . checked( ! empty( $c['change_mail'] ), true, false ) . '> ' . esc_html__( 'Wartende und Personen mit offenem Angebot per E-Mail informieren, wenn Beginn oder Ort des Termins geändert werden', 'pass-captain' ) . '</label></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'E-Mail-Bestätigung (Double-Opt-in)', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="double_opt_in" value="1"' . checked( ! empty( $c['double_opt_in'] ), true, false ) . '> ' . esc_html__( 'Eintragungen erst nach Bestätigung über den Link in der E-Mail auf die Warteliste setzen', 'pass-captain' ) . '</label><p class="description">' . esc_html__( 'Unbestätigte Eintragungen bekommen keine Angebote und halten kein Kontingent; sie werden nach Ablauf der Frist gelöscht. Ausschalten nur, wenn die Adressen auf anderem Weg geprüft sind.', 'pass-captain' ) . '</p>';
+		echo '<p><label for="wpcap-wl-confirm">' . esc_html__( 'Gültigkeit des Bestätigungslinks (Stunden)', 'pass-captain' ) . '</label> <input type="number" id="wpcap-wl-confirm" name="confirm_hours" min="1" max="168" value="' . esc_attr( (string) $c['confirm_hours'] ) . '"></p></td></tr>';
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form>';
