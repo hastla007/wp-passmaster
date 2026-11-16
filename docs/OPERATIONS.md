@@ -363,6 +363,16 @@ aber unvollständiger Überweisung auf deren Unterbereich).
   `[wpcap_scanner]`. Unter **Scanner-Geräte → Ohne App scannen** stehen Web-Scanner (Shortcode) und, mit dem
   Modul Offline-Scanner, der Link zur installierbaren Web-App.
 
+### Veröffentlichungs-Checkliste und Verkaufsliste (A293)
+
+Ein veröffentlichtes Event erscheint in `[wpcap_events]` nur mit einem geplanten, kommenden Termin und
+einer aktiven Ticketart im Verkaufszeitraum. Die Eventseite im Admin nennt über den Eventdaten, was fehlt
+(`EventsPage::publish_issues()`: kein kommender Termin, keine aktive Ticketart, Vorverkauf noch nicht
+begonnen bzw. Verkaufszeitraum beendet, keine verfügbare Zahlungsart je Währung); beim Veröffentlichen
+erscheinen dieselben Punkte als Warnung. Auf der Website bekommt ein Termin, dessen Ticketarten alle erst
+später in den Verkauf gehen, eine Karte „Vorverkauf ab …“ (Filter `wpcap_presale_card_html`); bleibt nach
+dem Filtern nichts übrig, steht dort „Aktuell sind keine Veranstaltungen verfügbar.“ statt einer leeren Seite.
+
 ## Überweisung (manuelle Zahlung) einrichten (A265)
 
 Die Zahlungsart „Überweisung“ (`manual`) ist bei neuen Installationen **nicht** aktiviert. Sie wird im

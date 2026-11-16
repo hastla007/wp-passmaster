@@ -123,7 +123,74 @@ final class EventsPage {
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'event_created', 'event', $event_id, array( 'status' => $status, 'occurrences' => $repeat_count ) );
 		\PassCaptain\PageCache::event_changed( $event_id, 'event' ); // A446: listing/calendar pages.
-		return array( 'event_id' => $event_id ) + Forms::dst_warning( $dst_notes );
+		$result = array( 'event_id' => $event_id ) + Forms::dst_warning( $dst_notes );
+		return 'published' === $status ? self::with_publish_warning( $result, $event_id ) : $result;
+	}
+
+	/**
+	 * Publishing checklist of an event (A293): what keeps a published event from being bookable on
+	 * the sales page – no upcoming date, no active ticket type, no ticket type on sale (presale not
+	 * started or sale ended), no available payment method for a currency. Empty = bookable.
+	 *
+	 * @return array key (occurrence|ticket_type|on_sale|payment) => message.
+	 */
+	public static function publish_issues( $event_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare(
+			"SELECT o.occurrence_id, o.timezone, tt.ticket_type_id, tt.currency, tt.sales_start, tt.sales_end FROM {$p}wpcap_occurrences o LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id AND tt.status='active' WHERE o.event_id=%d AND o.status='scheduled' AND o.starts_at >= %s",
+			(int) $event_id,
+			$now
+		) );
+		if ( ! $rows ) {
+			return array( 'occurrence' => __( 'Kein geplanter Termin in der Zukunft – das Event erscheint nicht auf der Verkaufsseite. Einen Termin anlegen.', 'pass-captain' ) );
+		}
+		$types = array_filter( $rows, static function ( $row ) { return null !== $row->ticket_type_id; } );
+		if ( ! $types ) {
+			return array( 'ticket_type' => __( 'Keine aktive Ticketart für einen kommenden Termin – das Event erscheint nicht auf der Verkaufsseite. Eine Ticketart anlegen oder aktivieren.', 'pass-captain' ) );
+		}
+		$issues = array();
+		$on_sale = false;
+		$presale = '';
+		$timezone = '';
+		foreach ( $types as $type ) {
+			$started = null === $type->sales_start || $type->sales_start <= $now;
+			$open = null === $type->sales_end || $type->sales_end >= $now;
+			if ( $started && $open ) { $on_sale = true; }
+			if ( ! $started && ( '' === $presale || $type->sales_start < $presale ) ) {
+				$presale = (string) $type->sales_start;
+				$timezone = (string) $type->timezone;
+			}
+		}
+		if ( ! $on_sale ) {
+			$issues['on_sale'] = '' !== $presale
+				/* translators: %s: date and time the sale starts */
+				? sprintf( __( 'Noch keine Ticketart im Verkauf: Der Vorverkauf beginnt am %s. Bis dahin zeigt die Verkaufsseite „Vorverkauf ab …“.', 'pass-captain' ), Forms::datetime( $presale, $timezone ) )
+				: __( 'Der Verkaufszeitraum aller Ticketarten ist beendet – das Event erscheint nicht mehr auf der Verkaufsseite.', 'pass-captain' );
+		}
+		$missing = array();
+		foreach ( array_unique( array_map( static function ( $type ) { return strtoupper( (string) $type->currency ); }, $types ) ) as $currency ) {
+			if ( ! \PassCaptain\Payments\Registry::enabled( $currency ) ) { $missing[] = $currency; }
+		}
+		if ( $missing ) {
+			$issues['payment'] = sprintf(
+				/* translators: %s: currency codes */
+				__( 'Keine verfügbare Zahlungsart für %s – im Checkout kann nicht bestellt werden. Unter Einstellungen → Zahlungsarten eine Zahlungsart aktivieren und vollständig einrichten.', 'pass-captain' ),
+				implode( ', ', $missing )
+			);
+		}
+		return $issues;
+	}
+
+	/** Adds the publishing checklist of a just published event to a result as warning (A293). */
+	private static function with_publish_warning( array $result, $event_id ) {
+		$issues = self::publish_issues( $event_id );
+		if ( ! $issues ) { return $result; }
+		$warning = __( 'Das Event ist veröffentlicht, aber noch nicht buchbar:', 'pass-captain' ) . ' ' . implode( ' ', $issues );
+		$result['warning'] = trim( ( $result['warning'] ?? '' ) . ' ' . $warning );
+		$result['publish_issues'] = array_keys( $issues );
+		return $result;
 	}
 
 	/** Updates name, description and status (draft/published) of an event. */
@@ -167,7 +234,8 @@ final class EventsPage {
 			 */
 			do_action( 'wpcap_event_updated', (int) $event->event_id, $changes );
 		}
-		return array( 'event_id' => (int) $event->event_id );
+		$result = array( 'event_id' => (int) $event->event_id );
+		return 'published' === $status ? self::with_publish_warning( $result, (int) $event->event_id ) : $result;
 	}
 
 	/**
@@ -998,6 +1066,19 @@ final class EventsPage {
 		return $parts ? implode( ' · ', $parts ) : '—';
 	}
 
+	/** Publishing checklist above the event data (A293): what is missing before the event is bookable. */
+	private static function render_publish_checklist( $event ) {
+		if ( 'cancelled' === $event->status ) { return; }
+		$issues = self::publish_issues( (int) $event->event_id );
+		if ( ! $issues ) { return; }
+		$published = 'published' === $event->status;
+		echo '<div class="notice ' . ( $published ? 'notice-warning' : 'notice-info' ) . ' inline wpcap-publish-checklist"><p><strong>' . esc_html( $published ? __( 'Veröffentlicht, aber noch nicht buchbar:', 'pass-captain' ) : __( 'Vor dem Veröffentlichen erledigen:', 'pass-captain' ) ) . '</strong></p><ul class="ul-disc">';
+		foreach ( $issues as $key => $message ) {
+			echo '<li class="wpcap-publish-' . esc_attr( $key ) . '">' . esc_html( $message ) . '</li>';
+		}
+		echo '</ul></div>';
+	}
+
 	private static function render_event( $event_id ) {
 		$event = Queries::event( $event_id );
 		if ( ! $event || ! Access::can_access_event( $event_id, self::CAP ) ) { self::denied(); return; }
@@ -1008,6 +1089,7 @@ final class EventsPage {
 		<p><a href="<?php echo esc_url( self::url() ); ?>"><?php esc_html_e( '← Zur Eventliste', 'pass-captain' ); ?></a></p>
 		<h1><?php echo esc_html( $event->name ); ?> <span class="subtitle"><?php echo esc_html( Forms::status_label( $event->status ) ); ?></span></h1>
 		<?php Forms::render_notices(); ?>
+		<?php self::render_publish_checklist( $event ); ?>
 
 		<h2><?php esc_html_e( 'Eventdaten', 'pass-captain' ); ?></h2>
 		<?php if ( $editable ) : ?>

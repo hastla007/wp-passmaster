@@ -199,15 +199,24 @@ final class PublicEvents {
 		$meta = array();
 		$listing = self::listing_data( $rows, $meta );
 		$card_listing = self::card_listing( $rows, $listing, $meta );
+		// A293: dates whose ticket types all start selling later get a "Vorverkauf ab …" card.
+		$presale = self::presale_starts( $rows, $listing );
+		$shown = 0;
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );
 		ob_start();
 		?>
 		<div class="wpcap-events">
-			<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
 			<?php foreach ( $rows as $event ) :
 				$types = $listing[ (int) $event->occurrence_id ] ?? array();
-				if ( ! $types ) { continue; }
+				if ( ! $types ) {
+					if ( isset( $presale[ (int) $event->occurrence_id ] ) ) {
+						echo self::presale_card( $event, $presale[ (int) $event->occurrence_id ] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in presale_card().
+						++$shown;
+					}
+					continue;
+				}
+				++$shown;
 				$providers = Payments\Registry::enabled( $types[0]->currency );
 				// Bank transfer is not offered when the start is closer than manual_cutoff_hours.
 				if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
@@ -225,6 +234,7 @@ final class PublicEvents {
 				echo Hooks::legacy_filter( 'wpcap_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
 				?>
 			<?php endforeach; ?>
+			<?php if ( ! $shown ) : ?><p class="wpcap-events-empty"><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
 		</div>
 		<?php
 		return ob_get_clean();
@@ -239,6 +249,51 @@ final class PublicEvents {
 		$name     = basename( (string) $name );
 		$template = locate_template( 'pass-captain/' . $name );
 		return $template ? $template : LegacySlug::legacy_theme_template( $name );
+	}
+
+	/**
+	 * Earliest future sales start per listed occurrence that has no ticket type on sale yet (A293):
+	 * occurrence_id => sales_start (UTC). Dates whose sales ended or that have no active ticket type
+	 * stay out of the listing.
+	 *
+	 * @param object[] $rows    Listing rows.
+	 * @param array    $listing occurrence_id => ticket types on sale (listing_data()).
+	 * @return array
+	 */
+	public static function presale_starts( array $rows, array $listing ) {
+		global $wpdb;
+		$ids = array();
+		foreach ( $rows as $row ) {
+			if ( empty( $listing[ (int) $row->occurrence_id ] ) ) { $ids[] = (int) $row->occurrence_id; }
+		}
+		if ( ! $ids ) { return array(); }
+		$now = current_time( 'mysql', true );
+		$out = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id, MIN(sales_start) AS sales_start FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', array_unique( $ids ) ) . ") AND status='active' AND sales_start > %s AND (sales_end IS NULL OR sales_end > sales_start) GROUP BY occurrence_id", $now ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$out[ (int) $row->occurrence_id ] = (string) $row->sales_start;
+		}
+		return $out;
+	}
+
+	/**
+	 * Card of a date that is not on sale yet: name, date, place and "Vorverkauf ab …" (A293).
+	 * Filter `wpcap_presale_card_html` replaces the markup.
+	 *
+	 * @param object $event       Listing row (translated).
+	 * @param string $sales_start Earliest sales start (UTC).
+	 */
+	public static function presale_card( $event, $sales_start ) {
+		$level = min( 6, max( 2, (int) apply_filters( 'wpcap_event_card_heading_level', 2 ) ) );
+		/* translators: %s: date and time the online sale starts */
+		$label = sprintf( __( 'Vorverkauf ab %s', 'pass-captain' ), Frontend\Format::event_start( $sales_start, $event->timezone ) );
+		$html = '<article class="wpcap-event wpcap-event-presale" id="wpcap-occ-' . (int) $event->occurrence_id . '"><header class="wpcap-event-header">'
+			. '<h' . $level . ' class="wpcap-event-title">' . esc_html( $event->name ) . '</h' . $level . '>'
+			. '<dl class="wpcap-event-facts"><div class="wpcap-fact-date"><dt class="wpcap-sr-only">' . esc_html__( 'Termin', 'pass-captain' ) . '</dt><dd><time datetime="' . esc_attr( Frontend\EventCard::iso( $event->starts_at ) ) . '">' . esc_html( Frontend\Format::event_start( $event->starts_at, $event->timezone ) ) . '</time></dd></div>'
+			. ( $event->location ? '<div class="wpcap-fact-location"><dt class="wpcap-sr-only">' . esc_html__( 'Ort', 'pass-captain' ) . '</dt><dd>' . esc_html( $event->location ) . '</dd></div>' : '' )
+			. '</dl></header>'
+			. ( $event->description ? '<div class="wpcap-description">' . wp_kses_post( wpautop( $event->description ) ) . '</div>' : '' )
+			. '<p class="wpcap-presale"><time datetime="' . esc_attr( Frontend\EventCard::iso( $sales_start ) ) . '">' . esc_html( $label ) . '</time></p></article>';
+		return (string) apply_filters( 'wpcap_presale_card_html', $html, $event, $sales_start );
 	}
 
 	/**
