@@ -17,6 +17,7 @@ final class Placeholders {
 			'{tickets}' => __( 'Anzahl Tickets', 'pass-captain' ),
 			'{old_date}' => __( 'Bisheriges Datum und Uhrzeit (Verschiebung)', 'pass-captain' ),
 			'{ics_url}' => __( 'Link zur Kalenderdatei', 'pass-captain' ),
+			'{ticket_links}' => __( 'Persönliche Ticketlinks der Empfängerin bzw. des Empfängers (Erinnerung)', 'pass-captain' ),
 			'{site}' => __( 'Name der Website', 'pass-captain' ),
 		);
 	}

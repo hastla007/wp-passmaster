@@ -10,6 +10,12 @@
  * occurrence, start time and offset. Revoked/refunded tickets, unpaid orders and cancelled
  * occurrences are skipped, and queued reminders that are no longer valid are cancelled before sending.
  * Optional SMS reminders go to consenting buyers (one per order).
+ *
+ * A587: each reminder is rendered in the language of the holder's order (payload "locale"): texts
+ * per language (setting reminders.translations[locale] = subject/body), otherwise the built-in
+ * default translated into that language (as long as the site text was not customised), otherwise
+ * the site text. {ticket_links} lists the holder's tickets for the occurrence with their personal
+ * ticket page (code from the encrypted store, TicketCodes); the ticket page also offers the order link.
  */
 namespace PassCaptain\Modules;
 
@@ -29,7 +35,7 @@ final class Reminders {
 	public static function register() {
 		add_action( 'wpcap_process_messages', array( __CLASS__, 'schedule_due' ), 1, 0 );
 		add_action( 'wpcap_process_messages', array( __CLASS__, 'purge_stale' ), 5, 0 );
-		add_filter( 'wpcap_email_template', array( __CLASS__, 'render_template' ), 10, 3 );
+		add_filter( 'wpcap_email_template', array( __CLASS__, 'render_template' ), 10, 4 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'purge_stale' ), 20, 0 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'purge_stale' ), 20, 0 );
 	}
@@ -40,9 +46,10 @@ final class Reminders {
 				'enabled' => 0,
 				'offsets' => array( 24 ),
 				'subject' => __( 'Erinnerung: {event} am {date}', 'pass-captain' ),
-				'body' => __( "Hallo,\n\nin {hours} Stunden geht es los: „{event}“ am {date} um {time} Uhr ({timezone}).\nOrt: {location}\nTickets: {tickets}\n\nTermin in den Kalender übernehmen: {ics_url}\n\nBitte bring dein Ticket (ausgedruckt oder auf dem Smartphone) mit.\n\n{site}", 'pass-captain' ),
+				'body' => __( "Hallo,\n\nin {hours} Stunden geht es los: „{event}“ am {date} um {time} Uhr ({timezone}).\nOrt: {location}\nTickets: {tickets}\n\n{ticket_links}\n\nTermin in den Kalender übernehmen: {ics_url}\n\nBitte bring dein Ticket (ausgedruckt oder auf dem Smartphone) mit.\n\n{site}", 'pass-captain' ),
 				'sms' => 0,
 				'sms_body' => __( 'Erinnerung: {event} am {date} um {time}, {location}.', 'pass-captain' ),
+				'translations' => array(),
 			),
 		);
 	}
@@ -56,7 +63,15 @@ final class Reminders {
 	}
 
 	public static function config() {
-		$c = array_merge( self::settings_defaults()['reminders'], (array) Settings::get( 'reminders' ) );
+		$defaults = self::settings_defaults()['reminders'];
+		$c = array_merge( $defaults, (array) Settings::get( 'reminders' ) );
+		// A587: '' (or the unchanged site-language default of older installs) means "built-in text",
+		// which is translated into the recipient's language when rendered.
+		$site = \PassCaptain\Mail\Mailer::with_locale( \PassCaptain\Mail\Mailer::site_locale(), static function () { return self::settings_defaults()['reminders']; } );
+		foreach ( array( 'subject', 'body' ) as $key ) {
+			if ( '' === trim( (string) $c[ $key ] ) || (string) $c[ $key ] === (string) $site[ $key ] ) { $c[ $key ] = $defaults[ $key ]; }
+		}
+		$c['translations'] = is_array( $c['translations'] ?? null ) ? $c['translations'] : array();
 		$offsets = array_values( array_unique( array_filter( array_map( 'absint', (array) $c['offsets'] ), static function ( $h ) { return $h >= 1 && $h <= 720; } ) ) );
 		sort( $offsets );
 		$c['offsets'] = $offsets;
@@ -90,12 +105,15 @@ final class Reminders {
 		foreach ( $occurrences as $occ ) {
 			$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
 			if ( ! $stage ) { continue; }
-			$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
+			$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
 			foreach ( $holders as $holder ) {
 				if ( ! is_email( $holder->email ) ) { continue; }
 				$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;
 				if ( self::already_queued( $key ) ) { continue; }
-				$result = Communications::enqueue( $key, $holder->email, self::TEMPLATE, array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets ) );
+				$payload = array( 'occurrence_id' => (int) $occ->occurrence_id, 'starts_at' => $occ->starts_at, 'hours' => $stage, 'tickets' => (int) $holder->tickets );
+				$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) ( $holder->locale ?? '' ) );
+				if ( '' !== $locale ) { $payload['locale'] = $locale; } // A587: language of the holder's order.
+				$result = Communications::enqueue( $key, $holder->email, self::TEMPLATE, $payload );
 				if ( true === $result ) { ++$queued; }
 			}
 			if ( ! empty( $c['sms'] ) && '' !== trim( (string) $c['sms_body'] ) && class_exists( SmsService::class ) ) {
@@ -137,20 +155,56 @@ final class Reminders {
 		return $cancelled;
 	}
 
-	/** wpcap_email_template: renders the reminder with the current texts and occurrence data. */
-	public static function render_template( $template, $key = '', $payload = array() ) {
+	/**
+	 * wpcap_email_template: renders the reminder with the current texts and occurrence data, in the
+	 * recipient's language (payload locale, A587).
+	 *
+	 * @param string $recipient Recipient address (4th filter argument, for {ticket_links}); '' renders without links.
+	 */
+	public static function render_template( $template, $key = '', $payload = array(), $recipient = '' ) {
 		if ( self::TEMPLATE !== $key || ! is_array( $payload ) ) { return $template; }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", (int) ( $payload['occurrence_id'] ?? 0 ) ) );
 		if ( ! $occ ) { return $template; }
-		$c = self::config();
-		$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => (int) ( $payload['hours'] ?? 0 ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ) ) );
-		$body = Placeholders::render( $c['body'], $vars );
-		// The reminder editor is plain text: in HTML mode the rendered text is escaped as a whole
-		// (values included), URLs become links and the layout adds the plain-text alternative.
-		$html = 'html' === \PassCaptain\Mail\Templates::default_format( 'reminder' );
-		return array( 'subject' => Placeholders::render( $c['subject'], $vars ), 'body' => $html ? \PassCaptain\Mail\Mailer::text_to_html( $body ) : $body, 'format' => $html ? 'html' : 'text' );
+		$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) ( $payload['locale'] ?? '' ) );
+		return \PassCaptain\Mail\Mailer::with_locale( $locale, static function () use ( $occ, $payload, $locale, $recipient ) {
+			$c = self::config();
+			$texts = self::texts( $c, $locale );
+			$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => (int) ( $payload['hours'] ?? 0 ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ), 'ticket_links' => self::ticket_links( (int) $occ->occurrence_id, (string) $recipient ) ) );
+			$body = Placeholders::render( $texts['body'], $vars );
+			// The reminder editor is plain text: in HTML mode the rendered text is escaped as a whole
+			// (values included), URLs become links and the layout adds the plain-text alternative.
+			$html = 'html' === \PassCaptain\Mail\Templates::default_format( 'reminder' );
+			return array( 'subject' => Placeholders::render( $texts['subject'], $vars ), 'body' => $html ? \PassCaptain\Mail\Mailer::text_to_html( $body ) : $body, 'format' => $html ? 'html' : 'text', 'locale' => $locale );
+		} );
+	}
+
+	/** Subject and body for a locale: own texts of that language, else the configured (or built-in) text. */
+	public static function texts( array $c, $locale ) {
+		$own = (array) ( $c['translations'][ $locale ] ?? array() );
+		return array(
+			'subject' => '' !== trim( (string) ( $own['subject'] ?? '' ) ) ? (string) $own['subject'] : (string) $c['subject'],
+			'body' => '' !== trim( (string) ( $own['body'] ?? '' ) ) ? (string) $own['body'] : (string) $c['body'],
+		);
+	}
+
+	/**
+	 * {ticket_links}: the recipient's valid tickets of the occurrence with their personal ticket page
+	 * (only tickets whose current code is stored – nothing is rotated); otherwise a hint to the ticket mail.
+	 */
+	public static function ticket_links( $occurrence_id, $recipient ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$lines = array();
+		if ( '' !== (string) $recipient ) {
+			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email))=%s ORDER BY t.ticket_id LIMIT 50", absint( $occurrence_id ), strtolower( (string) $recipient ) ) );
+			foreach ( $ids as $id ) {
+				$code = \PassCaptain\PortalSelfService::current_code( (int) $id );
+				if ( '' !== $code ) { $lines[] = __( 'Dein Ticket:', 'pass-captain' ) . ' ' . add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) ); }
+			}
+		}
+		return $lines ? implode( "\n", $lines ) : __( 'Dein Ticket findest du in der E-Mail mit deinen Tickets.', 'pass-captain' );
 	}
 
 	/* ------------------------------------------------------------------ Admin */
@@ -166,9 +220,21 @@ final class Reminders {
 			'body' => Forms::textarea( $in, 'body', 5000 ),
 			'sms' => Forms::flag( $in, 'sms' ) ? 1 : 0,
 			'sms_body' => Forms::textarea( $in, 'sms_body', 640 ),
+			'translations' => array(),
 		);
 		if ( $values['enabled'] && ( ! $values['offsets'] || '' === $values['subject'] || '' === $values['body'] ) ) {
 			return Forms::error( 'wpcap_reminders_invalid', __( 'Bitte mindestens einen Zeitpunkt (1–720 Stunden), einen Betreff und einen Text angeben.', 'pass-captain' ) );
+		}
+		// A587: the unchanged built-in text is stored as '' so every recipient gets it in their language.
+		$defaults = self::settings_defaults()['reminders'];
+		foreach ( array( 'subject', 'body' ) as $key ) {
+			if ( str_replace( "\r\n", "\n", $values[ $key ] ) === str_replace( "\r\n", "\n", (string) $defaults[ $key ] ) ) { $values[ $key ] = ''; }
+		}
+		foreach ( (array) ( is_array( $in['translations'] ?? null ) ? $in['translations'] : array() ) as $locale => $text ) {
+			$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) $locale );
+			if ( '' === $locale || ! is_array( $text ) ) { continue; }
+			$own = array( 'subject' => Forms::text( $text, 'subject', 190 ), 'body' => Forms::textarea( $text, 'body', 5000 ) );
+			if ( '' !== $own['subject'] || '' !== $own['body'] ) { $values['translations'][ $locale ] = $own; }
 		}
 		Settings::update( array( 'reminders' => $values ) );
 		return array( 'saved' => $values );
@@ -190,6 +256,15 @@ final class Reminders {
 		echo '<tr><th scope="row"><label for="wpcap-rem-offsets">' . esc_html__( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-rem-offsets" name="offsets" value="' . esc_attr( implode( ', ', $c['offsets'] ) ) . '"><p class="description">' . esc_html__( 'Kommagetrennt, z. B. 48, 2 (max. 5 Werte). Pro Termin und Zeitpunkt erhält jede Person höchstens eine Nachricht.', 'pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-rem-subject">' . esc_html__( 'Betreff', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-rem-subject" name="subject" class="large-text" value="' . esc_attr( $c['subject'] ) . '"></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-rem-body">' . esc_html__( 'Text', 'pass-captain' ) . '</label></th><td><textarea id="wpcap-rem-body" name="body" class="large-text" rows="10">' . esc_textarea( $c['body'] ) . '</textarea></td></tr>';
+		foreach ( \PassCaptain\Mail\Admin::locales() as $locale ) {
+			if ( \PassCaptain\Mail\Mailer::site_locale() === $locale ) { continue; }
+			$own = (array) ( $c['translations'][ $locale ] ?? array() );
+			/* translators: %s: locale code, e.g. en_US */
+			echo '<tr><th scope="row">' . esc_html( sprintf( __( 'Text für %s (optional)', 'pass-captain' ), $locale ) ) . '</th><td>';
+			echo '<input type="text" name="translations[' . esc_attr( $locale ) . '][subject]" class="large-text" value="' . esc_attr( (string) ( $own['subject'] ?? '' ) ) . '" aria-label="' . esc_attr( $locale . ' – ' . __( 'Betreff', 'pass-captain' ) ) . '">';
+			echo '<textarea name="translations[' . esc_attr( $locale ) . '][body]" class="large-text" rows="6" aria-label="' . esc_attr( $locale . ' – ' . __( 'Text', 'pass-captain' ) ) . '">' . esc_textarea( (string) ( $own['body'] ?? '' ) ) . '</textarea>';
+			echo '<p class="description">' . esc_html__( 'Leer: der eingebaute Text in dieser Sprache bzw. der Text oben. Erinnerungen gehen in der Sprache der Bestellung.', 'pass-captain' ) . '</p></td></tr>';
+		}
 		echo '<tr><th scope="row">' . esc_html__( 'SMS', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="sms" value="1"' . checked( ! empty( $c['sms'] ), true, false ) . '> ' . esc_html__( 'Zusätzlich per SMS erinnern (nur mit Einwilligung, siehe SMS-Einstellungen; kostenpflichtig)', 'pass-captain' ) . '</label><textarea name="sms_body" class="large-text" rows="2" aria-label="' . esc_attr__( 'SMS-Text', 'pass-captain' ) . '">' . esc_textarea( $c['sms_body'] ) . '</textarea></td></tr>';
 		echo '</tbody></table><h2>' . esc_html__( 'Platzhalter', 'pass-captain' ) . '</h2><ul>';
 		foreach ( Placeholders::available() as $placeholder => $label ) { echo '<li><code>' . esc_html( $placeholder ) . '</code> – ' . esc_html( $label ) . '</li>'; }
