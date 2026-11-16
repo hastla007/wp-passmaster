@@ -327,8 +327,7 @@ final class Service {
 		} else {
 			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='unknown',send_at=%s,last_error='outcome_unknown' WHERE status='sending' AND locked_at<%s", $now, $stale ) );
 		}
-		// Messages held by the budget stop and not released within HELD_DAYS are dropped.
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='budget_exceeded' WHERE status='held' AND created_at<%s", gmdate( 'Y-m-d H:i:s', time() - self::HELD_DAYS * DAY_IN_SECONDS ) ) );
+		self::expire_held();
 		self::retire_finished();
 		if ( ! $provider ) { self::erase_retired_numbers(); return 0; }
 		self::reconcile_unknown( $provider );
@@ -483,6 +482,32 @@ final class Service {
 		global $wpdb;
 		$now = current_time( 'mysql', true );
 		return (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_sms_messages SET status='queued',last_error=NULL,send_at=%s,updated_at=%s WHERE status='held'", $now, $now ) );
+	}
+
+	/**
+	 * Messages held by the budget stop and not released within HELD_DAYS are dropped (status skipped,
+	 * budget_exceeded). Not silently (A417): audit entry sms_held_expired with the message ids; until
+	 * then they are listed under Operations → Queues with their expiry date.
+	 *
+	 * @return int Messages dropped.
+	 */
+	public static function expire_held() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::HELD_DAYS * DAY_IN_SECONDS );
+		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM {$p}wpcap_sms_messages WHERE status='held' AND created_at<%s ORDER BY message_id LIMIT 500", $cutoff ) ) );
+		if ( ! $ids ) { return 0; }
+		$dropped = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='budget_exceeded',updated_at=%s WHERE status='held' AND created_at<%s AND message_id IN (" . implode( ',', $ids ) . ')', current_time( 'mysql', true ), $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer ids.
+		if ( $dropped ) {
+			Audit::record( 'sms_held_expired', 'sms', 0, array( 'count' => $dropped, 'days' => self::HELD_DAYS, 'ids' => array_slice( $ids, 0, 100 ) ) );
+		}
+		return $dropped;
+	}
+
+	/** Creation time (UTC) of the oldest held message, '' when none. */
+	public static function oldest_held_at() {
+		global $wpdb;
+		return (string) $wpdb->get_var( "SELECT MIN(created_at) FROM {$wpdb->prefix}wpcap_sms_messages WHERE status='held'" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- no input.
 	}
 
 	/** Number of messages held by the budget stop. */

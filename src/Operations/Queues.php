@@ -1,7 +1,8 @@
 <?php
 /**
  * Operations view of the background queues (A163): background jobs (wpcap_jobs), the message queue
- * (wpcap_message_queue) and outgoing webhook deliveries (wpcap_webhook_deliveries). Counts by status,
+ * (wpcap_message_queue), outgoing webhook deliveries (wpcap_webhook_deliveries) and the SMS outbox
+ * (wpcap_sms_messages, A417: failed, held by the budget stop, send outcome unknown). Counts by status,
  * backlog and age of the oldest due item, the list of dead-letter/failed items without payload values,
  * and the controlled actions "retry" (queued again with a fresh attempt budget, processing triggered
  * right away) and "discard" (status cancelled). Both actions are audited.
@@ -24,7 +25,8 @@ final class Queues {
 
 	/**
 	 * Queue definitions: key => table suffix, id/type/due columns, waiting/in-flight status, failed
-	 * statuses (shown and retried), cron hook that processes the queue.
+	 * status (shown and retried; a list for the SMS outbox), status of a stale claim after a repair
+	 * ('stale', default the waiting status), payload column (null: none), cron hook of the queue.
 	 */
 	public static function definitions() {
 		return array(
@@ -58,6 +60,21 @@ final class Queues {
 				'failed'  => 'failed',
 				'hook'    => 'wpcap_webhooks_dispatch',
 			),
+			// A417: SMS outbox. "held" (budget stop, expires after Sms\Service::HELD_DAYS) and "unknown"
+			// (send outcome unclear, A416) need a decision just like "failed". A stale claim is never
+			// queued again blindly: it may have been sent (A416).
+			'sms'      => array(
+				'table'   => 'wpcap_sms_messages',
+				'id'      => 'message_id',
+				'type'    => 'purpose',
+				'due'     => 'send_at',
+				'queued'  => 'queued',
+				'running' => 'sending',
+				'failed'  => array( 'failed', 'held', 'unknown' ),
+				'stale'   => 'unknown',
+				'payload' => null,
+				'hook'    => 'wpcap_process_messages',
+			),
 		);
 	}
 
@@ -67,6 +84,7 @@ final class Queues {
 			'jobs'     => __( 'Hintergrundjobs', 'pass-captain' ),
 			'messages' => __( 'E-Mail-Warteschlange', 'pass-captain' ),
 			'webhooks' => __( 'Webhook-Zustellungen', 'pass-captain' ),
+			'sms'      => __( 'SMS-Warteschlange', 'pass-captain' ),
 		);
 	}
 
@@ -82,6 +100,18 @@ final class Queues {
 	private static function def( $queue ) {
 		$all = self::available();
 		return $all[ (string) $queue ] ?? null;
+	}
+
+	/** Failed statuses of a queue definition (always a list). */
+	public static function failed_statuses( array $def ) {
+		return array_values( (array) $def['failed'] );
+	}
+
+	/** SQL condition "status IN (failed statuses)" of a queue definition. */
+	private static function failed_where( array $def ) {
+		global $wpdb;
+		$statuses = self::failed_statuses( $def );
+		return $wpdb->prepare( 'status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')', ...$statuses ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- placeholders built above.
 	}
 
 	/** Extra condition for due items: webhook deliveries of inactive subscriptions are never processed. */
@@ -115,7 +145,7 @@ final class Queues {
 			'counts'             => $counts,
 			'due'                => $row ? (int) $row->n : 0,
 			'oldest_due_seconds' => $oldest ? max( 0, $now - (int) $oldest ) : 0,
-			'failed'             => (int) ( $counts[ $def['failed'] ] ?? 0 ),
+			'failed'             => (int) array_sum( array_intersect_key( $counts, array_flip( self::failed_statuses( $def ) ) ) ),
 		);
 	}
 
@@ -133,10 +163,12 @@ final class Queues {
 		$table = $wpdb->prefix . $def['table'];
 		$id = $def['id'];
 		$type = $def['type'];
-		$extra = 'messages' === $queue ? ', recipient' : ( 'webhooks' === $queue ? ', subscription_id, response_code' : '' );
-		if ( in_array( $queue, array( 'jobs', 'messages' ), true ) && \PassCaptain\Log::has_column( $def['table'], 'order_id' ) ) { $extra .= ', order_id'; }
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE status=%s", $def['failed'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name.
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT $id AS id, $type AS type, attempts, last_error, payload, created_at$extra FROM $table WHERE status=%s ORDER BY $id DESC LIMIT %d OFFSET %d", $def['failed'], max( 1, (int) $limit ), max( 0, (int) $offset ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed column/table names.
+		$extra = 'messages' === $queue ? ', recipient' : ( 'webhooks' === $queue ? ', subscription_id, response_code' : ( 'sms' === $queue ? ', status' : '' ) );
+		if ( in_array( $queue, array( 'jobs', 'messages', 'sms' ), true ) && \PassCaptain\Log::has_column( $def['table'], 'order_id' ) ) { $extra .= ', order_id'; }
+		$payload = array_key_exists( 'payload', $def ) && null === $def['payload'] ? "'' AS payload" : 'payload';
+		$where = self::failed_where( $def );
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table WHERE $where" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name, prepared condition.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT $id AS id, $type AS type, attempts, last_error, $payload, created_at$extra FROM $table WHERE $where ORDER BY $id DESC LIMIT %d OFFSET %d", max( 1, (int) $limit ), max( 0, (int) $offset ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed column/table names, prepared condition.
 		$out = array();
 		foreach ( (array) $rows as $row ) {
 			$item = array(
@@ -154,10 +186,26 @@ final class Queues {
 				$item['detail'] = '' === (string) $row->recipient ? '' : \PassCaptain\Pii::mask_email( (string) $row->recipient );
 			} elseif ( 'webhooks' === $queue ) {
 				$item['detail'] = 'Webhook #' . (int) $row->subscription_id . ( (int) $row->response_code ? ' · HTTP ' . (int) $row->response_code : '' );
+			} elseif ( 'sms' === $queue ) {
+				$item['status'] = (string) $row->status;
+				$item['detail'] = self::sms_status_label( (string) $row->status, (string) $row->created_at );
 			}
 			$out[] = $item;
 		}
 		return array( 'rows' => $out, 'total' => $total );
+	}
+
+	/** Why an SMS needs a decision (A417); held messages with the date they expire. */
+	public static function sms_status_label( $status, $created_at = '' ) {
+		if ( 'held' === $status ) {
+			$expires = strtotime( $created_at . ' UTC' ) + \PassCaptain\Sms\Service::HELD_DAYS * DAY_IN_SECONDS;
+			/* translators: %s: date and time the held message expires */
+			return sprintf( __( 'Wegen des Monatsbudgets zurückgehalten, verfällt am %s', 'pass-captain' ), wp_date( 'd.m.Y H:i', $expires ) );
+		}
+		if ( 'unknown' === $status ) {
+			return __( 'Versandergebnis unklar – vor „Erneut versuchen“ beim Anbieter prüfen, ob die SMS angekommen ist', 'pass-captain' );
+		}
+		return __( 'Versand fehlgeschlagen', 'pass-captain' );
 	}
 
 	/** Payload keys whose (integer) values identify the object an item belongs to. */
@@ -214,7 +262,8 @@ final class Queues {
 		if ( ! $def ) { return array(); }
 		$table = $wpdb->prefix . $def['table'];
 		$id = $def['id'];
-		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT $id FROM $table WHERE status=%s ORDER BY $id LIMIT %d", $def['failed'], self::MAX_BULK ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed column/table names.
+		$where = self::failed_where( $def );
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT $id FROM $table WHERE $where ORDER BY $id LIMIT %d", self::MAX_BULK ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed column/table names, prepared condition.
 	}
 
 	/** Normalised id list (positive, unique, at most MAX_BULK). */
@@ -247,6 +296,10 @@ final class Queues {
 			}
 			if ( 'jobs' === $queue ) {
 				$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued', attempts=0, run_after=%s, locked_at=NULL, last_error=NULL, updated_at=%s WHERE job_id=%d AND status='dead_letter'", $now, $now, $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name.
+			} elseif ( 'sms' === $queue ) {
+				// Consent, opt-out and budget are checked again when the message is sent.
+				$where = self::failed_where( $def );
+				$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued', attempts=0, send_at=%s, locked_at=NULL, last_error=NULL, updated_at=%s WHERE message_id=%d AND $where", $now, $now, $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name, prepared condition.
 			} else {
 				$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued', attempts=0, send_at=%s, locked_at=NULL, last_error=NULL WHERE message_id=%d AND status='failed' AND recipient<>''", $now, $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name.
 			}
@@ -275,7 +328,7 @@ final class Queues {
 		$set = 'messages' === $queue ? "status='cancelled', locked_at=NULL" : $wpdb->prepare( "status='cancelled', locked_at=NULL, updated_at=%s", current_time( 'mysql', true ) );
 		$done = array();
 		foreach ( $ids as $id ) {
-			$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET $set WHERE $id_col=%d AND status=%s", $id, $def['failed'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed names, prepared SET.
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET $set WHERE $id_col=%d AND " . self::failed_where( $def ), $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- fixed names, prepared SET and condition.
 			if ( 1 === (int) $changed ) { $done[] = $id; }
 		}
 		if ( $done ) { self::audit( 'operations_discard', $queue, $done ); }

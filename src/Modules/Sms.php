@@ -509,7 +509,13 @@ final class Sms {
 			echo esc_html( sprintf( _n( '%d SMS wird wegen des Monatsbudgets zurückgehalten.', '%d SMS werden wegen des Monatsbudgets zurückgehalten.', $held, 'pass-captain' ), $held ) ) . '</p>';
 			Forms::open_form( 'wpcap_sms_release_held' );
 			submit_button( __( 'Zurückgehaltene SMS freigeben', 'pass-captain' ), 'secondary', 'submit', false );
-			echo '</form><p class="description">' . esc_html__( 'Erhöhe vorher das Budget oder deaktiviere die harte Grenze, sonst werden sie erneut zurückgehalten.', 'pass-captain' ) . '</p></div>';
+			echo '</form><p class="description">' . esc_html__( 'Erhöhe vorher das Budget oder deaktiviere die harte Grenze, sonst werden sie erneut zurückgehalten.', 'pass-captain' ) . ' ';
+			$oldest = Service::oldest_held_at();
+			if ( '' !== $oldest ) {
+				/* translators: 1: number of days, 2: date and time */
+				echo esc_html( sprintf( __( 'Nicht freigegebene SMS verfallen nach %1$d Tagen; die älteste am %2$s.', 'pass-captain' ), Service::HELD_DAYS, wp_date( 'd.m.Y H:i', strtotime( $oldest . ' UTC' ) + Service::HELD_DAYS * DAY_IN_SECONDS ) ) ) . ' ';
+			}
+			echo '<a href="' . esc_url( \PassCaptain\Admin\Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) . '#wpcap-queue-sms' ) . '">' . esc_html__( 'Einzeln prüfen unter Betrieb → Warteschlangen', 'pass-captain' ) . '</a></p></div>';
 		}
 	}
 

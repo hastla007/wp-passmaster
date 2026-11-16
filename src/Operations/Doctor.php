@@ -542,7 +542,7 @@ final class Doctor {
 			$table = $wpdb->prefix . $def['table'];
 			foreach ( $ids as $id ) {
 				// Same recovery as the workers: back to the waiting status, claim cleared; still stale only.
-				$done = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status=%s,locked_at=NULL WHERE {$def['id']}=%d AND status=%s AND locked_at < %s", $def['queued'], $id, $def['running'], $stale ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table/column names.
+				$done = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status=%s,locked_at=NULL WHERE {$def['id']}=%d AND status=%s AND locked_at < %s", $def['stale'] ?? $def['queued'], $id, $def['running'], $stale ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table/column names.
 				if ( 1 === (int) $done ) { $changed[] = $queue . ':' . $id; }
 			}
 		}
