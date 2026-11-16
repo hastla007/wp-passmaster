@@ -208,7 +208,7 @@ final class Dispatcher {
 		foreach ( $subs as $sub ) {
 			$data = $object;
 			if ( (int) $sub->include_pii && $pii ) { $data = array_merge( $data, $pii ); }
-			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'schema_version' => self::SCHEMA_VERSIONS[ $type ] ?? '1.0', 'created' => $created, 'data' => array( 'object' => $data ) ) );
+			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'schema_version' => self::SCHEMA_VERSIONS[ $type ], 'created' => $created, 'data' => array( 'object' => $data ) ) );
 			$queued += (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", self::t( 'deliveries' ), (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
 		}
 		if ( $queued ) { self::schedule_soon(); }
