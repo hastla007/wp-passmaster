@@ -89,6 +89,45 @@ final class Menu {
 		) + OrganizerTools::handlers() + FeatureScreens::handlers() + StatusPage::handlers() + SecurityScreens::handlers() + \PassCaptain\Modules::admin_handlers();
 	}
 
+	/**
+	 * A379: links in the plugin list ("Einstellungen" first, then "Erste Schritte" = the events page with the setup panel).
+	 *
+	 * @param string[] $links Existing action links.
+	 * @return string[]
+	 */
+	public static function plugin_action_links( $links ) {
+		if ( ! current_user_can( SettingsPage::CAP ) ) { return (array) $links; }
+		$own = array( 'wpcap_settings' => '<a href="' . esc_url( Forms::page_url( SettingsPage::SLUG ) ) . '">' . esc_html__( 'Einstellungen', 'pass-captain' ) . '</a>' );
+		$own['wpcap_start'] = '<a href="' . esc_url( Forms::page_url( EventsPage::SLUG ) ) . '">' . esc_html__( 'Erste Schritte', 'pass-captain' ) . '</a>';
+		return $own + (array) $links;
+	}
+
+	/**
+	 * A379: help tab on every screen of the plugin – where to start, who sees what, where problems show up – and
+	 * a sidebar with the plugin's public links (filter `wpcap_help_links`).
+	 *
+	 * @param object $screen Current WP_Screen.
+	 */
+	public static function help_tabs( $screen ) {
+		if ( ! is_object( $screen ) || ! method_exists( $screen, 'add_help_tab' ) ) { return; }
+		$id = (string) ( $screen->id ?? '' );
+		if ( false === strpos( $id, 'pass-captain' ) && false === strpos( $id, 'wpcap-' ) ) { return; }
+		$screen->add_help_tab( array(
+			'id' => 'wpcap_help_overview',
+			'title' => __( 'Übersicht', 'pass-captain' ),
+			'content' => '<p>' . esc_html__( 'Pass Captain verkauft Tickets und Servicezeiten, stellt QR-Tickets aus und prüft den Einlass. Neue Events legst du unter „Events“ an; Termine und Ticketarten gehören zum Event.', 'pass-captain' ) . '</p><p>' . esc_html__( 'Bestellungen, Erstattungen und Tickets findest du unter „Bestellungen“ und „Tickets“. Wer welche Daten sieht, richtet sich nach den Rollen und Eventzuweisungen.', 'pass-captain' ) . '</p>',
+		) );
+		$screen->add_help_tab( array(
+			'id' => 'wpcap_help_problems',
+			'title' => __( 'Probleme finden', 'pass-captain' ),
+			'content' => '<p>' . esc_html__( 'Der Systemstatus zeigt hängende Hintergrundaufgaben, fehlgeschlagene Mails, offene Erstattungen und die letzten Betriebsalarme. Dort lassen sich Aufgaben erneut versuchen.', 'pass-captain' ) . '</p>',
+		) );
+		$links = (array) apply_filters( 'wpcap_help_links', array( __( 'Erste Schritte', 'pass-captain' ) => Forms::page_url( EventsPage::SLUG ), __( 'Systemstatus', 'pass-captain' ) => Forms::page_url( StatusPage::SLUG ) ) );
+		$sidebar = '<p><strong>' . esc_html__( 'Weitere Hilfe', 'pass-captain' ) . '</strong></p>';
+		foreach ( $links as $label => $url ) { $sidebar .= '<p><a href="' . esc_url( (string) $url ) . '">' . esc_html( (string) $label ) . '</a></p>'; }
+		if ( method_exists( $screen, 'set_help_sidebar' ) ) { $screen->set_help_sidebar( $sidebar ); }
+	}
+
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
 		// A302: inline CSS/JS through registered handles (wp_add_inline_style/_script), not echoed.
@@ -103,6 +142,11 @@ final class Menu {
 		UserScope::register();
 		StatusPage::register();
 		DashboardWidget::register();
+		// A379: "Einstellungen" link in the plugin list and a help tab on the plugin's own screens.
+		if ( defined( 'WPCAP_FILE' ) && function_exists( 'plugin_basename' ) ) {
+			add_filter( 'plugin_action_links_' . plugin_basename( WPCAP_FILE ), array( self::class, 'plugin_action_links' ) );
+		}
+		add_action( 'current_screen', array( self::class, 'help_tabs' ) );
 		// admin_post_* only fires in wp-admin/admin-post.php (an admin request): frontend, REST and cron
 		// requests skip building the handler map, which loads every admin screen class (PERF-14).
 		if ( ! function_exists( 'is_admin' ) || is_admin() ) {
@@ -309,7 +353,7 @@ final class Menu {
 		if ( ! $gateways ) { return; }
 		/* translators: %s: payment method names */
 		$title = sprintf( __( 'Pass Captain: Die Zahlungsart %s stellt Tickets vor dem Geldeingang aus.', 'pass-captain' ), implode( ', ', $gateways ) );
-		echo '<div class="notice notice-warning"><p><strong>' . esc_html( $title ) . '</strong> ' . esc_html__( 'Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen (siehe docs/WOOCOMMERCE.md).', 'pass-captain' ) . '</p></div>';
+		echo '<div class="notice notice-warning"><p><strong>' . esc_html( $title ) . '</strong> ' . esc_html__( 'Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen.', 'pass-captain' ) . '</p></div>';
 	}
 
 	/**

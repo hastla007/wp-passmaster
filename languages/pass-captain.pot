@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T19:00:46+00:00\n"
+"POT-Creation-Date: 2026-11-16T19:06:00+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: pass-captain\n"
@@ -189,8 +189,8 @@ msgstr ""
 #: src/Admin/Forms.php:432
 #: src/Admin/Forms.php:455
 #: src/Admin/MembershipsPage.php:215
-#: src/Admin/Menu.php:145
-#: src/Admin/Menu.php:225
+#: src/Admin/Menu.php:189
+#: src/Admin/Menu.php:269
 #: src/Admin/MyServicesPage.php:80
 #: src/Admin/Notices.php:73
 #: src/Admin/OperationsPage.php:129
@@ -204,8 +204,8 @@ msgstr ""
 #: src/Admin/SecurityScreens.php:90
 #: src/Admin/ServiceSlotsPage.php:349
 #: src/Admin/ServicesPage.php:228
-#: src/Admin/SettingsPage.php:659
-#: src/Admin/SettingsPage.php:691
+#: src/Admin/SettingsPage.php:669
+#: src/Admin/SettingsPage.php:701
 #: src/Admin/StatusPage.php:242
 #: src/Admin/TaxPage.php:75
 #: src/Admin/TicketsPage.php:402
@@ -295,8 +295,8 @@ msgstr ""
 
 #: src/Admin/ApiKeysPage.php:101
 #: src/Admin/DeveloperKeysPage.php:115
-#: src/Admin/Menu.php:549
-#: src/Admin/Menu.php:589
+#: src/Admin/Menu.php:593
+#: src/Admin/Menu.php:633
 msgid "Entwickler-API"
 msgstr ""
 
@@ -772,7 +772,7 @@ msgid "abgesagt"
 msgstr ""
 
 #: src/Admin/AssignmentsPage.php:112
-#: src/Admin/Menu.php:528
+#: src/Admin/Menu.php:572
 msgid "Zuweisungen"
 msgstr ""
 
@@ -1375,7 +1375,8 @@ msgid "Benutzer"
 msgstr ""
 
 #: src/Admin/AuditLogPage.php:315
-#: src/Admin/Menu.php:547
+#: src/Admin/Menu.php:100
+#: src/Admin/Menu.php:591
 #: src/Allocations/AdminPage.php:224
 #: src/Partners/AdminPage.php:275
 #: src/Passes/AdminPage.php:261
@@ -1412,7 +1413,7 @@ msgid "Serie"
 msgstr ""
 
 #: src/Admin/AuditLogPage.php:320
-#: src/Admin/Menu.php:588
+#: src/Admin/Menu.php:632
 #: src/Admin/ServicesPage.php:343
 #: src/Admin/ServicesPage.php:494
 #: src/Modules/Waitlist.php:34
@@ -1448,7 +1449,7 @@ msgid "Alle Objekte"
 msgstr ""
 
 #: src/Admin/AuditLogPage.php:365
-#: src/Admin/Menu.php:550
+#: src/Admin/Menu.php:594
 #: src/Admin/SecurityScreens.php:45
 msgid "Audit-Log"
 msgstr ""
@@ -1735,7 +1736,7 @@ msgstr ""
 #: src/Admin/MembershipsPage.php:211
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:166
-#: src/Admin/SettingsPage.php:916
+#: src/Admin/SettingsPage.php:926
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:276
 #: src/BoxOffice/ShiftPage.php:478
@@ -2648,7 +2649,7 @@ msgid "Alle Ergebnisse"
 msgstr ""
 
 #: src/Admin/CheckinsPage.php:85
-#: src/Admin/Menu.php:520
+#: src/Admin/Menu.php:564
 msgid "Check-ins"
 msgstr ""
 
@@ -2746,8 +2747,9 @@ msgid "Offene Zahlungen"
 msgstr ""
 
 #: src/Admin/Dashboard.php:98
+#: src/Admin/Menu.php:117
 #: src/Admin/SettingsPage.php:105
-#: src/Admin/SettingsPage.php:818
+#: src/Admin/SettingsPage.php:828
 #: src/Admin/StatusPage.php:247
 #: src/Reports/Page.php:108
 msgid "Übersicht"
@@ -3109,7 +3111,7 @@ msgid "Gerät widerrufen."
 msgstr ""
 
 #: src/Admin/DevicesPage.php:63
-#: src/Admin/Menu.php:525
+#: src/Admin/Menu.php:569
 msgid "Scanner-Geräte"
 msgstr ""
 
@@ -3160,7 +3162,7 @@ msgstr ""
 #: src/Admin/DevicesPage.php:79
 #: src/Admin/DevicesPage.php:89
 #: src/Admin/EventsPage.php:1400
-#: src/Admin/Menu.php:517
+#: src/Admin/Menu.php:561
 #: src/Admin/OrdersPage.php:663
 #: src/Ops/Network.php:149
 #: src/Partners/AdminPage.php:267
@@ -4688,7 +4690,7 @@ msgstr ""
 
 #: src/Admin/FeatureScreens.php:37
 #: src/Admin/MembershipsPage.php:216
-#: src/Admin/Menu.php:523
+#: src/Admin/Menu.php:567
 msgid "Mitgliedspässe"
 msgstr ""
 
@@ -4955,7 +4957,7 @@ msgid "Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überwei
 msgstr ""
 
 #: src/Admin/GettingStarted.php:142
-#: src/Admin/Menu.php:268
+#: src/Admin/Menu.php:312
 msgid "Zahlungsart einrichten"
 msgstr ""
 
@@ -5046,6 +5048,8 @@ msgid "Erste-Schritte-Checkliste anzeigen"
 msgstr ""
 
 #: src/Admin/GettingStarted.php:284
+#: src/Admin/Menu.php:101
+#: src/Admin/Menu.php:125
 msgid "Erste Schritte"
 msgstr ""
 
@@ -5087,7 +5091,7 @@ msgstr ""
 
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/GettingStarted.php:353
-#: src/Admin/Menu.php:519
+#: src/Admin/Menu.php:563
 #: src/Admin/OrdersPage.php:959
 #: src/Admin/OrdersPage.php:1198
 #: src/Admin/TicketsPage.php:430
@@ -5182,7 +5186,7 @@ msgstr ""
 #. translators: %s: column
 #. translators: %s: field label
 #: src/Admin/Import.php:105
-#: src/Admin/SettingsPage.php:484
+#: src/Admin/SettingsPage.php:494
 #, php-format
 msgid "„%s“ muss eine ganze Zahl sein."
 msgstr ""
@@ -5347,7 +5351,7 @@ msgid "Keine Berechtigung für diesen Pass."
 msgstr ""
 
 #: src/Admin/MembershipsPage.php:161
-#: src/Admin/SettingsPage.php:459
+#: src/Admin/SettingsPage.php:469
 #: src/Integrations/WooCommerce/Attendees.php:480
 msgid "Bitte eine gültige E-Mail-Adresse angeben."
 msgstr ""
@@ -5548,130 +5552,158 @@ msgstr ""
 msgid "Diesen Pass endgültig widerrufen?"
 msgstr ""
 
-#: src/Admin/Menu.php:132
+#: src/Admin/Menu.php:118
+msgid "Pass Captain verkauft Tickets und Servicezeiten, stellt QR-Tickets aus und prüft den Einlass. Neue Events legst du unter „Events“ an; Termine und Ticketarten gehören zum Event."
+msgstr ""
+
+#: src/Admin/Menu.php:118
+msgid "Bestellungen, Erstattungen und Tickets findest du unter „Bestellungen“ und „Tickets“. Wer welche Daten sieht, richtet sich nach den Rollen und Eventzuweisungen."
+msgstr ""
+
+#: src/Admin/Menu.php:122
+msgid "Probleme finden"
+msgstr ""
+
+#: src/Admin/Menu.php:123
+msgid "Der Systemstatus zeigt hängende Hintergrundaufgaben, fehlgeschlagene Mails, offene Erstattungen und die letzten Betriebsalarme. Dort lassen sich Aufgaben erneut versuchen."
+msgstr ""
+
+#: src/Admin/Menu.php:125
+#: src/Admin/Menu.php:599
+#: src/Admin/Menu.php:634
+#: src/Admin/StatusPage.php:72
+#: src/Admin/StatusPage.php:245
+msgid "Systemstatus"
+msgstr ""
+
+#: src/Admin/Menu.php:126
+msgid "Weitere Hilfe"
+msgstr ""
+
+#: src/Admin/Menu.php:176
 msgid "Pass Captain: Das Datenbank-Update ist unvollständig."
 msgstr ""
 
-#: src/Admin/Menu.php:132
+#: src/Admin/Menu.php:176
 msgid "Es fehlen Tabellen, Spalten oder Indizes; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Update danach erneut starten."
 msgstr ""
 
 #. translators: 1: number of failed attempts, 2: date and time of the next automatic attempt
-#: src/Admin/Menu.php:135
+#: src/Admin/Menu.php:179
 #, php-format
 msgid "%1$d Versuch fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgid_plural "%1$d Versuche fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Menu.php:139
+#: src/Admin/Menu.php:183
 msgid "Datenbank-Update jetzt erneut versuchen"
 msgstr ""
 
-#: src/Admin/Menu.php:152
+#: src/Admin/Menu.php:196
 msgid "Das Datenbank-Update wurde abgeschlossen."
 msgstr ""
 
-#: src/Admin/Menu.php:152
+#: src/Admin/Menu.php:196
 msgid "Das Datenbank-Update ist erneut fehlgeschlagen. Details stehen im Hinweis."
 msgstr ""
 
-#: src/Admin/Menu.php:168
+#: src/Admin/Menu.php:212
 msgid "Pass Captain: Die Zahlungsart „Überweisung“ ist aktiviert, aber nicht vollständig konfiguriert."
 msgstr ""
 
-#: src/Admin/Menu.php:168
+#: src/Admin/Menu.php:212
 msgid "Es fehlen Empfänger und IBAN bzw. ein Zahlungshinweis. Bis dahin wird Überweisung im Checkout nicht angeboten."
 msgstr ""
 
-#: src/Admin/Menu.php:168
+#: src/Admin/Menu.php:212
 msgid "Überweisung einrichten"
 msgstr ""
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:189
+#: src/Admin/Menu.php:233
 #, php-format
 msgid "Pass Captain: %d bezahlte Bestellung ohne Tickets muss geklärt werden."
 msgid_plural "Pass Captain: %d bezahlte Bestellungen ohne Tickets müssen geklärt werden."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Menu.php:190
+#: src/Admin/Menu.php:234
 msgid "Die Zahlung kam nach Ablauf der Reservierung und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung erstatten."
 msgstr ""
 
-#: src/Admin/Menu.php:190
+#: src/Admin/Menu.php:234
 msgid "Bestellungen anzeigen"
 msgstr ""
 
-#: src/Admin/Menu.php:216
+#: src/Admin/Menu.php:260
 msgid "Pass Captain: Neues Standard-Einlassfenster"
 msgstr ""
 
-#: src/Admin/Menu.php:216
+#: src/Admin/Menu.php:260
 msgid "Neue Installationen lassen Tickets ohne eigene Einlassregel nur von 2 Stunden vor Beginn bis zum Ende des Termins ein. Für diese bestehende Installation wurde das Einlassfenster beim Update ausgeschaltet, Scans verhalten sich also wie bisher. Es lässt sich unter Einstellungen → Einlass / Scanner-Geräte einschalten."
 msgstr ""
 
-#: src/Admin/Menu.php:219
+#: src/Admin/Menu.php:263
 msgid "Einlass-Einstellungen öffnen"
 msgstr ""
 
-#: src/Admin/Menu.php:219
+#: src/Admin/Menu.php:263
 msgid "Hinweis ausblenden"
 msgstr ""
 
 #. translators: %s: currency codes
-#: src/Admin/Menu.php:267
+#: src/Admin/Menu.php:311
 #, php-format
 msgid "Pass Captain: Keine verfügbare Zahlungsart für %s."
 msgstr ""
 
-#: src/Admin/Menu.php:268
+#: src/Admin/Menu.php:312
 msgid "Veröffentlichte Events können auf der Website nicht gebucht werden; die Eventkarten zeigen „Online-Verkauf derzeit nicht möglich“."
 msgstr ""
 
 #. translators: %s: payment method names
-#: src/Admin/Menu.php:311
+#: src/Admin/Menu.php:355
 #, php-format
 msgid "Pass Captain: Die Zahlungsart %s stellt Tickets vor dem Geldeingang aus."
 msgstr ""
 
-#: src/Admin/Menu.php:312
-msgid "Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen (siehe docs/WOOCOMMERCE.md)."
+#: src/Admin/Menu.php:356
+msgid "Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen."
 msgstr ""
 
-#: src/Admin/Menu.php:436
+#: src/Admin/Menu.php:480
 msgid "Events & Programm"
 msgstr ""
 
-#: src/Admin/Menu.php:437
+#: src/Admin/Menu.php:481
 #: src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:66
 #: src/Partners/Statement.php:174
 msgid "Verkauf"
 msgstr ""
 
-#: src/Admin/Menu.php:438
+#: src/Admin/Menu.php:482
 #: src/Admin/SecurityScreens.php:92
 #: src/Admin/SettingsPage.php:344
 msgctxt "admission (check-in area of work)"
 msgid "Einlass"
 msgstr ""
 
-#: src/Admin/Menu.php:439
+#: src/Admin/Menu.php:483
 msgid "Finanzen & Auswertung"
 msgstr ""
 
-#: src/Admin/Menu.php:440
+#: src/Admin/Menu.php:484
 msgid "Kommunikation"
 msgstr ""
 
-#: src/Admin/Menu.php:441
+#: src/Admin/Menu.php:485
 msgid "Einstellungen & Integrationen"
 msgstr ""
 
-#: src/Admin/Menu.php:510
-#: src/Admin/Menu.php:521
+#: src/Admin/Menu.php:554
+#: src/Admin/Menu.php:565
 #: src/Admin/OrdersPage.php:1059
 #: src/Admin/SettingsPage.php:161
 #: src/BoxOffice/ZReport.php:381
@@ -5682,15 +5714,15 @@ msgid "Erstattungen"
 msgstr ""
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:514
+#: src/Admin/Menu.php:558
 #, php-format
 msgid "%d Bestellung muss geklärt werden"
 msgid_plural "%d Bestellungen müssen geklärt werden"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Admin/Menu.php:515
-#: src/Admin/Menu.php:518
+#: src/Admin/Menu.php:559
+#: src/Admin/Menu.php:562
 #: src/Admin/OrdersPage.php:709
 #: src/Exchange/AdminPage.php:146
 #: src/Ops/Network.php:149
@@ -5700,55 +5732,48 @@ msgstr[1] ""
 msgid "Bestellungen"
 msgstr ""
 
-#: src/Admin/Menu.php:522
+#: src/Admin/Menu.php:566
 msgid "Rabattcodes"
 msgstr ""
 
-#: src/Admin/Menu.php:524
+#: src/Admin/Menu.php:568
 #: src/Admin/ScannerPage.php:87
 #: src/Admission/ConflictsPage.php:107
 #: src/Admission/ConflictsPage.php:108
 msgid "Web-Scanner"
 msgstr ""
 
-#: src/Admin/Menu.php:526
+#: src/Admin/Menu.php:570
 #: src/Admin/TaxPage.php:76
 msgid "Steuerprüfung"
 msgstr ""
 
-#: src/Admin/Menu.php:527
+#: src/Admin/Menu.php:571
 #: src/Admin/MyServicesPage.php:82
 msgid "Meine Leistungen"
 msgstr ""
 
-#: src/Admin/Menu.php:555
-#: src/Admin/Menu.php:590
-#: src/Admin/StatusPage.php:72
-#: src/Admin/StatusPage.php:245
-msgid "Systemstatus"
-msgstr ""
-
-#: src/Admin/Menu.php:558
+#: src/Admin/Menu.php:602
 #: src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:54
 msgid "Gemeinsamer Scanner"
 msgstr ""
 
-#: src/Admin/Menu.php:558
+#: src/Admin/Menu.php:602
 msgid "Gemeinsamer Scanner ↗"
 msgstr ""
 
-#: src/Admin/Menu.php:559
+#: src/Admin/Menu.php:603
 #: src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
 msgid "Voucher Captain"
 msgstr ""
 
-#: src/Admin/Menu.php:559
+#: src/Admin/Menu.php:603
 msgid "Voucher Captain ↗"
 msgstr ""
 
-#: src/Admin/Menu.php:573
+#: src/Admin/Menu.php:617
 #: src/Admin/ServiceSlotsPage.php:355
 msgid "Service-Zeitfenster"
 msgstr ""
@@ -8817,13 +8842,13 @@ msgid "Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestä
 msgstr ""
 
 #: src/Admin/SettingsPage.php:153
-#: src/Admin/SettingsPage.php:876
+#: src/Admin/SettingsPage.php:886
 #: src/Diagnostics.php:207
 msgid "AGB / Teilnahmebedingungen"
 msgstr ""
 
 #: src/Admin/SettingsPage.php:154
-#: src/Admin/SettingsPage.php:876
+#: src/Admin/SettingsPage.php:886
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr ""
 
@@ -8924,7 +8949,7 @@ msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr ""
 
 #: src/Admin/SettingsPage.php:185
-msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
+msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären."
 msgstr ""
 
 #: src/Admin/SettingsPage.php:190
@@ -9094,7 +9119,7 @@ msgid "Land (ISO-Code, z. B. DE oder AT)"
 msgstr ""
 
 #: src/Admin/SettingsPage.php:230
-msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md) und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile)."
+msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile)."
 msgstr ""
 
 #: src/Admin/SettingsPage.php:231
@@ -9211,57 +9236,57 @@ msgstr ""
 msgid "Rechnungen"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:437
 msgid "Neuen Wert eingeben, um ihn zu ersetzen – leer lassen, um beizubehalten"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:437
 #: src/Secrets.php:480
 msgid "Nicht gesetzt"
 msgstr ""
 
 #. translators: %s: masked value, e.g. ••••1234
-#: src/Admin/SettingsPage.php:433
+#: src/Admin/SettingsPage.php:443
 #, php-format
 msgid "gespeichert %s"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:435
+#: src/Admin/SettingsPage.php:445
 msgid "Gespeicherter Wert kann nicht entschlüsselt werden – bitte neu eingeben"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:437
+#: src/Admin/SettingsPage.php:447
 #: src/Secrets.php:458
 msgid "Kein Wert gespeichert"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:440
+#: src/Admin/SettingsPage.php:450
 msgid "Gespeicherten Wert entfernen"
 msgstr ""
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:512
+#: src/Admin/SettingsPage.php:522
 #, php-format
 msgid "„%s“ ist kein gültiger Betrag."
 msgstr ""
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:521
+#: src/Admin/SettingsPage.php:531
 #: src/Orders.php:1047
 #: src/ParticipantFields.php:170
 #, php-format
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:542
+#: src/Admin/SettingsPage.php:552
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:592
+#: src/Admin/SettingsPage.php:602
 msgid "Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:635
+#: src/Admin/SettingsPage.php:645
 #: src/Admission/RulesPage.php:120
 #: src/Allocations/AdminPage.php:186
 #: src/BoxOffice/Page.php:558
@@ -9274,146 +9299,146 @@ msgstr ""
 msgid "Einstellungen gespeichert."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:671
+#: src/Admin/SettingsPage.php:681
 msgid "Pass Captain Einstellungen"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:678
+#: src/Admin/SettingsPage.php:688
 msgid "Einstellungsbereiche"
 msgstr ""
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:708
+#: src/Admin/SettingsPage.php:718
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:720
+#: src/Admin/SettingsPage.php:730
 #: src/Partners/AdminPage.php:286
 msgid "Einstellungen speichern"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:760
+#: src/Admin/SettingsPage.php:770
 msgid "Webhook-URL:"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:762
+#: src/Admin/SettingsPage.php:772
 msgid "In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:762
+#: src/Admin/SettingsPage.php:772
 msgid "Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:"
 msgstr ""
 
 #. translators: %s: field names
-#: src/Admin/SettingsPage.php:770
+#: src/Admin/SettingsPage.php:780
 #, php-format
 msgid "Noch nicht vollständig eingerichtet. Es fehlen: %s."
 msgstr ""
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:771
+#: src/Admin/SettingsPage.php:781
 #, php-format
 msgid "%s wird im Checkout erst danach angeboten."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:778
-#: src/Admin/SettingsPage.php:782
+#: src/Admin/SettingsPage.php:788
+#: src/Admin/SettingsPage.php:792
 msgid "Verbindung testen"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:779
+#: src/Admin/SettingsPage.php:789
 msgid "Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:796
+#: src/Admin/SettingsPage.php:806
 msgid "Für diese Zahlungsart gibt es keinen Verbindungstest."
 msgstr ""
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:846
+#: src/Admin/SettingsPage.php:856
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:848
-#: src/Admin/SettingsPage.php:926
+#: src/Admin/SettingsPage.php:858
+#: src/Admin/SettingsPage.php:936
 msgid "(nicht vollständig konfiguriert)"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:857
+#: src/Admin/SettingsPage.php:867
 msgid "Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:860
+#: src/Admin/SettingsPage.php:870
 msgid "Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:869
+#: src/Admin/SettingsPage.php:879
 msgid "Rechtstexte je Sprache"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:870
+#: src/Admin/SettingsPage.php:880
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr ""
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:882
+#: src/Admin/SettingsPage.php:892
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr ""
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:889
+#: src/Admin/SettingsPage.php:899
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:895
+#: src/Admin/SettingsPage.php:905
 msgid "Archivierte Fassungen"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:895
+#: src/Admin/SettingsPage.php:905
 msgid "Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:896
+#: src/Admin/SettingsPage.php:906
 msgid "Fassung"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:896
+#: src/Admin/SettingsPage.php:906
 #: src/Consents.php:619
 #: src/Mail/Admin.php:234
 msgid "Sprache"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:896
+#: src/Admin/SettingsPage.php:906
 msgid "Archiviert am"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:904
+#: src/Admin/SettingsPage.php:914
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr ""
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:932
+#: src/Admin/SettingsPage.php:942
 #, php-format
 msgid "%s einrichten"
 msgstr ""
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:951
+#: src/Admin/SettingsPage.php:966
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr ""
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:977
+#: src/Admin/SettingsPage.php:992
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:983
+#: src/Admin/SettingsPage.php:998
 msgid "Zum Aktivieren LÖSCHEN eintragen:"
 msgstr ""
 
@@ -13875,7 +13900,7 @@ msgstr ""
 #. translators: %s: isolation level, e.g. READ-COMMITTED
 #: src/DbSession.php:116
 #, php-format
-msgid "Die Datenbank läuft mit der Transaktions-Isolation %s. Pass Captain setzt für Bestellungen, Zahlungsbestätigungen und das Aufräumen von Reservierungen selbst REPEATABLE READ; Erweiterungen, die eigene Kontingent-Transaktionen öffnen, sollten dasselbe tun (siehe docs/OPERATIONS.md)."
+msgid "Die Datenbank läuft mit der Transaktions-Isolation %s. Pass Captain setzt für Bestellungen, Zahlungsbestätigungen und das Aufräumen von Reservierungen selbst REPEATABLE READ; Erweiterungen, die eigene Kontingent-Transaktionen öffnen, sollten dasselbe tun."
 msgstr ""
 
 #: src/DeveloperKeys.php:38
@@ -23113,7 +23138,7 @@ msgid "Verkaufsmodell und Rechnungsangaben"
 msgstr ""
 
 #: src/Partners/AdminPage.php:587
-msgid "Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen. Siehe docs/SALES-MODELS.md."
+msgid "Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen."
 msgstr ""
 
 #: src/Partners/AdminPage.php:588

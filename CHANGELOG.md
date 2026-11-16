@@ -19,6 +19,7 @@ Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Ve
 - **Sicherheit/Caching** (A506, A507): der Offline-Scanner erneuert seinen App-Cache bei jedem Update automatisch; neu angelegte API-Schlüssel und Kopplungscodes liegen bis zur einmaligen Anzeige nur verschlüsselt vor.
 - **Ticketseite** (A091): zeigt Bestellnummer und Wallet-Knöpfe; Ticket-PDFs heißen nach der lesbaren Bestellnummer.
 - **Rechtstexte** (A298): AGB- und Widerrufstexte werden in den Einstellungen mit dem WordPress-Editor bearbeitet.
+- **Hilfe** (A379): Link „Einstellungen“ in der Pluginliste, Hilfe-Tabs auf den Plugin-Seiten, keine Verweise mehr auf nicht ausgelieferte Dokumentationsdateien.
 - **Pässe** (A524, A526): Mitgliedspässe mit reinem Enddatum gelten bis Tagesende (Ortszeit), 0 Einlösungen pro Tag = unbegrenzt; bei teilweise genutzten Festivalpässen schlägt das Erstattungsformular den anteiligen Betrag vor.
 - **Überweisung mit GiroCode** (A601): Checkout und Bestellportal zeigen einen EPC-QR-Code für Banking-Apps (nur EUR) und Kopier-Knöpfe für IBAN und Verwendungszweck.
 - **Datenbankschema 3.18.0.** Die Aktualisierung erkennt, von welcher Linie eine Website kommt (Option `wpcap_schema_origin`: Audit-Linie, Arbeitslisten-Linie, 1.4 oder Neuinstallation), und führt die einmaligen Datenmigrationen der jeweils anderen Linie genau einmal nach, auch wenn die gespeicherte Versionsnummer schon höher ist. Die doppelten Indizes `wpcap_reservations.expiry` und `wpcap_checkins.created_checkin` werden entfernt. Die Aktualisierung läuft automatisch.
