@@ -21,8 +21,10 @@ besteht nicht.
 
 ## PHP-Actions nach dem fachlichen Ereignis
 
-Alle Actions übergeben interne Datenbank-IDs. Öffentliche IDs (`public_id`) lädt der Empfänger über die
-Klassen des Kerns.
+Alle Actions übergeben interne Datenbank-IDs. Öffentliche IDs (`public_id`) und den Zustand von Bestellung, Ticket,
+Erstattung, Termin und Event lädt der Empfänger seit Vertragsversion 1.2.0 über die Lesefassade
+`wpcap_get_*_state()` / `PassCaptain\Api\ReadFacade` (ohne personenbezogene Daten und Codes, siehe
+[EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)).
 
 | Fachliches Ereignis | Action | Argumente | Zeitpunkt | Personenbezogene Daten oder Codes |
 |---|---|---|---|---|

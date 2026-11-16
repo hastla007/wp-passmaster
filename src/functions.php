@@ -50,3 +50,69 @@ if ( ! function_exists( 'wpcap_api_request_can' ) ) {
 		return PassCaptain\Api\Auth::request_can( $request, $scope, $event_id );
 	}
 }
+
+/*
+ * Read facade (contract 1.2.0): state of orders, tickets, refunds, occurrences and events as flat arrays
+ * without personal data or codes, see PassCaptain\Api\ReadFacade. Pure reads without capability checks:
+ * the calling plugin decides who may see the result. Null when the record does not exist.
+ */
+
+if ( ! function_exists( 'wpcap_get_order_state' ) ) {
+	/**
+	 * State of an order, see PassCaptain\Api\ReadFacade::order().
+	 *
+	 * @param int|string $id Order ID or public_id (32 hex characters).
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_order_state( $id ) {
+		return PassCaptain\Api\ReadFacade::order( $id );
+	}
+}
+
+if ( ! function_exists( 'wpcap_get_ticket_state' ) ) {
+	/**
+	 * State of a ticket, see PassCaptain\Api\ReadFacade::ticket().
+	 *
+	 * @param int|string $id Ticket ID or public_id (32 hex characters).
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_ticket_state( $id ) {
+		return PassCaptain\Api\ReadFacade::ticket( $id );
+	}
+}
+
+if ( ! function_exists( 'wpcap_get_refund_state' ) ) {
+	/**
+	 * State of a refund, see PassCaptain\Api\ReadFacade::refund().
+	 *
+	 * @param int|string $id Refund ID.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_refund_state( $id ) {
+		return PassCaptain\Api\ReadFacade::refund( $id );
+	}
+}
+
+if ( ! function_exists( 'wpcap_get_occurrence_state' ) ) {
+	/**
+	 * State of an occurrence, see PassCaptain\Api\ReadFacade::occurrence().
+	 *
+	 * @param int|string $id Occurrence ID.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_occurrence_state( $id ) {
+		return PassCaptain\Api\ReadFacade::occurrence( $id );
+	}
+}
+
+if ( ! function_exists( 'wpcap_get_event_state' ) ) {
+	/**
+	 * State of an event, see PassCaptain\Api\ReadFacade::event().
+	 *
+	 * @param int|string $id Event ID.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_event_state( $id ) {
+		return PassCaptain\Api\ReadFacade::event( $id );
+	}
+}
