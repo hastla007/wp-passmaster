@@ -429,6 +429,8 @@ Entscheidung und Begründung:
 
 Alle Einträge stehen in `wpcap_audit_logs` (Wer = `user_id`, Was = `action`, Objekt = `object_type`/`object_id`, Details als JSON) und sind unter **Pass Captain → Audit-Log** (nur Administratoren, `manage_options`) nach Bereich, Aktion, Benutzer, Objekt und Datum filterbar. Sie werden mit der Audit-Frist gelöscht (Löschlauf, Schritt `audit_logs`, Standard 730 Tage, Filter `wpcap_privacy_retention_days`). Details enthalten nie Geheimnisse (Tokens, Hashes, Codes, IBAN, Schlüssel) und personenbezogene Werte nur maskiert (`e***@e***.com`, `E***`); Suchbegriffe werden ebenso maskiert.
 
+**Ansicht (A413):** Zeiten und der Datumsfilter (Von/Bis) beziehen sich auf die Website-Zeitzone (ein Tag = 00:00–24:00 Ortszeit, auch an Tagen der Zeitumstellung; gespeichert wird weiter UTC). Aktionen erscheinen mit lesbarem Namen und darunter mit ihrem Code (für den Aktionsfilter; Namen erweiterbar über `wpcap_audit_action_labels`), Bestellungen, Tickets, Events, Termine (→ Event) und Benutzer sind verlinkt.
+
 | Bereich | Aktion | Wann |
 |---|---|---|
 | Ansicht | `pii_viewed` | Detailansicht mit Personendaten geöffnet: Bestellung (`order_detail`), Gästeliste eines Events (`guestlist`), Warteliste (`waitlist`), Umtausch eines Tickets (`exchange_ticket`), Kontingente eines Termins (`allocation_occurrence`), Veranstalter (`partner_detail`), Kassenbeleg-Suche (`pos_sale`). `details.view` nennt die Ansicht. |
