@@ -138,10 +138,11 @@ $before = count( $GLOBALS['wpcap_test_mails'] );
 Orders::resend_tickets( $o['order_id'] );
 $resent_html = array_values( wpmt_mails_since( $before, 'mt-default@example.com' ) );
 $resent_html = end( $resent_html ) ?: array( 'subject' => '', 'body' => '' );
-check( 'resend (HTML) links the section text', 'Neu: 2' === $resent_html['subject'] && false !== strpos( $resent_html['body'], 'WALLET <a href="https://wallet.example/' . $tid . '">' ) );
-// MERGE-CHECK: the Arbeitsliste check read the first resent mail and its 'html' part; ours the last mail's 'body'.
+// Merged design (R3): the section text follows in the second, short mail; an HTML template puts the link into
+// the mail's html part (the body is the plain-text alternative).
+check( 'resend (HTML) links the section text', 'Neu: 2' === $resent_html['subject'] && false !== strpos( $resent_html['html'] ?? '', 'WALLET <a href="https://wallet.example/' . $tid . '">' ) );
 $resent_html_al = wpmt_mails_since( $before, 'mt-default@example.com' )[0] ?? array( 'subject' => '', 'body' => '' );
-check( 'resend (HTML) links the section text (first mail, html part)', 'Neu: 2' === $resent_html_al['subject'] && false !== strpos( $resent_html_al['html'] ?? '', 'WALLET <a href="https://wallet.example/' . $tid . '">' ) );
+check( 'resend (HTML): the first mail (html part) carries the codes, the section text follows in the second', 'Neu: 2' === $resent_html_al['subject'] && false !== strpos( $resent_html_al['html'] ?? '', 'wpcap_ticket=' ) && false === strpos( $resent_html_al['html'] ?? '', 'WALLET' ) && $resent_html_al !== $resent_html );
 remove_filter( 'wpcap_ticket_code_mail_section', $wpmt_section, 5 );
 Templates::reset( 'tickets_resend', 'de_DE' );
 
