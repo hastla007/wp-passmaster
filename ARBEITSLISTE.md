@@ -669,7 +669,7 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:83, assets/checkout.js:44–67: aria-live entfernen, kurzer Hinweis über .wpcap-qty-live
 - [x] **A312** [WICHTIG] Saalplan: Fokusverlust alle 30 s und beim Entfernen — _R2 Frontend_ (TODO L643; Audit Runde 4)
   - assets/seating/picker.js:34, 215–255: Liste nur bei Änderung neu aufbauen, Fokus wiederherstellen
-- [ ] **A313** [WICHTIG] Monatskalender: Tag in Site-Zeitzone, Uhrzeit/Datum in Termin-Zeitzone; Navigation — _R2 Frontend/UX_ (TODO L644; Audit Runde 4)
+- [x] **A313** [WICHTIG] Monatskalender: Tag in Site-Zeitzone, Uhrzeit/Datum in Termin-Zeitzone; Navigation — _R2 Frontend/UX_ (TODO L644; Audit Runde 4)
   - src/Modules/Calendar.php:233–273: Einheitliche Zone; Zurück im aktuellen Monat ausblenden, „Heute“, Wochentag mobil
 - [x] **A314** [WICHTIG] Kasse: Termin-Auswahl sendet Formular bei jeder Pfeiltaste — _R2 Frontend_ (TODO L645; Audit Runde 4)
   - src/BoxOffice/Page.php:104, ShiftPage.php:316: „Anzeigen“-Button statt onchange-Submit
@@ -683,7 +683,7 @@ Gesamt: 262 Aufgaben.
   - assets/calendar/calendar.css, assets/public.css: Farben paarweise, Custom Properties, color-scheme/Dark-Block
 - [x] **A319** [WICHTIG] Kontrast PWA-Status unter 4,5:1 — _R2 Frontend_ (TODO L650; Audit Runde 4)
   - assets/offline-scanner/app.css:8, 34: --warn/--ok für Text abdunkeln
-- [ ] **A320** [WICHTIG] Druck-/Belegseiten mit festem lang="de" — _R2 Frontend_ (TODO L651; Audit Runde 4)
+- [x] **A320** [WICHTIG] Druck-/Belegseiten mit festem lang="de" — _R2 Frontend_ (TODO L651; Audit Runde 4)
   - src/Printing/AttendeeList.php:74, NoShowList.php:62, GuestLists/Page.php:158, BoxOffice/ZReport.php:439/466, Service.php:736, Reports/Settlement.php:297: determine_locale() verwenden
 - [ ] **A321** [WICHTIG] A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L652; Audit Runde 4)
   - tests/a11y/run.js, keyboard.js: Kalender, Saalplan, Portal-Dialoge, PWA, Kasse, Mobile/Reflow 320 px/400 %, Dark Mode, RTL, Live-Regionen, Nicht-JSON-Fehler, Tastatur-Scanner, bfcache, mehrere Shortcodes
@@ -703,15 +703,15 @@ Gesamt: 262 Aufgaben.
   - src/Admin/OrdersPage.php:409–540, Orders.php:1675: Abschnitt „Verlauf“ (Audit, Payment-Events, Mails, Jobs), order_id in message_queue
 - [x] **A329** [WICHTIG] Website-Zustand-Info taugt nicht als Support-Export — _R2 Support_ (TODO L660; Audit Runde 4)
   - src/Operations/SiteHealth.php:357ff.: Version, db_version, Fingerprint, schema_error, Module, Provider + Modus, WC, Währung, Locale, Holds, letzte Fehler
-- [ ] **A330** [WICHTIG] Zwei PDF-Engines; Mail-PDF zerstört Nicht-Latin-1-Zeichen, ignoriert Druckvorlagen — _R2 Support_ (TODO L661; Audit Runde 4)
+- [x] **A330** [WICHTIG] Zwei PDF-Engines; Mail-PDF zerstört Nicht-Latin-1-Zeichen, ignoriert Druckvorlagen — _R2 Support_ (TODO L661; Audit Runde 4)
   - src/TicketPdf.php:97/116–119, Printing/PdfWriter.php:152–154: Über Printing\Templates/PdfWriter, Unicode-Schrift einbetten, Fußzeile je Ticketart/Pass
 - [ ] **A331** [WICHTIG] Wichtige Erweiterungspunkte fehlen — _R2 Support_ (TODO L662; Audit Runde 4)
   - src/Orders.php:314/689, Mail/Mailer.php:183–185, TicketPage.php:58: wpcap_order_created (nach Commit), wpcap_checkout_validate, wpcap_ticket_pdf_data/_layout, wpcap_rest_prepare_*, wpcap_mail_recipients, wpcap_order_fees
-- [ ] **A332** [WICHTIG] Serien-Vorlage kopiert Teilnehmerfelder und Einlassprüfungen nicht — _R2 UX_ (TODO L663; Audit Runde 4)
+- [x] **A332** [WICHTIG] Serien-Vorlage kopiert Teilnehmerfelder und Einlassprüfungen nicht — _R2 UX_ (TODO L663; Audit Runde 4)
   - src/Series/Generator.php:272–286, Series/AdminPage.php:166: Mitkopieren, Vorschau was übernommen wird
-- [ ] **A333** [WICHTIG] Zwei konkurrierende Wege für Terminserien; Ticketart/Feld nicht auf alle Termine anwendbar — _R2 UX_ (TODO L664; Audit Runde 4)
+- [x] **A333** [WICHTIG] Zwei konkurrierende Wege für Terminserien; Ticketart/Feld nicht auf alle Termine anwendbar — _R2 UX_ (TODO L664; Audit Runde 4)
   - src/Admin/EventsPage.php:799, :983–1015: Auf „Serientermine“ verweisen/ersetzen; „auf alle Termine anwenden“
-- [ ] **A334** [WICHTIG] Ticketart nach Verkaufsstart ohne Warnung änderbar (Preis/Steuer) — _R2 UX_ (TODO L665; Audit Runde 4)
+- [x] **A334** [WICHTIG] Ticketart nach Verkaufsstart ohne Warnung änderbar (Preis/Steuer) — _R2 UX_ (TODO L665; Audit Runde 4)
   - src/Admin/EventsPage.php:1017–1043: Hinweis „X verkauft, gilt nur für neue Bestellungen“, Bestätigung bei Steuer/Preis
 - [x] **A335** [WICHTIG] „Tickets erneut senden“ (Admin) entwertet auch übertragene Tickets — _R2 UX_ (TODO L666; Audit Runde 4)
   - src/Admin/OrdersPage.php:555, Orders.php:1780–1806: Standard: Neuversand ohne Rotation; Rotation bewusst; skip_transferred
@@ -727,7 +727,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/OrdersPage.php:478/511/525: Summe/Weg live, in Bestätigung; „Alle“ deaktiviert Einzelauswahl sichtbar
 - [x] **A341** [WICHTIG] Wartelisten-Admin ohne Terminspalte, unklare „Rang/Position“ — _R2 UX_ (TODO L672; Audit Runde 4)
   - src/Waitlists/AdminPage.php:116–120, Waitlists.php:989: Spalte Termin, verständliche Bezeichnungen
-- [ ] **A342** [WICHTIG] Frontend: pro Termin vollständiges Checkout-Formular; Kalender-Anker auf nicht gerenderte Karten — _R2 UX_ (TODO L673; Audit Runde 4)
+- [x] **A342** [WICHTIG] Frontend: pro Termin vollständiges Checkout-Formular; Kalender-Anker auf nicht gerenderte Karten — _R2 UX_ (TODO L673; Audit Runde 4)
   - src/PublicEvents.php:147–190, templates/event-card.php, Calendar/Ics.php:150: Eine Karte je Event mit Terminauswahl; Kalender mit occurrence=
 - [x] **A343** [WICHTIG] Bezahlte Bestellung ohne Tickets wird nie automatisch nachbearbeitet — _R2 API_ (TODO L674; Audit Runde 4)
   - src/Orders.php:1089–1092, :1002–1005 (confirm_external_payment), Webhooks.php:121/142–147: issue_failed() ignoriert → Event processed. Job ticket_issue_retry anlegen (prüfen gegen A183-Stand)
