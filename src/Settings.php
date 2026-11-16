@@ -119,6 +119,9 @@ final class Settings {
 			'entry_closes_after_minutes' => 0,
 			// A535: occurrences without an end time count as over after this many hours (Occurrence).
 			'occurrence_default_duration_hours' => 6,
+			// A296: sender name and reply-to address of buyer mails ('' = seller name or site name / admin e-mail).
+			'mail_from_name'            => '',
+			'mail_reply_to'             => '',
 		);
 	}
 

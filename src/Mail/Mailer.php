@@ -189,6 +189,9 @@ final class Mailer {
 		$message = apply_filters( 'wpcap_mail', $message, $to );
 		if ( ! is_array( $message ) ) { return false; }
 		$prepared = self::prepare( $to, $message );
+		$from_name = self::sender()['name'];
+		$apply_name = static function () use ( $from_name ) { return $from_name; };
+		if ( '' !== $from_name ) { add_filter( 'wp_mail_from_name', $apply_name, 10, 0 ); }
 		$alt = $prepared['alt_body'];
 		if ( null !== $alt ) {
 			self::$alt_body = $alt;
@@ -202,6 +205,7 @@ final class Mailer {
 		} finally {
 			// Failure counter for the Site Health check (A164): type and error code only, no recipient.
 			\PassCaptain\Operations\Monitor::mail_end( (bool) $sent, (string) ( $message['type'] ?? '' ) );
+			if ( '' !== $from_name ) { remove_filter( 'wp_mail_from_name', $apply_name, 10 ); }
 			if ( null !== $alt ) {
 				remove_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10 );
 				self::$alt_body = null;
@@ -236,7 +240,7 @@ final class Mailer {
 	public static function prepare( $to, array $message ) {
 		$subject = self::clean_subject( (string) ( $message['subject'] ?? '' ) );
 		$body = (string) ( $message['body'] ?? '' );
-		$headers = (array) ( $message['headers'] ?? array() );
+		$headers = self::sender_headers( (array) ( $message['headers'] ?? array() ) );
 		$alt = null;
 		if ( 'html' === ( $message['format'] ?? 'text' ) ) {
 			$locale = (string) ( $message['locale'] ?? '' );
@@ -254,6 +258,58 @@ final class Mailer {
 			'attachments' => array_values( (array) ( $message['attachments'] ?? array() ) ),
 			'alt_body' => $alt,
 		);
+	}
+
+	/**
+	 * Sender of buyer mails (A296): display name (setting mail_from_name, else the seller name, else
+	 * the site name) and reply-to address (setting mail_reply_to, else the admin e-mail). The From
+	 * address stays WordPress'/the SMTP plugin's, so SPF/DKIM keep matching. Filter `wpcap_mail_sender`.
+	 *
+	 * @return array name, reply_to ('' = none).
+	 */
+	public static function sender() {
+		$name = trim( (string) \PassCaptain\Settings::get( 'mail_from_name' ) );
+		if ( '' === $name ) { $name = trim( (string) \PassCaptain\Settings::get( 'seller_name' ) ); }
+		if ( '' === $name ) { $name = trim( wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES ) ); }
+		$reply = trim( (string) \PassCaptain\Settings::get( 'mail_reply_to' ) );
+		if ( '' === $reply ) { $reply = trim( (string) get_option( 'admin_email' ) ); }
+		$sender = (array) apply_filters( 'wpcap_mail_sender', array( 'name' => $name, 'reply_to' => $reply ) );
+		$reply = sanitize_email( (string) ( $sender['reply_to'] ?? '' ) );
+		return array(
+			// No line breaks or angle brackets in a header value.
+			'name' => trim( preg_replace( '/[\r\n<>"]+/', ' ', (string) ( $sender['name'] ?? '' ) ) ),
+			'reply_to' => is_email( $reply ) ? $reply : '',
+		);
+	}
+
+	/**
+	 * Mail headers with the buyer-mail Reply-To added (A296); a Reply-To already present (template,
+	 * filter) is kept.
+	 *
+	 * @param string[] $headers Headers.
+	 */
+	public static function sender_headers( array $headers = array() ) {
+		foreach ( $headers as $header ) {
+			if ( is_string( $header ) && 0 === stripos( ltrim( $header ), 'reply-to:' ) ) { return $headers; }
+		}
+		$reply = self::sender()['reply_to'];
+		if ( '' !== $reply ) { $headers[] = 'Reply-To: ' . $reply; }
+		return $headers;
+	}
+
+	/**
+	 * Sends a buyer mail that does not go through deliver() (e.g. service bookings) with the sender
+	 * name and Reply-To of sender().
+	 */
+	public static function send_plain( $to, $subject, $body ) {
+		$name = self::sender()['name'];
+		$apply = static function () use ( $name ) { return $name; };
+		if ( '' !== $name ) { add_filter( 'wp_mail_from_name', $apply, 10, 0 ); }
+		try {
+			return (bool) wp_mail( $to, $subject, $body, self::sender_headers() );
+		} finally {
+			if ( '' !== $name ) { remove_filter( 'wp_mail_from_name', $apply, 10 ); }
+		}
 	}
 
 	/** phpmailer_init (only registered while an HTML mail is sent): sets the plain-text part. */

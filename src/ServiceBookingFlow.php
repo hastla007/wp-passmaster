@@ -195,7 +195,7 @@ final class ServiceBookingFlow {
 		$customer = array( 'to' => (string) $booking->customer_email, 'subject' => $subjects[ $change ], 'body' => implode( "\n\n", $customer_lines ) );
 		$customer = apply_filters( 'wpcap_service_booking_mail', $customer, $change, $booking, 'customer' );
 		if ( is_array( $customer ) && is_email( $customer['to'] ) && ! Mail\Mailer::is_placeholder( $customer['to'] ) ) {
-			wp_mail( $customer['to'], $customer['subject'], $customer['body'] );
+			Mail\Mailer::send_plain( $customer['to'], $customer['subject'], $customer['body'] ); // A296: sender name and Reply-To.
 		}
 		$staff = array( (string) get_option( 'admin_email' ) );
 		foreach ( ServiceProviders::for_resource( (int) $booking->resource_id ) as $provider ) {

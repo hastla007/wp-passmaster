@@ -67,6 +67,15 @@ Prüfung der Formate (Stand A101):
 - Zurück zu Textmails: Filter `wpcap_mail_default_format` (`'text'` für alle oder einzelne Typen) oder `'format' => 'text'` in der Typdefinition (`wpcap_mail_types`).
 - Im Editor ist das Formular ohne eigene Vorlage mit Format *HTML* vorbelegt; erst Speichern legt eine eigene Vorlage an.
 
+## Absender und Antwortadresse (A296)
+
+Unter **Einstellungen → Allgemein → E-Mails an Käufer** stehen „Absendername“ und „Antwort an“. Ohne
+Eintrag ist der Absendername der Name des Rechnungsstellers (sonst der Name der Website) und Antworten gehen
+an die Administrator-E-Mail. Der Name wird nur während des Versands einer Plugin-Mail über
+`wp_mail_from_name` gesetzt; die Absenderadresse bleibt die von WordPress bzw. des SMTP-Plugins (SPF/DKIM).
+Jede Kunden-Mail des zentralen Mailers und die Mails an Kund:innen von Servicebuchungen erhalten den Header
+`Reply-To`, sofern Vorlage oder Filter keinen eigenen setzen. Anpassen: Filter `wpcap_mail_sender`.
+
 ## Regeln für Platzhalter
 
 - Schreibweise `{name}` (Kleinbuchstaben, Ziffern, Unterstrich). Ersetzung in **einem Durchgang**: Werte werden nicht erneut nach Platzhaltern durchsucht.

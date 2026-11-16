@@ -135,6 +135,14 @@ final class SettingsPage {
 					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ) ),
 				),
 			),
+			'mail' => array(
+				'title' => __( 'E-Mails an Käufer', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'mail_from_name' => array( 'type' => 'text', 'label' => __( 'Absendername', 'pass-captain' ), 'description' => __( 'Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain).', 'pass-captain' ) ),
+					'mail_reply_to' => array( 'type' => 'email', 'label' => __( 'Antwort an (E-Mail-Adresse)', 'pass-captain' ), 'description' => __( 'Antworten der Käufer gehen an diese Adresse. Leer = Administrator-E-Mail der Website.', 'pass-captain' ) ),
+				),
+			),
 			'refunds' => array(
 				'title' => __( 'Erstattungen', 'pass-captain' ),
 				'tab' => 'general',
@@ -358,6 +366,15 @@ final class SettingsPage {
 							break;
 						}
 						$values[ $key ] = $parsed;
+						break;
+					case 'email':
+						$email = is_scalar( $raw ) ? trim( (string) $raw ) : '';
+						if ( '' !== $email && ! is_email( $email ) ) {
+							/* translators: %s: field label */
+							$errors[] = sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $def['label'] );
+							break;
+						}
+						$values[ $key ] = '' === $email ? '' : sanitize_email( $email );
 						break;
 					case 'prefix':
 						$prefix = strtoupper( preg_replace( '/[^A-Za-z0-9\-]/', '', is_scalar( $raw ) ? (string) $raw : '' ) );
@@ -744,6 +761,9 @@ final class SettingsPage {
 				break;
 			case 'prefix':
 				echo '<input type="text" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" maxlength="10" size="10" pattern="[A-Za-z0-9\-]+" value="' . esc_attr( (string) $value ) . '">';
+				break;
+			case 'email':
+				echo '<input type="email" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="email" value="' . esc_attr( (string) $value ) . '"' . ( 'mail_reply_to' === $key ? ' placeholder="' . esc_attr( (string) get_option( 'admin_email' ) ) . '"' : '' ) . '>';
 				break;
 			case 'secret':
 				// Masked: status with the last four characters, empty input keeps the value (Secrets).
