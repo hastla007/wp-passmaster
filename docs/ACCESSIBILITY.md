@@ -16,3 +16,9 @@ Vor 1.0 sind manuelle Tastatur- und Screenreader-Prüfungen für Checkout, Scann
 ## Kasse (Admin)
 
 - Termin-Auswahl im Verkauf und Kassen-Filter der Schichtliste laden die Seite nicht mehr bei jeder Änderung neu (mit der Tastatur löste jede Pfeiltaste einen Seitenwechsel aus); gewählt wird mit dem Knopf „Anzeigen“ (A314).
+
+## Kontrast und dunkle Themes
+
+- Eventkarte, Checkout und Kalender setzen Text- und Hintergrundfarbe immer paarweise (Fehlertexte, „Ausverkauft“, Tage mit Terminen, Bankdaten). Sie hängen damit nicht von der Seitenfarbe des Themes ab; jedes Paar hat mindestens 4,5:1 (Test `zz_a318.php`). Gedämpfte Grautöne gibt es nur noch innerhalb solcher Flächen, sonst erben Hinweise die Textfarbe des Themes (A318).
+- Farben sind Custom Properties (`--wpcap-error-fg`/`--wpcap-error-bg` in `public.css`, `--wpcap-cal-*` in `calendar/calendar.css`) und können vom Theme überschrieben werden. Mit der Klasse `wpcap-dark` an einem umgebenden Element (oder der Body-Klasse `is-dark-theme`, die z. B. Twenty Twenty-One setzt) gilt ein dunkler Farbsatz mit `color-scheme: dark`.
+- Der Tastaturfokus im Kalender hat einen zweifarbigen Rahmen (Umriss plus Halo), der auf hellem und dunklem Grund sichtbar ist.
