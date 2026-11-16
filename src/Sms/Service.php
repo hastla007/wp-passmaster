@@ -79,9 +79,16 @@ final class Service {
 		return substr( hash( 'sha256', self::consent_text() ), 0, 16 );
 	}
 
-	/** Normalizes to E.164 or returns ''. */
+	/**
+	 * Normalizes to E.164 or returns ''. A604: the trunk prefix written in brackets after the
+	 * country code ("+49 (0)151 …", "0043 (0) 664 …") is dropped – removing only the brackets made
+	 * it a wrong number (+490151…).
+	 */
 	public static function normalize_phone( $raw ) {
-		$phone = preg_replace( '/[\s\-\.\/\(\)]/', '', (string) $raw );
+		$phone = (string) preg_replace( '/^\s*(\+|00)\s*([1-9]\d{0,3})[\s\-\.\/]*\(\s*0\s*\)/', '$1$2', (string) $raw );
+		// Same for the area code written with its trunk prefix in brackets: "+49 (0151) …".
+		$phone = (string) preg_replace( '/^\s*(\+|00)\s*([1-9]\d{0,3})[\s\-\.\/]*\(\s*0(?=\d)/', '$1$2(', $phone );
+		$phone = preg_replace( '/[\s\-\.\/\(\)]/', '', $phone );
 		if ( 0 === strpos( $phone, '00' ) ) { $phone = '+' . substr( $phone, 2 ); }
 		if ( '' !== $phone && '0' === $phone[0] ) {
 			$settings = (array) Settings::get( 'sms' );
