@@ -1,11 +1,12 @@
-:root { --bg: #f4f6f8; --fg: #1d2327; --muted: #646970; --brand: #112e51; --ok: #16803d; --bad: #b32d2e; --warn: #996800; --card: #fff; }
+/* --ok/--warn: backgrounds behind white text; --ok-text/--warn-text: text on the light tints (>= 4.5:1, A319). */
+:root { --bg: #f4f6f8; --fg: #1d2327; --muted: #646970; --brand: #112e51; --ok: #16803d; --bad: #b32d2e; --warn: #996800; --ok-text: #0b6b2c; --warn-text: #7a5200; --card: #fff; }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--fg); }
 .bar { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; align-items: center; padding: 10px 12px; background: var(--brand); color: #fff; }
 .bar strong { flex: 1; }
 .pill { font-size: 13px; padding: 2px 8px; border-radius: 999px; background: #fff; color: var(--brand); }
-.pill.offline { background: #fcf0d4; color: var(--warn); }
+.pill.offline { background: #fcf0d4; color: var(--warn-text); }
 .pill-muted { background: rgba(255,255,255,.2); color: #fff; }
 main { max-width: 640px; margin: 0 auto; padding: 12px; }
 h1 { font-size: 22px; } h2 { font-size: 16px; margin: 0 0 8px; }
@@ -22,7 +23,7 @@ button:disabled { opacity: .5; }
 video { width: 100%; max-height: 50vh; border-radius: 8px; background: #000; margin-bottom: 10px; }
 .result { border-radius: 10px; padding: 18px 14px; margin: 0 0 12px; color: #fff; text-align: center; }
 .result #result-title { font-size: 26px; font-weight: 700; }
-.result .small { color: inherit; opacity: .95; font-size: 15px; }
+.result .small { color: inherit; font-size: 15px; }
 .result.idle { background: #50575e; }
 .result.ok { background: var(--ok); }
 .result.bad { background: var(--bad); }
@@ -31,5 +32,5 @@ video { width: 100%; max-height: 50vh; border-radius: 8px; background: #000; mar
 .list li { padding: 6px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; gap: 8px; }
 .list li:last-child { border-bottom: 0; }
 .tag { font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #eee; white-space: nowrap; }
-.tag.ok { background: #d7f0dd; color: var(--ok); } .tag.bad { background: #f6d8d8; color: var(--bad); } .tag.warn { background: #fcf0d4; color: var(--warn); }
+.tag.ok { background: #d7f0dd; color: var(--ok-text); } .tag.bad { background: #f6d8d8; color: var(--bad); } .tag.warn { background: #fcf0d4; color: var(--warn-text); }
 code { word-break: break-all; }
