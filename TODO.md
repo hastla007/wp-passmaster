@@ -987,14 +987,14 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Admin-Menü-Überschriften im Farbschema „Hell“ unlesbar — src/Admin/Menu.php:93 (A396, R2 Frontend)
 - [x] [OPTIMIERUNG] [wpcap_passes] ohne Stylesheet, Kauflink, Überschriftenebene — src/Passes/Display.php:141–156 (A397, R2 Frontend)
 - [x] [OPTIMIERUNG] PWA viewport-fit=cover ohne Safe-Area-Abstände — assets/offline-scanner/index.html:5, app.css (A398, R2 Frontend)
-- [ ] [OPTIMIERUNG] Nur ein WP-CLI-Befehl — src/CapacityCounters.php:71 (A399, R2 Support)
+- [x] [OPTIMIERUNG] Nur ein WP-CLI-Befehl — src/CapacityCounters.php:71 (A399, R2 Support) – umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe WP-CLI: `secrets rollback-config`, `reconcile-capacity`, `doctor`, `diagnose`, `status`, `upgrade`
 - [ ] [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen) (A400, R2 Support)
 - [ ] [OPTIMIERUNG] Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — src/Installer.php:17, Orders.php:23, Rest/Controller.php:20 (A401, R2 Support)
 - [ ] [OPTIMIERUNG] Statische Klassen, keine definierte öffentliche API — 206/224 Klassen (A402, R2 Support)
 - [x] [OPTIMIERUNG] Mehrere Geldformatierer (A200 zentralisiert – Rest prüfen, Box-Office-JS 2 Dezimalen) — src/Modules/Sms.php:476, assets/boxoffice/pos.js, shift.js (A403, R2 Support) – erledigt: Kassen-JS (`pos.js`, `shift.js`) formatiert und parst nach Nachkommastellen der Währung und Zahlenformat der Website (vom Server übergeben); Restbeträge in ServiceBookings/Refunder über `Money::format()`; Test `zz_a403` + `tests/js/pos.test.js`
 - [ ] [OPTIMIERUNG] Toter Code — src/Refunds.php:656 (tax_for_tickets), OfflineScanner/Assignments.php:75, BoxOffice/Service.php:490, GuestLists/Service.php:539 (A404, R2 Support)
 - [x] [OPTIMIERUNG] Filter wpcap_client_ip wirkt nur auf Orders::client_ip — src/Orders.php:440, RateLimit.php:42 (A405, R2 Support) – erledigt (N03): `ClientIp::get()` und `Orders::client_ip()` laufen über `RateLimit::client_ip()`, der Filter `wpcap_client_ip` wirkt damit für Ratenbegrenzung, Einwilligungsnachweise, Partner-API und Checkout-Drossel gleich
-- [ ] [OPTIMIERUNG] Drei Template-Hooks nicht in HOOKS.md; kein CI-Abgleich — templates/event-card.php:13/22/85 (A406, R2 Support)
+- [x] [OPTIMIERUNG] Drei Template-Hooks nicht in HOOKS.md; kein CI-Abgleich — templates/event-card.php:13/22/85 (A406, R2 Support) – umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `tests/integration/modules/hooks_contract.php` gleicht Hooks in src/templates mit docs/HOOKS.md ab
 - [ ] [OPTIMIERUNG] Nur event-card.php per Theme überschreibbar — src/PublicEvents.php:179 (A407, R2 Support)
 - [ ] [OPTIMIERUNG] Hart codierte Laufzeitwerte (Timeouts, Backoff, Claims, Limits, Service-Hold 10 min, A4, Farben) — src/Payments/Webhooks.php:52, Jobs.php:27/58/59, Communications.php:67, Orders.php:96, Rest/Controller.php:324/902/505/525/537, u. a. (A408, R2 Support)
 - [x] [OPTIMIERUNG] „Zahlungspflichtig bestellen“ und 0,00 € bei kostenlosen Tickets — templates/event-card.php:169 (A409, R2 UX)

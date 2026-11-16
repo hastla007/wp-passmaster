@@ -311,7 +311,8 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
 - [x] **A138** Service-Pass-Regeln getrennt von Eventtickets abnehmen — _TEILWEISE_ (TODO L127; P1 – Bootsschul- und Servicebuchungen)
   - Memberships.php:17 (Gültigkeit, uses_total je Regel); keine terminpflichtige Slot-Bindung, keine getrennte Abnahme
   - (umgesetzt im zusammengeführten Stand, siehe `src/Memberships.php` (Geltungsbereich `event`/`service`/`any`, terminfrei/terminpflichtig, Einmal-/Mehrfachnutzung, Ablauf) mit getrennten Tests für Service- und Eventnutzung)
-- [ ] **A139** POS: Oberfläche, Zahlungsarten, fiskalische Belege, Druck — _TEILWEISE_ (TODO L136; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+- [x] **A139** POS: Oberfläche, Zahlungsarten, fiskalische Belege, Druck — _TEILWEISE_ (TODO L136; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `src/BoxOffice/*`, `assets/boxoffice/pos.js`, `src/Fiscalization/*` (Zertifizierung extern).
   - UI BoxOffice/Page.php, Bar/Karte Service.php:34-35, Belegnummern, Druck Page.php:82; Fiskal-Adapter nicht angebunden, keine fiskalischen Belege
 - [x] **A140** iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis — _TEILWEISE_ (TODO L138; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - ICS Calendar/Ics.php:63,122,128, Modules/Calendar.php:23; Mail bei Verschiebung/Absage; keine SEQUENCE in ICS, keine Benachrichtigung bei Orts-/Detailänderung
@@ -327,13 +328,16 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - Breit umgesetzt (Access.php:8, can_access_event/Scope in 37 Dateien, Controller.php:726); nur Eventgranularität, keine vollständige Abdeckungsprüfung
 - [x] **A146** Datenfelder je Rolle minimieren, Support maskiert — _TEILWEISE_ (TODO L151; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - AttendeeList.php:18-19 (basic/full), Reports/Data.php:26; Support (wpcap_manage_orders) sieht volle PII, keine Maskierung
-- [ ] **A147** Erstattungen nach Capability, Scope, Schwelle, Zweitfreigabe absichern — _TEILWEISE_ (TODO L152; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A147** Erstattungen nach Capability, Scope, Schwelle, Zweitfreigabe absichern — _TEILWEISE_ (TODO L152; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `src/Refunds.php` (Capability, kumulative Schwelle, Zweitfreigabe, Check-in-Ausnahme), Event-Scope in `Admin/OrdersPage.php`.
   - Refunds.php:66-69,459; OrdersPage.php:36; Sammel-Autorefund bei Absage (OccurrenceCancellation.php:113) ohne Gesamtschwelle/Sammelfreigabe
 - [x] **A148** Audit-Log für Rollen, Exporte, PII, Refunds, Übertragungen, Korrekturen — _TEILWEISE_ (TODO L153; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Viele Events (report_exported, refund_*, ticket_transferred, checkin_undone, staff_assigned); WP-Rollenänderungen und PII-Ansichten nicht protokolliert
-- [ ] **A149** Gemeinsame Konten ausschließen; Scannerzugänge kurzlebig/eventbezogen — _TEILWEISE_ (TODO L154; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A149** Gemeinsame Konten ausschließen; Scannerzugänge kurzlebig/eventbezogen — _TEILWEISE_ (TODO L154; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `src/Security/Sessions.php` (geteilte Konten erkannt/protokolliert, `staff_single_session`), `src/Mobile/Devices.php` (personen- und eventgebundene, ablaufende, widerrufbare Gerätetoken).
   - Geräte kurzlebig, eventgebunden, widerrufbar (Mobile/Devices.php:23-24,130,167); kein technischer Ausschluss gemeinsamer Konten
-- [ ] **A150** MFA für Admin-/Finanzrollen; befristeten Supportzugriff protokollieren — _TEILWEISE_ (TODO L155; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A150** MFA für Admin-/Finanzrollen; befristeten Supportzugriff protokollieren — _TEILWEISE_ (TODO L155; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `src/Security/StepUp.php`, `src/Security/SupportAccess.php`.
   - 2FA nur optional für Erstattungen (Refunds.php:463, Settings.php:63); kein MFA-Zwang je Rolle, kein befristeter Supportzugriff
 - [x] **A151** Reale CI-Matrix WordPress/WooCommerce/MySQL — _OFFEN_ (TODO L162; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - .github/workflows/ci.yml: nur PHP 8.2/8.4, MariaDB 11.4, Mock-WP (tests/integration/wp); keine WP/WC/MySQL-Versionen
@@ -344,17 +348,21 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - ci.yml:11 Matrix nur php: ['8.2','8.4']
 - [ ] **A154** Zahlungsmethoden pro Land/PSP/Transaktionstyp, Live-Akzeptanz — _TEILWEISE_ (TODO L167; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - Nur Mollie fragt Methoden je Land ab (MollieGateway.php:151-158); keine Matrix je Transaktionstyp; Live-Abnahme braucht Händlerkonten
-- [ ] **A155** Datenschutzfristen, Admin-A11y, Screenreader-Abnahme als Release-Gates — _TEILWEISE_ (TODO L169; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+- [x] **A155** Datenschutzfristen, Admin-A11y, Screenreader-Abnahme als Release-Gates — _TEILWEISE_ (TODO L169; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `Privacy/Retention`, `docs/RELEASE.md` (axe-Gate auf Admin-Seiten, Screenreader-Checkliste; manuelle Abnahme extern).
   - Fristen vorhanden (Privacy/Retention.php, Settings.php:64); A11y-Tests (tests/a11y) nicht in ci.yml/release.yml; keine manuelle Screenreader-Abnahme
-- [ ] **A156** Events/Termine vollständig bearbeiten, verschieben, versioniert ändern — _TEILWEISE_ (TODO L239; Kernprodukt und Admin-Bedienung)
+- [x] **A156** Events/Termine vollständig bearbeiten, verschieben, versioniert ändern — _TEILWEISE_ (TODO L239; Kernprodukt und Admin-Bedienung)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `Admin/EventsPage.php` (update_event, save_occurrence), `Calendar/Revisions.php`, `Admin/ChangeHistory.php`.
   - Bearbeiten/Verschieben da (src/Admin/EventsPage.php:124,151 inkl. rescheduled-Hook); Event nur Name/Beschreibung/Status, keine Versionierung/Revisionshistorie außer Audit-Log
 - [x] **A157** Admin-Oberflächen für REST-Module ergänzen — _TEILWEISE_ (TODO L240; Kernprodukt und Admin-Bedienung)
   - Serien (src/Series/AdminPage.php) und Einlassregeln/Areas (src/Admission/RulesPage.php:60) vorhanden; Service-Zeitfenster und Entwickler-API-Schlüssel nur REST (src/Rest/Controller.php:117-198)
 - [x] **A158** Event-Warteliste vervollständigen — _TEILWEISE_ (TODO L241; Kernprodukt und Admin-Bedienung)
   - Auto-Angebot mit Hold, Annahme/Ablehnung da (src/Waitlists.php:198,262,429,498); keine Selbst-Abmeldung durch Käufer, kein Test paralleler Annahmen in tests/integration/modules/p3_waitlist.php
-- [ ] **A159** Automatische Preisregeln Frühbucher/Last-Minute/Nachfrage fertigstellen — _TEILWEISE_ (TODO L242; Kernprodukt und Admin-Bedienung)
+- [x] **A159** Automatische Preisregeln Frühbucher/Last-Minute/Nachfrage fertigstellen — _TEILWEISE_ (TODO L242; Kernprodukt und Admin-Bedienung)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `src/Sales/PriceRules.php` (Frühbucher, Last-Minute, Nachfrage inkl. A617, Preis-Snapshot), `Sales/BuyerLimits.php`, Stapelregeln in `Campaigns.php`.
   - Regeln nur für Serientermine (src/Series/Pricing.php:257,311), Snapshot src/Orders.php:213-217; keine Stapelbarkeitsregeln (nur eine Regel gewinnt), nicht für Einzelevents
-- [ ] **A160** Veranstalterberichte erweitern, rollenbeschränkte CSV-Exporte — _TEILWEISE_ (TODO L243; Kernprodukt und Admin-Bedienung)
+- [x] **A160** Veranstalterberichte erweitern, rollenbeschränkte CSV-Exporte — _TEILWEISE_ (TODO L243; Kernprodukt und Admin-Bedienung)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `Reports/Data.php` (Vergleich, Kampagnen, Erstattungen, Kapazität), `Reports/Attendance.php`, `Reports/Exports.php` (Capability je Export).
   - Zeitraum, Erstattungen, Bestand, CSV mit Cap-Scope da (src/Reports/Data.php:73,154,335; Page.php:14); fehlen Vergleichsfilter, Kampagnen- und Teilnehmerdaten
 - [x] **A161** Entwickler-API-Schlüssel administrierbar machen — _TEILWEISE_ (TODO L244; Kernprodukt und Admin-Bedienung)
   - Erstellen/einmalig anzeigen/Widerruf per REST (src/DeveloperKeys.php:8,41); keine Admin-UI, Ablauf nur bei Anlage, Ratenlimit fest 600/min (:35), nur 2 Scopes
@@ -369,7 +377,8 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
 - [x] **A166** Konkrete CRM-/Kalender-/Buchhaltungsadapter mit Mapping und Sync — _OFFEN_ (TODO L252; Hintergrunddienste, Übersetzungen und Integrationen)
   - Nur Vertrag/Registry (src/Integrations/ConnectorInterface.php, ConnectorRegistry.php), keine konkreten Adapter, kein Mapping-UI
   - (umgesetzt im zusammengeführten Stand, siehe `src/Integrations/HttpJson/` (HTTP/JSON-Connector mit Feldzuordnung, PII-Opt-in, Zustellprotokoll, Wiederholung) und `src/Integrations/CalendarFeeds.php` (tokenisierte iCalendar-Abos))
-- [ ] **A167** Bekannte Admin-A11y-Befunde beheben und erneut prüfen — _TEILWEISE_ (TODO L257; Abnahme, Barrierefreiheit und Releasebetrieb)
+- [x] **A167** Bekannte Admin-A11y-Befunde beheben und erneut prüfen — _TEILWEISE_ (TODO L257; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `tests/a11y/gate.sh` + `run.js` (axe auf jeder Admin-Seite, CI-Gate); manuelle Screenreader-Prüfung extern.
   - Letzter axe-Lauf ohne Befunde (tests/a11y/report/axe-2026-11-11T21-20-54-679Z.json); manuelle Zoom-/Screenreader-Prüfung fehlt, Tastaturtest nur öffentlicher Checkout (tests/a11y/keyboard.js)
 - [x] **A168** Veralteten Fehlerbericht in docs/TESTING.md aktualisieren — _OFFEN_ (TODO L258; Abnahme, Barrierefreiheit und Releasebetrieb)
   - docs/TESTING.md:85-93 nennt weiterhin Deadlock und continue-on-error, obwohl .github/workflows/ci.yml:56-60 verpflichtend läuft
@@ -378,9 +387,11 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
 - [x] **A170** Plugin-Metadaten und Doku vor Release mit Code abgleichen — _OFFEN_ (TODO L262; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Widerspruch besteht weiter: README.md:15 sagt Voucher nicht im Checkout orchestriert, src/Integrations/Vouchers/Checkout.php existiert; kein Abgleichsprozess/Check
   - Erledigt 13.11.: readme.txt-Changelog um 1.2.0–1.4.0 ergänzt (fehlte); Abgleich automatisiert (tests/consistency.php).
-- [ ] **A171** Regeln für gemischte WooCommerce-Warenkörbe je Verkäufer — _TEILWEISE_ (TODO L266; Multi-Seller-Geschäftsabläufe)
+- [x] **A171** Regeln für gemischte WooCommerce-Warenkörbe je Verkäufer — _TEILWEISE_ (TODO L266; Multi-Seller-Geschäftsabläufe)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `Integrations/WooCommerce/SellerSplit.php`, Test `woocommerce_multiseller.php`.
   - Gemischte Verkäufer werden abgelehnt (src/Partners/SalesModel.php:226-236, Test zz_sales_models.php:131); keine Regeln für Rabatte/Gebühren/Versand/Rundung je Verkäufer
-- [ ] **A172** Refunds pro Verkäufer/Belegposition zuordnen und abstimmen — _TEILWEISE_ (TODO L267; Multi-Seller-Geschäftsabläufe)
+- [x] **A172** Refunds pro Verkäufer/Belegposition zuordnen und abstimmen — _TEILWEISE_ (TODO L267; Multi-Seller-Geschäftsabläufe)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `SellerSplit::distribute_refund()`, `Partners/Settlements.php`, Test `zzzzz_x5_fiscal_reconcile.php`.
   - Refund-Zuordnung je Zeile in Abrechnung (src/Partners/Settlements.php:9-17); kein Abgleich mit Zahlungs-/Fiskalanbieterstatus, gebrauchte Tickets/Ausfälle nicht je Verkäufer
 - [x] **A173** PHPCS mit WPCS, statische Analyse, Composer-Audit in CI — _TEILWEISE (13.11.2026: PHPCS/WPCS + PHPCompatibility + composer audit in CI, 0 Fehler; offen: PHPStan, hier nicht installierbar)_ (TODO L280; CI, statische Qualität und Artefakt)
   - .github/workflows/ci.yml:21-28 nur composer validate, php -l, node --check
@@ -864,7 +875,8 @@ Gesamt: 262 Aufgaben.
   - src/Passes/Display.php:141–156: Style einbinden, verlinken, Ebene filterbar
 - [x] **A398** [OPTIMIERUNG] PWA viewport-fit=cover ohne Safe-Area-Abstände — _R2 Frontend_ (TODO L744; Audit Runde 4)
   - assets/offline-scanner/index.html:5, app.css: env(safe-area-inset-*)
-- [ ] **A399** [OPTIMIERUNG] Nur ein WP-CLI-Befehl — _R2 Support_ (TODO L745; Audit Runde 4)
+- [x] **A399** [OPTIMIERUNG] Nur ein WP-CLI-Befehl — _R2 Support_ (TODO L745; Audit Runde 4)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe WP-CLI: `secrets rollback-config`, `reconcile-capacity`, `doctor`, `diagnose`, `status`, `upgrade`.
   - src/CapacityCounters.php:71: wp pass-captain order show, tickets resend, webhook reprocess, queue list/retry/discard, upgrade, secrets, mail test (doctor kam mit A204)
   - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Ops/Cli.php` (`wp pass-captain diagnose`, `wp pass-captain status`); zusammen mit `upgrade`, `reconcile-capacity`, `doctor` und `secrets rollback-config` gibt es sechs Befehle; die vorgeschlagenen Befehle für Bestellungen, Tickets, Webhooks und Queue fehlen.
 - [ ] **A400** [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — _R2 Support_ (TODO L746; Audit Runde 4)
@@ -879,7 +891,8 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:656 (tax_for_tickets), OfflineScanner/Assignments.php:75, BoxOffice/Service.php:490, GuestLists/Service.php:539: Entfernen oder anbinden (unfinished_sales in Schichtansicht)
 - [x] **A405** [OPTIMIERUNG] Filter wpcap_client_ip wirkt nur auf Orders::client_ip — _R2 Support_ (TODO L751; Audit Runde 4)
   - src/Orders.php:440, RateLimit.php:42: Filter in ClientIp::get() anwenden
-- [ ] **A406** [OPTIMIERUNG] Drei Template-Hooks nicht in HOOKS.md; kein CI-Abgleich — _R2 Support_ (TODO L752; Audit Runde 4)
+- [x] **A406** [OPTIMIERUNG] Drei Template-Hooks nicht in HOOKS.md; kein CI-Abgleich — _R2 Support_ (TODO L752; Audit Runde 4)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `tests/integration/modules/hooks_contract.php` gleicht Hooks in src/templates mit docs/HOOKS.md ab.
   - templates/event-card.php:13/22/85: Dokumentieren, Abgleich Code↔HOOKS.md als CI-Prüfung
 - [ ] **A407** [OPTIMIERUNG] Nur event-card.php per Theme überschreibbar — _R2 Support_ (TODO L753; Audit Runde 4)
   - src/PublicEvents.php:179: Template-Loader mit Theme-Override für Ticketseite, Portal, Servicebuchung, Warteliste, Mail-Layout
@@ -1409,7 +1422,8 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Fehlende base_url als Fehler werten, kein stiller Sandbox-Fallback.
 - [ ] **A656** [OPTIMIERUNG] Voucher Captain: release()/reserve() mit veraltetem Quote prüfen (anderes Repository) — _Sicherheitsaudit 14.11. #30_ (TODO L1111; Sicherheitsaudit 2026-11-14)
   - Im Voucher-Captain-Repository prüfen; hier nur Vertragstest der Bridge.
-- [ ] **A657** [OPTIMIERUNG] Integrationstests für Audit-Befunde (Mehrtypen-Kapazität, späte Gutscheinzahlung, CSV-\", Undo außerhalb Bereich) — _Sicherheitsaudit 14.11. #31_ (TODO L1112; Sicherheitsaudit 2026-11-14)
+- [x] **A657** [OPTIMIERUNG] Integrationstests für Audit-Befunde (Mehrtypen-Kapazität, späte Gutscheinzahlung, CSV-\", Undo außerhalb Bereich) — _Sicherheitsaudit 14.11. #31_ (TODO L1112; Sicherheitsaudit 2026-11-14)
+  - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `p3_performance.php` (Mehrtypen-Kapazität), `zz_a632.php` (späte Gutscheinzahlung), `reports.php`/`zz_a497.php` (CSV), `zz_a119.php`/`zz_a547.php` (Undo), `zzzzz_w9_access.php`.
   - Die vier Regressionstests ergänzen.
 - [ ] **A658** [OPTIMIERUNG] Lieferkette: jsQR-Herkunft/Prüfsumme, Seating-Editor-Senken, Zahlungslebensdauern, Branch-Protection — _Sicherheitsaudit 14.11. #32_ (TODO L1113; Sicherheitsaudit 2026-11-14)
   - Teilweise erledigt 16.11.: `assets/vendor/jsqr/SOURCE.txt` mit Herkunft, Lizenz und SHA-256, geprüft in `tests/consistency.php`. Offen: Version aus dem npm-Paket nachtragen, Seating-Editor-Senken, Zahlungslebensdauern, Branch-Protection (Repository-Einstellung).
