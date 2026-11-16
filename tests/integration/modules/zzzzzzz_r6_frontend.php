@@ -143,7 +143,8 @@ $GLOBALS['r6_permalinks'][13] = 'https://example.test/beitrag/';
 $GLOBALS['r6_permalinks'][14] = 'https://example.test/tickets-auto/';
 $auto = Ics::checkout_url( $last );
 // Merged design: calendar links use ?wpcap_occurrence= (the list layout opens its single view for it too).
-check( 'R6-2: without checkout_url the list page with the events shortcode/block is found (pages first, not a fixed-date page) and linked to the single view', 'https://example.test/tickets-auto/?wpcap_occurrence=' . $last . '#wpcap-occ-' . $last === $auto );
+// get_permalink() may be the stand-in of an earlier test file (whichever loads first): compare with page 14's own link.
+check( 'R6-2: without checkout_url the list page with the events shortcode/block is found (pages first, not a fixed-date page) and linked to the single view', add_query_arg( 'wpcap_occurrence', $last, (string) get_permalink( 14 ) ) . '#wpcap-occ-' . $last === $auto );
 Settings::update( array( 'calendar' => array( 'checkout_url' => 'https://example.test/kasse/', 'attach_ics' => 1 ) ) );
 check( 'R6-2: a configured checkout page wins', 0 === strpos( Ics::checkout_url( $last ), 'https://example.test/kasse/?wpcap_occurrence=' . $last ) );
 Settings::update( array( 'calendar' => array( 'checkout_url' => '', 'attach_ics' => 1 ) ) );
