@@ -1226,7 +1226,7 @@ Die Ticketsuche sucht jedes Feld über seinen Index statt mit `LIKE '%…%'` üb
 Bestellnummern sowie E-Mail-Adressen (Käufer, Ticket, Zuweisung) vom **Anfang** an (z. B. `anna@` oder die
 vollständige Adresse; ein Domainteil wie `example.com` allein findet nichts mehr), Teilnehmernamen ab dem Anfang
 des Namens oder eines Wortes (Vor- oder Nachname, Index `attendee_name` auf `wpcap_ticket_assignments`, Schema
-3.10.25). Je Feld werden höchstens 1000 Treffer gelesen; darüber zeigt die Seite einen Hinweis, die Suche genauer
+3.10.26). Je Feld werden höchstens 1000 Treffer gelesen; darüber zeigt die Seite einen Hinweis, die Suche genauer
 zu fassen.
 
 ### Bezahlt ohne Ticket: „Prüfung nötig“ (A337)

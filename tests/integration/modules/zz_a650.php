@@ -26,7 +26,7 @@ check( 'A650: an order entirely in scope is listed', in_array( (int) $x1_only['o
 check( 'A650: an order with tickets of a foreign event is not listed (no e-mail, total, foreign event name)', ! in_array( (int) $x1_mixed['order_id'], $x1_ids, true ) && 1 === (int) $x1_list['total'] && ! array_filter( $x1_list['rows'], static fn( $r ) => false !== strpos( (string) $r->event_names, 'X1 Fremdes Event' ) ) );
 $x1_all = Queries::search_orders( array( 'search' => 'x1-a650' ), null, 1, 50 );
 check( 'A650: without scope (administrators) both orders are listed', 2 === (int) $x1_all['total'] );
-check( 'A650: the scope matches can_access_order() (all events) and is shared by the refund and review lists', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/Queries.php' ), "\$scope = self::order_scope_sql( \$event_ids, 'r.order_id' );" ) );
+check( 'A650: the scope matches can_access_order() (all events) and is shared by the refund and review lists', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/Queries.php' ), "return self::order_scope_sql( \$event_ids, 'r.order_id' );" ) );
 
 // Code oracle.
 $x1_code = 'X1A650' . strtoupper( substr( uniqid(), -4 ) );

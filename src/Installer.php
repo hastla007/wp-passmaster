@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.25';
+	const DB_VERSION = '3.10.26';
 
 	public static function install() {
 		global $wpdb;

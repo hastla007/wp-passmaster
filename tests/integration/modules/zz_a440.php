@@ -23,7 +23,7 @@ ksort( $x2_a440_cols );
 check( 'A440: wpcap_checkins has KEY device_event_result (device_id, event_id, result)', array( 'device_id', 'event_id', 'result' ) === array_values( $x2_a440_cols ) );
 $x2_a440_explain = (array) $wpdb->get_row( "EXPLAIN SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE device_id=3 AND event_id=5 AND result='checked_in'", ARRAY_A );
 check( 'A440: the device counter can use that index', false !== strpos( (string) ( $x2_a440_explain['possible_keys'] ?? '' ), 'device_event_result' ) );
-check( 'A440: the schema version was raised for the new index', version_compare( PassCaptain\Installer::DB_VERSION, '3.10.25', '>=' ) );
+check( 'A440: the schema version was raised for the new index', version_compare( PassCaptain\Installer::DB_VERSION, '3.10.26', '>=' ) );
 
 $x2_a440_type = make_type( 10, 10, 0 );
 $x2_a440_event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$x2_a440_type" );

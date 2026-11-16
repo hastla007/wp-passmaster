@@ -12,7 +12,7 @@
  * published until the last package it signed has expired (grace), then it is pruned.
  *
  * Concurrency (A629): every change of the key option (first key, rotation, extended grace) runs under
- * the database lock GET_LOCK('<prefix>wpcap_offline_keys') and re-reads the option inside it, so a
+ * the DbLock lock `offline_keys` (unique per installation) and re-reads the option inside it, so a
  * rotation is never undone by a stale copy. Signing only reads the key option; the latest expiry
  * signed per key is kept in its own option (EXPIRY_OPTION) and raised under the same lock. A package
  * signed with a key that was retired meanwhile extends that key's grace instead of being lost.
@@ -80,15 +80,13 @@ final class Keys {
 	 * lock cannot be had within LOCK_WAIT seconds – nothing is changed then.
 	 */
 	private static function locked( callable $fn ) {
-		global $wpdb;
-		$name = substr( $wpdb->prefix . 'wpcap_offline_keys', 0, 64 );
-		if ( 1 !== (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,%d)', $name, self::LOCK_WAIT ) ) ) {
+		if ( ! \PassCaptain\DbLock::acquire( 'offline_keys', self::LOCK_WAIT ) ) {
 			throw new \RuntimeException( 'offline_key_busy' );
 		}
 		try {
 			return $fn();
 		} finally {
-			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
+			\PassCaptain\DbLock::release( 'offline_keys' );
 		}
 	}
 
