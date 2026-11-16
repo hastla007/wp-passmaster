@@ -171,6 +171,25 @@ Steuerprofil-Cache (`Tax\Profiles`, u. a. Veranstaltungsland je Termin-ID) und d
 (`OrderLines::ready()`, `Tax\Profiles::ready()`) waren nicht an die Site gebunden – nach `switch_to_blog()`
 lieferten sie Werte der vorherigen Site für dieselbe ID.
 
+## Multisite: Cross-Site-Tests (A479)
+
+Ein Subdirectory-Netzwerk (`example.org/a/`, `example.org/b/`) teilt Benutzer, Origin und Browserspeicher.
+Die Integrationstests simulieren es mit einer zweiten Site als Tabellenpräfix `<präfix>n2_` (gleiches Schema per
+`CREATE TABLE … LIKE`) und Attrappen in `tests/integration/bootstrap.php`: `$GLOBALS['wpcap_test_multisite']`
+(`is_multisite()`), `$GLOBALS['wpcap_test_blog_id']` (`get_current_blog_id()`), `$GLOBALS['wpcap_test_blog_members']`
+(`is_user_member_of_blog()`), `$GLOBALS['wpcap_test_blog_prefixes']` (`$wpdb->get_blog_prefix()`),
+`get_user_option()`/`update_user_option()` mit Site-Präfix und `$GLOBALS['wpcap_test_user_caps']` (`user_can()` je
+Benutzer). Abgedeckt:
+
+| Pfad | Test |
+|---|---|
+| Zugriffsbereich je Site, Upgrade-Kopie des netzwerkweiten Bereichs (A470) | `modules/zz_a470.php` |
+| Personalzuweisung nur für Site-Mitglieder mit Pass-Captain-Rolle, einheitliche Ablehnung (A471, A636) | `modules/zz_a471.php` |
+| Speicherschlüssel des Web-Scanners je Site/Benutzer (A472) | `modules/zz_a479.php` |
+| Offline-Warteschlange zweier Sites in einem `localStorage` (A472) | `tests/js/scanner.test.js` |
+| Offline-PWA: Datenbank und Kopplung je API-Basis, Altbestand (A473) | `tests/js/offline-scanner-sites.test.js` |
+| Tabellen, Caches und Optionen zweier Sites (A182) | `modules/zz_a182.php` |
+
 ## Last- und Nebenläufigkeitstests (`tests/load/`)
 
 ### Ohne Webserver: `tests/load/run.php`
