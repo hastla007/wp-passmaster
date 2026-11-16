@@ -127,7 +127,7 @@ final class TicketsPage {
 	 * Undoes a check-in: checked_in → valid, logged as a check-in row with result "undone" (with device
 	 * and source; the audit entry also names the area of the undone admission). Requires wpcap_checkin
 	 * for the ticket's event; refused for refunded tickets and tickets of closed orders and outside the
-	 * area binding of staff and device (Checkin::undo_guard(), A590).
+	 * area binding of staff and device (Checkin::undo_guard(), A590). A reason is required (A547).
 	 *
 	 * @param array $in      ticket_id, reason.
 	 * @param array $context Scanner context of the caller: device_id, area_id, source (default "admin").
@@ -136,6 +136,8 @@ final class TicketsPage {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_occurrence( $ticket->occurrence_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
+		// A547: every undo names its reason (admin list, web scanner, app).
+		if ( '' === Forms::text( $in, 'reason', 255 ) ) { return Forms::error( 'wpcap_undo_reason_required', __( 'Bitte einen Grund für die Rücknahme angeben.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
@@ -379,7 +381,7 @@ final class TicketsPage {
 							<?php endif; ?>
 							<?php if ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
 								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
-								<input type="text" name="reason" maxlength="255" placeholder="<?php esc_attr_e( 'Grund (optional)', 'pass-captain' ); ?>">
+								<input type="text" name="reason" maxlength="255" required aria-label="<?php esc_attr_e( 'Grund der Rücknahme', 'pass-captain' ); ?>" placeholder="<?php esc_attr_e( 'Grund (Pflicht)', 'pass-captain' ); ?>">
 								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>
 								</form>
 							<?php endif; ?>

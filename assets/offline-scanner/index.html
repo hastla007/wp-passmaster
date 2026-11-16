@@ -51,6 +51,19 @@
 			<div id="result-detail" class="small"></div>
 		</div>
 
+		<div id="undo" class="card undo" hidden>
+			<button type="button" id="undo-start" class="undo-start" data-i18n>Rückgängig</button>
+			<div id="undo-form" hidden>
+				<label><span data-i18n>Grund der Rücknahme</span><select id="undo-reason"></select></label>
+				<input id="undo-other" maxlength="255" hidden data-i18n-placeholder placeholder="Anderer Grund …">
+				<div class="row">
+					<button type="button" id="undo-confirm" class="primary" data-i18n>Einlass zurücknehmen</button>
+					<button type="button" id="undo-cancel" data-i18n>Abbrechen</button>
+				</div>
+				<div id="undo-note" class="small" role="alert"></div>
+			</div>
+		</div>
+
 		<div class="card">
 			<div class="row">
 				<button type="button" id="camera" class="primary" data-i18n>Kamera starten</button>

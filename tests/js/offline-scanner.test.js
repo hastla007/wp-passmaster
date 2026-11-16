@@ -28,7 +28,7 @@ function recordingElement() {
 		apply: () => element(),
 	});
 }
-function loadApp() {
+function loadApp(extra) {
 	const byId = new Map();
 	const window = {
 		document: { getElementById: (id) => { if (!byId.has(id)) byId.set(id, recordingElement()); return byId.get(id); }, querySelector: () => element(), querySelectorAll: () => [], createElement: () => element(), addEventListener() {} },
@@ -39,6 +39,7 @@ function loadApp() {
 		atob: (s) => Buffer.from(s, 'base64').toString('binary'),
 		setInterval() {}, setTimeout() {}, clearTimeout() {}, console,
 	};
+	Object.assign(window, extra || {});
 	window.window = window;
 	window.self = window;
 	window.globalThis = window;
@@ -255,4 +256,108 @@ test('A649: only the app API of this site is accepted as API base (?api=, pairin
 	assert.strictEqual(ok('https://example.test/x/../wp-json/pass-captain/v1/app/'), true, 'dot segments are resolved');
 	assert.strictEqual(ok('javascript:alert(1)'), false);
 	assert.strictEqual(ok(''), false);
+});
+
+/* A547: undo at the device, with a small in-memory IndexedDB so boot() wires the app completely. */
+function fakeIndexedDB() {
+	const stores = new Map();
+	const later = (fn) => setImmediate(fn);
+	function storeApi(name) {
+		const meta = stores.get(name);
+		const keyOf = (v, k) => (undefined !== k ? k : v[meta.keyPath]);
+		return {
+			get: (k) => ({ result: meta.data.has(k) ? structuredClone(meta.data.get(k)) : undefined }),
+			put: (v, k) => { meta.data.set(keyOf(v, k), structuredClone(v)); return {}; },
+			getAll: () => ({ result: Array.from(meta.data.values()).map((v) => structuredClone(v)) }),
+			delete: (k) => { meta.data.delete(k); return {}; },
+			clear: () => { meta.data.clear(); return {}; },
+			createIndex() {},
+			index: (field) => ({ getAll: (v) => ({ result: Array.from(meta.data.values()).filter((e) => e[field] === v).map((e) => structuredClone(e)) }) }),
+		};
+	}
+	const db = {
+		createObjectStore: (name, opts) => { stores.set(name, { keyPath: opts && opts.keyPath, data: new Map() }); return storeApi(name); },
+		transaction: (name) => { const tx = { objectStore: () => storeApi(name) }; later(() => tx.oncomplete && tx.oncomplete()); return tx; },
+	};
+	return {
+		stores,
+		open: () => { const r = {}; later(() => { r.result = db; if (!stores.size && r.onupgradeneeded) { r.onupgradeneeded(); } r.onsuccess(); }); return r; },
+	};
+}
+const settle = async () => { for (let i = 0; i < 30; i++) { await new Promise((r) => setImmediate(r)); } };
+async function undoApp() {
+	const idb = fakeIndexedDB();
+	const w2 = loadApp({ indexedDB: idb, addEventListener() {}, history: { replaceState() {} } });
+	await settle();
+	const a2 = w2.wpcapOffline;
+	a2.state.keys = { k1: { public_key: b64(keyPair.publicKey), status: 'active' } };
+	a2.state.deviceId = 'dev-1';
+	a2.state.token = 'tok';
+	a2.state.selected = 7;
+	return { w2, a2, idb, log: () => Array.from(idb.stores.get('log').data.values()) };
+}
+const sha = (code) => require('node:crypto').createHash('sha256').update(code).digest('hex');
+
+test('A547: the undo countdown of the PWA', () => {
+	assert.strictEqual(app.undoSecondsLeft(0, 0), 30);
+	assert.strictEqual(app.undoSecondsLeft(0, 29001), 1);
+	assert.strictEqual(app.undoSecondsLeft(0, 30000), 0);
+});
+
+test('A547: an offline admission not yet uploaded is taken back locally with a required reason', async () => {
+	const { w2, a2, log } = await undoApp();
+	const code = 'd'.repeat(64);
+	a2.state.packages[7] = entry([ { h: sha(code), t: 1, s: 'valid' } ]);
+	w2.navigator.onLine = false;
+	await a2.handleScan(code);
+	await settle();
+	assert.strictEqual(w2.document.getElementById('undo').hidden, false, 'undo offered');
+	assert.match(w2.document.getElementById('undo-start').textContent, /^Rückgängig/);
+	await a2.confirmUndo('');
+	assert.match(w2.document.getElementById('undo-note').textContent, /Grund/);
+	assert.strictEqual(log()[0].synced, 0, 'nothing changed without a reason');
+	await a2.confirmUndo('Fehlscan');
+	await settle();
+	const row = log()[0];
+	assert.deepStrictEqual({ synced: row.synced, code: row.code, decision: row.decision, ok: row.ok, reason: row.undo_reason }, { synced: 1, code: '', decision: 'undone', ok: false, reason: 'Fehlscan' });
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Einlass zurückgenommen');
+	assert.strictEqual(w2.document.getElementById('undo').hidden, true);
+	// The same ticket can be admitted again on this device.
+	a2.lastScan().at = 0;
+	await a2.handleScan(code);
+	await settle();
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Einlass OK (offline)');
+});
+
+test('A547: an online admission is taken back via POST /app/scan/undo with ticket_public_id and reason', async () => {
+	const { w2, a2 } = await undoApp();
+	const calls = [];
+	w2.fetch = (url, opts) => {
+		calls.push({ url, body: opts.body ? JSON.parse(opts.body) : null });
+		const body = /scan\/undo/.test(url) ? { ok: true, result: 'undone' } : { ok: true, result: 'checked_in', ticket_public_id: 'a'.repeat(32) };
+		return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+	};
+	await a2.handleScan('e'.repeat(64));
+	await settle();
+	assert.strictEqual(w2.document.getElementById('undo').hidden, false);
+	await a2.confirmUndo('Doppelt gescannt');
+	await settle();
+	const undo = calls.find((c) => /scan\/undo/.test(c.url));
+	assert.ok(undo, 'undo request sent');
+	assert.deepStrictEqual({ id: undo.body.ticket_public_id, reason: undo.body.reason }, { id: 'a'.repeat(32), reason: 'Doppelt gescannt' });
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Einlass zurückgenommen');
+});
+
+test('A547: a refused online undo is shown in red and keeps the admission', async () => {
+	const { w2, a2, log } = await undoApp();
+	w2.fetch = (url) => {
+		const body = /scan\/undo/.test(url) ? { ok: false, result: 'wrong_area', code: 'wpcap_undo_wrong_area', message: 'Anderer Bereich' } : { ok: true, result: 'checked_in', ticket_public_id: 'b'.repeat(32) };
+		return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+	};
+	await a2.handleScan('f'.repeat(64));
+	await settle();
+	await a2.confirmUndo('Fehlscan');
+	await settle();
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Rückgängig nicht möglich');
+	assert.strictEqual(log()[0].ok, true);
 });

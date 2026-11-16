@@ -216,7 +216,7 @@ final class Engine {
 	 * Takes back the latest entry of a ticket with a repeatable policy (ticket status stays valid).
 	 * Refused for refunded tickets, tickets of closed orders and outside the area binding of staff and
 	 * device (Checkin::undo_guard(), A590). The undo row carries device and source; the audit entry
-	 * also the area of the undone entry.
+	 * also the area of the undone entry. A reason is required (A547).
 	 *
 	 * @param array $context Scanner context: device_id, area_id, source.
 	 * @return array|\WP_Error
@@ -224,6 +224,11 @@ final class Engine {
 	public static function undo_last( array $found, $reason = '', array $context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$reason = mb_substr( sanitize_text_field( (string) $reason ), 0, 255 );
+		if ( '' === $reason ) {
+			// A547: every undo names its reason.
+			return new \WP_Error( 'wpcap_undo_reason_required', __( 'Bitte einen Grund für die Rücknahme angeben.', 'pass-captain' ), array( 'status' => 400, 'result' => 'reason_required' ) );
+		}
 		$busy = static function () use ( $wpdb ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Einlass konnte gerade nicht zurückgenommen werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );

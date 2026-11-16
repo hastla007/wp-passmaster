@@ -39,7 +39,17 @@
 		return found && (found.direction || 'in') === 'in' ? found : null;
 	}
 	const REQUEST_TIMEOUT_MS = 5000;
-	window.wpcapScannerLogic = { scanCode: scanCode, classifyAnswer: classifyAnswer, queuedAdmission: queuedAdmission, REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS };
+	/* A547: "Rückgängig" is offered for UNDO_MS after an admission; whole seconds left (0 = gone). */
+	const UNDO_MS = 30000;
+	function undoSecondsLeft(startedAt, now) {
+		return Math.max(0, Math.ceil((startedAt + UNDO_MS - now) / 1000));
+	}
+	/* Reason of an undo: the chosen preset, or the typed text for "other"; '' when none. */
+	function undoReason(choice, other) {
+		const value = choice === '__other' ? String(other || '') : String(choice || '');
+		return value.trim().slice(0, 255);
+	}
+	window.wpcapScannerLogic = { scanCode: scanCode, classifyAnswer: classifyAnswer, queuedAdmission: queuedAdmission, undoSecondsLeft: undoSecondsLeft, undoReason: undoReason, REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS, UNDO_MS: UNDO_MS };
 
 	const root = document.querySelector('.wpcap-scanner');
 	if (!root || !window.WPCAP_SCANNER) return;
@@ -211,8 +221,11 @@
 		overlay.addEventListener('click', function () { hideOverlay(); input.focus(); });
 		document.addEventListener('keydown', function () { if (!overlay.hidden) hideOverlay(); });
 	}
+	// Current undo offer (A547); a new result replaces it.
+	let undoOffer = null;
 	// show(state, text[, details]): details = { title, lines } for the full-screen overlay.
 	function show(state, text, details) {
+		undoOffer = null;
 		result.textContent = '';
 		result.dataset.state = state;
 		const icon = document.createElement('span');
@@ -234,6 +247,97 @@
 	// Short help code ("K7QM-4XWA"): 8 characters without 0/O/1/I; only checkable online.
 	function looksLikeHelpCode(value) {
 		return /^[2-9A-HJ-NP-Z]{8}$/.test(String(value || '').toUpperCase().replace(/[\s\-_.]+/g, ''));
+	}
+	/*
+	 * A547: "Rückgängig (30 s)" under an admission. Online admissions are taken back on the server with
+	 * a required reason (preset or typed); the server allows it only for the own admission shortly
+	 * after the scan and checks area and refund state (Checkin::undo_guard()). A scan queued offline
+	 * was never booked: it is just removed from the queue.
+	 * what: { publicId } (online admission) or { queuedKey } (offline queue entry).
+	 */
+	function offerUndo(what) {
+		if (!what || (!what.queuedKey && !(what.publicId && window.WPCAP_SCANNER.undoUrl))) return;
+		const offer = { started: Date.now() };
+		undoOffer = offer;
+		const box = document.createElement('div');
+		box.className = 'wpcap-undo';
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.className = 'button wpcap-undo-button';
+		box.appendChild(button);
+		result.appendChild(box);
+		function label() {
+			const left = undoSecondsLeft(offer.started, Date.now());
+			button.textContent = (t.undo || 'Undo (%d s)').replace('%d', String(left));
+			return left;
+		}
+		function tick() {
+			if (undoOffer !== offer || offer.open) return;
+			if (label() <= 0) { box.hidden = true; undoOffer = null; return; }
+			window.setTimeout(tick, 1000);
+		}
+		label();
+		window.setTimeout(tick, 1000);
+		button.addEventListener('click', function () {
+			if (undoOffer !== offer || undoSecondsLeft(offer.started, Date.now()) <= 0) return;
+			if (what.queuedKey) {
+				removeSent([what.queuedKey]);
+				updateQueueButton();
+				show('warning', t.undoneQueued || 'Offline admission discarded.');
+				input.focus();
+				return;
+			}
+			offer.open = true;
+			button.hidden = true;
+			reasonForm(box, what.publicId);
+		});
+	}
+	function reasonForm(box, publicId) {
+		const label = document.createElement('label');
+		label.textContent = (t.undoReason || 'Reason') + ' ';
+		const select = document.createElement('select');
+		const options = [['', t.undoChoose || '—']].concat((window.WPCAP_SCANNER.undoReasons || []).map(function (r) { return [r, r]; }), [['__other', t.undoOther || 'Other …']]);
+		options.forEach(function (entry) {
+			const option = document.createElement('option');
+			option.value = entry[0];
+			option.textContent = entry[1];
+			select.appendChild(option);
+		});
+		label.appendChild(select);
+		const other = document.createElement('input');
+		other.type = 'text';
+		other.maxLength = 255;
+		other.hidden = true;
+		other.setAttribute('aria-label', t.undoOther || 'Other reason');
+		select.addEventListener('change', function () { other.hidden = select.value !== '__other'; if (!other.hidden) other.focus(); });
+		const confirm = document.createElement('button');
+		confirm.type = 'button';
+		confirm.className = 'button wpcap-undo-confirm';
+		confirm.textContent = t.undoConfirm || 'Undo admission';
+		const note = document.createElement('span');
+		note.className = 'wpcap-undo-note';
+		confirm.addEventListener('click', async function () {
+			const reason = undoReason(select.value, other.value);
+			if (!reason) { note.textContent = ' ' + (t.undoNeedReason || 'Please choose a reason.'); return; }
+			confirm.disabled = true;
+			try {
+				const response = await fetch(window.WPCAP_SCANNER.undoUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ ticket_public_id: publicId, reason: reason, area_id: areaId }) });
+				const data = await response.json().catch(function () { return null; });
+				if (response.ok && data && data.result === 'undone') {
+					show('warning', t.undone || 'Admission undone.');
+				} else {
+					show('error', (data && typeof data.message === 'string' && data.message) || t.systemError || 'Error');
+				}
+			} catch (error) {
+				show('warning', (t.systemError || 'System error.') + ' (' + error.message + ')');
+			}
+			input.focus();
+		});
+		box.appendChild(label);
+		box.appendChild(other);
+		box.appendChild(confirm);
+		box.appendChild(note);
+		select.focus();
 	}
 	let stream = null;
 	let locked = false;
@@ -345,6 +449,7 @@
 		items.push({ token: token, idempotency_key: key || uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, occurrence_id: occurrenceId, direction: mode });
 		saveQueue(items);
 		show('warning', t.queued || 'Saved offline.');
+		offerUndo({ queuedKey: items[items.length - 1].idempotency_key });
 		updateQueueButton();
 	}
 	// Offline the code cannot be checked: never shown as admitted. Only codes that look like a ticket are
@@ -401,6 +506,7 @@
 	}
 	const syncButton = document.createElement('button');
 	syncButton.type = 'button';
+	syncButton.className = 'wpcap-sync';
 	syncButton.textContent = t.syncButton || 'Sync offline scans';
 	syncButton.hidden = true;
 	root.appendChild(syncButton);
@@ -539,6 +645,7 @@
 			const hint = data.staff_hint && !out ? '⚠ ' + data.staff_hint : '';
 			const lines = [[data.event, data.ticket].filter(Boolean).join(' — '), data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
 			show('success', (out ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + lines.join(' — '), { title: out ? (t.checkedOutTitle || 'OUT') : (t.admitted || 'OK'), lines: lines });
+			if (!out) offerUndo({ publicId: data.ticket_public_id });
 		} catch (error) {
 			show('warning', (t.systemError || 'System error – scan again.') + ' (' + error.message + ')');
 		} finally {

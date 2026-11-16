@@ -27,6 +27,7 @@ function wpcap_test_rest_registrars() {
 		'src/Exchange/Portal.php' => array( PassCaptain\Exchange\Portal::class, 'register_routes' ),
 		'src/Admission/Rest.php' => array( PassCaptain\Admission\Rest::class, 'routes' ),
 		'src/PortalSelfService.php' => array( PassCaptain\PortalSelfService::class, 'register_routes' ),
+		'src/ScannerDesk.php' => array( PassCaptain\ScannerDesk::class, 'routes' ),
 	);
 }
 

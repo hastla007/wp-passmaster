@@ -9,10 +9,8 @@
  */
 namespace PassCaptain\Mobile;
 
-use PassCaptain\Admin\TicketsPage;
 use PassCaptain\Admission\Areas;
 use PassCaptain\Admission\Engine;
-use PassCaptain\Admission\Policies;
 use PassCaptain\Checkin;
 use PassCaptain\RateLimit;
 
@@ -144,34 +142,15 @@ final class Api {
 	}
 
 	/**
-	 * Takes back the latest admission of a ticket. The device's events, the area binding of device and
-	 * user and the void check apply (Checkin::undo_guard(), A590); the undo is logged with the device.
+	 * Takes back the latest admission of a ticket (by `code` or `ticket_public_id`) with a required
+	 * `reason` (A547). The device's events, the area binding of device and user and the void check
+	 * apply (Checkin::undo_guard(), A590); the undo is logged with the device.
 	 */
 	public static function undo( \WP_REST_Request $request ) {
 		$context = self::context( $request );
-		$found = Checkin::lookup( $request->get_param( 'code' ), null, true, $context );
-		if ( is_wp_error( $found ) ) { return self::scan_response( Checkin::public_error( $found ) ); }
-		if ( ! in_array( (int) $found['event_id'], $context['event_ids'], true ) ) {
-			return self::scan_response( new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'pass-captain' ), array( 'result' => 'wrong_event' ) ) );
-		}
-		if ( ! \PassCaptain\Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin' ) ) {
-			return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
-		}
 		$context['source'] = 'app';
-		$policy = Policies::for_type( $found['ticket_type_id'] );
-		if ( $policy && 'single' !== $policy['policy'] ) {
-			$result = Engine::undo_last( $found, (string) $request->get_param( 'reason' ), $context );
-		} else {
-			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => (string) $request->get_param( 'reason' ) ), $context );
-		}
-		if ( is_wp_error( $result ) ) {
-			$data = (array) $result->get_error_data();
-			$codes = array( 'wpcap_undo_wrong_area' => 'wrong_area', 'wpcap_undo_refunded' => 'revoked', 'wpcap_ticket_not_checked_in' => 'not_checked_in', 'wpcap_admin_forbidden' => 'forbidden', 'wpcap_ticket_missing' => 'unknown' );
-			if ( empty( $data['result'] ) ) { $data['result'] = $codes[ $result->get_error_code() ] ?? ( 503 === (int) ( $data['status'] ?? 0 ) ? 'retry' : 'error' ); }
-			if ( 503 === (int) ( $data['status'] ?? 0 ) ) { $data['retryable'] = true; }
-			return self::scan_response( new \WP_Error( $result->get_error_code(), $result->get_error_message(), $data ) );
-		}
-		return rest_ensure_response( array( 'ok' => true, 'result' => 'undone', 'ticket_public_id' => $found['public_id'] ) );
+		$result = \PassCaptain\ScannerDesk::undo( array( 'code' => $request->get_param( 'code' ), 'ticket_public_id' => $request->get_param( 'ticket_public_id' ), 'reason' => $request->get_param( 'reason' ) ), $context );
+		return is_wp_error( $result ) ? self::scan_response( $result ) : rest_ensure_response( $result );
 	}
 
 	/**

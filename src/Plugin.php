@@ -96,6 +96,7 @@ final class Plugin {
 		Notifications::register();
 		TicketCodes::register();
 		CodeHistory::register();
+		ScannerDesk::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
 		PageCache::register();

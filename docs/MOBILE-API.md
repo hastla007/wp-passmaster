@@ -66,7 +66,7 @@ Authorization: Bearer wpcapd_<device>_<secret>
 | POST | `/app/scan/validate` | Vorschau ohne Einlass |
 | POST | `/app/scan/check-in` | Einlass (benötigt `idempotency_key`) |
 | POST | `/app/scan/check-out` | Auslass/Check-out (benötigt `idempotency_key`) |
-| POST | `/app/scan/undo` | Einlass zurücknehmen (mit `reason`); nur in den Events des Geräts und im Bereich von Gerät und Person, nie für erstattete Tickets (siehe unten) |
+| POST | `/app/scan/undo` | Einlass zurücknehmen (`code` oder `ticket_public_id`, **`reason` Pflicht**); nur in den Events des Geräts und im Bereich von Gerät und Person, nie für erstattete Tickets (siehe unten) |
 | POST | `/app/scan/sync` | Offline-Scans hochladen (1–200) |
 | POST | `/app/logout` | Gerät widerrufen |
 
@@ -108,12 +108,14 @@ Ist das Gerät keinem Bereich fest zugeordnet, kann die App den Bereich pro Scan
 
 **Gerätebindung:** Ein Gerät scannt nur Tickets seiner freigegebenen Events; ein Gerät ohne Events (z. B. alte Kopplung) wird für alle Events abgelehnt (`wrong_event`).
 
-**Einlass zurücknehmen** (`/app/scan/undo`, Admin: Tickets → „Check-in zurücknehmen“, A590):
+**Einlass zurücknehmen** (`/app/scan/undo`, Web-Scanner `/scanner/undo`, Admin: Tickets → „Check-in zurücknehmen“, A590, A547):
+- Ticket per `code` oder `ticket_public_id` (z. B. aus der Suche oder einem Einlass ohne Code). Ein **Grund** (`reason`, bis 255 Zeichen) ist überall Pflicht – App, Web-Scanner und Admin; ohne Grund: `ok: false`, `result: "reason_required"` (Web-Scanner und Admin: HTTP 400). Achtung für bestehende Apps: Rücknahmen ohne `reason` werden seit A547 abgelehnt.
 - Nur für Events des Geräts und mit Einlassrecht für den Termin.
 - Erstattete Tickets und Tickets stornierter, erstatteter oder abgelaufener Bestellungen: abgelehnt (`result: revoked`), sonst wäre das Ticket wieder einlassfähig. Solche Tickets lassen auch beim Scan nie ein (`revoked`), selbst wenn ihr Status noch `valid` ist.
 - Bereichsbindung wie beim Check-in: Ein Gerät mit festem Bereich (bzw. die mitgesendete `area_id`) nimmt nur Einlässe durch diesen Bereich zurück; Personal, das Einlassbereichen des Events zugewiesen ist, nur Einlässe durch seine Bereiche (`result: wrong_area`). Administratoren sind nicht beschränkt.
 - Die Rücknahme wird mit Gerät und Quelle (`app`, im Admin `admin`) protokolliert; der Audit-Eintrag `checkin_undone` enthält zusätzlich `device_id` und `area_id` des zurückgenommenen Einlasses.
-- Eine Begrenzung auf eigene Scans oder ein Zeitfenster gibt es nicht (offene Betreiberentscheidung).
+- Web-Scanner (`POST /pass-captain/v1/scanner/undo` mit `ticket_public_id`, `reason`, optional `area_id`; Cookie + REST-Nonce): nur der **eigene letzte Einlass** der angemeldeten Person und nur kurz nach dem Scan (Filter `wpcap_scanner_undo_seconds`, Standard 120 s; der Scanner zeigt „Rückgängig (30 s)“ 30 Sekunden lang). Fremde oder ältere Einlässe: `result: "undo_not_allowed"` – die nimmt die Einlassleitung im Admin unter **Tickets** zurück. Die Gründe zur Auswahl (Fehlscan, doppelt gescannt, Gast nicht eingetreten, falscher Termin/Bereich) liefert `ScannerDesk::undo_reasons()`; ein eigener Grund kann eingetippt werden. Ein nur offline gespeicherter Web-Scan wurde nie gebucht: „Rückgängig“ entfernt ihn aus der Warteschlange.
+- Für die App gibt es weiterhin keine Begrenzung auf eigene Scans oder ein Zeitfenster (Gerätebindung und Bereich gelten); die Offline-Scanner-PWA bietet „Rückgängig“ wie der Web-Scanner 30 s nach dem eigenen Einlass an.
 
 ### Ergebnis-Codes (`result`)
 
@@ -141,6 +143,9 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 | `checked_out` | (nur `check-out`) Auslass erfolgt | grün |
 | `not_checked_in` | (nur `check-out`) Ticket ist nicht eingecheckt | gelb |
 | `forbidden` | Person hat keinen Einlasszugriff (mehr) | rot, neu koppeln |
+| `undone` | (nur `undo`) Einlass zurückgenommen, Ticket wieder gültig | gelb |
+| `reason_required` | (nur `undo`) Grund fehlt | gelb, Grund abfragen |
+| `undo_not_allowed` | (nur Web-Scanner-`undo`) nicht der eigene Einlass oder älter als das Zeitfenster | gelb, an Einlassleitung verweisen |
 
 HTTP-Fehler gibt es nur bei Authentifizierung (401), Berechtigung oder Rate-Limit (403/429) und ungültigen Anfragen (400).
 

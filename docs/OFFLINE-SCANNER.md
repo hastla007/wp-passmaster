@@ -189,6 +189,13 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
     codes, see docs/SECURITY.md); offline the app asks for the QR code or the long code instead.
   - Result: large coloured box, distinct tones (WebAudio, “Sound on/off” per device) and vibration
     patterns; online results show “first admission” or “already admitted at …” from the server.
+  - **Undo (A547):** for 30 s after an admission the app offers “Rückgängig”. A reason is required
+    (four presets or own text). An online admission – or an offline one that is already uploaded –
+    is taken back with `POST /app/scan/undo` (`ticket_public_id`, `reason`, area of the scan); the
+    server checks device events, area binding and refunds (`Checkin::undo_guard()`). An offline
+    admission that is not uploaded yet was never booked: it is marked `undone` in the local log (with
+    the reason), never uploaded, and the ticket can be admitted again on this device. While a sync is
+    running the undo waits (“Synchronisierung läuft”).
 - **Log and sync:** every scan is logged locally with its idempotency key. Offline admissions are
   uploaded through `POST /app/scan/sync` (batches of 200) when the device is online, on reconnect and
   every 30 s. The ticket code is kept only until the upload succeeded. Server conflicts, including

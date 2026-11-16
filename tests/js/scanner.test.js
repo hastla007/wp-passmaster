@@ -103,7 +103,7 @@ function loadScanner(options = {}) {
 		localStorage: options.storage || storage(),
 		crypto: { randomUUID: require('node:crypto').randomUUID },
 		AbortController,
-		WPCAP_SCANNER: { checkinUrl: '/tickets/check-in', offlineSyncUrl: '/tickets/offline-sync', nonce: 'n', i18n: {} },
+		WPCAP_SCANNER: { checkinUrl: '/tickets/check-in', offlineSyncUrl: '/tickets/offline-sync', undoUrl: '/scanner/undo', undoReasons: ['Fehlscan', 'Doppelt gescannt'], nonce: 'n', i18n: { undo: 'Rückgängig (%d s)' } },
 		WPCAP_ADMISSION: { checkinUrl: '/admission/check-in', checkoutUrl: '/admission/check-out', offlineSyncUrl: '/admission/offline-sync', areas: [], i18n: {} },
 		WPCAP_SCANNER_PRIVACY: options.privacy || { owner: 'u1' },
 		setTimeout: (fn, ms) => { timers.push({ fn, at: clock + (ms || 0), done: false }); return timers.length; },
@@ -282,9 +282,8 @@ test('A315: an HTML answer with status 200 to the offline sync keeps the queued 
 	admitButton(env).dispatch('click');
 	env.window.navigator.onLine = true;
 	env.fetchImpl = async () => response(200, '<html>login</html>');
-	// The sync button is the only <button> the scanner appends to its root.
 	const root = env.window.document.querySelector('.wpcap-scanner');
-	const syncButton = root.find((c) => c.tagName === 'BUTTON');
+	const syncButton = root.find((c) => c.className === 'wpcap-sync');
 	syncButton.dispatch('click');
 	await flush();
 	assert.strictEqual(env.queue().length, 1, 'nothing removed');
@@ -388,4 +387,80 @@ test('A472: the per-user queue of the previous version is adopted once, entrance
 	assert.strictEqual(b.queue().length, 0, 'adopted by one site only');
 	shared.setItem('wpcap-scanner-prefs-v2-siteA', JSON.stringify({ area: 3 }));
 	assert.strictEqual(shared.getItem('wpcap-scanner-prefs-v2-siteB'), null);
+});
+
+const byClass = (env, cls) => env.el.result.find((c) => (c.className || '').split(' ').indexOf(cls) !== -1);
+
+test('A547 logic: undo countdown and reason', () => {
+	const env = loadScanner();
+	assert.strictEqual(env.logic.UNDO_MS, 30000);
+	assert.strictEqual(env.logic.undoSecondsLeft(1000, 1000), 30);
+	assert.strictEqual(env.logic.undoSecondsLeft(1000, 30500), 1);
+	assert.strictEqual(env.logic.undoSecondsLeft(1000, 31000), 0);
+	assert.strictEqual(env.logic.undoReason('', ''), '');
+	assert.strictEqual(env.logic.undoReason('__other', '   '), '');
+	assert.strictEqual(env.logic.undoReason('__other', ' Gast umgekehrt '), 'Gast umgekehrt');
+	assert.strictEqual(env.logic.undoReason('Fehlscan', 'ignored'), 'Fehlscan');
+});
+
+test('A547: "Rückgängig" after an admission asks for a required reason and calls the undo route', async () => {
+	const env = loadScanner();
+	env.fetchImpl = async () => response(200, { status: 'checked_in', event: 'E', ticket: 'T', ticket_public_id: 'f'.repeat(32) });
+	await scan(env, T1);
+	const button = byClass(env, 'wpcap-undo-button');
+	assert.ok(button, 'undo offered');
+	assert.match(button.textContent, /Rückgängig \(30 s\)/);
+	button.dispatch('click');
+	const confirm = byClass(env, 'wpcap-undo-confirm');
+	const select = env.el.result.find((c) => c.tagName === 'SELECT');
+	assert.ok(confirm && select, 'reason form shown');
+	confirm.dispatch('click');
+	await flush();
+	assert.strictEqual(env.requests.length, 1, 'no undo request without a reason');
+	assert.ok(byClass(env, 'wpcap-undo-note').textContent.trim().length > 0, 'asks for the reason');
+	select.value = 'Fehlscan';
+	env.fetchImpl = async () => response(200, { ok: true, result: 'undone', ticket_public_id: 'f'.repeat(32) });
+	confirm.dispatch('click');
+	await flush();
+	assert.strictEqual(env.requests.length, 2);
+	assert.strictEqual(env.requests[1].url, '/scanner/undo');
+	assert.deepStrictEqual({ id: env.requests[1].body.ticket_public_id, reason: env.requests[1].body.reason }, { id: 'f'.repeat(32), reason: 'Fehlscan' });
+	assert.strictEqual(env.el.result.dataset.state, 'warning');
+	assert.ok(!byClass(env, 'wpcap-undo-button'), 'offer gone after the undo');
+});
+
+test('A547: a refused undo (other person, too late, other area) is shown as error', async () => {
+	const env = loadScanner();
+	env.fetchImpl = async () => response(200, { status: 'checked_in', event: 'E', ticket: 'T', ticket_public_id: 'e'.repeat(32) });
+	await scan(env, T1);
+	byClass(env, 'wpcap-undo-button').dispatch('click');
+	env.el.result.find((c) => c.tagName === 'SELECT').value = 'Doppelt gescannt';
+	env.fetchImpl = async () => response(403, { code: 'wpcap_undo_wrong_area', message: 'Anderer Bereich', data: { status: 403, result: 'wrong_area' } });
+	byClass(env, 'wpcap-undo-confirm').dispatch('click');
+	await flush();
+	assert.strictEqual(env.el.result.dataset.state, 'error');
+	assert.match(env.el.result.textContent, /Anderer Bereich/);
+});
+
+test('A547: no undo for check-outs, refusals or answers without a ticket id', async () => {
+	const env = loadScanner();
+	env.fetchImpl = async () => response(404, { code: 'wpcap_ticket_not_found', message: 'x', data: { status: 404 } });
+	await scan(env, T1);
+	assert.ok(!byClass(env, 'wpcap-undo-button'));
+	env.advance(1400);
+	env.fetchImpl = async () => response(200, { status: 'checked_in', event: 'E' });
+	await scan(env, T2);
+	assert.ok(!byClass(env, 'wpcap-undo-button'));
+});
+
+test('A547: an offline-queued admission can be taken back locally (nothing was booked)', async () => {
+	const env = loadScanner();
+	env.window.navigator.onLine = false;
+	await scan(env, T1);
+	admitButton(env).dispatch('click');
+	assert.strictEqual(env.queue().length, 1);
+	byClass(env, 'wpcap-undo-button').dispatch('click');
+	assert.strictEqual(env.queue().length, 0, 'removed from the queue');
+	assert.strictEqual(env.el.result.dataset.state, 'warning');
+	assert.strictEqual(env.requests.length, 0);
 });

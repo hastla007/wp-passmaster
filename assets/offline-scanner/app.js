@@ -34,7 +34,8 @@
 		legacyApi: '', // API base of the database of versions before A473
 		packages: {}, // occurrence_id -> { record, index: Map, meta, error }
 		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
-		busy: false, lastRefresh: 0,
+		busy: false, lastRefresh: 0, syncing: false,
+		undo: null, undoTimer: 0, // A547: current undo offer { key, started, occurrenceId, hash, area, publicId, open }
 		forceFull: {} // occurrence_id -> true after a broken delta chain
 	};
 
@@ -164,7 +165,7 @@
 		wrong_event: 'Falsches Event', wrong_occurrence: 'Falscher Termin', wrong_area: 'Falscher Einlassbereich',
 		cancelled_event: 'Termin abgesagt', out_of_window: 'Außerhalb des Einlasszeitraums', not_valid_today: 'Heute nicht gültig',
 		daily_limit_reached: 'Tageskontingent erreicht', entry_limit_reached: 'Einlasslimit erreicht', outside_entry_window: 'Außerhalb des Einlassfensters',
-		already_inside: 'Bereits drinnen', area_full: 'Bereich voll', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
+		already_inside: 'Bereits drinnen', area_full: 'Bereich voll', undone: 'Einlass zurückgenommen', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
 		invalid_code: 'Kein Ticketcode erkannt', rate_limited: 'Zu viele Hilfscode-Eingaben'
 	};
 	function resultText(code) { return RESULT_TEXT[code] ? t(RESULT_TEXT[code]) : code; }
@@ -210,6 +211,8 @@
 	}
 
 	function showResult(kind, title, detail) {
+		// A new result ends the undo offer of the previous admission (A547).
+		if (state.undo && !state.undo.open) { state.undo = null; renderUndo(); }
 		var box = $('result');
 		box.className = 'result ' + kind;
 		$('result-title').textContent = title;
@@ -600,6 +603,7 @@
 				var ok = 'ok' === kind;
 				if (ok) { markAdmitted(occurrenceId, hash); }
 				showResult(kind, resultText(res.result), onlineDetail(res));
+				if (ok) { offerUndo({ key: key, occurrenceId: occurrenceId, hash: hash, area: area, publicId: res.ticket_public_id }); }
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
 			}, function (err) {
 				// Network errors, timeouts and server outages fall back to the offline decision; only a
@@ -619,6 +623,7 @@
 				if (d.ok) {
 					markAdmitted(occurrenceId, hash);
 					showResult('ok', t('Einlass OK (offline)'), [typeName, name, hint, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : ''].filter(Boolean).join(' · '));
+					offerUndo({ key: key, occurrenceId: occurrenceId, hash: hash, area: area });
 				} else {
 					showResult('bad', resultText(d.result), [typeName, name, t('offline')].filter(Boolean).join(' · '));
 				}
@@ -628,10 +633,95 @@
 		}).then(renderLog);
 	}
 
+	/* ---------------- undo (A547) ---------------- */
+
+	var UNDO_MS = 30000;
+	/** Reasons offered at the device (same as the web scanner); a typed reason is possible, too. */
+	var UNDO_REASONS = [t('Fehlscan (falsches Ticket gescannt)'), t('Doppelt gescannt'), t('Gast hat den Einlass nicht betreten'), t('Falscher Termin oder Bereich')];
+	function undoSecondsLeft(started, at) { return Math.max(0, Math.ceil((started + UNDO_MS - at) / 1000)); }
+
+	/** Offers "Rückgängig" for 30 s after an admission of this device. */
+	function offerUndo(offer) {
+		state.undo = { key: offer.key, started: Date.now(), occurrenceId: offer.occurrenceId, hash: offer.hash, area: offer.area || 0, publicId: offer.publicId || '', open: false };
+		var sel = $('undo-reason');
+		if (sel && !sel.options.length) {
+			[['', t('– Grund wählen –')]].concat(UNDO_REASONS.map(function (r) { return [r, r]; }), [['__other', t('Anderer Grund …')]]).forEach(function (entry) {
+				var o = el('option', entry[1]);
+				o.value = entry[0];
+				sel.appendChild(o);
+			});
+		}
+		renderUndo();
+	}
+	function renderUndo() {
+		var box = $('undo');
+		var u = state.undo;
+		clearTimeout(state.undoTimer);
+		var left = u ? undoSecondsLeft(u.started, Date.now()) : 0;
+		if (!u || (left <= 0 && !u.open)) { box.hidden = true; state.undo = null; return; }
+		box.hidden = false;
+		$('undo-start').hidden = u.open;
+		$('undo-start').textContent = t('Rückgängig (%1 s)', left);
+		$('undo-form').hidden = !u.open;
+		if (!u.open) { state.undoTimer = setTimeout(renderUndo, 1000); }
+	}
+	function undoReason() {
+		var v = $('undo-reason').value;
+		return String('__other' === v ? $('undo-other').value : v || '').trim().slice(0, 255);
+	}
+	function unmarkAdmitted(occurrenceId, hash) {
+		if (state.admitted[occurrenceId]) { state.admitted[occurrenceId].delete(hash); }
+	}
+	function getLog(key) { return idb('log', 'readonly', function (s) { return s.get(key); }); }
+
+	/**
+	 * Takes the offered admission back. Online admissions (and offline ones that are already uploaded)
+	 * go to POST /app/scan/undo with the reason – the server checks device, area and refund state
+	 * (Checkin::undo_guard()). An offline admission that is not uploaded yet was never booked: it is
+	 * marked as undone in the local log and never uploaded.
+	 */
+	function confirmUndo(reason) {
+		var u = state.undo;
+		if (!u) { return Promise.resolve(); }
+		$('undo-note').textContent = '';
+		if (!reason) { $('undo-note').textContent = t('Bitte einen Grund wählen oder eingeben.'); return Promise.resolve(); }
+		if (state.syncing) { $('undo-note').textContent = t('Synchronisierung läuft – bitte gleich erneut versuchen.'); return Promise.resolve(); }
+		var done = function (entry, text) {
+			unmarkAdmitted(u.occurrenceId, u.hash);
+			state.undo = null;
+			renderUndo();
+			showResult('warn', t('Einlass zurückgenommen'), text);
+			if (!entry) { return null; }
+			entry.ok = false;
+			entry.decision = 'undone';
+			entry.undo_reason = reason;
+			return put('log', entry);
+		};
+		return getLog(u.key).then(function (entry) {
+			if (entry && !entry.synced) {
+				entry.synced = 1;
+				entry.code = '';
+				return done(entry, t('Offline-Einlass verworfen – er wird nicht hochgeladen.'));
+			}
+			var publicId = u.publicId || (entry && entry.server && entry.server.ticket_public_id) || '';
+			if (!publicId) { showResult('bad', t('Rückgängig nicht möglich'), t('Nur online möglich.')); return null; }
+			return api('POST', 'scan/undo', { ticket_public_id: publicId, reason: reason, area_id: u.area }, null, 8000).then(function (res) {
+				if (res && true === res.ok) { return done(entry, t('Das Ticket ist wieder gültig.')); }
+				showResult('bad', t('Rückgängig nicht möglich'), res && res.message ? res.message : '');
+				return null;
+			}, function (err) {
+				if (handleAuthError(err)) { return null; }
+				showResult('bad', t('Rückgängig nicht möglich'), err.network ? t('Nur online möglich.') : err.message);
+				return null;
+			});
+		}).then(renderLog);
+	}
+
 	/* ---------------- sync ---------------- */
 
 	function syncNow() {
-		if (!state.token) { return Promise.resolve(); }
+		if (!state.token || state.syncing) { return Promise.resolve(); }
+		state.syncing = true;
 		return idb('log', 'readonly', function (s) { return s.index('synced').getAll(0); }).then(function (pending) {
 			if (!pending.length) { return; }
 			var batch = pending.slice(0, SYNC_BATCH);
@@ -649,12 +739,12 @@
 						done++;
 						e.synced = 1;
 						e.code = '';
-						e.server = { ok: !!r.ok, result: r.result, conflict: !!r.conflict, conflict_id: r.conflict_id || 0, double_admission: !!r.double_admission, auto_resolved: !!r.auto_resolved, offline_expired: !!r.offline_expired, message: r.message || '' };
+						e.server = { ok: !!r.ok, result: r.result, ticket_public_id: r.ticket_public_id || '', conflict: !!r.conflict, conflict_id: r.conflict_id || 0, double_admission: !!r.double_admission, auto_resolved: !!r.auto_resolved, offline_expired: !!r.offline_expired, message: r.message || '' };
 						s.put(e);
 					});
-				}).then(function () { if (done && pending.length > SYNC_BATCH) { return syncNow(); } });
+				}).then(function () { if (done && pending.length > SYNC_BATCH) { state.syncing = false; return syncNow(); } });
 			}, function (err) { if (!handleAuthError(err) && !err.network) { console.warn('sync', err); } });
-		}).then(renderLog);
+		}).then(function () { state.syncing = false; }, function (err) { state.syncing = false; throw err; }).then(renderLog);
 	}
 
 	function renderLog() {
@@ -667,7 +757,7 @@
 			entries.slice(0, 25).forEach(function (e) {
 				var li = el('li');
 				li.appendChild(el('span', fmtTime(e.scanned_at) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.decision)));
-				var tag = !e.synced ? el('span', t('wartet auf Sync'), 'tag warn') : e.server ? el('span', e.server.conflict ? t('Konflikt') : t('synchronisiert'), 'tag ' + (e.server.conflict ? 'bad' : 'ok')) : el('span', e.mode, 'tag');
+				var tag = 'undone' === e.decision ? el('span', t('zurückgenommen'), 'tag warn') : !e.synced ? el('span', t('wartet auf Sync'), 'tag warn') : e.server ? el('span', e.server.conflict ? t('Konflikt') : t('synchronisiert'), 'tag ' + (e.server.conflict ? 'bad' : 'ok')) : el('span', e.mode, 'tag');
 				li.appendChild(tag);
 				log.appendChild(li);
 			});
@@ -915,6 +1005,10 @@
 		$('camera').addEventListener('click', startCamera);
 		$('unpair').addEventListener('click', unpair);
 		$('sound').addEventListener('click', toggleSound);
+		$('undo-start').addEventListener('click', function () { if (state.undo && undoSecondsLeft(state.undo.started, Date.now()) > 0) { state.undo.open = true; renderUndo(); $('undo-reason').focus(); } });
+		$('undo-reason').addEventListener('change', function (ev) { $('undo-other').hidden = '__other' !== ev.target.value; });
+		$('undo-confirm').addEventListener('click', function () { confirmUndo(undoReason()); });
+		$('undo-cancel').addEventListener('click', function () { state.undo = null; renderUndo(); });
 		renderSound();
 		$('manual').addEventListener('submit', function (ev) {
 			ev.preventDefault();
@@ -927,7 +1021,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera };
+	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo };
 
 	boot();
 }());

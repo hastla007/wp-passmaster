@@ -135,7 +135,7 @@ final class PublicEvents {
 		) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
 			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
 			/* translators: %d: number of queued scans */
 			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'pass-captain' ),
@@ -182,6 +182,15 @@ final class PublicEvents {
 			'timeout' => __( 'Keine Antwort vom Server.', 'pass-captain' ),
 			/* translators: %d: HTTP status code */
 			'badAnswer' => __( 'Unerwartete Antwort des Servers (HTTP %d) – das Ticket wurde nicht geprüft. Bitte erneut scannen.', 'pass-captain' ),
+			/* translators: %d: seconds left to undo the admission */
+			'undo' => __( 'Rückgängig (%d s)', 'pass-captain' ),
+			'undoReason' => __( 'Grund der Rücknahme', 'pass-captain' ),
+			'undoChoose' => __( '– Grund wählen –', 'pass-captain' ),
+			'undoOther' => __( 'Anderer Grund …', 'pass-captain' ),
+			'undoConfirm' => __( 'Einlass zurücknehmen', 'pass-captain' ),
+			'undoNeedReason' => __( 'Bitte einen Grund wählen oder eingeben.', 'pass-captain' ),
+			'undone' => __( 'Einlass zurückgenommen – das Ticket ist wieder gültig.', 'pass-captain' ),
+			'undoneQueued' => __( 'Offline-Einlass verworfen – er wird nicht hochgeladen.', 'pass-captain' ),
 		) ) );
 	}
 
