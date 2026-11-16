@@ -633,7 +633,10 @@ foreach ( $pm_handlers as $action => $handler ) {
 			try { call_user_func( $handler ); } catch ( Pm_Download $e ) { $download = $e->body; } catch ( Throwable $e ) { /* wp_die / redirect fakes throw. */ }
 			$output = (string) ob_get_clean();
 			// A download (or printed document) may only contain data of the user's own events.
-			$leak = null !== $download && ( 'staff_other_event' !== $persona || false !== strpos( $download, 'pm-a@example.com' ) || false !== strpos( $download, $pm_public_id ) );
+			// Token actions (visitor pages: service portal, waitlist links) answer every request with their own page
+			// (an error page for a wrong token): only data of event A in it counts as a leak there.
+			$by_content = 'staff_other_event' === $persona || 0 === strpos( $spec, 'token:' );
+			$leak = null !== $download && ( ! $by_content || false !== strpos( $download, 'pm-a@example.com' ) || false !== strpos( $download, $pm_public_id ) );
 			$leak = $leak || false !== strpos( $output, 'pm-a@example.com' );
 			if ( $leak ) { $pm_admin_failures[] = $action . ( '' !== $do ? "/$do" : '' ) . " as $persona delivered data of event A"; }
 			$GLOBALS['pm_in_handler'] = '';

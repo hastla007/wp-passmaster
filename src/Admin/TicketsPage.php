@@ -302,10 +302,11 @@ final class TicketsPage {
 	public static function handle_undo_checkin() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_undo_checkin_' . Forms::int( $in, 'ticket_id' ) );
-		// Every form carries its own key: a double submit or a resent POST undoes only once.
-		$result = '' === Forms::text( $in, 'idempotency_key', 190 )
+		// Every form carries its own key: a double submit or a resent POST undoes only once. Without the
+		// check-in capability the answer is a refusal, before any validation (A145).
+		$result = ! current_user_can( 'wpcap_checkin' ) ? Forms::forbidden() : ( '' === Forms::text( $in, 'idempotency_key', 190 )
 			? Forms::error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), 400 )
-			: self::undo_checkin( $in );
+			: self::undo_checkin( $in ) );
 		$message = ! is_wp_error( $result ) && ! empty( $result['remaining_entries'] )
 			? __( 'Letzter Einlass zurückgenommen; der frühere Einlass bleibt gezählt, das Ticket bleibt eingecheckt.', 'pass-captain' )
 			: __( 'Check-in zurückgenommen; das Ticket ist wieder gültig.', 'pass-captain' );
