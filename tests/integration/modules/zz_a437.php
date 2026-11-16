@@ -72,12 +72,18 @@ $a437_log = array();
 // none, a full scan reads every row of the log. The EXPLAIN text differs between server versions
 // (MariaDB 11.8 reports the same index access differently), the handler counter does not.
 $a437_scan = static function () use ( $wpdb ) { return (int) $wpdb->get_var( "SELECT VARIABLE_VALUE FROM information_schema.SESSION_STATUS WHERE VARIABLE_NAME='Handler_read_rnd_next'" ); };
-$a437_scan_before = $a437_scan();
 add_filter( 'query', $a437_spy );
 $a437_none = Dispatcher::purge_old();
 remove_filter( 'query', $a437_spy );
-$a437_scanned = $a437_scan() - $a437_scan_before;
 $a437_deletes = array_values( array_filter( $a437_log, static fn( $sql ) => 0 === stripos( ltrim( $sql ), 'DELETE' ) ) );
+// Measure exactly that DELETE (nothing is due, so running it again deletes nothing); the counter around
+// the whole purge_old() would also count the separate cancel_stale() lookup.
+$a437_scanned = PHP_INT_MAX;
+if ( $a437_deletes ) {
+	$a437_scan_before = $a437_scan();
+	$a437_again = $wpdb->query( $a437_deletes[0] );
+	$a437_scanned = 0 === (int) $a437_again ? $a437_scan() - $a437_scan_before : PHP_INT_MAX;
+}
 $a437_plan = $a437_deletes ? (array) $wpdb->get_row( 'EXPLAIN ' . $a437_deletes[0] ) : array();
 if ( $a437_scanned >= 500 || 'cleanup' !== ( $a437_plan['key'] ?? '' ) ) { fwrite( STDERR, 'A437 plan: ' . json_encode( $a437_plan ) . " rows scanned: $a437_scanned\n" ); }
 check( 'nothing due: one DELETE, no full scan of the log (' . $a437_scanned . ' rows read by table scans)', 0 === $a437_none && 1 === count( $a437_deletes ) && $a437_scanned < 500 );
