@@ -101,7 +101,7 @@ update_option( 'wpcap_settings', $ls_settings_before );
 
 // Uninstall of this copy keeps the data while the old copy exists (static check, uninstall.php is not run here).
 $ls_uninstall = (string) file_get_contents( WPCAP_PATH . 'uninstall.php' );
-check( 'uninstall.php keeps the data while the old copy is installed', 1 === preg_match( "#is_file\\( WP_PLUGIN_DIR \\. '/" . preg_quote( $ls_old, '#' ) . "/" . preg_quote( $ls_old, '#' ) . "\\.php' \\) \\).*?return false;#s", $ls_uninstall ) );
+check( 'uninstall.php keeps the data while the old copy is installed', 1 === preg_match( "#is_file\\( WP_PLUGIN_DIR \\. '/" . preg_quote( $ls_old, '#' ) . "/" . preg_quote( $ls_old, '#' ) . "\\.php' \\).*?return false;#s", $ls_uninstall ) );
 // Main file: takeover guard runs before any constant or the autoloader.
 check( 'main file: takeover guard comes before define(WPCAP_VERSION) and the autoloader', strpos( $ls_header, 'wpcap_take_over_legacy_copy() ) {' ) < strpos( $ls_header, "define( 'WPCAP_VERSION'" ) && strpos( $ls_header, "define( 'WPCAP_VERSION'" ) < strpos( $ls_header, 'vendor/autoload.php' ) );
 $GLOBALS['wpcap_test_cron'] = array();

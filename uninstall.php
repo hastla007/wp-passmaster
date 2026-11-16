@@ -7,7 +7,8 @@
  * transients, roles and capabilities are removed. On a multisite network this is decided per site:
  * each site's tables, options and per-site user options ({site prefix}wpcap_*) are removed only for
  * sites that opted in. Network-wide user meta (wpcap_*) is shared by all sites and is therefore
- * only deleted when every site opted in.
+ * only deleted when every site opted in; sites without any plugin data count as agreeing (A514).
+ * Network options wpcap_* and the plugin's Action Scheduler actions are always removed.
  *
  * @package PassCaptain
  */
@@ -21,11 +22,26 @@ function wpcap_uninstall_site() {
 	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_workflow_dispatch', 'wpcap_reconcile_capacity', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_waitlist_process', 'wpcap_page_cache_sales_window', 'wpcap_mollie_refresh_methods', 'wpcap_network_install' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
+	$legacy_installed = is_file( WP_PLUGIN_DIR . '/wp-pass-captain/wp-pass-captain.php' ); // legacy-slug
+	// Action Scheduler follow-up runs (Jobs\TimeBudget::AS_GROUP; the pre-rename group only when the
+	// old copy is gone – it still uses it), like Plugin::deactivate() (A514).
+	if ( function_exists( 'as_unschedule_all_actions' ) ) {
+		as_unschedule_all_actions( '', array(), 'pass-captain' );
+		if ( ! $legacy_installed ) {
+			as_unschedule_all_actions( '', array(), 'wp-pass-captain' ); // legacy-slug
+		}
+	}
 	// The pre-rename copy (folder wp-pass-captain) still installed: it uses the same tables – keep them. (legacy-slug)
-	if ( is_file( WP_PLUGIN_DIR . '/wp-pass-captain/wp-pass-captain.php' ) ) { // legacy-slug
+	if ( $legacy_installed ) {
 		return false;
 	}
 	$settings = get_option( 'wpcap_settings', array() );
+	// A site without plugin data (never installed there: no tables, no version, no settings) keeps
+	// nothing, so it counts as agreeing to the removal of network-wide data (A514).
+	$tables = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix . 'wpcap_' ) . '%' ) );
+	if ( ! $tables && empty( $settings ) && '' === (string) get_option( 'wpcap_db_version', '' ) ) {
+		return true;
+	}
 	if ( empty( $settings['delete_data_on_uninstall'] ) ) {
 		return false;
 	}
@@ -98,8 +114,25 @@ function wpcap_uninstall_global_usermeta() {
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s", $wpdb->esc_like( 'wpcap_' ) . '%' ) );
 }
 
+/**
+ * Deletes the network options wpcap_* (sitemeta of the current network): background installation
+ * of a network activation (A287), "old copy seen" (LegacySlug::SEEN_OPTION) and any later ones (A514).
+ */
+function wpcap_uninstall_site_options() {
+	global $wpdb;
+	delete_site_option( 'wpcap_network_install' );
+	delete_site_option( 'wpcap_legacy_copy_seen' );
+	if ( empty( $wpdb->sitemeta ) ) {
+		return;
+	}
+	$network = function_exists( 'get_current_network_id' ) ? (int) get_current_network_id() : 1;
+	foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT meta_key FROM {$wpdb->sitemeta} WHERE site_id=%d AND meta_key LIKE %s", $network, $wpdb->esc_like( 'wpcap_' ) . '%' ) ) as $key ) {
+		delete_site_option( (string) $key );
+	}
+}
+
 if ( is_multisite() ) {
-	delete_site_option( 'wpcap_network_install' ); // Background installation of a network activation (A287).
+	wpcap_uninstall_site_options();
 	$wpcap_all_opted_in = true;
 	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
 		switch_to_blog( (int) $site_id );
