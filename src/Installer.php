@@ -252,7 +252,8 @@ final class Installer {
 				KEY occurrence_day_id (occurrence_day_id),
 				KEY user_id (user_id),
 				KEY event_result_created (event_id,result,created_at),
-				KEY created (created_at,checkin_id)
+				KEY created (created_at,checkin_id),
+				KEY device_event_result (device_id,event_id,result)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $staff (
 				event_id bigint(20) unsigned NOT NULL,

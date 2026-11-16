@@ -118,23 +118,49 @@ final class Api {
 		if ( ! $occ || ! in_array( (int) $occ->event_id, Devices::event_ids( Devices::current() ), true ) || ! \PassCaptain\Access::can_access_occurrence( (int) $occ->occurrence_id, 'wpcap_checkin' ) ) {
 			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
+		// Only this device's own counter is read per call (KEY device_event_result, A440).
+		$device_scans = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE device_id=%d AND event_id=%d AND result='checked_in'", (int) Devices::current()->device_id, (int) $occ->event_id ) );
+		return rest_ensure_response( array_merge( self::occurrence_stats( $occ ), array( 'checked_in_by_this_device' => $device_scans, 'device_area_id' => Devices::area_id( Devices::current() ) ) ) );
+	}
+
+	/**
+	 * Occurrence-wide counters of the stats endpoint (tickets, admitted, presence, areas). Every
+	 * device of an event polls them, so they are kept in the object cache for a few seconds
+	 * (A440; filter `wpcap_scanner_stats_cache_ttl`, seconds, default 10, 0 = off, max. 60). Only
+	 * shared with a persistent object cache; without one every call counts.
+	 *
+	 * @param object $occ Occurrence row (occurrence_id, event_id).
+	 * @return array
+	 */
+	private static function occurrence_stats( $occ ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$occurrence_id = (int) $occ->occurrence_id;
+		$ttl = max( 0, min( 60, (int) apply_filters( 'wpcap_scanner_stats_cache_ttl', 10, $occurrence_id ) ) );
+		$key = 'scanner_stats:' . $wpdb->prefix . $occurrence_id;
+		if ( $ttl && function_exists( 'wp_cache_get' ) ) {
+			$found = false;
+			$cached = wp_cache_get( $key, 'wpcap', false, $found );
+			if ( $found && is_array( $cached ) ) { return $cached; }
+		}
 		$counts = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT t.status, COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d GROUP BY t.status", (int) $occ->occurrence_id ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT t.status, COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d GROUP BY t.status", $occurrence_id ) ) as $row ) {
 			$counts[ $row->status ] = (int) $row->n;
 		}
 		$valid = $counts['valid'] ?? 0;
 		$checked = $counts['checked_in'] ?? 0;
-		$device_scans = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE device_id=%d AND result='checked_in' AND event_id=%d", (int) Devices::current()->device_id, (int) $occ->event_id ) );
-		$presence = Engine::presence( (int) $occ->occurrence_id );
-		$movement = Engine::movement( (int) $occ->occurrence_id );
+		$presence = Engine::presence( $occurrence_id );
+		$movement = Engine::movement( $occurrence_id );
 		$by_area = array();
 		foreach ( Areas::for_event( (int) $occ->event_id, true ) as $area ) {
 			$id = (int) $area->area_id;
 			$by_area[] = array( 'area_id' => $id, 'name' => $area->name, 'present' => $presence['by_area'][ $id ] ?? 0, 'entries' => $movement['by_area'][ $id ]['entries'] ?? 0, 'checked_out' => $movement['by_area'][ $id ]['checked_out'] ?? 0 );
 		}
 		// A546: admitted at least once (also repeatable tickets, whose status stays valid) – the counter of the PWA.
-		$counts = \PassCaptain\ScannerDesk::counts( (int) $occ->occurrence_id );
-		return rest_ensure_response( array( 'occurrence_id' => (int) $occ->occurrence_id, 'tickets_total' => $valid + $checked, 'checked_in' => $checked, 'remaining' => $valid, 'admitted' => $counts ? $counts['admitted'] : $checked, 'admission_total' => $counts ? $counts['total'] : $valid + $checked, 'checked_in_by_this_device' => $device_scans, 'present' => $presence['present'], 'entries' => $movement['entries'], 'checked_out_total' => $movement['checked_out'], 'device_area_id' => Devices::area_id( Devices::current() ), 'by_area' => $by_area ) );
+		$desk = \PassCaptain\ScannerDesk::counts( $occurrence_id );
+		$stats = array( 'occurrence_id' => $occurrence_id, 'tickets_total' => $valid + $checked, 'checked_in' => $checked, 'remaining' => $valid, 'admitted' => $desk ? $desk['admitted'] : $checked, 'admission_total' => $desk ? $desk['total'] : $valid + $checked, 'present' => $presence['present'], 'entries' => $movement['entries'], 'checked_out_total' => $movement['checked_out'], 'by_area' => $by_area );
+		if ( $ttl && function_exists( 'wp_cache_set' ) ) { wp_cache_set( $key, $stats, 'wpcap', $ttl ); }
+		return $stats;
 	}
 
 	public static function validate( \WP_REST_Request $request ) {

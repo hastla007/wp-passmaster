@@ -474,6 +474,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Hook | Wert, Argumente | Zweck |
 |---|---|---|
+| `wpcap_scanner_stats_cache_ttl` | `int $seconds, int $occurrence_id` | Sekunden, die die terminweiten Werte von `GET /app/occurrences/{id}/stats` im Objekt-Cache (Gruppe `wpcap`) liegen (Standard 10, 0 = aus, höchstens 60; A440). |
 | `wpcap_ticket_valid_for_occurrence` | `array $found, array $context, int $at` | Ticket an einen anderen Termin als den seiner Ticketart binden (Mehrtages-/Festivalpässe). Rückgabe `$found` mit `occurrence_id`, `event_id`, `event_name`, `starts_at`, `ends_at`, `timezone`, `occurrence_status`, `event_status`; `$context`: `event_ids`, `occurrence_id`, `area_id`. |
 | `wpcap_admission_policy` | `array|null $policy, int $ticket_type_id` | Wirksame Einlassregel einer Ticketart (`null` = einmaliger Einlass); eigene `policy`-Werte (z. B. `pass`) über `wpcap_admission_evaluate` auswerten, alle Schlüssel von `normalize()` angeben. |
 | `wpcap_admission_evaluate` | `string|null $result` (null), `array $policy, array $found, object|null $state, int $at` | Eigene Einlassentscheidung unter der Ticket-Zeilensperre: Sperrcode oder `''` (einlassen); `null` überlässt die Entscheidung den eingebauten Regeln. |
