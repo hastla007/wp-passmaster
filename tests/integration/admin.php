@@ -164,7 +164,7 @@ $currency_change = EventsPage::save_ticket_type( array( 'ticket_type_id' => $typ
 check( 'currency of a ticket type with orders is locked', is_wp_error( $currency_change ) && 'wpcap_type_currency_locked' === $currency_change->get_error_code() );
 $type_cap = EventsPage::save_ticket_type( array( 'ticket_type_id' => $type_id, 'name' => 'Parkett', 'price' => '15', 'currency' => 'EUR', 'tax_rate' => '19', 'capacity' => '1', 'max_per_order' => '10' ) );
 check( 'ticket type capacity cannot drop below sold', is_wp_error( $type_cap ) && 'wpcap_capacity_below_sold' === $type_cap->get_error_code() );
-$repriced = EventsPage::save_ticket_type( array( 'ticket_type_id' => $type_id, 'name' => 'Parkett', 'price' => '15', 'currency' => 'EUR', 'tax_rate' => '19', 'capacity' => '50', 'max_per_order' => '10', 'status' => 'active' ) );
+$repriced = EventsPage::save_ticket_type( array( 'ticket_type_id' => $type_id, 'name' => 'Parkett', 'price' => '15', 'currency' => 'EUR', 'tax_rate' => '19', 'capacity' => '50', 'max_per_order' => '10', 'status' => 'active', 'confirm_sold_change' => '1' ) ); // A334: confirmed, the type has orders.
 check( 'price change on an existing type is saved; order snapshot unchanged', ! is_wp_error( $repriced ) && 1500 === (int) Queries::ticket_type( $type_id )->price_minor && 1250 === (int) $wpdb->get_var( "SELECT unit_price_minor FROM {$p}wpcap_order_items WHERE order_id=$order_id" ) );
 
 $field = EventsPage::save_participant_field( array( 'ticket_type_id' => $type_id, 'field_key' => 'Firma-Name', 'label' => 'Firma', 'field_type' => 'text', 'required' => '1', 'purpose' => 'Namensschild', 'retention_days' => '30' ) );

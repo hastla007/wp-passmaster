@@ -192,7 +192,7 @@ check( 'order view: rate source label names country, version and profile', 'Steu
 // Admin forms: ticket type tax class and occurrence venue country.
 $a115_as( 1, array() );
 $a115_tt = PassCaptain\Admin\Queries::ticket_type( $a115_plain );
-$a115_save = PassCaptain\Admin\EventsPage::save_ticket_type( array( 'ticket_type_id' => $a115_plain, 'name' => $a115_tt->name, 'currency' => 'EUR', 'price' => '113,00', 'tax_rate' => '7', 'max_per_order' => 10, 'tax_class' => 'Culture' ) );
+$a115_save = PassCaptain\Admin\EventsPage::save_ticket_type( array( 'ticket_type_id' => $a115_plain, 'name' => $a115_tt->name, 'currency' => 'EUR', 'price' => '113,00', 'tax_rate' => '7', 'max_per_order' => 10, 'tax_class' => 'Culture', 'confirm_sold_change' => '1' ) ); // A334: the type has orders.
 check( 'ticket type form stores the tax class (sanitised)', is_array( $a115_save ) && 'culture' === $wpdb->get_var( $wpdb->prepare( "SELECT tax_class FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d", $a115_plain ) ) );
 $a115_oc = PassCaptain\Admin\Queries::occurrence( $a115_occ_de );
 $a115_bad = PassCaptain\Admin\EventsPage::save_occurrence( array( 'occurrence_id' => $a115_occ_de, 'timezone' => 'Europe/Vienna', 'starts_at' => PassCaptain\Admin\Forms::utc_to_local( $a115_oc->starts_at, 'Europe/Vienna' ), 'location' => 'Wien', 'capacity' => 0, 'venue_country' => 'XYZ' ) );
