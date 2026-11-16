@@ -48,7 +48,7 @@ Settings::update( array( 'mollie' => array( 'methods' => array( 'ideal', 'credit
 $GLOBALS['wpcap_test_transients'] = array();
 http_reset();
 http_push( array( '_embedded' => array( 'methods' => array( array( 'id' => 'ideal', 'description' => 'iDEAL' ), array( 'id' => 'creditcard', 'description' => 'Kreditkarte' ), array( 'id' => 'bancontact', 'description' => 'Bancontact' ) ) ) ), 200, '/v2/methods' );
-$methods = MollieGateway::selectable_methods( 2500, 'EUR' );
+$methods = MollieGateway::selectable_methods( 2500, 'EUR', true );
 $mq = http_requests( '/v2/methods' )[0] ?? array( 'url' => '' );
 parse_str( (string) parse_url( $mq['url'], PHP_URL_QUERY ), $q );
 check( 'only enabled methods Mollie offers for amount/currency', array( 'ideal' => 'iDEAL', 'creditcard' => 'Kreditkarte' ) === $methods );

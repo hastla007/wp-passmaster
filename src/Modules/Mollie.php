@@ -31,6 +31,7 @@ final class Mollie {
 		add_action( 'wpcap_checkout_form_fields', array( __CLASS__, 'render_checkout_fields' ), 30, 2 );
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'store_method' ), 10, 4 );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_handle_return' ) );
+		add_action( MollieGateway::REFRESH_HOOK, array( MollieGateway::class, 'refresh_methods' ), 10, 2 );
 		add_filter( 'wpcap_payment_settings_url', array( __CLASS__, 'settings_url' ), 10, 2 );
 	}
 

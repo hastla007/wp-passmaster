@@ -201,20 +201,49 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400 ) );
 	}
 
+	/** Background refresh of a method list the public event list asked for (A282). Args: amount value, currency. */
+	const REFRESH_HOOK = 'wpcap_mollie_refresh_methods';
+
+	/** A failed method lookup is remembered this long, so a Mollie outage does not slow every request (A282). */
+	const METHODS_ERROR_TTL = 5 * MINUTE_IN_SECONDS;
+
+	/** Timeout of the method lookup (seconds; payment creation keeps the longer default). */
+	const METHODS_TIMEOUT = 5;
+
 	/**
-	 * Methods Mollie offers for amount/currency (and billing country), cached for one hour.
+	 * Methods Mollie offers for amount/currency (and billing country), cached for one hour; a failed
+	 * lookup is cached for METHODS_ERROR_TTL (A282).
 	 *
+	 * @param string $value    Amount string (format_amount()).
+	 * @param string $currency Currency.
+	 * @param bool   $remote   false: never call Mollie in this request (page rendering) – on a cache miss
+	 *                         the lookup is scheduled in the background (REFRESH_HOOK) and a
+	 *                         wpcap_mollie_methods_pending error is returned.
 	 * @return array|\WP_Error id => description
 	 */
-	public static function available_methods( $value, $currency ) {
-		$query = array( 'amount' => array( 'value' => (string) $value, 'currency' => strtoupper( $currency ) ), 'sequenceType' => 'oneoff' );
+	public static function available_methods( $value, $currency, $remote = true ) {
+		$query = array( 'amount' => array( 'value' => (string) $value, 'currency' => strtoupper( (string) $currency ) ), 'sequenceType' => 'oneoff' );
 		$country = self::config()['billing_country'];
 		if ( '' !== $country ) { $query['billingCountry'] = $country; }
 		$cache_key = 'wpcap_mollie_methods_' . substr( hash( 'sha256', wp_json_encode( $query ) . '|' . substr( \PassCaptain\Secrets::get( 'mollie_api_key' ), 0, 5 ) ), 0, 20 );
 		$cached = get_transient( $cache_key );
 		if ( is_array( $cached ) ) { return $cached; }
-		$result = self::api( 'GET', 'methods?' . http_build_query( $query, '', '&' ) );
-		if ( is_wp_error( $result ) ) { return $result; }
+		$failed = get_transient( $cache_key . '_err' );
+		if ( is_string( $failed ) && '' !== $failed ) {
+			return new \WP_Error( 'wpcap_mollie_methods_unavailable', $failed, array( 'cached' => true ) );
+		}
+		if ( ! $remote ) {
+			$args = array( (string) $value, strtoupper( (string) $currency ) );
+			if ( function_exists( 'wp_schedule_single_event' ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::REFRESH_HOOK, $args ) ) {
+				wp_schedule_single_event( time(), self::REFRESH_HOOK, $args );
+			}
+			return new \WP_Error( 'wpcap_mollie_methods_pending', __( 'Die Zahlungsmethoden von Mollie werden gerade geladen.', 'pass-captain' ) );
+		}
+		$result = self::api( 'GET', 'methods?' . http_build_query( $query, '', '&' ), null, '', self::METHODS_TIMEOUT );
+		if ( is_wp_error( $result ) ) {
+			set_transient( $cache_key . '_err', $result->get_error_message(), self::METHODS_ERROR_TTL );
+			return $result;
+		}
 		$methods = array();
 		foreach ( (array) ( $result['_embedded']['methods'] ?? array() ) as $method ) {
 			if ( ! empty( $method['id'] ) ) { $methods[ sanitize_key( $method['id'] ) ] = sanitize_text_field( (string) ( $method['description'] ?? $method['id'] ) ); }
@@ -223,11 +252,22 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		return $methods;
 	}
 
-	/** Enabled methods that Mollie offers for this amount (for the checkout selector). */
-	public static function selectable_methods( $minor, $currency ) {
+	/** REFRESH_HOOK handler: loads (and caches) the method list outside the page request. */
+	public static function refresh_methods( $value = '', $currency = '' ) {
+		if ( '' === (string) $value || ! preg_match( '/^[A-Za-z]{3}$/', (string) $currency ) ) { return; }
+		self::available_methods( (string) $value, (string) $currency, true );
+	}
+
+	/**
+	 * Enabled methods that Mollie offers for this amount (for the checkout selector).
+	 *
+	 * @param bool $remote Default false: the public event list renders from the cache only and loads a
+	 *                     missing list in the background (A282); the selector then shows from the next view.
+	 */
+	public static function selectable_methods( $minor, $currency, $remote = false ) {
 		$enabled = self::config()['methods'];
 		if ( ! $enabled ) { return array(); }
-		$offered = self::available_methods( self::format_amount( $minor, $currency ), $currency );
+		$offered = self::available_methods( self::format_amount( $minor, $currency ), $currency, $remote );
 		if ( is_wp_error( $offered ) ) { return array(); }
 		return array_intersect_key( $offered, array_flip( $enabled ) );
 	}
@@ -449,12 +489,12 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 	}
 
 	/** API call; returns decoded body or WP_Error (data.status = HTTP code). */
-	private static function api( $method, $path, $body = null, $idempotency_key = '' ) {
+	private static function api( $method, $path, $body = null, $idempotency_key = '', $timeout = 15 ) {
 		$key = \PassCaptain\Secrets::get( 'mollie_api_key' );
 		if ( '' === $key ) {
 			return new \WP_Error( 'wpcap_mollie_config', __( 'Mollie ist nicht konfiguriert.', 'pass-captain' ) );
 		}
-		$args = array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $key, 'Accept' => 'application/json' ) );
+		$args = array( 'method' => $method, 'timeout' => (int) $timeout, 'headers' => array( 'Authorization' => 'Bearer ' . $key, 'Accept' => 'application/json' ) );
 		if ( 'POST' === $method ) {
 			$args['headers']['Content-Type'] = 'application/json';
 			$args['body'] = wp_json_encode( $body );

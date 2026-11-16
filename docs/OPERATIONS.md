@@ -457,6 +457,11 @@ dem Dashboard und den Plugin-Seiten einen Hinweis mit Link zur Einrichtung.
   Audit-Log vermerkt.
 - **PayPal** läuft standardmäßig gegen die Sandbox (`paypal_mode` = „sandbox“); „Live“ nutzt die Live-API.
 - **Mollie** erkennt den Modus am API-Schlüssel (`test_…`/`live_…`).
+- **Mollie-Methodenauswahl (A282):** Die öffentliche Eventliste ruft die Mollie-API nie selbst auf. Die
+  Auswahl der Zahlungsmethode auf der Eventkarte kommt aus dem Cache (eine Stunde je Betrag/Währung/Land);
+  fehlt er, lädt das einmalige Cron-Ereignis `wpcap_mollie_refresh_methods` die Liste im Hintergrund
+  (Zeitlimit 5 s), bis dahin wählt der Käufer die Methode auf der Mollie-Seite. Eine fehlgeschlagene Abfrage
+  wird 5 Minuten gemerkt, damit ein Mollie-Ausfall nicht jeden Checkout um das Zeitlimit verzögert.
 - Im **Testmodus** zeigt der Abschnitt des Anbieters einen Hinweis, und Käufer sehen den Zusatz
   „– Testmodus“ (PayPal: „– Testmodus (Sandbox)“) am Namen der Zahlungsart im Checkout.
 
