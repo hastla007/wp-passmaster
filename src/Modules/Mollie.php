@@ -18,8 +18,12 @@ final class Mollie {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-mollie';
 
-	/** Methods offered in the settings (Mollie ids). */
-	const KNOWN_METHODS = array( 'applepay', 'bancontact', 'banktransfer', 'belfius', 'blik', 'creditcard', 'eps', 'giftcard', 'ideal', 'kbc', 'klarna', 'mybank', 'paypal', 'paysafecard', 'przelewy24', 'riverty', 'satispay', 'trustly', 'twint' );
+	/**
+	 * Methods offered in the settings (Mollie ids). Pay-later methods that need order lines, a billing
+	 * address and a separate capture (MollieGateway::CAPTURE_METHODS: Klarna, Riverty, Billie) are not
+	 * offered (A351): the plugin sends neither, and an authorization would never become a payment.
+	 */
+	const KNOWN_METHODS = array( 'applepay', 'bancontact', 'banktransfer', 'belfius', 'blik', 'creditcard', 'eps', 'giftcard', 'ideal', 'kbc', 'mybank', 'paypal', 'paysafecard', 'przelewy24', 'satispay', 'trustly', 'twint' );
 
 	public static function register() {
 		add_filter( 'wpcap_payment_gateways', array( __CLASS__, 'add_gateway' ) );

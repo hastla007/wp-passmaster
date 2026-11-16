@@ -93,6 +93,16 @@ Capture gelang, die Buchung hier aber nicht (Datenbank ausgelastet, Betrag passt
 heißt es „Zahlung wird noch verarbeitet“ (`pending`); Webhook bzw. Admin klären den Rest
 (`PayPalGateway::return_state()`). „Erfolgreich“ nur bei `paid`, `already_paid` oder `duplicate`.
 
+**Mollie `authorized` (A351):** Pay-later-Methoden (Klarna, Riverty, Billie) enden bei Mollie in
+`authorized` und brauchen Bestellpositionen, Rechnungsadresse und einen separaten Capture. Das Plugin bietet sie
+nicht an (nicht in der Methodenliste der Einstellungen, gespeicherte Altwerte werden ignoriert, aus der an
+Mollie übergebenen Methodenliste entfernt). Kommt dennoch eine `authorized`-Zahlung an, wird sie für eine noch
+zahlbare Bestellung (`pending` oder abgelaufene Reservierung) mit genau dem Bestellbetrag über die
+Captures-API vollständig eingezogen (fester Idempotency-Key `wpcap-mollie-capture-{id}`, Audit
+`mollie_authorization_captured`) und wie `payment_pending` behandelt; das folgende `paid` stellt die Tickets
+aus. Scheitert der Capture-Aufruf, antwortet der Webhook mit 503. Stornierte/erstattete Bestellungen oder ein
+abweichender Betrag werden nie eingezogen (Audit `mollie_authorization_not_captured`); die Autorisierung verfällt.
+
 ## Erstattung (`wpcap_refunds.status`)
 
 | Von → nach | Auslöser |

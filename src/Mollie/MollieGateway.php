@@ -58,10 +58,18 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 
 	public function supports_refunds() { return true; }
 
+	/**
+	 * Pay-later methods that end in `authorized` and need a capture, order lines and a billing address
+	 * (A351). Never offered by the plugin (not in Modules\Mollie::KNOWN_METHODS, removed from stored
+	 * settings and from method lists); an authorized payment that still arrives is captured.
+	 */
+	const CAPTURE_METHODS = array( 'klarna', 'riverty', 'billie' );
+
 	public static function config() {
 		$c = (array) Settings::get( 'mollie' );
 		return array(
-			'methods' => array_values( array_filter( array_map( 'sanitize_key', (array) ( $c['methods'] ?? array() ) ) ) ),
+			// Methods saved before A351 (e.g. klarna) are dropped: only methods the settings offer count.
+			'methods' => array_values( array_intersect( array_filter( array_map( 'sanitize_key', (array) ( $c['methods'] ?? array() ) ) ), \PassCaptain\Modules\Mollie::KNOWN_METHODS ) ),
 			'billing_country' => preg_match( '/^[A-Z]{2}$/', (string) ( $c['billing_country'] ?? '' ) ) ? (string) $c['billing_country'] : '',
 		);
 	}
@@ -160,9 +168,11 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		$order_id = (int) ( $order['order_id'] ?? 0 );
 		if ( ! $enabled ) {
 			$offered = self::available_methods( $value, $currency );
-			if ( is_wp_error( $offered ) || ! isset( $offered[ self::DELAYED_METHOD ] ) ) { return ''; }
-			$rest = array_values( array_diff( array_keys( $offered ), array( self::DELAYED_METHOD ) ) );
-			return $rest ? $rest : self::delayed_only( $order_id );
+			$excluded = array_merge( array( self::DELAYED_METHOD ), self::CAPTURE_METHODS );
+			if ( is_wp_error( $offered ) || ! array_intersect( array_keys( $offered ), $excluded ) ) { return ''; }
+			$rest = array_values( array_diff( array_keys( $offered ), $excluded ) );
+			if ( $rest ) { return $rest; }
+			return isset( $offered[ self::DELAYED_METHOD ] ) ? self::delayed_only( $order_id ) : '';
 		}
 		$offered = self::available_methods( $value, $currency );
 		$allowed = is_wp_error( $offered ) ? $enabled : array_values( array_intersect( $enabled, array_keys( $offered ) ) );
@@ -291,7 +301,51 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 			}
 		} elseif ( in_array( $status, array( 'failed', 'canceled', 'expired' ), true ) ) {
 			$event['type'] = 'failed';
+		} elseif ( 'authorized' === $status ) {
+			return self::capture_authorized( $payment, $event );
 		}
+		return $event;
+	}
+
+	/**
+	 * An `authorized` payment (pay-later methods, A351) only becomes `paid` after a capture. For an
+	 * order that is still payable (pending, or lapsed hold – the late payment re-check follows on
+	 * `paid`) with the exact order amount, the full amount is captured (Captures API, fixed
+	 * Idempotency-Key) and the hold is extended like for a delayed payment; Mollie then reports `paid`.
+	 * Closed orders or a different amount are not captured: the authorization lapses and the buyer is
+	 * not charged. A failed capture call returns 503, so Mollie redelivers the webhook.
+	 *
+	 * @return array|\WP_Error Normalized event.
+	 */
+	private static function capture_authorized( array $payment, array $event ) {
+		global $wpdb;
+		$id = (string) $event['provider_reference'];
+		$order = '' !== $event['order_public_id'] ? $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status,total_minor,currency FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='mollie'", $event['order_public_id'] ) ) : null;
+		if ( ! $order ) {
+			if ( '' !== $wpdb->last_error ) { return new \WP_Error( 'wpcap_mollie_lookup', 'Lookup failed.', array( 'status' => 503 ) ); }
+			return $event;
+		}
+		$payable = in_array( (string) $order->payment_status, array( 'pending', 'expired' ), true ) && ! in_array( (string) $order->status, array( 'cancelled', 'refunded' ), true );
+		$matches = (int) $event['amount_minor'] === (int) $order->total_minor && strtoupper( (string) $order->currency ) === $event['currency'];
+		if ( ! $payable || ! $matches ) {
+			\PassCaptain\Audit::record( 'mollie_authorization_not_captured', 'order', (int) $order->order_id, array( 'payment' => $id, 'payable' => $payable, 'amount_matches' => $matches ) );
+			return $event;
+		}
+		$captured = isset( $payment['amountCaptured']['value'] ) ? self::parse_amount( $payment['amountCaptured']['value'], $event['currency'] ) : 0;
+		if ( $captured < 1 ) {
+			$capture = self::api(
+				'POST',
+				'payments/' . rawurlencode( $id ) . '/captures',
+				/* translators: %s: order number */
+				array( 'description' => mb_substr( sprintf( __( 'Bestellung %s', 'pass-captain' ), $event['order_public_id'] ), 0, 255 ), 'metadata' => array( 'order' => $event['order_public_id'] ) ),
+				'wpcap-mollie-capture-' . $id
+			);
+			if ( is_wp_error( $capture ) ) {
+				return new \WP_Error( 'wpcap_mollie_capture', $capture->get_error_message(), array( 'status' => 503 ) );
+			}
+			\PassCaptain\Audit::record( 'mollie_authorization_captured', 'order', (int) $order->order_id, array( 'payment' => $id, 'capture' => substr( sanitize_text_field( (string) ( $capture['id'] ?? '' ) ), 0, 64 ) ) );
+		}
+		$event['type'] = 'payment_pending';
 		return $event;
 	}
 
