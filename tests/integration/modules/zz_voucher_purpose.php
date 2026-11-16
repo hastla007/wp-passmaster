@@ -159,7 +159,9 @@ $one_req = static function ( $code, $key ) use ( $vp_type ) {
 $one_calls = count( $vp_provider->calls );
 $one_c = $one_req( 'onefield10', 'vp-one-campaign-key' );
 $one_c = $one_c instanceof WP_REST_Response ? $one_c->get_data() : $one_c;
-check( 'a discount code in the single code field is applied as a discount', is_array( $one_c ) && 100 === (int) Orders::get( $one_c['order_id'] )->discount_minor && count( $vp_provider->calls ) === $one_calls );
+// Merged design: the checkout answer carries no order_id (security hardening); the stored order is read by its buyer.
+$one_c_order = (int) $wpdb->get_var( "SELECT order_id FROM {$p}wpcap_orders WHERE customer_email='one@example.com' AND discount_minor>0 ORDER BY order_id DESC LIMIT 1" );
+check( 'a discount code in the single code field is applied as a discount', is_array( $one_c ) && 100 === (int) ( $one_c['discount_minor'] ?? 0 ) && $one_c_order && 100 === (int) Orders::get( $one_c_order )->discount_minor && count( $vp_provider->calls ) === $one_calls );
 $one_v = $one_req( 'GIFT-ONE-0001', 'vp-one-voucher-key' );
 $one_v = $one_v instanceof WP_REST_Response ? $one_v->get_data() : $one_v;
 check( 'a voucher code in the single code field is redeemed through the voucher plugin', is_array( $one_v ) && in_array( array( 'quote', 'GIFT-ONE-0001' ), $vp_provider->calls, true ) && (int) $one_v['voucher_minor'] > 0 );
