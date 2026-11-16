@@ -24,6 +24,18 @@ Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nu
 | Erstattung (`woocommerce_order_refunded`) | je WooCommerce-Erstattung genau einmal: Erstattung im Pass-Captain-Erstattungsjournal buchen (Zeile in `wpcap_refunds`, erstatteter Betrag der Bestellung, Tickets als erstattet markiert und – sofern gültig – widerrufen, Kontingent frei, Gutschrift, `wpcap_refund_completed`). Mengen wählen die Tickets (gültige zuerst), der Betrag ist der Brutto-Erstattungsbetrag der Ticketpositionen; reine Betragserstattungen werden anteilig den Tickets zugerechnet. Benötigt `Refunds::record_external()` im Kern; ohne diese Methode werden wie bisher nur die erstatteten Tickets widerrufen |
 | `refunded` | war die Bestellung nie bezahlt, wird sie nur storniert (keine Erstattung gebucht). Sonst: offene WooCommerce-Erstattungen zuerst buchen (WooCommerce setzt den Status vor `woocommerce_order_refunded`), dann alle noch gültigen Tickets widerrufen, Kontingent freigeben |
 
+> **Achtung – Kauf auf Rechnung und andere „Zahlung später“-Zahlarten (A654).** Pass Captain stellt die Tickets aus, sobald WooCommerce eine Bestellung als bezahlt meldet – also bei `processing`. Viele Rechnungs- bzw. „Zahlung später“-Plugins (z. B. „Kauf auf Rechnung“ von German Market oder Germanized, eigene Rechnungs-Gateways) setzen eine Bestellung **sofort** auf `processing`, obwohl das Geld erst Tage später eingeht. Ohne weitere Einstellung gehen die Tickets dann **vor dem Geldeingang** an die Käuferin – wird die Rechnung nie bezahlt, sind sie trotzdem gültig. Nur Nachnahme (`cod`) ist voreingestellt ausgenommen. Für jede solche Zahlart deren Gateway-ID (WooCommerce → Einstellungen → Zahlungen, Spalte „ID“ bzw. Feld `payment_method` der Bestellung) in den Filter aufnehmen; die Tickets werden dann erst bei `completed` ausgestellt (bis dahin wird die Reservierung auf 14 Tage verlängert):
+>
+> ```php
+> add_filter( 'wpcap_woocommerce_issue_on_completed_gateways', static function ( $gateways ) {
+> 	$gateways[] = 'german_market_purchase_on_account'; // German Market „Kauf auf Rechnung“
+> 	$gateways[] = 'invoice';                           // Germanized „Rechnung“
+> 	return $gateways;
+> } );
+> ```
+>
+> Die Bestellung nach Geldeingang auf „Abgeschlossen“ setzen. Zahlarten, bei denen der Anbieter das Geld garantiert (z. B. Klarna, PayPal „Später bezahlen“), brauchen das nicht. Ist WooCommerce mit Ticketprodukten aktiv und eine aktivierte Zahlart heißt nach Rechnung/„Zahlung später“ (ID enthält `invoice`, `rechnung`, `purchase_on_account`, `on_account`, `pay_later`, `paylater`, `kauf_auf`, `billie` oder `ratepay`) und steht nicht im Filter, zeigt der Admin-Bereich (Dashboard, Pass-Captain-Seiten, WooCommerce-Einstellungen) eine Warnung.
+
 **Datenbank ausgelastet (A344):** Scheitert das Verbuchen einer Zahlung (Reservieren, Zahlung bestätigen,
 Tickets ausstellen) oder einer Erstattung an einem vorübergehenden Datenbankfehler (Deadlock, Lock-Timeout,
 Verbindungsabbruch; `Errors::is_busy()`), plant der Adapter einen Job ein – `woocommerce_paid_sync` je

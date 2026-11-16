@@ -812,6 +812,54 @@ final class OrderAdapter {
 		return 'completed' !== $status;
 	}
 
+	/** Parts of gateway ids that usually mean "pay later / on account" (A654). */
+	const PAY_LATER_PATTERNS = array( 'invoice', 'rechnung', 'purchase_on_account', 'on_account', 'pay_later', 'paylater', 'kauf_auf', 'billie', 'ratepay' );
+
+	/**
+	 * Enabled WooCommerce gateways that look like "pay later / purchase on account" and still issue
+	 * tickets at "processing" (A654): such gateways mark an order as processing before the money
+	 * arrives, so tickets would go out unpaid. Gateways listed in the filter
+	 * `wpcap_woocommerce_issue_on_completed_gateways` are not reported.
+	 *
+	 * @param array<string,string>|null $enabled Gateway id => title (null: read from WooCommerce).
+	 * @return array<string,string> Gateway id => title.
+	 */
+	public static function pay_later_gateways( $enabled = null ) {
+		if ( null === $enabled ) {
+			$enabled = array();
+			$registry = function_exists( 'WC' ) && is_object( WC() ) && is_callable( array( WC(), 'payment_gateways' ) ) ? WC()->payment_gateways() : null;
+			$gateways = is_object( $registry ) && is_callable( array( $registry, 'payment_gateways' ) ) ? (array) $registry->payment_gateways() : array();
+			foreach ( $gateways as $id => $gateway ) {
+				if ( is_object( $gateway ) && 'yes' === ( $gateway->enabled ?? '' ) ) {
+					$enabled[ (string) $id ] = is_callable( array( $gateway, 'get_title' ) ) ? (string) $gateway->get_title() : (string) $id;
+				}
+			}
+		}
+		$out = array();
+		foreach ( (array) $enabled as $id => $title ) {
+			$id = (string) $id;
+			$normalized = str_replace( '-', '_', strtolower( $id ) );
+			$match = false;
+			foreach ( self::PAY_LATER_PATTERNS as $pattern ) { $match = $match || false !== strpos( $normalized, $pattern ); }
+			if ( $match && ! self::defers_issuance( self::probe_order( $id ) ) ) { $out[ $id ] = '' !== (string) $title ? (string) $title : $id; }
+		}
+		return $out;
+	}
+
+	/** Unsaved order with only the payment method set, to ask the gateway filter (never stored). */
+	private static function probe_order( $gateway_id ) {
+		if ( class_exists( '\WC_Order' ) && method_exists( '\WC_Order', 'set_payment_method' ) ) {
+			$order = new \WC_Order();
+			$order->set_payment_method( $gateway_id );
+			return $order;
+		}
+		return new class( $gateway_id ) {
+			public function __construct( private string $method ) {}
+			public function get_payment_method() { return $this->method; }
+			public function get_status() { return 'pending'; }
+		};
+	}
+
 	/** Extends the hold while a manual payment (e.g. bank transfer) is outstanding. */
 	public static function sync_on_hold_order( $wc_order_id ) {
 		$core_id = self::core_order_id( $wc_order_id );

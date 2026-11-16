@@ -455,7 +455,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_woocommerce_billing` | `array $billing, WC_Order $wc_order` | Aus der WooCommerce-Bestellung übernommene Rechnungsdaten (`company`, `first_name`, `last_name`, `street`, `postcode`, `city`, `country`, `vat_id`, `po_number`). |
 | `wpcap_woocommerce_hold_fulfilment` | `bool $hold` (false), `WC_Order $wc_order` | Ticketausgabe einer bezahlten Bestellung zurückhalten (z. B. Voucher Captain bei nicht belastbarer Geschenkkarte); die Reservierung bleibt, Tickets folgen nach erneutem Statuswechsel. |
 | `wpcap_woocommerce_deferred_hold_minutes` | `int $minutes` (14 Tage), `WC_Order $wc_order` | Verlängerte Reservierung, solange die Ausgabe zurückgehalten oder bis „abgeschlossen“ verschoben wird. |
-| `wpcap_woocommerce_issue_on_completed_gateways` | `string[] $gateways` (`cod`), `WC_Order $wc_order` | Zahlungsarten, bei denen Tickets erst im Status „abgeschlossen“ ausgegeben werden („in Bearbeitung“ heißt dort nicht bezahlt). |
+| `wpcap_woocommerce_issue_on_completed_gateways` | `string[] $gateways` (`cod`), `WC_Order $wc_order` | Zahlungsarten, bei denen Tickets erst im Status „abgeschlossen“ ausgegeben werden („in Bearbeitung“ heißt dort nicht bezahlt). Wird auch für die Admin-Warnung zu „Kauf auf Rechnung“-Zahlarten ausgewertet (A654; dann mit einer ungespeicherten Bestellung, die nur die Zahlart trägt). |
 
 ### Umtausch
 

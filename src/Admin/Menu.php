@@ -92,6 +92,7 @@ final class Menu {
 		add_action( 'admin_notices', array( self::class, 'needs_review_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'entry_window_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'missing_payment_notice' ) );
+		add_action( 'admin_notices', array( self::class, 'pay_later_gateway_notice' ) );
 		UserScope::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
@@ -271,6 +272,26 @@ final class Menu {
 			$css .= $body . '#adminmenu li.wpcap-menu-heading{border-top-color:' . $colors[1] . '}' . $sel( $body ) . '{color:' . $colors[0] . '}';
 		}
 		return $css;
+	}
+
+	/**
+	 * A654: WooCommerce sells tickets and a "pay later / on account" gateway is enabled that confirms
+	 * orders ("processing") before the money arrives – tickets would be issued unpaid. Shown on the
+	 * dashboard, Pass Captain pages and the WooCommerce payment settings until the gateway is listed in
+	 * `wpcap_woocommerce_issue_on_completed_gateways`.
+	 */
+	public static function pay_later_gateway_notice() {
+		if ( ! current_user_can( SettingsPage::CAP ) || ! class_exists( '\\WooCommerce' ) ) { return; }
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects the screen.
+		$dashboard = $screen && 'dashboard' === ( $screen->id ?? '' );
+		if ( ! $dashboard && ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page && 'wc-settings' !== $page ) { return; }
+		if ( ! \PassCaptain\Integrations\WooCommerce\OrderAdapter::has_linked_ticket_products() ) { return; }
+		$gateways = \PassCaptain\Integrations\WooCommerce\OrderAdapter::pay_later_gateways();
+		if ( ! $gateways ) { return; }
+		/* translators: %s: payment method names */
+		$title = sprintf( __( 'Pass Captain: Die Zahlungsart %s stellt Tickets vor dem Geldeingang aus.', 'pass-captain' ), implode( ', ', $gateways ) );
+		echo '<div class="notice notice-warning"><p><strong>' . esc_html( $title ) . '</strong> ' . esc_html__( 'Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen (siehe docs/WOOCOMMERCE.md).', 'pass-captain' ) . '</p></div>';
 	}
 
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
