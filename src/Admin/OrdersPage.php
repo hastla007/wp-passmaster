@@ -558,6 +558,18 @@ final class OrdersPage {
 		Forms::finish( $result, is_wp_error( $result ) ? '' : self::resend_message( $result ), self::order_url( $order_id ) );
 	}
 
+	/** A424: sends the buyer a new order link; the current link stays valid until the new one is opened (A631). */
+	public static function handle_send_order_link() {
+		$in = Forms::post();
+		$order_id = Forms::int( $in, 'order_id' );
+		Forms::verify( 'wpcap_send_order_link_' . $order_id );
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { Forms::finish( $order, '', self::order_url( $order_id ) ); }
+		$sent = Orders::rotate_access_link( (int) $order->order_id, true );
+		if ( $sent ) { \PassCaptain\Audit::record( 'order_link_resent', 'order', (int) $order->order_id, array( 'by' => 'admin' ) ); }
+		Forms::finish( $sent ? true : new \WP_Error( 'wpcap_order_link_failed', __( 'Der Bestelllink konnte nicht gesendet werden.', 'pass-captain' ) ), __( 'Neuer Bestelllink gesendet. Der bisherige Link gilt, bis der neue zum ersten Mal geöffnet wird.', 'pass-captain' ), self::order_url( (int) $order->order_id ) );
+	}
+
 	public static function handle_ticket_pdf() {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
@@ -1072,6 +1084,11 @@ final class OrdersPage {
 		}
 		echo '</p>';
 		if ( $can_resend ) { self::render_resend_form( $order ); }
+		if ( $can_resend ) {
+			Forms::open_form( 'wpcap_send_order_link', 'wpcap_send_order_link_' . $order->order_id, 'class="wpcap-order-link-form"' );
+			Forms::hidden( 'order_id', $order->order_id );
+			echo '<p><button class="button" type="submit">' . esc_html__( 'Bestelllink erneut senden', 'pass-captain' ) . '</button> <span class="description">' . esc_html__( 'Für Rechnung und Tickets: „Tickets erneut senden“ (die Rechnung hängt an der Ticket-Mail).', 'pass-captain' ) . '</span></p></form>';
+		}
 		if ( $can_resend && \PassCaptain\ParticipantFields::missing( array_map( static function ( $t ) { return (int) $t->ticket_id; }, Orders::tickets_for_order( (int) $order->order_id ) ) ) ) {
 			// A682: ask the buyer for missing attendee data (new order link, at most once per hour).
 			Forms::open_form( 'wpcap_request_attendee_data', 'wpcap_request_attendee_data_' . $order->order_id );

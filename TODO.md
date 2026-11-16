@@ -1012,7 +1012,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] REST-Eingaben fast ohne Schema; negative/gebrochene Mengen still umgedeutet — src/Rest/Controller.php (3/42 Routen mit args), Orders.php:72–73 (absint) (A421, R2 API/Eigen)
 - [x] [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — src/WalletPasses/Service.php:321–388 (A422, R2 API)
 - [x] [OPTIMIERUNG] Google-Wallet-Token nicht an Zugangsdaten gebunden — src/WalletPasses/GoogleProvider.php:124–136 (A423, R2 API)
-- [ ] [OPTIMIERUNG] Fehlend: Rechnung/Bestelllink erneut senden; Portalzugang nur 30 Tage — src/Mail/Types.php, Orders.php:241, OrderPortal.php:137 (A424, R2 Eigen)
+- [x] [OPTIMIERUNG] Fehlend: Rechnung/Bestelllink erneut senden; Portalzugang nur 30 Tage — src/Mail/Types.php, Orders.php:241, OrderPortal.php:137 (A424, R2 Eigen) – erledigt: Admin „Bestelllink erneut senden“ (bisheriger Link gilt bis zur ersten Nutzung des neuen, Audit `order_link_resent`); Rechnung reist mit „Tickets erneut senden (Codes behalten)“; Portalzugang `Orders::access_until()` = 30 Tage (Filter `wpcap_order_access_days`), mindestens bis 30 Tage nach dem letzten Termin; Test `zz_a424`
 - [ ] [OPTIMIERUNG] Fehlend: Vorverkaufs-/Servicegebühr — src/Orders.php:178–203 (A425, R2 Eigen)
 - [ ] [OPTIMIERUNG] Fehlend: Event/Termin duplizieren — src/Admin/Menu.php:14–60 (A426, R2 Eigen)
 
