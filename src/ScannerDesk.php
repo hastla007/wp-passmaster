@@ -119,7 +119,9 @@ final class ScannerDesk {
 			if ( 503 === (int) ( $data['status'] ?? 0 ) ) { $data['retryable'] = true; }
 			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), $data );
 		}
-		return array( 'ok' => true, 'status' => 'undone', 'result' => 'undone', 'ticket_public_id' => $found['public_id'] );
+		$done = array( 'ok' => true, 'status' => 'undone', 'result' => 'undone', 'ticket_public_id' => $found['public_id'] );
+		// A retried request with the same idempotency key is answered as done (replayed).
+		return is_array( $result ) && ! empty( $result['replayed'] ) ? $done + array( 'replayed' => true ) : $done;
 	}
 
 	/** Web scanner: only the user's own latest admission, shortly after the scan. */
