@@ -43,10 +43,10 @@ final class ServiceBookings {
 	public static function reserve( $slot_id, $email, $quantity = 1, $order_id = 0, $minutes = 10, $idempotency_key = '', array $args = array() ) {
 		global $wpdb;
 		$slot_id = absint( $slot_id );
-		$email = sanitize_email( $email );
+		$email = Http::email( $email ); // A492: arrays/objects from a request body become '' instead of a TypeError.
 		$quantity = Orders::positive_int( $quantity );
 		if ( $quantity < 1 || $quantity > 20 ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$idempotency_key = sanitize_text_field( $idempotency_key );
+		$idempotency_key = sanitize_text_field( Http::str( $idempotency_key ) );
 		$actor = (string) ( $args['actor'] ?? 'customer' );
 		$actor = in_array( $actor, array( 'customer', 'admin', 'system' ), true ) ? $actor : 'customer';
 		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }

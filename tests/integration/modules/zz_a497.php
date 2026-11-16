@@ -29,14 +29,15 @@ check( 'A497: text mail and subject show the plain name', 'Ticket: ' . $a497_pla
 $a497_block = PassCaptain\Mail\Mailer::replace( '{list}', array( 'list' => PassCaptain\Mail\Mailer::block( 'Event: ' . $a497_stored, '<b>x</b>' ) ), false );
 check( 'A497: text variant of pre-rendered blocks (ticket lists) is plain too', 'Event: ' . $a497_plain === $a497_block );
 
-// Ticket PDF and the PDF writer of badges/lists: WinAnsi string without entities.
+// Ticket PDF and the PDF writer of badges/lists: WinAnsi string without entities. The merged wrap() shortens words
+// wider than a line (audit line R2), so the line width fits each word but not both.
 $a497_pdf = PassCaptain\TicketPdf::render( array( array( 'event' => $a497_stored, 'ticket' => 'Standard', 'when' => '01.01.2027 19:00', 'location' => 'Wien', 'token' => str_repeat( 'a', 64 ) ) ) );
 check( 'A497: ticket PDF prints the plain name', false !== strpos( wpcap_pdf_plain( $a497_pdf ), '(Kids <3 & Co "Live") Tj' ) && false === strpos( $a497_pdf, '&lt;' ) );
 $a497_writer = new PassCaptain\Printing\PdfWriter();
 $a497_writer->add_page( 200, 100 );
 $a497_writer->text( 10, 10, 10, $a497_stored );
 $a497_bytes = $a497_writer->output( 'A497' );
-check( 'A497: badge/list PDF writer prints the plain name, fit()/wrap() measure the plain text', false !== strpos( wpcap_pdf_plain( $a497_bytes ), '(Kids <3 & Co "Live")' ) && false === strpos( $a497_bytes, '&lt;' ) && array( 'Kids', '<3' ) === array_slice( PassCaptain\Printing\PdfWriter::wrap( 'Kids &lt;3', 10, 1 ), 0, 2 ) && false === strpos( PassCaptain\Printing\PdfWriter::fit( $a497_stored, 10, 1000 ), '&' . 'lt;' ) );
+check( 'A497: badge/list PDF writer prints the plain name, fit()/wrap() measure the plain text', false !== strpos( wpcap_pdf_plain( $a497_bytes ), '(Kids <3 & Co "Live")' ) && false === strpos( $a497_bytes, '&lt;' ) && array( 'Kids', '<3' ) === array_slice( PassCaptain\Printing\PdfWriter::wrap( 'Kids &lt;3', 10, 30 ), 0, 2 ) && false === strpos( PassCaptain\Printing\PdfWriter::fit( $a497_stored, 10, 1000 ), '&' . 'lt;' ) );
 
 // Wallet pass data.
 $a497_type = make_type( 10, 10, 0 );

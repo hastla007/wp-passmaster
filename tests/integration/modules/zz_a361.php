@@ -53,4 +53,4 @@ check( 'A361: WP_PROXY_BYPASS_HOSTS is respected', array() === ApnsClient::proxy
 unset( $GLOBALS['x2_a361_proxy'] );
 
 $x2_a361_src = file_get_contents( WPCAP_PATH . 'src/WalletPasses/ApnsClient.php' );
-check( 'A361: no curl_close() call (deprecated in PHP 8.5), proxy options applied to the handle', ! preg_match( '/curl_close\s*\(\s*\$/', $x2_a361_src ) && false !== strpos( $x2_a361_src, 'self::proxy_options( $url ) + $options' ) );
+check( 'A361: no curl_close() call (deprecated in PHP 8.5), proxy options applied to the handle', ! preg_match( '/curl_close\s*\(\s*\$/', $x2_a361_src ) && ( false !== strpos( $x2_a361_src, 'self::proxy_options( $url ) + $options' ) || ( false !== strpos( $x2_a361_src, '$proxy = self::proxy_options( $url );' ) && false !== strpos( $x2_a361_src, 'curl_setopt_array( $handle, $proxy + $options )' ) ) ) ); // Merged: the reused handle is keyed by the proxy options too.
