@@ -15,8 +15,11 @@ final class Capabilities {
 	/** Capabilities of the role packages (Installer::CAPABILITIES). */
 	const CORE = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_service_bookings' );
 
-	/** Capabilities added by modules or by operators (GuestLists\Service::APPROVE_CAP, BoxOffice\Shifts::OVERRIDE_CAP). */
-	const MODULE = array( 'wpcap_approve_comps', 'wpcap_boxoffice_override' );
+	/**
+	 * Capabilities added by modules or by operators (GuestLists\Service::APPROVE_CAP, BoxOffice\Shifts::OVERRIDE_CAP)
+	 * and the audit-log viewer Admin\AuditLogPage::CAP (granted to administrators only, not to role packages).
+	 */
+	const MODULE = array( 'wpcap_approve_comps', 'wpcap_boxoffice_override', 'wpcap_view_audit' );
 
 	/** @return string[] All plugin capabilities (removed on uninstall). */
 	public static function all() {
