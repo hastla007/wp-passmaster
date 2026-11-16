@@ -13,7 +13,18 @@
 	function preview( child ) {
 		return components.Disabled ? el( components.Disabled, {}, child ) : child;
 	}
+	// A501: a shortcode block (or pasted shortcode) [wpcap_calendar …] becomes this block.
+	var fromShortcode = {
+		type: 'shortcode',
+		tag: [ 'wpcap_calendar', 'wp_pass_captain_calendar' ],
+		attributes: {
+			view: { type: 'string', shortcode: function ( a ) { return 'list' === String( a.named.view || '' ).toLowerCase() ? 'list' : 'month'; } },
+			eventId: { type: 'integer', shortcode: function ( a ) { var n = parseInt( a.named.event, 10 ); return n > 0 ? n : 0; } },
+			limit: { type: 'integer', shortcode: function ( a ) { var n = parseInt( a.named.limit, 10 ); return n > 0 ? Math.min( 200, n ) : 50; } }
+		}
+	};
 	blocks.registerBlockType( 'wp-pass-captain/calendar', {
+		transforms: { from: [ fromShortcode ] },
 		edit: function ( props ) {
 			var blockProps = blockEditor.useBlockProps ? blockEditor.useBlockProps() : {};
 			var attrs = props.attributes;

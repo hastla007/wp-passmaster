@@ -222,3 +222,40 @@ test('A502: the list view of the calendar block has a limit (1–200)', () => {
 	limit.onChange('12');
 	assert.deepStrictEqual(plain(changes), [{ limit: 200 }, { limit: 50 }, { limit: 12 }]);
 });
+
+/* ------------------------------------------------------------------ A501 */
+
+/** Block attributes WordPress would build from a shortcode with the given named attributes. */
+function fromShortcode(block, tag, named) {
+	const transform = block.settings.transforms.from.filter((t) => t.type === 'shortcode' && [].concat(t.tag).indexOf(tag) !== -1)[0];
+	if (!transform) return null;
+	const a = { named: named, numeric: [] };
+	if (transform.isMatch && !transform.isMatch(a)) return false;
+	const out = {};
+	Object.keys(transform.attributes).forEach((key) => { out[key] = transform.attributes[key].shortcode(a); });
+	return out;
+}
+
+for (const c of CASES) {
+	test('A501: ' + c.name + ' has keywords and an inserter example', () => {
+		const json = JSON.parse(fs.readFileSync(path.join(BLOCKS, c.dir, 'block.json'), 'utf8'));
+		assert.ok(Array.isArray(json.keywords) && json.keywords.length >= 3, 'keywords');
+		assert.ok(json.example && json.example.attributes, 'example');
+		Object.keys(json.example.attributes).forEach((name) => assert.ok(json.attributes[name], name + ' is a block attribute'));
+	});
+}
+
+test('A501: [wpcap_events …] and [wp_pass_captain_events …] become the events block', () => {
+	const block = loadBlock('events');
+	assert.deepStrictEqual(plain(fromShortcode(block, 'wpcap_events', { event: '12', occurrence: '34' })), { event: 12, occurrence: 34, perDate: false });
+	assert.deepStrictEqual(plain(fromShortcode(block, 'wp_pass_captain_events', { dates: 'each' })), { event: 0, occurrence: 0, perDate: true });
+	assert.deepStrictEqual(plain(fromShortcode(block, 'wpcap_events', { event: 'abc' })), { event: 0, occurrence: 0, perDate: false });
+	assert.strictEqual(fromShortcode(block, 'wpcap_events', { limit: '10' }), false, 'a limit the block cannot keep: no transform');
+	assert.ok(fromShortcode(block, 'wpcap_events', { limit: '50' }), 'the default limit is fine');
+});
+
+test('A501: calendar and service booking shortcodes become their blocks', () => {
+	assert.deepStrictEqual(plain(fromShortcode(loadBlock('calendar'), 'wpcap_calendar', { view: 'list', event: '7', limit: '500' })), { view: 'list', eventId: 7, limit: 200 });
+	assert.deepStrictEqual(plain(fromShortcode(loadBlock('calendar'), 'wp_pass_captain_calendar', {})), { view: 'month', eventId: 0, limit: 50 });
+	assert.deepStrictEqual(plain(fromShortcode(loadBlock('service-booking'), 'wpcap_service_booking', { event: '3', resource: '9' })), { eventId: 3, resourceId: 9 });
+});

@@ -7,7 +7,18 @@
 	function preview( child ) {
 		return components.Disabled ? el( components.Disabled, {}, child ) : child;
 	}
+	// A501: a shortcode block (or pasted shortcode) [wpcap_service_booking event="…" resource="…"] becomes this block.
+	function id( value ) { var n = parseInt( value, 10 ); return n > 0 ? n : 0; }
+	var fromShortcode = {
+		type: 'shortcode',
+		tag: 'wpcap_service_booking',
+		attributes: {
+			eventId: { type: 'integer', shortcode: function ( a ) { return id( a.named.event ); } },
+			resourceId: { type: 'integer', shortcode: function ( a ) { return id( a.named.resource ); } }
+		}
+	};
 	blocks.registerBlockType( 'pass-captain/service-booking', {
+		transforms: { from: [ fromShortcode ] },
 		edit: function ( props ) {
 			var blockProps = blockEditor.useBlockProps();
 			var attrs = props.attributes;

@@ -7,18 +7,41 @@
   "category": "widgets",
   "icon": "clock",
   "description": "Kund:innen buchen Service-Zeitfenster (z. B. Fahrstunden oder Bootsverleih) mit Wochenansicht, Platzwahl und Bezahlung.",
-  "keywords": [ "Termin", "Zeitfenster", "Buchung", "Service" ],
+  "keywords": [
+    "Termin",
+    "Zeitfenster",
+    "Buchung",
+    "Service"
+  ],
   "textdomain": "pass-captain",
   "attributes": {
-    "eventId": { "type": "integer", "default": 0 },
-    "resourceId": { "type": "integer", "default": 0 }
+    "eventId": {
+      "type": "integer",
+      "default": 0
+    },
+    "resourceId": {
+      "type": "integer",
+      "default": 0
+    }
   },
   "supports": {
     "html": false,
-    "align": [ "wide", "full" ],
-    "spacing": { "margin": true, "padding": true }
+    "align": [
+      "wide",
+      "full"
+    ],
+    "spacing": {
+      "margin": true,
+      "padding": true
+    }
   },
   "render": "file:./render.php",
   "editorScript": "file:./editor.js",
-  "editorStyle": "wpcap-public"
+  "editorStyle": "wpcap-public",
+  "example": {
+    "attributes": {
+      "eventId": 0,
+      "resourceId": 0
+    }
+  }
 }

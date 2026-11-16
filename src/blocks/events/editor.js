@@ -13,7 +13,21 @@
 	function preview( child ) {
 		return components && components.Disabled ? el( components.Disabled, {}, child ) : child;
 	}
+	// A501: a shortcode block (or pasted shortcode) [wpcap_events …] becomes this block. Only when no
+	// setting would get lost: the block has no "limit" (it always lists up to 50 dates).
+	function id( value ) { var n = parseInt( value, 10 ); return n > 0 ? n : 0; }
+	var fromShortcode = {
+		type: 'shortcode',
+		tag: [ 'wpcap_events', 'wp_pass_captain_events' ],
+		attributes: {
+			event: { type: 'integer', shortcode: function ( a ) { return id( a.named.event ); } },
+			occurrence: { type: 'integer', shortcode: function ( a ) { return id( a.named.occurrence ); } },
+			perDate: { type: 'boolean', shortcode: function ( a ) { return 'each' === String( a.named.dates || '' ).toLowerCase(); } }
+		},
+		isMatch: function ( a ) { return ! a.named.limit || '50' === String( a.named.limit ).trim(); }
+	};
 	blocks.registerBlockType( 'wp-pass-captain/events', {
+		transforms: { from: [ fromShortcode ] },
 		edit: function ( props ) {
 			var attrs = props.attributes;
 			var blockProps = blockEditor.useBlockProps ? blockEditor.useBlockProps() : {};

@@ -13,7 +13,10 @@
     "html": false,
     "className": true,
     "customClassName": true,
-    "align": [ "wide", "full" ],
+    "align": [
+      "wide",
+      "full"
+    ],
     "spacing": {
       "margin": true,
       "padding": true
@@ -34,6 +37,20 @@
     "perDate": {
       "type": "boolean",
       "default": false
+    }
+  },
+  "keywords": [
+    "Tickets",
+    "Veranstaltung",
+    "Event",
+    "Termin",
+    "Bestellung"
+  ],
+  "example": {
+    "attributes": {
+      "event": 0,
+      "occurrence": 0,
+      "perDate": false
     }
   }
 }

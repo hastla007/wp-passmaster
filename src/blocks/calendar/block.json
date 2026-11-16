@@ -9,18 +9,53 @@
   "description": "Zeigt kommende Termine veröffentlichter Events als Monatsansicht oder Liste.",
   "textdomain": "pass-captain",
   "attributes": {
-    "view": { "type": "string", "default": "month", "enum": [ "month", "list" ] },
-    "eventId": { "type": "integer", "default": 0 },
-    "limit": { "type": "integer", "default": 50, "minimum": 1, "maximum": 200 }
+    "view": {
+      "type": "string",
+      "default": "month",
+      "enum": [
+        "month",
+        "list"
+      ]
+    },
+    "eventId": {
+      "type": "integer",
+      "default": 0
+    },
+    "limit": {
+      "type": "integer",
+      "default": 50,
+      "minimum": 1,
+      "maximum": 200
+    }
   },
   "supports": {
     "html": false,
     "className": true,
     "customClassName": true,
-    "align": [ "wide", "full" ],
-    "spacing": { "margin": true, "padding": true }
+    "align": [
+      "wide",
+      "full"
+    ],
+    "spacing": {
+      "margin": true,
+      "padding": true
+    }
   },
   "render": "file:./render.php",
   "editorScript": "file:./editor.js",
-  "style": "wpcap-calendar"
+  "style": "wpcap-calendar",
+  "keywords": [
+    "Kalender",
+    "Termine",
+    "Monat",
+    "Veranstaltung",
+    "Event"
+  ],
+  "example": {
+    "attributes": {
+      "view": "list",
+      "eventId": 0,
+      "limit": 5
+    }
+  }
 }
