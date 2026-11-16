@@ -52,7 +52,7 @@ check( 'A576 trusted channels with their own price are not checked', ! is_wp_err
 // Public REST checkout passes expected_prices through.
 if ( class_exists( 'WP_REST_Request' ) ) {
 	$a576_req = new WP_REST_Request( 'POST' );
-	$a576_req->set_body( wp_json_encode( array( 'email' => 'a576f@example.com', 'items' => array( array( 'ticket_type_id' => $a576_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'expected_prices' => array( (string) $a576_type => 3000 ), 'idempotency_key' => 'a576-7' ) ) );
+	$a576_req->set_body( wp_json_encode( array( 'email' => 'a576f@example.com', 'items' => array( array( 'ticket_type_id' => $a576_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'expected_prices' => array( (string) $a576_type => 3000 ), 'idempotency_key' => 'a576-rest-key-0007' ) ) );
 	$a576_rest = PassCaptain\Rest\Controller::checkout( $a576_req );
 	check( 'A576 REST checkout: expected_prices reach the order (409 price_changed)', is_wp_error( $a576_rest ) && 'wpcap_price_changed' === $a576_rest->get_error_code() );
 }
