@@ -214,12 +214,19 @@ final class Cache {
 	public static function note_query( $query ) {
 		if ( self::$busy || ! is_string( $query ) ) { return $query; }
 		if ( self::$flush_due && ! self::$in_tx ) { self::flush(); }
+		global $wpdb;
+		$in_tx = self::$in_tx;
+		$wpdb->last_error = ''; // wpdb::query() resets it after the filter anyway; here it shows failed lookups.
 		self::$busy = true;
 		try {
 			self::inspect( $query );
 		} finally {
 			self::$busy = false;
 		}
+		// One of our lookups failed inside a transaction (lost connection, deadlock victim): the transaction
+		// may be gone, so the caller's write must not run on its own (autocommit after a reconnect). An
+		// empty statement makes wpdb::query() return false; the lookup's error stays in last_error.
+		if ( $in_tx && '' !== (string) $wpdb->last_error ) { return ''; }
 		return $query;
 	}
 
@@ -387,7 +394,7 @@ final class Cache {
 	 * Event ids of the given ids (memoised per request until a mapping table is written).
 	 *
 	 * @param array $ids kind => int[].
-	 * @return int[]
+	 * @return int[]|null Null when a lookup failed (rows undeterminable).
 	 */
 	private static function resolve( array $ids ) {
 		global $wpdb;
@@ -400,7 +407,12 @@ final class Cache {
 		}
 		foreach ( count( $missing ) > 1 ? array_chunk( $missing, 500 ) : array() as $chunk ) {
 			foreach ( $chunk as $id ) { self::$memo[ $p . '|ticket_id|' . $id ] = array(); }
-			foreach ( (array) $wpdb->get_results( "SELECT t.ticket_id,o.event_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id IN (" . implode( ',', $chunk ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = (array) $wpdb->get_results( "SELECT t.ticket_id,o.event_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id IN (" . implode( ',', $chunk ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			if ( '' !== (string) $wpdb->last_error ) {
+				foreach ( $chunk as $id ) { unset( self::$memo[ $p . '|ticket_id|' . $id ] ); }
+				return null;
+			}
+			foreach ( $rows as $row ) {
 				self::$memo[ $p . '|ticket_id|' . (int) $row->ticket_id ][] = (int) $row->event_id;
 			}
 		}
@@ -440,6 +452,8 @@ final class Cache {
 						default:
 							$found = array();
 					}
+					// A failed lookup is no mapping: the caller treats the rows as undeterminable (site bump).
+					if ( null === $found || '' !== (string) $wpdb->last_error ) { return null; }
 					self::$memo[ $memo ] = array_map( 'intval', (array) $found );
 				}
 				$events = array_merge( $events, self::$memo[ $memo ] );
@@ -448,10 +462,14 @@ final class Cache {
 		return array_values( array_unique( array_filter( array_map( 'intval', $events ) ) ) );
 	}
 
-	/** Event ids of orders (via their lines). */
+	/** Event ids of orders (via their lines); null when a lookup failed. */
 	private static function order_events( array $order_ids ) {
 		$events = array();
-		foreach ( $order_ids as $order_id ) { $events = array_merge( $events, self::resolve( array( 'order_id' => array( (int) $order_id ) ) ) ); }
+		foreach ( $order_ids as $order_id ) {
+			$found = self::resolve( array( 'order_id' => array( (int) $order_id ) ) );
+			if ( null === $found ) { return null; }
+			$events = array_merge( $events, $found );
+		}
 		return $events;
 	}
 
