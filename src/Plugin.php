@@ -43,6 +43,8 @@ final class Plugin {
 		Privacy::register();
 		Consents::register();
 		ServiceBookingFlow::register();
+		// Public booking page for service slots: [wpcap_service_booking] / block pass-captain/service-booking (A268).
+		Frontend\ServiceBooking::register();
 		$network_plugins = is_multisite() ? get_site_option( 'active_sitewide_plugins', array() ) : array();
 		if ( is_multisite() && isset( $network_plugins[ plugin_basename( WPCAP_FILE ) ] ) ) {
 			add_action( 'wp_initialize_site', static function ( $site ) {

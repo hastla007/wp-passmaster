@@ -38,6 +38,48 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 			name: 'Waitlist offer accepted', group: 'public', url: fx.waitlist_url,
 			prepare: async (page) => { await Promise.all([page.waitForNavigation(), page.click('main form button[type="submit"]')]); },
 		},
+		{ name: 'Service booking (A268)', group: 'public', url: fx.service_url, include: '.wpcap-service-booking' },
+		{
+			name: 'Service booking: next week + step 2 with errors', group: 'public', url: fx.service_url, include: '.wpcap-service-booking',
+			prepare: async (page) => {
+				await page.click('.wpcap-sb-next').catch(() => {});
+				await page.waitForTimeout(500);
+				await page.click('.wpcap-sb-prev').catch(() => {});
+				await page.waitForSelector('.wpcap-sb-days input[name="slot_id"]');
+				await page.check('.wpcap-sb-days input[name="slot_id"] >> nth=0');
+				await page.click('.wpcap-sb-continue');
+				await page.click('.wpcap-sb-submit');
+				await page.waitForTimeout(300);
+			},
+		},
+		{
+			name: 'Service booking: confirmation (free)', group: 'public', url: fx.service_url, include: '.wpcap-service-booking',
+			prepare: async (page) => {
+				await page.check('.wpcap-service-booking input[name="resource_id"] >> nth=1');
+				await page.waitForFunction(() => !document.querySelector('.wpcap-sb-days[aria-busy]'));
+				await page.waitForSelector('.wpcap-sb-days input[name="slot_id"]');
+				await page.check('.wpcap-sb-days input[name="slot_id"] >> nth=0');
+				await page.click('.wpcap-sb-continue');
+				await page.fill('.wpcap-sb-step-data [name="email"]', 'a11y-service-' + Date.now() + '@example.com');
+				await page.click('.wpcap-sb-submit');
+				await page.waitForSelector('.wpcap-sb-confirmation', { timeout: 15000 });
+			},
+		},
+		{
+			name: 'Service booking: manage view', group: 'public', url: fx.service_url, include: '.wpcap-service-booking',
+			prepare: async (page) => {
+				await page.check('.wpcap-service-booking input[name="resource_id"] >> nth=1');
+				await page.waitForFunction(() => !document.querySelector('.wpcap-sb-days[aria-busy]'));
+				await page.waitForSelector('.wpcap-sb-days input[name="slot_id"]');
+				await page.check('.wpcap-sb-days input[name="slot_id"] >> nth=0');
+				await page.click('.wpcap-sb-continue');
+				await page.fill('.wpcap-sb-step-data [name="email"]', 'a11y-manage-' + Date.now() + '@example.com');
+				await page.click('.wpcap-sb-submit');
+				await page.waitForSelector('.wpcap-sb-manage a', { timeout: 15000 });
+				await page.click('.wpcap-sb-manage a');
+				await page.waitForSelector('.wpcap-sb-details', { timeout: 15000 });
+			},
+		},
 		{ name: 'Scanner (logged in)', group: 'public', url: fx.scanner_url, include: '.wpcap-scanner', auth: true },
 		{
 			name: 'Scanner result (invalid code)', group: 'public', url: fx.scanner_url, include: '.wpcap-scanner', auth: true,
@@ -49,6 +91,7 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 		{ name: 'Admin: Order detail', group: 'admin', url: admin('page=wpcap-orders&order_id=' + fx.order_id), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Check-ins', group: 'admin', url: admin('page=wpcap-checkins'), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Box office', group: 'admin', url: admin('page=wpcap-boxoffice'), include: '#wpbody-content', auth: true },
+		{ name: 'Admin: Service-Zeitfenster', group: 'admin', url: admin('page=wpcap-service-slots&event_id=' + fx.service_event_id), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Settings', group: 'admin', url: admin('page=wpcap-settings'), include: '#wpbody-content', auth: true },
 	].filter((p) => !args.only || p.group === args.only);
 	// A page without URL (fixture could not create it) is a failure, never silently skipped.

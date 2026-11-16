@@ -17,6 +17,7 @@ Eigenständige Event-, Ticket- und Einlassverwaltung für WordPress – mit opti
 Pass Captain verwaltet Veranstaltungen, Termine, Ticketarten, Bestellungen, Tickets und den Einlass direkt in WordPress. WooCommerce ist optional und keine Voraussetzung für den Kern.
 
 * Events als Einzeltermin oder Serie, Ausgabe per Shortcode `[wpcap_events]` oder Block.
+* Service-Zeitfenster (Fahrstunden, Verleih, Beratung) buchen per Shortcode `[wpcap_service_booking]` oder Block, kostenlos oder mit Bezahlung.
 * Bestellungen mit zeitlich begrenzter Reservierung; kostenlose Bestellungen stellen Tickets sofort aus.
 * Zahlungen manuell, über Stripe, PayPal, Mollie oder den WooCommerce-Adapter (HPOS und Block-Checkout).
 * Tickets mit QR-Code, PDF und Wallet-Pass; Scanner per Shortcode `[wpcap_scanner]`, Mobil-API und Offline-Scanner.

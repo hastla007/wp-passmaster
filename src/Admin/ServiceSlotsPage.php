@@ -285,7 +285,7 @@ final class ServiceSlotsPage {
 		$days = array( 1 => __( 'Mo', 'pass-captain' ), 2 => __( 'Di', 'pass-captain' ), 3 => __( 'Mi', 'pass-captain' ), 4 => __( 'Do', 'pass-captain' ), 5 => __( 'Fr', 'pass-captain' ), 6 => __( 'Sa', 'pass-captain' ), 7 => __( 'So', 'pass-captain' ) );
 		echo '<fieldset><legend>' . esc_html__( 'Wochentage', 'pass-captain' ) . '</legend>';
 		foreach ( $days as $number => $label ) {
-			echo '<label><input type="checkbox" name="weekdays[]" value="' . esc_attr( (string) $number ) . '"' . ( $number <= 5 ? ' checked' : '' ) . '> ' . esc_html( $label ) . '</label> ';
+			echo '<label style="display:inline-block;min-height:24px;padding:2px 6px 2px 0"><input type="checkbox" name="weekdays[]" value="' . esc_attr( (string) $number ) . '"' . ( $number <= 5 ? ' checked' : '' ) . '> ' . esc_html( $label ) . '</label> ';
 		}
 		echo '</fieldset>';
 		submit_button( __( 'Serie erzeugen', 'pass-captain' ), 'secondary', 'submit', false );
@@ -327,6 +327,24 @@ final class ServiceSlotsPage {
 		echo '<p class="description">' . esc_html__( 'Fristen gelten für das Team nicht. Kund:in und Team werden per E-Mail informiert.', 'pass-captain' ) . '</p><button class="button">' . esc_html__( 'Buchung stornieren', 'pass-captain' ) . '</button></form></details>';
 	}
 
+	/**
+	 * Where customers book (A268): the shortcode for this event and a link to the published page
+	 * that shows it ("Auf der Website ansehen"), or how to add one.
+	 */
+	public static function render_public_page( $event_id ) {
+		$shortcode = '[' . \PassCaptain\Frontend\ServiceBooking::SHORTCODE . ' event="' . (int) $event_id . '"]';
+		$url = \PassCaptain\Frontend\ServiceBooking::page_url( $event_id );
+		echo '<div class="wpcap-service-public card" style="max-width:none"><h2>' . esc_html__( 'Buchungsseite für Kund:innen', 'pass-captain' ) . '</h2>';
+		echo '<p><label for="wpcap-service-shortcode">' . esc_html__( 'Shortcode für dieses Event', 'pass-captain' ) . '</label><br><input type="text" id="wpcap-service-shortcode" class="regular-text code" readonly value="' . esc_attr( $shortcode ) . '" onfocus="this.select()"></p>';
+		echo '<p class="description">' . esc_html__( 'Füge den Shortcode oder den Block „Pass Captain Terminbuchung“ in eine Seite ein. Mit resource="ID" zeigt die Seite nur eine Ressource. Kostenpflichtige Ressourcen (mit Ticketart als Preis) laufen über den normalen Checkout, kostenlose werden sofort bestätigt.', 'pass-captain' ) . '</p>';
+		if ( '' !== $url ) {
+			echo '<p><a class="button" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html__( 'Auf der Website ansehen', 'pass-captain' ) . '<span class="screen-reader-text"> ' . esc_html__( '(öffnet in einem neuen Tab)', 'pass-captain' ) . '</span></a></p>';
+		} else {
+			echo '<p><strong>' . esc_html__( 'Noch keine veröffentlichte Seite zeigt die Terminbuchung für dieses Event.', 'pass-captain' ) . '</strong></p>';
+		}
+		echo '</div>';
+	}
+
 	public static function render() {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$event_id = absint( Forms::query_arg( 'event_id' ) );
@@ -336,7 +354,7 @@ final class ServiceSlotsPage {
 		$slot_filter = absint( Forms::query_arg( 'slot' ) );
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Service-Zeitfenster', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
-		echo '<p class="description">' . esc_html__( 'Ressourcen sind Räume, Personen oder Geräte eines Events. Für jede Ressource legst du buchbare Zeitfenster mit einer Platzzahl an; Kund:innen reservieren sie über die öffentliche Buchungsschnittstelle. Zeitfenster mit Buchungen können nicht gelöscht, aber geschlossen werden.', 'pass-captain' ) . '</p>';
+		echo '<p class="description">' . esc_html__( 'Ressourcen sind Räume, Personen oder Geräte eines Events. Für jede Ressource legst du buchbare Zeitfenster mit einer Platzzahl an; Kund:innen buchen sie auf einer Seite mit dem Shortcode [wpcap_service_booking] oder dem Block „Pass Captain Terminbuchung“. Zeitfenster mit Buchungen können nicht gelöscht, aber geschlossen werden.', 'pass-captain' ) . '</p>';
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><label for="wpcap-service-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label> ';
 		Forms::select( 'event_id', array( 0 => __( '– Event wählen –', 'pass-captain' ) ) + $events, (string) $event_id, 'wpcap-service-event' );
 		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>' . $events_note; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
@@ -349,6 +367,7 @@ final class ServiceSlotsPage {
 			echo '<div class="notice notice-error inline"><p>' . esc_html__( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) . '</p></div></div>';
 			return;
 		}
+		self::render_public_page( $event_id );
 		$zone = self::timezone( $event_id );
 		$types = self::ticket_types( $event_id );
 		$resources = ServiceBookings::resources( $event_id );

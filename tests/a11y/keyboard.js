@@ -1,6 +1,6 @@
 'use strict';
 /*
- * Keyboard-only walkthrough of the public checkout (and the scanner form):
+ * Keyboard-only walkthrough of the public checkout, the service booking page (A268) and the scanner form:
  * tab order, visible focus, accessible names, validation and live-region announcements.
  *
  *   WPCAP_A11Y_WP_PATH=/path/to/wp node keyboard.js
@@ -153,6 +153,76 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	const done = await page.evaluate(() => { const p = document.querySelector('.wpcap-confirmation'); const e = document.querySelector('.wpcap-error-summary'); return { text: p ? p.textContent.trim() : (e ? 'ERROR: ' + e.textContent.trim() : ''), focused: !!p && document.activeElement === p }; });
 	check('successful order shows the confirmation panel with the order number', /Bestellnummer/.test(done.text), done.text.slice(0, 80));
 	check('focus moves to the confirmation panel', done.focused);
+
+	console.log('Service booking (A268): keyboard flow, focus and announcements');
+	await page.goto(fx.service_url, { waitUntil: 'load' });
+	const sb = '.wpcap-service-booking';
+	// Switch to the free resource with the arrow key (radio group); the week of that resource loads.
+	await page.focus(sb + ' input[name="resource_id"]:checked');
+	await page.keyboard.press('ArrowDown');
+	await page.waitForFunction((sel) => !document.querySelector(sel + ' .wpcap-sb-days[aria-busy]') && /Schnupper/.test(document.querySelector(sel + ' input[name="resource_id"]:checked').labels[0].textContent), sb, { timeout: 15000 }).catch(() => {});
+	await page.waitForTimeout(150);
+	const switched = await page.evaluate((sel) => ({ live: document.querySelector(sel + ' .wpcap-sb-live').textContent.trim(), paidHidden: document.querySelector(sel + ' .wpcap-sb-paid').hidden, slots: document.querySelectorAll(sel + ' input[name="slot_id"]').length }), sb);
+	check('arrow key switches the resource: slots reloaded and announced, payment fields hidden for the free one', switched.slots > 0 && /Woche/.test(switched.live) && switched.paidHidden, switched.live);
+	await page.evaluate(() => document.activeElement.blur());
+	const sbStops = [];
+	let st = await tabUntil(page, sb, () => true);
+	while (st && st.inside && sbStops.length < 40) {
+		sbStops.push(st);
+		if (/Weiter zu deinen Angaben/.test(st.name)) break;
+		await page.keyboard.press('Tab');
+		st = await focused(page, sb);
+	}
+	console.log('    Tab stops: ' + sbStops.map((x) => `${x.tag}${x.field ? ':' + x.field : ''} "${x.name.slice(0, 40)}"`).join('\n               '));
+	check('booking step 1: every tab stop is named and shows focus', sbStops.length >= 4 && sbStops.every((x) => x.name && x.focusVisible), sbStops.filter((x) => !x.name || !x.focusVisible).map((x) => x.tag + ':' + x.field).join(', '));
+	check('booking step 1: tab order follows the DOM order', sbStops.every((x, i) => i === 0 || x.index > sbStops[i - 1].index));
+	await page.focus(sb + ' .wpcap-sb-next');
+	const nextDisabled = await page.evaluate((sel) => document.querySelector(sel + ' .wpcap-sb-next').getAttribute('aria-disabled'), sb);
+	if (nextDisabled !== 'true') {
+		await page.keyboard.press('Enter');
+		await page.waitForFunction((sel) => !document.querySelector(sel + ' .wpcap-sb-days[aria-busy]'), sb, { timeout: 15000 }).catch(() => {});
+		await page.waitForTimeout(150);
+		const nav = await page.evaluate((sel) => ({ live: document.querySelector(sel + ' .wpcap-sb-live').textContent.trim(), focus: document.activeElement.classList.contains('wpcap-sb-next') }), sb);
+		check('week navigation is announced in the live region and keeps the focus', /Woche/.test(nav.live) && nav.focus, nav.live);
+		await page.focus(sb + ' .wpcap-sb-prev');
+		await page.keyboard.press('Enter');
+		await page.waitForFunction((sel) => !document.querySelector(sel + ' .wpcap-sb-days[aria-busy]') && document.querySelector(sel + ' input[name="slot_id"]'), sb, { timeout: 15000 }).catch(() => {});
+	}
+	await page.focus(sb + ' .wpcap-sb-continue');
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(150);
+	const noSlot = await page.evaluate((sel) => ({ summary: document.activeElement && document.activeElement.classList.contains('wpcap-error-summary'), text: (document.querySelector(sel + ' .wpcap-error-summary') || {}).textContent || '' }), sb);
+	check('continue without a slot: error summary focused', noSlot.summary && /Zeitfenster/.test(noSlot.text), noSlot.text.trim());
+	await page.focus(sb + ' input[name="slot_id"]');
+	await page.keyboard.press('Space');
+	const slotChecked = await page.evaluate((sel) => !!document.querySelector(sel + ' input[name="slot_id"]:checked'), sb);
+	check('Space selects the focused slot', slotChecked);
+	st = await tabUntil(page, sb, (x) => /Weiter zu deinen Angaben/.test(x.name), 20);
+	await page.keyboard.press('Enter');
+	await page.waitForTimeout(150);
+	const step2 = await page.evaluate(() => ({ heading: /^H[2-6]$/.test(document.activeElement.tagName), text: document.activeElement.textContent }));
+	check('continue moves the focus to the heading of step 2', step2.heading && /Angaben/.test(step2.text), step2.text);
+	st = await tabUntil(page, sb, (x) => x.field === 'email', 10);
+	check('e-mail field reachable and labelled', st && /E-Mail/.test(st.name), st && st.name);
+	await page.keyboard.type('a11y-keyboard-' + Date.now() + '@example.com');
+	await page.keyboard.press('Enter');
+	await page.waitForFunction((sel) => !!document.querySelector(sel + ' .wpcap-sb-confirmation, ' + sel + ' .wpcap-error-summary'), sb, { timeout: 15000 }).catch(() => {});
+	const booked = await page.evaluate((sel) => { const p = document.querySelector(sel + ' .wpcap-sb-confirmation'); const e = document.querySelector(sel + ' .wpcap-error-summary'); return { text: p ? p.textContent : (e ? 'ERROR: ' + e.textContent : ''), focused: !!p && document.activeElement === p, link: p && p.querySelector('.wpcap-sb-manage a') ? p.querySelector('.wpcap-sb-manage a').getAttribute('href') : '' }; }, sb);
+	check('booking confirmed: confirmation panel focused', booked.focused && /gebucht/.test(booked.text), booked.text.trim().slice(0, 100));
+	check('confirmation offers the manage link (token only in the fragment)', /#wpcap-booking=\d+-[a-f0-9]{64}$/.test(booked.link) && !/[?&]token=/.test(booked.link), booked.link.replace(/[a-f0-9]{64}/, '…'));
+	st = await tabUntil(page, sb, (x) => x.tag === 'a', 10);
+	check('manage link is reachable with Tab', !!st, st && st.name);
+	await page.keyboard.press('Enter');
+	await page.waitForFunction((sel) => !!document.querySelector(sel + ' .wpcap-sb-details'), sb, { timeout: 15000 }).catch(() => {});
+	await page.waitForTimeout(150);
+	const manage = await page.evaluate((sel) => { const v = document.querySelector(sel + ' .wpcap-sb-manage-view'); return { focused: !!v && document.activeElement === v, cancel: !!(v && v.querySelector('.wpcap-sb-cancel-start')), text: v ? v.textContent : '' }; }, sb);
+	check('manage view shows the booking, focus on it, cancel offered', manage.focused && manage.cancel && /Bestätigt/.test(manage.text), manage.text.trim().slice(0, 100));
+	await page.focus(sb + ' .wpcap-sb-cancel-start');
+	await page.keyboard.press('Enter');
+	const dialog = await page.evaluate(() => ({ focusNo: document.activeElement.classList.contains('wpcap-sb-cancel-no'), expanded: document.querySelector('.wpcap-sb-cancel-start').getAttribute('aria-expanded') }));
+	check('cancel asks first (focus on "keep", aria-expanded)', dialog.focusNo && dialog.expanded === 'true');
+	await page.keyboard.press('Enter');
+	check('"keep" returns the focus to the cancel button', await page.evaluate(() => document.activeElement.classList.contains('wpcap-sb-cancel-start')));
 
 	console.log('Scanner: keyboard and announcements');
 	await login(ctx);

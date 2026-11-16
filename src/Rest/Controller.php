@@ -918,7 +918,16 @@ final class Controller {
 
 	public static function service_slots( \WP_REST_Request $request ) {
 		// Only slots a customer can book now (free places, no resource/provider conflict incl. buffers).
-		return rest_ensure_response( ServiceBookings::public_slots( absint( $request['event_id'] ) ) );
+		// Optional (A268, booking page): resource=<id>, week=<Y-m-d> (Monday in the event timezone).
+		$event_id = absint( $request['event_id'] );
+		$filter = array( 'resource_id' => absint( $request->get_param( 'resource' ) ) );
+		$week = \PassCaptain\Http::str( $request->get_param( 'week' ) );
+		if ( '' !== $week ) {
+			$range = \PassCaptain\Frontend\ServiceBooking::week_range( $event_id, $week );
+			if ( ! $range ) { return new \WP_Error( 'wpcap_invalid_week', __( 'Ungültige Woche.', 'pass-captain' ), array( 'status' => 400 ) ); }
+			$filter += $range;
+		}
+		return rest_ensure_response( ServiceBookings::public_slots( $event_id, array_filter( $filter ) ) );
 	}
 
 	public static function book_service_slot( \WP_REST_Request $request ) {

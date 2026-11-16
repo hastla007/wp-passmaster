@@ -642,20 +642,31 @@ final class ServiceBookings {
 	 * free places and not blocked by a booked overlapping slot of the same resource or of a resource
 	 * sharing a provider (A133). Keys: slot_id, resource_id, starts_at, ends_at, capacity,
 	 * resource_name, available.
+	 *
+	 * @param int   $event_id Event.
+	 * @param array $filter   Optional (A268, booking page): resource_id; from / to (UTC
+	 *                        'Y-m-d H:i:s', start >= from and < to); limit (1–100).
 	 */
-	public static function public_slots( $event_id ) {
+	public static function public_slots( $event_id, array $filter = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$columns = self::resource_columns();
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- column list from a constant.
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.*,$columns FROM {$p}wpcap_service_slots s INNER JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$p}wpcap_events e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at,s.slot_id LIMIT 300", absint( $event_id ), Clock::mysql() ) );
+		$where = '';
+		$args = array( absint( $event_id ), Clock::mysql() );
+		if ( ! empty( $filter['resource_id'] ) ) { $where .= ' AND s.resource_id=%d'; $args[] = absint( $filter['resource_id'] ); }
+		foreach ( array( 'from' => '>=', 'to' => '<' ) as $key => $op ) {
+			if ( ! empty( $filter[ $key ] ) && preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $filter[ $key ] ) ) { $where .= " AND s.starts_at$op%s"; $args[] = (string) $filter[ $key ]; }
+		}
+		$limit = min( 100, max( 1, absint( $filter['limit'] ?? 100 ) ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- column list from a constant, $where built from fixed fragments with placeholders.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.*,$columns FROM {$p}wpcap_service_slots s INNER JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$p}wpcap_events e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s$where ORDER BY s.starts_at,s.slot_id LIMIT 300", ...$args ) );
 		$out = array();
 		foreach ( $rows as $slot ) {
 			$available = (int) $slot->capacity - self::booked( (int) $slot->slot_id );
 			// A134: only slots inside the booking window (lead time, maximum advance booking).
 			if ( $available <= 0 || self::rule_error( $slot, '' ) || self::blocking_slot( $slot ) ) { continue; }
 			$out[] = array( 'slot_id' => (int) $slot->slot_id, 'resource_id' => (int) $slot->resource_id, 'starts_at' => $slot->starts_at, 'ends_at' => $slot->ends_at, 'capacity' => (int) $slot->capacity, 'resource_name' => (string) $slot->resource_name, 'available' => $available );
-			if ( count( $out ) >= 100 ) { break; }
+			if ( count( $out ) >= $limit ) { break; }
 		}
 		return $out;
 	}

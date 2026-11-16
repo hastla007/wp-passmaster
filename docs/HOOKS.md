@@ -77,6 +77,10 @@ Außerdem feuert das Template `templates/event-card.php` innerhalb des Checkout-
 hängen (Sitzplatzwahl, SMS, Mollie, Partnercode, Käuferlimits); das JS-Ereignis `wpcap:checkout-payload`
 ergänzt den Payload. Sie steht hier im Fließtext, weil sie nicht in `src/`, sondern im Template ausgelöst wird.
 
+Die Terminbuchung (A268) löst nach erfolgreicher Buchung das JS-Ereignis `wpcap:service-booking-complete`
+auf `document` aus (`detail`: `root`, `booking_id`, `status` – `confirmed` oder `pending_payment` –, `order`
+mit `public_id`, `reference`, `payment` bei kostenpflichtigen Ressourcen), z. B. für Analytics ohne personenbezogene Daten.
+
 Die WP-Cron-Hooks des Plugins stehen unter [Cron-Hooks](#cron-hooks).
 
 ## Filter und themenbezogene Actions
@@ -112,6 +116,9 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_service_booking_mail` | `array\|false $mail` (`to`, `subject`, `body`), `string $change`, `object $booking`, `string $audience` (`customer`/`staff`) | Kunden- bzw. Team-Mail zu einer Servicebuchung anpassen; `false` unterdrückt sie. |
 | `wpcap_service_booking_staff_recipients` | `string[] $emails` (Website-Admin plus aktive Leistungserbringer der Ressource mit E-Mail), `object $booking`, `string $change` | Empfänger der Team-Mail zu einer Servicebuchung. |
 | `wpcap_service_booking_rebooking` (Action) | `int $booking_id, int $target_slot_id` | In `ServiceBookings::rebook()` innerhalb der Transaktion nach allen Prüfungen, bevor die Buchung verschoben wird (Ressourcen, Leistungserbringer, beide Zeitfenster und die Buchung sind gesperrt). Für Erweiterungen und deterministische Wettlauf-Tests; keine eigene Transaktion starten. |
+| `wpcap_service_booking_heading_level` | `int $level` (2), `int $event_id` | Überschriftenebene der Terminbuchung (`[wpcap_service_booking]` / Block `pass-captain/service-booking`, A268): Eventname auf dieser Ebene, Schritte eine, Tage zwei Ebenen darunter (2–5). |
+| `wpcap_service_booking_page_url` | `string $url` (erste veröffentlichte Seite mit Shortcode/Block für das Event oder `''`), `int $event_id` | Link „Auf der Website ansehen“ auf der Admin-Seite „Service-Zeitfenster“ (A268). |
+| `wpcap_checkout_billing_enabled` | `bool $enabled` (true), `object\|null $event` (`null` in der Terminbuchung) | Abschnitt „Rechnung mit Firmen-/Adressdaten“ im Checkout-Formular (`templates/event-card.php`) und in der Terminbuchung für kostenpflichtige Ressourcen anzeigen. |
 | `wpcap_developer_key_rate_limit` | `int $limit` (eigenes Limit des Schlüssels, sonst 600), `int $api_key_id`, `int $own` (gespeichertes Limit, 0 = Standard) | Anfragen pro Minute für einen Entwickler-API-Schlüssel (`DeveloperKeys::rate_limit()`, A161); Rückgabe mindestens 1. |
 | `wpcap_seating_availability_limit` | `int $limit` (120) | Abrufe der Sitzplatzverfügbarkeit je Client und Minute. |
 | `wpcap_now` | `int $timestamp` (`time()`) | Aktuelle Zeit der Geschäftsregeln (`PassCaptain\Clock`): Reservierungen, Verkaufsfenster, Erinnerungen, Servicebuchungsfristen, Wartelistenangebote, Kalender-DTSTAMP, Standardzeiträume der Berichte (Tests/Simulation, A199). |

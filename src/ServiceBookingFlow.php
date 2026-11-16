@@ -115,8 +115,8 @@ final class ServiceBookingFlow {
 	 * Notifications.
 	 * ------------------------------------------------------------------------------------------- */
 
-	/** Timezone of the booking's event (first occurrence), else UTC. */
-	private static function timezone( $event_id ) {
+	/** Timezone of the event (first occurrence), else UTC. Also used by the booking page (A268). */
+	public static function timezone( $event_id ) {
 		global $wpdb;
 		$zone = (string) $wpdb->get_var( $wpdb->prepare( "SELECT timezone FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at LIMIT 1", absint( $event_id ) ) );
 		return in_array( $zone, timezone_identifiers_list(), true ) ? $zone : 'UTC';
@@ -184,7 +184,13 @@ final class ServiceBookingFlow {
 		if ( in_array( $change, array( 'confirmed', 'rebooked' ), true ) && (int) $booking->order_id ) {
 			$lines[] = __( 'Umbuchen und stornieren kannst du über den Link zu deiner Bestellung (Bestellportal).', 'pass-captain' );
 		}
-		$customer = array( 'to' => (string) $booking->customer_email, 'subject' => $subjects[ $change ], 'body' => implode( "\n\n", $lines ) );
+		$customer_lines = $lines;
+		if ( in_array( $change, array( 'confirmed', 'rebooked' ), true ) && isset( self::$manage_links[ (int) $booking_id ] ) ) {
+			// A268: personal manage link of the booking page (customer mail only, never to the team).
+			/* translators: %s: URL of the booking management page */
+			$customer_lines[] = sprintf( __( 'Termin ansehen, umbuchen oder stornieren: %s', 'pass-captain' ), self::$manage_links[ (int) $booking_id ] );
+		}
+		$customer = array( 'to' => (string) $booking->customer_email, 'subject' => $subjects[ $change ], 'body' => implode( "\n\n", $customer_lines ) );
 		$customer = apply_filters( 'wpcap_service_booking_mail', $customer, $change, $booking, 'customer' );
 		if ( is_array( $customer ) && is_email( $customer['to'] ) && ! Mail\Mailer::is_placeholder( $customer['to'] ) ) {
 			wp_mail( $customer['to'], $customer['subject'], $customer['body'] );
@@ -264,7 +270,34 @@ final class ServiceBookingFlow {
 		return rest_ensure_response( $view );
 	}
 
+	/** Manage links (booking id => URL) known in this request, added to the customer mail (A268). */
+	private static $manage_links = array();
+
+	/**
+	 * Manage link of a booking (A268): permalink of the published page with the booking
+	 * shortcode/block ($page_id as sent by the booking form) plus #wpcap-booking=<id>-<token>. The
+	 * token stays in the URL fragment, so it never reaches a server log or Referer. '' when the page
+	 * does not qualify or the token is malformed.
+	 */
+	public static function manage_link( $page_id, $booking_id, $token ) {
+		$page_id = absint( $page_id );
+		$token = strtolower( (string) $token );
+		if ( ! $page_id || ! preg_match( '/^[a-f0-9]{64}$/', $token ) || ! function_exists( 'get_post' ) || ! function_exists( 'get_permalink' ) ) { return ''; }
+		$post = get_post( $page_id );
+		if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password || ! Frontend\ServiceBooking::content_has_form( (string) $post->post_content ) ) { return ''; }
+		$url = (string) get_permalink( $post );
+		return '' === $url ? '' : $url . '#wpcap-booking=' . absint( $booking_id ) . '-' . $token;
+	}
+
+	/** Remembers the manage link of a token request (the token was verified by token_permission()). */
+	private static function remember_manage_link( \WP_REST_Request $request ) {
+		$booking_id = absint( $request['booking_id'] );
+		$link = self::manage_link( self::param( $request, 'page_id' ), $booking_id, (string) self::param( $request, 'token' ) );
+		if ( '' !== $link ) { self::$manage_links[ $booking_id ] = $link; }
+	}
+
 	public static function rest_confirm( \WP_REST_Request $request ) {
+		self::remember_manage_link( $request );
 		$args = array( 'actor' => 'customer' );
 		foreach ( array( 'provider', 'accept_terms', 'terms_version', 'locale', 'billing', 'code' ) as $key ) {
 			$value = self::param( $request, $key );
@@ -275,6 +308,7 @@ final class ServiceBookingFlow {
 	}
 
 	public static function rest_rebook( \WP_REST_Request $request ) {
+		self::remember_manage_link( $request );
 		$result = ServiceBookings::rebook( absint( $request['booking_id'] ), absint( self::param( $request, 'slot_id' ) ), array( 'actor' => 'customer' ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}

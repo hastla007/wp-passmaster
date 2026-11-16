@@ -6,6 +6,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 
 - Events als Einzeltermin oder wöchentliche Serie mit bis zu 12 getrennten Terminen im Admin anlegen.
 - Events als Shortcode `[wp_pass_captain_events]` (optional `event="ID"`, `occurrence="ID"`, `limit="50"`) oder Gutenberg-Block (mit Event-/Terminauswahl) ausgeben.
+- Service-Zeitfenster (z. B. Fahrstunden, Bootsverleih) per Shortcode `[wpcap_service_booking event="ID"]` (optional `resource="ID"`) oder Block „Pass Captain Terminbuchung“ buchen lassen: Wochenansicht mit freien Plätzen, Bezahlung über den Checkout, Verwaltungslink zum Umbuchen/Stornieren ([docs/OPERATIONS.md](docs/OPERATIONS.md#buchungsseite-für-kundinnen-a268)).
 - Bestellungen mit zehnminütiger Reservierung anlegen; kostenlose Bestellungen stellen Tickets direkt aus.
 - Bezahlung über Stripe, PayPal, Mollie, Überweisung (manuelle Bestätigung) oder den optionalen WooCommerce-Adapter; Kasse, Gästelisten und Veranstalter-API als weitere Verkaufswege.
 - Ticketlink enthält einen zufälligen 256-Bit-Code; nur dessen SHA-256-Hash wird für die Prüfung gespeichert.
@@ -51,7 +52,7 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 ## Module (P2)
 
-Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Veranstalter und Veranstalter-Abrechnungen sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wpcap_events]`, `[wpcap_calendar]`, `[wpcap_scanner]` (ältere Namen `[wp_pass_captain_…]` funktionieren weiter). Umbenennung von „WP Pass Captain“: [docs/RENAME.md](docs/RENAME.md). Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md), [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md), [docs/PARTNER-API.md](docs/PARTNER-API.md), [docs/TESTING.md](docs/TESTING.md), [docs/MAIL-TEMPLATES.md](docs/MAIL-TEMPLATES.md), [docs/SERIES.md](docs/SERIES.md), [docs/STATE-MACHINES.md](docs/STATE-MACHINES.md), Schnittstellenverträge und Versionierung: [docs/CONTRACTS.md](docs/CONTRACTS.md).
+Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Veranstalter und Veranstalter-Abrechnungen sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wpcap_events]`, `[wpcap_calendar]`, `[wpcap_service_booking]`, `[wpcap_scanner]` (ältere Namen `[wp_pass_captain_…]` funktionieren weiter). Umbenennung von „WP Pass Captain“: [docs/RENAME.md](docs/RENAME.md). Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md), [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md), [docs/PARTNER-API.md](docs/PARTNER-API.md), [docs/TESTING.md](docs/TESTING.md), [docs/MAIL-TEMPLATES.md](docs/MAIL-TEMPLATES.md), [docs/SERIES.md](docs/SERIES.md), [docs/STATE-MACHINES.md](docs/STATE-MACHINES.md), Schnittstellenverträge und Versionierung: [docs/CONTRACTS.md](docs/CONTRACTS.md).
 
 ## Scanner und Mobile-App
 
