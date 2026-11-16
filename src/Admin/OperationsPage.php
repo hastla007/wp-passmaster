@@ -118,6 +118,7 @@ final class OperationsPage {
 		Forms::render_notices();
 		echo '<p class="description">' . esc_html__( 'Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder.', 'pass-captain' ) . '</p>';
 		self::render_health();
+		SuiteStatus::render(); // A670/A678: suite contracts, providers, last delivery, errors, fallback.
 		self::render_log();
 		self::render_unresolved_refunds();
 		self::render_doctor();

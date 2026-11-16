@@ -64,6 +64,7 @@ final class Menu {
 			GettingStarted::PAGE_ACTION => array( GettingStarted::class, 'handle_create_sales_page' ),
 			OperationsPage::ACTION => array( OperationsPage::class, 'handle_action' ),
 			OperationsPage::DOCTOR_ACTION => array( OperationsPage::class, 'handle_doctor' ),
+			SuiteStatus::HANDOFF_ACTION => array( SuiteStatus::class, 'handle_handoff' ),
 			'wpcap_developer_key_create' => array( DeveloperKeysPage::class, 'handle_create' ),
 			'wpcap_developer_key_update' => array( DeveloperKeysPage::class, 'handle_update' ),
 			'wpcap_developer_key_revoke' => array( DeveloperKeysPage::class, 'handle_revoke' ),

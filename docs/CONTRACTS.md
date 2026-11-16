@@ -137,7 +137,7 @@ Command.
 ### Optionale Mails an den Workflow-Provider übergeben (A677)
 
 Optionale Mails kann die Betreiber:in je Mailtyp an den Workflow-Provider übergeben (`PassCaptain\Workflow\MailHandoff`,
-Auswahl unter **Pass Captain → Status → Captain-Suite**, Option `wpcap_workflow_mail_handoff`, Recht `manage_options`,
+Auswahl unter **Pass Captain → Betrieb → Captain-Suite**, Option `wpcap_workflow_mail_handoff`, Recht `manage_options`,
 Audit `workflow_mail_handoff_set`). Übergebbar ist im Kern die **Terminerinnerung** (`queue_wpcap_reminder`, Modul
 Erinnerungen); Add-ons können weitere optionale Typen über `wpcap_workflow_mail_handoff_types` anbieten. Ticket-,
 Zahlungs-, Reservierungs-, Erstattungs-, Absage-/Änderungs-, Übertragungs-, Wartelistenangebots- und Einlassmails

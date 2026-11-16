@@ -1817,3 +1817,19 @@ Schema 3.10.25):
   `wpcap_attendee_field_locked` (403, `field_key`) abgelehnt und nichts wird gespeichert; unverändert oder gar nicht
   gesendete gesperrte Felder behalten ihren Wert, die übrigen Angaben werden gespeichert. Einwilligungen haben ihren
   eigenen Ablauf (Widerruf jederzeit). Korrekturen durch das Team im Admin sind davon nicht betroffen.
+
+## Captain-Suite: Status der Verträge und Provider (A670, A678)
+
+**Pass Captain → Betrieb → Captain-Suite** (`Admin\SuiteStatus`, Recht `manage_options`) zeigt je Vertrag, den der
+Kern anbietet (`workflow`, `review`; [CONTRACTS.md](CONTRACTS.md)):
+
+- **Status:** „Vertrag verfügbar – kein Plugin registriert“, „Vertrag verfügbar – Provider aktiv (spricht x.y.z)“
+  oder „Inkompatibel – der Provider spricht 2.x, der Kern bietet 1.x an; er wird nicht aufgerufen“. Die Anzeige ist
+  reine Diagnose: der Kern prüft keine Lizenzen oder Rechte eines Suite-Plugins.
+- **Letzte angenommene Zustellung**, **ausstehende / fehlgeschlagene** Ereignisse der Outbox und der **letzte Fehler**
+  (Fehlercode mit Zeitpunkt) je Vertrag.
+- **Ohne Provider:** was dann passiert – Workflow: Erinnerungen und Mails versendet Pass Captain selbst, Commands
+  stehen nicht zur Verfügung; Bewertungen: keine Einladungen, Teilnahmen werden nur festgehalten. Ereignisse warten
+  30 Tage in der Outbox und erreichen ein später installiertes Plugin (Replay).
+- **Letzte Workflow-Commands** (Command, Ergebnis, Zeit – ohne Argumente) und die **Auswahl der übergebenen
+  optionalen Mails** (A677) mit den Zählern „übergeben“ und „nativ versendet (Rückfall)“ samt letztem Grund.
