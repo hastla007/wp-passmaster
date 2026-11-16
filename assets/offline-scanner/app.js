@@ -16,7 +16,11 @@
 	'use strict';
 
 	var APP_VERSION = '1.0.0';
+	// One IndexedDB database per API base (A473): the sites of a subdirectory network share the
+	// origin of the plugin URL, so a single database mixed device token, keys, packages and the scan
+	// log of different sites. DB_NAME stays the store of a pairing made before (its stored "api").
 	var DB_NAME = 'wpcap-offline-scanner';
+	var CURRENT_API_KEY = 'wpcap-offline-scanner-api';
 	var MAX_DELTAS = 30;
 	var REFRESH_MS = 60000;
 	var SYNC_BATCH = 200;
@@ -27,6 +31,7 @@
 	var state = {
 		api: '', token: '', deviceId: '', keys: {}, clockOffset: 0,
 		occurrences: [], selected: 0, areaId: 0,
+		legacyApi: '', // API base of the database of versions before A473
 		packages: {}, // occurrence_id -> { record, index: Map, meta, error }
 		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
 		busy: false, lastRefresh: 0,
@@ -39,10 +44,10 @@
 	/* ---------------- IndexedDB ---------------- */
 
 	var dbPromise = null;
-	function db() {
-		if (dbPromise) { return dbPromise; }
-		dbPromise = new Promise(function (resolve, reject) {
-			var req = indexedDB.open(DB_NAME, 1);
+	var dbName = DB_NAME;
+	function openDb(name) {
+		return new Promise(function (resolve, reject) {
+			var req = indexedDB.open(name, 1);
 			req.onupgradeneeded = function () {
 				var d = req.result;
 				d.createObjectStore('kv');
@@ -53,7 +58,43 @@
 			req.onsuccess = function () { resolve(req.result); };
 			req.onerror = function () { reject(req.error); };
 		});
+	}
+	function db() {
+		if (!dbPromise) { dbPromise = openDb(dbName); }
 		return dbPromise;
+	}
+	/** Name of the database of an API base: the pre-A473 database when it belongs to that base. */
+	function storeName(apiBase, legacyApi) {
+		return !apiBase || apiBase === legacyApi ? DB_NAME : DB_NAME + '@' + apiBase;
+	}
+	/**
+	 * Works with the data of the site behind apiBase from now on (A473): its own database, so its
+	 * own pairing, keys, packages and scan log; remembered as the site of the next start without
+	 * ?api= (home screen icon).
+	 */
+	function useSite(apiBase) {
+		var name = storeName(apiBase, state.legacyApi);
+		if (name !== dbName) {
+			if (dbPromise) { dbPromise.then(function (d) { d.close(); }, function () {}); }
+			dbPromise = null;
+			dbName = name;
+			state.token = ''; state.deviceId = ''; state.keys = {}; state.packages = {}; state.admitted = {}; state.occurrences = []; state.selected = 0;
+		}
+		state.api = apiBase;
+		try { localStorage.setItem(CURRENT_API_KEY, apiBase); } catch (e) { /* only for this visit */ }
+	}
+	/** API base stored in the database of earlier versions ('' when there is none). */
+	function legacyApiBase() {
+		return openDb(DB_NAME).then(function (d) {
+			return new Promise(function (resolve) {
+				var done = function (value) { d.close(); resolve(value); };
+				try {
+					var req = d.transaction('kv', 'readonly').objectStore('kv').get('api');
+					req.onsuccess = function () { done(req.result || ''); };
+					req.onerror = function () { done(''); };
+				} catch (e) { done(''); }
+			});
+		}).catch(function () { return ''; });
 	}
 	function idb(store, mode, fn) {
 		return db().then(function (d) {
@@ -765,7 +806,8 @@
 				var qr = JSON.parse(input);
 				if ('wpcap-pair' === qr.type && qr.code) {
 					if (qr.api && !sameOrigin(qr.api)) { throw new Error(t('Der Kopplungscode gehört zu einem anderen Server.')); }
-					if (qr.api) { state.api = qr.api; }
+					// A code of another site of the network: pair in that site's own store (A473).
+					if (qr.api) { useSite(qr.api); }
 					input = qr.code;
 				}
 			} catch (e) { return Promise.reject(e); }
@@ -807,16 +849,22 @@
 		}
 		if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {}); }
 		var param = new URLSearchParams(location.search).get('api');
-		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log')]).then(function (v) {
-			var stored = v[0];
-			var api = param && sameOrigin(param) ? param : (stored || deriveApi());
-			if (!sameOrigin(api)) { api = deriveApi(); }
-			state.api = api;
+		param = param && sameOrigin(param) ? param : '';
+		var current = '';
+		try { current = localStorage.getItem(CURRENT_API_KEY) || ''; } catch (e) { current = ''; }
+		// Site: ?api= of the admin link, else the site used last, else the pairing of an older version.
+		legacyApiBase().then(function (legacy) {
+			state.legacyApi = legacy;
+			var apiBase = param || (sameOrigin(current) ? current : '') || legacy || deriveApi();
+			if (!sameOrigin(apiBase)) { apiBase = deriveApi(); }
+			useSite(apiBase);
+			return Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log')]);
+		}).then(function (v) {
 			state.token = v[1] || '';
 			state.deviceId = v[2] || '';
 			state.keys = v[3] || {};
 			state.clockOffset = v[4] || 0;
-			if (param && sameOrigin(param) && param !== stored) { kvSet('api', param); }
+			if (v[0] !== state.api) { kvSet('api', state.api); }
 			v[5].forEach(loadPackage);
 			v[6].forEach(function (e) { if (e.ok) { markAdmitted(e.occurrence_id, e.hash); } });
 			if (param) { history.replaceState(null, '', location.pathname); }
@@ -862,7 +910,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera };
+	window.wpcapOffline = { pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera };
 
 	boot();
 }());

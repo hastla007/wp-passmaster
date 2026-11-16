@@ -140,6 +140,14 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 | `../vendor/jsqr/` | Camera fallback when `BarcodeDetector` is unavailable. |
 
 - **Start:** open the app from the admin button. The link passes `?api=<rest_url>`, which is stored.
+- **One store per site (A473):** the app is served from the plugin URL, which all sites of a
+  (subdirectory) network share – one origin, one IndexedDB. Pairing token, public keys, packages and
+  the scan log are therefore kept in one database per API base (`wpcap-offline-scanner@<api>`); each
+  site of the network needs its own pairing. A start without `?api=` (home screen icon) opens the
+  site used last (`localStorage` key `wpcap-offline-scanner-api`); open the app from the other site's
+  admin button to switch. A pairing QR code of another site pairs in that site's store. A pairing
+  made before keeps its database (`wpcap-offline-scanner`, its stored `api`) and only serves that
+  site. Unpairing clears the store of the current site only. Service worker cache: `v6`.
 - **Language:** the link also passes `?lang=` (WordPress user locale). The app remembers it on the
   device for offline starts and otherwise falls back to the browser language, then German. Dates use
   the matching locale. Add a language by adding a catalog to `i18n.js` (keys = German source text).
