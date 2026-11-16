@@ -176,7 +176,8 @@ Orders::confirm_manual_payment( $meanwhile['order_id'] );
 $mails = count( $GLOBALS['wpcap_test_mails'] );
 $res = Orders::confirm_external_payment( $late['order_id'], 'manual:x2-late' );
 $state = Orders::get( $late['order_id'] );
-$alert = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails ), static fn( $m ) => false !== strpos( (string) $m['subject'], 'Käuferlimit' ) ) );
+// Merged: the late-payment alert (A273) names the reason in the body ("maximale Anzahl an Tickets pro Person").
+$alert = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails ), static fn( $m ) => false !== strpos( (string) $m['subject'], 'ohne Tickets' ) && false !== strpos( (string) $m['body'], 'Tickets pro Person' ) ) );
 check( 'setup: limit created, buyer got 2 tickets meanwhile', is_int( $limit_id ) && 2 === count( tickets( $meanwhile['order_id'], 'valid' ) ) );
 check( 'late payment over the buyer limit: needs_review, no tickets issued, admin alerted', is_wp_error( $res ) && 'wpcap_needs_review' === $res->get_error_code() && 'needs_review|paid_unallocated' === $state->status . '|' . $state->payment_status && ! Orders::tickets_for_order( $late['order_id'] ) && 1 === count( $alert ) );
 check( 'late payment over the buyer limit: audited with reason buyer_limit', (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='payment_unallocated' AND object_id=%d AND details LIKE %s", $late['order_id'], '%buyer_limit%' ) ) );

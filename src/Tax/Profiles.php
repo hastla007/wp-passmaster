@@ -253,6 +253,9 @@ final class Profiles {
 		$id = absint( $in['tax_profile_id'] ?? 0 );
 		$now = current_time( 'mysql', true );
 		$me = (int) get_current_user_id();
+		// Optional display label and place-of-supply note (shown with the rate; not part of the reviewed rate data).
+		if ( array_key_exists( 'label', $in ) && is_scalar( $in['label'] ) ) { $clean['label'] = \PassCaptain\Text::cut( sanitize_text_field( (string) $in['label'] ), 190 ); }
+		if ( array_key_exists( 'place_of_supply_note', $in ) && is_scalar( $in['place_of_supply_note'] ) ) { $clean['place_of_supply_note'] = sanitize_textarea_field( (string) $in['place_of_supply_note'] ); }
 		if ( $id ) {
 			$old = self::get( $id );
 			if ( ! $old ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'pass-captain' ), 404 ); }

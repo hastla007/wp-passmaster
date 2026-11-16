@@ -1258,6 +1258,9 @@ final class Controller {
 	public static function save_tax_profile( \WP_REST_Request $request ) {
 		$data = (array) $request->get_json_params();
 		unset( $data['tax_profile_id'] ); // Creates only; drafts are edited in the admin.
+		if ( ! isset( $data['rate_basis_points'] ) && isset( $data['rate'] ) && is_scalar( $data['rate'] ) && preg_match( '/^(\d{1,3})(?:[.,](\d{1,2}))?$/', trim( (string) $data['rate'] ), $m ) ) {
+			$data['rate_basis_points'] = (int) $m[1] * 100 + (int) str_pad( $m[2] ?? '', 2, '0' ); // "rate" in percent (documented alias).
+		}
 		$id = \PassCaptain\Tax\Profiles::save_draft( $data );
 		if ( is_wp_error( $id ) ) { return $id; }
 		return new \WP_REST_Response( array( 'tax_profile_id' => (int) $id, 'status' => 'draft', 'requires_review' => true ), 201 );
