@@ -102,6 +102,7 @@ final class Menu {
 		add_action( 'admin_notices', array( self::class, 'pay_later_gateway_notice' ) );
 		UserScope::register();
 		StatusPage::register();
+		DashboardWidget::register();
 		// admin_post_* only fires in wp-admin/admin-post.php (an admin request): frontend, REST and cron
 		// requests skip building the handler map, which loads every admin screen class (PERF-14).
 		if ( ! function_exists( 'is_admin' ) || is_admin() ) {

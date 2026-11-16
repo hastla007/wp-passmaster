@@ -1321,9 +1321,10 @@ Gesamt: 262 Aufgaben.
   - src/Reports/Data.php:165: paid_at speichern und verwenden
 - [ ] **A614** [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — _R4 Eigen (Deep Dive 3)_ (TODO L969; Audit Runde 4)
   - templates/event-card.php:64, TicketPage.php: buyer_notice() und Name auf Ticketseite, Mail, PDF
-- [ ] **A615** [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — _R4 Eigen (Deep Dive 3)_ (TODO L970; Audit Runde 4)
+- [x] **A615** [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — _R4 Eigen (Deep Dive 3)_ (TODO L970; Audit Runde 4)
   - —: Widget mit Verkäufen, offenen Prüfungen, nächsten Terminen
   - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Admin/StatusPage.php` (Dashboard-Widget „Pass Captain: Systemstatus“ mit den kritischen Befunden); Verkäufe, offene Prüfungen und nächste Termine zeigt es nicht.
+  - Erledigt: `src/Admin/DashboardWidget.php` (Widget „Pass Captain: Überblick“: Verkäufe heute/7 Tage je Währung nach Zahlungsdatum, wartende manuelle Zahlungen, Bestellungen zur Prüfung, nächste Termine mit verkauft/Kapazität; Beträge nur mit `wpcap_manage_orders`; 5 min Cache, Filter `wpcap_dashboard_widget_ttl`/`wpcap_dashboard_widget_upcoming`); Test zz_a615.
 - [x] **A616** [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — _R4 Transaktionen/Concurrency_ (TODO L971; Audit Runde 4)
   - src/Rest/Controller.php:681–692, Campaigns.php:47/183: Datum validieren, Ortszeit → UTC, reines Datum als Tagesende (belegt t5)
 - [x] **A617** [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — _R4 Transaktionen/Concurrency_ (TODO L972; Audit Runde 4)
