@@ -5,7 +5,7 @@
  * Available: $event, $types (with ->available, ->fields), $providers (id => gateway; empty = no
  * payment method available, the card then says "Online-Verkauf derzeit nicht möglich"), $legal
  * (require_terms, terms_text, consumer_info_text, locale, terms_version; texts in the page language) and
- * $card (Frontend\EventCard::context(): badges, seats left, price, other dates, next date, limits).
+ * $card (Frontend\EventCard::context(): badges, seats left, price, other dates with their link "url", next date, limits).
  * The checkout script relies on the class names, the name attributes and the field wrappers
  * (.wpcap-field) for inline error messages.
  *
@@ -55,7 +55,7 @@ $wpcap_no_payment = ! $providers;
 			<summary><?php echo esc_html( sprintf( /* translators: %d: number of other dates */ __( 'Weitere Termine (%d)', 'pass-captain' ), count( $card['dates'] ) ) ); ?></summary>
 			<ul>
 				<?php foreach ( $card['dates'] as $wpcap_date ) : ?>
-					<li><?php if ( $wpcap_date['linked'] ) : ?><a href="#wpcap-occ-<?php echo esc_attr( $wpcap_date['occurrence_id'] ); ?>"><time datetime="<?php echo esc_attr( $wpcap_date['iso'] ); ?>"><?php echo esc_html( $wpcap_date['label'] ); ?></time></a><?php else : ?><time datetime="<?php echo esc_attr( $wpcap_date['iso'] ); ?>"><?php echo esc_html( $wpcap_date['label'] ); ?></time><?php endif; ?> <?php echo \PassCaptain\Frontend\EventCard::render_badges( $wpcap_date['badges'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_badges(). ?></li>
+					<li><?php if ( $wpcap_date['linked'] ) : ?><a href="<?php echo esc_url( $wpcap_date['url'] ?? '#wpcap-occ-' . (int) $wpcap_date['occurrence_id'] ); ?>"><time datetime="<?php echo esc_attr( $wpcap_date['iso'] ); ?>"><?php echo esc_html( $wpcap_date['label'] ); ?></time></a><?php else : ?><time datetime="<?php echo esc_attr( $wpcap_date['iso'] ); ?>"><?php echo esc_html( $wpcap_date['label'] ); ?></time><?php endif; ?> <?php echo \PassCaptain\Frontend\EventCard::render_badges( $wpcap_date['badges'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_badges(). ?></li>
 				<?php endforeach; ?>
 			</ul>
 		</details>

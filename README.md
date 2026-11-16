@@ -5,7 +5,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 ## Funktionen
 
 - Events als Einzeltermin oder wöchentliche Serie mit bis zu 12 getrennten Terminen im Admin anlegen.
-- Events als Shortcode `[wp_pass_captain_events]` (optional `event="ID"`, `occurrence="ID"`, `limit="50"`) oder Gutenberg-Block (mit Event-/Terminauswahl) ausgeben.
+- Events als Shortcode `[wp_pass_captain_events]` (optional `event="ID"`, `occurrence="ID"`, `limit="50"`, `dates="each"`) oder Gutenberg-Block (mit Event-/Terminauswahl) ausgeben – standardmäßig eine Karte je Event, deren weitere Termine darin auswählbar sind.
 - Service-Zeitfenster (z. B. Fahrstunden, Bootsverleih) per Shortcode `[wpcap_service_booking event="ID"]` (optional `resource="ID"`) oder Block „Pass Captain Terminbuchung“ buchen lassen: Wochenansicht mit freien Plätzen, Bezahlung über den Checkout, Verwaltungslink zum Umbuchen/Stornieren ([docs/OPERATIONS.md](docs/OPERATIONS.md#buchungsseite-für-kundinnen-a268)).
 - Bestellungen mit zehnminütiger Reservierung anlegen; kostenlose Bestellungen stellen Tickets direkt aus.
 - Bezahlung über Stripe, PayPal, Mollie, Überweisung (manuelle Bestätigung) oder den optionalen WooCommerce-Adapter; Kasse, Gästelisten und Veranstalter-API als weitere Verkaufswege.

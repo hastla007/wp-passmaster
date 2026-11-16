@@ -228,7 +228,8 @@ final class Calendar {
 
 	private static function link_for( $row ) {
 		$url = Ics::checkout_url( (int) $row->occurrence_id );
-		return '' !== $url ? $url : '#wpcap-occ-' . (int) $row->occurrence_id;
+		// Same page: the listing there shows the date's card when asked with ?wpcap_occurrence= (A342).
+		return '' !== $url ? $url : \PassCaptain\PublicEvents::occurrence_link( (int) $row->occurrence_id );
 	}
 
 	/** Whether cancelled upcoming dates stay visible (unlinked, badge "Abgesagt"). */

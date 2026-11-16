@@ -42,7 +42,9 @@
 			var controls = blockEditor.InspectorControls && components && components.SelectControl ? el( blockEditor.InspectorControls, {},
 				el( components.PanelBody, { title: __( 'Auswahl', 'pass-captain' ) },
 					el( components.SelectControl, { label: __( 'Event', 'pass-captain' ), value: String( eventId ), options: eventOptions, onChange: function ( v ) { props.setAttributes( { event: parseInt( v, 10 ) || 0, occurrence: 0 } ); } } ),
-					eventId ? el( components.SelectControl, { label: __( 'Termin', 'pass-captain' ), value: String( occurrenceId ), options: occurrenceOptions, help: occurrenceHelp, onChange: function ( v ) { props.setAttributes( { occurrence: parseInt( v, 10 ) || 0 } ); } } ) : null
+					eventId ? el( components.SelectControl, { label: __( 'Termin', 'pass-captain' ), value: String( occurrenceId ), options: occurrenceOptions, help: occurrenceHelp, onChange: function ( v ) { props.setAttributes( { occurrence: parseInt( v, 10 ) || 0 } ); } } ) : null,
+					// A342: by default one card per event with its other dates as a choice; optionally one card per date.
+					! occurrenceId && components.ToggleControl ? el( components.ToggleControl, { label: __( 'Jeden Termin als eigene Karte', 'pass-captain' ), help: __( 'Aus: eine Karte je Event, die weiteren Termine sind darin auswählbar.', 'pass-captain' ), checked: !! attrs.perDate, onChange: function ( v ) { props.setAttributes( { perDate: !! v } ); } } ) : null
 				)
 			) : null;
 			return el( element.Fragment, {}, controls, el( 'div', blockProps, preview( el( serverSideRender, { block: 'wp-pass-captain/events', attributes: attrs } ) ) ) );

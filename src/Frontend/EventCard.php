@@ -263,6 +263,8 @@ final class EventCard {
 				'iso' => self::iso( $other->starts_at ),
 				'label' => Format::event_start( $other->starts_at, $other->timezone ),
 				'linked' => 'cancelled' !== ( $other->status ?? '' ) && ! empty( $other->listed ),
+				// Link target: the card's anchor; PublicEvents sets ?wpcap_occurrence= links for one card per event (A342).
+				'url' => '#wpcap-occ-' . $other_id,
 				'badges' => self::badges( $other, $other_available, array( 'next' => ! empty( $listing['next'][ $other_id ] ), 'view' => 'dates' ) ),
 			);
 		}

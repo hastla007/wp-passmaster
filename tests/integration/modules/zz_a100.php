@@ -61,7 +61,7 @@ check( 'A100 setup: the only ticket of date A is held', ! is_wp_error( $a100_hol
 $a100_render = static function ( array $atts = array() ) use ( $a100_event ) {
 	Orders::flush_availability_cache();
 	EventCard::reset_form_ids(); // Each render is a page of its own (A308: ids are unique per page).
-	return PublicEvents::render_shortcode( $atts + array( 'event' => $a100_event ) );
+	return PublicEvents::render_shortcode( $atts + array( 'event' => $a100_event, 'dates' => 'each' ) ); // One card per date (A342: the default groups by event).
 };
 $a100_card = static function ( $html, $occ ) {
 	foreach ( explode( '<article', $html ) as $chunk ) {

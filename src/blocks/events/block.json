@@ -29,6 +29,10 @@
     "occurrence": {
       "type": "number",
       "default": 0
+    },
+    "perDate": {
+      "type": "boolean",
+      "default": false
     }
   }
 }

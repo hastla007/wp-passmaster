@@ -146,11 +146,15 @@ final class Ics {
 		return 'o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,' . ( Revisions::ready() ? 'o.revision,o.revised_at,' : '' ) . 'e.name AS event_name,e.description AS event_description';
 	}
 
-	/** Checkout link of an occurrence: configured shortcode page + card anchor. */
+	/**
+	 * Checkout link of an occurrence: configured shortcode page with ?wpcap_occurrence={id} (the
+	 * listing then shows that date's card even when events are shown as one card each or the date is
+	 * beyond the listing limit, A342) + card anchor.
+	 */
 	public static function checkout_url( $occurrence_id ) {
 		$settings = (array) Settings::get( 'calendar' );
-		$base = (string) ( $settings['checkout_url'] ?? '' );
-		$url = '' !== $base ? $base . '#wpcap-occ-' . absint( $occurrence_id ) : '';
+		$base = explode( '#', (string) ( $settings['checkout_url'] ?? '' ), 2 )[0];
+		$url = '' !== $base ? add_query_arg( \PassCaptain\PublicEvents::OCCURRENCE_PARAM, absint( $occurrence_id ), $base ) . '#wpcap-occ-' . absint( $occurrence_id ) : '';
 		return (string) apply_filters( 'wpcap_calendar_checkout_url', $url, absint( $occurrence_id ) );
 	}
 

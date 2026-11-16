@@ -56,7 +56,7 @@ check( 'DTSTART/DTEND in UTC with default duration of 2 hours', false !== strpos
 check( 'DTSTAMP present in UTC', 1 === preg_match( '/DTSTAMP:\d{8}T\d{6}Z/', $unfolded ) );
 check( 'summary and location escaped', false !== strpos( $unfolded, 'SUMMARY:Konzert\\, Nacht\\; Teil 2' ) && false !== strpos( $unfolded, 'LOCATION:Saal 1\\; Wien\\, Ring' ) );
 check( 'stable UID per occurrence', false !== strpos( $unfolded, 'UID:wpcap-occurrence-' . $occ . '@example.test' ) && $ics !== null && preg_replace( '/DTSTAMP:\S+/', '', $ics ) === preg_replace( '/DTSTAMP:\S+/', '', (string) Ics::occurrence_calendar( $occ ) ) );
-check( 'checkout link with card anchor as URL', false !== strpos( $unfolded, 'URL:https://example.test/tickets/#wpcap-occ-' . $occ ) );
+check( 'checkout link with card anchor as URL', false !== strpos( $unfolded, 'URL:https://example.test/tickets/?wpcap_occurrence=' . $occ . '#wpcap-occ-' . $occ ) );
 check( 'description has no HTML', false === strpos( $unfolded, '<p>' ) );
 
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET ends_at=DATE_ADD(starts_at, INTERVAL 90 MINUTE) WHERE occurrence_id=$occ" );
@@ -101,7 +101,7 @@ $draft_type = make_type( 5, 10, 0 );
 $draft_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$draft_type" );
 $wpdb->query( "UPDATE {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id SET e.status='draft', e.name='Geheim' WHERE o.occurrence_id=$draft_occ" );
 $list = Calendar::render_shortcode( array( 'view' => 'list', 'event' => $event ) );
-check( 'list view links to the checkout anchor and the .ics download', false !== strpos( $list, 'https://example.test/tickets/#wpcap-occ-' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
+check( 'list view links to the checkout anchor and the .ics download', false !== strpos( $list, 'https://example.test/tickets/?wpcap_occurrence=' . $occ . '#wpcap-occ-' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
 check( 'list view uses <time datetime> and escapes names', false !== strpos( $list, '<time datetime="' ) && false !== strpos( $list, 'Konzert, Nacht; Teil 2' ) );
 check( 'list view hides cancelled occurrences', false === strpos( $list, 'wpcap-occ-' . $cancelled_occ ) );
 $all = Calendar::render_list();

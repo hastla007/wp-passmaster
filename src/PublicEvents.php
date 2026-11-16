@@ -217,11 +217,12 @@ final class PublicEvents {
 	}
 
 	/**
-	 * [wp_pass_captain_events event="12" occurrence="34" limit="50"] – upcoming bookable occurrences,
-	 * optionally only of one event or one occurrence (also the block attributes).
+	 * [wp_pass_captain_events event="12" occurrence="34" limit="50" dates="each"] – upcoming bookable
+	 * occurrences, optionally only of one event or one occurrence (also the block attributes).
+	 * A342: one card per event by default (dates="each": one card per date as before).
 	 */
 	public static function render_shortcode( $atts = array() ) {
-		$atts = shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50 ), is_array( $atts ) ? $atts : array(), 'wp_pass_captain_events' );
+		$atts = shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50, 'dates' => '' ), is_array( $atts ) ? $atts : array(), 'wp_pass_captain_events' );
 		return self::render_listing( $atts, '' );
 	}
 
@@ -232,13 +233,37 @@ final class PublicEvents {
 	 */
 	public static function render_block( array $attributes ) {
 		$wrapper = function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-events' ) ) : '';
-		return self::render_listing( array( 'event' => absint( $attributes['event'] ?? 0 ), 'occurrence' => absint( $attributes['occurrence'] ?? 0 ), 'limit' => 50 ), $wrapper );
+		return self::render_listing( array( 'event' => absint( $attributes['event'] ?? 0 ), 'occurrence' => absint( $attributes['occurrence'] ?? 0 ), 'limit' => 50, 'dates' => empty( $attributes['perDate'] ) ? '' : 'each' ), $wrapper );
+	}
+
+	/** Query parameter that selects the date shown on an event's card (A342). */
+	const OCCURRENCE_PARAM = 'wpcap_occurrence';
+
+	/** Occurrence requested through ?wpcap_occurrence= (0 = none). */
+	public static function requested_occurrence() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- selects what a public page shows.
+		return isset( $_GET[ self::OCCURRENCE_PARAM ] ) && is_scalar( $_GET[ self::OCCURRENCE_PARAM ] ) ? absint( $_GET[ self::OCCURRENCE_PARAM ] ) : 0;
+	}
+
+	/**
+	 * Link that shows the card of an occurrence on the current page (A342): the request URL with
+	 * ?wpcap_occurrence={id} and the card anchor #wpcap-occ-{id}.
+	 */
+	public static function occurrence_link( $occurrence_id ) {
+		return Modules\Calendar::nav_url( self::OCCURRENCE_PARAM, absint( $occurrence_id ), 'wpcap-occ-' . absint( $occurrence_id ) );
 	}
 
 	/**
 	 * Event listing of the shortcode and the block.
 	 *
-	 * @param array  $atts    event, occurrence, limit.
+	 * A342: unless `dates` is "each" (or one occurrence is selected), each event gets one card: the
+	 * date requested with ?wpcap_occurrence=, else its first bookable date (else its first presale
+	 * date). The card's "Weitere Termine" link to the same page with ?wpcap_occurrence={id}, so the
+	 * page holds one checkout form per event instead of one per date. A requested date beyond the
+	 * listing limit is loaded too, so links from the calendar, .ics files and mails always find
+	 * their card; old #wpcap-occ-{id} links of the event's other dates land on its card.
+	 *
+	 * @param array  $atts    event, occurrence, limit, dates ('each' or '').
 	 * @param string $wrapper Attributes of the root element ('' = class="wpcap-events").
 	 */
 	private static function render_listing( array $atts, $wrapper ) {
@@ -248,23 +273,31 @@ final class PublicEvents {
 		$args = array();
 		if ( absint( $atts['event'] ) ) { $where .= ' AND e.event_id=%d'; $args[] = absint( $atts['event'] ); }
 		if ( absint( $atts['occurrence'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $atts['occurrence'] ); }
-		$args[] = max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) );
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where} ORDER BY o.starts_at ASC LIMIT %d",
-			...$args
-		) );
+		$sql = "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where}";
+		$rows = $wpdb->get_results( $wpdb->prepare( $sql . ' ORDER BY o.starts_at ASC LIMIT %d', ...array_merge( $args, array( max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) ) ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built from literals.
+		$requested = absint( $atts['occurrence'] ) ? 0 : self::requested_occurrence();
+		if ( $requested && ! in_array( $requested, array_map( static function ( $row ) { return (int) $row->occurrence_id; }, (array) $rows ), true ) ) {
+			$extra = $wpdb->get_row( $wpdb->prepare( $sql . ' AND o.occurrence_id=%d', ...array_merge( $args, array( $requested ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built from literals.
+			if ( $extra ) {
+				$rows[] = $extra;
+				usort( $rows, static function ( $a, $b ) { return strcmp( (string) $a->starts_at, (string) $b->starts_at ) ?: (int) $a->occurrence_id <=> (int) $b->occurrence_id; } );
+			}
+		}
+		$rows = (array) $rows;
 		$meta = array();
 		$listing = self::listing_data( $rows, $meta );
 		$card_listing = self::card_listing( $rows, $listing, $meta );
 		// A293: dates whose ticket types all start selling later get a "Vorverkauf ab …" card.
 		$presale = self::presale_starts( $rows, $listing );
+		$grouped = 'each' !== (string) ( $atts['dates'] ?? '' ) && ! absint( $atts['occurrence'] );
+		$cards = $grouped ? self::card_rows( $rows, $listing, $presale, $requested ) : $rows;
 		$shown = 0;
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );
 		ob_start();
 		?>
 		<div <?php echo '' !== $wrapper ? $wrapper : 'class="wpcap-events"'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- get_block_wrapper_attributes() escapes. ?>>
-			<?php foreach ( $rows as $event ) :
+			<?php foreach ( $cards as $event ) :
 				$types = $listing[ (int) $event->occurrence_id ] ?? array();
 				if ( ! $types ) {
 					if ( isset( $presale[ (int) $event->occurrence_id ] ) ) {
@@ -280,13 +313,20 @@ final class PublicEvents {
 				<?php
 				// Badges, seats left, price and the event's other dates (theme templates may ignore it).
 				$card = Frontend\EventCard::context( $event, $types, $card_listing );
+				if ( $grouped ) {
+					// The other dates switch this card to them (A342); "url" is what the template links to.
+					foreach ( $card['dates'] as $i => $date ) {
+						if ( $date['linked'] ) { $card['dates'][ $i ]['url'] = self::occurrence_link( $date['occurrence_id'] ); }
+					}
+				}
 				$template = self::theme_template( 'event-card.php' );
 				if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
 				ob_start();
 				include $template;
 				$card_html = ob_get_clean();
 				$card_html = apply_filters( 'wpcap_event_card_html', $card_html, $event, $types );
-				echo Hooks::legacy_filter( 'wpcap_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
+				$card_html = Hooks::legacy_filter( 'wpcap_event_card_html', $card_html, $event, $types );
+				echo $grouped ? self::with_date_anchors( $card_html, $card['dates'] ) : $card_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
 				?>
 			<?php endforeach; ?>
 			<?php if ( ! $shown ) : ?><p class="wpcap-events-empty"><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
@@ -402,6 +442,55 @@ final class PublicEvents {
 			$response->header( 'CDN-Cache-Control', 'no-store' );
 		}
 		return $response;
+	}
+
+	/**
+	 * One listing row per event (A342), in the order of the events' first dates: the requested
+	 * occurrence when it belongs to the event and can be shown, else the first date with ticket
+	 * types on sale, else the first presale date. Events with neither get no card (as before).
+	 *
+	 * @param object[] $rows     Listing rows sorted by start.
+	 * @param array    $listing  occurrence_id => ticket types on sale.
+	 * @param array    $presale  occurrence_id => sales start.
+	 * @param int      $requested Requested occurrence (0 = none).
+	 * @return object[]
+	 */
+	public static function card_rows( array $rows, array $listing, array $presale, $requested = 0 ) {
+		$pick = array();
+		$order = array();
+		foreach ( $rows as $row ) {
+			$event_id = (int) $row->event_id;
+			$occ_id = (int) $row->occurrence_id;
+			if ( ! isset( $order[ $event_id ] ) ) { $order[ $event_id ] = count( $order ); }
+			$rank = ! empty( $listing[ $occ_id ] ) ? 1 : ( isset( $presale[ $occ_id ] ) ? 2 : 0 );
+			if ( ! $rank ) { continue; }
+			if ( $occ_id === (int) $requested ) { $rank = 0; }
+			if ( ! isset( $pick[ $event_id ] ) || $rank < $pick[ $event_id ][0] ) { $pick[ $event_id ] = array( $rank, $row ); }
+		}
+		$out = array();
+		foreach ( $order as $event_id => $position ) {
+			if ( isset( $pick[ $event_id ] ) ) { $out[ $position ] = $pick[ $event_id ][1]; }
+		}
+		ksort( $out );
+		return array_values( $out );
+	}
+
+	/**
+	 * Adds an empty anchor (#wpcap-occ-{id}) per other listed date of the event to the first
+	 * rendered card (A342), so calendar links and .ics URLs of those dates still land on the card
+	 * that offers them. Repeated cards of the same date (A308 "-i2" forms) get none.
+	 */
+	private static function with_date_anchors( $html, array $dates ) {
+		$html = (string) $html;
+		if ( ! $dates || preg_match( '/-i\d+$/', Frontend\EventCard::form_id_in( $html ) ) ) { return $html; }
+		$anchors = '';
+		foreach ( $dates as $date ) {
+			if ( empty( $date['linked'] ) ) { continue; }
+			$id = 'wpcap-occ-' . (int) $date['occurrence_id'];
+			if ( false === strpos( $html, 'id="' . $id . '"' ) ) { $anchors .= '<span id="' . esc_attr( $id ) . '" class="wpcap-occ-anchor"></span>'; }
+		}
+		if ( '' === $anchors ) { return $html; }
+		return (string) preg_replace( '/(<article\b[^>]*>)/', '$1' . str_replace( '$', '\\$', $anchors ), $html, 1 );
 	}
 
 	/**
