@@ -290,6 +290,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_capacity_reconcile_budget` | `float $seconds` (10.0) | Zeitbudget eines Abgleichlaufs per Cron (`wpcap_reconcile_capacity`); `--all` per WP-CLI nutzt 3600 s. |
 | `wpcap_capacity_reconcile_confirm_us` | `int $microseconds` (300000) | Wartezeit, nach der abweichende Bestellungen erneut geprüft werden, bevor sie als Drift gelten (laufende Schreibvorgänge). |
 | `wpcap_capacity_verify_after` | `int $seconds` (600) | Dauer ohne Drift im Zustand `verifying`, nach der die Zähler auf `ready` wechseln. |
+| `wpcap_capacity_rebuild_budget` | `float $seconds` (5.0) | Zeit, die der Upgrade-Request selbst am Neuaufbau der Zähler arbeitet (Upgrade, Rollback; A464/A468); den Rest übernimmt der Cron `wpcap_reconcile_capacity` ab dem gespeicherten Cursor (Option `wpcap_capacity_rebuild`). 0 = nur ein Termin im Upgrade-Request. |
 | `wpcap_capacity_drift` (Action) | `array $report` (`resynced_orders`, `resynced_rows`, `repaired_occurrences`, `orders`, `occurrences`) | Zähler wichen von Bestellungen/Holds ab und wurden korrigiert (ein Ablauf änderte Daten ohne `CapacityCounters::sync_order()`). |
 | `wpcap_capacity_drift_alert` | `bool $send` (true), `array $report` | Ob bei Drift eine E-Mail an die Admin-Adresse geht (höchstens einmal pro Stunde). |
 | `wpcap_availability_cache_ttl` | `int $seconds` (10, 0–60) | Objekt-Cache-Dauer der Verfügbarkeit in `Orders::availability()`; 0 = kein Cache. |

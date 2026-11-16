@@ -18,6 +18,9 @@ final class Installer {
 		global $wpdb;
 		// Schema version before this run ('' on a fresh install), for one-off data migrations below.
 		$previous_version = self::migration_baseline( (string) get_option( 'wpcap_db_version', '' ), (string) get_option( 'wpcap_db_version_max', '' ) );
+		// Older plugin code ran on this site since the highest schema (A464): state it did not maintain
+		// (capacity counters) is rebuilt below.
+		$rolled_back = self::rolled_back( (string) get_option( 'wpcap_db_version', '' ), (string) get_option( 'wpcap_db_version_max', '' ) );
 		// Marker of a running attempt (A466): only survives when the request dies mid-upgrade.
 		self::begin_attempt();
 
@@ -842,9 +845,10 @@ final class Installer {
 		}
 		if ( function_exists( 'delete_option' ) ) { delete_option( 'wpcap_schema_error' ); }
 
-		// Capacity counters (schema 3.7.0): fresh installs use them right away, upgrades rebuild them
-		// from the source tables and verify them before capacity decisions rely on them.
-		CapacityCounters::after_install();
+		// Capacity counters (schema 3.7.0): fresh installs use them right away, upgrades and rollbacks
+		// rebuild them from the source tables (resumable, A468) and verify them before capacity
+		// decisions rely on them again (A464).
+		CapacityCounters::after_install( $rolled_back );
 		self::pin_legacy_credit_prefix( $previous_version );
 		self::pin_legacy_manual_provider( $previous_version );
 		self::backfill_capacity_released( $previous_version );
@@ -957,6 +961,21 @@ final class Installer {
 		if ( '' === $b || ! preg_match( '/^\d+\.\d+/', $b ) ) { return (string) $stored; }
 		if ( '' === $a || ! preg_match( '/^\d+\.\d+/', $a ) ) { return (string) $highest; }
 		return version_compare( $b, $a, '>' ) ? (string) $highest : (string) $stored;
+	}
+
+	/**
+	 * Whether older plugin code ran on this site after a newer schema (A464): the stored schema
+	 * version is lower than the highest one ever stored. Older code rewrites `wpcap_db_version` to its
+	 * own version but does not know `wpcap_db_version_max`.
+	 *
+	 * @param string $stored  wpcap_db_version as stored.
+	 * @param string $highest wpcap_db_version_max as stored.
+	 */
+	public static function rolled_back( $stored, $highest ) {
+		$a = (string) strtok( (string) $stored, '+' );
+		$b = (string) strtok( (string) $highest, '+' );
+		if ( ! preg_match( '/^\d+\.\d+/', $a ) || ! preg_match( '/^\d+\.\d+/', $b ) ) { return false; }
+		return version_compare( $b, $a, '>' );
 	}
 
 	/** Stores the highest schema version this site ran (never lowers it). */

@@ -450,6 +450,8 @@ Gefundener und behobener Fehler: Nach einem Rollback schreibt der ältere Code s
 
 Regeln für den Betrieb:
 
+- **Kontingentzähler nach einem Rollback:** werden beim erneuten Update automatisch neu aufgebaut (siehe
+  „Kontingentzähler“, A464); bis zur Prüfung ist der Checkout langsamer.
 - **Rollback nur des Codes** (Plugin-ZIP der Vorversion einspielen) ist innerhalb der getesteten Spanne möglich: Schemaänderungen sind rein additiv, der ältere Code ignoriert neue Tabellen/Spalten. Daten, die nur die neue Version kennt (z. B. neue Felder), bleiben erhalten, werden vom alten Code aber nicht gepflegt. Danach möglichst bald wieder vorwärts aktualisieren.
 - **Restore** immer als Paar aus Datenbank- und Plugin-Stand. Eine ältere Sicherung unter neuerem Code ist unkritisch (Upgrade läuft automatisch); eine neuere Sicherung unter älterem Code entspricht einem Code-Rollback (s. o.).
 - Den Drill vor einem Release selbst wiederholen:
@@ -917,6 +919,23 @@ A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter 
   (Filter `wpcap_capacity_verify_after`) keine Abweichung findet → `ready`. In dieser Zeit ist der Checkout
   langsam wie vorher; Upgrades nicht während eines Vorverkaufs einspielen. Filter
   `wpcap_capacity_counters_enabled` (`false`) erzwingt den SUM-Pfad.
+- **Neuaufbau als fortsetzbarer Job (A468):** Der Neuaufbau läuft nicht in einem Durchgang über die ganze
+  Historie im Upgrade-Request. Termine werden in ID-Reihenfolge hinter einem Cursor neu aufgebaut (Option
+  `wpcap_capacity_rebuild`: Cursor, Anlass, Start – unabhängig von der Schema-Version); der Upgrade-Request
+  arbeitet höchstens 5 s daran (Filter `wpcap_capacity_rebuild_budget`), den Rest erledigt der Abgleich-Cron
+  `wpcap_reconcile_capacity` (Folgelauf sofort eingeplant, je Lauf das Cron-Zeitbudget, dieselbe Sperre wie der
+  Abgleich). Bricht ein Lauf ab, setzt der nächste beim gespeicherten Cursor fort; auch ein früher
+  abgebrochenes Upgrade, das in `building` stehen geblieben ist, wird so fertig. Während `building` pflegen alle
+  Schreibvorgänge die Zähler weiter, Entscheidungen laufen über die SUM-Abfragen. Audit-Einträge
+  `capacity_counters_rebuild_started` (Anlass `upgrade`/`rollback`) und `capacity_counters_rebuilt` (Dauer).
+  `wp pass-captain reconcile-capacity --all` erledigt einen laufenden Neuaufbau in einem Durchgang.
+- **Nach einem Code-Rollback (A464):** Ältere Versionen (bis 1.4.0 kennen die Zähler gar nicht) verkaufen,
+  erstatten und lassen Reservierungen ablaufen, ohne die Zähler zu pflegen. Der Abgleich-Cron sieht nur die
+  letzten zwei Tage und hätte ältere Verkäufe nie gefunden; die Zähler hätten nach dem erneuten Update weiter
+  „ready“ gemeldet und zu wenig Verkäufe gezählt (Überverkauf). Erkennt das Upgrade, dass seit der höchsten je
+  gelaufenen Schemaversion ältere Plugin-Versionen liefen (`wpcap_db_version` < `wpcap_db_version_max`,
+  `Installer::rolled_back()`), baut es die Zähler deshalb immer neu auf und entscheidet bis zum sauberen Abgleich
+  wieder mit den SUM-Abfragen.
 - **Abgleich**: Cron `wpcap_reconcile_capacity` alle fünf Minuten (räumt zuerst abgelaufene Reservierungen
   auf) oder `wp pass-captain reconcile-capacity`. Er synchronisiert Zeilen, deren `counted_qty` nicht zum
   Bestellstatus passt (ein Writer hat nicht synchronisiert), und repariert Zähler, die nicht der Summe ihrer

@@ -150,21 +150,134 @@ final class CapacityCounters {
 	/**
 	 * Called by Installer::install() after dbDelta. A fresh install (no order lines, no holds) is
 	 * ready at once; an upgrade rebuilds the counters and waits for a clean reconcile run.
+	 *
+	 * After a plugin rollback (A464) the counters may say "ready" although older code sold, refunded
+	 * and expired holds without maintaining them (code before schema 3.7.0 does not know them). The
+	 * cron reconcile only looks at the last two days, so such drift would never be found and capacity
+	 * decisions would trust counters that are too low (overselling). A rollback therefore always
+	 * rebuilds them and falls back to the SUM queries until a clean reconcile run.
+	 *
+	 * The rebuild (A468) is a resumable job: occurrences are rebuilt in id order behind a cursor
+	 * (option REBUILD_OPTION, independent of the schema version), the upgrade request only does a
+	 * short first slice (filter `wpcap_capacity_rebuild_budget`, 5 s) and the reconcile cron continues
+	 * where it stopped. Until the rebuild is complete the state stays "building": writers keep the
+	 * counters maintained, capacity decisions use the SUM queries.
+	 *
+	 * @param bool $rolled_back The stored schema is older than the highest one this site ran.
 	 */
-	public static function after_install() {
+	public static function after_install( $rolled_back = false ) {
 		global $wpdb;
-		if ( 'ready' === self::state() ) {
+		if ( 'ready' === self::state() && ! $rolled_back ) {
+			return;
+		}
+		if ( 'building' === self::state() && ! $rolled_back ) {
+			// A rebuild is already running (e.g. interrupted upgrade): continue it.
+			self::rebuild_slice( 'upgrade' );
 			return;
 		}
 		$p = $wpdb->prefix;
 		$has_data = $wpdb->get_var( "SELECT 1 FROM {$p}wpcap_order_items LIMIT 1" ) || $wpdb->get_var( "SELECT 1 FROM {$p}wpcap_reservations LIMIT 1" );
 		if ( ! $has_data ) {
+			delete_option( self::REBUILD_OPTION );
 			self::set_state( 'ready' );
 			return;
 		}
+		self::start_rebuild( $rolled_back ? 'rollback' : 'upgrade' );
+		self::rebuild_slice( 'upgrade' );
+	}
+
+	/** Cursor of a running counter rebuild (A468): {cursor, reason, started}. */
+	const REBUILD_OPTION = 'wpcap_capacity_rebuild';
+	/** Seconds of rebuild work in the upgrade request (the cron continues). */
+	const REBUILD_UPGRADE_BUDGET = 5.0;
+
+	/**
+	 * Starts a (resumable) rebuild of all counters: state "building", cursor before the first
+	 * occurrence. Writers keep maintaining the counters; decisions use the SUM queries until the
+	 * rebuild and a clean reconcile run are done.
+	 *
+	 * @param string $reason upgrade | rollback | manual.
+	 */
+	public static function start_rebuild( $reason = 'manual' ) {
+		update_option( self::REBUILD_OPTION, array( 'cursor' => 0, 'reason' => (string) $reason, 'started' => time() ), false );
 		self::set_state( 'building' );
-		self::rebuild_all();
+		Audit::record( 'capacity_counters_rebuild_started', 'system', 0, array( 'reason' => (string) $reason ) );
+	}
+
+	/** Progress of a running rebuild ({cursor, reason, started}) or null. */
+	public static function rebuild_progress() {
+		if ( 'building' !== self::state() ) { return null; }
+		$job = get_option( self::REBUILD_OPTION );
+		return is_array( $job ) ? $job : array( 'cursor' => 0, 'reason' => 'upgrade', 'started' => 0 );
+	}
+
+	/**
+	 * Runs one time-boxed slice of the rebuild behind the reconcile lock and schedules a follow-up
+	 * run when work is left. Returns whether the rebuild is complete.
+	 *
+	 * @param string $context upgrade (short budget) | cron.
+	 */
+	private static function rebuild_slice( $context ) {
+		if ( ! self::reconcile_lock() ) {
+			Jobs\TimeBudget::continue_later( self::HOOK );
+			return false;
+		}
+		$budget = 'upgrade' === $context ? (float) apply_filters( 'wpcap_capacity_rebuild_budget', self::REBUILD_UPGRADE_BUDGET ) : (float) Jobs\TimeBudget::seconds();
+		try {
+			$done = self::continue_rebuild( microtime( true ) + max( 0.0, $budget ) );
+		} finally {
+			self::reconcile_unlock();
+		}
+		if ( ! $done ) { Jobs\TimeBudget::continue_later( self::HOOK ); }
+		return $done;
+	}
+
+	/**
+	 * Rebuilds occurrences after the stored cursor until $deadline (at least one per call). The
+	 * cursor is stored after every occurrence, so an aborted request loses nothing. When the last
+	 * occurrence is done the state moves to "verifying". Caller holds the reconcile lock.
+	 *
+	 * @return bool Whether the rebuild is complete.
+	 */
+	private static function continue_rebuild( $deadline ) {
+		global $wpdb;
+		$job = self::rebuild_progress();
+		if ( null === $job ) { return true; }
+		$cursor = (int) ( $job['cursor'] ?? 0 );
+		$first = true;
+		while ( true ) {
+			$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id > %d ORDER BY occurrence_id LIMIT 200", $cursor ) ) );
+			if ( ! $ids ) { break; }
+			foreach ( $ids as $occurrence_id ) {
+				if ( ! $first && microtime( true ) >= $deadline ) { return false; }
+				$first = false;
+				// A failed occurrence (lock timeout, deadlock) is retried by the next slice.
+				if ( false === self::rebuild_occurrence( $occurrence_id ) ) { return false; }
+				$cursor = $occurrence_id;
+				$job['cursor'] = $cursor;
+				update_option( self::REBUILD_OPTION, $job, false );
+			}
+		}
+		delete_option( self::REBUILD_OPTION );
 		self::set_state( 'verifying' );
+		Audit::record( 'capacity_counters_rebuilt', 'system', 0, array( 'reason' => (string) ( $job['reason'] ?? '' ), 'seconds' => max( 0, time() - (int) ( $job['started'] ?? time() ) ) ) );
+		return true;
+	}
+
+	/** Reconcile/rebuild lock name (one run at a time per site). */
+	private static function lock_name() {
+		global $wpdb;
+		return preg_replace( '/[^A-Za-z0-9_]/', '', (string) $wpdb->prefix ) . 'wpcap_reconcile';
+	}
+
+	private static function reconcile_lock() {
+		global $wpdb;
+		return (bool) (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', self::lock_name() ) );
+	}
+
+	private static function reconcile_unlock() {
+		global $wpdb;
+		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', self::lock_name() ) );
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -536,11 +649,24 @@ final class CapacityCounters {
 			return $report;
 		}
 		// One run at a time (overlapping cron runs would report the same drift twice).
-		if ( ! (int) $wpdb->get_var( "SELECT GET_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile',0)" ) ) {
+		if ( ! self::reconcile_lock() ) {
 			$report['state'] = 'locked';
 			return $report;
 		}
 		$deadline = microtime( true ) + ( $all ? 3600.0 : (float) apply_filters( 'wpcap_capacity_reconcile_budget', 10.0 ) );
+		// A running rebuild (upgrade, rollback; A464/A468) continues first, from its cursor. Until it
+		// is complete the counters are not compared: decisions use the SUM queries anyway.
+		if ( 'building' === self::state() ) {
+			$built = self::continue_rebuild( $all ? $deadline : microtime( true ) + (float) Jobs\TimeBudget::seconds() );
+			$report['rebuild'] = $built ? 'complete' : 'continues';
+			if ( ! $built ) {
+				$report['complete'] = false;
+				$report['state'] = self::state();
+				self::reconcile_unlock();
+				Jobs\TimeBudget::continue_later( self::HOOK );
+				return $report;
+			}
+		}
 		$limit = (int) self::BATCH;
 		// Cron runs look at recently changed orders and at running/upcoming dates only (the load does
 		// not grow with the whole history); `wp pass-captain reconcile-capacity --all` checks everything.
@@ -617,7 +743,7 @@ final class CapacityCounters {
 			}
 		}
 		$report['state'] = self::state();
-		$wpdb->query( "SELECT RELEASE_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile')" );
+		self::reconcile_unlock();
 		return $report;
 	}
 
@@ -698,7 +824,10 @@ final class CapacityCounters {
 		}
 	}
 
-	/** Rebuilds every occurrence's counters from the source tables (upgrade, load-test seeding). */
+	/**
+	 * Rebuilds every occurrence's counters from the source tables in one call (load-test seeding,
+	 * scripts). Upgrades and rollbacks use the resumable job instead (after_install()).
+	 */
 	public static function rebuild_all() {
 		global $wpdb;
 		$ok = true;
