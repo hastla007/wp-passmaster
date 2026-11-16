@@ -39,6 +39,8 @@ final class OrderAdapter {
 	const PRODUCT_META  = '_wpcap_ticket_type_id';
 	const ORDER_META    = '_wpcap_core_order_id';
 	const ATTEMPT_META  = '_wpcap_checkout_attempt';
+	/** provider_reference of a core order created for a WooCommerce order: prefix + WooCommerce order id (A445). */
+	const REFERENCE_PREFIX = 'woocommerce:';
 	const REFUND_META   = '_wpcap_refund_processed';
 	const ITEM_META     = '_wpcap_ticket_type_id';
 	const ATTENDEE_META = '_wpcap_attendees';
@@ -507,6 +509,8 @@ final class OrderAdapter {
 		$wc_order->update_meta_data( self::ATTEMPT_META, $attempt );
 		$wc_order->update_meta_data( self::ORDER_META, absint( $result['order_id'] ) );
 		$wc_order->save();
+		// A445: the WooCommerce order id on the core order, so core → WooCommerce needs no meta_value search.
+		Orders::set_provider_reference( absint( $result['order_id'] ), self::REFERENCE_PREFIX . $wc_order->get_id() );
 		/* translators: %d: hold minutes */
 		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: Tickets für %d Minute reserviert.', 'Pass Captain: Tickets für %d Minuten reserviert.', (int) $result['hold_minutes'], 'pass-captain' ), (int) $result['hold_minutes']) );
 		return absint( $result['order_id'] );
@@ -1169,6 +1173,13 @@ final class OrderAdapter {
 		if ( ! $core_order_id || ! function_exists( 'wc_get_orders' ) ) { return null; }
 		$core = Orders::get( $core_order_id );
 		if ( ! $core ) { return null; }
+		// A445: direct lookup through the WooCommerce order id stored at reserve() (provider_reference
+		// "woocommerce:<id>"), still verified against the idempotency key (A284).
+		if ( preg_match( '/^' . preg_quote( self::REFERENCE_PREFIX, '/' ) . '(\d+)$/', (string) ( $core->provider_reference ?? '' ), $m ) && function_exists( 'wc_get_order' ) ) {
+			$wc_order = wc_get_order( (int) $m[1] );
+			if ( is_object( $wc_order ) && self::belongs_to( $core, $wc_order ) ) { return $wc_order; }
+		}
+		// Orders reserved before the reference was stored: search by meta (slow on large shops).
 		$orders = wc_get_orders( array( 'limit' => 20, 'meta_key' => self::ORDER_META, 'meta_value' => $core_order_id ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 		foreach ( (array) $orders as $wc_order ) {
 			if ( is_object( $wc_order ) && self::belongs_to( $core, $wc_order ) ) { return $wc_order; }

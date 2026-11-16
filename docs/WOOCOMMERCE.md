@@ -119,3 +119,7 @@ Idempotenzschlüssel der Pass-Captain-Bestellung muss aus der WooCommerce-Bestel
 entstanden sein. Zeigt eine Bestellung auf eine fremde Bestellung (etwa nach Deinstallation mit Datenlöschung und
 Neuinstallation, wenn die Nummern neu beginnen), wird die Verknüpfung ignoriert und beim nächsten Checkout/Zahlungseingang
 ersetzt; die fremde Bestellung wird weder storniert noch erstattet.
+Umgekehrt speichert die Pass-Captain-Bestellung die WooCommerce-Bestellnummer in `provider_reference`
+(`woocommerce:<ID>`, A445): Notizen zu Terminabsagen, Umtausch-Differenzen und die Datenschutz-Löschung finden die
+WooCommerce-Bestellung damit direkt (ebenfalls gegengeprüft) statt per Metadatensuche; nur ältere Bestellungen ohne
+diesen Eintrag werden noch über `_wpcap_core_order_id` gesucht.
