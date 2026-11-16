@@ -98,7 +98,9 @@ check( 'A580: tickets held by another person are left out of the order links', $
 /* ---- A580: PDF split within the attachment budget ---- */
 $a580_pdf_one = strlen( PassCaptain\TicketPdf::render( array( array( 'event' => 'Konzert', 'ticket' => 'Standard', 'when' => '01.01.2027 20:00', 'location' => 'Wien', 'token' => str_repeat( 'a', 64 ), 'help_code' => 'ABCD-EFGH' ) ) ) );
 add_filter( 'wpcap_ticket_pdf_chunk_size', $a580_chunk = static fn() => 10 );
-add_filter( 'wpcap_ticket_mail_attachment_budget', $a580_budget = static fn() => (int) ( 22 * $a580_pdf_one ) );
+// A330: a PDF carries a font subset once, so size is not linear in tickets – budget for 2.5 chunks of 10.
+$a580_pdf_ten = strlen( PassCaptain\TicketPdf::render( array_fill( 0, 10, array( 'event' => 'Konzert', 'ticket' => 'Standard', 'when' => '01.01.2027 20:00', 'location' => 'Wien', 'token' => str_repeat( 'a', 64 ), 'help_code' => 'ABCD-EFGH' ) ) ) );
+add_filter( 'wpcap_ticket_mail_attachment_budget', $a580_budget = static fn() => (int) ( 2.5 * $a580_pdf_ten ) );
 http_reset();
 Orders::create( array( 'email' => 'a580b@example.com', 'items' => array( array( 'ticket_type_id' => $a583_type, 'quantity' => $a580_count ) ), 'idempotency_key' => 'a580-2' ) );
 remove_filter( 'wpcap_ticket_pdf_chunk_size', $a580_chunk );
@@ -106,7 +108,7 @@ remove_filter( 'wpcap_ticket_mail_attachment_budget', $a580_budget );
 $a580_mail2 = wpr7_ticket_mail( 'a580b@example.com' );
 $a580_pdfs = array_filter( $a580_mail2['files'] ?? array(), static fn( $bytes, $name ) => str_ends_with( $name, '.pdf' ) && str_starts_with( $name, 'tickets-' ), ARRAY_FILTER_USE_BOTH );
 $a580_pdf_size = array_sum( array_map( 'strlen', $a580_pdfs ) );
-check( 'A580: PDFs split into chunks; only what fits the budget is attached (measured ~' . round( $a580_pdf_one / 1024 ) . ' KB per ticket)', 2 === count( $a580_pdfs ) && $a580_pdf_size <= 22 * $a580_pdf_one && isset( $a580_pdfs[ array_key_first( $a580_pdfs ) ] ) && str_ends_with( array_key_first( $a580_pdfs ), '-1.pdf' ) );
+check( 'A580: PDFs split into chunks; only what fits the budget is attached (measured ~' . round( $a580_pdf_one / 1024 ) . ' KB per ticket)', 2 === count( $a580_pdfs ) && $a580_pdf_size <= 2.5 * $a580_pdf_ten && isset( $a580_pdfs[ array_key_first( $a580_pdfs ) ] ) && str_ends_with( array_key_first( $a580_pdfs ), '-1.pdf' ) );
 check( 'A580: mail says which tickets the PDFs contain and where the rest is', false !== strpos( $a580_mail2['body'], 'die ersten 20 von 25 Tickets' ) && false !== strpos( $a580_mail2['body'], 'Bestellportal' ) );
 check( 'A580: default budget 7 MB, 50 tickets per PDF', 7 * 1024 * 1024 === Orders::attachment_budget() && 50 === Orders::ticket_pdf_chunk_size() );
 

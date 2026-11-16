@@ -227,8 +227,22 @@ final class BatchJob {
 			}
 			$items[] = Templates::values( $row, $token, $help );
 		}
-		$pages = Templates::pages( $batch->kind, $items, Templates::body_for_event( Scope::occurrence_event( (int) $batch->occurrence_id ), $batch->kind ) );
+		// A330: the first block decides the text encoding (embedded Unicode font or standard fonts)
+		// and records it in the glyph file; a batch begun before that file existed keeps the
+		// standard fonts, so all its pages match the fonts of the trailer.
+		$glyph_file = self::path( $batch, 'glyphs' );
+		$mode = self::glyph_mode( $glyph_file );
+		$writer = new PdfWriter( 0 === (int) $batch->pages ? null : 'unicode' === $mode );
+		$pages = Templates::pages( $batch->kind, $items, Templates::body_for_event( Scope::occurrence_event( (int) $batch->occurrence_id ), $batch->kind ), $writer );
 		$chunk = $pages->page_objects( 6 + 2 * (int) $batch->pages, $pdf_bytes );
+		if ( 0 === (int) $batch->pages || '' !== $mode ) {
+			// Glyphs of this block (a block redone after a failed run appends them again – harmless).
+			$lines = 0 === (int) $batch->pages ? 'mode' . "\t" . ( $writer->is_unicode() ? 'unicode' : 'standard' ) . "\n" : '';
+			foreach ( $writer->used_glyphs() as $font => $glyphs ) {
+				foreach ( $glyphs as $gid => $cp ) { $lines .= $font . "\t" . (int) $gid . "\t" . (int) $cp . "\n"; }
+			}
+			if ( 0 === (int) $batch->pages ? false === self::write( $glyph_file, $lines, 0 ) : false === self::append( $glyph_file, $lines ) ) { return self::fail( $batch, 'write' ); }
+		}
 		$xref = '';
 		foreach ( $chunk['offsets'] as $offset ) { $xref .= sprintf( "%010d\n", $offset ); }
 		// Append from the committed sizes (a run that died before its row update is redone).
@@ -260,12 +274,13 @@ final class BatchJob {
 		$xref = self::lines( self::path( $batch, 'xref' ), 0, PHP_INT_MAX, (int) $batch->xref_bytes );
 		foreach ( $xref as $i => $line ) { $offsets[ 6 + $i ] = (int) $line[0]; }
 		$part = self::path( $batch, 'part' );
-		$trailer = PdfWriter::trailer( Templates::title( $batch->kind ), $offsets, $pdf_bytes );
+		$trailer = PdfWriter::trailer( Templates::title( $batch->kind ), $offsets, $pdf_bytes, self::glyphs( self::path( $batch, 'glyphs' ) ) );
 		if ( false === self::write( $part, $trailer, $pdf_bytes ) || ! @rename( $part, self::path( $batch, 'pdf' ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.rename_rename
 			return self::fail( $batch, 'write' );
 		}
 		$wpdb->update( self::table(), array( 'status' => 'ready', 'pdf_bytes' => $pdf_bytes + strlen( $trailer ), 'updated_at' => current_time( 'mysql', true ) ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'rendering' ) );
 		wp_delete_file( self::path( $batch, 'xref' ) );
+		wp_delete_file( self::path( $batch, 'glyphs' ) );
 		return 'done';
 	}
 
@@ -385,10 +400,45 @@ final class BatchJob {
 	}
 
 	private static function delete_files( $batch ) {
-		foreach ( array( 'ids', 'part', 'pdf', 'xref', 'codes' ) as $ext ) {
+		foreach ( array( 'ids', 'part', 'pdf', 'xref', 'codes', 'glyphs' ) as $ext ) {
 			$file = self::path( $batch, $ext );
 			if ( '' !== $file ) { wp_delete_file( $file ); }
 		}
+	}
+
+	/** Text encoding recorded by the first block: 'unicode', 'standard' or '' (no glyph file: begun before A330). */
+	private static function glyph_mode( $file ) {
+		if ( '' === (string) $file || ! is_readable( $file ) ) { return ''; }
+		$first = self::lines( $file, 0, 1 );
+		return isset( $first[0][1] ) && 'mode' === $first[0][0] && 'unicode' === $first[0][1] ? 'unicode' : 'standard';
+	}
+
+	/**
+	 * Glyphs of a batch for PdfWriter::trailer(): F1/F2 => glyph id => code point, or false for
+	 * standard fonts (also for batches begun before A330).
+	 *
+	 * @return array|false
+	 */
+	private static function glyphs( $file ) {
+		if ( 'unicode' !== self::glyph_mode( $file ) ) { return false; }
+		$out = array( 'F1' => array(), 'F2' => array() );
+		foreach ( self::lines( $file, 1, PHP_INT_MAX ) as $line ) {
+			if ( 3 === count( $line ) && isset( $out[ $line[0] ] ) ) { $out[ $line[0] ][ (int) $line[1] ] = (int) $line[2]; }
+		}
+		return $out;
+	}
+
+	/** Appends $data to a file (created with mode 0600). */
+	private static function append( $file, $data ) {
+		if ( '' === (string) $file ) { return false; }
+		if ( '' === (string) $data ) { return true; }
+		$old = umask( 0077 );
+		$fh = @fopen( $file, 'a' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		umask( $old );
+		if ( ! $fh ) { return false; }
+		$ok = strlen( $data ) === fwrite( $fh, $data ) && fflush( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+		fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		return $ok;
 	}
 
 	/** Writes $data at byte $at (the file is cut there first), mode 0600. */

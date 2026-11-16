@@ -269,6 +269,10 @@ final class PortalSelfService {
 				'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket->ticket_id, (array) $ticket ),
 				'attendee' => (string) $ticket->attendee_name,
 				'token' => $code,
+				'occurrence_id' => (int) $ticket->occurrence_id,
+				'ticket_type_id' => (int) $ticket->ticket_type_id,
+				'starts_at' => (string) $ticket->starts_at,
+				'timezone' => (string) $ticket->timezone,
 				'help_code' => HelpCode::for_ticket( (int) $ticket->ticket_id, $code ),
 			);
 		}

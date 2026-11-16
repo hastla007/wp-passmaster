@@ -1073,6 +1073,29 @@ Ist die Liste gekürzt, erscheint ein Hinweis; ein gewähltes oder gespeichertes
 der Adresse) steht immer in der Liste, sodass ein Filter oder Formular nie still auf ein anderes Event
 springt. Die Veranstalterseite nutzt statt einer Liste eine Suche mit Seitenblättern (A447).
 
+## PDF-Erzeugung, Schriften und Druckvorlagen (A330)
+
+Alle PDFs – Ticket-PDF der Ticketmail, Download im Bestellportal und im Admin („Ticket-PDF“), Drucklayouts
+(Ticket, Badge, Namensschild, Einlassband, auch als Stapeldruck) und Rechnungen – entstehen mit einer Engine
+(`Printing\PdfWriter`). Das Ticket-PDF nutzt das Layout „Ticket (A4)“ und damit die unter **Druck & Listen** für das
+Event gewählte Ticketvorlage (sonst die Standardvorlage); dazu kommen je Seite der Name der Website als Kopfzeile, der
+vollständige Code unter dem QR-Code, der Hilfscode mit Erklärung und eine Fußzeile (Standard „Dieses Ticket ist nur
+einmal gültig …“, je Ticketart/Pass über den Filter `wpcap_ticket_pdf_footer`). Der Teilnehmername aus dem Checkout
+steht auf dem Ticket-PDF der Mail.
+
+**Schrift und Zeichen:** Text wird als UTF-8 mit der mitgelieferten Schrift DejaVu Sans (normal und fett,
+`assets/fonts/`, Bitstream-Vera-Lizenz) gesetzt; jedes PDF bettet nur die verwendeten Zeichen ein (Subset, typisch
+15–35 KB), Text bleibt kopier- und durchsuchbar. Abgedeckt sind u. a. alle europäischen Lateinschriften (Polnisch,
+Tschechisch, Türkisch, Rumänisch …), Griechisch, Kyrillisch, Armenisch, Georgisch, Hebräisch und Arabisch.
+**Grenzen:** Chinesisch, Japanisch, Koreanisch, indische und südostasiatische Schriften enthält DejaVu nicht – sie
+erscheinen als leeres Kästchen; dafür eine TrueType-Schrift mit diesen Zeichen über `wpcap_pdf_fonts` einbinden.
+Rechts-nach-links-Schriften werden in logischer Reihenfolge und Arabisch ohne kontextabhängige Buchstabenformen
+gesetzt (kein Bidi/Shaping). **Rückfall:** Fehlt die Schriftdatei oder ist sie unbrauchbar, nutzen die PDFs wie
+früher Helvetica (WinAnsi); Zeichen außerhalb von Windows-1252 werden transkribiert, wo möglich („ł“ → „l“), sonst
+als „?“ gedruckt. Ein Stapeldruck, der vor dem Update begonnen wurde, wird in seiner Kodierung (Helvetica) fertig
+gerendert; neue Stapel merken sich die verwendeten Zeichen je Block in einer Datei `batch-….glyphs` neben dem PDF
+(wird mit dem Fertigstellen gelöscht).
+
 ## Stapeldruck mit neuen Ticketcodes (Hintergrundjob, A427)
 
 Ticketcodes sind nur als Hash gespeichert; ein Stapeldruck mit QR-Code braucht deshalb neue Codes. Früher wurden

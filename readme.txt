@@ -99,6 +99,7 @@ Die Anbindungen an Affiliate Captain, Voucher Captain und WooCommerce laufen inn
 
 * tweetnacl-js 1.0.3 (The Unlicense), https://github.com/dchest/tweetnacl-js – der Offline-Scanner lädt `assets/vendor/tweetnacl/nacl-fast.min.js`; der lesbare Quelltext `nacl-fast.js` derselben Version liegt daneben, Version, Herkunft und Prüfsummen stehen in `assets/vendor/tweetnacl/SOURCE.txt`.
 * jsQR (Apache-2.0), https://github.com/cozmo/jsQR – `assets/vendor/jsqr/jsQR.js` (unminifiziert).
+* DejaVu Sans und DejaVu Sans Bold 2.37 (Bitstream-Vera-Lizenz, DejaVu-Änderungen gemeinfrei), https://dejavu-fonts.github.io/ – `assets/fonts/`, unverändert; Lizenztext in `assets/fonts/LICENSE-DejaVu.txt`. PDFs (Tickets, Rechnungen, Drucklayouts) betten daraus nur die verwendeten Zeichen ein.
 * PHP-Bibliotheken über Composer im Ordner `vendor/` (Quelltext unverändert enthalten).
 
 == Frequently Asked Questions ==

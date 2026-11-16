@@ -87,7 +87,7 @@ add_filter( 'wpcap_ticket_known_code', $a118_known_cb, 10, 2 );
 $a118_rotations = array();
 $h1 = a118_hashes( array( $a118_t[1] ) );
 $r = A118::pdf( $a118_pub, $a118_tok, a118_public( $a118_t[0] ) );
-check( 'single ticket with a known current code: PDF with that code, no rotation', is_array( $r ) && 1 === $r['tickets'] && 0 === $r['new_codes'] && false !== strpos( $r['content'], substr( $a118_known, 0, 32 ) ) && hash( 'sha256', $a118_known ) === a118_hashes( array( $a118_t[0] ) )[ $a118_t[0] ] && ! $a118_rotations && str_starts_with( $r['filename'], 'ticket-' ) );
+check( 'single ticket with a known current code: PDF with that code, no rotation', is_array( $r ) && 1 === $r['tickets'] && 0 === $r['new_codes'] && false !== strpos( wpcap_pdf_plain( $r['content'] ), substr( $a118_known, 0, 32 ) ) && hash( 'sha256', $a118_known ) === a118_hashes( array( $a118_t[0] ) )[ $a118_t[0] ] && ! $a118_rotations && str_starts_with( $r['filename'], 'ticket-' ) );
 $r = A118::pdf( $a118_pub, $a118_tok, a118_public( $a118_t[1] ) );
 check( 'a "known" code that does not match the stored hash is ignored (new code instead)', is_array( $r ) && 1 === $r['new_codes'] && $h1 !== a118_hashes( array( $a118_t[1] ) ) );
 remove_filter( 'wpcap_ticket_known_code', $a118_known_cb, 10 );

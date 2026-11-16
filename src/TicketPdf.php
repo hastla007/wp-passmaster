@@ -1,69 +1,73 @@
 <?php
 /**
- * Dependency-free PDF renderer for tickets (one A4 page per ticket, Helvetica, vector QR code).
+ * Ticket PDFs of the ticket mail, the order portal and the admin (one A4 page per ticket).
+ *
+ * A330: rendered by the print engine (Printing\Templates with the "ticket" layout, Printing\PdfWriter),
+ * so the ticket template selected for the event under "Druck & Listen" applies to these PDFs too
+ * and names in any script print correctly (embedded Unicode font). Each page carries the site name
+ * as header and a footer (default "only valid once"; filter `wpcap_ticket_pdf_footer` per ticket,
+ * e.g. per ticket type or pass).
  *
  * The QR matrix comes from the bundled bacon/bacon-qr-code encoder (installed with Composer in the
  * release ZIP). Without it the PDF still contains the ticket code as text.
  */
 namespace PassCaptain;
 
+use PassCaptain\Printing\PdfWriter;
+use PassCaptain\Printing\Templates;
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class TicketPdf {
 	/**
-	 * @param array $tickets List of ['event','ticket','when','location','seat','attendee','token','help_code'] arrays.
+	 * @param array $tickets List of ['event','ticket','when','location','seat','attendee','token','help_code'] arrays,
+	 *                       optionally 'occurrence_id' (selects the event's ticket template), 'ticket_type_id',
+	 *                       'starts_at'/'timezone' (for {time}), 'order' and 'footer' (overrides $meta['footer']).
 	 * @param array $meta    ['title' => string, 'footer' => string].
 	 * @return string PDF bytes.
 	 */
 	public static function render( array $tickets, array $meta = array() ) {
-		$pages = array();
+		$pdf = new PdfWriter();
+		$bodies = array();
 		foreach ( $tickets as $ticket ) {
-			$pages[] = self::page( $ticket, $meta );
+			$ticket = (array) $ticket;
+			$occurrence_id = (int) ( $ticket['occurrence_id'] ?? 0 );
+			if ( ! isset( $bodies[ $occurrence_id ] ) ) {
+				$event_id = $occurrence_id ? (int) Reports\Scope::occurrence_event( $occurrence_id ) : 0;
+				$bodies[ $occurrence_id ] = $event_id ? Templates::body_for_event( $event_id, 'ticket' ) : Templates::default_body( 'ticket' );
+			}
+			Templates::pages( 'ticket', array( self::values( $ticket, $meta ) ), $bodies[ $occurrence_id ], $pdf );
 		}
-		return self::document( $pages );
+		return $pdf->output( (string) ( $meta['title'] ?? __( 'Tickets', 'pass-captain' ) ) );
 	}
 
-	/** Content stream for one ticket page. */
-	private static function page( array $t, array $meta ) {
-		$ops = array();
-		$y = 780;
-		$text = static function ( $str, $size, $x, $y, $bold = false ) {
-			return sprintf( "BT /%s %d Tf %.2F %.2F Td (%s) Tj ET", $bold ? 'F2' : 'F1', $size, $x, $y, self::escape( $str ) );
-		};
-		$ops[] = $text( (string) ( $meta['title'] ?? 'Ticket' ), 11, 50, $y );
-		$ops[] = $text( (string) ( $t['event'] ?? '' ), 22, 50, $y -= 36, true );
-		$ops[] = $text( (string) ( $t['ticket'] ?? '' ), 14, 50, $y -= 26 );
-		$ops[] = $text( (string) ( $t['when'] ?? '' ), 12, 50, $y -= 22 );
-		if ( ! empty( $t['location'] ) ) { $ops[] = $text( (string) $t['location'], 12, 50, $y -= 18 ); }
-		if ( ! empty( $t['seat'] ) ) { $ops[] = $text( (string) $t['seat'], 14, 50, $y -= 20, true ); }
-		if ( ! empty( $t['attendee'] ) ) { $ops[] = $text( (string) $t['attendee'], 12, 50, $y -= 18 ); }
-		$matrix = self::qr_matrix( (string) ( $t['token'] ?? '' ) );
-		$top = $y - 40;
-		if ( $matrix ) {
-			$count = count( $matrix );
-			$module = min( 8.0, 260 / ( $count + 8 ) );
-			$size = $module * ( $count + 8 );
-			$x0 = ( 595 - $size ) / 2;
-			$y0 = $top - $size;
-			$ops[] = '0 0 0 rg';
-			foreach ( $matrix as $row_index => $row ) {
-				foreach ( $row as $col_index => $dark ) {
-					if ( $dark ) {
-						$ops[] = sprintf( '%.2F %.2F %.2F %.2F re f', $x0 + ( $col_index + 4 ) * $module, $y0 + $size - ( $row_index + 5 ) * $module, $module, $module );
-					}
-				}
-			}
-			$top = $y0 - 20;
-		}
-		$ops[] = $text( 'Code:', 9, 50, $top );
-		$ops[] = $text( substr( (string) ( $t['token'] ?? '' ), 0, 32 ), 9, 80, $top );
-		$ops[] = $text( substr( (string) ( $t['token'] ?? '' ), 32 ), 9, 80, $top - 12 );
-		if ( ! empty( $t['help_code'] ) ) {
-			$ops[] = $text( HelpCode::caption(), 10, 50, $top - 36 );
-			$ops[] = $text( (string) $t['help_code'], 18, 50, $top - 58, true );
-		}
-		if ( ! empty( $meta['footer'] ) ) { $ops[] = $text( (string) $meta['footer'], 9, 50, 40 ); }
-		return implode( "\n", $ops );
+	/** Placeholder values of the ticket layout for one ticket entry. */
+	public static function values( array $ticket, array $meta = array() ) {
+		$time = '';
+		if ( ! empty( $ticket['starts_at'] ) ) { $time = Reports\Scope::local( (string) $ticket['starts_at'], (string) ( $ticket['timezone'] ?? 'UTC' ), 'H:i' ); }
+		$footer = (string) ( $ticket['footer'] ?? ( $meta['footer'] ?? '' ) );
+		/**
+		 * Footer line of one page of a ticket PDF (mail, portal, admin), e.g. conditions per ticket
+		 * type or pass. '' = none.
+		 *
+		 * @param string $footer Default footer ("Dieses Ticket ist nur einmal gültig …").
+		 * @param array  $ticket Ticket entry (event, ticket, when, occurrence_id, ticket_type_id …; no code).
+		 */
+		$footer = (string) apply_filters( 'wpcap_ticket_pdf_footer', $footer, array_diff_key( $ticket, array( 'token' => 1, 'help_code' => 1, 'url' => 1 ) ) );
+		return array(
+			'event' => (string) ( $ticket['event'] ?? '' ),
+			'date' => (string) ( $ticket['when'] ?? '' ),
+			'time' => $time,
+			'location' => (string) ( $ticket['location'] ?? '' ),
+			'ticket_category' => (string) ( $ticket['ticket'] ?? '' ),
+			'attendee_name' => (string) ( $ticket['attendee'] ?? '' ),
+			'seat_label' => (string) ( $ticket['seat'] ?? '' ),
+			'order' => (string) ( $ticket['order'] ?? '' ),
+			'help_code' => (string) ( $ticket['help_code'] ?? '' ),
+			'qr' => (string) ( $ticket['token'] ?? '' ),
+			'_title' => (string) ( $meta['title'] ?? '' ),
+			'_footer' => $footer,
+		);
 	}
 
 	/** QR modules as rows of booleans, or empty array when the encoder is unavailable. */
@@ -80,42 +84,5 @@ final class TicketPdf {
 		} catch ( \Throwable $e ) {
 			return array();
 		}
-	}
-
-	/** Assembles objects and the xref table. */
-	private static function document( array $pages ) {
-		$objects = array();
-		$objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
-		$objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
-		$objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
-		$kids = array();
-		$next = 5;
-		foreach ( $pages as $content ) {
-			$page_id = $next++;
-			$content_id = $next++;
-			$kids[] = $page_id . ' 0 R';
-			$objects[ $page_id ] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' . $content_id . ' 0 R >>';
-			$objects[ $content_id ] = '<< /Length ' . strlen( $content ) . " >>\nstream\n" . $content . "\nendstream";
-		}
-		$objects[2] = '<< /Type /Pages /Kids [' . implode( ' ', $kids ) . '] /Count ' . count( $kids ) . ' >>';
-		ksort( $objects );
-		$pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
-		$offsets = array();
-		foreach ( $objects as $id => $body ) {
-			$offsets[ $id ] = strlen( $pdf );
-			$pdf .= $id . " 0 obj\n" . $body . "\nendobj\n";
-		}
-		$xref = strlen( $pdf );
-		$pdf .= 'xref' . "\n0 " . ( count( $objects ) + 1 ) . "\n0000000000 65535 f \n";
-		foreach ( $offsets as $offset ) { $pdf .= sprintf( "%010d 00000 n \n", $offset ); }
-		$pdf .= 'trailer << /Size ' . ( count( $objects ) + 1 ) . " /Root 1 0 R >>\nstartxref\n" . $xref . "\n%%EOF";
-		return $pdf;
-	}
-
-	/** UTF-8 to WinAnsi (Helvetica) with PDF string escaping; unsupported characters become "?". Stored entities are decoded (A497). */
-	private static function escape( $str ) {
-		$str = Text::plain( $str );
-		$str = function_exists( 'mb_convert_encoding' ) ? mb_convert_encoding( $str, 'Windows-1252', 'UTF-8' ) : $str;
-		return str_replace( array( '\\', '(', ')', "\r", "\n" ), array( '\\\\', '\\(', '\\)', ' ', ' ' ), $str );
 	}
 }

@@ -2330,6 +2330,7 @@ final class Orders {
 					if ( (int) ( $attendee['ticket_type_id'] ?? 0 ) !== (int) $line->ticket_type_id ) { continue; }
 					unset( $pending_attendees[ $index ] );
 					if ( ! self::store_attendee( $ticket_id, $order, $attendee ) ) { return self::issue_aborted( $order, $issued, 'attendee' ); }
+					$issued[ count( $issued ) - 1 ]['attendee'] = sanitize_text_field( $attendee['name'] ?? '' ); // Name on the PDF (A330).
 					break;
 				}
 				/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
@@ -2374,7 +2375,7 @@ final class Orders {
 			// No PDF with plaintext codes for a placeholder address (sale without buyer e-mail).
 			if ( ! Mail\Mailer::is_placeholder( $order->customer_email ) && apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
 				$pdf_tickets = array_map( static function ( $ticket ) {
-					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'token' => $ticket['token'], 'help_code' => $ticket['help_code'] );
+					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'attendee' => (string) ( $ticket['attendee'] ?? '' ), 'token' => $ticket['token'], 'help_code' => $ticket['help_code'], 'occurrence_id' => (int) $ticket['occurrence_id'], 'ticket_type_id' => (int) $ticket['ticket_type_id'], 'starts_at' => $ticket['starts_at'], 'timezone' => $ticket['timezone'] );
 				}, $issued );
 				// The PDF holds plaintext ticket codes: private directory (0700) and file (0600) with a
 				// random name in the shared temp dir, removed right after delivery.

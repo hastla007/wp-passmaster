@@ -5,6 +5,11 @@
  * A template body is one instruction per line: "[*]size|text" ("*" = bold) or "{qr}" for the QR code.
  * Placeholders: {event} {date} {time} {location} {ticket_category} {attendee_name} {seat_label} {order}
  * {help_code} (short code for staff when the QR code cannot be read; only with printed codes) and {qr}. Lines that are empty after replacement are skipped.
+ *
+ * A330: the ticket layout is also the layout of the ticket PDFs in mails, the order portal and the
+ * admin (TicketPdf), so the template selected for an event applies there too. On the ticket layout
+ * the full code is printed under the QR code, a line with {help_code} gets the help-code caption
+ * above it, and items may carry a page header (`_title`) and footer (`_footer`).
  */
 namespace PassCaptain\Printing;
 
@@ -103,10 +108,10 @@ final class Templates {
 	 * Lays out $items on pages (render() without the PDF file around them; the batch job appends
 	 * the pages block by block, A427). Name tags: 10 per page.
 	 */
-	public static function pages( $kind, array $items, $body = '' ) {
+	public static function pages( $kind, array $items, $body = '', ?PdfWriter $pdf = null ) {
 		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'ticket';
 		$lines = self::parse( '' !== $body ? $body : self::default_body( $kind ) );
-		$pdf = new PdfWriter();
+		$pdf = $pdf ? $pdf : new PdfWriter();
 		$mm = PdfWriter::MM;
 		if ( 'nametag' === $kind ) {
 			$w = 90 * $mm;
@@ -137,13 +142,19 @@ final class Templates {
 				self::cell( $pdf, $lines, $item, 40 * $mm, 0, $pw - 40 * $mm, $ph, $align, $qr_mode );
 				continue;
 			}
-			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad, $align, $qr_mode, 0 );
+			if ( 'ticket' === $kind ) {
+				// A330: header (e.g. site name) and footer (e.g. "only valid once") of ticket PDFs.
+				if ( '' !== (string) ( $item['_title'] ?? '' ) ) { $pdf->text( $pad, $ph - 30, 11, PdfWriter::fit( (string) $item['_title'], 11, $pw - 2 * $pad ) ); }
+				$footer = '' !== (string) ( $item['_footer'] ?? '' ) ? array_slice( PdfWriter::wrap( (string) $item['_footer'], 8, $pw - 2 * $pad ), 0, 3 ) : array();
+				foreach ( $footer as $i => $footer_line ) { $pdf->text( $pad, 22 + 10 * ( count( $footer ) - 1 - $i ), 8, $footer_line ); }
+			}
+			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad, $align, $qr_mode, 0, 'ticket' === $kind );
 		}
 		return $pdf;
 	}
 
 	/** Lays out one item inside a box. $qr_mode: flow (below the text) or right (square at the right edge). */
-	private static function cell( PdfWriter $pdf, array $lines, array $item, $x, $y, $w, $h, $align, $qr_mode, $inner = 8 ) {
+	private static function cell( PdfWriter $pdf, array $lines, array $item, $x, $y, $w, $h, $align, $qr_mode, $inner = 8, $full = false ) {
 		$x += $inner;
 		$y += $inner;
 		$w -= 2 * $inner;
@@ -163,8 +174,16 @@ final class Templates {
 				if ( $q < 40 ) { continue; }
 				$cursor -= 14;
 				$qx = 'center' === $align ? $x + ( $w - $q ) / 2 : $x + ( $w - $q ) / 2;
-				if ( $pdf->qr( $qx, $cursor - $q, $q, $item['qr'] ) ) {
-					$cursor -= $q + 6;
+				$drawn = $pdf->qr( $qx, $cursor - $q, $q, $item['qr'] );
+				if ( $drawn ) { $cursor -= $q + 6; }
+				if ( $full ) {
+					// Ticket layout: the whole code (also without QR encoder), for typing it in by hand.
+					foreach ( str_split( (string) $item['qr'], 32 ) as $part ) {
+						$pdf->text( $x + $w / 2, $cursor - 8, 8, $part, false, 'center' );
+						$cursor -= 10;
+					}
+					$cursor -= 4;
+				} elseif ( $drawn ) {
 					$pdf->text( $x + $w / 2, $cursor - 8, 7, substr( (string) $item['qr'], 0, 16 ) . '…', false, 'center' );
 					$cursor -= 14;
 				}
@@ -173,6 +192,16 @@ final class Templates {
 			$text = self::fill( $line['text'], $item );
 			if ( '' === $text ) { continue; }
 			$size = $line['size'];
+			if ( $full && false !== strpos( $line['text'], '{help_code}' ) && '' !== (string) ( $item['help_code'] ?? '' ) ) {
+				$caption = max( 7.0, $size * 0.6 );
+				if ( $cursor - $caption * 1.25 - $size * 1.25 >= $y - 0.5 ) {
+					foreach ( PdfWriter::wrap( \PassCaptain\HelpCode::caption(), $caption, $text_w ) as $caption_line ) {
+						$cursor -= $caption * 1.2;
+						$pdf->text( $anchor, $cursor, $caption, $caption_line, false, 'center' === $align ? 'center' : 'left' );
+					}
+					$cursor -= $caption * 0.3;
+				}
+			}
 			if ( $cursor - $size * 1.25 < $y - 0.5 ) { break; }
 			$cursor -= $size * 1.2;
 			$pdf->text( $anchor, $cursor, $size, PdfWriter::fit( $text, $size, $text_w, $line['bold'] ), $line['bold'], 'center' === $align ? 'center' : 'left' );

@@ -61,7 +61,7 @@ check( 'A089 alphabet: 32 unambiguous characters, derive() uses only them', 32 =
 check( 'A089 normalize(): case, spaces and hyphens are ignored; 0/O/1/I and wrong lengths are refused', 'K7QM4XWA' === HelpCode::normalize( ' k7qm-4xwa ' ) && 'K7QM4XWA' === HelpCode::normalize( 'K7QM 4XWA' ) && '' === HelpCode::normalize( 'K7QM-4XW0' ) && '' === HelpCode::normalize( 'K7QM-4XWI' ) && '' === HelpCode::normalize( 'K7QM4XW' ) && '' === HelpCode::normalize( str_repeat( 'a', 64 ) ) );
 
 $pdf = TicketPdf::render( array( array( 'event' => 'E', 'ticket' => 'T', 'when' => 'heute', 'location' => '', 'token' => $h['codes'][0], 'help_code' => $h_codes[0] ) ) );
-check( 'A089 ticket PDF shows the help code', false !== strpos( $pdf, '(' . $h_codes[0] . ')' ) );
+check( 'A089 ticket PDF shows the help code', false !== strpos( wpcap_pdf_plain( $pdf ), '(' . $h_codes[0] . ')' ) );
 $page_src = (string) file_get_contents( WPCAP_PATH . 'src/TicketPage.php' );
 check( 'A089 ticket page shows the help code (assigned lazily for older tickets)', false !== strpos( $page_src, 'HelpCode::for_ticket' ) && false !== strpos( $page_src, 'help-code' ) );
 $print_values = PrintTemplates::values( (object) array( 'ticket_id' => $h_ids[2], 'event_name' => 'E' ), $h['codes'][2] );

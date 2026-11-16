@@ -59,7 +59,7 @@ $a427_b = BatchJob::get( $a427['batch'] );
 $a427_pdf = (string) @file_get_contents( BatchJob::path( $a427_b, 'pdf' ) );
 check( 'job renders in blocks of 10 until ready; one page per ticket; a half-written block is redone', 'ready' === $a427_b->status && 45 === (int) $a427_b->done && 45 === (int) $a427_b->pages && wpp_pdf_ok( $a427_pdf, 45 ) && false === strpos( $a427_pdf, 'garbage' ) );
 check( 'ready but not downloaded: all codes unchanged', $a427_start === $a427_hashes() );
-preg_match_all( '/\(([A-Z2-9]{4}-[A-Z2-9]{4})\) Tj/', $a427_pdf, $a427_help );
+preg_match_all( '/\(([A-Z2-9]{4}-[A-Z2-9]{4})\) Tj/', wpcap_pdf_plain( $a427_pdf ), $a427_help );
 check( 'help codes printed for the 43 tickets with a new code (none for transferred/assigned)', 43 === count( array_unique( $a427_help[1] ) ) );
 
 // Ticket changed after rendering: its code is not replaced.

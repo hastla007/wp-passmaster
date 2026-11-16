@@ -412,3 +412,26 @@ if ( ! function_exists( 'shortcode_atts' ) ) {
 		return $out;
 	}
 }
+
+/**
+ * A330: PDF text with embedded Unicode fonts is written as glyph ids (<0041…> Tj). This returns the
+ * PDF with every such string decoded through the font's ToUnicode map back to a literal string
+ * ("(Text) Tj", PDF-escaped, UTF-8), so tests can look for printed text.
+ */
+function wpcap_pdf_plain( $pdf ) {
+	$pdf = (string) $pdf;
+	$maps = array();
+	foreach ( array( 'F1' => 3, 'F2' => 4 ) as $font => $id ) {
+		if ( ! preg_match( '/(?:^|\n)' . $id . ' 0 obj\n<<[^\n]*\/ToUnicode (\d+) 0 R/', $pdf, $m ) ) { continue; }
+		if ( ! preg_match( '/(?:^|\n)' . $m[1] . ' 0 obj\n<< \/Length (\d+) >>\nstream\n/', $pdf, $s, PREG_OFFSET_CAPTURE ) ) { continue; }
+		$cmap = substr( $pdf, $s[0][1] + strlen( $s[0][0] ), (int) $s[1][0] );
+		preg_match_all( '/<([0-9A-F]{4})> <([0-9A-F]+)>/', $cmap, $pairs, PREG_SET_ORDER );
+		foreach ( $pairs as $pair ) { $maps[ $font ][ hexdec( $pair[1] ) ] = mb_convert_encoding( hex2bin( $pair[2] ), 'UTF-8', 'UTF-16BE' ); }
+	}
+	if ( ! $maps ) { return $pdf; }
+	return preg_replace_callback( '/\/(F[12]) ([0-9.]+) Tf((?: [0-9.]+ Tr| [0-9.]+ w)*) ([-0-9.]+) ([-0-9.]+) Td <([0-9A-F]*)> Tj/', static function ( $m ) use ( $maps ) {
+		$text = '';
+		foreach ( str_split( $m[6], 4 ) as $gid ) { $text .= '' === $gid ? '' : ( $maps[ $m[1] ][ hexdec( $gid ) ] ?? '?' ); }
+		return '/' . $m[1] . ' ' . $m[2] . ' Tf' . $m[3] . ' ' . $m[4] . ' ' . $m[5] . ' Td (' . str_replace( array( '\\', '(', ')' ), array( '\\\\', '\\(', '\\)' ), $text ) . ') Tj';
+	}, $pdf );
+}

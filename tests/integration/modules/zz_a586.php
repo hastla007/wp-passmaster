@@ -36,7 +36,7 @@ check( 'A586: portal no longer warns about new codes', false === PortalSelfServi
 $a586_pdf1 = PortalSelfService::pdf( $a586_public, $a586_token, 'all' );
 $a586_pdf2 = PortalSelfService::pdf( $a586_public, $a586_token, 'all' );
 check( 'A586: two portal downloads keep the codes (no rotation, mailed codes stay valid)', is_array( $a586_pdf1 ) && is_array( $a586_pdf2 ) && 0 === $a586_pdf1['new_codes'] && 0 === $a586_pdf2['new_codes'] && $a586_before === $a586_hashes( $a586_r['order_id'] ) && ! $a586_rotations );
-check( 'A586: the PDF carries the mailed code', is_array( $a586_pdf1 ) && false !== strpos( $a586_pdf1['content'], substr( $a586_codes[0], 0, 32 ) ) );
+check( 'A586: the PDF carries the mailed code', is_array( $a586_pdf1 ) && false !== strpos( wpcap_pdf_plain( $a586_pdf1['content'] ), substr( $a586_codes[0], 0, 32 ) ) );
 
 // A ticket whose code is unknown (issued before the update) is rotated once, then stored.
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET code_secret=NULL WHERE ticket_id=" . (int) $a586_t[1]->ticket_id );
@@ -53,7 +53,7 @@ $wpdb->query( "UPDATE {$p}wpcap_tickets SET code_secret=NULL WHERE ticket_id=" .
 // Admin "Ticket-PDF".
 $a586_rotations = array();
 $a586_admin = OrdersPage::ticket_pdf( array( 'order_id' => $a586_r['order_id'] ) );
-check( 'A586: admin ticket PDF for the order uses the stored codes; ticket without code counted', is_array( $a586_admin ) && 1 === $a586_admin['tickets'] && 1 === $a586_admin['missing'] && false !== strpos( $a586_admin['content'], substr( $a586_codes[0], 0, 32 ) ) && ! $a586_rotations && str_starts_with( $a586_admin['filename'], 'tickets-' ) );
+check( 'A586: admin ticket PDF for the order uses the stored codes; ticket without code counted', is_array( $a586_admin ) && 1 === $a586_admin['tickets'] && 1 === $a586_admin['missing'] && false !== strpos( wpcap_pdf_plain( $a586_admin['content'] ), substr( $a586_codes[0], 0, 32 ) ) && ! $a586_rotations && str_starts_with( $a586_admin['filename'], 'tickets-' ) );
 $a586_single = OrdersPage::ticket_pdf( array( 'order_id' => $a586_r['order_id'], 'ticket' => $a586_t[0]->public_id ) );
 check( 'A586: admin ticket PDF for one ticket', is_array( $a586_single ) && 1 === $a586_single['tickets'] && str_starts_with( $a586_single['filename'], 'ticket-' ) );
 $a586_none = OrdersPage::ticket_pdf( array( 'order_id' => $a586_r['order_id'], 'ticket' => $a586_t[1]->public_id ) );
