@@ -21,6 +21,9 @@ TOP="$(cut -d/ -f1 <<<"$LIST" | sort -u)"
 for f in pass-captain.php readme.txt uninstall.php vendor/autoload.php languages/pass-captain.pot src/Plugin.php languages/pass-captain-en_US.mo; do
 	grep -qx "$SLUG/$f" <<<"$LIST" && ok "contains $f" || bad "missing $f"
 done
+# A275: block editor script translations (wp i18n make-json during the build), e.g. for the events block.
+EVENTS_JSON="pass-captain-en_US-$(printf '%s' 'src/blocks/events/editor.js' | md5sum | cut -d' ' -f1).json"
+grep -qx "$SLUG/languages/$EVENTS_JSON" <<<"$LIST" && ok "contains languages/$EVENTS_JSON (script translations)" || bad "missing languages/$EVENTS_JSON (script translations, wp i18n make-json)"
 # A270: minified tweetnacl ships with its readable source and a (non-Markdown) source reference.
 for f in assets/vendor/tweetnacl/nacl-fast.min.js assets/vendor/tweetnacl/nacl-fast.js assets/vendor/tweetnacl/SOURCE.txt assets/vendor/tweetnacl/LICENSE; do
 	grep -qx "$SLUG/$f" <<<"$LIST" && ok "contains $f" || bad "missing $f"

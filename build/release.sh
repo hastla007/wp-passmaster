@@ -38,6 +38,18 @@ if [ -f "${WORK}/src/composer.json" ]; then
 	COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir="${WORK}/src" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
 fi
 
+# A275: translations of the block editor scripts (src/blocks/*/editor.js) as JED JSON files
+# (languages/pass-captain-<locale>-<md5 of the script path>.json), generated from the .po sources
+# that are not shipped. WordPress loads them via wp_set_script_translations (Localization::block_translations).
+if ls "${WORK}/src/languages/"*.po >/dev/null 2>&1; then
+	if command -v wp >/dev/null 2>&1; then
+		wp i18n make-json "${WORK}/src/languages" --no-purge --allow-root --quiet
+	elif [ "${WPCAP_BUILD_SKIP_JSON:-}" != "1" ]; then
+		echo "wp-cli is required for the script translations (wp i18n make-json); set WPCAP_BUILD_SKIP_JSON=1 to build without them." >&2
+		exit 1
+	fi
+fi
+
 # Releases up to 1.4 were called "WP Pass Captain" with folder/main file wp-pass-captain (legacy-slug):
 # an older ref (e.g. the previous release for the upgrade drill) is packaged under its own name.
 if [ ! -f "${WORK}/src/${SLUG}.php" ] && [ -f "${WORK}/src/wp-pass-captain.php" ]; then # legacy-slug

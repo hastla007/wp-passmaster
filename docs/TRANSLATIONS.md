@@ -7,7 +7,7 @@ Italienisch (it_IT), Niederländisch (nl_NL) in `languages/` (`.po` Quelle, `.mo
 ## Ablauf bei neuen oder geänderten Texten
 
 ```bash
-wp i18n make-pot . languages/pass-captain.pot --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-block-json --skip-theme-json
+wp i18n make-pot . languages/pass-captain.pot --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-theme-json
 ```
 
 ```bash

@@ -46,7 +46,7 @@ final class Calendar {
 
 	public static function register_block() {
 		if ( function_exists( 'register_block_type' ) ) {
-			register_block_type( WPCAP_PATH . 'src/blocks/calendar' );
+			\PassCaptain\Localization::block_translations( register_block_type( WPCAP_PATH . 'src/blocks/calendar' ) );
 		}
 	}
 

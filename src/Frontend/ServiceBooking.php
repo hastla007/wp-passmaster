@@ -49,6 +49,7 @@ final class ServiceBooking {
 	public static function register_block() {
 		if ( ! function_exists( 'register_block_type' ) ) { return; }
 		$block = register_block_type( WPCAP_PATH . 'src/blocks/service-booking' );
+		\PassCaptain\Localization::block_translations( $block );
 		if ( $block && ! empty( $block->editor_script_handles ) && is_admin() ) {
 			add_action( 'enqueue_block_editor_assets', static function () use ( $block ) {
 				wp_add_inline_script( $block->editor_script_handles[0], 'window.WPCAP_BLOCK_SERVICE=' . wp_json_encode( self::block_choices() ) . ';', 'before' );

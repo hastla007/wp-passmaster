@@ -35,10 +35,10 @@ jobs:
       - name: Secret scan of all tracked files
         run: php tests/secret-scan.php
       - name: JavaScript syntax checks
-        run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js && node --check assets/offline-scanner/app.js && node --check assets/offline-scanner/i18n.js && node --check assets/offline-scanner/sw.js
+        run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js && node --check src/blocks/calendar/editor.js && node --check src/blocks/service-booking/editor.js && node --check assets/offline-scanner/app.js && node --check assets/offline-scanner/i18n.js && node --check assets/offline-scanner/sw.js
       - name: Translations consistent, .pot and .mo up to date (completeness is a release gate)
         run: |
-          wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules,src/Fiscalization --skip-audit --skip-block-json --skip-theme-json
+          wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules,src/Fiscalization --skip-audit --skip-theme-json
           php tests/i18n-check.php --allow-incomplete --fresh-pot="$RUNNER_TEMP/fresh.pot"
       - uses: actions/setup-node@v4
         with:
@@ -143,7 +143,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          tools: composer:v2
+          tools: composer:v2, wp-cli
           extensions: mbstring
       - name: Reproducible build (two builds must be byte-identical)
         run: bash tests/reproducible-build.sh
