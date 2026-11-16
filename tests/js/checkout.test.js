@@ -168,7 +168,8 @@ test('submit posts items, attendees and an idempotency key; confirmation panel g
 	assert.equal(fetch.calls.length, 1);
 	const body = fetch.calls[0].body;
 	assert.equal(body.email, 'buyer@example.com');
-	assert.deepEqual(body.items, [{ ticket_type_id: 11, quantity: 1 }]);
+	// Merged checkout.js (A576): each item carries the unit price shown on the card.
+	assert.deepEqual(body.items, [{ ticket_type_id: 11, quantity: 1, expected_price_minor: 2500 }]);
 	assert.deepEqual(body.attendees, [{ ticket_type_id: 11, answers: {}, name: 'Alex Muster', email: '' }]);
 	assert.deepEqual(body.campaign_codes, ['SPRING']);
 	assert.equal(body.accept_terms, true);
@@ -184,7 +185,8 @@ test('submit posts items, attendees and an idempotency key; confirmation panel g
 
 test('server error: message shown at the field, next attempt uses a new idempotency key', async () => {
 	let n = 0;
-	const fetch = mockFetch(() => (++n === 1 ? { status: 409, json: { message: 'Ausverkauft', data: { field: 'items' } } } : { status: 201, json: { status: 'complete' } }));
+	// A309: only an answer shaped like an API error (code + message) counts as "nothing was booked".
+	const fetch = mockFetch(() => (++n === 1 ? { status: 409, json: { code: 'wpcap_sold_out', message: 'Ausverkauft', data: { status: 409, field: 'items' } } } : { status: 201, json: { status: 'complete' } }));
 	const env = checkout({ fetch });
 	const form = env.document.querySelector('form');
 	setQty(env, 'q1', 1);

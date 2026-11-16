@@ -1,5 +1,5 @@
-// MERGE-CHECK: Arbeitsliste version of tests/js/checkout-live.test.js (both development lines tested the same script with
-// their own harness). Keep the checks that match the merged script; the other file is the audit-branch version.
+// Arbeitsliste version of tests/js/checkout-live.test.js (both development lines tested the same script with
+// their own harness). Both files run against the merged script; checks of removed behaviour were rewritten to the merged one.
 /**
  * Checkout script (assets/checkout.js) on a card from a page cache or CDN (fake DOM fake-dom-r2.js):
  * A456 after loading, the live state (GET …/checkout/live) switches quantities, sold-out types, the

@@ -405,7 +405,7 @@ final class ServicesPage {
 		}
 		echo '</tr></thead><tbody>';
 		foreach ( $slots as $slot ) {
-			echo '<tr><td>' . esc_html( Forms::datetime( $slot->starts_at, $tz, false ) ) . '</td><td>' . esc_html( Forms::datetime( $slot->ends_at, $tz, false ) ) . '</td><td>' . (int) $slot->booked . ' / ' . (int) $slot->capacity . '</td><td>' . esc_html( 'open' === $slot->status ? __( 'Offen', 'pass-captain' ) : __( 'Geschlossen', 'pass-captain' ) ) . '</td><td><a class="button button-small" href="' . esc_url( Forms::page_url( self::SLUG, array( 'slot_id' => (int) $slot->slot_id ) ) ) . '">' . esc_html__( 'Bearbeiten & Buchungen', 'pass-captain' ) . '</a> ';
+			echo '<tr><td>' . esc_html( Forms::datetime( $slot->starts_at, $tz, false ) ) . '</td><td>' . esc_html( Forms::datetime( $slot->ends_at, $tz, false ) ) . '</td><td>' . (int) $slot->booked . ' / ' . (int) $slot->capacity . '</td><td>' . esc_html( 'open' === $slot->status ? _x( 'Offen', 'status of a service slot: bookable', 'pass-captain' ) : __( 'Geschlossen', 'pass-captain' ) ) . '</td><td><a class="button button-small" href="' . esc_url( Forms::page_url( self::SLUG, array( 'slot_id' => (int) $slot->slot_id ) ) ) . '">' . esc_html__( 'Bearbeiten & Buchungen', 'pass-captain' ) . '</a> ';
 			if ( ! (int) $slot->booked ) {
 				FeatureScreens::button( self::ACTION, array( 'do' => 'delete_slot', 'id' => (int) $slot->slot_id ), __( 'Löschen', 'pass-captain' ), __( 'Dieses Zeitfenster löschen?', 'pass-captain' ), 'button button-small button-link-delete' );
 			}

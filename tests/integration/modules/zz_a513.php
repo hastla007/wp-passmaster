@@ -24,4 +24,5 @@ check( 'A513: a missing index, other columns and lost uniqueness are reported (m
 check( 'A513: the full plugin schema has no index differences after install (no false positives)', Installer::version() === (string) get_option( 'wpcap_db_version' ) );
 
 $x2_a513_src = (string) file_get_contents( WPCAP_PATH . 'src/Installer.php' );
-check( 'A513: install() treats index differences like missing columns (record_failure, no version stored)', 1 === preg_match( '/\$missing = self::missing_schema\( \$all_queries \);\s*(?:\/\/[^\n]*\n\s*)?\$missing = array_merge\( \$missing, self::missing_indexes\( \$all_queries \) \);\s*if \( \$missing \) \{\s*self::record_failure/', $x2_a513_src ) );
+// Merged Installer: schema_failed() records the failure through record_failure() (A466 backoff) plus the status details.
+check( 'A513: install() treats index differences like missing columns (record_failure, no version stored)', 1 === preg_match( '/\$missing = self::missing_schema\( \$all_queries \);\s*(?:\/\/[^\n]*\n\s*)?\$missing = array_merge\( \$missing, self::missing_indexes\( \$all_queries \) \);\s*if \( \$missing \) \{\s*self::(?:record_failure|schema_failed)/', $x2_a513_src ) );

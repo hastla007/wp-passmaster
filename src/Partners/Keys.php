@@ -240,7 +240,7 @@ final class Keys {
 		global $wpdb;
 		$ip = self::client_ip();
 		$route = is_object( $request ) && method_exists( $request, 'get_route' ) ? (string) $request->get_route() : '';
-		if ( RateLimit::hits( self::fail_bucket( $ip ), self::FAIL_WINDOW ) > self::FAIL_LIMIT ) {
+		if ( RateLimit::hits( self::fail_bucket( $ip ), self::FAIL_WINDOW ) >= self::FAIL_LIMIT ) { // hits() stops at the limit (unified RateLimit): >= locks once FAIL_LIMIT failures were counted.
 			return new \WP_Error( 'wpcap_partner_locked', __( 'Zu viele fehlgeschlagene Anmeldungen. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$header = (string) $request->get_header( 'authorization' );

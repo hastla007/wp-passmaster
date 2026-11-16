@@ -23,6 +23,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspec
 if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = $a == $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( 'wp_verify_nonce' ) ) { function wp_verify_nonce( $n, $a = -1 ) { return 'n' === $n ? 1 : false; } }
+if ( ! function_exists( 'wp_create_nonce' ) ) { function wp_create_nonce( $a = -1 ) { return 'n'; } }
 if ( ! function_exists( 'wp_nonce_url' ) ) { function wp_nonce_url( $u, $a = -1 ) { return $u . '&_wpnonce=n'; } }
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $single = false ) { return $GLOBALS['p1u_user_meta'][ $u ][ $k ] ?? ''; } }
 if ( ! function_exists( 'update_user_meta' ) ) { function update_user_meta( $u, $k, $v ) { $GLOBALS['p1u_user_meta'][ $u ][ $k ] = $v; return true; } }
@@ -164,15 +165,16 @@ $article = false !== $card_pos ? substr( $card, strrpos( substr( $card, 0, $card
 check( 'buyer e-mail comes before the attendee box with the clear label', false !== strpos( $article, 'Deine E-Mail-Adresse (für Tickets und Bestätigung)' ) && strpos( $article, 'name="email"' ) < strpos( $article, 'wpcap-attendees' ) );
 check( 'CTA uses the theme button class', false !== strpos( $article, 'class="wp-element-button wpcap-submit"' ) );
 check( 'consent mentions consumer information only when configured', false !== strpos( $article, 'Ich akzeptiere die Bedingungen.</label>' ) && false === strpos( $article, 'Verbraucherinformationen gelesen' ) );
-check( 'prices with currency symbol', false !== strpos( $article, 'Standard</span> — <span class="wpcap-type-price">19,90 €' ) );
-// MERGE-CHECK: markup of the price label differs (ours closes the name span before the dash, Arbeitsliste closes the price span).
-check( 'prices with currency symbol (Arbeitsliste markup)', false !== strpos( $article, 'Standard — <span class="wpcap-type-price">19,90 €</span>' ) ); // A456/A458: price in its own span.
+// Merged templates/event-card.php: "Name — <span class="wpcap-type-price">price</span>" (A456/A458).
+check( 'prices with currency symbol', 1 === preg_match( '#<label for="wpcap-\d+-' . $card_type . '">Standard — <span class="wpcap-type-price">19,90 €</span>#', $article ) );
+check( 'prices with currency symbol (price in its own span)', false !== strpos( $article, 'Standard — <span class="wpcap-type-price">19,90 €</span>' ) ); // A456/A458: price in its own span.
 check( 'fields are labelled explicitly (for/id) for inline errors', 1 === preg_match( '#<label for="(wpcap-\d+-email)">.*?<input id="\1" name="email"#s', $article ) && ( false === strpos( $article, 'name="campaign_code"' ) || false !== strpos( $article, 'Rabattcode (optional)' ) ) );
-// MERGE-CHECK: ours always rendered the discount code field; the Arbeitsliste (A017) only with an active code for the event.
+// Merged design: the Arbeitsliste rule (A017) wins – the field only appears when a code is active for the event.
 // Audit 3 (A017): the discount code field only appears when a code is active for the event.
 $card_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$card_occ" );
 check( 'discount code field only with an active code for the event', PassCaptain\Campaigns::has_active( $card_event, 'EUR' ) === ( false !== strpos( $article, 'name="campaign_code"' ) ) );
-check( 'discount code field is rendered (ours: always)', false !== strpos( $article, 'name="campaign_code"' ) );
+$p1u_code_html = PassCaptain\Campaigns::has_active( $card_event, 'EUR' ) ? '' : 'x';
+check( 'discount code field is labelled when rendered, absent without an active code', ( false === strpos( $article, 'name="campaign_code"' ) || false !== strpos( $article, 'Rabattcode (optional)' ) ) && ( '' === $p1u_code_html || false === strpos( $article, 'name="campaign_code"' ) ) );
 Settings::update( array( 'consumer_info_text' => 'Widerrufsbelehrung …' ) );
 $card2 = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 check( 'with consumer information the consent names it', false !== strpos( $card2, 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.' ) );

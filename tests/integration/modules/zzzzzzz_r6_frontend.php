@@ -26,6 +26,9 @@ if ( ! function_exists( 'locate_template' ) ) { function locate_template( $t ) {
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) {} }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 if ( ! function_exists( 'wpautop' ) ) { function wpautop( $t ) { return '<p>' . $t . '</p>'; } }
+// the_content fallback of the payment banner runs only in the main loop (ReturnNotice::prepend_to_content()).
+if ( ! function_exists( 'in_the_loop' ) ) { function in_the_loop() { return ! empty( $GLOBALS['r6_in_loop'] ); } }
+if ( ! function_exists( 'is_main_query' ) ) { function is_main_query() { return ! empty( $GLOBALS['r6_in_loop'] ); } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( $path, '/' ); } }
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['wpcap_test_transients'][ $k ] ); return true; } }
 if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id = 0 ) { return $GLOBALS['r6_permalinks'][ (int) $id ] ?? ''; } }
@@ -99,9 +102,13 @@ check( 'R6: participant fields have options; orders have customer_name', in_arra
 echo "R6: list and single-occurrence view (#9)\n";
 list( $s_event, $s_occs, $s_types ) = r6_series( 60 );
 $list = PublicEvents::render_shortcode( array( 'event' => $s_event ) );
-check( 'R6-1: 60 dates of one event render without any checkout form (layout auto → list)', 0 === substr_count( $list, 'wpcap-checkout-form' ) && false !== strpos( $list, 'wpcap-events-list' ) );
-check( 'R6-1: series with many dates get a date picker with every date (GET wpcap_occ, works without JS)', 60 === substr_count( $list, '<option value=' ) && false !== strpos( $list, 'name="wpcap_occ"' ) && false !== strpos( $list, '60 Termine ab' ) );
-check( 'R6-1: the list stays small (< 20 KB, < 5 inputs) instead of 60 forms', strlen( $list ) < 20000 && substr_count( $list, '<input' ) + substr_count( $list, '<select' ) < 5 );
+// Merged design (A342): layout auto groups an event's dates into one card (one checkout form, the other dates
+// as ?wpcap_occurrence= links); the compact list (layout list, or auto above the threshold of 20 cards) keeps
+// the R6 date picker.
+check( 'R6-1: 60 dates of one event render without any checkout form (layout auto → list)', 1 === substr_count( $list, '<form class="wpcap-checkout-form"' ) && false !== strpos( $list, 'wpcap_occurrence=' . $s_occs[1] . '#wpcap-occ-' . $s_occs[1] ) );
+$list_layout = PublicEvents::render_shortcode( array( 'event' => $s_event, 'layout' => 'list', 'limit' => 60 ) );
+check( 'R6-1: series with many dates get a date picker with every date (GET wpcap_occ, works without JS)', 0 === substr_count( $list_layout, 'wpcap-checkout-form' ) && 60 === substr_count( $list_layout, '<option value=' ) && false !== strpos( $list_layout, 'name="wpcap_occ"' ) && false !== strpos( $list_layout, '60 Termine ab' ) );
+check( 'R6-1: the list stays small (< 20 KB, < 5 inputs) instead of 60 forms', strlen( $list_layout ) < 20000 && substr_count( $list_layout, '<input' ) + substr_count( $list_layout, '<select' ) < 5 );
 $cards = PublicEvents::render_shortcode( array( 'event' => $s_event, 'layout' => 'cards', 'limit' => 5 ) );
 check( 'R6-1: layout=cards with limit renders exactly that many forms', 5 === substr_count( $cards, '<form class="wpcap-checkout-form"' ) );
 $last = end( $s_occs );
@@ -110,7 +117,8 @@ $detail = PublicEvents::render_shortcode( array() );
 unset( $_GET['wpcap_occ'] );
 check( 'R6-1: ?wpcap_occ shows only that occurrence (also beyond 50) with its form, a back link and the date picker', 1 === substr_count( $detail, '<form class="wpcap-checkout-form"' ) && false !== strpos( $detail, 'id="wpcap-' . $last . '"' ) && false !== strpos( $detail, 'wpcap-back' ) && false !== strpos( $detail, 'Anderen Termin wählen' ) );
 $attr = PublicEvents::render_shortcode( array( 'occurrence' => $s_occs[1] ) );
-check( 'R6-1: attribute occurrence renders that date directly (no back link)', 1 === substr_count( $attr, '<form class="wpcap-checkout-form"' ) && false !== strpos( $attr, 'id="wpcap-' . $s_occs[1] . '"' ) && false === strpos( $attr, 'wpcap-back' ) );
+// Form ids stay unique per page (EventCard::form_id(): a date rendered twice gets "-i2").
+check( 'R6-1: attribute occurrence renders that date directly (no back link)', 1 === substr_count( $attr, '<form class="wpcap-checkout-form"' ) && 1 === preg_match( '/id="wpcap-' . $s_occs[1] . '(-i\d+)?"/', $attr ) && false === strpos( $attr, 'wpcap-back' ) );
 list( $two_event, $two_occs ) = r6_series( 2 );
 $two = PublicEvents::render_list( PublicEvents::listing_rows( $two_event ) );
 check( 'R6-1: few dates are compact rows with a "Tickets" link to the single view', 2 === substr_count( $two, 'class="wpcap-occ-row"' ) && false !== strpos( $two, 'wpcap_occ=' . $two_occs[0] ) && 0 === substr_count( $two, '<form' ) );
@@ -134,14 +142,16 @@ $GLOBALS['r6_posts'] = array(
 $GLOBALS['r6_permalinks'][13] = 'https://example.test/beitrag/';
 $GLOBALS['r6_permalinks'][14] = 'https://example.test/tickets-auto/';
 $auto = Ics::checkout_url( $last );
-check( 'R6-2: without checkout_url the list page with the events shortcode/block is found (pages first, not a fixed-date page) and linked to the single view', 'https://example.test/tickets-auto/?wpcap_occ=' . $last . '#wpcap-occ-' . $last === $auto );
+// Merged design: calendar links use ?wpcap_occurrence= (the list layout opens its single view for it too).
+// get_permalink() may be the stand-in of an earlier test file (whichever loads first): compare with page 14's own link.
+check( 'R6-2: without checkout_url the list page with the events shortcode/block is found (pages first, not a fixed-date page) and linked to the single view', add_query_arg( 'wpcap_occurrence', $last, (string) get_permalink( 14 ) ) . '#wpcap-occ-' . $last === $auto );
 Settings::update( array( 'calendar' => array( 'checkout_url' => 'https://example.test/kasse/', 'attach_ics' => 1 ) ) );
-check( 'R6-2: a configured checkout page wins', 0 === strpos( Ics::checkout_url( $last ), 'https://example.test/kasse/?wpcap_occ=' . $last ) );
+check( 'R6-2: a configured checkout page wins', 0 === strpos( Ics::checkout_url( $last ), 'https://example.test/kasse/?wpcap_occurrence=' . $last ) );
 Settings::update( array( 'calendar' => array( 'checkout_url' => '', 'attach_ics' => 1 ) ) );
 $GLOBALS['r6_posts'] = array();
 delete_transient( 'wpcap_events_page' );
 $cal_list = Calendar::render_list( $s_event, 60 );
-check( 'R6-2: no events page at all: calendar links open the date on the calendar page itself', false !== strpos( $cal_list, '?wpcap_occ=' . $last . '#wpcap-occ-' . $last ) && false === strpos( $cal_list, 'href="#wpcap-occ-' ) );
+check( 'R6-2: no events page at all: calendar links open the date on the calendar page itself', false !== strpos( $cal_list, '?wpcap_occurrence=' . $last . '#wpcap-occ-' . $last ) && false === strpos( $cal_list, 'href="#wpcap-occ-' ) );
 $_GET['wpcap_occ'] = $last;
 $cal_page = Calendar::render_shortcode( array( 'view' => 'list', 'event' => $s_event ) );
 unset( $_GET['wpcap_occ'] );
@@ -154,7 +164,8 @@ $w_occ = r6_occ_of( $w_type );
 $w_event = r6_event_of( $w_type );
 Orders::create( array( 'email' => 'r6-sold@example.com', 'items' => array( array( 'ticket_type_id' => $w_type, 'quantity' => 1 ) ), 'idempotency_key' => 'r6-sold-' . uniqid() ), array( 'skip_rate_limit' => true, 'hold_minutes' => 600 ) );
 $w_card = PublicEvents::render_shortcode( array( 'occurrence' => $w_occ ) );
-check( 'R6-3: sold-out type renders the waitlist container and the form knows event/occurrence', false !== strpos( $w_card, '<div class="wpcap-waitlist" data-type="' . $w_type . '"' ) && false !== strpos( $w_card, 'data-event="' . $w_event . '"' ) && false !== strpos( $w_card, 'data-occurrence="' . $w_occ . '"' ) && false !== strpos( $w_card, 'data-waitlist="1"' ) );
+// Merged design: the card's waitlist form of the Arbeitsliste line (ticket type select, quantity, e-mail).
+check( 'R6-3: sold-out type renders the waitlist container and the form knows event/occurrence', 1 === preg_match( '/<select id="wpcap-' . $w_occ . '-waitlist-type" name="ticket_type_id">\s*<option value="' . $w_type . '"/', $w_card ) && false !== strpos( $w_card, 'data-event="' . $w_event . '"' ) && false !== strpos( $w_card, 'data-occurrence="' . $w_occ . '"' ) && false !== strpos( $w_card, 'data-waitlist="1"' ) );
 check( 'R6-3: sold-out type keeps a disabled quantity field (live updates can enable it)', 1 === preg_match( '/<input id="wpcap-' . $w_occ . '-' . $w_type . '"[^>]* disabled/', $w_card ) && false !== strpos( $w_card, 'class="wpcap-soldout"' ) );
 $GLOBALS['wpcap_test_filters']['wpcap_waitlist_frontend'] = false;
 $w_off = PublicEvents::render_shortcode( array( 'occurrence' => $w_occ ) );
@@ -166,9 +177,10 @@ $jr->set_param( 'occurrence_id', $w_occ );
 $jr->set_param( 'ticket_type_id', $w_type );
 $jr->set_param( 'email', 'r6-wait@example.com' );
 $join = r6_data( Controller::join_waitlist( $jr ) );
-check( 'R6-3: the existing waitlist route answers with the double opt-in flag for the "confirm the link" hint', is_array( $join ) && 'received' === ( $join['status'] ?? '' ) && true === ( $join['double_opt_in'] ?? null ) );
+// Merged waitlist (Arbeitsliste, double opt-in): the answer itself tells the buyer to confirm by e-mail.
+check( 'R6-3: the existing waitlist route answers with the double opt-in flag for the "confirm the link" hint', is_array( $join ) && 'received' === ( $join['status'] ?? '' ) && false !== strpos( (string) ( $join['message'] ?? '' ), 'Bestätigung per E-Mail' ) );
 $config = PublicEvents::checkout_config();
-check( 'R6-3: checkout config carries the waitlist route and the confirmation hint', false !== strpos( (string) $config['waitlistUrl'], 'events/0/waitlist' ) && false !== strpos( (string) $config['i18n']['waitlistConfirm'], 'bestätige den Link' ) );
+check( 'R6-3: checkout config carries the waitlist route and the confirmation hint', false !== strpos( (string) $config['waitlistUrl'], 'events/0/waitlist' ) && '' !== (string) ( $config['i18n']['waitlistJoined'] ?? '' ) );
 
 echo "R6: live availability (#7)\n";
 $a_type = make_type( 5, 4, 1000 );
@@ -193,9 +205,12 @@ $limited = Availability::rest( $ar );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_availability_rate_limit'] );
 check( 'R6-4: rate limited per client network (429)', $limited instanceof WP_REST_Response && 429 === $limited->get_status() );
 check( 'R6-4: availability route is registered as public GET', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Rest/Controller.php' ), "'/availability'" ) );
-check( 'R6-4: the poll interval is limited to 15–60 s', 20 === PublicEvents::checkout_config()['poll'] && false !== strpos( (string) PublicEvents::checkout_config()['availabilityUrl'], 'wp-pass-captain/v1/availability' ) );
+// Merged REST namespace: pass-captain/v1.
+check( 'R6-4: the poll interval is limited to 15–60 s', 20 === PublicEvents::checkout_config()['poll'] && false !== strpos( (string) PublicEvents::checkout_config()['availabilityUrl'], '/pass-captain/v1/availability' ) );
 $a_card = PublicEvents::render_shortcode( array( 'occurrence' => r6_occ_of( $a_upcoming ) ) );
-check( 'R6-4: a ticket type before its sales start is rendered (countdown data, disabled) instead of being left out', 1 === substr_count( $a_card, '<form class="wpcap-checkout-form"' ) && false !== strpos( $a_card, 'class="wpcap-upcoming" data-sales-start="' ) && 1 === preg_match( '/data-type="' . $a_upcoming . '"[^>]*data-sales-start="/', $a_card ) );
+// Merged design (A293): a date whose ticket types all start selling later gets a "Vorverkauf ab …" card
+// with the machine-readable sales start instead of being left out.
+check( 'R6-4: a ticket type before its sales start is rendered (countdown data, disabled) instead of being left out', 0 === substr_count( $a_card, '<form class="wpcap-checkout-form"' ) && 1 === preg_match( '/<p class="wpcap-presale"><time datetime="\d{4}-\d\d-\d\dT[^"]+">Vorverkauf ab /', $a_card ) && false !== strpos( $a_card, 'id="wpcap-occ-' . r6_occ_of( $a_upcoming ) . '"' ) );
 $r6_changed = array();
 add_action( 'wp_pass_captain_availability_changed_v1', static function ( $ids, $reason ) use ( &$r6_changed ) { $r6_changed[] = array( $ids, $reason ); }, 10, 2 );
 $c_res = Controller::checkout( r6_req( array( 'email' => 'r6-live@example.com', 'items' => array( array( 'ticket_type_id' => $a_type, 'quantity' => 1 ) ), 'idempotency_key' => 'r6-live-' . uniqid() ) ) );
@@ -223,7 +238,8 @@ echo "R6: personalisation and field types (#9)\n";
 $n_type = make_type( 10, 10, 1000 );
 $wpdb->update( "{$p}wpcap_ticket_types", array( 'attendee_name' => 'required' ), array( 'ticket_type_id' => $n_type ) );
 $no_name = Controller::checkout( r6_req( array( 'email' => 'r6-name@example.com', 'items' => array( array( 'ticket_type_id' => $n_type, 'quantity' => 2 ) ), 'attendees' => array( array( 'ticket_type_id' => $n_type, 'name' => 'Alex' ) ), 'idempotency_key' => 'r6-name-' . uniqid() ) ) );
-check( 'R6-8: attendee name "required" is enforced on the server for every ticket (field attendees)', is_wp_error( $no_name ) && 'wpcap_attendee_name_required' === $no_name->get_error_code() && 'attendees' === ( $no_name->get_error_data()['field'] ?? '' ) );
+// Merged error code of the Arbeitsliste line (wpcap_attendee_field_required).
+check( 'R6-8: attendee name "required" is enforced on the server for every ticket (field attendees)', is_wp_error( $no_name ) && in_array( $no_name->get_error_code(), array( 'wpcap_attendee_name_required', 'wpcap_attendee_field_required' ), true ) && 'attendees' === ( $no_name->get_error_data()['field'] ?? '' ) );
 $with_name = Orders::create( array( 'email' => 'r6-name2@example.com', 'items' => array( array( 'ticket_type_id' => $n_type, 'quantity' => 2 ) ), 'attendees' => array( array( 'ticket_type_id' => $n_type, 'name' => 'Alex' ), array( 'ticket_type_id' => $n_type, 'name' => 'Kim' ) ), 'idempotency_key' => 'r6-name2-' . uniqid() ), array( 'skip_rate_limit' => true ) );
 check( 'R6-8: with names for every ticket the order is accepted', is_array( $with_name ) );
 $wpdb->update( "{$p}wpcap_ticket_types", array( 'attendee_name' => 'off' ), array( 'ticket_type_id' => $n_type ) );
@@ -236,7 +252,8 @@ foreach ( array( 'size' => array( 'select', "S\nM\nL" ), 'menu' => array( 'radio
 	$fid[ $key ] = is_array( $res ) ? (int) $res['field_id'] : 0;
 }
 check( 'R6-8: admin accepts the field types select, radio, date and tel', ! in_array( 0, $fid, true ) && in_array( 'tel', EventsPage::FIELD_TYPES, true ) );
-check( 'R6-8: choices are stored one per line', "S\nM\nL" === (string) $wpdb->get_var( $wpdb->prepare( "SELECT options FROM {$p}wpcap_participant_fields WHERE field_id=%d", $fid['size'] ) ) );
+// Merged storage (A680): the choices entered one per line are stored as a JSON list.
+check( 'R6-8: choices are stored one per line', array( 'S', 'M', 'L' ) === json_decode( (string) $wpdb->get_var( $wpdb->prepare( "SELECT options FROM {$p}wpcap_participant_fields WHERE field_id=%d", $fid['size'] ) ), true ) );
 $bad = EventsPage::save_participant_field( array( 'ticket_type_id' => $n_type, 'field_key' => 'one', 'label' => 'Eins', 'field_type' => 'select', 'options' => 'Nur eine' ) );
 check( 'R6-8: a select field needs at least two choices', is_wp_error( $bad ) && 'wpcap_field_options' === $bad->get_error_code() );
 $answers = static function ( array $a ) use ( $n_type ) { return Orders::validate_attendees( array( $n_type => 1 ), array( array( 'ticket_type_id' => $n_type, 'answers' => $a ) ) ); };
@@ -265,9 +282,14 @@ check( 'R6-9: a free ticket reads "kostenlos" instead of 0,00 €', false !== st
 check( 'R6-9: mixed card keeps "Zahlungspflichtig bestellen"', false !== strpos( $d_card, 'Zahlungspflichtig bestellen' ) );
 $free_type = make_type( 10, 10, 0 );
 $free_card = PublicEvents::render_shortcode( array( 'occurrence' => r6_occ_of( $free_type ) ) );
-check( 'R6-9: only free tickets: button "Kostenlos bestellen"', false !== strpos( $free_card, 'Kostenlos bestellen' ) && false === strpos( $free_card, 'Zahlungspflichtig bestellen' ) );
-check( 'R6-12: −/+ stepper buttons with an accessible name per ticket type', 1 === preg_match( '/<button type="button" class="wpcap-step" data-step="-1" tabindex="-1" aria-controls="wpcap-' . $d_occ . '-' . $a_type . '" aria-label="Anzahl „Standard“ verringern">/', $d_card ) && false !== strpos( $d_card, 'aria-label="Anzahl „Standard“ erhöhen"' ) );
-check( 'R6-6: no live region around the whole attendee block, a short status instead', false !== strpos( $d_card, '<div class="wpcap-attendees"></div>' ) && false !== strpos( $d_card, 'class="wpcap-attendee-status screen-reader-text" role="status"' ) );
+// Merged label (Arbeitsliste): "Kostenlos anmelden"; the paid label stays only as data attribute for live switching.
+check( 'R6-9: only free tickets: button "Kostenlos bestellen"', 1 === preg_match( '#<button type="submit" class="wp-element-button wpcap-submit"[^>]*>Kostenlos anmelden</button>#', $free_card ) );
+// Merged design (A100): checkout.js adds the −/+ stepper to every quantity field (aria-controls, accessible name
+// from the i18n strings stepDown/stepUp with the ticket type); the card carries the type name for it.
+$r6_js = (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' );
+$r6_i18n = PublicEvents::checkout_config()['i18n'];
+check( 'R6-12: −/+ stepper buttons with an accessible name per ticket type', false !== strpos( $r6_js, "class: 'wpcap-step wpcap-step-down', 'aria-controls': id, 'aria-label': fill(t.stepDown" ) && false !== strpos( (string) ( $r6_i18n['stepDown'] ?? '' ), '%s' ) && false !== strpos( (string) ( $r6_i18n['stepUp'] ?? '' ), '%s' ) && 1 === preg_match( '/id="wpcap-' . $d_occ . '-' . $a_type . '"[^>]*data-name="Standard"/', $d_card ) );
+check( 'R6-6: no live region around the whole attendee block, a short status instead', false !== strpos( $d_card, '<div class="wpcap-attendees"></div>' ) && false !== strpos( $d_card, '<p class="wpcap-qty-live wpcap-sr-only" aria-live="polite" aria-atomic="true"></p>' ) );
 
 echo "R6: checkout errors – Retry-After and remaining tickets (#7)\n";
 $busy = Controller::checkout_error( new WP_Error( 'wpcap_checkout_failed', 'busy', array( 'status' => 503, 'retryable' => true ) ), array() );
@@ -311,8 +333,11 @@ $again = ReturnNotice::retry( $pay_order->public_id, $token, 'https://example.te
 check( 'R6-7: "pay again" opens a new payment page for the same order while the hold lasts', is_array( $again ) && 0 === strpos( $again['redirect_url'], 'https://psp.example/pay/' . $pay_order->public_id ) && 'r6-2' === $wpdb->get_var( $wpdb->prepare( "SELECT provider_reference FROM {$p}wpcap_orders WHERE order_id=%d", $pay_order->order_id ) ) );
 $_GET = array( 'wpcap_payment' => 'cancel', 'order' => $pay_order->public_id, 'wpcap_rt' => $token );
 $banner = ReturnNotice::html();
-check( 'R6-7: after a cancelled payment the banner offers "Erneut bezahlen" and "Reservierung freigeben"', false !== strpos( $banner, 'Erneut bezahlen' ) && false !== strpos( $banner, 'Reservierung freigeben' ) && false !== strpos( $banner, 'value="wpcap_payment_release"' ) && false !== strpos( $banner, 'reserviert' ) );
+// Merged banner (A307): "Zahlung fortsetzen" (pay again) and "Bestellung stornieren" (release the hold at once).
+check( 'R6-7: after a cancelled payment the banner offers "Erneut bezahlen" and "Reservierung freigeben"', false !== strpos( $banner, 'name="decision" value="resume"' ) && false !== strpos( $banner, 'name="decision" value="cancel"' ) && false !== strpos( $banner, 'Plätze sofort freigeben' ) && false !== strpos( $banner, 'reserviert' ) );
+$GLOBALS['r6_in_loop'] = true;
 check( 'R6-7: banner falls back to the_content once when wp_body_open is missing', 0 === strpos( ReturnNotice::prepend_to_content( '<p>Inhalt</p>' ), '<div class="wpcap-payment-notice"' ) && '<p>x</p>' === ReturnNotice::prepend_to_content( '<p>x</p>' ) );
+$GLOBALS['r6_in_loop'] = false;
 check( 'R6-7: pages with ?wpcap_payment are never cached', true === ReturnNotice::no_cache() && defined( 'DONOTCACHEPAGE' ) );
 $_GET = array();
 ReturnNotice::reset();

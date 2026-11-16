@@ -81,7 +81,7 @@ final class TaxProfilesPage {
 		}
 		echo '</tr></thead><tbody>';
 		foreach ( $rows as $r ) {
-			$valid = $r->effective_from . ' – ' . ( $r->effective_until ? $r->effective_until : __( 'offen', 'pass-captain' ) );
+			$valid = $r->effective_from . ' – ' . ( $r->effective_until ? $r->effective_until : _x( 'offen', 'open-ended validity period of a tax rate', 'pass-captain' ) );
 			echo '<tr><td>' . esc_html( $r->country_code ) . '</td><td><code>' . esc_html( $r->tax_class ) . '</code></td><td>' . esc_html( $r->label ) . '</td><td>' . esc_html( $r->version ) . '</td><td>' . esc_html( Forms::percent_input( (int) $r->rate_basis_points ) . ' %' ) . '</td><td>' . esc_html( $valid ) . '</td><td>' . esc_html( self::status_label( $r->status ) ) . '</td><td>' . esc_html__( 'fachlich zu prüfen', 'pass-captain' ) . '</td><td>';
 			if ( 'draft' === $r->status ) {
 				echo '<a class="button button-small" href="' . esc_url( Forms::page_url( self::SLUG, array( 'profile_id' => (int) $r->tax_profile_id ) ) ) . '">' . esc_html__( 'Bearbeiten', 'pass-captain' ) . '</a> ';

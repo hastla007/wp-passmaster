@@ -3481,7 +3481,7 @@ final class Orders {
 		}, $issued );
 		$placeholder = Mail\Mailer::is_placeholder( (string) $order->customer_email );
 		$pdf = $placeholder ? array( 'files' => array(), 'dir' => '', 'notice' => '' ) : Mail\TicketAttachment::create( $order, $issued );
-		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, (bool) $pdf['files'] );
+		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, $pdf['files'] && '' === (string) ( $pdf['notice'] ?? '' ) ); // A580: a partial PDF set keeps the full list.
 		$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted, $pdf ) { return self::with_note( Mail\Blocks::issued_tickets( $listed ), $omitted, $pdf['notice'] ); } ), (string) $order->locale );
 		if ( ! $message ) {
 			Mail\TicketAttachment::remove( $pdf );
@@ -4199,7 +4199,7 @@ final class Orders {
 		$items = array();
 		foreach ( $plan as $ticket_id => $step ) {
 			$row = $step['row'];
-			$items[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'occurrence_id' => (int) $row->occurrence_id, 'token' => $step['token'], 'event' => $row->event_name, 'ticket' => $row->ticket_name, 'starts_at' => $row->starts_at, 'timezone' => $row->timezone, 'location' => $row->location, 'attendee' => (string) $row->attendee_name, 'help_code' => HelpCode::for_ticket( $ticket_id, $step['token'] ) );
+			$items[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'occurrence_id' => (int) $row->occurrence_id, 'token' => $step['token'], 'event' => $row->event_name, 'ticket' => $row->ticket_name, 'starts_at' => $row->starts_at, 'timezone' => $row->timezone, 'location' => $row->location, 'attendee' => (string) $row->attendee_name, 'help_code' => $step['keep'] ? HelpCode::for_ticket( $ticket_id, $step['token'] ) : HelpCode::preview( $ticket_id, $step['token'] ) ); // New codes: the help code they get on commit (shown in the first mail).
 		}
 		if ( 'tickets' === $mail ) {
 			$sent = self::send_ticket_mail( $order, $items );
@@ -4264,7 +4264,10 @@ final class Orders {
 	private static function send_code_mail( $order, $recipient, array $items, $extras_only ) {
 		$entries = array();
 		foreach ( $items as $item ) {
-			$extra = $extras_only ? self::code_mail_section( (int) $item['ticket_id'], (string) $order->locale ) : '';
+			$help = (string) ( $item['help_code'] ?? '' );
+			$extra = $extras_only ? self::code_mail_section( (int) $item['ticket_id'], (string) $order->locale ) : ( '' !== $help ? HelpCode::label( $help ) . "\n" : '' );
+			// The help code is part of the first mail already; the short second mail only carries what exists after the commit (wallet links).
+			if ( $extras_only && '' !== $help ) { $extra = str_replace( HelpCode::label( $help ) . "\n", '', $extra ); }
 			if ( $extras_only && '' === trim( $extra ) ) { continue; }
 			$entries[] = array( 'event' => $item['event'], 'ticket' => $item['ticket'], 'when' => self::format_start( $item['starts_at'], $item['timezone'] ), 'location' => $item['location'], 'url' => add_query_arg( 'wpcap_ticket', $item['token'], home_url( '/' ) ), 'extra' => $extra );
 		}
@@ -4286,7 +4289,7 @@ final class Orders {
 			} );
 			$files = array_values( array_filter( (array) $files, 'is_string' ) );
 		}
-		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, (bool) $pdf['files'] );
+		list( $listed, $omitted ) = Mail\TicketAttachment::shorten( $entries, (int) $order->order_id, $pdf['files'] && '' === (string) ( $pdf['notice'] ?? '' ) ); // A580: a partial PDF set keeps the full list.
 		$vars = self::ticket_mail_vars( $order, $entries, static function () use ( $listed, $omitted, $pdf ) { return self::with_note( Mail\Blocks::code_tickets( $listed ), $omitted, (string) ( $pdf['notice'] ?? '' ) ); } );
 		try {
 			return (bool) Mail\Mailer::send( 'tickets_resend', $recipient, $vars, $files, (string) $order->locale, (int) $order->order_id );

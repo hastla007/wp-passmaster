@@ -201,9 +201,9 @@ check( 'draft print view is marked as draft', false !== strpos( Settlements::ren
 
 echo "Partner API: keys\n";
 wpcap_test_reset_transients();
-check( 'key needs a supported scope and only partner events', is_wp_error( PartnerKeys::issue( $p1, array( 'orders:write' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'event_ids' => array( $ec ) ) ) ) );
-// MERGE-CHECK: the Arbeitsliste line has write scopes (orders:write is supported there, admin:write is not);
-// ours rejects orders:write. Keep the check matching the merged PartnerKeys::SCOPES.
+// Merged PartnerKeys::SCOPES include the write scopes of the Arbeitsliste line (orders:write, orders:cancel,
+// tickets:issue); unknown scopes such as admin:write and foreign events are still rejected.
+check( 'key needs a supported scope and only partner events', in_array( 'orders:write', PartnerKeys::SCOPES, true ) && is_wp_error( PartnerKeys::issue( $p1, array( 'nonsense:write' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'event_ids' => array( $ec ) ) ) ) );
 check( 'key needs a supported scope and only partner events (admin:write)', is_wp_error( PartnerKeys::issue( $p1, array( 'admin:write' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'event_ids' => array( $ec ) ) ) ) );
 check( 'invalid IP entries and past expiry are rejected', is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'ip_allowlist' => '300.1.1.1' ) ) ) && is_wp_error( PartnerKeys::issue( $p1, array( 'events:read' ), array( 'expires_at' => '2001-01-01 00:00:00' ) ) ) );
 $k1 = PartnerAdmin::admin_action( array( 'do' => 'issue_key', 'id' => $p1, 'label' => 'ERP', 'scopes' => array( 'events:read', 'orders:read', 'tickets:read', 'checkins:read', 'reports:read', 'settlements:read' ) ) );

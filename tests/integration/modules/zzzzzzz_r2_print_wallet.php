@@ -60,6 +60,10 @@ function r2p_ticket_mail( $since ) {
 }
 
 echo "R2: batch print with QR codes\n";
+// Merged design: batch prints run as background batches (A427/A630, covered by print.php and zz_a427.php);
+// these checks cover the synchronous print of R2 that remains selectable (filter wpcap_print_batch_background).
+$r2_sync = static fn() => false;
+add_filter( 'wpcap_print_batch_background', $r2_sync );
 $r2_type = make_type( 50, 50, 0 );
 $r2_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$r2_type" );
 // Box office sale without e-mail (placeholder buyer): codes never reached anybody.
@@ -135,8 +139,12 @@ foreach ( $r2_cust_ids as $cid ) {
 check( 'R2 #3: confirmed reprint rotates customer tickets and mails new links to the holder and the buyer', ! is_wp_error( $r2_all ) && 5 === $r2_all['count'] && 2 === $r2_all['delivered'] && 2 === $r2_all['notified'] && $r2_cust_after[0] !== $r2_cust_before[0] && $r2_cust_after[1] !== $r2_cust_before[1] && in_array( 'holder-r2@example.com', $r2_to, true ) && in_array( 'kunde-r2@example.com', $r2_to, true ) && $r2_links_ok );
 check( 'R2 #3: box office placeholder addresses get no mail', ! array_filter( $r2_to, static fn( $t ) => str_ends_with( (string) $t, '@invalid.example' ) ) );
 remove_filter( 'wpcap_ticket_code_rotated', $r2_rot_listener, 10 );
+remove_filter( 'wpcap_print_batch_background', $r2_sync );
 
 echo "R2: ticket PDF size, attachment limits, metadata\n";
+// The test bootstrap switches compression off (readable PDFs); the size checks need the production default.
+$r2_compress = $GLOBALS['wpcap_test_filters']['wpcap_pdf_compress'] ?? null;
+unset( $GLOBALS['wpcap_test_filters']['wpcap_pdf_compress'] );
 $r2_tickets = static function ( $n, $signed_type = 0 ) {
 	$out = array();
 	for ( $i = 0; $i < $n; $i++ ) { $out[] = array( 'event' => 'Konzert', 'ticket' => 'Standard', 'when' => '01.01.2027 20:00', 'location' => 'Wien', 'token' => bin2hex( random_bytes( 32 ) ) ); }
@@ -150,7 +158,8 @@ $r2_runs = substr_count( $r2_plain1, " re\n" );
 $r2_modules = 0;
 if ( $r2_has_qr ) { foreach ( QrCode::matrix( str_repeat( 'a', 64 ) ) as $row ) { $r2_modules += count( array_filter( $row ) ); } }
 printf( "    measured: 500 tickets (classic code) %.1f KB in %d ms (before: 10.2 MB)\n", strlen( $r2_500 ) / 1024, $r2_ms );
-check( 'R2 #5: ticket PDF is compressed (FlateDecode) and structurally valid', wpp_pdf_ok( $r2_500, 500 ) && 500 === substr_count( $r2_500, '/Filter /FlateDecode' ) );
+// Merged PdfWriter: page content streams plus the embedded font programs (/Length1) are compressed.
+check( 'R2 #5: ticket PDF is compressed (FlateDecode) and structurally valid', wpp_pdf_ok( $r2_500, 500 ) && 500 === preg_match_all( '#<< /Length \d+ /Filter /FlateDecode >>#', $r2_500 ) );
 check( 'R2 #5: 500 classic tickets stay far below the mail limits (< 1.5 MB, was 10.2 MB)', strlen( $r2_500 ) < 1.5 * 1048576 );
 check( 'R2 #5: QR modules are merged into horizontal runs (fewer rectangles than dark modules), one fill', ! $r2_has_qr || ( $r2_runs > 50 && $r2_runs < $r2_modules * 0.75 && 0 === substr_count( $r2_plain1, 're f' ) ) );
 // Signed QR (longer payload, more modules).
@@ -173,7 +182,9 @@ $r2_sig_pdf = TicketPdf::render( $r2_sig_tickets );
 $r2_sig_ms = ( microtime( true ) - $r2_t ) * 1000;
 $r2_sig_q = $wpdb->num_queries - $r2_q0;
 printf( "    measured: 100 tickets (signed QR) %.1f KB in %d ms, %d queries (before: 500 tickets 30.6 MB, 13.9 s, +1000 queries)\n", strlen( $r2_sig_pdf ) / 1024, $r2_sig_ms, $r2_sig_q );
-check( 'R2 #5: 100 signed-QR tickets < 400 KB (500 were 30.6 MB)', ! $r2_has_qr || ( strlen( $r2_sig_pdf ) < 400 * 1024 && wpp_pdf_ok( $r2_sig_pdf, 100 ) ) );
+// Merged PdfWriter embeds the Unicode font subset once per document (A330): measured on top of that fixed part.
+$r2_sig_base = strlen( TicketPdf::render( array( $r2_sig_tickets[0] ) ) );
+check( 'R2 #5: 100 signed-QR tickets < 400 KB (500 were 30.6 MB)', ! $r2_has_qr || ( strlen( $r2_sig_pdf ) - $r2_sig_base < 400 * 1024 && wpp_pdf_ok( $r2_sig_pdf, 100 ) ) );
 check( 'R2 #7: signed QR values of a PDF are read in batches (not one query per ticket)', $r2_sig_q < 20 );
 
 // SignedQr: batched values equal per-token values; one key opening per request.
@@ -191,6 +202,7 @@ check( 'R2 #7: the cached signing key follows a rotation (new key id in new QR c
 SignedQr::forget_key();
 check( 'R2 #7: key cache can be wiped (shutdown) and reopened', SignedQr::is_signed( SignedQr::qr_value( $r2_tok_a ) ) );
 
+if ( null !== $r2_compress ) { $GLOBALS['wpcap_test_filters']['wpcap_pdf_compress'] = $r2_compress; }
 echo "R2: QR without ECI\n";
 $r2_signed = SignedQr::for_ticket( r2p_ids( $r2_sig_order['order_id'] )[0] );
 $r2_251 = 'PC1.' . substr( str_repeat( 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_', 5 ), 0, 160 ) . '.' . str_repeat( 'Q', 86 );
@@ -230,16 +242,17 @@ check( 'R2 #5: temporary ticket PDF and its private directory are removed after 
 $r2_pdf_files = array_values( array_filter( $r2_mail['files'], static fn( $n ) => str_ends_with( $n, '.pdf' ), ARRAY_FILTER_USE_KEY ) );
 $r2_mpdf = $r2_pdf_files[0] ?? '';
 $r2_mplain = wpcap_test_pdf_plain( $r2_mpdf );
-check( 'R2 #8: ticket PDF of the mail shows the attendee name (transliterated Ć)', false !== strpos( $r2_mplain, '(Zo' . "\xEB" . ' Ciric) Tj' ) );
+// Merged design (A330): with the bundled Unicode font the name prints unchanged; only the standard fonts transliterate.
+check( 'R2 #8: ticket PDF of the mail shows the attendee name (transliterated Ć)', false !== strpos( $r2_mplain, PdfWriter::unicode_available() ? '(Zoë Ćirić) Tj' : '(Zo' . "\xEB" . ' Ciric) Tj' ) );
 check( 'R2 #8: PDF has /Title and /Lang', false !== strpos( $r2_mpdf, '/Title (Testsite)' ) && 1 === preg_match( '#/Lang \([a-zA-Z-]+\)#', $r2_mpdf ) );
 check( 'R2 #8: long event names wrap onto two lines', 2 <= preg_match_all( '#/F2 22\.00 Tf [0-9. ]+Td \([^)]*\) Tj#', $r2_mplain ) );
 
 echo "R2: Unicode in PDFs\n";
 $r2_uni = PdfWriter::escape( 'Привет 東京 Łódź Ä€' );
 check( 'R2 #5: non-WinAnsi characters are transliterated instead of "?"', false === strpos( $r2_uni, '?' ) && false !== strpos( $r2_uni, 'Privet' ) && false !== strpos( $r2_uni, "L\xF3dz" ) && false !== strpos( $r2_uni, "\xC4\x80" ) );
-check( 'R2 #5: WinAnsi characters (umlauts, €) are kept', "M\xFCller \x80" === PdfWriter::escape( 'Müller €' ) && PdfWriter::needs_transliteration( 'Łódź' ) && ! PdfWriter::needs_transliteration( 'Müller' ) );
+check( 'R2 #5: WinAnsi characters (umlauts, €) are kept', "M\xFCller \x80" === PdfWriter::escape( 'Müller €' ) && ! PdfWriter::unicode_available() === PdfWriter::needs_transliteration( 'Łódź' ) && ! PdfWriter::needs_transliteration( 'Müller' ) );
 $r2_tag = wpcap_test_pdf_plain( Templates::render( 'nametag', array( array( 'attendee_name' => 'Ćirić Привет', 'event' => 'X', 'qr' => '' ) ) ) );
-check( 'R2 #5: name tags transliterate as well', false !== strpos( $r2_tag, '(Ciric Privet) Tj' ) );
+check( 'R2 #5: name tags transliterate as well (unchanged with the Unicode font, A330)', false !== strpos( $r2_tag, PdfWriter::unicode_available() ? '(Ćirić Привет) Tj' : '(Ciric Privet) Tj' ) );
 
 echo "R2: wallet\n";
 // Test PKI (the wallet module test removed its files).
@@ -327,24 +340,22 @@ $r2_expired->set_param( 'sig', WalletService::collection_sig( $r2_cm[2] ?? '', t
 check( 'R2 #3(wallet): collection page lists Apple and Google buttons for all 3 tickets', 3 === substr_count( $r2_html, '/wallet/apple/download/' ) && 3 === substr_count( $r2_html, 'pay.google.com/gp/v/save/' ) && 'no-store, no-cache, must-revalidate, max-age=0, private' === ( $r2_page->get_data()['headers']['Cache-Control'] ?? '' ) );
 check( 'R2 #3(wallet): wrong or expired signature → 404', is_wp_error( WalletWeb::collection( $r2_bad ) ) && is_wp_error( WalletWeb::collection( $r2_expired ) ) );
 
-// Run the job: Google objects over REST, then skinny JWTs.
+// Run the job. Merged design (A566): the job stores the Apple and Google pass rows only; Google receives
+// personal data (class and object) only when the buyer uses a save link, so nothing is sent here.
 http_reset();
 set_transient( 'wpcap_wallet_google_token', 'r2-token', 3600 );
-for ( $i = 0; $i < 3; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
 foreach ( $r2_issue_jobs as $j ) {
 	$r2_job_ok = WalletService::handle_job( false, 'wallet_issue', json_decode( $j->payload, true ) );
 	$wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $j->job_id );
 }
-$r2_patch = array_values( array_filter( http_requests( 'eventTicketObject/' ), static fn( $q ) => 'PATCH' === $q['method'] ) );
-$r2_patch_body = json_decode( $r2_patch[0]['body'] ?? '{}', true );
-check( 'R2 #3(wallet): issue job creates the Google objects via REST and marks them synced', ! empty( $r2_job_ok ) && 3 === count( $r2_patch ) && 3 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_passes WHERE provider='google' AND synced_at IS NOT NULL AND ticket_id IN (" . implode( ',', r2p_ids( $r2_wo['order_id'] ) ) . ')' ) );
-check( 'R2 #8: Google language follows the order locale (en_US → en-US)', 'en-US' === ( $r2_patch_body['ticketType']['defaultValue']['language'] ?? '' ) );
+check( 'R2 #3(wallet): issue job stores the Google pass rows without calling Google (A566)', ! empty( $r2_job_ok ) && 0 === count( http_requests( 'walletobjects' ) ) && 3 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_passes WHERE provider='google' AND status='active' AND ticket_id IN (" . implode( ',', r2p_ids( $r2_wo['order_id'] ) ) . ')' ) );
 check( 'R2 #3(wallet): Apple pass rows exist after the job (download link works)', 3 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_passes WHERE provider='apple' AND ticket_id IN (" . implode( ',', r2p_ids( $r2_wo['order_id'] ) ) . ')' ) );
 $r2_html2 = (string) WalletWeb::collection( $r2_req )->get_data()['__wpcap_raw'];
 preg_match_all( '#https://pay\.google\.com/gp/v/save/([A-Za-z0-9._-]+)#', $r2_html2, $r2_jwts );
 $r2_payload = json_decode( (string) PassCaptain\WalletPasses\Jwt::b64url_decode( explode( '.', $r2_jwts[1][0] ?? '..' )[1] ?? '' ), true );
-printf( "    measured: Google save URL skinny %d chars (fat JWT before ~2300)\n", strlen( $r2_jwts[0][0] ?? '' ) );
-check( 'R2 #3(wallet): after the REST creation the save link is a skinny JWT (object id only, < 1000 chars)', 3 === count( $r2_jwts[0] ) && strlen( $r2_jwts[0][0] ) < 1000 && array( 'id' ) === array_keys( $r2_payload['payload']['eventTicketObjects'][0] ?? array() ) && ! isset( $r2_payload['payload']['eventTicketClasses'] ) );
+printf( "    measured: Google save URL (full JWT, no object at Google yet) %d chars\n", strlen( $r2_jwts[0][0] ?? '' ) );
+check( 'R2 #8: Google language follows the order locale (en_US → en-US)', false !== strpos( (string) wp_json_encode( $r2_payload ), '"language":"en-US"' ) );
+check( 'R2 #3(wallet): until the buyer saves, the collection page carries the full save JWT (class + object, A566)', 3 === count( $r2_jwts[0] ) && isset( $r2_payload['payload']['eventTicketObjects'][0]['id'], $r2_payload['payload']['eventTicketClasses'][0] ) && 0 === count( http_requests( 'walletobjects' ) ) );
 // Transferred ticket is not listed (no access to the new holder's pass).
 $r2_wids = r2p_ids( $r2_wo['order_id'] );
 $wpdb->update( "{$p}wpcap_tickets", array( 'transfer_count' => 1, 'attendee_email' => 'other@example.com' ), array( 'ticket_id' => $r2_wids[0] ) );

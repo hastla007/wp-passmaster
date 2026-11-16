@@ -421,7 +421,7 @@ final class Data {
 			}
 		}
 		foreach ( $out as $key => $values ) { $out[ $key ]['net_revenue'] = $values['revenue'] - $values['refunded']; }
-		uasort( $out, static function ( $a, $b ) { return $b['revenue'] <=> $a['revenue'] ?: strcmp( $a['label'], $b['label'] ); } );
+		uasort( $out, static function ( $a, $b ) { return $b['revenue'] <=> $a['revenue'] ?: \PassCaptain\Localization::compare( $a['label'], $b['label'] ); } );
 		return $out;
 	}
 

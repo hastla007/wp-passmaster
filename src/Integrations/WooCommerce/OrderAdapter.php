@@ -1714,7 +1714,7 @@ final class OrderAdapter {
 				$wc_order->add_order_note(
 					sprintf(
 						/* translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count */
-						__( 'Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket(s).', 'pass-captain' ),
+						_n( 'Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket.', 'Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Tickets.', count( $plan['ticket_ids'] ), 'pass-captain' ),
 						$core_id,
 						SalesModel::seller_name( $labels[ $core_id ] ),
 						number_format_i18n( (int) ( $result['amount_minor'] ?? $plan['amount_minor'] ) / ( 10 ** self::currency_decimals( $wc_order->get_currency() ) ), self::currency_decimals( $wc_order->get_currency() ) ) . ' ' . $wc_order->get_currency(),
@@ -1730,7 +1730,7 @@ final class OrderAdapter {
 			$wc_order->add_order_note(
 				sprintf(
 					/* translators: %d: ticket count */
-					__( 'Pass Captain: %d erstattete(s) Ticket(s) waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht.', 'pass-captain' ),
+					_n( 'Pass Captain: %d erstattetes Ticket war bereits eingecheckt und wurde laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht.', 'Pass Captain: %d erstattete Tickets waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht.', $denied, 'pass-captain' ),
 					$denied
 				)
 			);

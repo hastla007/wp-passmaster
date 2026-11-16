@@ -315,9 +315,14 @@ $_SERVER['REMOTE_ADDR'] = '198.51.100.7';
 $rl_client = PassCaptain\RateLimit::client();
 check( 'rate limit: client key is an HMAC with the site salt, not a static key', hash_hmac( 'sha256', '198.51.100.7', 'wpcap-rate' ) !== $rl_client && hash_hmac( 'sha256', '198.51.100.7', 'wpcap-rate|' . wp_salt( 'nonce' ) ) === $rl_client );
 wpcap_test_reset_transients();
+// Merged RateLimit: atomic database table by default (the suite bootstrap selects the transient fallback).
+$p1p_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'db';
+$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', PassCaptain\RateLimit::table() ) );
 $allowed = 0;
 for ( $i = 0; $i < 4; $i++ ) { $allowed += PassCaptain\RateLimit::allow( 'p1p_bucket|198.51.100.7', 3, 60 ) ? 1 : 0; }
 $keys = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', PassCaptain\RateLimit::table() ) );
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $p1p_backend;
 check( 'rate limit: still limits, stored bucket key is not a plain md5 of the bucket', 3 === $allowed && 1 === count( $keys ) && 64 === strlen( $keys[0] ) && false === strpos( $keys[0], md5( 'p1p_bucket|198.51.100.7|' . (int) floor( time() / 60 ) ) ) && array() === $GLOBALS['wpcap_test_transients'] );
 unset( $_SERVER['REMOTE_ADDR'] );
 wpcap_test_reset_transients();

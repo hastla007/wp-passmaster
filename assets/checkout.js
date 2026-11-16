@@ -82,8 +82,21 @@
 				input.appendChild(row);
 			});
 			return input;
+		} else if (field.type === 'radio') {
+			// Option buttons (audit R6 #8, one choice): a group of radios, required on the group (data-required).
+			input = el('span', { id: id, role: 'radiogroup', 'data-key': field.key, 'data-radio': '1', class: 'wpcap-radio-group' });
+			if (Number(field.required)) { input.dataset.required = '1'; input.setAttribute('aria-required', 'true'); }
+			(field.options || []).forEach(function (option, i) {
+				const radio = el('input', { id: id + '-o' + i, type: 'radio', name: id, value: option });
+				const label = el('label', { for: id + '-o' + i }, option);
+				const row = el('span', { class: 'wpcap-radio-option' });
+				row.appendChild(radio);
+				row.appendChild(label);
+				input.appendChild(row);
+			});
+			return input;
 		} else {
-			const types = { email: 'email', checkbox: 'checkbox', tel: 'tel', date: 'date' };
+			const types = { email: 'email', checkbox: 'checkbox', consent: 'checkbox', tel: 'tel', date: 'date' };
 			input = el('input', { id: id, type: types[field.type] || 'text', 'data-key': field.key });
 			if (field.type === 'tel') input.setAttribute('autocomplete', 'off');
 			if (field.type === 'number') input.setAttribute('inputmode', 'decimal');
@@ -96,6 +109,10 @@
 	function fieldValue(input) {
 		if (input.dataset.multi) {
 			return Array.prototype.slice.call(input.querySelectorAll('input[type="checkbox"]:checked')).map(function (box) { return box.value; });
+		}
+		if (input.dataset.radio) {
+			const chosen = input.querySelector('input[type="radio"]:checked');
+			return chosen ? chosen.value : '';
 		}
 		return input.type === 'checkbox' ? (input.checked ? '1' : '') : input.value;
 	}
@@ -174,7 +191,7 @@
 					const text = field.label + (field.scope === 'order' ? ' ' + (t.perOrder || '') : '') + (Number(field.required) ? ' *' : '');
 					const label = el('label', { for: id, id: id + '-label' }, text.replace(/\s+/g, ' ').trim());
 					const input = fieldInput(field, id);
-					if (input.dataset.multi) { label.removeAttribute('for'); input.setAttribute('aria-labelledby', id + '-label'); }
+					if (input.dataset.multi || input.dataset.radio) { label.removeAttribute('for'); input.setAttribute('aria-labelledby', id + '-label'); }
 					fs.appendChild(label);
 					fs.appendChild(input);
 					const notes = [];
@@ -564,6 +581,14 @@
 			else text = fill(t.errInvalid || '%s', [label]);
 			errors.push({ input: input, message: text });
 		});
+		// Required option groups (radio): one choice needed; the error points at the first option.
+		form.querySelectorAll('[data-radio][data-required]').forEach(function (group) {
+			if (group.closest('[hidden]') || group.querySelector('input[type="radio"]:checked')) return;
+			const first = group.querySelector('input[type="radio"]');
+			const label = group.getAttribute('aria-labelledby') ? document.getElementById(group.getAttribute('aria-labelledby')) : null;
+			const text = label ? label.textContent.replace(/\*/g, '').replace(/\s+/g, ' ').trim() : '';
+			if (first) errors.push({ input: first, message: fill(t.errRequired || '%s', [text]) });
+		});
 		// Likely typo in the buyer's e-mail domain (A553): stop once per address.
 		const buyer = form.querySelector('[name="email"]');
 		if (buyer && !errors.some(function (error) { return error.input === buyer; })) {
@@ -784,6 +809,10 @@
 			if (!qty) return;
 			qty.max = String(max);
 			if ((Number(qty.value) || 0) > max) qty.value = String(max);
+			// A type without tickets left is closed like a sold-out type of the live state (R6-10).
+			qty.disabled = max < 1;
+			const wrap = typeRow(qty);
+			if (wrap) { show(wrap.querySelector('.wpcap-qty-box'), max > 0); show(wrap.querySelector('.wpcap-soldout'), max < 1); }
 			if (!target && max > 0) target = qty;
 		});
 		renderAttendees(form);
@@ -862,7 +891,8 @@
 		// The idempotency key belongs to exactly this content (A309/A310): the same form sent again after
 		// an unclear answer or after "back" from the payment page continues that order; a changed form is
 		// a new order.
-		const fingerprint = hash(JSON.stringify(body));
+		// The e-mail counts case-insensitively (QA-1): "B@Example.com" after a network error is the same order.
+		const fingerprint = hash(JSON.stringify(Object.assign({}, body, { email: email.toLowerCase() })));
 		if (form.dataset.key && form.dataset.keyFor !== fingerprint) forgetKey(form);
 		if (!form.dataset.key) { form.dataset.key = uuid(); form.dataset.keyFor = fingerprint; }
 		body.idempotency_key = form.dataset.key;

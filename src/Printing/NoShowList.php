@@ -105,7 +105,7 @@ final class NoShowList {
 			. '<style>@page{size:A4;margin:12mm}body{font:11px/1.35 system-ui,sans-serif;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#eee}@media print{button{display:none}}</style></head><body>';
 		$html .= '<h1>' . esc_html( __( 'No-Show-Liste', 'pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( $summary ) . '</p>';
 		if ( ! $missing ) {
-			echo $html . '<p>' . esc_html( __( 'Alle gültigen Tickets wurden eingelassen.', 'pass-captain' ) ) . '</p><p><button onclick="window.print()">' . esc_html( __( 'Drucken', 'pass-captain' ) ) . '</button></p></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+			echo $html . '<p>' . esc_html( __( 'Alle gültigen Tickets wurden eingelassen.', 'pass-captain' ) ) . '</p><p>' . \PassCaptain\Frontend\PrintButton::html( __( 'Drucken', 'pass-captain' ) ) . '</p></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above (no inline handler: strict CSP).
 			return;
 		}
 		$html .= '<table><thead><tr>';
@@ -124,6 +124,6 @@ final class NoShowList {
 				Scope::flush_output();
 			}
 		}
-		echo $block . '</tbody></table><p><button onclick="window.print()">' . esc_html( __( 'Drucken', 'pass-captain' ) ) . '</button></p></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+		echo $block . '</tbody></table><p>' . \PassCaptain\Frontend\PrintButton::html( __( 'Drucken', 'pass-captain' ) ) . '</p></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 	}
 }

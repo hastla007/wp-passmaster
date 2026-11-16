@@ -52,7 +52,11 @@ final class BatchJob {
 		add_action( 'wpcap_cleanup_reservations', array( __CLASS__, 'cleanup' ), 70, 0 );
 	}
 
-	public static function ready() { return Privacy::has_table( 'wpcap_print_batches' ); }
+	/**
+	 * Whether batch prints run as background batches (A427). Filter `wpcap_print_batch_background`
+	 * (false) keeps the synchronous print of audit R2 (codes committed with the complete file).
+	 */
+	public static function ready() { return Privacy::has_table( 'wpcap_print_batches' ) && (bool) apply_filters( 'wpcap_print_batch_background', true ); }
 
 	private static function table() {
 		global $wpdb;

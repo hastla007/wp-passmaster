@@ -56,9 +56,9 @@ check( 'DTSTART/DTEND in UTC with default duration of 2 hours', false !== strpos
 check( 'DTSTAMP present in UTC', 1 === preg_match( '/DTSTAMP:\d{8}T\d{6}Z/', $unfolded ) );
 check( 'summary and location escaped', false !== strpos( $unfolded, 'SUMMARY:Konzert\\, Nacht\\; Teil 2' ) && false !== strpos( $unfolded, 'LOCATION:Saal 1\\; Wien\\, Ring' ) );
 check( 'stable UID per occurrence', false !== strpos( $unfolded, 'UID:wpcap-occurrence-' . $occ . '@example.test' ) && $ics !== null && preg_replace( '/DTSTAMP:\S+/', '', $ics ) === preg_replace( '/DTSTAMP:\S+/', '', (string) Ics::occurrence_calendar( $occ ) ) );
-// Single-occurrence view (?wpcap_occ, audit R2 #9) plus the card anchor; no longer only an anchor in a 50-row list.
-check( 'checkout link to the single-occurrence view as URL', false !== strpos( $unfolded, 'URL:https://example.test/tickets/?wpcap_occ=' . $occ . '#wpcap-occ-' . $occ ) );
-// MERGE-CHECK: the Arbeitsliste line links ?wpcap_occurrence= instead of ?wpcap_occ= – keep the check matching the merged Ics/Calendar.
+// Merged design: calendar/.ics links use ?wpcap_occurrence= plus the card anchor (A342); the list layout
+// opens its single-occurrence view for that parameter too (audit R2 #9), so no separate ?wpcap_occ= link.
+check( 'checkout link to the single-occurrence view as URL (?wpcap_occurrence=, no legacy ?wpcap_occ=)', false === strpos( $unfolded, '?wpcap_occ=' ) && false !== strpos( $unfolded, 'URL:https://example.test/tickets/?wpcap_occurrence=' . $occ ) );
 check( 'checkout link with card anchor as URL', false !== strpos( $unfolded, 'URL:https://example.test/tickets/?wpcap_occurrence=' . $occ . '#wpcap-occ-' . $occ ) );
 check( 'description has no HTML', false === strpos( $unfolded, '<p>' ) );
 
@@ -104,8 +104,8 @@ $draft_type = make_type( 5, 10, 0 );
 $draft_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$draft_type" );
 $wpdb->query( "UPDATE {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id SET e.status='draft', e.name='Geheim' WHERE o.occurrence_id=$draft_occ" );
 $list = Calendar::render_shortcode( array( 'view' => 'list', 'event' => $event ) );
-check( 'list view links to the single-occurrence view and the .ics download', false !== strpos( $list, 'https://example.test/tickets/?wpcap_occ=' . $occ . '#wpcap-occ-' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
-// MERGE-CHECK: ?wpcap_occ= (ours) vs. ?wpcap_occurrence= (Arbeitsliste).
+// Merged design: ?wpcap_occurrence= (see above), never the list layout's own ?wpcap_occ= parameter.
+check( 'list view links to the single-occurrence view and the .ics download', false === strpos( $list, '?wpcap_occ=' ) && false !== strpos( $list, 'https://example.test/tickets/?wpcap_occurrence=' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
 check( 'list view links to the checkout anchor and the .ics download', false !== strpos( $list, 'https://example.test/tickets/?wpcap_occurrence=' . $occ . '#wpcap-occ-' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
 check( 'list view uses <time datetime> and escapes names', false !== strpos( $list, '<time datetime="' ) && false !== strpos( $list, 'Konzert, Nacht; Teil 2' ) );
 check( 'list view hides cancelled occurrences', false === strpos( $list, 'wpcap-occ-' . $cancelled_occ ) );

@@ -259,7 +259,7 @@ final class OccurrenceCancellation {
 		$tz = new \DateTimeZone( $occ->timezone ?: 'UTC' );
 		$vars = array(
 			'event_name' => (string) $occ->event_name,
-			'event_date' => wp_date( 'd.m.Y H:i', strtotime( $occ->starts_at . ' UTC' ), $tz ),
+			'event_date' => wp_date( Frontend\Format::datetime_format(), strtotime( $occ->starts_at . ' UTC' ), $tz ),
 			'event_location' => (string) $occ->location,
 			'timezone' => (string) $occ->timezone,
 			// The refund note is derived when the mail is rendered, in the recipient's locale (Mail\Types).

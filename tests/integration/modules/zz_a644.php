@@ -48,7 +48,8 @@ check( 'A644: failed booking attempts with an address do not lock it out (no 429
 
 // SMS opt-in: consents of unpaid orders do not count against the number.
 $x1_sms_before = (array) Settings::get( 'sms' );
-Settings::update( array( 'twilio_account_sid' => 'AC' . str_repeat( 'd4', 16 ), 'twilio_auth_token' => 'x1-a644', 'sms' => array_merge( Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49' ) ) ) );
+// Merged plugin: number verification by SMS code is on by default (audit Z4 PRIV-16); this checks the limiter only.
+Settings::update( array( 'twilio_account_sid' => 'AC' . str_repeat( 'd4', 16 ), 'twilio_auth_token' => 'x1-a644', 'sms' => array_merge( Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49', 'verify_phone' => 0 ) ) ) );
 $GLOBALS['wpcap_test_filters']['wpcap_sms_ip_hourly_limit'] = 100;
 $x1_paid_type = make_type( 30, 10, 1500 );
 $x1_free_type = make_type( 30, 10, 0 );
