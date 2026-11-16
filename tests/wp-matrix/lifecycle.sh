@@ -60,6 +60,14 @@ wpc plugin uninstall pass-captain --skip-delete >/dev/null 2>&1
 [ "$(options)" = "0" ] && ok "uninstall with data removal deletes all plugin options" || bad "$(options) plugin options left"
 grep -q '^wpcap_' <<<"$(wpc role list --fields=role --format=csv)" && bad "plugin roles left: $(wpc role list --fields=role --format=csv | grep '^wpcap_' | tr '\n' ' ')" || ok "plugin roles removed"
 [ -e "$PLUGIN/pass-captain.php" ] && ok "plugin files untouched (--skip-delete)" || bad "plugin files deleted"
+# A467: within one request – what a persistent object cache keeps across requests – uninstall must leave no
+# cached plugin option (with raw SQL, alloptions still served wpcap_db_version and a reinstall skipped its tables).
+wpc plugin activate pass-captain >/dev/null
+wpc eval '$s = get_option( "wpcap_settings", array() ); $s["delete_data_on_uninstall"] = 1; update_option( "wpcap_settings", $s );'
+wpc plugin deactivate pass-captain >/dev/null
+R="$(wpc --skip-plugins eval 'get_option( "wpcap_db_version" ); wp_load_alloptions(); define( "WP_UNINSTALL_PLUGIN", "pass-captain/pass-captain.php" ); include WP_PLUGIN_DIR . "/pass-captain/uninstall.php"; $left = array_filter( array_keys( wp_load_alloptions() ), static function ( $k ) { return 0 === strpos( $k, "wpcap_" ); } ); echo ( false === get_option( "wpcap_db_version" ) && ! $left ) ? "OK" : "STALE " . implode( ",", $left );' 2>&1)"
+[ "$R" = OK ] && ok "uninstall leaves no cached plugin option (persistent object cache)" || bad "uninstall left cached options: $R"
+[ "$(options)" = "0" ] && [ "$(tables)" = "0" ] && ok "uninstall in one request removes all options and tables" || bad "$(options) options, $(tables) tables left"
 
 ERR="$(php_errors)"; [ -z "$ERR" ] && ok "no PHP errors, warnings or deprecations from the plugin in debug.log" || { bad "PHP messages from the plugin:"; echo "$ERR" | head -20; }
 wpc plugin activate pass-captain >/dev/null

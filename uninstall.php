@@ -33,7 +33,7 @@ function wpcap_uninstall_site() {
 	foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ) as $table ) {
 		$wpdb->query( 'DROP TABLE IF EXISTS `' . esc_sql( $table ) . '`' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table names come from SHOW TABLES for our own prefix.
 	}
-	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s", $wpdb->esc_like( 'wpcap_' ) . '%', $wpdb->esc_like( '_transient_wpcap_' ) . '%', $wpdb->esc_like( '_transient_timeout_wpcap_' ) . '%' ) );
+	wpcap_uninstall_options();
 	foreach ( array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_service_provider', 'wpcap_finance', 'wpcap_support' ) as $role ) {
 		remove_role( $role );
 	}
@@ -47,6 +47,41 @@ function wpcap_uninstall_site() {
 	// Per-site user options (update_user_option) carry the site prefix, so this only hits this site.
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s", $wpdb->esc_like( $wpdb->get_blog_prefix() . 'wpcap_' ) . '%' ) );
 	return true;
+}
+
+/**
+ * Deletes the site's options and transients wpcap_* through the options API (A467), so a persistent
+ * object cache forgets them too: with raw SQL the cached `alloptions` kept e.g. `wpcap_db_version`,
+ * and a later reinstall skipped creating its tables. Names come from the options table; transients
+ * that only live in the object cache are removed by name where they are known and by cache group
+ * where the cache supports it.
+ */
+function wpcap_uninstall_options() {
+	global $wpdb;
+	$names = (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s", $wpdb->esc_like( 'wpcap_' ) . '%', $wpdb->esc_like( '_transient_wpcap_' ) . '%' ) );
+	foreach ( $names as $name ) {
+		$name = (string) $name;
+		if ( 0 === strpos( $name, '_transient_' ) ) {
+			delete_transient( substr( $name, strlen( '_transient_' ) ) ); // Also removes its _transient_timeout_ row.
+		} else {
+			delete_option( $name );
+		}
+	}
+	// Timeouts without their transient (left over by an interrupted write).
+	foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( '_transient_timeout_wpcap_' ) . '%' ) ) as $name ) {
+		delete_option( (string) $name );
+	}
+	// Fixed-name transients that a persistent object cache holds outside the options table.
+	foreach ( array( 'wpcap_capacity_drift_mail', 'wpcap_wallet_google_token', 'wpcap_health_critical' ) as $transient ) {
+		delete_transient( $transient );
+	}
+	// Object-cache groups of the plugin (availability cache, rate-limit counters).
+	if ( function_exists( 'wp_cache_supports' ) && function_exists( 'wp_cache_flush_group' ) && wp_cache_supports( 'flush_group' ) ) {
+		foreach ( array( 'wpcap', 'wpcap_rate' ) as $group ) { wp_cache_flush_group( $group ); }
+	}
+	// The cached option lists themselves (some object caches keep them even after delete_option()).
+	wp_cache_delete( 'alloptions', 'options' );
+	wp_cache_delete( 'notoptions', 'options' );
 }
 
 /** Deletes network-wide (unprefixed) user meta wpcap_*. */
