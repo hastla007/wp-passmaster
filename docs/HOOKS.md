@@ -259,6 +259,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_privacy_policy_recipients` | `array $recipients` | Welche Empfänger der Datenschutztext-Vorschlag nennt (`stripe`, `paypal`, `mollie`, `twilio`, `sms_http`, `apple`, `google`, `partners`, `webhooks`, `affiliate`, `woocommerce` → bool). |
 | `wpcap_privacy_policy_content` | `string $html, array $recipients` | HTML des Datenschutztext-Vorschlags. |
 | `wpcap_scanner_queue_max_hours` | `int $hours` (24, 1–168) | Wie lange der Web-Scanner Offline-Scans im Browser aufbewahrt. |
+| `wpcap_scanner_search_limit` | `int $per_minute` (30) | A544: Suchanfragen pro Minute und Person (bzw. Gerät) in der manuellen Suche des Web-Scanners und der App; darüber HTTP 429. |
 | `wpcap_scanner_undo_seconds` | `int $seconds` (120, mind. 10) | A547: Wie lange nach dem eigenen Einlass der Web-Scanner ihn über `/scanner/undo` zurücknehmen darf (der Knopf „Rückgängig“ erscheint 30 s). |
 | `wpcap_privacy_defer_upcoming` | `bool $defer` (true), `int $order_id` | Bei einer Löschanfrage Bestellungen mit Tickets für kommende Termine zurückstellen (Anonymisierung automatisch nach dem letzten Termin) statt die Tickets zu widerrufen (Art. 17 Abs. 3 lit. b DSGVO). |
 | `wpcap_pii_audit_window` | `int $seconds` (600) | Zeitfenster, in dem wiederholte Ansichten/Lesezugriffe derselben Person auf dasselbe Objekt bzw. dieselbe Liste mit denselben Filtern nur einmal ins Audit-Log kommen (`0` = jeden Aufruf protokollieren); siehe [SECURITY.md](SECURITY.md#audit-log-zugriffe-auf-personenbezogene-daten). |

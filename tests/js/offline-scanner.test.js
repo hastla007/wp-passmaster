@@ -391,3 +391,57 @@ test('A546: online the PWA shows the server counter of the selected date plus un
 	await a2.refreshCounts(true);
 	assert.match(w2.document.getElementById('counter').textContent, /^Eingecheckt: 0 \/ 1 · laut Prüfpaket/);
 });
+
+test('A544: offline search finds attendee names in the package (only when names are shipped)', () => {
+	const e = entry([ { h: 'h1', t: 1, s: 'valid', n: 'Anna Muster' }, { h: 'h2', t: 1, s: 'checked_in', n: 'Bernd Muster' }, { h: 'h3', t: 1, s: 'valid' } ]);
+	const hits = JSON.parse(JSON.stringify(app.searchPackage(e, 'muster')));
+	assert.deepStrictEqual(hits.map((h) => h.hash), [ 'h1', 'h2' ]);
+	assert.strictEqual(hits[1].status, 'checked_in');
+	assert.strictEqual(app.searchPackage(e, 'mu').length, 0, 'at least 3 characters');
+	assert.strictEqual(app.searchPackage(null, 'muster').length, 0);
+});
+
+test('A544: an offline search result is admitted by hash and uploaded with ticket_hash', async () => {
+	const { w2, a2, log } = await undoApp();
+	const h = sha('1'.repeat(64));
+	a2.state.packages[7] = entry([ { h, t: 1, s: 'valid', n: 'Anna Muster' } ], { rules: { attendee_names: true } });
+	w2.navigator.onLine = false;
+	await a2.searchTickets('Muster');
+	await a2.checkInResult({ hash: h, attendee_name: 'Anna Muster' });
+	await settle();
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Einlass OK (offline)');
+	const row = log()[0];
+	assert.deepStrictEqual({ code: row.code, ticket_hash: row.ticket_hash, synced: row.synced, manual: row.manual }, { code: '', ticket_hash: h, synced: 0, manual: true });
+	// A second check-in of the same ticket on this device is refused like a second scan.
+	await a2.checkInResult({ hash: h, attendee_name: 'Anna Muster' });
+	await settle();
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Bereits verwendet');
+	// Upload: the scan carries ticket_hash instead of a code.
+	w2.navigator.onLine = true;
+	const bodies = [];
+	w2.fetch = (url, opts) => { if (opts.body) { bodies.push(JSON.parse(opts.body)); } return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ results: [ { idempotency_key: row.key, ok: true, result: 'checked_in' } ] }) }); };
+	await a2.syncNow();
+	await settle();
+	const sync = bodies.find((b) => b.scans);
+	assert.ok(sync, 'sync sent');
+	assert.strictEqual(sync.scans[0].ticket_hash, h);
+	assert.strictEqual(sync.scans[0].code, '');
+});
+
+test('A544: online search uses GET /app/search and checks a result in by ticket_public_id', async () => {
+	const { w2, a2 } = await undoApp();
+	const calls = [];
+	w2.fetch = (url, opts) => {
+		calls.push({ url, body: opts.body ? JSON.parse(opts.body) : null });
+		const body = /\/search\?/.test(url) ? { ok: true, results: [ { ticket_public_id: 'c'.repeat(32), attendee_name: 'A. M.', order_ref: 'AB12-CD34', status: 'valid' } ], more: false } : { ok: true, result: 'checked_in', ticket_public_id: 'c'.repeat(32) };
+		return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+	};
+	await a2.searchTickets('AB12-CD34');
+	assert.ok(calls.some((c) => /search\?q=AB12-CD34&occurrence_id=7$/.test(c.url)));
+	await a2.checkInResult({ ticket_public_id: 'c'.repeat(32) });
+	await settle();
+	const checkin = calls.find((c) => /scan\/check-in$/.test(c.url));
+	assert.ok(checkin && checkin.body.ticket_public_id === 'c'.repeat(32) && checkin.body.idempotency_key && !checkin.body.code);
+	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Einlass OK');
+	assert.strictEqual(w2.document.getElementById('undo').hidden, false, 'undo offered');
+});

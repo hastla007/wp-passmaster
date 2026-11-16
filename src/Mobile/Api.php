@@ -35,6 +35,7 @@ final class Api {
 		register_rest_route( self::NS, '/app/scan/check-out', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'check_out' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/scan/undo', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'undo' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/scan/sync', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'sync' ), 'permission_callback' => $auth ) );
+		register_rest_route( self::NS, '/app/search', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'search' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/logout', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'logout' ), 'permission_callback' => $auth ) );
 	}
 
@@ -61,7 +62,7 @@ final class Api {
 			'device' => array( 'id' => $device->public_id, 'label' => $device->label, 'expires_at' => $device->expires_at ? gmdate( 'c', strtotime( $device->expires_at . ' UTC' ) ) : null ),
 			'event_ids' => Devices::event_ids( $device ),
 			'area' => Devices::area_payload( Devices::area_id( $device ) ),
-			'features' => array( 'undo' => true, 'offline_sync' => true, 'check_out' => true, 'areas' => true, 'attendee_name' => (bool) \PassCaptain\Settings::get( 'scanner_show_attendee' ) ),
+			'features' => array( 'undo' => true, 'undo_reason_required' => true, 'search' => true, 'offline_sync' => true, 'check_out' => true, 'areas' => true, 'attendee_name' => (bool) \PassCaptain\Settings::get( 'scanner_show_attendee' ) ),
 			'server_time' => gmdate( 'c' ),
 		) );
 	}
@@ -128,7 +129,22 @@ final class Api {
 		$context = self::context( $request );
 		$context['idempotency_key'] = 'app:' . $key;
 		$context['source'] = 'app';
+		// A544: a search result is checked in by its public id (same rules as a scan, `via: manual`).
+		if ( '' === \PassCaptain\Http::str( $request->get_param( 'code' ) ) && '' !== \PassCaptain\Http::str( $request->get_param( 'ticket_public_id' ) ) ) {
+			return self::scan_response( Checkin::perform_ticket( \PassCaptain\ScannerDesk::ticket_id_of( $request->get_param( 'ticket_public_id' ) ), $context ) );
+		}
 		return self::scan_response( Checkin::perform( $request->get_param( 'code' ), $context ) );
+	}
+
+	/** Manual search at the door (A544): order number, attendee name/e-mail as the Pii rules allow. */
+	public static function search( \WP_REST_Request $request ) {
+		$context = self::context( $request );
+		$result = \PassCaptain\ScannerDesk::search( $request->get_param( 'q' ), $context );
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			return 429 === (int) ( $data['status'] ?? 0 ) ? $result : rest_ensure_response( array( 'ok' => false, 'result' => (string) ( $data['result'] ?? 'error' ), 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) );
+		}
+		return rest_ensure_response( array( 'ok' => true ) + $result );
 	}
 
 	/** Check-out (person leaves); for presence counting and re-entry tickets. */
@@ -178,7 +194,14 @@ final class Api {
 			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
 			if ( $scanned && $scanned <= time() + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
-			$outcome = $out ? Checkin::check_out( $scan['code'] ?? '', $context ) : Checkin::perform( $scan['code'] ?? '', $context );
+			// A544: an offline admission from the search of the PWA has no code, only the package hash.
+			$hash = strtolower( \PassCaptain\Http::str( $scan['ticket_hash'] ?? '' ) );
+			if ( ! $out && '' === \PassCaptain\Http::str( $scan['code'] ?? '' ) && preg_match( '/^[a-f0-9]{64}$/', $hash ) ) {
+				global $wpdb;
+				$outcome = Checkin::perform_ticket( (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE token_hash=%s", $hash ) ), $context );
+			} else {
+				$outcome = $out ? Checkin::check_out( $scan['code'] ?? '', $context ) : Checkin::perform( $scan['code'] ?? '', $context );
+			}
 			$row = self::scan_payload( $outcome );
 			$row['idempotency_key'] = $key;
 			$row['direction'] = $out ? 'out' : 'in';

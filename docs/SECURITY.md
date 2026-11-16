@@ -356,6 +356,11 @@ Wirkung im Plugin:
 
 - **Scanner** (Web, Scanner-App, Offline-Paket): nie Käuferdaten; Teilnehmername nur mit der Einstellung –
   auch für volle Profile, denn der Scan-Bildschirm ist öffentlich sichtbar.
+- **Suche am Scanner (A544):** Bestellnummer immer; Teilnehmername und E-Mails nur durchsuchbar, wenn das Profil
+  sie im Klartext sehen darf; Treffer zeigen E-Mails immer maskiert und den Namen nur mit der Scanner-Einstellung
+  im Klartext. Höchstens 10 Treffer in den Terminen mit Einlassrecht, 30 Suchen pro Minute, Zugriffsprotokoll.
+  Eingecheckt wird ein Treffer per Ticket-ID mit denselben Regeln wie ein Scan (wie „Einchecken“ in der
+  Ticketliste, A338).
 - **Ticketliste im Admin:** Käufer- und Teilnehmer-E-Mail sowie Teilnehmername gemäß Matrix; Suche nur über
   sichtbare Felder.
 - **Teilnehmer- und No-Show-Liste (Druck/CSV):** die volle Liste (E-Mails, Antworten) nur mit

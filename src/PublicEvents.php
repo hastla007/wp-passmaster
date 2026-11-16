@@ -135,7 +135,7 @@ final class PublicEvents {
 		) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ), 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ), 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'searchUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/search' ) ), 'checkInTicketUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/check-in-ticket' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
 			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
 			/* translators: %d: number of queued scans */
 			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'pass-captain' ),
@@ -197,6 +197,14 @@ final class PublicEvents {
 			'counterQueued' => __( '+%d offline', 'pass-captain' ),
 			/* translators: %s: time of the last counter update */
 			'counterStale' => __( 'Stand %s', 'pass-captain' ),
+			'searchCheckin' => __( 'Einchecken', 'pass-captain' ),
+			'searchNone' => __( 'Kein Ticket gefunden.', 'pass-captain' ),
+			'searchMore' => __( 'Weitere Treffer – bitte genauer suchen.', 'pass-captain' ),
+			/* translators: %s: short order number, e.g. AB12-CD34 */
+			'searchOrder' => __( 'Bestellung %s', 'pass-captain' ),
+			'searchUsed' => __( 'bereits eingecheckt', 'pass-captain' ),
+			'searchVoid' => __( 'widerrufen/erstattet', 'pass-captain' ),
+			'searchOffline' => __( 'Die Suche funktioniert nur online. Offline bitte die Offline-Scanner-App verwenden.', 'pass-captain' ),
 		) ) );
 	}
 
@@ -567,6 +575,16 @@ final class PublicEvents {
 		return $items;
 	}
 
+	/** Label of the scanner search: names only the fields the person may search (Pii, A544). */
+	public static function scanner_search_label() {
+		$name = Pii::can_view( 'attendee_name' );
+		$email = Pii::can_view( 'attendee_email' ) || Pii::can_view( 'buyer_email' );
+		if ( $name && $email ) { return __( 'Ticket suchen (Name, E-Mail oder Bestellnummer)', 'pass-captain' ); }
+		if ( $name ) { return __( 'Ticket suchen (Name oder Bestellnummer)', 'pass-captain' ); }
+		if ( $email ) { return __( 'Ticket suchen (E-Mail oder Bestellnummer)', 'pass-captain' ); }
+		return __( 'Ticket suchen (Bestellnummer)', 'pass-captain' );
+	}
+
 	public static function render_scanner_shortcode() {
 		// A508: never cache the scanner page (login state, nonce). Headers were sent on
 		// template_redirect (PageCache::maybe_no_store_request()); DONOTCACHEPAGE covers late rendering.
@@ -587,6 +605,6 @@ final class PublicEvents {
 		} else {
 			add_action( 'wp_enqueue_scripts', static function () use ( $occurrences ) { wp_add_inline_script( 'wpcap-scanner', $occurrences, 'before' ); }, 99 );
 		}
-		return '<section class="wpcap-scanner"><h2>' . esc_html__( 'Pass Captain Check-in', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Scanne den Ticketcode oder gib ihn manuell ein.', 'pass-captain' ) . '</p><p class="wpcap-scan-mode" hidden></p><p class="wpcap-scan-counter" hidden></p><video class="wpcap-camera" playsinline hidden></video><div class="wpcap-camera-controls"><button type="button" class="wpcap-camera-start">' . esc_html__( 'Kamera starten', 'pass-captain' ) . '</button><button type="button" class="wpcap-camera-stop" hidden>' . esc_html__( 'Kamera stoppen', 'pass-captain' ) . '</button><button type="button" class="wpcap-camera-torch" aria-pressed="false" hidden>' . esc_html__( 'Licht', 'pass-captain' ) . '</button><button type="button" class="wpcap-sound-toggle" aria-pressed="true">' . esc_html__( 'Ton', 'pass-captain' ) . '</button></div><form class="wpcap-scan-form"><label>' . esc_html__( 'Ticket-Code oder Hilfscode', 'pass-captain' ) . ' <input name="token" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="wpcap-scan-help" required></label><p id="wpcap-scan-help" class="wpcap-scan-help">' . esc_html__( 'Ist der QR-Code nicht lesbar, den 8-stelligen Hilfscode unter dem QR-Code eintippen (z. B. K7QM-4XWA).', 'pass-captain' ) . '</p><button type="submit">' . esc_html__( 'Ticket prüfen und einchecken', 'pass-captain' ) . '</button></form><div class="wpcap-scan-result"></div><p class="wpcap-scan-live wpcap-sr-only" role="status" aria-live="assertive" aria-atomic="true"></p><div class="wpcap-scan-overlay" aria-hidden="true" hidden></div></section>';
+		return '<section class="wpcap-scanner"><h2>' . esc_html__( 'Pass Captain Check-in', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Scanne den Ticketcode oder gib ihn manuell ein.', 'pass-captain' ) . '</p><p class="wpcap-scan-mode" hidden></p><p class="wpcap-scan-counter" hidden></p><video class="wpcap-camera" playsinline hidden></video><div class="wpcap-camera-controls"><button type="button" class="wpcap-camera-start">' . esc_html__( 'Kamera starten', 'pass-captain' ) . '</button><button type="button" class="wpcap-camera-stop" hidden>' . esc_html__( 'Kamera stoppen', 'pass-captain' ) . '</button><button type="button" class="wpcap-camera-torch" aria-pressed="false" hidden>' . esc_html__( 'Licht', 'pass-captain' ) . '</button><button type="button" class="wpcap-sound-toggle" aria-pressed="true">' . esc_html__( 'Ton', 'pass-captain' ) . '</button></div><form class="wpcap-scan-form"><label>' . esc_html__( 'Ticket-Code oder Hilfscode', 'pass-captain' ) . ' <input name="token" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="wpcap-scan-help" required></label><p id="wpcap-scan-help" class="wpcap-scan-help">' . esc_html__( 'Ist der QR-Code nicht lesbar, den 8-stelligen Hilfscode unter dem QR-Code eintippen (z. B. K7QM-4XWA).', 'pass-captain' ) . '</p><button type="submit">' . esc_html__( 'Ticket prüfen und einchecken', 'pass-captain' ) . '</button></form><form class="wpcap-search-form" role="search"><label>' . esc_html( self::scanner_search_label() ) . ' <input name="q" type="search" autocomplete="off" spellcheck="false" minlength="3" maxlength="190"></label><button type="submit">' . esc_html__( 'Suchen', 'pass-captain' ) . '</button></form><ul class="wpcap-search-results" aria-live="polite"></ul><div class="wpcap-scan-result"></div><p class="wpcap-scan-live wpcap-sr-only" role="status" aria-live="assertive" aria-atomic="true"></p><div class="wpcap-scan-overlay" aria-hidden="true" hidden></div></section>';
 	}
 }

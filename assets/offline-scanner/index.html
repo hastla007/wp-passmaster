@@ -79,6 +79,14 @@
 		</div>
 
 		<div class="card">
+			<form id="search" autocomplete="off" role="search">
+				<label><span data-i18n>Ticket suchen</span><input id="search-q" type="search" spellcheck="false" maxlength="190" data-i18n-placeholder placeholder="Name, E-Mail oder Bestellnummer"></label>
+				<button type="submit" data-i18n>Suchen</button>
+			</form>
+			<ul id="search-results" class="list" aria-live="polite"></ul>
+		</div>
+
+		<div class="card">
 			<h2 data-i18n>Konflikte nach Synchronisierung</h2>
 			<ul id="conflicts" class="list"></ul>
 		</div>

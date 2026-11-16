@@ -637,6 +637,105 @@
 		}).then(renderLog).then(refreshCounts);
 	}
 
+	/* ---------------- manual search (A544) ---------------- */
+
+	/**
+	 * Offline search in the verified package: attendee names (only shipped when the event allows it,
+	 * rules.attendee_names), at least 3 characters, at most 10 hits. Order numbers and e-mails are not
+	 * in the package – they are searched online only.
+	 */
+	function searchPackage(entry, q) {
+		var needle = String(q || '').trim().toLowerCase();
+		if (needle.length < 3 || !entry || !entry.index) { return []; }
+		var types = {};
+		(entry.meta && entry.meta.ticket_types || []).forEach(function (tt) { types[tt.id] = tt.name; });
+		var out = [];
+		entry.index.forEach(function (tk, hash) {
+			if (out.length < 10 && tk.n && String(tk.n).toLowerCase().indexOf(needle) >= 0) { out.push({ hash: hash, attendee_name: tk.n, ticket: types[tk.t] || '', status: 'revoked' === tk.s ? 'revoked' : tk.s }); }
+		});
+		return out;
+	}
+	function searchLine(item) {
+		return [item.attendee_name, item.ticket, item.email, item.order_ref ? t('Bestellung %1', item.order_ref) : '', 'valid' === item.status ? '' : ('checked_in' === item.status ? t('bereits eingecheckt') : t('widerrufen/erstattet'))].filter(Boolean).join(' · ');
+	}
+	function renderSearch(items, note) {
+		var list = $('search-results');
+		list.textContent = '';
+		if (note) { list.appendChild(el('li', note, 'small')); }
+		if (!items.length && !note) { list.appendChild(el('li', t('Kein Ticket gefunden.'), 'small')); }
+		items.forEach(function (item) {
+			var li = el('li');
+			li.appendChild(el('span', searchLine(item)));
+			var btn = el('button', t('Einchecken'));
+			btn.type = 'button';
+			btn.addEventListener('click', function () { btn.disabled = true; checkInResult(item); });
+			li.appendChild(btn);
+			list.appendChild(li);
+		});
+	}
+	/** Online: GET /app/search (order number, name/e-mail as the server's Pii rules allow); offline: the package. */
+	function searchTickets(q) {
+		var occurrenceId = state.selected;
+		q = String(q || '').trim();
+		if (!q || !occurrenceId) { return Promise.resolve(); }
+		var offlineSearch = function () {
+			var entry = state.packages[occurrenceId];
+			var names = !!(entry && entry.meta && entry.meta.rules && entry.meta.rules.attendee_names);
+			renderSearch(names ? searchPackage(entry, q) : [], names ? (q.length < 3 ? t('Bitte mindestens 3 Zeichen eingeben.') : '') : t('Offline ist nur die Namenssuche möglich, und nur wenn das Prüfpaket Namen enthält.'));
+		};
+		if (navigator.onLine === false) { offlineSearch(); return Promise.resolve(); }
+		return api('GET', 'search', null, 'q=' + encodeURIComponent(q) + '&occurrence_id=' + encodeURIComponent(occurrenceId), 5000).then(function (res) {
+			if (res && true === res.ok && Array.isArray(res.results)) {
+				renderSearch(res.results, res.more ? t('Weitere Treffer – bitte genauer suchen.') : '');
+			} else {
+				renderSearch([], res && res.message ? res.message : t('Kein Ticket gefunden.'));
+			}
+		}, function (err) {
+			if (handleAuthError(err)) { return; }
+			if (err.network || err.status >= 500) { offlineSearch(); return; }
+			renderSearch([], err.message);
+		});
+	}
+	/**
+	 * Check-in of a search result: online by ticket_public_id (same rules as a scan, logged as manual
+	 * check-in), offline by the package hash (decided like a scan; uploaded with ticket_hash).
+	 */
+	function checkInResult(item) {
+		unlockAudio();
+		var occurrenceId = state.selected;
+		var entry = state.packages[occurrenceId];
+		var key = uuid();
+		var scannedAt = new Date(now()).toISOString();
+		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
+		if (item.hash) {
+			var d = decideOffline(entry, item.hash);
+			if (d.ok) {
+				markAdmitted(occurrenceId, item.hash);
+				showResult('ok', t('Einlass OK (offline)'), [d.type ? d.type.name : '', item.attendee_name, d.type && d.type.hint ? '⚠ ' + d.type.hint : '', t('Manuell (Suche)')].filter(Boolean).join(' · '));
+				offerUndo({ key: key, occurrenceId: occurrenceId, hash: item.hash, area: area });
+			} else {
+				showResult('bad', resultText(d.result), [item.attendee_name, t('offline')].filter(Boolean).join(' · '));
+			}
+			return put('log', { key: key, occurrence_id: occurrenceId, hash: item.hash, code: '', ticket_hash: d.ok ? item.hash : '', manual: true, scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'offline', decision: d.result, ok: d.ok, synced: d.ok ? 0 : 1 }).then(renderLog).then(refreshCounts);
+		}
+		return sha256Hex('id:' + item.ticket_public_id).then(function (hash) {
+			return api('POST', 'scan/check-in', { ticket_public_id: item.ticket_public_id, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000).then(function (res) {
+				var kind = classifyScan(res, null);
+				if ('warn' === kind) { systemWarning(res); return null; }
+				var ok = 'ok' === kind;
+				showResult(kind, resultText(res.result), onlineDetail(res) + ' · ' + t('Manuell (Suche)'));
+				if (ok) { offerUndo({ key: key, occurrenceId: occurrenceId, hash: hash, area: area, publicId: item.ticket_public_id }); }
+				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', manual: true, scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
+			}, function (err) {
+				if (handleAuthError(err)) { return null; }
+				var kind = classifyScan(null, err || {});
+				if ('bad' === kind) { showResult('bad', t('Fehler'), err.message); return null; }
+				showResult('warn', t('Systemfehler – Ticket nicht geprüft'), t('Nur online möglich.'));
+				return null;
+			});
+		}).then(renderLog).then(refreshCounts);
+	}
+
 	/* ---------------- check-in counter (A546) ---------------- */
 
 	/** Counter from the verified package: admissible tickets and those used (package or this device). */
@@ -775,7 +874,8 @@
 		return idb('log', 'readonly', function (s) { return s.index('synced').getAll(0); }).then(function (pending) {
 			if (!pending.length) { return; }
 			var batch = pending.slice(0, SYNC_BATCH);
-			var scans = batch.map(function (e) { return { code: e.code, idempotency_key: e.key, scanned_at: e.scanned_at, direction: e.direction, area_id: e.area_id }; });
+			// A544: admissions from the offline search have no code; the server books them by the package hash.
+			var scans = batch.map(function (e) { var scan = { code: e.code, idempotency_key: e.key, scanned_at: e.scanned_at, direction: e.direction, area_id: e.area_id }; if (!e.code && e.ticket_hash) { scan.ticket_hash = e.ticket_hash; } return scan; });
 			return api('POST', 'scan/sync', { scans: scans }, null, 30000).then(function (res) {
 				var byKey = {};
 				(res.results || []).forEach(function (r) { byKey[r.idempotency_key] = r; });
@@ -1058,6 +1158,7 @@
 		$('camera').addEventListener('click', startCamera);
 		$('unpair').addEventListener('click', unpair);
 		$('sound').addEventListener('click', toggleSound);
+		$('search').addEventListener('submit', function (ev) { ev.preventDefault(); searchTickets($('search-q').value); });
 		$('undo-start').addEventListener('click', function () { if (state.undo && undoSecondsLeft(state.undo.started, Date.now()) > 0) { state.undo.open = true; renderUndo(); $('undo-reason').focus(); } });
 		$('undo-reason').addEventListener('change', function (ev) { $('undo-other').hidden = '__other' !== ev.target.value; });
 		$('undo-confirm').addEventListener('click', function () { confirmUndo(undoReason()); });
@@ -1074,7 +1175,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts };
+	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts, searchPackage: searchPackage, searchTickets: searchTickets, checkInResult: checkInResult };
 
 	boot();
 }());

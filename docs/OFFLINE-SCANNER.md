@@ -189,6 +189,12 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
     codes, see docs/SECURITY.md); offline the app asks for the QR code or the long code instead.
   - Result: large coloured box, distinct tones (WebAudio, “Sound on/off” per device) and vibration
     patterns; online results show “first admission” or “already admitted at …” from the server.
+  - **Search (A544):** “Ticket suchen” for guests without a readable code. Online the app calls
+    `GET /app/search` (order number always; attendee name and e-mail only as the server's PII rules
+    allow) and checks a hit in with `POST /app/scan/check-in` and `ticket_public_id` (same rules as a
+    scan, logged as manual check-in). Offline it searches the attendee names in the package – only
+    when the event ships names (`rules.attendee_names`) – decides like a scan and uploads the
+    admission with `ticket_hash` instead of the code.
   - **Counter (A546):** above the result the app shows “Eingecheckt: 120 / 300” for the selected
     date: online the server value (`admitted`/`admission_total` of `/app/occurrences/{id}/stats`, at
     most every 10 s, own first admissions counted at once) plus this device's offline admissions not

@@ -623,6 +623,41 @@
 		input.value = '';
 		return value;
 	}
+	/* Shows the answer of a check-in (scan or search result): refusal, system warning or admission. */
+	function presentAnswer(status, data) {
+		const kind = classifyAnswer(status, data);
+		const message = data && typeof data.message === 'string' ? data.message : '';
+		if (kind === 'session') {
+			show('warning', t.sessionExpired || 'Session expired – reload the page.');
+			return;
+		}
+		if (kind === 'rate') {
+			// Too many help-code entries: not a verdict on the ticket.
+			show('warning', message || t.rateLimited || 'Too many attempts.');
+			return;
+		}
+		if (kind === 'system') {
+			// Server fault, busy database, WAF/proxy page, unknown error: not a verdict on the ticket –
+			// never "no entry" (A315).
+			const why = data ? (t.systemError || 'System error – scan again.') + (message && status < 500 ? ' (' + message + ')' : '') : (t.badAnswer || 'Unexpected answer from the server (HTTP %d) – scan again.').replace('%d', String(status));
+			show('warning', why);
+			return;
+		}
+		if (kind === 'refusal') {
+			// Refusal of a known ticket: name the ticket and when it was first used.
+			const info = data.data || {};
+			const refusal = [message || t.invalid || 'Invalid ticket.'].concat(info.event ? [info.event + (info.ticket ? ' — ' + info.ticket : '')] : [], historyLines(info, false), info.staff_hint ? ['⚠ ' + info.staff_hint] : []);
+			show('error', refusal.join(' — '), { lines: refusal });
+			return;
+		}
+		const out = data.status === 'checked_out';
+		// ID/age check of the ticket type ("Ausweis prüfen · Mindestalter 18") for the staff.
+		const hint = data.staff_hint && !out ? '⚠ ' + data.staff_hint : '';
+		const lines = [[data.event, data.ticket].filter(Boolean).join(' — '), data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
+		show('success', (out ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + lines.join(' — '), { title: out ? (t.checkedOutTitle || 'OUT') : (t.admitted || 'OK'), lines: lines });
+		if (!out) offerUndo({ publicId: data.ticket_public_id });
+		refreshCounter();
+	}
 	async function submitToken(token) {
 		token = String(token || '').trim();
 		if (!token) return;
@@ -666,38 +701,7 @@
 				offline(token, key, controller && controller.signal.aborted ? (t.timeout || 'No answer from the server.') : '');
 				return;
 			}
-			const kind = classifyAnswer(response.status, data);
-			const message = data && typeof data.message === 'string' ? data.message : '';
-			if (kind === 'session') {
-				show('warning', t.sessionExpired || 'Session expired – reload the page.');
-				return;
-			}
-			if (kind === 'rate') {
-				// Too many help-code entries: not a verdict on the ticket.
-				show('warning', message || t.rateLimited || 'Too many attempts.');
-				return;
-			}
-			if (kind === 'system') {
-				// Server fault, busy database, WAF/proxy page, unknown error: not a verdict on the ticket –
-				// never "no entry" (A315).
-				const why = data ? (t.systemError || 'System error – scan again.') + (message && response.status < 500 ? ' (' + message + ')' : '') : (t.badAnswer || 'Unexpected answer from the server (HTTP %d) – scan again.').replace('%d', String(response.status));
-				show('warning', why);
-				return;
-			}
-			if (kind === 'refusal') {
-				// Refusal of a known ticket: name the ticket and when it was first used.
-				const info = data.data || {};
-				const refusal = [message || t.invalid || 'Invalid ticket.'].concat(info.event ? [info.event + (info.ticket ? ' — ' + info.ticket : '')] : [], historyLines(info, false), info.staff_hint ? ['⚠ ' + info.staff_hint] : []);
-				show('error', refusal.join(' — '), { lines: refusal });
-				return;
-			}
-			const out = data.status === 'checked_out';
-			// ID/age check of the ticket type ("Ausweis prüfen · Mindestalter 18") for the staff.
-			const hint = data.staff_hint && !out ? '⚠ ' + data.staff_hint : '';
-			const lines = [[data.event, data.ticket].filter(Boolean).join(' — '), data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
-			show('success', (out ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + lines.join(' — '), { title: out ? (t.checkedOutTitle || 'OUT') : (t.admitted || 'OK'), lines: lines });
-			if (!out) offerUndo({ publicId: data.ticket_public_id });
-			refreshCounter();
+			presentAnswer(response.status, data);
 		} catch (error) {
 			show('warning', (t.systemError || 'System error – scan again.') + ' (' + error.message + ')');
 		} finally {
@@ -710,6 +714,87 @@
 		event.preventDefault();
 		submitToken(takeInput());
 	});
+
+	/*
+	 * A544: manual search (name, e-mail, order number) for guests without a readable code. The server
+	 * searches only fields the person may see (Pii) in the chosen date, or in the dates of the date
+	 * list; "Einchecken" uses the same rules as a scan (logged as manual check-in). Online only – the
+	 * offline scanner app searches its package offline.
+	 */
+	const searchForm = root.querySelector('.wpcap-search-form');
+	const searchList = root.querySelector('.wpcap-search-results');
+	function searchLine(item) {
+		const parts = [[item.event, item.ticket].filter(Boolean).join(' — '), item.attendee_name || '', item.email || '', item.order_ref ? (t.searchOrder || '%s').replace('%s', item.order_ref) : ''];
+		if (item.status !== 'valid') parts.push(item.status === 'checked_in' ? (t.searchUsed || 'used') : (t.searchVoid || 'void'));
+		return parts.filter(Boolean).join(' · ');
+	}
+	async function checkInResult(item, button) {
+		if (locked) { discarded(t.discarded || 'Scan discarded – scan again.'); return; }
+		unlockAudio();
+		locked = true;
+		button.disabled = true;
+		show('busy', t.checking || '…');
+		try {
+			const response = await fetch(window.WPCAP_SCANNER.checkInTicketUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ ticket_public_id: item.ticket_public_id, occurrence_id: occurrenceId, area_id: areaId, idempotency_key: uuid() }) });
+			const text = await response.text();
+			let data;
+			try { data = JSON.parse(text); } catch (ignore) { data = null; }
+			presentAnswer(response.status, data && typeof data === 'object' && !Array.isArray(data) ? data : null);
+		} catch (error) {
+			show('warning', (t.searchOffline || 'Search works online only.') + ' (' + error.message + ')');
+		} finally {
+			window.setTimeout(function () { locked = false; }, 1400);
+			input.focus();
+		}
+	}
+	function renderSearch(data) {
+		searchList.textContent = '';
+		const items = data && Array.isArray(data.results) ? data.results : [];
+		if (!items.length) {
+			const none = document.createElement('li');
+			none.textContent = t.searchNone || 'No ticket found.';
+			searchList.appendChild(none);
+		}
+		items.forEach(function (item) {
+			const li = document.createElement('li');
+			const text = document.createElement('span');
+			text.textContent = searchLine(item);
+			li.appendChild(text);
+			const button = document.createElement('button');
+			button.type = 'button';
+			button.className = 'button wpcap-search-checkin';
+			button.textContent = t.searchCheckin || 'Check in';
+			button.addEventListener('click', function () { checkInResult(item, button); });
+			li.appendChild(button);
+			searchList.appendChild(li);
+		});
+		if (data && data.more) {
+			const more = document.createElement('li');
+			more.textContent = t.searchMore || 'More results – please search more precisely.';
+			searchList.appendChild(more);
+		}
+	}
+	if (searchForm && searchList && window.WPCAP_SCANNER.searchUrl) {
+		const searchInput = searchForm.querySelector('[name="q"]');
+		searchForm.addEventListener('submit', async function (event) {
+			event.preventDefault();
+			const q = String(searchInput.value || '').trim();
+			if (!q) return;
+			if (!navigator.onLine) { show('warning', t.searchOffline || 'Search works online only.'); return; }
+			const base = window.WPCAP_SCANNER.searchUrl;
+			try {
+				const response = await fetch(base + (base.indexOf('?') === -1 ? '?' : '&') + 'q=' + encodeURIComponent(q) + '&occurrence_id=' + occurrenceId, { method: 'GET', headers: { 'X-WP-Nonce': WPCAP_SCANNER.nonce } });
+				const data = await response.json().catch(function () { return null; });
+				if (!response.ok || !data || !Array.isArray(data.results)) {
+					show('warning', (data && typeof data.message === 'string' && data.message) || t.systemError || 'System error.');
+					return;
+				}
+				renderSearch(data);
+			} catch (error) {
+				show('warning', (t.searchOffline || 'Search works online only.') + ' (' + error.message + ')');
+			}
+		});
+	}
 
 	// Native BarcodeDetector where available (Chrome/Android); otherwise jsQR on canvas frames (Safari/iOS, Firefox).
 	function loadJsQr() {

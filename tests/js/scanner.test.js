@@ -74,13 +74,14 @@ function loadScanner(options = {}) {
 	const opts = options || {};
 	const el = {
 		form: new FakeElement('form'), input: new FakeElement('input'), result: new FakeElement('div'), live: new FakeElement('div'),
-		counter: new FakeElement('p'), mode: new FakeElement('div'), video: new FakeElement('video'), start: new FakeElement('button'), stop: new FakeElement('button'), torch: new FakeElement('button'),
+		counter: new FakeElement('p'), searchForm: new FakeElement('form'), searchInput: new FakeElement('input'), searchList: new FakeElement('ul'), mode: new FakeElement('div'), video: new FakeElement('video'), start: new FakeElement('button'), stop: new FakeElement('button'), torch: new FakeElement('button'),
 	};
 	el.counter.hidden = true; // <p class="wpcap-scan-counter" hidden> in the page
 	const root = new FakeElement('div');
-	const map = { '.wpcap-scan-form': el.form, '.wpcap-scan-result': el.result, '.wpcap-scan-live': el.live, '.wpcap-scan-mode': el.mode, '.wpcap-camera': el.video, '.wpcap-camera-start': el.start, '.wpcap-camera-stop': el.stop, '.wpcap-camera-torch': el.torch, '.wpcap-scan-counter': el.counter };
+	const map = { '.wpcap-scan-form': el.form, '.wpcap-scan-result': el.result, '.wpcap-scan-live': el.live, '.wpcap-scan-mode': el.mode, '.wpcap-camera': el.video, '.wpcap-camera-start': el.start, '.wpcap-camera-stop': el.stop, '.wpcap-camera-torch': el.torch, '.wpcap-scan-counter': el.counter, '.wpcap-search-form': el.searchForm, '.wpcap-search-results': el.searchList };
 	root.querySelector = (sel) => map[sel] || null;
 	el.form.querySelector = () => el.input;
+	el.searchForm.querySelector = () => el.searchInput;
 	const timers = [];
 	let clock = 0;
 	const env = {
@@ -105,7 +106,7 @@ function loadScanner(options = {}) {
 		localStorage: options.storage || storage(),
 		crypto: { randomUUID: require('node:crypto').randomUUID },
 		AbortController,
-		WPCAP_SCANNER: { checkinUrl: '/tickets/check-in', offlineSyncUrl: '/tickets/offline-sync', undoUrl: '/scanner/undo', undoReasons: ['Fehlscan', 'Doppelt gescannt'], nonce: 'n', i18n: { undo: 'Rückgängig (%d s)' } },
+		WPCAP_SCANNER: { checkinUrl: '/tickets/check-in', offlineSyncUrl: '/tickets/offline-sync', undoUrl: '/scanner/undo', searchUrl: '/scanner/search', checkInTicketUrl: '/scanner/check-in-ticket', undoReasons: ['Fehlscan', 'Doppelt gescannt'], nonce: 'n', i18n: { undo: 'Rückgängig (%d s)' } },
 		WPCAP_ADMISSION: { checkinUrl: '/admission/check-in', checkoutUrl: '/admission/check-out', offlineSyncUrl: '/admission/offline-sync', areas: [], i18n: {} },
 		WPCAP_SCANNER_PRIVACY: options.privacy || { owner: 'u1' },
 		setTimeout: (fn, ms) => { timers.push({ fn, at: clock + (ms || 0), done: false }); return timers.length; },
@@ -515,4 +516,49 @@ test('A546: offline the counter keeps the last value and adds the admissions que
 	assert.match(env.el.counter.textContent, /^Eingecheckt: 10 \/ 50 · \+1 offline/);
 	byClass(env, 'wpcap-undo-button').dispatch('click');
 	assert.strictEqual(env.el.counter.textContent.indexOf('offline'), -1, 'queued scan taken back');
+});
+
+test('A544: manual search lists tickets and checks a result in by its id (same answer handling as a scan)', async () => {
+	const env = loadScanner();
+	const id = '9'.repeat(32);
+	env.fetchImpl = async (url, options) => {
+		if (options.method === 'GET') return response(200, { results: [ { ticket_public_id: id, event: 'Konzert', ticket: 'Standard', attendee_name: 'Anna Muster', email: 'a***@e***.com', order_ref: 'AB12-CD34', status: 'valid' }, { ticket_public_id: '8'.repeat(32), event: 'Konzert', ticket: 'VIP', status: 'checked_in' } ], more: true });
+		return response(200, { status: 'checked_in', event: 'Konzert', ticket: 'Standard', ticket_public_id: id });
+	};
+	env.el.searchInput.value = 'Muster';
+	env.el.searchForm.dispatch('submit');
+	await flush();
+	assert.match(env.requests[0].url, /^\/scanner\/search\?q=Muster&occurrence_id=0$/);
+	const items = env.el.searchList.children;
+	assert.strictEqual(items.length, 3, 'two results and the "more" hint');
+	assert.match(items[0].textContent, /Anna Muster/);
+	assert.match(items[0].textContent, /AB12-CD34/);
+	const button = items[0].find((c) => c.className.indexOf('wpcap-search-checkin') !== -1);
+	button.dispatch('click');
+	await flush();
+	assert.strictEqual(env.requests[1].url, '/scanner/check-in-ticket');
+	assert.strictEqual(env.requests[1].body.ticket_public_id, id);
+	assert.ok(env.requests[1].body.idempotency_key, 'own idempotency key');
+	assert.strictEqual(env.el.result.dataset.state, 'success');
+	assert.ok(byClass(env, 'wpcap-undo-button'), 'undo offered for the manual check-in, too');
+});
+
+test('A544: a refused manual check-in is red; offline the search is not sent', async () => {
+	const env = loadScanner();
+	env.fetchImpl = async (url, options) => (options.method === 'GET'
+		? response(200, { results: [ { ticket_public_id: '7'.repeat(32), event: 'E', status: 'valid' } ], more: false })
+		: response(409, { code: 'wpcap_ticket_not_valid', message: 'Ticket wurde bereits verwendet.', data: { status: 409, result: 'already_checked_in' } }));
+	env.el.searchInput.value = 'AB12-CD34';
+	env.el.searchForm.dispatch('submit');
+	await flush();
+	env.el.searchList.children[0].find((c) => c.tagName === 'BUTTON').dispatch('click');
+	await flush();
+	assert.strictEqual(env.el.result.dataset.state, 'error');
+	env.advance(1400);
+	env.window.navigator.onLine = false;
+	env.el.searchInput.value = 'Muster';
+	env.el.searchForm.dispatch('submit');
+	await flush();
+	assert.strictEqual(env.requests.length, 2, 'no request offline');
+	assert.strictEqual(env.el.result.dataset.state, 'warning');
 });
