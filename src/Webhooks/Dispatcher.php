@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Dispatcher {
 	const API_VERSION = '2026-11-01';
-	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled', 'ticket.transferred', 'ticket.checked_out', 'attendance.confirmed', 'occurrence.changed', 'event.cancelled', 'refund.reversed' );
+	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled', 'ticket.transferred', 'ticket.checked_out', 'attendance.confirmed', 'occurrence.changed', 'event.cancelled', 'refund.reversed', 'consent.granted', 'consent.withdrawn' );
 
 	/**
 	 * Payload schema version per event type (A674, field schema_version of every payload). A minor step
@@ -37,6 +37,8 @@ final class Dispatcher {
 		'occurrence.changed' => '1.0',
 		'event.cancelled' => '1.0',
 		'refund.reversed' => '1.0',
+		'consent.granted' => '1.0', // A612: consent records of participant fields.
+		'consent.withdrawn' => '1.0',
 	);
 	const MAX_ATTEMPTS = 8;
 	const DISABLE_AFTER = 20;
