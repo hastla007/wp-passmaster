@@ -316,11 +316,9 @@ final class Data {
 		$occ_rows = $wpdb->get_results( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id IN ($in) ORDER BY o.starts_at" );
 		$comp_in = self::comp_sql();
 		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.capacity,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.payment_provider NOT IN ($comp_in)),0) AS sold,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.payment_provider IN ($comp_in)),0) AS comps FROM {$p}wpcap_ticket_types tt WHERE tt.occurrence_id IN ($in) ORDER BY tt.ticket_type_id" );
-		$issued = array();
-		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $issued[ (int) $r->occurrence_id ] = (int) $r->n; }
-		$checked = array();
-		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(DISTINCT c.ticket_id) AS n FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND c.result='checked_in' AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $checked[ (int) $r->occurrence_id ] = (int) $r->n; }
-		// A482: entries with a membership pass (no ticket) count as admissions of their occurrence.
+		// A572/A573: the same "admitted" rule as the no-show list, passes counted on their linked occurrences.
+		$attendance = Attendance::counts( $ids );
+		// A482: entries with a membership pass (no ticket) are shown next to the admissions.
 		$members = \PassCaptain\Memberships::entries_by_occurrence( $ids );
 		foreach ( $occ_rows as $o ) {
 			if ( ! self::in_scope( $o->event_id, $scope, $o->occurrence_id ) ) { continue; }
@@ -347,9 +345,9 @@ final class Data {
 				'comps' => $comp_count,
 				// Utilisation = capacity in use, comps included (they consume capacity like sales).
 				'utilisation' => $capacity > 0 ? round( 100 * ( $sold + $comp_count ) / $capacity, 1 ) : null,
-				'issued' => $issued[ $id ] ?? 0,
-				'checked_in' => $checked[ $id ] ?? 0,
-				'checkin_rate' => ! empty( $issued[ $id ] ) ? round( 100 * ( $checked[ $id ] ?? 0 ) / $issued[ $id ], 1 ) : null,
+				'issued' => $attendance[ $id ]['issued'] ?? 0,
+				'checked_in' => $attendance[ $id ]['admitted'] ?? 0,
+				'checkin_rate' => ! empty( $attendance[ $id ]['issued'] ) ? round( 100 * ( $attendance[ $id ]['admitted'] ?? 0 ) / $attendance[ $id ]['issued'], 1 ) : null,
 				'member_entries' => $members[ $id ] ?? 0,
 				'types' => $type_rows,
 			);
@@ -357,32 +355,54 @@ final class Data {
 		return $out;
 	}
 
-	/** Successful check-ins per local hour of the occurrence ("Y-m-d H:00" => count). */
+	/**
+	 * Effective check-ins per local hour of the occurrence ("Y-m-d H:00" => count), A571: taken-back
+	 * scans are not counted (Attendance::entry_times()), the axis starts at the admission start
+	 * (doors open / entry window / start) once there are entries from then on, and no entry is cut off.
+	 * Empty hours between two bars are filled up to HISTOGRAM_GAP_HOURS; longer gaps (e.g. a test scan
+	 * days before the event that was not taken back) leave the axis discontinuous instead.
+	 */
 	public static function checkin_histogram( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$tz = (string) $wpdb->get_var( $wpdb->prepare( "SELECT timezone FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
-		$times = $wpdb->get_col( $wpdb->prepare( "SELECT COALESCE(c.scanned_at,c.created_at) FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND c.result='checked_in'", absint( $occurrence_id ) ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,starts_at,timezone FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		if ( ! $occ ) { return array(); }
+		$tz = (string) $occ->timezone ?: 'UTC';
 		$out = array();
-		foreach ( $times as $time ) {
-			$hour = Scope::local( $time, $tz ?: 'UTC', 'Y-m-d H:00' );
+		foreach ( Attendance::entry_times( $occurrence_id ) as $time ) {
+			$hour = Scope::local( $time, $tz, 'Y-m-d H:00' );
+			if ( '' === $hour ) { continue; }
 			$out[ $hour ] = ( $out[ $hour ] ?? 0 ) + 1;
 		}
+		if ( ! $out ) { return array(); }
 		ksort( $out );
-		if ( count( $out ) > 1 ) {
-			// Fill empty hours so the histogram has a continuous axis (max. 72 bars).
-			$first = new \DateTimeImmutable( array_key_first( $out ) . ':00' );
-			$last = array_key_last( $out );
-			$filled = array();
-			for ( $h = $first, $n = 0; $n < 72; $h = $h->modify( '+1 hour' ), $n++ ) {
-				$key = $h->format( 'Y-m-d H:00' );
-				$filled[ $key ] = $out[ $key ] ?? 0;
-				if ( $key === $last ) { break; }
-			}
-			$out = $filled;
+		$opening = Scope::local( gmdate( 'Y-m-d H:i:s', Attendance::admission_start( $occ ) ), $tz, 'Y-m-d H:00' );
+		if ( '' !== $opening && $opening <= array_key_last( $out ) && ! isset( $out[ $opening ] ) ) {
+			$out[ $opening ] = 0;
+			ksort( $out );
 		}
-		return $out;
+		$keys = array_keys( $out );
+		$filled = array();
+		foreach ( $keys as $i => $key ) {
+			$filled[ $key ] = $out[ $key ];
+			$next = $keys[ $i + 1 ] ?? null;
+			if ( null === $next ) { break; }
+			$h = new \DateTimeImmutable( $key . ':00' );
+			$gap = array();
+			for ( $n = 0; $n <= self::HISTOGRAM_GAP_HOURS; $n++ ) {
+				$h = $h->modify( '+1 hour' );
+				$k = $h->format( 'Y-m-d H:00' );
+				if ( $k >= $next ) { break; }
+				$gap[ $k ] = 0;
+			}
+			if ( count( $gap ) <= self::HISTOGRAM_GAP_HOURS && ( ! $gap || $h->format( 'Y-m-d H:00' ) >= $next ) ) { $filled += $gap; }
+		}
+		ksort( $filled );
+		return $filled;
 	}
+
+	/** Longest run of empty hours the histogram fills between two bars. */
+	const HISTOGRAM_GAP_HOURS = 24;
 
 	/** Amount fields of a report bucket that add up across buckets. */
 	const SUM_FIELDS = array( 'tickets', 'gross', 'tax', 'net', 'refunded_tickets', 'refunded', 'refunded_tax', 'revenue', 'revenue_tax', 'revenue_net' );

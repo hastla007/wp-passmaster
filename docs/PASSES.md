@@ -122,6 +122,14 @@ diesem Termin (Modus `once`) oder wenn N aus M ausgeschöpft ist, sonst `valid`.
 `policy: "pass"`, `multi` = Wiedereinlass, `pass: true`. Konflikte zwischen Geräten verschiedener Tage
 (N aus M) erkennt der Server bei der Synchronisierung (`entry_limit_reached` → Konflikt).
 
+### Listen und Berichte (A573)
+
+Teilnehmerliste, No-Show-Liste, Check-in-Quote und Einlasskurve eines Termins enthalten die Pass-Inhaber
+**jedes verknüpften Termins** wie im Offline-Paket – nicht den Ankertermin, wenn er nicht verknüpft ist.
+Eingelassen ist ein Pass an einem Termin, wenn er dort einen nicht zurückgenommenen Einlass hat
+(`wpcap_admission_entries.occurrence_id`); siehe `Reports\Attendance` und OPERATIONS.md („Einlass:
+Check-in-Quote, Einlasskurve …“). Umsatz und „verkauft“ bleiben beim Ankertermin.
+
 ## Anzeige
 
 - Ticket-Label (PDF im Ticketmail, Ticketseite, Bestellportal, Wallet, Druck) über

@@ -291,17 +291,25 @@ final class Templates {
 
 	/* ------------------------------------------------------------------ data */
 
-	/** Tickets of an occurrence with print context (no codes). */
-	public static function tickets_for_occurrence( $occurrence_id, array $statuses = array( 'valid', 'checked_in' ) ) {
+	/**
+	 * Tickets of an occurrence with print context (no codes). With $with_passes (default) the holders
+	 * of passes linked to the occurrence are included and passes are not listed on their anchor
+	 * occurrence unless it is linked (A573, Reports\Attendance::ticket_condition()); the occurrence
+	 * columns are those of $occurrence_id. Without it: the tickets whose ticket type belongs to the
+	 * occurrence (batch printing of admission media, see ticket_refs_for_occurrence()).
+	 */
+	public static function tickets_for_occurrence( $occurrence_id, array $statuses = array( 'valid', 'checked_in' ), $with_passes = true ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
 		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		$occurrence_id = absint( $occurrence_id );
+		$which = $with_passes ? \PassCaptain\Reports\Attendance::ticket_condition( $occurrence_id ) : 'tt.occurrence_id=' . $occurrence_id;
 		return $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
-			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
-			WHERE o.occurrence_id=%d AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id",
-			absint( $occurrence_id )
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=%d INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE $which AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list, integer condition.
+			$occurrence_id
 		) );
 	}
 
@@ -458,7 +466,7 @@ final class Templates {
 	 * background job (BatchJob, A427): codes are rotated only when the finished file is downloaded.
 	 */
 	public static function batch_pdf( $occurrence_id, $kind ) {
-		$rows = self::tickets_for_occurrence( $occurrence_id, self::batch_statuses( $kind ) );
+		$rows = self::tickets_for_occurrence( $occurrence_id, self::batch_statuses( $kind ), false );
 		$items = array();
 		foreach ( $rows as $row ) { $items[] = self::values( $row, '' ); }
 		$event_id = Scope::occurrence_event( $occurrence_id );

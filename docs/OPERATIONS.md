@@ -922,6 +922,26 @@ Bei mehreren Währungen im Zeitraum zeigt die Seite zusätzlich „Umsatz nach W
 die Gesamtsummen sind dann nicht addierbar. Der CSV-Export des Berichts enthält die Spalte
 „Netto nach Erstattung“ und den Abschnitt „Währung / USt-Satz“.
 
+### Einlass: Check-in-Quote, Einlasskurve, Teilnehmer- und No-Show-Liste (A571–A573)
+
+Bericht (Termin-Tabelle, CSV, Abrechnungsblatt, Partner-API `/partner/reports`), No-Show-Liste und
+Teilnehmerliste verwenden dieselbe Regel (`Reports\Attendance`):
+
+- **Tickets eines Termins**: Tickets der Ticketarten des Termins; Pässe (Modul Pässe) auf **jedem verknüpften
+  Termin** – auch Termine anderer Events –, auf ihrem Ankertermin (Verkaufstermin) nur, wenn er selbst verknüpft ist.
+- **Eingelassen**: Status „Eingecheckt“ oder mehr „checked_in“- als „undone“-Einträge im Check-in-Protokoll
+  (wiederholbare Einlassregeln behalten den Status „Gültig“); ein Pass, wenn er an **diesem** Termin einen nicht
+  zurückgenommenen Einlass hat. Zurückgenommene Einlässe zählen also weder in der Quote noch in der Kurve, und
+  „Gültig − Eingecheckt“ im Bericht ist genau die Zahl der Zeilen der No-Show-Liste.
+- **Einlasskurve** („Check-ins pro Stunde“): nur wirksame Einlässe (jede Rücknahme hebt den letzten offenen
+  Einlass des Tickets auf, z. B. einen Testscan beim Aufbau). Die Achse beginnt mit dem Einlassbeginn
+  (Einlass ab, sonst Beginn minus Einlassfenster, sonst Terminbeginn), sobald es ab dann Einlässe gibt; nichts
+  wird abgeschnitten (früher: höchstens 72 Stunden ab dem ersten Scan). Leere Stunden zwischen zwei Balken werden
+  bis 24 Stunden aufgefüllt, längere Lücken bleiben offen.
+- Die Teilnehmerliste zeigt Pässe und Tickets mit wiederholbarer Einlassregel als „Eingecheckt“, sobald sie an
+  diesem Termin eingelassen wurden, und die Teilnehmerfelder aller aufgeführten Ticketarten. Der Stapeldruck von
+  Tickets/Badges bleibt bei den Ticketarten des Termins (Pässe werden mit ihrem Ankertermin gedruckt).
+
 ### Berichts-Caches und Invalidierung (A201)
 
 **Bestand** (alle Caches mit Berichts- oder Summenwerten):
