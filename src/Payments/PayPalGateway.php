@@ -220,7 +220,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface, Pa
 		if ( 'paid' === $order->payment_status ) { return 'paid'; }
 		if ( self::order_closed( $order ) ) {
 			// Never take money for a cancelled or refunded order (the approval alone moves no money).
-			return new \WP_Error( 'wpcap_paypal_order_closed', __( 'Diese Bestellung wurde bereits storniert oder erstattet. Es wurde keine Zahlung eingezogen.', 'pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_paypal_order_closed', __( 'Diese Bestellung wurde bereits storniert oder erstattet. Es wurde keine Zahlung eingezogen.', 'pass-captain' ), array( 'status' => 409, 'not_charged' => true ) );
 		}
 		if ( (string) $order->provider_reference !== $paypal_order_id ) {
 			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400, 'not_charged' => true ) );

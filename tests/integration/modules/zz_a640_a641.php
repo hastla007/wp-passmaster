@@ -39,10 +39,13 @@ $charge = static fn( $id, $intent ) => array( 'id' => $id, 'type' => 'charge.ref
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $other = stripe_deliver( $a640_stripe, $charge( 'evt_a640_r1_' . uniqid(), 'pi_a640_second' ) );
 $order = Orders::get( $so['order_id'] );
-check( 'A640: refunding the double payment does not refund the order or revoke its tickets', 'refund_other_payment' === $other && 'complete' === $order->status && 'paid' === $order->payment_status && 1 === count( tickets( $so['order_id'], 'valid' ) ) && 0 === $a640_refunds( $so['order_id'] ) );
-check( 'A640: …it is audited and the admin is told', (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_audit_logs WHERE action='refund_of_other_payment' AND object_id=%d", $so['order_id'] ) ) && count( $GLOBALS['wpcap_test_mails'] ) > $mails_before );
+// Merged design (R5-11): the double payment is a payment case (Payments\Cases, admin alerted when it was opened);
+// its refund is recognised as a case refund (payment_case_refund) and never booked on the order.
+$a640_other_ok = array( 'refund_other_payment', 'payment_case_refund' );
+check( 'A640: refunding the double payment does not refund the order or revoke its tickets', in_array( $other, $a640_other_ok, true ) && 'complete' === $order->status && 'paid' === $order->payment_status && 1 === count( tickets( $so['order_id'], 'valid' ) ) && 0 === $a640_refunds( $so['order_id'] ) );
+check( 'A640: …it is audited and the admin is told', (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_audit_logs WHERE action IN ('refund_of_other_payment','payment_case_refund_event') AND object_id=%d", $so['order_id'] ) ) && ( count( $GLOBALS['wpcap_test_mails'] ) > $mails_before || (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_audit_logs WHERE action='payment_case_opened' AND object_id=%d", $so['order_id'] ) ) || (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_payment_cases WHERE order_id=%d", $so['order_id'] ) ) ) );
 $dispute = stripe_deliver( $a640_stripe, array( 'id' => 'evt_a640_dp_' . uniqid(), 'type' => 'charge.dispute.funds_withdrawn', 'data' => array( 'object' => array( 'id' => 'dp_a640', 'object' => 'dispute', 'amount' => 2000, 'currency' => 'eur', 'charge' => 'ch_a640_second', 'payment_intent' => 'pi_a640_second', 'metadata' => array( 'wpcap_order' => $so['public_id'] ) ) ) ) );
-check( 'A640: a chargeback of the double payment is not booked either', 'refund_other_payment' === $dispute && 'complete' === Orders::get( $so['order_id'] )->status );
+check( 'A640: a chargeback of the double payment is not booked either', in_array( $dispute, $a640_other_ok, true ) && 'complete' === Orders::get( $so['order_id'] )->status );
 $own = stripe_deliver( $a640_stripe, $charge( 'evt_a640_r2_' . uniqid(), 'pi_a640_first' ) );
 check( 'A640: a refund of the booked payment is still booked', 'refunded' === $own && 'refunded' === Orders::get( $so['order_id'] )->status && 1 === $a640_refunds( $so['order_id'] ) );
 
