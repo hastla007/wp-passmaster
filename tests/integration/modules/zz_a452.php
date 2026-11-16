@@ -64,7 +64,7 @@ check( 'paging the first calendar leaves the second on the current month', 1 ===
 $_GET = array();
 $_SERVER['REQUEST_URI'] = '//evil.example/x?y=1';
 a452_reset();
-list( $a452_p ) = a452_links( Calendar::render_shortcode( array( 'view' => 'month' ) ) );
+list( , $a452_p ) = a452_links( Calendar::render_shortcode( array( 'view' => 'month' ) ) );
 check( 'protocol-relative request path is collapsed to a local path', 0 === strpos( $a452_p, '/evil.example/x?y=1&wpcap_month=' ) );
 $_SERVER['REQUEST_URI'] = '/\\evil.example/';
 check( 'backslash variant collapsed too', 0 === strpos( Calendar::nav_url( 'wpcap_month', '2030-01' ), '/evil.example/?wpcap_month=2030-01' ) );

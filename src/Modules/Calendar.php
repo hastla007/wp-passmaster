@@ -275,43 +275,80 @@ final class Calendar {
 		return $out . '</ul></div>';
 	}
 
-	/** Accessible month grid (table with caption, column headers and per-day lists). */
-	public static function render_month( $month = '', $event_id = 0, $wrapper = '', $instance = 1 ) {
-		$tz_name = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
+	/** Site timezone (Settings → General), UTC when unset or invalid. */
+	private static function site_timezone() {
+		$name = function_exists( 'wp_timezone_string' ) ? (string) wp_timezone_string() : 'UTC';
 		try {
-			$tz = new \DateTimeZone( $tz_name ?: 'UTC' );
+			return new \DateTimeZone( '' !== $name ? $name : 'UTC' );
 		} catch ( \Exception $e ) {
-			$tz = new \DateTimeZone( 'UTC' );
+			return new \DateTimeZone( 'UTC' );
 		}
+	}
+
+	/**
+	 * Start time of an occurrence in its own timezone ("20:00"); when that zone has another UTC
+	 * offset than the site at that moment, with the zone abbreviation ("20:00 EST"), A313.
+	 */
+	public static function time_label( $row, ?\DateTimeZone $site = null ) {
+		$site = $site ? $site : self::site_timezone();
+		$time = self::local( $row, 'H:i' );
+		$at = new \DateTime( (string) $row->starts_at, new \DateTimeZone( 'UTC' ) );
+		$own = (int) self::local( $row, 'Z' );
+		return $own === $site->getOffset( $at ) ? $time : $time . ' ' . self::local( $row, 'T' );
+	}
+
+	/**
+	 * Accessible month grid (table with caption, column headers and per-day lists).
+	 *
+	 * A313: every occurrence is shown on the day and with the time of its own timezone – the date
+	 * and time the event card, ticket, mail and .ics show (a time whose zone differs from the site's
+	 * carries the zone abbreviation). The month, "today" and the navigation follow the site
+	 * timezone. Only upcoming dates are listed, so the current month (and earlier ones) has no
+	 * "previous month" link; every other month links back to the current one. On narrow screens,
+	 * where the column headers are hidden, each day shows its weekday.
+	 */
+	public static function render_month( $month = '', $event_id = 0, $wrapper = '', $instance = 1 ) {
+		$tz = self::site_timezone();
 		$now = new \DateTime( 'now', $tz );
-		if ( ! preg_match( '/^(\d{4})-(0[1-9]|1[0-2])$/', (string) $month ) ) { $month = $now->format( 'Y-m' ); }
+		$current = $now->format( 'Y-m' );
+		$today = $now->format( 'Y-m-d' );
+		if ( ! preg_match( '/^(\d{4})-(0[1-9]|1[0-2])$/', (string) $month ) ) { $month = $current; }
 		$first = new \DateTime( $month . '-01 00:00:00', $tz );
 		$next = ( clone $first )->modify( '+1 month' );
 		$prev = ( clone $first )->modify( '-1 month' );
-		$from = ( clone $first )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		// The local dates of this month, in any timezone (UTC-12 … UTC+14), lie inside this UTC window.
+		$utc = new \DateTimeZone( 'UTC' );
+		$from = ( new \DateTime( $month . '-01 00:00:00', $utc ) )->modify( '-14 hours' )->format( 'Y-m-d H:i:s' );
 		$from = max( $from, current_time( 'mysql', true ) ); // Upcoming only.
-		$to = ( clone $next )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$to = ( new \DateTime( $next->format( 'Y-m-d' ) . ' 00:00:00', $utc ) )->modify( '+12 hours' )->format( 'Y-m-d H:i:s' );
 		$by_day = array();
-		$rows = self::occurrences( $from, $to, $event_id, 500, self::show_cancelled() );
-		$badges = $rows ? self::badges_for( $rows ) : array();
-		foreach ( $rows as $row ) {
-			$dt = new \DateTime( $row->starts_at, new \DateTimeZone( 'UTC' ) );
-			$dt->setTimezone( $tz );
-			$by_day[ $dt->format( 'Y-m-d' ) ][] = $row;
+		$rows = array();
+		foreach ( self::occurrences( $from, $to, $event_id, 500, self::show_cancelled() ) as $row ) {
+			$day = self::local( $row, 'Y-m-d' );
+			if ( 0 !== strpos( $day, $month . '-' ) ) { continue; } // Another month in its own timezone.
+			$by_day[ $day ][] = $row;
+			$rows[] = $row;
 		}
+		$badges = $rows ? self::badges_for( $rows ) : array();
 		$months = array( 1 => __( 'Januar', 'pass-captain' ), __( 'Februar', 'pass-captain' ), __( 'März', 'pass-captain' ), __( 'April', 'pass-captain' ), __( 'Mai', 'pass-captain' ), __( 'Juni', 'pass-captain' ), __( 'Juli', 'pass-captain' ), __( 'August', 'pass-captain' ), __( 'September', 'pass-captain' ), __( 'Oktober', 'pass-captain' ), __( 'November', 'pass-captain' ), __( 'Dezember', 'pass-captain' ) );
 		$days = array( __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ), __( 'Sonntag', 'pass-captain' ) );
+		$short = array_map( static function ( $day ) { return function_exists( 'mb_substr' ) ? mb_substr( $day, 0, 2 ) : substr( $day, 0, 2 ); }, $days );
 		$title = $months[ (int) $first->format( 'n' ) ] . ' ' . $first->format( 'Y' );
 		$instance = max( 1, (int) $instance );
 		$param = self::month_param( $instance );
 		$nav_id = 'wpcap-cal-nav-' . $instance;
 		$out = self::open_root( (string) $wrapper, 'month' );
 		$out .= '<nav class="wpcap-cal-nav" id="' . esc_attr( $nav_id ) . '" aria-label="' . esc_attr__( 'Monat wechseln', 'pass-captain' ) . '">';
-		$out .= '<a href="' . esc_url( self::nav_url( $param, $prev->format( 'Y-m' ), $nav_id ) ) . '" rel="prev">' . esc_html__( '← Vorheriger Monat', 'pass-captain' ) . '</a> ';
+		if ( $month > $current ) {
+			$out .= '<a href="' . esc_url( self::nav_url( $param, $prev->format( 'Y-m' ), $nav_id ) ) . '" rel="prev">' . esc_html__( '← Vorheriger Monat', 'pass-captain' ) . '</a> ';
+		}
+		if ( $month !== $current ) {
+			$out .= '<a class="wpcap-cal-current" href="' . esc_url( self::nav_url( $param, $current, $nav_id ) ) . '">' . esc_html__( 'Aktueller Monat', 'pass-captain' ) . '</a> ';
+		}
 		$out .= '<a href="' . esc_url( self::nav_url( $param, $next->format( 'Y-m' ), $nav_id ) ) . '" rel="next">' . esc_html__( 'Nächster Monat →', 'pass-captain' ) . '</a></nav>';
 		$out .= '<table class="wpcap-cal-grid"><caption>' . esc_html( $title ) . '</caption><thead><tr>';
-		foreach ( $days as $day ) {
-			$out .= '<th scope="col"><abbr title="' . esc_attr( $day ) . '">' . esc_html( function_exists( 'mb_substr' ) ? mb_substr( $day, 0, 2 ) : substr( $day, 0, 2 ) ) . '</abbr></th>';
+		foreach ( $days as $i => $day ) {
+			$out .= '<th scope="col"><abbr title="' . esc_attr( $day ) . '">' . esc_html( $short[ $i ] ) . '</abbr></th>';
 		}
 		$out .= '</tr></thead><tbody><tr>';
 		$offset = (int) $first->format( 'N' ) - 1;
@@ -320,13 +357,17 @@ final class Calendar {
 		for ( $d = 1; $d <= $count; $d++ ) {
 			$date = $first->format( 'Y-m-' ) . str_pad( (string) $d, 2, '0', STR_PAD_LEFT );
 			$items = $by_day[ $date ] ?? array();
-			$out .= '<td' . ( $items ? ' class="wpcap-cal-has-events"' : '' ) . '><span class="wpcap-cal-day"><time datetime="' . esc_attr( $date ) . '">' . (int) $d . '</time></span>';
+			$classes = array_filter( array( $items ? 'wpcap-cal-has-events' : '', $date === $today ? 'wpcap-cal-today' : '' ) );
+			$out .= '<td' . ( $classes ? ' class="' . esc_attr( implode( ' ', $classes ) ) . '"' : '' ) . ( $date === $today ? ' aria-current="date"' : '' ) . '>';
+			// The weekday is only visible on narrow screens, where the column headers are hidden.
+			$out .= '<span class="wpcap-cal-day"><span class="wpcap-cal-wd">' . esc_html( $short[ ( $offset + $d - 1 ) % 7 ] ) . '</span> <time datetime="' . esc_attr( $date ) . '">' . (int) $d . '</time></span>';
 			if ( $items ) {
 				$out .= '<ul>';
 				foreach ( $items as $row ) {
+					$time = self::time_label( $row, $tz );
 					/* translators: 1: event name, 2: time */
-					$label = sprintf( __( '%1$s um %2$s', 'pass-captain' ), $row->event_name, self::local( $row, 'H:i' ) );
-					$text = esc_html( self::local( $row, 'H:i' ) . ' ' . $row->event_name );
+					$label = sprintf( __( '%1$s um %2$s', 'pass-captain' ), $row->event_name, $time );
+					$text = esc_html( $time . ' ' . $row->event_name );
 					$out .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $label . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
 					$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
 				}

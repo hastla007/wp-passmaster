@@ -112,7 +112,8 @@ $grid = Calendar::render_shortcode( array( 'view' => 'month', 'event' => $event 
 unset( $_GET['wpcap_month'] );
 check( 'month view is a table with caption and column headers', false !== strpos( $grid, '<table class="wpcap-cal-grid"><caption>' ) && 7 === substr_count( $grid, '<th scope="col">' ) );
 check( 'month view links the occurrence with an accessible label', false !== strpos( $grid, '#wpcap-occ-' . $occ ) && false !== strpos( $grid, 'aria-label="Konzert, Nacht; Teil 2 um' ) );
-check( 'month view has prev/next navigation', false !== strpos( $grid, 'rel="prev"' ) && false !== strpos( $grid, 'rel="next"' ) );
+$grid_later = Calendar::render_month( gmdate( 'Y-m', strtotime( 'first day of +2 month' ) ) );
+check( 'month view has prev/next navigation (no "previous" in the current month, A313)', false !== strpos( $grid, 'rel="next"' ) && false !== strpos( $grid_later, 'rel="prev"' ) && false !== strpos( $grid_later, 'rel="next"' ) );
 check( 'invalid month falls back to current month', false !== strpos( Calendar::render_month( '2026-13' ), '<caption>' ) );
 $card = Calendar::add_card_anchor( '<article class="wpcap-event"><h3>x</h3></article>', (object) array( 'occurrence_id' => 42 ) );
 check( 'event cards get an anchor id', 0 === strpos( $card, '<article id="wpcap-occ-42" class="wpcap-event"' ) );
