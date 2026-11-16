@@ -30,8 +30,7 @@ use PassCaptain\Settings;
 
 require_once WPCAP_PATH . 'src/functions.php';
 
-if ( ! function_exists( 'add_menu_page' ) ) { function add_menu_page( $page_title, $menu_title, $cap, $slug, $cb = null, $icon = '', $pos = null ) { $GLOBALS['x5_menu'][] = compact( 'page_title', 'menu_title', 'cap', 'slug', 'icon' ); return $slug; } }
-if ( ! function_exists( 'add_submenu_page' ) ) { function add_submenu_page( $parent, $page_title, $menu_title, $cap, $slug, $cb = null ) { $GLOBALS['x5_submenu'][] = array( $parent, $slug ); return $slug; } }
+require_once dirname( __DIR__ ) . '/lib/menu_stubs.php'; // Shared recorder: zz_a088 may have defined the stubs first.
 if ( ! function_exists( 'is_user_logged_in' ) ) { function is_user_logged_in() { return true; } }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) {} }

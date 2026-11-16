@@ -480,6 +480,8 @@ if ( ! function_exists( 'switch_to_blog' ) ) {
 // bootstrap.php may already define get_current_blog_id() (multisite stubs reading wpcap_test_blog_id): keep both in sync.
 if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return (int) ( $GLOBALS['wpcap_test_blog_id'] ?? $GLOBALS['w9_blog'] ?? 1 ); } }
 $GLOBALS['w9_prefixes'] = $w9_prefixes;
+// Site 1 figures before site 2 exists: earlier modules may have left orders in any currency (CHF too).
+$w9_s1_revenue = PassCaptain\Ops\Network::overview( array( 1 ) )[0]['revenue_30d'];
 // Site 2: own schema with its own prefix.
 $wpdb->prefix = $w9_prefixes[2];
 wpcap_test_install();
@@ -492,7 +494,7 @@ $site1_orders = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$w9_prefixes[1]}wpc
 $GLOBALS['w9_prefixes'][3] = $wpdb->prefix . 'nosite3_';
 $overview = PassCaptain\Ops\Network::overview( array( 1, 2, 3 ) );
 $s1 = $overview[0]; $s2 = $overview[1]; $s3 = $overview[2];
-check( 'multisite: per-site figures come from each site\'s own tables (strict isolation)', $s1['installed'] && $s2['installed'] && $site1_events === $s1['events'] && $site1_orders === $s1['orders'] && 1 === $s2['events'] && 1 === $s2['orders'] && array( 'CHF' => 12000 ) === $s2['revenue_30d'] && ! isset( $s1['revenue_30d']['CHF'] ) && $s1['prefix'] !== $s2['prefix'] );
+check( 'multisite: per-site figures come from each site\'s own tables (strict isolation)', $s1['installed'] && $s2['installed'] && $site1_events === $s1['events'] && $site1_orders === $s1['orders'] && 1 === $s2['events'] && 1 === $s2['orders'] && array( 'CHF' => 12000 ) === $s2['revenue_30d'] && $w9_s1_revenue === $s1['revenue_30d'] && $s1['prefix'] !== $s2['prefix'] );
 check( 'multisite: a site without plugin tables is reported, not read', ! $s3['installed'] && 0 === $s3['orders'] );
 check( 'multisite: prefix is restored after the overview', $w9_prefixes[1] === $wpdb->prefix && 1 === get_current_blog_id() );
 $csv_rows = PassCaptain\Ops\Network::csv_rows( $overview );

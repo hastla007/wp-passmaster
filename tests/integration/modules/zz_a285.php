@@ -19,6 +19,8 @@ $a285_hyper = new class() { public $calls = 0; public function send_reads_to_mas
 $a285_ludi = new class() { public $calls = 0; public function send_reads_to_masters() {} public function send_reads_to_primaries() { $this->calls++; } };
 
 check( 'A285 plain wpdb: no filter, nothing to route', ! DbReplication::supported( $a285_real ) );
+// The query filter also carries other listeners (Reports\Cache::note_query, A201): restored afterwards.
+$a285_query_hooks = $GLOBALS['wpcap_test_hooks']['query'] ?? null;
 try {
 	$GLOBALS['wpdb'] = $a285_hyper;
 	DbReplication::reset();
@@ -45,6 +47,7 @@ try {
 	$GLOBALS['wpdb'] = $a285_real;
 	DbReplication::reset();
 	unset( $GLOBALS['wpcap_test_hooks']['query'] );
+	if ( null !== $a285_query_hooks ) { $GLOBALS['wpcap_test_hooks']['query'] = $a285_query_hooks; }
 }
 
 // Every transaction start and locking read the plugin issues matches the pattern.
