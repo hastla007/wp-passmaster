@@ -11,6 +11,9 @@ final class ServiceBookings {
 	/** Most places of one service booking (REST refuses more with 400, A421). */
 	const MAX_QUANTITY = 20;
 
+	/** Reservations per e-mail address and hour (A644: only reservations that were made count). */
+	const EMAIL_HOURLY_LIMIT = 20;
+
 	/**
 	 * Reserves places in a slot as a hold (status `held`, expires after $minutes, max. 15).
 	 *
@@ -30,8 +33,11 @@ final class ServiceBookings {
 		$quantity = min( self::MAX_QUANTITY, max( 1, absint( $quantity ) ) );
 		$idempotency_key = sanitize_text_field( Http::str( $idempotency_key ) );
 		if ( ! $slot_id || ! Http::valid_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
-		if ( ! RateLimit::allow( 'servicebook|' . strtolower( $email ), 20, HOUR_IN_SECONDS ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
+		// A644: the client counts every attempt; the e-mail address (chosen by whoever sends the request)
+		// only counts reservations that were made, so failed or invalid attempts cannot lock it out.
+		$email_bucket = 'servicebook|' . strtolower( $email );
 		if ( ! RateLimit::allow_client( 'servicebook_ip', (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
+		if ( RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		$idempotency_key = hash( 'sha256', $idempotency_key );
 		$bookings = $wpdb->prefix . 'wpcap_service_bookings';
 		$reused = self::reused_booking( $idempotency_key, $slot_id, $email, $quantity );
@@ -64,6 +70,7 @@ final class ServiceBookings {
 		if ( ! $wpdb->insert_id || '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_failed', __( 'Zeitfenster konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$id = (int) $wpdb->insert_id;
 		if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return Errors::busy(); }
+		RateLimit::allow( $email_bucket, self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); // A644: counted once the hold exists.
 		$result = array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => 'held' );
 		if ( '' !== $token ) { $result['token'] = $token; }
 		return $result;

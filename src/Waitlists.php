@@ -22,6 +22,9 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Waitlists {
+	/** Waitlist sign-ups with mail per address, event and hour (A644: only sign-ups that send a mail count). */
+	const EMAIL_HOURLY_LIMIT = 5;
+
 	/** Payment provider id of placeholder orders that hold an open offer. */
 	const OFFER_PROVIDER = 'waitlist_offer';
 
@@ -142,9 +145,6 @@ final class Waitlists {
 		$email = Http::email( $email );
 		if ( ! $quantity ) { return new \WP_Error( 'wpcap_waitlist_quantity', __( 'Bitte eine gültige Anzahl angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( ! $event_id || ! Http::valid_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		if ( ! RateLimit::allow( 'waitlist|' . $email . '|' . $event_id, 5, HOUR_IN_SECONDS ) || ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) ) {
-			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
-		}
 		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $event_id, $occurrence_id ) );
 		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id,max_per_order FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $ticket_type_id, $occurrence_id ) );
@@ -162,6 +162,12 @@ final class Waitlists {
 		 */
 		$refused = apply_filters( 'wpcap_waitlist_join_error', null, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email' => $email, 'quantity' => $quantity ) );
 		if ( is_wp_error( $refused ) ) { return $refused; }
+		// A644: limits after validation. The client counts every valid request; the address (anyone can
+		// type it) only counts sign-ups that send a mail, so junk requests cannot lock it out.
+		$email_bucket = 'waitlist|' . $email . '|' . $event_id;
+		if ( ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT ) {
+			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$now = Clock::mysql();
 		$email_hash = hash( 'sha256', strtolower( $email ) );
@@ -196,6 +202,7 @@ final class Waitlists {
 			if ( '' !== $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::join_failed(); }
 		}
 		$wpdb->query( 'COMMIT' );
+		RateLimit::allow( $email_bucket, self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); // A644: a sign-up mail goes out.
 		if ( $doi ) {
 			$c = self::config();
 			$sent = Mail\Mailer::send( 'waitlist_confirm', $email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array(

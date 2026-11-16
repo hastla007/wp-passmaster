@@ -162,10 +162,14 @@ final class Service {
 		return false;
 	}
 
-	/** Consents recorded for a number in the last 24 hours. */
+	/**
+	 * Consents of paid orders recorded for a number in the last 24 hours (A644: consents of unpaid or
+	 * expired orders – which anyone can create with any number – do not lock the number out).
+	 */
 	public static function recent_consents_for_number( $e164 ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_sms_consents WHERE phone=%s AND consented_at>%s", (string) $e164, gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
+		$p = $wpdb->prefix;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_sms_consents c INNER JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE c.phone=%s AND c.consented_at>%s AND o.payment_status='paid'", (string) $e164, gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
 	}
 
 	/**
