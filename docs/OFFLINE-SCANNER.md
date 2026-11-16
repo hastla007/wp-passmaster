@@ -221,7 +221,7 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
   manipulation of the device clock. Package expiry is still enforced on the device, so a rooted
   device can bypass it. The server then flags old scans (`offline_expired`).
 
-Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v6`). Assets are also refreshed in the background
+Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v7`). Assets are also refreshed in the background
 (stale-while-revalidate).
 
 ## Security notes
