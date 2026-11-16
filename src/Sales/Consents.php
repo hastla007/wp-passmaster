@@ -483,8 +483,8 @@ final class Consents {
 		$default_days = (int) Retention::default_attendee_days();
 		$deleted = 0;
 		for ( $round = 0; $round < 20; $round++ ) {
-			// A global retention period overrides the per-field one (which falls back to the default).
-			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i f ON f.field_id=c.field_id WHERE DATE_ADD(COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)), INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', self::table(), $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_participant_fields', $global, $global, $default_days, $now_sql, self::BATCH ) );
+			// A global retention period overrides the per-field one (which falls back to the default). End of the occurrence: Occurrence::end_sql() (A606).
+			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i f ON f.field_id=c.field_id WHERE DATE_ADD(' . \PassCaptain\Occurrence::end_sql( 'o' ) . ', INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', self::table(), $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_participant_fields', $global, $global, $default_days, $now_sql, self::BATCH ) );
 			if ( ! $ids ) { break; }
 			$deleted += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE consent_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( self::table() ), $ids ) ) );
 			if ( count( $ids ) < self::BATCH ) { break; }
