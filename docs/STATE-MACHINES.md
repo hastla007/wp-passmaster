@@ -480,16 +480,17 @@ Zeitfenster → Buchung) und als bedingtes Update auf den erwarteten Ausgangssta
 | (neu) → `held` | `reserve()`: Zeitfenster mit Ablaufzeit, idempotent je Schlüssel; Kapazität, Puffer, Leistungserbringer, Buchungsschluss/-vorlauf und Höchstzahl je Person geprüft. |
 | `held` → `expired` | Ablaufzeit überschritten (nachgezogen bei der nächsten Buchung des Zeitfensters). |
 | `held` → `confirmed` | `confirm()` einer kostenlosen Buchung (Kund:in mit Buchungstoken oder Team). |
-| `held` → `pending_payment` | `confirm()` einer kostenpflichtigen Buchung: Bestellung über den regulären Checkout, in derselben Transaktion verknüpft (nie zwei Bestellungen). |
-| `pending_payment`/`held`/`expired` → `confirmed` | Bestellung bezahlt (`confirm_paid_order()`); bei verspäteter Zahlung nach erneuter Prüfung von Kapazität, Puffern und Leistungserbringern. |
-| `pending_payment`/`held`/`expired` → `unallocated` | Bestellung bezahlt, das Zeitfenster ist inzwischen belegt; die Bestellung wird nach Ausstellung der Tickets automatisch erstattet (`refund_unallocated()`). |
-| `held`/`pending_payment` → `expired` | Bestellung abgelaufen. |
-| `held`/`pending_payment`/`confirmed` → `cancelled` | Bestellung storniert oder anderweitig erstattet; `cancel()` durch Kund:in (innerhalb der Stornofrist) oder Team, bezahlt mit voller Erstattung über `Refunds` (Quelle `service_booking`). |
-| `confirmed` → `no_show` | Leistungserbringer (über seinen Datensatz) oder Event-Team, erst ab Beginn des Zeitfensters; gibt den Platz frei, keine Erstattung. |
-| `confirmed` → `confirmed` (anderes Zeitfenster) | `rebook()`: atomar, beide Ressourcen und Zeitfenster gesperrt; innerhalb der Umbuchungsfrist, bei Bestellungen nur auf eine Ressource mit derselben Ticketart. |
+| `held` → `held` (mit Bestellung) | `confirm()` einer kostenpflichtigen Buchung: Bestellung über den regulären Checkout, in derselben Transaktion verknüpft (nie zwei Bestellungen); die Buchung bleibt `held`, `booking_status()` zeigt sie als „Zahlung offen“ (`pending_payment`). Ein wiederholter Aufruf antwortet `already`, solange die Bestellung offen ist. |
+| `held`/`expired` → `confirmed` bzw. `pending_confirmation` | Bestellung bezahlt (`confirm_paid_order()`); bei verspäteter Zahlung nach erneuter Prüfung von Kapazität, Puffern und Leistungserbringern. Mit manueller Partnerbestätigung: `pending_confirmation` bis `confirm_by`. |
+| `held`/`expired` → `cancelled` (Grund `capacity_lost`) | Bestellung bezahlt, das Zeitfenster ist inzwischen belegt: die Buchung wird storniert, die Zahlung erstattet und das Team informiert. |
+| `pending_confirmation` → `confirmed`/`declined` | Partner bestätigt oder lehnt ab; ohne Entscheidung bis `confirm_by` → `declined` (Grund `confirmation_timeout`) mit Erstattung. |
+| `held`/`pending_confirmation`/`confirmed` → `cancelled` | `cancel()` durch Kund:in (unbestätigte Reservierungen jederzeit, sonst innerhalb der Stornofrist) oder Team (Event-Rechte; Erstattung nur mit Erstattungsrecht, sonst `wpcap_refund_forbidden`); bezahlt mit Erstattung über `Refunds` (Quelle `service_booking`), nach einer Umbuchung mit Zuzahlung aus beiden Bestellungen (zuerst der Rest der Zuzahlung, dann der Rest der ersten Zahlung). Die eigene offene Checkout-Bestellung wird storniert. |
+| `confirmed` → `checked_in` / `no_show` | Einlass bzw. Leistungserbringer oder Event-Team ab Beginn des Zeitfensters; `no_show` gibt den Platz frei (A143), keine Erstattung. |
+| `confirmed` → `confirmed` (anderes Zeitfenster) | `rebook()`: atomar, Ressourcen, Leistungserbringer und beide Zeitfenster gesperrt; innerhalb der Umbuchungsfrist. Günstiger: Differenz wird erstattet (zuerst aus der Zuzahlung, dann aus der ersten Bestellung). Teurer: Zuzahlungs-Zeile (`supplement_for`) hält den Zielplatz bis zum Ende der Zahlungsfrist und wird mit der Zahlung `merged`; die Buchung zieht dann um. |
 
-**Endzustände:** `cancelled`, `no_show`, `expired` (eine abgelaufene Buchung wird nur noch durch eine verspätete Zahlung
-`confirmed` oder `unallocated`) und `unallocated`. Fristen, Limits und Benachrichtigungen: OPERATIONS.md.
+**Endzustände:** `cancelled`, `declined`, `no_show`, `checked_in` und `expired` (eine abgelaufene Buchung wird nur noch durch eine
+verspätete Zahlung `confirmed` oder mit Grund `capacity_lost` storniert). Zuzahlungs-Zeilen enden als `merged`, `cancelled` oder
+`expired`. Ältere Zeilen mit Status `pending_payment` zählen wie `held`. Fristen, Limits und Benachrichtigungen: OPERATIONS.md.
 
 ## Späte Zahlung (Reservierung abgelaufen)
 

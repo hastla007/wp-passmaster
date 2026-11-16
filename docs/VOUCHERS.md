@@ -80,11 +80,11 @@ Beispiel oben, ein Ticket wird erstattet: 5,00 € an den Zahlungsanbieter, 5,00
 
 Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
 
-**Veranstalter-Abrechnung**: Verkäufe zählen beim Mehrzweckgutschein mit dem vollen Entgelt (bar + Gutschein); Erstattungen ziehen daher die Beträge der Rechnungskorrektur ab (Bar- **und** Gutscheinteil, `Checkout::credit_note_amounts()`). Beim Einzweckgutschein zählen Verkauf und Erstattung jeweils nur den Betrag nach dem Gutschein.
+**Berichte und Abrechnungen** (Veranstalter- und Wiederverkäufer-Abrechnungen) lesen die Erstattungsbeträge aus dem gespeicherten Plan (`refund_plans`, `Checkout::refund_amounts()`), nicht aus der reinen Barerstattung:
 
-Berichte, Veranstalter-Abrechnungen und Wiederverkäufer-Abrechnungen lesen die Erstattungsbeträge aus dem gespeicherten Plan (`refund_plans`, `Checkout::refund_amounts()`), nicht aus der reinen Barerstattung: Beim Mehrzweckgutschein zählt die Erstattung Bar- und Gutscheinteil mit der vollen USt (dieselben Zahlen wie die Rechnungskorrektur); im Beispiel sinkt der Umsatz um 10,00 € (1,67 € USt), nicht nur um 5,00 €. Beim Einzweckgutschein bucht die Veranstalter-Abrechnung den zurückgegebenen Gutscheinteil als eigene Zeile „Einzweckgutschein zurückgegeben (Erstattung)“ gegen die Forderung gegen den Gutscheinverkäufer.
+- **Mehrzweckgutschein**: Verkäufe zählen mit dem vollen Entgelt (bar + Gutschein); Erstattungen ziehen Bar- **und** Gutscheinteil mit der vollen USt ab – dieselben Zahlen wie die Rechnungskorrektur (`Checkout::credit_note_amounts()`). Im Beispiel sinkt der Umsatz um 10,00 € (1,67 € USt), nicht nur um 5,00 €.
+- **Einzweckgutschein**: Verkauf und Erstattung zählen jeweils nur den Betrag nach dem Gutschein; die Veranstalter-Abrechnung bucht den zurückgegebenen Gutscheinteil als eigene Zeile „Einzweckgutschein zurückgegeben (Erstattung)“ gegen die Forderung gegen den Gutscheinverkäufer.
 
-<!-- MERGE-CHECK: beide Absätze stammen aus den zwei Entwicklungssträngen (credit_note_amounts() vs. refund_amounts()); nach dem Zusammenführen von src/Integrations/Vouchers/Checkout.php und den Abrechnungen auf das tatsächliche Verhalten angleichen. -->
 
 ## Ticketdienst (Gutschein → Tickets)
 

@@ -128,7 +128,7 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 	// Every other Pass Captain submenu screen (modules included) is audited too, so new screens are covered automatically.
 	const menu = await ctx.newPage();
 	await menu.goto(admin('page=wp-pass-captain'), { waitUntil: 'load' });
-	// MERGE-CHECK: top-level menu slug wp-pass-captain (ours) or pass-captain (Arbeitsliste); both are looked for.
+	// Top-level menu slug: pass-captain (merged) or the former wp-pass-captain; both are looked for.
 	const links = await menu.$$eval('#toplevel_page_wp-pass-captain .wp-submenu a, #toplevel_page_pass-captain .wp-submenu a', (as) => as.map((a) => ({ text: a.textContent.replace(/\s+/g, ' ').trim(), href: a.href })));
 	await menu.close();
 	const known = new Set(pages.filter((p) => p.url).map((p) => p.url));

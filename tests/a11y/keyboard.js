@@ -119,7 +119,7 @@ async function tabUntil(page, scope, predicate, max = 300) {
 		await page.keyboard.press('Tab');
 		f = await focused(page, scope);
 	}
-	// MERGE-CHECK: the quantity stepper buttons come from the Arbeitsliste checkout; drop this check if the merged checkout has none.
+	// Quantity stepper buttons of the merged checkout (A100).
 	check('stepper buttons after the quantity are named tab stops', stepperStops.length >= 1 && stepperStops.every((n) => n.length > 0), stepperStops.join(' | '));
 	if (f && f.tag.startsWith('button') && /Warteliste|waitlist/i.test(f.name)) {
 		// "Auf die Warteliste" of the sold-out type (after the free type in the ticket list).
