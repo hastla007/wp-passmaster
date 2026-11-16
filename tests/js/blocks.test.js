@@ -80,3 +80,53 @@ test('A451: without wp.components.Disabled (very old editor) the preview still r
 	assert.strictEqual(find(tree, 'ServerSideRender').length, 1);
 	assert.strictEqual(find(tree, 'Disabled').length, 0);
 });
+
+/* ------------------------------------------------------------------ A453 */
+
+const CHOICES = { events: [
+	{ id: 5, label: 'Sommerfest (01.07.2027 19:00, #5)', dates: 2, more: false, occurrences: [{ id: 51, label: '01.07.2027 19:00' }, { id: 52, label: '02.07.2027 19:00' }] },
+	{ id: 6, label: 'Kurs (03.07.2027 10:00, #6)', dates: 250, more: true, occurrences: [{ id: 61, label: '03.07.2027 10:00' }] },
+] };
+/** Copy into this realm (values built inside the vm context fail deepStrictEqual on prototypes). */
+const plain = (v) => JSON.parse(JSON.stringify(v));
+function selects(tree) {
+	const out = {};
+	find(tree, 'SelectControl').forEach((n) => { out[n.node.props.label] = n.node.props; });
+	return out;
+}
+
+test('A453: listed event and date are selected as such', () => {
+	const block = loadBlock('events', { WPCAP_BLOCK_EVENTS: CHOICES });
+	const s = selects(block.edit({ event: 5, occurrence: 52 }).tree);
+	assert.strictEqual(s.Event.value, '5');
+	assert.deepStrictEqual(plain(s.Event.options.map((o) => o.value)), ['0', '5', '6']);
+	assert.strictEqual(s.Termin.value, '52');
+	assert.deepStrictEqual(plain(s.Termin.options.map((o) => o.value)), ['0', '51', '52']);
+	assert.strictEqual(s.Termin.help, undefined);
+});
+
+test('A453: a saved event that is no longer listed is not shown as "Alle Events"', () => {
+	const block = loadBlock('events', { WPCAP_BLOCK_EVENTS: CHOICES });
+	const s = selects(block.edit({ event: 9, occurrence: 0 }).tree);
+	assert.strictEqual(s.Event.value, '9');
+	const selected = s.Event.options.filter((o) => o.value === s.Event.value);
+	assert.deepStrictEqual(plain(selected.map((o) => o.label)), ['Event #9 (nicht mehr verfügbar)']);
+	assert.ok(s.Termin, 'date select stays available for the saved event');
+});
+
+test('A453: a saved date that is no longer listed keeps its own option', () => {
+	const block = loadBlock('events', { WPCAP_BLOCK_EVENTS: CHOICES });
+	const s = selects(block.edit({ event: 5, occurrence: 59 }).tree);
+	assert.deepStrictEqual(plain(s.Termin.options.filter((o) => o.value === '59').map((o) => o.label)), ['Termin #59 (nicht mehr verfügbar)']);
+	// Event with a cut date list: the date may just be later than the listed ones.
+	const t = selects(block.edit({ event: 6, occurrence: 99 }).tree);
+	assert.deepStrictEqual(plain(t.Termin.options.filter((o) => o.value === '99').map((o) => o.label)), ['Termin #99']);
+	assert.strictEqual(t.Termin.help, 'Angezeigt werden die nächsten 1 von 250 Terminen.');
+});
+
+test('A453: choosing another event resets the date', () => {
+	const block = loadBlock('events', { WPCAP_BLOCK_EVENTS: CHOICES });
+	const { tree, changes } = block.edit({ event: 5, occurrence: 51 });
+	selects(tree).Event.onChange('6');
+	assert.deepStrictEqual(plain(changes), [{ event: 6, occurrence: 0 }]);
+});

@@ -460,26 +460,70 @@ final class PublicEvents {
 		);
 	}
 
+	/** Most events listed in the events block selection. */
+	const BLOCK_CHOICE_EVENTS = 1000;
+	/** Most dates listed per event in the events block selection. */
+	const BLOCK_CHOICE_DATES = 100;
+
 	/**
-	 * Choices for the events block: published events with their upcoming dates. Labels carry the next
-	 * date (and the date for each occurrence) so events with the same name can be told apart.
+	 * Choices for the events block: published events with upcoming dates and, per event, its next
+	 * dates. Labels carry the next date (and the date for each occurrence) so events with the same
+	 * name can be told apart.
+	 *
+	 * A453: aggregated per event – every event with an upcoming date is listed (up to
+	 * BLOCK_CHOICE_EVENTS), however many dates other events have; per event its next
+	 * BLOCK_CHOICE_DATES dates. `dates` is the number of upcoming dates, `more` says the date list
+	 * is cut. The editor shows a saved selection that is not in the list as
+	 * "Event #X (nicht mehr verfügbar)" instead of silently as "Alle Events".
 	 *
 	 * @return array{events: array[]}
 	 */
 	public static function block_choices() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT e.event_id,e.name,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 500", current_time( 'mysql', true ) ) );
+		$now = current_time( 'mysql', true );
 		$events = array();
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT e.event_id,e.name,MIN(o.starts_at) AS next_start,COUNT(*) AS dates FROM {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s GROUP BY e.event_id,e.name ORDER BY next_start ASC,e.event_id ASC LIMIT %d",
+			$now,
+			self::BLOCK_CHOICE_EVENTS
+		) );
 		foreach ( (array) $rows as $row ) {
-			$id = (int) $row->event_id;
-			$when = Orders::format_start( $row->starts_at, $row->timezone );
-			if ( ! isset( $events[ $id ] ) ) {
-				$events[ $id ] = array( 'id' => $id, 'label' => wp_specialchars_decode( (string) $row->name, ENT_QUOTES ) . ' (' . $when . ', #' . $id . ')', 'occurrences' => array() );
-			}
-			$events[ $id ]['occurrences'][] = array( 'id' => (int) $row->occurrence_id, 'label' => $when );
+			$events[ (int) $row->event_id ] = array( 'name' => wp_specialchars_decode( (string) $row->name, ENT_QUOTES ), 'next' => (string) $row->next_start, 'dates' => (int) $row->dates, 'occurrences' => array() );
 		}
-		return array( 'events' => array_values( $events ) );
+		// Dates: events with at most BLOCK_CHOICE_DATES upcoming dates in batches, larger ones each
+		// with its own limit, so no event pushes the dates of others out of a shared row limit.
+		$small = array();
+		$queries = array();
+		foreach ( $events as $id => $event ) {
+			if ( $event['dates'] > self::BLOCK_CHOICE_DATES ) {
+				$queries[] = $wpdb->prepare( "SELECT o.event_id,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_occurrences o WHERE o.event_id=%d AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC,o.occurrence_id ASC LIMIT %d", $id, $now, self::BLOCK_CHOICE_DATES );
+			} else {
+				$small[] = (int) $id;
+			}
+		}
+		foreach ( array_chunk( $small, 50 ) as $chunk ) {
+			$queries[] = $wpdb->prepare( "SELECT o.event_id,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_occurrences o WHERE o.event_id IN (" . implode( ',', $chunk ) . ") AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC,o.occurrence_id ASC", $now ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		}
+		foreach ( $queries as $sql ) {
+			foreach ( (array) $wpdb->get_results( $sql ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
+				$id = (int) $row->event_id;
+				if ( ! isset( $events[ $id ] ) || count( $events[ $id ]['occurrences'] ) >= self::BLOCK_CHOICE_DATES ) { continue; }
+				$events[ $id ]['occurrences'][] = array( 'id' => (int) $row->occurrence_id, 'label' => Orders::format_start( $row->starts_at, $row->timezone ) );
+			}
+		}
+		$out = array();
+		foreach ( $events as $id => $event ) {
+			$when = $event['occurrences'] ? $event['occurrences'][0]['label'] : Orders::format_start( $event['next'], 'UTC' );
+			$out[] = array(
+				'id' => $id,
+				'label' => $event['name'] . ' (' . $when . ', #' . $id . ')',
+				'dates' => $event['dates'],
+				'more' => $event['dates'] > count( $event['occurrences'] ),
+				'occurrences' => $event['occurrences'],
+			);
+		}
+		return array( 'events' => $out );
 	}
 
 	/**
