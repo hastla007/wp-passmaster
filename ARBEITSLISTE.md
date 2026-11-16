@@ -1496,7 +1496,8 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [ ] **A688** [OPTIMIERUNG] Geräteliste: Paketablauf anzeigen; Massen-Check-in/-out mit Bestätigung, Ergebnisbericht, idempotentem Retry — _Konzept 15.11._ (TODO L1037; Konzept/Roadmap 2026-11-15)
 - [x] **A689** [OPTIMIERUNG] Erinnerungen: Opt-out und List-Unsubscribe — _Konzept 15.11._ (TODO L1054; Konzept/Roadmap 2026-11-15)
 - [ ] **A690** [OPTIMIERUNG] Konfigurierbare Begriffe (Teilnehmende/Gäste …) und weitere überschreibbare Vorlagen — _Konzept 15.11._ (TODO L1055; Konzept/Roadmap 2026-11-15)
-- [ ] **A691** [OPTIMIERUNG] Release-Matrix: Status je Funktion (vorhanden/teilweise/nicht geplant/Releaseziel) für Core und Pro — _Konzept 15.11._ (TODO L1062; Konzept/Roadmap 2026-11-15)
+- [x] **A691** [OPTIMIERUNG] Release-Matrix: Status je Funktion (vorhanden/teilweise/nicht geplant/Releaseziel) für Core und Pro — _Konzept 15.11._ (TODO L1062; Konzept/Roadmap 2026-11-15)
+  - Erledigt: `docs/RELEASE-MATRIX.md` – Funktionen im Marktvergleich (vorhanden/teilweise/offen/nicht geplant, Kern/Pro) und E2E-Abläufe mit automatisierter Prüfstelle und manuellem Rest.
 - [x] **A692** [OPTIMIERUNG] docs/WEBHOOKS.md veraltet (order.refunded existiert), Webhook-Version in die Vertragstabelle — _Konzept 15.11._ (TODO L1005; Konzept/Roadmap 2026-11-15)
 - [ ] **A693** [ENTSCHEIDUNG] Zoom-Adapter bauen? („bei Nachfrage“) — _Konzept 15.11._ (TODO L1051; Konzept/Roadmap 2026-11-15)
 - [ ] **A694** [ENTSCHEIDUNG] Mailchimp-Adapter bauen? („bei Nachfrage“) — _Konzept 15.11._ (TODO L1052; Konzept/Roadmap 2026-11-15)
