@@ -147,7 +147,7 @@ final class Webhooks {
 	/** Retryable error for a database failure while claiming an event (the endpoint answers 500). */
 	private static function db_error( $provider, $event_id, $step ) {
 		global $wpdb;
-		\PassCaptain\Log::error( 'webhook_db_error', 'Payment webhook hit a database error; the provider will retry.', array( 'object_type' => 'payment_event', 'object_id' => 0, 'details' => array( 'provider' => $provider, 'event_id' => $event_id, 'step' => $step, 'error' => substr( (string) $wpdb->last_error, 0, 200 ) ) ) );
+		\PassCaptain\Log::error( 'webhook_db_error', 'Payment webhook hit a database error; the provider will retry.', array( 'object_type' => 'payment_event', 'object_id' => 0, 'details' => array( 'provider' => $provider, 'event_id' => $event_id, 'step' => $step, 'error' => \PassCaptain\Text::cut( (string) $wpdb->last_error, 200 ) ) ) );
 		return new \WP_Error( 'wpcap_webhook_db_error', 'Database unavailable; retry later.', array( 'status' => 503, 'retryable' => true ) );
 	}
 
@@ -336,14 +336,14 @@ final class Webhooks {
 				return new \WP_Error( 'wpcap_webhook_db_error', 'Database unavailable; retry later.', array( 'status' => 503, 'retryable' => true ) );
 			}
 			if ( ! $reversed ) {
-				Audit::record( 'refund_failed_unknown', 'order', $order_id, array( 'provider' => $provider, 'reference' => substr( implode( ',', $refs ), 0, 150 ) ) );
+				Audit::record( 'refund_failed_unknown', 'order', $order_id, array( 'provider' => $provider, 'reference' => \PassCaptain\Text::cut( implode( ',', $refs ), 150 ) ) );
 				return 'ignored';
 			}
 			Cases::open( $order, $provider, 'refund_failed', (string) ( $refs[0] ?? '' ), (int) array_sum( array_map( static function ( $row ) { return (int) $row['amount_minor']; }, $reversed ) ), (string) $order->currency );
 			return 'refund_failed';
 		}
 		if ( 'dispute_opened' === $type ) {
-			Audit::record( 'payment_dispute_opened', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ), 'reference' => substr( sanitize_text_field( (string) ( $event['provider_reference'] ?? '' ) ), 0, 100 ) ) );
+			Audit::record( 'payment_dispute_opened', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ), 'reference' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $event['provider_reference'] ?? '' ) ), 100 ) ) );
 			self::alert( $order, __( 'Für diese Bestellung wurde beim Zahlungsanbieter eine Zahlungsanfechtung (Dispute/Chargeback) eröffnet. Bitte beim Anbieter reagieren. Wird das Geld zurückgebucht, verbucht Pass Captain die Erstattung automatisch und sperrt die Tickets.', 'pass-captain' ), $provider, $event );
 			return 'dispute_alerted';
 		}
@@ -402,7 +402,7 @@ final class Webhooks {
 			// meantime (checked under the row lock) is left alone.
 			$cancelled = Orders::cancel_order( $order_id, $provider . '_refund_unpaid', true );
 			if ( true === $cancelled ) {
-				Audit::record( 'provider_refund_unpaid_cancelled', 'order', $order_id, array( 'provider' => $provider, 'previous_status' => (string) $order->status, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ), 'reference' => substr( sanitize_text_field( (string) ( $event['provider_reference'] ?? '' ) ), 0, 100 ) ) );
+				Audit::record( 'provider_refund_unpaid_cancelled', 'order', $order_id, array( 'provider' => $provider, 'previous_status' => (string) $order->status, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ), 'reference' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $event['provider_reference'] ?? '' ) ), 100 ) ) );
 				return 'cancelled_unpaid';
 			}
 			if ( is_wp_error( $cancelled ) && 'wpcap_order_paid_state' !== $cancelled->get_error_code() ) {
@@ -428,7 +428,7 @@ final class Webhooks {
 			// Every external refund with its own id: booked one by one (a refund booked earlier is skipped).
 			$result = 'refund_already_booked';
 			foreach ( (array) ( $event['refunds'] ?? array() ) as $item ) {
-				$refund_id = substr( sanitize_text_field( (string) ( $item['refund_id'] ?? '' ) ), 0, 150 );
+				$refund_id = \PassCaptain\Text::cut( sanitize_text_field( (string) ( $item['refund_id'] ?? '' ) ), 150 );
 				$amount = (int) ( $item['amount_minor'] ?? 0 );
 				if ( '' === $refund_id || $amount <= 0 ) { continue; }
 				$current = Orders::get( $order_id );

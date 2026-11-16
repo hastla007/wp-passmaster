@@ -87,7 +87,7 @@ final class Refunder {
 			'tax_minor' => (int) $calc['tax_minor'],
 			'currency' => $order->currency,
 			'ticket_ids' => wp_json_encode( array_values( array_map( 'intval', $calc['ticket_ids'] ) ) ),
-			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
+			'reason' => \PassCaptain\Text::cut( sanitize_text_field( $reason ), 255 ),
 			'status' => $needs_approval ? 'pending_approval' : 'approved',
 			'requested_by' => $user,
 			'approved_by' => $needs_approval ? 0 : $user,

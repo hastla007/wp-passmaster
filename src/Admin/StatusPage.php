@@ -392,7 +392,7 @@ final class StatusPage {
 			$blocked = Installer::retry_blocked_until();
 			/* translators: 1: number of failed attempts, 2: time of the next automatic attempt */
 			echo '<p>' . esc_html( sprintf( __( 'Die Aktualisierung ist %1$d-mal in Folge fehlgeschlagen. Nächster automatischer Versuch: %2$s.', 'pass-captain' ), (int) ( $error['attempts'] ?? 1 ), $blocked ? get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $blocked ), 'Y-m-d H:i' ) : __( 'bei der nächsten Admin- oder Cron-Anfrage', 'pass-captain' ) ) ) . '</p>';
-			echo '<p><code>' . esc_html( substr( implode( ', ', array_merge( (array) ( $error['missing'] ?? array() ), (array) ( $error['errors'] ?? array() ) ) ), 0, 800 ) ) . '</code></p>';
+			echo '<p><code>' . esc_html( \PassCaptain\Text::cut( implode( ', ', array_merge( (array) ( $error['missing'] ?? array() ), (array) ( $error['errors'] ?? array() ) ) ), 800 ) ) . '</code></p>';
 		} else {
 			/* translators: 1: stored schema version, 2: expected schema version */
 			echo '<p>' . esc_html( sprintf( __( 'Gespeicherte Version %1$s, erwartet %2$s.', 'pass-captain' ), $stored, Installer::version() ) ) . '</p>';

@@ -308,7 +308,7 @@ final class Diagnostics {
 	public static function resolve_stuck_refund( $refund_id, $resolution, $reference = '' ) {
 		global $wpdb;
 		$refund_id = absint( $refund_id );
-		$reference = substr( sanitize_text_field( (string) $reference ), 0, 150 );
+		$reference = \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 150 );
 		if ( ! in_array( $resolution, array( 'completed', 'failed' ), true ) ) {
 			return new \WP_Error( 'wpcap_diag_resolution', __( 'Ungültige Auswahl.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -323,7 +323,7 @@ final class Diagnostics {
 			$changed = $wpdb->update( "{$wpdb->prefix}wpcap_refunds", array( 'provider_reference' => $note, 'updated_at' => $now ), array( 'refund_id' => $refund_id, 'status' => 'processing', 'provider_reference' => '' ) );
 		} else {
 			$message = __( 'Manuell als fehlgeschlagen markiert (keine Auszahlung beim Anbieter).', 'pass-captain' ) . ( '' !== $reference ? ' ' . $reference : '' );
-			$changed = $wpdb->update( "{$wpdb->prefix}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $message, 0, 255 ), 'updated_at' => $now ), array( 'refund_id' => $refund_id, 'status' => 'processing', 'provider_reference' => '' ) );
+			$changed = $wpdb->update( "{$wpdb->prefix}wpcap_refunds", array( 'status' => 'failed', 'error_message' => \PassCaptain\Text::cut( $message, 255 ), 'updated_at' => $now ), array( 'refund_id' => $refund_id, 'status' => 'processing', 'provider_reference' => '' ) );
 		}
 		if ( 1 !== (int) $changed ) {
 			return new \WP_Error( 'wpcap_diag_refund_state', __( 'Die Erstattung wartet nicht (mehr) auf eine manuelle Prüfung.', 'pass-captain' ), array( 'status' => 409 ) );

@@ -2578,7 +2578,7 @@ final class Orders {
 		$busy = static function ( $step, $order = null ) use ( $wpdb, $order_id, $reason ) {
 			$error = (string) $wpdb->last_error;
 			$wpdb->query( 'ROLLBACK' );
-			Log::error( 'order_state_db_error', 'Order state change hit a database error.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) ) );
+			Log::error( 'order_state_db_error', 'Order state change hit a database error.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => \PassCaptain\Text::cut( $error, 200 ) ) ) );
 			Audit::record( 'order_cancel_failed', 'order', $order_id, array( 'step' => sanitize_key( $step ) ) );
 			if ( $order ) {
 				// Safety net for callers that cannot retry themselves (hooks, sweeps): a job repeats the
@@ -2685,7 +2685,7 @@ final class Orders {
 		$busy = static function ( $step ) use ( $wpdb, $order_id, $reason ) {
 			$error = (string) $wpdb->last_error;
 			$wpdb->query( 'ROLLBACK' );
-			Log::error( 'order_state_db_error', 'Order state change hit a database error.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) ) );
+			Log::error( 'order_state_db_error', 'Order state change hit a database error.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => \PassCaptain\Text::cut( $error, 200 ) ) ) );
 			Audit::record( 'order_refund_mark_failed', 'order', $order_id, array( 'step' => sanitize_key( $step ) ) );
 			Jobs::enqueue( 'order-refund-mark-retry|' . $order_id, 'order_refund_mark_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason ), gmdate( 'Y-m-d H:i:s', Clock::now() + 2 * MINUTE_IN_SECONDS ) );
 			return Errors::busy( __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'pass-captain' ), 'wpcap_db_busy', array( 'step' => (string) $step ) );
@@ -3526,7 +3526,7 @@ final class Orders {
 		// (detected by in_transaction(); the error text may be gone by then). Retried inline.
 		$busy = DbSession::is_busy_error( $error ) || 'ticket_hook' === (string) $step;
 		$wpdb->query( 'ROLLBACK' );
-		Log::error( 'ticket_issue_failed', 'Ticket issuance failed and was rolled back; a retry is queued.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) ) );
+		Log::error( 'ticket_issue_failed', 'Ticket issuance failed and was rolled back; a retry is queued.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'step' => sanitize_key( $step ), 'error' => \PassCaptain\Text::cut( $error, 200 ) ) ) );
 		Audit::record( 'ticket_issue_failed', 'order', absint( $order_id ), array( 'step' => (string) $step ) );
 		if ( ! self::$issuing_from_job && $order_id ) {
 			// One retry job per order and minute; the job queue retries it with backoff.

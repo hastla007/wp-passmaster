@@ -129,7 +129,7 @@ final class Import {
 		$wpdb->query( 'START TRANSACTION' );
 		try {
 			foreach ( $plan['events'] as $event ) {
-				$slug = substr( sanitize_title( $event['name'] ), 0, 180 ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
+				$slug = \PassCaptain\Text::cut( sanitize_title( $event['name'] ), 180 ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
 				if ( ! $wpdb->insert( $p . 'wpcap_events', array( 'name' => $event['name'], 'slug' => $slug, 'description' => $event['description'], 'status' => 'draft', 'created_at' => $now, 'updated_at' => $now ) ) ) { throw new \RuntimeException( 'event' ); }
 				$event_id = (int) $wpdb->insert_id;
 				$counts['event_ids'][] = $event_id;

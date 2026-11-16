@@ -106,6 +106,13 @@ final class CheckoutThrottle {
 		$counters = array();
 		if ( $per_network ) {
 			$counters['hold'] = array( 'wpcap_checkout_ip_' . $net_hash, $ip_limit, HOUR_IN_SECONDS );
+			$client_ip = RateLimit::client_ip();
+			if ( \PassCaptain\ClientIp::is_ipv6( $client_ip ) ) {
+				// A280: the /48 around the client's /64 shares `wpcap_rate_limit_ipv6_network_factor` (4) times the limit,
+				// so rotating /64s of one allocation cannot multiply it.
+				$net_factor = max( 1, (int) apply_filters( 'wpcap_rate_limit_ipv6_network_factor', 4 ) );
+				$counters['hold48'] = array( 'wpcap_checkout_ip48_' . Orders::rate_hash( \PassCaptain\ClientIp::limit_key( $client_ip, 48 ) ), self::times( $ip_limit, $net_factor ), HOUR_IN_SECONDS );
+			}
 			$counters['unpaid'] = array( 'wpcap_checkout_unpaid_' . $net_hash, $unpaid_limit, max( 1, min( 60, (int) $hold_minutes ) ) * MINUTE_IN_SECONDS );
 		}
 		$counters['email'] = array( 'wpcap_checkout_' . $buyer_hash, self::EMAIL_LIMIT, HOUR_IN_SECONDS );

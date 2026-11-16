@@ -71,7 +71,7 @@ final class I18n {
 			$language = strtolower( strtok( $locale, '_' ) );
 			if ( ! isset( $by_language[ $language ] ) ) { $by_language[ $language ] = $locale; }
 		}
-		foreach ( array_slice( explode( ',', substr( (string) $requested, 0, 200 ) ), 0, 10 ) as $tag ) {
+		foreach ( array_slice( explode( ',', \PassCaptain\Text::cut( (string) $requested, 200 ) ), 0, 10 ) as $tag ) {
 			$tag = trim( (string) preg_replace( '/;.*$/', '', $tag ) );
 			if ( ! preg_match( '/^([A-Za-z]{2,3})(?:[-_]([A-Za-z0-9]{2,8}))?(?:[-_][A-Za-z0-9]{2,8})*$/', $tag, $m ) ) { continue; }
 			$language = strtolower( $m[1] );

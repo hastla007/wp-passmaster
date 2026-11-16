@@ -597,21 +597,25 @@ final class Queries {
 				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', $search );
 			} else {
 				$or = array( 'ord.public_id LIKE %s', 'ord.customer_email LIKE %s' );
-				// A leading "@" searches by domain (suffix).
-				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', '@' === $search[0] ? '%' . self::like( $search ) : $part );
+				// E-mail: prefix search ("anna", "anna@exa") on the customer_email index; a leading "@" searches
+				// by domain (suffix, documented full scan). PERF-15.
+				array_push( $args, self::like( '' !== $id_prefix ? $id_prefix : strtolower( $search ) ) . '%', '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%' );
 			}
 			// A336: buyer name/company (billing data) and attendee names, as far as the user may see them.
-			if ( \PassCaptain\Pii::can_view( 'buyer_name' ) || \PassCaptain\Pii::can_view( 'billing' ) ) {
+			// R7: names only from 3 characters on (no accidental full scans for "Zo").
+			$names = '@' !== $search[0] && mb_strlen( $search ) >= 3;
+			if ( $names && ( \PassCaptain\Pii::can_view( 'buyer_name' ) || \PassCaptain\Pii::can_view( 'billing' ) ) ) {
 				list( $billing_sql, $billing_args ) = self::billing_words_sql( 'ord.billing', $search );
 				if ( '' !== $billing_sql ) { $or[] = $billing_sql; array_push( $args, ...$billing_args ); }
 			}
-			if ( \PassCaptain\Pii::can_view( 'attendee_name' ) ) {
+			if ( $names && \PassCaptain\Pii::can_view( 'attendee_name' ) ) {
 				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st INNER JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND sa.attendee_name LIKE %s)";
 				$args[] = $part;
 			}
 			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) {
 				$or[] = "EXISTS (SELECT 1 FROM {$p}wpcap_tickets st LEFT JOIN {$p}wpcap_ticket_assignments sa ON sa.ticket_id=st.ticket_id WHERE st.order_id=ord.order_id AND (st.attendee_email LIKE %s OR sa.attendee_email LIKE %s))";
-				array_push( $args, $part, $part );
+				$email_part = is_email( $search ) ? self::like( $search ) : ( '@' === $search[0] ? '%' . self::like( $search ) : self::like( $search ) . '%' );
+				array_push( $args, $email_part, $email_part );
 			}
 			if ( '' !== $id_prefix && strlen( $id_prefix ) >= 8 ) {
 				// A ticket number of the order (ticket list, PDF) finds the order, too.

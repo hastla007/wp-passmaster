@@ -247,8 +247,8 @@ final class Jobs {
 		$message = Security\Redact::text( get_class( $e ) . ': ' . $e->getMessage() );
 		$type = (string) ( $row->job_type ?? $row->template_key ?? '' );
 		$id = (int) ( $row->job_id ?? $row->message_id ?? 0 );
-		Log::error( 'queue_handler_exception', sprintf( 'Handler of %s #%d threw %s', '' !== $type ? $type : 'item', $id, $message ), array( 'object_type' => 'job', 'object_id' => $id, 'details' => array( 'type' => sanitize_key( $type ), 'exception' => get_class( $e ), 'message' => substr( $message, 0, 300 ) ) ) );
-		return new \WP_Error( 'wpcap_job_exception', substr( sprintf( 'Handler threw %s', $message ), 0, 190 ) );
+		Log::error( 'queue_handler_exception', sprintf( 'Handler of %s #%d threw %s', '' !== $type ? $type : 'item', $id, $message ), array( 'object_type' => 'job', 'object_id' => $id, 'details' => array( 'type' => sanitize_key( $type ), 'exception' => get_class( $e ), 'message' => \PassCaptain\Text::cut( $message, 300 ) ) ) );
+		return new \WP_Error( 'wpcap_job_exception', \PassCaptain\Text::cut( sprintf( 'Handler threw %s', $message ), 190 ) );
 	}
 
 	/** Rolls back a transaction a throwing handler may have left open (no-op otherwise). */
@@ -270,7 +270,7 @@ final class Jobs {
 			if ( false !== $wpdb->update( $table, $data, $where, $format, $where_format ) ) { return true; }
 			if ( $attempt < $tries ) { usleep( 20000 * $attempt ); }
 		}
-		Log::error( 'queue_status_update_failed', sprintf( 'final status update on %s failed: %s', $table, (string) $wpdb->last_error ), array( 'details' => array( 'table' => (string) $table, 'where' => $where, 'status' => (string) ( $data['status'] ?? '' ), 'error' => substr( (string) $wpdb->last_error, 0, 190 ) ) ) );
+		Log::error( 'queue_status_update_failed', sprintf( 'final status update on %s failed: %s', $table, (string) $wpdb->last_error ), array( 'details' => array( 'table' => (string) $table, 'where' => $where, 'status' => (string) ( $data['status'] ?? '' ), 'error' => \PassCaptain\Text::cut( (string) $wpdb->last_error, 190 ) ) ) );
 		return false;
 	}
 

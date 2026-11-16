@@ -139,7 +139,7 @@ final class DataPolicy {
 		$list[ $order_id ] = time() + self::UNMASK_SECONDS;
 		set_transient( self::unmask_key(), $list, self::UNMASK_SECONDS );
 		self::$unmasked[ get_current_user_id() ] = $list;
-		Audit::record( 'pii_unmasked', 'order', $order_id, array( 'reason' => substr( $reason, 0, 190 ), 'minutes' => (int) ( self::UNMASK_SECONDS / 60 ) ) );
+		Audit::record( 'pii_unmasked', 'order', $order_id, array( 'reason' => \PassCaptain\Text::cut( $reason, 190 ), 'minutes' => (int) ( self::UNMASK_SECONDS / 60 ) ) );
 		return array( 'order_id' => $order_id, 'expires_in' => self::UNMASK_SECONDS );
 	}
 
