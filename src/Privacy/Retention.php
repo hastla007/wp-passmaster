@@ -88,12 +88,20 @@ final class Retention {
 	 * Documents issued before this UTC time may be deleted ('' = keep everything). With N years, a
 	 * document from year Y may go once Y + N has ended: cutoff = 1 January (current year - N).
 	 *
+	 * A605: years are calendar years of the site time zone (the business year of the documents),
+	 * not UTC years: the cutoff is 1 January 00:00 site time, converted to UTC (issued_at is UTC). A
+	 * document issued on 1 January shortly after midnight in Vienna (still 31 December in UTC) thus
+	 * belongs to the new year and is not deleted a year early.
+	 *
 	 * @param int $now Reference time (UNIX).
 	 */
 	public static function financial_cutoff( $now ) {
 		$years = self::financial_years();
 		if ( ! $years ) { return ''; }
-		return sprintf( '%04d-01-01 00:00:00', (int) gmdate( 'Y', (int) $now ) - $years );
+		$zone = \PassCaptain\Frontend\Format::site_timezone();
+		$year = (int) ( new \DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $zone )->format( 'Y' );
+		$start = new \DateTimeImmutable( sprintf( '%04d-01-01 00:00:00', $year - $years ), $zone );
+		return $start->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 	}
 
 	/** Global attendee retention (setting); 0 = per-field setting for answers, default for names. */

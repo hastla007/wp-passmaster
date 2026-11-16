@@ -758,7 +758,7 @@ Für Bar- und Kartenzahlungen vor Ort deshalb eine zertifizierte Kasse verwenden
 | Gästelisten-Einträge | wie Teilnehmername/-E-Mail | Name, E-Mail, Firma, Notiz geleert; Anzahl/Status bleiben |
 | Käuferlimit-Zähler | wie Teilnehmername/-E-Mail (nach dem letzten Termin des Events) | gelöscht |
 | Ticketcodes von Partnerverkäufen | 30 Tage nach Terminende (Einstellung) | gelöscht |
-| Rechnungen mit Positionen, Rechnungskorrekturen; Kassenschichten mit Z-Bericht, Zählungen, Buchungen, Übergaben und Verkaufsbelegen | Einstellung „Rechnungen und Rechnungskorrekturen löschen nach (Jahren)“, Standard 0 = nie; Frist ab Ende des Ausstellungs- bzw. Abschlussjahres; eine Rechnung bleibt, solange eine ihrer Korrekturen noch in der Frist ist (`wpcap_financial_retention_years`) | gelöscht; Käufer-E-Mail, Rechnungsanschrift und Bestelllink der betroffenen Bestellungen pseudonymisiert, Beträge bleiben |
+| Rechnungen mit Positionen, Rechnungskorrekturen; Kassenschichten mit Z-Bericht, Zählungen, Buchungen, Übergaben und Verkaufsbelegen | Einstellung „Rechnungen und Rechnungskorrekturen löschen nach (Jahren)“, Standard 0 = nie; Frist ab Ende des Ausstellungs- bzw. Abschlussjahres (Kalenderjahr der Website-Zeitzone, Stichtag 1. Januar 00:00 Ortszeit, A605); eine Rechnung bleibt, solange eine ihrer Korrekturen noch in der Frist ist (`wpcap_financial_retention_years`) | gelöscht; Käufer-E-Mail, Rechnungsanschrift und Bestelllink der betroffenen Bestellungen pseudonymisiert, Beträge bleiben |
 
 **Stündliche Aufräumung abgeschlossener Zeilen** (A444, `Privacy\Retention::housekeeping()` im Cron
 `wpcap_cleanup_reservations`, Stapel zu 500 Zeilen, Zeitbudget 10 s, Filter `wpcap_cleanup_budget`; der nächste
