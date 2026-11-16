@@ -114,18 +114,20 @@ automatische Rechnungserstellung aktiv, entsteht – wie bei anderen 0-€-Beste
 - **Namenssuche** (Admin-Seite oder REST, nur ausgestellte Einträge, keine E-Mail-Adressen in der
   Antwort): nach Name, Firma oder Kurzcode.
 - **Angekommen** checkt die angegebene Anzahl (Standard: alle) noch gültiger Tickets des Eintrags über
-  den normalen Check-in-Dienst (`Checkin::perform`, Quelle `guestlist`) ein – Event-Zuweisung,
-  Einlassregeln, Check-in-Protokoll und Berichte gelten wie beim Scannen. Da nur Code-Hashes
-  gespeichert sind, erhält jedes Ticket dafür einen neuen Code (wie beim Drucken); der gemailte QR-Code
-  wird damit ungültig. Bei Tickets mit Mehrfacheinlass muss der Gast für einen Wiedereinlass erneut
-  über die Namenssuche eingelassen werden.
+  den normalen Check-in-Dienst ein, und zwar per Ticket-ID (`Checkin::perform_ticket`, Quelle
+  `guestlist`) – Event-Zuweisung, Einlassbereich, Einlassregeln, Zeilensperre, Check-in-Protokoll und
+  Berichte gelten wie beim Scannen. Die Ticketcodes bleiben unverändert (A591): Wird der Check-in
+  abgelehnt (z. B. Einlassfenster noch nicht offen, falscher Bereich), bleibt der gemailte QR-Code des
+  Gastes gültig; bei Tickets mit Mehrfacheinlass funktioniert er auch nach der Ankunft weiter. Hat das
+  Event Einlassbereiche, wählt die Admin-Seite den Bereich (vorbelegt mit dem ersten, in dem die Person
+  scannen darf); per REST mit `area_id`.
 
 REST (Cookie-Anmeldung + REST-Nonce, Recht `wpcap_checkin` oder `wpcap_manage_events`, Event-Zuweisung
 wird je Termin/Eintrag geprüft):
 
 ```
 GET  /wp-json/pass-captain/v1/guestlists/search?occurrence_id=12&q=muster
-POST /wp-json/pass-captain/v1/guestlists/entries/{entry_id}/arrive   {"count": 2}
+POST /wp-json/pass-captain/v1/guestlists/entries/{entry_id}/arrive   {"count": 2, "area_id": 3}
 GET  /wp-json/pass-captain/v1/guestlists/will-call?occurrence_id=12
 ```
 

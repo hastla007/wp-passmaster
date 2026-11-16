@@ -36,6 +36,12 @@ final class TicketAssignments {
 		// Every holder change rotates the code; limit them so assign cannot be used for repeated resale
 		// (the transfer itself is limited to one). Name/answer corrections for the same holder stay free.
 		if ( $rotate ) {
+			// A593: a new holder gets a new code – not once admission has begun or the code is on offline scanners.
+			$locked = Admission\CodeRotationLock::reason( (int) $ticket->ticket_id );
+			if ( '' !== $locked ) {
+				$wpdb->query( 'ROLLBACK' );
+				return Admission\CodeRotationLock::error( $locked );
+			}
 			$max_changes = max( 0, (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) );
 			if ( self::holder_changes( (int) $ticket->ticket_id ) >= $max_changes ) {
 				$wpdb->query( 'ROLLBACK' );

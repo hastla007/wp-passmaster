@@ -214,27 +214,45 @@ final class Engine {
 
 	/**
 	 * Takes back the latest entry of a ticket with a repeatable policy (ticket status stays valid).
+	 * Refused for refunded tickets, tickets of closed orders and outside the area binding of staff and
+	 * device (Checkin::undo_guard(), A590). The undo row carries device and source; the audit entry
+	 * also the area of the undone entry.
 	 *
+	 * @param array $context Scanner context: device_id, area_id, source.
 	 * @return array|\WP_Error
 	 */
-	public static function undo_last( array $found, $reason = '' ) {
+	public static function undo_last( array $found, $reason = '', array $context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( 'START TRANSACTION' );
+		$busy = static function () use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Einlass konnte gerade nicht zurückgenommen werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		};
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$wpdb->get_row( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $found['ticket_id'] ) );
+		if ( '' !== $wpdb->last_error ) { return $busy(); }
 		self::state_for_update( $found['ticket_id'] );
 		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT 1", (int) $found['ticket_id'] ) );
 		if ( ! $entry ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), array( 'status' => 409, 'result' => 'not_checked_in' ) );
 		}
+		$guard = \PassCaptain\Checkin::undo_guard( (int) $found['ticket_id'], $context );
+		if ( is_wp_error( $guard ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return $guard;
+		}
 		$now = current_time( 'mysql', true );
-		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'created_at' => $now ) );
-		$undo_id = (int) $wpdb->insert_id;
+		$device_id = absint( $context['device_id'] ?? 0 );
+		$source = sanitize_key( (string) ( $context['source'] ?? '' ) );
+		$source = '' !== $source ? $source : 'admin';
+		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'device_id' => $device_id, 'source' => $source, 'created_at' => $now ) );
+		$undo_id = '' === $wpdb->last_error ? (int) $wpdb->insert_id : 0;
+		if ( ! $undo_id ) { return $busy(); }
 		$wpdb->update( "{$p}wpcap_admission_entries", array( 'undone' => 1 ), array( 'entry_id' => (int) $entry->entry_id ) );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-1,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $undo_id, $now, (int) $found['ticket_id'] ) );
-		$wpdb->query( 'COMMIT' );
-		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => mb_substr( sanitize_text_field( (string) $reason ), 0, 255 ) ) );
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
+		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => mb_substr( sanitize_text_field( (string) $reason ), 0, 255 ), 'device_id' => $device_id, 'area_id' => (int) $guard['area_id'], 'source' => $source ) );
 		return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'] );
 	}
 

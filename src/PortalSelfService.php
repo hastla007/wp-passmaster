@@ -184,7 +184,8 @@ final class PortalSelfService {
 		}
 		$codes = array();
 		$rotated = array();
-		foreach ( $selected as $ticket ) {
+		$locked_reason = '';
+		foreach ( $selected as $i => $ticket ) {
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status,refunded,token_hash FROM {$p}wpcap_tickets WHERE ticket_id=%d AND order_id=%d FOR UPDATE", (int) $ticket->ticket_id, (int) $order->order_id ) );
 			if ( ! $row || 'valid' !== $row->status || (int) $row->refunded ) {
 				$wpdb->query( 'ROLLBACK' );
@@ -192,6 +193,14 @@ final class PortalSelfService {
 			}
 			$code = self::known_code( (int) $row->ticket_id, (string) $row->token_hash );
 			if ( '' === $code ) {
+				// A593: no new code once admission has begun or the code is on offline scanners ("all"
+				// leaves such tickets out of the PDF).
+				$locked = \PassCaptain\Admission\CodeRotationLock::reason( (int) $row->ticket_id );
+				if ( '' !== $locked ) {
+					$locked_reason = $locked;
+					unset( $selected[ $i ] );
+					continue;
+				}
 				$code = bin2hex( random_bytes( 32 ) );
 				$updated = $wpdb->update( "{$p}wpcap_tickets", array( 'token_hash' => hash( 'sha256', $code ) ), array( 'ticket_id' => (int) $row->ticket_id, 'status' => 'valid', 'token_hash' => (string) $row->token_hash ), array( '%s' ), array( '%d', '%s', '%s' ) );
 				if ( 1 !== (int) $updated ) {
@@ -201,6 +210,10 @@ final class PortalSelfService {
 				$rotated[ (int) $row->ticket_id ] = $code;
 			}
 			$codes[ (int) $row->ticket_id ] = $code;
+		}
+		if ( ! $selected ) {
+			$wpdb->query( 'ROLLBACK' );
+			return \PassCaptain\Admission\CodeRotationLock::error( $locked_reason );
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );

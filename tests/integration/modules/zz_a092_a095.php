@@ -95,8 +95,9 @@ check( 'A093 preview shows area_full; refusal has a clear message and code', ! i
 check( 'A093 an area without capacity is not limited', 'checked_in' === adm_in( $c['codes'][2], $c_t + 30, array( 'area_id' => $c_free ) ) );
 check( 'A093 a check-out frees a place in the area', 'checked_out' === adm_out( $c['codes'][0], $c_t + 40, $c_ctx ) && 'checked_in' === adm_in( $c['codes'][3], $c_t + 50, $c_ctx ) && 'area_full' === adm_in( $c['codes'][0], $c_t + 60, $c_ctx ) );
 check( 'A093 presence per area matches', 2 === PassCaptain\Admission\Engine::presence( $c['occ'] )['by_area'][ $c_area ] && 2 === Areas::present( $c_area, $c['occ'] ) );
-$c_off = adm_in( $c['codes'][4], $c_t + 70, $c_ctx + array( 'source' => 'offline', 'scanned_at' => gmdate( 'Y-m-d H:i:s', $c_t + 65 ) ) );
-check( 'A093 offline uploads (already admitted on the device) are not refused for capacity', 'checked_in' === $c_off );
+// A592: only uploads of a paired device are exempt (the device admitted the person); see zz_a589_a594.php.
+$c_off = adm_in( $c['codes'][4], $c_t + 70, $c_ctx + array( 'source' => 'offline', 'device_id' => 1, 'event_ids' => array( $c['event'] ), 'scanned_at' => gmdate( 'Y-m-d H:i:s', $c_t + 65 ) ) );
+check( 'A093 offline uploads of a paired device (already admitted on the device) are not refused for capacity', 'checked_in' === $c_off );
 $GLOBALS['wpcap_test_filters']['wpcap_admission_area_capacity'] = 10;
 check( 'A093 capacity is filterable (wpcap_admission_area_capacity)', 'checked_in' === adm_in( $c['codes'][0], $c_t + 80, $c_ctx ) );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_admission_area_capacity'] );

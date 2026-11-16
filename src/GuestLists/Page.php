@@ -118,7 +118,7 @@ final class Page {
 		Forms::require_any_cap( array( Service::CHECKIN_CAP, Service::MANAGE_CAP ) );
 		Forms::verify( 'wpcap_gl_arrive' );
 		$in = Forms::post();
-		$result = Service::arrive( Forms::int( $in, 'entry_id' ), Forms::int( $in, 'count' ) );
+		$result = Service::arrive( Forms::int( $in, 'entry_id' ), Forms::int( $in, 'count' ), Forms::int( $in, 'area_id' ) );
 		$message = '';
 		if ( ! is_wp_error( $result ) ) {
 			/* translators: 1: checked in tickets, 2: remaining tickets */
@@ -323,6 +323,9 @@ final class Page {
 		$results = Service::can_checkin( $event_id ) ? Service::search( $occurrence_id, $q ) : array();
 		if ( is_wp_error( $results ) || ! $results ) { echo '<p>' . esc_html__( 'Kein ausgestellter Gästelisten-Eintrag gefunden.', 'pass-captain' ) . '</p>'; return; }
 		\PassCaptain\Privacy\AccessLog::list_view( 'guestlist_checkin', array( 'q' => $q ), count( $results ), 'occurrence', $occurrence_id );
+		// Entrance areas the user may scan in for this event (A591): the arrival is checked in there.
+		$areas = array();
+		foreach ( \PassCaptain\Admission\Areas::selectable( array( (int) $event_id ) ) as $area ) { $areas[ (int) $area->area_id ] = $area->name; }
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Name', 'pass-captain' ) . '</th><th>' . esc_html__( 'Firma', 'pass-captain' ) . '</th><th>' . esc_html__( 'Liste', 'pass-captain' ) . '</th><th>' . esc_html__( 'Personen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Codes', 'pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt', 'pass-captain' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $results as $r ) {
 			echo '<tr><td>' . esc_html( $r['name'] ) . '</td><td>' . esc_html( $r['company'] ) . '</td><td>' . esc_html( $r['list'] ) . '</td><td>' . (int) $r['quantity'] . '</td><td><code>' . esc_html( implode( ' ', $r['codes'] ) ) . '</code></td><td>' . (int) $r['tickets_checked_in'] . ' / ' . (int) $r['quantity'] . '</td><td>';
@@ -332,6 +335,10 @@ final class Page {
 				Forms::hidden( 'event_id', $event_id );
 				Forms::hidden( 'occurrence_id', $occurrence_id );
 				Forms::hidden( 'q', $q );
+				if ( $areas ) {
+					Forms::select( 'area_id', array( 0 => __( 'Kein Bereich', 'pass-captain' ) ) + $areas, (int) array_key_first( $areas ), '', 'aria-label="' . esc_attr__( 'Einlassbereich', 'pass-captain' ) . '"' );
+					echo ' ';
+				}
 				echo '<input type="number" name="count" min="1" max="' . (int) $r['tickets_valid'] . '" value="' . (int) $r['tickets_valid'] . '" style="width:4em" aria-label="' . esc_attr__( 'Anzahl Personen', 'pass-captain' ) . '"> <button class="button button-primary">' . esc_html__( 'Angekommen', 'pass-captain' ) . '</button></form>';
 			}
 			echo '</td></tr>';

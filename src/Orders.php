@@ -1786,6 +1786,12 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_holder_changed', __( 'Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
+		// A593: the transfer rotates the code – not once admission has begun or the code is on offline scanners.
+		$locked = Admission\CodeRotationLock::reason( (int) $ticket->ticket_id );
+		if ( '' !== $locked ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Admission\CodeRotationLock::error( $locked );
+		}
 		$previous_holder = Consents::holder_email_of( (int) $ticket->ticket_id );
 		$token = bin2hex( random_bytes( 32 ) );
 		$updated = $wpdb->update( $tickets_table, array(
@@ -2358,6 +2364,20 @@ final class Orders {
 		) );
 		// Checked-in tickets are skipped: they are used, and rotating them would only invalidate the
 		// holder's admission history link.
+		$locked = '';
+		if ( $tickets && ! empty( $args['self_service'] ) ) {
+			// A593: the buyer's own resend leaves tickets alone whose admission has begun or whose code
+			// is on offline scanners (Admission\CodeRotationLock); staff resends are not limited.
+			$tickets = array_values( array_filter( $tickets, static function ( $ticket ) use ( &$locked ) {
+				$reason = Admission\CodeRotationLock::reason( (int) $ticket->ticket_id );
+				if ( '' !== $reason && '' === $locked ) { $locked = $reason; }
+				return '' === $reason;
+			} ) );
+			if ( ! $tickets && '' !== $locked ) {
+				$wpdb->query( 'ROLLBACK' );
+				return Admission\CodeRotationLock::error( $locked );
+			}
+		}
 		if ( ! $tickets ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'pass-captain' ) );

@@ -50,7 +50,9 @@ final class Rest {
 
 	/**
 	 * Uploads scans queued by the web scanner while offline (1–100). Rejected check-ins of known
-	 * tickets are recorded as admission conflicts; repeated uploads are idempotent per key.
+	 * tickets are recorded as admission conflicts; repeated uploads are idempotent per key, so every
+	 * scan needs its own idempotency_key (A589; without one: result "invalid"). A scan the server could
+	 * not book (database busy) comes back with `retryable: true` and stays in the queue (A345).
 	 */
 	public static function offline_sync( \WP_REST_Request $request ) {
 		$scans = $request->get_param( 'scans' );
@@ -63,12 +65,18 @@ final class Rest {
 			if ( ! is_array( $scan ) ) { $scan = array( 'token' => (string) $scan ); }
 			$token = sanitize_text_field( (string) ( $scan['token'] ?? '' ) );
 			$key = sanitize_text_field( (string) ( $scan['idempotency_key'] ?? '' ) );
-			$context = array( 'source' => 'offline', 'area_id' => absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '', 'occurrence_id' => absint( $scan['occurrence_id'] ?? 0 ) );
+			if ( '' === $key ) {
+				$results[] = array( 'status' => 'conflict', 'result' => 'invalid', 'code' => 'wpcap_idempotency_required', 'message' => __( 'idempotency_key ist erforderlich.', 'pass-captain' ), 'idempotency_key' => '' );
+				continue;
+			}
+			$context = array( 'source' => 'offline', 'area_id' => absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => 'web:' . $key, 'occurrence_id' => absint( $scan['occurrence_id'] ?? 0 ) );
 			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
 			if ( $scanned && $scanned <= $now + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
 			$outcome = $out ? Checkin::check_out( $token, $context ) : Checkin::perform( $token, $context );
-			if ( is_wp_error( $outcome ) ) {
+			if ( is_wp_error( $outcome ) && \PassCaptain\Errors::is_busy( $outcome ) ) {
+				$results[] = array( 'status' => 'retry', 'result' => 'retry', 'retryable' => true, 'code' => $outcome->get_error_code(), 'message' => $outcome->get_error_message(), 'idempotency_key' => $key );
+			} elseif ( is_wp_error( $outcome ) ) {
 				$data = (array) $outcome->get_error_data();
 				$results[] = array_filter( array( 'status' => 'conflict', 'result' => (string) ( $data['result'] ?? 'error' ), 'code' => $outcome->get_error_code(), 'message' => $outcome->get_error_message(), 'conflict_id' => isset( $data['conflict_id'] ) ? (int) $data['conflict_id'] : null, 'idempotency_key' => $key ), static function ( $v ) { return null !== $v; } );
 			} else {

@@ -143,22 +143,34 @@ final class Api {
 		return self::scan_response( Checkin::check_out( $request->get_param( 'code' ), $context ) );
 	}
 
+	/**
+	 * Takes back the latest admission of a ticket. The device's events, the area binding of device and
+	 * user and the void check apply (Checkin::undo_guard(), A590); the undo is logged with the device.
+	 */
 	public static function undo( \WP_REST_Request $request ) {
-		$found = Checkin::lookup( $request->get_param( 'code' ) );
-		if ( is_wp_error( $found ) ) { return self::scan_response( $found ); }
-		if ( ! in_array( (int) $found['event_id'], Devices::event_ids( Devices::current() ), true ) ) {
+		$context = self::context( $request );
+		$found = Checkin::lookup( $request->get_param( 'code' ), null, true, $context );
+		if ( is_wp_error( $found ) ) { return self::scan_response( Checkin::public_error( $found ) ); }
+		if ( ! in_array( (int) $found['event_id'], $context['event_ids'], true ) ) {
 			return self::scan_response( new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'pass-captain' ), array( 'result' => 'wrong_event' ) ) );
 		}
+		if ( ! \PassCaptain\Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin' ) ) {
+			return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
+		}
+		$context['source'] = 'app';
 		$policy = Policies::for_type( $found['ticket_type_id'] );
 		if ( $policy && 'single' !== $policy['policy'] ) {
-			if ( ! \PassCaptain\Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin' ) ) {
-				return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
-			}
-			$result = Engine::undo_last( $found, (string) $request->get_param( 'reason' ) );
+			$result = Engine::undo_last( $found, (string) $request->get_param( 'reason' ), $context );
 		} else {
-			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => (string) $request->get_param( 'reason' ) ) );
+			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => (string) $request->get_param( 'reason' ) ), $context );
 		}
-		if ( is_wp_error( $result ) ) { return self::scan_response( $result ); }
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			$codes = array( 'wpcap_undo_wrong_area' => 'wrong_area', 'wpcap_undo_refunded' => 'revoked', 'wpcap_ticket_not_checked_in' => 'not_checked_in', 'wpcap_admin_forbidden' => 'forbidden', 'wpcap_ticket_missing' => 'unknown' );
+			if ( empty( $data['result'] ) ) { $data['result'] = $codes[ $result->get_error_code() ] ?? ( 503 === (int) ( $data['status'] ?? 0 ) ? 'retry' : 'error' ); }
+			if ( 503 === (int) ( $data['status'] ?? 0 ) ) { $data['retryable'] = true; }
+			return self::scan_response( new \WP_Error( $result->get_error_code(), $result->get_error_message(), $data ) );
+		}
 		return rest_ensure_response( array( 'ok' => true, 'result' => 'undone', 'ticket_public_id' => $found['public_id'] ) );
 	}
 
@@ -189,6 +201,16 @@ final class Api {
 			$row = self::scan_payload( $outcome );
 			$row['idempotency_key'] = $key;
 			$row['direction'] = $out ? 'out' : 'in';
+			// A345: nothing was booked (database busy, lost connection). The app keeps the scan and
+			// uploads it again instead of treating the admission as synchronised.
+			if ( is_wp_error( $outcome ) && \PassCaptain\Errors::is_busy( $outcome ) ) {
+				$row['result'] = 'retry';
+				$row['retryable'] = true;
+				$row['conflict'] = false;
+				$row['double_admission'] = false;
+				$results[] = $row;
+				continue;
+			}
 			// Offline the device already let the person in; a rejection here is an admission conflict
 			// (recorded for review under "Einlass-Konflikte").
 			$data = is_wp_error( $outcome ) ? (array) $outcome->get_error_data() : (array) $outcome;
@@ -223,7 +245,8 @@ final class Api {
 	private static function scan_payload( $outcome ) {
 		if ( is_wp_error( $outcome ) ) {
 			$data = (array) $outcome->get_error_data();
-			return array_filter( array( 'ok' => false, 'result' => (string) ( $data['result'] ?? $data['ticket_status'] ?? 'error' ), 'code' => $outcome->get_error_code(), 'message' => $outcome->get_error_message(), 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null ) + array_intersect_key( $data, array_flip( Checkin::CLIENT_ERROR_KEYS ) ), static function ( $v ) { return null !== $v; } );
+			$retry = \PassCaptain\Errors::is_busy( $outcome );
+			return array_filter( array( 'ok' => false, 'result' => (string) ( $data['result'] ?? $data['ticket_status'] ?? ( $retry ? 'retry' : 'error' ) ), 'code' => $outcome->get_error_code(), 'message' => $outcome->get_error_message(), 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null, 'retryable' => $retry ? true : null ) + array_intersect_key( $data, array_flip( Checkin::CLIENT_ERROR_KEYS ) ), static function ( $v ) { return null !== $v; } );
 		}
 		return array_merge( array( 'ok' => true, 'result' => (string) $outcome['status'] ), $outcome );
 	}

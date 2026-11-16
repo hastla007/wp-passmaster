@@ -66,7 +66,7 @@ Authorization: Bearer wpcapd_<device>_<secret>
 | POST | `/app/scan/validate` | Vorschau ohne Einlass |
 | POST | `/app/scan/check-in` | Einlass (benötigt `idempotency_key`) |
 | POST | `/app/scan/check-out` | Auslass/Check-out (benötigt `idempotency_key`) |
-| POST | `/app/scan/undo` | Einlass zurücknehmen (mit `reason`) |
+| POST | `/app/scan/undo` | Einlass zurücknehmen (mit `reason`); nur in den Events des Geräts und im Bereich von Gerät und Person, nie für erstattete Tickets (siehe unten) |
 | POST | `/app/scan/sync` | Offline-Scans hochladen (1–200) |
 | POST | `/app/logout` | Gerät widerrufen |
 
@@ -104,7 +104,16 @@ Ist das Gerät keinem Bereich fest zugeordnet, kann die App den Bereich pro Scan
 
 `present` = Tickets, die aktuell drinnen sind (Einlass ohne folgenden Auslass). Bei Mehrfach- und Tagestickets bleibt der Ticketstatus `valid`; maßgeblich sind dann `entries`/`present`.
 
-**Idempotenz:** Die App erzeugt pro Scan einen neuen Schlüssel (UUID) und verwendet ihn bei Wiederholungen nach Netzwerkfehlern erneut. Eine Wiederholung liefert dann das ursprüngliche Ergebnis mit `"replayed": true` und zählt nicht doppelt.
+**Idempotenz:** Die App erzeugt pro Scan einen neuen Schlüssel (UUID) und verwendet ihn bei Wiederholungen nach Netzwerkfehlern erneut. Eine Wiederholung liefert dann das ursprüngliche Ergebnis mit `"replayed": true` und zählt nicht doppelt – auch wenn sie parallel zur ersten Anfrage läuft (A589): Der Schlüssel wird nach der Zeilensperre auf dem Ticket noch einmal geprüft, sodass gleichzeitige Anfragen mit demselben Schlüssel genau einen Einlass buchen und die übrigen das erste Ergebnis erhalten.
+
+**Gerätebindung:** Ein Gerät scannt nur Tickets seiner freigegebenen Events; ein Gerät ohne Events (z. B. alte Kopplung) wird für alle Events abgelehnt (`wrong_event`).
+
+**Einlass zurücknehmen** (`/app/scan/undo`, Admin: Tickets → „Check-in zurücknehmen“, A590):
+- Nur für Events des Geräts und mit Einlassrecht für den Termin.
+- Erstattete Tickets und Tickets stornierter, erstatteter oder abgelaufener Bestellungen: abgelehnt (`result: revoked`), sonst wäre das Ticket wieder einlassfähig. Solche Tickets lassen auch beim Scan nie ein (`revoked`), selbst wenn ihr Status noch `valid` ist.
+- Bereichsbindung wie beim Check-in: Ein Gerät mit festem Bereich (bzw. die mitgesendete `area_id`) nimmt nur Einlässe durch diesen Bereich zurück; Personal, das Einlassbereichen des Events zugewiesen ist, nur Einlässe durch seine Bereiche (`result: wrong_area`). Administratoren sind nicht beschränkt.
+- Die Rücknahme wird mit Gerät und Quelle (`app`, im Admin `admin`) protokolliert; der Audit-Eintrag `checkin_undone` enthält zusätzlich `device_id` und `area_id` des zurückgenommenen Einlasses.
+- Eine Begrenzung auf eigene Scans oder ein Zeitfenster gibt es nicht (offene Betreiberentscheidung).
 
 ### Ergebnis-Codes (`result`)
 
@@ -126,7 +135,7 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 | `daily_limit_reached` | heute bereits eingelassen (Tages-/Mehrtagesticket) | rot |
 | `entry_limit_reached` | maximale Anzahl Einlässe erreicht (Mehrfach-/Wiedereinlass) | rot |
 | `already_inside` | Wiedereinlass-Ticket ist noch drinnen; zuerst Check-out | gelb |
-| `area_full` | Kapazität des Einlassbereichs erreicht (Personen gleichzeitig drinnen); Einlass erst nach Auslässen. Gilt nicht für Offline-Uploads | rot |
+| `area_full` | Kapazität des Einlassbereichs erreicht (Personen gleichzeitig drinnen); Einlass erst nach Auslässen. Offline-Uploads gekoppelter Geräte werden dafür nicht abgelehnt, aber zur Prüfung erfasst (`review: "area_full"`) | rot |
 | `wrong_area` | Ticket gilt nicht in diesem Einlassbereich, oder die Person ist hier nicht eingeteilt | gelb |
 | `checked_out` | (nur `check-out`) Auslass erfolgt | grün |
 | `not_checked_in` | (nur `check-out`) Ticket ist nicht eingecheckt | gelb |
@@ -159,13 +168,15 @@ Optional: Einlassfenster in Minuten vor Beginn/nach Ende sowie tägliche Einlass
 ## 4. Offline-Betrieb
 
 - Bei fehlender Verbindung speichert die App Scans lokal mit Code, `idempotency_key` und `scanned_at` (ISO 8601). Lokale Daten werden verschlüsselt gespeichert und nach erfolgreicher Synchronisierung gelöscht.
-- Wieder online, ruft sie `POST /app/scan/sync` mit `{"scans":[{"code":"…","idempotency_key":"…","scanned_at":"…","direction":"in"}]}` auf (`direction`: `in` Standard, `out` für Offline-Check-outs; optional `area_id` bei Geräten ohne festen Bereich). Mehrfaches Hochladen ist durch den Schlüssel unschädlich. Einlassregeln (Tag, Fenster) werden zum Zeitpunkt `scanned_at` geprüft, aber nur, wenn dieser höchstens `offline_max_age_hours` zurückliegt (Standard 12 h, einstellbar unter **Einlassregeln → Offline-Scans**, 0 = immer Upload-Zeitpunkt); ältere Scans werden zum Upload-Zeitpunkt geprüft. Wird ein zurückdatierter Scan (mehr als 15 Minuten) eingelassen, wäre aber zum Upload-Zeitpunkt abgelehnt worden (z. B. zweiter Einlass auf ein Tagesticket, „gestern“ datiert), gibt es `ok: true` mit `conflict: true`, `review: "backdated_admission"` und einen Konflikt zur Prüfung. `scanned_at` wird nur bei Offline-Uploads berücksichtigt.
+- Wieder online, ruft sie `POST /app/scan/sync` mit `{"scans":[{"code":"…","idempotency_key":"…","scanned_at":"…","direction":"in"}]}` auf (`direction`: `in` Standard, `out` für Offline-Check-outs; optional `area_id` bei Geräten ohne festen Bereich). Mehrfaches Hochladen ist durch den Schlüssel unschädlich. Einlassregeln (Tag, Fenster) werden zum Zeitpunkt `scanned_at` geprüft, aber nur, wenn dieser höchstens `offline_max_age_hours` zurückliegt (Standard 12 h, einstellbar unter **Einlassregeln → Offline-Scans**, 0 = immer Upload-Zeitpunkt); ältere Scans werden zum Upload-Zeitpunkt geprüft. Wird ein zurückdatierter Scan (mehr als 15 Minuten) eingelassen, wäre aber zum Upload-Zeitpunkt abgelehnt worden (z. B. zweiter Einlass auf ein Tagesticket, „gestern“ datiert, oder ein inzwischen geschlossenes Einlassfenster – auch bei Tickettypen ohne Einlassregel), gibt es `ok: true` mit `conflict: true`, `review: "backdated_admission"` und immer einen Konflikt zur Prüfung (A592). Ebenso wird ein Offline-Einlass in einen vollen Einlassbereich angenommen (das Gerät hat die Person eingelassen), aber mit `review: "area_full"` zur Prüfung erfasst. `scanned_at` und `source` kommen nie aus einer Online-Anfrage: Der Web-Scanner-Check-in protokolliert immer `web`, nur die Offline-Uploads werten `scanned_at` aus.
+- Kann der Server einen hochgeladenen Scan gerade nicht buchen (Datenbank ausgelastet, Verbindung verloren – es wurde nichts gespeichert), enthält die Ergebniszeile `ok: false`, `result: "retry"` und `retryable: true` und ist kein Konflikt (A345). Die App muss den Scan behalten und mit demselben `idempotency_key` erneut hochladen; die Offline-Scanner-PWA und der Web-Scanner tun das.
 - `conflict: true` heißt: Das Offline-Gerät hat die Person eingelassen, der Server lehnt den Scan aber ab (`result` sagt warum). `double_admission: true` kennzeichnet echte Doppeleinlässe (`already_checked_in`, `daily_limit_reached`, `entry_limit_reached`, `already_inside`). Jeder Konflikt wird genau einmal unter **Pass Captain → Einlass-Konflikte** erfasst (`conflict_id`) – mit Ticket, beiden Geräten/Personen und Zeiten – und dort mit Klärung und Notiz abgeschlossen (Recht `wpcap_manage_events`, Audit-Log). Abgelehnte Offline-Check-outs sind keine Konflikte.
 - Konflikte entstehen nur für Tickets von Events, für die das hochladende Gerät bzw. die Person Einlassrechte hat; Scans fremder Events (`wrong_event`, `forbidden`) und unbekannte Codes erzeugen keine Konflikte.
 - Fehlerantworten enthalten nur `result`, Status und Meldung, keine internen IDs.
 - Der Web-Scanner speichert Offline-Scans (Ticket-Code, Schlüssel, Zeit, Bereich, Richtung) im `localStorage` des Browsers, ohne Mengenbegrenzung, und lädt sie in Blöcken zu 100 hoch. Entfernt werden nur vom Server bestätigte Einträge (per `idempotency_key`). Die Warteschlange gehört dem angemeldeten WordPress-Benutzer (Schlüssel aus einem HMAC der Benutzer-ID, nicht die ID selbst). Öffnet ein anderer Benutzer den Scanner im selben Browser, werden fremde und ältere gemeinsame Warteschlangen gelöscht – auch noch nicht synchronisierte Scans. Vor einem Schichtwechsel deshalb synchronisieren. Einträge älter als 24 Stunden (Filter `wpcap_scanner_queue_max_hours`) werden mit Hinweis ohne Upload verworfen. Eine Abmeldung kann den Browserspeicher nicht selbst leeren: Auf geteilten Geräten nach Schichtende den Browser schließen bzw. die Website-Daten löschen.
 - **Scanner-Geräte** zeigt pro Gerät zuletzt aktiv, letzte Synchronisierung und offene Konflikte.
-- Der Web-Scanner synchronisiert über `POST /pass-captain/v1/admission/offline-sync` (Cookie + REST-Nonce) mit denselben Regeln; Einlass/Auslass mit Bereich über `/admission/check-in` und `/admission/check-out`.
+- Der Web-Scanner synchronisiert über `POST /pass-captain/v1/admission/offline-sync` (Cookie + REST-Nonce) mit denselben Regeln; Einlass/Auslass mit Bereich über `/admission/check-in` und `/admission/check-out`. Jeder Scan braucht einen `idempotency_key` (ohne: `result: "invalid"`, nichts gebucht). Anders als bei gekoppelten Geräten gilt für diese Uploads die Kapazität des Einlassbereichs wie online (voller Bereich: Ablehnung und Konflikt zur Prüfung).
+- Ohne Einlassmodul nutzt der Web-Scanner `POST /pass-captain/v1/tickets/offline-sync` mit `{"scans":[{"token":"…","idempotency_key":"…","occurrence_id":0}]}`; die Ergebniszeilen tragen den `idempotency_key`. Die alte Form `{"tokens":["…"]}` wird weiter angenommen; ein Code erhält dann einen aus Code und Person abgeleiteten Schlüssel, ein wiederholter Upload wird also wiedergegeben statt als Doppeleinlass erfasst (A589).
 - **Web-Scanner im Einlassbetrieb:**
   - Das Codefeld wird bei jedem Scan sofort geleert (nicht erst nach einem Erfolg), sodass ein Tastatur-Scanner (Wedge) den nächsten Code nie hinter den vorigen tippt. Ein Scan während der Sperrzeit nach einem Ergebnis (1,4 s) wird sichtbar verworfen („Scan verworfen – bitte erneut scannen“, Ton), das vorige Ergebnis bleibt stehen.
   - Eine Eingabe mit mehr als einem Ticket-Code (zwei verschiedene Codes oder eine Hex-Folge länger als 64 Zeichen) wird nicht gesendet. Auch der Server lehnt sie ab (`wpcap_ticket_ambiguous`, HTTP 400, `result: invalid_code`) statt den ersten Code einzulassen; `Checkin::normalize_code()` liefert dafür `''`.

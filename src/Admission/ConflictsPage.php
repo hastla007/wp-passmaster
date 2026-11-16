@@ -46,6 +46,8 @@ final class ConflictsPage {
 			'out_of_window' => __( 'Außerhalb des Einlasszeitraums', 'pass-captain' ),
 			'forbidden' => __( 'Kein Einlasszugriff', 'pass-captain' ),
 			'offline_expired' => __( 'Offline-Dauer überschritten (Offline-Scanner)', 'pass-captain' ),
+			'backdated_admission' => __( 'Zurückdatierter Offline-Einlass (wäre beim Upload abgelehnt worden)', 'pass-captain' ),
+			'area_full' => __( 'Einlassbereich voll (offline eingelassen)', 'pass-captain' ),
 		);
 		return $labels[ (string) $result ] ?? Forms::status_label( $result );
 	}

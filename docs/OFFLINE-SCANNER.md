@@ -53,6 +53,12 @@ Existing responses are also extended:
 - `POST /app/pair` adds `offline: {keys, package_format}`, which delivers the public keys at pairing.
 - `GET /app/me` sets `features.offline_packages = true`.
 - `POST /app/scan/sync` result rows gain `offline_rules`, `auto_resolved`, `offline_expired` and `conflict_status`.
+- A result row with `retryable: true` (`result: "retry"`) was not booked because of a transient server
+  error (A345). The PWA keeps such scans as "wartet auf Sync" (code kept) and uploads them again with the
+  same idempotency key; a batch in which nothing could be booked does not trigger an immediate re-sync.
+- Codes in a package fetched by an assigned device during the last 72 hours cannot be rotated by the
+  buyer (portal resend/PDF, transfer, attendee change; A593), so a device never admits a code the server
+  no longer knows. Staff actions (reissue, admin resend, printing) still rotate.
 
 ### Package response
 

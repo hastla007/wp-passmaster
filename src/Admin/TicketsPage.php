@@ -124,34 +124,58 @@ final class TicketsPage {
 	}
 
 	/**
-	 * Undoes a check-in: checked_in → valid, logged as a check-in row with result "undone".
-	 * Requires wpcap_checkin for the ticket's event.
+	 * Undoes a check-in: checked_in → valid, logged as a check-in row with result "undone" (with device
+	 * and source; the audit entry also names the area of the undone admission). Requires wpcap_checkin
+	 * for the ticket's event; refused for refunded tickets and tickets of closed orders and outside the
+	 * area binding of staff and device (Checkin::undo_guard(), A590).
+	 *
+	 * @param array $in      ticket_id, reason.
+	 * @param array $context Scanner context of the caller: device_id, area_id, source (default "admin").
 	 */
-	public static function undo_checkin( array $in ) {
+	public static function undo_checkin( array $in, array $context = array() ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_occurrence( $ticket->occurrence_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
-		$wpdb->query( 'START TRANSACTION' );
+		$busy = static function () use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Forms::error( 'wpcap_db_busy', __( 'Der Check-in konnte gerade nicht zurückgenommen werden. Bitte erneut versuchen.', 'pass-captain' ), 503 );
+		};
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $ticket->ticket_id ) );
+		if ( '' !== $wpdb->last_error ) { return $busy(); }
 		if ( ! $row || 'checked_in' !== $row->status ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), 409 );
 		}
+		// Earlier undo rows are applied to the admission log first, so the guard sees the admission
+		// that is taken back now.
+		\PassCaptain\Admission\Engine::state_for_update( (int) $ticket->ticket_id );
+		$guard = \PassCaptain\Checkin::undo_guard( (int) $ticket->ticket_id, $context );
+		if ( is_wp_error( $guard ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Forms::error( $guard->get_error_code(), $guard->get_error_message(), (int) ( $guard->get_error_data()['status'] ?? 409 ) );
+		}
 		$last = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", (int) $ticket->ticket_id ) );
-		$wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) );
+		$device_id = absint( $context['device_id'] ?? 0 );
+		$source = sanitize_key( (string) ( $context['source'] ?? '' ) );
+		$source = '' !== $source ? $source : 'admin';
+		$updated = $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) );
+		if ( 1 !== (int) $updated ) { return $busy(); }
 		$wpdb->insert( "{$p}wpcap_checkins", array(
 			'ticket_id' => (int) $ticket->ticket_id,
 			'event_id' => (int) $ticket->event_id,
 			'occurrence_day_id' => $last ? (int) $last->occurrence_day_id : 0,
 			'user_id' => get_current_user_id(),
 			'result' => 'undone',
+			'device_id' => $device_id,
+			'source' => $source,
 			'created_at' => $now,
-		), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
-		$wpdb->query( 'COMMIT' );
-		Audit::record( 'checkin_undone', 'ticket', (int) $ticket->ticket_id, array( 'event_id' => (int) $ticket->event_id, 'reason' => Forms::text( $in, 'reason', 255 ) ) );
+		), array( '%d', '%d', '%d', '%d', '%s', '%d', '%s', '%s' ) );
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
+		Audit::record( 'checkin_undone', 'ticket', (int) $ticket->ticket_id, array( 'event_id' => (int) $ticket->event_id, 'reason' => Forms::text( $in, 'reason', 255 ), 'device_id' => $device_id, 'area_id' => (int) $guard['area_id'], 'source' => $source ) );
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
 	}
 

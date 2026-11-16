@@ -5,7 +5,7 @@
 - Ticket-, Gastbestellungs- und API-Schlüssel werden als zufällige Geheimnisse ausgegeben; in der Datenbank werden nur Hashes gespeichert. Gastlinks sind Inhaberzugänge und dürfen nicht weitergegeben werden.
 - WordPress REST-Schreibzugriffe prüfen Berechtigungen und Eventbereiche. Entwickler-API-Schlüssel sind auf ein Event und lesende Scopes beschränkt, haben ein Ratenlimit und können ablaufen oder widerrufen werden (siehe [Entwickler-API-Schlüssel](#entwickler-api-schlüssel)).
 - Öffentliche Checkout-, Sitzplatz- und Wartelistenrouten sind nicht authentifiziert. Sie benötigen Hosting-seitige Rate-Limits, TLS, Bot-Abwehr und Überwachung. Das Plugin begrenzt zusätzlich pro Client: Checkout (Filter `wpcap_checkout_ip_limit`, Standard 30 pro Stunde), Servicebuchungen (`wpcap_service_booking_ip_limit`, Standard 40 pro Stunde), Sitzplatz-Reservierungen, Warteliste, Bestellportal, Mollie-Webhooks und weitere. Die Zähler sind über alle PHP-Worker und Webserver hinweg atomar. Hinter einem Proxy oder CDN muss die Client-Adresse richtig aufgelöst werden; siehe [Ratenlimits hinter Proxys und mit mehreren Workern](#ratenlimits-hinter-proxys-und-mit-mehreren-workern).
-- Selbstbedienung im Bestellportal (A118) nutzt dieselbe Prüfung wie das Portal (Bestell-ID + Zugangstoken). Ticket-PDFs werden per POST mit Nonce abgerufen, je Bestellung und Client begrenzt und enthalten nur gültige, unbenutzte Tickets der eigenen Bestellung, die nicht an andere Personen übertragen oder zugewiesen sind. Da Ticketcodes nur gehasht gespeichert sind, erhält ein Ticket beim Download einen neuen Code (der alte wird ungültig), außer ein Modul kennt den aktuellen Code noch (`wpcap_ticket_known_code`, z. B. Wallet). Stornierungsanfragen (Nonce, Idempotenzschlüssel, Rate-Limit) landen immer als `pending_approval` in der Erstattungsfreigabe; ausgezahlt wird erst nach der Entscheidung einer berechtigten Person.
+- Selbstbedienung im Bestellportal (A118) nutzt dieselbe Prüfung wie das Portal (Bestell-ID + Zugangstoken). Ticket-PDFs werden per POST mit Nonce abgerufen, je Bestellung und Client begrenzt und enthalten nur gültige, unbenutzte Tickets der eigenen Bestellung, die nicht an andere Personen übertragen oder zugewiesen sind. Da Ticketcodes nur gehasht gespeichert sind, erhält ein Ticket beim Download einen neuen Code (der alte wird ungültig), außer ein Modul kennt den aktuellen Code noch (`wpcap_ticket_known_code`, z. B. Wallet). Ab Einlassbeginn und solange der Code in einem Offline-Paket steckt, gibt es keine neuen Codes per Selbstbedienung (siehe unten). Stornierungsanfragen (Nonce, Idempotenzschlüssel, Rate-Limit) landen immer als `pending_approval` in der Erstattungsfreigabe; ausgezahlt wird erst nach der Entscheidung einer berechtigten Person.
 - Offline-Scanner speichern Codes lokal und können während einer Netzunterbrechung nicht garantieren, dass ein Ticket an einem anderen Gerät unbenutzt geblieben ist.
 - Integrationsadapter werden standardmäßig nicht aktiviert. Externe Zugangsdaten gehören in geschützte WordPress-Konfiguration bzw. Secret-Storage, niemals in Quellcode oder Logs.
 
@@ -412,3 +412,21 @@ Sicherheitsprobleme bitte über GitHubs private Meldemöglichkeit des Repository
 ## Release-Gate
 
 Vor 1.0 müssen Bedrohungsmodell, Rollen-/Nonce-Prüfung, SQL-Transaktionen, Datenschutzexport und -löschung, Offline-Konflikte, Abhängigkeitsprüfung und Wiederherstellung extern oder durch eine dokumentierte unabhängige Prüfung bewertet werden. Dieses Dokument ist keine Sicherheitszertifizierung.
+
+## Keine Code-Rotation durch Käufer während des Einlasses (A593)
+
+Selbstbedienungs-Aktionen über den Bestelllink, die einen neuen Ticketcode erzeugen – „Tickets erneut
+senden“ im Portal, Ticket-PDF ohne bekannten Code, Übertragung und Teilnehmerwechsel –, werden
+abgelehnt (`wpcap_ticket_rotation_locked`, HTTP 409), sobald
+
+- der Einlass des Termins begonnen hat: frühester Zeitpunkt aus Einlasszeit des Termins
+  (`doors_open_at`), Beginn minus `entry_opens_before_minutes` und – bei Tickettypen mit Einlassregel –
+  Beginn minus deren „Einlass ab … Minuten vor Beginn“, oder
+- der aktuelle Code in einem Offline-Paket steckt, das ein zugewiesenes Gerät in den letzten 72 Stunden
+  abgerufen hat (Grund `offline_package`).
+
+Sonst entstünden „offline gültig, online ungültig“-Tickets: Offline-Geräte lassen den alten Code ein, der
+Server kennt nur den neuen, und an der Tür kann der Gast jeden der beiden vorzeigen. „Erneut senden“ und
+„PDF (alle)“ lassen gesperrte Tickets aus und melden den Fehler nur, wenn keines übrig bleibt.
+Personal-Aktionen (Neu ausstellen, Erneut senden im Admin, Drucken) sind nicht betroffen. Der Filter
+`wpcap_self_service_rotation_lock` kann die Sperre je Ticket ändern.

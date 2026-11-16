@@ -521,7 +521,7 @@ final class Controller {
 			/* translators: %d: allowed resends per hour */
 			return new \WP_Error( 'wpcap_resend_rate_limited', sprintf( _n( 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', $limit, 'pass-captain' ), $limit ), array( 'status' => 429 ) );
 		}
-		$result = Orders::resend_tickets( (int) $order->order_id, array( 'skip_transferred' => true ) );
+		$result = Orders::resend_tickets( (int) $order->order_id, array( 'skip_transferred' => true, 'self_service' => true ) );
 		if ( is_wp_error( $result ) ) {
 			$status = in_array( $result->get_error_code(), array( 'wpcap_mail_failed', 'wpcap_ticket_rotation_failed' ), true ) ? 502 : 409;
 			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => $status ) );
@@ -612,17 +612,32 @@ final class Controller {
 		return new \WP_REST_Response( array( 'order_id' => (int) $sale->order_id, 'public_id' => $order ? $order->public_id : '', 'status' => $order ? $order->status : '', 'payment_status' => $order ? $order->payment_status : '', 'receipt_number' => (string) $sale->receipt_number, 'deprecated' => true ), empty( $result['reused'] ) ? 201 : 200 );
 	}
 
+	/**
+	 * Offline queue of the web scanner without the admission module: `scans` [{token, idempotency_key,
+	 * occurrence_id?}] (1–100). Each scan carries its idempotency key, so a repeated upload never books
+	 * twice or turns into a double-admission conflict (A589). The old form `tokens` (codes only) is still
+	 * accepted; such a code gets a key derived from code and user, so it is booked at most once this way.
+	 * A scan the server could not book comes back with `retryable: true` (A345).
+	 */
 	public static function offline_sync( \WP_REST_Request $request ) {
 		$payload = $request->get_json_params();
-		$tokens = $payload['tokens'] ?? array();
-		if ( ! is_array( $tokens ) || ! $tokens || count( $tokens ) > 100 ) { return new \WP_Error( 'wpcap_offline_batch_invalid', __( 'Der Offline-Scanbatch muss 1 bis 100 Codes enthalten.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		$scans = $payload['scans'] ?? ( $payload['tokens'] ?? array() );
+		if ( ! is_array( $scans ) || ! $scans || count( $scans ) > 100 ) { return new \WP_Error( 'wpcap_offline_batch_invalid', __( 'Der Offline-Scanbatch muss 1 bis 100 Codes enthalten.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$results = array();
-		foreach ( $tokens as $raw_token ) {
-			$scan = new \WP_REST_Request( 'POST' );
-			$scan->set_param( 'token', sanitize_text_field( $raw_token ) );
-			$scan->set_param( 'source', 'offline' );
-			$result = self::check_in( $scan );
-			$results[] = is_wp_error( $result ) ? array( 'status' => 'conflict', 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) : $result->get_data();
+		foreach ( $scans as $scan ) {
+			$scan = is_array( $scan ) ? $scan : array( 'token' => (string) $scan );
+			$token = sanitize_text_field( \PassCaptain\Http::str( $scan['token'] ?? '' ) );
+			$key = sanitize_text_field( \PassCaptain\Http::str( $scan['idempotency_key'] ?? '' ) );
+			// Same key format as check_in(): the queue reuses the key of a timed-out online attempt (A541).
+			$context = array( 'source' => 'offline', 'idempotency_key' => '' !== $key ? $key : 'legacy-offline:' . hash( 'sha256', \PassCaptain\Checkin::normalize_code( $token ) ?: strtolower( $token ) ), 'occurrence_id' => absint( $scan['occurrence_id'] ?? 0 ) );
+			$result = \PassCaptain\Checkin::perform( $token, array_filter( $context ) );
+			if ( is_wp_error( $result ) && \PassCaptain\Errors::is_busy( $result ) ) {
+				$results[] = array( 'status' => 'retry', 'retryable' => true, 'code' => $result->get_error_code(), 'message' => $result->get_error_message(), 'idempotency_key' => $key );
+			} elseif ( is_wp_error( $result ) ) {
+				$results[] = array( 'status' => 'conflict', 'code' => $result->get_error_code(), 'message' => $result->get_error_message(), 'idempotency_key' => $key );
+			} else {
+				$results[] = $result + array( 'idempotency_key' => $key );
+			}
 		}
 		return rest_ensure_response( array( 'results' => $results, 'offline_conflicts_are_possible' => true ) );
 	}
@@ -942,7 +957,9 @@ final class Controller {
 
 	/** Web scanner check-in; the logic lives in Checkin::perform() (shared with the app API). */
 	public static function check_in( \WP_REST_Request $request ) {
-		$result = \PassCaptain\Checkin::perform( \PassCaptain\Http::str( $request->get_param( 'token' ) ), array_filter( array( 'source' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'source' ) ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( \PassCaptain\Http::str( $request->get_param( 'idempotency_key' ) ) ), 'occurrence_id' => \PassCaptain\Http::positive_int( $request->get_param( 'occurrence_id' ) ) ) ) );
+		// The source is never taken from the client (A592): "offline" would evaluate a client-chosen time
+		// and turn refusals into conflicts.
+		$result = \PassCaptain\Checkin::perform( \PassCaptain\Http::str( $request->get_param( 'token' ) ), array_filter( array( 'source' => 'web', 'idempotency_key' => sanitize_text_field( \PassCaptain\Http::str( $request->get_param( 'idempotency_key' ) ) ), 'occurrence_id' => \PassCaptain\Http::positive_int( $request->get_param( 'occurrence_id' ) ) ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 }

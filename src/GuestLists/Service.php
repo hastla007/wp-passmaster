@@ -624,13 +624,15 @@ final class Service {
 	}
 
 	/**
-	 * Marks an entry as arrived: checks in up to $count still valid tickets (0 = all) through
-	 * Checkin::perform() (event scope, admission policies and the check-in log apply). Each ticket
-	 * gets a new code for this (the mailed code stops working; it is admitted now anyway).
+	 * Marks an entry as arrived: checks in up to $count still valid tickets (0 = all) by ticket id
+	 * through Checkin::perform_ticket() (event scope, area binding, admission policies, row lock and the
+	 * check-in log apply). The ticket codes stay unchanged: a refused check-in (entry window not open,
+	 * wrong area …) leaves the guest's mailed tickets valid (A591).
 	 *
+	 * @param int $area_id Entrance area the guests arrive through (0 = none).
 	 * @return array|\WP_Error ['checked_in' => int, 'remaining' => int, 'errors' => string[]]
 	 */
-	public static function arrive( $entry_id, $count = 0 ) {
+	public static function arrive( $entry_id, $count = 0, $area_id = 0 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$entry = self::get_entry( $entry_id );
@@ -644,10 +646,7 @@ final class Service {
 		$checked = 0;
 		$errors = array();
 		foreach ( $ids as $ticket_id ) {
-			$token = bin2hex( random_bytes( 32 ) );
-			if ( ! $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid'", hash( 'sha256', $token ), $ticket_id ) ) ) { continue; }
-			do_action( 'wpcap_ticket_code_rotated', $ticket_id, $token, 'guestlist' );
-			$result = Checkin::perform( $token, array( 'source' => 'guestlist', 'occurrence_id' => (int) $entry->occurrence_id ) );
+			$result = Checkin::perform_ticket( $ticket_id, array( 'source' => 'guestlist', 'occurrence_id' => (int) $entry->occurrence_id, 'area_id' => absint( $area_id ) ) );
 			if ( is_wp_error( $result ) ) { $errors[] = $result->get_error_message(); } else { ++$checked; }
 		}
 		if ( $checked ) {

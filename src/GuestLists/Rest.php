@@ -38,7 +38,7 @@ final class Rest {
 	}
 
 	public static function arrive( \WP_REST_Request $request ) {
-		return self::respond( Service::arrive( absint( $request->get_param( 'entry_id' ) ), absint( $request->get_param( 'count' ) ) ) );
+		return self::respond( Service::arrive( absint( $request->get_param( 'entry_id' ) ), absint( $request->get_param( 'count' ) ), absint( $request->get_param( 'area_id' ) ) ) );
 	}
 
 	public static function will_call( \WP_REST_Request $request ) {

@@ -412,15 +412,18 @@
 				const chunk = items.slice(i, i + SYNC_CHUNK);
 				const response = adm
 					? await fetch(adm.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: chunk.map(function (item) { return { token: item.token, idempotency_key: item.idempotency_key, scanned_at: item.scanned_at, area_id: item.area_id || 0, occurrence_id: item.occurrence_id || 0, direction: item.direction || 'in' }; }) }) })
-					: await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: chunk.map(function (item) { return item.token; }) }) });
+					: await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: chunk.map(function (item) { return { token: item.token, idempotency_key: item.idempotency_key, occurrence_id: item.occurrence_id || 0 }; }) }) });
 				const data = await response.json().catch(function () { return null; });
 				// Only a JSON answer with a results list confirms the upload (A315): a login, proxy or WAF page
 				// with status 200 must not remove queued scans.
 				if (!response.ok || !data || !Array.isArray(data.results)) throw new Error((data && data.message) || t.syncFailed || 'Sync failed.');
-				// Remove exactly the uploaded items; scans queued meanwhile stay.
-				removeSent(chunk.map(function (item) { return item.idempotency_key; }));
-				sent += chunk.length;
-				conflicts += (data.results || []).filter(function (item) { return item.status === 'conflict'; }).length;
+				// Remove exactly the uploaded items; scans queued meanwhile stay, and so do scans the server
+				// could not book (retryable, A345) – they are uploaded again with the next sync.
+				const retry = data.results.filter(function (item) { return item && item.retryable; }).map(function (item) { return item.idempotency_key; });
+				const done = chunk.map(function (item) { return item.idempotency_key; }).filter(function (key) { return retry.indexOf(key) === -1; });
+				removeSent(done);
+				sent += done.length;
+				conflicts += data.results.filter(function (item) { return item.status === 'conflict'; }).length;
 			}
 			show(conflicts ? 'error' : 'success', (t.synced || '%1$d / %2$d').replace('%1$d', sent).replace('%2$d', conflicts));
 		} catch (error) { show('error', error.message); }

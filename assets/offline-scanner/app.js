@@ -581,16 +581,20 @@
 			return api('POST', 'scan/sync', { scans: scans }, null, 30000).then(function (res) {
 				var byKey = {};
 				(res.results || []).forEach(function (r) { byKey[r.idempotency_key] = r; });
+				var done = 0;
 				return idb('log', 'readwrite', function (s) {
 					batch.forEach(function (e) {
 						var r = byKey[e.key];
-						if (!r) { return; }
+						// A345: a retryable server error booked nothing – the scan stays queued (code kept)
+						// and is uploaded again with the next sync.
+						if (!r || r.retryable) { return; }
+						done++;
 						e.synced = 1;
 						e.code = '';
 						e.server = { ok: !!r.ok, result: r.result, conflict: !!r.conflict, conflict_id: r.conflict_id || 0, double_admission: !!r.double_admission, auto_resolved: !!r.auto_resolved, offline_expired: !!r.offline_expired, message: r.message || '' };
 						s.put(e);
 					});
-				}).then(function () { if (pending.length > SYNC_BATCH) { return syncNow(); } });
+				}).then(function () { if (done && pending.length > SYNC_BATCH) { return syncNow(); } });
 			}, function (err) { if (!handleAuthError(err) && !err.network) { console.warn('sync', err); } });
 		}).then(renderLog);
 	}
