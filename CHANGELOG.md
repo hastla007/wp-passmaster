@@ -6,6 +6,7 @@ Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Ve
 
 ### Wichtige Verhaltensänderungen beim Update
 - **Datenbankschema 3.18.1:** Bestellungen speichern das Zahlungsdatum (`paid_at`); der Umsatzbericht kann nach Bestell- oder Zahlungsdatum auswerten (A613; Bestellungen, die vor dem Update bezahlt wurden, zählen nach Bestelldatum). Das Update korrigiert außerdem den Standardwert von `wpcap_api_keys.rate_limit` auf 0 (= Standardlimit) bei Websites der Arbeitslisten-Linie.
+- **Datenbankschema 3.18.2:** der Konditionsverlauf der Veranstalter speichert auch Verkaufsmodell und USt-Satz der Plattformgebühr; offene Abrechnungen nutzen die am Periodenende gültigen Konditionen (A523).
 - **Dashboard-Widget „Pass Captain: Überblick“** (A615): Verkäufe heute und der letzten 7 Tage, Bestellungen, die auf eine Zahlungsbestätigung oder Prüfung warten, und die nächsten Termine mit verkauft/Kapazität. Beträge sehen nur Benutzer mit Bestellrechten.
 - **Alters-/Ausweishinweis und Ticketinhaber auf Ticket, Mail und PDF** (A614): was die Eventkarte zeigt („ab 18 Jahren, Ausweis erforderlich“), steht jetzt auch auf der Ticketseite, in der Ticketmail und im Ticket-PDF (neuer Layout-Platzhalter `{admission_notice}`).
 - **Ticketlinks per E-Mail anfordern** (A622): wer ein Ticket übertragen bekommen hat und den Link verliert, fordert unter `/?wpcap_recover=1` neue Links an – mit Bestätigungslink an die Inhaberadresse, Rate-Limit und ohne Preisgabe, ob eine Adresse Tickets hat.

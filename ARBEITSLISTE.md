@@ -1139,8 +1139,9 @@ Gesamt: 262 Aufgaben.
   - src/Series/AdminPage.php:368: Übersetzte Labels, Datum im Site-Format
 - [x] **A522** [OPTIMIERUNG] HTML-Mails ohne Leserichtung (erweitert A390) — _R3 Multisite/i18n/Skalierung_ (TODO L874; Audit Runde 4)
   - src/Mail/Layout.php:55, Mail/Blocks.php:101: dir="rtl" je Empfänger-Locale
-- [ ] **A523** [OPTIMIERUNG] Konditionen-/Verkaufsmodell-Änderungen wirken rückwirkend auf offene Abrechnungsposten — _R3 Eigen (Deep Dive 2)_ (TODO L875; Audit Runde 4)
+- [x] **A523** [OPTIMIERUNG] Konditionen-/Verkaufsmodell-Änderungen wirken rückwirkend auf offene Abrechnungsposten — _R3 Eigen (Deep Dive 2)_ (TODO L875; Audit Runde 4)
   - src/Partners/Settlements.php:196–200: Momentaufnahme je Verkauf oder Versionierung ab Datum
+  - Erledigt: Provision/Gebühr/Refund-Regel waren schon je Verkauf versioniert (A491); jetzt auch Verkaufsmodell und USt-Satz der Plattformgebühr (Schema 3.18.2, Spalten in `wpcap_partner_terms_history`), die Abrechnung eines Zeitraums nutzt die am Periodenende gültige Version (`Settlements::totals( …, terms_at )`). Test zz_a523.
 - [x] **A524** [OPTIMIERUNG] Mitgliedspass-Laufzeit endet bei reinem Datum um 00:00 UTC; uses_per_day=0 unmöglich — _R3 Eigen (Deep Dive 2)_ (TODO L876; Audit Runde 4)
   - src/Memberships.php:28, :50: Tagesende in Event-/Site-Zone, 0 = unbegrenzt
   - Erledigt: `Memberships::normalize_validity()` – reines Datum gilt ganztägig in der Site-Zeitzone (bis 23:59:59 lokal), auch im Admin-Formular; `uses_per_day` 0 = unbegrenzt (Formular min 0, Anzeige ∞). Test zz_a524.

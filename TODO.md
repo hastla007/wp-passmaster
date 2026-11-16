@@ -1117,7 +1117,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Bericht sortiert Namen mit strcmp (Umlaute, Groß/Klein) — src/Reports/Data.php:208 (A520, R3 Multisite/i18n/Skalierung)
 - [x] [OPTIMIERUNG] Serien-Übersicht zeigt rohe Regelwerte — src/Series/AdminPage.php:368 (A521, R3 Multisite/i18n/Skalierung)
 - [x] [OPTIMIERUNG] HTML-Mails ohne Leserichtung (erweitert A390) — src/Mail/Layout.php:55, Mail/Blocks.php:101 (A522, R3 Multisite/i18n/Skalierung)
-- [ ] [OPTIMIERUNG] Konditionen-/Verkaufsmodell-Änderungen wirken rückwirkend auf offene Abrechnungsposten — src/Partners/Settlements.php:196–200 (A523, R3 Eigen (Deep Dive 2))
+- [x] [OPTIMIERUNG] Konditionen-/Verkaufsmodell-Änderungen wirken rückwirkend auf offene Abrechnungsposten — src/Partners/Settlements.php:196–200 (A523, R3 Eigen (Deep Dive 2))
 - [x] [OPTIMIERUNG] Mitgliedspass-Laufzeit endet bei reinem Datum um 00:00 UTC; uses_per_day=0 unmöglich — src/Memberships.php:28, :50 (A524, R3 Eigen (Deep Dive 2))
 - [x] [OPTIMIERUNG] Warteschlange verschobener Kassen-Stornos als Option ohne Sperre (PLAUSIBEL) — src/BoxOffice/Shifts.php:693 (A525, R3 Eigen (Deep Dive 2)) – erledigt: Warteschlange `wpcap_pos_deferred_refunds` nur unter DB-Sperre geändert (frisch gelesen), ein Buchungslauf zur Zeit; Test `zz_a525`
 - [x] [OPTIMIERUNG] Fehlend: anteilige Erstattung von Pässen nach Teilnutzung — src/Refunds.php:78–93 (A526, R3 Eigen (Deep Dive 2))

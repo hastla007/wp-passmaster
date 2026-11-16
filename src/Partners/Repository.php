@@ -442,7 +442,7 @@ final class Repository {
 	/* ------------------------------------------------------------------ Terms history (A491) */
 
 	/** Settlement terms that are versioned (A491). */
-	const TERM_FIELDS = array( 'commission_bp', 'fee_per_ticket_minor', 'refund_policy' );
+	const TERM_FIELDS = array( 'commission_bp', 'fee_per_ticket_minor', 'refund_policy', 'sales_model', 'fee_tax_rate_bp' );
 
 	/** Whether the terms history table exists (schema 3.10.18). */
 	public static function terms_ready() {
@@ -465,17 +465,30 @@ final class Repository {
 		global $wpdb;
 		if ( ! self::terms_ready() ) { return; }
 		$changed = false;
-		foreach ( self::TERM_FIELDS as $field ) { $changed = $changed || (string) $existing->$field !== (string) $row[ $field ]; }
+		foreach ( self::TERM_FIELDS as $field ) { $changed = $changed || ( array_key_exists( $field, $row ) && (string) ( $existing->$field ?? '' ) !== (string) $row[ $field ] ); }
 		if ( ! $changed ) { return; }
 		$table = $wpdb->prefix . 'wpcap_partner_terms_history';
 		$partner_id = (int) $existing->partner_id;
 		$user = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
 		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE partner_id=%d LIMIT 1", $partner_id ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
-			$wpdb->insert( $table, array( 'partner_id' => $partner_id, 'commission_bp' => (int) $existing->commission_bp, 'fee_per_ticket_minor' => (int) $existing->fee_per_ticket_minor, 'refund_policy' => (string) $existing->refund_policy, 'created_by' => $user, 'created_at' => $now ) );
+			$wpdb->insert( $table, array( 'partner_id' => $partner_id, 'commission_bp' => (int) $existing->commission_bp, 'fee_per_ticket_minor' => (int) $existing->fee_per_ticket_minor, 'refund_policy' => (string) $existing->refund_policy, 'created_by' => $user, 'created_at' => $now ) + self::model_terms( (array) $existing ) );
 		}
-		$wpdb->insert( $table, array( 'partner_id' => $partner_id, 'valid_from' => $now, 'commission_bp' => (int) $row['commission_bp'], 'fee_per_ticket_minor' => (int) $row['fee_per_ticket_minor'], 'refund_policy' => (string) $row['refund_policy'], 'created_by' => $user, 'created_at' => $now ) );
+		$wpdb->insert( $table, array( 'partner_id' => $partner_id, 'valid_from' => $now, 'commission_bp' => (int) ( $row['commission_bp'] ?? $existing->commission_bp ), 'fee_per_ticket_minor' => (int) ( $row['fee_per_ticket_minor'] ?? $existing->fee_per_ticket_minor ), 'refund_policy' => (string) ( $row['refund_policy'] ?? $existing->refund_policy ), 'created_by' => $user, 'created_at' => $now ) + self::model_terms( $row + (array) $existing ) );
 		unset( self::$terms[ $partner_id ] );
 		Audit::record( 'partner_terms_changed', 'partner', $partner_id, array( 'valid_from' => $now, 'from' => array_intersect_key( (array) $existing, array_flip( self::TERM_FIELDS ) ), 'to' => array_intersect_key( $row, array_flip( self::TERM_FIELDS ) ) ) );
+	}
+
+	/** A523: sales model and fee VAT rate of a partner row for the terms history (only when the columns exist). */
+	private static function model_terms( array $row ) {
+		if ( ! self::model_terms_ready() ) { return array(); }
+		return array( 'sales_model' => isset( $row['sales_model'] ) ? (string) $row['sales_model'] : null, 'fee_tax_rate_bp' => isset( $row['fee_tax_rate_bp'] ) ? (int) $row['fee_tax_rate_bp'] : null );
+	}
+
+	/** Whether the terms history versions the sales model too (schema 3.18.2). */
+	public static function model_terms_ready() {
+		static $ready = null;
+		if ( null === $ready ) { $ready = self::terms_ready() && \PassCaptain\Log::has_column( 'wpcap_partner_terms_history', 'sales_model' ); }
+		return $ready;
 	}
 
 	/**
@@ -486,16 +499,25 @@ final class Repository {
 	public static function terms_at( $partner, $at ) {
 		global $wpdb;
 		$partner_id = (int) $partner->partner_id;
-		$current = array( 'commission_bp' => (int) $partner->commission_bp, 'fee_per_ticket_minor' => (int) $partner->fee_per_ticket_minor, 'refund_policy' => (string) $partner->refund_policy );
+		$current = array( 'commission_bp' => (int) $partner->commission_bp, 'fee_per_ticket_minor' => (int) $partner->fee_per_ticket_minor, 'refund_policy' => (string) $partner->refund_policy, 'sales_model' => (string) ( $partner->sales_model ?? '' ), 'fee_tax_rate_bp' => (int) ( $partner->fee_tax_rate_bp ?? 0 ) );
 		if ( ! $partner_id || ! self::terms_ready() ) { return $current; }
 		if ( ! isset( self::$terms[ $partner_id ] ) ) {
-			self::$terms[ $partner_id ] = (array) $wpdb->get_results( $wpdb->prepare( "SELECT valid_from,commission_bp,fee_per_ticket_minor,refund_policy FROM {$wpdb->prefix}wpcap_partner_terms_history WHERE partner_id=%d ORDER BY valid_from IS NOT NULL, valid_from, history_id", $partner_id ) );
+			$cols = 'valid_from,commission_bp,fee_per_ticket_minor,refund_policy' . ( self::model_terms_ready() ? ',sales_model,fee_tax_rate_bp' : '' );
+			self::$terms[ $partner_id ] = (array) $wpdb->get_results( $wpdb->prepare( "SELECT {$cols} FROM {$wpdb->prefix}wpcap_partner_terms_history WHERE partner_id=%d ORDER BY valid_from IS NOT NULL, valid_from, history_id", $partner_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- column list from literals.
 		}
 		$found = null;
 		foreach ( self::$terms[ $partner_id ] as $version ) {
 			if ( null === $version->valid_from || '' === (string) $version->valid_from || (string) $version->valid_from <= (string) $at ) { $found = $version; }
 		}
-		return $found ? array( 'commission_bp' => (int) $found->commission_bp, 'fee_per_ticket_minor' => (int) $found->fee_per_ticket_minor, 'refund_policy' => (string) $found->refund_policy ) : $current;
+		if ( ! $found ) { return $current; }
+		// A523: sales model and fee VAT rate of the version; versions recorded before schema 3.18.2 keep the current ones.
+		return array(
+			'commission_bp' => (int) $found->commission_bp,
+			'fee_per_ticket_minor' => (int) $found->fee_per_ticket_minor,
+			'refund_policy' => (string) $found->refund_policy,
+			'sales_model' => isset( $found->sales_model ) && '' !== (string) $found->sales_model ? (string) $found->sales_model : $current['sales_model'],
+			'fee_tax_rate_bp' => isset( $found->fee_tax_rate_bp ) ? (int) $found->fee_tax_rate_bp : $current['fee_tax_rate_bp'],
+		);
 	}
 
 	/** Recorded terms versions of an organizer, newest first (admin view). */

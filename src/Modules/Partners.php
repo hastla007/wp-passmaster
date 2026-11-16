@@ -271,6 +271,8 @@ final class Partners {
 				commission_bp int(10) unsigned NOT NULL DEFAULT 0,
 				fee_per_ticket_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				refund_policy varchar(20) NOT NULL DEFAULT 'reverse_all',
+				sales_model varchar(20) NULL,
+				fee_tax_rate_bp int(10) unsigned NULL,
 				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (history_id),
