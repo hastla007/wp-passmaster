@@ -1090,6 +1090,7 @@
 		const noPayment = !onSale || !providers.length;
 		let open = false;
 		let paidOpen = false;
+		let freeOpen = false;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const row = types[qty.dataset.type] || null;
 			const max = row ? Math.max(0, parseInt(row.max, 10) || 0) : 0;
@@ -1100,6 +1101,7 @@
 			qty.disabled = max < 1 || !onSale || (noPayment && (Number(qty.dataset.price) || 0) > 0);
 			if (max > 0) open = true;
 			if (max > 0 && (Number(qty.dataset.price) || 0) > 0) paidOpen = true;
+			if (max > 0 && !((Number(qty.dataset.price) || 0) > 0)) freeOpen = true;
 			const wrap = typeRow(qty);
 			if (wrap) {
 				show(wrap.querySelector('.wpcap-qty-box'), max > 0);
@@ -1115,7 +1117,8 @@
 		const soldOut = onSale && !open;
 		show(form.querySelector('.wpcap-soldout-note'), soldOut);
 		show(form.querySelector('.wpcap-no-payment'), !soldOut && (!onSale || (noPayment && paidOpen)));
-		show(form.querySelector('.wpcap-buy'), !soldOut && !noPayment);
+		// Free types stay orderable without a payment provider, so the buyer form stays too.
+		show(form.querySelector('.wpcap-buy'), onSale && !soldOut && (!noPayment || freeOpen));
 		if (card) {
 			setText(card.querySelector('.wpcap-fact-availability dd'), state.availability);
 			setText(card.querySelector('.wpcap-fact-price dd'), state.price);
@@ -1324,7 +1327,8 @@
 			var data = {};
 			try { data = await response.json(); } catch (e) { data = {}; }
 			if (!response.ok) throw new Error(data.message || t.waitlistFailed || 'Failed.');
-			message.textContent = t.waitlistJoined || '';
+			// A564: with double opt-in the entry only counts after the e-mail link – say so (server text) instead of "you are on the list".
+			message.textContent = (data.confirmation_required && data.message) || t.waitlistJoined || '';
 			form.querySelectorAll('input,select,button').forEach(function (n) { n.disabled = true; });
 			// A395: the focused button is disabled now – keyboard focus goes to the confirmation.
 			message.setAttribute('tabindex', '-1');
