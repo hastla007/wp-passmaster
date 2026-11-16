@@ -8,6 +8,24 @@ Nachfrage, Wochentag/Zeitfenster) und gemeinsame Kontingente über alle Termine 
 Sommer-/Winterzeit: Die Uhrzeit bleibt Ortszeit; Zeiten in der ausgelassenen Stunde werden
 verschoben, doppelte Zeiten nehmen die erste (Sommerzeit) – beides wird in jeder Vorschau markiert.
 
+## Was aus dem Vorlagentermin übernommen wird (A332)
+
+Jeder neue Serientermin (Anlegen und Erweitern/Bearbeiten einer Serie) bekommt je Ticketart des
+Vorlagentermins eine Kopie mit Preis, USt.-Satz und Steuerklasse, Kontingent, Höchstmenge, Status und
+Verkaufsfenster (relativ zum Beginn) sowie
+
+- den **aktiven Teilnehmerfeldern** (Schlüssel, Bezeichnung, Typ, Pflichtfeld, Zweck, Einwilligung mit
+  Textversion, Aufbewahrungsdauer, Reihenfolge; deaktivierte Felder nicht),
+- der **Einlassprüfung** (Ausweis prüfen, Mindestalter, Hinweis für das Einlasspersonal),
+- der **Einlassregel** (Modul Einlass; die Tage einer Mehrtagesregel werden um den Abstand zwischen
+  Vorlagen- und neuem Termin verschoben) und den **Einlassbereichen** der Ticketart,
+- der Zuordnung zu Saalplan-Bereichen (bei gewähltem Saalplan, wie bisher).
+
+Die Vorschau listet unter „Aus der Vorlage übernommen“ je Ticketart, was kopiert wird. Alles geschieht in
+der Transaktion der Serie; Erweiterungen kopieren eigene Einstellungen über die Aktion
+`wpcap_ticket_type_copied` (siehe [HOOKS.md](HOOKS.md)). Bereits angelegte Termine werden dabei nicht
+nachträglich angepasst.
+
 ## Serie bearbeiten (A128)
 
 Unter „Gespeicherte Serien“ → **Serie bearbeiten** (oder im Serienbereich „Seriendefinition

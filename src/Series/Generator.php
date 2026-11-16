@@ -278,7 +278,7 @@ final class Generator {
 		if ( ! $ok || ! $occurrence_id ) { throw new \RuntimeException( 'occurrence_insert' ); }
 		$map = array();
 		foreach ( $types as $type ) {
-			$ok = $wpdb->insert( "{$p}wpcap_ticket_types", array(
+			$data = array(
 				'occurrence_id' => $occurrence_id,
 				'name' => $type->name,
 				'price_minor' => (int) $type->price_minor,
@@ -290,12 +290,122 @@ final class Generator {
 				'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], DAY_IN_SECONDS, $type->sales_start, $template, $definition['rule']['timezone'] ),
 				'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], MINUTE_IN_SECONDS, $type->sales_end, $template, $definition['rule']['timezone'] ),
 				'status' => $type->status,
-			) );
+			);
+			if ( \PassCaptain\AdmissionChecks::ready() && property_exists( $type, 'id_check' ) ) {
+				// A332: ID/age check and staff note of the template type.
+				$data += array( 'id_check' => (int) $type->id_check, 'min_age' => (int) $type->min_age, 'staff_note' => (string) $type->staff_note );
+			}
+			$ok = $wpdb->insert( "{$p}wpcap_ticket_types", $data );
 			if ( ! $ok ) { throw new \RuntimeException( 'type_insert' ); }
-			$map[ (int) $type->ticket_type_id ] = (int) $wpdb->insert_id;
+			$new_type = (int) $wpdb->insert_id;
+			$map[ (int) $type->ticket_type_id ] = $new_type;
+			self::copy_type_extras( (int) $type->ticket_type_id, $new_type, self::day_shift( $template, $item['starts_at'], (string) $definition['rule']['timezone'] ) );
+			/**
+			 * A ticket type of a template occurrence was copied to a new series occurrence (A332), inside
+			 * the series transaction; extensions copy their own per-type settings. Throw to roll back.
+			 *
+			 * @param int   $template_type_id Ticket type of the template occurrence.
+			 * @param int   $new_type_id      Copy on the new occurrence.
+			 * @param array $context          occurrence_id, series_id, source ('series').
+			 */
+			do_action( 'wpcap_ticket_type_copied', (int) $type->ticket_type_id, $new_type, array( 'occurrence_id' => $occurrence_id, 'series_id' => (int) $series_id, 'source' => 'series' ) );
 		}
 		$wpdb->insert( "{$p}wpcap_series_occurrences", array( 'series_id' => $series_id, 'occurrence_id' => $occurrence_id, 'starts_at' => $item['starts_at'], 'created_at' => $now ) );
 		return array( $occurrence_id, $map );
+	}
+
+	/** Whole days between the template's local start date and $starts_at (UTC) in $timezone. */
+	private static function day_shift( $template, $starts_at, $timezone ) {
+		if ( ! $template ) { return 0; }
+		try {
+			$from = new \DateTime( (string) $template->starts_at, new \DateTimeZone( 'UTC' ) );
+			$from->setTimezone( new \DateTimeZone( (string) ( $template->timezone ?: 'UTC' ) ) );
+			$to = new \DateTime( (string) $starts_at, new \DateTimeZone( 'UTC' ) );
+			$to->setTimezone( new \DateTimeZone( $timezone ?: 'UTC' ) );
+		} catch ( \Exception $e ) {
+			return 0;
+		}
+		return (int) ( new \DateTime( $from->format( 'Y-m-d' ) ) )->diff( new \DateTime( $to->format( 'Y-m-d' ) ) )->format( '%r%a' );
+	}
+
+	/** Whether a table of an optional module exists (Admission: policies and areas). */
+	private static function table_exists( $table ) {
+		global $wpdb;
+		static $known = array();
+		if ( ! isset( $known[ $table ] ) ) { $known[ $table ] = $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ); }
+		return $known[ $table ];
+	}
+
+	/**
+	 * A332: copies what belongs to a ticket type besides its own columns – active participant fields
+	 * (with consent text versions), the admission rule (dates of a multi-day rule moved by $day_shift
+	 * days) and the admission areas. Runs inside the series transaction; throws on a failed write.
+	 */
+	public static function copy_type_extras( $from_type, $to_type, $day_shift = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", (int) $from_type ), ARRAY_A ) as $field ) {
+			unset( $field['field_id'] );
+			$field['ticket_type_id'] = (int) $to_type;
+			if ( ! $wpdb->insert( "{$p}wpcap_participant_fields", $field ) ) { throw new \RuntimeException( 'field_insert' ); }
+			if ( ! empty( $field['consent'] ) && \PassCaptain\Consents::ready() ) {
+				\PassCaptain\Consents::ensure_text( (object) array( 'field_id' => (int) $wpdb->insert_id, 'label' => (string) $field['label'], 'purpose' => (string) $field['purpose'] ) );
+			}
+		}
+		if ( self::table_exists( "{$p}wpcap_admission_policies" ) ) {
+			$policy = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_admission_policies WHERE ticket_type_id=%d", (int) $from_type ), ARRAY_A );
+			if ( $policy ) {
+				$dates = json_decode( (string) $policy['valid_dates'], true );
+				if ( is_array( $dates ) && $dates && $day_shift ) {
+					$dates = array_map( static function ( $date ) use ( $day_shift ) { return gmdate( 'Y-m-d', strtotime( $date . ' 00:00:00 UTC' ) + (int) $day_shift * 86400 ); }, array_filter( $dates, 'is_string' ) );
+					$policy['valid_dates'] = wp_json_encode( array_values( $dates ) );
+				}
+				$policy['ticket_type_id'] = (int) $to_type;
+				$policy['updated_by'] = get_current_user_id();
+				$policy['updated_at'] = current_time( 'mysql', true );
+				$wpdb->delete( "{$p}wpcap_admission_policies", array( 'ticket_type_id' => (int) $to_type ) );
+				if ( ! $wpdb->insert( "{$p}wpcap_admission_policies", $policy ) ) { throw new \RuntimeException( 'policy_insert' ); }
+			}
+		}
+		if ( self::table_exists( "{$p}wpcap_admission_type_areas" ) ) {
+			if ( false === $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_admission_type_areas (ticket_type_id,area_id) SELECT %d,area_id FROM {$p}wpcap_admission_type_areas WHERE ticket_type_id=%d", (int) $to_type, (int) $from_type ) ) ) { throw new \RuntimeException( 'areas_insert' ); }
+		}
+	}
+
+	/**
+	 * What a series takes over from its template occurrence (A332, preview and form help): per
+	 * ticket type the copied settings, participant fields, admission checks, rule and areas.
+	 *
+	 * @return array[] {name, details: string[]}
+	 */
+	public static function template_summary( $template_occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$out = array();
+		if ( ! $template_occurrence_id ) { return $out; }
+		$types = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d AND status<>'archived' ORDER BY ticket_type_id", absint( $template_occurrence_id ) ) );
+		$policy_labels = class_exists( '\\PassCaptain\\Admission\\Policies' ) ? \PassCaptain\Admission\Policies::labels() : array();
+		foreach ( $types as $type ) {
+			$details = array( __( 'Preis, USt., Kontingent, Höchstmenge, Verkaufszeitraum (relativ zum Beginn)', 'pass-captain' ) );
+			$fields = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'", (int) $type->ticket_type_id ) );
+			/* translators: %d: number of participant fields */
+			if ( $fields ) { $details[] = sprintf( _n( '%d Teilnehmerfeld', '%d Teilnehmerfelder', $fields, 'pass-captain' ), $fields ); }
+			$hint = \PassCaptain\AdmissionChecks::staff_hint( \PassCaptain\AdmissionChecks::for_type( $type ) );
+			/* translators: %s: admission checks, e.g. "Ausweis prüfen · Mindestalter 18" */
+			if ( '' !== $hint ) { $details[] = sprintf( __( 'Einlassprüfung: %s', 'pass-captain' ), $hint ); }
+			if ( self::table_exists( "{$p}wpcap_admission_policies" ) ) {
+				$policy = (string) $wpdb->get_var( $wpdb->prepare( "SELECT policy FROM {$p}wpcap_admission_policies WHERE ticket_type_id=%d", (int) $type->ticket_type_id ) );
+				/* translators: %s: admission rule, e.g. "Mehrfacheinlass" */
+				if ( '' !== $policy ) { $details[] = sprintf( __( 'Einlassregel: %s', 'pass-captain' ), (string) ( $policy_labels[ $policy ] ?? $policy ) ); }
+			}
+			if ( self::table_exists( "{$p}wpcap_admission_type_areas" ) ) {
+				$areas = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_admission_type_areas WHERE ticket_type_id=%d", (int) $type->ticket_type_id ) );
+				/* translators: %d: number of admission areas */
+				if ( $areas ) { $details[] = sprintf( _n( '%d Einlassbereich', '%d Einlassbereiche', $areas, 'pass-captain' ), $areas ); }
+			}
+			$out[] = array( 'name' => (string) $type->name, 'details' => $details );
+		}
+		return $out;
 	}
 
 	/* ---------------------------------------------------------------------------------------------

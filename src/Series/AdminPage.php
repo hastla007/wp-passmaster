@@ -166,7 +166,7 @@ final class AdminPage {
 		};
 		echo '<table class="form-table" role="presentation"><tbody>';
 		$row( 'wpcap-series-name', __( 'Bezeichnung (optional)', 'pass-captain' ), static function () use ( $text, $in ) { $text( 'wpcap-series-name', 'name', self::value( $in, 'name' ), 'text', 'class="regular-text" maxlength="190"' ); } );
-		$row( 'wpcap-series-template', __( 'Vorlage für Ticketarten', 'pass-captain' ), static function () use ( $occurrences, $in ) { Forms::select( 'template_occurrence_id', $occurrences, self::value( $in, 'template_occurrence_id', '0' ), 'wpcap-series-template' ); }, __( 'Preis, USt., Kontingent, Höchstmenge und Verkaufszeitraum (relativ zum Beginn) werden kopiert.', 'pass-captain' ) );
+		$row( 'wpcap-series-template', __( 'Vorlage für Ticketarten', 'pass-captain' ), static function () use ( $occurrences, $in ) { Forms::select( 'template_occurrence_id', $occurrences, self::value( $in, 'template_occurrence_id', '0' ), 'wpcap-series-template' ); }, __( 'Preis, USt., Kontingent, Höchstmenge und Verkaufszeitraum (relativ zum Beginn), Teilnehmerfelder, Einlassprüfung (Ausweis/Mindestalter), Einlassregel und Einlassbereiche werden kopiert; die Vorschau zeigt sie je Ticketart.', 'pass-captain' ) );
 		$row( 'wpcap-series-freq', __( 'Wiederholung', 'pass-captain' ), static function () use ( $freqs, $in ) { Forms::select( 'freq', $freqs, self::value( $in, 'freq', 'weekly' ), 'wpcap-series-freq' ); } );
 		$row( 'wpcap-series-interval', __( 'Intervall', 'pass-captain' ), static function () use ( $text, $in ) { $text( 'wpcap-series-interval', 'interval', self::value( $in, 'interval', '1' ), 'number', 'min="1" max="52"' ); }, __( 'Jeden n-ten Tag / jede n-te Woche / jeden n-ten Monat.', 'pass-captain' ) );
 		echo '<tr><th scope="row">' . esc_html__( 'Wochentage', 'pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Wochentage', 'pass-captain' ) . '</legend>';
@@ -349,6 +349,7 @@ final class AdminPage {
 		foreach ( Generator::dst_notes( $items, (string) ( $preview['definition']['rule']['timezone'] ?? '' ) ) as $note ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html( $note ) . '</p></div>';
 		}
+		self::render_template_summary( (int) ( $preview['definition']['template_occurrence_id'] ?? 0 ) );
 		if ( ! $new ) { return; }
 		Forms::open_form( 'wpcap_series_create', self::NONCE );
 		foreach ( $in as $key => $value ) {
@@ -359,6 +360,21 @@ final class AdminPage {
 		/* translators: %d: number of occurrences */
 		submit_button( sprintf( __( '%d Termine anlegen', 'pass-captain' ), $new ) );
 		echo '</form>';
+	}
+
+	/** A332: what every new occurrence takes over from the template occurrence. */
+	public static function render_template_summary( $template_occurrence_id ) {
+		$summary = Generator::template_summary( $template_occurrence_id );
+		echo '<h3>' . esc_html__( 'Aus der Vorlage übernommen', 'pass-captain' ) . '</h3>';
+		if ( ! $summary ) {
+			echo '<p>' . esc_html__( 'Keine Vorlage gewählt: Die Termine werden ohne Ticketarten angelegt.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		echo '<ul class="wpcap-series-copied">';
+		foreach ( $summary as $type ) {
+			echo '<li><strong>' . esc_html( $type['name'] ) . '</strong>: ' . esc_html( implode( '; ', $type['details'] ) ) . '</li>';
+		}
+		echo '</ul>';
 	}
 
 	private static function render_existing( $event_id ) {
