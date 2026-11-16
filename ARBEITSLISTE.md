@@ -877,7 +877,7 @@ Gesamt: 262 Aufgaben.
   - src/Modules/Sms.php:476, assets/boxoffice/pos.js, shift.js: Alle über Money::format(); JS aus js_config
 - [ ] **A404** [OPTIMIERUNG] Toter Code — _R2 Support_ (TODO L750; Audit Runde 4)
   - src/Refunds.php:656 (tax_for_tickets), OfflineScanner/Assignments.php:75, BoxOffice/Service.php:490, GuestLists/Service.php:539: Entfernen oder anbinden (unfinished_sales in Schichtansicht)
-- [ ] **A405** [OPTIMIERUNG] Filter wpcap_client_ip wirkt nur auf Orders::client_ip — _R2 Support_ (TODO L751; Audit Runde 4)
+- [x] **A405** [OPTIMIERUNG] Filter wpcap_client_ip wirkt nur auf Orders::client_ip — _R2 Support_ (TODO L751; Audit Runde 4)
   - src/Orders.php:440, RateLimit.php:42: Filter in ClientIp::get() anwenden
 - [ ] **A406** [OPTIMIERUNG] Drei Template-Hooks nicht in HOOKS.md; kein CI-Abgleich — _R2 Support_ (TODO L752; Audit Runde 4)
   - templates/event-card.php:13/22/85: Dokumentieren, Abgleich Code↔HOOKS.md als CI-Prüfung
