@@ -3,7 +3,11 @@
 namespace PassCaptain\Payments;
 
 use PassCaptain\Audit;
+use PassCaptain\Log;
+use PassCaptain\Operations\Monitor;
+use PassCaptain\Operations\SiteHealth;
 use PassCaptain\Orders;
+use PassCaptain\Redact;
 use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -18,10 +22,18 @@ final class Webhooks {
 		$event = $gateway->verify_webhook( $request );
 		if ( is_wp_error( $event ) ) {
 			$data = (array) $event->get_error_data();
-			return new \WP_Error( $event->get_error_code(), $event->get_error_message(), array( 'status' => $data['status'] ?? 400 ) );
+			$status = (int) ( $data['status'] ?? 400 );
+			// A323: rejected deliveries are counted per provider (Site Health, Betrieb) – a wrong
+			// signing secret otherwise only shows as "no webhooks" two days later.
+			self::failure( $gateway->id(), 401 === $status ? 'signature' : ( $status >= 500 ? 'verify' : 'payload' ), $event, 'warning' );
+			return new \WP_Error( $event->get_error_code(), $event->get_error_message(), array( 'status' => $status ) );
 		}
 		$result = self::process( $gateway->id(), $event );
 		if ( is_wp_error( $result ) ) {
+			// A crash was already recorded in process(); a database/processing error is recorded here.
+			if ( 'wpcap_webhook_exception' !== $result->get_error_code() && 'wpcap_webhook_in_progress' !== $result->get_error_code() ) {
+				self::failure( $gateway->id(), 'processing', $result, 'warning', array( 'event_type' => sanitize_key( (string) ( $event['type'] ?? '' ) ) ) );
+			}
 			// 5xx so the provider retries later; the event row was released for the retry.
 			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => 500 ) );
 		}
@@ -85,7 +97,11 @@ final class Webhooks {
 			$result = self::apply( $provider, $event_id, $order_id, $event );
 		} catch ( \Throwable $error ) {
 			$release();
-			return \PassCaptain\Errors::busy( 'Processing failed; retry later.', 'wpcap_webhook_exception' );
+			// A323: class, file:line and database error into the support log; counted per provider.
+			$reference = Log::exception( 'webhook', $error, array( 'provider' => sanitize_key( (string) $provider ), 'event_type' => sanitize_key( (string) ( $event['type'] ?? '' ) ), 'order_id' => (int) ( $order_id ?? 0 ) ) );
+			Monitor::record_provider_failure( Monitor::WEBHOOK_OPTION, (string) $provider, 'exception', 'wpcap_webhook_exception', Redact::exception( $error ), $reference );
+			delete_transient( SiteHealth::NOTICE_TRANSIENT ); // The admin notice shows it right away.
+			return \PassCaptain\Errors::busy( 'Processing failed; retry later.', 'wpcap_webhook_exception', '' !== $reference ? array( 'reference' => $reference ) : array() );
 		}
 		if ( is_wp_error( $result ) ) {
 			// Transient failure (e.g. lock wait timeout): release the claim so the provider retries.
@@ -98,6 +114,24 @@ final class Webhooks {
 		// finds the work done ("already_paid" etc.).
 		$wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider' => $provider, 'provider_event_id' => $event_id, 'status' => 'processing' ) );
 		return $result;
+	}
+
+	/**
+	 * Records a failed webhook delivery (A323): per-provider counter for Site Health and the
+	 * operations page; the first failure of a kind per minute also goes to the support log.
+	 *
+	 * @param string    $provider Provider id.
+	 * @param string    $kind     signature, payload, verify, processing.
+	 * @param \WP_Error $error    Error.
+	 */
+	private static function failure( $provider, $kind, \WP_Error $error, $level, array $context = array() ) {
+		$code = (string) $error->get_error_code();
+		$message = (string) $error->get_error_message();
+		$new = Monitor::record_provider_failure( Monitor::WEBHOOK_OPTION, (string) $provider, $kind, $code, $message );
+		if ( $new ) {
+			$reference = Log::write( $level, 'webhook', 'Payment webhook rejected (' . $kind . '): ' . $code . ' ' . $message, array( 'provider' => sanitize_key( (string) $provider ), 'kind' => $kind ) + $context );
+			if ( '' !== $reference && 'signature' === $kind ) { delete_transient( SiteHealth::NOTICE_TRANSIENT ); }
+		}
 	}
 
 	/** References that identify the payment attempt of an event. */

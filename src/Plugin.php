@@ -35,6 +35,7 @@ final class Plugin {
 		Settings::register();
 		Secrets::register();
 		Redact::register();
+		Log::register();
 		Jobs\TimeBudget::register();
 		Operations\Monitor::register();
 		Operations\SiteHealth::register();

@@ -71,10 +71,16 @@ final class Mailer {
 		return true;
 	}
 
-	public static function send( $type, $to, array $vars, array $attachments = array(), $locale = '' ) {
+	/**
+	 * Composes and sends a mail.
+	 *
+	 * @param int $order_id Order the mail belongs to (support log/order history, A328); 0 = Log scope.
+	 */
+	public static function send( $type, $to, array $vars, array $attachments = array(), $locale = '', $order_id = 0 ) {
 		$message = self::compose( $type, $vars, $locale );
 		if ( ! $message ) { return false; }
 		$message['attachments'] = $attachments;
+		if ( absint( $order_id ) ) { $message['order_id'] = absint( $order_id ); }
 		return self::deliver( $to, $message );
 	}
 
@@ -201,7 +207,25 @@ final class Mailer {
 				self::$alt_body = null;
 			}
 		}
+		self::log_outcome( (bool) $sent, $to, $message );
 		return (bool) $sent;
+	}
+
+	/**
+	 * Support log entry of a plugin mail (A328): type, number of recipients and outcome, attributed to
+	 * the order of $message['order_id'] or of the current Log scope – never addresses or content.
+	 */
+	private static function log_outcome( $sent, $to, array $message ) {
+		$recipients = count( array_filter( array_map( 'trim', is_array( $to ) ? $to : explode( ',', (string) $to ) ) ) );
+		$type = sanitize_key( (string) ( $message['type'] ?? '' ) );
+		$context = array( 'mail_type' => $type, 'recipients' => $recipients );
+		if ( ! empty( $message['order_id'] ) ) { $context['order_id'] = absint( $message['order_id'] ); }
+		if ( $sent ) {
+			\PassCaptain\Log::info( 'mail', 'Mail sent: ' . $type, $context );
+			return;
+		}
+		$failure = \PassCaptain\Operations\Monitor::last_mail_failure_text();
+		\PassCaptain\Log::warning( 'mail', 'Mail not sent: ' . $type . ( '' !== $failure ? ' – ' . $failure : '' ), $context );
 	}
 
 	/**

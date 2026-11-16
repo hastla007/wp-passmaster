@@ -193,7 +193,10 @@ http_reset();
 $GLOBALS['wpcap_test_http_queue'][] = array( 'error' => new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out; headers Authorization: Bearer ' . $a194_values['stripe_secret_key'] ), 'match' => 'api.stripe.com' );
 $a194_r = $a194_checkout( 'stripe', 'a194-stripe-timeout' );
 $a194_outputs['stripe transport'] = a194_text( $a194_r['res'] );
-check( 'Stripe transport error: message is kept, the key is not', 502 === $a194_r['status'] && false !== strpos( $a194_outputs['stripe transport'], 'Operation timed out' ) && array() === a194_found( $a194_outputs['stripe transport'] ) );
+// A324: the buyer gets a neutral text with a Fehler-ID; the transport message is kept in the support log.
+$a194_log_entry = static function ( $res ) { $ref = is_wp_error( $res ) ? (string) ( ( (array) $res->get_error_data() )['reference'] ?? '' ) : ''; return '' !== $ref ? json_encode( PassCaptain\Log::entries( array( 'reference' => $ref ) ) ) : ''; };
+$a194_outputs['stripe transport log'] = $a194_log_entry( $a194_r['res'] );
+check( 'Stripe transport error: message is kept (support log, A324), the key is not', 502 === $a194_r['status'] && false === strpos( $a194_outputs['stripe transport'], 'Operation timed out' ) && false !== strpos( $a194_outputs['stripe transport log'], 'Operation timed out' ) && array() === a194_found( $a194_outputs['stripe transport'] ) && array() === a194_found( $a194_outputs['stripe transport log'] ) );
 http_reset();
 http_push( array( 'error' => 'invalid_client', 'error_description' => 'Client Authentication failed for secret ' . $a194_values['paypal_client_secret'] ), 401, '/v1/oauth2/token' );
 $a194_r = $a194_checkout( 'paypal', 'a194-paypal-auth' );
@@ -204,7 +207,8 @@ http_push( array( 'access_token' => 'A21-a194', 'expires_in' => 3600 ), 200, '/v
 http_push( array( 'name' => 'INVALID_REQUEST', 'message' => 'bad', 'details' => array( array( 'issue' => 'PAYEE_ACCOUNT_INVALID', 'description' => 'payee ' . $a194_buyer . ' iban ' . $a194_iban . ' client_secret=' . $a194_canaries['paypal_client_secret'] ) ) ), 422, '/v2/checkout/orders' );
 $a194_r = $a194_checkout( 'paypal', 'a194-paypal-422' );
 $a194_outputs['paypal api'] = a194_text( $a194_r['res'] );
-check( 'PayPal API error: issue code kept, secret/IBAN/e-mail removed', false !== strpos( $a194_outputs['paypal api'], 'PAYEE_ACCOUNT_INVALID' ) && array() === a194_found( $a194_outputs['paypal api'] ) );
+$a194_outputs['paypal api log'] = $a194_log_entry( $a194_r['res'] );
+check( 'PayPal API error: issue code kept (support log, A324), secret/IBAN/e-mail removed', false !== strpos( $a194_outputs['paypal api log'], 'PAYEE_ACCOUNT_INVALID' ) && array() === a194_found( $a194_outputs['paypal api'] ) && array() === a194_found( $a194_outputs['paypal api log'] ) );
 Settings::update( array( 'mollie_profile_id' => 'pfl_a194' ) );
 http_reset();
 http_push( array( 'status' => 401, 'title' => 'Unauthorized', 'detail' => 'Invalid API key: ' . $a194_values['mollie_api_key'] ), 401, 'api.mollie.com' );

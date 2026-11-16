@@ -28,7 +28,16 @@ final class Jobs {
 		$key = sanitize_text_field( $key );
 		$type = sanitize_key( $type );
 		if ( '' === $key || '' === $type ) { return new \WP_Error( 'wpcap_job_invalid', __( 'Job-Schlüssel oder Job-Typ ungültig.', 'pass-captain' ) ); }
-		$result = $wpdb->insert( $wpdb->prefix . 'wpcap_jobs', array( 'idempotency_key' => hash( 'sha256', $key ), 'job_type' => $type, 'payload' => wp_json_encode( $payload ), 'run_after' => $run_after ? sanitize_text_field( $run_after ) : current_time( 'mysql', true ), 'status' => 'queued', 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' ) );
+		$row = array( 'idempotency_key' => hash( 'sha256', $key ), 'job_type' => $type, 'payload' => wp_json_encode( $payload ), 'run_after' => $run_after ? sanitize_text_field( $run_after ) : current_time( 'mysql', true ), 'status' => 'queued', 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) );
+		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+		// A326/A328: the order a job belongs to (payload order_id, else the current log scope), for the
+		// dead-letter list and the order history (schema 3.10.15).
+		$order_id = absint( $payload['order_id'] ?? ( Log::current_scope()['order_id'] ?? 0 ) );
+		if ( $order_id && Log::has_column( 'wpcap_jobs', 'order_id' ) ) {
+			$row['order_id'] = $order_id;
+			$formats[] = '%d';
+		}
+		$result = $wpdb->insert( $wpdb->prefix . 'wpcap_jobs', $row, $formats );
 		if ( false === $result && false === strpos( strtolower( $wpdb->last_error ), 'duplicate' ) ) { return new \WP_Error( 'wpcap_job_enqueue', __( 'Job konnte nicht eingeplant werden.', 'pass-captain' ) ); }
 		return true;
 	}
@@ -90,17 +99,27 @@ final class Jobs {
 			++$processed;
 			$payload = json_decode( $row->payload, true );
 			$payload = is_array( $payload ) ? $payload : array();
-			$error = 'No handler acknowledged the job.';
+			/* translators: %s: job type */
+			$error = sprintf( __( 'Kein Handler hat den Job %s als erledigt gemeldet (Rückgabe ohne Fehlerangabe).', 'pass-captain' ), sanitize_key( $row->job_type ) );
+			$scope = self::log_scope( $payload );
+			Operations\Monitor::reset_last_mail_failure();
 			try {
-				$handled = apply_filters( 'wpcap_process_job', false, $row->job_type, $payload, (int) $row->job_id );
-				$handled = Hooks::legacy_filter( 'wpcap_process_job', $handled, $row->job_type, $payload, (int) $row->job_id );
+				// Entries of the support log (and mails) of this run belong to the job's order/ticket/occurrence.
+				$handled = Log::scope( $scope, static function () use ( $row, $payload ) {
+					$handled = apply_filters( 'wpcap_process_job', false, $row->job_type, $payload, (int) $row->job_id );
+					return Hooks::legacy_filter( 'wpcap_process_job', $handled, $row->job_type, $payload, (int) $row->job_id );
+				} );
+				// A325: a handler explains a failed run with a WP_Error; that reason is the job's last_error.
 				if ( $handled instanceof \WP_Error ) { $error = $handled->get_error_code() . ': ' . $handled->get_error_message(); }
 			} catch ( \Throwable $e ) {
 				// A crashing handler is a failed run (backoff, dead letter), not a job stuck in "running".
 				$handled = false;
-				$error = Redact::exception( $e );
-				Redact::log( 'job ' . (int) $row->job_id . ' (' . sanitize_key( $row->job_type ) . ') failed: ' . $error );
+				$reference = Log::exception( 'job', $e, $scope + array( 'job_id' => (int) $row->job_id, 'job_type' => sanitize_key( $row->job_type ), 'attempt' => $attempts ) );
+				$error = Redact::exception( $e ) . ( '' !== $reference ? ' [' . $reference . ']' : '' );
 			}
+			// A mail that failed during the run (wp_mail error of the site's mailer) explains it best.
+			$mail_failure = true === $handled ? '' : Operations\Monitor::last_mail_failure_text();
+			if ( '' !== $mail_failure && false === strpos( $error, $mail_failure ) ) { $error .= ' – ' . $mail_failure; }
 			if ( true === $handled ) {
 				$done = array( 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) );
 				// Only this run's claim (running + its locked_at) may finish the job: a stale claim that was
@@ -120,6 +139,7 @@ final class Jobs {
 				continue; // The shutdown release (backoff, error note) puts it back.
 			}
 			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
+			Log::write( $dead ? 'error' : 'warning', 'job', ( $dead ? 'Job failed for good (dead letter): ' : 'Job run failed, retry planned: ' ) . sanitize_key( $row->job_type ) . ' – ' . $failed['last_error'], $scope + array( 'job_id' => (int) $row->job_id, 'attempt' => $attempts ) );
 			if ( $dead && 1 === $marked ) { self::dead_letter( $row, $failed['last_error'] ); }
 		}
 		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s$filter LIMIT 1", $now ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $filter is prepared above.
@@ -156,6 +176,15 @@ final class Jobs {
 		$found = $wpdb->get_var( $sql );
 		if ( '' !== $wpdb->last_error ) { $found = $wpdb->get_var( $sql ); } // Once more on the reconnected session.
 		return (int) $found === (int) $job_id;
+	}
+
+	/** order_id/ticket_id/occurrence_id of a job payload (support log scope). */
+	public static function log_scope( array $payload ) {
+		$out = array();
+		foreach ( array( 'order_id', 'ticket_id', 'occurrence_id' ) as $key ) {
+			if ( isset( $payload[ $key ] ) && is_numeric( $payload[ $key ] ) && (int) $payload[ $key ] > 0 ) { $out[ $key ] = (int) $payload[ $key ]; }
+		}
+		return $out;
 	}
 
 	/** Error text for last_error: one line, at most 500 characters, e-mail addresses masked. */

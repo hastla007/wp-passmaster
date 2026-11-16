@@ -87,10 +87,10 @@ final class TicketAssignments {
 				'ticket_link' => Mail\Mailer::link( $url ),
 				'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) ),
 			);
-			Mail\Mailer::send( 'ticket_assigned_attendee', $email, $vars, array(), (string) $order->locale );
+			Mail\Mailer::send( 'ticket_assigned_attendee', $email, $vars, array(), (string) $order->locale, (int) $order->order_id );
 			if ( 0 !== strcasecmp( (string) $order->customer_email, $email ) ) {
 				// Tell the buyer that the previously mailed code for this ticket is no longer valid.
-				Mail\Mailer::send( 'ticket_assigned_buyer', $order->customer_email, $vars, array(), (string) $order->locale );
+				Mail\Mailer::send( 'ticket_assigned_buyer', $order->customer_email, $vars, array(), (string) $order->locale, (int) $order->order_id );
 			}
 		}
 		Audit::record( 'ticket_assigned', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );

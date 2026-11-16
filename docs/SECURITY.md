@@ -395,7 +395,9 @@ Fehlertexte von Zahlungs-, SMS-, Fiskal- und Wallet-Anbietern, Transportfehler a
 |---|---|
 | Fehlertexte der Anbieter-Clients (Stripe, PayPal, Mollie, Twilio, HTTP-SMS) | beim Erzeugen bereinigt (`Redact::text()`), E-Mail-Adressen maskiert |
 | REST-Fehlerantworten aller `pass-captain/v1`-Routen (Meldung und `data`) | Filter `rest_request_after_callbacks` |
-| Unbehandelte Ausnahmen in REST-Callbacks und Berechtigungsprüfungen | `rest_endpoints` umhüllt die Callbacks: Antwort 500 `wpcap_internal_error` mit Referenz, ohne Meldung, Klasse oder Stack-Trace; ins PHP-Fehlerprotokoll (`debug.log`) nur „Klasse: bereinigte Meldung (Datei:Zeile)“ mit derselben Referenz |
+| Unbehandelte Ausnahmen in REST-Callbacks und Berechtigungsprüfungen | `rest_endpoints` umhüllt die Callbacks: Antwort 500 `wpcap_internal_error` mit Referenz, ohne Meldung, Klasse oder Stack-Trace; ins Support-Protokoll und ins PHP-Fehlerprotokoll (`debug.log`) nur „Klasse: bereinigte Meldung (Datei:Zeile)“ mit derselben Referenz |
+| Zahlungsstart-Fehler der Anbieter (Checkout, Wartelisten-Angebot, Umtausch, A324) | Käufer:innen sehen nur einen neutralen Text mit Fehler-ID; der (bereinigte) Anbietertext steht im Support-Protokoll |
+| Support-Protokoll (`wpcap_logs`, A327) | Meldung und Kontext bereinigt, E-Mail-Adressen maskiert; Kontextschlüssel für Ticketcodes, Zugangslinks, Tokens, Namen, Adressen und Telefonnummern werden verworfen; Rotation nach 30 Tagen, Löschung mit der Bestellung |
 | Audit-Details | Werte von Schlüsseln wie `secret`, `password`, `token`, `api_key`, `signature`, `iban`, `card_number` werden entfernt, übrige Texte bereinigt |
 | Fehlerspalten: Jobs (`last_error`, auch bei abgestürztem Handler → `dead_letter` statt hängender Sperre), SMS, Webhook-Zustellungen, Erstattungen; Mail-Fehlerprotokoll, Wallet-Protokoll, Schema-Fehler | bereinigt und gekürzt |
 | Admin-Hinweise (Fehler), Bestellnotizen in WooCommerce, Admin-Mail bei fehlgeschlagener Gutschein-Rückbuchung | bereinigt (E-Mail-Adressen bleiben für das Personal sichtbar) |

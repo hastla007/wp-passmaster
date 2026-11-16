@@ -859,7 +859,7 @@ final class Service {
 			'ticket_link' => Mail\Mailer::link( add_query_arg( 'wpcap_ticket', $done['token'], home_url( '/' ) ) ),
 			'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $new_id ) ),
 		);
-		return (bool) Mail\Mailer::send( 'ticket_exchanged', $recipient, $vars, array(), (string) $order->locale );
+		return (bool) Mail\Mailer::send( 'ticket_exchanged', $recipient, $vars, array(), (string) $order->locale, (int) $order->order_id );
 	}
 
 	private static function event_name( $event_id ) {
@@ -1001,7 +1001,7 @@ final class Service {
 			$started = $gateway->create_payment( (array) $supp, $items );
 			if ( is_wp_error( $started ) ) {
 				Orders::cancel_order( $supp_id, 'payment_start_failed' );
-				return new \WP_Error( 'wpcap_exchange_payment', $started->get_error_message(), array( 'status' => 502 ) );
+				return \PassCaptain\Payments\StartFailures::handle( (string) $data['provider'], (int) $supp_id, $started, 'exchange', 'wpcap_exchange_payment' );
 			}
 			if ( ! empty( $started['provider_reference'] ) ) { Orders::set_provider_reference( $supp_id, $started['provider_reference'] ); }
 			$payment = array_intersect_key( $started, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );

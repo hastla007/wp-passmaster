@@ -521,10 +521,13 @@ final class Installer {
 				attempts smallint(5) unsigned NOT NULL DEFAULT 0,
 				locked_at datetime NULL,
 				last_error text NULL,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				sent_at datetime NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (message_id),
 				UNIQUE KEY dedupe_key (dedupe_key),
-				KEY due_messages (status,send_at)
+				KEY due_messages (status,send_at),
+				KEY order_id (order_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $ticket_assignments (
 				assignment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -788,12 +791,33 @@ final class Installer {
 				attempts smallint(5) unsigned NOT NULL DEFAULT 0,
 				locked_at datetime NULL,
 				last_error text NULL,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (job_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY due_jobs (status,run_after),
-				KEY job_type (job_type,status)
+				KEY job_type (job_type,status),
+				KEY order_id (order_id)
+			) ENGINE=InnoDB $charset;",
+			// Support log (schema 3.10.15, A327; see Log).
+			"CREATE TABLE {$wpdb->prefix}wpcap_logs (
+				log_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				created_at datetime NOT NULL,
+				level varchar(10) NOT NULL DEFAULT 'info',
+				channel varchar(32) NOT NULL DEFAULT '',
+				reference char(12) NOT NULL DEFAULT '',
+				request_id char(12) NOT NULL DEFAULT '',
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				ticket_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				occurrence_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				message varchar(500) NOT NULL DEFAULT '',
+				context longtext NULL,
+				PRIMARY KEY  (log_id),
+				KEY created_at (created_at),
+				KEY reference (reference),
+				KEY order_id (order_id,log_id),
+				KEY level (level,log_id)
 			) ENGINE=InnoDB $charset;",
 			// Resumable cancellation/notification runs (schema 3.10.13, A428; see BulkRuns).
 			"CREATE TABLE {$wpdb->prefix}wpcap_bulk_runs (

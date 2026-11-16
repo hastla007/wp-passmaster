@@ -664,7 +664,7 @@ final class Waitlists {
 			if ( is_wp_error( $payment ) ) {
 				$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payment_provider' => self::OFFER_PROVIDER ), array( 'order_id' => $order_id, 'payment_status' => 'pending' ) );
 				self::reopen( $row );
-				return new \WP_Error( $payment->get_error_code(), $payment->get_error_message(), array( 'status' => 502 ) );
+				return Payments\StartFailures::handle( $gateway->id(), $order_id, $payment, 'waitlist_offer' );
 			}
 			if ( ! empty( $payment['provider_reference'] ) ) { Orders::set_provider_reference( $order_id, $payment['provider_reference'] ); }
 			$due = Payments\BankTransfer::due_at( $order_id );

@@ -102,6 +102,8 @@ final class Settings {
 			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.
 			'voucher_default_purpose'   => 'multi',
 			'delete_data_on_uninstall'  => 0,
+			// A327: support log also stores debug entries (ends 24 h after switching on; constant WPCAP_DEBUG overrides).
+			'debug_logging'             => 0,
 			'scanner_show_attendee'     => 0,
 			'device_max_hours'          => 24,
 			'admission_day_cutoff_hour' => 0,

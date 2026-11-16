@@ -10,14 +10,27 @@ final class Communications {
 		return $schedules;
 	}
 
-	public static function enqueue( $key, $email, $template, array $payload, $send_at = '' ) {
+	/**
+	 * Queues a message (deduplicated by $key).
+	 *
+	 * @param int $order_id Order the message belongs to (order history, dead letters; schema 3.10.15).
+	 *                      0 = payload order_id, else the current support log scope.
+	 */
+	public static function enqueue( $key, $email, $template, array $payload, $send_at = '', $order_id = 0 ) {
 		global $wpdb;
 		$email = sanitize_email( $email );
 		$key = sanitize_text_field( $key );
 		$template = sanitize_key( $template );
 		if ( ! is_email( $email ) || '' === $template || '' === $key ) { return new \WP_Error( 'wpcap_message_invalid', __( 'Nachrichtendaten ungültig.', 'pass-captain' ) ); }
 		$key = hash( 'sha256', $key );
-		$result = $wpdb->insert( $wpdb->prefix . 'wpcap_message_queue', array( 'dedupe_key' => $key, 'recipient' => $email, 'template_key' => $template, 'payload' => wp_json_encode( $payload ), 'send_at' => $send_at ? sanitize_text_field( $send_at ) : current_time( 'mysql', true ), 'status' => 'queued', 'created_at' => current_time( 'mysql', true ) ), array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' ) );
+		$row = array( 'dedupe_key' => $key, 'recipient' => $email, 'template_key' => $template, 'payload' => wp_json_encode( $payload ), 'send_at' => $send_at ? sanitize_text_field( $send_at ) : current_time( 'mysql', true ), 'status' => 'queued', 'created_at' => current_time( 'mysql', true ) );
+		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
+		$order_id = absint( $order_id ) ?: absint( $payload['order_id'] ?? ( Log::current_scope()['order_id'] ?? 0 ) );
+		if ( $order_id && Log::has_column( 'wpcap_message_queue', 'order_id' ) ) {
+			$row['order_id'] = $order_id;
+			$formats[] = '%d';
+		}
+		$result = $wpdb->insert( $wpdb->prefix . 'wpcap_message_queue', $row, $formats );
 		if ( false === $result && false === strpos( strtolower( $wpdb->last_error ), 'duplicate' ) ) { return new \WP_Error( 'wpcap_message_enqueue', __( 'Nachricht konnte nicht eingeplant werden.', 'pass-captain' ) ); }
 		return true;
 	}
@@ -75,22 +88,46 @@ final class Communications {
 			$body = (string) ( $template['body'] ?? '' );
 			// Through the central mailer (layout for HTML bodies, `wpcap_mail` filter); reminders keep their own editor.
 			// A fully composed message (e.g. BulkRuns: mail type, locale, attachments) is sent as it is.
-			$sent = isset( $template['message'] ) && is_array( $template['message'] )
-				? Mail\Mailer::deliver( $row->recipient, $template['message'] )
-				: '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
+			$composed = isset( $template['message'] ) && is_array( $template['message'] );
+			$scope = Jobs::log_scope( $payload );
+			if ( ! empty( $row->order_id ) ) { $scope['order_id'] = (int) $row->order_id; }
+			Operations\Monitor::reset_last_mail_failure();
+			$sent = Log::scope( $scope, static function () use ( $composed, $template, $row, $subject, $body ) {
+				return $composed
+					? Mail\Mailer::deliver( $row->recipient, $template['message'] )
+					: '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
+			} );
 			foreach ( (array) ( $template['temp_files'] ?? array() ) as $temp_file ) {
 				if ( is_string( $temp_file ) && file_exists( $temp_file ) ) { wp_delete_file( $temp_file ); }
 			}
 			if ( $sent ) {
 				$done = array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null );
+				$done_formats = array( '%s', '%s', '%s' );
+				if ( Log::has_column( 'wpcap_message_queue', 'sent_at' ) ) {
+					$done['sent_at'] = current_time( 'mysql', true ); // A328: when it went out (order history).
+					$done_formats[] = '%s';
+				}
 				// Once more after a lost connection: an unmarked mail would be sent again (at-least-once).
-				if ( false === $wpdb->update( $table, $done, array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) {
-					$wpdb->update( $table, $done, array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+				if ( false === $wpdb->update( $table, $done, array( 'message_id' => (int) $row->message_id ), $done_formats, array( '%d' ) ) ) {
+					$wpdb->update( $table, $done, array( 'message_id' => (int) $row->message_id ), $done_formats, array( '%d' ) );
 				}
 			}
 			else {
 				$tries = (int) $row->attempts + 1;
-				$wpdb->update( $table, array( 'status' => $tries >= 5 ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => __( 'Template fehlt oder wp_mail ist fehlgeschlagen.', 'pass-captain' ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+				// A325: the actual reason – the error of the site's mailer (wp_mail_failed), or a missing template.
+				$mail_failure = Operations\Monitor::last_mail_failure_text();
+				if ( '' !== $mail_failure ) {
+					$reason = $mail_failure;
+				} elseif ( $composed || ( '' !== $subject && '' !== $body ) ) {
+					$reason = __( 'wp_mail hat den Versand ohne Fehlermeldung abgelehnt (Rückgabe false).', 'pass-captain' );
+				} else {
+					/* translators: %s: message template key */
+					$reason = sprintf( __( 'Für die Vorlage %s gibt es keinen Betreff oder Text (Vorlage fehlt oder Modul deaktiviert).', 'pass-captain' ), (string) $row->template_key );
+				}
+				$wpdb->update( $table, array( 'status' => $tries >= 5 ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => Operations\Queues::safe_error( $reason ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+				if ( $tries >= 5 ) {
+					Log::error( 'mail', 'Queued message failed for good: ' . sanitize_key( (string) $row->template_key ) . ' – ' . $reason, $scope + array( 'message_id' => (int) $row->message_id ) );
+				}
 			}
 			Jobs\TimeBudget::finished( $table, (int) $row->message_id );
 			++$processed;

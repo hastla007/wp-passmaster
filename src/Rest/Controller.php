@@ -377,7 +377,8 @@ final class Controller {
 			$payment = $gateway->create_payment( $order, $items );
 			if ( is_wp_error( $payment ) ) {
 				Orders::cancel_order( $result['order_id'], 'payment_start_failed' );
-				return new \WP_Error( $payment->get_error_code(), $payment->get_error_message(), array( 'status' => 502 ) );
+				// Neutral text + reference for the buyer; the provider text goes to the support log (A324).
+				return \PassCaptain\Payments\StartFailures::handle( $provider_id, (int) $result['order_id'], $payment );
 			}
 			if ( ! empty( $payment['provider_reference'] ) ) {
 				Orders::set_provider_reference( $result['order_id'], $payment['provider_reference'] );

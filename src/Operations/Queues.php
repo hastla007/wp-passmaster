@@ -134,6 +134,7 @@ final class Queues {
 		$id = $def['id'];
 		$type = $def['type'];
 		$extra = 'messages' === $queue ? ', recipient' : ( 'webhooks' === $queue ? ', subscription_id, response_code' : '' );
+		if ( in_array( $queue, array( 'jobs', 'messages' ), true ) && \PassCaptain\Log::has_column( $def['table'], 'order_id' ) ) { $extra .= ', order_id'; }
 		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE status=%s", $def['failed'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT $id AS id, $type AS type, attempts, last_error, payload, created_at$extra FROM $table WHERE status=%s ORDER BY $id DESC LIMIT %d OFFSET %d", $def['failed'], max( 1, (int) $limit ), max( 0, (int) $offset ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed column/table names.
 		$out = array();
@@ -146,6 +147,8 @@ final class Queues {
 				'payload_keys' => self::payload_keys( (string) $row->payload, 'webhooks' === $queue ),
 				'created_at'   => (string) $row->created_at,
 				'detail'       => '',
+				// A326: the order/ticket/occurrence the item belongs to (ids only).
+				'refs'         => self::payload_refs( (string) $row->payload, 'webhooks' === $queue, (int) ( $row->order_id ?? 0 ) ),
 			);
 			if ( 'messages' === $queue ) {
 				$item['detail'] = '' === (string) $row->recipient ? '' : \PassCaptain\Pii::mask_email( (string) $row->recipient );
@@ -155,6 +158,31 @@ final class Queues {
 			$out[] = $item;
 		}
 		return array( 'rows' => $out, 'total' => $total );
+	}
+
+	/** Payload keys whose (integer) values identify the object an item belongs to. */
+	const REF_KEYS = array( 'order_id', 'ticket_id', 'occurrence_id', 'event_id', 'refund_id', 'run_id' );
+
+	/**
+	 * Ids an item belongs to (A326): positive integers of REF_KEYS from the payload (webhooks: also
+	 * data.object), plus the stored order_id column. No other payload value is read.
+	 *
+	 * @return array<string,int>
+	 */
+	public static function payload_refs( $payload, $webhook = false, $order_id = 0 ) {
+		$data = json_decode( (string) $payload, true );
+		$sources = is_array( $data ) ? array( $data ) : array();
+		if ( $webhook && is_array( $data ) && isset( $data['data']['object'] ) && is_array( $data['data']['object'] ) ) { $sources[] = $data['data']['object']; }
+		$out = array();
+		foreach ( $sources as $source ) {
+			foreach ( self::REF_KEYS as $key ) {
+				if ( ! isset( $out[ $key ] ) && isset( $source[ $key ] ) && is_scalar( $source[ $key ] ) && preg_match( '/^\d{1,19}$/', (string) $source[ $key ] ) && (int) $source[ $key ] > 0 ) {
+					$out[ $key ] = (int) $source[ $key ];
+				}
+			}
+		}
+		if ( $order_id > 0 && ! isset( $out['order_id'] ) ) { $out = array( 'order_id' => (int) $order_id ) + $out; }
+		return $out;
 	}
 
 	/** Top-level keys of a JSON payload (at most 12), never values. */

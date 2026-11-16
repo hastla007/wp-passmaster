@@ -193,6 +193,13 @@ final class SettingsPage {
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ) ),
 				),
 			),
+			'support' => array(
+				'title' => __( 'Support und Fehlersuche', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'debug_logging' => array( 'type' => 'bool', 'label' => __( 'Fehlersuche-Protokoll (Debug-Modus) für 24 Stunden einschalten', 'pass-captain' ), 'description' => __( 'Speichert zusätzlich ausführliche Diagnose-Einträge im Support-Protokoll (Betrieb → Support-Protokoll). Schaltet sich 24 Stunden nach dem Einschalten von selbst ab; zum erneuten Einschalten aus- und wieder einschalten. Fehler und Warnungen werden immer protokolliert. Geheimnisse, Ticketcodes und E-Mail-Adressen werden nie gespeichert. Die Konstante WPCAP_DEBUG in wp-config.php hat Vorrang.', 'pass-captain' ) ),
+				),
+			),
 			'uninstall' => array(
 				'title' => __( 'Deinstallation', 'pass-captain' ),
 				'tab' => 'general',

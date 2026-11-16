@@ -357,6 +357,8 @@ final class Orders {
 				throw new \RuntimeException( 'db_busy' );
 			}
 		} catch ( \Throwable $error ) {
+			// Database error of the failed statement, before ROLLBACK resets it (support log, A322).
+			$db_error = (string) $wpdb->last_error;
 			// After a lost connection wpdb reconnects and runs the remaining statements outside the
 			// transaction (autocommit) while the earlier ones were rolled back (A183). If the order row
 			// exists, the connection was lost before its insert, so every later write (each one checked)
@@ -365,7 +367,7 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			if ( ! ( $lost && $commit_unknown && self::order_committed( $order_id, $key_hash ) ) ) {
 				if ( $lost ) { self::discard_lost_order( $order_id, $key_hash, $occurrence_ids ?? array() ); }
-				return self::checkout_error( $error->getMessage(), $custom_error, $key_hash );
+				return self::checkout_error( $error->getMessage(), $custom_error, $key_hash, $error, array( 'db_error' => $db_error, 'lost_connection' => $lost, 'commit_unknown' => $commit_unknown, 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'provider' => sanitize_key( (string) ( $internal['payment_provider'] ?? '' ) ), 'ticket_type_ids' => array_slice( array_keys( $clean_lines ), 0, 20 ) ) );
 			}
 		}
 
@@ -573,8 +575,19 @@ final class Orders {
 		return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
 	}
 
-	/** Error of a checkout that was rolled back; db_busy is retryable (503). */
-	private static function checkout_error( $code, $custom_error, $key_hash ) {
+	/**
+	 * Error of a checkout that was rolled back; db_busy is retryable (503).
+	 *
+	 * Support log (A322): an unexpected failure (exception that is no checkout outcome, unknown
+	 * abort code) is logged as an error with class, code, file:line and the last database error;
+	 * the buyer sees the neutral message with the reference ("Fehler-ID", data.reference). A busy
+	 * database is logged as a warning with the database error; ordinary outcomes (sold out, sales
+	 * closed, …) only in debug mode.
+	 *
+	 * @param \Throwable|null $exception Cause.
+	 * @param array           $context   Support context (db_error, source, provider, ticket types).
+	 */
+	private static function checkout_error( $code, $custom_error, $key_hash, $exception = null, array $context = array() ) {
 		global $wpdb;
 		$messages = array(
 			'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
@@ -600,10 +613,29 @@ final class Orders {
 			return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
 		}
 		$messages = apply_filters( 'wpcap_checkout_error_messages', $messages );
-		$fallback = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message() ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'pass-captain' );
+		$custom = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message();
+		$fallback = $custom ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'pass-captain' );
 		$message = $messages[ $code ] ?? $fallback;
 		// `reason`: machine-readable cause (sold_out, occurrence_sold_out, sales_closed, …) – the message is translated.
-		return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code, 'reason' => isset( $messages[ $code ] ) ? $code : 'checkout_failed' ) );
+		$data = array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code, 'reason' => isset( $messages[ $code ] ) ? $code : 'checkout_failed' );
+		// A known outcome is a RuntimeException with a mapped code or a module's own error (custom_error).
+		$expected = ( isset( $messages[ $code ] ) || $custom ) && ( ! $exception || $exception instanceof \RuntimeException );
+		// The abort code of an unexpected exception is its message: never stored as such (may hold data).
+		$reason = $expected || ( $exception instanceof \RuntimeException && preg_match( '/^[a-z0-9_]{1,64}$/', (string) $code ) ) ? (string) $code : 'unexpected_exception';
+		$context = array( 'reason' => $reason ) + array_filter( $context, static fn( $v ) => '' !== $v && false !== $v && array() !== $v );
+		if ( ! $expected ) {
+			$reference = $exception instanceof \Throwable ? Log::exception( 'checkout', $exception, $context ) : Log::error( 'checkout', 'Checkout aborted: ' . $reason, $context );
+			if ( '' !== $reference ) {
+				/* translators: 1: error message, 2: error reference for support */
+				$message = sprintf( __( '%1$s Bitte versuche es erneut. Falls es wieder nicht klappt, nenne uns bitte die Fehler-ID %2$s.', 'pass-captain' ), $message, $reference );
+				$data['reference'] = $reference;
+			}
+		} elseif ( 'db_busy' === $code ) {
+			Log::warning( 'checkout', 'Checkout rolled back: database busy', $context );
+		} else {
+			Log::debug( 'checkout', 'Checkout refused: ' . $code, $context );
+		}
+		return new \WP_Error( 'wpcap_checkout_failed', $message, $data );
 	}
 
 	/** Whether the order row of a checkout whose COMMIT result is unknown exists (with this checkout's key). */
@@ -1369,7 +1401,7 @@ final class Orders {
 	private static function run_late_refund( $order_id, $reason ) {
 		global $wpdb;
 		$order = self::get( $order_id );
-		if ( ! $order ) { return '' === $wpdb->last_error; }
+		if ( ! $order ) { return '' === $wpdb->last_error ? true : self::job_error( false, 'wpcap_db_busy' ); }
 		$open = ( 'needs_review' === $order->status && 'paid_unallocated' === $order->payment_status ) || 'cancelled' === $order->status;
 		if ( ! $open || (int) $order->total_minor < 1 ) { return true; }
 		$gateway = Payments\Registry::get( (string) $order->payment_provider );
@@ -1377,10 +1409,10 @@ final class Orders {
 		$result = $gateway->refund( (array) $order, (int) $order->total_minor, 'wpcap-late-refund-' . (int) $order_id );
 		if ( is_wp_error( $result ) ) {
 			Audit::record( 'late_payment_refund_failed', 'order', (int) $order_id, array( 'error' => $result->get_error_code() ) );
-			return false;
+			return $result; // The provider's reason becomes the job's last_error (A325).
 		}
 		$marked = self::mark_refunded( $order_id, 'late_payment_auto_refund' );
-		if ( true !== $marked ) { return false; } // mark_refunded() queued its own repair; the provider call is idempotent.
+		if ( true !== $marked ) { return self::job_error( $marked, 'wpcap_refund_mark_failed' ); } // mark_refunded() queued its own repair; the provider call is idempotent.
 		// No tickets, no refund row: the order total is booked as refunded, so the provider's refund
 		// webhook finds nothing left to book.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET refunded_minor=total_minor WHERE order_id=%d AND status='refunded'", (int) $order_id ) );
@@ -1745,7 +1777,9 @@ final class Orders {
 		if ( null === $locale ) {
 			$locale = (string) $wpdb->get_var( $wpdb->prepare( "SELECT locale FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", (string) $public_id ) );
 		}
-		return Mail\Mailer::send( 'order_access', sanitize_email( $email ), array( 'order_id' => (string) $public_id, 'access_link' => Mail\Mailer::link( $url ) ), array(), (string) $locale );
+		// Order of the mail for the support log/order history (A328): one primary-key-free lookup by public id.
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", (string) $public_id ) );
+		return Mail\Mailer::send( 'order_access', sanitize_email( $email ), array( 'order_id' => (string) $public_id, 'access_link' => Mail\Mailer::link( $url ) ), array(), (string) $locale, $order_id );
 	}
 
 	public static function transfer_ticket( $public_id, $access_token, $ticket_public_id, $recipient_email ) {
@@ -1823,10 +1857,10 @@ final class Orders {
 			'recipient_email' => $recipient_email,
 		);
 		// The recipient's language is unknown; the order's locale is the best available guess.
-		if ( ! Mail\Mailer::send( 'ticket_transfer_recipient', $recipient_email, $vars, array(), (string) $order->locale ) ) {
+		if ( ! Mail\Mailer::send( 'ticket_transfer_recipient', $recipient_email, $vars, array(), (string) $order->locale, (int) $order->order_id ) ) {
 			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'pass-captain' ), array( 'status' => 502 ) );
 		}
-		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, $vars, array(), (string) $order->locale );
+		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, $vars, array(), (string) $order->locale, (int) $order->order_id );
 		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'transferred' );
 	}
@@ -2129,7 +2163,7 @@ final class Orders {
 				// Legacy filter: receives and may change subject/body/attachments of the rendered template.
 				$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => $message['subject'], 'body' => $message['body'], 'attachments' => $attachments ), $order, $issued );
 				$mail = is_array( $mail ) ? $mail : array( 'attachments' => $attachments );
-				$delivered = Mail\Mailer::deliver( $order->customer_email, Mail\Mailer::apply_filtered( $message, $mail ) );
+				$delivered = Mail\Mailer::deliver( $order->customer_email, array( 'order_id' => (int) $order->order_id ) + Mail\Mailer::apply_filtered( $message, $mail ) );
 				if ( ! $delivered ) {
 					// The codes exist only in this mail: a retry sends new codes (resend), with backoff
 					// up to the job's dead letter; the order page shows the open retry.
@@ -2150,16 +2184,20 @@ final class Orders {
 	 * the side effect and the "complete" mark (at-least-once, see Jobs) changes nothing more.
 	 */
 	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
+		// A failed run returns the WP_Error of the attempt: its code and text become the job's
+		// last_error, so a dead letter says why (A325).
 		if ( 'order_refund_mark_retry' === $type ) {
 			$marked = self::mark_refunded( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );
 			// A refused transition is final (never paid): acknowledge instead of retrying into the dead letter.
-			return true === $marked || ( is_wp_error( $marked ) && 'wpcap_order_state' === $marked->get_error_code() );
+			if ( true === $marked || ( is_wp_error( $marked ) && 'wpcap_order_state' === $marked->get_error_code() ) ) { return true; }
+			return self::job_error( $marked, 'wpcap_refund_mark_failed' );
 		}
 		if ( 'order_cancel_retry' === $type ) {
 			$order = self::get( absint( $payload['order_id'] ?? 0 ) );
 			// Paid, refunded or cancelled meanwhile: the retry must not override that.
 			if ( ! $order || (string) $order->payment_status !== (string) ( $payload['payment_status'] ?? '' ) ) { return true; }
-			return true === self::cancel_order( (int) $order->order_id, (string) ( $payload['reason'] ?? '' ) );
+			$cancelled = self::cancel_order( (int) $order->order_id, (string) ( $payload['reason'] ?? '' ) );
+			return true === $cancelled ? true : self::job_error( $cancelled, 'wpcap_order_cancel_failed' );
 		}
 		if ( 'late_payment_refund' === $type ) {
 			return self::run_late_refund( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );
@@ -2167,7 +2205,8 @@ final class Orders {
 		if ( 'ticket_issue_retry' === $type ) {
 			$order = self::get( absint( $payload['order_id'] ?? 0 ) );
 			if ( ! $order || 'paid' !== $order->payment_status ) { return true; } // Nothing (more) to issue.
-			return ! is_wp_error( self::issue_and_email( (int) $order->order_id ) );
+			$issued = self::issue_and_email( (int) $order->order_id );
+			return is_wp_error( $issued ) ? $issued : true;
 		}
 		if ( 'ticket_mail_retry' !== $type ) { return $handled; }
 		$order_id = absint( $payload['order_id'] ?? 0 );
@@ -2180,7 +2219,15 @@ final class Orders {
 		}
 		$result = self::resend_tickets( $order_id, array( 'from_job' => true, 'skip_transferred' => ! empty( $payload['skip_transferred'] ) ) );
 		if ( is_wp_error( $result ) && 'wpcap_no_resendable_tickets' === $result->get_error_code() ) { return true; }
-		return true === $result;
+		return true === $result ? true : self::job_error( $result, 'wpcap_mail_failed' );
+	}
+
+	/** The WP_Error of a failed job step, or a generic one with $code when the step gave no reason. */
+	private static function job_error( $result, $code ) {
+		if ( $result instanceof \WP_Error ) { return $result; }
+		global $wpdb;
+		/* translators: %s: database error ('' when none) */
+		return new \WP_Error( $code, trim( sprintf( __( 'Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s', 'pass-captain' ), (string) $wpdb->last_error ) ) );
 	}
 
 	/**
@@ -2413,7 +2460,7 @@ final class Orders {
 		$sent = true;
 		foreach ( $entries as $recipient => $list ) {
 			$vars = self::ticket_mail_vars( $order, $list, static function () use ( $list ) { return Mail\Blocks::code_tickets( $list ); } );
-			$sent = Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale ) && $sent;
+			$sent = Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale, (int) $order->order_id ) && $sent;
 		}
 		if ( ! $sent ) {
 			Audit::record( 'ticket_mail_failed', 'order', $order_id, array( 'tickets' => count( $tickets ), 'resend' => true ) );
@@ -2488,7 +2535,7 @@ final class Orders {
 		if ( ( $context['notify'] ?? true ) && is_email( $recipient ) ) {
 			$list = array( array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $ticket_id ) ) );
 			$vars = self::ticket_mail_vars( $order, $list, static function () use ( $list ) { return Mail\Blocks::code_tickets( $list ); } );
-			$mailed = (bool) Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale );
+			$mailed = (bool) Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale, (int) $order->order_id );
 		}
 		Audit::record( 'ticket_reissued', 'ticket', $ticket_id, array( 'order_id' => (int) $order->order_id, 'event_id' => (int) $ticket->event_id, 'reason' => sanitize_text_field( (string) ( $context['reason'] ?? '' ) ), 'mailed' => $mailed ) );
 		return array( 'ticket_id' => $ticket_id, 'recipient' => $recipient, 'mailed' => $mailed );

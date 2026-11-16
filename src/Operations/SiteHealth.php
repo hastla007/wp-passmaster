@@ -49,6 +49,14 @@ final class SiteHealth {
 			'sms_failures'             => 1,
 			'sms_failures_critical'    => 10,
 			'payment_webhook_hours'    => 48,
+			// A323: rejected/failed payment webhooks within mail_window_hours; any crash is critical.
+			'webhook_failures'         => 1,
+			'webhook_failures_critical' => 10,
+			'webhook_exceptions_critical' => 1,
+			// A324: failed payment starts within payment_start_window_minutes ("Häufung").
+			'payment_start_window_minutes' => 60,
+			'payment_start_failures'   => 1,
+			'payment_start_failures_critical' => 5,
 		);
 		/**
 		 * Thresholds of the Pass Captain Site Health checks.
@@ -83,6 +91,8 @@ final class SiteHealth {
 			'queues'           => array( __CLASS__, 'test_queues' ),
 			'mail'             => array( __CLASS__, 'test_mail' ),
 			'payment_webhooks' => array( __CLASS__, 'test_payment_webhooks' ),
+			'webhook_errors'   => array( __CLASS__, 'test_webhook_errors' ),
+			'payment_start'    => array( __CLASS__, 'test_payment_start' ),
 		);
 		if ( self::sms_active() ) { $tests['sms'] = array( __CLASS__, 'test_sms' ); }
 		return $tests;
@@ -323,6 +333,89 @@ final class SiteHealth {
 		return self::result( 'payment_webhooks', 'good', __( 'Pass Captain: Zahlungs-Webhooks kommen an', 'pass-captain' ), self::p( __( 'Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen.', 'pass-captain' ) ) );
 	}
 
+	/** Display names of the webhook failure kinds. */
+	private static function failure_kinds() {
+		return array(
+			'signature'  => __( 'Signatur ungültig', 'pass-captain' ),
+			'payload'    => __( 'Nachricht ungültig', 'pass-captain' ),
+			'verify'     => __( 'Prüfung beim Anbieter nicht möglich', 'pass-captain' ),
+			'processing' => __( 'Verarbeitung fehlgeschlagen', 'pass-captain' ),
+			'exception'  => __( 'Absturz bei der Verarbeitung', 'pass-captain' ),
+			'start'      => __( 'Zahlungsstart fehlgeschlagen', 'pass-captain' ),
+		);
+	}
+
+	/** "Code – Fehler (Fehler-ID …), am … UTC" of a failure entry. */
+	private static function failure_detail( array $e ) {
+		$text = (string) ( $e['code'] ?? '' ) . ( '' !== (string) ( $e['error'] ?? '' ) ? ' – ' . $e['error'] : '' );
+		if ( '' !== (string) ( $e['ref'] ?? '' ) ) {
+			/* translators: %s: error reference */
+			$text .= ' ' . sprintf( __( '(Fehler-ID %s)', 'pass-captain' ), $e['ref'] );
+		}
+		/* translators: 1: error details, 2: date and time (UTC) */
+		return sprintf( __( '%1$s, zuletzt am %2$s (UTC)', 'pass-captain' ), trim( $text ), gmdate( 'Y-m-d H:i:s', (int) ( $e['t'] ?? 0 ) ) );
+	}
+
+	/**
+	 * Failed payment webhooks per provider in the mail window (A323), shown right away: a wrong
+	 * signing secret or a crashing handler means payments stay unconfirmed.
+	 */
+	public static function test_webhook_errors( $now = null ) {
+		$t = self::thresholds();
+		$now = null === $now ? time() : (int) $now;
+		$entries = Monitor::provider_failures( Monitor::WEBHOOK_OPTION, $now - $t['mail_window_hours'] * HOUR_IN_SECONDS );
+		$total = Monitor::count_failures( $entries );
+		$crashes = Monitor::count_failures( $entries, 'exception' );
+		if ( ! $entries || ( $t['webhook_failures'] > 0 && $total < $t['webhook_failures'] && ( ! $t['webhook_exceptions_critical'] || $crashes < $t['webhook_exceptions_critical'] ) ) ) {
+			/* translators: %s: period, e.g. "24 Stunden" */
+			$text = sprintf( __( 'Innerhalb von %s wurde keine Webhook-Benachrichtigung eines Zahlungsanbieters abgelehnt oder fehlerhaft verarbeitet.', 'pass-captain' ), self::hours( $t['mail_window_hours'] ) );
+			return self::result( 'webhook_errors', 'good', __( 'Pass Captain: Zahlungs-Webhooks ohne Fehler', 'pass-captain' ), self::p( $text ) );
+		}
+		$kinds = self::failure_kinds();
+		$by = array();
+		foreach ( $entries as $e ) {
+			$key = $e['provider'] . '|' . $e['kind'];
+			if ( ! isset( $by[ $key ] ) ) { $by[ $key ] = array( 'n' => 0, 'last' => $e ); }
+			$by[ $key ]['n'] += max( 1, (int) ( $e['n'] ?? 1 ) );
+		}
+		$lines = array();
+		foreach ( $by as $key => $info ) {
+			list( $provider, $kind ) = explode( '|', $key, 2 );
+			/* translators: 1: payment provider id, 2: kind of failure, 3: number, 4: details of the last failure */
+			$lines[] = sprintf( __( '%1$s: %2$s – %3$d× (%4$s)', 'pass-captain' ), $provider, $kinds[ $kind ] ?? $kind, $info['n'], self::failure_detail( $info['last'] ) );
+		}
+		$critical = ( $t['webhook_exceptions_critical'] > 0 && $crashes >= $t['webhook_exceptions_critical'] ) || ( $t['webhook_failures_critical'] > 0 && $total >= $t['webhook_failures_critical'] );
+		$intro = __( 'Zahlungsanbieter bestätigen Zahlungen per Webhook. Abgelehnte Benachrichtigungen (falsches Signatur-Secret, falsche Webhook-URL) oder Abstürze bei der Verarbeitung führen dazu, dass bezahlte Bestellungen offen bleiben. Der Anbieter stellt fehlgeschlagene Benachrichtigungen erneut zu, sobald die Ursache behoben ist.', 'pass-captain' );
+		return self::result( 'webhook_errors', $critical ? 'critical' : 'recommended', __( 'Pass Captain: Zahlungs-Webhooks werden abgelehnt oder scheitern', 'pass-captain' ), self::p( $intro ) . self::list_html( $lines ) . self::p( __( 'Details mit Fehler-ID stehen im Support-Protokoll der Betriebsübersicht.', 'pass-captain' ) ), self::operations_link() );
+	}
+
+	/** Failed payment starts per provider within payment_start_window_minutes (A324). */
+	public static function test_payment_start( $now = null ) {
+		$t = self::thresholds();
+		$now = null === $now ? time() : (int) $now;
+		$entries = Monitor::provider_failures( Monitor::PAYMENT_START_OPTION, $now - $t['payment_start_window_minutes'] * MINUTE_IN_SECONDS );
+		$total = Monitor::count_failures( $entries );
+		if ( ! $entries || ( $t['payment_start_failures'] > 0 && $total < $t['payment_start_failures'] ) ) {
+			/* translators: %s: period, e.g. "60 Minuten" */
+			$text = sprintf( __( 'Innerhalb von %s ist kein Zahlungsstart bei einem Zahlungsanbieter fehlgeschlagen.', 'pass-captain' ), self::duration( $t['payment_start_window_minutes'] ) );
+			return self::result( 'payment_start', 'good', __( 'Pass Captain: Zahlungen starten ohne Fehler', 'pass-captain' ), self::p( $text ) );
+		}
+		$by = array();
+		foreach ( $entries as $e ) {
+			if ( ! isset( $by[ $e['provider'] ] ) ) { $by[ $e['provider'] ] = array( 'n' => 0, 'last' => $e ); }
+			$by[ $e['provider'] ]['n'] += max( 1, (int) ( $e['n'] ?? 1 ) );
+		}
+		$lines = array();
+		foreach ( $by as $provider => $info ) {
+			/* translators: 1: payment provider id, 2: number of failed payment starts, 3: details of the last failure */
+			$lines[] = sprintf( __( '%1$s: %2$d fehlgeschlagene Zahlungsstarts (%3$s)', 'pass-captain' ), $provider, $info['n'], self::failure_detail( $info['last'] ) );
+		}
+		$critical = $t['payment_start_failures_critical'] > 0 && $total >= $t['payment_start_failures_critical'];
+		/* translators: %s: period, e.g. "60 Minuten" */
+		$intro = sprintf( __( 'Innerhalb von %s konnten Käufer:innen die Zahlung nicht starten; sie sahen einen neutralen Hinweis mit Fehler-ID, die Bestellung wurde storniert. Häufig sind Zugangsdaten, Kontoeinschränkungen oder eine nicht unterstützte Währung beim Anbieter die Ursache.', 'pass-captain' ), self::duration( $t['payment_start_window_minutes'] ) );
+		return self::result( 'payment_start', $critical ? 'critical' : 'recommended', __( 'Pass Captain: Zahlungsstart beim Anbieter schlägt fehl', 'pass-captain' ), self::p( $intro ) . self::list_html( $lines ), self::operations_link() );
+	}
+
 	/* ------------------------------------------------------------------ Summary, notice, info tab */
 
 	/** Results of all tests (key => result). */
@@ -410,10 +503,121 @@ final class SiteHealth {
 				'value' => '' !== $data['last'] ? $data['last'] . ' UTC' : __( 'nie', 'pass-captain' ),
 			);
 		}
+		foreach ( array( Monitor::WEBHOOK_OPTION => 'webhook_failures', Monitor::PAYMENT_START_OPTION => 'payment_start_failures' ) as $option => $key ) {
+			$entries = Monitor::provider_failures( $option, time() - $t['mail_window_hours'] * HOUR_IN_SECONDS );
+			$fields[ $key ] = array(
+				'label' => Monitor::WEBHOOK_OPTION === $option
+					/* translators: %d: hours */
+					? sprintf( __( 'Fehlgeschlagene Zahlungs-Webhooks (%d h)', 'pass-captain' ), $t['mail_window_hours'] )
+					/* translators: %d: hours */
+					: sprintf( __( 'Fehlgeschlagene Zahlungsstarts (%d h)', 'pass-captain' ), $t['mail_window_hours'] ),
+				'value' => (string) Monitor::count_failures( $entries ) . ( $entries ? ' – ' . self::failure_detail( $entries[0] ) : '' ),
+			);
+		}
 		$info['pass-captain-operations'] = array(
 			'label'  => __( 'Pass Captain – Betrieb', 'pass-captain' ),
 			'fields' => $fields,
 		);
+		$info['pass-captain-support'] = array(
+			'label'       => __( 'Pass Captain – Support', 'pass-captain' ),
+			'description' => __( 'Für Support-Anfragen: „Website-Informationen in die Zwischenablage kopieren“ überträgt diese Angaben. Sie enthalten keine Zugangsdaten, Ticketcodes oder Kundendaten.', 'pass-captain' ),
+			'fields'      => self::support_fields(),
+		);
 		return $info;
+	}
+
+	/** Payment mode of a provider from its configuration: live, test or not configured ('' = no notion of a mode). */
+	public static function provider_mode( $provider ) {
+		$provider = (string) $provider;
+		$prefix = static function ( $key, array $test, array $live ) {
+			$value = (string) \PassCaptain\Secrets::get( $key );
+			if ( '' === $value ) { return 'unconfigured'; }
+			foreach ( $test as $p ) { if ( str_starts_with( $value, $p ) ) { return 'test'; } }
+			foreach ( $live as $p ) { if ( str_starts_with( $value, $p ) ) { return 'live'; } }
+			return 'unknown';
+		};
+		if ( 'stripe' === $provider ) { return $prefix( 'stripe_secret_key', array( 'sk_test_', 'rk_test_' ), array( 'sk_live_', 'rk_live_' ) ); }
+		if ( 'mollie' === $provider ) { return $prefix( 'mollie_api_key', array( 'test_' ), array( 'live_' ) ); }
+		if ( 'paypal' === $provider ) { return 'live' === (string) Settings::get( 'paypal_mode' ) ? 'live' : 'test'; }
+		return '';
+	}
+
+	/**
+	 * Support export of the Site Health info tab (A329): versions, schema state, modules, payment
+	 * providers with mode, WooCommerce, currencies, locale, open holds, debug mode and the last errors
+	 * of the support log (redacted when written). Never secrets, codes or customer data.
+	 *
+	 * @return array<string, array{label: string, value: string}>
+	 */
+	public static function support_fields() {
+		global $wpdb;
+		$yes = __( 'ja', 'pass-captain' );
+		$no = __( 'nein', 'pass-captain' );
+		$f = array();
+		$f['version'] = array( 'label' => __( 'Plugin-Version', 'pass-captain' ), 'value' => defined( 'WPCAP_VERSION' ) ? (string) WPCAP_VERSION : '?' );
+		$stored = (string) get_option( 'wpcap_db_version', '' );
+		$expected = \PassCaptain\Installer::version();
+		/* translators: 1: stored schema version, 2: schema version of the code */
+		$value = sprintf( __( '%1$s (Code: %2$s)', 'pass-captain' ), '' !== $stored ? $stored : '–', $expected );
+		$f['db_version'] = array( 'label' => __( 'Datenbankschema', 'pass-captain' ), 'value' => $value . ( $stored === $expected ? '' : ' – ' . __( 'Update ausstehend', 'pass-captain' ) ) );
+		$fingerprint = (string) get_option( 'wpcap_schema_fingerprint', '' );
+		/* translators: 1: stored fingerprint, 2: expected fingerprint */
+		$value = sprintf( __( '%1$s (erwartet %2$s)', 'pass-captain' ), '' !== $fingerprint ? $fingerprint : '–', \PassCaptain\Installer::fingerprint() );
+		$f['fingerprint'] = array( 'label' => __( 'Schema-Fingerabdruck', 'pass-captain' ), 'value' => $value );
+		$schema_error = get_option( 'wpcap_schema_error', array() );
+		$f['schema_error'] = array(
+			'label' => __( 'Fehler beim letzten Schema-Update', 'pass-captain' ),
+			'value' => is_array( $schema_error ) && ! empty( $schema_error['missing'] )
+				/* translators: 1: date and time (UTC), 2: missing tables/columns, 3: database error */
+				? sprintf( __( '%1$s UTC: fehlt %2$s %3$s', 'pass-captain' ), gmdate( 'Y-m-d H:i:s', (int) ( $schema_error['at'] ?? 0 ) ), implode( ', ', array_slice( array_map( 'strval', (array) $schema_error['missing'] ), 0, 10 ) ), \PassCaptain\Redact::text( (string) ( $schema_error['db_error'] ?? '' ) ) )
+				: __( 'keiner', 'pass-captain' ),
+		);
+		$modules = array();
+		foreach ( Modules::classes() as $class ) {
+			$short = substr( (string) strrchr( '\\' . $class, '\\' ), 1 );
+			$modules[] = $short . ( Modules::enabled( $class ) ? '' : ' (' . __( 'aus', 'pass-captain' ) . ')' );
+		}
+		$f['modules'] = array( 'label' => __( 'Module', 'pass-captain' ), 'value' => $modules ? implode( ', ', $modules ) : '–' );
+		$modes = array(
+			'live'         => __( 'Live', 'pass-captain' ),
+			'test'         => __( 'Test', 'pass-captain' ),
+			'unconfigured' => __( 'nicht eingerichtet', 'pass-captain' ),
+			'unknown'      => __( 'unbekannt', 'pass-captain' ),
+		);
+		$providers = array();
+		foreach ( (array) Settings::get( 'enabled_providers' ) as $provider ) {
+			$provider = sanitize_key( (string) $provider );
+			if ( '' === $provider ) { continue; }
+			$mode = self::provider_mode( $provider );
+			$providers[] = $provider . ( '' !== $mode ? ' (' . ( $modes[ $mode ] ?? $mode ) . ')' : '' );
+		}
+		$f['providers'] = array( 'label' => __( 'Zahlungsarten (Modus)', 'pass-captain' ), 'value' => $providers ? implode( ', ', $providers ) : '–' );
+		$woo = class_exists( 'WooCommerce' );
+		$f['woocommerce'] = array(
+			'label' => __( 'WooCommerce', 'pass-captain' ),
+			'value' => $woo ? trim( ( defined( 'WC_VERSION' ) ? (string) WC_VERSION : $yes ) . ( function_exists( 'get_woocommerce_currency' ) ? ' · ' . (string) get_woocommerce_currency() : '' ) ) : $no,
+		);
+		$currencies = (array) $wpdb->get_col( "SELECT DISTINCT currency FROM {$wpdb->prefix}wpcap_ticket_types WHERE status='active' ORDER BY currency LIMIT 10" );
+		$f['currencies'] = array( 'label' => __( 'Währungen aktiver Ticketarten', 'pass-captain' ), 'value' => $currencies ? implode( ', ', array_map( 'sanitize_text_field', $currencies ) ) : '–' );
+		$f['locale'] = array( 'label' => __( 'Sprache / Zeitzone', 'pass-captain' ), 'value' => ( function_exists( 'get_locale' ) ? (string) get_locale() : '' ) . ' / ' . ( function_exists( 'wp_timezone_string' ) ? (string) wp_timezone_string() : '' ) );
+		$holds = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, COALESCE(SUM(quantity),0) AS q, SUM(expires_at<%s) AS expired FROM {$wpdb->prefix}wpcap_reservations WHERE status='active'", current_time( 'mysql', true ) ) );
+		/* translators: 1: open reservations, 2: tickets held, 3: reservations past their expiry */
+		$value = $holds ? sprintf( __( '%1$d (%2$d Tickets), davon abgelaufen %3$d', 'pass-captain' ), (int) $holds->n, (int) $holds->q, (int) $holds->expired ) : '–';
+		$f['holds'] = array( 'label' => __( 'Offene Reservierungen', 'pass-captain' ), 'value' => $value );
+		$f['debug'] = array( 'label' => __( 'Debug-Modus (Support-Protokoll)', 'pass-captain' ), 'value' => \PassCaptain\Log::debug_enabled() ? $yes . ( defined( 'WPCAP_DEBUG' ) ? ' (WPCAP_DEBUG)' : '' ) : $no );
+		$f['php'] = array( 'label' => __( 'PHP / Datenbank', 'pass-captain' ), 'value' => PHP_VERSION . ' / ' . ( method_exists( $wpdb, 'db_version' ) ? (string) $wpdb->db_version() : '?' ) );
+		$errors = \PassCaptain\Log::entries( array( 'min_level' => 'error', 'limit' => 5 ) );
+		$lines = array();
+		foreach ( $errors as $e ) {
+			$lines[] = $e['created_at'] . ' UTC [' . $e['channel'] . '] ' . $e['reference'] . ' ' . \PassCaptain\Redact::text( (string) $e['message'] );
+		}
+		$f['last_errors'] = array( 'label' => __( 'Letzte Fehler (Support-Protokoll)', 'pass-captain' ), 'value' => $lines ? implode( ' | ', $lines ) : __( 'keine', 'pass-captain' ) );
+		/**
+		 * Fields of the "Pass Captain – Support" section of the Site Health info tab (support export).
+		 * Never add secrets, ticket codes or personal data.
+		 *
+		 * @param array $fields Key => {label, value}.
+		 */
+		return (array) apply_filters( 'wpcap_support_info', $f );
 	}
 }

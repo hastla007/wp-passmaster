@@ -1321,7 +1321,7 @@ final class Refunds {
 			'credit_note' => static function () use ( $credit_note ) { return Mail\Types::credit_note( $credit_note ); },
 			'reason' => (string) ( $refund['reason'] ?? '' ),
 		);
-		Mail\Mailer::send( 'refund_confirmation', $order->customer_email, $vars, array(), (string) ( $order->locale ?? '' ) );
+		Mail\Mailer::send( 'refund_confirmation', $order->customer_email, $vars, array(), (string) ( $order->locale ?? '' ), (int) ( $order->order_id ?? 0 ) );
 	}
 
 	/**

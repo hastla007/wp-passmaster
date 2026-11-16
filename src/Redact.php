@@ -267,8 +267,9 @@ final class Redact {
 
 	/** Logs a throwable (redacted, without trace) and returns the generic 500 error with a reference. */
 	public static function internal_error( $e, $context = '' ) {
-		$reference = substr( bin2hex( random_bytes( 6 ) ), 0, 12 );
-		self::log( 'internal error ' . $reference . ( '' !== (string) $context ? ' in ' . (string) $context : '' ) . ': ' . self::exception( $e ) );
+		$reference = Log::new_reference();
+		// Support log (A327): stored with the reference the client sees; also written to the PHP error log.
+		Log::exception( 'rest', $e, array( 'reference' => $reference, 'route' => substr( (string) $context, 0, 190 ) ) );
 		return new \WP_Error(
 			'wpcap_internal_error',
 			/* translators: %s: error reference for support */
