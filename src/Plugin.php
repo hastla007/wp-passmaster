@@ -95,6 +95,8 @@ final class Plugin {
 		add_action( 'wpcap_cleanup_reservations', array( RateLimit::class, 'purge' ), 50, 0 );
 		// Finished reservations, jobs, seat holds and payment events (A444).
 		add_action( 'wpcap_cleanup_reservations', array( Privacy\Retention::class, 'housekeeping' ), 60, 0 );
+		// A626: temporary mail attachments, kept for mail queue plugins, are removed after their TTL.
+		add_action( 'wpcap_cleanup_reservations', array( Mail\TempFiles::class, 'purge' ), 65, 0 );
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );

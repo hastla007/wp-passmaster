@@ -2791,14 +2791,14 @@ final class Orders {
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
 	/**
-	 * Removes the attachment files of a sent mail and their private directory.
+	 * Hands the attachment files of a sent mail to the cleanup: A626 keeps them until the hourly
+	 * sweep (Mail\TempFiles, mail queue plugins send later); with a TTL of 0 they go at once.
 	 *
 	 * @param string[] $files Attachment paths.
 	 * @param string   $dir   Private directory of the ticket PDFs ('' = none).
 	 */
 	public static function discard_attachments( array $files, $dir = '' ) {
-		foreach ( $files as $file ) { if ( is_string( $file ) && '' !== $file ) { wp_delete_file( $file ); } }
-		if ( '' !== (string) $dir && is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		Mail\TempFiles::release( $files, '' !== (string) $dir ? array( (string) $dir ) : array() );
 	}
 
 	private static function private_temp_dir() {

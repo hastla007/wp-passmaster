@@ -536,9 +536,7 @@ final class BulkRuns {
 		if ( ! $run->run_id ) {
 			$built = self::build_mail( $payload );
 			$sent = $built && Mail\Mailer::deliver( $email, $built['message'] );
-			foreach ( (array) ( $built['temp_files'] ?? array() ) as $file ) {
-				if ( file_exists( $file ) ) { wp_delete_file( $file ); }
-			}
+			Mail\TempFiles::release( array_filter( (array) ( $built['temp_files'] ?? array() ), 'is_string' ) ); // A626.
 			if ( $sent ) { $run->mails_sent = (int) $run->mails_sent + 1; }
 			return (bool) $sent;
 		}

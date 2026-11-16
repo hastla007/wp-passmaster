@@ -319,11 +319,8 @@ final class InvoicePdf {
 
 	/** Removes temporary invoice attachments and their directories (idempotent). */
 	public static function cleanup_temp_files() {
-		foreach ( self::$temp_files as $entry ) {
-			list( $file, $dir ) = $entry;
-			if ( is_file( $file ) ) { @unlink( $file ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
-			if ( is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
-		}
+		// A626: kept for mail queue plugins until the cleanup sweep (Mail\TempFiles), unless the TTL is 0.
+		\PassCaptain\Mail\TempFiles::release( array_column( self::$temp_files, 0 ), array_column( self::$temp_files, 1 ) );
 		self::$temp_files = array();
 	}
 

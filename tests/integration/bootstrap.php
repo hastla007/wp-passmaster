@@ -238,6 +238,8 @@ $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = getenv( 'WPCAP_TEST
 $GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] = false;
 // A618: PDF content streams stay uncompressed in the suites that look for PDF operators; modules/zz_a618.php tests the compression.
 $GLOBALS['wpcap_test_filters']['wpcap_pdf_compress'] = false;
+// A626: attachments are deleted right after sending in the suites; modules/zz_a626.php tests the deferral.
+$GLOBALS['wpcap_test_filters']['wpcap_mail_attachment_ttl'] = 0;
 $GLOBALS['wpcap_test_actions'] = array();
 
 function __( $t, $d = null ) { return $t; }

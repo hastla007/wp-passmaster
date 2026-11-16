@@ -99,9 +99,7 @@ final class Communications {
 					? Mail\Mailer::deliver( $row->recipient, $template['message'] )
 					: '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
 			} );
-			foreach ( (array) ( $template['temp_files'] ?? array() ) as $temp_file ) {
-				if ( is_string( $temp_file ) && file_exists( $temp_file ) ) { wp_delete_file( $temp_file ); }
-			}
+			Mail\TempFiles::release( array_filter( (array) ( $template['temp_files'] ?? array() ), 'is_string' ) ); // A626.
 			if ( $sent ) {
 				$done = array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null );
 				$done_formats = array( '%s', '%s', '%s' );

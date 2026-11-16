@@ -136,9 +136,8 @@ final class Calendar {
 
 	/** Removes .ics files of this request that still exist. */
 	public static function cleanup_temp_files() {
-		foreach ( self::$temp_files as $file ) {
-			if ( file_exists( $file ) ) { wp_delete_file( $file ); }
-		}
+		// A626: kept for mail queue plugins until the cleanup sweep (Mail\TempFiles), unless the TTL is 0.
+		\PassCaptain\Mail\TempFiles::release( self::$temp_files );
 		self::$temp_files = array();
 	}
 
