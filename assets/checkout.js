@@ -1096,6 +1096,22 @@
 		if (!event.persisted) return;
 		document.querySelectorAll('.wpcap-checkout-form').forEach(showPending);
 	});
+	// A504: every date on the page keeps its anchor #wpcap-occ-{id} (calendar links, .ics URLs). The
+	// server gives it to the first card of the date; when that render was discarded (a theme or SEO
+	// plugin running the_content twice), the first card on the page without an id gets it here –
+	// and is scrolled to when the URL asks for it, since the browser could not find it on load.
+	function ensureAnchors(root) {
+		(root || document).querySelectorAll('.wpcap-checkout-form[data-occurrence], .wpcap-event-presale[data-occurrence]').forEach(function (node) {
+			const occurrence = String(node.dataset.occurrence || '');
+			if (!/^\d+$/.test(occurrence)) return;
+			const id = 'wpcap-occ-' + occurrence;
+			if (document.getElementById(id)) return;
+			const card = node.classList.contains('wpcap-event') ? node : node.closest('.wpcap-event');
+			if (!card || card.id) return;
+			card.id = id;
+			if (String((window.location && window.location.hash) || '') === '#' + id && card.scrollIntoView) card.scrollIntoView();
+		});
+	}
 	// A410: the quantity limit of the waitlist follows the chosen ticket type (option data-max).
 	function syncWaitlistMax(form) {
 		const select = form.querySelector('select[name="ticket_type_id"]');
@@ -1155,4 +1171,5 @@
 		button.removeAttribute('data-wpcap-requires-js');
 	});
 	document.querySelectorAll('.wpcap-waitlist-form').forEach(syncWaitlistMax);
+	ensureAnchors(document);
 })();

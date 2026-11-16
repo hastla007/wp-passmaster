@@ -92,7 +92,7 @@ function loadCheckout(opts) {
 		WeakMap, Map, JSON, Math, Promise, Array, String, Object, RegExp, Error, Number, parseInt, isNaN, console,
 		Date: SandboxDate,
 		sessionStorage: session,
-		location: { search: o.search, pathname: '/tickets/', href: 'https://example.test/tickets/' + o.search, assign: (url) => env.assigned.push(url) },
+		location: { search: o.search, hash: o.hash || '', pathname: '/tickets/', href: 'https://example.test/tickets/' + o.search + (o.hash || ''), assign: (url) => env.assigned.push(url) },
 		crypto: { randomUUID: require('node:crypto').randomUUID },
 		setTimeout: (fn) => { fn(); return 0; },
 		clearTimeout() {},

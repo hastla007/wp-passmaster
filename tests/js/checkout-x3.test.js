@@ -132,3 +132,25 @@ test('A410: the waitlist quantity limit follows the chosen ticket type', async (
 	select.dispatchEvent(new FakeEvent('change', { bubbles: true }));
 	assert.strictEqual(qty.max, '4');
 });
+
+/* ------------------------------------------------------------------ A504 */
+
+test('A504: a date whose anchor is missing on the page gets it on its first card, and the page scrolls to it', async () => {
+	// Card of date 7 rendered as "-i2" (the first render was discarded), card of date 8 with its anchor.
+	const env = loadCheckout({
+		hash: '#wpcap-occ-7',
+		markup: (h) => [
+			h('article', { class: 'wpcap-event' }, [h('form', { class: 'wpcap-checkout-form', id: 'wpcap-7-i2', 'data-occurrence': '7' }, [h('button', { type: 'submit' }, ['Bestellen'])])]),
+			h('article', { class: 'wpcap-event' }, [h('form', { class: 'wpcap-checkout-form', id: 'wpcap-7-i3', 'data-occurrence': '7' }, [h('button', { type: 'submit' }, ['Bestellen'])])]),
+			h('article', { class: 'wpcap-event', id: 'wpcap-occ-8' }, [h('form', { class: 'wpcap-checkout-form', id: 'wpcap-8', 'data-occurrence': '8' }, [h('button', { type: 'submit' }, ['Bestellen'])])]),
+			h('article', { class: 'wpcap-event wpcap-event-presale', 'data-occurrence': '9' }, []),
+		],
+	});
+	await flush();
+	const cards = env.document.querySelectorAll('article');
+	assert.strictEqual(cards[0].id, 'wpcap-occ-7', 'first card of the date');
+	assert.strictEqual(cards[1].id, '', 'only once');
+	assert.strictEqual(env.document.querySelectorAll('#wpcap-occ-8').length, 1, 'an existing anchor stays the only one');
+	assert.strictEqual(cards[3].id, 'wpcap-occ-9', 'presale cards too');
+	assert.strictEqual(env.document.scrolledTo, cards[0], 'scrolled to the requested date');
+});

@@ -652,7 +652,8 @@ final class PublicEvents {
 		foreach ( $dates as $date ) {
 			if ( empty( $date['linked'] ) ) { continue; }
 			$id = 'wpcap-occ-' . (int) $date['occurrence_id'];
-			if ( false === strpos( $html, 'id="' . $id . '"' ) ) { $anchors .= '<span id="' . esc_attr( $id ) . '" class="wpcap-occ-anchor"></span>'; }
+			// A504: an anchor that another card of the page already has is left out.
+			if ( false === strpos( $html, 'id="' . $id . '"' ) && Frontend\EventCard::claim_anchor( $id ) ) { $anchors .= '<span id="' . esc_attr( $id ) . '" class="wpcap-occ-anchor"></span>'; }
 		}
 		if ( '' === $anchors ) { return $html; }
 		return (string) preg_replace( '/(<article\b[^>]*>)/', '$1' . str_replace( '$', '\\$', $anchors ), $html, 1 );
@@ -704,7 +705,9 @@ final class PublicEvents {
 		$level = min( 6, max( 2, (int) apply_filters( 'wpcap_event_card_heading_level', 2 ) ) );
 		/* translators: %s: date and time the online sale starts */
 		$label = sprintf( __( 'Vorverkauf ab %s', 'pass-captain' ), Frontend\Format::event_start( $sales_start, $event->timezone ) );
-		$html = '<article class="wpcap-event wpcap-event-presale" id="wpcap-occ-' . (int) $event->occurrence_id . '"><header class="wpcap-event-header">'
+		// A504: the anchor only on the first card of the date on the page.
+		$anchor = Frontend\EventCard::claim_anchor( 'wpcap-occ-' . (int) $event->occurrence_id ) ? ' id="wpcap-occ-' . (int) $event->occurrence_id . '"' : '';
+		$html = '<article class="wpcap-event wpcap-event-presale"' . $anchor . ' data-occurrence="' . (int) $event->occurrence_id . '"><header class="wpcap-event-header">'
 			. '<h' . $level . ' class="wpcap-event-title">' . esc_html( $event->name ) . '</h' . $level . '>'
 			. '<dl class="wpcap-event-facts"><div class="wpcap-fact-date"><dt class="wpcap-sr-only">' . esc_html__( 'Termin', 'pass-captain' ) . '</dt><dd><time datetime="' . esc_attr( Frontend\EventCard::iso( $event->starts_at ) ) . '">' . esc_html( Frontend\Format::event_start( $event->starts_at, $event->timezone ) ) . '</time></dd></div>'
 			. ( $event->location ? '<div class="wpcap-fact-location"><dt class="wpcap-sr-only">' . esc_html__( 'Ort', 'pass-captain' ) . '</dt><dd>' . esc_html( $event->location ) . '</dd></div>' : '' )

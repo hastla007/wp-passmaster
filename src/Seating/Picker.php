@@ -5,6 +5,9 @@ namespace PassCaptain\Seating;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Picker {
+	/** Pickers rendered per occurrence on this page (A504: unique ids). */
+	private static $rendered = array();
+
 	public static function register() {
 		add_action( 'wpcap_checkout_form_fields', array( __CLASS__, 'render' ), 10, 2 );
 	}
@@ -48,7 +51,9 @@ final class Picker {
 			wp_enqueue_style( 'wpcap-seating-picker', WPCAP_URL . 'assets/seating/picker.css', array(), WPCAP_VERSION );
 		}
 		$url = rest_url( Rest::NS . '/seating/occurrences/' . $occurrence_id );
-		$id = 'wpcap-seats-' . $occurrence_id;
+		// A504: a second card of the same date on the page gets its own id.
+		self::$rendered[ $occurrence_id ] = ( self::$rendered[ $occurrence_id ] ?? 0 ) + 1;
+		$id = 'wpcap-seats-' . $occurrence_id . ( self::$rendered[ $occurrence_id ] > 1 ? '-i' . self::$rendered[ $occurrence_id ] : '' );
 		echo '<fieldset class="wpcap-seating" id="' . esc_attr( $id ) . '" data-occurrence="' . esc_attr( (string) $occurrence_id ) . '" data-url="' . esc_attr( esc_url_raw( $url ) ) . '" data-i18n="' . esc_attr( wp_json_encode( self::i18n() ) ) . '">';
 		echo '<legend>' . esc_html__( 'Sitzplätze wählen', 'pass-captain' ) . '</legend>';
 		echo '<p class="wpcap-seating-status" role="status" aria-live="polite">' . esc_html__( 'Saalplan wird geladen …', 'pass-captain' ) . '</p>';

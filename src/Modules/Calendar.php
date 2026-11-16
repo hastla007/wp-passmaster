@@ -123,6 +123,8 @@ final class Calendar {
 	public static function add_card_anchor( $html, $event = null, $types = null ) {
 		if ( ! is_object( $event ) || empty( $event->occurrence_id ) || false !== strpos( (string) $html, 'id="wpcap-occ-' ) ) { return $html; }
 		if ( preg_match( '/-i\d+$/', \PassCaptain\Frontend\EventCard::form_id_in( $html ) ) ) { return $html; }
+		// A504: only once per page, also across listings (another card may carry it as a date anchor).
+		if ( ! \PassCaptain\Frontend\EventCard::claim_anchor( 'wpcap-occ-' . absint( $event->occurrence_id ) ) ) { return $html; }
 		return preg_replace( '/<article class="wpcap-event"/', '<article id="wpcap-occ-' . absint( $event->occurrence_id ) . '" class="wpcap-event"', (string) $html, 1 );
 	}
 

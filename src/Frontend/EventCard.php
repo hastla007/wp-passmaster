@@ -33,9 +33,27 @@ final class EventCard {
 		return 'wpcap-' . $occurrence_id . ( $n > 1 ? '-i' . $n : '' );
 	}
 
-	/** Starts a new page for form_id() (one request renders one page; tests and CLI renders reuse the process). */
+	/** Starts a new page for form_id() and claim_anchor() (one request renders one page; tests and CLI renders reuse the process). */
 	public static function reset_form_ids() {
 		self::$rendered = array();
+		self::$anchors = array();
+	}
+
+	/** Anchor ids (#wpcap-occ-{id}) already given out on this page. */
+	private static $anchors = array();
+
+	/**
+	 * Whether the anchor id is still free on this page, claiming it (A504). Card anchors
+	 * (Calendar::add_card_anchor()), the empty date anchors of grouped cards and presale cards all ask
+	 * here, so a date shown in two listings (sidebar, archive, a second shortcode) has its anchor
+	 * exactly once. checkout.js adds the anchor to the first card on the page that has none (e.g.
+	 * when a theme or SEO plugin rendered the content once more and discarded it).
+	 */
+	public static function claim_anchor( $id ) {
+		$id = (string) $id;
+		if ( '' === $id || isset( self::$anchors[ $id ] ) ) { return false; }
+		self::$anchors[ $id ] = true;
+		return true;
 	}
 
 	/** Id prefix of the checkout form in rendered card HTML ('' if none), e.g. for `wpcap_event_card_html` filters. */

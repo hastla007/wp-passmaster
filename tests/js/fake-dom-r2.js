@@ -192,7 +192,7 @@ class FakeElement {
 		return !event.defaultPrevented;
 	}
 	focus() { this.ownerDocument.activeElement = this; }
-	scrollIntoView() {}
+	scrollIntoView() { this.ownerDocument.scrolledTo = this; }
 	reset() { this.querySelectorAll('input, textarea').forEach((n) => { if (n.type !== 'hidden' && n.type !== 'radio') { n.value = n.attrs.value || ''; n.checked = 'checked' in n.attrs; } }); }
 }
 
