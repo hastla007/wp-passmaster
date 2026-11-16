@@ -22,7 +22,8 @@ ReviewEvents::register();
 
 echo "A668: contact resolver with its own capability and audit\n";
 $x6c_type = make_type( 10, 10, 1500 );
-$x6c_o = Orders::create( array( 'email' => 'x6c-buyer@example.com', 'locale' => 'de_AT', 'items' => array( array( 'ticket_type_id' => $x6c_type, 'quantity' => 3 ) ), 'attendees' => array( array( 'ticket_type_id' => $x6c_type, 'name' => 'Grete Gast', 'email' => 'grete@example.com' ) ), 'idempotency_key' => 'x6c-' . uniqid() ) );
+// Merged checkout: the order language must be one of the offered mail languages (de_AT is not, en_US is).
+$x6c_o = Orders::create( array( 'email' => 'x6c-buyer@example.com', 'locale' => 'en_US', 'items' => array( array( 'ticket_type_id' => $x6c_type, 'quantity' => 3 ) ), 'attendees' => array( array( 'ticket_type_id' => $x6c_type, 'name' => 'Grete Gast', 'email' => 'grete@example.com' ) ), 'idempotency_key' => 'x6c-' . uniqid() ) );
 Orders::confirm_manual_payment( $x6c_o['order_id'] );
 $x6c_codes = ticket_code_for( $x6c_o['order_id'] );
 $x6c_tickets = tickets( $x6c_o['order_id'] );
@@ -33,7 +34,7 @@ $x6c_audits = static function () use ( $wpdb, $p ) { return $wpdb->get_col( "SEL
 $x6c_audit_before = count( $x6c_audits() );
 
 $x6c_r = ContactResolver::resolve( $x6c_tickets[0]->public_id, $x6c_ref( $x6c_tickets[0] ), array( 'source' => 'review-captain' ) );
-check( 'A668: the resolver returns the contact of an admitted participant (attendee address, name, order language)', is_array( $x6c_r ) && 'grete@example.com' === $x6c_r['email'] && 'Grete Gast' === $x6c_r['name'] && 'de_AT' === $x6c_r['locale'] && $x6c_tickets[0]->public_id === $x6c_r['participation_id'] );
+check( 'A668: the resolver returns the contact of an admitted participant (attendee address, name, order language)', is_array( $x6c_r ) && 'grete@example.com' === $x6c_r['email'] && 'Grete Gast' === $x6c_r['name'] && 'en_US' === $x6c_r['locale'] && $x6c_tickets[0]->public_id === $x6c_r['participation_id'] );
 $x6c_r1 = ContactResolver::resolve( $x6c_tickets[1]->public_id, $x6c_ref( $x6c_tickets[1] ) );
 check( 'A668: without an attendee address the buyer address is used', is_array( $x6c_r1 ) && 'x6c-buyer@example.com' === $x6c_r1['email'] );
 

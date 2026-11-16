@@ -119,7 +119,8 @@ $re = Orders::reissue_ticket( (int) $t2->ticket_id, array( 'notify' => false ) )
 $fresh = SignedQr::for_ticket( (int) $t2->ticket_id );
 $r = Checkin::perform( $qr2, array( 'source' => 'web' ) );
 check( 'reissued ticket: QR of the previous code is refused as revoked (code version)', is_array( $re ) && is_wp_error( $r ) && 'wpcap_qr_superseded' === $r->get_error_code() && 'revoked' === $r->get_error_data()['result'] );
-check( 'reissued ticket: the old classic code is unknown', is_wp_error( Checkin::preview( $codes[2] ) ) && 'unknown' === Checkin::preview( $codes[2] )->get_error_data()['result'] );
+// Merged scanner answer (Arbeitsliste): a replaced code is recognised and explained ("replaced", 409), not "unknown".
+check( 'reissued ticket: the old classic code is unknown', is_wp_error( Checkin::preview( $codes[2] ) ) && 'replaced' === Checkin::preview( $codes[2] )->get_error_data()['result'] && 'reissue' === Checkin::preview( $codes[2] )->get_error_data()['replaced_reason'] );
 $r = Checkin::preview( $fresh );
 check( 'reissued ticket: the QR of the new code is valid', is_array( $r ) && 'valid' === $r['status'] );
 
@@ -138,7 +139,7 @@ $device = Devices::pair( $pairing['code'], 'X4 QR', 'pwa', '1.0' );
 $GLOBALS['wpcap_test_user_id'] = 1;
 $res = app_call( 'check_in', 'POST', $device['token'], array( 'code' => SignedQr::qr_value( $codes2[0] ), 'idempotency_key' => 'x4-app-1' ) );
 check( 'mobile API check-in with a signed QR', is_array( $res ) && ! empty( $res['ok'] ) && 'checked_in' === $res['result'] );
-$sync = app_call( 'sync', 'POST', $device['token'], array( 'scans' => array( array( 'code' => SignedQr::qr_value( $codes2[1] ), 'idempotency_key' => 'x4-off-1', 'scanned_at' => gmdate( 'Y-m-d H:i:s', time() - 60 ) ) ) ) );
+$sync = app_call( 'sync', 'POST', $device['token'], array( 'scans' => array( array( 'code' => SignedQr::qr_value( $codes2[1] ), 'idempotency_key' => 'x4-off-1', 'scanned_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() - 60 ) ) ) ) ); // Merged sync API: scanned_at with a zone (ISO 8601 Z).
 check( 'offline sync upload with a signed QR is admitted', is_array( $sync ) && ! empty( $sync['results'][0]['ok'] ) );
 check( 'offline keys endpoint publishes the QR keys (public part only)', ( static function () use ( $device ) {
 	$req = app_request( 'GET', $device['token'] );

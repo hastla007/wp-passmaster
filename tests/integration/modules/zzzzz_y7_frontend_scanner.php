@@ -65,6 +65,8 @@ echo "Y7: month calendar timezone (QA-11)\n";
 // Site in Europe/Berlin, occurrence in America/New_York at 20:00 local time: in Berlin it is already the
 // next day (02:00). Day cell and time label must use the same timezone (the occurrence's own).
 if ( ! function_exists( 'wp_timezone_string' ) ) { function wp_timezone_string() { return (string) ( $GLOBALS['wpcap_test_site_timezone'] ?? 'UTC' ); } }
+if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $t, $d = null ) { return esc_attr( $t ); } }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
 $GLOBALS['wpcap_test_site_timezone'] = 'Europe/Berlin';
 $year = (int) gmdate( 'Y' ) + 1;
 $cal_type = make_type( 5, 5, 0 );
@@ -79,15 +81,17 @@ $cell = static function ( $html, $day ) {
 	return preg_match( '#<time datetime="' . preg_quote( $day, '#' ) . '">\d+</time></span>(.*?)</td>#s', $html, $m ) ? $m[1] : '';
 };
 check( 'fixture: in Berlin the occurrence is on the next day', '11' === ( clone $local )->setTimezone( new DateTimeZone( 'Europe/Berlin' ) )->format( 'd' ) );
-check( 'occurrence listed on its own local date (10th) with its local time 20:00', false !== strpos( $cell( $grid, $year . '-03-10' ), '20:00 Y7 Jazz NYC' ) );
+// Merged calendar: the time label names the zone when it differs from the site's ("20:00 EST", A393 label
+// starts with the visible text).
+check( 'occurrence listed on its own local date (10th) with its local time 20:00', 1 === preg_match( '/>20:00( [A-Z]{2,5})? Y7 Jazz NYC</', $cell( $grid, $year . '-03-10' ) ) );
 check( 'not listed on the Berlin date (11th)', false === strpos( $cell( $grid, $year . '-03-11' ), 'Y7 Jazz NYC' ) );
-check( 'the accessible label carries the same date and time', false !== strpos( $grid, 'Y7 Jazz NYC um 20:00, 10.03.' . $year ) );
+check( 'the accessible label carries the same date and time', 1 === preg_match( '/aria-label="20:00( [A-Z]{2,5})? Y7 Jazz NYC, 10\.03\.' . $year . '"/', $grid ) );
 
 // Month boundary: 20:00 New York on the last day of a month is the 1st of the next month in Berlin.
 $edge = new DateTime( $year . '-04-30 20:00:00', new DateTimeZone( 'America/New_York' ) );
 $wpdb->query( $wpdb->prepare( 'UPDATE %i SET starts_at=%s WHERE occurrence_id=%d', $p . 'wpcap_occurrences', ( clone $edge )->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ), $cal_occ ) );
 $april = Calendar::render_month( $year . '-04', $cal_event );
 $may = Calendar::render_month( $year . '-05', $cal_event );
-check( 'month boundary: shown on 30 April (its own date) in the April grid', false !== strpos( $cell( $april, $year . '-04-30' ), '20:00 Y7 Jazz NYC' ) );
+check( 'month boundary: shown on 30 April (its own date) in the April grid', 1 === preg_match( '/>20:00( [A-Z]{2,5})? Y7 Jazz NYC</', $cell( $april, $year . '-04-30' ) ) );
 check( 'month boundary: not shown in the May grid', false === strpos( $may, 'Y7 Jazz NYC' ) );
 $GLOBALS['wpcap_test_site_timezone'] = 'UTC';
