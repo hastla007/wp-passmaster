@@ -61,14 +61,18 @@ function wpcap_uninstall_site() {
 	// A284: links on WooCommerce orders/lines/products (WooCommerce CRUD, only while WooCommerce is active).
 	// Otherwise a reinstall would start the IDs again and old orders would point to new, unrelated ones.
 	if ( function_exists( 'wc_get_orders' ) ) {
-		require_once __DIR__ . '/src/Integrations/WooCommerce/MetaCleanup.php';
+		if ( ! class_exists( 'PassCaptain\\Integrations\\WooCommerce\\MetaCleanup' ) ) {
+			require_once __DIR__ . '/src/Integrations/WooCommerce/MetaCleanup.php'; // Plugin autoloader may be inactive during uninstall.
+		}
 		PassCaptain\Integrations\WooCommerce\MetaCleanup::purge();
 	}
 	foreach ( array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_service_provider', 'wpcap_finance', 'wpcap_support' ) as $role ) {
 		remove_role( $role );
 	}
 	// Core and module capabilities from one list (A372: wpcap_approve_comps was left behind).
-	require_once __DIR__ . '/src/Capabilities.php';
+	if ( ! class_exists( 'PassCaptain\\Capabilities' ) ) {
+		require_once __DIR__ . '/src/Capabilities.php';
+	}
 	// Plus the audit-line capabilities (Installer::register_roles() also grants wpcap_view_audit to administrators).
 	$caps = array_values( array_unique( array_merge( PassCaptain\Capabilities::all(), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_view_audit' ) ) ) );
 	foreach ( wp_roles()->role_objects as $role ) {
