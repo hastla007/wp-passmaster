@@ -311,7 +311,7 @@ $export = Consents::export( 'ana@example.com' );
 $flat = wp_json_encode( $export );
 check( 'privacy export contains consent text, version, grant and withdrawal', 1 === count( $export['data'] ) && false !== strpos( $flat, 'Ich bin mit Fotos einverstanden.' ) && false !== strpos( $flat, 'portal' ) && array() === Consents::export( 'consent@example.com' )['data'] );
 $exporters = apply_filters( 'wp_privacy_personal_data_exporters', array() );
-check( 'consent exporter and eraser are registered', isset( $exporters['wp-pass-captain-consents'] ) && isset( apply_filters( 'wp_privacy_personal_data_erasers', array() )['wp-pass-captain-consents'] ) );
+check( 'consent exporter and eraser are registered', isset( $exporters['pass-captain-consents'] ) && isset( apply_filters( 'wp_privacy_personal_data_erasers', array() )['pass-captain-consents'] ) );
 $erase_buyer = Consents::erase( 'consent@example.com' );
 $erase = Consents::erase( 'ana@example.com' );
 check( 'privacy eraser deletes the consent records of the subject only', 0 === $erase_buyer['items_removed'] && 1 === $erase['items_removed'] && array() === Consents::for_order( $co['order_id'] ) );

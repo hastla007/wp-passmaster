@@ -4,7 +4,7 @@
  *
  * Event pages are cached by page caches/CDNs: the remaining quantity, "Ausverkauft" and the sales
  * window in the HTML can be minutes old. The checkout script therefore asks
- * GET /wp-pass-captain/v1/availability?types=1,2,3 when a sales start is reached and every 15–30 s
+ * GET /pass-captain/v1/availability?types=1,2,3 when a sales start is reached and every 15–30 s
  * while the page is visible, and updates the maximum, the labels and the sold-out state.
  *
  * The answer is public (no personal data), computed with one DisplayBatch (a fixed number of grouped
@@ -42,7 +42,7 @@ final class Availability {
 
 	/** rest_post_dispatch: Cache-Control (and Retry-After on 429) for GET /availability. */
 	public static function cache_headers( $response, $server = null, $request = null ) {
-		if ( ! $response instanceof \WP_REST_Response || ! $request instanceof \WP_REST_Request || '/wp-pass-captain/v1/availability' !== $request->get_route() ) { return $response; }
+		if ( ! $response instanceof \WP_REST_Response || ! $request instanceof \WP_REST_Request || '/pass-captain/v1/availability' !== $request->get_route() ) { return $response; }
 		if ( 429 === $response->get_status() ) {
 			$response->header( 'Retry-After', '30' );
 			$response->header( 'Cache-Control', 'no-store' );
@@ -115,7 +115,7 @@ final class Availability {
 		return $out;
 	}
 
-	/** GET /wp-pass-captain/v1/availability?types=… */
+	/** GET /pass-captain/v1/availability?types=… */
 	public static function rest( \WP_REST_Request $request ) {
 		if ( ! RateLimit::allow( 'wpcap_availability|' . RateLimit::client_network(), self::rate_limit(), MINUTE_IN_SECONDS ) ) {
 			return new \WP_REST_Response( array( 'code' => 'wpcap_rate_limited', 'message' => __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), 'data' => array( 'status' => 429 ) ), 429 );

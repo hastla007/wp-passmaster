@@ -23,12 +23,12 @@ final class AuditTrail {
 
 	/** REST routes (regex on the route) whose successful responses contain personal data for staff. */
 	const PII_ROUTES = array(
-		'#^/wp-pass-captain/v1/tickets/(validate|check-in)#',
-		'#^/wp-pass-captain/v1/admission/check-(in|out)#',
-		'#^/wp-pass-captain/v1/app/scan/#',
-		'#^/wp-pass-captain/v1/app/offline/package#',
-		'#^/wp-pass-captain/v1/events/\d+/reports/#',
-		'#^/wp-pass-captain/v1/member-passes#',
+		'#^/pass-captain/v1/tickets/(validate|check-in)#',
+		'#^/pass-captain/v1/admission/check-(in|out)#',
+		'#^/pass-captain/v1/app/scan/#',
+		'#^/pass-captain/v1/app/offline/package#',
+		'#^/pass-captain/v1/events/\d+/reports/#',
+		'#^/pass-captain/v1/member-passes#',
 	);
 
 	public static function register() {

@@ -71,7 +71,11 @@ $a455_saved_post = $GLOBALS['post'] ?? null;
 unset( $_SERVER['REQUEST_URI'], $GLOBALS['post'] );
 $a455_type = make_type( 10, 10, 1200 );
 $a455_events = a455_render( 'events', array() );
-check( 'events block without attributes (widget): lists upcoming events inside the wrapper', 0 === strpos( ltrim( $a455_events ), '<div ' . get_block_wrapper_attributes( array( 'class' => 'wpcap-events' ) ) . '>' ) && 1 === preg_match( '/<article [^>]*class="wpcap-event[ "]/', $a455_events ) );
+// Merged layout "auto": more than auto_list_threshold() cards (earlier test files leave events behind)
+// switch to the compact list inside the same wrapper (class wpcap-events-list added), else event cards.
+$a455_open = (string) strtok( ltrim( $a455_events ), '>' ) . '>';
+$a455_wrapper = '<div ' . get_block_wrapper_attributes( array( 'class' => 'wpcap-events' ) ) . '>';
+check( 'events block without attributes (widget): lists upcoming events inside the wrapper', ( $a455_wrapper === $a455_open || $a455_open === str_replace( 'class="', 'class="wpcap-events-list ', $a455_wrapper ) ) && 1 === preg_match( '/<article [^>]*class="wpcap-event(-summary)?[ "]/', $a455_events ) );
 $a455_cal = a455_render( 'calendar', array() );
 check( 'calendar block without attributes: month view with navigation, no global post needed', false !== strpos( $a455_cal, 'wpcap-calendar-month' ) && 1 === preg_match( '/<a href="[^"]*wpcap_month=\d{4}-\d{2}#wpcap-cal-nav-\d+" rel="next">/', $a455_cal ) );
 check( 'calendar block with an unknown view falls back to the month view', false !== strpos( a455_render( 'calendar', array( 'view' => 'grid', 'eventId' => 0 ) ), '<table class="wpcap-cal-grid">' ) );

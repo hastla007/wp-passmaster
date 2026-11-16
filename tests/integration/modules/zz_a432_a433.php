@@ -102,7 +102,8 @@ check( 'A433: count without joins', (bool) array_filter( $a432_log, static fn( $
 $a433_c_plans = array_filter( $a432_plans( $a432_log, 'checkins' ), static fn( $pl ) => 'c' === $pl['table'] );
 if ( array_filter( $a433_c_plans, static fn( $pl ) => 'ALL' === $pl['type'] || false !== strpos( $pl['extra'], 'filesort' ) ) ) { fwrite( STDERR, 'A433 plans: ' . json_encode( array_values( $a433_c_plans ) ) . "\n" ); }
 check( 'A433: page by KEY created (newest first) without scan or filesort, details by primary key',
-	(bool) array_filter( $a433_c_plans, static fn( $pl ) => 'created' === $pl['key'] && false === strpos( $pl['extra'], 'filesort' ) )
+	// Merged schema: KEY created (this line) and KEY created_checkin (audit line, PERF-8) both cover (created_at,checkin_id).
+	(bool) array_filter( $a433_c_plans, static fn( $pl ) => in_array( $pl['key'], array( 'created', 'created_checkin' ), true ) && false === strpos( $pl['extra'], 'filesort' ) )
 	&& ! array_filter( $a433_c_plans, static fn( $pl ) => 'ALL' === $pl['type'] || false !== strpos( $pl['extra'], 'filesort' ) ) );
 $a433_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_checkins" );
 $a433_newest = $wpdb->get_row( "SELECT checkin_id,created_at FROM {$p}wpcap_checkins ORDER BY created_at DESC, checkin_id DESC LIMIT 1" );

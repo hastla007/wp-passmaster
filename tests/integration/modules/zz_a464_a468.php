@@ -20,7 +20,8 @@ $a464_state = get_option( CapacityCounters::OPTION );
 $a464_job = get_option( CapacityCounters::REBUILD_OPTION );
 
 check( 'rolled_back(): stored schema lower than the highest one ever stored', Installer::rolled_back( '3.5.0+abc', '3.10.14' ) && ! Installer::rolled_back( '3.10.14+abc', '3.10.14' ) && ! Installer::rolled_back( '3.10.13+x', '3.10.12' ) && ! Installer::rolled_back( '', '3.10.14' ) && ! Installer::rolled_back( '3.5.0+abc', '' ) );
-check( 'install() hands the rollback to the counters', false !== strpos( (string) file_get_contents( dirname( __DIR__, 3 ) . '/src/Installer.php' ), 'CapacityCounters::after_install( $rolled_back );' ) );
+// Merged installer: a site coming from the other development line rebuilds the counters, too.
+check( 'install() hands the rollback to the counters', false !== strpos( (string) file_get_contents( dirname( __DIR__, 3 ) . '/src/Installer.php' ), 'CapacityCounters::after_install( $rolled_back ' ) );
 
 update_option( CapacityCounters::OPTION, array( 'state' => 'ready', 'since' => time() - 86400 ) );
 delete_option( CapacityCounters::REBUILD_OPTION );

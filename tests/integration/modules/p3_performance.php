@@ -274,7 +274,9 @@ $make_listing( 3 );
 list( $q3, $html3 ) = $count( array( PublicEvents::class, 'render_shortcode' ) );
 $make_listing( 9 );
 list( $q12, $html12 ) = $count( array( PublicEvents::class, 'render_shortcode' ) );
-check( "listing: query count independent of the number of dates (3 dates: $q3, 12 dates: $q12)", $q3 === $q12 && $q12 <= 9 );
+// Merged line: event price rules (Sales\PriceRules) and series prices add one grouped query each
+// (display batch, preloaded rows), the separate ticket type re-read is gone: budget 10 instead of 9.
+check( "listing: query count independent of the number of dates (3 dates: $q3, 12 dates: $q12)", $q3 === $q12 && $q12 <= 10 );
 check( 'listing shows all 12 dates with translation, fields and availability', 12 === substr_count( $html12, '<article class="wpcap-event">' ) && false !== strpos( $html12, 'Übersetzt ' . $listing_occ[11] ) && false !== strpos( $html12, '&quot;key&quot;:&quot;firma&quot;' ) && false !== strpos( $html12, 'max="10"' ) );
 $req = class_exists( 'WP_REST_Request' ) ? new WP_REST_Request( 'GET' ) : null;
 if ( $req ) {

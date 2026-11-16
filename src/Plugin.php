@@ -232,25 +232,11 @@ final class Plugin {
 	public static function activate( $network_wide = false ) {
 		self::activate_site();
 		if ( is_multisite() && $network_wide ) {
-			// Every site with plugin data gets the uninstall opt-in protection right away (cheap).
-			foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
-				switch_to_blog( (int) $site_id );
-				self::defer_site_activation();
-				restore_current_blog();
-			}
 			// A287: the other sites are installed lazily (their next admin/cron request) and in
 			// background batches – never all inside the activation request (timeout on large networks).
+			// The uninstall opt-in protection of sites with plugin data runs per site in those batches
+			// (NetworkInstall::install_site()).
 			NetworkInstall::start();
-		}
-	}
-
-	/** Current site: protect the uninstall opt-in now, install the schema with the next cron run. */
-	private static function defer_site_activation() {
-		if ( get_option( 'wpcap_db_version' ) ) {
-			Settings::migrate_uninstall_policy(); // Only sites that already have plugin data.
-		}
-		if ( ! wp_next_scheduled( Installer::UPGRADE_HOOK ) ) {
-			wp_schedule_single_event( time(), Installer::UPGRADE_HOOK );
 		}
 	}
 

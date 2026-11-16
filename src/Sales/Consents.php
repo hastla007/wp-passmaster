@@ -406,12 +406,12 @@ final class Consents {
 	 * ------------------------------------------------------------------------------------------- */
 
 	public static function register_exporter( $exporters ) {
-		$exporters['wp-pass-captain-consents'] = array( 'exporter_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
+		$exporters['pass-captain-consents'] = array( 'exporter_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
 		return $exporters;
 	}
 
 	public static function register_eraser( $erasers ) {
-		$erasers['wp-pass-captain-consents'] = array( 'eraser_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) );
+		$erasers['pass-captain-consents'] = array( 'eraser_friendly_name' => __( 'Pass Captain Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) );
 		return $erasers;
 	}
 
@@ -436,7 +436,7 @@ final class Consents {
 			$c = self::get( $id );
 			if ( ! $c ) { continue; }
 			$data[] = array(
-				'group_id' => 'wp-pass-captain-consents',
+				'group_id' => 'pass-captain-consents',
 				'group_label' => __( 'Pass Captain Einwilligungen', 'pass-captain' ),
 				'item_id' => 'consent-' . (int) $c->consent_id,
 				'data' => array(

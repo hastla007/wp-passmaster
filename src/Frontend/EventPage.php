@@ -2,7 +2,7 @@
 /**
  * Event detail page with a shareable URL: /{base}/{slug}/ (base from the setting event_base, default
  * "events"), rendered inside the theme with templates/event-single.php (overridable as
- * wp-pass-captain/event-single.php in the theme). The page carries title, canonical URL, Open Graph
+ * pass-captain/event-single.php in the theme; the former folder still works, see LegacySlug). The page carries title, canonical URL, Open Graph
  * tags and schema.org/Event JSON-LD (one Event per upcoming date with offers, availability,
  * eventStatus, image and category) for rich results and social previews.
  *
@@ -222,7 +222,7 @@ final class EventPage {
 	/** template_include: our template inside the theme for event requests. */
 	public static function template( $template ) {
 		if ( ! self::$event ) { return $template; }
-		$theme = locate_template( 'wp-pass-captain/event-single.php' );
+		$theme = \PassCaptain\PublicEvents::theme_template( 'event-single.php' ); // New theme folder, else the former one (LegacySlug).
 		return $theme ? $theme : WPCAP_PATH . 'templates/event-single.php';
 	}
 

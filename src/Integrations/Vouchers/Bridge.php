@@ -67,7 +67,7 @@ final class Bridge {
 			$result = call_user_func_array( array( $provider, $method ), $args );
 		} catch ( \Throwable $e ) {
 			// Exceptions never leave the bridge: callers decide on retry/rollback with a plain WP_Error.
-			error_log( 'Pass Captain: voucher provider ' . $method . ' failed: ' . get_class( $e ) . ' ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			\PassCaptain\Security\Redact::log( 'voucher provider ' . $method . ' failed: ' . get_class( $e ) . ' ' . $e->getMessage() );
 			return new \WP_Error( 'wpcap_voucher_provider_error', __( 'Der Gutscheindienst ist gerade nicht erreichbar. Bitte versuche es gleich noch einmal.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'method' => $method ) );
 		}
 		return self::normalize( $method, $result );

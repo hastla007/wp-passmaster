@@ -1,6 +1,6 @@
 <?php
 /**
- * REST endpoints for service bookings and waitlists (namespace wp-pass-captain/v1).
+ * REST endpoints for service bookings and waitlists (namespace pass-captain/v1; the former one is routed by LegacySlug).
  *
  * Buyers authenticate with the order access token (bookings paid through an order) or the booking's
  * manage token (bookings without order); waitlist entries with their offer/manage token. Staff
@@ -21,7 +21,7 @@ use PassCaptain\Rest\Credentials;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Api {
-	const NS = 'wp-pass-captain/v1';
+	const NS = 'pass-captain/v1';
 
 	public static function register_routes() {
 		$public = '__return_true';
