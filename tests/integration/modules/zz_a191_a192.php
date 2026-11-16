@@ -83,6 +83,8 @@ update_option( Secrets::OPTION, $vault );
 check( 'restored box decrypts again', 'sk_' . 'test_ROUTED0000000000004' === Secrets::get( 'stripe_secret_key' ) );
 
 echo "A191: key from WPCAP_SECRETS_KEY, rotation and fail closed\n";
+$a191_get = $_GET;
+$_GET['page'] = 'wpcap-settings'; // A301: the Secrets notices only show on Pass Captain pages.
 check( 'without WPCAP_SECRETS_KEY the key is derived from the salts', 'salts' === Secrets::key_source() && ! Secrets::rewrap_pending() );
 ob_start(); Secrets::admin_notice(); $notice = ob_get_clean();
 check( 'admin notice recommends the dedicated constant', false !== strpos( $notice, 'WPCAP_SECRETS_KEY' ) && false !== strpos( $notice, 'notice-warning' ) && false === strpos( $notice, 'notice-error' ) );
@@ -290,3 +292,4 @@ update_option( Settings::OPTION, $a191_snapshot['settings'] );
 update_option( Secrets::VERSION_OPTION, $a191_snapshot['version'] ?: Secrets::VERSION );
 Settings::flush();
 Registry::reset();
+$_GET = $a191_get;

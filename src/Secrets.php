@@ -58,6 +58,7 @@ final class Secrets {
 	public static function register() {
 		add_action( 'admin_notices', array( __CLASS__, 'admin_notice' ) );
 		add_filter( 'debug_information', array( __CLASS__, 'debug_information' ) );
+		add_filter( 'site_status_tests', array( __CLASS__, 'site_status_tests' ) );
 		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
 			\WP_CLI::add_command( 'pass-captain secrets rollback-config', array( __CLASS__, 'cli_rollback_config' ) );
 		}
@@ -491,8 +492,17 @@ final class Secrets {
 	}
 
 	/** Admin notice: undecryptable entries (error) and salt-derived key in use (warning). */
+	/** Notice id of the "key derived from the salts" recommendation (Admin\Notices, dismissible). */
+	const SALTS_NOTICE = 'secrets_salts_key';
+
+	/**
+	 * Admin notices (A301). Only on the plugin's own pages (the error also on the dashboard): the
+	 * recommendation to set WPCAP_SECRETS_KEY can be dismissed per user and is always listed in Site
+	 * Health; undecryptable credentials stay visible until fixed (payments are off meanwhile).
+	 */
 	public static function admin_notice() {
 		if ( ! current_user_can( 'manage_options' ) ) { return; }
+		if ( ! Admin\Notices::own_screen( true ) ) { return; }
 		$vault = self::vault();
 		if ( ! $vault ) { return; }
 		$failed = self::undecryptable();
@@ -502,9 +512,42 @@ final class Secrets {
 				. esc_html__( 'Die betroffenen Zahlungsarten und Dienste gelten bis zur Behebung als nicht eingerichtet. Ursache ist meist ein geänderter WPCAP_SECRETS_KEY oder geänderte WordPress-Salts: den bisherigen Schlüssel als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php eintragen oder die Werte in den Einstellungen neu eingeben.', 'pass-captain' )
 				. '</p></div>';
 		}
-		if ( 'salts' === self::key_source() ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden.', 'pass-captain' ) . '</p></div>';
+		if ( 'salts' === self::key_source() && Admin\Notices::own_screen() && ! Admin\Notices::dismissed( self::SALTS_NOTICE ) ) {
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden.', 'pass-captain' ) . '</p>'
+				. Admin\Notices::dismiss_button( self::SALTS_NOTICE ) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- dismiss_button() escapes.
 		}
+	}
+
+	/** Site Health → Status: the encryption key of the stored credentials (filter site_status_tests). */
+	public static function site_status_tests( $tests ) {
+		$tests = is_array( $tests ) ? $tests : array();
+		$tests['direct']['wpcap_secrets_key'] = array( 'label' => __( 'Pass Captain', 'pass-captain' ), 'test' => array( __CLASS__, 'site_health_test' ) );
+		return $tests;
+	}
+
+	/** Site Health result: own key, key derived from the salts (recommended) or undecryptable values (critical). */
+	public static function site_health_test() {
+		$failed = self::vault() ? self::undecryptable() : array();
+		$salts = 'salts' === self::key_source() && self::vault();
+		$status = $failed ? 'critical' : ( $salts ? 'recommended' : 'good' );
+		if ( $failed ) {
+			$label = __( 'Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden', 'pass-captain' );
+			$text = __( 'Die betroffenen Zahlungsarten und Dienste gelten bis zur Behebung als nicht eingerichtet. Ursache ist meist ein geänderter WPCAP_SECRETS_KEY oder geänderte WordPress-Salts: den bisherigen Schlüssel als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php eintragen oder die Werte in den Einstellungen neu eingeben.', 'pass-captain' ) . ' ' . implode( ', ', array_map( array( __CLASS__, 'label' ), $failed ) );
+		} elseif ( $salts ) {
+			$label = __( 'Pass Captain: Eigener Schlüssel für Zugangsdaten empfohlen', 'pass-captain' );
+			$text = __( 'Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden.', 'pass-captain' );
+		} else {
+			$label = __( 'Pass Captain: Verschlüsselung der Zugangsdaten in Ordnung', 'pass-captain' );
+			$text = '';
+		}
+		return array(
+			'label'       => $label,
+			'status'      => $status,
+			'badge'       => array( 'label' => __( 'Pass Captain', 'pass-captain' ), 'color' => 'critical' === $status ? 'red' : ( 'recommended' === $status ? 'orange' : 'blue' ) ),
+			'description' => '' !== $text ? '<p>' . esc_html( $text ) . '</p>' : '',
+			'actions'     => '',
+			'test'        => 'wpcap_secrets_key',
+		);
 	}
 
 	/**

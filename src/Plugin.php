@@ -48,6 +48,7 @@ final class Plugin {
 		add_filter( 'rest_post_dispatch', array( DeveloperKeys::class, 'retry_after_header' ) );
 		Contracts::register();
 		Admin\Menu::register();
+		Admin\Notices::register();
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_offer_page' ) );

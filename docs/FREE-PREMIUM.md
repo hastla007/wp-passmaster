@@ -22,7 +22,10 @@ dem Lizenzserver WP License Captain.
    Updates des Kerns kommen ausschließlich von WordPress.org.
 4. **Keine Köder im Kern** (WordPress.org-Richtlinien 5 und 11): keine Menüpunkte, Schalter oder Felder, die
    sichtbar sind, aber erst nach einem Kauf funktionieren; Hinweise auf das Add-on höchstens dezent,
-   wegklickbar und nur auf den eigenen Adminseiten.
+   wegklickbar und nur auf den eigenen Adminseiten. Technisch nur über den Filter `wpcap_addon_notices`:
+   `PassCaptain\Admin\Notices` gibt solche Hinweise als schlichten Text (`notice-info`) nur auf Pass-Captain-Seiten
+   und nur für Administrator:innen aus, höchstens drei, jeder je Benutzer:in wegklickbar (A301, TODO A6).
+   Eigene Hinweise des Kerns (Empfehlungen) folgen derselben Regel.
 5. **Inventar aktuell halten:** Jedes neue Modul unter `src/Modules/` und jeder neue Bereich unter `src/` wird
    hier eingetragen. `tests/consistency.php` schlägt fehl, wenn eine Modul-ID aus der Modulregistrierung
    (`PassCaptain\Modules::classes()`, Dateien `src/Modules/*.php`) oder ein Ordner unter `src/` fehlt.
@@ -77,7 +80,7 @@ Alles außerhalb der Module gehört zum Grundgerüst und ist ebenfalls **Kern, d
 | Bestellportal und Selbstbedienung | `src/OrderPortal.php`, `src/PortalSelfService.php` | Kern, dauerhaft frei |
 | Datenschutz und Sicherheit | `src/Privacy.php`, `src/Privacy/` (Aufbewahrung, Zugriffsprotokoll), `src/Pii.php`, `src/Redact.php`, `src/Secrets.php`, `src/Access.php`, `src/UserAccess.php` (Rechte-Rücknahme bei Rollenentzug), `src/TicketCodes.php` (verschlüsselt gespeicherte Ticketcodes), `src/RateLimit.php`, `src/ClientIp.php`, `src/DeveloperKeys.php`, `src/Audit.php` | Kern, dauerhaft frei |
 | Betrieb | `src/Operations/` (Doctor, Monitor, Warteschlangen, Website-Zustand), `src/Jobs.php`, `src/Log.php` (Support-Protokoll), `src/Jobs/`, `src/BulkRuns.php`, `src/PageCache.php`, `src/Installer.php`, `src/Rest/` (REST-API), `src/Http.php`, `src/OutboundHttp.php`, `src/Localization.php`, `src/LegacySlug.php` (Umbenennung) |
-| Grundgerüst | `src/Plugin.php`, `src/Admin.php`, `src/Settings.php`, `src/LegalVersions.php` (archivierte Fassungen der Rechtstexte), `src/Modules.php` (Modulregistrierung), `src/Hooks.php`, `src/Contracts.php` (Vertragsversionen), `src/StateMachine.php`, `src/Clock.php`, `src/Errors.php`, `src/HelpCode.php`, `src/Text.php` (UTF-8-sicheres Kürzen) | Kern, dauerhaft frei | Kern, dauerhaft frei |
+| Grundgerüst | `src/Plugin.php`, `src/Admin.php`, `src/Settings.php`, `src/LegalVersions.php` (archivierte Fassungen der Rechtstexte), `src/Modules.php` (Modulregistrierung), `src/Hooks.php`, `src/Contracts.php` (Vertragsversionen), `src/StateMachine.php`, `src/Clock.php`, `src/Errors.php`, `src/HelpCode.php`, `src/Text.php` (UTF-8-sicheres Kürzen), `src/DbReplication.php` (Replikat-Drop-ins, A285), `src/NetworkInstall.php` (Netzwerkaktivierung, A287) | Kern, dauerhaft frei | Kern, dauerhaft frei |
 
 ## Nicht ausgeliefert
 
