@@ -381,7 +381,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		PageCache::no_store( 'waitlist_confirm' );
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		Security\PrivatePage::send(); // Token page: no cache, no framing, no indexing, no referrer (audit FE-7).
 		list( $code, $html ) = self::confirm_page( $waitlist_id, $token );
 		status_header( $code );
 		self::page_head( __( 'Wartelistenplatz bestätigen', 'pass-captain' ) );
@@ -400,6 +400,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) );
 		$result = self::confirm( $waitlist_id, $token );
 		PageCache::no_store( 'waitlist_result' );
+		Security\PrivatePage::send();
 		status_header( is_wp_error( $result ) ? (int) ( $result->get_error_data()['status'] ?? 409 ) : 200 );
 		self::page_head( __( 'Wartelistenplatz bestätigen', 'pass-captain' ) );
 		echo self::confirm_result_html( $result ) . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in confirm_result_html().
@@ -1382,7 +1383,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		PageCache::no_store( 'waitlist_unsubscribe' );
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		Security\PrivatePage::send(); // Token page: no cache, no framing, no indexing, no referrer (audit FE-7).
 		list( $code, $html ) = self::unsubscribe_page( $waitlist_id, $token );
 		status_header( $code );
 		self::page_head( __( 'Von der Warteliste austragen', 'pass-captain' ) );

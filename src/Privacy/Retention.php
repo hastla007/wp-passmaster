@@ -649,7 +649,10 @@ final class Retention {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now_sql = self::utc( $now );
-		$count = 0;
+		// Event waitlist (merged, A564): sign-ups wait as `pending` until confirmed; Waitlists::purge_unconfirmed()
+		// deletes those whose confirmation period (confirm_hours) ended. The query below still covers rows of the
+		// earlier `unconfirmed` state (renamed by the 3.18.0 upgrade) and the slot waitlist.
+		$count = \PassCaptain\Waitlists::purge_unconfirmed( 5000 );
 		foreach ( array( 'wpcap_waitlist' => 'waitlist_id', 'wpcap_service_waitlist' => 'entry_id' ) as $table => $key ) {
 			if ( ! Privacy::has_table( $table ) ) { continue; }
 			$count += self::loop(
