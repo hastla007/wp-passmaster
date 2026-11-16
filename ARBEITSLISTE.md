@@ -1481,4 +1481,4 @@ Quelle: TODO.md Abschnitt C. Der Kern bleibt frei und ohne Lizenzprüfung; nur A
 
 ## Phase 14 – Anfragen der Suite-Plugins (16.11.2026)
 
-- [ ] **A709** [OPTIMIERUNG] Öffentliche, versionierte Lesefunktion Ticket → public_id, Bestellung, Event, Termin (ohne PII) für Suite-Plugins, z. B. als Teil eines `ticket_read`-Vertrags in CONTRACTS.md (Anfrage Review Captain Pro) — _Suite 16.11._
+- [x] **A709** [OPTIMIERUNG] Öffentliche, versionierte Lesefunktion Ticket → public_id, Bestellung, Event, Termin (ohne PII) für Suite-Plugins, z. B. als Teil eines `ticket_read`-Vertrags in CONTRACTS.md (Anfrage Review Captain Pro) — _Suite 16.11._
