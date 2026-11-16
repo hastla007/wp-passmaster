@@ -263,6 +263,15 @@ Zahlungsversuch). Ohne die Option bleibt der Fall beim Admin („Zuteilung erneu
 noch einmal, oder erstatten). WooCommerce-Bestellungen und Zahlarten ohne Erstattungsschnittstelle
 werden nie automatisch erstattet.
 
+**Abschließen von Hand (A358):** Auf der Bestellseite bietet der Hinweis zu `needs_review` /
+`paid_unallocated` (nicht WooCommerce) neben „Zuteilung erneut versuchen“ zwei Aktionen, jeweils mit
+Pflichtgrund und nur für Personen mit `wpcap_approve_refunds` (und Zwei-Faktor-Anmeldung, wenn für
+Erstattungen verlangt): **„… über {Zahlungsart} erstatten“** erstattet die volle Zahlung beim Anbieter
+(derselbe Schlüssel `wpcap-late-refund-{order_id}` wie der Job – nie doppelt ausgezahlt) und
+**„Extern erstattet – abschließen“** vermerkt eine außerhalb des Plugins zurückgezahlte Zahlung (z. B.
+Rücküberweisung) ohne Anbieteraufruf. Beide setzen die Bestellung auf `refunded` mit
+`refunded_minor = total_minor` (`Orders::settle_unallocated()`, Audit `unallocated_settled`).
+
 Eine Terminabsage (auch eine Eventabsage) storniert neben offenen auch **abgelaufene** unbezahlte
 Bestellungen; eine danach eintreffende Zahlung trifft auf `cancelled` und stellt keine Tickets aus.
 

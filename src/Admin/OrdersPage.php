@@ -70,6 +70,50 @@ final class OrdersPage {
 		return array( 'order_id' => (int) $order->order_id );
 	}
 
+	/**
+	 * Closes a paid order without tickets (`needs_review`/`paid_unallocated`, A358): refund the full
+	 * payment through the provider (`mode=provider`) or record that it was refunded outside the plugin
+	 * (`mode=external`). Bypasses the two-person approval, so it needs the approver capability (and
+	 * 2FA when required for refunds) and a reason.
+	 */
+	public static function settle_unallocated( array $in ) {
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { return $order; }
+		if ( ! current_user_can( Refunds::APPROVE_CAP ) ) {
+			return Forms::forbidden( __( 'Nur Personen, die Erstattungen freigeben dürfen, können diese Bestellung abschließen.', 'pass-captain' ) );
+		}
+		if ( \PassCaptain\Settings::get( 'require_2fa_for_refunds' ) && ! Refunds::user_has_2fa( get_current_user_id() ) ) {
+			return Forms::forbidden( __( 'Für Erstattungen ist eine aktivierte Zwei-Faktor-Anmeldung erforderlich.', 'pass-captain' ) );
+		}
+		$reason = Forms::text( $in, 'reason', 255 );
+		if ( '' === $reason ) { return Forms::error( 'wpcap_refund_reason', __( 'Bitte einen Grund für die Erstattung angeben.', 'pass-captain' ) ); }
+		$mode = Forms::choice( $in, 'mode', array( 'provider', 'external' ), '' );
+		$result = Orders::settle_unallocated( $order->order_id, $mode, $reason );
+		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
+		return array( 'order_id' => (int) $order->order_id );
+	}
+
+	/** Forms of the A358 actions: refund through the provider / refunded outside – close. */
+	private static function render_settle_unallocated( $order ) {
+		$order_id = (int) $order->order_id;
+		$gateway = \PassCaptain\Payments\Registry::get( (string) $order->payment_provider );
+		$modes = array();
+		if ( $gateway && $gateway->supports_refunds() ) {
+			/* translators: 1: amount, 2: payment method */
+			$modes['provider'] = sprintf( __( '%1$s über %2$s erstatten', 'pass-captain' ), Forms::money( (int) $order->total_minor, $order->currency ), $gateway->title() );
+		}
+		$modes['external'] = __( 'Extern erstattet – abschließen', 'pass-captain' );
+		foreach ( $modes as $mode => $label ) {
+			echo '<p>';
+			Forms::open_form( 'wpcap_settle_unallocated', 'wpcap_settle_unallocated_' . $order_id, 'style="display:inline"' );
+			Forms::hidden( 'order_id', $order_id );
+			Forms::hidden( 'mode', $mode );
+			echo '<label for="wpcap-settle-' . esc_attr( $mode ) . '">' . esc_html__( 'Grund', 'pass-captain' ) . '</label> <input type="text" required maxlength="255" name="reason" id="wpcap-settle-' . esc_attr( $mode ) . '"> ';
+			echo '<button class="button" type="submit">' . esc_html( $label ) . '</button></form></p>';
+		}
+		echo '<p class="description">' . esc_html__( '„Extern erstattet“ sendet nichts an den Zahlungsanbieter: nur verwenden, wenn das Geld bereits auf anderem Weg zurückgezahlt wurde. Beide Aktionen schließen die Bestellung als erstattet ab.', 'pass-captain' ) . '</p>';
+	}
+
 	/** Cancels an unpaid order. */
 	public static function cancel_order( array $in ) {
 		$order = self::order_for_action( $in );
@@ -239,6 +283,13 @@ final class OrdersPage {
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_retry_allocation_' . $order_id );
 		Forms::finish( self::retry_allocation( $in ), __( 'Kontingent zugeteilt; Tickets wurden ausgestellt.', 'pass-captain' ), self::order_url( $order_id ) );
+	}
+
+	public static function handle_settle_unallocated() {
+		$in = Forms::post();
+		$order_id = Forms::int( $in, 'order_id' );
+		Forms::verify( 'wpcap_settle_unallocated_' . $order_id );
+		Forms::finish( self::settle_unallocated( $in ), __( 'Zahlung erstattet; die Bestellung ist abgeschlossen.', 'pass-captain' ), self::order_url( $order_id ) );
 	}
 
 	public static function handle_cancel_order() {
@@ -416,8 +467,10 @@ final class OrdersPage {
 			<div class="notice notice-<?php echo 'dead_letter' === $mail_retry->status ? 'error' : 'warning'; ?> inline"><p><?php echo esc_html( 'dead_letter' === $mail_retry->status ? __( 'Die Ticket-E-Mail konnte auch nach mehreren Versuchen nicht zugestellt werden. Bitte E-Mail-Adresse und Mailversand prüfen und „Tickets erneut senden“ verwenden.', 'pass-captain' ) : __( 'Die Ticket-E-Mail konnte nicht zugestellt werden; ein neuer Versuch (mit neuen Ticketcodes) ist geplant.', 'pass-captain' ) ); ?></p></div>
 		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
-			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung außerhalb des Plugins zurückerstatten.', 'pass-captain' ); ?></p>
-			<?php if ( 'paid_unallocated' === $order->payment_status && ! $is_woo ) : ?><p><?php Forms::open_form( 'wpcap_retry_allocation', 'wpcap_retry_allocation_' . $order_id, 'style="display:inline"' ); Forms::hidden( 'order_id', $order_id ); ?><button class="button" type="submit"><?php esc_html_e( 'Zuteilung erneut versuchen', 'pass-captain' ); ?></button></form></p><?php endif; ?></div>
+			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung erstatten und die Bestellung abschließen.', 'pass-captain' ); ?></p>
+			<?php if ( 'paid_unallocated' === $order->payment_status && ! $is_woo ) : ?><p><?php Forms::open_form( 'wpcap_retry_allocation', 'wpcap_retry_allocation_' . $order_id, 'style="display:inline"' ); Forms::hidden( 'order_id', $order_id ); ?><button class="button" type="submit"><?php esc_html_e( 'Zuteilung erneut versuchen', 'pass-captain' ); ?></button></form></p>
+				<?php if ( current_user_can( Refunds::APPROVE_CAP ) ) : self::render_settle_unallocated( $order ); endif; ?>
+			<?php endif; ?></div>
 		<?php endif; ?>
 
 		<table class="form-table"><tbody>

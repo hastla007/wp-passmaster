@@ -1374,6 +1374,57 @@ final class Orders {
 	}
 
 	/**
+	 * Closes a paid order that issued no tickets (`needs_review`/`paid_unallocated`, A358) by refunding
+	 * the payment in full – the admin action next to "Zuteilung erneut versuchen":
+	 *
+	 * - 'provider': refund through the payment provider with the fixed key of the automatic late
+	 *   refund (`wpcap-late-refund-{id}`), so this action and the job `late_payment_refund` never pay
+	 *   out twice;
+	 * - 'external': the money was returned outside the plugin (bank transfer, provider dashboard
+	 *   without webhook); nothing is sent to the provider.
+	 *
+	 * Then the order is marked refunded (refunded amount = total, no refund row: no tickets, no
+	 * invoice line was issued for them). WooCommerce orders are refunded in WooCommerce.
+	 *
+	 * @param int    $order_id Order.
+	 * @param string $mode     'provider' or 'external'.
+	 * @param string $note     Reason / note (audit).
+	 * @return true|\WP_Error
+	 */
+	public static function settle_unallocated( $order_id, $mode, $note = '' ) {
+		global $wpdb;
+		$order_id = absint( $order_id );
+		$order = self::get( $order_id );
+		if ( ! $order && '' !== $wpdb->last_error ) { return Errors::busy(); }
+		if ( ! $order || 'needs_review' !== $order->status || 'paid_unallocated' !== $order->payment_status ) {
+			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		if ( 'woocommerce' === (string) $order->payment_provider ) {
+			return new \WP_Error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$reference = '';
+		if ( 'provider' === $mode ) {
+			$gateway = Payments\Registry::get( (string) $order->payment_provider );
+			if ( ! $gateway || ! $gateway->supports_refunds() || (int) $order->total_minor < 1 ) {
+				return new \WP_Error( 'wpcap_refund_unsupported', __( 'Diese Zahlungsart kann nicht automatisch erstatten. Bitte die Zahlung außerhalb des Plugins zurückzahlen und „Extern erstattet – abschließen“ verwenden.', 'pass-captain' ), array( 'status' => 409 ) );
+			}
+			$result = $gateway->refund( (array) $order, (int) $order->total_minor, 'wpcap-late-refund-' . $order_id );
+			if ( is_wp_error( $result ) ) {
+				Audit::record( 'unallocated_refund_failed', 'order', $order_id, array( 'error' => $result->get_error_code() ) );
+				return $result;
+			}
+			$reference = substr( sanitize_text_field( (string) $result ), 0, 191 );
+		} elseif ( 'external' !== $mode ) {
+			return new \WP_Error( 'wpcap_refund_mode', __( 'Unbekannte Art der Erstattung.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$marked = self::mark_refunded( $order_id, 'provider' === $mode ? 'unallocated_refunded' : 'unallocated_refunded_externally' );
+		if ( true !== $marked ) { return $marked; } // mark_refunded() queued its own repair; a repeated provider call is idempotent.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET refunded_minor=total_minor WHERE order_id=%d AND status='refunded'", $order_id ) );
+		Audit::record( 'unallocated_settled', 'order', $order_id, array( 'mode' => 'provider' === $mode ? 'provider' : 'external', 'provider_reference' => $reference, 'amount_minor' => (int) $order->total_minor, 'note' => substr( sanitize_text_field( (string) $note ), 0, 255 ) ) );
+		return true;
+	}
+
+	/**
 	 * Commits a payment booking and tells whether it is durable (A183). The order update is the
 	 * booking's first write: when the connection was lost and wpdb reconnected, every statement from
 	 * the lost one on ran with autocommit and the earlier ones were rolled back. So the order's
