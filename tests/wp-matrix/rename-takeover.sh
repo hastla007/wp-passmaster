@@ -50,8 +50,9 @@ wpc eval 'PassCaptain\Plugin::maybe_upgrade("admin"); PassCaptain\LegacySlug::wa
 V="$(wpc option get wpcap_db_version)"; E="$(wpc eval 'echo PassCaptain\Installer::version();')"
 [ "$V" = "$E" ] && ok "schema upgraded to $V" || bad "schema $V, expected $E"
 [ "$(state)" = "$BEFORE" ] && ok "all business data unchanged after the switch" || bad "data changed: $(state) vs $BEFORE"
-DEL="$(wpc eval '$s = get_option( "wpcap_settings" ); echo (int) ( $s["delete_data_on_uninstall"] ?? 0 ), (int) get_option( "wpcap_uninstall_delete_parked" );')"
-[ "$DEL" = "01" ] && ok "delete-on-uninstall paused while the old folder exists" || bad "delete-on-uninstall not paused ($DEL)"
+# The opt-in moves out of the key the old copy's uninstall.php reads (wpcap_settings) into wpcap_uninstall_policy.
+DEL="$(wpc eval '$s = get_option( "wpcap_settings" ); echo (int) ( $s["delete_data_on_uninstall"] ?? 0 ), get_option( "wpcap_uninstall_policy" ), (int) PassCaptain\Settings::get( "delete_data_on_uninstall" );')"
+[ "$DEL" = "0delete1" ] && ok "delete-on-uninstall hidden from the old copy, kept for the new one" || bad "delete-on-uninstall not paused ($DEL)"
 
 # 3. Old REST URLs keep working (webhooks registered at providers, Wallet passes, apps).
 REST="$(wpc eval '
@@ -67,8 +68,8 @@ WH="$(wpc eval '$r = rest_do_request( new WP_REST_Request( "POST", "/wp-pass-cap
 wpc plugin uninstall "$OLD" >/dev/null 2>&1 && ok "old copy uninstalled (its own uninstall.php ran)" || bad "uninstalling the old copy failed"
 [ "$(state)" = "$BEFORE" ] && ok "data kept although delete-on-uninstall was on" || bad "data lost when deleting the old copy: $(state)"
 wpc eval 'PassCaptain\LegacySlug::watch_legacy_copy();' >/dev/null
-DEL2="$(wpc eval '$s = get_option( "wpcap_settings" ); echo (int) ( $s["delete_data_on_uninstall"] ?? 0 ), (int) get_option( "wpcap_uninstall_delete_parked" );')"
-[ "$DEL2" = "10" ] && ok "delete-on-uninstall restored after the old copy is gone" || bad "setting not restored ($DEL2)"
+DEL2="$(wpc eval '$s = get_option( "wpcap_settings" ); echo (int) ( $s["delete_data_on_uninstall"] ?? 0 ), (int) get_option( "wpcap_uninstall_delete_parked" ), (int) PassCaptain\Settings::get( "delete_data_on_uninstall" );')"
+[ "$DEL2" = "001" ] && ok "delete-on-uninstall still on after the old copy is gone" || bad "setting not restored ($DEL2)"
 grep -q '^wpcap_process_jobs' <<<"$(wpc cron event list --fields=hook --format=csv 2>/dev/null)" && ok "cron events scheduled again" || bad "cron events missing after the old copy's uninstall"
 ERR="$( [ -f "$LOG" ] && grep -E "PHP (Fatal|Warning|Notice|Deprecated|Parse)" "$LOG" | grep -iE "pass-captain" || true )"
 [ -z "$ERR" ] && ok "no PHP fatals/warnings/notices" || bad "PHP messages: $(head -n 5 <<<"$ERR")"

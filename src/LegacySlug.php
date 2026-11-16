@@ -201,22 +201,33 @@ final class LegacySlug {
 		}
 	}
 
-	/** Pauses the delete-data setting of the current site (if set). */
+	/**
+	 * Pauses the delete-data setting of the current site for the old copy's uninstall.php (if it is still in
+	 * the old key wpcap_settings['delete_data_on_uninstall']): the old key is set to 0 and the opt-in moves to
+	 * Settings::UNINSTALL_POLICY, where this copy reads it (same result as Settings::migrate_uninstall_policy()).
+	 */
 	public static function park_site() {
 		$settings = (array) get_option( 'wpcap_settings', array() );
 		if ( empty( $settings['delete_data_on_uninstall'] ) ) { return; }
 		$settings['delete_data_on_uninstall'] = 0;
 		update_option( 'wpcap_settings', $settings );
+		update_option( Settings::UNINSTALL_POLICY, 'delete', false );
 		update_option( self::PARKED_OPTION, 1, false );
-		Audit::record( 'legacy_copy_uninstall_paused', 'plugin', 0, array( 'folder' => dirname( self::LEGACY_BASENAME ) ) );
+		$folder = dirname( self::LEGACY_BASENAME );
+		$record = static function () use ( $folder ) {
+			Audit::record( 'legacy_copy_uninstall_paused', 'plugin', 0, array( 'folder' => $folder ) );
+		};
+		// Runs at plugins_loaded: the audit entry reads translated setting defaults, so it waits for init.
+		if ( did_action( 'init' ) ) { $record(); } else { add_action( 'init', $record, 1 ); }
 	}
 
-	/** Restores the delete-data setting of the current site if it was paused here. */
+	/**
+	 * After the old copy is gone: the opt-in that was paused here stays in Settings::UNINSTALL_POLICY (the old
+	 * key in wpcap_settings stays 0, see Settings::UNINSTALL_POLICY); only the parked marker is removed.
+	 */
 	public static function restore_site() {
 		if ( ! get_option( self::PARKED_OPTION ) ) { return; }
-		$settings = (array) get_option( 'wpcap_settings', array() );
-		$settings['delete_data_on_uninstall'] = 1;
-		update_option( 'wpcap_settings', $settings );
+		update_option( Settings::UNINSTALL_POLICY, 'delete', false );
 		delete_option( self::PARKED_OPTION );
 	}
 

@@ -73,12 +73,15 @@ $ls_dir = WP_PLUGIN_DIR . '/' . $ls_old;
 @mkdir( $ls_dir, 0777, true );
 file_put_contents( $ls_dir . '/' . $ls_old . '.php', "<?php\n" );
 $ls_settings_before = get_option( 'wpcap_settings', array() );
+$ls_policy_before   = get_option( PassCaptain\Settings::UNINSTALL_POLICY, false );
+update_option( PassCaptain\Settings::UNINSTALL_POLICY, 'keep', false );
 update_option( 'wpcap_settings', array_merge( (array) $ls_settings_before, array( 'delete_data_on_uninstall' => 1 ) ) );
 delete_option( LegacySlug::PARKED_OPTION );
 delete_option( LegacySlug::SEEN_OPTION );
 LegacySlug::watch_legacy_copy();
 $ls_s1 = (array) get_option( 'wpcap_settings', array() );
 check( 'old copy installed: delete-on-uninstall is paused (its uninstall.php would drop the shared tables)', LegacySlug::legacy_installed() && empty( $ls_s1['delete_data_on_uninstall'] ) && 1 === (int) get_option( LegacySlug::PARKED_OPTION ) && 1 === (int) get_option( LegacySlug::SEEN_OPTION ) );
+check( 'old copy installed: the opt-in moves to wpcap_uninstall_policy (this copy still deletes on its own uninstall)', 'delete' === get_option( PassCaptain\Settings::UNINSTALL_POLICY ) );
 ob_start();
 LegacySlug::notice();
 $ls_notice = ob_get_clean();
@@ -93,11 +96,12 @@ update_option( 'wpcap_db_version', '' === (string) $ls_ver ? '3.10.6' : $ls_ver 
 PassCaptain\Plugin::ensure_events();
 check( 'cron self-healing: missing events (e.g. removed by the old copy\'s uninstall.php) are re-scheduled on init', false !== wp_next_scheduled( 'wpcap_process_jobs' ) );
 update_option( 'wpcap_db_version', $ls_ver );
-check( 'old copy removed: delete-on-uninstall restored, markers cleared', ! LegacySlug::legacy_installed() && 1 === (int) ( $ls_s2['delete_data_on_uninstall'] ?? 0 ) && ! get_option( LegacySlug::PARKED_OPTION ) && ! get_option( LegacySlug::SEEN_OPTION ) );
+check( 'old copy removed: delete-on-uninstall stays on (wpcap_uninstall_policy), old key stays 0, markers cleared', ! LegacySlug::legacy_installed() && empty( $ls_s2['delete_data_on_uninstall'] ) && 'delete' === get_option( PassCaptain\Settings::UNINSTALL_POLICY ) && ! get_option( LegacySlug::PARKED_OPTION ) && ! get_option( LegacySlug::SEEN_OPTION ) );
 update_option( LegacySlug::TAKEOVER_OPTION, 1 );
 LegacySlug::watch_legacy_copy();
 check( 'takeover from the old copy is finished on the next admin request', ! get_option( LegacySlug::TAKEOVER_OPTION ) );
 update_option( 'wpcap_settings', $ls_settings_before );
+if ( false === $ls_policy_before ) { delete_option( PassCaptain\Settings::UNINSTALL_POLICY ); } else { update_option( PassCaptain\Settings::UNINSTALL_POLICY, $ls_policy_before, false ); }
 
 // Uninstall of this copy keeps the data while the old copy exists (static check, uninstall.php is not run here).
 $ls_uninstall = (string) file_get_contents( WPCAP_PATH . 'uninstall.php' );
