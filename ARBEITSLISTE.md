@@ -665,13 +665,13 @@ Gesamt: 262 Aufgaben.
   - assets/checkout.js:516–535: Erfolg nur bei gültigem JSON mit reference/status
 - [ ] **A310** [WICHTIG] Zurück aus Stripe/PayPal (bfcache) erzeugt zweite Bestellung — _R2 Frontend_ (TODO L641; Audit Runde 4)
   - assets/checkout.js:521–531: pageshow persisted behandeln, Key erst nach Abschluss löschen, auf bestehende Bestellung verweisen
-- [ ] **A311** [WICHTIG] Teilnehmerbereich als Live-Region liest bei jeder Mengenänderung alles vor — _R2 Frontend_ (TODO L642; Audit Runde 4)
+- [x] **A311** [WICHTIG] Teilnehmerbereich als Live-Region liest bei jeder Mengenänderung alles vor — _R2 Frontend_ (TODO L642; Audit Runde 4)
   - templates/event-card.php:83, assets/checkout.js:44–67: aria-live entfernen, kurzer Hinweis über .wpcap-qty-live
-- [ ] **A312** [WICHTIG] Saalplan: Fokusverlust alle 30 s und beim Entfernen — _R2 Frontend_ (TODO L643; Audit Runde 4)
+- [x] **A312** [WICHTIG] Saalplan: Fokusverlust alle 30 s und beim Entfernen — _R2 Frontend_ (TODO L643; Audit Runde 4)
   - assets/seating/picker.js:34, 215–255: Liste nur bei Änderung neu aufbauen, Fokus wiederherstellen
 - [ ] **A313** [WICHTIG] Monatskalender: Tag in Site-Zeitzone, Uhrzeit/Datum in Termin-Zeitzone; Navigation — _R2 Frontend/UX_ (TODO L644; Audit Runde 4)
   - src/Modules/Calendar.php:233–273: Einheitliche Zone; Zurück im aktuellen Monat ausblenden, „Heute“, Wochentag mobil
-- [ ] **A314** [WICHTIG] Kasse: Termin-Auswahl sendet Formular bei jeder Pfeiltaste — _R2 Frontend_ (TODO L645; Audit Runde 4)
+- [x] **A314** [WICHTIG] Kasse: Termin-Auswahl sendet Formular bei jeder Pfeiltaste — _R2 Frontend_ (TODO L645; Audit Runde 4)
   - src/BoxOffice/Page.php:104, ShiftPage.php:316: „Anzeigen“-Button statt onchange-Submit
 - [x] **A315** [WICHTIG] WAF-/HTML-Fehler zeigt am Web-Scanner „KEIN EINLASS“ — _R2 Frontend_ (TODO L646; Audit Runde 4)
   - assets/scanner.js:401–419, offline-scanner/app.js:494–499: Nur wpcap_-JSON-Fehler als Ablehnung, sonst gelbe Systemwarnung
@@ -679,9 +679,9 @@ Gesamt: 262 Aufgaben.
   - assets/scanner.js:504–520, offline-scanner/app.js:623–633: Button sofort sperren/Flag, alten Stream stoppen
 - [ ] **A317** [WICHTIG] Wartelisten-Angebotsseite ohne Doppelklick-/Reload-Schutz — _R2 Frontend_ (TODO L648; Audit Runde 4)
   - src/Waitlists.php:1059, 1067ff. (handle_accept_request): PRG mit Ergebnisseite, Buttons sperren, angenommenes Angebot mit Bezahlstatus zeigen
-- [ ] **A318** [WICHTIG] Dunkle Themes: Kontrast 1,1–2,6:1 (Kalender, Fehlertexte) — _R2 Frontend_ (TODO L649; Audit Runde 4)
+- [x] **A318** [WICHTIG] Dunkle Themes: Kontrast 1,1–2,6:1 (Kalender, Fehlertexte) — _R2 Frontend_ (TODO L649; Audit Runde 4)
   - assets/calendar/calendar.css, assets/public.css: Farben paarweise, Custom Properties, color-scheme/Dark-Block
-- [ ] **A319** [WICHTIG] Kontrast PWA-Status unter 4,5:1 — _R2 Frontend_ (TODO L650; Audit Runde 4)
+- [x] **A319** [WICHTIG] Kontrast PWA-Status unter 4,5:1 — _R2 Frontend_ (TODO L650; Audit Runde 4)
   - assets/offline-scanner/app.css:8, 34: --warn/--ok für Text abdunkeln
 - [ ] **A320** [WICHTIG] Druck-/Belegseiten mit festem lang="de" — _R2 Frontend_ (TODO L651; Audit Runde 4)
   - src/Printing/AttendeeList.php:74, NoShowList.php:62, GuestLists/Page.php:158, BoxOffice/ZReport.php:439/466, Service.php:736, Reports/Settlement.php:297: determine_locale() verwenden
@@ -1150,15 +1150,15 @@ Gesamt: 262 Aufgaben.
   - assets/scanner.js, offline-scanner/app.js, Mobile/Api.php:38/146, Admin/TicketsPage.php:282: 30 s Rückgängig mit Pflicht-Grund am Gerät, Grund im Admin Pflicht
 - [ ] **A548** [WICHTIG] PWA: Ergebnis bleibt unbegrenzt stehen, kein Vollbild, kleine Schrift — _R4 Käufer-UX/Einlass_ (TODO L888; Audit Runde 4)
   - assets/offline-scanner/app.js:164–171, app.css:23–29, index.html:44–47: Haltezeit + Rücksetzen, Vollbild-Overlay mit Uhrzeit/Kurzcode
-- [ ] **A549** [WICHTIG] Teilnehmerdaten gehen beim Korrigieren der Menge verloren — _R4 Käufer-UX/Checkout_ (TODO L889; Audit Runde 4)
+- [x] **A549** [WICHTIG] Teilnehmerdaten gehen beim Korrigieren der Menge verloren — _R4 Käufer-UX/Checkout_ (TODO L889; Audit Runde 4)
   - assets/checkout.js:40–52, :431–437: Blöcke je Slot zwischenspeichern, Neuberechnung bei change/verzögert
-- [ ] **A550** [WICHTIG] Nummerierung der Teilnehmerblöcke nach Mengenänderung falsch — _R4 Käufer-UX/Checkout_ (TODO L890; Audit Runde 4)
+- [x] **A550** [WICHTIG] Nummerierung der Teilnehmerblöcke nach Mengenänderung falsch — _R4 Käufer-UX/Checkout_ (TODO L890; Audit Runde 4)
   - assets/checkout.js:52–54: Legenden nach jedem Rendern neu nummerieren
-- [ ] **A551** [WICHTIG] Fehlermeldungen nennen nicht, welche Teilnehmer:in gemeint ist — _R4 Käufer-UX/Checkout_ (TODO L891; Audit Runde 4)
+- [x] **A551** [WICHTIG] Fehlermeldungen nennen nicht, welche Teilnehmer:in gemeint ist — _R4 Käufer-UX/Checkout_ (TODO L891; Audit Runde 4)
   - assets/checkout.js:217–222, :313–316, Orders.php:477ff.: Legende voranstellen, Server liefert data.index
 - [ ] **A552** [WICHTIG] Teilnehmerfelder nur Text/E-Mail/Textfeld/Checkbox; Name je Ticket nicht erzwingbar; kein „wie Käufer:in“ — _R4 Käufer-UX/Checkout_ (TODO L892; Audit Runde 4)
   - src/Admin/EventsPage.php:25, checkout.js:33–60, Orders.php:510–517: Typen date/select/tel/number, Pflicht-Schalter Teilnehmername, Übernahme-Knopf
-- [ ] **A553** [WICHTIG] Kein Schutz gegen Tippfehler in der Käufer-E-Mail — _R4 Käufer-UX/Checkout_ (TODO L893; Audit Runde 4)
+- [x] **A553** [WICHTIG] Kein Schutz gegen Tippfehler in der Käufer-E-Mail — _R4 Käufer-UX/Checkout_ (TODO L893; Audit Runde 4)
   - templates/event-card.php:79–82, Rest/Controller.php:392, checkout.js:386/406: Domain-Tippfehler-Hinweis oder Bestätigungsfeld, „Adresse falsch?“ auf Bestätigung
 - [ ] **A554** [WICHTIG] Rückkehr von Stripe/PayPal/Mollie auf Startseite; Abbruch hält Plätze, Neuversuch erzeugt zweite Bestellung (erweitert A307) — _R4 Käufer-UX/Checkout_ (TODO L894; Audit Runde 4)
   - src/Payments/StripeGateway.php:65–66/340–342, PayPalGateway.php:62/466, MollieGateway.php:339, ReturnNotice.php:13–29: Kaufseite als Rückkehr-URL; bei cancel Reservierung freigeben oder „Zahlung fortsetzen“; Bestellnummer zeigen
