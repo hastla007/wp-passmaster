@@ -284,6 +284,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_wallet_mail_inline_limit` | `int $limit` (10) | Bis zu dieser Ticketanzahl enthält die Ticketmail Wallet-Pässe/-Links je Ticket; darüber „Alle hinzufügen“-Links je Paket (A580). |
 | `wpcap_wallet_batch_size` | `int $size, string $provider` | Tickets je „Alle hinzufügen“-Link: Apple `.pkpasses` (Standard und Maximum 10), Google-Speichern-Link mit Objekt-IDs (Standard und Maximum 8, gemessen ~1.500 Zeichen), A580/A583. |
 | `wpcap_wallet_health_issues` | `array $issues` | Befunde des Site-Health-Tests „Pass Captain Wallet“ und des Admin-Hinweises (A584/A585): Liste aus `key`, `status` (`critical`/`recommended`), `message`. |
+| `wpcap_wallet_rate_limits` | `array $limits` (`serial` 120, `device` 120, `failures` 60, `download` 60, `google` 30, `window` 60 Sekunden) | Ratenlimits des Apple-Wallet-Webservices und der Wallet-Links (A461): je Seriennummer (authentifizierte Geräteanfragen), je Geräte-ID (Seriennummernliste), je Client-Adresse nur Fehlversuche, Download-/Paket- und Google-Speichern-Links je Client. Darüber HTTP 429 mit `Retry-After`. Siehe [WALLET.md](WALLET.md#passkit-webservice). |
 | `wpcap_wallet_google_object` | `array $object, array $ticket` | Google-Wallet-EventTicketObject. |
 
 ### Administration

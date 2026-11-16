@@ -108,16 +108,18 @@ Basis: `https://example.com/wp-json/pass-captain/v1/wallet/apple` (= `webService
 
 | Methode | Pfad | Antwort |
 |---|---|---|
-| POST | `/v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}/{serialNumber}` (Body `{"pushToken": "…"}`) | 201 neu, 200 vorhanden, 401 |
-| DELETE | gleicher Pfad | 200, 401 |
-| GET | `/v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}?passesUpdatedSince=tag` | 200 `{serialNumbers, lastUpdated}`, 204, 404 (unbekanntes Gerät) |
-| GET | `/v1/passes/{passTypeIdentifier}/{serialNumber}` | 200 `.pkpass` mit `Last-Modified` und `ETag`, 304 bei passendem `If-None-Match` bzw. `If-Modified-Since`, 401 |
+| POST | `/v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}/{serialNumber}` (Body `{"pushToken": "…"}`) | 201 neu, 200 vorhanden, 401, 429 |
+| DELETE | gleicher Pfad | 200, 401, 429 |
+| GET | `/v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}?passesUpdatedSince=tag` | 200 `{serialNumbers, lastUpdated}`, 204, 404 (unbekanntes Gerät), 429 |
+| GET | `/v1/passes/{passTypeIdentifier}/{serialNumber}` | 200 `.pkpass` mit `Last-Modified` und `ETag`, 304 bei passendem `If-None-Match` bzw. `If-Modified-Since`, 401, 429 |
 | POST | `/v1/log` | 200; ohne Authentifizierung (Apple-Vorgabe), daher eigener kleiner Puffer (10 Einträge, max. 3 Zeilen je Aufruf, 5 Aufrufe/Stunde je Client, 30/Stunde gesamt), getrennt vom Server-Protokoll, Tokens entfernt |
 | GET | `/download/{serialNumber}?sig=…` | Download-Link aus der Mail |
 | GET | `/bundle?o={bestellung}&p={paket}&sig=…` | A580: „Alle zu Apple Wallet hinzufügen“ – bis zu 10 Pässe der Bestellung als `application/vnd.apple.pkpasses` (iOS 15+) |
 | GET | `/wp-json/pass-captain/v1/wallet/google/save?t=…&sig=…` bzw. `?o=…&p=…&sig=…` | A583: kurzer Google-Speichern-Link (ein Ticket bzw. ein Paket von bis zu 8 Tickets der Bestellung), 302 zu Google |
 
 **„Alle hinzufügen“ (A580):** Ab mehr als 10 Tickets (Filter `wpcap_wallet_mail_inline_limit`) hängt die Ticketmail keine `.pkpass` je Ticket mehr an und listet keine Links je Ticket, sondern je Paket einen Apple- und einen Google-Link („Tickets 1–10 zu Apple Wallet hinzufügen“). Codes und Pass-Zeilen werden trotzdem für jedes Ticket gespeichert; die Pässe werden beim Abruf gebaut. Ein Paket umfasst die gültigen Tickets, die noch bei der Käuferin liegen (nicht übertragen, keiner anderen Adresse zugewiesen – wie beim PDF im Bestellportal). Die Signatur hängt am Zugangstoken der Bestellung: ein neuer Bestelllink macht auch diese Links ungültig.
+
+**Ratenlimits (A461):** Ein Limit wird immer mit HTTP 429 und `Retry-After` (Sekunden bis zum Ende des Zeitfensters) beantwortet, nie mit 401 oder 404 – ein 401 hält das Gerät für einen ungültigen Pass, ein 404 die Käuferin für einen falschen Link. Gezählt wird je Seriennummer (authentifizierte Geräteanfragen, Standard 120/Minute), je Geräte-ID (Seriennummernliste, 120/Minute) und je Client-Adresse nur für Fehlversuche (falscher Token, unbekannte Seriennummer oder Geräte-ID; 60/Minute) – viele Telefone hinter einer Veranstaltungs- oder Mobilfunk-NAT teilen sich so kein Budget. Download- und Paket-Links zählen je Client (60/Minute), Google-Speichern-Links ebenso (30/Minute). Alle Werte über den Filter `wpcap_wallet_rate_limits`.
 
 APNs: HTTP/2-POST an `https://api.push.apple.com/3/device/{pushToken}` (Sandbox einstellbar) mit dem Pass-Type-ID-Zertifikat als Client-Zertifikat, `apns-topic` = Pass Type ID, Payload `{}`. Benötigt cURL mit HTTP/2.
 

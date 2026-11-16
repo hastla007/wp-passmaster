@@ -6,7 +6,7 @@ use PassCaptain\Mobile\Api;
 use PassCaptain\Mobile\Devices;
 
 if ( ! class_exists( 'WP_REST_Response' ) ) {
-	class WP_REST_Response { public function __construct( public $data = null, public $status = 200 ) {} public function get_data() { return $this->data; } public function get_status() { return $this->status; } }
+	class WP_REST_Response { public function __construct( public $data = null, public $status = 200 ) {} public function get_data() { return $this->data; } public function get_status() { return $this->status; } public $headers = array(); public function header( $k, $v ) { $this->headers[ $k ] = $v; } public function get_headers() { return $this->headers; } }
 }
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r instanceof WP_REST_Response ? $r : new WP_REST_Response( $r ); } }
 if ( ! function_exists( 'wp_set_current_user' ) ) { function wp_set_current_user( $id ) { $GLOBALS['wpcap_test_user_id'] = (int) $id; } }
