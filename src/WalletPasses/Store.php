@@ -20,6 +20,39 @@ final class Store {
 		return hash_hmac( 'sha256', 'wpcap-wallet-secretbox-v1', $base, true );
 	}
 
+	/** 'constant' (WPCAP_WALLET_ENCRYPTION_KEY, recommended) or 'salt' (derived from wp_salt( 'auth' )). */
+	public static function key_source() {
+		return defined( 'WPCAP_WALLET_ENCRYPTION_KEY' ) && '' !== (string) constant( 'WPCAP_WALLET_ENCRYPTION_KEY' ) ? 'constant' : 'salt';
+	}
+
+	const KEY_CHECK_OPTION = 'wpcap_wallet_key_check';
+
+	/** Short, non-reversible fingerprint of the current key (detects a changed salt/key, A584). */
+	public static function key_check() {
+		return substr( hash_hmac( 'sha256', 'wpcap-wallet-key-check', self::key() ), 0, 16 );
+	}
+
+	/** Remembers the fingerprint of the key the stored secrets were encrypted with (first use only). */
+	public static function remember_key() {
+		if ( '' === (string) get_option( self::KEY_CHECK_OPTION, '' ) ) { update_option( self::KEY_CHECK_OPTION, self::key_check(), false ); }
+	}
+
+	/**
+	 * Whether stored secrets were encrypted with another key than the current one (salt rotated or
+	 * WPCAP_WALLET_ENCRYPTION_KEY changed/removed). Without a fingerprint (installs before A584) the
+	 * newest stored secret is probed instead.
+	 */
+	public static function key_changed() {
+		global $wpdb;
+		$known = (string) get_option( self::KEY_CHECK_OPTION, '' );
+		if ( '' !== $known ) { return ! hash_equals( $known, self::key_check() ); }
+		$box = $wpdb->get_var( 'SELECT secret FROM ' . self::t( 'wallet_state' ) . ' ORDER BY updated_at DESC LIMIT 1' );
+		if ( null === $box ) { return false; }
+		if ( null === self::decrypt( $box ) ) { return true; }
+		self::remember_key();
+		return false;
+	}
+
 	public static function encrypt( array $data ) {
 		$nonce = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
 		return 'v1:' . base64_encode( $nonce . sodium_crypto_secretbox( (string) wp_json_encode( $data ), $nonce, self::key() ) );
@@ -67,6 +100,7 @@ final class Store {
 		$auth = bin2hex( random_bytes( 20 ) );
 		$generation = $existing ? (int) $existing->generation + 1 : 1;
 		$now = current_time( 'mysql', true );
+		self::remember_key();
 		$row = array(
 			'secret' => self::encrypt( array( 'code' => (string) $code, 'auth' => $auth ) ),
 			'code_hash' => hash( 'sha256', (string) $code ),

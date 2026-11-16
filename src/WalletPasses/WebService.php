@@ -120,6 +120,8 @@ final class WebService {
 			Service::log( 'build_failed', $e->getMessage() );
 			$built = null;
 		}
+		// A584: the stored code cannot be decrypted (key changed) – the device keeps its last valid pass.
+		if ( $built && ! empty( $built['unavailable'] ) ) { return new \WP_REST_Response( null, 304 ); }
 		return $built ? self::pkpass_response( $built ) : new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) );
 	}
 
@@ -136,6 +138,9 @@ final class WebService {
 		} catch ( \Throwable $e ) {
 			Service::log( 'build_failed', $e->getMessage() );
 			$built = null;
+		}
+		if ( $built && ! empty( $built['unavailable'] ) ) {
+			return new \WP_Error( 'wpcap_wallet_unavailable', __( 'Dieser Wallet-Pass kann derzeit nicht erstellt werden. Dein Ticket bleibt gültig; bitte nutze das Ticket aus der E-Mail oder wende dich an den Veranstalter.', 'pass-captain' ), array( 'status' => 503 ) );
 		}
 		if ( ! $built ) { return new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$response = self::pkpass_response( $built );

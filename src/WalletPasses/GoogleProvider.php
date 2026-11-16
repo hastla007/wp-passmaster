@@ -68,6 +68,8 @@ class GoogleProvider implements WalletProvider {
 			'ticketNumber' => (string) $ticket['public_id'],
 			'ticketType' => self::text( $ticket['ticket_name'] ),
 		);
+		// A584: code not decryptable but ticket valid – a PATCH without state/barcode keeps both as saved.
+		if ( Service::code_unavailable( $ticket ) ) { unset( $object['state'] ); }
 		if ( $active ) { $object['barcode'] = array( 'type' => 'QR_CODE', 'value' => (string) $ticket['code'], 'alternateText' => substr( (string) $ticket['public_id'], 0, 8 ) ); }
 		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $object['seatInfo'] = array( 'seat' => self::text( $ticket['seat'] ) ); }
 		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $object['ticketHolderName'] = (string) $ticket['attendee_name']; }
@@ -100,6 +102,7 @@ class GoogleProvider implements WalletProvider {
 		$object = $this->object_payload( $ticket );
 		if ( ! empty( $provider_pass['serial_number'] ) ) { $object['id'] = (string) $provider_pass['serial_number']; }
 		$res = $this->api( 'PATCH', 'eventTicketObject/' . rawurlencode( $object['id'] ), $object );
+		if ( 404 === $res['code'] && Service::code_unavailable( $ticket ) ) { return true; } // Never create an object without its code.
 		if ( 404 === $res['code'] ) {
 			$class = $this->api( 'POST', 'eventTicketClass', $this->class_payload( $ticket ) );
 			if ( ! in_array( $class['code'], array( 200, 409 ), true ) ) { return false; }

@@ -16,6 +16,7 @@ final class Wallet {
 	public static function register() {
 		Service::register();
 		WebService::register();
+		\PassCaptain\WalletPasses\Health::register();
 	}
 
 	public static function schema( $prefix, $charset ) {

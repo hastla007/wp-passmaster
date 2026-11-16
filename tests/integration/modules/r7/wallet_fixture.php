@@ -9,6 +9,7 @@ use PassCaptain\Settings;
 use PassCaptain\WalletPasses\AdminPage;
 use PassCaptain\WalletPasses\ApnsClient;
 
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'wpw-test-salt-' . $scheme; } }
 
 if ( ! class_exists( 'Wpr7_Test_Apns' ) ) {

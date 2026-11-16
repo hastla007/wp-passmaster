@@ -86,6 +86,9 @@ final class Service {
 		$row['code_hash'] = $state ? (string) $state->code_hash : '';
 		$row['generation'] = $state ? (int) $state->generation : 1;
 		$row['code'] = $secrets['code'] ?? null;
+		// A584: a secret that cannot be opened (salt/key changed) is not a revoked ticket. Passes keep
+		// their last state instead of being rebuilt without barcode (see code_unavailable()).
+		$row['secret_unreadable'] = $state && null === $secrets;
 		$row['auth_token'] = $secrets['auth'] ?? null;
 		$row['voided'] = ! in_array( $row['status'], array( 'valid', 'checked_in' ), true ) || 'cancelled' === $row['occurrence_status'] || 'cancelled' === $row['event_status'] || ! hash_equals( (string) $row['token_hash'], $row['code_hash'] );
 		unset( $row['token_hash'] );
@@ -126,6 +129,15 @@ final class Service {
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Whether the current generation of a pass cannot be rebuilt because its stored code cannot be
+	 * decrypted (key changed) while the ticket itself is still valid (A584). Devices then keep their
+	 * last pass (304) and Google objects are not switched to INACTIVE.
+	 */
+	public static function code_unavailable( array $ticket ) {
+		return ! empty( $ticket['secret_unreadable'] ) && empty( $ticket['voided'] );
 	}
 
 	/** Signed, non-expiring download link for the current generation of an Apple pass. */
@@ -426,7 +438,7 @@ final class Service {
 	 * Builds the .pkpass for a serial. $presented_token: authentication token sent by a device
 	 * (null for the signed download link = current generation). Returns null when unauthorised.
 	 *
-	 * @return array{bundle:string,tag:int}|null
+	 * @return array{bundle?:string,tag:int,unavailable?:bool}|null unavailable: code not decryptable (A584).
 	 */
 	public static function apple_bundle( $serial, $presented_token = null ) {
 		$apple = self::provider( 'apple' );
@@ -435,6 +447,11 @@ final class Service {
 		$state = Store::state( $pass->ticket_id );
 		$ticket = $state ? self::ticket( $pass->ticket_id ) : null;
 		if ( ! $ticket ) { return null; }
+		$current = null === $presented_token || hash_equals( (string) $state->auth_token_hash, hash( 'sha256', (string) $presented_token ) );
+		if ( $current && self::code_unavailable( $ticket ) ) {
+			self::log( 'secret_unreadable', 'apple:' . substr( (string) $serial, 0, 8 ) );
+			return array( 'unavailable' => true, 'tag' => (int) $state->update_tag );
+		}
 		if ( null !== $presented_token ) {
 			$hash = hash( 'sha256', (string) $presented_token );
 			if ( ! hash_equals( (string) $state->auth_token_hash, $hash ) ) {

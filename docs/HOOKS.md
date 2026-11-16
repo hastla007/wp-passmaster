@@ -254,6 +254,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_wallet_apple_images` | `array $images` | Bilder des Passes (Dateiname → Bytes). |
 | `wpcap_wallet_apns_client` | `ApnsClient|null $client` | Eigener APNs-Client (Tests). |
 | `wpcap_wallet_google_class` | `array $class, array $ticket` | Google-Wallet-EventTicketClass. |
+| `wpcap_wallet_health_issues` | `array $issues` | Befunde des Site-Health-Tests „Pass Captain Wallet“ und des Admin-Hinweises (A584/A585): Liste aus `key`, `status` (`critical`/`recommended`), `message`. |
 | `wpcap_wallet_google_object` | `array $object, array $ticket` | Google-Wallet-EventTicketObject. |
 
 ### Administration

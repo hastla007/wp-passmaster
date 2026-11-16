@@ -161,6 +161,8 @@ final class AdminPage {
 		echo '<tr><th>' . esc_html__( 'Apple Wallet einsatzbereit', 'pass-captain' ) . '</th><td>' . self::yes_no( $status['apple']['configured'] ) . ( $status['apple']['error'] ? ' ' . esc_html( $status['apple']['error'] ) : '' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
 		self::cert_row( __( 'Pass-Type-ID-Zertifikat', 'pass-captain' ), $status['apple']['cert'] );
 		self::cert_row( __( 'Apple WWDR-Zertifikat', 'pass-captain' ), $status['apple']['wwdr'] );
+		$key_label = 'constant' === Store::key_source() ? __( 'eigene Konstante WPCAP_WALLET_ENCRYPTION_KEY', 'pass-captain' ) : __( 'aus den WordPress-Salts abgeleitet – bei neuen Salts nicht mehr lesbar; empfohlen: WPCAP_WALLET_ENCRYPTION_KEY', 'pass-captain' );
+		echo '<tr><th>' . esc_html__( 'Schlüssel für Ticketcodes', 'pass-captain' ) . '</th><td>' . esc_html( $key_label ) . '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Web-Service-URL', 'pass-captain' ) . '</th><td><code>' . esc_html( AppleProvider::web_service_url() ) . '</code></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Google Wallet einsatzbereit', 'pass-captain' ) . '</th><td>' . self::yes_no( $status['google']['configured'] ) . ( $status['google']['error'] ? ' ' . esc_html( $status['google']['error'] ) : '' ) . ( $status['google']['account'] ? ' <code>' . esc_html( $status['google']['account'] ) . '</code>' : '' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
 		echo '</tbody></table>';
