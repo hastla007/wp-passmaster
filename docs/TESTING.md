@@ -142,6 +142,17 @@ statt des Präfixindex (191) – `dbDelta` ändert und löscht keine Indizes. Be
 123 Prüfungen, 0 Fehler, 15–25 Sekunden. CI: Pflichtschritt im Job `integration` (alle DB-/PHP-Kombinationen,
 volle Git-Historie).
 
+## Kern läuft allein (A664)
+
+`tests/integration/modules/zz_a664.php` (Teil der Integrationstests): Der ausgelieferte Kern kennt das Add-on
+nicht – kein Code (Zeichenketten, Klassen- oder Funktionsnamen; Kommentare zählen nicht) verweist auf
+`pass-captain-pro`, `PassCaptainPro`, WP License Captain oder `wplc`, und der Plugin-Header verlangt kein
+anderes Plugin (`Requires Plugins`). Danach laufen die Kernabläufe ohne Add-on und **ohne Netzwerk** (jede
+ausgehende Anfrage wird über `pre_http_request` protokolliert und abgelehnt): kostenloser und kostenpflichtiger
+Checkout, Zahlungsbestätigung mit Ticketausgabe, Mail und PDF, Übertragung, Erstattung, Check-in, Terminänderung,
+Event-Absage, Jobs, Nachrichten-Queue, Webhooks und Workflow-Outbox (ohne Provider). Der Test verlangt, dass
+dabei keine einzige HTTP-Anfrage entsteht – also auch keine an einen Lizenzserver.
+
 ## Kein Lizenz- oder Updater-Code im Kern (A661)
 
 **Wächtertest** (CI-Job `php`, nach der Konsistenzprüfung):

@@ -19,7 +19,9 @@ dem Lizenzserver WP License Captain.
    `Update URI`, keine eigenen Filter auf `pre_set_site_transient_update_plugins` oder `plugins_api`, keine
    Rechteabfragen wie `allows_entitlement`. Erzwungen durch `tests/license-guard.php` in der CI (nur
    ausgelieferte Dateien, siehe [TESTING.md](TESTING.md#kein-lizenz--oder-updater-code-im-kern-a661)).
-   Updates des Kerns kommen ausschließlich von WordPress.org.
+   Updates des Kerns kommen ausschließlich von WordPress.org. Dass alle Kernabläufe ohne Add-on und ohne
+   Netzwerkzugriff laufen und der Kern nie einen Lizenzserver aufruft, prüft
+   `tests/integration/modules/zz_a664.php` (A664, [TESTING.md](TESTING.md#kern-läuft-allein-a664)).
 4. **Keine Köder im Kern** (WordPress.org-Richtlinien 5 und 11): keine Menüpunkte, Schalter oder Felder, die
    sichtbar sind, aber erst nach einem Kauf funktionieren; Hinweise auf das Add-on höchstens dezent,
    wegklickbar und nur auf den eigenen Adminseiten. Technisch nur über den Filter `wpcap_addon_notices`:
