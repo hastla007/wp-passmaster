@@ -494,7 +494,7 @@ final class Sms {
 	private static function segment_hint( $text ) {
 		$seg = \PassCaptain\Sms\Segments::count( (string) $text );
 		/* translators: 1: number of segments, 2: encoding (GSM-7 or UCS-2), 3: characters */
-		return sprintf( __( 'Vorlage: %1$d Segment(e), %2$s, %3$d Zeichen (ohne Ersetzung der Platzhalter).', 'pass-captain' ), $seg['segments'], 'gsm7' === $seg['encoding'] ? 'GSM-7' : 'UCS-2', $seg['units'] );
+		return sprintf( _n( 'Vorlage: %1$d Segment, %2$s, %3$d Zeichen (ohne Ersetzung der Platzhalter).', 'Vorlage: %1$d Segmente, %2$s, %3$d Zeichen (ohne Ersetzung der Platzhalter).', (int) $seg['segments'], 'pass-captain' ), $seg['segments'], 'gsm7' === $seg['encoding'] ? 'GSM-7' : 'UCS-2', $seg['units'] );
 	}
 
 	private static function money( $amount, $currency ) {

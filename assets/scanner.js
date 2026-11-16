@@ -515,7 +515,10 @@
 		const fresh = items.filter(function (item) { return Date.now() - item.stored_at <= QUEUE_MAX_AGE; });
 		if (fresh.length !== items.length) {
 			saveQueue(fresh);
-			show('error', ((privacy.i18n && privacy.i18n.expired) || (adm && adm.i18n && adm.i18n.expired) || t.expired || '%d offline scan(s) older than 24 hours were discarded without upload.').replace('%d', items.length - fresh.length));
+			const dropped = items.length - fresh.length;
+			// A383: singular wording for exactly one scan (expiredOne), otherwise the plural.
+			const pick = function (src) { return src && ((1 === dropped && src.expiredOne) || src.expired); };
+			show('error', (pick(privacy.i18n) || pick(adm && adm.i18n) || pick(t) || '%d offline scans older than 24 hours were discarded without upload.').replace('%d', dropped));
 		}
 	}
 	const syncButton = document.createElement('button');
@@ -524,7 +527,7 @@
 	syncButton.textContent = t.syncButton || 'Sync offline scans';
 	syncButton.hidden = true;
 	root.appendChild(syncButton);
-	function updateQueueButton() { const count = queue().length; syncButton.hidden = !count; syncButton.textContent = (t.syncCount || '%d').replace('%d', count); }
+	function updateQueueButton() { const count = queue().length; syncButton.hidden = !count; syncButton.textContent = ((1 === count && t.syncCountOne) || t.syncCount || '%d').replace('%d', count); }
 	function removeSent(keys) {
 		saveQueue(queue().filter(function (item) { return keys.indexOf(item.idempotency_key) === -1; }));
 	}
@@ -555,7 +558,7 @@
 				sent += done.length;
 				conflicts += data.results.filter(function (item) { return item.status === 'conflict'; }).length;
 			}
-			show(conflicts ? 'error' : 'success', (t.synced || '%1$d / %2$d').replace('%1$d', sent).replace('%2$d', conflicts));
+			show(conflicts ? 'error' : 'success', ((1 === sent && t.syncedOne) || t.synced || '%1$d / %2$d').replace('%1$d', sent).replace('%2$d', conflicts));
 		} catch (error) { show('error', error.message); }
 		finally {
 			syncing = false;

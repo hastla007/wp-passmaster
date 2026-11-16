@@ -1077,10 +1077,10 @@ final class OrderAdapter {
 			return;
 		}
 		/* translators: %d: ticket count */
-		$note = sprintf( __( 'Pass Captain: %d Ticket(s) wegen Erstattung widerrufen.', 'pass-captain' ), $revoked );
+		$note = sprintf( _n( 'Pass Captain: %d Ticket wegen Erstattung widerrufen.', 'Pass Captain: %d Tickets wegen Erstattung widerrufen.', (int) $revoked, 'pass-captain' ), $revoked );
 		if ( $kept ) {
 			/* translators: %d: ticket count */
-			$note .= ' ' . sprintf( __( '%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', 'pass-captain' ), $kept );
+			$note .= ' ' . sprintf( _n( '%d erstattetes Ticket war bereits eingecheckt oder nicht mehr gültig und wurde nicht verändert.', '%d erstattete Tickets waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', (int) $kept, 'pass-captain' ), $kept );
 		}
 		$wc_order->add_order_note( $note );
 	}

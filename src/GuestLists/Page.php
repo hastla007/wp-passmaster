@@ -122,7 +122,7 @@ final class Page {
 		$message = '';
 		if ( ! is_wp_error( $result ) ) {
 			/* translators: 1: checked in tickets, 2: remaining tickets */
-			$message = sprintf( __( '%1$d Ticket(s) eingecheckt, %2$d offen.', 'pass-captain' ), $result['checked_in'], $result['remaining'] );
+			$message = sprintf( _n( '%1$d Ticket eingecheckt, %2$d offen.', '%1$d Tickets eingecheckt, %2$d offen.', (int) $result['checked_in'], 'pass-captain' ), $result['checked_in'], $result['remaining'] );
 			if ( $result['errors'] ) { $result['warning'] = implode( ' ', $result['errors'] ); }
 		}
 		Forms::finish( $result, $message, self::url( array( 'event_id' => Forms::int( $in, 'event_id' ), 'occurrence_id' => Forms::int( $in, 'occurrence_id' ), 'q' => Forms::text( $in, 'q' ) ) ) . '#wpcap-gl-checkin' );

@@ -120,8 +120,10 @@ final class Rest {
 				'modeIn' => __( 'Einlass', 'pass-captain' ),
 				'modeOut' => __( 'Auslass (Check-out)', 'pass-captain' ),
 				'checkedOut' => __( 'Ausgecheckt', 'pass-captain' ),
-				/* translators: %d: number of discarded offline scans */
-				'expired' => __( '%d Offline-Scan(s) älter als 7 Tage wurden ohne Upload verworfen.', 'pass-captain' ),
+				/* translators: %d: number of discarded offline scans (not 1; scanner.js uses expiredOne for 1) */
+				'expired' => __( '%d Offline-Scans älter als 7 Tage wurden ohne Upload verworfen.', 'pass-captain' ),
+				/* translators: %d: number of discarded offline scans (always 1) */
+				'expiredOne' => __( '%d Offline-Scan älter als 7 Tage wurde ohne Upload verworfen.', 'pass-captain' ),
 			),
 		) );
 	}

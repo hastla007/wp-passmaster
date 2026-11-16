@@ -647,4 +647,20 @@ final class Forms {
 		);
 		return $labels[ (string) $status ] ?? (string) $status;
 	}
+
+	/**
+	 * A383: "Status: Gültig" (optionally "Status: Gültig (erstattet)") as one translatable sentence
+	 * instead of a label glued to the value, so languages can order or punctuate it their own way.
+	 *
+	 * @param string $status   Status value.
+	 * @param bool   $refunded Whether the ticket was refunded.
+	 */
+	public static function status_line( $status, $refunded = false ) {
+		$label = self::status_label( $status );
+		return $refunded
+			/* translators: %s: ticket status (e.g. "Gültig") of a refunded ticket */
+			? sprintf( __( 'Status: %s (erstattet)', 'pass-captain' ), $label )
+			/* translators: %s: ticket status (e.g. "Gültig") */
+			: sprintf( __( 'Status: %s', 'pass-captain' ), $label );
+	}
 }

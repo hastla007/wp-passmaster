@@ -107,8 +107,11 @@ final class Privacy {
 			'site' => self::scanner_site(),
 			'maxAgeHours' => self::scanner_queue_hours(),
 			'i18n' => array(
-				/* translators: %d: number of discarded scans */
-				'expired' => sprintf( _n( '%%d Offline-Scan(s) älter als %d Stunde wurden ohne Upload verworfen.', '%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen.', self::scanner_queue_hours(), 'pass-captain' ), self::scanner_queue_hours() ),
+				/* translators: %d: maximum age in hours; %%d becomes the number of discarded scans (not 1) */
+				'expired' => sprintf( _n( '%%d Offline-Scans älter als %d Stunde wurden ohne Upload verworfen.', '%%d Offline-Scans älter als %d Stunden wurden ohne Upload verworfen.', self::scanner_queue_hours(), 'pass-captain' ), self::scanner_queue_hours() ),
+				// A383: wording for exactly one discarded scan (the count is only known in the browser).
+				/* translators: %d: maximum age in hours; %%d becomes the number of discarded scans (always 1) */
+				'expiredOne' => sprintf( _n( '%%d Offline-Scan älter als %d Stunde wurde ohne Upload verworfen.', '%%d Offline-Scan älter als %d Stunden wurde ohne Upload verworfen.', self::scanner_queue_hours(), 'pass-captain' ), self::scanner_queue_hours() ),
 			),
 		);
 		wp_add_inline_script( 'wpcap-scanner', 'window.WPCAP_SCANNER_PRIVACY=' . wp_json_encode( $data ) . ';', 'before' );
@@ -400,14 +403,14 @@ final class Privacy {
 		$upcoming = $totals['upcoming'];
 		if ( $totals['attendee_upcoming'] ) {
 			/* translators: %d: number of tickets */
-			$messages[] = sprintf( __( 'Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', 'pass-captain' ), $totals['attendee_upcoming'] );
+			$messages[] = sprintf( _n( 'Hinweis: %d Ticket anderer Käufer für bevorstehende Termine bleibt gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', 'Hinweis: %d Tickets anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', (int) $totals['attendee_upcoming'], 'pass-captain' ), $totals['attendee_upcoming'] );
 		}
 		if ( $deferred ) {
 			wp_mail(
 				get_option( 'admin_email' ),
 				__( 'Pass Captain: Löschanfrage zurückgestellt', 'pass-captain' ),
 				/* translators: %d: number of orders */
-				sprintf( __( 'Eine Löschanfrage betrifft %d Bestellung(en) mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert.', 'pass-captain' ), $deferred )
+				sprintf( _n( 'Eine Löschanfrage betrifft %d Bestellung mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach wird die Bestellung automatisch anonymisiert.', 'Eine Löschanfrage betrifft %d Bestellungen mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert.', (int) $deferred, 'pass-captain' ), $deferred )
 			);
 		}
 		if ( $totals['open_payments'] ) {
@@ -415,14 +418,14 @@ final class Privacy {
 				get_option( 'admin_email' ),
 				__( 'Pass Captain: Löschanfrage wartet auf Zahlungsklärung', 'pass-captain' ),
 				/* translators: %d: number of orders */
-				sprintf( __( 'Eine Löschanfrage betrifft %d bezahlte Bestellung(en) ohne Tickets, die noch geklärt werden müssen (Zuteilung erneut versuchen oder erstatten). Sie werden nach der Klärung automatisch anonymisiert.', 'pass-captain' ), $totals['open_payments'] )
+				sprintf( _n( 'Eine Löschanfrage betrifft %d bezahlte Bestellung ohne Tickets, die noch geklärt werden muss (Zuteilung erneut versuchen oder erstatten). Sie wird nach der Klärung automatisch anonymisiert.', 'Eine Löschanfrage betrifft %d bezahlte Bestellungen ohne Tickets, die noch geklärt werden müssen (Zuteilung erneut versuchen oder erstatten). Sie werden nach der Klärung automatisch anonymisiert.', (int) $totals['open_payments'], 'pass-captain' ), $totals['open_payments'] )
 			);
 			/* translators: %d: number of orders */
-			$messages[] = sprintf( __( '%d Bestellung(en) mit einer noch offenen Zahlungsklärung werden erst nach Zuteilung oder Erstattung automatisch anonymisiert.', 'pass-captain' ), $totals['open_payments'] );
+			$messages[] = sprintf( _n( '%d Bestellung mit einer noch offenen Zahlungsklärung wird erst nach Zuteilung oder Erstattung automatisch anonymisiert.', '%d Bestellungen mit einer noch offenen Zahlungsklärung werden erst nach Zuteilung oder Erstattung automatisch anonymisiert.', (int) $totals['open_payments'], 'pass-captain' ), $totals['open_payments'] );
 		}
 		if ( $deferred ) {
 			/* translators: %d: number of orders */
-			$messages[] = sprintf( __( '%d Bestellung(en) mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig.', 'pass-captain' ), $deferred );
+			$messages[] = sprintf( _n( '%d Bestellung mit Tickets für bevorstehende Termine wird zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig.', '%d Bestellungen mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig.', (int) $deferred, 'pass-captain' ), $deferred );
 		}
 		if ( $totals['orders'] ) {
 			$messages[] = __( 'Bestellbeträge, Positionen, Steuern, Zahlungs- und Erstattungsreferenzen bleiben wegen gesetzlicher Aufbewahrungspflichten (Art. 17 Abs. 3 lit. b DSGVO) erhalten. Entfernt bzw. anonymisiert wurden: Käufer-E-Mail in Bestellungen, Ticketzugänge, Teilnehmernamen, -E-Mails und -angaben, Offline-Scannerdaten, Wallet-Registrierungen, Terminbuchungen, Wartelisteneinträge, Passzugänge und geplante Nachrichten.', 'pass-captain' );
@@ -431,14 +434,14 @@ final class Privacy {
 		}
 		if ( $invoices ) {
 			/* translators: %d: number of invoices */
-			$messages[] = sprintf( __( '%d Rechnung(en) bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt.', 'pass-captain' ), $invoices );
+			$messages[] = sprintf( _n( '%d Rechnung bleibt unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt.', '%d Rechnungen bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt.', (int) $invoices, 'pass-captain' ), $invoices );
 		}
 		if ( $billing_erased ) {
 			$messages[] = __( 'Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO).', 'pass-captain' );
 		}
 		if ( $upcoming ) {
 			/* translators: %d: number of tickets */
-			$messages[] = sprintf( __( 'Achtung: %d Ticket(s) für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'pass-captain' ), $upcoming );
+			$messages[] = sprintf( _n( 'Achtung: %d Ticket für bevorstehende Termine wurde durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'Achtung: %d Tickets für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', (int) $upcoming, 'pass-captain' ), $upcoming );
 		}
 		return array(
 			'items_removed' => $removed > 0,

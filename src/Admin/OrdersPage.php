@@ -348,8 +348,10 @@ final class OrdersPage {
 			'locale' => str_replace( '_', '-', function_exists( 'get_user_locale' ) ? (string) get_user_locale() : 'de_DE' ),
 			'route' => (string) $preview['route'],
 			'none' => __( 'Noch keine Tickets gewählt.', 'pass-captain' ),
-			/* translators: 1: amount, 2: number of tickets */
-			'sum' => __( '%1$s für %2$d Ticket(s)', 'pass-captain' ),
+			/* translators: 1: amount, 2: number of tickets (not 1; sumOne is used for one ticket) */
+			'sum' => __( '%1$s für %2$d Tickets', 'pass-captain' ),
+			/* translators: 1: amount, 2: number of tickets (always 1) */
+			'sumOne' => __( '%1$s für %2$d Ticket', 'pass-captain' ),
 			/* translators: 1: amount, 2: number of tickets */
 			'sumAll' => __( '%1$s für alle %2$d offenen Tickets (Restbetrag)', 'pass-captain' ),
 			/* translators: 1: amount and number of tickets, 2: how the money goes back */
@@ -360,7 +362,7 @@ final class OrdersPage {
 			. 'var all=document.getElementById("wpcap-refund-all"),out=document.getElementById("wpcap-refund-amount"),boxes=f.querySelectorAll("input.wpcap-refund-ticket"),saved=[];'
 			. 'function money(m){try{return new Intl.NumberFormat(D.locale,{style:"currency",currency:D.currency}).format(m/Math.pow(10,D.decimals));}catch(e){return (m/Math.pow(10,D.decimals)).toFixed(D.decimals)+" "+D.currency;}}'
 			. 'function fmt(t,a,b){return t.replace("%1$s",a).replace("%2$d",b).replace("%2$s",b);}'
-			. 'function state(){if(all&&all.checked){return fmt(D.sumAll,money(D.all),D.allCount);}var s=0,n=0;boxes.forEach(function(b){if(b.checked){s+=parseInt(b.getAttribute("data-amount")||"0",10);n++;}});return n?fmt(D.sum,money(s),n):"";}'
+			. 'function state(){if(all&&all.checked){return fmt(D.sumAll,money(D.all),D.allCount);}var s=0,n=0;boxes.forEach(function(b){if(b.checked){s+=parseInt(b.getAttribute("data-amount")||"0",10);n++;}});return n?fmt(1===n&&D.sumOne?D.sumOne:D.sum,money(s),n):"";}'
 			. 'function update(){out.textContent=state()||D.none;}'
 			. 'if(all){all.addEventListener("change",function(){boxes.forEach(function(b,i){if(all.checked){saved[i]=b.checked;b.checked=true;b.disabled=true;}else{b.disabled=false;b.checked=!!saved[i];}});update();});}'
 			. 'boxes.forEach(function(b){b.addEventListener("change",update);});'

@@ -24,6 +24,12 @@ Regeln für Quelltexte: Anrede „du“ (Rechtstexte/Datenschutzhinweise ausgeno
 über `sprintf` mit Übersetzerkommentar (`/* translators: … */` direkt vor dem `__()`); gleiche Wörter
 mit unterschiedlicher Bedeutung mit Kontext (`_x()`); keine Textbausteine zusammensetzen.
 
+Mengen (A383): nie „Ticket(s)“ oder „Bestellung(en)“, sondern `_n()` mit `sprintf`. Texte, deren
+Anzahl erst im Browser feststeht, bekommen eine Einzahl-Variante mit dem Schlüssel `…One`
+(`syncCountOne`, `syncedOne`, `expiredOne`, `sumOne`, `errTotalOne`), die das Skript bei genau 1
+nimmt. „Status: %s“ ist ein Satz (`Forms::status_line()`), kein angehängtes Label. Die Regel prüft
+`tests/integration/modules/zz_a383.php`.
+
 ## Stand und Prüfung (A107)
 
 Stand 13.11.2026: alle 3234 Texte in allen fünf Sprachen vollständig, 0 fuzzy. Die 630 alten

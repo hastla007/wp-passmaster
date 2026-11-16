@@ -89,8 +89,9 @@ final class PublicEvents {
 				'orderTotal' => __( 'Gesamtbetrag: %s.', 'pass-captain' ),
 				// Error summary and inline field errors.
 				'errorSummary' => __( 'Bitte prüfe deine Angaben', 'pass-captain' ),
-				/* translators: %d: number of problems */
-				'errorCount' => __( 'Es gibt %d Problem(e). Wähle einen Eintrag, um zum Feld zu springen.', 'pass-captain' ),
+				// A383: the summary line is only shown for two or more problems.
+				/* translators: %d: number of problems (always 2 or more) */
+				'errorCount' => __( 'Es gibt %d Probleme. Wähle einen Eintrag, um zum Feld zu springen.', 'pass-captain' ),
 				/* translators: %s: field label */
 				'errRequired' => __( 'Bitte fülle „%s“ aus.', 'pass-captain' ),
 				/* translators: %s: field label */
@@ -157,11 +158,15 @@ final class PublicEvents {
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
 		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ), 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'searchUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/search' ) ), 'checkInTicketUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/check-in-ticket' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
 			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
-			/* translators: %d: number of queued scans */
-			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'pass-captain' ),
+			/* translators: %d: number of queued scans (not 1; scanner.js uses syncCountOne for 1) */
+			'syncCount' => __( '%d Offline-Scans synchronisieren', 'pass-captain' ),
+			/* translators: %d: number of queued scans (always 1) */
+			'syncCountOne' => __( '%d Offline-Scan synchronisieren', 'pass-captain' ),
 			'syncFailed' => __( 'Synchronisierung fehlgeschlagen.', 'pass-captain' ),
-			/* translators: 1: synced scans, 2: conflicts */
-			'synced' => __( '%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d.', 'pass-captain' ),
+			/* translators: 1: synced scans (not 1; scanner.js uses syncedOne for 1), 2: conflicts */
+			'synced' => __( '%1$d Offline-Scans synchronisiert; Konflikte: %2$d.', 'pass-captain' ),
+			/* translators: 1: synced scans (always 1), 2: conflicts */
+			'syncedOne' => __( '%1$d Offline-Scan synchronisiert; Konflikte: %2$d.', 'pass-captain' ),
 			'queued' => __( 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.', 'pass-captain' ),
 			'unchecked' => __( 'NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden.', 'pass-captain' ),
 			'admitUnchecked' => __( 'Nach Sichtprüfung einlassen (wird später geprüft)', 'pass-captain' ),
