@@ -181,8 +181,16 @@
 
 	function t(source) {
 		var text = Object.prototype.hasOwnProperty.call(catalog, source) ? catalog[source] : source;
-		var args = arguments;
-		return String(text).replace(/%(\d)/g, function (m, n) { return args[+n] !== undefined ? String(args[+n]) : m; });
+		var args = Array.prototype.slice.call(arguments, 1);
+		if (!args.length) { return String(text); }
+		// Same placeholder rules as app.js t(): printf-style %s/%d/%1$s and the bare %1 … of the catalogs.
+		var next = 0;
+		return String(text).replace(/%(?:(\d+)\$)?([sd%])|%(\d)/g, function (m, pos, type, bare) {
+			if ('%' === type) { return '%'; }
+			var v = args[bare ? Number(bare) - 1 : (pos ? Number(pos) - 1 : next++)];
+			if (v === undefined || v === null) { return bare ? m : ''; }
+			return 'd' === type ? String(Math.trunc(Number(v)) || 0) : String(v);
+		});
 	}
 
 	/** Translates data-i18n (text), data-i18n-placeholder and data-i18n-title of a document. */

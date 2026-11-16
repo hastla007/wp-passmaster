@@ -119,7 +119,10 @@ final class ScannerDesk {
 			if ( 503 === (int) ( $data['status'] ?? 0 ) ) { $data['retryable'] = true; }
 			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), $data );
 		}
-		return array( 'ok' => true, 'status' => 'undone', 'result' => 'undone', 'ticket_public_id' => $found['public_id'] );
+		$done = array( 'ok' => true, 'status' => 'undone', 'result' => 'undone', 'ticket_public_id' => $found['public_id'] );
+		// A retried undo (same idempotency key) is reported as a replay, as the scan route does.
+		if ( ! empty( $result['replayed'] ) ) { $done['replayed'] = true; }
+		return $done;
 	}
 
 	/** Web scanner: only the user's own latest admission, shortly after the scan. */
