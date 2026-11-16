@@ -74,6 +74,13 @@ final class Redact {
 	public static function text( $text ) {
 		$text = (string) $text;
 		if ( '' === $text ) { return $text; }
+		// Values of secret-named fields first: a configured secret that is part of a field name (e.g. a
+		// PayPal secret "secret" inside "client_secret") must not break the field patterns below.
+		$text = (string) preg_replace(
+			array( '/([?&](?:access_token|token|key|secret|password|api_key|code)=)[^&\s"\']+/i', '/("(?:access_token|token|secret|password|api_key|client_secret|auth_token|refresh_token|private_key)"\s*:\s*")[^"]*"/i' ),
+			array( '$1' . self::MASK, '$1' . self::MASK . '"' ),
+			$text
+		);
 		foreach ( self::known_secrets() as $secret ) {
 			if ( false !== strpos( $text, $secret ) ) { $text = str_replace( $secret, self::MASK, $text ); }
 		}

@@ -42,7 +42,7 @@ final class Availability {
 
 	/** rest_post_dispatch: Cache-Control (and Retry-After on 429) for GET /availability. */
 	public static function cache_headers( $response, $server = null, $request = null ) {
-		if ( ! $response instanceof \WP_REST_Response || ! $request instanceof \WP_REST_Request || ! in_array( $request->get_route(), array( '/pass-captain/v1/availability', '/wp-pass-captain/v1/availability' ), true ) ) { return $response; }
+		if ( ! $response instanceof \WP_REST_Response || ! $request instanceof \WP_REST_Request || '/pass-captain/v1/availability' !== ( \PassCaptain\LegacySlug::map_route( (string) $request->get_route() ) ?? $request->get_route() ) ) { return $response; }
 		if ( 429 === $response->get_status() ) {
 			$response->header( 'Retry-After', '30' );
 			$response->header( 'Cache-Control', 'no-store' );
