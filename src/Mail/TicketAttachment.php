@@ -64,7 +64,7 @@ final class TicketAttachment {
 		$chunks = array_chunk( $tickets, \PassCaptain\Orders::ticket_pdf_chunk_size() );
 		if ( count( $chunks ) < 2 ) {
 			$part = TicketPdf::mail_attachment( $order, $tickets );
-			foreach ( (array) $part['files'] as $file ) { TempFiles::track( $file, (string) $part['dir'] ); }
+			foreach ( (array) $part['files'] as $file ) { TempFiles::track_attachment( $file, (string) $part['dir'] ); }
 			if ( ! $part['files'] && ! empty( $part['dir'] ) ) {
 				TempFiles::remove_dir( (string) $part['dir'] );
 				$part['dir'] = '';
@@ -105,7 +105,7 @@ final class TicketAttachment {
 			$target = $out['dir'] . '/tickets-' . $public . '-' . ( $index + 1 ) . '.pdf';
 			if ( ! @rename( $file, $target ) ) { $target = $file; } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.rename_rename -- private temp file.
 			if ( (string) $part['dir'] !== $out['dir'] && ! empty( $part['dir'] ) && $target !== $file ) { TempFiles::remove_dir( (string) $part['dir'] ); }
-			TempFiles::track( $target, $target === $file ? (string) $part['dir'] : $out['dir'] );
+			TempFiles::track_attachment( $target, $target === $file ? (string) $part['dir'] : $out['dir'] );
 			$out['files'][] = $target;
 			$used += $size;
 			$covered += count( $chunk );
