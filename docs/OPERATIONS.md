@@ -1362,6 +1362,9 @@ austauschbar. Regeln bei der Zeitumstellung:
   `reason: occurrence_rescheduled`). Ein Fenster, das danach schon vorbei wäre oder erst nach dem
   (effektiven) Terminende begänne, bleibt unverändert; die Speichermeldung nennt die Ticketart zur
   Prüfung (A555). Rechenhilfen: `Occurrence::local_shift()`, `Occurrence::local_days_before()`.
+  Empfänger:in ist, wer den aktuellen Ticketcode hat (A581): die Teilnehmer-E-Mail erst nach
+  einer Übertragung, Zuweisung an diese Adresse oder einem erneuten Versand dorthin – eine beim Checkout
+  eingetragene Teilnehmer-E-Mail allein nicht (die Ticketmail ging an die Käuferin).
 - **Eingegebene Ortszeiten**: Eine Zeit in der fehlenden Stunde wird beim Termin abgelehnt (mit
   Vorschlag), bei Verkaufsfenstern um die Lücke nach vorn verschoben (02:30 → 03:30); eine doppelte Zeit
   nimmt die erste (Sommerzeit). Zeitfenster-Serien von Servicebuchungen (`generate_slots`) beginnen eine

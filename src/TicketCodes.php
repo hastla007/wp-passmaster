@@ -88,6 +88,50 @@ final class TicketCodes {
 		return is_string( $code ) && self::valid_code( $code ) && hash_equals( (string) $row->token_hash, hash( 'sha256', $code ) ) ? $code : '';
 	}
 
+	/* ------------------------------------------------------------------ Holder of the code (A581) */
+
+	/** Whether wpcap_tickets.code_with_attendee exists (schema 3.10.18; deferred upgrade). */
+	public static function holder_ready() {
+		return ServiceBookings::has_column( 'wpcap_tickets', 'code_with_attendee' );
+	}
+
+	/**
+	 * Value of wpcap_tickets.code_with_attendee for a delivery of the current code to $recipient (A581):
+	 * 1 when it went to an address other than the buyer's, 0 when the buyer received it.
+	 */
+	public static function to_attendee( $recipient, $buyer_email ) {
+		return '' !== (string) $recipient && 0 !== strcasecmp( (string) $recipient, (string) $buyer_email ) ? 1 : 0;
+	}
+
+	/**
+	 * Whether someone other than the buyer holds the ticket's current code (A581): the ticket was
+	 * transferred, or its current code was mailed to the attendee address (assignment to another
+	 * address, resend/reissue to the attendee). An attendee address entered at checkout alone does not
+	 * count – the ticket mail went to the buyer only. Before schema 3.10.18 the attendee address decides.
+	 *
+	 * @param object $ticket transfer_count, attendee_email, ticket_id (code_with_attendee when selected).
+	 * @param object $order  customer_email.
+	 */
+	public static function held_elsewhere( $ticket, $order ) {
+		if ( (int) ( $ticket->transfer_count ?? 0 ) > 0 ) { return true; }
+		$attendee = (string) ( $ticket->attendee_email ?? '' );
+		if ( '' === $attendee || 0 === strcasecmp( $attendee, (string) $order->customer_email ) ) { return false; }
+		if ( ! self::holder_ready() ) { return true; }
+		if ( isset( $ticket->code_with_attendee ) ) { return (bool) (int) $ticket->code_with_attendee; }
+		global $wpdb;
+		return (bool) (int) $wpdb->get_var( $wpdb->prepare( "SELECT code_with_attendee FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket->ticket_id ?? 0 ) ) );
+	}
+
+	/**
+	 * SQL expression (aliases t = wpcap_tickets, ord = wpcap_orders): the address that holds the
+	 * current code – the attendee address after a transfer or a delivery of the code there, otherwise
+	 * the buyer's (A581; reminders and other mails about "your ticket").
+	 */
+	public static function holder_email_sql() {
+		if ( ! self::holder_ready() ) { return "COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)"; }
+		return "IF(t.attendee_email<>'' AND (t.transfer_count>0 OR t.code_with_attendee=1),t.attendee_email,ord.customer_email)";
+	}
+
 	/** Filter wpcap_ticket_known_code. */
 	public static function known_code( $code, $ticket_id ) {
 		if ( '' !== (string) $code ) { return $code; }

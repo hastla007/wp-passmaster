@@ -2054,11 +2054,12 @@ final class Orders {
 		$previous_holder = Consents::holder_email_of( (int) $ticket->ticket_id );
 		$token = bin2hex( random_bytes( 32 ) );
 		CodeHistory::replacing( (int) $ticket->ticket_id, 'transfer' ); // A543: the old code says "transferred".
-		$updated = $wpdb->update( $tickets_table, array(
+		$set = array(
 			'token_hash' => hash( 'sha256', $token ),
 			'attendee_email' => $recipient_email,
 			'transfer_count' => (int) $ticket->transfer_count + 1,
-		), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid', 'transfer_count' => (int) $ticket->transfer_count ), array( '%s', '%s', '%d' ), array( '%d', '%s', '%d' ) );
+		) + ( TicketCodes::holder_ready() ? array( 'code_with_attendee' => 1 ) : array() ); // A581.
+		$updated = $wpdb->update( $tickets_table, $set, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid', 'transfer_count' => (int) $ticket->transfer_count ), array_slice( array( '%s', '%s', '%d', '%d' ), 0, count( $set ) ), array( '%d', '%s', '%d' ) );
 		if ( false === $updated ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
@@ -2724,17 +2725,20 @@ final class Orders {
 		}
 		$entries = array();
 		$rotated = array();
+		$holder_ready = TicketCodes::holder_ready();
 		foreach ( $tickets as $ticket ) {
 			$token = bin2hex( random_bytes( 32 ) );
 			CodeHistory::replacing( (int) $ticket->ticket_id, 'resend' ); // A543
-			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), array( '%s' ), array( '%d', '%s' ) );
+			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
+			// A581: remember who receives the new code (attendee address or buyer).
+			$set = array( 'token_hash' => hash( 'sha256', $token ) ) + ( $holder_ready ? array( 'code_with_attendee' => TicketCodes::to_attendee( $recipient, $order->customer_email ) ) : array() );
+			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', $set, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), $holder_ready ? array( '%s', '%d' ) : array( '%s' ), array( '%d', '%s' ) );
 			if ( 1 !== (int) $updated ) {
 				// All or nothing: no old code becomes invalid without the new one being mailed.
 				$wpdb->query( 'ROLLBACK' );
 				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 			}
 			$rotated[ (int) $ticket->ticket_id ] = $token;
-			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
 			$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'ticket_id' => (int) $ticket->ticket_id );
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
@@ -2817,7 +2821,11 @@ final class Orders {
 		}
 		$token = bin2hex( random_bytes( 32 ) );
 		CodeHistory::replacing( $ticket_id, 'reissue' ); // A543
-		$updated = $wpdb->update( "{$p}wpcap_tickets", array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => $ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) );
+		$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
+		// A581: the holder of the new code is whoever receives it (no mail: the staff hands it out, the
+		// attendee address decides as before).
+		$set = array( 'token_hash' => hash( 'sha256', $token ) ) + ( TicketCodes::holder_ready() ? array( 'code_with_attendee' => TicketCodes::to_attendee( $recipient, $order->customer_email ) ) : array() );
+		$updated = $wpdb->update( "{$p}wpcap_tickets", $set, array( 'ticket_id' => $ticket_id, 'status' => 'valid' ), count( $set ) > 1 ? array( '%s', '%d' ) : array( '%s' ), array( '%d', '%s' ) );
 		if ( 1 !== (int) $updated ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 500 ) );
@@ -2825,7 +2833,6 @@ final class Orders {
 		$wpdb->query( 'COMMIT' );
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
 		do_action( 'wpcap_ticket_code_rotated', $ticket_id, $token, 'reissue' );
-		$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
 		$mailed = false;
 		if ( ( $context['notify'] ?? true ) && is_email( $recipient ) ) {
 			$list = array( array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => self::code_mail_section( (int) $ticket_id, (string) $order->locale ) ) );

@@ -212,6 +212,7 @@ final class Installer {
 				transfer_count tinyint(3) unsigned NOT NULL DEFAULT 0,
 				holder_changes tinyint(3) unsigned NOT NULL DEFAULT 0,
 				name_changes tinyint(3) unsigned NOT NULL DEFAULT 0,
+				code_with_attendee tinyint(1) unsigned NOT NULL DEFAULT 0,
 				refunded tinyint(1) unsigned NOT NULL DEFAULT 0,
 				capacity_released tinyint(1) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'valid',
@@ -917,6 +918,7 @@ final class Installer {
 		self::backfill_capacity_released( $previous_version );
 		self::backfill_ticket_updated_at( $previous_version );
 		self::backfill_holder_changes( $previous_version );
+		self::backfill_code_holder( $previous_version );
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 		self::align_legacy_stripe_mode( $previous_version );
@@ -1112,6 +1114,34 @@ final class Installer {
 		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.18', '>=' ) || ! TicketAssignments::counters_ready() ) { return false; }
 		$p = $wpdb->prefix;
 		return false !== $wpdb->query( "UPDATE {$p}wpcap_tickets t INNER JOIN (SELECT object_id,COUNT(*) AS n FROM {$p}wpcap_audit_logs WHERE object_type='ticket' AND action='ticket_holder_changed' GROUP BY object_id) a ON a.object_id=t.ticket_id SET t.holder_changes=GREATEST(t.holder_changes,LEAST(a.n,255))" );
+	}
+
+	/**
+	 * Schema 3.10.18 (A581): wpcap_tickets.code_with_attendee says whether the current code was mailed
+	 * to the attendee address instead of the buyer. Before, an attendee address alone was treated as
+	 * "held elsewhere". Existing tickets with an attendee address other than the buyer's are marked
+	 * unless the audit log shows that only the buyer received the code: no transfer, no assignment to
+	 * another address, no reissue, no resend or failed ticket mail of the order, and the audit log
+	 * reaches back to the issue of the ticket. Run once per upgrade from an older schema.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function backfill_code_holder( $previous_version ) {
+		global $wpdb;
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.18', '>=' ) || ! TicketCodes::holder_ready() ) { return false; }
+		$p = $wpdb->prefix;
+		$oldest = (string) $wpdb->get_var( "SELECT MIN(created_at) FROM {$p}wpcap_audit_logs" );
+		$oldest = '' !== $oldest ? $oldest : gmdate( 'Y-m-d H:i:s' );
+		return false !== $wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id SET t.code_with_attendee=1
+			WHERE t.code_with_attendee=0 AND t.attendee_email<>'' AND LOWER(t.attendee_email)<>LOWER(ord.customer_email) AND (
+				t.transfer_count>0 OR t.issued_at<%s
+				OR EXISTS (SELECT 1 FROM {$p}wpcap_audit_logs a WHERE a.object_type='ticket' AND a.object_id=t.ticket_id AND a.action IN ('ticket_holder_changed','ticket_reissued','ticket_transferred'))
+				OR EXISTS (SELECT 1 FROM {$p}wpcap_audit_logs a WHERE a.object_type='order' AND a.object_id=t.order_id AND a.action IN ('tickets_resent','ticket_mail_failed'))
+			)",
+			$oldest
+		) );
 	}
 
 	public static function pin_legacy_credit_prefix( $previous_version ) {

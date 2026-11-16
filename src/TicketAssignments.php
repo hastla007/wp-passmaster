@@ -93,6 +93,10 @@ final class TicketAssignments {
 		$code = $rotate ? bin2hex( random_bytes( 32 ) ) : '';
 		$update = $rotate ? array( 'attendee_email' => $email, 'token_hash' => hash( 'sha256', $code ) ) : array( 'attendee_email' => $email );
 		if ( $rotate ) { CodeHistory::replacing( (int) $ticket->ticket_id, 'assign' ); } // A543
+		if ( $rotate && TicketCodes::holder_ready() ) {
+			// A581: the new code is mailed to $email (ticket_assigned_attendee below).
+			$update['code_with_attendee'] = TicketCodes::to_attendee( $email, (string) $order->customer_email );
+		}
 		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', $update, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid' ), array_fill( 0, count( $update ), '%s' ), array( '%d', '%s' ) );
 		if ( false === $updated ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_failed', __( 'Ticket konnte nicht zugewiesen werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$assignment_table = $wpdb->prefix . 'wpcap_ticket_assignments';

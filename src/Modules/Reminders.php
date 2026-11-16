@@ -161,7 +161,7 @@ final class Reminders {
 		$queued = 0;
 		$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
 		if ( ! $stage ) { return 0; }
-		$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) AS email,COUNT(*) AS tickets,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
+		$holders = $wpdb->get_results( $wpdb->prepare( "SELECT LOWER(" . \PassCaptain\TicketCodes::holder_email_sql() . ") AS email,COUNT(*) AS tickets,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' GROUP BY email", (int) $occ->occurrence_id ) );
 		foreach ( $holders as $holder ) {
 			if ( ! is_email( $holder->email ) ) { continue; }
 			$key = 'reminder|' . (int) $occ->occurrence_id . '|' . $occ->starts_at . '|' . $stage . '|' . $holder->email;

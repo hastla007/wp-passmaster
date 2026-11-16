@@ -118,15 +118,17 @@ final class PortalSelfService {
 	}
 
 	/**
-	 * PDF state of a ticket: available, held_elsewhere (passed on or assigned to another e-mail address –
-	 * its holder has the code), used (checked in), void (revoked, refunded, cancelled) or unpaid.
+	 * PDF state of a ticket: available, held_elsewhere (passed on, or its current code was mailed to another
+	 * address – its holder has the code; TicketCodes::held_elsewhere(), A581), used (checked in), void
+	 * (revoked, refunded, cancelled) or unpaid.
 	 */
 	public static function pdf_state( $ticket, $order ) {
 		if ( 'paid' !== (string) $order->payment_status ) { return 'unpaid'; }
 		if ( (int) $ticket->refunded || ! in_array( (string) $ticket->status, array( 'valid', 'checked_in' ), true ) ) { return 'void'; }
 		if ( 'checked_in' === $ticket->status ) { return 'used'; }
-		$attendee = (string) $ticket->attendee_email;
-		if ( (int) $ticket->transfer_count > 0 || ( '' !== $attendee && 0 !== strcasecmp( $attendee, (string) $order->customer_email ) ) ) { return 'held_elsewhere'; }
+		// A581: only when someone else actually received the current code (transfer, assignment or
+		// resend to the attendee address) – an attendee address from the checkout alone does not count.
+		if ( TicketCodes::held_elsewhere( $ticket, $order ) ) { return 'held_elsewhere'; }
 		return 'available';
 	}
 
@@ -653,10 +655,8 @@ final class PortalSelfService {
 
 	/** Whether the ticket page offers "send me my order link" for this ticket. */
 	public static function can_request_order_link( $ticket, $order ) {
-		$attendee = (string) $ticket->attendee_email;
 		return 'paid' === (string) $order->payment_status
 			&& is_email( (string) $order->customer_email ) && ! Mail\Mailer::is_placeholder( (string) $order->customer_email )
-			&& 0 === (int) $ticket->transfer_count
-			&& ( '' === $attendee || 0 === strcasecmp( $attendee, (string) $order->customer_email ) );
+			&& ! TicketCodes::held_elsewhere( $ticket, $order ); // A581: the buyer holds this code.
 	}
 }
