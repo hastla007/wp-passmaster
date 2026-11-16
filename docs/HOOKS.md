@@ -30,6 +30,11 @@ Shortcodes gibt es ebenfalls mit Präfix `wpcap_`: `[wpcap_events]`, `[wpcap_sca
 `[wp_pass_captain_scanner]` und `[wp_pass_captain_calendar]` bleiben gültig. Externe Systeme sollten statt PHP-Hooks die signierten
 [ausgehenden Webhooks](WEBHOOKS.md) verwenden.
 
+Lesende Funktionen ohne Hook (Lesefassade `wpcap_get_order_state()`, `wpcap_get_ticket_state()`,
+`wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()`, seit 1.5.0 mit Vertrag 1.3.0)
+stehen mit ihren Rückgabeschlüsseln in [EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände); sie liefern den
+Zustand zu den IDs, die die Actions unten übergeben.
+
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 `grep -rnE "(do_action|apply_filters)\(" src --include=*.php`. Für die versionierten `_v1`-Hooks prüft der
 Vertragstest `tests/integration/modules/hooks_contract.php`, dass jeder hier dokumentierte Hook im Code

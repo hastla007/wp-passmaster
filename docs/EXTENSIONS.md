@@ -48,10 +48,19 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 | 1.0.0 (nachträglich benannt, Konstante fehlt) | bis 1.4.0 | die Erweiterungspunkte mit „seit“ kleiner als 1.5.0 |
 | 1.1.0 | 1.5.0 | zusätzlich alle Erweiterungspunkte mit „seit 1.5.0“ |
 | 1.2.0 | 1.5.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
+| 1.3.0 | 1.5.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
 	&& defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '2.0.0', '<' );
+```
+
+Die Lesefassade kam als Nachtrag in den noch nicht veröffentlichten Stand 1.5.0. Wer sie braucht, prüft deshalb die
+Vertragsversion, nicht die Plugin-Version:
+
+```php
+$has_read_facade = defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '1.3.0', '>=' )
+	&& version_compare( WPCAP_CONTRACT_VERSION, '2.0.0', '<' );
 ```
 
 Der Kern fragt umgekehrt nie, ob ein Add-on aktiv oder lizenziert ist: Er feuert seine Hooks immer und verhält
@@ -113,6 +122,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_wallet_provider_v1` | 0.2.0 |
 | `wp_pass_captain_workflow_provider_v1` | 1.5.0 |
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
+| `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |
 | `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
 | `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |
 | `PassCaptain\BoxOffice\Service::confirm_device_payment()`, `wpcap_confirm_pos_payment()` | 1.5.0 |
@@ -153,6 +163,7 @@ ihnen stehen im `CHANGELOG.md`.
 | Rechnungen, Korrekturen, Abrechnungen | `wp_pass_captain_invoice_created_v1`, `PassCaptain\Api\Invoices::get()` / `wpcap_get_invoice()`, `wp_pass_captain_invoice_mail_attachments_v1`, `wp_pass_captain_invoice_links_v1` | Action, Lese-API, Filter | `src/Api/Invoices.php` |
 | White Label | `wp_pass_captain_brand_name_v1`, `wp_pass_captain_brand_logo_v1`, `wp_pass_captain_admin_menu_title_v1`, `wp_pass_captain_admin_menu_icon_v1` | Versionierte Filter | `src/Brand.php` |
 | Zugangsschranke vor dem Kauf (Warteraum) | `wp_pass_captain_checkout_allowed_v1` | Versionierter Filter | `src/Sales/CheckoutGate.php`, `src/Integrations/WooCommerce/CheckoutGate.php` |
+| Zustand von Bestellung, Ticket, Erstattung, Termin, Event lesen | `PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()` | Lese-API (Vertrag 1.3.0) | `src/Api/ReadFacade.php`, `src/functions.php` |
 | API-Scopes für eigene REST-Routen | `wp_pass_captain_api_scopes_v1`, `PassCaptain\Api\Auth::request_can()` / `wpcap_api_request_can()` | Filter + Prüf-API | `src/DeveloperKeys.php`, `src/Api/Auth.php` |
 
 ## Module: Admin-Navigation, Einstellungen, Tabellen
@@ -407,6 +418,64 @@ add_filter( 'wp_pass_captain_export_types_v1', static function ( array $types ) 
 Alle CSV-Zellen laufen bei der Ausgabe durch den Formelschutz (`Reports\Scope::csv_cell()`).
 `PassCaptain\Reports\Data` und `PassCaptain\Reports\Scope` selbst bleiben interne Klassen ohne Versionszusage;
 Add-ons verwenden die Filter.
+
+## Lesefassade für Zustände
+
+Seit Vertragsversion 1.3.0 (Plugin 1.5.0) liest ein Add-on den Zustand von Bestellungen, Tickets, Erstattungen,
+Terminen und Events über eine dokumentierte Lese-API statt über interne Klassen wie `Orders::get()` oder
+`Admin\Queries::ticket_context()` (die bleiben intern und ohne Versionszusage). Jede Funktion liefert ein flaches
+Array oder `null`, wenn es den Datensatz nicht gibt oder die ID ungültig ist.
+
+| Funktion | Methode | ID-Argument | seit |
+|---|---|---|---|
+| `wpcap_get_order_state( $id )` | `PassCaptain\Api\ReadFacade::order( $id )` | `order_id` (int oder Ziffernfolge) oder `public_id` (32 Hex-Zeichen) | 1.5.0 (Vertrag 1.3.0) |
+| `wpcap_get_ticket_state( $id )` | `ReadFacade::ticket( $id )` | `ticket_id` oder `public_id` (32 Hex-Zeichen) | 1.5.0 (Vertrag 1.3.0) |
+| `wpcap_get_refund_state( $id )` | `ReadFacade::refund( $id )` | `refund_id` (Erstattungen haben keine `public_id`) | 1.5.0 (Vertrag 1.3.0) |
+| `wpcap_get_occurrence_state( $id )` | `ReadFacade::occurrence( $id )` | `occurrence_id` | 1.5.0 (Vertrag 1.3.0) |
+| `wpcap_get_event_state( $id )` | `ReadFacade::event( $id )` | `event_id` | 1.5.0 (Vertrag 1.3.0) |
+
+Rückgabe (alle Schlüssel immer vorhanden, `version` = `ReadFacade::VERSION` = 1; Beträge sind Ganzzahlen in
+Kleinsteinheiten von `currency`; Zeitpunkte in UTC als RFC 3339 mit `Z` oder `null`; Benutzer-IDs `null`, wenn
+keine gesetzt ist):
+
+| Funktion | Schlüssel |
+|---|---|
+| Bestellung | `version`, `order_id`, `public_id`, `status`, `payment_status`, `payment_provider` (Schlüssel des Anbieters), `currency`, `total_minor`, `subtotal_minor`, `discount_minor`, `tax_minor`, `refunded_minor`, `ticket_count` (alle Tickets der Bestellung), `checked_in_count`, `customer_user_id`, `created_at`, `updated_at` |
+| Ticket | `version`, `ticket_id`, `public_id`, `order_id`, `order_public_id`, `ticket_type_id`, `occurrence_id`, `event_id`, `status`, `checked_in` (bool, Status `checked_in`), `refunded` (bool), `issued_at` |
+| Erstattung | `version`, `refund_id`, `order_id`, `order_public_id`, `status`, `currency`, `amount_minor`, `tax_minor`, `deducted_minor`, `ticket_count`, `requested_by_user_id`, `approved_by_user_id`, `created_at`, `updated_at` |
+| Termin | `version`, `occurrence_id`, `event_id`, `status`, `starts_at`, `ends_at`, `timezone`, `capacity`, `issued_ticket_count` (gültige und eingecheckte Tickets), `rescheduled_at` |
+| Event | `version`, `event_id`, `status`, `occurrence_count`, `created_at`, `updated_at` |
+
+Regeln:
+
+- **Keine personenbezogenen Daten, keine Codes, kein Freitext.** Nie enthalten sind Namen, E-Mail-Adressen,
+  Rechnungs- und Postanschriften, Teilnehmerangaben und -antworten, Ticketcodes und deren Hashes, QR- und
+  Barcode-Werte, Zugangstoken, Referenzen der Zahlungsanbieter, Gründe und Fehlermeldungen von Erstattungen,
+  Ort, Name, Slug und Beschreibung von Terminen und Events. Die Abfragen nennen ihre Spalten einzeln; diese Werte
+  werden gar nicht erst geladen.
+- **Nur lesen.** Je Aufruf eine SELECT-Abfrage, keine Schreibzugriffe, kein Cache, keine Hooks. Das Ergebnis ist
+  der Stand der Datenbank im Moment des Aufrufs; zum Gegenlesen nach einem Ereignis (etwa einer Terminverschiebung)
+  genügt ein erneuter Aufruf.
+- **Keine Rechteprüfung.** Die Fassade ist eine PHP-API für Plugins auf derselben Website und prüft weder den
+  angemeldeten Benutzer noch eine Capability. Wer das Ergebnis anzeigt oder weitergibt, prüft selbst, wer es sehen
+  darf (zum Beispiel mit `PassCaptain\Access::can_access_occurrence()`). Die `public_id` einer Bestellung allein
+  gewährt keinen Zugriff auf das Bestellportal.
+- **Stabil innerhalb von Version 1.** Neue Schlüssel können dazukommen (zweite Stelle der Vertragsversion),
+  bestehende Schlüssel behalten Namen, Typ und Bedeutung.
+- **Nicht enthalten:** Kontakt und Einwilligung zu einem Ticket. Ob und in welcher Form der Kern diese Daten über
+  eine Lese-API herausgibt, ist offen (Frage F-13 der Suite-Spezifikation, Aufgabe PC-4b in `TODO.md`).
+
+```php
+add_action( 'wpcap_ticket_checked_in', static function ( int $ticket_id ) {
+	$ticket = function_exists( 'wpcap_get_ticket_state' ) ? wpcap_get_ticket_state( $ticket_id ) : null;
+	if ( null === $ticket ) { return; }
+	$occurrence = wpcap_get_occurrence_state( (int) $ticket['occurrence_id'] );
+	// $ticket['public_id'], $ticket['event_id'], $occurrence['starts_at'] … – keine Namen, keine Codes.
+} );
+```
+
+Test: `tests/integration/modules/zzzzzzzz_pc4_read_facade.php` (Positivliste der Schlüssel, beide ID-Arten,
+unbekannte IDs, Markierungswerte für E-Mail, Name, Code und Freitext erscheinen nicht, nur SELECT-Abfragen).
 
 ## Pass Captain Pro / Add-on-Schnittstellen
 

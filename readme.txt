@@ -128,7 +128,7 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 == Changelog ==
 
 = 1.5.0 =
-* Extension points for add-ons (admin menu, invoices, branding, checkout gate, API scopes, card terminal devices) with the contract version constant `WPCAP_CONTRACT_VERSION`.
+* Extension points for add-ons (admin menu, invoices, branding, checkout gate, API scopes, card terminal devices) with the contract version constant `WPCAP_CONTRACT_VERSION`. Read API for the state of orders, tickets, refunds, dates and events without personal data (`wpcap_get_order_state()` and siblings, contract 1.3.0).
 * Renamed to "Pass Captain" (main file `pass-captain.php`, text domain `pass-captain`); automatic takeover from the old "WP Pass Captain" copy.
 * Shared scanner with WP Voucher Captain, default admission window, deferred privacy erasure for upcoming dates.
 
