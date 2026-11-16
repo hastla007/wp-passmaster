@@ -96,7 +96,7 @@ final class Modules {
 	/**
 	 * Whether a module registers its hooks. All modules are on by default; a site can switch single
 	 * modules off with the constant WPCAP_DISABLED_MODULES (comma list of short names, e.g.
-	 * "Sms,Wallet") or the filter wpcap_module_enabled. Tables and settings of a disabled module stay
+	 * "Sms,Wallet"), the setting disabled_modules (A299, settings screen) or the filter wpcap_module_enabled. Tables and settings of a disabled module stay
 	 * (no data loss; switching it on again continues where it left off). Modules other code calls
 	 * directly keep working as libraries – only their hooks, pages and routes are gone.
 	 *
@@ -105,6 +105,12 @@ final class Modules {
 	public static function enabled( $class ) {
 		$short = substr( (string) strrchr( '\\' . $class, '\\' ), 1 );
 		$disabled = defined( 'WPCAP_DISABLED_MODULES' ) ? array_map( 'strtolower', array_map( 'trim', explode( ',', (string) WPCAP_DISABLED_MODULES ) ) ) : array();
+		// A299: modules switched off under Settings → Allgemein → Funktionen (read raw: Settings::get()
+		// builds its defaults from the modules and would recurse).
+		$stored = function_exists( 'get_option' ) ? get_option( Settings::OPTION, array() ) : array();
+		foreach ( (array) ( is_array( $stored ) ? ( $stored['disabled_modules'] ?? array() ) : array() ) as $name ) {
+			if ( is_string( $name ) && '' !== $name ) { $disabled[] = strtolower( $name ); }
+		}
 		return (bool) apply_filters( 'wpcap_module_enabled', ! in_array( strtolower( $short ), $disabled, true ), $short, $class );
 	}
 

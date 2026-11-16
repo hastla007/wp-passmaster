@@ -59,7 +59,7 @@ dem Lizenzserver WP License Captain.
 ## Inventar: Module
 
 Module sind die optionalen Funktionsbausteine unter `src/Modules/` (siehe `src/Modules.php`). Alle sind
-standardmäßig aktiv; Betreiber können einzelne über `WPCAP_DISABLED_MODULES` oder den Filter
+standardmäßig aktiv; Betreiber können einzelne unter Einstellungen → Allgemein → Funktionen („Funktionen abschalten“), über `WPCAP_DISABLED_MODULES` oder den Filter
 `wpcap_module_enabled` abschalten – das ist eine Betreiberentscheidung, keine Lizenzgrenze. „Seit“ nennt das
 erste Release, das das Modul enthielt („nächstes Release“: in `main`, noch nicht veröffentlicht).
 

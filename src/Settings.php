@@ -176,6 +176,7 @@ final class Settings {
 			'event_base'                => 'event',
 			// Admin\Dashboard: modules whose menu entries are hidden (they keep running).
 			'hidden_modules'            => array(),
+			'disabled_modules'          => array(), // A299: modules switched off on the settings screen.
 			// A535: occurrences without an end time count as over after this many hours (Occurrence).
 			'occurrence_default_duration_hours' => 6,
 			// A296: mail_from_name / mail_reply_to above ('' = seller name or site name / admin e-mail).

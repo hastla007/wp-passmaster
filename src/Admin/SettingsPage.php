@@ -77,6 +77,7 @@ final class SettingsPage {
 				'title' => __( 'Funktionen', 'pass-captain' ),
 				'tab' => 'general',
 				'fields' => array(
+					'disabled_modules' => array( 'type' => 'modules', 'label' => __( 'Funktionen abschalten', 'pass-captain' ), 'description' => __( 'Abgeschaltete Funktionen registrieren keine Menüs, Seiten, Shortcodes, REST-Routen und Hintergrundaufgaben mehr. Tabellen und Einstellungen bleiben erhalten; nach dem Wiedereinschalten geht es dort weiter.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
 					'hidden_modules' => array( 'type' => 'modules', 'label' => __( 'Im Menü ausblenden', 'pass-captain' ), 'description' => __( 'Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
 				),
 			),
