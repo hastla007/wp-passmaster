@@ -1330,29 +1330,29 @@ Gesamt: 262 Aufgaben.
 
 Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md abgehakt), doppelt: #5 = A495, #6 = A278.
 
-- [ ] **A632** [KRITISCH] Abgelaufene Gutscheinbestellung: späte Zahlung über den reduzierten Betrag stellt Tickets aus — _Sicherheitsaudit 14.11. #2_ (TODO L1062; Sicherheitsaudit 2026-11-14)
+- [x] **A632** [KRITISCH] Abgelaufene Gutscheinbestellung: späte Zahlung über den reduzierten Betrag stellt Tickets aus — _Sicherheitsaudit 14.11. #2_ (TODO L1062; Sicherheitsaudit 2026-11-14)
   - Gutschein-Reservierung bei release() und Betrag zusammenführen: vor „bezahlt“ neu reservieren oder auf needs_review/paid_unallocated leiten, Hinweis in der Bestellansicht, Integrationstest.
 - [x] **A633** [WICHTIG] Einlass-Undo ohne Bereichsbindung, Zeitfenster und Protokoll (Gerät/Bereich) — _Sicherheitsaudit 14.11. #4_ (TODO L1064; Sicherheitsaudit 2026-11-14)
   - Areas::check in undo_checkin/undo_last/Mobile-Undo, Undo für Türpersonal auf eigene Scans/Zeitfenster begrenzen, device_id/area_id protokollieren (Paket R1 zusammen mit A590).
-- [ ] **A634** [WICHTIG] Unbezahlte Überweisungs-Bestellungen halten Kontingent ohne Obergrenze je Event/Menge — _Sicherheitsaudit 14.11. #7_ (TODO L1067; Sicherheitsaudit 2026-11-14)
+- [x] **A634** [WICHTIG] Unbezahlte Überweisungs-Bestellungen halten Kontingent ohne Obergrenze je Event/Menge — _Sicherheitsaudit 14.11. #7_ (TODO L1067; Sicherheitsaudit 2026-11-14)
   - Obergrenze für gehaltene Menge je Event (atomar), Doku in docs/SECURITY.md; Restarbeit zu A265/manual_hold_limit.
 - [ ] **A635** [OPTIMIERUNG] Öffentliche Zuweisungsroute ohne args-Schema, Rate-Limit und Längenlimit — _Sicherheitsaudit 14.11. #8_ (TODO L1068; Sicherheitsaudit 2026-11-14)
   - REST-args mit maxLength, Name auf 190 Zeichen, RateLimit::allow, optional URLs im Namen ablehnen.
 - [ ] **A636** [OPTIMIERUNG] Staff-Zuweisung vergibt wpcap_checkin an beliebige Konten, Konten-Orakel — _Sicherheitsaudit 14.11. #9_ (TODO L1069; Sicherheitsaudit 2026-11-14)
   - Zielkonten für Nicht-Admins einschränken, einheitliche Fehlermeldung, Delegation in CONCEPT festhalten.
-- [ ] **A637** [OPTIMIERUNG] pos_sale: wiederverwendeter Idempotenzschlüssel ohne erneute Eventprüfung — _Sicherheitsaudit 14.11. #10_ (TODO L1073; Sicherheitsaudit 2026-11-14)
+- [x] **A637** [OPTIMIERUNG] pos_sale: wiederverwendeter Idempotenzschlüssel ohne erneute Eventprüfung — _Sicherheitsaudit 14.11. #10_ (TODO L1073; Sicherheitsaudit 2026-11-14)
   - Bei reused Scope::can_occurrence/can_order erneut prüfen.
 - [ ] **A638** [OPTIMIERUNG] issue_invoice und Gerätefilter fail-open bei leerer Eventmenge — _Sicherheitsaudit 14.11. #11_ (TODO L1074; Sicherheitsaudit 2026-11-14)
   - Leere Eventmenge ablehnen, Gerätebeschränkung in Checkin fail-closed.
-- [ ] **A639** [OPTIMIERUNG] Checkout-Idempotenz: Anbieterwechsel beim Retry, Storno einer bezahlten Bestellung — _Sicherheitsaudit 14.11. #12_ (TODO L1075; Sicherheitsaudit 2026-11-14)
+- [x] **A639** [OPTIMIERUNG] Checkout-Idempotenz: Anbieterwechsel beim Retry, Storno einer bezahlten Bestellung — _Sicherheitsaudit 14.11. #12_ (TODO L1075; Sicherheitsaudit 2026-11-14)
   - Anbieterabweichung bei reused ablehnen, cancel_order nur für pending, Mindestlänge des Schlüssels.
-- [ ] **A640** [OPTIMIERUNG] refunded-Webhook nicht an den aktuellen Zahlungsversuch gebunden — _Sicherheitsaudit 14.11. #13_ (TODO L1076; Sicherheitsaudit 2026-11-14)
+- [x] **A640** [OPTIMIERUNG] refunded-Webhook nicht an den aktuellen Zahlungsversuch gebunden — _Sicherheitsaudit 14.11. #13_ (TODO L1076; Sicherheitsaudit 2026-11-14)
   - is_current_attempt im refunded-Zweig; Erstattung einer Doppelzahlung nicht auf die Bestellung buchen.
-- [ ] **A641** [OPTIMIERUNG] PayPal: Capture im APPROVED-Webhook vor Zuordnungsprüfung; Stripe-Fallback client_reference_id — _Sicherheitsaudit 14.11. #14_ (TODO L1077; Sicherheitsaudit 2026-11-14)
+- [x] **A641** [OPTIMIERUNG] PayPal: Capture im APPROVED-Webhook vor Zuordnungsprüfung; Stripe-Fallback client_reference_id — _Sicherheitsaudit 14.11. #14_ (TODO L1077; Sicherheitsaudit 2026-11-14)
   - Bekannte zahlbare Bestellung vor Capture prüfen, Stripe nur metadata.wpcap_order.
-- [ ] **A642** [OPTIMIERUNG] Anbieter-Fehlertexte im öffentlichen Checkout an anonyme Aufrufer — _Sicherheitsaudit 14.11. #15_ (TODO L1078; Sicherheitsaudit 2026-11-14)
+- [x] **A642** [OPTIMIERUNG] Anbieter-Fehlertexte im öffentlichen Checkout an anonyme Aufrufer — _Sicherheitsaudit 14.11. #15_ (TODO L1078; Sicherheitsaudit 2026-11-14)
   - Generische Meldung an Käufer, Details nur ins Log (Rest/Controller checkout).
-- [ ] **A643** [OPTIMIERUNG] Erstattung: Idempotenz-Treffer vor check_actor; Freigebende umgehen Schwelle — _Sicherheitsaudit 14.11. #16_ (TODO L1079; Sicherheitsaudit 2026-11-14)
+- [x] **A643** [OPTIMIERUNG] Erstattung: Idempotenz-Treffer vor check_actor; Freigebende umgehen Schwelle — _Sicherheitsaudit 14.11. #16_ (TODO L1079; Sicherheitsaudit 2026-11-14)
   - check_actor vorziehen (resume/request_amount); Vier-Augen-Regel für Freigebende als Option (Entscheidung offen, technisch: Einstellung).
 - [ ] **A644** [OPTIMIERUNG] Limiter zählen vor der Validierung auf fremdsteuerbare Schlüssel (Warteliste, Buchung, SMS, Kopplung) — _Sicherheitsaudit 14.11. #17_ (TODO L1080; Sicherheitsaudit 2026-11-14)
   - Erst nach Validierung/Erfolg zählen; SMS-Opt-in nur bezahlter Bestellungen (mit A279/A281/A288 abstimmen).
