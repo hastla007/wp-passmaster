@@ -121,7 +121,7 @@ final class TicketRecovery {
 			"SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id
 			WHERE t.attendee_email=%s AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND COALESCE(o.ends_at,o.starts_at)>=%s ORDER BY t.ticket_id LIMIT %d",
 			strtolower( (string) $email ),
-			gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ),
+			Clock::mysql( -DAY_IN_SECONDS ),
 			self::MAX_TICKETS
 		) );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared

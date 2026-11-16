@@ -44,7 +44,7 @@ final class DashboardWidget {
 		if ( is_array( $cached ) && isset( $cached['sales'], $cached['upcoming'] ) ) { return $cached; }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$tz = new \DateTimeZone( \PassCaptain\Reports\Scope::site_timezone() );
 		$today_start = ( new \DateTimeImmutable( 'today', $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 		$week_start = ( new \DateTimeImmutable( 'today -6 days', $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
@@ -105,7 +105,7 @@ final class DashboardWidget {
 				echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( $parts ? implode( '; ', $parts ) : __( 'Keine bezahlten Bestellungen', 'pass-captain' ) ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
-			echo '<h3>' . esc_html__( 'Offen', 'pass-captain' ) . '</h3><ul>';
+			echo '<h3>' . esc_html( _x( 'Offen', 'dashboard widget: open tasks', 'pass-captain' ) ) . '</h3><ul>';
 			$pending_url = Forms::page_url( OrdersPage::SLUG, array( 'status' => 'pending_payment', 'payment_status' => 'pending' ) );
 			$review_url = Forms::page_url( OrdersPage::SLUG, array( 'status' => 'needs_review' ) );
 			/* translators: %d: number of orders */

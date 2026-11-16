@@ -32,6 +32,8 @@ if ( ! is_wp_error( $a613_order ) ) {
 	$wpdb->query( "UPDATE {$p}wpcap_orders SET paid_at=NULL WHERE order_id=$a613_id" );
 	\PassCaptain\Reports\Cache::flush_order( $a613_id );
 	$a613_fallback = Data::build( array( 'from' => $a613_today, 'to' => $a613_today, 'basis' => 'payment' ), null );
-	check( 'A613: without paid_at (paid before 3.18.1) the order date counts', $a613_fallback['total']['tickets'] === $a613_by_order['total']['tickets'] );
+	// Relative to the payment-basis total: other modules' orders may carry a paid_at on another day than created_at.
+	$a613_tickets = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=$a613_id" );
+	check( 'A613: without paid_at (paid before 3.18.1) the order date counts', $a613_fallback['total']['tickets'] === $a613_by_payment['total']['tickets'] - $a613_tickets );
 }
 check( 'A613: the report page offers the date basis', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Reports/Page.php' ), "Forms::select( 'basis'" ) && 'order' === \PassCaptain\Reports\Page::filters( array() )['basis'] && 'payment' === \PassCaptain\Reports\Page::filters( array( 'basis' => 'payment' ) )['basis'] );

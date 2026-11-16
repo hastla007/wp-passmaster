@@ -47,7 +47,7 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 |---|---|---|
 | 1.0.0 (nachträglich benannt, Konstante fehlt) | bis 1.4.0 | die Erweiterungspunkte mit „seit“ kleiner als 1.5.0 |
 | 1.1.0 | 1.5.0 | zusätzlich alle Erweiterungspunkte mit „seit 1.5.0“ |
-| 1.2.0 | nächste Version nach 1.5.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
+| 1.2.0 | 1.5.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
@@ -102,6 +102,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_settings_defaults_v1` | 1.5.0 |
 | `wp_pass_captain_settings_sections_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_mail_inline_max_v1` | 1.5.0 |
+| `wp_pass_captain_ticket_read_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_mail_list_max_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_pdf_limits_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_pdf_max_tickets_v1` | 1.5.0 |
