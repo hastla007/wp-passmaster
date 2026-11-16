@@ -186,7 +186,7 @@
 		});
 
 		const chosen = h('div', { className: 'wpcap-seating-selection' }, this.box);
-		h('h3', {}, chosen, this.t.yourSeats || '');
+		this.selectionHeading = h('h3', { tabindex: '-1' }, chosen, this.t.yourSeats || '');
 		this.selectionList = h('ul', {}, chosen);
 		this.update();
 	};
@@ -229,29 +229,55 @@
 		this.areaInputs.forEach(function (input, key) {
 			const spots = self.data.seats.filter(function (seat) { return seat.kind === 'standing' && seat.group === key; });
 			input.max = String(spots.filter(function (seat) { return seat.status === 'free' || self.selected.has(seat.id); }).length);
-			input.value = String(spots.filter(function (seat) { return self.selected.has(seat.id); }).length);
+			// Not while the buyer is typing a number into it (the 30 s refresh would overwrite it).
+			if (document.activeElement !== input) input.value = String(spots.filter(function (seat) { return self.selected.has(seat.id); }).length);
 		});
 		this.renderSelection();
 	};
 
+	// The list of chosen seats is rebuilt only when its content changes (not on every 30 s refresh),
+	// and keyboard focus inside it survives a rebuild: same control of the same seat, or after
+	// "Entfernen" the next (else previous) seat's button, else the heading (A312).
 	Picker.prototype.renderSelection = function () {
 		const self = this;
 		if (!this.selectionList) return;
-		this.selectionList.textContent = '';
-		if (!this.selected.size) { h('li', {}, this.selectionList, this.t.none || ''); return; }
 		const q = this.quantities();
-		this.selected.forEach(function (type, id) {
-			const seat = self.byId.get(id);
-			const li = h('li', {}, self.selectionList, seat.label + ' ');
-			const select = h('select', { 'aria-label': (self.t.ticketType || '') + ': ' + seat.label }, li);
-			self.eligibleTypes(seat).forEach(function (typeId) {
-				const option = h('option', { value: typeId }, select, q[typeId] ? q[typeId].name : '#' + typeId);
-				if (String(typeId) === String(type)) option.selected = true;
+		const entries = [];
+		this.selected.forEach(function (type, id) { entries.push([id, String(type)]); });
+		const signature = JSON.stringify([entries, Object.keys(q).map(function (k) { return [k, q[k].name]; })]);
+		if (signature === this.selectionSignature) return;
+		this.selectionSignature = signature;
+		const items = Array.prototype.slice.call(this.selectionList.querySelectorAll('li[data-seat]'));
+		const active = document.activeElement;
+		let focus = null;
+		if (active && active !== this.selectionList && this.selectionList.contains(active)) {
+			const li = active.closest('li');
+			focus = { seat: li ? li.getAttribute('data-seat') : null, select: active.tagName === 'SELECT', index: items.indexOf(li) };
+		}
+		this.selectionList.textContent = '';
+		if (!this.selected.size) {
+			h('li', {}, this.selectionList, this.t.none || '');
+		} else {
+			this.selected.forEach(function (type, id) {
+				const seat = self.byId.get(id);
+				const li = h('li', { 'data-seat': String(id) }, self.selectionList, seat.label + ' ');
+				const select = h('select', { 'aria-label': (self.t.ticketType || '') + ': ' + seat.label }, li);
+				self.eligibleTypes(seat).forEach(function (typeId) {
+					const option = h('option', { value: typeId }, select, q[typeId] ? q[typeId].name : '#' + typeId);
+					if (String(typeId) === String(type)) option.selected = true;
+				});
+				select.addEventListener('change', function () { self.selected.set(id, select.value); self.renderSelection(); });
+				const remove = h('button', { type: 'button', className: 'wpcap-seating-remove' }, li, self.t.remove || 'x');
+				remove.addEventListener('click', function () { self.toggle(id); });
 			});
-			select.addEventListener('change', function () { self.selected.set(id, select.value); });
-			const remove = h('button', { type: 'button', className: 'wpcap-seating-remove' }, li, self.t.remove || 'x');
-			remove.addEventListener('click', function () { self.toggle(id); });
-		});
+		}
+		if (!focus) return;
+		const now = Array.prototype.slice.call(this.selectionList.querySelectorAll('li[data-seat]'));
+		let li = now.filter(function (item) { return item.getAttribute('data-seat') === focus.seat; })[0] || null;
+		let select = focus.select;
+		if (!li && now.length) { li = now[Math.min(Math.max(focus.index, 0), now.length - 1)]; select = false; }
+		const target = li ? li.querySelector(select ? 'select' : '.wpcap-seating-remove') : this.selectionHeading;
+		if (target) target.focus();
 	};
 
 	Picker.prototype.payload = function (detail) {
