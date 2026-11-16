@@ -189,6 +189,12 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
     codes, see docs/SECURITY.md); offline the app asks for the QR code or the long code instead.
   - Result: large coloured box, distinct tones (WebAudio, “Sound on/off” per device) and vibration
     patterns; online results show “first admission” or “already admitted at …” from the server.
+  - **Full-screen result (A548):** every result is also shown full screen in large type with icon,
+    the time (hh:mm:ss) and the short code of the scanned ticket (last 6 characters of its hash, e.g.
+    `…3F9A2C`) – green for 2.5 s, yellow 5 s, red 8 s, or until tapped. The result box then returns to
+    “Bereit” (green after 6 s, otherwise after 15 s; not while an undo form is open), so a previous
+    verdict is never read as the current one. The overlay never takes focus; the result box stays the
+    live region for screen readers.
   - **Search (A544):** “Ticket suchen” for guests without a readable code. Online the app calls
     `GET /app/search` (order number always; attendee name and e-mail only as the server's PII rules
     allow) and checks a hit in with `POST /app/scan/check-in` and `ticket_public_id` (same rules as a
@@ -215,7 +221,7 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
   manipulation of the device clock. Package expiry is still enforced on the device, so a rooted
   device can bypass it. The server then flags old scans (`offline_expired`).
 
-Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshed in the background
+Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v6`). Assets are also refreshed in the background
 (stale-while-revalidate).
 
 ## Security notes

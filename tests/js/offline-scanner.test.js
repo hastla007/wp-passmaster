@@ -445,3 +445,48 @@ test('A544: online search uses GET /app/search and checks a result in by ticket_
 	assert.strictEqual(w2.document.getElementById('result-title').textContent, 'Einlass OK');
 	assert.strictEqual(w2.document.getElementById('undo').hidden, false, 'undo offered');
 });
+
+test('A548: hold times – green clears fast, red stays longest; result box resets to "Bereit"', () => {
+	const plain = (x) => JSON.parse(JSON.stringify(x));
+	assert.deepStrictEqual(plain(app.holdTimes('ok')), { overlay: 2500, reset: 6000 });
+	assert.deepStrictEqual(plain(app.holdTimes('warn')), { overlay: 5000, reset: 15000 });
+	assert.deepStrictEqual(plain(app.holdTimes('bad')), { overlay: 8000, reset: 15000 });
+	assert.strictEqual(app.shortCode('0123456789abcdef'), '…ABCDEF');
+	assert.strictEqual(app.shortCode(''), '');
+});
+
+test('A548: every result is shown full screen with time and short code, hidden after the hold time', async () => {
+	const timers = [];
+	const idb = fakeIndexedDB();
+	const w3 = loadApp({ indexedDB: idb, addEventListener() {}, history: { replaceState() {} }, withI18n: true, localStorage: { getItem: () => null, setItem() {} }, setTimeout: (fn, ms) => { timers.push({ fn, ms, done: false }); return timers.length; }, clearTimeout: (id) => { if (timers[id - 1]) { timers[id - 1].done = true; } } });
+	await settle();
+	const a3 = w3.wpcapOffline;
+	a3.state.token = 'tok';
+	a3.state.selected = 7;
+	const code = '3'.repeat(64);
+	a3.state.packages[7] = entry([ { h: sha(code), t: 1, s: 'valid' } ]);
+	w3.navigator.onLine = false;
+	await a3.handleScan(code);
+	await settle();
+	const overlay = w3.document.getElementById('overlay');
+	assert.strictEqual(overlay.hidden, false, 'overlay shown');
+	assert.strictEqual(overlay.className, 'overlay ok');
+	assert.strictEqual(w3.document.getElementById('overlay-title').textContent, 'Einlass OK (offline)');
+	const meta = w3.document.getElementById('overlay-meta').textContent;
+	assert.match(meta, /\d\d:\d\d:\d\d/, 'time of the result');
+	assert.ok(meta.endsWith(a3.shortCode(sha(code))), 'short code of the scanned ticket');
+	const run = (ms) => timers.filter((x) => !x.done && x.ms === ms).forEach((x) => { x.done = true; x.fn(); });
+	run(2500);
+	assert.strictEqual(overlay.hidden, true, 'hidden after 2.5 s');
+	assert.strictEqual(w3.document.getElementById('result').className, 'result ok');
+	run(6000);
+	assert.strictEqual(w3.document.getElementById('result').className, 'result idle', 'box back to ready');
+	assert.strictEqual(w3.document.getElementById('result-title').textContent, 'Bereit');
+	// A refusal stays longer; a non-scan message has no short code.
+	a3.showResult('bad', 'Fehler', 'x');
+	assert.strictEqual(w3.document.getElementById('overlay-meta').textContent.indexOf('…'), -1);
+	run(2500);
+	assert.strictEqual(overlay.hidden, false, 'red still shown after 2.5 s');
+	run(8000);
+	assert.strictEqual(overlay.hidden, true);
+});

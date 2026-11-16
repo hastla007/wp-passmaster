@@ -36,6 +36,7 @@
 		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
 		busy: false, lastRefresh: 0, syncing: false,
 		serverCounts: {}, pendingIn: {}, // A546: occurrence_id -> {admitted, total, at} / unsynced offline admissions
+		scanHash: '', // A548: hash of the scan being shown (short code in the overlay)
 		undo: null, undoTimer: 0, // A547: current undo offer { key, started, occurrenceId, hash, area, publicId, open }
 		forceFull: {} // occurrence_id -> true after a broken delta chain
 	};
@@ -211,6 +212,43 @@
 		renderSound();
 	}
 
+	/*
+	 * A548: every result is shown full screen for a short hold time (green 2.5 s, yellow 5 s, red 8 s or
+	 * until tapped) with the time and the short code of the scanned ticket, then the result box goes
+	 * back to "Bereit" (green after 6 s, otherwise after 15 s) – an old verdict is never read as the
+	 * current one. The overlay never takes focus; the result box stays the live region.
+	 */
+	var HOLD = { ok: { overlay: 2500, reset: 6000 }, warn: { overlay: 5000, reset: 15000 }, bad: { overlay: 8000, reset: 15000 } };
+	function holdTimes(kind) { return HOLD[kind] || HOLD.warn; }
+	var ICONS = { ok: '✓', bad: '✕', warn: '!' };
+	var display = { overlayTimer: 0, resetTimer: 0 };
+	/** Short code shown with a result: the last 6 characters of the code hash (no code is kept). */
+	function shortCode(hash) { return hash ? '…' + String(hash).slice(-6).toUpperCase() : ''; }
+	function hideOverlay() {
+		clearTimeout(display.overlayTimer);
+		var o = $('overlay');
+		if (o) { o.hidden = true; }
+	}
+	function resetResult() {
+		clearTimeout(display.resetTimer);
+		if (state.undo && state.undo.open) { display.resetTimer = setTimeout(resetResult, 5000); return; }
+		$('result').className = 'result idle';
+		$('result-title').textContent = t('Bereit');
+		$('result-detail').textContent = '';
+	}
+	function showOverlay(kind, title, detail) {
+		var o = $('overlay');
+		if (!o) { return; }
+		o.className = 'overlay ' + kind;
+		$('overlay-icon').textContent = ICONS[kind] || '';
+		$('overlay-title').textContent = title;
+		$('overlay-detail').textContent = detail || '';
+		var meta = [new Date(now()).toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }), shortCode(state.scanHash)].filter(Boolean).join(' · ');
+		$('overlay-meta').textContent = meta;
+		o.hidden = false;
+		clearTimeout(display.overlayTimer);
+		display.overlayTimer = setTimeout(hideOverlay, holdTimes(kind).overlay);
+	}
 	function showResult(kind, title, detail) {
 		// A new result ends the undo offer of the previous admission (A547).
 		if (state.undo && !state.undo.open) { state.undo = null; renderUndo(); }
@@ -218,6 +256,10 @@
 		box.className = 'result ' + kind;
 		$('result-title').textContent = title;
 		$('result-detail').textContent = detail || '';
+		showOverlay(kind, title, detail);
+		state.scanHash = '';
+		clearTimeout(display.resetTimer);
+		display.resetTimer = setTimeout(resetResult, holdTimes(kind).reset);
 		if ('ok' === kind) { tone([660, 990], 0.12); } else if ('bad' === kind) { tone([196, 147], 0.32, 'square'); } else if ('warn' === kind) { tone([440, 440], 0.15, 'triangle'); }
 		try { if (navigator.vibrate) { navigator.vibrate('ok' === kind ? 80 : ('warn' === kind ? [120, 80, 120] : [250, 100, 250, 100, 250])); } } catch (e) { /* no vibration */ }
 	}
@@ -595,6 +637,7 @@
 		var scannedAt = new Date(now()).toISOString();
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
 		return sha256Hex(code).then(function (hash) {
+			state.scanHash = hash; // A548: short code in the full-screen result
 			var online = navigator.onLine !== false;
 			var attempt = online
 				? api('POST', 'scan/check-in', { code: code, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000)
@@ -708,6 +751,7 @@
 		var scannedAt = new Date(now()).toISOString();
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
 		if (item.hash) {
+			state.scanHash = item.hash;
 			var d = decideOffline(entry, item.hash);
 			if (d.ok) {
 				markAdmitted(occurrenceId, item.hash);
@@ -719,6 +763,7 @@
 			return put('log', { key: key, occurrence_id: occurrenceId, hash: item.hash, code: '', ticket_hash: d.ok ? item.hash : '', manual: true, scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'offline', decision: d.result, ok: d.ok, synced: d.ok ? 0 : 1 }).then(renderLog).then(refreshCounts);
 		}
 		return sha256Hex('id:' + item.ticket_public_id).then(function (hash) {
+			state.scanHash = '';
 			return api('POST', 'scan/check-in', { ticket_public_id: item.ticket_public_id, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000).then(function (res) {
 				var kind = classifyScan(res, null);
 				if ('warn' === kind) { systemWarning(res); return null; }
@@ -1158,6 +1203,8 @@
 		$('camera').addEventListener('click', startCamera);
 		$('unpair').addEventListener('click', unpair);
 		$('sound').addEventListener('click', toggleSound);
+		$('overlay').addEventListener('click', hideOverlay);
+		document.addEventListener('keydown', hideOverlay);
 		$('search').addEventListener('submit', function (ev) { ev.preventDefault(); searchTickets($('search-q').value); });
 		$('undo-start').addEventListener('click', function () { if (state.undo && undoSecondsLeft(state.undo.started, Date.now()) > 0) { state.undo.open = true; renderUndo(); $('undo-reason').focus(); } });
 		$('undo-reason').addEventListener('change', function (ev) { $('undo-other').hidden = '__other' !== ev.target.value; });
@@ -1175,7 +1222,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts, searchPackage: searchPackage, searchTickets: searchTickets, checkInResult: checkInResult };
+	window.wpcapOffline = { apiBaseOk: apiBaseOk, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts, searchPackage: searchPackage, searchTickets: searchTickets, checkInResult: checkInResult, holdTimes: holdTimes, shortCode: shortCode, showResult: showResult };
 
 	boot();
 }());

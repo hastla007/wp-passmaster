@@ -22,8 +22,8 @@ button:disabled { opacity: .5; }
 .pkg.bad { color: var(--bad); font-weight: 600; }
 video { width: 100%; max-height: 50vh; border-radius: 8px; background: #000; margin-bottom: 10px; }
 .result { border-radius: 10px; padding: 18px 14px; margin: 0 0 12px; color: #fff; text-align: center; }
-.result #result-title { font-size: 26px; font-weight: 700; }
-.result .small { color: inherit; font-size: 15px; }
+.result #result-title { font-size: 34px; font-weight: 800; line-height: 1.15; }
+.result .small { color: inherit; font-size: 18px; }
 .result.idle { background: #50575e; }
 .result.ok { background: var(--ok); }
 .result.bad { background: var(--bad); }
@@ -37,3 +37,11 @@ code { word-break: break-all; }
 .undo { text-align: center; }
 .undo .undo-start { width: 100%; font-size: 20px; font-weight: 700; padding: 14px; }
 .counter { margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: var(--card); font-size: 22px; font-weight: 700; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+/* A548: full-screen result with hold time, time and short code. */
+.overlay { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; color: #fff; text-align: center; background: #50575e; cursor: pointer; overflow-wrap: anywhere; }
+.overlay.ok { background: var(--ok); } .overlay.bad { background: var(--bad); } .overlay.warn { background: var(--warn); }
+.overlay-icon { font-size: clamp(72px, 24vw, 150px); line-height: 1; font-weight: 700; }
+.overlay-title { font-size: clamp(34px, 10vw, 64px); font-weight: 800; line-height: 1.1; }
+.overlay-detail { font-size: clamp(18px, 5vw, 28px); font-weight: 600; max-width: 40rem; }
+.overlay-meta { font-size: clamp(18px, 5vw, 26px); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.overlay-close { margin-top: 12px; font-size: 16px; opacity: .85; }

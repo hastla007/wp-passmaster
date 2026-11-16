@@ -78,6 +78,7 @@
 			'Kein Termin gewählt': 'No date selected',
 			'Fehler': 'Error',
 			'Rückgängig': 'Undo',
+			'Antippen zum Schließen': 'Tap to close',
 			'Eingecheckt: %1 / %2': 'Checked in: %1 / %2',
 			'Ticket suchen': 'Find ticket',
 			'Name, E-Mail oder Bestellnummer': 'Name, e-mail or order number',
