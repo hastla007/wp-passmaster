@@ -7,6 +7,31 @@
 - **Neuer Name „Pass Captain“, Slug `pass-captain` (für WordPress.org).** Bisher „WP Pass Captain“ mit Slug, Ordner und Textdomain `wp-pass-captain` – WordPress.org erlaubt kein „WP“ am Namensanfang, und Sprachpakete brauchen Textdomain = Slug. Geändert: Plugin-Name, Ordner/Hauptdatei `pass-captain/pass-captain.php`, Textdomain und Sprachdateien `pass-captain`, REST-Namensraum `/wp-json/pass-captain/v1/`, Admin-Seiten `page=pass-captain…`, Release-ZIP `pass-captain.zip`; die Partner-Plugins heißen in der Oberfläche „Voucher Captain“ und „Affiliate Captain“. Unverändert: Daten (`wpcap_*`), Rollen, Hooks/Shortcodes, Blocknamen. Kompatibilität (`src/LegacySlug.php`): der alte REST-Namensraum funktioniert weiter (Zahlungs- und SMS-Webhooks, bereits ausgegebene Wallet-Pässe, Apps; Antwort mit `Deprecation`/`Link`, Twilio-Signatur gegen die aufgerufene URL), alte Admin-Links leiten um, eine installierte alte Kopie wird beim Aktivieren abgeschaltet (kein Doppelladen), und solange ihr Ordner existiert, ist die Datenlöschung beim Deinstallieren pausiert, damit das Löschen der alten Kopie keine Daten entfernt. Neuer CI-Test `tests/wp-matrix/rename-takeover.sh` (echte Website mit Vorgänger-Release und Daten → Umstieg). Anleitung: docs/RENAME.md.
 
 ### Auditbefunde Runde 4–6 (Arbeitsliste A263–)
+- Rollennamen werden neutral gespeichert und in der Sprache der ansehenden Person angezeigt (A362).
+- Übersetzerkommentar der Mail „Bezahlte Bestellung ohne Tickets“ durch Regressionstest abgesichert (A363).
+- Gezählte Texte mit echter Ein- und Mehrzahl statt „Ticket(s)“; „Status: …“ als übersetzbarer Satz (A383).
+- Datum und Uhrzeit in Mails, Tickets und Belegen im Format der Website bzw. der Empfängersprache statt fest „d.m.Y“ (A384).
+- Umtausch-Verlauf mit Website-Zeit, übersetztem Kanal und Bestellnummer (A412).
+- Audit-Log filtert und zeigt in der Website-Zeitzone, nennt Aktionen im Klartext und verlinkt Objekte (A413).
+- Mehrdeutige Kurztexte („Einlass“, „Offen“, Statuswerte) mit Übersetzungskontext (A515).
+- Scanner zeigen Terminzeiten in der Zeitzone des Termins (A516).
+- Google Wallet: Ticket in Käufersprache, Terminklasse in Website-Sprache mit übersetztem Absage-Hinweis (A518).
+- Absagen, Terminänderungen und Erinnerungen in der Sprache der neuesten Bestellung (A519).
+- Bericht sortiert Namen nach den Regeln der Website-Sprache (A520).
+- Serien-Übersicht zeigt die Wiederholungsregel lesbar (A521).
+- HTML-Mails in RTL-Sprachen mit `dir="rtl"` (A522).
+- Löschfrist für Finanzbelege nach Kalenderjahr der Website-Zeitzone (A605).
+- „Termin vorbei“ ohne Ende überall einheitlich nach der Standarddauer (A606).
+- Weitere Geschäftsregeln nutzen die zentrale Uhr; Testregel verhindert neue direkte Zeitabfragen (A607).
+- Zahlungs- und Angebotsfristen in Mails in der Termin-Zeitzone mit Zonenangabe (A608).
+- Offline-Scans brauchen eine Zeitzonenangabe; Ortszeit ohne Versatz wird abgelehnt (A609).
+- Ticket-PDFs komprimiert und mit kompakten QR-Codes, rund dreimal kleiner (A618).
+- „Tickets erneut senden“ und Wiederholung mit PDF, .ics und .pkpass wie die Ticketmail (A621).
+- Erinnerungen mit einstellbarer Versandrate; Anbieterlimits verschieben die Mail statt sie zu verwerfen (A623).
+- Erinnerungen abbestellbar per Link und List-Unsubscribe (One-Click) (A689).
+- HTML-Mails mit Outlook-Tabelle, Dark Mode und beschrifteten Wallet-Schaltflächen (A625).
+- Mail-Anhänge bleiben bis zur stündlichen Bereinigung erhalten, damit Mail-Warteschlangen sie senden (A626).
+- Portal-Download „alle Tickets“ höchstens 50 Tickets je PDF, größere Bestellungen in Teilen (A627).
 - Konzept und `docs/FREE-PREMIUM.md`: Die Connectoren BoatingSchool und LearnBoating sind lizenzierte, separat installierte Plugins von Pass Captain Pro; der Kern bleibt frei und liefert nur den Connector-Vertrag (Entscheidung 17) (A701).
 - Teilnehmerfelder: Auswahl, Mehrfachauswahl, Telefon, Datum und Zahl; Name je Ticket erzwingbar; „Meine Angaben übernehmen“ (A552).
 - Teilnehmerfelder mit Hilfetext, Abfrage einmal je Bestellung und versionierten Felddefinitionen (A680).

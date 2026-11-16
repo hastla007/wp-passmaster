@@ -767,9 +767,9 @@ Gesamt: 262 Aufgaben.
   - src/blocks/events/editor.asset.php:4, block.json: Abhängigkeiten ergänzen, integer
 - [x] **A361** [OPTIMIERUNG] PHP 8.5: curl_close() deprecated; APNs umgeht WP-HTTP-Proxy-Konstanten — _R1 Core/Architektur_ (TODO L707; Audit Runde 4)
   - src/WalletPasses/ApnsClient.php:55: curl_close entfernen, WP_PROXY_*/WP_HTTP_BLOCK_EXTERNAL beachten
-- [ ] **A362** [OPTIMIERUNG] Rollennamen übersetzt in der DB gespeichert — _R1 Core_ (TODO L708; Audit Runde 4)
+- [x] **A362** [OPTIMIERUNG] Rollennamen übersetzt in der DB gespeichert — _R1 Core_ (TODO L708; Audit Runde 4)
   - src/Installer.php:1104–1124, :1080: Neutrale Namen speichern, Anzeige per Übersetzung (Kontext „User role“)
-- [ ] **A363** [OPTIMIERUNG] Falscher Übersetzerkommentar — _R1 Core_ (TODO L709; Audit Runde 4)
+- [x] **A363** [OPTIMIERUNG] Falscher Übersetzerkommentar — _R1 Core_ (TODO L709; Audit Runde 4)
   - src/Orders.php:1076 (confirm_external_payment): %2$s ist die Zahlungsreferenz; POT/PO neu
 - [x] **A364** [OPTIMIERUNG] Wartelisten-Queue ohne Lock; GET_LOCK-Namen nicht je Installation eindeutig — _R1 Core_ (TODO L710; Audit Runde 4)
   - src/Waitlists.php:173–184, :207–208, :247–248, Allocations/BuyerLimits.php:145: Nur verarbeitete Typen entfernen; Lock-Namen wie Installer::lock_name() hashen
@@ -809,9 +809,9 @@ Gesamt: 262 Aufgaben.
   - src/Admin/ServiceSlotsPage.php:412–415, EventsPage.php:945: Einheitlich bestätigen
 - [ ] **A382** [OPTIMIERUNG] load_plugin_textdomain für wp.org überflüssig (PCP) — _R1 Release_ (TODO L728; Audit Runde 4)
   - pass-captain.php:83: Auf init bzw. Fallback nur für gebündelte .mo
-- [ ] **A383** [OPTIMIERUNG] Plurale mit „(e)/(s)“ und zusammengesetzte Sätze — _R1 Release_ (TODO L729; Audit Runde 4)
+- [x] **A383** [OPTIMIERUNG] Plurale mit „(e)/(s)“ und zusammengesetzte Sätze — _R1 Release_ (TODO L729; Audit Runde 4)
   - src/PublicEvents.php:50/103/106, OrderAdapter.php:915, GuestLists/Page.php:123, Modules/Sms.php:473, TicketPage.php:58: _n() mit sprintf
-- [ ] **A384** [OPTIMIERUNG] Feste deutsche Datumsformate (44× d.m.Y) in Mails/Belegen — _R1 Release_ (TODO L730; Audit Runde 4)
+- [x] **A384** [OPTIMIERUNG] Feste deutsche Datumsformate (44× d.m.Y) in Mails/Belegen — _R1 Release_ (TODO L730; Audit Runde 4)
   - src/Notifications.php:133, Orders.php:1759, Reminders/Placeholders.php:35, Printing/InvoicePdf.php:34: Zentral über Format::datetime_format()/wp_date je Empfänger-Locale
 - [ ] **A385** [OPTIMIERUNG] Readme-Cron-Empfehlung für Multisite falsch — _R1 Release_ (TODO L731; Audit Runde 4)
   - readme.txt:49–51: wp site list … --url=-Variante
@@ -867,9 +867,9 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:177/190: offer_hours einsetzen, max per JS
 - [ ] **A411** [OPTIMIERUNG] Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L757; Audit Runde 4)
   - src/Admin/OrdersPage.php:257/289, TicketsPage.php:207, EventsPage.php:732: WP_List_Table, Bulk „Zahlung bestätigen“, Leerzustand mit „Filter zurücksetzen“
-- [ ] **A412** [OPTIMIERUNG] Umtausch-Verlauf in UTC, Rohwerte — _R2 UX_ (TODO L758; Audit Runde 4)
+- [x] **A412** [OPTIMIERUNG] Umtausch-Verlauf in UTC, Rohwerte — _R2 UX_ (TODO L758; Audit Runde 4)
   - src/Exchange/AdminPage.php:138: Website-Zeitzone, Kanal übersetzen, order_reference
-- [ ] **A413** [OPTIMIERUNG] Audit-Log: Filter UTC, Anzeige Ortszeit, Rohcodes, keine Links — _R2 UX_ (TODO L759; Audit Runde 4)
+- [x] **A413** [OPTIMIERUNG] Audit-Log: Filter UTC, Anzeige Ortszeit, Rohcodes, keine Links — _R2 UX_ (TODO L759; Audit Runde 4)
   - src/Admin/AuditLogPage.php:39–40, :104–115: Filter in Site-Zone, Aktionen im Klartext, Objekt-Links
 - [ ] **A414** [OPTIMIERUNG] Tickets-Seite verliert Filter/Seite nach Aktionen — _R2 UX_ (TODO L760; Audit Runde 4)
   - src/Admin/TicketsPage.php:157–160: event_id/status/paged mitgeben
@@ -1079,21 +1079,21 @@ Gesamt: 262 Aufgaben.
   - src/Installer.php:794–806, :955–958: Soll-Indizes nach upgrade_indexes prüfen, in wpcap_schema_error
 - [x] **A514** [OPTIMIERUNG] Multisite-Uninstall löscht netzwerkweite User-Meta praktisch nie; Reste in sitemeta/Action Scheduler — _R3 Lifecycle_ (TODO L866; Audit Runde 4)
   - uninstall.php:59–67, LegacySlug.php:36: Sites ohne Daten als zugestimmt werten, delete_site_option, AS-Gruppe löschen
-- [ ] **A515** [OPTIMIERUNG] Mehrdeutige Kurz-Strings ohne _x-Kontext („Einlass“, „Offen“, Genus-Status) — _R3 Multisite/i18n/Skalierung_ (TODO L867; Audit Runde 4)
+- [x] **A515** [OPTIMIERUNG] Mehrdeutige Kurz-Strings ohne _x-Kontext („Einlass“, „Offen“, Genus-Status) — _R3 Multisite/i18n/Skalierung_ (TODO L867; Audit Runde 4)
   - src/Notifications.php:165, Admin/Menu.php:139, PublicEvents.php:114, Admin/Forms.php:504–515: _x() mit Kontext, POT neu
-- [ ] **A516** [OPTIMIERUNG] Scanner zeigen Terminzeiten in Gerätezeitzone statt Terminzeitzone — _R3 Multisite/i18n/Skalierung_ (TODO L868; Audit Runde 4)
+- [x] **A516** [OPTIMIERUNG] Scanner zeigen Terminzeiten in Gerätezeitzone statt Terminzeitzone — _R3 Multisite/i18n/Skalierung_ (TODO L868; Audit Runde 4)
   - assets/offline-scanner/app.js:103–106/358/386, assets/scanner.js:100–108: toLocaleString mit timeZone des Termins
 - [x] **A517** [OPTIMIERUNG] Request-Caches bei switch_blog nicht zurückgesetzt (A182 unvollständig) — _R3 Multisite/i18n/Skalierung_ (TODO L869; Audit Runde 4)
   - src/StaffAssignments.php:35–37/82–89, ServiceProviders.php:41–44, Campaigns.php:215–224: An switch_blog flushen oder nach Präfix schlüsseln
-- [ ] **A518** [OPTIMIERUNG] Google Wallet meldet alle Texte als Deutsch — _R3 Multisite/i18n/Skalierung_ (TODO L870; Audit Runde 4)
+- [x] **A518** [OPTIMIERUNG] Google Wallet meldet alle Texte als Deutsch — _R3 Multisite/i18n/Skalierung_ (TODO L870; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:34, :53: Sprache aus Ticket-/Site-Locale, translatedValues
-- [ ] **A519** [OPTIMIERUNG] Massenmails wählen Empfängersprache per MAX(locale) — _R3 Multisite/i18n/Skalierung_ (TODO L871; Audit Runde 4)
+- [x] **A519** [OPTIMIERUNG] Massenmails wählen Empfängersprache per MAX(locale) — _R3 Multisite/i18n/Skalierung_ (TODO L871; Audit Runde 4)
   - src/Notifications.php:119–123: Locale der neuesten Bestellung des Termins
-- [ ] **A520** [OPTIMIERUNG] Bericht sortiert Namen mit strcmp (Umlaute, Groß/Klein) — _R3 Multisite/i18n/Skalierung_ (TODO L872; Audit Runde 4)
+- [x] **A520** [OPTIMIERUNG] Bericht sortiert Namen mit strcmp (Umlaute, Groß/Klein) — _R3 Multisite/i18n/Skalierung_ (TODO L872; Audit Runde 4)
   - src/Reports/Data.php:208: Collator mit Site-Locale
-- [ ] **A521** [OPTIMIERUNG] Serien-Übersicht zeigt rohe Regelwerte — _R3 Multisite/i18n/Skalierung_ (TODO L873; Audit Runde 4)
+- [x] **A521** [OPTIMIERUNG] Serien-Übersicht zeigt rohe Regelwerte — _R3 Multisite/i18n/Skalierung_ (TODO L873; Audit Runde 4)
   - src/Series/AdminPage.php:368: Übersetzte Labels, Datum im Site-Format
-- [ ] **A522** [OPTIMIERUNG] HTML-Mails ohne Leserichtung (erweitert A390) — _R3 Multisite/i18n/Skalierung_ (TODO L874; Audit Runde 4)
+- [x] **A522** [OPTIMIERUNG] HTML-Mails ohne Leserichtung (erweitert A390) — _R3 Multisite/i18n/Skalierung_ (TODO L874; Audit Runde 4)
   - src/Mail/Layout.php:55, Mail/Blocks.php:101: dir="rtl" je Empfänger-Locale
 - [ ] **A523** [OPTIMIERUNG] Konditionen-/Verkaufsmodell-Änderungen wirken rückwirkend auf offene Abrechnungsposten — _R3 Eigen (Deep Dive 2)_ (TODO L875; Audit Runde 4)
   - src/Partners/Settlements.php:196–200: Momentaufnahme je Verkauf oder Versionierung ab Datum
@@ -1262,15 +1262,15 @@ Gesamt: 262 Aufgaben.
   - assets/checkout.js:58: autocomplete="section-attN name" bzw. off ab Block 2
 - [x] **A604** [OPTIMIERUNG] SMS-Nummer „+49 (0)151 …“ wird zu falscher Nummer — _R4 Käufer-UX/Checkout_ (TODO L959; Audit Runde 4)
   - src/Sms/Service.php:83–91: „(0)“ nach Ländervorwahl entfernen
-- [ ] **A605** [OPTIMIERUNG] Löschfrist für Finanzbelege nach UTC-Jahr statt lokalem Rechnungsjahr (GoBD, ein Jahr zu früh) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L960; Audit Runde 4)
+- [x] **A605** [OPTIMIERUNG] Löschfrist für Finanzbelege nach UTC-Jahr statt lokalem Rechnungsjahr (GoBD, ein Jahr zu früh) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L960; Audit Runde 4)
   - src/Privacy/Retention.php:88–92: Stichtag 01.01. 00:00 Site-Zone → UTC (belegt)
-- [ ] **A606** [OPTIMIERUNG] „Termin vorbei“ ohne ends_at sechsfach unterschiedlich definiert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L961; Audit Runde 4)
+- [x] **A606** [OPTIMIERUNG] „Termin vorbei“ ohne ends_at sechsfach unterschiedlich definiert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L961; Audit Runde 4)
   - src/Orders.php:152, Calendar/Ics.php:126, AppleProvider.php:63, Retention.php:138, Waitlists.php:67, CapacityCounters.php:549, OfflineScanner/Assignments.php:98: Zentral Occurrence::effective_end() mit Standarddauer
-- [ ] **A607** [OPTIMIERUNG] Weitere Geschäftsregeln umgehen Clock::now() (erweitert A199) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L962; Audit Runde 4)
+- [x] **A607** [OPTIMIERUNG] Weitere Geschäftsregeln umgehen Clock::now() (erweitert A199) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L962; Audit Runde 4)
   - src/Exchange/Service.php:184/206/876, PortalSelfService.php:306, OrderPortal.php:130, TicketAssignments.php:24, Seats.php:36, Seating/Reservations.php:124, Passes/Admission.php:41, Mobile/Api.php:186, EventCard.php:143, Admin/Queries.php:89: Auf Clock umstellen, Grep-Regel in CI
-- [ ] **A608** [OPTIMIERUNG] Mails mischen Zeitzonen (Frist in Site-Zone ohne Label) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L963; Audit Runde 4)
+- [x] **A608** [OPTIMIERUNG] Mails mischen Zeitzonen (Frist in Site-Zone ohne Label) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L963; Audit Runde 4)
   - src/Payments/BankTransfer.php:54, Waitlists.php:343/1074: Fristen in Termin-Zone mit Label
-- [ ] **A609** [OPTIMIERUNG] Offline-scanned_at ohne Offset als UTC gelesen (PLAUSIBEL) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L964; Audit Runde 4)
+- [x] **A609** [OPTIMIERUNG] Offline-scanned_at ohne Offset als UTC gelesen (PLAUSIBEL) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L964; Audit Runde 4)
   - src/Mobile/Api.php:185–186, OfflineScanner/Sync.php:44, Admission/Rest.php:67: Offset Pflicht (sonst 400), Doku
 - [x] **A610** [OPTIMIERUNG] Saalplan bei abgesagtem/vergangenem Termin: nur „Laden fehlgeschlagen“, Formular aktiv — _R4 Zeit/Caching/Lebenszyklus_ (TODO L965; Audit Runde 4)
   - src/Seating/Reservations.php:442, Seating/Rest.php:25–27, assets/seating/picker.js:55: occurrence_status/sales_open liefern, Picker und Kauf sperren
@@ -1288,25 +1288,25 @@ Gesamt: 262 Aufgaben.
   - src/Rest/Controller.php:681–692, Campaigns.php:47/183: Datum validieren, Ortszeit → UTC, reines Datum als Tagesende (belegt t5)
 - [ ] **A617** [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — _R4 Transaktionen/Concurrency_ (TODO L972; Audit Runde 4)
   - src/Series/Pricing.php, Orders.php:191: Preis je Unit staffeln oder Menge einrechnen (belegt t5)
-- [ ] **A618** [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — _R4 Dokumente/Mail/Wallet_ (TODO L973; Audit Runde 4)
+- [x] **A618** [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — _R4 Dokumente/Mail/Wallet_ (TODO L973; Audit Runde 4)
   - src/TicketPdf.php:49–55, :98: FlateDecode, QR-Module zeilenweise zusammenfassen
 - [x] **A619** [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — _R4 Dokumente/Mail/Wallet_ (TODO L974; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379: Bei 404 in revoke Objekt mit state INACTIVE anlegen
 - [x] **A620** [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — _R4 Dokumente/Mail/Wallet_ (TODO L975; Audit Runde 4)
   - src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148: Bundle je (Serial, update_tag), Bilder je Einstellungs-Hash, Credentials statisch
-- [ ] **A621** [OPTIMIERUNG] Neuversand-/Retry-Mail ohne PDF, ICS, .pkpass — _R4 Dokumente/Mail/Wallet_ (TODO L976; Audit Runde 4)
+- [x] **A621** [OPTIMIERUNG] Neuversand-/Retry-Mail ohne PDF, ICS, .pkpass — _R4 Dokumente/Mail/Wallet_ (TODO L976; Audit Runde 4)
   - src/Orders.php:2036–2041, :2091–2094: Gleicher Anhangs-Builder wie issue_and_email
 - [ ] **A622** [OPTIMIERUNG] Übertragungsempfänger ohne Wiederherstellungsweg — _R4 Dokumente/Mail/Wallet_ (TODO L977; Audit Runde 4)
   - src/Orders.php:1509–1524, TicketPage.php:252–258: „Meine Tickets per E-Mail anfordern“ für Inhaber-Adressen mit Rate-Limit
-- [ ] **A623** [OPTIMIERUNG] Erinnerungsversand ohne Drosselung; Anbieterlimits → Mails endgültig verloren; kein List-Unsubscribe — _R4 Dokumente/Mail/Wallet_ (TODO L978; Audit Runde 4)
+- [x] **A623** [OPTIMIERUNG] Erinnerungsversand ohne Drosselung; Anbieterlimits → Mails endgültig verloren; kein List-Unsubscribe — _R4 Dokumente/Mail/Wallet_ (TODO L978; Audit Runde 4)
   - src/Communications.php:39–80: Einstellbare Rate, Limit-Fehler als Aufschub, List-Unsubscribe One-Click
 - [ ] **A624** [OPTIMIERUNG] Keine Bounce-Verarbeitung (ergänzt A328) — _R4 Dokumente/Mail/Wallet_ (TODO L979; Audit Runde 4)
   - src/Mail/Mailer.php:321–350: Return-Path/VERP, Hook wpcap_mail_bounced, Markierung + Hinweis
-- [ ] **A625** [OPTIMIERUNG] HTML-Layout: Outlook ohne MSO-Tabelle, kein Dark Mode, Wallet-Links als lange URLs — _R4 Dokumente/Mail/Wallet_ (TODO L980; Audit Runde 4)
+- [x] **A625** [OPTIMIERUNG] HTML-Layout: Outlook ohne MSO-Tabelle, kein Dark Mode, Wallet-Links als lange URLs — _R4 Dokumente/Mail/Wallet_ (TODO L980; Audit Runde 4)
   - src/Mail/Layout.php:167–175, WalletPasses/Service.php:158–163, Mailer.php:449–455: MSO-Ghost-Tabelle, color-scheme, beschriftete Wallet-Buttons
-- [ ] **A626** [OPTIMIERUNG] Anhänge sofort nach wp_mail gelöscht – Mail-Queue-Plugins senden ohne Anhang (PLAUSIBEL) — _R4 Dokumente/Mail/Wallet_ (TODO L981; Audit Runde 4)
+- [x] **A626** [OPTIMIERUNG] Anhänge sofort nach wp_mail gelöscht – Mail-Queue-Plugins senden ohne Anhang (PLAUSIBEL) — _R4 Dokumente/Mail/Wallet_ (TODO L981; Audit Runde 4)
   - src/Orders.php:1820–1823, Modules/Calendar.php:96, Mailer.php:332–347: Anhänge bis Cron-Bereinigung aufbewahren
-- [ ] **A627** [OPTIMIERUNG] Portal-Download „alle“ ohne Obergrenze (1.000 Rotationen, 20 MB je Klick) — _R4 Dokumente/Mail/Wallet_ (TODO L982; Audit Runde 4)
+- [x] **A627** [OPTIMIERUNG] Portal-Download „alle“ ohne Obergrenze (1.000 Rotationen, 20 MB je Klick) — _R4 Dokumente/Mail/Wallet_ (TODO L982; Audit Runde 4)
   - src/PortalSelfService.php:162–166: Max. 50 je PDF, sonst Stapel/Job
 - [x] **A628** [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — _R4 Dokumente/Mail/Wallet_ (TODO L983; Audit Runde 4)
   - src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58: Logo ohne Text, UTF-8, Google-Logo
@@ -1420,7 +1420,7 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [ ] **A686** [OPTIMIERUNG] Druck: Teilnehmerfeld-Mapping, weitere Etikettenformate, Sortierung, Vorschau — _Konzept 15.11._ (TODO L1029; Konzept/Roadmap 2026-11-15)
 - [ ] **A687** [OPTIMIERUNG] Mobile-API: Suche, Batch-Aktionen, Mindest-Core-Version; MOBILE-API.md aktualisieren (§7 veraltet, alter Shortcode) — _Konzept 15.11._ (TODO L1034; Konzept/Roadmap 2026-11-15)
 - [ ] **A688** [OPTIMIERUNG] Geräteliste: Paketablauf anzeigen; Massen-Check-in/-out mit Bestätigung, Ergebnisbericht, idempotentem Retry — _Konzept 15.11._ (TODO L1037; Konzept/Roadmap 2026-11-15)
-- [ ] **A689** [OPTIMIERUNG] Erinnerungen: Opt-out und List-Unsubscribe — _Konzept 15.11._ (TODO L1054; Konzept/Roadmap 2026-11-15)
+- [x] **A689** [OPTIMIERUNG] Erinnerungen: Opt-out und List-Unsubscribe — _Konzept 15.11._ (TODO L1054; Konzept/Roadmap 2026-11-15)
 - [ ] **A690** [OPTIMIERUNG] Konfigurierbare Begriffe (Teilnehmende/Gäste …) und weitere überschreibbare Vorlagen — _Konzept 15.11._ (TODO L1055; Konzept/Roadmap 2026-11-15)
 - [ ] **A691** [OPTIMIERUNG] Release-Matrix: Status je Funktion (vorhanden/teilweise/nicht geplant/Releaseziel) für Core und Pro — _Konzept 15.11._ (TODO L1062; Konzept/Roadmap 2026-11-15)
 - [x] **A692** [OPTIMIERUNG] docs/WEBHOOKS.md veraltet (order.refunded existiert), Webhook-Version in die Vertragstabelle — _Konzept 15.11._ (TODO L1005; Konzept/Roadmap 2026-11-15)
