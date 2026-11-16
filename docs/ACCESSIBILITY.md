@@ -10,6 +10,13 @@ Referer und schlüsselartige Felder) und werden beim ersten Anzeigen genau diese
 Formulare aus `Forms::remember_input_actions()` (Filter `wpcap_admin_remember_input_actions`) speichern
 Eingaben.
 
+**Sprache eigenständiger Seiten (A320):** Druck- und Belegseiten (Teilnehmer-, No-Show- und Gästeliste,
+Kassenbeleg, Storno-/Auszahlungsbeleg, Z-Bericht, Abrechnungsblatt, Partnerabrechnung) sowie Ticketseite,
+Bestellportal, Wartelisten-Angebot und Rechnungsansicht setzen `lang` auf die Sprache, in der sie gerade
+gerendert werden (`determine_locale()` als BCP 47, z. B. `en-US`; im Admin die Benutzersprache), und
+`dir="rtl"` bei rechts-nach-links-Sprachen (`Frontend\Format::html_lang_attributes()`). Screenreader lesen
+übersetzte Listen und Belege damit in der richtigen Sprache vor.
+
 Vor 1.0 sind manuelle Tastatur- und Screenreader-Prüfungen für Checkout, Scanner und WordPress-Admin nötig. Dabei müssen Fehlertexte, Fokusreihenfolge, Zoom bis 200 %, Kontrast, QR-Code-Fallback und Kamera-Berechtigungsfehler geprüft werden. Automatische Prüfungen allein reichen nicht.
 
 ## Checkout-Formular

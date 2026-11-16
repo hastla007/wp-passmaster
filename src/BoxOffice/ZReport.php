@@ -436,7 +436,7 @@ final class ZReport {
 		if ( $ids ) {
 			$items = $wpdb->get_results( "SELECT tt.name,COUNT(*) AS n FROM {$wpdb->prefix}wpcap_tickets t LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.ticket_id IN (" . implode( ',', $ids ) . ') GROUP BY tt.name ORDER BY tt.name' );
 		}
-		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( (string) $mv->receipt_number ) . '</title>'
+		$h = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><title>' . esc_html( (string) $mv->receipt_number ) . '</title>'
 			. '<style>@page{size:80mm auto;margin:0}body{width:80mm;margin:0;padding:3mm 4mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body onload="window.print()">';
 		$h .= '<p class="c"><strong>' . esc_html( (string) Settings::get( 'seller_name' ) ) . '</strong><br>' . nl2br( esc_html( (string) Settings::get( 'seller_address' ) ) ) . '</p>';
 		$h .= '<h1>' . esc_html( 'storno' === $mv->kind ? __( 'STORNOBELEG', 'pass-captain' ) : __( 'AUSZAHLUNGSBELEG', 'pass-captain' ) ) . '</h1>';
@@ -463,7 +463,7 @@ final class ZReport {
 		$seller = (string) Settings::get( 'seller_name' );
 		/* translators: 1: Z number, 2: register */
 		$title = sprintf( __( 'Z-Bericht Nr. %1$d – %2$s', 'pass-captain' ), (int) $z->z_number, ( $r = Registers::get( $z->register_id ) ) ? $r->name : '#' . (int) $z->register_id );
-		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title>'
+		$h = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title>'
 			. '<style>@page{size:A4;margin:15mm}body{font:13px/1.4 system-ui,sans-serif;color:#000;max-width:50rem;margin:1.5rem auto;padding:0 1rem}h1{font-size:20px;margin:0 0 .25rem}h2{font-size:15px;margin:1.2rem 0 .3rem;border-bottom:1px solid #000}table{width:100%;border-collapse:collapse}td{padding:.2rem .3rem;border-bottom:1px solid #ddd;vertical-align:top}td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.small{font-size:11px;color:#333;word-break:break-all}@media print{.noprint{display:none}}</style></head><body>';
 		$h .= '<p>' . esc_html( $seller ) . '</p><h1>' . esc_html( $title ) . '</h1>';
 		$section = null;

@@ -19,6 +19,19 @@ final class Format {
 		return \PassCaptain\Money::number( $minor, $currency ) . ' ' . self::symbol( $currency );
 	}
 
+	/**
+	 * Attributes for the <html> element of standalone pages (print views, receipts, ticket page,
+	 * order portal, A320): lang="…" in BCP 47 form of the current locale (determine_locale(), i.e.
+	 * the admin's user language in the back end, the site language in the front end) and dir="rtl"
+	 * for right-to-left languages. Already escaped.
+	 */
+	public static function html_lang_attributes() {
+		$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
+		$lang = str_replace( '_', '-', '' !== $locale ? $locale : 'de_DE' );
+		$rtl = function_exists( 'is_rtl' ) && is_rtl();
+		return 'lang="' . esc_attr( $lang ) . '"' . ( $rtl ? ' dir="rtl"' : '' );
+	}
+
 	/** Number format and symbols for assets/checkout.js, so prices look the same in PHP and JS. */
 	public static function js_config() {
 		global $wp_locale;

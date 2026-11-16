@@ -101,7 +101,7 @@ final class NoShowList {
 		$title = $occ ? $occ->event_name . ' – ' . Scope::local( $occ->starts_at, $occ->timezone ) : '';
 		/* translators: 1: tickets never admitted, 2: valid tickets in total */
 		$summary = sprintf( __( '%1$d von %2$d gültigen Tickets nicht eingelassen', 'pass-captain' ), $missing, $issued );
-		$html = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( __( 'No-Show-Liste', 'pass-captain' ) ) . '</title>'
+		$html = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><title>' . esc_html( __( 'No-Show-Liste', 'pass-captain' ) ) . '</title>'
 			. '<style>@page{size:A4;margin:12mm}body{font:11px/1.35 system-ui,sans-serif;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#eee}@media print{button{display:none}}</style></head><body>';
 		$html .= '<h1>' . esc_html( __( 'No-Show-Liste', 'pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( $summary ) . '</p>';
 		if ( ! $missing ) {

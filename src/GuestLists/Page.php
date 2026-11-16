@@ -155,7 +155,7 @@ final class Page {
 		$event = $occ ? Queries::event( $occ->event_id ) : null;
 		$title = ( $event ? $event->name : '' ) . ' – ' . ( $occ ? Scope::local( $occ->starts_at, $occ->timezone ) : '' );
 		$guests = array_sum( array_map( static function ( $e ) { return (int) $e->quantity; }, $rows ) );
-		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( __( 'Gästeliste', 'pass-captain' ) . ' ' . $title ) . '</title>';
+		$h = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><title>' . esc_html( __( 'Gästeliste', 'pass-captain' ) . ' ' . $title ) . '</title>';
 		$h .= '<style>body{font:12px/1.4 sans-serif;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top}th{background:#eee}td.box{width:18px}code{font-size:11px}@media print{a{display:none}}</style></head><body>';
 		$h .= '<h1>' . esc_html( __( 'Gästeliste / Abholliste', 'pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( sprintf( /* translators: 1: entries, 2: tickets */ __( '%1$d Einträge, %2$d Personen', 'pass-captain' ), count( $rows ), $guests ) ) . '</p>';
 		$h .= '<table><thead><tr><th></th><th>' . esc_html__( 'Name', 'pass-captain' ) . '</th><th>' . esc_html__( 'Firma', 'pass-captain' ) . '</th><th>' . esc_html__( 'Liste', 'pass-captain' ) . '</th><th>' . esc_html__( 'Personen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ticketart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ticketcodes', 'pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'pass-captain' ) . '</th></tr></thead><tbody>';

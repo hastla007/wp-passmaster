@@ -820,7 +820,7 @@ final class Settlements {
 			$first = array_shift( $lines );
 			return '<div class="addr">' . ( '' !== $heading ? '<small>' . esc_html( $heading ) . '</small>' . "\n" : '' ) . '<strong>' . esc_html( (string) $first ) . '</strong>' . ( $lines ? "\n" . esc_html( implode( "\n", $lines ) ) : '' ) . '</div>';
 		};
-		$h = '<!doctype html><html lang="' . esc_attr( determine_locale() ) . '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title>';
+		$h = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title>';
 		$h .= '<style>body{font:14px/1.45 system-ui,sans-serif;max-width:56rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.35rem;text-align:left}td.n,th.n{text-align:right}.addr{white-space:pre-line}.cols{display:flex;gap:2rem;justify-content:space-between;flex-wrap:wrap}.draft{color:#b32d2e;font-weight:bold;text-transform:uppercase}section.part{border-top:2px solid #1d2327;margin-top:2rem;padding-top:.5rem}.note{font-weight:600}@media print{button{display:none}section.part{break-inside:avoid}}</style></head><body>';
 		if ( '' === $type ) {
 			// Legacy layout (settlements finalized before sales models existed).

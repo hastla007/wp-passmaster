@@ -349,7 +349,8 @@ function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }
 function add_role() {}
 function wc_get_price_decimals() { return 2; }
-function determine_locale() { return 'de_DE'; }
+function determine_locale() { return (string) ( $GLOBALS['wpcap_test_locale'] ?? 'de_DE' ); }
+if ( ! function_exists( 'is_rtl' ) ) { function is_rtl() { return ! empty( $GLOBALS['wpcap_test_rtl'] ); } }
 function wp_date( $f, $ts = null, $tz = null ) { $d = new DateTime( "@" . ( $ts ?? time() ) ); $d->setTimezone( $tz instanceof DateTimeZone ? $tz : new DateTimeZone( "UTC" ) ); return $d->format( $f ); }
 function wc_add_notice( $m, $t = 'success' ) { $GLOBALS['wpcap_test_notices'][] = $m; }
 

@@ -1729,7 +1729,7 @@ final class Waitlists {
 	}
 
 	private static function page_head( $title ) {
-		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title><?php echo esc_html( $title ); ?></title></head><body><main><?php
+		?><!doctype html><html <?php echo \PassCaptain\Frontend\Format::html_lang_attributes(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in Format. ?>><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title><?php echo esc_html( $title ); ?></title></head><body><main><?php
 	}
 
 	public static function handle_accept_request() {
