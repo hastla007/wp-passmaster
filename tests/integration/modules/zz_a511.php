@@ -22,6 +22,10 @@ function is_multisite() { return false; }
 function current_user_can( $c ) { return true; }
 function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS["hooks"][ $h ][] = $cb; }
 function plugin_dir_path( $f ) { return dirname( $f ) . "/"; }
+function plugin_basename( $f ) { return basename( dirname( $f ) ) . "/" . basename( $f ); } // Legacy-copy takeover in the main file.
+function get_site_option( $k, $d = false ) { return $d; }
+function update_option( ...$a ) { return true; }
+function add_filter( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS["hooks"][ $h ][] = $cb; }
 function plugin_dir_url( $f ) { return "https://example.test/"; }
 function register_activation_hook( ...$a ) {}
 function register_deactivation_hook( ...$a ) {}

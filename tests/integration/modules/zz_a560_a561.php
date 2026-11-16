@@ -38,7 +38,8 @@ $a560_occ = a560_occ_of( $a560_type );
 $a560_rev = Revisions::current( $a560_occ );
 Orders::flush_availability_cache();
 $a560_html = PublicEvents::render_shortcode( array( 'occurrence' => $a560_occ ) );
-check( 'A560: the checkout form carries the occurrence and its revision', false !== strpos( $a560_html, 'data-occurrence="' . $a560_occ . '" data-revision="' . $a560_rev . '"' ) && false !== strpos( $a560_html, 'data-price="2500"' ) );
+// Merged card: further attributes (data-waitlist) may stand between occurrence and revision on the form tag.
+check( 'A560: the checkout form carries the occurrence and its revision', (bool) preg_match( '/<form[^>]*data-occurrence="' . $a560_occ . '"[^>]*data-revision="' . $a560_rev . '"/', $a560_html ) && false !== strpos( $a560_html, 'data-price="2500"' ) );
 $a560_ok = a560_buy( $a560_type, array( 'occurrence_revision' => $a560_rev, 'expected_price_minor' => 2500 ), 'a560-ok' );
 check( 'A560: unchanged state → order', is_array( $a560_ok ) && ! empty( $a560_ok['order_id'] ) );
 
