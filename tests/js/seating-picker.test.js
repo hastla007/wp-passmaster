@@ -24,7 +24,8 @@ async function load(opts) {
 	const clock = timers();
 	const qty = h('input', { class: 'wpcap-qty', type: 'number', value: '3', 'data-type': '11', 'data-name': 'Parkett' });
 	const box = h('div', { class: 'wpcap-seating', 'data-url': '/seats', 'data-i18n': JSON.stringify({ yourSeats: 'Deine Plätze', none: 'Noch keine Plätze gewählt.', remove: 'Entfernen', removed: '%s entfernt.', added: '%s gewählt.', ticketType: 'Ticketart' }) }, [h('p', { class: 'wpcap-seating-status', role: 'status' })]);
-	const form = h('form', { class: 'wpcap-checkout-form' }, [qty, box]);
+	const submit = h('button', { type: 'submit' }, ['Bestellen']);
+	const form = h('form', { class: 'wpcap-checkout-form' }, [qty, box, submit]);
 	doc.body.appendChild(form);
 	let fetches = 0;
 	const data = { width: 300, height: 100, seats: [seat(1, 40), seat(2, 80), seat(3, 120)], types: { 11: ['p'] }, zones: [{ key: 'p', name: 'Parkett' }], categories: [{ key: 'c', name: 'Kat. 1', color: '#135e96' }], areas: [] };
@@ -49,7 +50,8 @@ async function load(opts) {
 		button(id) { return box.querySelector('li[data-seat="' + id + '"] .wpcap-seating-remove'); },
 		async refresh() { clock.run(30000); await flush(); },
 		async wait(ms) { clock.run(ms); await flush(); },
-		form,
+		form, qty, submit,
+		payload() { const detail = { form, items: [], payload: {}, error: '', field: null }; doc.dispatchEvent(new FakeCustomEvent('wpcap:checkout-payload', { detail })); return detail; },
 	};
 	return api;
 }
@@ -113,4 +115,33 @@ test('A392: a failed refresh keeps the map that is shown', async () => {
 	await c.refresh();
 	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 3);
 	assert.notStrictEqual(c.box.querySelector('.wpcap-seating-status').textContent, 'Error');
+});
+
+/* ------------------------------------------------------------------ A610 */
+
+const CLOSED = { occurrence_id: 7, occurrence_status: 'cancelled', sales_open: false, message: 'Dieser Termin wurde abgesagt. Es können keine Plätze mehr gebucht werden.' };
+
+test('A610: a cancelled date shows its reason instead of "load failed" and locks the order', async () => {
+	const c = await load({ answer: () => CLOSED });
+	assert.strictEqual(c.box.querySelector('.wpcap-seating-status').textContent, CLOSED.message);
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 0, 'no map');
+	assert.strictEqual(c.box.dataset.closed, 'cancelled');
+	assert.ok(c.qty.disabled && c.submit.disabled, 'quantity and submit are disabled');
+	assert.strictEqual(c.payload().error, CLOSED.message, 'the payload hook refuses the order');
+	const before = c.fetches;
+	await c.refresh();
+	assert.strictEqual(c.fetches, before, 'no more polling for a closed date');
+});
+
+test('A610: a date that closes while the map is shown drops the map and the chosen seats', async () => {
+	const c = await load({ answer: (n, data) => (n >= 2 ? Object.assign({}, CLOSED, { occurrence_status: 'ended', message: 'Der Online-Verkauf für diesen Termin ist beendet.' }) : data) });
+	c.pick(1);
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 3);
+	await c.refresh();
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seat').length, 0);
+	assert.strictEqual(c.box.querySelectorAll('.wpcap-seating-selection').length, 0);
+	assert.strictEqual(c.box.querySelector('.wpcap-seating-status').textContent, 'Der Online-Verkauf für diesen Termin ist beendet.');
+	assert.strictEqual(c.form.dataset.salesClosed, 'ended');
+	assert.ok(c.submit.disabled);
+	assert.strictEqual(c.payload().error, 'Der Online-Verkauf für diesen Termin ist beendet.');
 });

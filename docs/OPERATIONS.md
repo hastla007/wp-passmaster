@@ -695,6 +695,15 @@ ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.tx
   alle 30 Sekunden erneut und baut den Plan beim ersten erfolgreichen Abruf auf – ein Neuladen der
   Seite ist nicht nötig. Ein fehlgeschlagener Abruf, während der Plan schon angezeigt wird, lässt
   ihn unverändert.
+- **Abgesagte und vergangene Termine (A610):** `GET /seating/occurrences/{id}` antwortet für einen
+  abgesagten Termin (oder ein abgesagtes Event) bzw. einen, dessen Online-Verkauf vorbei ist
+  (begonnen, keine Ticketart mehr im Verkauf), mit HTTP 200 und `{occurrence_id, occurrence_status:
+  "cancelled"|"ended", sales_open: false, message}` statt 404 – ohne Plan. Buchbare Termine tragen
+  `occurrence_status: "scheduled"` und `sales_open: true`. Der Platzwähler zeigt dann den Grund statt
+  „Laden fehlgeschlagen“, entfernt Plan und Auswahl, sperrt Mengenfelder und Bestellknopf, blockiert das
+  Absenden und fragt nicht weiter nach. Termine unveröffentlichter Events und Termine ohne Saalplan
+  bleiben 404; `Reservations::availability()` (WooCommerce, Umtausch) liefert für solche Termine
+  weiterhin keinen Plan.
 
 ## Kasse: keine Registrierkasse
 

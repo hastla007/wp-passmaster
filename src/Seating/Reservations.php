@@ -486,8 +486,32 @@ final class Reservations {
 	}
 
 	/**
+	 * A610: why the seat map of a date is closed for buyers, or null while it can be booked. A
+	 * cancelled date (or event) is "cancelled", one whose online sale is over (started and no ticket
+	 * type on sale any more, Occurrence::listable_sql()) "ended". Only for dates of public events
+	 * with a seat map; everything else stays null (the endpoint answers 404 as before).
+	 *
+	 * @return array|null occurrence_id, occurrence_status, sales_open (false), message.
+	 */
+	public static function closed_state( $occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.status,e.status AS event_status,(" . \PassCaptain\Occurrence::listable_sql( 'o' ) . ") AS listable FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
+		if ( ! $occurrence || ! in_array( $occurrence->event_status, array( 'published', 'cancelled' ), true ) || ! in_array( $occurrence->status, array( 'scheduled', 'cancelled' ), true ) || ! Layouts::link( (int) $occurrence->occurrence_id ) ) { return null; }
+		$closed = 'scheduled' !== $occurrence->status || 'published' !== $occurrence->event_status ? 'cancelled' : ( (int) $occurrence->listable ? '' : 'ended' );
+		if ( '' === $closed ) { return null; }
+		return array(
+			'occurrence_id' => (int) $occurrence->occurrence_id,
+			'occurrence_status' => $closed,
+			'sales_open' => false,
+			'message' => 'cancelled' === $closed ? __( 'Dieser Termin wurde abgesagt. Es können keine Plätze mehr gebucht werden.', 'pass-captain' ) : __( 'Der Online-Verkauf für diesen Termin ist beendet.', 'pass-captain' ),
+		);
+	}
+
+	/**
 	 * Public availability of an occurrence's seat map. Contains no order or customer data: only
-	 * the layout, seat attributes and a free/taken flag.
+	 * the layout, seat attributes and a free/taken flag; occurrence_status "scheduled" and
+	 * sales_open true (A610: the REST endpoint answers closed dates with closed_state()).
 	 *
 	 * @return array|null Null when the occurrence has no (public) seat map.
 	 */
@@ -528,6 +552,8 @@ final class Reservations {
 		$areas = array_values( array_filter( (array) ( $definition['groups'] ?? array() ), static function ( $group ) { return 'standing' === ( $group['type'] ?? '' ); } ) );
 		return array(
 			'occurrence_id' => (int) $occurrence->occurrence_id,
+			'occurrence_status' => 'scheduled',
+			'sales_open' => true,
 			'version' => (int) $version->version,
 			'width' => (int) ( $definition['width'] ?? 1000 ),
 			'height' => (int) ( $definition['height'] ?? 700 ),

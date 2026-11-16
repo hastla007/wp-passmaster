@@ -49,6 +49,7 @@
 			if (!r.ok) throw new Error('http');
 			return r.json();
 		}).then(function (data) {
+			if (data && data.sales_open === false) { self.close(data); return; }
 			if (!data || !Array.isArray(data.seats)) throw new Error('data');
 			const built = !!self.nodes;
 			self.data = data;
@@ -63,6 +64,25 @@
 			self.retries = (self.retries || 0) + 1;
 			self.retryTimer = window.setTimeout(function () { self.load(false); }, Math.min(30000, 5000 * Math.pow(2, self.retries - 1)));
 		});
+	};
+
+	// A610: the date was cancelled or its online sale is over. The map goes, the reason is shown
+	// and the order form is locked (the payload hook refuses too, the server checks anyway).
+	Picker.prototype.close = function (data) {
+		this.closed = String(data.message || this.t.closed || '');
+		window.clearInterval(this.timer);
+		window.clearTimeout(this.retryTimer);
+		const self = this;
+		Array.prototype.slice.call(this.box.children).forEach(function (child) {
+			if (child !== self.status && child.tagName !== 'LEGEND') child.remove();
+		});
+		this.nodes = null;
+		this.selectionList = null;
+		this.selected.clear();
+		this.box.dataset.closed = String(data.occurrence_status || 'closed');
+		this.form.dataset.salesClosed = this.box.dataset.closed;
+		this.form.querySelectorAll('.wpcap-qty, button[type="submit"]').forEach(function (node) { node.disabled = true; });
+		this.say(this.closed);
 	};
 
 	Picker.prototype.quantities = function () {
@@ -291,6 +311,7 @@
 	};
 
 	Picker.prototype.payload = function (detail) {
+		if (this.closed) { detail.error = this.closed; return; }
 		if (!this.data) return;
 		const q = this.quantities();
 		const types = this.data.types || {};

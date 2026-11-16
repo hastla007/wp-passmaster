@@ -35,6 +35,8 @@ final class Picker {
 			'help' => __( 'Mit den Pfeiltasten zwischen Plätzen wechseln, mit Leertaste oder Enter auswählen.', 'pass-captain' ),
 			'legend' => __( 'Legende', 'pass-captain' ),
 			'standing' => __( 'Stehplatz', 'pass-captain' ),
+			// A610: fallback when the answer for a closed date carries no message of its own.
+			'closed' => __( 'Für diesen Termin können keine Plätze mehr gebucht werden.', 'pass-captain' ),
 		);
 	}
 
