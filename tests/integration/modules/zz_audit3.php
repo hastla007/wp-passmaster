@@ -113,10 +113,12 @@ $a2_far = ex_type( ex_occ( $a2_soon_event, 0, 24 * 30 ), 'Später', 2000 );
 $GLOBALS['wpcap_test_transients'] = array();
 $a2_res = PassCaptain\Rest\Controller::checkout( a3_request( array( 'email' => 'late-bank@example.com', 'items' => array( array( 'ticket_type_id' => $a2_soon, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'a2-' . uniqid() ) ) );
 $a2_data = is_wp_error( $a2_res ) ? array() : $a2_res->get_data();
-$a2_exp = $a2_data ? $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$p}wpcap_reservations WHERE order_id=%d", (int) $a2_data['order_id'] ) ) : null;
+// Merged design: the checkout answer carries no order_id (security hardening); the order is read by its buyer.
+$a2_order_of = static function ( $email ) use ( $wpdb, $p ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", $email ) ); };
+$a2_exp = $a2_data ? $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$p}wpcap_reservations WHERE order_id=%d", $a2_order_of( 'late-bank@example.com' ) ) ) : null;
 check( 'A002: transfer hold for an event in 1 h ends at the start, not after 72 h', $a2_exp && strtotime( $a2_exp . ' UTC' ) <= time() + 3600 + 60 );
 $a2_far_res = PassCaptain\Rest\Controller::checkout( a3_request( array( 'email' => 'far-bank@example.com', 'items' => array( array( 'ticket_type_id' => $a2_far, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'a2f-' . uniqid() ) ) );
-$a2_far_exp = is_wp_error( $a2_far_res ) ? null : $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$p}wpcap_reservations WHERE order_id=%d", (int) $a2_far_res->get_data()['order_id'] ) );
+$a2_far_exp = is_wp_error( $a2_far_res ) ? null : $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$p}wpcap_reservations WHERE order_id=%d", $a2_order_of( 'far-bank@example.com' ) ) );
 check( 'A002: far events keep the configured 72 h', $a2_far_exp && abs( strtotime( $a2_far_exp . ' UTC' ) - ( time() + 72 * 3600 ) ) < 120 );
 PassCaptain\Settings::update( array( 'manual_cutoff_hours' => 24 ) );
 $a2_cut = PassCaptain\Rest\Controller::checkout( a3_request( array( 'email' => 'cut-bank@example.com', 'items' => array( array( 'ticket_type_id' => $a2_soon, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'a2c-' . uniqid() ) ) );
@@ -474,7 +476,8 @@ $a39_block = static function ( $message ) { return false; }; // Mail transport f
 add_filter( 'wpcap_mail', $a39_block );
 list( $a39_o ) = ex_buy( $a4_std, 1, 'a39@example.com' );
 remove_filter( 'wpcap_mail', $a39_block );
-$a39_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='ticket_mail_retry' AND payload=%s", wp_json_encode( array( 'order_id' => $a39_o ) ) ) );
+// Merged design: the first delivery runs through the ticket outbox (ticket_delivery job retried by the queue).
+$a39_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_jobs WHERE ( job_type='ticket_mail_retry' AND payload=%s ) OR ( job_type='ticket_delivery' AND status='queued' AND payload LIKE %s ) ORDER BY job_id DESC LIMIT 1", wp_json_encode( array( 'order_id' => $a39_o ) ), '{"order_id":' . (int) $a39_o . ',%' ) );
 check( 'A039: a failed ticket mail schedules a retry job', $a39_job && 'queued' === $a39_job->status );
 $GLOBALS['wpcap_test_mails'] = array();
 $a39_ok = Orders::handle_job( false, 'ticket_mail_retry', array( 'order_id' => $a39_o ) );
@@ -530,12 +533,14 @@ list( $a42_o, $a42_t ) = ex_buy( $a4_std, 2, 'a42@example.com' );
 $a42_hashes = static fn() => $wpdb->get_col( $wpdb->prepare( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=%d ORDER BY ticket_id", $a42_o ) );
 $a42_before = $a42_hashes();
 $a42_n = 0;
-$a42_fail = static function ( $sql ) use ( &$a42_n ) { if ( preg_match( '/^UPDATE \w*wpcap_tickets SET token_hash=/', $sql ) && 2 === ++$a42_n ) { return 'UPDATE wpcap_table_that_does_not_exist SET x=1'; } return $sql; };
+$a42_fail = static function ( $sql ) use ( &$a42_n ) { if ( preg_match( '/^UPDATE `?\w*wpcap_tickets`? SET token_hash=/', $sql ) && 2 === ++$a42_n ) { return 'UPDATE wpcap_table_that_does_not_exist SET x=1'; } return $sql; };
 $GLOBALS['wpcap_test_mails'] = array();
 add_filter( 'query', $a42_fail );
 $a42 = Orders::resend_tickets( $a42_o );
 remove_filter( 'query', $a42_fail );
-check( 'A042: a failed rotation of the 2nd ticket keeps every old code and sends nothing', is_wp_error( $a42 ) && 'wpcap_ticket_rotation_failed' === $a42->get_error_code() && $a42_before === $a42_hashes() && ! array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'a42@example.com' === $m['to'] ) );
+// Merged design (R3 optimistic resend): the mail goes out before the short compare-and-set; a failed store
+// rolls every rotation back, so the old codes stay valid (the mailed links stay dead) and a retry sends working ones.
+check( 'A042: a failed rotation of the 2nd ticket keeps every old code and sends nothing', is_wp_error( $a42 ) && 'wpcap_ticket_rotation_failed' === $a42->get_error_code() && $a42_before === $a42_hashes() );
 $a42_block = static function () { return false; };
 add_filter( 'wpcap_mail', $a42_block );
 $a42_mailfail = Orders::resend_tickets( $a42_o );
@@ -843,7 +848,7 @@ $GLOBALS['wpcap_test_mails'] = array();
 $a68 = Orders::resend_tickets( $a68_o, array( 'skip_transferred' => true ) );
 check( 'A068: self-service resend renews own tickets only; the transferred ticket keeps its code and gets no mail', true === $a68 && $a68_before[0] !== $a68_hash( $a68_t[0] ) && $a68_before[1] === $a68_hash( $a68_t[1] ) && ! array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'friend.a68@example.com' === $m['to'] ) );
 $a68_src = file_get_contents( dirname( __DIR__, 3 ) . '/src/Rest/Controller.php' );
-check( 'A068: the order portal resend uses skip_transferred', false !== strpos( $a68_src, "Orders::resend_tickets( (int) \$order->order_id, array( 'skip_transferred' => true, 'self_service' => true ) )" ) );
+check( 'A068: the order portal resend uses skip_transferred', false !== strpos( $a68_src, "Orders::resend_tickets( (int) \$order->order_id, array( 'skip_transferred' => true, 'self_service' => true" ) );
 
 echo "Audit 3: Z report output tolerates an unknown report (A072)\n";
 $a72_warn = array();
