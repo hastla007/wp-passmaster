@@ -16,6 +16,18 @@ test.before(async () => {
 test.after(async () => { if (browser) await browser.close(); });
 const page = (name, fn) => withPage(() => ctx, name, fn);
 
+/**
+ * Chooses the payment method: a radio button when several are offered; a single method is rendered as a
+ * hidden input (merged checkout) and only needs to be the expected one. Returns false when it is not offered.
+ */
+async function chooseProvider(form, id) {
+	const input = form.locator(`[name="provider"][value="${id}"]`);
+	if (!(await input.count())) return false;
+	if ((await input.getAttribute('type')) === 'radio') await input.check();
+	else assert.equal(await form.locator('[name="provider"]').count(), 1, 'a hidden provider input only for a single method');
+	return true;
+}
+
 /** The checkout form of the fixture event. */
 function eventForm(p) {
 	return p.locator('.wpcap-checkout-form').filter({ has: p.locator(`.wpcap-qty[data-type="${fx.ticket_types.Standard}"]`) });
@@ -36,7 +48,7 @@ test('paid order: tickets, buyer data and attendees → fake payment page → pa
 	const email = 'e2e-' + Date.now() + '@example.com';
 	await form.locator('[name="email"]').fill(email);
 	if (await form.locator('[name="accept_terms"]').count()) await form.locator('[name="accept_terms"]').check();
-	await form.locator('[name="provider"][value="e2e_fake"]').check();
+	assert.ok(await chooseProvider(form, 'e2e_fake'), 'the fake provider is offered to this browser');
 	await Promise.all([p.waitForURL(/wpcap_e2e_pay=/), form.locator('button[type="submit"]').click()]);
 
 	assert.match(await p.locator('#e2e-amount').innerText(), /50,00 EUR/);
@@ -65,7 +77,7 @@ test('free order: confirmation panel receives focus and names the order number',
 	await form.locator('.wpcap-attendee [data-key="diet"]').fill('vegetarisch');
 	await form.locator('[name="email"]').fill('e2e-free-' + Date.now() + '@example.com');
 	if (await form.locator('[name="accept_terms"]').count()) await form.locator('[name="accept_terms"]').check();
-	await form.locator('[name="provider"][value="manual"]').check().catch(() => {});
+	await chooseProvider(form, 'manual');
 	await form.locator('button[type="submit"]').click();
 	const panel = p.locator('.wpcap-confirmation');
 	await panel.waitFor({ timeout: 15000 });

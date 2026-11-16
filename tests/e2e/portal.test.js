@@ -22,19 +22,21 @@ test('assign attendee: a new e-mail rotates the code, a name change keeps it', p
 	const form = p.locator('.wpcap-assignment-form').first();
 	const message = () => p.evaluate(() => document.querySelector('.wpcap-assignment-form .message').textContent);
 	assert.equal(await form.locator('[name="attendee_name"]').inputValue(), 'Alex Muster');
-	// The attendee e-mail is required: native validation blocks the submit while it is empty.
+	// A012 (merged design): the attendee e-mail is optional – saving without one is a name correction that keeps the code.
+	assert.equal(await form.locator('[name="attendee_email"]').evaluate((el) => el.required), false);
 	await form.locator('button[type="submit"]').click();
-	await p.waitForTimeout(300);
+	await p.waitForFunction((t) => document.querySelector('.wpcap-assignment-form .message').textContent === t, s.assignedKept);
+	await p.evaluate(() => { document.querySelector('.wpcap-assignment-form .message').textContent = ''; });
 	assert.equal(await message(), '');
-	assert.equal(await form.locator('[name="attendee_email"]').evaluate((el) => el.validity.valueMissing), true);
 	await form.locator('[name="attendee_email"]').fill('alexandra-' + Date.now() + '@example.com');
 	await form.locator('button[type="submit"]').click();
 	await p.waitForFunction((t) => document.querySelector('.wpcap-assignment-form .message').textContent === t, s.assignedRotated);
-	await form.locator('[name="attendee_name"]').fill('Alexandra Muster');
+	// A569: after the change of holder only a name correction (typo, at most 2 edits) is allowed – it keeps the code.
+	await form.locator('[name="attendee_name"]').fill('Alexa Muster');
 	await form.locator('button[type="submit"]').click();
 	await p.waitForFunction((t) => document.querySelector('.wpcap-assignment-form .message').textContent === t, s.assignedKept);
 	await p.reload();
-	assert.equal(await p.locator('.wpcap-assignment-form [name="attendee_name"]').first().inputValue(), 'Alexandra Muster', 'saved on the server');
+	assert.equal(await p.locator('.wpcap-assignment-form [name="attendee_name"]').first().inputValue(), 'Alexa Muster', 'saved on the server');
 }));
 
 test('resend tickets: confirm dialog, then success message', page('portal resend', async (p) => {

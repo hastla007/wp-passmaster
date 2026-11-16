@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const { BASE, fixture, helper, launch, context, withPage, assertFitsViewport } = require('./lib');
 
 // Same URL as the admin link (OfflineScanner\AdminPage::app_url()): the REST base is passed as ?api= (the test
-// site uses plain permalinks, so it is the ?rest_route= form).
-const API = BASE + '/index.php?rest_route=/wp-pass-captain/v1/app/';
+// site uses plain permalinks, so it is the ?rest_route= form). Merged namespace pass-captain/v1 (Mobile\Devices::api_base()).
+const API = BASE + '/index.php?rest_route=/pass-captain/v1/app/';
 const APP = BASE + '/wp-content/plugins/pass-captain/assets/offline-scanner/index.html?api=' + encodeURIComponent(API);
 let browser, ctx, door;
 test.before(async () => {
@@ -20,17 +20,21 @@ test.before(async () => {
 });
 test.after(async () => { if (browser) await browser.close(); });
 
+/*
+ * A473: every site (API base) has its own IndexedDB database ("wpcap-offline-scanner@<api base>"); the app
+ * names the one in use through wpcapOffline.storeName().
+ */
 /** Reads one IndexedDB store of the app. */
 function idbAll(p, store) {
 	return p.evaluate((name) => new Promise((resolve, reject) => {
-		const req = indexedDB.open('wpcap-offline-scanner', 1);
+		const req = indexedDB.open(window.wpcapOffline.storeName(), 1);
 		req.onsuccess = () => { const all = req.result.transaction(name, 'readonly').objectStore(name).getAll(); all.onsuccess = () => resolve(all.result); all.onerror = () => reject(all.error); };
 		req.onerror = () => reject(req.error);
 	}), store);
 }
 function idbGet(p, key) {
 	return p.evaluate((k) => new Promise((resolve) => {
-		const req = indexedDB.open('wpcap-offline-scanner', 1);
+		const req = indexedDB.open(window.wpcapOffline.storeName(), 1);
 		req.onsuccess = () => { const r = req.result.transaction('kv', 'readonly').objectStore('kv').get(k); r.onsuccess = () => resolve(r.result); };
 	}), key);
 }
@@ -48,6 +52,7 @@ test('pairing screen is translated with the site locale (table from /app/offline
 	assert.equal(await p.evaluate(() => document.documentElement.lang), table.lang);
 	assert.equal(await p.locator('#pair-label').getAttribute('placeholder'), table.strings['z. B. Einlass Nord']);
 	assert.equal(await p.locator('#api-base').innerText(), API);
+	assert.equal(await p.evaluate(() => window.wpcapOffline.storeName()), 'wpcap-offline-scanner@' + API, 'own database of this site (A473)');
 	assert.equal(await idbGet(p, 'api'), API, 'API base stored');
 	assert.ok(!p.url().includes('api='), 'parameter removed from the address bar');
 	assert.deepEqual((await idbGet(p, 'i18n')).strings['Gerät koppeln'], expected, 'table stored for offline starts');
@@ -72,6 +77,7 @@ test('pair, load the signed package, scan offline into the IndexedDB queue, sync
 	assert.ok(await p.locator('#pair-view').isHidden());
 	await assertFitsViewport(p, 'PWA main view');
 	assert.ok(await idbGet(p, 'token'), 'device token stored in IndexedDB');
+	assert.equal(await p.evaluate(() => window.wpcapOffline.state.token), undefined, 'the diagnostics view never exposes the device token');
 	const keys = await idbGet(p, 'keys');
 	assert.ok(Object.keys(keys).length >= 1, 'Ed25519 public keys stored');
 

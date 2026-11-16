@@ -38,9 +38,11 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 		{
 			name: 'Waitlist sign-up of a sold-out ticket type', group: 'public', url: fx.events_url, include: '.wpcap-events',
 			prepare: async (page) => {
-				const row = page.locator(`.wpcap-type[data-type-row="${fx.ticket_types.Ausverkauft}"]`);
-				await row.locator('.wpcap-waitlist-open').click();
-				await row.locator('.wpcap-waitlist-email').fill('a11y-wl@example.com');
+				// Merged card (A456): one waitlist form per card, shown while a type is sold out; submit empty first (error state).
+				const card = page.locator('.wpcap-event').filter({ has: page.locator(`.wpcap-qty[data-type="${fx.ticket_types.Ausverkauft}"]`) });
+				const form = card.locator('.wpcap-waitlist-form');
+				await form.locator('button[type="submit"]').click();
+				await form.locator('[name="email"]').fill('a11y-wl@example.com');
 				await page.waitForTimeout(200);
 			},
 		},
@@ -127,7 +129,7 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 	await login(ctx);
 	// Every other Pass Captain submenu screen (modules included) is audited too, so new screens are covered automatically.
 	const menu = await ctx.newPage();
-	await menu.goto(admin('page=wp-pass-captain'), { waitUntil: 'load' });
+	await menu.goto(admin('page=pass-captain'), { waitUntil: 'load' }); // merged slug (the old one redirects)
 	// Top-level menu slug: pass-captain (merged) or the former wp-pass-captain; both are looked for.
 	const links = await menu.$$eval('#toplevel_page_wp-pass-captain .wp-submenu a, #toplevel_page_pass-captain .wp-submenu a', (as) => as.map((a) => ({ text: a.textContent.replace(/\s+/g, ' ').trim(), href: a.href })));
 	await menu.close();
