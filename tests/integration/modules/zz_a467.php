@@ -28,6 +28,9 @@ $a467_saved_transients = $GLOBALS['wpcap_test_transients'];
 $GLOBALS['wpcap_test_options']['wpcap_db_version'] = '3.10.14+x';
 $GLOBALS['wpcap_test_options']['wpcap_secrets'] = array( 'stripe_secret_key' => 'v1:x:y' );
 $GLOBALS['wpcap_test_options']['wpcap_settings'] = array( 'delete_data_on_uninstall' => 1 );
+// Merged: the opt-in lives in wpcap_uninstall_policy (Settings::UNINSTALL_POLICY) and wins over the old key;
+// earlier modules stored 'keep' there through Settings::update().
+$GLOBALS['wpcap_test_options']['wpcap_uninstall_policy'] = 'delete';
 $GLOBALS['wpcap_test_options']['blogname'] = 'Site';
 $GLOBALS['wpcap_test_transients']['wpcap_health_critical'] = 1;
 $GLOBALS['wpcap_test_transients']['wpcap_capacity_drift_mail'] = 1; // only in the object cache
