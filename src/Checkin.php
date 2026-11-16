@@ -156,6 +156,8 @@ final class Checkin {
 		if ( ! $strict ) { return $found; }
 		// A365: scope first – the state of a ticket of a foreign event is none of the scanner's business.
 		$scope = self::scope_error( $found, $context );
+		// A refusal that rests on a failed read is no refusal (A183): the scanner retries.
+		if ( $scope && '' !== $wpdb->last_error ) { return self::retry_error(); }
 		if ( $scope ) { return $scope; }
 		$internal = array( 'event_id' => (int) $row->event_id, 'ticket_id' => (int) $row->ticket_id, 'occurrence_id' => (int) $row->occurrence_id );
 		if ( 'cancelled' === $row->occurrence_status || 'cancelled' === $row->event_status ) { return new \WP_Error( 'wpcap_ticket_cancelled_event', __( 'Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'cancelled_event' ), $internal ) ); }
