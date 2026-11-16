@@ -286,11 +286,13 @@ foreach ( $job_faults as $label => $rule ) {
 	$job = $audit_real->get_row( $audit_real->prepare( "SELECT job_id FROM {$p}wpcap_jobs WHERE idempotency_key=%s", hash( 'sha256', $key ) ) );
 	$audit_handled = array();
 	$audit_faults()->fail( ...$rule );
-	$processed = Jobs::process_due( 50 );
+	// Only this job type: the queue sweeps (refund/issuance reconcile) of a plain run would consume the
+	// injected fault on their own transactions when earlier test files left work for them.
+	$processed = Jobs::process_due( 50, 'audit_fault_job' );
 	$audit_restore();
 	$row = $audit_real->get_row( "SELECT status,attempts FROM {$p}wpcap_jobs WHERE job_id=" . (int) $job->job_id );
 	check( "jobs $label: handler not run, job stays queued without an attempt", 0 === $processed && array() === $audit_handled && 'queued' === $row->status && 0 === (int) $row->attempts );
-	Jobs::process_due( 200 );
+	Jobs::process_due( 200, 'audit_fault_job' );
 	$row = $audit_real->get_row( "SELECT status FROM {$p}wpcap_jobs WHERE job_id=" . (int) $job->job_id );
 	check( "jobs $label: next run handles it exactly once", array( (int) $job->job_id ) === array_values( array_filter( $audit_handled, static fn( $id ) => $id === (int) $job->job_id ) ) && 'complete' === $row->status );
 }
