@@ -23,7 +23,7 @@ $html = PassCaptain\Invoices::render_html( $inv['invoice_id'] );
 check( 'print view lists invoice number, VAT and credit note', false !== strpos( $html, $inv['invoice_number'] ) && false !== strpos( $html, $credit['credit_note_number'] ) && false !== strpos( $html, 'Umsatzsteuer' ) );
 $rows = PassCaptain\Invoices::export_rows( gmdate( 'Y-m-d', time() - 86400 ), gmdate( 'Y-m-d' ) );
 $kinds = array_count_values( array_column( array_slice( $rows, 1 ), 0 ) );
-check( 'accounting export contains invoice lines and credit notes', ( $kinds['Rechnung'] ?? 0 ) >= 1 && ( $kinds['Gutschrift'] ?? 0 ) >= 1 && 'Belegart' === $rows[0][0] );
+check( 'accounting export contains invoice lines and credit notes', ( $kinds['Rechnung'] ?? 0 ) >= 1 && ( $kinds['Rechnungskorrektur'] ?? 0 ) >= 1 && 'Belegart' === $rows[0][0] );
 
 echo "Voucher Captain bridge\n";
 final class Test_Voucher_Provider implements PassCaptain\Integrations\Vouchers\ProviderInterface {
@@ -128,6 +128,12 @@ check( 'ticket service is offered for contract version 1 only', $ticket_service 
 $xt = make_type( 3, 10, 4000 );
 $targets = array_column( $ticket_service->targets(), 'ticket_type_id' );
 check( 'upcoming ticket types are listed as exchange targets', in_array( $xt, $targets, true ) );
+$xt_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $xt ) );
+$wpdb->update( "{$p}wpcap_ticket_types", array( 'name' => 'Stehplatz Innenraum' ), array( 'ticket_type_id' => $xt ) );
+PassCaptain\Integrations\Vouchers\TicketService::remember_rename( $xt_event, 'Standard', 'Stehplatz Innenraum' );
+check( 'a date-choice voucher sold for the old ticket name still finds the renamed ticket type', in_array( $xt, array_column( $ticket_service->options( array( 'event_id' => $xt_event, 'ticket_name' => 'standard', 'quantity' => 1 ) ), 'ticket_type_id' ), true ) );
+check( 'renames are tracked per event only', array( 'Standard' ) === PassCaptain\Integrations\Vouchers\TicketService::names_for( $xt_event + 999, 'Standard' ) );
+$wpdb->update( "{$p}wpcap_ticket_types", array( 'name' => 'Standard' ), array( 'ticket_type_id' => $xt ) );
 $src = array( 'provider' => 'voucher-captain', 'voucher_id' => 77, 'redemption_key' => 'vcap-x-77', 'code_hint' => 'ABCD' );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $x1 = $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com', 'name' => 'Gift' ) );
@@ -208,6 +214,8 @@ preg_match( '/startxref\n(\d+)\n%%EOF$/', $pdf, $xm );
 $xref_ok = isset( $xm[1] ) && 0 === strpos( substr( $pdf, (int) $xm[1] ), 'xref' );
 check( 'ticket mail has a valid PDF with one page per ticket', str_starts_with( $pdf, '%PDF-1.4' ) && 2 === preg_match_all( '#/Type /Page /Parent#', $pdf ) && false !== strpos( wpcap_test_pdf_plain( $pdf ), '(Konzert) Tj' ) && $xref_ok );
 check( 'PDF contains the QR code when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $pdf ), " re\n" ) > 66 );
+// MERGE-CHECK: QR rectangle count – ours expects > 66 in the inflated PDF, the Arbeitsliste > 60; keep the one matching the merged QR drawing.
+check( 'PDF contains the QR code when the encoder is installed (Arbeitsliste threshold)', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_pdf_plain( $pdf ), " re\n" ) > 60 );
 check( 'temporary PDF file is removed after sending', ! glob( sys_get_temp_dir() . '/tickets-*.pdf' ) );
 
 echo "Door sales\n";

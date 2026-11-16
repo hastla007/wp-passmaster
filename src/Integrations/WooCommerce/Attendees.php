@@ -143,20 +143,25 @@ final class Attendees {
 			if ( ! $type_id || ! $quantity ) {
 				continue;
 			}
-			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose,consent_text" . ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ? ',options' : '' ) . " FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
+			// SELECT *: the column set differs between schema versions (A680 options/help/scope, consent texts).
+			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$fields = array();
 			foreach ( $rows as $row ) {
-				$fields[] = array(
-					'key'      => (string) $row->field_key,
+				// A680: same field definition as the own checkout (type, choices, help text, scope).
+				$field = array( 'required' => (bool) (int) $row->required ) + \PassCaptain\ParticipantFields::public_definition( $row );
+				$raw_type = (string) ( $row->field_type ?? '' );
+				if ( 'consent' === $raw_type ) {
 					// Consent fields are a checkbox whose label carries the consent text (logged on issuance).
-					'label'    => 'consent' === $row->field_type && '' !== (string) $row->consent_text ? (string) $row->label . ': ' . (string) $row->consent_text : (string) $row->label,
-					'type'     => 'consent' === $row->field_type ? 'checkbox' : ( in_array( $row->field_type, array( 'text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'date', 'tel' ), true ) ? $row->field_type : 'text' ),
-					// select/radio: woocommerce_form_field() renders the choices (value = label, validated in Orders::clean_answer()).
-					'options'  => in_array( $row->field_type, array( 'select', 'radio' ), true ) ? array_combine( \PassCaptain\Orders::field_options( $row ), \PassCaptain\Orders::field_options( $row ) ) : array(),
-					'required' => (bool) (int) $row->required,
-					'purpose'  => (string) $row->purpose,
-				);
+					$field['type']  = 'checkbox';
+					$field['label'] = '' !== (string) ( $row->consent_text ?? '' ) ? (string) $row->label . ': ' . (string) $row->consent_text : (string) $row->label;
+				} elseif ( 'radio' === $raw_type ) {
+					// Radio choices (value = label, validated in Orders::clean_answer()).
+					$field['type']    = 'radio';
+					$field['options'] = \PassCaptain\ParticipantFields::options( $row );
+				}
+				$fields[] = $field;
 			}
+			$name_required = \PassCaptain\ParticipantFields::name_required( $type_id );
 			/**
 			 * Whether the WooCommerce checkout asks for per-ticket participant data (name, e-mail and
 			 * the configured participant fields) for a ticket type. Default: only if fields exist.
@@ -164,7 +169,7 @@ final class Attendees {
 			 * @param bool $collect Collect participant data.
 			 * @param int  $type_id Ticket type ID.
 			 */
-			if ( ! apply_filters( 'wpcap_woocommerce_collect_attendees', (bool) $fields, $type_id ) ) {
+			if ( ! apply_filters( 'wpcap_woocommerce_collect_attendees', $fields || $name_required, $type_id ) ) {
 				continue;
 			}
 			$type  = OrderAdapter::ticket_type( $type_id );
@@ -172,6 +177,7 @@ final class Attendees {
 				'ticket_type_id' => $type_id,
 				'label'          => $type ? sprintf( '%s – %s', $type->event_name, $type->name ) : (string) $type_id,
 				'quantity'       => $quantity,
+				'name_required'  => $name_required,
 				'fields'         => $fields,
 			);
 		}
@@ -181,7 +187,12 @@ final class Attendees {
 	/**
 	 * Normalises raw input (ticket_type_id => list of {name, email, answers{field_key:value}}) into
 	 * the `attendees` payload of Orders::create and validates it against the participant fields.
-	 * Unknown types, surplus entries and unknown field keys are dropped.
+	 *
+	 * A681: what the server cannot store is refused, never dropped silently – entries of ticket types
+	 * that are not in the order or need no participant data (wpcap_attendees_invalid, reason
+	 * unknown_ticket_type), more entries than tickets (wpcap_attendees_invalid), non-list input and
+	 * unknown or deactivated field keys (wpcap_attendee_field_unknown, reason field_unknown /
+	 * field_inactive). The checkout then shows the message instead of losing the answers.
 	 *
 	 * @param mixed          $raw        Raw input (array or JSON string).
 	 * @param array<int,int> $quantities ticket_type_id => quantity.
@@ -190,38 +201,73 @@ final class Attendees {
 	public static function normalize( $raw, array $quantities ) {
 		if ( is_string( $raw ) ) {
 			$raw = '' === $raw ? array() : json_decode( $raw, true );
+			if ( ! is_array( $raw ) ) {
+				return self::refused( 'malformed' );
+			}
 		}
-		$raw = is_array( $raw ) ? $raw : array();
-		$out = array();
-		foreach ( self::requirements( $quantities ) as $requirement ) {
+		if ( null !== $raw && ! is_array( $raw ) ) {
+			return self::refused( 'malformed' );
+		}
+		$raw          = is_array( $raw ) ? $raw : array();
+		$out          = array();
+		$requirements = self::requirements( $quantities );
+		$collected    = array_column( $requirements, 'ticket_type_id' );
+		foreach ( $raw as $type_id => $entries ) {
+			if ( ! in_array( absint( $type_id ), $collected, true ) ) {
+				return self::refused( 'unknown_ticket_type', absint( $type_id ) );
+			}
+			if ( ! is_array( $entries ) || array_filter( $entries, static function ( $e ) { return ! is_array( $e ); } ) ) {
+				return self::refused( 'malformed', absint( $type_id ) );
+			}
+		}
+		foreach ( $requirements as $requirement ) {
 			$type_id = $requirement['ticket_type_id'];
 			$entries = isset( $raw[ $type_id ] ) && is_array( $raw[ $type_id ] ) ? array_values( $raw[ $type_id ] ) : array();
 			$keys    = array_column( $requirement['fields'], 'key' );
+			if ( count( $entries ) > $requirement['quantity'] ) {
+				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), array( 'status' => 400, 'ticket_type_id' => $type_id, 'position' => (int) $requirement['quantity'], 'reason' => 'surplus' ) );
+			}
 			for ( $i = 0; $i < $requirement['quantity']; $i++ ) {
 				$entry   = isset( $entries[ $i ] ) && is_array( $entries[ $i ] ) ? $entries[ $i ] : array();
 				$answers = isset( $entry['answers'] ) && is_array( $entry['answers'] ) ? $entry['answers'] : array();
 				$clean   = array();
-				foreach ( $keys as $key ) {
-					$value         = $answers[ $key ] ?? '';
-					$clean[ $key ] = is_scalar( $value ) ? mb_substr( trim( (string) $value ), 0, 2000 ) : '';
+				// Keys the form did not offer stay in the entry, so the strict validation names them (A681).
+				foreach ( array_unique( array_merge( $keys, array_map( 'strval', array_keys( $answers ) ) ) ) as $key ) {
+					$value = $answers[ $key ] ?? '';
+					// A680: a multi-select sends the list of chosen labels.
+					$clean[ $key ] = is_array( $value ) ? array_values( array_map( 'strval', array_filter( $value, 'is_scalar' ) ) ) : ( is_scalar( $value ) ? mb_substr( trim( (string) $value ), 0, 2000 ) : '' );
 				}
 				$name  = isset( $entry['name'] ) && is_scalar( $entry['name'] ) ? (string) $entry['name'] : '';
 				$email = isset( $entry['email'] ) && is_scalar( $entry['email'] ) ? (string) $entry['email'] : '';
 				$out[] = array(
 					'ticket_type_id' => $type_id,
 					'name'           => mb_substr( sanitize_text_field( $name ), 0, 190 ),
-					'email'          => sanitize_email( $email ),
+					// A498: optional, but input that is no valid address is refused (not dropped as "empty").
+					'email'          => \PassCaptain\Http::optional_email( $email ),
 					'answers'        => $clean,
 				);
 			}
 		}
 		foreach ( $out as $entry ) {
-			if ( '' !== $entry['email'] && ! is_email( $entry['email'] ) ) {
+			if ( false === $entry['email'] ) {
 				return new \WP_Error( 'wpcap_attendee_email_invalid', __( 'Bitte eine gültige E-Mail-Adresse für die teilnehmende Person angeben oder das Feld leer lassen.', 'pass-captain' ) );
 			}
 		}
-		$valid = Orders::validate_attendees( $quantities, $out );
-		return is_wp_error( $valid ) ? $valid : $out;
+		$valid = Orders::validate_attendees( $quantities, $out, array( 'strict' => true ) );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		// Only offered keys are kept on the WooCommerce order.
+		foreach ( $out as $n => $entry ) {
+			$requirement = array_values( array_filter( $requirements, static function ( $r ) use ( $entry ) { return $r['ticket_type_id'] === $entry['ticket_type_id']; } ) );
+			$out[ $n ]['answers'] = array_intersect_key( $entry['answers'], array_flip( array_column( $requirement[0]['fields'] ?? array(), 'key' ) ) );
+		}
+		return $out;
+	}
+
+	/** Refusal of participant data that does not belong to the order (A681). */
+	private static function refused( $reason, $type_id = 0 ) {
+		return new \WP_Error( 'wpcap_attendees_invalid', __( 'Angaben zu Teilnehmenden passen nicht zu den bestellten Tickets. Bitte lade die Seite neu und prüfe die Angaben.', 'pass-captain' ), array( 'status' => 400, 'ticket_type_id' => (int) $type_id, 'reason' => $reason ) );
 	}
 
 	/** Attendee payload stored on a WooCommerce order (empty if none). */
@@ -266,30 +312,49 @@ final class Attendees {
 				$value = static function ( $key ) use ( $posted, $type_id, $i ) {
 					$entry = $posted[ $type_id ][ $i ] ?? array();
 					$v     = in_array( $key, array( 'name', 'email' ), true ) ? ( $entry[ $key ] ?? '' ) : ( $entry['answers'][ $key ] ?? '' );
+					if ( is_array( $v ) ) { return array_map( 'sanitize_text_field', array_map( 'strval', array_filter( $v, 'is_scalar' ) ) ); }
 					return is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
 				};
 				echo '<fieldset class="wpcap-woo-attendee"><legend>' . esc_html( sprintf( /* translators: 1: ticket number, 2: event and ticket name */ __( 'Ticket %1$d · %2$s', 'pass-captain' ), $number, $requirement['label'] ) ) . '</legend>';
-				woocommerce_form_field( $base . '[name]', array( 'type' => 'text', 'id' => $id . '_name', 'label' => __( 'Name', 'pass-captain' ), 'autocomplete' => 'off', 'custom_attributes' => array( 'maxlength' => 190 ) ), $value( 'name' ) );
+				woocommerce_form_field( $base . '[name]', array( 'type' => 'text', 'id' => $id . '_name', 'label' => __( 'Name', 'pass-captain' ), 'required' => ! empty( $requirement['name_required'] ), 'autocomplete' => 'off', 'custom_attributes' => array( 'maxlength' => 190 ) ), $value( 'name' ) );
 				woocommerce_form_field( $base . '[email]', array( 'type' => 'email', 'id' => $id . '_email', 'label' => __( 'E-Mail', 'pass-captain' ), 'autocomplete' => 'off' ), $value( 'email' ) );
 				foreach ( $requirement['fields'] as $index => $field ) {
-					woocommerce_form_field(
-						$base . '[answers][' . $field['key'] . ']',
-						array(
-							'type'        => $field['type'],
-							'id'          => $id . '_f' . $index,
-							'label'       => $field['label'],
-							'required'    => $field['required'],
-							'description' => $field['purpose'],
-							'value'       => 'checkbox' === $field['type'] ? '1' : null,
-							'options'     => $field['options'] ?? array(),
-						),
-						$value( $field['key'] )
+					// A680: order-level fields once per ticket type (first ticket).
+					if ( 'order' === $field['scope'] && $i > 0 ) { continue; }
+					$description = trim( $field['help'] . ' ' . $field['purpose'] );
+					$label = $field['label'] . ( 'order' === $field['scope'] ? ' ' . __( '(für die ganze Bestellung)', 'pass-captain' ) : '' );
+					if ( 'multiselect' === $field['type'] ) {
+						self::render_multiselect( $base . '[answers][' . $field['key'] . '][]', $id . '_f' . $index, $label, $field, (array) $value( $field['key'] ), $description );
+						continue;
+					}
+					$args = array(
+						'type'        => in_array( $field['type'], array( 'text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'tel', 'date' ), true ) ? $field['type'] : 'text',
+						'id'          => $id . '_f' . $index,
+						'label'       => $label,
+						'required'    => $field['required'],
+						'description' => $description,
+						'value'       => 'checkbox' === $field['type'] ? '1' : null,
 					);
+					if ( 'select' === $field['type'] ) { $args['options'] = array( '' => __( 'Bitte wählen', 'pass-captain' ) ) + array_combine( $field['options'], $field['options'] ); }
+					if ( 'radio' === $field['type'] ) { $args['options'] = $field['options'] ? array_combine( $field['options'], $field['options'] ) : array(); }
+					if ( 'number' === $field['type'] ) { $args['custom_attributes'] = array( 'inputmode' => 'decimal' ); }
+					$current = $value( $field['key'] );
+					woocommerce_form_field( $base . '[answers][' . $field['key'] . ']', $args, is_array( $current ) ? '' : $current );
 				}
 				echo '</fieldset>';
 			}
 		}
 		echo '</div>';
+	}
+
+	/** Multi-select of the classic checkout: a group of checkboxes (A680). */
+	private static function render_multiselect( $name, $id, $label, array $field, array $chosen, $description ) {
+		echo '<fieldset class="form-row wpcap-woo-multi" id="' . esc_attr( $id ) . '_field"' . ( $description ? ' aria-describedby="' . esc_attr( $id ) . '-description"' : '' ) . '><legend>' . esc_html( $label ) . ( $field['required'] ? ' <abbr class="required" title="' . esc_attr__( 'erforderlich', 'pass-captain' ) . '">*</abbr>' : '' ) . '</legend>';
+		foreach ( $field['options'] as $n => $option ) {
+			echo '<label for="' . esc_attr( $id . '_o' . $n ) . '"><input type="checkbox" id="' . esc_attr( $id . '_o' . $n ) . '" name="' . esc_attr( $name ) . '" value="' . esc_attr( $option ) . '"' . ( in_array( $option, $chosen, true ) ? ' checked' : '' ) . '> ' . esc_html( $option ) . '</label> ';
+		}
+		if ( $description ) { echo '<span class="description" id="' . esc_attr( $id ) . '-description">' . esc_html( $description ) . '</span>'; }
+		echo '</fieldset>';
 	}
 
 	/** Validates the posted participant data (WooCommerce verified the checkout nonce). */
@@ -408,6 +473,8 @@ final class Attendees {
 				'name'         => __( 'Name', 'pass-captain' ),
 				'email'        => __( 'E-Mail', 'pass-captain' ),
 				'optional'     => __( '(optional)', 'pass-captain' ),
+				'perOrder'     => __( '(für die ganze Bestellung)', 'pass-captain' ),
+				'choose'       => __( 'Bitte wählen', 'pass-captain' ),
 				/* translators: %s: field label */
 				'required'     => __( 'Bitte „%s“ ausfüllen.', 'pass-captain' ),
 				'invalidEmail' => __( 'Bitte eine gültige E-Mail-Adresse angeben.', 'pass-captain' ),

@@ -29,14 +29,57 @@ final class Reservations {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'on_order_paid' ), 5, 1 );
 		// After series pools (10) and waitlist offers (20): lock order type → occurrence → pool → seat.
 		add_filter( 'wpcap_reserve_capacity', array( __CLASS__, 'reserve_capacity' ), 30, 3 );
-		add_filter( 'wpcap_ticket_availability', array( __CLASS__, 'filter_availability' ), 30, 2 );
 		add_action( 'wpcap_ticket_created', array( __CLASS__, 'on_ticket_created' ), 10, 4 );
+		add_action( 'wpcap_tickets_discarded', array( __CLASS__, 'on_tickets_discarded' ), 10, 2 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'sync_order' ), 10, 1 );
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'on_ticket_revoked' ), 10, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 10, 2 );
 		add_action( 'wpcap_cleanup_reservations', array( __CLASS__, 'cleanup' ), 20, 0 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'ticket_mail' ), 10, 3 );
 		add_filter( 'wpcap_ticket_seat_label', array( __CLASS__, 'seat_label' ), 5, 2 );
+		add_filter( 'wpcap_ticket_availability', array( __CLASS__, 'availability_limit' ), 25, 3 );
+		add_action( 'wpcap_availability_flushed', array( __CLASS__, 'flush_free' ), 10, 0 );
+	}
+
+	/** Request cache of free seats: "occurrence|version|zones" => count. */
+	private static $free = array();
+
+	public static function flush_free() {
+		self::$free = array();
+	}
+
+	/**
+	 * wpcap_ticket_availability (A486): a ticket type that is mapped to zones of the occurrence's seat
+	 * map can sell at most the free seats of those zones (seats without an active claim), whatever its
+	 * quota says. Types without a mapping are not limited by the seat map.
+	 */
+	public static function availability_limit( $remaining, $type = null, $occurrence = null ) {
+		if ( ! is_object( $type ) || ! is_object( $occurrence ) ) { return $remaining; }
+		$link = Layouts::link( (int) $occurrence->occurrence_id );
+		if ( ! $link ) { return $remaining; }
+		$zones = Layouts::type_zones( (int) $occurrence->occurrence_id )[ (int) $type->ticket_type_id ] ?? array();
+		if ( ! $zones ) { return $remaining; }
+		$free = self::free_count( (int) $occurrence->occurrence_id, (int) $link->version_id, $zones );
+		return null === $remaining ? $free : min( (int) $remaining, $free );
+	}
+
+	/** Seats of a version in the zones/categories without a claim that still blocks them. */
+	public static function free_count( $occurrence_id, $version_id, array $zones ) {
+		global $wpdb;
+		sort( $zones );
+		$key = $occurrence_id . '|' . $version_id . '|' . implode( ',', $zones );
+		if ( isset( self::$free[ $key ] ) ) { return self::$free[ $key ]; }
+		$p = $wpdb->prefix;
+		$now = \PassCaptain\Clock::mysql();
+		$zones = array_values( array_map( 'strval', $zones ) );
+		if ( ! $zones ) { return self::$free[ $key ] = 0; }
+		$in = implode( ',', array_fill( 0, count( $zones ), '%s' ) );
+		// Same "blocks its seat" condition as release_stale() (active_condition() is prepared already).
+		$count = (int) $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array.
+			"SELECT COUNT(*) FROM %i s WHERE s.version_id=%d AND (s.zone IN ($in) OR s.category IN ($in)) AND NOT EXISTS (SELECT 1 FROM %i c LEFT JOIN %i o ON o.order_id=c.order_id WHERE c.occurrence_id=%d AND c.active_key=s.seat_key AND " . self::active_condition( $now ) . ')', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders, prepared condition.
+			array_merge( array( self::t( 'seats' ), (int) $version_id ), $zones, $zones, array( self::t( 'claims' ), $p . 'wpcap_orders', (int) $occurrence_id ) )
+		) );
+		return self::$free[ $key ] = $count;
 	}
 
 	public static function payload_keys( $keys ) {
@@ -51,6 +94,7 @@ final class Reservations {
 			'seat_quantity_mismatch' => __( 'Die Anzahl der gewählten Sitzplätze muss je Ticketart der bestellten Menge entsprechen.', 'pass-captain' ),
 			'seat_selection_invalid' => __( 'Die Sitzplatzauswahl ist ungültig.', 'pass-captain' ),
 			'seat_sold_out' => __( 'Für diese Ticketart sind keine passenden Sitzplätze mehr frei.', 'pass-captain' ),
+			'seat_companion_only' => __( 'Begleitplätze können nur zusammen mit einem Rollstuhlplatz gebucht werden (höchstens ein Begleitplatz je Rollstuhlplatz).', 'pass-captain' ),
 		) );
 	}
 
@@ -60,8 +104,17 @@ final class Reservations {
 	 * A claim blocks its seat while it is sold, or its order is not cancelled/expired/refunded and is
 	 * paid, still within the hold or covered by an active reservation. This condition (claims alias c,
 	 * orders alias o) is written out in release_stale() and availability(); placeholders: now,
-	 * reservations table, now.
+	 * reservations table, now. active_condition() returns it prepared for the other queries.
 	 */
+	private static function active_condition( $now ) {
+		global $wpdb;
+		return $wpdb->prepare(
+			"( c.status='sold' OR ( COALESCE(o.status,'') NOT IN ('cancelled','expired','refunded') AND ( COALESCE(o.payment_status,'') IN ('paid','paid_unallocated') OR c.expires_at > %s OR EXISTS (SELECT 1 FROM %i r WHERE r.order_id=c.order_id AND r.status='active' AND r.expires_at > %s) ) ) )",
+			$now,
+			$wpdb->prefix . 'wpcap_reservations',
+			$now
+		);
+	}
 
 	/**
 	 * Releases held claims of an occurrence (or all occurrences) that no longer block their seat.
@@ -77,7 +130,7 @@ final class Reservations {
 	 */
 	public static function release_stale( $occurrence_id = 0 ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$occurrence_id = absint( $occurrence_id ); // 0 = all occurrences.
 		$ids = $wpdb->get_col( $wpdb->prepare(
 			"SELECT c.claim_id FROM %i c LEFT JOIN %i o ON o.order_id=c.order_id WHERE c.active_key IS NOT NULL AND c.status='held' AND (%d=0 OR c.occurrence_id=%d) AND NOT ( c.status='sold' OR ( COALESCE(o.status,'') NOT IN ('cancelled','expired','refunded') AND ( COALESCE(o.payment_status,'') IN ('paid','paid_unallocated') OR c.expires_at > %s OR EXISTS (SELECT 1 FROM %i r WHERE r.order_id=c.order_id AND r.status='active' AND r.expires_at > %s) ) ) ) ORDER BY c.claim_id",
@@ -150,7 +203,7 @@ final class Reservations {
 	private static function hold_expiry( $order_id ) {
 		global $wpdb;
 		$expires = $wpdb->get_var( $wpdb->prepare( 'SELECT MAX(expires_at) FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_reservations', absint( $order_id ) ) );
-		return $expires ? $expires : gmdate( 'Y-m-d H:i:s', time() + max( 1, (int) Settings::get( 'hold_minutes' ) ) * MINUTE_IN_SECONDS );
+		return $expires ? $expires : gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + max( 1, (int) Settings::get( 'hold_minutes' ) ) * MINUTE_IN_SECONDS );
 	}
 
 	/**
@@ -209,7 +262,7 @@ final class Reservations {
 		// Every statement is checked: after a deadlock/lock wait timeout the server rolled the order
 		// transaction back, and later statements would autocommit orphaned claims that block seats.
 		if ( false === self::release_stale( $occurrence_id ) ) { throw new \RuntimeException( 'db_busy' ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$claims = self::t( 'claims' );
 		$plan = array(); // list of [type_id, seat row]
 		if ( $explicit ) {
@@ -229,6 +282,14 @@ final class Reservations {
 				}
 			}
 		}
+		// A485: a companion seat is only sold together with a wheelchair space (at most one per space).
+		$accessible = 0;
+		$companions = 0;
+		foreach ( $plan as $entry ) {
+			$accessible += (int) $entry[1]->is_accessible;
+			$companions += (int) ( $entry[1]->is_companion ?? 0 );
+		}
+		if ( $companions > $accessible ) { throw new \RuntimeException( 'seat_companion_only' ); }
 		$taken_keys = array();
 		foreach ( $plan as $entry ) { $taken_keys[] = $entry[1]->seat_key; }
 		foreach ( $auto as $type_id => $quantity ) {
@@ -262,15 +323,25 @@ final class Reservations {
 		}
 	}
 
-	/** Best available free seats of a version in the given zones/categories, locked FOR UPDATE. */
+	/**
+	 * Best available free seats of a version in the given zones/categories, locked FOR UPDATE.
+	 * Wheelchair spaces and companion seats are kept for the people who need them (A485): automatic
+	 * assignment (box office, WooCommerce, adapters, late-payment recovery) never picks a companion
+	 * seat, and a wheelchair space only when the filter `wpcap_seating_auto_assign_accessible` allows
+	 * it – then after all other seats.
+	 */
 	private static function free_seats( $occurrence_id, $version_id, array $zones, $limit, array $exclude_keys = array() ) {
 		global $wpdb;
 		if ( ! $zones || $limit < 1 ) { return array(); }
 		$zones = array_values( array_map( 'strval', $zones ) );
 		// Seat keys are never empty, so '' keeps the NOT IN list valid when nothing is excluded.
 		$exclude_keys = array_merge( array( '' ), array_values( array_map( 'strval', $exclude_keys ) ) );
-		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT s.* FROM %i s WHERE s.version_id=%d AND (s.zone IN (' . implode( ',', array_fill( 0, count( $zones ), '%s' ) ) . ') OR s.category IN (' . implode( ',', array_fill( 0, count( $zones ), '%s' ) ) . ')) AND s.seat_key NOT IN (' . implode( ',', array_fill( 0, count( $exclude_keys ), '%s' ) ) . ') AND NOT EXISTS (SELECT 1 FROM %i c WHERE c.occurrence_id=%d AND c.active_key=s.seat_key) ORDER BY s.sort_order,s.seat_id LIMIT %d FOR UPDATE',
+		/** Whether automatic seat assignment may use wheelchair spaces (after all other seats). */
+		$allow = (bool) apply_filters( 'wpcap_seating_auto_assign_accessible', false, (int) $occurrence_id );
+		$filter = ( Layouts::companion_ready() ? ' AND s.is_companion=0' : '' ) . ( $allow ? '' : ' AND s.is_accessible=0' );
+		$order = $allow ? 's.is_accessible,' : '';
+		return $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static filter/order fragments.
+			'SELECT s.* FROM %i s WHERE s.version_id=%d AND (s.zone IN (' . implode( ',', array_fill( 0, count( $zones ), '%s' ) ) . ') OR s.category IN (' . implode( ',', array_fill( 0, count( $zones ), '%s' ) ) . ')) AND s.seat_key NOT IN (' . implode( ',', array_fill( 0, count( $exclude_keys ), '%s' ) ) . ')' . $filter . ' AND NOT EXISTS (SELECT 1 FROM %i c WHERE c.occurrence_id=%d AND c.active_key=s.seat_key) ORDER BY ' . $order . 's.sort_order,s.seat_id LIMIT %d FOR UPDATE',
 			array_merge( array( self::t( 'seats' ), $version_id ), $zones, $zones, $exclude_keys, array( self::t( 'claims' ), $occurrence_id, $limit ) )
 		) );
 	}
@@ -311,7 +382,7 @@ final class Reservations {
 	private static function recover_seats( $order_id, array $demand, array $types ) {
 		global $wpdb;
 		$claims = self::t( 'claims' );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$by_occurrence = array();
 		foreach ( $demand as $type_id => $quantity ) {
 			$type = $types[ $type_id ] ?? null;
@@ -384,7 +455,7 @@ final class Reservations {
 		global $wpdb;
 		$order_id = absint( $order_id );
 		$claims = self::t( 'claims' );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='sold',updated_at=%s WHERE order_id=%d AND status='held' AND active_key IS NOT NULL", $claims, $now, $order_id ) );
 		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.ticket_type_id,SUM(oi.quantity) AS quantity,tt.occurrence_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d GROUP BY oi.ticket_type_id,tt.occurrence_id ORDER BY tt.occurrence_id,oi.ticket_type_id', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $order_id ) );
 		$recoverable = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND active_key IS NULL AND release_reason IN ('stale','expired')", $claims, $order_id ) );
@@ -414,56 +485,27 @@ final class Reservations {
 	}
 
 	/**
-	 * wpcap_ticket_availability: a ticket type mapped to zones of a seat map sells at most the free
-	 * seats of those zones/categories (the event page must not offer tickets without a seat).
+	 * Deprecated alias of availability_limit() (the seat limit runs once, as `wpcap_ticket_availability`
+	 * priority 25): a ticket type mapped to zones of a seat map sells at most the free seats of those
+	 * zones/categories.
 	 */
 	public static function filter_availability( $remaining, $type ) {
 		if ( ! is_object( $type ) || empty( $type->ticket_type_id ) || empty( $type->occurrence_id ) ) { return $remaining; }
-		$free = self::free_seat_count( (int) $type->occurrence_id, (int) $type->ticket_type_id );
-		if ( null === $free ) { return $remaining; }
-		return ( null === $remaining || ! is_numeric( $remaining ) ) ? $free : min( (int) $remaining, $free );
+		return self::availability_limit( $remaining, $type, (object) array( 'occurrence_id' => (int) $type->occurrence_id ) );
 	}
 
-	/** @var array Request cache: table prefix => occurrence_id => true for occurrences with a seat map. */
-	private static $linked = array();
-
-	/** Drops the request cache of linked occurrences (after a seat map was linked or removed). */
+	/** Drops the request caches of linked occurrences and free seats (after a seat map was linked or removed). */
 	public static function flush_link_cache() {
-		self::$linked = array();
-	}
-
-	/**
-	 * Occurrences with a seat map (one query per request), so the availability filter costs nothing
-	 * for the (usual) ticket types without seats.
-	 */
-	private static function linked_occurrences() {
-		global $wpdb;
-		if ( ! isset( self::$linked[ $wpdb->prefix ] ) ) {
-			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i', self::t( 'links' ) ) );
-			if ( '' !== (string) $wpdb->last_error ) { return array(); }
-			self::$linked[ $wpdb->prefix ] = array_fill_keys( array_map( 'intval', (array) $ids ), true );
-		}
-		return self::$linked[ $wpdb->prefix ];
+		self::$free = array();
 	}
 
 	/** Free seats for a ticket type of an occurrence (null when the type has no seats). */
 	public static function free_seat_count( $occurrence_id, $type_id ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		if ( ! isset( self::linked_occurrences()[ (int) $occurrence_id ] ) ) { return null; }
-		$link = Layouts::link( $occurrence_id );
+		$link = Layouts::link( (int) $occurrence_id );
 		if ( ! $link ) { return null; }
-		$zones = \PassCaptain\DisplayBatch::memo( 'seating_zones_' . (int) $occurrence_id, static function () use ( $occurrence_id ) { return Layouts::type_zones( $occurrence_id ); } )[ $type_id ] ?? array();
+		$zones = \PassCaptain\DisplayBatch::memo( 'seating_zones_' . (int) $occurrence_id, static function () use ( $occurrence_id ) { return Layouts::type_zones( (int) $occurrence_id ); } )[ (int) $type_id ] ?? array();
 		if ( ! $zones ) { return null; }
-		$zones = array_values( array_map( 'strval', $zones ) );
-		$now = current_time( 'mysql', true );
-		$in = implode( ',', array_fill( 0, count( $zones ), '%s' ) );
-		// Same "blocks its seat" condition as availability() and release_stale().
-		// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array.
-		return (int) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM %i s WHERE s.version_id=%d AND (s.zone IN ($in) OR s.category IN ($in)) AND NOT EXISTS (SELECT 1 FROM %i c LEFT JOIN %i o ON o.order_id=c.order_id WHERE c.occurrence_id=%d AND c.active_key=s.seat_key AND ( c.status='sold' OR ( COALESCE(o.status,'') NOT IN ('cancelled','expired','refunded') AND ( COALESCE(o.payment_status,'') IN ('paid','paid_unallocated') OR c.expires_at > %s OR EXISTS (SELECT 1 FROM %i r WHERE r.order_id=c.order_id AND r.status='active' AND r.expires_at > %s) ) ) ))", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			array_merge( array( self::t( 'seats' ), (int) $link->version_id ), $zones, $zones, array( self::t( 'claims' ), $p . 'wpcap_orders', (int) $occurrence_id, $now, $p . 'wpcap_reservations', $now ) )
-		) );
+		return self::free_count( (int) $occurrence_id, (int) $link->version_id, array_values( array_map( 'strval', $zones ) ) );
 	}
 
 	/** wpcap_ticket_created (inside the issuance transaction): binds a claimed seat to the ticket. */
@@ -482,7 +524,7 @@ final class Reservations {
 			}
 			return;
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET ticket_id=%d,status='sold',updated_at=%s WHERE claim_id=%d", $claims, $ticket_id, $now, (int) $claim->claim_id ) );
 		$label = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT label FROM %i WHERE seat_id=%d', self::t( 'seats' ), (int) $claim->seat_id ) );
 		$wpdb->insert( self::t( 'ticket_seats' ), array(
@@ -499,6 +541,22 @@ final class Reservations {
 	}
 
 	/**
+	 * Tickets of a failed issuance were removed again (Orders, A183): their seats go back to the
+	 * order's claims without a ticket, so the next issuance assigns them again.
+	 *
+	 * @param int[] $ticket_ids Removed tickets.
+	 * @param int   $order_id   Order.
+	 */
+	public static function on_tickets_discarded( $ticket_ids, $order_id ) {
+		global $wpdb;
+		$ids = array_filter( array_map( 'absint', (array) $ticket_ids ) );
+		if ( ! $ids ) { return; }
+		$list = implode( ',', $ids );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'ticket_seats' ) . " WHERE order_id=%d AND ticket_id IN ($list)", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table, integer list.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'claims' ) . " SET ticket_id=0,updated_at=%s WHERE order_id=%d AND ticket_id IN ($list)", \PassCaptain\Clock::mysql(), absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table, integer list.
+	}
+
+	/**
 	 * Brings the claims of an order in line with the order/ticket state (idempotent):
 	 * - cancelled/expired/refunded order: unassigned held seats are released;
 	 * - revoked tickets (revocation, refund, order cancellation) free their seat.
@@ -510,7 +568,7 @@ final class Reservations {
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,status,payment_status FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', $order_id ) );
 		if ( ! $order ) { return; }
 		$claims = self::t( 'claims' );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$released = 0;
 		if ( in_array( $order->status, array( 'cancelled', 'expired', 'refunded' ), true ) ) {
 			$reason = 'expired' === $order->status ? 'expired' : 'order_' . $order->status;
@@ -542,7 +600,7 @@ final class Reservations {
 	/** Cron safety net: releases stale holds and seats of revoked tickets (also from other paths). */
 	public static function cleanup() {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$claims = self::t( 'claims' );
 		// Claims of closed orders, selected first and released by id (no shared locks on order rows).
 		$closed = $wpdb->get_results( $wpdb->prepare( "SELECT c.claim_id,o.status FROM %i c INNER JOIN %i o ON o.order_id=c.order_id WHERE c.active_key IS NOT NULL AND c.ticket_id=0 AND o.status IN ('cancelled','expired','refunded') ORDER BY c.claim_id", $claims, $wpdb->prefix . 'wpcap_orders' ) );
@@ -590,8 +648,32 @@ final class Reservations {
 	}
 
 	/**
+	 * A610: why the seat map of a date is closed for buyers, or null while it can be booked. A
+	 * cancelled date (or event) is "cancelled", one whose online sale is over (started and no ticket
+	 * type on sale any more, Occurrence::listable_sql()) "ended". Only for dates of public events
+	 * with a seat map; everything else stays null (the endpoint answers 404 as before).
+	 *
+	 * @return array|null occurrence_id, occurrence_status, sales_open (false), message.
+	 */
+	public static function closed_state( $occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.status,e.status AS event_status,(" . \PassCaptain\Occurrence::listable_sql( 'o' ) . ") AS listable FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
+		if ( ! $occurrence || ! in_array( $occurrence->event_status, array( 'published', 'cancelled' ), true ) || ! in_array( $occurrence->status, array( 'scheduled', 'cancelled' ), true ) || ! Layouts::link( (int) $occurrence->occurrence_id ) ) { return null; }
+		$closed = 'scheduled' !== $occurrence->status || 'published' !== $occurrence->event_status ? 'cancelled' : ( (int) $occurrence->listable ? '' : 'ended' );
+		if ( '' === $closed ) { return null; }
+		return array(
+			'occurrence_id' => (int) $occurrence->occurrence_id,
+			'occurrence_status' => $closed,
+			'sales_open' => false,
+			'message' => 'cancelled' === $closed ? __( 'Dieser Termin wurde abgesagt. Es können keine Plätze mehr gebucht werden.', 'pass-captain' ) : __( 'Der Online-Verkauf für diesen Termin ist beendet.', 'pass-captain' ),
+		);
+	}
+
+	/**
 	 * Public availability of an occurrence's seat map. Contains no order or customer data: only
-	 * the layout, seat attributes and a free/taken flag.
+	 * the layout, seat attributes and a free/taken flag; occurrence_status "scheduled" and
+	 * sales_open true (A610: the REST endpoint answers closed dates with closed_state()).
 	 *
 	 * @return array|null Null when the occurrence has no (public) seat map.
 	 */
@@ -603,7 +685,7 @@ final class Reservations {
 		$link = Layouts::link( $occurrence->occurrence_id );
 		$version = $link ? Layouts::version( $link->version_id ) : null;
 		if ( ! $version ) { return null; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$taken = array_flip( $wpdb->get_col( $wpdb->prepare( "SELECT c.seat_key FROM %i c LEFT JOIN %i o ON o.order_id=c.order_id WHERE c.occurrence_id=%d AND c.active_key IS NOT NULL AND ( c.status='sold' OR ( COALESCE(o.status,'') NOT IN ('cancelled','expired','refunded') AND ( COALESCE(o.payment_status,'') IN ('paid','paid_unallocated') OR c.expires_at > %s OR EXISTS (SELECT 1 FROM %i r WHERE r.order_id=c.order_id AND r.status='active' AND r.expires_at > %s) ) ) )", self::t( 'claims' ), $p . 'wpcap_orders', (int) $occurrence->occurrence_id, $now, $p . 'wpcap_reservations', $now ) ) );
 		$definition = json_decode( $version->definition, true );
 		$seats = array();
@@ -618,6 +700,7 @@ final class Reservations {
 				'zone' => $seat->zone,
 				'category' => $seat->category,
 				'accessible' => (bool) $seat->is_accessible,
+				'companion' => ! empty( $seat->is_companion ),
 				'x' => (float) $seat->pos_x,
 				'y' => (float) $seat->pos_y,
 				'status' => isset( $taken[ $seat->seat_key ] ) ? 'taken' : 'free',
@@ -631,6 +714,8 @@ final class Reservations {
 		$areas = array_values( array_filter( (array) ( $definition['groups'] ?? array() ), static function ( $group ) { return 'standing' === ( $group['type'] ?? '' ); } ) );
 		return array(
 			'occurrence_id' => (int) $occurrence->occurrence_id,
+			'occurrence_status' => 'scheduled',
+			'sales_open' => true,
 			'version' => (int) $version->version,
 			'width' => (int) ( $definition['width'] ?? 1000 ),
 			'height' => (int) ( $definition['height'] ?? 700 ),

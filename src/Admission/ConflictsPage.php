@@ -46,6 +46,8 @@ final class ConflictsPage {
 			'out_of_window' => __( 'Außerhalb des Einlasszeitraums', 'pass-captain' ),
 			'forbidden' => __( 'Kein Einlasszugriff', 'pass-captain' ),
 			'offline_expired' => __( 'Offline-Dauer überschritten (Offline-Scanner)', 'pass-captain' ),
+			'backdated_admission' => __( 'Zurückdatierter Offline-Einlass (wäre beim Upload abgelehnt worden)', 'pass-captain' ),
+			'area_full' => __( 'Einlassbereich voll (offline eingelassen)', 'pass-captain' ),
 		);
 		return $labels[ (string) $result ] ?? Forms::status_label( $result );
 	}
@@ -60,6 +62,7 @@ final class ConflictsPage {
 		if ( ! in_array( $status, array( 'open', 'resolved', 'all' ), true ) ) { $status = 'open'; }
 		$page = Forms::current_page();
 		$data = Conflicts::search( array( 'status' => 'all' === $status ? '' : $status, 'event_id' => $event_id ), $scope, $page, 50 );
+		\PassCaptain\Privacy\AccessLog::list_view( 'admission_conflicts', array( 'event_id' => $event_id, 'status' => $status, 'paged' => $page ), count( (array) ( $data['rows'] ?? array() ) ) );
 		$resolutions = Conflicts::resolutions();
 		?>
 		<div class="wrap wpcap-admin">
@@ -69,7 +72,7 @@ final class ConflictsPage {
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id, '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
-			<?php Forms::select( 'status', array( 'open' => __( 'Offen', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status, '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
+			<?php Forms::select( 'status', array( 'open' => _x( 'Offen', 'status of an admission conflict: not resolved yet', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status, '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
 		<?php $report = Conflicts::report( $scope, $event_id ); ?>

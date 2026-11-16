@@ -5,7 +5,8 @@
  * Filter `wp_pass_captain_pos_payment_devices_v1( array $devices, array $context )`: device id =>
  * DeviceGatewayInterface instance, or an array `label`, `start`, `poll`, `cancel` (callables with the
  * signatures of the interface) and optional `registers` (list of "location_id|register_id" keys the
- * device serves). `$context`: version, session_id, location_id, register_id. Invalid entries are
+ * device serves). `$context`: version, session_id, location_id, register_id (the fiscal register ID
+ * string of the TerminalRegistry, stored as sessions.fiscal_register_id). Invalid entries are
  * dropped; an exception in a filter callback means "no devices" (the POS then offers no terminal).
  * Devices are only offered for registers the terminal registry allows.
  */
@@ -24,12 +25,12 @@ final class Devices {
 	/**
 	 * Devices usable in a cash session (register context).
 	 *
-	 * @param object|null $session Session row (location_id, register_id, session_id) or null.
+	 * @param object|null $session Session row (location_id, fiscal_register_id, register_id, session_id) or null.
 	 * @return array<string,DeviceGatewayInterface> Device id => gateway.
 	 */
 	public static function for_session( $session ) {
 		$location_id = $session ? (int) $session->location_id : 0;
-		$register_id = $session ? (string) $session->register_id : '';
+		$register_id = $session ? (string) ( $session->fiscal_register_id ?? '' ) : '';
 		if ( ! TerminalRegistry::allows( $location_id, $register_id ) ) { return array(); }
 		$context = array(
 			'version' => DeviceGatewayInterface::VERSION,

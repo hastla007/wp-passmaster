@@ -6,10 +6,11 @@
  */
 'use strict';
 
-var CACHE = 'wpcap-offline-scanner-v7';
+var CACHE = 'wpcap-offline-scanner-v10';
 var SHELL = [
 	'./',
 	'index.html',
+	'i18n.js',
 	'app.js',
 	'app.css',
 	'manifest.json',

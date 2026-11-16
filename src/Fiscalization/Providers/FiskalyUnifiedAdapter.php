@@ -60,7 +60,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 			if ( is_string( $code[ $key ] ?? null ) && '' !== $code[ $key ] && strlen( $code[ $key ] ) <= 4096 ) { $receipt['qr_payload'] = $code[ $key ]; break; }
 		}
 		if ( isset( $content['signature'] ) && is_scalar( $content['signature'] ) ) { $receipt['fields']['Signatur'] = (string) $content['signature']; }
-		return array( 'reference' => substr( sanitize_text_field( $reference ), 0, 191 ), 'receipt' => $receipt );
+		return array( 'reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ), 'receipt' => $receipt );
 	}
 
 	private function transaction_content( array $document, array $configuration, $intention_id ) {

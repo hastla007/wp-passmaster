@@ -3,17 +3,20 @@
  * Mail suppressions: reminder unsubscribes (link in every reminder, List-Unsubscribe with RFC 8058
  * one-click) and bounce/complaint reports of the sending service (optional webhook).
  *
- * Table wpcap_mail_suppressions (DB 3.17.2) stores only the SHA-256 of the lower-cased address, the
- * scope and the reason – no plain address. Scope "reminders": no more reminder mails to the address
+ * Table wpcap_mail_suppressions (DB 3.17.2) stores only a keyed hash of the lower-cased address
+ * (Consents::subject_hash(), HMAC with the site salt – the same reference the unsubscribe link
+ * carries), the scope and the reason – no plain address. Rows written before the keyed hash (plain
+ * SHA-256) and opt-outs of the former reminder option (wpcap_reminder_optouts, A689) are still honoured. Scope "reminders": no more reminder mails to the address
  * (unsubscribe or spam complaint); transactional mails (tickets, cancellations, refunds) are always
  * sent. Reminders are per recipient, not per order: one unsubscribe covers every order the person
  * holds tickets for (the person decides, not the order).
  *
- * Unsubscribe link: ?wpcap_unsubscribe=<address hash>&sig=<HMAC>. GET only shows a confirmation
+ * This is the single reminder opt-out mechanism (Modules\Reminders::optout_url()/is_opted_out() delegate
+ * here). Unsubscribe link: ?wpcap_unsubscribe=<keyed address hash>&sig=<HMAC>. GET only shows a confirmation
  * button (link scanners must not unsubscribe anybody); POST (the button, or the mail client's
  * one-click POST "List-Unsubscribe=One-Click") records the opt-out.
  *
- * Bounce webhook (setting mail_bounce_webhook, off by default): POST /wp-pass-captain/v1/mail/bounce
+ * Bounce webhook (setting mail_bounce_webhook, off by default): POST /pass-captain/v1/mail/bounce
  * with the token (header X-WPCAP-Bounce-Token, or ?token= for services that cannot send headers).
  * Accepted shapes: {"email","type"} (generic), Postmark (RecordType/Email), SendGrid (array of
  * {event,email}), Mailgun ({"event-data":{event,recipient}}), Amazon SES via SNS (bounce/complaint
@@ -57,15 +60,40 @@ final class Suppression {
 		return $wpdb->prefix . 'wpcap_mail_suppressions';
 	}
 
-	/** Hash of an address (lower-cased, trimmed). */
+	/**
+	 * Keyed hash of an address (lower-cased, trimmed; Consents::subject_hash()). Addresses the keyed
+	 * hash does not cover (invalid, placeholder) fall back to the plain hash.
+	 */
 	public static function hash( $email ) {
+		$keyed = class_exists( '\\PassCaptain\\Consents' ) ? \PassCaptain\Consents::subject_hash( (string) $email ) : '';
+		return '' !== $keyed ? $keyed : self::legacy_hash( $email );
+	}
+
+	/** Plain SHA-256 of an address (rows written before the keyed hash). */
+	public static function legacy_hash( $email ) {
 		return hash( 'sha256', strtolower( trim( (string) $email ) ) );
 	}
 
 	/** Whether mails of $scope to $email are suppressed. */
 	public static function suppressed( $email, $scope = self::SCOPE_REMINDERS ) {
 		global $wpdb;
-		return null !== $wpdb->get_var( $wpdb->prepare( 'SELECT email_hash FROM %i WHERE email_hash=%s AND scope=%s', self::table(), self::hash( $email ), (string) $scope ) );
+		$hash = self::hash( $email );
+		if ( null !== $wpdb->get_var( $wpdb->prepare( 'SELECT email_hash FROM %i WHERE email_hash IN (%s,%s) AND scope=%s LIMIT 1', self::table(), $hash, self::legacy_hash( $email ), (string) $scope ) ) ) { return true; }
+		return self::SCOPE_REMINDERS === $scope && self::in_legacy_option( $hash );
+	}
+
+	/** Whether a keyed address hash is suppressed for reminders (opt-out links carry only the hash). */
+	public static function suppressed_hash( $hash ) {
+		global $wpdb;
+		$hash = strtolower( (string) $hash );
+		if ( ! preg_match( '/^[a-f0-9]{64}$/', $hash ) ) { return false; }
+		return null !== $wpdb->get_var( $wpdb->prepare( 'SELECT email_hash FROM %i WHERE email_hash=%s AND scope=%s', self::table(), $hash, self::SCOPE_REMINDERS ) ) || self::in_legacy_option( $hash );
+	}
+
+	/** Opt-out recorded in the former reminder option (keyed hash => time). */
+	private static function in_legacy_option( $hash ) {
+		$list = get_option( 'wpcap_reminder_optouts', array() );
+		return is_array( $list ) && '' !== (string) $hash && isset( $list[ $hash ] );
 	}
 
 	/** Records a suppression by address hash (idempotent). */
@@ -79,6 +107,11 @@ final class Suppression {
 	/** HMAC of an address hash for the unsubscribe link. */
 	private static function signature( $hash ) {
 		return hash_hmac( 'sha256', 'wpcap-unsubscribe|' . $hash, function_exists( 'wp_salt' ) ? wp_salt( 'auth' ) : 'wpcap' );
+	}
+
+	/** Whether $sig is the unsubscribe-link signature of $hash (constant time). */
+	public static function signature_valid( $hash, $sig ) {
+		return hash_equals( self::signature( strtolower( (string) $hash ) ), (string) $sig );
 	}
 
 	/** Personal unsubscribe link for reminders. */
@@ -154,12 +187,13 @@ final class Suppression {
 
 	/** Endpoint URL to enter at the sending service (token as query parameter). */
 	public static function webhook_url() {
-		$base = function_exists( 'rest_url' ) ? rest_url( 'wp-pass-captain/v1/mail/bounce' ) : home_url( '/wp-json/wp-pass-captain/v1/mail/bounce' );
+		$base = function_exists( 'rest_url' ) ? rest_url( 'pass-captain/v1/mail/bounce' ) : home_url( '/wp-json/pass-captain/v1/mail/bounce' );
 		return add_query_arg( 'token', self::token(), $base );
 	}
 
 	public static function routes() {
-		register_rest_route( 'wp-pass-captain/v1', '/mail/bounce', array(
+		// Requests to the former namespace wp-pass-captain/v1 are routed here by LegacySlug.
+		register_rest_route( 'pass-captain/v1', '/mail/bounce', array(
 			'methods' => 'POST',
 			'callback' => array( __CLASS__, 'rest_bounce' ),
 			'permission_callback' => '__return_true', // Token checked in the callback (constant time).

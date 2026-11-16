@@ -10,14 +10,18 @@ Pass Captain ist als Kern-Plugin vollständig kostenlos (GPL-2.0-or-later) und f
 
 **Events, Tickets, Checkout**
 
-- Events als Einzeltermin oder Serie (Serientermine mit eigenen Preisstufen), Ausgabe per Shortcode
-  `[wp_pass_captain_events]` bzw. Block, Kalender per `[wp_pass_captain_calendar]`, Block und iCal-Feed.
+- Events als Einzeltermin oder Serie (Serientermine mit eigenen Preisstufen, wöchentliche Serie mit bis zu 12
+  getrennten Terminen direkt im Admin), Ausgabe per Shortcode `[wpcap_events]` bzw. `[wp_pass_captain_events]`
+  (optional `event="ID"`, `occurrence="ID"`, `limit="50"`, `dates="each"`) oder Block (mit Event-/Terminauswahl) –
+  standardmäßig eine Karte je Event, deren weitere Termine darin auswählbar sind; Kalender per `[wpcap_calendar]`
+  bzw. `[wp_pass_captain_calendar]`, Block und iCal-Feed.
 - Bestellungen mit Reservierung (Standard 10 Minuten, einstellbar) und Idempotency-Key; kostenlose
   Bestellungen stellen Tickets direkt aus. Zahlung per Überweisung/manueller Bestätigung, Stripe, PayPal,
   Mollie oder über WooCommerce.
 - Tickets mit zufälligem 256-Bit-Code (gespeichert wird nur der SHA-256-Hash), QR-Code, PDF, Apple/Google
   Wallet; Bestellportal für Käufer (Teilnehmerzuweisung, einmalige Übertragung, erneuter Versand, Rechnungsdaten,
-  Widerruf von Einwilligungen).
+  Widerruf von Einwilligungen). Käuferlinks verfallen nach 30 Tagen; ein gültiges Ticket kann vor
+  Veranstaltungsbeginn einmalig übertragen werden.
 - Saalpläne mit Platzwahl, Teilnehmerfelder (auch protokollierte Einwilligungen), Kasse vor Ort (keine
   Registrierkasse, siehe [docs/OPERATIONS.md](docs/OPERATIONS.md)), Druck & Listen.
 - **Verkaufsregeln:** automatische Preisregeln (Frühbucher, Last-Minute, Nachfrage, Wochentag/Zeitfenster),
@@ -31,7 +35,8 @@ Pass Captain ist als Kern-Plugin vollständig kostenlos (GPL-2.0-or-later) und f
   Monatsabrechnung ([docs/SALES-MODELS.md](docs/SALES-MODELS.md)); Gutscheine von WP Voucher Captain im
   Checkout und als Ticketumtausch, Einzweck-/Mehrzweckgutscheine ([docs/VOUCHERS.md](docs/VOUCHERS.md)).
 - Erstattungen (auch Teilerstattungen) mit optionaler Zweitfreigabe und 2FA, Regel für Erstattung nach Check-in,
-  Terminabsage mit automatischer Erstattung.
+  Terminabsage mit automatischer Erstattung. Veröffentlichte Events können abgesagt werden; Käufer werden
+  benachrichtigt und unbezahlte Reservierungen aufgehoben.
 
 **Wartelisten und Servicebuchungen**
 
@@ -41,11 +46,14 @@ Pass Captain ist als Kern-Plugin vollständig kostenlos (GPL-2.0-or-later) und f
 - **Servicebuchungen** (Kurse, Verleih, Bootsschule): Ressourcen mit Zeitfenstern, Dauer/Puffer/Kollisionen,
   **Buchungsregeln** je Ressource, Umbuchung, Stornierung mit Fristen, No-Show, Bestätigung durch den Anbieter, Warteliste
   für ausgebuchte Zeitfenster und Service-Pässe ([docs/SERVICE-BOOKINGS.md](docs/SERVICE-BOOKINGS.md)).
+- Öffentliche Buchungsseite per Shortcode `[wpcap_service_booking event="ID"]` (optional `resource="ID"`) oder Block
+  „Pass Captain Terminbuchung“: Wochenansicht mit freien Plätzen, Bezahlung über den Checkout, Verwaltungslink zum
+  Umbuchen/Stornieren ([docs/OPERATIONS.md](docs/OPERATIONS.md#buchungsseite-für-kundinnen-a268)).
 - Mitgliedspässe mit Nutzungslimits.
 
 **Einlass**
 
-- Web-Scanner `[wp_pass_captain_scanner]`, Scanner-Apps über die Mobile-API mit Gerätekopplung, installierbarer
+- Web-Scanner `[wpcap_scanner]` bzw. `[wp_pass_captain_scanner]`, Scanner-Apps über die Mobile-API mit Gerätekopplung, installierbarer
   Offline-Scanner mit signierten Paketen ([docs/MOBILE-API.md](docs/MOBILE-API.md),
   [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md)).
 - Einlassregeln je Tag/Bereich, Check-out und Wiedereinlass, Einlass-Konflikte; Einlasspersonal je Event oder
@@ -80,7 +88,9 @@ Pass Captain ist als Kern-Plugin vollständig kostenlos (GPL-2.0-or-later) und f
   Datenschutzerklärung.
 - Datenbanken: **MariaDB 10.6/11.4 und MySQL 8.0/8.4** ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)).
 
-Eventkarten lassen sich über `templates/event-card.php` im Theme überschreiben; Währungen, Zahlungs-, SMS-,
+Eventkarten lassen sich im Theme über `pass-captain/event-card.php` überschreiben (Vorlage:
+`templates/event-card.php`; der frühere Ordner `wp-pass-captain/` wird weiter gelesen, siehe
+[docs/RENAME.md](docs/RENAME.md)); Währungen, Zahlungs-, SMS-,
 Wallet- und Gutscheinanbieter sind über dokumentierte Hooks erweiterbar ([docs/EXTENSIONS.md](docs/EXTENSIONS.md),
 [docs/HOOKS.md](docs/HOOKS.md)).
 
@@ -112,16 +122,18 @@ Die CI (`.github/workflows/ci.yml`) prüft Syntax, Coding-Standard und PHPStan g
 
 ## Module
 
-Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Servicebuchungen, Steuerprofile, Veranstalter und Veranstalter-Abrechnungen, Systemstatus, Audit-Log, Supportzugriff sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`.
+Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Servicebuchungen, Steuerprofile, Veranstalter und Veranstalter-Abrechnungen, Systemstatus, Audit-Log, Supportzugriff sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wpcap_events]`, `[wpcap_calendar]`, `[wpcap_service_booking]`, `[wpcap_scanner]` (ältere Namen `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]` funktionieren weiter). Umbenennung von „WP Pass Captain“: [docs/RENAME.md](docs/RENAME.md).
 
-Dokumentation: [WALLET](docs/WALLET.md), [WEBHOOKS](docs/WEBHOOKS.md), [SUITE-EVENTS](docs/SUITE-EVENTS.md), [HOOKS](docs/HOOKS.md), [EXTENSIONS](docs/EXTENSIONS.md), [MOBILE-API](docs/MOBILE-API.md), [OFFLINE-SCANNER](docs/OFFLINE-SCANNER.md), [PARTNER-API](docs/PARTNER-API.md), [MAIL-TEMPLATES](docs/MAIL-TEMPLATES.md), [SERVICE-BOOKINGS](docs/SERVICE-BOOKINGS.md), [SALES-MODELS](docs/SALES-MODELS.md), [TAX-PROFILES](docs/TAX-PROFILES.md), [VOUCHERS](docs/VOUCHERS.md), [WOOCOMMERCE](docs/WOOCOMMERCE.md), [SECURITY](docs/SECURITY.md), [OPERATIONS](docs/OPERATIONS.md), [ACCESSIBILITY](docs/ACCESSIBILITY.md), [TESTING](docs/TESTING.md), [COMPATIBILITY](docs/COMPATIBILITY.md), [RELEASE](docs/RELEASE.md), [SUPPORT](docs/SUPPORT.md).
+Dokumentation: [WALLET](docs/WALLET.md), [WEBHOOKS](docs/WEBHOOKS.md), [SUITE-EVENTS](docs/SUITE-EVENTS.md), [HOOKS](docs/HOOKS.md), [EXTENSIONS](docs/EXTENSIONS.md), [FREE-PREMIUM](docs/FREE-PREMIUM.md), [CONTRACTS](docs/CONTRACTS.md) (Schnittstellenverträge und Versionierung), [MOBILE-API](docs/MOBILE-API.md), [OFFLINE-SCANNER](docs/OFFLINE-SCANNER.md), [PARTNER-API](docs/PARTNER-API.md), [MAIL-TEMPLATES](docs/MAIL-TEMPLATES.md), [SERIES](docs/SERIES.md), [STATE-MACHINES](docs/STATE-MACHINES.md), [SERVICE-BOOKINGS](docs/SERVICE-BOOKINGS.md), [SALES-MODELS](docs/SALES-MODELS.md), [TAX-PROFILES](docs/TAX-PROFILES.md), [VOUCHERS](docs/VOUCHERS.md), [WOOCOMMERCE](docs/WOOCOMMERCE.md), [SECURITY](docs/SECURITY.md), [OPERATIONS](docs/OPERATIONS.md), [ACCESSIBILITY](docs/ACCESSIBILITY.md), [TESTING](docs/TESTING.md), [COMPATIBILITY](docs/COMPATIBILITY.md), [RELEASE](docs/RELEASE.md), [SUPPORT](docs/SUPPORT.md), [RENAME](docs/RENAME.md).
 
 ## Scanner und Mobile-App
 
 - Web-Scanner per Shortcode `[wp_pass_captain_scanner]`. Die Kamera nutzt die native BarcodeDetector-API und fällt sonst (iOS/Safari, Firefox) auf das mitgelieferte jsQR (Apache-2.0, `assets/vendor/jsqr/`) zurück.
-- Native Scanner-Apps koppeln sich per QR-Code unter **Pass Captain → Scanner-Geräte** und nutzen die REST-API unter `/wp-json/wp-pass-captain/v1/app/` mit ablaufenden, eventgebundenen und widerrufbaren Gerätetokens. Spezifikation: [docs/MOBILE-API.md](docs/MOBILE-API.md).
+- Native Scanner-Apps koppeln sich per QR-Code unter **Pass Captain → Scanner-Geräte** und nutzen die REST-API unter `/wp-json/pass-captain/v1/app/` mit ablaufenden, eventgebundenen und widerrufbaren Gerätetokens. Spezifikation: [docs/MOBILE-API.md](docs/MOBILE-API.md).
 
 ## Sprachen
+
+Rechtstexte (AGB/Teilnahmebedingungen, Verbraucherinformationen) werden unter **Einstellungen → Rechtstexte** je Sprache gepflegt: die Standardsprache (Website-Sprache bzw. Standardsprache von Polylang/WPML) und beliebig viele weitere Locales. Checkout und Mails verwenden die Sprache des Käufers und fallen je Text auf die Standardsprache zurück; die mit der Bestellung gespeicherte AGB-Version ist die der angezeigten Fassung. Die Einstellungen sind in Reiter gegliedert (Allgemein, Einlass, Zahlungsarten, Rechtstexte, Rechnungen); jede Zahlungsart hat im Reiter **Zahlungsarten** einen eigenen Unterbereich.
 
 Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/pass-captain.pot`. Kompilieren ohne gettext-Tools:
 

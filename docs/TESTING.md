@@ -72,6 +72,19 @@ WPCAP_TEST_DB_NAME=wp_w13 php tests/integration/run.php   # eigene DB, z. B. fü
 tests/integration/run-slow.sh                             # erweiterter Lauf (WPCAP_TEST_SLOW=1), einige Minuten
 ```
 
+Stand 13.11.2026: rund 2.280 Prüfungen, 0 Fehler (CI: Pflichtschritt). Mehrere Läufe parallel auf derselben
+Datenbank brauchen getrennte Tabellenpräfixe: `WPCAP_TEST_PREFIX=wpx1_ php tests/integration/run.php`.
+Zusätzlich in CI: `node tests/offline-scanner-i18n.js` (Übersetzungskataloge der Offline-PWA) und
+`bash tests/release-guard.sh`.
+
+Die Modultests setzen Ratenlimits zurück, indem sie die Transients leeren. Deshalb läuft `RateLimit` in
+der Suite auf dem Backend `transient` (`WPCAP_TEST_RATE_BACKEND`, Standard `transient`).
+`modules/zz_a186.php` prüft die atomaren Backends `db` und `cache`. Dazu startet der Test parallele
+PHP-Prozesse (`modules/a186/ratelimit_child.php` mit `WPCAP_TEST_RATE_BACKEND=db`) und prüft, dass das
+Limit genau eingehalten wird. Außerdem prüft er die Auswertung der Proxy-Header. `modules/zz_a184.php`
+spielt doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse für alle Zahlungsadapter
+durch (siehe `docs/STATE-MACHINES.md`).
+
 Variablen: `WPCAP_TEST_DB_HOST`, `_USER`, `_PASS`, `_NAME` (Standard `127.0.0.1`/`wp`/`wp`/`wp`). Ausgabe
 `ok`/`FAIL` je Prüfung, am Ende `N passed, M failed`; Exit-Code ≠ 0 bei Fehlern.
 
@@ -105,8 +118,227 @@ Zustandsautomaten. Geeignet als nächtlicher Lauf; derzeit in keinem Workflow ei
 Gemeinsamer Fehler-Proxy für `$wpdb`: `tests/integration/lib/fault_wpdb.php` (`wpcap_faults()`,
 `->fail( $regex, $skip, $times, $kind )`, `->fail_nth( $n, $kind )`, `wpcap_faults_restore()`).
 
-## Last- und Nebenläufigkeitstests (`tests/load/`)
+### Eingabe↔Schema-Verträge wie in echtem WordPress (A498)
 
+Die Testlaufzeit bildet die Stellen nach, an denen sich WordPress anders verhält als einfache Stubs:
+
+- **Bereinigung:** `sanitize_text_field()`, `sanitize_textarea_field()`, `sanitize_key()`, `sanitize_email()`,
+  `is_email()`, `wp_strip_all_tags()` und `wp_check_invalid_utf8()` kommen aus `tests/integration/wp-sanitize.php`
+  – portiert aus WordPress (ein einzelnes „<“ wird `&lt;`, ungültiges UTF-8 wird `''`, Prozent-Oktette und
+  Zeilenumbrüche verschwinden, `sanitize_email( 'kein-mail' )` ist `''`, `is_email()` kennt keine Längengrenze,
+  ein Array in `sanitize_email()` ist ein `TypeError`). `php tests/integration/sanitize-parity.php` vergleicht
+  jede Funktion auf einem Fuzz-Korpus mit dem echten WordPress (`WPCAP_TEST_WP_DIR` oder der Download von
+  `tests/upgrade`); in CI läuft der Vergleich nach den Upgrade-Tests mit `--require`.
+- **Datenbank:** `Test_WPDB::insert()`/`update()` lehnen wie `wpdb::process_fields()` jeden `%s`-Wert ab, der kein
+  gültiges UTF-8 oder länger als seine Spalte ist (`varchar`: Zeichen, `text`: Bytes), mit der Fehlermeldung von
+  WordPress – unabhängig vom SQL-Modus (MySQL/MariaDB ohne Strict-Modus würden still kürzen). Ein Statement mit
+  ungültigem UTF-8 wird wie in `wpdb::query()` gar nicht gesendet. Abgelehnte Felder sammelt
+  `$GLOBALS['wpcap_test_field_errors']`, wenn ein Test es als Array setzt.
+- **Fuzzing:** `modules/zz_a498.php` schickt Listen, Objekte, Zahlen, Wahrheitswerte, `null`, 191/300 Zeichen,
+  70 000 Bytes, ungültiges UTF-8, ein 4-Byte-Zeichen an der 190er-Grenze, „<“, Entities und Prozent-Oktette
+  durch alle öffentlichen Eingänge (Checkout direkt und per REST, Kampagnenvorschau, Übertragung,
+  Zuweisung, Stornierungsanfrage, Rechnungsdaten, Warteliste, Servicebuchung) und verlangt: keine PHP-Warnung,
+  kein 5xx, kein Wert, der nicht ins Schema passt, erreicht die Datenbank.
+
+### Fault-Injection: Deadlock, Lock-Timeout, Verbindungsabbruch, COMMIT-Fehler (A183)
+
+Das `$wpdb` der Integrationstests (`tests/integration/bootstrap.php`, `Test_WPDB`) kann einzelne
+Statements gezielt scheitern lassen, je Test umschaltbar:
+
+```php
+wpcap_test_fault( '/^INSERT INTO \S+wpcap_tickets/', 'deadlock', array( 'skip' => 1 ) ); // zweites Ticket-INSERT
+$result = PassCaptain\Orders::create( … );
+$fired  = wpcap_test_faults_clear(); // Statements, die gescheitert sind
+```
+
+| Art | Verhalten wie der Server |
+|---|---|
+| `deadlock` (1213) | Statement scheitert, die ganze Transaktion wird zurückgerollt. |
+| `lock_timeout` (1205) | Nur das Statement scheitert, die Transaktion läuft weiter (`innodb_rollback_on_timeout=OFF`); mit `rollback => true` wie `ON`. |
+| `lost` (2013) | Verbindung bricht während des Statements ab: Transaktion zurückgerollt, Sperren frei, Statement scheitert; das nächste läuft auf einer neuen Sitzung (Autocommit). Mit `executed => true` lief das Statement noch (z. B. ein COMMIT, dessen Antwort verloren ging). |
+| `gone_away` (2006) | Wie WordPress' `wpdb`: neu verbinden und das Statement auf der neuen Sitzung wiederholen – es gelingt, aber außerhalb der verlorenen Transaktion. |
+
+`tests/integration/modules/zz_a183.php` fährt damit die kritischen Pfade systematisch ab: Checkout
+(bezahlt mit Reservierung, kostenlos mit Ticketausgabe), Zahlungs-Webhook (aktive und abgelaufene
+Reservierung), Check-in, Erstattung, Wartelisten-Annahme und Job-Entnahme. Je Fehlerart läuft der Pfad
+einmal pro Statement, das er ausführt, und genau dieses Statement scheitert (Sperrfehler nur bei
+schreibenden und sperrenden Statements und COMMIT, Verbindungsabbruch bei jedem). Danach muss gelten:
+keine offene Transaktion, nichts halb geschrieben (Bestellung mit allen Positionen und Reservierungen,
+Tickets vollständig oder gar nicht, Erstattung ganz oder gar nicht verbucht), kein Kontingentzähler
+unter seinen Quellsummen (sonst Überverkauf), ein Fehler an den Aufrufer ist wiederholbar (503,
+`retryable`) statt „ausverkauft“/„nicht gefunden“; eine Wiederholung ohne Fehler (gleicher
+Idempotenzschlüssel, erneute Webhook-Zustellung, Folgelauf der Jobs) erreicht denselben Endzustand wie ein
+ungestörter Lauf, genau einmal. Zusätzlich je Pfad: jeder COMMIT geht durch, aber seine Antwort geht
+verloren. Laufzeit des Moduls etwa 40 Sekunden; `A183_VERBOSE=1` listet jede Verletzung einzeln.
+
+### Worker-Fehler und Neustarts (A188)
+
+`tests/integration/modules/zz_a188.php` prüft Backoff-Zeiten, Dead Letter nach dem letzten Lauf
+(Audit, Hook, Betriebsseite), abstürzende Handler, vier parallele Worker auf denselben Jobs, einen Worker,
+der nach der Wirkung und vor dem Abschluss stirbt, und den Neustart nach einem Absturz (Zuteilungen
+älter als 15 Minuten). Die parallelen bzw. sterbenden Worker sind eigene PHP-Prozesse
+(`tests/integration/job_worker.php race|die`).
+
+Zeitabhängige Regeln testen die Module ohne Warten: Sie setzen die Uhr über den Filter `wpcap_now`
+(`PassCaptain\Clock`, im Test `$GLOBALS['wpcap_test_filters']['wpcap_now'] = $timestamp`). `modules/zz_a199.php`
+prüft so die Sommerzeitumstellungen in Europe/Vienna und America/New_York (siehe docs/OPERATIONS.md,
+„Zeit, Zeitzonen und Sommerzeit“).
+
+**Grep-Regel (A607):** Geschäftsregeln lesen die Zeit nur über `Clock::now()`/`Clock::mysql()`, nie über
+`time()` oder `current_time( 'mysql', true )`. `modules/zz_a607.php` prüft das: Dateien außerhalb von
+`modules/zz_a607/time-allowlist.txt` (noch nicht umgestellte Dateien) dürfen beides nicht verwenden; wer
+eine Datei umstellt, streicht sie aus der Liste (der Test meldet Einträge, die nicht mehr nötig sind).
+
+### Blöcke und Block-Editor (A455)
+
+- **Editor-Skripte** (`tests/js/blocks.test.js`, `npm run test:js`): lädt `src/blocks/*/editor.js` mit einer Attrappe der `wp.*`-Pakete (`createElement` baut einen einfachen Baum) und prüft je Block den registrierten Namen gegen `block.json`, dass jedes verwendete Attribut deklariert ist und `save()` `null` liefert (dynamischer Block), die Vorschau in `Disabled` (A451), die Event-/Terminauswahl einschließlich nicht mehr gelisteter Auswahl (A453) sowie die Tauglichkeit für den Iframe-Editor: kein Zugriff auf `document`, nur `window.wp` und `window.WPCAP_BLOCK_*`, genau ein Element mit den Props aus `useBlockProps()` und die Vorschau darin.
+- **Blockvalidierung und Rendern** (`modules/zz_a455.php`): jedes Verzeichnis unter `src/blocks/` hat ein gültiges `block.json` mit gespeichertem Namen (RENAME.md), `apiVersion` 3 (der Editor wird nur als Iframe geladen, wenn alle Blöcke v3 sind), Titel/Kategorie/Icon/Textdomain, vorhandene `render.php`/`editor.js`/`editor.asset.php`, gültige Attributtypen und passende Standardwerte, `supports.html = false` und eine Registrierung per `register_block_type()`. Gerendert wird ohne globalen Beitrag und ohne Request-URL mit leeren bzw. veralteten Attributen – so wie in Widget-Bereichen und Template-Teilen.
+- **Website-Ausgabe** (`modules/zz_a449.php`, `zz_a452.php`): Block-Wrapper-Attribute am äußeren Element; Monatsnavigation aus der Request-URL mit eigenem Parameter je Kalender.
+- **Asset-Versionen** (`tests/consistency.php`, A454): Version = Inhalts-Hash von `editor.js`, Abhängigkeiten decken alle `window.wp.*`-Pakete ab.
+- **Öffentliche Add-on-API** (`tests/consistency.php`, A663): Jeder Hook in `PassCaptain\PublicApi::HOOKS` wird in `src/` verwendet und steht mit dem richtigen Typ in der Tabelle „Öffentliche Add-on-API“ von `docs/HOOKS.md`; die Tabelle nennt keinen Hook außerhalb der Liste, und die Version stimmt mit `docs/CONTRACTS.md` überein. Verhalten der Hooks: `tests/integration/modules/zz_a331.php`, `zz_a663.php`.
+
+Offen (Produktentscheidung, A455): eigene Event-URLs bzw. Event-Einzelseiten mit Theme-Template gibt es nicht; Events erscheinen nur über Shortcode oder Block auf normalen Seiten. Ob ein öffentlicher Beitragstyp/Rewrite für Events kommt, ist zu entscheiden (Auswirkungen auf SEO, Seitencache-Purge `wpcap_purge_page_cache`, Kalender-Links und Übersetzungen).
+
+Wartelisten-Eintragungen brauchen im Plugin standardmäßig die Double-Opt-in-Bestätigung (A564). Der
+Test-Bootstrap setzt `$GLOBALS['wpcap_test_filters']['wpcap_waitlist_double_opt_in'] = false`, damit die
+Suites, die nicht davon handeln, direkt eintragen; `modules/zz_a564_a565.php` hebt das auf und prüft den
+Bestätigungsablauf. Die a11y-Fixture schaltet die Bestätigung per `add_filter()` ab.
+
+## Upgrade-Tests je Vorgängerversion (`tests/upgrade/`, A181)
+
+```bash
+php tests/upgrade/run.php   # Wegwerf-Datenbank, Git-Historie mit Tags, wp-cli (oder WPCAP_TEST_WP_DIR=/pfad/zu/wordpress)
+```
+
+Die normalen Integrationstests können kein Upgrade prüfen (ihr `dbDelta`-Ersatz legt Tabellen neu an). Dieser
+eigene Lauf verwendet das echte `dbDelta()` aus einem WordPress-Download (`wp core download` nach
+`tests/upgrade/.wordpress/`, Version über `WPCAP_TEST_WP_VERSION`), Optionen in einer Datenbanktabelle (wie
+WordPress mit Cache je Prozess, damit parallele Prozesse sie teilen) und eigene Tabellenpräfixe
+(`WPCAP_UPGRADE_PREFIX`, Standard `wpupg_`, plus Kürzel je Szenario; vorher und nachher gelöscht,
+`WPCAP_UPGRADE_KEEP=1` behält sie).
+
+Vorgängerstände: jedes Git-Tag `v*`, der Commit vor der letzten Änderung von `Installer::DB_VERSION` und
+weitere Refs aus `WPCAP_UPGRADE_REFS` (kommagetrennt). Jeder Stand wird von seinem **eigenen** Code angelegt
+(`git archive` des Tags, dessen Installer und Test-Bootstrap; `tests/upgrade/legacy.php`), jede Tabelle mit
+drei Zeilen gefüllt (alle Spalten belegt, dazu eine bezahlte Bestellung und eine aktive Reservierung), in den
+Einstellungen ein Klartext-Zugangsdatum und kein Gutschriftpräfix. Dann führt `tests/upgrade/worker.php`
+`Installer::maybe_upgrade( 'cron' )` des aktuellen Codes aus. Geprüft wird je Stand:
+
+- Tabellen, Spalten (Typ, NULL, Vorgabe, Extra, Kollation) und Indizes gleichen einer Neuinstallation
+  (`information_schema`; die Spaltenreihenfolge zählt nicht, `dbDelta` hängt neue Spalten hinten an);
+- Schema-Version und `wpcap_db_version_max` aktuell, Version genau einmal geschrieben;
+- alle vorhandenen Zeilen unverändert (alte Spalten; ausgenommen der abgeleitete Cache `wpcap_alloc_buyers`);
+- einmalige Datenmigrationen genau einmal (Protokoll aller Optionsschreibvorgänge): Gutschriftpräfix „GS“
+  festgeschrieben (Stände vor 3.8.3), Zugangsdaten in den Tresor verschoben (ein Audit-Eintrag),
+  Kontingentzähler neu aufgebaut und ohne Abweichung, Kassen- und Käuferlimit-Migration;
+- ein zweiter Upgrade-Lauf ändert nichts (`SHOW CREATE TABLE`, Optionen).
+
+Zusätzlich mit dem ältesten Tag: Abbruch mitten im Schema (Ausnahme bei der dritten DDL-Anweisung) und mitten
+in den Datenmigrationen (vor dem Schreiben des Tresors) – die Sperre ist danach frei, die Version unverändert,
+der nächste Lauf vervollständigt das Upgrade (der Zählerneuaufbau läuft dann zweimal, er ist idempotent);
+sowie zwei gleichzeitig gestartete Upgrade-Prozesse (eigene Datenbankverbindungen, verlangsamte DDL): genau
+einer führt das Upgrade aus, der andere überspringt es ohne Fehler, während das Upgrade läuft.
+
+Gefundene und behobene Fehler (13.11.2026): Upgrades von 1.1.0/1.2.0 behielten den abgelösten Index
+`wpcap_order_items.type_order`, alle Stände bis 1.4.0 den vollen Index auf `wallet_registrations.push_token`
+statt des Präfixindex (191) – `dbDelta` ändert und löscht keine Indizes. Behoben mit
+`Installer::upgrade_indexes()` (Schema 3.10.4, siehe OPERATIONS.md). Lauf lokal (MariaDB, WordPress 7.1.4):
+123 Prüfungen, 0 Fehler, 15–25 Sekunden. CI: Pflichtschritt im Job `integration` (alle DB-/PHP-Kombinationen,
+volle Git-Historie).
+
+## Kern läuft allein (A664)
+
+`tests/integration/modules/zz_a664.php` (Teil der Integrationstests): Der ausgelieferte Kern kennt das Add-on
+nicht – kein Code (Zeichenketten, Klassen- oder Funktionsnamen; Kommentare zählen nicht) verweist auf
+`pass-captain-pro`, `PassCaptainPro`, WP License Captain oder `wplc`, und der Plugin-Header verlangt kein
+anderes Plugin (`Requires Plugins`). Danach laufen die Kernabläufe ohne Add-on und **ohne Netzwerk** (jede
+ausgehende Anfrage wird über `pre_http_request` protokolliert und abgelehnt): kostenloser und kostenpflichtiger
+Checkout, Zahlungsbestätigung mit Ticketausgabe, Mail und PDF, Übertragung, Erstattung, Check-in, Terminänderung,
+Event-Absage, Jobs, Nachrichten-Queue, Webhooks und Workflow-Outbox (ohne Provider). Der Test verlangt, dass
+dabei keine einzige HTTP-Anfrage entsteht – also auch keine an einen Lizenzserver.
+
+## Kein Lizenz- oder Updater-Code im Kern (A661)
+
+**Wächtertest** (CI-Job `php`, nach der Konsistenzprüfung):
+
+```bash
+php tests/license-guard.php --self-test
+```
+
+Das Kern-Plugin bleibt frei (Entscheidung vom 13.11.2026, siehe [FREE-PREMIUM.md](FREE-PREMIUM.md)). Der Test
+schlägt fehl, sobald in einer **ausgelieferten** Datei auftaucht: der Lizenzclient `LicenseClient`, die Route
+`wplc/v1`, ein Plugin-Header `Update URI`, Updater-Hooks als Zeichenkette (`pre_set_site_transient_update_plugins`,
+`site_transient_update_plugins`, `plugins_api`, `plugins_api_result`, `update_plugins_{host}`) oder
+`allows_entitlement`. „Ausgeliefert“ bestimmt `tests/shipped-files.php` wie `build/release.sh`: Dateien, die
+git kennt (versioniert oder neu, nicht ignoriert), abzüglich `.distignore` (rsync-Semantik), dazu aus `vendor/`
+nur die Laufzeitpakete aus `composer.lock` (`packages`, nicht `packages-dev`). `tests/`, `docs/`, Markdown und
+Entwicklungsabhängigkeiten werden also nicht durchsucht – dort darf das Add-on beschrieben werden.
+`--self-test` prüft vorher an einem Beispielbaum, dass jede Regel anschlägt und die Ausschlüsse greifen.
+Lizenzprüfung, Rechte und Updater gehören ins Add-on `pass-captain-pro`.
+
+## Tabellenpräfixe und Isolation (A182)
+
+**Statische Prüfung** (CI-Job `php`, vor PHPCS):
+
+```bash
+php tests/sql-prefix-check.php --self-test   # src/, templates/, uninstall.php, pass-captain.php
+```
+
+Setzt jede PHP-Zeichenkette mit dem Tokenizer zusammen (Interpolationen und angehängte Ausdrücke gelten als
+dynamisch) und prüft in SQL-Zeichenketten:
+
+- an Tabellenstellen (nach `FROM`, `JOIN`, `INTO`, `UPDATE`, `TABLE`, `DESCRIBE`) steht ein dynamischer Name
+  (`{$wpdb->prefix}wpcap_…`, `{$wpdb->posts}`, `$table`, Platzhalter) oder eine Unterabfrage, nie ein
+  wörtlicher Tabellenname;
+- kein fest verdrahtetes `wp_`;
+- keine direkten Abfragen auf WooCommerce-Bestelltabellen: `wc_orders`, `wc_orders_meta`, `wc_order_*`,
+  `woocommerce_order_items`/`_itemmeta` und Beiträge vom Typ `shop_order*` (auch als Argument eines
+  `$wpdb->…()`-Aufrufs oder als bloßer Tabellenname wie in `$wpdb->prefix . 'wc_orders'`). Bestellungen laufen
+  über die WooCommerce-CRUD-API (HPOS und Beitragsspeicher, siehe WOOCOMMERCE.md).
+
+Ausnahmen nur über die Allow-List `WPCAP_SQL_ALLOW` im Skript (Datei => Teiltext => Begründung; derzeit leer).
+`--self-test` prüft die Regeln vorab an eingebauten Positiv- und Negativbeispielen. Stand 13.11.2026: 227
+Dateien, rund 1 600 SQL-Zeichenketten, keine Befunde.
+
+**Integrationstest** `tests/integration/modules/zz_a182.php`: zwei Sites nebeneinander mit den Präfixen
+`<p>` und `<p>2_` (wie `wp_` und `wp_2_` im Netzwerk), gleichem Schema und **gleichen IDs** für Event, Termin
+und Ticketart. Der Seitenwechsel bildet `switch_to_blog()` nach (Präfix, Optionen und Transients je Site,
+Aktion `switch_blog`), ohne Caches des Plugins zu leeren. Geprüft: Verfügbarkeit, Veranstaltungsland
+(Steuer), Schema-Bereitschaft, Upgrade-Sperre und Schema-Version je Site; Bestellung, Zahlung, Tickets und
+Einlass nur auf der eigenen Site (fremder Ticketcode unbekannt, fremde Bestell-ID nicht sichtbar); gleicher
+Idempotenzschlüssel auf beiden Sites ergibt zwei Bestellungen; Einstellungen, Audit-Log und Job-Warteschlange
+je Site; Erstattung auf A ändert B nicht; Kontingentzähler beider Sites ohne Abweichung; beim Löschen einer Site
+werden nur deren Tabellen entfernt.
+
+Gefundene und behobene Fehler: Der Verfügbarkeits-Zwischenspeicher je Anfrage (`Orders::availability()`), der
+Steuerprofil-Cache (`Tax\Profiles`, u. a. Veranstaltungsland je Termin-ID) und die Schema-Bereitschaft
+(`OrderLines::ready()`, `Tax\Profiles::ready()`) waren nicht an die Site gebunden – nach `switch_to_blog()`
+lieferten sie Werte der vorherigen Site für dieselbe ID.
+A517 ergänzt die übrigen Anfrage-Caches ohne Präfix im Schlüssel (Teamzuweisungen `StaffAssignments`, Ressourcen von
+Leistungserbringern, aktive Rabattcodes `Campaigns`, Hilfscodes, archivierte Rechtstexte, Serienpreise,
+Partnerkonditionen, Umtausch-Nachbuchungen): `Plugin::site_cache_flushers()` leert sie bei `switch_blog`
+(`modules/zz_a517.php`). Ein neuer solcher Cache gehört in diese Liste.
+
+## Multisite: Cross-Site-Tests (A479)
+
+Ein Subdirectory-Netzwerk (`example.org/a/`, `example.org/b/`) teilt Benutzer, Origin und Browserspeicher.
+Die Integrationstests simulieren es mit einer zweiten Site als Tabellenpräfix `<präfix>n2_` (gleiches Schema per
+`CREATE TABLE … LIKE`) und Attrappen in `tests/integration/bootstrap.php`: `$GLOBALS['wpcap_test_multisite']`
+(`is_multisite()`), `$GLOBALS['wpcap_test_blog_id']` (`get_current_blog_id()`), `$GLOBALS['wpcap_test_blog_members']`
+(`is_user_member_of_blog()`), `$GLOBALS['wpcap_test_blog_prefixes']` (`$wpdb->get_blog_prefix()`),
+`get_user_option()`/`update_user_option()` mit Site-Präfix und `$GLOBALS['wpcap_test_user_caps']` (`user_can()` je
+Benutzer). Abgedeckt:
+
+| Pfad | Test |
+|---|---|
+| Zugriffsbereich je Site, Upgrade-Kopie des netzwerkweiten Bereichs (A470) | `modules/zz_a470.php` |
+| Personalzuweisung nur für Site-Mitglieder mit Pass-Captain-Rolle, einheitliche Ablehnung (A471, A636) | `modules/zz_a471.php` |
+| Speicherschlüssel des Web-Scanners je Site/Benutzer (A472) | `modules/zz_a479.php` |
+| Offline-Warteschlange zweier Sites in einem `localStorage` (A472) | `tests/js/scanner.test.js` |
+| Offline-PWA: Datenbank und Kopplung je API-Basis, Altbestand (A473) | `tests/js/offline-scanner-sites.test.js` |
+| Tabellen, Caches und Optionen zweier Sites (A182) | `modules/zz_a182.php` |
+
+## Last- und Nebenläufigkeitstests (`tests/load/`)
 ### Ohne Webserver: `tests/load/run.php`
 
 Nutzt den Integrations-Bootstrap mit echter Datenbank. Der Koordinator legt Testdaten an und startet
@@ -216,6 +448,22 @@ abgeschaltet.
 
 ## Lizenz-Wächter (Job `license-guard`)
 
+Ergebnis:
+
+- **Checkout:** in allen Läufen kein Überverkauf (Kontingent exakt ausgeschöpft), Idempotenz hält auch bei
+  gleichzeitigen Doppel-Submits (Unique-Index + Wiederverwendung), keine Deadlocks, 0 % Fehler. Die Ticketart-
+  Zeile wird per `FOR UPDATE` gesperrt, daher serialisieren Käufe derselben Ticketart: Latenz steigt linear
+  mit der Zahl gleichzeitiger Käufer (≈ 2 ms je wartendem Käufer), der Durchsatz bleibt bei ~400–570 Bestellungen/s.
+- **Webhooks:** jedes Event genau einmal angewendet, alle Duplikate als `duplicate` beantwortet, keine
+  doppelten Tickets.
+- **Check-in (behoben):** In der Messung vom 11.11.2026 liefen gleichzeitige Erst-Einlässe *verschiedener*
+  Tickets in einen InnoDB-Gap-Lock-Deadlock auf `wpcap_admission_state`, und `Checkin::perform()` meldete trotz
+  Rollback „eingelassen“. Behoben (Commit 53633f6): `Admission\Engine::state_for_update()` liest den Zustand
+  ohne `FOR UPDATE` (die Ticketzeile ist bereits gesperrt), Datenbankfehler brechen den Einlass mit einem
+  retrybaren Fehler ab. Seitdem in jedem `--profile=ci`-Lauf: 0 Deadlocks, je Ticket genau ein Einlass
+  (13.11.2026: 3 von 3 Läufen, `admitted` 10 / `rejected_duplicate` 140 / `replayed` 10). Der CI-Schritt
+  „Concurrency/load smoke test“ ist verpflichtend (kein `continue-on-error`).
+
 Der Kern bleibt frei (Entscheidung 13.11.2026, [FREE-PREMIUM.md](FREE-PREMIUM.md)). Der Wächter scheitert,
 sobald Lizenzclient, Rechteprüfung, ein `Update URI`-Header oder eigene Update-Hooks in ausgelieferten Dateien
 auftauchen. Er läuft gegen den Quellbaum (Job `license-guard`, mit Selbsttest) und gegen das entpackte ZIP
@@ -226,7 +474,24 @@ php tests/guard/no-license-code.php --self-test     # jede Regel erkennt ein ein
 php tests/guard/no-license-code.php [verzeichnis]
 ```
 
+## Barrierefreiheit (`tests/a11y/`)
+
+axe-core 4.10 + Playwright (Chromium) gegen eine laufende **Wegwerf**-Installation. `fixture.php` legt per
+`wp-load.php` ein Test-Event an (bezahlte, kostenlose Ticketart mit Teilnehmerfeld, ausverkaufte Ticketart),
+eine kostenlose Bestellung (Ticketseite + Bestellportal-Link aus der Mail) und ein Wartelistenangebot.
+
+```bash
+php tests/guard/no-license-code.php --self-test     # jede Regel erkennt ein eingeschleustes Muster
+php tests/guard/no-license-code.php [verzeichnis]
+```
+
 ## Secret-Scan (Job `secrets`, Schritt in `package`)
+
+Stand 11.11.2026: öffentliche Seiten 0 kritische/ernste Verstöße (1 moderater: Überschriftenebene im Event-
+Template), Tastatur-Durchlauf 23/23 Prüfungen bestanden, Farbkontrast der öffentlichen Seiten ohne Befund. Admin-
+Seiten: 9 kritische und 48 ernste Knoten (fehlende Labels an Filter-Selects, Kontrast von `<code>`-Links,
+Zielgröße der Checkboxen) – siehe offene Punkte im Changelog/Report. Nicht in CI (braucht eine WordPress-Instanz).
+Automatische Prüfungen ersetzen keine Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).
 
 gitleaks prüft die Git-Historie (`gitleaks/gitleaks-action`) und das entpackte Release-ZIP (`gitleaks dir`,
 Version 8.28.0, per SHA-256 gepinnt). Regeln: Standardregeln plus `.gitleaks.toml` (Stripe-Testschlüssel
@@ -444,3 +709,212 @@ Werkzeugen des Datenbank-Containers (Client = Server-Version). Bei Fehlschlag Pr
 - **Update-Pfad** nur von 1.4.0 ohne WooCommerce und ohne Multisite; Updates mit WooCommerce-Bestellungen und
   über mehrere Versionen deckt die Integrationssuite mit Schema-Fixtures ab (`zzzz_w6_upgrade.php`).
 - **Weitere Dienste:** Apple/Google Wallet, Twilio, Fiskaldienste nur mit Fakes getestet.
+
+## Große Vorverkäufe: Kontingentzähler (Profil `big`, 12.11.2026)
+
+```bash
+php tests/load/run.php --profile=big            # 20.000 bereits verkaufte Tickets, 1000 Käufer, 100 Verbindungen
+php tests/load/run.php --profile=big --sold=50000 --buyers=800 --pay-rate=0.5
+WPCAP_LOAD_COUNTERS=0 php tests/load/run.php --profile=big   # SUM-Rückfallpfad (Zustand „verifying“ nach Upgrade)
+```
+
+Szenario `onsale`: ein Termin mit 20.000 per Multi-Row-INSERT angelegten bezahlten Tickets (≈ 0,5 s, danach
+`CapacityCounters::rebuild_all()` wie bei einem Upgrade), Ticketart- und Terminkontingent binden beide, eine
+zweite Ticketart teilt sich den Termin. 1000 Käufer (70 % 1 Ticket, sonst 2–4; 15 % Doppel-Submit) lesen zuerst
+`Orders::availability()` (wie die Warenkorbprüfung), legen dann über `Orders::create()` an; 30 % bezahlen sofort
+(`confirm_external_payment()`). Invarianten: kein Überverkauf (Ticketart und Termin), Kontingent ausgeschöpft,
+eine Bestellung je Key, keine unerwarteten Fehler, Zähler = Summen der Quelltabellen (`CapacityCounters::drift()`).
+
+Gleiche Maschine wie oben (4 vCPU, 15 GB, MariaDB 10.11, PHP 8.3), je zwei Läufe, Werte des ersten Laufs:
+
+| Stand | req/s | Wall s | p50 ms | p95 ms | p99 ms | max ms | availability() p50 / p95 ms | Zahlung p50 / p95 ms | Fehler |
+|---|---|---|---|---|---|---|---|---|---|
+| vorher (SUM unter Sperre) | 37,7 | 30,6 | 2881 | 3098 | 4299 | 4571 | 51,5 / 1847 | 4,7 / 8,3 | 0 % |
+| nachher (Zähler) | 483,8 | 2,4 | 189 | 400 | 453 | 595 | 0,83 / 69,5 | 194 / 221 | 0 % |
+| nachher, 2. Lauf | 485,2 | 2,4 | 188 | 415 | 494 | 605 | 0,82 / 66,9 | 195 / 235 | 0 % |
+| SUM-Rückfall („verifying“) | 34,6 | 33,3 | 2611 | 5397 | 6091 | 6518 | 46,1 / 1192 | 2619 / 3077 | 0 % |
+
+- Vorher kostete jede Kapazitätsprüfung vier SUM-Abfragen über alle verkauften Zeilen, während die Zeilen von
+  Ticketart und Termin gesperrt waren: alle Käufer eines Termins warteten hintereinander (≈ 25 ms je Bestellung).
+  Mit Zählern sind es zwei Primärschlüssel-Zeilen plus eine Indexabfrage über bereits abgelaufene, noch nicht
+  aufgeräumte Reservierungen – die Sperrdauer hängt nicht mehr von der Zahl verkaufter Tickets ab.
+- Die Zahlungsbestätigung sperrt jetzt ebenfalls Ticketart und Termin (die Einheiten wechseln im selben
+  Commit von „reserviert“ nach „verkauft“) und reiht sich daher hinter laufende Bestellungen ein: p50 194 ms statt
+  5 ms im Lastspitzen-Szenario. Im SUM-Rückfall direkt nach einem Upgrade wartet sie hinter langsamen
+  Bestellungen (p95 ≈ 5 s) – Upgrades daher nicht während eines laufenden Vorverkaufs einspielen.
+- Profil `ci` mit Zählern: checkout 861 req/s, p50 13,8 ms, p95 47,8 ms (vorher 575 req/s, 28,6/49,9 ms);
+  check-in und webhook unverändert, alle Invarianten grün.
+
+Integrationstests: `tests/integration/run.php` prüft nach jeder Testdatei, dass `sold_qty`/`held_qty` aller
+Ticketarten und Termine den SUM-Abfragen entsprechen (bei Abweichung FAIL und Reparatur per `reconcile()`, damit
+die nächste Datei für sich bewertet wird). `modules/p3_performance.php` prüft Zähler = SUM nach Anlage,
+Gratisbestellung, abgelehnter Bestellung, Zahlung, Ablauf, verspäteter Zahlung (mit und ohne freies Kontingent),
+Storno (offen/bezahlt), Teil- und Vollerstattung, Widerruf, Umtausch (gleichpreisig, mit Aufpreis-Reservierung
+und Abschluss nach Zahlung); Reconcile repariert verpasste Writer und manipulierte Zähler (mit Alarm);
+Upgrade-Pfad (Neuaufbau, „verifying“ → „ready“); Memo-/Objekt-Cache-Invalidierung; Event-Liste mit konstanter
+Abfragezahl (3 und 12 Termine: je 8 Abfragen ohne Modulfilter) und REST-`/events` (höchstens 7 Abfragen, mit Verfügbarkeit je Ticketart).
+Der Test-`$wpdb` zählt dafür `num_queries` und ruft wie WordPress den Filter `query` auf.
+
+## Historie: Reservierungen, Index und Aufräumen (A429, A430, A444)
+
+Datenbestand (`php tests/load/history.php seed`, Präfix `wphist_`, danach `drop`; Messung `measure`/`raw`): 500.000 Reservierungen aus
+200 Tagen (85 % `converted`, 10 % `expired`, 5 % `released`, alle `counted_qty=0`), davon 202.777 auf einer
+künftigen Ticketart (Vorverkauf seit Monaten), 300 aktive Holds; 500.000 Bestellungen mit je einer Zeile,
+60 Termine (10 künftig) mit 180 Ticketarten. Gleiche Maschine wie oben (MariaDB 10.11, PHP 8.3), beste von
+fünf Messungen:
+
+| Abfrage | vorher | nachher |
+|---|---|---|
+| Kapazitätsprüfung Ticketart (abgelaufene Holds abziehen) | 68,5 ms, `type=ALL`, 498.199 Zeilen | 0,5 ms, `range` auf `counted_type`, 121 Zeilen |
+| Kapazitätsprüfung Termin | 233 ms, `ref` auf `inventory` (alle Holds der Ticketarten) | 0,4 ms, `range` auf `counted_type` (Ticketarten per IN-Liste) |
+| `Orders::capacity_error()` gesamt (Ticketart + Termin, unter den Sperren) | ≈ 300 ms | 0,6 ms |
+| `CapacityCounters::used_for_types()` | 72 ms | 0,4 ms |
+| Reconcile-Cron (`reconcile()`) | 14,9 s (Zeilen-Kandidaten 3,1 s Full Scan, korrelierte SUMs 2 × 5,7 s) | 62 ms |
+| `reconcile( true )` (`--all`) | 22,6 s | 3,9 s |
+
+Indexaufbau beim Upgrade auf diesem Bestand (`ADD KEY counted_type`, `ADD KEY updated`, `capacity_sum` neu):
+zusammen ≈ 3 s. `modules/zz_a429_a430.php` legt 6.000 umgewandelte Reservierungen auf eine Ticketart und prüft per
+`EXPLAIN` jeder vom Checkout bzw. vom Reconcile-Lauf ausgeführten Abfrage auf `wpcap_reservations`, dass keine
+die Tabelle oder einen ganzen Index liest, dazu die Drift-Erkennung (alte, noch zählende Holds; aktive, nicht
+zählende Holds; manipulierte Zähler).
+
+Aufräumung (`php tests/load/history.php cleanup`, `Retention::housekeeping()` mit 10 s Budget je Lauf, wie der
+stündliche Cron): von 467.500 Reservierungen (nach einem unterbrochenen Vorlauf) 457.106 ältere als 30 Tage in zwei Läufen gelöscht (239.000 bzw. 218.106 Zeilen
+je 10 s), danach 86.000 erledigte Jobs (von 100.000; 13.593 jüngere bleiben), 57.547 abgelaufene Sitzplatz-Holds
+(verkaufte bleiben) und 55.913 Zahlungsereignisse älter als 90 Tage – zusammen ≈ 22 s. Jede Auswahlabfrage ist
+ein Indexbereich (`expiry`, `due_jobs`, `cleanup`). `modules/zz_a444.php` prüft, was bleibt (aktive und noch
+zählende Holds, Holds offener Bestellungen, junge Zeilen, wartende/laufende Jobs, verkaufte Plätze), Stapel über
+500 Zeilen, Zeitbudget 0 und das Abschalten eines Schritts per Filter. Danach `php tests/load/history.php drop`.
+
+## Historie: Admin-Listen, Berichte und Aufräumen (A431–A435, A437, A438)
+
+Datenbestand: `WPP6_N=200000 php tests/load/history.php seed`, danach `seed-admin` (Präfix z. B.
+`WPCAP_TEST_PREFIX=wpu9h_`; am Ende `drop`): 200.000 Bestellungen (Verkaufshistorie bis gestern, 30 s Abstand),
+169.745 Tickets, 85.432 Check-ins (jeder vergangene Termin, jeder zehnte Scan zusätzlich abgelehnt), 169.745
+Webhook-Zustellungen (99.038 älter als 30 Tage), 5.143 abgeschlossene Erstattungen, 30 % Mollie-Zahlungen mit
+Referenz in der Bestellung, ein Veranstalter mit allen Verkäufen bis Vormonatsbeginn abgerechnet (60.891
+Abrechnungszeilen), 19.970 Wiederverkäufer-API-Bestellungen. Messung `admin` (mit `purge` auch das Aufräumen),
+`reports` und `bulk`; MariaDB 10.11, PHP 8.3, Maschine mit paralleler Last (Werte schwanken um ±30 %).
+Indexaufbau beim Upgrade auf diesem Bestand: `provider_ref` 0,8 s, Check-in-Indizes 0,2 s, `cleanup` 0,35 s.
+
+| Vorgang | vorher | nachher |
+|---|---|---|
+| Mollie-Webhook, unbekannte bzw. alte Zahlungs-ID (A431) | 466 / 411 ms, `ALL` auf `wpcap_orders` | 0,3 ms, Primärschlüssel + `provider_ref` |
+| Ticketliste Seite 1 / 50 (A432) | 2.494 / 2.475 ms | 15 ms (4 Abfragen) |
+| Ticketliste Status „eingecheckt“ | 1.753 ms | 12–19 ms |
+| Check-in-Protokoll Seite 1 / 100 (A433) | 132 / 181 ms | 7–11 / 8–12 ms |
+| Check-in-Protokoll Event + Ergebnis + 30 Tage | 33 ms | 3–4 ms |
+| Ergebnisfilter des Protokolls | 46 ms (`SELECT DISTINCT`) | keine Abfrage |
+| Umsatzbericht Oktober, 78.000 Bestellungen (A434) | 12,9 s, 78.355 Abfragen, 169 MB | 3,9–5,7 s, 403 Abfragen, 39 MB |
+| Buchhaltungsexport Oktober | 27,1 s, 156.678 Abfragen, 242 MB | 2,4–3,9 s, 477 Abfragen; gestreamt 2,3 s, 38 MB |
+| Buchungsstapel (DATEV) Oktober | 25,6 s, 156.676 Abfragen, 240 MB | 2,6–3,9 s, 475 Abfragen, 57 MB |
+| Termin-Abrechnung (80.000 Tickets) | 11,5 s, 49.176 Abfragen, 161 MB | 3,6–6,2 s, 497 Abfragen, 40 MB |
+| Wiederverkäufer-Abrechnung (9.199 Zeilen, ohne warmen Cache) | 8.949 Abfragen | 21 Abfragen |
+| Veranstalter-Abrechnung laufender Monat, 114.000 offene Zeilen (A435) | 33,1 s, 220.136 Abfragen, 423 MB | 5,0–5,5 s, 764 Abfragen, 138 MB |
+| Webhook-Aufräumen ohne fällige Zeilen (A437) | 335 ms, `ALL` über 168.882 Zeilen, alle 5 min | 10 ms, `range` auf `cleanup`, stündlich |
+| Webhook-Aufräumen, 99.038 fällige Zeilen | ein `DELETE` (548 ms, alle Zeilen in einer Transaktion) | 100 × `DELETE … LIMIT 1000`, 2,2 s im 5-s-Budget |
+
+Verbleibend: Der Umsatzbericht liest für die Auslastungstabelle weiterhin alle Positionen der Ticketarten mit
+Verkäufen im Zeitraum (Lebenszeit-Verkäufe je Ticketart, jetzt ein `GROUP BY` statt zwei korrelierter Summen je
+Ticketart; ≈ 1,6 s auf diesem Bestand). Die Veranstalter-Abrechnung hält die Zeilen des Ergebnisses selbst im
+Speicher (114.000 Zeilen ≈ 138 MB).
+
+Massenoperationen (`bulk`, verändert den Bestand): Stapeldruck ohne neue Codes für einen Termin mit 1.109
+Tickets – Anlegen 189 ms, Rendern 6 Blöcke (Testumgebung ohne echte PDF-Schriften, daher nur Ablaufwerte).
+Absage des Termins mit 79.880 Tickets: Admin-Anfrage im Zeitbudget 20,7 s (73.074 Abfragen; CLI-Budget
+`wpcap_cron_time_budget` 20 s), danach 20 Job-Läufe in 372 s (385.552 Abfragen, ≈ 5 je Ticket) bis alle Tickets
+widerrufen sind; die 79.880 Absage-Mails liegen danach in der Nachrichtenwarteschlange (8.000 im Lauf selbst
+versendet, der Rest über `wpcap_process_messages`).
+
+Regressionstests mit `EXPLAIN` bzw. Abfragezählung (laufen in der normalen Suite):
+`modules/zz_a431.php` (Mollie: Plan der Abfragen, IP-Limit vor der Datenbank), `zz_a432_a433.php` (3.000 Tickets,
+6.000 Check-ins: keine korrelierte Unterabfrage, Seite über Primärschlüssel bzw. `created` ohne Filesort, Zählung
+ohne Joins), `zz_a434.php` (1.200 Bestellungen: Bericht, Export, Stapel, Termin- und Wiederverkäufer-Abrechnung mit
+höchstens 60 Abfragen, gestreamter Export = `export_rows()`), `zz_a435.php` (1.500 abgerechnete und 32 offene
+Bestellungen: die abgerechneten werden nicht gelesen), `zz_a437.php` (Stapel, Zeitbudget, `range` auf `cleanup`).
+
+## Regelmäßige Lasttests und Regressionsgrenzen (A121)
+
+Der Workflow `.github/workflows/load.yml` läuft jeden Montag 03:17 UTC und manuell (`workflow_dispatch`):
+
+- `tests/load/run.php` mit den Profilen `default`, `heavy` und `big` jeweils gegen **MariaDB 11.4** und **MySQL 8.4**,
+- `tests/load/http.php` (echte REST-API) gegen ein frisch installiertes WordPress (neueste Version) mit dem Plugin.
+
+Jedes Ergebnis wird mit `tests/load/compare.php` gegen `tests/load/baselines/<profil>.json` geprüft: Invarianten-Verletzungen, Fehlerquote > 0 oder ein p95 über der Grenze lassen den Lauf fehlschlagen; ein fehlendes Szenario ebenso. Die JSON-Ergebnisse hängen als Artefakte am Lauf (Verlauf über die Actions-Historie).
+
+Referenzlauf 13.11.2026 (lokal, MariaDB 11, 4 vCPU), Grenze = 4 × gemessenes p95:
+
+| Profil | Szenario | p95 gemessen | Grenze |
+|---|---|---|---|
+| default | Checkout / Check-in / Webhook | 134 / 15 / 243 ms | 550 / 100 / 1000 ms |
+| heavy | Checkout / Check-in / Webhook | 249 / 21 / 401 ms | 1000 / 100 / 1650 ms |
+| big | Vorverkaufsstart (Anlegen + Bezahlen) | 1965 ms | 7900 ms |
+| http | Checkout / Check-in / Webhook (REST) | 672 / 898 / 972 ms | 2700 / 3600 / 3900 ms |
+
+Nach einer gewollten Änderung (z. B. zusätzliche Prüfung im Checkout) die Grenzen in der Baseline anpassen und hier begründen. Hinweis: Der REST-Lasttest hebt auf seinem privaten Testserver die Schutzgrenzen pro Client (`wpcap_checkout_ip_limit`, `wpcap_manual_orders_per_client`, `wpcap_manual_open_orders_per_email`) auf, weil alle Anfragen von 127.0.0.1 kommen, und verwendet je Lauf eigene Käuferadressen. Ausverkauft-Antworten erkennt er sprachunabhängig am neuen Feld `data.reason` der Checkout-Fehler.
+
+## Echte WordPress-Versionen (A125)
+
+Workflow `.github/workflows/wp-matrix.yml` (jeder Push/PR, wöchentlich, manuell) installiert WordPress
+6.4 (Mindestversion, PHP 8.2), 6.8 (PHP 8.3) und die neueste Version (PHP 8.4) mit MariaDB 11.4 und führt aus:
+
+- `tests/wp-matrix/lifecycle.sh`: Aktivierung (Schema, DB-Version, Fingerprint), öffentliche REST-Route,
+  Admin-Seiten (Events, Bestellungen, Check-ins, Einstellungen) als eingeloggter Admin, Deaktivierung
+  (Daten bleiben, Cron-Ereignisse entfernt), erneute Aktivierung, Deinstallation ohne und mit
+  „Daten beim Löschen entfernen“ (Tabellen, Optionen, Rollen), keine PHP-Fehler/-Warnungen/-Deprecations
+  des Plugins im `debug.log`.
+- `tests/restore/drill.sh` mit dem vorherigen Release und dem aktuellen Commit: Upgrade, Code-Rollback,
+  erneutes Upgrade, Restore einer alten Sicherung, dazu Zustände außerhalb des Schemas (A469,
+  `tests/restore/lifecycle.php`): Stripe-Schlüssel über Upgrade und Rollback (`rollback-config`), Verkäufe im
+  alten Code mit drei Tage zurückdatierten Bestellungen und danach Kapazität ohne Überverkauf,
+  Standard-Einlassfenster (siehe OPERATIONS.md). Gesichert und zurückgespielt werden nur die Tabellen des
+  Präfixes der Test-Installation.
+- `lifecycle.sh` prüft außerdem, dass die Deinstallation im selben Request keine Plugin-Option im
+  Options-Cache zurücklässt (A467, steht für einen persistenten Objekt-Cache).
+
+Lokal (nur Test-Installation!): `WPCAP_LIFECYCLE_HTTP=1 bash tests/wp-matrix/lifecycle.sh /pfad/zu/wp /pfad/zum/plugin`
+(mit laufendem Webserver für die Site-URL; ohne `WPCAP_LIFECYCLE_HTTP` entfallen REST- und Admin-Seitenprüfung).
+Ergebnis 13.11.2026 lokal gegen WordPress 7.1.4: alle 21 Prüfungen bestanden.
+
+## Barrierefreiheit in CI (A155)
+
+Job `accessibility` in `.github/workflows/wp-matrix.yml`: echtes WordPress (de_DE) mit dem Plugin, `tests/a11y/run.js --fail-on=serious` (axe-core, WCAG 2.2 A/AA + best practice) und `tests/a11y/keyboard.js`; der axe-Bericht hängt als Artefakt am Lauf. Lauf 13.11.2026 lokal: 0 kritische/ernste Befunde auf allen 15 Seiten (behoben: Touch-Ziel der Zusammenklapp-Zeile „Nur einzelne Tickets stornieren“ an der Kasse < 24 px), Tastatur-Durchlauf vollständig grün (angepasst an die −/+-Mengenknöpfe der Eventkarte und das Wartelisten-Formular am Kartenende). Manuelle Screenreader-/Zoom-Abnahme ist Teil des Release-Abnahmeprotokolls (docs/RELEASE.md).
+
+Hinweis: Wiederholte lokale Läufe gegen dieselbe Installation können die Checkout-Ratenbegrenzung (30 je IP und Stunde) erreichen – dann `wp transient delete --all`.
+
+## Statische Prüfungen (A173)
+
+`composer install` (mit Entwicklungsabhängigkeiten) bringt PHP_CodeSniffer mit den WordPress Coding Standards und PHPCompatibilityWP mit. Regeln: `phpcs.xml.dist` – Sicherheit (Escaping, Nonces, Eingabebereinigung), Datenbank, i18n (Textdomain, Übersetzerkommentare), veraltete WordPress-Funktionen, PHP 8.2+-Kompatibilität.
+
+```bash
+vendor/bin/phpcs -q --report=summary
+```
+
+CI (`ci.yml`, Job `php`) bricht bei **Fehlern** ab; Warnungen werden angezeigt. Stand 13.11.2026: 0 Fehler. Die rund 1 580 Warnungen stammen fast vollständig aus `WordPress.DB.PreparedSQL` für interpolierte Tabellennamen (`{$wpdb->prefix}wpcap_…`) und Integer-Listen – sie werden schrittweise abgebaut; neue Abfragen sollen Werte immer über `$wpdb->prepare()` übergeben. Zusätzlich prüft `composer audit` die Abhängigkeiten auf bekannte Sicherheitslücken.
+
+**UTF-8-sicheres Kürzen (A478):**
+
+```bash
+php tests/utf8-substr-check.php --self-test   # src/
+```
+
+Text wird mit `PassCaptain\Text::cut( $text, $zeichen )` gekürzt (Zeichen statt Bytes, ungültiges UTF-8 wird
+ersetzt). Ein byteweises `substr()` kann ein Mehrbyte-Zeichen halbieren: `wp_json_encode()` liefert dann `false`
+(leere Audit-Details), `esc_html()` einen leeren Text, und eine Datenbank im Strict-Modus lehnt den ganzen
+Schreibvorgang ab („Incorrect string value“). Die Prüfung meldet jedes `substr( $x, 0, N )`, dessen erstes
+Argument Text ist (`sanitize_text_field()`, `sanitize_textarea_field()`, `__()`, `Redact::text()`,
+`get_error_message()`, Variablen wie `$reason`, `$note`, `$message`) oder das auf 100 und mehr Bytes kürzt.
+Ausnahmen (ASCII-Werte mit Byte-Grenze, z. B. HTTP-Header `Idempotency-Key`) stehen mit Begründung in
+`WPCAP_SUBSTR_ALLOW`. Läuft im CI-Job `php`.
+
+Noch offen: PHPStan mit WordPress-Stubs (in dieser Umgebung nicht installierbar, weil Composer keine GitHub-Downloads erhält; sollte in CI mit Baseline nachgezogen werden).
+
+## JavaScript: Lint und Logiktests (A174)
+
+```bash
+npm ci
+npm run lint:js   # ESLint (empfohlene Regeln) über alle eigenen Skripte in assets/, src/blocks/ und tests/
+npm run test:js   # node:test – Logik der Offline-App (Code-Normalisierung, Paketsignatur/Format/Gerät, Offline-Einlassentscheidung)
+```
+
+Die Offline-App wird dazu in einer Node-Sandbox mit minimalen Browser-Attrappen geladen (`tests/js/offline-scanner.test.js`) und über `window.wpcapOffline` geprüft: manipulierte Pakete, fremde Geräte, unbekannte/abgelaufene Schlüssel, Doppel-Einlass, Mehrfacheinlass, Bereichsbeschränkung, Einlass-ab-Zeit und abgelaufene Pakete. Beides läuft im CI-Job `php`. Globale Daten aus `wp_localize_script()` sind in `eslint.config.mjs` als `readonly` deklariert – neue lokalisierte Objekte dort eintragen.

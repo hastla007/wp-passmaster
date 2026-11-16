@@ -1,6 +1,7 @@
 <?php
 /**
- * Module: reports ("Berichte") – revenue, VAT, refunds, capacity, check-in and channel share.
+ * Module: reports ("Berichte") – revenue, VAT, refunds, capacity, check-in and channel share,
+ * settlement sheet per occurrence (Settlement).
  * Code lives in src/Reports/.
  */
 namespace PassCaptain\Modules;
@@ -18,6 +19,7 @@ final class Reports {
 		return array(
 			'wpcap_reports_csv' => array( Page::class, 'handle_csv' ),
 			'wpcap_reports_export' => array( \PassCaptain\Reports\Exports::class, 'handle_export' ),
+			\PassCaptain\Reports\Settlement::ACTION => array( \PassCaptain\Reports\Settlement::class, 'handle' ),
 		);
 	}
 }

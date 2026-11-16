@@ -26,11 +26,18 @@ if ( ! function_exists( 'wp_remote_request' ) ) {
 		$pre = apply_filters( 'pre_http_request', false, $args, $url );
 		if ( false !== $pre ) { return $pre; }
 		$method = strtoupper( $args['method'] ?? 'GET' );
-		$GLOBALS['wpcap_test_http_requests'][] = array( 'method' => $method, 'url' => $url, 'headers' => $args['headers'] ?? array(), 'body' => $args['body'] ?? '', 'timeout' => $args['timeout'] ?? null );
+		$GLOBALS['wpcap_test_http_requests'][] = array( 'method' => $method, 'url' => $url, 'headers' => $args['headers'] ?? array(), 'body' => $args['body'] ?? '', 'timeout' => $args['timeout'] ?? null, 'args' => $args );
+		// Like WP_Http: pre_http_request short-circuits, http_api_curl sees the cURL handle and the arguments.
+		$pre = apply_filters( 'pre_http_request', false, $args, $url );
+		if ( false !== $pre ) { return $pre; }
+		if ( function_exists( 'curl_init' ) && has_action( 'http_api_curl' ) ) { $handle = curl_init(); do_action( 'http_api_curl', $handle, $args, $url ); curl_close( $handle ); }
 		foreach ( $GLOBALS['wpcap_test_http_queue'] as $i => $entry ) {
-			if ( empty( $entry['match'] ) || false !== strpos( $url, $entry['match'] ) ) {
+			// A WP_Error (transport failure) answers any URL; array( 'error' => WP_Error, 'match' => … ) only matching ones.
+			$match = is_array( $entry ) ? (string) ( $entry['match'] ?? '' ) : '';
+			if ( '' === $match || false !== strpos( $url, $match ) ) {
 				array_splice( $GLOBALS['wpcap_test_http_queue'], $i, 1 );
 				if ( $entry instanceof WP_Error ) { return $entry; }
+				if ( isset( $entry['error'] ) && $entry['error'] instanceof WP_Error ) { return $entry['error']; }
 				return array( 'response' => array( 'code' => $entry['code'] ?? 200, 'message' => '' ), 'headers' => $entry['headers'] ?? array(), 'body' => is_string( $entry['body'] ?? null ) ? $entry['body'] : json_encode( $entry['body'] ?? array() ) );
 			}
 		}
@@ -44,6 +51,12 @@ if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retri
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : ''; } }
 if ( ! function_exists( 'wp_remote_retrieve_header' ) ) { function wp_remote_retrieve_header( $r, $h ) { foreach ( (array) ( $r['headers'] ?? array() ) as $k => $v ) { if ( strtolower( $k ) === strtolower( $h ) ) { return $v; } } return ''; } }
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['wpcap_test_transients'][ $k ] ); return true; } }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); } }
+if ( ! function_exists( 'untrailingslashit' ) ) { function untrailingslashit( $s ) { return rtrim( (string) $s, '/\\' ); } }
+// DNS for OutboundHttp: every test host resolves to a public address unless a test sets $GLOBALS['wpcap_test_dns'][ $host ].
+add_filter( 'wpcap_outbound_resolve', static function ( $ips, $host ) { return $ips ?? ( $GLOBALS['wpcap_test_dns'][ $host ] ?? array( '93.184.216.34' ) ); }, 10, 2 );
+// HTTP is stubbed, so pinning never touches cURL: behave the same with or without the cURL extension (CI images differ).
+$GLOBALS['wpcap_test_filters']['wpcap_outbound_can_pin'] = true;
 
 if ( ! class_exists( 'WP_REST_Request' ) ) {
 	class WP_REST_Request implements ArrayAccess {
@@ -51,6 +64,8 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		private $headers = array();
 		private $body = '';
 		public function __construct( public $method = 'GET', public $route = '' ) {}
+		public function get_route() { return (string) $this->route; }
+		public function get_method() { return (string) $this->method; }
 		private static function canonical( $key ) { return str_replace( '-', '_', strtolower( (string) $key ) ); }
 		public function set_header( $key, $value ) { $this->headers[ self::canonical( $key ) ] = (string) $value; }
 		public function get_header( $key ) { return $this->headers[ self::canonical( $key ) ] ?? null; }
@@ -58,7 +73,11 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		public function get_body() { return $this->body; }
 		public function get_json_params() { $d = json_decode( $this->body, true ); return is_array( $d ) ? $d : null; }
 		public function set_param( $k, $v ) { $this->params[ $k ] = $v; }
-		public function get_param( $k ) { return $this->params[ $k ] ?? ( $this->get_json_params()[ $k ] ?? null ); }
+		public function get_param( $k ) { return $this->params[ $k ] ?? ( $this->get_json_params()[ $k ] ?? ( $this->query[ $k ] ?? null ) ); }
+		// Query string (A645): get_param() falls back to it like WordPress does.
+		private $query = array();
+		public function set_query_params( array $q ) { $this->query = $q; }
+		public function get_query_params() { return $this->query; }
 		public function get_params() { return array_merge( (array) $this->get_json_params(), $this->params ); }
 		public function offsetExists( mixed $k ): bool { return null !== $this->get_param( $k ); }
 		public function offsetGet( mixed $k ): mixed { return $this->get_param( $k ); }
@@ -87,7 +106,7 @@ function stripe_request( array $event, $secret = 'whsec_test', $timestamp = null
 	$body = json_encode( $event );
 	$t = $timestamp ?? time();
 	$sig = hash_hmac( 'sha256', $t . '.' . $body, $secret );
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/stripe/webhook' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/stripe/webhook' );
 	$req->set_body( $tamper ? str_replace( '"amount_total":', '"amount_total":1', $body ) : $body );
 	$req->set_header( 'Stripe-Signature', "t=$t,v1=" . str_repeat( '0', 64 ) . ",v1=$sig" );
 	$req['provider'] = 'stripe';
@@ -106,7 +125,7 @@ function stripe_deliver( $gateway, array $event, ...$args ) {
 }
 
 function paypal_request( array $event, $with_headers = true ) {
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/paypal/webhook' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/paypal/webhook' );
 	$req->set_body( json_encode( $event ) );
 	if ( $with_headers ) {
 		foreach ( array( 'PAYPAL-TRANSMISSION-ID' => 'tid-1', 'PAYPAL-TRANSMISSION-TIME' => gmdate( 'c' ), 'PAYPAL-TRANSMISSION-SIG' => 'sig==', 'PAYPAL-CERT-URL' => 'https://api.sandbox.paypal.com/v1/notifications/certs/CERT', 'PAYPAL-AUTH-ALGO' => 'SHA256withRSA' ) as $h => $v ) { $req->set_header( $h, $v ); }
@@ -197,7 +216,7 @@ $rq = http_requests( '/v1/refunds' )[0] ?? array( 'body' => '', 'headers' => arr
 $rf = form_body( $rq );
 check( 'native refund completes with Stripe refund id', ! is_wp_error( $sr ) && 'completed' === $sr['status'] && 're_1' === $sr['provider_reference'] );
 check( 'refund uses payment intent, amount and idempotency key', 'pi_' . substr( $so['public_id'], 0, 12 ) === ( $rf['payment_intent'] ?? '' ) && (string) $sr['amount_minor'] === $rf['amount'] && 'wpcap-refund-' . $sr['refund_id'] === $rq['headers']['Idempotency-Key'] && ! empty( $rf['metadata']['wpcap_refund'] ) );
-$charge = array( 'id' => 'evt_ref1', 'type' => 'charge.refunded', 'data' => array( 'object' => array( 'id' => 'ch_1', 'object' => 'charge', 'amount' => 4500, 'amount_refunded' => 2250, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => 'pi_x', 'metadata' => array( 'wpcap_order' => $so['public_id'] ), 'refunds' => array( 'data' => array( array( 'id' => 're_1', 'amount' => 2250, 'metadata' => array( 'wpcap_refund' => 'wpcap-refund-1' ) ) ) ) ) ) );
+$charge = array( 'id' => 'evt_ref1', 'type' => 'charge.refunded', 'data' => array( 'object' => array( 'id' => 'ch_1', 'object' => 'charge', 'amount' => 4500, 'amount_refunded' => 2250, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => 'pi_' . substr( $so['public_id'], 0, 12 ), 'metadata' => array( 'wpcap_order' => $so['public_id'] ), 'refunds' => array( 'data' => array( array( 'id' => 're_1', 'amount' => 2250, 'metadata' => array( 'wpcap_refund' => 'wpcap-refund-1' ) ) ) ) ) ) );
 $own = stripe_deliver( $stripe, $charge );
 check( 'charge.refunded for the plugin\'s own partial refund does not revoke more tickets', 'ignored' === $own && 1 === count( tickets( $so['order_id'], 'valid' ) ) );
 http_reset();
@@ -208,6 +227,9 @@ $charge['data']['object']['refunded'] = true;
 unset( $charge['data']['object']['refunds'] );
 $full = stripe_deliver( $stripe, $charge );
 check( 'full refund in Stripe dashboard marks the order refunded', 'refunded' === $full && 'refunded' === Orders::get( $so['order_id'] )->status && ! tickets( $so['order_id'], 'valid' ) );
+$so_refunds = $wpdb->get_results( $wpdb->prepare( "SELECT amount_minor,reason FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d ORDER BY refund_id", $so['order_id'] ) );
+check( 'the dashboard refund is booked as a refund row for the rest (credit note, voucher share and settlement follow)', 2 === count( $so_refunds ) && 2250 === (int) $so_refunds[1]->amount_minor && 'stripe_dashboard_refund' === $so_refunds[1]->reason && 4500 === (int) Orders::get( $so['order_id'] )->refunded_minor );
+check( 'a repeated dashboard refund event books nothing twice', 'duplicate' === stripe_deliver( $stripe, $charge ) || 2 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d", $so['order_id'] ) ) );
 
 http_reset();
 $co = provider_order( 'stripe', $type, 1, 'stripe-cs-ref' );

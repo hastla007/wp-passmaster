@@ -75,26 +75,6 @@ final class Archive {
 		return self::gd_png( $img );
 	}
 
-	/** Logo strip with the organisation name (transparent background). */
-	public static function logo_png( $width, $height, $text, $foreground ) {
-		if ( ! function_exists( 'imagecreatetruecolor' ) ) { return self::solid_png( $width, $height, self::rgb( '#ffffff' ) ); }
-		$fg = self::rgb( $foreground );
-		$base_w = (int) ( $width / ( $height / 50 ) );
-		$img = imagecreatetruecolor( $base_w, 50 );
-		imagesavealpha( $img, true );
-		imagefill( $img, 0, 0, imagecolorallocatealpha( $img, 0, 0, 0, 127 ) );
-		$text = substr( preg_replace( '/[^\x20-\x7e]/', '', (string) $text ), 0, 17 );
-		imagestring( $img, 5, 2, 17, $text, imagecolorallocate( $img, $fg[0], $fg[1], $fg[2] ) );
-		if ( 50 !== $height ) {
-			$scaled = imagecreatetruecolor( $width, $height );
-			imagesavealpha( $scaled, true );
-			imagefill( $scaled, 0, 0, imagecolorallocatealpha( $scaled, 0, 0, 0, 127 ) );
-			imagecopyresampled( $scaled, $img, 0, 0, 0, 0, $width, $height, $base_w, 50 );
-			$img = $scaled;
-		}
-		return self::gd_png( $img );
-	}
-
 	private static function gd_png( $img ) {
 		ob_start();
 		imagepng( $img );

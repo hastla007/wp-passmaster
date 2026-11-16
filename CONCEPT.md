@@ -21,7 +21,7 @@ Pass Captain stellt nach erfolgreichem Kauf oder einer bestätigten Gutscheinein
 - WooCommerce optional unterstützen und dieselben öffentlichen Ticketdienste auch für andere Shop- und Buchungssysteme anbieten.
 - Datenschutzminimierung und konfigurierbare DACH-Verkaufs-, Steuer- und Verbraucherinformationen unterstützen.
 - Voucher Captain bei gemeinsamer Installation direkt integrieren.
-- Kundenspezifische Verbindungen zum Bootsschule-/Kursplugin in einem separaten Connector halten.
+- Die Verbindungen zu BoatingSchool und LearnBoating (Kursplattformen) als eigene Connector-Plugins von Pass Captain Pro führen: separat installiert, nur mit gültiger Lizenz (Entscheidung 17, 16.11.2026). Der Kern bleibt frei und liefert nur den versionierten Connector-Vertrag.
 
 Pass Captain stellt Konfigurationen und Nachweise bereit. Es verspricht keine pauschale Rechts- oder Steuerkonformität: Betreiber müssen die für ihr Land und ihr Angebot geltenden Einstellungen mit Rechts- und Steuerberatung festlegen.
 
@@ -34,15 +34,15 @@ Pass Captain stellt Konfigurationen und Nachweise bereit. Es verspricht keine pa
 | Commerce-Adapter | Optionale Anbindung an WooCommerce oder andere Shop-/Buchungssysteme |
 | Voucher Captain | Gutscheine, Geschenkguthaben und Rabattcodes |
 | Native Voucher-/Pass-Integration | Ist beides installiert, kann die bestätigte Einlösung eines Gutscheins die Ticketausstellung auslösen |
-| Bootsschule-Connector | Kundenspezifische Verbindung von Shopprodukten und Tickets mit Kursprodukten und Kurszugängen |
+| Connectoren BoatingSchool und LearnBoating (Pass Captain Pro) | Verbindung von Shopprodukten und Tickets mit Kursprodukten und Kurszugängen; je ein eigenes Plugin, separat installiert, lizenzpflichtig (Entscheidung 17) |
 
 Voucher Captain und Pass Captain bleiben eigenständige Produkte. Ihre direkte Integration benötigt kein drittes Connector-Plugin. Ein gemeinsamer, versionierter PHP-Vertrag verbindet die Plugins; direkte Zugriffe auf interne Klassen oder Tabellen des jeweils anderen Plugins sind ausgeschlossen.
 
-Der Bootsschule-Connector ist dagegen kundenspezifisch. Er kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Learnboating-Regeln kommen nicht in Pass Captain Core.
+Die Connectoren für BoatingSchool und LearnBoating sind dagegen eigene Plugins, die zu Pass Captain Pro gehören (Entscheidung 17, 16.11.2026): Sie werden getrennt installiert und laufen nur mit gültiger Lizenz; die Lizenzprüfung liegt ausschließlich im Connector, nie im Kern. Ein Connector kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Kursregeln kommen nicht in den Kern; er stellt nur Ereignisse und Befehle über den versionierten Connector-Vertrag bereit. Läuft die Lizenz ab, stoppt nur die weitere Synchronisierung – ausgegebene Tickets und Kurszugänge bleiben gültig. Offen (TODO.md Abschnitt C): Produkt- bzw. Rechteschlüssel und Umfang der Kundenfreigabe.
 
 ### Zuständigkeitsgrenze zu Voucher Captain
 
-Pass Captain führt das maßgebliche Event- und Ticketmodell. Es verwaltet Termine, Kategorien, Kontingente, Sitzplätze, Eventbestellungen, admission tickets und Check-ins. Voucher Captain bleibt für Gutscheine, Rabatte, Geschenkkarten, Guthaben und Gutschein-Zustellung zuständig. Voucher Captain darf weiter voucherartige Servicepässe und seinen eigenen Gutschein-Scanner verwalten; ein Event-Einlass verändert jedoch nur den Ticketstatus in Pass Captain. Bei gemeinsamer Installation vermittelt die versionierte Bridge zwischen den Zuständigkeiten, ohne Plugin-, Menü- oder Datenbankverwaltung zusammenzulegen. Der Bootsschule-Connector bleibt kundenspezifisch.
+Pass Captain führt das maßgebliche Event- und Ticketmodell. Es verwaltet Termine, Kategorien, Kontingente, Sitzplätze, Eventbestellungen, admission tickets und Check-ins. Voucher Captain bleibt für Gutscheine, Rabatte, Geschenkkarten, Guthaben und Gutschein-Zustellung zuständig. Voucher Captain darf weiter voucherartige Servicepässe und seinen eigenen Gutschein-Scanner verwalten; ein Event-Einlass verändert jedoch nur den Ticketstatus in Pass Captain. Bei gemeinsamer Installation vermittelt die versionierte Bridge zwischen den Zuständigkeiten, ohne Plugin-, Menü- oder Datenbankverwaltung zusammenzulegen. Die Connectoren BoatingSchool und LearnBoating bleiben eigene, lizenzierte Pro-Plugins.
 
 
 ## 3. Event-, Termin- und Ticketverwaltung
@@ -432,7 +432,7 @@ Die vorgeschlagenen Filter- und Action-Namen können als Integrations-Events gen
 
 ## 16. Test- und Release-Gates
 
-Diese Gates gelten für ein Release; sie ergänzen die MVP-Abnahmekriterien und sind noch von einem konkreten CI-System umzusetzen.
+Diese Gates gelten für ein Release; sie ergänzen die MVP-Abnahmekriterien. Umgesetzt und verbindlich gemacht sind sie in [docs/RELEASE.md](docs/RELEASE.md): automatische Gates per CI, alle übrigen über das Abnahmeprotokoll `docs/release-acceptance/v<Version>.md`, ohne das der Release-Workflow nicht veröffentlicht. Die Kästchen unten beschreiben den Anforderungsumfang; abgehakt wird je Release im Protokoll.
 
 ### Testebenen
 
@@ -560,6 +560,7 @@ Pass Captain verwendet eigene Capabilities. Ein Rollenpaket allein gewährt kein
 - Partner und Einlasspersonal sehen nur Daten, die für ihre Aufgabe notwendig sind. Sensible Zusatzfelder sind standardmäßig deaktiviert und benötigen einen eigenen Zweck sowie eine gesonderte Berechtigung.
 - Exporte respektieren Eventscope und Feldberechtigungen. Globale Exporte bleiben Ticket-Administration und autorisierter Finanzbuchhaltung vorbehalten.
 - Erstattungen, Ticketübertragungen, Teilnehmerdatenänderungen, Check-in-Korrekturen, Exporte und Rechteänderungen werden mit Nutzer, Objekt, Zeitpunkt und Grund protokolliert.
+- „Event verwalten“ schließt die Delegation im eigenen Event ein: Wer `wpcap_manage_events` für ein Event hat, darf dessen Rechte (Einlass, Bestellungen/Kasse, Event verwalten, Berichte) an Personen im Event-Team vergeben – auch an sich selbst. Zuweisbar sind nur Mitglieder der aktuellen Site, die bereits eine Pass-Captain-Rolle haben (Administratoren mit `list_users`: jedes Mitglied der Site); unbekannte, fremde und rollenlose Konten erhalten dieselbe Antwort, damit die Zuweisung kein Konten-Orakel ist (A471, A636).
 - Keine gemeinsamen Benutzerkonten. Scannerzugänge sind personengebunden oder zeitlich begrenzte, eventgebundene Gerätesitzungen.
 - Mehr-Faktor-Authentifizierung für Ticket-Administration und Finanzrollen unterstützen. Hochwertige Erstattungen und Sammelaktionen können eine zweite Freigabe verlangen.
 - Supportzugriff auf personenbezogene Daten ist zeitlich begrenzt und protokolliert; keine verdeckte Admin-Impersonation.

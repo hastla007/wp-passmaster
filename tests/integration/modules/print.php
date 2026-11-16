@@ -50,6 +50,9 @@ check( 'template lines parse size, bold and QR', 18.0 === $parsed[0]['size'] && 
 $ticket_pdf = Templates::render( 'ticket', array( $item, $item, $item ) );
 check( 'ticket layout: valid PDF, one A4 page per ticket, escaped text', wpp_pdf_ok( $ticket_pdf, 3 ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '(Gala \\(Wien\\)) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '/MediaBox [0 0 595.28 841.89]' ) );
 check( 'QR code is drawn when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $ticket_pdf ), " re\n" ) > 200 );
+// MERGE-CHECK: the two lines drew the QR code differently (ours: > 200 rectangles, Arbeitsliste: > 150);
+// keep the check that matches the merged PdfWriter/QrCode and drop the other.
+check( 'QR code is drawn when the encoder is installed (Arbeitsliste threshold)', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_pdf_plain( $ticket_pdf ), " re\n" ) > 150 );
 $badge = Templates::render( 'badge', array( $item ) );
 check( 'badge layout is A6', wpp_pdf_ok( $badge, 1 ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '/MediaBox [0 0 297.64 419.53]' ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '(Ada Lovelace) Tj' ) );
 $tags = Templates::render( 'nametag', array_fill( 0, 12, $item ) );
@@ -117,10 +120,22 @@ check( 'printing needs event/order management; new codes need event management (
 check( 'with QR by default only undelivered (box office) tickets: customer tickets stay untouched (R2)', is_wp_error( $default_only ) && 'wpcap_print_nothing' === $default_only->get_error_code() && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
 $GLOBALS['wpp_rotated'] = array();
 add_action( 'wpcap_ticket_code_rotated', static function ( $ticket_id, $token, $context ) { $GLOBALS['wpp_rotated'][ $ticket_id ] = array( $token, $context ); }, 10, 3 );
-$with_codes = PrintPage::batch_request( $pocc, 'ticket', true, array( 'include_delivered' => true, 'confirm' => 2 ) );
+// MERGE-CHECK: two implementations of the code-renewing batch print. Arbeitsliste (A427/A630, active below):
+// background batch, codes renewed only on download and only for tickets the buyer holds. Ours: synchronous
+// PDF with options include_delivered/confirm, renewing every valid ticket. The ours variant is kept here for
+// the coordinator; enable it instead of the active block if the synchronous PrintPage::batch_request() wins:
+// $with_codes = PrintPage::batch_request( $pocc, 'ticket', true, array( 'include_delivered' => true, 'confirm' => 2 ) );
+// $after = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
+// check( 'tickets with QR: new codes for valid tickets only, checked-in tickets untouched', ! is_wp_error( $with_codes ) && wpp_pdf_ok( $with_codes['pdf'], 2 ) && $after[0] !== $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
+$with_codes = PrintPage::batch_request( $pocc, 'ticket', true );
+$before_dl = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
+check( 'tickets with QR: background batch, ready at once, codes unchanged until the download (A427)', ! is_wp_error( $with_codes ) && 'ready' === $with_codes['status'] && $hashes === $before_dl && array() === $GLOBALS['wpp_rotated'] );
+$with_codes_file = PassCaptain\Printing\BatchJob::deliver( $with_codes['batch'] );
+PassCaptain\Printing\BatchJob::notify( $with_codes['batch'] );
+$with_codes_pdf = is_wp_error( $with_codes_file ) ? '' : (string) file_get_contents( $with_codes_file['path'] );
 $after = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
-check( 'tickets with QR: new codes for valid tickets only, checked-in tickets untouched', ! is_wp_error( $with_codes ) && wpp_pdf_ok( $with_codes['pdf'], 2 ) && $after[0] !== $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
-$rot_ok = 2 === count( $GLOBALS['wpp_rotated'] ) && ! isset( $GLOBALS['wpp_rotated'][ (int) $ptickets[2]->ticket_id ] );
+check( 'tickets with QR: new code only for the valid ticket the buyer holds; ticket assigned to another attendee and checked-in ticket untouched (A630)', wpp_pdf_ok( $with_codes_pdf, 2 ) && 1 === $with_codes_file['rotated'] && $after[0] === $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
+$rot_ok = 1 === count( $GLOBALS['wpp_rotated'] ) && isset( $GLOBALS['wpp_rotated'][ (int) $ptickets[1]->ticket_id ] );
 foreach ( $GLOBALS['wpp_rotated'] as $rot_id => $rot ) { $rot_ok = $rot_ok && 'print' === $rot[1] && hash( 'sha256', $rot[0] ) === $wpdb->get_var( "SELECT token_hash FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $rot_id ); }
 check( 'wpcap_ticket_code_rotated fires once per new code (ticket id, new code, "print")', $rot_ok );
 
@@ -168,6 +183,8 @@ $only_cn = InvoicePdf::admin_pdf( $io['order_id'], (int) $cn['credit_note_id'] )
 check( 'credit notes get their own page; single credit note download', wpp_pdf_ok( $with_cn, 2 ) && false !== strpos( wpcap_test_pdf_plain( $with_cn ), '(Rechnungskorrektur ' . $cn['credit_note_number'] . ') Tj' ) && ! is_wp_error( $only_cn ) && wpp_pdf_ok( $only_cn['pdf'], 1 ) && false !== strpos( wpcap_test_pdf_plain( $only_cn['pdf'] ), '(-11,90 EUR) Tj' ) && str_starts_with( $only_cn['filename'], 'rechnungskorrektur-' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance', 'wpcap_manage_orders' );
 $forbidden = InvoicePdf::admin_pdf( $io['order_id'] );
+// Order managers need the event assignment (Access::can_access_event).
+$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_event_staff (event_id,user_id,capability) SELECT o.event_id,1,'wpcap_manage_orders' FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id WHERE tt.ticket_type_id=%d", $it ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance' );
 $order_manager = InvoicePdf::admin_pdf( $io['order_id'] );
 $GLOBALS['wpcap_test_denied_caps'] = array();

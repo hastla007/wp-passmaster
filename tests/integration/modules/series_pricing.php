@@ -140,6 +140,8 @@ try {
 	$html = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 	$pos_card = strpos( $html, 'id="wpcap-' . $occ3 . '-' . $s3['types'][ $occ3 ]['Student'] . '"' );
 	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student</span> — <span class="wpcap-type-price">9,00 €' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
+	// MERGE-CHECK: markup of the price label differs (ours closes the name span before the dash, Arbeitsliste closes the price span).
+	check( 'event page shows the effective price, label, regular price and data-price (Arbeitsliste markup)', false !== $pos_card && false !== strpos( $html, 'Student — <span class="wpcap-type-price">9,00 €</span>' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
 } catch ( \Throwable $e ) {
 	check( 'event page renders (' . $e->getMessage() . ')', false );
 }

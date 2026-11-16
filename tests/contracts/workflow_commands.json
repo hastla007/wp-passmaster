@@ -1,0 +1,92 @@
+{
+    "contract": "workflow_commands",
+    "version": "1.0.0",
+    "description": "Workflow-Commands v1 (PassCaptain\\Workflow\\Commands::execute( $command, $args, $idempotency_key )): request = erlaubte Argumente je Command (? = optional), response = Antwort bei Erfolg. Fehler sind WP_Error mit status (400, 403, 404, 409, 503).",
+    "endpoints": {
+        "mail.resend": {
+            "direction": "inbound",
+            "request": {
+                "order_id": "string",
+                "?new_codes": "bool"
+            },
+            "response": {
+                "command": "string",
+                "idempotency_key": "string",
+                "replayed": "bool",
+                "result": {
+                    "order_id": "string",
+                    "status": "string",
+                    "codes": "string"
+                }
+            }
+        },
+        "ticket.revoke": {
+            "direction": "inbound",
+            "request": {
+                "ticket_id": "string",
+                "reason": "string"
+            },
+            "response": {
+                "command": "string",
+                "idempotency_key": "string",
+                "replayed": "bool",
+                "result": {
+                    "ticket_id": "string",
+                    "status": "string"
+                }
+            }
+        },
+        "event.cancel": {
+            "direction": "inbound",
+            "request": {
+                "event_id": "int",
+                "reason": "string"
+            },
+            "response": {
+                "command": "string",
+                "idempotency_key": "string",
+                "replayed": "bool",
+                "result": {
+                    "event_id": "int",
+                    "status": "string",
+                    "run_status": "string"
+                }
+            }
+        },
+        "occurrence.reschedule": {
+            "direction": "inbound",
+            "request": {
+                "occurrence_id": "int",
+                "starts_at": "string",
+                "?ends_at": "string|null"
+            },
+            "response": {
+                "command": "string",
+                "idempotency_key": "string",
+                "replayed": "bool",
+                "result": {
+                    "occurrence_id": "int",
+                    "status": "string",
+                    "starts_at": "string"
+                }
+            }
+        },
+        "attendance.confirm": {
+            "direction": "inbound",
+            "request": {
+                "ticket_id": "string",
+                "?method": "string"
+            },
+            "response": {
+                "command": "string",
+                "idempotency_key": "string",
+                "replayed": "bool",
+                "result": {
+                    "ticket_id": "string",
+                    "status": "string",
+                    "method": "string"
+                }
+            }
+        }
+    }
+}

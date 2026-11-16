@@ -1,14 +1,23 @@
 <?php
 /**
- * Dependency-free PDF renderer for tickets (one A4 page per ticket, Helvetica, vector QR code).
+ * Ticket PDFs of the ticket mail, the order portal and the admin (one A4 page per ticket).
  *
- * Built on Printing\PdfWriter (compressed content streams, QR modules merged into runs, page-wise
- * serialisation). The QR matrix comes from the bundled bacon/bacon-qr-code encoder (installed with
- * Composer in the release ZIP). Without it the PDF still contains the ticket code as text.
+ * A330: rendered by the print engine (Printing\Templates with the "ticket" layout, Printing\PdfWriter),
+ * so the ticket template selected for the event under "Druck & Listen" applies to these PDFs too
+ * and names in any script print correctly (embedded Unicode font). Each page carries the site name
+ * as header and a footer (default "only valid once"; filter `wpcap_ticket_pdf_footer` per ticket,
+ * e.g. per ticket type or pass).
+ *
+ * Size (A618, audit R2 #5): compressed content streams, QR modules merged into runs; render_to_file()
+ * streams the document page by page into a private file (ticket mail attachments, limits see
+ * mail_limits()). The QR code carries the signed ticket code when signed QR codes are enabled
+ * (Security\SignedQr). The QR matrix comes from the bundled bacon/bacon-qr-code encoder (installed
+ * with Composer in the release ZIP). Without it the PDF still contains the ticket code as text.
  */
 namespace PassCaptain;
 
 use PassCaptain\Printing\PdfWriter;
+use PassCaptain\Printing\Templates;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -19,70 +28,93 @@ final class TicketPdf {
 	const MAIL_MAX_BYTES = 5242880;
 
 	/**
-	 * @param array $tickets List of ['event','ticket','when','location','seat','attendee','token'] arrays.
+	 * @param array $tickets List of ['event','ticket','when','location','seat','attendee','token','help_code'] arrays,
+	 *                       optionally 'occurrence_id' (selects the event's ticket template), 'ticket_type_id',
+	 *                       'starts_at'/'timezone' (for {time}), 'order' and 'footer' (overrides $meta['footer']).
 	 * @param array $meta    ['title' => string, 'footer' => string, 'lang' => locale].
 	 * @return string PDF bytes.
 	 */
 	public static function render( array $tickets, array $meta = array() ) {
 		$pdf = self::build( new PdfWriter(), $tickets, $meta );
-		return $pdf->output( (string) ( $meta['title'] ?? '' ) );
+		return $pdf->output( self::title( $meta ) );
 	}
 
 	/** Streams the PDF into $file (mode 0600) page by page. False when writing failed. */
 	public static function render_to_file( $file, array $tickets, array $meta = array() ) {
-		$pdf = self::build( new PdfWriter( $file ), $tickets, $meta );
-		return $pdf->finish( (string) ( $meta['title'] ?? '' ) );
+		$pdf = self::build( new PdfWriter( (string) $file ), $tickets, $meta );
+		return $pdf->finish( self::title( $meta ) );
 	}
 
+	private static function title( array $meta ) {
+		return (string) ( $meta['title'] ?? __( 'Tickets', 'pass-captain' ) );
+	}
+
+	/** Draws one page per ticket with the event's ticket template (A330). */
 	private static function build( PdfWriter $pdf, array $tickets, array $meta ) {
-		if ( ! empty( $meta['lang'] ) ) { $pdf->set_language( (string) $meta['lang'] ); }
-		$values = Security\SignedQr::qr_values( array_map( static function ( $t ) { return (string) ( $t['token'] ?? '' ); }, $tickets ) );
-		foreach ( array_values( $tickets ) as $i => $ticket ) {
+		$pdf->set_language( ! empty( $meta['lang'] ) ? (string) $meta['lang'] : ( function_exists( 'determine_locale' ) ? determine_locale() : '' ) );
+		$tickets = array_values( array_map( static function ( $ticket ) { return (array) $ticket; }, $tickets ) );
+		// Signed QR values (PC1) for all tickets at once; the plain code when signing is off.
+		$qr = Security\SignedQr::qr_values( array_map( static function ( $t ) { return (string) ( $t['token'] ?? '' ); }, $tickets ) );
+		$bodies = array();
+		foreach ( $tickets as $i => $ticket ) {
 			if ( ! $pdf->ok() ) { break; }
-			$ticket['qr'] = $values[ $i ] ?? (string) ( $ticket['token'] ?? '' );
-			self::page( $pdf, $ticket, $meta );
+			$occurrence_id = (int) ( $ticket['occurrence_id'] ?? 0 );
+			if ( ! isset( $bodies[ $occurrence_id ] ) ) {
+				$event_id = $occurrence_id ? (int) Reports\Scope::occurrence_event( $occurrence_id ) : 0;
+				$bodies[ $occurrence_id ] = $event_id ? Templates::body_for_event( $event_id, 'ticket' ) : Templates::default_body( 'ticket' );
+			}
+			$values = self::values( self::data( $ticket, $meta ), $meta );
+			$values['qr'] = (string) ( $qr[ $i ] ?? $values['qr'] );
+			Templates::pages( 'ticket', array( $values ), $bodies[ $occurrence_id ], $pdf );
 		}
 		return $pdf;
 	}
 
-	/** One ticket page. Long event names wrap (two lines), other lines are shortened to the page width. */
-	private static function page( PdfWriter $pdf, array $t, array $meta ) {
-		$pdf->add_page( 595, 842 );
-		$width = 495;
-		$y = 780;
-		$pdf->text( 50, $y, 11, PdfWriter::fit( (string) ( $meta['title'] ?? 'Ticket' ), 11, $width ) );
-		$y -= 14;
-		foreach ( PdfWriter::wrap( (string) ( $t['event'] ?? '' ), 22, $width, true, 2 ) as $line ) {
-			$y -= 22;
-			$pdf->text( 50, $y, 22, $line, true );
+	/** Fields a filter can never change: the code and the help code (scanning must keep working). */
+	const FIXED_FIELDS = array( 'token', 'help_code' );
+
+	/**
+	 * Filter wpcap_ticket_pdf_data (A331): display data of one ticket page (event, ticket, when,
+	 * location, seat, attendee, ticket_id when known, further keys for the layout filter). The ticket
+	 * code and help code always stay as issued.
+	 */
+	public static function data( array $ticket, array $meta = array() ) {
+		$filtered = apply_filters( 'wpcap_ticket_pdf_data', $ticket, $meta );
+		$filtered = is_array( $filtered ) ? $filtered : $ticket;
+		foreach ( self::FIXED_FIELDS as $field ) {
+			unset( $filtered[ $field ] );
+			if ( array_key_exists( $field, $ticket ) ) { $filtered[ $field ] = $ticket[ $field ]; }
 		}
-		$rows = array(
-			array( (string) ( $t['ticket'] ?? '' ), 14, false, 26 ),
-			array( (string) ( $t['when'] ?? '' ), 12, false, 22 ),
-			array( (string) ( $t['location'] ?? '' ), 12, false, 18 ),
-			array( (string) ( $t['seat'] ?? '' ), 14, true, 20 ),
-			array( (string) ( $t['attendee'] ?? '' ), 12, false, 18 ),
+		return $filtered;
+	}
+
+	/** Placeholder values of the ticket layout for one ticket entry. */
+	public static function values( array $ticket, array $meta = array() ) {
+		$time = '';
+		if ( ! empty( $ticket['starts_at'] ) ) { $time = Reports\Scope::local( (string) $ticket['starts_at'], (string) ( $ticket['timezone'] ?? 'UTC' ), 'H:i' ); }
+		$footer = (string) ( $ticket['footer'] ?? ( $meta['footer'] ?? '' ) );
+		/**
+		 * Footer line of one page of a ticket PDF (mail, portal, admin), e.g. conditions per ticket
+		 * type or pass. '' = none.
+		 *
+		 * @param string $footer Default footer ("Dieses Ticket ist nur einmal gültig …").
+		 * @param array  $ticket Ticket entry (event, ticket, when, occurrence_id, ticket_type_id …; no code).
+		 */
+		$footer = (string) apply_filters( 'wpcap_ticket_pdf_footer', $footer, array_diff_key( $ticket, array( 'token' => 1, 'help_code' => 1, 'url' => 1 ) ) );
+		return array(
+			'event' => (string) ( $ticket['event'] ?? '' ),
+			'date' => (string) ( $ticket['when'] ?? '' ),
+			'time' => $time,
+			'location' => (string) ( $ticket['location'] ?? '' ),
+			'ticket_category' => (string) ( $ticket['ticket'] ?? '' ),
+			'attendee_name' => (string) ( $ticket['attendee'] ?? '' ),
+			'seat_label' => (string) ( $ticket['seat'] ?? '' ),
+			'order' => (string) ( $ticket['order'] ?? '' ),
+			'help_code' => (string) ( $ticket['help_code'] ?? '' ),
+			'qr' => (string) ( $ticket['token'] ?? '' ),
+			'_title' => (string) ( $meta['title'] ?? '' ),
+			'_footer' => $footer,
 		);
-		foreach ( $rows as $i => list( $text, $size, $bold, $step ) ) {
-			if ( '' === $text && $i > 1 ) { continue; }
-			$y -= $step;
-			$pdf->text( 50, $y, $size, PdfWriter::fit( $text, $size, $width, $bold ), $bold );
-		}
-		$matrix = self::qr_matrix( (string) ( $t['qr'] ?? '' ) );
-		$top = $y - 40;
-		if ( $matrix ) {
-			$count = count( $matrix );
-			$module = min( 8.0, 260 / ( $count + 2 * QrCode::QUIET_ZONE ) );
-			$size = $module * ( $count + 2 * QrCode::QUIET_ZONE );
-			$y0 = $top - $size;
-			$pdf->qr_matrix( ( 595 - $size ) / 2, $y0, $size, $matrix, QrCode::QUIET_ZONE );
-			$top = $y0 - 20;
-		}
-		$token = (string) ( $t['token'] ?? '' );
-		$pdf->text( 50, $top, 9, 'Code:' );
-		$pdf->text( 80, $top, 9, substr( $token, 0, 32 ) );
-		$pdf->text( 80, $top - 12, 9, substr( $token, 32 ) );
-		if ( ! empty( $meta['footer'] ) ) { $pdf->text( 50, 40, 9, PdfWriter::fit( (string) $meta['footer'], 9, $width ) ); }
 	}
 
 	/** QR modules as rows of booleans, or empty array when the encoder is unavailable (see QrCode::matrix()). */
@@ -147,6 +179,12 @@ final class TicketPdf {
 					'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ),
 					'attendee' => $names[ (int) $ticket['ticket_id'] ] ?? '',
 					'token' => $ticket['token'],
+					// Template selection, {time} and the help code under the QR code (A089, A330).
+					'occurrence_id' => (int) ( $ticket['occurrence_id'] ?? 0 ),
+					'ticket_type_id' => (int) ( $ticket['ticket_type_id'] ?? 0 ),
+					'starts_at' => $ticket['starts_at'],
+					'timezone' => $ticket['timezone'],
+					'help_code' => class_exists( HelpCode::class ) ? HelpCode::for_ticket( (int) $ticket['ticket_id'], (string) $ticket['token'] ) : '',
 				);
 			}, $issued );
 			return self::render_to_file( $file, $tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ), 'lang' => '' !== $locale ? $locale : Mail\Mailer::current_locale() ) );

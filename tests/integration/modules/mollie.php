@@ -13,7 +13,7 @@ use PassCaptain\Payments\Registry;
 use PassCaptain\Payments\Webhooks;
 use PassCaptain\Settings;
 
-if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/wp-pass-captain/' ); }
+if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 
 Mollie::register();
@@ -25,7 +25,7 @@ function mollie_payment( $id, $status, $order, array $extra = array() ) {
 	return array_merge( array( 'resource' => 'payment', 'id' => $id, 'status' => $status, 'amount' => array( 'value' => MollieGateway::format_amount( (int) $order['total_minor'], $order['currency'] ), 'currency' => $order['currency'] ), 'metadata' => array( 'order' => $order['public_id'] ), '_links' => array( 'checkout' => array( 'href' => 'https://www.mollie.com/checkout/select-method/' . $id ) ) ), $extra );
 }
 function mollie_webhook( $id ) {
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/mollie/webhook' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/mollie/webhook' );
 	$req->set_body( 'id=' . $id );
 	$req['provider'] = 'mollie';
 	return $req;
@@ -48,7 +48,7 @@ Settings::update( array( 'mollie' => array( 'methods' => array( 'ideal', 'credit
 wpcap_test_reset_transients();
 http_reset();
 http_push( array( '_embedded' => array( 'methods' => array( array( 'id' => 'ideal', 'description' => 'iDEAL' ), array( 'id' => 'creditcard', 'description' => 'Kreditkarte' ), array( 'id' => 'bancontact', 'description' => 'Bancontact' ) ) ) ), 200, '/v2/methods' );
-$methods = MollieGateway::selectable_methods( 2500, 'EUR' );
+$methods = MollieGateway::selectable_methods( 2500, 'EUR', true );
 $mq = http_requests( '/v2/methods' )[0] ?? array( 'url' => '' );
 parse_str( (string) parse_url( $mq['url'], PHP_URL_QUERY ), $q );
 check( 'only enabled methods Mollie offers for amount/currency', array( 'ideal' => 'iDEAL', 'creditcard' => 'Kreditkarte' ) === $methods );
@@ -77,7 +77,7 @@ $body = json_decode( $cr['body'], true );
 check( 'create returns the checkout redirect and payment id', ! is_wp_error( $pay ) && 'mollie' === $pay['provider'] && 'tr_Test1234' === $pay['provider_reference'] && 0 === strpos( $pay['redirect_url'], 'https://www.mollie.com/checkout/' ) );
 check( 'POST /v2/payments with bearer key and idempotency key', 'POST' === $cr['method'] && 'https://api.mollie.com/v2/payments' === $cr['url'] && 'Bearer ' . $api_key === $cr['headers']['Authorization'] && 'wpcap-mollie-' . $order['public_id'] . '-' . (int) $order['total_minor'] . 'eur' === $cr['headers']['Idempotency-Key'] );
 check( 'amount string, description, metadata, method', array( 'currency' => 'EUR', 'value' => '50.00' ) === $body['amount'] && $order['public_id'] === $body['metadata']['order'] && 'ideal' === $body['method'] && false !== strpos( $body['description'], $order['public_id'] ) && 'de_DE' === $body['locale'] );
-check( 'webhookUrl and redirectUrl', 'https://example.test/wp-json/wp-pass-captain/v1/payments/mollie/webhook' === $body['webhookUrl'] && false !== strpos( $body['redirectUrl'], 'wpcap_mollie_return=1' ) && false !== strpos( $body['redirectUrl'], $order['public_id'] ) );
+check( 'webhookUrl and redirectUrl', 'https://example.test/wp-json/pass-captain/v1/payments/mollie/webhook' === $body['webhookUrl'] && false !== strpos( $body['redirectUrl'], 'wpcap_mollie_return=1' ) && false !== strpos( $body['redirectUrl'], $order['public_id'] ) );
 Orders::set_provider_reference( $order['order_id'], 'tr_Test1234' );
 http_reset();
 http_push( mollie_payment( 'tr_Test1234', 'open', $order ), 200, '/v2/payments/tr_Test1234' );

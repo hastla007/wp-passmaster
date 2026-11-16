@@ -70,7 +70,8 @@ final class Pools {
 		$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_series_pools", array( 'series_id' => (int) $series->series_id, 'name' => '' !== $name ? $name : __( 'Serienkontingent', 'pass-captain' ), 'type_name' => $type_name, 'capacity' => $capacity, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
 		if ( ! $ok ) { return self::error( 'wpcap_series_pool_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$pool_id = (int) $wpdb->insert_id;
-		\PassCaptain\Audit::record( 'series_pool_created', 'event', (int) $series->event_id, array( 'series_id' => (int) $series->series_id, 'pool_id' => $pool_id, 'capacity' => $capacity ) );
+		// A114: series-scoped entry (change history of the series).
+		\PassCaptain\Audit::record( 'series_pool_created', 'series', (int) $series->series_id, array( 'event_id' => (int) $series->event_id, 'series_id' => (int) $series->series_id, 'pool_id' => $pool_id, 'name' => '' !== $name ? $name : __( 'Serienkontingent', 'pass-captain' ), 'type_name' => $type_name, 'capacity' => $capacity ) );
 		return $pool_id;
 	}
 
@@ -82,7 +83,7 @@ final class Pools {
 		$capacity = absint( $capacity );
 		if ( $capacity < 1 ) { return self::error( 'wpcap_series_pool_capacity', __( 'Bitte ein Kontingent von mindestens 1 angeben.', 'pass-captain' ) ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_series_pools", array( 'capacity' => $capacity, 'updated_at' => current_time( 'mysql', true ) ), array( 'pool_id' => (int) $pool->pool_id ) );
-		\PassCaptain\Audit::record( 'series_pool_updated', 'event', (int) $pool->event_id, array( 'pool_id' => (int) $pool->pool_id, 'capacity' => $capacity ) );
+		\PassCaptain\Audit::record( 'series_pool_updated', 'series', (int) $pool->series_id, array( 'event_id' => (int) $pool->event_id, 'series_id' => (int) $pool->series_id, 'pool_id' => (int) $pool->pool_id, 'capacity' => $capacity, 'changes' => \PassCaptain\Admin\ChangeHistory::diff( array( 'name' => $pool->name, 'capacity' => (int) $pool->capacity ), array( 'name' => $pool->name, 'capacity' => $capacity ) ) ) );
 		return true;
 	}
 
@@ -92,7 +93,7 @@ final class Pools {
 		$pool = self::pool_with_event( $pool_id );
 		if ( is_wp_error( $pool ) ) { return $pool; }
 		$wpdb->update( "{$wpdb->prefix}wpcap_series_pools", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'pool_id' => (int) $pool->pool_id ) );
-		\PassCaptain\Audit::record( 'series_pool_deleted', 'event', (int) $pool->event_id, array( 'pool_id' => (int) $pool->pool_id ) );
+		\PassCaptain\Audit::record( 'series_pool_deleted', 'series', (int) $pool->series_id, array( 'event_id' => (int) $pool->event_id, 'series_id' => (int) $pool->series_id, 'pool_id' => (int) $pool->pool_id, 'name' => (string) $pool->name ) );
 		return true;
 	}
 
@@ -128,6 +129,9 @@ final class Pools {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
 		$p = $wpdb->prefix;
+		// Maintained counters (one row per type) instead of summing order lines and holds.
+		$counted = \PassCaptain\CapacityCounters::used_for_types( $type_ids, $exclude_order_id, $now );
+		if ( null !== $counted ) { return $counted; }
 		$exclude = absint( $exclude_order_id );
 		if ( ! $exclude && \PassCaptain\DisplayBatch::active() ) {
 			// Display batch: every requested type preloaded → sum the grouped usage (no query).

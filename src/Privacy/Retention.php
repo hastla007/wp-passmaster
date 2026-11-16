@@ -10,13 +10,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * Daily enforcement of the retention settings (storage limitation, Art. 5(1)(e) GDPR).
  *
- * After the end of an occurrence (ends_at, otherwise starts_at + 1 day) plus N days:
+ * After the end of an occurrence (Occurrence::end_sql(): ends_at, otherwise start + default duration, A606) plus N days:
  * - participant answers are deleted (N = setting attendee_retention_days, or the field's own
  *   retention_days when the setting is 0),
  * - attendee name/e-mail in ticket assignments, tickets.attendee_email and the names in offline
  *   packages are cleared (N = attendee_retention_days, or filter wpcap_attendee_default_retention_days,
- *   default 365, when the setting is 0); wallet passes of these tickets get an update without the
- *   name (Google object, Apple push), so the name also disappears from the customer's wallet,
+ *   default 365, when the setting is 0); `wpcap_privacy_attendees_cleared` lets the wallet module
+ *   update these passes without the name (Google object, Apple push, A566),
  * - Apple Wallet device registrations of these tickets are deleted one day later (after the push),
  * - pending attendee details (orders.attendee_data) of paid orders are cleared.
  *
@@ -44,12 +44,20 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *   (conflicts also the resolution note); labels of revoked/expired scanner devices and of used or
  *   expired pairing codes are cleared after the same period,
  * - audit log entries are deleted after 730 days,
+ * - financial records (A123/A605, setting retention_financial_years, default 0 = keep): invoices
+ *   with their lines and correction documents once their calendar year (site time zone) plus N years
+ *   has ended; the buyer data of the orders concerned is pseudonymised at the same time,
+ * - Apple Wallet registrations of erased tickets whose delayed purge is due (A510),
+ * - module steps (guest lists, event waitlist, buyer limits, partner codes, box office reports) via
+ *   the filter wpcap_privacy_retention_steps,
  * - order attribution (UTM source/medium/campaign, referrer host; assets/tracking.js) is cleared 90 days
  *   after the order,
- * - housekeeping (PERF-6): finished holds (converted, expired, released) of orders that no longer
- *   wait for payment are deleted 30 days after they expired, completed/cancelled background jobs
- *   30 days after their last update; expired rate-limit counters (wpcap_rate_limits) are deleted
- *   on every run (PERF-16).
+ * - expired rate-limit counters (wpcap_rate_limits, PERF-16) and old check-in idempotency claims
+ *   are deleted on every run; finished holds, jobs, seat holds and payment events are deleted by
+ *   the hourly housekeeping() (A444).
+ *
+ * Periods are settings where SETTINGS lists one (Einstellungen → Datenschutz, A123) and all are
+ * filterable (wpcap_privacy_retention_days).
  *
  * Work runs in batches of 500 rows within a time budget (~20 s). When the budget runs out, a
  * follow-up run is queued right away (Jobs\TimeBudget::continue_later) and starts with the step that
@@ -60,20 +68,36 @@ final class Retention {
 	const HOOK = 'wpcap_privacy_retention';
 	const BATCH = 500;
 
-	/** Steps in their regular order (each is a step_* method). */
-	const STEPS = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'audit_logs', 'attribution', 'reservations', 'jobs', 'rate_limits', 'checkin_claims' );
+	/**
+	 * Built-in steps in their regular order (each is a step_* method). Module steps (guest lists,
+	 * waitlist, buyer limits, partner codes, box office reports) follow via wpcap_privacy_retention_steps;
+	 * finished holds and jobs are deleted by the hourly housekeeping().
+	 */
+	const STEPS = array( 'answers', 'attendees', 'paid_attendee_data', 'unpaid_attendee_data', 'unpaid_customer_email', 'paid_orders', 'financial_records', 'waitlists', 'unconfirmed_waitlists', 'service_bookings', 'member_passes', 'messages', 'sms', 'checkin_staff', 'devices', 'wallet_purges', 'audit_logs', 'attribution', 'rate_limits', 'checkin_claims' );
 
 	/** Option: index of the step the next run starts with (after a run that ran out of time). */
 	const START_OPTION = 'wpcap_retention_next_step';
 
-	/** Registers the daily event (runs on init, activation and after upgrades). */
+	/** Registers the daily event (activation, upgrades and the self-healing check on init, Plugin::ensure_events()). */
 	public static function schedule() {
 		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::HOOK ) ) {
 			wp_schedule_event( time() + 2 * HOUR_IN_SECONDS, 'daily', self::HOOK );
 		}
 	}
 
-	/** Days of one step, filterable (wpcap_privacy_retention_days, $days, $step); 0 = off. */
+	/** Step => setting key with the configurable period in days (A123). */
+	const SETTINGS = array(
+		'unpaid_customer_email' => 'retention_unpaid_customer_email_days',
+		'message_content' => 'retention_message_content_days',
+		'message_rows' => 'retention_message_rows_days',
+		'checkin_staff' => 'retention_checkin_staff_days',
+		'audit_logs' => 'retention_audit_logs_days',
+		'waitlist' => 'retention_waitlist_days',
+		'waitlists' => 'retention_waitlist_days', // Same period: event and appointment waitlists.
+		'partner_ticket_codes' => 'retention_partner_codes_days',
+	);
+
+	/** Days of one step: setting (A123), then filter (wpcap_privacy_retention_days, $days, $step); 0 = off. */
 	public static function days( $step ) {
 		$defaults = array(
 			'unpaid_attendee_data' => 1,
@@ -84,13 +108,48 @@ final class Retention {
 			'checkin_staff' => 365,
 			'audit_logs' => 730,
 			'attribution' => 90,
+			'service_holds' => 90,
+			'waitlist' => 30,
+			'waitlists' => 30,
+			'member_passes' => self::setting_days( 'retention_pass_days', 365 ),
+			'partner_ticket_codes' => 30,
 			'reservations' => 30,
 			'jobs' => 30,
-			'service_holds' => 90,
-			'waitlists' => self::setting_days( 'retention_waitlist_days', 30 ),
-			'member_passes' => self::setting_days( 'retention_pass_days', 365 ),
+			'dead_jobs' => 180,
+			'seat_holds' => 30,
+			'payment_events' => 90,
 		);
-		return max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', $defaults[ $step ] ?? 0, $step ) );
+		$days = $defaults[ $step ] ?? 0;
+		if ( isset( self::SETTINGS[ $step ] ) ) {
+			$configured = Settings::get( self::SETTINGS[ $step ], null );
+			if ( null !== $configured && '' !== $configured ) { $days = max( 0, min( 3650, (int) $configured ) ); }
+		}
+		return max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', $days, $step ) );
+	}
+
+	/** Years financial records are kept (setting retention_financial_years, filterable); 0 = forever. */
+	public static function financial_years() {
+		return max( 0, min( 30, (int) apply_filters( 'wpcap_financial_retention_years', (int) Settings::get( 'retention_financial_years', 0 ) ) ) );
+	}
+
+	/**
+	 * Documents issued before this UTC time may be deleted ('' = keep everything). With N years, a
+	 * document from year Y may go once Y + N has ended: cutoff = 1 January (current year - N).
+	 *
+	 * A605: years are calendar years of the site time zone (the business year of the documents),
+	 * not UTC years: the cutoff is 1 January 00:00 site time, converted to UTC (issued_at is UTC). A
+	 * document issued on 1 January shortly after midnight in Vienna (still 31 December in UTC) thus
+	 * belongs to the new year and is not deleted a year early.
+	 *
+	 * @param int $now Reference time (UNIX).
+	 */
+	public static function financial_cutoff( $now ) {
+		$years = self::financial_years();
+		if ( ! $years ) { return ''; }
+		$zone = \PassCaptain\Frontend\Format::site_timezone();
+		$year = (int) ( new \DateTimeImmutable( '@' . (int) $now ) )->setTimezone( $zone )->format( 'Y' );
+		$start = new \DateTimeImmutable( sprintf( '%04d-01-01 00:00:00', $year - $years ), $zone );
+		return $start->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 	}
 
 	private static function setting_days( $key, $fallback ) {
@@ -144,8 +203,8 @@ final class Retention {
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
 		$steps = self::STEPS;
-		// The run starts where the last incomplete run stopped, so the later steps (audit logs, holds,
-		// jobs) do not starve when the first steps use up the budget every day.
+		// The run starts where the last incomplete run stopped, so the later steps (audit logs,
+		// attribution, counters) do not starve when the first steps use up the budget every day.
 		$start = (int) get_option( self::START_OPTION, 0 );
 		$start = $start > 0 && $start < count( $steps ) ? $start : 0;
 		$stopped = null;
@@ -157,6 +216,14 @@ final class Retention {
 			}
 			$counts[ $step ] = (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline );
 		}
+		/**
+		 * Module retention steps (guest lists, waitlist, buyer limits, …): add counts per step name.
+		 *
+		 * @param array $counts   Counts so far.
+		 * @param int   $now      Reference time.
+		 * @param float $deadline microtime() limit.
+		 */
+		$counts = (array) apply_filters( 'wpcap_privacy_retention_steps', $counts, $now, $deadline );
 		$counts['complete'] = microtime( true ) < $deadline && null === $stopped;
 		update_option( self::START_OPTION, $counts['complete'] ? 0 : (int) $stopped, false );
 		if ( array_sum( array_map( 'intval', array_diff_key( $counts, array( 'complete' => 1 ) ) ) ) > 0 ) {
@@ -170,12 +237,84 @@ final class Retention {
 		return $counts;
 	}
 
+	/** Seconds of one housekeeping run (filter wpcap_cleanup_budget). */
+	const HOUSEKEEPING_BUDGET = 10.0;
+
+	/**
+	 * Hourly housekeeping (cron `wpcap_cleanup_reservations`, A444): deletes finished rows that no
+	 * process reads any more, N days (wpcap_privacy_retention_days, step names below; 0 = keep) after
+	 * they finished, in batches of BATCH rows within a time budget; the next run continues.
+	 * - reservations (30): converted/expired/released holds with counted_qty 0 (they no longer count
+	 *   for capacity), expires_at older than N days, unless their order is still awaiting payment.
+	 * - jobs (30) / dead_jobs (180): completed or discarded (cancelled) jobs / dead letters (re-queueable on the operations page
+	 *   until then). Idempotency keys of deleted jobs can be used again.
+	 * - seat_holds (30): expired/released seat holds (sold holds stay: they mark the seat as taken).
+	 * - payment_events (90): processed (and abandoned "processing") provider events; providers stop
+	 *   redelivering after a few days, so the dedupe no longer needs them.
+	 *
+	 * @param int|null   $now    Reference time (UNIX, tests).
+	 * @param float|null $budget Seconds (filter wpcap_cleanup_budget, default 10).
+	 * @return array Deleted rows per step plus `complete` (false: out of time, the next run continues).
+	 */
+	public static function housekeeping( $now = null, $budget = null ) {
+		$now = null === $now || '' === $now ? time() : (int) $now;
+		$budget = null === $budget ? (float) apply_filters( 'wpcap_cleanup_budget', self::HOUSEKEEPING_BUDGET ) : (float) $budget;
+		$deadline = microtime( true ) + max( 0.0, $budget );
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$steps = array(
+			'reservations' => array(
+				// Range on expiry (status, expires_at); the order is read by primary key.
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT r.reservation_id FROM {$p}wpcap_reservations r LEFT JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('converted','expired','released') AND r.expires_at<%s AND r.counted_qty=0 AND (o.order_id IS NULL OR o.payment_status<>'pending') LIMIT %d", $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_reservations WHERE reservation_id IN ($in) AND status IN ('converted','expired','released') AND counted_qty=0",
+			),
+			'jobs' => array(
+				// Range on due_jobs (status, run_after): a finished job ran after its run_after.
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT job_id FROM {$p}wpcap_jobs WHERE status IN ('complete','cancelled') AND run_after<%s AND updated_at<%s LIMIT %d", $cutoff, $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_jobs WHERE job_id IN ($in) AND status IN ('complete','cancelled')",
+			),
+			'dead_jobs' => array(
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT job_id FROM {$p}wpcap_jobs WHERE status='dead_letter' AND run_after<%s AND updated_at<%s LIMIT %d", $cutoff, $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_jobs WHERE job_id IN ($in) AND status='dead_letter'",
+			),
+			'seat_holds' => array(
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT hold_id FROM {$p}wpcap_seat_holds WHERE status IN ('expired','released') AND expires_at<%s LIMIT %d", $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_seat_holds WHERE hold_id IN ($in) AND status IN ('expired','released')",
+			),
+			'payment_events' => array(
+				// Range on cleanup (status, updated_at), schema 3.10.12.
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT payment_event_id FROM {$p}wpcap_payment_events WHERE status IN ('processed','processing') AND updated_at<%s LIMIT %d", $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_payment_events WHERE payment_event_id IN ($in) AND status IN ('processed','processing')",
+			),
+		);
+		$counts = array();
+		foreach ( $steps as $step => $sql ) {
+			$counts[ $step ] = 0;
+			$days = self::days( $step );
+			if ( ! $days || microtime( true ) >= $deadline ) { continue; }
+			$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
+			$counts[ $step ] = self::loop(
+				$deadline,
+				static fn() => $wpdb->get_col( $sql[0]( $cutoff ) ),
+				static fn( $ids ) => (int) $wpdb->query( $sql[1]( self::in_list( $ids ) ) )
+			);
+		}
+		$counts['complete'] = microtime( true ) < $deadline;
+		return $counts;
+	}
+
 	private static function utc( $ts ) { return gmdate( 'Y-m-d H:i:s', (int) $ts ); }
 
 	/** LIKE pattern matching placeholder addresses (no LIKE wildcards in the domain). */
 	private static function placeholder_like() {
 		return '%' . Privacy::PLACEHOLDER_DOMAIN;
 	}
+
+	/** SQL for the end of an occurrence (alias o); A606: the central definition. */
+	private static function end_sql() { return \PassCaptain\Occurrence::end_sql( 'o' ); }
+
+	/** Comma-separated integer list for IN() (ids are cast; never empty). */
+	private static function in_list( array $ids ) { return implode( ',', array_map( 'absint', $ids ) ) ?: '0'; }
 
 	/** Repeats $select (returns ids) / $apply (ids) until done or out of time. */
 	private static function loop( $deadline, callable $select, callable $apply ) {
@@ -225,7 +364,7 @@ final class Retention {
 			$deadline,
 			static function () use ( $wpdb, $p, $global, $default_days, $now_sql, $start_before ) {
 				// A global retention period overrides the per-field one (which falls back to the default).
-				return $wpdb->get_col( $wpdb->prepare( 'SELECT a.answer_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i a ON a.ticket_id=t.ticket_id LEFT JOIN %i f ON f.field_id=a.field_id WHERE o.starts_at<%s AND DATE_ADD(COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)), INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields', $start_before, $global, $global, $default_days, $now_sql, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( 'SELECT a.answer_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i a ON a.ticket_id=t.ticket_id LEFT JOIN %i f ON f.field_id=a.field_id WHERE o.starts_at<%s AND DATE_ADD(' . self::end_sql() . ', INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields', $start_before, $global, $global, $default_days, $now_sql, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE answer_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_participant_answers' ), $ids ) ) );
@@ -244,26 +383,32 @@ final class Retention {
 		$count = self::loop(
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT ta.assignment_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'') LIMIT %d", $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_ticket_assignments', $cutoff, $cutoff, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( "SELECT ta.assignment_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE o.starts_at<%s AND " . self::end_sql() . "<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'') LIMIT %d", $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_ticket_assignments', $cutoff, $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				$tickets = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE attendee_name<>'' AND assignment_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_ticket_assignments' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$done = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email='' WHERE assignment_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_ticket_assignments' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				// The name is printed on wallet passes: update them so it disappears there as well.
-				Privacy::wallet_resync( array_map( 'absint', $tickets ) );
-				return $done;
+				$tickets = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE assignment_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_ticket_assignments' ), $ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$count = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email='' WHERE assignment_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_ticket_assignments' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				/**
+				 * Attendee names/e-mails of these tickets were cleared by the retention run (A566):
+				 * modules that copied them elsewhere (wallet passes: Google object without the name,
+				 * Apple push) remove them there too.
+				 *
+				 * @param int[] $ticket_ids
+				 */
+				if ( $tickets ) { do_action( 'wpcap_privacy_attendees_cleared', $tickets ); }
+				return $count;
 			}
 		);
 		$count += self::loop(
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND t.attendee_email<>'' LIMIT %d", $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $cutoff, $cutoff, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id WHERE o.starts_at<%s AND " . self::end_sql() . "<%s AND t.attendee_email<>'' LIMIT %d", $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $cutoff, $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_email='' WHERE ticket_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
-		$occurrences = $wpdb->get_col( $wpdb->prepare( 'SELECT o.occurrence_id FROM %i o WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s', $p . 'wpcap_occurrences', $cutoff, $cutoff ) );
+		$occurrences = $wpdb->get_col( $wpdb->prepare( 'SELECT o.occurrence_id FROM %i o WHERE o.starts_at<%s AND ' . self::end_sql() . '<%s', $p . 'wpcap_occurrences', $cutoff, $cutoff ) );
 		if ( $occurrences && Privacy::has_table( 'wpcap_offline_entries' ) ) {
 			foreach ( array_chunk( $occurrences, self::BATCH ) as $chunk ) {
 				if ( microtime( true ) >= $deadline ) { break; }
@@ -274,7 +419,7 @@ final class Retention {
 			$count += self::loop(
 				$deadline,
 				static function () use ( $wpdb, $p, $registration_cutoff ) {
-					return $wpdb->get_col( $wpdb->prepare( 'SELECT r.registration_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i w ON w.ticket_id=t.ticket_id INNER JOIN %i r ON r.serial_number=w.serial_number WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s LIMIT %d', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_wallet_passes', $p . 'wpcap_wallet_registrations', $registration_cutoff, $registration_cutoff, self::BATCH ) );
+					return $wpdb->get_col( $wpdb->prepare( 'SELECT r.registration_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i w ON w.ticket_id=t.ticket_id INNER JOIN %i r ON r.serial_number=w.serial_number WHERE o.starts_at<%s AND ' . self::end_sql() . '<%s LIMIT %d', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_wallet_passes', $p . 'wpcap_wallet_registrations', $registration_cutoff, $registration_cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
 					return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE registration_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_wallet_registrations' ), $ids ) ) );
@@ -295,7 +440,7 @@ final class Retention {
 		return self::loop(
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM %i ord WHERE ord.attendee_data IS NOT NULL AND ord.payment_status NOT IN ('expired','cancelled','failed') AND ord.payment_status<>'pending' AND EXISTS (SELECT 1 FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=ord.order_id AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))>=%s) LIMIT %d", $p . 'wpcap_orders', $p . 'wpcap_tickets', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $cutoff, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM %i ord WHERE ord.attendee_data IS NOT NULL AND ord.payment_status NOT IN ('expired','cancelled','failed') AND ord.payment_status<>'pending' AND EXISTS (SELECT 1 FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=ord.order_id AND " . self::end_sql() . ">=%s) LIMIT %d", $p . 'wpcap_orders', $p . 'wpcap_tickets', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET attendee_data=NULL WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_orders' ), $ids ) ) );
@@ -316,9 +461,56 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE attendee_data IS NOT NULL AND payment_status IN ('expired','cancelled','failed') AND updated_at<%s LIMIT %d", $p . 'wpcap_orders', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET attendee_data=NULL WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_orders' ), $ids ) ) );
+				$changed = (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET attendee_data=NULL WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_orders' ), $ids ) ) );
+				/**
+				 * Retention cleared the attendee details of these unpaid orders; integrations drop their copies
+				 * (e.g. the attendee payload on the WooCommerce order).
+				 *
+				 * @param int[] $ids Order ids of this batch.
+				 */
+				do_action( 'wpcap_privacy_unpaid_attendee_data_cleared', array_map( 'intval', $ids ) );
+				return $changed;
 			}
 		);
+	}
+
+	/**
+	 * Financial records past the statutory period (A123): invoice lines, invoices and correction
+	 * documents; the orders' buyer data (e-mail, billing address, access link) is pseudonymised.
+	 */
+	private static function step_financial_records( $now, $deadline ) {
+		$cutoff = self::financial_cutoff( $now );
+		if ( '' === $cutoff ) { return 0; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$credit = self::loop(
+			$deadline,
+			static function () use ( $wpdb, $p, $cutoff ) {
+				return $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_id FROM {$p}wpcap_credit_notes WHERE issued_at<%s LIMIT %d", $cutoff, self::BATCH ) );
+			},
+			static function ( $ids ) use ( $wpdb, $p ) {
+				return (int) $wpdb->query( "DELETE FROM {$p}wpcap_credit_notes WHERE credit_note_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+		);
+		$invoices = self::loop(
+			$deadline,
+			static function () use ( $wpdb, $p, $cutoff ) {
+				// Only invoices whose corrections are gone too (a later correction keeps its invoice).
+				return $wpdb->get_col( $wpdb->prepare( "SELECT i.invoice_id FROM {$p}wpcap_invoices i WHERE i.issued_at<%s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_credit_notes c WHERE c.invoice_id=i.invoice_id) LIMIT %d", $cutoff, self::BATCH ) );
+			},
+			static function ( $ids ) use ( $wpdb, $p ) {
+				$list = self::in_list( $ids );
+				$orders = array_map( 'absint', (array) $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_invoices WHERE invoice_id IN ($list)" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( "DELETE FROM {$p}wpcap_invoice_lines WHERE invoice_id IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$deleted = (int) $wpdb->query( "DELETE FROM {$p}wpcap_invoices WHERE invoice_id IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,customer_email FROM ' . $p . 'wpcap_orders WHERE order_id IN (' . self::in_list( $orders ) . ') AND customer_email NOT LIKE %s', '%' . Privacy::PLACEHOLDER_DOMAIN ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+					$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => Privacy::replacement_email( (string) $row->customer_email, (int) $row->order_id ), 'billing' => null, 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null ), array( 'order_id' => (int) $row->order_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+					\PassCaptain\Orders::clear_pending_link( (int) $row->order_id );
+				}
+				return $deleted;
+			}
+		);
+		return $credit + $invoices;
 	}
 
 	/**
@@ -345,6 +537,7 @@ final class Retention {
 					$email = (string) $row->customer_email;
 					$replacement = Privacy::is_placeholder_email( $email ) ? $email : Privacy::replacement_email( $email, (int) $row->order_id );
 					$done += (int) $wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'customer_user_id' => 0, 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null, 'attendee_data' => null ), array( 'order_id' => (int) $row->order_id ), array( '%s', '%d', '%s', '%s', '%s' ), array( '%d' ) );
+					\PassCaptain\Orders::clear_pending_link( (int) $row->order_id );
 				}
 				return $done;
 			}
@@ -381,7 +574,7 @@ final class Retention {
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff, $now_sql, $like ) {
 				// Tickets for a date that has not ended yet (long-running passes) keep their order intact.
-				return $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM %i ord WHERE ord.created_at<%s AND (ord.customer_email NOT LIKE %s OR ord.customer_user_id<>0 OR ord.attendee_data IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=ord.order_id AND t.status='valid' AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))>=%s) LIMIT %d", $p . 'wpcap_orders', $cutoff, $like, $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $now_sql, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM %i ord WHERE ord.created_at<%s AND (ord.customer_email NOT LIKE %s OR ord.customer_user_id<>0 OR ord.attendee_data IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=ord.order_id AND t.status='valid' AND " . self::end_sql() . ">=%s) LIMIT %d", $p . 'wpcap_orders', $cutoff, $like, $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $now_sql, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				$done = 0;
@@ -390,6 +583,7 @@ final class Retention {
 					$email = (string) $row->customer_email;
 					$replacement = Privacy::is_placeholder_email( $email ) ? $email : Privacy::replacement_email( $email, $order_id );
 					$done += (int) $wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'customer_user_id' => 0, 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null, 'attendee_data' => null ), array( 'order_id' => $order_id ), array( '%s', '%d', '%s', '%s', '%s' ), array( '%d' ) );
+					\PassCaptain\Orders::clear_pending_link( $order_id );
 					$wpdb->query( $wpdb->prepare( "UPDATE %i ta INNER JOIN %i t ON t.ticket_id=ta.ticket_id SET ta.buyer_email=%s,ta.attendee_email='',ta.attendee_name='' WHERE t.order_id=%d", $p . 'wpcap_ticket_assignments', $p . 'wpcap_tickets', $replacement, $order_id ) );
 					$wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_email='' WHERE order_id=%d AND attendee_email<>''", $p . 'wpcap_tickets', $order_id ) );
 					$wpdb->query( $wpdb->prepare( "UPDATE %i SET customer_email=%s,manage_token_hash='' WHERE order_id=%d", $p . 'wpcap_service_bookings', $replacement, $order_id ) );
@@ -420,12 +614,15 @@ final class Retention {
 		$like = self::placeholder_like();
 		$now_sql = self::utc( $now );
 		$count = 0;
-		if ( Privacy::has_table( 'wpcap_waitlist' ) ) {
+		// The event waitlist is anonymised by its own retention step when that module hooks one
+		// (Waitlists::retention_step, period `waitlist`, same setting); otherwise here.
+		$own_step = class_exists( '\\PassCaptain\\Waitlists' ) && method_exists( '\\PassCaptain\\Waitlists', 'retention_step' ) && false !== has_filter( 'wpcap_privacy_retention_steps', array( \PassCaptain\Waitlists::class, 'retention_step' ) );
+		if ( ! $own_step && Privacy::has_table( 'wpcap_waitlist' ) ) {
 			$count += self::loop(
 				$deadline,
 				static function () use ( $wpdb, $p, $cutoff, $like ) {
 					// Entries of one occurrence end with it; event-wide entries (occurrence 0) after the last occurrence.
-					return $wpdb->get_col( $wpdb->prepare( 'SELECT w.waitlist_id FROM %i w WHERE w.email NOT LIKE %s AND ( ( w.occurrence_id>0 AND EXISTS (SELECT 1 FROM %i o WHERE o.occurrence_id=w.occurrence_id AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s) ) OR ( w.occurrence_id=0 AND EXISTS (SELECT 1 FROM %i o WHERE o.event_id=w.event_id) AND NOT EXISTS (SELECT 1 FROM %i o WHERE o.event_id=w.event_id AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))>=%s) ) ) LIMIT %d', $p . 'wpcap_waitlist', $like, $p . 'wpcap_occurrences', $cutoff, $p . 'wpcap_occurrences', $p . 'wpcap_occurrences', $cutoff, self::BATCH ) );
+					return $wpdb->get_col( $wpdb->prepare( 'SELECT w.waitlist_id FROM %i w WHERE w.email NOT LIKE %s AND ( ( w.occurrence_id>0 AND EXISTS (SELECT 1 FROM %i o WHERE o.occurrence_id=w.occurrence_id AND ' . self::end_sql() . '<%s) ) OR ( w.occurrence_id=0 AND EXISTS (SELECT 1 FROM %i o WHERE o.event_id=w.event_id) AND NOT EXISTS (SELECT 1 FROM %i o WHERE o.event_id=w.event_id AND ' . self::end_sql() . '>=%s) ) ) LIMIT %d', $p . 'wpcap_waitlist', $like, $p . 'wpcap_occurrences', $cutoff, $p . 'wpcap_occurrences', $p . 'wpcap_occurrences', $cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p, $now_sql ) {
 					return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET email=CONCAT('deleted+',LEFT(SHA2(CONCAT(waitlist_id,'|',RAND(),'|',UUID()),256),24),%s),email_hash=SHA2(CONCAT(waitlist_id,'|',RAND(),'|',UUID()),256),offer_token_hash='',manage_token_hash='',status=IF(status IN ('waiting','offered'),'expired',status),updated_at=%s WHERE waitlist_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_waitlist', Privacy::PLACEHOLDER_DOMAIN, $now_sql ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -576,24 +773,57 @@ final class Retention {
 		);
 	}
 
-	/** Old check-ins, admission entries and conflicts keep ticket, time and result but lose staff user and device. */
+	/** Option: check-ins created before this UTC time are already anonymised (cursor of step_checkin_staff). */
+	const CHECKIN_STAFF_CURSOR = 'wpcap_retention_checkin_staff_cursor';
+
+	/** A full pass over all old check-ins at least this often (rows imported with old dates). */
+	const CHECKIN_STAFF_FULL_PASS = 7 * DAY_IN_SECONDS;
+
+	/**
+	 * Old check-ins, admission entries and conflicts keep ticket, time and result but lose the
+	 * scanning staff user and device (conflicts also the resolution note).
+	 *
+	 * A439: walks KEY created (created_at,checkin_id) in order from a stored cursor, so a daily run
+	 * reads only the check-ins that became due since the last one – not every anonymised row older
+	 * than the cutoff again. The cursor never passes the real cutoff (time() − days), and every
+	 * CHECKIN_STAFF_FULL_PASS the walk starts from the beginning.
+	 */
 	private static function step_checkin_staff( $now, $deadline ) {
 		$days = self::days( 'checkin_staff' );
 		if ( ! $days ) { return 0; }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
-		$count = self::loop(
+		$state = get_option( self::CHECKIN_STAFF_CURSOR, array() );
+		$state = is_array( $state ) ? $state : array();
+		$full = (int) ( $state['full_at'] ?? 0 ) + self::CHECKIN_STAFF_FULL_PASS <= time();
+		$from = $full ? '' : (string) ( $state['at'] ?? '' );
+		if ( '' !== $from && $from >= $cutoff ) { return 0; }
+		$cap = self::utc( min( $now, time() ) - $days * DAY_IN_SECONDS );
+		$last = '';
+		$rest = false;
+		$total = self::loop(
 			$deadline,
-			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( 'SELECT checkin_id FROM %i WHERE created_at<%s AND (user_id<>0 OR device_id<>0) LIMIT %d', $p . 'wpcap_checkins', $cutoff, self::BATCH ) );
+			static function () use ( $wpdb, $p, $cutoff, &$from, &$last, &$rest ) {
+				$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT checkin_id,created_at FROM %i WHERE created_at>=%s AND created_at<%s AND (user_id<>0 OR device_id<>0) ORDER BY created_at,checkin_id LIMIT %d", $p . 'wpcap_checkins', '' === $from ? '1000-01-01 00:00:00' : $from, $cutoff, self::BATCH ) );
+				$last = $rows ? (string) end( $rows )->created_at : '';
+				$rest = count( $rows ) >= self::BATCH;
+				return array_map( static fn( $row ) => (int) $row->checkin_id, $rows );
 			},
-			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET user_id=0,device_id=0 WHERE checkin_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_checkins' ), $ids ) ) );
+			static function ( $ids ) use ( $wpdb, $p, &$from, &$last ) {
+				$changed = (int) $wpdb->query( "UPDATE {$p}wpcap_checkins SET user_id=0,device_id=0 WHERE checkin_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				// Rows of the batch's last second may continue in the next batch: resume at that second.
+				if ( $changed && '' !== $last ) { $from = $last; }
+				return $changed;
 			}
 		);
+		// Everything before the cutoff is done unless the last batch was full (budget ran out).
+		$at = $rest ? $from : $cutoff;
+		$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? time() : (int) ( $state['full_at'] ?? 0 ) );
+		update_option( self::CHECKIN_STAFF_CURSOR, $state, false );
+		// Admission entries and conflicts (staff user, device, resolution note) after the same period.
 		if ( Privacy::has_table( 'wpcap_admission_entries' ) ) {
-			$count += self::loop(
+			$total += self::loop(
 				$deadline,
 				static function () use ( $wpdb, $p, $cutoff ) {
 					return $wpdb->get_col( $wpdb->prepare( 'SELECT entry_id FROM %i WHERE created_at<%s AND (user_id<>0 OR device_id<>0) LIMIT %d', $p . 'wpcap_admission_entries', $cutoff, self::BATCH ) );
@@ -604,7 +834,7 @@ final class Retention {
 			);
 		}
 		if ( Privacy::has_table( 'wpcap_admission_conflicts' ) ) {
-			$count += self::loop(
+			$total += self::loop(
 				$deadline,
 				static function () use ( $wpdb, $p, $cutoff ) {
 					return $wpdb->get_col( $wpdb->prepare( 'SELECT conflict_id FROM %i WHERE created_at<%s AND (user_id<>0 OR device_id<>0 OR first_user_id<>0 OR first_device_id<>0 OR resolved_by<>0 OR resolution_note IS NOT NULL) LIMIT %d', $p . 'wpcap_admission_conflicts', $cutoff, self::BATCH ) );
@@ -614,7 +844,12 @@ final class Retention {
 				}
 			);
 		}
-		return $count;
+		return $total;
+	}
+
+	/** Apple Wallet registrations of erased tickets whose delayed purge is due (A510). */
+	private static function step_wallet_purges( $now, $deadline ) {
+		return \PassCaptain\Privacy::purge_due_wallet_registrations( $now, $deadline );
 	}
 
 	/**
@@ -666,42 +901,6 @@ final class Retention {
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE audit_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_audit_logs' ), $ids ) ) );
-			}
-		);
-	}
-
-	/** Finished holds of orders that no longer wait for payment (index status_expires). */
-	private static function step_reservations( $now, $deadline ) {
-		$days = self::days( 'reservations' );
-		if ( ! $days ) { return 0; }
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
-		return self::loop(
-			$deadline,
-			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT r.reservation_id FROM %i r LEFT JOIN %i ord ON ord.order_id=r.order_id WHERE r.status IN ('converted','expired','released') AND r.expires_at<%s AND (ord.order_id IS NULL OR ord.payment_status<>'pending') LIMIT %d", $p . 'wpcap_reservations', $p . 'wpcap_orders', $cutoff, self::BATCH ) );
-			},
-			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('converted','expired','released') AND reservation_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_reservations' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			}
-		);
-	}
-
-	/** Completed or cancelled background jobs (index due_jobs: status first). */
-	private static function step_jobs( $now, $deadline ) {
-		$days = self::days( 'jobs' );
-		if ( ! $days ) { return 0; }
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
-		return self::loop(
-			$deadline,
-			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT job_id FROM %i WHERE status IN ('complete','cancelled') AND run_after<%s AND updated_at<%s LIMIT %d", $p . 'wpcap_jobs', $cutoff, $cutoff, self::BATCH ) );
-			},
-			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('complete','cancelled') AND job_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_jobs' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 			}
 		);
 	}

@@ -49,7 +49,7 @@ final class Sync {
 				}
 			}
 
-			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
+			$scanned = (int) \PassCaptain\Checkin::parse_scanned_at( $scan['scanned_at'] ?? null ); // A609: validated by Api::sync().
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
 			if ( ! $out && $scanned && $scanned < time() - $rules['max_offline_hours'] * HOUR_IN_SECONDS ) {
 				$row['offline_expired'] = true;

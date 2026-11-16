@@ -14,7 +14,7 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-final class PayPalGateway implements GatewayInterface {
+final class PayPalGateway implements GatewayInterface, RefundLookupInterface, PaymentLookupInterface {
 	const SANDBOX = 'https://api-m.sandbox.paypal.com';
 	const LIVE = 'https://api-m.paypal.com';
 
@@ -30,18 +30,90 @@ final class PayPalGateway implements GatewayInterface {
 	/** Prefix of the custom_id on refunds created by the plugin. */
 	const REFUND_PREFIX = 'wpcap-refund-';
 
+	/** Webhook events the plugin processes (A295); the webhook of the PayPal app needs all of them (see normalize()). */
+	const WEBHOOK_EVENTS = array(
+		'CHECKOUT.ORDER.APPROVED',
+		'PAYMENT.CAPTURE.COMPLETED',
+		'PAYMENT.CAPTURE.DENIED',
+		'PAYMENT.CAPTURE.DECLINED',
+		'PAYMENT.CAPTURE.REFUNDED',
+		'PAYMENT.CAPTURE.REVERSED',
+	);
+
 	public function id() { return 'paypal'; }
 
-	public function title() { return __( 'PayPal', 'pass-captain' ); }
+	public function title() {
+		return self::is_test_mode() ? __( 'PayPal – Testmodus (Sandbox)', 'pass-captain' ) : __( 'PayPal', 'pass-captain' );
+	}
+
+	/** Whether PayPal runs against the sandbox (setting `paypal_mode`, default "sandbox"): no real payments. */
+	public static function is_test_mode() {
+		return 'live' !== Settings::get( 'paypal_mode' );
+	}
 
 	public function is_available( $currency ) {
 		return '' !== Settings::secret( 'paypal_client_id' )
-			&& '' !== Settings::secret( 'paypal_client_secret' )
+			&& '' !== \PassCaptain\Secrets::get( 'paypal_client_secret' )
 			&& '' !== Settings::secret( 'paypal_webhook_id' )
 			&& in_array( strtoupper( (string) $currency ), self::CURRENCIES, true );
 	}
 
 	public function supports_refunds() { return true; }
+
+	/**
+	 * "Verbindung testen" (A295): requests an access token with Client-ID and secret (sandbox or
+	 * live per setting) and reads the stored webhook: URL of this site and WEBHOOK_EVENTS. Read-only.
+	 *
+	 * @return array ok (credentials work), messages: list of [type success|warning|error, text].
+	 */
+	public function test_connection() {
+		$missing = array();
+		if ( '' === Settings::secret( 'paypal_client_id' ) ) { $missing[] = __( 'Client-ID', 'pass-captain' ); }
+		if ( '' === \PassCaptain\Secrets::get( 'paypal_client_secret' ) ) { $missing[] = __( 'Client-Geheimnis (Secret)', 'pass-captain' ); }
+		if ( $missing ) {
+			/* translators: %s: field names */
+			return array( 'ok' => false, 'messages' => array( array( 'error', sprintf( __( 'PayPal: Es fehlen %s.', 'pass-captain' ), implode( ', ', $missing ) ) ) ) );
+		}
+		$token = self::token( true );
+		if ( is_wp_error( $token ) ) {
+			return array( 'ok' => false, 'messages' => array( array( 'error', 'PayPal: ' . $token->get_error_message() ) ) );
+		}
+		$messages = array( array( 'success', 'live' === Settings::get( 'paypal_mode' ) ? __( 'PayPal: Verbindung hergestellt (Live).', 'pass-captain' ) : __( 'PayPal: Verbindung hergestellt (Sandbox).', 'pass-captain' ) ) );
+		$webhook_id = Settings::secret( 'paypal_webhook_id' );
+		if ( '' === $webhook_id ) {
+			$messages[] = array( 'warning', __( 'PayPal: Die Webhook-ID fehlt – ohne sie werden Zahlungen nie bestätigt. Webhook in der PayPal-App anlegen und die angezeigte ID eintragen.', 'pass-captain' ) );
+			return array( 'ok' => true, 'messages' => $messages );
+		}
+		$webhook = self::api( 'GET', '/v1/notifications/webhooks/' . rawurlencode( $webhook_id ) );
+		if ( is_wp_error( $webhook ) ) {
+			$data = (array) $webhook->get_error_data();
+			$messages[] = array(
+				'warning',
+				404 === (int) ( $data['status'] ?? 0 )
+					? __( 'PayPal: Die Webhook-ID ist bei PayPal unbekannt. Gehört sie zur selben App und zum selben Modus (Sandbox/Live)?', 'pass-captain' )
+					/* translators: %s: error message */
+					: sprintf( __( 'PayPal: Der Webhook konnte nicht gelesen werden (%s).', 'pass-captain' ), $webhook->get_error_message() ),
+			);
+			return array( 'ok' => true, 'messages' => $messages );
+		}
+		$url = Webhooks::endpoint_url( 'paypal' );
+		if ( untrailingslashit( (string) ( $webhook['url'] ?? '' ) ) !== untrailingslashit( $url ) ) {
+			/* translators: 1: URL stored at PayPal, 2: webhook URL of this site */
+			$messages[] = array( 'warning', sprintf( __( 'PayPal: Der Webhook zeigt auf %1$s statt auf %2$s.', 'pass-captain' ), (string) ( $webhook['url'] ?? '' ), $url ) );
+		}
+		$events = array();
+		foreach ( (array) ( $webhook['event_types'] ?? array() ) as $type ) {
+			if ( is_array( $type ) && isset( $type['name'] ) ) { $events[] = (string) $type['name']; }
+		}
+		$absent = in_array( '*', $events, true ) ? array() : array_values( array_diff( self::WEBHOOK_EVENTS, $events ) );
+		if ( $absent ) {
+			/* translators: %s: event names */
+			$messages[] = array( 'warning', sprintf( __( 'PayPal: Dem Webhook fehlen Ereignisse: %s', 'pass-captain' ), implode( ', ', $absent ) ) );
+		} else {
+			$messages[] = array( 'success', __( 'PayPal: Webhook gefunden, alle nötigen Ereignisse sind ausgewählt.', 'pass-captain' ) );
+		}
+		return array( 'ok' => true, 'messages' => $messages );
+	}
 
 	/** Registers the return handler. Call once from Plugin bootstrap. */
 	public static function register() {
@@ -58,8 +130,9 @@ final class PayPalGateway implements GatewayInterface {
 		$value = self::format_amount( $total, $currency );
 		if ( is_wp_error( $value ) ) { return $value; }
 		$experience = array(
-			'return_url' => ReturnNotice::handler_url( array( 'wpcap_paypal_return' => '1', 'order' => $public_id ) ),
-			'cancel_url' => self::return_url( 'cancel', $public_id ),
+			// Back to the checkout page (A554); the return handler runs there on template_redirect.
+			'return_url' => ReturnNotice::with_args( ReturnNotice::base_of( $order ), array( 'wpcap_paypal_return' => '1', 'order' => $public_id ) ),
+			'cancel_url' => self::return_url( 'cancel', $public_id, ReturnNotice::base_of( $order ) ),
 			'user_action' => 'PAY_NOW',
 			'shipping_preference' => 'NO_SHIPPING',
 		);
@@ -106,15 +179,29 @@ final class PayPalGateway implements GatewayInterface {
 		$public_id = sanitize_text_field( wp_unslash( $_GET['order'] ?? '' ) );
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) );
 		// phpcs:enable
-		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '' );
-		if ( is_wp_error( $result ) ) {
-			$status = 'wpcap_paypal_hold_expired' === $result->get_error_code() ? 'expired' : 'failed';
-		} else {
-			$status = 'pending' === $result ? 'pending' : 'success';
-		}
+		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '', array( 'not_charged' => true ) );
 		nocache_headers();
-		wp_safe_redirect( self::return_url( $status, $public_id ) );
+		wp_safe_redirect( self::return_url( self::return_state( $result ), $public_id, ReturnNotice::current_base() ), 302 );
 		exit;
+	}
+
+	/**
+	 * Notice shown after the return from PayPal (A349). "failed" ("nothing was charged") only when no
+	 * capture can have happened: PayPal declined it, the capture was refused as a client error
+	 * (400/404/422), or no capture was attempted at all (unknown order, foreign token). A capture that
+	 * succeeded but could not be booked here (database busy, amount mismatch, needs review) and every
+	 * unclear outcome (network error, 5xx, timeout) show "pending": the webhook or the admin settles it.
+	 *
+	 * @param string|\WP_Error $result handle_return() result.
+	 * @return string success|pending|failed
+	 */
+	public static function return_state( $result ) {
+		if ( is_wp_error( $result ) ) {
+			// The hold lapsed before the capture: nothing was charged, the reservation is gone.
+			if ( 'wpcap_paypal_hold_expired' === $result->get_error_code() ) { return 'expired'; }
+			return empty( ( (array) $result->get_error_data() )['not_charged'] ) ? 'pending' : 'failed';
+		}
+		return in_array( (string) $result, array( 'paid', 'already_paid', 'duplicate' ), true ) ? 'success' : 'pending';
 	}
 
 	/**
@@ -128,7 +215,7 @@ final class PayPalGateway implements GatewayInterface {
 		$paypal_order_id = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) $paypal_order_id );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status,provider_reference FROM %i WHERE public_id=%s AND payment_provider='paypal'", $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || '' === $paypal_order_id ) {
-			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'not_charged' => true ) );
 		}
 		if ( 'paid' === $order->payment_status ) { return 'paid'; }
 		if ( self::order_closed( $order ) ) {
@@ -136,7 +223,11 @@ final class PayPalGateway implements GatewayInterface {
 			return new \WP_Error( 'wpcap_paypal_order_closed', __( 'Diese Bestellung wurde bereits storniert oder erstattet. Es wurde keine Zahlung eingezogen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( (string) $order->provider_reference !== $paypal_order_id ) {
-			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400, 'not_charged' => true ) );
+		}
+		if ( ! self::payable( $order ) ) {
+			// Closed or already settled (cancelled, refunded, under review): nothing is captured (A641).
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Die Bestellung kann nicht mehr bezahlt werden.', 'pass-captain' ), array( 'status' => 409, 'not_charged' => true ) );
 		}
 		if ( ! self::hold_for_capture( $order ) ) {
 			// The approval alone moves no money: without an active hold the tickets may be gone, so do not
@@ -151,6 +242,10 @@ final class PayPalGateway implements GatewayInterface {
 			Webhooks::process( 'paypal', self::pending_event( $event ) );
 			return 'pending';
 		}
+		if ( 'failed' === $event['type'] ) {
+			// PayPal declined the capture (status DECLINED/FAILED): nothing was charged.
+			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'pass-captain' ), array( 'not_charged' => true ) );
+		}
 		if ( 'paid' !== $event['type'] || $event['order_public_id'] !== $public_id ) {
 			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'pass-captain' ) );
 		}
@@ -160,6 +255,42 @@ final class PayPalGateway implements GatewayInterface {
 			return new \WP_Error( 'wpcap_paypal_amount', __( 'Der bezahlte Betrag stimmt nicht mit der Bestellung überein.', 'pass-captain' ) );
 		}
 		return Webhooks::process( 'paypal', $event );
+	}
+
+	/**
+	 * Reconciliation (A352): reads the PayPal order of a Pass Captain order. COMPLETED → the capture's
+	 * state (paid/failed; pending → null); APPROVED → handled like the webhook CHECKOUT.ORDER.APPROVED
+	 * (captured only for a known, payable order, A641); VOIDED → failed; still open → null.
+	 */
+	public function find_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( ! preg_match( '/^[A-Za-z0-9\-]{5,64}$/', $reference ) ) { return null; }
+		$paypal_order = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $reference ) );
+		if ( is_wp_error( $paypal_order ) ) {
+			// A capture id after the payment (provider_reference is updated on "paid"): nothing to reconcile.
+			return 404 === (int) ( ( (array) $paypal_order->get_error_data() )['status'] ?? 0 ) ? null : $paypal_order;
+		}
+		$status = strtoupper( (string) ( $paypal_order['status'] ?? '' ) );
+		if ( 'APPROVED' === $status ) {
+			return self::normalize( array( 'id' => 'reconcile-' . $reference . '-approved', 'event_type' => 'CHECKOUT.ORDER.APPROVED', 'resource' => $paypal_order ) );
+		}
+		$unit = is_array( $paypal_order['purchase_units'][0] ?? null ) ? $paypal_order['purchase_units'][0] : array();
+		if ( 'VOIDED' === $status ) {
+			return array( 'event_id' => 'reconcile-' . $reference . '-voided', 'type' => 'failed', 'order_public_id' => (string) ( $unit['custom_id'] ?? '' ), 'provider_reference' => $reference, 'related_references' => array( $reference ), 'amount_minor' => 0, 'currency' => '' );
+		}
+		$capture = $unit['payments']['captures'][0] ?? null;
+		if ( 'COMPLETED' !== $status || ! is_array( $capture ) || empty( $capture['id'] ) ) { return null; }
+		$event = self::capture_event( $capture, (string) ( $unit['custom_id'] ?? '' ) );
+		$event['related_references'] = array_values( array_unique( array_merge( $event['related_references'], array( $reference ) ) ) );
+		$capture_status = strtoupper( (string) ( $capture['status'] ?? '' ) );
+		if ( 'COMPLETED' === $capture_status ) {
+			$event['type'] = 'paid';
+		} elseif ( in_array( $capture_status, array( 'DECLINED', 'FAILED' ), true ) ) {
+			$event['type'] = 'failed';
+		} else {
+			return null;
+		}
+		return $event;
 	}
 
 	/** Verifies a webhook via PayPal's verify-webhook-signature API and maps it. */
@@ -193,20 +324,75 @@ final class PayPalGateway implements GatewayInterface {
 	public function refund( array $order, $amount_minor, $idempotency_key ) {
 		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
 		$capture_id = self::capture_id_for( (string) ( $order['provider_reference'] ?? '' ) );
-		if ( is_wp_error( $capture_id ) ) { return $capture_id; }
+		// Nothing was sent to PayPal yet: a failure here is a clear "not refunded".
+		if ( is_wp_error( $capture_id ) ) { return \PassCaptain\Refunds::definitive( $capture_id ); }
 		$value = self::format_amount( (int) $amount_minor, $currency );
-		if ( is_wp_error( $value ) ) { return $value; }
+		if ( is_wp_error( $value ) ) { return \PassCaptain\Refunds::definitive( $value ); }
 		$body = array(
 			'amount' => array( 'value' => $value, 'currency_code' => $currency ),
-			// Marks plugin refunds so their PAYMENT.CAPTURE.REFUNDED webhook is not booked a second time.
-			'custom_id' => substr( self::REFUND_PREFIX . (string) ( $order['public_id'] ?? '' ), 0, 127 ),
+			// Marks plugin refunds ("wpcap-refund-{id}") so their PAYMENT.CAPTURE.REFUNDED webhook is not booked
+			// a second time, and lets Refunds find the refund again after an unclear answer (find_refund()).
+			'custom_id' => \PassCaptain\Text::cut( (string) $idempotency_key, 127 ),
 		);
+		// Transport errors, timeouts, 5xx and 409 come back marked as "outcome unknown" (api()).
 		$result = self::api( 'POST', '/v2/payments/captures/' . rawurlencode( $capture_id ) . '/refund', $body, (string) $idempotency_key );
 		if ( is_wp_error( $result ) ) { return $result; }
-		if ( empty( $result['id'] ) || in_array( $result['status'] ?? '', array( 'CANCELLED', 'FAILED' ), true ) ) {
+		if ( empty( $result['id'] ) ) {
+			return new \WP_Error( 'wpcap_paypal_response', __( 'Unerwartete Antwort von PayPal.', 'pass-captain' ), array( 'outcome' => 'unknown' ) );
+		}
+		if ( in_array( $result['status'] ?? '', array( 'CANCELLED', 'FAILED' ), true ) ) {
 			return new \WP_Error( 'wpcap_paypal_refund_failed', __( 'PayPal hat die Erstattung abgelehnt.', 'pass-captain' ) );
 		}
-		return (string) $result['id'];
+		$state = self::refund_state( $result, $currency );
+		return 'pending' === $state['status'] ? $state : (string) $result['id'];
+	}
+
+	/**
+	 * Looks up a plugin refund (see RefundLookupInterface): by its id, else among the refunds of the
+	 * PayPal order (custom_id = refund key). "Not found" is only conclusive while the capture shows no
+	 * refund at all (status COMPLETED); otherwise the answer stays open for a manual check.
+	 */
+	public function find_refund( array $order, $key, $reference = '' ) {
+		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
+		if ( '' !== (string) $reference ) {
+			$refund = self::api( 'GET', '/v2/payments/refunds/' . rawurlencode( (string) $reference ) );
+			return is_wp_error( $refund ) ? $refund : self::refund_state( $refund, $currency );
+		}
+		$capture_id = self::capture_id_for( (string) ( $order['provider_reference'] ?? '' ) );
+		if ( is_wp_error( $capture_id ) ) { return $capture_id; }
+		$capture = self::api( 'GET', '/v2/payments/captures/' . rawurlencode( $capture_id ) );
+		if ( is_wp_error( $capture ) ) { return $capture; }
+		$paypal_order = '';
+		foreach ( (array) ( $capture['links'] ?? array() ) as $link ) {
+			if ( 'up' === ( $link['rel'] ?? '' ) && preg_match( '#/v2/checkout/orders/([A-Za-z0-9\-]+)#', (string) ( $link['href'] ?? '' ), $m ) ) { $paypal_order = $m[1]; }
+		}
+		$found = null;
+		if ( '' !== $paypal_order ) {
+			$details = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $paypal_order ) );
+			if ( is_wp_error( $details ) ) { return $details; }
+			foreach ( (array) ( $details['purchase_units'][0]['payments']['refunds'] ?? array() ) as $refund ) {
+				if ( ! is_array( $refund ) || (string) ( $refund['custom_id'] ?? '' ) !== (string) $key ) { continue; }
+				$found = \PassCaptain\Refunds::better_state( $found, self::refund_state( $refund, $currency ) );
+			}
+		}
+		if ( $found || 'COMPLETED' === (string) ( $capture['status'] ?? '' ) ) {
+			return $found;
+		}
+		return new \WP_Error( 'wpcap_paypal_refund_lookup', __( 'PayPal hat Erstattungen zu dieser Zahlung, aber keine lässt sich dieser Erstattung sicher zuordnen. Bitte im PayPal-Konto prüfen.', 'pass-captain' ) );
+	}
+
+	/** Normalized state of a PayPal refund (PENDING = pending, CANCELLED/FAILED = failed). */
+	private static function refund_state( array $refund, $currency ) {
+		$status = strtoupper( (string) ( $refund['status'] ?? '' ) );
+		if ( in_array( $status, array( 'CANCELLED', 'FAILED' ), true ) ) {
+			$status = 'failed';
+		} elseif ( 'PENDING' === $status ) {
+			$status = 'pending';
+		} else {
+			$status = 'succeeded';
+		}
+		$value = (string) ( $refund['amount']['value'] ?? '' );
+		return array( 'status' => $status, 'reference' => (string) ( $refund['id'] ?? '' ), 'amount_minor' => '' !== $value ? self::parse_amount( $value, $currency ) : 0 );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -220,7 +406,14 @@ final class PayPalGateway implements GatewayInterface {
 		if ( is_wp_error( $result ) ) {
 			// Already captured (e.g. by the webhook without the same request id): read the order instead.
 			$data = (array) $result->get_error_data();
-			if ( 422 !== (int) ( $data['status'] ?? 0 ) || 'ORDER_ALREADY_CAPTURED' !== ( $data['issue'] ?? '' ) ) { return $result; }
+			if ( 422 !== (int) ( $data['status'] ?? 0 ) || 'ORDER_ALREADY_CAPTURED' !== ( $data['issue'] ?? '' ) ) {
+				// A client error (400/404/422, e.g. INSTRUMENT_DECLINED, ORDER_NOT_APPROVED) means PayPal did not
+				// capture; network errors, 5xx, 401 and 429 leave it open (A349).
+				if ( in_array( (int) ( $data['status'] ?? 0 ), array( 400, 404, 422 ), true ) ) {
+					return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array_merge( $data, array( 'not_charged' => true ) ) );
+				}
+				return $result;
+			}
 			$result = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $paypal_order_id ) );
 			if ( is_wp_error( $result ) ) { return $result; }
 		}
@@ -309,6 +502,11 @@ final class PayPalGateway implements GatewayInterface {
 			case 'CHECKOUT.ORDER.APPROVED':
 				// Buyer approved but may never return to the site: capture here as well.
 				if ( empty( $resource['id'] ) ) { return $ignored; }
+				// A641: only a PayPal order this site created for a known, still payable order is captured –
+				// checked before the capture, so no money is taken that no order can book.
+				$known = self::approved_order_payable( $resource );
+				if ( is_wp_error( $known ) ) { return $known; }
+				if ( ! $known ) { return $ignored; }
 				$approved_for = (string) ( $resource['purchase_units'][0]['custom_id'] ?? ( $resource['purchase_units'][0]['reference_id'] ?? '' ) );
 				$approved_order = '' !== $approved_for ? self::order_state( $approved_for ) : null;
 				if ( self::order_closed( $approved_order ) ) {
@@ -360,9 +558,9 @@ final class PayPalGateway implements GatewayInterface {
 				return self::normalize_refund( $ignored, $resource );
 
 			case 'PAYMENT.CAPTURE.REVERSED':
-				// Chargeback/reversal by PayPal: the money is gone like with a refund (booked the same way).
+				// Chargeback/reversal by PayPal: the money went back to the buyer like an external refund.
 				$reversed = self::normalize_refund( $ignored, $resource );
-				if ( is_array( $reversed ) && 'refunded' === $reversed['type'] ) { $reversed['refund_reason'] = 'chargeback'; }
+				if ( is_array( $reversed ) && 'refunded' === $reversed['type'] ) { $reversed['chargeback'] = true; }
 				return $reversed;
 
 			case 'CUSTOMER.DISPUTE.CREATED':
@@ -378,7 +576,12 @@ final class PayPalGateway implements GatewayInterface {
 	 */
 	private static function normalize_refund( array $base, array $refund ) {
 		$custom_id = (string) ( $refund['custom_id'] ?? '' );
-		if ( 0 === strpos( $custom_id, self::REFUND_PREFIX ) ) { return $base; }
+		if ( 0 === strpos( $custom_id, self::REFUND_PREFIX ) ) {
+			// The plugin's own refund: never booked here; its state settles an unclear or pending refund.
+			$currency = strtoupper( (string) ( $refund['amount']['currency_code'] ?? '' ) );
+			$base['refund_states'] = array( array_merge( self::refund_state( $refund, $currency ), array( 'key' => $custom_id ) ) );
+			return $base;
+		}
 		$currency = strtoupper( (string) ( $refund['amount']['currency_code'] ?? '' ) );
 		$base['type'] = 'refunded';
 		$base['provider_reference'] = (string) ( $refund['id'] ?? '' );
@@ -397,6 +600,8 @@ final class PayPalGateway implements GatewayInterface {
 				return new \WP_Error( $capture->get_error_code(), $capture->get_error_message(), array( 'status' => 503 ) );
 			}
 			if ( '' === $base['order_public_id'] ) { $base['order_public_id'] = (string) ( $capture['custom_id'] ?? '' ); }
+			// The refunded payment (A640): the capture, and its PayPal order (stored until the capture id is known).
+			$base['payment_references'] = array_values( array_filter( array( $capture_id, (string) ( $capture['supplementary_data']['related_ids']['order_id'] ?? '' ) ) ) );
 			if ( 'REFUNDED' === ( $capture['status'] ?? '' ) ) {
 				// Fully refunded capture: Webhooks books whatever is not in the ledger yet.
 				$base['amount_minor'] = self::parse_amount( (string) ( $capture['amount']['value'] ?? '' ), $currency );
@@ -456,6 +661,31 @@ final class PayPalGateway implements GatewayInterface {
 		return $order && ( in_array( (string) $order->status, array( 'cancelled', 'refunded' ), true ) || in_array( (string) $order->payment_status, array( 'cancelled', 'refunded' ), true ) );
 	}
 
+	/** Whether an order row (status, payment_status) may still take a payment: pending or a lapsed hold. */
+	private static function payable( $order ) {
+		return in_array( (string) $order->payment_status, array( 'pending', 'expired' ), true ) && ! in_array( (string) ( $order->status ?? '' ), array( 'cancelled', 'refunded', 'needs_review' ), true );
+	}
+
+	/**
+	 * CHECKOUT.ORDER.APPROVED (A641): the approved PayPal order names a Pass Captain order (custom_id or
+	 * reference_id) that uses PayPal, stores exactly this PayPal order id and is still payable.
+	 *
+	 * @return bool|\WP_Error WP_Error (503) when the lookup failed.
+	 */
+	private static function approved_order_payable( array $resource ) {
+		global $wpdb;
+		$unit = is_array( $resource['purchase_units'][0] ?? null ) ? $resource['purchase_units'][0] : array();
+		$public_id = sanitize_text_field( (string) ( $unit['custom_id'] ?? ( $unit['reference_id'] ?? '' ) ) );
+		if ( '' === $public_id ) { return false; }
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
+		if ( '' !== $wpdb->last_error ) { return new \WP_Error( 'wpcap_paypal_lookup', 'Lookup failed.', array( 'status' => 503 ) ); }
+		if ( ! $order || (string) $order->provider_reference !== (string) $resource['id'] || ! self::payable( $order ) ) {
+			Audit::record( 'paypal_approval_not_captured', 'order', $order ? (int) $order->order_id : 0, array( 'paypal_order' => \PassCaptain\Text::cut( sanitize_text_field( (string) $resource['id'] ), 64 ) ) );
+			return false;
+		}
+		return true;
+	}
+
 	/** The order's provider_reference is the capture id after payment, else the PayPal order id. */
 	private static function capture_id_for( $reference ) {
 		if ( '' === $reference ) {
@@ -473,14 +703,15 @@ final class PayPalGateway implements GatewayInterface {
 	/** OAuth access token, cached until shortly before expiry. */
 	private static function token( $force = false ) {
 		$client_id = Settings::secret( 'paypal_client_id' );
-		$secret = Settings::secret( 'paypal_client_secret' );
+		$secret = \PassCaptain\Secrets::get( 'paypal_client_secret' );
 		if ( '' === $client_id || '' === $secret ) {
 			return new \WP_Error( 'wpcap_paypal_config', __( 'PayPal ist nicht konfiguriert.', 'pass-captain' ) );
 		}
 		$cache_key = 'wpcap_paypal_token_' . substr( hash( 'sha256', self::base() . '|' . $client_id . '|' . $secret ), 0, 20 );
 		$cached = $force ? false : get_transient( $cache_key );
 		if ( is_string( $cached ) && '' !== $cached ) { return $cached; }
-		$response = wp_remote_post( self::base() . '/v1/oauth2/token', array(
+		$response = \PassCaptain\OutboundHttp::request( self::base() . '/v1/oauth2/token', array(
+			'method' => 'POST',
 			'timeout' => 15,
 			'headers' => array(
 				'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
@@ -488,16 +719,16 @@ final class PayPalGateway implements GatewayInterface {
 				'Accept' => 'application/json',
 			),
 			'body' => 'grant_type=client_credentials',
-		) );
+		), self::http_policy() );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Security\Redact::text( $response->get_error_message() ) ) );
+			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ) );
 		}
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 || empty( $body['access_token'] ) ) {
 			/* translators: %s: HTTP status */
-			return new \WP_Error( 'wpcap_paypal_auth', sprintf( __( 'PayPal-Anmeldung fehlgeschlagen (%s). Bitte Client-ID und Secret prüfen.', 'pass-captain' ), \PassCaptain\Security\Redact::text( (string) ( $body['error_description'] ?? 'HTTP ' . $code ) ) ) );
+			return new \WP_Error( 'wpcap_paypal_auth', sprintf( __( 'PayPal-Anmeldung fehlgeschlagen (%s). Bitte Client-ID und Secret prüfen.', 'pass-captain' ), \PassCaptain\Redact::text( (string) ( $body['error_description'] ?? 'HTTP ' . $code ) ) ) );
 		}
 		$ttl = (int) ( $body['expires_in'] ?? 0 ) - 60;
 		if ( $ttl > 0 ) { set_transient( $cache_key, (string) $body['access_token'], $ttl ); }
@@ -520,13 +751,12 @@ final class PayPalGateway implements GatewayInterface {
 		if ( '' !== $request_id ) { $args['headers']['PayPal-Request-Id'] = substr( $request_id, 0, 108 ); }
 		if ( null !== $body ) {
 			$args['body'] = is_string( $body ) ? $body : wp_json_encode( $body );
-			$response = wp_remote_post( self::base() . $path, $args );
-		} else {
-			$response = wp_remote_get( self::base() . $path, $args );
 		}
+		$response = \PassCaptain\OutboundHttp::request( self::base() . $path, $args, self::http_policy() );
 		if ( is_wp_error( $response ) ) {
+			// A POST that timed out or lost its connection may have been executed (A272).
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Security\Redact::text( $response->get_error_message() ) ) );
+			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ), 'POST' === $method ? array( 'outcome' => 'unknown' ) : array() );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 401 === $code && $retry ) {
@@ -538,10 +768,17 @@ final class PayPalGateway implements GatewayInterface {
 			$decoded = is_array( $decoded ) ? $decoded : array();
 			$issue = (string) ( $decoded['details'][0]['issue'] ?? '' );
 			$message = (string) ( $decoded['details'][0]['description'] ?? ( $decoded['message'] ?? 'HTTP ' . $code ) );
+			$data = array( 'status' => $code, 'issue' => $issue );
+			if ( 'POST' === $method ) { $data['outcome'] = \PassCaptain\Refunds::outcome_for_status( $code ); }
 			/* translators: %s: error message from PayPal */
-			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), \PassCaptain\Security\Redact::text( trim( $issue . ' ' . $message ) ) ), array( 'status' => $code, 'issue' => $issue ) );
+			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), \PassCaptain\Redact::text( trim( $issue . ' ' . $message ) ) ), $data );
 		}
 		return $decoded;
+	}
+
+	/** OutboundHttp policy: the two fixed PayPal API hosts. */
+	private static function http_policy() {
+		return array( 'context' => 'paypal', 'hosts' => array( 'api-m.paypal.com', 'api-m.sandbox.paypal.com' ) );
 	}
 
 	private static function base() {
@@ -552,7 +789,7 @@ final class PayPalGateway implements GatewayInterface {
 	public static function format_amount( $minor, $currency ) {
 		$currency = strtoupper( $currency );
 		$minor = (int) $minor;
-		$iso = in_array( $currency, self::ISO_ZERO_DECIMAL, true ) ? 0 : 2;
+		$iso = \PassCaptain\Money::decimals( $currency );
 		$target = in_array( $currency, self::NO_DECIMALS, true ) ? 0 : $iso;
 		if ( $iso > $target ) {
 			$factor = 10 ** ( $iso - $target );
@@ -569,7 +806,7 @@ final class PayPalGateway implements GatewayInterface {
 	/** PayPal decimal string → plugin minor units (string arithmetic, no floats). */
 	public static function parse_amount( $value, $currency ) {
 		$currency = strtoupper( $currency );
-		$iso = in_array( $currency, self::ISO_ZERO_DECIMAL, true ) ? 0 : 2;
+		$iso = \PassCaptain\Money::decimals( $currency );
 		if ( ! preg_match( '/^(\d+)(?:\.(\d+))?$/', trim( (string) $value ), $m ) ) { return -1; }
 		$fraction = str_pad( $m[2] ?? '', $iso, '0' );
 		if ( strlen( $fraction ) > $iso ) {
@@ -585,12 +822,10 @@ final class PayPalGateway implements GatewayInterface {
 			$parts[] = trim( (string) ( $item['event_name'] ?? '' ) . ' – ' . (string) ( $item['name'] ?? '' ), ' –' ) . ' × ' . (int) ( $item['quantity'] ?? 1 );
 		}
 		$summary = $parts ? implode( ', ', $parts ) : __( 'Tickets', 'pass-captain' );
-		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 127 ) : substr( $summary, 0, 127 );
+		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 127 ) : \PassCaptain\Text::cut( $summary, 127 );
 	}
 
-	private static function return_url( $status, $public_id ) {
-		// Back to the page the buyer ordered on (ReturnNotice::set_base()), with the return token for "pay again".
-		$url = ReturnNotice::url( $status, $public_id );
-		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'paypal' );
+	private static function return_url( $status, $public_id, $base = '' ) {
+		return ReturnNotice::url( $status, $public_id, $base, 'paypal' );
 	}
 }

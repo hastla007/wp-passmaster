@@ -239,3 +239,422 @@ counts only the amount of its own refund (what was left after partial refunds).
    `checked_in`, else 0.
 6. `refunded_minor` ≤ `total_minor`, and equals the sum of `completed` refunds (except when a
    provider-dashboard refund marked the order R without a refund ledger entry).
+
+# Zustandsautomaten (ausführliche Fassung)
+
+Dieses Dokument beschreibt alle Entitäten mit Status: erlaubte Übergänge, wer oder was sie auslöst,
+und die Endzustände. Es beschreibt außerdem, wie doppelte und in falscher Reihenfolge eintreffende
+Zahlungsereignisse (Webhooks) behandelt werden.
+
+## Grundregeln
+
+- **Bedingte Updates.** Jeder Statuswechsel ist ein bedingtes `UPDATE … WHERE id=? AND status IN
+  (<erlaubte Quellzustände>)`. Ein veralteter Lesestand, ein doppeltes oder ein verspätetes Ereignis
+  ändert dann keine Zeile; der Aufrufer behandelt „0 Zeilen“ als „nicht anwendbar“, nie als Erfolg.
+- **Zentrale Tabellen.** `PassCaptain\StateMachine::TRANSITIONS` enthält die Übergänge für Bestellung,
+  Erstattung, Job, Umtausch und Zahlungsereignis. `StateMachine::transition()` schreibt den
+  bedingten Wechsel, `StateMachine::source_sql()` liefert die Bedingung für eigene Abfragen, und
+  `StateMachine::allowed()` prüft einen Übergang vorab. Ticket, Reservierung, Warteliste und
+  Servicebuchung haben nur wenige, feste Übergänge; dort steht die Bedingung direkt im jeweiligen
+  `UPDATE`.
+- **Sperren.** Wechsel, die Geld oder Kontingent betreffen, laufen zusätzlich unter `SELECT … FOR UPDATE`
+  auf der Bestellung (Reihenfolge: Bestellung → Ticketarten → Termine). Die Bedingung im `UPDATE` ist die
+  zweite Sicherung, falls ein Aufrufer ohne Sperre schreibt.
+- **Endzustände** haben keine ausgehenden Übergänge. Ein Ereignis für eine Entität in einem Endzustand
+  wird protokolliert (`Audit`) und gegebenenfalls dem Admin gemeldet, ändert aber nichts.
+
+## Bestellung (`wpcap_orders.status` / `payment_status`)
+
+Die beiden Spalten wechseln immer gemeinsam:
+
+| `status` | `payment_status` | Bedeutung |
+|---|---|---|
+| `pending_payment` | `pending` | Angelegt, Kontingent durch eine Reservierung gehalten, Zahlung offen. |
+| `complete` | `paid` | Bezahlt (oder kostenlos), Tickets ausgestellt. Teilerstattungen ändern nur `refunded_minor`. |
+| `needs_review` | `paid_unallocated` | Zahlung kam nach Ablauf der Reservierung, und die erneute Prüfung schlug fehl (Termin/Event abgesagt oder nicht mehr veröffentlicht, Termin vorbei, kein Kontingent, Rabattcode-Limit oder Käuferlimit ausgeschöpft). Es gibt keine Tickets; ein Admin muss den Fall klären (oder die Zahlung wird mit `late_payment_auto_refund` automatisch erstattet). |
+| `expired` | `expired` | Die Reservierung ist abgelaufen, ohne dass eine Zahlung kam. |
+| `cancelled` | `cancelled` | Storniert. Reservierungen sind freigegeben, gültige Tickets widerrufen. |
+| `refunded` | `refunded` | Vollständig erstattet, gültige Tickets widerrufen. **Endzustand.** |
+
+| Von → nach | Auslöser |
+|---|---|
+| `pending_payment` → `complete` | Zahlungsbestätigung: Webhook `paid` (Stripe, PayPal, Mollie), PayPal-/Mollie-Rückkehr, manuelle Zahlungsbestätigung im Admin, WooCommerce `processing`/`completed`, Kasse, Partner-API. Kostenlose Bestellungen entstehen direkt als `complete`. |
+| `pending_payment`/`expired` → `needs_review` | Späte Zahlung, deren erneute Prüfung fehlschlägt (`Orders::confirm_external_payment()`, siehe „Späte Zahlung“ unten). Der Admin bekommt eine Mail mit dem Grund. |
+| `pending_payment` → `expired` | Cron `wpcap_cleanup_reservations` (`Orders::expire_holds()`): Die Reservierung ist abgelaufen, und die Zahlung ist noch offen. |
+| `expired` → `complete` | Späte Zahlung, und die erneute Prüfung unter Sperre besteht. |
+| `needs_review` → `complete` | Admin-Aktion „Tickets erneut ausstellen“ (WooCommerce) oder manuelle Bestätigung, nachdem Kontingent frei geworden ist. Wiederholte Zahlungs-Webhooks lösen das nie aus. |
+| `pending_payment`/`expired`/`needs_review`/`complete` → `cancelled` | Fehlgeschlagene Zahlung (nur solange `pending`), Storno im Admin, WooCommerce `cancelled` (oder `failed`, solange unbezahlt), Neuversuch im WooCommerce-Checkout, Umtausch (ersetzter oder geschlossener Aufpreis), Job `order_cancel_retry`. |
+| `complete`/`needs_review`/`cancelled` → `refunded` | Volle Erstattung: native Erstattung (`Refunds`), externe Erstattung (Anbieter-Dashboard, Chargeback, WooCommerce, Partner-API), Job `order_refund_mark_retry`. |
+
+Nicht erlaubt sind unter anderem `pending_payment`/`expired` → `refunded` (es wurde nichts bezahlt;
+`Orders::mark_refunded()` liefert `wpcap_order_state` und plant keinen Neuversuch) und alles aus
+`refunded` heraus. Eine bezahlte Bestellung kann nicht mehr auf `expired` wechseln.
+
+## Ticket (`wpcap_tickets.status`)
+
+| Von → nach | Auslöser |
+|---|---|
+| (neu) → `valid` | Ausstellung nach Zahlung (`Orders::issue_and_email()`, genau einmal je Einheit), Umtausch, Kasse. |
+| `valid` → `checked_in` | Einlass (`Checkin`, bedingtes Update `status='valid'`). |
+| `checked_in` → `valid` | Einlass im Admin zurücknehmen (bedingtes Update `status='checked_in'`). |
+| `valid` → `revoked` | Storno, volle oder Teil-Erstattung, Umtausch (altes Ticket), Eventabsage, Chargeback. Eingecheckte Tickets werden nie widerrufen; sie bleiben als Nachweis. |
+
+`revoked` ist ein **Endzustand**. Die Flagge `refunded` (0/1) ist unabhängig vom Status: Ein Ticket wird
+genau einmal erstattet. Übertragung und Neuausstellung erneuern nur den Code, der Status bleibt `valid`.
+
+## Reservierung (`wpcap_reservations.status`)
+
+| Von → nach | Auslöser |
+|---|---|
+| (neu) → `active` | Checkout (`Orders::create()`), Umtausch mit Aufpreis, Wartelisten-Angebot. |
+| `active` → `converted` | Zahlung bestätigt. |
+| `expired`/`released` → `converted` | Späte Zahlung mit genug Kontingent. |
+| `active` → `expired` | Cron, wenn `expires_at` überschritten ist, oder späte Zahlung ohne Kontingent. |
+| `active` → `released` | Storno oder volle Erstattung der Bestellung. |
+
+`converted` ist ein **Endzustand**. Kontingent zählt nur `active` mit `expires_at` in der Zukunft.
+
+## Zahlung und Zahlungsereignisse
+
+Der Zahlungszustand steht in `payment_status` der Bestellung (siehe oben). Jedes eingehende
+Anbieter-Ereignis wird in `wpcap_payment_events` genau einmal angewendet:
+
+| Von → nach | Auslöser |
+|---|---|
+| (neu) → `processing` | `INSERT IGNORE` je (Anbieter, Ereignis-ID). Existiert die Zeile schon, ist das Ergebnis `duplicate`. |
+| `processing` → `processed` | Ereignis vollständig angewendet. |
+| `processing` → (gelöscht) | Vorübergehender Fehler: Die Zeile wird freigegeben, der Anbieter bekommt 5xx und stellt erneut zu. Eine Zeile, die nach einem Absturz länger als 10 Minuten in `processing` hängt, wird übernommen. |
+
+`processed` ist ein **Endzustand**.
+
+**Hinweis nach der Rückkehr von PayPal (A349):** Der Hinweis „Zahlung fehlgeschlagen, es wurde nichts
+abgebucht“ (`?wpcap_payment=failed`) erscheint nur, wenn sicher nichts eingezogen wurde: PayPal lehnt den
+Capture ab (Status `DECLINED`/`FAILED` oder Client-Fehler 400/404/422) oder es wurde gar kein Capture versucht
+(unbekannte Bestellung, fremdes Token). Bei unklarem Ausgang (Netzwerkfehler, 5xx, Timeout) und wenn der
+Capture gelang, die Buchung hier aber nicht (Datenbank ausgelastet, Betrag passt nicht, Prüfung nötig),
+heißt es „Zahlung wird noch verarbeitet“ (`pending`); Webhook bzw. Admin klären den Rest
+(`PayPalGateway::return_state()`). „Erfolgreich“ nur bei `paid`, `already_paid` oder `duplicate`.
+
+**PayPal `CHECKOUT.ORDER.APPROVED` und Rückkehr (A641):** Eingezogen (Capture) wird nur, wenn die
+PayPal-Order zu einer bekannten PayPal-Bestellung dieser Website gehört (`custom_id`/`reference_id`, gespeicherte
+`provider_reference` = PayPal-Order-ID) und diese noch zahlbar ist (`pending` oder abgelaufene Reservierung, nicht
+storniert, erstattet oder zur Prüfung markiert). Sonst wird nichts eingezogen (Audit `paypal_approval_not_captured`,
+Rückkehr mit „nichts abgebucht“). Stripe-Sitzungen werden nur über `metadata.wpcap_order` zugeordnet, nicht mehr
+über `client_reference_id`.
+
+**Erstattungen anderer Zahlungen (A640):** Externe Erstattungen und Rückbuchungen (`refunded`) gelten nur für die
+auf der Bestellung gespeicherte Zahlung. Nennt das Ereignis eine andere Zahlung derselben Bestellung (Stripe:
+PaymentIntent der Charge, PayPal: Capture bzw. PayPal-Order, Mollie: Zahlung) – typischerweise die Erstattung einer
+Doppelzahlung –, wird nichts gebucht und kein Ticket widerrufen (Ergebnis `refund_other_payment`, Audit
+`refund_of_other_payment`, Admin-Mail).
+
+**Mollie `authorized` (A351):** Pay-later-Methoden (Klarna, Riverty, Billie) enden bei Mollie in
+`authorized` und brauchen Bestellpositionen, Rechnungsadresse und einen separaten Capture. Das Plugin bietet sie
+nicht an (nicht in der Methodenliste der Einstellungen, gespeicherte Altwerte werden ignoriert, aus der an
+Mollie übergebenen Methodenliste entfernt). Kommt dennoch eine `authorized`-Zahlung an, wird sie für eine noch
+zahlbare Bestellung (`pending` oder abgelaufene Reservierung) mit genau dem Bestellbetrag über die
+Captures-API vollständig eingezogen (fester Idempotency-Key `wpcap-mollie-capture-{id}`, Audit
+`mollie_authorization_captured`) und wie `payment_pending` behandelt; das folgende `paid` stellt die Tickets
+aus. Scheitert der Capture-Aufruf, antwortet der Webhook mit 503. Stornierte/erstattete Bestellungen oder ein
+abweichender Betrag werden nie eingezogen (Audit `mollie_authorization_not_captured`); die Autorisierung verfällt.
+
+## Erstattung (`wpcap_refunds.status`)
+
+| Von → nach | Auslöser |
+|---|---|
+| (neu) → `pending_approval` | Antrag über der Freigabeschwelle (`refund_approval_threshold`). Personen mit `wpcap_approve_refunds` führen eigene Anträge über der Schwelle sofort aus, außer die Einstellung „Vier-Augen-Prinzip auch für Freigebende“ (`refund_four_eyes_approvers`, A643) ist aktiv – dann wartet jeder Antrag über der Schwelle auf eine andere berechtigte Person. Berechtigung und Zwei-Faktor-Pflicht werden geprüft, bevor ein wiederholter Idempotenzschlüssel eine bestehende Erstattung fortsetzt. |
+| (neu) → `approved` | Antrag unter der Schwelle. |
+| (neu) → `completed` | Externe Erstattung (`Refunds::record_external()`): Das Geld ist schon zurück. |
+| `pending_approval` → `approved`/`rejected` | Zweite berechtigte Person (Vier-Augen-Prinzip). |
+| `approved`/`failed` → `processing` | `Refunds::execute()` direkt vor dem Anbieter-Aufruf. |
+| `approved`/`failed` → `failed` | Erneute Prüfung unter Sperre schlägt fehl, zum Beispiel weil die Tickets schon erstattet sind. |
+| `processing` → `failed` | Der Anbieter lehnt eindeutig ab (zum Beispiel 4xx); es wurde nichts ausgezahlt. Ein Neuversuch ist möglich. |
+| `processing` (Ausgang unklar) | Zeitüberschreitung, Verbindungsfehler, 5xx oder 409 beim Anbieter-Aufruf (A272): Die Erstattung bleibt `processing` ohne `provider_reference` (`error_message` = `outcome_unknown`), wird **nie** als `failed` gewertet und nie erneut ausgezahlt. Abgleich über das Anbieter-Merkmal `wpcap_refund` (siehe unten). |
+| `processing` → `completed` | Lokale Buchung nach der Auszahlung. Hängt sie, schließt Cron `repair_stuck()` sie ab, ohne ein zweites Mal auszuzahlen. Ebenso nach einem Abgleich, der die Auszahlung beim Anbieter findet, oder einer manuellen Bestätigung „ausgezahlt“. |
+| `processing` → `failed` (Abgleich) | Der Anbieter meldet die Erstattung als fehlgeschlagen, kennt sie 10 Minuten nach dem Aufruf nicht, oder eine berechtigte Person bestätigt „nicht ausgezahlt“. |
+| `completed` → `reversed` | Der Anbieter meldet eine verbuchte Erstattung nachträglich als gescheitert (A348, siehe unten). |
+| `failed` → `processing` → `completed` | Der Anbieter meldet eine als fehlgeschlagen geführte Erstattung doch als ausgezahlt: Sie wird nachgebucht, wenn Tickets und Betrag noch offen sind; sonst nur Admin-Mail (vermutlich doppelt ausgezahlt). |
+
+### Erstattung mit unklarem Ausgang (A272, A350)
+
+Jede Erstattung des Plugins trägt beim Anbieter ihren Schlüssel `wpcap-refund-{refund_id}` (Stripe und
+Mollie: Metadatum `wpcap_refund`, PayPal: `custom_id`; zugleich Idempotenz-Schlüssel). Endet der
+Aufruf ohne eindeutige Antwort, wird die Erstattung so abgeglichen:
+
+- **Webhook:** Stripe (`charge.refunded`, `charge.refund.updated`, `refund.created`/`updated`/`failed`),
+  PayPal (`PAYMENT.CAPTURE.REFUNDED` der eigenen Erstattung) und Mollie (Zahlungsabruf mit
+  `_embedded.refunds`) melden den Zustand der eigenen Erstattungen (Feld `refund_states` des
+  normalisierten Ereignisses). Ausgezahlt oder beim Anbieter ausstehend → verbucht; fehlgeschlagen →
+  `failed`.
+- **Job `refund_reconcile`:** sucht die Erstattung beim Anbieter (`RefundLookupInterface::find_refund()`)
+  nach 2, 10, 30 Minuten, 1, 3, 6, 12 und 24 Stunden. „Nicht vorhanden“ zählt erst 10 Minuten nach dem
+  Aufruf; bei PayPal nur, solange die Zahlung gar keine Erstattung hat (sonst manuelle Prüfung). Ohne
+  Ergebnis nach dem letzten Lauf (oder sofort bei Anbietern ohne Abfrage) Audit
+  `refund_reconcile_exhausted` und Admin-Mail.
+- **Hängengebliebene Aufrufe** (Absturz während des Anbieter-Aufrufs) markiert Cron `repair_stuck()`
+  nach 10 Minuten ebenso als `outcome_unknown` und plant den Abgleich.
+- **Sichtbar und auflösbar:** Betrieb → „Erstattungen mit unklarem Ausgang“ und die Erstattungstabelle
+  der Bestellung („Ausgang unklar“) bieten „Beim Anbieter prüfen“ (Audit `refund_lookup_requested`)
+  und – nur mit `wpcap_approve_refunds` und Begründung – „Manuell bestätigen: ausgezahlt / nicht
+  ausgezahlt“ (Audit `refund_resolved_manually`, optional mit Erstattungs-ID des Anbieters).
+
+Solange der Ausgang offen ist, bleiben Tickets und Betrag an die Erstattung gebunden: Eine neue
+Erstattung derselben Tickets wird abgelehnt (`wpcap_refund_overlap`), ein Betrag nur bis zum Rest.
+
+`rejected` und `reversed` sind **Endzustände**; `completed` kann nur noch zu `reversed` werden.
+Gutschriften (Credit Notes) entstehen nur für `completed`.
+
+### Ausstehende und später gescheiterte Erstattungen (A348)
+
+Meldet der Anbieter eine Erstattung als angenommen, aber noch nicht ausgeführt (Stripe `pending`/
+`requires_action`, Mollie `queued`/`pending`/`processing`, PayPal `PENDING`), wird sie wie bisher sofort
+verbucht (Tickets widerrufen, Gutschrift), aber mit `provider_status` = `pending` geführt (sonst
+`succeeded`). Der Job `refund_reconcile` fragt den Stand ab (nach etwa zwei Tagen ohne Ergebnis
+Admin-Mail, Audit `refund_provider_still_pending`); Webhooks (Stripe `refund.updated`/`refund.failed`/
+`charge.refund.updated`/`charge.refunded`, Mollie, PayPal) wirken ebenso.
+
+- **Ausgeführt:** `provider_status` = `succeeded` (Buchungsdatum `updated_at` bleibt).
+- **Gescheitert** (auch nach einem zunächst erfolgreichen Status): Die Erstattung wird `reversed`
+  (`reversed_at`; Buchungsdatum bleibt), der erstattete Betrag der Bestellung sinkt wieder, die
+  Rechnungskorrektur erhält einen Storno-Beleg mit eigener Nummer aus ihrem Nummernkreis
+  (`wpcap_credit_notes.reversal_number`, `reversed_at`; im Buchhaltungsexport als positive Zeile
+  „Storno Erstattung“ am Stornotag, bei Bestellungen ohne Rechnung „Storno Erstattung ohne Rechnung“).
+  Audit `refund_reversed` und `credit_note_reversed`, Hook `wpcap_refund_reversed`, Admin-Mail. Die
+  Tickets bleiben widerrufen. In der Bestellung zahlt **Erneut auszahlen** den Betrag als neue
+  Betragserstattung über den Anbieter aus (`Refunds::retry_reversed()`, auch bei vollständig
+  erstatteten Bestellungen; Freigaberegeln gelten).
+- Verkaufsberichte, Abrechnungen und Partnerauswertungen zählen nur `completed`: Eine stornierte
+  Erstattung fällt dort heraus, weil das Geld nie ausgezahlt wurde.
+- Nicht verbuchte Erstattungen, die noch `processing` sind, werden bei einem Fehlschlag einfach
+  `failed`.
+
+Externe Erstattungen (Anbieter-Dashboard), die später scheitern, werden nicht automatisch storniert.
+
+## Gutschrift (`wpcap_credit_notes`)
+
+Gutschriften haben keinen Status. Sie werden nur angelegt und höchstens einmal storniert (Storno-Beleg,
+A348, siehe oben); höchstens eine je Erstattung
+(`UNIQUE refund_id`), mit einer fortlaufenden Nummer (`UNIQUE credit_note_number`). Sie entstehen,
+wenn die Erstattung `completed` ist und die Bestellung eine Rechnung hat. Ein doppeltes
+`wpcap_refund_completed` erzeugt keine zweite Gutschrift.
+
+## Warteliste (`wpcap_waitlist.status`)
+
+`waiting` → `offered` → `accepted` → `paid`. Ein Angebot kann zurück auf `waiting` gehen, wenn es nicht
+zugestellt werden konnte. Die Endzustände sind `expired`, `declined`, `skipped` und `removed`. Alle
+Übergänge sind bedingte Updates auf Status und Angebots-Token. Details: [WAITLIST.md](WAITLIST.md).
+
+## Job (`wpcap_jobs.status`)
+
+| Von → nach | Auslöser |
+|---|---|
+| (neu) → `queued` | `Jobs::enqueue()`, idempotent je Schlüssel. |
+| `queued` → `running` | Claim in `Jobs::process_due()`: Zeilensperre plus bedingtes Update, `locked_at` ist der Claim-Stempel. |
+| `running` → `complete` | Ein Handler hat den Job bestätigt. Nur der Lauf, der den Claim noch hält (`status='running' AND locked_at=<eigener Stempel>`), darf ihn abschließen. |
+| `running` → `queued` | Kein Handler hat bestätigt (Backoff), das Zeitbudget ist erschöpft, oder ein Claim ist nach 15 Minuten verwaist. |
+| `running` → `dead_letter` | Nach 8 Versuchen. |
+| `dead_letter` → `queued` | Admin: „Erneut versuchen“ (Operations → Warteschlangen). |
+
+`complete` ist ein **Endzustand**.
+
+## Umtausch (`wpcap_ticket_exchanges.status`)
+
+| Von → nach | Auslöser |
+|---|---|
+| (neu) → `completed` | Umtausch ohne Aufpreis, direkt unter Sperre. |
+| (neu) → `pending_payment` | Umtausch mit Aufpreis; eine Aufpreis-Bestellung reserviert das neue Kontingent. |
+| `pending_payment` → `completed` | Aufpreis bezahlt (`wpcap_order_paid` → `Service::finalize()`). |
+| `pending_payment` → `expired`/`cancelled` | Die Aufpreis-Bestellung ist abgelaufen oder storniert, das alte Ticket wurde widerrufen oder eingecheckt, oder ein neuer Umtausch hat diesen ersetzt. |
+| `expired`/`cancelled` → `completed` | Der Aufpreis wurde doch noch bezahlt (späte Zahlung), und das alte Ticket ist noch gültig. |
+| `pending_payment`/`expired`/`cancelled` → `needs_review` | Der Aufpreis ist bezahlt, aber das alte Ticket ist nicht mehr umtauschbar. Der Admin bekommt eine Mail. |
+
+`completed` und `needs_review` sind **Endzustände**. Details: [EXCHANGE.md](EXCHANGE.md).
+
+## Servicebuchung (`wpcap_service_bookings.status`)
+
+Alle Übergänge laufen unter den Sperren aus `ServiceBookings::lock()` (Ressourcen → Leistungserbringer →
+Zeitfenster → Buchung) und als bedingtes Update auf den erwarteten Ausgangsstatus.
+
+| Von → nach | Auslöser |
+|---|---|
+| (neu) → `held` | `reserve()`: Zeitfenster mit Ablaufzeit, idempotent je Schlüssel; Kapazität, Puffer, Leistungserbringer, Buchungsschluss/-vorlauf und Höchstzahl je Person geprüft. |
+| `held` → `expired` | Ablaufzeit überschritten (nachgezogen bei der nächsten Buchung des Zeitfensters). |
+| `held` → `confirmed` | `confirm()` einer kostenlosen Buchung (Kund:in mit Buchungstoken oder Team). |
+| `held` → `pending_payment` | `confirm()` einer kostenpflichtigen Buchung: Bestellung über den regulären Checkout, in derselben Transaktion verknüpft (nie zwei Bestellungen). |
+| `pending_payment`/`held`/`expired` → `confirmed` | Bestellung bezahlt (`confirm_paid_order()`); bei verspäteter Zahlung nach erneuter Prüfung von Kapazität, Puffern und Leistungserbringern. |
+| `pending_payment`/`held`/`expired` → `unallocated` | Bestellung bezahlt, das Zeitfenster ist inzwischen belegt; die Bestellung wird nach Ausstellung der Tickets automatisch erstattet (`refund_unallocated()`). |
+| `held`/`pending_payment` → `expired` | Bestellung abgelaufen. |
+| `held`/`pending_payment`/`confirmed` → `cancelled` | Bestellung storniert oder anderweitig erstattet; `cancel()` durch Kund:in (innerhalb der Stornofrist) oder Team, bezahlt mit voller Erstattung über `Refunds` (Quelle `service_booking`). |
+| `confirmed` → `no_show` | Leistungserbringer (über seinen Datensatz) oder Event-Team, erst ab Beginn des Zeitfensters; gibt den Platz frei, keine Erstattung. |
+| `confirmed` → `confirmed` (anderes Zeitfenster) | `rebook()`: atomar, beide Ressourcen und Zeitfenster gesperrt; innerhalb der Umbuchungsfrist, bei Bestellungen nur auf eine Ressource mit derselben Ticketart. |
+
+**Endzustände:** `cancelled`, `no_show`, `expired` (eine abgelaufene Buchung wird nur noch durch eine verspätete Zahlung
+`confirmed` oder `unallocated`) und `unallocated`. Fristen, Limits und Benachrichtigungen: OPERATIONS.md.
+
+## Späte Zahlung (Reservierung abgelaufen)
+
+Kommt eine Zahlung, nachdem die Reservierung abgelaufen ist (`pending_payment` ohne aktive Reservierung
+oder `expired`), prüft `Orders::confirm_external_payment()` unter den Sperren von `Orders::create()`
+(Ticketarten, Termine mit Event, Modul-Ressourcen, Rabattcodes, Käuferlimit) alles erneut, was sich seit
+dem Ablauf geändert haben kann (A273, A353, A483):
+
+1. Termin `scheduled` und Event `published` (sonst Grund `occurrence_unavailable`);
+2. Termin nicht vorbei: Ende = `COALESCE(ends_at, starts_at + 6 h)` (`Orders::occurrence_end()`; sonst
+   `occurrence_ended`). Laufende mehrtägige Termine bekommen ihre Tickets;
+3. Modul-Ressourcen (`wpcap_reserve_capacity`, Phase `recover`) und Kontingent von Ticketart und Termin;
+4. Rabattcodes: beim Ablauf freigegebene Codes werden unter Sperre der Kampagne neu eingelöst, nur
+   innerhalb des Nutzungslimits (`Campaigns::recover_for_order()`; sonst `campaign_exhausted`);
+5. `wpcap_order_recovering`, z. B. Käuferlimit je E-Mail-Adresse (sonst `allocation_buyer_limit`).
+
+Schlägt ein Schritt fehl, wird die Bestellung `needs_review`/`paid_unallocated`: keine Tickets, noch
+reservierte Rabattcodes werden freigegeben, Audit `payment_unallocated` mit Grund, Admin-Mail mit dem
+Grund. Mit der Einstellung **„Verspätete Zahlungen … automatisch erstatten“** (`late_payment_auto_refund`,
+Standard aus) erstattet der Job `late_payment_refund` die volle Zahlung beim Anbieter (fester
+Idempotenzschlüssel `wpcap-late-refund-{order_id}`, bei Fehlern erneute Versuche) und setzt die
+Bestellung auf `refunded` mit `refunded_minor = total_minor` (keine Erstattungszeile, keine Gutschrift –
+es gab weder Tickets noch Rechnung; die Erstattungs-Webhooks des Anbieters buchen nichts mehr). Das gilt
+auch für eine Zahlung zu einer stornierten Bestellung (`paid_for_closed_order`, gleicher
+Zahlungsversuch). Ohne die Option bleibt der Fall beim Admin („Zuteilung erneut versuchen“ prüft alles
+noch einmal, oder erstatten). WooCommerce-Bestellungen und Zahlarten ohne Erstattungsschnittstelle
+werden nie automatisch erstattet.
+
+**Abschließen von Hand (A358):** Auf der Bestellseite bietet der Hinweis zu `needs_review` /
+`paid_unallocated` (nicht WooCommerce) neben „Zuteilung erneut versuchen“ zwei Aktionen, jeweils mit
+Pflichtgrund und nur für Personen mit `wpcap_approve_refunds` (und Zwei-Faktor-Anmeldung, wenn für
+Erstattungen verlangt): **„… über {Zahlungsart} erstatten“** erstattet die volle Zahlung beim Anbieter
+(derselbe Schlüssel `wpcap-late-refund-{order_id}` wie der Job – nie doppelt ausgezahlt) und
+**„Extern erstattet – abschließen“** vermerkt eine außerhalb des Plugins zurückgezahlte Zahlung (z. B.
+Rücküberweisung) ohne Anbieteraufruf. Beide setzen die Bestellung auf `refunded` mit
+`refunded_minor = total_minor` (`Orders::settle_unallocated()`, Audit `unallocated_settled`).
+
+Eine Terminabsage (auch eine Eventabsage) storniert neben offenen auch **abgelaufene** unbezahlte
+Bestellungen; eine danach eintreffende Zahlung trifft auf `cancelled` und stellt keine Tickets aus.
+
+## Doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse
+
+Die Adapter übersetzen Anbieter-Ereignisse in ein normalisiertes Ereignis (`paid`, `payment_pending`, `failed`,
+`refunded`, `ignored`; Felder siehe `GatewayInterface::verify_webhook()`). `Webhooks::process()` wendet
+es abhängig vom aktuellen Zahlungszustand der Bestellung an:
+
+| Ereignis \ `payment_status` | `pending` | `expired` | `paid` | `paid_unallocated` | `cancelled` | `refunded` |
+|---|---|---|---|---|---|---|
+| `paid` (gleicher Zahlungsversuch) | `paid` | `paid` (späte Zahlung) oder `needs_review` | `already_paid` | `needs_review` (keine Änderung) | `paid_for_closed_order` + Admin-Mail | `paid_for_closed_order` + Admin-Mail |
+| `paid` (anderer Zahlungsversuch) | `paid` | wie oben | `double_payment` + Admin-Mail | `double_payment` + Admin-Mail | `paid_for_closed_order` + Admin-Mail | `paid_for_closed_order` + Admin-Mail |
+| `failed` | `cancelled` (älterer Versuch: `stale_attempt`) | `ignored` | `ignored` | `ignored` | `ignored` | `ignored` |
+| `refunded` (Erstattung) | **5xx**: zurückgestellt, siehe unten | `refund_for_unpaid_order` | `partial_refund` oder `refunded` | voll: `refunded`; teilweise: `needs_review` + Admin-Mail | `refund_for_unpaid_order` | `refunded` (keine Änderung) |
+| `refunded` mit `chargeback` | wie Erstattung | `refund_for_unpaid_order` | wie Erstattung, Grund `<anbieter>_chargeback` | wie Erstattung | `refund_for_unpaid_order` | `chargeback_after_refund` + Admin-Mail |
+| gleiche Ereignis-ID erneut | `duplicate` | `duplicate` | `duplicate` | `duplicate` | `duplicate` | `duplicate` |
+
+Zu einzelnen Fällen:
+
+- **Verzögerte Zahlarten (A577).** Stripe meldet `checkout.session.completed` mit `payment_status`
+  `unpaid`, wenn der Käufer eine verzögerte Zahlart gewählt hat (SEPA-Lastschrift u. a.); das wird
+  `payment_pending`: Ist die Bestellung noch `pending` und der Zahlungsversuch aktuell, wird die
+  Reservierung wie bei Überweisung verlängert (`manual_hold_hours`, höchstens bis zum Beginn, nicht
+  innerhalb `manual_cutoff_hours`; Ergebnis `hold_extended`, sonst `hold_not_extended` – eine spätere
+  Zahlung läuft dann durch die Prüfung oben). Mollie-Überweisung (`banktransfer`) wird nur angeboten,
+  wenn der Käufer sie im Checkout ausdrücklich wählt; dann wird die Reservierung ebenso verlängert und
+  `dueDate` auf ihr Ende gesetzt (frühestens morgen). In einer Methodenliste (Auswahl auf der
+  Mollie-Seite, auch ohne konfigurierte Methoden) fehlt Überweisung; ist sie die einzige Methode und der
+  Beginn zu nah, wird die Zahlung nicht gestartet.
+- **Stripe-Sitzung = Reservierung (A577).** Gehostete Zahlungsseiten reservieren mindestens 31 Minuten
+  (`Orders::HOSTED_HOLD_MINUTES`); die Stripe Checkout Session endet genau mit der Reservierung
+  (`expires_at` = Ende der Reservierung). Ist die Reservierung kürzer als das Stripe-Minimum (30 Minuten ab
+  Erstellung, z. B. bei einem späten Neuversuch), wird sie auf das Sitzungsende verlängert; länger als
+  24 Stunden wird die Sitzung nicht (sie endet dann vor der Reservierung).
+
+- **Ein Betrag passt nicht** zu Summe oder Währung der Bestellung: Ergebnis `amount_mismatch`, keine
+  Tickets, Admin-Mail.
+- **Erstattung vor Zahlung.** Das Ereignis wird nicht verbucht. Der Anbieter bekommt 5xx
+  (`wpcap_refund_before_payment`) und stellt später erneut zu; bis dahin ist die Zahlung bestätigt.
+  Stripe stellt bis zu 3 Tage erneut zu, PayPal bis zu 25 Mal.
+  Mollie schickt keine Ereignisse, sondern nur die Zahlungs-ID; abgefragt wird der aktuelle Stand. Hat
+  die Zahlung beim ersten Abruf schon eine Erstattung oder einen Chargeback, wird zuerst die Zahlung
+  angewendet. Danach antwortet das Plugin mit 503 (`wpcap_webhook_redeliver`, Feld `redeliver`), und
+  der erneute Aufruf verbucht die Erstattung.
+- **Erstattung einer nie verbuchten Zahlung** (Bestellung `cancelled`/`expired`, zum Beispiel nach
+  `paid_for_closed_order`): Es gibt keine Erstattungszeile, keine Gutschrift und keinen
+  Statuswechsel. Das wird nur protokolliert (`refund_for_unpaid_order`).
+- **Kumulative Beträge (Mollie, Stripe).** Mollie meldet die Summe aller externen Erstattungen und
+  Chargebacks einer Zahlung. Bei Stripe bildet der Adapter aus `charge.refunded` dieselbe Summe: alle
+  Erstattungen der Charge ohne Metadatum `wpcap_refund` (also nicht vom Plugin ausgelöst), die nicht
+  `failed`/`canceled` sind; fehlt die Liste im Ereignis oder ist sie unvollständig, liest er sie über die
+  API (Fehler: 5xx, Stripe stellt erneut zu). Das gilt auch für eine volle Erstattung (`refunded` =
+  true): Die eigene Erstattung des Plugins zählt nie als externe. Verbucht wird nur der noch nicht
+  verbuchte Rest dieser Zahlung (`cumulative`), unabhängig von Reihenfolge und Anzahl der Ereignisse. Ein
+  älterer Stand nach einem neueren ergibt `already_booked`.
+- **Nie eine Erstattung über 0 €.** Betrag, den eine laufende Erstattung des Plugins (`processing`) gerade
+  auszahlt, gilt nicht als offen. Ist der Rest 0, wird nichts gebucht (`already_booked`);
+  `Refunds::record_external()` lehnt eine auf 0 € gekappte Erstattung ab (`wpcap_refund_nothing`). Meldet
+  der Anbieter währenddessen eine zusätzliche externe Erstattung, bekommt der Admin eine Mail (Audit
+  `external_refund_during_native_refund`).
+- **Buchung einer vollen externen Erstattung schlägt fehl** (zum Beispiel Datenbankfehler beim Anlegen
+  der Erstattungszeile): Die Bestellung wird trotzdem als erstattet markiert (Tickets widerrufen), das
+  Ereignis aber nicht bestätigt. Der Anbieter bekommt 5xx (`wpcap_refund_booking_retry`, Audit
+  `external_refund_booking_failed`) und stellt erneut zu; die erneute Zustellung bucht Erstattungszeile,
+  erstatteten Betrag und Gutschrift genau einmal.
+- **Chargebacks** werden wie eine externe Erstattung verbucht (Tickets widerrufen, Gutschrift):
+  Stripe `charge.dispute.funds_withdrawn`, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie
+  `_embedded.chargebacks`/`amountChargedBack` (ohne zurückgenommene). Ein Chargeback nach einer
+  vollen Erstattung bucht nichts. Er wird dem Admin gemeldet, damit er beim Anbieter widerspricht.
+- **Gewonnener Chargeback** (A419, Stripe `charge.dispute.funds_reinstated`): Typ `chargeback_reversed`.
+  Die Bestellung bleibt, wie sie ist (die Rückbuchung war als Erstattung gebucht: Tickets widerrufen,
+  Gutschrift); Audit `chargeback_reversed` (Betrag, ob eine Rückbuchung gebucht war) und Mail an die
+  Administrationsadresse. Ob Tickets neu ausgestellt oder dem Käufer der Betrag erstattet wird,
+  entscheidet der Betreiber – Pass Captain macht die Buchung nicht automatisch rückgängig.
+- **Wettlauf zwischen Fehlschlag und Zahlung.** `failed` storniert nur, solange die Zahlung unter der
+  Zeilensperre noch `pending` ist (`Orders::cancel_order( …, array( 'pending' ) )`).
+
+**Abgleich mit dem Anbieter (A352).** Webhooks können verloren gehen (Endpunkt nicht erreichbar, falsches
+Geheimnis, Störung beim Anbieter). Alle fünf Minuten (Cron `wpcap_process_jobs`, `Payments\Reconcile`) fragt das
+Plugin den Anbieter nach höchstens 20 Bestellungen, deren Stand zurückliegen kann: `pending` mit Zahlungsreferenz
+(mindestens 10 Minuten, höchstens 7 Tage alt) und in den letzten 2 Tagen hier abgelaufene oder stornierte
+Bestellungen (`expired`/`cancelled`). Gateways mit `PaymentLookupInterface::find_payment()` – Stripe (Checkout
+Session bzw. PaymentIntent), PayPal (Bestellung/Capture; eine genehmigte Bestellung wird wie beim Webhook
+`CHECKOUT.ORDER.APPROVED` nur für eine bekannte, bezahlbare Bestellung erfasst) und Mollie (Zahlung) – liefern
+das Ereignis, das `Webhooks::process()` wie einen Webhook anwendet (Ereignis-ID je Zustand, also idempotent;
+Betragsprüfung, späte Zahlung, Doppelzahlung gelten unverändert). Angewandt werden nur `paid`,
+`payment_pending` und `failed`, letztere nur für noch offene Bestellungen; eine Zahlung für eine hier
+abgelaufene Bestellung läuft durch die Regeln der späten Zahlung. Jede Änderung steht im Audit-Log
+(`payment_reconciled`: Anbieter, Typ, Ergebnis, lokaler Stand). Dieselbe Bestellung wird erst nach einer mit
+dem Alter wachsenden Pause wieder gefragt (unter 1 h alt: 10 Minuten, unter 1 Tag: 1 Stunde, sonst 6 Stunden;
+Transient `wpcap_pay_recon_{order_id}`). Erstattungen gleichen Job `refund_reconcile` (unklarer Ausgang,
+ausstehende Erstattungen) und `Refunds::repair_stuck()` ab.
+
+Empfohlene Webhook-Ereignisse: Stripe `checkout.session.completed`,
+`checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+`checkout.session.expired`, `charge.refunded`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated`, `refund.updated`, `refund.failed`
+(`StripeGateway::WEBHOOK_EVENTS`). PayPal
+`CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`,
+`PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED` (`PayPalGateway::WEBHOOK_EVENTS`).
+Die Einstellungen zeigen beide Listen; „Verbindung testen“ prüft sie (docs/OPERATIONS.md). Mollie setzt die
+Webhook-URL je Zahlung selbst.
+
+### WooCommerce
+
+Bei WooCommerce bestimmt der Status der WooCommerce-Bestellung, was passiert:
+
+| WooCommerce-Status | Pass-Captain-Bestellung |
+|---|---|
+| `processing`/`completed` (mehrfach) | Einmal `complete`, Tickets genau einmal. Bei Zahlung nach Lieferung erst bei `completed`. |
+| `on-hold` | Die Reservierung wird verlängert. |
+| `failed` | `cancelled`, aber nur solange unbezahlt. Nach der Zahlung bleiben die Tickets gültig, und die WooCommerce-Bestellung bekommt eine Notiz. |
+| `cancelled` | `cancelled`, gültige Tickets werden widerrufen. |
+| `processing` nach `cancelled` | Neue Reservierung und Ausstellung. Die Zahlung in WooCommerce gilt. |
+| `refunded` vor einer Zahlung | `cancelled`, ohne Erstattung zu buchen. |
+| `refunded` (mehrfach) | Einmal `refunded`. Teil-Erstattungen werden je WooCommerce-Erstattung genau einmal verbucht. |
+| `processing` nach `refunded` | Nichts. `refunded` ist ein Endzustand; die Bestellung bekommt eine Notiz. |
+
+Chargebacks kommen bei WooCommerce über das Zahlungs-Plugin an, als WooCommerce-Erstattung oder
+Statuswechsel.
+
+## Tests
+
+`tests/integration/modules/zz_a184.php` spielt alle Fälle durch: Stripe, PayPal und Mollie über
+`Webhooks::handle()` mit echter Adapter-Normalisierung, WooCommerce über die Status-Hooks. Die Fälle
+sind doppeltes `paid`, zweiter Zahlungsversuch, Erstattung vor Zahlung, Zahlung nach Storno und deren
+Erstattung, Zahlung nach Ablauf, Fehlschlag nach Zahlung, Chargeback nach voller Erstattung,
+Chargeback einer bezahlten Bestellung, doppelte oder ältere Teil-Erstattung und `needs_review` mit
+Wiederholungen. Der Test prüft außerdem, dass jeder Zustand aus `StateMachine::TRANSITIONS` hier
+dokumentiert ist. Weitere Fälle stehen in `tests/integration/payments.php`, `modules/mollie.php` und
+`modules/zz_integration.php`.

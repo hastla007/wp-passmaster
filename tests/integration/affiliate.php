@@ -1,23 +1,27 @@
 <?php
-/** WP Affiliate Captain adapter (contract v1). Included from run.php; contract functions are stubbed. */
+/** Affiliate Captain adapter (contract v1). Included from run.php; contract functions are stubbed. */
 // phpcs:ignoreFile
 use PassCaptain\Orders;
 use PassCaptain\Integrations\AffiliateCaptain\Adapter as AffiliateAdapter;
 
-echo "WP Affiliate Captain adapter\n";
+echo "Affiliate Captain adapter\n";
 $GLOBALS['wpac_test_version'] = '1.1.0';
 $GLOBALS['wpac_test_sales']   = array();
 $GLOBALS['wpac_test_refunds'] = array();
 $GLOBALS['wpac_test_touch']   = null;
 if ( ! function_exists( 'wpac_contract_version' ) ) {
-	function wpac_contract_version() { return $GLOBALS['wpac_test_version']; }
+	function wpac_contract_version() { if ( $GLOBALS['wpac_test_version'] instanceof Throwable ) { throw $GLOBALS['wpac_test_version']; } return $GLOBALS['wpac_test_version']; }
 	function wpac_record_sale( array $payload ) {
 		// Failure modes for the retry tests: 'throw' (exception), 'error' (WP_Error).
 		$fail = $GLOBALS['wpac_test_fail'] ?? '';
 		if ( 'throw' === $fail ) { throw new RuntimeException( 'Affiliate Captain database gone' ); }
 		if ( 'error' === $fail ) { return new WP_Error( 'wpac_storage', 'Affiliate Captain could not store the sale' ); }
+		// A203: faults (exception / WP_Error such as a timeout) and alternative answers of Affiliate Captain.
+		$fault = $GLOBALS['wpac_test_sale_fault'] ?? null;
+		if ( $fault instanceof Throwable ) { throw $fault; }
+		if ( is_wp_error( $fault ) ) { return $fault; }
 		$GLOBALS['wpac_test_sales'][] = $payload;
-		return array( 'status' => 'created' );
+		return $GLOBALS['wpac_test_sale_response'] ?? array( 'status' => 'created' );
 	}
 	function wpac_record_refund( array $payload ) { $GLOBALS['wpac_test_refunds'][] = $payload; return array( 'status' => 'adjusted' ); }
 	function wpac_resolve_partner_code( $code, array $context = array() ) { return 'NORD-1' === strtoupper( $code ) ? array( 'affiliate_id' => 7, 'code_id' => 3, 'code' => 'NORD-1' ) : null; }

@@ -2,21 +2,25 @@
 /**
  * Keeps provider payments and plugin orders in step where webhooks alone are not enough.
  *
+ * - Reconciliation (A352): webhooks can be lost (endpoint down, wrong secret, provider outage). Every
+ *   five minutes (cron wpcap_process_jobs, run()) the provider is asked about orders that may be behind:
+ *   pending orders with a provider payment, at least MIN_AGE old and at most MAX_AGE_DAYS; orders that
+ *   lapsed (expired) or were cancelled here in the last CLOSED_DAYS – the buyer may have paid anyway
+ *   (late payment). The answer (PaymentLookupInterface::find_payment()) is applied through
+ *   Webhooks::process() like a webhook (idempotent per event id, all state-machine rules). Each order
+ *   is checked again with a backoff that grows with its age.
+ * - Status poll (gateways without PaymentLookupInterface that offer poll_payment()): up to 20 pending
+ *   orders older than `payment_poll_after_minutes` (default 15, at most 2 days old), each at most every
+ *   15 minutes, applied via Webhooks::process() as well.
  * - Void on cancellation/expiry: `wpcap_order_cancelled` queues a job that annuls the still open
  *   payment at the provider through the gateway's optional void_payment() (Stripe: expire the
  *   Checkout Session; Mollie: DELETE when isCancelable; PayPal: nothing – a closed order is never
  *   captured). Not for cancellations caused by the provider itself (payment failed, refund of an
  *   unpaid order).
- * - Status poll: every job run (5 minutes) up to 20 pending orders with a provider reference that are
- *   older than `payment_poll_after_minutes` (default 15, at most 2 days old) are asked at the provider
- *   through the optional poll_payment(); the result is applied via Webhooks::process() with a
- *   synthetic or the webhook's own event id, i.e. idempotent and with the same checks (amount,
- *   currency, attempt). Each order is polled at most every 15 minutes.
  *
- * No settlement import: the poll covers the only ticket-relevant gap (a payment whose webhook got
- * lost); fees, payouts and balance transactions are accounting data that stay in the provider's
- * reports and can be matched with the ledger export (Invoices::ledger_export_rows(): order id,
- * payment reference, refunds).
+ * Refunds are reconciled by Refunds (job refund_reconcile for unclear outcomes and pending refunds,
+ * repair_stuck() for refunds stuck in "processing"). No settlement import: fees, payouts and balance
+ * transactions stay in the provider's reports and can be matched with the ledger export.
  *
  * @package PassCaptain
  */
@@ -25,6 +29,7 @@ namespace PassCaptain\Payments;
 
 use PassCaptain\Audit;
 use PassCaptain\Jobs;
+use PassCaptain\Jobs\TimeBudget;
 use PassCaptain\Orders;
 use PassCaptain\RateLimit;
 use PassCaptain\Settings;
@@ -39,7 +44,7 @@ final class Reconcile {
 
 	public static function register() {
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'order_cancelled' ), 20, 2 );
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 4 );
 		add_action( 'wpcap_process_jobs', array( __CLASS__, 'run_poll' ), 5, 0 );
 	}
 
@@ -55,7 +60,7 @@ final class Reconcile {
 	}
 
 	/** Job: void the provider payment of a cancelled/expired order. */
-	public static function handle_job( $handled, $type, $payload = array() ) {
+	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
 		if ( self::VOID_JOB !== $type ) { return $handled; }
 		$payload = (array) $payload;
 		$order = Orders::get( absint( $payload['order_id'] ?? 0 ) );
@@ -82,9 +87,11 @@ final class Reconcile {
 	public static function poll_pending() {
 		global $wpdb;
 		$minutes = max( 5, (int) Settings::get( 'payment_poll_after_minutes' ) );
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT order_id FROM %i WHERE payment_status='pending' AND provider_reference<>'' AND payment_provider IN ('stripe','mollie','paypal') AND created_at<%s AND created_at>%s ORDER BY order_id LIMIT %d", $wpdb->prefix . 'wpcap_orders', gmdate( 'Y-m-d H:i:s', time() - $minutes * MINUTE_IN_SECONDS ), gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ), self::POLL_LIMIT ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT order_id,payment_provider FROM %i WHERE payment_status='pending' AND provider_reference<>'' AND payment_provider IN ('stripe','mollie','paypal') AND created_at<%s AND created_at>%s ORDER BY order_id LIMIT %d", $wpdb->prefix . 'wpcap_orders', gmdate( 'Y-m-d H:i:s', time() - $minutes * MINUTE_IN_SECONDS ), gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ), self::POLL_LIMIT ) );
 		$polled = 0;
+		$lookup = self::gateways(); // Covered by run() (find_payment()).
 		foreach ( $rows as $row ) {
+			if ( isset( $lookup[ (string) $row->payment_provider ] ) ) { continue; }
 			if ( ! RateLimit::allow( 'psp-poll|' . (int) $row->order_id, 1, 15 * MINUTE_IN_SECONDS ) ) { continue; }
 			++$polled;
 			self::poll_order( (int) $row->order_id );
@@ -111,5 +118,114 @@ final class Reconcile {
 		$result = Webhooks::process( (string) $order->payment_provider, $event );
 		Audit::record( 'payment_polled', 'order', (int) $order->order_id, array( 'provider' => (string) $order->payment_provider, 'type' => (string) $event['type'], 'result' => is_wp_error( $result ) ? $result->get_error_code() : (string) $result ) );
 		return $result;
+	}
+
+	/** Minimum age of an order before the provider is asked (webhooks usually arrive within seconds). */
+	const MIN_AGE = 600;
+	/** Pending orders older than this are no longer checked. */
+	const MAX_AGE_DAYS = 7;
+	/** Lapsed/cancelled orders are checked this long after their last change. */
+	const CLOSED_DAYS = 2;
+	/** Orders checked per run at most. */
+	const MAX_PER_RUN = 20;
+	/** Transient prefix: time of the next check of an order. */
+	const NEXT_PREFIX = 'wpcap_pay_recon_';
+
+	/** Event types the job applies (refunds have their own reconciliation). */
+	const APPLY_TYPES = array( 'paid', 'failed', 'payment_pending' );
+
+	/** Cron callback (wpcap_process_jobs). */
+	public static function cron() {
+		self::run();
+	}
+
+	/** Seconds until the next check of an order of the given age (grows with the age). */
+	public static function backoff( $age ) {
+		$age = (int) $age;
+		if ( $age < HOUR_IN_SECONDS ) { return 10 * MINUTE_IN_SECONDS; }
+		if ( $age < DAY_IN_SECONDS ) { return HOUR_IN_SECONDS; }
+		return 6 * HOUR_IN_SECONDS;
+	}
+
+	/**
+	 * Gateways that can look up payments, by provider id.
+	 *
+	 * @return array<string,PaymentLookupInterface>
+	 */
+	public static function gateways() {
+		$out = array();
+		foreach ( Registry::all() as $id => $gateway ) {
+			if ( $gateway instanceof PaymentLookupInterface ) { $out[ (string) $id ] = $gateway; }
+		}
+		return $out;
+	}
+
+	/**
+	 * One reconciliation run.
+	 *
+	 * @param int|null $now Unix time (tests).
+	 * @return array{checked:int,applied:array<int,string>,errors:int}
+	 */
+	public static function run( $now = null ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = null === $now ? \PassCaptain\Clock::now() : (int) $now;
+		$out = array( 'checked' => 0, 'applied' => array(), 'errors' => 0 );
+		$gateways = self::gateways();
+		if ( ! $gateways ) { return $out; }
+		$providers = implode( ',', array_map( static function ( $id ) use ( $wpdb ) { return $wpdb->prepare( '%s', $id ); }, array_keys( $gateways ) ) );
+		$young = gmdate( 'Y-m-d H:i:s', $now - self::MIN_AGE );
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM {$p}wpcap_orders WHERE payment_provider IN ($providers) AND provider_reference<>'' AND created_at<=%s AND ((payment_status='pending' AND created_at>=%s) OR (payment_status IN ('expired','cancelled') AND updated_at>=%s)) ORDER BY order_id DESC LIMIT 200", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- provider list prepared above.
+			$young,
+			gmdate( 'Y-m-d H:i:s', $now - self::MAX_AGE_DAYS * DAY_IN_SECONDS ),
+			gmdate( 'Y-m-d H:i:s', $now - self::CLOSED_DAYS * DAY_IN_SECONDS )
+		), ARRAY_A );
+		$deadline = TimeBudget::deadline();
+		foreach ( (array) $rows as $order ) {
+			if ( $out['checked'] >= self::MAX_PER_RUN || TimeBudget::exhausted( $deadline ) ) { break; }
+			$key = self::NEXT_PREFIX . (int) $order['order_id'];
+			$next = (int) get_transient( $key );
+			if ( $next > $now ) { continue; }
+			$age = $now - (int) strtotime( (string) $order['created_at'] . ' UTC' );
+			set_transient( $key, $now + self::backoff( $age ), self::backoff( $age ) + MINUTE_IN_SECONDS );
+			++$out['checked'];
+			$result = self::check( $gateways[ (string) $order['payment_provider'] ], $order );
+			if ( is_wp_error( $result ) ) {
+				++$out['errors'];
+				continue;
+			}
+			if ( '' !== $result ) { $out['applied'][ (int) $order['order_id'] ] = $result; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Asks the provider about one order and applies a state change.
+	 *
+	 * @return string|\WP_Error Result label of Webhooks::process(), '' when nothing was applied.
+	 */
+	public static function check( PaymentLookupInterface $gateway, array $order ) {
+		try {
+			$event = $gateway->find_payment( $order );
+		} catch ( \Throwable $e ) {
+			$event = new \WP_Error( 'wpcap_reconcile_exception', $e->getMessage() );
+		}
+		if ( is_wp_error( $event ) ) { return $event; }
+		if ( ! is_array( $event ) || ! in_array( (string) ( $event['type'] ?? '' ), self::APPLY_TYPES, true ) ) { return ''; }
+		$type = (string) $event['type'];
+		$pending = 'pending' === (string) $order['payment_status'];
+		// Only a payment changes a closed order (late payment rules); "failed"/"payment_pending" only a pending one.
+		if ( ! $pending && 'paid' !== $type ) { return ''; }
+		// The event must belong to this order.
+		if ( (string) ( $event['order_public_id'] ?? '' ) !== (string) $order['public_id'] ) { return ''; }
+		$provider = method_exists( $gateway, 'id' ) ? (string) $gateway->id() : (string) $order['payment_provider'];
+		$result = Webhooks::process( $provider, $event );
+		if ( is_wp_error( $result ) ) { return $result; }
+		$label = is_string( $result ) ? $result : 'processed';
+		if ( ! in_array( $label, array( 'ignored', 'duplicate', 'already_paid' ), true ) ) {
+			Audit::record( 'payment_reconciled', 'order', (int) $order['order_id'], array( 'provider' => $provider, 'type' => $type, 'result' => $label, 'local_status' => (string) $order['payment_status'] ) );
+		}
+		return $label;
 	}
 }

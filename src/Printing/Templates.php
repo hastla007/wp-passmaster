@@ -4,7 +4,12 @@
  *
  * A template body is one instruction per line: "[*]size|text" ("*" = bold) or "{qr}" for the QR code.
  * Placeholders: {event} {date} {time} {location} {ticket_category} {attendee_name} {seat_label} {order}
- * and {qr}. Lines that are empty after replacement are skipped.
+ * {help_code} (short code for staff when the QR code cannot be read; only with printed codes) and {qr}. Lines that are empty after replacement are skipped.
+ *
+ * A330: the ticket layout is also the layout of the ticket PDFs in mails, the order portal and the
+ * admin (TicketPdf), so the template selected for an event applies there too. On the ticket layout
+ * the full code is printed under the QR code, a line with {help_code} gets the help-code caption
+ * above it, and items may carry a page header (`_title`) and footer (`_footer`).
  */
 namespace PassCaptain\Printing;
 
@@ -15,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Templates {
 	const KINDS = array( 'ticket', 'badge', 'nametag', 'wristband' );
-	const PLACEHOLDERS = array( '{event}', '{date}', '{time}', '{location}', '{ticket_category}', '{attendee_name}', '{seat_label}', '{order}', '{qr}' );
+	const PLACEHOLDERS = array( '{event}', '{date}', '{time}', '{location}', '{ticket_category}', '{attendee_name}', '{seat_label}', '{order}', '{help_code}', '{qr}' );
 
 	public static function kind_labels() {
 		return array(
@@ -28,7 +33,7 @@ final class Templates {
 
 	public static function default_body( $kind ) {
 		$bodies = array(
-			'ticket'    => "*22|{event}\n14|{ticket_category}\n12|{date}\n12|{location}\n12|{attendee_name}\n12|{seat_label}\n{qr}",
+			'ticket'    => "*22|{event}\n14|{ticket_category}\n12|{date}\n12|{location}\n12|{attendee_name}\n12|{seat_label}\n{qr}\n*14|{help_code}",
 			'badge'     => "*20|{attendee_name}\n12|{ticket_category}\n11|{event}\n10|{date}\n{qr}",
 			'nametag'   => "*16|{attendee_name}\n9|{ticket_category}\n8|{event}\n{qr}",
 			'wristband' => "*11|{event}\n8|{date} · {ticket_category}\n8|{attendee_name} {seat_label}\n{qr}",
@@ -91,22 +96,37 @@ final class Templates {
 	 */
 	public static function render( $kind, array $items, $body = '' ) {
 		$pdf = new PdfWriter();
-		$title = self::draw( $pdf, $kind, $items, $body );
-		return $pdf->output( $title );
+		return self::draw( $pdf, $kind, $items, $body )->output( self::title( $kind ) );
 	}
 
 	/** Like render(), streamed page by page into $file (0600). False when writing failed. */
 	public static function render_to_file( $file, $kind, array $items, $body = '' ) {
-		$pdf = new PdfWriter( $file );
-		$title = self::draw( $pdf, $kind, $items, $body );
-		return $pdf->finish( $title );
+		$pdf = new PdfWriter( (string) $file );
+		return self::draw( $pdf, $kind, $items, $body )->finish( self::title( $kind ) );
 	}
 
-	/** Draws all items; returns the document title. */
+	/** Draws all items into $pdf (document language: the current locale). */
 	private static function draw( PdfWriter $pdf, $kind, array $items, $body ) {
+		if ( function_exists( 'determine_locale' ) ) { $pdf->set_language( determine_locale() ); }
+		return self::pages( in_array( $kind, self::KINDS, true ) ? $kind : 'ticket', $items, $body, $pdf );
+	}
+
+	/** Document title of a layout. */
+	public static function title( $kind ) {
+		return 'nametag' === $kind ? __( 'Namensschilder', 'pass-captain' ) : (string) ( self::kind_labels()[ $kind ] ?? '' );
+	}
+
+	/**
+	 * Lays out $items on pages (render() without the PDF file around them; the batch job appends
+	 * the pages block by block, A427). Name tags: 10 per page.
+	 */
+	public static function pages( $kind, array $items, $body = '', ?PdfWriter $pdf = null ) {
 		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'ticket';
 		$lines = self::parse( '' !== $body ? $body : self::default_body( $kind ) );
-		if ( function_exists( 'determine_locale' ) ) { $pdf->set_language( determine_locale() ); }
+		if ( ! $pdf ) {
+			$pdf = new PdfWriter();
+			if ( function_exists( 'determine_locale' ) ) { $pdf->set_language( determine_locale() ); }
+		}
 		$mm = PdfWriter::MM;
 		if ( 'nametag' === $kind ) {
 			$w = 90 * $mm;
@@ -121,7 +141,7 @@ final class Templates {
 				$pdf->rect( $x, $y, $w, $h, false, 0.8 );
 				self::cell( $pdf, $lines, $item, $x, $y, $w, $h, 'center', 'right' );
 			}
-			return __( 'Namensschilder', 'pass-captain' );
+			return $pdf;
 		}
 		$sizes = array(
 			'ticket'    => array( 595.28, 841.89, 50, 'left', 'flow' ),
@@ -137,13 +157,19 @@ final class Templates {
 				self::cell( $pdf, $lines, $item, 40 * $mm, 0, $pw - 40 * $mm, $ph, $align, $qr_mode );
 				continue;
 			}
-			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad, $align, $qr_mode, 0 );
+			if ( 'ticket' === $kind ) {
+				// A330: header (e.g. site name) and footer (e.g. "only valid once") of ticket PDFs.
+				if ( '' !== (string) ( $item['_title'] ?? '' ) ) { $pdf->text( $pad, $ph - 30, 11, PdfWriter::fit( (string) $item['_title'], 11, $pw - 2 * $pad ) ); }
+				$footer = '' !== (string) ( $item['_footer'] ?? '' ) ? array_slice( PdfWriter::wrap( (string) $item['_footer'], 8, $pw - 2 * $pad ), 0, 3 ) : array();
+				foreach ( $footer as $i => $footer_line ) { $pdf->text( $pad, 22 + 10 * ( count( $footer ) - 1 - $i ), 8, $footer_line ); }
+			}
+			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad, $align, $qr_mode, 0, 'ticket' === $kind );
 		}
-		return self::kind_labels()[ $kind ] ?? '';
+		return $pdf;
 	}
 
 	/** Lays out one item inside a box. $qr_mode: flow (below the text) or right (square at the right edge). */
-	private static function cell( PdfWriter $pdf, array $lines, array $item, $x, $y, $w, $h, $align, $qr_mode, $inner = 8 ) {
+	private static function cell( PdfWriter $pdf, array $lines, array $item, $x, $y, $w, $h, $align, $qr_mode, $inner = 8, $full = false ) {
 		$x += $inner;
 		$y += $inner;
 		$w -= 2 * $inner;
@@ -163,8 +189,17 @@ final class Templates {
 				if ( $q < 40 ) { continue; }
 				$cursor -= 14;
 				$qx = 'center' === $align ? $x + ( $w - $q ) / 2 : $x + ( $w - $q ) / 2;
-				if ( $pdf->qr( $qx, $cursor - $q, $q, $item['qr'] ) ) {
-					$cursor -= $q + 6;
+				$drawn = $pdf->qr( $qx, $cursor - $q, $q, $item['qr'] );
+				if ( $drawn ) { $cursor -= $q + 6; }
+				if ( $full ) {
+					// Ticket layout: the whole code (also without QR encoder), for typing it in by hand.
+					// The ticket code itself ('code'), not a signed QR value (Security\SignedQr).
+					foreach ( str_split( (string) ( $item['code'] ?? $item['qr'] ), 32 ) as $part ) {
+						$pdf->text( $x + $w / 2, $cursor - 8, 8, $part, false, 'center' );
+						$cursor -= 10;
+					}
+					$cursor -= 4;
+				} elseif ( $drawn ) {
 					$pdf->text( $x + $w / 2, $cursor - 8, 7, substr( (string) ( $item['code'] ?? $item['qr'] ), 0, 16 ) . '…', false, 'center' );
 					$cursor -= 14;
 				}
@@ -173,6 +208,16 @@ final class Templates {
 			$text = self::fill( $line['text'], $item );
 			if ( '' === $text ) { continue; }
 			$size = $line['size'];
+			if ( $full && false !== strpos( $line['text'], '{help_code}' ) && '' !== (string) ( $item['help_code'] ?? '' ) ) {
+				$caption = max( 7.0, $size * 0.6 );
+				if ( $cursor - $caption * 1.25 - $size * 1.25 >= $y - 0.5 ) {
+					foreach ( PdfWriter::wrap( \PassCaptain\HelpCode::caption(), $caption, $text_w ) as $caption_line ) {
+						$cursor -= $caption * 1.2;
+						$pdf->text( $anchor, $cursor, $caption, $caption_line, false, 'center' === $align ? 'center' : 'left' );
+					}
+					$cursor -= $caption * 0.3;
+				}
+			}
 			if ( $cursor - $size * 1.25 < $y - 0.5 ) { break; }
 			$cursor -= $size * 1.2;
 			$pdf->text( $anchor, $cursor, $size, PdfWriter::fit( $text, $size, $text_w, $line['bold'] ), $line['bold'], 'center' === $align ? 'center' : 'left' );
@@ -293,45 +338,149 @@ final class Templates {
 
 	/* ------------------------------------------------------------------ data */
 
-	/** Tickets of an occurrence with print context (no codes). */
-	public static function tickets_for_occurrence( $occurrence_id, array $statuses = array( 'valid', 'checked_in' ) ) {
+	/**
+	 * Tickets of an occurrence with print context (no codes). With $with_passes (default) the holders
+	 * of passes linked to the occurrence are included and passes are not listed on their anchor
+	 * occurrence unless it is linked (A573, Reports\Attendance::ticket_condition()); the occurrence
+	 * columns are those of $occurrence_id. Without it: the tickets whose ticket type belongs to the
+	 * occurrence (batch printing of admission media, see ticket_refs_for_occurrence()).
+	 */
+	public static function tickets_for_occurrence( $occurrence_id, array $statuses = array( 'valid', 'checked_in' ), $with_passes = true ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
-		if ( ! $statuses ) { $statuses = array( 'valid' ); }
+		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		$occurrence_id = absint( $occurrence_id );
+		$which = $with_passes ? \PassCaptain\Reports\Attendance::ticket_condition( $occurrence_id ) : 'tt.occurrence_id=' . $occurrence_id;
 		return $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,t.transfer_count,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
-			FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i a ON a.ticket_id=t.ticket_id
-			WHERE o.occurrence_id=%d AND t.status IN (" . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ") ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id",
-			array_merge(
-				array(
-					$p . 'wpcap_tickets',
-					$p . 'wpcap_ticket_types',
-					$p . 'wpcap_occurrences',
-					$p . 'wpcap_events',
-					$p . 'wpcap_orders',
-					$p . 'wpcap_ticket_assignments',
-					absint( $occurrence_id ),
-				),
-				$statuses
-			)
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=%d INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE $which AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list, integer condition.
+			$occurrence_id
 		) );
 	}
 
-	/** Placeholder values for a ticket row (see tickets_for_occurrence / Orders::tickets_for_order). */
-	public static function values( $row, $token = '', $qr = null ) {
+	/**
+	 * One block of tickets_for_occurrence() in the same order, read after a position (keyset, A477):
+	 * large events are listed block by block instead of loading every ticket at once.
+	 *
+	 * @param array{0:string,1:int}|null $after Sort key and ticket id of the last row of the previous
+	 *                                          block (null = from the start).
+	 * @return object[] Rows as tickets_for_occurrence() plus sort_key.
+	 */
+	public static function tickets_for_occurrence_after( $occurrence_id, array $statuses, $after, $limit ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
+		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		$key = "COALESCE(NULLIF(a.attendee_name,''),'~')";
+		// A573: holders of linked passes belong to every linked occurrence (same rule as tickets_for_occurrence()).
+		$which = \PassCaptain\Reports\Attendance::ticket_condition( absint( $occurrence_id ) );
+		$where = '';
+		$args = array( absint( $occurrence_id ) );
+		if ( is_array( $after ) ) {
+			$where = " AND ($key > %s OR ($key = %s AND t.ticket_id > %d))";
+			array_push( $args, (string) $after[0], (string) $after[0], (int) $after[1] );
+		}
+		$args[] = max( 1, (int) $limit );
+		return (array) $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,t.transfer_count,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name,$key AS sort_key
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=%d INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE $which AND t.status IN ($in)$where ORDER BY $key,t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list, integer condition and sort expression, values as placeholders.
+			$args
+		) );
+	}
+
+	/**
+	 * All tickets of an occurrence in list order, one block at a time (A477): yields arrays of at most
+	 * $chunk rows (see tickets_for_occurrence_after()).
+	 *
+	 * @return \Generator<int, object[]>
+	 */
+	public static function ticket_blocks( $occurrence_id, array $statuses, $chunk ) {
+		$after = null;
+		do {
+			$rows = self::tickets_for_occurrence_after( $occurrence_id, $statuses, $after, $chunk );
+			if ( $rows ) {
+				$last = end( $rows );
+				$after = array( (string) $last->sort_key, (int) $last->ticket_id );
+				yield $rows;
+			}
+		} while ( count( $rows ) >= $chunk );
+	}
+
+	/** Number of tickets of an occurrence with the given statuses (without loading them). */
+	public static function count_for_occurrence( $occurrence_id, array $statuses ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
+		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE tt.occurrence_id=%d AND t.status IN ($in)", absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list.
+	}
+
+	/**
+	 * Print order of an occurrence's tickets without names or codes (batch job snapshot, A427):
+	 * ticket id, current code hash and whether someone other than the buyer holds the ticket
+	 * (transferred, or assigned/sent to an attendee e-mail other than the buyer's).
+	 *
+	 * @return object[] {ticket_id, token_hash, status, held_by_other}
+	 */
+	public static function ticket_refs_for_occurrence( $occurrence_id, array $statuses ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
+		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		return (array) $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.ticket_id,t.token_hash,t.status,IF(t.transfer_count>0 OR (t.attendee_email<>'' AND t.attendee_email<>ord.customer_email),1,0) AS held_by_other
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE tt.occurrence_id=%d AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list.
+			absint( $occurrence_id )
+		) );
+	}
+
+	/**
+	 * Print rows (as tickets_for_occurrence()) of the given tickets, keyed by ticket id, with the
+	 * current token_hash.
+	 *
+	 * @param int[] $ticket_ids Tickets.
+	 * @return array<int,object>
+	 */
+	public static function tickets_by_ids( array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+		if ( ! $ticket_ids ) { return array(); }
+		$out = array();
+		foreach ( (array) $wpdb->get_results(
+			"SELECT t.ticket_id,t.public_id,t.status,t.token_hash,t.order_id,t.ticket_type_id,t.attendee_email,t.transfer_count,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE t.ticket_id IN (" . implode( ',', $ticket_ids ) . ')' // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		) as $row ) {
+			$out[ (int) $row->ticket_id ] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * Placeholder values for a ticket row (see tickets_for_occurrence / Orders::tickets_for_order).
+	 *
+	 * @param string|null $help Help code to print; null derives it from $token (only for the ticket's current code).
+	 * @param string|null $qr   QR value to print; null derives it from $token (signed when Security\SignedQr is on).
+	 */
+	public static function values( $row, $token = '', $help = null, $qr = null ) {
 		$row = (object) $row;
 		$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) ( $row->ticket_id ?? 0 ), (array) $row );
 		return array(
 			'event'           => (string) ( $row->event_name ?? '' ),
-			'date'            => Scope::local( $row->starts_at ?? '', $row->timezone ?? 'UTC', 'd.m.Y H:i' ),
+			'date'            => \PassCaptain\Frontend\Format::local( $row->starts_at ?? '', $row->timezone ?? 'UTC' ),
 			'time'            => Scope::local( $row->starts_at ?? '', $row->timezone ?? 'UTC', 'H:i' ),
 			'location'        => (string) ( $row->location ?? '' ),
 			'ticket_category' => (string) ( $row->ticket_name ?? '' ),
 			'attendee_name'   => (string) ( $row->attendee_name ?? '' ),
 			'seat_label'      => $seat,
 			'order'           => substr( (string) ( $row->order_public_id ?? '' ), 0, 8 ),
-			'qr'              => null !== $qr ? (string) $qr : \PassCaptain\Security\SignedQr::qr_value( (string) $token ),
+			'help_code'       => null !== $help ? (string) $help : ( '' !== (string) $token ? \PassCaptain\HelpCode::for_ticket( (int) ( $row->ticket_id ?? 0 ), (string) $token ) : '' ),
+			'qr'              => null !== $qr ? (string) $qr : ( '' !== (string) $token ? \PassCaptain\Security\SignedQr::qr_value( (string) $token ) : '' ),
 			'code'            => (string) $token,
 		);
 	}
@@ -347,8 +496,10 @@ final class Templates {
 		$out = array();
 		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $ticket_id ) {
 			$token = bin2hex( random_bytes( 32 ) );
-			$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET token_hash=%s WHERE ticket_id=%d AND status='valid'", $wpdb->prefix . 'wpcap_tickets', hash( 'sha256', $token ), $ticket_id ) );
+			$old_hash = (string) $wpdb->get_var( $wpdb->prepare( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket_id ) );
+			$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid'", hash( 'sha256', $token ), $ticket_id ) );
 			if ( $updated ) {
+				\PassCaptain\CodeHistory::replaced( (int) $ticket_id, $old_hash, 'print' ); // A543
 				$out[ $ticket_id ] = $token;
 				/** The ticket got a new code (old one invalid), e.g. so wallet passes can be refreshed. */
 				do_action( 'wpcap_ticket_code_rotated', (int) $ticket_id, $token, 'pos_print' === $reason ? 'pos_print' : 'print' );
@@ -361,14 +512,17 @@ final class Templates {
 	}
 
 	/**
-	 * Batch PDF for an occurrence without new codes (no QR code). Codes are only printed through
-	 * batch_pdf_with_codes(), which has its own permission, selection and transaction rules.
+	 * Batch PDF for an occurrence without new codes (no QR code), rendered at once; Page::batch_request()
+	 * uses it only up to BatchJob::sync_limit() tickets. Batches with new codes run as a background job
+	 * (BatchJob, A427: codes are rotated only when the finished file is downloaded) or, without the job
+	 * tables, through batch_pdf_with_codes() (codes committed only with the complete file).
 	 */
 	public static function batch_pdf( $occurrence_id, $kind ) {
-		$rows = self::tickets_for_occurrence( $occurrence_id, 'ticket' === $kind || 'wristband' === $kind ? array( 'valid' ) : array( 'valid', 'checked_in' ) );
+		$rows = self::tickets_for_occurrence( $occurrence_id, self::batch_statuses( $kind ), false );
 		$items = array();
-		foreach ( $rows as $row ) { $items[] = self::values( $row, '', '' ); }
-		return self::render( $kind, $items, self::body_for_event( Scope::occurrence_event( $occurrence_id ), $kind ) );
+		foreach ( $rows as $row ) { $items[] = self::values( $row, '' ); }
+		$event_id = Scope::occurrence_event( $occurrence_id );
+		return self::render( $kind, $items, self::body_for_event( $event_id, $kind ) );
 	}
 
 	/** Maximum number of new codes per print job (filter wp_pass_captain_print_batch_limit_v1, default 500). */
@@ -403,7 +557,7 @@ final class Templates {
 	 */
 	public static function code_candidates( $occurrence_id ) {
 		$out = array( 'undelivered' => array(), 'delivered' => array() );
-		foreach ( self::tickets_for_occurrence( $occurrence_id, array( 'valid' ) ) as $row ) {
+		foreach ( self::tickets_for_occurrence( $occurrence_id, array( 'valid' ), false ) as $row ) {
 			$out[ self::undelivered( $row ) ? 'undelivered' : 'delivered' ][] = $row;
 		}
 		return $out;
@@ -464,7 +618,7 @@ final class Templates {
 			if ( ! $tokens ) { return $failed( 'nothing', __( 'Die Tickets wurden inzwischen eingecheckt oder storniert.', 'pass-captain' ) ); }
 			$qr = \PassCaptain\Security\SignedQr::qr_values( $tokens );
 			$items = array();
-			foreach ( $printable as $row ) { $items[] = self::values( $row, $tokens[ (int) $row->ticket_id ], $qr[ (int) $row->ticket_id ] ?? '' ); }
+			foreach ( $printable as $row ) { $items[] = self::values( $row, $tokens[ (int) $row->ticket_id ], null, $qr[ (int) $row->ticket_id ] ?? '' ); }
 			if ( ! self::render_to_file( $file, $kind, $items, self::body_for_event( Scope::occurrence_event( $occurrence_id ), $kind ) ) || ! is_file( $file ) ) {
 				return $failed( 'write' );
 			}
@@ -475,6 +629,7 @@ final class Templates {
 		$delivered = array_values( array_filter( $printable, static function ( $row ) { return ! self::undelivered( $row ); } ) );
 		Audit::record( 'ticket_codes_rotated', 'occurrence', absint( $occurrence_id ), array( 'count' => count( $tokens ), 'customer_tickets' => count( $delivered ), 'reason' => sanitize_key( 'batch_' . $kind ) ) );
 		foreach ( $tokens as $ticket_id => $token ) {
+			if ( class_exists( \PassCaptain\CodeHistory::class ) ) { \PassCaptain\CodeHistory::replaced( (int) $ticket_id, $current[ (int) $ticket_id ] ?? '', 'print' ); } // A543
 			/** The ticket got a new code (old one invalid); wallet passes are reissued through the job queue. */
 			do_action( 'wpcap_ticket_code_rotated', (int) $ticket_id, $token, 'print' );
 		}
@@ -516,5 +671,10 @@ final class Templates {
 		}
 		if ( $failed ) { Audit::record( 'print_batch_notify_failed', 'ticket', (int) $rows[0]->ticket_id, array( 'tickets' => $failed ) ); }
 		return array( $sent, $failed );
+	}
+
+	/** Ticket statuses printed by a layout: admission media only for valid tickets. */
+	public static function batch_statuses( $kind ) {
+		return 'ticket' === $kind || 'wristband' === $kind ? array( 'valid' ) : array( 'valid', 'checked_in' );
 	}
 }

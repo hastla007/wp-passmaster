@@ -287,8 +287,6 @@ final class Admin {
 		$js = "(function(){var f=document.getElementById('wpcap-mail-form'),fr=document.getElementById('wpcap-mail-preview'),sj=document.getElementById('wpcap-mail-preview-subject'),t;if(!f||!fr||!window.fetch||typeof ajaxurl==='undefined'){return;}"
 			. "function up(){var d=new FormData(f);d.set('action'," . wp_json_encode( self::ACTION_PREVIEW ) . ");fetch(ajaxurl,{method:'POST',credentials:'same-origin',body:d}).then(function(r){return r.json();}).then(function(j){if(j&&j.success){fr.srcdoc=j.data.html;sj.textContent=j.data.subject;}}).catch(function(){});}"
 			. "f.addEventListener('input',function(){clearTimeout(t);t=setTimeout(up,400);});f.addEventListener('change',function(){clearTimeout(t);t=setTimeout(up,50);});})();";
-		wp_register_script( 'wpcap-mail-preview', false, array(), WPCAP_VERSION, true );
-		wp_enqueue_script( 'wpcap-mail-preview' );
-		wp_add_inline_script( 'wpcap-mail-preview', $js );
+		\PassCaptain\Assets::inline_script( 'wpcap-mail-preview', $js ); // A302: through the script API.
 	}
 }

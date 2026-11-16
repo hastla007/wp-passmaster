@@ -20,24 +20,44 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-// Own PHP version check (the Composer platform check is not shipped): a clear notice instead of a fatal error.
-if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
-	add_action(
-		'admin_notices',
-		static function () {
-			/* translators: %s: PHP version of the server */
-			echo '<div class="notice notice-error"><p>' . esc_html( sprintf( __( 'Pass Captain benötigt PHP 8.2 oder neuer; dieser Server verwendet PHP %s. Das Plugin ist bis zu einem PHP-Update inaktiv.', 'pass-captain' ), PHP_VERSION ) ) . '</p></div>';
+/*
+ * A511: own PHP/WordPress version guard before the autoloader. Below the minimum the plugin does not
+ * load (no fatal error that takes the site down) and shows an admin notice instead. Keep this block
+ * parseable by old PHP versions (no 8.x syntax) and the values equal to the header above.
+ */
+if ( ! function_exists( 'wpcap_requirements_error' ) ) {
+	/** Returns why this site cannot run the plugin ('' when it can). */
+	function wpcap_requirements_error() {
+		global $wp_version;
+		if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
+			/* translators: 1: required PHP version, 2: installed PHP version */
+			return sprintf( __( 'Pass Captain benötigt PHP %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte PHP beim Hosting aktualisieren.', 'pass-captain' ), '8.2', PHP_VERSION );
 		}
-	);
+		if ( isset( $wp_version ) && version_compare( (string) $wp_version, '6.4', '<' ) ) {
+			/* translators: 1: required WordPress version, 2: installed WordPress version */
+			return sprintf( __( 'Pass Captain benötigt WordPress %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte WordPress aktualisieren.', 'pass-captain' ), '6.4', (string) $wp_version );
+		}
+		return '';
+	}
+}
+if ( '' !== wpcap_requirements_error() ) {
+	$wpcap_requirements_notice = function () {
+		if ( current_user_can( 'activate_plugins' ) ) {
+			echo '<div class="notice notice-error"><p>' . esc_html( wpcap_requirements_error() ) . '</p></div>';
+		}
+	};
+	add_action( 'admin_notices', $wpcap_requirements_notice );
+	add_action( 'network_admin_notices', $wpcap_requirements_notice );
 	return;
 }
 
 /*
  * Up to 1.4 the plugin was called "WP Pass Captain" and was installed as "wp-pass-captain/wp-pass-captain.php"
- * (WordPress.org does not allow "WP" in plugin names). If that copy is still active, this copy takes over its
- * activation – on a multisite network including the network activation – without running the deactivation or
- * uninstall routine of the old copy, so data, settings and schedules stay as they are. Both copies use the same
- * tables, options and hooks.
+ * (legacy-slug; WordPress.org does not allow "WP" in plugin names). If that copy is still active, this copy takes
+ * over its activation – on a multisite network including the network activation – without running the
+ * deactivation or uninstall routine of the old copy, so data, settings and schedules stay as they are. Both
+ * copies use the same tables, options and hooks. src/LegacySlug.php finishes the takeover on the next admin
+ * request (wpcap_legacy_takeover) and keeps old REST/admin URLs working.
  */
 $wpcap_self     = plugin_basename( __FILE__ );
 $wpcap_takeover = array(); // Old copies that WordPress still loads in this request (see PassCaptain\LegacyCopy).
@@ -148,6 +168,9 @@ if ( function_exists( 'get_option' ) ) {
 		1,
 		2
 	);
+	if ( $wpcap_takeover ) {
+		update_option( 'wpcap_legacy_takeover', 1, false ); // LegacySlug::watch_legacy_copy() re-schedules events.
+	}
 	unset( $wpcap_legacy_links, $wpcap_is_legacy, $wpcap_active, $wpcap_kept, $wpcap_network, $wpcap_changed, $wpcap_plugin );
 }
 unset( $wpcap_self );

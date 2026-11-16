@@ -92,8 +92,35 @@ final class DevicesPage {
 		<?php endforeach; ?>
 		<?php if ( ! $devices ) : ?><tr><td colspan="9"><?php esc_html_e( 'Noch keine Geräte gekoppelt.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 		</tbody></table>
-		<p><?php echo esc_html( __( 'API-Basis für Apps:', 'pass-captain' ) . ' ' . rest_url( 'wp-pass-captain/v1/app/' ) ); ?></p>
+		<p><?php echo esc_html( __( 'API-Basis für Apps:', 'pass-captain' ) . ' ' . rest_url( 'pass-captain/v1/app/' ) ); ?></p>
+		<?php self::render_web_scanners(); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Scanning without the native app (A292): the web scanner shortcode (an existing page is
+	 * linked) and the installable offline scanner (PWA) when its module is on.
+	 */
+	public static function render_web_scanners() {
+		$pages = GettingStarted::frontend_pages();
+		echo '<h2 id="wpcap-web-scanner">' . esc_html__( 'Ohne App scannen', 'pass-captain' ) . '</h2>';
+		echo '<ul class="ul-disc">';
+		echo '<li><strong>' . esc_html__( 'Web-Scanner:', 'pass-captain' ) . '</strong> ';
+		/* translators: %s: shortcode */
+		echo esc_html( sprintf( __( 'Shortcode %s auf einer Seite einfügen. Die Seite funktioniert im Browser jedes Smartphones (Kamera oder Code-Eingabe) und nur für angemeldete Personen mit Einlassberechtigung.', 'pass-captain' ), '[wpcap_scanner]' ) );
+		if ( $pages['scanner_page_id'] ) {
+			echo ' <a href="' . esc_url( (string) get_permalink( $pages['scanner_page_id'] ) ) . '">' . esc_html__( 'Scanner-Seite öffnen', 'pass-captain' ) . '</a>';
+		}
+		echo '</li>';
+		if ( class_exists( \PassCaptain\OfflineScanner\AdminPage::class ) && \PassCaptain\Modules::enabled( \PassCaptain\Modules\OfflineScanner::class ) ) {
+			echo '<li><strong>' . esc_html__( 'Offline-Scanner (Web-App):', 'pass-captain' ) . '</strong> ' . esc_html__( 'Installierbare Web-App, die auch ohne Verbindung prüft. Das Gerät wird hier gekoppelt; Freigabe je Event unter „Offline-Scanner“.', 'pass-captain' );
+			echo ' <a href="' . esc_url( \PassCaptain\OfflineScanner\AdminPage::app_url() ) . '" target="_blank" rel="noopener">' . esc_html__( 'Offline-Scanner öffnen', 'pass-captain' ) . '</a>';
+			if ( current_user_can( \PassCaptain\OfflineScanner\AdminPage::CAP ) ) {
+				echo ' · <a href="' . esc_url( Forms::page_url( \PassCaptain\OfflineScanner\AdminPage::SLUG ) ) . '">' . esc_html__( 'Offline-Scanner einrichten', 'pass-captain' ) . '</a>';
+			}
+			echo '</li>';
+		}
+		echo '</ul>';
 	}
 }

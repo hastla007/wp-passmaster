@@ -5,6 +5,9 @@ namespace PassCaptain\Seating;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Picker {
+	/** Pickers rendered per occurrence on this page (A504: unique ids). */
+	private static $rendered = array();
+
 	public static function register() {
 		add_action( 'wpcap_checkout_form_fields', array( __CLASS__, 'render' ), 10, 2 );
 	}
@@ -13,11 +16,12 @@ final class Picker {
 		return array(
 			'title' => __( 'Sitzplätze wählen', 'pass-captain' ),
 			'loading' => __( 'Saalplan wird geladen …', 'pass-captain' ),
-			'loadFailed' => __( 'Der Saalplan konnte nicht geladen werden. Bitte lade die Seite neu.', 'pass-captain' ),
+			'loadFailed' => __( 'Der Saalplan konnte nicht geladen werden. Wir versuchen es automatisch erneut.', 'pass-captain' ),
 			'free' => __( 'frei', 'pass-captain' ),
 			'taken' => __( 'belegt', 'pass-captain' ),
 			'selected' => __( 'ausgewählt', 'pass-captain' ),
 			'accessible' => __( 'rollstuhlgerecht', 'pass-captain' ),
+			'companion' => __( 'Begleitplatz (nur mit Rollstuhlplatz)', 'pass-captain' ),
 			'listToggle' => __( 'Plätze als Liste anzeigen', 'pass-captain' ),
 			'yourSeats' => __( 'Deine Plätze', 'pass-captain' ),
 			'none' => __( 'Noch keine Plätze gewählt.', 'pass-captain' ),
@@ -44,6 +48,8 @@ final class Picker {
 			'bestNone' => __( 'Bitte wähle zuerst die Anzahl der Tickets – oder es sind keine passenden Plätze mehr frei.', 'pass-captain' ),
 			'listHint' => __( 'Auf kleinen Bildschirmen ist die Platzliste oft einfacher zu bedienen.', 'pass-captain' ),
 			'listShow' => __( 'Platzliste öffnen', 'pass-captain' ),
+			// A610: fallback when the answer for a closed date carries no message of its own.
+			'closed' => __( 'Für diesen Termin können keine Plätze mehr gebucht werden.', 'pass-captain' ),
 		);
 	}
 
@@ -65,7 +71,9 @@ final class Picker {
 			wp_enqueue_style( 'wpcap-seating-picker', WPCAP_URL . 'assets/seating/picker.css', array(), WPCAP_VERSION );
 		}
 		$url = rest_url( Rest::NS . '/seating/occurrences/' . $occurrence_id );
-		$id = 'wpcap-seats-' . $occurrence_id;
+		// A504: a second card of the same date on the page gets its own id.
+		self::$rendered[ $occurrence_id ] = ( self::$rendered[ $occurrence_id ] ?? 0 ) + 1;
+		$id = 'wpcap-seats-' . $occurrence_id . ( self::$rendered[ $occurrence_id ] > 1 ? '-i' . self::$rendered[ $occurrence_id ] : '' );
 		echo '<fieldset class="wpcap-seating" id="' . esc_attr( $id ) . '" data-occurrence="' . esc_attr( (string) $occurrence_id ) . '" data-url="' . esc_attr( esc_url_raw( $url ) ) . '" data-i18n="' . esc_attr( wp_json_encode( self::i18n() ) ) . '">';
 		echo '<legend>' . esc_html__( 'Sitzplätze wählen', 'pass-captain' ) . '</legend>';
 		echo '<p class="wpcap-seating-status" role="status" aria-live="polite">' . esc_html__( 'Saalplan wird geladen …', 'pass-captain' ) . '</p>';

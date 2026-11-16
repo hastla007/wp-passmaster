@@ -93,7 +93,7 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 		}
 		if ( is_string( $data['qr_code_data'] ?? null ) ) { $receipt['qr_payload'] = $data['qr_code_data']; }
 		if ( is_string( $data['signature'] ?? null ) ) { $receipt['fields']['Signatur'] = $data['signature']; }
-		$out = array( 'reference' => substr( sanitize_text_field( $reference ), 0, 191 ) );
+		$out = array( 'reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ) );
 		if ( $receipt ) { $out['receipt'] = $receipt; }
 		return $out;
 	}

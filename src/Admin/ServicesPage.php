@@ -228,6 +228,9 @@ final class ServicesPage {
 		if ( ! self::can_use() ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Ressourcen & Zeitfenster', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
+		if ( current_user_can( ServiceSlotsPage::CAP ) ) {
+			echo '<p><a href="' . esc_url( Forms::page_url( ServiceSlotsPage::SLUG ) ) . '">' . esc_html__( 'Leistungserbringer und Zeitfenster je Ressource zuordnen (Service-Zeitfenster)', 'pass-captain' ) . '</a></p>';
+		}
 		$slot_id = absint( Forms::query_arg( 'slot_id', 0 ) );
 		$resource_id = absint( Forms::query_arg( 'resource_id', 0 ) );
 		if ( $slot_id ) {

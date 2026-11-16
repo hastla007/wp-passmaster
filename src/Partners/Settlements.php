@@ -8,6 +8,8 @@
  *  - late_sale   order line of an order created before P that was not settled yet (e.g. paid late),
  *  - refund      completed refund of an order created in P,
  *  - correction  completed refund of an order created before P (e.g. after that period was finalized).
+ * Complimentary orders (guest lists, Data::comp_providers()) are never settled; their tickets are only
+ * counted in totals.comp_tickets.
  * Amounts are gross incl. VAT from the order line snapshots (discount allocated like checkout);
  * refunds are allocated to lines like the reports module. Commission = commission % of the net amount
  * per line, fixed fee = fee per ticket; on refunds both are reversed according to the partner's refund
@@ -16,8 +18,18 @@
  *
  * Lifecycle draft → finalized → paid. Drafts are recomputed on demand and right before finalizing.
  * Finalizing assigns a gapless document number (Invoices::next_document_number, series "partner"),
- * snapshots the partner data and marks every line with a unique source key per partner, so an item
- * can never be settled twice. Finalized/paid settlements are never changed again.
+ * snapshots the partner data and marks every line with a globally unique source key, so an item can
+ * never be settled twice – not even by another partner after its event was moved (A448).
+ * Finalized/paid settlements are never changed again.
+ *
+ * Terms (A491): commission, fee per ticket and refund policy are taken from the version of the
+ * organizer's terms that applied when the order was created (Repository::terms_at(),
+ * wpcap_partner_terms_history), so changing them affects later sales only.
+ *
+ * Attribution (A448): a sale belongs to the organizer that was assigned to its event when the order
+ * was created (Repository::assignments(), wpcap_partner_event_history); a refund belongs to the
+ * organizer that settled the sale, or – not settled yet – the one assigned at sale time. Moving an
+ * event therefore leaves earlier sales and their later corrections with the previous organizer.
  *
  * Document type follows the partner's sales model (SalesModel, docs/SALES-MODELS.md), fixed at finalizing:
  *  - agent    → "Provisionsrechnung" (platform invoices commission + fees, VAT or reverse charge) with an
@@ -55,6 +67,8 @@ final class Settlements {
 			'late_sale' => __( 'Nachtrag Verkauf (Vorperiode)', 'pass-captain' ),
 			'refund' => __( 'Erstattung', 'pass-captain' ),
 			'correction' => __( 'Korrektur Erstattung (Vorperiode)', 'pass-captain' ),
+			'voucher' => __( 'Einzweckgutschein (Forderung gegen den Gutscheinverkäufer)', 'pass-captain' ),
+			'voucher_refund' => __( 'Einzweckgutschein zurückgegeben (Erstattung)', 'pass-captain' ),
 		);
 	}
 
@@ -91,68 +105,140 @@ final class Settlements {
 		if ( ! empty( $partner->settlement_start ) && Data::valid_date( substr( (string) $partner->settlement_start, 0, 10 ) ) ) {
 			$lower = Data::bounds( substr( (string) $partner->settlement_start, 0, 10 ), substr( (string) $partner->settlement_start, 0, 10 ), $tz )[0];
 		}
-		$events = Repository::event_ids( $partner->partner_id );
+		$partner_id = (int) $partner->partner_id;
+		// Every event the partner owns or owned (A448); each line is then attributed to the organizer
+		// assigned when its order was created – or to the organizer that already settled its sale.
+		$events = Repository::settlement_event_ids( $partner_id );
 		$lines = array();
+		$comp_tickets = 0;
+		$collected_self = 0;
+		$self_orders = array();
 		if ( $events ) {
 			$in = implode( ',', array_map( 'absint', $events ) );
-			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( 'SELECT source_key FROM %i WHERE partner_id=%d AND source_key IS NOT NULL', $p . 'wpcap_partner_settlement_lines', (int) $partner->partner_id ) ) );
-			$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
-			$has_partner_item = "EXISTS (SELECT 1 FROM {$p}wpcap_order_items x INNER JOIN {$p}wpcap_ticket_types xt ON xt.ticket_type_id=x.ticket_type_id INNER JOIN {$p}wpcap_occurrences xo ON xo.occurrence_id=xt.occurrence_id WHERE x.order_id=ord.order_id AND xo.event_id IN ($in))";
+			$assignments = Repository::assignments( $events );
+			$line_sql = "SELECT STRAIGHT_JOIN oi.item_id,oi.order_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+			// Lines of these events: from the events via ticket types (indexes), not from every order.
+			$event_items = "SELECT xi.order_id FROM {$p}wpcap_occurrences xo INNER JOIN {$p}wpcap_ticket_types xt ON xt.occurrence_id=xo.occurrence_id INNER JOIN {$p}wpcap_order_items xi ON xi.ticket_type_id=xt.ticket_type_id WHERE xo.event_id IN ($in)";
 			$lower_sql = '' !== $lower ? $wpdb->prepare( ' AND ord.created_at >= %s', $lower ) : '';
+			$comp_providers = Data::comp_providers();
+			$comp_in = $comp_providers ? implode( ',', array_map( static function ( $c ) use ( $wpdb ) { return $wpdb->prepare( '%s', $c ); }, $comp_providers ) ) : "''";
 
-			// Sales.
-			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor,ord.price_snapshot FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
-			$by_order = self::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ), $line_sql );
-			foreach ( $orders as $order ) {
-				$order_lines = $by_order[ (int) $order->order_id ] ?? array();
-				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $order ) );
-				foreach ( $order_lines as $i => $line ) {
-					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
-					$key = 'sale:' . (int) $line->item_id;
-					if ( isset( $settled[ $key ] ) ) { continue; }
-					$gross = (int) $gross_lines[ $i ];
-					$tax = (int) $line->tax_minor;
-					$tickets = (int) $line->quantity;
-					$lines[] = self::line( $order->created_at >= $start ? 'sale' : 'late_sale', $key, $line, (int) $order->order_id, 0, $order->created_at, $order->created_at, $tickets, $gross, $tax, $partner, $tz );
+			// A435: only sources that are not settled yet, in SQL – orders with a line of these events
+			// whose sale nobody settled (source key "sale:<item>", unique index) and completed refunds this
+			// partner has not settled; complimentary orders only from the period (they are only counted).
+			// Settled history is never read again; the rest is processed in blocks.
+			$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM {$p}wpcap_orders ord WHERE ord.order_id IN ($event_items AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_partner_settlement_lines sl WHERE sl.source_key=CONCAT('sale:',xi.item_id))) AND ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND (ord.payment_provider NOT IN ($comp_in) OR ord.created_at >= %s) ORDER BY ord.order_id", $partner->currency, $end, $start ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragments.
+			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at,ord.discount_minor,ord.price_snapshot,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND r.order_id IN ($event_items) AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_partner_settlement_lines sl WHERE sl.order_id=r.order_id AND sl.refund_id=r.refund_id AND sl.partner_id=%d AND sl.source_key IS NOT NULL) ORDER BY r.refund_id", $partner->currency, $end, $end, $partner_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$is_own = static function ( array $settled, $line, $order_created_at ) use ( $assignments, $partner_id ) {
+				$by = $settled[ 'sale:' . (int) $line->item_id ] ?? 0;
+				if ( $by ) { return $by === $partner_id; }
+				return Repository::partner_at( $assignments[ (int) $line->event_id ] ?? array(), $order_created_at ) === $partner_id;
+			};
+			foreach ( array_chunk( $order_ids, Data::BLOCK ) as $block ) {
+				// Settled items of all partners (A448: an item is settled once, whoever settled it).
+				$settled = self::settled_keys( $block );
+				// API sales this organizer sold and collected itself (seller of record = this partner): the money
+				// is already with the organizer, so it is netted against the payout (fees still apply).
+				$self_orders = self::self_collected_orders( $partner, $block );
+				foreach ( Data::order_blocks( $block, "order_id,created_at,discount_minor,price_snapshot,payment_provider,(voucher_snapshot IS NOT NULL AND voucher_snapshot<>'') AS has_voucher", $line_sql ) as list( $order_id, $order, $order_lines ) ) {
+					if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) {
+						// Guest list comps (GuestLists module): no sale, no commission/fee; counted for information
+						// only (orders created in the period).
+						if ( $order->created_at >= $start ) {
+							foreach ( $order_lines as $line ) {
+								if ( $is_own( $settled, $line, $order->created_at ) ) { $comp_tickets += (int) $line->quantity; }
+							}
+						}
+						continue;
+					}
+					// Campaign and single-purpose voucher discounts per line as stored with the order (price snapshot).
+					$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $order ) );
+					$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order->order_id );
+					$own_line = static function ( $line ) use ( $is_own, $settled, $order ) { return $is_own( $settled, $line, $order->created_at ); };
+					foreach ( $order_lines as $i => $line ) {
+						if ( ! $own_line( $line ) ) { continue; }
+						// Lines moved in by a ticket exchange carry no paid amount (OrderLines): the money is on
+						// the original line, a supplementary order or a refund.
+						if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
+						$key = 'sale:' . (int) $line->item_id;
+						if ( isset( $settled[ $key ] ) ) { continue; }
+						$gross = (int) $gross_lines[ $i ];
+						$tax = (int) $line->tax_minor;
+						// An exchange supplement pays for a ticket already counted (and charged) on its original order.
+						$tickets = $supplement ? 0 : (int) $line->quantity;
+						$lines[] = self::line( $order->created_at >= $start ? 'sale' : 'late_sale', $key, $line, (int) $order->order_id, 0, $order->created_at, $order->created_at, $tickets, $gross, $tax, $partner, $tz );
+						if ( isset( $self_orders[ (int) $order->order_id ] ) ) { $collected_self += $gross; }
+					}
+					// A single-purpose voucher was booked as a discount (VAT was due when it was sold): the
+					// organizer still earns the full ticket price, the voucher value is a claim against the
+					// voucher seller. Shown as its own line for the partner's share of the order.
+					// Ticket service exchanges (free tickets) use the stored voucher value (face_value_minor).
+					$single = (int) $order->has_voucher ? \PassCaptain\Integrations\Vouchers\Checkout::single_purpose_minor( (int) $order->order_id ) : 0;
+					if ( $single > 0 && ! self::voucher_settled( $settled, 'voucher:' . (int) $order->order_id, $partner_id ) ) {
+						list( $first, $share ) = self::voucher_share( $single, $order_lines, $own_line );
+						if ( $first && $share > 0 ) {
+							$lines[] = self::line( 'voucher', 'voucher:' . (int) $order->order_id, $first, (int) $order->order_id, 0, $order->created_at, $order->created_at, 0, $share, 0, $partner, $tz );
+						}
+					}
 				}
 			}
 
-			// Completed refunds.
-			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at,ord.discount_minor,ord.price_snapshot FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
-			foreach ( $refunds as $refund ) {
-				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
-				// Sales count the full consideration (a multi-purpose voucher is a means of payment), so a
-				// refund takes back its voucher part as well: the amounts of its credit note (PAY-3).
-				$booked = \PassCaptain\Integrations\Vouchers\Checkout::credit_note_amounts( (int) $refund->refund_id );
-				if ( $booked ) {
-					$refund = clone $refund;
-					$refund->amount_minor = (int) $booked['total_minor'];
-					$refund->tax_minor = (int) $booked['tax_minor'];
-				}
-				// Weighted by the discounted line values the sales above were booked with (campaign and
-				// single-purpose voucher discounts per line), not by list prices.
-				$discounted = Data::allocate_discount( $order_lines, (int) $refund->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $refund ) );
-				foreach ( self::allocate_refund( $refund, $order_lines, $discounted ) as $i => $share ) {
-					$line = $order_lines[ $i ];
-					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
-					$key = 'refund:' . (int) $refund->refund_id . ':' . (int) $line->item_id;
-					if ( isset( $settled[ $key ] ) ) { continue; }
-					$kind = $refund->order_created_at >= $start ? 'refund' : 'correction';
-					$lines[] = self::line( $kind, $key, $line, (int) $refund->order_id, (int) $refund->refund_id, $refund->updated_at, $refund->order_created_at, -$share['tickets'], -$share['amount'], -$share['tax'], $partner, $tz );
+			// Completed refunds: they follow their sale – to the organizer that settled it or, if not
+			// settled yet, the one assigned when the order was created (also after a reassignment).
+			foreach ( array_chunk( $refunds, Data::BLOCK ) as $refund_block ) {
+				$refund_orders = array_values( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refund_block ) ) );
+				$settled = self::settled_keys( $refund_orders );
+				$self_orders = self::self_collected_orders( $partner, $refund_orders );
+				$refund_lines = self::lines_by_order( $refund_orders, $line_sql );
+				foreach ( $refund_block as $refund ) {
+					// A multi-purpose voucher paid part of the order: the sale counts the full ticket value, so the refund
+					// must count cash and the voucher share given back (same numbers as the credit note).
+					// Read from the stored refund plan (Vouchers\Checkout::refund_amounts()).
+					$amounts = \PassCaptain\Integrations\Vouchers\Checkout::refund_amounts( $refund );
+					$refund->amount_minor = $amounts['amount_minor'];
+					$refund->tax_minor = $amounts['tax_minor'];
+					$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
+					$own_line = static function ( $line ) use ( $is_own, $settled, $refund ) { return $is_own( $settled, $line, $refund->order_created_at ); };
+					// A single-purpose voucher share given back to the voucher ends the organizer's claim against the
+					// voucher seller for the refunded tickets: reverse it (own line, no VAT).
+					$back_key = 'voucher_refund:' . (int) $refund->refund_id;
+					if ( \PassCaptain\Integrations\Vouchers\Checkout::PURPOSE_SINGLE === $amounts['purpose'] && $amounts['voucher_minor'] > 0 && ! self::voucher_settled( $settled, $back_key, $partner_id ) ) {
+						list( $first, $back ) = self::voucher_share( $amounts['voucher_minor'], $order_lines, $own_line );
+						if ( $first && $back > 0 ) {
+							$lines[] = self::line( 'voucher_refund', $back_key, $first, (int) $refund->order_id, (int) $refund->refund_id, $refund->updated_at, $refund->order_created_at, 0, -$back, 0, $partner, $tz );
+						}
+					}
+					// Weighted by the discounted line values the sales above were booked with (campaign and
+					// single-purpose voucher discounts per line), not by list prices.
+					$discounted = Data::allocate_discount( $order_lines, (int) $refund->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $refund ) );
+					foreach ( self::allocate_refund( $refund, $order_lines, $discounted ) as $i => $share ) {
+						$line = $order_lines[ $i ];
+						if ( ! $own_line( $line ) ) { continue; }
+						$key = 'refund:' . (int) $refund->refund_id . ':' . (int) $line->item_id;
+						if ( isset( $settled[ $key ] ) ) { continue; }
+						$kind = $refund->order_created_at >= $start ? 'refund' : 'correction';
+						$lines[] = self::line( $kind, $key, $line, (int) $refund->order_id, (int) $refund->refund_id, $refund->updated_at, $refund->order_created_at, -$share['tickets'], -$share['amount'], -$share['tax'], $partner, $tz );
+						// The organizer refunded its own API sale from the money it collected.
+						if ( isset( $self_orders[ (int) $refund->order_id ] ) ) { $collected_self -= (int) $share['amount']; }
+					}
 				}
 			}
 		}
 		usort( $lines, static function ( $a, $b ) { return array( $a['occurred_at'], $a['item_key'] ) <=> array( $b['occurred_at'], $b['item_key'] ); } );
-		return array( 'lines' => $lines, 'totals' => self::totals( $lines, $partner ) );
+		$totals = self::totals( $lines, $partner, array( 'collected_self' => $collected_self, 'carry_in' => self::carry_in( $partner, $period ) ) );
+		$totals['comp_tickets'] = $comp_tickets;
+		return array( 'lines' => $lines, 'totals' => $totals );
 	}
 
 	private static function line( $kind, $key, $line, $order_id, $refund_id, $occurred_at, $order_created_at, $tickets, $gross, $tax, $partner, $tz ) {
 		$net = $gross - $tax;
 		$is_refund = $refund_id > 0;
-		$policy = (string) $partner->refund_policy;
-		$commission = self::pct( $net, (int) $partner->commission_bp );
-		$fee = $tickets * (int) $partner->fee_per_ticket_minor;
+		// A491: the terms that applied when the order was created – also for its later refunds, so a
+		// correction reverses exactly what was charged on the sale.
+		$terms = Repository::terms_at( $partner, $order_created_at );
+		$policy = (string) $terms['refund_policy'];
+		$commission = self::pct( $net, (int) $terms['commission_bp'] );
+		$fee = $tickets * (int) $terms['fee_per_ticket_minor'];
 		if ( $is_refund ) {
 			if ( 'keep_all' === $policy ) { $commission = 0; }
 			if ( 'reverse_all' !== $policy ) { $fee = 0; }
@@ -229,6 +315,68 @@ final class Settlements {
 		return is_array( $discounted ) && isset( $discounted[ $i ] ) ? max( 0, (int) $discounted[ $i ] ) : (int) $lines[ $i ]->line_total_minor;
 	}
 
+	/**
+	 * Partner's share of a single-purpose voucher amount on an order: by line value, or by ticket count when
+	 * the lines are free (ticket service exchanges). The share is booked on the partner's first line.
+	 *
+	 * @param callable $own fn( object $line ): bool – whether the line belongs to this partner.
+	 * @return array{0:object|null,1:int} [first own line, share]
+	 */
+	private static function voucher_share( $amount, array $order_lines, callable $own ) {
+		$all = 0;
+		$own_total = 0;
+		$all_tickets = 0;
+		$own_tickets = 0;
+		$first = null;
+		foreach ( $order_lines as $line ) {
+			if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
+			$all += (int) $line->line_total_minor;
+			$all_tickets += (int) $line->quantity;
+			if ( $own( $line ) ) {
+				$own_total += (int) $line->line_total_minor;
+				$own_tickets += (int) $line->quantity;
+				$first = $first ? $first : $line;
+			}
+		}
+		if ( $all > 0 ) {
+			$share = (int) round( (int) $amount * $own_total / $all );
+		} else {
+			$share = $all_tickets > 0 ? (int) round( (int) $amount * $own_tickets / $all_tickets ) : 0;
+		}
+		return array( $first, $share );
+	}
+
+	/**
+	 * Settled items of the given orders across all partners (A448): source_key => partner_id. Read per
+	 * order (indexed), not the partner's whole settlement history.
+	 *
+	 * @param int[] $order_ids
+	 * @return array<string,int>
+	 */
+	public static function settled_keys( array $order_ids ) {
+		global $wpdb;
+		$out = array();
+		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
+			foreach ( (array) $wpdb->get_results( "SELECT source_key, partner_id FROM {$wpdb->prefix}wpcap_partner_settlement_lines WHERE order_id IN (" . implode( ',', $chunk ) . ') AND source_key IS NOT NULL' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$out[ (string) $row->source_key ] = (int) $row->partner_id;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Source key a finalized line is locked with: the item key, globally unique. A voucher claim (and its
+	 * reversal) is split between the organizers of an order, so its key also names the partner.
+	 */
+	public static function source_key( $kind, $item_key, $partner_id ) {
+		return in_array( (string) $kind, array( 'voucher', 'voucher_refund' ), true ) ? $item_key . ':' . (int) $partner_id : (string) $item_key;
+	}
+
+	/** Whether this partner's voucher line was settled (current key, or the partner's own key from before 3.10.8). */
+	private static function voucher_settled( array $settled, $item_key, $partner_id ) {
+		return isset( $settled[ self::source_key( 'voucher', $item_key, $partner_id ) ] ) || ( $settled[ $item_key ] ?? 0 ) === (int) $partner_id;
+	}
+
 	private static function lines_by_order( array $order_ids, $line_sql ) {
 		global $wpdb;
 		$out = array();
@@ -240,8 +388,35 @@ final class Settlements {
 		return $out;
 	}
 
+	/** Order ids (as keys) the partner sold through the API and collected itself. */
+	/** Orders among $order_ids that this partner sold and collected itself through the API (order id => index). */
+	private static function self_collected_orders( $partner, array $order_ids ) {
+		global $wpdb;
+		$order_ids = array_values( array_filter( array_map( 'absint', $order_ids ) ) );
+		if ( ! $order_ids || ! \PassCaptain\Privacy::has_table( 'wpcap_partner_orders' ) ) { return array(); }
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT po.order_id FROM {$wpdb->prefix}wpcap_partner_orders po INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=po.order_id WHERE po.order_id IN (" . implode( ',', $order_ids ) . ') AND po.partner_id=%d AND o.payment_provider=%s', (int) $partner->partner_id, Sales::PROVIDER ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		return array_flip( array_map( 'intval', (array) $ids ) );
+	}
+
+	/**
+	 * Negative balance carried in from the partner's previous finalized settlement (≤ 0): a period in
+	 * which the organizer owed more than it was due (self-collected sales, fees) is netted here.
+	 */
+	public static function carry_in( $partner, $period ) {
+		global $wpdb;
+		$prev = $wpdb->get_var( $wpdb->prepare( "SELECT totals FROM {$wpdb->prefix}wpcap_partner_settlements WHERE partner_id=%d AND status='finalized' AND period < %s ORDER BY period DESC, settlement_id DESC LIMIT 1", (int) $partner->partner_id, (string) $period ) );
+		$t = $prev ? (array) json_decode( (string) $prev, true ) : array();
+		return min( 0, (int) ( $t['carry_out'] ?? 0 ) );
+	}
+
+	/** How a negative balance is settled: 'carry' (default, next statement) or 'invoice' (amount due now). */
+	public static function negative_balance_mode() {
+		$mode = (string) \PassCaptain\Settings::get( 'partner_negative_balance' );
+		return 'invoice' === $mode ? 'invoice' : 'carry';
+	}
+
 	/** Totals of a line set under the partner's terms. */
-	public static function totals( array $lines, $partner ) {
+	public static function totals( array $lines, $partner, array $netting = array() ) {
 		$t = array( 'tickets_sold' => 0, 'tickets_refunded' => 0, 'sales_gross' => 0, 'sales_tax' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'corrections' => 0, 'commission' => 0, 'fee' => 0, 'rates' => array(), 'events' => array(), 'kinds' => array() );
 		foreach ( $lines as $l ) {
 			if ( 0 === $l['refund_id'] ) {
@@ -288,14 +463,27 @@ final class Settlements {
 		$partner_country = SalesModel::partner_country( $partner );
 		$t['sales_model'] = $model;
 		$t['fee_reverse_charge'] = SalesModel::reverse_charge( $platform['country'], $partner_country, (string) $partner->vat_id );
-		$t['platform_fee_tax'] = $t['fee_reverse_charge'] ? 0 : self::pct( $t['platform_fee_net'], (int) $partner->fee_tax_rate_bp );
+		// A small-business platform shows no VAT on its commission/fee invoice (§ 19 UStG / § 6 Abs. 1 Z 27 UStG).
+		$t['fee_small_business'] = ! empty( $platform['small_business'] );
+		$t['fee_small_business_note'] = $t['fee_small_business'] ? (string) $platform['small_business_note'] : '';
+		$t['platform_fee_tax'] = ( $t['fee_reverse_charge'] || $t['fee_small_business'] ) ? 0 : self::pct( $t['platform_fee_net'], (int) $partner->fee_tax_rate_bp );
 		$t['platform_fee_gross'] = $t['platform_fee_net'] + $t['platform_fee_tax'];
 		if ( SalesModel::OWN_NAME === $model ) {
 			$t['self_billing'] = self::self_billing_totals( $t['rates'], $partner, $partner_country, $platform );
-			$t['payout'] = $t['self_billing']['gross'] - $t['platform_fee_gross'];
+			$t['payout_before_netting'] = $t['self_billing']['gross'] - $t['platform_fee_gross'];
 		} else {
-			$t['payout'] = $t['gross'] - $t['platform_fee_gross'];
+			$t['payout_before_netting'] = $t['gross'] - $t['platform_fee_gross'];
 		}
+		// Netting: money the organizer collected itself (own API sales) is not paid out again; a negative
+		// balance of the previous statement is carried in. A negative result is never paid out: it is
+		// carried to the next statement (default) or due from the organizer now (setting).
+		$t['collected_self'] = (int) ( $netting['collected_self'] ?? 0 );
+		$t['carry_in'] = min( 0, (int) ( $netting['carry_in'] ?? 0 ) );
+		$t['balance'] = $t['payout_before_netting'] - $t['collected_self'] + $t['carry_in'];
+		$t['negative_balance_mode'] = self::negative_balance_mode();
+		$t['payout'] = max( 0, $t['balance'] );
+		$t['carry_out'] = ( $t['balance'] < 0 && 'carry' === $t['negative_balance_mode'] ) ? $t['balance'] : 0;
+		$t['due_from_partner'] = ( $t['balance'] < 0 && 'invoice' === $t['negative_balance_mode'] ) ? -$t['balance'] : 0;
 		$t['terms'] = array( 'commission_bp' => (int) $partner->commission_bp, 'fee_per_ticket_minor' => (int) $partner->fee_per_ticket_minor, 'fee_tax_rate_bp' => (int) $partner->fee_tax_rate_bp, 'refund_policy' => (string) $partner->refund_policy, 'currency' => (string) $partner->currency );
 		return $t;
 	}
@@ -413,7 +601,7 @@ final class Settlements {
 		$p = $wpdb->prefix;
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE settlement_id=%d', $p . 'wpcap_partner_settlement_lines', (int) $s->settlement_id ) );
 		foreach ( $result['lines'] as $line ) {
-			$wpdb->insert( "{$p}wpcap_partner_settlement_lines", array_merge( $line, array( 'settlement_id' => (int) $s->settlement_id, 'partner_id' => (int) $s->partner_id, 'event_name' => substr( $line['event_name'], 0, 190 ) ) ) );
+			$wpdb->insert( "{$p}wpcap_partner_settlement_lines", array_merge( $line, array( 'settlement_id' => (int) $s->settlement_id, 'partner_id' => (int) $s->partner_id, 'event_name' => \PassCaptain\Text::cut( $line['event_name'], 190 ) ) ) );
 		}
 		$t = $result['totals'];
 		$model = (string) ( $t['sales_model'] ?? SalesModel::OWN_NAME );
@@ -474,8 +662,9 @@ final class Settlements {
 			$self_billing_number = Invoices::next_document_number( self::SELF_BILLING_SERIES, '' !== $sb_prefix ? $sb_prefix : 'GU', true );
 			if ( is_wp_error( $self_billing_number ) ) { return $fail( $self_billing_number ); }
 		}
-		// Locks every line: the unique (partner_id, source_key) index rejects items settled elsewhere.
-		if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET source_key=item_key WHERE settlement_id=%d', $p . 'wpcap_partner_settlement_lines', $settlement_id ) ) ) {
+		// Locks every line: the unique source_key index rejects items settled elsewhere – also by another
+		// partner (A448: an event moved between organizers). Voucher keys name the partner (source_key()).
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET source_key=IF(kind IN ('voucher','voucher_refund'),CONCAT(item_key,':',partner_id),item_key) WHERE settlement_id=%d", $p . 'wpcap_partner_settlement_lines', $settlement_id ) ) ) {
 			return $fail( new \WP_Error( 'wpcap_settlement_conflict', __( 'Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$snapshot = array(
@@ -503,8 +692,8 @@ final class Settlements {
 		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'finalized' !== $s->status ) { return new \WP_Error( 'wpcap_settlement_state', __( 'Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $wpdb->prefix . 'wpcap_partner_settlements', $now, substr( sanitize_text_field( (string) $reference ), 0, 190 ), $now, (int) $s->settlement_id ) );
-		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => substr( sanitize_text_field( (string) $reference ), 0, 190 ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $wpdb->prefix . 'wpcap_partner_settlements', $now, \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 190 ), $now, (int) $s->settlement_id ) );
+		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 190 ) ) );
 		return self::get( $settlement_id );
 	}
 
@@ -576,11 +765,8 @@ final class Settlements {
 		return __( 'Veranstalter-Abrechnung', 'pass-captain' );
 	}
 
-	/** Currency of the CSV being built (decimal places of the amounts). */
-	private static $csv_currency = 'EUR';
-
-	private static function m( $minor ) {
-		return \PassCaptain\Localization::money_decimal( $minor, self::$csv_currency );
+	private static function m( $minor, $currency = 'EUR' ) {
+		return \PassCaptain\Money::to_decimal( $minor, $currency );
 	}
 
 	/**
@@ -602,7 +788,6 @@ final class Settlements {
 
 	/** CSV rows (amounts as decimals, lines included). */
 	public static function csv_rows( $s ) {
-		self::$csv_currency = (string) $s->currency;
 		$t = self::decoded_totals( $s );
 		$snapshot = (array) json_decode( (string) $s->partner_snapshot, true );
 		$partner_name = (string) ( $snapshot['partner']['name'] ?? ( Repository::get( $s->partner_id )->name ?? '' ) );
@@ -613,17 +798,18 @@ final class Settlements {
 			array( __( 'Art', 'pass-captain' ), __( 'Datum (UTC)', 'pass-captain' ), __( 'Event', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Erstattung', 'pass-captain' ), __( 'Ursprungsperiode', 'pass-captain' ), __( 'USt-Satz %', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'Provision', 'pass-captain' ), __( 'Ticketgebühr', 'pass-captain' ) ),
 		);
 		foreach ( self::lines( $s->settlement_id ) as $l ) {
-			$rows[] = array( $kinds[ $l->kind ] ?? $l->kind, $l->occurred_at, $l->event_name, (int) $l->order_id, (int) $l->refund_id ?: '', $l->origin_period, number_format( (int) $l->tax_rate_bp / 100, 2, '.', '' ), (int) $l->tickets, self::m( $l->gross_minor ), self::m( $l->tax_minor ), self::m( $l->net_minor ), self::m( $l->commission_minor ), self::m( $l->fee_minor ) );
+			$rows[] = array( $kinds[ $l->kind ] ?? $l->kind, $l->occurred_at, $l->event_name, (int) $l->order_id, (int) $l->refund_id ?: '', $l->origin_period, number_format( (int) $l->tax_rate_bp / 100, 2, '.', '' ), (int) $l->tickets, self::m( $l->gross_minor, $s->currency ), self::m( $l->tax_minor, $s->currency ), self::m( $l->net_minor, $s->currency ), self::m( $l->commission_minor, $s->currency ), self::m( $l->fee_minor, $s->currency ) );
 		}
 		$rows[] = array();
 		$rows[] = array( __( 'USt-Satz %', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ) );
 		foreach ( (array) ( $t['rates'] ?? array() ) as $bp => $r ) {
-			$rows[] = array( number_format( (int) $bp / 100, 2, '.', '' ), self::m( $r['gross'] ), self::m( $r['tax'] ), self::m( $r['net'] ) );
+			$rows[] = array( number_format( (int) $bp / 100, 2, '.', '' ), self::m( $r['gross'], $s->currency ), self::m( $r['tax'], $s->currency ), self::m( $r['net'], $s->currency ) );
 		}
 		$rows[] = array();
 		$rows[] = array( __( 'Verkaufte Tickets', 'pass-captain' ), (int) $s->tickets_sold );
 		$rows[] = array( __( 'Erstattete Tickets', 'pass-captain' ), (int) $s->tickets_refunded );
-		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor ) ); }
+		if ( ! empty( $t['comp_tickets'] ) ) { $rows[] = array( __( 'Freikarten (nicht abgerechnet)', 'pass-captain' ), (int) $t['comp_tickets'] ); }
+		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor, $s->currency ) ); }
 		$payout = self::payout_details_for_export( $s );
 		if ( '' !== $payout ) {
 			// One cell, line breaks flattened (the operator copies it into the bank transfer).
@@ -673,12 +859,12 @@ final class Settlements {
 		$terms = (array) ( $t['terms'] ?? array() );
 		$kinds = self::kind_labels();
 		$title = self::document_title( $s );
-		$date = Scope::local( $s->finalized_at ?: $s->updated_at, Scope::site_timezone(), 'd.m.Y' );
+		$date = \PassCaptain\Frontend\Format::local( $s->finalized_at ?: $s->updated_at, Scope::site_timezone(), 'date' );
 		$block = static function ( array $lines, $heading = '' ) {
 			$first = array_shift( $lines );
 			return '<div class="addr">' . ( '' !== $heading ? '<small>' . esc_html( $heading ) . '</small>' . "\n" : '' ) . '<strong>' . esc_html( (string) $first ) . '</strong>' . ( $lines ? "\n" . esc_html( implode( "\n", $lines ) ) : '' ) . '</div>';
 		};
-		$h = '<!doctype html><html lang="' . esc_attr( determine_locale() ) . '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title>';
+		$h = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title>';
 		$h .= '<style>body{font:14px/1.45 system-ui,sans-serif;max-width:56rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.35rem;text-align:left}td.n,th.n{text-align:right}.addr{white-space:pre-line}.cols{display:flex;gap:2rem;justify-content:space-between;flex-wrap:wrap}.draft{color:#b32d2e;font-weight:bold;text-transform:uppercase}section.part{border-top:2px solid #1d2327;margin-top:2rem;padding-top:.5rem}.note{font-weight:600}@media print{button{display:none}section.part{break-inside:avoid}}</style></head><body>';
 		if ( '' === $type ) {
 			// Legacy layout (settlements finalized before sales models existed).
@@ -688,7 +874,7 @@ final class Settlements {
 		}
 		if ( 'draft' === $s->status ) { $h .= '<p class="draft">' . esc_html__( 'Entwurf – nicht abgeschlossen, Werte können sich noch ändern', 'pass-captain' ) . '</p>'; }
 		$h .= '<h1>' . esc_html( $title ) . '</h1><p>' . esc_html( sprintf( /* translators: 1: period, 2: date */ __( 'Zeitraum: %1$s · Erstellt: %2$s', 'pass-captain' ), $s->period, $date ) );
-		if ( 'paid' === $s->status ) { $h .= '<br>' . esc_html( sprintf( /* translators: 1: date, 2: reference */ __( 'Ausgezahlt am %1$s %2$s', 'pass-captain' ), Scope::local( $s->paid_at, Scope::site_timezone(), 'd.m.Y' ), $s->payment_reference ) ); }
+		if ( 'paid' === $s->status ) { $h .= '<br>' . esc_html( sprintf( /* translators: 1: date, 2: reference */ __( 'Ausgezahlt am %1$s %2$s', 'pass-captain' ), \PassCaptain\Frontend\Format::local( $s->paid_at, Scope::site_timezone(), 'date' ), $s->payment_reference ) ); }
 		$h .= '<br>' . esc_html( sprintf( /* translators: 1: commission, 2: fee, 3: VAT */ __( 'Konditionen: Provision %1$s vom Nettoumsatz, Ticketgebühr %2$s pro Ticket, USt auf Plattformgebühr %3$s', 'pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( $terms['fee_per_ticket_minor'] ?? 0 ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) ) ) . '</p>';
 
 		if ( self::TYPE_SELF_BILLING === $type ) {
@@ -750,7 +936,7 @@ final class Settlements {
 		$h .= '<h2>' . esc_html__( 'Positionen', 'pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Datum', 'pass-captain' ) . '</th><th>' . esc_html__( 'Art', 'pass-captain' ) . '</th><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Bestellung', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt-Satz', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Provision', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Gebühr', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( self::lines( $s->settlement_id ) as $l ) {
 			$label = ( $kinds[ $l->kind ] ?? $l->kind ) . ( in_array( $l->kind, array( 'late_sale', 'correction' ), true ) ? ' ' . $l->origin_period : '' );
-			$h .= '<tr><td>' . esc_html( Scope::local( $l->occurred_at, Scope::site_timezone(), 'd.m.Y' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
+			$h .= '<tr><td>' . esc_html( \PassCaptain\Frontend\Format::local( $l->occurred_at, Scope::site_timezone(), 'date' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
 		}
 		$extra_links = 'draft' === $s->status ? '' : \PassCaptain\Api\Invoices::links_html( (int) $s->settlement_id, 'settlement', array( 'audience' => 'admin', 'location' => 'settlement_view', 'partner_id' => (int) $s->partner_id ) );
 		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . ( '' !== $extra_links ? '<p class="wpcap-invoice-extra">' . $extra_links . '</p>' : '' ) . \PassCaptain\Frontend\PrintButton::html( __( 'Drucken oder als PDF speichern', 'pass-captain' ) ) . '</body></html>';
@@ -758,6 +944,21 @@ final class Settlements {
 	}
 
 	private static function payout_row( $s, $money ) {
+		$t = (array) json_decode( (string) ( $s->totals ?? '' ), true );
+		$h = '';
+		if ( isset( $t['balance'] ) ) {
+			// Netting (statements from this version on): self-collected API sales and the carried balance.
+			$row = static function ( $label, $minor ) use ( $money ) { return '<tr><td>' . esc_html( $label ) . '</td><td class="n">' . esc_html( $money( (int) $minor ) ) . '</td></tr>'; };
+			if ( (int) $t['collected_self'] || (int) $t['carry_in'] ) {
+				$h .= $row( __( 'Zwischensumme vor Verrechnung', 'pass-captain' ), (int) $t['payout_before_netting'] );
+				if ( (int) $t['collected_self'] ) { $h .= $row( __( 'abzüglich von dir selbst vereinnahmte Ticketerlöse (eigene API-Verkäufe, nach Erstattungen)', 'pass-captain' ), -(int) $t['collected_self'] ); }
+				if ( (int) $t['carry_in'] ) { $h .= $row( __( 'Saldovortrag aus der vorigen Abrechnung', 'pass-captain' ), (int) $t['carry_in'] ); }
+			}
+			$h .= '<tr><th>' . esc_html__( 'Auszahlungsbetrag an Veranstalter', 'pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $t['payout'] ) ) . '</th></tr>';
+			if ( (int) $t['carry_out'] < 0 ) { $h .= $row( __( 'Offener Saldo, wird mit der nächsten Abrechnung verrechnet', 'pass-captain' ), (int) $t['carry_out'] ); }
+			if ( (int) $t['due_from_partner'] > 0 ) { $h .= '<tr><th>' . esc_html__( 'Forderung an Veranstalter (bitte überweisen)', 'pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $t['due_from_partner'] ) ) . '</th></tr>'; }
+			return $h;
+		}
 		$payout_label = (int) $s->payout_minor >= 0 ? __( 'Auszahlungsbetrag an Veranstalter', 'pass-captain' ) : __( 'Forderung an Veranstalter', 'pass-captain' );
 		return '<tr><th>' . esc_html( $payout_label ) . '</th><th class="n">' . esc_html( $money( abs( (int) $s->payout_minor ) ) ) . '</th></tr>';
 	}
@@ -802,11 +1003,16 @@ final class Settlements {
 		$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: percent, 2: net revenue */ __( 'Provision %1$s auf Netto-Ticketumsatz %2$s', 'pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( (int) $s->net_minor ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->commission_minor ) ) . '</td></tr>';
 		$h .= '<tr><td>' . esc_html( sprintf( /* translators: %s: fee per ticket */ __( 'Ticketgebühren (%s je Ticket)', 'pass-captain' ), $money( $terms['fee_per_ticket_minor'] ?? 0 ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->fee_minor ) ) . '</td></tr>';
 		$h .= '<tr><td>' . esc_html__( 'Nettobetrag', 'pass-captain' ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_net_minor ) ) . '</td></tr>';
+		$small = ! $rc && ! empty( $t['fee_small_business'] );
 		$tax_label = $rc ? __( 'Umsatzsteuer (Reverse Charge)', 'pass-captain' ) : sprintf( /* translators: %s: percent */ __( 'Umsatzsteuer %s', 'pass-captain' ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) );
-		$h .= '<tr><td>' . esc_html( $tax_label ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_tax_minor ) ) . '</td></tr>';
+		if ( ! $small ) {
+			$h .= '<tr><td>' . esc_html( $tax_label ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_tax_minor ) ) . '</td></tr>';
+		}
 		$h .= '<tr><th>' . esc_html__( 'Rechnungsbetrag', 'pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $s->platform_fee_gross_minor ) ) . '</th></tr></tbody></table>';
 		if ( $rc ) {
 			$h .= '<p class="note">' . esc_html( SalesModel::reverse_charge_note() ) . '</p><p><small>' . esc_html__( 'Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG).', 'pass-captain' ) . '</small></p>';
+		} elseif ( $small ) {
+			$h .= '<p class="note">' . esc_html( (string) ( $t['fee_small_business_note'] ?? '' ) ) . '</p>';
 		}
 		return $h . '</section>';
 	}

@@ -65,6 +65,11 @@
 		<exclude name="WordPress.DB.DirectDatabaseQuery.NoCaching"/>
 	</rule>
 
+	<!-- Explicit security rules (A173), kept even if a WordPress ruleset release drops them. -->
+	<rule ref="Generic.PHP.Syntax"/>
+	<rule ref="Generic.PHP.BacktickOperator"/>
+	<rule ref="Squiz.PHP.Eval"/>
+
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">

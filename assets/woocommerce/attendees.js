@@ -50,9 +50,13 @@
 			if (entry.email && !EMAIL.test(entry.email)) {
 				errors[base + '-email'] = t.invalidEmail || 'Invalid e-mail address.';
 			}
+			if (slot.type.name_required && !String(entry.name || '').trim()) {
+				errors[base + '-name'] = format(t.required || 'Please fill in "%s".', [t.name || 'Name']);
+			}
 			(slot.type.fields || []).forEach(function (field) {
+				if (field.scope === 'order' && slot.index > 0) return;
 				const value = (entry.answers || {})[field.key];
-				const empty = field.type === 'checkbox' ? value !== '1' : !String(value || '').trim();
+				const empty = field.type === 'checkbox' ? value !== '1' : (Array.isArray(value) ? !value.length : !String(value || '').trim());
 				if (field.required && empty) {
 					errors[base + '-' + field.key] = format(t.required || 'Please fill in "%s".', [field.label]);
 				} else if (field.type === 'email' && !empty && !EMAIL.test(String(value))) {
@@ -73,7 +77,30 @@
 			required: !!props.required,
 		};
 		let control;
-		if (props.type === 'checkbox') {
+		if (props.type === 'multiselect') {
+			// A680: a group of checkboxes; the value is the list of chosen labels.
+			const chosen = Array.isArray(props.value) ? props.value : [];
+			control = h('fieldset', { id: id, 'aria-describedby': common['aria-describedby'] },
+				h('legend', null, props.label + (props.required ? ' *' : '')),
+				(props.options || []).map(function (option, n) {
+					return h('label', { key: n, htmlFor: id + '-o' + n }, h('input', {
+						id: id + '-o' + n,
+						type: 'checkbox',
+						checked: chosen.indexOf(option) !== -1,
+						onChange: function (event) {
+							const next = chosen.filter(function (v) { return v !== option; });
+							if (event.target.checked) next.push(option);
+							props.onChange(next);
+						},
+					}), ' ' + option);
+				}));
+		} else if (props.type === 'select') {
+			control = [
+				h('label', { htmlFor: id, key: 'l' }, props.label + (props.required ? ' *' : '')),
+				h('select', Object.assign({ key: 'c' }, common, { value: props.value || '', onChange: function (event) { props.onChange(event.target.value); } }),
+					[h('option', { key: '', value: '' }, t.choose || '–')].concat((props.options || []).map(function (option) { return h('option', { key: option, value: option }, option); }))),
+			];
+		} else if (props.type === 'checkbox') {
 			control = h('label', { htmlFor: id }, h('input', Object.assign({}, common, {
 				type: 'checkbox',
 				checked: props.value === '1',
@@ -86,8 +113,9 @@
 				onChange: function (event) { props.onChange(event.target.value); },
 			});
 			if (tag === 'input') {
-				attrs.type = props.type === 'email' ? 'email' : 'text';
+				attrs.type = ({ email: 'email', tel: 'tel', date: 'date' })[props.type] || 'text';
 				attrs.autoComplete = 'off';
+				if (props.type === 'number') attrs.inputMode = 'decimal';
 			}
 			if (props.maxLength) attrs.maxLength = props.maxLength;
 			control = [
@@ -111,6 +139,7 @@
 		const ids = slots(types).reduce(function (all, slot) {
 			const base = 'wpcap-att-' + slot.type.ticket_type_id + '-' + slot.index;
 			all.push(base + '-email');
+			if (slot.type.name_required) all.push(base + '-name');
 			(slot.type.fields || []).forEach(function (field) { all.push(base + '-' + field.key); });
 			return all;
 		}, []);
@@ -168,17 +197,18 @@
 				const base = 'wpcap-att-' + typeId + '-' + slot.index;
 				return h('fieldset', { className: 'wpcap-woo-attendee', key: base },
 					h('legend', null, format(t.ticket || 'Ticket %1$d · %2$s', [slot.number, slot.type.label])),
-					h(Field, { id: base + '-name', label: t.name || 'Name', optional: t.optional, value: entry.name, maxLength: 190, onChange: function (v) { update(typeId, slot.index, '__name', v); } }),
+					h(Field, { id: base + '-name', label: t.name || 'Name', required: !!slot.type.name_required, optional: slot.type.name_required ? '' : t.optional, value: entry.name, maxLength: 190, error: validation[base + '-name'], onChange: function (v) { update(typeId, slot.index, '__name', v); } }),
 					h(Field, { id: base + '-email', type: 'email', label: t.email || 'E-mail', optional: t.optional, value: entry.email, error: validation[base + '-email'], onChange: function (v) { update(typeId, slot.index, '__email', v); } }),
-					(slot.type.fields || []).map(function (field) {
+					(slot.type.fields || []).filter(function (field) { return field.scope !== 'order' || slot.index === 0; }).map(function (field) {
 						const id = base + '-' + field.key;
 						return h(Field, {
 							key: id,
 							id: id,
 							type: field.type,
-							label: field.label,
+							label: field.label + (field.scope === 'order' ? ' ' + (t.perOrder || '') : ''),
 							required: field.required,
-							description: field.purpose,
+							options: field.options,
+							description: [field.help, field.purpose].filter(Boolean).join(' '),
 							value: (entry.answers || {})[field.key],
 							maxLength: field.type === 'textarea' ? undefined : 2000,
 							error: validation[id],
@@ -192,7 +222,7 @@
 
 	wc.blocksCheckout.registerCheckoutBlock({
 		metadata: {
-			name: 'wp-pass-captain/woo-attendees',
+			name: 'pass-captain/woo-attendees',
 			parent: ['woocommerce/checkout-contact-information-block'],
 		},
 		component: AttendeeFields,

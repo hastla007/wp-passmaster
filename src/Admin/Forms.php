@@ -17,11 +17,11 @@ final class Forms {
 	const MAX_MAJOR_DIGITS = 10;
 
 	/** ISO 4217 currencies without minor unit. */
-	const ZERO_DECIMAL_CURRENCIES = \PassCaptain\Localization::ZERO_DECIMAL_CURRENCIES;
+	const ZERO_DECIMAL_CURRENCIES = \PassCaptain\Money::ZERO_DECIMALS;
 
-	/** Number of decimals of a currency's minor unit (0 for JPY, 3 for KWD/BHD, else 2). */
+	/** Number of decimals of a currency's minor unit (0 JPY, 2 EUR, 3 KWD; see PassCaptain\Money). */
 	public static function currency_decimals( $currency ) {
-		return \PassCaptain\Localization::currency_decimals( $currency );
+		return \PassCaptain\Money::decimals( $currency );
 	}
 
 	/**
@@ -29,8 +29,8 @@ final class Forms {
 	 *
 	 * Accepts "12,50", "12.50", "12", "1.234,56", "1,234.56", "1 234,56", "1'234.50", "€ 12,50", "12,5".
 	 * A single separator followed by exactly three digits is read as a thousands separator
-	 * ("1.234" = 1234), otherwise as the decimal separator; for three-decimal currencies (KWD, BHD)
-	 * it is the decimal separator. Negative values are rejected.
+	 * ("1.234" = 1234), otherwise as the decimal separator; for three-decimal currencies
+	 * (decimals = 3) it is the decimal separator ("12,345" = 12345 fils). Negative values are rejected.
 	 *
 	 * @param mixed $input    Raw input.
 	 * @param int   $decimals Minor unit decimals (2 for EUR).
@@ -103,8 +103,7 @@ final class Forms {
 
 	/** Display string for an amount, e.g. "1.234,50 EUR". */
 	public static function money( $minor, $currency ) {
-		$decimals = self::currency_decimals( $currency );
-		return number_format_i18n( (int) $minor / ( 10 ** $decimals ), $decimals ) . ' ' . strtoupper( (string) $currency );
+		return \PassCaptain\Money::format( $minor, $currency );
 	}
 
 	/**
@@ -135,19 +134,128 @@ final class Forms {
 
 	/**
 	 * Converts a local wall-clock time (datetime-local input) in $timezone to a UTC MySQL datetime.
-	 * Times inside a DST gap are moved forward by PHP (02:30 → 03:30 on spring-forward days).
+	 * Deterministic around DST changes: a time inside a gap (02:30 on spring-forward days) is moved
+	 * forward by PHP (→ 03:30); an ambiguous time (fall-back hour) uses the first instance (summer
+	 * time). Admin forms for occurrence times use local_to_utc_checked(), which rejects gap times.
 	 *
 	 * @return string|null "Y-m-d H:i:s" in UTC, or null when the input or timezone is invalid.
 	 */
 	public static function local_to_utc( $local, $timezone ) {
+		$info = self::local_time_info( $local, $timezone );
+		return $info ? $info['utc'] : null;
+	}
+
+	/**
+	 * Analyses a local wall-clock time in $timezone with respect to DST changes.
+	 *
+	 * @return array|null null for invalid input, else:
+	 *   status     'ok', 'gap' (the time does not exist) or 'ambiguous' (it exists twice),
+	 *   utc        UTC datetime used by local_to_utc() (gap: shifted forward; ambiguous: first instance),
+	 *   local      normalised input "Y-m-d H:i",
+	 *   next_valid gap only: first valid local time after the gap ("Y-m-d H:i"),
+	 *   offsets    ambiguous only: UTC offsets of the first and second instance (e.g. +02:00, +01:00).
+	 */
+	public static function local_time_info( $local, $timezone ) {
 		if ( ! is_scalar( $local ) || ! self::is_valid_timezone( $timezone ) ) { return null; }
 		$local = str_replace( 'T', ' ', trim( (string) $local ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/', $local, $m ) ) { return null; }
-		$format = isset( $m[1] ) ? '!Y-m-d H:i:s' : '!Y-m-d H:i';
-		$date = \DateTimeImmutable::createFromFormat( $format, $local, new \DateTimeZone( $timezone ) );
+		$format = isset( $m[1] ) ? 'Y-m-d H:i:s' : 'Y-m-d H:i';
+		$zone = new \DateTimeZone( $timezone );
+		$date = \DateTimeImmutable::createFromFormat( '!' . $format, $local, $zone );
 		$errors = \DateTimeImmutable::getLastErrors();
 		if ( ! $date || ( is_array( $errors ) && ( $errors['warning_count'] || $errors['error_count'] ) ) ) { return null; }
-		return $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$utc = new \DateTimeZone( 'UTC' );
+		$ts = $date->getTimestamp();
+		$info = array( 'status' => 'ok', 'local' => substr( $local, 0, 16 ) );
+		if ( $date->format( $format ) !== $local ) {
+			// Not a wall-clock time of this zone: the last transition before the shifted instant ends the gap.
+			$info['status'] = 'gap';
+			$end = $ts;
+			foreach ( (array) $zone->getTransitions( $ts - 2 * DAY_IN_SECONDS, $ts ) as $i => $transition ) {
+				if ( $i > 0 && (int) $transition['ts'] <= $ts ) { $end = (int) $transition['ts']; }
+			}
+			$info['next_valid'] = $date->setTimestamp( $end )->format( 'Y-m-d H:i' );
+		} else {
+			// The same wall-clock time at another instant (shifts of up to two hours cover all zones).
+			$instants = array( $ts );
+			foreach ( array( -7200, -3600, -1800, 1800, 3600, 7200 ) as $delta ) {
+				if ( $date->setTimestamp( $ts + $delta )->format( $format ) === $local ) { $instants[] = $ts + $delta; }
+			}
+			if ( count( $instants ) > 1 ) {
+				sort( $instants );
+				$ts = $instants[0];
+				$info['status'] = 'ambiguous';
+				$info['offsets'] = array( $date->setTimestamp( $instants[0] )->format( 'P' ), $date->setTimestamp( $instants[1] )->format( 'P' ) );
+			}
+		}
+		$info['utc'] = $date->setTimestamp( $ts )->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+		return $info;
+	}
+
+	/**
+	 * local_to_utc() for occurrence times entered by an admin: a time inside a DST gap is rejected
+	 * with the next valid time; an ambiguous time uses the first instance and adds a note to $notes.
+	 *
+	 * @param mixed    $local    datetime-local input.
+	 * @param string   $timezone IANA timezone.
+	 * @param string[] $notes    Collects notes for ambiguous times (by reference).
+	 * @return string|null|\WP_Error UTC datetime, null for invalid input, WP_Error for a nonexistent time.
+	 */
+	public static function local_to_utc_checked( $local, $timezone, &$notes = array() ) {
+		$info = self::local_time_info( $local, $timezone );
+		if ( ! $info ) { return null; }
+		$shown = static function ( $value ) { return wp_date( 'd.m.Y H:i', strtotime( $value . ' UTC' ), new \DateTimeZone( 'UTC' ) ); };
+		if ( 'gap' === $info['status'] ) {
+			return self::error( 'wpcap_time_nonexistent', sprintf(
+				/* translators: 1: entered local time, 2: timezone, 3: next valid local time */
+				__( 'Die Ortszeit %1$s gibt es in der Zeitzone %2$s wegen der Umstellung auf Sommerzeit nicht. Bitte eine andere Zeit wählen, z. B. %3$s (erste gültige Zeit danach).', 'pass-captain' ),
+				$shown( $info['local'] ),
+				$timezone,
+				$shown( $info['next_valid'] )
+			) );
+		}
+		if ( 'ambiguous' === $info['status'] ) {
+			$notes[] = sprintf(
+				/* translators: 1: entered local time, 2: timezone, 3: UTC offset used, 4: UTC offset of the second instance */
+				__( 'Die Ortszeit %1$s kommt in der Zeitzone %2$s wegen der Umstellung auf Winterzeit zweimal vor. Verwendet wurde die erste (Sommerzeit, UTC%3$s), nicht die zweite (UTC%4$s).', 'pass-captain' ),
+				$shown( $info['local'] ),
+				$timezone,
+				$info['offsets'][0],
+				$info['offsets'][1]
+			);
+		}
+		return $info['utc'];
+	}
+
+	/**
+	 * Start of the $index-th weekly repetition at the same local wall-clock time. A repetition whose
+	 * time does not exist (DST gap) is moved forward by the gap, an ambiguous one uses the first
+	 * instance; both add a note to $notes.
+	 *
+	 * @param \DateTimeImmutable $first First start in the event timezone.
+	 * @return \DateTimeImmutable Start in the event timezone.
+	 */
+	public static function weekly_repeat_start( \DateTimeImmutable $first, $index, $timezone, &$notes = array() ) {
+		if ( ! $index ) { return $first; }
+		$wall = ( new \DateTimeImmutable( $first->format( 'Y-m-d H:i:s' ), new \DateTimeZone( 'UTC' ) ) )->modify( '+' . ( 7 * (int) $index ) . ' days' )->format( 'Y-m-d H:i:s' );
+		$info = self::local_time_info( $wall, $timezone );
+		if ( ! $info ) { return $first->modify( '+' . ( 7 * (int) $index ) . ' days' ); }
+		$start = ( new \DateTimeImmutable( $info['utc'], new \DateTimeZone( 'UTC' ) ) )->setTimezone( new \DateTimeZone( $timezone ) );
+		$shown = wp_date( 'd.m.Y H:i', strtotime( $info['local'] . ' UTC' ), new \DateTimeZone( 'UTC' ) );
+		if ( 'gap' === $info['status'] ) {
+			/* translators: 1: local time of the repetition, 2: timezone, 3: local time used instead */
+			$notes[] = sprintf( __( 'Die Wiederholung am %1$s fällt in die Zeitumstellung (Zeitzone %2$s, diese Ortszeit gibt es nicht) und wurde auf %3$s verschoben.', 'pass-captain' ), $shown, $timezone, $start->format( 'd.m.Y H:i' ) );
+		} elseif ( 'ambiguous' === $info['status'] ) {
+			/* translators: 1: local time of the repetition, 2: timezone, 3: UTC offset used */
+			$notes[] = sprintf( __( 'Die Wiederholung am %1$s liegt in der doppelten Stunde der Zeitumstellung (Zeitzone %2$s); verwendet wurde die erste (Sommerzeit, UTC%3$s).', 'pass-captain' ), $shown, $timezone, $info['offsets'][0] );
+		}
+		return $start;
+	}
+
+	/** Result fragment with the collected DST notes as a warning flash (Forms::finish), or array(). */
+	public static function dst_warning( array $notes ) {
+		$notes = array_values( array_unique( array_filter( $notes ) ) );
+		return $notes ? array( 'warning' => implode( ' ', $notes ) ) : array();
 	}
 
 	/**
@@ -222,9 +330,101 @@ final class Forms {
 		return array_values( array_unique( array_filter( array_map( 'sanitize_key', array_filter( $value, 'is_scalar' ) ) ) ) );
 	}
 
-	/** Builds a WP_Error for admin handlers. */
-	public static function error( $code, $message, $status = 400 ) {
-		return new \WP_Error( $code, $message, array( 'status' => $status ) );
+	/**
+	 * Builds a WP_Error for admin handlers.
+	 *
+	 * @param string $code    Error code.
+	 * @param string $message Message (names the field, A297).
+	 * @param int    $status  HTTP status.
+	 * @param string $field   Name of the form field the error belongs to ('' = none); the form marks it.
+	 */
+	public static function error( $code, $message, $status = 400, $field = '' ) {
+		$data = array( 'status' => $status );
+		if ( '' !== (string) $field ) { $data['field'] = (string) $field; }
+		return new \WP_Error( $code, $message, $data );
+	}
+
+	/** The same error with the form field it belongs to (e.g. a DST error of a date field). */
+	public static function with_field( \WP_Error $error, $field ) {
+		$data = $error->get_error_data();
+		return self::error( $error->get_error_code(), $error->get_error_message(), is_array( $data ) ? (int) ( $data['status'] ?? 400 ) : 400, $field );
+	}
+
+	/* ---------------------------------------------------------------------------------------------
+	 * Input of a failed form (A297): kept for one redisplay instead of being discarded.
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** Transient prefix (per user) of the input of the last failed form. */
+	const OLD_INPUT = 'wpcap_admin_old_input_';
+
+	/**
+	 * admin-post actions whose input is kept after a validation error (filter
+	 * `wpcap_admin_remember_input_actions`). Only forms that show it again are listed, so no other
+	 * input (attendee data, credentials) is stored.
+	 *
+	 * @return string[]
+	 */
+	public static function remember_input_actions() {
+		return (array) apply_filters( 'wpcap_admin_remember_input_actions', array( 'wpcap_create_event', 'wpcap_update_event', 'wpcap_save_occurrence', 'wpcap_save_ticket_type' ) );
+	}
+
+	/**
+	 * Keeps the submitted input of a failed form for five minutes (current user only) together with
+	 * the field the error names. Hidden WordPress fields and secret-like keys are never stored.
+	 */
+	public static function remember_input( \WP_Error $error, ?array $post = null ) {
+		$post = null === $post ? self::post() : $post;
+		$action = isset( $post['action'] ) && is_scalar( $post['action'] ) ? sanitize_key( (string) $post['action'] ) : '';
+		if ( '' === $action || ! in_array( $action, self::remember_input_actions(), true ) ) { return false; }
+		$input = array();
+		foreach ( $post as $key => $value ) {
+			$key = (string) $key;
+			if ( '' === $key || '_' === $key[0] || 'action' === $key || preg_match( '/(secret|password|token|nonce|_key$)/i', $key ) ) { continue; }
+			if ( is_scalar( $value ) ) {
+				$input[ $key ] = \PassCaptain\Text::cut( (string) $value, 20000 );
+			} elseif ( is_array( $value ) ) {
+				$input[ $key ] = array_map( 'strval', array_slice( array_filter( $value, 'is_scalar' ), 0, 200, true ) );
+			}
+		}
+		$data = $error->get_error_data();
+		$field = is_array( $data ) && isset( $data['field'] ) && is_scalar( $data['field'] ) ? sanitize_key( (string) $data['field'] ) : '';
+		set_transient( self::OLD_INPUT . get_current_user_id(), array( 'action' => $action, 'input' => $input, 'field' => $field ), 5 * MINUTE_IN_SECONDS );
+		return true;
+	}
+
+	/**
+	 * Input kept for a form (once; it is removed when a form takes it). $match ties it to one form
+	 * instance, e.g. array( 'ticket_type_id' => 12 ) for the edit form of one ticket type.
+	 *
+	 * @param string $action admin-post action of the form.
+	 * @param array  $match  Hidden field values the kept input must have.
+	 * @return array input, field – or array() when nothing is kept for this form.
+	 */
+	public static function old( $action, array $match = array() ) {
+		$key = self::OLD_INPUT . get_current_user_id();
+		$stored = get_transient( $key );
+		if ( ! is_array( $stored ) || ( $stored['action'] ?? '' ) !== $action ) { return array(); }
+		$input = (array) ( $stored['input'] ?? array() );
+		foreach ( $match as $name => $value ) {
+			if ( (string) ( $input[ $name ] ?? '' ) !== (string) $value ) { return array(); }
+		}
+		delete_transient( $key );
+		return array( 'input' => $input, 'field' => (string) ( $stored['field'] ?? '' ) );
+	}
+
+	/** Kept value of a field, else $default (the stored value). */
+	public static function old_value( array $old, $key, $default ) {
+		return $old && array_key_exists( $key, $old['input'] ) && is_scalar( $old['input'][ $key ] ) ? (string) $old['input'][ $key ] : $default;
+	}
+
+	/** Kept state of a checkbox, else $default. A kept form without the box means unticked. */
+	public static function old_flag( array $old, $key, $default ) {
+		return $old ? ! empty( $old['input'][ $key ] ) : (bool) $default;
+	}
+
+	/** ' aria-invalid="true" autofocus' for the field the error named. */
+	public static function invalid_attr( array $old, $key ) {
+		return $old && $key === $old['field'] ? ' aria-invalid="true" autofocus' : '';
 	}
 
 	/** Standard "no permission" error. */
@@ -241,6 +441,20 @@ final class Forms {
 		return wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification -- nonce checked by caller.
 	}
 
+	/**
+	 * Stops an admin-post request with 403 unless the user holds at least one of the capabilities
+	 * (A145: capability first, before any lookup or validation; the object-level check follows in the
+	 * handler).
+	 *
+	 * @param string[] $caps Capabilities.
+	 */
+	public static function require_any_cap( array $caps ) {
+		foreach ( $caps as $cap ) {
+			if ( current_user_can( $cap ) ) { return; }
+		}
+		wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
+	}
+
 	/** Verifies the nonce of an admin-post request (dies on failure). */
 	public static function verify( $nonce_action ) {
 		check_admin_referer( $nonce_action );
@@ -251,7 +465,7 @@ final class Forms {
 		$key = 'wpcap_admin_notices_' . get_current_user_id();
 		$notices = get_transient( $key );
 		$notices = is_array( $notices ) ? $notices : array();
-		$notices[] = array( 'type' => 'error' === $type ? 'error' : ( 'warning' === $type ? 'warning' : 'success' ), 'message' => (string) $message );
+		$notices[] = array( 'type' => 'error' === $type ? 'error' : ( 'warning' === $type ? 'warning' : 'success' ), 'message' => 'error' === $type ? \PassCaptain\Redact::text( (string) $message, false ) : (string) $message );
 		set_transient( $key, array_slice( $notices, -10 ), 5 * MINUTE_IN_SECONDS );
 	}
 
@@ -282,6 +496,7 @@ final class Forms {
 				wp_die( esc_html( $result->get_error_message() ), '', array( 'response' => 403, 'back_link' => true ) );
 			}
 			self::flash( 'error', $result->get_error_message() );
+			self::remember_input( $result ); // A297: the form shows the input again.
 			self::redirect( '' !== $error_url ? $error_url : $url );
 		}
 		if ( '' !== $success ) { self::flash( 'success', $success ); }
@@ -358,6 +573,24 @@ final class Forms {
 		echo '</div></div>';
 	}
 
+	/**
+	 * Note and date filter under a bounded occurrence list (Queries::occurrence_window(), A476):
+	 * "x of y dates shown" and a GET form "dates from" (parameter occ_from) that moves the window.
+	 * Prints nothing when every date is listed and no filter is set.
+	 *
+	 * @param array $window Result of Queries::occurrence_window().
+	 * @param array $args   Further query arguments of the page (e.g. event_id).
+	 */
+	public static function occurrence_window_filter( array $window, $slug, array $args = array() ) {
+		if ( empty( $window['more'] ) && '' === (string) ( $window['from'] ?? '' ) ) { return; }
+		echo '<form method="get" class="wpcap-occurrence-window"><input type="hidden" name="page" value="' . esc_attr( $slug ) . '">';
+		foreach ( $args as $key => $value ) { echo '<input type="hidden" name="' . esc_attr( (string) $key ) . '" value="' . esc_attr( (string) $value ) . '">'; }
+		/* translators: 1: dates listed, 2: dates of the event */
+		echo '<p class="description">' . esc_html( sprintf( __( '%1$d von %2$d Terminen werden angezeigt (die nächsten ab dem gewählten Tag, ohne Auswahl ab heute).', 'pass-captain' ), count( (array) $window['rows'] ), (int) $window['total'] ) ) . ' ';
+		echo '<label>' . esc_html__( 'Termine ab', 'pass-captain' ) . ' <input type="date" name="occ_from" value="' . esc_attr( (string) ( $window['from'] ?? '' ) ) . '"></label> ';
+		echo '<button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></p></form>';
+	}
+
 	/** Current page number from the query string. */
 	public static function current_page() {
 		return max( 1, absint( $_GET['paged'] ?? 1 ) ); // phpcs:ignore WordPress.Security.NonceVerification
@@ -365,10 +598,9 @@ final class Forms {
 
 	/** Sanitised GET parameter. */
 	public static function query_arg( $key, $default = '' ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view parameter.
-		if ( ! isset( $_GET[ $key ] ) ) { return is_scalar( $default ) ? sanitize_text_field( wp_unslash( (string) $default ) ) : $default; }
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view parameter.
-		return is_scalar( $_GET[ $key ] ) ? sanitize_text_field( wp_unslash( (string) $_GET[ $key ] ) ) : $default;
+		// phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only view parameter, sanitised on the next line.
+		$value = isset( $_GET[ $key ] ) ? wp_unslash( $_GET[ $key ] ) : $default;
+		return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : $default;
 	}
 
 	/** Display name of a WordPress user id. */
@@ -379,45 +611,66 @@ final class Forms {
 		return $user ? $user->display_name . ' (#' . $user_id . ')' : '#' . $user_id;
 	}
 
-	/** Translated labels for status values. */
+	/**
+	 * Translated labels for status values. A515: all with the gettext context "status", so short words
+	 * ("Aktiv", "Geplant", "Abgelaufen") are translated as a status – and can agree in gender with the
+	 * object in languages that need it – instead of sharing the entry of the same word elsewhere.
+	 */
 	public static function status_label( $status ) {
 		$labels = array(
-			'draft'            => __( 'Entwurf', 'pass-captain' ),
-			'published'        => __( 'Veröffentlicht', 'pass-captain' ),
-			'cancelled'        => __( 'Abgesagt/Storniert', 'pass-captain' ),
-			'scheduled'        => __( 'Geplant', 'pass-captain' ),
-			'active'           => __( 'Aktiv', 'pass-captain' ),
-			'paused'           => __( 'Pausiert', 'pass-captain' ),
-			'inactive'         => __( 'Deaktiviert', 'pass-captain' ),
-			'pending_payment'  => __( 'Zahlung offen', 'pass-captain' ),
-			'complete'         => __( 'Abgeschlossen', 'pass-captain' ),
-			'refunded'         => __( 'Erstattet', 'pass-captain' ),
-			'expired'          => __( 'Abgelaufen', 'pass-captain' ),
-			'needs_review'     => __( 'Prüfung nötig', 'pass-captain' ),
-			'pending'          => __( 'Ausstehend', 'pass-captain' ),
-			'paid'             => __( 'Bezahlt', 'pass-captain' ),
-			'paid_unallocated' => __( 'Bezahlt, ohne Kontingent', 'pass-captain' ),
-			'valid'            => __( 'Gültig', 'pass-captain' ),
-			'checked_in'       => __( 'Eingecheckt', 'pass-captain' ),
-			'already_checked_in' => __( 'Bereits eingecheckt (abgelehnt)', 'pass-captain' ),
-			'not_valid_today'  => __( 'Heute nicht gültig', 'pass-captain' ),
-			'daily_limit_reached' => __( 'Tageslimit erreicht', 'pass-captain' ),
-			'revoked'          => __( 'Widerrufen', 'pass-captain' ),
-			'pending_approval' => __( 'Wartet auf Freigabe', 'pass-captain' ),
-			'approved'         => __( 'Freigegeben', 'pass-captain' ),
-			'processing'       => __( 'In Bearbeitung', 'pass-captain' ),
-			'completed'        => __( 'Durchgeführt', 'pass-captain' ),
-			'failed'           => __( 'Fehlgeschlagen', 'pass-captain' ),
-			'rejected'         => __( 'Abgelehnt', 'pass-captain' ),
-			'undone'           => __( 'Check-in zurückgenommen', 'pass-captain' ),
-			'unknown'          => __( 'Unbekannt', 'pass-captain' ),
-			'outside_entry_window' => __( 'Außerhalb des Einlasszeitraums', 'pass-captain' ),
-			'entry_limit_reached' => __( 'Einlass-Limit erreicht', 'pass-captain' ),
-			'already_inside'   => __( 'Bereits drinnen', 'pass-captain' ),
-			'not_checked_in'   => __( 'Nicht eingecheckt', 'pass-captain' ),
-			'wrong_area'       => __( 'Falscher Einlassbereich', 'pass-captain' ),
-			'checked_out'      => __( 'Ausgecheckt', 'pass-captain' ),
+			'draft'            => _x( 'Entwurf', 'status', 'pass-captain' ),
+			'published'        => _x( 'Veröffentlicht', 'status', 'pass-captain' ),
+			'cancelled'        => _x( 'Abgesagt/Storniert', 'status', 'pass-captain' ),
+			'scheduled'        => _x( 'Geplant', 'status', 'pass-captain' ),
+			'active'           => _x( 'Aktiv', 'status', 'pass-captain' ),
+			'paused'           => _x( 'Pausiert', 'status', 'pass-captain' ),
+			'inactive'         => _x( 'Deaktiviert', 'status', 'pass-captain' ),
+			'pending_payment'  => _x( 'Zahlung offen', 'status', 'pass-captain' ),
+			'complete'         => _x( 'Abgeschlossen', 'status', 'pass-captain' ),
+			'refunded'         => _x( 'Erstattet', 'status', 'pass-captain' ),
+			'expired'          => _x( 'Abgelaufen', 'status', 'pass-captain' ),
+			'needs_review'     => _x( 'Prüfung nötig', 'status', 'pass-captain' ),
+			'pending'          => _x( 'Ausstehend', 'status', 'pass-captain' ),
+			'paid'             => _x( 'Bezahlt', 'status', 'pass-captain' ),
+			'paid_unallocated' => _x( 'Bezahlt, ohne Kontingent', 'status', 'pass-captain' ),
+			'valid'            => _x( 'Gültig', 'status', 'pass-captain' ),
+			'checked_in'       => _x( 'Eingecheckt', 'status', 'pass-captain' ),
+			'already_checked_in' => _x( 'Bereits eingecheckt (abgelehnt)', 'status', 'pass-captain' ),
+			'not_valid_today'  => _x( 'Heute nicht gültig', 'status', 'pass-captain' ),
+			'daily_limit_reached' => _x( 'Tageslimit erreicht', 'status', 'pass-captain' ),
+			'revoked'          => _x( 'Widerrufen', 'status', 'pass-captain' ),
+			'pending_approval' => _x( 'Wartet auf Freigabe', 'status', 'pass-captain' ),
+			'approved'         => _x( 'Freigegeben', 'status', 'pass-captain' ),
+			'processing'       => _x( 'In Bearbeitung', 'status', 'pass-captain' ),
+			'completed'        => _x( 'Durchgeführt', 'status', 'pass-captain' ),
+			'failed'           => _x( 'Fehlgeschlagen', 'status', 'pass-captain' ),
+			'rejected'         => _x( 'Abgelehnt', 'status', 'pass-captain' ),
+			'reversed'         => _x( 'Beim Zahlungsanbieter gescheitert, storniert', 'status', 'pass-captain' ),
+			'undone'           => _x( 'Check-in zurückgenommen', 'status', 'pass-captain' ),
+			'unknown'          => _x( 'Unbekannt', 'status', 'pass-captain' ),
+			'outside_entry_window' => _x( 'Außerhalb des Einlasszeitraums', 'status', 'pass-captain' ),
+			'entry_limit_reached' => _x( 'Einlass-Limit erreicht', 'status', 'pass-captain' ),
+			'already_inside'   => _x( 'Bereits drinnen', 'status', 'pass-captain' ),
+			'not_checked_in'   => _x( 'Nicht eingecheckt', 'status', 'pass-captain' ),
+			'wrong_area'       => _x( 'Falscher Einlassbereich', 'status', 'pass-captain' ),
+			'checked_out'      => _x( 'Ausgecheckt', 'status', 'pass-captain' ),
 		);
 		return $labels[ (string) $status ] ?? (string) $status;
+	}
+
+	/**
+	 * A383: "Status: Gültig" (optionally "Status: Gültig (erstattet)") as one translatable sentence
+	 * instead of a label glued to the value, so languages can order or punctuate it their own way.
+	 *
+	 * @param string $status   Status value.
+	 * @param bool   $refunded Whether the ticket was refunded.
+	 */
+	public static function status_line( $status, $refunded = false ) {
+		$label = self::status_label( $status );
+		return $refunded
+			/* translators: %s: ticket status (e.g. "Gültig") of a refunded ticket */
+			? sprintf( __( 'Status: %s (erstattet)', 'pass-captain' ), $label )
+			/* translators: %s: ticket status (e.g. "Gültig") */
+			: sprintf( __( 'Status: %s', 'pass-captain' ), $label );
 	}
 }

@@ -58,8 +58,13 @@ final class Engine {
 		return max( 0, min( 12, $hour ) );
 	}
 
-	/** '' when inside the entry window, otherwise 'outside_entry_window'. */
+	/**
+	 * '' when inside the entry window, otherwise 'outside_entry_window'. The doors-open time of the
+	 * occurrence (DoorsOpen) is a hard lower bound, also when the policy opens earlier.
+	 */
 	public static function window_block( array $policy, array $found, $at ) {
+		$doors = \PassCaptain\DoorsOpen::block( $found, $at );
+		if ( $doors ) { return $doors; }
 		$start = strtotime( $found['starts_at'] . ' UTC' );
 		$end = ! empty( $found['ends_at'] ) ? strtotime( $found['ends_at'] . ' UTC' ) : $start;
 		if ( null !== $policy['opens_before_minutes'] && $at < $start - $policy['opens_before_minutes'] * 60 ) { return 'outside_entry_window'; }
@@ -75,9 +80,12 @@ final class Engine {
 	 * Default entry window for ticket types without their own admission policy (settings
 	 * `default_entry_window`, `entry_opens_before_minutes`, `entry_closes_after_minutes`): from N minutes
 	 * before the start until the end of the occurrence (without an end: the end of its local start day)
-	 * plus M minutes. '' when inside, otherwise 'outside_entry_window'.
+	 * plus M minutes. '' when inside, otherwise 'outside_entry_window'. The doors-open time of the
+	 * occurrence applies even when the default window is switched off.
 	 */
 	public static function default_window_block( array $found, $at ) {
+		$doors = \PassCaptain\DoorsOpen::block( $found, $at );
+		if ( $doors ) { return $doors; }
 		if ( ! \PassCaptain\Settings::get( 'default_entry_window' ) ) { return ''; }
 		$start = strtotime( $found['starts_at'] . ' UTC' );
 		if ( ! empty( $found['ends_at'] ) ) {
@@ -98,6 +106,13 @@ final class Engine {
 	public static function evaluate_in( array $policy, array $found, $state, $at ) {
 		$window = self::window_block( $policy, $found, $at );
 		if ( $window ) { return $window; }
+		/**
+		 * [Passes] Extension point for custom policies (see `wpcap_admission_policy`): return a block
+		 * code (one of self::CODES) or '' to admit; null leaves the decision to the built-in policies.
+		 * Runs under the ticket row lock.
+		 */
+		$custom = apply_filters( 'wpcap_admission_evaluate', null, $policy, $found, $state, $at );
+		if ( null !== $custom ) { return (string) $custom; }
 		global $wpdb;
 		$entries = "{$wpdb->prefix}wpcap_admission_entries";
 		$ticket_id = (int) $found['ticket_id'];
@@ -187,14 +202,16 @@ final class Engine {
 			'created_at' => $now,
 		) );
 		if ( '' !== $wpdb->last_error ) { return false; }
+		// [Passes] occurrence_id/event_id follow the latest movement, so presence counts a multi-date
+		// pass at the occurrence it was last scanned at (unchanged for single-occurrence tickets).
 		if ( 'in' === $direction ) {
 			$ok = $wpdb->query( $wpdb->prepare(
-				'INSERT INTO %i (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_in_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,1,%d,1,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=1, area_id=VALUES(area_id), entries=entries+1, last_in_at=VALUES(last_in_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)', $p . 'wpcap_admission_state',
+				'INSERT INTO %i (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_in_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,1,%d,1,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=1, occurrence_id=VALUES(occurrence_id), event_id=VALUES(event_id), area_id=VALUES(area_id), entries=entries+1, last_in_at=VALUES(last_in_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)', $p . 'wpcap_admission_state',
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		} else {
 			$ok = $wpdb->query( $wpdb->prepare(
-				'INSERT INTO %i (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_out_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,0,%d,0,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=0, last_out_at=VALUES(last_out_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)', $p . 'wpcap_admission_state',
+				'INSERT INTO %i (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_out_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,0,%d,0,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=0, occurrence_id=VALUES(occurrence_id), event_id=VALUES(event_id), last_out_at=VALUES(last_out_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)', $p . 'wpcap_admission_state',
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		}
@@ -241,17 +258,27 @@ final class Engine {
 
 	/**
 	 * Takes back the latest entry of a ticket with a repeatable policy (ticket status stays valid).
+	 * Refused for refunded tickets, tickets of closed orders and outside the area binding of staff and
+	 * device (Checkin::undo_guard(), A590). The undo row carries device and source; the audit entry
+	 * also the area of the undone entry. A reason is required (A547).
 	 *
+	 * @param array $context Scanner context: device_id, area_id, source.
 	 * @return array|\WP_Error
 	 */
 	public static function undo_last( array $found, $reason = '', array $context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$reason = mb_substr( sanitize_text_field( (string) $reason ), 0, 255 );
+		if ( '' === $reason ) {
+			// A547: every undo names its reason.
+			return new \WP_Error( 'wpcap_undo_reason_required', __( 'Bitte einen Grund für die Rücknahme angeben.', 'pass-captain' ), array( 'status' => 400, 'result' => 'reason_required' ) );
+		}
 		// Every step is checked: an undo reported as done must really have freed the entry.
 		$busy = static function () use ( $wpdb ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
+			return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Einlass konnte gerade nicht zurückgenommen werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
 		};
+		// Undo window / roles (setting undo_roles, undo_window_minutes).
 		$denied = \PassCaptain\Checkin::undo_denied( (int) $found['ticket_id'], (int) $found['event_id'], $context );
 		if ( $denied ) { return $denied; }
 		$key = (string) ( $context['idempotency_key'] ?? '' );
@@ -272,13 +299,23 @@ final class Engine {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), array( 'status' => 409, 'result' => 'not_checked_in' ) );
 		}
+		$guard = \PassCaptain\Checkin::undo_guard( (int) $found['ticket_id'], $context );
+		if ( is_wp_error( $guard ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return $guard;
+		}
 		$now = current_time( 'mysql', true );
-		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'device_id' => absint( $context['device_id'] ?? 0 ), 'created_at' => $now ) );
+		$device_id = absint( $context['device_id'] ?? 0 );
+		$source = sanitize_key( (string) ( $context['source'] ?? '' ) );
+		$source = '' !== $source ? $source : 'admin';
+		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'device_id' => $device_id, 'source' => $source, 'created_at' => $now ) );
 		$undo_id = '' === (string) $wpdb->last_error ? (int) $wpdb->insert_id : 0;
 		if ( ! $undo_id ) { return $busy(); }
 		if ( false === self::revert_last_entry( (int) $found['ticket_id'], $undo_id ) ) { return $busy(); }
 		if ( false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
-		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => mb_substr( sanitize_text_field( (string) $reason ), 0, 255 ) ) );
+		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => $reason, 'device_id' => $device_id, 'area_id' => (int) $guard['area_id'], 'source' => $source ) );
+		/** A667: an admission was taken back (after the commit); context: source. */
+		do_action( 'wpcap_checkin_undone', (int) $found['ticket_id'], array( 'source' => $source ) );
 		return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'] );
 	}
 

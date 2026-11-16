@@ -11,6 +11,10 @@
 
 require __DIR__ . '/bootstrap.php';
 
+// Fixture: an install with a configured bank transfer (A265: new installs start without a payment
+// method, and "manual" is only offered with recipient + IBAN or payment instructions).
+$GLOBALS['wpcap_test_options']['wpcap_settings'] = array( 'enabled_providers' => array( 'manual' ), 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Testverein' );
+
 use PassCaptain\Orders;
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
 
@@ -51,6 +55,21 @@ function tickets( $core_id, $status = null ) {
 function expire_holds_of( $core_id ) {
 	global $wpdb;
 	$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), $core_id ) );
+}
+
+if ( in_array( '--service-child', $argv, true ) ) {
+	// Service booking worker (A135): `--service-child reserve <slot> <email> <start_ts> [lock_wait]` or
+	// `--service-child rebook <booking> <slot> <start_ts> [lock_wait]`; waits until start_ts (float) so
+	// the workers hit the database together, prints OK or the error code.
+	list( , , $mode, $id, $arg, $start ) = array_pad( $argv, 6, '' );
+	if ( isset( $argv[6] ) ) { $GLOBALS['wpdb']->query( 'SET SESSION innodb_lock_wait_timeout=' . max( 1, (int) $argv[6] ) ); }
+	while ( microtime( true ) < (float) $start ) { usleep( 2000 ); }
+	$_SERVER['REMOTE_ADDR'] = '198.51.100.' . ( getmypid() % 250 );
+	$r = 'rebook' === $mode
+		? PassCaptain\ServiceBookings::rebook( (int) $id, (int) $arg )
+		: PassCaptain\ServiceBookings::reserve( (int) $id, $arg, 1, 0, 10, 'svc-child-' . getmypid() . '-' . uniqid() );
+	echo is_wp_error( $r ) ? $r->get_error_code() : 'OK';
+	exit;
 }
 
 if ( in_array( '--child', $argv, true ) ) {
@@ -316,13 +335,34 @@ check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 ===
 // The 20 child processes counted on the shared checkout rate limit (wpcap_rate_limits): start fresh.
 wpcap_test_reset_transients();
 
-require __DIR__ . '/finance.php';
-require __DIR__ . '/payments.php';
-require __DIR__ . '/admin.php';
-require __DIR__ . '/mobile.php';
-require __DIR__ . '/affiliate.php';
-foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) { require $module_test; }
-// Repeat the failures at the end so CI log tails show them.
-if ( $failed_checks ) { echo "\nFailed checks:\n"; foreach ( $failed_checks as $name ) { echo "  FAIL $name\n"; } }
+/**
+ * Capacity counters (sold_qty/held_qty of ticket types and occurrences) must equal the sums of
+ * the order lines and holds after every test file (see PassCaptain\CapacityCounters).
+ */
+function assert_capacity_counters( $after ) {
+	$drift = PassCaptain\CapacityCounters::drift();
+	check( "capacity counters equal the source sums after $after" . ( $drift ? ' ' . json_encode( array_slice( $drift, 0, 4 ) ) : '' ), ! $drift );
+	if ( $drift ) {
+		// Repair, so the next file is judged on its own drift only.
+		$mails = $GLOBALS['wpcap_test_mails'];
+		PassCaptain\CapacityCounters::reconcile();
+		$GLOBALS['wpcap_test_mails'] = $mails;
+		$GLOBALS['wpcap_test_transients'] = array();
+	}
+}
+assert_capacity_counters( 'run.php core' );
+foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $core_test ) {
+	require __DIR__ . "/$core_test.php";
+	assert_capacity_counters( "$core_test.php" );
+}
+foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
+	require $module_test;
+	assert_capacity_counters( 'modules/' . basename( $module_test ) );
+}
+if ( $failed_checks ) {
+	// Repeated at the end so CI logs show the failures without scrolling through thousands of lines.
+	echo "\nFailed checks:\n";
+	foreach ( $failed_checks as $failed_name ) { echo "  FAIL $failed_name\n"; }
+}
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );

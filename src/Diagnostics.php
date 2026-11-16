@@ -276,7 +276,7 @@ final class Diagnostics {
 	}
 
 	public static function repair_unbooked_refunds() {
-		return Refunds::reconcile( 100 );
+		return Refunds::reconcile_bookings( 100 );
 	}
 
 	public static function repair_schema() {
@@ -329,7 +329,7 @@ final class Diagnostics {
 			return new \WP_Error( 'wpcap_diag_refund_state', __( 'Die Erstattung wartet nicht (mehr) auf eine manuelle Prüfung.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		Audit::record( 'refund_manual_resolution', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'resolution' => $resolution, 'reference' => $reference ) );
-		if ( 'completed' === $resolution ) { Refunds::reconcile( 100 ); }
+		if ( 'completed' === $resolution ) { Refunds::reconcile_bookings( 100 ); }
 		Status::flush_issues();
 		return Refunds::get( $refund_id );
 	}

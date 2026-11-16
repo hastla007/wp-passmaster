@@ -159,7 +159,7 @@ final class Rules {
 	/**
 	 * Expands a normalised rule into occurrences.
 	 *
-	 * @return array|\WP_Error list of {date, local, starts_at (UTC), ends_at (UTC|null), shifted}.
+	 * @return array|\WP_Error list of {date, local, offset, starts_at (UTC), ends_at (UTC|null), shifted, dst}.
 	 */
 	public static function expand( array $rule ) {
 		$tz = new \DateTimeZone( $rule['timezone'] );
@@ -191,13 +191,17 @@ final class Rules {
 			$local = \DateTimeImmutable::createFromFormat( '!Y-m-d H:i', $date . ' ' . $rule['time'], $tz );
 			// Ambiguous wall time (DST fall-back): use the first instance, one hour earlier in UTC.
 			$earlier = $local->setTimestamp( $local->getTimestamp() - 3600 );
-			if ( $earlier->format( 'Y-m-d H:i' ) === $local->format( 'Y-m-d H:i' ) ) { $local = $earlier; }
+			$ambiguous = $earlier->format( 'Y-m-d H:i' ) === $local->format( 'Y-m-d H:i' );
+			if ( $ambiguous ) { $local = $earlier; }
 			$starts = $local->setTimezone( $utc );
+			$shifted = $local->format( 'Y-m-d H:i' ) !== $date . ' ' . $rule['time'];
 			$out[] = array(
 				'date' => $date,
 				'local' => $local->format( 'Y-m-d H:i' ),
 				'offset' => $local->format( 'P' ),
-				'shifted' => $local->format( 'Y-m-d H:i' ) !== $date . ' ' . $rule['time'],
+				'shifted' => $shifted,
+				// A102: 'gap' (time does not exist, moved forward), 'ambiguous' (first instance used) or ''.
+				'dst' => $shifted ? 'gap' : ( $ambiguous ? 'ambiguous' : '' ),
 				'starts_at' => $starts->format( 'Y-m-d H:i:s' ),
 				'ends_at' => $rule['duration_minutes'] ? $starts->modify( '+' . (int) $rule['duration_minutes'] . ' minutes' )->format( 'Y-m-d H:i:s' ) : null,
 			);

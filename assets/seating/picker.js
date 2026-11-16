@@ -87,20 +87,50 @@
 
 	Picker.prototype.say = function (text) { this.status.textContent = text; };
 
+	// A392: until the map was built once, a failed load is retried (after 5, 10, 20, 30 s, and with
+	// the 30 s refresh); the first answer that arrives builds the map, without reloading the page.
 	Picker.prototype.load = function (first) {
 		const self = this;
 		if (first) this.say(this.t.loading || '…');
+		window.clearTimeout(this.retryTimer);
 		fetch(this.url, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
 			if (!r.ok) throw new Error('http');
 			return r.json();
 		}).then(function (data) {
+			if (data && data.sales_open === false) { self.close(data); return; }
+			if (!data || !Array.isArray(data.seats)) throw new Error('data');
+			const built = !!self.nodes;
 			self.data = data;
 			self.byId = new Map(data.seats.map(function (seat) { return [seat.id, seat]; }));
 			let lost = false;
 			self.selected.forEach(function (type, id) { const seat = self.byId.get(id); if (!seat || seat.status !== 'free') { self.selected.delete(id); lost = true; } });
-			if (first) self.build(); else self.update();
-			self.say(lost ? self.t.seatTaken : (first ? self.t.help || '' : self.status.textContent));
-		}).catch(function () { if (first) self.say(self.t.loadFailed || 'Error'); });
+			if (built) self.update(); else self.build();
+			self.say(lost ? self.t.seatTaken : (built ? self.status.textContent : self.t.help || ''));
+		}).catch(function () {
+			if (self.nodes) return; // Map shown: keep it, the next refresh updates it.
+			self.say(self.t.loadFailed || 'Error');
+			self.retries = (self.retries || 0) + 1;
+			self.retryTimer = window.setTimeout(function () { self.load(false); }, Math.min(30000, 5000 * Math.pow(2, self.retries - 1)));
+		});
+	};
+
+	// A610: the date was cancelled or its online sale is over. The map goes, the reason is shown
+	// and the order form is locked (the payload hook refuses too, the server checks anyway).
+	Picker.prototype.close = function (data) {
+		this.closed = String(data.message || this.t.closed || '');
+		window.clearInterval(this.timer);
+		window.clearTimeout(this.retryTimer);
+		const self = this;
+		Array.prototype.slice.call(this.box.children).forEach(function (child) {
+			if (child !== self.status && child.tagName !== 'LEGEND') child.remove();
+		});
+		this.nodes = null;
+		this.selectionList = null;
+		this.selected.clear();
+		this.box.dataset.closed = String(data.occurrence_status || 'closed');
+		this.form.dataset.salesClosed = this.box.dataset.closed;
+		this.form.querySelectorAll('.wpcap-qty, button[type="submit"]').forEach(function (node) { node.disabled = true; });
+		this.say(this.closed);
 	};
 
 	Picker.prototype.quantities = function () {
@@ -139,7 +169,7 @@
 		const zone = (this.data.zones.find(function (z) { return z.key === seat.zone; }) || {}).name;
 		const cat = (this.data.categories.find(function (c) { return c.key === seat.category; }) || {}).name;
 		const state = this.selected.has(seat.id) ? t.selected : (seat.status === 'free' ? t.free : t.taken);
-		return [seat.label, zone, cat, seat.accessible ? t.accessible : '', state].filter(Boolean).join(', ');
+		return [seat.label, zone, cat, seat.accessible ? t.accessible : '', seat.companion ? t.companion : '', state].filter(Boolean).join(', ');
 	};
 
 	Picker.prototype.toggle = function (id) {
@@ -240,7 +270,7 @@
 			groups[key].seats.forEach(function (seat) {
 				const label = h('label', {}, fs);
 				const box = h('input', { type: 'checkbox', value: String(seat.id) }, label);
-				label.appendChild(document.createTextNode(' ' + seat.seat + (seat.accessible ? ' ♿' : '')));
+				label.appendChild(document.createTextNode(' ' + seat.seat + (seat.accessible ? ' ♿' : '') + (seat.companion ? ' +' : '')));
 				box.addEventListener('change', function () { self.toggle(seat.id); });
 				self.checks.set(seat.id, box);
 			});
@@ -254,7 +284,7 @@
 		});
 
 		const chosen = h('div', { className: 'wpcap-seating-selection' }, this.box);
-		h('h3', {}, chosen, this.t.yourSeats || '');
+		this.selectionHeading = h('h3', { tabindex: '-1' }, chosen, this.t.yourSeats || '');
 		this.selectionList = h('ul', {}, chosen);
 		this.update();
 	};
@@ -337,32 +367,59 @@
 		this.areaInputs.forEach(function (input, key) {
 			const spots = self.data.seats.filter(function (seat) { return seat.kind === 'standing' && seat.group === key; });
 			input.max = String(spots.filter(function (seat) { return seat.status === 'free' || self.selected.has(seat.id); }).length);
-			input.value = String(spots.filter(function (seat) { return self.selected.has(seat.id); }).length);
+			// Not while the buyer is typing a number into it (the 30 s refresh would overwrite it).
+			if (document.activeElement !== input) input.value = String(spots.filter(function (seat) { return self.selected.has(seat.id); }).length);
 		});
 		this.renderSelection();
 	};
 
+	// The list of chosen seats is rebuilt only when its content changes (not on every 30 s refresh),
+	// and keyboard focus inside it survives a rebuild: same control of the same seat, or after
+	// "Entfernen" the next (else previous) seat's button, else the heading (A312).
 	Picker.prototype.renderSelection = function () {
 		const self = this;
 		if (!this.selectionList) return;
-		this.selectionList.textContent = '';
-		if (!this.selected.size) { h('li', {}, this.selectionList, this.t.none || ''); return; }
 		const q = this.quantities();
-		this.selected.forEach(function (type, id) {
-			const seat = self.byId.get(id);
-			const li = h('li', {}, self.selectionList, seat.label + ' ');
-			const select = h('select', { 'aria-label': (self.t.ticketType || '') + ': ' + seat.label }, li);
-			self.eligibleTypes(seat).forEach(function (typeId) {
-				const option = h('option', { value: typeId }, select, q[typeId] ? q[typeId].name : '#' + typeId);
-				if (String(typeId) === String(type)) option.selected = true;
+		const entries = [];
+		this.selected.forEach(function (type, id) { entries.push([id, String(type)]); });
+		const signature = JSON.stringify([entries, Object.keys(q).map(function (k) { return [k, q[k].name]; })]);
+		if (signature === this.selectionSignature) return;
+		this.selectionSignature = signature;
+		const items = Array.prototype.slice.call(this.selectionList.querySelectorAll('li[data-seat]'));
+		const active = document.activeElement;
+		let focus = null;
+		if (active && active !== this.selectionList && this.selectionList.contains(active)) {
+			const li = active.closest('li');
+			focus = { seat: li ? li.getAttribute('data-seat') : null, select: active.tagName === 'SELECT', index: items.indexOf(li) };
+		}
+		this.selectionList.textContent = '';
+		if (!this.selected.size) {
+			h('li', {}, this.selectionList, this.t.none || '');
+		} else {
+			this.selected.forEach(function (type, id) {
+				const seat = self.byId.get(id);
+				const li = h('li', { 'data-seat': String(id) }, self.selectionList, seat.label + ' ');
+				const select = h('select', { 'aria-label': (self.t.ticketType || '') + ': ' + seat.label }, li);
+				self.eligibleTypes(seat).forEach(function (typeId) {
+					const option = h('option', { value: typeId }, select, q[typeId] ? q[typeId].name : '#' + typeId);
+					if (String(typeId) === String(type)) option.selected = true;
+				});
+				select.addEventListener('change', function () { self.selected.set(id, select.value); self.renderSelection(); });
+				const remove = h('button', { type: 'button', className: 'wpcap-seating-remove' }, li, self.t.remove || 'x');
+				remove.addEventListener('click', function () { self.toggle(id); });
 			});
-			select.addEventListener('change', function () { self.selected.set(id, select.value); });
-			const remove = h('button', { type: 'button', className: 'wpcap-seating-remove' }, li, self.t.remove || 'x');
-			remove.addEventListener('click', function () { self.toggle(id); });
-		});
+		}
+		if (!focus) return;
+		const now = Array.prototype.slice.call(this.selectionList.querySelectorAll('li[data-seat]'));
+		let li = now.filter(function (item) { return item.getAttribute('data-seat') === focus.seat; })[0] || null;
+		let select = focus.select;
+		if (!li && now.length) { li = now[Math.min(Math.max(focus.index, 0), now.length - 1)]; select = false; }
+		const target = li ? li.querySelector(select ? 'select' : '.wpcap-seating-remove') : this.selectionHeading;
+		if (target) target.focus();
 	};
 
 	Picker.prototype.payload = function (detail) {
+		if (this.closed) { detail.error = this.closed; return; }
 		if (!this.data) return;
 		const q = this.quantities();
 		const types = this.data.types || {};

@@ -14,15 +14,15 @@ Standalone event, ticket and admission management for WordPress, with optional W
 
 Pass Captain manages events, dates, ticket types, orders, tickets and admission directly in WordPress. WooCommerce is optional and not required for any core feature. Every feature in this plugin is free: there is no licence key, no trial period and no locked functionality.
 
-* Events as single dates or recurring series, displayed with the shortcode `[wp_pass_captain_events]` or a block; calendar via `[wp_pass_captain_calendar]`, block and iCal feed.
+* Events as single dates or recurring series, displayed with the shortcode `[wpcap_events]` or a block; calendar via `[wpcap_calendar]`, block and iCal feed (the older names `[wp_pass_captain_events]` and `[wp_pass_captain_calendar]` keep working).
 * Orders with a time-limited reservation and idempotent checkout; free orders issue tickets immediately.
 * Payments by bank transfer/manual confirmation, Stripe, PayPal, Mollie or the WooCommerce adapter.
 * Tickets with QR code, PDF and Apple/Google Wallet passes; order portal for buyers (attendee assignment, one-time transfer, resend).
-* Admission: web scanner via `[wp_pass_captain_scanner]`, a mobile scanner API with device pairing and an installable offline scanner with signed packages; admission rules, check-out and re-entry, staff per event or per date.
+* Admission: web scanner via `[wpcap_scanner]` (or `[wp_pass_captain_scanner]`), a mobile scanner API with device pairing and an installable offline scanner with signed packages; admission rules, check-out and re-entry, staff per event or per date.
 * Sales rules: automatic price rules (early bird, last minute, demand, weekday/time window), campaign codes with stacking rules, per-buyer ticket limits enforced across orders.
 * Versioned tax profiles per country and tax class, frozen on each order line for invoices and refunds (rates must be reviewed by the site owner; none are shipped).
 * Waiting lists with automatic offers and reservation when capacity frees up.
-* Service bookings for courses, rentals and similar resources: time slots, booking rules (cut-off, lead time, per-customer limits, rebooking and cancellation deadlines), provider confirmation, no-show handling, slot waiting lists and service passes.
+* Service bookings for courses, rentals and similar resources: time slots, booking rules (cut-off, lead time, per-customer limits, rebooking and cancellation deadlines), provider confirmation, no-show handling, slot waiting lists and service passes; a public booking page via `[wpcap_service_booking]` or a block, free or paid.
 * Seating plans, box office, memberships, invoices and credit notes, merchant and agent sales models per organizer, vouchers from WP Voucher Captain, refunds with approval, reports and CSV exports.
 * WooCommerce (optional): HPOS and legacy order storage, classic and block checkout, capacity reserved at checkout, tickets after payment, revocation on cancellation and refunds; carts with tickets from several sellers can be rejected or split into one order per seller.
 * Email templates per language, reminders by email and SMS, signed webhooks, partner API and read-only developer keys.
@@ -41,11 +41,11 @@ Data is only removed when the plugin is deleted if "Remove all data when deletin
 Pass Captain does not contact any external service on its own. The services below are only used after a site administrator has enabled and configured them (credentials or endpoint entered in the settings). No data is sent to the plugin author.
 
 = Stripe (payments) =
-Used when "Stripe" is enabled as a payment method. When a buyer chooses Stripe at checkout, the plugin creates a Stripe Checkout session: order reference, amount, currency, a line item summary (event and ticket names, quantities), the buyer's email address and the return/cancel URLs of your site are sent to api.stripe.com. Payment status is read back and refunds are requested through the same API when an administrator issues a refund. Stripe sends signed webhooks to your site.
+Used when "Stripe" is enabled as a payment method. When a buyer chooses Stripe at checkout, the plugin creates a Stripe Checkout session: order reference, amount, currency, a line item summary (event and ticket names, quantities), the buyer's email address and the return/cancel URLs of your site are sent to api.stripe.com. Payment status is read back and refunds are requested through the same API when an administrator issues a refund. Stripe sends signed webhooks to your site; incoming webhooks are reconciled by reading the payment or refund back from Stripe. The "Verbindung testen" (test connection) button only reads the account ID and the webhook endpoints.
 Terms: https://stripe.com/legal/ssa — Privacy policy: https://stripe.com/privacy
 
 = PayPal (payments) =
-Used when "PayPal" is enabled as a payment method. At checkout the plugin obtains an OAuth token and creates a PayPal order: order reference, amount, currency, a line item summary and the return URLs are sent to api-m.paypal.com (api-m.sandbox.paypal.com in sandbox mode). Payment status is read back and refunds are requested through the same API. PayPal sends webhooks to your site.
+Used when "PayPal" is enabled as a payment method. At checkout the plugin obtains an OAuth token and creates a PayPal order: order reference, amount, currency, a line item summary and the return URLs are sent to api-m.paypal.com (api-m.sandbox.paypal.com in sandbox mode). Payment status is read back and refunds are requested through the same API. PayPal sends webhooks to your site; each one is checked with PayPal's verify-webhook-signature API. The "Verbindung testen" (test connection) button signs in and reads the configured webhook.
 Terms: https://www.paypal.com/legalhub/paypal/useragreement-full — Privacy policy: https://www.paypal.com/legalhub/paypal/privacy-full
 
 = Mollie (payments) =
@@ -84,9 +84,10 @@ efsta (efsta IT Services GmbH): Privacy policy: https://en.efsta.eu/datenschutz 
 fiskaltrust (fiskaltrust consulting gmbh): Terms: https://fiskaltrust.eu/en-eu/terms-and-conditions/ — Privacy policy: https://fiskaltrust.eu/en-eu/privacy-policy/
 
 = Third-party libraries =
-Bundled unmodified: bacon/bacon-qr-code and dasprid/enum (BSD-2-Clause, in vendor/, see composer.json), jsQR (Apache-2.0, assets/vendor/jsqr/, source: https://github.com/cozmo/jsQR) and tweetnacl-js 1.0.3 (Unlicense, assets/vendor/tweetnacl/, origin in SOURCE.txt; source: https://github.com/dchest/tweetnacl-js).
+Bundled unmodified: bacon/bacon-qr-code and dasprid/enum (BSD-2-Clause, in vendor/, see composer.json), jsQR (Apache-2.0, assets/vendor/jsqr/jsQR.js, unminified, source: https://github.com/cozmo/jsQR) and tweetnacl-js 1.0.3 (Unlicense, assets/vendor/tweetnacl/: the offline scanner loads nacl-fast.min.js, the readable nacl-fast.js of the same version ships next to it; version, origin and checksums in assets/vendor/tweetnacl/SOURCE.txt; source: https://github.com/dchest/tweetnacl-js).
+Fonts: DejaVu Sans and DejaVu Sans Bold 2.37 (Bitstream Vera licence, DejaVu changes public domain, https://dejavu-fonts.github.io/), unmodified in assets/fonts/ with the licence text in assets/fonts/LICENSE-DejaVu.txt; PDFs (tickets, invoices, print layouts) embed only the glyphs they use.
 
-The optional integrations with WooCommerce, WP Voucher Captain and WP Affiliate Captain run inside your WordPress installation through those plugins' PHP APIs and do not contact external services.
+The optional integrations with WooCommerce, WP Voucher Captain and WP Affiliate Captain run inside your WordPress installation through those plugins' PHP APIs and do not contact external services. All scripts, fonts and libraries (including those of the scanner and the offline scanner) ship with the plugin and are never loaded from a CDN.
 
 == Installation ==
 
@@ -118,7 +119,11 @@ Queues (emails, SMS, jobs, webhooks) are processed via WP-Cron with a time budge
 
 = The plugin used to be called "WP Pass Captain". What changed? =
 
-Only the name, the main file (`pass-captain.php`), the folder and the text domain (`pass-captain`). If the old copy `wp-pass-captain/wp-pass-captain.php` is still active, the new copy takes over its activation; data, settings, shortcodes, blocks, hooks and the REST namespace `wp-pass-captain/v1` stay the same. Afterwards the old copy can be deleted without losing data.
+Only the name, the main file (`pass-captain.php`), the folder and the text domain (`pass-captain`). If the old copy `wp-pass-captain/wp-pass-captain.php` is still active, the new copy takes over its activation; data, settings, shortcodes, blocks, hooks and the REST namespace `wp-pass-captain/v1` stay the same. Afterwards the old copy can be deleted without losing data. Old webhook and API addresses keep working. Details: docs/RENAME.md in the source repository.
+
+= Does the plugin work with page caches and CDNs? =
+
+Yes. The ticket page, order portal, waiting list and invoice links, payment return and web scanner are never cached (DONOTCACHEPAGE and no-cache headers). Pages with an event list or calendar are purged automatically when events, dates, ticket types, prices, sales windows or legal texts change, on "sold out"/"available again" and at the start and end of sales: WP Rocket, LiteSpeed Cache, W3 Total Cache, WP Super Cache, Cloudflare (official plugin, including APO) and optionally Varnish. Exclusion rules per product and the WAF/bot protection exceptions needed for payment webhooks and Apple Wallet are described in docs/OPERATIONS.md, section "Seitencache und CDN".
 
 == Changelog ==
 
@@ -144,7 +149,7 @@ The full change log is in CHANGELOG.md in the source repository.
 == Upgrade Notice ==
 
 = 1.5.0 =
-Large update: database schema 3.17.7 is installed automatically, credentials are stored encrypted. Please read "Wichtige Verhaltensänderungen beim Update" in CHANGELOG.md and back up the database first.
+Large update: database schema 3.18.0 is installed automatically, credentials are stored encrypted. New name "Pass Captain" (formerly "WP Pass Captain"): on activation the old copy is switched off; data, webhooks and API addresses are kept. The new default admission window stays off for existing installations. Please read "Wichtige Verhaltensänderungen beim Update" in CHANGELOG.md and back up the database first.
 
 = 1.4.0 =
 Adds sales models, company invoices and voucher tax treatment. Database schema 3.5.0 is installed automatically.

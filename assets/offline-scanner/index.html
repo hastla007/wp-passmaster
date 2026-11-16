@@ -46,9 +46,24 @@
 			</div>
 		</div>
 
+		<div id="counter" class="counter" hidden></div>
+
 		<div id="result" class="result idle" role="status" aria-live="assertive">
-			<div id="result-title">Bereit</div>
+			<div id="result-title" data-i18n="Bereit">Bereit</div>
 			<div id="result-detail" class="small"></div>
+		</div>
+
+		<div id="undo" class="card undo" hidden>
+			<button type="button" id="undo-start" class="undo-start" data-i18n="Rückgängig">Rückgängig</button>
+			<div id="undo-form" hidden>
+				<label><span data-i18n="Grund der Rücknahme">Grund der Rücknahme</span><select id="undo-reason"></select></label>
+				<input id="undo-other" maxlength="255" hidden placeholder="Anderer Grund …" data-i18n-placeholder="Anderer Grund …">
+				<div class="row">
+					<button type="button" id="undo-confirm" class="primary" data-i18n="Einlass zurücknehmen">Einlass zurücknehmen</button>
+					<button type="button" id="undo-cancel" data-i18n="Abbrechen">Abbrechen</button>
+				</div>
+				<div id="undo-note" class="small" role="alert"></div>
+			</div>
 		</div>
 
 		<div class="card">
@@ -59,9 +74,17 @@
 			</div>
 			<video id="video" playsinline muted hidden></video>
 			<form id="manual" autocomplete="off">
-				<label><span data-i18n="Ticketcode manuell">Ticketcode manuell</span><input id="manual-code" spellcheck="false" inputmode="text" placeholder="64-stelliger Code oder Ticket-Link" data-i18n-placeholder="64-stelliger Code oder Ticket-Link"></label>
+				<label><span data-i18n="Ticketcode manuell">Ticketcode manuell</span><input id="manual-code" spellcheck="false" inputmode="text" autocapitalize="characters" placeholder="Ticket-Code, Ticket-Link oder Hilfscode (z. B. K7QM-4XWA)" data-i18n-placeholder="Ticket-Code, Ticket-Link oder Hilfscode (z. B. K7QM-4XWA)"></label>
 				<button type="submit" data-i18n="Prüfen">Prüfen</button>
 			</form>
+		</div>
+
+		<div class="card">
+			<form id="search" autocomplete="off" role="search">
+				<label><span data-i18n="Ticket suchen">Ticket suchen</span><input id="search-q" type="search" spellcheck="false" maxlength="190" placeholder="Name, E-Mail oder Bestellnummer" data-i18n-placeholder="Name, E-Mail oder Bestellnummer"></label>
+				<button type="submit" data-i18n="Suchen">Suchen</button>
+			</form>
+			<ul id="search-results" class="list" aria-live="polite"></ul>
 		</div>
 
 		<div class="card">
@@ -78,7 +101,16 @@
 	</section>
 </main>
 
+<div id="overlay" class="overlay" aria-hidden="true" hidden>
+	<div id="overlay-icon" class="overlay-icon"></div>
+	<div id="overlay-title" class="overlay-title"></div>
+	<div id="overlay-detail" class="overlay-detail"></div>
+	<div id="overlay-meta" class="overlay-meta"></div>
+	<div class="overlay-close" data-i18n="Antippen zum Schließen">Antippen zum Schließen</div>
+</div>
+
 <script src="../vendor/tweetnacl/nacl-fast.min.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
