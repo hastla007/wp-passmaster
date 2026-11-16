@@ -25,7 +25,7 @@
  *   ContactResolver with its own capability (A668), audited.
  * - Idempotency: event ids are stable (type + participation + cycle), the provider guarantees "at most
  *   one request per experience and recipient" with experience_id + recipient_ref.
- * - The core contains no licence or entitlement check; without a provider nothing changes in the core.
+ * - The core contains no licence or paid-feature check; without a provider nothing changes in the core.
  *
  * @package PassCaptain
  */

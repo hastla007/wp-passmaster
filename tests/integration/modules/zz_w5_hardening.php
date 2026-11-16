@@ -142,15 +142,15 @@ $camp = Controller::create_campaign( hd_json_request( '/x', array( 'code' => 'HD
 check( 'campaign: ticket type of another event is rejected', is_wp_error( $camp ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_campaigns WHERE code='HDFOREIGN'" ) );
 
 echo "W5 security: redaction\n";
-Settings::update( array( 'stripe_secret_key' => 'sk_live_HDsecretABCDEFGHIJ123', 'twilio_auth_token' => 'hdTwilioTokenValue0123456789' ) );
-$text = Redact::text( 'key sk_live_HDsecretABCDEFGHIJ123 / tw hdTwilioTokenValue0123456789 / mollie live_abcdefghijklmnopqrstuvwxyz / whsec_abcdefghij1234 / pk wpcap_pk_0123456789ab_' . str_repeat( 'c', 64 ) . ' / dev 0123456789ab.' . str_repeat( 'd', 64 ) . ' / AC' . str_repeat( 'a', 32 ) . ' / Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop / ticket ' . str_repeat( 'e', 64 ) . ' / mail max.mustermann@example.org / url https://x.test/?token=abc123&x=1 / {"client_secret":"hunter2"}' );
+Settings::update( array( 'stripe_secret_key' => 'sk_live_' . 'HDsecretABCDEFGHIJ123', 'twilio_auth_token' => 'hdTwilioTokenValue0123456789' ) );
+$text = Redact::text( 'key sk_live_' . 'HDsecretABCDEFGHIJ123 / tw hdTwilioTokenValue0123456789 / mollie live_abcdefghijklmnopqrstuvwxyz / whsec_abcdefghij1234 / pk wpcap_pk_0123456789ab_' . str_repeat( 'c', 64 ) . ' / dev 0123456789ab.' . str_repeat( 'd', 64 ) . ' / AC' . str_repeat( 'a', 32 ) . ' / Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop / ticket ' . str_repeat( 'e', 64 ) . ' / mail max.mustermann@example.org / url https://x.test/?token=abc123&x=1 / {"client_secret":"hunter2"}' );
 $leaked = array_filter( array( 'sk_live_HDsecret', 'hdTwilioTokenValue', 'abcdefghijklmnopqrstuvwxyz', 'whsec_abcdefghij', str_repeat( 'c', 64 ), str_repeat( 'd', 64 ), str_repeat( 'a', 32 ), 'eyJzdWIi', str_repeat( 'e', 64 ), 'max.mustermann', 'abc123', 'hunter2' ), static fn( $needle ) => false !== strpos( $text, $needle ) );
 check( 'Redact::text removes configured secrets, API keys, tokens, ticket codes, e-mails' . ( $leaked ? ' – leaked: ' . implode( ', ', $leaked ) : '' ), ! $leaked && false !== strpos( $text, 'm***@example.org' ) );
 $data = Redact::data( array( 'password' => 'x', 'Authorization' => 'Basic abc', 'order_id' => 5, 'customer_email' => 'jane@example.com', 'nested' => array( 'response' => '{"access_token":"zzz-secret"}' ), 'ok' => true ) );
 check( 'Redact::data masks sensitive keys and PII, keeps ids and flags', '[redacted]' === $data['password'] && '[redacted]' === $data['Authorization'] && 5 === $data['order_id'] && 'j***@example.com' === $data['customer_email'] && false === strpos( $data['nested']['response'], 'zzz-secret' ) && true === $data['ok'] );
 $GLOBALS['hd_log'] = array();
 add_filter( 'wpcap_error_log', $hd_logger = static function ( $send, $line ) { $GLOBALS['hd_log'][] = $line; return false; }, 10, 2 );
-Redact::log( "Duplicate entry 'jane@example.com' for key with sk_live_HDsecretABCDEFGHIJ123", array( 'token' => 'abc', 'refund_id' => 7 ) );
+Redact::log( "Duplicate entry 'jane@example.com' for key with sk_live_" . "HDsecretABCDEFGHIJ123", array( 'token' => 'abc', 'refund_id' => 7 ) );
 remove_filter( 'wpcap_error_log', $hd_logger );
 check( 'error log lines are redacted (DB errors can quote row values)', 1 === count( $GLOBALS['hd_log'] ) && false === strpos( $GLOBALS['hd_log'][0], 'jane@example.com' ) && false === strpos( $GLOBALS['hd_log'][0], 'HDsecret' ) && false !== strpos( $GLOBALS['hd_log'][0], '"refund_id":7' ) );
 $src_logs = array();

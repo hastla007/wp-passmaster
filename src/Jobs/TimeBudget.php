@@ -155,7 +155,7 @@ final class TimeBudget {
 				$reason = 'PHP fatal error: ' . (string) $last['message'];
 			}
 		}
-		$reason = substr( \PassCaptain\Security\Redact::text( '' !== $reason ? $reason : 'Worker stopped while processing (fatal error or time limit).' ), 0, 190 );
+		$reason = \PassCaptain\Text::cut( \PassCaptain\Security\Redact::text( '' !== $reason ? $reason : 'Worker stopped while processing (fatal error or time limit).' ), 190 );
 		$now = current_time( 'mysql', true );
 		foreach ( self::$claims as $key => $claim ) {
 			list( $table, $column, $id, $claimed, $release, $final, $max, $retry ) = $claim;

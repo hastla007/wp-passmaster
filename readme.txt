@@ -57,7 +57,7 @@ Terms: https://www.mollie.com/user-agreement — Privacy policy: https://www.mol
 Used when SMS is enabled with Twilio as provider and the buyer has explicitly consented to SMS. For each message (for example a reminder) the recipient's mobile number, the message text and a status callback URL of your site are sent to api.twilio.com. With number verification switched on (default), the mobile number and a one-time confirmation code are sent when the buyer requests the code in the checkout.
 Terms: https://www.twilio.com/en-us/legal/tos — Privacy policy: https://www.twilio.com/en-us/legal/privacy
 
-= Generic HTTP SMS provider =
+= Generic HTTP SMS provider (SMS-HTTP) =
 Used when SMS is enabled with the "HTTP" provider. The recipient's mobile number, the message text (also the one-time confirmation code of the number verification) and an internal reference are sent to the endpoint URL entered by the administrator. Which service receives the data, and its terms and privacy policy, depend on the provider the administrator configures.
 
 = Apple Push Notification service (Apple Wallet) =

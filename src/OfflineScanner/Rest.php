@@ -74,7 +74,7 @@ final class Rest {
 	 * preferred languages (comma separated BCP 47 tags); the first supported one is served.
 	 */
 	public static function i18n( \WP_REST_Request $request ) {
-		$requested = substr( (string) preg_replace( '/[^A-Za-z0-9_,;=.\- ]/', '', (string) $request->get_param( 'locale' ) ), 0, 200 );
+		$requested = \PassCaptain\Text::cut( (string) preg_replace( '/[^A-Za-z0-9_,;=.\- ]/', '', (string) $request->get_param( 'locale' ) ), 200 );
 		$response = rest_ensure_response( I18n::table( $requested ) );
 		if ( method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-cache' ); }
 		return $response;

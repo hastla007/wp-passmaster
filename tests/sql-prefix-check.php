@@ -32,7 +32,7 @@ const WPCAP_SQL_ALLOW = array();
 const WPCAP_SQL_DYNAMIC = "\x01";
 
 /** WooCommerce order tables (without prefix) and post types the plugin must not query directly. */
-const WPCAP_WC_TABLE_RE = '/\b(?:wc_orders(?:_meta)?|wc_order_[a-z_]+|woocommerce_order_items|woocommerce_order_itemmeta)\b/';
+const WPCAP_WC_TABLE_RE = '/\b(?:wc_orders(?:_meta)?|wc_order_(?!id\b)[a-z_]+|woocommerce_order_items|woocommerce_order_itemmeta)\b/';
 const WPCAP_WC_POSTTYPE_RE = '/\bshop_order(?:_refund|_placehold)?\b/';
 
 /**

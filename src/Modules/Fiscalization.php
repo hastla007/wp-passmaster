@@ -621,7 +621,7 @@ final class Fiscalization {
 
 	/** Persist only normalized, printable receipt fields from an adapter response. */
 	private static function normalize_provider_result( array $result ) {
-		$reference = is_scalar( $result['reference'] ?? null ) ? substr( sanitize_text_field( (string) $result['reference'] ), 0, 191 ) : '';
+		$reference = is_scalar( $result['reference'] ?? null ) ? \PassCaptain\Text::cut( sanitize_text_field( (string) $result['reference'] ), 191 ) : '';
 		$normalized = array( 'reference' => $reference );
 		$receipt = is_array( $result['receipt'] ?? null ) ? $result['receipt'] : array();
 		$out = array();
@@ -631,9 +631,9 @@ final class Fiscalization {
 		$fields = is_array( $receipt['fields'] ?? null ) ? array_slice( $receipt['fields'], 0, 32, true ) : array();
 		foreach ( $fields as $label => $value ) {
 			if ( ! is_scalar( $value ) ) { continue; }
-			$label = substr( sanitize_text_field( (string) $label ), 0, 64 );
+			$label = \PassCaptain\Text::cut( sanitize_text_field( (string) $label ), 64 );
 			if ( '' === $label ) { continue; }
-			$out['fields'][ $label ] = substr( sanitize_text_field( (string) $value ), 0, 512 );
+			$out['fields'][ $label ] = \PassCaptain\Text::cut( sanitize_text_field( (string) $value ), 512 );
 		}
 		if ( $out ) { $normalized['receipt'] = $out; }
 		return $normalized;

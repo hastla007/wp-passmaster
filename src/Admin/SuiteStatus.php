@@ -6,7 +6,7 @@
  * plus per contract the last accepted event, pending and failed events, the last error, the workflow
  * commands and mail handoffs, and what happens without a provider (native fallback).
  *
- * Read-only diagnosis: the core contains no licence or entitlement check; a provider decides itself
+ * Read-only diagnosis: the core contains no licence or paid-feature check; a provider decides itself
  * whether a feature of it is paid. The handed-off mail types (A677) are chosen here
  * (capability manage_options, audited in MailHandoff::save()).
  *

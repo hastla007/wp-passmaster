@@ -34,7 +34,7 @@ $check( 'README.md doc links resolve' . ( $broken ? ' – ' . implode( ', ', $br
 // A269: readme.txt documents every external service; every remote host in src/ is named there.
 $services = (string) ( preg_match( '/^== External services ==\n(.*?)^== (?!External)/ms', $readme, $m ) ? $m[1] : '' );
 $check( 'readme.txt has an "== External services ==" section', '' !== $services );
-$local_hosts = array( 'developer.wordpress.org', 'example.com', 'github.com', 'www.googleapis.com' ); // Doc links, samples, OAuth scope identifier.
+$local_hosts = array( 'developer.wordpress.org', 'example.com', 'github.com', 'www.googleapis.com', 'schema.org' ); // Doc links, samples, OAuth scope identifier, JSON-LD context (never contacted).
 // A666: only code that ships in the ZIP (.distignore) counts – excluded code is not advertised either.
 require __DIR__ . '/shipped-files.php';
 $shipped = wpcap_shipped_files( $root );
@@ -56,7 +56,7 @@ foreach ( array( 'fiskaltrust', 'efsta' ) as $service ) {
 	$check( "readme.txt names $service only while its adapter ships (" . ( $fiscal_shipped ? 'shipped' : 'not shipped' ) . ')', $fiscal_shipped === ( false !== stripos( $readme, $service ) ) );
 }
 $check( 'fiscalization adapters are only shipped together with their interface', ! $fiscal_shipped || in_array( 'src/Fiscalization/AdapterInterface.php', $shipped, true ) );
-$check( 'every External services entry links terms/privacy or names the operator-chosen recipient', ! array_filter( preg_split( '/^= /m', $services ), static fn( $part ) => '' !== trim( $part ) && 0 !== strpos( $part, 'Pass Captain' ) && 0 !== strpos( $part, 'Keine externen' ) && false === strpos( $part, 'https://' ) && false === strpos( $part, 'Betreiber' ) ) );
+$check( 'every External services entry links terms/privacy or names the operator-chosen recipient', ! array_filter( preg_split( '/^= /m', $services ), static fn( $part ) => '' !== trim( $part ) && 0 !== strpos( ltrim( $part ), 'Pass Captain' ) && 0 !== strpos( ltrim( $part ), 'Keine externen' ) && false === strpos( $part, 'https://' ) && false === strpos( $part, 'Betreiber' ) && false === stripos( $part, 'chosen by the administrator' ) && false === stripos( $part, 'the administrator configures' ) ) );
 // A662: docs/FREE-PREMIUM.md lists every module of the module registry (src/Modules/*.php, see
 // Modules::classes()) as "Kern, dauerhaft frei" and names every directory and class file under src/.
 $free = (string) @file_get_contents( $root . '/docs/FREE-PREMIUM.md' );

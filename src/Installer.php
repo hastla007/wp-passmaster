@@ -1697,7 +1697,7 @@ final class Installer {
 		printf(
 			'<div class="notice notice-error"><p>%1$s</p><p><code>%2$s</code></p></div>',
 			esc_html__( 'Pass Captain: Die Datenbank-Aktualisierung ist fehlgeschlagen. Sie wird automatisch in zunehmenden Abständen wiederholt und kann unter „Pass Captain → Systemstatus“ sofort erneut gestartet werden. Bitte das PHP-Fehlerprotokoll prüfen, falls die Meldung bleibt.', 'pass-captain' ),
-			esc_html( substr( $detail, 0, 500 ) )
+			esc_html( \PassCaptain\Text::cut( $detail, 500 ) )
 		);
 	}
 

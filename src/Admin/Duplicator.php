@@ -106,7 +106,7 @@ final class Duplicator {
 		unset( $event['event_id'] );
 		/* translators: %s: event name */
 		$event['name'] = mb_substr( sprintf( __( '%s (Kopie)', 'pass-captain' ), $event['name'] ), 0, 190 );
-		$event['slug'] = substr( sanitize_title( $event['name'] ), 0, 180 ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
+		$event['slug'] = \PassCaptain\Text::cut( sanitize_title( $event['name'] ), 180 ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
 		$event['status'] = 'draft';
 		$event['created_at'] = $now;
 		$event['updated_at'] = $now;

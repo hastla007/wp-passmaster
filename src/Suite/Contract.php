@@ -8,7 +8,7 @@
  * CAPABILITY, DEPRECATION_MINOR_RELEASES, DEPRECATION_MONTHS, DEPRECATED, ERRORS, OBJECTS, EVENTS
  * (type => [schema version, subject object, extra fields]) and FORBIDDEN (keys never sent).
  *
- * The core never checks licences or entitlements: whether a provider feature is paid is the provider's
+ * The core never checks licences or paid-feature rights: whether a provider feature is paid is the provider's
  * own business. Without a (compatible) provider every core flow runs natively.
  *
  * @package PassCaptain

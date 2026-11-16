@@ -559,8 +559,8 @@ final class Refunds {
 		$order_id = absint( $order_id );
 		$refs = array();
 		foreach ( array_filter( array_map( 'strval', $references ) ) as $ref ) {
-			$refs[] = substr( $ref, 0, 191 );
-			if ( '' !== (string) $provider ) { $refs[] = substr( 'ext:' . sanitize_key( (string) $provider ) . ':' . $ref, 0, 191 ); }
+			$refs[] = \PassCaptain\Text::cut( $ref, 191 );
+			if ( '' !== (string) $provider ) { $refs[] = \PassCaptain\Text::cut( 'ext:' . sanitize_key( (string) $provider ) . ':' . $ref, 191 ); }
 		}
 		$refs = array_values( array_unique( $refs ) );
 		if ( ! $order_id || ! $refs ) { return array(); }
@@ -670,7 +670,7 @@ final class Refunds {
 		Log::error(
 			'order_refund_state_pending',
 			sprintf( 'order %d could not be marked refunded (%s): %s; retry queued', $order_id, (string) $reason, (string) $error ),
-			array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'reason' => sanitize_text_field( (string) $reason ), 'error' => substr( (string) $error, 0, 190 ) ) )
+			array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'reason' => sanitize_text_field( (string) $reason ), 'error' => \PassCaptain\Text::cut( (string) $error, 190 ) ) )
 		);
 		Jobs::enqueue( 'order-mark-refunded-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ORDER_STATE_JOB, array( 'order_id' => $order_id, 'reason' => sanitize_text_field( (string) $reason ) ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
 	}
@@ -737,7 +737,7 @@ final class Refunds {
 				'audit'       => (bool) $order_id,
 				'object_type' => 'order',
 				'object_id'   => absint( $order_id ),
-				'details'     => array_merge( array( 'refund_id' => absint( $refund_id ), 'step' => $step, 'error' => substr( $db_error, 0, 190 ) ), $extra ),
+				'details'     => array_merge( array( 'refund_id' => absint( $refund_id ), 'step' => $step, 'error' => \PassCaptain\Text::cut( $db_error, 190 ) ), $extra ),
 			)
 		);
 	}
