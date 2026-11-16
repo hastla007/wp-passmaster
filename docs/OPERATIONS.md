@@ -1169,6 +1169,13 @@ A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter 
   Tickets, die widerrufen, aber nicht erstattet wurden, behalten ihren Anteil; die Bestellung gilt als erstattet,
   sobald kein gültiges, eingechecktes oder noch erstattbares Ticket übrig ist (widerrufene und umgetauschte
   Tickets halten sie nicht offen).
+- **Stornierungsanfrage und Personenwechsel** (A496): Auch der Personenwechsel über die Teilnehmerzuweisung im
+  Bestellportal (neuer Code) wird bei offener Erstattung abgelehnt (`wpcap_ticket_refund_open`); Namen und Angaben
+  derselben Person bleiben korrigierbar. Eine Stornierungsanfrage aus dem Bestellportal (`source = portal`) für ein
+  inzwischen übertragenes Ticket wird unter der Bestellsperre abgelehnt (`wpcap_refund_ticket_transferred`), und
+  ihre Ausführung scheitert ohne Auszahlung, falls ein Ticket doch übertragen wurde (`wpcap_refund_conflict`) – die
+  neue Inhaberin behält das Ticket, die Käuferin bekommt kein Geld dafür. Eine vom Personal angelegte Erstattung
+  eines übertragenen Tickets bleibt möglich (bewusste Entscheidung, z. B. Kulanz).
 - **Verfügbarkeitsanzeige**: `Orders::availability()` ist pro Request gemerkt (jeder Schreibzugriff auf eine
   Plugin-Tabelle verwirft das) und liegt 10 s im Objekt-Cache (Filter `wpcap_availability_cache_ttl`, 0–60,
   0 = aus); Requests, die selbst geschrieben haben, lesen den Objekt-Cache nicht. Kaufentscheidungen nutzen nie

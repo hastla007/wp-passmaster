@@ -75,6 +75,17 @@ final class Refunds {
 		// so its empty result proves nothing (A183).
 		if ( false === Orders::transaction_alive() ) { return self::busy(); }
 		if ( is_wp_error( $calc ) ) { $wpdb->query( 'ROLLBACK' ); return $calc; }
+		// A496: a buyer (order portal) cannot cancel a ticket that belongs to someone else now. The portal
+		// checks this before, but a transfer may have committed in between; transfers lock the order row
+		// as well, so this read under the lock is final. Staff may still refund a transferred ticket.
+		if ( 'portal' === sanitize_key( (string) ( $args['source'] ?? '' ) ) ) {
+			$transferred = self::transferred_ticket_ids( $order_id, $calc['ticket_ids'] );
+			if ( null === $transferred ) { return self::busy(); }
+			if ( $transferred ) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \WP_Error( 'wpcap_refund_ticket_transferred', PortalSelfService::refund_block_message( 'transferred' ), array( 'status' => 409, 'ticket_ids' => $transferred ) );
+			}
+		}
 
 		// A131: tickets already used for admission are only refunded with an explicit exception (reason,
 		// approver capability) or by a system flow (cancelled date/event); the refund then always needs
@@ -1122,6 +1133,15 @@ final class Refunds {
 			if ( array_diff( $ticket_ids, array_map( static function ( $t ) { return (int) $t->ticket_id; }, $refundable ) ) ) {
 				return __( 'Mindestens eines der Tickets wurde inzwischen umgetauscht oder widerrufen; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );
 			}
+			// A496: a buyer's cancellation request never pays out a ticket that was transferred to another
+			// person since (request() and transfers exclude each other; this also covers older data).
+			if ( 'portal' === (string) ( $refund['source'] ?? '' ) ) {
+				$transferred = self::transferred_ticket_ids( (int) $refund['order_id'], $ticket_ids );
+				if ( null === $transferred ) { return self::CONFLICT_UNKNOWN; }
+				if ( $transferred ) {
+					return __( 'Mindestens eines der Tickets wurde inzwischen an eine andere Person übertragen; die Stornierungsanfrage der Käuferin bzw. des Käufers wurde nicht ausgeführt.', 'pass-captain' );
+				}
+			}
 		} else {
 			$running = self::open_refunds( (int) $refund['order_id'], array( 'processing' ), (int) $refund['refund_id'] );
 		}
@@ -1153,6 +1173,23 @@ final class Refunds {
 		$open = self::open_refunds( absint( $order_id ) );
 		if ( '' !== $wpdb->last_error ) { return null; }
 		return in_array( absint( $ticket_id ), $open['ticket_ids'], true );
+	}
+
+	/**
+	 * Tickets of the list (of this order) that were transferred to another person (A496); null when
+	 * the read failed.
+	 *
+	 * @param int   $order_id   Order id.
+	 * @param int[] $ticket_ids Ticket ids.
+	 * @return int[]|null
+	 */
+	private static function transferred_ticket_ids( $order_id, array $ticket_ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+		if ( ! $ids ) { return array(); }
+		$rows = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND transfer_count>0 AND ticket_id IN (" . implode( ',', $ids ) . ')', absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		if ( '' !== $wpdb->last_error ) { return null; }
+		return array_map( 'intval', (array) $rows );
 	}
 
 	/** Idempotency hash of a ticket refund request. */

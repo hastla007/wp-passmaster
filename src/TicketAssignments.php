@@ -22,6 +22,9 @@ final class TicketAssignments {
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_assignment_denied', __( 'Bestellzugriff ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		if ( 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_assignment_unpaid', __( 'Teilnehmer können erst nach Zahlung zugewiesen werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'START TRANSACTION' );
+		// Order row first (same lock order as refund requests and transfers): a cancellation request
+		// cannot slip in between the open-refund check below and the holder change (A496).
+		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM $orders WHERE order_id=%d FOR UPDATE", (int) $order->order_id ) );
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,t.attendee_email,t.transfer_count,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE", sanitize_text_field( $ticket_public_id ), $order->order_id ) );
 		$deadline = ! $ticket ? 0 : strtotime( $ticket->starts_at . ' UTC' ) - max( 0, (int) Settings::get( 'attendee_edit_hours' ) ) * HOUR_IN_SECONDS;
 		if ( ! $ticket || 'valid' !== $ticket->status || $deadline <= time() ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_not_allowed', __( 'Dieses Ticket kann nicht mehr zugewiesen werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
@@ -39,6 +42,16 @@ final class TicketAssignments {
 		// Every holder change rotates the code; limit them so assign cannot be used for repeated resale
 		// (the transfer itself is limited to one). Name/answer corrections for the same holder stay free.
 		if ( $rotate ) {
+			// A496: while a refund of the ticket is pending, approved or running, the holder stays – otherwise
+			// the new holder loses the ticket when the refund is paid out to the buyer. Name/answer
+			// corrections for the same holder stay possible.
+			$open_refund = Refunds::ticket_has_open_refund( (int) $order->order_id, (int) $ticket->ticket_id );
+			if ( false !== $open_refund ) {
+				$wpdb->query( 'ROLLBACK' );
+				return null === $open_refund
+					? Errors::busy( __( 'Die Teilnehmerdaten konnten gerade nicht gespeichert werden. Bitte erneut versuchen.', 'pass-captain' ) )
+					: new \WP_Error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Die Person kann bis zur Entscheidung nicht geändert werden; Namen und Angaben lassen sich weiterhin korrigieren.', 'pass-captain' ), array( 'status' => 409 ) );
+			}
 			// A593: a new holder gets a new code – not once admission has begun or the code is on offline scanners.
 			$locked = Admission\CodeRotationLock::reason( (int) $ticket->ticket_id );
 			if ( '' !== $locked ) {
