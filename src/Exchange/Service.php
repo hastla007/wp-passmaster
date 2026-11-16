@@ -857,7 +857,7 @@ final class Service {
 			'seat_note' => static function () use ( $seat ) { return '' !== $seat ? __( 'Sitzplatz:', 'pass-captain' ) . ' ' . $seat . "\n" : ''; },
 			'price_note' => static function () use ( $kind, $amount ) { return Mail\Types::exchange_price_note( $kind, $amount ); },
 			'ticket_link' => Mail\Mailer::link( add_query_arg( 'wpcap_ticket', $done['token'], home_url( '/' ) ) ),
-			'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $new_id ) ),
+			'ticket_extras' => Mail\Blocks::extra( Orders::code_mail_section( $new_id, (string) $order->locale ) ),
 		);
 		return (bool) Mail\Mailer::send( 'ticket_exchanged', $recipient, $vars, array(), (string) $order->locale, (int) $order->order_id );
 	}

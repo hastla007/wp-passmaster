@@ -1853,7 +1853,7 @@ final class Orders {
 			'event_date' => self::format_start( $ticket->starts_at, $ticket->timezone ),
 			'event_location' => (string) $ticket->location,
 			'ticket_link' => Mail\Mailer::link( $ticket_url ),
-			'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) ),
+			'ticket_extras' => Mail\Blocks::extra( self::code_mail_section( (int) $ticket->ticket_id, (string) $order->locale ) ),
 			'recipient_email' => $recipient_email,
 		);
 		// The recipient's language is unknown; the order's locale is the best available guess.
@@ -2159,7 +2159,10 @@ final class Orders {
 					$budget = self::attachment_budget( $order );
 					$used = 0;
 					foreach ( $chunks as $index => $chunk ) {
-						$bytes = TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+						// A474: the PDF speaks the buyer's language, like the mail itself.
+						$bytes = Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $chunk ) {
+							return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+						} );
 						if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
 						$file = $pdf_dir . '/tickets-' . $order->public_id . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf';
 						if ( false === file_put_contents( $file, $bytes ) ) { break; }
@@ -2169,19 +2172,27 @@ final class Orders {
 						$pdf_covered += count( $chunk );
 					}
 					if ( $pdf_covered < count( $pdf_tickets ) ) {
-						$pdf_note = "\n\n" . sprintf(
-							/* translators: 1: number of tickets in the PDF attachments, 2: number of tickets of the order */
-							__( 'Wegen der Größenbegrenzung von E-Mails enthalten die PDF-Anhänge die ersten %1$d von %2$d Tickets. Alle Tickets kannst du über die Links oben öffnen und im Bestellportal (Link aus deiner Bestellbestätigung) als PDF herunterladen.', 'pass-captain' ),
-							$pdf_covered,
-							count( $pdf_tickets )
-						) . "\n";
+						$total = count( $pdf_tickets );
+						$pdf_note = "\n\n" . Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $pdf_covered, $total ) {
+							return sprintf(
+								/* translators: 1: number of tickets in the PDF attachments, 2: number of tickets of the order */
+								__( 'Wegen der Größenbegrenzung von E-Mails enthalten die PDF-Anhänge die ersten %1$d von %2$d Tickets. Alle Tickets kannst du über die Links oben öffnen und im Bestellportal (Link aus deiner Bestellbestätigung) als PDF herunterladen.', 'pass-captain' ),
+								$pdf_covered,
+								$total
+							);
+						} ) . "\n";
 					}
 				}
 			}
 			$mail = array( 'attachments' => $attachments );
 			try {
 				// Legacy filter: receives and may change subject/body/attachments of the rendered template.
-				$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => $message['subject'], 'body' => $message['body'] . $pdf_note, 'attachments' => $attachments ), $order, $issued );
+				// A474: runs in the buyer's locale, so added texts and attachments (wallet, invoice, .ics,
+				// seats) match the language of the mail instead of the request's language.
+				$filtered = array( 'subject' => $message['subject'], 'body' => $message['body'] . $pdf_note, 'attachments' => $attachments );
+				$mail = Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $filtered, $order, $issued ) {
+					return apply_filters( 'wpcap_ticket_mail', $filtered, $order, $issued );
+				} );
 				$mail = is_array( $mail ) ? $mail : array( 'attachments' => $attachments );
 				$delivered = Mail\Mailer::deliver( $order->customer_email, array( 'order_id' => (int) $order->order_id ) + Mail\Mailer::apply_filtered( $message, $mail ) );
 				if ( ! $delivered ) {
@@ -2387,6 +2398,16 @@ final class Orders {
 		);
 	}
 
+	/**
+	 * Extra mail section of a ticket with a new code (filter wpcap_ticket_code_mail_section, e.g. wallet
+	 * links), rendered in the mail's locale (A474).
+	 */
+	public static function code_mail_section( $ticket_id, $locale = '' ) {
+		return (string) Mail\Mailer::with_locale( (string) $locale, static function () use ( $ticket_id ) {
+			return apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket_id );
+		} );
+	}
+
 	/** Tickets per attached ticket PDF (A580). */
 	public static function ticket_pdf_chunk_size() {
 		/**
@@ -2497,7 +2518,7 @@ final class Orders {
 		// Mail sections are built after the rotation hooks (e.g. wallet passes see the new code).
 		foreach ( $entries as $recipient => $list ) {
 			foreach ( $list as $i => $entry ) {
-				$entries[ $recipient ][ $i ]['extra'] = (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $entry['ticket_id'] );
+				$entries[ $recipient ][ $i ]['extra'] = self::code_mail_section( (int) $entry['ticket_id'], (string) $order->locale );
 				unset( $entries[ $recipient ][ $i ]['ticket_id'] );
 			}
 		}
@@ -2577,7 +2598,7 @@ final class Orders {
 		$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
 		$mailed = false;
 		if ( ( $context['notify'] ?? true ) && is_email( $recipient ) ) {
-			$list = array( array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $ticket_id ) ) );
+			$list = array( array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => self::code_mail_section( (int) $ticket_id, (string) $order->locale ) ) );
 			$vars = self::ticket_mail_vars( $order, $list, static function () use ( $list ) { return Mail\Blocks::code_tickets( $list ); } );
 			$mailed = (bool) Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale, (int) $order->order_id );
 		}

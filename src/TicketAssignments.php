@@ -85,7 +85,7 @@ final class TicketAssignments {
 				'attendee_name' => $name,
 				'attendee_email' => $email,
 				'ticket_link' => Mail\Mailer::link( $url ),
-				'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) ),
+				'ticket_extras' => Mail\Blocks::extra( Orders::code_mail_section( (int) $ticket->ticket_id, (string) $order->locale ) ),
 			);
 			Mail\Mailer::send( 'ticket_assigned_attendee', $email, $vars, array(), (string) $order->locale, (int) $order->order_id );
 			if ( 0 !== strcasecmp( (string) $order->customer_email, $email ) ) {

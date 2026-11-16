@@ -67,7 +67,7 @@ final class Service {
 		$p = $wpdb->prefix;
 		$doors = \PassCaptain\DoorsOpen::ready() ? 'o.doors_open_at' : 'NULL';
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.order_id,t.status,t.token_hash,t.ticket_type_id,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,$doors AS doors_open_at,o.timezone,o.location,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status,ta.attendee_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id=%d",
+			"SELECT t.ticket_id,t.public_id,t.order_id,t.status,t.token_hash,t.ticket_type_id,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,$doors AS doors_open_at,o.timezone,o.location,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status,ta.attendee_name,ord.locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d",
 			absint( $ticket_id )
 		), ARRAY_A );
 		if ( ! $row ) { return null; }
@@ -75,6 +75,8 @@ final class Service {
 		$state = Store::state( $ticket_id );
 		$secrets = Store::secrets( $state );
 		$row['attendee_name'] = (string) ( $row['attendee_name'] ?? '' );
+		// A474: passes are (re)built in the buyer's language, whatever the request's locale is.
+		$row['locale'] = \PassCaptain\Mail\Mailer::normalize_locale( (string) ( $row['locale'] ?? '' ) );
 		/**
 		 * Seat/area label printed on wallet passes (and available to other renderers).
 		 *
@@ -122,7 +124,7 @@ final class Service {
 		foreach ( array( 'apple' => $apple, 'google' => $google ) as $key => $provider ) {
 			if ( ! $provider ) { continue; }
 			try {
-				$pass = ! $build && method_exists( $provider, 'pass_ref' ) ? $provider->pass_ref( $ticket ) : $provider->create_pass( $ticket );
+				$pass = ! $build && method_exists( $provider, 'pass_ref' ) ? $provider->pass_ref( $ticket ) : self::in_locale( $ticket, static function () use ( $provider, $ticket ) { return $provider->create_pass( $ticket ); } );
 				Store::save_pass( $ticket_id, $key, (string) $pass['serial_number'], (string) ( $pass['provider_ref'] ?? '' ), $ticket['voided'] ? 'voided' : 'active' );
 				if ( 'apple' === $key ) { $pass['download_url'] = self::download_url( $pass['serial_number'] ); }
 				if ( 'google' === $key && $provider instanceof GoogleProvider ) { $pass['save_url'] = self::google_link( $ticket_id ); }
@@ -141,6 +143,11 @@ final class Service {
 	 */
 	public static function code_unavailable( array $ticket ) {
 		return ! empty( $ticket['secret_unreadable'] ) && empty( $ticket['voided'] );
+	}
+
+	/** Runs $callback in the ticket's (order's) locale (A474). */
+	private static function in_locale( array $ticket, callable $callback ) {
+		return \PassCaptain\Mail\Mailer::with_locale( (string) ( $ticket['locale'] ?? '' ), $callback );
 	}
 
 	/** Signed, non-expiring download link for the current generation of an Apple pass. */
@@ -295,8 +302,10 @@ final class Service {
 		$google = self::provider( 'google' );
 		if ( ! $google instanceof GoogleProvider || ! $tickets ) { return ''; }
 		try {
-			$url = $google->save_url_for( $tickets );
-			if ( '' === $url && 1 === count( $tickets ) ) { $url = $google->save_url( $tickets[0] ); }
+			$url = self::in_locale( $tickets[0], static function () use ( $google, $tickets ) {
+				$url = $google->save_url_for( $tickets );
+				return '' === $url && 1 === count( $tickets ) ? $google->save_url( $tickets[0] ) : $url;
+			} );
 		} catch ( \Throwable $e ) {
 			self::log( 'save_failed', 'google:' . $e->getMessage() );
 			return '';
@@ -570,7 +579,7 @@ final class Service {
 			foreach ( array_unique( array_map( 'intval', (array) $occurrence_ids ) ) as $occurrence_id ) {
 				$ticket = $occurrence_id ? self::class_ticket( $occurrence_id ) : null;
 				try {
-					if ( $ticket ) { $ok = $google->update_class( $ticket ) && $ok; }
+					if ( $ticket ) { $ok = self::in_locale( $ticket, static function () use ( $google, $ticket ) { return $google->update_class( $ticket ); } ) && $ok; }
 				} catch ( \Throwable $e ) {
 					self::log( 'push_failed', 'google_class:' . $e->getMessage() );
 					$ok = false;
@@ -586,7 +595,7 @@ final class Service {
 						$ok = ( method_exists( $apple, 'notify' ) ? $apple->notify( $pass->serial_number ) : $apple->revoke_pass( $row ) ) && $ok;
 					} elseif ( 'google' === $pass->provider && $google ) {
 						$ticket = $ticket ?: self::ticket( $ticket_id );
-						$ok = ( 'retired' === $pass->status ? $google->revoke_pass( $row ) : ( $ticket && $google->update_pass( $ticket, $row ) ) ) && $ok;
+						$ok = ( 'retired' === $pass->status ? $google->revoke_pass( $row ) : ( $ticket && self::in_locale( $ticket, static function () use ( $google, $ticket, $row ) { return $google->update_pass( $ticket, $row ); } ) ) ) && $ok;
 					}
 				} catch ( \Throwable $e ) {
 					self::log( 'push_failed', $pass->provider . ':' . $e->getMessage() );
@@ -630,7 +639,8 @@ final class Service {
 				$ticket['seat'] = '';
 			}
 		}
-		return array( 'bundle' => $apple->update_pass( $ticket, (array) $pass )['bundle'], 'tag' => (int) $state->update_tag );
+		$bundle = self::in_locale( $ticket, static function () use ( $apple, $ticket, $pass ) { return $apple->update_pass( $ticket, (array) $pass )['bundle']; } );
+		return array( 'bundle' => $bundle, 'tag' => (int) $state->update_tag );
 	}
 
 	const LOG_OPTION = 'wpcap_wallet_log';
