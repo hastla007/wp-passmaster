@@ -13,6 +13,11 @@ use PassCaptain\Refunds;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Webhooks {
+	/** URL of the provider's webhook endpoint (entered in the provider's dashboard). */
+	public static function endpoint_url( $provider ) {
+		return rest_url( 'pass-captain/v1/payments/' . sanitize_key( (string) $provider ) . '/webhook' );
+	}
+
 	/** REST callback: POST /pass-captain/v1/payments/{provider}/webhook */
 	public static function handle( \WP_REST_Request $request ) {
 		$gateway = Registry::get( sanitize_key( $request['provider'] ) );

@@ -30,6 +30,16 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 	/** Prefix of the custom_id on refunds created by the plugin. */
 	const REFUND_PREFIX = 'wpcap-refund-';
 
+	/** Webhook events the plugin processes (A295); the webhook of the PayPal app needs all of them (see normalize()). */
+	const WEBHOOK_EVENTS = array(
+		'CHECKOUT.ORDER.APPROVED',
+		'PAYMENT.CAPTURE.COMPLETED',
+		'PAYMENT.CAPTURE.DENIED',
+		'PAYMENT.CAPTURE.DECLINED',
+		'PAYMENT.CAPTURE.REFUNDED',
+		'PAYMENT.CAPTURE.REVERSED',
+	);
+
 	public function id() { return 'paypal'; }
 
 	public function title() {
@@ -49,6 +59,61 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 	}
 
 	public function supports_refunds() { return true; }
+
+	/**
+	 * "Verbindung testen" (A295): requests an access token with Client-ID and secret (sandbox or
+	 * live per setting) and reads the stored webhook: URL of this site and WEBHOOK_EVENTS. Read-only.
+	 *
+	 * @return array ok (credentials work), messages: list of [type success|warning|error, text].
+	 */
+	public function test_connection() {
+		$missing = array();
+		if ( '' === Settings::secret( 'paypal_client_id' ) ) { $missing[] = __( 'Client-ID', 'pass-captain' ); }
+		if ( '' === \PassCaptain\Secrets::get( 'paypal_client_secret' ) ) { $missing[] = __( 'Client-Geheimnis (Secret)', 'pass-captain' ); }
+		if ( $missing ) {
+			/* translators: %s: field names */
+			return array( 'ok' => false, 'messages' => array( array( 'error', sprintf( __( 'PayPal: Es fehlen %s.', 'pass-captain' ), implode( ', ', $missing ) ) ) ) );
+		}
+		$token = self::token( true );
+		if ( is_wp_error( $token ) ) {
+			return array( 'ok' => false, 'messages' => array( array( 'error', 'PayPal: ' . $token->get_error_message() ) ) );
+		}
+		$messages = array( array( 'success', 'live' === Settings::get( 'paypal_mode' ) ? __( 'PayPal: Verbindung hergestellt (Live).', 'pass-captain' ) : __( 'PayPal: Verbindung hergestellt (Sandbox).', 'pass-captain' ) ) );
+		$webhook_id = Settings::secret( 'paypal_webhook_id' );
+		if ( '' === $webhook_id ) {
+			$messages[] = array( 'warning', __( 'PayPal: Die Webhook-ID fehlt – ohne sie werden Zahlungen nie bestätigt. Webhook in der PayPal-App anlegen und die angezeigte ID eintragen.', 'pass-captain' ) );
+			return array( 'ok' => true, 'messages' => $messages );
+		}
+		$webhook = self::api( 'GET', '/v1/notifications/webhooks/' . rawurlencode( $webhook_id ) );
+		if ( is_wp_error( $webhook ) ) {
+			$data = (array) $webhook->get_error_data();
+			$messages[] = array(
+				'warning',
+				404 === (int) ( $data['status'] ?? 0 )
+					? __( 'PayPal: Die Webhook-ID ist bei PayPal unbekannt. Gehört sie zur selben App und zum selben Modus (Sandbox/Live)?', 'pass-captain' )
+					/* translators: %s: error message */
+					: sprintf( __( 'PayPal: Der Webhook konnte nicht gelesen werden (%s).', 'pass-captain' ), $webhook->get_error_message() ),
+			);
+			return array( 'ok' => true, 'messages' => $messages );
+		}
+		$url = Webhooks::endpoint_url( 'paypal' );
+		if ( untrailingslashit( (string) ( $webhook['url'] ?? '' ) ) !== untrailingslashit( $url ) ) {
+			/* translators: 1: URL stored at PayPal, 2: webhook URL of this site */
+			$messages[] = array( 'warning', sprintf( __( 'PayPal: Der Webhook zeigt auf %1$s statt auf %2$s.', 'pass-captain' ), (string) ( $webhook['url'] ?? '' ), $url ) );
+		}
+		$events = array();
+		foreach ( (array) ( $webhook['event_types'] ?? array() ) as $type ) {
+			if ( is_array( $type ) && isset( $type['name'] ) ) { $events[] = (string) $type['name']; }
+		}
+		$absent = in_array( '*', $events, true ) ? array() : array_values( array_diff( self::WEBHOOK_EVENTS, $events ) );
+		if ( $absent ) {
+			/* translators: %s: event names */
+			$messages[] = array( 'warning', sprintf( __( 'PayPal: Dem Webhook fehlen Ereignisse: %s', 'pass-captain' ), implode( ', ', $absent ) ) );
+		} else {
+			$messages[] = array( 'success', __( 'PayPal: Webhook gefunden, alle nötigen Ereignisse sind ausgewählt.', 'pass-captain' ) );
+		}
+		return array( 'ok' => true, 'messages' => $messages );
+	}
 
 	/** Registers the return handler. Call once from Plugin bootstrap. */
 	public static function register() {

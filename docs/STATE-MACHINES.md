@@ -347,9 +347,11 @@ Zu einzelnen Fällen:
 
 Empfohlene Webhook-Ereignisse: Stripe `checkout.session.completed`,
 `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
-`checkout.session.expired`, `charge.refunded`, `charge.dispute.funds_withdrawn`. PayPal
+`checkout.session.expired`, `charge.refunded`, `charge.dispute.funds_withdrawn`, `refund.updated`, `refund.failed`
+(`StripeGateway::WEBHOOK_EVENTS`). PayPal
 `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`,
-`PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`. Mollie setzt die
+`PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED` (`PayPalGateway::WEBHOOK_EVENTS`).
+Die Einstellungen zeigen beide Listen; „Verbindung testen“ prüft sie (docs/OPERATIONS.md). Mollie setzt die
 Webhook-URL je Zahlung selbst.
 
 ### WooCommerce

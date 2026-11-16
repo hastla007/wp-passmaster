@@ -50,6 +50,7 @@ final class Menu {
 			'wpcap_checkin_ticket' => array( TicketsPage::class, 'handle_checkin_ticket' ),
 			ScannerPage::ACTION_CREATE => array( ScannerPage::class, 'handle_create' ),
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
+			SettingsPage::TEST_ACTION => array( SettingsPage::class, 'handle_test_connection' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
 			'wpcap_campaign_create' => array( CampaignsPage::class, 'handle_create' ),

@@ -380,6 +380,26 @@ Dashboard und den Plugin-Seiten den Hinweis „Keine verfügbare Zahlungsart fü
 Zahlungsarten, solange ein veröffentlichtes Event einen kommenden Termin in dieser Währung hat. Shops, die
 über verknüpfte WooCommerce-Produkte verkaufen, erhalten den Hinweis nicht.
 
+## Stripe und PayPal einrichten: Webhook und Verbindungstest (A295)
+
+Unter **Einstellungen → Zahlungsarten → Stripe bzw. PayPal** stehen die Webhook-URL der Website
+(`/wp-json/pass-captain/v1/payments/{stripe|paypal}/webhook`), die beim Anbieter auszuwählenden Ereignisse
+(`StripeGateway::WEBHOOK_EVENTS`, `PayPalGateway::WEBHOOK_EVENTS`) und – solange etwas fehlt – die fehlenden
+Felder mit Namen (Stripe: geheimer API-Schlüssel und Webhook-Signaturgeheimnis; PayPal: Client-ID,
+Client-Geheimnis und Webhook-ID). Erst wenn alle gesetzt sind, wird die Zahlungsart im Checkout angeboten.
+
+**Verbindung testen** (nach dem Speichern) prüft mit den gespeicherten Zugangsdaten, ohne etwas zu ändern:
+
+- Stripe: `GET /v1/account` (Schlüssel gültig), `GET /v1/webhook_endpoints` – gibt es einen aktiven Endpunkt
+  mit genau dieser URL und allen Ereignissen (oder `*`)? Fehlt das Recht zum Lesen der Endpunkte
+  (eingeschränkter Schlüssel), meldet der Test das als Hinweis.
+- PayPal: Zugangstoken im eingestellten Modus (Sandbox/Live), `GET /v1/notifications/webhooks/{Webhook-ID}` –
+  stimmt die URL, sind alle Ereignisse abonniert? Eine unbekannte Webhook-ID deutet meist auf eine
+  Verwechslung von Sandbox und Live oder eine andere App hin.
+
+Jeder Befund erscheint als eigene Meldung; der Test wird im Audit-Log (`payment_connection_tested`, nur
+Anbieter und Ergebnis) protokolliert.
+
 ## Überweisung (manuelle Zahlung) einrichten (A265)
 
 Die Zahlungsart „Überweisung“ (`manual`) ist bei neuen Installationen **nicht** aktiviert. Sie wird im

@@ -24,6 +24,21 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 	 */
 	const SCALED_ZERO_DECIMAL = array( 'ISK', 'UGX' );
 
+	/**
+	 * Webhook events the plugin processes (A295); the endpoint in the Stripe dashboard needs all of
+	 * them (see normalize()). refund.* settle refunds with an unknown or pending outcome.
+	 */
+	const WEBHOOK_EVENTS = array(
+		'checkout.session.completed',
+		'checkout.session.async_payment_succeeded',
+		'checkout.session.async_payment_failed',
+		'checkout.session.expired',
+		'charge.refunded',
+		'charge.dispute.funds_withdrawn',
+		'refund.updated',
+		'refund.failed',
+	);
+
 	public function id() { return 'stripe'; }
 
 	public function title() {
@@ -87,6 +102,57 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 	}
 
 	public function supports_refunds() { return true; }
+
+	/**
+	 * "Verbindung testen" (A295): checks the secret key against the Stripe API and whether a webhook
+	 * endpoint with this site's URL exists, is enabled and subscribes to WEBHOOK_EVENTS. Read-only.
+	 *
+	 * @return array ok (credentials work), messages: list of [type success|warning|error, text].
+	 */
+	public function test_connection() {
+		$messages = array();
+		if ( '' === \PassCaptain\Secrets::get( 'stripe_secret_key' ) ) {
+			return array( 'ok' => false, 'messages' => array( array( 'error', __( 'Stripe: Der geheime API-Schlüssel (Secret Key) fehlt.', 'pass-captain' ) ) ) );
+		}
+		$account = $this->api( 'GET', 'account' );
+		if ( is_wp_error( $account ) ) {
+			/* translators: %s: error message */
+			return array( 'ok' => false, 'messages' => array( array( 'error', sprintf( __( 'Stripe: Verbindung fehlgeschlagen – %s Bitte den geheimen API-Schlüssel prüfen.', 'pass-captain' ), $account->get_error_message() ) ) ) );
+		}
+		/* translators: %s: Stripe account id */
+		$messages[] = array( 'success', sprintf( __( 'Stripe: Verbindung hergestellt (Konto %s).', 'pass-captain' ), (string) ( $account['id'] ?? '?' ) ) );
+		if ( '' === \PassCaptain\Secrets::get( 'stripe_webhook_secret' ) ) {
+			$messages[] = array( 'warning', __( 'Stripe: Das Webhook-Signaturgeheimnis (whsec_…) fehlt – ohne es werden Zahlungen nie bestätigt.', 'pass-captain' ) );
+		}
+		$endpoints = $this->api( 'GET', 'webhook_endpoints?limit=100' );
+		if ( is_wp_error( $endpoints ) ) {
+			/* translators: %s: error message */
+			$messages[] = array( 'warning', sprintf( __( 'Stripe: Die Webhook-Endpunkte konnten nicht gelesen werden (%s). Bitte im Dashboard prüfen.', 'pass-captain' ), $endpoints->get_error_message() ) );
+			return array( 'ok' => true, 'messages' => $messages );
+		}
+		$url = Webhooks::endpoint_url( 'stripe' );
+		$found = null;
+		foreach ( (array) ( $endpoints['data'] ?? array() ) as $endpoint ) {
+			if ( is_array( $endpoint ) && untrailingslashit( (string) ( $endpoint['url'] ?? '' ) ) === untrailingslashit( $url ) ) { $found = $endpoint; }
+		}
+		if ( ! $found ) {
+			/* translators: %s: webhook URL */
+			$messages[] = array( 'warning', sprintf( __( 'Stripe: Kein Webhook-Endpunkt mit der URL %s gefunden. Im Stripe-Dashboard unter Entwickler → Webhooks anlegen.', 'pass-captain' ), $url ) );
+			return array( 'ok' => true, 'messages' => $messages );
+		}
+		if ( 'enabled' !== (string) ( $found['status'] ?? 'enabled' ) ) {
+			$messages[] = array( 'warning', __( 'Stripe: Der Webhook-Endpunkt ist deaktiviert.', 'pass-captain' ) );
+		}
+		$events = array_map( 'strval', (array) ( $found['enabled_events'] ?? array() ) );
+		$missing = in_array( '*', $events, true ) ? array() : array_values( array_diff( self::WEBHOOK_EVENTS, $events ) );
+		if ( $missing ) {
+			/* translators: %s: event names */
+			$messages[] = array( 'warning', sprintf( __( 'Stripe: Dem Webhook-Endpunkt fehlen Ereignisse: %s', 'pass-captain' ), implode( ', ', $missing ) ) );
+		} else {
+			$messages[] = array( 'success', __( 'Stripe: Webhook-Endpunkt gefunden, alle nötigen Ereignisse sind ausgewählt.', 'pass-captain' ) );
+		}
+		return array( 'ok' => true, 'messages' => $messages );
+	}
 
 	/** Creates (or reuses) a Checkout Session for exactly the order total. */
 	public function create_payment( array $order, array $items = array() ) {

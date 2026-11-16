@@ -110,8 +110,8 @@ final class SettingsPage {
 				'webhook' => 'stripe',
 				'fields' => array(
 					'stripe_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'test' => __( 'Test', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ) ),
-					'stripe_secret_key' => array( 'type' => 'secret', 'label' => __( 'Secret Key', 'pass-captain' ) ),
-					'stripe_webhook_secret' => array( 'type' => 'secret', 'label' => __( 'Webhook-Signing-Secret', 'pass-captain' ) ),
+					'stripe_secret_key' => array( 'type' => 'secret', 'label' => __( 'Geheimer API-Schlüssel (Secret Key)', 'pass-captain' ), 'description' => __( 'Stripe-Dashboard → Entwickler → API-Schlüssel. Beginnt mit sk_test_ bzw. sk_live_ (eingeschränkter Schlüssel: rk_…).', 'pass-captain' ) ),
+					'stripe_webhook_secret' => array( 'type' => 'secret', 'label' => __( 'Webhook-Signaturgeheimnis (Signing Secret)', 'pass-captain' ), 'description' => __( 'Wird beim Webhook-Endpunkt im Stripe-Dashboard angezeigt und beginnt mit whsec_. Ohne dieses Geheimnis werden Zahlungen nie bestätigt.', 'pass-captain' ) ),
 				),
 			),
 			'paypal' => array(
@@ -121,9 +121,9 @@ final class SettingsPage {
 				'webhook' => 'paypal',
 				'fields' => array(
 					'paypal_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'sandbox' => __( 'Sandbox', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ) ),
-					'paypal_client_id' => array( 'type' => 'text', 'label' => __( 'Client-ID', 'pass-captain' ), 'overridable' => true ),
-					'paypal_client_secret' => array( 'type' => 'secret', 'label' => __( 'Client-Secret', 'pass-captain' ) ),
-					'paypal_webhook_id' => array( 'type' => 'text', 'label' => __( 'Webhook-ID', 'pass-captain' ), 'overridable' => true ),
+					'paypal_client_id' => array( 'type' => 'text', 'label' => __( 'Client-ID', 'pass-captain' ), 'overridable' => true, 'description' => __( 'PayPal Developer Dashboard → Apps & Credentials → eigene App (Sandbox bzw. Live passend zum Modus).', 'pass-captain' ) ),
+					'paypal_client_secret' => array( 'type' => 'secret', 'label' => __( 'Client-Geheimnis (Secret)', 'pass-captain' ), 'description' => __( 'Steht in derselben App unter der Client-ID.', 'pass-captain' ) ),
+					'paypal_webhook_id' => array( 'type' => 'text', 'label' => __( 'Webhook-ID', 'pass-captain' ), 'overridable' => true, 'description' => __( 'Nach dem Anlegen des Webhooks in der App angezeigt (eine Kennung, nicht die URL). Ohne sie werden Zahlungen nie bestätigt.', 'pass-captain' ) ),
 				),
 			),
 			'legal' => array(
@@ -505,9 +505,7 @@ final class SettingsPage {
 		<?php foreach ( $sections as $id => $def ) : ?>
 			<h2 id="wpcap-settings-<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $def['title'] ); ?></h2>
 			<?php if ( ! empty( $def['provider'] ) ) { self::render_provider_status( (string) $def['provider'], $values ); } ?>
-			<?php if ( ! empty( $def['webhook'] ) ) : ?>
-				<p><?php esc_html_e( 'Webhook-URL:', 'pass-captain' ); ?> <code><?php echo esc_html( rest_url( 'pass-captain/v1/payments/' . $def['webhook'] . '/webhook' ) ); ?></code></p>
-			<?php endif; ?>
+			<?php if ( ! empty( $def['webhook'] ) ) { self::render_webhook_setup( (string) $def['webhook'], $def ); } ?>
 			<?php if ( 'legal' === $id && '' !== self::terms_warning() ) : ?>
 				<div class="notice notice-warning inline"><p><?php echo esc_html( self::terms_warning() ); ?></p></div>
 			<?php endif; ?>
@@ -526,8 +524,98 @@ final class SettingsPage {
 		<?php endforeach; ?>
 		<?php submit_button( __( 'Einstellungen speichern', 'pass-captain' ) ); ?>
 		</form>
+		<?php
+		foreach ( $sections as $def ) {
+			if ( ! empty( $def['webhook'] ) && Registry::get( (string) $def['provider'] ) && method_exists( Registry::get( (string) $def['provider'] ), 'test_connection' ) ) {
+				self::render_connection_test( (string) $def['provider'] );
+			}
+		}
+		?>
 		</div>
 		<?php
+	}
+
+	/** admin-post action of the "Verbindung testen" button (A295). */
+	const TEST_ACTION = 'wpcap_test_provider_connection';
+
+	/**
+	 * Settings that a provider needs before it is offered (A295): key => label of the missing ones.
+	 *
+	 * @param string $provider Provider id (stripe, paypal).
+	 */
+	public static function missing_provider_fields( $provider ) {
+		$required = array(
+			'stripe' => array( 'stripe_secret_key', 'stripe_webhook_secret' ),
+			'paypal' => array( 'paypal_client_id', 'paypal_client_secret', 'paypal_webhook_id' ),
+		);
+		$labels = array();
+		foreach ( self::sections() as $section ) { $labels += $section['fields']; }
+		$missing = array();
+		foreach ( $required[ $provider ] ?? array() as $key ) {
+			if ( '' === trim( (string) Settings::secret( $key ) ) ) { $missing[ $key ] = (string) ( $labels[ $key ]['label'] ?? $key ); }
+		}
+		return $missing;
+	}
+
+	/** Webhook URL, the events to select at the provider and the missing fields (A295). */
+	private static function render_webhook_setup( $provider, array $def ) {
+		$gateway = Registry::get( $provider );
+		$events = $gateway && defined( get_class( $gateway ) . '::WEBHOOK_EVENTS' ) ? (array) constant( get_class( $gateway ) . '::WEBHOOK_EVENTS' ) : array();
+		echo '<div class="wpcap-webhook-setup">';
+		echo '<p>' . esc_html__( 'Webhook-URL:', 'pass-captain' ) . ' <code>' . esc_html( \PassCaptain\Payments\Webhooks::endpoint_url( $provider ) ) . '</code></p>';
+		if ( $events ) {
+			echo '<p>' . esc_html( 'paypal' === $provider ? __( 'In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:', 'pass-captain' ) : __( 'Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:', 'pass-captain' ) ) . '</p>';
+			echo '<ul class="wpcap-webhook-events" style="list-style:disc;margin-left:2em">';
+			foreach ( $events as $event ) { echo '<li><code>' . esc_html( (string) $event ) . '</code></li>'; }
+			echo '</ul>';
+		}
+		$missing = self::missing_provider_fields( $provider );
+		if ( $missing ) {
+			/* translators: %s: field names */
+			$text = sprintf( __( 'Noch nicht vollständig eingerichtet. Es fehlen: %s.', 'pass-captain' ), implode( ', ', $missing ) );
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $text ) . ' ' . esc_html( sprintf( /* translators: %s: payment method */ __( '%s wird im Checkout erst danach angeboten.', 'pass-captain' ), $def['title'] ) ) . '</p></div>';
+		}
+		echo '</div>';
+	}
+
+	/** Separate form (outside the settings form) with the "Verbindung testen" button (A295). */
+	private static function render_connection_test( $provider ) {
+		echo '<h2 id="wpcap-connection-test">' . esc_html__( 'Verbindung testen', 'pass-captain' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern.', 'pass-captain' ) . '</p>';
+		Forms::open_form( self::TEST_ACTION );
+		Forms::hidden( 'provider', $provider );
+		echo '<p><button type="submit" class="button">' . esc_html__( 'Verbindung testen', 'pass-captain' ) . '</button></p></form>';
+	}
+
+	/**
+	 * Runs the connection test of a provider (A295).
+	 *
+	 * @param array $in provider.
+	 * @return array|\WP_Error ok, messages.
+	 */
+	public static function test_connection( array $in ) {
+		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
+		$provider = sanitize_key( (string) ( $in['provider'] ?? '' ) );
+		$gateway = Registry::get( $provider );
+		if ( ! $gateway || ! method_exists( $gateway, 'test_connection' ) ) {
+			return Forms::error( 'wpcap_provider_test', __( 'Für diese Zahlungsart gibt es keinen Verbindungstest.', 'pass-captain' ) );
+		}
+		$result = (array) $gateway->test_connection();
+		Audit::record( 'payment_connection_tested', 'settings', 0, array( 'provider' => $provider, 'ok' => ! empty( $result['ok'] ) ) );
+		return array( 'ok' => ! empty( $result['ok'] ), 'messages' => array_values( (array) ( $result['messages'] ?? array() ) ) );
+	}
+
+	/** admin-post handler of the connection test: one notice per finding, back to the provider section. */
+	public static function handle_test_connection() {
+		$in = Forms::post();
+		Forms::verify( self::TEST_ACTION );
+		$result = self::test_connection( $in );
+		$back = Forms::page_url( self::SLUG, self::url_args( 'payments', sanitize_key( (string) ( $in['provider'] ?? '' ) ) ) ) . '#wpcap-connection-test';
+		if ( is_wp_error( $result ) ) { Forms::finish( $result, '', $back ); }
+		foreach ( $result['messages'] as $message ) {
+			Forms::flash( (string) ( $message[0] ?? 'warning' ), (string) ( $message[1] ?? '' ) );
+		}
+		Forms::redirect( $back );
 	}
 
 	/** Sub-navigation of the payments tab: overview, one entry per provider. */

@@ -40,14 +40,14 @@ Pass Captain funktioniert ohne externe Dienste. Die folgenden Dienste werden nur
 = Stripe (Zahlungen) =
 
 Wofür: Online-Zahlung per Karte und weiteren Zahlarten über Stripe Checkout sowie Erstattungen.
-Wann: Wenn Käufer im Checkout „Stripe“ wählen (Anlegen einer Checkout-Session), bei Erstattungen und beim Abgleich eingehender Stripe-Webhooks (Abruf von Zahlung/Erstattung). Der Käufer wird zur Zahlung auf die Seite von Stripe weitergeleitet.
+Wann: Wenn Käufer im Checkout „Stripe“ wählen (Anlegen einer Checkout-Session), bei Erstattungen, beim Abgleich eingehender Stripe-Webhooks (Abruf von Zahlung/Erstattung) und wenn ein Administrator „Verbindung testen“ wählt (nur Lesen von Konto-ID und Webhook-Endpunkten). Der Käufer wird zur Zahlung auf die Seite von Stripe weitergeleitet.
 Daten: Betrag und Währung, Kurzbeschreibung der Bestellung (Event- und Ticketart-Namen), Bestellreferenz, E-Mail-Adresse des Käufers, Rücksprung-Adressen der Website; bei Erstattungen Betrag und Referenz. Host: api.stripe.com.
 Bedingungen: https://stripe.com/legal/ssa – Datenschutz: https://stripe.com/privacy
 
 = PayPal (Zahlungen) =
 
 Wofür: Online-Zahlung über PayPal sowie Erstattungen.
-Wann: Wenn Käufer im Checkout „PayPal“ wählen (Anlegen und Abschließen der PayPal-Bestellung), bei Erstattungen und zur Prüfung eingehender PayPal-Webhooks (verify-webhook-signature). Der Käufer wird zur Zahlung auf die Seite von PayPal weitergeleitet.
+Wann: Wenn Käufer im Checkout „PayPal“ wählen (Anlegen und Abschließen der PayPal-Bestellung), bei Erstattungen, zur Prüfung eingehender PayPal-Webhooks (verify-webhook-signature) und wenn ein Administrator „Verbindung testen“ wählt (Anmeldung und Lesen des eingetragenen Webhooks). Der Käufer wird zur Zahlung auf die Seite von PayPal weitergeleitet.
 Daten: Client-ID/Secret (Anmeldung), Betrag und Währung, Kurzbeschreibung der Bestellung, Bestellreferenz, Rücksprung-Adressen; bei Erstattungen Betrag und Referenz. Hosts: api-m.paypal.com bzw. api-m.sandbox.paypal.com.
 Bedingungen: https://www.paypal.com/legalhub/paypal/useragreement-full – Datenschutz: https://www.paypal.com/legalhub/paypal/privacy-full
 
