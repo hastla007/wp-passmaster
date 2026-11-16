@@ -23,7 +23,7 @@
 .wpcap-se-area { stroke-width: 2; cursor: move; }
 .wpcap-se-area.is-selected { stroke: #000; stroke-width: 4; }
 .wpcap-se-table { fill: #dcdcde; stroke: #8c8f94; cursor: pointer; }
-.wpcap-se-delete { color: #b32d2e; margin-left: 1em; }
+.wpcap-se-delete { color: #b32d2e; margin-inline-start: 1em; }
 .wpcap-seating-link { border-top: 1px solid #dcdcde; margin-top: 1em; }
-.wpcap-seating-zone { margin-right: 1em; white-space: nowrap; }
+.wpcap-seating-zone { margin-inline-end: 1em; white-space: nowrap; }
 @media (max-width: 960px) { .wpcap-se-main { flex-direction: column; } .wpcap-se-panel { flex: none; width: 100%; } }

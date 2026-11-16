@@ -978,7 +978,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Lizenz-/Premium-Updater-Pläne (A225–A236) widersprechen wp.org-Guidelines 5/8 — Planung (A387, R1 Release)
 - [ ] [OPTIMIERUNG] Offline-Scanner-PWA nur de/en — assets/offline-scanner/i18n.js:12 (A388, R1 Release)
 - [ ] [OPTIMIERUNG] Readme-Changelog ohne Inhalt, Umbenennung fehlt — readme.txt:53–66 (A389, R1 Release)
-- [ ] [OPTIMIERUNG] Kein RTL (dir, logische CSS-Eigenschaften) — src/TicketPage.php:58, OrderPortal.php:116, Waitlists.php:1064, Invoices.php:536, public.css, picker.css (A390, R2 Frontend)
+- [x] [OPTIMIERUNG] Kein RTL (dir, logische CSS-Eigenschaften) — src/TicketPage.php:58, OrderPortal.php:116, Waitlists.php:1064, Invoices.php:536, public.css, picker.css (A390, R2 Frontend)
 - [x] [OPTIMIERUNG] CSS erst beim Rendern; Block-Vorschau im Editor ungestylt — src/PublicEvents.php:162, Modules/Calendar.php:148, blocks/*/block.json (A391, R2 Frontend)
 - [x] [OPTIMIERUNG] Saalplan heilt sich nach fehlgeschlagenem Erstladen nicht — assets/seating/picker.js:42–55 (A392, R2 Frontend)
 - [x] [OPTIMIERUNG] Kalender-Links: sichtbarer Text nicht im zugänglichen Namen — src/Modules/Calendar.php:266–268 (A393, R2 Frontend)

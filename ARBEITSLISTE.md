@@ -857,8 +857,9 @@ Gesamt: 262 Aufgaben.
   - (umgesetzt im zusammengeführten Stand, siehe `GET /app/offline/i18n` in `src/OfflineScanner/Rest.php`: die PWA lädt ihre Texte für jede mitgelieferte Sprache (Deutsch und die fünf Übersetzungen) aus den Sprachdateien des Plugins)
 - [ ] **A389** [OPTIMIERUNG] Readme-Changelog ohne Inhalt, Umbenennung fehlt — _R1 Release_ (TODO L735; Audit Runde 4)
   - readme.txt:53–66: Je Version die wichtigsten Änderungen direkt in readme.txt
-- [ ] **A390** [OPTIMIERUNG] Kein RTL (dir, logische CSS-Eigenschaften) — _R2 Frontend_ (TODO L736; Audit Runde 4)
+- [x] **A390** [OPTIMIERUNG] Kein RTL (dir, logische CSS-Eigenschaften) — _R2 Frontend_ (TODO L736; Audit Runde 4)
   - src/TicketPage.php:58, OrderPortal.php:116, Waitlists.php:1064, Invoices.php:536, public.css, picker.css: dir per is_rtl(), padding-inline etc.
+  - Erledigt: öffentliche Seiten (Ticketseite, Portal, Ticketlinks, Zugangs-, Einwilligungs-, Service-Portal-, Abmelde- und Erinnerungsseiten) setzen `lang`/`dir` über `Format::html_lang_attributes()` (dir=rtl bei is_rtl()), Mail-Layout schon mit dir; public.css und Saalplan-CSS nur noch mit logischen Eigenschaften (inline-start/end). Test zz_a390.
 - [x] **A391** [OPTIMIERUNG] CSS erst beim Rendern; Block-Vorschau im Editor ungestylt — _R2 Frontend_ (TODO L737; Audit Runde 4)
   - src/PublicEvents.php:162, Modules/Calendar.php:148, blocks/*/block.json: style/editorStyle in block.json; has_shortcode für Shortcodes
 - [x] **A392** [OPTIMIERUNG] Saalplan heilt sich nach fehlgeschlagenem Erstladen nicht — _R2 Frontend_ (TODO L738; Audit Runde 4)

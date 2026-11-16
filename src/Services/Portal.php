@@ -130,7 +130,7 @@ final class Portal {
 	/* ------------------------------------------------------------------ Rendering */
 
 	private static function page( $title, $content ) {
-		return '<!doctype html><html lang="' . esc_attr( str_replace( '_', '-', determine_locale() ) ) . '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.card{border:1px solid #c3c4c7;border-radius:10px;padding:1rem;margin:1rem 0}button{padding:.55rem 1rem;min-height:2.75rem}select{padding:.45rem;max-width:100%}:focus-visible{outline:3px solid #135e96;outline-offset:3px}</style></head><body><main><h1>' . esc_html( $title ) . '</h1>' . $content . '</main></body></html>';
+		return '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.card{border:1px solid #c3c4c7;border-radius:10px;padding:1rem;margin:1rem 0}button{padding:.55rem 1rem;min-height:2.75rem}select{padding:.45rem;max-width:100%}:focus-visible{outline:3px solid #135e96;outline-offset:3px}</style></head><body><main><h1>' . esc_html( $title ) . '</h1>' . $content . '</main></body></html>';
 	}
 
 	/** POST form for one action (nonce bound to action and id). */
