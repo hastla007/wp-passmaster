@@ -31,6 +31,12 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
 $_SERVER['REMOTE_ADDR'] = '203.0.113.135';
 ServiceBookings::flush_schema_cache();
 ServiceBookingFlow::register();
+// Merged booking stack: payment, expiry and order cancellation reach the bookings through the
+// Services module hooks (ServiceBookings::on_order_paid / on_order_cancelled), registered at load.
+// (Only the hooks here: the module itself registers once per request, and this file restores the hooks at its end.)
+add_action( 'wpcap_order_paid', array( ServiceBookings::class, 'on_order_paid' ), 30, 1 );
+add_action( 'wpcap_tickets_issued', array( ServiceBookings::class, 'on_order_paid' ), 30, 1 );
+add_action( 'wpcap_order_cancelled', array( ServiceBookings::class, 'on_order_cancelled' ), 20, 1 );
 
 function a135_slot( $resource, $minutes, $capacity = 2 ) {
 	global $wpdb;
@@ -126,7 +132,7 @@ $a135_c1 = ServiceBookings::confirm( $a135_b1, array( 'provider' => 'manual' ) )
 $a135_row1 = ServiceBookings::booking( $a135_b1 );
 $a135_order1 = $a135_row1 ? Orders::get( (int) $a135_row1->order_id ) : null;
 $a135_items1 = $a135_order1 ? Orders::items_for_order( $a135_order1->order_id ) : array();
-check( 'paid resource: order created through the checkout, booking awaits payment', is_array( $a135_c1 ) && 'pending_payment' === $a135_c1['status'] && $a135_order1 && 'pending' === $a135_order1->payment_status && 8000 === (int) $a135_order1->total_minor && 1 === count( $a135_items1 ) && $a135_type === (int) $a135_items1[0]->ticket_type_id && 2 === (int) $a135_items1[0]->quantity && ! empty( $a135_c1['order']['public_id'] ) );
+check( 'paid resource: order created through the checkout, booking awaits payment', is_array( $a135_c1 ) && 'pending_payment' === $a135_c1['status'] && $a135_order1 && 'pending' === $a135_order1->payment_status && 8000 === (int) $a135_order1->total_minor && 1 === count( $a135_items1 ) && $a135_type === (int) $a135_items1[0]->ticket_type_id && 2 === (int) $a135_items1[0]->quantity && ! empty( $a135_c1['order']['reference'] ) && ! isset( $a135_c1['order']['public_id'], $a135_c1['order']['order_id'] ) ); // Checkout responses never carry public_id/order_id (hardening); the reference identifies the order.
 check( 'awaiting payment still occupies the places, hold capped at the slot start', 2 === ServiceBookings::booked( $a135_s1 ) && $a135_row1->expires_at <= $a135_row1->starts_at && 'pending_payment' === ServiceBookings::booking_status( $a135_row1 ) );
 $GLOBALS['wpcap_test_transients'] = array();
 $a135_again = ServiceBookings::confirm( $a135_b1, array( 'provider' => 'manual' ) );
@@ -136,7 +142,7 @@ try { ServiceBookingFlow::link_order( 999999, array(), array(), array( 'service_
 check( 'linking a second order to the booking aborts that order', $a135_threw && (int) $a135_order1->order_id === (int) ServiceBookings::booking( $a135_b1 )->order_id );
 $GLOBALS['wpcap_test_mails'] = array();
 Orders::confirm_manual_payment( (int) $a135_order1->order_id );
-check( 'payment confirms the booking (wpcap_order_paid), tickets issued, customer notified', 'confirmed' === a135_status( $a135_b1 ) && 2 === count( tickets( (int) $a135_order1->order_id, 'valid' ) ) && a135_mails_to( 'a135-pay@example.com', 'Buchung bestätigt' ) && a135_mails_to( 'a135-pay@example.com', 'Bestellportal' ) );
+check( 'payment confirms the booking (wpcap_order_paid), tickets issued, customer notified', 'confirmed' === a135_status( $a135_b1 ) && 2 === count( tickets( (int) $a135_order1->order_id, 'valid' ) ) && a135_mails_to( 'a135-pay@example.com', 'Buchung bestätigt' ) && a135_mails_to( 'a135-pay@example.com', 'Link zu deiner Bestellung' ) ); // Buyer mail = editable mail type service_booking_confirmed.
 
 echo "A135: unpaid order expires\n";
 $a135_s2 = a135_slot( $a135_paid, 6 * 1440 );
@@ -167,7 +173,7 @@ $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET expires_at=
 list( $a135_taker ) = a135_book( $a135_s4, 'a135-taker@example.com' );
 $GLOBALS['wpcap_test_mails'] = array();
 Orders::confirm_manual_payment( $a135_o4 );
-check( 'payment after the slot was taken: booking unallocated, no double booking, refund requested, team informed', is_int( $a135_taker ) && 'unallocated' === a135_status( $a135_b4 ) && 1 === ServiceBookings::booked( $a135_s4 ) && 1 === count( a135_refunds( $a135_o4 ) ) && a135_mails_to( 'admin@example.com', 'Termin nicht mehr frei' ) && a135_mails_to( 'a135-late3@example.com', 'erstattet' ) );
+check( 'payment after the slot was taken: booking cancelled (capacity_lost; A-line status unallocated), no double booking, refund requested, team informed', is_int( $a135_taker ) && 'cancelled' === a135_status( $a135_b4 ) && 'capacity_lost' === ServiceBookings::booking( $a135_b4 )->cancel_reason && 1 === ServiceBookings::booked( $a135_s4 ) && 1 === count( a135_refunds( $a135_o4 ) ) && a135_mails_to( 'admin@example.com', 'Termin nicht mehr frei' ) && a135_mails_to( 'a135-late3@example.com', 'erstattet' ) );
 
 echo "A135: rebook\n";
 $a135_t_same = a135_slot( $a135_paid2, 9 * 1440 );
@@ -176,7 +182,7 @@ check( 'paid booking cannot move to a resource with another price', 'wpcap_booki
 $GLOBALS['wpcap_test_mails'] = array();
 $a135_rb = ServiceBookingFlow::rest_rebook( a135_req( $a135_b1, array( 'token' => $a135_t1, 'slot_id' => $a135_t_same ) ) );
 check( 'customer rebooks to the same price on another resource (REST): moved, old places free, order unchanged', ! is_wp_error( $a135_rb ) && $a135_t_same === (int) ServiceBookings::booking( $a135_b1 )->slot_id && 0 === ServiceBookings::booked( $a135_s1 ) && 2 === ServiceBookings::booked( $a135_t_same ) && 'confirmed' === a135_status( $a135_b1 ) && (int) $a135_order1->order_id === (int) ServiceBookings::booking( $a135_b1 )->order_id );
-check( 'rebooking notifies customer (with the previous date) and team', a135_mails_to( 'a135-pay@example.com', 'Buchung umgebucht' ) && a135_mails_to( 'a135-pay@example.com', 'Bisheriger Termin' ) && a135_mails_to( 'admin@example.com', 'umgebucht' ) );
+check( 'rebooking notifies customer (with the previous date) and team', a135_mails_to( 'a135-pay@example.com', 'umgebucht' ) && a135_mails_to( 'a135-pay@example.com', 'Bisher:' ) && a135_mails_to( 'admin@example.com', 'umgebucht' ) );
 check( 'rebooking to a slot without room refused', 'wpcap_slot_full' === a135_code( ServiceBookings::rebook( $a135_b1, $a135_s4 ) ) );
 
 echo "A135: cancel with refund according to the deadline\n";
@@ -184,7 +190,7 @@ $GLOBALS['wpcap_test_mails'] = array();
 $a135_cancel = ServiceBookingFlow::rest_cancel( a135_req( $a135_b1, array( 'token' => $a135_t1 ) ) );
 $a135_ref = a135_refunds( (int) $a135_order1->order_id );
 check( 'customer cancels before the deadline: places free, full refund (source service_booking)', ! is_wp_error( $a135_cancel ) && 'cancelled' === a135_status( $a135_b1 ) && 0 === ServiceBookings::booked( $a135_t_same ) && 1 === count( $a135_ref ) && 8000 === (int) $a135_ref[0]->amount_minor && ( ! isset( $a135_ref[0]->source ) || 'service_booking' === $a135_ref[0]->source ) && 'completed' === ( $a135_cancel->get_data()['refund']['status'] ?? '' ) );
-check( 'tickets revoked, order refunded; customer and team notified', 0 === count( tickets( (int) $a135_order1->order_id, 'valid' ) ) && 'refunded' === Orders::get( (int) $a135_order1->order_id )->status && a135_mails_to( 'a135-pay@example.com', 'Buchung storniert' ) && a135_mails_to( 'admin@example.com', 'storniert' ) );
+check( 'tickets revoked, order refunded; customer and team notified', 0 === count( tickets( (int) $a135_order1->order_id, 'valid' ) ) && 'refunded' === Orders::get( (int) $a135_order1->order_id )->status && a135_mails_to( 'a135-pay@example.com', 'storniert' ) && a135_mails_to( 'admin@example.com', 'storniert' ) );
 // Inside the deadline (24 h): booking 20 hours ahead.
 $a135_s5 = a135_slot( $a135_paid, 20 * 60 );
 list( $a135_b5, $a135_t5 ) = a135_book( $a135_s5, 'a135-short@example.com' );
@@ -215,7 +221,7 @@ $a135_o7 = (int) ServiceBookings::booking( $a135_b7 )->order_id;
 Orders::confirm_manual_payment( $a135_o7 );
 $GLOBALS['wpcap_test_mails'] = array();
 Orders::mark_refunded( $a135_o7, 'dashboard' );
-check( 'order refunded elsewhere → confirmed booking cancelled and customer informed', 'cancelled' === a135_status( $a135_b7 ) && a135_mails_to( 'a135-ext@example.com', 'Buchung storniert' ) );
+check( 'order refunded elsewhere → confirmed booking cancelled and customer informed', 'cancelled' === a135_status( $a135_b7 ) && a135_mails_to( 'a135-ext@example.com', 'storniert' ) );
 
 echo "A135: order portal self-service\n";
 list( $a135_b8 ) = a135_book( a135_slot( $a135_paid, 12 * 1440 ), 'a135-portal@example.com' );
@@ -274,6 +280,7 @@ $a135_total = array_sum( array_map( array( ServiceBookings::class, 'booked' ), $
 check( 'parallel reserve on 6 resources sharing one provider (overlapping): exactly one wins (' . implode( ',', $a135_out ) . ')', 1 === count( array_keys( $a135_out, 'OK', true ) ) && 1 === $a135_total );
 $a135_src = a135_slot( $a135_race_res, 22 * 1440, 1 );
 list( $a135_mover ) = a135_book( $a135_src, 'a135-mover@example.com' );
+ServiceBookings::confirm( $a135_mover ); // Merged stack: confirmed (or awaiting the partner) bookings are rebooked; a hold is released and reserved anew.
 $a135_dst = a135_slot( $a135_race_res, 23 * 1440, 1 );
 $a135_jobs = array( array( 'rebook', (string) $a135_mover, (string) $a135_dst ) );
 for ( $i = 1; $i <= 4; $i++ ) { $a135_jobs[] = array( 'reserve', (string) $a135_dst, "a135-rr$i@example.com" ); }
@@ -287,6 +294,7 @@ echo "A135: concurrency – deterministic interleaving\n";
 // the target is full.
 $a135_src2 = a135_slot( $a135_race_res, 24 * 1440, 1 );
 list( $a135_mover2 ) = a135_book( $a135_src2, 'a135-mover2@example.com' );
+ServiceBookings::confirm( $a135_mover2 );
 $a135_dst2 = a135_slot( $a135_race_res, 25 * 1440, 1 );
 $a135_inside = array();
 $a135_cb = static function ( $booking_id, $slot_id ) use ( &$a135_inside, $a135_dst2 ) {

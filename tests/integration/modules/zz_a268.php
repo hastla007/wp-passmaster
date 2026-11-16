@@ -169,7 +169,8 @@ foreach ( $GLOBALS['wpcap_test_mails'] as $a268_mail ) {
 	if ( false !== strpos( (string) $a268_mail['to'], 'a268-kunde@' ) ) { $a268_customer = $a268_mail; } elseif ( false !== strpos( $a268_mail['subject'] . $a268_mail['body'], $a268_token ) ) { $a268_leak = true; }
 }
 check( 'free resource confirmed at once via POST /service-bookings/{id}/confirm', $a268_ok && 'confirmed' === ( $a268_done['status'] ?? '' ) && 'confirmed' === ServiceBookings::booking( $a268_bid )->status );
-check( 'customer mail carries the manage link (token in the fragment); team mail never does', $a268_customer && false !== strpos( $a268_customer['body'], 'Termin ansehen, umbuchen oder stornieren: https://example.test/?page_id=501#wpcap-booking=' . $a268_bid . '-' . $a268_token ) && ! $a268_leak );
+// Merged: the buyer mail is the editable mail type service_booking_confirmed; its {manage_link} is the booking page link (token only in the fragment).
+check( 'customer mail carries the manage link (token in the fragment); team mail never does', $a268_customer && false !== strpos( $a268_customer['body'], 'https://example.test/?page_id=501#wpcap-booking=' . $a268_bid . '-' . $a268_token ) && false === strpos( $a268_customer['body'], 'token=' . $a268_token ) && ! $a268_leak );
 $a268_get = new WP_REST_Request( 'GET' );
 $a268_get->set_param( 'booking_id', $a268_bid );
 $a268_get->set_body( wp_json_encode( array( 'token' => $a268_token ) ) );

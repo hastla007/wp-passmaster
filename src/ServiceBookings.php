@@ -28,6 +28,12 @@ final class ServiceBookings {
 	/** Statuses a buyer or admin may cancel / rebook. */
 	const CANCELLABLE = array( 'held', 'pending_confirmation', 'confirmed' );
 	const REBOOKABLE = array( 'pending_confirmation', 'confirmed' );
+	/** Cancellation reason codes (cancel_reason); any other `reason` passed to cancel() is free text. */
+	const REASON_CODES = array( 'customer', 'admin', 'admin_no_refund', 'partner_declined', 'confirmation_timeout', 'capacity_lost', 'order_ended' );
+	/** Most places of one service booking (REST refuses more with 400, A421). */
+	const MAX_QUANTITY = 20;
+	/** Reservations per e-mail address and hour (A644: only reservations that were made count). */
+	const EMAIL_HOURLY_LIMIT = 20;
 
 	/* ================================================================== Reservation */
 
@@ -45,14 +51,16 @@ final class ServiceBookings {
 		$slot_id = absint( $slot_id );
 		$email = sanitize_email( $email );
 		$quantity = Orders::positive_int( $quantity );
-		if ( $quantity < 1 || $quantity > 20 ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( $quantity < 1 || $quantity > self::MAX_QUANTITY ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$idempotency_key = sanitize_text_field( $idempotency_key );
 		$actor = (string) ( $args['actor'] ?? 'customer' );
 		$actor = in_array( $actor, array( 'customer', 'admin', 'system' ), true ) ? $actor : 'customer';
 		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
+		// A644: the client counts every attempt (atomically); the e-mail address – chosen by whoever sends
+		// the request – only counts reservations that were made, so failed attempts cannot lock it out.
+		$email_bucket = 'servicebook|' . strtolower( $email );
 		if ( empty( $args['skip_rate_limit'] ) ) {
-			// Per address and per client; RateLimit::hit() counts atomically (QA-V2).
-			if ( ! RateLimit::hit( 'wpcap_servicebook_' . RateLimit::hash( strtolower( $email ) ), 20, HOUR_IN_SECONDS ) || ! RateLimit::hit( 'wpcap_servicebook_ip_' . RateLimit::client(), (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) ) {
+			if ( ! RateLimit::allow_client( 'servicebook_ip', (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT ) {
 				return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) );
 			}
 		}
@@ -76,18 +84,23 @@ final class ServiceBookings {
 			if ( is_wp_error( $gate ) ) { return $gate; }
 		}
 		$resource_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT resource_id FROM %i WHERE slot_id=%d', $slots, $slot_id ) );
+		if ( ! $resource_id ) { return self::unavailable(); }
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
-		// Lock phase first (locking reads only): resource (serialises bookings of overlapping slots),
-		// then the slot. The first consistent read below then sees every committed booking.
-		$resource = $resource_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_resources', $resource_id ) ) : null;
-		$slot = $resource ? $wpdb->get_row( $wpdb->prepare( "SELECT s.* FROM %i s INNER JOIN %i e ON e.event_id=%d WHERE s.slot_id=%d AND s.resource_id=%d AND e.status='published' FOR UPDATE", $slots, $wpdb->prefix . 'wpcap_events', (int) $resource->event_id, $slot_id, $resource_id ) ) : null;
+		// Lock phase first (locking reads only, A133/A135): resource, the providers assigned to it, then
+		// the slot – serialises bookings of overlapping slots of the resource and of resources sharing a
+		// provider. A lock wait timeout answers a retryable 503. The first consistent read below then sees
+		// every committed booking.
+		$locked = self::lock( array( $resource_id ), array( $slot_id ) );
+		if ( is_wp_error( $locked ) ) { return $locked; }
+		$resource = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d', $wpdb->prefix . 'wpcap_resources', $resource_id ) );
+		$slot = $resource ? $wpdb->get_row( $wpdb->prepare( "SELECT s.* FROM %i s INNER JOIN %i e ON e.event_id=%d WHERE s.slot_id=%d AND s.resource_id=%d AND e.status='published'", $slots, $wpdb->prefix . 'wpcap_events', (int) $resource->event_id, $slot_id, $resource_id ) ) : null;
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT booking_id,slot_id,customer_email,quantity,expires_at,status FROM %i WHERE idempotency_key=%s', $bookings, $idempotency_key ) );
 		if ( $existing ) {
 			if ( (int) $existing->slot_id !== $slot_id || strtolower( $existing->customer_email ) !== strtolower( $email ) || (int) $existing->quantity !== $quantity ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_idempotency_conflict', __( 'Idempotency-Key wurde für eine andere Buchung verwendet.', 'pass-captain' ), array( 'status' => 409 ) ); }
 			$wpdb->query( 'COMMIT' );
 			return array( 'booking_id' => (int) $existing->booking_id, 'expires_at' => $existing->expires_at, 'status' => $existing->status, 'reused' => true );
 		}
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( ! $resource || 'active' !== $resource->status || ! $slot || 'open' !== $slot->status || $slot->starts_at <= $now ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
 		$rules = ServiceResources::rules( $resource );
 		if ( 'customer' === $actor ) {
@@ -111,8 +124,11 @@ final class ServiceBookings {
 			if ( '' !== $order_hold && $order_hold > $expires ) { $expires = $order_hold; }
 		}
 		list( $unit, $currency ) = ServiceResources::price_of( $resource );
+		// Personal manage token (portal links, REST self-service of ServiceBookingFlow); only its hash is
+		// stored – in manage_token_hash and in the A135 column token_hash read by ServiceBookingFlow.
 		$token = bin2hex( random_bytes( 32 ) );
-		$inserted = $wpdb->insert( $bookings, array( 'slot_id' => $slot_id, 'order_id' => absint( $order_id ), 'customer_email' => $email, 'idempotency_key' => $idempotency_key, 'quantity' => $quantity, 'expires_at' => $expires, 'status' => $status, 'amount_minor' => empty( $args['pass_use_id'] ) ? $unit * $quantity : 0, 'currency' => $currency, 'manage_token_hash' => hash( 'sha256', $token ), 'pass_use_id' => absint( $args['pass_use_id'] ?? 0 ), 'created_at' => $now, 'updated_at' => $now ), array( '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s' ) );
+		$token_hash = hash( 'sha256', $token );
+		$inserted = $wpdb->insert( $bookings, array( 'slot_id' => $slot_id, 'order_id' => absint( $order_id ), 'customer_email' => $email, 'idempotency_key' => $idempotency_key, 'quantity' => $quantity, 'expires_at' => $expires, 'status' => $status, 'amount_minor' => empty( $args['pass_use_id'] ) ? $unit * $quantity : 0, 'currency' => $currency, 'manage_token_hash' => $token_hash, 'token_hash' => $token_hash, 'pass_use_id' => absint( $args['pass_use_id'] ?? 0 ), 'created_at' => $now, 'updated_at' => $now ), array( '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s' ) );
 		if ( false === $inserted || ! $wpdb->insert_id ) {
 			$wpdb->query( 'ROLLBACK' );
 			// A parallel request with the same key won the unique index.
@@ -125,8 +141,10 @@ final class ServiceBookings {
 			return self::busy();
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
+		if ( empty( $args['skip_rate_limit'] ) ) { RateLimit::allow( $email_bucket, self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); } // A644: counted once the hold exists.
 		Audit::record( 'service_booking_reserved', 'service_booking', $id, array( 'slot_id' => $slot_id, 'quantity' => $quantity, 'order_id' => absint( $order_id ), 'status' => $status, 'actor' => $actor ) );
-		return array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => $status, 'manage_token' => $token );
+		// `token` is the same secret under the name the A-line booking page and REST clients use.
+		return array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => $status, 'manage_token' => $token, 'token' => $token );
 	}
 
 	/**
@@ -138,11 +156,11 @@ final class ServiceBookings {
 	private static function booking_rule_error( $resource, $slot, array $rules, $email, $quantity, $exclude_booking_id ) {
 		global $wpdb;
 		$start = strtotime( $slot->starts_at . ' UTC' );
-		if ( $rules['cutoff_minutes'] > 0 && $start - $rules['cutoff_minutes'] * MINUTE_IN_SECONDS <= time() ) {
-			/* translators: %d: minutes */
-			return new \WP_Error( 'wpcap_booking_closed', sprintf( __( 'Buchungsschluss: Dieses Zeitfenster kann nur bis %d Minuten vor Beginn gebucht werden.', 'pass-captain' ), (int) $rules['cutoff_minutes'] ), array( 'status' => 409 ) );
+		if ( $rules['cutoff_minutes'] > 0 && $start - $rules['cutoff_minutes'] * MINUTE_IN_SECONDS <= Clock::now() ) {
+			/* translators: %s: lead time, e.g. "2 Stunden" */
+			return new \WP_Error( 'wpcap_booking_cutoff', sprintf( __( 'Buchungsschluss: Dieses Zeitfenster kann nur bis %s vor Beginn gebucht werden.', 'pass-captain' ), self::duration_label( $rules['cutoff_minutes'] ) ), array( 'status' => 409 ) );
 		}
-		if ( $rules['opens_days'] > 0 && $start > time() + $rules['opens_days'] * DAY_IN_SECONDS ) {
+		if ( $rules['opens_days'] > 0 && $start > Clock::now() + $rules['opens_days'] * DAY_IN_SECONDS ) {
 			/* translators: %d: days */
 			return new \WP_Error( 'wpcap_booking_too_early', sprintf( __( 'Dieses Zeitfenster ist noch nicht buchbar: Buchungen sind höchstens %d Tage im Voraus möglich.', 'pass-captain' ), (int) $rules['opens_days'] ), array( 'status' => 409 ) );
 		}
@@ -152,11 +170,11 @@ final class ServiceBookings {
 			$booked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(b.quantity),0) FROM {$p}wpcap_service_bookings b INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id WHERE s.resource_id=%d AND b.customer_email=%s AND b.booking_id<>%d AND s.starts_at>=%s AND s.starts_at<%s AND " . ServiceResources::active_sql( 'b' ), (int) $resource->resource_id, $email, absint( $exclude_booking_id ), $from, $to ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed fragment.
 			if ( $booked + $quantity > $rules['max_per_customer'] ) {
 				/* translators: %d: places */
-				return new \WP_Error( 'wpcap_booking_limit', sprintf( __( 'Pro Person sind in diesem Zeitraum höchstens %d Plätze buchbar.', 'pass-captain' ), (int) $rules['max_per_customer'] ), array( 'status' => 409 ) );
+				return new \WP_Error( 'wpcap_booking_customer_limit', sprintf( __( 'Pro Person sind in diesem Zeitraum höchstens %d Plätze buchbar.', 'pass-captain' ), (int) $rules['max_per_customer'] ), array( 'status' => 409 ) );
 			}
 		}
 		if ( $rules['noshow_block_after'] > 0 ) {
-			$since = gmdate( 'Y-m-d H:i:s', time() - $rules['noshow_block_days'] * DAY_IN_SECONDS );
+			$since = gmdate( 'Y-m-d H:i:s', Clock::now() - $rules['noshow_block_days'] * DAY_IN_SECONDS );
 			$noshows = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i b INNER JOIN %i s ON s.slot_id=b.slot_id WHERE s.resource_id=%d AND b.customer_email=%s AND b.status='no_show' AND b.noshow_at>=%s", $p . 'wpcap_service_bookings', $p . 'wpcap_service_slots', (int) $resource->resource_id, $email, $since ) );
 			if ( $noshows >= $rules['noshow_block_after'] ) {
 				return new \WP_Error( 'wpcap_booking_blocked', __( 'Wegen nicht wahrgenommener Termine sind neue Buchungen für dieses Angebot derzeit nicht möglich. Bitte wende dich an den Veranstalter.', 'pass-captain' ), array( 'status' => 403 ) );
@@ -167,7 +185,7 @@ final class ServiceBookings {
 
 	/** UTC window [from, to) of the limit period containing the slot start (local time of the resource). */
 	private static function period_window( $resource, $starts_utc, $period ) {
-		if ( 'total' === $period ) { return array( current_time( 'mysql', true ), '9999-12-31 00:00:00' ); }
+		if ( 'total' === $period ) { return array( Clock::mysql(), '9999-12-31 00:00:00' ); }
 		$tz = new \DateTimeZone( ServiceResources::timezone_of( $resource ) );
 		$local = ( new \DateTimeImmutable( $starts_utc, new \DateTimeZone( 'UTC' ) ) )->setTimezone( $tz );
 		if ( 'week' === $period ) {
@@ -197,11 +215,10 @@ final class ServiceBookings {
 		if ( $used + $held + $quantity > (int) $slot->capacity ) {
 			return new \WP_Error( 'wpcap_slot_full', __( 'Für dieses Zeitfenster sind nicht genügend Plätze frei.', 'pass-captain' ), array( 'status' => 409, 'waitlist' => (bool) ServiceResources::rules( $resource )['waitlist_enabled'] ) );
 		}
-		// A booked slot of the same resource that overlaps incl. buffers (legacy or REST-created slots).
-		if ( ServiceResources::conflicting_slot( $resource, $slot->starts_at, $slot->ends_at, (int) $slot->slot_id, true ) ) {
-			return new \WP_Error( 'wpcap_slot_conflict', __( 'Dieses Zeitfenster überschneidet sich mit einer bestehenden Buchung derselben Ressource (inklusive Pufferzeit).', 'pass-captain' ), array( 'status' => 409 ) );
-		}
-		return null;
+		// A booked slot of the same resource, or of a resource sharing an active provider, whose buffered
+		// window overlaps (legacy/REST-created slots, buffers raised later; A133): wpcap_slot_resource_busy
+		// or wpcap_slot_provider_busy.
+		return self::blocking_error( (object) array( 'slot_id' => (int) $slot->slot_id, 'resource_id' => (int) $resource->resource_id, 'starts_at' => $slot->starts_at, 'ends_at' => $slot->ends_at, 'buffer_before' => (int) $resource->buffer_before, 'buffer_after' => (int) $resource->buffer_after ), $exclude_booking_id );
 	}
 
 	/* ================================================================== Order linkage and confirmation */
@@ -233,7 +250,7 @@ final class ServiceBookings {
 			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', $data, array( 'booking_id' => (int) $booking->booking_id, 'order_id' => 0 ) );
 			Audit::record( 'service_booking_order_attached', 'service_booking', (int) $booking->booking_id, array( 'order_id' => (int) $order->order_id ) );
 		}
-		if ( 'paid' === $order->payment_status ) { return self::confirm( (int) $booking->booking_id ); }
+		if ( 'paid' === $order->payment_status ) { return self::confirm( (int) $booking->booking_id, array( 'payment' => true ) ); }
 		return self::state( self::get( $booking_id ) );
 	}
 
@@ -247,11 +264,11 @@ final class ServiceBookings {
 			if ( (int) $row->supplement_for ) {
 				// Supplementary order of a dearer rebooking: move the booking (or refund the supplement).
 				if ( 'merged' !== $row->status && ! (int) $row->refund_id ) { self::complete_supplement( (int) $row->booking_id ); }
-			} elseif ( in_array( $row->status, array( 'held', 'expired' ), true ) ) {
-				self::confirm( (int) $row->booking_id );
+			} elseif ( in_array( $row->status, array( 'held', 'pending_payment', 'expired' ), true ) ) {
+				self::confirm( (int) $row->booking_id, array( 'payment' => true ) );
 			} elseif ( in_array( $row->status, array( 'confirmed', 'pending_confirmation', 'checked_in' ), true ) && '' === (string) $row->ticket_ids ) {
 				self::fill_tickets( (int) $row->booking_id );
-			} elseif ( in_array( $row->status, array( 'cancelled', 'declined' ), true ) && ! (int) $row->refund_id && 'admin_no_refund' !== $row->cancel_reason ) {
+			} elseif ( in_array( $row->status, array( 'cancelled', 'declined' ), true ) && ! (int) $row->refund_id && ! in_array( $row->cancel_reason, array( 'admin_no_refund', 'order_ended' ), true ) ) {
 				// Cancelled while the payment was still open: the late payment is refunded.
 				self::fill_tickets( (int) $row->booking_id );
 				self::refund( (int) $row->booking_id );
@@ -262,9 +279,9 @@ final class ServiceBookings {
 	/** Hook wpcap_order_cancelled: holds of an order that expired/was cancelled unpaid are released. */
 	public static function on_order_cancelled( $order_id ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT booking_id,slot_id FROM %i WHERE order_id=%d AND status='held'", $wpdb->prefix . 'wpcap_service_bookings', absint( $order_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT booking_id,slot_id FROM %i WHERE order_id=%d AND status IN ('held','pending_payment')", $wpdb->prefix . 'wpcap_service_bookings', absint( $order_id ) ) );
 		foreach ( (array) $rows as $row ) {
-			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',updated_at=%s WHERE booking_id=%d AND status='held'", $wpdb->prefix . 'wpcap_service_bookings', current_time( 'mysql', true ), (int) $row->booking_id ) );
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',updated_at=%s WHERE booking_id=%d AND status IN ('held','pending_payment')", $wpdb->prefix . 'wpcap_service_bookings', current_time( 'mysql', true ), (int) $row->booking_id ) );
 			if ( 1 === (int) $changed ) {
 				Audit::record( 'service_booking_expired', 'service_booking', (int) $row->booking_id, array( 'order_id' => absint( $order_id ) ) );
 				self::slot_freed( (int) $row->slot_id );
@@ -282,35 +299,77 @@ final class ServiceBookings {
 	}
 
 	/**
-	 * Confirms a held (or late-paid expired) booking under the resource/slot locks. Paid bookings need
-	 * a paid order. Resources with partner confirmation go to pending_confirmation. A late payment whose
-	 * place is gone is cancelled and refunded (never overbooked). Idempotent.
+	 * Confirms a held booking under the resource/provider/slot locks. Idempotent.
 	 *
-	 * @return array|\WP_Error Booking state.
+	 * Direct confirmation (buyer via the booking token, staff, system): the hold must still be valid
+	 * and – for buyers – the booking rules (cutoff, window, per-customer limit) must still hold. A
+	 * resource with a price (ticket type) is paid through the regular checkout (A135,
+	 * ServiceBookingFlow::checkout(): providers, terms, vouchers, invoices, order portal); the order is
+	 * linked inside the order transaction (ServiceBookingFlow::link_order(), hold = order hold, at most
+	 * until the start) and its payment confirms the booking. While that order is unpaid a repeated call
+	 * answers `already` (display status pending_payment).
+	 *
+	 * Payment ($context['payment'], from on_order_paid()/attach_order()): needs the paid order; a late
+	 * payment (hold lapsed) whose place is gone is cancelled and refunded (capacity_lost, never
+	 * overbooked). Resources with partner confirmation go to pending_confirmation.
+	 *
+	 * @param array $context actor (customer default | admin | provider | partner | system), payment
+	 *                       (internal), manage_token (for the mail link), checkout fields for paid
+	 *                       resources (provider, accept_terms, terms_version, locale, billing, code).
+	 * @return array|\WP_Error Booking state (status, already) or the checkout result (status pending_payment, order).
 	 */
 	public static function confirm( $booking_id, array $context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$booking = self::get( $booking_id );
 		if ( ! $booking ) { return self::not_found(); }
+		$payment = ! empty( $context['payment'] );
+		$actor = 'customer';
+		if ( ! $payment ) {
+			$actor = self::actor( $context, self::booking( (int) $booking->booking_id ) );
+			if ( is_wp_error( $actor ) ) { return $actor; }
+		}
 		$resource_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT resource_id FROM %i WHERE slot_id=%d', $p . 'wpcap_service_slots', (int) $booking->slot_id ) );
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
-		$resource = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d FOR UPDATE', $p . 'wpcap_resources', $resource_id ) );
-		$slot = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', (int) $booking->slot_id ) );
+		$locked = self::lock( array( $resource_id ), array( (int) $booking->slot_id ) );
+		if ( is_wp_error( $locked ) ) { return $locked; }
 		$booking = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', (int) $booking->booking_id ) );
+		$resource = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d', $p . 'wpcap_resources', $resource_id ) );
+		$slot = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d', $p . 'wpcap_service_slots', (int) ( $booking->slot_id ?? 0 ) ) );
 		if ( '' !== (string) $wpdb->last_error || ! $resource || ! $slot || ! $booking ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
-		if ( ! in_array( $booking->status, array( 'held', 'expired' ), true ) ) {
+		if ( ! in_array( $booking->status, array( 'held', 'pending_payment', 'expired' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
-			return self::state( $booking );
+			if ( ! $payment && ! in_array( $booking->status, array( 'confirmed', 'pending_confirmation', 'checked_in' ), true ) ) { return self::state_error(); }
+			return self::state( $booking ) + array( 'already' => true );
 		}
-		if ( (int) $resource->ticket_type_id ) {
-			$order = (int) $booking->order_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT payment_status FROM %i WHERE order_id=%d', $p . 'wpcap_orders', (int) $booking->order_id ) ) : null;
-			if ( ! $order || 'paid' !== $order->payment_status ) {
+		$now = Clock::mysql();
+		$order = (int) $booking->order_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT payment_status FROM %i WHERE order_id=%d', $p . 'wpcap_orders', (int) $booking->order_id ) ) : null;
+		if ( (int) $resource->ticket_type_id && ( ! $order || 'paid' !== $order->payment_status ) ) {
+			if ( $payment ) {
 				$wpdb->query( 'ROLLBACK' );
 				return new \WP_Error( 'wpcap_booking_payment_required', __( 'Diese Buchung wird mit der Zahlung der Bestellung bestätigt.', 'pass-captain' ), array( 'status' => 402 ) );
 			}
+			if ( $order && 'expired' !== $booking->status && $booking->expires_at > $now ) {
+				// The checkout already runs: no second order.
+				$wpdb->query( 'COMMIT' );
+				return self::state( $booking ) + array( 'status' => 'pending_payment', 'already' => true );
+			}
 		}
-		$now = current_time( 'mysql', true );
+		if ( ! $payment ) {
+			// Direct confirmation: only a valid hold of a still bookable slot, inside the buyer's rules.
+			if ( 'expired' === $booking->status || ( $booking->expires_at && $booking->expires_at <= $now ) ) { $wpdb->query( 'ROLLBACK' ); return self::state_error( __( 'Die Reservierung ist abgelaufen. Bitte wähle das Zeitfenster erneut.', 'pass-captain' ) ); }
+			if ( 'open' !== $slot->status || $slot->starts_at <= $now || 'active' !== $resource->status ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
+			if ( 'customer' === $actor ) {
+				$rule_error = self::booking_rule_error( $resource, $slot, ServiceResources::rules( $resource ), (string) $booking->customer_email, (int) $booking->quantity, (int) $booking->booking_id );
+				if ( $rule_error ) { $wpdb->query( 'ROLLBACK' ); return $rule_error; }
+			}
+			if ( (int) $resource->ticket_type_id && ! $order ) {
+				// Keep the hold alive while the checkout runs; the order transaction then takes it over.
+				$wpdb->update( "{$p}wpcap_service_bookings", array( 'expires_at' => min( (string) $slot->starts_at, gmdate( 'Y-m-d H:i:s', time() + 15 * MINUTE_IN_SECONDS ) ), 'updated_at' => $now ), array( 'booking_id' => (int) $booking->booking_id ) );
+				if ( '' !== (string) $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
+				return ServiceBookingFlow::checkout( self::booking( (int) $booking->booking_id ), $slot, (int) $resource->ticket_type_id, $context );
+			}
+		}
 		$lapsed = 'expired' === $booking->status || ( $booking->expires_at && $booking->expires_at <= $now );
 		$lost = false;
 		if ( $lapsed ) {
@@ -329,16 +388,18 @@ final class ServiceBookings {
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		self::fill_tickets( (int) $booking->booking_id );
 		$booking = self::get( $booking->booking_id );
-		Audit::record( 'service_booking_' . ( $lost ? 'capacity_lost' : $data['status'] ), 'service_booking', (int) $booking->booking_id, array( 'slot_id' => (int) $slot->slot_id, 'order_id' => (int) $booking->order_id, 'late' => $lapsed ) );
+		Audit::record( 'service_booking_' . ( $lost ? 'capacity_lost' : $data['status'] ), 'service_booking', (int) $booking->booking_id, array( 'slot_id' => (int) $slot->slot_id, 'order_id' => (int) $booking->order_id, 'late' => $lapsed, 'actor' => $payment ? 'payment' : $actor ) );
 		if ( $lost ) {
-			self::refund( (int) $booking->booking_id );
-			self::mail( 'service_booking_cancelled', $booking, array( 'reason' => __( 'Das Zeitfenster war bei Zahlungseingang bereits ausgebucht.', 'pass-captain' ) ) );
+			$refund = self::refund( (int) $booking->booking_id );
+			ServiceBookingFlow::notify( (int) $booking->booking_id, 'unallocated', array( 'team_only' => true, 'refund' => $refund ) );
+			self::mail( 'service_booking_cancelled', $booking, array( 'reason' => __( 'Das Zeitfenster war bei Zahlungseingang bereits ausgebucht; der Betrag wird erstattet.', 'pass-captain' ), 'refund' => $refund ) );
 			return self::state( self::get( $booking->booking_id ) );
 		}
 		if ( 'pending_confirmation' === $data['status'] ) {
 			self::mail( 'service_booking_pending', $booking, array() );
 			self::notify_partner( $booking, $resource );
 		} else {
+			ServiceBookingFlow::notify( (int) $booking->booking_id, 'confirmed', array( 'team_only' => true ) );
 			self::mail( 'service_booking_confirmed', $booking, array( 'manage_token' => (string) ( $context['manage_token'] ?? '' ) ) );
 		}
 		return self::state( $booking );
@@ -399,16 +460,29 @@ final class ServiceBookings {
 	 * (cash to the payment provider, voucher share back to the voucher), the buyer is notified and the
 	 * slot's waitlist gets the place. Idempotent: a second call only resumes an unfinished refund.
 	 *
-	 * @param array $ctx actor (customer|admin|partner|system), reason (code), note, refund (bool, default true).
-	 * @return array|\WP_Error Booking state incl. refund.
+	 * @param array $ctx actor (customer|admin|partner|system; admin needs the event rights), reason (code
+	 *                   or free text, which then becomes the note), note, refund (bool, default true;
+	 *                   staff with refund need the refund capability).
+	 * @return array|\WP_Error Booking state incl. previous, refund (row, WP_Error or null), already (repeat call).
 	 */
 	public static function cancel( $booking_id, array $ctx = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$actor = (string) ( $ctx['actor'] ?? 'customer' );
 		$actor = in_array( $actor, array( 'customer', 'admin', 'partner', 'system' ), true ) ? $actor : 'customer';
-		$reason = sanitize_key( $ctx['reason'] ?? ( 'customer' === $actor ? 'customer' : 'admin' ) );
+		$raw_reason = (string) ( $ctx['reason'] ?? '' );
+		$note = sanitize_text_field( (string) ( $ctx['note'] ?? '' ) );
+		if ( '' !== $raw_reason && ! in_array( $raw_reason, self::REASON_CODES, true ) ) {
+			// Free text (slot screen, booking page): kept as the note for the mail.
+			$note = '' !== $note ? $note : sanitize_text_field( $raw_reason );
+			$raw_reason = '';
+		}
+		$reason = '' !== $raw_reason ? $raw_reason : ( 'customer' === $actor ? 'customer' : 'admin' );
 		$refund_wanted = ! array_key_exists( 'refund', $ctx ) || ! empty( $ctx['refund'] );
+		if ( 'admin' === $actor ) {
+			$checked = self::actor( $ctx, self::booking( absint( $booking_id ) ) );
+			if ( is_wp_error( $checked ) ) { return $checked; }
+		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$booking = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', absint( $booking_id ) ) );
 		if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
@@ -416,25 +490,28 @@ final class ServiceBookings {
 		if ( in_array( $booking->status, array( 'cancelled', 'declined' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
 			// Repeat call: finish a refund that failed or was interrupted.
-			if ( (int) $booking->order_id && '' !== (string) $booking->ticket_ids && ! in_array( $booking->cancel_reason, array( 'admin_no_refund', 'expired' ), true ) ) { self::refund( (int) $booking->booking_id ); }
-			return self::state( self::get( $booking->booking_id ) );
+			if ( (int) $booking->order_id && '' !== (string) $booking->ticket_ids && ! in_array( $booking->cancel_reason, array( 'admin_no_refund', 'expired', 'order_ended' ), true ) ) { self::refund( (int) $booking->booking_id ); }
+			return self::state( self::get( $booking->booking_id ) ) + array( 'already' => true );
 		}
 		$slot = ServiceResources::slot( (int) $booking->slot_id );
 		$resource = $slot ? ServiceResources::resource( (int) $slot->resource_id ) : null;
 		if ( ! in_array( $booking->status, self::CANCELLABLE, true ) || ! $slot ) { $wpdb->query( 'ROLLBACK' ); return self::state_error(); }
 		if ( 'customer' === $actor ) {
-			$rules = ServiceResources::rules( $resource );
-			$deadline = strtotime( $slot->starts_at . ' UTC' ) - $rules['cancel_deadline_minutes'] * MINUTE_IN_SECONDS;
-			if ( time() > $deadline ) {
+			// An unpaid hold can always be released; afterwards the cancellation deadline applies.
+			$deadline = in_array( $booking->status, array( 'held', 'pending_payment' ), true ) ? null : self::deadline_error( 'cancel', (string) $slot->starts_at, ServiceResources::rules( $resource )['cancel_deadline_minutes'] );
+			if ( $deadline ) {
 				$wpdb->query( 'ROLLBACK' );
-				/* translators: %s: deadline */
-				return new \WP_Error( 'wpcap_booking_cancel_deadline', sprintf( __( 'Die Stornierungsfrist ist abgelaufen (bis %s).', 'pass-captain' ), self::local_time( $deadline, $resource ) ), array( 'status' => 409 ) );
+				return $deadline;
 			}
 		} elseif ( strtotime( $slot->ends_at . ' UTC' ) < time() && 'system' !== $actor ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_booking_past', __( 'Vergangene Termine können nicht storniert werden; bitte als „nicht erschienen“ markieren oder eine Erstattung in der Bestellung anlegen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$was_paid = in_array( $booking->status, array( 'pending_confirmation', 'confirmed' ), true );
+		if ( $was_paid && (int) $booking->order_id && $refund_wanted && 'admin' === $actor && ! current_user_can( Refunds::REFUND_CAP ) && ! current_user_can( Refunds::APPROVE_CAP ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_forbidden', __( 'Keine Berechtigung für Erstattungen. Storniere ohne Erstattung oder bitte eine berechtigte Person.', 'pass-captain' ), array( 'status' => 403 ) );
+		}
 		$declined = in_array( $reason, array( 'partner_declined', 'confirmation_timeout' ), true );
 		$stored_reason = ( ! $refund_wanted && in_array( $actor, array( 'admin', 'partner' ), true ) ) ? 'admin_no_refund' : $reason;
 		$updated = $wpdb->update( "{$p}wpcap_service_bookings", array( 'status' => $declined ? 'declined' : 'cancelled', 'cancel_reason' => substr( $stored_reason, 0, 64 ), 'confirm_by' => null, 'expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'booking_id' => (int) $booking->booking_id ) );
@@ -456,12 +533,15 @@ final class ServiceBookings {
 		self::drop_supplements( (int) $booking->booking_id, 'original_cancelled' );
 		if ( (int) $booking->supplement_for && (int) $booking->order_id && 'pending' === (string) ( Orders::get( (int) $booking->order_id )->payment_status ?? '' ) ) {
 			Orders::cancel_order( (int) $booking->order_id, 'service_supplement_cancelled' );
+		} elseif ( ! $was_paid && (int) $booking->order_id && self::own_unpaid_order( $booking, $resource ) ) {
+			// The checkout order of this booking alone (ServiceBookingFlow::checkout()) is not paid any more.
+			Orders::cancel_order( (int) $booking->order_id, 'service_booking_cancelled' );
 		}
 		$fresh = self::get( $booking->booking_id );
-		$note = sanitize_text_field( (string) ( $ctx['note'] ?? '' ) );
+		ServiceBookingFlow::notify( (int) $booking->booking_id, 'cancelled', array( 'team_only' => true, 'actor' => $actor, 'refund' => $refund, 'previous' => self::booking( (int) $booking->booking_id ) ) );
 		self::mail( $declined ? 'service_booking_declined' : 'service_booking_cancelled', $fresh, array( 'reason' => '' !== $note ? $note : self::reason_label( $stored_reason ), 'refund' => $refund ) );
 		self::slot_freed( (int) $booking->slot_id );
-		return self::state( $fresh ) + ( is_wp_error( $refund ) ? array( 'refund_error' => $refund->get_error_code() ) : array() );
+		return self::state( $fresh ) + array( 'previous' => (string) $booking->status, 'refund' => $refund ) + ( is_wp_error( $refund ) ? array( 'refund_error' => $refund->get_error_code() ) : array() );
 	}
 
 	/**
@@ -517,6 +597,10 @@ final class ServiceBookings {
 		$booking = self::get( $booking_id );
 		$new_slot_id = absint( $new_slot_id );
 		if ( ! $booking ) { return self::not_found(); }
+		if ( 'admin' === $actor ) {
+			$checked = self::actor( $ctx, self::booking( (int) $booking->booking_id ) );
+			if ( is_wp_error( $checked ) ) { return $checked; }
+		}
 		if ( '' !== $key_hash && hash_equals( (string) $booking->last_action_key, $key_hash ) ) { return self::state( $booking ) + array( 'reused' => true ); }
 		$old_slot = ServiceResources::slot( (int) $booking->slot_id );
 		$new_slot = ServiceResources::slot( $new_slot_id );
@@ -524,7 +608,8 @@ final class ServiceBookings {
 		if ( (int) $old_slot->slot_id === $new_slot_id ) { return new \WP_Error( 'wpcap_rebook_same', __( 'Die Buchung ist bereits in diesem Zeitfenster.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$old_resource = ServiceResources::resource( (int) $old_slot->resource_id );
 		$new_resource = ServiceResources::resource( (int) $new_slot->resource_id );
-		if ( (int) $old_resource->event_id !== (int) $new_resource->event_id ) { return new \WP_Error( 'wpcap_rebook_scope', __( 'Umbuchungen sind nur innerhalb desselben Angebots möglich.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		// Only within the same event (offer); a slot of another event is not available for this booking.
+		if ( (int) $old_resource->event_id !== (int) $new_resource->event_id ) { return self::unavailable(); }
 		// Price difference per place.
 		$old_unit = (int) $booking->quantity ? intdiv( (int) $booking->amount_minor, (int) $booking->quantity ) : 0;
 		list( $new_unit ) = ServiceResources::price_of( $new_resource );
@@ -532,7 +617,7 @@ final class ServiceBookings {
 		$difference = ( $old_unit - $new_unit ) * (int) $booking->quantity;
 		$policy = ServiceResources::rules( $old_resource )['price_policy'];
 		if ( 0 !== $difference && ( 'same_price' === $policy || ( $difference < 0 && ! self::supplement_possible( $booking, $new_resource ) ) ) ) {
-			return new \WP_Error( $difference < 0 ? 'wpcap_rebook_price_higher' : 'wpcap_rebook_price', $difference < 0 ? __( 'Das gewählte Zeitfenster ist teurer. Bitte storniere und buche neu.', 'pass-captain' ) : __( 'Umbuchungen sind nur auf Zeitfenster zum gleichen Preis möglich.', 'pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( $difference < 0 ? 'wpcap_rebook_price_higher' : 'wpcap_booking_rebook_price', $difference < 0 ? __( 'Das gewählte Zeitfenster ist teurer. Bitte storniere und buche neu.', 'pass-captain' ) : __( 'Umbuchungen sind nur auf Zeitfenster zum gleichen Preis möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$open_supplement = self::open_supplement( (int) $booking->booking_id );
 		if ( $difference < 0 ) {
@@ -541,30 +626,28 @@ final class ServiceBookings {
 		}
 		if ( $open_supplement ) { return self::supplement_open_error(); }
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
-		// Lock order: resources by id, slots by id, then the booking.
+		// Lock order: resources by id, their providers, slots by id (lock()), then the booking.
 		$resource_ids = array_unique( array( (int) $old_resource->resource_id, (int) $new_resource->resource_id ) );
-		sort( $resource_ids, SORT_NUMERIC );
-		$locked = array();
-		foreach ( $resource_ids as $rid ) { $locked[ $rid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d FOR UPDATE', $p . 'wpcap_resources', $rid ) ); }
 		$slot_ids = array( (int) $old_slot->slot_id, $new_slot_id );
-		sort( $slot_ids, SORT_NUMERIC );
+		$lock = self::lock( $resource_ids, $slot_ids );
+		if ( is_wp_error( $lock ) ) { return $lock; }
+		$locked = array();
+		foreach ( $resource_ids as $rid ) { $locked[ $rid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d', $p . 'wpcap_resources', $rid ) ); }
 		$slots = array();
-		foreach ( $slot_ids as $sid ) { $slots[ $sid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', $sid ) ); }
+		foreach ( $slot_ids as $sid ) { $slots[ $sid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d', $p . 'wpcap_service_slots', $sid ) ); }
 		$booking = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', (int) $booking->booking_id ) );
 		if ( '' !== (string) $wpdb->last_error || ! $booking || in_array( null, $slots, true ) || in_array( null, $locked, true ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		if ( '' !== $key_hash && hash_equals( (string) $booking->last_action_key, $key_hash ) ) { $wpdb->query( 'COMMIT' ); return self::state( $booking ) + array( 'reused' => true ); }
 		if ( ! in_array( $booking->status, self::REBOOKABLE, true ) || (int) $booking->slot_id !== (int) $old_slot->slot_id ) { $wpdb->query( 'ROLLBACK' ); return self::state_error(); }
 		$target = $slots[ $new_slot_id ];
 		$resource = $locked[ (int) $new_resource->resource_id ];
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( 'open' !== $target->status || $target->starts_at <= $now || 'active' !== $resource->status ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
 		if ( 'customer' === $actor ) {
-			$rules = ServiceResources::rules( $locked[ (int) $old_resource->resource_id ] );
-			$deadline = strtotime( $slots[ (int) $old_slot->slot_id ]->starts_at . ' UTC' ) - $rules['rebook_deadline_minutes'] * MINUTE_IN_SECONDS;
-			if ( time() > $deadline ) {
+			$deadline = self::deadline_error( 'rebook', (string) $slots[ (int) $old_slot->slot_id ]->starts_at, ServiceResources::rules( $locked[ (int) $old_resource->resource_id ] )['rebook_deadline_minutes'] );
+			if ( $deadline ) {
 				$wpdb->query( 'ROLLBACK' );
-				/* translators: %s: deadline */
-				return new \WP_Error( 'wpcap_rebook_deadline', sprintf( __( 'Die Umbuchungsfrist ist abgelaufen (bis %s).', 'pass-captain' ), self::local_time( $deadline, $old_resource ) ), array( 'status' => 409 ) );
+				return $deadline;
 			}
 			$rule_error = self::booking_rule_error( $resource, $target, ServiceResources::rules( $resource ), $booking->customer_email, (int) $booking->quantity, (int) $booking->booking_id );
 			if ( $rule_error ) { $wpdb->query( 'ROLLBACK' ); return $rule_error; }
@@ -584,6 +667,12 @@ final class ServiceBookings {
 				$data['origin_minor'] = (int) $booking->origin_minor - $origin_part;
 			}
 		}
+		$previous = self::booking( (int) $booking->booking_id );
+		/**
+		 * Inside the rebooking transaction, after every check (resources, providers, both slots and the
+		 * booking are locked). For extensions and deterministic race tests.
+		 */
+		do_action( 'wpcap_service_booking_rebooking', (int) $booking->booking_id, $new_slot_id );
 		$updated = $wpdb->update( "{$p}wpcap_service_bookings", $data, array( 'booking_id' => (int) $booking->booking_id, 'slot_id' => (int) $old_slot->slot_id ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		$count = (int) $booking->rebook_count + 1;
@@ -603,9 +692,10 @@ final class ServiceBookings {
 			$refund = null === $refund ? $origin_refund : $refund;
 		}
 		$fresh = self::get( $booking->booking_id );
+		ServiceBookingFlow::notify( (int) $booking->booking_id, 'rebooked', array( 'team_only' => true, 'previous' => $previous, 'actor' => $actor ) );
 		self::mail( 'service_booking_rebooked', $fresh, array( 'old_slot' => $old_slot, 'refund' => $refund ) );
 		self::slot_freed( (int) $old_slot->slot_id );
-		return self::state( $fresh ) + array( 'difference_minor' => $difference ) + ( is_wp_error( $refund ) ? array( 'refund_error' => $refund->get_error_code() ) : array() );
+		return self::state( $fresh ) + array( 'previous_slot_id' => (int) $old_slot->slot_id, 'difference_minor' => $difference ) + ( is_wp_error( $refund ) ? array( 'refund_error' => $refund->get_error_code() ) : array() );
 	}
 
 	/* ================================================================== Supplementary payment (dearer rebooking) */
@@ -645,9 +735,8 @@ final class ServiceBookings {
 			return (int) $open->slot_id === (int) $new_slot->slot_id ? self::supplement_result( $booking, $open, false ) : self::supplement_open_error();
 		}
 		if ( 'customer' === $actor ) {
-			$deadline = strtotime( $old_slot->starts_at . ' UTC' ) - ServiceResources::rules( $old_resource )['rebook_deadline_minutes'] * MINUTE_IN_SECONDS;
-			/* translators: %s: deadline */
-			if ( time() > $deadline ) { return new \WP_Error( 'wpcap_rebook_deadline', sprintf( __( 'Die Umbuchungsfrist ist abgelaufen (bis %s).', 'pass-captain' ), self::local_time( $deadline, $old_resource ) ), array( 'status' => 409 ) ); }
+			$deadline = self::deadline_error( 'rebook', (string) $old_slot->starts_at, ServiceResources::rules( $old_resource )['rebook_deadline_minutes'] );
+			if ( $deadline ) { return $deadline; }
 		}
 		if ( ! in_array( $booking->status, self::REBOOKABLE, true ) ) { return self::state_error(); }
 		$gateway = self::supplement_gateway( (string) ( $ctx['provider'] ?? '' ), (string) $booking->currency );
@@ -670,9 +759,10 @@ final class ServiceBookings {
 			return $error;
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $refuse( self::busy() ); }
-		// Lock order: resources by id, slots by id, then the booking (as rebook()).
+		// Lock order: resources by id, their providers, slots by id, then the booking (as rebook()).
 		$resource_ids = array_unique( array( (int) $old_resource->resource_id, (int) $new_resource->resource_id ) );
 		sort( $resource_ids, SORT_NUMERIC );
+		if ( is_wp_error( self::lock( $resource_ids, array( (int) $old_slot->slot_id, (int) $new_slot->slot_id ) ) ) ) { return $refuse( self::busy() ); }
 		$locked = array();
 		foreach ( $resource_ids as $rid ) { $locked[ $rid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d FOR UPDATE', $p . 'wpcap_resources', $rid ) ); }
 		$slot_ids = array( (int) $old_slot->slot_id, (int) $new_slot->slot_id );
@@ -797,19 +887,26 @@ final class ServiceBookings {
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$resource_ids = array_unique( array( (int) $old_slot_row->resource_id, (int) $new_slot_row->resource_id ) );
 		sort( $resource_ids, SORT_NUMERIC );
-		$locked = array();
-		foreach ( $resource_ids as $rid ) { $locked[ $rid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d FOR UPDATE', $p . 'wpcap_resources', $rid ) ); }
 		$slot_ids = array_unique( array( (int) $old_slot_row->slot_id, (int) $new_slot_row->slot_id ) );
 		sort( $slot_ids, SORT_NUMERIC );
+		// Lock order: resources, their providers, slots (lock()), then the booking rows.
+		$lock = self::lock( $resource_ids, $slot_ids );
+		if ( is_wp_error( $lock ) ) { return $lock; }
+		$locked = array();
+		foreach ( $resource_ids as $rid ) { $locked[ $rid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d', $p . 'wpcap_resources', $rid ) ); }
 		$slots = array();
-		foreach ( $slot_ids as $sid ) { $slots[ $sid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', $sid ) ); }
+		foreach ( $slot_ids as $sid ) { $slots[ $sid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d', $p . 'wpcap_service_slots', $sid ) ); }
 		// Booking rows by id (an original is always older than its supplement).
 		$original = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', (int) $original->booking_id ) );
 		$supplement = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', (int) $supplement->booking_id ) );
 		if ( '' !== (string) $wpdb->last_error || ! $original || ! $supplement || in_array( null, $slots, true ) || in_array( null, $locked, true ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		if ( ! in_array( $supplement->status, array( 'held', 'expired' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
-			return self::complete_supplement( (int) $supplement->booking_id );
+			// Settled meanwhile (merged / cancelled): handled once by the plain checks above. Any other
+			// status is not a supplement state – never re-enter (that looped while a second payment hook
+			// had switched the row to `confirmed`).
+			if ( in_array( $supplement->status, array( 'merged', 'cancelled', 'declined' ), true ) ) { return self::complete_supplement( (int) $supplement->booking_id ); }
+			return self::state_error();
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT payment_status FROM %i WHERE order_id=%d', $p . 'wpcap_orders', (int) $supplement->order_id ) );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
@@ -1135,7 +1232,11 @@ final class ServiceBookings {
 		if ( isset( $extra['old_slot'] ) && $extra['old_slot'] ) {
 			$vars['old_slot_date'] = self::local_time( strtotime( $extra['old_slot']->starts_at . ' UTC' ), $resource );
 		}
-		if ( ! empty( $extra['manage_token'] ) ) {
+		$page_link = ServiceBookingFlow::remembered_manage_link( (int) $booking->booking_id );
+		if ( '' !== $page_link && in_array( $type, array( 'service_booking_confirmed', 'service_booking_rebooked' ), true ) ) {
+			// Booking page (A268): its manage link keeps the token in the URL fragment (never in logs/Referer).
+			$vars['manage_link'] = Mail\Mailer::link( $page_link );
+		} elseif ( ! empty( $extra['manage_token'] ) ) {
 			$vars['manage_link'] = Mail\Mailer::link( add_query_arg( array( 'wpcap_service_booking' => (int) $booking->booking_id, 'token' => (string) $extra['manage_token'] ), home_url( '/' ) ) );
 		}
 		$locale = (int) $booking->order_id ? (string) ( Orders::get( (int) $booking->order_id )->locale ?? '' ) : '';
@@ -1200,94 +1301,11 @@ final class ServiceBookings {
 	}
 
 	/* =============================================================================================
-	 * Resources, slots, booking rules, providers and the slot booking flow of the A-line (A133–A135,
-	 * A143, A157, A268, A421, A644; ServiceBookingFlow, Admin\ServiceSlotsPage, Frontend\ServiceBooking).
-	 * Merged from the parallel implementation: the order/payment based booking flow above
-	 * (reserve(), confirm(), cancel(), rebook()) is the public one; the A-line variants of those four
-	 * are kept as slot_reserve(), slot_confirm(), slot_cancel() and slot_rebook() for its internal flow.
+	 * Resources, slots, booking rules and providers of the slot screen (A133–A135, A143, A157, A268,
+	 * A421, A644; ServiceBookingFlow, Admin\ServiceSlotsPage, Frontend\ServiceBooking). Merged from the
+	 * parallel implementation: there is one booking stack – reserve(), confirm(), cancel() and rebook()
+	 * above serve the services screen, the portal, the slot screen, the booking page and REST alike.
 	 * ============================================================================================= */
-
-	/** Most places of one service booking (REST refuses more with 400, A421). */
-	const MAX_QUANTITY = 20;
-
-	/** Reservations per e-mail address and hour (A644: only reservations that were made count). */
-	const EMAIL_HOURLY_LIMIT = 20;
-
-	/**
-	 * Reserves places in a slot as a hold (status `held`, expires after $minutes, max. 15).
-	 *
-	 * Concurrency (A133/A135): the slot's resource row, the rows of the providers assigned to it and
-	 * the slot row are locked in a fixed order (resources, providers, slots – each ascending) with
-	 * locking reads only, so the transaction's snapshot is taken after every lock is held. Parallel
-	 * reservations of the same slot, of overlapping slots of one resource or of slots of different
-	 * resources sharing a provider are therefore serialised and the later one sees the earlier
-	 * booking. Checked under the locks: slot open and in the future, free places, no overlapping
-	 * booked slot of the same resource or of a resource sharing a provider (buffered windows, see
-	 * blocking_slot()).
-	 */
-	public static function slot_reserve( $slot_id, $email, $quantity = 1, $order_id = 0, $minutes = 10, $idempotency_key = '' ) {
-		global $wpdb;
-		$slot_id = absint( $slot_id );
-		$email = Http::email( $email );
-		$quantity = min( self::MAX_QUANTITY, max( 1, absint( $quantity ) ) );
-		$idempotency_key = sanitize_text_field( Http::str( $idempotency_key ) );
-		if ( ! $slot_id || ! Http::valid_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
-		// A644: the client counts every attempt; the e-mail address (chosen by whoever sends the request)
-		// only counts reservations that were made, so failed or invalid attempts cannot lock it out.
-		$email_bucket = 'servicebook|' . strtolower( $email );
-		if ( ! RateLimit::allow_client( 'servicebook_ip', (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ), HOUR_IN_SECONDS ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
-		if ( RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
-		$idempotency_key = hash( 'sha256', $idempotency_key );
-		$bookings = $wpdb->prefix . 'wpcap_service_bookings';
-		$reused = self::reused_booking( $idempotency_key, $slot_id, $email, $quantity );
-		if ( null !== $reused ) { return $reused; }
-		$resource_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT resource_id FROM {$wpdb->prefix}wpcap_service_slots WHERE slot_id=%d", $slot_id ) );
-		if ( ! $resource_id ) { return self::unavailable(); }
-		$wpdb->query( 'START TRANSACTION' );
-		$locked = self::lock( array( $resource_id ), array( $slot_id ) );
-		if ( is_wp_error( $locked ) ) { return $locked; }
-		// First consistent read: only after every lock is held.
-		$reused = self::reused_booking( $idempotency_key, $slot_id, $email, $quantity );
-		if ( null !== $reused ) { $wpdb->query( 'ROLLBACK' ); return $reused; }
-		$now = Clock::mysql();
-		$slot = self::bookable_slot( $slot_id );
-		if ( ! $slot || 'open' !== $slot->status || $slot->starts_at <= $now ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
-		// A134: booking window and per-customer limit (serialised by the resource lock).
-		$rule_error = self::rule_error( $slot, $email );
-		if ( $rule_error ) { $wpdb->query( 'ROLLBACK' ); return $rule_error; }
-		$wpdb->query( $wpdb->prepare( "UPDATE $bookings SET status='expired' WHERE slot_id=%d AND status='held' AND expires_at <= %s", $slot_id, $now ) );
-		$used = self::booked( $slot_id );
-		if ( $used + $quantity > (int) $slot->capacity ) { $wpdb->query( 'ROLLBACK' ); return self::full(); }
-		$blocked = self::blocking_error( $slot );
-		if ( $blocked ) { $wpdb->query( 'ROLLBACK' ); return $blocked; }
-		$expires = gmdate( 'Y-m-d H:i:s', Clock::now() + min( 15, max( 1, absint( $minutes ) ) ) * MINUTE_IN_SECONDS );
-		$row = array( 'slot_id' => $slot_id, 'order_id' => absint( $order_id ), 'customer_email' => $email, 'idempotency_key' => $idempotency_key, 'quantity' => $quantity, 'expires_at' => $expires, 'status' => 'held', 'created_at' => $now );
-		// A135: personal management token (confirm/rebook/cancel via REST); only its hash is stored.
-		$token = self::flow_ready() ? bin2hex( random_bytes( 32 ) ) : '';
-		if ( '' !== $token ) { $row += array( 'token_hash' => hash( 'sha256', $token ), 'updated_at' => $now ); }
-		$wpdb->insert( $bookings, $row );
-		if ( ! $wpdb->insert_id || '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_failed', __( 'Zeitfenster konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		$id = (int) $wpdb->insert_id;
-		if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return Errors::busy(); }
-		RateLimit::allow( $email_bucket, self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); // A644: counted once the hold exists.
-		$result = array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => 'held' );
-		if ( '' !== $token ) { $result['token'] = $token; }
-		return $result;
-	}
-
-	/** Earlier booking with the same idempotency key: its result, a conflict error, or null. */
-	private static function reused_booking( $key_hash, $slot_id, $email, $quantity ) {
-		global $wpdb;
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT booking_id,slot_id,customer_email,quantity,expires_at,status FROM {$wpdb->prefix}wpcap_service_bookings WHERE idempotency_key=%s", $key_hash ) );
-		if ( ! $existing ) { return null; }
-		if ( (int) $existing->slot_id !== (int) $slot_id || strtolower( $existing->customer_email ) !== strtolower( $email ) || (int) $existing->quantity !== (int) $quantity ) { return new \WP_Error( 'wpcap_booking_idempotency_conflict', __( 'Idempotency-Key wurde für eine andere Buchung verwendet.', 'pass-captain' ), array( 'status' => 409 ) ); }
-		return array( 'booking_id' => (int) $existing->booking_id, 'expires_at' => $existing->expires_at, 'status' => $existing->status, 'reused' => true );
-	}
-
-
-	private static function full() {
-		return new \WP_Error( 'wpcap_slot_full', __( 'Für dieses Zeitfenster sind nicht genügend Plätze frei.', 'pass-captain' ), array( 'status' => 409 ) );
-	}
 
 	/** Slot with its resource (buffers, rules) when resource and event are bookable, else null. Plain read. */
 	public static function bookable_slot( $slot_id ) {
@@ -1311,18 +1329,32 @@ final class ServiceBookings {
 		return self::has_column( 'wpcap_resources', 'cancel_hours' );
 	}
 
-	/** Resource columns read together with a slot (alias r): event, name, buffers and – once present – the rules. */
+	/** Resource columns read together with a slot (alias r): event, name, buffers, the rules JSON and – once present – the rule columns. */
 	private static function resource_columns() {
-		$columns = 'r.event_id,r.name AS resource_name,r.buffer_before,r.buffer_after';
+		$columns = 'r.event_id,r.name AS resource_name,r.buffer_before,r.buffer_after,r.rules';
 		if ( self::rules_ready() ) {
 			foreach ( array_keys( self::RULES ) as $rule ) { $columns .= ',r.' . $rule; }
 		}
 		return $columns;
 	}
 
-	/** Rules of a resource or slot row (missing columns = 0). */
+	/**
+	 * Rules of a resource or slot row in the slot screen's terms (missing columns = 0). A resource with
+	 * rules JSON (services screen) is described by its effective rules (ServiceResources::rules(), the
+	 * ones every booking path enforces); deadlines are rounded up to whole hours.
+	 */
 	public static function rules( $row ) {
 		$rules = array();
+		if ( $row && ! empty( $row->rules ) ) {
+			$effective = ServiceResources::rules( $row );
+			return array(
+				'lead_minutes' => min( self::RULES['lead_minutes'][1], (int) $effective['cutoff_minutes'] ),
+				'advance_days' => min( self::RULES['advance_days'][1], (int) $effective['opens_days'] ),
+				'max_per_customer' => min( self::RULES['max_per_customer'][1], (int) $effective['max_per_customer'] ),
+				'rebook_hours' => min( self::RULES['rebook_hours'][1], (int) ceil( $effective['rebook_deadline_minutes'] / 60 ) ),
+				'cancel_hours' => min( self::RULES['cancel_hours'][1], (int) ceil( $effective['cancel_deadline_minutes'] / 60 ) ),
+			);
+		}
 		foreach ( array_keys( self::RULES ) as $rule ) { $rules[ $rule ] = absint( $row->$rule ?? 0 ); }
 		return $rules;
 	}
@@ -1348,75 +1380,57 @@ final class ServiceBookings {
 	}
 
 	/**
-	 * Booking window and per-customer limit of the slot's resource (A134), checked server-side on
-	 * reserve, confirm and rebook: the slot must start at least `lead_minutes` from now and at most
-	 * `advance_days` ahead; the customer may hold at most `max_per_customer` active bookings (held,
-	 * awaiting payment or confirmed) on not yet ended slots of the resource ($exclude_booking: the
-	 * booking being confirmed or rebooked).
+	 * Booking rules (cutoff, booking window, per-customer limit, no-show block) of the slot's resource
+	 * for a customer, as enforced by reserve(), confirm() and rebook() – for listings and the slot
+	 * screen/booking page. $email '' skips the customer-specific rules.
 	 *
-	 * @param object $slot            Row from bookable_slot().
-	 * @param string $email           Customer e-mail ('' skips the limit).
-	 * @param int    $exclude_booking Booking that does not count.
+	 * @param object $slot            Row with slot_id, resource_id, starts_at (e.g. bookable_slot()).
+	 * @param string $email           Customer e-mail.
+	 * @param int    $exclude_booking Booking that does not count (rebooking).
+	 * @param int    $quantity        Places.
 	 * @return \WP_Error|null
 	 */
-	public static function rule_error( $slot, $email, $exclude_booking = 0 ) {
-		global $wpdb;
-		$rules = self::rules( $slot );
-		$start = strtotime( $slot->starts_at . ' UTC' );
-		if ( $rules['lead_minutes'] && $start < Clock::now() + $rules['lead_minutes'] * MINUTE_IN_SECONDS ) {
-			return new \WP_Error(
-				'wpcap_booking_cutoff',
-				/* translators: %s: lead time, e.g. "24 Stunden" */
-				sprintf( __( 'Buchungsschluss: Dieses Zeitfenster kann nur bis %s vor Beginn gebucht werden.', 'pass-captain' ), self::duration_label( $rules['lead_minutes'] ) ),
-				array( 'status' => 409 )
-			);
+	public static function rule_error( $slot, $email, $exclude_booking = 0, $quantity = 1 ) {
+		$resource = ServiceResources::resource( (int) $slot->resource_id );
+		if ( ! $resource ) { return self::unavailable(); }
+		$rules = ServiceResources::rules( $resource );
+		if ( '' === (string) $email ) {
+			$rules['max_per_customer'] = 0;
+			$rules['noshow_block_after'] = 0;
 		}
-		if ( $rules['advance_days'] && $start > Clock::now() + $rules['advance_days'] * DAY_IN_SECONDS ) {
-			return new \WP_Error(
-				'wpcap_booking_too_early',
-				/* translators: %d: number of days */
-				sprintf( _n( 'Dieses Zeitfenster kann frühestens %d Tag im Voraus gebucht werden.', 'Dieses Zeitfenster kann frühestens %d Tage im Voraus gebucht werden.', $rules['advance_days'], 'pass-captain' ), $rules['advance_days'] ),
-				array( 'status' => 409 )
-			);
-		}
-		if ( $rules['max_per_customer'] && '' !== (string) $email ) {
-			$p = $wpdb->prefix;
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders.
-			$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_service_bookings b INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id WHERE s.resource_id=%d AND s.ends_at>%s AND b.customer_email=%s AND b.booking_id<>%d AND " . self::ACTIVE_SQL, (int) $slot->resource_id, Clock::mysql(), $email, absint( $exclude_booking ), Clock::mysql() ) );
-			if ( $count >= $rules['max_per_customer'] ) {
-				return new \WP_Error(
-					'wpcap_booking_customer_limit',
-					/* translators: %d: maximum number of bookings */
-					sprintf( _n( 'Pro Person ist höchstens %d offene Buchung für dieses Angebot möglich.', 'Pro Person sind höchstens %d offene Buchungen für dieses Angebot möglich.', $rules['max_per_customer'], 'pass-captain' ), $rules['max_per_customer'] ),
-					array( 'status' => 409 )
-				);
-			}
-		}
-		return null;
+		return self::booking_rule_error( $resource, $slot, $rules, (string) $email, max( 1, (int) $quantity ), $exclude_booking );
 	}
 
-	/** 409 error when the rebooking deadline of $slot (row with rules) has passed, else null. */
+	/** 409 error when the buyer's rebooking deadline of $slot (booking/slot row with its resource's rules) has passed, else null. */
 	public static function rebook_deadline_error( $slot ) {
-		$hours = self::rules( $slot )['rebook_hours'];
-		if ( ! self::deadline_passed( $slot->starts_at, $hours ) ) { return null; }
-		$message = __( 'Der Termin hat bereits begonnen und kann nicht mehr umgebucht werden.', 'pass-captain' );
-		if ( $hours ) {
-			/* translators: %s: deadline, e.g. "24 Stunden" */
-			$message = sprintf( __( 'Umbuchungen sind nur bis %s vor Beginn möglich.', 'pass-captain' ), self::duration_label( $hours * 60 ) );
-		}
-		return new \WP_Error( 'wpcap_booking_rebook_deadline', $message, array( 'status' => 409 ) );
+		return self::deadline_error( 'rebook', (string) $slot->starts_at, ServiceResources::rules( $slot )['rebook_deadline_minutes'] );
 	}
 
-	/** 409 error when the cancellation deadline of $slot (row with rules) has passed, else null. */
+	/** 409 error when the buyer's cancellation deadline of $slot (booking/slot row with its resource's rules) has passed, else null. */
 	public static function cancel_deadline_error( $slot ) {
-		$hours = self::rules( $slot )['cancel_hours'];
-		if ( ! self::deadline_passed( $slot->starts_at, $hours ) ) { return null; }
-		$message = __( 'Der Termin hat bereits begonnen und kann nicht mehr storniert werden.', 'pass-captain' );
-		if ( $hours ) {
-			/* translators: %s: deadline, e.g. "48 Stunden" */
-			$message = sprintf( __( 'Stornierungen sind nur bis %s vor Beginn möglich.', 'pass-captain' ), self::duration_label( $hours * 60 ) );
+		return self::deadline_error( 'cancel', (string) $slot->starts_at, ServiceResources::rules( $slot )['cancel_deadline_minutes'] );
+	}
+
+	/** Buyer deadline ("$minutes before $starts_at", 0 = the start itself) as a 409 error once passed, else null. */
+	private static function deadline_error( $kind, $starts_at, $minutes ) {
+		$minutes = absint( $minutes );
+		if ( Clock::now() < strtotime( $starts_at . ' UTC' ) - $minutes * MINUTE_IN_SECONDS ) { return null; }
+		if ( 'rebook' === $kind ) {
+			/* translators: %s: deadline, e.g. "24 Stunden" */
+			$message = $minutes ? sprintf( __( 'Umbuchungen sind nur bis %s vor Beginn möglich.', 'pass-captain' ), self::duration_label( $minutes ) ) : __( 'Der Termin hat bereits begonnen und kann nicht mehr umgebucht werden.', 'pass-captain' );
+			return new \WP_Error( 'wpcap_booking_rebook_deadline', $message, array( 'status' => 409 ) );
 		}
+		/* translators: %s: deadline, e.g. "48 Stunden" */
+		$message = $minutes ? sprintf( __( 'Stornierungen sind nur bis %s vor Beginn möglich.', 'pass-captain' ), self::duration_label( $minutes ) ) : __( 'Der Termin hat bereits begonnen und kann nicht mehr storniert werden.', 'pass-captain' );
 		return new \WP_Error( 'wpcap_booking_cancel_deadline', $message, array( 'status' => 409 ) );
+	}
+
+	/** Whether the booking's order is the unpaid checkout order of this booking alone (one line: its places of the resource's ticket type). */
+	private static function own_unpaid_order( $booking, $resource ) {
+		$order = Orders::get( (int) $booking->order_id );
+		if ( ! $order || 'pending' !== $order->payment_status || ! $resource || ! (int) $resource->ticket_type_id ) { return false; }
+		$items = Orders::items_for_order( (int) $order->order_id );
+		return 1 === count( $items ) && (int) $resource->ticket_type_id === (int) $items[0]->ticket_type_id && (int) $booking->quantity === (int) $items[0]->quantity;
 	}
 
 	/**
@@ -1562,8 +1576,8 @@ final class ServiceBookings {
 		return new \WP_Error( 'wpcap_service_slot_overlap', __( 'Das Zeitfenster überschneidet sich (inklusive Puffer vorher/danach) mit einem anderen Zeitfenster dieser Ressource.', 'pass-captain' ), array( 'status' => 409, 'slot_id' => (int) $slot_id ) );
 	}
 
-	/** Booking states that occupy capacity (held / awaiting payment only until expires_at); one %s placeholder = now. */
-	const ACTIVE_SQL = "(b.status='confirmed' OR (b.status IN ('held','pending_payment') AND (b.expires_at IS NULL OR b.expires_at > %s)))";
+	/** Booking states that occupy capacity – same set as ServiceResources::active_sql() (held and the legacy A-line status pending_payment only until expires_at); one %s placeholder = now. */
+	const ACTIVE_SQL = "(b.status IN ('pending_confirmation','confirmed','checked_in') OR (b.status IN ('held','pending_payment') AND (b.expires_at IS NULL OR b.expires_at > %s)))";
 
 	/** Resource row, or null. */
 	public static function resource( $resource_id ) {
@@ -1607,7 +1621,10 @@ final class ServiceBookings {
 		$name = mb_substr( sanitize_text_field( (string) $value( 'name', '' ) ), 0, 190 );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$row = array( 'name' => $name, 'capacity' => min( 100, max( 1, absint( $value( 'capacity', 1 ) ) ) ), 'buffer_before' => min( 1440, absint( $value( 'buffer_before', 0 ) ) ), 'buffer_after' => min( 1440, absint( $value( 'buffer_after', 0 ) ) ) );
-		if ( self::providers_ready() ) { $row['duration_minutes'] = min( 1440, max( 5, absint( $value( 'duration_minutes', 60 ) ) ) ); }
+		if ( self::providers_ready() ) {
+			$row['duration_minutes'] = min( 1440, max( 5, absint( $value( 'duration_minutes', 60 ) ) ) );
+			$row['default_duration'] = $row['duration_minutes']; // Same value for the services screen (ServiceResources).
+		}
 		if ( self::rules_ready() ) {
 			foreach ( self::RULES as $rule => $range ) { $row[ $rule ] = min( $range[1], max( $range[0], absint( $value( $rule, 0 ) ) ) ); }
 		}
@@ -1644,6 +1661,16 @@ final class ServiceBookings {
 		$row = self::resource_data( $data, $resource, (int) $resource->event_id );
 		if ( is_wp_error( $row ) ) { return $row; }
 		$row['status'] = in_array( $data['status'] ?? '', array( 'active', 'inactive' ), true ) ? $data['status'] : $resource->status;
+		if ( ! empty( $resource->rules ) && self::rules_ready() && array_intersect_key( $data, self::RULES ) ) {
+			// The resource keeps its rules as JSON (services screen): the changed slot-screen rules go there too.
+			$rules = ServiceResources::rules( $resource );
+			$map = array( 'lead_minutes' => array( 'cutoff_minutes', 1 ), 'advance_days' => array( 'opens_days', 1 ), 'max_per_customer' => array( 'max_per_customer', 1 ), 'rebook_hours' => array( 'rebook_deadline_minutes', 60 ), 'cancel_hours' => array( 'cancel_deadline_minutes', 60 ) );
+			foreach ( $map as $column => $target ) {
+				if ( array_key_exists( $column, $data ) ) { $rules[ $target[0] ] = $row[ $column ] * $target[1]; }
+			}
+			if ( array_key_exists( 'max_per_customer', $data ) ) { $rules['max_period'] = 'total'; } // Open bookings, as on the slot screen.
+			$row['rules'] = wp_json_encode( ServiceResources::sanitize_rules( $rules ) );
+		}
 		$wpdb->update( $wpdb->prefix . 'wpcap_resources', $row, array( 'resource_id' => (int) $resource->resource_id ) );
 		Audit::record( 'service_resource_updated', 'resource', (int) $resource->resource_id, array( 'event_id' => (int) $resource->event_id, 'before' => array( 'name' => $resource->name, 'capacity' => (int) $resource->capacity, 'status' => $resource->status ), 'after' => $row ) );
 		return true;
@@ -1919,7 +1946,7 @@ final class ServiceBookings {
 			if ( 'confirmed' === $booking->status ) { return true; }
 			if ( 'held' !== self::booking_status( $booking ) ) { return self::state_error( __( 'Bestätigen ist nur für eine aktive Reservierung möglich.', 'pass-captain' ) ); }
 			if ( self::flow_ready() && (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", (int) $booking->resource_id ) ) ) { return self::state_error( __( 'Kostenpflichtige Buchungen werden mit der Zahlung bestätigt.', 'pass-captain' ) ); }
-			$result = self::slot_confirm( (int) $booking->booking_id, array( 'actor' => 'provider' ) );
+			$result = self::confirm( (int) $booking->booking_id, array( 'actor' => 'provider' ) );
 			if ( is_wp_error( $result ) ) { return $result; }
 			do_action( 'wpcap_service_booking_status_changed', (int) $booking->booking_id, 'confirmed', 'held' );
 			return true;
@@ -1980,14 +2007,19 @@ final class ServiceBookings {
 		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.slot_id,b.order_id,b.customer_email,b.quantity,b.expires_at,b.status,b.created_at,s.starts_at,s.ends_at,s.resource_id,r.event_id,r.name AS resource_name$price FROM {$wpdb->prefix}wpcap_service_bookings b INNER JOIN {$wpdb->prefix}wpcap_service_slots s ON s.slot_id=b.slot_id INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE s.resource_id IN (" . implode( ',', $resource_ids ) . ")$slot_sql AND s.ends_at >= %s ORDER BY s.starts_at,b.booking_id LIMIT %d", $since, max( 1, min( 2000, absint( $limit ) ) ) ) );
 	}
 
-	/** Display status of a booking (held bookings past expires_at count as expired). */
+	/**
+	 * Display status of a booking: held bookings past expires_at count as expired; a held booking
+	 * whose checkout order is not paid yet shows as pending_payment (A135 term; stored as `held`).
+	 */
 	public static function booking_status( $booking ) {
-		if ( in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && $booking->expires_at && $booking->expires_at <= Clock::mysql() ) { return 'expired'; }
-		return (string) $booking->status;
+		$status = (string) $booking->status;
+		if ( in_array( $status, array( 'held', 'pending_payment' ), true ) && $booking->expires_at && $booking->expires_at <= Clock::mysql() ) { return 'expired'; }
+		if ( 'held' === $status && (int) $booking->order_id && ! (int) ( $booking->supplement_for ?? 0 ) ) { return 'pending_payment'; }
+		return $status;
 	}
 
 	/* ---------------------------------------------------------------------------------------------
-	 * Booking lifecycle: confirm, rebook, cancel (A134 rules; A135 payment, refunds, notifications).
+	 * Helpers of the slot screen / booking page and the shared actor check.
 	 * ------------------------------------------------------------------------------------------- */
 
 	/** Booking with slot times and the resource columns (buffers, rules), or null. Plain read. */
@@ -1999,45 +2031,46 @@ final class ServiceBookings {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT b.*,s.resource_id,s.starts_at,s.ends_at,s.capacity,s.status AS slot_status,$columns FROM {$p}wpcap_service_bookings b INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id INNER JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id WHERE b.booking_id=%d", absint( $booking_id ) ) );
 	}
 
-	/** Whether $booking (row) still occupies its places. */
+	/** Whether $booking (row) still occupies its places (same set as ACTIVE_SQL). */
 	public static function is_active( $booking ) {
-		return 'confirmed' === $booking->status || ( in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && ( ! $booking->expires_at || $booking->expires_at > Clock::mysql() ) );
+		if ( in_array( $booking->status, array( 'pending_confirmation', 'confirmed', 'checked_in' ), true ) ) { return true; }
+		return in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && ( ! $booking->expires_at || $booking->expires_at > Clock::mysql() );
 	}
-
 
 	/**
 	 * Actor check: 'admin' needs wpcap_manage_events for the event; 'provider' the event team or a
-	 * service provider of the resource (A143); 'customer' is authorised by the
-	 * caller (booking token, order portal) and bound to the customer rules (deadlines).
+	 * service provider of the resource (A143); 'partner' and 'system' are checked by their callers
+	 * (ServiceResources::can_manage(), internal flows); 'customer' is authorised by the caller
+	 * (booking token, order portal) and bound to the customer rules (deadlines, booking rules).
+	 *
+	 * @param object|null $booking Row from booking().
+	 * @return string|\WP_Error Actor.
 	 */
 	private static function actor( array $args, $booking ) {
-		if ( 'provider' === ( $args['actor'] ?? '' ) ) {
+		$actor = (string) ( $args['actor'] ?? 'customer' );
+		if ( ! $booking ) { return self::not_found(); }
+		if ( 'provider' === $actor ) {
 			// Service provider of the resource or event team (set_booking_status(), A143).
 			return self::can_handle_booking( $booking ) ? 'provider' : self::forbidden();
 		}
-		$actor = 'admin' === ( $args['actor'] ?? 'customer' ) ? 'admin' : 'customer';
-		if ( 'admin' === $actor && ! Access::can_access_event( (int) $booking->event_id, 'wpcap_manage_events' ) ) { return self::forbidden(); }
-		return $actor;
+		if ( 'admin' === $actor ) {
+			return Access::can_access_event( (int) $booking->event_id, 'wpcap_manage_events' ) ? 'admin' : self::forbidden();
+		}
+		return in_array( $actor, array( 'partner', 'system' ), true ) ? $actor : 'customer';
 	}
 
 	/**
-	 * Opens a booking transaction for $booking_id (+ optional target slot): locks resources,
-	 * providers, slots (ServiceBookings::lock()) and finally the booking row, then reads the booking.
+	 * Opens a booking transaction for $booking_id: locks resource, providers, slot (lock()) and
+	 * finally the booking row, then reads the booking.
 	 *
 	 * @return object|\WP_Error Fresh booking row (transaction open) or error (transaction closed).
 	 */
-	private static function begin( $booking_id, $target_slot = null ) {
+	private static function begin( $booking_id ) {
 		global $wpdb;
 		$before = self::booking( $booking_id );
-		if ( ! $before ) { return new \WP_Error( 'wpcap_booking_not_found', __( 'Buchung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$resources = array( (int) $before->resource_id );
-		$slots = array( (int) $before->slot_id );
-		if ( $target_slot ) {
-			$resources[] = (int) $target_slot->resource_id;
-			$slots[] = (int) $target_slot->slot_id;
-		}
+		if ( ! $before ) { return self::not_found(); }
 		$wpdb->query( 'START TRANSACTION' );
-		$locked = self::lock( $resources, $slots );
+		$locked = self::lock( array( (int) $before->resource_id ), array( (int) $before->slot_id ) );
 		if ( is_wp_error( $locked ) ) { return $locked; }
 		$wpdb->get_var( $wpdb->prepare( "SELECT booking_id FROM {$wpdb->prefix}wpcap_service_bookings WHERE booking_id=%d FOR UPDATE", (int) $before->booking_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return Errors::busy(); }
@@ -2054,50 +2087,6 @@ final class ServiceBookings {
 		return true;
 	}
 
-	/**
-	 * Confirms a held booking. Re-checks under the locks that the hold is still valid, the slot is
-	 * bookable and the A134 rules (booking window, per-customer limit) still hold.
-	 *
-	 * Payment (A135): when the resource has a ticket type (price/payment position), the booking is
-	 * paid through the regular checkout (Rest\Controller::checkout(): payment providers, terms,
-	 * vouchers, invoices, order portal). The order is linked to the booking inside the order
-	 * transaction (ServiceBookingFlow::link_order(): status `pending_payment`, hold = order hold,
-	 * at most until the start); `wpcap_order_paid` confirms it, an expired or cancelled order
-	 * releases it. Without a ticket type the booking is confirmed at once (free service).
-	 *
-	 * @param int   $booking_id Booking.
-	 * @param array $args       actor ('customer' default | 'admin'); for paid bookings the checkout
-	 *                          fields provider, accept_terms, terms_version, locale, billing, code.
-	 * @return array|\WP_Error booking_id, status ('confirmed' | 'pending_payment'), order data when paid.
-	 */
-	public static function slot_confirm( $booking_id, array $args = array() ) {
-		global $wpdb;
-		$booking = self::begin( $booking_id );
-		if ( is_wp_error( $booking ) ) { return $booking; }
-		$actor = self::actor( $args, $booking );
-		if ( is_wp_error( $actor ) ) { $wpdb->query( 'ROLLBACK' ); return $actor; }
-		if ( in_array( $booking->status, array( 'confirmed', 'pending_payment' ), true ) && self::is_active( $booking ) ) { $wpdb->query( 'ROLLBACK' ); return array( 'booking_id' => (int) $booking->booking_id, 'status' => (string) $booking->status, 'order_id' => (int) $booking->order_id, 'already' => true ); }
-		if ( 'held' !== $booking->status || ! self::is_active( $booking ) ) { $wpdb->query( 'ROLLBACK' ); return self::state_error( __( 'Die Reservierung ist abgelaufen. Bitte wähle das Zeitfenster erneut.', 'pass-captain' ) ); }
-		$slot = self::bookable_slot( (int) $booking->slot_id );
-		if ( ! $slot || $slot->starts_at <= Clock::mysql() ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
-		$rule_error = self::rule_error( $slot, (string) $booking->customer_email, (int) $booking->booking_id );
-		if ( $rule_error ) { $wpdb->query( 'ROLLBACK' ); return $rule_error; }
-		$ticket_type = self::flow_ready() ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", (int) $booking->resource_id ) ) : 0;
-		if ( $ticket_type ) {
-			// Keep the hold alive while the checkout runs; the order transaction then takes it over.
-			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'expires_at' => min( (string) $slot->starts_at, gmdate( 'Y-m-d H:i:s', Clock::now() + 15 * MINUTE_IN_SECONDS ) ) ) + self::touched(), array( 'booking_id' => (int) $booking->booking_id ) );
-			$committed = self::commit();
-			if ( is_wp_error( $committed ) ) { return $committed; }
-			return ServiceBookingFlow::checkout( $booking, $slot, $ticket_type, $args );
-		}
-		$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'status' => 'confirmed', 'expires_at' => null ) + self::touched(), array( 'booking_id' => (int) $booking->booking_id ) );
-		$committed = self::commit();
-		if ( is_wp_error( $committed ) ) { return $committed; }
-		Audit::record( 'service_booking_confirmed', 'service_booking', (int) $booking->booking_id, array( 'event_id' => (int) $booking->event_id, 'slot_id' => (int) $booking->slot_id, 'actor' => $actor ) );
-		ServiceBookingFlow::notify( (int) $booking->booking_id, 'confirmed' );
-		return array( 'booking_id' => (int) $booking->booking_id, 'status' => 'confirmed' );
-	}
-
 	/** updated_at column (A135 schema) for an update, or nothing before the upgrade. */
 	public static function touched() {
 		return self::flow_ready() ? array( 'updated_at' => Clock::mysql() ) : array();
@@ -2109,182 +2098,49 @@ final class ServiceBookings {
 	}
 
 	/**
-	 * Confirms the bookings of a paid order (`wpcap_order_paid`). A booking whose hold lapsed before
-	 * the payment arrived is confirmed only if its slot still has room and no resource/provider
-	 * conflict (checked under the locks); otherwise it stays expired, the payment is refunded
-	 * automatically (system refund, may wait for approval) and the team is informed.
+	 * Confirms the open bookings of a paid order – the same as `wpcap_order_paid` (on_order_paid());
+	 * for repairs (Operations\Doctor).
 	 *
-	 * @return array booking_id => 'confirmed' | 'unallocated'.
+	 * @return array booking_id => resulting status (confirmed, pending_confirmation, cancelled when the place was gone).
 	 */
 	public static function confirm_paid_order( $order_id ) {
 		global $wpdb;
+		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT booking_id FROM {$wpdb->prefix}wpcap_service_bookings WHERE order_id=%d AND supplement_for=0 AND status IN ('held','pending_payment','expired') ORDER BY booking_id", absint( $order_id ) ) ) );
+		self::on_order_paid( absint( $order_id ) );
 		$out = array();
-		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT booking_id FROM {$wpdb->prefix}wpcap_service_bookings WHERE order_id=%d AND status IN ('pending_payment','expired','held') ORDER BY booking_id", absint( $order_id ) ) ) );
 		foreach ( $ids as $booking_id ) {
-			$booking = self::begin( $booking_id );
-			if ( is_wp_error( $booking ) ) {
-				// Lock trouble: retried by a job so a paid booking is never left unconfirmed.
-				Jobs::enqueue( 'service-booking-paid|' . $booking_id, 'service_booking_paid_retry', array( 'order_id' => absint( $order_id ) ), gmdate( 'Y-m-d H:i:s', Clock::now() + 2 * MINUTE_IN_SECONDS ) );
-				continue;
-			}
-			if ( (int) $booking->order_id !== (int) $order_id || 'confirmed' === $booking->status || 'cancelled' === $booking->status ) { $wpdb->query( 'ROLLBACK' ); continue; }
-			$ok = self::is_active( $booking );
-			if ( ! $ok ) {
-				$slot = self::bookable_slot( (int) $booking->slot_id );
-				$ok = $slot && $slot->starts_at > Clock::mysql() && self::booked( (int) $booking->slot_id ) + (int) $booking->quantity <= (int) $slot->capacity && ! self::blocking_slot( $slot, (int) $booking->booking_id );
-			}
-			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', ( $ok ? array( 'status' => 'confirmed', 'expires_at' => null ) : array( 'status' => 'unallocated', 'expires_at' => null ) ) + self::touched(), array( 'booking_id' => $booking_id ) );
-			if ( is_wp_error( self::commit() ) ) { continue; }
-			$out[ $booking_id ] = $ok ? 'confirmed' : 'unallocated';
-			if ( $ok ) {
-				Audit::record( 'service_booking_confirmed', 'service_booking', $booking_id, array( 'event_id' => (int) $booking->event_id, 'slot_id' => (int) $booking->slot_id, 'order_id' => absint( $order_id ), 'actor' => 'payment' ) );
-				ServiceBookingFlow::notify( $booking_id, 'confirmed' );
-				continue;
-			}
-			// The refund follows once the order's tickets exist (wpcap_tickets_issued → refund_unallocated()).
-			Audit::record( 'service_booking_payment_unallocated', 'service_booking', $booking_id, array( 'event_id' => (int) $booking->event_id, 'order_id' => absint( $order_id ) ) );
-			ServiceBookingFlow::notify( $booking_id, 'unallocated' );
+			$booking = self::get( $booking_id );
+			if ( $booking && ! in_array( $booking->status, array( 'held', 'pending_payment', 'expired' ), true ) ) { $out[ $booking_id ] = (string) $booking->status; }
 		}
 		return $out;
 	}
 
 	/**
-	 * Refunds the order of bookings that were paid without a place (`unallocated`) – after the
-	 * tickets were issued (`wpcap_tickets_issued`), so the refund covers and revokes them. System
-	 * refund, idempotent per booking; above the approval threshold it waits for a second approval.
-	 *
-	 * @return array booking_id => refund row or WP_Error.
-	 */
-	public static function refund_unallocated( $order_id ) {
-		global $wpdb;
-		$out = array();
-		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT booking_id FROM {$wpdb->prefix}wpcap_service_bookings WHERE order_id=%d AND status='unallocated' ORDER BY booking_id", absint( $order_id ) ) ) );
-		foreach ( $ids as $booking_id ) {
-			$refund = Refunds::request( absint( $order_id ), array(), __( 'Servicebuchung: Zahlung nach Ablauf der Reservierung, Zeitfenster nicht mehr frei', 'pass-captain' ), 'service-booking-unallocated-' . $booking_id, array( 'system' => true, 'source' => 'service_booking' ) );
-			Audit::record( 'service_booking_unallocated_refund', 'service_booking', $booking_id, array( 'order_id' => absint( $order_id ), 'refund' => is_wp_error( $refund ) ? $refund->get_error_code() : (string) ( $refund['status'] ?? '' ) ) );
-			$out[ $booking_id ] = $refund;
-		}
-		return $out;
-	}
-
-	/**
-	 * Moves an active booking to another slot of the same event – atomically: both resources, their
-	 * providers, both slots and the booking are locked; the target is checked for capacity, buffers,
-	 * resource/provider conflicts (ignoring the booking itself) and the A134 rules. Customers are
-	 * also bound to the rebooking deadline of the current slot. A booking with an order (paid or
-	 * awaiting payment) can only move to a resource with the same ticket type (same price); the
-	 * order and its tickets stay as they are.
-	 *
-	 * @param int   $booking_id     Booking.
-	 * @param int   $target_slot_id New slot.
-	 * @param array $args           actor ('customer' default | 'admin').
-	 * @return array|\WP_Error booking_id, slot_id, previous_slot_id.
-	 */
-	public static function slot_rebook( $booking_id, $target_slot_id, array $args = array() ) {
-		global $wpdb;
-		$target = self::bookable_slot( $target_slot_id );
-		if ( ! $target ) { return self::unavailable(); }
-		$booking = self::begin( $booking_id, $target );
-		if ( is_wp_error( $booking ) ) { return $booking; }
-		$actor = self::actor( $args, $booking );
-		if ( is_wp_error( $actor ) ) { $wpdb->query( 'ROLLBACK' ); return $actor; }
-		if ( ! in_array( $booking->status, array( 'held', 'pending_payment', 'confirmed' ), true ) || ! self::is_active( $booking ) ) { $wpdb->query( 'ROLLBACK' ); return self::state_error(); }
-		if ( (int) $target->slot_id === (int) $booking->slot_id ) { $wpdb->query( 'ROLLBACK' ); return self::state_error( __( 'Die Buchung liegt bereits in diesem Zeitfenster.', 'pass-captain' ) ); }
-		if ( 'customer' === $actor ) {
-			$deadline = self::rebook_deadline_error( $booking );
-			if ( $deadline ) { $wpdb->query( 'ROLLBACK' ); return $deadline; }
-		}
-		$target = self::bookable_slot( (int) $target->slot_id );
-		if ( ! $target || 'open' !== $target->status || $target->starts_at <= Clock::mysql() || (int) $target->event_id !== (int) $booking->event_id ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
-		if ( self::flow_ready() && (int) $booking->order_id ) {
-			$types = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id IN (%d,%d)", (int) $booking->resource_id, (int) $target->resource_id ) );
-			if ( count( array_unique( array_map( 'intval', $types ) ) ) > 1 ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_rebook_price', __( 'Eine bezahlte Buchung kann nur auf ein Zeitfenster mit demselben Preis umgebucht werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
-		}
-		$rule_error = self::rule_error( $target, (string) $booking->customer_email, (int) $booking->booking_id );
-		if ( $rule_error ) { $wpdb->query( 'ROLLBACK' ); return $rule_error; }
-		if ( self::booked( (int) $target->slot_id ) + (int) $booking->quantity > (int) $target->capacity ) { $wpdb->query( 'ROLLBACK' ); return self::full(); }
-		$blocked = self::blocking_error( $target, (int) $booking->booking_id );
-		if ( $blocked ) { $wpdb->query( 'ROLLBACK' ); return $blocked; }
-		/**
-		 * Inside the rebooking transaction, after every check (resources, providers, both slots and the
-		 * booking are locked). For extensions and deterministic race tests.
-		 */
-		do_action( 'wpcap_service_booking_rebooking', (int) $booking->booking_id, (int) $target->slot_id );
-		$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'slot_id' => (int) $target->slot_id ) + self::touched(), array( 'booking_id' => (int) $booking->booking_id ) );
-		$committed = self::commit();
-		if ( is_wp_error( $committed ) ) { return $committed; }
-		Audit::record( 'service_booking_rebooked', 'service_booking', (int) $booking->booking_id, array( 'event_id' => (int) $booking->event_id, 'from_slot_id' => (int) $booking->slot_id, 'to_slot_id' => (int) $target->slot_id, 'actor' => $actor ) );
-		ServiceBookingFlow::notify( (int) $booking->booking_id, 'rebooked', array( 'previous' => $booking ) );
-		return array( 'booking_id' => (int) $booking->booking_id, 'slot_id' => (int) $target->slot_id, 'previous_slot_id' => (int) $booking->slot_id );
-	}
-
-	/**
-	 * Cancels an active booking; its places are free at once. Customers are bound to the
-	 * cancellation deadline (`cancel_hours` before the start) for confirmed bookings; staff (actor
-	 * admin) are not. A135: an unpaid order of the booking is cancelled; a paid one is refunded in
-	 * full through Refunds (customers within the deadline always; staff with `refund` => true, the
-	 * default, which needs the refund capability). The refund may wait for a second approval.
-	 *
-	 * @param int   $booking_id Booking.
-	 * @param array $args       actor ('customer' default | 'admin'), reason, refund (staff only, default true).
-	 * @return array|\WP_Error booking_id, status, previous, refund (refund row, WP_Error or null).
-	 */
-	public static function slot_cancel( $booking_id, array $args = array() ) {
-		global $wpdb;
-		$refund_wanted = 'admin' !== ( $args['actor'] ?? 'customer' ) || ! array_key_exists( 'refund', $args ) || ! empty( $args['refund'] );
-		$booking = self::begin( $booking_id );
-		if ( is_wp_error( $booking ) ) { return $booking; }
-		$actor = self::actor( $args, $booking );
-		if ( is_wp_error( $actor ) ) { $wpdb->query( 'ROLLBACK' ); return $actor; }
-		if ( 'cancelled' === $booking->status ) { $wpdb->query( 'ROLLBACK' ); return array( 'booking_id' => (int) $booking->booking_id, 'status' => 'cancelled', 'already' => true ); }
-		if ( ! self::is_active( $booking ) ) { $wpdb->query( 'ROLLBACK' ); return self::state_error(); }
-		if ( 'customer' === $actor && 'confirmed' === $booking->status ) {
-			$deadline = self::cancel_deadline_error( $booking );
-			if ( $deadline ) { $wpdb->query( 'ROLLBACK' ); return $deadline; }
-		}
-		$order = (int) $booking->order_id ? Orders::get( (int) $booking->order_id ) : null;
-		$paid = $order && 'paid' === $order->payment_status && 'confirmed' === $booking->status;
-		if ( $paid && $refund_wanted && 'admin' === $actor && ! current_user_can( Refunds::REFUND_CAP ) && ! current_user_can( Refunds::APPROVE_CAP ) ) {
-			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_forbidden', __( 'Keine Berechtigung für Erstattungen. Storniere ohne Erstattung oder bitte eine berechtigte Person.', 'pass-captain' ), array( 'status' => 403 ) );
-		}
-		$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'status' => 'cancelled', 'expires_at' => null ) + self::touched(), array( 'booking_id' => (int) $booking->booking_id ) );
-		$committed = self::commit();
-		if ( is_wp_error( $committed ) ) { return $committed; }
-		$reason = sanitize_text_field( (string) ( $args['reason'] ?? '' ) );
-		$refund = null;
-		if ( $order && 'pending_payment' === $booking->status && 'pending' === $order->payment_status ) {
-			Orders::cancel_order( (int) $order->order_id, 'service_booking_cancelled' );
-		} elseif ( $paid && $refund_wanted ) {
-			$refund = Refunds::request( (int) $order->order_id, array(), '' !== $reason ? $reason : __( 'Servicebuchung storniert', 'pass-captain' ), 'service-booking-cancel-' . (int) $booking->booking_id, array( 'system' => 'customer' === $actor, 'source' => 'service_booking' ) );
-		}
-		Audit::record( 'service_booking_cancelled', 'service_booking', (int) $booking->booking_id, array( 'event_id' => (int) $booking->event_id, 'slot_id' => (int) $booking->slot_id, 'actor' => $actor, 'previous' => $booking->status, 'reason' => $reason, 'order_id' => (int) $booking->order_id, 'refund' => null === $refund ? '' : ( is_wp_error( $refund ) ? $refund->get_error_code() : (string) ( $refund['status'] ?? '' ) ) ) );
-		ServiceBookingFlow::notify( (int) $booking->booking_id, 'cancelled', array( 'actor' => $actor, 'refund' => $refund, 'previous' => $booking ) );
-		return array( 'booking_id' => (int) $booking->booking_id, 'status' => 'cancelled', 'previous' => (string) $booking->status, 'refund' => $refund );
-	}
-
-	/**
-	 * Releases the open bookings of an order that ended without payment (`wpcap_order_cancelled`):
-	 * `pending_payment` → `expired` (order expired) or `cancelled`. Confirmed bookings of a paid order
-	 * that was cancelled or refunded elsewhere (order admin, provider dashboard) are cancelled too.
+	 * An order ended (`wpcap_order_cancelled` / `wpcap_order_refunded`, order status cancelled,
+	 * refunded or expired): its open holds are released (on_order_cancelled()) and its confirmed
+	 * bookings – the order was cancelled or refunded elsewhere (order admin, provider dashboard) – are
+	 * cancelled without a second refund (reason order_ended; the tickets are revoked).
 	 *
 	 * @return int[] Booking ids changed.
 	 */
 	public static function release_order( $order_id ) {
 		global $wpdb;
 		$order = Orders::get( $order_id );
-		if ( ! $order ) { return array(); }
+		if ( ! $order || ! in_array( $order->status, array( 'cancelled', 'refunded', 'expired' ), true ) ) { return array(); }
+		$open = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT booking_id FROM {$wpdb->prefix}wpcap_service_bookings WHERE order_id=%d AND status IN ('held','pending_payment')", (int) $order->order_id ) ) );
+		self::on_order_cancelled( (int) $order->order_id );
 		$changed = array();
-		$ended = in_array( $order->status, array( 'cancelled', 'refunded', 'expired' ), true );
-		if ( ! $ended ) { return array(); }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT booking_id,status FROM {$wpdb->prefix}wpcap_service_bookings WHERE order_id=%d AND status IN ('held','pending_payment','confirmed')", (int) $order->order_id ) );
-		foreach ( $rows as $row ) {
-			$to = 'confirmed' === $row->status || 'expired' !== $order->status ? 'cancelled' : 'expired';
-			$done = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_service_bookings SET status=%s,expires_at=NULL WHERE booking_id=%d AND status=%s", $to, (int) $row->booking_id, $row->status ) );
-			if ( 1 !== (int) $done ) { continue; }
-			$changed[] = (int) $row->booking_id;
-			Audit::record( 'service_booking_released', 'service_booking', (int) $row->booking_id, array( 'order_id' => (int) $order->order_id, 'order_status' => $order->status, 'previous' => $row->status, 'status' => $to ) );
-			if ( 'confirmed' === $row->status ) { ServiceBookingFlow::notify( (int) $row->booking_id, 'cancelled', array( 'actor' => 'order', 'order_status' => $order->status ) ); }
+		foreach ( $open as $booking_id ) {
+			if ( 'expired' !== (string) ( self::get( $booking_id )->status ?? '' ) ) { continue; }
+			$changed[] = $booking_id;
+			Audit::record( 'service_booking_released', 'service_booking', $booking_id, array( 'order_id' => (int) $order->order_id, 'order_status' => $order->status, 'status' => 'expired' ) );
+		}
+		$confirmed = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT booking_id FROM {$wpdb->prefix}wpcap_service_bookings WHERE order_id=%d AND supplement_for=0 AND status IN ('pending_confirmation','confirmed')", (int) $order->order_id ) ) );
+		foreach ( $confirmed as $booking_id ) {
+			$result = self::cancel( $booking_id, array( 'actor' => 'system', 'reason' => 'order_ended', 'refund' => false ) );
+			if ( is_wp_error( $result ) || ! empty( $result['already'] ) ) { continue; }
+			$changed[] = $booking_id;
+			Audit::record( 'service_booking_released', 'service_booking', $booking_id, array( 'order_id' => (int) $order->order_id, 'order_status' => $order->status, 'previous' => (string) ( $result['previous'] ?? '' ), 'status' => 'cancelled' ) );
 		}
 		return $changed;
 	}

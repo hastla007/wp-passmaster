@@ -80,7 +80,7 @@ final class Refunder {
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! $staff;
 		$now = current_time( 'mysql', true );
 		$user = in_array( $actor, array( 'admin', 'partner' ), true ) ? get_current_user_id() : 0;
-		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
+		$inserted = $wpdb->insert( "{$p}wpcap_refunds", ( Refunds::source_ready() ? array( 'source' => 'service_booking' ) : array() ) + array(
 			'order_id' => $order_id,
 			'idempotency_key' => $key_hash,
 			'amount_minor' => (int) $calc['amount_minor'],

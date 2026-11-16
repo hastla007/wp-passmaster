@@ -649,8 +649,10 @@ final class Retention {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now_sql = self::utc( $now );
-		$count = 0;
-		foreach ( array( 'wpcap_waitlist' => 'waitlist_id', 'wpcap_service_waitlist' => 'entry_id' ) as $table => $key ) {
+		// Event waitlist: sign-ups wait as `pending` (A564) and are purged by the waitlist itself once the
+		// confirmation period (confirm_hours) is over. Slot waitlist: `unconfirmed` with confirm_expires_at.
+		$count = Privacy::has_table( 'wpcap_waitlist' ) ? \PassCaptain\Waitlists::purge_unconfirmed( self::BATCH ) : 0;
+		foreach ( array( 'wpcap_service_waitlist' => 'entry_id' ) as $table => $key ) {
 			if ( ! Privacy::has_table( $table ) ) { continue; }
 			$count += self::loop(
 				$deadline,

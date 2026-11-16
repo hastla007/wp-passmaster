@@ -17,10 +17,11 @@ final class ServiceBookingFlow {
 
 	public static function register() {
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'link_order' ), 10, 4 );
-		add_action( 'wpcap_order_paid', array( __CLASS__, 'on_order_paid' ), 10, 1 );
-		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_order_ended' ), 10, 1 );
-		add_action( 'wpcap_order_refunded', array( __CLASS__, 'on_order_ended' ), 10, 1 );
-		add_action( 'wpcap_tickets_issued', array( ServiceBookings::class, 'refund_unallocated' ), 10, 1 );
+		// Payment, expiry and cancellation of unpaid orders are handled once by ServiceBookings
+		// (Modules\Services: on_order_paid / on_order_cancelled). Here: confirmed bookings of an order
+		// that was cancelled or refunded elsewhere (order admin, provider dashboard) end with it.
+		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_order_ended' ), 25, 1 );
+		add_action( 'wpcap_order_refunded', array( __CLASS__, 'on_order_ended' ), 25, 1 );
 		add_filter( 'wpcap_checkout_error_messages', array( __CLASS__, 'checkout_messages' ) );
 		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
@@ -89,17 +90,15 @@ final class ServiceBookingFlow {
 		$until = gmdate( 'Y-m-d H:i:s', Clock::now() + max( 1, absint( $internal['hold_minutes'] ?? 10 ) ) * MINUTE_IN_SECONDS );
 		$cap = (string) ( $internal['service_booking_until'] ?? '' );
 		if ( '' !== $cap && $cap < $until ) { $until = $cap; }
-		$linked = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_service_bookings SET status='pending_payment',order_id=%d,expires_at=%s,updated_at=%s WHERE booking_id=%d AND status='held' AND order_id=0 AND expires_at>%s", absint( $order_id ), $until, $now, $booking_id, $now ) );
+		// The booking stays `held` (its hold is now the order's hold; display status pending_payment) until
+		// the payment confirms it (ServiceBookings::on_order_paid()).
+		$linked = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_service_bookings SET order_id=%d,expires_at=%s,updated_at=%s WHERE booking_id=%d AND status='held' AND order_id=0 AND expires_at>%s", absint( $order_id ), $until, $now, $booking_id, $now ) );
 		if ( 1 !== (int) $linked ) { throw new \RuntimeException( 'service_booking_unavailable' ); }
 	}
 
 	public static function checkout_messages( $messages ) {
 		$messages['service_booking_unavailable'] = __( 'Die Reservierung des Zeitfensters ist abgelaufen oder wird bereits bezahlt. Bitte lade die Seite neu.', 'pass-captain' );
 		return $messages;
-	}
-
-	public static function on_order_paid( $order_id ) {
-		ServiceBookings::confirm_paid_order( absint( $order_id ) );
 	}
 
 	public static function on_order_ended( $order_id ) {
@@ -192,8 +191,9 @@ final class ServiceBookingFlow {
 			/* translators: %s: URL of the booking management page */
 			$customer_lines[] = sprintf( __( 'Termin ansehen, umbuchen oder stornieren: %s', 'pass-captain' ), self::$manage_links[ (int) $booking_id ] );
 		}
-		$customer = array( 'to' => (string) $booking->customer_email, 'subject' => $subjects[ $change ], 'body' => implode( "\n\n", $customer_lines ) );
-		$customer = apply_filters( 'wpcap_service_booking_mail', $customer, $change, $booking, 'customer' );
+		// team_only: the buyer already got the (editable) service booking mail type from ServiceBookings.
+		$customer = empty( $context['team_only'] ) ? array( 'to' => (string) $booking->customer_email, 'subject' => $subjects[ $change ], 'body' => implode( "\n\n", $customer_lines ) ) : null;
+		$customer = $customer ? apply_filters( 'wpcap_service_booking_mail', $customer, $change, $booking, 'customer' ) : null;
 		if ( is_array( $customer ) && is_email( $customer['to'] ) && ! Mail\Mailer::is_placeholder( $customer['to'] ) ) {
 			Mail\Mailer::send_plain( $customer['to'], $customer['subject'], $customer['body'] ); // A296: sender name and Reply-To.
 		}
@@ -297,6 +297,11 @@ final class ServiceBookingFlow {
 
 	/** Manage links (booking id => URL) known in this request, added to the customer mail (A268). */
 	private static $manage_links = array();
+
+	/** Manage link of the booking page remembered in this request (token in the URL fragment), or ''. */
+	public static function remembered_manage_link( $booking_id ) {
+		return (string) ( self::$manage_links[ absint( $booking_id ) ] ?? '' );
+	}
 
 	/**
 	 * Manage link of a booking (A268): permalink of the published page with the booking
@@ -444,11 +449,12 @@ final class ServiceBookingFlow {
 		foreach ( $bookings as $booking ) {
 			$id = (string) (int) $booking->booking_id;
 			$rules = ServiceBookings::rules( $booking );
+			$display = ServiceBookings::booking_status( $booking ); // held with an unpaid order: pending_payment.
 			/* translators: %d: number of places */
 			$places = sprintf( _n( '%d Platz', '%d Plätze', (int) $booking->quantity, 'pass-captain' ), (int) $booking->quantity );
-			$html .= '<li><strong>' . esc_html( self::describe( $booking ) ) . '</strong><br>' . esc_html( $places . ' · ' . ( $labels[ $booking->status ] ?? $booking->status ) );
+			$html .= '<li><strong>' . esc_html( self::describe( $booking ) ) . '</strong><br>' . esc_html( $places . ' · ' . ( $labels[ $display ] ?? $display ) );
 			$hidden = '<input type="hidden" name="booking_id" value="' . esc_attr( $id ) . '"><input type="hidden" name="_wpcap_service_nonce" value="' . esc_attr( $nonce ) . '">';
-			if ( 'pending_payment' !== $booking->status && ! ServiceBookings::rebook_deadline_error( $booking ) ) {
+			if ( in_array( $display, ServiceBookings::REBOOKABLE, true ) && ! ServiceBookings::rebook_deadline_error( $booking ) ) {
 				$options = self::rebook_options( $booking );
 				if ( $options ) {
 					$html .= '<form method="post"><input type="hidden" name="wpcap_service_op" value="rebook">' . $hidden . '<label>' . esc_html__( 'Umbuchen auf', 'pass-captain' ) . ' <select name="slot_id">';

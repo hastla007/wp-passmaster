@@ -85,7 +85,8 @@ $a134_target = a134_slot( $a134_res, 8 * 1440 );
 check( 'customer rebooking after the deadline refused', 'wpcap_booking_rebook_deadline' === a134_code( $e = ServiceBookings::rebook( $a134_rb, $a134_target ) ) && false !== strpos( $e->get_error_message(), '1 Tag' ) && $a134_r_slot === (int) ServiceBookings::booking( $a134_rb )->slot_id );
 check( 'staff may rebook after the deadline', $a134_target === ( ServiceBookings::rebook( $a134_rb, $a134_target, array( 'actor' => 'admin' ) )['slot_id'] ?? 0 ) );
 $a134_early = a134_slot( $a134_res, 20 * 1440 );
-check( 'rebooking to a slot outside the booking window refused (customer and staff)', 'wpcap_booking_too_early' === a134_code( ServiceBookings::rebook( $a134_rb, $a134_early ) ) && 'wpcap_booking_too_early' === a134_code( ServiceBookings::rebook( $a134_rb, $a134_early, array( 'actor' => 'admin' ) ) ) );
+// Merged design: staff are not bound by the booking rules (as in reserve(), services_a), only buyers.
+check( 'rebooking to a slot outside the booking window refused for the customer; staff may move it there', 'wpcap_booking_too_early' === a134_code( ServiceBookings::rebook( $a134_rb, $a134_early ) ) && $a134_early === ( ServiceBookings::rebook( $a134_rb, $a134_early, array( 'actor' => 'admin' ) )['slot_id'] ?? 0 ) );
 $a134_t2 = a134_slot( $a134_res, 9 * 1440, 1 );
 a134_book( $a134_t2, 'a134-full@example.com' );
 check( 'rebooking to a full slot refused', 'wpcap_slot_full' === a134_code( ServiceBookings::rebook( $a134_rb, $a134_t2 ) ) );

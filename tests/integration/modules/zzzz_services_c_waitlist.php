@@ -120,6 +120,13 @@ Orders::confirm_external_payment( $wp_acc['order_id'], 'svc-wl-pay' );
 check( 'payment confirms the waitlist booking', 'confirmed' === svc_status( $wp_booking->booking_id ) );
 
 echo "Event waitlist automation\n";
+// Merged design: the event waitlist is the A-line implementation (Waitlists, see p3_waitlist.php):
+// an offer holds its units through a placeholder order until the deadline, freed or added capacity
+// is queued and offered by Waitlists::run_due() (cron / job worker run), a manual offer needs free
+// units (it always holds them), unsubscribing removes the entry (status removed, e-mail erased).
+$svc_wl_delay = $GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] = 0;
+update_option( Waitlists::QUEUE_OPTION, array() );
 $ew_type = make_type( 1, 10, 1500 );
 $ew_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$ew_type" );
 $ew_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$ew_occ" );
@@ -128,31 +135,34 @@ $ew_sold = Orders::create( array( 'email' => 'sold@svc.test', 'items' => array( 
 Orders::confirm_manual_payment( $ew_sold['order_id'] );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 foreach ( array( 'ew-x@svc.test', 'ew-y@svc.test', 'ew-z@svc.test' ) as $mail ) { svc_reset_limits(); Waitlists::join( $ew_event, $ew_occ, $ew_type, $mail ); }
-svc_run_jobs();
+Waitlists::run_due( true );
 $ew_row = static fn( $mail ) => $GLOBALS['wpdb']->get_row( $GLOBALS['wpdb']->prepare( "SELECT * FROM {$GLOBALS['wpdb']->prefix}wpcap_waitlist WHERE email=%s", $mail ) );
-check( 'sold out: entries wait, nothing is offered; join mail carries an unsubscribe link', 'waiting' === $ew_row( 'ew-x@svc.test' )->status && (bool) array_filter( svc_mails_to( 'ew-z@svc.test', $mails_before ), static fn( $m ) => str_contains( $m['body'], 'wpcap_waitlist_leave=' ) ) );
-list( $ez_id, $ez_manage ) = svc_token_from_mail( 'ew-z@svc.test', 'wpcap_waitlist_leave' );
-check( 'unsubscribe with the manage token', is_array( Waitlists::unsubscribe( $ez_id, $ez_manage ) ) && 'unsubscribed' === $ew_row( 'ew-z@svc.test' )->status && is_wp_error( Waitlists::unsubscribe( $ez_id, $ez_manage ) ) );
+check( 'sold out: entries wait, nothing is offered; join mail carries an unsubscribe link', 'waiting' === $ew_row( 'ew-x@svc.test' )->status && (bool) array_filter( svc_mails_to( 'ew-z@svc.test', $mails_before ), static fn( $m ) => str_contains( $m['body'], 'wpcap_waitlist_unsubscribe=' ) ) );
+list( $ez_id, $ez_manage ) = svc_token_from_mail( 'ew-z@svc.test', 'wpcap_waitlist_unsubscribe' );
+$ez_first = Waitlists::unsubscribe( $ez_id, $ez_manage );
+$ez_again = Waitlists::unsubscribe( $ez_id, $ez_manage );
+check( 'unsubscribe with the token from the mail: entry removed, e-mail erased; a repeat changes nothing', is_array( $ez_first ) && 'removed' === $ez_first['status'] && 'removed' === Waitlists::get( $ez_id )->status && '' === (string) Waitlists::get( $ez_id )->email && is_array( $ez_again ) && ! empty( $ez_again['already'] ) );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $ew_ticket = tickets( $ew_sold['order_id'] )[0];
 PassCaptain\Refunds::request( $ew_sold['order_id'], array( (int) $ew_ticket->ticket_id ), 'Rückgabe', 'ew-refund-' . uniqid() );
-svc_run_jobs();
+Waitlists::run_due( true );
 $x = $ew_row( 'ew-x@svc.test' );
-check( 'a refund frees capacity → job offers it to the next entry with a hold (no manual step)', 'offered' === $x->status && 1 === (int) $x->hold_quantity && 'waiting' === $ew_row( 'ew-y@svc.test' )->status && svc_audit( 'waitlist_offer_made', (int) $x->waitlist_id ) );
-check( 'offer mail: reserved note, accept, decline and unsubscribe links', (bool) array_filter( svc_mails_to( 'ew-x@svc.test', $mails_before ), static fn( $m ) => str_contains( $m['body'], 'für dich reserviert' ) && str_contains( $m['body'], 'wpcap_waitlist_accept=' ) && str_contains( $m['body'], 'wpcap_waitlist_decline=' ) && str_contains( $m['body'], 'wpcap_waitlist_leave=' ) ) );
+check( 'a refund frees capacity → the queue offers it to the next entry with a hold (no manual step)', 'offered' === $x->status && (int) $x->order_id > 0 && Waitlists::OFFER_PROVIDER === Orders::get( (int) $x->order_id )->payment_provider && 'waiting' === $ew_row( 'ew-y@svc.test' )->status && svc_audit( 'waitlist_offered', (int) $x->waitlist_id ) );
+check( 'offer mail: reserved note, accept and unsubscribe links', (bool) array_filter( svc_mails_to( 'ew-x@svc.test', $mails_before ), static fn( $m ) => str_contains( $m['body'], 'reserviert' ) && str_contains( $m['body'], 'wpcap_waitlist_accept=' ) && str_contains( $m['body'], 'wpcap_waitlist_unsubscribe=' ) ) );
 svc_reset_limits();
 $ew_public = Orders::create( array( 'email' => 'public@svc.test', 'items' => array( array( 'ticket_type_id' => $ew_type, 'quantity' => 1 ) ), 'idempotency_key' => 'ew-public-' . uniqid() ) );
 check( 'the held ticket is not sellable to others (availability 0, checkout refused)', 0 === Orders::availability( $ew_type ) && is_wp_error( $ew_public ) );
-list( $ex_id, $ex_token ) = svc_token_from_mail( 'ew-x@svc.test', 'wpcap_waitlist_decline' );
+list( $ex_id, $ex_token ) = svc_token_from_mail( 'ew-x@svc.test', 'wpcap_waitlist_accept' );
 Waitlists::decline_offer( $ex_id, $ex_token );
-svc_run_jobs();
+Waitlists::run_due( true );
 $y = $ew_row( 'ew-y@svc.test' );
-check( 'decline releases the hold and the next entry gets the offer', 'declined' === $ew_row( 'ew-x@svc.test' )->status && 'offered' === $y->status && 1 === (int) $y->hold_quantity );
+check( 'decline releases the hold and the next entry gets the offer', 'declined' === $ew_row( 'ew-x@svc.test' )->status && 'cancelled' === Orders::get( (int) $x->order_id )->status && 'offered' === $y->status && (int) $y->order_id > 0 );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), (int) $y->order_id ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET offer_expires_at=%s WHERE waitlist_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), (int) $y->waitlist_id ) );
 check( 'an expired offer does not block sales any more', 1 === Orders::availability( $ew_type ) );
 Waitlists::sweep();
-check( 'sweep marks the expired offer; with nobody waiting the ticket is free', 'expired' === $ew_row( 'ew-y@svc.test' )->status && 0 === (int) $ew_row( 'ew-y@svc.test' )->hold_quantity && 1 === Orders::availability( $ew_type ) );
-// Capacity increase → offer by the sweep; accept consumes the own hold.
+check( 'sweep marks the expired offer; with nobody waiting the ticket is free', 'expired' === $ew_row( 'ew-y@svc.test' )->status && 'expired' === Orders::get( (int) $y->order_id )->status && 1 === Orders::availability( $ew_type ) );
+// Capacity increase → offer by the sweep; accepting a free offer completes the order at once.
 $ew2_type = make_type( 1, 10, 0 );
 $ew2_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$ew2_type" );
 $ew2_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$ew2_occ" );
@@ -161,15 +171,15 @@ Orders::create( array( 'email' => 'free-sold@svc.test', 'items' => array( array(
 svc_reset_limits();
 Waitlists::join( $ew2_event, $ew2_occ, $ew2_type, 'ew-cap@svc.test' );
 $manual = Waitlists::offer_next( $ew2_event, $ew2_type );
-check( 'manual offer while sold out is made without hold (inventory_reserved false)', is_array( $manual ) && false === $manual['inventory_reserved'] && 0 === (int) $ew_row( 'ew-cap@svc.test' )->hold_quantity );
-$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET status='waiting',offer_token_hash='',offer_expires_at=NULL WHERE waitlist_id=%d", (int) $ew_row( 'ew-cap@svc.test' )->waitlist_id ) );
+check( 'manual offer while sold out is refused (offers always hold their units); the entry keeps waiting', is_wp_error( $manual ) && 'wpcap_waitlist_unavailable' === $manual->get_error_code() && 'waiting' === $ew_row( 'ew-cap@svc.test' )->status && 0 === (int) $ew_row( 'ew-cap@svc.test' )->order_id );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET capacity=2 WHERE ticket_type_id=$ew2_type" );
 Waitlists::sweep();
 $cap_row = $ew_row( 'ew-cap@svc.test' );
-check( 'capacity raised by staff: the sweep offers the new ticket with a hold', 'offered' === $cap_row->status && 1 === (int) $cap_row->hold_quantity && 0 === Orders::availability( $ew2_type ) );
+check( 'capacity raised by staff: the sweep offers the new ticket with a hold', 'offered' === $cap_row->status && (int) $cap_row->order_id > 0 && 0 === Orders::availability( $ew2_type ) );
 list( $ec_id, $ec_token ) = svc_token_from_mail( 'ew-cap@svc.test', 'wpcap_waitlist_accept' );
 $ec_acc = Waitlists::accept_offer( $ec_id, $ec_token );
-check( 'accept consumes the own hold and creates the order (free ticket issued at once)', 'accepted' === ( $ec_acc['status'] ?? '' ) && 'accepted' === $ew_row( 'ew-cap@svc.test' )->status && (int) $ec_acc['order']['order_id'] === (int) $ew_row( 'ew-cap@svc.test' )->order_id && 0 === (int) $ew_row( 'ew-cap@svc.test' )->hold_quantity && 1 === count( tickets( $ec_acc['order']['order_id'] ) ) && 0 === Orders::availability( $ew2_type ) );
+check( 'accept of a free offer completes its order at once (ticket issued, entry paid, hold consumed)', 'paid' === ( $ec_acc['status'] ?? '' ) && 'paid' === $ew_row( 'ew-cap@svc.test' )->status && (int) $ec_acc['order']['order_id'] === (int) $cap_row->order_id && 1 === count( tickets( $ec_acc['order']['order_id'] ) ) && 0 === Orders::availability( $ew2_type ) );
 check( 'an accepted offer cannot be accepted again', is_wp_error( Waitlists::accept_offer( $ec_id, $ec_token ) ) );
+if ( null === $svc_wl_delay ) { unset( $GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] ); } else { $GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] = $svc_wl_delay; }
 
 unset( $GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] );
