@@ -259,6 +259,7 @@ final class StatusPage {
 		self::render_payment_cases();
 		self::render_schema();
 		self::render_diagnostics();
+		\PassCaptain\Integrations\WorkflowCaptain\Status::render();
 		echo '</div>';
 	}
 
