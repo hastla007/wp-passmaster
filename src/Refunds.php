@@ -1188,6 +1188,28 @@ final class Refunds {
 	}
 
 	/**
+	 * Read-only preview of request() for the admin refund form (A340): amount and VAT for the tickets
+	 * (empty = all open tickets), taking refunds that are pending or running into account, and whether
+	 * the threshold would require a second approval for the current user. Tickets already used for
+	 * admission additionally need an exception (request() decides).
+	 *
+	 * @return array|\WP_Error {ticket_ids, amount_minor, tax_minor, needs_approval}
+	 */
+	public static function preview( $order, array $ticket_ids = array() ) {
+		$order = is_object( $order ) ? $order : Orders::get( absint( $order ) );
+		if ( ! $order || 'paid' !== $order->payment_status ) {
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$open = self::open_refunds( (int) $order->order_id );
+		$calc = self::calculate( $order, $ticket_ids, $open['ticket_ids'], $open['amount_minor'] );
+		if ( is_wp_error( $calc ) ) { return $calc; }
+		$threshold = (int) Settings::get( 'refund_approval_threshold' );
+		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
+		$calc['needs_approval'] = $threshold > 0 && $cumulative > $threshold && ! current_user_can( self::APPROVE_CAP );
+		return $calc;
+	}
+
+	/**
 	 * Calculates the refund amount for tickets (not yet refunded) from the order item snapshots.
 	 * The last remaining tickets receive the rounding remainder so a full refund equals the order total.
 	 */

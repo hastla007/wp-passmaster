@@ -181,6 +181,10 @@ final class OrdersPage {
 			return Forms::error( 'wpcap_refund_key', __( 'Das Formular ist abgelaufen. Bitte die Seite neu laden.', 'pass-captain' ) );
 		}
 		$all = Forms::flag( $in, 'refund_all' );
+		// A340: "Alle" no longer overrides a selection silently – both at once is ambiguous.
+		if ( $all && Forms::ids( $in, 'ticket_ids' ) ) {
+			return Forms::error( 'wpcap_refund_ambiguous', __( 'Bitte entweder einzelne Tickets auswählen oder „Alle offenen Tickets“ – nicht beides.', 'pass-captain' ) );
+		}
 		$ticket_ids = $all ? array() : Forms::ids( $in, 'ticket_ids' );
 		if ( ! $all && ! $ticket_ids ) {
 			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ) );
@@ -191,6 +195,90 @@ final class OrdersPage {
 			return Forms::error( $result->get_error_code(), $result->get_error_message(), 403 === $status ? 403 : 409 );
 		}
 		return array( 'order_id' => (int) $order->order_id, 'refund' => $result );
+	}
+
+	/** Success message of a refund request, naming the amount (A340). */
+	public static function refund_message( array $refund ) {
+		$status = (string) ( $refund['status'] ?? '' );
+		$amount = Forms::money( (int) ( $refund['amount_minor'] ?? 0 ), (string) ( $refund['currency'] ?? '' ) );
+		if ( 'pending_approval' === $status ) {
+			/* translators: %s: refund amount */
+			return sprintf( __( 'Erstattung über %s angefordert. Sie wartet auf die Freigabe durch eine zweite Person.', 'pass-captain' ), $amount );
+		}
+		/* translators: 1: refund amount, 2: status */
+		return sprintf( __( 'Erstattung über %1$s verarbeitet (Status: %2$s).', 'pass-captain' ), $amount, Forms::status_label( $status ) );
+	}
+
+	/**
+	 * Amounts and route for the refund form (A340): amount per refundable ticket and for "all open
+	 * tickets" (Refunds::preview(), same calculation as the refund itself), how the money goes back and
+	 * whether the threshold requires a second approval.
+	 *
+	 * @param object   $order      Order row.
+	 * @param object[] $refundable Refundable tickets (ticket_id).
+	 * @return array {per_ticket: int[] ticket_id => minor, all: int, all_ids: int[], route: string, approval_all: bool}
+	 */
+	public static function refund_preview( $order, array $refundable ) {
+		$per = array();
+		foreach ( $refundable as $ticket ) {
+			$one = Refunds::preview( $order, array( (int) $ticket->ticket_id ) );
+			if ( ! is_wp_error( $one ) ) { $per[ (int) $ticket->ticket_id ] = (int) $one['amount_minor']; }
+		}
+		$all = Refunds::preview( $order, array() );
+		return array(
+			'per_ticket' => $per,
+			'all' => is_wp_error( $all ) ? array_sum( $per ) : (int) $all['amount_minor'],
+			'all_ids' => is_wp_error( $all ) ? array_keys( $per ) : array_map( 'intval', $all['ticket_ids'] ),
+			'route' => self::refund_route( $order ),
+			'approval_all' => ! is_wp_error( $all ) && ! empty( $all['needs_approval'] ),
+		);
+	}
+
+	/** How a refund of this order is paid out (A340). */
+	public static function refund_route( $order ) {
+		$gateway = \PassCaptain\Payments\Registry::get( '' !== (string) $order->payment_provider ? (string) $order->payment_provider : 'manual' );
+		if ( $gateway && $gateway->supports_refunds() ) {
+			/* translators: %s: payment provider */
+			return sprintf( __( 'Automatisch über %s zurück auf das Zahlungsmittel der Käufer:in.', 'pass-captain' ), wp_strip_all_tags( (string) $gateway->title() ) );
+		}
+		$account = \PassCaptain\PayoutAccount::applies( $order ) ? \PassCaptain\PayoutAccount::get( $order ) : null;
+		if ( $account ) {
+			/* translators: %s: masked IBAN */
+			return sprintf( __( 'Nicht automatisch: Betrag bitte außerhalb des Plugins auf das hinterlegte Konto %s überweisen. Die Tickets werden widerrufen.', 'pass-captain' ), \PassCaptain\PayoutAccount::mask( $account['iban'] ) );
+		}
+		return __( 'Nicht automatisch: Betrag bitte außerhalb des Plugins zurückzahlen. Die Tickets werden widerrufen.', 'pass-captain' );
+	}
+
+	/**
+	 * Live sum, "Alle" locking the single selection and a confirmation naming amount and route (A340).
+	 * Without JavaScript the server refuses a form with both "Alle" and single tickets.
+	 */
+	private static function refund_form_script( array $preview, $currency ) {
+		$data = array(
+			'all' => (int) $preview['all'],
+			'allCount' => count( $preview['all_ids'] ),
+			'currency' => (string) $currency,
+			'decimals' => Forms::currency_decimals( (string) $currency ),
+			'locale' => str_replace( '_', '-', function_exists( 'get_user_locale' ) ? (string) get_user_locale() : 'de_DE' ),
+			'route' => (string) $preview['route'],
+			'none' => __( 'Noch keine Tickets gewählt.', 'pass-captain' ),
+			/* translators: 1: amount, 2: number of tickets */
+			'sum' => __( '%1$s für %2$d Ticket(s)', 'pass-captain' ),
+			/* translators: 1: amount, 2: number of tickets */
+			'sumAll' => __( '%1$s für alle %2$d offenen Tickets (Restbetrag)', 'pass-captain' ),
+			/* translators: 1: amount and number of tickets, 2: how the money goes back */
+			'confirm' => __( 'Jetzt %1$s erstatten? %2$s', 'pass-captain' ),
+			'pick' => __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ),
+		);
+		echo '<script>(function(){var D=' . wp_json_encode( $data ) . ';var f=document.getElementById("wpcap-refund-form");if(!f){return;}'
+			. 'var all=document.getElementById("wpcap-refund-all"),out=document.getElementById("wpcap-refund-amount"),boxes=f.querySelectorAll("input.wpcap-refund-ticket"),saved=[];'
+			. 'function money(m){try{return new Intl.NumberFormat(D.locale,{style:"currency",currency:D.currency}).format(m/Math.pow(10,D.decimals));}catch(e){return (m/Math.pow(10,D.decimals)).toFixed(D.decimals)+" "+D.currency;}}'
+			. 'function fmt(t,a,b){return t.replace("%1$s",a).replace("%2$d",b).replace("%2$s",b);}'
+			. 'function state(){if(all&&all.checked){return fmt(D.sumAll,money(D.all),D.allCount);}var s=0,n=0;boxes.forEach(function(b){if(b.checked){s+=parseInt(b.getAttribute("data-amount")||"0",10);n++;}});return n?fmt(D.sum,money(s),n):"";}'
+			. 'function update(){out.textContent=state()||D.none;}'
+			. 'if(all){all.addEventListener("change",function(){boxes.forEach(function(b,i){if(all.checked){saved[i]=b.checked;b.checked=true;b.disabled=true;}else{b.disabled=false;b.checked=!!saved[i];}});update();});}'
+			. 'boxes.forEach(function(b){b.addEventListener("change",update);});'
+			. 'f.addEventListener("submit",function(e){var t=state();if(!t){e.preventDefault();window.alert(D.pick);return;}if(!window.confirm(fmt(D.confirm,t,D.route))){e.preventDefault();}});update();})();</script>';
 	}
 
 	/** Loads a pending refund the current user may decide on. */
@@ -339,8 +427,7 @@ final class OrdersPage {
 		$result = self::refund( $in );
 		$message = '';
 		if ( ! is_wp_error( $result ) ) {
-			$status = $result['refund']['status'] ?? '';
-			$message = 'pending_approval' === $status ? __( 'Erstattung angefordert. Sie wartet auf die Freigabe durch eine zweite Person.', 'pass-captain' ) : sprintf( /* translators: %s: status */ __( 'Erstattung verarbeitet (Status: %s).', 'pass-captain' ), Forms::status_label( $status ) );
+			$message = self::refund_message( (array) $result['refund'] );
 		}
 		Forms::finish( $result, $message, self::order_url( $order_id ) );
 	}
@@ -611,8 +698,9 @@ final class OrdersPage {
 		}
 		$refundable = array_filter( $tickets, static function ( $t ) use ( $in_progress ) { return ! (int) $t->refunded && in_array( $t->status, array( 'valid', 'checked_in' ), true ) && ! in_array( (int) $t->ticket_id, $in_progress, true ); } );
 		$can_refund = ! $is_woo && 'paid' === $order->payment_status && $refundable && self::can_request_refunds();
+		$preview = $can_refund ? self::refund_preview( $order, $refundable ) : array();
 		if ( $can_refund ) {
-			Forms::open_form( 'wpcap_refund_order', 'wpcap_refund_order_' . $order->order_id );
+			Forms::open_form( 'wpcap_refund_order', 'wpcap_refund_order_' . $order->order_id, 'id="wpcap-refund-form"' );
 			Forms::hidden( 'order_id', $order->order_id );
 			Forms::hidden( 'idempotency_key', wp_generate_uuid4() );
 		}
@@ -633,7 +721,7 @@ final class OrdersPage {
 				?>
 				<tr>
 					<?php if ( $can_refund ) : ?>
-						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
+						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" class="wpcap-refund-ticket" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" data-amount="<?php echo esc_attr( (string) ( $preview['per_ticket'][ (int) $ticket->ticket_id ] ?? 0 ) ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
 					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?></td>
@@ -651,7 +739,8 @@ final class OrdersPage {
 		<?php if ( $can_refund ) : ?>
 			<h3><?php esc_html_e( 'Erstatten', 'pass-captain' ); ?></h3>
 			<p>
-				<label><input type="checkbox" name="refund_all" value="1"> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'pass-captain' ); ?></label><br>
+				<label><input type="checkbox" name="refund_all" value="1" id="wpcap-refund-all" aria-describedby="wpcap-refund-all-help"> <?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung: %s)', 'pass-captain' ), Forms::money( (int) $preview['all'], $currency ) ) ); ?></label>
+				<span class="description" id="wpcap-refund-all-help"><?php esc_html_e( 'Ersetzt die Einzelauswahl in der Tabelle; diese ist dann gesperrt.', 'pass-captain' ); ?></span><br>
 				<label><?php esc_html_e( 'Grund', 'pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
 			</p>
 			<?php if ( Refunds::used_ticket_ids( array_map( static function ( $t ) { return (int) $t->ticket_id; }, (array) $tickets ) ) && current_user_can( Refunds::APPROVE_CAP ) ) : ?>
@@ -659,14 +748,17 @@ final class OrdersPage {
 				<input type="text" id="wpcap-used-override" name="used_override" class="regular-text" maxlength="200" aria-describedby="wpcap-used-override-help">
 				<span id="wpcap-used-override-help" class="description"><?php esc_html_e( 'Nur ausfüllen, wenn eingelassene Tickets trotzdem erstattet werden sollen (z. B. Abbruch der Veranstaltung). Die Erstattung braucht dann immer eine zweite Freigabe.', 'pass-captain' ); ?></span></p>
 			<?php endif; ?>
-			<?php if ( 'manual' === $order->payment_provider ) : ?>
-				<p class="description"><?php esc_html_e( 'Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen.', 'pass-captain' ); ?></p>
-			<?php endif; ?>
+			<div class="wpcap-refund-summary" style="border-left:4px solid #72aee6;padding:.4em .8em;margin:.8em 0;background:#f6f7f7">
+				<p><strong><?php esc_html_e( 'Erstattungsbetrag:', 'pass-captain' ); ?></strong> <span id="wpcap-refund-amount" aria-live="polite"><?php esc_html_e( 'Noch keine Tickets gewählt.', 'pass-captain' ); ?></span></p>
+				<p><strong><?php esc_html_e( 'Weg:', 'pass-captain' ); ?></strong> <span id="wpcap-refund-route"><?php echo esc_html( $preview['route'] ); ?></span></p>
+				<?php if ( $preview['approval_all'] ) : ?><p class="description"><?php esc_html_e( 'Ab einem Betrag über der Freigabegrenze wartet die Erstattung auf eine zweite Person.', 'pass-captain' ); ?></p><?php endif; ?>
+			</div>
 			<?php if ( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ) > 0 && ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig.', 'pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
 			<?php endif; ?>
-			<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ausgewählte Tickets wirklich erstatten?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>
+			<button class="button button-primary" type="submit" id="wpcap-refund-submit"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>
 			</form>
+			<?php self::refund_form_script( $preview, $currency ); ?>
 		<?php endif; ?>
 
 		<?php /** Extra sections on the order detail page (e.g. ticket exchange). */ do_action( 'wpcap_admin_order_detail', $order, $tickets ); ?>

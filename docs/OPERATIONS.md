@@ -883,6 +883,22 @@ Der Web-Scanner ist eine normale Seite mit dem Shortcode `[wpcap_scanner]` (Anme
 Person mit `publish_pages` dort die Seite „Einlass-Scanner“ anlegen lassen (Audit `scanner_page_created`);
 eigene Scanner-Seiten lassen sich über den Filter `wpcap_scanner_pages` ergänzen.
 
+### Erstatten im Bestelldetail (A340)
+
+Das Erstattungsformular zeigt vor dem Absenden, was passiert:
+- **Erstattungsbetrag** live zur Auswahl (je Ticket aus derselben Berechnung wie die Erstattung selbst,
+  `Refunds::preview()`; laufende oder wartende Erstattungen sind abgezogen) und bei „Alle offenen Tickets“
+  der Restbetrag der Bestellung, der auch direkt an der Option steht.
+- **Weg**: automatisch über den Zahlungsanbieter zurück auf das Zahlungsmittel, oder – bei Überweisung bzw.
+  Anbietern ohne Erstattungsschnittstelle – „nicht automatisch“ mit dem hinterlegten Konto (maskierte IBAN),
+  falls vorhanden.
+- Ein Hinweis, wenn die Freigabegrenze eine zweite Person verlangt.
+
+Die Bestätigung nennt Betrag, Ticketzahl und Weg. „Alle offenen Tickets“ hakt alle Tickets sichtbar an und
+sperrt die Einzelauswahl; abgewählt kehrt die vorherige Auswahl zurück. Kommen trotzdem (z. B. ohne
+JavaScript) „Alle“ und einzelne Tickets zusammen an, lehnt der Server ab (`wpcap_refund_ambiguous`), statt
+still alles zu erstatten. Die Erfolgsmeldung nennt den Betrag.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und
