@@ -1437,7 +1437,7 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 
 Quelle: TODO.md Abschnitt C. Der Kern bleibt frei und ohne Lizenzprüfung; nur A701 und A705 betreffen dieses Repository direkt.
 
-- [ ] **A701** [WICHTIG] Doku auf Entscheidung 17 umstellen: BoatingSchool-/LearnBoating-Connectoren sind Teil von Pass Captain Pro, separat installiert, lizenzpflichtig (CONCEPT, FREE-PREMIUM, EXTENSIONS/CONTRACTS, ROADMAP) — _Entscheidung 17_ (TODO L224; Entscheidung 17, 16.11.2026)
+- [x] **A701** [WICHTIG] Doku auf Entscheidung 17 umstellen: BoatingSchool-/LearnBoating-Connectoren sind Teil von Pass Captain Pro, separat installiert, lizenzpflichtig (CONCEPT, FREE-PREMIUM, EXTENSIONS/CONTRACTS, ROADMAP) — _Entscheidung 17_ (TODO L224; Entscheidung 17, 16.11.2026)
 - [ ] **A702** [ENTSCHEIDUNG] Lizenzmodell der Connectoren: eigener Produktschlüssel je Connector oder Rechteschlüssel in pass-captain-pro; Eintrag in wp-license (ENTITLEMENTS, Katalog, Tarife) — _Entscheidung 17_ (TODO L225; Entscheidung 17, 16.11.2026)
 - [ ] **A703** [ENTSCHEIDUNG] Kundenfreigabe: Connectoren nur für freigegebene Kunden lizenzierbar oder für alle Pro-Kunden; Freigabe/Entzug/Protokoll im Lizenzserver — _Entscheidung 17_ (TODO L226; Entscheidung 17, 16.11.2026)
 - [ ] **A704** [WICHTIG] Plugin-Gerüst je Connector (Repo/Slug/Textdomain, Requires Plugins, WPLC-Client mit Lizenz und Updater) – außerhalb dieses Repos — _Entscheidung 17_ (TODO L227; Entscheidung 17, 16.11.2026)
