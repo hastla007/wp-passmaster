@@ -60,7 +60,9 @@
         "locale": "string",
         "terms_text": "string",
         "consumer_info_text": "string",
-        "terms_version": "string"
+        "terms_version": "string",
+        "terms_html": "string",
+        "consumer_info_html": "string"
       }
     },
     "POST /checkout": {

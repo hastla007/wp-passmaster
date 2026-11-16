@@ -77,6 +77,8 @@ function wpcap_test_public_rest() {
 		'GET pass-captain/v1/events',
 		'POST pass-captain/v1/checkout',
 		'GET pass-captain/v1/checkout/options',
+		// A456: live purchase state of cached event cards (public data only, no-store).
+		'GET pass-captain/v1/checkout/live',
 		'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer',
 		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend',

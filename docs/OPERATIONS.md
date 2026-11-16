@@ -145,6 +145,25 @@ und Seiten mit Event-Liste oder Kalender werden bei jeder Änderung **gezielt ge
   50 Zeitpunkte, danach die folgenden). Damit das pünktlich passiert, WP-Cron per System-Cron jede Minute
   ausführen (siehe [Hintergrundverarbeitung](#hintergrundverarbeitung-wp-cron)). Bis dahin zeigt eine
   gecachte Seite den alten Stand; der Checkout prüft Verkaufszeitraum und Verfügbarkeit aber immer serverseitig.
+- **Live-Zustand der Eventkarten (A456, A458):** Zwischen zwei Purges (und bei CDNs ohne Purge-Adapter) kann
+  die Karte aus dem Cache kommen. Das Checkout-Skript fragt deshalb nach dem Laden (und nach „Zurück“ aus dem
+  bfcache) einmal `GET /wp-json/pass-captain/v1/checkout/live?occurrences=…` ab – öffentliche Daten,
+  `Cache-Control: no-store`, je Client 120 Anfragen pro Minute (Filter `wpcap_checkout_live_limit`) – und
+  schaltet damit Mengenlimits, ausverkaufte Ticketarten, die aktuellen (zeitabhängigen) Preise samt
+  Regulärpreis und Preisstufe, „Nur noch … Plätze“, Badges, Zahlungsarten, das Bestellformular bzw. den
+  Hinweis „ausverkauft“/„Online-Verkauf derzeit nicht möglich“ und das Wartelistenformular um. Die Karte
+  enthält dafür immer das vollständige Formular, das Mengenfeld jeder Ticketart, beide Hinweise und das
+  Wartelistenformular – jeweils mit `hidden`, wo sie nicht gelten. Ohne Antwort (offline, 429, HTML einer
+  Firewall) bleibt die Karte, wie sie gerendert wurde. Diese Route darf ein CDN/WAF nie cachen (wie den
+  ganzen Namespace `/wp-json/pass-captain/`).
+- **Geänderte Rechtstexte (A457):** Bestätigt jemand auf einer gecachten Seite die alte Fassung, lehnt der
+  Checkout mit 409 `wpcap_terms_changed` ab (in `data.terms_version` die aktuelle Version). Das Skript lädt
+  die Texte dann über `GET /checkout/options` (`terms_html`, `consumer_info_html`, `no-store`) in die Karte,
+  nimmt das Häkchen zurück und lässt die aktuelle Fassung bestätigen – ein Neuladen würde nur die gecachte
+  Seite zeigen. Meldet der Live-Zustand schon beim Laden eine neuere Version, werden die Texte sofort
+  ersetzt. Eigene Theme-Vorlagen brauchen dafür die Container `.wpcap-legal[data-legal="terms"]` bzw.
+  `[data-legal="consumer_info"]` mit `.wpcap-legal-text` (siehe `templates/event-card.php`); ohne sie bleibt
+  es bei der Serverprüfung.
 
 ### Mitgelieferte Purge-Adapter
 

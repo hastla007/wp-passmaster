@@ -160,7 +160,7 @@ $article = false !== $card_pos ? substr( $card, strrpos( substr( $card, 0, $card
 check( 'buyer e-mail comes before the attendee box with the clear label', false !== strpos( $article, 'Deine E-Mail-Adresse (für Tickets und Bestätigung)' ) && strpos( $article, 'name="email"' ) < strpos( $article, 'wpcap-attendees' ) );
 check( 'CTA uses the theme button class', false !== strpos( $article, 'class="wp-element-button wpcap-submit"' ) );
 check( 'consent mentions consumer information only when configured', false !== strpos( $article, 'Ich akzeptiere die Bedingungen.</label>' ) && false === strpos( $article, 'Verbraucherinformationen gelesen' ) );
-check( 'prices with currency symbol', false !== strpos( $article, 'Standard — 19,90 €' ) );
+check( 'prices with currency symbol', false !== strpos( $article, 'Standard — <span class="wpcap-type-price">19,90 €</span>' ) ); // A456/A458: price in its own span.
 check( 'fields are labelled explicitly (for/id) for inline errors', 1 === preg_match( '#<label for="(wpcap-\d+-email)">.*?<input id="\1" name="email"#s', $article ) );
 // Audit 3 (A017): the discount code field only appears when a code is active for the event.
 $card_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$card_occ" );

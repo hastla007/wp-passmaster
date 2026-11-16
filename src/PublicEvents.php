@@ -31,11 +31,19 @@ final class PublicEvents {
 			// Waitlist join: …/events/{event_id}/waitlist.
 			'eventsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/events/' ) ),
 			'previewUrl' => esc_url_raw( rest_url( 'pass-captain/v1/campaigns/preview' ) ),
+			// A456: live purchase state of the cards (cached pages); A457: current legal texts.
+			'liveUrl' => esc_url_raw( rest_url( 'pass-captain/v1/checkout/live' ) ),
+			'optionsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/checkout/options' ) ),
 			'money' => Frontend\Format::js_config(),
 			// Common mail domains for the typo hint on the buyer e-mail (A553).
 			'emailDomains' => self::email_domains(),
 			'i18n' => array(
 				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'pass-captain' ),
+				/* translators: %s: regular price */
+				'basePrice' => __( 'statt %s', 'pass-captain' ),
+				'providerLegend' => __( 'Zahlungsart', 'pass-captain' ),
+				// A457: shown at the terms checkbox after the texts were reloaded.
+				'termsUpdated' => __( 'Die Bedingungen wurden inzwischen geändert. Bitte lies die aktuelle Fassung oben und bestätige sie erneut.', 'pass-captain' ),
 				/* translators: 1: subtotal, 2: discount, 3: total */
 				'estimateDiscount' => __( 'Summe: %1$s − Rabatt %2$s = %3$s (vorläufig; der endgültige Preis wird bei der Bestellung berechnet)', 'pass-captain' ),
 				'codeInvalid' => __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'pass-captain' ),
@@ -266,9 +274,7 @@ final class PublicEvents {
 					continue;
 				}
 				++$shown;
-				$providers = Payments\Registry::enabled( $types[0]->currency );
-				// Bank transfer is not offered when the start is closer than manual_cutoff_hours.
-				if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
+				$providers = self::card_providers( $event, $types[0]->currency );
 				$legal = self::legal_context();
 				?>
 				<?php
@@ -287,6 +293,114 @@ final class PublicEvents {
 		</div>
 		<?php
 		return ob_get_clean();
+	}
+
+	/**
+	 * Payment methods the card of a date offers (id => gateway): enabled for the currency; bank
+	 * transfer is left out when the start is closer than manual_cutoff_hours and another method exists.
+	 *
+	 * @param object $event Listing row (starts_at).
+	 */
+	public static function card_providers( $event, $currency ) {
+		$providers = Payments\Registry::enabled( (string) $currency );
+		if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
+		return $providers;
+	}
+
+	/** Most dates one live-state request may ask for (A456). */
+	const LIVE_MAX = 50;
+
+	/**
+	 * A456/A458: live purchase state of listed dates for cards from a page cache or CDN – what the card
+	 * would show if it were rendered now: per ticket type the quantity limit, seats left and the current
+	 * (time-dependent) price; seats-left text, price line and badges of the header; the payment methods;
+	 * whether the waitlist is offered and for which types; the current legal text version (A457).
+	 * Dates that are not on sale (any more) come back with on_sale false. Read-only, no personal data.
+	 *
+	 * @param int[]  $occurrence_ids Dates of the cards on the page.
+	 * @param string $locale         Locale of the form (legal texts, translations).
+	 * @return array{occurrences: array, legal: array, server_time: string}
+	 */
+	public static function live_state( array $occurrence_ids, $locale = '' ) {
+		global $wpdb;
+		$ids = array_slice( array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) ), 0, self::LIVE_MAX );
+		$out = array();
+		foreach ( $ids as $id ) { $out[ $id ] = array( 'on_sale' => false ); }
+		$rows = array();
+		if ( $ids ) {
+			$rows = (array) $wpdb->get_results( $wpdb->prepare(
+				"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.occurrence_id IN (" . implode( ',', $ids ) . ') AND ' . Occurrence::listable_sql( 'o', Clock::mysql() ) . ' ORDER BY o.starts_at ASC LIMIT %d', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and prepared fragment.
+				self::LIVE_MAX
+			) );
+		}
+		$meta = array();
+		$listing = self::listing_data( $rows, $meta );
+		$card_listing = self::card_listing( $rows, $listing, $meta );
+		foreach ( $rows as $event ) {
+			$occ_id = (int) $event->occurrence_id;
+			$types = $listing[ $occ_id ] ?? array();
+			if ( ! $types ) { continue; }
+			$card = Frontend\EventCard::context( $event, $types, $card_listing );
+			$state_types = array();
+			$soldout = array();
+			foreach ( $types as $type ) {
+				$max = Frontend\EventCard::quantity_max( $type, $event );
+				if ( null !== $type->available && (int) $type->available < 1 ) { $soldout[] = (int) $type->ticket_type_id; }
+				$base = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? Frontend\Format::money( $type->base_price_minor, $type->currency ) : '';
+				$state_types[ (int) $type->ticket_type_id ] = array(
+					'max' => $max,
+					'available' => null === $type->available ? null : max( 0, (int) $type->available ),
+					'price_minor' => (int) $type->price_minor,
+					'price' => Frontend\Format::money( $type->price_minor, $type->currency ),
+					'base_price' => $base,
+					'price_label' => (string) ( $type->price_label ?? '' ),
+					'currency' => (string) $type->currency,
+				);
+			}
+			$providers = array();
+			foreach ( self::card_providers( $event, $types[0]->currency ) as $provider_id => $gateway ) { $providers[] = array( 'id' => (string) $provider_id, 'title' => (string) $gateway->title() ); }
+			// "Nächster Termin" depends on the whole listing: the card keeps the badge it was rendered with.
+			$badges = array_values( array_filter( (array) $card['badges'], static function ( $badge ) { return 'next' !== ( $badge['key'] ?? '' ); } ) );
+			$waitlist = $soldout && (bool) apply_filters( 'wpcap_waitlist_public_enabled', true, $event );
+			$out[ $occ_id ] = array(
+				'on_sale' => true,
+				'types' => $state_types,
+				'availability' => (string) $card['availability'],
+				'price' => (string) $card['price'],
+				'badges' => array_map( static function ( $badge ) { return array( 'key' => (string) ( $badge['key'] ?? '' ), 'label' => (string) $badge['label'] ); }, $badges ),
+				'all_soldout' => count( $soldout ) === count( $types ),
+				'providers' => $providers,
+				'waitlist' => $waitlist,
+				'waitlist_types' => $waitlist ? $soldout : array(),
+				'max_total' => (int) $card['max_total'],
+			);
+		}
+		$legal = self::legal_context( '' === (string) $locale ? null : (string) $locale );
+		return array(
+			'occurrences' => (object) $out,
+			'legal' => array( 'require_terms' => (bool) $legal['require_terms'], 'terms_version' => (string) $legal['terms_version'], 'locale' => (string) $legal['locale'] ),
+			'server_time' => gmdate( 'c' ),
+		);
+	}
+
+	/**
+	 * GET /checkout/live?occurrences=1,2&locale=de_DE (A456): live_state() with Cache-Control no-store,
+	 * so neither a CDN nor the browser keeps it. Rate-limited per client (filter
+	 * `wpcap_checkout_live_limit`, default 120 per minute).
+	 */
+	public static function rest_live( \WP_REST_Request $request ) {
+		$limit = max( 1, (int) apply_filters( 'wpcap_checkout_live_limit', 120 ) );
+		if ( ! RateLimit::allow_client( 'checkout_live', $limit, MINUTE_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
+		$raw = $request->get_param( 'occurrences' );
+		$ids = is_array( $raw ) ? $raw : explode( ',', (string) $raw );
+		$response = rest_ensure_response( self::live_state( $ids, Mail\Mailer::normalize_locale( (string) $request->get_param( 'locale' ) ) ) );
+		if ( method_exists( $response, 'header' ) ) {
+			$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private' );
+			$response->header( 'CDN-Cache-Control', 'no-store' );
+		}
+		return $response;
 	}
 
 	/**

@@ -101,6 +101,15 @@ Seite behält `wpcap-{Termin}`, jede weitere (zweiter Shortcode, Widget, Archiv)
 `wpcap-occ-{Termin}` steht nur an der ersten Karte. Eigene Theme-Templates sollten `form_id()` ebenfalls
 verwenden; `checkout.js` sucht Rechnungsfelder und Fehlermeldungen ohnehin nur innerhalb des eigenen Formulars.
 
+Live-Zustand der Eventkarte (A456–A458): `checkout.js` schaltet die Karte nach `GET /checkout/live` um und
+braucht dafür in eigenen Theme-Templates dieselben Bausteine wie `templates/event-card.php`: `.wpcap-type[data-type]`
+mit `.wpcap-type-price`, `.wpcap-price-label`, `.wpcap-base-price`, `.wpcap-qty-box` (Mengenfeld immer
+ausgeben) und `.wpcap-soldout`; `.wpcap-buy` um das Bestellformular, `.wpcap-soldout-note`, `.wpcap-no-payment`,
+`.wpcap-provider-slot` um die Zahlungsarten, das Wartelistenformular `.wpcap-waitlist-form[data-occurrence]`
+mit allen Ticketarten im `select[name="ticket_type_id"]` (`option[data-max]`) und die Rechtstexte
+`.wpcap-legal[data-legal="terms|consumer_info"] .wpcap-legal-text`. Fehlt ein Baustein, bleibt dieser Teil
+im gerenderten (ggf. gecachten) Zustand; der Server prüft beim Bestellen ohnehin alles.
+
 Die WP-Cron-Hooks des Plugins stehen unter [Cron-Hooks](#cron-hooks).
 
 ## Filter und themenbezogene Actions
@@ -123,6 +132,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_affiliate_sale_payload` | `array $payload, object $order` | Verkaufsdaten an Affiliate Captain. |
 | `wpcap_affiliate_skip_channels` | `string[] $channels` (`woocommerce`) | Kanäle/Zahlungsanbieter, die nicht gemeldet werden. |
 | `wpcap_checkout_ip_limit` | `int $limit` (30) | Checkouts je IP und Stunde. |
+| `wpcap_checkout_live_limit` | `int $limit` (120) | Abrufe des Live-Zustands der Eventkarten (`GET /checkout/live`, A456) je Client und Minute; darüber 429 und die Karte bleibt im gerenderten Zustand. |
 | `wpcap_financial_retention_years` | `int $years` (Einstellung „Rechnungen und Rechnungskorrekturen löschen nach (Jahren)“, 0 = nie) | `Privacy\Retention`: Aufbewahrung von Rechnungen, Rechnungskorrekturen und Kassenschichten (Z-Berichte, Buchungen, Belege) in Jahren ab Ende des Ausstellungsjahres. |
 | `wpcap_campaign_stacking` | `string $mode` (`cumulative` \| `best`, aus der Einstellung „Mehrere Rabattcodes“), `object[] $campaigns`, `array $selected` | `Campaigns::calculate()` bei mehr als einem Code: `cumulative` wendet die Codes nach Priorität nacheinander auf den Restbetrag an, `best` nur den Code mit dem höchsten Rabatt. Nicht kombinierbare Codes (`stacking` = `exclusive`) werden vorher abgelehnt. |
 | `wpcap_tax_profiles_apply` | `bool $apply` (Standard: `true` außer für `woocommerce`), `string $source` (Verkaufskanal, z. B. `native`, `pos`, `partner`, `waitlist`, `exchange`), `object $type` | Ob Länder-Steuerprofile (A115, `Tax\Profiles::resolve()`) für den Verkauf einer Ticketart mit Steuerklasse gelten. `false` = Steuersatz der Ticketart. WooCommerce rechnet mit den eigenen Steuereinstellungen. Aufgerufen in `Orders::create()` (Bestell-Transaktion), beim Ticketumtausch und in den Katalogen von Kasse und Partner-API. |
@@ -210,6 +220,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_presale_card_html` | `string $html, object $event, string $sales_start` | HTML der Karte „Vorverkauf ab …“ im Shortcode `[wpcap_events]` für einen Termin, dessen Ticketarten alle erst später in den Verkauf gehen (`$sales_start` = frühester Verkaufsbeginn, UTC). |
 | `wpcap_event_card_thresholds` | `array $thresholds` (`few_left` = 10, `rescheduled_days` = 0, `visible_types` = 4) | `Frontend\EventCard`: Schwellen für Eventkarte und Kalender – Badge „Wenige Plätze“ ab höchstens `few_left` freien Plätzen (0 = nie), „Verschoben“ bis `rescheduled_days` Tage nach der Verschiebung (0 = bis zum Termin), Ticketarten vor dem Einklappen („Weitere Ticketarten“). |
 | `wpcap_occurrence_badges` | `array $badges` (je `key`, `label`), `object $occurrence`, `int\|null\|false $available`, `array $context` (`next`, `doors`, `view`: `card`, `dates`, `calendar`) | Badges eines Termins auf Eventkarte, Terminliste und Kalender (`next`, `cancelled`, `rescheduled`, `soldout`, `few_left`, `doors`); `$available` = freie Plätze (`null` unbegrenzt, `false` unbekannt). |
+| `wpcap_waitlist_public_enabled` | `bool $enabled` (true), `object $event` (Listenzeile des Termins) | Ob die Eventkarte das Wartelistenformular anbietet (öffentlich eintragen); die Karte enthält es seit A456 immer (verborgen, solange nichts ausverkauft ist), der Live-Zustand `GET /checkout/live` meldet `waitlist`/`waitlist_types` nach demselben Filter. |
 | `wpcap_event_card_quantity_max` | `int $max, object $type, object $event` | Höchstmenge einer Ticketart im Mengenfeld/Stepper der Eventkarte (kann nur gesenkt werden; das Kontingent-Modul setzt das Käuferlimit je Ticketart). |
 | `wpcap_event_card_max_total` | `int $max` (0 = ohne), `object $event, array $types` | Höchstmenge aller Ticketarten zusammen auf der Eventkarte (`data-max-total`, vom Stepper und der Formularprüfung beachtet; das Kontingent-Modul setzt das Käuferlimit je Event). |
 | `wpcap_calendar_show_cancelled` | `bool $show` (Standard `true`) | Kalender-Shortcode/-Block: abgesagte kommende Termine ohne Link mit Badge „Abgesagt“ anzeigen. |

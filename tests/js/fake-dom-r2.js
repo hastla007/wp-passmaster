@@ -124,7 +124,9 @@ class FakeElement {
 	removeAttribute(name) { delete this.attrs[name]; }
 	get textContent() { return this.ownText + this.children.map((c) => c.textContent).join(''); }
 	set textContent(value) { this.children.forEach((c) => { c.parentNode = null; }); this.children = []; this.ownText = String(value); }
-	set innerHTML(value) { if (value !== '') throw new Error('fake-dom: only innerHTML = "" is supported'); this.textContent = ''; }
+	// HTML is kept as text without tags (enough to check what a script put in); innerHTML reads it back.
+	set innerHTML(value) { this.textContent = String(value).replace(/<[^>]*>/g, ''); this.html = String(value); }
+	get innerHTML() { return this.html || ''; }
 	get firstChild() { return this.children[0] || null; }
 	get nextElementSibling() {
 		if (!this.parentNode) return null;

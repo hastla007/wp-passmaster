@@ -34,7 +34,9 @@ $a294_render = static function () use ( $a294_event ) { Orders::flush_availabili
 
 Settings::update( array( 'enabled_providers' => array(), 'require_terms' => 0 ) );
 $a294_html = $a294_render();
-check( 'card without payment method: "Online-Verkauf derzeit nicht möglich", no e-mail field, no submit, quantity disabled', false !== strpos( $a294_html, 'wpcap-no-payment' ) && false !== strpos( $a294_html, 'Online-Verkauf derzeit nicht möglich' ) && false === strpos( $a294_html, 'name="email"' ) && false === strpos( $a294_html, 'wpcap-submit' ) && 1 === preg_match( '/class="wpcap-qty"[^>]* disabled>/', $a294_html ) );
+// A456: the form is always part of the card (a cached page may become bookable); without a payment
+// method it is hidden and the note is visible.
+check( 'card without payment method: "Online-Verkauf derzeit nicht möglich" visible, order form (e-mail, submit) hidden, quantity disabled', 1 === preg_match( '/class="wpcap-no-payment" role="status">Online-Verkauf derzeit nicht möglich/', $a294_html ) && 1 === preg_match( '/<div class="wpcap-buy" hidden>/', $a294_html ) && 1 === preg_match( '/class="wpcap-qty"[^>]* disabled>/', $a294_html ) );
 check( 'ticket types and prices stay visible', false !== strpos( $a294_html, 'Stehplatz' ) );
 
 check( 'currencies_without_payment lists the currency of the bookable date', in_array( 'CHF', Menu::currencies_without_payment(), true ) );
@@ -51,7 +53,7 @@ check( 'admin notice "Keine verfügbare Zahlungsart" on plugin pages for adminis
 // Bank transfer configured: the card offers the order form again, no notice for CHF.
 Settings::update( array( 'enabled_providers' => array( 'manual' ), 'manual_instructions' => 'Bitte überweisen.' ) );
 $a294_ok = $a294_render();
-check( 'with an available payment method the order form is back', false === strpos( $a294_ok, 'wpcap-no-payment' ) && false !== strpos( $a294_ok, 'name="email"' ) && false !== strpos( $a294_ok, 'wpcap-submit' ) );
+check( 'with an available payment method the order form is back', 1 === preg_match( '/class="wpcap-no-payment" role="status" hidden>/', $a294_ok ) && 1 === preg_match( '/<div class="wpcap-buy">/', $a294_ok ) && false !== strpos( $a294_ok, 'name="email"' ) && false !== strpos( $a294_ok, 'wpcap-submit' ) );
 ob_start(); Menu::missing_payment_notice(); $a294_none = ob_get_clean();
 check( 'no notice once a payment method is available', '' === $a294_none && ! in_array( 'CHF', Menu::currencies_without_payment(), true ) );
 unset( $_GET['page'] );

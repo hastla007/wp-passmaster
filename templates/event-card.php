@@ -8,6 +8,13 @@
  * $card (Frontend\EventCard::context(): badges, seats left, price, other dates, next date, limits).
  * The checkout script relies on the class names, the name attributes and the field wrappers
  * (.wpcap-field) for inline error messages.
+ *
+ * A456: the page may come from a page cache or CDN. The checkout script loads the live state of the
+ * date (no-store endpoint /checkout/live: availability, prices, badges, payment methods, waitlist) and
+ * switches the parts below, so the card always contains the complete form (.wpcap-buy), the quantity
+ * field of every type (.wpcap-qty-box / .wpcap-soldout), both notes and the waitlist form, hidden
+ * where they do not apply. Keep these wrappers in a theme copy; without them the card still works,
+ * but shows the state of the cached page.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 // Unique per rendered card (A308): two cards of the same date on one page must not share ids.
@@ -21,7 +28,9 @@ foreach ( $types as $wpcap_type ) {
 	if ( null !== $wpcap_type->available && (int) $wpcap_type->available < 1 ) { $wpcap_soldout[] = $wpcap_type; }
 }
 $wpcap_all_soldout = $types && count( $wpcap_soldout ) === count( $types );
-$wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public_enabled', true, $event );
+// The waitlist form is always part of the card (A456) and only shown while a type is sold out.
+$wpcap_waitlist_enabled = $types && (bool) apply_filters( 'wpcap_waitlist_public_enabled', true, $event );
+$wpcap_waitlist = $wpcap_soldout && $wpcap_waitlist_enabled;
 if ( ! isset( $card ) || ! is_array( $card ) ) { $card = \PassCaptain\Frontend\EventCard::context( $event, $types ); }
 $wpcap_doors = ! empty( $event->doors_open_at ) ? \PassCaptain\DoorsOpen::label( $event->doors_open_at, $event->timezone, $event->starts_at ) : '';
 $wpcap_visible = (int) $card['visible_types'];
@@ -64,23 +73,18 @@ $wpcap_no_payment = ! $providers;
 				$price = \PassCaptain\Frontend\Format::money( $type->price_minor, $type->currency );
 				$base_price = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? \PassCaptain\Frontend\Format::money( $type->base_price_minor, $type->currency ) : '';
 				?>
-				<div class="wpcap-type wpcap-field">
-					<label for="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>"><?php echo esc_html( $type->name ); ?> — <?php echo esc_html( $price ); ?><?php if ( ! empty( $type->price_label ) ) : ?> <span class="wpcap-price-label"><?php echo esc_html( $type->price_label ); ?></span><?php endif; ?><?php if ( '' !== $base_price ) : ?> <small class="wpcap-base-price"><?php echo esc_html( sprintf( /* translators: %s: regular price */ __( 'statt %s', 'pass-captain' ), $base_price ) ); ?></small><?php endif; ?><?php if ( (int) $type->tax_rate_bp ) : ?> <small><?php echo esc_html( sprintf( /* translators: %s: VAT rate */ __( 'inkl. %s %% USt.', 'pass-captain' ), number_format_i18n( $type->tax_rate_bp / 100, 2 ) ) ); ?></small><?php endif; ?><?php $wpcap_notice = \PassCaptain\AdmissionChecks::buyer_notice( \PassCaptain\AdmissionChecks::for_type( $type ) ); ?><?php if ( '' !== $wpcap_notice ) : ?> <small class="wpcap-age-notice"><?php echo esc_html( $wpcap_notice ); ?></small><?php endif; ?></label>
-					<?php if ( $max < 1 ) : ?>
-						<span class="wpcap-soldout"><?php esc_html_e( 'Ausverkauft', 'pass-captain' ); ?></span>
-					<?php else : ?>
-						<input id="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( $max ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>" data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>"<?php echo $wpcap_no_payment ? ' disabled' : ''; ?>>
-					<?php endif; ?>
+				<div class="wpcap-type wpcap-field" data-type="<?php echo esc_attr( (int) $type->ticket_type_id ); ?>">
+					<label for="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>"><?php echo esc_html( $type->name ); ?> — <span class="wpcap-type-price"><?php echo esc_html( $price ); ?></span> <span class="wpcap-price-label"<?php echo empty( $type->price_label ) ? ' hidden' : ''; ?>><?php echo esc_html( (string) ( $type->price_label ?? '' ) ); ?></span> <small class="wpcap-base-price"<?php echo '' === $base_price ? ' hidden' : ''; ?>><?php echo '' === $base_price ? '' : esc_html( sprintf( /* translators: %s: regular price */ __( 'statt %s', 'pass-captain' ), $base_price ) ); ?></small><?php if ( (int) $type->tax_rate_bp ) : ?> <small><?php echo esc_html( sprintf( /* translators: %s: VAT rate */ __( 'inkl. %s %% USt.', 'pass-captain' ), number_format_i18n( $type->tax_rate_bp / 100, 2 ) ) ); ?></small><?php endif; ?><?php $wpcap_notice = \PassCaptain\AdmissionChecks::buyer_notice( \PassCaptain\AdmissionChecks::for_type( $type ) ); ?><?php if ( '' !== $wpcap_notice ) : ?> <small class="wpcap-age-notice"><?php echo esc_html( $wpcap_notice ); ?></small><?php endif; ?></label>
+					<span class="wpcap-soldout"<?php echo $max < 1 ? '' : ' hidden'; ?>><?php esc_html_e( 'Ausverkauft', 'pass-captain' ); ?></span>
+					<span class="wpcap-qty-box"<?php echo $max < 1 ? ' hidden' : ''; ?>><input id="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( max( 0, $max ) ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>" data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>"<?php echo $wpcap_no_payment || $max < 1 ? ' disabled' : ''; ?>></span>
 				</div>
 			<?php endforeach; ?>
 			<?php if ( $wpcap_collapse ) : ?></details><?php endif; ?>
 		</fieldset>
 		<p class="wpcap-qty-live wpcap-sr-only" aria-live="polite" aria-atomic="true"></p>
-		<?php if ( $wpcap_all_soldout ) : ?>
-			<p class="wpcap-soldout-note"><?php esc_html_e( 'Dieser Termin ist ausverkauft.', 'pass-captain' ); ?></p>
-		<?php elseif ( $wpcap_no_payment ) : ?>
-			<p class="wpcap-no-payment" role="status"><?php esc_html_e( 'Online-Verkauf derzeit nicht möglich. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ); ?></p>
-		<?php else : ?>
+		<p class="wpcap-soldout-note"<?php echo $wpcap_all_soldout ? '' : ' hidden'; ?>><?php esc_html_e( 'Dieser Termin ist ausverkauft.', 'pass-captain' ); ?></p>
+		<p class="wpcap-no-payment" role="status"<?php echo ! $wpcap_all_soldout && $wpcap_no_payment ? '' : ' hidden'; ?>><?php esc_html_e( 'Online-Verkauf derzeit nicht möglich. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ); ?></p>
+		<div class="wpcap-buy"<?php echo $wpcap_all_soldout || $wpcap_no_payment ? ' hidden' : ''; ?>>
 		<p class="wpcap-estimate" aria-live="polite"></p>
 		<div class="wpcap-field">
 			<label for="<?php echo esc_attr( $form_id . '-email' ); ?>"><?php esc_html_e( 'Deine E-Mail-Adresse (für Tickets und Bestätigung)', 'pass-captain' ); ?> *</label>
@@ -151,6 +155,7 @@ $wpcap_no_payment = ! $providers;
 				<input id="<?php echo esc_attr( $form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">
 			</div>
 		<?php endif; ?>
+		<div class="wpcap-provider-slot">
 		<?php if ( count( $providers ) > 1 ) : ?>
 			<fieldset class="wpcap-providers wpcap-field"><legend><?php esc_html_e( 'Zahlungsart', 'pass-captain' ); ?></legend>
 				<?php $first = true; foreach ( $providers as $provider_id => $gateway ) : ?>
@@ -160,13 +165,13 @@ $wpcap_no_payment = ! $providers;
 		<?php elseif ( $providers ) : ?>
 			<input type="hidden" name="provider" value="<?php echo esc_attr( array_key_first( $providers ) ); ?>">
 		<?php endif; ?>
-		<?php if ( $wpcap_has_consumer_info ) : ?>
-			<details class="wpcap-legal"><summary><?php esc_html_e( 'Verbraucherinformationen', 'pass-captain' ); ?></summary><?php echo wp_kses_post( wpautop( $legal['consumer_info_text'] ) ); ?></details>
-		<?php endif; ?>
+		</div>
+		<?php /* A457: the checkout script replaces .wpcap-legal-text when the texts changed since the page was cached. */ ?>
+		<details class="wpcap-legal" data-legal="consumer_info"<?php echo $wpcap_has_consumer_info ? '' : ' hidden'; ?>><summary><?php esc_html_e( 'Verbraucherinformationen', 'pass-captain' ); ?></summary><div class="wpcap-legal-text"><?php echo $wpcap_has_consumer_info ? wp_kses_post( wpautop( $legal['consumer_info_text'] ) ) : ''; ?></div></details>
 		<?php if ( ! empty( $legal['locale'] ) ) : ?><input type="hidden" name="locale" value="<?php echo esc_attr( $legal['locale'] ); ?>"><?php endif; ?>
 		<?php if ( $legal['require_terms'] ) : ?>
 			<?php if ( ! empty( $legal['terms_version'] ) ) : ?><input type="hidden" name="terms_version" value="<?php echo esc_attr( $legal['terms_version'] ); ?>"><?php endif; ?>
-			<?php if ( '' !== trim( $legal['terms_text'] ) ) : ?><details class="wpcap-legal"><summary><?php esc_html_e( 'Bedingungen', 'pass-captain' ); ?></summary><?php echo wp_kses_post( wpautop( $legal['terms_text'] ) ); ?></details><?php endif; ?>
+			<details class="wpcap-legal" data-legal="terms"<?php echo '' !== trim( $legal['terms_text'] ) ? '' : ' hidden'; ?>><summary><?php esc_html_e( 'Bedingungen', 'pass-captain' ); ?></summary><div class="wpcap-legal-text"><?php echo '' !== trim( $legal['terms_text'] ) ? wp_kses_post( wpautop( $legal['terms_text'] ) ) : ''; ?></div></details>
 			<div class="wpcap-field wpcap-terms">
 				<input id="<?php echo esc_attr( $form_id . '-terms' ); ?>" type="checkbox" name="accept_terms" value="1" required>
 				<label for="<?php echo esc_attr( $form_id . '-terms' ); ?>"><?php echo esc_html( $wpcap_has_consumer_info ? __( 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.', 'pass-captain' ) : __( 'Ich akzeptiere die Bedingungen.', 'pass-captain' ) ); ?></label>
@@ -176,26 +181,28 @@ $wpcap_no_payment = ! $providers;
 		<button type="submit" class="wp-element-button wpcap-submit" disabled data-wpcap-requires-js><?php esc_html_e( 'Zahlungspflichtig bestellen', 'pass-captain' ); ?></button>
 		<noscript><p class="wpcap-noscript"><?php esc_html_e( 'Zum Bestellen wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser.', 'pass-captain' ); ?></p></noscript>
 		<p class="wpcap-message" role="status" aria-live="polite"></p>
-		<?php endif; ?>
+		</div>
 	</form>
-	<?php if ( $wpcap_waitlist ) : $wpcap_wl_id = $form_id . '-waitlist'; ?>
-		<form class="wpcap-waitlist-form" id="<?php echo esc_attr( $wpcap_wl_id ); ?>" method="post" action="#" data-event="<?php echo esc_attr( (int) $event->event_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" novalidate>
+	<?php if ( $wpcap_waitlist_enabled ) :
+		$wpcap_wl_id = $form_id . '-waitlist';
+		$wpcap_wl_ids = array_map( static function ( $t ) { return (int) $t->ticket_type_id; }, $wpcap_soldout );
+		$wpcap_wl_first = $wpcap_wl_ids ? $wpcap_wl_ids[0] : 0;
+		$wpcap_wl_max = $wpcap_soldout ? (int) $wpcap_soldout[0]->max_per_order : (int) $types[0]->max_per_order;
+		?>
+		<form class="wpcap-waitlist-form" id="<?php echo esc_attr( $wpcap_wl_id ); ?>" method="post" action="#" data-event="<?php echo esc_attr( (int) $event->event_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" novalidate<?php echo $wpcap_waitlist ? '' : ' hidden'; ?>>
 			<fieldset>
 				<legend><?php esc_html_e( 'Warteliste', 'pass-captain' ); ?></legend>
 				<p><small><?php esc_html_e( 'Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail, das du innerhalb der genannten Frist annehmen kannst.', 'pass-captain' ); ?></small></p>
-				<?php if ( count( $wpcap_soldout ) > 1 ) : ?>
-					<div class="wpcap-field">
-						<label for="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>"><?php esc_html_e( 'Ticketart', 'pass-captain' ); ?></label>
-						<select id="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>" name="ticket_type_id">
-							<?php foreach ( $wpcap_soldout as $wpcap_type ) : ?><option value="<?php echo esc_attr( (int) $wpcap_type->ticket_type_id ); ?>"><?php echo esc_html( $wpcap_type->name ); ?></option><?php endforeach; ?>
-						</select>
-					</div>
-				<?php else : ?>
-					<input type="hidden" name="ticket_type_id" value="<?php echo esc_attr( (int) $wpcap_soldout[0]->ticket_type_id ); ?>">
-				<?php endif; ?>
+				<?php /* Every type is listed; only sold-out ones are selectable (the checkout script updates this, A456). */ ?>
+				<div class="wpcap-field wpcap-waitlist-type"<?php echo count( $wpcap_soldout ) > 1 ? '' : ' hidden'; ?>>
+					<label for="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>"><?php esc_html_e( 'Ticketart', 'pass-captain' ); ?></label>
+					<select id="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>" name="ticket_type_id">
+						<?php foreach ( $types as $wpcap_type ) : $wpcap_wl_on = in_array( (int) $wpcap_type->ticket_type_id, $wpcap_wl_ids, true ); ?><option value="<?php echo esc_attr( (int) $wpcap_type->ticket_type_id ); ?>" data-max="<?php echo esc_attr( max( 1, (int) $wpcap_type->max_per_order ) ); ?>"<?php echo $wpcap_wl_on ? '' : ' disabled hidden'; ?><?php echo (int) $wpcap_type->ticket_type_id === $wpcap_wl_first ? ' selected' : ''; ?>><?php echo esc_html( $wpcap_type->name ); ?></option><?php endforeach; ?>
+					</select>
+				</div>
 				<div class="wpcap-field">
 					<label for="<?php echo esc_attr( $wpcap_wl_id . '-qty' ); ?>"><?php esc_html_e( 'Anzahl', 'pass-captain' ); ?></label>
-					<input id="<?php echo esc_attr( $wpcap_wl_id . '-qty' ); ?>" name="quantity" type="number" min="1" max="<?php echo esc_attr( max( 1, (int) $wpcap_soldout[0]->max_per_order ) ); ?>" value="1" inputmode="numeric">
+					<input id="<?php echo esc_attr( $wpcap_wl_id . '-qty' ); ?>" name="quantity" type="number" min="1" max="<?php echo esc_attr( max( 1, $wpcap_wl_max ) ); ?>" value="1" inputmode="numeric">
 				</div>
 				<div class="wpcap-field">
 					<label for="<?php echo esc_attr( $wpcap_wl_id . '-email' ); ?>"><?php esc_html_e( 'E-Mail-Adresse', 'pass-captain' ); ?> *</label>

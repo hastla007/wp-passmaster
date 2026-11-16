@@ -101,9 +101,11 @@ final class Orders {
 			return self::reused_order( $existing );
 		}
 		// The form names the version it showed: accepting texts that changed meanwhile is no valid consent.
+		// data.terms_version is the current version; the checkout script then reloads the texts in place
+		// (GET /checkout/options), because a cached page would show the old ones again (A457).
 		$shown_version = is_string( $payload['terms_version'] ?? null ) ? $payload['terms_version'] : '';
 		if ( ! $external && Settings::get( 'require_terms' ) && '' !== $shown_version && $shown_version !== $terms_version ) {
-			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409, 'terms_version' => $terms_version, 'locale' => $order_locale ) );
 		}
 		// A568: the wording behind the stored version stays provable (archive, append-only).
 		if ( '' !== $terms_version ) { LegalVersions::archive( $order_locale ); }

@@ -206,6 +206,12 @@ final class Controller {
 			'callback' => array( __CLASS__, 'checkout_options' ),
 			'permission_callback' => '__return_true',
 		) );
+		// A456: live purchase state of event cards served from a page cache or CDN (no-store, read-only).
+		register_rest_route( 'pass-captain/v1', '/checkout/live', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( \PassCaptain\PublicEvents::class, 'rest_live' ),
+			'permission_callback' => '__return_true',
+		) );
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/waitlist', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'join_waitlist' ),
@@ -541,7 +547,11 @@ final class Controller {
 		return new \WP_Error( $code, $error->get_error_message(), $data );
 	}
 
-	/** Public checkout configuration: enabled payment methods and legal texts. */
+	/**
+	 * Public checkout configuration: enabled payment methods and legal texts. terms_html /
+	 * consumer_info_html are the texts as the event card shows them (A457: the checkout script swaps
+	 * them in after a 409 wpcap_terms_changed); never stored by a cache.
+	 */
 	public static function checkout_options( \WP_REST_Request $request ) {
 		$currency = strtoupper( sanitize_text_field( $request->get_param( 'currency' ) ?: 'EUR' ) );
 		$providers = array();
@@ -549,14 +559,20 @@ final class Controller {
 		// Legal texts in the buyer's language (?locale=en_US), falling back to the default language.
 		$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) $request->get_param( 'locale' ) );
 		if ( '' === $locale ) { $locale = \PassCaptain\Mail\Mailer::current_locale(); }
-		return rest_ensure_response( array(
+		$terms = (string) \PassCaptain\Settings::legal_text( 'terms_text', $locale );
+		$info = (string) \PassCaptain\Settings::legal_text( 'consumer_info_text', $locale );
+		$response = rest_ensure_response( array(
 			'providers' => $providers,
 			'require_terms' => (bool) \PassCaptain\Settings::get( 'require_terms' ),
 			'locale' => $locale,
-			'terms_text' => wp_kses_post( \PassCaptain\Settings::legal_text( 'terms_text', $locale ) ),
-			'consumer_info_text' => wp_kses_post( \PassCaptain\Settings::legal_text( 'consumer_info_text', $locale ) ),
+			'terms_text' => wp_kses_post( $terms ),
+			'consumer_info_text' => wp_kses_post( $info ),
 			'terms_version' => \PassCaptain\Settings::terms_version( $locale ),
+			'terms_html' => '' === trim( $terms ) ? '' : wp_kses_post( wpautop( $terms ) ),
+			'consumer_info_html' => '' === trim( $info ) ? '' : wp_kses_post( wpautop( $info ) ),
 		) );
+		if ( method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private' ); }
+		return $response;
 	}
 
 	public static function order_status( \WP_REST_Request $request ) {

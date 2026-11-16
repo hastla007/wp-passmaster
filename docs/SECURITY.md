@@ -262,7 +262,7 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
    und Kassenbelege nur noch innerhalb seines Bereichs.
 
 **Öffentliche REST-Routen** (bewusst ohne Anmeldung; Schutz durch Zugangstoken, Signatur, Rate-Limit oder nur
-öffentliche Daten): Eventliste, Checkout und Checkout-Optionen, Bestellportal (`/orders/{id}` sowie
+öffentliche Daten): Eventliste, Checkout, Checkout-Optionen und Live-Kaufzustand der Eventkarten (`/checkout/live`, A456: nur öffentliche Daten, `no-store`, je Client begrenzt), Bestellportal (`/orders/{id}` sowie
 `transfer`, `resend`, `assign`, `billing`, `payout-account`, `exchange`, `refund-request` – Zugangstoken im Callback, bei `refund-request` zusätzlich der Formularnachweis, A459),
 Sitzplätze und Sitzplatz-Holds, Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
 Angebot annehmen/ablehnen mit Token), Event-Übersetzung lesen, Zahlungs-Webhooks (Anbietersignatur),

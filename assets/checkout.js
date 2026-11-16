@@ -756,6 +756,12 @@
 				message.textContent = '';
 				if (data.code === 'wpcap_price_changed') applyNewPrices(form, data.data && data.data.prices);
 				applyShownState(form, data);
+				if (data.code === 'wpcap_terms_changed') {
+					// A457: a cached page shows outdated texts; reload them in place instead of "reload the page".
+					const updated = await refreshLegal(form);
+					showErrors(form, [{ input: serverErrorField(form, data), message: updated && t.termsUpdated ? t.termsUpdated : (data.message || t.failed || 'Failed.') }]);
+					return;
+				}
 				showErrors(form, [{ input: serverErrorField(form, data), message: data.message || t.failed || 'Failed.' }]);
 				return;
 			}
@@ -805,10 +811,203 @@
 		if (!prices || typeof prices !== 'object') return;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const row = prices[qty.dataset.type];
-			if (row && Number.isInteger(row.unit_minor)) qty.dataset.price = String(row.unit_minor);
+			if (row && Number.isInteger(row.unit_minor)) {
+				qty.dataset.price = String(row.unit_minor);
+				// A458: the price next to the ticket type is the new one too, not only the estimate.
+				setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), row.formatted || money(row.unit_minor, qty.dataset.currency));
+			}
 		});
 		renderEstimate(form);
 	}
+
+	/* ---------------------------------------------------------------- Live state (A456, A457, A458) */
+
+	// The card may come from a page cache or CDN. After loading (and when the page comes back from the
+	// bfcache) the script asks GET …/checkout/live (no-store) for the current state of every date on the
+	// page and switches the card: quantity limits, sold-out types, current (time-dependent) prices,
+	// seats-left text and badges, payment methods, the order form or the sold-out / not-on-sale note,
+	// the waitlist form, and the legal texts when their version changed. Without an answer the card
+	// stays as rendered; the server checks everything again at checkout.
+	function setText(node, text) { if (node && typeof text === 'string') node.textContent = text; }
+	function show(node, visible) { if (node) node.hidden = !visible; }
+	function typeRow(qty) { return qty.closest('.wpcap-type'); }
+	function cardOf(form) { return form.closest('.wpcap-event') || form.parentNode; }
+	function updateTypePrice(row, state) {
+		if (!row) return;
+		setText(row.querySelector('.wpcap-type-price'), state.price);
+		const label = row.querySelector('.wpcap-price-label');
+		if (label) { label.textContent = state.price_label || ''; label.hidden = !state.price_label; }
+		const base = row.querySelector('.wpcap-base-price');
+		if (base) { base.textContent = state.base_price ? fill(t.basePrice || '%s', [state.base_price]) : ''; base.hidden = !state.base_price; }
+	}
+	function renderProviders(form, list) {
+		const slot = form.querySelector('.wpcap-provider-slot');
+		if (!slot) return;
+		const wanted = list.map(function (p) { return String(p.id); });
+		const current = Array.prototype.slice.call(slot.querySelectorAll('[name="provider"]')).map(function (input) { return input.value; });
+		if (current.join(',') === wanted.join(',')) return;
+		const checked = slot.querySelector('[name="provider"]:checked');
+		const keep = checked && wanted.indexOf(checked.value) !== -1 ? checked.value : wanted[0];
+		slot.textContent = '';
+		if (wanted.length === 1) {
+			slot.appendChild(el('input', { type: 'hidden', name: 'provider', value: wanted[0] }));
+		} else if (wanted.length > 1) {
+			const box = el('fieldset', { class: 'wpcap-providers wpcap-field' });
+			box.appendChild(el('legend', {}, t.providerLegend || ''));
+			list.forEach(function (p) {
+				const label = el('label');
+				const input = el('input', { type: 'radio', name: 'provider', value: String(p.id) });
+				if (String(p.id) === keep) input.checked = true;
+				label.appendChild(input);
+				label.appendChild(document.createTextNode(' ' + String(p.title || p.id)));
+				box.appendChild(label);
+			});
+			slot.appendChild(box);
+		}
+	}
+	function renderBadges(card, badges) {
+		const header = card && card.querySelector('.wpcap-event-header');
+		if (!header || !Array.isArray(badges)) return;
+		let list = header.querySelector('.wpcap-badges');
+		// "Nächster Termin" depends on the whole listing: kept as rendered.
+		const next = list ? list.querySelector('.wpcap-badge-next') : null;
+		if (!list) {
+			if (!badges.length) return;
+			list = el('ul', { class: 'wpcap-badges' });
+			const title = header.querySelector('.wpcap-event-title');
+			if (title) title.insertAdjacentElement('afterend', list); else header.insertBefore(list, header.firstChild);
+		}
+		list.textContent = '';
+		if (next) list.appendChild(next);
+		badges.forEach(function (badge) {
+			const key = String(badge.key || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+			list.appendChild(el('li', { class: 'wpcap-badge' + (key ? ' wpcap-badge-' + key : '') }, String(badge.label || '')));
+		});
+		if (!list.children.length) list.remove();
+	}
+	function renderWaitlist(form, state) {
+		const card = cardOf(form);
+		const wl = card && card.querySelector('.wpcap-waitlist-form[data-occurrence="' + String(form.dataset.occurrence || '').replace(/["\\]/g, '') + '"]');
+		if (!wl || !Array.isArray(state.waitlist_types)) return;
+		const eligible = state.waitlist ? state.waitlist_types.map(String) : [];
+		wl.hidden = !eligible.length;
+		const select = wl.querySelector('select[name="ticket_type_id"]');
+		if (!select) return;
+		let first = null;
+		let keep = false;
+		select.querySelectorAll('option').forEach(function (option) {
+			const ok = eligible.indexOf(option.value) !== -1;
+			option.disabled = !ok;
+			option.hidden = !ok;
+			if (ok && !first) first = option;
+			if (ok && option.value === String(select.value)) keep = true;
+		});
+		if (first && !keep) { select.value = first.value; first.selected = true; }
+		show(select.closest('.wpcap-field'), eligible.length > 1);
+		const chosen = keep ? select.querySelector('option[value="' + String(select.value).replace(/["\\]/g, '') + '"]') : first;
+		const qty = wl.querySelector('[name="quantity"]');
+		if (qty && chosen && chosen.dataset.max) qty.max = chosen.dataset.max;
+	}
+	function applyLive(form, state, legal) {
+		if (!state || typeof state !== 'object') return;
+		const card = cardOf(form);
+		const onSale = state.on_sale !== false;
+		const types = onSale && state.types && typeof state.types === 'object' ? state.types : {};
+		const providers = Array.isArray(state.providers) ? state.providers : [];
+		const noPayment = !onSale || !providers.length;
+		let open = false;
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
+			const row = types[qty.dataset.type] || null;
+			const max = row ? Math.max(0, parseInt(row.max, 10) || 0) : 0;
+			qty.max = String(max);
+			if (row && /^\d+$/.test(String(row.price_minor))) qty.dataset.price = String(row.price_minor);
+			if ((Number(qty.value) || 0) > max) qty.value = String(max);
+			qty.disabled = max < 1 || noPayment;
+			if (max > 0) open = true;
+			const wrap = typeRow(qty);
+			if (wrap) {
+				show(wrap.querySelector('.wpcap-qty-box'), max > 0);
+				show(wrap.querySelector('.wpcap-soldout'), max < 1);
+				if (row) updateTypePrice(wrap, row);
+			}
+		});
+		const typesBox = form.querySelector('.wpcap-types');
+		if (typesBox && Number.isInteger(state.max_total)) {
+			if (state.max_total > 0) typesBox.dataset.maxTotal = String(state.max_total); else delete typesBox.dataset.maxTotal;
+		}
+		if (onSale) renderProviders(form, providers);
+		const soldOut = onSale && !open;
+		show(form.querySelector('.wpcap-soldout-note'), soldOut);
+		show(form.querySelector('.wpcap-no-payment'), !soldOut && noPayment);
+		show(form.querySelector('.wpcap-buy'), !soldOut && !noPayment);
+		if (card) {
+			setText(card.querySelector('.wpcap-fact-availability dd'), state.availability);
+			setText(card.querySelector('.wpcap-fact-price dd'), state.price);
+			renderBadges(card, state.badges);
+		}
+		renderWaitlist(form, state);
+		renderAttendees(form);
+		renderEstimate(form);
+		syncSteppers(form);
+		const version = form.querySelector('input[type="hidden"][name="terms_version"]');
+		if (legal && version && typeof legal.terms_version === 'string' && legal.terms_version !== '' && legal.terms_version !== version.value) refreshLegal(form);
+	}
+	async function refreshLive() {
+		if (!config.liveUrl) return;
+		const forms = Array.prototype.slice.call(document.querySelectorAll('.wpcap-checkout-form[data-occurrence]'));
+		const ids = [];
+		forms.forEach(function (form) { const id = String(form.dataset.occurrence || ''); if (/^\d+$/.test(id) && ids.indexOf(id) === -1) ids.push(id); });
+		if (!ids.length) return;
+		const localeInput = forms[0].querySelector('input[type="hidden"][name="locale"]');
+		for (let i = 0; i < ids.length; i += 50) {
+			const chunk = ids.slice(i, i + 50);
+			const url = config.liveUrl + (config.liveUrl.indexOf('?') === -1 ? '?' : '&') + 'occurrences=' + chunk.join(',') + (localeInput && localeInput.value ? '&locale=' + encodeURIComponent(localeInput.value) : '');
+			try {
+				const response = await fetch(url, { method: 'GET', cache: 'no-store', headers: { Accept: 'application/json' } });
+				if (!response.ok) continue;
+				const data = await response.json();
+				const states = data && data.occurrences && typeof data.occurrences === 'object' ? data.occurrences : null;
+				if (!states) continue;
+				forms.forEach(function (form) {
+					if (chunk.indexOf(String(form.dataset.occurrence)) !== -1 && !form.dataset.busy) applyLive(form, states[form.dataset.occurrence], data.legal);
+				});
+			} catch (e) { /* Cached state stays; the server checks at checkout. */ }
+		}
+	}
+	// A457: current legal texts (GET …/checkout/options, no-store) into the card. True when updated.
+	async function refreshLegal(form) {
+		if (!config.optionsUrl) return false;
+		const localeInput = form.querySelector('input[type="hidden"][name="locale"]');
+		const url = config.optionsUrl + (config.optionsUrl.indexOf('?') === -1 ? '?' : '&') + 'locale=' + encodeURIComponent(localeInput ? localeInput.value : '');
+		let data = null;
+		try {
+			const response = await fetch(url, { method: 'GET', cache: 'no-store', headers: { Accept: 'application/json' } });
+			if (!response.ok) return false;
+			data = await response.json();
+		} catch (e) { return false; }
+		if (!data || typeof data.terms_version !== 'string') return false;
+		const version = form.querySelector('input[type="hidden"][name="terms_version"]');
+		if (!version) return false;
+		let replaced = false;
+		[['terms', data.terms_html], ['consumer_info', data.consumer_info_html]].forEach(function (pair) {
+			const box = form.querySelector('.wpcap-legal[data-legal="' + pair[0] + '"]');
+			const text = box && box.querySelector('.wpcap-legal-text');
+			if (!text || typeof pair[1] !== 'string') return;
+			text.innerHTML = pair[1]; // Sanitised on the server (wp_kses_post).
+			box.hidden = pair[1] === '';
+			if (pair[0] === 'terms') box.open = true;
+			replaced = true;
+		});
+		// Without replaceable text containers (older theme template) the buyer would confirm unseen texts.
+		if (!replaced) return false;
+		const changed = version.value !== data.terms_version;
+		version.value = data.terms_version;
+		const terms = form.querySelector('[name="accept_terms"]');
+		if (terms && changed) terms.checked = false;
+		return true;
+	}
+	refreshLive();
+	window.addEventListener('pageshow', function (event) { if (event.persisted) refreshLive(); });
 
 	/* ---------------------------------------------------------------- Pending order (A310) */
 

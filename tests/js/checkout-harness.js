@@ -59,21 +59,24 @@ function card(h, opts) {
 }
 
 /**
- * @param {object} opts cards: list of card() options; search: location.search; session: preset
- *                      sessionStorage entries; i18n: extra strings.
+ * @param {object} opts cards: list of card() options; markup: (h) => nodes instead of cards; search:
+ *                      location.search; session: preset sessionStorage entries; i18n: extra strings;
+ *                      config: extra WPCAP_CHECKOUT keys; fetch: (url, options, env) => response
+ *                      (also for requests the script sends while loading).
  */
 function loadCheckout(opts) {
 	const o = Object.assign({ cards: [{}], search: '', session: {}, i18n: {} }, opts || {});
 	const document = createDocument();
 	const h = builder(document);
-	o.cards.forEach((c) => document.body.appendChild(card(h, c)));
+	if (o.markup) o.markup(h).forEach((node) => document.body.appendChild(node));
+	else o.cards.forEach((c) => document.body.appendChild(card(h, c)));
 	const session = storage();
 	Object.keys(o.session).forEach((k) => session.setItem(k, o.session[k]));
 	const env = {
 		requests: [],
 		assigned: [],
 		answers: [],
-		fetchImpl: async () => (env.answers.length ? env.answers.shift() : response(201, { reference: 'AB12CD', status: 'complete', payment_status: 'paid' })),
+		fetchImpl: async (url, options) => (o.fetch ? o.fetch(url, options, env) : (env.answers.length ? env.answers.shift() : response(201, { reference: 'AB12CD', status: 'complete', payment_status: 'paid' }))),
 	};
 	const listeners = {};
 	let now = 1700000000000;
@@ -94,8 +97,9 @@ function loadCheckout(opts) {
 		setTimeout: (fn) => { fn(); return 0; },
 		clearTimeout() {},
 		addEventListener: (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); },
-		fetch: (url, options) => { env.requests.push({ url, options, body: JSON.parse(options.body) }); return env.fetchImpl(url, options); },
-		WPCAP_CHECKOUT: { url: '/checkout', i18n: Object.assign({ redirecting: 'Weiterleitung', creating: 'Anlegen', failed: 'Fehlgeschlagen.' }, o.i18n), money: { decimals: { EUR: 2 }, symbols: { EUR: '€' } } },
+		fetch: (url, options) => { env.requests.push({ url, options, body: options && typeof options.body === 'string' ? JSON.parse(options.body) : null }); return env.fetchImpl(url, options); },
+		encodeURIComponent,
+		WPCAP_CHECKOUT: Object.assign({ url: '/checkout', i18n: Object.assign({ redirecting: 'Weiterleitung', creating: 'Anlegen', failed: 'Fehlgeschlagen.' }, o.i18n), money: { decimals: { EUR: 2 }, symbols: { EUR: '€' } } }, o.config || {}),
 	};
 	window.window = window;
 	window.self = window;
