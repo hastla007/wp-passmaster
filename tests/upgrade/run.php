@@ -505,7 +505,15 @@ try {
 	// tips are previous states too (sites that ran the other development line).
 	$bump = trim( (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . " log -n 1 --first-parent -m --format=%H -G\"const DB_VERSION = '\" -- src/Installer.php 2>/dev/null" ) );
 	$parents = '' === $bump ? array() : array_slice( preg_split( '/\s+/', trim( (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . ' rev-list --parents -n 1 ' . escapeshellarg( $bump ) . ' 2>/dev/null' ) ) ), 1 );
+	// A merged-in line that already carries this schema version is no previous state (e.g. CI's pull request
+	// merge commit refs/pull/N/merge: its diff to main is the bump, its second parent is the branch tip itself).
+	$db_version_of = static function ( $rev ) use ( $root ) {
+		$src = (string) shell_exec( 'git -C ' . escapeshellarg( $root ) . ' show ' . escapeshellarg( $rev . ':src/Installer.php' ) . ' 2>/dev/null' );
+		return preg_match( "/const DB_VERSION = '([^']+)'/", $src, $m ) ? $m[1] : '';
+	};
+	$this_version = $db_version_of( 'HEAD' );
 	foreach ( array_values( $parents ) as $n => $parent ) {
+		if ( $n > 0 && '' !== $this_version && $db_version_of( $parent ) === $this_version ) { continue; }
 		$ref = $bump . '^' . ( $n + 1 );
 		$refs[] = $ref;
 		$labels[ $ref ] = 0 === $n ? 'before last schema bump' : 'merged line ' . ( $n + 1 ) . ' before last schema bump';
