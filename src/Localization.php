@@ -77,14 +77,18 @@ final class Localization {
 		return is_array( $filtered ) && $filtered ? $filtered : $locales;
 	}
 
-	/** Supported locale or '' (accepts de_DE, de-DE, de). */
+	/**
+	 * Supported locale or '' (accepts de_DE, de-DE, de). A regional variant without its own catalogue maps to
+	 * the supported locale of the same language (en_GB -> en_US, as the legal texts do, A099).
+	 */
 	public static function normalize_buyer_locale( $requested ) {
 		$requested = is_scalar( $requested ) ? str_replace( '-', '_', trim( (string) $requested ) ) : '';
 		if ( '' === $requested ) { return ''; }
 		$supported = self::supported_locales();
 		if ( isset( $supported[ $requested ] ) ) { return $requested; }
+		if ( ! preg_match( '/^([a-z]{2,3})(?:_[A-Za-z0-9]{2,8})?$/i', $requested, $lang ) ) { return ''; }
 		foreach ( array_keys( $supported ) as $locale ) {
-			if ( 0 === strcasecmp( substr( (string) $locale, 0, 2 ), substr( $requested, 0, 2 ) ) && 2 === strlen( $requested ) ) { return (string) $locale; }
+			if ( 0 === strcasecmp( strtok( (string) $locale, '_' ), $lang[1] ) ) { return (string) $locale; }
 		}
 		return '';
 	}
