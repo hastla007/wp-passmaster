@@ -1858,3 +1858,11 @@ Die offenen Fragen stehen gesammelt und ausformuliert unter „Offene Entscheidu
   - *Test (Inhaberin):* auf einem echten Host mit PHP 8.5/8.6 und MySQL 9.7 bzw. MariaDB 12.3 installieren, aktualisieren und die Hauptabläufe durchspielen.
   - *Vorbild:* Affiliate Captain (`hastla007/wpaffiliatemaster`, Aufgaben PHP-1/PHP-2).
   - *Stand 23.11.2026:* Header, Laufzeitprüfung, `readme.txt`, README, `composer.json`, PHPCS/PHPStan und CI-Matrix sind umgestellt (Commits `fdb4e9d`, `d5b32c9`, `7eacad9`, `5361d44` im Arbeitsbranch; WooCommerce-Minimum 11.2.2, MariaDB 11.6+ mit abgeschalteter Snapshot-Isolation). Offen ist nur der Test der Inhaberin auf einem echten Host. Braucht: Inhaberin.
+## Anforderungen aus Workflow Captain (WF-SPEC-14)
+
+Herkunft: `hastla007/wp-workflowmaster`, `docs/ANFORDERUNGEN-andere-repos.md` (Abschnitt „Pass Captain“), Spezifikation `docs/SPEC-suite-events.md`. Hier stehen nur die Anforderungen, die noch nirgends als Aufgabe geführt waren; PC-4 steht oben (erledigt, Rest PC-4b), PC-5 ist mit A2/R16-13 erledigt.
+
+- [ ] **PC-1** – In `docs/HOOKS.md` je `wpcap_*`-Action des Suite-Katalogs „Seit“ (Version) nachtragen; die Werte stehen in Spezifikation 4.2. Dazu die nicht im CHANGELOG vermerkte Erweiterung von `wpcap_order_cancelled` um zwei Argumente in 1.5.0 (`b6ef0b4`) nachtragen (R-3.4, Z-01).
+- [ ] **PC-2** – Für die sechs Actions aus Spezifikation Z-02 in `docs/HOOKS.md` „nach dem Commit“ vermerken (geprüft: alle nach COMMIT oder im Autocommit; R-3.9).
+- [ ] **PC-3** – Dokumentieren, dass `$reason` bei `wpcap_order_cancelled` und `wpcap_ticket_revoked` Freitext sein kann (Admin; bei `wpcap_order_cancelled` auch beliebiger Text über `wp_pass_captain_ticket_service_v1`), und die festen Präfixe auflisten (Spezifikation Abschnitt 5, Z-03).
+- [ ] **PC-6** – `wpcap_occurrence_rescheduled` und `wpcap_occurrence_cancelled` feuern im Admin auch, wenn das UPDATE fehlschlug (`src/Admin/EventsPage.php`, `save_occurrence()` und `cancel_occurrence()`); Ergebnis von `$wpdb->update()` prüfen und die Actions nur nach erfolgreichem Schreiben auslösen (Z-02, 4.2).
