@@ -14,7 +14,9 @@
  *   "refunded" events with the id "mollie-{id}-chargeback-{amount}", so tickets do not stay valid
  *   after the money was pulled back.
  * - Only ids this site created (wpcap_mollie_payments / order provider_reference) are looked up at
- *   the API; unknown ids are acknowledged without an API call, and lookups are throttled per IP.
+ *   the API; unknown ids are acknowledged without an API call. Every call counts against the per-IP
+ *   limit before the database is asked (A431: a flood of random ids cannot keep the database busy);
+ *   the global limit only counts known ids, so random ids cannot block the real webhooks.
  * - Methods: GET /v2/methods for amount/currency (and optional billing country), cached 1 h.
  *
  * API key: Secrets::get('mollie_api_key') (constant WPCAP_MOLLIE_API_KEY), "test_…" or "live_…".
@@ -145,11 +147,15 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_mollie_payments (payment_id,order_id,created_at) VALUES (%s,%d,%s)", $payment_id, (int) ( $order['order_id'] ?? 0 ), current_time( 'mysql', true ) ) );
 	}
 
-	/** Whether a payment id belongs to a Mollie order of this site. */
+	/**
+	 * Whether a payment id belongs to a Mollie order of this site: primary key of wpcap_mollie_payments,
+	 * else (payments created before that table existed) the order index provider_ref (A431).
+	 */
 	public static function known_payment( $payment_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_mollie_payments WHERE payment_id=%s UNION SELECT 1 FROM {$p}wpcap_orders WHERE payment_provider='mollie' AND provider_reference=%s LIMIT 1", $payment_id, $payment_id ) );
+		if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_mollie_payments WHERE payment_id=%s", $payment_id ) ) ) { return true; }
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_orders WHERE payment_provider='mollie' AND provider_reference=%s LIMIT 1", $payment_id ) );
 	}
 
 	/**
@@ -235,14 +241,14 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', $id ) ) {
 			return new \WP_Error( 'wpcap_mollie_id', __( 'Ungültige Mollie-Zahlungs-ID.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		// A431: the per-IP limit comes first, so unknown ids cost no database lookup beyond the counter.
+		$throttled = new \WP_Error( 'wpcap_mollie_throttled', 'Too many webhook calls.', array( 'status' => 429 ) );
+		if ( ! \PassCaptain\RateLimit::allow( 'mollie_webhook|' . \PassCaptain\RateLimit::client(), (int) apply_filters( 'wpcap_mollie_webhook_ip_limit', 120 ), 60 ) ) { return $throttled; }
 		if ( ! self::known_payment( $id ) ) {
 			// Not created by this site: acknowledge (200) without calling the API.
 			return array( 'event_id' => 'mollie-unknown', 'type' => 'ignored', 'order_public_id' => '', 'provider_reference' => '', 'amount_minor' => 0, 'currency' => '' );
 		}
-		$client = \PassCaptain\RateLimit::client();
-		if ( ! \PassCaptain\RateLimit::allow( 'mollie_webhook|' . $client, (int) apply_filters( 'wpcap_mollie_webhook_ip_limit', 120 ), 60 ) || ! \PassCaptain\RateLimit::allow( 'mollie_webhook|all', (int) apply_filters( 'wpcap_mollie_webhook_global_limit', 1200 ), 60 ) ) {
-			return new \WP_Error( 'wpcap_mollie_throttled', 'Too many webhook calls.', array( 'status' => 429 ) );
-		}
+		if ( ! \PassCaptain\RateLimit::allow( 'mollie_webhook|all', (int) apply_filters( 'wpcap_mollie_webhook_global_limit', 1200 ), 60 ) ) { return $throttled; }
 		$payment = self::api( 'GET', 'payments/' . rawurlencode( $id ) . '?embed=refunds,chargebacks' );
 		if ( is_wp_error( $payment ) ) {
 			$status = (int) ( ( (array) $payment->get_error_data() )['status'] ?? 0 );

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.22';
+	const DB_VERSION = '3.10.23';
 
 	public static function install() {
 		global $wpdb;
@@ -159,7 +159,8 @@ final class Installer {
 				KEY status (status),
 				KEY paid_created (payment_status,created_at,status),
 				KEY created (created_at,order_id),
-				KEY updated (updated_at)
+				KEY updated (updated_at),
+				KEY provider_ref (payment_provider,provider_reference(64))
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $items (
 				item_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
