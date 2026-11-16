@@ -1033,19 +1033,19 @@ Gesamt: 262 Aufgaben.
   - src/WalletPasses/Service.php:98, :210, Exchange/Service.php:715/851: issue() für neues Ticket, Link in Umtauschmail
 - [x] **A491** [WICHTIG] Stammdaten ohne zeitliche Versionierung (Veranstalter-Zuordnung, Konditionen, Zonen) — _R3 Eigen (Deep Dive 2)_ (TODO L828; Audit Runde 4)
   - Partners/, Seating/: Gültigkeitszeiträume/Momentaufnahmen einführen
-- [ ] **A492** [WICHTIG] Anonyme Fatal Errors durch Array statt String in E-Mail-Feldern (erweitert A421; gegen A194-Stand prüfen) — _R3 QA_ (TODO L829; Audit Runde 4)
+- [x] **A492** [WICHTIG] Anonyme Fatal Errors durch Array statt String in E-Mail-Feldern (erweitert A421; gegen A194-Stand prüfen) — _R3 QA_ (TODO L829; Audit Runde 4)
   - src/Rest/Controller.php:31, Orders.php:25/510/1461, Waitlists.php:98, ServiceBookings.php:26, Partners/Sales.php:534–538: is_string-Prüfung, args type string vor sanitize_callback; Recovery-Mails als Alarmrauschen
-- [ ] **A493** [WICHTIG] Überlange gültige Teilnehmer-E-Mail → bezahlte Bestellung dauerhaft ohne Tickets; Käufer >190 Zeichen endlos 503 — _R3 QA_ (TODO L830; Audit Runde 4)
+- [x] **A493** [WICHTIG] Überlange gültige Teilnehmer-E-Mail → bezahlte Bestellung dauerhaft ohne Tickets; Käufer >190 Zeichen endlos 503 — _R3 QA_ (TODO L830; Audit Runde 4)
   - src/Orders.php:509–515, :374–377, :1750, :263–266, Installer.php:202/525: E-Mails ≤190 Zeichen beim Eingang (400), Längenfehler nicht als db_busy (belegt)
-- [ ] **A494** [WICHTIG] Byte-Kürzung von Freitext erzeugt ungültiges UTF-8 – Speichern dauerhaft unmöglich — _R3 QA_ (TODO L831; Audit Runde 4)
+- [x] **A494** [WICHTIG] Byte-Kürzung von Freitext erzeugt ungültiges UTF-8 – Speichern dauerhaft unmöglich — _R3 QA_ (TODO L831; Audit Runde 4)
   - src/Refunds.php:114/211/263/514, PortalSelfService.php:422–424, Partners/Repository.php:123/143/202, Partners/Sales.php:724: mb_substr/mb_strcut, Zeichenlimit vor Speichern (belegt)
-- [ ] **A495** [WICHTIG] CSV-Formel-Injection trotz csv_cell(), weil fputcsv-Escape Backslash ist — _R3 QA_ (TODO L832; Audit Runde 4)
+- [x] **A495** [WICHTIG] CSV-Formel-Injection trotz csv_cell(), weil fputcsv-Escape Backslash ist — _R3 QA_ (TODO L832; Audit Runde 4)
   - src/Reports/Scope.php:78: Escape '' wie Invoices.php:715, Test mit \" (belegt)
-- [ ] **A496** [WICHTIG] Ticketübertragung trotz offener Stornierungsanfrage: Empfänger verliert Ticket, Käufer bekommt Geld — _R3 QA_ (TODO L833; Audit Runde 4)
+- [x] **A496** [WICHTIG] Ticketübertragung trotz offener Stornierungsanfrage: Empfänger verliert Ticket, Käufer bekommt Geld — _R3 QA_ (TODO L833; Audit Runde 4)
   - src/Orders.php:1472–1488, TicketAssignments.php:22–35: Übertragung bei offener Erstattung sperren; execute lehnt übertragene Tickets ab (belegt)
-- [ ] **A497** [WICHTIG] Namen mit „<“ und „&“ erscheinen als Entities in ICS, PDF, Wallet, Text-Mails, Betreff, CSV — _R3 QA_ (TODO L834; Audit Runde 4)
+- [x] **A497** [WICHTIG] Namen mit „<“ und „&“ erscheinen als Entities in ICS, PDF, Wallet, Text-Mails, Betreff, CSV — _R3 QA_ (TODO L834; Audit Runde 4)
   - src/Admin/Forms.php:289–292, Calendar/Ics.php:127, Mail/Types.php:340: Klartext ohne Entities speichern oder an Klartext-Ausgaben dekodieren
-- [ ] **A498** [WICHTIG] Längen-/Typverträge Eingabe↔Schema ungetestet; Test-wpdb und Sanitize-Stubs bilden echtes WP nicht ab — _R3 QA_ (TODO L835; Audit Runde 4)
+- [x] **A498** [WICHTIG] Längen-/Typverträge Eingabe↔Schema ungetestet; Test-wpdb und Sanitize-Stubs bilden echtes WP nicht ab — _R3 QA_ (TODO L835; Audit Runde 4)
   - tests/integration/bootstrap.php: Fuzz-/Grenzwerttest gegen echten WP-Core (tests/upgrade/.wordpress) für alle öffentlichen Eingänge
 - [ ] **A499** [OPTIMIERUNG] Shortcode/Block geben im RSS-Feed und REST content.rendered das Bestellformular aus — _R3 Editor_ (TODO L836; Audit Runde 4)
   - src/PublicEvents.php:147ff., Modules/Calendar.php:149ff.: Im Feed/REST schlanke Terminliste mit Link, per Filter abschaltbar
@@ -1336,7 +1336,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Areas::check in undo_checkin/undo_last/Mobile-Undo, Undo für Türpersonal auf eigene Scans/Zeitfenster begrenzen, device_id/area_id protokollieren (Paket R1 zusammen mit A590).
 - [x] **A634** [WICHTIG] Unbezahlte Überweisungs-Bestellungen halten Kontingent ohne Obergrenze je Event/Menge — _Sicherheitsaudit 14.11. #7_ (TODO L1067; Sicherheitsaudit 2026-11-14)
   - Obergrenze für gehaltene Menge je Event (atomar), Doku in docs/SECURITY.md; Restarbeit zu A265/manual_hold_limit.
-- [ ] **A635** [OPTIMIERUNG] Öffentliche Zuweisungsroute ohne args-Schema, Rate-Limit und Längenlimit — _Sicherheitsaudit 14.11. #8_ (TODO L1068; Sicherheitsaudit 2026-11-14)
+- [x] **A635** [OPTIMIERUNG] Öffentliche Zuweisungsroute ohne args-Schema, Rate-Limit und Längenlimit — _Sicherheitsaudit 14.11. #8_ (TODO L1068; Sicherheitsaudit 2026-11-14)
   - REST-args mit maxLength, Name auf 190 Zeichen, RateLimit::allow, optional URLs im Namen ablehnen.
 - [x] **A636** [OPTIMIERUNG] Staff-Zuweisung vergibt wpcap_checkin an beliebige Konten, Konten-Orakel — _Sicherheitsaudit 14.11. #9_ (TODO L1069; Sicherheitsaudit 2026-11-14)
   - Zielkonten für Nicht-Admins einschränken, einheitliche Fehlermeldung, Delegation in CONCEPT festhalten.
