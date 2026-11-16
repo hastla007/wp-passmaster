@@ -1715,8 +1715,9 @@ final class Installer {
 		// Replaced by capacity_sum (ticket_type_id,order_id,quantity,refunded_quantity), which covers it.
 		'wpcap_order_items' => array( 'type_order' ),
 		// Merge of the two lines (3.18.0): both had added the same index under another name.
-		'wpcap_reservations' => array( 'expiry' ),   // = status_expires (status,expires_at)
-		'wpcap_checkins' => array( 'created_checkin' ), // = created (created_at,checkin_id)
+		// Reservations: "expiry" duplicates status_expires. Check-ins: "created_checkin" duplicates created.
+		'wpcap_reservations' => array( 'expiry' ),
+		'wpcap_checkins'     => array( 'created_checkin' ),
 	);
 
 	/**
