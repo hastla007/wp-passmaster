@@ -27,7 +27,7 @@ final class BankTransfer {
 	/** End of the reservation (UTC, Y-m-d H:i:s) or '' when unknown. */
 	public static function due_at( $order_id ) {
 		global $wpdb;
-		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d AND status='active'", absint( $order_id ) ) );
+		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM %i WHERE order_id=%d AND status='active'", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ) ) );
 	}
 
 	/**

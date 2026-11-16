@@ -12,10 +12,17 @@ use PassCaptain\Settings;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class PolicyText {
-	/** admin_init: registers the suggestion with WordPress. */
+	/** Admin screens that show the policy suggestions (guide, privacy settings, editing the policy page). */
+	const SCREENS = array( 'options-privacy.php', 'privacy-policy-guide.php', 'post.php' );
+
+	/**
+	 * admin_init: registers the suggestion with WordPress – only on the screens that use it, because
+	 * building the text reads settings and several tables (PERF-9: not on every admin request).
+	 */
 	public static function add() {
 		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) { return; }
-		wp_add_privacy_policy_content( 'Pass Captain', wp_kses_post( self::content() ) );
+		if ( ! in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), self::SCREENS, true ) ) { return; }
+		wp_add_privacy_policy_content( \PassCaptain\Brand::name( 'admin' ), wp_kses_post( self::content() ) );
 	}
 
 	/** Recipients that are active in this installation (keys used in content()). */
@@ -32,8 +39,11 @@ final class PolicyText {
 			'apple' => ! empty( $settings['wallet_apple_enabled'] ),
 			'google' => ! empty( $settings['wallet_google_enabled'] ),
 			'partners' => self::rows( 'wpcap_partners', "status='active'" ),
-			'webhooks' => self::rows( 'wpcap_webhook_subscriptions', "status='active'" ),
+			// Webhooks and HTTP/JSON connectors (Modules\Connectors) are both "connected systems".
+			'webhooks' => self::rows( 'wpcap_webhook_subscriptions', "status='active'" ) || self::rows( 'wpcap_connector_endpoints', "status='active'" ),
 			'affiliate' => class_exists( '\PassCaptain\Integrations\AffiliateCaptain\Adapter' ) && \PassCaptain\Integrations\AffiliateCaptain\Adapter::available(),
+			// Fiscalization (cash register signature services such as fiskaly, fiskaltrust, efsta).
+			'fiscal' => self::rows( 'wpcap_fiscal_configs', 'enabled=1' ),
 			'woocommerce' => class_exists( 'WooCommerce' ),
 		);
 		return (array) apply_filters( 'wpcap_privacy_policy_recipients', $out );
@@ -69,7 +79,7 @@ final class PolicyText {
 		$html .= self::section( __( 'Ticketkauf, Tickets und Einlass', 'pass-captain' ), array(
 			__( 'Für Bestellungen verarbeiten wir Ihre E-Mail-Adresse, die gekauften Tickets, Preise, Zahlungsstatus und die Version der akzeptierten Bedingungen, um den Vertrag zu erfüllen, Tickets und Bestellzugänge per E-Mail zuzustellen und Sie über Änderungen oder Absagen zu informieren (Art. 6 Abs. 1 lit. b DSGVO).', 'pass-captain' ),
 			__( 'Angaben zu Teilnehmenden (Name, E-Mail, weitere vom Veranstalter abgefragte Felder mit dem jeweils angegebenen Zweck) verarbeiten wir zur Durchführung der Veranstaltung (Art. 6 Abs. 1 lit. b DSGVO) bzw. aufgrund unseres berechtigten Interesses an einer geordneten Einlasskontrolle (Art. 6 Abs. 1 lit. f DSGVO). Beim Einlass protokollieren wir Zeitpunkt, Ergebnis und gegebenenfalls den Einlassbereich des Tickets, um Mehrfachnutzung zu verhindern (Art. 6 Abs. 1 lit. f DSGVO).', 'pass-captain' ),
-			__( 'Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO). Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO).', 'pass-captain' ),
+			__( 'Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO). Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse und gegebenenfalls die E-Mail-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO).', 'pass-captain' ),
 			__( 'Rechnungen und Buchungsbelege bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO).', 'pass-captain' ),
 		) );
 
@@ -83,7 +93,8 @@ final class PolicyText {
 		if ( $r['apple'] ) { $recipients[] = __( 'Apple Inc. (USA), wenn Sie ein Ticket zu Apple Wallet hinzufügen: Ihr Gerät meldet sich für Aktualisierungen an; wir speichern dafür eine Gerätekennung und ein Push-Token und senden Aktualisierungshinweise über den Apple Push Notification Service.', 'pass-captain' ); }
 		if ( $r['google'] ) { $recipients[] = __( 'Google Ireland Ltd. / Google LLC (USA), wenn Sie ein Ticket zu Google Wallet hinzufügen: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden an Google übermittelt.', 'pass-captain' ); }
 		if ( $r['partners'] ) { $recipients[] = __( 'Vertriebs- und Veranstaltungspartner: Partner erhalten für ihre Veranstaltungen Bestell- und Einlassdaten, personenbezogene Daten (E-Mail-Adressen) nur, soweit dies vertraglich vereinbart ist (Art. 6 Abs. 1 lit. b bzw. f DSGVO, gegebenenfalls Auftragsverarbeitung).', 'pass-captain' ); }
-		if ( $r['webhooks'] ) { $recipients[] = __( 'Angebundene Systeme (Webhooks), z. B. Buchhaltung, CRM oder Newsletter-Dienst: Bestell- und Ticketereignisse, E-Mail-Adressen nur, wenn dies für das jeweilige System ausdrücklich aktiviert ist.', 'pass-captain' ); }
+		if ( $r['webhooks'] ) { $recipients[] = __( 'Angebundene Systeme (Webhooks und HTTP/JSON-Connectoren), z. B. Buchhaltung, CRM oder Newsletter-Dienst: Bestell- und Ticketereignisse; E-Mail-Adressen und Namen der Teilnehmenden nur, wenn dies für das jeweilige System ausdrücklich aktiviert ist.', 'pass-captain' ); }
+		if ( ! empty( $r['fiscal'] ) ) { $recipients[] = __( 'Dienstleister für die gesetzlich vorgeschriebene Signatur von Kassenbelegen (z. B. fiskaly, fiskaltrust, efsta; Registrierkassen- bzw. Kassensicherungsverordnung): Belegdaten wie Positionen, Beträge, Steuersätze, Zahlart und Zeitpunkt, keine Kontaktdaten (Art. 6 Abs. 1 lit. c DSGVO).', 'pass-captain' ); }
 		if ( $r['affiliate'] ) { $recipients[] = __( 'Affiliate-Programm (WP Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert.', 'pass-captain' ); }
 		$recipients[] = __( 'Unser Hosting- und E-Mail-Dienstleister als Auftragsverarbeiter.', 'pass-captain' );
 		$html .= '<h3>' . esc_html__( 'Empfänger', 'pass-captain' ) . '</h3>' . self::items( $recipients );
@@ -96,10 +107,26 @@ final class PolicyText {
 
 		$html .= self::section( __( 'Speicherdauer', 'pass-captain' ), array(
 			/* translators: %s: retention description */
-			sprintf( __( 'Teilnehmerangaben (Name, E-Mail, Zusatzfelder) löschen wir automatisch %s. Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach einem Jahr.', 'pass-captain' ), $attendee ),
-			__( 'Nicht bezahlte Bestellungen anonymisieren wir nach 90 Tagen. Versandte Benachrichtigungen löschen wir inhaltlich nach 30 Tagen. Protokolle über Verwaltungsvorgänge bewahren wir zwei Jahre auf.', 'pass-captain' ),
-			__( 'Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt.', 'pass-captain' ),
+			sprintf( __( 'Teilnehmerangaben (Name, E-Mail, Zusatzfelder) löschen wir automatisch %s; Namen auf Wallet-Pässen werden dabei ebenfalls entfernt. Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach einem Jahr.', 'pass-captain' ), $attendee ),
+			__( 'Nicht bezahlte Bestellungen (einschließlich Rechnungsanschrift) und nicht zustande gekommene oder stornierte Terminbuchungen anonymisieren wir nach 90 Tagen. Versandte E-Mail-Benachrichtigungen und SMS löschen wir inhaltlich nach 30 Tagen. Protokolle über Verwaltungsvorgänge bewahren wir zwei Jahre auf.', 'pass-captain' ),
 		) );
+		$waitlist_days = Retention::days( 'waitlists' );
+		$pass_days = Retention::days( 'member_passes' );
+		$years = Retention::order_years();
+		$storage = array();
+		if ( $waitlist_days ) {
+			/* translators: %d: days */
+			$storage[] = sprintf( __( 'Wartelisteneinträge anonymisieren wir %d Tage nach dem Termin.', 'pass-captain' ), $waitlist_days );
+		}
+		if ( $pass_days ) {
+			/* translators: %d: days */
+			$storage[] = sprintf( __( 'Mitgliedspässe anonymisieren wir %d Tage nach dem Ende ihrer Gültigkeit.', 'pass-captain' ), $pass_days );
+		}
+		$storage[] = $years
+			/* translators: %d: years */
+			? sprintf( __( 'Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt. %d Jahre nach dem Ende des Bestelljahres entfernen wir E-Mail-Adresse, Rechnungsanschrift und Teilnehmerangaben aus den Bestellungen; Rechnungen und Buchungsbelege selbst bleiben bis zu ihrer Löschung durch uns unverändert.', 'pass-captain' ), $years )
+			: __( 'Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt.', 'pass-captain' );
+		$html .= self::items( $storage );
 
 		$html .= self::section( __( 'Ihre Rechte', 'pass-captain' ), array(
 			__( 'Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO); Tickets für künftige Termine werden mit der Löschung ungültig. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren.', 'pass-captain' ),

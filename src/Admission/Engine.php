@@ -107,7 +107,7 @@ final class Engine {
 				$date = self::service_date( $at, $found['timezone'], $found );
 				$days = Policies::valid_days( $policy, $found );
 				if ( null !== $days && ! in_array( $date, $days, true ) ) { return 'not_valid_today'; }
-				$today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $entries WHERE ticket_id=%d AND service_date=%s AND direction='in' AND undone=0", $ticket_id, $date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND service_date=%s AND direction='in' AND undone=0", $entries, $ticket_id, $date ) );
 				return $today >= 1 ? 'daily_limit_reached' : '';
 			case 'multi_entry':
 				return self::entry_count( $ticket_id ) >= max( 1, $policy['max_entries'] ) ? 'entry_limit_reached' : '';
@@ -121,24 +121,30 @@ final class Engine {
 	/** Effective (not undone) entries of a ticket. */
 	public static function entry_count( $ticket_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0", (int) $ticket_id ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND direction='in' AND undone=0", $wpdb->prefix . 'wpcap_admission_entries', (int) $ticket_id ) );
 	}
 
-	/** State row of a ticket, locked and reconciled with later "undone" log rows. Null if none. */
+	/**
+	 * State row of a ticket, locked and reconciled with later "undone" log rows. Null if none, false
+	 * on a database error (callers abort: a failed read must not look like "never admitted").
+	 */
 	public static function state_for_update( $ticket_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		// No FOR UPDATE: callers already hold the ticket row lock, which serialises scans of one ticket.
 		// Locking a not-yet-existing state row took gap locks that deadlocked concurrent scans of
 		// different tickets against the later INSERT … ON DUPLICATE KEY.
-		$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_admission_state WHERE ticket_id=%d", (int) $ticket_id ) );
+		$state = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d', $p . 'wpcap_admission_state', (int) $ticket_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return false; }
 		if ( ! $state ) { return null; }
-		$undone = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, MAX(checkin_id) AS last_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='undone' AND checkin_id>%d", (int) $ticket_id, (int) $state->last_checkin_id ) );
+		$undone = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, MAX(checkin_id) AS last_id FROM %i WHERE ticket_id=%d AND result='undone' AND checkin_id>%d", $p . 'wpcap_checkins', (int) $ticket_id, (int) $state->last_checkin_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return false; }
 		if ( $undone && (int) $undone->n > 0 ) {
 			$n = (int) $undone->n;
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_entries SET undone=1 WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT %d", (int) $ticket_id, $n ) );
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-%d,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $n, (int) $undone->last_id, current_time( 'mysql', true ), (int) $ticket_id ) );
-			$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_admission_state WHERE ticket_id=%d", (int) $ticket_id ) );
+			if ( false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET undone=1 WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT %d", $p . 'wpcap_admission_entries', (int) $ticket_id, $n ) ) ) { return false; }
+			if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-%d,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d', $p . 'wpcap_admission_state', $n, (int) $undone->last_id, current_time( 'mysql', true ), (int) $ticket_id ) ) ) { return false; }
+			$state = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d', $p . 'wpcap_admission_state', (int) $ticket_id ) );
+			if ( '' !== (string) $wpdb->last_error ) { return false; }
 		}
 		return $state;
 	}
@@ -147,7 +153,7 @@ final class Engine {
 	public static function is_inside( $state, $ticket_id ) {
 		if ( $state ) { return (bool) (int) $state->inside; }
 		global $wpdb;
-		$last = $wpdb->get_var( $wpdb->prepare( "SELECT result FROM {$wpdb->prefix}wpcap_checkins WHERE ticket_id=%d AND result IN ('checked_in','checked_out','undone') ORDER BY checkin_id DESC LIMIT 1", (int) $ticket_id ) );
+		$last = $wpdb->get_var( $wpdb->prepare( "SELECT result FROM %i WHERE ticket_id=%d AND result IN ('checked_in','checked_out','undone') ORDER BY checkin_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_checkins', (int) $ticket_id ) );
 		return 'checked_in' === $last;
 	}
 
@@ -183,12 +189,12 @@ final class Engine {
 		if ( '' !== $wpdb->last_error ) { return false; }
 		if ( 'in' === $direction ) {
 			$ok = $wpdb->query( $wpdb->prepare(
-				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_in_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,1,%d,1,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=1, area_id=VALUES(area_id), entries=entries+1, last_in_at=VALUES(last_in_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
+				'INSERT INTO %i (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_in_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,1,%d,1,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=1, area_id=VALUES(area_id), entries=entries+1, last_in_at=VALUES(last_in_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)', $p . 'wpcap_admission_state',
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		} else {
 			$ok = $wpdb->query( $wpdb->prepare(
-				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_out_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,0,%d,0,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=0, last_out_at=VALUES(last_out_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
+				'INSERT INTO %i (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_out_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,0,%d,0,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=0, last_out_at=VALUES(last_out_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)', $p . 'wpcap_admission_state',
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		}
@@ -196,27 +202,82 @@ final class Engine {
 	}
 
 	/**
+	 * Whether the last database statement failed (every query resets/sets the error).
+	 *
+	 * @phpstan-impure
+	 */
+	private static function db_failed() {
+		global $wpdb;
+		return '' !== (string) $wpdb->last_error;
+	}
+
+	/**
+	 * Takes back the latest entry of a ticket inside the caller's transaction (ticket row locked, the
+	 * "undone" check-in row $undo_id already written): the newest entry that is not undone is marked
+	 * undone and the state is derived from the remaining entries – entries = remaining entries,
+	 * inside = whether the newest remaining movement is an entry (an undone re-entry after a
+	 * check-out leaves the person outside, an earlier entry stays counted).
+	 *
+	 * @return int|false Remaining entries of the ticket (tickets without entry rows: from the check-in log); false on a database error.
+	 */
+	public static function revert_last_entry( $ticket_id, $undo_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_id = (int) $ticket_id;
+		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM %i WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT 1", $p . 'wpcap_admission_entries', $ticket_id ) );
+		if ( self::db_failed() ) { return false; }
+		if ( ! $entry ) {
+			// Legacy ticket without entry rows: successful check-ins minus undos in the log (incl. this one).
+			$net = $wpdb->get_var( $wpdb->prepare( "SELECT SUM(CASE WHEN result='checked_in' THEN 1 WHEN result='undone' THEN -1 ELSE 0 END) FROM %i WHERE ticket_id=%d", $p . 'wpcap_checkins', $ticket_id ) );
+			return self::db_failed() ? false : max( 0, (int) $net );
+		}
+		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_admission_entries", array( 'undone' => 1 ), array( 'entry_id' => (int) $entry->entry_id ) ) ) { return false; }
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND direction='in' AND undone=0", $p . 'wpcap_admission_entries', $ticket_id ) );
+		$last = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT direction FROM %i WHERE ticket_id=%d AND undone=0 ORDER BY entry_id DESC LIMIT 1', $p . 'wpcap_admission_entries', $ticket_id ) );
+		if ( self::db_failed() ) { return false; }
+		if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET inside=%d, entries=%d, last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d', $p . 'wpcap_admission_state', 'in' === $last ? 1 : 0, $remaining, (int) $undo_id, current_time( 'mysql', true ), $ticket_id ) ) ) { return false; }
+		return $remaining;
+	}
+
+	/**
 	 * Takes back the latest entry of a ticket with a repeatable policy (ticket status stays valid).
 	 *
 	 * @return array|\WP_Error
 	 */
-	public static function undo_last( array $found, $reason = '' ) {
+	public static function undo_last( array $found, $reason = '', array $context = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( 'START TRANSACTION' );
-		$wpdb->get_row( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $found['ticket_id'] ) );
-		self::state_for_update( $found['ticket_id'] );
-		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT 1", (int) $found['ticket_id'] ) );
+		// Every step is checked: an undo reported as done must really have freed the entry.
+		$busy = static function () use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
+		};
+		$denied = \PassCaptain\Checkin::undo_denied( (int) $found['ticket_id'], (int) $found['event_id'], $context );
+		if ( $denied ) { return $denied; }
+		$key = (string) ( $context['idempotency_key'] ?? '' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
+		$wpdb->get_row( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE ticket_id=%d FOR UPDATE', $p . 'wpcap_tickets', (int) $found['ticket_id'] ) );
+		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
+		// A retried undo (same key) is answered as done without removing a second entry.
+		$claim = '' !== $key ? \PassCaptain\Checkin::claim_key( $key, (int) $found['ticket_id'] ) : 1;
+		if ( $claim < 0 ) { return $busy(); }
+		if ( 0 === $claim ) {
+			$wpdb->query( 'ROLLBACK' );
+			return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'], 'replayed' => true );
+		}
+		if ( false === self::state_for_update( $found['ticket_id'] ) ) { return $busy(); }
+		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM %i WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT 1", $p . 'wpcap_admission_entries', (int) $found['ticket_id'] ) );
+		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
 		if ( ! $entry ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), array( 'status' => 409, 'result' => 'not_checked_in' ) );
 		}
 		$now = current_time( 'mysql', true );
-		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'created_at' => $now ) );
-		$undo_id = (int) $wpdb->insert_id;
-		$wpdb->update( "{$p}wpcap_admission_entries", array( 'undone' => 1 ), array( 'entry_id' => (int) $entry->entry_id ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-1,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $undo_id, $now, (int) $found['ticket_id'] ) );
-		$wpdb->query( 'COMMIT' );
+		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'device_id' => absint( $context['device_id'] ?? 0 ), 'created_at' => $now ) );
+		$undo_id = '' === (string) $wpdb->last_error ? (int) $wpdb->insert_id : 0;
+		if ( ! $undo_id ) { return $busy(); }
+		if ( false === self::revert_last_entry( (int) $found['ticket_id'], $undo_id ) ) { return $busy(); }
+		if ( false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => mb_substr( sanitize_text_field( (string) $reason ), 0, 255 ) ) );
 		return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'] );
 	}
@@ -227,22 +288,39 @@ final class Engine {
 	 * @return array{present: int, by_area: array<int,int>}
 	 */
 	public static function presence( $occurrence_id ) {
+		return self::presence_many( array( (int) $occurrence_id ) )[ (int) $occurrence_id ];
+	}
+
+	/**
+	 * presence() for several occurrences with one query (PERF-15: the check-in screen lists up to
+	 * 50 occurrences). Returns occurrence_id => array( 'present' => int, 'by_area' => int[] ).
+	 *
+	 * @param int[] $occurrence_ids Occurrences.
+	 */
+	public static function presence_many( array $occurrence_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.area_id, COUNT(*) AS n FROM {$p}wpcap_admission_state s WHERE s.occurrence_id=%d AND s.inside=1 AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_checkins c WHERE c.ticket_id=s.ticket_id AND c.result='undone' AND c.checkin_id>s.last_checkin_id) GROUP BY s.area_id", (int) $occurrence_id ) );
-		$by_area = array();
-		$total = 0;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
+		$out = array();
+		foreach ( $occurrence_ids as $id ) { $out[ (int) $id ] = array( 'present' => 0, 'by_area' => array() ); }
+		if ( ! $ids ) { return $out; }
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array (generated IN placeholders).
+			"SELECT s.occurrence_id, s.area_id, COUNT(*) AS n FROM %i s WHERE s.occurrence_id IN ($placeholders) AND s.inside=1 AND NOT EXISTS (SELECT 1 FROM %i c WHERE c.ticket_id=s.ticket_id AND c.result='undone' AND c.checkin_id>s.last_checkin_id) GROUP BY s.occurrence_id, s.area_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			array_merge( array( $p . 'wpcap_admission_state' ), $ids, array( $p . 'wpcap_checkins' ) )
+		) );
 		foreach ( $rows as $row ) {
-			$by_area[ (int) $row->area_id ] = (int) $row->n;
-			$total += (int) $row->n;
+			$occ = (int) $row->occurrence_id;
+			$out[ $occ ]['by_area'][ (int) $row->area_id ] = (int) $row->n;
+			$out[ $occ ]['present'] += (int) $row->n;
 		}
-		return array( 'present' => $total, 'by_area' => $by_area );
+		return $out;
 	}
 
 	/** Effective entries and check-outs of an occurrence, per area. */
 	public static function movement( $occurrence_id ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT area_id, direction, COUNT(*) AS n FROM {$wpdb->prefix}wpcap_admission_entries WHERE occurrence_id=%d AND undone=0 GROUP BY area_id, direction", (int) $occurrence_id ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT area_id, direction, COUNT(*) AS n FROM %i WHERE occurrence_id=%d AND undone=0 GROUP BY area_id, direction', $wpdb->prefix . 'wpcap_admission_entries', (int) $occurrence_id ) );
 		$out = array( 'entries' => 0, 'checked_out' => 0, 'by_area' => array() );
 		foreach ( $rows as $row ) {
 			$key = 'in' === $row->direction ? 'entries' : 'checked_out';

@@ -21,7 +21,10 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class EventsPage {
 	const SLUG = 'wp-pass-captain';
 	const CAP = 'wpcap_manage_events';
-	const FIELD_TYPES = array( 'text', 'email', 'textarea', 'checkbox' );
+	const FIELD_TYPES = array( 'text', 'email', 'textarea', 'checkbox', 'consent', 'select', 'radio', 'date', 'tel' );
+
+	/** Field types with a list of choices (options column, one per line). */
+	const CHOICE_TYPES = array( 'select', 'radio' );
 	const STAFF_CAPS = array( 'wpcap_checkin', 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports' );
 
 	/* =============================================================================================
@@ -113,7 +116,7 @@ final class EventsPage {
 		}
 		if ( ! Queries::is_global_admin() ) {
 			// Creators without global rights keep access to their event through the event scope.
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_event_staff (event_id,user_id,capability) VALUES (%d,%d,%s)", $event_id, get_current_user_id(), self::CAP ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (event_id,user_id,capability) VALUES (%d,%d,%s)', $p . 'wpcap_event_staff', $event_id, get_current_user_id(), self::CAP ) );
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'event_created', 'event', $event_id, array( 'status' => $status, 'occurrences' => $repeat_count ) );
@@ -134,13 +137,26 @@ final class EventsPage {
 			return Forms::error( 'wpcap_event_invalid', __( 'Bitte prüfe die Eventdaten.', 'pass-captain' ) );
 		}
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_events', array(
+		$data = array(
 			'name' => $name,
 			'description' => wp_kses_post( (string) ( $in['description'] ?? '' ) ),
 			'status' => $status,
 			'updated_at' => current_time( 'mysql', true ),
-		), array( 'event_id' => (int) $event->event_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+		);
+		// Optional event page fields (Frontend\EventPage) and the self-service cancellation rule (Sales\SelfService).
+		if ( array_key_exists( 'image_url', $in ) ) {
+			$image = esc_url_raw( trim( (string) $in['image_url'] ) );
+			$data['image_url'] = preg_match( '#^https?://#i', $image ) ? mb_substr( $image, 0, 500 ) : '';
+			$data['category'] = Forms::text( $in, 'category' );
+		}
+		if ( array_key_exists( 'refund_hours_before', $in ) ) {
+			$policy = \PassCaptain\Sales\SelfService::parse_policy( $in );
+			if ( is_wp_error( $policy ) ) { return $policy; }
+			$data['refund_policy'] = $policy ? wp_json_encode( $policy ) : null;
+		}
+		$wpdb->update( $wpdb->prefix . 'wpcap_events', $data, array( 'event_id' => (int) $event->event_id ) );
 		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) );
+		\PassCaptain\Reports\Cache::flush_event( (int) $event->event_id );
 		return array( 'event_id' => (int) $event->event_id );
 	}
 
@@ -194,6 +210,8 @@ final class EventsPage {
 			if ( $old->starts_at !== $starts && $issued > 0 ) {
 				$rescheduled = true;
 				do_action( 'wpcap_occurrence_rescheduled', $occurrence_id, $old->starts_at, $starts );
+				// Holder mails are queued per recipient; the admin sees how many went out already.
+				$notifications = \PassCaptain\Communications::progress( 'resched|' . $occurrence_id . '|' . $starts );
 			}
 			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled ) );
 			if ( 'cancelled' === $status && 'cancelled' !== $old->status ) {
@@ -206,7 +224,10 @@ final class EventsPage {
 			if ( ! $occurrence_id ) { return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
-		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled );
+		\PassCaptain\Reports\Cache::flush_event( (int) $event->event_id );
+		$result = array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled );
+		if ( isset( $notifications ) ) { $result['notifications'] = $notifications; }
+		return $result;
 	}
 
 	/** Cancels a single occurrence (tickets stay; refunds are handled per order). */
@@ -230,6 +251,16 @@ final class EventsPage {
 				? sprintf( __( '%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü.', 'pass-captain' ), $issued )
 				/* translators: %d: number of tickets */
 				: sprintf( __( '%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', 'pass-captain' ), $issued );
+		}
+		// Large occurrences: revocation is done, the rest (refunds, mails, wallet/webhooks) continues in the background.
+		$summary = \PassCaptain\OccurrenceCancellation::last_summary( (int) $occ->occurrence_id );
+		if ( ! empty( $summary['queued_jobs'] ) ) {
+			$result['queued_jobs'] = (int) $summary['queued_jobs'];
+			$result['warning'] = trim( ( $result['warning'] ?? '' ) . ' ' . sprintf(
+				/* translators: %d: number of background batches */
+				__( 'Alle Tickets sind bereits widerrufen. %d weitere Arbeitspakete (Erstattungen, Benachrichtigungen, Wallet/Webhooks) laufen im Hintergrund weiter; den Fortschritt zeigt der Systemstatus (Hintergrundjobs).', 'pass-captain' ),
+				(int) $summary['queued_jobs']
+			) );
 		}
 		return $result;
 	}
@@ -285,6 +316,34 @@ final class EventsPage {
 			'status' => $status,
 		);
 		$formats = array( '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s' );
+		if ( array_key_exists( 'tax_class', $in ) ) {
+			// Tax class selects the versioned tax profile (Sales\TaxProfiles); '' = standard.
+			$data['tax_class'] = mb_substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 );
+			$formats[] = '%s';
+		}
+		if ( array_key_exists( 'visibility', $in ) ) {
+			// Sales\Visibility: public | code (unlock code list or a campaign scoped to the type) | hidden.
+			$data['visibility'] = Forms::choice( $in, 'visibility', \PassCaptain\Sales\Visibility::VALUES, 'public' );
+			$data['access_codes'] = implode( "\n", \PassCaptain\Sales\Visibility::parse_codes( (string) ( $in['access_codes'] ?? '' ) ) );
+			$formats[] = '%s';
+			$formats[] = '%s';
+		}
+		// Buyer-facing description, display order and the attendee-name option (DB 3.17.5); only when
+		// submitted, so callers that do not know these fields keep the stored values.
+		if ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ) {
+			if ( array_key_exists( 'description', $in ) ) {
+				$data['description'] = Forms::textarea( $in, 'description', 1000 );
+				$formats[] = '%s';
+			}
+			if ( array_key_exists( 'position', $in ) ) {
+				$data['position'] = min( 65535, max( 0, Forms::int( $in, 'position' ) ) );
+				$formats[] = '%d';
+			}
+			if ( array_key_exists( 'attendee_name', $in ) ) {
+				$data['attendee_name'] = Forms::choice( $in, 'attendee_name', array( 'off', 'optional', 'required' ), 'optional' );
+				$formats[] = '%s';
+			}
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_ticket_types';
 		if ( $old ) {
@@ -298,6 +357,7 @@ final class EventsPage {
 			if ( ! $type_id ) { return Forms::error( 'wpcap_type_save', __( 'Die Ticketkategorie konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		}
 		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, array( 'occurrence_id' => (int) $occ->occurrence_id, 'price_minor' => $price, 'tax_rate_bp' => $tax_bp, 'status' => $status ) );
+		\PassCaptain\Reports\Cache::flush_event( (int) $occ->event_id );
 		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id );
 	}
 
@@ -322,21 +382,50 @@ final class EventsPage {
 			'retention_days' => $retention,
 			'position' => min( 65535, Forms::int( $in, 'position' ) ),
 		);
+		$formats = array( '%s', '%s', '%d', '%s', '%d', '%d' );
 		global $wpdb;
+		if ( in_array( $field_type, self::CHOICE_TYPES, true ) ) {
+			// Choices, one per line (max. 50 × 190 characters); the checkout only accepts one of them.
+			$choices = array_slice( \PassCaptain\Orders::field_options( array( 'options' => Forms::textarea( $in, 'options', 10000 ) ) ), 0, 50 );
+			$choices = array_values( array_unique( array_map( static function ( $c ) { return mb_substr( $c, 0, 190 ); }, $choices ) ) );
+			if ( count( $choices ) < 2 ) {
+				return Forms::error( 'wpcap_field_options', __( 'Für Auswahlliste und Optionsfelder bitte mindestens zwei Auswahlmöglichkeiten angeben (eine pro Zeile).', 'pass-captain' ) );
+			}
+			$data['options'] = implode( "\n", $choices );
+			$formats[] = '%s';
+		} elseif ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ) {
+			$data['options'] = null;
+			$formats[] = '%s';
+		}
+		if ( 'consent' === $field_type ) {
+			// Logged consent (Sales\Consents): text and version are stored with every consent record.
+			$consent_text = Forms::textarea( $in, 'consent_text', 2000 );
+			$consent_version = Forms::text( $in, 'consent_version', 32 );
+			if ( '' === $consent_text || ! preg_match( '/^[A-Za-z0-9._-]{1,32}$/', $consent_version ) ) {
+				return Forms::error( 'wpcap_field_consent', __( 'Für ein Einwilligungsfeld bitte Einwilligungstext und Version (z. B. 1 oder 2026-11) angeben.', 'pass-captain' ) );
+			}
+			if ( $old && (string) $old->consent_text !== $consent_text && (string) $old->consent_version === $consent_version && (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE field_id=%d', $wpdb->prefix . 'wpcap_consents', (int) $old->field_id ) ) ) {
+				return Forms::error( 'wpcap_field_consent_version', __( 'Der Einwilligungstext wurde geändert: Bitte auch die Version ändern, damit bestehende Einwilligungen ihrer Textfassung zugeordnet bleiben.', 'pass-captain' ) );
+			}
+			$data['consent_text'] = $consent_text;
+			$data['consent_version'] = $consent_version;
+			$formats[] = '%s';
+			$formats[] = '%s';
+		}
 		$table = $wpdb->prefix . 'wpcap_participant_fields';
 		if ( $old ) {
-			$wpdb->update( $table, $data, array( 'field_id' => (int) $old->field_id ), array( '%s', '%s', '%d', '%s', '%d', '%d' ), array( '%d' ) );
+			$wpdb->update( $table, $data, array( 'field_id' => (int) $old->field_id ), $formats, array( '%d' ) );
 			$field_id = (int) $old->field_id;
 		} else {
 			$key = substr( sanitize_key( (string) ( $in['field_key'] ?? '' ) ), 0, 64 );
 			$key = str_replace( '-', '_', $key );
 			if ( '' === $key ) { return Forms::error( 'wpcap_field_key', __( 'Bitte einen technischen Schlüssel angeben (a-z, 0-9, _).', 'pass-captain' ) ); }
-			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT field_id FROM $table WHERE ticket_type_id=%d AND field_key=%s", (int) $type->ticket_type_id, $key ) );
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT field_id FROM %i WHERE ticket_type_id=%d AND field_key=%s', $table, (int) $type->ticket_type_id, $key ) );
 			if ( $exists ) { return Forms::error( 'wpcap_field_key_taken', __( 'Dieser Schlüssel ist für die Ticketart bereits vergeben.', 'pass-captain' ), 409 ); }
 			$data['ticket_type_id'] = (int) $type->ticket_type_id;
 			$data['field_key'] = $key;
 			$data['status'] = 'active';
-			$wpdb->insert( $table, $data, array( '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s' ) );
+			$wpdb->insert( $table, $data, array_merge( $formats, array( '%d', '%s', '%s' ) ) );
 			$field_id = (int) $wpdb->insert_id;
 			if ( ! $field_id ) { return Forms::error( 'wpcap_field_save', __( 'Das Feld konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		}
@@ -382,7 +471,7 @@ final class EventsPage {
 			return Forms::error( 'wpcap_staff_role', __( 'Der Benutzer hat dieses Recht nicht über seine Rolle (z. B. Pass Captain Veranstaltungsleitung). Bitte zuerst die Rolle zuweisen.', 'pass-captain' ) );
 		}
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_event_staff (event_id,user_id,capability) VALUES (%d,%d,%s)", $event_id, (int) $user->ID, $capability ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (event_id,user_id,capability) VALUES (%d,%d,%s)', $wpdb->prefix . 'wpcap_event_staff', $event_id, (int) $user->ID, $capability ) );
 		Audit::record( 'staff_assigned', 'event', $event_id, array( 'user_id' => (int) $user->ID, 'capability' => $capability ) );
 		return array( 'event_id' => $event_id, 'user_id' => (int) $user->ID );
 	}
@@ -391,9 +480,11 @@ final class EventsPage {
 	 * assign_staff() grants wpcap_checkin as a user capability; take it back once the user has no
 	 * check-in assignment left. A capability granted by one of the user's roles is left alone.
 	 */
-	private static function maybe_revoke_checkin_cap( $user_id ) {
+	public static function maybe_revoke_checkin_cap( $user_id ) {
 		global $wpdb;
-		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=%d AND capability='wpcap_checkin'", $user_id ) );
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE user_id=%d AND capability='wpcap_checkin'", $wpdb->prefix . 'wpcap_event_staff', $user_id ) );
+		// Date-level assignments (SecurityScreens, wpcap_occurrence_staff) keep the capability as well.
+		$remaining += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE user_id=%d AND capability='wpcap_checkin'", $wpdb->prefix . 'wpcap_occurrence_staff', $user_id ) );
 		if ( $remaining ) { return; }
 		$user = get_user_by( 'id', $user_id );
 		if ( ! $user || ! method_exists( $user, 'remove_cap' ) ) { return; }
@@ -424,6 +515,7 @@ final class EventsPage {
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$result = Orders::cancel_event( $event_id );
+		\PassCaptain\Reports\Cache::flush_event( $event_id );
 		return is_wp_error( $result ) ? Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ) : $result;
 	}
 
@@ -458,9 +550,19 @@ final class EventsPage {
 		$message = __( 'Termin gespeichert.', 'pass-captain' );
 		if ( ! is_wp_error( $result ) && $result['rescheduled'] ) {
 			$message .= ' ' . __( 'Der Termin hat verkaufte Tickets; die Verschiebung wurde gemeldet.', 'pass-captain' );
+			$message .= self::notification_progress( (array) ( $result['notifications'] ?? array() ) );
 		}
 		$back = Forms::int( $in, 'occurrence_id' ) ? self::url( array( 'view' => 'occurrence', 'occurrence_id' => Forms::int( $in, 'occurrence_id' ) ) ) : self::event_url( Forms::int( $in, 'event_id' ) );
 		Forms::finish( $result, $message, is_wp_error( $result ) ? $back : self::url( array( 'view' => 'occurrence', 'occurrence_id' => $result['occurrence_id'] ) ), $back );
+	}
+
+	/** " N versendet, M in der Warteschlange" for a notice (Communications::progress() counters). */
+	private static function notification_progress( array $progress ) {
+		$total = array_sum( array_map( 'intval', $progress ) );
+		if ( ! $total ) { return ''; }
+		$pending = (int) ( $progress['queued'] ?? 0 ) + (int) ( $progress['sending'] ?? 0 );
+		/* translators: 1: mails sent, 2: mails waiting in the queue, 3: failed mails */
+		return ' ' . sprintf( __( 'Benachrichtigungen: %1$d versendet, %2$d werden im Hintergrund versendet, %3$d fehlgeschlagen (Systemstatus → E-Mail-Queue).', 'pass-captain' ), (int) ( $progress['sent'] ?? 0 ), $pending, (int) ( $progress['failed'] ?? 0 ) );
 	}
 
 	public static function handle_cancel_occurrence() {
@@ -513,7 +615,7 @@ final class EventsPage {
 		Forms::verify( 'wpcap_cancel_event_' . $event_id );
 		$result = self::cancel_event( $in );
 		/* translators: %d: notified buyers */
-		$message = is_wp_error( $result ) ? '' : sprintf( __( 'Event abgesagt. %d Käufer wurden benachrichtigt.', 'pass-captain' ), (int) ( $result['notified_count'] ?? 0 ) );
+		$message = is_wp_error( $result ) ? '' : sprintf( __( 'Event abgesagt. %d Käufer wurden benachrichtigt.', 'pass-captain' ), (int) ( $result['notified_count'] ?? 0 ) ) . self::notification_progress( (array) ( $result['notifications'] ?? array() ) );
 		if ( ! is_wp_error( $result ) && ! empty( $result['revoked'] ) ) {
 			$message .= ' ' . ( ! empty( $result['auto_refund'] )
 				/* translators: 1: automatic refunds, 2: failed refunds */
@@ -562,6 +664,7 @@ final class EventsPage {
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Events', 'pass-captain' ); ?></h1>
 		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
+		<?php if ( 1 === $page ) { Dashboard::render_summary(); } ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
@@ -600,7 +703,7 @@ final class EventsPage {
 						<a class="button" href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'pass-captain' ); ?></a>
 						<?php if ( 'published' === $event->status ) : ?>
 							<?php Forms::open_form( 'wpcap_cancel_event', 'wpcap_cancel_event_' . $event->event_id, 'style="display:inline"' ); Forms::hidden( 'event_id', $event->event_id ); ?>
-							<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Event absagen und betroffene Käufer benachrichtigen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Event absagen', 'pass-captain' ); ?></button>
+							<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Event absagen und betroffene Käufer benachrichtigen?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Event absagen', 'pass-captain' ); ?></button>
 							</form>
 						<?php endif; ?>
 					</td>
@@ -630,6 +733,7 @@ final class EventsPage {
 			<?php submit_button( __( 'Event speichern', 'pass-captain' ) ); ?>
 		</form>
 		<?php
+		OrganizerTools::render_import();
 	}
 
 	private static function render_event( $event_id ) {
@@ -641,6 +745,8 @@ final class EventsPage {
 		?>
 		<p><a href="<?php echo esc_url( self::url() ); ?>"><?php esc_html_e( '← Zur Eventliste', 'pass-captain' ); ?></a></p>
 		<h1><?php echo esc_html( $event->name ); ?> <span class="subtitle"><?php echo esc_html( Forms::status_label( $event->status ) ); ?></span></h1>
+		<?php $wpcap_event_url = 'published' === $event->status ? \PassCaptain\Frontend\EventPage::url( $event->slug ) : ''; ?>
+		<?php if ( '' !== $wpcap_event_url ) : ?><p><?php esc_html_e( 'Eventseite:', 'pass-captain' ); ?> <a href="<?php echo esc_url( $wpcap_event_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $wpcap_event_url ); ?></a></p><?php endif; ?>
 		<?php Forms::render_notices(); ?>
 
 		<h2><?php esc_html_e( 'Eventdaten', 'pass-captain' ); ?></h2>
@@ -650,6 +756,15 @@ final class EventsPage {
 				<tr><th><label for="wpcap-ev-name"><?php esc_html_e( 'Eventname', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $event->name ); ?>"></td></tr>
 				<tr><th><label for="wpcap-ev-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-ev-desc" name="description" class="large-text" rows="5"><?php echo esc_textarea( $event->description ); ?></textarea></td></tr>
 				<tr><th><label for="wpcap-ev-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $event->status, 'wpcap-ev-status' ); ?></td></tr>
+				<tr><th><label for="wpcap-ev-image"><?php esc_html_e( 'Bild (URL, optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-image" name="image_url" type="url" class="large-text" maxlength="500" value="<?php echo esc_attr( (string) ( $event->image_url ?? '' ) ); ?>" aria-describedby="wpcap-ev-image-desc"><p class="description" id="wpcap-ev-image-desc"><?php esc_html_e( 'Für die Eventseite, Vorschauen in sozialen Netzwerken und Suchmaschinen (mind. 1200 px breit empfohlen).', 'pass-captain' ); ?></p></td></tr>
+				<tr><th><label for="wpcap-ev-category"><?php esc_html_e( 'Kategorie (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-category" name="category" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( (string) ( $event->category ?? '' ) ); ?>"></td></tr>
+				<?php $wpcap_policy = \PassCaptain\Sales\SelfService::policy( $event ); ?>
+				<tr><th><?php esc_html_e( 'Stornoanfragen im Bestellportal', 'pass-captain' ); ?></th><td><fieldset><legend class="screen-reader-text"><?php esc_html_e( 'Stornoanfragen im Bestellportal', 'pass-captain' ); ?></legend>
+					<label><input type="checkbox" name="refund_requests" value="1"<?php checked( ! empty( $wpcap_policy ) ); ?>> <?php esc_html_e( 'Käufer dürfen Tickets selbst zur Erstattung anfragen', 'pass-captain' ); ?></label><br>
+					<label><?php esc_html_e( 'bis Stunden vor Beginn', 'pass-captain' ); ?> <input name="refund_hours_before" type="number" min="0" max="8760" style="width:6em" value="<?php echo esc_attr( (string) ( $wpcap_policy['hours_before'] ?? 48 ) ); ?>"></label>
+					<label><?php esc_html_e( 'Bearbeitungsgebühr in % des Ticketwerts', 'pass-captain' ); ?> <input name="refund_fee_percent" type="text" inputmode="decimal" style="width:5em" value="<?php echo esc_attr( Forms::percent_input( (int) ( $wpcap_policy['fee_bp'] ?? 0 ) ) ); ?>"></label>
+					<p class="description"><?php esc_html_e( 'Die Anfrage läuft über die normale Erstattung (Freigabe ab Schwellenwert); die Gebühr wird vom Erstattungsbetrag abgezogen und in der Rechnungskorrektur ausgewiesen.', 'pass-captain' ); ?></p>
+				</fieldset></td></tr>
 			</tbody></table>
 			<?php submit_button( __( 'Event aktualisieren', 'pass-captain' ) ); ?>
 			</form>
@@ -680,7 +795,7 @@ final class EventsPage {
 						<a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'occurrence', 'occurrence_id' => $occ->occurrence_id ) ) ); ?>"><?php esc_html_e( 'Bearbeiten & Ticketarten', 'pass-captain' ); ?></a>
 						<?php if ( $editable && 'cancelled' !== $occ->status ) : ?>
 							<?php Forms::open_form( 'wpcap_cancel_occurrence', null, 'style="display:inline"' ); Forms::hidden( 'occurrence_id', $occ->occurrence_id ); ?>
-							<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Diesen Termin absagen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Absagen', 'pass-captain' ); ?></button>
+							<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Diesen Termin absagen?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Absagen', 'pass-captain' ); ?></button>
 							</form>
 						<?php endif; ?>
 					</td>
@@ -694,6 +809,16 @@ final class EventsPage {
 			<?php self::occurrence_form( null, (int) $event->event_id, $default_tz ); ?>
 		<?php endif; ?>
 
+		<?php
+		/**
+		 * Further sections of the event edit screen (e.g. price rules, buyer limits, tax country:
+		 * Sales\AdminSections). Callbacks check their own capabilities.
+		 *
+		 * @param object $event    Event row.
+		 * @param bool   $editable False for cancelled events.
+		 */
+		do_action( 'wpcap_admin_event_sections', $event, $editable );
+		?>
 		<?php self::render_staff( $event ); ?>
 		<?php
 	}
@@ -800,6 +925,15 @@ final class EventsPage {
 			<?php self::ticket_type_form( null, $occ ); ?>
 		<?php endif; ?>
 		<?php
+		/**
+		 * Further sections of the occurrence screen (e.g. complimentary tickets, duplicate:
+		 * Admin\OrganizerTools). Callbacks check their own capabilities.
+		 *
+		 * @param object $occ      Occurrence row.
+		 * @param bool   $editable False for cancelled events.
+		 */
+		do_action( 'wp_pass_captain_admin_occurrence_sections_v1', $occ, $editable );
+		SecurityScreens::render_occurrence_staff( $occ );
 	}
 
 	private static function ticket_type_form( $type, $occ ) {
@@ -812,11 +946,18 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-name"><?php esc_html_e( 'Name', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $type ? $type->name : '' ); ?>"></td></tr>
 			<tr><th><label for="wpcap-tt-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( Forms::money_input( $type ? $type->price_minor : 0, Forms::currency_decimals( $currency ) ) ); ?>"> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $currency ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-tax" name="tax_rate" type="text" inputmode="decimal" size="6" value="<?php echo esc_attr( Forms::percent_input( $type ? $type->tax_rate_bp : 0 ) ); ?>"> <span class="description"><?php esc_html_e( 'Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-taxclass"><?php esc_html_e( 'Steuerklasse', 'pass-captain' ); ?></label></th><td><?php $wpcap_classes = \PassCaptain\Sales\TaxProfiles::classes(); $wpcap_class = $type && '' !== (string) $type->tax_class ? (string) $type->tax_class : 'standard'; if ( ! in_array( $wpcap_class, $wpcap_classes, true ) ) { $wpcap_classes[] = $wpcap_class; } Forms::select( 'tax_class', array_combine( $wpcap_classes, $wpcap_classes ), $wpcap_class, 'wpcap-tt-taxclass', 'aria-describedby="wpcap-tt-taxclass-desc"' ); ?> <span class="description" id="wpcap-tt-taxclass-desc"><?php esc_html_e( 'Wählt das aktive Steuerprofil (Land des Events + Steuerklasse). Ohne passendes aktives Profil gilt der Steuersatz oben.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-cap"><?php esc_html_e( 'Kontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $type ? (int) $type->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $type ? (int) $type->max_per_order : 10 ); ?>"></td></tr>
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-tt-desc" name="description" class="large-text" rows="2" maxlength="1000" aria-describedby="wpcap-tt-desc-hint"><?php echo esc_textarea( $type ? (string) ( $type->description ?? '' ) : '' ); ?></textarea><p class="description" id="wpcap-tt-desc-hint"><?php esc_html_e( 'Kurzer Hinweis unter der Ticketart, z. B. „inkl. Garderobe“ oder „nur mit Schülerausweis“.', 'pass-captain' ); ?></p></td></tr>
+			<tr><th><label for="wpcap-tt-pos"><?php esc_html_e( 'Reihenfolge', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-pos" name="position" type="number" min="0" max="65535" value="<?php echo esc_attr( (string) ( $type ? (int) ( $type->position ?? 0 ) : 0 ) ); ?>"> <span class="description"><?php esc_html_e( 'Kleinere Zahlen stehen auf der Eventseite weiter oben.', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-attname"><?php esc_html_e( 'Name je Ticket', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'attendee_name', array( 'optional' => __( 'Optional abfragen', 'pass-captain' ), 'required' => __( 'Pflichtangabe (personalisiertes Ticket)', 'pass-captain' ), 'off' => __( 'Nicht abfragen', 'pass-captain' ) ), $type ? \PassCaptain\Orders::attendee_name_mode( $type->attendee_name ?? '' ) : 'optional', 'wpcap-tt-attname' ); ?></td></tr>
 			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $type ? $type->status : 'active', 'wpcap-tt-status' ); ?></td></tr>
+			<tr><th><label for="wpcap-tt-vis"><?php esc_html_e( 'Sichtbarkeit', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'visibility', array( 'public' => __( 'Öffentlich', 'pass-captain' ), 'code' => __( 'Nur mit Freischaltcode', 'pass-captain' ), 'hidden' => __( 'Versteckt (nur Kasse, Freikarten)', 'pass-captain' ) ), \PassCaptain\Sales\Visibility::of( $type ), 'wpcap-tt-vis', 'aria-describedby="wpcap-tt-vis-desc"' ); ?>
+				<p><label for="wpcap-tt-codes"><?php esc_html_e( 'Freischaltcodes (einer pro Zeile)', 'pass-captain' ); ?></label><br><textarea id="wpcap-tt-codes" name="access_codes" rows="3" cols="30" class="code"><?php echo esc_textarea( $type ? implode( "\n", \PassCaptain\Sales\Visibility::codes( $type ) ) : '' ); ?></textarea></p>
+				<p class="description" id="wpcap-tt-vis-desc"><?php esc_html_e( 'Codes schalten die Ticketart im Rabattcode-Feld oder per Link ?wpcap_code=CODE frei (ohne Rabatt). Ein Kampagnencode, der nur für diese Ticketart gilt, schaltet sie ebenfalls frei (mit Rabatt). Der Server prüft die Freischaltung bei jeder Bestellung.', 'pass-captain' ); ?></p></td></tr>
 		</tbody></table>
 		<?php submit_button( $type ? __( 'Ticketart speichern', 'pass-captain' ) : __( 'Ticketart hinzufügen', 'pass-captain' ) ); ?>
 		</form>
@@ -834,7 +975,7 @@ final class EventsPage {
 		foreach ( $fields as $field ) {
 			if ( (int) $field->field_id === $edit_field_id ) { $edit_field = $field; }
 		}
-		$type_labels = array( 'text' => __( 'Text', 'pass-captain' ), 'email' => __( 'E-Mail', 'pass-captain' ), 'textarea' => __( 'Mehrzeiliger Text', 'pass-captain' ), 'checkbox' => __( 'Checkbox', 'pass-captain' ) );
+		$type_labels = array( 'text' => __( 'Text', 'pass-captain' ), 'email' => __( 'E-Mail', 'pass-captain' ), 'tel' => __( 'Telefonnummer', 'pass-captain' ), 'date' => __( 'Datum', 'pass-captain' ), 'textarea' => __( 'Mehrzeiliger Text', 'pass-captain' ), 'select' => __( 'Auswahlliste', 'pass-captain' ), 'radio' => __( 'Optionsfelder (eine Auswahl)', 'pass-captain' ), 'checkbox' => __( 'Checkbox', 'pass-captain' ), 'consent' => __( 'Einwilligung (protokolliert)', 'pass-captain' ) );
 		$type_url = self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $ticket_type_id ) );
 		?>
 		<p><a href="<?php echo esc_url( self::url( array( 'view' => 'occurrence', 'occurrence_id' => $type->occurrence_id ) ) ); ?>"><?php echo esc_html( '← ' . ( $event ? $event->name . ', ' : '' ) . Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?></a></p>
@@ -888,7 +1029,10 @@ final class EventsPage {
 				</td></tr>
 				<tr><th><label for="wpcap-pf-label"><?php esc_html_e( 'Bezeichnung', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-label" name="label" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $edit_field ? $edit_field->label : '' ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-type"><?php esc_html_e( 'Typ', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'field_type', $type_labels, $edit_field ? $edit_field->field_type : 'text', 'wpcap-pf-type' ); ?></td></tr>
+				<tr><th><label for="wpcap-pf-options"><?php esc_html_e( 'Auswahlmöglichkeiten', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-pf-options" name="options" class="large-text" rows="4" aria-describedby="wpcap-pf-options-desc"><?php echo esc_textarea( $edit_field ? (string) ( $edit_field->options ?? '' ) : '' ); ?></textarea><p class="description" id="wpcap-pf-options-desc"><?php esc_html_e( 'Nur für „Auswahlliste“ und „Optionsfelder“: eine Auswahlmöglichkeit pro Zeile (mindestens zwei).', 'pass-captain' ); ?></p></td></tr>
 				<tr><th><?php esc_html_e( 'Pflichtfeld', 'pass-captain' ); ?></th><td><label><input type="checkbox" name="required" value="1" <?php checked( $edit_field && $edit_field->required ); ?>> <?php esc_html_e( 'Für jedes Ticket erforderlich', 'pass-captain' ); ?></label></td></tr>
+				<tr><th><label for="wpcap-pf-consent"><?php esc_html_e( 'Einwilligungstext', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-pf-consent" name="consent_text" class="large-text" rows="3" maxlength="2000" aria-describedby="wpcap-pf-consent-desc"><?php echo esc_textarea( $edit_field ? (string) ( $edit_field->consent_text ?? '' ) : '' ); ?></textarea><p class="description" id="wpcap-pf-consent-desc"><?php esc_html_e( 'Nur für den Typ „Einwilligung“: Text, dem zugestimmt wird. Text, Version, Zeitpunkt und Quelle werden je Ticket protokolliert; Käufer können im Bestellportal widerrufen.', 'pass-captain' ); ?></p></td></tr>
+				<tr><th><label for="wpcap-pf-consent-version"><?php esc_html_e( 'Version des Einwilligungstexts', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-consent-version" name="consent_version" type="text" maxlength="32" pattern="[A-Za-z0-9._\-]{1,32}" value="<?php echo esc_attr( $edit_field ? (string) ( $edit_field->consent_version ?? '' ) : '1' ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-purpose"><?php esc_html_e( 'Zweck', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-purpose" name="purpose" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $edit_field ? $edit_field->purpose : '' ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-ret"><?php esc_html_e( 'Aufbewahrung (Tage)', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-ret" name="retention_days" type="number" min="0" max="3650" value="<?php echo esc_attr( $edit_field ? (int) $edit_field->retention_days : 365 ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-pos"><?php esc_html_e( 'Reihenfolge', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-pos" name="position" type="number" min="0" value="<?php echo esc_attr( $edit_field ? (int) $edit_field->position : count( $fields ) ); ?>"></td></tr>

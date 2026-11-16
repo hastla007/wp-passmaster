@@ -48,7 +48,7 @@ final class TicketService {
 
 	public static function ticket_revoked( $ticket_id ) {
 		global $wpdb;
-		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
 		if ( $order_id ) { self::order_closed( $order_id ); }
 	}
 
@@ -65,7 +65,7 @@ final class TicketService {
 		global $wpdb;
 		$order = Orders::get( absint( $order_id ) );
 		if ( ! $order || self::PROVIDER !== $order->payment_provider || 0 !== strpos( (string) $order->provider_reference, 'voucher:' ) ) { return; }
-		$counts = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(status IN ('valid','checked_in') AND refunded=0) AS remaining,SUM(status NOT IN ('valid','checked_in') OR refunded=1) AS revoked FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d", (int) $order->order_id ) );
+		$counts = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(status IN ('valid','checked_in') AND refunded=0) AS remaining,SUM(status NOT IN ('valid','checked_in') OR refunded=1) AS revoked FROM %i WHERE order_id=%d", $wpdb->prefix . 'wpcap_tickets', (int) $order->order_id ) );
 		$revoked = (int) ( $counts->revoked ?? 0 );
 		if ( $revoked < 1 && ! in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) { return; }
 		do_action( self::REVOKED_ACTION, array(
@@ -241,7 +241,7 @@ final class TicketService {
 	 */
 	public function fields( $ticket_type_id ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', absint( $ticket_type_id ) ) );
 		return array_map( static function ( $f ) {
 			return array( 'key' => (string) $f->field_key, 'label' => (string) $f->label, 'type' => (string) $f->field_type, 'required' => (bool) (int) $f->required );
 		}, (array) $rows );
@@ -338,7 +338,7 @@ final class TicketService {
 			$snapshot += array( 'amount_minor' => $gross, 'amount_paid_by_voucher' => $gross, 'gross_minor' => $gross, 'gross_tax_minor' => (int) $order->tax_minor, 'amount_due_minor' => 0 );
 			$row['total_minor'] = 0;
 		} else {
-			$list = (int) $wpdb->get_var( $wpdb->prepare( "SELECT price_minor FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", absint( $type_id ) ) ) * max( 1, (int) $quantity );
+			$list = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT price_minor FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', absint( $type_id ) ) ) * max( 1, (int) $quantity );
 			$face = null !== $value ? (int) $value : $list;
 			$snapshot += array( 'amount_minor' => $face, 'amount_paid_by_voucher' => 0, 'face_value_minor' => $face, 'face_value_source' => null !== $value ? 'voucher' : 'list_price' );
 		}
@@ -375,7 +375,7 @@ final class TicketService {
 		global $wpdb;
 		if ( '' === $key ) { return null; }
 		$hash = hash_hmac( 'sha256', $key, 'wpcap-channel-' . self::NAMESPACE_KEY );
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE idempotency_key=%s", $hash ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', $wpdb->prefix . 'wpcap_orders', $hash ) );
 	}
 
 	private static function error( $code, $message, $status, $retryable = false ) {

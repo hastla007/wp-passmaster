@@ -32,6 +32,7 @@ final class Menu {
 			'wpcap_cancel_order' => array( OrdersPage::class, 'handle_cancel_order' ),
 			'wpcap_resend_tickets' => array( OrdersPage::class, 'handle_resend_tickets' ),
 			'wpcap_refund_order' => array( OrdersPage::class, 'handle_refund' ),
+			'wpcap_orders_csv' => array( OrdersPage::class, 'handle_csv' ),
 			'wpcap_approve_refund' => array( OrdersPage::class, 'handle_approve_refund' ),
 			'wpcap_reject_refund' => array( OrdersPage::class, 'handle_reject_refund' ),
 			'wpcap_revoke_ticket' => array( TicketsPage::class, 'handle_revoke_ticket' ),
@@ -40,22 +41,53 @@ final class Menu {
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
-		) + \PassCaptain\Modules::admin_handlers();
+		) + OrganizerTools::handlers() + FeatureScreens::handlers() + StatusPage::handlers() + SecurityScreens::handlers() + \PassCaptain\Modules::admin_handlers();
 	}
 
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
-		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'admin_styles' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'admin_menu_css' ) );
+		StatusPage::register();
+		// admin_post_* only fires in wp-admin/admin-post.php (an admin request): frontend, REST and cron
+		// requests skip building the handler map, which loads every admin screen class (PERF-14).
+		if ( ! function_exists( 'is_admin' ) || is_admin() ) {
+			self::register_handlers();
+		}
+	}
+
+	/** Registers the admin-post handlers of all screens and modules. */
+	public static function register_handlers() {
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}
 	}
 
-	/** Small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
+	/** Whether the current admin request shows one of the plugin's own pages (admin.php?page=wpcap…). */
+	public static function is_plugin_page() {
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects output.
+		return str_starts_with( $page, 'wpcap' ) || 'wp-pass-captain' === $page;
+	}
+
+	/** Inline CSS of admin_styles() (handle wpcap-admin). */
+	const ADMIN_CSS = '#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
+		. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem;margin-top:0}'
+		. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'
+		. '#wpbody-content input[type=radio]:checked::before{width:.5625rem;height:.5625rem;margin:.40625rem}';
+
+	/**
+	 * Small accessibility fixes on plugin pages: readable code in links (contrast), delete links, and checkboxes/radios
+	 * with a 24×24 px target (WCAG 2.2 SC 2.5.8; core draws them 16 px wide on desktop). Added with
+	 * wp_add_inline_style() to a source-less handle (no raw <style> in admin_head).
+	 */
 	public static function admin_styles() {
-		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
-		if ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) { return; }
-		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}</style>';
+		if ( ! self::is_plugin_page() ) { return; }
+		wp_register_style( 'wpcap-admin', false, array(), WPCAP_VERSION );
+		wp_enqueue_style( 'wpcap-admin' );
+		wp_add_inline_style( 'wpcap-admin', self::ADMIN_CSS );
+		// Confirm dialogs, auto-submit selects and select-on-focus via data attributes instead of inline
+		// event handlers (strict CSP possible, audit FE-8). Native window.confirm() as before.
+		wp_enqueue_script( 'wpcap-admin-confirm', plugins_url( 'assets/admin-confirm.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
 	}
 
 	/** First capability of the list the current user holds (fallback: the first one). */
@@ -66,34 +98,155 @@ final class Menu {
 		return $caps[0];
 	}
 
+	/**
+	 * Submenu pages of add-ons that are not modules (filter wp_pass_captain_admin_menu_v1), same format
+	 * as a module's admin_pages(): [ slug, title, capability, callable ]. Invalid entries and slugs of
+	 * core pages are ignored. Listed before "Einstellungen".
+	 *
+	 * @return array<int,array{0:string,1:string,2:string,3:callable}>
+	 */
+	public static function extra_pages( $module_pages = null ) {
+		$pages = apply_filters( 'wp_pass_captain_admin_menu_v1', array() );
+		if ( ! is_array( $pages ) || ! $pages ) { return array(); }
+		$reserved = array( self::SLUG, OrdersPage::SLUG, TicketsPage::SLUG, CheckinsPage::SLUG, RefundsPage::SLUG, DevicesPage::SLUG, SettingsPage::SLUG );
+		$reserved[] = StatusPage::SLUG;
+		// Module pages (with their badge counts) are built once per request by register() and passed in.
+		foreach ( array_merge( FeatureScreens::pages(), SecurityScreens::pages(), null === $module_pages ? \PassCaptain\Modules::admin_pages() : (array) $module_pages ) as $page ) { $reserved[] = (string) $page[0]; }
+		$out = array();
+		foreach ( $pages as $page ) {
+			if ( ! is_array( $page ) || 4 !== count( $page ) ) { continue; }
+			list( $slug, $title, $cap, $callback ) = array_values( $page );
+			$slug = sanitize_key( (string) $slug );
+			if ( '' === $slug || in_array( $slug, $reserved, true ) || '' === (string) $cap || ! is_callable( $callback ) ) { continue; }
+			$reserved[] = $slug;
+			$out[] = array( $slug, (string) $title, (string) $cap, $callback );
+		}
+		return $out;
+	}
+
 	public static function add_menus() {
 		$top_cap = self::first_cap( array( EventsPage::CAP, OrdersPage::CAP, 'wpcap_checkin', 'wpcap_view_reports', Refunds::APPROVE_CAP, SettingsPage::CAP ) );
+		// White label: title and icon (wp_pass_captain_admin_menu_title_v1 / _icon_v1, PassCaptain\Brand).
+		$menu_title = \PassCaptain\Brand::menu_title();
 		add_menu_page(
-			__( 'Pass Captain', 'pass-captain' ),
-			__( 'Pass Captain', 'pass-captain' ),
+			$menu_title,
+			$menu_title,
 			$top_cap,
 			self::SLUG,
 			array( EventsPage::class, 'render' ),
-			'dashicons-tickets-alt',
+			\PassCaptain\Brand::menu_icon(),
 			58
 		);
 		add_submenu_page( self::SLUG, __( 'Events', 'pass-captain' ), __( 'Events', 'pass-captain' ), EventsPage::CAP, self::SLUG, array( EventsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Bestellungen', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), OrdersPage::CAP, OrdersPage::SLUG, array( OrdersPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Tickets', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), TicketsPage::menu_cap(), TicketsPage::SLUG, array( TicketsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Check-ins', 'pass-captain' ), __( 'Check-ins', 'pass-captain' ), CheckinsPage::menu_cap(), CheckinsPage::SLUG, array( CheckinsPage::class, 'render' ) );
-		$pending = current_user_can( Refunds::APPROVE_CAP ) ? count( Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) ) ) : 0;
+		$pending = current_user_can( Refunds::APPROVE_CAP ) ? Queries::pending_refunds_count( Queries::event_ids_for( OrdersPage::CAP ) ) : 0;
 		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		add_submenu_page( self::SLUG, __( 'Erstattungen', 'pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'pass-captain' ), __( 'Scanner-Geräte', 'pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
-		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
+		list( $module_pages, $hidden_pages ) = \PassCaptain\Modules::menu_pages();
+		foreach ( array_merge( FeatureScreens::pages(), $module_pages, self::extra_pages( array_merge( $module_pages, $hidden_pages ) ) ) as $page ) {
 			list( $slug, $title, $cap, $callback ) = $page;
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}
+		// Modules hidden under Einstellungen > Funktionen: reachable by link, no menu entry.
+		foreach ( $hidden_pages as $page ) {
+			list( $slug, $title, $cap, $callback ) = $page;
+			add_submenu_page( '', $title, $title, $cap, $slug, $callback );
+		}
+		foreach ( SecurityScreens::pages() as $page ) { add_submenu_page( self::SLUG, $page[1], $page[1], $page[2], $page[0], $page[3] ); }
+		add_submenu_page( self::SLUG, __( 'Systemstatus', 'pass-captain' ), StatusPage::menu_title(), StatusPage::CAP, StatusPage::SLUG, array( StatusPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
 			add_submenu_page( self::SLUG, __( 'Gemeinsamer Scanner', 'pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'pass-captain' ), 'wpcap_checkin', 'admin.php?page=vcap-scanner' );
 			add_submenu_page( self::SLUG, __( 'WP Voucher Captain', 'pass-captain' ), __( 'WP Voucher Captain ↗', 'pass-captain' ), 'manage_woocommerce', 'admin.php?page=vcap-vouchers' );
 		}
+		self::group_submenu();
+		/**
+		 * The core menu is complete: add-ons add their own submenu pages under $parent_slug here (they are
+		 * listed after the core pages). Independent of modules and of the order of admin_menu callbacks.
+		 */
+		do_action( 'wp_pass_captain_admin_menu_built_v1', self::SLUG );
+	}
+
+	/** Menu groups in display order: key => label. */
+	public static function groups() {
+		return array(
+			'sales' => __( 'Verkauf', 'pass-captain' ),
+			'entry' => __( 'Einlass', 'pass-captain' ),
+			'analysis' => __( 'Auswertung', 'pass-captain' ),
+			'setup' => __( 'Konfiguration', 'pass-captain' ),
+			'system' => __( 'System', 'pass-captain' ),
+		);
+	}
+
+	/** Group of a submenu slug (unknown slugs, e.g. module and add-on pages: "setup"). */
+	public static function group_of( $slug ) {
+		$map = array(
+			'sales' => array( self::SLUG, OrdersPage::SLUG, TicketsPage::SLUG, RefundsPage::SLUG, CampaignsPage::SLUG, 'wpcap-waitlists', 'wpcap-memberships', 'wpcap-services', 'wpcap-boxoffice', 'wpcap-series', 'wpcap-seating' ),
+			'entry' => array( CheckinsPage::SLUG, DevicesPage::SLUG, 'wpcap-admission', 'wpcap-admission-conflicts', 'wpcap-offline-scanner', 'wpcap-print' ),
+			'analysis' => array( 'wpcap-reports', 'wpcap-audit-log' ),
+			'system' => array( StatusPage::SLUG, SettingsPage::SLUG ),
+		);
+		foreach ( $map as $group => $slugs ) {
+			if ( in_array( (string) $slug, $slugs, true ) ) { return $group; }
+		}
+		return 0 === strpos( (string) $slug, 'admin.php?page=vcap-' ) ? 'system' : 'setup';
+	}
+
+	/**
+	 * Sorts the plugin's submenu into groups (stable within a group) and remembers the first entry of
+	 * each group for the separators (admin_menu_css()). WordPress submenus are flat lists.
+	 *
+	 * @param array|null $items Submenu entries ([title, cap, slug, ...]); null = global $submenu.
+	 * @return array Sorted entries.
+	 */
+	public static function group_submenu( $items = null ) {
+		global $submenu;
+		$from_global = null === $items;
+		$items = $from_global ? ( $submenu[ self::SLUG ] ?? array() ) : $items;
+		$keys = array_keys( self::groups() );
+		$order = array_flip( $keys );
+		$keyed = array();
+		foreach ( array_values( (array) $items ) as $i => $item ) {
+			$keyed[] = array( $order[ self::group_of( (string) ( $item[2] ?? '' ) ) ], $i, $item );
+		}
+		usort( $keyed, static function ( $a, $b ) { return $a[0] <=> $b[0] ?: $a[1] <=> $b[1]; } );
+		$sorted = array();
+		self::$group_starts = array();
+		$last = null;
+		foreach ( $keyed as $row ) {
+			if ( null !== $last && $row[0] !== $last ) { self::$group_starts[ (string) ( $row[2][2] ?? '' ) ] = $keys[ $row[0] ]; }
+			$last = $row[0];
+			$sorted[] = $row[2];
+		}
+		if ( $from_global && isset( $submenu[ self::SLUG ] ) ) { $submenu[ self::SLUG ] = $sorted; } // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- reordering our own submenu.
+		return $sorted;
+	}
+
+	/** @var array<string,string> First slug of each group (except the first group) => group key. */
+	private static $group_starts = array();
+
+	/** First slug of each group after group_submenu() (except the first group) => group key. */
+	public static function group_starts() {
+		return self::$group_starts;
+	}
+
+	/** Separator CSS for the grouped submenu (all admin screens: the menu is everywhere). */
+	public static function admin_menu_css() {
+		if ( ! self::$group_starts ) { return; }
+		$labels = self::groups();
+		$css = '';
+		foreach ( self::$group_starts as $slug => $group ) {
+			$href = false !== strpos( $slug, '.php' ) ? $slug : 'admin.php?page=' . $slug;
+			$selector = '#adminmenu .toplevel_page_' . self::SLUG . ' .wp-submenu a[href="' . addcslashes( $href, '"\\' ) . '"]';
+			$css .= $selector . '{border-top:1px solid rgba(240,246,252,.2);margin-top:6px;padding-top:8px}';
+			$css .= $selector . '::before{content:"' . addcslashes( wp_strip_all_tags( $labels[ $group ] ), '"\\' ) . '";display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.65;margin-bottom:2px}';
+		}
+		wp_register_style( 'wpcap-admin-menu', false, array(), WPCAP_VERSION );
+		wp_enqueue_style( 'wpcap-admin-menu' );
+		wp_add_inline_style( 'wpcap-admin-menu', $css );
 	}
 }

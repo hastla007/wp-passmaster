@@ -333,9 +333,16 @@ $type3 = make_type( 10, 10, 0 );
 $occ3 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type3" );
 $r3 = Orders::create( array( 'email' => 'wpw3@example.com', 'items' => array( array( 'ticket_type_id' => $type3, 'quantity' => 3 ) ), 'idempotency_key' => 'wpw-3' ) );
 $mail3 = wpw_ticket_mail();
+// R2: several tickets → no .pkpass per ticket; passes are created by the wallet_issue job after the commit.
+check( 'wallet mail (R2): several tickets get one collection link and no .pkpass attachments', ! array_filter( array_keys( $mail3['files'] ), static fn( $n ) => str_ends_with( $n, '.pkpass' ) ) && 1 === substr_count( $mail3['body'], '/wallet/order/' ) );
+for ( $i = 0; $i < 3; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
+foreach ( $wpdb->get_results( "SELECT job_id,payload FROM {$p}wpcap_jobs WHERE job_type='wallet_issue' AND status='queued'" ) as $issue_job ) {
+	Service::handle_job( false, 'wallet_issue', json_decode( $issue_job->payload, true ) );
+	$wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $issue_job->job_id );
+}
 foreach ( tickets( $r3['order_id'] ) as $i => $t3 ) {
-	$pj3 = json_decode( wpw_unzip( $mail3['files'][ 'ticket-' . substr( $t3->public_id, 0, 12 ) . '.pkpass' ] ?? '' )['pass.json'] ?? '{}', true );
-	WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devF' . $i, 'pass_type' => 'pass.test.wpcap', 'serial' => $t3->public_id ), $pj3['authenticationToken'] ?? '', array( 'pushToken' => 'f0f0f0f0f0f0f00' . $i ) ) );
+	$auth3 = Store::secrets( Store::state( $t3->ticket_id ) )['auth'] ?? '';
+	WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devF' . $i, 'pass_type' => 'pass.test.wpcap', 'serial' => $t3->public_id ), $auth3, array( 'pushToken' => 'f0f0f0f0f0f0f00' . $i ) ) );
 }
 http_reset();
 for ( $i = 0; $i < 4; $i++ ) { http_push( array(), 200, 'walletobjects' ); }

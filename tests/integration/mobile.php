@@ -92,8 +92,12 @@ check( 'unknown code is reported as unknown', 'unknown' === $unknown['result'] )
 $stats = app_call( 'stats', 'GET', $token, array( 'occurrence_id' => $m_occ ) );
 check( 'stats count checked-in and remaining tickets', 3 === $stats['tickets_total'] && 1 === $stats['checked_in'] && 2 === $stats['remaining'] && 1 === $stats['checked_in_by_this_device'] );
 
-$undo = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan' ) );
+$undo_nokey = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan' ) );
+check( 'undo requires an idempotency key (audit R2 #3)', is_wp_error( $undo_nokey ) && 400 === $undo_nokey->get_error_data()['status'] );
+$undo = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan', 'idempotency_key' => 'undo-1' ) );
 check( 'undo makes the ticket valid again', true === $undo['ok'] && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE token_hash='" . hash( 'sha256', $codes[0] ) . "'" ) );
+$undo_retry = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan', 'idempotency_key' => 'undo-1' ) );
+check( 'a retried undo with the same key is answered as done (replayed)', true === $undo_retry['ok'] && ! empty( $undo_retry['replayed'] ) );
 
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='checked_in' WHERE token_hash='" . hash( 'sha256', $codes[2] ) . "'" );
 $sync = app_call( 'sync', 'POST', $token, array( 'scans' => array(

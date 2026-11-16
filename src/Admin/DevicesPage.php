@@ -50,7 +50,8 @@ final class DevicesPage {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		global $wpdb;
 		$scope = Queries::event_ids_for( array( self::CAP ) );
-		$events = $wpdb->get_results( "SELECT event_id,name FROM {$wpdb->prefix}wpcap_events WHERE status='published'" . Queries::scope_sql( $scope, 'event_id' ) . ' ORDER BY name LIMIT 200' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scope_sql builds an integer list.
+		$where = "status='published'" . Queries::scope_sql( $scope, 'event_id' );
+		$events = $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name FROM %i WHERE {$where} ORDER BY name LIMIT 200", $wpdb->prefix . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: literal condition and integer scope.
 		$pairing = get_transient( self::pairing_key() );
 		$devices = Devices::list_for_current_user();
 		$names = array();
@@ -81,7 +82,7 @@ final class DevicesPage {
 			<?php submit_button( __( 'Kopplungs-QR erstellen', 'pass-captain' ), 'primary', 'submit', false ); ?>
 		</form>
 		<h2><?php esc_html_e( 'Gekoppelte Geräte', 'pass-captain' ); ?></h2>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $devices as $device ) :
 			$active = ! $device->revoked_at && ( ! $device->expires_at || $device->expires_at > current_time( 'mysql', true ) );
 			$sync = $status[ (int) $device->device_id ];

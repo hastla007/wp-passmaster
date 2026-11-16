@@ -40,7 +40,7 @@ function p1f_ticket_ids( $order_id ) {
 	return array_map( static fn( $t ) => (int) $t->ticket_id, Orders::tickets_for_order( $order_id ) );
 }
 function p1f_order( $type, $qty, $email ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'p1f-' . uniqid( '', true ) ) );
 }
 
@@ -104,7 +104,7 @@ $q30 = p1f_order( $t6, 30, 'p1f-q@example.com' );
 $q51 = p1f_order( $t6, 51, 'p1f-q@example.com' );
 check( 'quantity above 10 but within max_per_order is accepted', ! is_wp_error( $q30 ) && 30 === (int) $wpdb->get_var( "SELECT SUM(quantity) FROM {$p}wpcap_order_items WHERE order_id=" . (int) $q30['order_id'] ) );
 check( 'quantity above max_per_order is rejected with a clear message', is_wp_error( $q51 ) && str_contains( $q51->get_error_message(), 'pro Bestellung' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $split = Orders::create( array( 'email' => 'p1f-q@example.com', 'items' => array( array( 'ticket_type_id' => $t6, 'quantity' => 30 ), array( 'ticket_type_id' => $t6, 'quantity' => 30 ) ), 'idempotency_key' => 'p1f-split' ) );
 check( 'split lines of one type count together against max_per_order', is_wp_error( $split ) );
 $GLOBALS['wpcap_test_filters']['wpcap_max_line_quantity'] = 20;
@@ -219,7 +219,7 @@ $_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.1';
 check( 'wpcap_client_ip resolves the trusted proxy header', '198.51.100.1' === Orders::client_ip() );
 $_SERVER['HTTP_CF_CONNECTING_IP'] = 'not-an-ip';
 check( 'invalid filtered IP falls back to REMOTE_ADDR', '203.0.113.10' === Orders::client_ip() );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'] = 2;
 $t9 = make_type( 50, 10, 1000 );
 $buy = static function ( $client, $n ) use ( $t9 ) { $_SERVER['HTTP_CF_CONNECTING_IP'] = $client; return Orders::create( array( 'email' => "p1f-rl$n@example.com", 'items' => array( array( 'ticket_type_id' => $t9, 'quantity' => 1 ) ), 'idempotency_key' => 'p1f-rl-' . uniqid( '', true ) ) ); };
@@ -228,12 +228,12 @@ $a2 = $buy( '198.51.100.1', 2 );
 $a3 = $buy( '198.51.100.1', 3 );
 $b1 = $buy( '198.51.100.2', 4 );
 check( 'limit applies per real client, not to the whole proxy', ! is_wp_error( $a1 ) && ! is_wp_error( $a2 ) && is_wp_error( $a3 ) && 429 === $a3->get_error_data()['status'] && ! is_wp_error( $b1 ) );
-$keys = array_keys( $GLOBALS['wpcap_test_transients'] );
-check( 'transient keys use a keyed hash, not plain sha256 of the IP', in_array( 'wpcap_checkout_ip_' . Orders::rate_hash( '198.51.100.1' ), $keys, true ) && ! in_array( 'wpcap_checkout_ip_' . hash( 'sha256', '198.51.100.1' ), $keys, true ) && ! in_array( 'wpcap_checkout_ip_' . hash( 'sha256', '203.0.113.10' ), $keys, true ) );
+$keys = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', PassCaptain\RateLimit::table() ) );
+check( 'rate-limit keys use a keyed hash, not plain sha256 of the IP', in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . Orders::rate_hash( '198.51.100.1' ) ), $keys, true ) && ! in_array( PassCaptain\RateLimit::hash( 'wpcap_checkout_ip_' . hash( 'sha256', '198.51.100.1' ) ), $keys, true ) && ! in_array( hash( 'sha256', '198.51.100.1' ), $keys, true ) && array() === $GLOBALS['wpcap_test_transients'] );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'], $_SERVER['HTTP_CF_CONNECTING_IP'] );
 remove_filter( 'wpcap_client_ip', $p1f_proxy, 10 );
 if ( null === $p1f_remote ) { unset( $_SERVER['REMOTE_ADDR'] ); } else { $_SERVER['REMOTE_ADDR'] = $p1f_remote; }
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 echo "Phase 1: transfer counts holder changes by assignment\n";
 $tt = make_type( 10, 10, 1000 );

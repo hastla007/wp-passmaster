@@ -22,6 +22,9 @@ $GLOBALS['wpcap_test_http_requests'] = array();
 
 if ( ! function_exists( 'wp_remote_request' ) ) {
 	function wp_remote_request( $url, $args = array() ) {
+		// Like WP_Http::request(): a pre_http_request filter can short-circuit (A5 blocks all outbound HTTP).
+		$pre = apply_filters( 'pre_http_request', false, $args, $url );
+		if ( false !== $pre ) { return $pre; }
 		$method = strtoupper( $args['method'] ?? 'GET' );
 		$GLOBALS['wpcap_test_http_requests'][] = array( 'method' => $method, 'url' => $url, 'headers' => $args['headers'] ?? array(), 'body' => $args['body'] ?? '', 'timeout' => $args['timeout'] ?? null );
 		foreach ( $GLOBALS['wpcap_test_http_queue'] as $i => $entry ) {
@@ -35,6 +38,7 @@ if ( ! function_exists( 'wp_remote_request' ) ) {
 	}
 }
 if ( ! function_exists( 'wp_remote_post' ) ) { function wp_remote_post( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'POST'; return wp_remote_request( $url, $args ); } }
+if ( ! function_exists( 'wp_safe_remote_post' ) ) { function wp_safe_remote_post( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'POST'; return wp_remote_request( $url, $args ); } }
 if ( ! function_exists( 'wp_remote_get' ) ) { function wp_remote_get( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'GET'; return wp_remote_request( $url, $args ); } }
 if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['body'] ?? '' ) : ''; } }
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : ''; } }
@@ -112,7 +116,7 @@ function paypal_request( array $event, $with_headers = true ) {
 }
 
 /* ---- Setup ---- */
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 PassCaptain\Settings::update( array(
 	'stripe_secret_key' => 'sk_test_123', 'stripe_webhook_secret' => 'whsec_test',
 	'paypal_mode' => 'sandbox', 'paypal_client_id' => 'client', 'paypal_client_secret' => 'secret', 'paypal_webhook_id' => 'WH-ID-1',
@@ -137,7 +141,7 @@ check( 'session charges exactly the discounted order total', 4500 === (int) $so[
 check( 'session params: mode, currency, references, metadata, email, expiry', 'payment' === $f['mode'] && 'eur' === $f['currency'] && $so['public_id'] === $f['client_reference_id'] && $so['public_id'] === $f['metadata']['wpcap_order'] && $so['public_id'] === $f['payment_intent_data']['metadata']['wpcap_order'] && 'stripe-1@example.com' === $f['customer_email'] && (int) $f['expires_at'] >= time() + 1800 && (int) $f['expires_at'] <= time() + 86400 && false !== strpos( $f['success_url'], 'wpcap_payment=success' ) && false !== strpos( $f['cancel_url'], 'wpcap_payment=cancel' ) );
 Orders::set_provider_reference( $so['order_id'], $pay['provider_reference'] );
 http_reset();
-http_push( array( 'id' => 'cs_test_1', 'url' => 'https://checkout.stripe.com/c/pay/cs_test_1', 'status' => 'open' ), 200, '/v1/checkout/sessions/cs_test_1' );
+http_push( array( 'id' => 'cs_test_1', 'url' => 'https://checkout.stripe.com/c/pay/cs_test_1', 'status' => 'open', 'amount_total' => 4500, 'currency' => 'eur' ), 200, '/v1/checkout/sessions/cs_test_1' );
 $again = $stripe->create_payment( (array) Orders::get( $so['order_id'] ), array() );
 check( 'retried checkout reuses the open session', ! is_wp_error( $again ) && 'cs_test_1' === $again['provider_reference'] && 1 === count( $GLOBALS['wpcap_test_http_requests'] ) && 'GET' === $GLOBALS['wpcap_test_http_requests'][0]['method'] );
 http_reset();
@@ -233,7 +237,7 @@ $cr = http_requests( '/v2/checkout/orders' )[0] ?? array( 'headers' => array(), 
 $cb = json_decode( $cr['body'], true );
 check( 'OAuth token via client credentials against the sandbox', 'https://api-m.sandbox.paypal.com/v1/oauth2/token' === $tok['url'] && 'Basic ' . base64_encode( 'client:secret' ) === $tok['headers']['Authorization'] && 'grant_type=client_credentials' === $tok['body'] );
 check( 'create_payment returns approve link and PayPal order id', ! is_wp_error( $pp ) && 'https://www.sandbox.paypal.com/checkoutnow?token=PAYORDER1' === $pp['redirect_url'] && 'PAYORDER1' === $pp['provider_reference'] );
-check( 'PayPal order: CAPTURE, total incl. discount, references, request id', 'CAPTURE' === $cb['intent'] && '45.00' === $cb['purchase_units'][0]['amount']['value'] && 'EUR' === $cb['purchase_units'][0]['amount']['currency_code'] && $po['public_id'] === $cb['purchase_units'][0]['custom_id'] && $po['public_id'] === $cb['purchase_units'][0]['reference_id'] && 'wpcap-' . $po['public_id'] === $cr['headers']['PayPal-Request-Id'] && 'Bearer A21-token' === $cr['headers']['Authorization'] && false !== strpos( $cb['payment_source']['paypal']['experience_context']['return_url'], 'wpcap_paypal_return=1' ) );
+check( 'PayPal order: CAPTURE, total incl. discount, references, request id', 'CAPTURE' === $cb['intent'] && '45.00' === $cb['purchase_units'][0]['amount']['value'] && 'EUR' === $cb['purchase_units'][0]['amount']['currency_code'] && $po['public_id'] === $cb['purchase_units'][0]['custom_id'] && $po['public_id'] === $cb['purchase_units'][0]['reference_id'] && 'wpcap-' . $po['public_id'] . '-4500eur' === $cr['headers']['PayPal-Request-Id'] && 'Bearer A21-token' === $cr['headers']['Authorization'] && false !== strpos( $cb['payment_source']['paypal']['experience_context']['return_url'], 'wpcap_paypal_return=1' ) );
 Orders::set_provider_reference( $po['order_id'], $pp['provider_reference'] );
 http_reset();
 http_push( array( 'id' => 'PAYORDER2', 'links' => array( array( 'rel' => 'approve', 'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYORDER2' ) ) ), 201, '/v2/checkout/orders' );

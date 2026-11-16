@@ -25,7 +25,7 @@ final class TimeBudget {
 	/** Shared deadline (microtime) while a cron hook runs; null otherwise. */
 	private static $deadline = null;
 
-	/** Claims in flight: key => [table, id column, id, claimed status, release status]. */
+	/** Claims in flight: key => [table, id column, id, claimed status, release status, final status, max attempts]. */
 	private static $claims = array();
 
 	private static $shutdown_registered = false;
@@ -62,11 +62,16 @@ final class TimeBudget {
 	 * Asks for an immediate follow-up run of $hook because a backlog remains. Uses Action Scheduler
 	 * when available, else a single WP-Cron event (with an argument, so WP does not treat it as a
 	 * duplicate of the recurring event of the same hook).
+	 *
+	 * Action Scheduler: only a PENDING continuation counts as "already planned". The continuation
+	 * that is running right now (status in-progress) must not stop the next one from being queued –
+	 * as_has_scheduled_action() counts running actions too, so a backlog used to wait for the next
+	 * five-minute tick after the first follow-up run.
 	 */
 	public static function continue_later( $hook ) {
 		$args = array( 'continue' );
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			if ( ! function_exists( 'as_has_scheduled_action' ) || ! as_has_scheduled_action( $hook, $args, 'wp-pass-captain' ) ) {
+			if ( ! self::as_pending( $hook, $args ) ) {
 				as_enqueue_async_action( $hook, $args, 'wp-pass-captain' );
 			}
 			return true;
@@ -78,9 +83,33 @@ final class TimeBudget {
 		return false;
 	}
 
-	/** Remembers an item claimed by this request until it is finished. */
-	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status ) {
-		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status );
+	/** Whether Action Scheduler already holds a pending (not running) action of $hook with $args. */
+	private static function as_pending( $hook, array $args ) {
+		if ( function_exists( 'as_get_scheduled_actions' ) ) {
+			$status = class_exists( '\\ActionScheduler_Store' ) ? \ActionScheduler_Store::STATUS_PENDING : 'pending';
+			$ids = as_get_scheduled_actions( array( 'hook' => $hook, 'args' => $args, 'group' => 'wp-pass-captain', 'status' => $status, 'per_page' => 1 ), 'ids' );
+			return ! empty( $ids );
+		}
+		// Older Action Scheduler without the query API: fall back to the combined check.
+		return function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( $hook, $args, 'wp-pass-captain' );
+	}
+
+	/**
+	 * Remembers an item claimed by this request until it is finished.
+	 *
+	 * With $final_status and $max_attempts, an item whose attempts (counted at claim time) are used up
+	 * goes to $final_status instead of back to the queue: an item that kills the worker every time
+	 * (fatal error, time limit) must not be retried forever.
+	 *
+	 * With $retry (due => due-time column, error => last-error column) a released item is not due again
+	 * right away: it waits a backoff (1, 2, 4 … minutes by attempts, at most an hour) and keeps a
+	 * readable last error. Otherwise the same poisonous item would be claimed first on every run
+	 * (queues are ordered by due time) and block everything queued behind it.
+	 *
+	 * @param array $retry due (string column), error (string column).
+	 */
+	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status, $final_status = '', $max_attempts = 0, array $retry = array() ) {
+		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status, (string) $final_status, (int) $max_attempts, $retry );
 		if ( ! self::$shutdown_registered ) {
 			self::$shutdown_registered = true;
 			register_shutdown_function( array( __CLASS__, 'release_claims' ) );
@@ -90,12 +119,57 @@ final class TimeBudget {
 	/** The claimed item was processed (whatever the outcome). */
 	public static function finished( $table, $id ) { unset( self::$claims[ $table . '#' . (int) $id ] ); }
 
-	/** Returns claims of items this request could not finish to the queue. */
-	public static function release_claims() {
+	/** Backoff in seconds after $attempts failed attempts (1, 2, 4 … minutes, capped at one hour). */
+	public static function backoff( $attempts ) {
+		return (int) min( HOUR_IN_SECONDS, 60 * ( 2 ** max( 0, min( (int) $attempts - 1, 6 ) ) ) );
+	}
+
+	/**
+	 * Returns claims of items this request could not finish to the queue (shutdown, or an exception that
+	 * escaped a worker). With retry columns the item is due again only after a backoff and carries a
+	 * last error (the PHP fatal error message, redacted, when there is one).
+	 *
+	 * @param string $reason Optional error text (e.g. an exception message); redacted before storing.
+	 */
+	public static function release_claims( $reason = '' ) {
 		global $wpdb;
-		foreach ( self::$claims as $key => list( $table, $column, $id, $claimed, $release ) ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=%s,locked_at=NULL WHERE $column=%d AND status=%s", $release, $id, $claimed ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table/column names.
+		if ( ! self::$claims || ! isset( $wpdb ) ) { return; }
+		$reason = is_string( $reason ) ? $reason : '';
+		if ( '' === $reason ) {
+			$last = error_get_last();
+			$fatal = E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR;
+			if ( is_array( $last ) && ( (int) $last['type'] & $fatal ) ) {
+				$reason = 'PHP fatal error: ' . (string) $last['message'];
+			}
+		}
+		$reason = substr( \PassCaptain\Security\Redact::text( '' !== $reason ? $reason : 'Worker stopped while processing (fatal error or time limit).' ), 0, 190 );
+		$now = current_time( 'mysql', true );
+		foreach ( self::$claims as $key => list( $table, $column, $id, $claimed, $release, $final, $max, $retry ) ) {
 			unset( self::$claims[ $key ] );
+			$sql = 'UPDATE %i SET status=';
+			$args = array( $table );
+			if ( '' !== $final && $max > 0 ) {
+				$sql .= 'IF(attempts>=%d,%s,%s)';
+				array_push( $args, $max, $final, $release );
+			} else {
+				$sql .= '%s';
+				$args[] = $release;
+			}
+			$sql .= ',locked_at=NULL';
+			$due = (string) ( $retry['due'] ?? '' );
+			$error = (string) ( $retry['error'] ?? '' );
+			if ( '' !== $due ) {
+				// Due again after a backoff by attempts (same curve as backoff()).
+				$sql .= ',%i=DATE_ADD(%s, INTERVAL LEAST(%d, 60*POW(2, LEAST(GREATEST(attempts-1,0),6))) SECOND)';
+				array_push( $args, $due, $now, HOUR_IN_SECONDS );
+			}
+			if ( '' !== $error ) {
+				$sql .= ',%i=%s';
+				array_push( $args, $error, $reason );
+			}
+			$sql .= ' WHERE %i=%d AND status=%s';
+			array_push( $args, $column, $id, $claimed );
+			$wpdb->query( $wpdb->prepare( $sql, $args ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders only, built above.
 		}
 	}
 

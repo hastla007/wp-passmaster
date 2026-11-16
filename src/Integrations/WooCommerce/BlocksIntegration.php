@@ -29,7 +29,14 @@ final class BlocksIntegration implements IntegrationInterface {
 			WPCAP_VERSION,
 			true
 		);
+		// Only registered here: initialize() runs on every request with WooCommerce (also wp-admin).
+		// The stylesheet is enqueued together with the checkout block's assets.
 		wp_register_style( Attendees::HANDLE, WPCAP_URL . 'assets/woocommerce/attendees.css', array(), WPCAP_VERSION );
+		add_action( 'woocommerce_blocks_enqueue_checkout_block_scripts_after', array( __CLASS__, 'enqueue_style' ) );
+	}
+
+	/** Checkout block assets are being enqueued: add the attendee field styles. */
+	public static function enqueue_style() {
 		wp_enqueue_style( Attendees::HANDLE );
 	}
 

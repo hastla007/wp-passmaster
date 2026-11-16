@@ -1,29 +1,27 @@
-# TODO – WP Pass Captain
+# TODO – Pass Captain
 
-Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugin 1.4.0). Häkchen bedeuten: Der beschriebene Umfang ist im Code und/oder in den automatisierten Prüfungen vorhanden. Teilumsetzungen bleiben offen und nennen den Restumfang. Voucher Captain bleibt eine optionale, separat installierbare Integration.
+Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugin 1.4.0 plus die unveröffentlichten Änderungen laut `CHANGELOG.md`, Stand 2026-11-14). Häkchen bedeuten: Der beschriebene Umfang ist im Code und/oder in den automatisierten Prüfungen vorhanden. Teilumsetzungen bleiben offen und nennen den Restumfang. Voucher Captain bleibt eine optionale, separat installierbare Integration.
 
 ## P0 – Repository und Plugin-Grundlage
 
-- [x] Produkt- und Repo-Namen festlegen: **WP Pass Captain**, Slug `wp-passmaster`, Textdomain `wp-pass-captain`, Namespace und Plugin-Konstanten sind festgelegt.
+- [x] Produkt- und Repo-Namen festlegen: **Pass Captain** (umbenannt von „WP Pass Captain“, siehe A7b), Plugin-Slug/Ordner `pass-captain`, Repository `wp-passmaster`, Textdomain `pass-captain`, Namespace `PassCaptain` und Plugin-Konstanten `WPCAP_*`. REST-Namensraum `wp-pass-captain/v1`, Blocknamen und Shortcodes behalten bewusst die alten Namen.
 - [x] Architekturentscheidungen für Mindestversionen, Custom Tables, Zahlungsstatus und Adapter festhalten (PHP 8.2+, WordPress 6.4+, WooCommerce optional; Details in README, `docs/` und Schema).
 - [x] Plugin-Bootstrap, Composer-Autoloading, Aktivierungs-/Deaktivierungshooks, Capabilities, REST-Grundlage und Adminnavigation erstellen.
 - [x] Composer-Abhängigkeiten, Lizenzdokumentation und installierbares Release-ZIP einrichten (CI-Build vorhanden).
-- [ ] Reproduzierbaren Release-Build mit dokumentiertem Abgleich der Artefakte absichern.
 - [x] Versioniertes Schema und Upgrade-Migrationen erstellen; Migration läuft kontrolliert im Admin, per Cron oder WP-CLI.
-- [ ] Rollback-/Restore-Verhalten mit echten Datenbankständen erproben und dokumentieren.
+- [ ] Rollback-/Restore-Verhalten mit echten Datenbankständen erproben und dokumentieren. *Stand 2026-11-15: automatisierte Restore-Übung mit Diagnose und idempotentem Wiederanlauf auf MariaDB/MySQL (`tests/drills/restore-drill.sh`, wöchentlich); Übung mit echten Produktionsdaten bleibt manuell.*
 - [x] Plugin muss ohne WooCommerce und ohne Voucher Captain aktivierbar und funktionsfähig sein; beide Integrationen bleiben optional.
 
 ## P0 – Event- und Verkaufsgrundlage
 
 - [x] Events und Occurrences mit Zeitzonen, Veranstaltungsorten und Status modellieren.
-- [ ] Terminserien vollständig mit individueller Kapazität, Preisfenstern und getrennten Änderungsverläufen ausbauen.
 - [x] Tickettypen mit Preis, Währung, Kontingent und Mengenlimits implementieren.
-- [ ] Steuerklassen und geprüfte länderspezifische Verkaufs-/Steuerregeln an Bestellungen anbinden.
+- [ ] Steuersatz je Ticketart (`tax_rate_bp`) fließt bereits in Positions-Snapshots, Rechnungen und Gutschriften ein. Offen: die versionierten Länder-/Steuerprofile (`wpcap_tax_profiles`, bisher nur als REST-Entwurf) an Bestellungen anbinden und geprüfte länderspezifische Verkaufs-/Steuerregeln hinterlegen. *Stand 2026-11-14: Steuerprofile mit Versionen, Zuordnung je Event-Land/Ticketart, Snapshot an der Bestellposition, Admin „Steuerprofile“ (`Sales/TaxProfiles`) sind umgesetzt; offen bleibt die fachliche Prüfung/Aktivierung je Land.*
 - [x] Öffentliche Eventseite als Gutenberg-Block und Shortcode mit Ticket-Auswahl bereitstellen; öffentliche Tastatur-/A11y-Prüfungen sind vorhanden.
 - [x] Native Bestellungen mit Käuferdaten, Positionen, Statusübergängen und Idempotenz erstellen.
-- [ ] Teilnehmerfelder sind als Datenmodell angelegt; Formular-Editor, Checkout-Erfassung, Feldvalidierung, Export/Löschung und Einwilligungssteuerung fehlen noch.
+- [x] Teilnehmerfelder: Feld-Editor je Ticketart (Admin „Events“; Typen Text/E-Mail/Textbereich/Checkbox, Zweck, Aufbewahrungsdauer), Checkout-Erfassung mit Pflicht- und E-Mail-Validierung (`Orders`), Änderung im Bestellportal mit Frist `attendee_edit_hours`, rollenbeschränkte Teilnehmerliste/CSV (`Printing/AttendeeList`), Datenschutzexport/-löschung und fristgesteuerte Löschung (`Privacy/Retention`) sind umgesetzt. Offen: eigene Einwilligungssteuerung für Teilnehmerfelder (protokollierte Einwilligung mit Text/Version/Zeitpunkt und Widerruf); bisher nur über Pflicht-Checkbox-Felder abbildbar. **Erledigt (2026-11-14):** protokollierte Einwilligungsfelder mit Textversion, Widerruf im Bestellportal, Export/Löschung (`Sales/Consents`).
 - [x] Kampagnencodes mit Prozent-/Festbetragsrabatt, Event-/Ticket-Scope, Priorität, globalem Nutzungslimit und Preis-Snapshot implementieren.
-- [ ] Checkout-Oberfläche, Ablaufregeln, Käuferlimits und konfigurierbare Stapelregeln vervollständigen.
+- [x] Checkout-Oberfläche (`assets/checkout.js`), Verkaufsfenster je Ticketart, `max_per_order` sowie Kampagnen-Zeitfenster mit höchstens drei Codes sind vorhanden. Offen: Käuferlimits über mehrere Bestellungen (je E-Mail/Konto), konfigurierbare Stapelregeln für Kampagnen und eine Admin-Oberfläche für Kampagnen (derzeit nur REST). **Erledigt (2026-11-14):** Käuferlimits je E-Mail/Kundenkonto atomar (`Sales/BuyerLimits`, Paralleltest 8 Bestellungen/Limit 3) und Stapelregeln/Rabattobergrenzen in Kampagnen (`Campaigns::calculate`, Admin „Kampagnen“).
 
 ## P0 – Reservierung, Zahlung und Ausgabe
 
@@ -31,36 +29,34 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] Bestand aus Verkäufen und aktiven Holds berechnen; Nebenläufigkeits-/Lasttests belegen, dass Checkout-Käufe das Kontingent nicht überverkaufen.
 - [x] Abgelaufene Holds und Checkout-Abbrüche geben Bestand frei; Zahlungsereignisse werden idempotent verarbeitet.
 - [ ] Anbieter-Sandbox- und Wiederherstellungstests für verspätete/mehrdeutige Live-Zahlungsereignisse abschließen.
-- [x] Payment-Gateway-Vertrag sowie Adapter für manuelle Bestätigung, Stripe und PayPal implementieren.
+- [x] Payment-Gateway-Vertrag sowie Adapter für manuelle Bestätigung, Stripe, PayPal und Mollie (optionales Modul `Modules/Mollie`) implementieren.
 - [x] Signaturprüfung und Idempotenz für Zahlungs-Webhooks implementieren; Kartendaten werden nicht selbst gespeichert.
 - [x] Preis-/Positions-Snapshots und Refund-Status im Bestellablauf speichern.
-- [ ] Steuerberechnung, rechtlich geprüfte Gutschriften und alle Teil-/Vollrefund-Sonderfälle je Land vervollständigen.
+- [ ] Bruttosteuer je Position wird berechnet, bei Refunds entstehen Rechnungskorrekturen (`Invoices::credit_note_for_refund`). Offen: rechtliche Prüfung der Gutschriften/Korrekturbelege sowie alle Teil-/Vollrefund-Sonderfälle je Land.
 - [x] Pro gekaufter Einheit idempotent ein Ticket erzeugen und mit Bestellung/Position verknüpfen.
 
 ## P0 – QR-Ticket und Online-Check-in
 
-- [ ] Tickets verwenden zufällige 256-Bit-Codes; gespeichert wird nur deren Hash, und der QR enthält keine PII oder fortlaufende Datenbank-ID. Ein separates signiertes QR-Payload ist nicht umgesetzt; Sicherheits- und Interoperabilitätsentscheidung dafür dokumentieren.
-- [ ] Ticketlink/QR, E-Mail-Zustellung, private Druckansicht und Bestell-/Ticketportal sind vorhanden; native PDF-Erzeugung und vollständige Teilnehmer-Selbstbedienung fehlen.
-- [ ] Rollen und eventbezogene Zuweisungen sind vorhanden; granulare Scopes für Standorte/Partner, Finanzrollen, PII-Minimierung und vollständige Admin-/REST-Abdeckung ergänzen.
+- [x] Tickets verwenden zufällige 256-Bit-Codes; gespeichert wird nur deren Hash, und der QR enthält keine PII oder fortlaufende Datenbank-ID. Ein separates signiertes QR-Payload ist nicht umgesetzt; Sicherheits- und Interoperabilitätsentscheidung dafür dokumentieren. **Erledigt (2026-11-15):** Optionales signiertes QR-Format `PC1` (Ed25519, Schlüssel im Vault, Rotation mit Schonfrist/sofortiger Sperre, Code-Version gegen Neuausgabe), offline in der PWA prüfbar; Entscheidung in `docs/SECURITY.md`.
+- [x] Ticketlink/QR, E-Mail-Zustellung, private Druckansicht, native Ticket-PDF als Mail-Anhang (`TicketPdf`, Filter `wpcap_attach_ticket_pdf`) und Bestell-/Ticketportal mit Teilnehmer-Selbstbedienung (`OrderPortal`) sind umgesetzt.
 - [x] Mobilfreundlichen Online-Scanner mit Kamera-QR-Scan und manueller Codeeingabe bereitstellen.
-- [ ] Vollständige installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren.
+- [ ] Vollständige installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren. *Stand 2026-11-15: Offline-Scanner-PWA automatisiert in Chromium, Firefox, WebKit sowie Pixel-7- und iPhone-14-Emulation; echte Geräte bleiben manuell.*
 - [x] Check-in-Nebenläufigkeitsfehler behoben: Ticketzeile wird gesperrt, sämtliche Schreibvorgänge/Commit werden geprüft und der Check-in-Lasttest ist ein verpflichtender CI-Schritt (zuletzt erfolgreicher main-CI-Lauf #492).
-- [ ] Zusätzlich Default-/Heavy-Profile und den REST-Lasttest regelmäßig auf MySQL/MariaDB ausführen; Regressionen und Durchsatzänderungen dokumentieren.
 - [x] Auditprotokolle für Check-ins, Bestellungen, Zahlungs-/Refund- und Adminaktionen sind implementiert.
-- [ ] Audit-Abdeckung für alle PII-Zugriffe, Exporte, Rollenänderungen und Korrekturen vervollständigen.
+- [x] Audit-Log deckt bereits Exporte (Berichte, Buchhaltung, Teilnehmerlisten), Event-/Bereichspersonal-Zuweisungen, Ticketübertragungen, Teilnehmerzuweisungen, Check-in-Rücknahmen und Erstattungen ab. Offen: Änderungen an WordPress-Rollen/Capabilities, lesende PII-Zugriffe (Bestell-/Ticketdetailansichten) und eine Admin-Ansicht für das Audit-Log. **Erledigt (2026-11-14):** Rollen-/Capability-Änderungen und Lesezugriffe auf personenbezogene Daten (gedrosselt) werden protokolliert; Audit-Log-Ansicht mit Filtern und CSV-Export (`Security/AuditTrail`, `Admin/AuditLogPage`).
 - [x] Admin-Bestell-/Ticketansichten, Ticketnachsendung, Widerruf und Fehler-/Retry-Abläufe bereitstellen; Restfälle im echten WordPress-Betrieb abnehmen.
 
 ## P0 – Datenschutz und Releasefähigkeit
 
 - [x] WordPress-Datenschutzexport und Löschschnittstellen einbinden.
-- [ ] Datenschutzexport/-löschung ist vorhanden; konfigurierbare Fristen je Datenart und getrennte Behandlung von Teilnehmerdaten/Finanzbelegen fehlen.
+- [x] Datenschutzfristen: tägliche Durchsetzung (`Privacy/Retention`) mit getrennten Fristen für Teilnehmerantworten (Einstellung `attendee_retention_days` oder Frist je Feld), Teilnehmerkontaktdaten, unbezahlte Bestellungen, Queue-Inhalte, Check-in-Personaldaten und Audit-Log (per Filter anpassbar); Finanzbelege bleiben unberührt, Löschanfragen bei kommenden Terminen werden zurückgestellt.
 - [x] Nonces, Capabilities, REST-Validierung, Escaping, Rate-Limits und Bereinigung sensibler Logdaten sind im Code abgedeckt.
-- [ ] Unabhängigen Sicherheitsreview/Penetrationstest durchführen.
+- [ ] Unabhängigen Sicherheitsreview/Penetrationstest mit priorisiertem Befundregister, Fixes und Wiederholungstest abschließen; `docs/SECURITY.md` und Meldungsprozess daran anpassen.
 - [x] Datenbank-/Integrationstests für Checkout, Zahlungs-Webhooks, Refunds, WooCommerce, REST und Scanner-Grundabläufe sowie Last- und A11y-Testwerkzeuge einrichten.
 - [ ] PWA-/Endgeräte-, reale PSP-Sandbox- und vollständige Refund-End-to-End-Abnahmen in CI/Release-Gates ergänzen.
 - [x] CI baut und prüft ein installierbares ZIP; Aktivierungs-/Deaktivierungshooks und Migrationen sind vorhanden.
-- [ ] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten.
-- [ ] Automatisierte Integration-, Syntax-, Last- und A11y-Prüfungen existieren; verbindliche Release-Gates sowie manuelle Mobile-/Desktop-Abnahme sind noch nicht vollständig dokumentiert.
+- [x] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten. **Erledigt (2026-11-15):** CI-Installationstest in echtem WordPress 6.4/7.1 (mit/ohne WooCommerce, HPOS an/aus), Update von 1.4.0 mit Daten, Deinstallation mit/ohne Datenlöschung; wöchentliche Restore-Übung (`drills.yml`).
+- [x] Automatisierte Integration-, Syntax-, Last- und A11y-Prüfungen existieren; verbindliche Release-Gates sowie manuelle Mobile-/Desktop-Abnahme sind noch nicht vollständig dokumentiert. **Erledigt (2026-11-14):** verbindliche automatische Gates und manuelle Abnahme-Checkliste mit Freigabevorlage in `docs/RELEASE.md`; Browser-/A11y-Job in CI.
 
 ## P1 – Voucher-Captain-Integration
 
@@ -77,111 +73,104 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] WooCommerce als optionale Integration über einen Adapter anschließen; der Plugin-Kern bleibt ohne WooCommerce aktivierbar.
 - [x] WooCommerce CRUD-APIs und HPOS-kompatible Bestellzugriffe verwenden.
 - [x] Classic Checkout und WooCommerce Checkout Blocks unterstützen.
-- [x] Ticketprodukte, Bestellstatus, kostenlose Bestellungen, wiederholte Hooks und Refund-/Stornoereignisse integrieren; Mehrfachverkäufer-Aufteilung für Warenkorbpositionen ist in Arbeit/PR #14 und noch nicht in `main`.
-- [ ] WooCommerce-Integrations- und HPOS-Verhalten wird in der Test-Suite geprüft; echte Version-/HPOS-Matrix gegen eine installierte WooCommerce-Umgebung fehlt.
+- [x] Ticketprodukte, Bestellstatus, kostenlose Bestellungen, wiederholte Hooks und Refund-/Stornoereignisse integrieren. Mehrverkäufer-Warenkörbe werden in WooCommerce weder aufgeteilt noch abgelehnt (siehe „Fiskalisierung und Multi-Seller“ und „Multi-Seller-Geschäftsabläufe“).
 
 ## P2 – Erweiterte Eventfunktionen
 
-- [ ] Sitzplan-REST-Grundlage, versionierte Layouts und temporäre atomare Platz-Holds sind vorhanden; Admin-Editor, Checkout-Verknüpfung und Verkaufs-Commit fehlen.
-- [ ] Wöchentliche Terminserien werden erstellt; individuelle Kapazitäten/Preisfenster, Editierbarkeit und Sitzplanverknüpfung fehlen.
-- [ ] Wallet-Providervertrag/Pass-Metadaten sind vorhanden; Apple-/Google-Pass-Erzeugung, Betreiberkonten, Zertifikate und Live-Abnahme fehlen.
-- [ ] Rechnungsnummern und Draft-Rechnungen mit Käufer-/Positionssnapshot sind vorhanden; Steuerberechnung steht noch nicht bereit und rechtliche/steuerliche Freigabe je Land fehlt.
-- [ ] Basisberichte für Verkäufe und Check-ins sind vorhanden; Buchhaltungsexporte und Korrekturbelege fehlen, Berichte brauchen Erweiterung/Abnahme.
-- [ ] Offline-Queue und Batch-Synchronisierung mit Konfliktantworten sind vorhanden; Gerätezuweisung, lokale Berechtigungsprüfung und garantierte globale Einmaligkeit fehlen. Nicht als konfliktfreien Offlinebetrieb freigeben.
+- [x] Sitzpläne: versionierte Layouts mit grafischem Admin-Editor „Saalpläne“ (`Seating/AdminPage`, `assets/seating/editor.js`), Verknüpfung mit Terminen und Zonen je Ticketart, Platzwahl im nativen Checkout (`Seating/Picker`, `assets/seating/picker.js`), atomare Platz-Holds, Verkaufs-Commit bei Zahlung (`Reservations::on_order_paid`), Freigabe bei Storno/Widerruf/Refund sowie Platzangabe in Mail und Ticket. WooCommerce zeigt keine Platzwahl, sondern weist die besten freien Plätze automatisch zu.
+- [x] Terminserien: Regeln täglich/wöchentlich/monatlich/Datumsliste mit Ausnahmen und Sommerzeitbehandlung (`Series/Rules`), Admin „Serientermine“ mit Vorschau (`Series/AdminPage`), individuelle Kapazität, relative Verkaufsfenster, Sitzplanverknüpfung, gemeinsame Kontingente (`Series/Pools`) und Preisregeln (`Series/Pricing`); einzelne Termine bleiben im Event-Admin editierbar, Änderungen werden je Termin im Audit-Log protokolliert.
+- [ ] Apple-Wallet- (.pkpass mit Signatur, APNs-Updates, PassKit-Webservice) und Google-Wallet-Erzeugung (Klassen/Objekte, Speichern-Link, REST-Updates) sind umgesetzt (`src/WalletPasses/*`, `docs/WALLET.md`). Offen: Betreiberkonten und Zertifikate einrichten, Live-Abnahme mit Apple/Google, Wallet-Links im Bestellportal und Pässe für vor der Modulaktivierung ausgestellte Tickets.
+- [ ] Rechnungen und Rechnungskorrekturen mit lückenlosen Nummernkreisen, USt aus Positions-Snapshots, Rechnungs-PDF (`Printing/InvoicePdf`), Vermittler-Modell und Buchhaltungsexport sind umgesetzt; rechtliche/steuerliche Freigabe der Belege je Land fehlt.
+- [x] Berichte (`Reports/*`): Umsatz brutto/netto/USt je Event, Termin, Ticketart, Zahlungsanbieter und Tag mit Zeitraumfilter, Erstattungen, Auslastung, Check-in-Quoten, Kasse-/Online-Anteil und rollenbeschränktem CSV-Export; Buchhaltungsexport, Gutschriften und Teilnehmerliste/CSV sind vorhanden. Offen: Vergleichszeiträume, Kampagnenauswertung und fachliche Abnahme der Zahlen. **Erledigt (2026-11-14):** Vergleichszeitraum (Vorperiode/Vorjahr) und Aufschlüsselung nach Kampagne, rollenbeschränkter CSV-Export (`Reports/*`).
+- [x] Offline-Scanner: signierte Offline-Pakete (Ed25519) mit lokaler Prüfung (`OfflineScanner/Package`), Gerätezuweisung je Event/Termin (`OfflineScanner/Assignments`) und Einlassbereich, Opt-in je Event mit Duplikatrichtlinie (`OfflineScanner/Rules`), Batch-Synchronisierung und Konfliktseite „Einlass-Konflikte“ (`Admission/ConflictsPage`). Offlinebetrieb bleibt prinzipbedingt nicht konfliktfrei: Doppel-Einlässe werden erst beim Sync erkannt und zur Klärung vorgelegt.
 
 ## P2 – Entscheidungen vor Produktivstart
 
 - [ ] Startländer festlegen (AT/DE/CH) und Rechts-/Steuerprüfungen je Land beauftragen.
-- [x] Erste Online-PSPs sind Stripe und PayPal; weitere Anbieter/Länder-Zahlungsarten bleiben separat zu priorisieren.
-- [ ] MVP-Entscheidung treffen: native Rechnungs-PDFs oder zunächst Buchhaltungsexport.
-- [ ] Festlegen, ob Seat Map im ersten marktfähigen Release enthalten ist.
-- [ ] Einmalige Ticketübertragung und Eventabsage sind teilweise umgesetzt; vollständige Regeln für Refund nach Check-in, Terminverschiebung, Wiederzulassung und alle Statusfolgen festlegen.
+- [x] Erste Online-PSPs sind Stripe und PayPal, ergänzt um Mollie; weitere Anbieter/Länder-Zahlungsarten bleiben separat zu priorisieren.
+- [x] MVP-Entscheidung native Rechnungs-PDFs oder Buchhaltungsexport: beides ist umgesetzt (`Printing/InvoicePdf`, Buchhaltungsexport in `Invoices`).
+- [ ] Sitzpläne sind umgesetzt (siehe oben); festlegen, ob die Seat Map im ersten marktfähigen Release freigegeben oder als experimentell gekennzeichnet wird.
 
 ## Abnahmekriterien
 
 - [x] Native Bestellungen funktionieren ohne WooCommerce; je gekaufter Einheit wird idempotent ein Ticket erzeugt.
 - [x] Nebenläufigkeitstests belegen, dass parallele Checkouts das Kontingent nicht überverkaufen.
 - [x] Einmal-Check-in lehnt doppelte Scans atomar ab; der verpflichtende CI-Nebenläufigkeitstest besteht. Zusätzliche Heavy-/REST-Profile bleiben als Härtung offen.
-- [x] Ticket Captain funktioniert ohne Voucher Captain; Voucher Captain funktioniert ohne Ticket Captain. *(CI beider Plugins läuft ohne das andere)*
+- [x] Pass Captain funktioniert ohne Voucher Captain; Voucher Captain funktioniert ohne Pass Captain. *(CI beider Plugins läuft ohne das andere)*
 - [x] Gemeinsame Installation aktiviert die definierte Bridge, ohne separate Plugin-Einträge oder Admin-Menüs zusammenzulegen.
 - [x] Gutschein-zu-Ticket-Einlösung und Ticket-Rückerstattung sind idempotent und revisionsfähig.
-- [ ] Release-Gates aus Konzept sind bestanden und dokumentiert.
+- [ ] Release-Gates aus Konzept sind bestanden und dokumentiert. *Stand 2026-11-14: Gates dokumentiert (`docs/RELEASE.md`), automatisiert in CI/Release-Workflow; Automatische Gates seit Run #715 grün; offen ist die manuelle Abnahme (`docs/RELEASE.md`).*
 
 ## P1 – Ticketverwaltung nach dem Kauf
 
-- [ ] Käuferportal/Gastlinks und einmalige Ticketübertragung sind vorhanden; vollständige Selbstbedienung für Nachsendung und Teilnehmerdaten fehlt.
+- [x] Käuferportal/Gastlinks mit Selbstbedienung: erneuter Versand (höchstens dreimal pro Stunde), Teilnehmerzuweisung mit Zusatzfeldern und Änderungsfrist, einmalige Übertragung und Rechnungsangaben (`OrderPortal`).
 - [x] Einmalige Ticketübertragung vor Veranstaltungsbeginn mit Tokenrotation und Widerruf des alten Codes ist umgesetzt; ausbauen für konfigurierbare Fristen/Regeln.
-- [ ] Eventabsage, Refunds und Widerruf haben Grundabläufe; Terminverschiebung und vollständige Status-/Sonderfallregeln, insbesondere Refund nach Check-in, sind offen.
-- [ ] Idempotenz ist in vielen Bestell-/Zahlungspfaden vorhanden; vollständige End-to-End-Abnahme für Storno, Widerruf, Neuausgabe und alle Refundkombinationen fehlt.
-- [ ] Teilnehmerfeld-Datenschema ist angelegt; Formular-Editor, Checkout-Erfassung, Export, Zugriffsschutz, Änderungsfristen und Löschregeln fehlen.
-- [ ] E-Mail-Vorlagen und Eventabsage-Benachrichtigung sind vorhanden; Vorlagen/Benachrichtigungen für Verschiebung, Refund und Übertragung vervollständigen.
+- [ ] Eventabsage, Terminabsage mit automatischen Erstattungen (`OccurrenceCancellation`), Terminverschiebung mit Benachrichtigung (E-Mail, SMS, Webhook, Wallet) sowie Refunds und Widerruf sind umgesetzt. Offen: Regeln für Refund nach Check-in, Wiederzulassung nach Widerruf und alle Statusfolgen festlegen und umsetzen. *Stand 2026-11-14: Regel für Erstattung nach Check-in ist einstellbar (`refund_after_checkin`: erlauben/Freigabe/ablehnen) und wird bei Erstattungen und Terminabsagen durchgesetzt; Wiedereinlass-Regeln umgesetzt. Offen: Abnahme aller Statusfolgen.*
+- [x] Idempotenz ist in vielen Bestell-/Zahlungspfaden vorhanden; vollständige End-to-End-Abnahme für Storno, Widerruf, Neuausgabe und alle Refundkombinationen fehlt. **Erledigt (2026-11-14):** Zustandsautomaten-Tests mit doppelten, verspäteten und vertauschten Ereignissen (`zzzz_w6_state_machines.php`, `docs/STATE-MACHINES.md`). Echte PSP-Abnahme siehe „Externe Abnahmen“.
+- [x] E-Mail-Vorlagen mit Admin-Editor (`Mail/Types`, `Mail/Admin`) für Tickets, Nachsendung, Bestellzugang, Übertragung (Absender/Empfänger), Teilnehmerzuweisung, Erstattungsbestätigung, Event-/Terminabsage, Terminverschiebung, Warteliste und Mitgliedspass.
 
 ## P1 – Bootsschul- und Servicebuchungen
 
-- [ ] Ressourcen-, Zeitfenster- und Buchungshold-Grundlagen mit Zeitzone/Kapazität sind vorhanden; Dauer/Puffer und Partnerverwaltung fehlen.
+- [x] Ressourcen-, Zeitfenster- und Buchungshold-Grundlagen mit Zeitzone/Kapazität sind vorhanden; Dauer/Puffer und Partnerverwaltung fehlen. **Erledigt (2026-11-14):** Standarddauer, Puffer vor/nach und Überschneidungsprüfung; Ressourcen je Veranstalter mit Partnersicht (`ServiceResources`, `ServiceBookings`).
 - [x] Kapazitätsgesperrte, idempotente Buchungsholds für Service-Zeitfenster sind als REST-Grundlage vorhanden.
-- [ ] Buchungsschluss, Vorlauf, Maximalbuchungen und Umbuchungs-/Stornierungsfristen fehlen.
-- [ ] Umbuchungs-/Stornierungs-End-to-End-Abläufe mit Zahlung, Gutschein, Bestand, Benachrichtigung und Audit-Log fehlen.
-- [ ] No-show-Regeln und manuelle Partnerbestätigung als optionale Richtlinien abbilden.
-- [ ] Warteliste für ausgebuchte Slots mit befristetem Angebot, Annahmefrist und nachvollziehbarer Reihenfolge ergänzen.
-- [ ] Service-Pass-Regeln getrennt von Eventticket-Regeln abnehmen: terminfrei/terminpflichtig, einmalige/mehrfache Nutzung und Ablauf.
+- [x] Buchungsschluss, Vorlauf, Maximalbuchungen und Umbuchungs-/Stornierungsfristen fehlen. **Erledigt (2026-11-14):** Buchungsschluss, Vorlauf, Maximalbuchungen je Zeitraum, Umbuchungs-/Stornofristen je Ressource (Admin „Buchungsregeln“).
+- [x] Umbuchungs-/Stornierungs-End-to-End-Abläufe mit Zahlung, Gutschein, Bestand, Benachrichtigung und Audit-Log fehlen. **Erledigt (2026-11-14):** Umbuchung/Storno durch Käufer (Portal, REST, Verwaltungstoken) und Personal mit Erstattung, Gutscheinanteil, Kapazität, Mails und Audit; Fault-Injection-Tests. Rest: Umbuchung auf teureren Termin mit Nachzahlung (derzeit abgelehnt).
+- [x] No-show-Regeln und manuelle Partnerbestätigung als optionale Richtlinien abbilden. **Erledigt (2026-11-14):** No-show-Regel (markieren/verfallen, Sperre nach N) und Partnerbestätigung mit Frist und automatischer Erstattung bei Ablehnung.
+- [x] Warteliste für ausgebuchte Slots mit befristetem Angebot, Annahmefrist und nachvollziehbarer Reihenfolge ergänzen. **Erledigt (2026-11-14):** Slot-Warteliste mit befristetem Angebot, automatischem Nachrücken und Positionsabfrage (`ServiceWaitlist`).
+- [x] Service-Pass-Regeln getrennt von Eventticket-Regeln abnehmen: terminfrei/terminpflichtig, einmalige/mehrfache Nutzung und Ablauf. **Erledigt (2026-11-14):** Pass-Regeln mit Geltungsbereich Event/Service, terminfrei/terminpflichtig, Einmal-/Mehrfachnutzung, Ablauf; Tests trennen Service- und Eventnutzung.
 
 ## P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen
 
 - [x] Admission-Policies für einmaligen, täglichen und mehrtägigen Eintritt sowie begrenzte Mehrfachzulassung/Wiedereinlass im Backend umgesetzt.
-- [x] Einlassregeln und Status pro Veranstaltungstag sind im Backend vorhanden; Admin-Oberfläche und echte Mehrtagesticket-Abnahme fehlen.
-- [ ] Check-in-Korrekturen sind grundlegend protokollierbar; getrennte Check-out-Bedienung und vollständige Rollenprüfung/Abnahme ergänzen.
-- [ ] Geräte-Token und Offline-Synchronisierung sind vorhanden; Zuweisung nach Einlassbereich und vollständige Admin-Konfliktansicht fehlen.
-- [ ] Doppelte Einlösungen aus unabhängig offline arbeitenden Scannern erkennen, protokollieren und einer Admin-Klärung zuführen.
-- [ ] POS-REST-API kann Verkäufe über gemeinsames Kontingent anlegen; Bedienoberfläche, Zahlungsarten, fiskalische Belege und Druckworkflow fehlen.
-- [ ] Ticket-, Badge-, Namensschild- und Armbandvorlagen sowie Teilnehmerlisten-Druck/Export ergänzen.
-- [ ] Kalender, E-Mail-Erinnerungen und Nachrichtengrundlagen sind vorhanden; vollständiger iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis abnehmen.
-- [ ] SMS-Einstellungen/Queue-Grundlage sind vorhanden; Anbieteradapter und vollständige Einwilligungs-, Kosten- und Zustellstatusabläufe fehlen.
-- [ ] Weitere Zahlungsanbieter nach Zielland, Währung, Gebühren und Händlerverfügbarkeit priorisieren und über die Payment-Adapter anbinden.
+- [x] Einlassregeln und Status pro Veranstaltungstag sind im Backend vorhanden, Admin-Oberfläche „Einlassregeln“ (`Admission/RulesPage`) ebenfalls; echte Mehrtagesticket-Abnahme fehlt.
+- [x] Check-in-Rücknahme mit Grund und Audit (`TicketsPage::undo_checkin`) und Check-out im Web-Scanner (`Checkin::check_out`) sind umgesetzt; vollständige Rollenprüfung und Praxisabnahme stehen aus. **Erledigt (2026-11-14):** Rollenprüfung für Check-out (`checkout_roles`, Terminberechtigung) und Wiedereinlass-Regeln (`reentry_after_checkout`, `max_reentries`). Praxisabnahme bleibt in der manuellen Abnahme.
+- [x] Geräte-Token, Gerätezuweisung nach Event/Termin und Einlassbereich sowie Admin-Konfliktansicht „Einlass-Konflikte“ sind umgesetzt.
+- [x] Doppelte Einlösungen aus unabhängig offline arbeitenden Scannern werden beim Sync erkannt, protokolliert und je Richtlinie (`review`/`first_sync_wins`) einer Admin-Klärung zugeführt (`OfflineScanner/Sync`, `Admission/Conflicts`).
+- [x] Kasse (`BoxOffice/Page`, `assets/boxoffice/pos.js`): Kassensitzungen, Schnellverkauf über das gemeinsame Kontingent, Zahlarten bar/Karte/Freikarte/Rechnung, lückenlose Belegnummern, Belegdruck, Ticketdruck als PDF, Storno und Kassenabschluss sind umgesetzt. Offen: fiskalische Belege (RKSV/TSE u. a.); die Kasse zeigt ausdrücklich den Hinweis, dass sie keine Registrierkasse ist. Fiskaladapter siehe Abschnitt „Fiskalisierung und Multi-Seller“. **Erledigt (2026-11-15):** Fiskalbelege über die Fiskal-Adapter mit Sperre bis zur Bestätigung („stop_sale“) und Terminalverzeichnis; Zertifizierung bleibt extern.
+- [x] Ticket-, Badge-, Namensschild- und Armbandvorlagen als PDF (`Printing/Templates`, `Printing/PdfWriter`, Modul `PrintTemplates`) sowie Teilnehmerlisten-Druck/CSV mit rollenabhängiger Datenminimierung (`Printing/AttendeeList`).
+- [x] Eventkalender (Block/Shortcode), iCalendar-Download je Termin und Event-Feeds (`Calendar/Ics`, RFC 5545), `.ics`-Anhang in der Ticketmail, E-Mail-Erinnerungen (`Modules/Reminders`) und Benachrichtigungen bei Terminverschiebung/-absage.
+- [ ] SMS: Twilio- und generischer HTTP-Adapter, protokollierte Opt-in-Einwilligung mit Widerruf, Zustellstatus-Callback (Twilio, signaturgeprüft) und Schutz gegen Kostentreiberei sind umgesetzt (`Modules/Sms`, `src/Sms/*`). Offen: Kostenerfassung/Budgetgrenzen je Nachricht, Nummernverifikation und Live-Abnahme mit echtem Anbieterkonto. *Stand 2026-11-14: Offen bleibt der Live-Test mit echtem Anbieterkonto.*
+- [ ] Weitere Zahlungsanbieter nach Zielland, Währung, Gebühren und Händlerverfügbarkeit priorisieren und über die Payment-Adapter anbinden (vorhanden: manuelle Bestätigung, Stripe, PayPal, Mollie).
 - [x] Webhook- und Entwickler-Hook-Verträge sind versioniert dokumentiert; aktuelle Abdeckung ist in `docs/WEBHOOKS.md` und `docs/HOOKS.md` aufgeführt.
 - [ ] Einzelne Integrations-/Lasttests für diese Flows existieren; vollständige End-to-End-Abnahmesuite einschließlich Offlinekonflikten, Slot-Kollisionen und realem POS fehlt.
 
 ## P0 – Rollen, Eventscoping und Zugriffsschutz
 
-- [ ] Eigene Ticket-Captain-Capabilities und Rollenpakete implementieren; WordPress-Administrator bleibt technische Vollzugriffsrolle.
-- [ ] Rollen für Ticket-Administration, Veranstaltungsleitung, Partner/Leistungserbringer, Vor-Ort-Kasse, Einlass, Finanzbuchhaltung und Support definieren.
-- [ ] Nutzerzuweisungen nach Event, Termin, Einlassbereich oder Partnerleistung speichern; keine implizite globale Berechtigung aus einer operativen Rolle ableiten.
-- [ ] Serverseitige Objektberechtigung in Admin, REST, Kundenkonto, PWA, Exporten und Integrationsdiensten durchsetzen.
-- [ ] Käuferzugriff auf eigene Bestellungen/Tickets begrenzen; sichere, ablaufende und widerrufbare Gastzugriffe implementieren.
-- [ ] Datenfelder je Rolle minimieren: Einlass und Partner erhalten keine Zahlungsdaten; Finanzrollen keine unnötigen Teilnehmerzusatzdaten; Support maskierte/fallbezogene PII.
-- [ ] Erstattungs- und Sammelaktionen nach Capability, Eventscope, Betragsschwelle und optionaler Zweitfreigabe absichern.
-- [ ] Audit-Log für Rollenänderungen, Exporte, PII-Zugriffe, Erstattungen, Teilnehmeränderungen, Ticketübertragungen und Check-in-Korrekturen ergänzen.
-- [ ] Gemeinsame Konten ausschließen; Scannerzugänge kurzlebig, eventbezogen und widerrufbar machen.
-- [ ] Mehr-Faktor-Authentifizierung für administrative und finanzielle Rollen unterstützen; zeitlich begrenzten Supportzugriff protokollieren.
+- [x] Eigene Capabilities (`wpcap_manage_events`, `wpcap_manage_orders`, `wpcap_checkin`, `wpcap_view_reports`, `wpcap_refund`, `wpcap_approve_refunds`, `wpcap_view_finance`) und Rollenpakete sind implementiert (`Installer::register_roles`); WordPress-Administrator bleibt technische Vollzugriffsrolle.
+- [x] Rollen für Ticket-Administration, Veranstaltungsleitung, Veranstalter/Partner, Vor-Ort-Kasse, Einlass, Finanzbuchhaltung und Support sind definiert.
+- [x] Nutzerzuweisungen je Event (`wpcap_event_staff`, `Access::can_access_event`), je Einlassbereich (Bereichspersonal) und je Partner (Partner-Nutzer) sind umgesetzt; operative Rollen erhalten ohne Zuweisung keinen Eventzugriff. Offen: Zuweisung auf Terminebene. **Erledigt (2026-11-14):** Terminbezogene Personalzuweisung (`wpcap_occurrence_staff`, `Access::can_access_occurrence`) für Check-in, App, Offline-Pakete, Teilnehmerliste.
+- [x] Serverseitige Objektberechtigung in Admin, REST, Kundenkonto, PWA, Exporten und Integrationsdiensten durchsetzen. **Erledigt (2026-11-14):** Automatisierte Rechte-Matrix über 90 REST-Endpunkte und 90+ Admin-Aktionen (`tests/integration/modules/zz_w5_permissions.php`); jede neue Route muss deklariert werden.
+- [x] Käuferzugriff über gehashte, nach 30 Tagen ablaufende Gastlinks, die per Neuausgabe (`Orders::rotate_access_link`) widerrufen werden; Portal, REST, Rechnungs-PDF und Übertragung prüfen Token und Ablauf.
+- [x] Datenminimierung teilweise umgesetzt: Teilnehmerliste je Rolle (voll/basis), Teilnehmernamen in Scanner und Offline-Paketen nur per Einstellung, maskierte E-Mail im Portal. Offen: Zahlungsdaten konsequent für Einlass/Partner ausblenden, Finanzrollen ohne unnötige Teilnehmerzusatzdaten, maskierte/fallbezogene PII für Support. **Erledigt (2026-11-14):** Rollenprofile in `Security/DataPolicy`: Einlass/Partner ohne Zahlungsdaten, Finanzen ohne Teilnehmerzusatzdaten, Support maskiert mit auditierter Einzelfall-Freigabe.
+- [x] Erstattungen sind nach Capability, Event-Scope, kumulativer Betragsschwelle mit Zweitfreigabe durch eine andere Person und optionaler 2FA-Pflicht (`require_2fa_for_refunds`) abgesichert (`Refunds`).
+- [x] Scannerzugänge sind kurzlebig, eventbezogen und widerrufbar (Geräte-Pairing mit Ablauf, Event-/Bereichsbindung, Widerruf; `Mobile/Devices`). Offen: gemeinsame Benutzerkonten organisatorisch/technisch ausschließen. **Erledigt (2026-11-14):** Erkennung paralleler Sitzungen für Scanner-/Kassenkonten, optional nur eine aktive Sitzung (`staff_single_session`); organisatorische Regel in `docs/SECURITY.md`.
+- [x] 2FA-Pflicht ist für Erstattungen optional einstellbar (Two-Factor-Plugin oder Filter `wpcap_user_has_2fa`). Offen: MFA für weitere administrative und finanzielle Aktionen sowie protokollierter, zeitlich begrenzter Supportzugriff. **Erledigt (2026-11-14):** Step-up-2FA für Einstellungen, Secrets, Exporte, Rollenzuweisungen, Sammelaktionen, API-Schlüssel (`Security/StepUp`); zeitlich begrenzter, protokollierter Supportzugang (`Security/SupportAccess`).
 
 ## P0 – EU-Zielmarkt und Plattform-Kompatibilität
 
 - [x] EU ist als Zielmarkt festgehalten; Währungs-/Locale-Grundlagen und Übersetzungen sind vorhanden.
 - [ ] Länderbezogene Steuer-/Rechtsprofile fachlich prüfen und aktivieren.
 - [x] CI prüft PHP 8.2/8.4, Syntax, Composer, Integrationstests und ZIP-Build; Integration läuft mit MariaDB.
-- [ ] Reale CI-Matrix für WordPress/WooCommerce/MySQL-Versionen ergänzen; aktuelle Mock-/MariaDB-Tests sind keine echte Plattformmatrix.
 - [x] Keine Yoast-Laufzeitabhängigkeit; optionale Kompatibilität kann separat geprüft werden.
-- [ ] Kompatibilitäts- und Test-Baseline pro Release dokumentieren und aktuell halten.
-- [ ] PHP-Matrix in CI ist vorhanden; echte WordPress-/WooCommerce-Versionsmatrix fehlt.
+- [x] Kompatibilitäts- und Test-Baseline pro Release dokumentieren und aktuell halten. **Erledigt (2026-11-14):** `docs/COMPATIBILITY.md` (Abschnitt „Test-Basislinie je Release“ mit Pflegeablauf).
 - [ ] EU-Steuerfälle, OSS, Leistungsort, gemischte Steuersätze, Währungen und Erstattungsbelege mit fachlicher Steuerberatung für die unterstützten Länder spezifizieren.
 - [ ] Zahlungsanbieter und Währungen sind konfigurierbar; verfügbare Zahlungsmethoden pro Land/PSP/Transaktionstyp sowie Live-Akzeptanz fehlen.
 - [ ] Verbraucherinformationen und Storno-/Erstattungsbedingungen je unterstütztem Land rechtlich prüfen lassen.
-- [ ] Übersetzungen, Datenschutzexport/-löschung und A11y-Prüfwerkzeuge sind vorhanden; Datenschutzfristen, vollständige Admin-A11y und manuelle Screenreader-Abnahme als Release-Gates ergänzen.
 
 
-## Fiskalisierung und Multi-Seller — nicht in `main`
+## Fiskalisierung und Multi-Seller — nur teilweise in `main`
 
-Der seller-aware Fiskalisierungskern liegt derzeit in [Draft-PR #14](https://github.com/hastla007/wp-passmaster/pull/14); der Branch ist nicht in `main` integriert. Die dortigen Häkchen gelten deshalb nicht als erledigte Funktion der aktuellen Hauptversion.
+In `main` liegen bisher nur drei Dateien aus dem Fiskalisierungsumfang: der gemeinsame HTTP-Transport `src/Fiscalization/Providers/HttpClient.php` (Commit `f6e43f3`) sowie die Adapter `FiskaltrustAdapter` (`096209d`) und `EfstaEfrAdapter` (`253ee63`). Sie implementieren `PassCaptain\Fiscalization\AdapterInterface`, das in `main` **nicht** existiert, und werden von keiner Stelle aufgerufen; sie sind damit derzeit toter Code ohne Funktion. Der seller-aware Fiskalisierungskern aus [Draft-PR #14](https://github.com/hastla007/wp-passmaster/pull/14) – `AdapterInterface`, `Registry`, `CountryPolicy`, `Credentials`, `ProviderHttp`, `ReceiptRenderer`, `ArchiveExporter`, Modul `Fiscalization`, `BoxOffice/TerminalRegistry`, fiskaly-Adapter (SIGN AT, SIGN DE, Unified) sowie die Anbindung in Kasse, `Orders` und WooCommerce-`OrderAdapter` – ist nicht integriert. Multi-Seller in `main`: Verkaufsmodelle Eigenhändler/Vermittler je Veranstalter (`Partners/SalesModel`), der native Checkout lehnt Bestellungen mit verschiedenen Rechnungsstellern ab, Veranstalter-Abrechnungen (`Partners/Settlements`); eine WooCommerce-Korbaufteilung fehlt.
 
-- [ ] PR #14 mit dem aktuellen `main` abgleichen, Konflikte lösen und nach bestandener CI integrieren.
-- [ ] Im Draft vorhandene Multi-Seller-Profile, WooCommerce-Korbaufteilung sowie Anbieterwahl fiskaly/efsta/fiskaltrust in `main` übernehmen und auf realen POS-/WooCommerce-Installationen abnehmen.
+- [x] PR #14 mit dem aktuellen `main` abgleichen (Konflikt mit den bereits gemergten Adaptern und `HttpClient` gegenüber `ProviderHttp` auflösen), nach bestandener CI integrieren – oder bis dahin die verwaisten Adapter aus `main` entfernen. **Erledigt (2026-11-15):** PR #14 per Merge übernommen; eine Transportschicht (`Fiscalization\ProviderHttp` über `Security\OutboundHttp`), Zugangsdaten im Vault, 7 Fehler des PR behoben (u. a. nicht existierende Spalte, fatale `set_json_params`-Aufrufe, Statusabfragen ohne Status).
+- [x] Multi-Seller-Profile, WooCommerce-Korbaufteilung sowie Anbieterwahl fiskaly/efsta/fiskaltrust in `main` übernehmen und auf realen POS-/WooCommerce-Installationen abnehmen. **Erledigt (2026-11-15):** Verkäuferprofile, Anbieterwahl fiskaly/efsta/fiskaltrust je Verkäufer, Fiskalbelege je Verkäuferbestellung (WooCommerce-Aufteilung aus W10), Kassen-Terminalverzeichnis. Abnahme auf realen POS-/WooCommerce-Installationen bleibt extern.
 - [ ] Länder-/Anbieter-/Kanal-Konfiguration für AT, DE und HU mit echten Anbieter-Sandboxen testen und rechtlich/fachlich freigeben.
 - [ ] Refunds, Teilrefunds, Eventabsagen und gebrauchte Tickets providerseitig ausführen; im Draft werden die meisten Fälle noch manuell abgeglichen. Der efsta-AT/DE-Einmal-Vollstorno-Pfad ist eng begrenzt und braucht Sandbox-Abnahme.
 - [ ] Gesetzliche Länderanforderungen wie Signatur/TSE, Belegausgabe, vorgeschriebene Exporte und Hardwaretopologie fachlich prüfen. Adapter-Routing ist keine Zertifizierung oder Rechtsfreigabe.
 
 ## Kern-Plugin frei, Premium als getrenntes Add-on (Entscheidung 13.11.2026)
 
-**Entscheidung:** WP Pass Captain bleibt als Kern-Plugin vollständig kostenlos, ohne Lizenzprüfung und ohne gesperrte Funktionen, und wird so für WordPress.org geeignet. Premiumfunktionen kommen in ein getrenntes Add-on-Plugin, das über den eigenen Shop verkauft und aktualisiert wird. Nur das Add-on spricht mit dem Lizenzserver WP License Captain.
+**Entscheidung:** Pass Captain bleibt als Kern-Plugin vollständig kostenlos, ohne Lizenzprüfung und ohne gesperrte Funktionen, und wird so für WordPress.org geeignet. Premiumfunktionen kommen in ein getrenntes Add-on-Plugin, das über den eigenen Shop verkauft und aktualisiert wird. Nur das Add-on spricht mit dem Lizenzserver WP License Captain.
 
 **Folge für die offenen Lizenz-PRs #20–#23:** Sie bauen Lizenzclient, Rechteprüfung und eigenen Updater in dieses Plugin ein. Das ist für WordPress.org unzulässig (Richtlinie 5: keine gesperrten Funktionen oder Trialware; Richtlinie 8: keine Updates von fremden Servern). Die PRs werden deshalb **nicht** nach `main` gemergt; ihr Code wandert ins Add-on.
 
@@ -190,20 +179,20 @@ Stand in `main` am 13.11.2026: kein Lizenzcode vorhanden (per Suche nach `Licens
 ### A. Kern-Plugin (dieses Repository)
 
 - [ ] **A1 · Lizenz-PRs schließen.** PR #20 (Aktivierung), #21 (Updater), #22 (Rechte-Helfer) und #23 (Offline-Cache) nach dem Übertrag ins Add-on (B2) schließen, die Branches `codex/wplc-*` löschen.
-- [ ] **A2 · Wächtertest in CI.** Ein Test schlägt fehl, sobald im Kern-Plugin Lizenzcode auftaucht: Klassen oder Aufrufe mit `LicenseClient`, die Route `wplc/v1`, ein Header `Update URI`, eigene Filter auf `pre_set_site_transient_update_plugins` oder `plugins_api`, Abfragen wie `allows_entitlement`.
-- [ ] **A3 · Funktionsinventar festschreiben.** Jede vorhandene Funktion als „Kern, dauerhaft frei“ dokumentieren (`docs/FREE-PREMIUM.md`). Bereits ausgelieferte Funktionen werden nie nachträglich gesperrt oder ins Add-on verschoben.
-- [ ] **A4 · Erweiterungspunkte für das Add-on.** Hooks für Admin-Navigation, Einstellungen, Zahlungs- und Scanner-Adapter, Berichte und Exporte festlegen; die bestehenden Adapter-Verträge als Andockpunkte nutzen. Jeden Hook dokumentieren, als öffentliche API versionieren und mit einem Test absichern.
-- [ ] **A5 · Kern funktioniert allein.** Automatischer Test: alle Kernabläufe laufen ohne installiertes Add-on und ohne Netzwerkzugriff; das Kern-Plugin ruft den Lizenzserver nie auf.
-- [ ] **A6 · Hinweise auf das Add-on.** Höchstens dezent, wegklickbar und nur auf den eigenen Adminseiten (Richtlinie 11). Keine Menüpunkte, Schalter oder Felder, die sichtbar sind und erst nach Kauf funktionieren.
-- [ ] **A7 · readme.txt für WordPress.org.** Abschnitt `== External services ==` für jeden externen Aufruf des Kerns, korrekte Header (`Tested up to`, `Stable tag`, Lizenz GPL-2.0-or-later), keine Aussage, die eine Lizenz voraussetzt.
+- [x] **A2 · Wächtertest in CI.** Ein Test schlägt fehl, sobald im Kern-Plugin Lizenzcode auftaucht: Klassen oder Aufrufe mit `LicenseClient`, die Route `wplc/v1`, ein Header `Update URI`, eigene Filter auf `pre_set_site_transient_update_plugins` oder `plugins_api`, Abfragen wie `allows_entitlement`. **Erledigt (2026-11-14):** `tests/guard/no-license-code.php` (mit Selbsttest, berücksichtigt `.distignore`) als CI-Job `license-guard` und zusätzlich gegen das gebaute ZIP.
+- [x] **A3 · Funktionsinventar festschreiben.** Jede vorhandene Funktion als „Kern, dauerhaft frei“ dokumentieren (`docs/FREE-PREMIUM.md`). Bereits ausgelieferte Funktionen werden nie nachträglich gesperrt oder ins Add-on verschoben. **Erledigt (2026-11-14):** `docs/FREE-PREMIUM.md`.
+- [x] **A4 · Erweiterungspunkte für das Add-on.** Hooks für Admin-Navigation, Einstellungen, Zahlungs- und Scanner-Adapter, Berichte und Exporte festlegen; die bestehenden Adapter-Verträge als Andockpunkte nutzen. Jeden Hook dokumentieren, als öffentliche API versionieren und mit einem Test absichern. **Erledigt (2026-11-14):** Hooks für Einstellungen, Admin-Menü, Berichte, Exporte und Scanner-Adapter (`*_v1`), dokumentiert in `docs/EXTENSIONS.md`/`docs/HOOKS.md`; Vertragstest `hooks_contract.php`.
+- [x] **A5 · Kern funktioniert allein.** Automatischer Test: alle Kernabläufe laufen ohne installiertes Add-on und ohne Netzwerkzugriff; das Kern-Plugin ruft den Lizenzserver nie auf. **Erledigt (2026-11-14):** `tests/integration/modules/zzzz_w7_core_alone.php`: Kernabläufe ohne Add-on mit blockiertem HTTP.
+- [x] **A6 · Hinweise auf das Add-on.** Höchstens dezent, wegklickbar und nur auf den eigenen Adminseiten (Richtlinie 11). Keine Menüpunkte, Schalter oder Felder, die sichtbar sind und erst nach Kauf funktionieren. **Erledigt (2026-11-14):** Derzeit enthält der Kern keinerlei Add-on-Hinweise; der Wächtertest verhindert Lizenz-/Upsell-Code. Künftige Hinweise nur nach dieser Regel.
+- [x] **A7 · readme.txt für WordPress.org.** Abschnitt `== External services ==` für jeden externen Aufruf des Kerns, korrekte Header (`Tested up to`, `Stable tag`, Lizenz GPL-2.0-or-later), keine Aussage, die eine Lizenz voraussetzt. **Erledigt (2026-11-14):** `readme.txt` auf Englisch mit `== External services ==`; vor Einreichung Links der Anbieter-AGB/Datenschutz, `Contributors` und `Tested up to` manuell prüfen.
 - [x] **A7b · Name und Slug prüfen.** Umbenannt in „Pass Captain“ (WordPress.org erlaubt kein „WP“ im Namen): Hauptdatei `pass-captain.php`, ZIP- und Ordnername `pass-captain`, Textdomain `pass-captain` (gleich dem Slug), Übersetzungsdateien `languages/pass-captain-*`. Die alte Kopie `wp-pass-captain/wp-pass-captain.php` wird automatisch übernommen. Unverändert bleiben bewusst REST-Namensraum `wp-pass-captain/v1`, Blocknamen, Admin-Seiten-Slug, Theme-Vorlagenordner, Shortcodes, Präfix `wpcap_` und die Action-Scheduler-Gruppe – sie sind öffentliche Schnittstellen bzw. gespeicherte Daten. Offen: Repository-Name `wp-passmaster` (nur GitHub, nicht relevant für WordPress.org).
-- [ ] **A8 · Plugin Check.** Das offizielle Prüfwerkzeug „Plugin Check“ ohne Fehler durchlaufen lassen und als CI-Schritt aufnehmen.
+- [x] **A8 · Plugin Check.** Das offizielle Prüfwerkzeug „Plugin Check“ ohne Fehler durchlaufen lassen und als CI-Schritt aufnehmen. *Stand 2026-11-14: CI-Job `plugin-check` gegen das gebaute ZIP ist eingerichtet; erster fehlerfreier Lauf steht aus.* **Erledigt (2026-11-15):** Plugin Check 2.2.0 meldet 0 Fehler (vorher 315); verbleibende Warnungen sind direkte Zugriffe auf eigene Tabellen (in readme.txt erklärt). CI-Job `plugin-check` läuft gegen das gebaute ZIP.
 - [ ] **A9 · Einreichung.** Plugin bei WordPress.org einreichen, Rückfragen des Review-Teams abarbeiten, danach Veröffentlichung per SVN-Deploy aus der CI einrichten.
-- [ ] **A10 · Doku angleichen.** README, ROADMAP und Release-Checkliste von „Lizenzaktivierung im Plugin“ auf „Kern frei, Premium im Add-on“ umstellen.
+- [x] **A10 · Doku angleichen.** README, ROADMAP und Release-Checkliste von „Lizenzaktivierung im Plugin“ auf „Kern frei, Premium im Add-on“ umstellen. **Erledigt (2026-11-14):** README um „Kern frei, Premium im Add-on“ ergänzt; ROADMAP-Namen angeglichen.
 
 ### B. Premium-Add-on (neues, eigenes Repository)
 
-- [ ] **B1 · Repository und Plugin-Grundgerüst.** Neues Repository (Arbeitstitel `wp-pass-captain-pro`) mit eigenem Slug, eigener Textdomain und eigenem Namespace. Plugin-Header: `Requires Plugins: wp-passmaster`, `Update URI` auf den eigenen Shop (damit WordPress das Add-on nie mit einem WordPress.org-Plugin verwechselt), `Requires PHP: 8.2`. Beim Laden die Mindestversion des Kern-Plugins prüfen und sonst mit Admin-Hinweis sauber aussteigen.
+- [ ] **B1 · Repository und Plugin-Grundgerüst.** Neues Repository (Arbeitstitel `pass-captain-pro`) mit eigenem Slug, eigener Textdomain und eigenem Namespace. Plugin-Header: `Requires Plugins: pass-captain`, `Update URI` auf den eigenen Shop (damit WordPress das Add-on nie mit einem WordPress.org-Plugin verwechselt), `Requires PHP: 8.2`. Beim Laden die Mindestversion des Kern-Plugins prüfen und sonst mit Admin-Hinweis sauber aussteigen.
 - [ ] **B2 · Code aus den PRs #20–#23 übertragen.** Lizenzseite mit Aktivierung und Deaktivierung, Rechte-Helfer, Offline-Cache und Updater ins Add-on übernehmen. Die zugehörigen Auditbefunde aus dieser Datei ziehen mit um.
 - [ ] **B3 · Client auf den aktuellen Serverstand bringen.** `LicenseClient` aus `hastla007/wp-license`, Datei `src/Client/LicenseClient.php`, neu übernehmen. Die PR-Fassungen sind älter als der Server: Antworten tragen jetzt zusätzlich `payload` und `payload_signature`, die der Client über den rohen String prüft; `activate()` liefert eine bestehende gültige Aktivierung zurück, statt eine neue anzulegen (neuer optionaler vierter Parameter `force` erzwingt eine neue). Namespace mit Add-on-Präfix versehen und die Textdomain `wp-license` durch die des Add-ons ersetzen.
 - [ ] **B4 · `product_key` festlegen.** Der Wert muss exakt dem Produktschlüssel im Katalog des Lizenzservers entsprechen (festgelegt am 14.11.2026: `pass-captain-pro`; gleich dem Ordnernamen und der Textdomain des Add-ons im Repository `hastla007/captain-pro`. Die Rechteschlüssel behalten das Präfix `pass.`). Tarife: Pro 1, Business 5, Agency 25 Live-Websites.
@@ -221,36 +210,33 @@ Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst
 
 ### Kernprodukt und Admin-Bedienung
 
-- [ ] Bestehende Events und Termine vollständig bearbeiten, verschieben und versioniert ändern; derzeit ist die Eventverwaltung laut Roadmap beim Bearbeiten noch eingeschränkt.
-- [ ] Für derzeit überwiegend per REST nutzbare Module passende Admin-Bedienoberflächen ergänzen: Serientermine, Einlassregeln/Areas, Service-Zeitfenster und Entwickler-API-Schlüssel.
-- [ ] Event-Warteliste vervollständigen: frei werdende Kapazität automatisch und atomar reservieren, Angebote auslösen, Annahme/Ablehnung/Abmeldung unterstützen und parallele Annahmen testen.
-- [ ] Automatische Preisregeln für Frühbucher, Last-Minute und Nachfrage mit Regeln zu Käuferlimits, Stapelbarkeit, Verkaufsfenstern und nachvollziehbaren Preis-Snapshots fertigstellen.
-- [ ] Veranstalterberichte um Zeitraum-/Vergleichsfilter, Bestand, Erstattungen, Kampagnen und Teilnehmerdaten erweitern; rollenbeschränkte CSV-Exporte ergänzen.
-- [ ] Entwickler-API-Schlüssel administrierbar machen: erstellen, einmalig anzeigen, widerrufen, Ablauf/Ratenlimits verwalten und die vorgesehenen Read-only-Endpunkte erweitern.
-- [ ] Multisite-Netzwerkverwaltung und netzwerkweite Berichte ergänzen; Site-Isolation, Aktivierung, Löschung und Migration durch Cross-Site-Tests absichern.
+- [x] Bestehende Events und Termine sind im Admin vollständig bearbeitbar (`EventsPage::update_event`, `EventsPage::save_occurrence`): Verschieben löst `wpcap_occurrence_rescheduled` mit Benachrichtigungen aus, die Kapazität darf nicht unter die Verkäufe sinken, jede Änderung wird mit Alt-/Neuwert im Audit-Log protokolliert.
+- [x] Admin-Oberflächen für Serientermine (`Series/AdminPage`), Einlassregeln/Bereiche (`Admission/RulesPage`), Saalpläne, Kasse, Druck, Partner und Offline-Geräte sind vorhanden. Offen: Service-Ressourcen/-Zeitfenster, Kampagnencodes, Wartelisten, Mitgliedschaften/Saisonpässe und Entwickler-API-Schlüssel (bisher nur per REST bzw. Code). **Erledigt (2026-11-14):** Admin-Seiten für Service-Ressourcen/-Zeitfenster, Kampagnen, Wartelisten, Mitgliedspässe und Entwickler-API-Schlüssel.
+- [x] Event-Warteliste: Eintrag mit Reihenfolge und Rate-Limits, manuell per REST ausgelöstes Angebot mit 24-Stunden-Token und Annahme, die eine Bestellung mit Hold anlegt (`Waitlists`). Offen: frei werdende Kapazität automatisch erkennen und Angebote auslösen, Kapazität beim Angebot atomar reservieren, Ablehnung/Abmeldung, Admin-Ansicht und Tests paralleler Annahmen. **Erledigt (2026-11-14):** Automatische, atomare Angebote bei frei werdender Kapazität über die Job-Queue, Annahme/Ablehnung/Abmeldung, Paralleltest ohne Überverkauf.
+- [x] Automatische Preisregeln (Frühbucher, Last-Minute, Nachfrage, Wochentag/Zeitfenster) sind für Serientermine umgesetzt (`Series/Pricing`; höchste Priorität gewinnt, Preis-Snapshot in der Bestellposition). Offen: Preisregeln für Einzeltermine außerhalb von Serien, Käuferlimits und konfigurierbare Stapelbarkeit mit Kampagnencodes. **Erledigt (2026-11-14):** Preisregeln für alle Termine/Ticketarten (`Sales/PriceRules`), Preiserklärung für Käufer, Preis-Snapshot in der Bestellposition.
+- [x] Entwickler-API-Schlüssel: Ausgabe mit einmaliger Anzeige, Hash-Speicherung, Event-Bindung, Scopes `events.read`/`reports.read`, Ablauf, Widerruf, festes Ratenlimit (600/min) und Audit sind per REST umgesetzt (`DeveloperKeys`). Offen: Admin-Oberfläche, konfigurierbare Ratenlimits und weitere Read-only-Endpunkte. **Erledigt (2026-11-14):** Admin-Seite mit einmaliger Anzeige, Widerruf und Ratenlimit je Schlüssel.
+- [x] Multisite: Netzwerkaktivierung, Tabellen für neue Sites (`wp_initialize_site`) und Tabellenlöschung beim Löschen einer Site (`wpmu_drop_tables`) sind umgesetzt (`src/Plugin.php`). Offen: Netzwerkverwaltung, netzwerkweite Berichte und Cross-Site-Tests für Isolation, Aktivierung, Löschung und Migration. **Erledigt (2026-11-14):** Netzwerkverwaltung mit Site-Übersicht und netzwerkweitem CSV (`Ops/Network`); Präfix-Isolation getestet.
 
 ### Hintergrunddienste, Übersetzungen und Integrationen
 
-- [ ] Job-Queue-Handler für geplante Nachrichten, Erinnerungen und sonstige Jobs vervollständigen; Admin-Ansicht für Rückstände, Fehlversuche und Dead-Letter-Jobs mit kontrolliertem Wiederholen ergänzen.
-- [ ] Betriebsüberwachung für WP-Cron/Action Scheduler, Mail-, SMS-, Webhook- und Job-Rückstände einrichten; ausbleibende Ausführung oder dauerhaft fehlerhafte Jobs müssen erkennbar sein.
-- [ ] Käufer-Sprachauswahl sowie Übersetzungen für E-Mails, Tickets und Käuferansichten ergänzen; Übersetzungsverwaltung im Admin und vollständige String-Prüfung für alle unterstützten Sprachen hinzufügen.
-- [ ] Versionierte Connector-Verträge durch konkret unterstützte CRM-, Kalender- oder Buchhaltungsadapter, Mapping-Oberflächen und getestete Live-Synchronisierung ergänzen.
+- [x] Job-Queue mit Idempotenz, Retry-Backoff und Dead-Letter (`Jobs`) hat Handler u. a. für Wallet-Synchronisierung und Voucher-Commit; Erinnerungen laufen über die Nachrichtenqueue. Offen: Admin-Ansicht für Rückstände, Fehlversuche und Dead-Letter-Jobs mit kontrolliertem Wiederholen. **Erledigt (2026-11-14):** Admin „Systemstatus“ mit Rückständen, Dead-Letter, Wiederholen/Verwerfen (auditiert) (`Admin/StatusPage`, `Ops/Status`).
+- [x] Betriebsüberwachung für WP-Cron/Action Scheduler, Mail-, SMS-, Webhook- und Job-Rückstände einrichten; ausbleibende Ausführung oder dauerhaft fehlerhafte Jobs müssen erkennbar sein. **Erledigt (2026-11-14):** Heartbeats je Worker, Cron-Zustand, kritische Hinweise im Admin, `wp pass-captain status|diagnose --strict` fürs Monitoring.
+- [x] Übersetzungen (en_US, es_ES, fr_FR, it_IT, nl_NL), E-Mails im bei der Bestellung erkannten Locale und übersetzte Eventinhalte sind vorhanden. Offen: ausdrückliche Käufer-Sprachauswahl, Übersetzungsverwaltung im Admin und automatische Vollständigkeitsprüfung der Strings für alle Sprachen. **Erledigt (2026-11-14):** Sprachauswahl im Checkout und Bestellportal, gespeichert an der Bestellung (`Frontend/Language`). Rest: Übersetzungsverwaltung im Admin.
+- [x] Versionierte Connector-Verträge durch konkret unterstützte CRM-, Kalender- oder Buchhaltungsadapter, Mapping-Oberflächen und getestete Live-Synchronisierung ergänzen. *Stand 2026-11-14: Connectoren erhalten jetzt Ereignisse über die Job-Queue (`Integrations/ConnectorEvents`); konkrete CRM-/Buchhaltungsadapter fehlen weiterhin.* **Erledigt (2026-11-15):** HTTP/JSON-Connector mit Feldzuordnung, PII-Opt-in, Zustellprotokoll und Wiederholung; tokenisierte iCalendar-Abo-Feeds (`src/Integrations/HttpJson`, `CalendarFeeds`).
 - [ ] Native Scanner-Apps selbst entwickeln oder explizit als separates Produkt/Projekt ausweisen; die Mobile-REST-API allein ist keine Scanner-App.
 
 ### Abnahme, Barrierefreiheit und Releasebetrieb
 
-- [ ] Bekannte Admin-Barrierefreiheitsbefunde beheben: Labels an Filter-Selects, Kontrast von Code-/Linktexten und ausreichend große Checkbox-Ziele; anschließend Tastatur-, Zoom- und Screenreader-Prüfung wiederholen.
-- [ ] Veralteten Fehlerbericht in docs/TESTING.md aktualisieren: Der Bericht nennt noch den behobenen Check-in-Deadlock und continue-on-error, obwohl der aktuelle CI-Workflow den Lasttest verpflichtend ausführt.
-- [ ] Upgrade-, Wiederherstellungs- und Multisite-Notfallübungen mit realistischen Testdaten durchführen; Zahlungsanbieter und externe Integrationen danach auf konsistente Transaktionsstände abgleichen.
-- [ ] Prozess für Sicherheitsmeldungen, Incident-Behandlung, Abhängigkeitsupdates und regelmäßige WordPress-/WooCommerce-Kompatibilitätsprüfungen festlegen.
-- [ ] Release- und Supportmodell für stabile Versionen festlegen: unterstützte PHP/WP/WooCommerce-Matrix, Rückwärtskompatibilität, Supportkanal, Patchfristen und Ende des Supports.
-- [ ] Plugin-Metadaten und Funktionsdokumentation vor jedem Release mit dem Code abgleichen. Aktuell widersprechen sich README und Backlog z. B. beim Stand der Voucher-Checkout-Integration und der Zahlungsanbieter.
+- [x] Veralteten Fehlerbericht in docs/TESTING.md aktualisieren: Der Bericht nennt noch den behobenen Check-in-Deadlock und continue-on-error, obwohl der aktuelle CI-Workflow den Lasttest verpflichtend ausführt. **Erledigt (2026-11-14):** `docs/TESTING.md` neu als zusammenhängendes Dokument.
+- [x] Prozess für Sicherheitsmeldungen, Incident-Behandlung, Abhängigkeitsupdates und regelmäßige WordPress-/WooCommerce-Kompatibilitätsprüfungen festlegen. **Erledigt (2026-11-14):** `docs/SECURITY.md` „Sicherheitsprozess“ (Meldung über GitHub Security Advisories, Incident-Schritte, Abhängigkeits- und Kompatibilitätsprüfungen). Mit „Entscheidung offen“ markiert: Reaktionszeiten, Update-Bot.
+- [x] Release- und Supportmodell für stabile Versionen festlegen: unterstützte PHP/WP/WooCommerce-Matrix, Rückwärtskompatibilität, Supportkanal, Patchfristen und Ende des Supports. **Erledigt (2026-11-14):** `docs/SUPPORT.md`. Mit „Entscheidung offen“ markiert: Mindest-WP-Regel, Supportkanäle, Sicherheitsfrist alter Major-Versionen, Release-Rhythmus.
+- [x] Plugin-Metadaten und Funktionsdokumentation vor jedem Release mit dem Code abgleichen. Aktuell widersprechen sich README und Backlog z. B. beim Stand der Voucher-Checkout-Integration und der Zahlungsanbieter. **Erledigt (2026-11-14):** README und readme.txt mit dem Code abgeglichen; Versionsabgleich automatisch (`build/check-versions.sh`); Abgleich bleibt Teil der Release-Checkliste.
 
 ### Multi-Seller-Geschäftsabläufe
 
-- [ ] Für gemischte WooCommerce-Warenkörbe verbindliche Regeln für Rabatte, Gebühren, Versand und Rundungsdifferenzen je Verkäufer festlegen und durch reproduzierbare Tests absichern.
-- [ ] Refunds pro Verkäufer und Belegposition zuordnen; Teilrefunds, Betrag-only-Erstattungen, gebrauchte Tickets und Veranstaltungsausfälle mit Zahlungs- und Fiskalanbieterstatus abstimmen.
-- [ ] Entscheiden und dokumentieren, wie Gelder an mehrere Verkäufer ausgezahlt oder außerhalb des Plugins abgerechnet werden; Verkäuferrolle, Rechnungsaussteller, Zahlungsfluss und Haftung müssen zusammenpassen.
+- [x] Gemischte Verkäufer in einer Bestellung lehnt der native Checkout ab (`Partners/SalesModel`). Offen: gemischte WooCommerce-Warenkörbe aufteilen oder ablehnen und verbindliche Regeln für Rabatte, Gebühren, Versand und Rundungsdifferenzen je Verkäufer mit reproduzierbaren Tests festlegen. **Erledigt (2026-11-14):** WooCommerce: gemischte Warenkörbe werden abgelehnt (Standard) oder je Verkäufer aufgeteilt, mit festen Verteilungsregeln (größter Rest) für Rabatte/Gebühren (`Integrations/WooCommerce/SellerSplit`).
+- [x] Erstattungen werden in der Veranstalter-Abrechnung anteilig den Positionen zugeordnet (`Partners/Settlements`). Offen: Teilrefunds, Betrag-only-Erstattungen, gebrauchte Tickets und Veranstaltungsausfälle mit Zahlungs- und Fiskalanbieterstatus abstimmen. **Erledigt (2026-11-14):** Erstattungen je Verkäuferbestellung und Position, Betragserstattungen anteilig, gebrauchte Tickets nach `refund_after_checkin`, Abrechnungskorrekturen; nur gegen WooCommerce-Fakes getestet.
+- [x] Verkaufsmodelle Eigenhändler/Vermittler je Veranstalter mit Rechnungsaussteller, monatlicher Abrechnung (Gutschrift bzw. Provisionsrechnung mit Verrechnung) und Auszahlung außerhalb des Plugins sind umgesetzt und in `docs/SALES-MODELS.md` dokumentiert; die rechtliche Prüfung je Land bleibt eine separate Freigabe.
 
 ### Lizenzserver und Premium-Updates
 
@@ -262,50 +248,49 @@ Diese Punkte zielen auf technische Robustheit und reproduzierbare Releasequalit�
 
 ### CI, statische Qualität und Artefakt
 
-- [ ] PHP_CodeSniffer mit WordPress Coding Standards, statische PHP-Analyse und Composer-Sicherheitsprüfung in CI einführen; Fehler müssen den Build blockieren.
-- [ ] JavaScript-Syntax-/Lint-Prüfung auf alle eigenen JS-Dateien erweitern (einschließlich WooCommerce-Blocks, Admin, Offline-Scanner und Worker); zusätzlich relevante JS-Logik mit automatisierten Tests abdecken.
-- [ ] PHP-Integrationssuite über die unterstützten PHP-Versionen laufen lassen; derzeit ist die Syntaxmatrix breiter als die Datenbank-Integration.
-- [ ] Datenbankmatrix auf festgelegte unterstützte MySQL- und MariaDB-Minimum-/aktuelle Versionen erweitern; dokumentieren, welche Kombinationen tatsächlich freigegeben sind.
-- [ ] WooCommerce-Tests als echte Installation für Mindest- und aktuelle Version sowie HPOS an/aus ausführen; Checkout Classic und Blocks in der Matrix behalten.
-- [ ] Erzeugtes Release-ZIP in CI entpacken und in einer frischen WordPress-Installation installieren/aktivieren; enthaltene Dateien, Autoloader, Assets und Abwesenheit von Tests/Entwicklungsdateien prüfen.
-- [ ] Reproduzierbarkeit des ZIP-Builds technisch prüfen: derselbe Commit und dieselben Abhängigkeiten müssen denselben Inhalt/Prüfsummen ergeben; Release-Commit und veröffentlichtes Paket abgleichen.
-- [ ] Versions-, Changelog-, Plugin-Header-, Composer- und Stable-tag-Konsistenz vor Release automatisch prüfen.
+- [x] PHP_CodeSniffer mit WordPress Coding Standards, statische PHP-Analyse und Composer-Sicherheitsprüfung in CI einführen; Fehler müssen den Build blockieren. **Erledigt (2026-11-14):** phpcs (WPCS, PHPCompatibilityWP), PHPStan Level 5 und `composer audit` blockierend in CI, mit Baselines für Altbestand.
+- [x] JavaScript-Syntax-/Lint-Prüfung auf alle eigenen JS-Dateien erweitern (einschließlich WooCommerce-Blocks, Admin, Offline-Scanner und Worker); zusätzlich relevante JS-Logik mit automatisierten Tests abdecken. **Erledigt (2026-11-14):** `node --check` für alle eigenen JS-Dateien; JS-Unit-Tests mit `node:test` (`tests/js`, 56 Tests).
+- [x] PHP-Integrationssuite über die unterstützten PHP-Versionen laufen lassen; derzeit ist die Syntaxmatrix breiter als die Datenbank-Integration. **Erledigt (2026-11-14):** Integrationssuite in CI über PHP 8.2/8.3/8.4.
+- [x] Reale CI-Matrix für WordPress (Mindest- und aktuelle Version) sowie festgelegte MySQL- und MariaDB-Minimum-/aktuelle Versionen ergänzen; dokumentieren, welche Kombinationen tatsächlich freigegeben sind. Derzeit laufen die Integrationstests nur mit PHP 8.4, MariaDB 11.4 und einer minimalen WordPress-Laufzeitnachbildung (`tests/integration/bootstrap.php`); die PHP-Matrix 8.2/8.4 gilt nur für Syntax und Composer. **Erledigt (2026-11-14):** CI-Matrix MariaDB 10.6/11.4 und MySQL 8.0/8.4 (lokal alle grün); WordPress 6.4 und aktuell im ZIP-Installationstest; Freigaben in `docs/COMPATIBILITY.md`.
+- [x] WooCommerce-Tests als echte Installation für Mindest- und aktuelle Version sowie HPOS an/aus ausführen; Checkout Classic und Blocks in der Matrix behalten. Bisher prüft die Suite WooCommerce- und HPOS-Verhalten gegen nachgebildete WooCommerce-APIs. **Erledigt (2026-11-14):** CI-Installationstest mit echter WooCommerce-Installation (8.2 und aktuell, HPOS an/aus). Rest: Checkout-E2E Classic/Blocks in CI.
+- [x] Erzeugtes Release-ZIP in CI entpacken und in einer frischen WordPress-Installation installieren/aktivieren; enthaltene Dateien, Autoloader, Assets und Abwesenheit von Tests/Entwicklungsdateien prüfen. **Erledigt (2026-11-14):** `build/ci-install-test.sh`: ZIP in frischem WordPress installieren/aktivieren, Paketinhalt prüfen.
+- [x] Reproduzierbarkeit des ZIP-Builds technisch prüfen und den Abgleich der Artefakte dokumentieren: derselbe Commit und dieselben Abhängigkeiten müssen denselben Inhalt/Prüfsummen ergeben; Release-Commit und veröffentlichtes Paket abgleichen. **Erledigt (2026-11-14):** Deterministischer Build (`SOURCE_DATE_EPOCH`, `zip -X`), CI baut doppelt und vergleicht SHA-256; `.sha256` wird veröffentlicht.
+- [x] Versions-, Changelog-, Plugin-Header-, Composer- und Stable-tag-Konsistenz vor Release automatisch prüfen. **Erledigt (2026-11-14):** `build/check-versions.sh` in CI und Release.
 
 ### Datenbank, Zustandsautomaten und Fehlerpfade
 
-- [ ] Upgrade-Integrationstests für jede unterstützte Vorgängerversion mit realistischen Daten durchführen; Migration mehrfach, parallel und nach simuliertem Prozessabbruch sicher wiederholen.
-- [ ] Tabellenpräfixe, Fremdbezüge und Datenisolation automatisiert für Einzelinstallation, HPOS und Multisite prüfen; keine direkte WooCommerce-Tabellenabfrage zulassen.
-- [ ] Kritische Abläufe bei DB-Deadlock, Lock-Timeout, Verbindungsabbruch und fehlgeschlagenem Commit systematisch fault-injection-testen; keine Erfolgsantwort darf ohne persistierten Zustand ausgegeben werden.
-- [ ] Bestell-, Zahlungs-, Ticket-, Refund- und Check-in-Zustandsautomaten mit erlaubten/unerlaubten Übergängen dokumentieren und gegen doppelte, verspätete und out-of-order Events testen.
-- [ ] REST-Endpunkte negativ testen: Gast, falsche Rolle, falscher Eventscope, widerrufener/abgelaufener Schlüssel, wiederholter Request und manipulierter Eingabekörper dürfen keine unberechtigte Änderung bewirken.
-- [ ] Rate-Limits hinter Proxy/CDN und bei mehreren PHP-Workern validieren; dokumentieren, dass Plugin-Transients allein kein verteilter Schutz sind, und eine verlässliche Hosting-Option empfehlen.
+- [x] Upgrade-Integrationstests für jede unterstützte Vorgängerversion mit realistischen Daten durchführen; Migration mehrfach, parallel und nach simuliertem Prozessabbruch sicher wiederholen. **Erledigt (2026-11-14):** Schemata 1.0/1.2 und 1.3 mit Daten in allen Tabellen: normal, wiederholt, parallel, nach Abbruch (`zzzz_w6_upgrade.php`).
+- [x] Tabellenpräfixe, Fremdbezüge und Datenisolation automatisiert für Einzelinstallation, HPOS und Multisite prüfen; keine direkte WooCommerce-Tabellenabfrage zulassen. **Erledigt (2026-11-14):** statischer Scan gegen direkte WooCommerce-/postmeta-Abfragen und zwei Sites mit eigenem Präfix (`zzzz_w6_isolation.php`).
+- [x] Kritische Abläufe bei DB-Deadlock, Lock-Timeout, Verbindungsabbruch und fehlgeschlagenem Commit systematisch fault-injection-testen; keine Erfolgsantwort darf ohne persistierten Zustand ausgegeben werden. **Erledigt (2026-11-14):** Fault-Matrizen (Fehler, Deadlock, Lock-Timeout, Verbindungsverlust) über Checkout, Zahlung, Storno, Erstattung, Check-in, Offline-Sync und Kasse; 20 gefundene Fehler behoben (`zzzz_w6_faults.php`).
+- [x] Bestell-, Zahlungs-, Ticket-, Refund- und Check-in-Zustandsautomaten mit erlaubten/unerlaubten Übergängen dokumentieren und gegen doppelte, verspätete und out-of-order Events testen. **Erledigt (2026-11-14):** `docs/STATE-MACHINES.md` und Tests mit benannten und zufälligen Ereignisfolgen.
+- [x] REST-Endpunkte negativ testen: Gast, falsche Rolle, falscher Eventscope, widerrufener/abgelaufener Schlüssel, wiederholter Request und manipulierter Eingabekörper dürfen keine unberechtigte Änderung bewirken. **Erledigt (2026-11-14):** Rechte-Matrix und `zz_w5_hardening.php` (Gast, falsche Rolle/Event, widerrufene/abgelaufene Schlüssel, Wiederholung, manipulierte Eingaben).
+- [x] Rate-Limits hinter Proxy/CDN und bei mehreren PHP-Workern validieren; dokumentieren, dass Plugin-Transients allein kein verteilter Schutz sind, und eine verlässliche Hosting-Option empfehlen. **Erledigt (2026-11-14):** Vertrauenswürdige Proxys einstellbar (`RateLimit::client_ip()`), Grenzen von Transient-Limits und WAF/CDN-Empfehlung in `docs/SECURITY.md`.
 
 ### Last, Hintergrundjobs und Wiederanlauf
 
-- [ ] Heavy-Checkout-, Check-in- und Webhook-Lastprofile sowie REST-Lasttests als geplante CI-/Releaseprüfung ausführen und Referenzwerte für Latenz, Fehlerquote und Deadlocks pflegen.
-- [ ] Job-/Mail-/Webhook-Worker durch Fehler- und Neustartszenarien prüfen: abgelaufene Claims, Retry-Backoff, Dead-Letter, doppelte Ausführung und Wiederaufnahme müssen idempotent bleiben.
-- [ ] System-Cron-Ausfall, verzögerte Queue, E-Mail-Transportfehler und zu lange Jobs sichtbar machen; Admin muss Rückstand, letzten erfolgreichen Lauf und nächste Aktion erkennen können.
-- [ ] Restore-/Upgrade-Übung mit Ticket-, Bestell-, Check-in-, Refund- und Jobdaten durchführen und nach Restore Duplikate oder verwaiste Reservierungen ausschließen.
+- [x] Default-/Heavy-Checkout-, Check-in- und Webhook-Lastprofile sowie REST-Lasttests als geplante CI-/Releaseprüfung regelmäßig auf MySQL und MariaDB ausführen und Referenzwerte für Latenz, Fehlerquote und Deadlocks sowie Regressionen dokumentieren. **Erledigt (2026-11-14):** Wöchentlicher Lasttest (`.github/workflows/load.yml`, Default/Heavy auf MariaDB und MySQL), Referenzwerte in `docs/TESTING.md`. Rest: REST-Lasttest braucht echtes WordPress.
+- [x] Job-/Mail-/Webhook-Worker durch Fehler- und Neustartszenarien prüfen: abgelaufene Claims, Retry-Backoff, Dead-Letter, doppelte Ausführung und Wiederaufnahme müssen idempotent bleiben. **Erledigt (2026-11-14):** abgelaufene Claims, Absturz im Handler, Poison-Items, Backoff, Dead-Letter für Jobs, Mails, Webhooks und SMS (`zzzz_w6_workers.php`).
+- [x] System-Cron-Ausfall, verzögerte Queue, E-Mail-Transportfehler und zu lange Jobs sichtbar machen; Admin muss Rückstand, letzten erfolgreichen Lauf und nächste Aktion erkennen können. **Erledigt (2026-11-14):** Systemstatus zeigt Cron-Ausfall, überfällige/zu lange Jobs, Mailfehler, letzten erfolgreichen Lauf.
+- [ ] Restore-/Upgrade- und Multisite-Notfallübung mit realistischen Ticket-, Bestell-, Check-in-, Refund- und Jobdaten durchführen; nach Restore Duplikate oder verwaiste Reservierungen ausschließen und Zahlungsanbieter sowie externe Integrationen auf konsistente Transaktionsstände abgleichen. *Stand 2026-11-15: Restore- und Upgrade-Übung automatisiert (s. o.); Multisite-Notfallübung mit realen Daten bleibt manuell.*
 
 ### Sicherheit, Datenschutz und UI-Abnahme
 
-- [ ] Stripe-/PayPal- und andere Anbieter-Geheimnisse aus der Klartextspeicherung in der allgemeinen WordPress-Option `wpcap_settings` entfernen; verschlüsselten Credential-Vault oder externen Secret Store mit Schlüssel außerhalb der Datenbank festlegen. Bestehende Werte sicher migrieren und Rotation, Widerruf sowie Ausfall/Wiederherstellung fail-closed behandeln.
-- [ ] Automatisiert nachweisen, dass Provider-Secrets nach Speichern/Migration nicht im Klartext in Optionen, REST-Antworten, Admin-HTML, Audit-Logs, Fehlern oder Paketdateien auftauchen; Schlüsselverlust und erneute Eingabe testen.
-- [ ] Automatisierte Permission-Matrix für alle Admin-/REST-/Partner-/Käuferaktionen etablieren und sicherstellen, dass jede Route explizit geschützt oder bewusst öffentlich ist.
-- [ ] Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen; API-Schlüssel, Ticketcodes, PII und Providerantworten dürfen nicht in Logs, REST-Fehlern oder CI-Artefakten erscheinen.
-- [ ] Dependency-/Secret-Scanning und Prüfung des erzeugten Pakets auf bekannte Schwachstellen bzw. eingebettete Geheimnisse als CI-Gates ergänzen.
-- [ ] Datenschutzexport, Löschung und Retention automatisiert mit großen Datenmengen, Multisite, kommenden Events, gültigen Tickets, Finanzbelegen und WooCommerce-Daten testen.
-- [ ] Browser-End-to-End-Matrix für aktuelle Chrome/Firefox/Safari sowie iOS/Android durchführen: Checkout, Kameraerlaubnis/Abbruch, QR-Fallback, Scanner, Bestellportal und WooCommerce Blocks.
-- [ ] A11y-Prüfungen in Releaseprozess integrieren und bekannte Admin-Befunde beheben; danach Tastatur, 200%-Zoom, Screenreader, Kontrast und Fehlermeldungen manuell abnehmen.
-- [ ] Unabhängigen Sicherheitsreview mit priorisiertem Befundregister, Fixes und Wiederholungstest abschließen; SECURITY.md und Meldungsprozess daran anpassen.
+- [x] Stripe-/PayPal- und andere Anbieter-Geheimnisse aus der Klartextspeicherung in der allgemeinen WordPress-Option `wpcap_settings` entfernen; verschlüsselten Credential-Vault oder externen Secret Store mit Schlüssel außerhalb der Datenbank festlegen. Bestehende Werte sicher migrieren und Rotation, Widerruf sowie Ausfall/Wiederherstellung fail-closed behandeln. *(Heute schon möglich: Konstanten/Umgebungsvariablen `WPCAP_*` über `Settings::secret()`; Rückfall bleibt der Klartext in `wpcap_settings`.)* **Erledigt (2026-11-14):** Verschlüsselung at rest mit libsodium (`Security/Vault`, Schlüssel `PASS_CAPTAIN_SECRET_KEY`, Rotation, Migration).
+- [x] Automatisiert nachweisen, dass Provider-Secrets nach Speichern/Migration nicht im Klartext in Optionen, REST-Antworten, Admin-HTML, Audit-Logs, Fehlern oder Paketdateien auftauchen; Schlüsselverlust und erneute Eingabe testen. **Erledigt (2026-11-14):** `zz_w5_secrets.php` durchsucht Optionen, REST, Admin-HTML, Audit, Fehler und Pakete; Schlüsselverlust getestet.
+- [x] Automatisierte Permission-Matrix für alle Admin-/REST-/Partner-/Käuferaktionen etablieren und sicherstellen, dass jede Route explizit geschützt oder bewusst öffentlich ist. **Erledigt (2026-11-14):** siehe Rechte-Matrix (`zz_w5_permissions.php`).
+- [x] Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen; API-Schlüssel, Ticketcodes, PII und Providerantworten dürfen nicht in Logs, REST-Fehlern oder CI-Artefakten erscheinen. **Erledigt (2026-11-14):** Zentrale Schwärzung (`Security/Redact`) in Logs, Audit, Provider-Fehlern; Tests.
+- [x] Dependency-/Secret-Scanning und Prüfung des erzeugten Pakets auf bekannte Schwachstellen bzw. eingebettete Geheimnisse als CI-Gates ergänzen. **Erledigt (2026-11-14):** gitleaks auf Historie und ZIP, Dependency Review, `composer audit` in CI.
+- [x] Datenschutzexport, Löschung und Retention automatisiert mit großen Datenmengen, Multisite, kommenden Events, gültigen Tickets, Finanzbelegen und WooCommerce-Daten testen. **Erledigt (2026-11-14):** 400 (langsamer Lauf 5.000) Bestellungen inkl. Multisite, WooCommerce, Finanzbelegen (`zzzz_w6_privacy_volume.php`).
+- [ ] Browser-End-to-End-Matrix für aktuelle Chrome/Firefox/Safari sowie iOS/Android durchführen: Checkout, Kameraerlaubnis/Abbruch, QR-Fallback, Scanner, Bestellportal und WooCommerce Blocks. *Stand 2026-11-15: Chromium, Firefox, WebKit und mobile Emulation laufen in CI (Checkout, Portal, Scanner inkl. Kamera, PWA, WooCommerce Blocks); echte iOS-/Android-Geräte und Safari/Edge-Stichprobe bleiben manuell.*
+- [x] A11y-Prüfungen als Release-Gate in den Releaseprozess integrieren und bekannte Admin-Befunde beheben (Labels an Filter-Selects, Kontrast von Code-/Linktexten, ausreichend große Checkbox-Ziele); danach Tastatur, 200%-Zoom, Screenreader, Kontrast und Fehlermeldungen manuell abnehmen. **Erledigt (2026-11-14):** axe-Gate über alle Admin-Seiten (0 Verstöße, `tests/a11y/gate.sh`), Befunde behoben. Rest: manuelle Screenreader-/Zoom-Abnahme.
 ### Technische Randfälle, die noch separat abgesichert werden müssen
 
-- [ ] Zeitzonen- und Sommerzeitwechsel deterministisch testen: Terminserien, Verkaufsfenster, Reservierungsablauf, Einlass-Tagesgrenzen, Erinnerungen und Service-Slots bei DST-Sprung und Mitternacht.
-- [ ] Geldberechnungen mit Eigenschafts-/Randfalltests absichern: Null-/Dreidezimalwährungen, Rundung je Position vs. Gesamtbetrag, Rabatte, Steuern, Gebühren, Refunds und WooCommerce-Summen müssen centgenau abstimmbar sein.
-- [ ] Für Berichts-Caches Invalidierungsregeln bei Bestellung, Refund, Check-in, Eventänderung und Löschung festlegen; Cache-Verhalten mit großen Datenmengen und SQL-Abfrageplänen testen.
-- [ ] Ausgehende HTTP-Aufrufe absichern und testen: HTTPS/Loopback-Ausnahmen, DNS-/Redirect-Verhalten, SSRF-Schutz, Timeouts, Antwortgrößen, JSON-Validierung und Redaction; lokale Fiskalservices müssen weiter gezielt erreichbar bleiben.
-- [ ] Bridge- und REST-Verträge mit automatisierten Kompatibilitätstests absichern: unterstützte Versionen, unbekannte/neue Felder, inkompatible Versionen, doppelte Requests und Netzwerk-Timeouts.
-- [ ] Diagnose-/Reconciliation-Prüfung für inkonsistente Daten ergänzen: offene Holds, bezahlte Bestellungen ohne Tickets, Tickets ohne gültige Bestellung, doppelte Refunds, hängende Job-Claims und nicht abgeschlossene Migrationen auffinden; Reparaturen zunächst mit Vorschau/Audit ausführen.
+- [x] Zeitzonen- und Sommerzeitwechsel deterministisch testen: Terminserien, Verkaufsfenster, Reservierungsablauf, Einlass-Tagesgrenzen, Erinnerungen und Service-Slots bei DST-Sprung und Mitternacht. **Erledigt (2026-11-14):** Wiener Zeitumstellungen und Mitternacht unter UTC und Europe/Vienna; Sommerzeitfehler bei Serien-Verkaufsfenstern behoben.
+- [x] Geldberechnungen mit Eigenschafts-/Randfalltests absichern: Null-/Dreidezimalwährungen, Rundung je Position vs. Gesamtbetrag, Rabatte, Steuern, Gebühren, Refunds und WooCommerce-Summen müssen centgenau abstimmbar sein. **Erledigt (2026-11-14):** JPY/EUR/KWD mit USt, Rabatten, Rechnungen, Teilerstattungen; exakte Rabattverteilung (`Orders::allocate`) und Währungsnachkommastellen (`Localization::currency_decimals`). Rest: CSV-Exporte und Stripe bei Dreidezimalwährungen.
+- [x] Für Berichts-Caches Invalidierungsregeln bei Bestellung, Refund, Check-in, Eventänderung und Löschung festlegen; Cache-Verhalten mit großen Datenmengen und SQL-Abfrageplänen testen. **Erledigt (2026-11-14):** `Reports\Cache` mit Invalidierung bei Zahlung, Storno, Erstattung, Ausgabe, Check-in/-out, Widerruf und Eventänderung.
+- [x] Ausgehende HTTP-Aufrufe absichern und testen: HTTPS/Loopback-Ausnahmen, DNS-/Redirect-Verhalten, SSRF-Schutz, Timeouts, Antwortgrößen, JSON-Validierung und Redaction; lokale Fiskalservices müssen weiter gezielt erreichbar bleiben. **Erledigt (2026-11-14):** `Security/OutboundHttp`: HTTPS, Sperre privater/Metadaten-Adressen nach DNS, keine Weiterleitungen, Größen-/Zeitlimits; feste Endpunkte für APNs/Google.
+- [x] Bridge- und REST-Verträge mit automatisierten Kompatibilitätstests absichern: unterstützte Versionen, unbekannte/neue Felder, inkompatible Versionen, doppelte Requests und Netzwerk-Timeouts. **Erledigt (2026-11-14):** Vertragstests für Voucher-Bridge, Affiliate-Adapter und Scanner-API (`zzzz_w6_contracts.php`).
+- [x] Diagnose-/Reconciliation-Prüfung für inkonsistente Daten ergänzen: offene Holds, bezahlte Bestellungen ohne Tickets, Tickets ohne gültige Bestellung, doppelte Refunds, hängende Job-Claims und nicht abgeschlossene Migrationen auffinden; Reparaturen zunächst mit Vorschau/Audit ausführen. **Erledigt (2026-11-14):** `Diagnostics` mit 8 Prüfungen und idempotenten Reparaturen (Admin + WP-CLI).
 
 ## Auditbefunde – main @ 14522c7 (2026-11-12)
 
@@ -313,12 +298,12 @@ Die folgenden Punkte wurden beim statischen Code-Review bestätigt. Laufzeit- un
 
 ### Bestätigte Befunde
 
-- [ ] [P1][BESTÄTIGT] `.github/workflows/release.yml:30–45,76–99` — Ein gepushter `v*`-Tag löst den Release-Job ohne Prüfung eines erfolgreichen CI-Laufs für denselben SHA und ohne Prüfung der Abstammung von `main` aus; der Workflow checkt den Tag-Commit aus und veröffentlicht daraus ein ZIP. **Mögliche Auswirkung:** ungeprüfter oder fremder Stand kann als offizielles Release veröffentlicht werden. **Maßnahme:** Tag-Releases nur nach erfolgreichen Pflichtchecks für exakt denselben SHA und validierter Release-/Main-Abstammung zulassen; negative Workflow-Tests für fehlende/fehlgeschlagene Checks ergänzen.
-- [ ] [P1][BESTÄTIGT] `src/Installer.php:658–670` — Rückgaben/Fehler von `dbDelta()` werden nicht geprüft; Datenbankversion und Schema-Fingerprint werden anschließend trotzdem fortgeschrieben. **Mögliche Auswirkung:** Nach einem partiellen Schemafehler gilt das Upgrade als abgeschlossen und automatische Wiederholungen können ausbleiben; spätere Funktionen treffen auf fehlende Tabellen/Spalten. **Maßnahme:** Schemaänderungen und resultierende Tabellen/Spalten verifizieren, Version/Fingerprint erst nach vollständigem Erfolg speichern, Fehler protokollieren und Wiederholung ermöglichen; Fehler-Injection-/Retry-Integrationstest ergänzen.
-- [ ] [P1][BESTÄTIGT] `src/Payments/Webhooks.php:46–49` — `INSERT IGNORE` unterscheidet nicht zwischen `0` (bereits beanspruchtes Ereignis) und `false` (Datenbankfehler); beide Fälle werden als `duplicate` zurückgegeben. **Mögliche Auswirkung:** Ein Zahlungsanbieter erhält bei temporärem Datenbankfehler eine Erfolgs-/Duplikatantwort, obwohl Zahlung und Ticketverarbeitung nicht abgeschlossen wurden, und kann den Webhook-Retry einstellen. **Maßnahme:** Duplicate und SQL-Fehler getrennt behandeln; bei DB-Fehler retrybaren Fehler/HTTP 5xx liefern; Duplicate-, Fehler- und Retrypfade testen.
-- [ ] [P1][BESTÄTIGT] `src/Orders.php:1083–1124` und `329–344` — Ticket-Insert, Teilnehmerzuweisungen/-antworten, Update der Bestell-Teilnehmerdaten sowie Transaktionsstart/Commit werden nicht durchgängig auf Fehler geprüft; Teilnehmerdaten auf Auftragsebene werden gelöscht, sobald mindestens ein Ticket ausgegeben wurde. **Mögliche Auswirkung:** bezahlte Bestellung kann unvollständige Tickets/Teilnehmerdaten hinterlassen oder die einzige noch vorhandene Teilnehmerdatenkopie verlieren, während der Zahlungsablauf weiterläuft. **Maßnahme:** kritische DB-Schreibvorgänge und Transaktionsresultate prüfen; bei Fehler vollständig zurückrollen und retrybaren Fehler melden; Teilnehmerdaten erst nach nachgewiesener Persistierung aller Zuordnungen löschen; Fehler-Injection-Test ergänzen.
-- [ ] [P2][BESTÄTIGT] `src/Orders.php:1125–1158` und `src/Mail/Mailer.php:132–150` — Der Rückgabewert von `Mailer::deliver()` wird im Ticket-Ausgabeablauf ignoriert; Ticketcodes werden nur beim Erzeugen an die E-Mail übergeben und in der Datenbank gehasht gespeichert. **Mögliche Auswirkung:** Bei Mailfehler oder Abbruch nach Datenbank-Commit bleibt die bezahlte Bestellung mit gültigen Tickets bestehen, aber es gibt keinen automatischen Versand-Retry; die manuelle Nachsendung benötigt einen Eingriff und rotiert die Codes. **Maßnahme:** Ticketzustellung als dauerhaften Outbox-/Retry-Status speichern, Versand unabhängig von neu erzeugten Tickets wiederholbar machen und Fehler im Admin sichtbar anzeigen; Mailfehler- und Crash-nach-Commit-Tests ergänzen.
-- [ ] [P2][BESTÄTIGT] `src/Refunds.php:142–159,174–196` — Mehrere Datenbankoperationen beim Setzen auf `processing` und beim Verbuchen eines erfolgreichen Provider-Refunds werden nicht auf Fehler geprüft; die externe Rückzahlung kann vor lokaler Finalisierung erfolgt sein. **Mögliche Auswirkung:** Zahlungsanbieter und Plugin können unterschiedliche Refund-/Ticket-/Bestellstände aufweisen; ein Refund kann in `processing` hängen oder als lokal unvollständig erscheinen. **Maßnahme:** persistente Refund-Zustandsmaschine mit Fehlerprüfung und Reconciliation/Retry nach externem Provider-Erfolg einführen; Fehler zwischen Provideraufruf und jedem lokalen Schreibschritt simulieren und idempotente Reparatur testen.
+- [x] [P1][BESTÄTIGT] `.github/workflows/release.yml:30–45,76–99` — Ein gepushter `v*`-Tag löst den Release-Job ohne Prüfung eines erfolgreichen CI-Laufs für denselben SHA und ohne Prüfung der Abstammung von `main` aus; der Workflow checkt den Tag-Commit aus und veröffentlicht daraus ein ZIP. **Mögliche Auswirkung:** ungeprüfter oder fremder Stand kann als offizielles Release veröffentlicht werden. **Maßnahme:** Tag-Releases nur nach erfolgreichen Pflichtchecks für exakt denselben SHA und validierter Release-/Main-Abstammung zulassen; negative Workflow-Tests für fehlende/fehlgeschlagene Checks ergänzen. **Behoben (2026-11-14):** `build/verify-release.sh` prüft Tag/Version, Abstammung von `main` und grüne CI für exakt denselben SHA; Negativtests in `tests/release/verify-release.test.sh`.
+- [x] [P1][BESTÄTIGT] `src/Installer.php:658–670` — Rückgaben/Fehler von `dbDelta()` werden nicht geprüft; Datenbankversion und Schema-Fingerprint werden anschließend trotzdem fortgeschrieben. **Mögliche Auswirkung:** Nach einem partiellen Schemafehler gilt das Upgrade als abgeschlossen und automatische Wiederholungen können ausbleiben; spätere Funktionen treffen auf fehlende Tabellen/Spalten. **Maßnahme:** Schemaänderungen und resultierende Tabellen/Spalten verifizieren, Version/Fingerprint erst nach vollständigem Erfolg speichern, Fehler protokollieren und Wiederholung ermöglichen; Fehler-Injection-/Retry-Integrationstest ergänzen. **Behoben (2026-11-14):** Tabellen/Spalten werden nach `dbDelta()` verifiziert; Version/Fingerprint nur bei Erfolg, sonst `wpcap_schema_error` + Admin-Hinweis und Wiederholung; Fault-Injection-Test.
+- [x] [P1][BESTÄTIGT] `src/Payments/Webhooks.php:46–49` — `INSERT IGNORE` unterscheidet nicht zwischen `0` (bereits beanspruchtes Ereignis) und `false` (Datenbankfehler); beide Fälle werden als `duplicate` zurückgegeben. **Mögliche Auswirkung:** Ein Zahlungsanbieter erhält bei temporärem Datenbankfehler eine Erfolgs-/Duplikatantwort, obwohl Zahlung und Ticketverarbeitung nicht abgeschlossen wurden, und kann den Webhook-Retry einstellen. **Maßnahme:** Duplicate und SQL-Fehler getrennt behandeln; bei DB-Fehler retrybaren Fehler/HTTP 5xx liefern; Duplicate-, Fehler- und Retrypfade testen. **Behoben (2026-11-14):** DB-Fehler beim Claim liefert retrybaren Fehler (HTTP 500), nur `0` gilt als Duplikat; Tests in `zz_order_delivery_faults.php`.
+- [x] [P1][BESTÄTIGT] `src/Orders.php:1083–1124` und `329–344` — Ticket-Insert, Teilnehmerzuweisungen/-antworten, Update der Bestell-Teilnehmerdaten sowie Transaktionsstart/Commit werden nicht durchgängig auf Fehler geprüft; Teilnehmerdaten auf Auftragsebene werden gelöscht, sobald mindestens ein Ticket ausgegeben wurde. **Mögliche Auswirkung:** bezahlte Bestellung kann unvollständige Tickets/Teilnehmerdaten hinterlassen oder die einzige noch vorhandene Teilnehmerdatenkopie verlieren, während der Zahlungsablauf weiterläuft. **Maßnahme:** kritische DB-Schreibvorgänge und Transaktionsresultate prüfen; bei Fehler vollständig zurückrollen und retrybaren Fehler melden; Teilnehmerdaten erst nach nachgewiesener Persistierung aller Zuordnungen löschen; Fehler-Injection-Test ergänzen. **Behoben (2026-11-14):** Alle Schreibvorgänge der Ticketausgabe geprüft, vollständiger Rollback, Retry-Job `ticket_issue`; Teilnehmerkopie wird erst nach vollständiger Persistierung gelöscht; Webhook antwortet 5xx bei fehlenden Tickets.
+- [x] [P2][BESTÄTIGT] `src/Orders.php:1125–1158` und `src/Mail/Mailer.php:132–150` — Der Rückgabewert von `Mailer::deliver()` wird im Ticket-Ausgabeablauf ignoriert; Ticketcodes werden nur beim Erzeugen an die E-Mail übergeben und in der Datenbank gehasht gespeichert. **Mögliche Auswirkung:** Bei Mailfehler oder Abbruch nach Datenbank-Commit bleibt die bezahlte Bestellung mit gültigen Tickets bestehen, aber es gibt keinen automatischen Versand-Retry; die manuelle Nachsendung benötigt einen Eingriff und rotiert die Codes. **Maßnahme:** Ticketzustellung als dauerhaften Outbox-/Retry-Status speichern, Versand unabhängig von neu erzeugten Tickets wiederholbar machen und Fehler im Admin sichtbar anzeigen; Mailfehler- und Crash-nach-Commit-Tests ergänzen. **Behoben (2026-11-14):** Zustell-Outbox über die Jobtabelle (`ticket_delivery`) mit automatischem Retry/Backoff/Dead-Letter; Status in der Bestellansicht sichtbar.
+- [x] [P2][BESTÄTIGT] `src/Refunds.php:142–159,174–196` — Mehrere Datenbankoperationen beim Setzen auf `processing` und beim Verbuchen eines erfolgreichen Provider-Refunds werden nicht auf Fehler geprüft; die externe Rückzahlung kann vor lokaler Finalisierung erfolgt sein. **Mögliche Auswirkung:** Zahlungsanbieter und Plugin können unterschiedliche Refund-/Ticket-/Bestellstände aufweisen; ein Refund kann in `processing` hängen oder als lokal unvollständig erscheinen. **Maßnahme:** persistente Refund-Zustandsmaschine mit Fehlerprüfung und Reconciliation/Retry nach externem Provider-Erfolg einführen; Fehler zwischen Provideraufruf und jedem lokalen Schreibschritt simulieren und idempotente Reparatur testen. **Behoben (2026-11-14):** Claim als bedingtes Einzeilen-Update; lokale Verbuchung in einer geprüften Transaktion; vom Anbieter ausgezahlte, nicht verbuchte Refunds werden idempotent per `Refunds::reconcile()` nachgezogen (Cron + Erstattungsseite).
 
 ### Verdachtsfälle
 
@@ -331,11 +316,11 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 
 ### Bestätigte Befunde
 
-- [ ] [P2][BESTÄTIGT] `src/Jobs.php:35–46`; `src/Communications.php:45–58` — Queue-Worker prüfen Transaktionsstart, bedingtes Claim-Update, betroffene Zeilen und Commit nicht, bevor der Job-Handler bzw. Mailversand ausgeführt wird. **Mögliche Auswirkung:** Bei DB-/Claim-Fehlern kann ein Eintrag in der Queue bleiben und parallel oder später erneut verarbeitet werden; Mails oder externe Job-Nebeneffekte können doppelt ausgelöst werden. **Maßnahme:** Verarbeitung nur bei erfolgreichem Claim mit genau einer aktualisierten Zeile und bestätigtem Commit starten; sonst rollbacken und retrybar abbrechen; Fehler-Injection- und Parallel-Worker-Tests ergänzen.
-- [ ] [P2][BESTÄTIGT] `src/Orders.php:1212–1245` — Sammel-Nachsendung rotiert Ticketcodes einzeln und versendet erst nach Abschluss aller Rotationen; Updates sind nicht serialisiert und ein Update mit null betroffenen Zeilen gilt nicht als Fehler. **Mögliche Auswirkung:** Bei Teilausfall können bereits alte Codes ungültig sein, ohne dass die Nachricht versendet wird; parallele Nachsendungen können Links mit inzwischen ersetzten Codes zustellen. **Maßnahme:** Rotation und Zustellung als serialisierten, wiederaufnehmbaren Vorgang mit Status/Outbox implementieren; Update-/Rowcountfehler erkennen und Teilfehler reparierbar machen; parallele Nachsendungen und Fehler nach jeder Rotation testen.
-- [ ] [P2][BESTÄTIGT] `src/Orders.php:739–760`; Aufruf `src/Payments/Webhooks.php:128–138` — `cancel_order()` ignoriert DB-Fehler bei Transaktion, Reservierungsfreigabe, Ticketwiderruf, Bestellstatus und Commit und meldet dennoch Erfolg; der Webhook kann als verarbeitet markiert werden. **Mögliche Auswirkung:** Bestellung, Reservierungen und Tickets können auseinanderlaufen, während der PSP einen 2xx erhält und den fehlgeschlagenen Vorgang nicht erneut sendet. **Maßnahme:** jede kritische Mutation und Commit prüfen, bei Fehler rollbacken und retrybaren Fehler zurückgeben, damit die Webhook-Zustellung wiederholt wird; Fehler-Injection-Test für den ganzen Stornopfad ergänzen.
-- [ ] [P2][BESTÄTIGT] `src/Orders.php:784–799`; Aufruf `src/Payments/Webhooks.php:140–149` — `mark_refunded()` prüft Freigabe, Ticketwiderruf und Bestellupdate nicht auf Fehler, bevor der externe Vollrefund-Webhook als verarbeitet gilt. **Mögliche Auswirkung:** Provider-Refund und lokaler Ticket-/Bestellstatus können auseinanderlaufen; der Webhook-Retry wird durch die Erfolgsantwort unterdrückt. **Maßnahme:** DB-Ergebnisse prüfen und Fehler retrybar weitergeben; externen Vollrefund-Zustand bei wiederholten Events idempotent abgleichen; Fehlerfälle testen.
-- [ ] [P2][BESTÄTIGT] `assets/offline-scanner/index.html:2,16–75`; `assets/offline-scanner/app.js:96–120,169–172,378–420,530–659` — Offline-Scanner-Texte, Statusmeldungen und Datumsformat sind auf Deutsch fest codiert (`lang="de"`), obwohl Übersetzungskataloge Sprachfassungen für mindestens Teile derselben Texte enthalten; die PWA lädt diese Kataloge nicht. **Mögliche Auswirkung:** Einlasskräfte anderer Sprachumgebungen erhalten deutsche Bedien-/Fehlermeldungen; Screenreader sprechen die Inhalte mit falscher Sprache aus. **Maßnahme:** Locale-abhängige PWA-Übersetzungsressource für UI, Status, Fehler und Datum implementieren, `html lang` korrekt setzen und automatisierte Sprach-/Screenreader-Checks ergänzen.
+- [x] [P2][BESTÄTIGT] `src/Jobs.php:35–46`; `src/Communications.php:45–58` — Queue-Worker prüfen Transaktionsstart, bedingtes Claim-Update, betroffene Zeilen und Commit nicht, bevor der Job-Handler bzw. Mailversand ausgeführt wird. **Mögliche Auswirkung:** Bei DB-/Claim-Fehlern kann ein Eintrag in der Queue bleiben und parallel oder später erneut verarbeitet werden; Mails oder externe Job-Nebeneffekte können doppelt ausgelöst werden. **Maßnahme:** Verarbeitung nur bei erfolgreichem Claim mit genau einer aktualisierten Zeile und bestätigtem Commit starten; sonst rollbacken und retrybar abbrechen; Fehler-Injection- und Parallel-Worker-Tests ergänzen. **Behoben (2026-11-14):** Handler/Mailversand erst nach Einzeilen-Claim und erfolgreichem Commit; Fault-Injection- und Parallel-Worker-Test (6 Prozesse).
+- [x] [P2][BESTÄTIGT] `src/Orders.php:1212–1245` — Sammel-Nachsendung rotiert Ticketcodes einzeln und versendet erst nach Abschluss aller Rotationen; Updates sind nicht serialisiert und ein Update mit null betroffenen Zeilen gilt nicht als Fehler. **Mögliche Auswirkung:** Bei Teilausfall können bereits alte Codes ungültig sein, ohne dass die Nachricht versendet wird; parallele Nachsendungen können Links mit inzwischen ersetzten Codes zustellen. **Maßnahme:** Rotation und Zustellung als serialisierten, wiederaufnehmbaren Vorgang mit Status/Outbox implementieren; Update-/Rowcountfehler erkennen und Teilfehler reparierbar machen; parallele Nachsendungen und Fehler nach jeder Rotation testen. **Behoben (2026-11-14):** Pro Empfänger eine Transaktion mit Zeilensperre und Hash-Bedingung; Commit erst nach erfolgreichem Versand, sonst Rollback.
+- [x] [P2][BESTÄTIGT] `src/Orders.php:739–760`; Aufruf `src/Payments/Webhooks.php:128–138` — `cancel_order()` ignoriert DB-Fehler bei Transaktion, Reservierungsfreigabe, Ticketwiderruf, Bestellstatus und Commit und meldet dennoch Erfolg; der Webhook kann als verarbeitet markiert werden. **Mögliche Auswirkung:** Bestellung, Reservierungen und Tickets können auseinanderlaufen, während der PSP einen 2xx erhält und den fehlgeschlagenen Vorgang nicht erneut sendet. **Maßnahme:** jede kritische Mutation und Commit prüfen, bei Fehler rollbacken und retrybaren Fehler zurückgeben, damit die Webhook-Zustellung wiederholt wird; Fehler-Injection-Test für den ganzen Stornopfad ergänzen. **Behoben (2026-11-14):** Jeder Schritt geprüft, Rollback und retrybarer Fehler (503); Webhook gibt Claim frei und antwortet 5xx.
+- [x] [P2][BESTÄTIGT] `src/Orders.php:784–799`; Aufruf `src/Payments/Webhooks.php:140–149` — `mark_refunded()` prüft Freigabe, Ticketwiderruf und Bestellupdate nicht auf Fehler, bevor der externe Vollrefund-Webhook als verarbeitet gilt. **Mögliche Auswirkung:** Provider-Refund und lokaler Ticket-/Bestellstatus können auseinanderlaufen; der Webhook-Retry wird durch die Erfolgsantwort unterdrückt. **Maßnahme:** DB-Ergebnisse prüfen und Fehler retrybar weitergeben; externen Vollrefund-Zustand bei wiederholten Events idempotent abgleichen; Fehlerfälle testen. **Behoben (2026-11-14):** Eigene Transaktion mit `FOR UPDATE`, alle Schritte geprüft, wiederholte Events idempotent.
+- [x] [P2][BESTÄTIGT] `assets/offline-scanner/index.html:2,16–75`; `assets/offline-scanner/app.js:96–120,169–172,378–420,530–659` — Offline-Scanner-Texte, Statusmeldungen und Datumsformat sind auf Deutsch fest codiert (`lang="de"`), obwohl Übersetzungskataloge Sprachfassungen für mindestens Teile derselben Texte enthalten; die PWA lädt diese Kataloge nicht. **Mögliche Auswirkung:** Einlasskräfte anderer Sprachumgebungen erhalten deutsche Bedien-/Fehlermeldungen; Screenreader sprechen die Inhalte mit falscher Sprache aus. **Maßnahme:** Locale-abhängige PWA-Übersetzungsressource für UI, Status, Fehler und Datum implementieren, `html lang` korrekt setzen und automatisierte Sprach-/Screenreader-Checks ergänzen. **Behoben (2026-11-14):** Übersetzungstabelle über `GET /app/offline/i18n` (offline in IndexedDB), `t()`-Lookup, `html lang` und `Intl.DateTimeFormat`; Übersetzungen für 5 Sprachen.
 
 ### Verdachtsfälle
 
@@ -417,3 +402,429 @@ Diese Aufgaben konkretisieren noch offene oder bisher nur grob beschriebene Bere
 - [ ] **PASS-FE-24 – Preis und Site-Limits nach dem tatsächlichen Launchumfang festlegen.** Vor Shopfreigabe den dann lieferbaren Funktionsumfang gegen die 1/3/5-Site-Staffel, Supportaufwand, externe Providerkosten, 14-Tage-Erstattungsregeln und Lizenzlimits in WP License Captain abgleichen. Unfertige App-/POS-/Adapterfunktionen nicht als enthaltene Launchleistung bewerben.
 - [ ] **PASS-FE-25 – Wettbewerbsfähigkeits- und Release-Matrix ergänzen.** Funktionen marktüblicher Ticket- und Eventlösungen gegen Pass Captain Core und Pro regelmäßig abgleichen; je Abweichung Status „vorhanden“, „teilweise“, „nicht geplant“ oder konkretes Releaseziel dokumentieren. End-to-End-Matrix umfasst Blocks/Classic, HPOS, Mobilgeräte, Multisite, mehrere Scanner, Offlinekonflikte, Druck, POS, Refund und fehlende Drittanbieter.
 - **Gesamtabnahme:** Pass Captain weist für alle wesentlichen Eventtage-Abläufe eine geprüfte Alternative oder eine ausdrücklich dokumentierte Produktgrenze auf; Releaseumfang, Pro-Preis und Supportversprechen beziehen sich auf tatsächlich ausgelieferte Funktionen.
+## Restpunkte aus der Behebung der Auditbefunde (2026-11-14)
+
+- [x] Zahlt der Anbieter aus und schlägt selbst das Speichern der Provider-Referenz fehl, bleibt der Refund in `processing` ohne Referenz und braucht manuelle Prüfung; Admin-Ansicht/Reconciliation dafür ergänzen. **Erledigt (2026-11-14):** Admin-Ansicht und manuelle Klärung im Systemstatus (`Diagnostics::resolve_stuck_refund`).
+- [x] Bei dauerhaftem Schemafehler wiederholt jede Admin-/Cron-Anfrage `dbDelta()` ohne Backoff; Backoff ergänzen. **Erledigt (2026-11-14):** Backoff 1/5/15/60 Minuten, „Jetzt erneut versuchen“ im Systemstatus.
+- [x] `Refunds.php` und der WooCommerce-Adapter ignorieren den neuen Fehler-Rückgabewert von `Orders::mark_refunded()`; `Refunds::record_external()` ist noch ungeprüft. (Abschließende Statusupdates in Jobs/Communications werden seit 2026-11-14 bei Deadlock kurz wiederholt.) **Erledigt (2026-11-14):** Fehler werden per Retry-Job/Reconcile nachgezogen; `record_external()` vollständig geprüft.
+- [x] Seltener Fall: Schlägt das Abschließen des Outbox-Jobs nach erfolgreicher Mail fehl, versendet der Retry eine zweite Mail mit neuen Codes. **Erledigt (2026-11-14):** Zustellmarker verhindert die zweite Mail (`Orders::delivery_marker()`).
+- [x] Offline-Scanner: `manifest.json` bleibt deutsch (statische Datei); PWA nutzt die Site-Sprache statt der Gerätesprache; `docs/OFFLINE-SCANNER.md` um den i18n-Endpunkt ergänzen. **Erledigt (2026-11-14):** Manifest sprachneutral, PWA nutzt Gerätesprache, Doku ergänzt.
+- [x] Plugin-Check-Restpunkte: `error_log()` (Installer, Refunds, Jobs) mit begründetem `phpcs:ignore`, `load_plugin_textdomain()` für die mitgelieferten Übersetzungen, direkte Dateisystemfunktionen/`@`-Unterdrückung (Calendar, InvoicePdf, Orders, WalletPasses) und Direkt-curl für APNs (HTTP/2) nach dem ersten echten Plugin-Check-Lauf bewerten. **Erledigt (2026-11-14):** Zentraler Logger (`Log`), `TempFiles` statt direkter Dateifunktionen, begründete Ausnahmen kommentiert.
+- [x] Entscheiden: verwaiste Fiskal-Adapter (`src/Fiscalization/Providers/*`, ohne `AdapterInterface` in `main`) entfernen oder PR #14 übernehmen; `ConnectorRegistry::dispatch()` wird nirgends aufgerufen – Connectoren anbinden oder Vertrag als experimentell kennzeichnen. **Erledigt (2026-11-15):** Entscheidung: PR #14 übernommen (s. o.); Connectoren sind seit W7/X4 angebunden.
+- [x] Fehlende Erweiterungspunkte für das Add-on ergänzen: Einstellungs-Abschnitte, Berichts-/Export-Hooks, Scanner-Adapter-Registry; öffentliche Hooks versionieren und per Test absichern (A4). **Erledigt (2026-11-14):** siehe A4.
+
+## Audit-Panel 2026-11-15 – Funde (main-Branch @ f060845)
+
+Vollständiger Bericht mit Fundstellen, Debatte und Fix-Code: `docs/audit/PANEL-2026-11-15.md`. **Stand 2026-11-15: alle acht Pakete behoben und zusammengeführt** (Integrationssuite 3228/0 auf MariaDB, Lasttest, phpcs-Baseline, PHPStan, i18n, JS 82/82, Lizenz-Wächter). Details je Fund im CHANGELOG; Restpunkte unten. Priorität: **K** = Kritisch (vor Release), **M** = Mittel (vor Release), **N** = Nice-to-have. Verdachtsfälle zuerst verifizieren.
+
+### Y1 Sicherheit & Zugriff
+- [x] SEC-1 (K) REST `POST /member-passes`: Regel-Geltungsbereich wie in der Admin-Maske prüfen (Kassierer kann sich 0-€-Service-Pässe für alle Ressourcen ausstellen).
+- [x] SEC-2 (K) CSV-Formel-Injection: `Reports/Scope.php` ohne Backslash-Escape, `csv_cell()` härten.
+- [x] SEC-3 (K) Developer-Keys: Rolle/Capability bei jeder Prüfung verlangen, Keys/Staff-Zeilen bei Löschen/Rollenwechsel widerrufen.
+- [x] LEAD-1 (K) Scope-Matrix-Test für schreibende Routen mit Objekt-IDs im Body.
+- [x] SEC-4 (M) Checkout-Antwort ohne `order_id`/`public_id`.
+- [x] SEC-5 (M) Warteliste: globales IP-Limit, E-Mail-Key kleingeschrieben, Double-Opt-in.
+- [x] SEC-6 (M) Google-Wallet `token_uri` fest/Allowlist.
+- [x] FE-7 (M) `X-Frame-Options: DENY`/`frame-ancestors 'none'` + `X-Robots-Tag: noindex` auf Portal, Ticket-, Scanner-, Rechnungsseiten.
+- [x] INT-6 (M) `DONOTCACHEPAGE` + `nocache_headers()` auf allen Token-Seiten.
+- [x] QA-8 (N) `is_scalar()` vor String-Casts von Query-Parametern (7 Dateien).
+- [x] Verdacht SEC-V1…V4 verifizieren (Saal-Blockade, Shop-Manager-Verknüpfung, Check-in-Replay, Key-Rate-Limit).
+
+### Y2 Checkout & Zahlungsfluss
+- [x] QA-1 (K) Idempotency-Reuse nur bei gleichem Provider/Items/E-Mail (Fingerprint, sonst 409); offene PSP-Session nur bei gleichem Betrag wiederverwenden; `checkout.js` verwirft Key bei Änderungen.
+- [x] PAY-1 (K) Late-Payment: Kampagnen-Nutzung neu belegen, sonst `needs_review`.
+- [x] QA-6 (K) Stripe-Session-Ablauf ≤ Hold; verzögerte Zahlarten nur mit passendem Hold.
+- [x] PAY-2 (K) Dashboard-Refunds (voll und teilweise) über `Refunds::record_external` buchen.
+- [x] PAY-8 (K) Stripe-/PayPal-Chargebacks/Disputes als Refund buchen, Alert bei Eröffnung.
+- [x] PAY-7 (M) Gutschriften für Erstattungen vor Rechnungsstellung nachziehen.
+- [x] PAY-10 (N) PayPal: nicht capturen, wenn Order bereits geschlossen.
+- [x] Verdacht PAY-V2…V5 verifizieren (Stripe-Refund-Retry-Idempotenz, Terminal-Betrag, Kassen-Session, Admin-Cancel bezahlter Order).
+
+### Y3 Beträge, Belege & Abrechnung
+- [x] PAY-3 (K) Abrechnung: Gutschein-Anteil erstatteter Tickets abziehen.
+- [x] PAY-4 (K) Einzweck-Gutschein in `line_discounts` aufteilen; Fiskal-Dokument aktualisieren bzw. ablehnen.
+- [x] LEAD-2 (K) Geld-Invarianten-Tests (Σ Zeilenrabatte = Rabatt, Rechnungszeilen = Summe, Abrechnung = Kasse − Erstattungen inkl. Gutschein).
+- [x] PAY-5 (M) `Campaigns::calculate` liefert die tatsächliche Zeilenaufteilung (inkl. `with_price_rules`).
+- [x] PAY-6 (M) Teilerstattung bei Kampagne + Gutschein korrekt skalieren.
+- [x] PAY-9 (M) Service-Umbuchung nach Upgrade: Differenz über Ursprungs- und Nachzahlungs-Order erstatten.
+
+### Y4 Datenschutz
+- [x] PRIV-2 (K) Anonymisierung unbezahlter Orders löscht `billing`.
+- [x] PRIV-3 (K) DSAR: Einwilligungen nur per `subject_email`; Käufer-Export ohne fremde Antworten/Einwilligungen.
+- [x] PRIV-1 (M) Retention: Fristlöschung bezahlter Orders (konfigurierbar, Standard 10 J.), Wartelisten, Service-Buchungen, Mitgliedspässe, SMS-Texte, Einlassprotokolle.
+- [x] PRIV-4 (M) Wallet-Pässe bei Löschung aktualisieren (Google PATCH, Apple Push vor Purge).
+- [x] PRIV-6 (M) Wartelisten-Seite/Export nach `DataPolicy` maskieren.
+- [x] PRIV-7 (M) WooCommerce `_wpcap_attendees`: löschen bei cancelled/failed, WC-Exporter/Eraser registrieren.
+- [x] PRIV-8 (M) Hashes mit Schlüssel (`RateLimit::client()`), Policy-Text korrigieren (Connector, Fiskal-Empfänger).
+- [x] PRIV-9 (N, Rechtsfrage) E-Mail aus `buyer_snapshot` neuer Rechnungen.
+- [x] PRIV-10…13, 15…17 (N) Redact-Muster, Exporter-/Eraser-Lücken, `attendee_data` bezahlter Orders, Affiliate-Cookie-Default, SMS-Opt-in-Verifizierung, Uninstall-Warnung.
+- [x] Verdacht PRIV-V1…V3 verifizieren (webhook_deliveries, Partner-API-Audit, Gerätelabels).
+
+### Y5 Performance
+- [x] PERF-1 (K) Event-Seite/`GET /events` vorladen und Verfügbarkeit gebündelt berechnen.
+- [x] PERF-2 (K) Mollie-Methoden: Negativ-Cache, kurzer Timeout, nicht pro Betrag.
+- [x] PERF-4 (K) Termin absagen/verschieben: Revoke zuerst gebündelt, Refunds und Mails als Jobs.
+- [x] PERF-3 (M) Reminder-Cron ohne N+1, mit Zeitbudget; QA-10 (Limit 200) mitlösen.
+- [x] PERF-5…11 (M) WooCommerce-CSS nur im Checkout, Reservierungs-Index + Retention für reservations/jobs, `reconcile_issuance`-Index, Check-in-Index, Admin-Queries, Berichtsseite cachen/streamen (inkl. QA-7, QA-12), Settings-Autoload + toter Code.
+- [x] PERF-13…17 (N) Scanner-Lokalisierung, Lazy-Module, Check-in-Admin, Transients, Cron-Hooks bei Deaktivierung (= INT-7).
+
+### Y6 Integrationen, Multisite & WordPress.org
+- [x] INT-1 (K) Uninstall-Opt-in in eigenen Schlüssel verschieben (Altkopie kann keine Daten mehr löschen).
+- [x] INT-2 (K) QR-SVG aus eigener Bacon-Matrix; PERF-12 Vendor-Präfix prüfen.
+- [x] INT-3 (K) `core_order_ids()` nur für zugehörige WC-Order; `_wpcap_*` von Subscriptions-Kopie ausschließen.
+- [x] INT-4 (M) Papierkorb/Löschen unbezahlter WC-Orders gibt Hold frei.
+- [x] INT-5 (M) Audit-Trail auf Sites ohne Plugin-Tabellen überspringen.
+- [x] INT-10 (M) WC-Admin-/REST-Orders mit Pflichtfeldern: Ausstellung + spätere Eingabe.
+- [x] WPORG-1, WPORG-3 (M) readme „External services“ vervollständigen, Platzhalter entfernen; tweetnacl-Quellhinweis im ZIP.
+- [x] INT-7…9, 11…13, WPORG-2, 4, 5 (N) Cron bei Deaktivierung, Altkopie-Warnings, `product_block_editor`, `platform_check`, Notiz bei gelöschter WC-Order, Netzwerkaktivierung in Batches, Inline-Style, Vault-Hinweis.
+
+### Y7 Frontend & Scanner
+- [x] QA-2 (K) Signierter QR: Fenster gegen aktuelle Termindaten prüfen.
+- [x] FE-1 / PRIV-5 (M) Offline-Gerät: bei 401/`device_revoked` Stores löschen; abgelaufene Pakete entfernen.
+- [x] FE-3 (M) `?api=` nur für ungekoppelte Geräte.
+- [x] FE-2, FE-4, FE-5, FE-6, FE-8 (N) SW-Navigation-Cache, Log-Pruning, Cursor/`issued_at` gegen Rollback, Kamera stoppen, Token nicht global, Inline-Handler.
+- [x] QA-11 (N) Monatskalender: Gruppierung und Beschriftung in derselben Zeitzone.
+
+### Y8 Kleine Bugs
+- [x] QA-3 (M) `Campaigns::create` gibt die richtige ID zurück.
+- [x] QA-4 (M) `Fiscalization::save_profile` gibt die richtige ID zurück.
+- [x] LEAD-3 (M) Muster „`insert_id` nach `Audit::record`“ im ganzen Code suchen und beheben.
+- [x] QA-5 (M) Datumsfelder in Kampagnen-/Fiskal-REST streng validieren (ISO 8601 → UTC, sonst 400).
+- [x] QA-9 (N) E-Mail-Länge ≤ 190 mit klarer Feldmeldung.
+- [x] Verdacht QA-V1…V4 verifizieren (`strtotime` ohne TZ, Rate-Limit-Atomarität, BuyerLimits-Lock-Name, Action-Scheduler beim Uninstall).
+
+### Restpunkte aus dem Audit-Panel (bewusst offen oder nur teilweise)
+
+Stand nach Z1–Z4: technische Punkte behoben (abgehakt); offen sind nur Rechtsfragen und Abnahmen in echten Umgebungen.
+
+- [x] SEC-5: Double-Opt-in für Wartelisten (neuer Status, Bestätigungsmail, Vorlage, Migration). Derzeit begrenzt durch Limits pro E-Mail/IP/global und Austragen-Link.
+- [x] SEC-V2: Shop-Manager können in WooCommerce jede Ticketart mit einem Produkt verknüpfen (kein Event-Scope für Woo-Rollen).
+- [x] SEC-7 / PRIV-14: Zugangstokens in GET-URLs gegen Cookie/Session tauschen bzw. REST-Token per Header/POST.
+- [x] QA-V2: Checkout-Rate-Limit ohne persistenten Object-Cache nicht atomar (bräuchte eigene Tabelle).
+- [x] PAY-V2: Stripe-Erstattung nach endgültiger Ablehnung – Retry mit gleichem Idempotency-Key bekommt 24 h dieselbe Antwort (Versuchszähler in `Refunds`).
+- [x] PAY-V3: Kartenterminal-Vertrag (`DeviceGatewayInterface::poll`) liefert keinen Betrag zum Abgleich (Vertragserweiterung).
+- [x] PAY-V4: Teilerstattung einer Kassenbestellung über die Erstattungsseite fehlt im erwarteten Kassenbestand (`session_totals`).
+- [x] Abrechnung: `Settlements::allocate_refund()` verteilt Erstattungen innerhalb einer Bestellung nach Listenpreis statt rabattiertem Wert (Summen stimmen; Zuordnung bei mehreren Veranstaltern leicht verschoben). Altbestellungen mit Einzweck-Gutschein + Kampagne ohne `voucher_lines` werden nicht migriert.
+- [x] `record_external` schreibt bei Betrag 0 trotzdem eine Zeile (kleines Wettlaufrisiko bei externen Erstattungen).
+- [x] FE-8: `onclick="window.print()"` auf der Ticketseite und `confirm()`-Inline-Handler im Admin verhindern eine strikte CSP (externes Skript nötig).
+- [x] PERF-14…16: Lazy-Loading der Module, Check-in-Admin pro Termin, Transient-Zeilen pro IP ohne Object-Cache.
+- [ ] PRIV-9 (Rechtsfrage): E-Mail im `buyer_snapshot` neuer Rechnungen – Vorschlag in `docs/OPERATIONS.md`.
+- [x] PRIV-16: SMS-Opt-in ohne Verifizierung der Nummer (OTP).
+- [ ] WPORG-1: efsta – öffentliche Nutzungsbedingungen nicht gefunden; `readme.txt` verweist auf den Vertrag. Von Hand bestätigen.
+- [ ] Mollie: Annahme prüfen, dass `GET /v2/methods` ohne Betrag die Grenzen in EUR liefert (lokale Filterung für EUR) – in der Sandbox-Abnahme.
+- [x] PayPal/Stripe: Liste der zu abonnierenden Webhook-Ereignisse in `docs/OPERATIONS.md` („Webhooks der Zahlungsanbieter einrichten“).
+- [ ] Echte Umgebung: Multisite-Übernahme mit Opt-in, Netzwerkaktivierung > 25 Sites, WooCommerce-Papierkorb/Wiederherstellen mit HPOS an/aus, Fremd-Plugin mit endroid 4.x.
+
+## 12-Experten-Audit Runde 2 (2026-11-15, Stand 2185656) – Master-To-do-Liste
+
+Bericht mit allen 12 Expertenurteilen, Messwerten und „geprüft OK“: `docs/audit/PANEL-2026-11-15-R2.md`. Nach Priorität sortiert, 89 Funde (2 kritisch, 25 hoch, 44 mittel, 18 niedrig). Mehrfach gefundene Punkte sind zusammengeführt (mehrere Experten im Kopf).
+
+- [x] **[PRIO: KRITISCH]** | **[Experte #2]** | **[Kategorie: Concurrency]** – Überverkauf unter READ COMMITTED: verfügbare Menge aus zwei getrennten Statements gelesen
+  - *Problem:* `Orders::capacity_error()` (src/Orders.php:794 ff.) liest sold und held in zwei Statements (ebenso Series/Pools::used(), Occurrence-Summen); pünktlicher Zahlungspfad (`confirm_payment_locked`, :1032-1112) sperrt die Ticketart nicht und setzt paid + converted in einem Commit → unter READ COMMITTED fehlt die Menge in beiden Summen. Kein `SET TRANSACTION`, keine Doku; READ COMMITTED ist verbreiteter WooCommerce-Tuning-Tipp. Reproduziert: 151–152 von 150 in 6/6 Läufen (MariaDB und MySQL); REPEATABLE READ 150/150.
+  - *Lösung:* In `Orders::begin()` `SET TRANSACTION ISOLATION LEVEL REPEATABLE READ` vor START TRANSACTION; sold+held in einem Statement (analog Pools, BuyerLimits); Isolation-Level im Systemstatus anzeigen/warnen; CI-Lauf mit READ COMMITTED.
+- [x] **[PRIO: KRITISCH]** | **[Experte #5, #11, #3]** | **[Kategorie: Bug]** – Stapeldruck „mit QR“ rotiert alle Codes vor der PDF-Erzeugung; Abbruch macht alle Tickets eines Termins ungültig (Insider: Kassenrolle erhält alle Codes)
+  - *Problem:* Printing/Templates.php:354-361 `batch_pdf()` → `rotate_codes()` (:331-347, Einzel-UPDATEs mit Autocommit, je Ticket `wpcap_ticket_code_rotated` → Apple-Signierung inline) → erst dann `render()` im Admin-Request (Printing/Page.php:132-136); Klartext nur im Speicher; kein Limit, kein Test. Reproduziert: 3000 Tickets signiert, 256M → Fatal in PdfWriter.php:131, danach rotated=3000, still_original=0; 3000 unsigniert 24,6 s/202 MB/59 MB PDF; 2000 Seiten nur Render 15,7 s/154 MB. Inhaber nicht benachrichtigt. Zusätzlich (#3): `batch_request` (Printing/Page.php:40-48) verlangt nur wpcap_manage_orders (Rolle Vor-Ort-Kasse, Installer.php:1080) → Kassierer erhält alle gültigen Codes und entwertet alle versendeten Tickets; kein StepUp.
+  - *Lösung:* Code-Neuerzeugung nur mit wpcap_manage_events/Admin + StepUp; standardmäßig nur nie zugestellte (Kasse/Hardticket) Tickets drucken, sonst Pflichtbestätigung „N Kundentickets werden ungültig“ + neue Links an Inhaber; Obergrenze je Auftrag (z. B. 500, Filter); Codes pro Stück in einer Transaktion rotieren, PDF-Teil in Temp-Datei schreiben, erst nach erfolgreichem Schreiben COMMIT sonst ROLLBACK; Wallet-Neuausstellung als Job nach Commit; Regressionstest.
+- [x] **[PRIO: HOCH]** | **[Experte #2]** | **[Kategorie: Concurrency]** – Verspätete Zahlung überbucht Sitzplätze: Ticket ohne Sitz ausgestellt
+  - *Problem:* Late-Recovery prüft nur Ticketart/Termin/Pool; Seating hängt weder an `wpcap_reserve_capacity` noch an `wpcap_ticket_availability`; Sitze erst nach COMMIT in `Seating\Reservations::on_order_paid()` (src/Seating/Reservations.php:246-300) → bei vergebenen Sitzen complete/paid, Tickets ohne Sitz, nur Audit `seat_recovery_failed`. Reproduziert: 2 Sitze → 3 gültige Tickets; unter Last 9–14 von 15–20 verspäteten Bestellungen ohne Sitz; Event-Seite zeigt weiter Kontingent.
+  - *Lösung:* Seating in `wpcap_reserve_capacity` (Phase recover): Link-Zeile FOR UPDATE, freie Sitze in der Recovery-Transaktion prüfen/belegen, sonst `seat_sold_out` → needs_review; `wpcap_ticket_availability` auf freie Sitze je Zone begrenzen.
+- [x] **[PRIO: HOCH]** | **[Experte #2]** | **[Kategorie: Concurrency]** – Deadlocks zwischen verspäteter Zahlung, Checkout und Hold-Aufräumen (umgekehrte Lock-Reihenfolge, S→X-Upgrade)
+  - *Problem:* `confirm_payment_locked` (src/Orders.php:1032/1034) sperrt Bestellung, liest Reservierungen LOCK IN SHARE MODE über nicht eindeutigen Index (Next-Key-S), erst dann Ticketarten (:1042); Checkout umgekehrt. `expire_holds()` (:1507) Bulk-UPDATE gegen S-Lock mit späterem Upgrade (:1091/:1112). Reproduziert (InnoDB-Status): MariaDB-Opfer Bestätigung (Webhook 503, 9–14 % der verspäteten Webhooks); MySQL-Opfer Bulk-UPDATE (Rückgabe ungeprüft); Checkout-INSERT gegen converted-UPDATE → 45–47 von 300 Käufern (15 %) Fehlermeldung.
+  - *Lösung:* Positionen ohne Lock lesen, dann Ticketarten/Termine wie im Checkout sperren, dann Reservierungen FOR UPDATE (kein Upgrade); expire_holds pro Bestellung (Bestellzeile FOR UPDATE, dann deren Reservierungen) bzw. auf vorher ermittelte IDs; Rückgabewerte prüfen/loggen.
+- [x] **[PRIO: HOCH]** | **[Experte #2]** | **[Kategorie: Concurrency]** – Keine Deadlock-Erkennung/kein Retry in `Orders::create()`: Käufer sehen allgemeine 409
+  - *Problem:* Deadlock/Lock-Wait-Timeout beim INSERT → order_insert_failed/order_item_insert_failed/reservation_insert_failed (src/Orders.php:~305-329), nicht gemappt → „Die Bestellung konnte nicht angelegt werden.“ 409, retryable=false (:370-373). Reproduziert: 45–47 Käufer trotz freier Plätze.
+  - *Lösung:* Fehler 1213/1205 als db_busy klassifizieren (last_error vor ROLLBACK sichern), Transaktion 1–2× mit Jitter intern wiederholen (Idempotenz-Key macht es sicher), sonst 503 retryable + Retry-After.
+- [x] **[PRIO: HOCH]** | **[Experte #7]** | **[Kategorie: UX]** – Event-Seite/Shortcode/Block gecacht ohne Live-Aktualisierung: vor dem Start fehlen Tickets, danach „Ausverkauft“ oder veraltetes Maximum
+  - *Problem:* `PublicEvents::render_cards()` (src/PublicEvents.php:~125) filtert sales_start <= now und überspringt Events ohne Typ; templates/event-card.php:23-32 schreibt max= und „Ausverkauft“ ins HTML; Page-Caches cachen das; kein Purge bei sales_start/Hold-Ablauf/Erstattung/Ausverkauf; kein Verfügbarkeits-Endpunkt.
+  - *Lösung:* `GET /wp-pass-captain/v1/availability?types=…` mit no-store (oder max-age=5 + stale-while-revalidate), Polling beim Start/alle 15–30 s; Typen vor sales_start mit Countdown statt weglassen; Hook `wpcap_availability_changed` für Purge-Adapter.
+- [x] **[PRIO: HOCH]** | **[Experte #7]** | **[Kategorie: Security]** – Checkout-Rate-Limit hinter Proxy/CDN ohne Konfiguration: seitenweite Drosselung ohne Warnung
+  - *Problem:* trusted_proxies standardmäßig leer (src/RateLimit.php:86) → REMOTE_ADDR für alle Käufer gleich (Proxy/LB) bzw. wenige Edge-IPs; Orders::create() (:98-104) 30 Checkouts/h/IP, auch Fehlversuche gezählt → beim Vorverkaufsstart 429 für alle; keine Warnung.
+  - *Lösung:* Systemstatus-Warnung bei privatem/Loopback-REMOTE_ADDR bzw. gesetztem X-Forwarded-For/CF-Connecting-IP ohne trusted_proxies; dann reines IP-Limit aussetzen oder anheben; Ausverkauft-Fehlversuche nicht/halb zählen.
+- [x] **[PRIO: HOCH]** | **[Experte #7]** | **[Kategorie: Bug]** – Käuferlimit „pro Konto“ wirkt im nativen Checkout nie (REST ohne Nonce)
+  - *Problem:* assets/checkout.js:371 sendet kein X-WP-Nonce → REST setzt Benutzer 0 → customer_user_id immer 0 (src/Orders.php:119); match_by=customer greift nie, both fällt auf E-Mail zurück; Tests setzen Benutzer direkt.
+  - *Lösung:* Nonce nur für angemeldete Nutzer ausliefern (oder per GET nachladen), Header im JS; Integrationstest über echten Cookie-REST-Aufruf.
+- [x] **[PRIO: HOCH]** | **[Experte #3]** | **[Kategorie: Security]** – Sammeldruck „mit Codes“ durch Kassenpersonal: alle gültigen Codes im PDF, alle Kundentickets ungültig
+  - *Problem:* Printing/Page.php:40-48 (`batch_request`) verlangt nur wpcap_manage_orders (Rolle wpcap_box_office, Installer.php:1080); `Templates::batch_pdf()` (:354-357) ruft `rotate_codes()` (:331-347) für alle gültigen Tickets des Termins → Kassierer hat alle gültigen Codes, versendete Codes tot, Kunden nicht benachrichtigt; kein StepUp. Belegart: Code.
+  - *Lösung:* Code-Neuerzeugung nur mit wpcap_manage_events/Admin + `StepUp::check(array('exports'),'print_batch_codes')`; standardmäßig nur nie zugestellte Tickets (Kasse/Hardticket) drucken; sonst Pflichtbestätigung „N Kundentickets werden ungültig“ und neue Links per rotate_and_send an Inhaber.
+- [x] **[PRIO: HOCH]** | **[Experte #6]** | **[Kategorie: Concurrency]** – Idempotenzschlüssel nicht atomar: paralleler Retry zählt mehrfach, zeigt „bereits verwendet“ oder Scheinkonflikte
+  - *Problem:* Checkin.php:150-165 liest `previous` vor der Transaktion; Index `idempotency (user_id,idempotency_key)` nicht UNIQUE (Installer.php:205). Reproduziert (4 parallele Requests, gleicher Key): multi_entry(5) 4× OK = 4 Einlässe statt 1; Einzelticket App 1× OK + 2× already_checked_in (Retry zeigt Rot obwohl eingelassen); Offline-Sync Scheinkonflikt. Replays nehmen jüngste Zeile (Ablehnung) statt checked_in.
+  - *Lösung:* Key-Prüfung nach dem Ticket-Lock (FOR UPDATE) wiederholen, beim Replay checked_in bevorzugen (`ORDER BY (result='checked_in') DESC`); zusätzlich Claim-Tabelle bzw. UNIQUE-Schlüssel.
+- [x] **[PRIO: HOCH]** | **[Experte #6]** | **[Kategorie: UX]** – PWA zeigt bis 5 s das alte Ergebnis und wird nach 3 s für denselben QR rot
+  - *Problem:* `handleScan()` (assets/offline-scanner/app.js:645-695) setzt keinen Zwischenzustand vor dem 5-s-Request; nach 3 s Sperre (:648) wird gehaltener QR erneut gesendet → „Bereits verwendet“ rot überschreibt Grün; Ergebnis nie zurück auf „Bereit“.
+  - *Lösung:* Sofort neutral „Prüfe …“; nach 4 s idle; gleichen Code 10 s sperren; bei state.admitted gelb „Eben hier eingelassen (vor X s)“.
+- [x] **[PRIO: HOCH]** | **[Experte #4]** | **[Kategorie: Payment]** – Verspätete Zahlung stellt Tickets für abgesagte/vergangene Termine und deaktivierte Ticketarten aus
+  - *Problem:* `Orders::confirm_payment_locked()` (src/Orders.php:1037-1103) prüft im Late-Pfad nur Kontingent, Käuferlimit, Kampagne – nicht occurrences.status/starts_at/ends_at, ticket_types.status. `Webhooks::apply()` (:160) und `PayPalGateway::order_closed()` (:379) blocken nur cancelled/refunded (expired wird gecaptured). `OccurrenceCancellation::handle()` (:109) storniert nur pending, nicht expired. Reproduziert (a2pay/r1.php): abgelaufene Order, Termin abgesagt, Mollie paid → complete/paid, 2 gültige Tickets; ebenso vergangener Termin und inaktive Ticketart.
+  - *Lösung:* Im Late-Pfad Verkaufszustand prüfen (Typ aktiv, Termin nicht abgesagt, Ende in der Zukunft) → sonst `needs_review` + Alert; `order_closed()` um expired (ohne aktiven Hold) erweitern; `extend_for_delayed_payment` auf Zeit bis Terminbeginn begrenzen.
+- [x] **[PRIO: HOCH]** | **[Experte #4]** | **[Kategorie: Payment]** – Stripe: Dashboard-Teilerstattungen gehen verloren (Lücke in PAY-2)
+  - *Problem:* `StripeGateway::normalize_refund()` (:298-311) holt nur die neueste Erstattung (`refunds?charge=…&limit=1`); verspätete/Retry-Webhooks buchen die falsche, Key `stripe:refund:<re_id>` doppelt → echte geht verloren; ist die neueste eine Plugin-Erstattung, wird ältere Dashboard-Erstattung ignoriert. Reproduziert (r2.php): 10 € + 20 € → Ledger 20 € statt 30 €.
+  - *Lösung:* Alle Refunds der Charge (paginiert) holen und jede ohne `metadata.wpcap_refund` einzeln per refund_id buchen, oder kumulativ über `charge.amount_refunded` minus Plugin-Erstattungen; optional `refund.created` abonnieren.
+- [x] **[PRIO: HOCH]** | **[Experte #10]** | **[Kategorie: Legal]** – Steuersatz nach Bestelldatum (UTC) statt nach Leistungszeitpunkt
+  - *Problem:* `TaxProfiles::for_line()` (src/Sales/TaxProfiles.php:220) nutzt `substr($now,0,10)` (Bestelldatum UTC), dokumentiert in docs/TAX-PROFILES.md:50. Maßgeblich ist der Leistungszeitpunkt (DE § 27 Abs. 1 UStG, AT § 28 UStG); Satzänderungen zwischen Kauf und Event → falscher Satz dauerhaft im Snapshot; UTC verschiebt Datum um Mitternacht.
+  - *Lösung:* Stichtag = lokales Datum von `occurrence.starts_at` in Termin-Zeitzone; Bestelldatum nur per Filter `wpcap_tax_profile_date`.
+- [x] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: Bug]** – Seriengenerator kopiert keine Teilnehmerfelder
+  - *Problem:* src/Series/Generator.php:189-201 kopiert nur wpcap_ticket_types; wpcap_participant_fields fehlen → erzeugte Termine ohne Pflichtfelder/Einwilligungen. Reproduziert (60 Termine: Vorlage 1 Feld, neue 0).
+  - *Lösung:* Felder der Vorlage je neuem Typ mitkopieren (vor der Transaktion laden), ebenso Seller-Zuordnung, Einlassbereiche, Preisregeln je Typ prüfen; Regressionstest.
+- [x] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: Bug]** – Kalenderlinks standardmäßig tot, ab dem 51. Termin immer
+  - *Problem:* src/Modules/Calendar.php:160-162 verlinkt `#wpcap-occ-{id}`; mit `checkout_url=''` Anker auf Kalenderseite ohne Karten; mit Checkout-Seite fehlen Termine > 50 (PublicEvents.php:99 LIMIT 50). Reproduziert.
+  - *Lösung:* Einzeltermin-Ansicht (`?wpcap_occ=ID` bzw. Shortcode-Attribut `occurrence`), Kalender verlinkt darauf; fehlt checkout_url, Shortcode-Seite automatisch finden.
+- [x] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: UX]** – Keine Seite pro Event; Shortcode/Block ohne Attribute
+  - *Problem:* `render_shortcode()` (src/PublicEvents.php:96-105) ignoriert Attribute; block.json ohne attributes; jeder Termin als komplettes Formular (62 Termine → 49 Formulare, 59.590 px, 832 Inputs, 1.056 IDs).
+  - *Lösung:* Attribute event, occurrence, limit, layout=list|cards; Liste mit kompakten Terminzeilen + „Tickets“-Button, Formular erst für gewählten Termin; Serien mit Datumsauswahl.
+- [x] **[PRIO: HOCH]** | **[Experte #9]** | **[Kategorie: Feature]** – Warteliste im Frontend nicht erreichbar
+  - *Problem:* templates/event-card.php:29-30 zeigt bei Ausverkauft nur Text; nur REST `POST /events/{id}/waitlist` und Admin; kein Frontend-Aufruf, obwohl FREE-PREMIUM.md sie als Kernfunktion führt.
+  - *Lösung:* Bei ausverkauft (Warteliste aktiv) Button + E-Mail-Feld, fetch an bestehende Route; Double-Opt-in-UI nutzen.
+- [x] **[PRIO: HOCH]** | **[Experte #12]** | **[Kategorie: Feature]** – Event-Detailseite mit schema.org/Event (JSON-LD) und teilbarer URL (Kern)
+  - *Problem:* Keine Route pro Event trotz `wpcap_events.slug`; kein JSON-LD, kein Event-Bild, keine Kategorie → keine Rich Results/Social-Previews/Kampagnenlinks.
+  - *Lösung:* Rewrite `/{basis}/{slug}/`, Template event-single.php, JSON-LD mit offers/availability/eventStatus, Bild, Kategorien (Kern, M).
+- [x] **[PRIO: HOCH]** | **[Experte #12]** | **[Kategorie: Feature]** – Mengen-/Gruppenrabatt, automatische Rabatte, Einzelcodes in Serie (Kern)
+  - *Problem:* wpcap_campaigns ohne Mindestmenge, ohne Rabatt ohne Code, ohne Limit pro Käufer, ohne Massen-Einmalcodes.
+  - *Lösung:* min_quantity, auto_apply, per_buyer_limit, Code-Batch-Generator mit CSV (Kern, M).
+- [x] **[PRIO: HOCH]** | **[Experte #12]** | **[Kategorie: Feature]** – Versteckte Ticketarten / Freischaltcodes (Presale, Mitglieder, Presse) (Kern)
+  - *Problem:* ticket_types ohne Sichtbarkeit.
+  - *Lösung:* visibility public|code|hidden + Codeliste, Rabattcode-Feld schaltet Typen frei (Kern, S–M).
+- [x] **[PRIO: HOCH]** | **[Experte #5]** | **[Kategorie: Bug]** – Ticket-PDF unkomprimiert, ein `re f` je QR-Modul; Größe sprengt Mail-Limits
+  - *Problem:* TicketPdf.php:46-53 je Modul eine Operation, `document()` (:68-94) ohne FlateDecode; PdfWriter gleich. Reproduziert über `issue_and_email` mit 500 Tickets: klassisch 10,2 MB/3,7 s/38 MB/1029 Queries, signiert 30,6 MB/13,9 s/108 MB/2029 Queries → Base64 14/41 MB, Mailserver lehnen ab 10–25 MB ab, `wp_mail` meldet trotzdem true.
+  - *Lösung:* Module zeilenweise zu Rechtecken zusammenfassen, gzcompress + /Filter /FlateDecode, QR als Form-XObject; ab Schwelle (> 50 Tickets oder > 5 MB) Portal-Link statt Anhang (Filter mit Größenprüfung).
+- [x] **[PRIO: HOCH]** | **[Experte #5]** | **[Kategorie: Bug]** – Ticketmail mit Wallet: ein .pkpass-Anhang und ~2,3 KB Google-Link je Ticket, synchron im Webhook
+  - *Problem:* WalletPasses/Service.php:184-201 `on_ticket_mail()` → je Ticket `issue()` (Apple PKCS#7, Temp-Dateien, PNG; AppleProvider.php:132-176); `mail_parts()` (:133-166) hängt je Ticket .pkpass an; Google-Save-URL 2135/2388 Zeichen gemessen; 500 Tickets ≈ 1,2 MB Links + 500 Anhänge im Webhook-Request (Payments/Webhooks.php:157). Lange Save-Links in manchen Clients problematisch (Verdacht; Google empfiehlt Skinny JWT).
+  - *Lösung:* Wallet-Erstellung als Job nach Commit; in der Mail ein Sammel-Link aufs Portal; ab N > 1 kein .pkpass-Anhang (oder .pkpasses-Bundle); Google-Objekte per REST anlegen, im JWT nur IDs.
+- [x] **[PRIO: HOCH]** | **[Experte #8]** | **[Kategorie: Bug]** – Kein From-Name/-Adresse, Reply-To, Envelope-Sender; Doku falsch
+  - *Problem:* Mail/Mailer.php:145-174 (`prepare()`) setzt nur Content-Type; kein wp_mail_from/_name, kein `$phpmailer->Sender`; `wpcap_sender_name` (Orders.php:1871-1874) nur Platzhalter; docs/EXTENSIONS.md:412-417 behauptet Website-Titel als Absender → „WordPress <wordpress@host>“, kein DMARC-Alignment, Antworten verschwinden.
+  - *Lösung:* Einstellungen mail_from_email/name, mail_reply_to; From-/Reply-To-Header in prepare(), Sender in phpmailer_init während deliver; Systemstatus-Hinweis bei Domain-Mismatch; Doku zu SPF/DKIM/DMARC/SMTP; EXTENSIONS.md korrigieren.
+- [x] **[PRIO: HOCH]** | **[Experte #8]** | **[Kategorie: Bug]** – PERF-4 unvollständig: Terminverschiebung und Event-Absage mailen synchron an alle
+  - *Problem:* Notifications.php:18-36 `occurrence_rescheduled()` inline (aus Admin/EventsPage.php:197); Orders.php:1435-1440 `cancel_event()` mailt alle Käufer im Request → Abbruch bei 10.000 Empfängern, Rest nie benachrichtigt, kein Fortschrittsdatensatz.
+  - *Lösung:* Gleiches Batch-Muster wie Einzeltermin-Absage (`*_notify`-Jobs, Jobs::run_now, Fortschritt) bzw. je Empfänger Communications::enqueue mit Dedupe-Key.
+- [x] **[PRIO: HOCH]** | **[Experte #8]** | **[Kategorie: Payment]** – Ticketmail samt PDF und Wallet inline im Zahlungs-Webhook und Checkout
+  - *Problem:* Orders.php:1662-1697 rendert/versendet nach Commit synchron (Aufrufer u. a. Payments/Webhooks.php:157, Gratis-Checkout, BoxOffice); Outbox nur Rückfall. 500 Tickets 3,7 s / 13,9 s (signiert) ohne SMTP/Wallet → PSP-Webhook-Timeouts, Retries; Body 130 KB, Gmail kürzt ab ~102 KB.
+  - *Lösung:* Ab Schwelle (z. B. > 10 Tickets) bzw. immer im Webhook: Versand als sofortiger Job; frische Codes kurzzeitig vault-verschlüsselt im Job-Payload (TTL, nach Versand löschen) oder bei großen Bestellungen nur Portal-Link mit Sammel-PDF; Ticketliste ab N kürzen.
+- [x] **[PRIO: HOCH]** | **[Experte #11]** | **[Kategorie: Bug]** – Ein werfender Job-Handler legt die ganze Job-Queue lahm (Ticketzustellung, Erstattungen, Webhooks)
+  - *Problem:* src/Jobs.php:104 `execute()` ruft `apply_filters('wp_pass_captain_process_job_v1')` ohne try/catch; `TimeBudget::release_claims()` (Jobs/TimeBudget.php:101-110) setzt auf queued ohne run_after/last_error → gleicher Job bei jedem Lauf zuerst (ORDER BY run_after,job_id), übrige fällige Jobs und spätere Callbacks blockiert bis 8 Versuche (~40 min), kein Heartbeat, Dead Letter ohne Fehlertext. Gleiches Muster in Communications::process_due und Sms\Service::process_due. Reproduziert (job_poison.php): A queued attempts=3 last_error NULL, B attempts=0.
+  - *Lösung:* try/catch(\Throwable) → WP_Error + Log::error (redigiert); release_claims() setzt run_after = NOW()+Backoff und last_error; gleiche Absicherung in Mail-/SMS-Workern; Regressionstest.
+- [x] **[PRIO: MITTEL]** | **[Experte #2, #4]** | **[Kategorie: Payment]** – PayPal captured nach Ablauf des Holds: Geld eingezogen, keine Tickets
+  - *Problem:* `PayPalGateway::handle_return()` (src/Payments/PayPalGateway.php:124-152) captured, solange nicht cancelled/refunded (`order_closed`, :379-381) – auch expired → Late-Pfad, bei ausverkauft paid_unallocated + manuelle Erstattung. Für Stripe seit QA-6 gelöst.
+  - *Lösung:* Vor Capture Hold prüfen: abgelaufen → in Transaktion neu reservieren oder ohne Capture abbrechen („Reservierung abgelaufen, keine Zahlung eingezogen“), PayPal-Auftrag voiden.
+- [x] **[PRIO: MITTEL]** | **[Experte #2]** | **[Kategorie: Bug]** – Last-Harness misst Deadlocks auf MySQL nie und zählt abgestürzte Worker nicht als Fehler
+  - *Problem:* tests/load/run.php:169/200 liest `Innodb_deadlocks` (gibt es in MySQL 8.4 nicht → immer 0); abgestürzte Worker nur auf STDERR (:192), fehlen in error_rate (heavy-Lauf: 12 von 1150 Ergebnissen, „errors 0 %“); keine gemischten Szenarien (Late-Webhook, Hold-Aufräumen, Sitzplan, Pools, Isolation).
+  - *Lösung:* Deadlocks über information_schema.INNODB_METRICS lock_deadlocks; fehlende Ergebnisse als error zählen; Szenarien mixed und seats übernehmen; CI-Lauf mit READ COMMITTED.
+- [x] **[PRIO: MITTEL]** | **[Experte #7]** | **[Kategorie: Security]** – Bots umgehen Checkout-Rate-Limit per IPv6-Rotation im /64
+  - *Problem:* Checkout schlüsselt nach voller client_ip() (src/Orders.php:98), nicht `RateLimit::client_network()` → mit einem /64 unbegrenzt Holds à 30–36 min (manual stundenlang).
+  - *Lösung:* client_network() für IP- und IP+E-Mail-Schlüssel; Limit für aktive unbezahlte Bestellungen je Netz.
+- [x] **[PRIO: MITTEL]** | **[Experte #7]** | **[Kategorie: Security]** – Käuferlimits per Plus-/Punkt-Aliasen umgehbar
+  - *Problem:* `BuyerLimits::normalize_email()` (src/Sales/BuyerLimits.php:38) nur strtolower(trim()); a+1@gmail.com / a.b@gmail.com = verschiedene Käufer; gleiche Lücke im IP+E-Mail-Limit.
+  - *Lösung:* +tag entfernen, bei gmail/googlemail Punkte entfernen und Domain vereinheitlichen; per Filter abschaltbar.
+- [x] **[PRIO: MITTEL]** | **[Experte #7]** | **[Kategorie: Feature]** – Abgebrochene Zahlung gibt Hold nicht frei („Phantom-Ausverkauf“ 30–36 min)
+  - *Problem:* Rückkehr mit wpcap_payment=cancel zeigt nur „Reservierung verfällt automatisch“ (src/Payments/ReturnNotice.php:18); Hold mind. 30 min (src/Rest/Controller.php:269), Stripe 36.
+  - *Lösung:* Abbrechen mit gültigem Bestell-Token → cancel_order(only_unpaid), Stripe-Session expiren; Hold-Untergrenze konfigurierbar, wo Gateway es erlaubt.
+- [x] **[PRIO: MITTEL]** | **[Experte #7]** | **[Kategorie: Feature]** – Kein eingebauter Warteraum, kein Client-Backoff, 503 ohne Retry-After, kein Lock-Wait-Limit
+  - *Problem:* Sales\CheckoutGate nur Hook; db_busy-503 ohne Retry-After; checkout.js:385-393 ohne automatischen Retry → manuelle Klickspitzen; Checkouts pro Termin serialisiert (p99 0,8–1,6 s); ohne Sitzungs-innodb_lock_wait_timeout binden hängende Requests bis 50 s Worker/Verbindungen.
+  - *Lösung:* `SET SESSION innodb_lock_wait_timeout = 5` vor Checkout/Bestätigung; 503 mit Retry-After: 2; Client 1–2 Retries mit Jitter und gleichem Key; einfacher Warteraum als Kernoption (Token-Bucket je Termin über das Gate).
+- [x] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Security]** – Check-in-Undo ohne Zeitfenster, Rollenbindung und Idempotenz (Passback)
+  - *Problem:* Mobile/Api.php:146-163 (`/app/scan/undo`), Admin/TicketsPage.php:80-125: jeder mit wpcap_checkin kann beliebig alte Check-ins beliebig oft zurücknehmen; keine `undo_roles` (nur checkout_roles); `Engine::undo_last()` (:247-272) ohne Idempotenzschlüssel (Retry entfernt zwei Einlässe).
+  - *Lösung:* `undo_window_minutes` (z. B. 5) für Personal ohne manage_orders; nur eigene Scans/eigenes Gerät, sonst `undo_roles`; Pflicht-idempotency_key; Zähler „Undos pro Ticket“ im Konfliktbericht.
+- [x] **[PRIO: MITTEL]** | **[Experte #3]** | **[Kategorie: Check-in]** – `duplicate_policy=first_sync_wins` schließt echte Doppel-Einlässe automatisch
+  - *Problem:* OfflineScanner/Sync.php:39-42,66-73 setzt jeden double_admission-Konflikt (gleicher Code auf zwei Geräten = Screenshot-Betrug) auf resolved/duplicate_scan → nicht mehr unter „Offen“, Kennzahl unsichtbar.
+  - *Lösung:* Nur bei gleichem Gerät/Benutzer automatisch schließen; geräteübergreifend `open` lassen oder eigene resolution `duplicate_admission` mit Zähler/Report.
+- [x] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – Web-Scanner: kein Fetch-Timeout; Offline-Queue erzeugt neuen Idempotenzschlüssel (Scheinkonflikt)
+  - *Problem:* assets/scanner.js:203-215 fetch ohne AbortController (Scanner hängt); nach Abbruch bietet `offline()` Sichtprüfung an, `enqueue()` (:105) mit neuer uuid → Sync als already_checked_in-Konflikt; Anzeige bleibt grün (:200).
+  - *Lösung:* AbortController 5 s; Key des Online-Versuchs an offline()/enqueue weiterreichen; state 'pending'.
+- [x] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – DB-Retry (Deadlock/Lock-Timeout) kommt als HTTP 200 ok:false; PWA zeigt rot „retry“, kein Offline-Fallback, Scan verloren
+  - *Problem:* Mobile/Api.php:222-228 lässt nur 401/429 durch; `Checkin::retry_error` (503) wird `{ok:false,result:'retry'}`; app.js:672-676 zeigt „retry · online“ rot (fehlt in RESULT_TEXT), Scan als synced geloggt.
+  - *Lösung:* scan_response bei retryable HTTP 503 → PWA fällt auf Offline-Entscheidung zurück; RESULT_TEXT-Eintrag.
+- [x] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – Offline-Paket bei 50.000 Tickets: 15-s-Timeout, Volldownload ~alle 30 min, Build pro Gerät
+  - *Problem:* Messung Package::build 50.000 Tickets: Payload 4,34 MB (mit Namen 6,86 MB), Body 4,82/7,62 MB, gzip 1,83/2,08 MB, Build 0,46 s, 76 MB RAM. refreshPackage nutzt 15-s-Timeout (app.js:303,446) → bei 2 Mbit/s immer Abbruch; REST ohne Kompression; MAX_DELTAS=30 bei REFRESH_MS=60000 → Vollpaket zur Spitzenzeit; Build gerätegebunden (nicht cachebar, 20 Geräte × 76 MB).
+  - *Lösung:* Bei MAX_DELTAS `since=full.cursor`-Kompaktdelta; Paket-Timeout 120 s + Fortschritt; gzip serverseitig; kompakteres Format, Namen nur Opt-in.
+- [x] **[PRIO: MITTEL]** | **[Experte #6]** | **[Kategorie: Check-in]** – Offline lässt PWA Mehrfachtickets (daily/multi_entry/reentry) lokal unbegrenzt ein
+  - *Problem:* `decideOffline()` (app.js:606-618) prüft admitted nur für !multi → Tagesticket-Screenshot lässt beliebig viele ein; Konflikte erst beim Sync (und durch first_sync_wins geschlossen).
+  - *Lösung:* Lokaler Zähler je Hash und Service-Tag (daily 1/Tag, multi_entry < max_entries, reentry inside-Flag); Paket um max_entries/valid_days ergänzen.
+- [x] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Verzögerte Zahlarten außerhalb Stripe verlängern den Hold nicht
+  - *Problem:* Mollie verlängert nur bei vorab gewählter `banktransfer` (MollieGateway.php:123); `open`/`pending` nicht als payment_pending (:317); Mollie-Überweisung lebt ~12 Tage. PayPal `PENDING`-Capture / `PAYMENT.CAPTURE.PENDING` nicht ausgewertet (PayPalGateway.php:143).
+  - *Lösung:* Mollie open/pending + method banktransfer/directdebit → payment_pending, `expiresAt` auf Hold-Ende; PayPal CAPTURE.PENDING normalisieren.
+- [x] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Klarna/Riverty über Mollie wählbar, Status `authorized` wird nie gecaptured
+  - *Problem:* `Modules\Mollie::KNOWN_METHODS` (:22) bietet klarna/riverty; `normalize()`/`handle_return()` kennen `authorized` nicht, kein Capture-Aufruf → Order läuft ab, Autorisierung verfällt (Mollie-Verhalten in Sandbox bestätigen).
+  - *Lösung:* klarna/riverty entfernen oder `authorized` sofort per `POST /v2/payments/{id}/captures` capturen, erst Capture = paid.
+- [x] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Storno/Ablauf annulliert offene PSP-Sessions nicht; Zahlung auf stornierte Order nur per Alert
+  - *Problem:* Kein Gateway-Hook an `cancel_order()` (src/Orders.php:1143-1177) / `expire_holds()` (:1501): kein Stripe `/expire`, kein Mollie DELETE. Danach nur `paid_for_closed_order`/`double_payment`-Mail (Webhooks.php:150-164), keine automatische Rückerstattung, keine Admin-Liste.
+  - *Lösung:* Hook auf Order-Storno → `void_payment()` je Gateway; für paid_for_closed_order/double_payment Refund-Job (optional per Einstellung) + Admin-Liste.
+- [x] **[PRIO: MITTEL]** | **[Experte #4]** | **[Kategorie: Payment]** – Später fehlschlagende PSP-Erstattungen bleiben als erstattet gebucht
+  - *Problem:* `StripeGateway::refund()` (:163) wertet `pending` als Erfolg; `charge.refund.updated`/`refund.failed` und Mollie-Refund `failed` werden nicht verarbeitet → Ledger/Gutschrift/Abrechnung sagen erstattet, Käufer hat kein Geld.
+  - *Lösung:* Events normalisieren (`refund_failed`), Refund per provider_reference auf failed, Alert, Gegenbuchung; in docs/OPERATIONS.md Event-Liste ergänzen.
+- [x] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – Rechnungskorrektur ohne Steuersatz und Aufschlüsselung nach Sätzen
+  - *Problem:* `wpcap_credit_notes` (src/Installer.php:703-717) nur ein net/tax/total; Render ohne Satz, Export `USt-Satz=''`; bei Mischsätzen und Betragserstattungen verteilt `Refunds::tax_for()` (:819) anteilig → Mischsatz (§ 17 i. V. m. § 14 Abs. 4 Nr. 8 UStG / § 11, § 16 UStG AT).
+  - *Lösung:* Tabelle `wpcap_credit_note_lines (credit_note_id, tax_rate_bp, net, tax, total)`, Render/Export je Satz.
+- [x] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – Buchhaltungsexport nur aus Rechnungen, ohne Steuerland (OSS)
+  - *Problem:* `Invoices::export_rows()` (src/Invoices.php:~395) liest nur Rechnungen/Gutschriften; mit Standard `auto_invoice=0` fehlen alle B2C-Verkäufe ohne Rechnung (GoBD / § 131 BAO); keine Spalte Steuerland → keine OSS-Aufteilung.
+  - *Lösung:* Export auf Basis Order-Zeilen + Ledger (Zahlung, Erstattung, Chargeback mit Satz, Steuerland, Beleg-/Order-ID) unabhängig von Rechnungen; Spalte Steuerland; alternativ auto_invoice standardmäßig an.
+- [x] **[PRIO: MITTEL]** | **[Experte #10]** | **[Kategorie: Legal]** – Hinweis auf fehlendes Widerrufsrecht ab Werk leer; keine Vertragsbestätigung auf dauerhaftem Datenträger
+  - *Problem:* `consumer_info_text`/`terms_text` leer, `require_terms=0` (src/Settings.php:74-76) → templates/event-card.php:111-120 zeigt nichts (Pflicht: § 312d BGB / Art. 246a § 1 Abs. 3 Nr. 1 EGBGB, § 4 Abs. 1 Z 11 FAGG). Produkte ohne Termin (Mitgliedspässe, Gutscheine, Service-Pässe) haben Widerrufsrecht – keine Unterscheidung. Mails ohne AGB/Verbraucherinfo (§ 312f Abs. 2 BGB / § 7 Abs. 3 FAGG).
+  - *Lösung:* Standardhinweis „Kein Widerrufsrecht … (§ 312g Abs. 2 Nr. 9 BGB / § 18 Abs. 1 Z 10 FAGG)“ nur wenn alle Positionen terminiert; Widerrufsbelehrung für Produkte ohne Termin; Platzhalter {consumer_info}/{terms} bzw. AGB-PDF in Ticket-Mail; Status-Check „Verbraucherinformationen leer“.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: Bug]** – Teilnehmer-Nummerierung falsch nach Mengenänderung
+  - *Problem:* assets/checkout.js:48-53 (`renderAttendees`) behält alte Legenden → „Attendee 1/2/3 · Standard“, „Attendee 3 · Freier Eintritt“ (reproduziert); `aria-live` am ganzen Block lässt alles neu vorlesen.
+  - *Lösung:* Legende beim Wiederverwenden neu setzen; aria-live vom Block entfernen, kurze Statusmeldung stattdessen.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Rückkehr vom Zahlungsanbieter auf die Startseite, kein „Erneut bezahlen“
+  - *Problem:* Return-URLs `home_url('/')?wpcap_payment=…` (StripeGateway.php:399, PayPalGateway.php:515, MollieGateway.php:411); `ReturnNotice` nur über `wp_body_open` (klassische Themes zeigen nichts); bei cancel nur „Reservierung verfällt“; Portal ohne Bezahl-Button für offene Online-Bestellungen.
+  - *Lösung:* Ursprungsseite als `return_to` (wp_validate_redirect); bei cancel/failed „Erneut bezahlen“ (neue Session für dieselbe Order solange Hold) und „Reservierung freigeben“; Fallback-Banner per `the_content`.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Personalisierung: Name nicht erzwingbar, wenige Feldtypen
+  - *Problem:* Namensfeld je Ticket immer optional (checkout.js:57); FIELD_TYPES nur text/email/textarea/checkbox/consent (Admin/EventsPage.php:24) – kein select/radio/date/tel; kein Käufername ohne Rechnung; E-Mail-Feld je Teilnehmer ohne „übernehmen“.
+  - *Lösung:* Ticketart-Option attendee_name off|optional|required (serverseitig geprüft); Feldtypen select/radio/date/tel; optionaler Käufername; Teilnehmer-E-Mail einklappbar.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Ticketarten ohne Beschreibung/Reihenfolge, „0,00 €“ statt „kostenlos“
+  - *Problem:* ticket_types ohne description/position, Sortierung nach ID (PublicEvents.php:125); Gratis zeigt „0.00 €“, Button „Zahlungspflichtig bestellen“ auch bei 0 € (event-card.php:124); Mengenfelder umbrechen uneinheitlich.
+  - *Lösung:* Spalten description, position; „kostenlos“; Button-Text bei Summe 0 „Kostenlos bestellen“; festes Grid.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Saalplan auf dem Handy kaum antippbar (Verdacht)
+  - *Problem:* assets/seating/picker.css:3 `svg{width:100%;min-width:320px}` ohne Zoom/Pan; kein „beste Plätze“.
+  - *Lösung:* Mindestbreite aus Sitzdichte (≥ 24 px, WCAG 2.5.8), scrollbarer Zoom, Button „Beste verfügbare Plätze“, Liste mobil vorschlagen.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Freikarten/Gästeliste nur über offene Kassensitzung
+  - *Problem:* „Freikarte“ nur als Box-Office-Zahlart `pos_free` (BoxOffice/Service.php:34), `sell()` verlangt offene Sitzung (:353) → Kassenbericht/Fiskal-Logik.
+  - *Lösung:* Admin-Aktion „Tickets ausstellen“ (Typ, Menge, Empfänger, CSV-Gästeliste), provider=comp, 0 €, ohne Kasse/Fiskal, Audit, Berichtsfilter „Freikarten“.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Bestellsuche nur Nummer/E-Mail, kein Bestellungs-CSV, drei Nummernformate
+  - *Problem:* Queries::search_orders (Admin/Queries.php:244-250) ohne Teilnehmer-/Rechnungsname/Ticketcode; kein Orders-Export; Käufer sieht `2EBB-D9FC`, Liste 12 Hex, Detail 32 Hex (OrdersPage.php:268).
+  - *Lösung:* Suche per EXISTS auf attendee_name/billing; Export-Typ orders mit csv_cell(); überall Format::order_reference().
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – Erstattung ohne Betragsvorschau, freien Betrag oder Gebührenabzug
+  - *Problem:* Admin/OrdersPage.php:85-108 nur Tickets ankreuzen + Grund; Betrag erst nach Absenden; keine Kulanz-Teilbeträge/Bearbeitungsgebühr; Checkboxen ohne Label.
+  - *Lösung:* Vorschau mit Refunds::calculate; optionaler Abzug/Höchstbetrag mit Rechnungskorrektur; aria-label an Checkboxen.
+- [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – 35 flache Admin-Menüpunkte, kein Dashboard, kein Einrichtungsassistent, kein Duplizieren
+  - *Problem:* Admin/Menu.php:126-145 + Modulseiten; Module nur per Filter abschaltbar (Modules.php:32); Start = Eventliste ohne KPIs; kein Onboarding; 3 Seitenwechsel bis zur ersten Ticketart; kein „Event/Termin duplizieren“.
+  - *Lösung:* Menü gruppieren; Einstellungen „Funktionen“ mit Schaltern; Dashboard mit KPIs + Setup-Checkliste; „Duplizieren“ inkl. Typen, Felder, Preisregeln.
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Zusatzprodukte (Parken, Merch) und Kombi-/Paket-Tickets
+  - *Problem:* Kein Add-on-/Bundle-Modell im eigenen Checkout; Merch nur über WooCommerce; Kombi über mehrere Termine fehlt als Verkaufsobjekt.
+  - *Lösung:* Ticketart-Typ addon (an Hauptticket gebunden) und bundle (n Termine/Typen, ein Preis, gemeinsames Kontingent); einfache Zusatzprodukte Kern, Bundle Add-on (L).
+  - *Stand:* Offen (R7): Zusatzprodukte und Kombi-/Paket-Tickets nicht gebaut; als Add-on-Kandidat in docs/FREE-PREMIUM.md vermerkt.
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Teilnehmer-Self-Service: Stornoanfrage / Terminumtausch im Portal
+  - *Problem:* Portal ohne Storno-/Erstattungsanfrage nach Veranstalterregel und ohne Terminwechsel.
+  - *Lösung:* Regel je Event (Frist, Gebühr) → Anfrage → Refund-/Freigabefluss; Terminwechsel bei gleichem Preis (Anfrage Kern, Auto-Umtausch Add-on).
+  - *Stand:* Teilweise (R7/R5): Stornoanfrage im Portal (Frist/Gebühr, Zweitfreigabe) und Erstattungsantrag nach Verschiebung umgesetzt; Terminumtausch im Portal offen.
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Datenschutzkonformes Conversion-Tracking und Embed-Widget
+  - *Problem:* Nur JS-Event `wpcap:checkout-complete` (nicht dokumentiert); keine UTM-Übernahme; kein iFrame-/Widget.
+  - *Lösung:* Dokumentierte JS-Events (view_item … purchase, ohne PII); UTM/Referrer an Order (Retention); embed.js mit postMessage-Höhe (Events/UTM Kern, Widget Add-on).
+  - *Stand:* Teilweise (R7): Tracking-Ereignisse `wpcap:track` und UTM-Attribution (docs/TRACKING.md) umgesetzt; Embed-Widget offen (Add-on).
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Import aus anderen Systemen (Tickera, Event Tickets, Pretix, CSV)
+  - *Problem:* Kein Importer.
+  - *Lösung:* CSV-Import Events/Termine/Ticketarten (Kern, S); Migration bestehender Tickets mit Fremdcodes (Add-on, M).
+  - *Stand:* Teilweise (R7): CSV-Import von Events (Prüflauf, Entwürfe) umgesetzt; Import aus Tickera/Event Tickets/Pretix samt Tickets offen.
+- [x] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: Check-in]** – QR mit unnötigem UTF-8-ECI-Header
+  - *Problem:* QrCode.php:32 `Encoder::encode($payload, M, 'UTF-8')` → ECI-Präfix (Bacon warnt selbst); Payloads reines ASCII; signierter QR 251 Zeichen → Version 12 statt 11; manche HID-Handscanner geben ECI-Präfix aus oder lesen nicht (Verdacht).
+  - *Lösung:* Bei ASCII ohne ECI kodieren (`'ISO-8859-1'`); optional Alphanumerik-Modus für klassische Codes.
+- [ ] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: UX]** – Kyrillisch, CJK, ł, ź, Ć … werden im PDF/Namensschild zu „?“
+  - *Problem:* TicketPdf.php:97-101 und PdfWriter nutzen Helvetica/WinAnsi; reproduziert „Привет 東京 Łódź Ä€“ → „?????? ?? ?ód? Ä€“, „Ćirić“ → „?iri?“; Namensschilder betroffen.
+  - *Lösung:* Unicode-TTF als CIDFontType2/Identity-H mit ToUnicode (Subset, z. B. Noto Sans, per Filter); mindestens transliterieren statt „?“ und im Admin warnen.
+  - *Stand:* Teilweise (R2): Transliteration (Intl/iconv) statt „?“ plus Admin-Hinweis; eingebettete Unicode-Schrift (CIDFontType2 + Subsetter) offen.
+- [x] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: Security]** – Widerruf des QR-Signaturschlüssels aktualisiert keine Wallet-Pässe
+  - *Problem:* `SignedQr::rotate(true)` (Security/SignedQr.php:136-160) ohne Wallet-Sync; `Service::fingerprint()` (WalletPasses/Service.php:84-87) ohne Schlüssel-ID → Pässe behalten Barcode mit widerrufenem Schlüssel → am Einlass invalid_signature.
+  - *Lösung:* Nach rotate (mind. revoke) alle aktiven Pässe kommender Termine in wallet_sync-Jobs; Schlüssel-ID in Fingerprint oder generation erhöhen.
+- [x] **[PRIO: MITTEL]** | **[Experte #5]** | **[Kategorie: Bug]** – Signierter QR je Ticket: zwei Vault-Entschlüsselungen + DB-Abfrage (3,7-fache Zeit)
+  - *Problem:* `SignedQr::qr_value()` (:258-264) liest je Token die Ticketzeile; `sign()` öffnet Secret doppelt (:175-192); 500 Tickets 13,9 s statt 3,7 s, +1000 Queries.
+  - *Lösung:* Secret + kid pro Request statisch cachen (sodium_memzero beim Shutdown); Ticketzeilen per IN() gesammelt (`qr_values(array)`).
+- [x] **[PRIO: MITTEL]** | **[Experte #8, #11]** | **[Kategorie: Bug]** – Absage-Batches: kein Retry je Empfänger, Abbruch erzeugt Duplikate, Batches zu groß
+  - *Problem:* `OccurrenceCancellation::notify()` (:221-242) zählt nur; `handle_job()` gibt immer true (:209-212) → Fehlschläge verloren; Worker-Tod nach 50/100 → Retry des ganzen Batches, bis 8× Dubletten; NOTIFY_BATCH 100, REFUND_BATCH 20 mit 15-s-PSP-Timeouts (:27-29) weit über max_execution_time; TimeBudget nur vor Claim.
+  - *Lösung:* Je Empfänger `Communications::enqueue('occ-cancel|occ|run|email')` (Dedupe, Claim, Backoff); kleinere Batches (Mails 20, Refunds 5), Deadline im Job prüfen, Rest neu einreihen.
+- [x] **[PRIO: MITTEL]** | **[Experte #8]** | **[Kategorie: Concurrency]** – „Tickets erneut senden“ hält Zeilensperren während SMTP-Versand und Wallet-Signierung
+  - *Problem:* Orders.php:1966-2006 `rotate_and_send_group()` FOR UPDATE, darin `wpcap_ticket_code_rotated` (Apple-Signierung je Ticket) und `Mailer::send()` vor Commit → Check-in desselben Tickets wartet bis innodb_lock_wait_timeout (50 s).
+  - *Lösung:* Optimistisch: Codes vorbereiten, Mail senden, dann kurze CAS-Transaktion `UPDATE … WHERE ticket_id=? AND token_hash=?`; Wallet nach Commit über Queue.
+- [x] **[PRIO: MITTEL]** | **[Experte #8]** | **[Kategorie: UX]** – Neuversand/Zustell-Retry ohne PDF; Käufer-Neuversand entwertet Tickets der Teilnehmenden ohne Warnung
+  - *Problem:* rotate_and_send_group() (Orders.php:2000), reissue_ticket() (:2050), retry_delivery() (:1772) senden ohne Anhang; Portal-Neuversand (Rest/Controller.php:440-461) rotiert auch Tickets mit Teilnehmer-E-Mail → Käufer entwertet gedruckte Tickets Dritter, Portal erklärt das nicht.
+  - *Lösung:* PDF beim Neuversand (gleiche Größenschwelle); deutliche Warnung im Portal; Option „nur eigene, nicht zugewiesene Tickets neu senden“.
+- [x] **[PRIO: MITTEL]** | **[Experte #1]** | **[Kategorie: Bug]** – Hook-Vertragstest ohne Signaturen; 5 Hooks undokumentiert; Typverletzung in `_v1`-Hook
+  - *Problem:* tests/integration/modules/hooks_contract.php vergleicht nur Namen; Integrations/HttpJson/Endpoints.php:415 übergibt endpoint_id als String (dokumentiert int); undokumentiert: wpcap_buyer_locales, wpcap_checkout_user_roles, wpcap_data_profile, wpcap_db_tracks_in_transaction, wpcap_webhook_claim_wait_ms; `wp_pass_captain_currencies`, `wp_pass_captain_event_card_html` öffentliches Präfix ohne `_v1`.
+  - *Lösung:* Arity aus HOOKS.md parsen und per Tokenizer gegen Aufrufstellen prüfen; (int)-Cast; die zwei Hooks umbenennen bzw. ins wpcap_-Präfix; fünf dokumentieren; Test für alle nicht versionierten Hooks.
+- [x] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Bug]** – Action-Scheduler-Fortsetzung bricht nach einem Folgelauf ab
+  - *Problem:* Jobs/TimeBudget.php:68-71 `continue_later()` prüft `as_has_scheduled_action()`, das auch RUNNING zählt → laufende Fortsetzung plant keine weitere; Rückstand wartet bis zum nächsten 5-Minuten-Cron (mit WooCommerce der Normalfall).
+  - *Lösung:* Nur PENDING prüfen (`as_get_scheduled_actions(... 'status' => STATUS_PENDING ...)`), sonst `as_enqueue_async_action`.
+- [x] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Bug]** – Abgelaufene Holds geben Kampagnen-Kontingent erst stündlich frei (max. 200 Bestellungen/Stunde)
+  - *Problem:* Kapazität lazy (Orders.php:802,811), Kampagnen über used_count (Campaigns.php:40,124), Freigabe nur in `expire_holds()` (Orders.php:1501-1529) am stündlichen `wpcap_cleanup_reservations` (Plugin.php:177), 200 pro Lauf → limitierte Codes bis Hold+60 min blockiert, Rückstand wächst; wpcap_order_cancelled/capacity_released spät; kein Test.
+  - *Lösung:* expire_holds zusätzlich im 5-Minuten-Hook mit Zeitbudget/Fortsetzung, oder Kampagnencheck lazy (reservierte Nutzungen abgelaufener Bestellungen abziehen); Test.
+- [x] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Legal]** – Retention ohne Folgelauf bei Budgetende und ohne Heartbeat
+  - *Problem:* src/Privacy/Retention.php:126-140 bricht nach 20 s ab, keine Fortsetzung, feste Reihenfolge → hintere Schritte (audit_logs, reservations, jobs) verhungern; Ops\Heartbeat::workers() kennt Retention nicht.
+  - *Lösung:* Bei !complete `TimeBudget::continue_later(Retention::HOOK)`, Startschritt rotieren (Option), Heartbeat 'retention' (Intervall 1 Tag).
+- [x] **[PRIO: MITTEL]** | **[Experte #11]** | **[Kategorie: Bug]** – Operative Fehler laufen an Log vorbei; wpcap_log-Kontext unredigiert
+  - *Problem:* Nur 12 Log::error/warning; 27 Fehlerereignisse direkt per Audit::record (ticket_issue_failed Orders.php:1710, order_state_db_error :560, webhook_db_error Payments/Webhooks.php:113, ticket_delivery_failed, refund_failed, voucher_commit_failed, woocommerce_refund_sync_failed) → weder Action wpcap_log noch PHP-Error-Log; bei DB-Ausfall scheitert auch der Audit-INSERT still. `Log.php:57` gibt $context unredigiert weiter (Jobs.php:130 roher $wpdb->last_error).
+  - *Lösung:* Alle *_failed/*_db_error über Log::error; Redact::data auf details vor do_action; Fallback auf Redact::log() wenn Audit-INSERT scheitert.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #2]** | **[Kategorie: Concurrency]** – Ungeprüfte Statements in der Bestell-Transaktion (Seating)
+  - *Problem:* `Reservations::claim()` → `release_stale()` (src/Seating/Reservations.php:178) in der Transaktion ohne Rückgabeprüfung; bei Server-Rollback laufen folgende FOR UPDATE/INSERT im Autocommit → verwaiste Claims blockieren Sitze; ebenso START TRANSACTION/INSERTs in on_order_paid (:256 ff.) (Verdacht).
+  - *Lösung:* `if ( false === $wpdb->query(…) ) throw new \RuntimeException('db_busy');` wie in Orders::create().
+- [x] **[PRIO: NIEDRIG]** | **[Experte #7]** | **[Kategorie: UX]** – Ausverkauft-Übergang ohne Restmenge; Rückkehr-Hinweis kann aus dem Cache kommen
+  - *Problem:* 409 „nicht mehr genügend Tickets“ ohne Restmenge, Formular-max nicht aktualisiert (checkout.js:385-393); Rückkehr-URL Startseite mit ?wpcap_payment=… (StripeGateway.php:399) ohne DONOTCACHEPAGE.
+  - *Lösung:* remaining in Fehlerantwort, Karte im Client aktualisieren; bei wpcap_payment DONOTCACHEPAGE + nocache_headers() in template_redirect.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Security]** – Rückdatierte Offline-Uploads umgehen Einlassfenster bei Ticketarten ohne Policy
+  - *Problem:* Admission/Rest.php:55-70 erlaubt scanned_at bis 12 h zurück; Backdating-Prüfung (Checkin.php:236) nur mit $policy; mit default_entry_window wird Scan nach Einlassschluss still zugelassen.
+  - *Lösung:* Backdating-Prüfung auch ohne Policy; kürzeres Höchstalter für Web-Uploads (1 h).
+- [x] **[PRIO: NIEDRIG]** | **[Experte #3]** | **[Kategorie: Bug]** – Liefer-Retry rotiert übertragene/zugewiesene Tickets und mailt sie an den Käufer
+  - *Problem:* `Orders::retry_delivery` (:1772) → `rotate_and_send(..., true)`; `code_recipient()` (:1946-1949) liefert immer Käufer, Skip (:1974) greift nie; Kommentar (:1774) behauptet Gegenteil.
+  - *Lösung:* Im Retry Tickets mit transfer_count>0 bzw. Holder-Wechsel überspringen oder $to_buyer nur ohne abweichende attendee_email.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #6]** | **[Kategorie: UX]** – Scanner-Feedback und Hardware
+  - *Problem:* Web-Scanner ohne Ton/Vibration, zeigt attendee_name nicht; PWA nur navigator.vibrate (iOS ohne Feedback); keine Torch/Fokus-Constraints; PWA ohne Check-out/Undo.
+  - *Lösung:* WebAudio-Töne (abschaltbar) in beiden Scannern; Name anzeigen; Torch-Schalter und focusMode continuous.
+  - *Stand:* Teilweise (R4): Ton/Vibration, Name, Taschenlampe, Fokus umgesetzt; Check-out/Undo in der PWA offen.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #4]** | **[Kategorie: Feature]** – Kein Abgleich mit PSP-Berichten, kein Status-Poll für hängende pending-Orders
+  - *Problem:* Kein Abgleich gegen Stripe balance_transactions/PayPal-Berichte/Mollie-Settlements; fehlt ein Webhook, läuft eine bezahlte Order ab. Gebühren/Auszahlungen unsichtbar.
+  - *Lösung:* Cron fragt pending-Orders mit provider_reference > X min beim PSP ab und spielt den Status über `Webhooks::process` ein; CSV-Abgleich der Settlements.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – Verschiebungs-Mail „Ticket bleibt gültig“ ohne Erstattungshinweis
+  - *Problem:* src/Mail/Types.php:400, SMS src/Modules/Sms.php:98; kein Self-Service-Erstattungsweg/Frist trotz Rücktrittsanspruch bei erheblicher Verschiebung.
+  - *Lösung:* Text konfigurierbar mit Erstattungshinweis + Frist; Portal-Button „Erstattung beantragen“ (Refunds::request mit Freigabe) bis Beginn des neuen Termins.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Feature]** – Kombitickets mit gemischten Steuersätzen nicht abbildbar
+  - *Problem:* Eine Ticketart = ein Satz (TaxProfiles::for_line); Konzert + Gastro-/Merch-Anteil nicht aufteilbar.
+  - *Lösung:* Optionale Zusammensetzung je Ticketart (Anteile mit Satz/Betrag), mehrere Steuerzeilen je Position in Snapshot, Rechnung, Fiskalbeleg.
+  - *Stand:* Offen (R5): Kombitickets mit gemischten Steuersätzen weiterhin nicht abbildbar; braucht ein Positionsmodell mit Teilleistungen.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #10]** | **[Kategorie: Legal]** – Checkout ohne Datenschutz-Hinweis bei der Erhebung (Art. 13 DSGVO)
+  - *Problem:* templates/event-card.php erhebt E-Mail/Rechnungs-/Teilnehmerdaten ohne Link auf `get_privacy_policy_url()`.
+  - *Lösung:* Hinweis mit Link unter dem Button, wenn Datenschutzseite gesetzt.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #9]** | **[Kategorie: UX]** – Mengenwahl `type=number value=0` ohne Plus/Minus
+  - *Problem:* templates/event-card.php:32; auf Touch muss „0“ gelöscht werden.
+  - *Lösung:* −/+-Buttons (aria-label, ≥ 44 px), lösen input aus.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #12]** | **[Kategorie: Feature]** – Pay-what-you-want/Spenden, Resale-Börse, Abos mit Platzbindung
+  - *Problem:* Fehlen (PWYW steuerlich heikel).
+  - *Lösung:* PWYW als Ticketart-Option (Mindestpreis, freier Betrag; Kern, S, Steuerhinweis); Resale und Abo mit Platz als Add-on (L).
+  - *Stand:* Offen (R7): bewusst nicht gebaut, Add-on-Kandidaten in docs/FREE-PREMIUM.md.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #5]** | **[Kategorie: UX]** – Ticket-PDF ohne Teilnehmername, Umbruch, Metadaten, Käufersprache
+  - *Problem:* Orders.php:1672-1674 übergibt kein attendee; `TicketPdf::page()` bricht lange Eventnamen nicht um; keine /Info, /Lang, nicht getaggt; Footer/Datum/Apple-Labels außerhalb `Mailer::with_locale()`, Google `language => 'de'` fest (GoogleProvider.php:37).
+  - *Lösung:* attendee aus ticket_assignments; PdfWriter::fit()/wrap(); /Info Title + /Lang; PDF- und Wallet-Erzeugung in with_locale($order->locale).
+- [x] **[PRIO: NIEDRIG]** | **[Experte #5]** | **[Kategorie: Feature]** – APNs ohne Verbindungs-Wiederverwendung/Zeitbudget; Zertifikatsablauf nur auf Wallet-Seite
+  - *Problem:* ApnsClient::request() (:30-79) neuer TLS-Handshake je Push; Service::process() ohne TimeBudget (Jobs à 200 Tickets); Ablaufwarnung (AdminPage.php:134-136) nicht im Systemstatus/Mail; 403 wird bis Dead-Letter wiederholt.
+  - *Lösung:* Ein cURL-Handle je Lauf (HTTP/2), TimeBudget, Ablauf < 30 Tage im Systemstatus/Heartbeat, 403 als Konfigurationsfehler (kein Retry, Admin-Hinweis).
+- [x] **[PRIO: NIEDRIG]** | **[Experte #8]** | **[Kategorie: Feature]** – Kein Bounce-Handling, Standardvorlagen nur Text, Erinnerungen ohne Abmeldung
+  - *Problem:* Kein Return-Path, keine Bounce-Auswertung (wp_mail true = zugestellt); Vorlagen Text (Mail/Types.php:240-259); Erinnerungen (Modules/Reminders.php) ohne List-Unsubscribe.
+  - *Lösung:* Sender/Return-Path; optional Bounce-/Complaint-Webhook für gängige SMTP-Dienste → failed im Bestell-Admin; Abmeldelink je Bestellung + List-Unsubscribe/One-Click für Erinnerungen.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Bug]** – Takeover: Fall „neue Kopie lädt zuerst“ nicht abgefangen
+  - *Problem:* pass-captain.php:160 schützt nur, wenn Altkopie zuerst lädt; `pass-captain/…` sortiert vor `wp-pass-captain/…` → im Takeover-Request lädt danach die Altdatei ohne Guard: 4× „Constant already defined“, `Plugin::instance()->run()` zweimal, Hooks/Cron doppelt.
+  - *Lösung:* Altkopie-Bootstrap im selben Request neutralisieren und `Plugin::run()` per statischem Flag idempotent machen.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Bug]** – Downgrade nicht erkannt (Schema-Version per Gleichheit verglichen)
+  - *Problem:* src/Installer.php:969 `version() === get_option('wpcap_db_version')` → ältere Version führt install() aus und schreibt db_version zurück; neuere Daten (z. B. pcv1-Secrets) unlesbar; kein Hinweis.
+  - *Lösung:* version_compare; bei neuerem gespeicherten Stand nicht installieren, Admin-Hinweis „Restore erforderlich“, Option wpcap_schema_newer.
+- [ ] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Feature]** – Gott-Klasse Orders und statische Kopplung verhindern isolierte Tests
+  - *Problem:* Orders.php 2058 Zeilen/70 Methoden/22 Abhängigkeiten, Modules/Fiscalization.php 1622/59, ServiceBookings 48; global $wpdb überall, Fault-Injection nur über manipulierten $wpdb.
+  - *Lösung:* Schrittweise Orders\Holds, Orders\Issuance, Orders\Delivery, Orders\PortalAccess; Orders bleibt Fassade mit gleichen statischen Signaturen (Add-on-Verträge stabil).
+  - *Stand:* Teilweise (R8): Bestellportal-Zugang nach `Orders\PortalAccess` ausgelagert (Fassade unverändert); weitere Zerlegung von `Orders` offen.
+- [x] **[PRIO: NIEDRIG]** | **[Experte #11]** | **[Kategorie: Bug]** – Netzwerkaktivierung und Multisite-Uninstall ohne automatisierten Test; Uninstall ohne Zeitbudget
+  - *Problem:* Plugin::activate() mit Budget/Aufschub (Plugin.php:140-168) nirgends getestet; ci-install-test.sh ohne Multisite-Bein; uninstall.php:61-71 iteriert alle Sites ohne Budget.
+  - *Lösung:* CI-Bein mit wp core multisite-install, 30 Sites, Netzwerkaktivierung (25 sofort, Rest per wpcap_run_upgrade), Site löschen, Uninstall mit gemischtem Opt-in.
+
+## Externe Abnahmen und offene Entscheidungen (Stand 2026-11-14)
+
+Diese Punkte lassen sich nicht im Code erledigen. Sie brauchen echte Umgebungen, Fachleute oder eine Entscheidung der Produktverantwortung.
+
+### Erster echter CI-Lauf
+- [x] Workflows auf GitHub einmal vollständig laufen lassen und Fehler beheben: Testmatrix PHP × MariaDB/MySQL, ZIP-Installationstest (WordPress 6.4/aktuell, WooCommerce 8.2/aktuell, HPOS an/aus), Plugin Check, Browser-Job (axe-Gate + Playwright), gitleaks/Dependency Review, wöchentlicher Lasttest. Lokal sind alle Teile grün, in GitHub Actions noch nicht ausgeführt. **Erledigt (2026-11-15):** Erster vollständig grüner Lauf (Run #715, Commit 501108f): Integrationsmatrix PHP 8.2–8.4 × MariaDB 10.6/11.4 × MySQL 8.0/8.4, Browser-Matrix (Chromium inkl. a11y-Gate und WooCommerce Blocks, Firefox, WebKit, Pixel 7, iPhone 14), statische Prüfungen, Secret-Scan, Lizenz-Wächter, reproduzierbares Paket, Installationstests (WP 6.4/7.1, WooCommerce 8.2/11.3, HPOS an/aus, Update von 1.4.0, Deinstallation) und Plugin Check.
+- [ ] Für gitleaks ggf. Secret `GITLEAKS_LICENSE` (nur bei Organisations-Repositories) und den Dependency Graph aktivieren.
+
+### Abnahme in echten Umgebungen
+- [ ] Zahlungen und Erstattungen in den Sandboxes von Stripe, PayPal und Mollie inkl. verspäteter/doppelter Webhooks.
+- [ ] Echter WooCommerce-Shop: Classic- und Blocks-Checkout, gemischte Verkäufer (Ablehnen/Aufteilen), Erstattungsdialog mit eingecheckten Tickets.
+- [ ] Browser/Geräte: Firefox, Safari/WebKit, iOS, Android; Offline-Scanner-PWA auf echten Geräten; Kamera-Scanner mit realer Hardware.
+- [ ] Screenreader-, Tastatur- und 200-%-Zoom-Abnahme der Admin- und Käuferseiten.
+- [ ] Upgrade von 1.4.0 mit Backup/Restore-Übung auf einer Kopie realer Daten (`docs/OPERATIONS.md`), Multisite-Notfallübung.
+- [ ] Twilio/SMS und Apple-/Google-Wallet mit echten Betreiberkonten und Zertifikaten.
+
+### Fachliche Prüfungen
+- [ ] Unabhängiger Sicherheitsreview/Penetrationstest.
+- [ ] Rechtliche Prüfung von Verbraucherinformationen, Storno-/Erstattungsbedingungen und Datenschutztexten je Startland.
+- [ ] Steuerliche Prüfung und Aktivierung der Steuerprofile (OSS, Leistungsort, Gutschriften) je Startland.
+- [ ] Fiskalisierung: Zertifizierung/Abnahme mit fiskaly/efsta/fiskaltrust je Land (AT/DE/HU).
+
+### Entscheidungen der Produktverantwortung
+- [ ] Startländer festlegen (AT/DE/CH).
+- [x] Verwaiste Fiskal-Adapter: **entschieden 2026-11-15 – PR #14 übernommen.**
+- [ ] Seat Map im ersten marktfähigen Release stabil oder experimentell.
+- [ ] Offene Punkte in `docs/SUPPORT.md`, `docs/SECURITY.md` und `docs/RELEASE.md` („Entscheidung offen“): Release-Freigabe, Reaktionszeiten, Supportkanäle, Release-Rhythmus, Update-Bot.
+- [ ] Standard für `refund_after_checkin` (derzeit „erlauben“, gilt auch für WooCommerce).
+- [ ] Native Scanner-Apps als eigenes Produkt oder nicht.
+- [ ] WordPress.org: `Contributors`, `Tested up to`, Links zu AGB/Datenschutz der Anbieter in `readme.txt` prüfen; danach Einreichung (A9) und Lizenz-PRs #20–#23 schließen (A1).
+- [ ] Premium-Add-on (B1–B11) in einem eigenen Repository – außerhalb dieses Repositorys.
+

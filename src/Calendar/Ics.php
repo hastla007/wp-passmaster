@@ -57,8 +57,10 @@ final class Ics {
 	/**
 	 * Builds a VCALENDAR document.
 	 *
-	 * @param array $entries List of ['occurrence_id','start'(ts),'end'(ts),'summary','location','description','url','status'].
-	 * @param array $options ['name' => calendar name for feeds, 'now' => DTSTAMP timestamp].
+	 * @param array $entries List of ['occurrence_id','start'(ts),'end'(ts),'summary','location','description','url','status'],
+	 *                       optional 'sequence' (int, RFC 5545 SEQUENCE) and 'last_modified' (ts).
+	 * @param array $options ['name' => calendar name for feeds, 'now' => DTSTAMP timestamp, 'refresh' => suggested
+	 *                       refresh interval in minutes (REFRESH-INTERVAL / X-PUBLISHED-TTL)].
 	 */
 	public static function build( array $entries, array $options = array() ) {
 		$now = (int) ( $options['now'] ?? time() );
@@ -66,10 +68,17 @@ final class Ics {
 		if ( ! empty( $options['name'] ) ) {
 			$lines[] = 'X-WR-CALNAME:' . self::escape_text( $options['name'] );
 		}
+		if ( ! empty( $options['refresh'] ) ) {
+			$minutes = max( 15, (int) $options['refresh'] );
+			$lines[] = 'REFRESH-INTERVAL;VALUE=DURATION:PT' . $minutes . 'M';
+			$lines[] = 'X-PUBLISHED-TTL:PT' . $minutes . 'M';
+		}
 		foreach ( $entries as $entry ) {
 			$lines[] = 'BEGIN:VEVENT';
 			$lines[] = 'UID:' . self::uid( $entry['occurrence_id'] );
 			$lines[] = 'DTSTAMP:' . self::utc( $now );
+			if ( isset( $entry['sequence'] ) ) { $lines[] = 'SEQUENCE:' . max( 0, (int) $entry['sequence'] ); }
+			if ( ! empty( $entry['last_modified'] ) ) { $lines[] = 'LAST-MODIFIED:' . self::utc( (int) $entry['last_modified'] ); }
 			$lines[] = 'DTSTART:' . self::utc( $entry['start'] );
 			$lines[] = 'DTEND:' . self::utc( max( (int) $entry['end'], (int) $entry['start'] ) );
 			$lines[] = 'SUMMARY:' . self::escape_text( $entry['summary'] );
@@ -88,7 +97,7 @@ final class Ics {
 	public static function entry_from_row( $row ) {
 		$start = (int) strtotime( $row->starts_at . ' UTC' );
 		$end = ! empty( $row->ends_at ) ? (int) strtotime( $row->ends_at . ' UTC' ) : $start + (int) apply_filters( 'wpcap_calendar_default_duration', 2 * HOUR_IN_SECONDS, $row );
-		$description = trim( preg_replace( '/\s+/u', ' ', strip_tags( (string) ( $row->event_description ?? '' ) ) ) );
+		$description = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) ( $row->event_description ?? '' ) ) ) );
 		if ( function_exists( 'mb_substr' ) && mb_strlen( $description ) > 500 ) { $description = mb_substr( $description, 0, 497 ) . '...'; }
 		$url = self::checkout_url( (int) $row->occurrence_id );
 		return array(
@@ -103,11 +112,17 @@ final class Ics {
 		);
 	}
 
-	/** Checkout link of an occurrence: configured shortcode page + card anchor. */
+	/**
+	 * Checkout link of an occurrence: its single-occurrence view (?wpcap_occ=ID, with the checkout form
+	 * of exactly this date – also beyond the listing limit) on the configured shortcode page, else on
+	 * the published page with the events shortcode/block (found automatically), plus the card anchor.
+	 * '' when neither exists.
+	 */
 	public static function checkout_url( $occurrence_id ) {
 		$settings = (array) Settings::get( 'calendar' );
 		$base = (string) ( $settings['checkout_url'] ?? '' );
-		$url = '' !== $base ? $base . '#wpcap-occ-' . absint( $occurrence_id ) : '';
+		if ( '' === $base ) { $base = \PassCaptain\PublicEvents::shortcode_page_url(); }
+		$url = '' !== $base ? \PassCaptain\PublicEvents::occurrence_url( $occurrence_id, $base ) . '#wpcap-occ-' . absint( $occurrence_id ) : '';
 		return (string) apply_filters( 'wpcap_calendar_checkout_url', $url, absint( $occurrence_id ) );
 	}
 
@@ -115,7 +130,7 @@ final class Ics {
 	public static function published_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND e.status='published'", absint( $occurrence_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND e.status='published'", $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
 	}
 
 	/** iCalendar for one occurrence or null when it is not public. */
@@ -128,9 +143,9 @@ final class Ics {
 	public static function event_feed( $event_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name FROM {$p}wpcap_events WHERE event_id=%d AND status='published'", absint( $event_id ) ) );
+		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name FROM %i WHERE event_id=%d AND status='published'", $p . 'wpcap_events', absint( $event_id ) ) );
 		if ( ! $event ) { return null; }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id=%d AND o.starts_at>=%s ORDER BY o.starts_at LIMIT 500", (int) $event->event_id, gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.name AS event_name,e.description AS event_description FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.event_id=%d AND o.starts_at>=%s ORDER BY o.starts_at LIMIT 500', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) $event->event_id, gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
 		return self::build( array_map( array( __CLASS__, 'entry_from_row' ), $rows ), array( 'name' => $event->name ) );
 	}
 

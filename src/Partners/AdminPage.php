@@ -59,7 +59,6 @@ final class AdminPage {
 					'contact_phone' => Forms::text( $in, 'contact_phone', 64 ),
 					'billing_address' => Forms::textarea( $in, 'billing_address', 2000 ),
 					'vat_id' => Forms::text( $in, 'vat_id', 64 ),
-					'payout_details' => Forms::textarea( $in, 'payout_details', 2000 ),
 					'currency' => $currency,
 					'commission_bp' => $commission,
 					'fee_per_ticket_minor' => $fee,
@@ -77,6 +76,14 @@ final class AdminPage {
 					'small_business' => Forms::flag( $in, 'small_business' ) ? 1 : 0,
 					'small_business_note' => Forms::text( $in, 'small_business_note', 255 ),
 				);
+				// Payout details are encrypted and never shown again in full: an empty field keeps the stored
+				// value, "payout_details_clear" removes it.
+				$payout = Forms::textarea( $in, 'payout_details', 2000 );
+				if ( '' !== trim( $payout ) || ! $id ) {
+					$data['payout_details'] = $payout;
+				} elseif ( Forms::flag( $in, 'payout_details_clear' ) ) {
+					$data['payout_details'] = '';
+				}
 				$partner_id = Repository::save( $data, $id );
 				if ( is_wp_error( $partner_id ) ) { return $partner_id; }
 				$events = Repository::set_events( $partner_id, Forms::ids( $in, 'event_ids' ) );
@@ -168,7 +175,7 @@ final class AdminPage {
 		Forms::hidden( 'do', $do );
 		foreach ( $fields as $k => $v ) { Forms::hidden( $k, $v ); }
 		echo $extra_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal markup from this class.
-		echo '<button type="submit" class="button button-small"' . ( '' !== $confirm ? ' onclick="return confirm(' . esc_attr( wp_json_encode( $confirm ) ) . ')"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
+		echo '<button type="submit" class="button button-small"' . ( '' !== $confirm ? ' data-wpcap-confirm="' . esc_attr( $confirm ) . '"' : '' ) . '>' . esc_html( $label ) . '</button></form> ';
 	}
 
 	/* ------------------------------------------------------------------ Partner screen */
@@ -212,6 +219,26 @@ final class AdminPage {
 		echo '</form></div>';
 	}
 
+	/**
+	 * Payout details field: the stored value is encrypted and only shown masked (last 4 characters of
+	 * the IBAN); entering a new value replaces it, an empty field keeps it.
+	 */
+	private static function render_payout_field( $partner ) {
+		$stored = $partner ? Repository::payout_details( $partner ) : '';
+		echo '<tr><th scope="row"><label for="wpcap-pa-payout_details">' . esc_html__( 'Auszahlung (z. B. IBAN, BIC, Kontoinhaber)', 'pass-captain' ) . '</label></th><td>';
+		echo '<textarea id="wpcap-pa-payout_details" name="payout_details" rows="3" class="large-text" autocomplete="off"></textarea>';
+		if ( null === $stored ) {
+			echo '<p class="description wpcap-warning">' . esc_html__( 'Die gespeicherten Auszahlungsdaten können nicht entschlüsselt werden (Schlüssel geändert). Bitte neu eingeben.', 'pass-captain' ) . '</p>';
+		} elseif ( '' !== $stored ) {
+			/* translators: %s: masked account, e.g. "•••• 3000" */
+			echo '<p class="description">' . esc_html( sprintf( __( 'Gespeichert (verschlüsselt): %s. Leer lassen, um die Angaben zu behalten; eine Eingabe ersetzt sie.', 'pass-captain' ), Repository::mask_payout( $stored ) ) ) . '</p>';
+			echo '<label><input type="checkbox" name="payout_details_clear" value="1"> ' . esc_html__( 'Gespeicherte Auszahlungsdaten löschen', 'pass-captain' ) . '</label>';
+		} else {
+			echo '<p class="description">' . esc_html__( 'Wird verschlüsselt gespeichert und danach nur noch gekürzt angezeigt.', 'pass-captain' ) . '</p>';
+		}
+		echo '</td></tr>';
+	}
+
 	private static function render_partner_form( $partner ) {
 		$v = static function ( $key, $default = '' ) use ( $partner ) { return $partner ? (string) $partner->$key : $default; };
 		echo '<h2>' . esc_html( $partner ? $partner->name : __( 'Neuer Veranstalter', 'pass-captain' ) ) . '</h2>';
@@ -231,7 +258,7 @@ final class AdminPage {
 		$field( 'contact_phone', __( 'Telefon', 'pass-captain' ), $v( 'contact_phone' ) );
 		$area( 'billing_address', __( 'Rechnungsanschrift', 'pass-captain' ), $v( 'billing_address' ) );
 		$field( 'vat_id', __( 'USt-IdNr.', 'pass-captain' ), $v( 'vat_id' ) );
-		$area( 'payout_details', __( 'Auszahlung (z. B. IBAN, BIC, Kontoinhaber)', 'pass-captain' ), $v( 'payout_details' ) );
+		self::render_payout_field( $partner );
 		echo '<tr><th scope="row"><label for="wpcap-pa-status">' . esc_html__( 'Status', 'pass-captain' ) . '</label></th><td>';
 		Forms::select( 'status', array( 'active' => __( 'aktiv', 'pass-captain' ), 'inactive' => __( 'inaktiv (API-Keys gesperrt)', 'pass-captain' ) ), $v( 'status', 'active' ), 'wpcap-pa-status' );
 		echo '</td></tr></tbody></table>';

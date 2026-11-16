@@ -31,8 +31,15 @@ interface GatewayInterface {
 	/**
 	 * Verify a provider webhook.
 	 *
-	 * @return array|\WP_Error Normalized event: ['event_id'=>string, 'type'=>'paid'|'failed'|'refunded'|'ignored',
-	 *                         'order_public_id'=>string, 'provider_reference'=>string, 'amount_minor'=>int, 'currency'=>string]
+	 * @return array|\WP_Error Normalized event: ['event_id'=>string, 'type'=>'paid'|'failed'|'refunded'|'refund_failed'|'payment_pending'
+	 *                         |'payment_authorized'
+	 *                         |'dispute_opened'|'dispute_reinstated'|'ignored', 'order_public_id'=>string,
+	 *                         'provider_reference'=>string, 'amount_minor'=>int, 'currency'=>string]. Refund events may add
+	 *                         'refund_scope' ('single' = this refund's amount, idempotent per 'refund_id'; 'cumulative' =
+	 *                         running total of external refunds/chargebacks; 'full' = fully refunded at the provider; 'list' =
+	 *                         every external refund in 'refunds' => [{refund_id, amount_minor}]) and
+	 *                         'refund_reason' (e.g. 'chargeback'); see Webhooks::book_external_refund().
+	 *                         Gateways may also offer min_hold_minutes() (minimum checkout hold, see Rest\Controller).
 	 */
 	public function verify_webhook( \WP_REST_Request $request );
 

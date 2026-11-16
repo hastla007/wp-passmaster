@@ -37,14 +37,14 @@ final class Scope {
 	/** Event id of an occurrence (0 if unknown). */
 	public static function occurrence_event( $occurrence_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 	}
 
 	/** Event ids an order touches. */
 	public static function order_events( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT o.event_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $order_id ) ) ) );
 	}
 
 	/** Whether the user may access every event of the order with one of the capabilities. */
@@ -57,29 +57,90 @@ final class Scope {
 		return true;
 	}
 
-	/** CSV cell that spreadsheet programs never evaluate as a formula. */
+	/**
+	 * CSV cell that spreadsheet programs never evaluate as a formula: a leading = + - @ (also after
+	 * whitespace) is neutralised with an apostrophe, and so is a formula character right after a quote,
+	 * semicolon or tab inside the text (where a lenient reader could start a new cell). Valid JSON
+	 * documents (archive columns) stay unchanged; csv() quotes them per RFC 4180.
+	 */
 	public static function csv_cell( $value ) {
 		if ( is_int( $value ) || is_float( $value ) ) { return (string) $value; }
-		$text = str_replace( array( "\r\n", "\r", "\n" ), ' ', (string) $value );
+		if ( is_bool( $value ) ) { return $value ? '1' : '0'; }
+		$text = is_scalar( $value ) ? str_replace( array( "\r\n", "\r", "\n" ), ' ', (string) $value ) : '';
 		if ( preg_match( '/^-?\d+(?:\.\d+)?$/', $text ) ) { return $text; } // Plain numbers cannot be formulas.
-		return preg_match( '/^[=+\-@\t\r]/', $text ) || preg_match( '/^\s+[=+\-@]/', $text ) ? "'" . $text : $text;
+		if ( preg_match( '/^[=+\-@\t\r]/', $text ) || preg_match( '/^\s+[=+\-@]/', $text ) ) { return "'" . $text; }
+		if ( preg_match( '/[";\t]\s*[=+\-@]/', $text ) && ! self::is_json_document( $text ) ) { return "'" . $text; }
+		return $text;
+	}
+
+	/** Whether the text is a JSON object or array (machine-readable archive cells). */
+	private static function is_json_document( $text ) {
+		if ( '' === $text || ! in_array( $text[0], array( '{', '[' ), true ) ) { return false; }
+		json_decode( $text );
+		return JSON_ERROR_NONE === json_last_error();
 	}
 
 	/** CSV text (semicolon separated, UTF-8 BOM) from rows; every cell passes csv_cell(). */
 	public static function csv( array $rows ) {
-		$out = fopen( 'php://temp', 'w+' );
-		fwrite( $out, "\xEF\xBB\xBF" );
+		// In-memory stream for fputcsv() (no file on disk, so WP_Filesystem does not apply).
+		$out = fopen( 'php://temp', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
 		foreach ( $rows as $row ) {
-			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '\\' );
+			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '' ); // '' = RFC 4180 quoting only; '\\' would let a backslash before a quote end the cell early (formula injection).
 		}
 		rewind( $out );
 		$csv = (string) stream_get_contents( $out );
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		return $csv;
+	}
+
+	/**
+	 * Streams CSV rows as a download (PERF-10/QA-7): the rows (array or generator) are written one by
+	 * one into a temporary stream that spills to disk above 2 MB, so large exports neither build a
+	 * PHP string nor need a row limit. Each row goes through csv() (same quoting and cell rules).
+	 *
+	 * @param iterable $rows     Rows (header first).
+	 * @param string   $filename Download file name.
+	 */
+	public static function send_csv( $rows, $filename ) {
+		$out = fopen( 'php://temp/maxmemory:2097152', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+		foreach ( $rows as $row ) {
+			fwrite( $out, substr( self::csv( array( $row ) ), 3 ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- csv() of one row without its BOM.
+		}
+		self::send_stream( $out, $filename, 'text/csv; charset=utf-8' );
+	}
+
+	/**
+	 * Sends a download from an open stream and ends the request. The wpcap_pre_send_download filter
+	 * receives the stream (rewound) instead of a string body.
+	 *
+	 * @param resource $handle   Readable stream.
+	 */
+	public static function send_stream( $handle, $filename, $type ) {
+		rewind( $handle );
+		if ( null !== apply_filters( 'wpcap_pre_send_download', null, $handle, $filename, $type ) ) {
+			fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+			return;
+		}
+		if ( function_exists( 'nocache_headers' ) ) { nocache_headers(); }
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: ' . $type );
+			header( 'Content-Disposition: attachment; filename="' . preg_replace( '/[^A-Za-z0-9._-]/', '-', $filename ) . '"' );
+			header( 'X-Content-Type-Options: nosniff' );
+			$stat = fstat( $handle );
+			if ( ! empty( $stat['size'] ) ) { header( 'Content-Length: ' . (int) $stat['size'] ); }
+		}
+		rewind( $handle );
+		fpassthru( $handle );
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		exit;
 	}
 
 	/** Sends a download response (headers + body) and ends the request. */
 	public static function send_download( $body, $filename, $type ) {
+		// Filter wpcap_pre_send_download: a non-null return takes over delivery (e.g. storage, tests).
+		if ( null !== apply_filters( 'wpcap_pre_send_download', null, $body, $filename, $type ) ) { return; }
 		if ( function_exists( 'nocache_headers' ) ) { nocache_headers(); }
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: ' . $type );
@@ -92,7 +153,7 @@ final class Scope {
 
 	/** Money display "1.234,50 EUR". */
 	public static function money( $minor, $currency = 'EUR' ) {
-		return number_format_i18n( (int) $minor / 100, 2 ) . ' ' . strtoupper( (string) $currency );
+		return \PassCaptain\Localization::money_number( $minor, $currency ) . ' ' . strtoupper( (string) $currency );
 	}
 
 	/** Local display time for a UTC datetime. */

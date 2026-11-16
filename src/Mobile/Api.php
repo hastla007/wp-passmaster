@@ -50,7 +50,7 @@ final class Api {
 		if ( ! RateLimit::allow( 'pair_' . RateLimit::client(), 10, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_pair_rate', __( 'Zu viele Kopplungsversuche. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
-		$result = Devices::pair( $request->get_param( 'code' ), (string) $request->get_param( 'device_label' ), (string) $request->get_param( 'platform' ), (string) $request->get_param( 'app_version' ) );
+		$result = Devices::pair( $request->get_param( 'code' ), \PassCaptain\Security\Input::text( $request->get_param( 'device_label' ) ), \PassCaptain\Security\Input::text( $request->get_param( 'platform' ) ), \PassCaptain\Security\Input::text( $request->get_param( 'app_version' ) ) );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
 	}
 
@@ -74,11 +74,12 @@ final class Api {
 		$p = $wpdb->prefix;
 		$ids = Devices::event_ids( Devices::current() );
 		if ( ! $ids ) { return rest_ensure_response( array( 'occurrences' => array() ) ); }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id IN (" . implode( ',', array_map( 'absint', $ids ) ) . ") AND o.starts_at >= %s ORDER BY o.starts_at LIMIT 100", gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$ids = array_values( array_map( 'absint', $ids ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.starts_at >= %s AND o.event_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY o.starts_at LIMIT 100', array_merge( array( $p . 'wpcap_occurrences', $p . 'wpcap_events', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ), $ids ) ) );
 		$out = array();
 		$areas = array();
 		foreach ( $rows as $row ) {
-			if ( ! \PassCaptain\Access::can_access_event( (int) $row->event_id, 'wpcap_checkin' ) ) { continue; }
+			if ( ! \PassCaptain\Access::can_access_occurrence( (int) $row->occurrence_id, 'wpcap_checkin', (int) $row->event_id ) ) { continue; }
 			if ( ! isset( $areas[ $row->event_id ] ) ) {
 				$areas[ $row->event_id ] = array_map( static function ( $a ) { return array( 'id' => (int) $a->area_id, 'name' => $a->name ); }, Areas::for_event( (int) $row->event_id ) );
 			}
@@ -91,17 +92,17 @@ final class Api {
 	public static function stats( \WP_REST_Request $request ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $request['occurrence_id'] ) ) );
-		if ( ! $occ || ! in_array( (int) $occ->event_id, Devices::event_ids( Devices::current() ), true ) || ! \PassCaptain\Access::can_access_event( (int) $occ->event_id, 'wpcap_checkin' ) ) {
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', absint( $request['occurrence_id'] ) ) );
+		if ( ! $occ || ! in_array( (int) $occ->event_id, Devices::event_ids( Devices::current() ), true ) || ! \PassCaptain\Access::can_access_occurrence( (int) $occ->occurrence_id, 'wpcap_checkin', (int) $occ->event_id ) ) {
 			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$counts = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT t.status, COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d GROUP BY t.status", (int) $occ->occurrence_id ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT t.status, COUNT(*) AS n FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d GROUP BY t.status', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) ) as $row ) {
 			$counts[ $row->status ] = (int) $row->n;
 		}
 		$valid = $counts['valid'] ?? 0;
 		$checked = $counts['checked_in'] ?? 0;
-		$device_scans = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE device_id=%d AND result='checked_in' AND event_id=%d", (int) Devices::current()->device_id, (int) $occ->event_id ) );
+		$device_scans = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE device_id=%d AND result='checked_in' AND event_id=%d", $p . 'wpcap_checkins', (int) Devices::current()->device_id, (int) $occ->event_id ) );
 		$presence = Engine::presence( (int) $occ->occurrence_id );
 		$movement = Engine::movement( (int) $occ->occurrence_id );
 		$by_area = array();
@@ -120,7 +121,7 @@ final class Api {
 	}
 
 	public static function check_in( \WP_REST_Request $request ) {
-		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
+		$key = sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) );
 		if ( '' === $key ) {
 			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -132,7 +133,7 @@ final class Api {
 
 	/** Check-out (person leaves); for presence counting and re-entry tickets. */
 	public static function check_out( \WP_REST_Request $request ) {
-		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
+		$key = sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) );
 		if ( '' === $key ) {
 			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -142,23 +143,35 @@ final class Api {
 		return self::scan_response( Checkin::check_out( $request->get_param( 'code' ), $context ) );
 	}
 
+	/**
+	 * Takes back the latest admission of a ticket. Requires an idempotency_key (a retried request never
+	 * removes a second entry). Staff without wpcap_manage_orders may only undo their own scans (same
+	 * user or this device) within the undo window (setting undo_window_minutes); roles listed in
+	 * undo_roles may undo any admission of their events.
+	 */
 	public static function undo( \WP_REST_Request $request ) {
+		$key = sanitize_text_field( \PassCaptain\Security\Input::text( $request->get_param( 'idempotency_key' ) ) );
+		if ( '' === $key ) {
+			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
 		$found = Checkin::lookup( $request->get_param( 'code' ) );
 		if ( is_wp_error( $found ) ) { return self::scan_response( $found ); }
 		if ( ! in_array( (int) $found['event_id'], Devices::event_ids( Devices::current() ), true ) ) {
 			return self::scan_response( new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'pass-captain' ), array( 'result' => 'wrong_event' ) ) );
 		}
+		$reason = \PassCaptain\Security\Input::text( $request->get_param( 'reason' ) );
+		$device_id = (int) Devices::current()->device_id;
 		$policy = Policies::for_type( $found['ticket_type_id'] );
 		if ( $policy && 'single' !== $policy['policy'] ) {
-			if ( ! \PassCaptain\Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) {
+			if ( ! \PassCaptain\Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin', $found['event_id'] ) ) {
 				return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
 			}
-			$result = Engine::undo_last( $found, (string) $request->get_param( 'reason' ) );
+			$result = Engine::undo_last( $found, $reason, array( 'idempotency_key' => 'app:' . $key, 'device_id' => $device_id ) );
 		} else {
-			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => (string) $request->get_param( 'reason' ) ) );
+			$result = TicketsPage::undo_checkin( array( 'ticket_id' => $found['ticket_id'], 'reason' => $reason, 'idempotency_key' => 'app:' . $key, 'device_id' => $device_id ) );
 		}
 		if ( is_wp_error( $result ) ) { return self::scan_response( $result ); }
-		return rest_ensure_response( array( 'ok' => true, 'result' => 'undone', 'ticket_public_id' => $found['public_id'] ) );
+		return rest_ensure_response( array_merge( array( 'ok' => true, 'result' => 'undone', 'ticket_public_id' => $found['public_id'] ), ! empty( $result['replayed'] ) ? array( 'replayed' => true ) : array() ) );
 	}
 
 	/**
@@ -188,6 +201,13 @@ final class Api {
 			$row = self::scan_payload( $outcome );
 			$row['idempotency_key'] = $key;
 			$row['direction'] = $out ? 'out' : 'in';
+			// Transient server error (database): nothing was booked. The device keeps the scan and
+			// uploads it again instead of marking it synced (the admission happened offline already).
+			if ( is_wp_error( $outcome ) && ! empty( ( (array) $outcome->get_error_data() )['retryable'] ) ) {
+				$row['retryable'] = true;
+				$results[] = $row;
+				continue;
+			}
 			// Offline the device already let the person in; a rejection here is an admission conflict
 			// (recorded for review under "Einlass-Konflikte").
 			$data = is_wp_error( $outcome ) ? (array) $outcome->get_error_data() : (array) $outcome;
@@ -210,11 +230,18 @@ final class Api {
 		return array( 'event_ids' => Devices::event_ids( $device ), 'device_id' => (int) $device->device_id, 'occurrence_id' => absint( $request->get_param( 'occurrence_id' ) ), 'area_id' => Devices::area_id( $device ) ?: absint( $request->get_param( 'area_id' ) ) );
 	}
 
-	/** Scan outcomes as 200 responses; authentication/validation problems stay HTTP errors. */
+	/**
+	 * Scan outcomes as 200 responses; authentication/validation problems stay HTTP errors. A transient
+	 * database error (retryable, nothing booked) is HTTP 503, so apps treat it like an outage and fall
+	 * back to their offline decision instead of showing a rejection.
+	 */
 	private static function scan_response( $outcome ) {
 		if ( is_wp_error( $outcome ) ) {
 			$data = (array) $outcome->get_error_data();
 			if ( in_array( (int) ( $data['status'] ?? 0 ), array( 401, 429 ), true ) ) { return $outcome; }
+			if ( ! empty( $data['retryable'] ) ) {
+				return new \WP_Error( $outcome->get_error_code(), $outcome->get_error_message(), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
+			}
 		}
 		return rest_ensure_response( self::scan_payload( $outcome ) );
 	}

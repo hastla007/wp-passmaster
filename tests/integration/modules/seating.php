@@ -34,7 +34,7 @@ global $wpdb;
 $p = $wpdb->prefix;
 
 function seating_order( array $items, $seats = null, $email = 'seat@example.com', array $internal = array() ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$payload = array( 'email' => $email, 'items' => $items, 'idempotency_key' => 'seat-' . uniqid( '', true ) );
 	if ( null !== $seats ) { $payload['seats'] = $seats; }
 	return Orders::create( $payload, $internal );

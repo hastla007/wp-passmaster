@@ -105,7 +105,7 @@ class AppleProvider implements WalletProvider {
 		if ( $voided ) {
 			$json['voided'] = true;
 		} else {
-			$json['barcodes'] = array( array( 'format' => 'PKBarcodeFormatQR', 'message' => (string) $ticket['code'], 'messageEncoding' => 'iso-8859-1', 'altText' => substr( (string) $ticket['public_id'], 0, 8 ) ) );
+			$json['barcodes'] = array( array( 'format' => 'PKBarcodeFormatQR', 'message' => \PassCaptain\Security\SignedQr::qr_value( (string) $ticket['code'] ), 'messageEncoding' => 'iso-8859-1', 'altText' => substr( (string) $ticket['public_id'], 0, 8 ) ) );
 		}
 		/** Optional geo relevance: list of ['latitude'=>…, 'longitude'=>…, 'relevantText'=>…]. */
 		$locations = apply_filters( 'wpcap_wallet_apple_locations', array(), $ticket );
@@ -139,7 +139,7 @@ class AppleProvider implements WalletProvider {
 	/** Builds the signed .pkpass bytes. */
 	public function bundle( array $pass_json, $credentials = null ) {
 		$credentials = $credentials ?: Credentials::apple();
-		if ( is_wp_error( $credentials ) ) { throw new \RuntimeException( $credentials->get_error_code() ); }
+		if ( is_wp_error( $credentials ) ) { throw new \RuntimeException( esc_html( $credentials->get_error_code() ) ); }
 		$files = array( 'pass.json' => (string) json_encode( $pass_json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) + $this->images();
 		$manifest = array();
 		foreach ( $files as $name => $bytes ) { $manifest[ $name ] = sha1( $bytes ); }
@@ -150,15 +150,22 @@ class AppleProvider implements WalletProvider {
 
 	/** Detached PKCS#7 signature (DER) of the manifest incl. the WWDR intermediate. */
 	public static function sign( $manifest, array $credentials ) {
-		$dir = get_temp_dir();
-		$in = tempnam( $dir, 'wpcap-mf' );
-		$out = tempnam( $dir, 'wpcap-sig' );
-		$wwdr = tempnam( $dir, 'wpcap-wwdr' );
-		file_put_contents( $in, $manifest );
-		file_put_contents( $wwdr, $credentials['wwdr'] );
-		$ok = openssl_pkcs7_sign( $in, $out, $credentials['cert'], array( $credentials['key'], (string) $credentials['password'] ), array(), PKCS7_BINARY | PKCS7_DETACHED, $wwdr );
-		$smime = $ok ? (string) file_get_contents( $out ) : '';
-		foreach ( array( $in, $out, $wwdr ) as $file ) { wp_delete_file( $file ); }
+		// openssl_pkcs7_sign() only works with file paths: private directory (0700) and files (0600).
+		$dir = \PassCaptain\TempFiles::private_dir();
+		if ( ! $dir ) { throw new \RuntimeException( 'wallet_sign_failed' ); }
+		$in = $dir . '/manifest';
+		$out = $dir . '/signature';
+		$wwdr = $dir . '/wwdr.pem';
+		$smime = '';
+		try {
+			if ( \PassCaptain\TempFiles::put( $in, $manifest ) && \PassCaptain\TempFiles::put( $wwdr, $credentials['wwdr'] ) && \PassCaptain\TempFiles::put( $out, '' ) ) {
+				$ok = openssl_pkcs7_sign( $in, $out, $credentials['cert'], array( $credentials['key'], (string) $credentials['password'] ), array(), PKCS7_BINARY | PKCS7_DETACHED, $wwdr );
+				$smime = $ok ? \PassCaptain\TempFiles::get( $out ) : '';
+			}
+		} finally {
+			foreach ( array( $in, $out, $wwdr ) as $file ) { \PassCaptain\TempFiles::remove( $file ); }
+			\PassCaptain\TempFiles::remove_dir( $dir );
+		}
 		if ( ! preg_match( '/filename="?smime\.p7s"?\s*\r?\n\r?\n(.+?)\r?\n\r?\n?-{2,}/s', $smime, $m ) ) {
 			throw new \RuntimeException( 'wallet_sign_failed' );
 		}
@@ -169,14 +176,35 @@ class AppleProvider implements WalletProvider {
 
 	/* ---- push ---- */
 
+	/** @var ApnsClient|null Client of the current run (one HTTP/2 connection for all pushes). */
+	private static $apns = null;
+	private static $in_run = false;
+
 	public static function apns_client() {
+		if ( self::$in_run && null !== self::$apns ) { return self::$apns; }
 		$client = apply_filters( 'wpcap_wallet_apns_client', null );
-		return $client instanceof ApnsClient ? $client : new ApnsClient();
+		$client = $client instanceof ApnsClient ? $client : new ApnsClient();
+		if ( self::$in_run ) { self::$apns = $client; }
+		return $client;
+	}
+
+	/** Starts a dispatch run (Service::process()): all pushes of the run share one client/connection. */
+	public static function begin_apns_run() {
+		self::$in_run = true;
+	}
+
+	/** Ends the run: closes the APNs connection. */
+	public static function release_apns_client() {
+		if ( null !== self::$apns ) { self::$apns->close(); }
+		self::$apns = null;
+		self::$in_run = false;
 	}
 
 	/**
 	 * Sends an update push to every device registered for the serial. Tokens answered with 410
 	 * (device unregistered) are removed. Returns false on transport/server errors (retry later).
+	 * 403 means APNs rejects the certificate or topic: a configuration error that no retry fixes, so it
+	 * is recorded for the system status (Service::status_issues()) and not retried.
 	 */
 	public function notify( $serial ) {
 		$registrations = Store::registrations_for_serial( $serial );
@@ -192,6 +220,13 @@ class AppleProvider implements WalletProvider {
 			$status = $client->send( $registration->push_token, $registration->pass_type_id, $credentials, $host );
 			$sent[ $registration->push_token ] = $status;
 			if ( 410 === $status ) { Store::delete_push_token( $registration->push_token ); continue; }
+			if ( 403 === $status ) {
+				if ( (int) get_option( Service::APNS_ERROR_OPTION, 0 ) < time() - HOUR_IN_SECONDS ) {
+					update_option( Service::APNS_ERROR_OPTION, time(), false );
+					Service::log( 'apns_forbidden', 'APNs 403: certificate or pass type id rejected' );
+				}
+				continue;
+			}
 			if ( 200 !== $status && 400 !== $status ) { $ok = false; }
 		}
 		return $ok;

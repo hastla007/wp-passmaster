@@ -2,6 +2,8 @@
 /** Versioned opt-in connector contract. */
 namespace PassCaptain\Integrations;
 
+if ( ! defined( 'ABSPATH' ) ) { exit; }
+
 interface ConnectorInterface {
 	public function key();
 	public function version();

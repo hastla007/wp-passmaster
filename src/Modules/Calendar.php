@@ -22,7 +22,7 @@ final class Calendar {
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_ics' ), 1 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'attach_ics' ), 20, 3 );
-		add_filter( 'wp_pass_captain_event_card_html', array( __CLASS__, 'add_card_anchor' ), 5, 3 );
+		add_filter( 'wp_pass_captain_event_card_html_v1', array( __CLASS__, 'add_card_anchor' ), 5, 3 );
 	}
 
 	public static function settings_defaults() {
@@ -88,7 +88,7 @@ final class Calendar {
 			$ics = Ics::occurrence_calendar( $occ );
 			if ( null === $ics ) { continue; }
 			$file = trailingslashit( get_temp_dir() ) . 'termin-' . $occ . '-' . bin2hex( random_bytes( 8 ) ) . '.ics';
-			if ( false !== file_put_contents( $file, $ics ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			if ( \PassCaptain\TempFiles::put( $file, $ics ) ) {
 				// Core (Orders::issue_and_email) deletes every file in $mail['attachments'] after wp_mail();
 				// the shutdown cleanup covers a later filter dropping the file from the list.
 				$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), array( $file ) );
@@ -109,7 +109,7 @@ final class Calendar {
 	/** Removes .ics files of this request that still exist. */
 	public static function cleanup_temp_files() {
 		foreach ( self::$temp_files as $file ) {
-			if ( file_exists( $file ) ) { wp_delete_file( $file ); }
+			\PassCaptain\TempFiles::remove( $file );
 		}
 		self::$temp_files = array();
 	}
@@ -142,7 +142,13 @@ final class Calendar {
 		$view = 'list' === $atts['view'] ? 'list' : 'month';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- navigation only.
 		$month = isset( $_GET['wpcap_month'] ) ? sanitize_text_field( wp_unslash( $_GET['wpcap_month'] ) ) : '';
-		return 'list' === $view ? self::render_list( absint( $atts['event'] ), absint( $atts['limit'] ) ) : self::render_month( $month, absint( $atts['event'] ) );
+		$calendar = 'list' === $view ? self::render_list( absint( $atts['event'] ), absint( $atts['limit'] ) ) : self::render_month( $month, absint( $atts['event'] ) );
+		// A calendar link without a checkout page opens the date on this page (?wpcap_occ): show its form above the calendar.
+		$occurrence = absint( wp_unslash( $_GET['wpcap_occ'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public, read-only view.
+		if ( $occurrence && ! self::page_has_events() ) {
+			return \PassCaptain\PublicEvents::render_shortcode( array() ) . $calendar;
+		}
+		return $calendar;
 	}
 
 	/** Local date/time of an occurrence in its own timezone. */
@@ -157,9 +163,18 @@ final class Calendar {
 		return $dt->format( $format );
 	}
 
+	/** Link of a calendar entry: checkout URL, else the single-occurrence view on this page (rendered above the calendar). */
 	private static function link_for( $row ) {
 		$url = Ics::checkout_url( (int) $row->occurrence_id );
-		return '' !== $url ? $url : '#wpcap-occ-' . (int) $row->occurrence_id;
+		return '' !== $url ? $url : \PassCaptain\PublicEvents::occurrence_url( (int) $row->occurrence_id ) . '#wpcap-occ-' . (int) $row->occurrence_id;
+	}
+
+	/** Whether the current post shows the events shortcode or block itself. */
+	private static function page_has_events() {
+		$post = function_exists( 'get_post' ) ? get_post() : null;
+		if ( ! $post ) { return false; }
+		$content = (string) $post->post_content;
+		return ( function_exists( 'has_shortcode' ) && has_shortcode( $content, 'wp_pass_captain_events' ) ) || false !== strpos( $content, '<!-- wp:wp-pass-captain/events' );
 	}
 
 	public static function render_list( $event_id = 0, $limit = 50 ) {
@@ -193,14 +208,17 @@ final class Calendar {
 		$first = new \DateTime( $month . '-01 00:00:00', $tz );
 		$next = ( clone $first )->modify( '+1 month' );
 		$prev = ( clone $first )->modify( '-1 month' );
-		$from = ( clone $first )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		// Occurrences are grouped by their local date in their own timezone, the same timezone their time
+		// label uses (and the list view). The site-timezone month is widened by a day on both sides so
+		// occurrences whose own date falls into the month are found whatever the offset (audit QA-11).
+		$from = ( clone $first )->modify( '-1 day' )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 		$from = max( $from, current_time( 'mysql', true ) ); // Upcoming only.
-		$to = ( clone $next )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$to = ( clone $next )->modify( '+1 day' )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 		$by_day = array();
 		foreach ( self::occurrences( $from, $to, $event_id, 500 ) as $row ) {
-			$dt = new \DateTime( $row->starts_at, new \DateTimeZone( 'UTC' ) );
-			$dt->setTimezone( $tz );
-			$by_day[ $dt->format( 'Y-m-d' ) ][] = $row;
+			$day = self::local( $row, 'Y-m-d' );
+			if ( 0 !== strpos( $day, $month . '-' ) ) { continue; }
+			$by_day[ $day ][] = $row;
 		}
 		$months = array( 1 => __( 'Januar', 'pass-captain' ), __( 'Februar', 'pass-captain' ), __( 'März', 'pass-captain' ), __( 'April', 'pass-captain' ), __( 'Mai', 'pass-captain' ), __( 'Juni', 'pass-captain' ), __( 'Juli', 'pass-captain' ), __( 'August', 'pass-captain' ), __( 'September', 'pass-captain' ), __( 'Oktober', 'pass-captain' ), __( 'November', 'pass-captain' ), __( 'Dezember', 'pass-captain' ) );
 		$days = array( __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ), __( 'Sonntag', 'pass-captain' ) );
@@ -267,7 +285,7 @@ final class Calendar {
 		echo '<p>' . esc_html__( 'Shortcode: [wp_pass_captain_calendar view="month"] oder view="list"; alternativ der Block „Pass Captain Kalender“.', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_calendar_save' );
 		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html__( 'Kalendereinträge verlinken auf diese Seite (Anker #wpcap-occ-{Termin-ID}). Leer: nur Anker auf derselben Seite.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html__( 'Kalendereinträge verlinken auf die Einzelansicht des Termins auf dieser Seite (?wpcap_occ={Termin-ID}). Leer: die veröffentlichte Seite mit dem Event-Shortcode bzw. -Block wird automatisch verwendet; ohne eine solche Seite öffnet der Kalender den Termin auf der Kalenderseite selbst.', 'pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Ticket-E-Mail', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="attach_ics" value="1"' . checked( ! empty( $s['attach_ics'] ), true, false ) . '> ' . esc_html__( 'Kalenderdatei (.ics) je Termin anhängen', 'pass-captain' ) . '</label></td></tr>';
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );

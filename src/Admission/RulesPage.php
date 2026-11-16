@@ -20,7 +20,7 @@ final class RulesPage {
 	private static function type_context( $ticket_type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name,tt.occurrence_id,o.event_id,o.timezone FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", absint( $ticket_type_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.occurrence_id,o.event_id,o.timezone FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $ticket_type_id ) ) );
 	}
 
 	private static function can( $event_id ) {
@@ -175,7 +175,7 @@ final class RulesPage {
 		<?php Forms::render_notices(); ?>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Event wählen …', 'pass-captain' ) ) + $events, $event_id ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Event wählen …', 'pass-captain' ) ) + $events, $event_id, '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Anzeigen', 'pass-captain' ); ?></button>
 		</form>
 		<?php if ( $event_id ) { self::render_event( $event_id ); } ?>
@@ -197,7 +197,7 @@ final class RulesPage {
 		?>
 		<h2><?php esc_html_e( 'Einlassbereiche', 'pass-captain' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Bereiche (z. B. „Eingang Nord“, „VIP“) begrenzen, wo Tickettypen eingelassen werden. Personal mit Bereichszuweisung darf für dieses Event nur in seinen Bereichen scannen; Geräte werden beim Koppeln einem Bereich zugeordnet.', 'pass-captain' ); ?></p>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Personal', 'pass-captain' ); ?></th><th></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Personal', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $areas as $area ) : ?>
 			<tr>
 				<td><?php Forms::open_form( 'wpcap_admission_save_area' ); Forms::hidden( 'event_id', $event_id ); Forms::hidden( 'area_id', $area->area_id ); ?><input type="text" name="name" maxlength="190" value="<?php echo esc_attr( $area->name ); ?>"> <button class="button"><?php esc_html_e( 'Umbenennen', 'pass-captain' ); ?></button></form></td>
@@ -227,7 +227,7 @@ final class RulesPage {
 				?>
 				<?php Forms::open_form( 'wpcap_admission_save_policy', 'wpcap_admission_save_policy_' . $type->ticket_type_id, 'class="wpcap-admission-policy" style="border:1px solid #dcdcde;padding:8px 12px;margin:8px 0;background:#fff"' ); Forms::hidden( 'ticket_type_id', $type->ticket_type_id ); Forms::hidden( 'event_id', $event_id ); ?>
 					<p><strong><?php echo esc_html( $type->name ); ?></strong>
-					<?php Forms::select( 'policy', array( 'default' => __( 'Standard (einmaliger Einlass / Tagesregeln des Termins)', 'pass-captain' ) ) + $labels, $policy ? $policy['policy'] : 'default' ); ?>
+					<?php Forms::select( 'policy', array( 'default' => __( 'Standard (einmaliger Einlass / Tagesregeln des Termins)', 'pass-captain' ) ) + $labels, $policy ? $policy['policy'] : 'default', '', Forms::aria_label( __( 'Einlassregel', 'pass-captain' ) ) ); ?>
 					<label><?php esc_html_e( 'Max. Einlässe', 'pass-captain' ); ?> <input type="number" name="max_entries" min="0" max="1000" style="width:6em" value="<?php echo esc_attr( $policy ? (string) $policy['max_entries'] : '0' ); ?>"></label></p>
 					<p><label><?php esc_html_e( 'Gültige Tage (Mehrtagesticket)', 'pass-captain' ); ?><br><textarea name="valid_dates" rows="2" cols="50" placeholder="2026-12-01..2026-12-03, 2026-12-05"><?php echo esc_textarea( $policy ? implode( ', ', $policy['valid_dates'] ) : '' ); ?></textarea></label></p>
 					<p><label><?php esc_html_e( 'Einlass ab (Min. vor Beginn)', 'pass-captain' ); ?> <input type="number" name="opens_before_minutes" style="width:6em" value="<?php echo esc_attr( $policy && null !== $policy['opens_before_minutes'] ? (string) $policy['opens_before_minutes'] : '' ); ?>"></label>

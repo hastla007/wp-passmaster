@@ -51,15 +51,24 @@ final class HttpProvider implements ProviderInterface {
 		$header = preg_replace( '/[^A-Za-z0-9\-]/', '', $c['header'] );
 		if ( '' !== $secret && '' !== $header ) { $headers[ $header ] = $secret; }
 		$args = array( 'timeout' => 15, 'redirection' => 0, 'headers' => $headers, 'body' => self::render_body( $c['template'], $c['content_type'], array( 'to' => $to, 'body' => $body, 'reference' => $reference ) ) );
-		$response = function_exists( 'wp_safe_remote_post' ) ? wp_safe_remote_post( $c['endpoint'], $args ) : wp_remote_post( $c['endpoint'], $args );
+		$args['method'] = 'POST';
+		$response = \PassCaptain\Security\OutboundHttp::request( $c['endpoint'], $args, array( 'max_bytes' => 65536 ) );
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'wpcap_sms_http', $response->get_error_message() );
+			$data = (array) $response->get_error_data();
+			if ( ! empty( $data['response_code'] ) ) {
+				$code = (int) $data['response_code'];
+				if ( $code >= 200 && $code < 300 ) { return array( 'status' => 'sent', 'provider_ref' => '' ); } // Accepted, oversized answer ignored.
+				return new \WP_Error( 'wpcap_sms_http_status', 'HTTP ' . $code, array( 'status' => $code, 'permanent' => true ) );
+			}
+			// Blocked targets (SSRF) are a configuration error, not worth retrying.
+			$blocked = in_array( $response->get_error_code(), array( 'wpcap_outbound_private_target', 'wpcap_outbound_https_required', 'wpcap_outbound_url_invalid', 'wpcap_outbound_url_credentials' ), true );
+			return new \WP_Error( 'wpcap_sms_http', \PassCaptain\Security\Redact::text( $response->get_error_message() ), $blocked ? array( 'permanent' => true ) : array() );
 		}
-		$code = (int) wp_remote_retrieve_response_code( $response );
+		$code = (int) $response['code'];
 		if ( $code < 200 || $code >= 300 ) {
 			return new \WP_Error( 'wpcap_sms_http_status', 'HTTP ' . $code, array( 'status' => $code, 'permanent' => $code >= 400 && $code < 500 && 429 !== $code ) );
 		}
-		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		$data = json_decode( (string) $response['body'], true );
 		$ref = is_array( $data ) ? (string) ( $data['id'] ?? ( $data['message_id'] ?? '' ) ) : '';
 		return array( 'status' => 'sent', 'provider_ref' => substr( sanitize_text_field( $ref ), 0, 64 ) );
 	}

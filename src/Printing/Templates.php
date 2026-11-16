@@ -90,9 +90,23 @@ final class Templates {
 	 * @return string PDF bytes.
 	 */
 	public static function render( $kind, array $items, $body = '' ) {
+		$pdf = new PdfWriter();
+		$title = self::draw( $pdf, $kind, $items, $body );
+		return $pdf->output( $title );
+	}
+
+	/** Like render(), streamed page by page into $file (0600). False when writing failed. */
+	public static function render_to_file( $file, $kind, array $items, $body = '' ) {
+		$pdf = new PdfWriter( $file );
+		$title = self::draw( $pdf, $kind, $items, $body );
+		return $pdf->finish( $title );
+	}
+
+	/** Draws all items; returns the document title. */
+	private static function draw( PdfWriter $pdf, $kind, array $items, $body ) {
 		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'ticket';
 		$lines = self::parse( '' !== $body ? $body : self::default_body( $kind ) );
-		$pdf = new PdfWriter();
+		if ( function_exists( 'determine_locale' ) ) { $pdf->set_language( determine_locale() ); }
 		$mm = PdfWriter::MM;
 		if ( 'nametag' === $kind ) {
 			$w = 90 * $mm;
@@ -107,7 +121,7 @@ final class Templates {
 				$pdf->rect( $x, $y, $w, $h, false, 0.8 );
 				self::cell( $pdf, $lines, $item, $x, $y, $w, $h, 'center', 'right' );
 			}
-			return $pdf->output( __( 'Namensschilder', 'pass-captain' ) );
+			return __( 'Namensschilder', 'pass-captain' );
 		}
 		$sizes = array(
 			'ticket'    => array( 595.28, 841.89, 50, 'left', 'flow' ),
@@ -125,7 +139,7 @@ final class Templates {
 			}
 			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad, $align, $qr_mode, 0 );
 		}
-		return $pdf->output( self::kind_labels()[ $kind ] ?? '' );
+		return self::kind_labels()[ $kind ] ?? '';
 	}
 
 	/** Lays out one item inside a box. $qr_mode: flow (below the text) or right (square at the right edge). */
@@ -151,7 +165,7 @@ final class Templates {
 				$qx = 'center' === $align ? $x + ( $w - $q ) / 2 : $x + ( $w - $q ) / 2;
 				if ( $pdf->qr( $qx, $cursor - $q, $q, $item['qr'] ) ) {
 					$cursor -= $q + 6;
-					$pdf->text( $x + $w / 2, $cursor - 8, 7, substr( (string) $item['qr'], 0, 16 ) . '…', false, 'center' );
+					$pdf->text( $x + $w / 2, $cursor - 8, 7, substr( (string) ( $item['code'] ?? $item['qr'] ), 0, 16 ) . '…', false, 'center' );
 					$cursor -= 14;
 				}
 				continue;
@@ -176,22 +190,24 @@ final class Templates {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$scope = Scope::event_ids( 'wpcap_manage_events' );
-		$owner_sql = null === $scope ? '' : ' AND owner_event_id IN (' . implode( ',', array_merge( array( 0 ), array_map( 'absint', (array) $scope ) ) ) . ')';
+		// Owner events: all (null scope), else global templates (0) and the managed events.
+		$all_owners = null === $scope ? 1 : 0;
+		$owners = array_merge( array( 0 ), array_values( array_map( 'absint', (array) $scope ) ) );
 		if ( '' !== $kind ) {
-			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_print_templates WHERE kind=%s AND status='active'$owner_sql ORDER BY name", $kind ) );
+			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE kind=%s AND status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY name', array_merge( array( $p . 'wpcap_print_templates', $kind, $all_owners ), $owners ) ) );
 		}
-		return $wpdb->get_results( "SELECT * FROM {$p}wpcap_print_templates WHERE status='active'$owner_sql ORDER BY kind,name" );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status='active' AND (%d=1 OR owner_event_id IN (" . implode( ',', array_fill( 0, count( $owners ), '%d' ) ) . ')) ORDER BY kind,name', array_merge( array( $p . 'wpcap_print_templates', $all_owners ), $owners ) ) );
 	}
 
 	public static function get_template( $template_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_print_templates WHERE template_id=%d", absint( $template_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE template_id=%d', $wpdb->prefix . 'wpcap_print_templates', absint( $template_id ) ) );
 	}
 
 	/** Events a template is selected for. */
 	public static function assigned_events( $template_id ) {
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_print_event_templates WHERE template_id=%d", absint( $template_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE template_id=%d', $wpdb->prefix . 'wpcap_print_event_templates', absint( $template_id ) ) ) );
 	}
 
 	/**
@@ -260,7 +276,7 @@ final class Templates {
 				return new \WP_Error( 'wpcap_print_template_owner', __( 'Diese Vorlage gehört zu einem anderen Event.', 'pass-captain' ), array( 'status' => 403 ) );
 			}
 		}
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_print_event_templates WHERE event_id=%d AND kind=%s", absint( $event_id ), $kind ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE event_id=%d AND kind=%s', $p . 'wpcap_print_event_templates', absint( $event_id ), $kind ) );
 		if ( $template_id ) {
 			$wpdb->insert( "{$p}wpcap_print_event_templates", array( 'event_id' => absint( $event_id ), 'kind' => $kind, 'template_id' => $template_id ) );
 		}
@@ -271,7 +287,7 @@ final class Templates {
 	public static function body_for_event( $event_id, $kind ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$body = $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM {$p}wpcap_print_event_templates et INNER JOIN {$p}wpcap_print_templates t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", absint( $event_id ), $kind ) );
+		$body = $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM %i et INNER JOIN %i t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", $p . 'wpcap_print_event_templates', $p . 'wpcap_print_templates', absint( $event_id ), $kind ) );
 		return $body ? (string) $body : self::default_body( $kind );
 	}
 
@@ -282,17 +298,28 @@ final class Templates {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
-		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		if ( ! $statuses ) { $statuses = array( 'valid' ); }
 		return $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
-			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
-			WHERE o.occurrence_id=%d AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id",
-			absint( $occurrence_id )
+			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,t.transfer_count,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
+			FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i a ON a.ticket_id=t.ticket_id
+			WHERE o.occurrence_id=%d AND t.status IN (" . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ") ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id",
+			array_merge(
+				array(
+					$p . 'wpcap_tickets',
+					$p . 'wpcap_ticket_types',
+					$p . 'wpcap_occurrences',
+					$p . 'wpcap_events',
+					$p . 'wpcap_orders',
+					$p . 'wpcap_ticket_assignments',
+					absint( $occurrence_id ),
+				),
+				$statuses
+			)
 		) );
 	}
 
 	/** Placeholder values for a ticket row (see tickets_for_occurrence / Orders::tickets_for_order). */
-	public static function values( $row, $token = '' ) {
+	public static function values( $row, $token = '', $qr = null ) {
 		$row = (object) $row;
 		$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) ( $row->ticket_id ?? 0 ), (array) $row );
 		return array(
@@ -304,7 +331,8 @@ final class Templates {
 			'attendee_name'   => (string) ( $row->attendee_name ?? '' ),
 			'seat_label'      => $seat,
 			'order'           => substr( (string) ( $row->order_public_id ?? '' ), 0, 8 ),
-			'qr'              => (string) $token,
+			'qr'              => null !== $qr ? (string) $qr : \PassCaptain\Security\SignedQr::qr_value( (string) $token ),
+			'code'            => (string) $token,
 		);
 	}
 
@@ -319,11 +347,11 @@ final class Templates {
 		$out = array();
 		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $ticket_id ) {
 			$token = bin2hex( random_bytes( 32 ) );
-			$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid'", hash( 'sha256', $token ), $ticket_id ) );
+			$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET token_hash=%s WHERE ticket_id=%d AND status='valid'", $wpdb->prefix . 'wpcap_tickets', hash( 'sha256', $token ), $ticket_id ) );
 			if ( $updated ) {
 				$out[ $ticket_id ] = $token;
 				/** The ticket got a new code (old one invalid), e.g. so wallet passes can be refreshed. */
-				do_action( 'wpcap_ticket_code_rotated', (int) $ticket_id, $token, 'print' );
+				do_action( 'wpcap_ticket_code_rotated', (int) $ticket_id, $token, 'pos_print' === $reason ? 'pos_print' : 'print' );
 			}
 		}
 		if ( $out ) {
@@ -333,16 +361,160 @@ final class Templates {
 	}
 
 	/**
-	 * Batch PDF for an occurrence.
-	 *
-	 * @param bool $with_codes Rotate codes of valid tickets and print QR codes.
+	 * Batch PDF for an occurrence without new codes (no QR code). Codes are only printed through
+	 * batch_pdf_with_codes(), which has its own permission, selection and transaction rules.
 	 */
-	public static function batch_pdf( $occurrence_id, $kind, $with_codes = false ) {
+	public static function batch_pdf( $occurrence_id, $kind ) {
 		$rows = self::tickets_for_occurrence( $occurrence_id, 'ticket' === $kind || 'wristband' === $kind ? array( 'valid' ) : array( 'valid', 'checked_in' ) );
-		$tokens = $with_codes ? self::rotate_codes( array_map( static function ( $r ) { return (int) $r->ticket_id; }, $rows ), 'batch_' . $kind ) : array();
 		$items = array();
-		foreach ( $rows as $row ) { $items[] = self::values( $row, $tokens[ (int) $row->ticket_id ] ?? '' ); }
-		$event_id = Scope::occurrence_event( $occurrence_id );
-		return self::render( $kind, $items, self::body_for_event( $event_id, $kind ) );
+		foreach ( $rows as $row ) { $items[] = self::values( $row, '', '' ); }
+		return self::render( $kind, $items, self::body_for_event( Scope::occurrence_event( $occurrence_id ), $kind ) );
+	}
+
+	/** Maximum number of new codes per print job (filter wp_pass_captain_print_batch_limit_v1, default 500). */
+	public static function batch_limit() {
+		/**
+		 * Maximum number of tickets that get new codes in one batch print with QR codes. Larger
+		 * occurrences are printed in parts (field "ab Ticket Nr.").
+		 *
+		 * @param int $limit Default 500.
+		 */
+		return max( 1, (int) apply_filters( 'wp_pass_captain_print_batch_limit_v1', 500 ) );
+	}
+
+	/**
+	 * True when a ticket's code never reached a customer: box office sale without buyer e-mail
+	 * (placeholder address), never transferred, no holder e-mail. Only such tickets are printed with
+	 * new codes by default; every other valid ticket is a customer ticket that would become invalid.
+	 */
+	public static function undelivered( $row ) {
+		$row = (object) $row;
+		$buyer = strtolower( (string) ( $row->customer_email ?? '' ) );
+		$holder = (string) ( $row->attendee_email ?? '' );
+		return 0 === strpos( $buyer, 'boxoffice+' ) && \PassCaptain\Privacy::is_placeholder_email( $buyer )
+			&& 0 === (int) ( $row->transfer_count ?? 0 )
+			&& ( ! is_email( $holder ) || \PassCaptain\Privacy::is_placeholder_email( $holder ) );
+	}
+
+	/**
+	 * Valid tickets of an occurrence split into undelivered (box office without e-mail) and customer tickets.
+	 *
+	 * @return array{undelivered:object[],delivered:object[]}
+	 */
+	public static function code_candidates( $occurrence_id ) {
+		$out = array( 'undelivered' => array(), 'delivered' => array() );
+		foreach ( self::tickets_for_occurrence( $occurrence_id, array( 'valid' ) ) as $row ) {
+			$out[ self::undelivered( $row ) ? 'undelivered' : 'delivered' ][] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * Batch PDF with new ticket codes (QR) for an occurrence, written to $file.
+	 *
+	 * The new codes are stored in one transaction that only commits after the complete PDF has been
+	 * written; any error, exception or abort (time/memory limit: the connection closes without COMMIT)
+	 * rolls the codes back, so the previous codes stay valid (audit R2 #5/#11). At most batch_limit()
+	 * tickets per job ($offset selects the part). Wallet passes are reissued after the commit through
+	 * the job queue (wpcap_ticket_code_rotated, reason "print"). With $include_delivered the holders of
+	 * customer tickets receive their new links by e-mail after the commit.
+	 *
+	 * @param int    $occurrence_id     Occurrence.
+	 * @param string $kind              Layout.
+	 * @param string $file              Target file (private temp directory).
+	 * @param bool   $include_delivered Also customer tickets (their previous codes become invalid).
+	 * @param int    $offset            First ticket (0-based) of this part.
+	 * @return array{count:int,delivered:int,total:int,notified:int,notify_failed:int}|\WP_Error
+	 */
+	public static function batch_pdf_with_codes( $occurrence_id, $kind, $file, $include_delivered = false, $offset = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$candidates = self::code_candidates( $occurrence_id );
+		$rows = $include_delivered ? array_merge( $candidates['undelivered'], $candidates['delivered'] ) : $candidates['undelivered'];
+		usort( $rows, static function ( $a, $b ) { return (int) $a->ticket_id <=> (int) $b->ticket_id; } );
+		$total = count( $rows );
+		$rows = array_slice( $rows, max( 0, (int) $offset ), self::batch_limit() );
+		if ( ! $rows ) {
+			return new \WP_Error( 'wpcap_print_nothing', $include_delivered || ! $candidates['delivered'] ? __( 'Für diesen Termin gibt es keine (weiteren) gültigen Tickets zum Drucken.', 'pass-captain' ) : __( 'Für diesen Termin gibt es keine Kassentickets ohne Zustellung. Kundentickets werden nur nach ausdrücklicher Bestätigung neu gedruckt.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$failed = static function ( $step, $message = '' ) use ( $wpdb, $file, $occurrence_id ) {
+			$wpdb->query( 'ROLLBACK' );
+			\PassCaptain\TempFiles::remove( $file );
+			Audit::record( 'print_batch_codes_failed', 'occurrence', absint( $occurrence_id ), array( 'step' => sanitize_key( $step ) ) );
+			return new \WP_Error( 'wpcap_print_codes_failed', '' !== $message ? $message : __( 'Der Druck mit neuen Codes ist fehlgeschlagen. Es wurden keine Ticketcodes geändert; die bisherigen Codes bleiben gültig.', 'pass-captain' ), array( 'status' => 503, 'step' => $step ) );
+		};
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed( 'start' ); }
+		$ids = array_map( static function ( $r ) { return (int) $r->ticket_id; }, $rows );
+		$tokens = array();
+		$printable = array();
+		try {
+			$locked = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,token_hash FROM %i WHERE status='valid' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY ticket_id FOR UPDATE', array_merge( array( $p . 'wpcap_tickets' ), $ids ) ) );
+			if ( '' !== $wpdb->last_error ) { return $failed( 'lock' ); }
+			$current = array();
+			foreach ( (array) $locked as $row ) { $current[ (int) $row->ticket_id ] = (string) $row->token_hash; }
+			foreach ( $rows as $row ) {
+				$ticket_id = (int) $row->ticket_id;
+				if ( ! isset( $current[ $ticket_id ] ) ) { continue; } // Checked in or revoked meanwhile.
+				$token = bin2hex( random_bytes( 32 ) );
+				$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET token_hash=%s WHERE ticket_id=%d AND status='valid' AND token_hash=%s", $p . 'wpcap_tickets', hash( 'sha256', $token ), $ticket_id, $current[ $ticket_id ] ) );
+				if ( 1 !== (int) $updated ) { return $failed( 'rotate' ); }
+				$tokens[ $ticket_id ] = $token;
+				$printable[] = $row;
+			}
+			if ( ! $tokens ) { return $failed( 'nothing', __( 'Die Tickets wurden inzwischen eingecheckt oder storniert.', 'pass-captain' ) ); }
+			$qr = \PassCaptain\Security\SignedQr::qr_values( $tokens );
+			$items = array();
+			foreach ( $printable as $row ) { $items[] = self::values( $row, $tokens[ (int) $row->ticket_id ], $qr[ (int) $row->ticket_id ] ?? '' ); }
+			if ( ! self::render_to_file( $file, $kind, $items, self::body_for_event( Scope::occurrence_event( $occurrence_id ), $kind ) ) || ! is_file( $file ) ) {
+				return $failed( 'write' );
+			}
+		} catch ( \Throwable $e ) {
+			return $failed( 'exception' );
+		}
+		if ( false === $wpdb->query( 'COMMIT' ) ) { return $failed( 'commit' ); }
+		$delivered = array_values( array_filter( $printable, static function ( $row ) { return ! self::undelivered( $row ); } ) );
+		Audit::record( 'ticket_codes_rotated', 'occurrence', absint( $occurrence_id ), array( 'count' => count( $tokens ), 'customer_tickets' => count( $delivered ), 'reason' => sanitize_key( 'batch_' . $kind ) ) );
+		foreach ( $tokens as $ticket_id => $token ) {
+			/** The ticket got a new code (old one invalid); wallet passes are reissued through the job queue. */
+			do_action( 'wpcap_ticket_code_rotated', (int) $ticket_id, $token, 'print' );
+		}
+		list( $notified, $notify_failed ) = self::notify_holders( $delivered, $tokens );
+		return array( 'count' => count( $tokens ), 'delivered' => count( $delivered ), 'total' => $total, 'notified' => $notified, 'notify_failed' => $notify_failed );
+	}
+
+	/**
+	 * Mails the new links of reprinted customer tickets to their holders (attendee e-mail, else the
+	 * buyer), one mail per recipient and order (template tickets_resend).
+	 *
+	 * @param object[]          $rows   Ticket rows (tickets_for_occurrence).
+	 * @param array<int,string> $tokens ticket_id => new code.
+	 * @return array{0:int,1:int} Tickets mailed, tickets whose mail failed.
+	 */
+	private static function notify_holders( array $rows, array $tokens ) {
+		$groups = array();
+		foreach ( $rows as $row ) {
+			$holder = (string) $row->attendee_email;
+			$to = is_email( $holder ) && ! \PassCaptain\Privacy::is_placeholder_email( $holder ) ? $holder : (string) $row->customer_email;
+			if ( ! is_email( $to ) || \PassCaptain\Privacy::is_placeholder_email( $to ) ) { continue; }
+			$groups[ (int) $row->order_id . '|' . strtolower( $to ) ][] = $row;
+		}
+		$sent = 0;
+		$failed = 0;
+		foreach ( $groups as $key => $group ) {
+			$order = \PassCaptain\Orders::get( (int) $group[0]->order_id );
+			if ( ! $order ) { continue; }
+			$entries = array();
+			foreach ( $group as $row ) {
+				$entries[] = array( 'event' => $row->event_name, 'ticket' => $row->ticket_name, 'when' => \PassCaptain\Orders::format_start( $row->starts_at, $row->timezone ), 'location' => $row->location, 'url' => add_query_arg( 'wpcap_ticket', $tokens[ (int) $row->ticket_id ], home_url( '/' ) ), 'extra' => '' );
+			}
+			$vars = \PassCaptain\Orders::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return \PassCaptain\Mail\Blocks::code_tickets( $entries ); } );
+			if ( \PassCaptain\Mail\Mailer::send( 'tickets_resend', substr( $key, strpos( $key, '|' ) + 1 ), $vars, array(), (string) $order->locale ) ) {
+				$sent += count( $group );
+			} else {
+				$failed += count( $group );
+			}
+		}
+		if ( $failed ) { Audit::record( 'print_batch_notify_failed', 'ticket', (int) $rows[0]->ticket_id, array( 'tickets' => $failed ) ); }
+		return array( $sent, $failed );
 	}
 }

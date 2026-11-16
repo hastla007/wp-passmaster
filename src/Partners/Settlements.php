@@ -95,17 +95,17 @@ final class Settlements {
 		$lines = array();
 		if ( $events ) {
 			$in = implode( ',', array_map( 'absint', $events ) );
-			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( "SELECT source_key FROM {$p}wpcap_partner_settlement_lines WHERE partner_id=%d AND source_key IS NOT NULL", (int) $partner->partner_id ) ) );
+			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( 'SELECT source_key FROM %i WHERE partner_id=%d AND source_key IS NOT NULL', $p . 'wpcap_partner_settlement_lines', (int) $partner->partner_id ) ) );
 			$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 			$has_partner_item = "EXISTS (SELECT 1 FROM {$p}wpcap_order_items x INNER JOIN {$p}wpcap_ticket_types xt ON xt.ticket_type_id=x.ticket_type_id INNER JOIN {$p}wpcap_occurrences xo ON xo.occurrence_id=xt.occurrence_id WHERE x.order_id=ord.order_id AND xo.event_id IN ($in))";
 			$lower_sql = '' !== $lower ? $wpdb->prepare( ' AND ord.created_at >= %s', $lower ) : '';
 
 			// Sales.
-			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
+			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor,ord.price_snapshot FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
 			$by_order = self::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ), $line_sql );
 			foreach ( $orders as $order ) {
 				$order_lines = $by_order[ (int) $order->order_id ] ?? array();
-				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor );
+				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $order ) );
 				foreach ( $order_lines as $i => $line ) {
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
 					$key = 'sale:' . (int) $line->item_id;
@@ -118,11 +118,22 @@ final class Settlements {
 			}
 
 			// Completed refunds.
-			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at,ord.discount_minor,ord.price_snapshot FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 			foreach ( $refunds as $refund ) {
 				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
-				foreach ( self::allocate_refund( $refund, $order_lines ) as $i => $share ) {
+				// Sales count the full consideration (a multi-purpose voucher is a means of payment), so a
+				// refund takes back its voucher part as well: the amounts of its credit note (PAY-3).
+				$booked = \PassCaptain\Integrations\Vouchers\Checkout::credit_note_amounts( (int) $refund->refund_id );
+				if ( $booked ) {
+					$refund = clone $refund;
+					$refund->amount_minor = (int) $booked['total_minor'];
+					$refund->tax_minor = (int) $booked['tax_minor'];
+				}
+				// Weighted by the discounted line values the sales above were booked with (campaign and
+				// single-purpose voucher discounts per line), not by list prices.
+				$discounted = Data::allocate_discount( $order_lines, (int) $refund->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $refund ) );
+				foreach ( self::allocate_refund( $refund, $order_lines, $discounted ) as $i => $share ) {
 					$line = $order_lines[ $i ];
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
 					$key = 'refund:' . (int) $refund->refund_id . ':' . (int) $line->item_id;
@@ -167,14 +178,19 @@ final class Settlements {
 	}
 
 	/**
-	 * Splits a refund over the order lines (refunded tickets weighted by unit price; amount-only
-	 * refunds by line total). The last share receives the rounding remainder.
+	 * Splits a refund over the order lines (refunded tickets weighted by their discounted unit value;
+	 * amount-only refunds by the discounted line value). The last share receives the rounding remainder.
 	 *
+	 * @param int[]|null $discounted Line value after discounts per line index (Data::allocate_discount():
+	 *                               price_snapshot.line_discounts incl. single-purpose vouchers, else the
+	 *                               proportional split of the order discount). Null: list prices (legacy).
 	 * @return array<int,array{tickets:int,amount:int,tax:int}> line index => share.
 	 */
-	public static function allocate_refund( $refund, array $lines ) {
+	public static function allocate_refund( $refund, array $lines, $discounted = null ) {
 		global $wpdb;
 		if ( ! $lines ) { return array(); }
+		// Fully discounted order (nothing left to weight): fall back to list prices.
+		if ( is_array( $discounted ) && array_sum( array_map( 'intval', $discounted ) ) <= 0 ) { $discounted = null; }
 		$by_type = array();
 		foreach ( $lines as $i => $line ) {
 			if ( ! isset( $by_type[ (int) $line->ticket_type_id ] ) ) { $by_type[ (int) $line->ticket_type_id ] = $i; }
@@ -182,15 +198,15 @@ final class Settlements {
 		$weights = array();
 		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
 		if ( $ids ) {
-			foreach ( $wpdb->get_col( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN (" . implode( ',', $ids ) . ')' ) as $type_id ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_tickets' ), $ids ) ) ) as $type_id ) {
 				$i = $by_type[ (int) $type_id ] ?? null;
 				if ( null === $i ) { continue; }
-				$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
+				$unit = intdiv( self::line_value( $lines, $i, $discounted ), max( 1, (int) $lines[ $i ]->quantity ) );
 				$weights[ $i ] = array( ( $weights[ $i ][0] ?? 0 ) + 1, ( $weights[ $i ][1] ?? 0 ) + $unit );
 			}
 		}
 		if ( ! $weights ) {
-			foreach ( $lines as $i => $line ) { $weights[ $i ] = array( 0, (int) $line->line_total_minor ); }
+			foreach ( $lines as $i => $line ) { $weights[ $i ] = array( 0, self::line_value( $lines, $i, $discounted ) ); }
 		}
 		$sum = max( 1, array_sum( array_column( $weights, 1 ) ) );
 		$amount_left = (int) $refund->amount_minor;
@@ -206,6 +222,11 @@ final class Settlements {
 			$out[ $i ] = array( 'tickets' => (int) $weights[ $i ][0], 'amount' => $amount, 'tax' => $tax );
 		}
 		return $out;
+	}
+
+	/** Value of a line for the refund split: discounted when known, else the list price total. */
+	private static function line_value( array $lines, $i, $discounted ) {
+		return is_array( $discounted ) && isset( $discounted[ $i ] ) ? max( 0, (int) $discounted[ $i ] ) : (int) $lines[ $i ]->line_total_minor;
 	}
 
 	private static function lines_by_order( array $order_ids, $line_sql ) {
@@ -302,12 +323,12 @@ final class Settlements {
 
 	public static function get( $settlement_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partner_settlements WHERE settlement_id=%d", absint( $settlement_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE settlement_id=%d', $wpdb->prefix . 'wpcap_partner_settlements', absint( $settlement_id ) ) );
 	}
 
 	public static function lines( $settlement_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partner_settlement_lines WHERE settlement_id=%d ORDER BY occurred_at,line_id", absint( $settlement_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE settlement_id=%d ORDER BY occurred_at,line_id', $wpdb->prefix . 'wpcap_partner_settlement_lines', absint( $settlement_id ) ) );
 	}
 
 	/**
@@ -319,17 +340,22 @@ final class Settlements {
 	public static function query( $partner_ids = null, $statuses = null, $limit = 200 ) {
 		global $wpdb;
 		$where = '1=1';
+		$args = array( $wpdb->prefix . 'wpcap_partner_settlements', $wpdb->prefix . 'wpcap_partners' );
 		if ( null !== $partner_ids ) {
-			$partner_ids = array_filter( array_map( 'absint', (array) $partner_ids ) );
+			$partner_ids = array_values( array_filter( array_map( 'absint', (array) $partner_ids ) ) );
 			if ( ! $partner_ids ) { return array(); }
-			$where .= ' AND s.partner_id IN (' . implode( ',', $partner_ids ) . ')';
+			$where .= ' AND s.partner_id IN (' . implode( ',', array_fill( 0, count( $partner_ids ), '%d' ) ) . ')';
+			$args = array_merge( $args, $partner_ids );
 		}
 		if ( null !== $statuses ) {
 			$statuses = array_values( array_intersect( self::STATUSES, (array) $statuses ) );
 			if ( ! $statuses ) { return array(); }
-			$where .= " AND s.status IN ('" . implode( "','", $statuses ) . "')";
+			$where .= ' AND s.status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')';
+			$args = array_merge( $args, $statuses );
 		}
-		return $wpdb->get_results( "SELECT s.*,pa.name AS partner_name FROM {$wpdb->prefix}wpcap_partner_settlements s INNER JOIN {$wpdb->prefix}wpcap_partners pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT " . max( 1, (int) $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- whitelisted values.
+		$args[] = max( 1, (int) $limit );
+		// $where: literal conditions with placeholders for every value ($args).
+		return $wpdb->get_results( $wpdb->prepare( "SELECT s.*,pa.name AS partner_name FROM %i s INNER JOIN %i pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT %d", $args ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
 	}
 
 	/** Creates a draft for a partner and month. */
@@ -340,7 +366,7 @@ final class Settlements {
 		if ( ! self::valid_period( $period ) ) { return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'pass-captain' ), array( 'status' => 400 ) ); }
 		list( $start, $end ) = self::period_bounds( $period );
 		if ( $start > current_time( 'mysql', true ) ) { return new \WP_Error( 'wpcap_settlement_future', __( 'Für zukünftige Zeiträume kann keine Abrechnung erstellt werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$latest = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(period) FROM {$wpdb->prefix}wpcap_partner_settlements WHERE partner_id=%d AND status IN ('finalized','paid')", (int) $partner->partner_id ) );
+		$latest = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(period) FROM %i WHERE partner_id=%d AND status IN ('finalized','paid')", $wpdb->prefix . 'wpcap_partner_settlements', (int) $partner->partner_id ) );
 		if ( '' !== $latest && $period <= $latest ) {
 			/* translators: %s: period */
 			return new \WP_Error( 'wpcap_settlement_order', sprintf( __( 'Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet.', 'pass-captain' ), $latest ), array( 'status' => 409 ) );
@@ -385,7 +411,7 @@ final class Settlements {
 	private static function store( $s, array $result, $partner ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_partner_settlement_lines WHERE settlement_id=%d", (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE settlement_id=%d', $p . 'wpcap_partner_settlement_lines', (int) $s->settlement_id ) );
 		foreach ( $result['lines'] as $line ) {
 			$wpdb->insert( "{$p}wpcap_partner_settlement_lines", array_merge( $line, array( 'settlement_id' => (int) $s->settlement_id, 'partner_id' => (int) $s->partner_id, 'event_name' => substr( $line['event_name'], 0, 190 ) ) ) );
 		}
@@ -421,12 +447,12 @@ final class Settlements {
 		$p = $wpdb->prefix;
 		$settlement_id = absint( $settlement_id );
 		$wpdb->query( 'START TRANSACTION' );
-		$s = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_partner_settlements WHERE settlement_id=%d FOR UPDATE", $settlement_id ) );
+		$s = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE settlement_id=%d FOR UPDATE', $p . 'wpcap_partner_settlements', $settlement_id ) );
 		$fail = static function ( $error ) use ( $wpdb ) { $wpdb->query( 'ROLLBACK' ); return $error; };
 		if ( ! $s ) { return $fail( new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ) ); }
 		if ( 'draft' !== $s->status ) { return $fail( self::immutable_error() ); }
 		if ( $s->period_end > current_time( 'mysql', true ) ) { return $fail( new \WP_Error( 'wpcap_settlement_open_period', __( 'Der Abrechnungszeitraum ist noch nicht beendet.', 'pass-captain' ), array( 'status' => 409 ) ) ); }
-		if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_partner_settlements WHERE partner_id=%d AND status='draft' AND period < %s LIMIT 1", (int) $s->partner_id, $s->period ) ) ) {
+		if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i WHERE partner_id=%d AND status='draft' AND period < %s LIMIT 1", $p . 'wpcap_partner_settlements', (int) $s->partner_id, $s->period ) ) ) {
 			return $fail( new \WP_Error( 'wpcap_settlement_order', __( 'Bitte zuerst die Entwürfe früherer Zeiträume abschließen oder löschen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$partner = Repository::get( $s->partner_id );
@@ -449,7 +475,7 @@ final class Settlements {
 			if ( is_wp_error( $self_billing_number ) ) { return $fail( $self_billing_number ); }
 		}
 		// Locks every line: the unique (partner_id, source_key) index rejects items settled elsewhere.
-		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlement_lines SET source_key=item_key WHERE settlement_id=%d", $settlement_id ) ) ) {
+		if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET source_key=item_key WHERE settlement_id=%d', $p . 'wpcap_partner_settlement_lines', $settlement_id ) ) ) {
 			return $fail( new \WP_Error( 'wpcap_settlement_conflict', __( 'Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$snapshot = array(
@@ -458,12 +484,15 @@ final class Settlements {
 			'supplier' => SalesModel::organizer_seller( $partner ),
 			'sales_model' => $model,
 		);
+		// The snapshot keeps the payout account the settlement is paid to, encrypted for this settlement.
+		$snapshot['partner']['payout_details'] = \PassCaptain\Security\Vault::encrypt( (string) Repository::payout_details( $partner ), Repository::snapshot_payout_context( $settlement_id ) );
 		$now = current_time( 'mysql', true );
 		$sb_sql = null === $self_billing_number ? 'NULL' : $wpdb->prepare( '%s', $self_billing_number );
 		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlements SET status='finalized', document_number=%s, self_billing_number=$sb_sql, partner_snapshot=%s, finalized_by=%d, finalized_at=%s, updated_at=%s WHERE settlement_id=%d AND status='draft'", $number, wp_json_encode( $snapshot ), get_current_user_id(), $now, $now, $settlement_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
 		if ( 1 !== (int) $updated ) { return $fail( new \WP_Error( 'wpcap_settlement_save', __( 'Abrechnung konnte nicht abgeschlossen werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'partner_settlement_finalized', 'partner_settlement', $settlement_id, array( 'partner_id' => (int) $s->partner_id, 'period' => $s->period, 'number' => $number, 'self_billing_number' => $self_billing_number, 'sales_model' => $model ) );
+		\PassCaptain\Api\Invoices::created( $settlement_id, 'settlement', array( 'partner_id' => (int) $s->partner_id, 'period' => (string) $s->period, 'number' => $number, 'self_billing_number' => (string) $self_billing_number ) );
 		return self::get( $settlement_id );
 	}
 
@@ -474,7 +503,7 @@ final class Settlements {
 		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'finalized' !== $s->status ) { return new \WP_Error( 'wpcap_settlement_state', __( 'Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partner_settlements SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $now, substr( sanitize_text_field( (string) $reference ), 0, 190 ), $now, (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $wpdb->prefix . 'wpcap_partner_settlements', $now, substr( sanitize_text_field( (string) $reference ), 0, 190 ), $now, (int) $s->settlement_id ) );
 		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => substr( sanitize_text_field( (string) $reference ), 0, 190 ) ) );
 		return self::get( $settlement_id );
 	}
@@ -485,8 +514,8 @@ final class Settlements {
 		$s = self::get( $settlement_id );
 		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'draft' !== $s->status ) { return self::immutable_error(); }
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_settlement_lines WHERE settlement_id=%d", (int) $s->settlement_id ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_settlements WHERE settlement_id=%d AND status='draft'", (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE settlement_id=%d', $wpdb->prefix . 'wpcap_partner_settlement_lines', (int) $s->settlement_id ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE settlement_id=%d AND status='draft'", $wpdb->prefix . 'wpcap_partner_settlements', (int) $s->settlement_id ) );
 		Audit::record( 'partner_settlement_deleted', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'period' => $s->period ) );
 		return array( 'deleted' => (int) $s->settlement_id );
 	}
@@ -547,12 +576,33 @@ final class Settlements {
 		return __( 'Veranstalter-Abrechnung', 'pass-captain' );
 	}
 
+	/** Currency of the CSV being built (decimal places of the amounts). */
+	private static $csv_currency = 'EUR';
+
 	private static function m( $minor ) {
-		return number_format( (int) $minor / 100, 2, '.', '' );
+		return \PassCaptain\Localization::money_decimal( $minor, self::$csv_currency );
+	}
+
+	/**
+	 * Payout details of a settlement for the CSV export: the account stored (encrypted) in the
+	 * finalized snapshot, for drafts the partner's current one. Finance/admins (can_manage()) get the
+	 * full text they need for the transfer; linked partner users only the masked hint (last 4).
+	 * Never part of the printable document or the partner REST API.
+	 */
+	public static function payout_details_for_export( $s ) {
+		$snapshot = (array) json_decode( (string) $s->partner_snapshot, true );
+		if ( isset( $snapshot['partner']['payout_details'] ) ) {
+			$plain = \PassCaptain\Security\Vault::decrypt( (string) $snapshot['partner']['payout_details'], Repository::snapshot_payout_context( (int) $s->settlement_id ) );
+		} else {
+			$plain = Repository::payout_details( Repository::get( $s->partner_id ) );
+		}
+		if ( null === $plain ) { return __( '(nicht entschlüsselbar)', 'pass-captain' ); }
+		return self::can_manage() ? (string) $plain : Repository::mask_payout( (string) $plain );
 	}
 
 	/** CSV rows (amounts as decimals, lines included). */
 	public static function csv_rows( $s ) {
+		self::$csv_currency = (string) $s->currency;
 		$t = self::decoded_totals( $s );
 		$snapshot = (array) json_decode( (string) $s->partner_snapshot, true );
 		$partner_name = (string) ( $snapshot['partner']['name'] ?? ( Repository::get( $s->partner_id )->name ?? '' ) );
@@ -574,6 +624,11 @@ final class Settlements {
 		$rows[] = array( __( 'Verkaufte Tickets', 'pass-captain' ), (int) $s->tickets_sold );
 		$rows[] = array( __( 'Erstattete Tickets', 'pass-captain' ), (int) $s->tickets_refunded );
 		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor ) ); }
+		$payout = self::payout_details_for_export( $s );
+		if ( '' !== $payout ) {
+			// One cell, line breaks flattened (the operator copies it into the bank transfer).
+			$rows[] = array( __( 'Auszahlungskonto', 'pass-captain' ), trim( (string) preg_replace( '/\s*[\r\n]+\s*/', ' | ', $payout ) ) );
+		}
 		return $rows;
 	}
 
@@ -697,7 +752,8 @@ final class Settlements {
 			$label = ( $kinds[ $l->kind ] ?? $l->kind ) . ( in_array( $l->kind, array( 'late_sale', 'correction' ), true ) ? ' ' . $l->origin_period : '' );
 			$h .= '<tr><td>' . esc_html( Scope::local( $l->occurred_at, Scope::site_timezone(), 'd.m.Y' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
 		}
-		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . '<button onclick="window.print()">' . esc_html__( 'Drucken oder als PDF speichern', 'pass-captain' ) . '</button></body></html>';
+		$extra_links = 'draft' === $s->status ? '' : \PassCaptain\Api\Invoices::links_html( (int) $s->settlement_id, 'settlement', array( 'audience' => 'admin', 'location' => 'settlement_view', 'partner_id' => (int) $s->partner_id ) );
+		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . ( '' !== $extra_links ? '<p class="wpcap-invoice-extra">' . $extra_links . '</p>' : '' ) . \PassCaptain\Frontend\PrintButton::html( __( 'Drucken oder als PDF speichern', 'pass-captain' ) ) . '</body></html>';
 		return $h;
 	}
 

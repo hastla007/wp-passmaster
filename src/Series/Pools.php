@@ -53,13 +53,13 @@ final class Pools {
 
 	public static function for_series( $series_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series_pools WHERE series_id=%d AND status='active' ORDER BY pool_id", absint( $series_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE series_id=%d AND status='active' ORDER BY pool_id", $wpdb->prefix . 'wpcap_series_pools', absint( $series_id ) ) );
 	}
 
 	/** Creates a pool. Input: name, type_name ('' = all types), capacity (≥ 1). @return int|\WP_Error */
 	public static function create( $series_id, array $in ) {
 		global $wpdb;
-		$series = $wpdb->get_row( $wpdb->prepare( "SELECT series_id,event_id FROM {$wpdb->prefix}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
+		$series = $wpdb->get_row( $wpdb->prepare( 'SELECT series_id,event_id FROM %i WHERE series_id=%d', $wpdb->prefix . 'wpcap_series', absint( $series_id ) ) );
 		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $series->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$capacity = is_scalar( $in['capacity'] ?? null ) && preg_match( '/^\d{1,7}$/', trim( (string) $in['capacity'] ) ) ? (int) $in['capacity'] : 0;
@@ -98,7 +98,7 @@ final class Pools {
 
 	private static function pool_with_event( $pool_id ) {
 		global $wpdb;
-		$pool = $wpdb->get_row( $wpdb->prepare( "SELECT p.*,s.event_id FROM {$wpdb->prefix}wpcap_series_pools p INNER JOIN {$wpdb->prefix}wpcap_series s ON s.series_id=p.series_id WHERE p.pool_id=%d AND p.status='active'", absint( $pool_id ) ) );
+		$pool = $wpdb->get_row( $wpdb->prepare( "SELECT p.*,s.event_id FROM %i p INNER JOIN %i s ON s.series_id=p.series_id WHERE p.pool_id=%d AND p.status='active'", $wpdb->prefix . 'wpcap_series_pools', $wpdb->prefix . 'wpcap_series', absint( $pool_id ) ) );
 		if ( ! $pool ) { return self::error( 'wpcap_series_pool_missing', __( 'Kontingent nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $pool->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		return $pool;
@@ -111,7 +111,7 @@ final class Pools {
 	/** All ticket type ids of a pool (every occurrence of the series, filtered by type name). */
 	public static function member_type_ids( $pool ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_series_occurrences so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d", (int) $pool->series_id ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name FROM %i tt INNER JOIN %i so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_series_occurrences', (int) $pool->series_id ) );
 		$ids = array();
 		foreach ( $rows as $row ) {
 			if ( Pricing::name_matches( $pool->type_name, $row->name ) ) { $ids[] = (int) $row->ticket_type_id; }
@@ -128,11 +128,21 @@ final class Pools {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
 		$p = $wpdb->prefix;
-		$in = implode( ',', $type_ids );
 		$exclude = absint( $exclude_order_id );
-		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $exclude ) );
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at > %s AND order_id <> %d", $now, $exclude ) );
-		return $sold + $held;
+		if ( ! $exclude && \PassCaptain\DisplayBatch::active() ) {
+			// Display batch: every requested type preloaded → sum the grouped usage (no query).
+			$usage = \PassCaptain\DisplayBatch::usage();
+			$batched = \PassCaptain\DisplayBatch::types();
+			if ( ! array_diff( $type_ids, array_keys( $batched ) ) ) {
+				$sum = 0;
+				foreach ( $type_ids as $id ) { $sum += ( $usage['type_sold'][ $id ] ?? 0 ) + ( $usage['type_held_with_order'][ $id ] ?? 0 ); }
+				return $sum;
+			}
+		}
+		$in = implode( ',', array_fill( 0, count( $type_ids ), '%d' ) );
+		// Sold and held in ONE statement (one snapshot): a payment moving units from held to sold between
+		// two statements would be missing from both sums under READ COMMITTED.
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d AND oi.ticket_type_id IN ($in)) + (SELECT COALESCE(SUM(quantity),0) FROM %i WHERE status='active' AND expires_at > %s AND order_id <> %d AND ticket_type_id IN ($in))", array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_orders', $exclude ), $type_ids, array( $p . 'wpcap_reservations', $now, $exclude ), $type_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- generated placeholders, replacements as one array.
 	}
 
 	/**
@@ -147,13 +157,21 @@ final class Pools {
 		$p = $wpdb->prefix;
 		$occ_ids = array_values( array_unique( array_filter( array_map( static function ( $type ) { return (int) $type->occurrence_id; }, $types ) ) ) );
 		if ( ! $occ_ids ) { return array(); }
-		$series_rows = $wpdb->get_results( "SELECT series_id,occurrence_id FROM {$p}wpcap_series_occurrences WHERE occurrence_id IN (" . implode( ',', $occ_ids ) . ')' . ( $lock ? ' LOCK IN SHARE MODE' : '' ) );
+		if ( $lock ) {
+			$series_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ') LOCK IN SHARE MODE', array_merge( array( $p . 'wpcap_series_occurrences' ), $occ_ids ) ) );
+		} else {
+			$series_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_series_occurrences' ), $occ_ids ) ) );
+		}
 		if ( ! $series_rows ) { return array(); }
 		$series_of = array();
 		foreach ( $series_rows as $row ) { $series_of[ (int) $row->occurrence_id ] = (int) $row->series_id; }
 		$series_ids = array_values( array_unique( $series_of ) );
 		sort( $series_ids );
-		$pools = $wpdb->get_results( "SELECT * FROM {$p}wpcap_series_pools WHERE series_id IN (" . implode( ',', $series_ids ) . ") AND status='active' ORDER BY pool_id" . ( $lock ? ' FOR UPDATE' : '' ) );
+		if ( $lock ) {
+			$pools = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE series_id IN (' . implode( ',', array_fill( 0, count( $series_ids ), '%d' ) ) . ") AND status='active' ORDER BY pool_id FOR UPDATE", array_merge( array( $p . 'wpcap_series_pools' ), $series_ids ) ) );
+		} else {
+			$pools = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE series_id IN (' . implode( ',', array_fill( 0, count( $series_ids ), '%d' ) ) . ") AND status='active' ORDER BY pool_id", array_merge( array( $p . 'wpcap_series_pools' ), $series_ids ) ) );
+		}
 		$out = array();
 		foreach ( $pools as $pool ) {
 			$member = array();
@@ -191,9 +209,32 @@ final class Pools {
 
 	/** Remaining units of each pool containing the type (smallest wins); null when in no pool. */
 	public static function remaining_for_type( $type ) {
+		if ( isset( $type->ticket_type_id ) && \PassCaptain\DisplayBatch::type( $type->ticket_type_id ) ) {
+			return self::batch_remaining( $type );
+		}
 		$min = null;
 		foreach ( self::pools_for_types( array( $type ) ) as $entry ) {
 			$left = max( 0, (int) $entry['pool']->capacity - self::used( self::member_type_ids( $entry['pool'] ), current_time( 'mysql', true ) ) );
+			$min = null === $min ? $left : min( $min, $left );
+		}
+		return $min;
+	}
+
+	/**
+	 * remaining_for_type() inside a display batch: the pools of every type of the page are looked up
+	 * once, and each pool's usage once (not per ticket type).
+	 */
+	private static function batch_remaining( $type ) {
+		$pools = \PassCaptain\DisplayBatch::memo( 'series_pools', static function () {
+			return self::pools_for_types( array_values( \PassCaptain\DisplayBatch::types() ) );
+		} );
+		$min = null;
+		foreach ( $pools as $pool_id => $entry ) {
+			if ( ! in_array( (int) $type->ticket_type_id, $entry['type_ids'], true ) ) { continue; }
+			$used = \PassCaptain\DisplayBatch::memo( 'series_pool_used_' . (int) $pool_id, static function () use ( $entry ) {
+				return self::used( self::member_type_ids( $entry['pool'] ), \PassCaptain\DisplayBatch::now() );
+			} );
+			$left = max( 0, (int) $entry['pool']->capacity - $used );
 			$min = null === $min ? $left : min( $min, $left );
 		}
 		return $min;

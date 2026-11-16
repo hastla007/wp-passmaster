@@ -5,6 +5,9 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Jobs {
+	/** Attempts (counted when a worker claims the job) before a job is dead-lettered. */
+	const MAX_ATTEMPTS = 8;
+
 	public static function enqueue( $key, $type, array $payload, $run_after = '' ) {
 		global $wpdb;
 		$key = sanitize_text_field( $key );
@@ -22,37 +25,145 @@ final class Jobs {
 	 */
 	public static function process_due( $limit = 20 ) {
 		global $wpdb;
+		// Refunds paid out at the provider but not booked locally are finished here (no provider call);
+		// the order status retry job handler (order_mark_refunded) is registered for this run.
+		Refunds::register();
+		// Paid orders whose ticket issuance failed without a queued retry (e.g. connection lost).
+		// A sweep that throws must not stop the job queue itself.
+		foreach ( array( 'refund_reconcile' => array( Refunds::class, 'reconcile' ), 'issuance_reconcile' => array( Orders::class, 'reconcile_issuance' ) ) as $step => $sweep ) {
+			try {
+				call_user_func( $sweep );
+			} catch ( \Throwable $e ) {
+				self::rollback_after_throw();
+				Log::error( 'job_sweep_exception', sprintf( '%s threw %s: %s', $step, get_class( $e ), $e->getMessage() ), array( 'details' => array( 'step' => $step, 'exception' => get_class( $e ) ) ) );
+			}
+		}
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued',locked_at=NULL WHERE status='running' AND locked_at<%s", $stale ) );
+		// Claims of crashed workers go back to the queue; a job whose attempts are used up (it kills the
+		// worker every time) is dead-lettered instead of being retried forever.
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status=IF(attempts>=%d,'dead_letter','queued'),last_error=IF(attempts>=%d,'Worker stopped while running the job; attempts exhausted.',last_error),locked_at=NULL WHERE status='running' AND locked_at<%s", $table, self::MAX_ATTEMPTS, self::MAX_ATTEMPTS, $stale ) );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
 		$drained = false;
+		$db_failed = false; // A database error ends the run; the regular schedule retries (no immediate follow-up).
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
-			$wpdb->query( 'START TRANSACTION' );
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
-			$wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
-			$wpdb->query( 'COMMIT' );
-			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued' );
-			++$processed;
-			$payload = json_decode( $row->payload, true );
-			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
-			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
-			if ( true === $handled ) {
-				$wpdb->update( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
-				continue;
+			// The handler only runs once the claim is durable: transaction started, exactly this row moved
+			// from queued to running, commit succeeded. On any database error the claim is rolled back and
+			// the job stays queued for the next run.
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { $db_failed = true; break; }
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $table, $now ) );
+			if ( ! $row ) {
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
+				$wpdb->query( 'COMMIT' );
+				$drained = true;
+				break;
 			}
-			$attempts = (int) $row->attempts + 1;
-			$status = $attempts >= 8 ? 'dead_letter' : 'queued';
-			$wpdb->update( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+			$claimed = $wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
+			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
+			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
+			++$processed;
+			self::execute( $table, $row );
 		}
-		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
+		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM %i WHERE status='queued' AND run_after<=%s LIMIT 1", $table, $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
 		}
+		Ops\Heartbeat::beat( 'jobs', $processed ); // System status: last completed worker run.
 		return $processed;
+	}
+
+	/**
+	 * Runs specific queued jobs (by enqueue key) right away, in the given order, until $deadline (Unix
+	 * time). Long operations (occurrence cancellation) persist all their batches as jobs first and do
+	 * the first ones inside the request; whatever is left runs in the regular worker. Same claim
+	 * protocol as process_due(): a job a worker claimed meanwhile is skipped, never run twice.
+	 *
+	 * @param string[] $keys     Keys as passed to enqueue().
+	 * @param int      $deadline Unix time after which no further job is claimed.
+	 * @return int Number of jobs run.
+	 */
+	public static function run_now( array $keys, $deadline ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_jobs';
+		$done = 0;
+		foreach ( $keys as $key ) {
+			if ( time() >= (int) $deadline ) { break; }
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
+			$now = current_time( 'mysql', true );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE idempotency_key=%s AND status='queued' AND run_after<=%s FOR UPDATE", $table, hash( 'sha256', sanitize_text_field( $key ) ), $now ) );
+			if ( ! $row ) { $wpdb->query( 'COMMIT' ); continue; }
+			$claimed = $wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
+			if ( 1 !== (int) $claimed || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			self::execute( $table, $row );
+			++$done;
+		}
+		return $done;
+	}
+
+	/** Runs the handler of a claimed job and stores the outcome (complete / retry / dead letter). */
+	private static function execute( $table, $row ) {
+		Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', 'dead_letter', self::MAX_ATTEMPTS, array( 'due' => 'run_after', 'error' => 'last_error' ) );
+		$payload = json_decode( $row->payload, true );
+		try {
+			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
+		} catch ( \Throwable $e ) {
+			// A throwing handler (add-on, connector, bug) must not stall the queue: the job is retried with
+			// backoff like any failed job, dead-lettered after MAX_ATTEMPTS, and the reason is logged.
+			$handled = self::exception_error( $e, $row );
+		}
+		Jobs\TimeBudget::finished( $table, (int) $row->job_id );
+		if ( true === $handled ) {
+			self::update_with_retry( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+			return;
+		}
+		$attempts = (int) $row->attempts + 1;
+		$status = $attempts >= self::MAX_ATTEMPTS ? 'dead_letter' : 'queued';
+		// A handler may answer a WP_Error instead of false: its message is kept as last_error (system status page).
+		$last_error = is_wp_error( $handled ) ? substr( sanitize_text_field( $handled->get_error_message() ), 0, 500 ) : '';
+		self::update_with_retry( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => '' !== $last_error ? $last_error : 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+	}
+
+	/**
+	 * Turns an exception of a queue handler into a WP_Error (redacted message) and logs it. An open
+	 * transaction of the handler is rolled back first, so the status update that follows is not
+	 * committed together with half-finished work.
+	 *
+	 * @param \Throwable $e   The exception.
+	 * @param object     $row Queue row (job_id/message_id, job_type/template_key).
+	 */
+	public static function exception_error( \Throwable $e, $row = null ) {
+		self::rollback_after_throw();
+		$message = Security\Redact::text( get_class( $e ) . ': ' . $e->getMessage() );
+		$type = (string) ( $row->job_type ?? $row->template_key ?? '' );
+		$id = (int) ( $row->job_id ?? $row->message_id ?? 0 );
+		Log::error( 'queue_handler_exception', sprintf( 'Handler of %s #%d threw %s', '' !== $type ? $type : 'item', $id, $message ), array( 'object_type' => 'job', 'object_id' => $id, 'details' => array( 'type' => sanitize_key( $type ), 'exception' => get_class( $e ), 'message' => substr( $message, 0, 300 ) ) ) );
+		return new \WP_Error( 'wpcap_job_exception', substr( sprintf( 'Handler threw %s', $message ), 0, 190 ) );
+	}
+
+	/** Rolls back a transaction a throwing handler may have left open (no-op otherwise). */
+	private static function rollback_after_throw() {
+		global $wpdb;
+		$wpdb->query( 'ROLLBACK' );
+	}
+
+	/**
+	 * Final status update after a job/message was processed. Runs outside a transaction and can hit a
+	 * deadlock or lock timeout while parallel workers claim rows; it is retried briefly so the item is
+	 * not left in the processing state until the 15-minute stale-lock re-queue (which would run it again).
+	 *
+	 * @return bool True when the row was updated.
+	 */
+	public static function update_with_retry( $table, array $data, array $where, array $format, array $where_format, $tries = 4 ) {
+		global $wpdb;
+		for ( $attempt = 1; $attempt <= $tries; $attempt++ ) {
+			if ( false !== $wpdb->update( $table, $data, $where, $format, $where_format ) ) { return true; }
+			if ( $attempt < $tries ) { usleep( 20000 * $attempt ); }
+		}
+		Log::error( 'queue_status_update_failed', sprintf( 'final status update on %s failed: %s', $table, (string) $wpdb->last_error ), array( 'details' => array( 'table' => (string) $table, 'where' => $where, 'status' => (string) ( $data['status'] ?? '' ), 'error' => substr( (string) $wpdb->last_error, 0, 190 ) ) ) );
+		return false;
 	}
 }

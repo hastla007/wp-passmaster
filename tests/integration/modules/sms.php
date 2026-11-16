@@ -27,7 +27,7 @@ echo "SMS: configuration and phone numbers\n";
 check( 'no provider configured: opt-in is not offered', ! Service::enabled() );
 ob_start(); Sms::render_checkout_fields( (object) array( 'occurrence_id' => 1 ), array() ); $html = ob_get_clean();
 check( 'no checkout field without provider', '' === $html );
-Settings::update( array( 'twilio_account_sid' => $sid, 'twilio_auth_token' => $token, 'sms' => array_merge( Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49' ) ) ) );
+Settings::update( array( 'twilio_account_sid' => $sid, 'twilio_auth_token' => $token, 'sms' => array_merge( Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49', 'verify_phone' => 0 ) ) ) );
 check( 'Twilio configured via settings', Service::enabled() && Service::provider() instanceof TwilioProvider );
 check( 'phone numbers normalized to E.164', '+4915123456789' === Service::normalize_phone( '0151 2345-6789' ) && '+43664123456' === Service::normalize_phone( '0043 664 123456' ) && '+4915123456789' === Service::normalize_phone( '+49 (151) 23456789' ) && '' === Service::normalize_phone( '12ab' ) && '' === Service::normalize_phone( '+0123' ) );
 ob_start(); Sms::render_checkout_fields( (object) array( 'occurrence_id' => 5 ), array() ); $html = ob_get_clean();
@@ -37,7 +37,7 @@ check( 'payload keys extended', in_array( 'sms_phone', apply_filters( 'wpcap_che
 echo "SMS: consent at checkout\n";
 $type = make_type( 30, 10, 0 );
 $occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $bad = Orders::create( array( 'email' => 'sms-bad@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-bad', 'sms_consent' => true, 'sms_phone' => 'abc' ) );
 check( 'consent with invalid number aborts the checkout with a message', is_wp_error( $bad ) && false !== strpos( $bad->get_error_message(), 'Mobilnummer' ) );
 $yes = Orders::create( array( 'email' => 'sms-yes@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'sms-yes', 'sms_consent' => true, 'sms_phone' => '0151 1111111' ) );
@@ -48,10 +48,13 @@ check( 'number without consent is not stored', null === $wpdb->get_var( "SELECT 
 check( 'no SMS can be queued without consent', false === Service::enqueue( 'x-no', $no['order_id'], $occ, 'reminder', 'Hallo' ) );
 
 echo "SMS: change messages and sending via Twilio\n";
-do_action( 'wpcap_occurrence_rescheduled', $occ, gmdate( 'Y-m-d H:i:s', time() + 3 * 86400 ), gmdate( 'Y-m-d H:i:s', time() + 7 * 86400 ) );
+// Fixed timestamps: the dedupe key contains the new start, two time() calls can straddle a second.
+$sms_old_start = gmdate( 'Y-m-d H:i:s', time() + 3 * 86400 );
+$sms_new_start = gmdate( 'Y-m-d H:i:s', time() + 7 * 86400 );
+do_action( 'wpcap_occurrence_rescheduled', $occ, $sms_old_start, $sms_new_start );
 $msgs = $wpdb->get_results( "SELECT * FROM {$p}wpcap_sms_messages WHERE occurrence_id=$occ" );
 check( 'reschedule message only for the consenting order', 1 === count( $msgs ) && (int) $yes['order_id'] === (int) $msgs[0]->order_id && 'reschedule' === $msgs[0]->purpose && false !== strpos( $msgs[0]->body, 'Neuer Termin: Konzert' ) );
-do_action( 'wpcap_occurrence_rescheduled', $occ, gmdate( 'Y-m-d H:i:s', time() + 3 * 86400 ), gmdate( 'Y-m-d H:i:s', time() + 7 * 86400 ) );
+do_action( 'wpcap_occurrence_rescheduled', $occ, $sms_old_start, $sms_new_start );
 check( 'same change is queued once', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_sms_messages WHERE occurrence_id=$occ" ) );
 http_reset();
 http_push( array( 'sid' => 'SM' . str_repeat( 'b', 32 ), 'status' => 'queued' ), 201, '/Messages.json' );
@@ -120,7 +123,7 @@ check( 'permanent provider error (4xx) fails without retry and logs no number', 
 
 echo "SMS: abuse protection\n";
 check( 'only mobile ranges of allowed countries', Service::number_allowed( '+4915112345678' ) && Service::number_allowed( '+436641234567' ) && Service::number_allowed( '+41791234567' ) && ! Service::number_allowed( '+4990012345678' ) && ! Service::number_allowed( '+4918012345678' ) && ! Service::number_allowed( '+49301234567' ) && ! Service::number_allowed( '+447700900123' ) && ! Service::number_allowed( '+881612345678' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $prem = Orders::create( array( 'email' => 'sms-prem@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-prem', 'sms_consent' => 1, 'sms_phone' => '+49 900 1234567' ) );
 check( 'premium-rate number is rejected at checkout', is_wp_error( $prem ) && false !== strpos( $prem->get_error_message(), 'Mobilnummern' ) );
 $intl = Orders::create( array( 'email' => 'sms-intl@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-intl', 'sms_consent' => 1, 'sms_phone' => '+1 268 555 0100' ) );
@@ -136,7 +139,7 @@ unset( $GLOBALS['wpcap_test_filters']['wpcap_sms_ip_hourly_limit'] );
 check( 'per-IP limit rejects further consents', is_wp_error( $ip ) );
 
 echo "SMS: consent ends with the order\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $paid_type = make_type( 30, 10, 2500 );
 $pend = Orders::create( array( 'email' => 'sms-pend@example.com', 'items' => array( array( 'ticket_type_id' => $paid_type, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-pend', 'sms_consent' => 1, 'sms_phone' => '+4915144444444' ) );
 Orders::cancel_order( $pend['order_id'], 'test' );
@@ -162,7 +165,7 @@ Service::retire_finished();
 check( 'consent of a past event is retired and the number erased', '' === $wpdb->get_var( "SELECT phone FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $old['order_id'] ) );
 
 echo "SMS: inbound STOP, eraser and exporter\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $st = Orders::create( array( 'email' => 'sms-stop@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-stop', 'sms_consent' => 1, 'sms_phone' => '+4915199999999' ) );
 $inbound = static function ( $params, $key ) {
 	ksort( $params );

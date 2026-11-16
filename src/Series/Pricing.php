@@ -17,7 +17,8 @@
  * Weekday/time slots use the occurrence's local start time; a slot "from" is inclusive, "to"
  * exclusive, and a slot with from > to wraps midnight.
  *
- * Prices are applied server-side through the core filter `wpcap_ticket_unit_price`.
+ * Prices are applied server-side through the core filter `wpcap_ticket_unit_price` by the general
+ * engine Sales\PriceRules, which also applies event-level rules for occurrences outside series.
  *
  * @package PassCaptain
  */
@@ -30,7 +31,7 @@ final class Pricing {
 	const KINDS = array( 'early_bird', 'last_minute', 'demand', 'weekday' );
 	const DEFAULT_PRIORITY = array( 'last_minute' => 40, 'demand' => 30, 'early_bird' => 20, 'weekday' => 10 );
 
-	/** Per-request cache of rules by series id. */
+	/** Per-request cache of rules by table prefix and series id (multisite: switch_to_blog() changes the prefix). */
 	private static $cache = array();
 
 	public static function schema( $prefix, $charset ) {
@@ -59,9 +60,13 @@ final class Pricing {
 		);
 	}
 
+	/**
+	 * Series rules are applied by the general price rule engine (Sales\PriceRules), which selects
+	 * among event rules and the series rules of an occurrence in one pass; registering it here keeps
+	 * the series module self-sufficient.
+	 */
 	public static function register() {
-		add_filter( 'wpcap_ticket_unit_price', array( __CLASS__, 'filter_unit_price' ), 10, 3 );
-		add_filter( 'wpcap_ticket_price_label', array( __CLASS__, 'filter_price_label' ), 10, 3 );
+		\PassCaptain\Sales\PriceRules::register();
 	}
 
 	public static function flush_cache() {
@@ -80,20 +85,21 @@ final class Pricing {
 	public static function for_series( $series_id ) {
 		global $wpdb;
 		$series_id = absint( $series_id );
-		if ( ! isset( self::$cache[ $series_id ] ) ) {
-			self::$cache[ $series_id ] = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series_price_rules WHERE series_id=%d AND status='active' ORDER BY rule_id", $series_id ) );
+		$key = $wpdb->prefix . '|' . $series_id;
+		if ( ! isset( self::$cache[ $key ] ) ) {
+			self::$cache[ $key ] = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE series_id=%d AND status='active' ORDER BY rule_id", $wpdb->prefix . 'wpcap_series_price_rules', $series_id ) );
 		}
-		return self::$cache[ $series_id ];
+		return self::$cache[ $key ];
 	}
 
 	/** Series row with its timezone and currency (from the generated ticket types). */
 	public static function series( $series_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE series_id=%d', $wpdb->prefix . 'wpcap_series', absint( $series_id ) ) );
 		if ( ! $row ) { return null; }
 		$definition = json_decode( (string) $row->definition, true );
 		$row->timezone = (string) ( $definition['rule']['timezone'] ?? 'UTC' );
-		$row->currency = (string) $wpdb->get_var( $wpdb->prepare( "SELECT tt.currency FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_series_occurrences so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.ticket_type_id LIMIT 1", $row->series_id ) );
+		$row->currency = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT tt.currency FROM %i tt INNER JOIN %i so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.ticket_type_id LIMIT 1', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_series_occurrences', $row->series_id ) );
 		if ( '' === $row->currency ) { $row->currency = 'EUR'; }
 		return $row;
 	}
@@ -101,7 +107,7 @@ final class Pricing {
 	/** Distinct ticket type names of a series (for the admin scope select). */
 	public static function type_names( $series_id ) {
 		global $wpdb;
-		return $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.name FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_series_occurrences so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.name", absint( $series_id ) ) );
+		return $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT tt.name FROM %i tt INNER JOIN %i so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d ORDER BY tt.name', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_series_occurrences', absint( $series_id ) ) );
 	}
 
 	/** "HH:MM" or '' (null when invalid). */
@@ -194,7 +200,7 @@ final class Pricing {
 	/** Deactivates a rule (kept for the audit trail). */
 	public static function delete( $rule_id ) {
 		global $wpdb;
-		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT r.rule_id,r.series_id,s.event_id FROM {$wpdb->prefix}wpcap_series_price_rules r INNER JOIN {$wpdb->prefix}wpcap_series s ON s.series_id=r.series_id WHERE r.rule_id=%d", absint( $rule_id ) ) );
+		$rule = $wpdb->get_row( $wpdb->prepare( 'SELECT r.rule_id,r.series_id,s.event_id FROM %i r INNER JOIN %i s ON s.series_id=r.series_id WHERE r.rule_id=%d', $wpdb->prefix . 'wpcap_series_price_rules', $wpdb->prefix . 'wpcap_series', absint( $rule_id ) ) );
 		if ( ! $rule ) { return self::error( 'wpcap_series_rule_missing', __( 'Preisregel nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $rule->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_series_price_rules", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'rule_id' => (int) $rule->rule_id ) );
@@ -288,10 +294,21 @@ final class Pricing {
 		global $wpdb;
 		static $map = array();
 		$occurrence_id = absint( $occurrence_id );
-		if ( ! isset( $map[ $occurrence_id ] ) ) {
-			$map[ $occurrence_id ] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT series_id FROM {$wpdb->prefix}wpcap_series_occurrences WHERE occurrence_id=%d", $occurrence_id ) );
+		// Keyed by table prefix too: after switch_to_blog() the same id is another site's occurrence.
+		$key = $wpdb->prefix . '|' . $occurrence_id;
+		if ( ! isset( $map[ $key ] ) && \PassCaptain\DisplayBatch::occurrence( $occurrence_id ) ) {
+			// Display batch: the series of every occurrence of the page in one query.
+			$ids = array_keys( \PassCaptain\DisplayBatch::occurrences() );
+			foreach ( $ids as $id ) { $map[ $wpdb->prefix . '|' . $id ] = 0; }
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_series_occurrences' ), $ids ) ) ) as $row ) {
+				$map[ $wpdb->prefix . '|' . (int) $row->occurrence_id ] = (int) $row->series_id;
+			}
 		}
-		return $map[ $occurrence_id ];
+		if ( ! isset( $map[ $key ] ) ) {
+			$map[ $key ] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT series_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_series_occurrences', $occurrence_id ) );
+		}
+		return $map[ $key ];
 	}
 
 	/** Sold share (0–100) of a type: paid units + active holds against type, else occurrence capacity. */
@@ -301,16 +318,26 @@ final class Pricing {
 			return 100 * Pools::used( array( (int) $type->ticket_type_id ), $now, $exclude_order_id ) / (int) $type->capacity;
 		}
 		if ( $occurrence && (int) $occurrence->capacity > 0 ) {
-			$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence->occurrence_id ) ) );
+			if ( ! absint( $exclude_order_id ) && \PassCaptain\DisplayBatch::occurrence( $occurrence->occurrence_id ) ) {
+				// Display batch: usage of all types of the occurrence is already grouped.
+				$usage = \PassCaptain\DisplayBatch::usage();
+				$id = (int) $occurrence->occurrence_id;
+				return 100 * ( ( $usage['occ_sold'][ $id ] ?? 0 ) + ( $usage['occ_held_with_order'][ $id ] ?? 0 ) ) / (int) $occurrence->capacity;
+			}
+			$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $occurrence->occurrence_id ) ) );
 			return 100 * Pools::used( $ids, $now, $exclude_order_id ) / (int) $occurrence->capacity;
 		}
 		return null;
 	}
 
-	/** Winning rule for a ticket type in context (null = stored price). */
+	/**
+	 * Winning rule for a ticket type in context (null = stored price). Delegates to the general
+	 * engine when the occurrence row carries its event (event rules compete with series rules).
+	 */
 	public static function rule_for( $type, array $context ) {
 		$occurrence = $context['occurrence'] ?? null;
 		if ( ! $occurrence ) { return null; }
+		if ( isset( $occurrence->event_id ) ) { return \PassCaptain\Sales\PriceRules::rule_for( $type, $context ); }
 		$series_id = self::series_of( $occurrence->occurrence_id );
 		if ( ! $series_id ) { return null; }
 		$rules = self::for_series( $series_id );

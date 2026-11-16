@@ -8,9 +8,9 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 
 | Typ | Wann | Wichtige Platzhalter |
 |---|---|---|
-| `tickets` | Tickets nach bestätigter Zahlung (mit PDF) | `{order_id}`, `{ticket_list}`, `{ticket_links}`, `{ticket_count}`, `{event_name}`, `{event_date}`, `{event_location}`, `{customer_email}` |
+| `tickets` | Tickets nach bestätigter Zahlung (mit PDF) | `{order_id}`, `{ticket_list}`, `{ticket_links}`, `{ticket_count}`, `{event_name}`, `{event_date}`, `{event_location}`, `{customer_email}`, `{consumer_info}`, `{terms}` |
 | `tickets_resend` | Tickets erneut senden (neue Codes, je Empfänger:in) | wie `tickets`; `{ticket_list}` enthält je Ticket den Link und den Zusatztext aus `wpcap_ticket_code_mail_section` (z. B. Wallet-Links) |
-| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{access_link}` |
+| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{access_link}`, `{payment_instructions}`, `{consumer_info}`, `{terms}` |
 | `ticket_transfer_recipient` | Ticket wurde an eine Person übertragen | `{event_name}`, `{ticket_name}`, `{event_date}`, `{event_location}`, `{ticket_link}`, `{ticket_extras}` |
 | `ticket_transfer_sender` | Bestätigung der Übertragung an die Käufer:in | `{event_name}`, `{recipient_email}` |
 | `ticket_assigned_attendee` | Ticket an zugewiesene Teilnehmer:in | `{attendee_name}`, `{attendee_email}`, `{ticket_link}`, `{ticket_extras}` … |
@@ -18,10 +18,19 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `refund_confirmation` | Erstattung abgeschlossen (nicht bei WooCommerce) | `{refund_amount}`, `{order_id}`, `{revoked_count}`, `{revoked_note}`, `{credit_note_number}`, `{credit_note}`, `{reason}` |
 | `event_cancelled` | Ganzes Event abgesagt | `{event_name}` |
 | `occurrence_cancelled` | Einzelner Termin abgesagt | `{event_name}`, `{event_date}`, `{event_location}`, `{timezone}`, `{refund_note}` |
-| `occurrence_rescheduled` | Termin verschoben | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}` |
-| `waitlist_joined` | Eintragung in die Warteliste | `{position}`, `{event_name}`, `{ticket_name}` |
+| `occurrence_rescheduled` | Termin verschoben | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}`, `{refund_note}` (Erstattungshinweis mit Frist, siehe [OPERATIONS.md](OPERATIONS.md#terminverschiebung-erstattungsantrag-im-bestellportal)) |
+| `waitlist_confirm` | Double-Opt-in: Bestätigungslink nach der Anmeldung zur Event-Warteliste (Einstellung `waitlist_double_opt_in`, Standard an; Link 48 Stunden gültig) | `{confirm_link}`, `{confirm_expires}`, `{event_name}`, `{ticket_name}` |
+| `waitlist_joined` | Eintragung in die Warteliste (bei Double-Opt-in erst nach der Bestätigung) | `{position}`, `{event_name}`, `{ticket_name}` |
 | `waitlist_offer` | Platzangebot aus der Warteliste | `{offer_expires}`, `{accept_link}`, `{position}`, `{event_name}`, `{ticket_name}` |
+| `service_waitlist_confirm` | Double-Opt-in: Bestätigungslink nach der Anmeldung zur Warteliste eines Zeitfensters | `{confirm_link}`, `{confirm_expires}`, `{resource_name}`, `{slot_date}`, `{quantity}` |
 | `member_pass` | Mitgliedspass ausgestellt | `{pass_code}`, `{valid_from}`, `{valid_until}` |
+
+`{consumer_info}` und `{terms}` setzen die Texte „Verbraucherinformationen“ und „AGB / Teilnahmebedingungen“
+aus *Einstellungen → Rechtstexte* mit Überschrift ein (Vertragsbestätigung auf einem dauerhaften
+Datenträger, vgl. § 312f Abs. 2 BGB / § 7 Abs. 3 FAGG); ist ein Text leer, bleibt der Platzhalter leer.
+Die Standardtexte von `tickets` und `order_access` enthalten beide Platzhalter (ohne gepflegte Texte
+ändert sich nichts). Eigene Vorlagen müssen sie selbst aufnehmen. Ob das im Einzelfall genügt (z. B. AGB
+zusätzlich als PDF), ist rechtlich zu prüfen.
 
 In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`) und `{site_url}` zur Verfügung. Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.
 
@@ -58,6 +67,60 @@ HTML-Vorlagen werden in ein schlichtes, mailclient-taugliches Layout (Tabellen, 
 Text ohne HTML-Tags im HTML-Modus wird maskiert und automatisch umbrochen. Zu jeder HTML-Mail wird eine **Textversion** erzeugt (Links als „Text (URL)“, Absätze erhalten, Fußzeile angehängt) und über `phpmailer_init` als `AltBody` gesetzt – nur während des Versands dieser einen Mail.
 
 Das fertige Dokument kann über `wpcap_mail_layout_html` ersetzt werden.
+
+## Absender und Zustellbarkeit
+
+**Einstellungen → E-Mail-Versand:**
+
+- **Absenderadresse** (`mail_from_email`): From-Header aller Kunden-Mails des Plugins und – nur während das Plugin
+  sendet – Envelope-Sender/Return-Path (`$phpmailer->Sender`, `phpmailer_init` Priorität 5). Leer: kein From-Header,
+  WordPress sendet als `wordpress@<host>`.
+- **Absendername** (`mail_from_name`, leer: Website-Titel; ersetzt „WordPress“ über `wp_mail_from_name` Priorität 5).
+- **Antwortadresse** (`mail_reply_to`): Reply-To-Header, z. B. das Support-Postfach.
+
+Ein SMTP-Plugin (WP Mail SMTP, FluentSMTP, Post SMTP …), das einen eigenen Absender erzwingt, hat weiterhin Vorrang:
+Es hängt sich später ein bzw. setzt den Sender selbst; ein schon gesetzter Envelope-Sender wird nicht überschrieben.
+Mails anderer Plugins bleiben unberührt (die Hooks gelten nur für die Dauer des eigenen Versands).
+
+Damit Tickets nicht im Spam landen:
+
+1. Absenderadresse mit der **Domain der Website** wählen (z. B. `tickets@ihre-domain.de`).
+2. **SPF**: Der DNS-TXT-Eintrag der Domain muss den versendenden Server bzw. SMTP-Dienst erlauben
+   (z. B. `v=spf1 include:_spf.ihr-dienst.example ~all`).
+3. **DKIM**: Mails signieren – praktisch nur über einen SMTP-/Versanddienst oder den Mailserver des Hosters.
+4. **DMARC**: TXT-Eintrag `_dmarc.ihre-domain.de` (z. B. `v=DMARC1; p=none; rua=mailto:…`); er verlangt, dass
+   SPF oder DKIM zur From-Domain passt („Alignment“) – genau dafür setzt das Plugin From und Return-Path gleich.
+5. Für mehr als ein paar Dutzend Mails am Tag einen **SMTP-Dienst** (Postmark, SendGrid, Mailgun, Amazon SES, Brevo …)
+   über ein SMTP-Plugin verwenden; PHP `mail()` des Webservers wird von großen Anbietern oft abgelehnt.
+
+Der **Systemstatus** warnt, wenn keine Absenderadresse eingestellt ist oder ihre Domain nicht zur Website passt.
+
+**Massenmails** (Terminverschiebung, Event-Absage, Terminabsage) gehen je Empfänger:in über die E-Mail-Queue
+(Dedupe-Schlüssel `resched|Termin|neuer Beginn|E-Mail`, `event-cancel|Event|E-Mail`, `occ-cancel|Termin|Lauf|E-Mail`):
+die ersten werden noch im Admin-Request versendet (bis ~10 s), der Rest vom Worker; jede Mail wird einzeln mit
+Backoff wiederholt, nichts doppelt gesendet. Die Admin-Meldung nennt „versendet / im Hintergrund / fehlgeschlagen“.
+
+**Ticket-Mails großer Bestellungen** (über 10 Tickets, Filter `wp_pass_captain_ticket_mail_inline_max_v1`) und jede
+Bestellung, die ein Zahlungs-Webhook bestätigt, werden nicht im Request gerendert: Der Outbox-Job ist sofort fällig
+und mailt neue Codes (die bei der Ausstellung erzeugten Codes sah niemand; Klartext-Codes werden nie gespeichert,
+auch nicht verschlüsselt). Das PDF hängt bis 200 Tickets an (`wp_pass_captain_ticket_pdf_max_tickets_v1`); mit PDF
+listet der Text nur die ersten 25 Tickets (`wp_pass_captain_ticket_mail_list_max_v1`). Dieselben Regeln gelten für
+Zustell-Retry, „Tickets erneut senden“ und Neuausstellung.
+
+**Erinnerungen** enthalten einen persönlichen Abmeldelink und die Header `List-Unsubscribe` /
+`List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058). Der Link zeigt per GET nur eine Bestätigung (Link-Scanner
+melden niemanden ab); erst POST trägt die Adresse aus (Tabelle `wpcap_mail_suppressions`, nur SHA-256 der Adresse).
+Die Abmeldung gilt für alle Erinnerungen an diese Adresse, nicht für Tickets, Absagen oder Erstattungen.
+
+**Bounces und Beschwerden** (optional, Einstellung „Bounce-/Beschwerde-Webhook“): Die angezeigte URL (mit geheimem
+Token, alternativ Header `X-WPCAP-Bounce-Token`) beim Versanddienst eintragen. Verstanden werden Postmark, SendGrid,
+Mailgun, Amazon SES (über SNS) und `{"email": "…", "type": "bounce|complaint"}`. Harte Bounces markieren die
+Queue-Mails der letzten 14 Tage an die Adresse als fehlgeschlagen und erscheinen als Hinweis in der Bestellung;
+Spam-Beschwerden beenden zusätzlich die Erinnerungen.
+
+**HTML als Standard?** Die eingebauten Vorlagen bleiben Text: Ihre Ausgabe ist seit jeher identisch, und Filter wie
+`wpcap_ticket_mail` hängen Klartext an (Sitzplätze, Wallet-Links). Eine Umstellung des Standards würde die Mails
+bestehender Installationen sichtbar ändern. HTML ist je Vorlage ein Klick (mit automatischer Textversion).
 
 ## Sprache der Empfänger:innen
 

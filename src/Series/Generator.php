@@ -1,7 +1,8 @@
 <?php
 /**
  * Generates occurrences for a series: preview, idempotent creation (no duplicate start times per
- * event), ticket type copies from a template occurrence and optional seat-map link.
+ * event), ticket type copies (with participant fields, seller, admission settings, price rules and
+ * buyer limits; TicketTypeCopier) from a template occurrence and optional seat-map link.
  *
  * @package PassCaptain
  */
@@ -10,6 +11,7 @@ namespace PassCaptain\Series;
 
 use PassCaptain\Access;
 use PassCaptain\Audit;
+use PassCaptain\TicketTypeCopier;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -62,7 +64,7 @@ final class Generator {
 	public static function definition( array $in ) {
 		global $wpdb;
 		$event_id = absint( $in['event_id'] ?? 0 );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id,status FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $event_id ) );
 		if ( ! $event ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		if ( 'cancelled' === $event->status ) { return self::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'pass-captain' ), 409 ); }
@@ -70,7 +72,7 @@ final class Generator {
 		if ( is_wp_error( $rule ) ) { return $rule; }
 		$template_id = absint( $in['template_occurrence_id'] ?? 0 );
 		if ( $template_id ) {
-			$template = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $template_id ) );
+			$template = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $template_id ) );
 			if ( ! $template || (int) $template->event_id !== $event_id ) { return self::error( 'wpcap_series_template', __( 'Der Vorlagentermin gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$sales_start = self::optional_int( $in['sales_start_days_before'] ?? '' );
@@ -80,7 +82,7 @@ final class Generator {
 		}
 		$seat_version = absint( $in['seat_version_id'] ?? 0 );
 		if ( $seat_version ) {
-			$version_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_seating_versions WHERE version_id=%d", $seat_version ) );
+			$version_event = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE version_id=%d', $wpdb->prefix . 'wpcap_seating_versions', $seat_version ) );
 			if ( $version_event !== $event_id ) { return self::error( 'wpcap_series_seat_map', __( 'Die Saalplan-Version gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$definition = array(
@@ -121,8 +123,13 @@ final class Generator {
 	private static function existing_starts( $event_id, array $items, $lock = false ) {
 		global $wpdb;
 		if ( ! $items ) { return array(); }
-		$starts = array_map( static function ( $item ) use ( $wpdb ) { return $wpdb->prepare( '%s', $item['starts_at'] ); }, $items );
-		$rows = $wpdb->get_col( $wpdb->prepare( "SELECT starts_at FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND starts_at IN (" . implode( ',', $starts ) . ')' . ( $lock ? ' FOR UPDATE' : '' ), $event_id ) );
+		$starts = array_values( array_map( static function ( $item ) { return (string) $item['starts_at']; }, $items ) );
+		$table = $wpdb->prefix . 'wpcap_occurrences';
+		if ( $lock ) {
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ') FOR UPDATE', array_merge( array( $table, $event_id ), $starts ) ) );
+		} else {
+			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT starts_at FROM %i WHERE event_id=%d AND starts_at IN (' . implode( ',', array_fill( 0, count( $starts ), '%s' ) ) . ')', array_merge( array( $table, $event_id ), $starts ) ) );
+		}
 		return array_flip( $rows );
 	}
 
@@ -143,8 +150,8 @@ final class Generator {
 		$template = null;
 		$types = array();
 		if ( $definition['template_occurrence_id'] ) {
-			$template = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $definition['template_occurrence_id'] ) );
-			$types = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d AND status<>'archived' ORDER BY ticket_type_id", $definition['template_occurrence_id'] ) );
+			$template = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', $definition['template_occurrence_id'] ) );
+			$types = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id=%d AND status<>'archived' ORDER BY ticket_type_id", $p . 'wpcap_ticket_types', $definition['template_occurrence_id'] ) );
 		}
 		$hash_source = $definition;
 		unset( $hash_source['name'] );
@@ -156,8 +163,8 @@ final class Generator {
 		$wpdb->query( 'START TRANSACTION' );
 		try {
 			// Serialises concurrent runs for the same event.
-			$wpdb->query( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE event_id=%d FOR UPDATE", $definition['event_id'] ) );
-			$series_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT series_id FROM {$p}wpcap_series WHERE event_id=%d AND definition_hash=%s", $definition['event_id'], $hash ) );
+			$wpdb->query( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d FOR UPDATE', $p . 'wpcap_events', $definition['event_id'] ) );
+			$series_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT series_id FROM %i WHERE event_id=%d AND definition_hash=%s', $p . 'wpcap_series', $definition['event_id'], $hash ) );
 			if ( ! $series_id ) {
 				$ok = $wpdb->insert( "{$p}wpcap_series", array( 'event_id' => $definition['event_id'], 'name' => $definition['name'], 'template_occurrence_id' => $definition['template_occurrence_id'], 'definition' => wp_json_encode( $definition ), 'definition_hash' => $hash, 'created_by' => get_current_user_id(), 'created_at' => $now, 'updated_at' => $now ) );
 				$series_id = (int) $wpdb->insert_id;
@@ -181,26 +188,20 @@ final class Generator {
 				$existing[ $item['starts_at'] ] = true;
 				$type_maps[ $occurrence_id ] = array();
 				foreach ( $types as $type ) {
-					$ok = $wpdb->insert( "{$p}wpcap_ticket_types", array(
-						'occurrence_id' => $occurrence_id,
-						'name' => $type->name,
-						'price_minor' => (int) $type->price_minor,
-						'currency' => $type->currency,
-						'tax_class' => $type->tax_class,
-						'capacity' => (int) $type->capacity,
-						'max_per_order' => (int) $type->max_per_order,
-						'tax_rate_bp' => (int) $type->tax_rate_bp,
-						'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], 86400, $type->sales_start, $template ),
-						'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], 60, $type->sales_end, $template ),
-						'status' => $type->status,
+					// Whole row (new columns such as visibility/description come along), own sales window.
+					$type_maps[ $occurrence_id ][ (int) $type->ticket_type_id ] = TicketTypeCopier::copy_type( $type, $occurrence_id, array(
+						'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], 86400, $type->sales_start, $template, $definition['rule']['timezone'] ),
+						'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], 60, $type->sales_end, $template, $definition['rule']['timezone'] ),
 					) );
-					if ( ! $ok ) { throw new \RuntimeException( 'type_insert' ); }
-					$type_maps[ $occurrence_id ][ (int) $type->ticket_type_id ] = (int) $wpdb->insert_id;
+				}
+				// Participant fields, seller assignment, admission policy/areas, type/occurrence price rules and limits.
+				if ( $type_maps[ $occurrence_id ] ) {
+					TicketTypeCopier::copy_dependents( $type_maps[ $occurrence_id ], (int) $definition['template_occurrence_id'], $occurrence_id, (int) $definition['event_id'] );
 				}
 				$wpdb->insert( "{$p}wpcap_series_occurrences", array( 'series_id' => $series_id, 'occurrence_id' => $occurrence_id, 'starts_at' => $item['starts_at'], 'created_at' => $now ) );
 				$created[] = $occurrence_id;
 			}
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_series SET updated_at=%s WHERE series_id=%d", $now, $series_id ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET updated_at=%s WHERE series_id=%d', $p . 'wpcap_series', $now, $series_id ) );
 			$wpdb->query( 'COMMIT' );
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -217,14 +218,49 @@ final class Generator {
 	/**
 	 * Sales window boundary for a new occurrence: explicit offset before start, else the template
 	 * type's offset relative to the template start, else none.
+	 *
+	 * Day offsets and template offsets are applied in local wall-clock time of the series timezone,
+	 * so "sales start 7 days before" a 20:00 show starts at 20:00 local even when a DST change lies in
+	 * between (with plain seconds it would start at 19:00 or 21:00). Minute offsets ("sales end
+	 * 60 minutes before") are elapsed time and stay absolute.
+	 *
+	 * @param string $timezone Series timezone (IANA); UTC when unknown.
 	 */
-	public static function sales_time( $starts_at, $offset, $unit, $template_value, $template ) {
+	public static function sales_time( $starts_at, $offset, $unit, $template_value, $template, $timezone = 'UTC' ) {
 		$start = strtotime( $starts_at . ' UTC' );
-		if ( null !== $offset ) { return gmdate( 'Y-m-d H:i:s', $start - $offset * $unit ); }
+		$tz = self::zone( $timezone );
+		$local = ( new \DateTimeImmutable( '@' . $start ) )->setTimezone( $tz );
+		if ( null !== $offset ) {
+			if ( 86400 === (int) $unit ) {
+				return self::utc( $local->modify( '-' . (int) $offset . ' days' ) );
+			}
+			return gmdate( 'Y-m-d H:i:s', $start - $offset * $unit );
+		}
 		if ( $template_value && $template ) {
-			return gmdate( 'Y-m-d H:i:s', $start - ( strtotime( $template->starts_at . ' UTC' ) - strtotime( $template_value . ' UTC' ) ) );
+			// Wall-clock distance between the template's start and its sales boundary, both local.
+			$template_zone = ! empty( $template->timezone ) ? self::zone( $template->timezone ) : $tz;
+			$wall = static function ( $utc ) use ( $template_zone ) {
+				return strtotime( ( new \DateTimeImmutable( $utc . ' UTC' ) )->setTimezone( $template_zone )->format( 'Y-m-d H:i:s' ) . ' UTC' );
+			};
+			$distance = $wall( $template->starts_at ) - $wall( $template_value );
+			$target = gmdate( 'Y-m-d H:i:s', strtotime( $local->format( 'Y-m-d H:i:s' ) . ' UTC' ) - $distance );
+			return self::utc( new \DateTimeImmutable( $target, $tz ) );
 		}
 		return null;
+	}
+
+	/** Timezone object for an IANA name (UTC when invalid). */
+	private static function zone( $name ) {
+		try {
+			return new \DateTimeZone( $name ? (string) $name : 'UTC' );
+		} catch ( \Exception $e ) {
+			return new \DateTimeZone( 'UTC' );
+		}
+	}
+
+	/** UTC MySQL datetime of a local time. */
+	private static function utc( \DateTimeImmutable $local ) {
+		return $local->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 	}
 
 	/** Links created occurrences to a seat-map version, mapping zones like the template's types. */
@@ -246,6 +282,6 @@ final class Generator {
 	/** Stored series of an event. */
 	public static function for_event( $event_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT s.series_id,s.name,s.definition,s.created_at,s.updated_at,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_series_occurrences so WHERE so.series_id=s.series_id) AS occurrences FROM {$wpdb->prefix}wpcap_series s WHERE s.event_id=%d ORDER BY s.series_id DESC", absint( $event_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT s.series_id,s.name,s.definition,s.created_at,s.updated_at,(SELECT COUNT(*) FROM %i so WHERE so.series_id=s.series_id) AS occurrences FROM %i s WHERE s.event_id=%d ORDER BY s.series_id DESC', $wpdb->prefix . 'wpcap_series_occurrences', $wpdb->prefix . 'wpcap_series', absint( $event_id ) ) );
 	}
 }

@@ -48,10 +48,10 @@ final class Dispatcher {
 		$id = (string) ( $object['id'] ?? '' );
 		$pii = array();
 		if ( 'order' === ( $object['object'] ?? '' ) ) {
-			$email = (string) $wpdb->get_var( $wpdb->prepare( "SELECT customer_email FROM {$p}wpcap_orders WHERE public_id=%s", $id ) );
+			$email = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT customer_email FROM %i WHERE public_id=%s', $p . 'wpcap_orders', $id ) );
 			if ( is_email( $email ) && '@invalid.example' !== substr( $email, -16 ) ) { $pii['customer_email'] = $email; }
 		} elseif ( 'ticket' === ( $object['object'] ?? '' ) ) {
-			$email = (string) $wpdb->get_var( $wpdb->prepare( "SELECT attendee_email FROM {$p}wpcap_tickets WHERE public_id=%s", $id ) );
+			$email = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT attendee_email FROM %i WHERE public_id=%s', $p . 'wpcap_tickets', $id ) );
 			if ( is_email( $email ) ) { $pii['attendee_email'] = $email; }
 		}
 		return $pii;
@@ -102,7 +102,7 @@ final class Dispatcher {
 		global $wpdb;
 		$url = esc_url_raw( trim( (string) $url ) );
 		$events = array_values( array_intersect( self::EVENTS, $events ) );
-		if ( ! self::valid_url( $url ) ) {
+		if ( ! self::valid_url( $url ) || is_wp_error( \PassCaptain\Security\OutboundHttp::validate_url( $url ) ) ) {
 			return new \WP_Error( 'wpcap_webhook_url', __( 'Bitte eine öffentlich erreichbare HTTPS-URL angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( ! $events ) {
@@ -110,21 +110,29 @@ final class Dispatcher {
 		}
 		$secret = self::generate_secret();
 		$now = current_time( 'mysql', true );
-		$wpdb->insert( self::t( 'subscriptions' ), array( 'url' => $url, 'description' => mb_substr( sanitize_text_field( $description ), 0, 190 ), 'events' => implode( ',', $events ), 'secret' => $secret, 'include_pii' => $include_pii ? 1 : 0, 'status' => 'active', 'consecutive_failures' => 0, 'created_at' => $now, 'updated_at' => $now ) );
+		$wpdb->insert( self::t( 'subscriptions' ), array( 'url' => $url, 'description' => mb_substr( sanitize_text_field( $description ), 0, 190 ), 'events' => implode( ',', $events ), 'secret' => \PassCaptain\Security\Vault::encrypt( $secret, 'webhook_secret' ), 'include_pii' => $include_pii ? 1 : 0, 'status' => 'active', 'consecutive_failures' => 0, 'created_at' => $now, 'updated_at' => $now ) );
 		$id = (int) $wpdb->insert_id;
 		if ( ! $id ) { return new \WP_Error( 'wpcap_webhook_save', __( 'Der Webhook konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'webhook_subscription_created', 'webhook', $id, array( 'events' => $events, 'include_pii' => (bool) $include_pii ) );
 		return array( 'subscription_id' => $id, 'secret' => $secret );
 	}
 
+	/** Subscription row; ->secret is the decrypted signing secret ('' when it cannot be decrypted). */
 	public static function subscription( $id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' WHERE subscription_id=%d', absint( $id ) ) );
+		return self::with_plain_secret( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE subscription_id=%d', self::t( 'subscriptions' ), absint( $id ) ) ) );
 	}
 
 	public static function subscriptions() {
 		global $wpdb;
-		return $wpdb->get_results( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' ORDER BY subscription_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return array_map( array( __CLASS__, 'with_plain_secret' ), (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY subscription_id', self::t( 'subscriptions' ) ) ) );
+	}
+
+	private static function with_plain_secret( $row ) {
+		if ( $row && isset( $row->secret ) ) {
+			$row->secret = (string) \PassCaptain\Security\Vault::decrypt( (string) $row->secret, 'webhook_secret' );
+		}
+		return $row;
 	}
 
 	public static function set_status( $id, $active ) {
@@ -137,7 +145,7 @@ final class Dispatcher {
 	public static function rotate_secret( $id ) {
 		global $wpdb;
 		$secret = self::generate_secret();
-		$wpdb->update( self::t( 'subscriptions' ), array( 'secret' => $secret, 'updated_at' => current_time( 'mysql', true ) ), array( 'subscription_id' => absint( $id ) ) );
+		$wpdb->update( self::t( 'subscriptions' ), array( 'secret' => \PassCaptain\Security\Vault::encrypt( $secret, 'webhook_secret' ), 'updated_at' => current_time( 'mysql', true ) ), array( 'subscription_id' => absint( $id ) ) );
 		Audit::record( 'webhook_secret_rotated', 'webhook', absint( $id ), array() );
 		return $secret;
 	}
@@ -164,7 +172,7 @@ final class Dispatcher {
 	public static function emit( $type, $dedupe, array $object, array $pii = array() ) {
 		global $wpdb;
 		if ( ! in_array( $type, self::EVENTS, true ) ) { return 0; }
-		$subs = $wpdb->get_results( $wpdb->prepare( 'SELECT subscription_id,events,include_pii FROM ' . self::t( 'subscriptions' ) . " WHERE status='active' AND FIND_IN_SET(%s,events)", $type ) );
+		$subs = $wpdb->get_results( $wpdb->prepare( "SELECT subscription_id,events,include_pii FROM %i WHERE status='active' AND FIND_IN_SET(%s,events)", self::t( 'subscriptions' ), $type ) );
 		if ( ! $subs ) { return 0; }
 		$event_id = 'evt_' . substr( hash( 'sha256', $type . '|' . $dedupe ), 0, 32 );
 		$object = apply_filters( 'wpcap_webhook_payload_object', $object, $type );
@@ -175,7 +183,7 @@ final class Dispatcher {
 			$data = $object;
 			if ( (int) $sub->include_pii && $pii ) { $data = array_merge( $data, $pii ); }
 			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'created' => $created, 'data' => array( 'object' => $data ) ) );
-			$queued += (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::t( 'deliveries' ) . " (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
+			$queued += (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", self::t( 'deliveries' ), (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
 		}
 		if ( $queued ) { self::schedule_soon(); }
 		return $queued;
@@ -196,7 +204,9 @@ final class Dispatcher {
 		$d = self::t( 'deliveries' );
 		$s = self::t( 'subscriptions' );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
-		$wpdb->query( $wpdb->prepare( "UPDATE $d SET status='pending',locked_at=NULL WHERE status='delivering' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		// Claims of crashed workers go back to the queue; attempts are counted at claim time, so a
+		// delivery that kills the worker every time ends as failed instead of being retried forever.
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status=IF(attempts>=%d,'failed','pending'),locked_at=NULL WHERE status='delivering' AND locked_at<%s", $d, self::max_attempts(), gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
 		$done = 0;
 		// Shared cron time budget: checked before each claim, so a claimed delivery is always attempted.
 		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
@@ -204,17 +214,35 @@ final class Dispatcher {
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
 			$now = current_time( 'mysql', true );
-			$wpdb->query( 'START TRANSACTION' );
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT d.* FROM $d d INNER JOIN $s s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND s.status='active' AND d.next_attempt_at<=%s ORDER BY d.next_attempt_at,d.delivery_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
-			$wpdb->update( $d, array( 'status' => 'delivering', 'locked_at' => $now, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id ) );
-			$wpdb->query( 'COMMIT' );
-			\PassCaptain\Jobs\TimeBudget::claimed( $d, 'delivery_id', (int) $row->delivery_id, 'delivering', 'pending' );
-			self::attempt( $row );
+			// The HTTP request is only sent once the claim is durable: transaction started, exactly this row
+			// moved from pending to delivering (attempt counted), commit succeeded. Otherwise a second worker
+			// could deliver the same event again. On a database error the run ends; the next run retries.
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT d.* FROM %i d INNER JOIN %i s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND s.status='active' AND d.next_attempt_at<=%s ORDER BY d.next_attempt_at,d.delivery_id LIMIT 1 FOR UPDATE", $d, $s, $now ) );
+			if ( ! $row ) {
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); break; }
+				$wpdb->query( 'COMMIT' );
+				$drained = true;
+				break;
+			}
+			$claimed = $wpdb->update( $d, array( 'status' => 'delivering', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id, 'status' => 'pending' ) );
+			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); break; }
+			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); break; }
+			\PassCaptain\Jobs\TimeBudget::claimed( $d, 'delivery_id', (int) $row->delivery_id, 'delivering', 'pending', 'failed', self::max_attempts(), array( 'due' => 'next_attempt_at', 'error' => 'last_error' ) );
+			try {
+				self::attempt( $row );
+			} catch ( \Throwable $e ) {
+				// A throwing filter/listener must not stall the delivery queue: retried with backoff.
+				$attempts = (int) $row->attempts + 1;
+				$error = \PassCaptain\Jobs::exception_error( $e, $row )->get_error_message();
+				$wpdb->update( $d, array( 'status' => $attempts >= self::max_attempts() ? 'failed' : 'pending', 'attempts' => $attempts, 'last_error' => substr( $error, 0, 190 ), 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
+			}
 			\PassCaptain\Jobs\TimeBudget::finished( $d, (int) $row->delivery_id );
 			++$done;
 		}
 		if ( ! $drained && $done > 0 ) { self::schedule_soon(); } // Backlog left (budget or limit): continue soon.
+		\PassCaptain\Ops\Heartbeat::beat( 'webhooks', $done ); // System status: last completed worker run.
 		return $done;
 	}
 
@@ -241,18 +269,22 @@ final class Dispatcher {
 			),
 			'body' => $row->payload,
 		);
-		$response = function_exists( 'wp_safe_remote_post' ) ? wp_safe_remote_post( $sub->url, $args ) : wp_remote_post( $sub->url, $args );
-		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		$args['method'] = 'POST';
+		// Re-validated per attempt: the host's DNS may have changed to an internal address since creation.
+		$response = '' === (string) $sub->secret
+			? new \WP_Error( 'wpcap_webhook_secret_unavailable', __( 'Das Signing-Secret kann nicht entschlüsselt werden; bitte erneuern.', 'pass-captain' ) )
+			: \PassCaptain\Security\OutboundHttp::request( $sub->url, $args, array( 'max_bytes' => 65536 ) );
+		$code = is_wp_error( $response ) ? (int) ( $response->get_error_data()['response_code'] ?? 0 ) : (int) $response['code'];
 		$attempts = (int) $row->attempts + 1;
 		$now = current_time( 'mysql', true );
 		// Final deliveries keep no personal data in the log.
 		list( $stripped, $had_pii ) = self::strip_pii( $row->payload );
-		if ( $code >= 200 && $code < 300 ) {
+		if ( ! is_wp_error( $response ) && $code >= 200 && $code < 300 ) {
 			$wpdb->update( $d, array( 'status' => 'succeeded', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => '', 'locked_at' => null, 'delivered_at' => $now, 'updated_at' => $now, 'payload' => $stripped, 'pii_purged' => $had_pii ? 1 : (int) $row->pii_purged ), array( 'delivery_id' => (int) $row->delivery_id ) );
 			$wpdb->update( self::t( 'subscriptions' ), array( 'consecutive_failures' => 0, 'last_success_at' => $now ), array( 'subscription_id' => (int) $sub->subscription_id ) );
 			return;
 		}
-		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( $response->get_error_message() ), 0, 190 ) : 'HTTP ' . $code;
+		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( \PassCaptain\Security\Redact::text( $response->get_error_message() ) ), 0, 190 ) : 'HTTP ' . $code;
 		$final = $attempts >= self::max_attempts();
 		$update_row = array( 'status' => $final ? 'failed' : 'pending', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => $error, 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => $now );
 		if ( $final && $had_pii ) { $update_row['payload'] = $stripped; $update_row['pii_purged'] = 1; }
@@ -278,7 +310,7 @@ final class Dispatcher {
 	public static function redeliver( $delivery_id ) {
 		global $wpdb;
 		$d = self::t( 'deliveries' );
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $d WHERE delivery_id=%d AND status<>'delivering'", absint( $delivery_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE delivery_id=%d AND status<>'delivering'", $d, absint( $delivery_id ) ) );
 		$sub = $row ? self::subscription( $row->subscription_id ) : null;
 		if ( ! $row || ! $sub ) { return new \WP_Error( 'wpcap_webhook_redeliver', __( 'Zustellung nicht gefunden oder gerade in Bearbeitung.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$payload = $row->payload;
@@ -302,7 +334,30 @@ final class Dispatcher {
 	/** Deletes final deliveries older than the retention period (cron). Returns deleted rows. */
 	public static function purge_old() {
 		global $wpdb;
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'deliveries' ) . " WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS ) ) );
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS );
+		self::cancel_stale( $cutoff );
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", self::t( 'deliveries' ), $cutoff ) );
+	}
+
+	/**
+	 * Pending deliveries of a disabled or deleted subscription are never attempted and would keep
+	 * their payload (possibly with e-mail addresses) forever: after the retention period they are
+	 * cancelled without personal data and then deleted like other final deliveries. A subscription
+	 * reactivated within the period still delivers them.
+	 *
+	 * @return int Cancelled deliveries.
+	 */
+	public static function cancel_stale( $cutoff ) {
+		global $wpdb;
+		$d = self::t( 'deliveries' );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT d.delivery_id,d.payload,d.pii_purged FROM %i d LEFT JOIN %i s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND d.created_at<%s AND (s.subscription_id IS NULL OR s.status<>'active') LIMIT 500", $d, self::t( 'subscriptions' ), (string) $cutoff ) );
+		$now = current_time( 'mysql', true );
+		$count = 0;
+		foreach ( (array) $rows as $row ) {
+			list( $payload, $had_pii ) = self::strip_pii( $row->payload );
+			$count += (int) $wpdb->update( $d, array( 'status' => 'cancelled', 'last_error' => 'subscription_inactive', 'payload' => $payload, 'pii_purged' => $had_pii ? 1 : (int) $row->pii_purged, 'locked_at' => null, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id, 'status' => 'pending' ) );
+		}
+		return $count;
 	}
 
 	/** Privacy eraser: removes the e-mail address from all logged and pending payloads. */
@@ -313,7 +368,7 @@ final class Dispatcher {
 		if ( '' === $email ) { return 0; }
 		$needle = substr( (string) wp_json_encode( $email ), 1, -1 );
 		$like = '%' . ( method_exists( $wpdb, 'esc_like' ) ? $wpdb->esc_like( $needle ) : addcslashes( $needle, '_%\\' ) ) . '%';
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,payload FROM $d WHERE payload LIKE %s AND status<>'delivering'", $like ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,payload FROM %i WHERE payload LIKE %s AND status<>'delivering'", $d, $like ) );
 		$count = 0;
 		foreach ( $rows as $row ) {
 			list( $payload, $removed ) = self::strip_pii( $row->payload );
@@ -329,8 +384,8 @@ final class Dispatcher {
 		global $wpdb;
 		$d = self::t( 'deliveries' );
 		if ( $subscription_id ) {
-			return $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM $d WHERE subscription_id=%d ORDER BY delivery_id DESC LIMIT %d", absint( $subscription_id ), absint( $limit ) ) );
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM %i WHERE subscription_id=%d ORDER BY delivery_id DESC LIMIT %d', $d, absint( $subscription_id ), absint( $limit ) ) );
 		}
-		return $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM $d ORDER BY delivery_id DESC LIMIT %d", absint( $limit ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM %i ORDER BY delivery_id DESC LIMIT %d', $d, absint( $limit ) ) );
 	}
 }
