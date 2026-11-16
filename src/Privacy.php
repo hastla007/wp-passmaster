@@ -144,6 +144,10 @@ final class Privacy {
 		foreach ( $orders as $order ) {
 			$items = $wpdb->get_results( $wpdb->prepare( "SELECT tt.name,oi.quantity,oi.unit_price_minor,oi.line_total_minor FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d", $order['order_id'] ), ARRAY_A );
 			$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT t.public_id,t.attendee_email,ta.attendee_name,ta.attendee_email AS assigned_email,t.status,t.transfer_count FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.order_id=%d ORDER BY t.ticket_id", $order['order_id'] ), ARRAY_A );
+			// A651: the name the new holder entered on a passed-on ticket is not the buyer's data.
+			foreach ( $tickets as $i => $t ) {
+				if ( (int) $t['transfer_count'] > 0 && 0 !== strcasecmp( (string) ( '' !== (string) $t['assigned_email'] ? $t['assigned_email'] : $t['attendee_email'] ), $email ) ) { unset( $tickets[ $i ]['attendee_name'] ); }
+			}
 			$rows = array(
 				array( 'name' => __( 'Bestellreferenz', 'pass-captain' ), 'value' => $order['public_id'] ),
 				array( 'name' => __( 'Status', 'pass-captain' ), 'value' => $order['status'] . ' / ' . $order['payment_status'] ),
@@ -181,7 +185,7 @@ final class Privacy {
 
 		// Every ticket of this person: bought by them or assigned to them as attendee.
 		$tickets = $wpdb->get_results( $wpdb->prepare(
-			"SELECT DISTINCT t.ticket_id,t.public_id,t.status,t.attendee_email,ta.attendee_name,ta.attendee_email AS assigned_email,e.name AS event_name,o.starts_at,ord.customer_email
+			"SELECT DISTINCT t.ticket_id,t.public_id,t.status,t.attendee_email,t.transfer_count,ta.attendee_name,ta.attendee_email AS assigned_email,e.name AS event_name,o.starts_at,ord.customer_email
 			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id
 			INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id
 			INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id
@@ -238,6 +242,15 @@ final class Privacy {
 			array( 'name' => __( 'Rolle', 'pass-captain' ), 'value' => 0 === strcasecmp( (string) $ticket->customer_email, $email ) ? __( 'Käufer', 'pass-captain' ) : __( 'Teilnehmer', 'pass-captain' ) ),
 		);
 		$attendee_email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
+		// A651: a ticket the buyer passed on belongs to the new holder – the buyer's export keeps the
+		// transfer itself (ticket, event, recipient address the buyer entered), not the holder's name,
+		// answers, consents, admissions or wallet passes.
+		$holder = 0 === strcasecmp( (string) $attendee_email, $email );
+		if ( (int) ( $ticket->transfer_count ?? 0 ) > 0 && ! $holder ) {
+			$rows[] = array( 'name' => __( 'Weitergabe', 'pass-captain' ), 'value' => __( 'An eine andere Person übertragen; deren Angaben, Einlässe und Wallet-Pässe sind nicht Teil dieser Auskunft.', 'pass-captain' ) );
+			if ( '' !== (string) $attendee_email ) { $rows[] = array( 'name' => __( 'E-Mail des Teilnehmers', 'pass-captain' ), 'value' => $attendee_email ); }
+			return array( 'group_id' => 'pass-captain-tickets', 'group_label' => __( 'Pass Captain Tickets', 'pass-captain' ), 'item_id' => 'ticket-' . $ticket->public_id, 'data' => $rows );
+		}
 		if ( '' !== (string) $ticket->attendee_name ) { $rows[] = array( 'name' => __( 'Name des Teilnehmers', 'pass-captain' ), 'value' => $ticket->attendee_name ); }
 		if ( '' !== (string) $attendee_email ) { $rows[] = array( 'name' => __( 'E-Mail des Teilnehmers', 'pass-captain' ), 'value' => $attendee_email ); }
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT a.answer,f.label,f.purpose FROM {$p}wpcap_participant_answers a LEFT JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE a.ticket_id=%d ORDER BY a.field_id", $id ) ) as $answer ) {
