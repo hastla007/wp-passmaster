@@ -70,7 +70,7 @@ $wpcap_no_payment = ! $providers;
 					?>
 					<details class="wpcap-more-types"><summary><?php echo esc_html( sprintf( /* translators: %d: number of further ticket types */ __( 'Weitere Ticketarten (%d)', 'pass-captain' ), count( $types ) - $wpcap_visible ) ); ?></summary>
 				<?php endif;
-				$price = \PassCaptain\Frontend\Format::money( $type->price_minor, $type->currency );
+				$price = \PassCaptain\Frontend\Format::price( $type->price_minor, $type->currency ); // A409: "kostenlos" for 0.
 				$base_price = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? \PassCaptain\Frontend\Format::money( $type->base_price_minor, $type->currency ) : '';
 				?>
 				<div class="wpcap-type wpcap-field" data-type="<?php echo esc_attr( (int) $type->ticket_type_id ); ?>">
@@ -177,8 +177,9 @@ $wpcap_no_payment = ! $providers;
 				<label for="<?php echo esc_attr( $form_id . '-terms' ); ?>"><?php echo esc_html( $wpcap_has_consumer_info ? __( 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.', 'pass-captain' ) : __( 'Ich akzeptiere die Bedingungen.', 'pass-captain' ) ); ?></label>
 			</div>
 		<?php endif; ?>
-		<?php /* A450: enabled by checkout.js once its handlers are attached; without JavaScript nothing is sent. */ ?>
-		<button type="submit" class="wp-element-button wpcap-submit" disabled data-wpcap-requires-js><?php esc_html_e( 'Zahlungspflichtig bestellen', 'pass-captain' ); ?></button>
+		<?php /* A450: enabled by checkout.js once its handlers are attached; without JavaScript nothing is sent. A409: "Kostenlos anmelden" while only free tickets are offered (or selected); checkout.js switches with the selection and live prices. */ ?>
+		<?php $wpcap_label_paid = __( 'Zahlungspflichtig bestellen', 'pass-captain' ); $wpcap_label_free = __( 'Kostenlos anmelden', 'pass-captain' ); ?>
+		<button type="submit" class="wp-element-button wpcap-submit" disabled data-wpcap-requires-js data-label-paid="<?php echo esc_attr( $wpcap_label_paid ); ?>" data-label-free="<?php echo esc_attr( $wpcap_label_free ); ?>"><?php echo esc_html( \PassCaptain\Frontend\Format::all_free( $types ) ? $wpcap_label_free : $wpcap_label_paid ); ?></button>
 		<noscript><p class="wpcap-noscript"><?php esc_html_e( 'Zum Bestellen wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser.', 'pass-captain' ); ?></p></noscript>
 		<p class="wpcap-message" role="status" aria-live="polite"></p>
 		</div>

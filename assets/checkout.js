@@ -145,8 +145,25 @@
 		const fraction = decimals ? (typeof m.decimal === 'string' ? m.decimal : ',') + parts[1] : '';
 		return (minor < 0 ? '-' : '') + integer + fraction + (symbol ? ' ' + symbol : '');
 	}
+	// A409: "kostenlos" for a free type (same as PHP Frontend\Format::price()).
+	function priceText(minor, currency) {
+		return Number(minor) === 0 && t.free ? t.free : money(minor, currency);
+	}
+	// A409: the submit button says "Kostenlos anmelden" while the selected types (nothing selected:
+	// all types of the card) are free, else "Zahlungspflichtig bestellen" (labels from the template).
+	function syncSubmitLabel(form) {
+		const button = form.querySelector('.wpcap-submit');
+		if (!button || !button.dataset.labelFree || !button.dataset.labelPaid) return;
+		const qtys = Array.prototype.slice.call(form.querySelectorAll('.wpcap-qty'));
+		const chosen = qtys.filter(function (qty) { return (Number(qty.value) || 0) > 0; });
+		const basis = chosen.length ? chosen : qtys;
+		const free = basis.length > 0 && basis.every(function (qty) { return String(qty.dataset.price) === '0'; });
+		const label = free ? button.dataset.labelFree : button.dataset.labelPaid;
+		if (button.textContent !== label) button.textContent = label;
+	}
 	// Display only: the server recalculates every price at checkout.
 	function renderEstimate(form) {
+		syncSubmitLabel(form);
 		const box = form.querySelector('.wpcap-estimate');
 		if (!box) return;
 		let total = 0;
@@ -814,7 +831,7 @@
 			if (row && Number.isInteger(row.unit_minor)) {
 				qty.dataset.price = String(row.unit_minor);
 				// A458: the price next to the ticket type is the new one too, not only the estimate.
-				setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), row.formatted || money(row.unit_minor, qty.dataset.currency));
+				setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), row.unit_minor === 0 ? priceText(0, qty.dataset.currency) : (row.formatted || money(row.unit_minor, qty.dataset.currency)));
 			}
 		});
 		renderEstimate(form);

@@ -139,6 +139,8 @@ final class PublicEvents {
 				/* translators: %d: maximum tickets per order (2 or more) */
 				'errTotal' => __( 'Es sind höchstens %d Tickets pro Person möglich.', 'pass-captain' ), // n>1: checkout.js uses errTotalOne for 1
 				'errTotalOne' => __( 'Es ist höchstens 1 Ticket pro Person möglich.', 'pass-captain' ),
+				// A409: price of a free ticket type (same as Frontend\Format::price()).
+				'free' => __( 'kostenlos', 'pass-captain' ),
 			),
 		) );
 		self::register_styles();
@@ -437,7 +439,7 @@ final class PublicEvents {
 					'max' => $max,
 					'available' => null === $type->available ? null : max( 0, (int) $type->available ),
 					'price_minor' => (int) $type->price_minor,
-					'price' => Frontend\Format::money( $type->price_minor, $type->currency ),
+					'price' => Frontend\Format::price( $type->price_minor, $type->currency ),
 					'base_price' => $base,
 					'price_label' => (string) ( $type->price_label ?? '' ),
 					'currency' => (string) $type->currency,

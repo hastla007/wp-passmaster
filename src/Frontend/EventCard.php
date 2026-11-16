@@ -216,6 +216,8 @@ final class EventCard {
 		$open = array_filter( $types, static function ( $type ) { return null === $type->available || (int) $type->available > 0; } );
 		$prices = array_map( static function ( $type ) { return (int) $type->price_minor; }, $open ? $open : $types );
 		$min = min( $prices );
+		// A409: a card whose types are all free says "kostenlos" instead of "0,00 €".
+		if ( 0 === $min && 0 === max( $prices ) ) { return Format::price( 0, $types[0]->currency ); }
 		$money = Format::money( $min, $types[0]->currency );
 		/* translators: %s: lowest price */
 		return min( $prices ) === max( $prices ) ? $money : sprintf( __( 'ab %s', 'pass-captain' ), $money );

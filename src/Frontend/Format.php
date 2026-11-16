@@ -14,6 +14,23 @@ final class Format {
 		return (string) ( $symbols[ $currency ] ?? $currency );
 	}
 
+	/**
+	 * Price of a ticket type for buyers (A409): "kostenlos" for 0, else money(). The checkout script
+	 * shows the same (WPCAP_CHECKOUT.i18n.free).
+	 */
+	public static function price( $minor, $currency ) {
+		return 0 === (int) $minor ? __( 'kostenlos', 'pass-captain' ) : self::money( $minor, $currency );
+	}
+
+	/** Whether every given ticket type is free (price_minor 0) – the card then says "Kostenlos anmelden" (A409). */
+	public static function all_free( array $types ) {
+		if ( ! $types ) { return false; }
+		foreach ( $types as $type ) {
+			if ( (int) $type->price_minor > 0 ) { return false; }
+		}
+		return true;
+	}
+
 	/** "1.234,50 €" ("1.500 ¥", "12,345 KWD"): Money::number() plus currency symbol (the checkout script formats the same way). */
 	public static function money( $minor, $currency ) {
 		return \PassCaptain\Money::number( $minor, $currency ) . ' ' . self::symbol( $currency );
