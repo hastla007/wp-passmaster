@@ -301,10 +301,32 @@ final class Dispatcher {
 		return true;
 	}
 
-	/** Deletes final deliveries older than the retention period (cron). Returns deleted rows. */
-	public static function purge_old() {
+	/** Rows per DELETE of purge_old(). */
+	const PURGE_BATCH = 1000;
+
+	/** Seconds one purge_old() run may take (filter wpcap_webhook_purge_budget). */
+	const PURGE_BUDGET = 5.0;
+
+	/**
+	 * Deletes final deliveries older than the retention period (hourly cron `wpcap_cleanup_reservations`,
+	 * A437): batches of PURGE_BATCH rows on the index cleanup (status, updated_at) within a time budget;
+	 * the next run continues. Returns deleted rows.
+	 *
+	 * @param float|null $budget Seconds (default: filter wpcap_webhook_purge_budget, 5).
+	 * @param int|null   $now    Reference time (UNIX, tests).
+	 */
+	public static function purge_old( $budget = null, $now = null ) {
 		global $wpdb;
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'deliveries' ) . " WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS ) ) );
+		$budget = null === $budget || '' === $budget ? (float) apply_filters( 'wpcap_webhook_purge_budget', self::PURGE_BUDGET ) : (float) $budget;
+		$deadline = microtime( true ) + max( 0.0, $budget );
+		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now || '' === $now ? time() : (int) $now ) - self::retention_days() * DAY_IN_SECONDS );
+		$deleted = 0;
+		do {
+			$batch = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'deliveries' ) . " WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s LIMIT %d", $cutoff, self::PURGE_BATCH ) );
+			$batch = false === $batch ? 0 : (int) $batch;
+			$deleted += $batch;
+		} while ( self::PURGE_BATCH === $batch && microtime( true ) < $deadline );
+		return $deleted;
 	}
 
 	/** Privacy eraser: removes the e-mail address from all logged and pending payloads. */

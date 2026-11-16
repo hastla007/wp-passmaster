@@ -28,7 +28,8 @@ final class Webhooks {
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'occurrence_cancelled' ), 50, 2 );
 		add_action( 'wpcap_process_jobs', array( Dispatcher::class, 'process' ), 20, 0 );
 		add_action( 'wpcap_webhooks_dispatch', array( Dispatcher::class, 'process' ), 10, 0 );
-		add_action( 'wpcap_process_jobs', array( Dispatcher::class, 'purge_old' ), 25, 0 );
+		// Hourly (A437), not with every job run.
+		add_action( 'wpcap_cleanup_reservations', array( Dispatcher::class, 'purge_old' ), 60, 0 );
 		add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'register_eraser' ), 5 );
 	}
 
@@ -81,7 +82,8 @@ final class Webhooks {
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (delivery_id),
 				UNIQUE KEY subscription_event (subscription_id,event_id),
-				KEY due (status,next_attempt_at)
+				KEY due (status,next_attempt_at),
+				KEY cleanup (status,updated_at)
 			) ENGINE=InnoDB $charset;",
 		);
 	}

@@ -255,6 +255,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_webhook_payload_object` | `array $object, string $type` | `data.object` eines ausgehenden Webhooks (keine PII ergänzen). |
 | `wpcap_webhooks_max_attempts` | `int $attempts` (8) | Zustellversuche je Webhook-Ereignis. |
 | `wpcap_webhooks_disable_after` | `int $failures` (20) | Fehlversuche in Folge, nach denen ein Abonnement deaktiviert wird. |
+| `wpcap_webhook_purge_budget` | `float $seconds` (5) | Zeitbudget eines stündlichen Laufs, der abgeschlossene Zustellungen nach der Aufbewahrungsfrist in Stapeln zu 1.000 Zeilen löscht (`Dispatcher::purge_old()`, A437); der Rest folgt im nächsten Lauf. |
 
 ### Datenschutz
 
@@ -469,9 +470,9 @@ sondern von WP-Cron; Module hängen sich mit `add_action()` an.
 
 | Hook | Planung | Zweck / angehängte Callbacks |
 |---|---|---|
-| `wpcap_cleanup_reservations` | stündlich (`Plugin::schedule_events()`) | Abgelaufene Reservierungen (`Orders::expire_holds`), zurückgestellte Datenschutz-Löschungen (30), hängende Erstattungen (40), Rate-Limit-Zeilen (50), abgeschlossene Reservierungen/Jobs/Sitzplatz-Holds/Zahlungsereignisse (60, `Privacy\Retention::housekeeping()`, A444); Module: Sitzplatz-Reservierungen (20), automatische Hold-Freigabe und Wartelisten-Bereinigung (30). |
+| `wpcap_cleanup_reservations` | stündlich (`Plugin::schedule_events()`) | Abgelaufene Reservierungen (`Orders::expire_holds`), zurückgestellte Datenschutz-Löschungen (30), hängende Erstattungen (40), Rate-Limit-Zeilen (50), abgeschlossene Reservierungen/Jobs/Sitzplatz-Holds/Zahlungsereignisse (60, `Privacy\Retention::housekeeping()`, A444); Module: Sitzplatz-Reservierungen (20), automatische Hold-Freigabe und Wartelisten-Bereinigung (30), abgeschlossene Webhook-Zustellungen (60, `Webhooks\Dispatcher::purge_old()`, A437). |
 | `wpcap_process_messages` | alle 5 Minuten (`wpcap_five_minutes`) | Nachrichten-Queue (`Communications::process_due`); Erinnerungen planen sich mit Priorität 1 ein, Bereinigung mit 5, SMS-Versand mit 20. |
-| `wpcap_process_jobs` | alle 5 Minuten (`wpcap_five_minutes`) | Hintergrundjobs (`Jobs::process_due`, Tabelle `wpcap_jobs`); Webhook-Zustellung und Warteliste mit Priorität 20, Webhook-Bereinigung mit 25. |
+| `wpcap_process_jobs` | alle 5 Minuten (`wpcap_five_minutes`) | Hintergrundjobs (`Jobs::process_due`, Tabelle `wpcap_jobs`); Webhook-Zustellung und Warteliste mit Priorität 20 (die Webhook-Bereinigung läuft seit A437 stündlich mit `wpcap_cleanup_reservations`). |
 | `wpcap_webhooks_dispatch` | einmalig 5 s nach neuen Webhook-Ereignissen (`Webhooks\Dispatcher`) | Sofortige Zustellung ausgehender Webhooks. |
 | `wpcap_reconcile_capacity` | alle 5 Minuten (`CapacityCounters::schedule()`) | Abgleich der Kapazitätszähler mit Bestellungen und Holds (siehe Kapazitätszähler). |
 | `wpcap_run_upgrade` | einmalig, wenn im Frontend ein Schema-Update ansteht (`Installer::UPGRADE_HOOK`) | Verzögertes Datenbank-Upgrade (`Plugin::run_deferred_upgrade`). |

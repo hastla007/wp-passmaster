@@ -137,7 +137,9 @@ und sollte nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag aktiviert we
   Adressen werden nicht wieder übertragen; ist der Payload nicht mehr lesbar, wird die erneute Zustellung
   abgelehnt.
 - Abgeschlossene Zustellungen werden nach 30 Tagen gelöscht (einstellbar auf der Webhook-Seite,
-  1–365 Tage; Cron `wpcap_process_jobs`). Ausstehende Zustellungen bleiben erhalten.
+  1–365 Tage; stündlicher Cron `wpcap_cleanup_reservations`, in Stapeln zu 1.000 Zeilen über den Index
+  `cleanup (status, updated_at)` mit 5 s Zeitbudget je Lauf, Filter `wpcap_webhook_purge_budget`; ein
+  großer Rückstand wird über die folgenden Läufe abgebaut, A437). Ausstehende Zustellungen bleiben erhalten.
 - Der WordPress-Datenlöscher „Pass Captain Webhook-Protokoll“ entfernt eine E-Mail-Adresse aus allen
   gespeicherten Payloads, auch aus noch ausstehenden.
 
