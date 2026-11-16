@@ -16,6 +16,32 @@
 			return values[index] !== undefined ? String(values[index]) : match;
 		});
 	}
+	// Short non-cryptographic hash (cyrb53) of the form content: compares attempts without storing the content.
+	function hash(text) {
+		let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+		for (let i = 0; i < text.length; i++) {
+			const ch = text.charCodeAt(i);
+			h1 = Math.imul(h1 ^ ch, 2654435761);
+			h2 = Math.imul(h2 ^ ch, 1597334677);
+		}
+		h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+		h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+		return (h2 >>> 0).toString(16) + (h1 >>> 0).toString(16);
+	}
+	/**
+	 * A309: how a checkout answer is to be read. 'success' only for JSON with order number and status,
+	 * 'error' for an error of the plugin's REST API ({code, message, data.status}); anything else (HTML
+	 * from a cache, WAF or proxy, a cut-off body) is 'unknown': the order may or may not exist.
+	 */
+	function classifyAnswer(ok, data) {
+		const isObject = data !== null && typeof data === 'object' && !Array.isArray(data);
+		if (ok) {
+			return isObject && typeof data.reference === 'string' && data.reference !== '' && typeof data.status === 'string' && data.status !== '' ? 'success' : 'unknown';
+		}
+		if (isObject && typeof data.code === 'string' && typeof data.message === 'string' && (/^(wpcap_|rest_)/.test(data.code) || (data.data && typeof data.data.status === 'number'))) return 'error';
+		return 'unknown';
+	}
+	window.wpcapCheckoutLogic = { classifyAnswer: classifyAnswer, hash: hash };
 	function uuid() {
 		return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
 	}
@@ -640,7 +666,6 @@
 			});
 			attendees.push(entry);
 		});
-		if (!form.dataset.key) form.dataset.key = uuid();
 		const provider = form.querySelector('[name="provider"]:checked') || form.querySelector('input[type="hidden"][name="provider"]');
 		const code = form.querySelector('[name="campaign_code"]');
 		const terms = form.querySelector('[name="accept_terms"]');
@@ -661,56 +686,148 @@
 			showErrors(form, [{ input: target, message: hook.detail.error }]);
 			return;
 		}
+		if (form.dataset.busy) return; // One request per form at a time (double click, Enter).
+		const body = Object.assign({
+			email: email,
+			items: items,
+			attendees: attendees,
+			campaign_codes: code && code.value.trim() ? [code.value.trim()] : [],
+			provider: provider ? provider.value : 'manual',
+			accept_terms: terms ? terms.checked : false,
+			terms_version: termsVersion ? termsVersion.value : '',
+			locale: formLocale ? formLocale.value : '',
+			voucher_code: voucher ? voucher.value.trim() : '',
+			code: single ? single.value.trim() : ''
+		}, extra);
+		// The idempotency key belongs to exactly this content (A309/A310): the same form sent again after
+		// an unclear answer or after "back" from the payment page continues that order; a changed form is
+		// a new order.
+		const fingerprint = hash(JSON.stringify(body));
+		if (form.dataset.key && form.dataset.keyFor !== fingerprint) forgetKey(form);
+		if (!form.dataset.key) { form.dataset.key = uuid(); form.dataset.keyFor = fingerprint; }
+		body.idempotency_key = form.dataset.key;
 		// Disabling the focused button drops keyboard focus to <body>; remember it to restore it afterwards.
 		const hadFocus = document.activeElement === button;
 		button.disabled = true;
+		form.dataset.busy = '1';
 		message.textContent = t.creating || '…';
 		let done = false;
 		try {
 			const response = await fetch(config.url, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(Object.assign({
-					email: email,
-					items: items,
-					attendees: attendees,
-					campaign_codes: code && code.value.trim() ? [code.value.trim()] : [],
-					provider: provider ? provider.value : 'manual',
-					accept_terms: terms ? terms.checked : false,
-					terms_version: termsVersion ? termsVersion.value : '',
-					locale: formLocale ? formLocale.value : '',
-					voucher_code: voucher ? voucher.value.trim() : '',
-					code: single ? single.value.trim() : '',
-					idempotency_key: form.dataset.key
-				}, extra))
+				body: JSON.stringify(body)
 			});
-			let data = {};
-			try { data = await response.json(); } catch (e) { data = {}; }
-			if (!response.ok) {
-				// The server answered: this attempt is finished, so the next submit starts a new one
-				// (only network errors keep the key, so a retry can never create a second order).
-				delete form.dataset.key;
+			let data = null;
+			try { data = await response.json(); } catch (e) { data = null; }
+			const answer = classifyAnswer(response.ok, data);
+			if (answer === 'error') {
+				// Our API answered with an error: this attempt is finished (nothing was booked, or the order
+				// was cancelled), so the next submit starts a new one.
+				forgetKey(form);
 				message.textContent = '';
 				showErrors(form, [{ input: serverErrorField(form, data), message: data.message || t.failed || 'Failed.' }]);
 				return;
 			}
-			delete form.dataset.key;
+			if (answer === 'unknown') {
+				// A309: no usable answer (cache/WAF/proxy page, cut-off response, HTML error page). The order
+				// may exist: the key stays, so sending the form again continues it instead of a second order.
+				message.textContent = '';
+				showErrors(form, [{ input: null, message: t.unclearAnswer || t.failed || 'Failed.' }]);
+				return;
+			}
 			if (data.payment && data.payment.redirect_url) {
+				// A310: the key stays until the order is finished; "back" from the payment page shows it.
+				rememberPending(form, data);
 				message.textContent = t.redirecting || '…';
 				done = true;
 				window.location.assign(data.payment.redirect_url);
 				return;
 			}
+			forgetKey(form);
 			message.textContent = '';
 			done = true;
 			showConfirmation(form, data, email);
 		} catch (error) {
+			// Network error: the request may have arrived, so the key stays (a retry continues the same order).
 			message.textContent = '';
 			showErrors(form, [{ input: null, message: t.failed || (error && error.message) || 'Failed.' }]);
 		} finally {
+			delete form.dataset.busy;
 			button.disabled = false;
 			if (!done && hadFocus && (!document.activeElement || document.activeElement === document.body)) button.focus();
 		}
+	});
+
+	/* ---------------------------------------------------------------- Pending order (A310) */
+
+	// After the redirect to a hosted payment page the form keeps its key, and the tab's sessionStorage
+	// remembers order number, payment link and key (no personal data; the form content only as a hash).
+	// Coming back with "back" (bfcache: pageshow persisted) or after a reload, the card points to the
+	// pending order instead of silently offering a second one.
+	const PENDING_PREFIX = 'wpcap-pending-';
+	function pendingSlot(form) { return PENDING_PREFIX + (form.dataset.occurrence || form.id || 'form'); }
+	function readStore(name) { try { return window.sessionStorage.getItem(name); } catch (e) { return null; } }
+	function writeStore(name, value) { try { if (value === null) window.sessionStorage.removeItem(name); else window.sessionStorage.setItem(name, value); } catch (e) { /* Private mode: the form still has the key. */ } }
+	function rememberPending(form, data) {
+		const minutes = Math.max(1, parseInt(data.hold_minutes, 10) || 30);
+		const entry = { key: form.dataset.key, keyFor: form.dataset.keyFor || '', reference: String(data.reference || ''), redirect: String(data.payment.redirect_url), until: Date.now() + minutes * 60000 };
+		form.dataset.pending = JSON.stringify(entry);
+		writeStore(pendingSlot(form), JSON.stringify(entry));
+	}
+	function pendingEntry(form) {
+		let entry = null;
+		try { entry = JSON.parse(form.dataset.pending || readStore(pendingSlot(form)) || 'null'); } catch (e) { entry = null; }
+		if (!entry || typeof entry !== 'object' || !entry.key || !entry.until || entry.until <= Date.now() || !/^https?:\/\//i.test(String(entry.redirect || ''))) {
+			if (entry) clearPending(form);
+			return null;
+		}
+		return entry;
+	}
+	function clearPending(form) {
+		delete form.dataset.pending;
+		writeStore(pendingSlot(form), null);
+		const notice = form.querySelector('.wpcap-pending-order');
+		if (notice) notice.remove();
+	}
+	function forgetKey(form) {
+		delete form.dataset.key;
+		delete form.dataset.keyFor;
+		clearPending(form);
+	}
+	function showPending(form) {
+		const entry = pendingEntry(form);
+		if (!entry) return;
+		form.dataset.key = entry.key;
+		form.dataset.keyFor = entry.keyFor;
+		form.dataset.pending = JSON.stringify(entry);
+		// Restored from the bfcache: the page still says "Weiterleitung …" with a disabled button.
+		const message = form.querySelector('.wpcap-message');
+		if (message) message.textContent = '';
+		const button = form.querySelector('button[type="submit"]');
+		if (button) button.disabled = false;
+		delete form.dataset.busy;
+		const old = form.querySelector('.wpcap-pending-order');
+		if (old) old.remove();
+		const notice = el('div', { class: 'wpcap-pending-order', role: 'status' });
+		const p = el('p');
+		const parts = (t.pendingOrder || '%s').split('%s');
+		p.appendChild(document.createTextNode(parts[0] || ''));
+		p.appendChild(el('strong', {}, entry.reference));
+		p.appendChild(document.createTextNode(parts[1] || ''));
+		notice.appendChild(p);
+		notice.appendChild(el('a', { href: entry.redirect, class: 'wp-element-button wpcap-resume-payment' }, t.resumePayment || 'Continue payment'));
+		notice.appendChild(el('p', { class: 'wpcap-hint' }, t.pendingHint || ''));
+		form.insertBefore(notice, form.firstChild);
+	}
+	// Back on the page after paying (or after cancelling the order on the return page): nothing is pending any more.
+	const returned = /[?&]wpcap_payment=(success|pending|cancelled)(&|$)/.exec(window.location.search || '');
+	document.querySelectorAll('.wpcap-checkout-form').forEach(function (form) {
+		if (returned) clearPending(form); else showPending(form);
+	});
+	window.addEventListener('pageshow', function (event) {
+		if (!event.persisted) return;
+		document.querySelectorAll('.wpcap-checkout-form').forEach(showPending);
 	});
 	// Waitlist on sold-out cards: POST …/events/{event}/waitlist.
 	document.addEventListener('submit', async function (event) {

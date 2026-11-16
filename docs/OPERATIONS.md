@@ -1273,3 +1273,22 @@ Filter `wpcap_billing_required_threshold` je Währung setzen.
 
 Die Eigenschaftstests (`tests/integration/modules/zz_a200.php`, fester Seed) prüfen diese Regeln mit
 zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EUR, JPY, KWD und BHD.
+
+## Checkout im Browser: unklare Antworten und „Zurück“ von der Zahlungsseite (A309, A310)
+
+- **Idempotenzschlüssel**: Das Formular schickt je Bestellversuch einen Schlüssel mit. Er gehört zum
+  Formularinhalt (Vergleich über einen Hash): Wird dasselbe Formular unverändert erneut abgeschickt,
+  setzt der Server dieselbe Bestellung fort (bei Stripe/Mollie mit der noch offenen Zahlungssitzung,
+  bei PayPal über die PayPal-Request-Id); mit geänderter Auswahl entsteht ein neuer Versuch.
+- **Was als Erfolg gilt** (A309): nur eine JSON-Antwort mit Bestellnummer (`reference`) und `status`.
+  Eine HTML-Seite (Seitencache, WAF/Bot-Schutz, Proxy-Fehler 502/504) oder eine abgeschnittene Antwort
+  zeigt kein „Vielen Dank“, sondern den Hinweis, das Postfach zu prüfen oder das Formular unverändert erneut
+  abzuschicken; der Schlüssel bleibt, damit keine zweite Bestellung entsteht. Ein Fehler der Plugin-API
+  (JSON mit `code`/`message`, z. B. „ausverkauft“) beendet den Versuch, der nächste ist neu.
+- **Zurück von Stripe/PayPal/Mollie** (A310): Nach der Weiterleitung behält das Formular den Schlüssel;
+  der `sessionStorage` des Tabs merkt sich Bestellnummer, Zahlungslink, Schlüssel und das Reservierungsende
+  (keine E-Mail-Adresse, keine Namen; der Formularinhalt nur als Hash). Kommt die Käuferin per „Zurück“
+  (bfcache, `pageshow` mit `persisted`) oder nach einem Neuladen zurück, zeigt die Karte „Deine Bestellung …
+  wartet noch auf die Zahlung“ mit „Zahlung fortsetzen“. Nach der Rückkehr mit `wpcap_payment=success`,
+  `pending` oder `cancelled` und nach Ablauf der Reservierung ist der Eintrag weg. Ein zweites Absenden,
+  während die erste Anfrage noch läuft, wird ignoriert.
