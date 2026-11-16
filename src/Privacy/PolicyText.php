@@ -62,6 +62,55 @@ final class PolicyText {
 		return '<ul><li>' . implode( '</li><li>', array_map( 'esc_html', $items ) ) . '</li></ul>';
 	}
 
+	/**
+	 * Retention sentences of the given steps with the configured periods (Retention::days(), A567);
+	 * a step set to 0 (off) gets its own sentence without a period.
+	 *
+	 * @param string[] $steps checkin_staff, unpaid_customer_email, message_content, audit_logs.
+	 */
+	public static function retention_sentences( array $steps ) {
+		$out = array();
+		foreach ( $steps as $step ) {
+			$days = Retention::days( $step );
+			switch ( $step ) {
+				case 'checkin_staff':
+					$out[] = $days > 0
+						/* translators: %d: days */
+						? sprintf( _n( 'Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach %d Tag.', 'Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach %d Tagen.', $days, 'pass-captain' ), $days )
+						: __( 'Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; für die Zuordnung zu Mitarbeitenden und Geräten ist keine automatische Löschfrist eingestellt.', 'pass-captain' );
+					break;
+				case 'unpaid_customer_email':
+					$out[] = $days > 0
+						/* translators: %d: days */
+						? sprintf( _n( 'Nicht bezahlte Bestellungen anonymisieren wir nach %d Tag.', 'Nicht bezahlte Bestellungen anonymisieren wir nach %d Tagen.', $days, 'pass-captain' ), $days )
+						: __( 'Für nicht bezahlte Bestellungen ist keine automatische Anonymisierung eingestellt.', 'pass-captain' );
+					break;
+				case 'message_content':
+					$out[] = $days > 0
+						/* translators: %d: days */
+						? sprintf( _n( 'Versandte Benachrichtigungen löschen wir inhaltlich nach %d Tag.', 'Versandte Benachrichtigungen löschen wir inhaltlich nach %d Tagen.', $days, 'pass-captain' ), $days )
+						: __( 'Für den Inhalt versandter Benachrichtigungen ist keine automatische Löschfrist eingestellt.', 'pass-captain' );
+					break;
+				case 'audit_logs':
+					$out[] = $days > 0
+						/* translators: %d: days */
+						? sprintf( _n( 'Protokolle über Verwaltungsvorgänge bewahren wir %d Tag auf.', 'Protokolle über Verwaltungsvorgänge bewahren wir %d Tage auf.', $days, 'pass-captain' ), $days )
+						: __( 'Für Protokolle über Verwaltungsvorgänge ist keine automatische Löschfrist eingestellt.', 'pass-captain' );
+					break;
+			}
+		}
+		return implode( ' ', $out );
+	}
+
+	/** Sentence on the automatic deletion of financial records (Retention::financial_years(), A567). */
+	public static function financial_sentence() {
+		$years = Retention::financial_years();
+		return $years > 0
+			/* translators: %d: years */
+			? sprintf( _n( 'Rechnungen und Buchungsbelege löschen wir automatisch nach Ablauf des Kalenderjahres ihrer Ausstellung und %d weiteren Jahres.', 'Rechnungen und Buchungsbelege löschen wir automatisch nach Ablauf des Kalenderjahres ihrer Ausstellung und %d weiterer Jahre.', $years, 'pass-captain' ), $years )
+			: __( 'Eine automatische Löschung nach Ablauf der Aufbewahrungsfrist ist nicht eingestellt.', 'pass-captain' );
+	}
+
 	public static function content() {
 		$r = self::recipients();
 		$days = Retention::attendee_days();
@@ -71,18 +120,30 @@ final class PolicyText {
 			/* translators: %d: days */
 			: sprintf( _n( 'nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tag) nach dem Ende der Veranstaltung', 'nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tage) nach dem Ende der Veranstaltung', Retention::default_attendee_days(), 'pass-captain' ), Retention::default_attendee_days());
 
+		// A567: periods as configured (Einstellungen → Datenschutz), own wording when a step is off (0).
+		$waitlist_days = Retention::days( 'waitlist' );
+		$waitlist_period = $waitlist_days > 0
+			/* translators: %d: days */
+			? sprintf( _n( 'Die E-Mail-Adresse eines Wartelisteneintrags löschen wir %d Tag nach dem Termin.', 'Die E-Mail-Adresse eines Wartelisteneintrags löschen wir %d Tage nach dem Termin.', $waitlist_days, 'pass-captain' ), $waitlist_days )
+			: __( 'Für die E-Mail-Adresse eines Wartelisteneintrags ist keine automatische Löschfrist eingestellt.', 'pass-captain' );
+		$confirm_hours = (int) \PassCaptain\Waitlists::config()['confirm_hours'];
+		$waitlist_text = \PassCaptain\Waitlists::double_opt_in_enabled()
+			/* translators: %d: hours */
+			? sprintf( _n( 'Warteliste: Die Eintragung wird erst wirksam, wenn Sie sie über den Link in unserer E-Mail bestätigen; unbestätigte Eintragungen löschen wir nach %d Stunde automatisch. Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person.', 'Warteliste: Die Eintragung wird erst wirksam, wenn Sie sie über den Link in unserer E-Mail bestätigen; unbestätigte Eintragungen löschen wir nach %d Stunden automatisch. Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person.', $confirm_hours, 'pass-captain' ), $confirm_hours )
+			: __( 'Warteliste: Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person.', 'pass-captain' );
+
 		$html = '<p class="privacy-policy-tutorial">' . esc_html__( 'Vorschlag von Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind.', 'pass-captain' ) . '</p>';
 
 		$html .= self::section( __( 'Ticketkauf, Tickets und Einlass', 'pass-captain' ), array(
 			__( 'Für Bestellungen verarbeiten wir Ihre E-Mail-Adresse, die gekauften Tickets, Preise, Zahlungsstatus und die Version der akzeptierten Bedingungen, um den Vertrag zu erfüllen, Tickets und Bestellzugänge per E-Mail zuzustellen und Sie über Änderungen oder Absagen zu informieren (Art. 6 Abs. 1 lit. b DSGVO).', 'pass-captain' ),
 			__( 'Angaben zu Teilnehmenden (Name, E-Mail, weitere vom Veranstalter abgefragte Felder mit dem jeweils angegebenen Zweck) verarbeiten wir zur Durchführung der Veranstaltung (Art. 6 Abs. 1 lit. b DSGVO) bzw. aufgrund unseres berechtigten Interesses an einer geordneten Einlasskontrolle (Art. 6 Abs. 1 lit. f DSGVO). Beim Einlass protokollieren wir Zeitpunkt, Ergebnis und gegebenenfalls den Einlassbereich des Tickets, um Mehrfachnutzung zu verhindern (Art. 6 Abs. 1 lit. f DSGVO).', 'pass-captain' ),
-			__( 'Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO). Die E-Mail-Adresse eines Wartelisteneintrags löschen wir 30 Tage nach dem Termin. Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO).', 'pass-captain' ),
+			__( 'Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO).', 'pass-captain' ) . ' ' . $waitlist_period . ' ' . __( 'Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO).', 'pass-captain' ),
 			__( 'Rechnungen und Buchungsbelege bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO).', 'pass-captain' ),
 		) );
 
 		$functions = array();
 		if ( ! empty( $r['guest_lists'] ) ) { $functions[] = __( 'Gästelisten und Freikarten: Wenn Sie auf eine Gästeliste gesetzt werden, erhalten wir Name, gegebenenfalls E-Mail-Adresse und Firma von der Person oder Organisation, die Sie angemeldet hat (Art. 14 DSGVO). Wir verwenden sie für Freikarte und Einlass (Art. 6 Abs. 1 lit. b bzw. f DSGVO) und leeren diese Angaben nach der Veranstaltung mit der Frist für Teilnehmerangaben.', 'pass-captain' ); }
-		if ( ! empty( $r['waitlist'] ) ) { $functions[] = __( 'Warteliste: Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person. Die E-Mail-Adresse löschen wir 30 Tage nach dem Termin.', 'pass-captain' ); }
+		if ( ! empty( $r['waitlist'] ) ) { $functions[] = $waitlist_text . ' ' . $waitlist_period; }
 		if ( ! empty( $r['buyer_limits'] ) ) { $functions[] = __( 'Höchstmenge pro Person: Um die Höchstmenge je Käufer:in durchzusetzen, speichern wir zu Ihrer E-Mail-Adresse (und gegebenenfalls Ihrem Benutzerkonto) nur einen mit einem geheimen Schlüssel gebildeten Hashwert und die gezählten Bestellungen (Art. 6 Abs. 1 lit. f DSGVO); diese Zähler löschen wir nach dem letzten Termin mit der Frist für Teilnehmerangaben.', 'pass-captain' ); }
 		if ( ! empty( $r['box_office'] ) ) { $functions[] = __( 'Abendkasse: Bei Kassenverkäufen erfassen wir Ihre E-Mail-Adresse nur, wenn Sie Tickets oder eine Rechnung zugesandt bekommen möchten, bei „Rechnung auf Firma“ zusätzlich Firma, Name, Anschrift und UID-Nummer. Kassenbelege und Kassenberichte bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO).', 'pass-captain' ); }
 		if ( ! empty( $r['exchange'] ) ) { $functions[] = __( 'Ticketumtausch: Für einen Umtausch verarbeiten wir die Bestellung, das bisherige und das neue Ticket sowie einen Aufpreis oder eine Erstattung (Art. 6 Abs. 1 lit. b DSGVO). Haben Sie per Überweisung bezahlt, können Sie für Erstattungen eine Bankverbindung angeben; wir verwenden sie nur dafür.', 'pass-captain' ); }
@@ -99,7 +160,7 @@ final class PolicyText {
 		if ( $r['twilio'] ) { $recipients[] = __( 'Twilio Ireland Ltd. (Irland) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar; Twilio verarbeitet Daten auch in den USA.', 'pass-captain' ); }
 		if ( $r['sms_http'] ) { $recipients[] = __( 'Unser SMS-Dienstleister (Auftragsverarbeiter) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar.', 'pass-captain' ); }
 		if ( $r['apple'] ) { $recipients[] = __( 'Apple Inc. (USA), wenn Sie ein Ticket zu Apple Wallet hinzufügen: Ihr Gerät meldet sich für Aktualisierungen an; wir speichern dafür eine Gerätekennung und ein Push-Token und senden Aktualisierungshinweise über den Apple Push Notification Service.', 'pass-captain' ); }
-		if ( $r['google'] ) { $recipients[] = __( 'Google Ireland Ltd. / Google LLC (USA), wenn Sie ein Ticket zu Google Wallet hinzufügen: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden an Google übermittelt.', 'pass-captain' ); }
+		if ( $r['google'] ) { $recipients[] = __( 'Google Ireland Ltd. / Google LLC (USA), nur wenn Sie den Link „In Google Wallet speichern“ verwenden: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden dann an Google übermittelt und bei Änderungen aktualisiert. Wird das Ticket ungültig oder werden Ihre Daten gelöscht, entfernen wir Name, Platz und Ticketcode aus dem Ticket in Google Wallet.', 'pass-captain' ); }
 		if ( $r['partners'] ) { $recipients[] = __( 'Vertriebs- und Veranstaltungspartner: Partner erhalten für ihre Veranstaltungen Bestell- und Einlassdaten, personenbezogene Daten (E-Mail-Adressen) nur, soweit dies vertraglich vereinbart ist (Art. 6 Abs. 1 lit. b bzw. f DSGVO, gegebenenfalls Auftragsverarbeitung).', 'pass-captain' ); }
 		if ( $r['webhooks'] ) { $recipients[] = __( 'Angebundene Systeme (Webhooks), z. B. Buchhaltung, CRM oder Newsletter-Dienst: Bestell- und Ticketereignisse, E-Mail-Adressen nur, wenn dies für das jeweilige System ausdrücklich aktiviert ist.', 'pass-captain' ); }
 		if ( $r['affiliate'] ) { $recipients[] = __( 'Affiliate-Programm (Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert.', 'pass-captain' ); }
@@ -114,9 +175,9 @@ final class PolicyText {
 
 		$html .= self::section( __( 'Speicherdauer', 'pass-captain' ), array(
 			/* translators: %s: retention description */
-			sprintf( __( 'Teilnehmerangaben (Name, E-Mail, Zusatzfelder) löschen wir automatisch %s. Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach einem Jahr.', 'pass-captain' ), $attendee ),
-			__( 'Nicht bezahlte Bestellungen anonymisieren wir nach 90 Tagen. Versandte Benachrichtigungen löschen wir inhaltlich nach 30 Tagen. Protokolle über Verwaltungsvorgänge bewahren wir zwei Jahre auf.', 'pass-captain' ),
-			__( 'Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt.', 'pass-captain' ),
+			sprintf( __( 'Teilnehmerangaben (Name, E-Mail, Zusatzfelder) löschen wir automatisch %s.', 'pass-captain' ), $attendee ) . ' ' . self::retention_sentences( array( 'checkin_staff' ) ),
+			self::retention_sentences( array( 'unpaid_customer_email', 'message_content', 'audit_logs' ) ),
+			__( 'Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt.', 'pass-captain' ) . ' ' . self::financial_sentence(),
 		) );
 
 		$html .= self::section( __( 'Ihre Rechte', 'pass-captain' ), array(

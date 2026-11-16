@@ -11,6 +11,10 @@ Das Plugin kann diese Pflichten nicht selbst erfüllen. Es liefert die Bausteine
 Export/Löschung über die WordPress-Datenschutzwerkzeuge, Vorschlag für die Datenschutzerklärung unter
 **Einstellungen → Datenschutz → Leitfaden**, Audit-Log); die organisatorischen Maßnahmen liegen beim
 Betreiber. Allgemeine Fristen und Werkzeuge: [OPERATIONS.md – Datenschutz](OPERATIONS.md#datenschutz-löschfristen-auskunft-und-löschung).
+Der Vorschlag für die Datenschutzerklärung nennt die **eingestellten** Löschfristen (A567; ein auf 0
+gesetzter Schritt erscheint als „keine automatische Löschfrist eingestellt“) – nach jeder Änderung der
+Fristen den übernommenen Text prüfen. Ob die dort genannten Rechtsgrundlagen und Aufbewahrungsfristen für den
+eigenen Betrieb zutreffen, entscheidet der Betreiber.
 
 Inhalt:
 
