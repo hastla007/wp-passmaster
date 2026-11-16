@@ -1401,6 +1401,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
 - [x] **A652** [OPTIMIERUNG] Mail an Vorbesitzer enthält ticket_link mit neuem Code; Queue-Fallback nutzt Nutzlast als Vorlage — _Sicherheitsaudit 14.11. #25_ (TODO L1103; Sicherheitsaudit 2026-11-14)
   - Eigenes Variablen-Array ohne Link, Queue-Fallback entfernen.
 - [ ] **A653** [OPTIMIERUNG] CI/Release: Actions per SHA pinnen, permissions, persist-credentials, Composer-Flags — _Sicherheitsaudit 14.11. #27_ (TODO L1105; Sicherheitsaudit 2026-11-14)
+  - Teilweise erledigt 16.11.: `persist-credentials: false` an allen Checkouts (außer Release, das danach `git fetch` braucht), `permissions: contents: read` in allen Workflows. Offen: Actions per Commit-SHA pinnen (SHAs aus den Action-Repos ermitteln; ohne Netzwerkzugriff hier nicht möglich), Composer-Flags prüfen.
   - SHA-Pinning, permissions: contents: read, persist-credentials: false, composer --no-scripts --no-plugins, optional Attestierung.
 - [x] **A654** [OPTIMIERUNG] WooCommerce: „Kauf auf Rechnung“-Gateways geben Tickets vor Geldeingang aus — _Sicherheitsaudit 14.11. #28_ (TODO L1106; Sicherheitsaudit 2026-11-14)
   - Deutliche Warnung mit Beispiel und Filter in docs/WOOCOMMERCE.md, optional Admin-Hinweis.
@@ -1411,6 +1412,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
 - [ ] **A657** [OPTIMIERUNG] Integrationstests für Audit-Befunde (Mehrtypen-Kapazität, späte Gutscheinzahlung, CSV-\", Undo außerhalb Bereich) — _Sicherheitsaudit 14.11. #31_ (TODO L1112; Sicherheitsaudit 2026-11-14)
   - Die vier Regressionstests ergänzen.
 - [ ] **A658** [OPTIMIERUNG] Lieferkette: jsQR-Herkunft/Prüfsumme, Seating-Editor-Senken, Zahlungslebensdauern, Branch-Protection — _Sicherheitsaudit 14.11. #32_ (TODO L1113; Sicherheitsaudit 2026-11-14)
+  - Teilweise erledigt 16.11.: `assets/vendor/jsqr/SOURCE.txt` mit Herkunft, Lizenz und SHA-256, geprüft in `tests/consistency.php`. Offen: Version aus dem npm-Paket nachtragen, Seating-Editor-Senken, Zahlungslebensdauern, Branch-Protection (Repository-Einstellung).
   - jsQR wie tweetnacl mit SOURCE.txt, editor.js auf HTML-Senken prüfen, PayPal/Mollie-Lebensdauern dokumentieren, Branch-Protection empfehlen.
 
 
