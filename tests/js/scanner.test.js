@@ -286,3 +286,51 @@ test('A315: an HTML answer with status 200 to the offline sync keeps the queued 
 	assert.strictEqual(env.queue().length, 1, 'nothing removed');
 	assert.strictEqual(env.el.result.dataset.state, 'error');
 });
+
+/** Fake camera: getUserMedia() resolves only when release() is called; every stream records stop(). */
+function fakeCamera(env) {
+	const cam = { calls: 0, pending: [], streams: [] };
+	env.window.navigator.mediaDevices = {
+		getUserMedia: () => {
+			cam.calls++;
+			return new Promise((resolve) => {
+				const track = { stopped: false, stop() { this.stopped = true; }, getCapabilities: () => ({}) };
+				const stream = { track, getTracks: () => [track], getVideoTracks: () => [track] };
+				cam.streams.push(stream);
+				cam.pending.push(() => resolve(stream));
+			});
+		},
+	};
+	env.window.BarcodeDetector = class { static async getSupportedFormats() { return ['qr_code']; } async detect() { return []; } };
+	env.el.video.play = async () => {};
+	cam.release = async () => { cam.pending.shift()(); await flush(); };
+	return cam;
+}
+
+test('A316: a double tap on "camera start" opens one stream; the button is locked at once', async () => {
+	const env = loadScanner();
+	const cam = fakeCamera(env);
+	env.el.start.dispatch('click');
+	assert.strictEqual(env.el.start.disabled, true, 'locked while the permission prompt is open');
+	env.el.start.dispatch('click');
+	await flush();
+	assert.strictEqual(cam.calls, 1, 'second tap ignored');
+	await cam.release();
+	assert.strictEqual(env.el.video.srcObject, cam.streams[0]);
+	assert.strictEqual(env.el.stop.hidden, false);
+	env.el.stop.dispatch('click');
+	assert.strictEqual(cam.streams[0].track.stopped, true, 'stop ends the only stream');
+	assert.strictEqual(env.el.start.disabled, false);
+});
+
+test('A316: a stream that arrives after "stop" is stopped right away', async () => {
+	const env = loadScanner();
+	const cam = fakeCamera(env);
+	env.el.start.dispatch('click');
+	await flush();
+	env.el.stop.dispatch('click'); // e.g. stop pressed while the prompt was open
+	await cam.release();
+	assert.strictEqual(cam.streams[0].track.stopped, true);
+	assert.strictEqual(env.el.video.srcObject, null);
+	assert.strictEqual(env.el.start.disabled, false, 'can be started again');
+});

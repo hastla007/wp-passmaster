@@ -669,7 +669,8 @@
 
 	/* ---------------- camera ---------------- */
 
-	var camera = { stream: null, detector: null, timer: 0, canvas: null };
+	// run: number of the latest start (A316); starting: getUserMedia()/play() still pending.
+	var camera = { stream: null, detector: null, timer: 0, canvas: null, run: 0, starting: false };
 	function loadJsQr() {
 		if (window.jsQR) { return Promise.resolve(); }
 		return new Promise(function (resolve, reject) {
@@ -680,28 +681,55 @@
 			document.head.appendChild(s);
 		});
 	}
+	function stopTracks(stream) { if (stream) { stream.getTracks().forEach(function (track) { track.stop(); }); } }
+	// A316: a second tap while the camera is still starting (permission prompt, slow getUserMedia) must not
+	// open a second stream that keeps running unseen: the button is locked until the start is through, and
+	// a stream that arrives for an outdated start (stopped or replaced meanwhile) is stopped at once.
 	function startCamera() {
 		unlockAudio();
+		if (camera.starting) { return; }
 		if (camera.stream) { stopCamera(); return; }
 		var video = $('video');
+		var button = $('camera');
+		var run = ++camera.run;
+		var mine = null;
+		camera.starting = true;
+		button.disabled = true;
 		navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function (stream) {
+			mine = stream;
+			if (run !== camera.run) { stopTracks(stream); throw new Error('stale'); }
+			if (camera.stream && camera.stream !== stream) { stopTracks(camera.stream); }
 			camera.stream = stream;
 			video.srcObject = stream;
 			video.hidden = false;
-			$('camera').textContent = t('Kamera stoppen');
+			button.textContent = t('Kamera stoppen');
 			return video.play();
 		}).then(function () {
 			if ('BarcodeDetector' in window) {
 				try { camera.detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { camera.detector = null; }
 			}
 			return camera.detector ? null : loadJsQr();
-		}).then(tick).catch(function (e) { showResult('bad', t('Kamera nicht verfügbar'), e && e.message); stopCamera(); });
+		}).then(function () {
+			if (run !== camera.run) { return; }
+			camera.starting = false;
+			button.disabled = false;
+			tick();
+		}).catch(function (e) {
+			if (run !== camera.run) { stopTracks(mine); return; }
+			camera.starting = false;
+			button.disabled = false;
+			showResult('bad', t('Kamera nicht verfügbar'), e && e.message);
+			stopCamera();
+		});
 	}
 	function stopCamera() {
-		if (camera.stream) { camera.stream.getTracks().forEach(function (t) { t.stop(); }); }
+		camera.run++;
+		camera.starting = false;
+		stopTracks(camera.stream);
 		camera.stream = null;
 		clearTimeout(camera.timer);
 		$('video').hidden = true;
+		$('camera').disabled = false;
 		$('camera').textContent = t('Kamera starten');
 	}
 	function tick() {
@@ -834,7 +862,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll };
+	window.wpcapOffline = { normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll, startCamera: startCamera, stopCamera: stopCamera, camera: camera };
 
 	boot();
 }());

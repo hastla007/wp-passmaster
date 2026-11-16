@@ -607,33 +607,49 @@
 		try { await track.applyConstraints({ advanced: [{ torch: on }] }); torchButton.setAttribute('aria-pressed', on ? 'true' : 'false'); } catch (ignore) { torchButton.hidden = true; }
 	});
 
+	// A316: one camera start at a time. The button is locked at once (a second tap while the permission
+	// prompt or getUserMedia() is pending would open a second stream that nobody stops); each start has
+	// a run number, so a stream that arrives after "stop" or after a newer start is stopped right away.
+	let cameraRun = 0;
+	let starting = false;
+	function stopTracks(s) { if (s) s.getTracks().forEach(function (track) { track.stop(); }); }
+	stopButton.addEventListener('click', function () { cameraRun++; starting = false; });
 	startButton.addEventListener('click', async function (event) {
 		const button = event.currentTarget;
 		unlockAudio();
+		if (starting || stream) return;
 		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 			show('error', t.noCamera || 'Camera scanning is not supported.');
 			return;
 		}
+		const run = ++cameraRun;
+		starting = true;
+		// A disabled button loses keyboard focus; keep the manual input as the next stop.
+		const hadFocus = document.activeElement === button;
+		button.disabled = true;
+		if (hadFocus) input.focus();
+		let mine = null;
 		try {
-			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+			mine = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+			if (run !== cameraRun) { stopTracks(mine); return; }
+			if (stream && stream !== mine) stopTracks(stream);
+			stream = mine;
 			video.srcObject = stream;
 			video.setAttribute('playsinline', '');
 			video.muted = true;
 			video.hidden = false;
 			await video.play();
 			const detect = await makeDetector();
-			const hadFocus = document.activeElement === button;
-			button.disabled = true;
+			if (run !== cameraRun || stream !== mine) { stopTracks(mine); return; }
+			starting = false;
 			stopButton.hidden = false;
 			const track = stream.getVideoTracks()[0];
 			const caps = track && track.getCapabilities ? track.getCapabilities() : {};
 			torchButton.hidden = !caps.torch;
 			keepAwake();
-			// A disabled button loses keyboard focus; keep the manual input as the next stop.
-			if (hadFocus) input.focus();
 			let busy = false;
 			const scan = async function () {
-				if (!stream) return;
+				if (!stream || stream !== mine) return;
 				if (!busy && !locked) {
 					busy = true;
 					try {
@@ -656,8 +672,11 @@
 			};
 			scan();
 		} catch (error) {
+			if (run !== cameraRun) { stopTracks(mine); return; }
+			starting = false;
 			show('error', (t.cameraError || 'Camera error:') + ' ' + error.message);
-			if (stream) stopCamera();
+			if (mine && stream !== mine) stopTracks(mine);
+			stopCamera();
 		}
 	});
 })();

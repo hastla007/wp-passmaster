@@ -187,3 +187,41 @@ test('sliding duplicate window: a code that stays in view is never submitted aga
 	assert.strictEqual(requests, 2);
 	app.state.selected = 0;
 });
+
+test('A316: double tap on the camera button opens one stream; a late stream after stop is stopped', async () => {
+	const flushAll = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
+	const pending = [];
+	const streams = [];
+	w.navigator.mediaDevices = {
+		getUserMedia: () => new Promise((resolve) => {
+			const track = { stopped: false, stop() { this.stopped = true; } };
+			const stream = { track, getTracks: () => [track] };
+			streams.push(stream);
+			pending.push(() => resolve(stream));
+		}),
+	};
+	w.jsQR = () => null; // No script loading in the sandbox.
+	const video = w.document.getElementById('video');
+	video.play = () => Promise.resolve();
+	video.readyState = 0;
+	const button = w.document.getElementById('camera');
+	app.startCamera();
+	assert.strictEqual(button.disabled, true, 'locked while getUserMedia() is pending');
+	app.startCamera();
+	assert.strictEqual(streams.length, 1, 'second tap ignored');
+	pending.shift()();
+	await flushAll();
+	assert.strictEqual(app.camera.stream, streams[0]);
+	assert.strictEqual(button.disabled, false);
+	app.startCamera(); // Running: the button stops the camera.
+	assert.strictEqual(streams[0].track.stopped, true);
+	assert.strictEqual(app.camera.stream, null);
+	// Start, then stop (e.g. page hidden) before the permission is granted.
+	app.startCamera();
+	app.stopCamera();
+	pending.shift()();
+	await flushAll();
+	assert.strictEqual(streams[1].track.stopped, true, 'the late stream does not keep the camera on');
+	assert.strictEqual(app.camera.stream, null);
+	assert.strictEqual(button.disabled, false);
+});
