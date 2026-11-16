@@ -10,6 +10,12 @@
  * Secrets::get('sms_http_webhook_secret'), in the header sms.http_signature_header (default
  * X-Signature; hex or base64, optionally prefixed "sha256="). Without that secret both endpoints
  * reject every request.
+ *
+ * Replay protection (A366): with a Unix timestamp in sms.http_timestamp_header (default X-Timestamp)
+ * the signature covers "{timestamp}.{raw body}" and the request must be at most CALLBACK_TOLERANCE
+ * seconds old or ahead; sms.http_require_timestamp refuses callbacks without it. Every accepted
+ * callback is claimed once (Service::http_verify()): an identical repetition is answered with
+ * `duplicate: true` and changes nothing.
  */
 namespace PassCaptain\Sms;
 
@@ -92,6 +98,21 @@ final class HttpProvider implements ProviderInterface {
 		return '' !== $header ? $header : 'X-Signature';
 	}
 
+	/** Allowed clock difference of a timestamped callback, in seconds (A366). */
+	const CALLBACK_TOLERANCE = 300;
+
+	/** Header carrying the callback timestamp (setting sms.http_timestamp_header, A366). */
+	public static function timestamp_header() {
+		$s = (array) Settings::get( 'sms' );
+		$header = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $s['http_timestamp_header'] ?? '' ) );
+		return '' !== $header ? $header : 'X-Timestamp';
+	}
+
+	/** Whether callbacks without timestamp are refused (setting sms.http_require_timestamp, A366). */
+	public static function timestamp_required() {
+		return ! empty( ( (array) Settings::get( 'sms' ) )['http_require_timestamp'] );
+	}
+
 	/** URL the gateway posts delivery reports to. */
 	public static function status_callback_url() {
 		return rest_url( 'pass-captain/v1/sms/http/status' );
@@ -103,14 +124,16 @@ final class HttpProvider implements ProviderInterface {
 	}
 
 	/**
-	 * Validates the callback signature: HMAC-SHA256(secret, raw body) as hex or base64, optionally
-	 * prefixed with "sha256=". An empty secret or signature never validates.
+	 * Validates the callback signature: HMAC-SHA256(secret, raw body) – or, with a timestamp (A366),
+	 * HMAC-SHA256(secret, "{timestamp}.{raw body}") – as hex or base64, optionally prefixed with
+	 * "sha256=". An empty secret or signature never validates.
 	 */
-	public static function callback_signature_valid( $body, $signature, $secret ) {
+	public static function callback_signature_valid( $body, $signature, $secret, $timestamp = '' ) {
 		$signature = trim( (string) $signature );
 		if ( '' === (string) $secret || '' === $signature ) { return false; }
 		if ( 0 === stripos( $signature, 'sha256=' ) ) { $signature = substr( $signature, 7 ); }
-		$raw = hash_hmac( 'sha256', (string) $body, (string) $secret, true );
+		$signed = '' === (string) $timestamp ? (string) $body : $timestamp . '.' . $body;
+		$raw = hash_hmac( 'sha256', $signed, (string) $secret, true );
 		return hash_equals( bin2hex( $raw ), strtolower( $signature ) ) || hash_equals( base64_encode( $raw ), $signature ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 	}
 }

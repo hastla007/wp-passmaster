@@ -14,6 +14,7 @@ namespace PassCaptain\Sms;
 
 use PassCaptain\LegacySlug;
 use PassCaptain\Audit;
+use PassCaptain\RateLimit;
 use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -553,6 +554,11 @@ final class Service {
 		if ( ! TwilioProvider::signature_valid( LegacySlug::called_url( TwilioProvider::inbound_url() ), $params, (string) $request->get_header( 'x-twilio-signature' ), \PassCaptain\Secrets::get( 'twilio_auth_token' ) ) ) {
 			return new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
+		// A366: the signature has no timestamp; a repeated (replayed) message is processed only once.
+		ksort( $params );
+		if ( ! RateLimit::claim( 'sms-twilio-inbound|' . hash( 'sha256', (string) wp_json_encode( $params ) ), self::CALLBACK_REPLAY_TTL ) ) {
+			return rest_ensure_response( array( 'received' => true, 'duplicate' => true, 'withdrawn' => 0 ) );
+		}
 		list( , $withdrawn ) = self::handle_inbound( (string) ( $params['From'] ?? '' ), (string) ( $params['Body'] ?? '' ) );
 		return rest_ensure_response( array( 'received' => true, 'withdrawn' => $withdrawn ) );
 	}
@@ -579,10 +585,32 @@ final class Service {
 		);
 	}
 
-	/** Verifies the generic HTTP callback signature; WP_Error (403) when invalid or no secret is set. */
+	/** How long an accepted callback without timestamp is remembered against replays (A366). */
+	const CALLBACK_REPLAY_TTL = 7 * DAY_IN_SECONDS;
+
+	/**
+	 * Verifies the generic HTTP callback (A366): signature, and with a timestamp header the signed
+	 * timestamp (±HttpProvider::CALLBACK_TOLERANCE); without one only if timestamps are not required.
+	 * Returns WP_Error (403), false for a repetition of an accepted callback, true otherwise.
+	 */
 	private static function http_verify( \WP_REST_Request $request ) {
-		$valid = HttpProvider::callback_signature_valid( (string) $request->get_body(), (string) $request->get_header( HttpProvider::signature_header() ), \PassCaptain\Secrets::get( 'sms_http_webhook_secret' ) );
-		return $valid ? true : new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'pass-captain' ), array( 'status' => 403 ) );
+		$body = (string) $request->get_body();
+		$signature = (string) $request->get_header( HttpProvider::signature_header() );
+		$timestamp = trim( (string) $request->get_header( HttpProvider::timestamp_header() ) );
+		$refused = new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'pass-captain' ), array( 'status' => 403 ) );
+		if ( '' === $timestamp && HttpProvider::timestamp_required() ) { return $refused; }
+		if ( '' !== $timestamp && ( ! ctype_digit( $timestamp ) || abs( time() - (int) $timestamp ) > HttpProvider::CALLBACK_TOLERANCE ) ) {
+			return new \WP_Error( 'wpcap_sms_stale', __( 'Rückmeldung abgelaufen oder Zeitstempel ungültig.', 'pass-captain' ), array( 'status' => 403 ) );
+		}
+		if ( ! HttpProvider::callback_signature_valid( $body, $signature, \PassCaptain\Secrets::get( 'sms_http_webhook_secret' ), $timestamp ) ) { return $refused; }
+		// A timestamped callback can only be replayed inside the tolerance; one without for as long as it is remembered.
+		$ttl = '' === $timestamp ? self::CALLBACK_REPLAY_TTL : 2 * HttpProvider::CALLBACK_TOLERANCE + 60;
+		return RateLimit::claim( 'sms-http-callback|' . hash( 'sha256', $timestamp . '|' . $body ), $ttl );
+	}
+
+	/** Answer to a repeated (already processed) callback: accepted, nothing changed (A366). */
+	private static function duplicate_response() {
+		return rest_ensure_response( array( 'received' => true, 'duplicate' => true, 'updated' => 0 ) );
 	}
 
 	/**
@@ -593,6 +621,7 @@ final class Service {
 	public static function http_status( \WP_REST_Request $request ) {
 		$verified = self::http_verify( $request );
 		if ( is_wp_error( $verified ) ) { return $verified; }
+		if ( ! $verified ) { return self::duplicate_response(); }
 		$params = self::request_params( $request );
 		$map = self::http_status_map();
 		$status = (string) ( $map[ strtolower( sanitize_text_field( (string) ( $params['status'] ?? '' ) ) ) ] ?? '' );
@@ -616,6 +645,11 @@ final class Service {
 		$verified = self::http_verify( $request );
 		if ( is_wp_error( $verified ) ) { return $verified; }
 		$params = self::request_params( $request );
+		// The gateway's message id (when it sends one) is processed once, also when re-sent with a new timestamp.
+		$message_id = \PassCaptain\Text::cut( sanitize_text_field( (string) ( is_scalar( $params['message_id'] ?? null ) ? $params['message_id'] : ( is_scalar( $params['id'] ?? null ) ? $params['id'] : '' ) ) ), 128 );
+		if ( ! $verified || ( '' !== $message_id && ! RateLimit::claim( 'sms-http-inbound|' . $message_id, self::CALLBACK_REPLAY_TTL ) ) ) {
+			return rest_ensure_response( array( 'received' => true, 'duplicate' => true, 'withdrawn' => 0 ) );
+		}
 		list( $keyword, $withdrawn ) = self::handle_inbound( (string) ( $params['from'] ?? '' ), (string) ( $params['text'] ?? ( $params['body'] ?? '' ) ) );
 		return rest_ensure_response( array( 'received' => true, 'keyword' => $keyword, 'withdrawn' => $withdrawn ) );
 	}

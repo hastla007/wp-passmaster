@@ -145,6 +145,46 @@ final class RateLimit {
 		return null !== $count && $count > 0 ? $count : null;
 	}
 
+	/**
+	 * One-time claim of a key for $ttl seconds (A366: replay protection of signed callbacks): true for
+	 * the first call, false for every further call until the claim expires. Atomic with the database
+	 * and object-cache backends (exactly one of parallel callers gets true); the transient fallback is
+	 * best effort.
+	 */
+	public static function claim( $bucket, $ttl ) {
+		$ttl = max( 1, (int) $ttl );
+		$key = substr( hash_hmac( 'sha256', 'claim|' . $bucket, self::secret() ), 0, 40 );
+		$backend = self::backend();
+		if ( 'cache' === $backend && function_exists( 'wp_cache_add' ) && wp_cache_add( $key, 1, self::GROUP, $ttl ) ) {
+			self::$last_backend = 'cache';
+			return true;
+		}
+		if ( 'cache' === $backend && function_exists( 'wp_cache_get' ) && false !== wp_cache_get( $key, self::GROUP ) ) {
+			self::$last_backend = 'cache';
+			return false;
+		}
+		if ( 'transient' !== $backend ) {
+			global $wpdb;
+			$table = $wpdb->prefix . 'wpcap_rate_limits';
+			$now = gmdate( 'Y-m-d H:i:s' );
+			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+			// An expired claim (not yet purged) starts again at 1; hits is assigned before expires_at, so
+			// it still compares with the old expiry.
+			$done = $wpdb->query( $wpdb->prepare( "INSERT INTO $table (rl_key,hits,expires_at) VALUES (%s,LAST_INSERT_ID(1),%s) ON DUPLICATE KEY UPDATE hits=LAST_INSERT_ID(IF(expires_at<%s,1,hits+1)),expires_at=IF(expires_at<%s,VALUES(expires_at),expires_at)", $key, gmdate( 'Y-m-d H:i:s', time() + $ttl ), $now, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+			$count = false === $done ? null : (int) $wpdb->get_var( 'SELECT LAST_INSERT_ID()' );
+			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
+			if ( null !== $count && $count > 0 ) {
+				self::$last_backend = 'db';
+				return 1 === $count;
+			}
+		}
+		self::$last_backend = 'transient';
+		$transient = 'wpcap_rl_' . $key;
+		if ( get_transient( $transient ) ) { return false; }
+		set_transient( $transient, 1, $ttl );
+		return true;
+	}
+
 	/** Site secret from wp_salt(); a static key would make the hashes identical across all sites. */
 	private static function secret() {
 		return function_exists( 'wp_salt' ) ? 'wpcap-rate|' . wp_salt( 'nonce' ) : 'wpcap-rate|' . ( defined( 'NONCE_SALT' ) ? NONCE_SALT : ABSPATH );

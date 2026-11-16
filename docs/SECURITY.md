@@ -268,7 +268,8 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
 Sitzplätze und Sitzplatz-Holds, Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
 Angebot annehmen/ablehnen mit Token), Event-Übersetzung lesen, Zahlungs-Webhooks (Anbietersignatur),
 SMS-Statusrückmeldungen und eingehende SMS (Twilio: `X-Twilio-Signature`; generischer HTTP-Anbieter:
-HMAC-SHA256 über den Rohinhalt mit `sms_http_webhook_secret`, ohne Schlüssel immer 403), Apple-Wallet-Webservice (Authentifizierungstoken des Passes),
+HMAC-SHA256 über den Rohinhalt bzw. über `{Zeitstempel}.{Rohinhalt}` mit `sms_http_webhook_secret`, ohne Schlüssel immer 403;
+Zeitstempel ±5 Minuten, jede Rückmeldung wird nur einmal verarbeitet, A366), Apple-Wallet-Webservice (Authentifizierungstoken des Passes),
 Scanner-App-Kopplung (`/app/pair`, einmaliger Kopplungscode) und der öffentliche Saalplan
 (`/seating/occurrences/{id}`). Alle übrigen Routen haben eine Berechtigungsprüfung; der Test
 `tests/integration/modules/zz_a119.php` zählt alle registrierten Routen auf und schlägt fehl, wenn eine neue

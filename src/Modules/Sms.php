@@ -117,6 +117,9 @@ final class Sms {
 				'cancel_body' => __( 'Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail.', 'pass-captain' ),
 				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.', 'pass-captain' ),
 				'http_signature_header' => 'X-Signature',
+				// Replay protection of the HTTP callbacks (A366): signed Unix timestamp, optionally required.
+				'http_timestamp_header' => 'X-Timestamp',
+				'http_require_timestamp' => 0,
 				// Costs: accounting currency, price per segment by destination prefix, fallback price.
 				'currency' => 'EUR',
 				'prices' => '',
@@ -374,6 +377,8 @@ final class Sms {
 			'cancel_body' => Forms::textarea( $in, 'cancel_body', 640 ),
 			'reschedule_body' => Forms::textarea( $in, 'reschedule_body', 640 ),
 			'http_signature_header' => preg_replace( '/[^A-Za-z0-9\-]/', '', Forms::text( $in, 'http_signature_header', 64 ) ) ?: 'X-Signature',
+			'http_timestamp_header' => preg_replace( '/[^A-Za-z0-9\-]/', '', Forms::text( $in, 'http_timestamp_header', 64 ) ) ?: 'X-Timestamp',
+			'http_require_timestamp' => Forms::flag( $in, 'http_require_timestamp' ) ? 1 : 0,
 			'currency' => preg_match( '/^[A-Za-z]{3}$/', trim( (string) ( $in['currency'] ?? '' ) ) ) ? strtoupper( trim( (string) $in['currency'] ) ) : 'EUR',
 			'prices' => Costs::sanitize_prices( is_scalar( $in['prices'] ?? null ) ? (string) $in['prices'] : '' ),
 			'price_default' => self::amount_input( $in, 'price_default' ),
@@ -468,6 +473,8 @@ final class Sms {
 		$row( __( 'Body-Vorlage', 'pass-captain' ), $area( 'http_body_template', $s['http_body_template'] ?? '' ), __( 'Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert. Antwortet der Dienst mit price, currency oder segments, werden diese Werte übernommen.', 'pass-captain' ) );
 		$row( __( 'Signaturschlüssel für Rückmeldungen', 'pass-captain' ), $secret( 'sms_http_webhook_secret' ), __( 'HMAC-SHA256 über den Rohinhalt der Anfrage (hex oder Base64, optional mit „sha256=“). Ohne Schlüssel werden Rückmeldungen abgelehnt.', 'pass-captain' ) );
 		$row( __( 'Signatur-Header', 'pass-captain' ), $text( 'http_signature_header', $s['http_signature_header'] ?? 'X-Signature' ) );
+		$row( __( 'Zeitstempel-Header', 'pass-captain' ), $text( 'http_timestamp_header', $s['http_timestamp_header'] ?? 'X-Timestamp' ), __( 'Schutz gegen wiederholte Rückmeldungen: Sendet der Dienst hier einen Unix-Zeitstempel (Sekunden), wird „Zeitstempel.Rohinhalt“ signiert und die Rückmeldung nur bis 5 Minuten Abweichung angenommen. Jede Rückmeldung wird nur einmal verarbeitet.', 'pass-captain' ) );
+		$row( __( 'Zeitstempel verlangen', 'pass-captain' ), '<label><input type="checkbox" name="http_require_timestamp" value="1"' . ( ! empty( $s['http_require_timestamp'] ) ? ' checked' : '' ) . '> ' . esc_html__( 'Rückmeldungen ohne signierten Zeitstempel ablehnen', 'pass-captain' ) . '</label>', __( 'Empfohlen, sobald der Dienst den Zeitstempel sendet.', 'pass-captain' ) );
 		$row( __( 'Status-Callback', 'pass-captain' ), '<code>' . esc_html( HttpProvider::status_callback_url() ) . '</code>', __( 'Felder: reference (oder id), status (delivered, undelivered, failed, sent), optional error_code, price, currency.', 'pass-captain' ) );
 		$row( __( 'Eingehende SMS (Abmeldung mit STOP)', 'pass-captain' ), '<code>' . esc_html( HttpProvider::inbound_url() ) . '</code>', __( 'Felder: from, text. STOP meldet die Nummer ab, START wieder an.', 'pass-captain' ) );
 		echo '</tbody></table>';
