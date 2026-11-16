@@ -38,6 +38,10 @@ final class PublicEvents {
 				'pendingDays' => __( 'Bestellung angelegt; deine Tickets sind %d Tage reserviert.', 'pass-captain' ), // n>1: only for 2+ days (checkout.js)
 				/* translators: %d: ticket number */
 				'attendee' => __( 'Teilnehmer:in %d', 'pass-captain' ),
+				// Short note in the quantity live region when the number of attendee blocks changes (A311).
+				'attendeesOne' => __( 'Weiter unten: Angaben für 1 Teilnehmer:in.', 'pass-captain' ),
+				/* translators: %d: number of attendee blocks (2 or more) */
+				'attendeesMany' => __( 'Weiter unten: Angaben für %d Teilnehmende.', 'pass-captain' ), // n>1: checkout.js uses attendeesOne for 1
 				'name' => __( 'Name', 'pass-captain' ),
 				'email' => __( 'E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)', 'pass-captain' ),
 				/* translators: %s: formatted amount */

@@ -37,11 +37,20 @@
 		if (type === 'checkbox') input.value = '1';
 		return input;
 	}
+	// Attendee blocks per slot ("<ticket type>-<n>") and form. A block that is no longer needed
+	// (quantity lowered, field emptied while typing a new number) is only detached, so its entries
+	// come back when the quantity goes up again (A549). Cleared by "Weitere Tickets bestellen".
+	const attendeeSlots = new WeakMap();
+	function attendeeLegend(number, typeName) {
+		return (t.attendee || 'Attendee %d').replace('%d', number) + ' · ' + typeName;
+	}
 	function renderAttendees(form) {
 		const box = form.querySelector('.wpcap-attendees');
-		const previous = {};
-		box.querySelectorAll('[data-slot]').forEach(function (fs) { previous[fs.dataset.slot] = fs; });
-		box.innerHTML = '';
+		if (!box) return;
+		if (!attendeeSlots.has(form)) attendeeSlots.set(form, {});
+		const cache = attendeeSlots.get(form);
+		box.querySelectorAll('[data-slot]').forEach(function (fs) { cache[fs.dataset.slot] = fs; });
+		Array.prototype.slice.call(box.children).forEach(function (child) { child.remove(); });
 		let count = 0;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const n = Math.max(0, Number(qty.value) || 0);
@@ -49,9 +58,15 @@
 			for (let i = 0; i < n; i++) {
 				count++;
 				const slot = qty.dataset.type + '-' + i;
-				if (previous[slot]) { box.appendChild(previous[slot]); continue; }
+				if (cache[slot]) {
+					// Number by position after every change (A550): "Teilnehmer:in 1, 2, …" without gaps.
+					const legend = cache[slot].querySelector('legend');
+					if (legend) legend.textContent = attendeeLegend(count, qty.dataset.name);
+					box.appendChild(cache[slot]);
+					continue;
+				}
 				const fs = el('fieldset', { 'data-slot': slot, 'data-type': qty.dataset.type, class: 'wpcap-attendee' });
-				fs.appendChild(el('legend', {}, (t.attendee || 'Attendee %d').replace('%d', count) + ' · ' + qty.dataset.name));
+				fs.appendChild(el('legend', {}, attendeeLegend(count, qty.dataset.name)));
 				const base = 'wpcap-att-' + slot + '-' + Math.random().toString(16).slice(2, 8);
 				const nameLabel = el('label', { for: base + '-name' }, t.name || 'Name');
 				fs.appendChild(nameLabel);
@@ -64,9 +79,27 @@
 					fs.appendChild(fieldInput(field, id));
 					if (field.purpose) fs.appendChild(el('small', {}, field.purpose));
 				});
+				cache[slot] = fs;
 				box.appendChild(fs);
 			}
 		});
+	}
+	// Short note for .wpcap-qty-live when the number of attendee blocks changed (A311): the block
+	// area itself is no live region, so a quantity change no longer reads out every form field.
+	const attendeeCounts = new WeakMap();
+	function attendeeHint(form) {
+		const n = form.querySelectorAll('.wpcap-attendee').length;
+		const before = attendeeCounts.has(form) ? attendeeCounts.get(form) : 0;
+		attendeeCounts.set(form, n);
+		if (n === before || !n) return '';
+		return n === 1 ? (t.attendeesOne || '') : fill(t.attendeesMany || '%d', [n]);
+	}
+	function announce(form, text) {
+		const live = form.querySelector('.wpcap-qty-live');
+		if (!live || !text) return;
+		// Re-set even when unchanged, so a repeated message is announced again.
+		live.textContent = '';
+		window.setTimeout(function () { live.textContent = text; }, 30);
 	}
 	// Same output as PHP Frontend\Format::money(): Money::number() (minor unit decimals per currency) . ' ' . symbol.
 	function money(minor, currency) {
@@ -157,16 +190,21 @@
 		});
 	}
 	function announceQty(form, input, limited) {
-		const live = form.querySelector('.wpcap-qty-live');
-		if (!live) return;
 		const n = Math.max(0, Number(input.value) || 0);
 		const name = input.dataset.name || '';
 		let text = n === 0 ? fill(t.qtyNone || '%s: 0', [name]) : (n === 1 ? fill(t.qtyOne || '%s: 1', [name]) : fill(t.qtyMany || '%1$s: %2$d', [name, n]));
 		if (limited && t.qtyLimit) text += ' ' + t.qtyLimit;
-		// Re-set even when unchanged, so a repeated press at the limit is announced again.
-		live.textContent = '';
-		window.setTimeout(function () { live.textContent = text; }, 30);
+		const hint = attendeeHint(form);
+		if (hint) text += ' ' + hint;
+		announce(form, text);
 	}
+	// Typed quantities: the field announces its own value; the attendee note follows once typing pauses.
+	const hintTimers = new WeakMap();
+	function scheduleAttendeeHint(form) {
+		window.clearTimeout(hintTimers.get(form));
+		hintTimers.set(form, window.setTimeout(function () { announce(form, attendeeHint(form)); }, 700));
+	}
+	let stepping = false;
 	function stepQty(button) {
 		const wrap = button.closest('.wpcap-stepper');
 		const input = wrap && wrap.querySelector('.wpcap-qty');
@@ -179,8 +217,13 @@
 		const next = Math.min(Math.max(current + delta, b.min), Math.max(b.min, ceiling));
 		if (next !== current) {
 			input.value = String(next);
-			input.dispatchEvent(new Event('input', { bubbles: true }));
-			input.dispatchEvent(new Event('change', { bubbles: true }));
+			stepping = true;
+			try {
+				input.dispatchEvent(new Event('input', { bubbles: true }));
+				input.dispatchEvent(new Event('change', { bubbles: true }));
+			} finally {
+				stepping = false;
+			}
 		}
 		syncSteppers(form);
 		announceQty(form, input, delta > 0 && next >= ceiling);
@@ -416,6 +459,10 @@
 			form.querySelector('[name="email"]').value = keepEmail;
 			clearErrors(form);
 			syncBilling(form);
+			// A new order starts with empty attendee blocks.
+			attendeeSlots.set(form, {});
+			attendeeCounts.delete(form);
+			form.querySelectorAll('.wpcap-attendee').forEach(function (fs) { fs.remove(); });
 			renderAttendees(form);
 			renderEstimate(form);
 			syncSteppers(form);
@@ -433,9 +480,12 @@
 	document.addEventListener('input', function (event) {
 		if (event.target.classList && event.target.classList.contains('wpcap-qty')) {
 			const form = event.target.closest('.wpcap-checkout-form');
+			if (!form) return;
 			renderAttendees(form);
 			renderEstimate(form);
 			syncSteppers(form);
+			// The stepper announces quantity and attendee note in one message.
+			if (!stepping) scheduleAttendeeHint(form);
 		}
 	});
 	document.addEventListener('input', function (event) {

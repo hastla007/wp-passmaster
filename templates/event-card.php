@@ -80,7 +80,7 @@ $wpcap_collapse = count( $types ) > $wpcap_visible + 1; // Never collapse a sing
 			<label for="<?php echo esc_attr( $form_id . '-email' ); ?>"><?php esc_html_e( 'Deine E-Mail-Adresse (für Tickets und Bestätigung)', 'pass-captain' ); ?> *</label>
 			<input id="<?php echo esc_attr( $form_id . '-email' ); ?>" name="email" type="email" autocomplete="email" required>
 		</div>
-		<div class="wpcap-attendees" aria-live="polite"></div>
+		<div class="wpcap-attendees"></div>
 		<?php do_action( 'wpcap_checkout_form_fields', $event, $types ); ?>
 		<?php if ( apply_filters( 'wpcap_checkout_billing_enabled', true, $event ) ) :
 			$wpcap_billing_id = $form_id . '-billing';
