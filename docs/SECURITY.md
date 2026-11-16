@@ -369,6 +369,9 @@ Wirkung im Plugin:
 
 - **Scanner** (Web, Scanner-App, Offline-Paket): nie Käuferdaten; Teilnehmername nur mit der Einstellung –
   auch für volle Profile, denn der Scan-Bildschirm ist öffentlich sichtbar.
+- **Leere Eventmengen (A638):** Prüfungen über „alle Events eines Objekts“ schlagen bei leerer Menge fehl statt
+  durch: Rechnung per REST (`/orders/{id}/invoice`) für eine Bestellung ohne Ticketpositionen nur für
+  Administratoren; ein Gerät ohne freigegebene Events scannt nichts und erzeugt keine Einlasskonflikte.
 - **Fremde Events am Scanner (A365):** Event-Zuweisung und Gerätebindung werden vor allem anderen geprüft. Ein
   Ticket eines Events ohne Einlassrecht ergibt immer `forbidden` bzw. `wrong_event` – ohne Eventnamen und ohne
   Hinweis, ob der Termin abgesagt, das Ticket erstattet oder außerhalb des Einlasszeitraums ist. Abgelehnte Scans
