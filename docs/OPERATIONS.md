@@ -1803,3 +1803,17 @@ Einwilligungen werden nie nachgefordert):
   (der bisherige Bestelllink wird ungültig); höchstens einmal je Stunde und Bestellung (`wpcap_attendee_request_recent`,
   429), protokolliert als `attendee_data_requested` ohne Personendaten. Ohne Lücken: `wpcap_attendee_data_complete`.
 - **Bestellportal:** je Ticket der Hinweis „Für dieses Ticket fehlen noch: …“ über dem Formular „Teilnehmer zuweisen“.
+
+### Selbstbedienung je Teilnehmerfeld: gesperrte Felder und eigene Fristen (A683)
+
+Je Teilnehmerfeld lässt sich festlegen, ob Käufer:innen (Bestellportal, „Teilnehmer zuweisen“) und Ticketinhaber:innen
+(Ticketseite, „Teilnehmerdaten“) es selbst ändern dürfen (Spalten `self_service` `edit`|`locked` und `edit_hours`,
+Schema 3.10.25):
+
+- **Gesperrt (nur durch das Team):** Das Feld wird in beiden Formularen nur angezeigt („(nicht mehr änderbar)“).
+- **Eigene Frist:** „bis Stunden vor Beginn“ (0 = keine eigene Frist, höchstens 8760). Danach verhält sich das Feld wie
+  gesperrt; die allgemeine Frist (`attendee_edit_hours`, Standard 24 h) schließt weiterhin das ganze Formular.
+- Der Server prüft unabhängig vom Formular: Ein geänderter Wert eines gesperrten Feldes wird mit
+  `wpcap_attendee_field_locked` (403, `field_key`) abgelehnt und nichts wird gespeichert; unverändert oder gar nicht
+  gesendete gesperrte Felder behalten ihren Wert, die übrigen Angaben werden gespeichert. Einwilligungen haben ihren
+  eigenen Ablauf (Widerruf jederzeit). Korrekturen durch das Team im Admin sind davon nicht betroffen.

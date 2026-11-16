@@ -481,6 +481,8 @@ final class Installer {
 				help_text varchar(190) NOT NULL DEFAULT '',
 				scope varchar(10) NOT NULL DEFAULT 'ticket',
 				version int(10) unsigned NOT NULL DEFAULT 1,
+				self_service varchar(10) NOT NULL DEFAULT 'edit',
+				edit_hours smallint(5) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (field_id),
 				UNIQUE KEY type_key (ticket_type_id,field_key),
 				KEY type_status (ticket_type_id,status)

@@ -624,8 +624,11 @@ final class Orders {
 			$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . ",status FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d" . ( $strict ? '' : " AND status='active'" ) . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
 			// Inactive fields are only read to tell "no longer offered" from "unknown" (A681).
 			$inactive = array();
+			// A683: fields locked for self-service are neither validated nor returned (stored value stays).
+			$locked = array_map( 'strval', (array) ( $options['locked'] ?? array() ) );
 			foreach ( $fields as $k => $field ) {
 				if ( 'active' !== $field->status ) { $inactive[] = (string) $field->field_key; unset( $fields[ $k ] ); }
+				elseif ( in_array( (string) $field->field_key, $locked, true ) ) { unset( $fields[ $k ] ); }
 			}
 			$fields = array_values( $fields );
 			// Corrections of answers alone (ticket page, assignment) leave the name as it is: skip_name.

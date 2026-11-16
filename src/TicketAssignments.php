@@ -104,8 +104,12 @@ final class TicketAssignments {
 		if ( $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_failed', __( 'Teilnehmerdaten konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		if ( is_array( $answers ) ) {
 			$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket->ticket_id ) );
+			// A683: fields locked for self-service (or past their own deadline) keep their stored value.
+			$locked = \PassCaptain\ParticipantFields::locked_keys( $type_id, (string) $ticket->starts_at );
+			$lock_check = \PassCaptain\ParticipantFields::check_locked( (int) $ticket->ticket_id, $locked, $answers );
+			if ( is_wp_error( $lock_check ) ) { $wpdb->query( 'ROLLBACK' ); return $lock_check; }
 			// Consents are granted/withdrawn separately (Consents, logged); this form corrects the other answers.
-			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ), array( 'skip_consent' => true, 'skip_name' => true ) );
+			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ), array( 'skip_consent' => true, 'skip_name' => true, 'locked' => $locked ) );
 			if ( is_wp_error( $valid ) ) { $wpdb->query( 'ROLLBACK' ); return $valid; }
 			$now = current_time( 'mysql', true );
 			foreach ( (array) ( $valid[0]['answers'] ?? array() ) as $field_id => $value ) {
@@ -341,7 +345,14 @@ final class TicketAssignments {
 		}
 		$clean = array();
 		if ( is_array( $answers ) ) {
-			$valid = Orders::validate_attendees( array( (int) $ticket->ticket_type_id => 1 ), array( array( 'ticket_type_id' => (int) $ticket->ticket_type_id, 'answers' => $answers ) ), array( 'skip_consent' => true, 'skip_name' => true ) );
+			// A683: fields locked for self-service (or past their own deadline) keep their stored value.
+			$locked = \PassCaptain\ParticipantFields::locked_keys( (int) $ticket->ticket_type_id, (string) $ticket->starts_at );
+			$lock_check = \PassCaptain\ParticipantFields::check_locked( (int) $ticket->ticket_id, $locked, $answers );
+			if ( is_wp_error( $lock_check ) ) {
+				$wpdb->query( 'ROLLBACK' );
+				return $lock_check;
+			}
+			$valid = Orders::validate_attendees( array( (int) $ticket->ticket_type_id => 1 ), array( array( 'ticket_type_id' => (int) $ticket->ticket_type_id, 'answers' => $answers ) ), array( 'skip_consent' => true, 'skip_name' => true, 'locked' => $locked ) );
 			if ( is_wp_error( $valid ) ) {
 				$wpdb->query( 'ROLLBACK' );
 				return $valid;

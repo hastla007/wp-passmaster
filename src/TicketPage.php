@@ -91,6 +91,7 @@ final class TicketPage {
 				'wpcap_assignment_limit' => __( 'Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; kleine Korrekturen des Namens (Tippfehler) und die Angaben bleiben möglich.', 'pass-captain' ),
 				'wpcap_assignment_name_limit' => __( 'Der Teilnehmername dieses Tickets wurde bereits mehrfach geändert. Weitere Änderungen sind nur über den Veranstalter möglich.', 'pass-captain' ),
 				'wpcap_assignment_not_allowed' => __( 'Die Teilnehmerdaten dieses Tickets können nicht mehr geändert werden.', 'pass-captain' ),
+				'wpcap_attendee_field_locked' => __( 'Eine der Angaben kann nicht mehr selbst geändert werden. Bitte wende dich an den Veranstalter.', 'pass-captain' ),
 			);
 			$notice = $messages[ $flag ] ?? __( 'Die Teilnehmerdaten konnten nicht gespeichert werden. Bitte prüfe die Angaben.', 'pass-captain' );
 		}
@@ -108,6 +109,11 @@ final class TicketPage {
 			$value = $answers[ (int) $field->field_id ] ?? '';
 			$name = 'wpcap_answer[' . esc_attr( $field->field_key ) . ']';
 			$label = esc_html( $field->label . ( (int) $field->required ? ' *' : '' ) );
+			if ( ! ParticipantFields::self_editable( $field, (string) $ticket->starts_at ) ) {
+				// A683: locked or past the field's own deadline – shown, not sent.
+				$html .= '<p>' . esc_html( $field->label ) . '<br><strong>' . esc_html( '' !== $value ? $value : '—' ) . '</strong> <small>' . esc_html__( '(nicht mehr änderbar)', 'pass-captain' ) . '</small></p>';
+				continue;
+			}
 			if ( 'textarea' === $field->field_type ) {
 				$input = '<textarea name="' . $name . '"' . ( (int) $field->required ? ' required' : '' ) . '>' . esc_html( $value ) . '</textarea>';
 			} elseif ( 'checkbox' === $field->field_type ) {

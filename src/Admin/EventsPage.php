@@ -824,6 +824,13 @@ final class EventsPage {
 			$data += array( 'options' => $options ? (string) wp_json_encode( array_values( $options ) ) : '', 'help_text' => Forms::text( $in, 'help_text' ), 'scope' => $scope );
 			array_push( $formats, '%s', '%s', '%s' );
 		}
+		if ( \PassCaptain\ParticipantFields::locks_ready() ) {
+			// A683: self-service per field – changeable or locked, optionally only until N hours before the start.
+			$edit_hours = Forms::int( $in, 'edit_hours' );
+			if ( $edit_hours > 8760 ) { return Forms::error( 'wpcap_field_edit_hours', __( 'Die Änderungsfrist darf höchstens 8760 Stunden (ein Jahr) betragen.', 'pass-captain' ) ); }
+			$data += array( 'self_service' => Forms::choice( $in, 'self_service', array( 'edit', 'locked' ), 'edit' ), 'edit_hours' => max( 0, $edit_hours ) );
+			array_push( $formats, '%s', '%d' );
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_participant_fields';
 		$version = 1;
@@ -1764,6 +1771,11 @@ final class EventsPage {
 					<p class="description" id="wpcap-pf-consent-help"><?php esc_html_e( 'Nur für Checkboxen. Jede Erteilung und jeder Widerruf wird mit Textfassung, Zeitpunkt und Quelle protokolliert; Teilnehmende können in der Bestellübersicht und auf der Ticketseite widerrufen. Zweck ist Pflicht. Eine Änderung von Bezeichnung oder Zweck gilt als neue Textfassung.', 'pass-captain' ); ?></p></td></tr>
 				<?php endif; ?>
 				<tr><th><label for="wpcap-pf-purpose"><?php esc_html_e( 'Zweck', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-purpose" name="purpose" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $edit_field ? $edit_field->purpose : '' ); ?>"></td></tr>
+				<?php if ( \PassCaptain\ParticipantFields::locks_ready() ) : ?>
+				<tr><th><label for="wpcap-pf-self"><?php esc_html_e( 'Selbst ändern', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'self_service', array( 'edit' => __( 'Teilnehmende dürfen ändern', 'pass-captain' ), 'locked' => __( 'Gesperrt (nur durch das Team)', 'pass-captain' ) ), $edit_field ? (string) ( $edit_field->self_service ?? 'edit' ) : 'edit', 'wpcap-pf-self' ); ?>
+					<label for="wpcap-pf-edit-hours"><?php esc_html_e( 'bis Stunden vor Beginn', 'pass-captain' ); ?></label> <input id="wpcap-pf-edit-hours" name="edit_hours" type="number" min="0" max="8760" class="small-text" aria-describedby="wpcap-pf-edit-hours-help" value="<?php echo esc_attr( $edit_field ? (string) (int) ( $edit_field->edit_hours ?? 0 ) : '0' ); ?>">
+					<p class="description" id="wpcap-pf-edit-hours-help"><?php esc_html_e( 'Gilt im Bestellportal und auf der Ticketseite. 0 = keine eigene Frist (es gilt die allgemeine Änderungsfrist). Das Team kann im Admin immer ändern.', 'pass-captain' ); ?></p></td></tr>
+				<?php endif; ?>
 				<tr><th><label for="wpcap-pf-ret"><?php esc_html_e( 'Aufbewahrung (Tage)', 'pass-captain' ); ?></label></th><td><input id="wpcap-pf-ret" name="retention_days" type="number" min="0" max="3650" value="<?php echo esc_attr( $edit_field ? (int) $edit_field->retention_days : 365 ); ?>"></td></tr>
 				<?php $wpcap_siblings = count( self::sibling_types( (int) $type->event_id, (int) $type->occurrence_id, (string) $type->name ) ); ?>
 				<?php if ( $wpcap_siblings ) : ?>

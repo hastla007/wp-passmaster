@@ -44,6 +44,11 @@ final class ParticipantFields {
 		return Log::has_column( 'wpcap_participant_answers', 'field_version' );
 	}
 
+	/** Whether fields carry the self-service lock and deadline (schema 3.10.25, A683). */
+	public static function locks_ready() {
+		return Log::has_column( 'wpcap_participant_fields', 'self_service' );
+	}
+
 	/** Whether ticket types carry the "attendee name required" switch (schema 3.10.25). */
 	public static function name_switch_ready() {
 		return Log::has_column( 'wpcap_ticket_types', 'attendee_name_required' );
@@ -53,6 +58,7 @@ final class ParticipantFields {
 	public static function columns( $alias = '' ) {
 		$cols = array( 'field_id', 'ticket_type_id', 'field_key', 'label', 'field_type', 'required', 'purpose' );
 		if ( self::ready() ) { $cols = array_merge( $cols, array( 'options', 'help_text', 'scope', 'version' ) ); }
+		if ( self::locks_ready() ) { $cols = array_merge( $cols, array( 'self_service', 'edit_hours' ) ); }
 		return implode( ',', array_map( static function ( $c ) use ( $alias ) { return $alias . $c; }, $cols ) );
 	}
 
@@ -357,6 +363,63 @@ final class ParticipantFields {
 		), array(), (string) $order->locale, (int) $order->order_id );
 		Audit::record( 'attendee_data_requested', 'order', (int) $order->order_id, array( 'tickets' => count( $list ), 'sent' => (bool) $sent ) );
 		return array( 'order_id' => (int) $order->order_id, 'tickets' => count( $list ), 'sent' => (bool) $sent );
+	}
+
+	/**
+	 * A683: whether buyers/holders may still change a field themselves (order portal, ticket page).
+	 * "locked" fields never; otherwise until the field's own deadline (edit_hours before the start,
+	 * 0 = none) – the general deadline (setting attendee_edit_hours) closes the whole form anyway.
+	 * Admin corrections are not affected.
+	 *
+	 * @param object|array $field     Field definition.
+	 * @param string       $starts_at Start of the occurrence (UTC, Y-m-d H:i:s).
+	 */
+	public static function self_editable( $field, $starts_at ) {
+		$field = (object) $field;
+		if ( 'locked' === (string) ( $field->self_service ?? 'edit' ) ) { return false; }
+		$hours = (int) ( $field->edit_hours ?? 0 );
+		return $hours <= 0 || strtotime( $starts_at . ' UTC' ) - $hours * HOUR_IN_SECONDS > Clock::now();
+	}
+
+	/**
+	 * A683: field keys a holder may no longer change on this ticket type/occurrence.
+	 *
+	 * @return string[]
+	 */
+	public static function locked_keys( $ticket_type_id, $starts_at ) {
+		global $wpdb;
+		if ( ! self::locks_ready() ) { return array(); }
+		$keys = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT field_key,self_service,edit_hours FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'", absint( $ticket_type_id ) ) ) as $f ) {
+			if ( ! self::self_editable( $f, $starts_at ) ) { $keys[] = (string) $f->field_key; }
+		}
+		return $keys;
+	}
+
+	/**
+	 * A683: refuses a self-service change of a locked field. Locked fields that were submitted with
+	 * their stored value (or not at all) are fine – they are left out of the update.
+	 *
+	 * @param int      $ticket_id Ticket.
+	 * @param string[] $locked    Locked field keys.
+	 * @param array    $answers   Submitted answers (field_key => value).
+	 * @return true|\WP_Error
+	 */
+	public static function check_locked( $ticket_id, array $locked, array $answers ) {
+		global $wpdb;
+		if ( ! $locked ) { return true; }
+		$p = $wpdb->prefix;
+		foreach ( $locked as $key ) {
+			if ( ! array_key_exists( $key, $answers ) ) { continue; }
+			$field = $wpdb->get_row( $wpdb->prepare( 'SELECT ' . self::columns( 'f.' ) . ",a.answer FROM {$p}wpcap_participant_fields f INNER JOIN {$p}wpcap_tickets t ON t.ticket_type_id=f.ticket_type_id LEFT JOIN {$p}wpcap_participant_answers a ON a.field_id=f.field_id AND a.ticket_id=t.ticket_id WHERE t.ticket_id=%d AND f.field_key=%s", absint( $ticket_id ), (string) $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
+			if ( ! $field ) { continue; }
+			list( $value ) = self::normalize( $field, $answers[ $key ] );
+			if ( $value !== (string) ( $field->answer ?? '' ) ) {
+				/* translators: %s: field label */
+				return new \WP_Error( 'wpcap_attendee_field_locked', sprintf( __( '„%s“ kann nicht mehr selbst geändert werden. Bitte wende dich an den Veranstalter.', 'pass-captain' ), $field->label ), array( 'status' => 403, 'field_key' => (string) $key ) );
+			}
+		}
+		return true;
 	}
 
 	/**
