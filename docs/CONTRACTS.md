@@ -134,6 +134,24 @@ Command.
 - **Audit:** jeder Aufruf als `workflow_command` (Command, Hash des Keys, Ergebnis) – ohne Personendaten. Ergebnisse
   enthalten nie Ticketcodes, Hilfscodes oder Personendaten.
 
+### Optionale Mails an den Workflow-Provider übergeben (A677)
+
+Optionale Mails kann die Betreiber:in je Mailtyp an den Workflow-Provider übergeben (`PassCaptain\Workflow\MailHandoff`,
+Auswahl unter **Pass Captain → Status → Captain-Suite**, Option `wpcap_workflow_mail_handoff`, Recht `manage_options`,
+Audit `workflow_mail_handoff_set`). Übergebbar ist im Kern die **Terminerinnerung** (`queue_wpcap_reminder`, Modul
+Erinnerungen); Add-ons können weitere optionale Typen über `wpcap_workflow_mail_handoff_types` anbieten. Ticket-,
+Zahlungs-, Reservierungs-, Erstattungs-, Absage-/Änderungs-, Übertragungs-, Wartelistenangebots- und Einlassmails
+(`MailHandoff::NEVER`) bleiben immer bei Pass Captain – auch wenn ein Filter oder die Option sie nennt.
+
+- **Provider:** der registrierte Workflow-Provider (kompatible Hauptversion) mit
+  `handle_mail( array $handoff ): true|array|WP_Error`. `$handoff`: `handoff_version` (1.0.0), `type`, `to`, `locale`,
+  `subject`, `body`, `format` (`text`|`html`), `order_id` (öffentliche ID oder leer). Das ist die ausdrücklich gewählte
+  Übergabe dieser Mail – sie enthält deshalb Empfänger und Inhalt; Mails mit Anhang werden nie übergeben.
+- **Nativer Rückfall:** ohne (kompatiblen) Provider, ohne `handle_mail()`, bei einer Ausnahme oder einer Ablehnung
+  versendet Pass Captain die Mail selbst wie bisher. Jede Entscheidung steht im Support-Protokoll (Kanal `mail`, ohne
+  Adresse) und wird gezählt (Option `wpcap_workflow_mail_handoff_stats`: angenommen, Rückfälle, letzte Entscheidung mit
+  Grund `provider_missing`, `provider_incompatible`, `not_supported`, `rejected`, `provider_error`, `attachments`).
+
 ## Review-Teilnahmevertrag v1
 
 Vertrag `review` 1.0.0 (A667, `src/Review/Contract.php`, gemeinsame Mechanik in `src/Suite/Contract.php`) für Review
