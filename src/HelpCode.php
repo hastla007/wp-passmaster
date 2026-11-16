@@ -174,7 +174,9 @@ final class HelpCode {
 	}
 
 	/**
-	 * Rate limits for help-code lookups (attempts per window). Every lookup counts, found or not.
+	 * Rate limits for help-code lookups (attempts per window). Per user and per client every lookup
+	 * counts, found or not; the site-wide limit counts only unknown codes of requests within the user and
+	 * client limits (A281), so one account cannot use up the site budget of all scanners.
 	 *
 	 * @return array{user:int,client:int,site:int,window:int}
 	 */
@@ -190,7 +192,8 @@ final class HelpCode {
 
 	/**
 	 * Ticket id for a typed help code (0 when unknown) or a rate-limit error. Rate-limited per
-	 * WordPress user (staff or the scanner device's user), per client address and per site.
+	 * WordPress user (staff or the scanner device's user) and per client address first; the site-wide
+	 * budget is only checked for requests within both and only consumed by unknown codes (A281).
 	 *
 	 * @return int|\WP_Error
 	 */
@@ -200,15 +203,20 @@ final class HelpCode {
 		if ( isset( self::$resolved[ $code ] ) ) { return self::$resolved[ $code ]; }
 		$limits = self::limits();
 		$user = (int) get_current_user_id();
-		$allowed = RateLimit::allow( 'help-code|site', $limits['site'], $limits['window'] )
-			&& RateLimit::allow( 'help-code|user|' . $user, $limits['user'], $limits['window'] )
-			&& RateLimit::allow( 'help-code|client|' . RateLimit::client(), $limits['client'], $limits['window'] );
+		// User and client first (short-circuit): a refused request never touches the site budget.
+		$allowed = RateLimit::allow( 'help-code|user|' . $user, $limits['user'], $limits['window'] )
+			&& RateLimit::allow( 'help-code|client|' . RateLimit::client(), $limits['client'], $limits['window'] )
+			&& RateLimit::hits( 'help-code|site', $limits['window'] ) < $limits['site'];
 		if ( ! $allowed ) {
 			Audit::record( 'help_code_rate_limited', 'user', $user, array() );
 			return new \WP_Error( 'wpcap_help_code_rate_limited', __( 'Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden.', 'pass-captain' ), array( 'status' => 429, 'result' => 'rate_limited' ) );
 		}
 		global $wpdb;
 		$ticket_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE help_hash=%s LIMIT 1", self::lookup_hash( $code ) ) );
+		if ( ! $ticket_id ) {
+			// Only guesses (unknown codes) use up the site-wide budget.
+			RateLimit::allow( 'help-code|site', $limits['site'], $limits['window'] );
+		}
 		return self::$resolved[ $code ] = $ticket_id;
 	}
 
