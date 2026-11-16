@@ -169,6 +169,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_order_started` | `bool $started, int $order_id, string $now` (UTC `Y-m-d H:i:s`) | Ob ein Termin der Bestellung bereits begonnen hat (`Partners\Sales::order_started()`, Stornoprüfung der Partner-API). Das Pass-Modul liefert `true`, wenn ein verknüpfter Termin eines Passes der Bestellung begonnen hat. |
 | `wpcap_guestlist_max_tickets_per_entry` | `int $max` (20, 1–100) | Höchstzahl Tickets je Gästelisteneintrag (Gast plus Begleitungen). |
 | `wpcap_portal_resend_limit` | `int $limit` (3) | Neuversand der Tickets einer Gutschein-Umwandlung (`TicketService::resend_tickets()`) je Bestellung und Stunde; die Codes werden dabei erneuert. |
+| `wpcap_portal_assign_rate_limit` | `int $limit` (20), `object $order` | Teilnehmerzuweisungen über die Route `/orders/{id}/assign` je Bestellung und Stunde (nur mit gültigem Bestelllink gezählt; zusätzlich 30 je Client und Stunde), A635. |
+| `wpcap_attendee_name_has_link` | `bool $found`, `string $name` | Ob ein Teilnehmername der Zuweisung im Bestellportal eine Web-Adresse enthält (`scheme://`, `www.`, `host.tld/…`); dann 400 `name_link` (A635). |
 
 ### Zahlungen
 

@@ -56,6 +56,14 @@ final class Controller {
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'assign_ticket' ),
 			'permission_callback' => '__return_true',
+			// A635: typed and length-limited like the other portal routes (attendee columns are varchar(190)).
+			'args' => array(
+				'access_token' => array( 'required' => true, 'type' => 'string', 'maxLength' => 64, 'validate_callback' => 'rest_validate_request_arg' ),
+				'ticket_public_id' => array( 'required' => true, 'type' => 'string', 'maxLength' => 32, 'validate_callback' => 'rest_validate_request_arg' ),
+				'attendee_name' => array( 'required' => true, 'type' => 'string', 'maxLength' => TicketAssignments::NAME_MAX, 'validate_callback' => 'rest_validate_request_arg' ),
+				'attendee_email' => array( 'type' => 'string', 'maxLength' => \PassCaptain\Http::EMAIL_MAX, 'validate_callback' => 'rest_validate_request_arg' ),
+				'answers' => array( 'type' => 'object', 'validate_callback' => 'rest_validate_request_arg' ),
+			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/billing', array(
 			'methods' => \WP_REST_Server::CREATABLE,
@@ -628,8 +636,30 @@ final class Controller {
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
+	/**
+	 * Order portal: name/e-mail of a ticket's attendee. A holder change mails the new holder, so the
+	 * route is rate limited like resend/billing (A635): 30 per client and 20 per order and hour
+	 * (filter `wpcap_portal_assign_rate_limit`).
+	 */
 	public static function assign_ticket( \WP_REST_Request $request ) {
-		$result = TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ), is_array( $request->get_param( 'answers' ) ) ? $request->get_param( 'answers' ) : null );
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-assign-client|' . \PassCaptain\RateLimit::client(), 30, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
+		// Per order only with a valid access link (a guessed order id cannot use up the buyer's budget).
+		$order = self::order_with_access( \PassCaptain\Http::str( $request['public_id'] ), \PassCaptain\Http::str( $request->get_param( 'access_token' ) ) );
+		if ( $order ) {
+			/**
+			 * Assignments (name/e-mail changes) per order and hour through the order portal (A635).
+			 *
+			 * @param int    $limit Default 20.
+			 * @param object $order Order row.
+			 */
+			$per_order = max( 1, (int) apply_filters( 'wpcap_portal_assign_rate_limit', 20, $order ) );
+			if ( ! \PassCaptain\RateLimit::allow( 'portal-assign|' . $order->public_id, $per_order, HOUR_IN_SECONDS ) ) {
+				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+			}
+		}
+		$result =TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ), is_array( $request->get_param( 'answers' ) ) ? $request->get_param( 'answers' ) : null );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

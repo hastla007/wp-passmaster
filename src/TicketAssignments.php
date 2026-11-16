@@ -5,12 +5,20 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class TicketAssignments {
+	/** Longest attendee name (ticket_assignments.attendee_name is varchar(190), as in the checkout). */
+	const NAME_MAX = 190;
+
 	public static function assign( $public_id, $access_token, $ticket_public_id, $name, $email, $answers = null ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( Http::str( $public_id ) );
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', Http::str( $access_token ) ) );
 		$email = Http::email( $email );
-		$name = sanitize_text_field( Http::str( $name ) );
+		// A635: limited like the checkout (190 characters); the name goes into a mail to a freely chosen
+		// address, so it must not carry a link.
+		$name = Text::limit( sanitize_text_field( Http::str( $name ) ), self::NAME_MAX );
+		if ( self::has_link( $name ) ) {
+			return new \WP_Error( 'wpcap_assignment_invalid', __( 'Der Name darf keine Web-Adresse enthalten.', 'pass-captain' ), array( 'status' => 400, 'reason' => 'name_link', 'field' => 'attendee_name' ) );
+		}
 		if ( Http::email_too_long( $email ) ) {
 			return new \WP_Error( 'wpcap_assignment_invalid', Orders::email_too_long_message(), array( 'status' => 400, 'reason' => 'email_too_long', 'field' => 'attendee_email' ) );
 		}
@@ -121,6 +129,24 @@ final class TicketAssignments {
 		}
 		Audit::record( 'ticket_assigned', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'assigned', 'code_rotated' => $rotate );
+	}
+
+	/**
+	 * Whether an attendee name contains a web address (scheme, "www." or a host with a common path/TLD
+	 * pattern such as "example.com/x"). Filter `wpcap_attendee_name_has_link`.
+	 *
+	 * @param string $name Attendee name.
+	 */
+	public static function has_link( $name ) {
+		$name = (string) $name;
+		$found = 1 === preg_match( '~(?:[a-z][a-z0-9+.\-]*://|\bwww\.|\b[a-z0-9\-]+\.[a-z]{2,}/)~i', $name );
+		/**
+		 * Whether the attendee name of a portal assignment counts as containing a link (refused, A635).
+		 *
+		 * @param bool   $found Default: scheme://, www. or host/path.
+		 * @param string $name  Name.
+		 */
+		return (bool) apply_filters( 'wpcap_attendee_name_has_link', $found, $name );
 	}
 
 	/** Number of holder changes (code rotations) a ticket already had through assign(). */
