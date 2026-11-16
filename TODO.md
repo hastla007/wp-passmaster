@@ -888,7 +888,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [WICHTIG] Fehlerhafte Admin-Formulare verwerfen alle Eingaben, generische Meldung — src/Admin/EventsPage.php:39–41, Forms.php:384–392 (A297, R1 UX)
 - [ ] [WICHTIG] A099 nur teilweise: Rechtstexte ohne Editor, „Zahlung vor Ort“ im Online-Checkout — src/Admin/SettingsPage.php:603, ManualGateway.php:12 (A298, R1 UX)
 - [ ] [WICHTIG] 36 Unterseiten, Module nicht per Oberfläche abschaltbar, doppelte Wege — src/Admin/Menu.php:197–226, Modules.php:60–63 (A299, R1 UX)
-- [ ] [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) — pass-captain.php:7/56, readme.txt:7/45/69, CHANGELOG.md:3 (A300, R1 Release)
+- [x] [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) – erledigt: `build/check-versions.sh` grün (Header, WPCAP_VERSION, Stable tag, CHANGELOG 1.5.0; PHP 8.2/WP 6.4 überall gleich), Vertragsversionen im Hauptdatei-Kommentar ergänzt — pass-captain.php:7/56, readme.txt:7/45/69, CHANGELOG.md:3 (A300, R1 Release)
 - [x] [WICHTIG] Nicht wegklickbarer Secrets-Hinweis auf allen Admin-Seiten — src/Secrets.php:59, :435–437 (A301, R1 Release)
 - [x] [WICHTIG] Inline-<script>/<style> per echo — src/Admin/Menu.php:88/91/263, BoxOffice/Page.php:146, Mail/Admin.php:290, OrderPortal.php:141, Exchange/Portal.php:204 (A302, R1 Release)
 - [ ] [WICHTIG] Präfix wp_ in Shortcodes/Hooks und Block-Namespace wp-pass-captain/* (A104 abgehakt) — src/Plugin.php:73/75, Modules/Calendar.php:24, WalletPasses/Service.php:20, Vouchers/TicketService.php, block.json (A303, R1 Release)

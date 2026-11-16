@@ -665,7 +665,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/SettingsPage.php:603, ManualGateway.php:12: wp_editor für Rechtstexte; online nur „Überweisung“
 - [ ] **A299** [WICHTIG] 36 Unterseiten, Module nicht per Oberfläche abschaltbar, doppelte Wege — _R1 UX_ (TODO L645; Audit Runde 4)
   - src/Admin/Menu.php:197–226, Modules.php:60–63: Seite „Funktionen“ (Module an/aus), schlanke Grundausstattung; Doppelungen Serien/Mollie/Scanner auflösen
-- [ ] **A300** [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) — _R1 Release_ (TODO L646; Audit Runde 4)
+- [x] **A300** [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) — _R1 Release_ (TODO L646; Audit Runde 4)
   - pass-captain.php:7/56, readme.txt:7/45/69, CHANGELOG.md:3: Vor Release 1.5.0 setzen; consistency.php prüft Upgrade Notice ≤ Stable tag
 - [x] **A301** [WICHTIG] Nicht wegklickbarer Secrets-Hinweis auf allen Admin-Seiten — _R1 Release_ (TODO L647; Audit Runde 4)
   - src/Secrets.php:59, :435–437: Nur auf Plugin-Seiten/Site Health, per User-Meta wegklickbar
