@@ -124,6 +124,14 @@ Keys are stored in the option `wpcap_offline_keys` (not autoloaded):
   offline duration of any enabled event.
 
 If the salt changes and the secret can no longer be decrypted, a new key is generated automatically.
+
+**Concurrency** (A629): creating the first key, rotating and extending a key's grace run under the
+database lock `GET_LOCK('<prefix>wpcap_offline_keys')` and re-read the key option inside it, so a
+rotation is never overwritten by a process that read the keys before (and two first uses create one
+key, not two). Signing only reads the keys; the latest expiry signed per key is kept in the separate
+option `wpcap_offline_keys_expiry` (raised under the same lock). A package signed with a key that was
+rotated away in the meantime extends that key's `valid_until` to the package expiry. If the lock is not
+available within 10 seconds, signing/rotation fails with `offline_key_busy` and nothing is changed.
 Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_assigned` /
 `offline_device_unassigned`.
 
