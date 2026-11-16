@@ -2,7 +2,8 @@
 /**
  * Theme-overridable event card. Copy to your-theme/pass-captain/event-card.php.
  *
- * Available: $event, $types (with ->available, ->fields), $providers (id => gateway), $legal
+ * Available: $event, $types (with ->available, ->fields), $providers (id => gateway; empty = no
+ * payment method available, the card then says "Online-Verkauf derzeit nicht möglich"), $legal
  * (require_terms, terms_text, consumer_info_text, locale, terms_version; texts in the page language) and
  * $card (Frontend\EventCard::context(): badges, seats left, price, other dates, next date, limits).
  * The checkout script relies on the class names, the name attributes and the field wrappers
@@ -24,6 +25,8 @@ if ( ! isset( $card ) || ! is_array( $card ) ) { $card = \PassCaptain\Frontend\E
 $wpcap_doors = ! empty( $event->doors_open_at ) ? \PassCaptain\DoorsOpen::label( $event->doors_open_at, $event->timezone, $event->starts_at ) : '';
 $wpcap_visible = (int) $card['visible_types'];
 $wpcap_collapse = count( $types ) > $wpcap_visible + 1; // Never collapse a single remaining type.
+// A294: without an available payment method nothing can be ordered – say so instead of failing on submit.
+$wpcap_no_payment = ! $providers;
 ?>
 <article class="wpcap-event">
 	<header class="wpcap-event-header<?php echo $card['next'] ? ' wpcap-is-next' : ''; ?>">
@@ -65,7 +68,7 @@ $wpcap_collapse = count( $types ) > $wpcap_visible + 1; // Never collapse a sing
 					<?php if ( $max < 1 ) : ?>
 						<span class="wpcap-soldout"><?php esc_html_e( 'Ausverkauft', 'pass-captain' ); ?></span>
 					<?php else : ?>
-						<input id="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( $max ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>" data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>">
+						<input id="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( $max ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>" data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>"<?php echo $wpcap_no_payment ? ' disabled' : ''; ?>>
 					<?php endif; ?>
 				</div>
 			<?php endforeach; ?>
@@ -74,6 +77,8 @@ $wpcap_collapse = count( $types ) > $wpcap_visible + 1; // Never collapse a sing
 		<p class="wpcap-qty-live wpcap-sr-only" aria-live="polite" aria-atomic="true"></p>
 		<?php if ( $wpcap_all_soldout ) : ?>
 			<p class="wpcap-soldout-note"><?php esc_html_e( 'Dieser Termin ist ausverkauft.', 'pass-captain' ); ?></p>
+		<?php elseif ( $wpcap_no_payment ) : ?>
+			<p class="wpcap-no-payment" role="status"><?php esc_html_e( 'Online-Verkauf derzeit nicht möglich. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ); ?></p>
 		<?php else : ?>
 		<p class="wpcap-estimate" aria-live="polite"></p>
 		<div class="wpcap-field">

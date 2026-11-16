@@ -373,6 +373,13 @@ erscheinen dieselben Punkte als Warnung. Auf der Website bekommt ein Termin, des
 später in den Verkauf gehen, eine Karte „Vorverkauf ab …“ (Filter `wpcap_presale_card_html`); bleibt nach
 dem Filtern nichts übrig, steht dort „Aktuell sind keine Veranstaltungen verfügbar.“ statt einer leeren Seite.
 
+**Keine verfügbare Zahlungsart (A294):** Ist für die Währung eines Termins keine Zahlungsart aktiviert und
+vollständig eingerichtet, zeigt die Eventkarte die Ticketarten mit Preisen, aber statt des Bestellformulars
+„Online-Verkauf derzeit nicht möglich“ (Variable `$providers` im Template leer). Administratoren sehen auf dem
+Dashboard und den Plugin-Seiten den Hinweis „Keine verfügbare Zahlungsart für …“ mit Link zu den
+Zahlungsarten, solange ein veröffentlichtes Event einen kommenden Termin in dieser Währung hat. Shops, die
+über verknüpfte WooCommerce-Produkte verkaufen, erhalten den Hinweis nicht.
+
 ## Überweisung (manuelle Zahlung) einrichten (A265)
 
 Die Zahlungsart „Überweisung“ (`manual`) ist bei neuen Installationen **nicht** aktiviert. Sie wird im

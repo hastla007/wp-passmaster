@@ -88,6 +88,7 @@ final class Menu {
 		add_action( 'admin_notices', array( self::class, 'manual_payment_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'needs_review_notice' ) );
 		add_action( 'admin_notices', array( self::class, 'entry_window_notice' ) );
+		add_action( 'admin_notices', array( self::class, 'missing_payment_notice' ) );
 		UserScope::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
@@ -205,6 +206,44 @@ final class Menu {
 		delete_option( \PassCaptain\Installer::ENTRY_WINDOW_NOTICE );
 		$back = wp_get_referer();
 		Forms::redirect( $back ? $back : admin_url() );
+	}
+
+	/**
+	 * Currencies of bookable dates (published event, upcoming scheduled date, active ticket type)
+	 * for which no payment method is available (A294): their cards cannot be ordered.
+	 *
+	 * @return string[]
+	 */
+	public static function currencies_without_payment() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$currencies = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.currency FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s AND tt.status='active'", current_time( 'mysql', true ) ) );
+		$missing = array();
+		foreach ( $currencies as $currency ) {
+			$currency = strtoupper( (string) $currency );
+			if ( '' !== $currency && ! \PassCaptain\Payments\Registry::enabled( $currency ) ) { $missing[] = $currency; }
+		}
+		sort( $missing );
+		return array_values( array_unique( $missing ) );
+	}
+
+	/**
+	 * Admin notice (dashboard and plugin pages, administrators): published events exist but no
+	 * payment method is available for their currency (A294). Shops that sell through linked
+	 * WooCommerce products are not warned (their checkout is WooCommerce's).
+	 */
+	public static function missing_payment_notice() {
+		if ( ! current_user_can( SettingsPage::CAP ) ) { return; }
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects the screen.
+		$dashboard = $screen && 'dashboard' === ( $screen->id ?? '' );
+		if ( ! $dashboard && ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) { return; }
+		$missing = self::currencies_without_payment();
+		if ( ! $missing || \PassCaptain\Integrations\WooCommerce\OrderAdapter::has_linked_ticket_products() ) { return; }
+		$url = \PassCaptain\Payments\ManualGateway::enabled_but_incomplete() ? SettingsPage::provider_url( 'manual' ) : Forms::page_url( SettingsPage::SLUG, array( 'tab' => 'payments' ) );
+		/* translators: %s: currency codes */
+		$title = sprintf( __( 'Pass Captain: Keine verfügbare Zahlungsart für %s.', 'pass-captain' ), implode( ', ', $missing ) );
+		echo '<div class="notice notice-error"><p><strong>' . esc_html( $title ) . '</strong> ' . esc_html__( 'Veröffentlichte Events können auf der Website nicht gebucht werden; die Eventkarten zeigen „Online-Verkauf derzeit nicht möglich“.', 'pass-captain' ) . ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Zahlungsart einrichten', 'pass-captain' ) . '</a></p></div>';
 	}
 
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
