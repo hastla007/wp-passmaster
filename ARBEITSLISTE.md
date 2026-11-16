@@ -961,19 +961,19 @@ Gesamt: 262 Aufgaben.
   - src/blocks/*/editor.asset.php:5: filemtime/WPCAP_VERSION, CI-Prüfung Asset-Version ↔ Dateihash
 - [x] **A455** [WICHTIG] Keine Editor-/Builder-Tests; keine eigenen Event-URLs/Templates — _R3 Editor_ (TODO L792; Audit Runde 4)
   - tests/: Blockvalidierung/Render-Tests, Iframe-Editor, Widget/Template-Teile; Event-Einzelseiten erwägen
-- [ ] **A456** [WICHTIG] Verfügbarkeit/Kaufzustand nur statisch im HTML, nie nachgeladen (Warteliste fehlt, veraltete Knappheitsangaben) — _R3 Caching_ (TODO L793; Audit Runde 4)
+- [x] **A456** [WICHTIG] Verfügbarkeit/Kaufzustand nur statisch im HTML, nie nachgeladen (Warteliste fehlt, veraltete Knappheitsangaben) — _R3 Caching_ (TODO L793; Audit Runde 4)
   - templates/event-card.php:21/75/141/173, PublicEvents.php:173, EventCard.php: No-store-Endpunkt für Verfügbarkeit/Badges/Provider/Warteliste, per JS laden; Formular und Warteliste immer ausliefern
-- [ ] **A457** [WICHTIG] Nach AGB-Änderung ist jede gecachte Kaufseite blockiert (409, Reload hilft nicht) — _R3 Caching_ (TODO L794; Audit Runde 4)
+- [x] **A457** [WICHTIG] Nach AGB-Änderung ist jede gecachte Kaufseite blockiert (409, Reload hilft nicht) — _R3 Caching_ (TODO L794; Audit Runde 4)
   - templates/event-card.php:162, Orders.php:64–67: Bei 409 Texte/Version per /checkout/options nachladen, erneut bestätigen; Purge beim Speichern
-- [ ] **A458** [WICHTIG] Zeitabhängige Preise still neu berechnet, Käufer sieht Abweichung erst beim Anbieter (PAngV/§312j) — _R3 Caching_ (TODO L795; Audit Runde 4)
+- [x] **A458** [WICHTIG] Zeitabhängige Preise still neu berechnet, Käufer sieht Abweichung erst beim Anbieter (PAngV/§312j) — _R3 Caching_ (TODO L795; Audit Runde 4)
   - src/PublicEvents.php:280, Series/Pricing.php:257–266, assets/checkout.js:502–533: Erwartete Preise mitsenden, bei Abweichung 409 wpcap_price_changed mit Bestätigung
-- [ ] **A459** [WICHTIG] Stornoanfrage im Portal scheitert immer für angemeldete Käufer (Nonce/Cookie) — _R3 Caching_ (TODO L796; Audit Runde 4)
+- [x] **A459** [WICHTIG] Stornoanfrage im Portal scheitert immer für angemeldete Käufer (Nonce/Cookie) — _R3 Caching_ (TODO L796; Audit Runde 4)
   - src/PortalSelfService.php:557, :458, OrderPortal.php:144: Benutzerunabhängige Prüfung (HMAC) oder X-WP-Nonce mitsenden
-- [ ] **A460** [WICHTIG] Scanner-Kopplung und Hilfscode am Einlass je öffentlicher IP limitiert (Venue-NAT) — _R3 Caching_ (TODO L797; Audit Runde 4)
+- [x] **A460** [WICHTIG] Scanner-Kopplung und Hilfscode am Einlass je öffentlicher IP limitiert (Venue-NAT) — _R3 Caching_ (TODO L797; Audit Runde 4)
   - src/Mobile/Api.php:50, HelpCode.php:186: Je Kopplungscode/Benutzer limitieren, IP-Bucket nur bei Fehlversuchen
-- [ ] **A461** [WICHTIG] Apple-Wallet-Webservice antwortet bei Ratenlimit mit 401 statt 429 — _R3 Caching_ (TODO L798; Audit Runde 4)
+- [x] **A461** [WICHTIG] Apple-Wallet-Webservice antwortet bei Ratenlimit mit 401 statt 429 — _R3 Caching_ (TODO L798; Audit Runde 4)
   - src/WalletPasses/WebService.php:53, :65: 429/503 mit Retry-After, Limit je Seriennummer/Gerät
-- [ ] **A462** [WICHTIG] Token-Seiten ohne DONOTCACHEPAGE; Angebots-Nonce kürzer als Angebot (erweitert A283) — _R3 Caching_ (TODO L799; Audit Runde 4)
+- [x] **A462** [WICHTIG] Token-Seiten ohne DONOTCACHEPAGE; Angebots-Nonce kürzer als Angebot (erweitert A283) — _R3 Caching_ (TODO L799; Audit Runde 4)
   - src/Waitlists.php:83/870/889/1053/1075, Printing/InvoicePdf.php:288, Payments/ReturnNotice.php:23–29: Überall DONOTCACHEPAGE + nocache_headers (auch 404), Angebotsseite ohne Nonce oder mit langer Gültigkeit
 - [x] **A463** [WICHTIG] Rollback auf 1.4.0 legt alle Zahlungs-Zugangsdaten still (Secrets-Vault) — _R3 Lifecycle_ (TODO L800; Audit Runde 4)
   - src/Secrets.php:270–293, docs/OPERATIONS.md:269–278: Doku: vor Rollback Konstanten/Neueingabe; Drill mit Stripe-Schlüsseln; ggf. Klartext-Fallback bis Major
