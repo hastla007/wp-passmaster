@@ -3648,7 +3648,8 @@ final class Orders {
 			if ( ! $ticket_ids ) { return true; }
 		}
 		$reason = empty( $payload['initial'] ) ? 'delivery_retry' : 'delivery';
-		$result = self::rotate_and_send( $order, $ticket_ids, $reason, true, array( 'hashes' => $hashes, 'mail' => 'tickets' ) );
+		// A588: a retry after a failed mail delivers the stored codes (TicketCodes) instead of new ones.
+		$result = self::rotate_and_send( $order, $ticket_ids, $reason, true, array( 'hashes' => $hashes, 'mail' => 'tickets', 'keep_codes' => 'delivery_retry' === $reason ) );
 		if ( is_wp_error( $result ) ) {
 			// No valid ticket left (revoked, checked in, transferred with its own mail): done.
 			return 'wpcap_no_resendable_tickets' === $result->get_error_code();

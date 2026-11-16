@@ -42,10 +42,12 @@ add_filter( 'wpcap_mail', $a588_block, 10, 2 );
 $a588_o = Orders::create( array( 'email' => 'a588@example.com', 'items' => array( array( 'ticket_type_id' => $a588_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a588-' . uniqid() ) );
 remove_filter( 'wpcap_mail', $a588_block, 10 );
 $a588_before = $a588_hashes( $a588_o['order_id'] );
-$a588_job = $wpdb->get_row( $wpdb->prepare( "SELECT job_id,payload FROM {$p}wpcap_jobs WHERE job_type='ticket_mail_retry' AND payload LIKE %s ORDER BY job_id DESC LIMIT 1", '%"order_id":' . (int) $a588_o['order_id'] . '%' ) );
+// Merged design: the first delivery runs through the ticket outbox (ticket_delivery job, retried by the queue);
+// a failed resend queues ticket_mail_retry.
+$a588_job = $wpdb->get_row( $wpdb->prepare( "SELECT job_id,job_type,payload FROM {$p}wpcap_jobs WHERE job_type IN ('ticket_mail_retry','ticket_delivery') AND status='queued' AND payload LIKE %s ORDER BY job_id DESC LIMIT 1", '%"order_id":' . (int) $a588_o['order_id'] . '%' ) );
 check( 'A588 fixture: failed first mail, codes stored, retry queued', $a588_job && 2 === count( $a588_before ) && '' !== TicketCodes::get( (int) tickets( $a588_o['order_id'] )[0]->ticket_id ) );
 $GLOBALS['wpcap_test_mails'] = array();
-$a588_retry = Orders::handle_job( false, 'ticket_mail_retry', json_decode( (string) $a588_job->payload, true ), (int) $a588_job->job_id );
+$a588_retry = Orders::handle_job( false, (string) $a588_job->job_type, json_decode( (string) $a588_job->payload, true ), (int) $a588_job->job_id );
 $a588_sent = $a588_codes_in( 'a588@example.com' );
 check( 'A588: the retry delivers the codes of the failed mail (no new codes)', true === $a588_retry && $a588_before === $a588_hashes( $a588_o['order_id'] ) && 2 === count( $a588_sent ) && ! array_diff( array_map( static fn( $c ) => hash( 'sha256', $c ), $a588_sent ), $a588_before ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_jobs SET status='done' WHERE job_id=%d", (int) $a588_job->job_id ) );
