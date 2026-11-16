@@ -250,8 +250,10 @@ Route `__return_true` nutzt, ohne in dieser Liste zu stehen.
 
 Die Selbstbedienung für Servicebuchungen (`GET /service-bookings/{id}`, `POST /service-bookings/{id}/confirm|rebook|cancel`, A135)
 ist ohne Anmeldung erreichbar, aber nur mit dem persönlichen Buchungstoken aus der Reservierung (Prüfung im
-`permission_callback` `ServiceBookingFlow::token_permission`, Hash-Vergleich in konstanter Zeit, 10 Fehlversuche je Buchung
-und Stunde, danach 429). Die Antworten enthalten keine Daten anderer Kund:innen.
+`permission_callback` `ServiceBookingFlow::token_permission`, Hash-Vergleich in konstanter Zeit; falsche Tokens zählen
+vorrangig je Client – 10 je Stunde, IPv6 je /64 – und zusätzlich kurz je Buchung – 50 in 10 Minuten –, danach 429;
+Filter `wpcap_service_booking_token_limits`, A279: wer fortlaufende Buchungsnummern durchprobiert, sperrt nur
+sich selbst und nicht die echten Kund:innen). Die Antworten enthalten keine Daten anderer Kund:innen.
 
 **Objektberechtigung in allen Kanälen (A145).** `tests/integration/modules/zz_a145.php` zählt jede REST-Route,
 jede admin-post-Aktion (`Admin\Menu::handlers()` samt Modulen sowie per Quelltext-Scan alle übrigen

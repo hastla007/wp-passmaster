@@ -29,12 +29,40 @@ final class RateLimit {
 
 	/** Records a hit; returns false once more than $limit hits happened in the current window. */
 	public static function allow( $bucket, $limit, $window = 60 ) {
+		list( $key, $window, $slot ) = self::key( $bucket, $window );
+		return self::hit( $key, $window, ( $slot + 1 ) * $window ) <= (int) $limit;
+	}
+
+	/**
+	 * Hits of the bucket in the current window, without counting one (A279/A288). Failure counters
+	 * check `hits() >= $limit` before the attempt and record a failure with allow() afterwards, so only
+	 * failed attempts count; parallel requests can exceed the limit at most by the requests in flight.
+	 */
+	public static function hits( $bucket, $window = 60 ) {
+		list( $key ) = self::key( $bucket, $window );
+		$backend = self::backend();
+		if ( 'cache' === $backend && function_exists( 'wp_cache_get' ) ) {
+			$count = wp_cache_get( $key, self::GROUP );
+			if ( false !== $count ) { return (int) $count; }
+		}
+		if ( 'transient' !== $backend ) {
+			global $wpdb;
+			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+			$count = $wpdb->get_var( $wpdb->prepare( "SELECT hits FROM {$wpdb->prefix}wpcap_rate_limits WHERE rl_key=%s AND expires_at>%s", $key, gmdate( 'Y-m-d H:i:s' ) ) );
+			$failed = '' !== (string) $wpdb->last_error;
+			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
+			if ( ! $failed ) { return (int) $count; }
+		}
+		return (int) get_transient( 'wpcap_rl_' . $key );
+	}
+
+	/** Storage key, window and slot of a bucket. */
+	private static function key( $bucket, $window ) {
 		$window = max( 1, (int) $window );
 		$slot = (int) floor( time() / $window );
 		// Keyed hash: bucket names may contain client addresses or IDs; a plain md5 of an IPv4
 		// address can be reversed by brute force from the database / object cache.
-		$key = substr( hash_hmac( 'sha256', $bucket . '|' . $slot, self::secret() ), 0, 40 );
-		return self::hit( $key, $window, ( $slot + 1 ) * $window ) <= (int) $limit;
+		return array( substr( hash_hmac( 'sha256', $bucket . '|' . $slot, self::secret() ), 0, 40 ), $window, $slot );
 	}
 
 	/**

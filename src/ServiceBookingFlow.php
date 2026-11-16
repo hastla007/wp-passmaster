@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class ServiceBookingFlow {
 	/** Failed token checks per booking and hour before the booking is locked for REST calls. */
 	const TOKEN_ATTEMPTS = 10;
+	/** Failed tokens per booking within the short booking window (A279). */
+	const BOOKING_TOKEN_ATTEMPTS = 50;
 
 	public static function register() {
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'link_order' ), 10, 4 );
@@ -216,20 +218,43 @@ final class ServiceBookingFlow {
 	 * ------------------------------------------------------------------------------------------- */
 
 	/**
-	 * Booking for a valid personal token (constant-time hash compare), else an error. Wrong tokens
-	 * count per booking; after TOKEN_ATTEMPTS per hour the booking answers 429.
+	 * Failed-token limits (filter `wpcap_service_booking_token_limits`): per client (IPv6 per /64)
+	 * `client` failures per `client_window` seconds; per booking `booking` failures per `booking_window`
+	 * as a short, generous second line against distributed guessing (A279).
+	 *
+	 * @return array{client:int,client_window:int,booking:int,booking_window:int}
+	 */
+	public static function token_limits() {
+		$limits = (array) apply_filters( 'wpcap_service_booking_token_limits', array( 'client' => self::TOKEN_ATTEMPTS, 'client_window' => HOUR_IN_SECONDS, 'booking' => self::BOOKING_TOKEN_ATTEMPTS, 'booking_window' => 10 * MINUTE_IN_SECONDS ) );
+		return array(
+			'client' => max( 1, (int) ( $limits['client'] ?? self::TOKEN_ATTEMPTS ) ),
+			'client_window' => max( 60, (int) ( $limits['client_window'] ?? HOUR_IN_SECONDS ) ),
+			'booking' => max( 1, (int) ( $limits['booking'] ?? self::BOOKING_TOKEN_ATTEMPTS ) ),
+			'booking_window' => max( 60, (int) ( $limits['booking_window'] ?? 10 * MINUTE_IN_SECONDS ) ),
+		);
+	}
+
+	/**
+	 * Booking for a valid personal token (constant-time hash compare), else an error. Wrong tokens count
+	 * per client and, with a higher limit and a short window, per booking (A279: guessing booking ids
+	 * from one client no longer locks the real customers out for an hour); over a limit the answer is 429.
+	 * Counted atomically with RateLimit (A288).
 	 *
 	 * @return object|\WP_Error
 	 */
 	public static function verify_token( $booking_id, $token ) {
 		$booking_id = absint( $booking_id );
 		$token = strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $token ) );
-		$key = 'wpcap_svc_token_' . $booking_id;
-		$fails = (int) get_transient( $key );
-		if ( $fails >= self::TOKEN_ATTEMPTS ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Versuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
+		$limits = self::token_limits();
+		$client_bucket = 'svc_token_fail|' . RateLimit::client();
+		$booking_bucket = 'svc_token_fail_booking|' . $booking_id;
+		if ( RateLimit::hits( $client_bucket, $limits['client_window'] ) >= $limits['client'] || RateLimit::hits( $booking_bucket, $limits['booking_window'] ) >= $limits['booking'] ) {
+			return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Versuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
 		$booking = ServiceBookings::flow_ready() ? ServiceBookings::booking( $booking_id ) : null;
 		if ( ! $booking || 64 !== strlen( $token ) || '' === (string) $booking->token_hash || ! hash_equals( (string) $booking->token_hash, hash( 'sha256', $token ) ) ) {
-			set_transient( $key, $fails + 1, HOUR_IN_SECONDS );
+			RateLimit::allow( $client_bucket, $limits['client'], $limits['client_window'] );
+			RateLimit::allow( $booking_bucket, $limits['booking'], $limits['booking_window'] );
 			return new \WP_Error( 'wpcap_booking_access_denied', __( 'Der Buchungszugang ist ungültig.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		return $booking;
