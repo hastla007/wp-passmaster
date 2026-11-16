@@ -554,7 +554,7 @@ final class PortalSelfService {
 				$html .= self::pdf_form( $order, $token, 'all', sprintf( /* translators: %d: number of tickets */ _n( '%d Ticket als PDF herunterladen', 'Alle %d Tickets als PDF herunterladen', count( $available ), 'pass-captain' ), count( $available ) ), self::pdf_needs_new_codes( $available ) );
 			} else {
 				// A627: one PDF per part of $max tickets.
-				$html .= '<p>' . esc_html( sprintf( /* translators: %d: tickets per PDF */ __( 'Je PDF höchstens %d Tickets:', 'pass-captain' ), $max ) ) . '</p>';
+				$html .= '<p>' . esc_html( sprintf( /* translators: %d: tickets per PDF */ _n( 'Je PDF höchstens %d Ticket:', 'Je PDF höchstens %d Tickets:', $max, 'pass-captain' ), $max ) ) . '</p>';
 				foreach ( array_chunk( $available, $max ) as $index => $chunk ) {
 					$first = $index * $max + 1;
 					$label = sprintf(
