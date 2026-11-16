@@ -15,6 +15,43 @@ final class Localization {
 
 	public static function current_locale() { return determine_locale(); }
 
+	/** @var array<string, \Collator|false> Collators per locale (false: intl unavailable). */
+	private static $collators = array();
+
+	/**
+	 * A520: compares two texts for display order in the site language: "Äpfel" next to "Apfel",
+	 * "zoe" with "Zoe", numbers in natural order ("Block 2" before "Block 10"). Uses ICU (intl) when
+	 * available, otherwise a case- and accent-insensitive natural comparison.
+	 *
+	 * @param string      $a      First text.
+	 * @param string      $b      Second text.
+	 * @param string|null $locale Locale (default: site locale).
+	 */
+	public static function compare( $a, $b, $locale = null ) {
+		$locale = null !== $locale ? (string) $locale : Mail\Mailer::site_locale();
+		if ( ! array_key_exists( $locale, self::$collators ) ) {
+			self::$collators[ $locale ] = false;
+			if ( class_exists( '\Collator' ) ) {
+				$collator = new \Collator( $locale );
+				$collator->setAttribute( \Collator::NUMERIC_COLLATION, \Collator::ON );
+				self::$collators[ $locale ] = $collator;
+			}
+		}
+		$collator = self::$collators[ $locale ];
+		if ( $collator ) {
+			$result = $collator->compare( (string) $a, (string) $b );
+			if ( false !== $result ) { return (int) $result; }
+		}
+		return strnatcasecmp( self::fold( (string) $a ), self::fold( (string) $b ) );
+	}
+
+	/** Text without accents (fallback of compare()). */
+	private static function fold( $text ) {
+		if ( function_exists( 'remove_accents' ) ) { return (string) remove_accents( $text ); }
+		$ascii = function_exists( 'iconv' ) ? @iconv( 'UTF-8', 'ASCII//TRANSLIT', $text ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- invalid input falls back below.
+		return false !== $ascii ? $ascii : $text;
+	}
+
 	/** Directory of the bundled catalogues (.mo, and the script translations .json built by build/release.sh). */
 	public static function languages_dir() { return WPCAP_PATH . 'languages'; }
 

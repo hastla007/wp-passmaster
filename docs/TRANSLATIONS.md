@@ -36,6 +36,8 @@ Kontexte (A515): „Einlass“ gibt es als Einlasszeit (`doors open time`), Arbe
 Kassenschicht-Status. Alle Statuswerte von `Forms::status_label()` stehen im Kontext `status`
 (Übersetzungen können so z. B. das grammatische Geschlecht des Status wählen).
 
+Sortierung (A520): Listen mit Namen (z. B. Gruppen der Berichte) sortiert `Localization::compare()` in der Website-Sprache (ICU-Collator, Zahlen natürlich; ohne intl-Erweiterung ohne Akzente und Groß/Klein), nicht nach Bytes.
+
 ## Stand und Prüfung (A107)
 
 Stand 13.11.2026: alle 3234 Texte in allen fünf Sprachen vollständig, 0 fuzzy. Die 630 alten

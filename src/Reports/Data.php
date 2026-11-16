@@ -213,7 +213,7 @@ final class Data {
 			}
 		}
 		foreach ( $dims as $d => $buckets ) {
-			if ( 'day' === $d ) { ksort( $buckets ); } else { uasort( $buckets, static function ( $a, $b ) { return strcmp( $a['label'], $b['label'] ); } ); }
+			if ( 'day' === $d ) { ksort( $buckets ); } else { uasort( $buckets, static function ( $a, $b ) { return \PassCaptain\Localization::compare( $a['label'], $b['label'] ); } ); } // A520: site-language order (Localization::compare).
 			$dims[ $d ] = $buckets;
 		}
 		ksort( $rates );
