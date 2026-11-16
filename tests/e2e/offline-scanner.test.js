@@ -103,6 +103,8 @@ test('pair, load the signed package, scan offline into the IndexedDB queue, sync
 	assert.equal(log[0].mode, 'offline');
 	assert.equal(log[0].code, door.codes[0], 'code kept until uploaded');
 	assert.ok(log[0].key);
+	// The counter is re-rendered after the IndexedDB write; Firefox can paint it a moment later.
+	await p.waitForFunction(() => /^1\b/.test(document.getElementById('pending').textContent.trim()), null, { timeout: 5000 });
 	assert.match(await p.locator('#pending').innerText(), /1/);
 	assert.equal(helper('ticket', door.codes[0]).checkins, 0, 'server does not know the scan yet');
 
