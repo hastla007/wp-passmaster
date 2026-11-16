@@ -24,6 +24,7 @@ if ( ! function_exists( 'wp_timezone_string' ) ) { function wp_timezone_string()
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $single = false ) { return $GLOBALS['p1u_user_meta'][ $u ][ $k ] ?? ''; } }
 if ( ! function_exists( 'update_user_meta' ) ) { function update_user_meta( $u, $k, $v ) { $GLOBALS['p1u_user_meta'][ $u ][ $k ] = $v; return true; } }
 if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id = 0 ) { return 'https://example.test/?page_id=' . (int) $id; } }
+if ( ! function_exists( 'get_user_locale' ) ) { function get_user_locale( $u = 0 ) { return 'de_DE'; } }
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['wpcap_test_transients'][ $k ] ); return true; } }
 if ( ! function_exists( 'wp_die' ) ) { function wp_die( $m = '', $t = '', $a = array() ) { throw new RuntimeException( 'wp_die: ' . $m ); } }
 if ( ! function_exists( 'check_admin_referer' ) ) { function check_admin_referer( $a = -1, $q = '_wpnonce' ) { $GLOBALS['wpcap_test_nonce_checks'][] = $a; return 1; } }

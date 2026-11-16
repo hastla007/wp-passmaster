@@ -21,6 +21,12 @@ final class GettingStarted {
 	/** Only site administrators see the checklist (payments, legal texts and seller data are theirs). */
 	const CAP = 'manage_options';
 	const ACTION = 'wpcap_getting_started';
+	/** admin-post action: creates a draft page with the events shortcode (A292). */
+	const PAGE_ACTION = 'wpcap_create_sales_page';
+	/** Shortcode of the sales page (events with ticket selection and checkout). */
+	const SALES_SHORTCODE = '[wpcap_events]';
+	/** Transient caching the published pages with the sales/scanner shortcode or block. */
+	const PAGES_CACHE = 'wpcap_getting_started_pages';
 
 	/**
 	 * Current state of the installation: payment setup, legal/seller texts and counts from one query.
@@ -56,10 +62,40 @@ final class GettingStarted {
 			'seller'              => '' !== trim( (string) Settings::get( 'seller_name' ) ) && '' !== trim( (string) Settings::get( 'seller_address' ) ),
 		);
 		$state['legal_texts'] = $state['terms_text'] && $state['consumer_info_text'];
+		$state += self::frontend_pages();
 		foreach ( array( 'events', 'published_events', 'upcoming_occurrences', 'ticket_types', 'devices', 'paid_orders' ) as $key ) {
 			$state[ $key ] = (int) ( $counts[ $key ] ?? 0 );
 		}
 		return $state;
+	}
+
+	/**
+	 * Published pages/posts that sell tickets (events shortcode or block, also the calendar) and
+	 * that hold the web scanner (A292). Cached for ten minutes; creating a page drops the cache.
+	 *
+	 * @return array sales_page_id, scanner_page_id (0 = none).
+	 */
+	public static function frontend_pages() {
+		global $wpdb;
+		$none = array( 'sales_page_id' => 0, 'scanner_page_id' => 0 );
+		if ( empty( $wpdb->posts ) ) { return $none; }
+		$cached = get_transient( self::PAGES_CACHE );
+		if ( is_array( $cached ) && isset( $cached['sales_page_id'], $cached['scanner_page_id'] ) ) { return array_map( 'intval', $cached ); }
+		$like = static function ( $needle ) use ( $wpdb ) { return '%' . $wpdb->esc_like( $needle ) . '%'; };
+		$sales = array( '[wpcap_events', '[wp_pass_captain_events', '<!-- wp:wp-pass-captain/events', '[wpcap_calendar', '[wp_pass_captain_calendar', '<!-- wp:wp-pass-captain/calendar' );
+		$scanner = array( '[wpcap_scanner', '[wp_pass_captain_scanner' );
+		$sales_sql = implode( ' OR ', array_fill( 0, count( $sales ), 'post_content LIKE %s' ) );
+		$scanner_sql = implode( ' OR ', array_fill( 0, count( $scanner ), 'post_content LIKE %s' ) );
+		$row = $wpdb->get_row( $wpdb->prepare(
+			"SELECT MIN(CASE WHEN {$sales_sql} THEN ID END) AS sales_page_id, MIN(CASE WHEN {$scanner_sql} THEN ID END) AS scanner_page_id FROM {$wpdb->posts} WHERE post_status='publish' AND post_type IN ('page','post')", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder lists built above.
+			...array_merge( array_map( $like, $sales ), array_map( $like, $scanner ) )
+		) );
+		$pages = array(
+			'sales_page_id' => $row ? (int) $row->sales_page_id : 0,
+			'scanner_page_id' => $row ? (int) $row->scanner_page_id : 0,
+		);
+		set_transient( self::PAGES_CACHE, $pages, 10 * MINUTE_IN_SECONDS );
+		return $pages;
 	}
 
 	/** An enabled online gateway (not "manual") with complete credentials for one of the shop currencies. */
@@ -153,10 +189,19 @@ final class GettingStarted {
 				'url' => $events,
 			),
 			array(
+				'key' => 'sales_page',
+				'label' => __( 'Verkaufsseite anlegen', 'pass-captain' ),
+				/* translators: %s: shortcode */
+				'description' => sprintf( __( 'Eine veröffentlichte Seite mit dem Shortcode %s oder dem Block „Pass Captain Events“ – dort wählen Besucher Tickets und bezahlen.', 'pass-captain' ), self::SALES_SHORTCODE ),
+				'done' => ! empty( $state['sales_page_id'] ),
+				'url' => '',
+				'view_url' => ! empty( $state['sales_page_id'] ) && function_exists( 'get_permalink' ) ? (string) get_permalink( (int) $state['sales_page_id'] ) : '',
+			),
+			array(
 				'key' => 'scanner',
-				'label' => __( 'Scanner-Gerät koppeln', 'pass-captain' ),
-				'description' => __( 'Ein Smartphone für den Einlass mit der Scanner-App koppeln.', 'pass-captain' ),
-				'done' => ! empty( $state['devices'] ),
+				'label' => __( 'Einlass vorbereiten', 'pass-captain' ),
+				'description' => __( 'Ein Smartphone mit der Scanner-App koppeln oder den Web-Scanner nutzen: Shortcode [wpcap_scanner] auf einer Seite für das Einlasspersonal bzw. den Offline-Scanner als installierbare Web-App (Links unter „Scanner-Geräte“).', 'pass-captain' ),
+				'done' => ! empty( $state['devices'] ) || ! empty( $state['scanner_page_id'] ),
 				'url' => Forms::page_url( DevicesPage::SLUG ),
 			),
 			array(
@@ -170,7 +215,7 @@ final class GettingStarted {
 		/**
 		 * Steps of the "Erste Schritte" checklist; modules add or adjust steps (derive "done" from data).
 		 *
-		 * @param array[] $items Steps (key, label, description, done, url).
+		 * @param array[] $items Steps (key, label, description, done, url; optional view_url: "Auf Website ansehen" link of a done step).
 		 * @param array   $state Result of GettingStarted::state().
 		 */
 		$items = (array) apply_filters( 'wpcap_getting_started_items', $items, $state );
@@ -183,6 +228,7 @@ final class GettingStarted {
 				'description' => (string) ( $item['description'] ?? '' ),
 				'done' => ! empty( $item['done'] ),
 				'url' => (string) ( $item['url'] ?? '' ),
+				'view_url' => (string) ( $item['view_url'] ?? '' ),
 			);
 		}
 		return $out;
@@ -238,7 +284,11 @@ final class GettingStarted {
 		echo '<h2 id="wpcap-getting-started-title">' . esc_html__( 'Erste Schritte', 'pass-captain' ) . '</h2>';
 		/* translators: 1: completed steps, 2: all steps */
 		$progress = sprintf( __( '%1$d von %2$d Schritten erledigt', 'pass-captain' ), $done, $total );
-		echo '<p id="wpcap-getting-started-progress">' . esc_html( $progress ) . ( $done === $total ? ' – ' . esc_html__( 'alles bereit für den Verkauf.', 'pass-captain' ) : '' ) . '</p>';
+		$view = '';
+		foreach ( $items as $item ) {
+			if ( 'sales_page' === $item['key'] ) { $view = $item['view_url']; }
+		}
+		echo '<p id="wpcap-getting-started-progress">' . esc_html( $progress ) . ( $done === $total ? ' – ' . esc_html__( 'alles bereit für den Verkauf.', 'pass-captain' ) . ( '' !== $view ? ' <a href="' . esc_url( $view ) . '">' . esc_html__( 'Verkaufsseite ansehen', 'pass-captain' ) . '</a>' : '' ) : '' ) . '</p>';
 		echo '<progress max="' . (int) $total . '" value="' . (int) $done . '" aria-labelledby="wpcap-getting-started-progress" style="width:100%;max-width:420px"></progress>';
 		echo '<ol class="wpcap-getting-started-list" style="list-style:none;margin:12px 0 0;padding:0">';
 		foreach ( $items as $item ) {
@@ -252,7 +302,16 @@ final class GettingStarted {
 			} else {
 				echo '<strong>' . esc_html( $item['label'] ) . '</strong>';
 			}
+			if ( $item['done'] && '' !== $item['view_url'] ) {
+				echo ' <a href="' . esc_url( $item['view_url'] ) . '">' . esc_html__( 'Auf Website ansehen', 'pass-captain' ) . '</a>';
+			}
 			if ( '' !== $item['description'] ) { echo '<br><span class="description">' . esc_html( $item['description'] ) . '</span>'; }
+			if ( 'sales_page' === $item['key'] && ! $item['done'] ) {
+				Forms::open_form( self::PAGE_ACTION, null, 'style="margin:4px 0 0"' );
+				echo '<button type="submit" class="button button-secondary">' . esc_html__( 'Verkaufsseite als Entwurf anlegen', 'pass-captain' ) . '</button> ';
+				/* translators: %s: shortcode */
+				echo '<span class="description">' . esc_html( sprintf( __( 'oder %s in eine bestehende Seite einfügen', 'pass-captain' ), self::SALES_SHORTCODE ) ) . '</span></form>';
+			}
 			echo '</span></li>';
 		}
 		echo '</ol>';
@@ -277,6 +336,38 @@ final class GettingStarted {
 		$mode = Forms::choice( $in, 'mode', array( 'hide', 'show' ), 'hide' );
 		update_user_meta( get_current_user_id(), self::META, 'hide' === $mode ? 1 : 0 );
 		return true;
+	}
+
+	/**
+	 * Creates a draft page "Tickets" with the events shortcode (A292). A draft, so the administrator
+	 * checks title and position in the menu before it goes live.
+	 *
+	 * @return array|\WP_Error page_id, edit_url.
+	 */
+	public static function create_sales_page() {
+		if ( ! current_user_can( self::CAP ) || ! current_user_can( 'publish_pages' ) ) { return Forms::forbidden(); }
+		$page_id = wp_insert_post(
+			array(
+				'post_type' => 'page',
+				'post_status' => 'draft',
+				'post_title' => __( 'Tickets', 'pass-captain' ),
+				'post_content' => "<!-- wp:shortcode -->\n" . self::SALES_SHORTCODE . "\n<!-- /wp:shortcode -->",
+			),
+			true
+		);
+		if ( is_wp_error( $page_id ) || ! $page_id ) {
+			return Forms::error( 'wpcap_sales_page', __( 'Die Seite konnte nicht angelegt werden.', 'pass-captain' ), 500 );
+		}
+		delete_transient( self::PAGES_CACHE );
+		$edit = function_exists( 'get_edit_post_link' ) ? (string) get_edit_post_link( (int) $page_id, 'raw' ) : '';
+		return array( 'page_id' => (int) $page_id, 'edit_url' => '' !== $edit ? $edit : admin_url( 'post.php?post=' . (int) $page_id . '&action=edit' ) );
+	}
+
+	/** admin-post handler: creates the draft and opens it in the editor. */
+	public static function handle_create_sales_page() {
+		Forms::verify( self::PAGE_ACTION );
+		$result = self::create_sales_page();
+		Forms::finish( $result, __( 'Seite „Tickets“ als Entwurf angelegt. Prüfen und veröffentlichen – danach ist der Schritt „Verkaufsseite anlegen“ erledigt.', 'pass-captain' ), is_array( $result ) ? $result['edit_url'] : '', Forms::page_url( EventsPage::SLUG ) );
 	}
 
 	/** admin-post handler. */

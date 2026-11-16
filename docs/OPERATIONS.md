@@ -341,6 +341,28 @@ Einstellungen unter **Pass Captain → SMS**; Tabellen `wpcap_sms_consents`, `wp
 - **Zustellstatus**: Twilio meldet an `/wp-json/pass-captain/v1/sms/twilio/status` (geprüft mit `X-Twilio-Signature`). Der generische HTTP-Anbieter meldet an `/sms/http/status` (JSON oder Formular; Felder `reference` = `wpcap-sms-{id}` oder `id`/`message_id`, `status`, optional `error_code`, `price`, `currency`). Er muss den Rohinhalt mit dem „Signaturschlüssel für Rückmeldungen“ (`sms_http_webhook_secret`) per HMAC-SHA256 signieren und die Signatur (hex oder Base64, optional `sha256=`) im Header `X-Signature` (einstellbar) senden; ohne Schlüssel lehnt der Endpunkt jede Meldung ab (403). Endgültige Zustände werden nicht auf `sent` zurückgestuft.
 - **Einwilligung und Abmeldung**: Jede Einwilligung speichert Nummer, Zweck, Textversion, Quelle (`source`, im Checkout `checkout`) und Zeitpunkt; ein Widerruf Zeitpunkt und Quelle (`withdrawn_source`: `admin`, `inbound_stop`, `privacy_erasure` …). Eine eingehende SMS mit STOP (auch STOPP, ABMELDEN, ENDE, UNSUBSCRIBE …) über Twilio (`/sms/twilio/inbound`) oder den HTTP-Anbieter (`/sms/http/inbound`, Felder `from`, `text`, gleiche Signatur) widerruft alle Einwilligungen der Nummer, löscht die Nummer und setzt sie als SHA-256-Hash auf die Sperrliste `wpcap_sms_optouts`. Neue Einwilligungen für diese Nummer lehnt der Checkout ab (`sms_opted_out`), bis sie START (UNSTOP, ANMELDEN) sendet; alte Einwilligungen leben dadurch nicht wieder auf.
 
+## Einrichtung: Checkliste „Erste Schritte“ (A088, A289–A292)
+
+Die Eventliste zeigt Administratoren eine Checkliste, deren Schritte allein aus den gespeicherten Daten
+abgeleitet werden (`Admin\GettingStarted`; Filter `wpcap_getting_started_items`). Offene Schritte
+verlinken direkt auf den passenden Einstellungs-Reiter (`?tab=payments|legal|invoices`, bei aktivierter,
+aber unvollständiger Überweisung auf deren Unterbereich).
+
+- **Zahlungsart einrichten**: eine aktivierte Online-Zahlungsart mit vollständigen Zugangsdaten, eine
+  konfigurierte Überweisung oder WooCommerce **mit mindestens einem veröffentlichten Produkt, das mit einer
+  aktiven Ticketkategorie verknüpft ist** (ein aktives WooCommerce allein verkauft keine Tickets).
+- **Rechtstexte hinterlegen**: AGB/Teilnahmebedingungen und Verbraucherinformationen **und** „Zustimmung im
+  Checkout verlangen“. Ohne diese Option zeigt der Checkout die AGB nicht an. Ist die Zustimmung aktiv, der
+  AGB-Text der Standardsprache aber leer, warnen Checkliste, Reiter „Rechtstexte“ und das Speichern.
+- **Verkaufsseite anlegen**: eine veröffentlichte Seite oder ein Beitrag mit `[wpcap_events]`
+  (`[wp_pass_captain_events]`), dem Block „Pass Captain Events“ oder dem Kalender. „Verkaufsseite als Entwurf
+  anlegen“ erzeugt die Seite „Tickets“ mit dem Shortcode und öffnet sie im Editor; erst nach dem
+  Veröffentlichen ist der Schritt erledigt. Erledigt verlinkt er „Auf Website ansehen“; „alles bereit für den
+  Verkauf“ erscheint nur mit Verkaufsseite. Die Seitenerkennung wird zehn Minuten zwischengespeichert.
+- **Einlass vorbereiten**: ein gekoppeltes Scanner-Gerät oder eine veröffentlichte Seite mit
+  `[wpcap_scanner]`. Unter **Scanner-Geräte → Ohne App scannen** stehen Web-Scanner (Shortcode) und, mit dem
+  Modul Offline-Scanner, der Link zur installierbaren Web-App.
+
 ## Überweisung (manuelle Zahlung) einrichten (A265)
 
 Die Zahlungsart „Überweisung“ (`manual`) ist bei neuen Installationen **nicht** aktiviert. Sie wird im
