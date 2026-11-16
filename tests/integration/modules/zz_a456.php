@@ -92,7 +92,7 @@ PublicEvents::rest_live( $a456_req );
 $a456_limited = PublicEvents::rest_live( $a456_req );
 remove_filter( 'wpcap_checkout_live_limit', $a456_limit );
 check( 'A456: rate-limited per client (wpcap_checkout_live_limit) with 429', is_wp_error( $a456_limited ) && 429 === ( $a456_limited->get_error_data()['status'] ?? 0 ) );
-check( 'A456: the checkout script gets the live and options URLs', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/PublicEvents.php' ), "'liveUrl' => esc_url_raw( rest_url( 'pass-captain/v1/checkout/live' ) )" ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' ), 'function refreshLive()' ) );
+check( 'A456: the checkout script gets the live and options URLs', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/PublicEvents.php' ), "'liveUrl' => esc_url_raw( rest_url( 'pass-captain/v1/checkout/live' ) )" ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' ), 'function refreshLive(' ) ); // A500: refreshLive(only) for forms added later.
 
 update_option( Settings::OPTION, $a456_saved );
 $wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'cancelled' ), array( 'occurrence_id' => $a456_occ ) );
