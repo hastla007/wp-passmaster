@@ -1139,6 +1139,8 @@ Die Blöcke `wp-pass-captain/events` und `wp-pass-captain/calendar` behalten ihr
 
 - **Event- und Terminauswahl im Events-Block (A453):** Die Auswahl listet je veröffentlichtem Event mit kommenden Terminen einen Eintrag (bis 1.000 Events, nach nächstem Termin sortiert) und je Event die nächsten 100 Termine (`PublicEvents::BLOCK_CHOICE_EVENTS`/`BLOCK_CHOICE_DATES`); ein Event mit sehr vielen Terminen verdrängt keine anderen Events mehr. Bei gekürzter Terminliste nennt die Seitenleiste „Angezeigt werden die nächsten X von Y Terminen“. Ist das gespeicherte Event nicht mehr in der Liste (Entwurf, keine kommenden Termine), zeigt die Auswahl „Event #X (nicht mehr verfügbar)“ statt still „Alle Events“; ebenso „Termin #X (nicht mehr verfügbar)“ bzw. „Termin #X“ (wenn die Terminliste gekürzt ist). Die Website zeigt für ein solches Event weiterhin „Aktuell sind keine Veranstaltungen verfügbar.“
 
+- **Cache-Busting der Editor-Skripte (A454):** Die Version der Editor-Skripte ist der Inhalts-Hash der Datei; nach einem Plugin-Update lädt der Editor das neue Skript statt einer zwischengespeicherten alten Fassung (siehe [RELEASE.md](RELEASE.md)).
+
 ## Servicebuchungen (Ressourcen, Zeitfenster, Leistungserbringer)
 
 Service-Zeitfenster (Bootsschule, Werkstatt, Beratung) werden unter **Events → Service-Zeitfenster** je Event verwaltet; Kund:innen buchen sie auf einer Seite mit dem Shortcode `[wpcap_service_booking]` bzw. dem Block „Pass Captain Terminbuchung“ (siehe unten) oder direkt über die REST-API (`POST /service-slots/{slot_id}/bookings`).
