@@ -26,7 +26,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return esc_attr
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r; } }
 if ( ! function_exists( 'get_block_wrapper_attributes' ) ) { function get_block_wrapper_attributes( $extra = array() ) { return 'class="wp-block-pass-captain-service-booking alignwide ' . esc_attr( $extra['class'] ?? '' ) . '"'; } }
-if ( ! function_exists( 'get_post' ) ) { function get_post( $id ) { return $GLOBALS['wpcap_test_posts'][ is_object( $id ) ? $id->ID : (int) $id ] ?? null; } }
+if ( ! function_exists( 'get_post' ) ) { function get_post( $id = null ) { if ( null === $id ) { return $GLOBALS['wpcap_test_post'] ?? null; } return $GLOBALS['wpcap_test_posts'][ is_object( $id ) ? $id->ID : (int) $id ] ?? null; } } // WP: no argument = the current post.
 if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $post = 0 ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return $id ? 'https://example.test/?page_id=' . $id : home_url( '/' ); } } // Same form as the stand-ins of other test files (whichever loads first).
 if ( ! function_exists( 'get_the_ID' ) ) { function get_the_ID() { return (int) ( $GLOBALS['wpcap_test_the_id'] ?? 0 ); } }
 
