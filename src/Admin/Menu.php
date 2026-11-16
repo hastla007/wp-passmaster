@@ -410,7 +410,7 @@ final class Menu {
 	 * callback (null = plain link), declared area]. Module pages may declare their area as 5th element.
 	 */
 	public static function entries() {
-		$pending = current_user_can( Refunds::APPROVE_CAP ) ? count( Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) ) ) : 0;
+		$pending = current_user_can( Refunds::APPROVE_CAP ) ? Queries::pending_refunds_count( Queries::event_ids_for( OrdersPage::CAP ) ) : 0;
 		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		// A337: paid orders without tickets waiting for a decision.
 		$review = current_user_can( OrdersPage::CAP ) ? Queries::needs_review_count( Queries::event_ids_for( OrdersPage::CAP ) ) : 0;

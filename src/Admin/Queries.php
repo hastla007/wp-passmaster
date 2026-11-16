@@ -767,11 +767,31 @@ final class Queries {
 		return array_values( array_unique( array_map( 'sanitize_key', (array) apply_filters( 'wpcap_checkin_log_results', \PassCaptain\Checkin::LOG_RESULTS ) ) ) );
 	}
 
+	/** Event scope of the pending-refund queries ('' = all events). */
+	private static function pending_refund_scope( $event_ids ) {
+		return self::order_scope_sql( $event_ids, 'r.order_id' ); // A650: only orders entirely in scope.
+	}
+
+	/**
+	 * Number of refunds waiting for approval, for the menu badge on every admin page (A369): one
+	 * COUNT(*) on the status index (KEY status_updated) instead of loading up to 200 rows with
+	 * order data and event names. Same rows as pending_refunds(), capped at 200 like the list.
+	 *
+	 * @param int[]|null $event_ids Event scope (null = all).
+	 */
+	public static function pending_refunds_count( $event_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$scope = self::pending_refund_scope( $event_ids );
+		if ( ' AND 1=0' === $scope ) { return 0; }
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT r.refund_id FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='pending_approval'{$scope} LIMIT 200) pending" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope.
+	}
+
 	/** Refunds waiting for approval (scoped by the order's events). */
 	public static function pending_refunds( $event_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$scope = self::order_scope_sql( $event_ids, 'r.order_id' ); // A650: only orders entirely in scope.
+		$scope = self::pending_refund_scope( $event_ids );
 		return $wpdb->get_results( "SELECT r.*,ord.public_id AS order_public_id,ord.customer_email,ord.payment_provider,(SELECT GROUP_CONCAT(DISTINCT e.name SEPARATOR ', ') FROM {$p}wpcap_order_items ei INNER JOIN {$p}wpcap_ticket_types et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN {$p}wpcap_occurrences eo ON eo.occurrence_id=et.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=eo.event_id WHERE ei.order_id=r.order_id) AS event_names FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='pending_approval'{$scope} ORDER BY r.created_at, r.refund_id LIMIT 200" );
 	}
 }
