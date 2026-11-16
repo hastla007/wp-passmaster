@@ -1182,6 +1182,12 @@ Wiederholungsjob (`ticket_mail_retry`, Payload `{"order_id":…,"skip_transferre
 Bestellportal, WooCommerce-Bestellaktion und der Voucher-Captain-Neuversand nehmen übertragene Tickets
 ebenfalls aus.
 
+**Doppelklick (A533):** Das Formular trägt einen Formularschlüssel (`request_key`). Er wird unter der Zeilensperre
+der Bestellung geprüft und als Audit-Eintrag `tickets_resend_request` vermerkt; ein zweites Absenden desselben
+Formulars (Doppelklick, erneutes Senden der Seite) ändert nichts und meldet `wpcap_resend_duplicate` – die Codes
+der ersten Mail bleiben gültig. Ein fehlgeschlagener Versuch verbraucht den Schlüssel nicht; ein neu geladenes
+Formular sendet erneut.
+
 **Zustellung und Wiederherstellung (A588):** Die Codes der ersten Ticketmail werden beim Versand verschlüsselt
 gespeichert. Meldet `wp_mail()` einen Fehler, plant Pass Captain `ticket_mail_retry` (Audit
 `ticket_mail_failed`); der Wiederholungsjob sendet **dieselben** gespeicherten Codes (kein neuer Code, auch nach

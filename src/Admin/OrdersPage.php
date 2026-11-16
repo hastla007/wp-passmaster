@@ -171,7 +171,10 @@ final class OrdersPage {
 		if ( ! $all && $counts['valid'] > 0 && $counts['valid'] === $counts['transferred'] ) {
 			return Forms::error( 'wpcap_resend_only_transferred', __( 'Alle gültigen Tickets dieser Bestellung wurden an andere Personen übertragen und behalten ihren Code. Um sie trotzdem neu auszustellen, „Auch übertragene Tickets“ wählen oder einzelne Tickets unter „Tickets“ neu ausstellen.', 'pass-captain' ), 409 );
 		}
-		$result = Orders::resend_tickets( $order->order_id, ( $all ? array() : array( 'skip_transferred' => true ) ) + ( $keep_codes ? array( 'keep_codes' => true ) : array() ) );
+		// A533: the form key makes a double submit harmless (one resend per key and order).
+		$request_key = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $in['request_key'] ?? '' ) );
+		$request = strlen( $request_key ) >= 16 && strlen( $request_key ) <= 64 ? array( 'request_key' => $request_key ) : array();
+		$result = Orders::resend_tickets( $order->order_id, ( $all ? array() : array( 'skip_transferred' => true ) ) + ( $keep_codes ? array( 'keep_codes' => true ) : array() ) + $request );
 		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
 		$kept = $all ? 0 : $counts['transferred'];
 		return array( 'order_id' => (int) $order->order_id, 'sent' => $counts['valid'] - $kept, 'kept' => $kept, 'codes' => $keep_codes ? 'keep' : 'new' );
@@ -916,6 +919,7 @@ final class OrdersPage {
 		$id = 'wpcap-resend-' . (int) $order->order_id;
 		Forms::open_form( 'wpcap_resend_tickets', 'wpcap_resend_tickets_' . $order->order_id, 'class="wpcap-resend-form"' );
 		Forms::hidden( 'order_id', $order->order_id );
+		Forms::hidden( 'request_key', wp_generate_uuid4() ); // A533: a double click resends (and rotates) once.
 		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</legend>';
 		echo '<p class="description" id="' . esc_attr( $id . '-help' ) . '">' . esc_html__( 'Zugestellt nicht angekommen? „Gespeicherte Codes erneut senden“ verschickt dieselben Codes noch einmal – nichts wird ungültig. „Neue Codes“ macht bisher gesendete Codes und Ausdrucke dieser Tickets ungültig (z. B. wenn ein Code weitergegeben wurde).', 'pass-captain' ) . '</p>';
 		echo '<p><label><input type="radio" name="codes" value="keep" checked> ' . esc_html__( 'Gespeicherte Codes erneut senden (Tickets ohne gespeicherten Code erhalten einen neuen)', 'pass-captain' ) . '</label><br>';

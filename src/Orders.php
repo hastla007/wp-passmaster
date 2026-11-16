@@ -2755,6 +2755,26 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'pass-captain' ) );
 		}
+		$request_key = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $args['request_key'] ?? '' ) );
+		if ( '' !== $request_key ) {
+			// A533: one resend per form submission. Checked and recorded under the order lock, so a double
+			// click (two requests) cannot rotate the codes twice; the marker rolls back with a failed resend.
+			$marker = hash( 'sha256', 'resend|' . $order_id . '|' . $request_key );
+			$seen = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE object_type='order' AND object_id=%d AND action='tickets_resend_request' AND details LIKE %s", $order_id, '%' . $wpdb->esc_like( $marker ) . '%' ) );
+			if ( null === $seen || '' !== $wpdb->last_error ) {
+				$wpdb->query( 'ROLLBACK' );
+				return Errors::busy( __( 'Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen.', 'pass-captain' ) );
+			}
+			if ( (int) $seen > 0 ) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \WP_Error( 'wpcap_resend_duplicate', __( 'Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden.', 'pass-captain' ), array( 'status' => 409 ) );
+			}
+			Audit::record( 'tickets_resend_request', 'order', $order_id, array( 'request' => $marker ) );
+			if ( '' !== $wpdb->last_error ) {
+				$wpdb->query( 'ROLLBACK' );
+				return Errors::busy( __( 'Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen.', 'pass-captain' ) );
+			}
+		}
 		$tickets = $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid'" . ( empty( $args['skip_transferred'] ) ? '' : ' AND t.transfer_count=0' ) . " ORDER BY t.ticket_id FOR UPDATE",
 			$order_id
