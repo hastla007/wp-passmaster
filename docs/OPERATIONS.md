@@ -451,6 +451,17 @@ Gefundener und behobener Fehler: Nach einem Rollback schreibt der ältere Code s
 
 Regeln für den Betrieb:
 
+- **Zugangsdaten vor einem Rollback auf eine Version ohne verschlüsselten Speicher (bis 1.4.0, A463):** Diese
+  Versionen lesen Zahlungs-, SMS- und Wallet-Zugangsdaten nur aus Konstanten `WPCAP_<NAME>`, Umgebungsvariablen
+  oder Klartext in `wpcap_settings` – den verschlüsselten Speicher kennen sie nicht. Ohne Vorbereitung gelten
+  nach dem Rollback alle Zahlungsarten als nicht eingerichtet. Vorher `wp pass-captain secrets rollback-config`
+  ausführen (fragt nach, `--yes` überspringt die Frage; Audit-Eintrag `secrets_exported_for_rollback` nur mit
+  Namen): Es gibt die gespeicherten Werte als `define()`-Zeilen für `wp-config.php` aus. Die Ausgabe enthält
+  Klartext – nicht weitergeben, Terminal-Verlauf beachten. Beide Versionen lesen die Konstanten zuerst. Nach dem
+  erneuten Update die Zeilen wieder entfernen; der verschlüsselte Speicher bleibt unverändert. Ohne WP-CLI: die
+  Zugangsdaten nach dem Rollback in den Einstellungen der alten Version neu eingeben – beim erneuten Update
+  werden sie automatisch wieder verschlüsselt übernommen. Ein dauerhafter Klartext-Fallback in der Datenbank ist
+  bewusst nicht eingebaut.
 - **Kontingentzähler nach einem Rollback:** werden beim erneuten Update automatisch neu aufgebaut (siehe
   „Kontingentzähler“, A464); bis zur Prüfung ist der Checkout langsamer.
 - **Geänderte Standardwerte:** Ein neuer Standardwert, der das Verhalten bestehender Seiten ändern würde, gilt

@@ -58,6 +58,62 @@ final class Secrets {
 	public static function register() {
 		add_action( 'admin_notices', array( __CLASS__, 'admin_notice' ) );
 		add_filter( 'debug_information', array( __CLASS__, 'debug_information' ) );
+		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
+			\WP_CLI::add_command( 'pass-captain secrets rollback-config', array( __CLASS__, 'cli_rollback_config' ) );
+		}
+	}
+
+	/* ---------------------------------------------------------------------------------------------
+	 * Rollback to plugin versions without the vault (A463)
+	 * ------------------------------------------------------------------------------------------- */
+
+	/**
+	 * wp-config.php lines that keep the stored secrets working under plugin code without the vault.
+	 *
+	 * Releases up to 1.4.0 read provider secrets only from constants (WPCAP_<NAME>), environment
+	 * variables or plaintext in `wpcap_settings`; the vault is unknown to them. After a code rollback
+	 * every payment method, SMS and wallet service would count as not configured. The constants work in
+	 * both versions (constant > environment > stored value), so they are the safe bridge: set them
+	 * before the rollback, remove them after rolling forward. Values already provided by a constant
+	 * or environment variable are skipped. Plaintext is never written back to the database.
+	 *
+	 * @return array{lines: array<string,string>, undecryptable: string[]} lines by setting name.
+	 */
+	public static function rollback_constants() {
+		$lines = array();
+		$failed = array();
+		foreach ( self::KEYS as $key ) {
+			$source = self::source( $key );
+			if ( 'undecryptable' === $source ) { $failed[] = $key; }
+			if ( 'vault' !== $source ) { continue; }
+			$value = self::stored( $key );
+			if ( ! is_string( $value ) || '' === $value ) { continue; }
+			$lines[ $key ] = "define( '" . 'WPCAP_' . strtoupper( $key ) . "', " . var_export( $value, true ) . ' );'; // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export -- PHP source for wp-config.php.
+		}
+		return array( 'lines' => $lines, 'undecryptable' => $failed );
+	}
+
+	/**
+	 * `wp pass-captain secrets rollback-config [--yes]`: prints the define() lines of rollback_constants()
+	 * for wp-config.php (stdout only; notes go to stderr). Audited with the names, never the values.
+	 *
+	 * @param array $args  Positional arguments (unused).
+	 * @param array $assoc --yes skips the confirmation.
+	 */
+	public static function cli_rollback_config( $args = array(), $assoc = array() ) {
+		\WP_CLI::confirm( 'This prints provider secrets in plaintext (for wp-config.php before a rollback to a release without the encrypted store). Continue?', $assoc );
+		$result = self::rollback_constants();
+		foreach ( $result['undecryptable'] as $key ) {
+			\WP_CLI::warning( "$key cannot be decrypted with the configured key and is not exported." );
+		}
+		if ( ! $result['lines'] ) {
+			\WP_CLI::warning( 'No secrets stored in the encrypted store: nothing to export.' );
+			return;
+		}
+		Audit::record( 'secrets_exported_for_rollback', 'settings', 0, array( 'keys' => array_keys( $result['lines'] ) ) );
+		fwrite( STDERR, "Add these lines to wp-config.php before switching to the older plugin version; remove them after rolling forward again.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+		echo "// Pass Captain: provider secrets for a plugin rollback (remove after rolling forward).\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI output.
+		echo implode( "\n", $result['lines'] ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI output (PHP source).
 	}
 
 	public static function is_secret( $key ) {
