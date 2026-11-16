@@ -593,9 +593,9 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:1031–1078 (confirm_external_payment), OccurrenceCancellation.php:54: Nur Kontingent geprüft; Absage storniert nur pending. Termin-/Eventstatus und Ende prüfen → needs_review + Alarm; Absage auch für expired-Bestellungen (mit Skript belegt)
 - [x] **A274** [WICHTIG] Einstellung „Stripe-Modus Test/Live“ wirkungslos — _R1 Core_ (TODO L605; Audit Runde 4)
   - src/Settings.php:58, SettingsPage.php:110, StripeGateway.php: Live + sk_test_ → Tickets ohne echte Zahlung. Key-Präfix gegen Modus prüfen (Speichern, is_available), Webhook livemode abgleichen; PayPal-Sandbox-Standard; Testmodus im Admin/Checkout kennzeichnen
-- [ ] **A275** [WICHTIG] Block-Editor-Texte und block.json nie übersetzt — _R1 Core_ (TODO L606; Audit Runde 4)
+- [x] **A275** [WICHTIG] Block-Editor-Texte und block.json nie übersetzt — _R1 Core_ (TODO L606; Audit Runde 4)
   - src/blocks/*/editor.js, block.json, ci.yml (--skip-block-json): Keine wp i18n make-json, block.json-Titel nicht im Katalog. --skip-block-json entfernen, make-json im Build
-- [ ] **A276** [WICHTIG] WooCommerce zeigt Terminzeiten in Site- statt Termin-Zeitzone — _R1 Core_ (TODO L607; Audit Runde 4)
+- [x] **A276** [WICHTIG] WooCommerce zeigt Terminzeiten in Site- statt Termin-Zeitzone — _R1 Core_ (TODO L607; Audit Runde 4)
   - src/Integrations/WooCommerce/OrderAdapter.php:1068, :122: Orders::format_start($starts_at,$timezone) verwenden
 - [x] **A277** [WICHTIG] Ehemaliges Einlasspersonal behält Scanner-Zugang nach Rollenentzug — _R1 Security_ (TODO L608; Audit Runde 4)
   - src/Admin/EventsPage.php:499 (assign_staff add_cap), Mobile/Devices.php:137, Access.php:41: User-Cap wpcap_checkin + event_staff bleiben bei set_user_role/remove_user_role/delete_user. Keine User-Cap vergeben bzw. bei Rollenwechsel/Löschung Staff, Cap, Geräte widerrufen; Test
@@ -607,17 +607,17 @@ Gesamt: 262 Aufgaben.
   - src/ClientIp.php:33–63, RateLimit.php:41, Orders.php:438: Inventar-DoS durch Adressrotation (Checkout, Sitz-/Service-Holds, Warteliste, Partner-Sperre). IPv6 für Limits auf /64 normalisieren, Obergrenzen je Termin für anonyme Holds
 - [x] **A281** [WICHTIG] Ein Scanner-Account sperrt Hilfscode-Eingabe für die ganze Site — _R1 Security_ (TODO L612; Audit Runde 4)
   - src/HelpCode.php:184–186 (resolve): Site-Bucket wird vor User-Limit gezählt. Erst User/Client prüfen, Site-Bucket nur bei erlaubten Requests oder je Event
-- [ ] **A282** [WICHTIG] Mollie-API-Aufruf beim Rendern der öffentlichen Eventliste — _R1 Architektur_ (TODO L613; Audit Runde 4)
+- [x] **A282** [WICHTIG] Mollie-API-Aufruf beim Rendern der öffentlichen Eventliste — _R1 Architektur_ (TODO L613; Audit Runde 4)
   - src/Modules/Mollie.php:94–106, MollieGateway.php:155–169, :309: Synchroner wp_remote_get je Karte/Betrag, 15 s Timeout, kein Negativ-Cache. Methoden je Währung im Hintergrund laden, Fehler kurz cachen
 - [x] **A283** [WICHTIG] Ticketseite und Bestellportal ohne DONOTCACHEPAGE/nocache_headers — _R1 Architektur_ (TODO L614; Audit Runde 4)
   - src/TicketPage.php:50–53, OrderPortal.php:38–41: Seitencaches liefern alte Tickets/Portaldaten/Nonces. DONOTCACHEPAGE + nocache_headers() (auch 404-Zweig)
-- [ ] **A284** [WICHTIG] uninstall.php entfernt WooCommerce-_wpcap_*-Metadaten nicht — _R1 Architektur_ (TODO L615; Audit Runde 4)
+- [x] **A284** [WICHTIG] uninstall.php entfernt WooCommerce-_wpcap_*-Metadaten nicht — _R1 Architektur_ (TODO L615; Audit Runde 4)
   - uninstall.php:17–50, OrderAdapter.php:38–44, :721–760: Nach Neuinstallation zeigen alte WC-Bestellungen auf fremde neue Bestellungen (Storno/Erstattung falsch). Meta per CRUD löschen, Rückreferenz beim Sync prüfen
-- [ ] **A285** [WICHTIG] DB-Drop-ins mit Replikaten (HyperDB/LudicrousDB) nicht berücksichtigt — _R1 Architektur_ (TODO L616; Audit Runde 4)
+- [x] **A285** [WICHTIG] DB-Drop-ins mit Replikaten (HyperDB/LudicrousDB) nicht berücksichtigt — _R1 Architektur_ (TODO L616; Audit Runde 4)
   - src/Orders.php:1573, Communications.php:46, RateLimit.php:89 (151× FOR UPDATE): Sperren auf Replikat-Verbindung → Doppelverkauf möglich. send_reads_to_masters() vor Transaktionen, Cluster-Bedingungen dokumentieren
-- [ ] **A286** [WICHTIG] Offline-Scanner-PWA funktioniert nicht bei Assets auf CDN-Domain — _R1 Architektur_ (TODO L617; Audit Runde 4)
+- [x] **A286** [WICHTIG] Offline-Scanner-PWA funktioniert nicht bei Assets auf CDN-Domain — _R1 Architektur_ (TODO L617; Audit Runde 4)
   - src/OfflineScanner/AdminPage.php:27–30, assets/offline-scanner/app.js:187–195: PWA über eigene Route auf home_url() ausliefern
-- [ ] **A287** [WICHTIG] Netzwerkaktivierung installiert alle Sites synchron — _R1 Architektur/Release_ (TODO L618; Audit Runde 4)
+- [x] **A287** [WICHTIG] Netzwerkaktivierung installiert alle Sites synchron — _R1 Architektur/Release_ (TODO L618; Audit Runde 4)
   - src/Plugin.php:116–131 (activate), :40–46, uninstall.php:53–60: ~100 Tabellen je Site im Aktivierungs-Request → Timeout. Lazy je Site über maybe_upgrade bzw. Batches per Cron
 - [x] **A288** [WICHTIG] Verbleibende nicht-atomare Transient-Zähler (A186 unvollständig) — _R1 Architektur/Security_ (TODO L619; Audit Runde 4)
   - src/Rest/Controller.php:417 (manual_hold_limit), DeveloperKeys.php:168, ServiceBookingFlow.php:222, Partners/Keys.php:237, AffiliateCaptain/Adapter.php:144: Auf RateLimit::allow() umstellen; Developer-Key-Zähler erzeugt Option-Zeilen je Minute
@@ -645,19 +645,19 @@ Gesamt: 262 Aufgaben.
   - src/Admin/Menu.php:197–226, Modules.php:60–63: Seite „Funktionen“ (Module an/aus), schlanke Grundausstattung; Doppelungen Serien/Mollie/Scanner auflösen
 - [ ] **A300** [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) — _R1 Release_ (TODO L631; Audit Runde 4)
   - pass-captain.php:7/56, readme.txt:7/45/69, CHANGELOG.md:3: Vor Release 1.5.0 setzen; consistency.php prüft Upgrade Notice ≤ Stable tag
-- [ ] **A301** [WICHTIG] Nicht wegklickbarer Secrets-Hinweis auf allen Admin-Seiten — _R1 Release_ (TODO L632; Audit Runde 4)
+- [x] **A301** [WICHTIG] Nicht wegklickbarer Secrets-Hinweis auf allen Admin-Seiten — _R1 Release_ (TODO L632; Audit Runde 4)
   - src/Secrets.php:59, :435–437: Nur auf Plugin-Seiten/Site Health, per User-Meta wegklickbar
-- [ ] **A302** [WICHTIG] Inline-<script>/<style> per echo — _R1 Release_ (TODO L633; Audit Runde 4)
+- [x] **A302** [WICHTIG] Inline-<script>/<style> per echo — _R1 Release_ (TODO L633; Audit Runde 4)
   - src/Admin/Menu.php:88/91/263, BoxOffice/Page.php:146, Mail/Admin.php:290, OrderPortal.php:141, Exchange/Portal.php:204: wp_add_inline_script/style an registrierten Handles (PCP, CSP)
 - [ ] **A303** [WICHTIG] Präfix wp_ in Shortcodes/Hooks und Block-Namespace wp-pass-captain/* (A104 abgehakt) — _R1 Release_ (TODO L634; Audit Runde 4)
   - src/Plugin.php:73/75, Modules/Calendar.php:24, WalletPasses/Service.php:20, Vouchers/TicketService.php, block.json: pass_captain_* bzw. pass-captain/* als Hauptnamen, alte als deprecated Aliase (Blöcke mit Transform/Deprecation)
 - [ ] **A304** [WICHTIG] Deutsche Quellsprache vs. translate.wordpress.org (Entscheidung) — _R1 Release_ (TODO L635; Audit Runde 4)
   - languages/pass-captain.pot, readme.txt: Release-Blocker entscheiden: englische Quellstrings + de_DE.po, englische Readme
-- [ ] **A305** [WICHTIG] Plugin Check (PCP) nicht in CI, kein wp.org-SVN-Deploy/Assets/Screenshots — _R1 Release_ (TODO L636; Audit Runde 4)
+- [x] **A305** [WICHTIG] Plugin Check (PCP) nicht in CI, kein wp.org-SVN-Deploy/Assets/Screenshots — _R1 Release_ (TODO L636; Audit Runde 4)
   - .github/workflows/ci.yml, release.yml: PCP --checks=plugin_repo als Pflichtjob, SVN-Deploy-Workflow, .wordpress-org/ (Banner, Icon, Screenshots)
-- [ ] **A306** [WICHTIG] Mails in Käufersprache nur mit installiertem Core-Sprachpaket — _R1 Release_ (TODO L637; Audit Runde 4)
+- [x] **A306** [WICHTIG] Mails in Käufersprache nur mit installiertem Core-Sprachpaket — _R1 Release_ (TODO L637; Audit Runde 4)
   - src/Mail/Mailer.php:340–349 (switch_to_locale): Bei gescheitertem Wechsel Plugin-Katalog per load_textdomain nachladen bzw. im Admin warnen
-- [ ] **A307** [WICHTIG] Zahlungsrückkehr-Bestätigung nur über wp_body_open, kein Portal-Link — _R1 Release_ (TODO L638; Audit Runde 4)
+- [x] **A307** [WICHTIG] Zahlungsrückkehr-Bestätigung nur über wp_body_open, kein Portal-Link — _R1 Release_ (TODO L638; Audit Runde 4)
   - src/Payments/ReturnNotice.php:9, :24–29, assets/checkout.js:381: Rückfall über the_content/Shortcode-Ausgabe, sicherer Portal-Link auf der Bestätigung
 - [x] **A308** [WICHTIG] Doppelte IDs bei zwei Karten desselben Termins; Rechnungs-Schalter steuert falsche Karte — _R2 Frontend_ (TODO L639; Audit Runde 4)
   - templates/event-card.php:12/102/108, assets/checkout.js:350: Instanz-ID je Render, form.querySelector statt getElementById
