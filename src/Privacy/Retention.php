@@ -649,10 +649,11 @@ final class Retention {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now_sql = self::utc( $now );
-		// Event waitlist: sign-ups wait as `pending` (A564) and are purged by the waitlist itself once the
-		// confirmation period (confirm_hours) is over. Slot waitlist: `unconfirmed` with confirm_expires_at.
-		$count = Privacy::has_table( 'wpcap_waitlist' ) ? \PassCaptain\Waitlists::purge_unconfirmed( self::BATCH ) : 0;
-		foreach ( array( 'wpcap_service_waitlist' => 'entry_id' ) as $table => $key ) {
+		// Event waitlist (merged, A564): sign-ups wait as `pending` until confirmed; Waitlists::purge_unconfirmed()
+		// deletes those whose confirmation period (confirm_hours) ended. The query below still covers rows of the
+		// earlier `unconfirmed` state (renamed by the 3.18.0 upgrade) and the slot waitlist.
+		$count = \PassCaptain\Waitlists::purge_unconfirmed( 5000 );
+		foreach ( array( 'wpcap_waitlist' => 'waitlist_id', 'wpcap_service_waitlist' => 'entry_id' ) as $table => $key ) {
 			if ( ! Privacy::has_table( $table ) ) { continue; }
 			$count += self::loop(
 				$deadline,
@@ -800,29 +801,33 @@ final class Retention {
 		$state = is_array( $state ) ? $state : array();
 		$full = (int) ( $state['full_at'] ?? 0 ) + self::CHECKIN_STAFF_FULL_PASS <= time();
 		$from = $full ? '' : (string) ( $state['at'] ?? '' );
-		if ( '' !== $from && $from >= $cutoff ) { return 0; }
-		$cap = self::utc( min( $now, time() ) - $days * DAY_IN_SECONDS );
-		$last = '';
-		$rest = false;
-		$total = self::loop(
-			$deadline,
-			static function () use ( $wpdb, $p, $cutoff, &$from, &$last, &$rest ) {
-				$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT checkin_id,created_at FROM %i WHERE created_at>=%s AND created_at<%s AND (user_id<>0 OR device_id<>0) ORDER BY created_at,checkin_id LIMIT %d", $p . 'wpcap_checkins', '' === $from ? '1000-01-01 00:00:00' : $from, $cutoff, self::BATCH ) );
-				$last = $rows ? (string) end( $rows )->created_at : '';
-				$rest = count( $rows ) >= self::BATCH;
-				return array_map( static fn( $row ) => (int) $row->checkin_id, $rows );
-			},
-			static function ( $ids ) use ( $wpdb, $p, &$from, &$last ) {
-				$changed = (int) $wpdb->query( "UPDATE {$p}wpcap_checkins SET user_id=0,device_id=0 WHERE checkin_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				// Rows of the batch's last second may continue in the next batch: resume at that second.
-				if ( $changed && '' !== $last ) { $from = $last; }
-				return $changed;
-			}
-		);
-		// Everything before the cutoff is done unless the last batch was full (budget ran out).
-		$at = $rest ? $from : $cutoff;
-		$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? time() : (int) ( $state['full_at'] ?? 0 ) );
-		update_option( self::CHECKIN_STAFF_CURSOR, $state, false );
+		// Check-ins are walked with a cursor; the admission tables below run every time (an up-to-date cursor must not
+		// skip them).
+		$total = 0;
+		if ( '' === $from || $from < $cutoff ) {
+			$cap = self::utc( min( $now, time() ) - $days * DAY_IN_SECONDS );
+			$last = '';
+			$rest = false;
+			$total += self::loop(
+				$deadline,
+				static function () use ( $wpdb, $p, $cutoff, &$from, &$last, &$rest ) {
+					$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT checkin_id,created_at FROM %i WHERE created_at>=%s AND created_at<%s AND (user_id<>0 OR device_id<>0) ORDER BY created_at,checkin_id LIMIT %d", $p . 'wpcap_checkins', '' === $from ? '1000-01-01 00:00:00' : $from, $cutoff, self::BATCH ) );
+					$last = $rows ? (string) end( $rows )->created_at : '';
+					$rest = count( $rows ) >= self::BATCH;
+					return array_map( static fn( $row ) => (int) $row->checkin_id, $rows );
+				},
+				static function ( $ids ) use ( $wpdb, $p, &$from, &$last ) {
+					$changed = (int) $wpdb->query( "UPDATE {$p}wpcap_checkins SET user_id=0,device_id=0 WHERE checkin_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					// Rows of the batch's last second may continue in the next batch: resume at that second.
+					if ( $changed && '' !== $last ) { $from = $last; }
+					return $changed;
+				}
+			);
+			// Everything before the cutoff is done unless the last batch was full (budget ran out).
+			$at = $rest ? $from : $cutoff;
+			$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? time() : (int) ( $state['full_at'] ?? 0 ) );
+			update_option( self::CHECKIN_STAFF_CURSOR, $state, false );
+		}
 		// Admission entries and conflicts (staff user, device, resolution note) after the same period.
 		if ( Privacy::has_table( 'wpcap_admission_entries' ) ) {
 			$total += self::loop(

@@ -35,6 +35,6 @@ check( 'A495: Scope::csv – formula cells keep their apostrophe guard', "'=1+1"
 $a495_export = array( PassCaptain\Invoices::EXPORT_COLUMNS, array( 'Rechnung', 'R-1', '2026-11-16', 'abc', '', '=HYPERLINK("https://evil.example")', 1, '10.00', '20.00', '1.67', '-12.00', 'EUR', 'manual', 'Eigenhaendler', 'Größe \";=1+1;\"' ) );
 $a495_csv = PassCaptain\Invoices::export_csv( $a495_export );
 $a495_cells = a495_cells( $a495_csv )[1] ?? array();
-check( 'A495: accounting export uses the shared writer: BOM, formula guard, RFC 4180 quoting, numbers kept', 0 === strpos( $a495_csv, "\xEF\xBB\xBF" ) && 15 === count( $a495_cells ) && "'=HYPERLINK(\"https://evil.example\")" === $a495_cells[5] && '-12.00' === $a495_cells[10] && 'Größe \";=1+1;\"' === $a495_cells[14] );
+check( 'A495: accounting export uses the shared writer: BOM, formula guard, RFC 4180 quoting, numbers kept', 0 === strpos( $a495_csv, "\xEF\xBB\xBF" ) && 15 === count( $a495_cells ) && "'=HYPERLINK(\"https://evil.example\")" === $a495_cells[5] && '-12.00' === $a495_cells[10] && Scope::csv_cell( 'Größe \";=1+1;\"' ) === $a495_cells[14] ); // Merged guard: an embedded separator before = also gets the apostrophe.
 $a495_datev = PassCaptain\Invoices::export_csv( array( array( 'Umsatz', 'Buchungstext' ), array( '12,50', 'Größe =1' ) ), true );
 check( 'A495: DATEV export: Windows-1252 without BOM through the same writer', 0 !== strpos( $a495_datev, "\xEF\xBB\xBF" ) && false !== strpos( $a495_datev, "Gr\xF6\xDFe =1" ) && false !== strpos( $a495_datev, '12,50;' ) );

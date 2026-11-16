@@ -58,6 +58,8 @@ final class Assets {
 		if ( function_exists( 'wp_get_inline_script_tag' ) ) {
 			return wp_get_inline_script_tag( (string) $js, $attributes );
 		}
-		return '<script>' . $js . '</script>';
+		$attr = '';
+		foreach ( $attributes as $name => $value ) { $attr .= ' ' . sanitize_key( (string) $name ) . '="' . esc_attr( (string) $value ) . '"'; }
+		return '<script' . $attr . '>' . $js . '</script>';
 	}
 }

@@ -66,7 +66,8 @@ check( 'POS receipt auto-print via body data attribute (no onload handler)', fal
 check( 'print.js exists and contains no eval', is_readable( WPCAP_PATH . 'assets/print.js' ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'assets/print.js' ), 'eval(' ) );
 
 echo "Z4 FE-8: admin confirm dialogs via data-wpcap-confirm\n";
-check( 'admin-confirm.js is enqueued on the plugin pages (admin_styles)', false !== strpos( $z4c_src( \PassCaptain\Admin\Menu::class, 'admin_styles' ), "assets/admin-confirm.js" ) );
+// Merged Menu: admin_styles() adds the plugin page assets through plugin_page_assets().
+check( 'admin-confirm.js is enqueued on the plugin pages (admin_styles)', false !== strpos( $z4c_src( \PassCaptain\Admin\Menu::class, 'admin_styles' ) . $z4c_src( \PassCaptain\Admin\Menu::class, 'plugin_page_assets' ), "assets/admin-confirm.js" ) && ( false !== strpos( $z4c_src( \PassCaptain\Admin\Menu::class, 'admin_styles' ), "assets/admin-confirm.js" ) || false !== strpos( $z4c_src( \PassCaptain\Admin\Menu::class, 'admin_styles' ), 'plugin_page_assets()' ) ) );
 $z4c_offenders = array();
 $z4c_it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WPCAP_PATH . 'src', FilesystemIterator::SKIP_DOTS ) );
 foreach ( $z4c_it as $z4c_file ) {
@@ -74,4 +75,5 @@ foreach ( $z4c_it as $z4c_file ) {
 	if ( preg_match( '/\son(click|submit|change|load|focus|input)\s*=/i', (string) file_get_contents( $z4c_file->getPathname() ) ) ) { $z4c_offenders[] = substr( $z4c_file->getPathname(), strlen( WPCAP_PATH ) ); }
 }
 check( 'no inline event handlers left in src/' . ( $z4c_offenders ? ' – ' . implode( ', ', $z4c_offenders ) : '' ), ! $z4c_offenders );
-check( 'confirm texts are HTML-escaped data attributes (Orders, Events, Status, Webhooks)', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/OrdersPage.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/EventsPage.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/StatusPage.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Modules/Webhooks.php' ), 'data-wpcap-confirm="' ) );
+// Merged EventsPage: cancelling goes through a confirmation page (A266/A356), no confirm dialog left there.
+check( 'confirm texts are HTML-escaped data attributes (Orders, Tickets, Status, Webhooks, guest lists, exchange)', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/OrdersPage.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/TicketsPage.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/GuestLists/Page.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Exchange/AdminPage.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/StatusPage.php' ), 'data-wpcap-confirm="' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Modules/Webhooks.php' ), 'data-wpcap-confirm="' ) );

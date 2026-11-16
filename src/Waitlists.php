@@ -91,7 +91,7 @@ final class Waitlists {
 		// A565: people on the waitlist learn about a new date or location.
 		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'on_occurrence_changed' ), 30, 2 );
 		add_filter( 'wpcap_privacy_retention_steps', array( __CLASS__, 'retention_step' ), 10, 3 );
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
 	/**
@@ -108,8 +108,11 @@ final class Waitlists {
 		$p = $wpdb->prefix;
 		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
 		$end = Occurrence::end_sql( 'o' ); // A606.
+		// Merged schema: the audit line's personal manage link (manage_token_hash) ends with the entry, and an entry of
+		// an ended date no longer waits (status closed, as close_ended() sets it).
+		$manage = ServiceBookings::has_column( 'wpcap_waitlist', 'manage_token_hash' ) ? "w.manage_token_hash=''," : '';
 		$counts['waitlist'] = (int) $wpdb->query( $wpdb->prepare(
-			"UPDATE {$p}wpcap_waitlist w SET w.email='',w.email_hash=SHA2(CONCAT('deleted|',w.waitlist_id),256),w.offer_token_hash='',w.unsubscribe_token_hash='',w.updated_at=%s WHERE ( w.email<>'' OR w.unsubscribe_token_hash<>'' ) AND w.status<>'offered' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_occurrences o WHERE ( o.occurrence_id=w.occurrence_id OR ( w.occurrence_id=0 AND o.event_id=w.event_id ) ) AND $end>=%s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SQL.
+			"UPDATE {$p}wpcap_waitlist w SET w.email='',w.email_hash=SHA2(CONCAT('deleted|',w.waitlist_id),256),w.offer_token_hash='',w.unsubscribe_token_hash='',{$manage}w.status=IF(w.status IN ('waiting','pending'),'closed',w.status),w.updated_at=%s WHERE ( w.email<>'' OR w.unsubscribe_token_hash<>'' ) AND w.status<>'offered' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_occurrences o WHERE ( o.occurrence_id=w.occurrence_id OR ( w.occurrence_id=0 AND o.event_id=w.event_id ) ) AND $end>=%s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SQL.
 			gmdate( 'Y-m-d H:i:s', (int) $now ),
 			$cutoff
 		) );
@@ -168,7 +171,7 @@ final class Waitlists {
 		if ( is_wp_error( $refused ) ) { return $refused; }
 		// A644: limits after validation. The client counts every valid request; the address (anyone can
 		// type it) only counts sign-ups that send a mail, so junk requests cannot lock it out.
-		$email_bucket = 'waitlist|' . $email . '|' . $event_id;
+		$email_bucket = 'waitlist|' . strtolower( $email ) . '|' . $event_id; // Y1: one bucket per address, whatever the case.
 		// One network (IPv6 /64) is also limited across all events (audit Y1, filter wp_pass_captain_waitlist_ip_limit_v1).
 		if ( ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT
 			|| ! RateLimit::hit( 'wpcap_waitlist_ipall_' . RateLimit::hash( RateLimit::client_network() ), self::ip_limit_per_hour(), HOUR_IN_SECONDS ) ) {
@@ -381,7 +384,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		PageCache::no_store( 'waitlist_confirm' );
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		Security\PrivatePage::send(); // Token page: no cache, no framing, no indexing, no referrer (audit FE-7).
 		list( $code, $html ) = self::confirm_page( $waitlist_id, $token );
 		status_header( $code );
 		self::page_head( __( 'Wartelistenplatz bestätigen', 'pass-captain' ) );
@@ -400,6 +403,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) );
 		$result = self::confirm( $waitlist_id, $token );
 		PageCache::no_store( 'waitlist_result' );
+		Security\PrivatePage::send();
 		status_header( is_wp_error( $result ) ? (int) ( $result->get_error_data()['status'] ?? 409 ) : 200 );
 		self::page_head( __( 'Wartelistenplatz bestätigen', 'pass-captain' ) );
 		echo self::confirm_result_html( $result ) . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in confirm_result_html().
@@ -1382,7 +1386,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		PageCache::no_store( 'waitlist_unsubscribe' );
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		Security\PrivatePage::send(); // Token page: no cache, no framing, no indexing, no referrer (audit FE-7).
 		list( $code, $html ) = self::unsubscribe_page( $waitlist_id, $token );
 		status_header( $code );
 		self::page_head( __( 'Von der Warteliste austragen', 'pass-captain' ) );
@@ -1670,7 +1674,7 @@ final class Waitlists {
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || 64 !== strlen( $token ) || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		PageCache::no_store( 'waitlist_offer' );
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		Security\PrivatePage::send(); // No page cache, no framing, no indexing, no referrer (secret link, audit FE-7).
 		$row = self::open_offer( $waitlist_id, $token );
 		$busy = is_wp_error( $row );
 		$row = $busy ? null : $row;
@@ -1789,6 +1793,7 @@ final class Waitlists {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verify_form() checks the form proof (or the nonce of older pages) before anything changes.
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		$decision = sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
+		Security\PrivatePage::send(); // The answer pages carry the offer/result token (audit FE-7).
 		if ( 'pay' === $decision ) {
 			// "Jetzt bezahlen" on the result page (A317): authorised by the result key, not the offer token.
 			$key = sanitize_text_field( wp_unslash( (string) ( $_POST['wl'] ?? '' ) ) );

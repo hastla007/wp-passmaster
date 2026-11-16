@@ -44,12 +44,14 @@ final class Page {
 	}
 
 	public static function handle_archive_list() {
+		Forms::require_any_cap( array( Service::MANAGE_CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( 'wpcap_gl_archive_list' );
 		$in = Forms::post();
 		Forms::finish( Service::archive_list( Forms::int( $in, 'list_id' ) ), __( 'Gästeliste archiviert.', 'pass-captain' ), self::url( array( 'event_id' => Forms::int( $in, 'event_id' ) ) ) );
 	}
 
 	public static function handle_add_entry() {
+		Forms::require_any_cap( array( Service::MANAGE_CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( 'wpcap_gl_add_entry' );
 		$in = Forms::post();
 		$list_id = Forms::int( $in, 'list_id' );
@@ -66,6 +68,7 @@ final class Page {
 	}
 
 	public static function handle_import() {
+		Forms::require_any_cap( array( Service::MANAGE_CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( 'wpcap_gl_import' );
 		$in = Forms::post();
 		$list_id = Forms::int( $in, 'list_id' );

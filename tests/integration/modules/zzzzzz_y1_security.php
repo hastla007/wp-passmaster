@@ -160,8 +160,9 @@ foreach ( $y1_sec1 as $label => list( $rule, $expected ) ) {
 	check( "REST: cashier of event A is refused – $label ($expected, nothing stored)", is_wp_error( $res ) && $expected === y1_status( $res ) && $before === $after );
 }
 $y1_ok = Controller::issue_member_pass( y1_json( 'POST', '/wp-pass-captain/v1/member-passes', $y1_pass_body( array( array( 'ticket_type_id' => $y1_type_a, 'uses_total' => 3 ) ) ) ) );
-$y1_ok_rules = 201 === y1_status( $y1_ok ) ? Memberships::rules( $y1_ok->get_data()['pass_id'] ) : array();
-check( 'REST: own ticket type works and the event is taken from the ticket type', 201 === y1_status( $y1_ok ) && 1 === count( $y1_ok_rules ) && $y1_event_a === (int) $y1_ok_rules[0]->event_id && 'event' === $y1_ok_rules[0]->scope && 0 === (int) $y1_ok_rules[0]->resource_id );
+$y1_ok_rules = in_array( y1_status( $y1_ok ), array( 201, 202 ), true ) ? Memberships::rules( $y1_ok->get_data()['pass_id'] ) : array();
+// A481 (merged): without administrator rights the pass is requested (202, pending) and a second person approves it.
+check( 'REST: own ticket type works and the event is taken from the ticket type', in_array( y1_status( $y1_ok ), array( 201, 202 ), true ) && 1 === count( $y1_ok_rules ) && $y1_event_a === (int) $y1_ok_rules[0]->event_id && 'event' === $y1_ok_rules[0]->scope && 0 === (int) $y1_ok_rules[0]->resource_id );
 $y1_admin_any = \PassCaptain\Admin\MembershipsPage::admin_action( array( 'do' => 'issue', 'email' => 'y1-adm@example.com', 'valid_from' => gmdate( 'Y-m-d\TH:i', time() - 3600 ), 'valid_until' => gmdate( 'Y-m-d\TH:i', time() + 86400 ), 'scope' => 'any', 'event_id' => $y1_event_a ) );
 $y1_admin_res = \PassCaptain\Admin\MembershipsPage::admin_action( array( 'do' => 'issue', 'email' => 'y1-adm@example.com', 'valid_from' => gmdate( 'Y-m-d\TH:i', time() - 3600 ), 'valid_until' => gmdate( 'Y-m-d\TH:i', time() + 86400 ), 'scope' => 'service', 'resource_id' => $y1_res_b ) );
 check( 'admin screen: the same check refuses "any" and foreign resources for the cashier', is_wp_error( $y1_admin_any ) && 403 === y1_status( $y1_admin_any ) && is_wp_error( $y1_admin_res ) && 403 === y1_status( $y1_admin_res ) );
@@ -172,8 +173,8 @@ $y1_manager_b = 9812;
 y1_staff( $y1_manager_b, $y1_event_b, array( 'wpcap_manage_events', 'wpcap_manage_orders' ) );
 y1_as( $y1_manager_b, array( 'wpcap_manage_events', 'wpcap_manage_orders' ) );
 $y1_svc = Controller::issue_member_pass( y1_json( 'POST', '/wp-pass-captain/v1/member-passes', $y1_pass_body( array( array( 'scope' => 'service', 'resource_id' => $y1_res_b, 'event_id' => $y1_event_a, 'ticket_type_id' => $y1_type_a ) ) ) ) );
-$y1_svc_rules = 201 === y1_status( $y1_svc ) ? Memberships::rules( $y1_svc->get_data()['pass_id'] ) : array();
-check( 'REST: manager of resource B issues a service pass; event/ticket type of the input are cleared', 201 === y1_status( $y1_svc ) && 'service' === ( $y1_svc_rules[0]->scope ?? '' ) && 0 === (int) $y1_svc_rules[0]->event_id && 0 === (int) $y1_svc_rules[0]->ticket_type_id && $y1_res_b === (int) $y1_svc_rules[0]->resource_id );
+$y1_svc_rules = in_array( y1_status( $y1_svc ), array( 201, 202 ), true ) ? Memberships::rules( $y1_svc->get_data()['pass_id'] ) : array();
+check( 'REST: manager of resource B issues (requests) a service pass; event/ticket type of the input are cleared', in_array( y1_status( $y1_svc ), array( 201, 202 ), true ) && 'service' === ( $y1_svc_rules[0]->scope ?? '' ) && 0 === (int) $y1_svc_rules[0]->event_id && 0 === (int) $y1_svc_rules[0]->ticket_type_id && $y1_res_b === (int) $y1_svc_rules[0]->resource_id );
 $y1_rev2 = Controller::revoke_member_pass( y1_json( 'POST', '/x', array(), array( 'pass_id' => $y1_pass_service_b['pass_id'] ) ) );
 check( 'REST: the resource manager can revoke the service pass of the own resource', 200 === y1_status( $y1_rev2 ) && 'revoked' === Memberships::get( $y1_pass_service_b['pass_id'] )->status );
 y1_admin();
@@ -194,6 +195,12 @@ $y1_registrars = array(
 	array( \PassCaptain\WalletPasses\WebService::class, 'routes' ),
 	array( \PassCaptain\Modules\Sms::class, 'register_routes' ),
 	array( \PassCaptain\Modules\Fiscalization::class, 'register_routes' ),
+	// Registrars of the Arbeitsliste line (merged).
+	array( \PassCaptain\GuestLists\Rest::class, 'routes' ),
+	array( \PassCaptain\Exchange\Portal::class, 'register_routes' ),
+	array( \PassCaptain\PortalSelfService::class, 'register_routes' ),
+	array( \PassCaptain\ScannerDesk::class, 'routes' ),
+	array( \PassCaptain\Mail\Suppression::class, 'routes' ),
 );
 $GLOBALS['wpcap_test_routes'] = array();
 foreach ( $y1_registrars as $registrar ) { call_user_func( $registrar ); }
@@ -203,7 +210,8 @@ foreach ( $GLOBALS['wpcap_test_routes'] as $route => $args ) {
 		if ( is_array( $endpoint ) && isset( $endpoint['callback'] ) ) { $y1_endpoints[ $endpoint['methods'] . ' ' . $route ] = $endpoint; }
 	}
 }
-$y1_ns = 'wp-pass-captain/v1';
+$y1_ns = 'pass-captain/v1';
+$y1_ticket_pub_b = (string) $wpdb->get_var( "SELECT public_id FROM {$p}wpcap_tickets WHERE order_id=" . (int) $y1_order_b['order_id'] . ' ORDER BY ticket_id LIMIT 1' ); // Merged namespace (LegacySlug routes the former wp-pass-captain/v1 here).
 // Writing routes that take an object id (path or body) and are authorised by a capability: each needs a case below.
 $y1_cases = array(
 	"POST $y1_ns/member-passes" => array(
@@ -225,7 +233,7 @@ $y1_cases = array(
 	"POST $y1_ns/admission/check-in" => array( array( array( 'token' => $y1_codes_b[1] ?? '', 'idempotency_key' => 'y1-adm-b' ), array() ) ),
 	"POST $y1_ns/admission/check-out" => array( array( array( 'token' => $y1_codes_b[1] ?? '' ), array() ) ),
 	"POST $y1_ns/admission/offline-sync" => array( array( array(), array( 'scans' => array( array( 'token' => $y1_codes_b[1] ?? '', 'idempotency_key' => 'y1-off-b' ) ) ) ) ),
-	"POST $y1_ns/events/(?P<event_id>\d+)/seat-maps" => array( array( array( 'event_id' => $y1_event_b ), array( 'name' => 'Y1', 'seats' => array( array( 'seat_key' => 'a1', 'seat_label' => 'A1' ) ) ) ) ),
+	// POST events/{id}/seat-maps: the old seat API was replaced by Seating\Rest (A529).
 	"POST $y1_ns/events/(?P<event_id>\d+)/resources" => array(
 		array( array( 'event_id' => $y1_event_b ), array( 'name' => 'Y1 fremd' ) ),
 		array( array( 'event_id' => $y1_event_a ), array( 'name' => 'Y1 Preis fremd', 'ticket_type_id' => $y1_type_b ) ),
@@ -246,6 +254,11 @@ $y1_cases = array(
 	"POST $y1_ns/service-bookings/(?P<booking_id>\d+)/decide" => array( array( array( 'booking_id' => $y1_booking_b, 'decision' => 'confirm' ), array() ) ),
 	"POST $y1_ns/service-bookings/(?P<booking_id>\d+)/check-in" => array( array( array( 'booking_id' => $y1_booking_b ), array() ) ),
 	"POST $y1_ns/service-bookings/(?P<booking_id>\d+)/no-show" => array( array( array( 'booking_id' => $y1_booking_b ), array() ) ),
+	// Arbeitsliste line (merged): pass approval (A481) and the web scanner desk.
+	"POST $y1_ns/member-passes/(?P<pass_id>\d+)/approve" => array( array( array( 'pass_id' => $y1_pass_b['pass_id'] ), array() ) ),
+	"POST $y1_ns/member-passes/(?P<pass_id>\d+)/reject" => array( array( array( 'pass_id' => $y1_pass_b['pass_id'] ), array() ) ),
+	"POST $y1_ns/scanner/check-in-ticket" => array( array( array( 'ticket_public_id' => $y1_ticket_pub_b, 'idempotency_key' => 'y1-desk-b' ), array() ) ),
+	"POST $y1_ns/scanner/undo" => array( array( array( 'ticket_public_id' => $y1_ticket_pub_b, 'reason' => 'y1' ), array() ) ),
 );
 // Writing routes that are not event scoped by an object id of a capability holder (with the reason).
 $y1_exempt = array(
@@ -255,6 +268,7 @@ $y1_exempt = array(
 	'#/partner/#' => 'partner key, scoped to the partner\'s events (zz_w5_permissions, partners)',
 	'#/wallet/#' => 'PassKit authentication token / signature',
 	'#/sms/#' => 'Twilio signature',
+	'#/guestlists/entries/#' => 'guest list entry of another event: probed with a foreign object by zz_a145 (Service::arrive() checks the list\'s event)',
 );
 $y1_uncovered = array();
 foreach ( $y1_endpoints as $key => $endpoint ) {
@@ -326,10 +340,12 @@ $GLOBALS['y1_user_caps'][ $y1_reporter ] = array( 'wpcap_view_reports' );
 y1_as( $y1_dev, array( 'wpcap_manage_events' ) );
 $y1_key = DeveloperKeys::issue( $y1_event_a, array( 'events.read', 'reports.read', 'orders.write' ), 'y1-dev' );
 $y1_key2 = DeveloperKeys::issue( $y1_event_a, array( 'events.read' ), 'y1-dev-2' );
-y1_as( $y1_reporter, array( 'wpcap_view_reports' ) );
+// Merged (Arbeitsliste line): issuing a key needs event management. Keys owned by report-only staff (issued before
+// their role was reduced) are created by an administrator and handed to the reporter.
+y1_admin();
 $y1_rkey = DeveloperKeys::issue( $y1_event_a, array( 'events.read', 'orders.write' ), 'y1-reporter' );
 $y1_rkey2 = DeveloperKeys::issue( $y1_event_a, array( 'events.read', 'reports.read' ), 'y1-reporter-read' );
-y1_admin();
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_api_keys SET user_id=%d WHERE api_key_id IN (%d,%d)", $y1_reporter, $y1_rkey['api_key_id'], $y1_rkey2['api_key_id'] ) );
 $y1_check = static fn( $key, $scope ) => DeveloperKeys::check( y1_json( 'GET', '/x', array(), array(), array( 'X-WPCAP-Key' => $key['key'] ) ), $scope, $GLOBALS['y1_event_a'] );
 $GLOBALS['y1_event_a'] = $y1_event_a;
 $GLOBALS['wpcap_test_user_can'] = static fn( $u, $c ) => 1 === (int) $u || in_array( $c, $GLOBALS['y1_user_caps'][ (int) $u ] ?? array(), true );
@@ -377,9 +393,10 @@ echo "Y1 SEC-5/V1: waitlist limits (case-insensitive address, global IP limit, I
 $y1_server = $_SERVER;
 $_SERVER['REMOTE_ADDR'] = '198.51.100.7';
 wpcap_test_reset_transients();
-for ( $i = 0; $i < 5; $i++ ) { Waitlists::join( $y1_event_a, $y1_occ_a, $y1_type_a, 'Y1.Case@Example.com' ); }
+// Merged (A644): the address only counts sign-ups that sent a mail – five of them under the lower-case spelling.
+for ( $i = 0; $i < Waitlists::EMAIL_HOURLY_LIMIT; $i++ ) { RateLimit::allow( 'waitlist|y1.case@example.com|' . $y1_event_a, Waitlists::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); }
 $_SERVER['REMOTE_ADDR'] = '198.51.100.8';
-$y1_lower = Waitlists::join( $y1_event_a, $y1_occ_a, $y1_type_a, 'y1.case@example.com' );
+$y1_lower = Waitlists::join( $y1_event_a, $y1_occ_a, $y1_type_a, 'Y1.Case@Example.com' );
 check( 'the per-address limit ignores upper/lower case (6th sign-up → 429)', is_wp_error( $y1_lower ) && 429 === y1_status( $y1_lower ) );
 wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_filters']['wp_pass_captain_waitlist_ip_limit_v1'] = 3;
@@ -390,10 +407,15 @@ unset( $GLOBALS['wpcap_test_filters']['wp_pass_captain_waitlist_ip_limit_v1'] );
 check( 'one IP is limited across all events (limit 3: three accepted, the fourth on another event → 429)', ! is_wp_error( $y1_wl[0] ) && ! is_wp_error( $y1_wl[2] ) && is_wp_error( $y1_wl[3] ) && 429 === y1_status( $y1_wl[3] ) );
 check( 'IPv6 addresses share one rate bucket per /64, IPv4 stays per address', '2001:db8:1:2::/64' === RateLimit::client_network( '2001:db8:1:2:aaaa:bbbb:cccc:dddd' ) && RateLimit::client_network( '2001:db8:1:2::1' ) === RateLimit::client_network( '2001:db8:1:2:ffff::9' ) && '203.0.113.9' === RateLimit::client_network( '203.0.113.9' ) && '203.0.113.9' === RateLimit::client_network( '::ffff:203.0.113.9' ) );
 wpcap_test_reset_transients();
-for ( $y1_i = 0; $y1_i < 20; $y1_i++ ) { RateLimit::hit( 'wpcap_seathold_' . RateLimit::hash( '2001:db8:7:7::/64' ), 20, HOUR_IN_SECONDS ); } // Bucket of the /64 is full.
+// The public seat-hold API is gone (A529, seats are held inside the checkout): the client key every public rate
+// limit uses (RateLimit::client(), e.g. seating availability) is checked instead – one key per IPv6 /64.
 $_SERVER['REMOTE_ADDR'] = '2001:db8:7:7:1234:5678:9abc:def0';
-$y1_hold = \PassCaptain\Seats::hold( $y1_occ_a, array( 1 ), 0, 10, 'y1-hold' );
-check( 'seat holds: a rotated IPv6 address inside the same /64 is still rate limited (429)', is_wp_error( $y1_hold ) && 429 === y1_status( $y1_hold ) );
+$y1_client_a = RateLimit::client();
+$_SERVER['REMOTE_ADDR'] = '2001:db8:7:7:ffff::1';
+$y1_client_b = RateLimit::client();
+$_SERVER['REMOTE_ADDR'] = '2001:db8:7:8::1';
+$y1_client_c = RateLimit::client();
+check( 'public rate limits: a rotated IPv6 address inside the same /64 keeps its client key (another /64 does not)', $y1_client_a === $y1_client_b && $y1_client_a !== $y1_client_c );
 $_SERVER = $y1_server;
 wpcap_test_reset_transients();
 

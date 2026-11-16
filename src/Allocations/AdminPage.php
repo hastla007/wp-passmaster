@@ -154,18 +154,21 @@ final class AdminPage {
 	}
 
 	public static function handle_release() {
+		Forms::require_any_cap( array( self::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( 'wpcap_alloc_release' );
 		$in = Forms::post();
 		Forms::finish( self::release( $in ), __( 'Plätze für den freien Verkauf freigegeben.', 'pass-captain' ), self::back( $in ) );
 	}
 
 	public static function handle_update() {
+		Forms::require_any_cap( array( self::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( 'wpcap_alloc_update' );
 		$in = Forms::post();
 		Forms::finish( self::update( $in ), __( 'Kontingent gespeichert.', 'pass-captain' ), self::back( $in ) );
 	}
 
 	public static function handle_seats() {
+		Forms::require_any_cap( array( self::CAP ) ); // A145: no lookup before the capability check.
 		Forms::verify( 'wpcap_alloc_seats' );
 		$in = Forms::post();
 		Forms::finish( self::seats( $in ), __( 'Sitzplätze aktualisiert.', 'pass-captain' ), self::back( $in ) );

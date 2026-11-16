@@ -51,6 +51,15 @@ $r7i_slugs = static fn( $pages ) => array_map( static fn( $pg ) => (string) $pg[
 check( 'hidden module pages leave the menu but stay registered (links work)', R7iDashboard::module_hidden( 'PassCaptain\\Modules\\Sms' ) && $r7i_hidden && ! array_intersect( $r7i_slugs( $r7i_hidden ), $r7i_slugs( $r7i_visible ) ) && count( $r7i_visible ) + count( $r7i_hidden ) === count( PassCaptain\Modules::admin_pages() ) );
 R7iSettings::update( $r7i_settings );
 
-$r7i_sorted = R7iMenu::group_submenu( array( array( 'Einstellungen', 'x', 'wpcap-settings' ), array( 'Events', 'x', 'wp-pass-captain' ), array( 'Check-ins', 'x', 'wpcap-checkins' ), array( 'Bestellungen', 'x', 'wpcap-orders' ), array( 'SMS', 'x', 'wpcap-sms' ), array( 'Berichte', 'x', 'wpcap-reports' ) ) );
-check( 'menu grouped: Verkauf, Einlass, Auswertung, Konfiguration, System (stable inside a group)', array( 'wp-pass-captain', 'wpcap-orders', 'wpcap-checkins', 'wpcap-reports', 'wpcap-sms', 'wpcap-settings' ) === array_map( static fn( $i ) => $i[2], $r7i_sorted ) );
-check( 'group separators start at the first entry of each further group', array( 'wpcap-checkins' => 'entry', 'wpcap-reports' => 'analysis', 'wpcap-sms' => 'setup', 'wpcap-settings' => 'system' ) === R7iMenu::group_starts() );
+// Merged menu (Arbeitsliste line, A-area layout): entries are ordered by area – Events & Programm, Verkauf, Einlass,
+// Finanzen & Auswertung, Kommunikation, Einstellungen – stable inside an area, with a heading row before every
+// further area the user can see (the first area has none: WordPress links the top item to its first page).
+$r7i_entry = static fn( $slug ) => array( $slug, $slug, $slug, 'read', '__return_null', '' );
+$r7i_rows = R7iMenu::layout( array( $r7i_entry( 'wpcap-settings' ), $r7i_entry( R7iMenu::SLUG ), $r7i_entry( 'wpcap-checkins' ), $r7i_entry( 'wpcap-orders' ), $r7i_entry( 'wpcap-sms' ), $r7i_entry( 'wpcap-reports' ) ) );
+$r7i_pages = array_values( array_map( static fn( $r ) => $r[1][0], array_filter( $r7i_rows, static fn( $r ) => 'page' === $r[0] ) ) );
+check( 'menu grouped: Events, Verkauf, Einlass, Auswertung, Kommunikation, Einstellungen (stable inside a group)', array( R7iMenu::SLUG, 'wpcap-orders', 'wpcap-checkins', 'wpcap-reports', 'wpcap-sms', 'wpcap-settings' ) === $r7i_pages );
+$r7i_heads = array();
+foreach ( $r7i_rows as $r7i_i => $r7i_r ) {
+	if ( 'heading' === $r7i_r[0] && isset( $r7i_rows[ $r7i_i + 1 ] ) ) { $r7i_heads[ $r7i_rows[ $r7i_i + 1 ][1][0] ] = $r7i_r[1]; }
+}
+check( 'group headings start at the first entry of each further group', array( 'wpcap-orders' => 'sales', 'wpcap-checkins' => 'admission', 'wpcap-reports' => 'finance', 'wpcap-sms' => 'communication', 'wpcap-settings' => 'settings' ) === $r7i_heads && 'heading' !== $r7i_rows[0][0] );

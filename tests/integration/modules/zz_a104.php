@@ -17,10 +17,13 @@ foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $a104_r
 preg_match_all( "/(?:do_action|apply_filters|add_action|add_filter)\(\s*'([a-z0-9_]+)'/", $a104_src, $a104_m );
 $a104_bad = array();
 $a104_contracts = array( 'wp_pass_captain_voucher_provider_v1', 'wp_pass_captain_ticket_service_v1', 'wp_pass_captain_checkin_service_v1', 'wp_pass_captain_voucher_tickets_revoked_v1', 'wp_pass_captain_wallet_provider_v1', 'wp_pass_captain_connectors_v1', 'wp_pass_captain_connector_error_v1' );
+// Merged hook policy: the audit line published further versioned contracts under wp_pass_captain_*_v1 (settings
+// sections, reports, exports, POS devices, …; documented in HOOKS.md). The rule is therefore: the long prefix only
+// for versioned contracts (`_v1`), never for an old name from Hooks::RENAMED.
 foreach ( array_unique( $a104_m[1] ) as $a104_h ) {
-	if ( 0 === strpos( $a104_h, 'wp_pass_captain_' ) && ! in_array( $a104_h, $a104_contracts, true ) ) { $a104_bad[] = $a104_h; }
+	if ( 0 === strpos( $a104_h, 'wp_pass_captain_' ) && ( ! preg_match( '/_v\d+$/', $a104_h ) || isset( Hooks::RENAMED[ $a104_h ] ) ) && ! in_array( $a104_h, $a104_contracts, true ) ) { $a104_bad[] = $a104_h; }
 }
-check( 'only the versioned cross-plugin contracts keep the wp_pass_captain_ prefix' . ( $a104_bad ? ' – found: ' . implode( ', ', $a104_bad ) : '' ), ! $a104_bad );
+check( 'only versioned cross-plugin contracts (*_v1) keep the wp_pass_captain_ prefix' . ( $a104_bad ? ' – found: ' . implode( ', ', $a104_bad ) : '' ), ! $a104_bad );
 foreach ( Hooks::RENAMED as $a104_old => $a104_new ) {
 	check( "renamed hook $a104_old is no longer used literally in src/", false === strpos( preg_replace( '/const RENAMED = array\(.*?\);/s', '', $a104_src ), "'$a104_old'" ) );
 	check( "new hook $a104_new is documented and the old name listed as deprecated", false !== strpos( file_get_contents( $a104_root . '/docs/HOOKS.md' ), "| `$a104_old` | `$a104_new` |" ) );

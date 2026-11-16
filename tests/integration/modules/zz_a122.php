@@ -269,7 +269,8 @@ try { AuditLogPage::render(); } catch ( Throwable $e ) { echo 'EXCEPTION ' . $e-
 $a122_vhtml = ob_get_clean();
 $_GET = array();
 check( 'viewer: renders the area filter, retention note and correction entries', false !== strpos( $a122_vhtml, 'Audit-Log' ) && false !== strpos( $a122_vhtml, 'record_corrected' ) && false !== strpos( $a122_vhtml, '730 Tagen automatisch gelöscht' ) && false === strpos( $a122_vhtml, 'EXCEPTION' ) && false === strpos( $a122_vhtml, 'erika.muster@' ) );
-$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
+// Merged (W9): the viewer is open to administrators and to the dedicated capability wpcap_view_audit.
+$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', AuditLogPage::CAP );
 $a122_denied = false;
 ob_start();
 try { AuditLogPage::render(); } catch ( Throwable $e ) { $a122_denied = true; }
@@ -277,7 +278,10 @@ ob_end_clean();
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'viewer: administrators only', $a122_denied );
 $a122_menu = array_column( Menu::entries(), 3, 0 );
-check( 'viewer: listed in the menu (settings area) with manage_options', 'manage_options' === ( $a122_menu[ AuditLogPage::SLUG ] ?? '' ) && 'settings' === Menu::group_of( AuditLogPage::SLUG ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( AuditLogPage::CAP );
+$a122_menu_admin = array_column( Menu::entries(), 3, 0 );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'viewer: listed in the menu (settings area) with manage_options (or wpcap_view_audit for holders of that capability)', 'manage_options' === ( $a122_menu_admin[ AuditLogPage::SLUG ] ?? '' ) && AuditLogPage::CAP === ( $a122_menu[ AuditLogPage::SLUG ] ?? '' ) && 'settings' === Menu::group_of( AuditLogPage::SLUG ) );
 check( 'retention: audit entries (incl. access log) follow the audit retention step', 730 === PassCaptain\Privacy\Retention::days( 'audit_logs' ) );
 
 // ---------------------------------------------------------------------------------------- docs

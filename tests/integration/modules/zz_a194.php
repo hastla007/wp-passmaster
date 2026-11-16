@@ -258,7 +258,10 @@ echo "A194: SMS, fiscal and wallet provider failures\n";
 PassCaptain\Modules\Sms::register();
 $a194_sms_before = Settings::get( 'sms' );
 Settings::update( array( 'twilio_account_sid' => 'AC' . str_repeat( 'c3', 16 ), 'sms' => array_merge( PassCaptain\Modules\Sms::settings_defaults()['sms'], array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49' ) ) ) );
-$a194_sms_order = Orders::create( array( 'email' => 'sms-a194@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 10, 10, 0 ), 'quantity' => 1 ) ), 'idempotency_key' => 'a194-sms', 'sms_consent' => true, 'sms_phone' => '+4915133334444' ) );
+// Merged checkout (PRIV-16): the SMS opt-in needs a confirmed number – a verified code request for it.
+$a194_sms_token = bin2hex( random_bytes( 32 ) );
+$wpdb->insert( "{$p}wpcap_sms_verifications", array( 'token_hash' => hash( 'sha256', $a194_sms_token ), 'phone' => '+4915133334444', 'code_hash' => hash( 'sha256', 'x' ), 'attempts' => 0, 'sends' => 1, 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + 600 ), 'last_sent_at' => gmdate( 'Y-m-d H:i:s' ), 'verified_at' => gmdate( 'Y-m-d H:i:s' ), 'used_order_id' => 0, 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$a194_sms_order = Orders::create( array( 'email' => 'sms-a194@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 10, 10, 0 ), 'quantity' => 1 ) ), 'idempotency_key' => 'a194-sms', 'sms_consent' => true, 'sms_phone' => '+4915133334444', 'sms_verification' => $a194_sms_token ) );
 PassCaptain\Sms\Service::enqueue( 'a194-sms-1', $a194_sms_order['order_id'], 0, 'reschedule', 'Hallo' );
 PassCaptain\Sms\Service::enqueue( 'a194-sms-2', $a194_sms_order['order_id'], 0, 'reschedule', 'Hallo 2' );
 http_reset();

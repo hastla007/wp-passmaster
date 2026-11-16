@@ -61,8 +61,8 @@ final class StepUp {
 
 	/** REST "METHOD route-regex" => categories. */
 	const REST_ROUTES = array(
-		'POST #^/pass-captain/v1/developer/keys#' => array( 'api_keys' ),
-		'POST #^/pass-captain/v1/tax-profiles$#'  => array( 'settings' ),
+		'POST #^/(?:wp-)?pass-captain/v1/developer/keys#' => array( 'api_keys' ),
+		'POST #^/(?:wp-)?pass-captain/v1/tax-profiles$#' => array( 'settings' ),
 	);
 
 	public static function register() {

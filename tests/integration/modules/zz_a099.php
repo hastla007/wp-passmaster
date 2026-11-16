@@ -156,8 +156,11 @@ $req = new WP_REST_Request( 'POST' );
 $req->set_body( wp_json_encode( array( 'email' => 'a099-rest@example.com', 'items' => $items, 'idempotency_key' => 'a099-rest-checkout-key', 'accept_terms' => true, 'provider' => 'manual', 'locale' => 'en_GB', 'terms_version' => $v_en ) ) );
 $rest = Controller::checkout( $req );
 $rest_data = $rest instanceof WP_REST_Response ? $rest->get_data() : $rest;
-$rest_row = is_array( $rest_data ) && isset( $rest_data['order_id'] ) ? Orders::get( $rest_data['order_id'] ) : null;
-check( 'REST checkout passes locale and shown version through (en_GB uses the en_US text)', $rest_row && 'en_GB' === $rest_row->locale && $v_en === $rest_row->terms_version );
+// The merged public checkout response carries no internal order id: find the order by its buyer address.
+$rest_order_id = is_array( $rest_data ) && isset( $rest_data['order_id'] ) ? (int) $rest_data['order_id'] : ( is_array( $rest_data ) && ! empty( $rest_data['status'] ) ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'a099-rest@example.com' ) ) : 0 );
+$rest_row = $rest_order_id ? Orders::get( $rest_order_id ) : null;
+// Merged (W9): an order only stores a language the site offers; the regional variant en_GB maps to en_US (same text).
+check( 'REST checkout passes locale and shown version through (en_GB uses the en_US text)', $rest_row && 'en_US' === $rest_row->locale && $v_en === $rest_row->terms_version );
 $opt_req = new WP_REST_Request( 'GET' );
 $opt_req->set_param( 'locale', 'en_US' );
 $opt = Controller::checkout_options( $opt_req );

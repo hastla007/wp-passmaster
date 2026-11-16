@@ -664,11 +664,9 @@ final class PublicEvents {
 				include $template;
 				$card_html = ob_get_clean();
 				$card_html = apply_filters( 'wpcap_event_card_html', $card_html, $event, $types );
-				// Versioned contract (the calendar module adds its anchor here); the old unversioned name still fires (deprecated since 1.5.0).
+				// Versioned contract of the audit line; the old unversioned name still fires via Hooks::RENAMED (deprecated since 1.5.0).
 				$card_html = apply_filters( 'wp_pass_captain_event_card_html_v1', $card_html, $event, $types );
-				if ( ! function_exists( 'has_filter' ) || has_filter( 'wp_pass_captain_event_card_html' ) ) {
-					$card_html = apply_filters_deprecated( 'wp_pass_captain_event_card_html', array( $card_html, $event, $types ), Hooks::DEPRECATED_SINCE, 'wpcap_event_card_html' );
-				}
+				$card_html = Hooks::legacy_filter( 'wpcap_event_card_html', $card_html, $event, $types );
 				echo $grouped ? self::with_date_anchors( $card_html, $card['dates'] ) : $card_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
 				?>
 			<?php endforeach; ?>

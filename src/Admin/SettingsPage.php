@@ -75,12 +75,14 @@ final class SettingsPage {
 			),
 			'features' => array(
 				'title' => __( 'Funktionen', 'pass-captain' ),
+				'tab' => 'general',
 				'fields' => array(
 					'hidden_modules' => array( 'type' => 'modules', 'label' => __( 'Im Menü ausblenden', 'pass-captain' ), 'description' => __( 'Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
 				),
 			),
 			'event_pages' => array(
 				'title' => __( 'Eventseiten', 'pass-captain' ),
+				'tab' => 'general',
 				'fields' => array(
 					'event_pages' => array( 'type' => 'bool', 'label' => __( 'Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_switch' ) ),
 					'event_base' => array( 'type' => 'text', 'label' => __( 'Adress-Basis der Eventseiten', 'pass-captain' ), 'description' => __( 'Beispiel „event“ ergibt https://example.com/event/sommerfest-ab12cd/. Nur Kleinbuchstaben, Ziffern und Bindestrich; darf nicht wie eine vorhandene Seite heißen.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_base' ) ),
@@ -236,6 +238,7 @@ final class SettingsPage {
 			),
 			'security' => array(
 				'title' => __( 'Sicherheit', 'pass-captain' ),
+				'tab' => 'general',
 				'fields' => array(
 					'fiscal_allow_local_service' => array( 'type' => 'bool', 'label' => __( 'Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)', 'pass-captain' ), 'description' => __( 'Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden.', 'pass-captain' ) ),
 				),

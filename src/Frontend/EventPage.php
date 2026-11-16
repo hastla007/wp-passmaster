@@ -142,7 +142,7 @@ final class EventPage {
 		$data = self::json_ld( $event );
 		if ( $data ) {
 			// JSON_HEX_TAG keeps "</script>" in event texts from closing the element.
-			echo '<script type="application/ld+json">' . wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP ) . '</script>' . "\n";
+			echo \PassCaptain\Assets::inline_script_tag( (string) wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP ), array( 'type' => 'application/ld+json' ) ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON with JSON_HEX_TAG, tag built by WordPress (A302).
 		}
 	}
 

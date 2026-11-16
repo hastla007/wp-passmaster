@@ -41,5 +41,6 @@ $r7b_to = gmdate( 'Y-m-d', time() + DAY_IN_SECONDS );
 $r7b_event = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $r7b_type ) );
 $r7b_comp = R7bReport::build( array( 'from' => $r7b_from, 'to' => $r7b_to, 'event_id' => $r7b_event, 'channel' => 'comp' ), null );
 $r7b_sales = R7bReport::build( array( 'from' => $r7b_from, 'to' => $r7b_to, 'event_id' => $r7b_event, 'channel' => 'sales' ), null );
-check( 'channel=comp counts the 5 complimentary tickets', 5 === (int) ( $r7b_comp['total']['tickets'] ?? -1 ) );
+// Merged report (Arbeitsliste line): complimentary tickets are never sales – the comp channel lists them under 'comps'.
+check( 'channel=comp counts the 5 complimentary tickets', 5 === (int) ( $r7b_comp['comps']['tickets'] ?? -1 ) && 0 === (int) ( $r7b_comp['total']['tickets'] ?? -1 ) );
 check( 'channel=sales excludes them', 0 === (int) ( $r7b_sales['total']['tickets'] ?? -1 ) );

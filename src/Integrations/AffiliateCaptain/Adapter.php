@@ -36,7 +36,7 @@ final class Adapter {
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund' ), 10, 2 );
 		add_action( 'wpcap_order_refunded', array( __CLASS__, 'on_refunded' ), 10, 2 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_cancelled' ) );
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
 	/** Job that repeats reporting a paid order after Affiliate Captain failed or threw. */

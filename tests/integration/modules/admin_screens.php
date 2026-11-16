@@ -75,10 +75,13 @@ check( 'all feature admin-post handlers are registered', isset( $handlers['wpcap
 $pages = array();
 foreach ( FeatureScreens::pages() as $page ) { $pages[ $page[0] ] = $page[2]; }
 check( 'feature pages are registered with their capabilities', array( 'wpcap-campaigns' => 'wpcap_manage_events', 'wpcap-waitlists' => 'wpcap_manage_orders', 'wpcap-services' => 'wpcap_manage_events', 'wpcap-memberships' => 'wpcap_manage_orders', 'wpcap-api-keys' => 'wpcap_manage_events' ) === $pages );
-check( 'schema: rate_limit on api keys (default 600) and timezone on resources, DB version >= 3.6.0', version_compare( PassCaptain\Installer::DB_VERSION, '3.6.0', '>=' ) && '600' === (string) ( $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_api_keys LIKE 'rate_limit'" )->Default ?? '' ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_resources LIKE 'timezone'" ) );
+// Merged schema (Arbeitsliste line): the column defaults to 0 = "use the default", which DeveloperKeys::rate_limit() resolves to 600.
+$as_rate_col = $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_api_keys LIKE 'rate_limit'" );
+check( 'schema: rate_limit on api keys (0/empty resolves to the default 600) and timezone on resources, DB version >= 3.6.0', version_compare( PassCaptain\Installer::DB_VERSION, '3.6.0', '>=' ) && $as_rate_col && in_array( (string) $as_rate_col->Default, array( '0', '600' ), true ) && 600 === DeveloperKeys::rate_limit( (object) array( 'api_key_id' => 0, 'rate_limit' => (int) $as_rate_col->Default ) ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_resources LIKE 'timezone'" ) );
 
 echo "Admin screens: capability checks\n";
-$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events', 'wpcap_manage_orders' );
+// The member pass screen is also open to approvers of complimentary passes (Memberships::APPROVE_CAP, merged approval workflow).
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events', 'wpcap_manage_orders', PassCaptain\Memberships::APPROVE_CAP );
 $denied = array(
 	ApiKeysPage::admin_action( array( 'do' => 'create', 'event_id' => 1, 'scopes' => array( 'events.read' ) ) ),
 	ServicesPage::admin_action( array( 'do' => 'save_resource', 'event_id' => 1, 'name' => 'X' ) ),
@@ -110,6 +113,10 @@ check( 'key screen: labelled fields and escaped output', str_contains( $first, '
 $audit = as_audit( 'developer_key_issued' );
 check( 'key creation is audited with rate limit, without the secret', $audit && (int) $audit->object_id === (int) $key_row->api_key_id && 3 === json_decode( $audit->details, true )['rate_limit'] && ! str_contains( $audit->details, explode( '.', $secret )[1] ?? 'x' ) );
 wpcap_test_reset_transients();
+// The test bootstrap defaults to the transient fallback; the per-key limit is checked on the production backend
+// without an object cache (table wpcap_rate_limits, counter stops at limit + 1).
+$as_backend = $GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] ?? null;
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = 'db';
 $ok = 0;
 for ( $i = 0; $i < 4; $i++ ) { $ok += false !== DeveloperKeys::authorize( as_key_request( $secret ), 'events.read', $event ) ? 1 : 0; }
 check( "per-key rate limit is enforced (3 of 4 requests allowed, got $ok)", 3 === $ok );
@@ -118,12 +125,15 @@ $after = 0;
 for ( $i = 0; $i < 3; $i++ ) { $after += false !== DeveloperKeys::authorize( as_key_request( $secret ), 'events.read', $event ) ? 1 : 0; }
 // The refused 4th request counted once (counter stops at limit + 1): with 5, one more request passes.
 check( 'changed rate limit applies immediately and is audited', 5 === $set && 1 === $after && 5 === (int) $wpdb->get_var( "SELECT rate_limit FROM {$p}wpcap_api_keys WHERE api_key_id=" . (int) $key_row->api_key_id ) && as_audit( 'developer_key_rate_limit' ) );
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = $as_backend;
 $bad_rate = ApiKeysPage::admin_action( array( 'do' => 'rate_limit', 'id' => $key_row->api_key_id, 'rate_limit' => '0' ) );
 $past = ApiKeysPage::admin_action( array( 'do' => 'create', 'event_id' => $event, 'scopes' => array( 'events.read' ), 'expires_at' => '2020-01-01T10:00' ) );
 $no_scope = ApiKeysPage::admin_action( array( 'do' => 'create', 'event_id' => $event, 'scopes' => array( 'admin.write' ) ) );
 check( 'invalid rate limit, past expiry and missing scopes are rejected', is_wp_error( $bad_rate ) && is_wp_error( $past ) && 'wpcap_api_key_expiry' === $past->get_error_code() && is_wp_error( $no_scope ) );
 $default = DeveloperKeys::issue( $event, array( 'reports.read' ) );
-check( 'keys created without a limit (REST) get the default of 600', 600 === (int) $wpdb->get_var( "SELECT rate_limit FROM {$p}wpcap_api_keys WHERE api_key_id=" . (int) $default['api_key_id'] ) && 600 === $default['rate_limit'] );
+// Merged: stored 0 means "default" (the filter wpcap_developer_key_rate_limit can lower all such keys at once).
+$as_default_row = $wpdb->get_row( "SELECT api_key_id,rate_limit FROM {$p}wpcap_api_keys WHERE api_key_id=" . (int) $default['api_key_id'] );
+check( 'keys created without a limit (REST) get the default of 600', $as_default_row && in_array( (int) $as_default_row->rate_limit, array( 0, 600 ), true ) && 600 === DeveloperKeys::rate_limit( $as_default_row ) && 600 === $default['rate_limit'] );
 $GLOBALS['wpcap_test_user_id'] = 9;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 $foreign = ApiKeysPage::admin_action( array( 'do' => 'revoke', 'id' => $key_row->api_key_id ) );
@@ -145,7 +155,7 @@ $bad_tz = ServicesPage::admin_action( array( 'do' => 'save_resource', 'event_id'
 $res = ServicesPage::admin_action( array( 'do' => 'save_resource', 'event_id' => $sv_event, 'name' => 'Raum <script>x</script>', 'capacity' => '4', 'timezone' => 'Europe/Vienna' ) );
 $resource_id = (int) ( $res['resource_id'] ?? 0 );
 $resource = ServiceResources::resource( $resource_id );
-check( 'resource is created with capacity and timezone; invalid timezone rejected; audited', is_wp_error( $bad_tz ) && $resource && 4 === (int) $resource->capacity && 'Europe/Vienna' === $resource->timezone && 'Raum x' === $resource->name && as_audit( 'service_resource_created' ) );
+check( 'resource is created with capacity and timezone; invalid timezone rejected; audited', is_wp_error( $bad_tz ) && $resource && 4 === (int) $resource->capacity && 'Europe/Vienna' === $resource->timezone && 'Raum' === $resource->name && as_audit( 'service_resource_created' ) );
 $day = gmdate( 'Y-m-d', strtotime( 'next monday', time() + 14 * 86400 ) );
 $slot = ServicesPage::admin_action( array( 'do' => 'create_slot', 'resource_id' => $resource_id, 'starts_at' => $day . 'T10:00', 'ends_at' => $day . 'T11:00', 'capacity' => '2' ) );
 $slot_row = ServiceResources::slot( $slot['slot_id'] ?? 0 );
@@ -200,8 +210,10 @@ $offer_mail = array_slice( $GLOBALS['wpcap_test_mails'], $mails_before );
 check( 'offer handler (nonce checked) sends the offer to position 1 and audits it', in_array( 'wpcap_waitlist_action', $GLOBALS['wpcap_test_nonce_checks'], true ) && isset( $of['redirect'] ) && 'offered' === $offered->status && 1 === count( $offer_mail ) && 'first@example.com' === $offer_mail[0]['to'] && (int) as_audit( 'waitlist_offer_sent' )->object_id === (int) $offered->waitlist_id );
 $second = $wpdb->get_row( "SELECT * FROM {$p}wpcap_waitlist WHERE event_id=$wl_event AND position=2" );
 $rm = WaitlistsPage::admin_action( array( 'do' => 'remove', 'id' => $second->waitlist_id ) );
-$audit_rm = as_audit( 'waitlist_entry_removed' );
-check( 'remove deletes the entry; audit without e-mail address', ! is_wp_error( $rm ) && null === $wpdb->get_row( "SELECT * FROM {$p}wpcap_waitlist WHERE waitlist_id=" . (int) $second->waitlist_id ) && (int) $audit_rm->object_id === (int) $second->waitlist_id && ! str_contains( $audit_rm->details, '@' ) );
+// Merged waitlist (Arbeitsliste line primary): removing closes the entry with status `removed` (retention deletes it
+// later) and audits `waitlist_removed`; it leaves the queue and the export.
+$audit_rm = as_audit( 'waitlist_removed' );
+check( 'remove takes the entry out of the queue (status removed); audit without e-mail address', ! is_wp_error( $rm ) && 'removed' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_waitlist WHERE waitlist_id=" . (int) $second->waitlist_id ) && $audit_rm && (int) $audit_rm->object_id === (int) $second->waitlist_id && ! str_contains( $audit_rm->details, '@' ) );
 check( 'removing an unknown entry fails', is_wp_error( WaitlistsPage::admin_action( array( 'do' => 'remove', 'id' => 99999999 ) ) ) );
 $csv = WaitlistsPage::export( array( 'event_id' => $wl_event ) );
 $audit_csv = as_audit( 'waitlist_exported' );

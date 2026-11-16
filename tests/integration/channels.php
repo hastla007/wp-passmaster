@@ -12,6 +12,8 @@ if ( ! class_exists( 'WP_REST_Server' ) ) {
 	class WP_REST_Server { const READABLE = 'GET'; const CREATABLE = 'POST'; const EDITABLE = 'POST, PUT, PATCH'; const DELETABLE = 'DELETE'; const ALLMETHODS = 'GET, POST, PUT, PATCH, DELETE'; }
 }
 if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route( $ns, $route, $args ) { $GLOBALS['wpcap_test_routes'][ $ns . $route ] = $args; return true; } }
+// Permission callbacks of the audit line ask WordPress whether someone is logged in (real WP provides it).
+if ( ! function_exists( 'is_user_logged_in' ) ) { function is_user_logged_in() { return get_current_user_id() > 0; } }
 
 /** Registrar of every source file that calls register_rest_route(). */
 function wpcap_test_rest_registrars() {
@@ -28,6 +30,10 @@ function wpcap_test_rest_registrars() {
 		'src/Admission/Rest.php' => array( PassCaptain\Admission\Rest::class, 'routes' ),
 		'src/PortalSelfService.php' => array( PassCaptain\PortalSelfService::class, 'register_routes' ),
 		'src/ScannerDesk.php' => array( PassCaptain\ScannerDesk::class, 'routes' ),
+		// Registrars of the audit line (merged): mail unsubscribe, service bookings API, fiscalization admin API.
+		'src/Mail/Suppression.php' => array( PassCaptain\Mail\Suppression::class, 'routes' ),
+		'src/Services/Api.php' => array( PassCaptain\Services\Api::class, 'register_routes' ),
+		'src/Modules/Fiscalization.php' => array( PassCaptain\Modules\Fiscalization::class, 'register_routes' ),
 	);
 }
 
@@ -103,6 +109,34 @@ function wpcap_test_public_rest() {
 		'POST pass-captain/v1/sms/http/inbound',
 		'POST pass-captain/v1/app/pair',
 		'GET pass-captain/v1/seating/occurrences/(?P<occurrence_id>\d+)',
+		// Audit line (merged), justified in zz_w5_permissions.php: remaining tickets for cached pages (no personal
+		// data, rate limited), SMS opt-in code request (same origin, rate limited) and confirmation (token + code),
+		// static scanner-app strings and web app manifest (no data).
+		'GET pass-captain/v1/availability',
+		'POST pass-captain/v1/sms/verify/request',
+		'POST pass-captain/v1/sms/verify/confirm',
+		'GET pass-captain/v1/app/offline/i18n',
+		'GET pass-captain/v1/app/offline/manifest',
+		// Service bookings and waitlists of the audit line (Services\Api): order access token, booking or waitlist
+		// manage token, offer token or member pass code checked in the callback; the slot waitlist sign-up is
+		// rate limited and reveals no other entries.
+		'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings',
+		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/cancel',
+		'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook',
+		'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook-options',
+		'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/attach-order',
+		'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/confirm',
+		'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/cancel',
+		'POST pass-captain/v1/service-bookings/(?P<booking_id>\d+)/rebook',
+		'POST pass-captain/v1/service-slots/(?P<slot_id>\d+)/waitlist',
+		'GET pass-captain/v1/service-waitlist/(?P<entry_id>\d+)',
+		'POST pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept',
+		'POST pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/decline',
+		'POST pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/leave',
+		'POST pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/unsubscribe',
+		'POST pass-captain/v1/member-passes/redeem-service',
+		// R3: bounce webhook of the mail service (token compared in constant time; off unless enabled).
+		'POST pass-captain/v1/mail/bounce',
 	);
 }
 

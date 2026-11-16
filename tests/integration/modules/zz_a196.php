@@ -207,7 +207,9 @@ check( 'export: the full admission history of a ticket with 700 check-ins (no cu
 check( sprintf( 'export: slowest page %.2f s (budget %.0f s)', $a196_exp['max_time'], $a196_budget ), $a196_exp['max_time'] < $a196_budget );
 if ( $a196_sms ) {
 	$a196_sexp = a196_export( array( A196Sms::class, 'export' ), $a196_email );
-	check( 'SMS export: 300 consents in pages of 100, no duplicates, done only on the last page', 4 === $a196_sexp['pages'] && 300 === count( $a196_sexp['items'] ) && ! array_filter( $a196_sexp['items'], static fn( $n ) => $n > 1 ) && a196_done_last( $a196_sexp['done_flags'] ) && $a196_sexp['max_time'] < $a196_budget );
+	// Merged export (audit line): every consent is followed by the SMS messages sent under it (one per consent here).
+	$a196_sconsents = array_filter( array_keys( $a196_sexp['items'] ), static fn( $k ) => false !== strpos( $k, '|sms-consent-' ) );
+	check( 'SMS export: 300 consents in pages of 100, no duplicates, done only on the last page', 4 === $a196_sexp['pages'] && 300 === count( $a196_sconsents ) && 300 === count( $a196_sexp['items'] ) - count( $a196_sconsents ) && ! array_filter( $a196_sexp['items'], static fn( $n ) => $n > 1 ) && a196_done_last( $a196_sexp['done_flags'] ) && $a196_sexp['max_time'] < $a196_budget );
 }
 
 // ------------------------------------------------------------------------------- Erasers
@@ -222,13 +224,18 @@ check( sprintf( 'eraser: slowest page %.2f s (budget %.0f s)', $a196_er['max_tim
 check( 'eraser: all 2000 orders anonymised (placeholder address, no access link)', 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_orders WHERE customer_email=%s", $a196_email ) ) && $a196_n === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $a196_order_ids ) . ") AND customer_email LIKE 'deleted+%'" ) );
 check( 'eraser: own tickets revoked or kept as checked in, attendee names gone', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE ticket_id IN (" . implode( ',', $a196_own_tickets ) . ") AND status='valid'" ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_ticket_assignments WHERE ticket_id IN (" . implode( ',', $a196_own_tickets ) . ") AND attendee_name<>''" ) );
 check( 'eraser: 250 attendee tickets of the other buyer cleared (200 + 50) and still valid', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_ticket_assignments WHERE ticket_id IN (" . implode( ',', $a196_att_tickets ) . ") AND (attendee_name<>'' OR attendee_email<>'')" ) && 250 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=$a196_other_order AND status='valid' AND attendee_email=''" ) );
-check( 'eraser: waitlist, passes and bookings of the address are gone', 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT (SELECT COUNT(*) FROM {$p}wpcap_waitlist WHERE email=%s)+(SELECT COUNT(*) FROM {$p}wpcap_member_passes WHERE member_email=%s)+(SELECT COUNT(*) FROM {$p}wpcap_service_bookings WHERE customer_email=%s)", $a196_email, $a196_email, $a196_email ) ) );
+// Merged erasure (audit line, Art. 17(3) GDPR): a pass that is still valid stays usable until it ends and is anonymised
+// by Privacy::process_deferred() afterwards; every other pass is anonymised at once.
+$a196_left_passes = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_member_passes WHERE member_email=%s", $a196_email ) );
+$a196_left_active = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_member_passes WHERE member_email=%s AND status='active' AND valid_until>%s", $a196_email, gmdate( 'Y-m-d H:i:s' ) ) );
+check( 'eraser: waitlist and bookings of the address are gone, passes only while still valid (deferred)', 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT (SELECT COUNT(*) FROM {$p}wpcap_waitlist WHERE email=%s)+(SELECT COUNT(*) FROM {$p}wpcap_service_bookings WHERE customer_email=%s)", $a196_email, $a196_email ) ) && $a196_left_passes === $a196_left_active && $a196_left_passes <= count( (array) get_option( PassCaptain\Privacy::DEFERRED_PASSES_OPTION, array() ) ) );
 check( 'eraser: the other buyer\'s own order is untouched', $a196_other === Orders::get( $a196_other_order )->customer_email );
 $a196_msg_counts = array_count_values( $a196_er['messages'] );
 check( 'eraser: messages appear once (last page), not once per batch', $a196_er['messages'] && 1 === max( $a196_msg_counts ) && (bool) preg_grep( '/Aufbewahrungspflichten/', $a196_er['messages'] ) && count( $a196_er['messages'] ) <= 6 );
 $a196_again = Privacy::erase( $a196_email, 1 );
 $a196_export_after = Privacy::export( $a196_email, 1 );
-check( 'eraser: a second request finds nothing; the export is empty', $a196_again['done'] && ! $a196_again['items_removed'] && ! $a196_again['items_retained'] && $a196_export_after['done'] && ! $a196_export_after['data'] );
+$a196_after_groups = array_unique( array_map( static fn( $i ) => $i['group_id'], (array) $a196_export_after['data'] ) );
+check( 'eraser: a second request finds nothing new; the export only lists the deferred valid passes', $a196_again['done'] && ! $a196_again['items_removed'] && (bool) $a196_again['items_retained'] === ( $a196_left_passes > 0 ) && ( ( $a196_export_after['done'] && ! $a196_export_after['data'] ) || array( 'pass-captain-passes' ) === array_values( $a196_after_groups ) ) && count( (array) $a196_export_after['data'] ) <= $a196_left_passes );
 
 // Deferred orders (tickets for upcoming dates): the admin is informed once per request, not per page.
 $a196_future = make_type( 500, 10, 1000 );
