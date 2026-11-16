@@ -153,7 +153,7 @@ final class Queries {
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
 		if ( ! $ids ) { return array(); }
 		$out = array();
-		foreach ( (array) $wpdb->get_results( "SELECT occurrence_id, COUNT(*) AS n FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', $ids ) . ') GROUP BY occurrence_id' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id, COUNT(*) AS n FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') GROUP BY occurrence_id', $ids ) ) as $row ) {
 			$out[ (int) $row->occurrence_id ] = (int) $row->n;
 		}
 		return $out;
@@ -205,7 +205,7 @@ final class Queries {
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
 		if ( ! $ids ) { return array(); }
 		$sold = array_fill_keys( $ids, 0 );
-		$rows = $wpdb->get_results( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', $ids ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id", $ids ) );
 		foreach ( (array) $rows as $row ) { $sold[ (int) $row->occurrence_id ] = (int) $row->sold; }
 		foreach ( $sold as $id => $units ) {
 			/** See sold_for_occurrence(). */
@@ -287,7 +287,7 @@ final class Queries {
 		foreach ( $rows as $row ) { $seen[ (int) $row->occurrence_id ] = true; }
 		$missing = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $keep ) ) ), array_keys( $seen ) ) );
 		if ( $missing ) {
-			$extra = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE event_id=%d AND occurrence_id IN (" . implode( ',', $missing ) . ')', $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$extra = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND occurrence_id IN (" . implode( ',', array_fill( 0, count( $missing ), '%d' ) ) . ')', array_merge( array( $event_id ), $missing ) ) );
 			$rows = array_merge( $rows, $extra );
 			usort( $rows, static function ( $a, $b ) { return array( $a->starts_at, (int) $a->occurrence_id ) <=> array( $b->starts_at, (int) $b->occurrence_id ); } );
 		}
@@ -845,7 +845,7 @@ final class Queries {
 		$rows = array();
 		if ( $ids ) {
 			$by_id = array();
-			foreach ( (array) $wpdb->get_results( "SELECT c.*,t.public_id AS ticket_public_id,t.order_id,tt.name AS ticket_name,o.timezone,e.name AS event_name FROM {$p}wpcap_checkins c LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_events e ON e.event_id=c.event_id WHERE c.checkin_id IN (" . implode( ',', $ids ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.*,t.public_id AS ticket_public_id,t.order_id,tt.name AS ticket_name,o.timezone,e.name AS event_name FROM {$wpdb->prefix}wpcap_checkins c LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=c.event_id WHERE c.checkin_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ) ) as $row ) {
 				$by_id[ (int) $row->checkin_id ] = $row;
 			}
 			foreach ( $ids as $id ) { if ( isset( $by_id[ $id ] ) ) { $rows[] = $by_id[ $id ]; } } // Order of the page.

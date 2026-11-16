@@ -83,7 +83,7 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$doors = \PassCaptain\DoorsOpen::ready() ? 'o.doors_open_at' : 'NULL';
-		$row = $wpdb->get_row( $wpdb->prepare(
+		$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $doors is one of two literal column expressions.
 			"SELECT t.ticket_id,t.public_id,t.order_id,t.status,t.token_hash,t.ticket_type_id,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,$doors AS doors_open_at,o.timezone,o.location,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status,ta.attendee_name,ord.locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d",
 			absint( $ticket_id )
 		), ARRAY_A );
@@ -815,7 +815,7 @@ final class Service {
 		global $wpdb;
 		$ids = array_values( array_filter( array_map( 'absint', (array) $ticket_ids ) ) );
 		if ( ! $ids ) { return; }
-		self::sync_many( $wpdb->get_col( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_wallet_state WHERE ticket_id IN (" . implode( ',', $ids ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		self::sync_many( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_wallet_state WHERE ticket_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ) ) );
 	}
 
 	/** Tickets / occurrences changed in this request; dispatched once on shutdown. */

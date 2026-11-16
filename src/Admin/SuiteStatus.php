@@ -59,14 +59,18 @@ final class SuiteStatus {
 			);
 			$multi = Outbox::multi_ready();
 			if ( Outbox::ready() && ( $multi || 'workflow' === $name ) ) {
-				$scope = $multi ? $wpdb->prepare( ' WHERE contract=%s', $name ) : '';
 				$t = Outbox::table();
-				foreach ( (array) $wpdb->get_results( "SELECT status,COUNT(*) AS n,MAX(delivered_at) AS last FROM $t$scope GROUP BY status" ) as $s ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
+				$stats = $multi
+					? $wpdb->get_results( $wpdb->prepare( 'SELECT status,COUNT(*) AS n,MAX(delivered_at) AS last FROM %i WHERE contract=%s GROUP BY status', $t, $name ) )
+					: $wpdb->get_results( $wpdb->prepare( 'SELECT status,COUNT(*) AS n,MAX(delivered_at) AS last FROM %i GROUP BY status', $t ) );
+				foreach ( (array) $stats as $s ) {
 					if ( in_array( $s->status, array( 'pending', 'delivering' ), true ) ) { $row['pending'] += (int) $s->n; }
 					if ( 'failed' === $s->status ) { $row['failed'] = (int) $s->n; }
 					if ( 'delivered' === $s->status ) { $row['delivered'] = (int) $s->n; $row['last_delivered_at'] = (string) $s->last; }
 				}
-				$err = $wpdb->get_row( "SELECT last_error,COALESCE(next_attempt_at,created_at) AS at FROM $t" . ( $scope ? $scope . ' AND' : ' WHERE' ) . " last_error<>'' ORDER BY outbox_id DESC LIMIT 1" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
+				$err = $multi
+					? $wpdb->get_row( $wpdb->prepare( "SELECT last_error,COALESCE(next_attempt_at,created_at) AS at FROM %i WHERE contract=%s AND last_error<>'' ORDER BY outbox_id DESC LIMIT 1", $t, $name ) )
+					: $wpdb->get_row( $wpdb->prepare( "SELECT last_error,COALESCE(next_attempt_at,created_at) AS at FROM %i WHERE last_error<>'' ORDER BY outbox_id DESC LIMIT 1", $t ) );
 				if ( $err ) { $row['last_error'] = (string) $err->last_error; $row['last_error_at'] = (string) $err->at; }
 			}
 			$out[ $name ] = $row;
@@ -78,7 +82,7 @@ final class SuiteStatus {
 	public static function commands( $limit = 5 ) {
 		global $wpdb;
 		if ( ! \PassCaptain\Workflow\Commands::ready() ) { return array(); }
-		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT command,status,created_at,finished_at FROM ' . \PassCaptain\Workflow\Commands::table() . ' ORDER BY command_id DESC LIMIT %d', max( 1, (int) $limit ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT command,status,created_at,finished_at FROM %i ORDER BY command_id DESC LIMIT %d', \PassCaptain\Workflow\Commands::table(), max( 1, (int) $limit ) ) );
 	}
 
 	/** Label of a provider state. */

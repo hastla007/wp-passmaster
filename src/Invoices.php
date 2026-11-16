@@ -48,7 +48,7 @@ final class Invoices {
 		if ( ! $order || 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_invoice_order_unpaid', __( 'Eine Rechnung kann erst für bezahlte Bestellungen erstellt werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT invoice_id,invoice_number FROM %i WHERE order_id=%d LIMIT 1', $p . 'wpcap_invoices', $order_id ) );
 		if ( $existing ) { return array( 'invoice_id' => (int) $existing->invoice_id, 'invoice_number' => $existing->invoice_number, 'reused' => true ); }
-		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*," . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.ends_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order_id ) );
+		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*," . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.ends_at,o.timezone FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
 		// Lines created by a ticket exchange carry no paid amount (OrderLines): not invoiced here.
 		$items = array_values( array_filter( $items, static function ( $item ) { return ! OrderLines::is_moved_in( $item ); } ) );
 		/** Invoice lines of an order (item rows with name, event_name, starts_at, timezone); e.g. exchange fee lines. */
@@ -335,7 +335,7 @@ final class Invoices {
 		$tax = (int) $tax;
 		$order_id = (int) ( $refund['order_id'] ?? 0 );
 		if ( null === $items ) {
-			$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array();
+			$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
 		}
 		if ( null === $discount ) {
 			$discount = $order_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) : 0;
@@ -435,7 +435,7 @@ final class Invoices {
 			$out += array_fill_keys( $chunk, array() );
 			// has_voucher and the ticket types of the refunded tickets come along, so refund_line_parts()
 			// needs no query per refund (PERF: reports over many refunds).
-			$rows = (array) $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$wpdb->prefix}wpcap_refunds r INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=r.order_id WHERE r.order_id IN (" . implode( ',', $chunk ) . ") AND r.status='completed' ORDER BY r.refund_id", ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$wpdb->prefix}wpcap_refunds r INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=r.order_id WHERE r.order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ") AND r.status='completed' ORDER BY r.refund_id", $chunk ), ARRAY_A );
 			$ticket_ids = array();
 			foreach ( $rows as $row ) { $ticket_ids = array_merge( $ticket_ids, array_filter( array_map( 'absint', (array) json_decode( (string) $row['ticket_ids'], true ) ) ) ); }
 			$types = array();
@@ -970,7 +970,7 @@ final class Invoices {
 			header( 'Content-Disposition: attachment; filename="pass-captain-' . $format . '-' . $from . '-' . $to . '.csv"' );
 			$out = fopen( 'php://output', 'w' );
 			Reports\Scope::write_csv( $out, $rows ); // Formula guard and RFC 4180 quoting as the built-in export (A495).
-			fclose( $out );
+			fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- php://output stream of the download, not a file (WP_Filesystem has no stream API).
 			\PassCaptain\Http::end();
 		}
 		$datev = 'datev' === $format;
@@ -987,7 +987,7 @@ final class Invoices {
 			}
 		} )();
 		Reports\Scope::write_csv( $out, $rows, 0, $datev ? array( 'encoding' => 'Windows-1252', 'bom' => false ) : array() );
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- php://output stream of the download, not a file (WP_Filesystem has no stream API).
 		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => $count, 'format' => $datev ? 'datev' : 'csv' ) );
 		\PassCaptain\Http::end();
 	}
@@ -1273,7 +1273,7 @@ final class Invoices {
 		// Ids first (index paid_created), then blocks of BLOCK orders with their lines, seller and exchange flag.
 		$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT o.order_id FROM {$p}wpcap_orders o WHERE o.payment_status IN ('paid','refunded') AND o.created_at >= %s AND o.created_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=o.order_id) ORDER BY o.order_id", $from_utc, $to_utc ) ) );
 		foreach ( array_chunk( $order_ids, self::EXPORT_BLOCK ) as $block ) {
-			$orders = $wpdb->get_results( "SELECT o.order_id,o.public_id,o.created_at,o.currency,o.payment_provider,o.discount_minor FROM {$p}wpcap_orders o WHERE o.order_id IN (" . implode( ',', $block ) . ') ORDER BY o.order_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT o.order_id,o.public_id,o.created_at,o.currency,o.payment_provider,o.discount_minor FROM {$wpdb->prefix}wpcap_orders o WHERE o.order_id IN (" . implode( ',', array_fill( 0, count( $block ), '%d' ) ) . ') ORDER BY o.order_id', $block ) );
 			$orders = array_values( array_filter( $orders, static function ( $o ) use ( $comp ) { return ! in_array( (string) $o->payment_provider, $comp, true ); } ) );
 			$ids = array_map( static function ( $o ) { return (int) $o->order_id; }, $orders );
 			$lines_by_order = Reports\Data::lines_by_order( $ids );
@@ -1333,7 +1333,7 @@ final class Invoices {
 		$out = array();
 		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
 			$out += array_fill_keys( $chunk, array() );
-			foreach ( (array) $wpdb->get_results( 'SELECT order_id,ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', $chunk ) . ') ORDER BY order_id,item_id' ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY order_id,item_id', $chunk ) ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- OrderLines::paid_columns() returns a fixed column list built from literals.
 				$out[ (int) $item->order_id ][] = $item;
 			}
 		}

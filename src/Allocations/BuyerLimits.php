@@ -96,7 +96,7 @@ final class BuyerLimits {
 			$wpdb->delete( Holds::table( 'limits' ), array( 'event_id' => $event_id, 'ticket_type_id' => $ticket_type_id ) );
 			return true;
 		}
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . Holds::table( 'limits' ) . ' (event_id,ticket_type_id,max_per_buyer,updated_at) VALUES (%d,%d,%d,%s) ON DUPLICATE KEY UPDATE max_per_buyer=VALUES(max_per_buyer),updated_at=VALUES(updated_at)', $event_id, $ticket_type_id, $max, current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (event_id,ticket_type_id,max_per_buyer,updated_at) VALUES (%d,%d,%d,%s) ON DUPLICATE KEY UPDATE max_per_buyer=VALUES(max_per_buyer),updated_at=VALUES(updated_at)', Holds::table( 'limits' ), $event_id, $ticket_type_id, $max, current_time( 'mysql', true ) ) );
 		return '' === $wpdb->last_error ? true : new \WP_Error( 'wpcap_alloc_save', __( 'Das Limit konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 	}
 
@@ -177,7 +177,7 @@ final class BuyerLimits {
 		$now = current_time( 'mysql', true );
 		$rebuild = $version < 2;
 		if ( $rebuild ) { $wpdb->query( "DELETE FROM $table" ); } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
-		$events = array_map( 'absint', (array) $wpdb->get_col( 'SELECT DISTINCT event_id FROM ' . Holds::table( 'limits' ) . ' WHERE max_per_buyer>0' ) );
+		$events = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE max_per_buyer>0', Holds::table( 'limits' ) ) ) );
 		foreach ( $events as $event_id ) {
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.customer_email,oi.ticket_type_id,SUM(oi.quantity) AS qty FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.status NOT IN ('cancelled','expired','refunded') GROUP BY ord.order_id,ord.customer_email,oi.ticket_type_id", $event_id ) );
 			$by_key = array();
@@ -209,7 +209,7 @@ final class BuyerLimits {
 		$keys = array_unique( array_merge( self::keys( (string) $email_address ), array( self::hash( 'email:' . strtolower( trim( (string) $email_address ) ) ) ) ) );
 		$removed = 0;
 		foreach ( $keys as $key ) {
-			$removed += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Holds::table( 'buyers' ) . ' WHERE buyer_key=%s', $key ) );
+			$removed += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE buyer_key=%s', Holds::table( 'buyers' ), $key ) );
 		}
 		return array( 'items_removed' => $removed > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
 	}
@@ -219,7 +219,7 @@ final class BuyerLimits {
 		global $wpdb;
 		$data = array();
 		foreach ( self::keys( (string) $email_address ) as $key ) {
-			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT b.event_id,b.holdings,b.updated_at,e.name FROM ' . Holds::table( 'buyers' ) . " b LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=b.event_id WHERE b.buyer_key=%s", $key ) ) as $row ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT b.event_id,b.holdings,b.updated_at,e.name FROM %i b LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=b.event_id WHERE b.buyer_key=%s", Holds::table( 'buyers' ), $key ) ) as $row ) {
 				$data[] = array( 'group_id' => 'pass-captain-buyer-limits', 'group_label' => __( 'Pass Captain Käuferlimit', 'pass-captain' ), 'item_id' => 'buyer-limit-' . (int) $row->event_id, 'data' => array(
 					array( 'name' => __( 'Event', 'pass-captain' ), 'value' => (string) $row->name ),
 					array( 'name' => __( 'Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)', 'pass-captain' ), 'value' => (string) $row->holdings ),
@@ -240,7 +240,7 @@ final class BuyerLimits {
 		$days = \PassCaptain\Privacy\Retention::attendee_days() ?: \PassCaptain\Privacy\Retention::default_attendee_days();
 		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
 		$table = Holds::table( 'buyers' );
-		$counts['buyer_limits'] = (int) $wpdb->query( $wpdb->prepare( "DELETE b FROM $table b WHERE NOT EXISTS (SELECT 1 FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id=b.event_id AND " . \PassCaptain\Occurrence::end_sql( 'o' ) . ">=%s)", $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$counts['buyer_limits'] = (int) $wpdb->query( $wpdb->prepare( "DELETE b FROM $table b WHERE NOT EXISTS (SELECT 1 FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id=b.event_id AND " . \PassCaptain\Occurrence::end_sql( 'o' ) . ">=%s)", $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- own table name; Occurrence::end_sql() is a static expression (sanitized alias, integer duration).
 		return $counts;
 	}
 
@@ -508,7 +508,7 @@ final class BuyerLimits {
 		global $wpdb;
 		$max = 0;
 		foreach ( self::keys( $email, $user_id ) as $key ) {
-			$raw = $wpdb->get_var( $wpdb->prepare( 'SELECT holdings FROM ' . Holds::table( 'buyers' ) . ' WHERE event_id=%d AND buyer_key=%s', absint( $event_id ), $key ) );
+			$raw = $wpdb->get_var( $wpdb->prepare( 'SELECT holdings FROM %i WHERE event_id=%d AND buyer_key=%s', Holds::table( 'buyers' ), absint( $event_id ), $key ) );
 			$holdings = json_decode( (string) $raw, true );
 			$current = self::current( is_array( $holdings ) ? $holdings : array(), current_time( 'mysql', true ) );
 			$max = max( $max, array_sum( $current ? $current['types'] : array() ) );
@@ -539,7 +539,7 @@ final class BuyerLimits {
 		$total = 0;
 		$of_type = 0;
 		foreach ( self::keys( (string) ( $context['email'] ?? '' ) ) as $key ) {
-			$raw = $wpdb->get_var( $wpdb->prepare( 'SELECT holdings FROM ' . Holds::table( 'buyers' ) . ' WHERE event_id=%d AND buyer_key=%s', $event_id, $key ) );
+			$raw = $wpdb->get_var( $wpdb->prepare( 'SELECT holdings FROM %i WHERE event_id=%d AND buyer_key=%s', Holds::table( 'buyers' ), $event_id, $key ) );
 			$holdings = json_decode( (string) $raw, true );
 			$current = self::current( is_array( $holdings ) ? $holdings : array(), $now );
 			if ( ! $current ) { continue; }

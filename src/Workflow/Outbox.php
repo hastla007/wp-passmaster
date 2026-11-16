@@ -140,9 +140,9 @@ final class Outbox {
 		$now = current_time( 'mysql', true );
 		$values = array( $event_id, $type, $class::schema_version( $type ), $class::subject( $type ), substr( (string) $subject_id, 0, 64 ), (string) wp_json_encode( $envelope ), gmdate( 'Y-m-d H:i:s', $occurred_at ), $now, $now );
 		if ( $multi ) {
-			$inserted = (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::table() . " (contract,event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", array_merge( array( $class::NAME ), $values ) ) );
+			$inserted = (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (contract,event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", array_merge( array( self::table(), $class::NAME ), $values ) ) );
 		} else {
-			$inserted = (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::table() . " (event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", $values ) );
+			$inserted = (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", array_merge( array( self::table() ), $values ) ) );
 		}
 		if ( 1 !== $inserted ) { return false; }
 		/** Internal: a workflow event was recorded (envelope without sequence). */
@@ -272,7 +272,7 @@ final class Outbox {
 		$types = array_values( array_filter( array_map( 'strval', $types ), array( $class, 'known' ) ) );
 		$where = $types ? ' AND event_type IN (' . implode( ',', array_fill( 0, count( $types ), '%s' ) ) . ')' : '';
 		$where .= self::multi_ready() ? $wpdb->prepare( ' AND contract=%s', $class::NAME ) : '';
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT outbox_id,payload,attempts FROM ' . self::table() . " WHERE outbox_id>%d$where ORDER BY outbox_id LIMIT %d", array_merge( array( absint( $after_sequence ) ), $types, array( $limit ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- placeholders only / prepared fragment.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT outbox_id,payload,attempts FROM %i WHERE outbox_id>%d$where ORDER BY outbox_id LIMIT %d", array_merge( array( self::table(), absint( $after_sequence ) ), $types, array( $limit ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- placeholders only / prepared fragment.
 		$out = array();
 		foreach ( (array) $rows as $row ) {
 			$row->attempts = -1; // Pulled events are not delivery attempts.
@@ -299,7 +299,7 @@ final class Outbox {
 		if ( ! self::ready() ) { return 0; }
 		$scope = self::multi_ready() ? $wpdb->prepare( ' AND contract=%s', $class::NAME ) : '';
 		$now = current_time( 'mysql', true );
-		$count = (int) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET status='pending',attempts=0,last_error='',next_attempt_at=%s,locked_at=NULL WHERE outbox_id>=%d AND status<>'delivering'", $now, absint( $from_sequence ) ) . $scope ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
+		$count = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='pending',attempts=0,last_error='',next_attempt_at=%s,locked_at=NULL WHERE outbox_id>=%d AND status<>'delivering'", self::table(), $now, absint( $from_sequence ) ) . $scope ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 		Audit::record( $class::NAME . '_replay', $class::NAME, absint( $from_sequence ), array( 'events' => $count ) );
 		return $count;
 	}
@@ -309,6 +309,6 @@ final class Outbox {
 		global $wpdb;
 		if ( ! self::ready() ) { return 0; }
 		$days = max( 1, min( 365, (int) apply_filters( 'wpcap_workflow_retention_days', self::RETENTION_DAYS ) ) );
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table() . " WHERE status<>'delivering' AND created_at<%s", gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status<>'delivering' AND created_at<%s", self::table(), gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
 	}
 }

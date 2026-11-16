@@ -974,7 +974,7 @@ final class PublicEvents {
 		$rows = array();
 		if ( $ids ) {
 			$rows = (array) $wpdb->get_results( $wpdb->prepare(
-				"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.occurrence_id IN (" . implode( ',', $ids ) . ') AND ' . Occurrence::listable_sql( 'o', Clock::mysql() ) . ' ORDER BY o.starts_at ASC LIMIT %d', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and prepared fragment.
+				"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.occurrence_id IN (" . implode( ',', $ids ) . ') AND ' . Occurrence::listable_sql( 'o', Clock::mysql() ) . ' ORDER BY o.starts_at ASC LIMIT %d', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer list, literal column, Occurrence::listable_sql() is a prepared fragment.
 				self::LIVE_MAX
 			) );
 		}
@@ -1128,7 +1128,7 @@ final class PublicEvents {
 		if ( ! $ids ) { return array(); }
 		$now = current_time( 'mysql', true );
 		$out = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id, MIN(sales_start) AS sales_start FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', array_unique( $ids ) ) . ") AND status='active' AND sales_start > %s AND (sales_end IS NULL OR sales_end > sales_start) GROUP BY occurrence_id", $now ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id, MIN(sales_start) AS sales_start FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( array_unique( $ids ) ), '%d' ) ) . ") AND status='active' AND sales_start > %s AND (sales_end IS NULL OR sales_end > sales_start) GROUP BY occurrence_id", array_merge( array_values( array_unique( $ids ) ), array( $now ) ) ) ) as $row ) {
 			$out[ (int) $row->occurrence_id ] = (string) $row->sales_start;
 		}
 		return $out;
@@ -1198,7 +1198,7 @@ final class PublicEvents {
 		$event_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->event_id; }, $rows ) ) );
 		$occ_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) ) );
 		$translations = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name,description,location FROM {$p}wpcap_event_translations WHERE event_id IN (" . implode( ',', $event_ids ) . ') AND locale=%s', determine_locale() ) ) as $translation ) {
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name,description,location FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id IN (" . implode( ',', array_fill( 0, count( $event_ids ), '%d' ) ) . ') AND locale=%s', array_merge( $event_ids, array( determine_locale() ) ) ) ) as $translation ) {
 			$translations[ (int) $translation->event_id ] = $translation;
 		}
 		foreach ( $rows as $event ) {
@@ -1235,14 +1235,14 @@ final class PublicEvents {
 		// Same query also brings the last reschedule (badge "Verschoben") and upcoming cancelled dates
 		// of the listed events (badge "Abgesagt" in the card's date list).
 		$event_in = implode( ',', $event_ids );
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT o.*," . Frontend\EventCard::rescheduled_sql( 'o' ) . " AS rescheduled_at FROM {$p}wpcap_occurrences o WHERE o.occurrence_id IN ($occ_in) OR (o.event_id IN ($event_in) AND o.status='cancelled' AND o.starts_at >= %s)", $now ) ) as $occurrence ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer lists.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT o.*," . Frontend\EventCard::rescheduled_sql( 'o' ) . " AS rescheduled_at FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.occurrence_id IN ($occ_in) OR (o.event_id IN ($event_in) AND o.status='cancelled' AND o.starts_at >= %s)", $now ) ) as $occurrence ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- (int) cast integer lists; EventCard::rescheduled_sql() is a static expression.
 			$occurrences[ (int) $occurrence->occurrence_id ] = $occurrence;
 		}
 		$meta['occurrences'] = $occurrences;
 		$type_in = implode( ',', array_keys( $all_types ) );
 		$fields = array();
 		// Only field definitions are exposed (no answers); used to render attendee inputs.
-		foreach ( (array) $wpdb->get_results( 'SELECT ' . ParticipantFields::columns() . " FROM {$p}wpcap_participant_fields WHERE ticket_type_id IN ($type_in) AND status='active' ORDER BY position,field_id", ARRAY_A ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, static columns.
+		foreach ( (array) $wpdb->get_results( 'SELECT ' . ParticipantFields::columns() . " FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN ($type_in) AND status='active' ORDER BY position,field_id", ARRAY_A ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer list, ParticipantFields::columns() is a column list from literals.
 			// A680: type, help text, scope and choices; never answers.
 			$fields[ (int) $field['ticket_type_id'] ][] = ParticipantFields::public_definition( $field );
 		}
@@ -1363,7 +1363,7 @@ final class PublicEvents {
 			}
 		}
 		foreach ( array_chunk( $small, 50 ) as $chunk ) {
-			$queries[] = $wpdb->prepare( "SELECT o.event_id,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_occurrences o WHERE o.event_id IN (" . implode( ',', $chunk ) . ") AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC,o.occurrence_id ASC", $now ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$queries[] = $wpdb->prepare( "SELECT o.event_id,o.occurrence_id,o.starts_at,o.timezone FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ") AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC,o.occurrence_id ASC", array_merge( $chunk, array( $now ) ) );
 		}
 		foreach ( $queries as $sql ) {
 			foreach ( (array) $wpdb->get_results( $sql ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
@@ -1397,7 +1397,7 @@ final class PublicEvents {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status<>'cancelled' AND " . Occurrence::end_sql( 'o' ) . ' >= %s AND o.starts_at <= %s ORDER BY o.starts_at,o.occurrence_id LIMIT 100', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static expression.
+			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.status<>'cancelled' AND " . Occurrence::end_sql( 'o' ) . ' >= %s AND o.starts_at <= %s ORDER BY o.starts_at,o.occurrence_id LIMIT 100', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 			Clock::mysql( -DAY_IN_SECONDS ),
 			Clock::mysql( 7 * DAY_IN_SECONDS )
 		) );

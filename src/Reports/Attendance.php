@@ -85,9 +85,9 @@ final class Attendance {
 		$in = implode( ',', $ids );
 		$passes = self::pass_type_ids();
 		$not_pass = $passes ? ' AND t.ticket_type_id NOT IN (' . implode( ',', $passes ) . ')' : '';
-		$rows = (array) $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(*) AS n,SUM(" . self::ordinary_admitted_sql() . ") AS admitted FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND t.status IN ('valid','checked_in')$not_pass GROUP BY tt.occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer lists, fixed SQL.
+		$rows = (array) $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(*) AS n,SUM(" . self::ordinary_admitted_sql() . ") AS admitted FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND t.status IN ('valid','checked_in')$not_pass GROUP BY tt.occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- absint()/intval integer lists; ordinary_admitted_sql() is fixed SQL.
 		if ( $passes ) {
-			$rows = array_merge( $rows, (array) $wpdb->get_results( "SELECT po.occurrence_id,COUNT(*) AS n,SUM(" . self::pass_admitted_sql( 'po.occurrence_id' ) . ") AS admitted FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_pass_occurrences po ON po.type_id=t.ticket_type_id WHERE po.occurrence_id IN ($in) AND t.status IN ('valid','checked_in') GROUP BY po.occurrence_id" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer lists, fixed SQL.
+			$rows = array_merge( $rows, (array) $wpdb->get_results( "SELECT po.occurrence_id,COUNT(*) AS n,SUM(" . self::pass_admitted_sql( 'po.occurrence_id' ) . ") AS admitted FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_pass_occurrences po ON po.type_id=t.ticket_type_id WHERE po.occurrence_id IN ($in) AND t.status IN ('valid','checked_in') GROUP BY po.occurrence_id" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- absint() integer list; pass_admitted_sql() is fixed SQL with a column expression.
 		}
 		foreach ( $rows as $row ) {
 			$id = (int) $row->occurrence_id;
@@ -117,10 +117,10 @@ final class Attendance {
 		}
 		$out = array();
 		foreach ( array_chunk( $ordinary, 1000 ) as $chunk ) {
-			foreach ( $wpdb->get_col( "SELECT t.ticket_id FROM {$p}wpcap_tickets t WHERE t.ticket_id IN (" . implode( ',', $chunk ) . ') AND ' . self::ordinary_admitted_sql() ) as $id ) { $out[ (int) $id ] = true; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, fixed SQL.
+			foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$wpdb->prefix}wpcap_tickets t WHERE t.ticket_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') AND ' . self::ordinary_admitted_sql(), $chunk ) ) as $id ) { $out[ (int) $id ] = true; } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ordinary_admitted_sql() is fixed SQL.
 		}
 		foreach ( array_chunk( $pass, 1000 ) as $chunk ) {
-			foreach ( $wpdb->get_col( "SELECT t.ticket_id FROM {$p}wpcap_tickets t WHERE t.ticket_id IN (" . implode( ',', $chunk ) . ') AND ' . self::pass_admitted_sql( (string) $occurrence_id ) ) as $id ) { $out[ (int) $id ] = true; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, fixed SQL.
+			foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$wpdb->prefix}wpcap_tickets t WHERE t.ticket_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') AND ' . self::pass_admitted_sql( (string) $occurrence_id ), $chunk ) ) as $id ) { $out[ (int) $id ] = true; } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- pass_admitted_sql() is fixed SQL; the occurrence id is absint().
 		}
 		return $out;
 	}
@@ -150,7 +150,7 @@ final class Attendance {
 		$times = $open ? array_merge( ...array_values( $open ) ) : array();
 		$linked = self::linked_pass_types( $occurrence_id );
 		if ( $linked && Privacy::has_table( 'wpcap_admission_entries' ) ) {
-			$times = array_merge( $times, array_map( 'strval', $wpdb->get_col( $wpdb->prepare( "SELECT e.entered_at FROM {$p}wpcap_admission_entries e INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=e.ticket_id WHERE e.occurrence_id=%d AND e.direction='in' AND e.undone=0 AND t.ticket_type_id IN (" . implode( ',', $linked ) . ')', $occurrence_id ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$times = array_merge( $times, array_map( 'strval', $wpdb->get_col( $wpdb->prepare( "SELECT e.entered_at FROM {$wpdb->prefix}wpcap_admission_entries e INNER JOIN {$wpdb->prefix}wpcap_tickets t ON t.ticket_id=e.ticket_id WHERE e.occurrence_id=%d AND e.direction='in' AND e.undone=0 AND t.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $linked ), '%d' ) ) . ')', array_merge( array( $occurrence_id ), $linked ) ) ) ) );
 		}
 		return $times;
 	}

@@ -250,8 +250,10 @@ final class Memberships {
 	public static function list_passes( $status = '', $limit = 200 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$where = '' !== $status ? $wpdb->prepare( ' WHERE m.status=%s', sanitize_key( $status ) ) : '';
-		$rows = (array) $wpdb->get_results( "SELECT m.*,(SELECT COUNT(*) FROM {$p}wpcap_pass_uses u WHERE u.pass_id=m.pass_id) AS uses FROM {$p}wpcap_member_passes m{$where} ORDER BY m.pass_id DESC LIMIT " . max( 1, min( 1000, (int) $limit ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared where clause, int limit.
+		$limit = max( 1, min( 1000, (int) $limit ) );
+		$rows = (array) ( '' !== $status
+			? $wpdb->get_results( $wpdb->prepare( "SELECT m.*,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_pass_uses u WHERE u.pass_id=m.pass_id) AS uses FROM {$wpdb->prefix}wpcap_member_passes m WHERE m.status=%s ORDER BY m.pass_id DESC LIMIT %d", sanitize_key( $status ), $limit ) )
+			: $wpdb->get_results( $wpdb->prepare( "SELECT m.*,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_pass_uses u WHERE u.pass_id=m.pass_id) AS uses FROM {$wpdb->prefix}wpcap_member_passes m ORDER BY m.pass_id DESC LIMIT %d", $limit ) ) );
 		$out = array();
 		foreach ( $rows as $row ) {
 			$events = self::event_ids( $row->pass_id );

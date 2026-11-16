@@ -98,7 +98,7 @@ final class Api {
 		if ( ! $ids ) { return rest_ensure_response( array( 'occurrences' => array() ) ); }
 		$ids = array_values( array_map( 'absint', $ids ) );
 		// A535: running, upcoming or ended less than a day ago (effective end of multi-day occurrences).
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE ' . \PassCaptain\Occurrence::end_sql( 'o' ) . ' >= %s AND o.event_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY o.starts_at LIMIT 100', array_merge( array( $p . 'wpcap_occurrences', $p . 'wpcap_events', \PassCaptain\Clock::mysql( -DAY_IN_SECONDS ) ), $ids ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE ' . \PassCaptain\Occurrence::end_sql( 'o' ) . ' >= %s AND o.event_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY o.starts_at LIMIT 100', array_merge( array( $p . 'wpcap_occurrences', $p . 'wpcap_events', \PassCaptain\Clock::mysql( -DAY_IN_SECONDS ) ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Occurrence::end_sql() returns a static SQL expression (sanitized alias, integer duration).
 		$out = array();
 		$areas = array();
 		foreach ( $rows as $row ) {

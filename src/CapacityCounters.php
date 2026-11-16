@@ -508,7 +508,7 @@ final class CapacityCounters {
 	private static function lock( array $type_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( "SELECT ticket_type_id,occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN (" . implode( ',', array_map( 'intval', $type_ids ) ) . ') ORDER BY ticket_type_id FOR UPDATE' );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') ORDER BY ticket_type_id FOR UPDATE', array_map( 'intval', array_values( $type_ids ) ) ) );
 		if ( '' !== $wpdb->last_error ) {
 			return false;
 		}
@@ -688,7 +688,7 @@ final class CapacityCounters {
 				);
 				// Holds that still count although they no longer hold, for running/upcoming dates.
 				foreach ( array_chunk( array_keys( $scope['types'] ), 500 ) as $chunk ) {
-					$rows = array_merge( $rows, (array) $wpdb->get_col( "SELECT DISTINCT order_id FROM {$p}wpcap_reservations WHERE ticket_type_id IN (" . implode( ',', $chunk ) . ") AND counted_qty>0 AND status<>'active' LIMIT $limit" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+					$rows = array_merge( $rows, (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT order_id FROM {$wpdb->prefix}wpcap_reservations WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ") AND counted_qty>0 AND status<>'active' LIMIT %d", array_merge( array_map( 'intval', $chunk ), array( $limit ) ) ) ) );
 				}
 			}
 			$rows = array_values( array_unique( array_map( 'intval', $rows ) ) );

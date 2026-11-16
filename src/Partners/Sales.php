@@ -113,7 +113,7 @@ final class Sales {
 		$usage = array();
 		if ( $occurrences ) {
 			// Lock order: ticket types → occurrences → allocation holds (core/Allocations) → partner contingents (by id).
-			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'partner_contingents' ) . ' WHERE partner_id=%d AND occurrence_id IN (' . implode( ',', $occurrences ) . ') ORDER BY contingent_id FOR UPDATE', $partner_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE partner_id=%d AND occurrence_id IN (' . implode( ',', array_fill( 0, count( $occurrences ), '%d' ) ) . ') ORDER BY contingent_id FOR UPDATE', array_merge( array( self::t( 'partner_contingents' ), $partner_id ), $occurrences ) ) );
 			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			foreach ( (array) $rows as $c ) {
 				$demand = self::demand_for( $c, $selected );
@@ -174,7 +174,9 @@ final class Sales {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = $now ?: current_time( 'mysql', true );
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,quantity FROM ' . self::t( 'partner_contingent_usage' ) . ' WHERE contingent_id=%d' . ( $locking ? ' LOCK IN SHARE MODE' : '' ), (int) $contingent->contingent_id ) );
+		$rows = $locking
+			? $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,quantity FROM %i WHERE contingent_id=%d LOCK IN SHARE MODE', self::t( 'partner_contingent_usage' ), (int) $contingent->contingent_id ) )
+			: $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,quantity FROM %i WHERE contingent_id=%d', self::t( 'partner_contingent_usage' ), (int) $contingent->contingent_id ) );
 		if ( '' !== $wpdb->last_error ) { return null; }
 		if ( ! $rows ) { return 0; }
 		$in = implode( ',', array_map( static function ( $r ) { return (int) $r->order_id; }, $rows ) );
@@ -204,7 +206,7 @@ final class Sales {
 		global $wpdb;
 		$order = \PassCaptain\Orders::get( absint( $order_id ) );
 		if ( ! $order || ! in_array( $order->status, array( 'cancelled', 'expired', 'refunded' ), true ) ) { return 0; }
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'partner_contingent_usage' ) . ' WHERE order_id=%d', absint( $order_id ) ) );
+		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE order_id=%d', self::t( 'partner_contingent_usage' ), absint( $order_id ) ) );
 	}
 
 	/* ------------------------------------------------------------------ Assortment, prices, contingents */
@@ -213,7 +215,7 @@ final class Sales {
 	public static function prices( $partner_id ) {
 		global $wpdb;
 		$out = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'partner_prices' ) . ' WHERE partner_id=%d ORDER BY ticket_type_id', absint( $partner_id ) ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE partner_id=%d ORDER BY ticket_type_id', self::t( 'partner_prices' ), absint( $partner_id ) ) ) as $row ) {
 			$out[ (int) $row->ticket_type_id ] = $row;
 		}
 		return $out;
@@ -240,13 +242,12 @@ final class Sales {
 		$p = $wpdb->prefix;
 		if ( ! $partner ) { return array(); }
 		$prices = self::prices( $partner->partner_id );
-		$select = "SELECT tt.ticket_type_id,tt.occurrence_id,o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
 		if ( Repository::ROLE_RESELLER === Repository::role_of( $partner ) ) {
 			$ids = array_keys( $prices );
-			$rows = $ids ? $wpdb->get_results( "$select WHERE tt.ticket_type_id IN (" . implode( ',', array_map( 'intval', $ids ) ) . ') ORDER BY tt.ticket_type_id' ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = $ids ? $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.occurrence_id,o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY tt.ticket_type_id', array_map( 'intval', $ids ) ) ) : array();
 		} else {
 			$events = Repository::event_ids( $partner->partner_id );
-			$rows = $events ? $wpdb->get_results( "$select WHERE o.event_id IN (" . implode( ',', array_map( 'intval', $events ) ) . ') ORDER BY tt.ticket_type_id' ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $events ? $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.occurrence_id,o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id IN (" . implode( ',', array_fill( 0, count( $events ), '%d' ) ) . ') ORDER BY tt.ticket_type_id', array_map( 'intval', $events ) ) ) : array();
 		}
 		$key_events = $key ? Keys::restricted_events( $key ) : array();
 		$key_types = $key ? Keys::restricted_types( $key ) : array();
@@ -296,7 +297,7 @@ final class Sales {
 		if ( null !== $price_minor && (int) $price_minor < 0 ) { return self::error( 'wpcap_partner_price', __( 'Der Preis darf nicht negativ sein.', 'pass-captain' ) ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare(
-			"INSERT INTO {$p}wpcap_partner_prices (partner_id,ticket_type_id,price_minor,price_is_net,created_at,updated_at) VALUES (%d,%d," . ( null === $price_minor ? 'NULL' : (int) $price_minor ) . ',%d,%s,%s) ON DUPLICATE KEY UPDATE price_minor=VALUES(price_minor),price_is_net=VALUES(price_is_net),updated_at=VALUES(updated_at)', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer.
+			"INSERT INTO {$wpdb->prefix}wpcap_partner_prices (partner_id,ticket_type_id,price_minor,price_is_net,created_at,updated_at) VALUES (%d,%d," . ( null === $price_minor ? 'NULL' : (int) $price_minor ) . ',%d,%s,%s) ON DUPLICATE KEY UPDATE price_minor=VALUES(price_minor),price_is_net=VALUES(price_is_net),updated_at=VALUES(updated_at)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the price is the literal NULL or an (int) cast; %d cannot express NULL.
 			(int) $partner->partner_id,
 			absint( $ticket_type_id ),
 			$is_net ? 1 : 0,
@@ -316,12 +317,12 @@ final class Sales {
 
 	public static function contingents( $partner_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'partner_contingents' ) . ' WHERE partner_id=%d ORDER BY occurrence_id,ticket_type_id', absint( $partner_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE partner_id=%d ORDER BY occurrence_id,ticket_type_id', self::t( 'partner_contingents' ), absint( $partner_id ) ) );
 	}
 
 	public static function contingent( $contingent_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'partner_contingents' ) . ' WHERE contingent_id=%d', absint( $contingent_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE contingent_id=%d', self::t( 'partner_contingents' ), absint( $contingent_id ) ) );
 	}
 
 	/**
@@ -382,7 +383,7 @@ final class Sales {
 		$p = $wpdb->prefix;
 		$types = self::sellable_types( $ctx['partner'], $ctx['key'] );
 		if ( ! $types ) { return array(); }
-		$rows = $wpdb->get_results( "SELECT tt.*,o.starts_at,o.ends_at,o.timezone,o.location,o.status AS occurrence_status,o.event_id,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id IN (" . implode( ',', array_keys( $types ) ) . ') ORDER BY o.starts_at,tt.ticket_type_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.ends_at,o.timezone,o.location,o.status AS occurrence_status,o.event_id,e.name AS event_name,e.status AS event_status FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $types ), '%d' ) ) . ') ORDER BY o.starts_at,tt.ticket_type_id', array_map( 'intval', array_keys( $types ) ) ) );
 		$contingents = self::contingents( $ctx['partner']->partner_id );
 		$out = array();
 		foreach ( $rows as $tt ) {
@@ -424,13 +425,13 @@ final class Sales {
 	/** Seller-of-record row of an order (null = no partner API order). */
 	public static function sale_row( $order_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'partner_orders' ) . ' WHERE order_id=%d', absint( $order_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d', self::t( 'partner_orders' ), absint( $order_id ) ) );
 	}
 
 	/** Order ids sold by a partner (newest first). */
 	public static function order_ids( $partner_id, $limit = 100, $offset = 0 ) {
 		global $wpdb;
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM ' . self::t( 'partner_orders' ) . ' WHERE partner_id=%d ORDER BY order_id DESC LIMIT %d OFFSET %d', absint( $partner_id ), max( 1, (int) $limit ), max( 0, (int) $offset ) ) ) );
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE partner_id=%d ORDER BY order_id DESC LIMIT %d OFFSET %d', self::t( 'partner_orders' ), absint( $partner_id ), max( 1, (int) $limit ), max( 0, (int) $offset ) ) ) );
 	}
 
 	/**
@@ -703,7 +704,7 @@ final class Sales {
 			return self::error( 'wpcap_partner_confirm_failed', $result->get_error_message(), 409, array( 'reason' => $result->get_error_code() ) );
 		}
 		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'partner_orders' ) . ' SET confirmed_at=COALESCE(confirmed_at,%s) WHERE order_id=%d', current_time( 'mysql', true ), $order_id ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET confirmed_at=COALESCE(confirmed_at,%s) WHERE order_id=%d', self::t( 'partner_orders' ), current_time( 'mysql', true ), $order_id ) );
 		return true;
 	}
 
@@ -734,7 +735,7 @@ final class Sales {
 		if ( 'pending' === $order->payment_status ) {
 			$cancelled = Orders::cancel_order( $order_id, 'partner_api' . ( '' !== $reason ? ': ' . $reason : '' ) );
 			if ( is_wp_error( $cancelled ) ) { return $cancelled; }
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'partner_orders' ) . ' SET cancelled_at=%s WHERE order_id=%d', $now, $order_id ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET cancelled_at=%s WHERE order_id=%d', self::t( 'partner_orders' ), $now, $order_id ) );
 			self::audit( $ctx, 'cancel', $order_id, null, array( 'kind' => 'release' ) );
 			return $done( array( 'released' => true ) );
 		}
@@ -764,7 +765,7 @@ final class Sales {
 			$marked = Orders::mark_refunded( $order_id, 'partner_api' );
 			if ( is_wp_error( $marked ) ) { self::audit( $ctx, 'cancel', $order_id, $marked ); return $marked; } // Idempotent retry.
 		}
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'partner_orders' ) . ' SET cancelled_at=%s WHERE order_id=%d', $now, $order_id ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET cancelled_at=%s WHERE order_id=%d', self::t( 'partner_orders' ), $now, $order_id ) );
 		self::audit( $ctx, 'cancel', $order_id, null, array( 'kind' => 'refund', 'refund_id' => (int) ( $refund['refund_id'] ?? 0 ), 'amount_minor' => (int) ( $refund['amount_minor'] ?? 0 ) ) );
 		return $done( array( 'refund' => array( 'id' => (int) ( $refund['refund_id'] ?? 0 ), 'amount_minor' => (int) ( $refund['amount_minor'] ?? 0 ), 'tax_minor' => (int) ( $refund['tax_minor'] ?? 0 ), 'currency' => (string) ( $refund['currency'] ?? $order->currency ) ) ) );
 	}
@@ -902,22 +903,22 @@ final class Sales {
 		$days = max( 0, (int) \PassCaptain\Privacy\Retention::days( 'partner_ticket_codes' ) );
 		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? time() : (int) $now ) - $days * DAY_IN_SECONDS );
 		$counts = (array) $counts;
-		$counts['partner_ticket_codes'] = (int) $wpdb->query( $wpdb->prepare( 'DELETE c FROM ' . self::t( 'partner_ticket_codes' ) . " c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . " < %s", $cutoff ) );
+		$counts['partner_ticket_codes'] = (int) $wpdb->query( $wpdb->prepare( "DELETE c FROM %i c INNER JOIN {$wpdb->prefix}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . ' < %s', self::t( 'partner_ticket_codes' ), $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() is a static expression (sanitized alias, integer duration).
 		// Codes whose ticket no longer exists.
-		$counts['partner_ticket_codes'] += (int) $wpdb->query( 'DELETE c FROM ' . self::t( 'partner_ticket_codes' ) . " c LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id WHERE t.ticket_id IS NULL" );
+		$counts['partner_ticket_codes'] += (int) $wpdb->query( $wpdb->prepare( "DELETE c FROM %i c LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.ticket_id=c.ticket_id WHERE t.ticket_id IS NULL", self::t( 'partner_ticket_codes' ) ) );
 		return $counts;
 	}
 
 	private static function store_code( $ticket_id, $order_id, $partner_id, $code ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . self::t( 'partner_ticket_codes' ) . ' (ticket_id,order_id,partner_id,code_box,updated_at) VALUES (%d,%d,%d,%s,%s) ON DUPLICATE KEY UPDATE code_box=VALUES(code_box),updated_at=VALUES(updated_at)', (int) $ticket_id, (int) $order_id, (int) $partner_id, self::seal( $code ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (ticket_id,order_id,partner_id,code_box,updated_at) VALUES (%d,%d,%d,%s,%s) ON DUPLICATE KEY UPDATE code_box=VALUES(code_box),updated_at=VALUES(updated_at)', self::t( 'partner_ticket_codes' ), (int) $ticket_id, (int) $order_id, (int) $partner_id, self::seal( $code ), current_time( 'mysql', true ) ) );
 	}
 
 	/** ticket_id => plaintext code of an order (only codes that can be decrypted). */
 	private static function stored_codes( $order_id ) {
 		global $wpdb;
 		$out = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_id,code_box FROM ' . self::t( 'partner_ticket_codes' ) . ' WHERE order_id=%d', absint( $order_id ) ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_id,code_box FROM %i WHERE order_id=%d', self::t( 'partner_ticket_codes' ), absint( $order_id ) ) ) as $row ) {
 			$code = self::open( $row->code_box );
 			if ( null !== $code ) { $out[ (int) $row->ticket_id ] = $code; }
 		}
@@ -940,7 +941,7 @@ final class Sales {
 	/** wpcap_ticket_code_rotated: follow staff rotations; a new holder (transfer/assignment) removes the code. */
 	public static function on_code_rotated( $ticket_id, $token = '', $reason = '' ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'partner_ticket_codes' ) . ' WHERE ticket_id=%d', absint( $ticket_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d', self::t( 'partner_ticket_codes' ), absint( $ticket_id ) ) );
 		if ( ! $row ) { return; }
 		if ( in_array( sanitize_key( (string) $reason ), self::FOREIGN_ROTATIONS, true ) || '' === (string) $token ) {
 			$wpdb->delete( self::t( 'partner_ticket_codes' ), array( 'ticket_id' => (int) $row->ticket_id ) );

@@ -101,13 +101,13 @@ final class OrderPortal {
 		foreach ( $tickets as $ticket ) {
 			if ( ! isset( $fields[ $ticket->ticket_type_id ] ) ) {
 				// Consent fields have their own card (grant/withdraw, logged).
-				$fields[ $ticket->ticket_type_id ] = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() .  " FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' AND field_type<>'consent'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $ticket->ticket_type_id ) );
+				$fields[ $ticket->ticket_type_id ] = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() .  " FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' AND field_type<>'consent'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $ticket->ticket_type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ParticipantFields::columns() is a column list from literals; the consent condition is a literal.
 			}
 		}
 		// All answers of the order's tickets in one query (A442), not one per ticket.
 		$ticket_ids = array_map( static function ( $ticket ) { return (int) $ticket->ticket_id; }, (array) $tickets );
 		foreach ( array_chunk( $ticket_ids, 500 ) as $chunk ) {
-			foreach ( (array) $wpdb->get_results( "SELECT ticket_id,field_id,answer FROM {$wpdb->prefix}wpcap_participant_answers WHERE ticket_id IN (" . implode( ',', $chunk ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,field_id,answer FROM {$wpdb->prefix}wpcap_participant_answers WHERE ticket_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', $chunk ) ) as $row ) {
 				$answers[ (int) $row->ticket_id ][ (int) $row->field_id ] = $row->answer;
 			}
 		}
