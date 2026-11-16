@@ -3,7 +3,7 @@
 /**
  * A331: extension points – wpcap_checkout_validate (veto before the order transaction),
  * wpcap_order_created (after the commit, once per new order), wpcap_mail_recipients (to/cc/bcc),
- * wpcap_ticket_pdf_data / wpcap_ticket_pdf_layout (code and help code fixed) and the additive
+ * wpcap_ticket_pdf_data (code and help code fixed; the layout comes from the print template, A330) and the additive
  * wpcap_rest_prepare_* filters (contract fields cannot be removed or changed).
  */
 
@@ -59,18 +59,14 @@ Mailer::deliver( 'buyer331@example.com', array( 'subject' => 'Hallo', 'body' => 
 $a331_mail = end( $GLOBALS['wpcap_test_mails'] );
 check( 'A331: mails the filter does not touch are unchanged', false === strpos( implode( "\n", (array) $a331_mail['headers'] ), 'Bcc:' ) );
 
-// PDF: data and layout filters; the code and help code stay as issued.
+// PDF: data filter (the layout comes from the print template); the code and help code stay as issued.
 $a331_entry = array( 'event' => 'Konzert', 'ticket' => 'Standard', 'when' => 'Morgen', 'location' => 'Wien', 'token' => str_repeat( 'a', 64 ), 'help_code' => 'H-1234', 'ticket_id' => 7 );
 $a331_plain = TicketPdf::render( array( $a331_entry ) );
 add_filter( 'wpcap_ticket_pdf_data', static function ( $t ) { $t['event'] = 'Konzert VIP'; $t['token'] = str_repeat( 'b', 64 ); $t['help_code'] = 'X'; $t['sponsor'] = 'Sponsor AG'; return $t; } );
-add_filter( 'wpcap_ticket_pdf_layout', static function ( $lines, $t ) { $lines[] = array( 'text' => $t['sponsor'] ?? '', 'size' => 99, 'gap' => 500 ); $lines[] = 'junk'; return $lines; }, 10, 2 );
 $a331_data = TicketPdf::data( $a331_entry );
 check( 'A331: wpcap_ticket_pdf_data changes display fields but never the code or help code', 'Konzert VIP' === $a331_data['event'] && str_repeat( 'a', 64 ) === $a331_data['token'] && 'H-1234' === $a331_data['help_code'] );
-$a331_layout = TicketPdf::layout( $a331_data );
-$a331_last = end( $a331_layout );
-check( 'A331: wpcap_ticket_pdf_layout adds lines, clamped (size ≤ 40, gap ≤ 80), invalid lines dropped', 'Sponsor AG' === $a331_last['text'] && 40 === $a331_last['size'] && 80 === $a331_last['gap'] && 6 === count( $a331_layout ) );
 $a331_pdf = TicketPdf::render( array( $a331_entry ) );
-check( 'A331: the rendered PDF shows the filtered data and keeps the issued code', false !== strpos( $a331_pdf, 'Konzert VIP' ) && false !== strpos( $a331_pdf, 'Sponsor AG' ) && false !== strpos( $a331_pdf, str_repeat( 'a', 32 ) ) && false === strpos( $a331_pdf, str_repeat( 'b', 32 ) ) && $a331_pdf !== $a331_plain );
+check( 'A331: the rendered PDF shows the filtered data and keeps the issued code', false !== strpos( wpcap_pdf_plain( $a331_pdf ), 'Konzert VIP' ) && false !== strpos( wpcap_pdf_plain( $a331_pdf ), 'H-1234' ) && false === strpos( wpcap_pdf_plain( $a331_pdf ), str_repeat( 'b', 8 ) ) && $a331_pdf !== $a331_plain );
 
 // REST: additive prepare filters.
 add_filter( 'wpcap_rest_prepare_event', static function ( $item ) { $item['addon_badge'] = 'neu'; unset( $item['name'] ); $item['event_id'] = 'x'; return $item; } );

@@ -46,7 +46,6 @@ final class PublicApi {
 		'wpcap_occurrence_changed'            => array( 'action', '1.0', 'tickets' ),
 		'wpcap_occurrence_cancelled'          => array( 'action', '1.0', 'tickets' ),
 		'wpcap_ticket_pdf_data'               => array( 'filter', '1.0', 'tickets' ),
-		'wpcap_ticket_pdf_layout'             => array( 'filter', '1.0', 'tickets' ),
 		'wpcap_mail_recipients'               => array( 'filter', '1.0', 'mail' ),
 		'wpcap_rest_prepare_event'            => array( 'filter', '1.0', 'rest' ),
 		'wpcap_rest_prepare_order'            => array( 'filter', '1.0', 'rest' ),

@@ -191,7 +191,7 @@ final class Outbox {
 		$wpdb->update( self::table(), array(
 			'status' => $final ? 'failed' : 'pending',
 			'attempts' => $attempts,
-			'last_error' => substr( '' !== $code ? $code : 'wpcap_workflow_provider_error', 0, 190 ),
+			'last_error' => \PassCaptain\Text::cut( '' !== $code ? $code : 'wpcap_workflow_provider_error', 190 ),
 			'locked_at' => null,
 			'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + \PassCaptain\Webhooks\Dispatcher::backoff( $attempts ) ),
 		), array( 'outbox_id' => (int) $row->outbox_id ) );
