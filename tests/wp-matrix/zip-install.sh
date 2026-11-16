@@ -32,8 +32,12 @@ done
 FORBIDDEN='(^|/)(tests?|\.github|\.claude|node_modules|build|docs/release-acceptance)/|(^|/)(phpcs\.xml(\.dist)?|phpunit\.xml(\.dist)?|phpstan\.neon(\.dist)?|eslint\.config\.mjs|package(-lock)?\.json|composer\.lock|\.distignore|\.gitignore|\.gitattributes|\.editorconfig|TODO\.md|ARBEITSLISTE\.md|CLAUDE\.md)$|\.map$|(^|/)vendor/(squizlabs|wp-coding-standards|phpcompatibility|dealerdirect|phpcsstandards|phpunit|bin)/'
 HITS="$(grep -E "$FORBIDDEN" <<<"$LIST" || true)"
 [ -z "$HITS" ] && ok "no development files in the ZIP" || bad "development files in the ZIP: $(head -n 10 <<<"$HITS" | tr '\n' ' ')"
-# A666: fiscalization adapters are not shipped until the fiscalization core (PR #14) is merged (.distignore).
-grep -q "^$SLUG/src/Fiscalization/" <<<"$LIST" && bad "unfinished fiscalization adapters in the ZIP" || ok "no fiscalization adapters in the ZIP"
+# A666 → PR #14 merged: the fiscalization core ships together with its adapter interface (no orphaned adapters).
+if grep -q "^$SLUG/src/Fiscalization/Providers/" <<<"$LIST"; then
+	grep -q "^$SLUG/src/Fiscalization/AdapterInterface.php$" <<<"$LIST" && ok "fiscalization adapters ship with their interface" || bad "fiscalization adapters without AdapterInterface in the ZIP"
+else
+	ok "no fiscalization adapters in the ZIP"
+fi
 grep -qE '\.php$' <<<"$(grep "^$SLUG/vendor/composer/" <<<"$LIST")" && ok "optimized Composer autoloader present" || bad "Composer autoloader missing"
 
 # --- 2. fresh install from the ZIP ---------------------------------------------------------------
@@ -67,7 +71,9 @@ wpc eval 'do_action( "wpcap_process_jobs" ); do_action( "wpcap_cron" );' >/dev/n
 
 # --- 3. deactivate / uninstall -------------------------------------------------------------------
 wpc plugin deactivate "$SLUG" >/dev/null && ok "deactivation" || bad "deactivation failed"
-wpc eval '$s = get_option( "wpcap_settings", array() ); $s["delete_data_on_uninstall"] = 1; update_option( "wpcap_settings", $s );'
+# The opt-in lives in wpcap_uninstall_policy (wins over the pre-1.5 key in wpcap_settings); the plugin is
+# deactivated here, so set the option the way the settings screen stores it.
+wpc eval '$s = get_option( "wpcap_settings", array() ); $s["delete_data_on_uninstall"] = 1; update_option( "wpcap_settings", $s ); update_option( "wpcap_uninstall_policy", "delete", false );'
 wpc plugin uninstall "$SLUG" >/dev/null 2>&1 && ok "uninstall (deletes the plugin folder)" || bad "uninstall failed"
 [ ! -e "$WP/wp-content/plugins/$SLUG" ] && ok "plugin folder removed" || bad "plugin folder left"
 [ "$(tables)" = "0" ] && ok "no plugin tables left" || bad "$(tables) plugin tables left"

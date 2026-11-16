@@ -115,9 +115,7 @@ Alles außerhalb der Module gehört zum Grundgerüst und ist ebenfalls **Kern, d
 
 ## Nicht ausgeliefert
 
-| Bereich | Stand |
-|---|---|
-| `src/Fiscalization/` (Adapter fiskaltrust, efsta) | Liegt im Repository, wird aber bis zum Merge des Fiskalisierungskerns (PR #14) per `.distignore` **nicht** ausgeliefert und in `readme.txt` nicht beworben (A666): Das Interface `PassCaptain\Fiscalization\AdapterInterface` fehlt, nichts lädt die Adapter. **Offene Entscheidung:** Ob die Fiskalisierung mit PR #14 in den Kern kommt (dann „Kern, dauerhaft frei“) oder als Premiumfunktion im Add-on entsteht, ist noch festzulegen – sie war nie Teil eines Releases. |
+Derzeit nichts: Die Fiskalisierung (`src/Fiscalization/`, Adapter fiskaltrust/efsta) ist seit dem Merge von PR #14 Teil des Kerns und dauerhaft frei (A666).
 
 ## Premium-Add-on `pass-captain-pro`
 

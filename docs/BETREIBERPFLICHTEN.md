@@ -451,9 +451,9 @@ Hinweise zur Umsetzung mit dem Plugin:
 ### 4.1 Datenflüsse zum Fiskalanbieter
 
 **Stand im Code:** Unter `src/Fiscalization/Providers/` liegen Adapter für **efsta EFR** (lokal oder Cloud)
-und **fiskaltrust POS System API v2**. Sie implementieren ein Interface `Fiscalization\AdapterInterface`,
-das es in diesem Stand noch nicht gibt; sie sind also nicht angebunden (Arbeitsliste A221) und werden bis zum
-Merge des Fiskalisierungskerns (PR #14) auch nicht mit dem Plugin-ZIP ausgeliefert (`.distignore`, A666). Eine
+und **fiskaltrust POS System API v2**. Sie implementieren `Fiscalization\AdapterInterface` und werden seit dem Merge
+des Fiskalisierungskerns (PR #14) mit dem Plugin-ZIP ausgeliefert (A666); aktiv werden sie erst, wenn ein
+Adapter in den Einstellungen konfiguriert ist. Eine
 **fiskaly**-Anbindung ist hier nicht enthalten. In DE/AT sind Bar und Karte an der Kasse deshalb gesperrt,
 bis ein Administrator bestätigt, dass die Verkäufe in einer eigenen zertifizierten Kasse erfasst werden
 (`boxoffice_cash_confirmed`), oder eine Integration über den Filter `wpcap_boxoffice_fiscal_ready`
