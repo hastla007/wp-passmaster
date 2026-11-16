@@ -1190,17 +1190,17 @@ Gesamt: 262 Aufgaben.
   - src/Privacy/PolicyText.php:79/118/119, Settings.php:77–84, Retention.php:58–75: Fristen aus Retention::days()/financial_years(), eigene Formulierung für 0
 - [x] **A568** [WICHTIG] Nachweis der akzeptierten AGB-Fassung nicht möglich; Bestätigungsmail ohne Vertragstexte (§312f BGB) — _R4 Eigen (Deep Dive 3)_ (TODO L908; Audit Runde 4)
   - src/Settings.php:275–278, Admin/SettingsPage.php:378, Mail/Types.php:132: Fassungen je Sprache append-only archivieren, Platzhalter in Standard-Bestätigungsmail
-- [ ] **A569** [WICHTIG] Personalisierung über reine Namensänderung unbegrenzt umgehbar; Zähler im Audit-Log — _R4 Eigen (Deep Dive 3)_ (TODO L909; Audit Runde 4)
+- [x] **A569** [WICHTIG] Personalisierung über reine Namensänderung unbegrenzt umgehbar; Zähler im Audit-Log — _R4 Eigen (Deep Dive 3)_ (TODO L909; Audit Runde 4)
   - src/TicketAssignments.php:27–36: Namensänderungen zählen, Zähler am Ticket
-- [ ] **A570** [WICHTIG] Nach Übertragung kann niemand außer Verwaltung personalisieren — _R4 Eigen (Deep Dive 3)_ (TODO L910; Audit Runde 4)
+- [x] **A570** [WICHTIG] Nach Übertragung kann niemand außer Verwaltung personalisieren — _R4 Eigen (Deep Dive 3)_ (TODO L910; Audit Runde 4)
   - src/Orders.php:1502–1503, TicketAssignments.php:30–34, TicketPage.php: Ticketseite: Name/Felder für aktuelle Inhaberin bearbeitbar mit Frist
-- [ ] **A571** [WICHTIG] Einlasskurve schneidet 72 h nach erstem Scan ab, zählt zurückgenommene Scans — _R4 Eigen (Deep Dive 3)_ (TODO L911; Audit Runde 4)
+- [x] **A571** [WICHTIG] Einlasskurve schneidet 72 h nach erstem Scan ab, zählt zurückgenommene Scans — _R4 Eigen (Deep Dive 3)_ (TODO L911; Audit Runde 4)
   - src/Reports/Data.php:374: Ab Einlass-/Terminbeginn, undone abziehen (belegt t3)
-- [ ] **A572** [WICHTIG] Check-in-Quote im Bericht widerspricht No-Show-Liste (undone) — _R4 Eigen (Deep Dive 3)_ (TODO L912; Audit Runde 4)
+- [x] **A572** [WICHTIG] Check-in-Quote im Bericht widerspricht No-Show-Liste (undone) — _R4 Eigen (Deep Dive 3)_ (TODO L912; Audit Runde 4)
   - src/Reports/Data.php:322, Printing/NoShowList.php:27: Gleiche Admitted-Logik (belegt t3)
-- [ ] **A573** [WICHTIG] Pass-Inhaber fehlen in Listen/Berichten verknüpfter Termine; No-Shows des Ankertermins falsch — _R4 Eigen (Deep Dive 3)_ (TODO L913; Audit Runde 4)
+- [x] **A573** [WICHTIG] Pass-Inhaber fehlen in Listen/Berichten verknüpfter Termine; No-Shows des Ankertermins falsch — _R4 Eigen (Deep Dive 3)_ (TODO L913; Audit Runde 4)
   - src/Printing/Templates.php:289, NoShowList.php:27, Reports/Data.php:320–362: Über admission_entries.occurrence_id bzw. Pass-Verknüpfungen bilden
-- [ ] **A574** [WICHTIG] Partner-API: since-Abruf übersieht Widerruf/Erstattung/Übertragung; keine Namen/Antworten — _R4 Eigen (Deep Dive 3)_ (TODO L914; Audit Runde 4)
+- [x] **A574** [WICHTIG] Partner-API: since-Abruf übersieht Widerruf/Erstattung/Übertragung; keine Namen/Antworten — _R4 Eigen (Deep Dive 3)_ (TODO L914; Audit Runde 4)
   - src/Partners/Api.php:238, Installer.php:195–217: updated_at an Tickets, since darauf; Namen/Antworten mit eigenem Scope
 - [x] **A575** [WICHTIG] Umtausch eines Tickets gibt das gesamte Kontingent der Bestellung zurück — _R4 Transaktionen/Concurrency_ (TODO L915; Audit Runde 4)
   - src/Exchange/Service.php:754, Allocations/Holds.php:300–303: Jeden Grund mit ticket_type_id/quantity als Teilfreigabe (belegt t4c)
@@ -1214,7 +1214,7 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php, Exchange, TicketsPage, CapacityCounters::drift: Zentrale Freigabe je Ticket, Abgleich gegen gültige Tickets, Kombinationstests Erstattung×Umtausch×Widerruf×Absage
 - [x] **A580** [WICHTIG] Ticketmail ohne Größengrenze: 26–40 MB bei 1.000 Tickets, Gmail kürzt ab ~22 Tickets mit Wallet — _R4 Dokumente/Mail/Wallet_ (TODO L920; Audit Runde 4)
   - src/Orders.php:1797–1823, WalletPasses/Service.php:183–199, TicketPdf.php:86–113: Ab Schwelle Portal-Link/geteilte PDFs, ein „Alle hinzufügen“-Wallet-Link (gemessen)
-- [ ] **A581** [WICHTIG] Teilnehmer-E-Mail aus Checkout: Ticket nur an Käufer, Portal verweigert dann PDF (held_elsewhere) — _R4 Dokumente/Mail/Wallet_ (TODO L921; Audit Runde 4)
+- [x] **A581** [WICHTIG] Teilnehmer-E-Mail aus Checkout: Ticket nur an Käufer, Portal verweigert dann PDF (held_elsewhere) — _R4 Dokumente/Mail/Wallet_ (TODO L921; Audit Runde 4)
   - src/Orders.php:377, :1813, PortalSelfService.php:107, Modules/Reminders.php:94: Je Teilnehmeradresse eigene Ticketmail oder held_elsewhere nur nach Übertragung/Rotation
 - [x] **A582** [WICHTIG] Wallet-Pässe folgen Ort, Endzeit, Event-/Ticketname, Namenskorrektur nicht — _R4 Dokumente/Mail/Wallet_ (TODO L922; Audit Runde 4)
   - src/WalletPasses/Service.php:22–28, Notifications.php:56, TicketAssignments.php:70–90: occurrence_changed, Event-/Typ-Speichern und Teilnehmer-Updates anbinden
@@ -1228,7 +1228,7 @@ Gesamt: 262 Aufgaben.
   - src/PortalSelfService.php:139–144/186–200, Orders.php:1960ff/2058ff: Code verschlüsselt speichern (idempotentes PDF/Neuversand), Admin-Knopf „Ticket-PDF“
 - [x] **A587** [WICHTIG] Erinnerungen nur in Website-Sprache und ohne Ticketlink — _R4 Dokumente/Mail/Wallet_ (TODO L927; Audit Runde 4)
   - src/Modules/Reminders.php:37–46, :98, :141–155: Locale im Payload, Vorlagen je Sprache, Platzhalter für Ticket-/Portalzugang
-- [ ] **A588** [WICHTIG] Zustellung/Wiederherstellung hängt am Klartext-Code der ersten Mail (blinder Fleck) — _R4 Dokumente/Mail/Wallet_ (TODO L928; Audit Runde 4)
+- [x] **A588** [WICHTIG] Zustellung/Wiederherstellung hängt am Klartext-Code der ersten Mail (blinder Fleck) — _R4 Dokumente/Mail/Wallet_ (TODO L928; Audit Runde 4)
   - Orders, PortalSelfService, WalletPasses: Code verschlüsselt speichern, Zustellkontrolle (Größe, Bounce)
 - [x] **A589** [WICHTIG] Gleicher Idempotency-Key bei parallelem Retry mehrfach eingelöst; offline-sync ohne Key — _R4 Ticket-Sicherheit_ (TODO L929; Audit Runde 4)
   - src/Checkin.php:166–179, Installer.php:231 (Index nicht UNIQUE), Rest/Controller.php:606–619: UNIQUE (user_id, idempotency_key) bzw. Key-Reservierung, Prüfung nach Ticket-Sperre (belegt 6/6)
