@@ -178,7 +178,7 @@ final class PortalSelfService {
 	 *
 	 * @param string $public_id Order public id.
 	 * @param string $token     Order access token.
-	 * @param string $which     'all' or a ticket public id of this order.
+	 * @param string $which     'all' (first part), 'all-N' (part N, A627) or a ticket public id of this order.
 	 * @return array|\WP_Error filename, content (PDF bytes), tickets, new_codes.
 	 */
 	public static function pdf( $public_id, $token, $which = 'all' ) {
@@ -193,6 +193,12 @@ final class PortalSelfService {
 			return new \WP_Error( 'wpcap_order_not_paid', self::pdf_state_note( 'unpaid' ), array( 'status' => 409 ) );
 		}
 		$which = sanitize_key( (string) $which );
+		// A627: "all" is split into parts of pdf_max_tickets() tickets ("all-2" = second part).
+		$part = 0;
+		if ( preg_match( '/^all(?:-(\d{1,4}))?$/', $which, $m ) ) {
+			$part = max( 1, (int) ( $m[1] ?? 1 ) );
+			$which = 'all';
+		}
 		$selected = array();
 		foreach ( self::tickets( $order ) as $ticket ) {
 			if ( 'all' === $which ) {
@@ -202,6 +208,9 @@ final class PortalSelfService {
 				if ( 'available' !== $state ) { return new \WP_Error( 'wpcap_ticket_pdf_' . $state, self::pdf_state_note( $state ), array( 'status' => 409 ) ); }
 				$selected[] = $ticket;
 			}
+		}
+		if ( 'all' === $which ) {
+			$selected = array_slice( $selected, ( $part - 1 ) * self::pdf_max_tickets(), self::pdf_max_tickets() );
 		}
 		if ( ! $selected ) {
 			return 'all' === $which
@@ -281,7 +290,7 @@ final class PortalSelfService {
 		Audit::record( 'portal_ticket_pdf', 'order', (int) $order->order_id, array( 'tickets' => count( $entries ), 'new_codes' => count( $rotated ), 'scope' => 'all' === $which ? 'all' : 'single' ) );
 		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', Frontend\Format::order_reference( $order->public_id ) );
 		return array(
-			'filename' => ( 'all' === $which ? 'tickets-' : 'ticket-' ) . $reference . ( 'all' === $which ? '' : '-' . substr( $which, 0, 8 ) ) . '.pdf',
+			'filename' => ( 'all' === $which ? 'tickets-' : 'ticket-' ) . $reference . ( 'all' === $which ? ( $part > 1 ? '-' . $part : '' ) : '-' . substr( $which, 0, 8 ) ) . '.pdf',
 			'content' => $content,
 			'tickets' => count( $entries ),
 			'new_codes' => count( $rotated ),
@@ -517,6 +526,17 @@ final class PortalSelfService {
 
 	/* ------------------------------------------------------------------ Portal HTML */
 
+	/** Default maximum of tickets in one portal PDF (A627). */
+	const PDF_MAX_TICKETS = 50;
+
+	/**
+	 * A627: tickets per portal PDF (filter wpcap_portal_pdf_max_tickets, 1–200). Larger orders get one
+	 * download per part, so a click never renders (or re-codes) hundreds of tickets at once.
+	 */
+	public static function pdf_max_tickets() {
+		return max( 1, min( 200, (int) apply_filters( 'wpcap_portal_pdf_max_tickets', self::PDF_MAX_TICKETS ) ) );
+	}
+
 	/**
 	 * Portal card: PDF of all tickets, status of refunds/requests and the cancellation form.
 	 *
@@ -529,7 +549,24 @@ final class PortalSelfService {
 		$available = array_values( array_filter( $tickets, static function ( $t ) use ( $order ) { return 'available' === self::pdf_state( $t, $order ); } ) );
 		if ( $available ) {
 			$html .= '<section class="card" aria-labelledby="wpcap-pdf-title"><h2 id="wpcap-pdf-title">' . esc_html__( 'Tickets als PDF', 'pass-captain' ) . '</h2>';
-			$html .= self::pdf_form( $order, $token, 'all', sprintf( /* translators: %d: number of tickets */ _n( '%d Ticket als PDF herunterladen', 'Alle %d Tickets als PDF herunterladen', count( $available ), 'pass-captain' ), count( $available ) ), self::pdf_needs_new_codes( $available ) );
+			$max = self::pdf_max_tickets();
+			if ( count( $available ) <= $max ) {
+				$html .= self::pdf_form( $order, $token, 'all', sprintf( /* translators: %d: number of tickets */ _n( '%d Ticket als PDF herunterladen', 'Alle %d Tickets als PDF herunterladen', count( $available ), 'pass-captain' ), count( $available ) ), self::pdf_needs_new_codes( $available ) );
+			} else {
+				// A627: one PDF per part of $max tickets.
+				$html .= '<p>' . esc_html( sprintf( /* translators: %d: tickets per PDF */ __( 'Je PDF höchstens %d Tickets:', 'pass-captain' ), $max ) ) . '</p>';
+				foreach ( array_chunk( $available, $max ) as $index => $chunk ) {
+					$first = $index * $max + 1;
+					$label = sprintf(
+						/* translators: 1: first ticket number, 2: last ticket number, 3: number of tickets */
+						__( 'Tickets %1$d–%2$d von %3$d als PDF herunterladen', 'pass-captain' ),
+						$first,
+						$first + count( $chunk ) - 1,
+						count( $available )
+					);
+					$html .= self::pdf_form( $order, $token, 0 === $index ? 'all' : 'all-' . ( $index + 1 ), $label, self::pdf_needs_new_codes( $chunk ) );
+				}
+			}
 			if ( count( $available ) < count( $tickets ) ) {
 				$html .= '<p class="muted"><small>' . esc_html__( 'Stornierte, erstattete, bereits verwendete und an andere Personen übertragene Tickets sind nicht enthalten.', 'pass-captain' ) . '</small></p>';
 			}
