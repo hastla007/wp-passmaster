@@ -17,8 +17,9 @@ if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_respon
 
 global $wpdb;
 $p = $wpdb->prefix;
+// Merged design: a failed issuance queues Orders::ISSUE_JOB ('ticket_issue'), the sweep 'ticket_issue_retry'.
 $a343_jobs = static function ( $order_id ) use ( $wpdb, $p ) {
-	return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='ticket_issue_retry' AND payload=%s AND status IN ('queued','running')", wp_json_encode( array( 'order_id' => (int) $order_id ) ) ) );
+	return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type IN ('ticket_issue','ticket_issue_retry') AND payload=%s AND status IN ('queued','running')", wp_json_encode( array( 'order_id' => (int) $order_id ) ) ) );
 };
 
 echo "A343: failed issuance after a webhook payment\n";
@@ -27,37 +28,39 @@ Registry::reset();
 http_reset();
 $a343_o = provider_order( 'stripe', make_type( 10, 10, 1500 ), 1, 'a343-webhook' );
 $a343_event = stripe_session_event( 'evt_a343_paid', 'checkout.session.completed', $a343_o, array( 'id' => 'cs_a343', 'payment_intent' => 'pi_a343' ) );
-wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( 'rollback' => true ) );
+wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( 'rollback' => true, 'times' => Orders::DB_RETRIES + 1 ) ); // Merged: issuance retries a busy database DB_RETRIES times first.
 $a343_first = Webhooks::handle( stripe_request( $a343_event ) );
 wpcap_test_faults_clear();
 check( 'A343: issuance failure is answered with a 5xx (the provider redelivers)', is_wp_error( $a343_first ) && (int) ( $a343_first->get_error_data()['status'] ?? 0 ) >= 500 );
 check( 'A343: the order is paid without tickets, the event is not processed, a retry job is queued', 'paid' === Orders::get( $a343_o['order_id'] )->payment_status && ! tickets( $a343_o['order_id'] ) && null === $wpdb->get_var( "SELECT status FROM {$p}wpcap_payment_events WHERE provider='stripe' AND provider_event_id='evt_a343_paid'" ) && 1 === $a343_jobs( $a343_o['order_id'] ) );
 Webhooks::handle( stripe_request( $a343_event ) );
 check( 'A343: the redelivery issues the ticket once', 1 === count( tickets( $a343_o['order_id'], 'valid' ) ) );
-$wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type='ticket_issue_retry'" );
+$wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type IN ('ticket_issue','ticket_issue_retry')" );
 
 echo "A343: sweep of paid orders whose issuance never ran\n";
 $a343_m = Orders::create( array( 'email' => 'a343-sweep@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 10, 10, 1500 ), 'quantity' => 2 ) ), 'idempotency_key' => 'a343-sweep' ) );
-wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( 'rollback' => true ) );
+wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( 'rollback' => true, 'times' => Orders::DB_RETRIES + 1 ) ); // Merged: issuance retries a busy database DB_RETRIES times first.
 Orders::confirm_manual_payment( $a343_m['order_id'] );
 wpcap_test_faults_clear();
 // The process died before (or the enqueue of) the retry job: nothing is queued any more.
-$wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type='ticket_issue_retry'" );
+$wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type IN ('ticket_issue','ticket_issue_retry')" );
 check( 'A343: setup – paid, no tickets, no job', 'paid' === Orders::get( $a343_m['order_id'] )->payment_status && ! tickets( $a343_m['order_id'] ) && 0 === $a343_jobs( $a343_m['order_id'] ) );
 Orders::sweep_unissued( 1000 ); // Other modules may leave recent paid orders without tickets behind.
 check( 'A343: within the grace period nothing is swept', 0 === $a343_jobs( $a343_m['order_id'] ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET updated_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 20 * MINUTE_IN_SECONDS ), $a343_m['order_id'] ) );
 $a343_old = Orders::create( array( 'email' => 'a343-old@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 10, 10, 1500 ), 'quantity' => 1 ) ), 'idempotency_key' => 'a343-old' ) );
-wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( 'rollback' => true ) );
+wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( 'rollback' => true, 'times' => Orders::DB_RETRIES + 1 ) ); // Merged: issuance retries a busy database DB_RETRIES times first.
 Orders::confirm_manual_payment( $a343_old['order_id'] );
 wpcap_test_faults_clear();
-$wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type='ticket_issue_retry'" );
-$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET updated_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ), $a343_old['order_id'] ) );
+$wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type IN ('ticket_issue','ticket_issue_retry')" );
+// Merged design: the job queue also re-issues paid orders without tickets created in the last 30 days
+// (Orders::reconcile_issuance()); "long ago" therefore means created more than 30 days ago.
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET updated_at=%s, created_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ), gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS ), $a343_old['order_id'] ) );
 check( 'A343: the hourly cron runs the sweep', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Plugin.php' ), "add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'sweep_unissued' )" ) );
 $a343_swept = Orders::sweep_unissued( 1000 );
 check( 'A343: the sweep queues one retry job for the recent order only', $a343_swept >= 1 && 1 === $a343_jobs( $a343_m['order_id'] ) && 0 === $a343_jobs( $a343_old['order_id'] ) && (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='ticket_issue_swept' AND object_id=%d", $a343_m['order_id'] ) ) > 0 );
 check( 'A343: a second sweep queues nothing more', 0 === Orders::sweep_unissued() && 1 === $a343_jobs( $a343_m['order_id'] ) );
-$wpdb->query( "UPDATE {$p}wpcap_jobs SET run_after='2000-01-01 00:00:00' WHERE job_type='ticket_issue_retry'" );
+$wpdb->query( "UPDATE {$p}wpcap_jobs SET run_after='2000-01-01 00:00:00' WHERE job_type IN ('ticket_issue','ticket_issue_retry')" );
 $a343_handler = array( Orders::class, 'handle_job' );
 add_filter( 'wpcap_process_job', $a343_handler, 10, 4 );
 Jobs::process_due( 50 );
