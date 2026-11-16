@@ -1,6 +1,8 @@
 # Änderungsprotokoll
 
-## Unveröffentlicht
+## 1.5.0 – 2026-11-16
+
+Version 1.5.0 ist die erste Version mit den Erweiterungspunkten für Add-ons (Abschnitt „Add-on-Schnittstellen“ weiter unten). Neu ist die Konstante `WPCAP_CONTRACT_VERSION` (Wert `1.1.0`): Sie nennt die Version des Erweiterungsvertrags, die Tabelle „Versionen der Erweiterungspunkte“ in `docs/EXTENSIONS.md` nennt je Hook die Plugin-Version, seit der er besteht. Add-ons, die diese Hooks brauchen, setzen Pass Captain 1.5.0 voraus.
 
 ### Wichtige Verhaltensänderungen beim Update
 - **Datenbankschema 3.17.7** (über 3.17.0–3.17.6): neue Tabellen `wpcap_checkin_claims`, `wpcap_credit_note_lines`, `wpcap_payment_cases`, `wpcap_mail_suppressions`; neue Spalten u. a. `ticket_types.visibility/access_codes/description/position/attendee_name`, `orders.customer_name/attribution`, `refunds.deducted_minor`, `wallet_passes.synced_at`. Die Aktualisierung läuft automatisch.

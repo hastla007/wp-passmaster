@@ -4,7 +4,7 @@ Tags: events, tickets, check-in, booking, woocommerce
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,7 +122,8 @@ Only the name, the main file (`pass-captain.php`), the folder and the text domai
 
 == Changelog ==
 
-= Unreleased =
+= 1.5.0 =
+* Extension points for add-ons (admin menu, invoices, branding, checkout gate, API scopes, card terminal devices) with the contract version constant `WPCAP_CONTRACT_VERSION`.
 * Renamed to "Pass Captain" (main file `pass-captain.php`, text domain `pass-captain`); automatic takeover from the old "WP Pass Captain" copy.
 * Shared scanner with WP Voucher Captain, default admission window, deferred privacy erasure for upcoming dates.
 
@@ -141,6 +142,9 @@ Only the name, the main file (`pass-captain.php`), the folder and the text domai
 The full change log is in CHANGELOG.md in the source repository.
 
 == Upgrade Notice ==
+
+= 1.5.0 =
+Large update: database schema 3.17.7 is installed automatically, credentials are stored encrypted. Please read "Wichtige Verhaltensänderungen beim Update" in CHANGELOG.md and back up the database first.
 
 = 1.4.0 =
 Adds sales models, company invoices and voucher tax treatment. Database schema 3.5.0 is installed automatically.

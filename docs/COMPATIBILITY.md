@@ -65,7 +65,7 @@ Basislinie ist Teil des Freigabeprotokolls ([RELEASE.md](RELEASE.md)); Support-Z
 
 | Release | PHP (CI) | WordPress | WooCommerce | Datenbanken (CI) | Browser-Suiten (manuell) | Stand |
 |---|---|---|---|---|---|---|
-| 1.4.0 + unveröffentlichte Änderungen (`main`) | 8.2, 8.3, 8.4 | 6.4 und 7.1.4 | 8.2.0 und 11.3.0, HPOS an/aus | MariaDB 10.6, 11.4; MySQL 8.0, 8.4 | Chromium (a11y-Gate, E2E inkl. WooCommerce 11.3 Blocks) | 14.11.2026 |
+| 1.5.0 | 8.2, 8.3, 8.4 | 6.4 und 7.1.4 | 8.2.0 und 11.3.0, HPOS an/aus | MariaDB 10.6, 11.4; MySQL 8.0, 8.4 | Chromium (a11y-Gate, E2E inkl. WooCommerce 11.3 Blocks) | 14.11.2026 |
 
 **Je Release aktualisieren** (Teil von Schritt 1 in [RELEASE.md](RELEASE.md)):
 

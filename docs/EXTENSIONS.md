@@ -21,7 +21,95 @@ Grundsätze für Add-ons:
   `wpcap_modules`, `wpcap_payment_gateways` oder `wpcap_sms_providers` registriert das Add-on deshalb direkt
   beim Laden seiner Hauptdatei oder spätestens auf `plugins_loaded` mit Priorität < 10.
 - Mindestversion des Kerns prüfen: `defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, 'x.y', '>=' )`;
-  sonst mit Admin-Hinweis aussteigen.
+  sonst mit Admin-Hinweis aussteigen. Welche Version welchen Erweiterungspunkt bringt, steht unter
+  [Versionen der Erweiterungspunkte](#versionen-der-erweiterungspunkte).
+
+## Versionen der Erweiterungspunkte
+
+Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hauptdatei `pass-captain.php`:
+
+- `WPCAP_VERSION` ist die Plugin-Version. Die Tabelle unten nennt zu jedem versionierten Erweiterungspunkt
+  die Plugin-Version, seit der er besteht. Wer einen Punkt mit „seit 1.5.0“ braucht, setzt Pass Captain 1.5.0 voraus.
+- `WPCAP_CONTRACT_VERSION` ist die Version des Erweiterungsvertrags (seit 1.5.0 definiert; fehlt die Konstante,
+  läuft Plugin 1.4.0 oder älter). Die erste Stelle steigt, wenn ein Erweiterungspunkt entfernt oder unverträglich
+  geändert wird; die zweite Stelle steigt, wenn Erweiterungspunkte dazukommen; die dritte bei Klarstellungen ohne
+  Änderung des Verhaltens.
+
+| `WPCAP_CONTRACT_VERSION` | Plugin-Version | Inhalt |
+|---|---|---|
+| 1.0.0 (nachträglich benannt, Konstante fehlt) | bis 1.4.0 | die Erweiterungspunkte mit „seit“ kleiner als 1.5.0 |
+| 1.1.0 | 1.5.0 | zusätzlich alle Erweiterungspunkte mit „seit 1.5.0“ |
+
+```php
+$ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
+	&& defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '2.0.0', '<' );
+```
+
+Der Kern fragt umgekehrt nie, ob ein Add-on aktiv oder lizenziert ist: Er feuert seine Hooks immer und verhält
+sich ohne Callbacks unverändert. Der Test `tests/integration/modules/zzzzzzzz_r16_contract.php` prüft, dass diese
+Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nicht gibt.
+
+| Erweiterungspunkt | seit Plugin-Version |
+|---|---|
+| `wp_pass_captain_admin_menu_built_v1` | 1.5.0 |
+| `wp_pass_captain_admin_menu_icon_v1` | 1.5.0 |
+| `wp_pass_captain_admin_menu_title_v1` | 1.5.0 |
+| `wp_pass_captain_admin_menu_v1` | 1.5.0 |
+| `wp_pass_captain_admin_occurrence_sections_v1` | 1.5.0 |
+| `wp_pass_captain_api_scopes_v1` | 1.5.0 |
+| `wp_pass_captain_availability_changed_v1` | 1.5.0 |
+| `wp_pass_captain_brand_logo_v1` | 1.5.0 |
+| `wp_pass_captain_brand_name_v1` | 1.5.0 |
+| `wp_pass_captain_checkin_service_v1` | 1.2.0 |
+| `wp_pass_captain_checkout_allowed_v1` | 1.5.0 |
+| `wp_pass_captain_checkout_legal_html_v1` | 1.5.0 |
+| `wp_pass_captain_connector_error_v1` | 0.3.0 |
+| `wp_pass_captain_connectors_v1` | 0.3.0 |
+| `wp_pass_captain_currencies_v1` | 1.5.0 |
+| `wp_pass_captain_delayed_payment_hold_minutes_v1` | 1.5.0 |
+| `wp_pass_captain_email_template_v1` | 0.2.0 |
+| `wp_pass_captain_event_card_html_v1` | 1.5.0 |
+| `wp_pass_captain_export_rows_v1` | 1.5.0 |
+| `wp_pass_captain_export_types_v1` | 1.5.0 |
+| `wp_pass_captain_http_connector_data_v1` | 1.5.0 |
+| `wp_pass_captain_invoice_created_v1` | 1.5.0 |
+| `wp_pass_captain_invoice_links_v1` | 1.5.0 |
+| `wp_pass_captain_invoice_mail_attachments_v1` | 1.5.0 |
+| `wp_pass_captain_lock_wait_timeout_v1` | 1.5.0 |
+| `wp_pass_captain_pos_device_payment_completed_v1` | 1.5.0 |
+| `wp_pass_captain_pos_device_payment_failed_v1` | 1.5.0 |
+| `wp_pass_captain_pos_device_payment_started_v1` | 1.5.0 |
+| `wp_pass_captain_pos_device_timeout_v1` | 1.5.0 |
+| `wp_pass_captain_pos_payment_devices_v1` | 1.5.0 |
+| `wp_pass_captain_print_batch_limit_v1` | 1.5.0 |
+| `wp_pass_captain_process_job_v1` | 0.3.0 |
+| `wp_pass_captain_qr_key_rotated_v1` | 1.5.0 |
+| `wp_pass_captain_refund_failed_v1` | 1.5.0 |
+| `wp_pass_captain_report_data_v1` | 1.5.0 |
+| `wp_pass_captain_report_metrics_v1` | 1.5.0 |
+| `wp_pass_captain_report_tabs_v1` | 1.5.0 |
+| `wp_pass_captain_scanner_adapters_v1` | 1.5.0 |
+| `wp_pass_captain_settings_defaults_v1` | 1.5.0 |
+| `wp_pass_captain_settings_sections_v1` | 1.5.0 |
+| `wp_pass_captain_ticket_mail_inline_max_v1` | 1.5.0 |
+| `wp_pass_captain_ticket_mail_list_max_v1` | 1.5.0 |
+| `wp_pass_captain_ticket_pdf_limits_v1` | 1.5.0 |
+| `wp_pass_captain_ticket_pdf_max_tickets_v1` | 1.5.0 |
+| `wp_pass_captain_ticket_service_v1` | 1.0.0 |
+| `wp_pass_captain_voucher_provider_v1` | 0.1.0 |
+| `wp_pass_captain_voucher_tickets_revoked_v1` | 1.2.0 |
+| `wp_pass_captain_waitlist_ip_limit_v1` | 1.5.0 |
+| `wp_pass_captain_wallet_provider_v1` | 0.2.0 |
+| `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
+| `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
+| `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |
+| `PassCaptain\BoxOffice\Service::confirm_device_payment()`, `wpcap_confirm_pos_payment()` | 1.5.0 |
+| `PassCaptain\Orders::request_fingerprint()` | 1.5.0 |
+| `PassCaptain\Access::can_access_occurrence()` | 1.5.0 |
+| `PassCaptain\Orders::confirm_external_payment()` | 1.4.0 oder früher |
+
+Hooks mit dem Präfix `wpcap_` (ohne Versionssuffix) stehen mit Argumenten in [HOOKS.md](HOOKS.md); Änderungen an
+ihnen stehen im `CHANGELOG.md`.
 
 ## Übersicht der Andockpunkte
 
@@ -310,7 +398,8 @@ Add-ons verwenden die Filter.
 
 ## Pass Captain Pro / Add-on-Schnittstellen
 
-Andockpunkte für das Premium-Add-on „Pass Captain Pro“ (eigenes Repository). Der Kern implementiert die
+Andockpunkte, die für das Premium-Add-on „Pass Captain Pro“ entstanden sind (Repository `hastla007/captain-pro`,
+Ordner `addons/pass-captain-pro`) und jedem anderen Add-on genauso offenstehen; alle bestehen seit Plugin 1.5.0. Der Kern implementiert die
 Premiumfunktionen **nicht** (keine E-Rechnung, kein Warteraum, kein White Label, keine schreibenden API-Routen) –
 nur stabile, getestete Schnittstellen (`tests/integration/modules/zzzzz_x5_addon_hooks.php`). Ohne Callbacks
 verhält sich der Kern unverändert. Alle Hooks: [HOOKS.md](HOOKS.md).
