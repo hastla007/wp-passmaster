@@ -387,6 +387,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_wallet_apple_locations` | `array $locations, array $ticket` | Orte für Sperrbildschirm-Hinweise (max. 10). |
 | `wpcap_wallet_apple_images` | `array $images` | Bilder des Passes (Dateiname → Bytes). |
 | `wpcap_wallet_apns_client` | `ApnsClient|null $client` | Eigener APNs-Client (Tests). |
+| `wpcap_wallet_google_locales` | `string[] $locales` (mitgelieferte Kataloge) | A518: Sprachen, für die die gemeinsame Google-Wallet-Klasse übersetzte Plugin-Texte (`translatedValues`) erhält. |
 | `wpcap_wallet_google_class` | `array $class, array $ticket` | Google-Wallet-EventTicketClass. |
 | `wpcap_wallet_mail_inline_limit` | `int $limit` (10) | Bis zu dieser Ticketanzahl enthält die Ticketmail Wallet-Pässe/-Links je Ticket; darüber „Alle hinzufügen“-Links je Paket (A580). |
 | `wpcap_wallet_batch_size` | `int $size, string $provider` | Tickets je „Alle hinzufügen“-Link: Apple `.pkpasses` (Standard und Maximum 10), Google-Speichern-Link mit Objekt-IDs (Standard und Maximum 8, gemessen ~1.500 Zeichen), A580/A583. |

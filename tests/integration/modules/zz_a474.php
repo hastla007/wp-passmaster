@@ -45,7 +45,8 @@ do_action( 'wpcap_occurrence_changed', $a474_occ, array( 'location' => array( 'W
 Service::flush();
 $a474_obj = json_decode( array_values( array_filter( http_requests( 'eventTicketObject/' ), static fn( $q ) => 'PATCH' === $q['method'] ) )[0]['body'] ?? '{}', true );
 $a474_class = json_decode( array_values( array_filter( http_requests( 'eventTicketClass/' ), static fn( $q ) => 'PATCH' === $q['method'] ) )[0]['body'] ?? '{}', true );
-check( 'A474: Google texts carry the buyer language (en), not a fixed "de"', 'en' === ( $a474_obj['ticketType']['defaultValue']['language'] ?? '' ) && 'en' === ( $a474_class['eventName']['defaultValue']['language'] ?? '' ) );
+// A518: the ticket object carries the buyer language; the class is shared by all buyers and declares the site language.
+check( 'A474/A518: Google ticket texts carry the buyer language (en-US), the shared class the site language', 'en-US' === ( $a474_obj['ticketType']['defaultValue']['language'] ?? '' ) && 'de-DE' === ( $a474_class['eventName']['defaultValue']['language'] ?? '' ) );
 http_reset();
 for ( $i = 0; $i < 6; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
 Orders::resend_tickets( $a474_r['order_id'] );

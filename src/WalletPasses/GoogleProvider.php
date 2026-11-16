@@ -76,8 +76,59 @@ class GoogleProvider implements WalletProvider {
 	private static function text( $value, array $ticket = array() ) {
 		$locale = (string) ( $ticket['locale'] ?? '' );
 		if ( '' === $locale && function_exists( 'determine_locale' ) ) { $locale = (string) determine_locale(); }
-		$language = strtolower( (string) strtok( '' !== $locale ? $locale : 'de', '_' ) );
-		return array( 'defaultValue' => array( 'language' => '' !== $language ? $language : 'de', 'value' => (string) $value ) );
+		return array( 'defaultValue' => array( 'language' => self::language( $locale ), 'value' => (string) $value ) );
+	}
+
+	/** BCP 47 language of a WordPress locale ("en_US" → "en-US", "de_DE_formal" → "de-DE"); "de" for ''. */
+	public static function language( $locale ) {
+		$parts = explode( '_', (string) $locale );
+		$lang = strtolower( (string) $parts[0] );
+		if ( '' === $lang || ! preg_match( '/^[a-z]{2,3}$/', $lang ) ) { return 'de'; }
+		return isset( $parts[1] ) && preg_match( '/^[A-Za-z]{2}$/', $parts[1] ) ? $lang . '-' . strtoupper( $parts[1] ) : $lang;
+	}
+
+	/**
+	 * A518: text of the event class. The class is shared by all buyers of an occurrence, so it must
+	 * not carry the language of whoever triggered the last update: operator content (event name,
+	 * venue) is declared in the site language.
+	 */
+	private static function site_text( $value ) {
+		return array( 'defaultValue' => array( 'language' => self::language( \PassCaptain\Mail\Mailer::site_locale() ), 'value' => (string) $value ) );
+	}
+
+	/**
+	 * A518: plugin text of the shared class in the site language plus translatedValues for every
+	 * language the plugin ships a catalogue for (Google shows the one matching the device).
+	 *
+	 * @param callable $text Returns the text in the current language.
+	 */
+	public static function translated( callable $text ) {
+		$site = \PassCaptain\Mail\Mailer::site_locale();
+		$default = (string) \PassCaptain\Mail\Mailer::with_locale( $site, $text );
+		$out = array( 'defaultValue' => array( 'language' => self::language( $site ), 'value' => $default ) );
+		$seen = array( self::language( $site ) => true );
+		foreach ( self::catalog_locales() as $locale ) {
+			$lang = self::language( $locale );
+			if ( isset( $seen[ $lang ] ) ) { continue; }
+			$seen[ $lang ] = true;
+			$value = (string) \PassCaptain\Mail\Mailer::with_locale( $locale, $text );
+			if ( '' !== $value && $value !== $default ) { $out['translatedValues'][] = array( 'language' => $lang, 'value' => $value ); }
+		}
+		return $out;
+	}
+
+	/** Locales of the bundled plugin catalogues (languages/pass-captain-<locale>.mo). */
+	private static function catalog_locales() {
+		$locales = array();
+		foreach ( (array) glob( WPCAP_PATH . 'languages/pass-captain-*.mo' ) as $file ) {
+			if ( preg_match( '/pass-captain-([A-Za-z0-9_]+)\.mo$/', (string) $file, $m ) ) { $locales[] = $m[1]; }
+		}
+		/**
+		 * Languages for which the shared Google Wallet class carries translated plugin texts (A518).
+		 *
+		 * @param string[] $locales WordPress locales (default: the bundled catalogues).
+		 */
+		return array_values( array_filter( array_map( array( \PassCaptain\Mail\Mailer::class, 'normalize_locale' ), (array) apply_filters( 'wpcap_wallet_google_locales', $locales ) ) ) );
 	}
 
 	private static function iso( $utc, $timezone ) {
@@ -90,7 +141,7 @@ class GoogleProvider implements WalletProvider {
 			'id' => $this->ticket_class_id( $ticket ),
 			'issuerName' => AppleProvider::organization(),
 			'reviewStatus' => 'UNDER_REVIEW',
-			'eventName' => self::text( $ticket['event_name'], $ticket ),
+			'eventName' => self::site_text( $ticket['event_name'] ),
 			'eventId' => 'wpcap-' . self::site_key() . '-' . absint( $ticket['occurrence_id'] ),
 			'dateTime' => array( 'start' => self::iso( $ticket['starts_at'], $ticket['timezone'] ) ),
 			'hexBackgroundColor' => (string) ( Settings::get( 'wallet_background_color' ) ?: '#1d2327' ),
@@ -98,13 +149,15 @@ class GoogleProvider implements WalletProvider {
 		if ( $ticket['ends_at'] ) { $class['dateTime']['end'] = self::iso( $ticket['ends_at'], $ticket['timezone'] ); }
 		if ( ! empty( $ticket['doors_open_at'] ) ) { $class['dateTime']['doorsOpen'] = self::iso( $ticket['doors_open_at'], $ticket['timezone'] ); }
 		if ( 'cancelled' === ( $ticket['occurrence_status'] ?? '' ) || 'cancelled' === ( $ticket['event_status'] ?? '' ) ) {
-			$class['messages'] = array( array( 'id' => 'wpcap_cancelled', 'header' => __( 'Abgesagt', 'pass-captain' ), 'body' => __( 'Die Veranstaltung wurde abgesagt.', 'pass-captain' ) ) );
+			$header = self::translated( static function () { return __( 'Abgesagt', 'pass-captain' ); } );
+			$body = self::translated( static function () { return __( 'Die Veranstaltung wurde abgesagt.', 'pass-captain' ); } );
+			$class['messages'] = array( array( 'id' => 'wpcap_cancelled', 'header' => $header['defaultValue']['value'], 'body' => $body['defaultValue']['value'], 'localizedHeader' => $header, 'localizedBody' => $body ) );
 		}
-		if ( '' !== (string) $ticket['location'] ) { $class['venue'] = array( 'name' => self::text( $ticket['location'], $ticket ), 'address' => self::text( $ticket['location'], $ticket ) ); }
+		if ( '' !== (string) $ticket['location'] ) { $class['venue'] = array( 'name' => self::site_text( $ticket['location'] ), 'address' => self::site_text( $ticket['location'] ) ); }
 		// A628: the operator's logo (Google loads it from a public HTTPS URL).
 		$logo = self::logo_url();
 		if ( '' !== $logo ) {
-			$class['logo'] = array( 'sourceUri' => array( 'uri' => $logo ), 'contentDescription' => self::text( AppleProvider::organization(), $ticket ) );
+			$class['logo'] = array( 'sourceUri' => array( 'uri' => $logo ), 'contentDescription' => self::site_text( AppleProvider::organization() ) );
 		}
 		return apply_filters( 'wpcap_wallet_google_class', $class, $ticket );
 	}

@@ -440,11 +440,18 @@ final class Mailer {
 		return function_exists( 'get_locale' ) ? (string) get_locale() : '';
 	}
 
-	/** The site's default locale. */
+	/**
+	 * The site's default locale. Inside with_locale() get_locale() reports the switched locale, so the
+	 * site locale captured before the outermost switch is returned there (A384, A518).
+	 */
 	public static function site_locale() {
+		if ( self::$active_locales && '' !== self::$outer_site_locale ) { return self::$outer_site_locale; }
 		$locale = function_exists( 'get_locale' ) ? (string) get_locale() : self::current_locale();
 		return '' !== $locale ? $locale : 'de_DE';
 	}
+
+	/** @var string Site locale before the outermost with_locale() switched (see site_locale()). */
+	private static $outer_site_locale = '';
 
 	/** Sanitised locale code (e.g. de_DE, de_DE_formal) or ''. */
 	public static function normalize_locale( $locale ) {
@@ -466,6 +473,7 @@ final class Mailer {
 		$locale = self::normalize_locale( $locale );
 		$switched = false;
 		$plugin_only = false;
+		if ( ! self::$active_locales ) { self::$outer_site_locale = self::site_locale(); }
 		if ( '' !== $locale && $locale !== self::current_locale() && function_exists( 'switch_to_locale' ) ) {
 			$switched = (bool) switch_to_locale( $locale );
 			if ( ! $switched ) { $plugin_only = self::load_plugin_catalog( $locale ); }

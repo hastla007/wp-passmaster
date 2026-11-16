@@ -59,6 +59,7 @@ nur `origins` im Speichern-Link passen; das nimmt das Plugin immer aus der aktue
 | Barcode | QR (`PKBarcodeFormatQR`), Inhalt = Ticketcode | `QR_CODE`, Inhalt = Ticketcode |
 | Felder | Veranstaltung, Datum/Uhrzeit in der Zeitzone des Termins (`ignoresTimeZone`), Einlass (falls gesetzt), Ort, Ticketkategorie, Platz, Teilnehmername; Ablauf 12 Stunden nach dem Ende | Eventname, Termin mit Ende und Einlass (`dateTime.start/end/doorsOpen`, Klasse), Ort, Ticketart, Platz, Inhaber |
 | Updates | `webServiceURL` + `authenticationToken`, APNs-Push | REST-API (`PATCH`/`POST`) |
+| Sprache | Sprache der Bestellung (A474) | Objekt (Ticketart, Platz): Sprache der Bestellung; Klasse (gilt für alle Käufer:innen eines Termins): Eventname und Ort in der Website-Sprache, Absage-Hinweis als `localizedHeader`/`localizedBody` in der Website-Sprache mit `translatedValues` für jede mitgelieferte Sprache (Filter `wpcap_wallet_google_locales`); Sprachcodes nach BCP 47 (`en-US`), A518 |
 
 ### Filter
 
