@@ -591,7 +591,7 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:305–311 (execute), StripeGateway.php:114–140, PayPalGateway.php:178–195, MollieGateway.php:278–296: Timeout/5xx/409 als „unbekannt“ (processing ohne Referenz) behandeln, über Metadatum wpcap_refund per Webhook/GET abgleichen
 - [x] **A273** [KRITISCH] Späte Zahlung stellt gültige Tickets für abgesagte oder vergangene Termine aus — _R2 Eigen_ (TODO L604; Audit Runde 4)
   - src/Orders.php:1031–1078 (confirm_external_payment), OccurrenceCancellation.php:54: Nur Kontingent geprüft; Absage storniert nur pending. Termin-/Eventstatus und Ende prüfen → needs_review + Alarm; Absage auch für expired-Bestellungen (mit Skript belegt)
-- [ ] **A274** [WICHTIG] Einstellung „Stripe-Modus Test/Live“ wirkungslos — _R1 Core_ (TODO L605; Audit Runde 4)
+- [x] **A274** [WICHTIG] Einstellung „Stripe-Modus Test/Live“ wirkungslos — _R1 Core_ (TODO L605; Audit Runde 4)
   - src/Settings.php:58, SettingsPage.php:110, StripeGateway.php: Live + sk_test_ → Tickets ohne echte Zahlung. Key-Präfix gegen Modus prüfen (Speichern, is_available), Webhook livemode abgleichen; PayPal-Sandbox-Standard; Testmodus im Admin/Checkout kennzeichnen
 - [ ] **A275** [WICHTIG] Block-Editor-Texte und block.json nie übersetzt — _R1 Core_ (TODO L606; Audit Runde 4)
   - src/blocks/*/editor.js, block.json, ci.yml (--skip-block-json): Keine wp i18n make-json, block.json-Titel nicht im Katalog. --skip-block-json entfernen, make-json im Build
@@ -729,9 +729,9 @@ Gesamt: 262 Aufgaben.
   - src/Waitlists/AdminPage.php:116–120, Waitlists.php:989: Spalte Termin, verständliche Bezeichnungen
 - [ ] **A342** [WICHTIG] Frontend: pro Termin vollständiges Checkout-Formular; Kalender-Anker auf nicht gerenderte Karten — _R2 UX_ (TODO L673; Audit Runde 4)
   - src/PublicEvents.php:147–190, templates/event-card.php, Calendar/Ics.php:150: Eine Karte je Event mit Terminauswahl; Kalender mit occurrence=
-- [ ] **A343** [WICHTIG] Bezahlte Bestellung ohne Tickets wird nie automatisch nachbearbeitet — _R2 API_ (TODO L674; Audit Runde 4)
+- [x] **A343** [WICHTIG] Bezahlte Bestellung ohne Tickets wird nie automatisch nachbearbeitet — _R2 API_ (TODO L674; Audit Runde 4)
   - src/Orders.php:1089–1092, :1002–1005 (confirm_external_payment), Webhooks.php:121/142–147: issue_failed() ignoriert → Event processed. Job ticket_issue_retry anlegen (prüfen gegen A183-Stand)
-- [ ] **A344** [WICHTIG] WooCommerce: Zahlungsbestätigung und Teilerstattung ohne Wiederholung bei „busy“ — _R2 API_ (TODO L675; Audit Runde 4)
+- [x] **A344** [WICHTIG] WooCommerce: Zahlungsbestätigung und Teilerstattung ohne Wiederholung bei „busy“ — _R2 API_ (TODO L675; Audit Runde 4)
   - src/Integrations/WooCommerce/OrderAdapter.php:669–674, :797–803: Retry-Jobs paid-sync/refund-sync je Woo-Refund-ID
 - [ ] **A345** [WICHTIG] Offline-Scanner: Serverfehler löscht offline erfolgten Einlass endgültig — _R2 API_ (TODO L676; Audit Runde 4)
   - src/Mobile/Api.php:188–199 (sync), assets/offline-scanner/app.js:529–535, Checkin.php:295: retryable an Client, nicht als synchronisiert markieren bzw. Konflikt erfassen
@@ -741,11 +741,11 @@ Gesamt: 262 Aufgaben.
   - src/Payments/StripeGateway.php:223–233: Kumulativ abgleichen (amount_refunded − gebucht) oder refund.created auswerten
 - [x] **A348** [WICHTIG] Später scheiternde Erstattungen beim Anbieter nie erkannt — _R2 API_ (TODO L679; Audit Runde 4)
   - src/Payments/StripeGateway.php:136, :197–203; MollieGateway.php:255–263; PayPalGateway.php:191: pending als eigener Zustand, Status-Events auswerten, Alarm + Gutschrift-Storno
-- [ ] **A349** [WICHTIG] PayPal-Rückkehr meldet „nichts abgebucht“, obwohl abgebucht sein kann — _R2 API_ (TODO L680; Audit Runde 4)
+- [x] **A349** [WICHTIG] PayPal-Rückkehr meldet „nichts abgebucht“, obwohl abgebucht sein kann — _R2 API_ (TODO L680; Audit Runde 4)
   - src/Payments/PayPalGateway.php:108–116, :136–147, ReturnNotice.php:17: Nach erfolgreichem/unbekanntem Capture auf „pending“, failed nur bei eindeutiger Ablehnung
 - [x] **A350** [WICHTIG] Hängende Erstattungen ohne Referenz weder sichtbar noch auflösbar — _R2 API_ (TODO L681; Audit Runde 4)
   - src/Refunds.php:276–280, :389–391 (repair_stuck), Operations/Queues.php, OrdersPage.php:465: Anzeige in Betrieb/Bestellseite, Auflösung per Anbieter-Lookup oder manueller Bestätigung mit Audit
-- [ ] **A351** [WICHTIG] Mollie Klarna/Riverty: authorized wird nie gecaptured (PLAUSIBEL) — _R2 API_ (TODO L682; Audit Runde 4)
+- [x] **A351** [WICHTIG] Mollie Klarna/Riverty: authorized wird nie gecaptured (PLAUSIBEL) — _R2 API_ (TODO L682; Audit Runde 4)
   - src/Modules/Mollie.php:22, MollieGateway.php:222–251: authorized per Capture-API behandeln oder Methoden entfernen
 - [ ] **A352** [WICHTIG] Kein Abgleich-Job Anbieter ↔ lokaler Stand (processing/failed/pending) — _R2 API_ (TODO L683; Audit Runde 4)
   - Payments/*, Refunds.php: Reconciliation je Anbieter über wpcap_refund/wpcap_order-Metadaten (blinder Fleck)
@@ -759,7 +759,7 @@ Gesamt: 262 Aufgaben.
   - src/Admin/EventsPage.php:190, :918: cancelled → scheduled serverseitig ablehnen; eigener Reaktivierungsablauf (belegt)
 - [x] **A357** [WICHTIG] Nach Widerruf/Umtausch zahlt Erstattung zu viel aus, Bestellung wird nie „erstattet“ — _R2 Eigen_ (TODO L688; Audit Runde 4)
   - src/Refunds.php:587–589 (calculate), :357–360, :486: Vollständigkeit über Ticketwert; mark_refunded nur valid/checked_in zählen (belegt)
-- [ ] **A358** [WICHTIG] „Bezahlt, ohne Kontingent“ weder erstattbar noch abschließbar — _R2 Eigen_ (TODO L689; Audit Runde 4)
+- [x] **A358** [WICHTIG] „Bezahlt, ohne Kontingent“ weder erstattbar noch abschließbar — _R2 Eigen_ (TODO L689; Audit Runde 4)
   - src/Refunds.php:48/172, Admin/OrdersPage.php:80: Admin-Aktion „Extern erstattet / abschließen“
 - [ ] **A359** [OPTIMIERUNG] Toter Code mit festem EUR auf jedem Frontend-Request — _R1 Core_ (TODO L690; Audit Runde 4)
   - src/PublicEvents.php:10–11: Registry::enabled(EUR) entfernen (entschlüsselt Secrets je Seitenaufruf)
