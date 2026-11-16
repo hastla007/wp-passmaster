@@ -1358,6 +1358,18 @@ zeigt die Eingaben wieder an). Nach dem Speichern wiederholt eine Warnung, was d
 Änderung steht wie bisher im Termin-Verlauf (A114). Name, Kontingent, Verkaufsfenster und Status lassen sich
 ohne Bestätigung ändern; die Währung bleibt nach der ersten Bestellung gesperrt.
 
+### Gleichzeitiges Bearbeiten einer Ticketart (A531)
+
+Das Formular trägt eine Revision der bearbeitbaren Felder (Name, Preis, Währung, Steuer, Kontingent, Höchstmenge,
+Verkaufszeitraum, Status, Einlasskontrolle; nicht die Verkaufszähler). Hat jemand die Ticketart gespeichert, nachdem
+das Formular geöffnet wurde, lehnt das Speichern mit `wpcap_type_changed` ab, statt die andere Änderung zu
+überschreiben; das Formular zeigt die eigenen Eingaben wieder, ein erneutes Speichern übernimmt sie dann bewusst.
+Prüfungen (Währungssperre, Kontingent ≥ verkauft, Bestätigung nach Verkaufsstart) und Speichern laufen unter der
+Zeilensperre der Ticketart, die auch jeder Verkauf nimmt – ein gleichzeitiger Kauf kann das Kontingent zwischen
+Prüfung und Speichern nicht mehr unter die verkaufte Menge drücken. Hält ein Verkauf die Sperre zu lange, meldet
+das Speichern `wpcap_type_busy`. Aufrufe ohne Revision (Übernahme auf weitere Termine, Integrationen) werden nur
+unter der Sperre geprüft.
+
 ### Ticketarten und Teilnehmerfelder auf alle Termine anwenden; Serien (A333)
 
 Hat das Event weitere kommende Termine, bietet das Ticketart-Formular „Auch für die gleichnamige Ticketart an N

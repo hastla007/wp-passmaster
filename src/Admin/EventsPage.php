@@ -489,6 +489,21 @@ final class EventsPage {
 		return $result;
 	}
 
+	/** Editable fields of a ticket type that make up its revision (A531). */
+	const TYPE_REVISION_FIELDS = array( 'name', 'price_minor', 'currency', 'tax_rate_bp', 'tax_class', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'status', 'id_check', 'min_age', 'staff_note' );
+
+	/**
+	 * Revision of a ticket type (A531, optimistic locking): hash of its editable fields. The edit form
+	 * carries it; saving a form whose revision no longer matches is refused. Counters (sold/held) are
+	 * not part of it, so sales never invalidate an open form.
+	 */
+	public static function type_revision( $type ) {
+		$type = (array) $type;
+		$fields = array();
+		foreach ( self::TYPE_REVISION_FIELDS as $field ) { $fields[ $field ] = isset( $type[ $field ] ) ? (string) $type[ $field ] : ''; }
+		return substr( hash( 'sha256', (string) wp_json_encode( $fields ) ), 0, 32 );
+	}
+
 	/** Creates or updates a ticket type of an occurrence. */
 	public static function save_ticket_type( array $in ) {
 		$type_id = Forms::int( $in, 'ticket_type_id' );
@@ -522,20 +537,43 @@ final class EventsPage {
 		if ( is_wp_error( $checks ) ) { return Forms::error( $checks->get_error_code(), $checks->get_error_message() ); }
 		$capacity = Forms::int( $in, 'capacity' );
 		$status = Forms::choice( $in, 'status', array( 'active', 'paused' ), 'active' );
+		global $wpdb;
 		if ( $old ) {
+			// A531: check and update under the row lock – sales lock the same row (Orders::create()), so the
+			// sold count cannot change between the check and the update; a form opened on an older state
+			// of the type (another admin saved meanwhile) is refused instead of overwriting that change.
+			$wpdb->query( 'START TRANSACTION' );
+			$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d FOR UPDATE", (int) $old->ticket_type_id ) );
+			if ( ! $locked ) {
+				$busy = '' !== (string) $wpdb->last_error;
+				$wpdb->query( 'ROLLBACK' );
+				return $busy
+					? Forms::error( 'wpcap_type_busy', __( 'Die Ticketart wird gerade verkauft oder bearbeitet. Bitte in ein paar Sekunden erneut speichern.', 'pass-captain' ), 503 )
+					: Forms::error( 'wpcap_type_missing', __( 'Ticketart nicht gefunden.', 'pass-captain' ), 404 );
+			}
+			foreach ( (array) $locked as $column => $value ) { $old->$column = $value; }
+			$revision = Forms::text( $in, 'revision', 64 );
+			if ( '' !== $revision && ! hash_equals( self::type_revision( $old ), $revision ) ) {
+				$wpdb->query( 'ROLLBACK' );
+				return Forms::error( 'wpcap_type_changed', __( 'Die Ticketart wurde inzwischen geändert (zum Beispiel von einer anderen Person). Deine Eingaben wurden nicht gespeichert; bitte prüfe sie gegen den aktuellen Stand und speichere erneut.', 'pass-captain' ), 409, 'revision' );
+			}
+			$refuse = static function ( $error ) use ( $wpdb ) {
+				$wpdb->query( 'ROLLBACK' );
+				return $error;
+			};
 			if ( $currency !== $old->currency && Queries::type_has_orders( $old->ticket_type_id ) ) {
-				return Forms::error( 'wpcap_type_currency_locked', __( 'Die Währung kann nach den ersten Bestellungen nicht mehr geändert werden.', 'pass-captain' ), 409 );
+				return $refuse( Forms::error( 'wpcap_type_currency_locked', __( 'Die Währung kann nach den ersten Bestellungen nicht mehr geändert werden.', 'pass-captain' ), 409 ) );
 			}
 			$sold = Queries::sold_for_type( $old->ticket_type_id );
 			if ( $capacity > 0 && $capacity < $sold ) {
 				/* translators: %d: sold tickets */
-				return Forms::error( 'wpcap_capacity_below_sold', sprintf( _n( 'Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken.', 'Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken.', $sold, 'pass-captain' ), $sold) );
+				return $refuse( Forms::error( 'wpcap_capacity_below_sold', sprintf( _n( 'Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken.', 'Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken.', $sold, 'pass-captain' ), $sold) ) );
 			}
 			// A334: price, tax rate or tax class of a type that already has orders: only with an
 			// explicit confirmation – the change applies to new orders only.
 			$sold_change = self::sold_pricing_changes( $old, $price, $tax_bp, array_key_exists( 'tax_class', $in ) ? substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 ) : null );
 			if ( $sold_change && ! Forms::flag( $in, 'confirm_sold_change' ) ) {
-				return Forms::error( 'wpcap_type_sold_change', self::sold_change_message( $sold, $sold_change ) . ' ' . __( 'Bitte bestätige die Änderung mit dem Häkchen unter dem Formular.', 'pass-captain' ), 409, 'confirm_sold_change' );
+				return $refuse( Forms::error( 'wpcap_type_sold_change', self::sold_change_message( $sold, $sold_change ) . ' ' . __( 'Bitte bestätige die Änderung mit dem Häkchen unter dem Formular.', 'pass-captain' ), 409, 'confirm_sold_change' ) );
 			}
 		}
 		$data = array(
@@ -559,10 +597,14 @@ final class EventsPage {
 			$data += $checks;
 			array_push( $formats, '%d', '%d', '%s' );
 		}
-		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_ticket_types';
 		if ( $old ) {
-			$wpdb->update( $table, $data, array( 'ticket_type_id' => (int) $old->ticket_type_id ), $formats, array( '%d' ) );
+			$updated = $wpdb->update( $table, $data, array( 'ticket_type_id' => (int) $old->ticket_type_id ), $formats, array( '%d' ) );
+			if ( false === $updated ) {
+				$wpdb->query( 'ROLLBACK' );
+				return Forms::error( 'wpcap_type_save', __( 'Die Ticketkategorie konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
+			}
+			$wpdb->query( 'COMMIT' );
 			$type_id = (int) $old->ticket_type_id;
 			if ( 'active' === $status && ( self::capacity_grew( (int) $old->capacity, (int) $capacity ) || 'active' !== (string) $old->status ) ) {
 				do_action( 'wpcap_capacity_increased', $type_id, 0 ); // Waitlist offers right away.
@@ -650,7 +692,7 @@ final class EventsPage {
 	private static function apply_type_to_siblings( array $in, $old, $occ, array $sales ) {
 		$applied = 0;
 		$skipped = array();
-		$base = array_diff_key( $in, array_flip( array( 'apply_all', 'ticket_type_id', 'occurrence_id', 'capacity', 'sales_start', 'sales_end' ) ) );
+		$base = array_diff_key( $in, array_flip( array( 'apply_all', 'ticket_type_id', 'occurrence_id', 'capacity', 'sales_start', 'sales_end', 'revision' ) ) );
 		$base['_wpcap_sibling'] = 1;
 		$jobs = array();
 		if ( $old ) {
@@ -1551,6 +1593,11 @@ final class EventsPage {
 		Forms::open_form( 'wpcap_save_ticket_type' );
 		Forms::hidden( 'occurrence_id', $occ->occurrence_id );
 		Forms::hidden( 'ticket_type_id', $type ? $type->ticket_type_id : 0 );
+		if ( $type ) {
+			// A531: a failed save shows the form again with the revision it was opened with – except after
+			// the conflict itself: the person has seen the warning, saving again is a deliberate overwrite.
+			Forms::hidden( 'revision', $old && 'revision' !== ( $old['field'] ?? '' ) ? (string) $v( 'revision', self::type_revision( $type ) ) : self::type_revision( $type ) );
+		}
 		?>
 		<table class="form-table"><tbody>
 			<tr><th><label for="wpcap-tt-name"><?php esc_html_e( 'Name', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $v( 'name', $type ? $type->name : '' ) ); ?>"<?php echo $bad( 'name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
