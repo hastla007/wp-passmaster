@@ -174,7 +174,7 @@ Unter **Pass Captain → Einlassregeln** (Recht `wpcap_manage_events` mit Event-
 
 Optional: Einlassfenster in Minuten vor Beginn/nach Ende sowie tägliche Einlasszeiten (HH:MM). Alle Tage und Uhrzeiten gelten in der Zeitzone des Termins. Die Prüfung läuft atomar unter einer Zeilensperre auf dem Ticket.
 
-**Einlassbereiche** (z. B. „Eingang Nord“, „VIP“) werden pro Event angelegt. Tickettypen können auf Bereiche beschränkt werden (dann nur dort und nicht ohne Bereich). Personal kann Bereichen zugewiesen werden und scannt für dieses Event dann nur dort. Geräte werden beim Koppeln einem Bereich zugeordnet. Der Web-Scanner bietet eine Bereichsauswahl und einen Umschalter Einlass/Auslass.
+**Einlassbereiche** (z. B. „Eingang Nord“, „VIP“) werden pro Event angelegt. Tickettypen können auf Bereiche beschränkt werden (dann nur dort und nicht ohne Bereich). Personal kann Bereichen zugewiesen werden und scannt für dieses Event dann nur dort. Geräte werden beim Koppeln einem Bereich zugeordnet. Der Web-Scanner bietet eine Bereichsauswahl und einen Umschalter Einlass/Auslass; die Bereiche werden nur auf Seiten mit dem Scanner-Shortcode geladen (A368).
 
 ## 4. Offline-Betrieb
 

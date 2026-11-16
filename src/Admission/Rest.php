@@ -27,6 +27,11 @@ final class Rest {
 		return is_user_logged_in() && current_user_can( 'wpcap_checkin' );
 	}
 
+	/** Test helper: forget that the scanner data was added. */
+	public static function reset_scanner_localized() {
+		self::$scanner_localized = false;
+	}
+
 	private static function context( \WP_REST_Request $request, $source = 'web' ) {
 		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
 		return array( 'source' => $source, 'area_id' => absint( $request->get_param( 'area_id' ) ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '', 'occurrence_id' => absint( $request->get_param( 'occurrence_id' ) ) );
@@ -85,9 +90,21 @@ final class Rest {
 		return rest_ensure_response( array( 'results' => $results, 'offline_conflicts_are_possible' => true ) );
 	}
 
-	/** Adds area selection, check-out and the idempotent sync endpoint to the web scanner. */
+	/** Whether WPCAP_ADMISSION was added in this request (localize_scanner() runs on two hooks). */
+	private static $scanner_localized = false;
+
+	/**
+	 * Adds area selection, check-out and the idempotent sync endpoint to the web scanner.
+	 *
+	 * Only on pages that use the scanner (A368): the shortcode enqueues `wpcap-scanner` while the
+	 * content renders – before wp_enqueue_scripts in block themes, after it in classic themes – so
+	 * this runs on wp_enqueue_scripts and again before the footer scripts are printed, and does
+	 * nothing (no area query) unless the script is enqueued.
+	 */
 	public static function localize_scanner() {
-		if ( ! function_exists( 'wp_localize_script' ) || ! is_user_logged_in() || ! current_user_can( 'wpcap_checkin' ) ) { return; }
+		if ( self::$scanner_localized || ! function_exists( 'wp_localize_script' ) || ! function_exists( 'wp_script_is' ) || ! wp_script_is( 'wpcap-scanner', 'enqueued' ) ) { return; }
+		if ( ! is_user_logged_in() || ! current_user_can( 'wpcap_checkin' ) ) { return; }
+		self::$scanner_localized = true;
 		$areas = array();
 		foreach ( Areas::selectable() as $area ) {
 			$areas[] = array( 'id' => (int) $area->area_id, 'label' => $area->event_name . ' – ' . $area->name );

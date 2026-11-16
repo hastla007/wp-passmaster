@@ -19,7 +19,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Admission {
 	public static function register() {
 		add_action( 'rest_api_init', array( Rest::class, 'routes' ) );
+		// Only where the scanner shortcode enqueued its script (A368); see Rest::localize_scanner().
 		add_action( 'wp_enqueue_scripts', array( Rest::class, 'localize_scanner' ), 20 );
+		add_action( 'wp_print_footer_scripts', array( Rest::class, 'localize_scanner' ), 1 );
 	}
 
 	public static function schema( $prefix, $charset ) {
