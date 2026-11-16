@@ -1228,6 +1228,8 @@ final class Installer {
 	 * - Waitlist entries waiting for their double opt-in: status "unconfirmed" (audit line) is "pending".
 	 * - Proxy header: a header chosen in client_ip_header ("theirs" line) is carried over to
 	 *   trusted_proxy_header, which the settings screen edits now.
+	 * - Fiscal configurations and documents of the fiskaltrust adapter: id fiskaltrust_possystem ("theirs"
+	 *   line) is fiskaltrust_pos.
 	 *
 	 * @return array Counts of converted rows/settings.
 	 */
@@ -1236,6 +1238,12 @@ final class Installer {
 		$done = array();
 		$waitlist = $wpdb->prefix . 'wpcap_waitlist';
 		$done['waitlist_pending'] = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='pending' WHERE status='unconfirmed'", $waitlist ) );
+		// fiskaltrust adapter: the "theirs" line stored it as fiskaltrust_possystem, the merged adapter id is fiskaltrust_pos (N09).
+		$done['fiskaltrust_id'] = 0;
+		foreach ( array( 'wpcap_fiscal_configs', 'wpcap_fiscal_documents', 'wpcap_fiscal_events' ) as $fiscal_table ) {
+			if ( ! Privacy::has_table( $fiscal_table ) ) { continue; }
+			$done['fiskaltrust_id'] += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET provider_id='fiskaltrust_pos' WHERE provider_id='fiskaltrust_possystem'", $wpdb->prefix . $fiscal_table ) );
+		}
 		$stored = get_option( Settings::OPTION, array() );
 		if ( is_array( $stored ) && ! empty( $stored['client_ip_header'] ) && ! array_key_exists( 'trusted_proxy_header', $stored ) ) {
 			$map = array( 'x-forwarded-for' => 'x_forwarded_for', 'forwarded' => 'forwarded', 'cf-connecting-ip' => 'cf_connecting_ip' );
