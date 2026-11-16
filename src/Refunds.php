@@ -1052,7 +1052,9 @@ final class Refunds {
 			return 'nothing';
 		}
 		$total = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=GREATEST(0,CAST(refunded_minor AS SIGNED)-%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], $now, (int) $refund['order_id'] ) );
-		if ( false === $total || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) { return self::busy(); }
+		// The money is (partly) with the seller again: a "refunded" order is paid again (R5-8, both reversal paths).
+		$state = false === $total ? false : $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET status='complete',payment_status='paid' WHERE order_id=%d AND status='refunded' AND refunded_minor<total_minor", (int) $refund['order_id'] ) );
+		if ( false === $state || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) { return self::busy(); }
 		$credit = Invoices::reverse_credit_note( $refund_id );
 		Audit::record( 'refund_reversed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'credit_note_reversal' => is_array( $credit ) ? (string) $credit['reversal_number'] : '', 'source' => sanitize_key( $source ) ) );
 		/**

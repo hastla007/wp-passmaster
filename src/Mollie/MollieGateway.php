@@ -219,7 +219,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 	const METHODS_ERROR_TTL = 5 * MINUTE_IN_SECONDS;
 
 	/** Timeout of the method lookup (seconds; payment creation keeps the longer default). */
-	const METHODS_TIMEOUT = 5;
+	const METHODS_TIMEOUT = 3;
 
 	/**
 	 * Methods Mollie offers for amount/currency (and billing country).
@@ -443,8 +443,16 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		return $event;
 	}
 
-	/** Due date (Y-m-d, at least tomorrow, at most 100 days) of a bank transfer: end of the delayed-payment hold. */
+	/**
+	 * Due date (Y-m-d, at least tomorrow, at most 100 days) of a bank transfer: the end of the order's
+	 * (extended) hold, so Mollie does not accept a transfer after the tickets were released (A577). Without
+	 * an active hold: the delayed-payment hold length.
+	 */
 	public static function due_date( $order ) {
+		$end = \PassCaptain\Orders::hold_end( (int) ( $order->order_id ?? 0 ) );
+		if ( $end > 0 ) {
+			return gmdate( 'Y-m-d', min( max( $end, \PassCaptain\Clock::now() + DAY_IN_SECONDS ), \PassCaptain\Clock::now() + 100 * DAY_IN_SECONDS ) );
+		}
 		$minutes = \PassCaptain\Payments\Webhooks::delayed_hold_minutes( $order, 'mollie' );
 		$days = max( 1, min( 100, (int) floor( $minutes / ( DAY_IN_SECONDS / MINUTE_IN_SECONDS ) ) ) );
 		return gmdate( 'Y-m-d', time() + $days * DAY_IN_SECONDS );
