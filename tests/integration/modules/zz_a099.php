@@ -167,7 +167,8 @@ $ctx = PublicEvents::legal_context( 'en_US' );
 check( 'event card context: texts, locale and version of the page language', '<p>Terms EN</p>' === $ctx['terms_text'] && 'en_US' === $ctx['locale'] && $v_en === $ctx['terms_version'] && true === $ctx['require_terms'] );
 $event = (object) array( 'occurrence_id' => 99099, 'event_id' => 1, 'name' => 'A099', 'description' => '', 'starts_at' => '2030-01-01 18:00:00', 'timezone' => 'Europe/Berlin', 'location' => '' );
 $types = array();
-$providers = array();
+// A294: without a payment method the card shows no order form; the legal fields need one.
+$providers = array( 'manual' => PassCaptain\Payments\Registry::get( 'manual' ) );
 $legal = $ctx;
 ob_start(); include WPCAP_PATH . 'templates/event-card.php'; $card = ob_get_clean();
 check( 'event card sends locale and shown terms version with the form', false !== strpos( $card, 'name="locale" value="en_US"' ) && false !== strpos( $card, 'name="terms_version" value="' . $v_en . '"' ) && false !== strpos( $card, 'Terms EN' ) );

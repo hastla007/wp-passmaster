@@ -17,9 +17,12 @@ require_once __DIR__ . '/zz_r6_stubs.inc';
 
 echo "A296: sender name and reply-to of buyer mails\n";
 $a296_saved = get_option( Settings::OPTION, array() );
+$a296_admin = get_option( 'admin_email' );
+update_option( 'admin_email', 'admin@example.com' );
 $a296_send = static function () {
 	$seen = array();
 	add_action( 'wpcap_mail_before_send', $cb = static function ( $prepared ) use ( &$seen ) { $seen['from_name'] = apply_filters( 'wp_mail_from_name', 'WordPress' ); $seen['headers'] = $prepared['headers']; }, 10, 1 );
+	$GLOBALS['wpcap_test_mails'] = array_values( $GLOBALS['wpcap_test_mails'] );
 	$before = count( $GLOBALS['wpcap_test_mails'] );
 	Mailer::deliver( 'buyer-a296@example.com', array( 'type' => 'order_confirmation', 'subject' => 'Test', 'body' => 'Hallo', 'format' => 'text', 'locale' => '', 'attachments' => array() ) );
 	remove_action( 'wpcap_mail_before_send', $cb );
@@ -44,6 +47,7 @@ check( 'wpcap_mail_sender adjusts the sender; an invalid reply address is droppe
 remove_filter( 'wpcap_mail_sender', $a296_f );
 
 // Service booking mails (sent without deliver()) get the same sender.
+$GLOBALS['wpcap_test_mails'] = array_values( $GLOBALS['wpcap_test_mails'] );
 $a296_before = count( $GLOBALS['wpcap_test_mails'] );
 Mailer::send_plain( 'svc-a296@example.com', 'Buchung', 'Text' );
 check( 'send_plain adds the Reply-To', in_array( 'Reply-To: kasse@example.com', (array) ( $GLOBALS['wpcap_test_mails'][ $a296_before ]['headers'] ?? array() ), true ) );
@@ -56,5 +60,6 @@ check( 'an invalid reply-to address is rejected with the field name, the rest is
 SettingsPage::save( array( 'wpcap_tab' => 'general', 'mail_from_name' => '', 'mail_reply_to' => '' ) );
 check( 'empty fields reset to the defaults', '' === Settings::get( 'mail_reply_to' ) && '' === Settings::get( 'mail_from_name' ) );
 
+update_option( 'admin_email', $a296_admin );
 update_option( Settings::OPTION, $a296_saved );
 Settings::flush();
