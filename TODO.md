@@ -1842,3 +1842,10 @@ Die offenen Fragen stehen gesammelt und ausformuliert unter „Offene Entscheidu
 - [ ] Verhalten von Voucher Captain (`release()`, `reserve()` mit veraltetem Quote) für den Gutschein-Befund im anderen Repository prüfen.
 - [ ] Laufzeitnachweise für die bestätigten Befunde als Integrationstests ergänzen (Mehrtypen-Überbuchung, späte Gutscheinzahlung, CSV-Escape, Undo außerhalb des Bereichs, Rollen-Negativtests für die Tickets-Seite).
 - [ ] Nicht geprüft: Vendor-Bibliotheken (`tweetnacl`, `jsQR`), `composer.lock` auf bekannte Schwachstellen, `assets/seating/editor.js` nur auf HTML-Senken gegrept, PayPal-/Mollie-Zahlungslebensdauern, GitHub-Branch-Protection.
+## Mindestversionen: neueste PHP-, MySQL- und MariaDB-Version (Entscheidung der Inhaberin, 16.11.2026)
+
+- [ ] **MINVER-1 — Auf die neuesten Versionen umstellen und testen.** Die Inhaberin hat am 16.11.2026 für alle Captain-Plugins entschieden: Mindestversionen sind die jeweils neuesten – **PHP 8.5** (PHP 8.6 erscheint am 19.11.2026 und kommt in die Test-Matrix), **MySQL 9.7 (LTS)** und **MariaDB 12.3 (LTS)**. Heute verlangt dieses Repository PHP 8.2.
+  - *Zu tun:* Plugin-Header `Requires PHP`, Laufzeitprüfung, `readme.txt`, README, `composer.json`, PHPCS `testVersion`, PHPStan `phpVersion` und die CI-Zellen (Unit-Matrix ab 8.5, Integration auf MySQL 9.7 und MariaDB 12.3) einheitlich umstellen; eine Warnung (keine Sperre), wenn die Datenbank älter ist; Changelog-Eintrag.
+  - *Test (Inhaberin):* auf einem echten Host mit PHP 8.5/8.6 und MySQL 9.7 bzw. MariaDB 12.3 installieren, aktualisieren und die Hauptabläufe durchspielen.
+  - *Vorbild:* Affiliate Captain (`hastla007/wpaffiliatemaster`, Aufgaben PHP-1/PHP-2).
+  - *Stand 23.11.2026:* Header, Laufzeitprüfung, `readme.txt`, README, `composer.json`, PHPCS/PHPStan und CI-Matrix sind umgestellt (Commits `fdb4e9d`, `d5b32c9`, `7eacad9`, `5361d44` im Arbeitsbranch; WooCommerce-Minimum 11.2.2, MariaDB 11.6+ mit abgeschalteter Snapshot-Isolation). Offen ist nur der Test der Inhaberin auf einem echten Host. Braucht: Inhaberin.
