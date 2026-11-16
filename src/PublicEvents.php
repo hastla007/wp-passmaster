@@ -24,8 +24,8 @@ final class PublicEvents {
 
 	public static function register_assets() {
 		wp_register_script( 'wpcap-checkout', WPCAP_URL . 'assets/checkout.js', array(), WPCAP_VERSION, true );
-		$providers = array();
-		foreach ( Payments\Registry::enabled( 'EUR' ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
+		// The payment methods come per listing from /checkout/options (currency of the listing), so
+		// nothing payment-related is resolved here on every front-end request (A359).
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
 			'url' => esc_url_raw( rest_url( 'pass-captain/v1/checkout' ) ),
 			// Waitlist join: …/events/{event_id}/waitlist.
