@@ -335,9 +335,10 @@ $_GET = array( 'wpcap_payment' => 'cancel', 'order' => $pay_order->public_id, 'w
 $banner = ReturnNotice::html();
 // Merged banner (A307): "Zahlung fortsetzen" (pay again) and "Bestellung stornieren" (release the hold at once).
 check( 'R6-7: after a cancelled payment the banner offers "Erneut bezahlen" and "Reservierung freigeben"', false !== strpos( $banner, 'name="decision" value="resume"' ) && false !== strpos( $banner, 'name="decision" value="cancel"' ) && false !== strpos( $banner, 'Plätze sofort freigeben' ) && false !== strpos( $banner, 'reserviert' ) );
-$GLOBALS['r6_in_loop'] = true;
+// In a full run zz_a307 defined in_the_loop() first (reads $GLOBALS['a307_in_loop']): set both.
+$GLOBALS['r6_in_loop'] = $GLOBALS['a307_in_loop'] = true;
 check( 'R6-7: banner falls back to the_content once when wp_body_open is missing', 0 === strpos( ReturnNotice::prepend_to_content( '<p>Inhalt</p>' ), '<div class="wpcap-payment-notice"' ) && '<p>x</p>' === ReturnNotice::prepend_to_content( '<p>x</p>' ) );
-$GLOBALS['r6_in_loop'] = false;
+$GLOBALS['r6_in_loop'] = $GLOBALS['a307_in_loop'] = false;
 check( 'R6-7: pages with ?wpcap_payment are never cached', true === ReturnNotice::no_cache() && defined( 'DONOTCACHEPAGE' ) );
 $_GET = array();
 ReturnNotice::reset();
