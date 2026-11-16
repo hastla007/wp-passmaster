@@ -1024,6 +1024,16 @@ Gutschein-Sperrschlüssel mit Veranstalter-ID, Doppelabrechnungen als `dup:<line
 unverändert und die Migration läuft beim nächsten Aufruf erneut; die Doppelprüfung der Abrechnung ist davon
 unabhängig plattformweit.
 
+**Veranstalter-Abrechnung über lange Historie (A435)**: Entwurf und Abschluss lesen nur noch offene Quellen –
+in SQL begrenzt: Bestellungen mit einer Position der Events des Veranstalters (über Termine und Ticketarten,
+nicht über alle Bestellungen), deren Verkauf noch niemand abgerechnet hat (`source_key = 'sale:<Position>'`
+über den Unique-Index), abgeschlossene Erstattungen, für die dieser Veranstalter noch keine abgeschlossene
+Zeile hat, und Gästelisten-Bestellungen nur aus dem Abrechnungsmonat (sie werden nur gezählt). Verarbeitet
+wird in Blöcken zu 1.000 Bestellungen (Positionen, Sperrschlüssel, Selbstinkasso, Umtausch- und
+Gutscheinkennzeichen je Block). Bereits abgerechnete Monate werden also nicht bei jedem Entwurf erneut
+gelesen; Bestellungen, deren Positionen niemand abrechnet (z. B. nach einer Umbuchung ins Event eines
+anderen Veranstalters), bleiben Kandidaten, erzeugen aber keine Zeilen. Messwerte: docs/TESTING.md.
+
 **Schema 3.10.9** (A265, keine Tabellenänderung): Neue Installationen starten ohne aktive Zahlungsart. Beim Update
 behalten Installationen, die ihre Zahlungsarten nie gespeichert haben, „Überweisung“ als ausdrücklich gespeicherten Wert
 (`Installer::pin_legacy_manual_provider()`), siehe „Überweisung (manuelle Zahlung) einrichten“.
