@@ -85,6 +85,7 @@ add_filter( 'query', $a429_spy );
 $a429_report = CapacityCounters::reconcile();
 remove_filter( 'query', $a429_spy );
 $a429_scans = array_filter( $a429_plans( $a429_log ), static fn( $plan ) => 'ALL' === $plan['type'] || 'index' === $plan['type'] );
+if ( $a429_scans ) { fwrite( STDERR, 'A430 scans: ' . json_encode( array_values( $a429_scans ) ) . "\n" ); }
 check( 'A430: no reconcile query scans the reservation history', array() === $a429_scans );
 check( 'A430: no correlated SUM subqueries in the reconcile run', ! array_filter( $a429_log, static fn( $sql ) => (bool) preg_match( '/\(SELECT SUM\(counted_qty\)/i', $sql ) ) );
 check( 'A430: old lapsed hold that still counted is re-synced', in_array( (int) $a429_o1['order_id'], $a429_report['orders'], true ) && 0 === (int) $wpdb->get_var( "SELECT counted_qty FROM {$p}wpcap_reservations WHERE reservation_id=$a429_hold" ) );

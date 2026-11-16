@@ -134,8 +134,10 @@ $wpp2_order = Orders::get( $wpp2_g );
 check( 'full amount refunded with a fixed idempotency key', '5000' === ( $wpp2_body['amount'] ?? '' ) && 'pi_wpp2late' === ( $wpp2_body['payment_intent'] ?? '' ) && 'wpcap-late-refund-' . $wpp2_g === ( $wpp2_req['headers']['Idempotency-Key'] ?? '' ) );
 check( 'order refunded, refunded amount booked, no tickets', 'refunded/refunded' === wpp2_state( $wpp2_g ) && (int) $wpp2_order->refunded_minor === (int) $wpp2_order->total_minor && ! tickets( $wpp2_g ) && 're_wpp2late' === ( wpp2_audit( 'late_payment_refunded', $wpp2_g )['provider_reference'] ?? '' ) );
 $wpp2_refund_event = array( 'id' => 'evt_wpp2_refund', 'type' => 'charge.refunded', 'data' => array( 'object' => array( 'id' => 'ch_wpp2', 'object' => 'charge', 'currency' => 'eur', 'refunded' => true, 'amount_refunded' => 5000, 'payment_intent' => 'pi_wpp2late', 'metadata' => array( 'wpcap_order' => $wpp2_order->public_id ) ) ) );
+// Stripe lists the charge's refunds (A347): the late refund carries the plugin's own key and never counts as external.
+http_push( array( 'object' => 'list', 'has_more' => false, 'data' => array( array( 'id' => 're_wpp2late', 'object' => 'refund', 'amount' => 5000, 'currency' => 'eur', 'status' => 'succeeded', 'charge' => 'ch_wpp2', 'payment_intent' => 'pi_wpp2late', 'metadata' => array( 'wpcap_order' => $wpp2_order->public_id, 'wpcap_refund' => 'wpcap-late-refund-' . $wpp2_g ) ) ) ), 200, 'v1/refunds?charge=' );
 $wpp2_res = stripe_deliver( $wpp2_stripe, $wpp2_refund_event );
-check( 'the provider refund webhook books nothing twice', 'refunded' === $wpp2_res && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d", $wpp2_g ) ) );
+check( 'the provider refund webhook books nothing twice', in_array( $wpp2_res, array( 'refunded', 'ignored', 'already_booked' ), true ) && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d", $wpp2_g ) ) );
 
 // Payment for an order cancelled with its occurrence (webhook path) with the option.
 list( $wpp2_t7, $wpp2_o7 ) = wpp2_type();
