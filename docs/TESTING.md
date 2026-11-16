@@ -410,6 +410,53 @@ ein Indexbereich (`expiry`, `due_jobs`, `cleanup`). `modules/zz_a444.php` prüft
 zählende Holds, Holds offener Bestellungen, junge Zeilen, wartende/laufende Jobs, verkaufte Plätze), Stapel über
 500 Zeilen, Zeitbudget 0 und das Abschalten eines Schritts per Filter. Danach `php tests/load/history.php drop`.
 
+## Historie: Admin-Listen, Berichte und Aufräumen (A431–A435, A437, A438)
+
+Datenbestand: `WPP6_N=200000 php tests/load/history.php seed`, danach `seed-admin` (Präfix z. B.
+`WPCAP_TEST_PREFIX=wpu9h_`; am Ende `drop`): 200.000 Bestellungen (Verkaufshistorie bis gestern, 30 s Abstand),
+169.745 Tickets, 85.432 Check-ins (jeder vergangene Termin, jeder zehnte Scan zusätzlich abgelehnt), 169.745
+Webhook-Zustellungen (99.038 älter als 30 Tage), 5.143 abgeschlossene Erstattungen, 30 % Mollie-Zahlungen mit
+Referenz in der Bestellung, ein Veranstalter mit allen Verkäufen bis Vormonatsbeginn abgerechnet (60.891
+Abrechnungszeilen), 19.970 Wiederverkäufer-API-Bestellungen. Messung `admin` (mit `purge` auch das Aufräumen),
+`reports` und `bulk`; MariaDB 10.11, PHP 8.3, Maschine mit paralleler Last (Werte schwanken um ±30 %).
+Indexaufbau beim Upgrade auf diesem Bestand: `provider_ref` 0,8 s, Check-in-Indizes 0,2 s, `cleanup` 0,35 s.
+
+| Vorgang | vorher | nachher |
+|---|---|---|
+| Mollie-Webhook, unbekannte bzw. alte Zahlungs-ID (A431) | 466 / 411 ms, `ALL` auf `wpcap_orders` | 0,3 ms, Primärschlüssel + `provider_ref` |
+| Ticketliste Seite 1 / 50 (A432) | 2.494 / 2.475 ms | 15 ms (4 Abfragen) |
+| Ticketliste Status „eingecheckt“ | 1.753 ms | 12–19 ms |
+| Check-in-Protokoll Seite 1 / 100 (A433) | 132 / 181 ms | 7–11 / 8–12 ms |
+| Check-in-Protokoll Event + Ergebnis + 30 Tage | 33 ms | 3–4 ms |
+| Ergebnisfilter des Protokolls | 46 ms (`SELECT DISTINCT`) | keine Abfrage |
+| Umsatzbericht Oktober, 78.000 Bestellungen (A434) | 12,9 s, 78.355 Abfragen, 169 MB | 3,9–5,7 s, 403 Abfragen, 39 MB |
+| Buchhaltungsexport Oktober | 27,1 s, 156.678 Abfragen, 242 MB | 2,4–3,9 s, 477 Abfragen; gestreamt 2,3 s, 38 MB |
+| Buchungsstapel (DATEV) Oktober | 25,6 s, 156.676 Abfragen, 240 MB | 2,6–3,9 s, 475 Abfragen, 57 MB |
+| Termin-Abrechnung (80.000 Tickets) | 11,5 s, 49.176 Abfragen, 161 MB | 3,6–6,2 s, 497 Abfragen, 40 MB |
+| Wiederverkäufer-Abrechnung (9.199 Zeilen, ohne warmen Cache) | 8.949 Abfragen | 21 Abfragen |
+| Veranstalter-Abrechnung laufender Monat, 114.000 offene Zeilen (A435) | 33,1 s, 220.136 Abfragen, 423 MB | 5,0–5,5 s, 764 Abfragen, 138 MB |
+| Webhook-Aufräumen ohne fällige Zeilen (A437) | 335 ms, `ALL` über 168.882 Zeilen, alle 5 min | 10 ms, `range` auf `cleanup`, stündlich |
+| Webhook-Aufräumen, 99.038 fällige Zeilen | ein `DELETE` (548 ms, alle Zeilen in einer Transaktion) | 100 × `DELETE … LIMIT 1000`, 2,2 s im 5-s-Budget |
+
+Verbleibend: Der Umsatzbericht liest für die Auslastungstabelle weiterhin alle Positionen der Ticketarten mit
+Verkäufen im Zeitraum (Lebenszeit-Verkäufe je Ticketart, jetzt ein `GROUP BY` statt zwei korrelierter Summen je
+Ticketart; ≈ 1,6 s auf diesem Bestand). Die Veranstalter-Abrechnung hält die Zeilen des Ergebnisses selbst im
+Speicher (114.000 Zeilen ≈ 138 MB).
+
+Massenoperationen (`bulk`, verändert den Bestand): Stapeldruck ohne neue Codes für einen Termin mit 1.109
+Tickets – Anlegen 189 ms, Rendern 6 Blöcke (Testumgebung ohne echte PDF-Schriften, daher nur Ablaufwerte).
+Absage des Termins mit 79.880 Tickets: Admin-Anfrage im Zeitbudget 20,7 s (73.074 Abfragen; CLI-Budget
+`wpcap_cron_time_budget` 20 s), danach 20 Job-Läufe in 372 s (385.552 Abfragen, ≈ 5 je Ticket) bis alle Tickets
+widerrufen sind; die 79.880 Absage-Mails liegen danach in der Nachrichtenwarteschlange (8.000 im Lauf selbst
+versendet, der Rest über `wpcap_process_messages`).
+
+Regressionstests mit `EXPLAIN` bzw. Abfragezählung (laufen in der normalen Suite):
+`modules/zz_a431.php` (Mollie: Plan der Abfragen, IP-Limit vor der Datenbank), `zz_a432_a433.php` (3.000 Tickets,
+6.000 Check-ins: keine korrelierte Unterabfrage, Seite über Primärschlüssel bzw. `created` ohne Filesort, Zählung
+ohne Joins), `zz_a434.php` (1.200 Bestellungen: Bericht, Export, Stapel, Termin- und Wiederverkäufer-Abrechnung mit
+höchstens 60 Abfragen, gestreamter Export = `export_rows()`), `zz_a435.php` (1.500 abgerechnete und 32 offene
+Bestellungen: die abgerechneten werden nicht gelesen), `zz_a437.php` (Stapel, Zeitbudget, `range` auf `cleanup`).
+
 ## Regelmäßige Lasttests und Regressionsgrenzen (A121)
 
 Der Workflow `.github/workflows/load.yml` läuft jeden Montag 03:17 UTC und manuell (`workflow_dispatch`):
