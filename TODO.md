@@ -680,7 +680,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [WICHTIG] PayPal-Rückkehr meldet „nichts abgebucht“, obwohl abgebucht sein kann — src/Payments/PayPalGateway.php:108–116, :136–147, ReturnNotice.php:17 (A349, R2 API)
 - [x] [WICHTIG] Hängende Erstattungen ohne Referenz weder sichtbar noch auflösbar — src/Refunds.php:276–280, :389–391 (repair_stuck), Operations/Queues.php, OrdersPage.php:465 (A350, R2 API)
 - [x] [WICHTIG] Mollie Klarna/Riverty: authorized wird nie gecaptured (PLAUSIBEL) — src/Modules/Mollie.php:22, MollieGateway.php:222–251 (A351, R2 API)
-- [ ] [WICHTIG] Kein Abgleich-Job Anbieter ↔ lokaler Stand (processing/failed/pending) — Payments/*, Refunds.php (A352, R2 API)
+- [x] [WICHTIG] Kein Abgleich-Job Anbieter ↔ lokaler Stand (processing/failed/pending) — Payments/*, Refunds.php (A352, R2 API)
 - [x] [WICHTIG] Rabattcode-Limit durch späte Zahlung umgangen — src/Orders.php:1559 (expire_holds → release_for_order), Campaigns.php:162 (commit_for_order) (A353, R2 Eigen)
 - [x] [WICHTIG] Auto-Erstattung bei Terminabsage scheitert bei jedem eingecheckten Ticket bzw. Rolle ohne Recht/2FA — src/OccurrenceCancellation.php:122, Passes/Cancellation.php:165 (A354, R2 Eigen)
 - [x] [WICHTIG] DSGVO-Löschung anonymisiert Bestellung mit offener Zahlung – spätere Tickets an Platzhalter — src/Privacy.php:296–307, :403 (A355, R2 Eigen)
@@ -744,14 +744,14 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Audit-Log: Filter UTC, Anzeige Ortszeit, Rohcodes, keine Links — src/Admin/AuditLogPage.php:39–40, :104–115 (A413, R2 UX)
 - [ ] [OPTIMIERUNG] Tickets-Seite verliert Filter/Seite nach Aktionen — src/Admin/TicketsPage.php:157–160 (A414, R2 UX)
 - [ ] [OPTIMIERUNG] Unklare Labels (Abgesagt/Storniert, Provider-Keys, „Schlüssel“, Kontingente, Grund-Feld, Checklisten-Links) — src/Admin/Forms.php:501, OrdersPage.php:298/370, EventsPage.php:803/807/1105, TicketsPage.php:260, GettingStarted.php:129–143 (A415, R2 UX)
-- [ ] [OPTIMIERUNG] SMS: Doppelversand bei Timeout/Absturz — src/Sms/TwilioProvider.php:44–67, Sms/Service.php:312/354 (A416, R2 API)
-- [ ] [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — src/Operations/Queues.php:29–61, Sms/Service.php:314 (A417, R2 API)
-- [ ] [OPTIMIERUNG] PayPal capturet per Webhook auch stornierte Bestellungen — src/Payments/PayPalGateway.php:249–257 (A418, R2 API)
-- [ ] [OPTIMIERUNG] Gewonnener Stripe-Chargeback (funds_reinstated) nicht ausgewertet — src/Payments/StripeGateway.php:197–203 (A419, R2 API)
+- [x] [OPTIMIERUNG] SMS: Doppelversand bei Timeout/Absturz — src/Sms/TwilioProvider.php:44–67, Sms/Service.php:312/354 (A416, R2 API)
+- [x] [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — src/Operations/Queues.php:29–61, Sms/Service.php:314 (A417, R2 API)
+- [x] [OPTIMIERUNG] PayPal capturet per Webhook auch stornierte Bestellungen — src/Payments/PayPalGateway.php:249–257 (A418, R2 API)
+- [x] [OPTIMIERUNG] Gewonnener Stripe-Chargeback (funds_reinstated) nicht ausgewertet — src/Payments/StripeGateway.php:197–203 (A419, R2 API)
 - [ ] [OPTIMIERUNG] Checkout-Idempotenz vergleicht Warenkorb-Inhalt nicht — src/Orders.php:56–58, assets/checkout.js:472 (A420, R2 API)
 - [ ] [OPTIMIERUNG] REST-Eingaben fast ohne Schema; negative/gebrochene Mengen still umgedeutet — src/Rest/Controller.php (3/42 Routen mit args), Orders.php:72–73 (absint) (A421, R2 API/Eigen)
-- [ ] [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — src/WalletPasses/Service.php:321–388 (A422, R2 API)
-- [ ] [OPTIMIERUNG] Google-Wallet-Token nicht an Zugangsdaten gebunden — src/WalletPasses/GoogleProvider.php:124–136 (A423, R2 API)
+- [x] [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — src/WalletPasses/Service.php:321–388 (A422, R2 API)
+- [x] [OPTIMIERUNG] Google-Wallet-Token nicht an Zugangsdaten gebunden — src/WalletPasses/GoogleProvider.php:124–136 (A423, R2 API)
 - [ ] [OPTIMIERUNG] Fehlend: Rechnung/Bestelllink erneut senden; Portalzugang nur 30 Tage — src/Mail/Types.php, Orders.php:241, OrderPortal.php:137 (A424, R2 Eigen)
 - [ ] [OPTIMIERUNG] Fehlend: Vorverkaufs-/Servicegebühr — src/Orders.php:178–203 (A425, R2 Eigen)
 - [ ] [OPTIMIERUNG] Fehlend: Event/Termin duplizieren — src/Admin/Menu.php:14–60 (A426, R2 Eigen)
@@ -862,12 +862,12 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Warteschlange verschobener Kassen-Stornos als Option ohne Sperre (PLAUSIBEL) — src/BoxOffice/Shifts.php:693 (A525, R3 Eigen (Deep Dive 2))
 - [ ] [OPTIMIERUNG] Fehlend: anteilige Erstattung von Pässen nach Teilnutzung — src/Refunds.php:78–93 (A526, R3 Eigen (Deep Dive 2))
 - [ ] [OPTIMIERUNG] Fehlend: Kasse ohne Netz unbenutzbar — assets/boxoffice/pos.js, BoxOffice/Service.php:263 (A527, R3 Eigen (Deep Dive 2))
-- [ ] [OPTIMIERUNG] Saalplan: Stehplätze verschwinden still bei Schlüsselkollision — src/Seating/Layouts.php:311–312 (A528, R3 QA)
-- [ ] [OPTIMIERUNG] Halbfertiges Alt-Sitzplan-API ohne Kaufpfad (öffentliche Holds, UPDATE bei jedem GET) — src/Rest/Controller.php:107–121/654–667/829–851/889–897, Seats.php:8 (A529, R3 QA)
+- [x] [OPTIMIERUNG] Saalplan: Stehplätze verschwinden still bei Schlüsselkollision — src/Seating/Layouts.php:311–312 (A528, R3 QA)
+- [x] [OPTIMIERUNG] Halbfertiges Alt-Sitzplan-API ohne Kaufpfad (öffentliche Holds, UPDATE bei jedem GET) — src/Rest/Controller.php:107–121/654–667/829–851/889–897, Seats.php:8 (A529, R3 QA)
 - [ ] [OPTIMIERUNG] Connector-Vertrag ist tot (dispatch nie aufgerufen, Tabelle ungenutzt; erweitert A166) — src/Integrations/ConnectorRegistry.php:8, Installer.php:681 (A530, R3 QA)
-- [ ] [OPTIMIERUNG] Lost Update/Rennen beim Bearbeiten von Ticketarten — src/Admin/EventsPage.php:353–386 (A531, R3 QA)
-- [ ] [OPTIMIERUNG] Admin-Aktionen melden Erfolg ohne geprüfte Schreibvorgänge (Widerruf, Check-in zurücknehmen) — src/Admin/TicketsPage.php:53–55, :96–105 (A532, R3 QA)
-- [ ] [OPTIMIERUNG] Doppelklick „Tickets erneut senden“ rotiert Codes zweimal (ergänzt A335) — src/Admin/OrdersPage.php:89–95 (A533, R3 QA)
+- [x] [OPTIMIERUNG] Lost Update/Rennen beim Bearbeiten von Ticketarten — src/Admin/EventsPage.php:353–386 (A531, R3 QA)
+- [x] [OPTIMIERUNG] Admin-Aktionen melden Erfolg ohne geprüfte Schreibvorgänge (Widerruf, Check-in zurücknehmen) — src/Admin/TicketsPage.php:53–55, :96–105 (A532, R3 QA)
+- [x] [OPTIMIERUNG] Doppelklick „Tickets erneut senden“ rotiert Codes zweimal (ergänzt A335) — src/Admin/OrdersPage.php:89–95 (A533, R3 QA)
 - [ ] [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — src/Orders.php:43, Rest/Controller.php:711 (A534, R3 QA)
 
 ## Audit Runde 6 – Ticketing: Transaktionen, Ticket-Sicherheit, Dokumente/Mail/Wallet, Zeit/Caching, Käufer-UX/Einlass, Eigen-Audit (13.11.2026, Snapshot a1b11e5)
@@ -956,8 +956,8 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — src/Rest/Controller.php:681–692, Campaigns.php:47/183 (A616, R4 Transaktionen/Concurrency)
 - [ ] [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — src/Series/Pricing.php, Orders.php:191 (A617, R4 Transaktionen/Concurrency)
 - [ ] [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — src/TicketPdf.php:49–55, :98 (A618, R4 Dokumente/Mail/Wallet)
-- [ ] [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379 (A619, R4 Dokumente/Mail/Wallet)
-- [ ] [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148 (A620, R4 Dokumente/Mail/Wallet)
+- [x] [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379 (A619, R4 Dokumente/Mail/Wallet)
+- [x] [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148 (A620, R4 Dokumente/Mail/Wallet)
 - [ ] [OPTIMIERUNG] Neuversand-/Retry-Mail ohne PDF, ICS, .pkpass — src/Orders.php:2036–2041, :2091–2094 (A621, R4 Dokumente/Mail/Wallet)
 - [ ] [OPTIMIERUNG] Übertragungsempfänger ohne Wiederherstellungsweg — src/Orders.php:1509–1524, TicketPage.php:252–258 (A622, R4 Dokumente/Mail/Wallet)
 - [ ] [OPTIMIERUNG] Erinnerungsversand ohne Drosselung; Anbieterlimits → Mails endgültig verloren; kein List-Unsubscribe — src/Communications.php:39–80 (A623, R4 Dokumente/Mail/Wallet)
@@ -965,7 +965,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] HTML-Layout: Outlook ohne MSO-Tabelle, kein Dark Mode, Wallet-Links als lange URLs — src/Mail/Layout.php:167–175, WalletPasses/Service.php:158–163, Mailer.php:449–455 (A625, R4 Dokumente/Mail/Wallet)
 - [ ] [OPTIMIERUNG] Anhänge sofort nach wp_mail gelöscht – Mail-Queue-Plugins senden ohne Anhang (PLAUSIBEL) — src/Orders.php:1820–1823, Modules/Calendar.php:96, Mailer.php:332–347 (A626, R4 Dokumente/Mail/Wallet)
 - [ ] [OPTIMIERUNG] Portal-Download „alle“ ohne Obergrenze (1.000 Rotationen, 20 MB je Klick) — src/PortalSelfService.php:162–166 (A627, R4 Dokumente/Mail/Wallet)
-- [ ] [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58 (A628, R4 Dokumente/Mail/Wallet)
+- [x] [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58 (A628, R4 Dokumente/Mail/Wallet)
 - [ ] [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — src/OfflineScanner/Keys.php:178–233 (A629, R4 Ticket-Sicherheit)
 - [x] [OPTIMIERUNG] Massendruck mit neuen Codes entwertet übertragene/zugewiesene Tickets ohne Nachricht (erweitert A335/A427) — src/Printing/Templates.php:318–348 (A630, R4 Ticket-Sicherheit)
 - [ ] [OPTIMIERUNG] Abfotografierter QR-Code kann Bestelllink des Käufers rotieren — src/TicketPage.php:34–39, PortalSelfService.php:588–606 (A631, R4 Ticket-Sicherheit)
@@ -1081,15 +1081,15 @@ Ohne Befund geprüft: SQL-Injection (alle Abfragen prepared oder Integer-Listen)
 - [ ] [P3][HÄRTUNG] `src/Rest/Controller.php:356–366` — `order_status` nimmt das Zugangstoken als GET-Parameter (Server-/Proxy-Logs) und ruft `hash_equals` ohne `(string)`-Cast auf einem möglichen NULL-Hash auf (HTTP 500 unter PHP 8). Token per Header/POST annehmen und casten.
 - [ ] [P3][HÄRTUNG] `src/Rest/Controller.php:516–529,730–738`; `src/Seats.php:36` — Die alten Routen `/events/{id}/seat-holds` sind nicht mit Bestellungen verknüpft und erlauben anonymes Blockieren von Legacy-Sitzen; ältere veröffentlichte Sitzplanversionen werden nie zurückgezogen. Routen entfernen oder schützen.
 - [x] [P3][HÄRTUNG] `src/Rest/Controller.php:760` — `source` beim Check-in kommt vom Client; auf `web` festlegen.
-- [ ] [P3][HÄRTUNG] `src/WalletPasses/Store.php:135` — `register_device` aktualisiert `push_token` für alle Zeilen einer `device_library_id`, obwohl der Aufrufer nur für eine Seriennummer authentifiziert ist; auf diese Seriennummer beschränken. `src/WalletPasses/WebService.php:159–169`: `serve_raw` hängt global an `rest_pre_serve_request` und reagiert auf den Datenschlüssel `__wpcap_raw`; durch eigene Response-Klasse oder Routenprüfung ersetzen. `Store::key()` nicht gleichzeitig für Secretbox und Download-HMAC verwenden.
+- [x] [P3][HÄRTUNG] `src/WalletPasses/Store.php:135` — `register_device` aktualisiert `push_token` für alle Zeilen einer `device_library_id`, obwohl der Aufrufer nur für eine Seriennummer authentifiziert ist; auf diese Seriennummer beschränken. `src/WalletPasses/WebService.php:159–169`: `serve_raw` hängt global an `rest_pre_serve_request` und reagiert auf den Datenschlüssel `__wpcap_raw`; durch eigene Response-Klasse oder Routenprüfung ersetzen. `Store::key()` nicht gleichzeitig für Secretbox und Download-HMAC verwenden.
 - [x] [P3][HÄRTUNG] `assets/offline-scanner/app.js:624–634` — `?api=` wird übernommen, wenn es same-origin ist; zusätzlich verlangen, dass der Pfad auf `/wp-pass-captain/v1/app/` endet.
 - [ ] [P3][HÄRTUNG] `src/Admin/Queries.php:230–237,347–355` — Bestelllisten zeigen Bestellungen mit Positionen aus mehreren Events, sobald eines im Scope liegt (E-Mail, Summe, fremder Eventname sichtbar); nur Bestellungen listen, deren Events alle im Scope sind. `src/Campaigns.php:104`: global eindeutige Codes verraten per 409 fremde Kampagnen.
 - [ ] [P3][HÄRTUNG] `src/Privacy.php:154–162,195–236` — Der Datenschutzexport eines Käufers enthält Check-in-Protokoll und Wallet-Seriennummern auch für bereits übertragene Tickets; bei `transfer_count > 0` weglassen. `_wpcap_attendees`-Meta an nie ausgegebenen WooCommerce-Bestellungen wird weder von der Retention noch vom Löscher erfasst.
 - [ ] [P3][HÄRTUNG] `src/TicketAssignments.php:67–81`; `src/Orders.php:903–917`; `src/Communications.php:52–53` — Die Mail an den vorherigen Inhaber erhält dieselben Variablen einschließlich `ticket_link` mit neuem Code (Standardvorlagen nutzen ihn nicht); eigenes Variablen-Array ohne Link bauen. Queue-Fallback, der die gespeicherte Nutzlast als Vorlage verwendet, entfernen.
 - [x] [P3][HÄRTUNG] `src/Modules/Partners.php:155`; `src/Partners/Settlements.php:98,452` — Die Sperre gegen Doppelabrechnung gilt je (Partner, Quelle); nach Umhängen eines Events auf einen anderen Veranstalter können bereits abgerechnete Verkäufe erneut abgerechnet werden. Sperre partnerübergreifend je Quelle führen. — _erledigt (A448, plattformweite Abrechnungssperre)_
 - [ ] [P3][HÄRTUNG] `.github/workflows/ci.yml`, `release.yml`; `build/release.sh:26` — Aktionen per Commit-SHA pinnen, `permissions: contents: read` und `persist-credentials: false` setzen, `composer install --no-scripts --no-plugins`, Prüfsumme/Attestierung für das ZIP veröffentlichen (ergänzt den bestehenden Release-Workflow-Befund).
-- [ ] [P3][HÄRTUNG] WooCommerce — Drittanbieter-Gateways („Kauf auf Rechnung“), die vor Geldeingang `processing` setzen, lösen die Ticketausgabe aus, sofern sie nicht im Filter `wpcap_woocommerce_issue_on_completed_gateways` stehen; in `docs/WOOCOMMERCE.md` deutlich dokumentieren.
-- [ ] [P3][HÄRTUNG] `src/Fiscalization/Providers/*` — Derzeit nicht erreichbar (kein Aufrufer). Vor der Integration von PR #14: `HttpClient` auf HTTPS und `wp_safe_remote_request` umstellen und den stillen Sandbox-Fallback in `FiskaltrustAdapter.php:11,21,78` entfernen.
+- [x] [P3][HÄRTUNG] WooCommerce — Drittanbieter-Gateways („Kauf auf Rechnung“), die vor Geldeingang `processing` setzen, lösen die Ticketausgabe aus, sofern sie nicht im Filter `wpcap_woocommerce_issue_on_completed_gateways` stehen; in `docs/WOOCOMMERCE.md` deutlich dokumentieren.
+- [x] [P3][HÄRTUNG] `src/Fiscalization/Providers/*` — Derzeit nicht erreichbar (kein Aufrufer). Vor der Integration von PR #14: `HttpClient` auf HTTPS und `wp_safe_remote_request` umstellen und den stillen Sandbox-Fallback in `FiskaltrustAdapter.php:11,21,78` entfernen.
 
 ### Offen / nicht abgedeckt
 

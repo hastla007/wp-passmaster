@@ -747,7 +747,7 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:276–280, :389–391 (repair_stuck), Operations/Queues.php, OrdersPage.php:465: Anzeige in Betrieb/Bestellseite, Auflösung per Anbieter-Lookup oder manueller Bestätigung mit Audit
 - [x] **A351** [WICHTIG] Mollie Klarna/Riverty: authorized wird nie gecaptured (PLAUSIBEL) — _R2 API_ (TODO L682; Audit Runde 4)
   - src/Modules/Mollie.php:22, MollieGateway.php:222–251: authorized per Capture-API behandeln oder Methoden entfernen
-- [ ] **A352** [WICHTIG] Kein Abgleich-Job Anbieter ↔ lokaler Stand (processing/failed/pending) — _R2 API_ (TODO L683; Audit Runde 4)
+- [x] **A352** [WICHTIG] Kein Abgleich-Job Anbieter ↔ lokaler Stand (processing/failed/pending) — _R2 API_ (TODO L683; Audit Runde 4)
   - Payments/*, Refunds.php: Reconciliation je Anbieter über wpcap_refund/wpcap_order-Metadaten (blinder Fleck)
 - [x] **A353** [WICHTIG] Rabattcode-Limit durch späte Zahlung umgangen — _R2 Eigen_ (TODO L684; Audit Runde 4)
   - src/Orders.php:1559 (expire_holds → release_for_order), Campaigns.php:162 (commit_for_order): Bei später Zahlung Code unter Sperre neu einlösen, sonst needs_review (belegt)
@@ -875,21 +875,21 @@ Gesamt: 262 Aufgaben.
   - src/Admin/TicketsPage.php:157–160: event_id/status/paged mitgeben
 - [ ] **A415** [OPTIMIERUNG] Unklare Labels (Abgesagt/Storniert, Provider-Keys, „Schlüssel“, Kontingente, Grund-Feld, Checklisten-Links) — _R2 UX_ (TODO L746; Audit Runde 4)
   - src/Admin/Forms.php:501, OrdersPage.php:298/370, EventsPage.php:803/807/1105, TicketsPage.php:260, GettingStarted.php:129–143: Konkrete Umformulierungen laut Auditbericht
-- [ ] **A416** [OPTIMIERUNG] SMS: Doppelversand bei Timeout/Absturz — _R2 API_ (TODO L747; Audit Runde 4)
+- [x] **A416** [OPTIMIERUNG] SMS: Doppelversand bei Timeout/Absturz — _R2 API_ (TODO L747; Audit Runde 4)
   - src/Sms/TwilioProvider.php:44–67, Sms/Service.php:312/354: Vor Neuversand prüfen oder Timeout als „unbekannt“ nicht automatisch wiederholen
-- [ ] **A417** [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — _R2 API_ (TODO L748; Audit Runde 4)
+- [x] **A417** [OPTIMIERUNG] SMS-Warteschlange fehlt unter Betrieb/Warteschlangen; held verfällt still — _R2 API_ (TODO L748; Audit Runde 4)
   - src/Operations/Queues.php:29–61, Sms/Service.php:314: Vierte Queue-Definition (failed, held)
-- [ ] **A418** [OPTIMIERUNG] PayPal capturet per Webhook auch stornierte Bestellungen — _R2 API_ (TODO L749; Audit Runde 4)
+- [x] **A418** [OPTIMIERUNG] PayPal capturet per Webhook auch stornierte Bestellungen — _R2 API_ (TODO L749; Audit Runde 4)
   - src/Payments/PayPalGateway.php:249–257: Vor Capture Bestellstatus prüfen
-- [ ] **A419** [OPTIMIERUNG] Gewonnener Stripe-Chargeback (funds_reinstated) nicht ausgewertet — _R2 API_ (TODO L750; Audit Runde 4)
+- [x] **A419** [OPTIMIERUNG] Gewonnener Stripe-Chargeback (funds_reinstated) nicht ausgewertet — _R2 API_ (TODO L750; Audit Runde 4)
   - src/Payments/StripeGateway.php:197–203: Admin-Alarm
 - [ ] **A420** [OPTIMIERUNG] Checkout-Idempotenz vergleicht Warenkorb-Inhalt nicht — _R2 API_ (TODO L751; Audit Runde 4)
   - src/Orders.php:56–58, assets/checkout.js:472: request_hash speichern, bei Abweichung 409
 - [ ] **A421** [OPTIMIERUNG] REST-Eingaben fast ohne Schema; negative/gebrochene Mengen still umgedeutet — _R2 API/Eigen_ (TODO L752; Audit Runde 4)
   - src/Rest/Controller.php (3/42 Routen mit args), Orders.php:72–73 (absint): args mit type/minimum/validate_callback; nur Ganzzahlen ≥ 1
-- [ ] **A422** [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — _R2 API_ (TODO L753; Audit Runde 4)
+- [x] **A422** [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — _R2 API_ (TODO L753; Audit Runde 4)
   - src/WalletPasses/Service.php:321–388: Teilerfolge je Pass festhalten, nur Fehlgeschlagene neu einreihen
-- [ ] **A423** [OPTIMIERUNG] Google-Wallet-Token nicht an Zugangsdaten gebunden — _R2 API_ (TODO L754; Audit Runde 4)
+- [x] **A423** [OPTIMIERUNG] Google-Wallet-Token nicht an Zugangsdaten gebunden — _R2 API_ (TODO L754; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:124–136: Cache-Schlüssel aus client_email/token_uri, 403 löscht Token
 - [ ] **A424** [OPTIMIERUNG] Fehlend: Rechnung/Bestelllink erneut senden; Portalzugang nur 30 Tage — _R2 Eigen_ (TODO L755; Audit Runde 4)
   - src/Mail/Types.php, Orders.php:241, OrderPortal.php:137: Rechnung als PDF an Mail/eigene Mail, Admin-Button
@@ -1105,17 +1105,17 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:78–93: Anteiligen Betrag vorschlagen
 - [ ] **A527** [OPTIMIERUNG] Fehlend: Kasse ohne Netz unbenutzbar — _R3 Eigen (Deep Dive 2)_ (TODO L864; Audit Runde 4)
   - assets/boxoffice/pos.js, BoxOffice/Service.php:263: Notfallmodus mit lokalen Belegen oder klare Offline-Anzeige
-- [ ] **A528** [OPTIMIERUNG] Saalplan: Stehplätze verschwinden still bei Schlüsselkollision — _R3 QA_ (TODO L865; Audit Runde 4)
+- [x] **A528** [OPTIMIERUNG] Saalplan: Stehplätze verschwinden still bei Schlüsselkollision — _R3 QA_ (TODO L865; Audit Runde 4)
   - src/Seating/Layouts.php:311–312: Kollision als Fehler, kollisionsfreie Schlüssel (belegt)
-- [ ] **A529** [OPTIMIERUNG] Halbfertiges Alt-Sitzplan-API ohne Kaufpfad (öffentliche Holds, UPDATE bei jedem GET) — _R3 QA_ (TODO L866; Audit Runde 4)
+- [x] **A529** [OPTIMIERUNG] Halbfertiges Alt-Sitzplan-API ohne Kaufpfad (öffentliche Holds, UPDATE bei jedem GET) — _R3 QA_ (TODO L866; Audit Runde 4)
   - src/Rest/Controller.php:107–121/654–667/829–851/889–897, Seats.php:8: Entfernen/deprecaten hinter Seating-Modul
 - [ ] **A530** [OPTIMIERUNG] Connector-Vertrag ist tot (dispatch nie aufgerufen, Tabelle ungenutzt; erweitert A166) — _R3 QA_ (TODO L867; Audit Runde 4)
   - src/Integrations/ConnectorRegistry.php:8, Installer.php:681: Anbinden oder Doku/Tabelle entfernen
-- [ ] **A531** [OPTIMIERUNG] Lost Update/Rennen beim Bearbeiten von Ticketarten — _R3 QA_ (TODO L868; Audit Runde 4)
+- [x] **A531** [OPTIMIERUNG] Lost Update/Rennen beim Bearbeiten von Ticketarten — _R3 QA_ (TODO L868; Audit Runde 4)
   - src/Admin/EventsPage.php:353–386: Revisionsspalte (optimistisches Locking), Prüfung+Update unter FOR UPDATE
-- [ ] **A532** [OPTIMIERUNG] Admin-Aktionen melden Erfolg ohne geprüfte Schreibvorgänge (Widerruf, Check-in zurücknehmen) — _R3 QA_ (TODO L869; Audit Runde 4)
+- [x] **A532** [OPTIMIERUNG] Admin-Aktionen melden Erfolg ohne geprüfte Schreibvorgänge (Widerruf, Check-in zurücknehmen) — _R3 QA_ (TODO L869; Audit Runde 4)
   - src/Admin/TicketsPage.php:53–55, :96–105: Jeden Schritt prüfen, ROLLBACK + Fehlermeldung
-- [ ] **A533** [OPTIMIERUNG] Doppelklick „Tickets erneut senden“ rotiert Codes zweimal (ergänzt A335) — _R3 QA_ (TODO L870; Audit Runde 4)
+- [x] **A533** [OPTIMIERUNG] Doppelklick „Tickets erneut senden“ rotiert Codes zweimal (ergänzt A335) — _R3 QA_ (TODO L870; Audit Runde 4)
   - src/Admin/OrdersPage.php:89–95: Formular-Schlüssel/Sperre je Bestellung
 - [ ] **A534** [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — _R3 QA_ (TODO L871; Audit Runde 4)
   - src/Orders.php:43, Rest/Controller.php:711: rest_sanitize_boolean / streng true/1
@@ -1290,9 +1290,9 @@ Gesamt: 262 Aufgaben.
   - src/Series/Pricing.php, Orders.php:191: Preis je Unit staffeln oder Menge einrechnen (belegt t5)
 - [ ] **A618** [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — _R4 Dokumente/Mail/Wallet_ (TODO L958; Audit Runde 4)
   - src/TicketPdf.php:49–55, :98: FlateDecode, QR-Module zeilenweise zusammenfassen
-- [ ] **A619** [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — _R4 Dokumente/Mail/Wallet_ (TODO L959; Audit Runde 4)
+- [x] **A619** [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — _R4 Dokumente/Mail/Wallet_ (TODO L959; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379: Bei 404 in revoke Objekt mit state INACTIVE anlegen
-- [ ] **A620** [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — _R4 Dokumente/Mail/Wallet_ (TODO L960; Audit Runde 4)
+- [x] **A620** [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — _R4 Dokumente/Mail/Wallet_ (TODO L960; Audit Runde 4)
   - src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148: Bundle je (Serial, update_tag), Bilder je Einstellungs-Hash, Credentials statisch
 - [ ] **A621** [OPTIMIERUNG] Neuversand-/Retry-Mail ohne PDF, ICS, .pkpass — _R4 Dokumente/Mail/Wallet_ (TODO L961; Audit Runde 4)
   - src/Orders.php:2036–2041, :2091–2094: Gleicher Anhangs-Builder wie issue_and_email
@@ -1308,7 +1308,7 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:1820–1823, Modules/Calendar.php:96, Mailer.php:332–347: Anhänge bis Cron-Bereinigung aufbewahren
 - [ ] **A627** [OPTIMIERUNG] Portal-Download „alle“ ohne Obergrenze (1.000 Rotationen, 20 MB je Klick) — _R4 Dokumente/Mail/Wallet_ (TODO L967; Audit Runde 4)
   - src/PortalSelfService.php:162–166: Max. 50 je PDF, sonst Stapel/Job
-- [ ] **A628** [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — _R4 Dokumente/Mail/Wallet_ (TODO L968; Audit Runde 4)
+- [x] **A628** [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — _R4 Dokumente/Mail/Wallet_ (TODO L968; Audit Runde 4)
   - src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58: Logo ohne Text, UTF-8, Google-Logo
 - [ ] **A629** [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — _R4 Ticket-Sicherheit_ (TODO L969; Audit Runde 4)
   - src/OfflineScanner/Keys.php:178–233: GET_LOCK/Versionsprüfung, max_expires getrennt
@@ -1362,7 +1362,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Routen entfernen oder an Bestellung binden; alte Versionen zurückziehen.
 - [x] **A647** [OPTIMIERUNG] Web-Check-in übernimmt source vom Client (offline umgeht Bereichskapazität) — _Sicherheitsaudit 14.11. #20_ (TODO L1083; Sicherheitsaudit 2026-11-14)
   - source im Web-Scanner fest auf web.
-- [ ] **A648** [OPTIMIERUNG] Wallet: push_token für alle Pässe eines Geräts, globales serve_raw, Schlüssel doppelt genutzt — _Sicherheitsaudit 14.11. #21_ (TODO L1084; Sicherheitsaudit 2026-11-14)
+- [x] **A648** [OPTIMIERUNG] Wallet: push_token für alle Pässe eines Geräts, globales serve_raw, Schlüssel doppelt genutzt — _Sicherheitsaudit 14.11. #21_ (TODO L1084; Sicherheitsaudit 2026-11-14)
   - Update auf die Seriennummer beschränken, eigene Response statt __wpcap_raw, abgeleiteter HMAC-Schlüssel.
 - [x] **A649** [OPTIMIERUNG] Offline-Scanner übernimmt ?api= ohne Pfadprüfung — _Sicherheitsaudit 14.11. #22_ (TODO L1085; Sicherheitsaudit 2026-11-14)
   - Pfad muss auf /wp-json/pass-captain/v1/app/ enden (oder Alt-Namensraum).
@@ -1374,9 +1374,9 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Eigenes Variablen-Array ohne Link, Queue-Fallback entfernen.
 - [ ] **A653** [OPTIMIERUNG] CI/Release: Actions per SHA pinnen, permissions, persist-credentials, Composer-Flags — _Sicherheitsaudit 14.11. #27_ (TODO L1090; Sicherheitsaudit 2026-11-14)
   - SHA-Pinning, permissions: contents: read, persist-credentials: false, composer --no-scripts --no-plugins, optional Attestierung.
-- [ ] **A654** [OPTIMIERUNG] WooCommerce: „Kauf auf Rechnung“-Gateways geben Tickets vor Geldeingang aus — _Sicherheitsaudit 14.11. #28_ (TODO L1091; Sicherheitsaudit 2026-11-14)
+- [x] **A654** [OPTIMIERUNG] WooCommerce: „Kauf auf Rechnung“-Gateways geben Tickets vor Geldeingang aus — _Sicherheitsaudit 14.11. #28_ (TODO L1091; Sicherheitsaudit 2026-11-14)
   - Deutliche Warnung mit Beispiel und Filter in docs/WOOCOMMERCE.md, optional Admin-Hinweis.
-- [ ] **A655** [OPTIMIERUNG] Fiskalisierung: stiller Sandbox-Fallback im HttpClient/Fiskaltrust — _Sicherheitsaudit 14.11. #29_ (TODO L1092; Sicherheitsaudit 2026-11-14)
+- [x] **A655** [OPTIMIERUNG] Fiskalisierung: stiller Sandbox-Fallback im HttpClient/Fiskaltrust — _Sicherheitsaudit 14.11. #29_ (TODO L1092; Sicherheitsaudit 2026-11-14)
   - Fehlende base_url als Fehler werten, kein stiller Sandbox-Fallback.
 - [ ] **A656** [OPTIMIERUNG] Voucher Captain: release()/reserve() mit veraltetem Quote prüfen (anderes Repository) — _Sicherheitsaudit 14.11. #30_ (TODO L1096; Sicherheitsaudit 2026-11-14)
   - Im Voucher-Captain-Repository prüfen; hier nur Vertragstest der Bridge.

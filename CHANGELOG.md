@@ -7,6 +7,24 @@
 - **Neuer Name „Pass Captain“, Slug `pass-captain` (für WordPress.org).** Bisher „WP Pass Captain“ mit Slug, Ordner und Textdomain `wp-pass-captain` – WordPress.org erlaubt kein „WP“ am Namensanfang, und Sprachpakete brauchen Textdomain = Slug. Geändert: Plugin-Name, Ordner/Hauptdatei `pass-captain/pass-captain.php`, Textdomain und Sprachdateien `pass-captain`, REST-Namensraum `/wp-json/pass-captain/v1/`, Admin-Seiten `page=pass-captain…`, Release-ZIP `pass-captain.zip`; die Partner-Plugins heißen in der Oberfläche „Voucher Captain“ und „Affiliate Captain“. Unverändert: Daten (`wpcap_*`), Rollen, Hooks/Shortcodes, Blocknamen. Kompatibilität (`src/LegacySlug.php`): der alte REST-Namensraum funktioniert weiter (Zahlungs- und SMS-Webhooks, bereits ausgegebene Wallet-Pässe, Apps; Antwort mit `Deprecation`/`Link`, Twilio-Signatur gegen die aufgerufene URL), alte Admin-Links leiten um, eine installierte alte Kopie wird beim Aktivieren abgeschaltet (kein Doppelladen), und solange ihr Ordner existiert, ist die Datenlöschung beim Deinstallieren pausiert, damit das Löschen der alten Kopie keine Daten entfernt. Neuer CI-Test `tests/wp-matrix/rename-takeover.sh` (echte Website mit Vorgänger-Release und Daten → Umstieg). Anleitung: docs/RENAME.md.
 
 ### Auditbefunde Runde 4–6 (Arbeitsliste A263–)
+- Zahlungen: Abgleich-Job fragt Stripe, PayPal und Mollie alle fünf Minuten nach offenen und kürzlich abgelaufenen/stornierten Bestellungen; verlorene Webhooks und späte Zahlungen werden idempotent nachgebucht (Audit `payment_reconciled`) (A352).
+- SMS: Nach Zeitüberschreitung oder Absturz wird nicht blind erneut über Twilio gesendet, sondern als `unknown` markiert und über die Nachrichtenliste abgeglichen (A416).
+- Betrieb: SMS-Warteschlange unter „Warteschlangen“ (erneut versuchen/verwerfen); zurückgehaltene SMS zeigen ihr Verfallsdatum und verfallen mit Audit-Eintrag (A417).
+- PayPal: Capture per Webhook nur bei noch bezahlbarer Bestellung (bereits mit A641 umgesetzt) (A418).
+- Stripe: Gewonnener Chargeback (`charge.dispute.funds_reinstated`) wird erkannt, protokolliert und dem Admin gemeldet (A419).
+- Wallet: Sync hält Teilerfolge je Pass fest, reiht nur Fehlgeschlagenes mit Backoff neu ein und beachtet `Retry-After` bei 429 (A422).
+- Google Wallet: Zugriffstoken an das Dienstkonto gebunden, neu angefordert nach Wechsel oder 403 (A423).
+- Saalplan: Kollidierende Stehplatz-Schlüssel werden beim Speichern abgelehnt statt still zu verschwinden (A528).
+- REST: Halbfertiges Alt-Sitzplan-API ohne Kaufpfad entfernt (A529).
+- Ticketarten: Gleichzeitiges Bearbeiten überschreibt keine fremden Änderungen (Revision, Zeilensperre) (A531).
+- Tickets: Widerruf, Check-in-Rücknahme und Teilnehmerkorrektur prüfen jeden Schreibschritt und das COMMIT (A532).
+- Bestellungen: Doppelklick auf „Tickets erneut senden“ erneuert die Codes nur einmal (A533).
+- Google Wallet: Alte Speichern-Links erzeugen nach Widerruf keinen aktiven Pass mehr (A619).
+- Wallet: Pass-Bau mit Zwischenspeicher für signierte Pässe, Bilder und Zugangsdaten (A620).
+- Wallet-Design: Apple-Pässe ohne doppelten Namen, mit Umlauten; Google-Pässe mit Logo (A628).
+- Wallet-Härtung: Push-Token nur für die eigene Seriennummer, Binärantworten über eigene Klasse, eigener HMAC-Schlüssel für Links (A648).
+- WooCommerce: Warnung (Doku und Admin-Hinweis) vor „Kauf auf Rechnung“-Zahlarten, die Tickets vor Geldeingang ausgeben (A654).
+- Fiskalisierung: Fehlende Basis-URL ist ein Fehler; fiskaltrust nutzt die Sandbox nur auf ausdrückliche Einstellung (A655).
 - Events-Block: Attribute `event`/`occurrence` sind jetzt `integer` statt `number` (A360).
 - Der Fehlerrahmen für ungültige Felder gilt nur noch in den Plugin-Formularen und ohne `!important` (A371).
 - Stylesheets werden vor den Blöcken registriert und in block.json genannt: gestylte Blockvorschau im Editor, CSS bei Shortcodes im `<head>` (A391).
