@@ -249,11 +249,14 @@ list( $wpp2_st ) = wpp2_type();
 $GLOBALS['wpcap_test_transients'] = array();
 $wpp2_s1 = Orders::create( array( 'email' => 's1@example.com', 'items' => array( array( 'ticket_type_id' => $wpp2_st, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp2-s1' ), array( 'payment_provider' => 'stripe', 'hold_minutes' => Orders::HOSTED_HOLD_MINUTES ) );
 $wpp2_f = $wpp2_session( $wpp2_s1['order_id'] );
-check( 'session expires exactly with the hold (31 min), never later (proof t7)', (int) $wpp2_f['expires_at'] === $wpp2_hold( $wpp2_s1['order_id'] ) && (int) $wpp2_f['expires_at'] >= time() + 1800 );
+// Merged design (QA-6): the session ends StripeGateway::HOLD_BUFFER_MINUTES before the hold, so a payment in the
+// last second still finds the tickets held.
+$wpp2_buffer = PassCaptain\Payments\StripeGateway::HOLD_BUFFER_MINUTES * MINUTE_IN_SECONDS;
+check( 'session expires exactly with the hold (31 min), never later (proof t7)', (int) $wpp2_f['expires_at'] === $wpp2_hold( $wpp2_s1['order_id'] ) - $wpp2_buffer && (int) $wpp2_f['expires_at'] >= time() + 1800 );
 $GLOBALS['wpcap_test_transients'] = array();
 $wpp2_s2 = Orders::create( array( 'email' => 's2@example.com', 'items' => array( array( 'ticket_type_id' => $wpp2_st, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp2-s2' ), array( 'payment_provider' => 'stripe', 'hold_minutes' => 10 ) );
 $wpp2_f = $wpp2_session( $wpp2_s2['order_id'] );
-check( 'shorter hold (10 min) is extended to the Stripe minimum: session and hold end together', (int) $wpp2_f['expires_at'] === $wpp2_hold( $wpp2_s2['order_id'] ) && (int) $wpp2_f['expires_at'] >= time() + 1800 );
+check( 'shorter hold (10 min) is extended to the Stripe minimum: session and hold end together', (int) $wpp2_f['expires_at'] === $wpp2_hold( $wpp2_s2['order_id'] ) - $wpp2_buffer && (int) $wpp2_f['expires_at'] >= time() + 1800 );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() + 3 * 86400 ), $wpp2_s2['order_id'] ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET provider_reference='' WHERE order_id=%d", $wpp2_s2['order_id'] ) );
 $wpp2_f = $wpp2_session( $wpp2_s2['order_id'] );
@@ -302,7 +305,11 @@ $GLOBALS['wpcap_test_transients'] = array();
 $wpp2_m2 = Orders::create( array( 'email' => 'm2@example.com', 'items' => array( array( 'ticket_type_id' => $wpp2_st, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp2-m2', 'mollie_method' => 'banktransfer' ), array( 'payment_provider' => 'mollie', 'hold_minutes' => 31 ) );
 list( $wpp2_pay, $wpp2_body ) = $wpp2_mpay( $wpp2_m2['order_id'], 'tr_wpp2m2' );
 $wpp2_m2_hold = $wpp2_hold( $wpp2_m2['order_id'] );
-check( 'bank transfer chosen: hold extended like a bank transfer hold, due date not after it', ! is_wp_error( $wpp2_pay ) && 'banktransfer' === ( $wpp2_body['method'] ?? '' ) && abs( $wpp2_m2_hold - $wpp2_expect ) < 120 && ( $wpp2_body['dueDate'] ?? '' ) === gmdate( 'Y-m-d', $wpp2_m2_hold ) );
+// Merged design (QA-6): a chosen bank transfer extends the hold like a delayed payment (Webhooks::delayed_hold_minutes(),
+// at most until the start), at least as long as a bank transfer hold.
+$wpp2_delayed = time() + PassCaptain\Payments\Webhooks::delayed_hold_minutes( Orders::get( $wpp2_m2['order_id'] ), 'mollie' ) * MINUTE_IN_SECONDS;
+$wpp2_start = (int) strtotime( (string) $wpdb->get_var( $wpdb->prepare( "SELECT MIN(o.starts_at) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", $wpp2_m2['order_id'] ) ) . ' UTC' );
+check( 'bank transfer chosen: hold extended like a bank transfer hold, due date not after it', ! is_wp_error( $wpp2_pay ) && 'banktransfer' === ( $wpp2_body['method'] ?? '' ) && $wpp2_m2_hold >= $wpp2_expect - 120 && abs( $wpp2_m2_hold - min( $wpp2_delayed, $wpp2_start ) ) < 120 && ( $wpp2_body['dueDate'] ?? '' ) === gmdate( 'Y-m-d', $wpp2_m2_hold ) );
 // Bank transfer chosen, but the start moved close meanwhile (no bank transfer hold possible).
 list( $wpp2_st3, $wpp2_so3 ) = wpp2_type();
 $GLOBALS['wpcap_test_transients'] = array();
