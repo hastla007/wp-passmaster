@@ -828,8 +828,9 @@ Gesamt: 262 Aufgaben.
   - src/Payments/Webhooks.php:121, Orders.php:1569–1680, ServiceBookingFlow.php:190/205: Versand nach COMMIT als Job; Servicebuchungen über Mailer::deliver()
 - [ ] **A374** [OPTIMIERUNG] Wallet-Push inline auf shutdown (bis 20 Tickets) — _R1 Architektur_ (TODO L720; Audit Runde 4)
   - src/WalletPasses/Service.php:315–331: Nur einreihen, im Job pushen
-- [ ] **A375** [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — _R1 Architektur_ (TODO L721; Audit Runde 4)
+- [x] **A375** [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — _R1 Architektur_ (TODO L721; Audit Runde 4)
   - src/Operations/SiteHealth.php:80–88: Loopback ohne Cookie; Hinweis bei Forwarded-Headern ohne trusted_proxies
+  - Erledigt: Website-Zustand-Tests `wpcap_rest_anonymous` (Abruf ohne Cookie, 401/403 kritisch, Loopback-Fehler Empfehlung, 6 h Cache) und `wpcap_proxy` (`CheckoutThrottle::status_issue()`, Link auf Tab „Erweitert“); Proxy-Hinweistexte zeigen jetzt auf „Einstellungen → Erweitert“. Test zz_a375.
 - [x] **A376** [OPTIMIERUNG] Saalplan-Verknüpfungen und Käuferlimits laden ganze Historie je Listing — _R1 Architektur_ (TODO L722; Audit Runde 4)
   - src/Seating/Layouts.php:371, Allocations/BuyerLimits.php:51: Auf IDs des Listings einschränken
 - [ ] **A377** [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — _R1 UX_ (TODO L723; Audit Runde 4)

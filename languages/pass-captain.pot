@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T19:10:29+00:00\n"
+"POT-Creation-Date: 2026-11-16T19:13:29+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: pass-captain\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: pass-captain.php
 #: src/Integrations/WooCommerce/CartPricing.php:83
 #: src/Operations/SiteHealth.php:80
-#: src/Operations/SiteHealth.php:111
+#: src/Operations/SiteHealth.php:113
 #: src/Secrets.php:524
 #: src/Secrets.php:546
 #: src/WalletPasses/Health.php:91
@@ -667,8 +667,8 @@ msgstr ""
 
 #: src/Admin/ApiKeysPage.php:161
 #: src/Allocations/AdminPage.php:268
-#: src/Operations/SiteHealth.php:462
-#: src/Operations/SiteHealth.php:503
+#: src/Operations/SiteHealth.php:529
+#: src/Operations/SiteHealth.php:570
 msgid "nie"
 msgstr ""
 
@@ -1619,8 +1619,8 @@ msgstr ""
 #: src/Admin/CampaignsPage.php:187
 #: src/BoxOffice/ShiftPage.php:434
 #: src/BoxOffice/ZReport.php:398
-#: src/Operations/SiteHealth.php:455
-#: src/Operations/SiteHealth.php:554
+#: src/Operations/SiteHealth.php:522
+#: src/Operations/SiteHealth.php:621
 #: src/WalletPasses/AdminPage.php:135
 msgid "ja"
 msgstr ""
@@ -8766,13 +8766,13 @@ msgstr ""
 #: src/Admin/SettingsPage.php:131
 #: src/Mail/Admin.php:118
 #: src/Modules/Fiscalization.php:1329
-#: src/Operations/SiteHealth.php:583
+#: src/Operations/SiteHealth.php:650
 msgid "Test"
 msgstr ""
 
 #: src/Admin/SettingsPage.php:131
 #: src/Admin/SettingsPage.php:142
-#: src/Operations/SiteHealth.php:582
+#: src/Operations/SiteHealth.php:649
 msgid "Live"
 msgstr ""
 
@@ -9763,7 +9763,7 @@ msgid "Als erledigt markieren"
 msgstr ""
 
 #: src/Admin/StatusPage.php:416
-#: src/Operations/SiteHealth.php:562
+#: src/Operations/SiteHealth.php:629
 msgid "Datenbankschema"
 msgstr ""
 
@@ -9775,7 +9775,7 @@ msgstr ""
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
 #: src/Admin/StatusPage.php:419
-#: src/Operations/SiteHealth.php:585
+#: src/Operations/SiteHealth.php:652
 msgid "unbekannt"
 msgstr ""
 
@@ -12777,8 +12777,8 @@ msgid "Standort"
 msgstr ""
 
 #: src/BoxOffice/ShiftPage.php:434
-#: src/Operations/SiteHealth.php:455
-#: src/Operations/SiteHealth.php:555
+#: src/Operations/SiteHealth.php:522
+#: src/Operations/SiteHealth.php:622
 #: src/WalletPasses/AdminPage.php:135
 msgid "nein"
 msgstr ""
@@ -20629,7 +20629,7 @@ msgid "Signaturschlüssel abgelaufen"
 msgstr ""
 
 #: src/OfflineScanner/I18n.php:152
-#: src/Operations/SiteHealth.php:339
+#: src/Operations/SiteHealth.php:341
 msgid "Signatur ungültig"
 msgstr ""
 
@@ -21353,7 +21353,7 @@ msgid "Bitte mindestens einen Eintrag auswählen."
 msgstr ""
 
 #. translators: %d: number of minutes
-#: src/Operations/SiteHealth.php:125
+#: src/Operations/SiteHealth.php:127
 #: src/ServiceBookings.php:1379
 #, php-format
 msgid "%d Minute"
@@ -21362,7 +21362,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of hours
-#: src/Operations/SiteHealth.php:134
+#: src/Operations/SiteHealth.php:136
 #: src/ServiceBookings.php:1376
 #, php-format
 msgid "%d Stunde"
@@ -21370,96 +21370,96 @@ msgid_plural "%d Stunden"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Operations/SiteHealth.php:144
+#: src/Operations/SiteHealth.php:146
 msgid "Zur Betriebsübersicht von Pass Captain"
 msgstr ""
 
 #. translators: 1: cron hook name, 2: duration, e.g. "20 Minuten"
-#: src/Operations/SiteHealth.php:193
+#: src/Operations/SiteHealth.php:195
 #, php-format
 msgid "%1$s ist seit %2$s überfällig."
 msgstr ""
 
 #. translators: %s: cron hook name
-#: src/Operations/SiteHealth.php:197
+#: src/Operations/SiteHealth.php:199
 #, php-format
 msgid "%s ist nicht eingeplant."
 msgstr ""
 
 #. translators: %s: duration, e.g. "3 Stunden"
-#: src/Operations/SiteHealth.php:202
+#: src/Operations/SiteHealth.php:204
 #, php-format
 msgid "DISABLE_WP_CRON ist gesetzt und die Warteschlangen liefen seit %s nicht mehr – offenbar löst kein externer Cronjob WP-Cron aus."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:204
+#: src/Operations/SiteHealth.php:206
 msgid "WP-Cron ist per DISABLE_WP_CRON abgeschaltet; ein System-Cronjob muss wp-cron.php regelmäßig aufrufen."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:204
+#: src/Operations/SiteHealth.php:206
 msgid "WP-Cron läuft bei Seitenaufrufen. Für verlässliche Ticketmails, Erinnerungen und Webhooks empfehlen wir einen System-Cronjob."
 msgstr ""
 
 #. translators: %s: duration, e.g. "4 Minuten"
-#: src/Operations/SiteHealth.php:207
+#: src/Operations/SiteHealth.php:209
 #, php-format
 msgid "Letzter Lauf der Warteschlangen vor %s."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:209
+#: src/Operations/SiteHealth.php:211
 msgid "Externen Cronjob einrichten"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:211
+#: src/Operations/SiteHealth.php:213
 msgid "Pass Captain: geplante Aufgaben laufen nicht"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:214
+#: src/Operations/SiteHealth.php:216
 msgid "Pass Captain: geplante Aufgaben verspätet"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:216
+#: src/Operations/SiteHealth.php:218
 msgid "Pass Captain: geplante Aufgaben laufen pünktlich"
 msgstr ""
 
 #. translators: 1: queue name, 2: number of due items, 3: waiting time of the oldest due item, e.g. "40 Minuten", 4: number of failed items
-#: src/Operations/SiteHealth.php:235
+#: src/Operations/SiteHealth.php:237
 #, php-format
 msgid "%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:239
+#: src/Operations/SiteHealth.php:241
 msgid "Pass Captain: keine Rückstände in den Warteschlangen"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:239
+#: src/Operations/SiteHealth.php:241
 msgid "Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:241
+#: src/Operations/SiteHealth.php:243
 msgid "Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:241
+#: src/Operations/SiteHealth.php:243
 msgid "Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:242
+#: src/Operations/SiteHealth.php:244
 msgid "Prüfe die Einträge und versuche sie erneut oder verwirf sie."
 msgstr ""
 
 #. translators: %s: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:254
+#: src/Operations/SiteHealth.php:256
 #, php-format
 msgid "Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:255
+#: src/Operations/SiteHealth.php:257
 msgid "Pass Captain: E-Mail-Versand ohne Fehler"
 msgstr ""
 
 #. translators: 1: number of failed mails, 2: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:259
+#: src/Operations/SiteHealth.php:261
 #, php-format
 msgid "Innerhalb von %2$s ist %1$d Plugin-E-Mail nicht versendet worden (wp_mail() meldete einen Fehler)."
 msgid_plural "Innerhalb von %2$s sind %1$d Plugin-E-Mails nicht versendet worden (wp_mail() meldete einen Fehler)."
@@ -21467,328 +21467,386 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: 1: mail type, 2: error code, 3: error message
-#: src/Operations/SiteHealth.php:261
+#: src/Operations/SiteHealth.php:263
 #, php-format
 msgid "Letzter Fehler: Typ %1$s, Code %2$s %3$s"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:263
+#: src/Operations/SiteHealth.php:265
 msgid "Pass Captain: E-Mails werden nicht zugestellt"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:263
+#: src/Operations/SiteHealth.php:265
 msgid "Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website."
 msgstr ""
 
 #. translators: %s: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:282
+#: src/Operations/SiteHealth.php:284
 #, php-format
 msgid "Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:283
+#: src/Operations/SiteHealth.php:285
 msgid "Pass Captain: SMS-Versand ohne Fehler"
 msgstr ""
 
 #. translators: 1: number of SMS, 2: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:287
+#: src/Operations/SiteHealth.php:289
 #, php-format
 msgid "Innerhalb von %2$s ist %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
 msgid_plural "Innerhalb von %2$s sind %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Operations/SiteHealth.php:288
+#: src/Operations/SiteHealth.php:290
 msgid "Pass Captain: SMS-Versand fehlerhaft"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:288
+#: src/Operations/SiteHealth.php:290
 msgid "Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:288
+#: src/Operations/SiteHealth.php:290
 msgid "SMS-Einstellungen"
 msgstr ""
 
 #. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden"
-#: src/Operations/SiteHealth.php:325
+#: src/Operations/SiteHealth.php:327
 #, php-format
 msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, aber noch nie eine Webhook-Benachrichtigung erhalten."
 msgstr ""
 
 #. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden", 4: date and time (UTC)
-#: src/Operations/SiteHealth.php:327
+#: src/Operations/SiteHealth.php:329
 #, php-format
 msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtigung am %4$s (UTC)."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:331
+#: src/Operations/SiteHealth.php:333
 msgid "Pass Captain: keine aktuellen Zahlungs-Webhooks"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:331
+#: src/Operations/SiteHealth.php:333
 msgid "Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:333
+#: src/Operations/SiteHealth.php:335
 msgid "Pass Captain: Zahlungs-Webhooks kommen an"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:333
+#: src/Operations/SiteHealth.php:335
 msgid "Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:340
+#: src/Operations/SiteHealth.php:342
 msgid "Nachricht ungültig"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:341
+#: src/Operations/SiteHealth.php:343
 msgid "Prüfung beim Anbieter nicht möglich"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:342
+#: src/Operations/SiteHealth.php:344
 msgid "Verarbeitung fehlgeschlagen"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:343
+#: src/Operations/SiteHealth.php:345
 msgid "Absturz bei der Verarbeitung"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:344
+#: src/Operations/SiteHealth.php:346
 msgid "Zahlungsstart fehlgeschlagen"
 msgstr ""
 
 #. translators: %s: error reference
-#: src/Operations/SiteHealth.php:353
+#: src/Operations/SiteHealth.php:355
 #, php-format
 msgid "(Fehler-ID %s)"
 msgstr ""
 
 #. translators: 1: error details, 2: date and time (UTC)
-#: src/Operations/SiteHealth.php:356
+#: src/Operations/SiteHealth.php:358
 #, php-format
 msgid "%1$s, zuletzt am %2$s (UTC)"
 msgstr ""
 
 #. translators: %s: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:371
+#: src/Operations/SiteHealth.php:373
 #, php-format
 msgid "Innerhalb von %s wurde keine Webhook-Benachrichtigung eines Zahlungsanbieters abgelehnt oder fehlerhaft verarbeitet."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:372
+#: src/Operations/SiteHealth.php:374
 msgid "Pass Captain: Zahlungs-Webhooks ohne Fehler"
 msgstr ""
 
 #. translators: 1: payment provider id, 2: kind of failure, 3: number, 4: details of the last failure
-#: src/Operations/SiteHealth.php:385
+#: src/Operations/SiteHealth.php:387
 #, php-format
 msgid "%1$s: %2$s – %3$d× (%4$s)"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:388
+#: src/Operations/SiteHealth.php:390
 msgid "Zahlungsanbieter bestätigen Zahlungen per Webhook. Abgelehnte Benachrichtigungen (falsches Signatur-Secret, falsche Webhook-URL) oder Abstürze bei der Verarbeitung führen dazu, dass bezahlte Bestellungen offen bleiben. Der Anbieter stellt fehlgeschlagene Benachrichtigungen erneut zu, sobald die Ursache behoben ist."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:389
+#: src/Operations/SiteHealth.php:391
 msgid "Pass Captain: Zahlungs-Webhooks werden abgelehnt oder scheitern"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:389
+#: src/Operations/SiteHealth.php:391
 msgid "Details mit Fehler-ID stehen im Support-Protokoll der Betriebsübersicht."
 msgstr ""
 
 #. translators: %s: period, e.g. "60 Minuten"
-#: src/Operations/SiteHealth.php:400
+#: src/Operations/SiteHealth.php:402
 #, php-format
 msgid "Innerhalb von %s ist kein Zahlungsstart bei einem Zahlungsanbieter fehlgeschlagen."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:401
+#: src/Operations/SiteHealth.php:403
 msgid "Pass Captain: Zahlungen starten ohne Fehler"
 msgstr ""
 
 #. translators: 1: payment provider id, 2: number of failed payment starts, 3: details of the last failure
-#: src/Operations/SiteHealth.php:411
+#: src/Operations/SiteHealth.php:413
 #, php-format
 msgid "%1$s: %2$d fehlgeschlagene Zahlungsstarts (%3$s)"
 msgstr ""
 
 #. translators: %s: period, e.g. "60 Minuten"
-#: src/Operations/SiteHealth.php:415
+#: src/Operations/SiteHealth.php:417
 #, php-format
 msgid "Innerhalb von %s konnten Käufer:innen die Zahlung nicht starten; sie sahen einen neutralen Hinweis mit Fehler-ID, die Bestellung wurde storniert. Häufig sind Zugangsdaten, Kontoeinschränkungen oder eine nicht unterstützte Währung beim Anbieter die Ursache."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:416
+#: src/Operations/SiteHealth.php:418
 msgid "Pass Captain: Zahlungsstart beim Anbieter schlägt fehl"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:446
+#: src/Operations/SiteHealth.php:457
+msgid "Pass Captain: öffentliche REST-Schnittstelle erreichbar"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:457
+msgid "Die öffentlichen Endpunkte (Eventliste, Checkout, Bestellstatus) antworten auch ohne Anmeldung."
+msgstr ""
+
+#. translators: %d: HTTP status code, e.g. 403
+#: src/Operations/SiteHealth.php:461
+#, php-format
+msgid "Die REST-Schnittstelle lehnt Anfragen ohne Anmeldung ab (HTTP %d). Checkout, Bestellportal, Ticketseite und Scanner funktionieren für Käufer:innen dann nicht. Häufige Ursache: ein Sicherheits-Plugin oder Code-Schnipsel, der die REST-API für Gäste sperrt. Bitte den Namensraum pass-captain/v1 dort freigeben."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:462
+msgid "Pass Captain: REST-Schnittstelle für Gäste gesperrt"
+msgstr ""
+
+#. translators: %s: error message of the HTTP request
+#: src/Operations/SiteHealth.php:466
+#, php-format
+msgid "Fehler: %s"
+msgstr ""
+
+#. translators: %d: HTTP status code
+#: src/Operations/SiteHealth.php:468
+#, php-format
+msgid "Antwort: HTTP %d"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:469
+msgid "Die Website konnte ihre eigene öffentliche REST-Schnittstelle nicht abrufen. Das kann an einer gesperrten Loopback-Verbindung liegen (dann ist nur diese Prüfung betroffen) oder an einer Sperre der REST-API für Gäste. Bitte den Checkout einmal ohne Anmeldung ausprobieren."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:470
+msgid "Pass Captain: öffentliche REST-Schnittstelle nicht prüfbar"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:478
+msgid "Vertrauenswürdige Proxys sind eingetragen; Ratenlimits und Einwilligungsnachweise verwenden die Client-Adresse aus dem Weiterleitungs-Header."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:479
+msgid "Es gibt keine Hinweise auf einen vorgeschalteten Proxy oder ein CDN; die direkte Absenderadresse wird verwendet."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:480
+msgid "Pass Captain: Client-Adressen werden korrekt erkannt"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:482
+msgid "Proxy-Einstellungen öffnen"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:483
+msgid "Pass Captain: Proxy ohne vertrauenswürdige Adressen"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:513
 msgid "Pass Captain: Der Betrieb ist gestört."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:446
+#: src/Operations/SiteHealth.php:513
 msgid "Betriebsübersicht öffnen"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:446
+#: src/Operations/SiteHealth.php:513
 msgid "Website-Zustand"
 msgstr ""
 
 #. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
-#: src/Operations/SiteHealth.php:461
+#: src/Operations/SiteHealth.php:528
 #, php-format
 msgid "Letzter Lauf %s"
 msgstr ""
 
 #. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
-#: src/Operations/SiteHealth.php:470
+#: src/Operations/SiteHealth.php:537
 #, php-format
 msgid "Nächster Lauf %s"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:471
+#: src/Operations/SiteHealth.php:538
 msgid "nicht eingeplant"
 msgstr ""
 
 #. translators: 1: counts per status, 2: due items, 3: age of the oldest due item in minutes
-#: src/Operations/SiteHealth.php:483
+#: src/Operations/SiteHealth.php:550
 #, php-format
 msgid "%1$s; fällig %2$d, ältester seit %3$d Min."
 msgstr ""
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:489
+#: src/Operations/SiteHealth.php:556
 #, php-format
 msgid "Fehlgeschlagene Plugin-E-Mails (%d h)"
 msgstr ""
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:495
+#: src/Operations/SiteHealth.php:562
 #, php-format
 msgid "Fehlgeschlagene SMS (%d h)"
 msgstr ""
 
 #. translators: %s: payment provider id
-#: src/Operations/SiteHealth.php:502
+#: src/Operations/SiteHealth.php:569
 #, php-format
 msgid "Letzter Zahlungs-Webhook %s"
 msgstr ""
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:511
+#: src/Operations/SiteHealth.php:578
 #, php-format
 msgid "Fehlgeschlagene Zahlungs-Webhooks (%d h)"
 msgstr ""
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:513
+#: src/Operations/SiteHealth.php:580
 #, php-format
 msgid "Fehlgeschlagene Zahlungsstarts (%d h)"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:518
+#: src/Operations/SiteHealth.php:585
 msgid "Pass Captain – Betrieb"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:522
+#: src/Operations/SiteHealth.php:589
 msgid "Pass Captain – Support"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:523
+#: src/Operations/SiteHealth.php:590
 msgid "Für Support-Anfragen: „Website-Informationen in die Zwischenablage kopieren“ überträgt diese Angaben. Sie enthalten keine Zugangsdaten, Ticketcodes oder Kundendaten."
 msgstr ""
 
-#: src/Operations/SiteHealth.php:557
+#: src/Operations/SiteHealth.php:624
 msgid "Plugin-Version"
 msgstr ""
 
 #. translators: 1: stored schema version, 2: schema version of the code
-#: src/Operations/SiteHealth.php:561
+#: src/Operations/SiteHealth.php:628
 #, php-format
 msgid "%1$s (Code: %2$s)"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:562
+#: src/Operations/SiteHealth.php:629
 msgid "Update ausstehend"
 msgstr ""
 
 #. translators: 1: stored fingerprint, 2: expected fingerprint
-#: src/Operations/SiteHealth.php:565
+#: src/Operations/SiteHealth.php:632
 #, php-format
 msgid "%1$s (erwartet %2$s)"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:566
+#: src/Operations/SiteHealth.php:633
 msgid "Schema-Fingerabdruck"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:569
+#: src/Operations/SiteHealth.php:636
 msgid "Fehler beim letzten Schema-Update"
 msgstr ""
 
 #. translators: 1: date and time (UTC), 2: missing tables/columns, 3: database error
-#: src/Operations/SiteHealth.php:572
+#: src/Operations/SiteHealth.php:639
 #, php-format
 msgid "%1$s UTC: fehlt %2$s %3$s"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:573
+#: src/Operations/SiteHealth.php:640
 msgid "keiner"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:578
+#: src/Operations/SiteHealth.php:645
 msgid "aus"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:580
+#: src/Operations/SiteHealth.php:647
 msgid "Module"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:584
+#: src/Operations/SiteHealth.php:651
 msgid "nicht eingerichtet"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:594
+#: src/Operations/SiteHealth.php:661
 msgid "Zahlungsarten (Modus)"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:597
+#: src/Operations/SiteHealth.php:664
 msgid "WooCommerce"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:601
+#: src/Operations/SiteHealth.php:668
 msgid "Währungen aktiver Ticketarten"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:602
+#: src/Operations/SiteHealth.php:669
 msgid "Sprache / Zeitzone"
 msgstr ""
 
 #. translators: 1: open reservations, 2: tickets held, 3: reservations past their expiry
-#: src/Operations/SiteHealth.php:605
+#: src/Operations/SiteHealth.php:672
 #, php-format
 msgid "%1$d (%2$d Tickets), davon abgelaufen %3$d"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:606
+#: src/Operations/SiteHealth.php:673
 msgid "Offene Reservierungen"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:607
+#: src/Operations/SiteHealth.php:674
 msgid "Debug-Modus (Support-Protokoll)"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:608
+#: src/Operations/SiteHealth.php:675
 msgid "PHP / Datenbank"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:614
+#: src/Operations/SiteHealth.php:681
 msgid "Letzte Fehler (Support-Protokoll)"
 msgstr ""
 
-#: src/Operations/SiteHealth.php:614
+#: src/Operations/SiteHealth.php:681
 msgid "keine"
 msgstr ""
 
@@ -27849,11 +27907,11 @@ msgid "Der Ticketverkauf ist gerade nicht möglich. Bitte versuche es in Kürze 
 msgstr ""
 
 #: src/Sales/CheckoutThrottle.php:185
-msgid "Die Website läuft offenbar hinter einem Reverse Proxy oder Load Balancer (private Absenderadresse), aber unter „Einstellungen → Sicherheit“ sind keine vertrauenswürdigen Proxys eingetragen. Alle Käufer erscheinen mit derselben Adresse; das Checkout-Limit je Adresse ist deshalb ausgesetzt (es gilt nur das Limit je Adresse und E-Mail). Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen."
+msgid "Die Website läuft offenbar hinter einem Reverse Proxy oder Load Balancer (private Absenderadresse), aber unter „Einstellungen → Erweitert“ sind keine vertrauenswürdigen Proxys eingetragen. Alle Käufer erscheinen mit derselben Adresse; das Checkout-Limit je Adresse ist deshalb ausgesetzt (es gilt nur das Limit je Adresse und E-Mail). Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen."
 msgstr ""
 
 #: src/Sales/CheckoutThrottle.php:186
-msgid "Anfragen enthalten einen Weiterleitungs-Header (z. B. X-Forwarded-For oder CF-Connecting-IP), aber unter „Einstellungen → Sicherheit“ sind keine vertrauenswürdigen Proxys eingetragen. Läuft die Website hinter einem CDN oder Proxy, teilen sich viele Käufer wenige Adressen; das Checkout-Limit je Adresse ist deshalb vorübergehend angehoben. Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen."
+msgid "Anfragen enthalten einen Weiterleitungs-Header (z. B. X-Forwarded-For oder CF-Connecting-IP), aber unter „Einstellungen → Erweitert“ sind keine vertrauenswürdigen Proxys eingetragen. Läuft die Website hinter einem CDN oder Proxy, teilen sich viele Käufer wenige Adressen; das Checkout-Limit je Adresse ist deshalb vorübergehend angehoben. Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen."
 msgstr ""
 
 #. translators: %d: line number

@@ -182,8 +182,8 @@ final class CheckoutThrottle {
 		return array(
 			'severity' => 'warning',
 			'message' => 'private' === $kind
-				? __( 'Die Website läuft offenbar hinter einem Reverse Proxy oder Load Balancer (private Absenderadresse), aber unter „Einstellungen → Sicherheit“ sind keine vertrauenswürdigen Proxys eingetragen. Alle Käufer erscheinen mit derselben Adresse; das Checkout-Limit je Adresse ist deshalb ausgesetzt (es gilt nur das Limit je Adresse und E-Mail). Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen.', 'pass-captain' )
-				: __( 'Anfragen enthalten einen Weiterleitungs-Header (z. B. X-Forwarded-For oder CF-Connecting-IP), aber unter „Einstellungen → Sicherheit“ sind keine vertrauenswürdigen Proxys eingetragen. Läuft die Website hinter einem CDN oder Proxy, teilen sich viele Käufer wenige Adressen; das Checkout-Limit je Adresse ist deshalb vorübergehend angehoben. Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen.', 'pass-captain' ),
+				? __( 'Die Website läuft offenbar hinter einem Reverse Proxy oder Load Balancer (private Absenderadresse), aber unter „Einstellungen → Erweitert“ sind keine vertrauenswürdigen Proxys eingetragen. Alle Käufer erscheinen mit derselben Adresse; das Checkout-Limit je Adresse ist deshalb ausgesetzt (es gilt nur das Limit je Adresse und E-Mail). Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen.', 'pass-captain' )
+				: __( 'Anfragen enthalten einen Weiterleitungs-Header (z. B. X-Forwarded-For oder CF-Connecting-IP), aber unter „Einstellungen → Erweitert“ sind keine vertrauenswürdigen Proxys eingetragen. Läuft die Website hinter einem CDN oder Proxy, teilen sich viele Käufer wenige Adressen; das Checkout-Limit je Adresse ist deshalb vorübergehend angehoben. Bitte die Proxy-Adressen und den Header mit der Client-Adresse eintragen.', 'pass-captain' ),
 		);
 	}
 }

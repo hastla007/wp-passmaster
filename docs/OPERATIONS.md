@@ -475,6 +475,8 @@ Das Plugin trägt eigene Prüfungen in **Werkzeuge → Website-Zustand** ein (Si
 | Zahlungs-Webhooks (`wpcap_payment_webhooks`) | ein aktiver Zahlungsanbieter mit Webhooks (ohne `manual`) hatte in `payment_webhook_hours` (48) Bestellungen, aber keine Webhook-Benachrichtigung (Tabelle `wpcap_payment_events`) | – |
 | Fehlerhafte Zahlungs-Webhooks (`wpcap_webhook_errors`, A323) | ≥ `webhook_failures` (1) abgelehnte (Signatur, Nachricht, Prüfung beim Anbieter) oder gescheiterte Webhook-Benachrichtigungen in `mail_window_hours` (24) – sofort, nicht erst nach 48 h | ≥ `webhook_exceptions_critical` (1) Absturz bei der Verarbeitung oder ≥ `webhook_failures_critical` (10) Fehler |
 | Zahlungsstart (`wpcap_payment_start`, A324) | ≥ `payment_start_failures` (1) fehlgeschlagener Zahlungsstart in `payment_start_window_minutes` (60) | ≥ `payment_start_failures_critical` (5) – „Häufung“, erscheint als Admin-Hinweis |
+| Öffentliche REST-Schnittstelle (`wpcap_rest_anonymous`, A375) | Eigener Abruf von `pass-captain/v1/events` ohne Cookie scheitert (Loopback-Fehler, andere Antwort) | HTTP 401/403 – REST für Gäste gesperrt (Checkout, Portal, Scanner betroffen); Ergebnis 6 h zwischengespeichert (`wpcap_health_rest_probe_ttl`) |
+| Proxy (`wpcap_proxy`, A375) | Weiterleitungs-Header oder private Absenderadresse ohne vertrauenswürdige Proxys (aktuelle Anfrage oder Checkout der letzten 7 Tage) | – |
 
 Alle Schwellwerte ändert der Filter `wpcap_health_thresholds` (Array, siehe [HOOKS.md](HOOKS.md)); `0` schaltet eine Anzahl-Schwelle ab:
 

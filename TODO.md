@@ -963,7 +963,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Deinstallation lässt wpcap_approve_comps zurück — src/Modules/GuestLists.php:131–141, uninstall.php:41 (A372, R1 Architektur)
 - [ ] [OPTIMIERUNG] Ticketausstellung/PDF/Mail synchron im Webhook; ServiceBookingFlow per wp_mail — src/Payments/Webhooks.php:121, Orders.php:1569–1680, ServiceBookingFlow.php:190/205 (A373, R1 Architektur)
 - [ ] [OPTIMIERUNG] Wallet-Push inline auf shutdown (bis 20 Tickets) — src/WalletPasses/Service.php:315–331 (A374, R1 Architektur)
-- [ ] [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — src/Operations/SiteHealth.php:80–88 (A375, R1 Architektur)
+- [x] [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — src/Operations/SiteHealth.php:80–88 (A375, R1 Architektur)
 - [x] [OPTIMIERUNG] Saalplan-Verknüpfungen und Käuferlimits laden ganze Historie je Listing — src/Seating/Layouts.php:371, Allocations/BuyerLimits.php:51 (A376, R1 Architektur)
 - [ ] [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — src/Partners/AdminPage.php:224, ServiceSlotsPage.php:227/253, EventsPage.php:801–804 (A377, R1 UX)
 - [x] [OPTIMIERUNG] Tab „Allgemein“ überladen — src/Admin/SettingsPage.php:36–200 (A378, R1 UX)
