@@ -171,6 +171,9 @@ $a9_occ = ex_occ( $a9_event );
 $a9_std = ex_type( $a9_occ, 'Std', 3000 );
 $a9_vip = ex_type( $a9_occ, 'VIP', 3000 );
 PassCaptain\Allocations\BuyerLimits::set( $a9_event, $a9_vip, 1 );
+// The exchange limit is enforced by the Allocations module (wpcap_reserve_capacity, phase exchange); registered here
+// when no earlier test file enabled the module.
+if ( ! has_filter( 'wpcap_reserve_capacity', array( PassCaptain\Allocations\BuyerLimits::class, 'reserve_exchange' ) ) ) { add_filter( 'wpcap_reserve_capacity', array( PassCaptain\Allocations\BuyerLimits::class, 'reserve_exchange' ), 25, 3 ); }
 $GLOBALS['wpcap_test_transients'] = array();
 $a9 = Orders::create( array( 'email' => 'Hamster@Example.com', 'items' => array( array( 'ticket_type_id' => $a9_vip, 'quantity' => 1 ), array( 'ticket_type_id' => $a9_std, 'quantity' => 3 ) ), 'idempotency_key' => 'a9-' . uniqid() ) );
 Orders::confirm_external_payment( $a9['order_id'], 'test' );
@@ -256,7 +259,8 @@ $a17_preview = PassCaptain\Campaigns::preview( array( array( 'ticket_type_id' =>
 check( 'A017: preview 80,00 − 16,00 = 64,00 without reserving a use', ! is_wp_error( $a17_preview ) && 8000 === $a17_preview['subtotal_minor'] && 1600 === $a17_preview['discount_minor'] && 6400 === $a17_preview['total_minor'] && 0 === (int) PassCaptain\Campaigns::get( $a17['campaign_id'] )->used_count );
 check( 'A017: preview with an unknown code is an error', is_wp_error( PassCaptain\Campaigns::preview( array( array( 'ticket_type_id' => $a17_type, 'quantity' => 1 ) ), 'GIBTSNICHT' ) ) );
 $a17_off = PassCaptain\Admin\CampaignsPage::set_status( array( 'campaign_id' => $a17['campaign_id'], 'status' => 'inactive' ) );
-check( 'A017: deactivated code is no longer offered', true === $a17_off && false === PassCaptain\Campaigns::has_active( $a17_event, 'EUR' ) || PassCaptain\Campaigns::has_active( 0, 'EUR' ) );
+// Merged CampaignsPage::set_status() answers the changed row (campaign_id, status) instead of true.
+check( 'A017: deactivated code is no longer offered', ( true === $a17_off || ( is_array( $a17_off ) && 'inactive' === ( $a17_off['status'] ?? '' ) ) ) && false === PassCaptain\Campaigns::has_active( $a17_event, 'EUR' ) || PassCaptain\Campaigns::has_active( 0, 'EUR' ) );
 $a17_list = PassCaptain\Campaigns::all( null );
 check( 'A017: list contains usage statistics', (bool) array_filter( $a17_list, static fn( $r ) => 'HERBST20' === $r->code && isset( $r->orders_committed, $r->discount_committed ) ) );
 
