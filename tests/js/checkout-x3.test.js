@@ -50,6 +50,11 @@ test('A395: after joining the waitlist the focus moves to the confirmation, not 
 	assert.strictEqual(env.document.activeElement, message);
 });
 
+test('A564: with double opt-in the confirmation names the e-mail link (server message), not "on the list"', async () => {
+	const { message } = await joinWaitlist(response(200, { status: 'received', confirmation_required: true, message: 'Bitte bestätige den Link in der E-Mail.' }));
+	assert.strictEqual(message.textContent, 'Bitte bestätige den Link in der E-Mail.');
+});
+
 test('A395: a failed waitlist request gives the focus back to the button', async () => {
 	const { env, button, message } = await joinWaitlist(response(409, { code: 'wpcap_waitlist_closed', message: 'Warteliste geschlossen.' }));
 	assert.strictEqual(message.textContent, 'Warteliste geschlossen.');

@@ -296,16 +296,18 @@ final class AdminPage {
 		$inherit = array( '' => __( 'wie global', 'pass-captain' ) );
 		echo '<h2>' . esc_html__( 'Regeln pro Event', 'pass-captain' ) . '</h2><p class="description">' . esc_html__( 'Leere Felder übernehmen die globale Einstellung.', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_exchange_event_policy' );
-		echo '<table class="form-table"><tr><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'event_id', $events, '' );
-		echo '</td></tr><tr><th>' . esc_html__( 'Umtausch', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'enabled', $inherit + array( '1' => __( 'erlaubt', 'pass-captain' ), '0' => __( 'nicht erlaubt', 'pass-captain' ) ), '' );
-		echo '</td></tr><tr><th>' . esc_html__( 'Selbstbedienung', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'portal_enabled', $inherit + array( '1' => __( 'erlaubt', 'pass-captain' ), '0' => __( 'nicht erlaubt', 'pass-captain' ) ), '' );
-		echo '</td></tr><tr><th>' . esc_html__( 'Frist (Stunden)', 'pass-captain' ) . '</th><td><input type="number" min="0" name="portal_hours"></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Höchstens pro Ticket', 'pass-captain' ) . '</th><td><input type="number" min="0" name="portal_max_per_ticket"></td></tr><tr><th>' . esc_html__( 'Günstigeres Ziel', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'refund_policy', $inherit + array( 'refund' => __( 'Differenz erstatten', 'pass-captain' ), 'none' => __( 'Keine Erstattung', 'pass-captain' ) ), '' );
-		echo '</td></tr><tr><th>' . esc_html__( 'Gebühr (brutto)', 'pass-captain' ) . '</th><td><input type="text" name="fee"></td></tr></table>';
+		// Every field has a <label for> (the column header is the visible label).
+		$label = static function ( $id, $text ) { return '<th><label for="' . esc_attr( $id ) . '">' . esc_html( $text ) . '</label></th>'; };
+		echo '<table class="form-table"><tr>' . $label( 'wpcap-exe-event', __( 'Event', 'pass-captain' ) ) . '<td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $label.
+		Forms::select( 'event_id', $events, '', 'wpcap-exe-event' );
+		echo '</td></tr><tr>' . $label( 'wpcap-exe-enabled', __( 'Umtausch', 'pass-captain' ) ) . '<td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $label.
+		Forms::select( 'enabled', $inherit + array( '1' => __( 'erlaubt', 'pass-captain' ), '0' => __( 'nicht erlaubt', 'pass-captain' ) ), '', 'wpcap-exe-enabled' );
+		echo '</td></tr><tr>' . $label( 'wpcap-exe-portal', __( 'Selbstbedienung', 'pass-captain' ) ) . '<td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $label.
+		Forms::select( 'portal_enabled', $inherit + array( '1' => __( 'erlaubt', 'pass-captain' ), '0' => __( 'nicht erlaubt', 'pass-captain' ) ), '', 'wpcap-exe-portal' );
+		echo '</td></tr><tr>' . $label( 'wpcap-exe-hours', __( 'Frist (Stunden)', 'pass-captain' ) ) . '<td><input type="number" min="0" id="wpcap-exe-hours" name="portal_hours"></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $label.
+		echo '<tr>' . $label( 'wpcap-exe-max', __( 'Höchstens pro Ticket', 'pass-captain' ) ) . '<td><input type="number" min="0" id="wpcap-exe-max" name="portal_max_per_ticket"></td></tr><tr>' . $label( 'wpcap-exe-refund', __( 'Günstigeres Ziel', 'pass-captain' ) ) . '<td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $label.
+		Forms::select( 'refund_policy', $inherit + array( 'refund' => __( 'Differenz erstatten', 'pass-captain' ), 'none' => __( 'Keine Erstattung', 'pass-captain' ) ), '', 'wpcap-exe-refund' );
+		echo '</td></tr><tr>' . $label( 'wpcap-exe-fee', __( 'Gebühr (brutto)', 'pass-captain' ) ) . '<td><input type="text" id="wpcap-exe-fee" name="fee"></td></tr></table>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $label.
 		echo '<p><button class="button" type="submit">' . esc_html__( 'Event-Regeln speichern', 'pass-captain' ) . '</button></p></form>';
 	}
 }

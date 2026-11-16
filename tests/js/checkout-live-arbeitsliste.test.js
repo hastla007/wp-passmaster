@@ -170,6 +170,16 @@ test('A456: everything sold out → note instead of the form; no payment method 
 	assert.strictEqual(form.querySelector('.wpcap-soldout-note').hidden, true);
 });
 
+test('no payment method: a free type stays orderable (order form shown), paid types stay closed with the note', async () => {
+	const env = await load({ providers: [] }, state({ providers: [], types: { 5: typeState(10, 2500), 6: typeState(10, 0) } }));
+	const form = env.forms[0];
+	const [paid, free] = form.querySelectorAll('.wpcap-qty');
+	assert.strictEqual(paid.disabled, true, 'paid type needs a payment method');
+	assert.strictEqual(free.disabled, false, 'free type needs none');
+	assert.strictEqual(form.querySelector('.wpcap-buy').hidden, false, 'buyer form shown for the free type');
+	assert.strictEqual(form.querySelector('.wpcap-no-payment').hidden, false, 'the note explains why paid types are closed');
+});
+
 test('A456: payment methods follow the live state (cached card without any → radio buttons)', async () => {
 	const env = await load({ providers: [] }, state({ providers: [{ id: 'stripe', title: 'Karte' }, { id: 'manual', title: 'Überweisung' }] }));
 	const form = env.forms[0];

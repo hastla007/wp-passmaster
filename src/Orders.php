@@ -411,6 +411,11 @@ final class Orders {
 			$total = max( 0, $subtotal - $discount );
 			// Trusted channels (box office "invoice", partner API) ask for the same rule via require_billing.
 			if ( ( ! $external || ! empty( $internal['require_billing'] ) ) && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
+			// Free order without a payment method (REST checkout, free_only): refused as soon as anything is to pay (time-dependent price).
+			if ( ! empty( $internal['free_only'] ) && $total > 0 ) {
+				$custom_error = new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
+				throw new \RuntimeException( 'provider_unavailable' );
+			}
 			// A634: unpaid bank transfer orders of the public checkout (payment method chosen by the buyer, no
 			// trusted channel) hold their units for days; together they may hold at most a share of each
 			// ticket type and date. Checked under the type/occurrence locks above, so concurrent checkouts

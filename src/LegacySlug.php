@@ -60,6 +60,8 @@ final class LegacySlug {
 		add_filter( 'rest_request_after_callbacks', array( __CLASS__, 'deprecation_headers_after_callbacks' ), 10, 3 );
 		add_filter( 'rest_post_dispatch', array( __CLASS__, 'deprecation_headers' ), 10, 3 );
 		add_action( 'admin_init', array( __CLASS__, 'redirect_legacy_admin_page' ), 0 );
+		// An old slug is no registered page: WordPress refuses it (wp-admin/menu.php, 403) before admin_init runs.
+		add_action( 'admin_page_access_denied', array( __CLASS__, 'redirect_legacy_admin_page' ), 0 );
 		add_action( 'admin_init', array( __CLASS__, 'watch_legacy_copy' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'notice' ) );
 		add_action( 'network_admin_notices', array( __CLASS__, 'notice' ) );

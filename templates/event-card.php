@@ -38,6 +38,13 @@ $wpcap_visible = (int) $card['visible_types'];
 $wpcap_collapse = count( $types ) > $wpcap_visible + 1; // Never collapse a single remaining type.
 // A294: without an available payment method nothing can be ordered – say so instead of failing on submit.
 $wpcap_no_payment = ! $providers;
+// Free ticket types need no payment method: they stay orderable (the note then only concerns paid types).
+$wpcap_free_open = false;
+$wpcap_paid_open = false;
+foreach ( $types as $wpcap_type ) {
+	if ( \PassCaptain\Frontend\EventCard::quantity_max( $wpcap_type, $event ) < 1 ) { continue; }
+	if ( (int) $wpcap_type->price_minor > 0 ) { $wpcap_paid_open = true; } else { $wpcap_free_open = true; }
+}
 // The waitlist offer can also be switched off with wpcap_waitlist_frontend ($type null: setting of the whole card).
 $wpcap_waitlist_enabled = $wpcap_waitlist_enabled && (bool) apply_filters( 'wpcap_waitlist_frontend', true, $event, null );
 $wpcap_waitlist = $wpcap_soldout && $wpcap_waitlist_enabled;
@@ -84,15 +91,15 @@ $wpcap_unlock_code = class_exists( '\PassCaptain\Sales\Visibility' ) ? \PassCapt
 					<?php $wpcap_description = (string) ( $type->description ?? '' ); $wpcap_qty_id = $wpcap_form_id . '-' . $type->ticket_type_id; ?>
 					<?php if ( '' !== $wpcap_description ) : ?><small class="wpcap-type-description" id="<?php echo esc_attr( $wpcap_qty_id . '-desc' ); ?>"><?php echo esc_html( $wpcap_description ); ?></small><?php endif; ?>
 					<span class="wpcap-soldout"<?php echo $wpcap_max < 1 ? '' : ' hidden'; ?>><?php esc_html_e( 'Ausverkauft', 'pass-captain' ); ?></span>
-					<span class="wpcap-qty-box"<?php echo $wpcap_max < 1 ? ' hidden' : ''; ?>><input id="<?php echo esc_attr( $wpcap_form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( max( 0, $wpcap_max ) ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>" data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>" data-name-required="<?php echo ! empty( $type->name_required ) ? '1' : '0'; ?>" data-attendee-name="<?php echo esc_attr( (string) ( $type->attendee_name ?? 'optional' ) ); ?>" data-max-per-order="<?php echo esc_attr( (int) $type->max_per_order ); ?>"<?php echo '' !== $wpcap_description ? ' aria-describedby="' . esc_attr( $wpcap_qty_id . '-desc' ) . '"' : ''; ?><?php echo $wpcap_no_payment || $wpcap_max < 1 ? ' disabled' : ''; ?>></span>
+					<span class="wpcap-qty-box"<?php echo $wpcap_max < 1 ? ' hidden' : ''; ?>><input id="<?php echo esc_attr( $wpcap_form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( max( 0, $wpcap_max ) ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>" data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>" data-name-required="<?php echo ! empty( $type->name_required ) ? '1' : '0'; ?>" data-attendee-name="<?php echo esc_attr( (string) ( $type->attendee_name ?? 'optional' ) ); ?>" data-max-per-order="<?php echo esc_attr( (int) $type->max_per_order ); ?>"<?php echo '' !== $wpcap_description ? ' aria-describedby="' . esc_attr( $wpcap_qty_id . '-desc' ) . '"' : ''; ?><?php echo ( $wpcap_no_payment && (int) $type->price_minor > 0 ) || $wpcap_max < 1 ? ' disabled' : ''; ?>></span>
 				</div>
 			<?php endforeach; ?>
 			<?php if ( $wpcap_collapse ) : ?></details><?php endif; ?>
 		</fieldset>
 		<p class="wpcap-qty-live wpcap-sr-only" aria-live="polite" aria-atomic="true"></p>
 		<p class="wpcap-soldout-note"<?php echo $wpcap_all_soldout ? '' : ' hidden'; ?>><?php esc_html_e( 'Dieser Termin ist ausverkauft.', 'pass-captain' ); ?></p>
-		<p class="wpcap-no-payment" role="status"<?php echo ! $wpcap_all_soldout && $wpcap_no_payment ? '' : ' hidden'; ?>><?php esc_html_e( 'Online-Verkauf derzeit nicht möglich. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ); ?></p>
-		<div class="wpcap-buy"<?php echo $wpcap_all_soldout || $wpcap_no_payment ? ' hidden' : ''; ?>>
+		<p class="wpcap-no-payment" role="status"<?php echo ! $wpcap_all_soldout && $wpcap_no_payment && $wpcap_paid_open ? '' : ' hidden'; ?>><?php esc_html_e( 'Online-Verkauf derzeit nicht möglich. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ); ?></p>
+		<div class="wpcap-buy"<?php echo $wpcap_all_soldout || ( $wpcap_no_payment && ! $wpcap_free_open ) ? ' hidden' : ''; ?>>
 		<p class="wpcap-estimate" aria-live="polite"></p>
 		<div class="wpcap-field">
 			<label for="<?php echo esc_attr( $wpcap_form_id . '-email' ); ?>"><?php esc_html_e( 'Deine E-Mail-Adresse (für Tickets und Bestätigung)', 'pass-captain' ); ?> *</label>

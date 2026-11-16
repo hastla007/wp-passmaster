@@ -504,7 +504,10 @@ final class Controller {
 		$provider_id = sanitize_key( \PassCaptain\Http::str( $params['provider'] ?? 'manual' ) );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
-		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
+		// Free tickets need no payment method: without a usable one (default "manual" not enabled or not set up)
+		// an order of free types only goes through as a free order; Orders::create() refuses it if anything is to pay.
+		$free_only = 'manual' === $provider_id && $gateway && ( ! in_array( 'manual', $enabled, true ) || ! $gateway->is_available( '' ) ) && self::free_items_only( $payload['items'] ?? array() );
+		if ( ! $free_only && ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) ) {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		// A639: a client-chosen idempotency key identifies the attempt across retries; short (guessable)
@@ -517,11 +520,11 @@ final class Controller {
 		// never outlive it (QA-6): a gateway may require a longer minimum hold (StripeGateway::min_hold_minutes()).
 		$min_hold = method_exists( $gateway, 'min_hold_minutes' ) ? max( 0, (int) $gateway->min_hold_minutes() ) : 0;
 		$hold = max( Orders::HOSTED_HOLD_MINUTES, $min_hold, (int) \PassCaptain\Settings::get( 'hold_minutes' ) );
-		if ( 'manual' === $provider_id && ! $gateway->is_available( '' ) ) {
+		if ( 'manual' === $provider_id && ! $free_only && ! $gateway->is_available( '' ) ) {
 			// Enabled but without bank account or payment instructions (A265): no order, no blocked seats.
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
 		}
-		if ( 'manual' === $provider_id ) {
+		if ( 'manual' === $provider_id && ! $free_only ) {
 			// Bank transfer: hold ends at the latest with the start; refused within manual_cutoff_hours.
 			$hold = isset( $context['manual_start_ts'] )
 				? Orders::manual_hold_until( (int) $context['manual_start_ts'] )
@@ -541,7 +544,7 @@ final class Controller {
 		add_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		$fingerprint = Orders::request_fingerprint( $payload, $provider_id );
 		// Trusted internal options never override provider, hold, request or fingerprint (left operand wins).
-		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request, 'request_fingerprint' => $fingerprint ) + (array) ( $context['internal'] ?? array() ) );
+		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request, 'request_fingerprint' => $fingerprint, 'free_only' => $free_only ) + (array) ( $context['internal'] ?? array() ) );
 		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		if ( is_wp_error( $result ) ) { return self::checkout_error( self::with_error_field( $result, $campaign_messages( array() ) ), $payload ); }
 		if ( empty( $result['reused'] ) ) {
@@ -1132,6 +1135,20 @@ final class Controller {
 		}
 		$result = Campaigns::create( $payload );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
+	}
+
+	/** Whether every requested line is a ticket type with base price 0 (free order without a payment method). */
+	private static function free_items_only( $items ) {
+		global $wpdb;
+		$ids = array();
+		foreach ( (array) $items as $line ) {
+			$id = is_array( $line ) ? absint( $line['ticket_type_id'] ?? 0 ) : 0;
+			if ( ! $id ) { return false; }
+			$ids[ $id ] = $id;
+		}
+		if ( ! $ids || count( $ids ) > 50 ) { return false; }
+		$paid = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE ticket_type_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') AND price_minor<>0', array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), array_values( $ids ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- placeholder list.
+		return 0 === $paid;
 	}
 
 	public static function join_waitlist( \WP_REST_Request $request ) {
