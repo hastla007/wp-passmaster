@@ -1180,15 +1180,15 @@ Gesamt: 262 Aufgaben.
   - src/: Occurrence::phase($now) + Aktion wpcap_occurrence_phase_changed für Verkauf, Listen, Scanner, Warteliste, Wallet, Purge
 - [x] **A563** [WICHTIG] Ein nicht anbietbarer Eintrag blockiert die ganze Warteliste; Käuferlimit beim Eintragen ungeprüft — _R4 Eigen (Deep Dive 3)_ (TODO L903; Audit Runde 4)
   - src/Waitlists.php:267–270, :92ff.: Eintrag überspringen/markieren (blocked mit Grund), Limit beim Eintragen (belegt t2)
-- [ ] **A564** [WICHTIG] Warteliste ohne E-Mail-Bestätigung, Angebote halten Kontingent bis 24 h (erweitert A279/A280) — _R4 Eigen (Deep Dive 3)_ (TODO L904; Audit Runde 4)
+- [x] **A564** [WICHTIG] Warteliste ohne E-Mail-Bestätigung, Angebote halten Kontingent bis 24 h (erweitert A279/A280) — _R4 Eigen (Deep Dive 3)_ (TODO L904; Audit Runde 4)
   - src/Waitlists.php:92–143, :307–355: Double-Opt-in vor waiting
-- [ ] **A565** [WICHTIG] Angebotsseite/-mail ohne Termin, Ort und Rechtstexte; Wartende bei Absage/Verschiebung nicht informiert — _R4 Eigen (Deep Dive 3)_ (TODO L905; Audit Runde 4)
+- [x] **A565** [WICHTIG] Angebotsseite/-mail ohne Termin, Ort und Rechtstexte; Wartende bei Absage/Verschiebung nicht informiert — _R4 Eigen (Deep Dive 3)_ (TODO L905; Audit Runde 4)
   - src/Waitlists.php:1069–1088, Mail/Types.php:398–412: Datum/Ort/Zeitzone und Rechtstexte wie im Checkout, Platzhalter event_date/event_location
-- [ ] **A566** [WICHTIG] Google Wallet: Ticketdaten gehen ohne Zutun des Käufers an Google; Löschung lässt Namen dort — _R4 Eigen (Deep Dive 3)_ (TODO L906; Audit Runde 4)
+- [x] **A566** [WICHTIG] Google Wallet: Ticketdaten gehen ohne Zutun des Käufers an Google; Löschung lässt Namen dort — _R4 Eigen (Deep Dive 3)_ (TODO L906; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:98–109, Service.php:97–117/276–283, Privacy/PolicyText.php: Bei 404 kein Objekt anlegen solange nicht gespeichert, bei Löschung Name/Barcode leeren
-- [ ] **A567** [WICHTIG] Datenschutzerklärung-Vorschlag nennt feste Fristen statt der eingestellten (erweitert A030) — _R4 Eigen (Deep Dive 3)_ (TODO L907; Audit Runde 4)
+- [x] **A567** [WICHTIG] Datenschutzerklärung-Vorschlag nennt feste Fristen statt der eingestellten (erweitert A030) — _R4 Eigen (Deep Dive 3)_ (TODO L907; Audit Runde 4)
   - src/Privacy/PolicyText.php:79/118/119, Settings.php:77–84, Retention.php:58–75: Fristen aus Retention::days()/financial_years(), eigene Formulierung für 0
-- [ ] **A568** [WICHTIG] Nachweis der akzeptierten AGB-Fassung nicht möglich; Bestätigungsmail ohne Vertragstexte (§312f BGB) — _R4 Eigen (Deep Dive 3)_ (TODO L908; Audit Runde 4)
+- [x] **A568** [WICHTIG] Nachweis der akzeptierten AGB-Fassung nicht möglich; Bestätigungsmail ohne Vertragstexte (§312f BGB) — _R4 Eigen (Deep Dive 3)_ (TODO L908; Audit Runde 4)
   - src/Settings.php:275–278, Admin/SettingsPage.php:378, Mail/Types.php:132: Fassungen je Sprache append-only archivieren, Platzhalter in Standard-Bestätigungsmail
 - [ ] **A569** [WICHTIG] Personalisierung über reine Namensänderung unbegrenzt umgehbar; Zähler im Audit-Log — _R4 Eigen (Deep Dive 3)_ (TODO L909; Audit Runde 4)
   - src/TicketAssignments.php:27–36: Namensänderungen zählen, Zähler am Ticket
