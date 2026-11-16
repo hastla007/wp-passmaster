@@ -67,7 +67,9 @@ const WPCAP_LOAD_WEBHOOK_SECRET = 'whsec_load';
 
 /** Settings every process (coordinator and workers) needs; options live in process memory. */
 function load_settings() {
-	PassCaptain\Settings::update( array( 'stripe_secret_key' => 'sk_test_load', 'stripe_webhook_secret' => WPCAP_LOAD_WEBHOOK_SECRET ) );
+	// Bank transfer ("manual") as in tests/load/http.php: available (needs instructions or an account) and
+	// without the A634 share cap on unpaid transfer holds, which would stop the capacity race at 50 %.
+	PassCaptain\Settings::update( array( 'stripe_secret_key' => 'sk_test_load', 'stripe_webhook_secret' => WPCAP_LOAD_WEBHOOK_SECRET, 'manual_instructions' => 'Load test: bank transfer.', 'manual_hold_max_percent' => 0 ) );
 	Registry::reset();
 	// All workers share one (empty) REMOTE_ADDR; the per-IP checkout limit is not what we measure here.
 	$GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'] = PHP_INT_MAX;
@@ -80,7 +82,7 @@ function load_settings() {
 
 /** Waitlist scenario settings (coordinator and waitlist workers). */
 function load_waitlist_settings() {
-	PassCaptain\Settings::update( array( 'enabled_providers' => array( 'manual' ), 'require_terms' => 0, 'waitlist' => array( 'auto_offers' => 1, 'offer_hours' => 24, 'max_offers_per_run' => 10, 'strict_fifo' => 0 ) ) );
+	PassCaptain\Settings::update( array( 'enabled_providers' => array( 'manual' ), 'manual_instructions' => 'Load test: bank transfer.', 'manual_hold_max_percent' => 0, 'require_terms' => 0, 'waitlist' => array( 'auto_offers' => 1, 'offer_hours' => 24, 'max_offers_per_run' => 10, 'strict_fifo' => 0 ) ) );
 	Registry::reset();
 	$GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] = 0;
 	PassCaptain\Waitlists::register();
