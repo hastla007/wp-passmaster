@@ -140,6 +140,18 @@ Bewertungsdaten gehören dem Provider. Der Kern bleibt ohne Provider unveränder
   undurchsichtige Referenz der aktuellen Inhaberin bzw. des aktuellen Inhabers und ändert sich mit jedem
   Inhaberwechsel.
 
+- **Kontakt-Resolver (A668):** `PassCaptain\Review\ContactResolver::resolve( $participation_id, $recipient_ref,
+  array( 'source' => 'review-captain' ) )` liefert `email`, `name` und `locale` der aktuellen Inhaberin bzw. des
+  aktuellen Inhabers – nur mit der eigenen Capability `wpcap_resolve_review_contacts` (`Contract::RESOLVER_CAPABILITY`;
+  sie gehört zu keiner Plugin-Rolle und wird Administrator:innen nicht automatisch gegeben, die Betreiber:in vergibt sie
+  bewusst, z. B. an das Dienstkonto des Review-Plugins), nur für abgeschlossene Erlebnisse im aktuellen Zyklus
+  (bezahlt, nicht erstattet, nicht widerrufen, Termin/Event nicht abgesagt) und nur mit der aktuellen
+  `recipient_ref`. Fehler: `wpcap_review_forbidden` (403), `wpcap_review_not_found` (404),
+  `wpcap_review_not_eligible` (409, `reason`: `not_completed`, `refunded`, `revoked`, `cancelled`, `unpaid`,
+  `no_contact`), `wpcap_review_recipient_changed` (409). Jeder Aufruf wird als `review_contact_resolved` mit
+  Teilnahme, Zweck, Quelle und Ergebnis protokolliert – nie mit der Adresse. Adresse: zugewiesene
+  Teilnehmer-E-Mail, sonst Ticket-E-Mail, sonst Käufer-E-Mail (Platzhalteradressen nie).
+
 Fixture: `tests/contracts/review.json`; `tests/integration/modules/zz_a667_a669.php` prüft echte Abläufe dagegen.
 
 ## Fixtures und Tests
