@@ -111,9 +111,10 @@ $z16r_bulk = admin_paid_order( $z16r_t5, 1, 'z16r-bulk-0000@example.com' );
 $z16r_rows = array();
 $z16r_now  = gmdate( 'Y-m-d H:i:s' );
 for ( $i = 1; $i <= 520; $i++ ) {
-	$z16r_rows[] = $wpdb->prepare( '(%s,%d,%d,%s,%s,%s,%s)', bin2hex( random_bytes( 16 ) ), $z16r_bulk, $z16r_t5, hash( 'sha256', 'z16r-bulk-' . $i . '-' . uniqid( '', true ) ), sprintf( 'z16r-bulk-%04d@example.com', $i ), 'valid', $z16r_now );
+	$z16r_rows[] = $wpdb->prepare( '(%s,%d,%d,%s,%s,%s,%s,1)', bin2hex( random_bytes( 16 ) ), $z16r_bulk, $z16r_t5, hash( 'sha256', 'z16r-bulk-' . $i . '-' . uniqid( '', true ) ), sprintf( 'z16r-bulk-%04d@example.com', $i ), 'valid', $z16r_now );
 }
-$wpdb->query( "INSERT INTO {$p}wpcap_tickets (public_id,order_id,ticket_type_id,token_hash,attendee_email,status,issued_at) VALUES " . implode( ',', $z16r_rows ) );
+// Merged line (A581): reminders go to the holder of the current code – the attendee once the code was delivered there.
+$wpdb->query( "INSERT INTO {$p}wpcap_tickets (public_id,order_id,ticket_type_id,token_hash,attendee_email,status,issued_at,code_with_attendee) VALUES " . implode( ',', $z16r_rows ) );
 Reminders::schedule_due();
 $z16r_queue = $wpdb->get_col( $wpdb->prepare( "SELECT recipient FROM {$p}wpcap_message_queue WHERE status='queued' AND template_key='wpcap_reminder' AND payload LIKE %s ORDER BY send_at,message_id", '%"occurrence_id":' . $z16r_o5 . ',%' ) );
 check( 'Z16: 521 reminders are queued for the large occurrence', 521 === count( $z16r_queue ) );

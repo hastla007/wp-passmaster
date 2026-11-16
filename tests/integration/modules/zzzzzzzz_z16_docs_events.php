@@ -96,7 +96,10 @@ foreach ( $z16d_actions as $action ) {
 }
 check( 'Z16: every PHP action of the document is fired by the core (' . count( $z16d_actions ) . ' actions; not fired: ' . implode( ', ', $z16d_unfired ) . ')', count( $z16d_actions ) >= 15 && array() === $z16d_unfired );
 $z16d_bridges = (string) file_get_contents( $z16d_root . '/src/Integrations/ConnectorEvents.php' ) . (string) file_get_contents( $z16d_root . '/src/Modules/Webhooks.php' );
-check( 'Z16: as documented, check-out, event cancellation and code rotation have no connector event and no webhook', false === strpos( $z16d_bridges, 'wpcap_ticket_checked_out' ) && false === strpos( $z16d_bridges, 'wpcap_event_cancelled' ) && false === strpos( $z16d_bridges, 'wpcap_ticket_code_rotated' ) );
+// Merged line (A674): check-out and event cancellation have webhooks (ticket.checked_out, event.cancelled) but no
+// connector event; code rotation has neither – as docs/SUITE-EVENTS.md says.
+$z16d_connector_src = (string) file_get_contents( $z16d_root . '/src/Integrations/ConnectorEvents.php' );
+check( 'Z16: as documented, check-out, event cancellation and code rotation have no connector event and no webhook', false === strpos( $z16d_connector_src, 'wpcap_ticket_checked_out' ) && false === strpos( $z16d_connector_src, 'wpcap_event_cancelled' ) && false === strpos( $z16d_bridges, 'wpcap_ticket_code_rotated' ) && false !== strpos( $z16d_doc, '`wpcap_ticket_code_rotated`' ) );
 
 echo "Z16: no personal data and no codes in connector and webhook messages (purchase to refund)\n";
 final class Z16_Probe_Connector implements ConnectorInterface {
@@ -140,7 +143,15 @@ foreach ( array_slice( $GLOBALS['wpcap_test_mails'], $z16d_mails ) as $mail ) {
 $z16d_answer = (string) $wpdb->get_var( $wpdb->prepare( "SELECT a.answer FROM {$p}wpcap_participant_answers a INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=a.ticket_id WHERE t.order_id=%d", $z16d_order_id ) );
 check( 'Z16: the scenario order is paid, carries the attendee answer and its ticket code was mailed', $z16d_order_id > 0 && 'paid' === Orders::get( $z16d_order_id )->payment_status && 'Erdnuss-Z16' === $z16d_answer && 64 === strlen( $z16d_code ) );
 $z16d_checkin = Checkin::perform( $z16d_code, array( 'idempotency_key' => 'z16d-scan-' . uniqid(), 'source' => 'web' ) );
-$z16d_refund  = Refunds::request( $z16d_order_id, array(), 'Z16 Erstattung', 'z16d-refund-' . uniqid() );
+// The ticket was checked in: staff refund it with a documented exception and a second approval (merged policy, A131).
+$z16d_refund  = Refunds::request( $z16d_order_id, array(), 'Z16 Erstattung', 'z16d-refund-' . uniqid(), array( 'used_override' => 'Z16 Kulanz nach Einlass' ) );
+if ( is_array( $z16d_refund ) && 'pending_approval' === ( $z16d_refund['status'] ?? '' ) ) {
+	$z16d_user = $GLOBALS['wpcap_test_user_id'] ?? 1;
+	$GLOBALS['wpcap_test_user_id'] = 2;
+	Refunds::approve( (int) $z16d_refund['refund_id'] );
+	$GLOBALS['wpcap_test_user_id'] = $z16d_user;
+	$z16d_refund = Refunds::get( (int) $z16d_refund['refund_id'] );
+}
 check( 'Z16: check-in and refund of the scenario succeed', is_array( $z16d_checkin ) && 'checked_in' === $z16d_checkin['status'] && is_array( $z16d_refund ) && 'completed' === $z16d_refund['status'] );
 $wpdb->query( "UPDATE {$p}wpcap_jobs SET run_after='2000-01-01 00:00:00' WHERE job_type='connector_delivery' AND status='queued'" );
 Jobs::process_due( 200 );
