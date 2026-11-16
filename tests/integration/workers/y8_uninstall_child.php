@@ -10,6 +10,7 @@
 
 define( 'ABSPATH', sys_get_temp_dir() . '/' );
 define( 'WP_UNINSTALL_PLUGIN', 'pass-captain/pass-captain.php' );
+define( 'WP_PLUGIN_DIR', sys_get_temp_dir() . '/wpcap-y8-plugins' ); // Defined by WordPress before uninstall.php runs (no legacy copy here).
 $GLOBALS['y8_calls'] = array();
 function wp_unschedule_hook( $hook ) { $GLOBALS['y8_calls'][] = 'cron:' . $hook; return 0; }
 function as_unschedule_all_actions( $hook, $args = array(), $group = '' ) { $GLOBALS['y8_calls'][] = 'as:' . $hook . '|' . $group; }

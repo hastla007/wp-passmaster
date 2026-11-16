@@ -1272,7 +1272,14 @@ final class Controller {
 	}
 
 	public static function create_service_slot( \WP_REST_Request $request ) {
-		$id = ServiceBookings::create_slot( absint( $request['resource_id'] ), (array) $request->get_json_params() );
+		$payload = (array) $request->get_json_params();
+		// Strict: "Y-m-d H:i:s" (UTC) or ISO 8601 with offset; no strtotime() guessing ("tomorrow", server time zone).
+		foreach ( array( 'starts_at', 'ends_at' ) as $field ) {
+			$utc = \PassCaptain\DateInput::utc( $payload[ $field ] ?? null, $field );
+			if ( is_wp_error( $utc ) ) { return $utc; }
+			if ( null !== $utc ) { $payload[ $field ] = $utc; }
+		}
+		$id = ServiceBookings::create_slot( absint( $request['resource_id'] ), $payload );
 		return is_wp_error( $id ) ? $id : new \WP_REST_Response( array( 'slot_id' => (int) $id ), 201 );
 	}
 
