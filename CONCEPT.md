@@ -559,3 +559,18 @@ Ticket Captain verwendet eigene Capabilities. Ein Rollenpaket allein gewährt ke
 - Keine gemeinsamen Benutzerkonten. Scannerzugänge sind personengebunden oder zeitlich begrenzte, eventgebundene Gerätesitzungen.
 - Mehr-Faktor-Authentifizierung für Ticket-Administration und Finanzrollen unterstützen. Hochwertige Erstattungen und Sammelaktionen können eine zweite Freigabe verlangen.
 - Supportzugriff auf personenbezogene Daten ist zeitlich begrenzt und protokolliert; keine verdeckte Admin-Impersonation.
+
+
+## Ergänzung: Zusammenspiel mit Form, Review und Affiliate Captain (15.11.2026)
+
+Ticket Captain bleibt Eigentümer von Events, Ticketbestellungen, Teilnehmerzuordnung und Check-in. Die Suite-Integrationen bauen darauf auf und lesen keine fremden Tabellen.
+
+| Plugin | Verbindliche Rolle und Integrationsgrenze | Status |
+|---|---|---|
+| Form Captain | Für Event-Anfragen, Bewerbungen und freiwillige Zusatzangaben kann ein Form Captain Formular in einer Eventseite eingebettet/verlinkt werden. Eine Einsendung ist noch keine Buchung, Zahlung, Ticketreservierung oder Ticket-Ausstellung. Ticketbezogene Teilnehmerdaten und die Buchungsbestätigung bleiben in Ticket Captain. Eine spätere Übergabe nutzt den versionierten Form-Captain-Vertrag und verlangt eine explizite Nutzer-/Admin-Aktion. | Form-Captain-Vertrag v1 ist im Konzept spezifiziert; Pass-Adapter und Zuordnung in der Event-Adminseite sind noch zu bauen. |
+| Review Captain | Ticket Captain ist Quelle für Event, Ticket, Absage, Erstattung und Check-in. Ein Review darf erst nach tatsächlicher Teilnahme angeboten werden; Kauf, Ticketversand, bloße Einlösung oder generische Formeinsendung reichen nicht. Einladungen, Frequenzbegrenzung, Opt-out, Versand und Review-Daten gehören Review Captain. | Vorhandene interne Hooks wie `wpcap_ticket_checked_in` sind noch kein versionierter Suite-Vertrag. Es fehlen ein minimaler v1-Teilnahmevertrag, Event-Ende-/Absage-/Refund-Abgleich, datenschutzkonformer Kontaktresolver und deduplizierte Review-Captain-Adapter. |
+| Affiliate Captain | Affiliate Captain besitzt Partnerzuordnung und Provisionen. Eine Review-Anfrage oder positive Bewertung darf weder Provision erzeugen noch deren Status beeinflussen. Später kann ein datensparsamer Report Kampagnen-/Partnerzuordnung mit aggregierter Review-Qualität verbinden. | Verkäufe/Provisionen besitzen bereits den öffentlichen Affiliate-Vertrag; eine gemeinsame Review-Auswertung ist noch zu spezifizieren. |
+| Voucher Captain | Gutschein-Ausstellung und -Einlösung bleiben Eigentum von Voucher Captain; Ticket Captain stellt nach dem bereits dokumentierten Servicevertrag Tickets aus. | Bestehende Voucher-Bridge bleibt maßgeblich; Review-Auslösung ist hiervon getrennt und noch nicht implementiert. |
+| WP License Captain / Captain Pro | Kernfunktionen bleiben lizenzfrei. Premium-Eventfunktionen gehören in `pass-captain-pro`; Lizenzprüfung, Updates und Entitlements laufen ausschließlich über das vorhandene Add-on-/License-Client-Modell. | Pass-Pro ist bereits im Captain-Pro-Repository angelegt; Suite-Erweiterungen müssen in Pro-Entitlements und den vorhandenen Vertrags-Hooks abgebildet werden. |
+
+Für eine Review-Integration wird ein versionsstabiler Teilnahmekontext benötigt: stabile Event-/Erlebnis-ID, Ticket-/Teilnahmereferenz, Ergebnis (teilgenommen, abgesagt, erstattet), Zeitpunkt und Sprache. E-Mail/Name werden nicht in allgemeinen Events mitgesendet. Review Captain erhält eine Empfängerreferenz nur über einen ausdrücklich berechtigten Resolver; pro Erlebnis und Empfänger gilt globale Idempotenz. Abgesagte oder erstattete Tickets sowie nicht eingecheckte Teilnehmer werden ausgeschlossen, sofern keine ausdrücklich definierte andere Teilnahmebestätigung vorliegt.
