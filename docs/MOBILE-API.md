@@ -124,7 +124,8 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 | `checked_in` | Einlass erfolgt | grün |
 | `valid` | (nur `validate`) Ticket wäre gültig | grün/neutral |
 | `already_checked_in` | bereits verwendet | rot, ggf. Uhrzeit nachfragen |
-| `revoked` | widerrufen/erstattet | rot |
+| `revoked` | widerrufen/erstattet; mit `revoked_reason` (`refunded`, `cancelled`, `order_cancelled`, `exchanged`, `doctor`, `admin`), sofern der Widerruf nach dem Update erfolgte, und dem Grund samt Zeit in `message` (A543) | rot |
+| `replaced` | alter Code eines Tickets, das inzwischen einen neuen Code hat (übertragen, anderer Person zugewiesen, erneut zugesendet, neu ausgestellt, neu gedruckt); `replaced_reason` (`transfer`, `assign`, `resend`, `reissue`, `portal_pdf`, `print`) und `replaced_at` (UTC, ISO 8601), `message` bittet um den aktuellen Code (A543). Nur mit Einlassrecht für das Event des Tickets, sonst `unknown` | rot, aktuellen Code verlangen |
 | `unknown` | Code unbekannt | rot |
 | `wrong_event` | Ticket für ein anderes Event als dieses Gerät | gelb |
 | `wrong_occurrence` | Ticket für einen anderen Termin | gelb |

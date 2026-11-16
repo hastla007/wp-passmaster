@@ -95,6 +95,7 @@ final class Plugin {
 		Integrations\AffiliateCaptain\Adapter::register();
 		Notifications::register();
 		TicketCodes::register();
+		CodeHistory::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
 		PageCache::register();

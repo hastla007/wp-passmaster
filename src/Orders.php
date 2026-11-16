@@ -2011,6 +2011,7 @@ final class Orders {
 		}
 		$previous_holder = Consents::holder_email_of( (int) $ticket->ticket_id );
 		$token = bin2hex( random_bytes( 32 ) );
+		CodeHistory::replacing( (int) $ticket->ticket_id, 'transfer' ); // A543: the old code says "transferred".
 		$updated = $wpdb->update( $tickets_table, array(
 			'token_hash' => hash( 'sha256', $token ),
 			'attendee_email' => $recipient_email,
@@ -2681,6 +2682,7 @@ final class Orders {
 		$rotated = array();
 		foreach ( $tickets as $ticket ) {
 			$token = bin2hex( random_bytes( 32 ) );
+			CodeHistory::replacing( (int) $ticket->ticket_id, 'resend' ); // A543
 			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), array( '%s' ), array( '%d', '%s' ) );
 			if ( 1 !== (int) $updated ) {
 				// All or nothing: no old code becomes invalid without the new one being mailed.
@@ -2770,6 +2772,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_ticket_not_reissuable', __( 'Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$token = bin2hex( random_bytes( 32 ) );
+		CodeHistory::replacing( $ticket_id, 'reissue' ); // A543
 		$updated = $wpdb->update( "{$p}wpcap_tickets", array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => $ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) );
 		if ( 1 !== (int) $updated ) {
 			$wpdb->query( 'ROLLBACK' );

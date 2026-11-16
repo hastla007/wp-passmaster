@@ -89,7 +89,8 @@ What the package contains:
 - **Full packages** contain the `valid` and `checked_in` tickets.
 - **Deltas** (`since` = the previous cursor) contain every changed hash, including `revoked`. A hash
   becomes `revoked` when its ticket is revoked, when its code is reissued (the old hash goes away), or
-  when the occurrence or event is cancelled.
+  when the occurrence or event is cancelled. A hash that went away because the ticket got a new code
+  carries `"r": "replaced"` (A543); the app then shows "Code ersetzt" instead of "Widerrufen".
 - An unknown epoch or a future cursor gives a full package.
 - Every package (including an empty delta) renews `expires_at`.
 - Hashes are `sha256` of the 64-hex ticket code (the same as `wpcap_tickets.token_hash`).

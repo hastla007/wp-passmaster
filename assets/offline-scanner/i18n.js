@@ -38,6 +38,7 @@
 			'Einlass OK': 'Entry OK',
 			'Bereits verwendet': 'Already used',
 			'Widerrufen': 'Revoked',
+			'Code ersetzt': 'Code replaced',
 			'Unbekanntes Ticket': 'Unknown ticket',
 			'Falsches Event': 'Wrong event',
 			'Falscher Termin': 'Wrong date',

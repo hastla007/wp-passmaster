@@ -437,8 +437,10 @@ final class Templates {
 		$out = array();
 		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $ticket_id ) {
 			$token = bin2hex( random_bytes( 32 ) );
+			$old_hash = (string) $wpdb->get_var( $wpdb->prepare( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket_id ) );
 			$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid'", hash( 'sha256', $token ), $ticket_id ) );
 			if ( $updated ) {
+				\PassCaptain\CodeHistory::replaced( (int) $ticket_id, $old_hash, 'print' ); // A543
 				$out[ $ticket_id ] = $token;
 				/** The ticket got a new code (old one invalid), e.g. so wallet passes can be refreshed. */
 				do_action( 'wpcap_ticket_code_rotated', (int) $ticket_id, $token, 'print' );

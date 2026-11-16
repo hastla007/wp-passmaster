@@ -309,6 +309,7 @@ final class BatchJob {
 			// Only while the ticket is valid with the code it had when the batch was created.
 			$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET token_hash=%s$help WHERE ticket_id=%d AND status='valid' AND token_hash=%s", hash( 'sha256', (string) $line[1] ), (int) $line[0], (string) $line[2] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			if ( false === $changed ) { return $busy(); }
+			if ( $changed ) { \PassCaptain\CodeHistory::replaced( (int) $line[0], (string) $line[2], 'print' ); } // A543
 			$changed ? ++$rotated : ++$skipped;
 		}
 		$done = $wpdb->update( self::table(), array( 'status' => 'delivered', 'rotated' => $rotated, 'skipped' => $skipped, 'delivered_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'ready' ) );

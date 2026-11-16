@@ -129,11 +129,13 @@ final class Package {
 		if ( 'full' === $kind ) {
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d AND status IN ('valid','checked_in') ORDER BY token_hash", (int) $occurrence->occurrence_id ) );
 		} else {
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d AND version>%d ORDER BY token_hash", (int) $occurrence->occurrence_id, $from ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name,fingerprint FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d AND version>%d ORDER BY token_hash", (int) $occurrence->occurrence_id, $from ) );
 		}
 		$tickets = array();
 		foreach ( $rows as $row ) {
 			$entry = array( 'h' => $row->token_hash, 's' => $row->status );
+			// A543: a hash that no ticket has any more was replaced by a new code (transfer, reissue …).
+			if ( 'revoked' === $row->status && md5( 'gone' ) === (string) ( $row->fingerprint ?? '' ) ) { $entry['r'] = 'replaced'; }
 			if ( 'revoked' !== $row->status ) { $entry['t'] = (int) $row->ticket_type_id; }
 			if ( $names && '' !== (string) $row->attendee_name && 'revoked' !== $row->status ) { $entry['n'] = (string) $row->attendee_name; }
 			$tickets[] = $entry;

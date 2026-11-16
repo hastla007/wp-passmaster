@@ -160,7 +160,7 @@
 	}
 
 	var RESULT_TEXT = {
-		checked_in: 'Einlass OK', already_checked_in: 'Bereits verwendet', revoked: 'Widerrufen', unknown: 'Unbekanntes Ticket',
+		checked_in: 'Einlass OK', already_checked_in: 'Bereits verwendet', revoked: 'Widerrufen', replaced: 'Code ersetzt', unknown: 'Unbekanntes Ticket',
 		wrong_event: 'Falsches Event', wrong_occurrence: 'Falscher Termin', wrong_area: 'Falscher Einlassbereich',
 		cancelled_event: 'Termin abgesagt', out_of_window: 'Außerhalb des Einlasszeitraums', not_valid_today: 'Heute nicht gültig',
 		daily_limit_reached: 'Tageskontingent erreicht', entry_limit_reached: 'Einlasslimit erreicht', outside_entry_window: 'Außerhalb des Einlassfensters',
@@ -228,7 +228,9 @@
 		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at)) + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : '');
 	}
 	function onlineDetail(res) {
-		return [res.ticket, res.attendee_name, historyText(res), res.staff_hint ? '⚠ ' + res.staff_hint : '', res.help_code ? '⚠ ' + t('Per Hilfscode geprüft') : '', 'online'].filter(Boolean).join(' · ');
+		// A543: refusals carry the server's reason ("Code ersetzt: … übertragen …", "widerrufen: umgetauscht").
+		var reason = !res.ok && 'string' === typeof res.message ? res.message : '';
+		return [reason, res.ticket, res.attendee_name, historyText(res), res.staff_hint ? '⚠ ' + res.staff_hint : '', res.help_code ? '⚠ ' + t('Per Hilfscode geprüft') : '', 'online'].filter(Boolean).join(' · ');
 	}
 
 	/* ---------------- API ---------------- */
@@ -492,7 +494,8 @@
 		if (!status.ok) { return { ok: false, result: status.code }; }
 		var t = entry.index.get(hash);
 		if (!t) { return { ok: false, result: 'unknown' }; }
-		if ('revoked' === t.s) { return { ok: false, result: 'revoked' }; }
+		// A543: a hash that went away because the ticket got a new code is "Code ersetzt".
+		if ('revoked' === t.s) { return { ok: false, result: 'replaced' === t.r ? 'replaced' : 'revoked' }; }
 		var type = null;
 		entry.meta.ticket_types.forEach(function (tt) { if (tt.id === t.t) { type = tt; } });
 		// Doors-open time of the occurrence: nobody is admitted before it.

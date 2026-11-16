@@ -127,7 +127,11 @@ final class Checkin {
 		) );
 		// A failed lookup is no unknown ticket (A183): the scanner must retry, not refuse the guest.
 		if ( ! $row && '' !== $wpdb->last_error ) { return self::retry_error(); }
-		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		if ( ! $row ) {
+			// A543: a code that was replaced (transfer, new holder, reissue …) says so instead of "not found".
+			$replaced = $help_ticket ? null : self::replaced_error( hash( 'sha256', $code ) );
+			return $replaced ? $replaced : new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) );
+		}
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
 		if ( $help_ticket && ! $ticket_ref ) { $found['help_code'] = true; }
 		if ( $ticket_ref ) { $found['manual'] = true; } // Staff check-in by ticket id (A338, A591).
@@ -154,6 +158,24 @@ final class Checkin {
 		$last = Policies::last_valid_ts( (int) $row->ticket_type_id, $found );
 		if ( $last < $at - DAY_IN_SECONDS || $start > $at + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
 		return $found;
+	}
+
+	/**
+	 * A543: refusal for an old code of a ticket that has a new code now ("Code ersetzt"), with the
+	 * reason and time of the replacement. Only for scanners with check-in access to the ticket's
+	 * event (otherwise null: "not found"); the ticket itself is not looked up by the old code.
+	 */
+	private static function replaced_error( $hash ) {
+		$replaced = CodeHistory::find_replaced( $hash );
+		if ( ! $replaced ) { return null; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.status,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.timezone,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.ticket_id=%d", (int) $replaced->ticket_id ) );
+		if ( ! $ticket || ! Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin' ) ) { return null; }
+		$at = Orders::format_start( (string) $replaced->created_at, (string) $ticket->timezone );
+		/* translators: 1: what happened to the ticket (e.g. "an eine andere Person übertragen"), 2: date and time */
+		$message = sprintf( __( 'Code ersetzt: Das Ticket wurde %1$s (%2$s). Dieser Code gilt nicht mehr – bitte den aktuellen Code aus der neuesten Ticketmail zeigen lassen.', 'pass-captain' ), CodeHistory::replaced_label( (string) $replaced->reason ), $at );
+		return new \WP_Error( 'wpcap_ticket_replaced', $message, array( 'status' => 409, 'result' => 'replaced', 'ticket_status' => 'replaced', 'replaced_reason' => (string) $replaced->reason, 'replaced_at' => gmdate( 'c', strtotime( $replaced->created_at . ' UTC' ) ), 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'ticket_id' => (int) $replaced->ticket_id, 'event_id' => (int) $ticket->event_id, 'occurrence_id' => (int) $ticket->occurrence_id ) );
 	}
 
 	/**
@@ -612,6 +634,12 @@ final class Checkin {
 			'area_full' => 'wpcap_area_full',
 		);
 		$message = $messages[ $result ] ?? __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'pass-captain' );
+		$revocation = 'revoked' === $result ? CodeHistory::last_revocation( (int) $found['ticket_id'] ) : null;
+		if ( $revocation ) {
+			// A543: why the ticket was revoked (category only, never the free text of staff).
+			/* translators: 1: reason of the revocation (e.g. "umgetauscht – es gibt ein neues Ticket"), 2: date and time */
+			$message = sprintf( __( 'Ticket ist widerrufen: %1$s (%2$s).', 'pass-captain' ), CodeHistory::revoked_label( (string) $revocation->reason ), Orders::format_start( (string) $revocation->created_at, (string) ( $found['timezone'] ?? '' ) ) );
+		}
 		if ( in_array( $result, array( 'outside_entry_window', 'not_valid_today' ), true ) ) {
 			$message = self::with_validity( $message, $found );
 		}
@@ -622,11 +650,12 @@ final class Checkin {
 		if ( in_array( $result, self::REJECTED_ADMISSION, true ) ) { $data += self::history( (int) $found['ticket_id'] ); }
 		$data += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
 		if ( ! empty( $found['help_code'] ) ) { $data['help_code'] = true; }
+		if ( $revocation ) { $data['revoked_reason'] = (string) $revocation->reason; }
 		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $message, $data );
 	}
 
 	/** Scanner fields passed on to clients with a refused scan (besides result, message, event, ticket). */
-	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code' );
+	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code', 'revoked_reason', 'replaced_reason', 'replaced_at' );
 
 	/**
 	 * Admission history of a ticket for the scanner result: first and latest admission (UTC, ISO

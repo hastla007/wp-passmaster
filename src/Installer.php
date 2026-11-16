@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.19';
+	const DB_VERSION = '3.10.20';
 
 	public static function install() {
 		global $wpdb;
@@ -850,6 +850,18 @@ final class Installer {
 				UNIQUE KEY run_key (run_key),
 				KEY object_runs (kind,object_id),
 				KEY open_runs (status,updated_at)
+			) ENGINE=InnoDB $charset;",
+			// Replaced codes and revocation reasons for the scanner (schema 3.10.18, A543; see CodeHistory).
+			"CREATE TABLE {$wpdb->prefix}wpcap_code_history (
+				history_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				ticket_id bigint(20) unsigned NOT NULL,
+				token_hash char(64) NOT NULL DEFAULT '',
+				kind varchar(20) NOT NULL,
+				reason varchar(32) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (history_id),
+				KEY token_hash (token_hash),
+				KEY ticket_kind (ticket_id,kind)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_rate_limits (
 				rl_key char(40) NOT NULL,

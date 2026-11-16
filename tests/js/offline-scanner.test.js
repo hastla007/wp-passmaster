@@ -225,3 +225,14 @@ test('A316: double tap on the camera button opens one stream; a late stream afte
 	assert.strictEqual(app.camera.stream, null);
 	assert.strictEqual(button.disabled, false);
 });
+
+test('A543: a hash replaced by a new code is "replaced" offline; online refusals show the server reason', async () => {
+	const e = entry([ { h: 'old', s: 'revoked', r: 'replaced' }, { h: 'rv', s: 'revoked' } ]);
+	assert.strictEqual(app.decideOffline(e, 'old').result, 'replaced');
+	assert.strictEqual(app.decideOffline(e, 'rv').result, 'revoked');
+	await onlineScan('7'.repeat(64), () => htmlResponse(200, JSON.stringify({ ok: false, result: 'replaced', code: 'wpcap_ticket_replaced', message: 'Code ersetzt: übertragen' })));
+	assert.strictEqual(w.document.getElementById('result-title').textContent, 'Code ersetzt');
+	assert.match(w.document.getElementById('result-detail').textContent, /übertragen/);
+	app.state.selected = 0;
+	app.state.token = '';
+});

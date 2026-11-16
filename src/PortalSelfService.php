@@ -218,6 +218,7 @@ final class PortalSelfService {
 					$wpdb->query( 'ROLLBACK' );
 					return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 				}
+				\PassCaptain\CodeHistory::replaced( (int) $row->ticket_id, (string) $row->token_hash, 'portal_pdf' ); // A543
 				$rotated[ (int) $row->ticket_id ] = $code;
 			}
 			$codes[ (int) $row->ticket_id ] = $code;
