@@ -601,6 +601,23 @@ ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.tx
   Rücksprache vergeben will, legt sie in einen eigenen Bereich und ordnet ihn einer eigenen,
   nicht öffentlich verkauften Ticketart zu.
 
+## Saalpläne: Verfügbarkeit und neue Versionen (A486, A487)
+
+- **Verfügbarkeit:** Ist eine Ticketart eines Termins Bereichen/Kategorien des Saalplans
+  zugeordnet, zeigen Eventkarte, Warenkorb und REST höchstens die freien passenden Plätze an
+  (Plätze ohne aktive Reservierung oder Verkauf, auch Kontingent-Sperren), egal wie groß das
+  Kontingent der Ticketart ist (Filter `wpcap_ticket_availability`, nur senkend). Ticketarten ohne
+  Zuordnung sind vom Saalplan nicht begrenzt.
+- **Verknüpfen:** Übersteigt das Kontingent einer Ticketart (bzw. des Termins) die Zahl der
+  zugeordneten Plätze, oder passt eine zugeordnete Ticketart auf keinen Platz, erscheint nach dem
+  Verknüpfen ein Warnhinweis.
+- **Neue Version veröffentlichen:** Mit „verknüpfte Termine auf die neue Version umstellen“ wird
+  die Veröffentlichung abgebrochen (`wpcap_seating_mapping_lost`), wenn in der neuen Version ein
+  Bereich/eine Kategorie fehlt, der eine Ticketart eines verknüpften Termins zugeordnet ist, oder
+  keiner ihrer Plätze mehr existiert; die Meldung nennt die Ticketarten. Dann entweder die Bereiche im
+  Entwurf wiederherstellen oder ohne Umstellung veröffentlichen und jeden Termin danach mit neuer
+  Zuordnung verknüpfen.
+
 ## Kasse: keine Registrierkasse
 
 Die Kasse (Menü **Pass Captain → Kasse**) bucht Verkäufe vor Ort als Bestellungen, erzeugt Belege mit fortlaufender Nummer und einen Kassenabschluss. Sie ist **keine** Registrierkasse im fiskalrechtlichen Sinn:

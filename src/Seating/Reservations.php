@@ -35,6 +35,43 @@ final class Reservations {
 		add_action( 'wpcap_cleanup_reservations', array( __CLASS__, 'cleanup' ), 20, 0 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'ticket_mail' ), 10, 3 );
 		add_filter( 'wpcap_ticket_seat_label', array( __CLASS__, 'seat_label' ), 5, 2 );
+		add_filter( 'wpcap_ticket_availability', array( __CLASS__, 'availability_limit' ), 25, 3 );
+		add_action( 'wpcap_availability_flushed', array( __CLASS__, 'flush_free' ), 10, 0 );
+	}
+
+	/** Request cache of free seats: "occurrence|version|zones" => count. */
+	private static $free = array();
+
+	public static function flush_free() {
+		self::$free = array();
+	}
+
+	/**
+	 * wpcap_ticket_availability (A486): a ticket type that is mapped to zones of the occurrence's seat
+	 * map can sell at most the free seats of those zones (seats without an active claim), whatever its
+	 * quota says. Types without a mapping are not limited by the seat map.
+	 */
+	public static function availability_limit( $remaining, $type = null, $occurrence = null ) {
+		if ( ! is_object( $type ) || ! is_object( $occurrence ) ) { return $remaining; }
+		$link = Layouts::link( (int) $occurrence->occurrence_id );
+		if ( ! $link ) { return $remaining; }
+		$zones = Layouts::type_zones( (int) $occurrence->occurrence_id )[ (int) $type->ticket_type_id ] ?? array();
+		if ( ! $zones ) { return $remaining; }
+		$free = self::free_count( (int) $occurrence->occurrence_id, (int) $link->version_id, $zones );
+		return null === $remaining ? $free : min( (int) $remaining, $free );
+	}
+
+	/** Seats of a version in the zones/categories without a claim that still blocks them. */
+	public static function free_count( $occurrence_id, $version_id, array $zones ) {
+		global $wpdb;
+		sort( $zones );
+		$key = $occurrence_id . '|' . $version_id . '|' . implode( ',', $zones );
+		if ( isset( self::$free[ $key ] ) ) { return self::$free[ $key ]; }
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$in = implode( ',', array_map( static function ( $zone ) use ( $wpdb ) { return $wpdb->prepare( '%s', $zone ); }, $zones ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::t( 'seats' ) . " s WHERE s.version_id=%d AND (s.zone IN ($in) OR s.category IN ($in)) AND NOT EXISTS (SELECT 1 FROM " . self::t( 'claims' ) . " c LEFT JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE c.occurrence_id=%d AND c.active_key=s.seat_key AND " . self::active_condition( $now ) . ')', $version_id, $occurrence_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared parts.
+		return self::$free[ $key ] = $count;
 	}
 
 	public static function payload_keys( $keys ) {

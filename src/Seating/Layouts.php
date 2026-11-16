@@ -518,6 +518,11 @@ final class Layouts {
 			$links = $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,version_id FROM ' . self::table( 'links' ) . ' WHERE layout_id=%d ORDER BY occurrence_id FOR UPDATE', (int) $layout->layout_id ) );
 			$violations = self::protection_violations( self::locked_seats( $layout->layout_id ), $rows );
 			if ( $violations ) { throw new SeatingException( self::violation_error( $violations ) ); }
+			// A487: moving the linked occurrences must not leave a ticket type without its zones/seats.
+			if ( $upgrade_links && $links ) {
+				$lost = self::mapping_losses( array_map( static function ( $link ) { return (int) $link->occurrence_id; }, $links ), $normalized, $rows );
+				if ( $lost ) { throw new SeatingException( self::mapping_error( $lost ) ); }
+			}
 			$version = (int) $layout->published_version + 1;
 			$now = current_time( 'mysql', true );
 			$inserted = $wpdb->insert( self::table( 'versions' ), array( 'layout_id' => (int) $layout->layout_id, 'event_id' => (int) $layout->event_id, 'version' => $version, 'name' => $layout->name, 'definition' => wp_json_encode( $normalized ), 'seat_count' => count( $rows ), 'created_by' => get_current_user_id(), 'created_at' => $now ) );
@@ -547,6 +552,59 @@ final class Layouts {
 		}
 		Audit::record( 'seat_map_published', 'event', (int) $layout->event_id, array( 'layout_id' => (int) $layout->layout_id, 'version' => $version, 'seats' => count( $rows ), 'upgraded_occurrences' => $upgraded ) );
 		return array( 'layout_id' => (int) $layout->layout_id, 'event_id' => (int) $layout->event_id, 'version' => $version, 'version_id' => $version_id, 'seat_count' => count( $rows ), 'upgraded' => $upgraded );
+	}
+
+	/**
+	 * Ticket types of linked occurrences whose zone/category mapping would point to nothing in a new
+	 * version (a mapped zone is missing, or no seat of the version matches): "Event – Ticketart" labels.
+	 *
+	 * @param int[] $occurrence_ids Linked occurrences.
+	 * @param array $definition     Normalised draft of the new version.
+	 * @param array $rows           Expanded seats of the new version.
+	 * @return string[]
+	 */
+	public static function mapping_losses( array $occurrence_ids, array $definition, array $rows ) {
+		global $wpdb;
+		$known = array_merge( self::item_keys( $definition['zones'] ?? array() ), self::item_keys( $definition['categories'] ?? array() ) );
+		$lost = array();
+		foreach ( $occurrence_ids as $occurrence_id ) {
+			foreach ( self::type_zones( $occurrence_id ) as $type_id => $zones ) {
+				$missing = array_diff( $zones, $known );
+				$seats = 0;
+				foreach ( $rows as $row ) {
+					if ( in_array( (string) $row['zone'], $zones, true ) || in_array( (string) $row['category'], $zones, true ) ) { ++$seats; }
+				}
+				if ( ! $missing && $seats ) { continue; }
+				$name = $wpdb->get_row( $wpdb->prepare( "SELECT tt.name,o.starts_at,o.timezone FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", (int) $type_id ) );
+				$lost[] = $name ? $name->name . ' (' . \PassCaptain\Admin\Forms::datetime( $name->starts_at, $name->timezone, false ) . ')' : '#' . (int) $type_id;
+			}
+		}
+		return array_values( array_unique( $lost ) );
+	}
+
+	private static function mapping_error( array $lost ) {
+		return new \WP_Error(
+			'wpcap_seating_mapping_lost',
+			/* translators: %s: ticket types with date */
+			sprintf( __( 'In der neuen Version fehlen Bereiche bzw. Plätze, denen Ticketarten verknüpfter Termine zugeordnet sind: %s. Die Version wurde nicht veröffentlicht. Bitte die Bereiche im Entwurf wiederherstellen oder ohne Umstellung der Termine veröffentlichen und die Termine danach mit neuer Zuordnung verknüpfen.', 'pass-captain' ), implode( '; ', array_slice( $lost, 0, 10 ) ) . ( count( $lost ) > 10 ? ' …' : '' ) ),
+			array( 'status' => 409, 'ticket_types' => $lost )
+		);
+	}
+
+	/**
+	 * Seats a ticket type can be sold on per mapping (A486): ticket_type_id => number of seats of the
+	 * version in its zones/categories, for an occurrence and version.
+	 */
+	public static function mapped_seat_counts( $version_id, array $type_zones ) {
+		global $wpdb;
+		$out = array();
+		foreach ( $type_zones as $type_id => $zones ) {
+			$zones = array_values( array_filter( array_map( 'strval', (array) $zones ) ) );
+			if ( ! $zones ) { continue; }
+			$in = implode( ',', array_fill( 0, count( $zones ), '%s' ) );
+			$out[ (int) $type_id ] = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::table( 'seats' ) . " WHERE version_id=%d AND (zone IN ($in) OR category IN ($in))", array_merge( array( (int) $version_id ), $zones, $zones ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders.
+		}
+		return $out;
 	}
 
 	/**
@@ -607,8 +665,39 @@ final class Layouts {
 			}
 		}
 		$wpdb->query( 'COMMIT' );
+		self::flush_links();
 		Audit::record( 'seat_map_linked', 'occurrence', (int) $occurrence->occurrence_id, array( 'version_id' => (int) $version->version_id, 'version' => (int) $version->version ) );
-		return array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'event_id' => (int) $occurrence->event_id, 'version_id' => (int) $version->version_id );
+		$result = array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'event_id' => (int) $occurrence->event_id, 'version_id' => (int) $version->version_id );
+		$warnings = self::link_warnings( (int) $occurrence->occurrence_id, (int) $version->version_id, $clean );
+		if ( $warnings ) { $result['warning'] = implode( ' ', $warnings ); }
+		return $result;
+	}
+
+	/**
+	 * A486: ticket types whose quota exceeds the seats they are mapped to sell at most these seats –
+	 * the link warns about it (and about mapped types without any seat).
+	 *
+	 * @return string[] Messages.
+	 */
+	public static function link_warnings( $occurrence_id, $version_id, array $type_zones ) {
+		global $wpdb;
+		$counts = self::mapped_seat_counts( $version_id, $type_zones );
+		if ( ! $counts ) { return array(); }
+		$capacity = (int) $wpdb->get_var( $wpdb->prepare( "SELECT capacity FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		$out = array();
+		foreach ( $counts as $type_id => $seats ) {
+			$type = $wpdb->get_row( $wpdb->prepare( "SELECT name,capacity FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", $type_id ) );
+			if ( ! $type ) { continue; }
+			$quota = (int) $type->capacity > 0 ? (int) $type->capacity : $capacity;
+			if ( 0 === $seats ) {
+				/* translators: %s: ticket type */
+				$out[] = sprintf( __( '„%s“ ist keinem Platz dieser Version zugeordnet und kann nicht verkauft werden.', 'pass-captain' ), $type->name );
+			} elseif ( 0 === $quota || $quota > $seats ) {
+				/* translators: 1: ticket type, 2: matching seats, 3: quota of the ticket type */
+				$out[] = sprintf( __( '„%1$s“ passt nur auf %2$d Plätze des Saalplans (Kontingent: %3$s); verkauft werden höchstens diese Plätze.', 'pass-captain' ), $type->name, $seats, $quota ? (string) $quota : __( 'unbegrenzt', 'pass-captain' ) );
+			}
+		}
+		return $out;
 	}
 
 	/** Removes the seat map from an occurrence (only while no seat is held or sold). */
