@@ -392,6 +392,7 @@ final class Menu {
 			list( $slug, $title, $cap, $callback ) = $page;
 			$entries[] = array( $slug, $title, $title, $cap, $callback, (string) ( $page[4] ?? '' ) );
 		}
+		$entries = array_merge( $entries, self::extension_pages( $entries ) );
 		$entries[] = array( SettingsPage::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, array( SettingsPage::class, 'render' ), '' );
 		$entries[] = array( DeveloperKeysPage::SLUG, __( 'Entwickler-API', 'pass-captain' ), __( 'Entwickler-API', 'pass-captain' ), DeveloperKeysPage::CAP, array( DeveloperKeysPage::class, 'render' ), '' );
 		$entries[] = array( AuditLogPage::SLUG, __( 'Audit-Log', 'pass-captain' ), __( 'Audit-Log', 'pass-captain' ), AuditLogPage::CAP, array( AuditLogPage::class, 'render' ), '' );
@@ -402,6 +403,33 @@ final class Menu {
 			$entries[] = array( 'admin.php?page=vcap-vouchers', __( 'Voucher Captain', 'pass-captain' ), __( 'Voucher Captain ↗', 'pass-captain' ), 'manage_woocommerce', null, '' );
 		}
 		return $entries;
+	}
+
+	/**
+	 * Filter wpcap_admin_pages (A663, public add-on API): own pages of add-ons in the Pass Captain menu,
+	 * a list of ['slug', 'title', 'capability', 'callback', 'area' (optional, see groups(), default
+	 * settings)]. Slugs of core and module pages cannot be taken over; invalid entries are ignored.
+	 *
+	 * @param array $taken Entries so far (their slugs are reserved).
+	 * @return array Entries in the format of entries().
+	 */
+	public static function extension_pages( array $taken ) {
+		$used = array();
+		foreach ( $taken as $entry ) { $used[ (string) $entry[0] ] = true; }
+		$used[ SettingsPage::SLUG ] = $used[ DeveloperKeysPage::SLUG ] = $used[ AuditLogPage::SLUG ] = $used[ OperationsPage::SLUG ] = true;
+		$out = array();
+		foreach ( (array) apply_filters( 'wpcap_admin_pages', array() ) as $page ) {
+			if ( ! is_array( $page ) ) { continue; }
+			$slug = sanitize_key( (string) ( $page['slug'] ?? '' ) );
+			$title = trim( sanitize_text_field( (string) ( $page['title'] ?? '' ) ) );
+			$cap = is_string( $page['capability'] ?? null ) ? $page['capability'] : '';
+			$callback = $page['callback'] ?? null;
+			if ( '' === $slug || isset( $used[ $slug ] ) || '' === $title || '' === $cap || ! is_callable( $callback ) ) { continue; }
+			$used[ $slug ] = true;
+			$area = sanitize_key( (string) ( $page['area'] ?? 'settings' ) );
+			$out[] = array( $slug, $title, $title, $cap, $callback, isset( self::groups()[ $area ] ) ? $area : 'settings' );
+		}
+		return $out;
 	}
 
 	/**

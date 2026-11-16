@@ -118,6 +118,8 @@ final class Plugin {
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_shortcode( 'wpcap_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
+		// A663: the core is ready – add-ons register on wpcap_loaded (public API, PublicApi::VERSION).
+		PublicApi::loaded();
 	}
 
 	/** Runs a pending schema upgrade for the current request context; re-schedules events after it. */

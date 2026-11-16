@@ -273,6 +273,13 @@ final class Controller {
 		) );
 	}
 
+	/** Resource => filter of prepare() (public add-on API, PublicApi::HOOKS). */
+	const PREPARE_HOOKS = array(
+		'event' => 'wpcap_rest_prepare_event',
+		'order' => 'wpcap_rest_prepare_order',
+		'developer_event' => 'wpcap_rest_prepare_developer_event',
+	);
+
 	/**
 	 * Filters wpcap_rest_prepare_event, wpcap_rest_prepare_order and wpcap_rest_prepare_developer_event
 	 * (A331): add fields to a REST item. Additive only – the contract fields of the item (tests/contracts/)
@@ -283,7 +290,8 @@ final class Controller {
 	 * @param mixed  ...$args  Source row and/or WP_REST_Request.
 	 */
 	public static function prepare( $resource, array $item, ...$args ) {
-		$filtered = apply_filters( 'wpcap_rest_prepare_' . $resource, $item, ...$args );
+		if ( ! isset( self::PREPARE_HOOKS[ $resource ] ) ) { return $item; }
+		$filtered = apply_filters( self::PREPARE_HOOKS[ $resource ], $item, ...$args );
 		if ( ! is_array( $filtered ) ) { return $item; }
 		return $item + array_diff_key( $filtered, $item );
 	}

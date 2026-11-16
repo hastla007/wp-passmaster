@@ -76,7 +76,7 @@ final class Page {
 		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$filters = self::filters( wp_unslash( $_GET ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filters.
 		if ( ! self::filters_allowed( $filters, $scope ) ) { wp_die( esc_html__( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
-		$report = Data::build( $filters, $scope );
+		$report = self::extended( Data::build( $filters, $scope ), $filters, $scope );
 		$cur = $report['currency'];
 		$money = static function ( $minor ) use ( $cur ) { return Scope::money( $minor, $cur ); };
 		$csv_url = add_query_arg( array_merge( $filters, array( 'action' => 'wpcap_reports_csv', '_wpnonce' => wp_create_nonce( 'wpcap_reports_csv' ) ) ), admin_url( 'admin-post.php' ) );
@@ -158,8 +158,29 @@ final class Page {
 				foreach ( $gaps as $range => $missing ) { $gap_text[] = $range . ': ' . implode( ', ', array_slice( $missing, 0, 10 ) ) . ( count( $missing ) > 10 ? ' …' : '' ); }
 				echo '<div class="notice notice-warning inline"><p>' . esc_html( __( 'Lücken in den Belegnummern:', 'pass-captain' ) . ' ' . implode( '; ', $gap_text ) ) . '</p></div>';
 			}
+			foreach ( \PassCaptain\Invoices::export_formats() as $format_id => $format ) {
+				echo '<p><a class="button" href="' . esc_url( add_query_arg( 'format', $format_id, $export_url ) ) . '">' . esc_html( sprintf( /* translators: 1: export name (from an add-on), 2: from, 3: to */ __( '%1$s %2$s bis %3$s', 'pass-captain' ), $format['label'], $report['from'], $report['to'] ) ) . '</a></p>';
+			}
 		}
+		/**
+		 * Action wpcap_reports_render (A663, public add-on API): own sections of add-ons at the end of the
+		 * reports page. The callback escapes its output and checks its own capability.
+		 */
+		do_action( 'wpcap_reports_render', $report, $filters, $scope );
 		echo '</div>';
+	}
+
+	/**
+	 * Filter wpcap_report_data (A663, public add-on API): add own figures to the report of the reports
+	 * page (same filters and access scope). Additive only – the core keys of the report stay unchanged.
+	 *
+	 * @param array      $report  Data::build() result.
+	 * @param array      $filters from, to, event_id, occurrence_id.
+	 * @param array|true $scope   Access scope of the current user.
+	 */
+	public static function extended( array $report, array $filters, $scope ) {
+		$filtered = apply_filters( 'wpcap_report_data', $report, $filters, $scope );
+		return is_array( $filtered ) ? $report + array_diff_key( $filtered, $report ) : $report;
 	}
 
 	/** Form for the settlement sheet per occurrence (Settlement; opens the print view or the CSV). */

@@ -69,6 +69,38 @@ $check( 'docs/FREE-PREMIUM.md module table has no removed modules' . ( $stale ? 
 $src_entries = array_merge( array_map( static fn( $d ) => 'src/' . basename( $d ) . '/', (array) glob( $root . '/src/*', GLOB_ONLYDIR ) ), array_map( static fn( $f ) => 'src/' . basename( $f ), (array) glob( $root . '/src/*.php' ) ) );
 $unnamed = array_filter( $src_entries, static fn( $e ) => false === strpos( $free, '`' . $e . '`' ) );
 $check( 'docs/FREE-PREMIUM.md names every directory and class file under src/' . ( $unnamed ? ' – missing ' . implode( ', ', $unnamed ) : '' ), ! $unnamed );
+// A663: the public add-on API (PassCaptain\PublicApi::HOOKS) matches the code and docs/HOOKS.md: every
+// public hook is fired in src/ (do_action/apply_filters with its literal name, or the literal name used
+// by the call site), is a row of the public table, and the table lists no hook outside the registry.
+$api_src = (string) @file_get_contents( $root . '/src/PublicApi.php' );
+$api_hooks = array();
+if ( preg_match( "/const HOOKS = array\((.*?)\n\t\);/s", $api_src, $am ) && preg_match_all( "/^\s*'([a-z0-9_]+)'\s*=>\s*array\(\s*'(action|filter)'\s*,\s*'(\d+\.\d+)'/m", $am[1], $hm, PREG_SET_ORDER ) ) {
+	foreach ( $hm as $row ) { $api_hooks[ $row[1] ] = $row[2]; }
+}
+$check( 'PublicApi::HOOKS lists the public add-on hooks', count( $api_hooks ) >= 20 );
+$src_code = '';
+foreach ( $shipped as $file ) {
+	if ( 0 === strpos( $file, 'src/' ) && '.php' === substr( $file, -4 ) && 'src/PublicApi.php' !== $file ) { $src_code .= (string) file_get_contents( $root . '/' . $file ) . "\n"; }
+}
+$src_code .= preg_replace( '/const HOOKS = array\(.*?\n\t\);/s', '', $api_src ); // wpcap_loaded is fired in PublicApi::loaded().
+$not_fired = array_filter( array_keys( $api_hooks ), static function ( $hook ) use ( $src_code, $api_hooks ) {
+	$call = 'action' === $api_hooks[ $hook ] ? 'do_action' : 'apply_filters';
+	return ! preg_match( '/' . $call . "\(\s*'" . preg_quote( $hook, '/' ) . "'/", $src_code ) && ! preg_match( "/'" . preg_quote( $hook, '/' ) . "'/", $src_code );
+} );
+$check( 'every public add-on hook is used in src/' . ( $not_fired ? ' – missing ' . implode( ', ', $not_fired ) : '' ), $api_hooks && ! $not_fired );
+$hooks_doc = (string) @file_get_contents( $root . '/docs/HOOKS.md' );
+$public_section = (string) strstr( (string) strstr( $hooks_doc, "\n## Öffentliche Add-on-API" ), "\n## Actions", true );
+preg_match_all( '/^\|\s*`([a-z0-9_]+)`\s*\|\s*(Action|Filter)\s*\|/m', $public_section, $dm, PREG_SET_ORDER );
+$doc_hooks = array();
+foreach ( $dm as $row ) { $doc_hooks[ $row[1] ] = strtolower( $row[2] ); }
+$undocumented_api = array_diff_key( $api_hooks, $doc_hooks );
+$unregistered_api = array_diff_key( $doc_hooks, $api_hooks );
+$wrong_type = array_keys( array_filter( $api_hooks, static fn( $type, $hook ) => isset( $doc_hooks[ $hook ] ) && $doc_hooks[ $hook ] !== $type, ARRAY_FILTER_USE_BOTH ) );
+$check( 'docs/HOOKS.md public table lists every public add-on hook' . ( $undocumented_api ? ' – missing ' . implode( ', ', array_keys( $undocumented_api ) ) : '' ), '' !== $public_section && ! $undocumented_api );
+$check( 'docs/HOOKS.md public table lists no hook outside PublicApi::HOOKS' . ( $unregistered_api ? ' – ' . implode( ', ', array_keys( $unregistered_api ) ) : '' ), ! $unregistered_api );
+$check( 'docs/HOOKS.md public table names the right type (Action/Filter)' . ( $wrong_type ? ' – ' . implode( ', ', $wrong_type ) : '' ), ! $wrong_type );
+preg_match( "/const VERSION = '([0-9.]+)'/", $api_src, $vm );
+$check( 'docs/HOOKS.md and docs/CONTRACTS.md name the add-on API version ' . ( $vm[1] ?? '?' ), isset( $vm[1] ) && false !== strpos( $public_section, '**' . $vm[1] . '**' ) && false !== strpos( (string) @file_get_contents( $root . '/docs/CONTRACTS.md' ), '| `addon` | ' . $vm[1] ) );
 // A270: tweetnacl ships with its readable source and a source reference that is not Markdown.
 $nacl = $root . '/assets/vendor/tweetnacl/';
 $nacl_source = (string) @file_get_contents( $nacl . 'SOURCE.txt' );

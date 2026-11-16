@@ -32,7 +32,8 @@ final class Contracts {
 	 * Current contract version per interface.
 	 *
 	 * @return array<string,string> public, partner, developer, app, offline (REST), voucher_provider,
-	 *                              ticket_service, checkin_service (Voucher Captain bridge), affiliate.
+	 *                              ticket_service, checkin_service (Voucher Captain bridge), affiliate,
+	 *                              addon (public add-on hooks, PublicApi).
 	 */
 	public static function versions() {
 		return array(
@@ -45,6 +46,7 @@ final class Contracts {
 			'ticket_service'   => Integrations\Vouchers\TicketService::VERSION . '.0',
 			'checkin_service'  => Integrations\Vouchers\CheckinService::VERSION . '.0',
 			'affiliate'        => Integrations\AffiliateCaptain\Adapter::CONTRACT,
+			'addon'            => PublicApi::VERSION, // A663: public hooks for add-ons (docs/HOOKS.md).
 		);
 	}
 

@@ -250,8 +250,15 @@ final class SettingsPage {
 		return array_filter( $sections, static function ( $section ) { return ! empty( $section['fields'] ); } );
 	}
 
-	/** Tabs of the screen: id => title. */
+	/** Tabs of the screen: id => title (core tabs first, then tabs of add-ons). */
 	public static function tabs() {
+		$tabs = self::core_tabs();
+		foreach ( self::extension_tabs() as $id => $def ) { $tabs[ $id ] = $def['title']; }
+		return $tabs;
+	}
+
+	/** Built-in tabs: id => title. */
+	public static function core_tabs() {
 		return array(
 			'general' => __( 'Allgemein', 'pass-captain' ),
 			'admission' => __( 'Einlass', 'pass-captain' ),
@@ -259,6 +266,30 @@ final class SettingsPage {
 			'legal' => __( 'Rechtstexte', 'pass-captain' ),
 			'invoices' => __( 'Rechnungen', 'pass-captain' ),
 		);
+	}
+
+	/**
+	 * Filter wpcap_settings_tabs (A663, public add-on API): own tabs of add-ons on the settings screen,
+	 * id => ['title' => string, 'render' => callable, 'capability' => string (default manage_options)].
+	 * The tab renders its own content and form (own nonce, own option); the core settings form and
+	 * save() never touch it. Core tabs cannot be replaced or removed; invalid entries are ignored.
+	 *
+	 * @return array<string,array{title:string,render:callable,capability:string}>
+	 */
+	public static function extension_tabs() {
+		$core = self::core_tabs();
+		$out = array();
+		foreach ( (array) apply_filters( 'wpcap_settings_tabs', array() ) as $id => $def ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' === $id || isset( $core[ $id ] ) || ! is_array( $def ) || ! is_callable( $def['render'] ?? null ) ) { continue; }
+			$title = trim( sanitize_text_field( (string) ( $def['title'] ?? '' ) ) );
+			$out[ $id ] = array(
+				'title' => '' !== $title ? $title : $id,
+				'render' => $def['render'],
+				'capability' => is_string( $def['capability'] ?? null ) && '' !== $def['capability'] ? $def['capability'] : self::CAP,
+			);
+		}
+		return $out;
 	}
 
 	/** Valid tab id ('' = unknown). */
@@ -518,6 +549,19 @@ final class SettingsPage {
 			<?php endforeach; ?>
 		</nav>
 		<?php if ( 'payments' === $tab ) { self::render_payment_nav( $section ); } ?>
+		<?php
+		$extension = self::extension_tabs()[ $tab ] ?? null;
+		if ( null !== $extension ) {
+			// Add-on tab (wpcap_settings_tabs): its own content, no core form.
+			if ( current_user_can( $extension['capability'] ) ) {
+				call_user_func( $extension['render'], $tab );
+			} else {
+				echo '<p>' . esc_html__( 'Keine Berechtigung.', 'pass-captain' ) . '</p>';
+			}
+			echo '</div>';
+			return;
+		}
+		?>
 		<?php Forms::open_form( 'wpcap_save_settings' ); ?>
 		<input type="hidden" name="wpcap_tab" value="<?php echo esc_attr( $tab ); ?>">
 		<?php if ( 'payments' === $tab ) : ?><input type="hidden" name="wpcap_section" value="<?php echo esc_attr( $section ); ?>"><?php endif; ?>

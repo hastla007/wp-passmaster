@@ -771,7 +771,20 @@ final class Invoices {
 		$from = Reports\Data::valid_date( $from_in ) ? $from_in : substr( $today, 0, 8 ) . '01';
 		$to = Reports\Data::valid_date( $to_in ) ? $to_in : $today;
 		if ( $to < $from ) { list( $from, $to ) = array( $to, $from ); }
-		$datev = 'datev' === sanitize_key( wp_unslash( (string) ( $_REQUEST['format'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$format = sanitize_key( wp_unslash( (string) ( $_REQUEST['format'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$extension = self::export_formats()[ $format ] ?? null;
+		if ( null !== $extension ) {
+			$rows = self::extension_rows( $extension, $from, $to );
+			Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ), 'format' => $format ) );
+			nocache_headers();
+			header( 'Content-Type: text/csv; charset=utf-8' );
+			header( 'Content-Disposition: attachment; filename="pass-captain-' . $format . '-' . $from . '-' . $to . '.csv"' );
+			$out = fopen( 'php://output', 'w' );
+			Reports\Scope::write_csv( $out, $rows ); // Formula guard and RFC 4180 quoting as the built-in export (A495).
+			fclose( $out );
+			exit;
+		}
+		$datev = 'datev' === $format;
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=' . ( $datev ? 'windows-1252' : 'utf-8' ) );
 		header( 'Content-Disposition: attachment; filename="pass-captain-' . ( $datev ? 'buchungsstapel' : 'buchhaltung' ) . '-' . $from . '-' . $to . '.csv"' );
@@ -820,6 +833,40 @@ final class Invoices {
 	 */
 	public static function export_csv( array $rows, $datev = false ) {
 		return Reports\Scope::csv( $rows, $datev ? array( 'encoding' => 'Windows-1252', 'bom' => false ) : array() );
+	}
+
+	/**
+	 * Filter wpcap_export_formats (A663, public add-on API): further formats of the accounting export,
+	 * id => ['label' => string, 'rows' => callable( string $from, string $to ): array[] (first row =
+	 * header)]. Shown as buttons on the reports page, sent as UTF-8 CSV (semicolon) under the same
+	 * permission, nonce and audit entry as the built-in export; cells are protected against spreadsheet
+	 * formulas. The ids csv and datev are reserved.
+	 *
+	 * @return array<string,array{label:string,rows:callable}>
+	 */
+	public static function export_formats() {
+		$out = array();
+		foreach ( (array) apply_filters( 'wpcap_export_formats', array() ) as $id => $def ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' === $id || in_array( $id, array( 'csv', 'datev' ), true ) || ! is_array( $def ) || ! is_callable( $def['rows'] ?? null ) ) { continue; }
+			$label = trim( sanitize_text_field( (string) ( $def['label'] ?? '' ) ) );
+			$out[ $id ] = array( 'label' => '' !== $label ? $label : $id, 'rows' => $def['rows'] );
+		}
+		return $out;
+	}
+
+	/** Rows of an add-on export format: scalar cells only, formula characters neutralised. */
+	public static function extension_rows( array $format, $from, $to ) {
+		$rows = call_user_func( $format['rows'], (string) $from, (string) $to );
+		$out = array();
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			if ( ! is_array( $row ) ) { continue; }
+			$out[] = array_map( static function ( $cell ) {
+				$cell = is_scalar( $cell ) || null === $cell ? (string) $cell : '';
+				return preg_match( '/^[=+\-@\t\r]/', $cell ) && ! is_numeric( $cell ) ? "'" . $cell : $cell;
+			}, array_values( $row ) );
+		}
+		return $out;
 	}
 
 	/**

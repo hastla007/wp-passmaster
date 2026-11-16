@@ -1,6 +1,13 @@
-# Interne Entwickler-Hooks
+# Entwickler-Hooks: öffentliche Add-on-API und interne Hooks
 
-Alle `do_action()`- und `apply_filters()`-Aufrufe in `src/` (Stand 2026-11-13), mit Argumenten.
+Alle `do_action()`- und `apply_filters()`-Aufrufe in `src/` (Stand 2026-11-16), mit Argumenten.
+
+**Öffentlich oder intern (A663):** Nur die Hooks im Abschnitt
+[Öffentliche Add-on-API](#öffentliche-add-on-api) sind ein versionierter Vertrag, auf den sich das
+Premium-Add-on `pass-captain-pro` und andere Plugins verlassen dürfen. Alle übrigen Hooks dieser Datei sind
+**interne** Erweiterungspunkte: stabil gemeint, aber sie können sich in einer Minor-Version ändern (Argumente,
+Zeitpunkt) und werden ohne Übergangsfrist umbenannt. Externe Systeme sollten statt PHP-Hooks die signierten
+[Webhooks](WEBHOOKS.md) oder den Workflow-Providervertrag ([CONTRACTS.md](CONTRACTS.md)) verwenden.
 **Namensregel (A104):** Alle Hooks beginnen mit `wpcap_`. Ausnahme sind die versionierten
 Integrationsverträge zwischen Plugins mit dem Muster `wp_pass_captain_*_v1` (Gutscheinanbieter,
 Ticketdienst, Check-in-Dienst, Gutschein-Tickets storniert, Wallet-Anbieter, Connectoren und
@@ -26,6 +33,61 @@ Shortcodes gibt es ebenfalls mit Präfix `wpcap_`: `[wpcap_events]`, `[wpcap_sca
 
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 `grep -rnE "(do_action|apply_filters)\(" src --include=*.php`.
+
+## Öffentliche Add-on-API
+
+Vertrag `addon`, Version **1.0.0** (`PassCaptain\PublicApi::VERSION`, Tabelle in [CONTRACTS.md](CONTRACTS.md)).
+Versionsregel: Eine Minor-Version fügt nur Hooks oder Argumente am Ende hinzu. Innerhalb einer Hauptversion
+wird ein öffentlicher Hook nie entfernt, umbenannt oder mit anderen Argumenttypen aufgerufen; ein Hook, der
+wegfallen soll, bleibt mindestens eine Minor-Version lang als veraltet bestehen (`apply_filters_deprecated`,
+Hinweis bei `WP_DEBUG`) und verschwindet erst mit der nächsten Hauptversion – angekündigt in `CHANGELOG.md`.
+
+**Einstieg:** Das Add-on hängt sich beim Laden seiner Hauptdatei an `wpcap_loaded` (bzw. prüft
+`did_action( 'wpcap_loaded' )`) und vergleicht die übergebene Version mit
+`PassCaptain\PublicApi::compatible( '1.0' )`. Ist der Kern nicht aktiv oder die Hauptversion anders, steigt
+das Add-on mit einem Admin-Hinweis aus. Der Kern selbst kennt das Add-on nicht, prüft keine Lizenzen und
+funktioniert ohne es vollständig ([FREE-PREMIUM.md](FREE-PREMIUM.md)).
+
+**Zahlungs- und Scanner-Adapter** docken über die bestehenden Verträge an: Zahlungsarten über
+`wpcap_payment_gateways` (`PassCaptain\Payments\GatewayInterface`), fremde Scanner über den Check-in-Dienst
+`wp_pass_captain_checkin_service_v1` und die Einlass-Ereignisse `wpcap_ticket_checked_in`/`_checked_out`.
+
+`tests/consistency.php` gleicht diese Tabelle mit `PublicApi::HOOKS` und dem Code ab: Jeder Eintrag muss in
+`src/` ausgelöst werden und hier stehen, und jede Zeile hier muss in der Liste stehen.
+
+| Hook | Typ | Seit | Bereich | Zweck (Details in den Tabellen unten) |
+|---|---|---|---|---|
+| `wpcap_loaded` | Action | 1.0 | Start | Kern ist geladen (Ende von `Plugin::run()`, auf `plugins_loaded`). Argument: `string $api_version` (`PublicApi::VERSION`). Feuert einmal je Request. |
+| `wpcap_admin_pages` | Filter | 1.0 | Admin | Eigene Seiten im Pass-Captain-Menü: Liste von `['slug', 'title', 'capability', 'callback', 'area']` (`area` aus `Admin\Menu::groups()`, Standard `settings`). Slugs von Kern- und Modulseiten werden nicht überschrieben, ungültige Einträge ignoriert. |
+| `wpcap_settings_tabs` | Filter | 1.0 | Einstellungen | Eigene Tabs unter **Einstellungen**: `id => ['title', 'render' => callable( string $tab ), 'capability']` (Standard `manage_options`). Der Tab rendert eigenen Inhalt und ein eigenes Formular (eigener Nonce, eigene Option); das Kernformular speichert ihn nie. Kern-Tabs können nicht ersetzt werden. |
+| `wpcap_checkout_validate` | Filter | 1.0 | Checkout | Eigene Checkout-Regeln vor der Bestell-Transaktion (`WP_Error` lehnt ab). |
+| `wpcap_order_created` | Action | 1.0 | Bestellungen | Neue Bestellung nach dem Commit. |
+| `wpcap_order_paid` | Action | 1.0 | Bestellungen | Zahlung bestätigt (vor der Ticketausgabe). |
+| `wpcap_order_cancelled` | Action | 1.0 | Bestellungen | Bestellung storniert/abgelaufen. |
+| `wpcap_order_refunded` | Action | 1.0 | Bestellungen | Bestellung vollständig erstattet. |
+| `wpcap_refund_completed` | Action | 1.0 | Bestellungen | Erstattung (auch Teilerstattung) ausgeführt. |
+| `wpcap_refund_reversed` | Action | 1.0 | Bestellungen | Verbuchte Erstattung beim Anbieter gescheitert und storniert. |
+| `wpcap_tickets_issued` | Action | 1.0 | Tickets | Tickets einer Bestellung ausgestellt (nach dem Commit). |
+| `wpcap_ticket_revoked` | Action | 1.0 | Tickets | Ticket widerrufen. |
+| `wpcap_ticket_checked_in` | Action | 1.0 | Scanner | Einlass erfolgreich. |
+| `wpcap_ticket_checked_out` | Action | 1.0 | Scanner | Auslass. |
+| `wpcap_occurrence_changed` | Action | 1.0 | Tickets | Kalenderrelevante Angabe eines Termins geändert. |
+| `wpcap_occurrence_cancelled` | Action | 1.0 | Tickets | Termin abgesagt. |
+| `wpcap_ticket_pdf_data` | Filter | 1.0 | Tickets | Anzeigedaten des PDF-Tickets (Code fest). |
+| `wpcap_ticket_pdf_layout` | Filter | 1.0 | Tickets | Textzeilen des PDF-Tickets. |
+| `wpcap_mail_recipients` | Filter | 1.0 | E-Mail | Empfänger (to/cc/bcc) einer Kunden-Mail. |
+| `wpcap_rest_prepare_event` | Filter | 1.0 | REST | Zusatzfelder je Event in `GET /events` (nur additiv). |
+| `wpcap_rest_prepare_order` | Filter | 1.0 | REST | Zusatzfelder in `GET /orders/{id}` (nur additiv). |
+| `wpcap_rest_prepare_developer_event` | Filter | 1.0 | REST | Zusatzfelder in `GET /developer/events/{id}` (nur additiv). |
+| `wpcap_report_data` | Filter | 1.0 | Berichte | Eigene Kennzahlen im Bericht der Berichtsseite (`$report, $filters, $scope`); nur neue Schlüssel werden übernommen. |
+| `wpcap_reports_render` | Action | 1.0 | Berichte | Eigene Abschnitte am Ende der Berichtsseite (`$report, $filters, $scope`); der Callback escaped selbst und prüft eigene Rechte. |
+| `wpcap_export_formats` | Filter | 1.0 | Exporte | Weitere Formate des Buchhaltungsexports: `id => ['label', 'rows' => callable( $from, $to ): array[]]` (erste Zeile = Kopf). Schaltfläche auf der Berichtsseite; Download als UTF-8-CSV (Semikolon) mit derselben Berechtigung, Nonce und Audit-Eintrag (`accounting_exported`, `format` = id) wie der eingebaute Export; Formelzeichen am Zellanfang werden entschärft. `csv` und `datev` sind reserviert. |
+| `wpcap_payment_gateways` | Filter | 1.0 | Zahlungen | Zahlungsadapter registrieren (`GatewayInterface`). |
+| `wp_pass_captain_checkin_service_v1` | Filter | 1.0 | Scanner | Check-in-Dienst für fremde Scanner ([VOUCHERS.md](VOUCHERS.md)). |
+
+Nicht enthalten ist ein Gebühren-Filter `wpcap_order_fees` (A331): Bestellgebühren brauchen ein eigenes
+Datenmodell (eigene Rechnungszeile, USt-Behandlung, Erstattung, Preisangabe im Checkout) – das ist eine offene
+Produktentscheidung.
 
 ## Actions
 
