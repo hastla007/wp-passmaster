@@ -1210,7 +1210,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Saalplan bei abgesagtem/vergangenem Termin: nur „Laden fehlgeschlagen“, Formular aktiv — src/Seating/Reservations.php:442, Seating/Rest.php:25–27, assets/seating/picker.js:55 (A610, R4 Zeit/Caching/Lebenszyklus)
 - [ ] [OPTIMIERUNG] Teilnehmer-Export unvollständig (Check-in-Zeit, Sitz, Termin, Bereich, Status bei Pässen) — src/Printing/AttendeeList.php:44–60 (A611, R4 Eigen (Deep Dive 3))
 - [ ] [OPTIMIERUNG] Webhooks ohne Einwilligungsstand/Consent-Ereignisse — src/Webhooks/Dispatcher.php:18, Consents.php:383–386 (A612, R4 Eigen (Deep Dive 3))
-- [ ] [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — src/Reports/Data.php:165 (A613, R4 Eigen (Deep Dive 3))
+- [x] [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — src/Reports/Data.php:165 (A613, R4 Eigen (Deep Dive 3)) – erledigt: Schema 3.18.1 `orders.paid_at` (+ Index), gesetzt bei Zahlungsbuchung und bei kostenlosen Bestellungen; Bericht mit Auswahl „Datum nach: Bestelldatum/Zahlungsdatum“ (Fallback Bestelldatum); Test `zz_a613`
 - [ ] [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — templates/event-card.php:64, TicketPage.php (A614, R4 Eigen (Deep Dive 3))
 - [ ] [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — — (A615, R4 Eigen (Deep Dive 3))
 - [x] [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — src/Rest/Controller.php:681–692, Campaigns.php:47/183 (A616, R4 Transaktionen/Concurrency)

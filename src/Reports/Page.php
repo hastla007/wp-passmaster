@@ -25,6 +25,7 @@ final class Page {
 			'occurrence_id' => absint( $in['occurrence_id'] ?? 0 ),
 			'compare' => in_array( (string) ( $in['compare'] ?? '' ), Data::COMPARE, true ) ? (string) $in['compare'] : '',
 			'channel' => in_array( (string) ( $in['channel'] ?? '' ), Data::CHANNELS, true ) ? (string) $in['channel'] : '',
+			'basis' => in_array( (string) ( $in['basis'] ?? '' ), Data::BASES, true ) ? (string) $in['basis'] : 'order',
 		);
 	}
 
@@ -124,6 +125,9 @@ final class Page {
 		echo '</label>';
 		echo ' <label>' . esc_html__( 'Bestellungen', 'pass-captain' ) . ' ';
 		Forms::select( 'channel', array( '' => __( 'alle', 'pass-captain' ), 'sales' => __( 'Verkäufe (ohne Freikarten)', 'pass-captain' ), 'comp' => __( 'Freikarten', 'pass-captain' ) ), $filters['channel'] );
+		echo '</label>';
+		echo ' <label>' . esc_html__( 'Datum nach', 'pass-captain' ) . ' ';
+		Forms::select( 'basis', array( 'order' => __( 'Bestelldatum', 'pass-captain' ), 'payment' => __( 'Zahlungsdatum', 'pass-captain' ) ), $filters['basis'] );
 		echo '</label>';
 		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'pass-captain' ) . '</a>';
 		foreach ( Exports::types() as $type_id => $type ) {

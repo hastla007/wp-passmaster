@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.18.0';
+	const DB_VERSION = '3.18.1';
 
 	public static function install() {
 		global $wpdb;
@@ -174,6 +174,7 @@ final class Installer {
 				payout_account longtext NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
+				paid_at datetime NULL,
 				PRIMARY KEY  (order_id),
 				UNIQUE KEY public_id (public_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
@@ -183,6 +184,7 @@ final class Installer {
 				KEY access_expires_at (access_expires_at),
 				KEY status (status),
 				KEY paid_created (payment_status,created_at,status),
+				KEY paid_at (payment_status,paid_at),
 				KEY created (created_at,order_id),
 				KEY updated (updated_at),
 				KEY provider_ref (payment_provider,provider_reference(64))

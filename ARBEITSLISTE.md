@@ -1304,7 +1304,7 @@ Gesamt: 262 Aufgaben.
   - src/Printing/AttendeeList.php:44–60: Spalten ergänzen, Status aus Einlassprotokoll, nur aktive Felder, streamen
 - [ ] **A612** [OPTIMIERUNG] Webhooks ohne Einwilligungsstand/Consent-Ereignisse — _R4 Eigen (Deep Dive 3)_ (TODO L967; Audit Runde 4)
   - src/Webhooks/Dispatcher.php:18, Consents.php:383–386: consent.granted/withdrawn, Consent-Feld im Payload
-- [ ] **A613** [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — _R4 Eigen (Deep Dive 3)_ (TODO L968; Audit Runde 4)
+- [x] **A613** [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — _R4 Eigen (Deep Dive 3)_ (TODO L968; Audit Runde 4)
   - src/Reports/Data.php:165: paid_at speichern und verwenden
 - [ ] **A614** [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — _R4 Eigen (Deep Dive 3)_ (TODO L969; Audit Runde 4)
   - templates/event-card.php:64, TicketPage.php: buyer_notice() und Name auf Ticketseite, Mail, PDF

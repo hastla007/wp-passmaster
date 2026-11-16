@@ -500,6 +500,8 @@ final class Orders {
 			// Not while a deferred schema upgrade (DB 3.12.0) is still pending: the column may not exist yet.
 			if ( ! empty( $internal['request_fingerprint'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) $internal['request_fingerprint'] ) && version_compare( strtok( (string) get_option( 'wpcap_db_version' ), '+' ), '3.12.0', '>=' ) ) { $order_row['request_fingerprint'] = (string) $internal['request_fingerprint']; }
 			if ( '' !== $request_hash ) { $order_row['request_hash'] = $request_hash; }
+			// A613: a free order is paid when it is created (column of schema 3.18.1; deferred upgrades omit it).
+			if ( ! ( $total || $external ) && self::schema_at_least( '3.18.1' ) ) { $order_row['paid_at'] = $now; }
 			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
 				// Only a duplicate idempotency key is a lost race; anything else is a transient error.
@@ -2202,7 +2204,7 @@ final class Orders {
 		}
 		// Checked like Orders::create(): after a server-side rollback the remaining statements would
 		// autocommit without the capacity re-check's locks. Guarded like every order transition (StateMachine).
-		if ( 1 !== StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'complete', array( 'payment_status' => 'paid', 'updated_at' => $now ) ) ) { return self::payment_busy( $order_id ); }
+		if ( 1 !== StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'complete', array( 'payment_status' => 'paid', 'updated_at' => $now ) + ( self::schema_at_least( '3.18.1' ) ? array( 'paid_at' => $now ) : array() ) ) ) { return self::payment_busy( $order_id ); }
 		if ( false === self::set_hold_status( $hold_ids, 'converted', array( 'active', 'expired', 'released' ) ) ) { return self::payment_busy( $order_id ); }
 		// Holds leave held_qty, the paid lines enter sold_qty – atomically with the status change.
 		if ( false === CapacityCounters::sync_order( $order_id ) ) { return self::payment_busy( $order_id ); }
