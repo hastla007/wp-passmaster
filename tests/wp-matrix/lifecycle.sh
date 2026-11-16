@@ -53,7 +53,7 @@ wpc plugin uninstall pass-captain --skip-delete >/dev/null 2>&1 && ok "uninstall
 [ "$(tables)" = "$T1" ] && ok "uninstall without data removal keeps tables" || bad "tables removed although data removal is off"
 # Uninstall with "delete data".
 wpc plugin activate pass-captain >/dev/null
-wpc eval '$s = get_option( "wpcap_settings", array() ); $s["delete_data_on_uninstall"] = 1; update_option( "wpcap_settings", $s );'
+wpc eval 'PassCaptain\Settings::update( array( "delete_data_on_uninstall" => 1 ) );'   # settings API: stored as wpcap_uninstall_policy=delete
 wpc plugin deactivate pass-captain >/dev/null
 wpc plugin uninstall pass-captain --skip-delete >/dev/null 2>&1
 [ "$(tables)" = "0" ] && ok "uninstall with data removal drops all plugin tables" || bad "$(tables) plugin tables left"
@@ -63,7 +63,7 @@ grep -q '^wpcap_' <<<"$(wpc role list --fields=role --format=csv)" && bad "plugi
 # A467: within one request – what a persistent object cache keeps across requests – uninstall must leave no
 # cached plugin option (with raw SQL, alloptions still served wpcap_db_version and a reinstall skipped its tables).
 wpc plugin activate pass-captain >/dev/null
-wpc eval '$s = get_option( "wpcap_settings", array() ); $s["delete_data_on_uninstall"] = 1; update_option( "wpcap_settings", $s );'
+wpc eval 'PassCaptain\Settings::update( array( "delete_data_on_uninstall" => 1 ) );'   # settings API: stored as wpcap_uninstall_policy=delete
 wpc plugin deactivate pass-captain >/dev/null
 R="$(wpc --skip-plugins eval 'get_option( "wpcap_db_version" ); wp_load_alloptions(); define( "WP_UNINSTALL_PLUGIN", "pass-captain/pass-captain.php" ); include WP_PLUGIN_DIR . "/pass-captain/uninstall.php"; $left = array_filter( array_keys( wp_load_alloptions() ), static function ( $k ) { return 0 === strpos( $k, "wpcap_" ); } ); echo ( false === get_option( "wpcap_db_version" ) && ! $left ) ? "OK" : "STALE " . implode( ",", $left );' 2>&1)"
 [ "$R" = OK ] && ok "uninstall leaves no cached plugin option (persistent object cache)" || bad "uninstall left cached options: $R"
