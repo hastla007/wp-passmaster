@@ -22,13 +22,23 @@ final class Blocks {
 			$text .= __( 'Ticket-Code:', 'pass-captain' ) . ' ' . $t['token'] . "\n";
 			$help = (string) ( $t['help_code'] ?? '' );
 			if ( '' !== $help ) { $text .= \PassCaptain\HelpCode::label( $help ) . "\n"; }
+			$missing = self::missing_note( (array) ( $t['missing'] ?? array() ) );
+			if ( '' !== $missing ) { $text .= $missing . "\n"; }
 			$text .= "\n";
 			$html .= '<p style="margin:0 0 16px"><strong>' . esc_html( $t['event'] . ' — ' . $t['ticket'] ) . '</strong><br>' . esc_html( $t['when'] ) . '<br>' . esc_html( $t['location'] ) . '<br>'
 				. esc_html__( 'Ticket öffnen oder drucken:', 'pass-captain' ) . ' ' . Mailer::link( $t['url'] )['html'] . '<br>'
 				. esc_html__( 'Ticket-Code:', 'pass-captain' ) . ' <code>' . esc_html( $t['token'] ) . '</code>'
-				. ( '' !== $help ? '<br>' . esc_html( \PassCaptain\HelpCode::caption() ) . ' <strong style="font-family:monospace;letter-spacing:.1em">' . esc_html( $help ) . '</strong>' : '' ) . '</p>';
+				. ( '' !== $help ? '<br>' . esc_html( \PassCaptain\HelpCode::caption() ) . ' <strong style="font-family:monospace;letter-spacing:.1em">' . esc_html( $help ) . '</strong>' : '' )
+				. ( '' !== $missing ? '<br><strong>' . esc_html( $missing ) . '</strong>' : '' ) . '</p>';
 		}
 		return Mailer::block( $text, $html );
+	}
+
+	/** A682: "Noch fehlende Angaben: …" for one ticket ('' when nothing is missing). */
+	public static function missing_note( array $labels ) {
+		if ( ! $labels ) { return ''; }
+		/* translators: %s: comma-separated list of missing attendee data */
+		return sprintf( __( 'Noch fehlende Angaben: %s – bitte über „Ticket öffnen“ ergänzen.', 'pass-captain' ), implode( ', ', array_map( 'strval', $labels ) ) );
 	}
 
 	/**

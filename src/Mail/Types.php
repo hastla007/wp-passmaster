@@ -162,6 +162,29 @@ final class Types {
 				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
 				'sample' => static function () { return self::sample_ticket_vars( true ); },
 			),
+			// A682: request for attendee data that is still missing (admin action, new order link).
+			'attendee_data_request' => array(
+				'label' => __( 'Fehlende Teilnehmerangaben', 'pass-captain' ),
+				'description' => __( 'Bitte an die Käufer:in, fehlende Angaben zu Teilnehmenden zu ergänzen (mit neuem Bestelllink).', 'pass-captain' ),
+				'placeholders' => array(
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
+					'missing_list' => __( 'Fehlende Angaben je Ticket', 'pass-captain' ),
+					'access_link' => __( 'Persönlicher Link zur Bestellung (neu)', 'pass-captain' ),
+				),
+				/* translators: %s: order number placeholder */
+				'subject' => static function () { return sprintf( __( 'Bitte ergänze die Angaben zu deiner Bestellung %s', 'pass-captain' ), '{order_id}' ); },
+				'body' => static function () {
+					/* translators: %s: order number placeholder */
+					return sprintf( __( 'Für deine Bestellung %s fehlen noch Angaben zu den Teilnehmenden:', 'pass-captain' ), '{order_id}' ) . "\n\n{missing_list}\n" . __( 'Bitte ergänze sie über deinen persönlichen Link zur Bestellung:', 'pass-captain' ) . "\n\n{access_link}\n\n" . __( 'Der bisherige Link zur Bestellung gilt damit nicht mehr. Bewahre diesen Link sicher auf und teile ihn nicht.', 'pass-captain' );
+				},
+				'sample' => static function () {
+					return array(
+						'order_id' => 'AB12-CD34',
+						'missing_list' => Mailer::block( "Sommerkonzert — Stehplatz (15.01.2027 19:30 Europe/Vienna): Name, T-Shirt\n", '<ul><li>Sommerkonzert — Stehplatz (15.01.2027 19:30 Europe/Vienna): Name, T-Shirt</li></ul>' ),
+						'access_link' => Mailer::link( home_url( '/?wpcap_order=3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e&wpcap_access=' . str_repeat( 'd4', 32 ) ) ),
+					);
+				},
+			),
 			'order_access' => array(
 				'label' => __( 'Bestellzugang', 'pass-captain' ),
 				'description' => __( 'Persönlicher Link zur Bestellübersicht nach der Bestellung.', 'pass-captain' ),

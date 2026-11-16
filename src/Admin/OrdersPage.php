@@ -814,6 +814,7 @@ final class OrdersPage {
 			Forms::hidden( 'idempotency_key', wp_generate_uuid4() );
 		}
 		?>
+		<?php $wpcap_missing = \PassCaptain\ParticipantFields::missing( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) ); // A682. ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<?php if ( $can_refund ) : ?><td class="check-column"></td><?php endif; ?>
@@ -840,6 +841,9 @@ final class OrdersPage {
 						<?php foreach ( $ticket->answers as $label => $answer ) : ?>
 							<div><strong><?php echo esc_html( $label ); ?>:</strong> <?php echo esc_html( $answer ); ?></div>
 						<?php endforeach; ?>
+						<?php if ( ! empty( $wpcap_missing[ (int) $ticket->ticket_id ] ) ) : ?>
+							<div class="wpcap-missing"><strong><?php esc_html_e( 'Fehlt:', 'pass-captain' ); ?></strong> <?php echo esc_html( implode( ', ', $wpcap_missing[ (int) $ticket->ticket_id ] ) ); ?></div>
+						<?php endif; ?>
 					</td>
 				</tr>
 			<?php endforeach; ?>
@@ -908,6 +912,32 @@ final class OrdersPage {
 		}
 		echo '</p>';
 		if ( $can_resend ) { self::render_resend_form( $order ); }
+		if ( $can_resend && \PassCaptain\ParticipantFields::missing( array_map( static function ( $t ) { return (int) $t->ticket_id; }, Orders::tickets_for_order( (int) $order->order_id ) ) ) ) {
+			// A682: ask the buyer for missing attendee data (new order link, at most once per hour).
+			Forms::open_form( 'wpcap_request_attendee_data', 'wpcap_request_attendee_data_' . $order->order_id );
+			Forms::hidden( 'order_id', $order->order_id );
+			echo '<p><button class="button" type="submit">' . esc_html__( 'Fehlende Teilnehmerangaben anfordern', 'pass-captain' ) . '</button> <span class="description">' . esc_html__( 'Die Käufer:in erhält eine E-Mail mit den fehlenden Angaben je Ticket und einem neuen Bestelllink; der bisherige Bestelllink wird ungültig.', 'pass-captain' ) . '</span></p></form>';
+		}
+	}
+
+	/** A682: "Fehlende Teilnehmerangaben anfordern" (capability of the orders page). */
+	public static function request_attendee_data( array $in ) {
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { return $order; }
+		$result = \PassCaptain\ParticipantFields::request_missing( (int) $order->order_id );
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			return Forms::error( $result->get_error_code(), $result->get_error_message(), (int) ( $data['status'] ?? 409 ) );
+		}
+		return $result;
+	}
+
+	public static function handle_request_attendee_data() {
+		$in = Forms::post();
+		$order_id = Forms::int( $in, 'order_id' );
+		Forms::verify( 'wpcap_request_attendee_data_' . $order_id );
+		$result = self::request_attendee_data( $in );
+		Forms::finish( $result, is_wp_error( $result ) ? '' : __( 'Fehlende Teilnehmerangaben angefordert.', 'pass-captain' ), self::order_url( $order_id ) );
 	}
 
 	/**

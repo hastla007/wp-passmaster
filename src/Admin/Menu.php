@@ -36,6 +36,7 @@ final class Menu {
 			'wpcap_settle_unallocated' => array( OrdersPage::class, 'handle_settle_unallocated' ),
 			'wpcap_cancel_order' => array( OrdersPage::class, 'handle_cancel_order' ),
 			'wpcap_resend_tickets' => array( OrdersPage::class, 'handle_resend_tickets' ),
+			'wpcap_request_attendee_data' => array( OrdersPage::class, 'handle_request_attendee_data' ),
 			'wpcap_ticket_pdf' => array( OrdersPage::class, 'handle_ticket_pdf' ),
 			'wpcap_refund_order' => array( OrdersPage::class, 'handle_refund' ),
 			'wpcap_approve_refund' => array( OrdersPage::class, 'handle_approve_refund' ),

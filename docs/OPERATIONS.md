@@ -1786,3 +1786,20 @@ Bestellportal.
   jede Fassung mit Version fest, und jede Antwort speichert die Version, unter der sie gegeben wurde
   (`wpcap_participant_answers.field_version`; 0 = vor Schema 3.10.25). Hilfetext, Zweck, Reihenfolge und
   Aufbewahrung ändern die Version nicht.
+
+### Fehlende Teilnehmerangaben nachfordern (A682)
+
+Fehlen an einem gültigen Ticket noch Pflichtangaben – der Name bei „Name für jedes Ticket verlangen“ oder ein
+Pflichtfeld ohne Antwort, z. B. nach einem Wartelistenangebot, einer Bestellung ohne Teilnehmerdaten oder einem
+später angelegten Pflichtfeld –, nennt Pass Captain sie gezielt je Ticket (`ParticipantFields::missing()`;
+Einwilligungen werden nie nachgefordert):
+
+- **Ticket-E-Mail:** unter dem betroffenen Ticket „Noch fehlende Angaben: Name, T-Shirt – bitte über „Ticket
+  öffnen“ ergänzen.“ (die Ticketseite hat das Formular „Teilnehmerdaten“). Audit `attendee_data_missing` und Aktion
+  `wpcap_attendee_data_missing` (nur Ticket-IDs und Feldbezeichnungen).
+- **Bestellansicht im Admin:** Spalte „Angaben“ zeigt „Fehlt: …“ je Ticket; unter „Aktionen“ steht
+  **„Fehlende Teilnehmerangaben anfordern“** (Recht `wpcap_manage_orders` für die Bestellung). Die Käuferin bzw. der
+  Käufer erhält die Mail `attendee_data_request` mit der Liste je Ticket und einem **neuen persönlichen Bestelllink**
+  (der bisherige Bestelllink wird ungültig); höchstens einmal je Stunde und Bestellung (`wpcap_attendee_request_recent`,
+  429), protokolliert als `attendee_data_requested` ohne Personendaten. Ohne Lücken: `wpcap_attendee_data_complete`.
+- **Bestellportal:** je Ticket der Hinweis „Für dieses Ticket fehlen noch: …“ über dem Formular „Teilnehmer zuweisen“.

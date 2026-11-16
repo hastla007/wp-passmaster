@@ -2576,8 +2576,15 @@ final class Orders {
 			// Short help code for staff when the QR code cannot be read (stored only as keyed hash).
 			foreach ( $issued as $index => $ticket ) { $issued[ $index ]['help_code'] = HelpCode::for_ticket( $ticket['ticket_id'], $ticket['token'] ); }
 			do_action( 'wpcap_tickets_issued', (int) $order_id, count( $issued ) );
-			$entries = array_map( static function ( $ticket ) {
-				return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'url' => add_query_arg( 'wpcap_ticket', $ticket['token'], home_url( '/' ) ), 'token' => $ticket['token'], 'help_code' => $ticket['help_code'] );
+			// A682: the ticket mail names, per ticket, the attendee data that is still missing.
+			$missing_data = ParticipantFields::missing( array_column( $issued, 'ticket_id' ) );
+			if ( $missing_data ) {
+				Audit::record( 'attendee_data_missing', 'order', (int) $order_id, array( 'tickets' => count( $missing_data ) ) );
+				/** A682: tickets were issued with missing attendee data (ticket_id => labels). */
+				do_action( 'wpcap_attendee_data_missing', (int) $order_id, $missing_data );
+			}
+			$entries = array_map( static function ( $ticket ) use ( $missing_data ) {
+				return array( 'missing' => $missing_data[ (int) $ticket['ticket_id'] ] ?? array(), 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'url' => add_query_arg( 'wpcap_ticket', $ticket['token'], home_url( '/' ) ), 'token' => $ticket['token'], 'help_code' => $ticket['help_code'] );
 			}, $issued );
 			$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return Mail\Blocks::issued_tickets( $entries ); } ), (string) $order->locale );
 			$attachments = array();

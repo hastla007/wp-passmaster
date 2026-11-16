@@ -270,6 +270,96 @@ final class ParticipantFields {
 	}
 
 	/**
+	 * A682: what is still missing per valid ticket – the attendee name (ticket types with "name
+	 * required") and required, active participant fields without an answer (consents are never
+	 * requested afterwards: they are voluntary). Tickets without gaps are left out.
+	 *
+	 * @param int[] $ticket_ids Ticket IDs.
+	 * @return array<int,string[]> ticket_id => labels of the missing data.
+	 */
+	public static function missing( array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$in = implode( ',', $ids );
+		$tickets = (array) $wpdb->get_results( "SELECT t.ticket_id,t.ticket_type_id,COALESCE(ta.attendee_name,'') AS attendee_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.ticket_id IN ($in) AND t.status='valid' ORDER BY t.ticket_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		if ( ! $tickets ) { return array(); }
+		$types = implode( ',', array_unique( array_map( static function ( $t ) { return (int) $t->ticket_type_id; }, $tickets ) ) );
+		$fields = array();
+		foreach ( (array) $wpdb->get_results( "SELECT field_id,ticket_type_id,label FROM {$p}wpcap_participant_fields WHERE ticket_type_id IN ($types) AND status='active' AND required=1" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id' ) as $f ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$fields[ (int) $f->ticket_type_id ][ (int) $f->field_id ] = (string) $f->label;
+		}
+		$names = array();
+		if ( self::name_switch_ready() ) {
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,attendee_name_required FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN ($types)" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$names[ (int) $row->ticket_type_id ] = self::name_required( (int) $row->ticket_type_id, $row );
+			}
+		}
+		$answered = array();
+		foreach ( (array) $wpdb->get_results( "SELECT ticket_id,field_id FROM {$p}wpcap_participant_answers WHERE ticket_id IN ($in) AND answer<>''" ) as $a ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$answered[ (int) $a->ticket_id ][ (int) $a->field_id ] = true;
+		}
+		$out = array();
+		foreach ( $tickets as $t ) {
+			$labels = array();
+			if ( ! empty( $names[ (int) $t->ticket_type_id ] ) && '' === trim( (string) $t->attendee_name ) ) { $labels[] = __( 'Name', 'pass-captain' ); }
+			foreach ( $fields[ (int) $t->ticket_type_id ] ?? array() as $field_id => $label ) {
+				if ( empty( $answered[ (int) $t->ticket_id ][ $field_id ] ) ) { $labels[] = $label; }
+			}
+			if ( $labels ) { $out[ (int) $t->ticket_id ] = $labels; }
+		}
+		return $out;
+	}
+
+	/** Minimum time between two requests for missing data of the same order (A682). */
+	const REQUEST_INTERVAL = HOUR_IN_SECONDS;
+
+	/**
+	 * A682: asks the buyer for the missing attendee data – a mail that names, per ticket, what is
+	 * missing and carries a new personal order link (the previous order link stops working; the
+	 * portal lets the buyer fill in the data per ticket). Admin action (capability of the orders
+	 * page, checked by the caller), at most once per REQUEST_INTERVAL per order, audited without
+	 * personal data.
+	 *
+	 * @return array|\WP_Error {order_id, tickets, sent}
+	 */
+	public static function request_missing( $order_id ) {
+		global $wpdb;
+		$order = Orders::get( $order_id );
+		if ( ! $order ) { return new \WP_Error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( 'paid' !== (string) $order->payment_status ) { return new \WP_Error( 'wpcap_order_unpaid', __( 'Angaben können erst nach bestätigter Zahlung angefordert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		$tickets = Orders::tickets_for_order( (int) $order->order_id );
+		$missing = self::missing( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) );
+		if ( ! $missing ) { return new \WP_Error( 'wpcap_attendee_data_complete', __( 'Für diese Bestellung fehlen keine Angaben zu Teilnehmenden.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		if ( Mail\Mailer::is_placeholder( (string) $order->customer_email ) || ! is_email( (string) $order->customer_email ) ) {
+			return new \WP_Error( 'wpcap_attendee_request_no_email', __( 'Für diese Bestellung ist keine E-Mail-Adresse hinterlegt.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$since = gmdate( 'Y-m-d H:i:s', time() - self::REQUEST_INTERVAL );
+		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE action='attendee_data_requested' AND object_type='order' AND object_id=%d AND created_at>=%s", (int) $order->order_id, $since ) ) ) {
+			return new \WP_Error( 'wpcap_attendee_request_recent', __( 'Die Angaben wurden für diese Bestellung gerade erst angefordert. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
+		$by_id = array();
+		foreach ( $tickets as $t ) { $by_id[ (int) $t->ticket_id ] = $t; }
+		$list = array();
+		foreach ( $missing as $ticket_id => $labels ) {
+			$t = $by_id[ $ticket_id ] ?? null;
+			if ( ! $t ) { continue; }
+			/* translators: 1: event and ticket type, 2: date, 3: missing fields */
+			$list[] = sprintf( __( '%1$s (%2$s): %3$s', 'pass-captain' ), $t->event_name . ' — ' . $t->ticket_name, Orders::format_start( $t->starts_at, $t->timezone ), implode( ', ', $labels ) );
+		}
+		$token = bin2hex( random_bytes( 32 ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
+		$sent = Mail\Mailer::send( 'attendee_data_request', (string) $order->customer_email, array(
+			'order_id' => Frontend\Format::order_reference( (string) $order->public_id ),
+			'missing_list' => Mail\Mailer::block( implode( "\n", $list ) . "\n", '<ul><li>' . implode( '</li><li>', array_map( 'esc_html', $list ) ) . '</li></ul>' ),
+			'access_link' => Mail\Mailer::link( PortalSelfService::portal_url( (string) $order->public_id, $token ) ),
+		), array(), (string) $order->locale, (int) $order->order_id );
+		Audit::record( 'attendee_data_requested', 'order', (int) $order->order_id, array( 'tickets' => count( $list ), 'sent' => (bool) $sent ) );
+		return array( 'order_id' => (int) $order->order_id, 'tickets' => count( $list ), 'sent' => (bool) $sent );
+	}
+
+	/**
 	 * Whether a saved definition differs from the stored one in a versioned column.
 	 *
 	 * @param object $old  Stored row.
