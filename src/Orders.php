@@ -237,6 +237,14 @@ final class Orders {
 			$total = max( 0, $subtotal - $discount );
 			// Trusted channels (box office "invoice", partner API) ask for the same rule via require_billing.
 			if ( ( ! $external || ! empty( $internal['require_billing'] ) ) && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
+			// A634: unpaid bank transfer orders of the public checkout (payment method chosen by the buyer, no
+			// trusted channel) hold their units for days; together they may hold at most a share of each
+			// ticket type and date. Checked under the type/occurrence locks above, so concurrent checkouts
+			// cannot exceed it together. Staff channels (admin holds, box office, partners) are not limited.
+			if ( 'manual' === $payment_provider && isset( $internal['payment_provider'] ) && ! $external && ! $skip_rate_limit && '' === $namespace && $total > 0 ) {
+				$manual_error = self::manual_hold_error( $clean_lines, $types, $occurrences, $now );
+				if ( '' !== $manual_error ) { throw new \RuntimeException( $manual_error ); }
+			}
 			// Each campaign discount sits on the lines it applies to (Campaigns::calculate()); VAT per
 			// line on the discounted gross amount. The line discount is stored with the line.
 			$tax_total = 0;
@@ -600,6 +608,7 @@ final class Orders {
 			'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'pass-captain' ),
 			'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'pass-captain' ),
 			'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
+			'manual_hold_limit' => __( 'Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
 		);
 		if ( 'order_insert_failed' === $code ) {
 			// A concurrent request with the same idempotency key won the unique index.
@@ -1517,6 +1526,56 @@ final class Orders {
 		if ( ! $type_ids ) { return $minutes; }
 		$start = $wpdb->get_var( "SELECT MIN(o.starts_at) FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id IN (" . implode( ',', $type_ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		return self::manual_hold_until( $start ? strtotime( $start . ' UTC' ) : 0, $minutes );
+	}
+
+	/**
+	 * Upper bound for units held by unpaid bank transfer orders (A634), per ticket type and per date with a
+	 * capacity: `manual_hold_max_percent` of the capacity (0 = no bound), but never fewer than
+	 * `wpcap_manual_hold_min_units` units (default 10), so small events still sell by bank transfer.
+	 *
+	 * @param int $capacity Capacity (> 0).
+	 * @return int|null Null when there is no bound.
+	 */
+	public static function manual_hold_cap( $capacity ) {
+		$percent = min( 100, max( 0, (int) Settings::get( 'manual_hold_max_percent' ) ) );
+		if ( $percent < 1 || $percent >= 100 || (int) $capacity < 1 ) { return null; }
+		$floor = max( 1, (int) apply_filters( 'wpcap_manual_hold_min_units', 10 ) );
+		return max( $floor, (int) ceil( (int) $capacity * $percent / 100 ) );
+	}
+
+	/**
+	 * Checks the new manual order's lines against manual_hold_cap() (inside Orders::create(), with the
+	 * ticket types and occurrences locked). Returns 'manual_hold_limit', 'db_busy' or ''.
+	 *
+	 * @param int[]    $lines       ticket_type_id => quantity.
+	 * @param object[] $types       Locked ticket types by id.
+	 * @param object[] $occurrences Locked occurrences by id.
+	 * @param string   $now         UTC now.
+	 */
+	private static function manual_hold_error( array $lines, array $types, array $occurrences, $now ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$held_sql = "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id INNER JOIN {$p}wpcap_ticket_types t ON t.ticket_type_id=r.ticket_type_id WHERE r.status='active' AND r.expires_at > %s AND o.payment_provider='manual' AND o.payment_status='pending' AND ";
+		$per_occurrence = array();
+		foreach ( $lines as $type_id => $quantity ) {
+			$type = $types[ $type_id ];
+			$occ_id = (int) $type->occurrence_id;
+			$per_occurrence[ $occ_id ] = ( $per_occurrence[ $occ_id ] ?? 0 ) + (int) $quantity;
+			$cap = self::manual_hold_cap( (int) $type->capacity );
+			if ( null === $cap ) { continue; }
+			$held = (int) $wpdb->get_var( $wpdb->prepare( $held_sql . 'r.ticket_type_id=%d', $now, (int) $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static SQL with placeholders.
+			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
+			if ( $held + (int) $quantity > $cap ) { return 'manual_hold_limit'; }
+		}
+		foreach ( $per_occurrence as $occ_id => $quantity ) {
+			$occurrence = $occurrences[ $occ_id ] ?? null;
+			$cap = $occurrence ? self::manual_hold_cap( (int) $occurrence->capacity ) : null;
+			if ( null === $cap ) { continue; }
+			$held = (int) $wpdb->get_var( $wpdb->prepare( $held_sql . 't.occurrence_id=%d', $now, (int) $occ_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static SQL with placeholders.
+			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
+			if ( $held + (int) $quantity > $cap ) { return 'manual_hold_limit'; }
+		}
+		return '';
 	}
 
 	/** manual_hold_minutes() for a known start timestamp (0 = unknown: no cap). */

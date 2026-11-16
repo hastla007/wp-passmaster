@@ -51,6 +51,8 @@ final class Settings {
 			'campaign_stacking'         => 'cumulative',
 			'manual_hold_hours'         => 72,
 			'manual_cutoff_hours'       => 0,
+			// A634: unpaid bank transfer orders hold at most this share of a ticket type / date (0 = no bound).
+			'manual_hold_max_percent'   => 50,
 			// No payment method by default (A265): manual payment needs a bank account or instructions first.
 			// Installs from before schema 3.10.9 keep 'manual' (Installer::pin_legacy_manual_provider()).
 			'enabled_providers'         => array(),
