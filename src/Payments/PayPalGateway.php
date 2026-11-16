@@ -712,7 +712,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface, Pa
 		if ( is_string( $cached ) && '' !== $cached ) { return $cached; }
 		$response = \PassCaptain\OutboundHttp::request( self::base() . '/v1/oauth2/token', array(
 			'method' => 'POST',
-			'timeout' => 15,
+			'timeout' => \PassCaptain\Config::get( 'http_timeout' ),
 			'headers' => array(
 				'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 				'Content-Type' => 'application/x-www-form-urlencoded',
@@ -745,7 +745,7 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface, Pa
 		if ( is_wp_error( $token ) ) { return $token; }
 		$args = array(
 			'method' => $method,
-			'timeout' => 15,
+			'timeout' => \PassCaptain\Config::get( 'http_timeout' ),
 			'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json', 'Accept' => 'application/json' ),
 		);
 		if ( '' !== $request_id ) { $args['headers']['PayPal-Request-Id'] = substr( $request_id, 0, 108 ); }

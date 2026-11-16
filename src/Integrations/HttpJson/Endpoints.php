@@ -473,7 +473,7 @@ final class Endpoints {
 		$attempts = (int) $row->attempts + 1;
 		if ( is_wp_error( $result ) ) {
 			$data = (array) $result->get_error_data();
-			$wpdb->update( $table, array( 'status' => $attempts >= Jobs::MAX_ATTEMPTS ? 'failed' : 'retrying', 'attempts' => $attempts, 'response_code' => (int) ( $data['response_code'] ?? 0 ), 'last_error' => mb_substr( Redact::text( $result->get_error_message() ), 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
+			$wpdb->update( $table, array( 'status' => $attempts >= Jobs::max_attempts() ? 'failed' : 'retrying', 'attempts' => $attempts, 'response_code' => (int) ( $data['response_code'] ?? 0 ), 'last_error' => mb_substr( Redact::text( $result->get_error_message() ), 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
 			return $result;
 		}
 		$wpdb->update( $table, array( 'status' => 'delivered', 'attempts' => $attempts, 'response_code' => (int) $result['code'], 'last_error' => '', 'delivered_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );

@@ -23,6 +23,11 @@ final class Jobs {
 	/** Minutes after which a claim of a worker that died is taken back. */
 	const STALE_MINUTES = 15;
 
+	/** Runs before a job becomes a dead letter (Config jobs_max_attempts, default MAX_ATTEMPTS; A408). */
+	public static function max_attempts() {
+		return Config::get( 'jobs_max_attempts' );
+	}
+
 	public static function enqueue( $key, $type, array $payload, $run_after = '' ) {
 		global $wpdb;
 		$key = sanitize_text_field( $key );
@@ -150,7 +155,7 @@ final class Jobs {
 	 */
 	private static function claim( $table, $row, $now ) {
 		global $wpdb;
-		if ( (int) $row->attempts >= self::MAX_ATTEMPTS ) {
+		if ( (int) $row->attempts >= self::max_attempts() ) {
 			// Its last run did not finish (worker died, claim released or taken back): no further run.
 			// queued → running → dead_letter (StateMachine 'job') in one transaction, without a run.
 			$error = (string) $row->last_error;
@@ -218,7 +223,7 @@ final class Jobs {
 			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
 			return;
 		}
-		$dead = $attempts >= self::MAX_ATTEMPTS;
+		$dead = $attempts >= self::max_attempts();
 		$to = $dead ? 'dead_letter' : 'queued';
 		$failed = array( 'run_after' => gmdate( 'Y-m-d H:i:s', time() + self::backoff_seconds( $attempts ) ), 'locked_at' => null, 'last_error' => self::short_error( Redact::text( (string) $error ) ), 'updated_at' => current_time( 'mysql', true ) );
 		$marked = false;
@@ -282,7 +287,7 @@ final class Jobs {
 	private static function recover_stale( $now ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_jobs';
-		$stale = gmdate( 'Y-m-d H:i:s', time() - self::STALE_MINUTES * MINUTE_IN_SECONDS );
+		$stale = gmdate( 'Y-m-d H:i:s', time() - Config::get( 'jobs_stale_minutes' ) * MINUTE_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='queued',locked_at=NULL,run_after=DATE_ADD(%s, INTERVAL LEAST(%d, 60*POW(2, LEAST(GREATEST(attempts,1),10))) SECOND),last_error=%s,updated_at=%s WHERE status='running' AND locked_at<%s", $table, $now, DAY_IN_SECONDS, __( 'Der Worker wurde während der Ausführung beendet (Reservierung nach 15 Minuten zurückgeholt).', 'pass-captain' ), $now, $stale ) );
 	}
 
@@ -322,7 +327,7 @@ final class Jobs {
 
 	/** A job reached its last attempt: audited and announced (operations page and Site Health list it). */
 	private static function dead_letter( $row, $error ) {
-		Audit::record( 'job_dead_letter', 'job', (int) $row->job_id, array( 'type' => (string) $row->job_type, 'attempts' => max( (int) $row->attempts, self::MAX_ATTEMPTS ) ) );
+		Audit::record( 'job_dead_letter', 'job', (int) $row->job_id, array( 'type' => (string) $row->job_type, 'attempts' => max( (int) $row->attempts, self::max_attempts() ) ) );
 		/**
 		 * A background job failed for good (dead letter) after Jobs::MAX_ATTEMPTS runs.
 		 *

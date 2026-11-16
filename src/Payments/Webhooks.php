@@ -72,8 +72,8 @@ final class Webhooks {
 			if ( is_wp_error( $applied ) ) { return $applied; }
 		}
 		$now = current_time( 'mysql', true );
-		// A claim left in "processing" by a crashed request may be taken over after 10 minutes.
-		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $p . 'wpcap_payment_events', $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ) ) );
+		// A claim left in "processing" by a crashed request may be taken over after 10 minutes (Config webhook_lock_minutes, A408).
+		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $p . 'wpcap_payment_events', $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - \PassCaptain\Config::get( 'webhook_lock_minutes' ) * MINUTE_IN_SECONDS ) ) );
 		if ( false === $taken_over ) {
 			return self::db_error( $provider, $event_id, 'takeover' );
 		}

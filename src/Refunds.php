@@ -758,7 +758,7 @@ final class Refunds {
 	public static function repair_stuck() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$cutoff = gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS );
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE status='processing' AND updated_at < %s AND (provider_reference<>'' OR error_message<>%s) ORDER BY refund_id LIMIT 50", $cutoff, self::OUTCOME_UNKNOWN ), ARRAY_A );
 		$done = 0;
 		foreach ( (array) $rows as $row ) {
@@ -936,7 +936,7 @@ final class Refunds {
 		}
 		if ( null === $found ) {
 			// The call may still be on its way: "not found" counts only 10 minutes after it.
-			if ( strtotime( $refund['updated_at'] . ' UTC' ) > time() - 10 * MINUTE_IN_SECONDS ) { return 'waiting'; }
+			if ( strtotime( $refund['updated_at'] . ' UTC' ) > time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ) { return 'waiting'; }
 			$found = array(
 				'status'    => 'not_found',
 				'reference' => '',
@@ -1204,7 +1204,7 @@ final class Refunds {
 	public static function is_unresolved( array $refund ) {
 		if ( 'processing' !== ( $refund['status'] ?? '' ) || '' !== (string) ( $refund['provider_reference'] ?? '' ) ) { return false; }
 		return in_array( (string) ( $refund['error_message'] ?? '' ), array( self::OUTCOME_UNKNOWN, 'needs_manual_check' ), true )
-			|| strtotime( (string) ( $refund['updated_at'] ?? '' ) . ' UTC' ) < time() - 10 * MINUTE_IN_SECONDS;
+			|| strtotime( (string) ( $refund['updated_at'] ?? '' ) . ' UTC' ) < time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS;
 	}
 
 	/**
@@ -1216,7 +1216,7 @@ final class Refunds {
 	public static function unresolved( $limit = 100 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id AS order_public_id,o.payment_provider,o.customer_email FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='processing' AND r.provider_reference='' AND (r.error_message IN (%s,'needs_manual_check') OR r.updated_at < %s) ORDER BY r.refund_id LIMIT %d", self::OUTCOME_UNKNOWN, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ), max( 1, (int) $limit ) ), ARRAY_A );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id AS order_public_id,o.payment_provider,o.customer_email FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='processing' AND r.provider_reference='' AND (r.error_message IN (%s,'needs_manual_check') OR r.updated_at < %s) ORDER BY r.refund_id LIMIT %d", self::OUTCOME_UNKNOWN, gmdate( 'Y-m-d H:i:s', time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ), max( 1, (int) $limit ) ), ARRAY_A );
 	}
 
 	/** Returns a refund row as array or null. */
