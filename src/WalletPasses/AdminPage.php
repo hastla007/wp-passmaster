@@ -132,7 +132,7 @@ final class AdminPage {
 	}
 
 	private static function yes_no( $flag ) {
-		return $flag ? '<span style="color:#007017">' . esc_html__( 'ja', 'pass-captain' ) . '</span>' : '<span style="color:#d63638">' . esc_html__( 'nein', 'pass-captain' ) . '</span>';
+		return $flag ? '<span style="color:#007017">' . esc_html__( 'ja', 'pass-captain' ) . '</span>' : '<span style="color:#b32d2e">' . esc_html__( 'nein', 'pass-captain' ) . '</span>';
 	}
 
 	private static function cert_row( $label, $cert ) {
@@ -141,7 +141,7 @@ final class AdminPage {
 			$expired = $cert['valid_to'] < time();
 			$soon = ! $expired && $cert['valid_to'] < time() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS;
 			echo esc_html( $cert['subject'] ) . '<br>' . esc_html( sprintf( /* translators: 1: from date, 2: to date */ __( 'gültig von %1$s bis %2$s', 'pass-captain' ), gmdate( 'd.m.Y', $cert['valid_from'] ), gmdate( 'd.m.Y', $cert['valid_to'] ) ) );
-			if ( $expired || $soon ) { echo ' <strong style="color:#d63638">' . esc_html( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'läuft bald ab', 'pass-captain' ) ) . '</strong>'; }
+			if ( $expired || $soon ) { echo ' <strong style="color:#b32d2e">' . esc_html( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'läuft bald ab', 'pass-captain' ) ) . '</strong>'; }
 		}
 		echo '</td></tr>';
 	}

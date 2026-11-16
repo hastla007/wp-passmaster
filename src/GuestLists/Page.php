@@ -218,7 +218,7 @@ final class Page {
 		$occurrences = self::occurrence_options( $event_id, true );
 		$list_id = absint( Forms::query_arg( 'list_id' ) );
 		echo '<h2>' . esc_html__( 'Listen', 'pass-captain' ) . '</h2>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Liste', 'pass-captain' ) . '</th><th>' . esc_html__( 'Grund', 'pass-captain' ) . '</th><th>' . esc_html__( 'Termin', 'pass-captain' ) . '</th><th>' . esc_html__( 'Kontingent (vergeben / gesamt)', 'pass-captain' ) . '</th><th>' . esc_html__( 'Offene Anfragen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verantwortlich / Freigabe', 'pass-captain' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Liste', 'pass-captain' ) . '</th><th>' . esc_html__( 'Grund', 'pass-captain' ) . '</th><th>' . esc_html__( 'Termin', 'pass-captain' ) . '</th><th>' . esc_html__( 'Kontingent (vergeben / gesamt)', 'pass-captain' ) . '</th><th>' . esc_html__( 'Offene Anfragen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verantwortlich / Freigabe', 'pass-captain' ) . '</th><th><span class="screen-reader-text">' . esc_html__( 'Aktionen', 'pass-captain' ) . '</span></th></tr></thead><tbody>';
 		if ( ! $lists ) { echo '<tr><td colspan="7">' . esc_html__( 'Noch keine Gästelisten.', 'pass-captain' ) . '</td></tr>'; }
 		foreach ( $lists as $l ) {
 			$u = Service::usage( $l->list_id );
@@ -329,7 +329,7 @@ final class Page {
 		// Entrance areas the user may scan in for this event (A591): the arrival is checked in there.
 		$areas = array();
 		foreach ( \PassCaptain\Admission\Areas::selectable( array( (int) $event_id ) ) as $area ) { $areas[ (int) $area->area_id ] = $area->name; }
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Name', 'pass-captain' ) . '</th><th>' . esc_html__( 'Firma', 'pass-captain' ) . '</th><th>' . esc_html__( 'Liste', 'pass-captain' ) . '</th><th>' . esc_html__( 'Personen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Codes', 'pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt', 'pass-captain' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Name', 'pass-captain' ) . '</th><th>' . esc_html__( 'Firma', 'pass-captain' ) . '</th><th>' . esc_html__( 'Liste', 'pass-captain' ) . '</th><th>' . esc_html__( 'Personen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Codes', 'pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt', 'pass-captain' ) . '</th><th><span class="screen-reader-text">' . esc_html__( 'Aktionen', 'pass-captain' ) . '</span></th></tr></thead><tbody>';
 		foreach ( $results as $r ) {
 			echo '<tr><td>' . esc_html( $r['name'] ) . '</td><td>' . esc_html( $r['company'] ) . '</td><td>' . esc_html( $r['list'] ) . '</td><td>' . (int) $r['quantity'] . '</td><td><code>' . esc_html( implode( ' ', $r['codes'] ) ) . '</code></td><td>' . (int) $r['tickets_checked_in'] . ' / ' . (int) $r['quantity'] . '</td><td>';
 			if ( $r['tickets_valid'] ) {
