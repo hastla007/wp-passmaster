@@ -117,7 +117,7 @@ final class Retention {
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
-		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs', 'financial_records' ) as $step ) {
+		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs', 'financial_records', 'wallet_purges' ) as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
 		}
 		/**
@@ -470,6 +470,11 @@ final class Retention {
 		$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? time() : (int) ( $state['full_at'] ?? 0 ) );
 		update_option( self::CHECKIN_STAFF_CURSOR, $state, false );
 		return $total;
+	}
+
+	/** Apple Wallet registrations of erased tickets whose delayed purge is due (A510). */
+	private static function step_wallet_purges( $now, $deadline ) {
+		return \PassCaptain\Privacy::purge_due_wallet_registrations( $now, $deadline );
 	}
 
 	private static function step_audit_logs( $now, $deadline ) {

@@ -18,6 +18,12 @@ final class Privacy {
 	const PLACEHOLDER_DOMAIN = '@invalid.example';
 	/** Single event: deletes Apple Wallet device registrations of erased tickets after the revocation push. */
 	const WALLET_PURGE_HOOK = 'wpcap_privacy_purge_wallet_registrations';
+	/**
+	 * Option: Apple Wallet registrations still to delete after an erasure (ticket id => due UNIX time).
+	 * The cron event of WALLET_PURGE_HOOK is only the fast path: deactivation removes it, so the daily
+	 * retention run deletes whatever is due from here (A510).
+	 */
+	const WALLET_PURGE_OPTION = 'wpcap_privacy_wallet_purges';
 	/** Erased orders per eraser page. */
 	const BATCH = 50;
 	/** Attendee-only tickets per eraser page. */
@@ -578,19 +584,74 @@ final class Privacy {
 		}
 		if ( $registrations_now ) {
 			$count += self::purge_wallet_registrations( $ticket_ids );
-		} elseif ( function_exists( 'wp_schedule_single_event' ) ) {
+		} else {
 			// Apple devices still need the push for the revoked pass; drop their registration afterwards.
-			wp_schedule_single_event( time() + HOUR_IN_SECONDS, self::WALLET_PURGE_HOOK, array( array_values( array_map( 'absint', $ticket_ids ) ) ) );
+			// Recorded first (survives a deactivation that removes the cron event, A510), then scheduled.
+			$due = time() + HOUR_IN_SECONDS;
+			self::change_pending_wallet_purges( static function ( array $pending ) use ( $ticket_ids, $due ) {
+				foreach ( array_filter( array_map( 'absint', $ticket_ids ) ) as $id ) { $pending[ $id ] = isset( $pending[ $id ] ) ? min( (int) $pending[ $id ], $due ) : $due; }
+				return $pending;
+			} );
+			if ( function_exists( 'wp_schedule_single_event' ) ) {
+				wp_schedule_single_event( $due, self::WALLET_PURGE_HOOK, array( array_values( array_map( 'absint', $ticket_ids ) ) ) );
+			}
 		}
 		return $count;
 	}
 
 	/** Deletes Apple Wallet device registrations (device library ID, push token) of the tickets. */
 	public static function purge_wallet_registrations( $ticket_ids ) {
-		if ( ! self::has_table( 'wpcap_wallet_registrations' ) ) { return 0; }
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$in = self::in_list( (array) $ticket_ids );
-		return (int) $wpdb->query( "DELETE r FROM {$p}wpcap_wallet_registrations r INNER JOIN {$p}wpcap_wallet_passes w ON w.serial_number=r.serial_number WHERE w.ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) $ticket_ids ) ) );
+		$count = 0;
+		if ( self::has_table( 'wpcap_wallet_registrations' ) ) {
+			global $wpdb;
+			$p = $wpdb->prefix;
+			$in = self::in_list( $ticket_ids );
+			$count = (int) $wpdb->query( "DELETE r FROM {$p}wpcap_wallet_registrations r INNER JOIN {$p}wpcap_wallet_passes w ON w.serial_number=r.serial_number WHERE w.ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		}
+		if ( $ticket_ids && self::pending_wallet_purges() ) {
+			self::change_pending_wallet_purges( static fn( array $pending ) => array_diff_key( $pending, array_flip( $ticket_ids ) ) );
+		}
+		return $count;
+	}
+
+	/** Pending wallet registration purges (ticket id => due UNIX time), see WALLET_PURGE_OPTION. */
+	public static function pending_wallet_purges() {
+		$pending = get_option( self::WALLET_PURGE_OPTION, array() );
+		return is_array( $pending ) ? array_map( 'intval', $pending ) : array();
+	}
+
+	/**
+	 * Retention step (A510): deletes the registrations of every pending purge that is due – also those
+	 * whose cron event was dropped by a deactivation.
+	 *
+	 * @param int   $now      Reference time.
+	 * @param float $deadline microtime() limit.
+	 * @return int Deleted registrations.
+	 */
+	public static function purge_due_wallet_registrations( $now, $deadline ) {
+		$due = array_keys( array_filter( self::pending_wallet_purges(), static fn( $at ) => $at <= (int) $now ) );
+		$count = 0;
+		foreach ( array_chunk( $due, 500 ) as $chunk ) {
+			if ( microtime( true ) >= $deadline ) { break; }
+			$count += self::purge_wallet_registrations( $chunk );
+		}
+		return $count;
+	}
+
+	/** Read-modify-write of WALLET_PURGE_OPTION under a short lock (parallel erasures). */
+	private static function change_pending_wallet_purges( callable $change ) {
+		$locked = DbLock::acquire( 'wallet_purges', 5 );
+		try {
+			if ( function_exists( 'wp_cache_delete' ) ) { wp_cache_delete( self::WALLET_PURGE_OPTION, 'options' ); }
+			$pending = (array) $change( self::pending_wallet_purges() );
+			if ( $pending ) {
+				update_option( self::WALLET_PURGE_OPTION, $pending, false );
+			} else {
+				delete_option( self::WALLET_PURGE_OPTION );
+			}
+		} finally {
+			if ( $locked ) { DbLock::release( 'wallet_purges' ); }
+		}
 	}
 }
