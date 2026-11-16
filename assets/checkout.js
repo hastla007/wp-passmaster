@@ -719,9 +719,26 @@
 				[['amount', bank.amount], ['recipient', bank.recipient], ['iban', bank.iban], ['bic', bank.bic], ['remittance', bank.remittance], ['dueDate', bank.due_date]].forEach(function (row) {
 					if (!row[1]) return;
 					list.appendChild(el('dt', {}, t[row[0]] || row[0]));
-					list.appendChild(el('dd', { class: 'wpcap-bank-' + row[0] }, row[1]));
+					const dd = el('dd', { class: 'wpcap-bank-' + row[0] }, row[1]);
+					// A601: copy buttons for the values a buyer types into the banking app.
+					if (('iban' === row[0] || 'remittance' === row[0]) && navigator.clipboard && t.copy) {
+						const value = 'iban' === row[0] ? String(row[1]).replace(/\s+/g, '') : String(row[1]);
+						const btn = el('button', { type: 'button', class: 'wpcap-copy', 'aria-label': fill(t.copyLabel || t.copy, [t[row[0]] || row[0]]) }, t.copy);
+						btn.addEventListener('click', function () {
+							navigator.clipboard.writeText(value).then(function () { btn.textContent = t.copied || t.copy; }, function () {});
+						});
+						dd.appendChild(document.createTextNode(' '));
+						dd.appendChild(btn);
+					}
+					list.appendChild(dd);
 				});
 				panel.appendChild(list);
+				if (bank.girocode && 0 === String(bank.girocode).indexOf('data:image/svg+xml;base64,')) {
+					const fig = el('figure', { class: 'wpcap-girocode' });
+					fig.appendChild(el('img', { src: bank.girocode, width: '180', height: '180', alt: t.girocodeAlt || '' }));
+					if (t.girocode) fig.appendChild(el('figcaption', {}, t.girocode));
+					panel.appendChild(fig);
+				}
 				if (bank.instructions) panel.appendChild(el('p', { class: 'wpcap-instructions' }, bank.instructions));
 				panel.appendChild(el('p', {}, bank.due_date && t.payUntil ? fill(t.payUntil, [bank.due_date]) : holdText(data.hold_minutes)));
 				panel.appendChild(el('p', {}, t.afterPayment || ''));

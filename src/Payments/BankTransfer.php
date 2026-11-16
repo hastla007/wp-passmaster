@@ -87,7 +87,34 @@ final class BankTransfer {
 		if ( ! $details['transfer'] ) {
 			$details = array_merge( $details, array( 'recipient' => '', 'iban' => '', 'bic' => '', 'remittance' => '' ) );
 		}
+		// A601: GiroCode (EPC QR) for banking apps; only SEPA credit transfers in EUR.
+		$payload = $details['transfer'] ? self::epc_payload( $details ) : '';
+		$svg = '' !== $payload && (bool) apply_filters( 'wpcap_bank_girocode', true, $order ) ? \PassCaptain\QrCode::svg( $payload, 180 ) : '';
+		$details['girocode'] = '' !== $svg ? 'data:image/svg+xml;base64,' . base64_encode( $svg ) : '';
 		return $details;
+	}
+
+	/**
+	 * EPC069-12 payload ("GiroCode", SEPA credit transfer) or '' when the transfer is not in EUR or the
+	 * amount is outside 0.01–999 999 999.99. Name max. 70, remittance max. 140 characters (EPC limits).
+	 */
+	public static function epc_payload( array $details ) {
+		if ( 'EUR' !== strtoupper( (string) ( $details['currency'] ?? '' ) ) ) { return ''; }
+		$minor = (int) ( $details['amount_minor'] ?? 0 );
+		$iban = strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $details['iban'] ?? '' ) ) );
+		$name = trim( preg_replace( '/[\r\n]+/', ' ', (string) ( $details['recipient'] ?? '' ) ) );
+		if ( $minor < 1 || $minor > 99999999999 || '' === $iban || '' === $name ) { return ''; }
+		$cut = static function ( $text, $max ) { return function_exists( 'mb_substr' ) ? mb_substr( $text, 0, $max ) : substr( $text, 0, $max ); };
+		return implode( "\n", array(
+			'BCD', '002', '1', 'SCT',
+			strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $details['bic'] ?? '' ) ) ),
+			$cut( $name, 70 ),
+			$iban,
+			'EUR' . number_format( $minor / 100, 2, '.', '' ),
+			'',
+			'',
+			$cut( trim( preg_replace( '/[\r\n]+/', ' ', (string) ( $details['remittance'] ?? '' ) ) ), 140 ),
+		) );
 	}
 
 	/** Label => value rows in display order (empty values are skipped). */

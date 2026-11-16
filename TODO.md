@@ -1198,7 +1198,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [ ] [OPTIMIERUNG] PWA „Gerät entkoppeln“ trotz nicht synchronisierter Einlässe (erweitert A345) — assets/offline-scanner/app.js:696–702 (A598, R4 Käufer-UX/Einlass)
 - [x] [OPTIMIERUNG] Ungültige Teilnehmer-E-Mail serverseitig still verworfen — src/Orders.php:515–516 (A599, R4 Käufer-UX/Checkout)
 - [x] [OPTIMIERUNG] Bestätigung ohne Kalendereintrag/Ticketlink — assets/checkout.js:368–429 (A600, R4 Käufer-UX/Checkout)
-- [ ] [OPTIMIERUNG] Überweisungsseite ohne GiroCode und Kopier-Knöpfe — assets/checkout.js:389–401, Payments/BankTransfer.php:38–59 (A601, R4 Käufer-UX/Checkout)
+- [x] [OPTIMIERUNG] Überweisungsseite ohne GiroCode und Kopier-Knöpfe — assets/checkout.js:389–401, Payments/BankTransfer.php:38–59 (A601, R4 Käufer-UX/Checkout) – erledigt: GiroCode (EPC069-12, EUR) in den Bankdaten (`BankTransfer::epc_payload()`, Filter `wpcap_bank_girocode`) im Checkout und im Bestellportal; Kopier-Knöpfe für IBAN und Verwendungszweck im Checkout; Test `zz_a601`
 - [x] [OPTIMIERUNG] Mobile: Summe weit vom Kaufknopf, street-address auf einzeiligem Feld — templates/event-card.php:78/94/169, checkout.js:58 (A602, R4 Käufer-UX/Checkout)
 - [x] [OPTIMIERUNG] Browser-Autofill trägt Käufernamen in alle Teilnehmerblöcke (PLAUSIBEL) — assets/checkout.js:58 (A603, R4 Käufer-UX/Checkout)
 - [x] [OPTIMIERUNG] SMS-Nummer „+49 (0)151 …“ wird zu falscher Nummer — src/Sms/Service.php:83–91 (A604, R4 Käufer-UX/Checkout)

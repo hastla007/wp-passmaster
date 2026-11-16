@@ -1293,7 +1293,7 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:515–516: 400 mit field=attendees
 - [x] **A600** [OPTIMIERUNG] Bestätigung ohne Kalendereintrag/Ticketlink — _R4 Käufer-UX/Checkout_ (TODO L955; Audit Runde 4)
   - assets/checkout.js:368–429: .ics-Link sofort, kurzlebiger Ticketlink abwägen
-- [ ] **A601** [OPTIMIERUNG] Überweisungsseite ohne GiroCode und Kopier-Knöpfe — _R4 Käufer-UX/Checkout_ (TODO L956; Audit Runde 4)
+- [x] **A601** [OPTIMIERUNG] Überweisungsseite ohne GiroCode und Kopier-Knöpfe — _R4 Käufer-UX/Checkout_ (TODO L956; Audit Runde 4)
   - assets/checkout.js:389–401, Payments/BankTransfer.php:38–59: EPC-QR (GiroCode), Kopieren für IBAN/Verwendungszweck
 - [x] **A602** [OPTIMIERUNG] Mobile: Summe weit vom Kaufknopf, street-address auf einzeiligem Feld — _R4 Käufer-UX/Checkout_ (TODO L957; Audit Runde 4)
   - templates/event-card.php:78/94/169, checkout.js:58: Sticky Summe am Button, address-line1

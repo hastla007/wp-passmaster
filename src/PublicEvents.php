@@ -220,6 +220,13 @@ final class PublicEvents {
 				'payNow' => __( 'Bitte überweise den Betrag mit diesen Angaben:', 'pass-captain' ),
 				/* translators: %s: date and time */
 				'payUntil' => __( 'Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'pass-captain' ),
+				// A601: copy buttons and GiroCode of the bank transfer details.
+				'copy' => __( 'Kopieren', 'pass-captain' ),
+				/* translators: %s: field, e.g. IBAN */
+				'copyLabel' => __( '%s kopieren', 'pass-captain' ),
+				'copied' => __( 'Kopiert', 'pass-captain' ),
+				'girocode' => __( 'Mit der Banking-App scannen (GiroCode)', 'pass-captain' ),
+				'girocodeAlt' => __( 'GiroCode: mit der Banking-App scannen, um die Überweisung vorauszufüllen', 'pass-captain' ),
 				'afterPayment' => __( 'Nach Zahlungseingang erhältst du deine Tickets per E-Mail.', 'pass-captain' ),
 				'amount' => __( 'Betrag', 'pass-captain' ),
 				'recipient' => __( 'Empfänger', 'pass-captain' ),
