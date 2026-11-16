@@ -2,7 +2,10 @@
 
 Modul `PassCaptain\Modules\Exchange` (`src/Modules/Exchange.php`, Dienste in `src/Exchange/`).
 Admin: **Pass Captain → Umtausch** (Capability `wpcap_manage_orders`, eventbezogen über `Access`) und
-Abschnitt „Umtausch“ in der Bestelldetailansicht. Käufer:innen: Bestellportal (persönlicher Link).
+Abschnitt „Umtausch“ in der Bestelldetailansicht. Die Umtausch-Seite hat eine **Ticketsuche** (wie die
+Ticketliste: Ticket-ID, Bestellnummer „AB12-CD34“, Hilfscode, E-Mail, Name; nur gültige Tickets im eigenen
+Zugriffsbereich) mit „Umbuchen“ je Treffer, und die Ticketliste (**Tickets**) bietet „Umbuchen“ direkt je
+gültigem Ticket an (A339). Käufer:innen: Bestellportal (persönlicher Link).
 Abendkasse: öffentlicher Dienst `Exchange\Service::box_office_exchange()`.
 
 Ein gültiges Ticket (nicht eingecheckt, nicht erstattet, Bestellung bezahlt) wird in eine andere

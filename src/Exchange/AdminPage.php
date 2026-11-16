@@ -1,7 +1,8 @@
 <?php
 /**
- * Admin UI for ticket exchanges: "Umtausch" page (exchange form per ticket, global policy, event
- * overrides, recent exchanges) and a section on the order detail page.
+ * Admin UI for ticket exchanges: "Umtausch" page (ticket search, exchange form per ticket, global
+ * policy, event overrides, recent exchanges), a section on the order detail page and the "Umbuchen"
+ * action of the ticket list (A339).
  */
 namespace PassCaptain\Exchange;
 
@@ -152,7 +153,7 @@ final class AdminPage {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Ticketumtausch', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		$ticket_id = absint( Forms::query_arg( 'ticket_id', 0 ) );
-		if ( $ticket_id ) { self::render_exchange_form( $ticket_id ); }
+		if ( $ticket_id ) { self::render_exchange_form( $ticket_id ); } else { self::render_ticket_search(); }
 		if ( current_user_can( 'manage_options' ) ) { self::render_settings(); }
 		self::render_event_policy();
 		global $wpdb;
@@ -164,6 +165,45 @@ final class AdminPage {
 		echo '<h2>' . esc_html__( 'Letzte Umtausche', 'pass-captain' ) . '</h2>';
 		if ( $rows ) { \PassCaptain\Privacy\AccessLog::list_view( 'exchange_list', array(), count( $rows ) ); self::render_table( $rows ); } else { echo '<p>' . esc_html__( 'Noch keine Umtausche.', 'pass-captain' ) . '</p>'; }
 		echo '</div>';
+	}
+
+	/**
+	 * Valid tickets matching a search (same search as the ticket list: ticket/order number, help code,
+	 * e-mail, name) that the current user may exchange (A339). At most 20.
+	 *
+	 * @return object[] Rows of Queries::search_tickets().
+	 */
+	public static function find_tickets( $search ) {
+		$search = trim( (string) $search );
+		if ( '' === $search || ! current_user_can( self::CAP ) ) { return array(); }
+		$rows = Queries::search_tickets( array( 'search' => $search, 'status' => 'valid' ), Queries::event_ids_for( array( self::CAP ) ), 1, 20 )['rows'];
+		return array_values( array_filter( (array) $rows, static function ( $t ) { return ! (int) $t->refunded && Queries::can_access_order( (int) $t->order_id, self::CAP ); } ) );
+	}
+
+	/** Ticket search on the exchange page (A339): rebooking no longer needs the way via the order. */
+	private static function render_ticket_search() {
+		$search = Forms::query_arg( 'ticket_search' );
+		$placeholder = __( 'Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name', 'pass-captain' );
+		echo '<h2>' . esc_html__( 'Ticket umbuchen oder umtauschen', 'pass-captain' ) . '</h2>';
+		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><label for="wpcap-exchange-search">' . esc_html__( 'Ticket suchen', 'pass-captain' ) . '</label> <input type="search" id="wpcap-exchange-search" name="ticket_search" class="regular-text" value="' . esc_attr( $search ) . '" placeholder="' . esc_attr( $placeholder ) . '"> <button class="button" type="submit">' . esc_html__( 'Suchen', 'pass-captain' ) . '</button></form>';
+		if ( '' === $search ) {
+			echo '<p class="description">' . esc_html__( 'Auf einen anderen Termin oder eine andere Ticketart umbuchen: Ticket suchen und „Umbuchen“ wählen. Das geht auch direkt aus der Ticketliste und dem Bestelldetail.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		$rows = self::find_tickets( $search );
+		\PassCaptain\Privacy\AccessLog::list_view( 'exchange_ticket_search', array( 'search' => $search ), count( $rows ) );
+		if ( ! $rows ) {
+			echo '<p>' . esc_html__( 'Keine gültigen Tickets gefunden, die du umbuchen darfst.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Ticket', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Event / Termin', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Käufer', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktion', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $ticket ) {
+			echo '<tr><td><code>' . esc_html( (string) $ticket->public_id ) . '</code><br><small>' . esc_html( (string) $ticket->ticket_name ) . '</small></td>';
+			echo '<td>' . esc_html( (string) $ticket->event_name ) . '<br><small>' . esc_html( Forms::datetime( $ticket->starts_at, $ticket->timezone ) ) . '</small></td>';
+			echo '<td>' . esc_html( \PassCaptain\Pii::show( 'buyer_email', (string) $ticket->customer_email ) ) . '<br><small>' . esc_html( \PassCaptain\Frontend\Format::order_reference( (string) $ticket->order_public_id ) ) . '</small></td>';
+			echo '<td><a class="button" href="' . esc_url( self::url( array( 'ticket_id' => (int) $ticket->ticket_id ) ) ) . '">' . esc_html__( 'Umbuchen', 'pass-captain' ) . '</a></td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	private static function render_exchange_form( $ticket_id ) {
