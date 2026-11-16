@@ -18,7 +18,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 function wpcap_uninstall_site() {
 	global $wpdb;
 	// Same list as PassCaptain\Plugin::cron_hooks() (the plugin classes are not loaded here).
-	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_reconcile_capacity', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_waitlist_process', 'wpcap_page_cache_sales_window', 'wpcap_mollie_refresh_methods' ) as $hook ) {
+	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_reconcile_capacity', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_waitlist_process', 'wpcap_page_cache_sales_window', 'wpcap_mollie_refresh_methods', 'wpcap_network_install' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
 	// The pre-rename copy (folder wp-pass-captain) still installed: it uses the same tables – keep them. (legacy-slug)
@@ -97,6 +97,7 @@ function wpcap_uninstall_global_usermeta() {
 }
 
 if ( is_multisite() ) {
+	delete_site_option( 'wpcap_network_install' ); // Background installation of a network activation (A287).
 	$wpcap_all_opted_in = true;
 	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
 		switch_to_blog( (int) $site_id );

@@ -482,6 +482,7 @@ sondern von WP-Cron; Module hängen sich mit `add_action()` an.
 | `wpcap_waitlist_process` | einmalig zum Fälligkeitszeitpunkt (`Waitlists::queue()`, Verzögerung `wpcap_waitlist_process_delay`) | Freigewordene Plätze der Warteliste anbieten. |
 | `wpcap_page_cache_sales_window` | einmalig zu Verkaufsstart und eine Sekunde nach Verkaufsende jeder Ticketart (`PageCache::schedule_sales_windows()`, je Event die nächsten 50 Zeitpunkte), Argumente: Event-ID, Zeitpunkt | A446: Seiten des Events aus dem Seitencache entfernen (`wpcap_purge_page_cache`, Grund `sales_window`); plant danach die folgenden Zeitpunkte. |
 | `wpcap_mollie_refresh_methods` | einmalig sofort, wenn die Eventliste eine nicht zwischengespeicherte Mollie-Methodenliste braucht (`MollieGateway::REFRESH_HOOK`), Argumente: Betrag (`"25.00"`), Währung | A282: Methodenliste im Hintergrund laden und eine Stunde cachen (`MollieGateway::refresh_methods()`); die Eventkarte ruft die Mollie-API nie selbst auf. |
+| `wpcap_network_install` | einmalig nach netzwerkweiter Aktivierung auf der aktivierenden Site, dann alle 5 s bis alle Sites besucht sind (`NetworkInstall::HOOK`) | A287: Sites stapelweise einrichten (`NetworkInstall::run()`, Filter `wpcap_network_install_batch` (25 Sites) und `wpcap_network_install_budget` (15 s)). |
 
 Laufen nach Ende des Zeitbudgets noch Einträge auf, plant `Jobs\TimeBudget::continue_later()` einen sofortigen
 Folgelauf desselben Hooks (Action Scheduler, sonst WP-Cron mit Argument `continue`).

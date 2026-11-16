@@ -31,6 +31,7 @@ final class Plugin {
 			} );
 		}
 		LegacySlug::register();
+		NetworkInstall::register();
 		// Self-healing cron: recurring events lost (cron option cleaned up by another plugin, restore, the
 		// old copy's uninstall.php) are re-scheduled on the next request; one cached option read.
 		add_action( 'init', array( __CLASS__, 'ensure_events' ), 20, 0 );
@@ -155,16 +156,12 @@ final class Plugin {
 	}
 
 	public static function activate( $network_wide = false ) {
-		if ( is_multisite() && $network_wide ) {
-			$site_ids = get_sites( array( 'fields' => 'ids', 'number' => 0 ) );
-			foreach ( $site_ids as $site_id ) {
-				switch_to_blog( (int) $site_id );
-				self::activate_site();
-				restore_current_blog();
-			}
-			return;
-		}
 		self::activate_site();
+		if ( is_multisite() && $network_wide ) {
+			// A287: the other sites are installed lazily (their next admin/cron request) and in
+			// background batches – never all inside the activation request (timeout on large networks).
+			NetworkInstall::start();
+		}
 	}
 
 	private static function activate_site() {
@@ -205,7 +202,7 @@ final class Plugin {
 	 * @return string[]
 	 */
 	public static function cron_hooks() {
-		return array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK, Waitlists::HOOK, PageCache::SALES_HOOK, Mollie\MollieGateway::REFRESH_HOOK );
+		return array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK, Waitlists::HOOK, PageCache::SALES_HOOK, Mollie\MollieGateway::REFRESH_HOOK, NetworkInstall::HOOK );
 	}
 
 	public static function deactivate( $network_wide = false ) {
