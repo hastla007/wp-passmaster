@@ -91,13 +91,14 @@ final class Privacy {
 	}
 
 	/**
-	 * Scanner: keyed per-user owner id for the offline queue in localStorage (never the raw user ID),
-	 * shorter queue lifetime. See assets/scanner.js.
+	 * Scanner: keyed per-user owner id and per-site id for the offline queue in localStorage (never
+	 * the raw IDs), shorter queue lifetime. See assets/scanner.js.
 	 */
 	public static function scanner_context() {
 		if ( ! function_exists( 'wp_script_is' ) || ! wp_script_is( 'wpcap-scanner', 'registered' ) ) { return; }
 		$data = array(
 			'owner' => self::scanner_owner( get_current_user_id() ),
+			'site' => self::scanner_site(),
 			'maxAgeHours' => self::scanner_queue_hours(),
 			'i18n' => array(
 				/* translators: %d: number of discarded scans */
@@ -109,6 +110,17 @@ final class Privacy {
 
 	public static function scanner_owner( $user_id ) {
 		return substr( hash_hmac( 'sha256', 'scanner-queue|' . (int) $user_id, wp_salt( 'auth' ) ), 0, 20 );
+	}
+
+	/**
+	 * Keyed id of this site for browser storage of the web scanner (A472): the sites of a
+	 * subdirectory network share an origin and therefore localStorage; queue and preferences are
+	 * kept apart per site (blog id and home URL, so separate installations under one domain differ
+	 * as well).
+	 */
+	public static function scanner_site() {
+		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		return substr( hash_hmac( 'sha256', 'scanner-site|' . $blog . '|' . home_url( '/' ), wp_salt( 'auth' ) ), 0, 12 );
 	}
 
 	/** Hours offline scans may stay in the browser (filter wpcap_scanner_queue_max_hours, 1–168, default 24). */

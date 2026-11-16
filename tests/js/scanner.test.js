@@ -65,8 +65,12 @@ function response(status, body) {
 	return { status, ok: status >= 200 && status < 300, text: async () => text, json: async () => JSON.parse(text) };
 }
 
-/** Loads scanner.js into a fresh sandbox. fetchImpl(url, options) is called for every request. */
-function loadScanner() {
+/**
+ * Loads scanner.js into a fresh sandbox. fetchImpl(url, options) is called for every request.
+ * options.storage: a localStorage shared with another sandbox (same origin, A472);
+ * options.privacy: WPCAP_SCANNER_PRIVACY (owner, site).
+ */
+function loadScanner(options = {}) {
 	const el = {
 		form: new FakeElement('form'), input: new FakeElement('input'), result: new FakeElement('div'), live: new FakeElement('div'),
 		mode: new FakeElement('div'), video: new FakeElement('video'), start: new FakeElement('button'), stop: new FakeElement('button'), torch: new FakeElement('button'),
@@ -96,12 +100,12 @@ function loadScanner() {
 			activeElement: null,
 		},
 		navigator: { onLine: true },
-		localStorage: storage(),
+		localStorage: options.storage || storage(),
 		crypto: { randomUUID: require('node:crypto').randomUUID },
 		AbortController,
 		WPCAP_SCANNER: { checkinUrl: '/tickets/check-in', offlineSyncUrl: '/tickets/offline-sync', nonce: 'n', i18n: {} },
 		WPCAP_ADMISSION: { checkinUrl: '/admission/check-in', checkoutUrl: '/admission/check-out', offlineSyncUrl: '/admission/offline-sync', areas: [], i18n: {} },
-		WPCAP_SCANNER_PRIVACY: { owner: 'u1' },
+		WPCAP_SCANNER_PRIVACY: options.privacy || { owner: 'u1' },
 		setTimeout: (fn, ms) => { timers.push({ fn, at: clock + (ms || 0), done: false }); return timers.length; },
 		clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].done = true; },
 		requestAnimationFrame() {},
@@ -111,7 +115,7 @@ function loadScanner() {
 	};
 	window.window = window;
 	vm.runInContext(source, vm.createContext(window));
-	return Object.assign(env, { window, el, logic: window.wpcapScannerLogic, queue: () => JSON.parse(window.localStorage.getItem('wpcap-offline-scans-v2-u1') || '[]') });
+	return Object.assign(env, { window, el, logic: window.wpcapScannerLogic, queue: () => JSON.parse(window.localStorage.getItem('wpcap-offline-scans-v3-' + ((options.privacy || {}).site || 'default') + '.' + ((options.privacy || {}).owner || 'u1')) || '[]') });
 }
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
 async function scan(env, value) {
@@ -333,4 +337,55 @@ test('A316: a stream that arrives after "stop" is stopped right away', async () 
 	assert.strictEqual(cam.streams[0].track.stopped, true);
 	assert.strictEqual(env.el.video.srcObject, null);
 	assert.strictEqual(env.el.start.disabled, false, 'can be started again');
+});
+
+/* A472/A479: two sites of a subdirectory network (example.org/a/, example.org/b/) share one origin. */
+async function queueOffline(env, token) {
+	env.window.navigator.onLine = false;
+	await scan(env, token);
+	admitButton(env).dispatch('click');
+	env.window.navigator.onLine = true;
+}
+const syncButtonOf = (env) => env.window.document.querySelector('.wpcap-scanner').find((c) => c.tagName === 'BUTTON');
+
+test('A472: offline queues of two sites on one origin stay apart; the other site never uploads them', async () => {
+	const shared = storage();
+	const a = loadScanner({ storage: shared, privacy: { owner: 'u1', site: 'siteA' } });
+	await queueOffline(a, T1);
+	assert.strictEqual(a.queue().length, 1);
+	// Same person opens the scanner of site B on the same device.
+	const b = loadScanner({ storage: shared, privacy: { owner: 'u1', site: 'siteB' } });
+	assert.strictEqual(b.queue().length, 0, 'site B does not see the queue of site A');
+	await queueOffline(b, T2);
+	syncButtonOf(b).dispatch('click');
+	await flush();
+	const synced = b.requests.filter((r) => /offline-sync/.test(r.url));
+	assert.strictEqual(synced.length, 1);
+	assert.deepStrictEqual(synced[0].body.scans.map((x) => x.token), [T2], 'site B uploads only its own scan');
+	// Back on site A: its scan is still queued and goes to site A.
+	const a2 = loadScanner({ storage: shared, privacy: { owner: 'u1', site: 'siteA' } });
+	assert.strictEqual(a2.queue().length, 1);
+	assert.strictEqual(a2.queue()[0].token, T1);
+});
+
+test('A472: another user on the device still removes foreign queues of every site (privacy)', async () => {
+	const shared = storage();
+	const a = loadScanner({ storage: shared, privacy: { owner: 'u1', site: 'siteA' } });
+	await queueOffline(a, T1);
+	loadScanner({ storage: shared, privacy: { owner: 'u2', site: 'siteB' } });
+	assert.strictEqual(shared.getItem('wpcap-offline-scans-v3-siteA.u1'), null);
+});
+
+test('A472: the per-user queue of the previous version is adopted once, entrance/date choice is kept per site', async () => {
+	const shared = storage();
+	const item = { token: T1, idempotency_key: 'k1', stored_at: Date.now(), scanned_at: new Date().toISOString() };
+	shared.setItem('wpcap-offline-scans-v2-u1', JSON.stringify([item]));
+	shared.setItem('wpcap-scanner-owner', 'u1');
+	const a = loadScanner({ storage: shared, privacy: { owner: 'u1', site: 'siteA' } });
+	assert.strictEqual(a.queue().length, 1);
+	assert.strictEqual(shared.getItem('wpcap-offline-scans-v2-u1'), null, 'old key removed');
+	const b = loadScanner({ storage: shared, privacy: { owner: 'u1', site: 'siteB' } });
+	assert.strictEqual(b.queue().length, 0, 'adopted by one site only');
+	shared.setItem('wpcap-scanner-prefs-v2-siteA', JSON.stringify({ area: 3 }));
+	assert.strictEqual(shared.getItem('wpcap-scanner-prefs-v2-siteB'), null);
 });

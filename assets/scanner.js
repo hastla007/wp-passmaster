@@ -49,27 +49,36 @@
 	const live = root.querySelector('.wpcap-scan-live');
 	const modeBanner = root.querySelector('.wpcap-scan-mode');
 	const video = root.querySelector('.wpcap-camera');
-	// Offline queue per WordPress user (keyed hash from the server, never the raw ID): a shared
-	// device must not hand one user's queued ticket codes to the next. Queues of other users and
-	// the old shared v1 queue are removed as soon as a different user opens the scanner (the
-	// browser cannot be cleared on logout itself).
+	// Offline queue per site and WordPress user (keyed hashes from the server, never the raw IDs).
+	// Site (A472): the sites of a subdirectory network (example.org/a/, example.org/b/) share one
+	// origin and so one localStorage; without the site in the key a scan queued on site A was
+	// uploaded to site B (unknown ticket there) and lost. User: a shared device must not hand one
+	// user's queued ticket codes to the next – queues of other users (any site) and the old shared
+	// queues are removed as soon as a different user opens the scanner (the browser cannot be cleared
+	// on logout itself). Queues of the same user on other sites stay until that site's scanner
+	// uploads them.
 	const privacy = window.WPCAP_SCANNER_PRIVACY || {};
 	const owner = String(privacy.owner || 'anonymous').replace(/[^A-Za-z0-9_-]/g, '');
-	const queuePrefix = 'wpcap-offline-scans-v2-';
-	const queueKey = queuePrefix + owner;
+	const site = String(privacy.site || 'default').replace(/[^A-Za-z0-9_-]/g, '') || 'default';
+	const queuePrefix = 'wpcap-offline-scans-v3-';
+	const queueKey = queuePrefix + site + '.' + owner;
+	const legacyPrefix = 'wpcap-offline-scans-v2-';
 	const ownerKey = 'wpcap-scanner-owner';
 	(function isolateQueue() {
 		try {
 			const ls = window.localStorage;
-			const legacy = ls.getItem('wpcap-offline-scans-v1');
 			const previousOwner = ls.getItem(ownerKey);
-			// Legacy queue (before per-user keys): adopted once by the first user on this browser,
-			// expired items are dropped by the age check below.
-			if (legacy && !previousOwner && !ls.getItem(queueKey)) ls.setItem(queueKey, legacy);
+			// Queues from before the site key: v2 (per user) is adopted by this user's first scanner
+			// start after the update (the one site it could belong to before), v1 (shared) only on a
+			// browser that never had an owner. Expired items are dropped by the age check below.
+			const legacy = ls.getItem(legacyPrefix + owner) || (!previousOwner ? ls.getItem('wpcap-offline-scans-v1') : null);
+			if (legacy && !ls.getItem(queueKey)) ls.setItem(queueKey, legacy);
 			const foreign = [];
 			for (let i = 0; i < ls.length; i++) {
 				const key = ls.key(i);
-				if (key && (key === 'wpcap-offline-scans-v1' || (key.indexOf(queuePrefix) === 0 && key !== queueKey))) foreign.push(key);
+				if (!key) continue;
+				const ours = key.indexOf(queuePrefix) === 0 && key.slice(key.lastIndexOf('.') + 1) === owner;
+				if (key === 'wpcap-offline-scans-v1' || key.indexOf(legacyPrefix) === 0 || (key.indexOf(queuePrefix) === 0 && !ours)) foreign.push(key);
 			}
 			foreign.forEach(function (key) { ls.removeItem(key); });
 			ls.setItem(ownerKey, owner);
@@ -232,7 +241,8 @@
 	let lastTokenAt = 0;
 	// Admission module: entrance area, check-in/check-out mode, idempotent offline sync.
 	const adm = window.WPCAP_ADMISSION || null;
-	const prefKey = 'wpcap-scanner-prefs-v1';
+	// Entrance and date choice per site: area and occurrence ids are site-local (A472).
+	const prefKey = 'wpcap-scanner-prefs-v2-' + site;
 	let prefs = {};
 	try { prefs = JSON.parse(window.localStorage.getItem(prefKey) || '{}') || {}; } catch (ignore) { prefs = {}; }
 	function savePrefs() { try { window.localStorage.setItem(prefKey, JSON.stringify(prefs)); } catch (ignore) {} }
