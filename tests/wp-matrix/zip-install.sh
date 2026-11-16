@@ -65,7 +65,7 @@ V="$(wpc option get wpcap_db_version 2>/dev/null)"; E="$(wpc eval 'echo PassCapt
 [ -n "$V" ] && [ "$V" = "$E" ] && ok "db version $V recorded" || bad "db version '$V' (expected '$E')"
 HV="$(wpc plugin get "$SLUG" --field=version)"; CV="$(wpc eval 'echo WPCAP_VERSION;')"
 [ "$HV" = "$CV" ] && ok "header version $HV = WPCAP_VERSION" || bad "header version $HV ≠ WPCAP_VERSION $CV"
-wpc eval 'switch_to_locale( "en_US" ); load_plugin_textdomain( "pass-captain", false, "pass-captain/languages" ); exit( "Speichern" !== __( "Speichern", "pass-captain" ) ? 0 : 1 );' && ok "translations load from the ZIP (en_US)" || bad "translations do not load from the ZIP"
+wpc eval 'switch_to_locale( "en_US" ); exit( "Speichern" !== __( "Speichern", "pass-captain" ) ? 0 : 1 );' && ok "translations load just in time from the ZIP (en_US, A382)" || bad "translations do not load from the ZIP"
 wpc eval 'do_action( "rest_api_init" ); $r = rest_get_server()->get_routes(); exit( isset( $r["/pass-captain/v1/events"] ) ? 0 : 1 );' && ok "REST routes registered" || bad "REST routes missing"
 wpc eval 'do_action( "wpcap_process_jobs" ); do_action( "wpcap_cron" );' >/dev/null 2>&1; ok "cron hooks run"
 

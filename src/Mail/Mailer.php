@@ -625,12 +625,9 @@ final class Mailer {
 		return true;
 	}
 
-	/** Reloads the plugin's text domain for the current (site/user) locale. */
+	/** Reloads the plugin's text domain for the current (site/user) locale (just in time, A382). */
 	private static function restore_plugin_catalog() {
-		unload_textdomain( 'pass-captain', true );
-		if ( function_exists( 'load_plugin_textdomain' ) && function_exists( 'plugin_basename' ) ) {
-			load_plugin_textdomain( 'pass-captain', false, dirname( plugin_basename( WPCAP_FILE ) ) . '/languages' );
-		}
+		\PassCaptain\Localization::reload_textdomain();
 		\PassCaptain\Settings::flush();
 	}
 }

@@ -15,7 +15,9 @@ $GLOBALS['a306_calls'] = array();
 function get_locale() { return 'de_DE'; }
 function switch_to_locale( $l ) { if ( ! in_array( $l, $GLOBALS['a306_core_packs'], true ) ) { return false; } $GLOBALS['a306_stack'][] = $GLOBALS['a306_locale']; $GLOBALS['a306_locale'] = $l; $GLOBALS['a306_domain'] = $l; return true; }
 function restore_previous_locale() { $GLOBALS['a306_locale'] = array_pop( $GLOBALS['a306_stack'] ); $GLOBALS['a306_domain'] = $GLOBALS['a306_locale']; return true; }
-function unload_textdomain( $d, $reloadable = false ) { $GLOBALS['a306_calls'][] = "unload:$d"; $GLOBALS['a306_domain'] = ''; return true; }
+// A382: a reloadable unload hands the domain back to the just-in-time loader, which reads it again in the current locale.
+function unload_textdomain( $d, $reloadable = false ) { $GLOBALS['a306_calls'][] = "unload:$d"; $GLOBALS['a306_domain'] = $reloadable ? $GLOBALS['a306_locale'] : ''; return true; }
+$GLOBALS['wp_textdomain_registry'] = new class() { public $paths = array(); public function set_custom_path( $d, $p ) { $this->paths[ $d ] = $p; $GLOBALS['a306_calls'][] = "custom_path:$d"; } };
 function load_textdomain( $d, $file, $locale = null ) { $GLOBALS['a306_calls'][] = "load:$d:" . basename( $file ) . ":$locale"; $GLOBALS['a306_domain'] = $locale; return is_readable( $file ); }
 function load_plugin_textdomain( $d, $deprecated = false, $rel = '' ) { $GLOBALS['a306_calls'][] = "load_plugin:$d:$rel"; $GLOBALS['a306_domain'] = $GLOBALS['a306_locale']; return true; }
 function plugin_basename( $f ) { return 'pass-captain/' . basename( $f ); }
@@ -24,7 +26,7 @@ $out = array();
 $seen = Mailer::with_locale( 'es_ES', static function () { return array( $GLOBALS['a306_locale'], $GLOBALS['a306_domain'] ); } );
 $out['es_without_core_pack_uses_plugin_catalog'] = array( 'de_DE', 'es_ES' ) === $seen;
 $out['bundled_mo_loaded'] = in_array( 'load:pass-captain:pass-captain-es_ES.mo:es_ES', $GLOBALS['a306_calls'], true );
-$out['site_catalog_restored'] = 'de_DE' === $GLOBALS['a306_domain'] && 'load_plugin:pass-captain:pass-captain/languages' === end( $GLOBALS['a306_calls'] );
+$out['site_catalog_restored'] = 'de_DE' === $GLOBALS['a306_domain'] && array( 'unload:pass-captain', 'custom_path:pass-captain' ) === array_slice( $GLOBALS['a306_calls'], -2 ) && ! preg_grep( '/^load_plugin:/', $GLOBALS['a306_calls'] );
 
 $GLOBALS['a306_calls'] = array();
 $seen = Mailer::with_locale( 'en_US', static function () { return array( $GLOBALS['a306_locale'], $GLOBALS['a306_domain'] ); } );

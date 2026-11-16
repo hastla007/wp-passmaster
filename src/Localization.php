@@ -141,6 +141,30 @@ final class Localization {
 	public static function languages_dir() { return WPCAP_PATH . 'languages'; }
 
 	/**
+	 * A382: makes the bundled catalogue (languages/pass-captain-<locale>.mo) the fallback of the
+	 * just-in-time loader instead of loading it eagerly per load_plugin_textdomain – Plugin Check flags
+	 * that, WordPress.org loads language packs on demand. WordPress looks in wp-content/languages/plugins
+	 * first, so a language pack from translate.wordpress.org wins; only without one the bundled file is
+	 * used. Nothing is loaded here – the catalogue comes with the first translated string, as for every
+	 * plugin from WordPress.org. Returns false when the registry is missing (WordPress before 6.1).
+	 */
+	public static function register_textdomain() {
+		global $wp_textdomain_registry;
+		if ( ! is_object( $wp_textdomain_registry ) || ! method_exists( $wp_textdomain_registry, 'set_custom_path' ) ) { return false; }
+		$wp_textdomain_registry->set_custom_path( 'pass-captain', self::languages_dir() );
+		return true;
+	}
+
+	/**
+	 * A382: drops the loaded plugin catalogue so the just-in-time loader reads it again for the current
+	 * locale on the next translated string (language pack first, then the bundled file).
+	 */
+	public static function reload_textdomain() {
+		if ( function_exists( 'unload_textdomain' ) ) { unload_textdomain( 'pass-captain', true ); }
+		self::register_textdomain();
+	}
+
+	/**
 	 * A275: lets WordPress load the bundled JED translations (languages/pass-captain-<locale>-<md5>.json)
 	 * for the editor scripts of a block registered from block.json. WordPress itself only looks in
 	 * wp-content/languages/plugins (language packs); those still win when present.

@@ -4,6 +4,20 @@ Quellsprache ist Deutsch. Mitgeliefert: Englisch (en_US), Spanisch (es_ES), Fran
 Italienisch (it_IT), Niederländisch (nl_NL) in `languages/` (`.po` Quelle, `.mo` zur Laufzeit,
 `.pot` Vorlage). Die Offline-App hat einen eigenen Katalog in `assets/offline-scanner/i18n.js`.
 
+## Laden zur Laufzeit (A382)
+
+Das Plugin ruft `load_plugin_textdomain()` nicht mehr auf (Plugin Check meldet das für WordPress.org).
+`Localization::register_textdomain()` trägt beim Laden nur `languages/` als Ausweichpfad im
+Textdomain-Register von WordPress ein; geladen wird der Katalog erst beim ersten übersetzten Text
+(Just-in-time-Laden, wie bei jedem Plugin von WordPress.org). Dabei gewinnt ein Sprachpaket aus
+`wp-content/languages/plugins/` (translate.wordpress.org); nur ohne Sprachpaket kommt die mitgelieferte
+`.mo` zum Zug. Nach einem Sprachwechsel für eine einzelne Mail (A306) gibt
+`Localization::reload_textdomain()` den Katalog wieder frei, er wird dann in der aktuellen Sprache neu geladen.
+
+Die mitgelieferten Übersetzungen bleiben damit wirksam, auch solange das Plugin nicht über
+translate.wordpress.org ausgeliefert wird: Das Just-in-time-Laden von WordPress (ab 6.1) sucht zuerst in
+`WP_LANG_DIR/plugins/` und fällt danach auf den eingetragenen Pfad `languages/` zurück.
+
 ## Ablauf bei neuen oder geänderten Texten
 
 ```bash
