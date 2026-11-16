@@ -725,7 +725,7 @@ $a59_json = wp_json_encode( $a59_export['data'] );
 check( 'A059: the contact person is exported (payout masked)', 1 === count( $a59_export['data'] ) && false !== strpos( $a59_json, 'Petra Kontakt' ) && false !== strpos( $a59_json, '+43 1 234' ) && false === strpos( $a59_json, '3002 3457' ) );
 $GLOBALS['wpcap_test_caps']['manage_options'] = true;
 $a59_keep = PassCaptain\Partners\AdminPage::admin_action( array( 'do' => 'save_partner', 'id' => $a59_pid, 'name' => 'A59 GmbH', 'contact_name' => 'Petra Kontakt', 'contact_email' => 'petra.a59@example.com', 'currency' => 'EUR', 'commission' => '0', 'fee_tax_rate' => '20', 'fee_per_ticket' => '0', 'status' => 'active', 'payout_details' => '' ) );
-check( 'A059: saving with an empty payout field keeps the stored details', is_array( $a59_keep ) && false !== strpos( (string) PassCaptain\Partners\Repository::get( $a59_pid )->payout_details, 'AT61 1904' ) );
+check( 'A059: saving with an empty payout field keeps the stored details', is_array( $a59_keep ) && false !== strpos( PassCaptain\Partners\Repository::payout_details( PassCaptain\Partners\Repository::get( $a59_pid ) ), 'AT61 1904' ) ); // Merged: payout details are stored encrypted (X2).
 $a59_erase = PassCaptain\Partners\Repository::privacy_erase( 'petra.a59@example.com' );
 $a59_row = PassCaptain\Partners\Repository::get( $a59_pid );
 check( 'A059: erasure removes the contact person, keeps the organisation', true === $a59_erase['items_removed'] && '' === $a59_row->contact_name && '' === $a59_row->contact_email && '' === $a59_row->contact_phone && 'A59 GmbH' === $a59_row->name );
@@ -935,6 +935,8 @@ $a81_answers = $wpdb->get_results( $wpdb->prepare( "SELECT f.field_key,a.answer 
 check( 'A081a: answers of fields the new type also has carry over; others do not', $a81_new && 1 === count( $a81_answers ) && 'diet_a81' === $a81_answers[0]->field_key && 'vegan' === $a81_answers[0]->answer );
 
 echo "Audit 3: webhook ticket.exchanged (A081b)\n";
+// The outgoing webhooks module maps wpcap_ticket_exchanged; the bootstrap does not load modules.
+if ( false === has_action( 'wpcap_ticket_exchanged', array( PassCaptain\Modules\Webhooks::class, 'ticket_exchanged' ) ) ) { PassCaptain\Modules\Webhooks::register(); }
 $a81b_sub = PassCaptain\Webhooks\Dispatcher::create_subscription( 'https://a81.hooks.example/in', array( 'ticket.exchanged' ) );
 list( $a81b_o, $a81b_ids ) = ex_buy( $a81_from, 1, 'a81b@example.com' );
 $a81b_x = Exchange::request( $a81b_ids[0], $a81_to, array( 'channel' => 'admin', 'idempotency_key' => 'a81b-x' ) );
