@@ -390,9 +390,12 @@ final class Consents {
 	/* ------------------------------------------------------------------ Privacy */
 
 	/** Privacy export rows of one ticket's consent history ([] without records). */
-	public static function export_value( $ticket_id ) {
+	public static function export_value( $ticket_id, $exclude_subject = '' ) {
 		$items = array();
+		// A651: records of another person (e.g. the current holder of a passed-on ticket) can be left out.
+		$exclude = '' === (string) $exclude_subject ? '' : self::subject_hash( $exclude_subject );
 		foreach ( self::history( array( $ticket_id ) ) as $row ) {
+			if ( '' !== $exclude && hash_equals( $exclude, (string) ( $row->subject_hash ?? '' ) ) ) { continue; }
 			$items[] = array( 'field' => (string) $row->field_key, 'text' => (string) $row->label, 'purpose' => (string) $row->purpose, 'text_version' => (string) $row->text_version, 'action' => (string) $row->action, 'source' => (string) $row->source, 'locale' => (string) $row->locale, 'time_utc' => (string) $row->created_at );
 		}
 		return $items;

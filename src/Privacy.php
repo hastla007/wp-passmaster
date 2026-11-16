@@ -249,6 +249,9 @@ final class Privacy {
 		if ( (int) ( $ticket->transfer_count ?? 0 ) > 0 && ! $holder ) {
 			$rows[] = array( 'name' => __( 'Weitergabe', 'pass-captain' ), 'value' => __( 'An eine andere Person übertragen; deren Angaben, Einlässe und Wallet-Pässe sind nicht Teil dieser Auskunft.', 'pass-captain' ) );
 			if ( '' !== (string) $attendee_email ) { $rows[] = array( 'name' => __( 'E-Mail des Teilnehmers', 'pass-captain' ), 'value' => $attendee_email ); }
+			// Consents recorded before the transfer stay (proof towards the buyer's side); the new holder's do not.
+			$consents = Consents::export_value( $id, (string) $attendee_email );
+			if ( $consents ) { $rows[] = array( 'name' => __( 'Einwilligungen (Verlauf, Zeit UTC)', 'pass-captain' ), 'value' => wp_json_encode( $consents ) ); }
 			return array( 'group_id' => 'pass-captain-tickets', 'group_label' => __( 'Pass Captain Tickets', 'pass-captain' ), 'item_id' => 'ticket-' . $ticket->public_id, 'data' => $rows );
 		}
 		if ( '' !== (string) $ticket->attendee_name ) { $rows[] = array( 'name' => __( 'Name des Teilnehmers', 'pass-captain' ), 'value' => $ticket->attendee_name ); }
