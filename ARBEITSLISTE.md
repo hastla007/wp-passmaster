@@ -989,25 +989,25 @@ Gesamt: 262 Aufgaben.
   - src/CapacityCounters.php:608–615, Installer.php:809: Resumierbarer Job mit Cursor, Version unabhängig speichern
 - [x] **A469** [WICHTIG] Rollback-Drill prüft keine Zustände außerhalb des Schemas (Secrets, Zähler, Optionen, Standardwerte) — _R3 Lifecycle_ (TODO L806; Audit Runde 4)
   - tests/restore/drill.sh: Drill mit Provider-Schlüsseln, Verkäufen im Altcode über >2 Tage simulierte Zeit, danach Kapazität und Zahlungsfähigkeit prüfen
-- [ ] **A470** [WICHTIG] Zugriffs-Scope als netzwerkweite User-Meta mit Site-lokalen IDs — _R3 Multisite/i18n/Skalierung_ (TODO L807; Audit Runde 4)
+- [x] **A470** [WICHTIG] Zugriffs-Scope als netzwerkweite User-Meta mit Site-lokalen IDs — _R3 Multisite/i18n/Skalierung_ (TODO L807; Audit Runde 4)
   - src/Access.php:30/125/170–181, Admin/UserScope.php:26–72, BoxOffice/Page.php:271: get/update_user_option, Migration auf Hauptsite
-- [ ] **A471** [WICHTIG] Eventleitung holt beliebige Netzwerk-Benutzer in die Site (add_cap) und verrät Kontoexistenz — _R3 Multisite/i18n/Skalierung_ (TODO L808; Audit Runde 4)
+- [x] **A471** [WICHTIG] Eventleitung holt beliebige Netzwerk-Benutzer in die Site (add_cap) und verrät Kontoexistenz — _R3 Multisite/i18n/Skalierung_ (TODO L808; Audit Runde 4)
   - src/Admin/EventsPage.php:482–505, StaffAssignments.php:51–57, Admission/RulesPage.php:87–97: Nur is_user_member_of_blog, neutrale Meldung
-- [ ] **A472** [WICHTIG] Offline-Warteschlange des Web-Scanners zwischen Subdirectory-Sites geteilt → Scans gehen verloren — _R3 Multisite/i18n/Skalierung_ (TODO L809; Audit Runde 4)
+- [x] **A472** [WICHTIG] Offline-Warteschlange des Web-Scanners zwischen Subdirectory-Sites geteilt → Scans gehen verloren — _R3 Multisite/i18n/Skalierung_ (TODO L809; Audit Runde 4)
   - assets/scanner.js:15–35, :321–345, Privacy.php:104–106: Blog-ID/home_url in Owner und Schlüssel
-- [ ] **A473** [WICHTIG] Offline-PWA mit einem Datenbestand pro Origin für alle Sites — _R3 Multisite/i18n/Skalierung_ (TODO L810; Audit Runde 4)
+- [x] **A473** [WICHTIG] Offline-PWA mit einem Datenbestand pro Origin für alle Sites — _R3 Multisite/i18n/Skalierung_ (TODO L810; Audit Runde 4)
   - assets/offline-scanner/app.js:19, :45–53, :672–731, OfflineScanner/AdminPage.php:27–31: Store je API-Basis trennen, eigene Kopplung je Site
 - [x] **A474** [WICHTIG] Ticket-Mail mischt Sprachen: PDF, Rechnung, Wallet-Text in Request- statt Käufersprache — _R3 Multisite/i18n/Skalierung_ (TODO L811; Audit Runde 4)
   - src/Orders.php:1788–1806, WalletPasses/Service.php:183–199, Printing/InvoicePdf.php:293–306, AppleProvider.php:61–80: Anhänge und Filter in Mailer::with_locale($order->locale), Pass-Neubau in Ticket-Locale
-- [ ] **A475** [WICHTIG] Google-Wallet-IDs hängen an home_url(): Domainwechsel trennt Pässe still ab — _R3 Multisite/i18n/Skalierung_ (TODO L812; Audit Runde 4)
+- [x] **A475** [WICHTIG] Google-Wallet-IDs hängen an home_url(): Domainwechsel trennt Pässe still ab — _R3 Multisite/i18n/Skalierung_ (TODO L812; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:26–28, :113–117, Service.php:340–345: class_id beim Ausstellen speichern, 404 protokollieren
-- [ ] **A476** [WICHTIG] Event-Detailseite rendert alle Termine ungepaginiert mit Umsatz-Query je Termin; Terminlisten ohne Grenze — _R3 Multisite/i18n/Skalierung_ (TODO L813; Audit Runde 4)
+- [x] **A476** [WICHTIG] Event-Detailseite rendert alle Termine ungepaginiert mit Umsatz-Query je Termin; Terminlisten ohne Grenze — _R3 Multisite/i18n/Skalierung_ (TODO L813; Audit Runde 4)
   - src/Admin/EventsPage.php:834–875, AssignmentsPage.php:131, Admission/RulesPage.php:228, OfflineScanner/AdminPage.php:130, Series/AdminPage.php:142: Paginieren, GROUP BY vorladen, Terminauswahl als Suche
-- [ ] **A477** [WICHTIG] Teilnehmer-/No-Show-Liste baut Großevents komplett im Speicher (IN mit 100k IDs) — _R3 Multisite/i18n/Skalierung_ (TODO L814; Audit Runde 4)
+- [x] **A477** [WICHTIG] Teilnehmer-/No-Show-Liste baut Großevents komplett im Speicher (IN mit 100k IDs) — _R3 Multisite/i18n/Skalierung_ (TODO L814; Audit Runde 4)
   - src/Printing/AttendeeList.php:34–63, Printing/Page.php:151–170: Blockweise, JOIN, streamen; HTML-Druck als Job
-- [ ] **A478** [WICHTIG] Byteweises substr auf UTF-8 leert Audit-Details und lässt DB-Schreibvorgänge scheitern — _R3 Multisite/i18n/Skalierung_ (TODO L815; Audit Runde 4)
+- [x] **A478** [WICHTIG] Byteweises substr auf UTF-8 leert Audit-Details und lässt DB-Schreibvorgänge scheitern — _R3 Multisite/i18n/Skalierung_ (TODO L815; Audit Runde 4)
   - src/Admin/AuditLogPage.php:71–77, Refunds.php:114/211/263/333: mb_substr/mb_strcut, CI-Lint
-- [ ] **A479** [WICHTIG] Keine Cross-Site-Tests für Zugriff, Scanner-Speicher, Benutzerzuweisung — _R3 Multisite/i18n/Skalierung_ (TODO L816; Audit Runde 4)
+- [x] **A479** [WICHTIG] Keine Cross-Site-Tests für Zugriff, Scanner-Speicher, Benutzerzuweisung — _R3 Multisite/i18n/Skalierung_ (TODO L816; Audit Runde 4)
   - tests/: Multisite-Tests (Subdirectory) für diese Pfade
 - [x] **A480** [WICHTIG] Mitgliedspass: uses_total/uses_per_day bei gleichzeitigen Scans überschritten — _R3 Eigen (Deep Dive 2)_ (TODO L817; Audit Runde 4)
   - src/Memberships.php:46, :54–55 (redeem): Snapshot vor FOR UPDATE. Erst Pass sperren, dann zählen (belegt t1)
@@ -1338,7 +1338,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Obergrenze für gehaltene Menge je Event (atomar), Doku in docs/SECURITY.md; Restarbeit zu A265/manual_hold_limit.
 - [ ] **A635** [OPTIMIERUNG] Öffentliche Zuweisungsroute ohne args-Schema, Rate-Limit und Längenlimit — _Sicherheitsaudit 14.11. #8_ (TODO L1068; Sicherheitsaudit 2026-11-14)
   - REST-args mit maxLength, Name auf 190 Zeichen, RateLimit::allow, optional URLs im Namen ablehnen.
-- [ ] **A636** [OPTIMIERUNG] Staff-Zuweisung vergibt wpcap_checkin an beliebige Konten, Konten-Orakel — _Sicherheitsaudit 14.11. #9_ (TODO L1069; Sicherheitsaudit 2026-11-14)
+- [x] **A636** [OPTIMIERUNG] Staff-Zuweisung vergibt wpcap_checkin an beliebige Konten, Konten-Orakel — _Sicherheitsaudit 14.11. #9_ (TODO L1069; Sicherheitsaudit 2026-11-14)
   - Zielkonten für Nicht-Admins einschränken, einheitliche Fehlermeldung, Delegation in CONCEPT festhalten.
 - [x] **A637** [OPTIMIERUNG] pos_sale: wiederverwendeter Idempotenzschlüssel ohne erneute Eventprüfung — _Sicherheitsaudit 14.11. #10_ (TODO L1073; Sicherheitsaudit 2026-11-14)
   - Bei reused Scope::can_occurrence/can_order erneut prüfen.
