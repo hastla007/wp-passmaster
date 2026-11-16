@@ -132,9 +132,12 @@ Klasse in `src/Modules/`; Module sind Bestandteil des Kerns, nicht des Add-ons.
 
 ## Premium-Add-on
 
-Das Add-on (Arbeitstitel `wp-pass-captain-pro`, eigenes Repository) enthält ausschließlich **neue**
-Funktionen, die im Kern nie ausgeliefert wurden, dazu Lizenzseite, Rechteprüfung, Offline-Cache und
-Updater. Welche Funktionen das sind, wird im Add-on-Repository festgelegt (TODO B5) – nicht in dieser Datei.
+Das Add-on „Pass Captain Pro“ (Ordner, Slug und Textdomain `pass-captain-pro`, Repository
+`hastla007/captain-pro`) enthält ausschließlich **neue** Funktionen, die im Kern nie ausgeliefert wurden, dazu
+Lizenzseite, Rechteprüfung, Offline-Cache und Updater. Gebaut sind dort fünf Funktionen: E-Rechnung,
+Kartenterminal, White Label, virtueller Warteraum und schreibende API. Sie brauchen Pass Captain 1.5.0
+([EXTENSIONS.md](EXTENSIONS.md#versionen-der-erweiterungspunkte)). Welche Funktionen dazukommen, wird im
+Add-on-Repository festgelegt – nicht in dieser Datei.
 Bevor eine Funktion dort geplant wird, ist hier zu prüfen, dass sie nicht schon im Inventar oben steht.
 
 Aus dem Audit Runde 2 bewusst **nicht** im Kern gebaut (Kandidaten für das Add-on, Andockpunkte vorhanden):

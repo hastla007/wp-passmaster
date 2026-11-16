@@ -24,6 +24,27 @@ check( 'R16: main file defines WPCAP_VERSION >= 1.5.0', '' !== $r16_version && v
 check( 'R16: main file defines WPCAP_CONTRACT_VERSION as x.y.z', 1 === preg_match( '/^\d+\.\d+\.\d+$/', $r16_contract ) );
 check( 'R16: docs/EXTENSIONS.md lists the current contract version with the plugin version', 1 === preg_match( '/^\| ' . preg_quote( $r16_contract, '/' ) . ' \| ' . preg_quote( $r16_version, '/' ) . ' \|/m', $r16_docs ) );
 
+// One version everywhere: header = constant = readme Stable tag = newest CHANGELOG entry (also build/check-versions.sh).
+preg_match( '/^ \* Version:\s*(\S+)/m', $r16_main, $r16_h );
+preg_match( '/^Stable tag:\s*(\S+)/m', (string) file_get_contents( $r16_root . '/readme.txt' ), $r16_s );
+preg_match( '/^## (\d+\.\d+\.\d+)\b/m', (string) file_get_contents( $r16_root . '/CHANGELOG.md' ), $r16_l );
+check( 'R16: plugin header, WPCAP_VERSION, readme Stable tag and newest CHANGELOG entry agree (' . $r16_version . ')', '' !== $r16_version && array( $r16_version, $r16_version, $r16_version ) === array( $r16_h[1] ?? '', $r16_s[1] ?? '', $r16_l[1] ?? '' ) );
+check( 'R16: docs/EXTENSIONS.md writes down the SemVer rule of the contract version', false !== strpos( $r16_docs, 'WPCAP_CONTRACT_VERSION' ) && false !== strpos( $r16_docs, 'unverträglich' ) );
+// No "since/seit x.y.z" in code or hook docs ahead of the plugin version.
+$r16_ahead = array();
+$r16_scan  = array( $r16_root . '/docs/HOOKS.md' => 0, $r16_root . '/docs/EXTENSIONS.md' => 0 );
+foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $r16_root . '/src', FilesystemIterator::SKIP_DOTS ) ) as $r16_file ) {
+	if ( 'php' === $r16_file->getExtension() ) { $r16_scan[ $r16_file->getPathname() ] = 0; }
+}
+foreach ( array_keys( $r16_scan ) as $r16_path ) {
+	if ( preg_match_all( '/\b(?:since|seit)\s+(\d+\.\d+\.\d+)\b/i', (string) file_get_contents( $r16_path ), $r16_m ) ) {
+		foreach ( $r16_m[1] as $r16_since ) {
+			if ( version_compare( $r16_since, $r16_version, '>' ) ) { $r16_ahead[] = basename( $r16_path ) . ' ' . $r16_since; }
+		}
+	}
+}
+check( 'R16: no "since x.y.z" in src/ or the hook docs is ahead of the plugin version' . ( $r16_ahead ? ': ' . implode( ', ', $r16_ahead ) : '' ), array() === $r16_ahead );
+
 // Versioned hooks in the shipped code.
 $r16_code = array();
 $r16_it   = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $r16_root . '/src', FilesystemIterator::SKIP_DOTS ) );

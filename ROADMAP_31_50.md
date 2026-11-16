@@ -76,7 +76,7 @@ Sichtbare Fokusse, Mindestzielhöhen und Reduced-Motion-Regel ergänzt; Statusme
 
 ## 49. Erweiterungs- und Lizenzmodell — Richtlinie dokumentiert
 
-`docs/EXTENSIONS.md` hält GPL-Kern, opt-in Connector-Vertrag und Lizenzserver-unabhängiges Ticketverhalten fest. Kommerzielles Lizenz-/Update-System wird nicht angeboten.
+`docs/EXTENSIONS.md` hält GPL-Kern, opt-in Connector-Vertrag und Lizenzserver-unabhängiges Ticketverhalten fest. Der Kern enthält kein Lizenz- oder Update-System und prüft keine Rechte (`docs/FREE-PREMIUM.md`, Wächtertest `tests/guard/no-license-code.php`). Premiumfunktionen liegen im getrennten Add-on „Pass Captain Pro“ (Repository `hastla007/captain-pro`, Ordner `addons/pass-captain-pro`); nur das Add-on spricht mit dem Lizenzserver und aktualisiert sich über ihn.
 
 ## 50. Stabiler 1.0-Release und Wartungsbetrieb — Vorbereitung dokumentiert
 

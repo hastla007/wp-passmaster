@@ -41,6 +41,8 @@ function wpcap_guard_rules() {
 		'upgrader-download' => array( '/\bupgrader_pre_download\b/i', 'Own download hook of the upgrader (custom update package)' ),
 		'entitlement'      => array( '/\b(?:allows_entitlement|has_entitlement|entitlements?)\b/i', 'Entitlement/rights check (feature gating by licence)' ),
 		'license-option'   => array( '/\b(?:wpcap_|wp_pass_captain_|pass_captain_)?licen[cs]e_(?:key|status|data|activation|activations|server|expires?|token|cache|check|valid)\b/i', 'Licence key/status option or field' ),
+		// Same breadth as the guard of Affiliate Captain: the key name anywhere inside an identifier (my_license_key).
+		'license-key-any'  => array( '/licen[cs]e_key/i', 'Licence key inside any identifier' ),
 		'license-action'   => array( '/\b(?:activate|deactivate|check|validate|verify)_licen[cs]e\b/i', 'Licence activation/check routine' ),
 		'core-license-prefix' => array( '/\b(?:wpcap|wp_pass_captain|pass_captain)_licen[cs]e/i', 'Licence option/hook with the plugin prefix' ),
 		'updater-sdk'      => array( '/\b(?:Puc_v\d|PucFactory|plugin-update-checker|EDD_SL_Plugin_Updater|edd_sl_|fs_dynamic_init|Freemius)\b/i', 'Third-party licence/updater SDK' ),
@@ -191,6 +193,7 @@ function wpcap_guard_self_test() {
 		'upgrader-download'   => "add_filter( 'upgrader_pre_download', 'x' );",
 		'entitlement'         => "if ( \$client->allows_entitlement( 'pass.wallet' ) ) {}",
 		'license-option'      => "update_option( 'license_key', \$key );",
+		'license-key-any'     => "\$settings['my_licence_key'] = \$key;",
 		'license-action'      => 'function activate_license() {}',
 		'core-license-prefix' => "get_option( 'wpcap_licence' );",
 		'updater-sdk'         => '$updater = PucFactory::buildUpdateChecker( $url, __FILE__ );',

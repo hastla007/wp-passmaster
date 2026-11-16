@@ -19,7 +19,7 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 |---|---|---|
 | `order.paid` | `wpcap_order_paid` | Bestellung |
 | `order.cancelled` | `wpcap_order_cancelled` (manuell, abgelaufene Reservierung, fehlgeschlagene Zahlung) | Bestellung |
-| `order.refunded` | `wpcap_refund_completed` (Erstattung über das Plugin, auch Teilerstattung) | Bestellung + `refund` |
+| `order.refunded` | `wpcap_refund_completed` (Erstattung über das Plugin, auch Teilerstattung) und `wpcap_order_refunded` (Vollerstattung außerhalb des eigenen Ablaufs: WooCommerce, Dashboard des Zahlungsanbieters) | Bestellung + `refund` |
 | `ticket.issued` | `wpcap_tickets_issued` – ein Ereignis je Ticket | Ticket |
 | `ticket.checked_in` | `wpcap_ticket_checked_in` – jeder Einlass ein eigenes Ereignis (Mehrfacheinlass) | Ticket + `checked_in_at`, `source` |
 | `ticket.revoked` | `wpcap_ticket_revoked` (Admin, Erstattung, Stornierung, Absage) | Ticket + `reason` |
@@ -28,9 +28,12 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 
 Hinweis: Erstattungen, die direkt im Dashboard eines Zahlungsanbieters ausgelöst werden, sowie
 Chargebacks (Stripe-Dispute verloren bzw. Geld abgezogen, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie-Chargeback)
-werden über `Refunds::record_external()` als Erstattung verbucht (Gutschrift, Abrechnungsabzug); eine
-Vollerstattung (`Orders::mark_refunded()`) erzeugt zusätzlich `ticket.revoked` für die betroffenen Tickets,
-aber derzeit kein `order.refunded` (dafür fehlt im Kern ein Hook).
+werden über `Refunds::record_external()` als Erstattung verbucht (Gutschrift, Abrechnungsabzug). Eine
+Vollerstattung (`Orders::mark_refunded()`) erzeugt `ticket.revoked` für die betroffenen Tickets und über den Hook
+`wpcap_order_refunded` genau ein `order.refunded` je Bestellung (Ereignisschlüssel `order-full|{order_id}`); dort
+ist `refund` = `{ "id": null, "source": "…", "full": true }`. Erstattungen über das Plugin selbst senden
+`order.refunded` je Erstattung und werden hier nicht doppelt gemeldet (Test:
+`tests/integration/modules/zz_integration.php`).
 
 ## Payload (API-Version `2026-11-01`)
 
@@ -69,7 +72,8 @@ aber derzeit kein `order.refunded` (dafür fehlt im Kern ein Hook).
 `total_minor`, `refunded_minor`, `payment_provider`, `ticket_count`.
 PII (opt-in): `customer_email`.
 Bei `order.refunded` zusätzlich `refund`: `{ "id": int, "amount_minor": int, "currency": "EUR",
-"ticket_ids": [öffentliche Ticket-IDs] }`.
+"ticket_ids": [öffentliche Ticket-IDs] }`; bei einer Vollerstattung außerhalb des Plugins
+`{ "id": null, "source": string, "full": true }`.
 
 **Ticket** (`object: "ticket"`): `id` (öffentliche Ticket-ID, nicht der Ticketcode), `order_id`
 (öffentliche Bestell-ID), `ticket_type_id`, `occurrence_id`, `event_id`, `status`
