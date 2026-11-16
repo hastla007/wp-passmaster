@@ -705,7 +705,7 @@ Gesamt: 262 Aufgaben.
   - src/Operations/SiteHealth.php:357ff.: Version, db_version, Fingerprint, schema_error, Module, Provider + Modus, WC, Währung, Locale, Holds, letzte Fehler
 - [x] **A330** [WICHTIG] Zwei PDF-Engines; Mail-PDF zerstört Nicht-Latin-1-Zeichen, ignoriert Druckvorlagen — _R2 Support_ (TODO L661; Audit Runde 4)
   - src/TicketPdf.php:97/116–119, Printing/PdfWriter.php:152–154: Über Printing\Templates/PdfWriter, Unicode-Schrift einbetten, Fußzeile je Ticketart/Pass
-- [ ] **A331** [WICHTIG] Wichtige Erweiterungspunkte fehlen — _R2 Support_ (TODO L662; Audit Runde 4)
+- [x] **A331** [WICHTIG] Wichtige Erweiterungspunkte fehlen — _R2 Support_ (TODO L662; Audit Runde 4)
   - src/Orders.php:314/689, Mail/Mailer.php:183–185, TicketPage.php:58: wpcap_order_created (nach Commit), wpcap_checkout_validate, wpcap_ticket_pdf_data/_layout, wpcap_rest_prepare_*, wpcap_mail_recipients, wpcap_order_fees
 - [x] **A332** [WICHTIG] Serien-Vorlage kopiert Teilnehmerfelder und Einlassprüfungen nicht — _R2 UX_ (TODO L663; Audit Runde 4)
   - src/Series/Generator.php:272–286, Series/AdminPage.php:166: Mitkopieren, Vorschau was übernommen wird
@@ -1394,8 +1394,8 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [x] **A660** [WICHTIG] Umbenennung: Action-Scheduler-Gruppe wp-pass-captain – alte geplante Aktionen erkennen, keine Doppeleinträge — _Konzept 15.11._ (TODO L199; Konzept/Roadmap 2026-11-15)
 - [x] **A661** [WICHTIG] Wächtertest in CI: kein Lizenzcode im Kern (LicenseClient, wplc/v1, Update URI, Update-Transient-/plugins_api-Filter, allows_entitlement), nur ausgelieferte Dateien — _Konzept 15.11._ (TODO L193; Konzept/Roadmap 2026-11-15)
 - [x] **A662** [WICHTIG] docs/FREE-PREMIUM.md: Funktionsinventar „Kern, dauerhaft frei“ für alle ausgelieferten Module — _Konzept 15.11._ (TODO L194; Konzept/Roadmap 2026-11-15)
-- [ ] **A663** [WICHTIG] Öffentliche, versionierte Add-on-API: Einstellungs-Tab-Filter, Hooks für Berichte/Exporte/Scanner-Adapter, Ladeaktion wpcap_loaded, HOOKS.md öffentlich vs. intern, CI-Abgleich — _Konzept 15.11._ (TODO L195; Konzept/Roadmap 2026-11-15)
-- [ ] **A664** [OPTIMIERUNG] Test „Kern läuft allein“: alle Kernabläufe ohne Add-on, kein Aufruf eines Lizenzservers — _Konzept 15.11._ (TODO L196; Konzept/Roadmap 2026-11-15)
+- [x] **A663** [WICHTIG] Öffentliche, versionierte Add-on-API: Einstellungs-Tab-Filter, Hooks für Berichte/Exporte/Scanner-Adapter, Ladeaktion wpcap_loaded, HOOKS.md öffentlich vs. intern, CI-Abgleich — _Konzept 15.11._ (TODO L195; Konzept/Roadmap 2026-11-15)
+- [x] **A664** [OPTIMIERUNG] Test „Kern läuft allein“: alle Kernabläufe ohne Add-on, kein Aufruf eines Lizenzservers — _Konzept 15.11._ (TODO L196; Konzept/Roadmap 2026-11-15)
 - [x] **A665** [OPTIMIERUNG] Doku angleichen: EXTENSIONS.md, ROADMAP_31_50 §49, RELEASE.md auf „Kern frei, Premium im Add-on“ — _Konzept 15.11._ (TODO L202; Konzept/Roadmap 2026-11-15)
 - [x] **A666** [WICHTIG] Verwaiste Fiskal-Adapter (AdapterInterface fehlt) werden ausgeliefert und in readme.txt als Modul beworben – bis PR #14 aus ZIP/readme nehmen — _Konzept 15.11._ (TODO L198; Konzept/Roadmap 2026-11-15)
 - [ ] **A667** [WICHTIG] Review-Teilnahmevertrag v1 (experience_completed): erster gültiger Einlass, Undo-/Refund-/Absage-Korrektur, Sprache, ohne PII — _Konzept 15.11._ (TODO L978; Konzept/Roadmap 2026-11-15)
@@ -1404,9 +1404,9 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [ ] **A670** [OPTIMIERUNG] Status „Vertrag verfügbar/inkompatibel“ für Suite-Plugins im Admin (ohne Entitlement im Kern) — _Konzept 15.11._ (TODO L981; Konzept/Roadmap 2026-11-15)
 - [ ] **A671** [OPTIMIERUNG] E2E-Matrix Ticketkauf → Check-in → Review-Anfrage samt Ausschlüssen (mit Stub-Review-Plugin) — _Konzept 15.11._ (TODO L983; Konzept/Roadmap 2026-11-15)
 - [ ] **A672** [WICHTIG] Form-Captain-Adapter: Formular je Event auswählen/einbetten, explizite Übergabe freigegebener Felder, nie Buchung/Zahlung (inaktiv ohne Plugin) — _Konzept 15.11._ (TODO L976; Konzept/Roadmap 2026-11-15)
-- [ ] **A673** [WICHTIG] Workflow-Providervertrag v1 in Contracts (SemVer, Envelope, Feld-Allowlist, Capability, Fehlercodes, Deprecation) — _Konzept 15.11._ (TODO L988; Konzept/Roadmap 2026-11-15)
-- [ ] **A674** [WICHTIG] Fehlende Post-Commit-Ereignisse: ticket.transferred, ticket.checked_out, event.cancelled, occurrence.changed, attendance.confirmed, refund.reversed; Schema-Version je Envelope — _Konzept 15.11._ (TODO L989; Konzept/Roadmap 2026-11-15)
-- [ ] **A675** [OPTIMIERUNG] Refund-Semantik je Zeile/Ticket, Storno-Ereignis, Outbox unabhängig von Webhook-Abos — _Konzept 15.11._ (TODO L990; Konzept/Roadmap 2026-11-15)
+- [x] **A673** [WICHTIG] Workflow-Providervertrag v1 in Contracts (SemVer, Envelope, Feld-Allowlist, Capability, Fehlercodes, Deprecation) — _Konzept 15.11._ (TODO L988; Konzept/Roadmap 2026-11-15)
+- [x] **A674** [WICHTIG] Fehlende Post-Commit-Ereignisse: ticket.transferred, ticket.checked_out, event.cancelled, occurrence.changed, attendance.confirmed, refund.reversed; Schema-Version je Envelope — _Konzept 15.11._ (TODO L989; Konzept/Roadmap 2026-11-15)
+- [x] **A675** [OPTIMIERUNG] Refund-Semantik je Zeile/Ticket, Storno-Ereignis, Outbox unabhängig von Webhook-Abos — _Konzept 15.11._ (TODO L990; Konzept/Roadmap 2026-11-15)
 - [ ] **A676** [WICHTIG] v1-Commands (Mail erneut senden, Ticket widerrufen, Event absagen/verschieben, Teilnahme bestätigen) mit Capability, Allowlist, Idempotency-Key, Audit — _Konzept 15.11._ (TODO L991; Konzept/Roadmap 2026-11-15)
 - [ ] **A677** [OPTIMIERUNG] Übergabe optionaler Erinnerungen/Mails an Workflow Captain je Mailtyp, protokolliert, nativer Fallback — _Konzept 15.11._ (TODO L992; Konzept/Roadmap 2026-11-15)
 - [ ] **A678** [OPTIMIERUNG] Adminstatus für Providerverträge, letzte Ereignisannahme, Fehler, Fallback — _Konzept 15.11._ (TODO L993; Konzept/Roadmap 2026-11-15)
@@ -1423,7 +1423,7 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [ ] **A689** [OPTIMIERUNG] Erinnerungen: Opt-out und List-Unsubscribe — _Konzept 15.11._ (TODO L1039; Konzept/Roadmap 2026-11-15)
 - [ ] **A690** [OPTIMIERUNG] Konfigurierbare Begriffe (Teilnehmende/Gäste …) und weitere überschreibbare Vorlagen — _Konzept 15.11._ (TODO L1040; Konzept/Roadmap 2026-11-15)
 - [ ] **A691** [OPTIMIERUNG] Release-Matrix: Status je Funktion (vorhanden/teilweise/nicht geplant/Releaseziel) für Core und Pro — _Konzept 15.11._ (TODO L1047; Konzept/Roadmap 2026-11-15)
-- [ ] **A692** [OPTIMIERUNG] docs/WEBHOOKS.md veraltet (order.refunded existiert), Webhook-Version in die Vertragstabelle — _Konzept 15.11._ (TODO L990; Konzept/Roadmap 2026-11-15)
+- [x] **A692** [OPTIMIERUNG] docs/WEBHOOKS.md veraltet (order.refunded existiert), Webhook-Version in die Vertragstabelle — _Konzept 15.11._ (TODO L990; Konzept/Roadmap 2026-11-15)
 - [ ] **A693** [ENTSCHEIDUNG] Zoom-Adapter bauen? („bei Nachfrage“) — _Konzept 15.11._ (TODO L1036; Konzept/Roadmap 2026-11-15)
 - [ ] **A694** [ENTSCHEIDUNG] Mailchimp-Adapter bauen? („bei Nachfrage“) — _Konzept 15.11._ (TODO L1037; Konzept/Roadmap 2026-11-15)
 - [ ] **A695** [ENTSCHEIDUNG] Free/Pro-Zuordnung je Funktionspaket (bereits ausgelieferte Module bleiben frei) — _Konzept 15.11._ (TODO L1045; Konzept/Roadmap 2026-11-15)

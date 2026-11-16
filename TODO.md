@@ -192,8 +192,8 @@ Stand in `main` am 13.11.2026: kein Lizenzcode vorhanden (per Suche nach `Licens
 - [ ] **A1 · Lizenz-PRs schließen.** PR #20 (Aktivierung), #21 (Updater), #22 (Rechte-Helfer) und #23 (Offline-Cache) nach dem Übertrag ins Add-on (B2) schließen, die Branches `codex/wplc-*` löschen.
 - [x] **A2 · Wächtertest in CI.** Ein Test schlägt fehl, sobald im Kern-Plugin Lizenzcode auftaucht: Klassen oder Aufrufe mit `LicenseClient`, die Route `wplc/v1`, ein Header `Update URI`, eigene Filter auf `pre_set_site_transient_update_plugins` oder `plugins_api`, Abfragen wie `allows_entitlement`.
 - [x] **A3 · Funktionsinventar festschreiben.** Jede vorhandene Funktion als „Kern, dauerhaft frei“ dokumentieren (`docs/FREE-PREMIUM.md`). Bereits ausgelieferte Funktionen werden nie nachträglich gesperrt oder ins Add-on verschoben.
-- [ ] **A4 · Erweiterungspunkte für das Add-on.** Hooks für Admin-Navigation, Einstellungen, Zahlungs- und Scanner-Adapter, Berichte und Exporte festlegen; die bestehenden Adapter-Verträge als Andockpunkte nutzen. Jeden Hook dokumentieren, als öffentliche API versionieren und mit einem Test absichern.
-- [ ] **A5 · Kern funktioniert allein.** Automatischer Test: alle Kernabläufe laufen ohne installiertes Add-on und ohne Netzwerkzugriff; das Kern-Plugin ruft den Lizenzserver nie auf.
+- [x] **A4 · Erweiterungspunkte für das Add-on.** Hooks für Admin-Navigation, Einstellungen, Zahlungs- und Scanner-Adapter, Berichte und Exporte festlegen; die bestehenden Adapter-Verträge als Andockpunkte nutzen. Jeden Hook dokumentieren, als öffentliche API versionieren und mit einem Test absichern.
+- [x] **A5 · Kern funktioniert allein.** Automatischer Test: alle Kernabläufe laufen ohne installiertes Add-on und ohne Netzwerkzugriff; das Kern-Plugin ruft den Lizenzserver nie auf.
 - [ ] **A6 · Hinweise auf das Add-on.** Höchstens dezent, wegklickbar und nur auf den eigenen Adminseiten (Richtlinie 11). Keine Menüpunkte, Schalter oder Felder, die sichtbar sind und erst nach Kauf funktionieren.
 - [x] **A7 · readme.txt für WordPress.org.** Abschnitt `== External services ==` für jeden externen Aufruf des Kerns, korrekte Header (`Tested up to`, `Stable tag`, Lizenz GPL-2.0-or-later), keine Aussage, die eine Lizenz voraussetzt.
 - [x] **A7b · Name und Slug prüfen.** Umbenannt in „Pass Captain“ (WordPress.org erlaubt kein „WP“ im Namen): Hauptdatei `pass-captain.php`, ZIP- und Ordnername `pass-captain`, Textdomain `pass-captain` (gleich dem Slug), Übersetzungsdateien `languages/pass-captain-*`. Die alte Kopie `wp-pass-captain/wp-pass-captain.php` wird automatisch übernommen. Unverändert bleiben bewusst REST-Namensraum `wp-pass-captain/v1`, Blocknamen, Admin-Seiten-Slug, Theme-Vorlagenordner, Shortcodes, Präfix `wpcap_` und die Action-Scheduler-Gruppe – sie sind öffentliche Schnittstellen bzw. gespeicherte Daten. Offen: Repository-Name `wp-passmaster` (nur GitHub, nicht relevant für WordPress.org).
@@ -659,7 +659,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [WICHTIG] Bestellung ohne Zeitleiste und Korrelations-ID; Mail-Erfolg nicht protokolliert — src/Admin/OrdersPage.php:409–540, Orders.php:1675 (A328, R2 Support)
 - [x] [WICHTIG] Website-Zustand-Info taugt nicht als Support-Export — src/Operations/SiteHealth.php:357ff. (A329, R2 Support)
 - [x] [WICHTIG] Zwei PDF-Engines; Mail-PDF zerstört Nicht-Latin-1-Zeichen, ignoriert Druckvorlagen — src/TicketPdf.php:97/116–119, Printing/PdfWriter.php:152–154 (A330, R2 Support)
-- [ ] [WICHTIG] Wichtige Erweiterungspunkte fehlen — src/Orders.php:314/689, Mail/Mailer.php:183–185, TicketPage.php:58 (A331, R2 Support)
+- [x] [WICHTIG] Wichtige Erweiterungspunkte fehlen — src/Orders.php:314/689, Mail/Mailer.php:183–185, TicketPage.php:58 (A331, R2 Support)
 - [x] [WICHTIG] Serien-Vorlage kopiert Teilnehmerfelder und Einlassprüfungen nicht — src/Series/Generator.php:272–286, Series/AdminPage.php:166 (A332, R2 UX)
 - [x] [WICHTIG] Zwei konkurrierende Wege für Terminserien; Ticketart/Feld nicht auf alle Termine anwendbar — src/Admin/EventsPage.php:799, :983–1015 (A333, R2 UX)
 - [x] [WICHTIG] Ticketart nach Verkaufsstart ohne Warnung änderbar (Preis/Steuer) — src/Admin/EventsPage.php:1017–1043 (A334, R2 UX)
@@ -985,9 +985,9 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 
 ## P1 – Workflow Captain Provider-Vertrag
 
-- [ ] PASS-WF-01 – Öffentlichen Providervertrag v1 festlegen: SemVer, Event-Envelope, Feld-Allowlist, Capability, Entitlement, Fehlercodes und Deprecation-Frist; keine privaten Klassen oder Tabellen.
+- [x] PASS-WF-01 – Öffentlichen Providervertrag v1 festlegen: SemVer, Event-Envelope, Feld-Allowlist, Capability, Entitlement, Fehlercodes und Deprecation-Frist; keine privaten Klassen oder Tabellen.
 - [ ] PASS-WF-02 – Post-Commit-Events für Bestellung bezahlt/storniert/erstattet, Ticket erstellt/widerrufen/transferiert, Check-in/out, Event abgesagt/verschoben und Teilnahme bestätigt veröffentlichen; stabile IDs, Zeitstempel und Schema-Version, keine Codes oder Teilnehmer-PII.
-- [ ] PASS-WF-03 – Ausgabe-Semantik pro Ticket mit stabiler Ticket-ID definieren; Refunds nach Order, Line und Ticket eindeutig abbilden; fehlenden order.refunded Pfad schließen und Outbox/Dedupe gegen Mehrfachhooks ergänzen.
+- [x] PASS-WF-03 – Ausgabe-Semantik pro Ticket mit stabiler Ticket-ID definieren; Refunds nach Order, Line und Ticket eindeutig abbilden; fehlenden order.refunded Pfad schließen und Outbox/Dedupe gegen Mehrfachhooks ergänzen.
 - [ ] PASS-WF-04 – Sichere v1-Commands für ausgewählte Aktionen bereitstellen: Mail erneut senden, Ticket widerrufen, Event absagen/verschieben und zulässige Teilnahme bestätigen. Capability, Allowlist, Idempotency-Key und Audit; keine Zahlung, Erstattung oder Ticketcode-Ausgabe.
 - [ ] PASS-WF-05 – Ownership für optionale Erinnerungen/Mails mit expliziter, protokollierter Übergabe ergänzen. Zahlung, Reservierung, Ausgabe, Refund und Einlass bleiben Pass Captain-eigene Abläufe.
 - [ ] PASS-WF-06 – Adminstatus für Providervertrag, Workflow-Übergaben, letzte Eventannahme und Fehler ergänzen; bei fehlendem/inkompatiblem Workflow auf native Abläufe zurückfallen.
