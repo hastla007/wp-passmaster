@@ -301,6 +301,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_mail_types` | `array $types` | Registry der Kunden-Mails (`PassCaptain\Mail\Types`): eigene Typen ergänzen oder Labels/Standardtexte ändern (Kern-Typen können nicht entfernt werden). Siehe [MAIL-TEMPLATES.md](MAIL-TEMPLATES.md). |
 | `wpcap_mail` | `array $message, string $to` | Jede Kunden-Mail des zentralen Mailers vor dem Versand (`type`, `subject`, `body`, `format`, `attachments`, `locale`, optional `headers`; bei eingebauten HTML-Texten zusätzlich `text_body`/`text_for` – die Textversion gilt nur, solange `body` unverändert bleibt). |
 | `wpcap_mail_default_format` | `string $format, string $type` | Format der eingebauten Standardtexte ohne eigene Vorlage: `html` (Standard, mit Layout und Textversion) oder `text`; `$type` ist der Mail-Typ bzw. `reminder` für Erinnerungen. Gespeicherte Vorlagen behalten ihr Format. |
+| `wpcap_mail_rtl` | `bool $rtl`, `string $locale` | A522: ob eine Mail von rechts nach links gesetzt wird (`dir="rtl"`); Standard nach `Mail\Layout::RTL_LANGUAGES`. |
 | `wpcap_mail_layout_html` | `string $html, string $content, string $subject` | Fertiges HTML-Dokument des E-Mail-Layouts (HTML-Vorlagen). |
 | `wpcap_mail_test_recipient` | `string $email, WP_User|null $user` | Empfänger der „Testmail senden“-Funktion (Standard: Adresse der angemeldeten Person). |
 | `wpcap_ticket_code_mail_section` | `string $section, int $ticket_id` | Zusatztext je Ticket in Übertragungs-, Zuweisungs- und Neuversand-Mails (z. B. Wallet-Links). |

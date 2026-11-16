@@ -104,11 +104,13 @@ final class Blocks {
 		$title = __( 'Deine Bestellung', 'pass-captain' );
 		$text = $title . "\n";
 		$html = '<p style="margin:0 0 8px"><strong>' . esc_html( $title ) . '</strong></p><table role="presentation" style="border-collapse:collapse;margin:0 0 16px">';
+		// A522: label on the start side, amount on the end side of the reading direction.
+		$end = Layout::end_side();
 		foreach ( $lines as $l ) {
 			$label = sprintf( '%d × %s — %s (%s)', (int) $l['quantity'], $l['event'], $l['ticket'], $l['when'] );
 			$money = \PassCaptain\Frontend\Format::money( (int) $l['gross_minor'], (string) $l['currency'] );
 			$text .= $label . ': ' . $money . "\n";
-			$html .= '<tr><td style="padding:2px 16px 2px 0;vertical-align:top">' . esc_html( $label ) . '</td><td style="padding:2px 0;text-align:right">' . esc_html( $money ) . '</td></tr>';
+			$html .= '<tr><td style="padding:2px 0;padding-' . $end . ':16px;vertical-align:top">' . esc_html( $label ) . '</td><td style="padding:2px 0;text-align:' . $end . '">' . esc_html( $money ) . '</td></tr>';
 		}
 		$html .= '</table>';
 		return Mailer::block( $text . "\n", $html );
