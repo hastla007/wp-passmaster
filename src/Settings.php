@@ -74,6 +74,8 @@ final class Settings {
 			// terms_text / consumer_info_text keys hold the texts of the default language (legal_default_locale()).
 			'legal_texts'               => array(),
 			'refund_approval_threshold' => 0,
+			// A643: off = approvers execute their own refunds above the threshold (previous behaviour).
+			'refund_four_eyes_approvers' => 0,
 			'require_2fa_for_refunds'   => 0,
 			// Buyer cancellation/refund requests in the order portal until X hours before the start (0 = off).
 			'portal_refund_request_hours' => 0,

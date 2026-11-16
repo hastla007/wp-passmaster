@@ -832,7 +832,7 @@ final class OrdersPage {
 				<p><strong><?php esc_html_e( 'Weg:', 'pass-captain' ); ?></strong> <span id="wpcap-refund-route"><?php echo esc_html( $preview['route'] ); ?></span></p>
 				<?php if ( $preview['approval_all'] ) : ?><p class="description"><?php esc_html_e( 'Ab einem Betrag über der Freigabegrenze wartet die Erstattung auf eine zweite Person.', 'pass-captain' ); ?></p><?php endif; ?>
 			</div>
-			<?php if ( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ) > 0 && ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
+			<?php if ( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ) > 0 && ! Refunds::may_self_approve() ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig.', 'pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
 			<?php endif; ?>
 			<button class="button button-primary" type="submit" id="wpcap-refund-submit"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>

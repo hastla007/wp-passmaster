@@ -120,7 +120,7 @@ abweichender Betrag werden nie eingezogen (Audit `mollie_authorization_not_captu
 
 | Von → nach | Auslöser |
 |---|---|
-| (neu) → `pending_approval` | Antrag über der Freigabeschwelle (`refund_approval_threshold`). |
+| (neu) → `pending_approval` | Antrag über der Freigabeschwelle (`refund_approval_threshold`). Personen mit `wpcap_approve_refunds` führen eigene Anträge über der Schwelle sofort aus, außer die Einstellung „Vier-Augen-Prinzip auch für Freigebende“ (`refund_four_eyes_approvers`, A643) ist aktiv – dann wartet jeder Antrag über der Schwelle auf eine andere berechtigte Person. Berechtigung und Zwei-Faktor-Pflicht werden geprüft, bevor ein wiederholter Idempotenzschlüssel eine bestehende Erstattung fortsetzt. |
 | (neu) → `approved` | Antrag unter der Schwelle. |
 | (neu) → `completed` | Externe Erstattung (`Refunds::record_external()`): Das Geld ist schon zurück. |
 | `pending_approval` → `approved`/`rejected` | Zweite berechtigte Person (Vier-Augen-Prinzip). |

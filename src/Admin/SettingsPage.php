@@ -149,6 +149,7 @@ final class SettingsPage {
 				'tab' => 'general',
 				'fields' => array(
 					'refund_approval_threshold' => array( 'type' => 'money', 'label' => __( 'Zweite Freigabe ab Betrag', 'pass-captain' ), 'description' => __( '0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00.', 'pass-captain' ) ),
+					'refund_four_eyes_approvers' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip auch für Freigebende', 'pass-captain' ), 'description' => __( 'Ohne diese Option führen Personen mit Freigabeberechtigung eigene Erstattungen über dem Betrag sofort aus. Mit der Option wartet jede Erstattung über dem Betrag auf die Freigabe einer anderen berechtigten Person.', 'pass-captain' ) ),
 					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'pass-captain' ) ),
 					'portal_refund_request_hours' => array( 'type' => 'int', 'label' => __( 'Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 8760, 'description' => __( '0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe.', 'pass-captain' ) ),
 				),

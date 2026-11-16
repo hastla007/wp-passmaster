@@ -35,14 +35,15 @@ final class Refunds {
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$system = ! empty( $args['system'] );
-		$existing = self::find_by_key( $order_id, $idempotency_key );
-		if ( $existing ) { return self::resume( $existing ); }
-		$key_hash = self::key_hash( $order_id, $idempotency_key );
-
+		// The actor is checked before the idempotency lookup (A643): a replayed key must not resume
+		// (execute) an approved refund for someone who may not refund (any more).
 		if ( ! $system ) {
 			$check = self::check_actor();
 			if ( is_wp_error( $check ) ) { return $check; }
 		}
+		$existing = self::find_by_key( $order_id, $idempotency_key );
+		if ( $existing ) { return self::resume( $existing ); }
+		$key_hash = self::key_hash( $order_id, $idempotency_key );
 		$order = Orders::get( $order_id );
 		if ( ! $order && '' !== $wpdb->last_error ) { return self::busy(); }
 		if ( ! $order || 'paid' !== $order->payment_status ) {
@@ -102,7 +103,7 @@ final class Refunds {
 		// large refund into small requests does not avoid the second approval.
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
-		$needs_approval = ! empty( $args['require_approval'] ) || ( $threshold > 0 && $cumulative > $threshold && ( $system || ! current_user_can( self::APPROVE_CAP ) ) );
+		$needs_approval = ! empty( $args['require_approval'] ) || ( $threshold > 0 && $cumulative > $threshold && ! self::may_self_approve( $system ) );
 		$now = current_time( 'mysql', true );
 		$row = array(
 			'order_id' => $order_id,
@@ -169,12 +170,13 @@ final class Refunds {
 		$amount_minor = absint( $amount_minor );
 		$system = ! empty( $args['system'] );
 		$key_hash = hash( 'sha256', 'refund-amount|' . $order_id . '|' . sanitize_text_field( $idempotency_key ) );
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
-		if ( $existing ) { return $existing; }
+		// Actor first, then the idempotency hit (A643).
 		if ( ! $system ) {
 			$check = self::check_actor();
 			if ( is_wp_error( $check ) ) { return $check; }
 		}
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+		if ( $existing ) { return $existing; }
 		if ( $amount_minor < 1 ) {
 			return new \WP_Error( 'wpcap_refund_amount', __( 'Der Erstattungsbetrag muss größer als 0 sein.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -201,7 +203,7 @@ final class Refunds {
 		$tax = isset( $args['tax_minor'] ) ? min( $amount_minor, absint( $args['tax_minor'] ) ) : self::tax_for( $order, null, $amount_minor );
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $amount_minor;
-		$needs_approval = $threshold > 0 && $cumulative > $threshold && ( $system || ! current_user_can( self::APPROVE_CAP ) );
+		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! self::may_self_approve( $system );
 		$now = current_time( 'mysql', true );
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
 			'order_id' => $order_id,
@@ -1283,6 +1285,17 @@ final class Refunds {
 	}
 
 	/** Optional enforcement of two-factor authentication for refund actions. */
+	/**
+	 * Whether the requester's own refund above `refund_approval_threshold` runs without a second person:
+	 * approvers (`wpcap_approve_refunds`) may by default; with the setting `refund_four_eyes_approvers`
+	 * (A643) every refund above the threshold waits for a different approver. System requests never
+	 * approve themselves.
+	 */
+	public static function may_self_approve( $system = false ) {
+		if ( $system || ! current_user_can( self::APPROVE_CAP ) ) { return false; }
+		return ! Settings::get( 'refund_four_eyes_approvers' );
+	}
+
 	private static function check_actor() {
 		if ( ! current_user_can( self::REFUND_CAP ) && ! current_user_can( self::APPROVE_CAP ) ) {
 			return new \WP_Error( 'wpcap_refund_forbidden', __( 'Keine Berechtigung für Erstattungen.', 'pass-captain' ), array( 'status' => 403 ) );
