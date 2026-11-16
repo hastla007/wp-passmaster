@@ -942,4 +942,6 @@ FORM_CAPTAIN_DIR=/pfad/zu/wp-formmaster WP_TESTS_DB_NAME=wp_passfc_tests \
 Abgedeckt: Zweck `pass.event_registration` registriert, nur veröffentlichte Formulare zuordenbar, Einsendung mit
 verifiziertem Eventkontext erzeugt keine Bestellung/Reservierung/Ticket, manipulierte Event-ID →
 `context_signature_invalid`, abgesagtes Event → `context_ref_rejected`, Event-Karte mit Formular und gültigem
-Kontext. Nicht in CI (braucht einen Form-Captain-Checkout).
+Kontext. Übergabe (PASS-FC-05): Connector bis zum Opt-in deaktiviert (Job pausiert), Job im Worker legt genau eine
+Anfrage „zu prüfen“ an, Wiederholung liefert dieselbe `remote_id`, Einwilligungswiderruf bzw. Entry-Löschung entfernt
+die offene Anfrage. Nicht in CI (braucht einen Form-Captain-Checkout).

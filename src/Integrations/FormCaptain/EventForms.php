@@ -220,11 +220,12 @@ final class EventForms {
 		}
 		$assigned = self::get( (int) $event->event_id );
 		$state    = Adapter::state();
-		if ( 'missing' === $state && ! $assigned ) {
+		$requests = EventRequests::count_for_event( (int) $event->event_id );
+		if ( 'missing' === $state && ! $assigned && ! $requests ) {
 			return;
 		}
 		echo '<h2>' . esc_html__( 'Formular (Form Captain)', 'pass-captain' ) . '</h2>';
-		if ( 'missing' === $state ) {
+		if ( 'missing' === $state && $assigned ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Form Captain ist nicht aktiv. Das zugeordnete Formular wird auf der Eventseite nicht angezeigt.', 'pass-captain' ) . '</p></div>';
 		} elseif ( 'incompatible' === $state ) {
 			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Die aktive Form-Captain-Version hat eine nicht unterstützte Vertragsversion. Formulare werden auf Eventseiten nicht angezeigt, bis Pass Captain oder Form Captain aktualisiert ist.', 'pass-captain' ) . '</p></div>';
@@ -238,9 +239,21 @@ final class EventForms {
 			/* translators: 1: form title, 2: form ID */
 			echo '<p>' . esc_html( sprintf( __( 'Zugeordnet: %1$s (ID %2$d)', 'pass-captain' ), $label, $assigned['form_id'] ) ) . '</p>';
 		}
-		if ( ! $editable || ! Adapter::compatible() ) {
-			return;
+		if ( $editable && Adapter::compatible() ) {
+			self::render_assignment_form( $event, $assigned );
 		}
+		if ( $requests ) {
+			EventRequests::render_list( $event, $editable );
+		}
+	}
+
+	/**
+	 * Field to assign or remove the form.
+	 *
+	 * @param object     $event    Event row.
+	 * @param array|null $assigned Current assignment.
+	 */
+	private static function render_assignment_form( $event, $assigned ) {
 		Forms::open_form( self::ACTION );
 		Forms::hidden( 'event_id', (int) $event->event_id );
 		echo '<p><label for="wpcap-ev-fc-form">' . esc_html__( 'Formular-ID oder öffentliche ID', 'pass-captain' ) . '</label> ';

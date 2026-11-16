@@ -10,6 +10,7 @@ namespace PassCaptain\Modules;
 
 use PassCaptain\Integrations\FormCaptain\Adapter;
 use PassCaptain\Integrations\FormCaptain\EventForms;
+use PassCaptain\Integrations\FormCaptain\EventRequests;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -32,7 +33,7 @@ final class FormCaptain {
 	 * @return string[]
 	 */
 	public static function schema( $prefix, $charset ) {
-		return EventForms::schema( $prefix, $charset );
+		return array_merge( EventForms::schema( $prefix, $charset ), EventRequests::schema( $prefix, $charset ) );
 	}
 
 	/**
@@ -41,6 +42,10 @@ final class FormCaptain {
 	 * @return array<string,callable>
 	 */
 	public static function admin_handlers() {
-		return array( EventForms::ACTION => array( EventForms::class, 'handle_save' ) );
+		return array(
+			EventForms::ACTION           => array( EventForms::class, 'handle_save' ),
+			EventRequests::ACTION_BOOK   => array( EventRequests::class, 'handle_book' ),
+			EventRequests::ACTION_REJECT => array( EventRequests::class, 'handle_reject' ),
+		);
 	}
 }
