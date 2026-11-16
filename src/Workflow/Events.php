@@ -32,6 +32,7 @@ final class Events {
 		add_action( 'wpcap_ticket_exchanged', array( __CLASS__, 'ticket_exchanged' ), $p, 4 );
 		add_action( 'wpcap_ticket_checked_in', array( __CLASS__, 'ticket_checked_in' ), $p, 2 );
 		add_action( 'wpcap_ticket_checked_out', array( __CLASS__, 'ticket_checked_out' ), $p, 2 );
+		add_action( 'wpcap_attendance_confirmed', array( __CLASS__, 'attendance_confirmed' ), $p, 2 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'occurrence_rescheduled' ), $p, 3 );
 		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'occurrence_changed' ), $p, 3 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'occurrence_cancelled' ), $p, 2 );
@@ -265,6 +266,17 @@ final class Events {
 		$recorded = Outbox::record( 'ticket.checked_in', 'checkin|' . ( $checkin_id ? $checkin_id : (int) $ticket_id . '|' . wp_generate_uuid4() ), $t['ticket_id'], $t + array( 'checked_in_at' => $now, 'source' => $source, 'area_id' => absint( $context['area_id'] ?? 0 ), 'checkin_id' => $checkin_id ) );
 		Outbox::record( 'attendance.confirmed', 'attendance|' . (int) $ticket_id, $t['ticket_id'], $t + array( 'confirmed_at' => $now, 'method' => 'check_in', 'source' => $source ) );
 		return $recorded;
+	}
+
+	/**
+	 * A676: an allowed attendance confirmation (command attendance.confirm). Same event id as the
+	 * confirmation by a first admission: attendance.confirmed stays once per ticket.
+	 */
+	public static function attendance_confirmed( $ticket_id, $context = array() ) {
+		$t = self::ticket( $ticket_id );
+		if ( ! $t ) { return false; }
+		$context = is_array( $context ) ? $context : array();
+		return Outbox::record( 'attendance.confirmed', 'attendance|' . (int) $ticket_id, $t['ticket_id'], $t + array( 'confirmed_at' => gmdate( 'Y-m-d\TH:i:s\Z' ), 'method' => sanitize_key( (string) ( $context['method'] ?? 'manual' ) ), 'source' => sanitize_key( (string) ( $context['source'] ?? 'command' ) ) ) );
 	}
 
 	public static function ticket_checked_out( $ticket_id, $context = array() ) {

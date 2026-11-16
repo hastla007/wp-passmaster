@@ -901,6 +901,8 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 			// Event outbox of the workflow contract (schema 3.10.24, A675; see Workflow\Outbox).
 			Workflow\Outbox::schema( $wpdb->prefix, $charset ),
+			// Idempotency and results of workflow commands v1 (schema 3.10.25, A676; see Workflow\Commands).
+			Workflow\Commands::schema( $wpdb->prefix, $charset ),
 			"CREATE TABLE {$wpdb->prefix}wpcap_rate_limits (
 				rl_key char(40) NOT NULL,
 				hits int(10) unsigned NOT NULL DEFAULT 0,

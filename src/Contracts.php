@@ -48,6 +48,7 @@ final class Contracts {
 			'affiliate'        => Integrations\AffiliateCaptain\Adapter::CONTRACT,
 			'addon'            => PublicApi::VERSION, // A663: public hooks for add-ons (docs/HOOKS.md).
 			'workflow'         => Workflow\Contract::VERSION, // A673: workflow provider contract (outbox events).
+			'workflow_commands' => Workflow\Commands::VERSION, // A676: workflow commands v1.
 			'review'           => Review\Contract::VERSION, // A667: review participation contract (experience_completed).
 		);
 	}

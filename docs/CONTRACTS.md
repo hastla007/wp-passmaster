@@ -22,6 +22,7 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 | Affiliate Captain (`wpac_record_sale()`, `wpac_record_refund()`) | `affiliate` | 1.0.0 | [EXTENSIONS.md](EXTENSIONS.md) |
 | Ausgehende Webhooks (signierte POSTs, [WEBHOOKS.md](WEBHOOKS.md)) | `webhooks` | `api_version` 2026-11-01, `schema_version` je Ereignistyp (1.0; `order.refunded` 1.1) | [WEBHOOKS.md](WEBHOOKS.md) |
 | Workflow-Provider (`wp_pass_captain_workflow_provider_v1`, Ereignis-Outbox) | `workflow` | 1.0.0 (`PassCaptain\Workflow\Contract::VERSION`, Schema-Version je Ereignistyp) | [unten](#workflow-providervertrag-v1) |
+| Workflow-Commands (`PassCaptain\Workflow\Commands::execute()`) | `workflow_commands` | 1.0.0 (`Commands::VERSION`) | [unten](#workflow-commands-v1) |
 | Review-Provider (`wp_pass_captain_review_provider_v1`, Teilnahmevertrag `experience_completed`) | `review` | 1.0.0 (`PassCaptain\Review\Contract::VERSION`) | [unten](#review-teilnahmevertrag-v1) |
 | Öffentliche Add-on-API (Hooks für `pass-captain-pro` und andere Plugins, `wpcap_loaded`) | `addon` | 1.0.0 (`PassCaptain\PublicApi::VERSION`) | [HOOKS.md](HOOKS.md#öffentliche-add-on-api) |
 
@@ -104,6 +105,34 @@ privaten Klassen, keine Tabellen.
 
 Fixture: `tests/contracts/workflow.json` (Envelope-Shape je Ereignistyp); `tests/integration/modules/zz_a673_a675.php`
 prüft echte Abläufe dagegen.
+
+## Workflow-Commands v1
+
+`PassCaptain\Workflow\Commands::execute( $command, array $args, $idempotency_key )` (A676, `src/Workflow/Commands.php`)
+lässt einen Workflow-Provider ausgewählte Aktionen ausführen – nur diese, über die regulären Dienste des Kerns (mit
+deren Prüfungen, Benachrichtigungen und Ereignissen). Zahlung, Erstattung, Ticketausgabe und Ticketcodes haben keinen
+Command.
+
+| Command | Capability | Argumente (Pflicht fett) | Dienst |
+|---|---|---|---|
+| `mail.resend` | `wpcap_manage_orders` | **`order_id`** (öffentliche ID), `new_codes` (bool, Standard: gespeicherte Codes erneut senden) | `Orders::resend_tickets()` (übertragene Tickets behalten ihren Code) |
+| `ticket.revoke` | `wpcap_manage_orders` | **`ticket_id`** (öffentliche ID), **`reason`** | „Ticket widerrufen“ im Admin (ohne Erstattung) |
+| `event.cancel` | `wpcap_manage_events` | **`event_id`**, **`reason`** | reguläre Eventabsage (inkl. der eingestellten automatischen Erstattung `auto_refund_cancelled`) |
+| `occurrence.reschedule` | `wpcap_manage_events` | **`occurrence_id`**, **`starts_at`** (ISO 8601 mit Zeitzone), `ends_at` | Terminformular (Revision, Benachrichtigung, Verkaufsfenster; Ende und Einlass verschieben sich mit) |
+| `attendance.confirm` | `wpcap_checkin` | **`ticket_id`**, `method` (`manual`, `list`, `session`, `online`) | zulässige Teilnahmebestätigung ohne Scan: nur bezahlte, nicht erstattete, gültige Tickets, ab Terminbeginn; Aktion `wpcap_attendance_confirmed`, Ereignisse `attendance.confirmed` (Workflow) und `experience_completed` (Review, `method` `confirmed`) |
+
+- **Allowlist:** unbekannte Commands (`wpcap_workflow_command_unknown`) und Argumente
+  (`wpcap_workflow_command_arg_not_allowed`, `arg`) werden abgelehnt, fehlende Pflichtargumente ebenso
+  (`wpcap_workflow_command_invalid`).
+- **Capability:** der aktuelle Benutzer (der Provider handelt als Benutzer) braucht die Capability des Commands
+  (`wpcap_workflow_forbidden`, 403); zusätzlich gelten die Event-Rechte des jeweiligen Dienstes.
+- **Idempotency-Key** (Pflicht, 8–64 Zeichen `[A-Za-z0-9._:-]`, Tabelle `wpcap_workflow_commands`, Schema 3.10.25):
+  derselbe Key mit demselben Command und denselben Argumenten liefert das gespeicherte Ergebnis (`replayed` = true)
+  bzw. denselben Fehler, ohne erneut auszuführen; derselbe Key mit anderen Argumenten ist ein Konflikt
+  (`wpcap_workflow_idempotency_conflict`, 409); läuft er noch: `wpcap_workflow_command_in_progress`. Vorübergehende
+  Fehler (5xx) verbrauchen den Key nicht.
+- **Audit:** jeder Aufruf als `workflow_command` (Command, Hash des Keys, Ergebnis) – ohne Personendaten. Ergebnisse
+  enthalten nie Ticketcodes, Hilfscodes oder Personendaten.
 
 ## Review-Teilnahmevertrag v1
 
