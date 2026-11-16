@@ -122,5 +122,27 @@ foreach ( (array) glob( $root . '/src/blocks/*/editor.js' ) as $editor_js ) {
 	$missing_deps = array_diff( $needed, $deps );
 	$check( "src/blocks/$block_dir/editor.asset.php lists every wp.* package of editor.js" . ( $missing_deps ? ' – missing ' . implode( ', ', $missing_deps ) : '' ), $needed && ! $missing_deps );
 }
+// A367: every shipped PHP file of the plugin (not vendor/) stops when loaded outside WordPress: an
+// ABSPATH guard (uninstall.php: WP_UNINSTALL_PLUGIN) before the first declaration or statement.
+$unguarded = array();
+foreach ( $shipped as $file ) {
+	if ( '.php' !== substr( $file, -4 ) || 0 === strpos( $file, 'vendor/' ) ) { continue; }
+	$tokens = token_get_all( (string) file_get_contents( $root . '/' . $file ) );
+	$guarded = false;
+	$code = '';
+	foreach ( $tokens as $i => $token ) {
+		$id = is_array( $token ) ? $token[0] : null;
+		if ( in_array( $id, array( T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT ), true ) ) { $code .= '' === $code ? '' : ' '; continue; }
+		$code .= is_array( $token ) ? $token[1] : $token;
+		// namespace/use/declare lines may come first; anything else must be the guard.
+		if ( ';' === $token || '}' === $token ) {
+			if ( preg_match( '/defined\(\s*([\'"])(ABSPATH|WP_UNINSTALL_PLUGIN)\1\s*\)/', $code ) && preg_match( '/\b(exit|die)\b/', $code ) ) { $guarded = true; break; }
+			if ( ! preg_match( '/^\s*(namespace|use|declare)\b/', $code ) ) { break; }
+			$code = '';
+		}
+	}
+	if ( ! $guarded ) { $unguarded[] = $file; }
+}
+$check( 'every shipped PHP file has an ABSPATH guard before its first statement' . ( $unguarded ? ' – missing in ' . implode( ', ', $unguarded ) : '' ), ! $unguarded );
 echo $failed ? "$failed failed\n" : "all passed\n";
 exit( $failed ? 1 : 0 );
