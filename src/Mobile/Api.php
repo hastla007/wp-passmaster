@@ -229,6 +229,9 @@ final class Api {
 		if ( ! is_array( $scans ) || ! $scans || count( $scans ) > 200 ) {
 			return new \WP_Error( 'wpcap_sync_invalid', __( 'Es müssen 1 bis 200 Scans übertragen werden.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		// A609: scan times need a UTC offset.
+		$invalid_time = Checkin::scanned_at_error( $scans );
+		if ( $invalid_time ) { return $invalid_time; }
 		$results = array();
 		$device = Devices::current();
 		Areas::touch_device_sync( (int) $device->device_id, count( $scans ) );
@@ -240,7 +243,7 @@ final class Api {
 				continue;
 			}
 			$context = array( 'event_ids' => Devices::event_ids( $device ), 'device_id' => (int) $device->device_id, 'area_id' => Devices::area_id( $device ) ?: absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => 'app:' . $key, 'source' => 'offline' );
-			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
+			$scanned = Checkin::parse_scanned_at( $scan['scanned_at'] ?? null );
 			if ( $scanned && $scanned <= \PassCaptain\Clock::now() + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
 			// A544: an offline admission from the search of the PWA has no code, only the package hash.

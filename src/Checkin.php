@@ -55,6 +55,43 @@ final class Checkin {
 	}
 
 	/**
+	 * A609: device time of an uploaded offline scan. Only unambiguous values are accepted: ISO 8601
+	 * with a UTC offset ("2026-11-13T19:42:00Z", "…+01:00") or a Unix timestamp. A local time without
+	 * offset used to be read as UTC and moved the scan by the device's offset (wrong day, wrong entry
+	 * window).
+	 *
+	 * @param mixed $value Uploaded scanned_at.
+	 * @return int|null|false Timestamp; null when empty (evaluated at "now"); false when not accepted.
+	 */
+	public static function parse_scanned_at( $value ) {
+		if ( null === $value || '' === $value ) { return null; }
+		if ( is_int( $value ) || ( is_string( $value ) && preg_match( '/^\d{9,11}$/', $value ) ) ) { return (int) $value; }
+		if ( ! is_string( $value ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:?\d{2})$/i', trim( $value ) ) ) { return false; }
+		$ts = strtotime( trim( $value ) );
+		return false === $ts ? false : (int) $ts;
+	}
+
+	/**
+	 * A609: 400 error when a scan of an upload batch has a scanned_at without UTC offset (nothing of
+	 * the batch is booked, the client keeps its queue); null when all are fine.
+	 *
+	 * @param array $scans Uploaded scans.
+	 */
+	public static function scanned_at_error( array $scans ) {
+		foreach ( $scans as $i => $scan ) {
+			if ( is_array( $scan ) && false === self::parse_scanned_at( $scan['scanned_at'] ?? null ) ) {
+				return new \WP_Error(
+					'wpcap_scanned_at_invalid',
+					/* translators: %d: position of the scan in the upload (starting at 1) */
+					sprintf( __( 'Scan %d: scanned_at braucht eine Zeitzonenangabe (ISO 8601 mit Z oder ±hh:mm, z. B. 2026-11-13T19:42:00Z) oder einen Unix-Zeitstempel.', 'pass-captain' ), (int) $i + 1 ),
+					array( 'status' => 400, 'index' => (int) $i )
+				);
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Time a scan is evaluated at: the device time (scanned_at) for offline uploads, but only within
 	 * the configured maximum age (Admission setting offline_max_age_hours, default 12 h); older or
 	 * missing times are evaluated at "now".

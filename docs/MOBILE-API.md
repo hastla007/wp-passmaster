@@ -203,6 +203,7 @@ Optional: Einlassfenster in Minuten vor Beginn/nach Ende sowie tägliche Einlass
 
 - **Scannen:** native Kamera-APIs (iOS AVFoundation/VisionKit, Android ML Kit/CameraX). Gleichen Code innerhalb von ca. 5 s ignorieren.
 - **Feedback:** grün, rot oder gelb plus Ton bzw. Vibration. Die Texte kommen aus `message` und sind übersetzt (Deutsch/Englisch).
+- **`scanned_at` mit Zeitzone (A609):** ISO 8601 mit `Z` oder Versatz (`2026-11-13T19:42:00Z`, `2026-11-13T20:42:00+01:00`) oder Unix-Zeitstempel. Eine Ortszeit ohne Versatz wird abgelehnt: der ganze Upload antwortet mit `400` `wpcap_scanned_at_invalid` (`data.index` = Position des Scans), nichts wird gebucht, die App behält ihre Warteschlange. Gilt ebenso für `POST /admission/offline-sync` des Web-Scanners. Fehlt `scanned_at`, zählt die Serverzeit.
 - **Uhrzeit:** `server_time` aus `/app/me` gegen die Gerätezeit prüfen und bei mehr als 2 Minuten Abweichung warnen, weil `scanned_at` für Offline-Scans zählt.
 - **Ablauf und Widerruf:** Bei 401 das Token verwerfen und die Kopplung neu starten.
 - **Kein Speichern von Personendaten** über die Sitzung hinaus.

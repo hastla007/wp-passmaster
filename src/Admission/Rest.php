@@ -63,6 +63,9 @@ final class Rest {
 		if ( ! is_array( $scans ) || ! $scans || count( $scans ) > 100 ) {
 			return new \WP_Error( 'wpcap_offline_batch_invalid', __( 'Der Offline-Scanbatch muss 1 bis 100 Codes enthalten.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		// A609: scan times need a UTC offset.
+		$invalid_time = Checkin::scanned_at_error( $scans );
+		if ( $invalid_time ) { return $invalid_time; }
 		$now = Checkin::now();
 		$results = array();
 		foreach ( $scans as $scan ) {
@@ -74,7 +77,7 @@ final class Rest {
 				continue;
 			}
 			$context = array( 'source' => 'offline', 'area_id' => absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => 'web:' . $key, 'occurrence_id' => absint( $scan['occurrence_id'] ?? 0 ) );
-			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
+			$scanned = Checkin::parse_scanned_at( $scan['scanned_at'] ?? null );
 			if ( $scanned && $scanned <= $now + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
 			$outcome = $out ? Checkin::check_out( $token, $context ) : Checkin::perform( $token, $context );
