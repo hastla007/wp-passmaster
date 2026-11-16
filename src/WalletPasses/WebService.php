@@ -97,7 +97,7 @@ final class WebService {
 		if ( '' === $url ) {
 			return new \WP_Error( 'wpcap_wallet_unavailable', __( 'Google Wallet ist gerade nicht erreichbar. Bitte versuche es in ein paar Minuten erneut.', 'pass-captain' ), array( 'status' => 503 ) );
 		}
-		return new \WP_REST_Response( array( '__wpcap_raw' => '', 'headers' => array( 'Location' => $url, 'Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer' ) ), 302 );
+		return new RawResponse( '', array( 'Location' => $url, 'Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer' ), 302 );
 	}
 
 	/** GET /wallet/apple/bundle?o=…&p=…&sig=…: the batch's passes as application/vnd.apple.pkpasses. */
@@ -120,7 +120,7 @@ final class WebService {
 			if ( $built && ! empty( $built['bundle'] ) ) { $files[ sprintf( 'ticket-%02d.pkpass', $i + 1 ) ] = $built['bundle']; }
 		}
 		if ( ! $files ) { return new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		return new \WP_REST_Response( array( '__wpcap_raw' => Archive::zip( $files ), 'headers' => array( 'Content-Type' => 'application/vnd.apple.pkpasses', 'Content-Disposition' => 'attachment; filename="tickets.pkpasses"', 'Cache-Control' => 'no-store' ) ), 200 );
+		return new RawResponse( Archive::zip( $files ), array( 'Content-Type' => 'application/vnd.apple.pkpasses', 'Content-Disposition' => 'attachment; filename="tickets.pkpasses"', 'Cache-Control' => 'no-store' ), 200 );
 	}
 
 	private static function unauthorized() {
@@ -209,7 +209,7 @@ final class WebService {
 
 	private static function pkpass_response( array $built ) {
 		$modified = gmdate( 'D, d M Y H:i:s', intdiv( (int) $built['tag'], 1000 ) ) . ' GMT';
-		return new \WP_REST_Response( array( '__wpcap_raw' => $built['bundle'], 'headers' => array( 'Content-Type' => 'application/vnd.apple.pkpass', 'Last-Modified' => $modified, 'ETag' => '"' . (int) $built['tag'] . '"', 'Cache-Control' => 'no-store' ) ), 200 );
+		return new RawResponse( $built['bundle'], array( 'Content-Type' => 'application/vnd.apple.pkpass', 'Last-Modified' => $modified, 'ETag' => '"' . (int) $built['tag'] . '"', 'Cache-Control' => 'no-store' ), 200 );
 	}
 
 	/**
@@ -246,7 +246,7 @@ final class WebService {
 		$sig = (string) $request->get_param( 'sig' );
 		$limits = self::limits();
 		if ( ! RateLimit::allow( 'wallet_dl_' . RateLimit::client(), $limits['download'], $limits['window'] ) ) { return self::rate_limited( $limits['window'] ); }
-		if ( ! $state || ! hash_equals( Service::download_sig( $serial, $state ), $sig ) ) {
+		if ( ! $state || ! Service::download_sig_valid( $serial, $state, $sig ) ) {
 			return self::invalid_link();
 		}
 		try {
@@ -276,16 +276,18 @@ final class WebService {
 		return new \WP_REST_Response( null, 200 );
 	}
 
-	/** rest_pre_serve_request: sends binary .pkpass responses unencoded. */
+	/**
+	 * rest_pre_serve_request: sends binary .pkpass responses unencoded. A648: only responses of this
+	 * module (RawResponse) – a data key in some other endpoint's response never switches this on.
+	 */
 	public static function serve_raw( $served, $result ) {
-		if ( $served || ! is_object( $result ) || ! method_exists( $result, 'get_data' ) ) { return $served; }
-		$data = $result->get_data();
-		if ( ! is_array( $data ) || ! isset( $data['__wpcap_raw'] ) ) { return $served; }
+		if ( $served || ! $result instanceof RawResponse ) { return $served; }
+		$raw = $result->raw();
 		if ( ! headers_sent() ) {
-			foreach ( (array) ( $data['headers'] ?? array() ) as $name => $value ) { header( $name . ': ' . $value ); }
-			header( 'Content-Length: ' . strlen( $data['__wpcap_raw'] ) );
+			foreach ( $result->raw_headers() as $name => $value ) { header( $name . ': ' . $value ); }
+			header( 'Content-Length: ' . strlen( $raw ) );
 		}
-		echo $data['__wpcap_raw']; // phpcs:ignore WordPress.Security.EscapeOutput -- binary pkpass.
+		echo $raw; // phpcs:ignore WordPress.Security.EscapeOutput -- binary pkpass.
 		return true;
 	}
 }

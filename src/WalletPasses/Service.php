@@ -166,7 +166,26 @@ final class Service {
 	}
 
 	public static function download_sig( $serial, $state ) {
-		return hash_hmac( 'sha256', 'dl|' . $serial . '|' . $state->auth_token_hash, Store::key() );
+		return self::link_sig( 'dl|' . $serial . '|' . $state->auth_token_hash );
+	}
+
+	/** HMAC of a wallet link with the link key (A648: not the encryption key). */
+	public static function link_sig( $payload, $legacy = false ) {
+		return hash_hmac( 'sha256', (string) $payload, $legacy ? Store::key() : Store::link_key() );
+	}
+
+	/**
+	 * Checks a link signature. Links sent before A648 were signed with the encryption key; they stay
+	 * valid (verification only – new links are always signed with the link key).
+	 */
+	public static function link_sig_valid( $payload, $sig ) {
+		$sig = (string) $sig;
+		return '' !== $sig && ( hash_equals( self::link_sig( $payload ), $sig ) || hash_equals( self::link_sig( $payload, true ), $sig ) );
+	}
+
+	/** Whether $sig is a valid download signature of the current generation. */
+	public static function download_sig_valid( $serial, $state, $sig ) {
+		return self::link_sig_valid( 'dl|' . $serial . '|' . $state->auth_token_hash, $sig );
 	}
 
 	/* ---- short Google links and "add all" links (A583, A580) ---- */
@@ -206,7 +225,7 @@ final class Service {
 	}
 
 	public static function google_ticket_sig( $public_id, $state ) {
-		return hash_hmac( 'sha256', 'gsave|' . $public_id . '|' . $state->auth_token_hash, Store::key() );
+		return self::link_sig( 'gsave|' . $public_id . '|' . $state->auth_token_hash );
 	}
 
 	/**
@@ -214,7 +233,7 @@ final class Service {
 	 * link (portal) invalidates them, like the portal link itself.
 	 */
 	public static function order_sig( $kind, $order ) {
-		return hash_hmac( 'sha256', 'wallet-all|' . $kind . '|' . $order->public_id . '|' . (string) $order->access_token_hash, Store::key() );
+		return self::link_sig( 'wallet-all|' . $kind . '|' . $order->public_id . '|' . (string) $order->access_token_hash );
 	}
 
 	/**
@@ -290,12 +309,12 @@ final class Service {
 			$public = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $params['t'] ) );
 			$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE public_id=%s", $public ) );
 			$state = $id ? Store::state( $id ) : null;
-			if ( ! $state || ! hash_equals( self::google_ticket_sig( $public, $state ), $sig ) ) { return null; }
+			if ( ! $state || ! self::link_sig_valid( 'gsave|' . $public . '|' . $state->auth_token_hash, $sig ) ) { return null; }
 			$ids = array( $id );
 		} else {
 			$public = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) ( $params['o'] ?? '' ) ) );
 			$order = '' === $public ? null : $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email,access_token_hash FROM {$p}wpcap_orders WHERE public_id=%s", $public ) );
-			if ( ! $order || ! hash_equals( self::order_sig( $provider, $order ), $sig ) ) { return null; }
+			if ( ! $order || ! self::link_sig_valid( 'wallet-all|' . $provider . '|' . $order->public_id . '|' . (string) $order->access_token_hash, $sig ) ) { return null; }
 			$size = self::batch_size( $provider );
 			$ids = array_slice( self::order_ticket_ids( $order, $provider ), max( 0, (int) ( $params['p'] ?? 1 ) - 1 ) * $size, $size );
 		}

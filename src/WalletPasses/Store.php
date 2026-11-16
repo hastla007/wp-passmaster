@@ -14,10 +14,22 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Store {
 	/** 32 byte secretbox key from WPCAP_WALLET_ENCRYPTION_KEY or the WordPress auth salt. */
 	public static function key() {
+		return hash_hmac( 'sha256', 'wpcap-wallet-secretbox-v1', self::base(), true );
+	}
+
+	/**
+	 * Separate HMAC key for the signed wallet links (download, Google save, "add all"), derived from the
+	 * same base with its own label (A648): the secretbox key is used for encryption only.
+	 */
+	public static function link_key() {
+		return hash_hmac( 'sha256', 'wpcap-wallet-links-v1', self::base(), true );
+	}
+
+	private static function base() {
 		$base = defined( 'WPCAP_WALLET_ENCRYPTION_KEY' ) ? (string) constant( 'WPCAP_WALLET_ENCRYPTION_KEY' ) : '';
 		if ( '' === $base && function_exists( 'wp_salt' ) ) { $base = (string) wp_salt( 'auth' ); }
 		if ( '' === $base ) { throw new \RuntimeException( 'wallet_key_missing' ); }
-		return hash_hmac( 'sha256', 'wpcap-wallet-secretbox-v1', $base, true );
+		return $base;
 	}
 
 	/** 'constant' (WPCAP_WALLET_ENCRYPTION_KEY, recommended) or 'salt' (derived from wp_salt( 'auth' )). */
@@ -189,9 +201,10 @@ final class Store {
 		$table = self::t( 'wallet_registrations' );
 		$now = current_time( 'mysql', true );
 		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT registration_id FROM $table WHERE device_library_id=%s AND serial_number=%s", $device, $serial ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET push_token=%s,updated_at=%s WHERE device_library_id=%s", $push_token, $now, $device ) );
+		// A648: the caller is authenticated for this serial only – the push token of the device's other
+		// registrations is never changed here (each pass registers its own token).
 		if ( $exists ) {
-			$wpdb->update( $table, array( 'auth_token_hash' => $auth_hash, 'pass_type_id' => $pass_type, 'updated_at' => $now ), array( 'registration_id' => (int) $exists ) );
+			$wpdb->update( $table, array( 'push_token' => $push_token, 'auth_token_hash' => $auth_hash, 'pass_type_id' => $pass_type, 'updated_at' => $now ), array( 'registration_id' => (int) $exists ) );
 			return false;
 		}
 		$wpdb->insert( $table, array( 'device_library_id' => $device, 'pass_type_id' => $pass_type, 'serial_number' => $serial, 'push_token' => $push_token, 'auth_token_hash' => $auth_hash, 'created_at' => $now, 'updated_at' => $now ) );
