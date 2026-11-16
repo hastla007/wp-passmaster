@@ -173,7 +173,28 @@ final class Memberships {
 	 *
 	 * @return array|\WP_Error pass_id, status (active|pending), token (only when active).
 	 */
+	/**
+	 * A524: a validity given as a pure date (Y-m-d) covers whole days in the site time zone – "from" starts at
+	 * 00:00, "until" ends at 23:59:59 local time (stored in UTC). Date-times are taken as UTC as before.
+	 *
+	 * @param string $value Date or UTC date-time.
+	 * @param bool   $end   Whether it is the end of the validity.
+	 */
+	public static function normalize_validity( $value, $end ) {
+		$value = trim( sanitize_text_field( (string) $value ) );
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) { return $value; }
+		try {
+			$tz = new \DateTimeZone( Reports\Scope::site_timezone() );
+			$local = new \DateTimeImmutable( $value . ( $end ? ' 23:59:59' : ' 00:00:00' ), $tz );
+			return $local->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		} catch ( \Exception $e ) {
+			return $value;
+		}
+	}
+
 	public static function issue( $email, $valid_from, $valid_until, array $rules ) {
+		$valid_from = self::normalize_validity( $valid_from, false );
+		$valid_until = self::normalize_validity( $valid_until, true );
 		global $wpdb;
 		$email = sanitize_email( $email );
 		if ( ! is_email( $email ) || ! $rules || strtotime( $valid_until . ' UTC' ) <= strtotime( $valid_from . ' UTC' ) ) { return new \WP_Error( 'wpcap_pass_invalid', __( 'Passdaten ungültig.', 'pass-captain' ) ); }
@@ -195,7 +216,7 @@ final class Memberships {
 		if ( ! $pass_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_save_failed', __( 'Pass konnte nicht angelegt werden.', 'pass-captain' ) ); }
 		foreach ( $rules as $rule ) {
 			$scope = self::rule_scope( (array) $rule );
-			$wpdb->insert( $wpdb->prefix . 'wpcap_pass_rules', array( 'pass_id' => $pass_id, 'event_id' => 'service' === $scope['scope'] ? 0 : absint( $rule['event_id'] ?? 0 ), 'ticket_type_id' => 'service' === $scope['scope'] ? 0 : absint( $rule['ticket_type_id'] ?? 0 ), 'uses_total' => absint( $rule['uses_total'] ?? 0 ), 'uses_per_day' => max( 1, absint( $rule['uses_per_day'] ?? 1 ) ) ) + $scope, array( '%d', '%d', '%d', '%d', '%d', '%s', '%d', '%s', '%s' ) );
+			$wpdb->insert( $wpdb->prefix . 'wpcap_pass_rules', array( 'pass_id' => $pass_id, 'event_id' => 'service' === $scope['scope'] ? 0 : absint( $rule['event_id'] ?? 0 ), 'ticket_type_id' => 'service' === $scope['scope'] ? 0 : absint( $rule['ticket_type_id'] ?? 0 ), 'uses_total' => absint( $rule['uses_total'] ?? 0 ), 'uses_per_day' => absint( $rule['uses_per_day'] ?? 1 ) ) + $scope, array( '%d', '%d', '%d', '%d', '%d', '%s', '%d', '%s', '%s' ) );
 			if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_rule_failed', __( 'Passregeln konnten nicht gespeichert werden.', 'pass-captain' ) ); }
 		}
 		$wpdb->query( 'COMMIT' );
@@ -453,6 +474,8 @@ final class Memberships {
 	 * @return true|\WP_Error
 	 */
 	public static function update_validity( $pass_id, $valid_from, $valid_until ) {
+		$valid_from = self::normalize_validity( $valid_from, false );
+		$valid_until = self::normalize_validity( $valid_until, true );
 		global $wpdb;
 		$pass = self::get( $pass_id );
 		if ( ! $pass ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
@@ -474,7 +497,7 @@ final class Memberships {
 		global $wpdb;
 		$pass = self::get( $pass_id );
 		if ( ! $pass ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$values = array( 'uses_total' => min( 65535, absint( $rule['uses_total'] ?? 0 ) ), 'uses_per_day' => min( 65535, max( 1, absint( $rule['uses_per_day'] ?? 1 ) ) ) );
+		$values = array( 'uses_total' => min( 65535, absint( $rule['uses_total'] ?? 0 ) ), 'uses_per_day' => min( 65535, absint( $rule['uses_per_day'] ?? 1 ) ) ); // A524: 0 = unlimited per day.
 		$table = $wpdb->prefix . 'wpcap_pass_rules';
 		if ( $rule_id ) {
 			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT rule_id FROM %i WHERE rule_id=%d AND pass_id=%d', $table, absint( $rule_id ), (int) $pass->pass_id ) );

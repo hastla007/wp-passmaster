@@ -221,6 +221,26 @@ final class Cancellation {
 	 * 'revoke' and a cancelled linked occurrence stay refundable (the core only covers tickets of a
 	 * cancelled anchor occurrence).
 	 */
+	/**
+	 * A526: proposal for a prorated refund of a pass ticket after partial use – value × dates not used ÷ all
+	 * linked dates (an admission at a date counts it as used). null for tickets that are no pass or when the
+	 * pass has no dates.
+	 *
+	 * @param int $ticket_id   Ticket.
+	 * @param int $value_minor Refundable value of the ticket (minor units).
+	 * @return array{total:int,used:int,suggested_minor:int}|null
+	 */
+	public static function prorated( $ticket_id, $value_minor ) {
+		global $wpdb;
+		$type_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
+		if ( ! $type_id || ! Definitions::is_pass( $type_id ) ) { return null; }
+		$dates = Definitions::occurrence_ids( $type_id );
+		$total = count( $dates );
+		if ( ! $total ) { return null; }
+		$used = min( $total, Admission::used_occurrences( (int) $ticket_id, $dates ) );
+		return array( 'total' => $total, 'used' => $used, 'suggested_minor' => intdiv( max( 0, (int) $value_minor ) * ( $total - $used ), $total ) );
+	}
+
 	public static function refundable_tickets( $rows, $order_id ) {
 		global $wpdb;
 		$pass_ids = Definitions::all_ids();

@@ -360,9 +360,18 @@ final class OrdersPage {
 			$one = Refunds::preview( $order, array( (int) $ticket->ticket_id ) );
 			if ( ! is_wp_error( $one ) ) { $per[ (int) $ticket->ticket_id ] = (int) $one['amount_minor']; }
 		}
+		// A526: prorated proposal for passes used at some of their dates.
+		$prorated = array();
+		if ( class_exists( \PassCaptain\Passes\Cancellation::class ) ) {
+			foreach ( $per as $ticket_id => $minor ) {
+				$share = \PassCaptain\Passes\Cancellation::prorated( $ticket_id, $minor );
+				if ( $share && $share['used'] > 0 ) { $prorated[ $ticket_id ] = $share; }
+			}
+		}
 		$all = Refunds::preview( $order, array() );
 		return array(
 			'per_ticket' => $per,
+			'prorated' => $prorated,
 			'all' => is_wp_error( $all ) ? array_sum( $per ) : (int) $all['amount_minor'],
 			'all_ids' => is_wp_error( $all ) ? array_keys( $per ) : array_map( 'intval', $all['ticket_ids'] ),
 			'route' => self::refund_route( $order ),
@@ -998,7 +1007,7 @@ final class OrdersPage {
 						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" class="wpcap-refund-ticket" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" data-amount="<?php echo esc_attr( (string) ( $preview['per_ticket'][ (int) $ticket->ticket_id ] ?? 0 ) ); ?>"<?php checked( in_array( (int) $ticket->ticket_id, $preselected, true ) ); ?> aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
-					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?></td>
+					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?><?php if ( ! empty( $preview['prorated'][ (int) $ticket->ticket_id ] ) ) : $wpcap_share = $preview['prorated'][ (int) $ticket->ticket_id ]; ?><div class="description"><?php echo esc_html( sprintf( /* translators: 1: used dates, 2: all dates, 3: prorated amount */ __( 'Pass: %1$d von %2$d Terminen genutzt – anteilige Erstattung %3$s (als Höchstbetrag eintragen).', 'pass-captain' ), $wpcap_share['used'], $wpcap_share['total'], Forms::money( $wpcap_share['suggested_minor'], $order->currency ) ) ); ?></div><?php endif; ?></td>
 					<td><?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : ( in_array( (int) $ticket->ticket_id, $in_progress, true ) ? ' (' . __( 'Erstattung läuft', 'pass-captain' ) . ')' : '' ) ) ); ?></td>
 					<td><?php echo esc_html( trim( (string) $ticket->attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 					<td>
