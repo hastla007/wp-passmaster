@@ -288,8 +288,6 @@
 		wrap.appendChild(input);
 		wrap.appendChild(up);
 	}
-	document.querySelectorAll('.wpcap-checkout-form .wpcap-qty').forEach(enhanceQty);
-	document.querySelectorAll('.wpcap-checkout-form').forEach(syncSteppers);
 	document.addEventListener('click', function (event) {
 		const button = event.target.closest && event.target.closest('.wpcap-step');
 		if (!button) return;
@@ -370,7 +368,6 @@
 		box.appendChild(take);
 	}
 	const emailChecked = new WeakMap();
-	document.querySelectorAll('.wpcap-checkout-form [name="email"]').forEach(emailHintBox);
 	document.addEventListener('change', function (event) {
 		const input = event.target;
 		if (input.name !== 'email' || !input.closest || !input.closest('.wpcap-checkout-form')) return;
@@ -676,7 +673,6 @@
 		const form = event.target.name === 'billing_enabled' ? event.target.closest('.wpcap-checkout-form') : null;
 		if (form) syncBilling(form);
 	});
-	document.querySelectorAll('.wpcap-checkout-form').forEach(syncBilling);
 	document.addEventListener('submit', async function (event) {
 		const form = event.target.closest('.wpcap-checkout-form');
 		if (!form) return;
@@ -969,9 +965,9 @@
 		const version = form.querySelector('input[type="hidden"][name="terms_version"]');
 		if (legal && version && typeof legal.terms_version === 'string' && legal.terms_version !== '' && legal.terms_version !== version.value) refreshLegal(form);
 	}
-	async function refreshLive() {
+	async function refreshLive(only) {
 		if (!config.liveUrl) return;
-		const forms = Array.prototype.slice.call(document.querySelectorAll('.wpcap-checkout-form[data-occurrence]'));
+		const forms = Array.prototype.slice.call(only || document.querySelectorAll('.wpcap-checkout-form[data-occurrence]')).filter(function (form) { return form.matches('.wpcap-checkout-form[data-occurrence]'); });
 		const ids = [];
 		forms.forEach(function (form) { const id = String(form.dataset.occurrence || ''); if (/^\d+$/.test(id) && ids.indexOf(id) === -1) ids.push(id); });
 		if (!ids.length) return;
@@ -1023,7 +1019,6 @@
 		if (terms && changed) terms.checked = false;
 		return true;
 	}
-	refreshLive();
 	window.addEventListener('pageshow', function (event) { if (event.persisted) refreshLive(); });
 
 	/* ---------------------------------------------------------------- Pending order (A310) */
@@ -1089,9 +1084,6 @@
 	}
 	// Back on the page after paying (or after cancelling the order on the return page): nothing is pending any more.
 	const returned = /[?&]wpcap_payment=(success|pending|cancelled)(&|$)/.exec(window.location.search || '');
-	document.querySelectorAll('.wpcap-checkout-form').forEach(function (form) {
-		if (returned) clearPending(form); else showPending(form);
-	});
 	window.addEventListener('pageshow', function (event) {
 		if (!event.persisted) return;
 		document.querySelectorAll('.wpcap-checkout-form').forEach(showPending);
@@ -1164,12 +1156,67 @@
 			if (!document.activeElement || document.activeElement === document.body) button.focus();
 		}
 	});
-	// A450: the order and waitlist forms ship with a disabled submit button (without JavaScript
-	// nothing is sent, never as GET with the e-mail address in the URL); the handlers are attached now.
-	document.querySelectorAll('.wpcap-checkout-form [data-wpcap-requires-js], .wpcap-waitlist-form [data-wpcap-requires-js]').forEach(function (button) {
-		button.disabled = false;
-		button.removeAttribute('data-wpcap-requires-js');
-	});
-	document.querySelectorAll('.wpcap-waitlist-form').forEach(syncWaitlistMax);
-	ensureAnchors(document);
+
+	/* ---------------------------------------------------------------- Initialisation (A500) */
+
+	// Every handler above is delegated to the document; what a form needs once is done here – for the
+	// forms in the page and for forms added later (AJAX filters, infinite scroll, popups, page
+	// builders): window.WPCAP.init(root), the event "wpcap:init" ({ detail: { root } }) or, without
+	// either, a MutationObserver on the page. Each form is set up once.
+	const initialised = new WeakMap();
+	function within(root, selector) {
+		const out = [];
+		if (!root) return out;
+		if (root.matches && root.matches(selector)) out.push(root);
+		if (root.querySelectorAll) Array.prototype.forEach.call(root.querySelectorAll(selector), function (node) { out.push(node); });
+		return out;
+	}
+	function init(root) {
+		root = root || document;
+		const forms = within(root, '.wpcap-checkout-form').filter(function (form) { return !initialised.has(form); });
+		const waitlists = within(root, '.wpcap-waitlist-form').filter(function (form) { return !initialised.has(form); });
+		forms.forEach(function (form) {
+			initialised.set(form, true);
+			form.querySelectorAll('.wpcap-qty').forEach(enhanceQty);
+			syncSteppers(form);
+			form.querySelectorAll('[name="email"]').forEach(emailHintBox);
+			syncBilling(form);
+			syncSubmitLabel(form);
+			if (returned) clearPending(form); else showPending(form);
+		});
+		waitlists.forEach(function (form) {
+			initialised.set(form, true);
+			syncWaitlistMax(form);
+		});
+		// A450: the order and waitlist forms ship with a disabled submit button (without JavaScript
+		// nothing is sent, never as GET with the e-mail address in the URL); the handlers are attached now.
+		forms.concat(waitlists).forEach(function (form) {
+			form.querySelectorAll('[data-wpcap-requires-js]').forEach(function (button) {
+				button.disabled = false;
+				button.removeAttribute('data-wpcap-requires-js');
+			});
+		});
+		ensureAnchors(root);
+		if (forms.length) refreshLive(forms);
+		return forms.length + waitlists.length;
+	}
+	window.WPCAP = window.WPCAP || {};
+	window.WPCAP.init = init;
+	document.addEventListener('wpcap:init', function (event) { init((event.detail && event.detail.root) || event.target); });
+	init(document);
+	if (typeof window.MutationObserver === 'function' && document.body) {
+		new window.MutationObserver(function (records) {
+			records.forEach(function (record) {
+				Array.prototype.forEach.call(record.addedNodes || [], function (node) {
+					if (node.nodeType === 1 && (node.matches('.wpcap-checkout-form, .wpcap-waitlist-form') || node.querySelector('.wpcap-checkout-form, .wpcap-waitlist-form'))) init(node);
+				});
+			});
+		}).observe(document.body, { childList: true, subtree: true });
+	}
+	// Elementor renders widgets (popups, tabs, loop items) after load and announces each one.
+	if (window.jQuery) {
+		window.jQuery(window).on('elementor/frontend/init', function () {
+			if (window.elementorFrontend && window.elementorFrontend.hooks) window.elementorFrontend.hooks.addAction('frontend/element_ready/global', function (scope) { init(scope && scope[0]); });
+		});
+	}
 })();

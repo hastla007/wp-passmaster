@@ -127,4 +127,4 @@ async function submit(env, form, { qty = 1, email = 'buyer@example.com' } = {}) 
 	await flush();
 }
 
-module.exports = { loadCheckout, submit, flush, response, FakeEvent };
+module.exports = { loadCheckout, submit, flush, response, FakeEvent, card };

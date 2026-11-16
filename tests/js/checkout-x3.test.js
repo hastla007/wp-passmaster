@@ -1,11 +1,12 @@
 /**
  * Checkout script (assets/checkout.js), frontend round 4 (fake DOM fake-dom-r2.js):
- * A395 focus after asynchronous waitlist actions.
+ * A395 focus after asynchronous waitlist actions; A409 free-ticket labels; A410 waitlist limits;
+ * A500 forms added after loading; A504 missing date anchors.
  */
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { loadCheckout, flush, response, FakeEvent } = require('./checkout-harness.js');
+const { loadCheckout, flush, response, FakeEvent, card } = require('./checkout-harness.js');
 
 /** Waitlist form of templates/event-card.php (reduced). */
 function waitlistCard(h) {
@@ -153,4 +154,39 @@ test('A504: a date whose anchor is missing on the page gets it on its first card
 	assert.strictEqual(env.document.querySelectorAll('#wpcap-occ-8').length, 1, 'an existing anchor stays the only one');
 	assert.strictEqual(cards[3].id, 'wpcap-occ-9', 'presale cards too');
 	assert.strictEqual(env.document.scrolledTo, cards[0], 'scrolled to the requested date');
+});
+
+/* ------------------------------------------------------------------ A500 */
+
+test('A500: a form inserted later is set up by WPCAP.init(root) and by the wpcap:init event, each only once', async () => {
+	const env = loadCheckout({ markup: () => [], config: { liveUrl: '/live' }, fetch: (url) => (url.indexOf('/live') === 0 ? response(200, { occurrences: {}, legal: {} }) : response(201, { reference: 'AB12CD', status: 'complete' })) });
+	await flush();
+	assert.strictEqual(typeof env.window.WPCAP.init, 'function');
+	const h = env.h;
+	// Markup as delivered by an AJAX filter: submit button still disabled (A450).
+	const first = card(h, { occurrence: 21, id: 'wpcap-21' });
+	first.querySelector('button[type="submit"]').disabled = true;
+	first.querySelector('button[type="submit"]').setAttribute('data-wpcap-requires-js', '');
+	env.document.body.appendChild(first);
+	assert.strictEqual(env.window.WPCAP.init(first), 1, 'one form set up');
+	const form = first.querySelector('form');
+	assert.strictEqual(form.querySelectorAll('.wpcap-step').length, 2, 'stepper added');
+	assert.strictEqual(form.querySelector('button[type="submit"]').disabled, false, 'submit enabled');
+	await flush();
+	assert.ok(env.requests.some((r) => /\/live\?occurrences=21(&|$)/.test(r.url)), 'live state requested for the new date');
+	assert.strictEqual(env.window.WPCAP.init(first), 0, 'a second call changes nothing');
+	assert.strictEqual(form.querySelectorAll('.wpcap-step').length, 2, 'no second stepper');
+	const second = card(h, { occurrence: 22, id: 'wpcap-22' });
+	env.document.body.appendChild(second);
+	env.document.dispatchEvent(new FakeEvent('wpcap:init', { detail: { root: second } }));
+	assert.strictEqual(second.querySelectorAll('.wpcap-step').length, 2, 'set up by the event');
+	// The delegated handlers work for the new form: quantity, attendee blocks and the order.
+	const qty = second.querySelector('.wpcap-qty');
+	qty.value = '1';
+	qty.dispatchEvent(new FakeEvent('input', { bubbles: true }));
+	second.querySelector('[name="email"]').value = 'late@example.com';
+	second.querySelector('form').dispatchEvent(new FakeEvent('submit', { bubbles: true }));
+	await flush();
+	assert.ok(env.requests.some((r) => r.body && r.body.email === 'late@example.com'), 'the order was sent');
+	assert.ok(second.querySelector('.wpcap-confirmation') || second.querySelector('form').hidden, 'confirmation shown');
 });

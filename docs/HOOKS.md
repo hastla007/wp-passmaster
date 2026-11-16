@@ -160,6 +160,14 @@ Die Terminbuchung (A268) löst nach erfolgreicher Buchung das JS-Ereignis `wpcap
 auf `document` aus (`detail`: `root`, `booking_id`, `status` – `confirmed` oder `pending_payment` –, `order`
 mit `public_id`, `reference`, `payment` bei kostenpflichtigen Ressourcen), z. B. für Analytics ohne personenbezogene Daten.
 
+Nachgeladene Eventkarten (A500): `assets/checkout.js` richtet Bestell- und Wartelistenformulare, die nach dem
+Laden in die Seite kommen (AJAX-Filter, Endlos-Scrollen, Popups, Page-Builder), selbst ein – über einen
+`MutationObserver` und für Elementor über `elementorFrontend.hooks` (`frontend/element_ready/global`).
+Eigene Skripte können das ausdrücklich anstoßen: `window.WPCAP.init( element )` oder das Ereignis
+`document.dispatchEvent( new CustomEvent( 'wpcap:init', { detail: { root: element } } ) )`. Jedes Formular
+wird nur einmal eingerichtet (Stepper, Hinweise, Rechnungsfelder, offene Zahlung, Freigabe des Absende-Knopfs,
+Live-Stand); `init()` gibt die Zahl der neu eingerichteten Formulare zurück.
+
 Ids der Eventkarte (A308): Das Template holt die Id-Basis des Formulars über
 `\PassCaptain\Frontend\EventCard::form_id( $event->occurrence_id )`. Die erste Karte eines Termins auf der
 Seite behält `wpcap-{Termin}`, jede weitere (zweiter Shortcode, Widget, Archiv) bekommt
