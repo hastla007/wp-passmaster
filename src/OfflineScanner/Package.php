@@ -60,6 +60,12 @@ final class Package {
 		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_offline_state (occurrence_id,epoch,version) VALUES (%d,%s,0)", $occurrence_id, bin2hex( random_bytes( 8 ) ) ) );
 		$wpdb->query( 'START TRANSACTION' );
 		$state = self::state( $occurrence_id, true );
+		// A443: a parallel request may have refreshed while this one waited for the row lock – check
+		// the throttle again under the lock instead of rebuilding the snapshot right after it.
+		if ( $state && ! $force && $state->refreshed_at && strtotime( $state->refreshed_at . ' UTC' ) > $now - self::refresh_interval() ) {
+			$wpdb->query( 'COMMIT' );
+			return $state;
+		}
 		$version = (int) $state->version + 1;
 		$live = $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.token_hash,t.status,t.ticket_type_id,ta.attendee_name,o.status AS occurrence_status,e.status AS event_status FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id=%d AND t.token_hash<>''",
