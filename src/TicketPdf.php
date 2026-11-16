@@ -111,6 +111,7 @@ final class TicketPdf {
 			'seat_label' => (string) ( $ticket['seat'] ?? '' ),
 			'order' => (string) ( $ticket['order'] ?? '' ),
 			'help_code' => (string) ( $ticket['help_code'] ?? '' ),
+			'admission_notice' => (string) ( $ticket['admission_notice'] ?? AdmissionChecks::notice_for_type( (int) ( $ticket['ticket_type_id'] ?? 0 ) ) ),
 			'qr' => (string) ( $ticket['token'] ?? '' ),
 			'_title' => (string) ( $meta['title'] ?? '' ),
 			'_footer' => $footer,

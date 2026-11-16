@@ -1319,8 +1319,9 @@ Gesamt: 262 Aufgaben.
   - src/Webhooks/Dispatcher.php:18, Consents.php:383–386: consent.granted/withdrawn, Consent-Feld im Payload
 - [x] **A613** [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — _R4 Eigen (Deep Dive 3)_ (TODO L968; Audit Runde 4)
   - src/Reports/Data.php:165: paid_at speichern und verwenden
-- [ ] **A614** [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — _R4 Eigen (Deep Dive 3)_ (TODO L969; Audit Runde 4)
+- [x] **A614** [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — _R4 Eigen (Deep Dive 3)_ (TODO L969; Audit Runde 4)
   - templates/event-card.php:64, TicketPage.php: buyer_notice() und Name auf Ticketseite, Mail, PDF
+  - Erledigt: `AdmissionChecks::notice_for_type()`/`holder_line()`; Ticketseite (Zeile unter der Ticketart), Ticketmail (`Mail\Blocks::issued_tickets`, Text und HTML), Ticket-PDF (Platzhalter `{admission_notice}` im Standard-Ticketlayout, `TicketPdf::values`); Test zz_a614.
 - [x] **A615** [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — _R4 Eigen (Deep Dive 3)_ (TODO L970; Audit Runde 4)
   - —: Widget mit Verkäufen, offenen Prüfungen, nächsten Terminen
   - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Admin/StatusPage.php` (Dashboard-Widget „Pass Captain: Systemstatus“ mit den kritischen Befunden); Verkäufe, offene Prüfungen und nächste Termine zeigt es nicht.

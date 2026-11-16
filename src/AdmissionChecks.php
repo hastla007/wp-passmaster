@@ -75,6 +75,35 @@ final class AdmissionChecks {
 		return implode( ', ', $parts );
 	}
 
+	/**
+	 * A614: buyer notice of a ticket type by id ("ab 18 Jahren, Ausweis erforderlich"), cached per request, so
+	 * the ticket page, ticket PDF and ticket mail show what the event card showed at the purchase.
+	 */
+	public static function notice_for_type( $ticket_type_id ) {
+		static $cache = array();
+		$id = absint( $ticket_type_id );
+		if ( ! $id ) { return ''; }
+		if ( ! array_key_exists( $id, $cache ) ) {
+			if ( count( $cache ) > 200 ) { $cache = array(); }
+			$cache[ $id ] = self::buyer_notice( self::for_type( $id ) );
+		}
+		return $cache[ $id ];
+	}
+
+	/**
+	 * A614: one line "Ticketinhaber: Name · ab 18 Jahren, Ausweis erforderlich" for mails and the ticket page,
+	 * '' when neither a name nor a notice applies.
+	 */
+	public static function holder_line( $attendee_name, $ticket_type_id ) {
+		$parts = array();
+		$name = trim( (string) $attendee_name );
+		/* translators: %s: name of the ticket holder */
+		if ( '' !== $name ) { $parts[] = sprintf( __( 'Ticketinhaber: %s', 'pass-captain' ), $name ); }
+		$notice = self::notice_for_type( $ticket_type_id );
+		if ( '' !== $notice ) { $parts[] = $notice; }
+		return implode( ' · ', $parts );
+	}
+
 	/** Fields added to a scan result for staff (empty array when nothing is set). */
 	public static function scan_fields( $ticket_type_id ) {
 		$checks = self::for_type( (int) $ticket_type_id );

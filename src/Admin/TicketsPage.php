@@ -277,7 +277,7 @@ final class TicketsPage {
 
 	/** Hidden fields carrying the list state into an action form (A414). */
 	private static function return_fields( array $filters, $page ) {
-		self::return_fields( $filters, $page );
+		Forms::hidden( 'return_search', (string) $filters['search'] );
 		Forms::hidden( 'return_event', (int) $filters['event_id'] );
 		Forms::hidden( 'return_status', (string) $filters['status'] );
 		Forms::hidden( 'return_paged', max( 1, (int) $page ) );
