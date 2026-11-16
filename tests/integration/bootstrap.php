@@ -261,8 +261,8 @@ function user_can( $u, $c ) { $id = is_object( $u ) ? (int) ( $u->ID ?? 0 ) : (i
  * is the current site, $GLOBALS['wpcap_test_blog_members'][ blog id ] lists the user ids of a site (sites
  * without an entry have every user). Per-site user options use the table prefix like WordPress.
  */
-function is_multisite() { return ! empty( $GLOBALS['wpcap_test_multisite'] ); }
-function get_current_blog_id() { return (int) ( $GLOBALS['wpcap_test_blog_id'] ?? 1 ); }
+if ( ! function_exists( 'is_multisite' ) ) { function is_multisite() { return ! empty( $GLOBALS['wpcap_test_multisite'] ); } }
+if ( ! function_exists( 'get_current_blog_id' ) ) { function get_current_blog_id() { return (int) ( $GLOBALS['wpcap_test_blog_id'] ?? 1 ); } }
 function is_user_member_of_blog( $user_id = 0, $blog_id = 0 ) {
 	$user_id = (int) ( $user_id ?: get_current_user_id() );
 	$blog_id = (int) ( $blog_id ?: get_current_blog_id() );
