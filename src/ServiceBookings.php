@@ -112,7 +112,7 @@ final class ServiceBookings {
 		}
 		list( $unit, $currency ) = ServiceResources::price_of( $resource );
 		$token = bin2hex( random_bytes( 32 ) );
-		$inserted = $wpdb->insert( $bookings, array( 'slot_id' => $slot_id, 'order_id' => absint( $order_id ), 'customer_email' => $email, 'idempotency_key' => $idempotency_key, 'quantity' => $quantity, 'expires_at' => $expires, 'status' => $status, 'amount_minor' => empty( $args['pass_use_id'] ) ? $unit * $quantity : 0, 'currency' => $currency, 'manage_token_hash' => hash( 'sha256', $token ), 'pass_use_id' => absint( $args['pass_use_id'] ?? 0 ), 'created_at' => $now, 'updated_at' => $now ), array( '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s' ) );
+		$inserted = $wpdb->insert( $bookings, array( 'slot_id' => $slot_id, 'order_id' => absint( $order_id ), 'customer_email' => $email, 'idempotency_key' => $idempotency_key, 'quantity' => $quantity, 'expires_at' => $expires, 'status' => $status, 'amount_minor' => empty( $args['pass_use_id'] ) ? $unit * $quantity : 0, 'currency' => $currency, 'manage_token_hash' => hash( 'sha256', $token ), 'pass_use_id' => absint( $args['pass_use_id'] ?? 0 ), 'created_at' => $now, 'updated_at' => $now, 'token_hash' => hash( 'sha256', $token ) ), array( '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s' ) ); // token_hash: checked by ServiceBookingFlow::verify_token() (public manage link, A268).
 		if ( false === $inserted || ! $wpdb->insert_id ) {
 			$wpdb->query( 'ROLLBACK' );
 			// A parallel request with the same key won the unique index.
@@ -126,7 +126,7 @@ final class ServiceBookings {
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		Audit::record( 'service_booking_reserved', 'service_booking', $id, array( 'slot_id' => $slot_id, 'quantity' => $quantity, 'order_id' => absint( $order_id ), 'status' => $status, 'actor' => $actor ) );
-		return array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => $status, 'manage_token' => $token );
+		return array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => $status, 'manage_token' => $token, 'token' => $token ); // 'token': name used by assets/service-booking.js and the public REST flow.
 	}
 
 	/**
@@ -1135,7 +1135,12 @@ final class ServiceBookings {
 		if ( isset( $extra['old_slot'] ) && $extra['old_slot'] ) {
 			$vars['old_slot_date'] = self::local_time( strtotime( $extra['old_slot']->starts_at . ' UTC' ), $resource );
 		}
-		if ( ! empty( $extra['manage_token'] ) ) {
+		$page_link = ServiceBookingFlow::remembered_manage_link( (int) $booking->booking_id );
+		if ( '' !== $page_link && in_array( $type, array( 'service_booking_confirmed', 'service_booking_rebooked' ), true ) ) {
+			// A268: booked on a page with the booking form – manage link with the token in the fragment.
+			$link = Mail\Mailer::link( $page_link );
+			$vars['manage_link'] = Mail\Mailer::block( ' ' . $link['text'], ' ' . $link['html'] );
+		} elseif ( ! empty( $extra['manage_token'] ) ) {
 			$vars['manage_link'] = Mail\Mailer::link( add_query_arg( array( 'wpcap_service_booking' => (int) $booking->booking_id, 'token' => (string) $extra['manage_token'] ), home_url( '/' ) ) );
 		}
 		$locale = (int) $booking->order_id ? (string) ( Orders::get( (int) $booking->order_id )->locale ?? '' ) : '';

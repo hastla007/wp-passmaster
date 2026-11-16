@@ -314,6 +314,11 @@ final class ServiceBookingFlow {
 		return '' === $url ? '' : $url . '#wpcap-booking=' . absint( $booking_id ) . '-' . $token;
 	}
 
+	/** Manage link remembered for $booking_id in this request ('' = none), used by the customer mails. */
+	public static function remembered_manage_link( $booking_id ) {
+		return (string) ( self::$manage_links[ absint( $booking_id ) ] ?? '' );
+	}
+
 	/** Remembers the manage link of a token request (the token was verified by token_permission()). */
 	private static function remember_manage_link( \WP_REST_Request $request ) {
 		$booking_id = absint( $request['booking_id'] );

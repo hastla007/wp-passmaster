@@ -26,7 +26,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return esc_attr
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r; } }
 if ( ! function_exists( 'get_block_wrapper_attributes' ) ) { function get_block_wrapper_attributes( $extra = array() ) { return 'class="wp-block-pass-captain-service-booking alignwide ' . esc_attr( $extra['class'] ?? '' ) . '"'; } }
-if ( ! function_exists( 'get_post' ) ) { function get_post( $id ) { return $GLOBALS['wpcap_test_posts'][ is_object( $id ) ? $id->ID : (int) $id ] ?? null; } }
+if ( ! function_exists( 'get_post' ) ) { function get_post( $id = null ) { if ( null === $id ) { return $GLOBALS['wpcap_test_post'] ?? null; } return $GLOBALS['wpcap_test_posts'][ is_object( $id ) ? $id->ID : (int) $id ] ?? null; } } // WP: no argument = the current post.
 if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $post = 0 ) { $id = is_object( $post ) ? (int) $post->ID : (int) $post; return $id ? 'https://example.test/?page_id=' . $id : home_url( '/' ); } } // Same form as the stand-ins of other test files (whichever loads first).
 if ( ! function_exists( 'get_the_ID' ) ) { function get_the_ID() { return (int) ( $GLOBALS['wpcap_test_the_id'] ?? 0 ); } }
 
@@ -169,7 +169,8 @@ foreach ( $GLOBALS['wpcap_test_mails'] as $a268_mail ) {
 	if ( false !== strpos( (string) $a268_mail['to'], 'a268-kunde@' ) ) { $a268_customer = $a268_mail; } elseif ( false !== strpos( $a268_mail['subject'] . $a268_mail['body'], $a268_token ) ) { $a268_leak = true; }
 }
 check( 'free resource confirmed at once via POST /service-bookings/{id}/confirm', $a268_ok && 'confirmed' === ( $a268_done['status'] ?? '' ) && 'confirmed' === ServiceBookings::booking( $a268_bid )->status );
-check( 'customer mail carries the manage link (token in the fragment); team mail never does', $a268_customer && false !== strpos( $a268_customer['body'], 'Termin ansehen, umbuchen oder stornieren: https://example.test/?page_id=501#wpcap-booking=' . $a268_bid . '-' . $a268_token ) && ! $a268_leak );
+// Merged design: the confirmation is the service_booking_confirmed mail template (Mail\Types), its {manage_link} is the page link.
+check( 'customer mail carries the manage link (token in the fragment); team mail never does', $a268_customer && false !== strpos( $a268_customer['body'], 'Buchungslink' ) && false !== strpos( $a268_customer['body'], ' https://example.test/?page_id=501#wpcap-booking=' . $a268_bid . '-' . $a268_token ) && false === strpos( $a268_customer['body'], 'token=' ) && ! $a268_leak );
 $a268_get = new WP_REST_Request( 'GET' );
 $a268_get->set_param( 'booking_id', $a268_bid );
 $a268_get->set_body( wp_json_encode( array( 'token' => $a268_token ) ) );
