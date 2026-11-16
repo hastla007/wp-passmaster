@@ -449,6 +449,19 @@ Am 13.11.2026 gegen WordPress 7.1.4 mit WooCommerce 11.3 und MariaDB geprüft (`
 
 Gefundener und behobener Fehler: Nach einem Rollback schreibt der ältere Code seine (niedrigere) Schemaversion zurück. Beim erneuten Upgrade liefen dadurch einmalige Datenmigrationen noch einmal, z. B. wurde bei einer Neuinstallation (Präfix „RK“) das alte Rechnungskorrektur-Präfix „GS“ festgeschrieben. Jetzt merkt sich `wpcap_db_version_max` die höchste je gelaufene Schemaversion; einmalige Migrationen vergleichen dagegen (`Installer::migration_baseline()`).
 
+Erweiterung 16.11.2026 (A469): Der Drill prüft auch Zustände außerhalb des Schemas (Szenario 3; Szenario 1
+und 2 ergänzt) – Zahlungs-Zugangsdaten, Kontingentzähler, Einstellungen und geänderte Standardwerte:
+
+| Schritt | Ergebnis |
+|---|---|
+| 1.4.0 mit Stripe-Schlüsseln (Klartext in den Einstellungen) → neue Version | Schlüssel im verschlüsselten Speicher, Stripe weiter verfügbar; Einlassfenster für die Bestandsinstallation aus, Admin-Hinweis (A465) |
+| Neue Version mit Stripe-Schlüsseln → `wp pass-captain secrets rollback-config` → Rollback auf 1.4.0 | Stripe in 1.4.0 über die Konstanten verfügbar; ohne Konstanten nicht (A463) |
+| 1.4.0 verkauft 30 Tickets, Bestellungen drei Tage zurückdatiert (außerhalb des Zwei-Tage-Fensters des Abgleich-Crons) → neue Version | Zähler neu aufgebaut, keine Abweichung, Entscheidungen über SUM bis zur Prüfung, Verfügbarkeit = Kapazität − alle bezahlten Tickets, ein Ticket mehr als frei wird abgelehnt; nach dem Abgleich `ready`, Rest verkaufbar (A464) |
+| Konstanten wieder entfernt | Stripe aus dem verschlüsselten Speicher; kein Schemafehler, Cron-Ereignisse eingeplant |
+
+Mit dem Stand vor diesen Korrekturen schlug der Drill fehl: 41 verkaufte Tickets bei Kapazität 40 nach Rollback
+und erneutem Update, keine Stripe-Schlüssel in 1.4.0, Einlassfenster nach dem Update ohne Hinweis aktiv.
+
 Regeln für den Betrieb:
 
 - **Zugangsdaten vor einem Rollback auf eine Version ohne verschlüsselten Speicher (bis 1.4.0, A463):** Diese
@@ -476,7 +489,7 @@ Regeln für den Betrieb:
 bash tests/restore/drill.sh /pfad/zu/wordpress /pfad/alt/pass-captain /pfad/neu/pass-captain /tmp/drill
 ```
 
-Das Skript sichert die Datenbank vorher, arbeitet mit WP-CLI und `mariadb-dump` und stellt Datenbank und Plugin-Link am Ende wieder her – **nur auf einer Test-Installation ausführen**, es löscht während des Laufs alle Plugin-Tabellen.
+Das Skript sichert vorher alle Tabellen mit dem Präfix der Test-Installation, arbeitet mit WP-CLI und `mariadb-dump` und stellt diese Tabellen und den Plugin-Link am Ende wieder her – **nur auf einer Test-Installation ausführen**, es löscht während des Laufs alle Plugin-Tabellen. Tabellen anderer Präfixe in derselben Datenbank werden weder gesichert noch überschrieben (vorher wurde die ganze Datenbank zurückgespielt). Für Szenario 3 legt es vorübergehend `wp-content/mu-plugins/wpcap-drill-rollback-secrets.php` an (Konstanten aus `rollback-config`) und entfernt die Datei wieder.
 
 ## Release-Kandidat
 

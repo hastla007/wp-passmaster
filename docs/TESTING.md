@@ -385,7 +385,13 @@ Workflow `.github/workflows/wp-matrix.yml` (jeder Push/PR, wöchentlich, manuell
   „Daten beim Löschen entfernen“ (Tabellen, Optionen, Rollen), keine PHP-Fehler/-Warnungen/-Deprecations
   des Plugins im `debug.log`.
 - `tests/restore/drill.sh` mit dem vorherigen Release und dem aktuellen Commit: Upgrade, Code-Rollback,
-  erneutes Upgrade, Restore einer alten Sicherung (siehe OPERATIONS.md).
+  erneutes Upgrade, Restore einer alten Sicherung, dazu Zustände außerhalb des Schemas (A469,
+  `tests/restore/lifecycle.php`): Stripe-Schlüssel über Upgrade und Rollback (`rollback-config`), Verkäufe im
+  alten Code mit drei Tage zurückdatierten Bestellungen und danach Kapazität ohne Überverkauf,
+  Standard-Einlassfenster (siehe OPERATIONS.md). Gesichert und zurückgespielt werden nur die Tabellen des
+  Präfixes der Test-Installation.
+- `lifecycle.sh` prüft außerdem, dass die Deinstallation im selben Request keine Plugin-Option im
+  Options-Cache zurücklässt (A467, steht für einen persistenten Objekt-Cache).
 
 Lokal (nur Test-Installation!): `WPCAP_LIFECYCLE_HTTP=1 bash tests/wp-matrix/lifecycle.sh /pfad/zu/wp /pfad/zum/plugin`
 (mit laufendem Webserver für die Site-URL; ohne `WPCAP_LIFECYCLE_HTTP` entfallen REST- und Admin-Seitenprüfung).
