@@ -226,11 +226,12 @@ final class HelpCode {
 
 	/**
 	 * Budget of the person typing (A460): the paired scanner device when the request comes from the
-	 * app (several devices are often paired by one staff account), else the WordPress user.
+	 * app (several devices are often paired by one staff account), else the WordPress user. The device
+	 * only counts when it authenticated this request as the current user.
 	 */
 	private static function actor_bucket( $user ) {
 		$device = class_exists( Mobile\Devices::class ) ? Mobile\Devices::current() : null;
-		if ( is_object( $device ) && ! empty( $device->device_id ) ) { return 'help-code|device|' . (int) $device->device_id; }
+		if ( is_object( $device ) && ! empty( $device->device_id ) && (int) ( $device->user_id ?? 0 ) === (int) $user ) { return 'help-code|device|' . (int) $device->device_id; }
 		return 'help-code|user|' . (int) $user;
 	}
 
