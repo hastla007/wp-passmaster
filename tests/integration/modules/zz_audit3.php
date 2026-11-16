@@ -422,9 +422,9 @@ check( 'A033b: counters give the same usage as the SUM queries (3 sold + 2 held)
 
 echo "Audit 3: reconcile with lock, scope and --all (A034)\n";
 $a34_other = new mysqli( getenv( 'WPCAP_TEST_DB_HOST' ) ?: '127.0.0.1', getenv( 'WPCAP_TEST_DB_USER' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_PASS' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_NAME' ) ?: 'wp' );
-$a34_other->query( "SELECT GET_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile',0)" );
+$a34_other->query( "SELECT GET_LOCK('" . PassCaptain\CapacityCounters::lock_name() . "',0)" );
 $a34_locked = PassCaptain\CapacityCounters::reconcile();
-$a34_other->query( "SELECT RELEASE_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile')" );
+$a34_other->query( "SELECT RELEASE_LOCK('" . PassCaptain\CapacityCounters::lock_name() . "')" );
 $a34_other->close();
 check( 'A034: a second reconcile run while one is active does nothing', 'locked' === $a34_locked['state'] );
 $a34_occ_old = ex_occ( ex_event( 'Vergangen Zähler' ), 0, 24 * 10 );

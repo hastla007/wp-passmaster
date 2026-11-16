@@ -19,6 +19,7 @@
 
 namespace PassCaptain\Allocations;
 
+use PassCaptain\DbLock;
 use PassCaptain\Modules\Allocations as Module;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -156,7 +157,8 @@ final class BuyerLimits {
 		if ( $version >= self::KEY_VERSION ) { return false; }
 		$table = Holds::table( 'buyers' );
 		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) { return false; }
-		if ( ! (int) $wpdb->get_var( "SELECT GET_LOCK('wpcap_alloc_keys', 0)" ) ) { return false; }
+		// Lock name unique per installation (A364): the fixed name blocked other sites on the server.
+		if ( ! DbLock::acquire( 'alloc_keys' ) ) { return false; }
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
 		$rebuild = $version < 2;
@@ -182,7 +184,7 @@ final class BuyerLimits {
 			}
 		}
 		update_option( 'wpcap_alloc_key_version', self::KEY_VERSION );
-		$wpdb->query( "SELECT RELEASE_LOCK('wpcap_alloc_keys')" );
+		DbLock::release( 'alloc_keys' );
 		return true;
 	}
 

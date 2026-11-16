@@ -23,6 +23,10 @@ den Primärserver, sobald `START TRANSACTION`/`BEGIN`, ein sperrendes `SELECT` (
 `LOCK IN SHARE MODE`) oder `GET_LOCK()` kommt (`PassCaptain\DbReplication`). Reine Leseseiten (Eventliste)
 nutzen bis dahin weiter die Replikate.
 
+Die Namen der `GET_LOCK`-Sperren gelten serverweit, nicht je Datenbank. Sie enthalten deshalb einen Hash aus
+Tabellenpräfix und `DB_NAME` (`PassCaptain\DbLock`, Upgrade-Sperre `Installer::lock_name()`), sodass mehrere
+Installationen auf einem Datenbankserver – auch mit demselben Präfix `wp_` – sich nicht gegenseitig sperren.
+
 Voraussetzungen im Cluster:
 
 - Das Drop-in muss den WordPress-Filter `query` vor der Verteilung anwenden (HyperDB und LudicrousDB tun das).

@@ -78,6 +78,8 @@ Verkauf sind.
    Teilerstattung, Widerruf mit Platzfreigabe, Umtausch, verspätete Zahlung ohne Kontingent) oder `wpcap_capacity_increased` (von Modulen bzw. nach
    einer Kontingenterhöhung auszulösen). Alle Ticketarten desselben Termins mit wartenden Einträgen
    werden vorgemerkt (Option `wpcap_waitlist_queue`), denn das Termin-Kontingent ist gemeinsam.
+   Vormerken und Entnehmen laufen unter einer kurzen Datenbanksperre; ein Lauf entfernt nur die
+   Ticketarten, die er übernimmt, sodass parallel vorgemerkte Ticketarten nicht verloren gehen.
 2. **Verarbeitung mit kurzer Verzögerung** – ein einmaliges Cron-Ereignis `wpcap_waitlist_process`
    (Standard 60 Sekunden, Filter `wpcap_waitlist_process_delay`) bündelt mehrere Freigaben. Zusätzlich
    läuft die Verarbeitung im 5-Minuten-Job (`wpcap_process_jobs`) und stündlich als Sweep über alle

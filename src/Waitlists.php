@@ -33,6 +33,8 @@ final class Waitlists {
 
 	/** Option with ticket types waiting for processing (type id => due timestamp). */
 	const QUEUE_OPTION = 'wpcap_waitlist_queue';
+	/** DbLock purpose guarding read-modify-write of QUEUE_OPTION (A364). */
+	const QUEUE_LOCK = 'wl_queue';
 
 	/** Entry states. Terminal: paid, expired, declined, skipped, removed, closed (date cancelled/over, A557); blocked until staff unblock it. */
 	const STATUSES = array( 'pending', 'waiting', 'offered', 'accepted', 'paid', 'expired', 'declined', 'skipped', 'removed', 'closed', 'blocked' );
@@ -475,12 +477,19 @@ final class Waitlists {
 		$ids = array_filter( array_map( 'absint', $ticket_type_ids ) );
 		if ( ! $ids ) { return; }
 		$due = null === $due ? Clock::now() + max( 0, (int) apply_filters( 'wpcap_waitlist_process_delay', 60 ) ) : (int) $due;
-		$queue = get_option( self::QUEUE_OPTION, array() );
-		$queue = is_array( $queue ) ? $queue : array();
-		foreach ( $ids as $id ) {
-			$queue[ $id ] = isset( $queue[ $id ] ) ? min( (int) $queue[ $id ], $due ) : $due;
+		// Read-modify-write of the queue option under a short lock (A364): parallel releases and a
+		// running cron must not overwrite each other's entries. Without the lock (timeout) the write
+		// still happens – losing nothing is better than a perfect merge.
+		$locked = DbLock::acquire( self::QUEUE_LOCK, 5 );
+		try {
+			$queue = self::fresh_queue();
+			foreach ( $ids as $id ) {
+				$queue[ $id ] = isset( $queue[ $id ] ) ? min( (int) $queue[ $id ], $due ) : $due;
+			}
+			update_option( self::QUEUE_OPTION, $queue, false );
+		} finally {
+			if ( $locked ) { DbLock::release( self::QUEUE_LOCK ); }
 		}
-		update_option( self::QUEUE_OPTION, $queue, false );
 		if ( function_exists( 'wp_schedule_single_event' ) ) {
 			wp_schedule_single_event( $due, self::HOOK );
 		}
@@ -488,6 +497,13 @@ final class Waitlists {
 
 	/** Ticket types currently queued (type id => due timestamp). */
 	public static function queued() {
+		$queue = get_option( self::QUEUE_OPTION, array() );
+		return is_array( $queue ) ? array_map( 'intval', $queue ) : array();
+	}
+
+	/** The queue as stored now (bypasses this request's option cache; call under QUEUE_LOCK). */
+	private static function fresh_queue() {
+		if ( function_exists( 'wp_cache_delete' ) ) { wp_cache_delete( self::QUEUE_OPTION, 'options' ); }
 		$queue = get_option( self::QUEUE_OPTION, array() );
 		return is_array( $queue ) ? array_map( 'intval', $queue ) : array();
 	}
@@ -507,7 +523,21 @@ final class Waitlists {
 		$due = array_keys( array_filter( $queue, static function ( $ts ) use ( $now, $force ) { return $force || $ts <= $now; } ) );
 		if ( ! $due ) { return 0; }
 		// Remove before processing: releases during the run (e.g. a failed mail) queue the type again.
-		update_option( self::QUEUE_OPTION, array_diff_key( $queue, array_flip( $due ) ), false );
+		// Only the taken types are removed, from the queue as stored under the lock (A364): types
+		// queued since the read above stay, and a type re-queued with a later due time is kept.
+		if ( ! DbLock::acquire( self::QUEUE_LOCK, 5 ) ) { return 0; }
+		try {
+			$current = self::fresh_queue();
+			$taken = array();
+			foreach ( $due as $type_id ) {
+				if ( isset( $current[ $type_id ] ) && ( $force || $current[ $type_id ] <= $now ) ) { $taken[] = $type_id; }
+			}
+			update_option( self::QUEUE_OPTION, array_diff_key( $current, array_flip( $taken ) ), false );
+		} finally {
+			DbLock::release( self::QUEUE_LOCK );
+		}
+		$due = $taken;
+		if ( ! $due ) { return 0; }
 		$made = 0;
 		// Shared cron time budget: types not reached go back into the queue and a follow-up run starts.
 		$deadline = Jobs\TimeBudget::deadline();
@@ -548,8 +578,9 @@ final class Waitlists {
 		$ticket_type_id = absint( $ticket_type_id );
 		$c = self::config();
 		if ( ! $ticket_type_id || ( ! $c['auto_offers'] && ! $manual ) ) { return 0; }
-		$lock = substr( $wpdb->prefix . 'wpcap_wl_' . $ticket_type_id, 0, 64 );
-		if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $lock ) ) ) { return 0; }
+		// Lock name unique per installation (A364), not only per table prefix.
+		$lock = 'wl_' . $ticket_type_id;
+		if ( ! DbLock::acquire( $lock ) ) { return 0; }
 		$made = 0;
 		try {
 			$type = $wpdb->get_row( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.max_per_order FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d AND tt.status='active' AND o.status='scheduled' AND e.status='published' AND " . Occurrence::type_sale_sql( 'tt', 'o' ), $ticket_type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
@@ -594,7 +625,7 @@ final class Waitlists {
 				++$made;
 			}
 		} finally {
-			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+			DbLock::release( $lock );
 		}
 		return $made;
 	}

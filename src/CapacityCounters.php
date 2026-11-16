@@ -264,20 +264,17 @@ final class CapacityCounters {
 		return true;
 	}
 
-	/** Reconcile/rebuild lock name (one run at a time per site). */
-	private static function lock_name() {
-		global $wpdb;
-		return preg_replace( '/[^A-Za-z0-9_]/', '', (string) $wpdb->prefix ) . 'wpcap_reconcile';
+	/** Reconcile/rebuild lock name (one run at a time per site; unique per installation, A364). */
+	public static function lock_name() {
+		return DbLock::name( 'reconcile' );
 	}
 
 	private static function reconcile_lock() {
-		global $wpdb;
-		return (bool) (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', self::lock_name() ) );
+		return DbLock::acquire( 'reconcile' );
 	}
 
 	private static function reconcile_unlock() {
-		global $wpdb;
-		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', self::lock_name() ) );
+		DbLock::release( 'reconcile' );
 	}
 
 	/* ---------------------------------------------------------------------------------------------

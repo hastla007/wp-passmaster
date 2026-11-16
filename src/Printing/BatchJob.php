@@ -26,6 +26,7 @@
 namespace PassCaptain\Printing;
 
 use PassCaptain\Audit;
+use PassCaptain\DbLock;
 use PassCaptain\HelpCode;
 use PassCaptain\Jobs;
 use PassCaptain\Orders;
@@ -186,13 +187,13 @@ final class BatchJob {
 
 	/** One block under the batch lock: 'more', 'done', 'busy' (another worker), 'stop' or WP_Error. */
 	public static function step( $batch_id ) {
-		global $wpdb;
-		$lock = preg_replace( '/[^A-Za-z0-9_]/', '', (string) $wpdb->prefix ) . 'wpcap_print_batch_' . absint( $batch_id );
-		if ( ! (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $lock ) ) ) { return 'busy'; }
+		// Lock name unique per installation (A364).
+		$lock = 'print_batch_' . absint( $batch_id );
+		if ( ! DbLock::acquire( $lock ) ) { return 'busy'; }
 		try {
 			return self::render_block( absint( $batch_id ) );
 		} finally {
-			$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+			DbLock::release( $lock );
 		}
 	}
 
