@@ -761,33 +761,33 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:587–589 (calculate), :357–360, :486: Vollständigkeit über Ticketwert; mark_refunded nur valid/checked_in zählen (belegt)
 - [x] **A358** [WICHTIG] „Bezahlt, ohne Kontingent“ weder erstattbar noch abschließbar — _R2 Eigen_ (TODO L689; Audit Runde 4)
   - src/Refunds.php:48/172, Admin/OrdersPage.php:80: Admin-Aktion „Extern erstattet / abschließen“
-- [ ] **A359** [OPTIMIERUNG] Toter Code mit festem EUR auf jedem Frontend-Request — _R1 Core_ (TODO L690; Audit Runde 4)
+- [x] **A359** [OPTIMIERUNG] Toter Code mit festem EUR auf jedem Frontend-Request — _R1 Core_ (TODO L690; Audit Runde 4)
   - src/PublicEvents.php:10–11: Registry::enabled(EUR) entfernen (entschlüsselt Secrets je Seitenaufruf)
 - [x] **A360** [OPTIMIERUNG] Events-Block: Abhängigkeiten wp-components/wp-i18n fehlen, Attribute number statt integer — _R1 Core_ (TODO L691; Audit Runde 4)
   - src/blocks/events/editor.asset.php:4, block.json: Abhängigkeiten ergänzen, integer
-- [ ] **A361** [OPTIMIERUNG] PHP 8.5: curl_close() deprecated; APNs umgeht WP-HTTP-Proxy-Konstanten — _R1 Core/Architektur_ (TODO L692; Audit Runde 4)
+- [x] **A361** [OPTIMIERUNG] PHP 8.5: curl_close() deprecated; APNs umgeht WP-HTTP-Proxy-Konstanten — _R1 Core/Architektur_ (TODO L692; Audit Runde 4)
   - src/WalletPasses/ApnsClient.php:55: curl_close entfernen, WP_PROXY_*/WP_HTTP_BLOCK_EXTERNAL beachten
 - [ ] **A362** [OPTIMIERUNG] Rollennamen übersetzt in der DB gespeichert — _R1 Core_ (TODO L693; Audit Runde 4)
   - src/Installer.php:1104–1124, :1080: Neutrale Namen speichern, Anzeige per Übersetzung (Kontext „User role“)
 - [ ] **A363** [OPTIMIERUNG] Falscher Übersetzerkommentar — _R1 Core_ (TODO L694; Audit Runde 4)
   - src/Orders.php:1076 (confirm_external_payment): %2$s ist die Zahlungsreferenz; POT/PO neu
-- [ ] **A364** [OPTIMIERUNG] Wartelisten-Queue ohne Lock; GET_LOCK-Namen nicht je Installation eindeutig — _R1 Core_ (TODO L695; Audit Runde 4)
+- [x] **A364** [OPTIMIERUNG] Wartelisten-Queue ohne Lock; GET_LOCK-Namen nicht je Installation eindeutig — _R1 Core_ (TODO L695; Audit Runde 4)
   - src/Waitlists.php:173–184, :207–208, :247–248, Allocations/BuyerLimits.php:145: Nur verarbeitete Typen entfernen; Lock-Namen wie Installer::lock_name() hashen
 - [x] **A365** [OPTIMIERUNG] Web-Scanner-REST gibt interne IDs fremder Events zurück — _R1 Security_ (TODO L696; Audit Runde 4)
   - src/Checkin.php:356–361, Rest/Controller.php:907–915: Fehlerdaten auf status/result/CLIENT_ERROR_KEYS reduzieren
 - [x] **A366** [OPTIMIERUNG] SMS-HTTP-Callbacks ohne Replay-Schutz — _R1 Security_ (TODO L697; Audit Runde 4)
   - src/Sms/HttpProvider.php:101–107, Sms/Service.php:481: Zeitstempel in Signatur (±5 min), Message-ID-Deduplizierung
-- [ ] **A367** [OPTIMIERUNG] ABSPATH-Guard fehlt in ausgelieferten PHP-Dateien — _R1 Security_ (TODO L698; Audit Runde 4)
+- [x] **A367** [OPTIMIERUNG] ABSPATH-Guard fehlt in ausgelieferten PHP-Dateien — _R1 Security_ (TODO L698; Audit Runde 4)
   - src/Integrations/ConnectorInterface.php, src/blocks/*/editor.asset.php: Guard ergänzen, CI-Prüfung für alle PHP-Dateien
-- [ ] **A368** [OPTIMIERUNG] Einlassbereiche auf jeder Frontend-Seite für Check-in-Nutzer abgefragt — _R1 Architektur_ (TODO L699; Audit Runde 4)
+- [x] **A368** [OPTIMIERUNG] Einlassbereiche auf jeder Frontend-Seite für Check-in-Nutzer abgefragt — _R1 Architektur_ (TODO L699; Audit Runde 4)
   - src/Modules/Admission.php:22, Admission/Rest.php:82–87: Nur wenn wpcap-scanner eingebunden
-- [ ] **A369** [OPTIMIERUNG] Erstattungs-Badge startet volle Abfrage auf jeder Admin-Seite; Index auf refunds.status fehlt — _R1 Architektur_ (TODO L700; Audit Runde 4)
+- [x] **A369** [OPTIMIERUNG] Erstattungs-Badge startet volle Abfrage auf jeder Admin-Seite; Index auf refunds.status fehlt — _R1 Architektur_ (TODO L700; Audit Runde 4)
   - src/Admin/Menu.php:198, Queries.php:474–482: Eigenes COUNT(*), Index status (A201 ergänzt status_updated – prüfen)
 - [x] **A370** [OPTIMIERUNG] Öffentliche REST-GETs mit Token ohne no-store — _R1 Architektur_ (TODO L701; Audit Runde 4)
   - src/Rest/Controller.php:34–38, :469–479, ServiceBookingFlow.php:233–265: Cache-Control: no-store; Token per Header/POST
 - [x] **A371** [OPTIMIERUNG] Globaler CSS-Selektor [aria-invalid] mit !important — _R1 Architektur_ (TODO L702; Audit Runde 4)
   - assets/public.css:5: Auf .wpcap-checkout-form einschränken
-- [ ] **A372** [OPTIMIERUNG] Deinstallation lässt wpcap_approve_comps zurück — _R1 Architektur_ (TODO L703; Audit Runde 4)
+- [x] **A372** [OPTIMIERUNG] Deinstallation lässt wpcap_approve_comps zurück — _R1 Architektur_ (TODO L703; Audit Runde 4)
   - src/Modules/GuestLists.php:131–141, uninstall.php:41: Cap-Liste aus gemeinsamer Konstante inkl. Modul-Caps
 - [ ] **A373** [OPTIMIERUNG] Ticketausstellung/PDF/Mail synchron im Webhook; ServiceBookingFlow per wp_mail — _R1 Architektur_ (TODO L704; Audit Runde 4)
   - src/Payments/Webhooks.php:121, Orders.php:1569–1680, ServiceBookingFlow.php:190/205: Versand nach COMMIT als Job; Servicebuchungen über Mailer::deliver()
@@ -795,7 +795,7 @@ Gesamt: 262 Aufgaben.
   - src/WalletPasses/Service.php:315–331: Nur einreihen, im Job pushen
 - [ ] **A375** [OPTIMIERUNG] Website-Zustand ohne Test für anonymes REST und Proxy-Fehlkonfiguration — _R1 Architektur_ (TODO L706; Audit Runde 4)
   - src/Operations/SiteHealth.php:80–88: Loopback ohne Cookie; Hinweis bei Forwarded-Headern ohne trusted_proxies
-- [ ] **A376** [OPTIMIERUNG] Saalplan-Verknüpfungen und Käuferlimits laden ganze Historie je Listing — _R1 Architektur_ (TODO L707; Audit Runde 4)
+- [x] **A376** [OPTIMIERUNG] Saalplan-Verknüpfungen und Käuferlimits laden ganze Historie je Listing — _R1 Architektur_ (TODO L707; Audit Runde 4)
   - src/Seating/Layouts.php:371, Allocations/BuyerLimits.php:51: Auf IDs des Listings einschränken
 - [ ] **A377** [OPTIMIERUNG] Uneinheitliche Begriffe (Veranstalter/Partner, Ticketkategorie/-art, Benutzer-ID-Feld) — _R1 UX_ (TODO L708; Audit Runde 4)
   - src/Partners/AdminPage.php:224, ServiceSlotsPage.php:227/253, EventsPage.php:801–804: Glossar, Benutzerauswahl statt ID
@@ -924,19 +924,19 @@ Gesamt: 262 Aufgaben.
   - src/Webhooks/Dispatcher.php:302–305, Modules/Webhooks.php:31: KEY (status, updated_at), DELETE … LIMIT 1000 mit Zeitbudget, höchstens stündlich
 - [x] **A438** [WICHTIG] Lasttests ohne Historie und ohne Admin-/Massenoperationen — _R2 DB/Performance_ (TODO L772; Audit Runde 4)
   - tests/load: Profile mit Jahren an Reservierungen/Check-ins/Zustellungen; Absagen, Batch-PDF, Berichte, Exporte bei 10k–100k
-- [ ] **A439** [OPTIMIERUNG] Retention-Schritt checkin_staff ohne Index — _R2 DB/Performance_ (TODO L773; Audit Runde 4)
+- [x] **A439** [OPTIMIERUNG] Retention-Schritt checkin_staff ohne Index — _R2 DB/Performance_ (TODO L773; Audit Runde 4)
   - src/Privacy/Retention.php:345: Index (created_at, checkin_id)
-- [ ] **A440** [OPTIMIERUNG] Statistik-Endpunkt der Scanner-App zählt bei jedem Aufruf alles — _R2 DB/Performance_ (TODO L774; Audit Runde 4)
+- [x] **A440** [OPTIMIERUNG] Statistik-Endpunkt der Scanner-App zählt bei jedem Aufruf alles — _R2 DB/Performance_ (TODO L774; Audit Runde 4)
   - src/Mobile/Api.php:100–105: KEY (device_id, event_id, result), Zähler/Cache
-- [ ] **A441** [OPTIMIERUNG] Ticketsuche mit sechs LIKE %x% über 6-Tabellen-Join — _R2 DB/Performance_ (TODO L775; Audit Runde 4)
+- [x] **A441** [OPTIMIERUNG] Ticketsuche mit sechs LIKE %x% über 6-Tabellen-Join — _R2 DB/Performance_ (TODO L775; Audit Runde 4)
   - src/Admin/Queries.php:416–433: Präfix-/exakte Suche auf indexierten Spalten, E-Mail exakt
-- [ ] **A442** [OPTIMIERUNG] Bestellportal: eine Antworten-Query pro Ticket — _R2 DB/Performance_ (TODO L776; Audit Runde 4)
+- [x] **A442** [OPTIMIERUNG] Bestellportal: eine Antworten-Query pro Ticket — _R2 DB/Performance_ (TODO L776; Audit Runde 4)
   - src/OrderPortal.php:76–83: Eine IN()-Query
-- [ ] **A443** [OPTIMIERUNG] Offline-Paket: Throttle-Prüfung vor dem Lock — _R2 DB/Performance_ (TODO L777; Audit Runde 4)
+- [x] **A443** [OPTIMIERUNG] Offline-Paket: Throttle-Prüfung vor dem Lock — _R2 DB/Performance_ (TODO L777; Audit Runde 4)
   - src/OfflineScanner/Package.php:57–100: refreshed_at nach dem Lock erneut prüfen
 - [x] **A444** [OPTIMIERUNG] Tabellen ohne Aufräumung (reservations, jobs, seat_holds, payment_events) — _R2 DB/Performance_ (TODO L778; Audit Runde 4)
   - src/Privacy/Retention.php: Abgeschlossene Zeilen nach N Tagen batchweise löschen
-- [ ] **A445** [OPTIMIERUNG] WooCommerce-Absagenotiz sucht je Bestellung per meta_value (PLAUSIBEL O(n²)) — _R2 DB/Performance_ (TODO L779; Audit Runde 4)
+- [x] **A445** [OPTIMIERUNG] WooCommerce-Absagenotiz sucht je Bestellung per meta_value (PLAUSIBEL O(n²)) — _R2 DB/Performance_ (TODO L779; Audit Runde 4)
   - src/Integrations/WooCommerce/OrderAdapter.php:948–953: WC-Order-ID an der Kernbestellung speichern
 
 ### Audit Runde 5 – Lifecycle, Editor, Multisite/i18n, Caching/CDN, QA, Eigen-Audit (13.11.2026, Snapshot ccf2530)
@@ -1069,21 +1069,21 @@ Gesamt: 262 Aufgaben.
   - src/PublicEvents.php:378–394: DONOTCACHEPAGE + nocache_headers
 - [x] **A509** [OPTIMIERUNG] Betriebsdoku ohne CDN-/WAF-/Seitencache-Ausnahmeregeln — _R3 Caching_ (TODO L846; Audit Runde 4)
   - docs/OPERATIONS.md, SECURITY.md:66, readme.txt: Abschnitt Caching/CDN mit Ausnahmen je Produkt und Webhook-/Wallet-Bot-Ausnahmen
-- [ ] **A510** [OPTIMIERUNG] Deaktivierung verwirft geplante DSGVO-Löschung von Wallet-Registrierungen — _R3 Lifecycle_ (TODO L847; Audit Runde 4)
+- [x] **A510** [OPTIMIERUNG] Deaktivierung verwirft geplante DSGVO-Löschung von Wallet-Registrierungen — _R3 Lifecycle_ (TODO L847; Audit Runde 4)
   - src/Privacy.php:482–484, Plugin.php:169–178: Ausstehende Purges in Tabelle/Option, im Retention-Lauf abarbeiten
-- [ ] **A511** [OPTIMIERUNG] Kein eigener PHP-/WP-Versionsguard; Composer-Platform-Check legt Site lahm — _R3 Lifecycle_ (TODO L848; Audit Runde 4)
+- [x] **A511** [OPTIMIERUNG] Kein eigener PHP-/WP-Versionsguard; Composer-Platform-Check legt Site lahm — _R3 Lifecycle_ (TODO L848; Audit Runde 4)
   - pass-captain.php:61–63, composer.json, build/release.sh:38: Guard vor Autoloader mit Admin-Hinweis, platform-check false
-- [ ] **A512** [OPTIMIERUNG] Aktivierung installiert ohne Upgrade-Lock — _R3 Lifecycle_ (TODO L849; Audit Runde 4)
+- [x] **A512** [OPTIMIERUNG] Aktivierung installiert ohne Upgrade-Lock — _R3 Lifecycle_ (TODO L849; Audit Runde 4)
   - src/Plugin.php:121–137, Installer.php:1073: Über Installer::run_locked()
-- [ ] **A513** [OPTIMIERUNG] Schema-Prüfung erkennt fehlgeschlagene Index-Änderungen nicht — _R3 Lifecycle_ (TODO L850; Audit Runde 4)
+- [x] **A513** [OPTIMIERUNG] Schema-Prüfung erkennt fehlgeschlagene Index-Änderungen nicht — _R3 Lifecycle_ (TODO L850; Audit Runde 4)
   - src/Installer.php:794–806, :955–958: Soll-Indizes nach upgrade_indexes prüfen, in wpcap_schema_error
-- [ ] **A514** [OPTIMIERUNG] Multisite-Uninstall löscht netzwerkweite User-Meta praktisch nie; Reste in sitemeta/Action Scheduler — _R3 Lifecycle_ (TODO L851; Audit Runde 4)
+- [x] **A514** [OPTIMIERUNG] Multisite-Uninstall löscht netzwerkweite User-Meta praktisch nie; Reste in sitemeta/Action Scheduler — _R3 Lifecycle_ (TODO L851; Audit Runde 4)
   - uninstall.php:59–67, LegacySlug.php:36: Sites ohne Daten als zugestimmt werten, delete_site_option, AS-Gruppe löschen
 - [ ] **A515** [OPTIMIERUNG] Mehrdeutige Kurz-Strings ohne _x-Kontext („Einlass“, „Offen“, Genus-Status) — _R3 Multisite/i18n/Skalierung_ (TODO L852; Audit Runde 4)
   - src/Notifications.php:165, Admin/Menu.php:139, PublicEvents.php:114, Admin/Forms.php:504–515: _x() mit Kontext, POT neu
 - [ ] **A516** [OPTIMIERUNG] Scanner zeigen Terminzeiten in Gerätezeitzone statt Terminzeitzone — _R3 Multisite/i18n/Skalierung_ (TODO L853; Audit Runde 4)
   - assets/offline-scanner/app.js:103–106/358/386, assets/scanner.js:100–108: toLocaleString mit timeZone des Termins
-- [ ] **A517** [OPTIMIERUNG] Request-Caches bei switch_blog nicht zurückgesetzt (A182 unvollständig) — _R3 Multisite/i18n/Skalierung_ (TODO L854; Audit Runde 4)
+- [x] **A517** [OPTIMIERUNG] Request-Caches bei switch_blog nicht zurückgesetzt (A182 unvollständig) — _R3 Multisite/i18n/Skalierung_ (TODO L854; Audit Runde 4)
   - src/StaffAssignments.php:35–37/82–89, ServiceProviders.php:41–44, Campaigns.php:215–224: An switch_blog flushen oder nach Präfix schlüsseln
 - [ ] **A518** [OPTIMIERUNG] Google Wallet meldet alle Texte als Deutsch — _R3 Multisite/i18n/Skalierung_ (TODO L855; Audit Runde 4)
   - src/WalletPasses/GoogleProvider.php:34, :53: Sprache aus Ticket-/Site-Locale, translatedValues

@@ -7,6 +7,26 @@
 - **Neuer Name „Pass Captain“, Slug `pass-captain` (für WordPress.org).** Bisher „WP Pass Captain“ mit Slug, Ordner und Textdomain `wp-pass-captain` – WordPress.org erlaubt kein „WP“ am Namensanfang, und Sprachpakete brauchen Textdomain = Slug. Geändert: Plugin-Name, Ordner/Hauptdatei `pass-captain/pass-captain.php`, Textdomain und Sprachdateien `pass-captain`, REST-Namensraum `/wp-json/pass-captain/v1/`, Admin-Seiten `page=pass-captain…`, Release-ZIP `pass-captain.zip`; die Partner-Plugins heißen in der Oberfläche „Voucher Captain“ und „Affiliate Captain“. Unverändert: Daten (`wpcap_*`), Rollen, Hooks/Shortcodes, Blocknamen. Kompatibilität (`src/LegacySlug.php`): der alte REST-Namensraum funktioniert weiter (Zahlungs- und SMS-Webhooks, bereits ausgegebene Wallet-Pässe, Apps; Antwort mit `Deprecation`/`Link`, Twilio-Signatur gegen die aufgerufene URL), alte Admin-Links leiten um, eine installierte alte Kopie wird beim Aktivieren abgeschaltet (kein Doppelladen), und solange ihr Ordner existiert, ist die Datenlöschung beim Deinstallieren pausiert, damit das Löschen der alten Kopie keine Daten entfernt. Neuer CI-Test `tests/wp-matrix/rename-takeover.sh` (echte Website mit Vorgänger-Release und Daten → Umstieg). Anleitung: docs/RENAME.md.
 
 ### Auditbefunde Runde 4–6 (Arbeitsliste A263–)
+- Checkout-Skript fragt die Zahlungsarten nicht mehr bei jedem Seitenaufruf ab (A359).
+- Apple-Wallet-Pushes beachten WP_HTTP_BLOCK_EXTERNAL und den WordPress-Proxy; kein curl_close() mehr (PHP 8.5) (A361).
+- Wartelisten-Queue unter Datenbanksperre; benannte Sperren sind je Installation eindeutig (`DbLock`) (A364).
+- Alle ausgelieferten PHP-Dateien beenden sich bei direktem Aufruf; CI prüft den ABSPATH-Guard (A367).
+- Einlassbereiche werden nur noch auf Seiten mit dem Web-Scanner abgefragt (A368).
+- Erstattungs-Badge zählt per COUNT(*) statt die Freigabeliste zu laden (A369).
+- Deinstallation entfernt auch `wpcap_approve_comps` und `wpcap_boxoffice_override` (A372).
+- Saalplan-Verknüpfungen und Käuferlimits werden nur für die Termine der Liste geladen (A376).
+- Löschlauf Einlasspersonal liest über den Index nur neu fällige Check-ins (A439).
+- Statistik der Scanner-App: Geräteindex und 10 s Objekt-Cache (A440).
+- Admin-Ticketsuche über Indizes (Präfixsuche für Nummern und E-Mails, Namen ab Wortanfang) statt LIKE %x% (A441).
+- Bestellportal lädt Teilnehmerantworten mit einer Abfrage (A442).
+- Offline-Paket wird nach paralleler Aktualisierung nicht sofort erneut gebaut (A443).
+- WooCommerce-Absagenotizen finden die Bestellung über die gespeicherte Nummer statt Metasuche (A445).
+- Verzögerte DSGVO-Löschung von Wallet-Registrierungen übersteht eine Deaktivierung (A510).
+- Eigene PHP-/WordPress-Versionsprüfung mit Admin-Hinweis statt Fatal Error (A511).
+- Aktivierung installiert hinter der Upgrade-Sperre (A512).
+- Schema-Prüfung erkennt fehlende oder abweichende Indizes (A513).
+- Multisite-Deinstallation: Sites ohne Daten blockieren nicht, Netzwerk-Optionen und Action-Scheduler-Aufträge werden entfernt (A514).
+- Multisite: alle Anfrage-Caches mit Site-Daten werden bei switch_blog geleert (A517).
 - Einlass-Scanner nennen bei Tickets fremder Events nur noch „kein Zugriff“/„falsches Event“, ohne Eventnamen oder Status; abgelehnte Scans liefern nur Scannerfelder (A365).
 - SMS-Rückmeldungen des HTTP-Anbieters mit optional verpflichtendem signiertem Zeitstempel (±5 Minuten); jede Rückmeldung und eingehende SMS wird nur einmal verarbeitet (A366).
 - Öffentliche REST-Antworten mit Token und alle Plugin-Antworten ohne eigenen Cache-Header sind `no-store` (A370, A505).
