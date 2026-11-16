@@ -597,15 +597,15 @@ Gesamt: 262 Aufgaben.
   - src/blocks/*/editor.js, block.json, ci.yml (--skip-block-json): Keine wp i18n make-json, block.json-Titel nicht im Katalog. --skip-block-json entfernen, make-json im Build
 - [ ] **A276** [WICHTIG] WooCommerce zeigt Terminzeiten in Site- statt Termin-Zeitzone — _R1 Core_ (TODO L607; Audit Runde 4)
   - src/Integrations/WooCommerce/OrderAdapter.php:1068, :122: Orders::format_start($starts_at,$timezone) verwenden
-- [ ] **A277** [WICHTIG] Ehemaliges Einlasspersonal behält Scanner-Zugang nach Rollenentzug — _R1 Security_ (TODO L608; Audit Runde 4)
+- [x] **A277** [WICHTIG] Ehemaliges Einlasspersonal behält Scanner-Zugang nach Rollenentzug — _R1 Security_ (TODO L608; Audit Runde 4)
   - src/Admin/EventsPage.php:499 (assign_staff add_cap), Mobile/Devices.php:137, Access.php:41: User-Cap wpcap_checkin + event_staff bleiben bei set_user_role/remove_user_role/delete_user. Keine User-Cap vergeben bzw. bei Rollenwechsel/Löschung Staff, Cap, Geräte widerrufen; Test
-- [ ] **A278** [WICHTIG] Entwickler-API-Keys prüfen globale Berechtigung des Inhabers nicht — _R1 Security_ (TODO L609; Audit Runde 4)
+- [x] **A278** [WICHTIG] Entwickler-API-Keys prüfen globale Berechtigung des Inhabers nicht — _R1 Security_ (TODO L609; Audit Runde 4)
   - src/DeveloperKeys.php:153–163 (authorize): Herabgestufte/gelöschte Benutzer lesen weiter. user_can + Benutzerexistenz prüfen, Keys bei Löschung/Rollenentzug widerrufen
-- [ ] **A279** [WICHTIG] Aussperr-DoS bei Servicebuchungen über fortlaufende IDs — _R1 Security_ (TODO L610; Audit Runde 4)
+- [x] **A279** [WICHTIG] Aussperr-DoS bei Servicebuchungen über fortlaufende IDs — _R1 Security_ (TODO L610; Audit Runde 4)
   - src/ServiceBookingFlow.php:218–229 (verify_token): 10 Fehlversuche je booking_id sperren echte Kunden 1 h. Primär pro Client zählen (RateLimit::allow), Buchungssperre kurz/zusätzlich
-- [ ] **A280** [WICHTIG] IPv6-Clients umgehen IP-Ratenlimits (/128 statt /64) — _R1 Security_ (TODO L611; Audit Runde 4)
+- [x] **A280** [WICHTIG] IPv6-Clients umgehen IP-Ratenlimits (/128 statt /64) — _R1 Security_ (TODO L611; Audit Runde 4)
   - src/ClientIp.php:33–63, RateLimit.php:41, Orders.php:438: Inventar-DoS durch Adressrotation (Checkout, Sitz-/Service-Holds, Warteliste, Partner-Sperre). IPv6 für Limits auf /64 normalisieren, Obergrenzen je Termin für anonyme Holds
-- [ ] **A281** [WICHTIG] Ein Scanner-Account sperrt Hilfscode-Eingabe für die ganze Site — _R1 Security_ (TODO L612; Audit Runde 4)
+- [x] **A281** [WICHTIG] Ein Scanner-Account sperrt Hilfscode-Eingabe für die ganze Site — _R1 Security_ (TODO L612; Audit Runde 4)
   - src/HelpCode.php:184–186 (resolve): Site-Bucket wird vor User-Limit gezählt. Erst User/Client prüfen, Site-Bucket nur bei erlaubten Requests oder je Event
 - [ ] **A282** [WICHTIG] Mollie-API-Aufruf beim Rendern der öffentlichen Eventliste — _R1 Architektur_ (TODO L613; Audit Runde 4)
   - src/Modules/Mollie.php:94–106, MollieGateway.php:155–169, :309: Synchroner wp_remote_get je Karte/Betrag, 15 s Timeout, kein Negativ-Cache. Methoden je Währung im Hintergrund laden, Fehler kurz cachen
@@ -619,7 +619,7 @@ Gesamt: 262 Aufgaben.
   - src/OfflineScanner/AdminPage.php:27–30, assets/offline-scanner/app.js:187–195: PWA über eigene Route auf home_url() ausliefern
 - [ ] **A287** [WICHTIG] Netzwerkaktivierung installiert alle Sites synchron — _R1 Architektur/Release_ (TODO L618; Audit Runde 4)
   - src/Plugin.php:116–131 (activate), :40–46, uninstall.php:53–60: ~100 Tabellen je Site im Aktivierungs-Request → Timeout. Lazy je Site über maybe_upgrade bzw. Batches per Cron
-- [ ] **A288** [WICHTIG] Verbleibende nicht-atomare Transient-Zähler (A186 unvollständig) — _R1 Architektur/Security_ (TODO L619; Audit Runde 4)
+- [x] **A288** [WICHTIG] Verbleibende nicht-atomare Transient-Zähler (A186 unvollständig) — _R1 Architektur/Security_ (TODO L619; Audit Runde 4)
   - src/Rest/Controller.php:417 (manual_hold_limit), DeveloperKeys.php:168, ServiceBookingFlow.php:222, Partners/Keys.php:237, AffiliateCaptain/Adapter.php:144: Auf RateLimit::allow() umstellen; Developer-Key-Zähler erzeugt Option-Zeilen je Minute
 - [ ] **A289** [WICHTIG] AGB nur mit „Zustimmung verlangen“ sichtbar, Checkliste meldet trotzdem erledigt — _R1 UX_ (TODO L620; Audit Runde 4)
   - templates/event-card.php:161–168, Settings.php:68, GettingStarted.php:49/107: Checkliste nur mit require_terms erledigt; Warnung bei Pflicht + leerem Text
