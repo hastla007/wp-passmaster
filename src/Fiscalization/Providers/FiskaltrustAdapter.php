@@ -10,6 +10,15 @@ final class FiskaltrustAdapter implements AdapterInterface {
 	const ID = 'fiskaltrust_possystem';
 	const SANDBOX = 'https://possystem-api-sandbox.fiskaltrust.eu/v2';
 
+	/**
+	 * Base URL of the API (A655): the configured base_url; the sandbox only when the configuration
+	 * explicitly says environment = "sandbox". Otherwise '' – HttpClient::endpoint() then refuses the
+	 * call instead of fiscalising real receipts against the sandbox.
+	 */
+	private static function base( array $configuration ) {
+		return 'sandbox' === (string) ( $configuration['environment'] ?? '' ) ? self::SANDBOX : '';
+	}
+
 	public function id() { return self::ID; }
 	public function interface_version() { return AdapterInterface::VERSION; }
 	public function countries() { return array( 'AT', 'BE', 'DE', 'ES', 'FR', 'GR', 'IT', 'PL', 'PT' ); }
@@ -18,7 +27,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 	public function health_check( array $seller, array $configuration ) {
 		$headers = $this->headers( $configuration, $this->operation_id( 'health:' . ( $seller['seller_id'] ?? 0 ) ) );
 		if ( is_wp_error( $headers ) ) { return $headers; }
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, self::SANDBOX, 'echo' ), 'POST', $headers, array( 'Message' => 'Pass Captain connection check' ) );
+		$response = HttpClient::request( HttpClient::endpoint( $configuration, self::base( $configuration ), 'echo' ), 'POST', $headers, array( 'Message' => 'Pass Captain connection check' ) );
 		if ( is_wp_error( $response ) ) { return $response; }
 		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) {
 			return new \WP_Error( 'fiskaltrust_health_failed', __( 'fiskaltrust-Verbindungstest wurde abgelehnt.', 'pass-captain' ) );
@@ -30,7 +39,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 		$operation_id = $this->operation_id( (string) ( $document['idempotency_key'] ?? '' ) );
 		$headers = $this->headers( $configuration, $operation_id );
 		if ( is_wp_error( $headers ) ) { return $headers; }
-		$url = HttpClient::endpoint( $configuration, self::SANDBOX, 'journal/OperationItem/' . rawurlencode( $operation_id ) );
+		$url = HttpClient::endpoint( $configuration, self::base( $configuration ), 'journal/OperationItem/' . rawurlencode( $operation_id ) );
 		$response = HttpClient::request( $url, 'GET', $headers );
 		if ( is_wp_error( $response ) ) { return $response; }
 		if ( 404 === $response['status'] ) { return array( 'status' => 'not_found' ); }
@@ -75,7 +84,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 			'cbPayItems' => array( array( 'Description' => $payment_method, 'Amount' => (float) HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ), 'ftPayItemCase' => $pay_case ) ),
 			'ftReceiptCase' => $cases['receipt'],
 		);
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, self::SANDBOX, 'sign' ), 'POST', $headers, $payload );
+		$response = HttpClient::request( HttpClient::endpoint( $configuration, self::base( $configuration ), 'sign' ), 'POST', $headers, $payload );
 		if ( is_wp_error( $response ) ) { return $response; }
 		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) {
 			return new \WP_Error( 'fiskaltrust_submit_failed', __( 'fiskaltrust hat den Beleg nicht bestätigt.', 'pass-captain' ) );

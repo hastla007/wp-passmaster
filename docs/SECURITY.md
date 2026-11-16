@@ -20,7 +20,7 @@ Alle ausgehenden HTTP-Aufrufe in `src/` laufen über den zentralen Guard `PassCa
 | Aufrufer | Ziel | Regel |
 |---|---|---|
 | Webhooks (`Webhooks\Dispatcher`) | konfigurierbare URL | HTTPS, öffentliche Adresse nach DNS, festgelegt; Antwort ≤ 64 KB, 10 s |
-| Fiskal-Anbieter (`Fiscalization\Providers\HttpClient`: fiskaltrust, efsta) | konfigurierbare `base_url` | HTTPS, öffentliche Adresse; einzige Ausnahme die feste lokale efsta-EFR-Adresse `http://127.0.0.1:5618`; Antwort ≤ 512 KB, 15 s |
+| Fiskal-Anbieter (`Fiscalization\Providers\HttpClient`: fiskaltrust, efsta) | konfigurierbare `base_url` (fiskaltrust: Pflicht; die Sandbox nur mit `environment` = `sandbox`, kein stiller Rückfall, A655) | HTTPS, öffentliche Adresse; einzige Ausnahme die feste lokale efsta-EFR-Adresse `http://127.0.0.1:5618`; Antwort ≤ 512 KB, 15 s |
 | SMS über generischen HTTP-Anbieter (`Sms\HttpProvider`) | konfigurierbarer Endpunkt | HTTPS, öffentliche Adresse; Antwort ≤ 64 KB, 15 s; ein abgelehntes Ziel ist ein dauerhafter Fehler |
 | SMS über Twilio | `api.twilio.com` | fester Host |
 | Google Wallet | `walletobjects.googleapis.com`; `token_uri` des Dienstkontos nur `oauth2.googleapis.com`, `accounts.google.com`, `www.googleapis.com` | feste Hosts |

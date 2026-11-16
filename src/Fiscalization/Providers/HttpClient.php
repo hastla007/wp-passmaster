@@ -21,6 +21,7 @@ final class HttpClient {
 	 * @param array $options exceptions: allowed "scheme://host:port" origins (fixed provider endpoints).
 	 */
 	public static function request( $url, $method, array $headers = array(), $body = null, array $options = array() ) {
+		if ( is_wp_error( $url ) ) { return $url; } // endpoint(): no base URL configured (A655).
 		$url = esc_url_raw( $url, array( 'http', 'https' ) );
 		$parts = wp_parse_url( $url );
 		if ( ! $url || ! is_array( $parts ) || empty( $parts['host'] ) || ! in_array( strtolower( $parts['scheme'] ?? '' ), array( 'http', 'https' ), true ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
@@ -58,9 +59,20 @@ final class HttpClient {
 		return array( 'status' => $status, 'data' => is_array( $data ) ? $data : array(), 'raw' => $raw );
 	}
 
+	/**
+	 * URL of an API path below the configured base_url. A655: without base_url only an explicit,
+	 * documented default of the adapter is used (efsta: the fixed local EFR); an empty $fallback means
+	 * "no default" and a missing base_url is an error – never a silent switch to a sandbox or test system.
+	 *
+	 * @return string|\WP_Error
+	 */
 	public static function endpoint( array $configuration, $fallback, $path ) {
-		$base = untrailingslashit( (string) ( $configuration['base_url'] ?? $fallback ) );
-		return $base . '/' . ltrim( $path, '/' );
+		$base = trim( (string) ( $configuration['base_url'] ?? '' ) );
+		if ( '' === $base ) { $base = (string) $fallback; }
+		if ( '' === $base ) {
+			return new \WP_Error( 'provider_base_url_missing', __( 'Für den Fiskal-Anbieter ist keine Basis-URL eingestellt.', 'pass-captain' ) );
+		}
+		return untrailingslashit( $base ) . '/' . ltrim( $path, '/' );
 	}
 
 	public static function minor_to_major( $amount, $currency = 'EUR' ) {
