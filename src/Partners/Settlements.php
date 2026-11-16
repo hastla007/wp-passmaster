@@ -815,7 +815,7 @@ final class Settlements {
 		$terms = (array) ( $t['terms'] ?? array() );
 		$kinds = self::kind_labels();
 		$title = self::document_title( $s );
-		$date = Scope::local( $s->finalized_at ?: $s->updated_at, Scope::site_timezone(), 'd.m.Y' );
+		$date = \PassCaptain\Frontend\Format::local( $s->finalized_at ?: $s->updated_at, Scope::site_timezone(), 'date' );
 		$block = static function ( array $lines, $heading = '' ) {
 			$first = array_shift( $lines );
 			return '<div class="addr">' . ( '' !== $heading ? '<small>' . esc_html( $heading ) . '</small>' . "\n" : '' ) . '<strong>' . esc_html( (string) $first ) . '</strong>' . ( $lines ? "\n" . esc_html( implode( "\n", $lines ) ) : '' ) . '</div>';
@@ -830,7 +830,7 @@ final class Settlements {
 		}
 		if ( 'draft' === $s->status ) { $h .= '<p class="draft">' . esc_html__( 'Entwurf – nicht abgeschlossen, Werte können sich noch ändern', 'pass-captain' ) . '</p>'; }
 		$h .= '<h1>' . esc_html( $title ) . '</h1><p>' . esc_html( sprintf( /* translators: 1: period, 2: date */ __( 'Zeitraum: %1$s · Erstellt: %2$s', 'pass-captain' ), $s->period, $date ) );
-		if ( 'paid' === $s->status ) { $h .= '<br>' . esc_html( sprintf( /* translators: 1: date, 2: reference */ __( 'Ausgezahlt am %1$s %2$s', 'pass-captain' ), Scope::local( $s->paid_at, Scope::site_timezone(), 'd.m.Y' ), $s->payment_reference ) ); }
+		if ( 'paid' === $s->status ) { $h .= '<br>' . esc_html( sprintf( /* translators: 1: date, 2: reference */ __( 'Ausgezahlt am %1$s %2$s', 'pass-captain' ), \PassCaptain\Frontend\Format::local( $s->paid_at, Scope::site_timezone(), 'date' ), $s->payment_reference ) ); }
 		$h .= '<br>' . esc_html( sprintf( /* translators: 1: commission, 2: fee, 3: VAT */ __( 'Konditionen: Provision %1$s vom Nettoumsatz, Ticketgebühr %2$s pro Ticket, USt auf Plattformgebühr %3$s', 'pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( $terms['fee_per_ticket_minor'] ?? 0 ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) ) ) . '</p>';
 
 		if ( self::TYPE_SELF_BILLING === $type ) {
@@ -892,7 +892,7 @@ final class Settlements {
 		$h .= '<h2>' . esc_html__( 'Positionen', 'pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Datum', 'pass-captain' ) . '</th><th>' . esc_html__( 'Art', 'pass-captain' ) . '</th><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Bestellung', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt-Satz', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Provision', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Gebühr', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( self::lines( $s->settlement_id ) as $l ) {
 			$label = ( $kinds[ $l->kind ] ?? $l->kind ) . ( in_array( $l->kind, array( 'late_sale', 'correction' ), true ) ? ' ' . $l->origin_period : '' );
-			$h .= '<tr><td>' . esc_html( Scope::local( $l->occurred_at, Scope::site_timezone(), 'd.m.Y' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
+			$h .= '<tr><td>' . esc_html( \PassCaptain\Frontend\Format::local( $l->occurred_at, Scope::site_timezone(), 'date' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
 		}
 		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . '<button onclick="window.print()">' . esc_html__( 'Drucken oder als PDF speichern', 'pass-captain' ) . '</button></body></html>';
 		return $h;

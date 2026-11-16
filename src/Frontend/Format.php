@@ -79,11 +79,79 @@ final class Format {
 		return substr( $email, 0, 1 ) . '***' . substr( $email, $at );
 	}
 
-	/** Date and time in the site's configured formats (falls back to d.m.Y H:i). */
+	/**
+	 * A384: date format for mails, tickets and documents. The site's setting (Settings → General) in the
+	 * site language; while a mail or document is built in another language (Mailer::with_locale() with
+	 * the recipient's locale), the plugin catalogue's format for that language, because the site's
+	 * format belongs to the site language ("j. F Y" reads wrong in an English mail).
+	 */
+	public static function date_format() {
+		if ( self::foreign_locale() ) {
+			/* translators: PHP date() format of dates in mails, tickets and documents of this language, e.g. "m/d/Y" or "j F Y" */
+			$format = _x( 'd.m.Y', 'date format', 'pass-captain' );
+		} else {
+			$format = (string) get_option( 'date_format' );
+		}
+		/**
+		 * Date format (PHP date()) of mails, tickets and documents (A384).
+		 *
+		 * @param string $format Format.
+		 * @param string $locale Locale of the mail/document being built ('' = site language).
+		 */
+		$format = (string) apply_filters( 'wpcap_date_format', '' !== $format ? $format : 'd.m.Y', \PassCaptain\Mail\Mailer::active_locale() );
+		return '' !== $format ? $format : 'd.m.Y';
+	}
+
+	/** A384: time format for mails, tickets and documents (see date_format()). */
+	public static function time_format() {
+		if ( self::foreign_locale() ) {
+			/* translators: PHP date() format of times in mails, tickets and documents of this language, e.g. "g:i a" or "H:i" */
+			$format = _x( 'H:i', 'time format', 'pass-captain' );
+		} else {
+			$format = (string) get_option( 'time_format' );
+		}
+		/**
+		 * Time format (PHP date()) of mails, tickets and documents (A384).
+		 *
+		 * @param string $format Format.
+		 * @param string $locale Locale of the mail/document being built ('' = site language).
+		 */
+		$format = (string) apply_filters( 'wpcap_time_format', '' !== $format ? $format : 'H:i', \PassCaptain\Mail\Mailer::active_locale() );
+		return '' !== $format ? $format : 'H:i';
+	}
+
+	/** Date and time in the formats of date_format()/time_format() (falls back to d.m.Y H:i). */
 	public static function datetime_format() {
-		$date = (string) get_option( 'date_format' );
-		$time = (string) get_option( 'time_format' );
-		return ( '' !== $date ? $date : 'd.m.Y' ) . ' ' . ( '' !== $time ? $time : 'H:i' );
+		return self::date_format() . ' ' . self::time_format();
+	}
+
+	/** Whether a mail/document is being built in a language other than the site's (A384). */
+	private static function foreign_locale() {
+		$active = \PassCaptain\Mail\Mailer::active_locale();
+		return '' !== $active && $active !== \PassCaptain\Mail\Mailer::site_locale();
+	}
+
+	/**
+	 * A384: a UTC datetime ("Y-m-d H:i:s") in $timezone with the format of $kind ('datetime', 'date' or
+	 * 'time'); month and weekday names in the active language (wp_date()). '' for an empty value.
+	 *
+	 * @param string|null              $utc      UTC datetime.
+	 * @param string|\DateTimeZone|null $timezone Zone name or object (default: site time zone).
+	 * @param string                   $kind     datetime|date|time.
+	 */
+	public static function local( $utc, $timezone = null, $kind = 'datetime' ) {
+		if ( null === $utc || '' === (string) $utc ) { return ''; }
+		$ts = strtotime( $utc . ' UTC' );
+		if ( false === $ts ) { return (string) $utc; }
+		if ( $timezone instanceof \DateTimeZone ) {
+			$zone = $timezone;
+		} elseif ( null === $timezone || '' === (string) $timezone ) {
+			$zone = self::site_timezone();
+		} else {
+			try { $zone = new \DateTimeZone( (string) $timezone ); } catch ( \Exception $e ) { $zone = new \DateTimeZone( 'UTC' ); }
+		}
+		$format = 'date' === $kind ? self::date_format() : ( 'time' === $kind ? self::time_format() : self::datetime_format() );
+		return wp_date( $format, $ts, $zone );
 	}
 
 	/** Site timezone (WordPress setting), UTC when unavailable. */

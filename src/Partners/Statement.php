@@ -173,7 +173,7 @@ final class Statement {
 		$rows = array( array( __( 'Art', 'pass-captain' ), __( 'Datum', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Externe Referenz', 'pass-captain' ), __( 'Event', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'USt-Satz %', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'Provision', 'pass-captain' ), __( 'Gebühr', 'pass-captain' ) ) );
 		$kinds = array( 'sale' => __( 'Verkauf', 'pass-captain' ), 'refund' => __( 'Erstattung', 'pass-captain' ) );
 		foreach ( $s['lines'] as $l ) {
-			$rows[] = array( $kinds[ $l['kind'] ] ?? $l['kind'], Scope::local( $l['occurred_at'], $tz, 'd.m.Y H:i' ), substr( $l['order'], 0, 8 ), $l['external_reference'], $l['event_name'], $l['tickets'], number_format( $l['tax_rate_bp'] / 100, 2, ',', '' ), $money( $l['gross_minor'] ), $money( $l['tax_minor'] ), $money( $l['net_minor'] ), $money( $l['commission_minor'] ), $money( $l['fee_minor'] ) );
+			$rows[] = array( $kinds[ $l['kind'] ] ?? $l['kind'], \PassCaptain\Frontend\Format::local( $l['occurred_at'], $tz ), substr( $l['order'], 0, 8 ), $l['external_reference'], $l['event_name'], $l['tickets'], number_format( $l['tax_rate_bp'] / 100, 2, ',', '' ), $money( $l['gross_minor'] ), $money( $l['tax_minor'] ), $money( $l['net_minor'] ), $money( $l['commission_minor'] ), $money( $l['fee_minor'] ) );
 		}
 		$t = $s['totals'];
 		$rows[] = array();

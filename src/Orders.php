@@ -2892,7 +2892,7 @@ final class Orders {
 		$tz = (string) $timezone;
 		try { $zone = new \DateTimeZone( '' !== $tz ? $tz : 'UTC' ); } catch ( \Exception $e ) { $zone = new \DateTimeZone( 'UTC' ); $tz = 'UTC'; }
 		$ts = strtotime( $starts_at . ' UTC' );
-		return false === $ts ? (string) $starts_at : wp_date( 'd.m.Y H:i', $ts, $zone ) . ( '' !== $tz ? ' ' . $tz : '' );
+		return false === $ts ? (string) $starts_at : wp_date( Frontend\Format::datetime_format(), $ts, $zone ) . ( '' !== $tz ? ' ' . $tz : '' );
 	}
 
 	/** Name used in customer communication (site title, falls back to the host name). */

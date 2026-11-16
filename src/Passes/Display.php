@@ -14,10 +14,10 @@ use PassCaptain\Orders;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Display {
-	/** Local date (d.m.Y) of a UTC datetime. */
+	/** Local date (A384: Format::date_format()) of a UTC datetime. */
 	public static function date( $utc, $timezone ) {
 		$tz = \PassCaptain\Admission\Engine::timezone( $timezone );
-		return wp_date( 'd.m.Y', strtotime( $utc . ' UTC' ), $tz );
+		return \PassCaptain\Frontend\Format::local( $utc, $tz, 'date' );
 	}
 
 	/** List of included dates, e.g. "01.08.2027, 02.08.2027"; event names when several events. */

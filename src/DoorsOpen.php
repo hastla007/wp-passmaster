@@ -79,7 +79,7 @@ final class DoorsOpen {
 		$doors_utc = self::normalize( $doors_utc );
 		if ( null === $doors_utc ) { return ''; }
 		$same_day = '' !== (string) $starts_utc && Admin\Forms::utc_to_local( $doors_utc, $timezone, 'Y-m-d' ) === Admin\Forms::utc_to_local( $starts_utc, $timezone, 'Y-m-d' );
-		$when = Admin\Forms::utc_to_local( $doors_utc, $timezone, $same_day ? 'H:i' : 'd.m.Y H:i' );
+		$when = Frontend\Format::local( $doors_utc, (string) $timezone, $same_day ? 'time' : 'datetime' );
 		/* translators: %s: doors-open time (local time of the occurrence) */
 		return sprintf( __( 'Einlass ab %s', 'pass-captain' ), $when );
 	}

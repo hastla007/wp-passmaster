@@ -122,7 +122,7 @@ final class Notifications {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", absint( $occurrence_id ) ) );
 	}
 
-	/** Local "d.m.Y H:i" of a UTC datetime in the occurrence's timezone ('' for empty). */
+	/** Local date and time (A384: Format::datetime_format() of the mail's language) of a UTC datetime in the occurrence's timezone ('' for empty). */
 	private static function local( $occ, $utc ) {
 		if ( null === $utc || '' === (string) $utc ) { return ''; }
 		try {
@@ -130,7 +130,7 @@ final class Notifications {
 		} catch ( \Exception $e ) {
 			$tz = new \DateTimeZone( 'UTC' );
 		}
-		return wp_date( 'd.m.Y H:i', strtotime( $utc . ' UTC' ), $tz );
+		return \PassCaptain\Frontend\Format::local( $utc, $tz );
 	}
 
 	private static function rescheduled_vars( $occ, $old_starts_at, $new_starts_at ) {

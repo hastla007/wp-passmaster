@@ -31,7 +31,7 @@ final class InvoicePdf {
 	}
 
 	private static function date( $utc ) {
-		return wp_date( 'd.m.Y', strtotime( $utc . ' UTC' ) );
+		return \PassCaptain\Frontend\Format::local( $utc, null, 'date' );
 	}
 
 	/** Header block with seller data; returns the y position below it. */

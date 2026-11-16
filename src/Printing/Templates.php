@@ -453,7 +453,7 @@ final class Templates {
 		$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) ( $row->ticket_id ?? 0 ), (array) $row );
 		return array(
 			'event'           => (string) ( $row->event_name ?? '' ),
-			'date'            => Scope::local( $row->starts_at ?? '', $row->timezone ?? 'UTC', 'd.m.Y H:i' ),
+			'date'            => \PassCaptain\Frontend\Format::local( $row->starts_at ?? '', $row->timezone ?? 'UTC' ),
 			'time'            => Scope::local( $row->starts_at ?? '', $row->timezone ?? 'UTC', 'H:i' ),
 			'location'        => (string) ( $row->location ?? '' ),
 			'ticket_category' => (string) ( $row->ticket_name ?? '' ),

@@ -88,7 +88,7 @@ final class Invoices {
 		foreach ( $items as $index => $item ) {
 			$line_total = (int) $after[ $index ];
 			$line_discount = max( 0, (int) $item->line_total_minor - $line_total );
-			$description = $item->event_name . ' – ' . $item->name . ' (' . wp_date( 'd.m.Y H:i', strtotime( $item->starts_at . ' UTC' ), new \DateTimeZone( $item->timezone ) ) . ')';
+			$description = $item->event_name . ' – ' . $item->name . ' (' . Frontend\Format::local( $item->starts_at, (string) $item->timezone ) . ')';
 			$line_saved = $wpdb->insert( $p . 'wpcap_invoice_lines', array( 'invoice_id' => $invoice_id, 'description' => mb_substr( $description, 0, 190 ), 'quantity' => $item->quantity, 'unit_minor' => $item->unit_price_minor, 'discount_minor' => $line_discount, 'tax_rate' => (int) $item->tax_rate_bp / 100, 'tax_minor' => (int) $item->tax_minor, 'total_minor' => $line_total ) );
 			if ( false === $line_saved ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_line', __( 'Rechnungsposition konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		}
@@ -692,7 +692,7 @@ final class Invoices {
 		<header><div class="seller"><strong><?php echo esc_html( array_shift( $seller_lines ) ); ?></strong>
 <?php echo esc_html( implode( "\n", $seller_lines ) ); ?></div></header>
 		<h1><?php echo esc_html( __( 'Rechnung', 'pass-captain' ) . ' ' . $invoice->invoice_number ); ?></h1>
-		<p><?php echo esc_html( __( 'Rechnungsdatum:', 'pass-captain' ) . ' ' . wp_date( 'd.m.Y', strtotime( $invoice->issued_at . ' UTC' ) ) ); ?><?php if ( ! Billing::address_lines( $snapshot ) ) : ?><br><?php echo esc_html( __( 'Rechnungsempfänger:', 'pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) ); ?><?php endif; ?></p>
+		<p><?php echo esc_html( __( 'Rechnungsdatum:', 'pass-captain' ) . ' ' . Frontend\Format::local( $invoice->issued_at, null, 'date' ) ); ?><?php if ( ! Billing::address_lines( $snapshot ) ) : ?><br><?php echo esc_html( __( 'Rechnungsempfänger:', 'pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) ); ?><?php endif; ?></p>
 		<?php if ( Billing::address_lines( $snapshot ) ) : ?><div class="buyer"><strong><?php esc_html_e( 'Rechnungsempfänger:', 'pass-captain' ); ?></strong>
 <?php echo esc_html( implode( "\n", array_merge( Billing::address_lines( $snapshot ), Billing::detail_lines( $snapshot ), array( (string) ( $snapshot['email'] ?? '' ) ) ) ) ); ?></div><?php endif; ?>
 		<table><thead><tr><th><?php esc_html_e( 'Leistung', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Menge', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Einzelpreis', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Rabatt', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Gesamt (brutto)', 'pass-captain' ); ?></th></tr></thead><tbody>
@@ -708,14 +708,14 @@ final class Invoices {
 		</tbody></table>
 		<?php echo self::payments_html( $invoice, $snapshot, $money ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payments_html(). ?>
 		<?php foreach ( self::seller_notes( $snapshot ) as $note ) : ?><p class="wpcap-seller-note"><?php echo esc_html( $note ); ?></p><?php endforeach; ?>
-		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><?php $credit_rates = self::credit_rates( $credit ); ?>
+		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, Frontend\Format::local( $credit->issued_at, null, 'date' ) ) ); ?></p><?php $credit_rates = self::credit_rates( $credit ); ?>
 		<table class="wpcap-vat-summary"><caption><?php esc_html_e( 'Aufstellung nach Steuersätzen', 'pass-captain' ); ?></caption><thead><tr><th><?php esc_html_e( 'USt-Satz', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Netto', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Brutto', 'pass-captain' ); ?></th></tr></thead><tbody>
 		<?php foreach ( $credit_rates as $r ) : ?><tr><td><?php echo esc_html( self::rate_label( $r['rate_bp'] ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['net'] ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['tax'] ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['gross'] ) ); ?></td></tr><?php endforeach; ?>
 		</tbody></table>
 		<table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr>
 		<?php foreach ( $credit_rates as $r ) : ?><tr><td><?php echo esc_html( sprintf( /* translators: %s: rate */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( $r['rate_bp'] / 100, 2 ) ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['tax'] ) ); ?></td></tr><?php endforeach; ?>
 		<tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table>
-		<?php if ( '' !== (string) ( $credit->reversal_number ?? '' ) ) : ?><p><strong><?php echo esc_html( sprintf( /* translators: 1: reversal document number, 2: date */ __( 'Storniert durch Beleg %1$s vom %2$s (Erstattung beim Zahlungsanbieter gescheitert)', 'pass-captain' ), $credit->reversal_number, wp_date( 'd.m.Y', strtotime( $credit->reversed_at . ' UTC' ) ) ) ); ?></strong></p><?php endif; ?><?php endforeach; ?>
+		<?php if ( '' !== (string) ( $credit->reversal_number ?? '' ) ) : ?><p><strong><?php echo esc_html( sprintf( /* translators: 1: reversal document number, 2: date */ __( 'Storniert durch Beleg %1$s vom %2$s (Erstattung beim Zahlungsanbieter gescheitert)', 'pass-captain' ), $credit->reversal_number, Frontend\Format::local( $credit->reversed_at, null, 'date' ) ) ); ?></strong></p><?php endif; ?><?php endforeach; ?>
 		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'pass-captain' ); ?></button>
 		</body></html><?php
 		return (string) ob_get_clean();

@@ -470,12 +470,26 @@ final class Mailer {
 			$switched = (bool) switch_to_locale( $locale );
 			if ( ! $switched ) { $plugin_only = self::load_plugin_catalog( $locale ); }
 		}
+		// A384: dates, times and the reading direction of what the callback builds follow this locale.
+		self::$active_locales[] = '' !== $locale ? $locale : self::active_locale();
 		try {
 			return $callback();
 		} finally {
+			array_pop( self::$active_locales );
 			if ( $switched && function_exists( 'restore_previous_locale' ) ) { restore_previous_locale(); }
 			if ( $plugin_only ) { self::restore_plugin_catalog(); }
 		}
+	}
+
+	/** @var string[] Locales of the with_locale() calls in progress (innermost last). */
+	private static $active_locales = array();
+
+	/**
+	 * A384: locale of the mail or document currently being built (innermost with_locale()); '' outside
+	 * of with_locale() (site/user language).
+	 */
+	public static function active_locale() {
+		return self::$active_locales ? (string) end( self::$active_locales ) : '';
 	}
 
 	/** The plugin catalogue (.mo) for a locale: language pack first, then the bundled file; '' when none. */

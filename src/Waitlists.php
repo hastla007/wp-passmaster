@@ -210,7 +210,7 @@ final class Waitlists {
 			$sent = Mail\Mailer::send( 'waitlist_confirm', $email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array(
 				'quantity' => $quantity,
 				'confirm_link' => Mail\Mailer::link( self::confirm_url( $waitlist_id, $confirm ) ),
-				'confirm_expires' => wp_date( 'd.m.Y H:i T', (int) strtotime( $now . ' UTC' ) + $c['confirm_hours'] * HOUR_IN_SECONDS ),
+				'confirm_expires' => wp_date( Frontend\Format::datetime_format() . ' T', (int) strtotime( $now . ' UTC' ) + $c['confirm_hours'] * HOUR_IN_SECONDS ),
 				'confirm_hours' => $c['confirm_hours'],
 			) ) );
 			Audit::record( 'waitlist_signup_pending', 'waitlist', $waitlist_id, array( 'ticket_type_id' => $ticket_type_id, 'quantity' => $quantity, 'mail_sent' => (bool) $sent ) );
@@ -695,7 +695,7 @@ final class Waitlists {
 			return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$accept_url = add_query_arg( array( 'wpcap_waitlist_accept' => (int) $row->waitlist_id, 'token' => $token ), home_url( '/' ) );
-		$sent = self::send_mail( 'waitlist_offer', $row->email, array_merge( self::mail_names( $row->event_id, $row->ticket_type_id ), array( 'offer_expires' => wp_date( 'd.m.Y H:i T', strtotime( $expires . ' UTC' ) ), 'accept_link' => Mail\Mailer::link( $accept_url ), 'position' => (int) $row->position, 'quantity' => $quantity ) ), (int) $row->waitlist_id, self::ensure_unsubscribe_token( $row ) );
+		$sent = self::send_mail( 'waitlist_offer', $row->email, array_merge( self::mail_names( $row->event_id, $row->ticket_type_id ), array( 'offer_expires' => wp_date( Frontend\Format::datetime_format() . ' T', strtotime( $expires . ' UTC' ) ), 'accept_link' => Mail\Mailer::link( $accept_url ), 'position' => (int) $row->position, 'quantity' => $quantity ) ), (int) $row->waitlist_id, self::ensure_unsubscribe_token( $row ) );
 		if ( ! $sent ) {
 			// Back to the queue first, so the release below does not mark the entry expired.
 			self::revert_claim( (int) $row->waitlist_id, $hash );
@@ -1748,7 +1748,7 @@ final class Waitlists {
 	public static function offer_details_html( $row, $order ) {
 		$names = self::mail_names( $row->event_id, $row->ticket_type_id );
 		$html = '<p>' . esc_html__( 'Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p>';
-		return $html . self::details_html( $names, (int) $row->quantity, array( __( 'Preis', 'pass-captain' ) => Frontend\Format::money( (int) $order->total_minor, $order->currency ), __( 'Reserviert bis', 'pass-captain' ) => wp_date( 'd.m.Y H:i T', strtotime( $row->offer_expires_at . ' UTC' ) ) ) );
+		return $html . self::details_html( $names, (int) $row->quantity, array( __( 'Preis', 'pass-captain' ) => Frontend\Format::money( (int) $order->total_minor, $order->currency ), __( 'Reserviert bis', 'pass-captain' ) => wp_date( Frontend\Format::datetime_format() . ' T', strtotime( $row->offer_expires_at . ' UTC' ) ) ) );
 	}
 
 	/**
@@ -1911,7 +1911,7 @@ final class Waitlists {
 			return $out . '<p>' . esc_html__( 'Die Reservierung ist abgelaufen, ohne dass eine Zahlung eingegangen ist. Die Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p>';
 		}
 		/* translators: %s: date and time the reservation ends */
-		$out .= '<p>' . esc_html( sprintf( __( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung (bis %s). Den Link zu deiner Bestellung haben wir dir per E-Mail gesendet.', 'pass-captain' ), wp_date( 'd.m.Y H:i T', $until ) ) ) . '</p>';
+		$out .= '<p>' . esc_html( sprintf( __( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung (bis %s). Den Link zu deiner Bestellung haben wir dir per E-Mail gesendet.', 'pass-captain' ), wp_date( Frontend\Format::datetime_format() . ' T', $until ) ) ) . '</p>';
 		if ( Payments\BankTransfer::applies( $order ) ) {
 			$bank = Payments\BankTransfer::details( $order );
 			if ( ! empty( $bank['transfer'] ) ) {
