@@ -813,7 +813,14 @@ Umtausch, Mehrzweckgutscheine, Erstattungen):
 Pass Captain → Berichte → „Buchhaltungsexport“ (nur `manage_options` und `wpcap_view_finance`; Zeitraum des
 Berichts) bzw. `admin-post.php?action=wpcap_export_accounting&from=YYYY-MM-DD&to=YYYY-MM-DD&_wpnonce=…`.
 CSV mit Semikolon, UTF-8 mit BOM, Beträge mit Punkt als Dezimaltrennzeichen. Jeder Export wird
-protokolliert (`accounting_exported`).
+protokolliert (`accounting_exported`, mit der Zahl der gesendeten Zeilen).
+
+**Große Zeiträume (A434)**: Export und Buchungsstapel werden Zeile für Zeile an den Browser gestreamt
+(`Invoices::export_stream()`), Bestellungen ohne Rechnung in Blöcken zu 1.000 mit ihren Positionen,
+Verkäufer-Kontext und Umtauschkennzeichen gelesen – einige Abfragen je Block statt mehrerer je Bestellung.
+Umsatzbericht, Termin-Abrechnung und Wiederverkäufer-Abrechnung arbeiten ebenso blockweise
+(`Reports\Data::order_blocks()`). Messwerte: docs/TESTING.md, Abschnitt „Historie: Admin-Listen, Berichte und
+Aufräumen“.
 
 **Steuersätze**: Rechnungen, Rechnungskorrekturen, Export und Berichte verwenden den Satz, der beim Verkauf
 auf der Bestellposition gespeichert wurde – aus der Ticketart oder aus einem geprüften Länder-Steuerprofil

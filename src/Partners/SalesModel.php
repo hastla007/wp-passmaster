@@ -156,10 +156,43 @@ final class SalesModel {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT o.event_id, COALESCE(pe.partner_id,0) AS partner_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_partner_events pe ON pe.event_id=o.event_id WHERE oi.order_id=%d", absint( $order_id ) ) );
+		return self::context_from_partners( array_map( static function ( $row ) { return (int) $row->partner_id; }, (array) $rows ) );
+	}
+
+	/**
+	 * order_context() for many orders: one query per 500 orders, each organizer read once (A434:
+	 * accounting export of thousands of orders without invoice).
+	 *
+	 * @param int[] $order_ids Order ids.
+	 * @return array<int, array|\WP_Error> Order id => order_context() result.
+	 */
+	public static function order_contexts( array $order_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$partners = array();
+		$out = array();
+		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
+			$by_order = array_fill_keys( $chunk, array() );
+			foreach ( (array) $wpdb->get_results( "SELECT DISTINCT oi.order_id, o.event_id, COALESCE(pe.partner_id,0) AS partner_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_partner_events pe ON pe.event_id=o.event_id WHERE oi.order_id IN (" . implode( ',', $chunk ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$by_order[ (int) $row->order_id ][] = (int) $row->partner_id;
+			}
+			foreach ( $by_order as $order_id => $partner_ids ) { $out[ $order_id ] = self::context_from_partners( $partner_ids, $partners ); }
+		}
+		return $out;
+	}
+
+	/**
+	 * Seller context from the organizer of each event of an order (0 = platform event).
+	 *
+	 * @param int[] $partner_ids One entry per distinct event of the order.
+	 * @param array $partners    Organizer rows already read (partner id => row|null), filled here.
+	 */
+	private static function context_from_partners( array $partner_ids, array &$partners = array() ) {
 		$sellers = array();
 		$agents = array();
-		foreach ( (array) $rows as $row ) {
-			$partner = (int) $row->partner_id ? Repository::get( (int) $row->partner_id ) : null;
+		foreach ( $partner_ids as $partner_id ) {
+			if ( $partner_id && ! array_key_exists( $partner_id, $partners ) ) { $partners[ $partner_id ] = Repository::get( $partner_id ); }
+			$partner = $partner_id ? $partners[ $partner_id ] : null;
 			if ( $partner && self::AGENT === self::model_of( $partner ) ) {
 				$sellers[ 'org-' . (int) $partner->partner_id ] = true;
 				$agents[ (int) $partner->partner_id ] = $partner;

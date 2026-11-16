@@ -160,18 +160,22 @@ final class Data {
 			);
 		};
 		$line_sql = self::line_sql();
+		// Scope per event/occurrence, decided once per report (not once per order line).
+		$scope_memo = array();
+		$line_in_scope = static function ( $line ) use ( &$scope_memo, $scope ) {
+			$key = (int) $line->event_id . '|' . (int) $line->occurrence_id;
+			if ( ! isset( $scope_memo[ $key ] ) ) { $scope_memo[ $key ] = self::in_scope( $line->event_id, $scope, $line->occurrence_id ); }
+			return $scope_memo[ $key ];
+		};
 
-		// Sales.
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) );
-		$order_map = array();
-		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
-		$lines_by_order = self::lines_by_order( array_keys( $order_map ), $line_sql );
-		foreach ( $order_map as $order_id => $order ) {
-			$lines = $lines_by_order[ $order_id ] ?? array();
+		// Sales: ids by index (paid_created), then blocks of BLOCK orders with their lines and exchange
+		// flags (A434: no query per order, never the whole period in memory).
+		$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) ) );
+		foreach ( self::order_blocks( $order_ids, 'order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor', $line_sql ) as list( $order_id, $order, $lines ) ) {
 			if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) {
 				$in_scope = false;
 				foreach ( $lines as $line ) {
-					if ( ! self::in_scope( $line->event_id, $scope, $line->occurrence_id ) ) { continue; }
+					if ( ! $line_in_scope( $line ) ) { continue; }
 					$comps['tickets'] += (int) $line->quantity;
 					$in_scope = true;
 				}
@@ -182,7 +186,7 @@ final class Data {
 			$day = Scope::local( $order->created_at, $tz, 'Y-m-d' );
 			$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
 			foreach ( $lines as $i => $line ) {
-				if ( ! self::in_scope( $line->event_id, $scope, $line->occurrence_id ) ) { continue; }
+				if ( ! $line_in_scope( $line ) ) { continue; }
 				if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; } // Moved in by an exchange.
 				$currencies[ $order->currency ] = true;
 				$gross = $gross_lines[ $i ];
@@ -193,15 +197,19 @@ final class Data {
 
 		// Completed refunds (netted on their completion day).
 		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.currency,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
-		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
-		foreach ( $refunds as $refund ) {
-			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
-			if ( ! $lines ) { continue; }
-			$day = Scope::local( $refund->updated_at, $tz, 'Y-m-d' );
-			foreach ( self::refund_split( $refund, $lines ) as $part ) {
-				$line = $lines[ $part['index'] ];
-				if ( ! self::in_scope( $line->event_id, $scope, $line->occurrence_id ) ) { continue; }
-				$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
+		foreach ( array_chunk( $refunds, self::BLOCK ) as $refund_block ) {
+			$block_orders = array_values( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refund_block ) ) );
+			$refund_lines = self::lines_by_order( $block_orders, $line_sql );
+			$history = \PassCaptain\Invoices::refund_history( $block_orders );
+			foreach ( $refund_block as $refund ) {
+				$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
+				if ( ! $lines ) { continue; }
+				$day = Scope::local( $refund->updated_at, $tz, 'Y-m-d' );
+				foreach ( self::refund_split( $refund, $lines, $history[ (int) $refund->order_id ] ?? array() ) as $part ) {
+					$line = $lines[ $part['index'] ];
+					if ( ! $line_in_scope( $line ) ) { continue; }
+					$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
+				}
 			}
 		}
 		foreach ( $dims as $d => $buckets ) {
@@ -246,11 +254,15 @@ final class Data {
 		);
 	}
 
-	/** SELECT for paid order lines with ticket type, occurrence and event (append a WHERE clause). */
+	/**
+	 * SELECT for paid order lines with ticket type, occurrence and event (append a WHERE clause on
+	 * oi.order_id). STRAIGHT_JOIN: always driven by the order ids (A434; with few events the optimizer
+	 * otherwise starts at the event and reads every line of it for each block).
+	 */
 	public static function line_sql() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return "SELECT oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+		return "SELECT STRAIGHT_JOIN oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 	}
 
 	/**
@@ -264,7 +276,7 @@ final class Data {
 	 * @param object[] $lines  Lines of the order (lines_by_order()).
 	 * @return array[] List of ['index' => line index, 'tickets' => int, 'amount' => int, 'tax' => int].
 	 */
-	public static function refund_split( $refund, array $lines ) {
+	public static function refund_split( $refund, array $lines, $history = null ) {
 		global $wpdb;
 		if ( ! $lines ) { return array(); }
 		$lines = array_values( $lines );
@@ -273,7 +285,7 @@ final class Data {
 		$total_tax = (int) $amounts['tax_minor'];
 		$discount = isset( $refund->discount_minor ) ? (int) $refund->discount_minor : (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", (int) ( $refund->order_id ?? 0 ) ) );
 		$out = array();
-		foreach ( \PassCaptain\Invoices::refund_line_parts( $refund, $lines, $discount, $total_amount, $total_tax ) as $part ) {
+		foreach ( \PassCaptain\Invoices::refund_line_parts( $refund, $lines, $discount, $total_amount, $total_tax, $history ) as $part ) {
 			if ( 0 === $part['gross'] && 0 === $part['tax'] && 0 === $part['tickets'] ) { continue; }
 			$out[] = array( 'index' => $part['index'], 'tickets' => $part['tickets'], 'amount' => $part['gross'], 'tax' => $part['tax'] );
 		}
@@ -297,6 +309,34 @@ final class Data {
 		return $out;
 	}
 
+	/** Orders per block when a report walks many orders (A434). */
+	const BLOCK = 1000;
+
+	/**
+	 * Walks orders in blocks of BLOCK: reads the order rows ($columns, order_id first) and their lines
+	 * per block and preloads the exchange flags (Exchange\Service::is_supplement()), so a report over
+	 * tens of thousands of orders runs a few queries per block and keeps one block in memory.
+	 *
+	 * @param int[]       $order_ids Order ids in processing order.
+	 * @param string      $columns   Columns of wpcap_orders to read.
+	 * @param string|null $line_sql  Line query (line_sql() by default).
+	 * @return \Generator<int, array{0:int,1:object,2:object[]}> [order id, order row, lines].
+	 */
+	public static function order_blocks( array $order_ids, $columns, $line_sql = null ) {
+		global $wpdb;
+		foreach ( array_chunk( $order_ids, self::BLOCK ) as $block ) {
+			$orders = array();
+			foreach ( (array) $wpdb->get_results( "SELECT $columns FROM {$wpdb->prefix}wpcap_orders WHERE order_id IN (" . implode( ',', array_map( 'absint', $block ) ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed columns, integer list.
+				$orders[ (int) $row->order_id ] = $row;
+			}
+			$lines = self::lines_by_order( $block, $line_sql );
+			\PassCaptain\Exchange\Service::preload_supplements( $block );
+			foreach ( $block as $order_id ) {
+				if ( isset( $orders[ (int) $order_id ] ) ) { yield array( (int) $order_id, $orders[ (int) $order_id ], $lines[ (int) $order_id ] ?? array() ); }
+			}
+		}
+	}
+
 	/** Gross per line after the order discount (stored line discounts, see OrderLines::after_discount()). */
 	public static function allocate_discount( array $lines, $discount ) {
 		return \PassCaptain\OrderLines::after_discount( $lines, $discount );
@@ -315,7 +355,16 @@ final class Data {
 		$out = array();
 		$occ_rows = $wpdb->get_results( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id IN ($in) ORDER BY o.starts_at" );
 		$comp_in = self::comp_sql();
-		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.capacity,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.payment_provider NOT IN ($comp_in)),0) AS sold,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.payment_provider IN ($comp_in)),0) AS comps FROM {$p}wpcap_ticket_types tt WHERE tt.occurrence_id IN ($in) ORDER BY tt.ticket_type_id" );
+		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.capacity,0 AS sold,0 AS comps FROM {$p}wpcap_ticket_types tt WHERE tt.occurrence_id IN ($in) ORDER BY tt.ticket_type_id" );
+		if ( $types ) {
+			// Sold and comps per ticket type in one pass over the lines (A434: was two correlated SUMs per type).
+			$by_type = array();
+			foreach ( $types as $t ) { $by_type[ (int) $t->ticket_type_id ] = $t; }
+			foreach ( (array) $wpdb->get_results( "SELECT oi.ticket_type_id,SUM(IF(ord.payment_provider IN ($comp_in),0,oi.quantity-oi.refunded_quantity)) AS sold,SUM(IF(ord.payment_provider IN ($comp_in),oi.quantity-oi.refunded_quantity,0)) AS comps FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN (" . implode( ',', array_keys( $by_type ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY oi.ticket_type_id" ) as $sum ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, fixed provider list.
+				$by_type[ (int) $sum->ticket_type_id ]->sold = (int) $sum->sold;
+				$by_type[ (int) $sum->ticket_type_id ]->comps = (int) $sum->comps;
+			}
+		}
 		// A572/A573: the same "admitted" rule as the no-show list, passes counted on their linked occurrences.
 		$attendance = Attendance::counts( $ids );
 		// A482: entries with a membership pass (no ticket) are shown next to the admissions.

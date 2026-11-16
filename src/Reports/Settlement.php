@@ -118,10 +118,8 @@ final class Settlement {
 		$comp_providers = Data::comp_providers();
 		$channel_labels = Data::channel_labels();
 
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT ord.order_id,ord.payment_provider,ord.currency,ord.discount_minor FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status IN ('paid','refunded') ORDER BY ord.order_id", $occurrence_id ) );
-		$order_map = array();
-		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
-		$lines_by_order = Data::lines_by_order( array_keys( $order_map ) );
+		// A434: order ids first, then blocks of Data::BLOCK orders (rows, lines, exchange flags, refunds).
+		$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status IN ('paid','refunded') ORDER BY ord.order_id", $occurrence_id ) ) );
 
 		$type_channel = array(); // ticket type id => channel => bucket
 		$type_names = array();
@@ -150,28 +148,30 @@ final class Settlement {
 			}
 		};
 
-		// Sales (comps are not sales; they are taken from occurrence_stats() below).
-		$sale_orders = array();
-		foreach ( $order_map as $order_id => $order ) {
-			if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) { continue; }
-			$sale_orders[] = $order_id;
-			$lines = $lines_by_order[ $order_id ] ?? array();
-			$gross_lines = Data::allocate_discount( $lines, (int) $order->discount_minor );
-			$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
-			foreach ( $lines as $i => $line ) {
-				if ( (int) $line->occurrence_id !== $occurrence_id || \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
-				$currencies[ $order->currency ] = true;
-				$add( $line, (string) $order->payment_provider, array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => (int) $gross_lines[ $i ], 'tax' => (int) $line->tax_minor ) );
+		// Sales (comps are not sales; they are taken from occurrence_stats() below) and the completed
+		// refunds of these orders (the part that belongs to this occurrence), block by block.
+		foreach ( array_chunk( $order_ids, Data::BLOCK ) as $block ) {
+			$sale_orders = array();
+			$block_lines = array();
+			foreach ( Data::order_blocks( $block, 'order_id,payment_provider,currency,discount_minor' ) as list( $order_id, $order, $lines ) ) {
+				if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) { continue; }
+				$sale_orders[] = $order_id;
+				$block_lines[ $order_id ] = $lines;
+				$gross_lines = Data::allocate_discount( $lines, (int) $order->discount_minor );
+				$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
+				foreach ( $lines as $i => $line ) {
+					if ( (int) $line->occurrence_id !== $occurrence_id || \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
+					$currencies[ $order->currency ] = true;
+					$add( $line, (string) $order->payment_provider, array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => (int) $gross_lines[ $i ], 'tax' => (int) $line->tax_minor ) );
+				}
 			}
-		}
-
-		// Completed refunds of these orders (the part that belongs to this occurrence).
-		if ( $sale_orders ) {
+			if ( ! $sale_orders ) { continue; }
 			$in = implode( ',', array_map( 'absint', $sale_orders ) );
-			$refunds = $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,ord.payment_provider,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.order_id IN ($in) ORDER BY r.refund_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$refunds = $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.order_id IN ($in) ORDER BY r.refund_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$history = $refunds ? \PassCaptain\Invoices::refund_history( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) : array();
 			foreach ( $refunds as $refund ) {
-				$lines = $lines_by_order[ (int) $refund->order_id ] ?? array();
-				foreach ( Data::refund_split( $refund, $lines ) as $part ) {
+				$lines = $block_lines[ (int) $refund->order_id ] ?? array();
+				foreach ( Data::refund_split( $refund, $lines, $history[ (int) $refund->order_id ] ?? array() ) as $part ) {
 					$line = $lines[ $part['index'] ];
 					if ( (int) $line->occurrence_id !== $occurrence_id ) { continue; }
 					$add( $line, (string) $refund->payment_provider, array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'] ) );

@@ -90,6 +90,21 @@ final class Service {
 		return $row ? $row : null;
 	}
 
+	/**
+	 * Answers is_supplement() for many orders with one query per 500 ids (reports, exports and
+	 * settlements over thousands of orders, A434).
+	 *
+	 * @param int[] $order_ids Order ids.
+	 */
+	public static function preload_supplements( array $order_ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_unique( array_map( 'absint', $order_ids ) ), static function ( $id ) { return $id && ! isset( self::$supplement_cache[ $id ] ); } ) );
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			$found = array_flip( array_map( 'intval', (array) $wpdb->get_col( 'SELECT DISTINCT supplementary_order_id FROM ' . self::table() . ' WHERE supplementary_order_id IN (' . implode( ',', $chunk ) . ')' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( $chunk as $id ) { self::$supplement_cache[ $id ] = isset( $found[ $id ] ); }
+		}
+	}
+
 	/** Whether an order is the supplementary payment order of an exchange. */
 	public static function is_supplement( $order_id ) {
 		$order_id = absint( $order_id );

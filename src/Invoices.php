@@ -207,19 +207,25 @@ final class Invoices {
 	 * by rate; gross and VAT are apportioned with the largest-remainder method, so the rows always
 	 * add up exactly to the document totals and the result depends only on stored data.
 	 *
-	 * @param array $refund Refund row (order_id, ticket_ids).
-	 * @param int   $total  Gross amount of the correction (minor units).
-	 * @param int   $tax    VAT of the correction (minor units).
+	 * @param array      $refund   Refund row (order_id, ticket_ids).
+	 * @param int        $total    Gross amount of the correction (minor units).
+	 * @param int        $tax      VAT of the correction (minor units).
+	 * @param array|null $items    Paid lines of the order in item order, already read (exports, A434).
+	 * @param int|null   $discount Order discount, already read.
 	 * @return array[] List of ['rate_bp' => int, 'net' => int, 'tax' => int, 'gross' => int], ascending by rate.
 	 */
-	public static function credit_note_rates( array $refund, $total, $tax ) {
+	public static function credit_note_rates( array $refund, $total, $tax, $items = null, $discount = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$total = (int) $total;
 		$tax = (int) $tax;
 		$order_id = (int) ( $refund['order_id'] ?? 0 );
-		$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array();
-		$discount = $order_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) : 0;
+		if ( null === $items ) {
+			$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array();
+		}
+		if ( null === $discount ) {
+			$discount = $order_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) : 0;
+		}
 		$parts = self::refund_line_parts( $refund, $items, $discount, $total, $tax );
 		if ( ! $parts ) {
 			// No usable lines: one row, rate derived from the amounts.
@@ -265,10 +271,13 @@ final class Invoices {
 	 * @param int          $discount Order discount (orders.discount_minor).
 	 * @param int          $total    Gross amount of the refund (minor units).
 	 * @param int          $tax      VAT of the refund (minor units).
+	 * @param array[]|null $history  Completed refunds of the order (rows with refund_id, order_id, amount_minor,
+	 *                               tax_minor, ticket_ids), already read for many orders (reports, A434);
+	 *                               null = read the earlier ones here.
 	 * @return array[] List of ['index' => line index, 'rate_bp' => int, 'tickets' => int, 'gross' => int, 'tax' => int];
 	 *                 empty when no line carries a paid value.
 	 */
-	public static function refund_line_parts( $refund, array $items, $discount, $total, $tax ) {
+	public static function refund_line_parts( $refund, array $items, $discount, $total, $tax, $history = null ) {
 		global $wpdb;
 		$refund = (array) $refund;
 		$items = array_values( $items );
@@ -278,7 +287,9 @@ final class Invoices {
 		$order_id = (int) ( $refund['order_id'] ?? 0 );
 		$refund_id = (int) ( $refund['refund_id'] ?? 0 );
 		if ( $order_id && $refund_id ) {
-			$earlier = (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND refund_id<%d AND status='completed' ORDER BY refund_id", $order_id, $refund_id ), ARRAY_A );
+			$earlier = null !== $history
+				? array_values( array_filter( array_map( static function ( $r ) { return (array) $r; }, (array) $history ), static function ( $r ) use ( $refund_id ) { return (int) $r['refund_id'] < $refund_id; } ) )
+				: (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND refund_id<%d AND status='completed' ORDER BY refund_id", $order_id, $refund_id ), ARRAY_A );
 			foreach ( $earlier as $previous ) {
 				$amounts = Integrations\Vouchers\Checkout::refund_amounts( $previous );
 				foreach ( self::line_parts( $previous, $items, $discount, (int) $amounts['amount_minor'], (int) $amounts['tax_minor'], $used_gross, $used_tax ) as $part ) {
@@ -288,6 +299,24 @@ final class Invoices {
 			}
 		}
 		return self::line_parts( $refund, $items, $discount, (int) $total, (int) $tax, $used_gross, $used_tax );
+	}
+
+	/**
+	 * Completed refunds of many orders for refund_line_parts() (one query per 500 orders, A434).
+	 *
+	 * @param int[] $order_ids Order ids.
+	 * @return array<int, array[]> Order id => completed refunds in refund order (orders without refunds: []).
+	 */
+	public static function refund_history( array $order_ids ) {
+		global $wpdb;
+		$out = array();
+		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
+			$out += array_fill_keys( $chunk, array() );
+			foreach ( (array) $wpdb->get_results( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE order_id IN (" . implode( ',', $chunk ) . ") AND status='completed' ORDER BY refund_id", ARRAY_A ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$out[ (int) $row['order_id'] ][] = $row;
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -743,13 +772,42 @@ final class Invoices {
 		$to = Reports\Data::valid_date( $to_in ) ? $to_in : $today;
 		if ( $to < $from ) { list( $from, $to ) = array( $to, $from ); }
 		$datev = 'datev' === sanitize_key( wp_unslash( (string) ( $_REQUEST['format'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$rows = $datev ? self::datev_rows( $from, $to ) : self::export_rows( $from, $to );
-		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ), 'format' => $datev ? 'datev' : 'csv' ) );
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=' . ( $datev ? 'windows-1252' : 'utf-8' ) );
 		header( 'Content-Disposition: attachment; filename="pass-captain-' . ( $datev ? 'buchungsstapel' : 'buchhaltung' ) . '-' . $from . '-' . $to . '.csv"' );
-		echo self::export_csv( $rows, $datev ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV download.
+		// Streamed row by row (A434) through the shared CSV writer: formula guard and RFC 4180 quoting (A495).
+		$out = fopen( 'php://output', 'w' );
+		$count = 0;
+		$rows = ( static function () use ( $from, $to, $datev, &$count ) {
+			foreach ( $datev ? self::datev_iter( $from, $to ) : self::export_iter( $from, $to ) as $row ) {
+				++$count;
+				yield $row;
+			}
+		} )();
+		Reports\Scope::write_csv( $out, $rows, 0, $datev ? array( 'encoding' => 'Windows-1252', 'bom' => false ) : array() );
+		fclose( $out );
+		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => $count, 'format' => $datev ? 'datev' : 'csv' ) );
 		exit;
+	}
+
+	/**
+	 * Streams the accounting export (or with $datev the booking batch, cells in Windows-1252) row by
+	 * row to $emit (A434: the download no longer builds every row in memory first). Returns the rows
+	 * sent, header included.
+	 *
+	 * @param callable $emit Receives each row (array of cells).
+	 */
+	public static function export_stream( $from, $to, $datev, callable $emit ) {
+		$count = 0;
+		foreach ( $datev ? self::datev_iter( $from, $to ) : self::export_iter( $from, $to ) as $row ) {
+			if ( $datev ) {
+				// DATEV import expects ANSI (Windows-1252).
+				$row = array_map( static function ( $cell ) { return mb_convert_encoding( (string) $cell, 'Windows-1252', 'UTF-8' ); }, $row );
+			}
+			$emit( $row );
+			++$count;
+		}
+		return $count;
 	}
 
 	/**
@@ -787,12 +845,22 @@ final class Invoices {
 	 * Complimentary orders (Reports\Data::comp_providers()) are not sales and never listed.
 	 */
 	public static function export_rows( $from, $to ) {
+		return iterator_to_array( self::export_iter( $from, $to ), false );
+	}
+
+	/**
+	 * export_rows() as a generator: invoices and corrections from one query each, orders without
+	 * invoice in blocks (uninvoiced_rows()), so a long period never sits in memory as a whole (A434).
+	 *
+	 * @return \Generator<int, array>
+	 */
+	private static function export_iter( $from, $to ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$tz = Reports\Scope::site_timezone();
 		list( $from_utc, $to_utc ) = Reports\Data::bounds( $from, $to, $tz );
 		$local_day = static function ( $utc ) use ( $tz ) { return Reports\Scope::local( $utc, $tz, 'Y-m-d' ); };
-		$rows = array( self::EXPORT_COLUMNS );
+		yield self::EXPORT_COLUMNS;
 		$money = static function ( $minor, $currency ) { return Money::to_decimal( $minor, $currency ); };
 		$safe = static function ( $text ) { $text = (string) $text; return preg_match( '/^[=+\-@\t\r]/', $text ) ? "'" . $text : $text; };
 		// Seller columns: agent-model documents are issued in the organizer's name (not platform revenue).
@@ -803,13 +871,13 @@ final class Invoices {
 		};
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT i.invoice_number,i.issued_at,i.currency,i.buyer_snapshot,o.public_id,o.payment_provider,l.description,l.quantity,l.tax_rate,l.tax_minor,l.total_minor FROM {$p}wpcap_invoices i INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id INNER JOIN {$p}wpcap_invoice_lines l ON l.invoice_id=i.invoice_id WHERE i.issued_at >= %s AND i.issued_at < %s ORDER BY i.invoice_id,l.invoice_line_id", $from_utc, $to_utc ) );
 		foreach ( $lines as $l ) {
-			$rows[] = array( self::EXPORT_KIND_INVOICE, $l->invoice_number, $local_day( $l->issued_at ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor, $l->currency ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor, $l->currency ), $money( (int) $l->total_minor, $l->currency ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
+			yield array( self::EXPORT_KIND_INVOICE, $l->invoice_number, $local_day( $l->issued_at ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor, $l->currency ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor, $l->currency ), $money( (int) $l->total_minor, $l->currency ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
 		}
 		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id", $from_utc, $to_utc ) );
 		// Corrections ("Rechnungskorrektur", not "Gutschrift": that term means self-billing): one row per VAT rate.
 		foreach ( $credits as $c ) {
 			foreach ( self::credit_rates( $c ) as $r ) {
-				$rows[] = array( self::EXPORT_KIND_CREDIT, $c->credit_note_number, $local_day( $c->issued_at ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'], $c->currency ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'], $c->currency ), '-' . $money( $r['gross'], $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+				yield array( self::EXPORT_KIND_CREDIT, $c->credit_note_number, $local_day( $c->issued_at ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'], $c->currency ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'], $c->currency ), '-' . $money( $r['gross'], $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
 			}
 		}
 		if ( self::credit_reversal_ready() ) {
@@ -817,11 +885,11 @@ final class Invoices {
 			$reversals = $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE c.reversal_number<>'' AND c.reversed_at >= %s AND c.reversed_at < %s ORDER BY c.credit_note_id", $from_utc, $to_utc ) );
 			foreach ( $reversals as $c ) {
 				foreach ( self::credit_rates( $c ) as $r ) {
-					$rows[] = array( self::EXPORT_KIND_CREDIT, $c->reversal_number, $local_day( $c->reversed_at ), $c->public_id, $c->credit_note_number, 'Storno Erstattung', '', $money( $r['net'], $c->currency ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), $money( $r['tax'], $c->currency ), $money( $r['gross'], $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+					yield array( self::EXPORT_KIND_CREDIT, $c->reversal_number, $local_day( $c->reversed_at ), $c->public_id, $c->credit_note_number, 'Storno Erstattung', '', $money( $r['net'], $c->currency ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), $money( $r['tax'], $c->currency ), $money( $r['gross'], $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
 				}
 			}
 		}
-		return array_merge( $rows, self::uninvoiced_rows( $from_utc, $to_utc, $local_day, $money, $safe ) );
+		yield from self::uninvoiced_rows( $from_utc, $to_utc, $local_day, $money, $safe );
 	}
 
 	/**
@@ -836,57 +904,79 @@ final class Invoices {
 		$p = $wpdb->prefix;
 		$comp = Reports\Data::comp_providers();
 		$channels = Reports\Data::channel_labels();
-		$sellers = array();
-		// Seller side of an order without invoice (the seller an invoice would have; empty for mixed sellers).
-		$seller_cols = static function ( $order_id ) use ( &$sellers, $safe ) {
-			if ( ! isset( $sellers[ $order_id ] ) ) {
-				$context = Partners\SalesModel::order_context( $order_id );
-				$sellers[ $order_id ] = is_wp_error( $context ) ? array( '', '' ) : array( Partners\SalesModel::AGENT === $context['model'] ? 'Vermittler' : 'Eigenhaendler', $safe( (string) ( $context['seller']['name'] ?? '' ) ) );
-			}
-			return $sellers[ $order_id ];
+		// Seller side of an order without invoice (the seller an invoice would have; empty for mixed sellers),
+		// read for a whole block at once (A434).
+		$seller_cols = static function ( $context ) use ( $safe ) {
+			return ! is_array( $context ) ? array( '', '' ) : array( Partners\SalesModel::AGENT === $context['model'] ? 'Vermittler' : 'Eigenhaendler', $safe( (string) ( $context['seller']['name'] ?? '' ) ) );
 		};
-		$rows = array();
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT o.order_id,o.public_id,o.created_at,o.currency,o.payment_provider,o.discount_minor FROM {$p}wpcap_orders o WHERE o.payment_status IN ('paid','refunded') AND o.created_at >= %s AND o.created_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=o.order_id) ORDER BY o.order_id", $from_utc, $to_utc ) );
-		$orders = array_values( array_filter( $orders, static function ( $o ) use ( $comp ) { return ! in_array( (string) $o->payment_provider, $comp, true ); } ) );
-		$lines_by_order = Reports\Data::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ) );
-		foreach ( $orders as $o ) {
-			$lines = $lines_by_order[ (int) $o->order_id ] ?? array();
-			$gross_lines = Reports\Data::allocate_discount( $lines, (int) $o->discount_minor );
-			$supplement = Exchange\Service::is_supplement( (int) $o->order_id );
-			$by_rate = array();
-			foreach ( $lines as $i => $line ) {
-				if ( OrderLines::is_moved_in( $line ) ) { continue; }
-				$rate = (int) $line->tax_rate_bp;
-				$by_rate[ $rate ] = $by_rate[ $rate ] ?? array( 'quantity' => 0, 'gross' => 0, 'tax' => 0 );
-				$by_rate[ $rate ]['quantity'] += $supplement ? 0 : (int) $line->quantity;
-				$by_rate[ $rate ]['gross'] += (int) $gross_lines[ $i ];
-				$by_rate[ $rate ]['tax'] += (int) $line->tax_minor;
-			}
-			ksort( $by_rate, SORT_NUMERIC );
-			$description = 'Tickets ohne Rechnung (' . $channels[ Reports\Data::channel_of( $o->payment_provider ) ] . ')';
-			foreach ( $by_rate as $rate => $r ) {
-				$rows[] = array( self::EXPORT_KIND_SALE_UNINVOICED, '', $local_day( $o->created_at ), $o->public_id, '', $safe( $description ), $r['quantity'], $money( $r['gross'] - $r['tax'], $o->currency ), number_format( $rate / 100, 2, '.', '' ), $money( $r['tax'], $o->currency ), $money( $r['gross'], $o->currency ), $o->currency, $safe( $o->payment_provider ), ...$seller_cols( (int) $o->order_id ) );
+		// Ids first (index paid_created), then blocks of BLOCK orders with their lines, seller and exchange flag.
+		$order_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT o.order_id FROM {$p}wpcap_orders o WHERE o.payment_status IN ('paid','refunded') AND o.created_at >= %s AND o.created_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=o.order_id) ORDER BY o.order_id", $from_utc, $to_utc ) ) );
+		foreach ( array_chunk( $order_ids, self::EXPORT_BLOCK ) as $block ) {
+			$orders = $wpdb->get_results( "SELECT o.order_id,o.public_id,o.created_at,o.currency,o.payment_provider,o.discount_minor FROM {$p}wpcap_orders o WHERE o.order_id IN (" . implode( ',', $block ) . ') ORDER BY o.order_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$orders = array_values( array_filter( $orders, static function ( $o ) use ( $comp ) { return ! in_array( (string) $o->payment_provider, $comp, true ); } ) );
+			$ids = array_map( static function ( $o ) { return (int) $o->order_id; }, $orders );
+			$lines_by_order = Reports\Data::lines_by_order( $ids );
+			$contexts = Partners\SalesModel::order_contexts( $ids );
+			Exchange\Service::preload_supplements( $ids );
+			foreach ( $orders as $o ) {
+				$lines = $lines_by_order[ (int) $o->order_id ] ?? array();
+				$gross_lines = Reports\Data::allocate_discount( $lines, (int) $o->discount_minor );
+				$supplement = Exchange\Service::is_supplement( (int) $o->order_id );
+				$by_rate = array();
+				foreach ( $lines as $i => $line ) {
+					if ( OrderLines::is_moved_in( $line ) ) { continue; }
+					$rate = (int) $line->tax_rate_bp;
+					$by_rate[ $rate ] = $by_rate[ $rate ] ?? array( 'quantity' => 0, 'gross' => 0, 'tax' => 0 );
+					$by_rate[ $rate ]['quantity'] += $supplement ? 0 : (int) $line->quantity;
+					$by_rate[ $rate ]['gross'] += (int) $gross_lines[ $i ];
+					$by_rate[ $rate ]['tax'] += (int) $line->tax_minor;
+				}
+				ksort( $by_rate, SORT_NUMERIC );
+				$description = 'Tickets ohne Rechnung (' . $channels[ Reports\Data::channel_of( $o->payment_provider ) ] . ')';
+				foreach ( $by_rate as $rate => $r ) {
+					yield array( self::EXPORT_KIND_SALE_UNINVOICED, '', $local_day( $o->created_at ), $o->public_id, '', $safe( $description ), $r['quantity'], $money( $r['gross'] - $r['tax'], $o->currency ), number_format( $rate / 100, 2, '.', '' ), $money( $r['tax'], $o->currency ), $money( $r['gross'], $o->currency ), $o->currency, $safe( $o->payment_provider ), ...$seller_cols( $contexts[ (int) $o->order_id ] ?? null ) );
+				}
 			}
 		}
 		$reversal_ready = Refunds::provider_status_ready();
 		// A refund reversed later (A348) stays on its booking day; its reversal follows on its own day below.
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
 		if ( $reversal_ready ) {
-			$reversed = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.reversed_at AS updated_at,1 AS is_reversal,o.currency,o.public_id,o.payment_provider,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
+			$reversed = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.reversed_at AS updated_at,1 AS is_reversal,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
 			$refunds = array_merge( $refunds, $reversed );
 		}
-		foreach ( $refunds as $r ) {
-			if ( in_array( (string) $r->payment_provider, $comp, true ) ) { continue; }
-			// Same amounts as the sales report (multi-purpose vouchers: cash + voucher share, full VAT).
-			$amounts = Integrations\Vouchers\Checkout::refund_amounts( $r );
-			$description = 'Erstattung ohne Rechnung (' . $channels[ Reports\Data::channel_of( $r->payment_provider ) ] . ')';
-			$sign = empty( $r->is_reversal ) ? '-' : '';
-			if ( ! empty( $r->is_reversal ) ) { $description = 'Storno ' . $description; }
-			foreach ( self::credit_note_rates( array( 'order_id' => (int) $r->order_id, 'ticket_ids' => $r->ticket_ids ), (int) $amounts['amount_minor'], (int) $amounts['tax_minor'] ) as $rate ) {
-				$rows[] = array( self::EXPORT_KIND_REFUND_UNINVOICED, '', $local_day( $r->updated_at ), $r->public_id, '', $safe( $description ), '', $sign . $money( $rate['net'], $r->currency ), number_format( $rate['rate_bp'] / 100, 2, '.', '' ), $sign . $money( $rate['tax'], $r->currency ), $sign . $money( $rate['gross'], $r->currency ), $r->currency, $safe( $r->payment_provider ), ...$seller_cols( (int) $r->order_id ) );
+		$refunds = array_values( array_filter( $refunds, static function ( $r ) use ( $comp ) { return ! in_array( (string) $r->payment_provider, $comp, true ); } ) );
+		foreach ( array_chunk( $refunds, self::EXPORT_BLOCK ) as $block ) {
+			$ids = array_map( static function ( $r ) { return (int) $r->order_id; }, $block );
+			$items_by_order = self::paid_items_by_order( $ids );
+			$contexts = Partners\SalesModel::order_contexts( $ids );
+			foreach ( $block as $r ) {
+				// Same amounts as the sales report (multi-purpose vouchers: cash + voucher share, full VAT).
+				$amounts = Integrations\Vouchers\Checkout::refund_amounts( $r );
+				$description = 'Erstattung ohne Rechnung (' . $channels[ Reports\Data::channel_of( $r->payment_provider ) ] . ')';
+				$sign = empty( $r->is_reversal ) ? '-' : '';
+				if ( ! empty( $r->is_reversal ) ) { $description = 'Storno ' . $description; }
+				foreach ( self::credit_note_rates( array( 'order_id' => (int) $r->order_id, 'ticket_ids' => $r->ticket_ids ), (int) $amounts['amount_minor'], (int) $amounts['tax_minor'], $items_by_order[ (int) $r->order_id ] ?? array(), (int) $r->discount_minor ) as $rate ) {
+					yield array( self::EXPORT_KIND_REFUND_UNINVOICED, '', $local_day( $r->updated_at ), $r->public_id, '', $safe( $description ), '', $sign . $money( $rate['net'], $r->currency ), number_format( $rate['rate_bp'] / 100, 2, '.', '' ), $sign . $money( $rate['tax'], $r->currency ), $sign . $money( $rate['gross'], $r->currency ), $r->currency, $safe( $r->payment_provider ), ...$seller_cols( $contexts[ (int) $r->order_id ] ?? null ) );
+				}
 			}
 		}
-		return $rows;
+	}
+
+	/** Orders per block of the accounting export (uninvoiced_rows()). */
+	const EXPORT_BLOCK = 1000;
+
+	/** Paid lines of many orders as credit_note_rates() reads them (order id => lines in item order). */
+	private static function paid_items_by_order( array $order_ids ) {
+		global $wpdb;
+		$out = array();
+		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
+			$out += array_fill_keys( $chunk, array() );
+			foreach ( (array) $wpdb->get_results( 'SELECT order_id,ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', $chunk ) . ') ORDER BY order_id,item_id' ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$out[ (int) $item->order_id ][] = $item;
+			}
+		}
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ Journal totals, DATEV booking batch, number gaps */
@@ -958,11 +1048,33 @@ final class Invoices {
 	 * Built from export_rows(), so both exports always agree.
 	 */
 	public static function datev_rows( $from, $to ) {
+		return iterator_to_array( self::datev_iter( $from, $to ), false );
+	}
+
+	/**
+	 * datev_rows() as a generator over export_iter() (A434). The rows of one document follow each
+	 * other in the export, so its bookings are complete when the next document starts and are sent
+	 * then; only refunds of orders without invoice (the last part of the export, keyed by order and
+	 * day) are collected until the end. Same rows in the same order as before.
+	 *
+	 * @return \Generator<int, array>
+	 */
+	private static function datev_iter( $from, $to ) {
 		$accounts = self::datev_accounts();
 		$bookings = array();
-		foreach ( array_slice( self::export_rows( $from, $to ), 1 ) as $row ) {
+		$current = null;
+		$first = true;
+		yield self::DATEV_COLUMNS;
+		foreach ( self::export_iter( $from, $to ) as $row ) {
+			if ( $first ) { $first = false; continue; } // Header of the export.
 			if ( 'Vermittler' === $row[13] ) { continue; }
 			$doc = '' !== (string) $row[1] ? (string) $row[1] : (string) $row[3];
+			$document = $row[0] . '|' . $doc;
+			if ( null !== $current && $document !== $current && self::EXPORT_KIND_REFUND_UNINVOICED !== $row[0] ) {
+				yield from self::datev_bookings( $bookings );
+				$bookings = array();
+			}
+			$current = $document;
 			$key = implode( '|', array( $row[0], $doc, $row[2], $row[8], $row[11], $row[12] ) );
 			if ( ! isset( $bookings[ $key ] ) ) {
 				$rate_bp = (int) round( (float) $row[8] * 100 );
@@ -980,10 +1092,14 @@ final class Invoices {
 			}
 			$bookings[ $key ]['gross'] += self::decimal_to_minor( $row[10], (string) $row[11] );
 		}
-		$out = array( self::DATEV_COLUMNS );
+		yield from self::datev_bookings( $bookings );
+	}
+
+	/** Booking batch rows of collected bookings (datev_iter()). */
+	private static function datev_bookings( array $bookings ) {
 		foreach ( $bookings as $b ) {
 			if ( 0 === $b['gross'] ) { continue; }
-			$out[] = array(
+			yield array(
 				Money::to_decimal( abs( $b['gross'] ), $b['currency'], ',' ),
 				$b['gross'] > 0 ? 'S' : 'H',
 				$b['currency'],
@@ -996,7 +1112,6 @@ final class Invoices {
 				mb_substr( $b['text'], 0, 60 ),
 			);
 		}
-		return $out;
 	}
 
 	/**
