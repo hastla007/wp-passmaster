@@ -80,8 +80,16 @@ die Zuordnung steht in `wpcap_alloc_hold_seats`.
 Je Event (alle Termine) und/oder je Ticketart (`wpcap_alloc_limits`), über alle Bestellungen (bezahlt
 und aktiv reserviert):
 
-- Identität: E-Mail kleingeschrieben (`wpcap_allocation_buyer_email`; Gmail-Punkte/Plus-Adressen mit
-  `add_filter( 'wpcap_allocation_normalize_gmail', '__return_true' )`) und, wenn aktiviert, das
+- Identität: E-Mail kleingeschrieben und normalisiert (A484, Einstellungen unter **Kontingente →
+  Einstellungen → E-Mail-Varianten**, beide standardmäßig an): ein `+Zusatz` im lokalen Teil wird für
+  **jede** Domain entfernt (`name+2@verein.at` zählt als `name@verein.at`; `buyer_limit_strip_plus`),
+  bei `gmail.com`/`googlemail.com` werden Punkte ignoriert und die Domain vereinheitlicht
+  (`buyer_limit_gmail_dots`, übersteuerbar mit `wpcap_allocation_normalize_gmail`); eigene Regeln über
+  `wpcap_allocation_buyer_email`. Beim Update (Schlüsselversion 3) und beim Umschalten einer der beiden
+  Einstellungen werden die bestehenden Bestellungen in die Zeilen der neuen Käuferschlüssel
+  übernommen (nichts wird gelöscht, Konto-Zeilen bleiben erhalten); der Datenschutz-Löscher entfernt
+  auch die Zeile der Adresse in der eingegebenen Form. Andere Alias-Verfahren (z. B. `-` als
+  Trennzeichen, Wegwerfadressen) erkennt das Limit nicht. Zusätzlich zählt, wenn aktiviert, das
   angemeldete WordPress-Konto (`$internal['customer_user_id']` oder aktueller Benutzer bei `native`,
   `woocommerce`, `waitlist`). Jede Identität wird geprüft.
 - Meldung: „Pro Person sind höchstens %d Tickets für dieses Event möglich; du hast bereits %d.“ bzw. je
@@ -115,7 +123,7 @@ Sitze/Claims → Käuferzeilen. Admin-Aktionen sperren in derselben Reihenfolge 
 | `wpcap_allocation_limit_exempt_sources` | Filter `string[]` | Vom Käuferlimit ausgenommene Kanäle. |
 | `wpcap_allocation_buyer_limit_applies` | Filter `bool, $source, $selected, $internal` | Limit für eine Bestellung an/aus. |
 | `wpcap_allocation_buyer_email` | Filter `string $email` | Normalisierung der E-Mail. |
-| `wpcap_allocation_normalize_gmail` | Filter `bool` (false) | Gmail-Punkte/Plus entfernen. |
+| `wpcap_allocation_normalize_gmail` | Filter `bool` (Einstellung `buyer_limit_gmail_dots`, Standard an) | Gmail-Punkte/Plus entfernen. |
 | `wpcap_allocation_released` | Action `int $hold_id, int $units, string $reason` | Nach einer Freigabe. |
 | `wpcap_capacity_increased` | Action `int $ticket_type_id, int $occurrence_id` | Plätze wieder im freien Verkauf (Warteliste). |
 

@@ -265,7 +265,11 @@ $gm1 = alloc_buy( $lim_a, 4, 'jane.doe@gmail.com' );
 $gm2 = alloc_buy( $lim_a, 1, 'janedoe+2@gmail.com' );
 remove_filter( 'wpcap_allocation_normalize_gmail', $gmail );
 check( 'gmail aliases count as one buyer when enabled', ! is_wp_error( $gm1 ) && is_wp_error( $gm2 ) );
-check( 'without the filter aliases are separate buyers', ! is_wp_error( alloc_buy( $lim_a, 1, 'janedoe+3@gmail.com' ) ) );
+// A484: plus tags and Gmail dots are normalised by default; switched off, aliases are separate buyers.
+$alloc_cfg = PassCaptain\Modules\Allocations::config();
+PassCaptain\Settings::update( array( 'allocations' => array_merge( $alloc_cfg, array( 'buyer_limit_strip_plus' => 0, 'buyer_limit_gmail_dots' => 0 ) ) ) );
+check( 'with plus/Gmail normalisation switched off aliases are separate buyers', ! is_wp_error( alloc_buy( $lim_a, 1, 'janedoe+3@gmail.com' ) ) );
+PassCaptain\Settings::update( array( 'allocations' => $alloc_cfg ) );
 $GLOBALS['wpcap_test_user_id'] = 77;
 $u1 = alloc_buy( $lim_a, 3, 'user-a@example.com' );
 $u2 = alloc_buy( $lim_a, 2, 'user-b@example.com' );

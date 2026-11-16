@@ -122,10 +122,19 @@ final class AdminPage {
 
 	public static function save_settings( array $in ) {
 		if ( ! current_user_can( 'manage_options' ) ) { return Forms::forbidden(); }
-		Settings::update( array( 'allocations' => array(
+		$before = Module::config();
+		$new = array(
 			'auto_release_hours' => min( 8760, Forms::int( $in, 'auto_release_hours' ) ),
 			'buyer_limit_by_user' => Forms::flag( $in, 'buyer_limit_by_user' ) ? 1 : 0,
-		) ) );
+			'buyer_limit_strip_plus' => Forms::flag( $in, 'buyer_limit_strip_plus' ) ? 1 : 0,
+			'buyer_limit_gmail_dots' => Forms::flag( $in, 'buyer_limit_gmail_dots' ) ? 1 : 0,
+		);
+		Settings::update( array( 'allocations' => $new ) );
+		if ( (int) $before['buyer_limit_strip_plus'] !== $new['buyer_limit_strip_plus'] || (int) $before['buyer_limit_gmail_dots'] !== $new['buyer_limit_gmail_dots'] ) {
+			// A484: other buyer keys from now on – merge the existing orders into the rows of the new keys.
+			update_option( 'wpcap_alloc_key_version', min( 2, (int) get_option( 'wpcap_alloc_key_version', 0 ) ) );
+			BuyerLimits::maybe_migrate_keys();
+		}
 		return true;
 	}
 
@@ -214,6 +223,7 @@ final class AdminPage {
 			echo '<table class="form-table"><tbody>';
 			echo '<tr><th scope="row"><label for="wpcap-alloc-hours">' . esc_html__( 'Automatische Freigabe (Stunden vor Beginn)', 'pass-captain' ) . '</label></th><td><input type="number" min="0" id="wpcap-alloc-hours" name="auto_release_hours" value="' . esc_attr( (int) $c['auto_release_hours'] ) . '"><p class="description">' . esc_html__( 'Vorgabe für neue Kontingente; 0 = keine automatische Freigabe. Sperren werden nie automatisch freigegeben.', 'pass-captain' ) . '</p></td></tr>';
 			echo '<tr><th scope="row">' . esc_html__( 'Käuferlimit', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="buyer_limit_by_user" value="1"' . checked( ! empty( $c['buyer_limit_by_user'] ), true, false ) . '> ' . esc_html__( 'Zusätzlich je angemeldetem WordPress-Konto zählen (nicht nur je E-Mail-Adresse)', 'pass-captain' ) . '</label></td></tr>';
+			echo '<tr><th scope="row">' . esc_html__( 'E-Mail-Varianten', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="buyer_limit_strip_plus" value="1"' . checked( ! empty( $c['buyer_limit_strip_plus'] ), true, false ) . '> ' . esc_html__( 'Plus-Adressen zusammenfassen (name+zusatz@domain zählt als name@domain)', 'pass-captain' ) . '</label><br><label><input type="checkbox" name="buyer_limit_gmail_dots" value="1"' . checked( ! empty( $c['buyer_limit_gmail_dots'] ), true, false ) . '> ' . esc_html__( 'Punkte in Gmail-Adressen ignorieren (vor.name@gmail.com = vorname@gmail.com)', 'pass-captain' ) . '</label></td></tr>';
 			echo '</tbody></table>';
 			submit_button( __( 'Speichern', 'pass-captain' ) );
 			echo '</form>';

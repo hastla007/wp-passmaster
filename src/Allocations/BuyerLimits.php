@@ -89,18 +89,28 @@ final class BuyerLimits {
 	 * Buyer identity.
 	 * ------------------------------------------------------------------------------------------- */
 
-	/** Normalised e-mail address used as buyer identity. */
+	/**
+	 * Normalised e-mail address used as buyer identity (A484): lowercase; a `+tag` of the local part is
+	 * removed for every domain (setting `buyer_limit_strip_plus`, default on – subaddresses reach the
+	 * same mailbox); for gmail.com/googlemail.com the dots of the local part are ignored and the domain
+	 * unified (setting `buyer_limit_gmail_dots`, default on; filter `wpcap_allocation_normalize_gmail`).
+	 * Any rule via `wpcap_allocation_buyer_email`.
+	 */
 	public static function normalize_email( $email ) {
 		$email = strtolower( trim( (string) $email ) );
 		$at = strrpos( $email, '@' );
-		if ( false !== $at && apply_filters( 'wpcap_allocation_normalize_gmail', false ) ) {
+		if ( false !== $at && $at > 0 ) {
+			$config = Module::config();
 			$local = substr( $email, 0, $at );
 			$domain = substr( $email, $at + 1 );
-			if ( in_array( $domain, array( 'gmail.com', 'googlemail.com' ), true ) ) {
+			$plus = strpos( $local, '+' );
+			if ( ! empty( $config['buyer_limit_strip_plus'] ) && $plus ) { $local = substr( $local, 0, $plus ); }
+			if ( in_array( $domain, array( 'gmail.com', 'googlemail.com' ), true ) && apply_filters( 'wpcap_allocation_normalize_gmail', ! empty( $config['buyer_limit_gmail_dots'] ) ) ) {
 				$plus = strpos( $local, '+' );
 				$local = str_replace( '.', '', false === $plus ? $local : substr( $local, 0, $plus ) );
-				$email = $local . '@gmail.com';
+				$domain = 'gmail.com';
 			}
+			if ( '' !== $local ) { $email = $local . '@' . $domain; }
 		}
 		return (string) apply_filters( 'wpcap_allocation_buyer_email', $email );
 	}
@@ -130,22 +140,27 @@ final class BuyerLimits {
 		return hash_hmac( 'sha256', 'wpcap-buyer|' . (string) $value, $secret );
 	}
 
-	/** Version of the buyer key derivation (2 = HMAC). */
-	const KEY_VERSION = 2;
+	/** Version of the buyer key derivation (2 = HMAC, 3 = plus tags/Gmail dots normalised, A484). */
+	const KEY_VERSION = 3;
 
 	/**
-	 * One-time migration to keyed hashes: the buyer rows are rebuilt from the orders of events with
-	 * limits (e-mail identities; the old unkeyed rows are deleted). Runs once (option, lock).
+	 * Migration of the buyer rows to the current key derivation. From version < 2 (unkeyed hashes) the
+	 * rows are rebuilt from the orders of events with limits (e-mail identities; the old rows are
+	 * deleted). From version 2 (A484: new normalisation) the orders are merged into the rows of their
+	 * new keys and nothing is deleted, so per-account rows keep their counts. Runs once (option, lock);
+	 * changing the normalisation settings runs the merge again.
 	 */
 	public static function maybe_migrate_keys() {
 		global $wpdb;
-		if ( (int) get_option( 'wpcap_alloc_key_version', 0 ) >= self::KEY_VERSION ) { return false; }
+		$version = (int) get_option( 'wpcap_alloc_key_version', 0 );
+		if ( $version >= self::KEY_VERSION ) { return false; }
 		$table = Holds::table( 'buyers' );
 		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) { return false; }
 		if ( ! (int) $wpdb->get_var( "SELECT GET_LOCK('wpcap_alloc_keys', 0)" ) ) { return false; }
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
-		$wpdb->query( "DELETE FROM $table" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$rebuild = $version < 2;
+		if ( $rebuild ) { $wpdb->query( "DELETE FROM $table" ); } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		$events = array_map( 'absint', (array) $wpdb->get_col( 'SELECT DISTINCT event_id FROM ' . Holds::table( 'limits' ) . ' WHERE max_per_buyer>0' ) );
 		foreach ( $events as $event_id ) {
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.customer_email,oi.ticket_type_id,SUM(oi.quantity) AS qty FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.status NOT IN ('cancelled','expired','refunded') GROUP BY ord.order_id,ord.customer_email,oi.ticket_type_id", $event_id ) );
@@ -156,7 +171,14 @@ final class BuyerLimits {
 				}
 			}
 			foreach ( $by_key as $key => $holdings ) {
-				$wpdb->insert( $table, array( 'event_id' => $event_id, 'buyer_key' => $key, 'holdings' => wp_json_encode( $holdings ), 'updated_at' => $now ) );
+				if ( $rebuild ) {
+					$wpdb->insert( $table, array( 'event_id' => $event_id, 'buyer_key' => $key, 'holdings' => wp_json_encode( $holdings ), 'updated_at' => $now ) );
+					continue;
+				}
+				$existing = $wpdb->get_var( $wpdb->prepare( "SELECT holdings FROM $table WHERE event_id=%d AND buyer_key=%s", $event_id, $key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+				$merged = null === $existing ? array() : (array) json_decode( (string) $existing, true );
+				foreach ( $holdings as $order_id => $types ) { $merged[ (string) $order_id ] = $types; }
+				$wpdb->query( $wpdb->prepare( "INSERT INTO $table (event_id,buyer_key,holdings,updated_at) VALUES (%d,%s,%s,%s) ON DUPLICATE KEY UPDATE holdings=VALUES(holdings),updated_at=VALUES(updated_at)", $event_id, $key, wp_json_encode( $merged ), $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 			}
 		}
 		update_option( 'wpcap_alloc_key_version', self::KEY_VERSION );
@@ -167,7 +189,8 @@ final class BuyerLimits {
 	/** Privacy eraser: removes the buyer rows of an e-mail address (all events). */
 	public static function privacy_erase( $email_address, $page = 1 ) {
 		global $wpdb;
-		$keys = self::keys( (string) $email_address );
+		// Also the key of the address as typed (rows from before the A484 normalisation).
+		$keys = array_unique( array_merge( self::keys( (string) $email_address ), array( self::hash( 'email:' . strtolower( trim( (string) $email_address ) ) ) ) ) );
 		$removed = 0;
 		foreach ( $keys as $key ) {
 			$removed += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Holds::table( 'buyers' ) . ' WHERE buyer_key=%s', $key ) );

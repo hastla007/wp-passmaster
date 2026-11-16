@@ -304,7 +304,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 |---|---|---|
 | `wpcap_allocation_limit_exempt_sources` | `string[] $sources` (`pos`, `guestlist`, `admin`) | Bestellquellen, für die Käuferlimits nicht gelten. |
 | `wpcap_allocation_buyer_limit_applies` | `bool $applies, string $source, array $selected, array $internal` | Ob das Käuferlimit für diese Bestellung gilt (Standard: nicht für ausgenommene Quellen); läuft in `wpcap_order_creating` und bei später Zahlung in `wpcap_order_recovering` (dann `$selected` leer, `$internal` = `phase` `recover`, `order_id`; `$source` aus der Zahlart, Kasse `pos_*` → `pos`, Gästeliste `comp` → `guestlist`). |
-| `wpcap_allocation_normalize_gmail` | `bool $normalize` (false) | Gmail-Adressen für die Käuferidentität normalisieren (Punkte und `+Zusatz` entfernen, `googlemail.com` → `gmail.com`). |
+| `wpcap_allocation_normalize_gmail` | `bool $normalize` (Einstellung `buyer_limit_gmail_dots`, Standard an) | Gmail-Adressen für die Käuferidentität normalisieren (Punkte und `+Zusatz` entfernen, `googlemail.com` → `gmail.com`). Den `+Zusatz` aller anderen Domains entfernt die Einstellung `buyer_limit_strip_plus` (A484). |
 | `wpcap_allocation_buyer_email` | `string $email` | Normalisierte E-Mail-Adresse, aus der der Käuferschlüssel für Limits gebildet wird. |
 | `wpcap_allocation_trusted_sources` | `string[] $sources` (`pos`, `guestlist`, `admin`) | Quellen, die reservierte Kontingente (Holds) verbrauchen dürfen und nicht an sie gebunden sind. |
 | `wpcap_allocation_hold_for_source` | `int $hold_id` (0), `string $source, array $selected, array $internal` | Hold, den eine vertrauenswürdige Quelle ohne `allocation_id` verbraucht (z. B. Gästeliste → „Künstler“); 0 = keiner. |

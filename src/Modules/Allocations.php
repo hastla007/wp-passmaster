@@ -138,6 +138,10 @@ final class Allocations {
 				'auto_release_hours' => 48,
 				// Also count tickets per logged-in WordPress user (in addition to the e-mail address).
 				'buyer_limit_by_user' => 1,
+				// A484: "name+tag@domain" counts as "name@domain" (all domains).
+				'buyer_limit_strip_plus' => 1,
+				// A484: Gmail ignores dots in the local part; googlemail.com = gmail.com.
+				'buyer_limit_gmail_dots' => 1,
 			),
 		);
 	}
