@@ -1,11 +1,12 @@
 # WooCommerce-Adapter
 
-Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nutzt ausschließlich die CRUD-APIs von WooCommerce (`wc_get_order()`, Bestell-/Produktmetadaten) und ist mit HPOS und dem klassischen Bestellspeicher sowie mit Cart/Checkout Blocks kompatibel deklariert. Pass Captain greift nie direkt auf WooCommerce-Tabellen zu.
+Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nutzt ausschließlich die CRUD-APIs von WooCommerce (`wc_get_order()`, Bestell-/Produktmetadaten) und ist mit HPOS und dem klassischen Bestellspeicher sowie mit Cart/Checkout Blocks kompatibel deklariert. Den neuen Produkt-Block-Editor (`product_block_editor`) deklariert er als inkompatibel: Das Feld **Pass Captain Ticketkategorie** ist ein klassisches Produktdatenfeld. Pass Captain greift nie direkt auf WooCommerce-Tabellen zu.
 
 ## Einrichtung
 
 1. In Pass Captain Event, Termin und Ticketkategorie mit Kontingent anlegen.
 2. In WooCommerce ein (virtuelles) Produkt anlegen und im Tab „Allgemein“ unter **Pass Captain Ticketkategorie** die Kategorie wählen. Bei variablen Produkten erben Varianten die Kategorie des Elternprodukts.
+   **Berechtigung:** Verknüpfen, Ändern und Entfernen dürfen nur Administratoren (`manage_options`) und Personen mit `wpcap_manage_events` für das Event der Ticketkategorie (Eventzuweisung, `Access::can_access_event`). Shop-Manager ohne Eventzuweisung sehen in der Auswahl nur Kategorien ihrer Events (ohne Zuweisung: keine). Ist ein Produkt mit einer Kategorie eines fremden Events verknüpft, wird sie schreibgeschützt angezeigt; ein unzulässiger Wert wird nicht gespeichert (Fehlerhinweis im Produkt-Editor, die übrigen Produktdaten werden gespeichert). Dieselbe Regel gilt für andere Speicherwege angemeldeter Nutzer (WooCommerce-REST-API, Schnellbearbeitung, CSV-Import): Der gespeicherte Wert bleibt, Audit `woocommerce_product_link_refused`. Speichern ohne angemeldeten Nutzer (Cron, WP-CLI) ist nicht eingeschränkt.
 3. Den Preis in WooCommerce pflegen – oder unter **WooCommerce → Einstellungen → Produkte → Pass Captain** „Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden“ aktivieren (siehe unten). Kontingent, Verkaufsfenster und Höchstmenge je Bestellung kommen aus Pass Captain. Die WooCommerce-Lagerverwaltung für Ticketprodukte nicht zusätzlich aktivieren, damit es nur eine Quelle für das Kontingent gibt.
 
 ## Ablauf
@@ -20,10 +21,15 @@ Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nu
 | Zahlung nach Ablauf der Reservierung | Kontingent erneut prüfen; reicht es nicht, wird die Bestellung `needs_review` / `paid_unallocated`, es werden keine Tickets ausgestellt und der Admin wird per E-Mail informiert |
 | `on-hold` (z. B. Überweisung) | Reservierung auf 3 Tage verlängern (Filter `wpcap_woocommerce_on_hold_minutes`) |
 | `failed` / `cancelled` | Reservierung freigeben, gültige Tickets widerrufen. Kommt später doch eine Zahlung, wird neu reserviert |
-| Erstattung (`woocommerce_order_refunded`) | je WooCommerce-Erstattung genau einmal: Erstattung im Pass-Captain-Erstattungsjournal buchen (Zeile in `wpcap_refunds`, erstatteter Betrag der Bestellung, Tickets als erstattet markiert und – sofern gültig – widerrufen, Kontingent frei, Gutschrift, `wpcap_refund_completed`). Mengen wählen die Tickets (gültige zuerst), der Betrag ist der Brutto-Erstattungsbetrag der Ticketpositionen; reine Betragserstattungen werden anteilig den Tickets zugerechnet. Benötigt `Refunds::record_external()` im Kern; ohne diese Methode werden wie bisher nur die erstatteten Tickets widerrufen |
+| Erstattung (`woocommerce_order_refunded`) | je WooCommerce-Erstattung genau einmal: Erstattung im Pass-Captain-Erstattungsjournal buchen (Zeile in `wpcap_refunds`, erstatteter Betrag der Bestellung, Tickets als erstattet markiert und – sofern gültig – widerrufen, Kontingent frei, Gutschrift, `wpcap_refund_completed`). Mengen wählen die Tickets (gültige zuerst, eingecheckte nur wenn erlaubt), der Betrag ist der Brutto-Erstattungsbetrag der Ticketpositionen; reine Betragserstattungen werden anteilig den Tickets zugerechnet. Aufgeteilte Bestellungen: je Rechnungssteller, siehe „Mehrere Rechnungssteller im Warenkorb“. Benötigt `Refunds::record_external()` im Kern; ohne diese Methode werden wie bisher nur die erstatteten Tickets widerrufen |
+| Unbezahlte Bestellung in den Papierkorb / endgültig gelöscht (`woocommerce_trash_order`, `woocommerce_before_delete_order`; im klassischen Speicher zusätzlich `wp_trash_post`/`before_delete_post` für `shop_order`) | Reservierung freigeben (`Orders::cancel_order(…, only_unpaid)`), Kontingent frei |
+| Unbezahlte Bestellung aus dem Papierkorb wiederhergestellt (`woocommerce_untrash_order`, `untrashed_post`) | erneut reservieren (Status `pending`/`on-hold`/`checkout-draft`); reicht das Kontingent nicht mehr, Bestellnotiz |
+| Bezahlte Bestellung in den Papierkorb / gelöscht | Tickets bleiben gültig (Löschen ist keine Erstattung); Audit-Eintrag `woocommerce_paid_order_removed`, beim Papierkorb zusätzlich eine Bestellnotiz. Für einen Widerruf erstatten oder stornieren |
 | `refunded` | offene WooCommerce-Erstattungen zuerst buchen (WooCommerce setzt den Status vor `woocommerce_order_refunded`), dann alle noch gültigen Tickets widerrufen, Kontingent freigeben |
 
-Eingecheckte Tickets werden bei Storno oder Erstattung nicht verändert und bleiben als Einlasshistorie erhalten; die Bestellnotiz weist darauf hin.
+**Zuordnung Bestellung ↔ Pass-Captain-Bestellung:** Die Metadaten `_wpcap_core_order_id` / `_wpcap_core_orders` gelten nur, wenn die Pass-Captain-Bestellung wirklich für diese WooCommerce-Bestellung angelegt wurde (ihr Idempotenzschlüssel ist der aus Bestell-ID und Checkout-Versuch abgeleitete, oder ihre Zahlung wurde mit `woocommerce:{ID}` bestätigt). Kopierte Metadaten – Verlängerungsbestellungen von WooCommerce Subscriptions, „Bestellung duplizieren“-Plugins, Importe – werden ignoriert: Eine fehlgeschlagene Verlängerung storniert nicht die Tickets der Erstbestellung. Zusätzlich filtert der Adapter `_wpcap_*` aus den Kopierfiltern von WooCommerce Subscriptions (`wc_subscriptions_renewal_order_data`, `wc_subscriptions_resubscribe_order_data`, `wc_subscriptions_subscription_data`, `wcs_*_meta` und `wcs_*_meta_query`). Enthält eine Verlängerung selbst Ticketprodukte, bekommt sie bei Zahlung eine eigene Reservierung.
+
+Eingecheckte Tickets werden bei Storno oder Erstattung nicht verändert und bleiben als Einlasshistorie erhalten; die Bestellnotiz weist darauf hin. Erstattungen mit Menge, die eingecheckte Tickets bräuchten, lehnt WooCommerce schon beim Anlegen ab, wenn die Erstattung nach Check-in nicht erlaubt ist (siehe unten).
 
 ### Serien-Preisstufen und gemeinsame Kontingente
 
@@ -42,6 +48,69 @@ Gemeinsame Kontingente einer Serie (Pools) gelten in beiden Fällen auch für Wo
 
 Die Reservierungsdauer entspricht mindestens der WooCommerce-Einstellung „Lagerbestand halten (Minuten)“ (Standard 60) und lässt sich mit dem Filter `wpcap_woocommerce_hold_minutes` ändern.
 
+## Mehrere Rechnungssteller im Warenkorb
+
+Rechnungssteller („Verkäufer“) eines Tickets ist der Vermittler-Veranstalter des Events, sonst die Plattform (Events ohne Veranstalter und Eigenhändler-Veranstalter; siehe [SALES-MODELS.md](SALES-MODELS.md)). Eine Pass-Captain-Bestellung hat immer genau einen Rechnungssteller. Für WooCommerce-Warenkörbe mit Tickets verschiedener Rechnungssteller gilt die Einstellung **WooCommerce → Einstellungen → Produkte → „Pass Captain – mehrere Rechnungssteller“ → Gemischte Warenkörbe** (Option `wpcap_woocommerce_mixed_sellers`, Filter `wpcap_woocommerce_mixed_seller_policy`):
+
+| Richtlinie | Verhalten |
+|---|---|
+| **Ablehnen** (`reject`, Standard) | „In den Warenkorb“ lehnt ein Ticket eines anderen Rechnungsstellers mit einer Meldung ab, die beide Rechnungssteller nennt. Warenkorb und Kasse prüfen zusätzlich den ganzen Warenkorb, die Reservierung lehnt gemischte Bestellungen als letzte Stufe ab (`wpcap_mixed_sellers`, kein Kontingent wird gebunden, keine Zahlung). Andere Produkte und Tickets desselben Rechnungsstellers sind nicht betroffen. |
+| **Aufteilen** (`split`) | Die WooCommerce-Bestellung ist erlaubt. Beim Reservieren entsteht je Rechnungssteller eine eigene Pass-Captain-Bestellung (alle oder keine: scheitert eine, werden die übrigen sofort storniert). Jede wird von ihrem Rechnungssteller in dessen Nummernkreis abgerechnet, hat eigene Tickets, eigene Ticket-Mail und eigenen Bestelllink. |
+
+Beide Checkout-Wege setzen die Richtlinie durch:
+
+| Prüfung | Klassischer Warenkorb/Checkout | Warenkorb-/Checkout-Block (Store API) |
+|---|---|---|
+| In den Warenkorb | `woocommerce_add_to_cart_validation` | `woocommerce_store_api_validate_add_to_cart` (RouteException `wpcap_mixed_sellers`, HTTP 400) |
+| Warenkorb und Kasse | `woocommerce_check_cart_items` | `woocommerce_store_api_cart_errors` |
+| Bestellung anlegen (Reservierung) | `woocommerce_checkout_order_processed` (Exception) | `woocommerce_store_api_checkout_order_processed` (RouteException, HTTP 409) |
+
+### Verbindliche Aufteilungsregeln
+
+Die Regeln gelten für jede WooCommerce-Bestellung, auch mit nur einem Rechnungssteller (ein Topf). Implementierung: `Integrations/WooCommerce/SellerSplit::allocate()`.
+
+1. **Ticketpositionen und Gutscheine:** Betrag je Position = WooCommerce-Zeilensumme nach Gutscheinen plus Zeilensteuer. Gutscheine aller Art (auch „Fester Warenkorbrabatt“) verteilt WooCommerce selbst auf die Positionen; Pass Captain übernimmt diese Verteilung unverändert und verteilt Gutscheinbeträge nie neu.
+2. **Negative Gebühren** (Warenkorbrabatte als Gebührenzeile): werden auf die Töpfe „Tickets je Rechnungssteller“ und „Shop“ (Nicht-Ticket-Produkte) im Verhältnis ihrer Bruttobeträge verteilt, danach innerhalb eines Rechnungsstellers auf seine Ticketpositionen (nach Ticketart-ID) im Verhältnis der Zeilenbeträge. Ein Rabatt über der Summe der Töpfe wird auf diese Summe begrenzt.
+3. **Positive Gebühren** (Service-, Zahlungsgebühren) und **Versand** gehören dem Shopbetreiber: Sie bleiben in WooCommerce und sind weder Teil einer Pass-Captain-Bestellung noch einer Rechnung eines Veranstalters. Tickets sind virtuell und tragen keinen Versand.
+4. **Nicht-Ticket-Produkte** bleiben wie bisher in WooCommerce.
+5. **Rundung:** jede Verteilung nach dem Verfahren der größten Reste in Cent (bzw. kleinster Währungseinheit): alle Anteile abrunden, die restlichen Einheiten einzeln an die größten Nachkommareste; bei Gleichstand gewinnt der frühere Topf (Plattform vor Veranstaltern nach Partner-ID, Shop zuletzt; Positionen nach Ticketart-ID). Die Anteile ergeben immer exakt den verteilten Betrag; das Ergebnis ist reproduzierbar.
+6. **Steuern:** Die USt einer Position berechnet der Kern aus dem zugeteilten Bruttobetrag und dem Steuersatz der Ticketart; gemischte Steuersätze bleiben je Position erhalten.
+
+Beispiel (in den Integrationstests nachgerechnet): Plattform 10,70 €, Veranstalter A 71,40 €, Veranstalter B 30,00 €, ein Fanartikel 10,00 €, Rabatt −10,00 €, Servicegebühr 2,50 €, Versand 4,90 € (Summe 119,50 €). Rabattanteile 0,87 / 5,85 / 2,46 / Shop 0,82 → Pass-Captain-Bestellungen 9,83 € / 65,55 € / 27,54 €; Shop 16,58 € (10,00 − 0,82 + 2,50 + 4,90).
+
+Die WooCommerce-Bestellung speichert die erste Pass-Captain-Bestellung in `_wpcap_core_order_id`, bei Aufteilung alle in `_wpcap_core_orders` (Rechnungssteller → Bestellung) und je eine Zeile `_wpcap_split_core_id`, die Aufteilung als Schnappschuss in `_wpcap_seller_allocation`. Bestellnotizen, Meta-Box „Pass Captain Tickets“ und Kundenansicht zeigen alle Teilbestellungen mit Rechnungssteller.
+
+### Erstattungen je Rechnungssteller und Position
+
+| WooCommerce-Erstattung | Zuordnung |
+|---|---|
+| Positionen mit Menge | Jede erstattete Ticketposition gehört zur Pass-Captain-Bestellung, die die Ticketart enthält. Die Menge wählt dort Tickets (gültige zuerst, dann wegen Absage widerrufene, eingecheckte zuletzt und nur wenn erlaubt; jeweils neueste zuerst), der Brutto-Erstattungsbetrag der Position geht an diese Bestellung. Erstattete Gebühren und Versand bleiben beim Shop. |
+| Nur Betrag | Ticketanteil = Betrag × (Summe der Pass-Captain-Bestellungen / WooCommerce-Gesamtsumme), verteilt auf die Teilbestellungen im Verhältnis ihres noch erstattbaren Betrags (größte Reste, Gleichstand nach Reihenfolge der Rechnungssteller). Es werden keine Tickets widerrufen. |
+| Letzte Erstattung (Bestellung vollständig erstattet) | jede Teilbestellung erhält alle verbleibenden (erlaubten) Tickets und ihren Restbetrag und ist danach genau erstattet. |
+
+Jede Teilbestellung bucht über `Refunds::record_external()` (idempotent je WooCommerce-Erstattung und Teilbestellung); die Rechnungskorrektur stellt der Rechnungssteller der Teilbestellung aus. Beträge werden auf den Restbetrag der Teilbestellung begrenzt. Schlägt die Übernahme einer WooCommerce-Erstattung fehl – vorübergehender Datenbankfehler, anderer Fehler oder Exception –, wird genau ein Job `woocommerce_refund_sync` je WooCommerce-Erstattung eingeplant (Idempotenzschlüssel = Erstattungs-ID; weitere Fehlschläge planen keinen zweiten Job), die Bestellnotiz weist darauf hin und das Audit-Log erhält `woocommerce_refund_sync_failed`. Der Job wiederholt die ganze Erstattung mit wachsendem Abstand; bereits gebuchte Teilbestellungen werden dabei übersprungen. Bleibt der Fehler bestehen, landet der Job nach 8 Versuchen im Dead-Letter-Status und erscheint mit der letzten Fehlermeldung unter „Pass Captain → Systemstatus“, wo er nach Behebung der Ursache erneut gestartet werden kann.
+
+**Eingecheckte Tickets:** Maßgeblich ist die zentrale Einstellung `refund_after_checkin` (Pass Captain → Einstellungen → Erstattungen; Standard „erlauben“). Ist sie nicht erlaubt, wird eine Erstattung mit Menge, die nur mit eingecheckten Tickets erfüllt werden könnte, schon beim Anlegen in WooCommerce abgelehnt (`woocommerce_create_refund`, vor der Auszahlung über den Zahlungsanbieter) – mit Hinweis auf die Einstellung. Eine reine Betragserstattung bleibt möglich. Die WooCommerce-Option **„Eingecheckte Tickets erstatten“** (`wpcap_woocommerce_refund_checked_in`) gilt nur, solange die zentrale Einstellung leer ist; der Filter `wpcap_woocommerce_refund_checked_in` übersteuert beides. Wird eine Erstattung an der Prüfung vorbei angelegt (z. B. programmatisch), bucht Pass Captain den Betrag, markiert eingecheckte Tickets aber nicht als erstattet und vermerkt das in der Bestellnotiz.
+
+**Veranstaltungsabsagen:** Der Kern widerruft die Tickets des abgesagten Termins; die WooCommerce-Bestellung erhält eine Notiz mit der betroffenen Teilbestellung und dem Rechnungssteller. Die anschließende WooCommerce-Erstattung dieser Positionen (mit Menge) erstattet genau die widerrufenen Tickets dieser Teilbestellung.
+
+**Veranstalter-Abrechnungen:** Da jede Teilbestellung nur einen Rechnungssteller hat, erscheinen Verkäufe und Erstattungen in der Abrechnung des jeweiligen Veranstalters (`Partners/Settlements`). Erstattungen nach einem abgeschlossenen Monat werden in der nächsten Abrechnung als Zeile „Korrektur Erstattung (Vorperiode)“ geführt.
+
+### Fiskalbelege je Verkäufer (Modul Fiscalization)
+
+Gilt nur, wenn eine Ticketart der Bestellung unter **Pass Captain → Fiskalisierung** einem Rechtsträger zugeordnet ist; ohne Zuordnung bleibt alles wie oben beschrieben. Details: [fiscalization-adapters.md](fiscalization-adapters.md).
+
+**Vorrangregeln (verbindlich):**
+
+1. **Rechnungssteller vor Rechtsträger.** Die Aufteilung in Pass-Captain-Bestellungen bestimmt allein der Rechnungssteller (`Partners\SalesModel`, Schlüssel `platform` / `org-{partner_id}`, Richtlinie Ablehnen/Aufteilen). Fiskalbelege entstehen danach **je Pass-Captain-Bestellung und Rechtsträger**.
+2. **Rechtsträger passt zum Verkaufsmodell.** Plattform-Tickets (Events ohne Veranstalter, Eigenhändler) brauchen die Rolle „Betreibergesellschaft ist Verkäufer“ (`platform_seller`), Tickets eines Vermittler-Veranstalters „Veranstalter ist Verkäufer“ (`organizer_seller`). Die Zuordnung wird beim Speichern und beim Checkout geprüft (`fiscal_seller_mode_mismatch`).
+3. **Ein Rechtsträger je Bestellung für Tickets.** Alle fiskalisch zugeordneten Ticketarten einer Pass-Captain-Bestellung gehören zu einem Rechtsträger (`fiscal_seller_mismatch`); zugeordnete und nicht zugeordnete Ticketarten werden nicht gemischt (`fiscal_ticket_unmapped`) – ein Beleg ohne bezahlte Positionen wäre falsch.
+4. **Weitere Positionen brauchen einen Rechtsträger.** Enthält die Bestellung fiskalisch zugeordnete Tickets, muss jedes Nicht-Ticket-Produkt, jede positive Gebühr und jeder Versand einen Rechtsträger haben (Produktfelder „Fiskalischer Verkäufer“/„Verkäuferrolle“, Positions-Meta `_wpcap_fiscal_seller_id`/`_wpcap_fiscal_seller_mode` oder Filter `wpcap_woocommerce_fiscal_item_seller`); sonst wird vor der Zahlung abgelehnt (`wpcap_fiscal_mixed_allocation_required`). Diese Positionen bleiben kaufmännisch beim Shop (Regel 3/4 oben), erscheinen aber mit ihren WooCommerce-Endbeträgen im Fiskalbeleg ihres Rechtsträgers. Sie werden der Teilbestellung angehängt, deren Tickets denselben Rechtsträger haben, sonst der ersten fiskalisch zugeordneten Teilbestellung.
+5. **Negative Gebühren** werden weiter nach Regel 2 verteilt. Der Anteil der Tickets steckt in den gekürzten Ticketzeilen und ist so im Beleg abgebildet. Fällt ein Anteil auf Nicht-Ticket-Produkte, kann er nicht abgebildet werden: Solange für die Tickets ein Fiskalbeleg nötig ist (aktives Produktivprofil, nicht „Geprüft: nicht erforderlich“), lehnt die Kasse die Bestellung mit einem Hinweis auf Gutscheine ab (`wpcap_fiscal_negative_fee`). Ohne erforderlichen Beleg gilt das bisherige Verhalten unverändert.
+6. **Erstattungen:** Ticketpositionen laufen wie oben über die Teilbestellungen; jede gebuchte Erstattung erzeugt am betroffenen Beleg eine Korrekturaufgabe `refund_adjustment / manual_required` (der Originalbeleg bleibt unverändert). Erstattete Nicht-Ticket-Positionen werden über ihren Positionsschlüssel dem ursprünglichen Beleg zugeordnet (über alle Teilbestellungen); Betragserstattungen ohne Position werden zur manuellen Verkäuferzuordnung markiert.
+
+Bezahlte Bestellungen, deren Beleg noch nicht bestätigt ist, erhalten eine Bestellnotiz; Tickets werden erst nach Bestätigung ausgestellt (Wiederholung automatisch mit wachsendem Abstand oder unter **Fiskalisierung → Erneut versuchen**). Die Kundenansicht zeigt die bestätigten Belege je Rechtsträger.
+
 ## Angaben zu Teilnehmenden und Saalpläne
 
 Hat eine Ticketkategorie Teilnehmerfelder, fragt der Checkout je Ticket Name, E-Mail (beide optional) und die Felder ab; Pflichtfelder werden geprüft, bevor reserviert wird.
@@ -49,7 +118,9 @@ Hat eine Ticketkategorie Teilnehmerfelder, fragt der Checkout je Ticket Name, E-
 - **Klassischer Checkout** (Shortcode): Felder nach den Bestellnotizen (`woocommerce_after_order_notes`), Prüfung in `woocommerce_after_checkout_validation`.
 - **Checkout-Block:** ein kleiner innerer Block im Schritt „Kontaktinformationen“ (`assets/woocommerce/attendees.js`, ohne Build). Der Warenkorb liefert die nötigen Felder über die Store API (`extensions.wpcap.attendee_types`), die Antworten gehen als Checkout-Erweiterungsdaten (`extensions.wpcap.attendees`, JSON) zurück. Fehlende Pflichtangaben sperren „Bestellung aufgeben“ über den Validierungs-Store von WooCommerce; der Server prüft erneut.
 
-Die Antworten liegen bis zur Ticketausstellung als Bestellmeta `_wpcap_attendees` an der WooCommerce-Bestellung und werden danach dort gelöscht (sie sind dann am Ticket gespeichert). Mit dem Filter `wpcap_woocommerce_collect_attendees` ( `bool $collect, int $type_id` ) lassen sich Name/E-Mail auch für Kategorien ohne Felder abfragen.
+**Bestellungen ohne Checkout** (im Admin oder per REST-API angelegt und dann bezahlt): Hier konnten keine Teilnehmerangaben erfasst werden. Die Tickets werden trotzdem ausgestellt, auch wenn die Kategorie Pflichtfelder hat (`Orders::create()` mit der vertrauenswürdigen Option `attendees_deferred`; nur Tickets ganz ohne Angaben, mitgeschickte Angaben werden weiter geprüft). Die Bestellung erhält eine Notiz, und die Kundschaft ergänzt Name, E-Mail und Pflichtangaben über den persönlichen Bestelllink aus der Ticket-E-Mail (Teilnehmerzuweisung im Portal, bis „Teilnehmerdaten änderbar bis“ vor Beginn). Über den Checkout bleiben Pflichtfelder verbindlich.
+
+Die Antworten liegen bis zur Ticketausstellung als Bestellmeta `_wpcap_attendees` an der WooCommerce-Bestellung und werden danach dort gelöscht (sie sind dann am Ticket gespeichert). Bei stornierten Bestellungen wird die Kopie sofort entfernt, bei fehlgeschlagenen nach 7 Tagen (Frist für einen erneuten Zahlungsversuch; `wpcap_privacy_retention_days`, Schritt `woocommerce_failed_attendees`), sofern die Bestellung nicht doch bezahlt wurde. Die Kopie ist Teil der WooCommerce-Datenschutzwerkzeuge (`woocommerce_privacy_export_order_personal_data`, `woocommerce_privacy_remove_order_personal_data`). Mit dem Filter `wpcap_woocommerce_collect_attendees` ( `bool $collect, int $type_id` ) lassen sich Name/E-Mail auch für Kategorien ohne Felder abfragen.
 
 Ticketkategorien mit Saalplan sind über WooCommerce kaufbar: WooCommerce zeigt keine Platzwahl, der Kern vergibt beim Reservieren automatisch die besten freien Plätze der zugeordneten Zonen. Der Warenkorb prüft vorab, ob genug passende Plätze frei sind.
 
@@ -62,6 +133,7 @@ Ticketkategorien mit Saalplan sind über WooCommerce kaufbar: WooCommerce zeigt 
 
 - Kampagnencodes von Pass Captain gelten nicht im WooCommerce-Checkout; Rabatte laufen dort über WooCommerce-Gutscheine. Gespeichert wird der tatsächlich gezahlte Bruttobetrag je Ticket.
 - Teilerstattungen nur über einen Betrag ohne Mengenangabe widerrufen keine Tickets (der Betrag wird gebucht). Für einen Widerruf die Menge in der Erstattung angeben.
-- Erstattete (widerrufene) Tickets geben ihr Kontingent frei; eingecheckte Tickets bleiben eingecheckt und werden nur als erstattet markiert.
+- Erstattete (widerrufene) Tickets geben ihr Kontingent frei; eingecheckte Tickets bleiben eingecheckt und werden nur als erstattet markiert, wenn die Erstattung eingecheckter Tickets erlaubt ist.
+- Bei aufgeteilten Bestellungen erhält die Kundschaft je Rechnungssteller eine eigene Ticket-Mail, einen eigenen Bestelllink und eine eigene Rechnung. Gebühren und Versand stellt der Shop selbst in Rechnung (außerhalb von Pass Captain).
 - Bei aktivierten Pass-Captain-Preisen gelten WooCommerce-Angebotspreise (auch zeitgesteuerte) für Ticketprodukte nicht; Rabatte über Preisstufen oder WooCommerce-Gutscheine abbilden.
 - Getestet mit den Integrationstests in `tests/integration/` (MariaDB plus WooCommerce-Attrappen). Pass-Captain-Preise im Warenkorb (Frühbucherstufe, Ablauf der Stufe zwischen Warenkorb und Bestellung, Preise inkl./exkl. Steuer) wurden zusätzlich mit WordPress 7.1 und WooCommerce 11.3 im klassischen und im Block-Warenkorb/-Checkout geprüft. Eine Abnahme mit echten Zahlungsanbietern steht aus.

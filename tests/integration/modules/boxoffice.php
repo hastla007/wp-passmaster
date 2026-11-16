@@ -10,6 +10,7 @@
 
 use PassCaptain\BoxOffice\Page as PosPage;
 use PassCaptain\BoxOffice\Service as Pos;
+use PassCaptain\BoxOffice\TerminalRegistry;
 use PassCaptain\Orders;
 use PassCaptain\Settings;
 
@@ -48,9 +49,20 @@ $type_b = wpb_add_type( $occ, 'Ermäßigt', 2140, 700, 0 );
 
 $no_session = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
 check( 'sale without open cash session is rejected', is_wp_error( $no_session ) && 'wpcap_pos_no_session' === $no_session->get_error_code() );
-$session = Pos::open_session( 10000 );
+Settings::update( array( 'boxoffice_terminals' => "23|BOX-OFFICE-2|Abendkassa 2\n24|BOX-OFFICE-3|Abendkassa 3" ) );
+$bad_registry_session = Pos::open_session( 10000, 'EUR', '', 23, 'UNLISTED' );
+$duplicate_registry = TerminalRegistry::validate( "23|BOX-1|Kasse 1\n23|BOX-1|Doppelt" );
+check( 'managed terminal directory rejects unregistered registers and duplicate configuration rows', is_wp_error( $bad_registry_session ) && 'wpcap_pos_terminal' === $bad_registry_session->get_error_code() && is_wp_error( $duplicate_registry ) );
+$session = Pos::open_session( 10000, 'EUR', '', 23, 'BOX-OFFICE-2' );
 $again = Pos::open_session( 5000 );
 check( 'one open session per cashier (opening twice returns it)', ! is_wp_error( $session ) && (int) $session->session_id === (int) $again->session_id && 10000 === (int) $again->opening_float_minor );
+check( 'POS session retains its location and register assignment', 23 === (int) $again->location_id && 'BOX-OFFICE-2' === $again->register_id );
+Settings::update( array( 'boxoffice_terminals' => "24|BOX-OFFICE-3|Abendkassa 3" ) );
+$disabled_session_sale = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
+check( 'removing a register blocks further sales from its still-open session', is_wp_error( $disabled_session_sale ) && 'wpcap_pos_terminal' === $disabled_session_sale->get_error_code() );
+Settings::update( array( 'boxoffice_terminals' => "23|BOX-OFFICE-2|Abendkassa 2\n24|BOX-OFFICE-3|Abendkassa 3" ) );
+// The remaining legacy session cases intentionally run without an enabled managed directory.
+Settings::update( array( 'boxoffice_terminals' => '' ) );
 
 $key = wpb_key();
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
@@ -92,7 +104,7 @@ check( 'POS form input is parsed (quantities, names per line, tendered amount)',
 echo "Box office: shared quota with online sales\n";
 $type_c = make_type( 3, 10, 1500 );
 $occ_c = wpb_occurrence_of( $type_c );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $online = Orders::create( array( 'email' => 'online@example.com', 'items' => array( array( 'ticket_type_id' => $type_c, 'quantity' => 2 ) ), 'idempotency_key' => 'wpb-online-' . uniqid() ) );
 check( 'POS sees the online hold in live availability', 1 === Pos::ticket_types( $occ_c )[0]['available'] );
 $too_many = Pos::sell( array( 'occurrence_id' => $occ_c, 'quantities' => array( $type_c => 2 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
@@ -205,7 +217,7 @@ $old_hash = $wpdb->get_var( "SELECT token_hash FROM {$p}wpcap_tickets WHERE orde
 $tpdf = PosPage::tickets_pdf( $s1->sale_id );
 $new_hash = $wpdb->get_var( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $s1->order_id . " AND status='valid' ORDER BY ticket_id LIMIT 1" );
 preg_match( '/startxref\n(\d+)\n%%EOF$/', $tpdf['pdf'] ?? '', $xm );
-check( 'printed tickets are a valid PDF with one page per valid ticket and fresh codes', ! is_wp_error( $tpdf ) && str_starts_with( $tpdf['pdf'], '%PDF-1.4' ) && count( tickets( $s1->order_id, 'valid' ) ) === preg_match_all( '#/Type /Page /Parent#', $tpdf['pdf'] ) && isset( $xm[1] ) && 0 === strpos( substr( $tpdf['pdf'], (int) $xm[1] ), 'xref' ) && $old_hash !== $new_hash && false !== strpos( $tpdf['pdf'], '(Ada Lovelace) Tj' ) );
+check( 'printed tickets are a valid PDF with one page per valid ticket and fresh codes', ! is_wp_error( $tpdf ) && str_starts_with( $tpdf['pdf'], '%PDF-1.4' ) && count( tickets( $s1->order_id, 'valid' ) ) === preg_match_all( '#/Type /Page /Parent#', $tpdf['pdf'] ) && isset( $xm[1] ) && 0 === strpos( substr( $tpdf['pdf'], (int) $xm[1] ), 'xref' ) && $old_hash !== $new_hash && false !== strpos( wpcap_test_pdf_plain( $tpdf['pdf'] ), '(Ada Lovelace) Tj' ) );
 check( 'no ticket print for voided sales', is_wp_error( PosPage::tickets_pdf( $se->sale_id ) ) );
 
 $numbers = array();
@@ -218,6 +230,9 @@ check( 'receipt numbers (sales and stornos, incl. parallel sales) are gapless an
 
 $totals = Pos::session_totals( $session->session_id );
 $expected_cash = (int) $wpdb->get_var( "SELECT COALESCE(SUM(total_minor),0) FROM {$p}wpcap_boxoffice_sales WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash' AND status<>'voided'" );
+// The partial cash refund ("Kulanz") of this open session is paid out of the till (PAY-V4).
+$expected_cash -= (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$p}wpcap_boxoffice_refunds WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash'" );
+check( 'the partial cash refund of the open session is booked into it', (int) ( $refund_other['amount_minor'] ?? -1 ) === $totals['methods']['cash']['refunded'] && 1 === $totals['refunds'] );
 check( 'session totals per payment method net out stornos', 1 === $totals['methods']['card']['voided_count'] && 2140 === $totals['methods']['card']['net'] && 0 === $totals['methods']['free']['net'] && 2140 === $totals['methods']['invoice']['net'] && 10000 + $expected_cash === $totals['expected_cash'] && $expected_cash === $totals['methods']['cash']['net'] );
 $GLOBALS['wpcap_test_user_id'] = 2;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );

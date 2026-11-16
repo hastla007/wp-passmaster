@@ -37,7 +37,7 @@ final class Devices {
 			return new \WP_Error( 'wpcap_pairing_events', __( 'Bitte mindestens ein Event für das Gerät auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		foreach ( $event_ids as $event_id ) {
-			if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) {
+			if ( ! Access::can_access_event_any_date( $event_id, 'wpcap_checkin' ) ) {
 				return new \WP_Error( 'wpcap_pairing_event_forbidden', __( 'Für mindestens ein gewähltes Event fehlt die Einlassberechtigung.', 'pass-captain' ), array( 'status' => 403 ) );
 			}
 		}
@@ -77,7 +77,7 @@ final class Devices {
 		}
 		$now = current_time( 'mysql', true );
 		$wpdb->query( 'START TRANSACTION' );
-		$pairing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_device_pairings WHERE code_hash=%s FOR UPDATE", hash( 'sha256', $code ) ) );
+		$pairing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE code_hash=%s FOR UPDATE', $p . 'wpcap_device_pairings', hash( 'sha256', $code ) ) );
 		if ( ! $pairing || $pairing->used_at || $pairing->expires_at <= $now || ! user_can( (int) $pairing->user_id, 'wpcap_checkin' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_pairing_invalid', __( 'Kopplungscode ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 400 ) );
@@ -122,10 +122,16 @@ final class Devices {
 	public static function authenticate( \WP_REST_Request $request ) {
 		global $wpdb;
 		$header = (string) $request->get_header( 'authorization' );
+		if ( '' === $header ) {
+			// Apache with PHP as CGI/FastCGI passes the header only as REDIRECT_HTTP_AUTHORIZATION (mod_rewrite
+			// rule in .htaccess); WP_REST_Server does not map that variable.
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- compared against a strict pattern below.
+			$header = isset( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) ? (string) wp_unslash( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) : '';
+		}
 		if ( ! preg_match( '/^Bearer\s+' . self::TOKEN_PREFIX . '_([a-f0-9]{32})_([a-f0-9]{64})$/', trim( $header ), $m ) ) {
 			return new \WP_Error( 'wpcap_device_unauthenticated', __( 'Gerätetoken fehlt oder ist ungültig.', 'pass-captain' ), array( 'status' => 401 ) );
 		}
-		$device = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_scanner_devices WHERE public_id=%s", $m[1] ) );
+		$device = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_scanner_devices', $m[1] ) );
 		$now = current_time( 'mysql', true );
 		if ( ! $device || ! hash_equals( (string) $device->secret_hash, hash( 'sha256', $m[2] ) ) || $device->revoked_at || ( $device->expires_at && $device->expires_at <= $now ) ) {
 			return new \WP_Error( 'wpcap_device_unauthenticated', __( 'Gerätetoken ist ungültig, abgelaufen oder widerrufen.', 'pass-captain' ), array( 'status' => 401 ) );
@@ -166,7 +172,7 @@ final class Devices {
 	/** Revokes a device; owners can revoke their own devices, admins all. */
 	public static function revoke( $device_id ) {
 		global $wpdb;
-		$device = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_scanner_devices WHERE device_id=%d", absint( $device_id ) ) );
+		$device = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d', $wpdb->prefix . 'wpcap_scanner_devices', absint( $device_id ) ) );
 		if ( ! $device ) { return new \WP_Error( 'wpcap_device_missing', __( 'Gerät nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( (int) $device->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) {
 			return new \WP_Error( 'wpcap_device_forbidden', __( 'Keine Berechtigung für dieses Gerät.', 'pass-captain' ), array( 'status' => 403 ) );

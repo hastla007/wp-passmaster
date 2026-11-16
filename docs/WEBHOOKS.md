@@ -19,16 +19,21 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 |---|---|---|
 | `order.paid` | `wpcap_order_paid` | Bestellung |
 | `order.cancelled` | `wpcap_order_cancelled` (manuell, abgelaufene Reservierung, fehlgeschlagene Zahlung) | Bestellung |
-| `order.refunded` | `wpcap_refund_completed` (Erstattung über das Plugin, auch Teilerstattung) | Bestellung + `refund` |
+| `order.refunded` | `wpcap_refund_completed` (Erstattung über das Plugin, auch Teilerstattung) und `wpcap_order_refunded` (Vollerstattung außerhalb des eigenen Ablaufs: WooCommerce, Dashboard des Zahlungsanbieters) | Bestellung + `refund` |
 | `ticket.issued` | `wpcap_tickets_issued` – ein Ereignis je Ticket | Ticket |
 | `ticket.checked_in` | `wpcap_ticket_checked_in` – jeder Einlass ein eigenes Ereignis (Mehrfacheinlass) | Ticket + `checked_in_at`, `source` |
 | `ticket.revoked` | `wpcap_ticket_revoked` (Admin, Erstattung, Stornierung, Absage) | Ticket + `reason` |
 | `occurrence.rescheduled` | `wpcap_occurrence_rescheduled` | Termin + `previous_starts_at` |
 | `occurrence.cancelled` | `wpcap_occurrence_cancelled` | Termin + `issued_tickets` |
 
-Hinweis: Eine Vollerstattung, die direkt im Dashboard eines Zahlungsanbieters ausgelöst wird
-(`Orders::mark_refunded()`), erzeugt `ticket.revoked` für die betroffenen Tickets, aber derzeit kein
-`order.refunded` (dafür fehlt im Kern ein Hook).
+Hinweis: Erstattungen, die direkt im Dashboard eines Zahlungsanbieters ausgelöst werden, sowie
+Chargebacks (Stripe-Dispute verloren bzw. Geld abgezogen, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie-Chargeback)
+werden über `Refunds::record_external()` als Erstattung verbucht (Gutschrift, Abrechnungsabzug). Eine
+Vollerstattung (`Orders::mark_refunded()`) erzeugt `ticket.revoked` für die betroffenen Tickets und über den Hook
+`wpcap_order_refunded` genau ein `order.refunded` je Bestellung (Ereignisschlüssel `order-full|{order_id}`); dort
+ist `refund` = `{ "id": null, "source": "…", "full": true }`. Erstattungen über das Plugin selbst senden
+`order.refunded` je Erstattung und werden hier nicht doppelt gemeldet (Test:
+`tests/integration/modules/zz_integration.php`).
 
 ## Payload (API-Version `2026-11-01`)
 
@@ -67,7 +72,8 @@ Hinweis: Eine Vollerstattung, die direkt im Dashboard eines Zahlungsanbieters au
 `total_minor`, `refunded_minor`, `payment_provider`, `ticket_count`.
 PII (opt-in): `customer_email`.
 Bei `order.refunded` zusätzlich `refund`: `{ "id": int, "amount_minor": int, "currency": "EUR",
-"ticket_ids": [öffentliche Ticket-IDs] }`.
+"ticket_ids": [öffentliche Ticket-IDs] }`; bei einer Vollerstattung außerhalb des Plugins
+`{ "id": null, "source": string, "full": true }`.
 
 **Ticket** (`object: "ticket"`): `id` (öffentliche Ticket-ID, nicht der Ticketcode), `order_id`
 (öffentliche Bestell-ID), `ticket_type_id`, `occurrence_id`, `event_id`, `status`
@@ -117,7 +123,8 @@ Den Body vor der Prüfung nicht umformatieren (JSON nicht neu kodieren). Nachric
   (`wpcap_webhooks_max_attempts`) wird die Zustellung als `failed` markiert.
 - Nach 20 Fehlversuchen in Folge (`wpcap_webhooks_disable_after`) wird das Abonnement deaktiviert
   (`disabled_reason = failures`) und die Website-Administration per E-Mail informiert. Ausstehende
-  Zustellungen bleiben erhalten und werden nach der Reaktivierung fortgesetzt.
+  Zustellungen bleiben erhalten und werden nach der Reaktivierung fortgesetzt, sofern diese innerhalb
+  der Aufbewahrungsfrist des Zustellprotokolls erfolgt (siehe Datenschutz).
 - Das Zustellprotokoll im Admin zeigt Status, Versuche, HTTP-Code, Fehlertext und Zeitpunkte;
   „Erneut senden“ stellt eine Zustellung mit neuem Versuchsbudget wieder ein. Antwortinhalte werden
   nicht gespeichert.
@@ -136,7 +143,9 @@ und sollte nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag aktiviert we
   Adressen werden nicht wieder übertragen; ist der Payload nicht mehr lesbar, wird die erneute Zustellung
   abgelehnt.
 - Abgeschlossene Zustellungen werden nach 30 Tagen gelöscht (einstellbar auf der Webhook-Seite,
-  1–365 Tage; Cron `wpcap_process_jobs`). Ausstehende Zustellungen bleiben erhalten.
+  1–365 Tage; Cron `wpcap_process_jobs`). Ausstehende Zustellungen aktiver Abonnements bleiben erhalten;
+  ausstehende Zustellungen deaktivierter oder gelöschter Abonnements werden nach derselben Frist ohne
+  personenbezogene Daten abgebrochen (`cancelled`, `last_error = subscription_inactive`) und danach gelöscht.
 - Der WordPress-Datenlöscher „Pass Captain Webhook-Protokoll“ entfernt eine E-Mail-Adresse aus allen
   gespeicherten Payloads, auch aus noch ausstehenden.
 

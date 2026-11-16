@@ -104,7 +104,7 @@ check( 'seller snapshot is the organizer (legal name, address, VAT ID, tax numbe
 $sm_html1 = Invoices::render_html( $sm_i1['invoice_id'] );
 check( 'invoice view shows organizer as seller and "Vermittelt durch {platform}"', false !== strpos( $sm_html1, 'Theater Agentur GmbH' ) && false !== strpos( $sm_html1, 'Steuernummer: 143/123/45678' ) && false !== strpos( $sm_html1, 'Vermittelt durch Plattform GmbH' ) && false !== strpos( $sm_html1, 'TAG-' ) );
 $sm_pdf1 = PassCaptain\Printing\InvoicePdf::render( $sm_i1['invoice_id'] );
-check( 'invoice PDF shows organizer and agent note', str_starts_with( $sm_pdf1, '%PDF' ) && false !== strpos( $sm_pdf1, 'Vermittelt durch Plattform GmbH' ) && false !== strpos( $sm_pdf1, 'Theater Agentur GmbH' ) );
+check( 'invoice PDF shows organizer and agent note', str_starts_with( $sm_pdf1, '%PDF' ) && false !== strpos( wpcap_test_pdf_plain( $sm_pdf1 ), 'Vermittelt durch Plattform GmbH' ) && false !== strpos( wpcap_test_pdf_plain( $sm_pdf1 ), 'Theater Agentur GmbH' ) );
 $sm_i2 = Invoices::issue_for_order( sm_order( array( $sm_ta => 1 ), 'sm-agent-2' ) );
 check( 'next agent invoice continues the organizer series without gaps', sprintf( 'TAG-%d-000002', $sm_year ) === $sm_i2['invoice_number'] );
 $sm_ip = Invoices::issue_for_order( sm_order( array( $sm_tp => 1 ), 'sm-platform' ) );
@@ -118,7 +118,7 @@ check( 'credit note of an agent invoice follows the organizer (own correction se
 check( 'credit note view keeps the organizer as seller', false !== strpos( Invoices::render_html( $sm_i1['invoice_id'] ), $sm_cn['credit_note_number'] ) && false !== strpos( Invoices::render_html( $sm_i1['invoice_id'] ), 'Theater Agentur GmbH' ) );
 $sm_rows = Invoices::export_rows( gmdate( 'Y-m-d', time() - 86400 ), gmdate( 'Y-m-d' ) );
 $sm_export = array_filter( $sm_rows, static fn( $r ) => ( $r[1] ?? '' ) === $GLOBALS['sm_i1']['invoice_number'] );
-check( 'accounting export marks agent documents with the organizer as seller', 'Rechnungssteller' === end( $sm_rows[0] ) && $sm_export && 'Vermittler' === array_values( $sm_export )[0][13] && 'Theater Agentur GmbH' === array_values( $sm_export )[0][14] );
+check( 'accounting export marks agent documents with the organizer as seller', 'Rechnungssteller' === $sm_rows[0][14] && $sm_export && 'Vermittler' === array_values( $sm_export )[0][13] && 'Theater Agentur GmbH' === array_values( $sm_export )[0][14] );
 
 $sm_b = SmPartners::save( array( 'name' => 'Zweite Agentur', 'billing_address' => 'Weg 3, Graz', 'tax_number' => '12 345/6789', 'sales_model' => 'agent' ) );
 $sm_tb2 = sm_type( 1000, 1000 );

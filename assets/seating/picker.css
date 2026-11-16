@@ -1,6 +1,13 @@
 .wpcap-seating { border: 1px solid #ccd0d4; padding: .75em; margin: 1em 0; }
 .wpcap-seating-map { overflow: auto; max-height: 70vh; border: 1px solid #dcdcde; background: #fafafa; }
-.wpcap-seating-map svg { display: block; width: 100%; min-width: 320px; height: auto; }
+.wpcap-seating-map svg { display: block; width: 100%; min-width: 320px; height: auto; } /* min-width from seat density (picker.js, >= 24 px per seat) */
+.wpcap-seating-map { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+.wpcap-seating-tools { display: flex; flex-wrap: wrap; gap: .5em; align-items: center; margin: 0 0 .5em; }
+.wpcap-seating-tools button { min-width: 2.75rem; min-height: 2.75rem; }
+.wpcap-seating-zoom { font-size: 1.25rem; line-height: 1; }
+.wpcap-seating-best { padding-inline: .75em; }
+.wpcap-seating-hint { margin: .5em 0; }
+.wpcap-seating-hint button { min-height: 2.75rem; }
 .wpcap-seat { cursor: pointer; }
 .wpcap-seat circle { stroke: #1d2327; stroke-width: 1; }
 .wpcap-seat.is-taken { cursor: not-allowed; }

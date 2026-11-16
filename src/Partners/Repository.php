@@ -7,6 +7,7 @@
 namespace PassCaptain\Partners;
 
 use PassCaptain\Audit;
+use PassCaptain\Security\Vault;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -25,12 +26,12 @@ final class Repository {
 
 	public static function get( $partner_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partners WHERE partner_id=%d", absint( $partner_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE partner_id=%d', $wpdb->prefix . 'wpcap_partners', absint( $partner_id ) ) );
 	}
 
 	public static function all() {
 		global $wpdb;
-		return $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_partners ORDER BY name, partner_id" );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY name, partner_id', $wpdb->prefix . 'wpcap_partners' ) );
 	}
 
 	/**
@@ -71,7 +72,6 @@ final class Repository {
 			'contact_phone' => substr( sanitize_text_field( (string) ( $data['contact_phone'] ?? '' ) ), 0, 64 ),
 			'billing_address' => substr( sanitize_textarea_field( (string) ( $data['billing_address'] ?? '' ) ), 0, 2000 ),
 			'vat_id' => substr( sanitize_text_field( (string) ( $data['vat_id'] ?? '' ) ), 0, 64 ),
-			'payout_details' => substr( sanitize_textarea_field( (string) ( $data['payout_details'] ?? '' ) ), 0, 2000 ),
 			'currency' => $currency,
 			'commission_bp' => $commission,
 			'fee_per_ticket_minor' => $fee,
@@ -82,16 +82,120 @@ final class Repository {
 			'notes' => substr( sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ), 0, 5000 ),
 			'updated_at' => $now,
 		) + $seller;
+		// Payout details (IBAN etc.) are encrypted at rest, bound to the partner row; a missing key keeps
+		// the stored value, an empty string clears it.
+		$payout = array_key_exists( 'payout_details', $data ) ? substr( sanitize_textarea_field( (string) $data['payout_details'] ), 0, 2000 ) : null;
 		if ( $existing ) {
+			if ( null !== $payout ) { $row['payout_details'] = self::seal_payout( $payout, $partner_id ); }
 			$ok = $wpdb->update( "{$wpdb->prefix}wpcap_partners", $row, array( 'partner_id' => $partner_id ) );
 		} else {
 			$row['created_at'] = $now;
+			$row['payout_details'] = ''; // The ciphertext is bound to the partner id, known after the insert.
 			$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_partners", $row );
 			$partner_id = (int) $wpdb->insert_id;
+			if ( false !== $ok && null !== $payout && '' !== $payout ) {
+				$ok = $wpdb->update( "{$wpdb->prefix}wpcap_partners", array( 'payout_details' => self::seal_payout( $payout, $partner_id ) ), array( 'partner_id' => $partner_id ) );
+				if ( false === $ok ) { $wpdb->delete( "{$wpdb->prefix}wpcap_partners", array( 'partner_id' => $partner_id ) ); }
+			}
 		}
 		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Veranstalter konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( $existing ? 'partner_updated' : 'partner_created', 'partner', $partner_id, array( 'commission_bp' => $commission, 'fee_per_ticket_minor' => $fee, 'refund_policy' => $row['refund_policy'], 'status' => $row['status'], 'sales_model' => $row['sales_model'], 'sales_model_changed' => $existing && SalesModel::model_of( $existing ) !== $row['sales_model'] ) );
 		return $partner_id;
+	}
+
+	/* ------------------------------------------------------------------ Payout details (encrypted) */
+
+	/** Vault context of a partner's payout details (bound to the row). */
+	public static function payout_context( $partner_id ) {
+		return 'partner_payout:' . absint( $partner_id );
+	}
+
+	/** Vault context of the payout details copied into a finalized settlement's partner snapshot. */
+	public static function snapshot_payout_context( $settlement_id ) {
+		return 'partner_settlement_payout:' . absint( $settlement_id );
+	}
+
+	/** Ciphertext of payout details for a partner row ('' stays ''). */
+	private static function seal_payout( $plaintext, $partner_id ) {
+		return '' === (string) $plaintext ? '' : Vault::encrypt( (string) $plaintext, self::payout_context( $partner_id ) );
+	}
+
+	/**
+	 * Decrypted payout details of a partner row (operator use only: admin form hint, settlement export
+	 * for finance). Null when the stored value cannot be decrypted (key lost or changed).
+	 *
+	 * @param object|null $partner Partner row.
+	 * @return string|null
+	 */
+	public static function payout_details( $partner ) {
+		if ( ! $partner ) { return ''; }
+		return Vault::decrypt( (string) ( $partner->payout_details ?? '' ), self::payout_context( (int) $partner->partner_id ) );
+	}
+
+	/**
+	 * Masked payout details for display: only the last 4 characters of the IBAN (or, without an
+	 * IBAN, of the account text), e.g. "•••• 3000". Short values show no characters.
+	 */
+	public static function mask_payout( $plaintext ) {
+		$plaintext = (string) $plaintext;
+		if ( '' === trim( $plaintext ) ) { return ''; }
+		// IBAN: country code, check digits, 11–30 characters, optionally grouped by single spaces.
+		if ( preg_match( '/\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]){11,30}\b/', strtoupper( $plaintext ), $m ) ) {
+			$account = str_replace( ' ', '', $m[0] );
+		} else {
+			$account = (string) preg_replace( '/\s+/', '', $plaintext );
+		}
+		return strlen( $account ) >= 8 ? '•••• ' . substr( $account, -4 ) : '••••';
+	}
+
+	/**
+	 * Encrypts payout details still stored in plaintext (partners and the partner snapshots of
+	 * finalized settlements) and re-encrypts values only readable with the previous key. Idempotent;
+	 * runs with Security\Vault::migrate() (plugin upgrade, admin requests until done).
+	 *
+	 * @return int Number of values (re-)encrypted.
+	 */
+	public static function migrate_payout_details() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! Vault::available() || ! self::table_present( 'wpcap_partners' ) ) { return 0; }
+		$count = 0;
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT partner_id,payout_details FROM %i WHERE payout_details<>''", $p . 'wpcap_partners' ) ) as $row ) {
+			$context = self::payout_context( (int) $row->partner_id );
+			$plain = self::plain_for_migration( (string) $row->payout_details, $context );
+			if ( null === $plain ) { continue; }
+			$sealed = Vault::encrypt( $plain, $context );
+			if ( ! Vault::is_encrypted( $sealed ) ) { break; } // No key: nothing can be encrypted.
+			if ( false !== $wpdb->update( "{$p}wpcap_partners", array( 'payout_details' => $sealed ), array( 'partner_id' => (int) $row->partner_id ) ) ) { ++$count; }
+		}
+		if ( ! self::table_present( 'wpcap_partner_settlements' ) ) { return $count; }
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT settlement_id,partner_snapshot FROM %i WHERE partner_snapshot LIKE %s', $p . 'wpcap_partner_settlements', '%payout_details%' ) ) as $row ) {
+			$snapshot = json_decode( (string) $row->partner_snapshot, true );
+			$stored = is_array( $snapshot ) ? (string) ( $snapshot['partner']['payout_details'] ?? '' ) : '';
+			if ( '' === $stored ) { continue; }
+			$context = self::snapshot_payout_context( (int) $row->settlement_id );
+			$plain = self::plain_for_migration( $stored, $context );
+			if ( null === $plain ) { continue; }
+			$sealed = Vault::encrypt( $plain, $context );
+			if ( ! Vault::is_encrypted( $sealed ) ) { break; }
+			$snapshot['partner']['payout_details'] = $sealed;
+			if ( false !== $wpdb->update( "{$p}wpcap_partner_settlements", array( 'partner_snapshot' => wp_json_encode( $snapshot ) ), array( 'settlement_id' => (int) $row->settlement_id ) ) ) { ++$count; }
+		}
+		return $count;
+	}
+
+	/** Whether a plugin table exists (uncached: also right after the schema upgrade created it). */
+	private static function table_present( $suffix ) {
+		global $wpdb;
+		$table = $wpdb->prefix . $suffix;
+		return $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', addcslashes( $table, '_%\\' ) ) );
+	}
+
+	/** Plaintext when a stored value must be (re-)encrypted; null when it is fine or unreadable. */
+	private static function plain_for_migration( $stored, $context ) {
+		if ( ! Vault::is_encrypted( $stored ) ) { return $stored; }
+		if ( null !== Vault::decrypt( $stored, $context ) && Vault::needs_reencrypt_value( $stored, $context ) ) { return Vault::decrypt( $stored, $context ); }
+		return null;
 	}
 
 	/**
@@ -115,7 +219,7 @@ final class Repository {
 		if ( '' !== $prefix ) {
 			global $wpdb;
 			$reserved = array( (string) \PassCaptain\Settings::get( 'invoice_prefix' ), (string) \PassCaptain\Settings::get( 'credit_note_prefix' ), (string) ( \PassCaptain\Settings::get( 'partners' )['settlement_prefix'] ?? 'PA' ), (string) ( \PassCaptain\Settings::get( 'partners' )['self_billing_prefix'] ?? 'GU' ) );
-			$taken = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_partners WHERE invoice_prefix=%s AND partner_id<>%d", $prefix, absint( $partner_id ) ) );
+			$taken = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE invoice_prefix=%s AND partner_id<>%d', $wpdb->prefix . 'wpcap_partners', $prefix, absint( $partner_id ) ) );
 			if ( $taken || in_array( strtoupper( $prefix ), array_map( 'strtoupper', $reserved ), true ) || preg_match( '/^V\d+$/i', $prefix ) ) {
 				return new \WP_Error( 'wpcap_partner_prefix_taken', __( 'Dieses Rechnungsnummern-Präfix wird bereits verwendet (Plattform oder anderer Veranstalter). Jeder Veranstalter braucht einen eigenen Nummernkreis.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
@@ -138,13 +242,13 @@ final class Repository {
 	/** Event ids linked to the partner. */
 	public static function event_ids( $partner_id ) {
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_partner_events WHERE partner_id=%d ORDER BY event_id", absint( $partner_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT event_id FROM %i WHERE partner_id=%d ORDER BY event_id', $wpdb->prefix . 'wpcap_partner_events', absint( $partner_id ) ) ) );
 	}
 
 	/** Partner id an event belongs to (0 = none). */
 	public static function partner_of_event( $event_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT partner_id FROM {$wpdb->prefix}wpcap_partner_events WHERE event_id=%d", absint( $event_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT partner_id FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_partner_events', absint( $event_id ) ) );
 	}
 
 	/**
@@ -157,11 +261,11 @@ final class Repository {
 		$partner_id = absint( $partner_id );
 		if ( ! self::get( $partner_id ) ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_events WHERE partner_id=%d", $partner_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE partner_id=%d', $wpdb->prefix . 'wpcap_partner_events', $partner_id ) );
 		$linked = array();
 		$skipped = array();
 		foreach ( $event_ids as $event_id ) {
-			if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) { continue; }
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $event_id ) ) ) { continue; }
 			$owner = self::partner_of_event( $event_id );
 			if ( $owner && $owner !== $partner_id ) { $skipped[] = $event_id; continue; }
 			if ( false !== $wpdb->insert( "{$wpdb->prefix}wpcap_partner_events", array( 'event_id' => $event_id, 'partner_id' => $partner_id ) ) ) { $linked[] = $event_id; }
@@ -172,7 +276,7 @@ final class Repository {
 
 	public static function user_ids( $partner_id ) {
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT user_id FROM {$wpdb->prefix}wpcap_partner_users WHERE partner_id=%d ORDER BY user_id", absint( $partner_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM %i WHERE partner_id=%d ORDER BY user_id', $wpdb->prefix . 'wpcap_partner_users', absint( $partner_id ) ) ) );
 	}
 
 	/** Replaces the WordPress users that may view the partner's settlements. */
@@ -180,7 +284,7 @@ final class Repository {
 		global $wpdb;
 		$partner_id = absint( $partner_id );
 		$user_ids = array_values( array_unique( array_filter( array_map( 'absint', $user_ids ) ) ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_users WHERE partner_id=%d", $partner_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE partner_id=%d', $wpdb->prefix . 'wpcap_partner_users', $partner_id ) );
 		foreach ( $user_ids as $user_id ) {
 			$wpdb->insert( "{$wpdb->prefix}wpcap_partner_users", array( 'partner_id' => $partner_id, 'user_id' => $user_id ) );
 		}
@@ -192,7 +296,7 @@ final class Repository {
 	public static function partners_of_user( $user_id ) {
 		global $wpdb;
 		if ( ! $user_id ) { return array(); }
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT partner_id FROM {$wpdb->prefix}wpcap_partner_users WHERE user_id=%d", absint( $user_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT partner_id FROM %i WHERE user_id=%d', $wpdb->prefix . 'wpcap_partner_users', absint( $user_id ) ) ) );
 	}
 
 	/** Resolves "12, alice, bob@example.com" to user ids (unknown entries are ignored). */

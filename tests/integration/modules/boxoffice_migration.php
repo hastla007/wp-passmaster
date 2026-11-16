@@ -32,10 +32,14 @@ $wpdb->query( "INSERT INTO {$p}wpcap_boxoffice_sales (session_id,form_key_hash,p
 $bm_col = static function () use ( $wpdb, $p ) { return (array) $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_boxoffice_sales LIKE 'order_id'" ); };
 check( 'legacy schema reproduced (order_id NOT NULL with an orphan order_id=0)', 'NO' === $bm_col()['Null'] && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE order_id=0" ) );
 
+$wpdb->query( "ALTER TABLE {$p}wpcap_boxoffice_sessions DROP COLUMN register_id, DROP COLUMN location_id" );
 $GLOBALS['wpcap_test_options']['wpcap_boxoffice_migration'] = 0;
 check( 'migration runs once on init (option flag)', true === BoxOfficeModule::maybe_migrate() && false === BoxOfficeModule::maybe_migrate() );
 check( 'migration makes order_id NULL-able and removes stale orphan claims', 'YES' === $bm_col()['Null'] && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE order_id=0 OR form_key_hash='" . hash( 'sha256', 'legacy-orphan' ) . "'" ) && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE form_key_hash='" . hash( 'sha256', 'legacy-failed' ) . "'" ) );
 check( 'migration is idempotent', true === BoxOfficeModule::migrate() && 'YES' === $bm_col()['Null'] );
+$bm_location_col = (array) $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_boxoffice_sessions LIKE 'location_id'" );
+$bm_register_col = (array) $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_boxoffice_sessions LIKE 'register_id'" );
+check( 'migration adds location and register columns to existing POS sessions', 'location_id' === ( $bm_location_col['Field'] ?? '' ) && 'register_id' === ( $bm_register_col['Field'] ?? '' ) );
 
 // Self-healing without the init hook: a sale on the legacy schema repairs the table and succeeds.
 $wpdb->query( "ALTER TABLE {$p}wpcap_boxoffice_sales MODIFY order_id bigint(20) unsigned NOT NULL" );

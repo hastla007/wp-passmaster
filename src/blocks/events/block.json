@@ -1,12 +1,18 @@
 {
   "apiVersion": 3,
   "name": "wp-pass-captain/events",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Pass Captain Events",
   "category": "widgets",
   "icon": "tickets-alt",
-  "description": "Zeigt veröffentlichte Events und die Ticketauswahl an.",
+  "description": "Zeigt veröffentlichte Events als Terminliste oder mit Ticketauswahl an.",
   "textdomain": "pass-captain",
+  "attributes": {
+    "eventId": { "type": "integer", "default": 0 },
+    "occurrenceId": { "type": "integer", "default": 0 },
+    "limit": { "type": "integer", "default": 50 },
+    "layout": { "type": "string", "default": "auto", "enum": [ "auto", "list", "cards" ] }
+  },
   "usesContext": [],
   "supports": {
     "html": false

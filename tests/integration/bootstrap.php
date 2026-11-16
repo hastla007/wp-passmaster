@@ -35,6 +35,10 @@ final class Test_WPDB {
 	public $last_error = '';
 	public $insert_id = 0;
 	public $rows_affected = 0;
+	/** Executed statements (as in WordPress' wpdb), used by query-budget tests. */
+	public $num_queries = 0;
+	/** When an array, every executed statement is appended (query-budget diagnostics). */
+	public $wpcap_log = null;
 	private mysqli $db;
 
 	public function __construct() {
@@ -48,9 +52,11 @@ final class Test_WPDB {
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
 		$i = 0;
-		return preg_replace_callback( '/%%|%[dsf]/', function ( $m ) use ( &$i, $args ) {
+		return preg_replace_callback( '/%%|%[dsfi]/', function ( $m ) use ( &$i, $args ) {
 			if ( '%%' === $m[0] ) { return '%'; }
 			$v = $args[ $i++ ] ?? '';
+			// %i (WordPress 6.2+): identifier, backtick-quoted with embedded backticks doubled.
+			if ( '%i' === $m[0] ) { return '`' . str_replace( '`', '``', (string) $v ) . '`'; }
 			if ( '%d' === $m[0] ) { return (string) (int) $v; }
 			if ( '%f' === $m[0] ) { return (string) (float) $v; }
 			return $this->esc( $v );
@@ -58,6 +64,8 @@ final class Test_WPDB {
 	}
 	public function query( $sql ) {
 		$this->last_error = '';
+		++$this->num_queries;
+		if ( is_array( $this->wpcap_log ) ) { $this->wpcap_log[] = $sql; }
 		$res = $this->db->query( $sql );
 		if ( false === $res ) { $this->last_error = $this->db->error; return false; }
 		$this->insert_id = (int) $this->db->insert_id;
@@ -79,6 +87,10 @@ final class Test_WPDB {
 		$sql = "INSERT INTO $table (" . implode( ',', array_keys( $data ) ) . ') VALUES (' . implode( ',', array_map( array( $this, 'esc' ), $data ) ) . ')';
 		$r = $this->query( $sql );
 		return false === $r ? false : 1;
+	}
+	public function replace( $table, $data, $format = null ) {
+		$r = $this->query( "REPLACE INTO $table (" . implode( ',', array_keys( $data ) ) . ') VALUES (' . implode( ',', array_map( array( $this, 'esc' ), $data ) ) . ')' );
+		return false === $r ? false : max( 1, (int) $this->rows_affected );
 	}
 	public function update( $table, $data, $where, $format = null, $where_format = null ) {
 		$set = array(); foreach ( $data as $k => $v ) { $set[] = "$k=" . $this->esc( $v ); }
@@ -109,22 +121,41 @@ function esc_url_raw( $u ) { return (string) $u; }
 function absint( $v ) { return abs( (int) $v ); }
 function sanitize_email( $e ) { return filter_var( trim( (string) $e ), FILTER_SANITIZE_EMAIL ); }
 function is_email( $e ) { return false !== filter_var( (string) $e, FILTER_VALIDATE_EMAIL ) ? $e : false; }
-function sanitize_text_field( $t ) { return trim( strip_tags( (string) $t ) ); }
-function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+function sanitize_text_field( $t ) { return is_array( $t ) || is_object( $t ) ? '' : trim( strip_tags( (string) $t ) ); } // Like WordPress: '' for arrays/objects.
+// WordPress core implementation (wp-includes/formatting.php).
+function wp_strip_all_tags( $text, $remove_breaks = false ) {
+	if ( is_null( $text ) ) { return ''; }
+	if ( ! is_scalar( $text ) ) { return ''; }
+	$text = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $text );
+	$text = strip_tags( $text );
+	if ( $remove_breaks ) { $text = preg_replace( '/[\r\n\t ]+/', ' ', $text ); }
+	return trim( $text );
+}
+function sanitize_key( $k ) { return is_scalar( $k ) ? preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ) : ''; } // Like WordPress: '' for non-scalars.
 function wp_unslash( $v ) { return $v; }
 function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
 function wp_kses_post( $t ) { return (string) $t; }
 function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ",", "." ); }
-function user_can( $u, $c ) { return true; }
+function user_can( $u, $c ) { return isset( $GLOBALS['wpcap_test_user_can'] ) ? (bool) call_user_func( $GLOBALS['wpcap_test_user_can'], $u, $c ) : true; }
 function wp_json_encode( $v, $flags = 0, $depth = 512 ) { return json_encode( $v, $flags, $depth ); }
+if ( ! function_exists( 'wp_print_inline_script_tag' ) ) { function wp_print_inline_script_tag( $js, $attributes = array() ) { echo '<script>' . $js . "</script>\n"; } }
+if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/wp-content/plugins/pass-captain/' . ltrim( (string) $path, '/' ); } }
+if ( ! function_exists( 'wp_print_script_tag' ) ) { function wp_print_script_tag( $attributes ) { echo '<script src="' . htmlspecialchars( (string) ( $attributes['src'] ?? '' ), ENT_QUOTES ) . "\"></script>\n"; } }
 function wp_generate_uuid4() { return sprintf( '%04x%04x-%04x-4%03x-%04x-%012x', random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xfff ), random_int( 0x8000, 0xbfff ), random_int( 0, 0xffffffffffff ) ); }
 function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }
 function current_user_can( $cap ) { return ! in_array( $cap, $GLOBALS['wpcap_test_denied_caps'] ?? array(), true ); }
 function get_current_user_id() { return $GLOBALS['wpcap_test_user_id'] ?? 1; }
 function get_option( $k, $d = false ) { return $GLOBALS['wpcap_test_options'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['wpcap_test_options'][ $k ] = $v; return true; }
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['wpcap_test_options'][ $k ] ); return true; } }
 function get_transient( $k ) { return $GLOBALS['wpcap_test_transients'][ $k ] ?? false; }
-function set_transient( $k, $v, $e = 0 ) { $GLOBALS['wpcap_test_transients'][ $k ] = $v; return true; }
+function set_transient( $k, $v, $e = 0 ) { $GLOBALS['wpcap_test_transients'][ $k ] = $v; $GLOBALS['wpcap_test_transient_ttl'][ $k ] = (int) $e; return true; }
+/** Forgets all transients and rate-limit counters (wpcap_rate_limits holds the counters without an object cache). */
+function wpcap_test_reset_transients() {
+	global $wpdb;
+	$GLOBALS['wpcap_test_transients'] = array();
+	$wpdb->query( 'DELETE FROM `' . $wpdb->prefix . 'wpcap_rate_limits`' );
+}
 function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { $args = array( $args => $url ); $url = $u; } return $url . '?' . http_build_query( $args ); }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }
@@ -138,6 +169,10 @@ function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook
 function did_action( $hook ) { return in_array( $hook, $GLOBALS['wpcap_test_actions'] ?? array(), true ) || 'init' === $hook ? 1 : 0; }
 function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, $q ); }
 function apply_filters( $hook, $value, ...$args ) { if ( array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ) { return $GLOBALS['wpcap_test_filters'][ $hook ]; } return wpcap_test_run_hooks( $hook, array_merge( array( $value ), $args ), true ); }
+if ( ! function_exists( 'has_filter' ) ) { function has_filter( $hook, $callback = false ) { return ! empty( array_filter( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() ) ); } }
+/** Like WordPress: fires only when a callback is registered and records the deprecated use. */
+function apply_filters_deprecated( $hook, $args, $version, $replacement = '', $message = '' ) { if ( ! has_filter( $hook ) ) { return $args[0]; } $GLOBALS['wpcap_test_deprecated_hooks'][] = $hook; return apply_filters( $hook, ...$args ); }
+function do_action_deprecated( $hook, $args, $version, $replacement = '', $message = '' ) { if ( ! has_filter( $hook ) ) { return; } $GLOBALS['wpcap_test_deprecated_hooks'][] = $hook; do_action( $hook, ...$args ); }
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = array( $callback, $accepted_args ); return true; }
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
 function remove_filter( $hook, $callback, $priority = 10 ) { foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ] ?? array() as $i => $entry ) { if ( $entry[0] === $callback ) { unset( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][ $i ] ); return true; } } return false; }
@@ -159,6 +194,12 @@ function wpcap_test_run_hooks( $hook, array $args, $is_filter ) {
 	return $value;
 }
 function current_filter() { return 'test_filter'; }
+/* Outbound DNS is faked (Security\OutboundHttp): every host resolves to a public address unless tests map it in $GLOBALS['wpcap_test_dns']. */
+$GLOBALS['wpcap_test_dns'] = array();
+add_filter( 'wpcap_outbound_resolve', static function ( $ips, $host ) { return $GLOBALS['wpcap_test_dns'][ $host ] ?? array( '93.184.215.14' ); }, 10, 2 );
+/* The suite creates hundreds of unpaid orders from one (empty) client address; the per-network limit of unpaid orders (Sales\CheckoutThrottle) is tested on its own with this filter removed. */
+function wpcap_test_unpaid_limit() { return 100000; }
+add_filter( 'wpcap_checkout_unpaid_per_network', 'wpcap_test_unpaid_limit' );
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }
 function add_role() {}
@@ -217,4 +258,40 @@ function wpcap_test_install() {
 	if ( ! is_dir( ABSPATH . 'wp-admin/includes' ) ) { mkdir( ABSPATH . 'wp-admin/includes', 0777, true ); }
 	file_put_contents( ABSPATH . 'wp-admin/includes/upgrade.php', '<?php if ( ! function_exists( "dbDelta" ) ) { function dbDelta( $sql ) { global $wpdb; if ( preg_match( "/CREATE TABLE (\\S+)/", $sql, $m ) ) { $wpdb->query( "DROP TABLE IF EXISTS " . $m[1] ); } if ( false === $wpdb->query( $sql ) ) { fwrite( STDERR, $wpdb->last_error . "\n" ); } } }' );
 	PassCaptain\Installer::install();
+}
+
+/**
+ * Confirms every waitlist sign-up whose confirmation mail (double opt-in) was captured since mail
+ * index $since (event and slot waitlists). Returns the number of confirmed entries.
+ */
+function wpcap_test_confirm_waitlists( $since = 0 ) {
+	$done = 0;
+	foreach ( array_slice( $GLOBALS['wpcap_test_mails'], (int) $since ) as $mail ) {
+		$body = html_entity_decode( (string) $mail['body'] );
+		if ( preg_match_all( '/wpcap_waitlist_confirm=(\d+)&token=([a-f0-9]{64})/', $body, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $hit ) { $done += is_array( PassCaptain\Waitlists::confirm( (int) $hit[1], $hit[2] ) ) ? 1 : 0; }
+		}
+		if ( preg_match_all( '/wpcap_service_waitlist=(\d+)&do=confirm&token=([a-f0-9]{64})/', $body, $m, PREG_SET_ORDER ) ) {
+			foreach ( $m as $hit ) { $done += is_array( PassCaptain\ServiceWaitlist::confirm( (int) $hit[1], $hit[2] ) ) ? 1 : 0; }
+		}
+	}
+	return $done;
+}
+
+/**
+ * PDF with every FlateDecode content stream inflated (PdfWriter compresses streams), so tests can
+ * search drawing operators such as "(Text) Tj" or count " re" rectangles. Offsets are not valid afterwards.
+ */
+function wpcap_test_pdf_plain( $pdf ) {
+	$pdf = (string) $pdf;
+	$out = '';
+	$pos = 0;
+	while ( preg_match( '/<< \/Length (\d+) \/Filter \/FlateDecode >>\nstream\n/', $pdf, $m, PREG_OFFSET_CAPTURE, $pos ) ) {
+		$start = $m[0][1] + strlen( $m[0][0] );
+		$raw = substr( $pdf, $start, (int) $m[1][0] );
+		$plain = @gzuncompress( $raw );
+		$out .= substr( $pdf, $pos, $m[0][1] - $pos ) . '<< /Length ' . strlen( (string) $plain ) . " >>\nstream\n" . ( false === $plain ? $raw : $plain );
+		$pos = $start + (int) $m[1][0];
+	}
+	return $out . substr( $pdf, $pos );
 }

@@ -16,6 +16,7 @@ final class Placeholders {
 			'{hours}' => __( 'Stunden bis Beginn (Erinnerung)', 'pass-captain' ),
 			'{tickets}' => __( 'Anzahl Tickets', 'pass-captain' ),
 			'{old_date}' => __( 'Bisheriges Datum und Uhrzeit (Verschiebung)', 'pass-captain' ),
+			'{refund_note}' => __( 'Hinweis auf den Erstattungsantrag mit Frist (Verschiebung; leer, wenn ausgeschaltet)', 'pass-captain' ),
 			'{ics_url}' => __( 'Link zur Kalenderdatei', 'pass-captain' ),
 			'{site}' => __( 'Name der Website', 'pass-captain' ),
 		);

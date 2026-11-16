@@ -44,7 +44,11 @@ final class CheckinsPage {
 		?>
 		<h2><?php esc_html_e( 'Aktuell anwesend', 'pass-captain' ); ?></h2>
 		<table class="widefat striped" style="margin-bottom:1em"><thead><tr><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Anwesend', 'pass-captain' ); ?></th><?php foreach ( $areas as $area ) : ?><th><?php echo esc_html( $area->name ); ?></th><?php endforeach; ?></tr></thead><tbody>
-		<?php foreach ( array_slice( $occurrences, 0, 50 ) as $occ ) : $presence = \PassCaptain\Admission\Engine::presence( (int) $occ->occurrence_id ); ?>
+		<?php
+		$listed = array_slice( $occurrences, 0, 50 );
+		// One grouped query for all listed occurrences instead of one per occurrence (PERF-15).
+		$presence_all = \PassCaptain\Admission\Engine::presence_many( array_map( static fn( $occ ) => (int) $occ->occurrence_id, $listed ) );
+		foreach ( $listed as $occ ) : $presence = $presence_all[ (int) $occ->occurrence_id ]; ?>
 			<tr><td><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?></td><td><?php echo esc_html( (string) $presence['present'] ); ?></td><?php foreach ( $areas as $area ) : ?><td><?php echo esc_html( (string) ( $presence['by_area'][ (int) $area->area_id ] ?? 0 ) ); ?></td><?php endforeach; ?></tr>
 		<?php endforeach; ?>
 		</tbody></table>

@@ -21,12 +21,19 @@
 namespace PassCaptain\Mail;
 
 use PassCaptain\Orders;
+use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Mailer {
 	/** Plain-text alternative for the mail currently being sent (consumed by phpmailer_init). */
 	private static $alt_body = null;
+
+	/** Envelope sender (Return-Path) for the mail currently being sent (consumed by phpmailer_init). */
+	private static $envelope_sender = null;
+
+	/** From name for the mail currently being sent (wp_mail_from_name, early priority). */
+	private static $from_name = null;
 
 	/** Mail type registry (key => definition). */
 	public static function types() {
@@ -138,10 +145,21 @@ final class Mailer {
 			self::$alt_body = $alt;
 			add_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10, 1 );
 		}
+		// Sender settings only for the plugin's own mails, at an early priority: SMTP plugins (which hook
+		// later or force their own sender) keep the last word.
+		$sender = self::sender();
+		self::$envelope_sender = '' !== $sender['from_email'] ? $sender['from_email'] : null;
+		self::$from_name = $sender['from_name'];
+		add_action( 'phpmailer_init', array( __CLASS__, 'apply_sender' ), 5, 1 );
+		add_filter( 'wp_mail_from_name', array( __CLASS__, 'filter_from_name' ), 5, 1 );
 		try {
 			do_action( 'wpcap_mail_before_send', $prepared, $message );
 			$sent = wp_mail( $prepared['to'], $prepared['subject'], $prepared['body'], $prepared['headers'], $prepared['attachments'] );
 		} finally {
+			remove_action( 'phpmailer_init', array( __CLASS__, 'apply_sender' ), 5 );
+			remove_filter( 'wp_mail_from_name', array( __CLASS__, 'filter_from_name' ), 5 );
+			self::$envelope_sender = null;
+			self::$from_name = null;
 			if ( null !== $alt ) {
 				remove_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10 );
 				self::$alt_body = null;
@@ -167,6 +185,7 @@ final class Mailer {
 			} );
 			$headers[] = 'Content-Type: text/html; charset=UTF-8';
 		}
+		$headers = self::sender_headers( $headers );
 		return array(
 			'to' => $to,
 			'subject' => $subject,
@@ -175,6 +194,85 @@ final class Mailer {
 			'attachments' => array_values( (array) ( $message['attachments'] ?? array() ) ),
 			'alt_body' => $alt,
 		);
+	}
+
+	/**
+	 * Configured sender of customer mails.
+	 *
+	 * @return array{from_email:string,from_name:string,reply_to:string} Validated values; from_email and
+	 *               reply_to are '' when not configured, from_name falls back to the site title.
+	 */
+	public static function sender() {
+		$email = sanitize_email( (string) Settings::get( 'mail_from_email' ) );
+		$reply = sanitize_email( (string) Settings::get( 'mail_reply_to' ) );
+		$name = trim( (string) preg_replace( '/[\r\n<>"]+/', ' ', (string) Settings::get( 'mail_from_name' ) ) );
+		return array(
+			'from_email' => is_email( $email ) ? $email : '',
+			'from_name' => '' !== $name ? $name : Orders::site_name(),
+			'reply_to' => is_email( $reply ) ? $reply : '',
+		);
+	}
+
+	/** Adds From / Reply-To headers from the settings unless the message already sets them. */
+	private static function sender_headers( array $headers ) {
+		$has = static function ( $name ) use ( $headers ) {
+			foreach ( $headers as $header ) {
+				if ( 0 === stripos( ltrim( (string) $header ), $name . ':' ) ) { return true; }
+			}
+			return false;
+		};
+		$sender = self::sender();
+		if ( '' !== $sender['from_email'] && ! $has( 'From' ) ) {
+			$headers[] = 'From: ' . self::quote_name( $sender['from_name'] ) . ' <' . $sender['from_email'] . '>';
+		}
+		if ( '' !== $sender['reply_to'] && ! $has( 'Reply-To' ) ) {
+			$headers[] = 'Reply-To: ' . $sender['reply_to'];
+		}
+		return $headers;
+	}
+
+	/** Display name for a From header (quoted when it contains specials). */
+	private static function quote_name( $name ) {
+		$name = trim( str_replace( array( '"', '\\' ), '', (string) $name ) );
+		return preg_match( '/[()<>\[\]:;@,.]/', $name ) ? '"' . $name . '"' : $name;
+	}
+
+	/** wp_mail_from_name (only while the plugin sends): site title / configured name instead of "WordPress". */
+	public static function filter_from_name( $name ) {
+		return null !== self::$from_name && '' !== self::$from_name ? self::$from_name : $name;
+	}
+
+	/**
+	 * phpmailer_init (only while the plugin sends, priority 5): envelope sender (Return-Path) = configured
+	 * From address, so SPF checks the sender domain. Left alone when something already set one.
+	 */
+	public static function apply_sender( $phpmailer ) {
+		if ( null === self::$envelope_sender || ! is_object( $phpmailer ) ) { return; }
+		if ( '' === (string) ( $phpmailer->Sender ?? '' ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName -- PHPMailer property.
+			$phpmailer->Sender = self::$envelope_sender; // phpcs:ignore WordPress.NamingConventions.ValidVariableName -- PHPMailer property.
+		}
+	}
+
+	/**
+	 * Sender problems for the system status page: no configured address (mails go out as
+	 * wordpress@<host> unless an SMTP plugin sets a sender) or a sender domain that differs from the
+	 * site domain (DMARC alignment needs SPF/DKIM for that domain).
+	 *
+	 * @return array[] {severity, message}
+	 */
+	public static function sender_issues() {
+		$sender = self::sender();
+		$host = strtolower( (string) ( function_exists( 'wp_parse_url' ) ? wp_parse_url( home_url(), PHP_URL_HOST ) : parse_url( home_url(), PHP_URL_HOST ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- fallback before WordPress is loaded.
+		$host = (string) preg_replace( '/^www\./', '', $host );
+		if ( '' === $sender['from_email'] ) {
+			return array( array( 'severity' => 'warning', 'message' => __( 'Für Kunden-E-Mails ist keine Absenderadresse eingestellt (Einstellungen → E-Mail-Versand). Ohne SMTP-Plugin gehen Tickets als „wordpress@…“ raus und landen eher im Spam; Antworten der Kund:innen gehen verloren.', 'pass-captain' ) ) );
+		}
+		$domain = strtolower( (string) substr( strrchr( $sender['from_email'], '@' ), 1 ) );
+		if ( '' !== $host && $domain !== $host && ! str_ends_with( $host, '.' . $domain ) && ! str_ends_with( $domain, '.' . $host ) ) {
+			/* translators: 1: sender domain, 2: site domain */
+			return array( array( 'severity' => 'warning', 'message' => sprintf( __( 'Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. Ihren SMTP-Dienst erlauben (DMARC).', 'pass-captain' ), $domain, $host ) ) );
+		}
+		return array();
 	}
 
 	/** phpmailer_init (only registered while an HTML mail is sent): sets the plain-text part. */

@@ -46,6 +46,82 @@ final class Attendees {
 		}
 		add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( __CLASS__, 'save_store_api' ), 10, 2 );
 		add_action( 'woocommerce_blocks_checkout_block_registration', array( __CLASS__, 'register_block_integration' ) );
+
+		// Privacy: no copy on orders that will not issue tickets; part of the WooCommerce privacy tools.
+		add_action( 'woocommerce_order_status_cancelled', array( __CLASS__, 'discard' ), 30 );
+		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'remember_failed' ), 30 );
+		add_action( \PassCaptain\Privacy\Retention::HOOK, array( __CLASS__, 'purge_failed' ), 30, 0 );
+		add_filter( 'woocommerce_privacy_export_order_personal_data', array( __CLASS__, 'privacy_export' ), 10, 2 );
+		add_action( 'woocommerce_privacy_remove_order_personal_data', array( __CLASS__, 'privacy_erase' ) );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Privacy                                                             */
+	/* ------------------------------------------------------------------ */
+
+	/** Option: failed WooCommerce orders (id => time) whose attendee copy is removed after the retry window. */
+	const FAILED_OPTION = 'wpcap_wc_failed_attendee_orders';
+
+	/** Days a failed order keeps the attendee copy, so a payment retry can still issue tickets. */
+	public static function failed_days() {
+		return max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', 7, 'woocommerce_failed_attendees' ) );
+	}
+
+	/** Removes the attendee copy from a WooCommerce order (returns whether something was removed). */
+	public static function discard( $wc_order ) {
+		$wc_order = is_object( $wc_order ) ? $wc_order : ( function_exists( 'wc_get_order' ) ? wc_get_order( absint( $wc_order ) ) : null );
+		if ( ! $wc_order || ! $wc_order->get_meta( OrderAdapter::ATTENDEE_META, true ) ) { return false; }
+		$wc_order->delete_meta_data( OrderAdapter::ATTENDEE_META );
+		$wc_order->save();
+		return true;
+	}
+
+	/**
+	 * Failed payment: WooCommerce lets the customer retry on the same order, and the retry needs the
+	 * attendee data to issue tickets. The copy is removed after failed_days() unless the order was paid.
+	 */
+	public static function remember_failed( $wc_order_id ) {
+		$wc_order_id = absint( $wc_order_id );
+		if ( ! $wc_order_id ) { return; }
+		$list = get_option( self::FAILED_OPTION, array() );
+		$list = is_array( $list ) ? $list : array();
+		if ( ! isset( $list[ $wc_order_id ] ) ) {
+			$list[ $wc_order_id ] = time();
+			update_option( self::FAILED_OPTION, $list, false );
+		}
+	}
+
+	/** Daily (privacy retention run): removes attendee copies of orders that stayed unpaid. */
+	public static function purge_failed( $now = null ) {
+		$now = null === $now ? time() : (int) $now;
+		$list = get_option( self::FAILED_OPTION, array() );
+		if ( ! is_array( $list ) || ! $list || ! function_exists( 'wc_get_order' ) ) { return 0; }
+		$removed = 0;
+		foreach ( $list as $wc_order_id => $since ) {
+			if ( (int) $since > $now - self::failed_days() * DAY_IN_SECONDS ) { continue; }
+			$wc_order = wc_get_order( absint( $wc_order_id ) );
+			if ( $wc_order && ! ( is_callable( array( $wc_order, 'is_paid' ) ) && $wc_order->is_paid() ) ) {
+				$removed += (int) self::discard( $wc_order );
+			}
+			unset( $list[ $wc_order_id ] );
+		}
+		update_option( self::FAILED_OPTION, $list, false );
+		return $removed;
+	}
+
+	/** Filter woocommerce_privacy_export_order_personal_data: attendee data stored on the order. */
+	public static function privacy_export( $personal_data, $wc_order ) {
+		$personal_data = is_array( $personal_data ) ? $personal_data : array();
+		$attendees = self::for_order( $wc_order );
+		if ( $attendees ) {
+			$personal_data[] = array( 'name' => __( 'Teilnehmerangaben (Pass Captain, noch keinen Tickets zugeordnet)', 'pass-captain' ), 'value' => (string) wp_json_encode( $attendees ) );
+		}
+		return $personal_data;
+	}
+
+	/** Action woocommerce_privacy_remove_order_personal_data: the attendee copy is removed with the order data. */
+	public static function privacy_erase( $wc_order ) {
+		self::discard( $wc_order );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -67,13 +143,16 @@ final class Attendees {
 			if ( ! $type_id || ! $quantity ) {
 				continue;
 			}
-			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose,consent_text" . ( \PassCaptain\Orders::schema_at_least( '3.17.5' ) ? ',options' : '' ) . " FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
 			$fields = array();
 			foreach ( $rows as $row ) {
 				$fields[] = array(
 					'key'      => (string) $row->field_key,
-					'label'    => (string) $row->label,
-					'type'     => in_array( $row->field_type, array( 'text', 'email', 'textarea', 'checkbox' ), true ) ? $row->field_type : 'text',
+					// Consent fields are a checkbox whose label carries the consent text (logged on issuance).
+					'label'    => 'consent' === $row->field_type && '' !== (string) $row->consent_text ? (string) $row->label . ': ' . (string) $row->consent_text : (string) $row->label,
+					'type'     => 'consent' === $row->field_type ? 'checkbox' : ( in_array( $row->field_type, array( 'text', 'email', 'textarea', 'checkbox', 'select', 'radio', 'date', 'tel' ), true ) ? $row->field_type : 'text' ),
+					// select/radio: woocommerce_form_field() renders the choices (value = label, validated in Orders::clean_answer()).
+					'options'  => in_array( $row->field_type, array( 'select', 'radio' ), true ) ? array_combine( \PassCaptain\Orders::field_options( $row ), \PassCaptain\Orders::field_options( $row ) ) : array(),
 					'required' => (bool) (int) $row->required,
 					'purpose'  => (string) $row->purpose,
 				);
@@ -202,6 +281,7 @@ final class Attendees {
 							'required'    => $field['required'],
 							'description' => $field['purpose'],
 							'value'       => 'checkbox' === $field['type'] ? '1' : null,
+							'options'     => $field['options'] ?? array(),
 						),
 						$value( $field['key'] )
 					);

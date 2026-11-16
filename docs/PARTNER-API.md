@@ -16,7 +16,8 @@ Code: `src/Modules/Partners.php`, `src/Partners/`.
 | Feld | Bedeutung |
 |---|---|
 | Name, Ansprechperson, Kontakt-E-Mail, Telefon | Kontaktdaten |
-| Rechnungsanschrift, USt-IdNr., Auszahlung | erscheinen auf der Abrechnung (beim Abschließen als Schnappschuss gespeichert) |
+| Rechnungsanschrift, USt-IdNr. | erscheinen auf der Abrechnung (beim Abschließen als Schnappschuss gespeichert) |
+| Auszahlung (IBAN, BIC, Kontoinhaber) | verschlüsselt gespeichert, im Admin nur gekürzt („•••• 3000“); beim Abschließen verschlüsselt im Schnappschuss abgelegt. Nur im CSV-Export der Abrechnung für Finanzen/Admins vollständig – nie im Druckbeleg und nie in dieser API. Leeres Feld beim Speichern behält den Wert, „Gespeicherte Auszahlungsdaten löschen“ entfernt ihn. |
 | Währung | Nur Bestellungen in dieser Währung werden abgerechnet. |
 | Provision in % | Prozentsatz vom **Netto**-Ticketumsatz (nach Rabatt, ohne USt). |
 | Feste Gebühr pro Ticket | Nettobetrag je verkauftem Ticket. |
@@ -68,7 +69,9 @@ Audit-Log: `partner_key_created`, `partner_key_revoked` und `partner_key_auth_fa
 `reason` = `missing`, `malformed`, `invalid`, `revoked`, `expired`, `partner_inactive`,
 `ip_not_allowed`, `scope_missing`, `rate_limited` (höchstens einmal pro Minute und Key),
 `event_not_allowed`, `event_restricted_settlements`. Protokolliert werden Key-ID, Veranstalter, Route und
-die gekürzte Client-Adresse (IPv4 /24, IPv6 /48) – nie das Secret.
+die gekürzte Client-Adresse (IPv4 /24, IPv6 /48) – nie das Secret. Abrufe von `orders` und `tickets` mit
+E-Mail-Adressen (Scope `attendees:read`) erzeugen `partner_api_pii_read` (Key-ID, Route, Seite, Anzahl der
+Zeilen, keine Adressen; höchstens einmal je Key, Route und Seite pro Stunde).
 
 ## Authentifizierung
 
@@ -152,8 +155,11 @@ abgerechneten** Positionen der Veranstalter-Events bis zum Monatsende (ab „Abr
 | Korrektur Erstattung (`correction`) | abgeschlossene Erstattung einer Bestellung aus einem früheren Monat |
 
 Beträge stammen aus den Bestell-Schnappschüssen (brutto inkl. USt, Rabatt wie im Checkout auf die
-Positionen verteilt); Erstattungen werden wie im Berichtsmodul auf die Positionen verteilt (USt laut
-Erstattung). Bestellungen anderer Währungen werden ignoriert.
+Positionen verteilt); Erstattungen werden nach dem **rabattierten** Wert der Positionen verteilt
+(erstattete Tickets nach ihrem rabattierten Stückwert, reine Betragserstattungen nach dem rabattierten
+Positionswert – dieselben Werte wie bei den Verkäufen, inkl. Einzweckgutschein; USt laut Erstattung).
+So erhält bei einer Bestellung mit Tickets mehrerer Veranstalter jeder genau den Anteil zurückgebucht,
+den er verkauft hat. Bestellungen anderer Währungen werden ignoriert.
 
 ### Berechnung
 

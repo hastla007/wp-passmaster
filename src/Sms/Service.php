@@ -63,19 +63,48 @@ final class Service {
 		return preg_match( '/^\+[1-9]\d{6,14}$/', $phone ) ? $phone : '';
 	}
 
-	/** Stores consent for an order (idempotent per order). */
-	public static function record_consent( $order_id, $phone, $text_version = null ) {
+	/** Number confirmed with the SMS code (verified_at = time of the correct code). */
+	const VERIFIED = 'verified';
+	/** Recorded while code verification was switched off. */
+	const UNVERIFIED = 'unverified';
+	/** Consent recorded before code verification existed (DB < 3.15.2); stays valid. */
+	const LEGACY = 'legacy';
+
+	/**
+	 * Stores consent for an order (idempotent per order).
+	 *
+	 * @param string      $verification VERIFIED or UNVERIFIED (default).
+	 * @param string|null $verified_at  UTC time the code was confirmed (VERIFIED only).
+	 */
+	public static function record_consent( $order_id, $phone, $text_version = null, $verification = self::UNVERIFIED, $verified_at = null ) {
 		global $wpdb;
 		$phone = self::normalize_phone( $phone );
 		if ( '' === $phone || ! absint( $order_id ) ) { return false; }
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_sms_consents (order_id,phone,purpose,text_version,consented_at) VALUES (%d,%s,%s,%s,%s)", absint( $order_id ), $phone, self::PURPOSE, null === $text_version ? self::consent_version() : (string) $text_version, current_time( 'mysql', true ) ) );
+		$verification = self::VERIFIED === $verification && $verified_at ? self::VERIFIED : self::UNVERIFIED;
+		$table = $wpdb->prefix . 'wpcap_sms_consents';
+		$version = null === $text_version ? self::consent_version() : (string) $text_version;
+		$now = current_time( 'mysql', true );
+		if ( self::VERIFIED === $verification ) {
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (order_id,phone,purpose,text_version,consented_at,verification,verified_at) VALUES (%d,%s,%s,%s,%s,%s,%s)', $table, absint( $order_id ), $phone, self::PURPOSE, $version, $now, self::VERIFIED, (string) $verified_at ) );
+		} else {
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (order_id,phone,purpose,text_version,consented_at,verification) VALUES (%d,%s,%s,%s,%s,%s)', $table, absint( $order_id ), $phone, self::PURPOSE, $version, $now, self::UNVERIFIED ) );
+		}
 		return true;
 	}
 
-	/** Active consent of an order or null. */
+	/**
+	 * SQL condition (literal, alias-free) for consents that may receive messages: with code
+	 * verification on, only confirmed numbers and the legacy stock; unconfirmed opt-ins get nothing
+	 * but the code itself.
+	 */
+	public static function sendable_condition() {
+		return Verification::required() ? " AND verification IN ('" . self::VERIFIED . "','" . self::LEGACY . "')" : '';
+	}
+
+	/** Active (and, with verification on, confirmed or legacy) consent of an order or null. */
 	public static function consent_for_order( $order_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_sms_consents WHERE order_id=%d AND withdrawn_at IS NULL AND retired_at IS NULL AND phone<>''", absint( $order_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND withdrawn_at IS NULL AND retired_at IS NULL AND phone<>''" . self::sendable_condition(), $wpdb->prefix . 'wpcap_sms_consents', absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal condition.
 	}
 
 	/** Country calling codes numbers may belong to (setting sms.allowed_prefixes, default +43,+49,+41). */
@@ -112,22 +141,22 @@ final class Service {
 	/** Consents recorded for a number in the last 24 hours. */
 	public static function recent_consents_for_number( $e164 ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_sms_consents WHERE phone=%s AND consented_at>%s", (string) $e164, gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE phone=%s AND consented_at>%s', $wpdb->prefix . 'wpcap_sms_consents', (string) $e164, gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
 	}
 
 	/** Withdraws consent and erases the number; queued messages are skipped. */
 	public static function withdraw( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$changed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_consents SET phone='',withdrawn_at=%s WHERE order_id=%d AND (withdrawn_at IS NULL OR phone<>'')", current_time( 'mysql', true ), absint( $order_id ) ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_withdrawn' WHERE order_id=%d AND status IN ('queued','sending')", absint( $order_id ) ) );
+		$changed = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET phone='',withdrawn_at=%s WHERE order_id=%d AND (withdrawn_at IS NULL OR phone<>'')", $p . 'wpcap_sms_consents', current_time( 'mysql', true ), absint( $order_id ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='skipped',last_error='consent_withdrawn' WHERE order_id=%d AND status IN ('queued','sending')", $p . 'wpcap_sms_messages', absint( $order_id ) ) );
 		return $changed > 0;
 	}
 
 	/** Withdraws every consent of a number (inbound STOP). Returns the number of consents withdrawn. */
 	public static function withdraw_phone( $e164 ) {
 		global $wpdb;
-		$orders = $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_sms_consents WHERE phone=%s", (string) $e164 ) );
+		$orders = $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE phone=%s', $wpdb->prefix . 'wpcap_sms_consents', (string) $e164 ) );
 		foreach ( $orders as $order_id ) { self::withdraw( (int) $order_id ); }
 		return count( $orders );
 	}
@@ -140,8 +169,8 @@ final class Service {
 	public static function retire( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$changed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_consents SET retired_at=%s WHERE order_id=%d AND retired_at IS NULL AND withdrawn_at IS NULL", current_time( 'mysql', true ), absint( $order_id ) ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_retired' WHERE order_id=%d AND status='queued' AND purpose<>'cancellation'", absint( $order_id ) ) );
+		$changed = (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET retired_at=%s WHERE order_id=%d AND retired_at IS NULL AND withdrawn_at IS NULL', $p . 'wpcap_sms_consents', current_time( 'mysql', true ), absint( $order_id ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='skipped',last_error='consent_retired' WHERE order_id=%d AND status='queued' AND purpose<>'cancellation'", $p . 'wpcap_sms_messages', absint( $order_id ) ) );
 		self::erase_retired_numbers();
 		return $changed > 0;
 	}
@@ -150,14 +179,14 @@ final class Service {
 	public static function erase_retired_numbers() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (int) $wpdb->query( "UPDATE {$p}wpcap_sms_consents c SET c.phone='' WHERE c.retired_at IS NOT NULL AND c.phone<>'' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_sms_messages m WHERE m.consent_id=c.consent_id AND m.status IN ('queued','sending'))" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- no input.
+		return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i c SET c.phone='' WHERE c.retired_at IS NOT NULL AND c.phone<>'' AND NOT EXISTS (SELECT 1 FROM %i m WHERE m.consent_id=c.consent_id AND m.status IN ('queued','sending'))", $p . 'wpcap_sms_consents', $p . 'wpcap_sms_messages' ) );
 	}
 
 	/** Retires consents of settled orders whose events are over (one day after the last start). */
 	public static function retire_finished() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT c.order_id FROM {$p}wpcap_sms_consents c INNER JOIN {$p}wpcap_orders ord ON ord.order_id=c.order_id WHERE c.retired_at IS NULL AND c.withdrawn_at IS NULL AND ord.payment_status<>'pending' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=c.order_id AND t.status IN ('valid','checked_in') AND o.status='scheduled' AND o.starts_at>%s) LIMIT 200", gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT c.order_id FROM %i c INNER JOIN %i ord ON ord.order_id=c.order_id WHERE c.retired_at IS NULL AND c.withdrawn_at IS NULL AND ord.payment_status<>'pending' AND NOT EXISTS (SELECT 1 FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=c.order_id AND t.status IN ('valid','checked_in') AND o.status='scheduled' AND o.starts_at>%s) LIMIT 200", $p . 'wpcap_sms_consents', $p . 'wpcap_orders', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
 		foreach ( $ids as $order_id ) { self::retire( (int) $order_id ); }
 		return count( $ids );
 	}
@@ -173,7 +202,7 @@ final class Service {
 		if ( ! $consent ) { return false; }
 		$now = current_time( 'mysql', true );
 		$result = $wpdb->query( $wpdb->prepare(
-			"INSERT IGNORE INTO {$wpdb->prefix}wpcap_sms_messages (dedupe_key,consent_id,order_id,occurrence_id,purpose,body,status,send_at,created_at,updated_at) VALUES (%s,%d,%d,%d,%s,%s,'queued',%s,%s,%s)",
+			"INSERT IGNORE INTO %i (dedupe_key,consent_id,order_id,occurrence_id,purpose,body,status,send_at,created_at,updated_at) VALUES (%s,%d,%d,%d,%s,%s,'queued',%s,%s,%s)", $wpdb->prefix . 'wpcap_sms_messages',
 			hash( 'sha256', (string) $dedupe ), (int) $consent->consent_id, absint( $order_id ), absint( $occurrence_id ), sanitize_key( $purpose ), mb_substr( (string) $body, 0, 1000 ), $send_at ? $send_at : $now, $now, $now
 		) );
 		return false === $result ? new \WP_Error( 'wpcap_sms_enqueue', 'SMS could not be queued.' ) : true;
@@ -184,10 +213,13 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		// Claims of crashed workers go back to the queue; attempts are counted at claim time, so a message
+		// that kills the worker every time ends as failed instead of being retried forever.
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status=IF(attempts>=%d,'failed','queued'),locked_at=NULL WHERE status='sending' AND locked_at<%s", $p . 'wpcap_sms_messages', self::MAX_ATTEMPTS, gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
 		self::retire_finished();
+		Verification::prune();
 		$provider = self::provider();
-		if ( ! $provider ) { self::erase_retired_numbers(); return 0; }
+		if ( ! $provider ) { self::erase_retired_numbers(); \PassCaptain\Ops\Heartbeat::beat( 'sms' ); return 0; }
 		$sent = 0;
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 25;
 		// Shared cron time budget: checked before each claim, so a claimed message is always processed.
@@ -198,21 +230,35 @@ final class Service {
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) { $budget_hit = true; break; }
 			if ( $claimed ) { \PassCaptain\Jobs\TimeBudget::finished( $table, $claimed ); }
-			$wpdb->query( 'START TRANSACTION' );
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_sms_messages WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); break; }
-			$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'message_id' => (int) $row->message_id ) );
-			$wpdb->query( 'COMMIT' );
-			$claimed = (int) $row->message_id;
-			\PassCaptain\Jobs\TimeBudget::claimed( $table, 'message_id', $claimed, 'sending', 'queued' );
-			// Consent is re-checked at send time (it may have been withdrawn meanwhile).
-			$consent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_sms_consents WHERE consent_id=%d AND withdrawn_at IS NULL AND phone<>''", (int) $row->consent_id ) );
-			$skip = ! $consent ? 'no_consent' : (string) apply_filters( 'wpcap_sms_skip_reason', '', $row );
-			if ( '' !== $skip ) {
-				$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'skipped', 'locked_at' => null, 'last_error' => substr( $skip, 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
-				continue;
+			$claimed = 0;
+			// The SMS is only sent once the claim is durable: transaction started, exactly this row moved
+			// from queued to sending (attempt counted), commit succeeded. Otherwise a parallel worker could
+			// send it again. On a database error the run ends; the next run retries.
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $p . 'wpcap_sms_messages', $now ) );
+			if ( ! $row ) {
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); } else { $wpdb->query( 'COMMIT' ); }
+				break;
 			}
-			$result = $provider->send( $consent->phone, $row->body, 'wpcap-sms-' . $row->message_id );
+			$updated = $wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'message_id' => (int) $row->message_id, 'status' => 'queued' ) );
+			if ( false === $updated ) { $wpdb->query( 'ROLLBACK' ); break; }
+			if ( 1 !== (int) $updated ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); break; }
+			$claimed = (int) $row->message_id;
+			\PassCaptain\Jobs\TimeBudget::claimed( $table, 'message_id', $claimed, 'sending', 'queued', 'failed', self::MAX_ATTEMPTS, array( 'due' => 'send_at', 'error' => 'last_error' ) );
+			try {
+				// Consent is re-checked at send time (it may have been withdrawn meanwhile).
+				$consent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE consent_id=%d AND withdrawn_at IS NULL AND phone<>''" . self::sendable_condition(), $p . 'wpcap_sms_consents', (int) $row->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal condition.
+				$skip = ! $consent ? 'no_consent' : (string) apply_filters( 'wpcap_sms_skip_reason', '', $row );
+				if ( '' !== $skip ) {
+					$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'skipped', 'locked_at' => null, 'last_error' => substr( $skip, 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
+					continue;
+				}
+				$result = $provider->send( $consent->phone, $row->body, 'wpcap-sms-' . $row->message_id );
+			} catch ( \Throwable $e ) {
+				// A throwing provider or filter must not stop the SMS queue: retried with backoff like a failed send.
+				$result = \PassCaptain\Jobs::exception_error( $e, $row );
+			}
 			if ( is_wp_error( $result ) ) {
 				$tries = (int) $row->attempts + 1;
 				$data = (array) $result->get_error_data();
@@ -226,6 +272,7 @@ final class Service {
 		if ( $claimed ) { \PassCaptain\Jobs\TimeBudget::finished( $table, $claimed ); }
 		if ( $budget_hit ) { \PassCaptain\Jobs\TimeBudget::continue_later( 'wpcap_process_messages' ); }
 		self::erase_retired_numbers();
+		\PassCaptain\Ops\Heartbeat::beat( 'sms', $sent ); // System status: last completed worker run.
 		return $sent;
 	}
 

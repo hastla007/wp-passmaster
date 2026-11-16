@@ -58,7 +58,10 @@ final class Keys {
 
 	/** Creates a new key pair entry (not yet active). */
 	private static function generate() {
-		$pair = sodium_crypto_sign_keypair();
+		do {
+			// A key id of digits only would become an integer array key in PHP and break the strict id comparisons.
+			$pair = sodium_crypto_sign_keypair();
+		} while ( ctype_digit( self::key_id( sodium_crypto_sign_publickey( $pair ) ) ) );
 		$public = sodium_crypto_sign_publickey( $pair );
 		$secret = sodium_crypto_sign_secretkey( $pair );
 		$entry = array( 'public' => base64_encode( $public ), 'secret' => self::seal( $secret ), 'created_at' => time(), 'retired_at' => 0, 'valid_until' => 0, 'max_expires' => 0 );
@@ -129,7 +132,7 @@ final class Keys {
 
 	private static function prune( array $keys, $active, $now ) {
 		foreach ( $keys as $kid => $key ) {
-			if ( $kid !== $active && (int) $key['valid_until'] <= $now ) { unset( $keys[ $kid ] ); }
+			if ( (string) $kid !== (string) $active && (int) $key['valid_until'] <= $now ) { unset( $keys[ $kid ] ); }
 		}
 		return $keys;
 	}
@@ -145,14 +148,14 @@ final class Keys {
 		$now = time();
 		$out = array();
 		foreach ( $data['keys'] as $kid => $key ) {
-			if ( $kid !== $active && (int) $key['valid_until'] <= $now ) { continue; }
+			if ( (string) $kid !== (string) $active && (int) $key['valid_until'] <= $now ) { continue; }
 			$out[] = array(
 				'key_id' => (string) $kid,
 				'alg' => 'Ed25519',
 				'public_key' => (string) $key['public'],
-				'status' => $kid === $active ? 'active' : 'retired',
+				'status' => (string) $kid === (string) $active ? 'active' : 'retired',
 				'created_at' => gmdate( 'c', (int) $key['created_at'] ),
-				'valid_until' => $kid === $active ? null : gmdate( 'c', (int) $key['valid_until'] ),
+				'valid_until' => (string) $kid === (string) $active ? null : gmdate( 'c', (int) $key['valid_until'] ),
 			);
 		}
 		usort( $out, static function ( $a, $b ) { return strcmp( $a['status'], $b['status'] ); } );
@@ -162,7 +165,7 @@ final class Keys {
 	/** Raw public key (32 bytes) of a published key id, or null. */
 	public static function public_key( $kid ) {
 		foreach ( self::public_keys() as $key ) {
-			if ( $key['key_id'] === $kid ) { return base64_decode( $key['public_key'] ); }
+			if ( (string) $key['key_id'] === (string) $kid ) { return base64_decode( $key['public_key'] ); }
 		}
 		return null;
 	}

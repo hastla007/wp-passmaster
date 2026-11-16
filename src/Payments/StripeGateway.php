@@ -24,7 +24,22 @@ final class StripeGateway implements GatewayInterface {
 	 */
 	const SCALED_ZERO_DECIMAL = array( 'ISK', 'UGX' );
 
+	/**
+	 * Three-decimal currencies Stripe supports (amounts in thousandths, like the plugin's minor
+	 * units), which Stripe only accepts as multiples of 10 (last digit 0).
+	 */
+	const THREE_DECIMAL = array( 'BHD', 'JOD', 'KWD', 'OMR', 'TND' );
+
+	/** Stripe's minimum Checkout Session lifetime (30 minutes) plus one minute for rounding. */
+	const SESSION_MIN_MINUTES = 31;
+
+	/** The session ends this long before the hold, so a payment in the last second still finds its tickets held. */
+	const HOLD_BUFFER_MINUTES = 5;
+
 	public function id() { return 'stripe'; }
+
+	/** Minimum hold for a Stripe checkout (Rest\Controller::checkout() extends shorter holds). */
+	public function min_hold_minutes() { return self::SESSION_MIN_MINUTES + self::HOLD_BUFFER_MINUTES; }
 
 	public function title() { return __( 'Kreditkarte & weitere Zahlarten (Stripe)', 'pass-captain' ); }
 
@@ -46,17 +61,26 @@ final class StripeGateway implements GatewayInterface {
 			return new \WP_Error( 'wpcap_stripe_order', __( 'Die Bestellung kann nicht mit Stripe bezahlt werden.', 'pass-captain' ) );
 		}
 
-		// A retried checkout (same idempotency key) reuses a still open session instead of creating a second one.
+		// A retried checkout (same idempotency key) reuses a still open session instead of creating a second
+		// one – but only while it charges exactly the current order total; a session for another amount is
+		// expired, so the buyer can never pay a stale amount (the payment would be an amount mismatch).
 		$existing = (string) ( $order['provider_reference'] ?? '' );
 		$key_suffix = '';
 		if ( 0 === strpos( $existing, 'cs_' ) ) {
 			$session = $this->api( 'GET', 'checkout/sessions/' . rawurlencode( $existing ) );
 			if ( ! is_wp_error( $session ) && 'open' === ( $session['status'] ?? '' ) && ! empty( $session['url'] ) ) {
-				return $this->payment_result( $session );
+				$session_currency = strtoupper( (string) ( $session['currency'] ?? '' ) );
+				if ( $session_currency === $currency && self::from_stripe_amount( (int) ( $session['amount_total'] ?? -1 ), $currency ) === $total ) {
+					return $this->payment_result( $session );
+				}
+				$expired = $this->api( 'POST', 'checkout/sessions/' . rawurlencode( $existing ) . '/expire' );
+				if ( is_wp_error( $expired ) ) { return $expired; }
 			}
 			$key_suffix = '-' . substr( hash( 'sha256', $existing ), 0, 12 );
 		}
 
+		$precision = self::amount_error( $total, $currency );
+		if ( $precision ) { return $precision; }
 		$amount = self::to_stripe_amount( $total, $currency );
 
 		$params = array(
@@ -88,12 +112,35 @@ final class StripeGateway implements GatewayInterface {
 		if ( $email && is_email( $email ) ) { $params['customer_email'] = $email; }
 		$params = apply_filters( 'wpcap_stripe_session_params', $params, $order, $items );
 
+		// Stripe refuses a reused key with other parameters (e.g. another amount), so a replay never returns a stale session.
 		$session = $this->api( 'POST', 'checkout/sessions', $params, 'wpcap-session-' . $public_id . $key_suffix );
 		if ( is_wp_error( $session ) ) { return $session; }
 		if ( empty( $session['id'] ) || empty( $session['url'] ) ) {
 			return new \WP_Error( 'wpcap_stripe_response', __( 'Unerwartete Antwort von Stripe.', 'pass-captain' ) );
 		}
 		return $this->payment_result( $session );
+	}
+
+	/**
+	 * Ends the order's open Checkout session before the buyer releases the reservation (ReturnNotice),
+	 * so the session can no longer be paid. A completed session refuses the release.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function cancel_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 !== strpos( $reference, 'cs_' ) ) { return true; }
+		$session = $this->api( 'GET', 'checkout/sessions/' . rawurlencode( $reference ) );
+		if ( is_wp_error( $session ) ) { return $session; }
+		$status = (string) ( $session['status'] ?? '' );
+		if ( 'complete' === $status ) {
+			return new \WP_Error( 'wpcap_stripe_session_complete', __( 'Die Zahlung ist bereits abgeschlossen; die Reservierung kann nicht freigegeben werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		if ( 'open' === $status ) {
+			$expired = $this->api( 'POST', 'checkout/sessions/' . rawurlencode( $reference ) . '/expire' );
+			if ( is_wp_error( $expired ) ) { return $expired; }
+		}
+		return true;
 	}
 
 	/** Verifies the Stripe-Signature header and maps the event. */
@@ -127,6 +174,8 @@ final class StripeGateway implements GatewayInterface {
 		} else {
 			return new \WP_Error( 'wpcap_stripe_refund_reference', __( 'Für diese Bestellung ist keine Stripe-Zahlung bekannt.', 'pass-captain' ) );
 		}
+		$precision = self::amount_error( (int) $amount_minor, $currency );
+		if ( $precision ) { return $precision; }
 		$amount = self::to_stripe_amount( (int) $amount_minor, $currency );
 		$params['amount'] = $amount;
 		// Marks refunds made by the plugin so their charge.refunded webhook is not treated as a dashboard refund.
@@ -137,6 +186,60 @@ final class StripeGateway implements GatewayInterface {
 			return new \WP_Error( 'wpcap_stripe_refund_failed', __( 'Stripe hat die Erstattung abgelehnt.', 'pass-captain' ) );
 		}
 		return (string) $refund['id'];
+	}
+
+	/**
+	 * Cancellation/expiry of the plugin order: expires a still open Checkout Session
+	 * (POST /v1/checkout/sessions/{id}/expire), so the buyer cannot pay a closed order. A session that
+	 * is already complete or expired answers 4xx – nothing to do then.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function void_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 !== strpos( $reference, 'cs_' ) ) { return true; }
+		$result = $this->api( 'POST', 'checkout/sessions/' . rawurlencode( $reference ) . '/expire' );
+		if ( is_wp_error( $result ) ) {
+			$status = (int) ( ( (array) $result->get_error_data() )['status'] ?? 0 );
+			return $status >= 400 && $status < 500 ? true : $result;
+		}
+		return true;
+	}
+
+	/**
+	 * Status poll for a pending order whose webhook did not arrive: reads the Checkout Session (or the
+	 * PaymentIntent) and maps it like the webhook. Synthetic event id "poll-{reference}-{type}"; a later
+	 * webhook for the same payment finds the order already paid ("already_paid").
+	 *
+	 * @return array|\WP_Error|null Normalized event.
+	 */
+	public function poll_payment( array $order ) {
+		$reference = (string) ( $order['provider_reference'] ?? '' );
+		if ( 0 === strpos( $reference, 'cs_' ) ) {
+			$session = $this->api( 'GET', 'checkout/sessions/' . rawurlencode( $reference ) );
+			if ( is_wp_error( $session ) ) { return $session; }
+			$type = 'expired' === ( $session['status'] ?? '' ) ? 'checkout.session.expired' : 'checkout.session.completed';
+			if ( 'open' === ( $session['status'] ?? '' ) ) { return null; }
+			$event = $this->normalize( array( 'id' => 'poll', 'type' => $type, 'data' => array( 'object' => $session ) ) );
+		} elseif ( 0 === strpos( $reference, 'pi_' ) ) {
+			$intent = $this->api( 'GET', 'payment_intents/' . rawurlencode( $reference ) );
+			if ( is_wp_error( $intent ) ) { return $intent; }
+			$currency = strtoupper( (string) ( $intent['currency'] ?? '' ) );
+			$event = array( 'event_id' => 'poll', 'type' => 'ignored', 'order_public_id' => (string) ( $intent['metadata']['wpcap_order'] ?? '' ), 'provider_reference' => $reference, 'amount_minor' => self::from_stripe_amount( (int) ( $intent['amount_received'] ?? 0 ), $currency ), 'currency' => $currency );
+			$status = (string) ( $intent['status'] ?? '' );
+			if ( 'succeeded' === $status ) {
+				$event['type'] = 'paid';
+			} elseif ( 'processing' === $status ) {
+				$event['type'] = 'payment_pending';
+			} elseif ( 'canceled' === $status ) {
+				$event['type'] = 'failed';
+			}
+		} else {
+			return null;
+		}
+		if ( ! is_array( $event ) || 'ignored' === $event['type'] ) { return null; }
+		$event['event_id'] = 'poll-' . $reference . '-' . $event['type'];
+		return $event;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -189,22 +292,75 @@ final class StripeGateway implements GatewayInterface {
 				if ( 'checkout.session.async_payment_failed' === $type || 'checkout.session.expired' === $type ) {
 					$base['type'] = 'failed';
 				} elseif ( 'paid' === ( $object['payment_status'] ?? '' ) ) {
-					// "completed" with payment_status "unpaid" = delayed method (SEPA etc.); wait for async_payment_succeeded.
 					$base['type'] = 'paid';
+				} elseif ( 'checkout.session.completed' === $type && 'unpaid' === ( $object['payment_status'] ?? '' ) ) {
+					// Delayed method (SEPA debit etc.): the money arrives days later with async_payment_succeeded.
+					// Webhooks keeps the hold for that time (QA-6) instead of letting the tickets go meanwhile.
+					$base['type'] = 'payment_pending';
 				}
 				return $base;
 
 			case 'charge.refunded':
 				return $this->normalize_refund( $base, $object );
+
+			case 'charge.refund.updated':
+			case 'refund.updated':
+			case 'refund.failed':
+				return $this->normalize_refund_update( $base, $object );
+
+			case 'charge.dispute.created':
+			case 'charge.dispute.funds_withdrawn':
+			case 'charge.dispute.funds_reinstated':
+			case 'charge.dispute.closed':
+				return $this->normalize_dispute( $base, $object, $type );
 		}
 		return $base;
 	}
 
 	/**
+	 * Disputes (chargebacks): opening one only alerts the operator; once the money is withdrawn
+	 * (funds_withdrawn, or closed as lost) it is booked like an external refund – both events share the
+	 * refund id "dispute-{id}", so it is booked once. Reinstated funds only alert (manual check).
+	 */
+	private function normalize_dispute( array $base, array $dispute, $type ) {
+		$intent = self::id_of( $dispute['payment_intent'] ?? '' );
+		$base['provider_reference'] = self::id_of( $dispute['charge'] ?? '' );
+		$base['amount_minor'] = self::from_stripe_amount( (int) ( $dispute['amount'] ?? 0 ), $base['currency'] );
+		$lost = 'charge.dispute.funds_withdrawn' === $type || ( 'charge.dispute.closed' === $type && 'lost' === ( $dispute['status'] ?? '' ) );
+		if ( 'charge.dispute.created' === $type ) {
+			$base['type'] = 'dispute_opened';
+		} elseif ( $lost ) {
+			$base['type'] = 'refunded';
+			$base['refund_scope'] = 'single';
+			$base['refund_id'] = 'dispute-' . (string) ( $dispute['id'] ?? '' );
+			$base['refund_reason'] = 'chargeback';
+		} elseif ( 'charge.dispute.funds_reinstated' === $type ) {
+			$base['type'] = 'dispute_reinstated';
+		} else {
+			return $base; // Closed as won/warning_closed: nothing to book.
+		}
+		$public_id = (string) ( $dispute['metadata']['wpcap_order'] ?? '' );
+		if ( '' === $public_id && '' !== $intent ) {
+			$pi = $this->api( 'GET', 'payment_intents/' . rawurlencode( $intent ) );
+			if ( is_wp_error( $pi ) ) { return self::retry_error( $pi ); }
+			$public_id = (string) ( $pi['metadata']['wpcap_order'] ?? '' );
+		}
+		if ( '' === $public_id ) {
+			$base['type'] = 'ignored';
+			return $base;
+		}
+		$base['order_public_id'] = $public_id;
+		return $base;
+	}
+
+	/**
 	 * charge.refunded carries the cumulative refunded amount. A fully refunded charge is reported as
-	 * a refund of its total. For partial refunds the latest refund is inspected: refunds created by
-	 * this plugin (metadata wpcap_refund) are already booked by Refunds and are ignored; others
-	 * (e.g. Stripe dashboard) are reported with the amount of that single refund.
+	 * a refund of its total. For partial refunds ALL refunds of the charge are read (paginated):
+	 * refunds created by this plugin (metadata wpcap_refund) are already booked by Refunds and are
+	 * skipped; every other refund (e.g. Stripe dashboard) is reported with its own refund id and
+	 * amount (refund_scope `list`), so Webhooks books each one exactly once – also when webhooks
+	 * arrive late, out of order or as retries after further refunds were made. Failed/canceled
+	 * refunds are not money that left.
 	 */
 	private function normalize_refund( array $base, array $charge ) {
 		$base['provider_reference'] = (string) ( $charge['id'] ?? '' );
@@ -217,23 +373,89 @@ final class StripeGateway implements GatewayInterface {
 		}
 		if ( '' === $public_id ) { return $base; }
 		$base['order_public_id'] = $public_id;
+		// The charge's payment attempt: lets Webhooks recognise refunds of a double payment (Payments\Cases).
+		$base['related_references'] = array_values( array_filter( array( $intent ) ) );
 		if ( ! empty( $charge['refunded'] ) ) {
 			$base['type'] = 'refunded';
+			$base['refund_scope'] = 'full'; // Webhooks books whatever is not in the ledger yet.
 			$base['amount_minor'] = self::from_stripe_amount( (int) ( $charge['amount_refunded'] ?? 0 ), $base['currency'] );
 			return $base;
 		}
-		$latest = $charge['refunds']['data'][0] ?? null;
-		if ( ! is_array( $latest ) ) {
-			$list = $this->api( 'GET', 'refunds?' . http_build_query( array( 'charge' => (string) $charge['id'], 'limit' => 1 ) ) );
-			if ( is_wp_error( $list ) ) { return self::retry_error( $list ); }
-			$latest = $list['data'][0] ?? null;
+		$refunds = $this->charge_refunds( $charge );
+		if ( is_wp_error( $refunds ) ) { return self::retry_error( $refunds ); }
+		$external = array();
+		foreach ( $refunds as $refund ) {
+			if ( ! is_array( $refund ) || empty( $refund['id'] ) || ! empty( $refund['metadata']['wpcap_refund'] ) ) { continue; }
+			if ( in_array( (string) ( $refund['status'] ?? '' ), array( 'failed', 'canceled' ), true ) ) { continue; }
+			$external[] = array(
+				'refund_id' => (string) $refund['id'],
+				'amount_minor' => self::from_stripe_amount( (int) ( $refund['amount'] ?? 0 ), $base['currency'] ),
+			);
 		}
-		if ( ! is_array( $latest ) || ! empty( $latest['metadata']['wpcap_refund'] ) ) {
+		if ( ! $external ) {
 			return $base;
 		}
+		// Oldest first, so the ledger follows the order in which the money left.
+		$external = array_reverse( $external );
 		$base['type'] = 'refunded';
-		$base['amount_minor'] = self::from_stripe_amount( (int) ( $latest['amount'] ?? 0 ), $base['currency'] );
+		$base['refund_scope'] = 'list';
+		$base['refunds'] = $external;
+		$base['amount_minor'] = (int) array_sum( array_column( $external, 'amount_minor' ) );
 		return $base;
+	}
+
+	/**
+	 * A refund object changed (charge.refund.updated, refund.updated, refund.failed). Only a refund that
+	 * ended as failed or canceled matters: Stripe may report a refund as pending first (plugin refunds
+	 * are booked then) and fail it days later, e.g. when the card was closed. It is reported as
+	 * `refund_failed` with the refund id; Webhooks reverses the booking.
+	 */
+	private function normalize_refund_update( array $base, array $refund ) {
+		if ( 'refund' !== ( $refund['object'] ?? 'refund' ) || ! in_array( (string) ( $refund['status'] ?? '' ), array( 'failed', 'canceled' ), true ) || empty( $refund['id'] ) ) {
+			return $base;
+		}
+		$base['provider_reference'] = (string) $refund['id'];
+		$base['refund_id'] = (string) $refund['id'];
+		$base['amount_minor'] = self::from_stripe_amount( (int) ( $refund['amount'] ?? 0 ), $base['currency'] );
+		$public_id = (string) ( $refund['metadata']['wpcap_order'] ?? '' );
+		$intent = self::id_of( $refund['payment_intent'] ?? '' );
+		if ( '' === $public_id && '' !== $intent ) {
+			$pi = $this->api( 'GET', 'payment_intents/' . rawurlencode( $intent ) );
+			if ( is_wp_error( $pi ) ) { return self::retry_error( $pi ); }
+			$public_id = (string) ( $pi['metadata']['wpcap_order'] ?? '' );
+		}
+		if ( '' === $public_id ) { return $base; }
+		$base['order_public_id'] = $public_id;
+		$base['type'] = 'refund_failed';
+		$base['refund_reason'] = sanitize_key( (string) ( $refund['failure_reason'] ?? '' ) );
+		return $base;
+	}
+
+	/**
+	 * All refunds of a charge (newest first), paginated through GET /v1/refunds?charge=…; an embedded
+	 * complete list (older API versions) is used without a request.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function charge_refunds( array $charge ) {
+		$embedded = $charge['refunds'] ?? null;
+		if ( is_array( $embedded ) && isset( $embedded['data'] ) && is_array( $embedded['data'] ) && empty( $embedded['has_more'] ) ) {
+			return $embedded['data'];
+		}
+		$all = array();
+		$after = '';
+		for ( $page = 0; $page < 20; $page++ ) {
+			$query = array( 'charge' => (string) ( $charge['id'] ?? '' ), 'limit' => 100 );
+			if ( '' !== $after ) { $query['starting_after'] = $after; }
+			$list = $this->api( 'GET', 'refunds?' . http_build_query( $query ) );
+			if ( is_wp_error( $list ) ) { return $list; }
+			$data = is_array( $list['data'] ?? null ) ? $list['data'] : array();
+			$all = array_merge( $all, $data );
+			$last = end( $data );
+			if ( empty( $list['has_more'] ) || ! is_array( $last ) || empty( $last['id'] ) ) { break; }
+			$after = (string) $last['id'];
+		}
+		return $all;
 	}
 
 	/** Stripe API call; returns the decoded body or WP_Error with Stripe's message. */
@@ -257,14 +479,14 @@ final class StripeGateway implements GatewayInterface {
 		}
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_stripe_http', sprintf( __( 'Stripe ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_stripe_http', sprintf( __( 'Stripe ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Security\Redact::text( $response->get_error_message() ) ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $code < 200 || $code >= 300 || ! is_array( $body ) ) {
 			$message = is_array( $body ) && ! empty( $body['error']['message'] ) ? (string) $body['error']['message'] : 'HTTP ' . $code;
 			/* translators: %s: error message from Stripe */
-			return new \WP_Error( 'wpcap_stripe_api', sprintf( __( 'Stripe-Fehler: %s', 'pass-captain' ), $message ), array( 'status' => $code ) );
+			return new \WP_Error( 'wpcap_stripe_api', sprintf( __( 'Stripe-Fehler: %s', 'pass-captain' ), \PassCaptain\Security\Redact::text( $message ) ), array( 'status' => $code ) );
 		}
 		return $body;
 	}
@@ -289,10 +511,18 @@ final class StripeGateway implements GatewayInterface {
 	}
 
 	/**
-	 * Stripe requires 30 min – 24 h. Derived from the order creation time so that a concurrent
-	 * retry sends identical parameters for the same Idempotency-Key.
+	 * Stripe requires 30 min – 24 h. With the hold end known ($order['hold_expires_at'], set by the
+	 * checkout) the session ends HOLD_BUFFER_MINUTES before the hold, so it can never be paid after
+	 * the tickets were released; the checkout keeps the hold at least min_hold_minutes() long. Both
+	 * variants are stable for a concurrent retry (identical parameters for the same Idempotency-Key).
 	 */
-	private static function session_expiry( array $order ) {
+	public static function session_expiry( array $order ) {
+		$minimum = (int) ( ceil( ( time() + self::SESSION_MIN_MINUTES * MINUTE_IN_SECONDS ) / 60 ) * 60 );
+		$hold = (int) ( $order['hold_expires_at'] ?? 0 );
+		if ( $hold > 0 ) {
+			$expires = (int) ( floor( ( $hold - self::HOLD_BUFFER_MINUTES * MINUTE_IN_SECONDS ) / 60 ) * 60 );
+			return min( max( $expires, $minimum ), time() + DAY_IN_SECONDS - MINUTE_IN_SECONDS );
+		}
 		$created = ! empty( $order['created_at'] ) ? (int) strtotime( $order['created_at'] . ' UTC' ) : 0;
 		$expires = $created ? $created + 40 * MINUTE_IN_SECONDS : 0;
 		if ( $expires < time() + 31 * MINUTE_IN_SECONDS ) {
@@ -314,8 +544,27 @@ final class StripeGateway implements GatewayInterface {
 
 	/** Return URL for the buyer after the hosted payment page. */
 	public static function return_url( $status, $public_id ) {
-		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
+		// Back to the page the buyer ordered on (ReturnNotice::set_base()), with the return token for "pay again".
+		$url = ReturnNotice::url( $status, $public_id );
 		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'stripe' );
+	}
+
+	/**
+	 * Refuses amounts Stripe cannot charge or refund exactly instead of letting Stripe round them:
+	 * three-decimal currencies (BHD, JOD, KWD, OMR, TND) need a multiple of 10 thousandths. Silent
+	 * rounding would make the charged amount differ from the order total (the paid webhook would then
+	 * be an amount mismatch) or the refund differ from the refund ledger. Prices in these currencies
+	 * should therefore end in 0 (e.g. 12.340 KWD).
+	 *
+	 * @return \WP_Error|null
+	 */
+	public static function amount_error( $minor, $currency ) {
+		$currency = strtoupper( (string) $currency );
+		if ( in_array( $currency, self::THREE_DECIMAL, true ) && 0 !== (int) $minor % 10 ) {
+			/* translators: 1: amount, 2: currency */
+			return new \WP_Error( 'wpcap_stripe_amount_precision', sprintf( __( 'Stripe akzeptiert Beträge in %2$s nur in Schritten von 0,010 (letzte Nachkommastelle 0). Der Betrag %1$s kann nicht exakt abgerechnet werden; bitte Preis bzw. Erstattungsbetrag anpassen.', 'pass-captain' ), \PassCaptain\Localization::money_decimal( (int) $minor, $currency ), $currency ), array( 'status' => 400 ) );
+		}
+		return null;
 	}
 
 	/** Plugin minor units → Stripe amount. */

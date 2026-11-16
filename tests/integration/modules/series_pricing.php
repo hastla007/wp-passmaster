@@ -16,7 +16,7 @@ use PassCaptain\Series\Pricing;
 Series::register();
 global $wpdb;
 $p = $wpdb->prefix;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 
 /** Series with occurrences $day_offsets days from today at 19:00 Vienna; types copied from a template. */
 function sp_series( array $day_offsets, $type_capacity = 50, $price = 2500, array $extra_types = array(), $occ_capacity = 0 ) {
@@ -85,7 +85,7 @@ check( 'invalid rules are rejected', is_wp_error( Pricing::normalize( array( 'ki
 	&& is_wp_error( Pricing::normalize( array( 'kind' => 'bogus', 'amount' => '10' ), 'Europe/Vienna' ) ) );
 
 echo "Series pricing: server-side prices in checkout\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $s1 = sp_series( array( 10, 11 ) );
 $occ_a = $s1['occurrences'][0];
 $type_a = $s1['types'][ $occ_a ]['Standard'];
@@ -137,15 +137,15 @@ if ( ! function_exists( 'wpautop' ) ) { function wpautop( $t ) { return '<p>' . 
 if ( ! function_exists( 'esc_attr_e' ) ) { function esc_attr_e( $t, $d = null ) { echo esc_attr( $t ); } }
 if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = $a == $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
 try {
-	$html = PassCaptain\PublicEvents::render_shortcode();
+	$html = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 	$pos_card = strpos( $html, 'id="wpcap-' . $occ3 . '-' . $s3['types'][ $occ3 ]['Student'] . '"' );
-	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student — 9,00 €' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
+	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student</span> — <span class="wpcap-type-price">9,00 €' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
 } catch ( \Throwable $e ) {
 	check( 'event page renders (' . $e->getMessage() . ')', false );
 }
 
 echo "Series pools: shared quota across occurrences\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $released = array();
 add_action( 'wpcap_capacity_released', static function ( $order_id, $reason ) use ( &$released ) { $released[] = $reason; }, 10, 2 );
 $s4 = sp_series( array( 6, 7, 8 ), 50, 2500, array( 'Student' => array( 'price' => 1200 ) ) );

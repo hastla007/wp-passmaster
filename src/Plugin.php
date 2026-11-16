@@ -12,17 +12,42 @@ final class Plugin {
 		return self::$instance;
 	}
 
+	/** @var bool Whether run() already registered the hooks in this request. */
+	private static $started = false;
+
+	/**
+	 * Registers all hooks. Idempotent: during the takeover from the old copy (LegacyCopy) its bootstrap also
+	 * calls run() in the same request; a second call must not register hooks and cron callbacks twice.
+	 */
 	public function run() {
+		if ( self::$started ) { return; }
+		self::$started = true;
 		// Schema upgrades never run inline on every request: admin requests check on admin_init,
 		// cron/WP-CLI/frontend on init; frontend requests only defer to a cron event (see Installer).
 		$upgrade_hook = 'admin' === Installer::context() ? 'admin_init' : 'init';
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
+		Security\Policy::register(); // W9 settings (before anything reads Settings::defaults()).
+		Security\Vault::register();
+		Security\AuditTrail::register();
+		DeveloperKeys::register(); // Ends API keys and staff rows of removed users or lost roles.
+		Security\StepUp::register();
+		Security\SupportAccess::register();
+		Security\Sessions::register();
+		Ops\Network::register();
+		Frontend\Language::register();
 		Jobs\TimeBudget::register();
+		Orders::register(); // Job handler for ticket issuance retries and the delivery outbox.
+		Reports\Cache::register(); // Invalidates cached event reports on orders, refunds, check-ins.
+		Refunds::register(); // Job handler for order status retries after refunds.
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
+		Rest\Credentials::register(); // X-WPCAP-Access-Token for buyer REST routes (CORS allow-list).
 		Admin\Menu::register();
+		Admin\OrganizerTools::register(); // Freikarten/Gästeliste, Duplizieren, CSV-Import (event/occurrence screens).
+		Frontend\EventPage::register(); // Event detail pages /{base}/{slug}/ with schema.org/Event JSON-LD.
+		Sales\SelfService::register(); // Cancellation/refund requests in the order portal (event rule).
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_offer_page' ) );
@@ -40,6 +65,10 @@ final class Plugin {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
+		// Lapsed holds every 5 minutes too, so capacity and limited discount codes come back quickly.
+		add_action( 'wpcap_process_jobs', array( Orders::class, 'process_expired_holds' ), 3, 0 );
+		Ops\Heartbeat::register(); // Worker heartbeats for the system status page.
+		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); }
 		// Self-healing schedule: e.g. deleting the old "wp-pass-captain" copy runs its uninstall.php, which clears the
 		// recurring events this copy relies on.
 		add_action(
@@ -53,26 +82,38 @@ final class Plugin {
 		);
 		add_action( 'init', array( $this, 'register_blocks' ) );
 		Integrations\WooCommerce\OrderAdapter::register();
+		Integrations\WooCommerce\CheckoutGate::register(); // Add-on gate (waiting room) for Woo cart, checkout and Store API.
+		Sales\CheckoutGate::register(); // Retry-After header for refused checkouts (wp_pass_captain_checkout_allowed_v1).
+		Brand::register(); // White label: product name in translated texts (wp_pass_captain_brand_name_v1).
+		Integrations\ConnectorEvents::register(); // Domain events → enabled connectors (job queue).
 		Invoices::register();
+		Payments\Cases::register(); // Double payments / payments for closed orders / failed provider refunds.
+		Payments\Reconcile::register(); // Void open PSP sessions on cancellation, poll stuck pending orders.
 		Integrations\Vouchers\Checkout::register();
 		Integrations\Vouchers\TicketService::register();
 		Integrations\Vouchers\CheckinService::register();
 		Integrations\AffiliateCaptain\Adapter::register();
 		Notifications::register();
+		Mail\Suppression::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
+		Frontend\Availability::register(); // Purge hook wp_pass_captain_availability_changed_v1.
 		Mobile\Api::register();
 		OccurrenceCancellation::register();
 		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
+		add_action( 'template_redirect', array( PublicEvents::class, 'maybe_protect_scanner_page' ), 1, 0 );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
+		add_action( 'save_post', array( PublicEvents::class, 'flush_page_cache' ), 10, 0 );
+		add_action( 'deleted_post', array( PublicEvents::class, 'flush_page_cache' ), 10, 0 );
 	}
 
 	/** Runs a pending schema upgrade for the current request context; re-schedules events after it. */
 	public static function maybe_upgrade( $context = null ) {
 		if ( Installer::maybe_upgrade( $context ) ) {
 			self::schedule_events();
+			Frontend\EventPage::schedule_flush(); // New or changed rewrite rules after an update (flushed once on init).
 			return true;
 		}
 		return false;
@@ -102,12 +143,32 @@ final class Plugin {
 		return $tables;
 	}
 
+	/** Network activation: sites installed in the activation request at most (the rest via cron, see activate()). */
+	const NETWORK_ACTIVATION_SITES = 25;
+
+	/** Network activation: seconds after which the remaining sites are deferred. */
+	const NETWORK_ACTIVATION_SECONDS = 15;
+
+	/**
+	 * Activation. Network-wide on a multisite network the first sites are installed right away, within a
+	 * site and time budget; every further site only gets the uninstall opt-in migration (cheap, see
+	 * Settings::migrate_uninstall_policy()) and a single upgrade cron event, which installs it with the
+	 * next WP-Cron run on that site (the same deferred path as after a plugin update). A large network
+	 * therefore no longer times out in the activation request.
+	 */
 	public static function activate( $network_wide = false ) {
 		if ( is_multisite() && $network_wide ) {
-			$site_ids = get_sites( array( 'fields' => 'ids', 'number' => 0 ) );
+			$site_ids  = get_sites( array( 'fields' => 'ids', 'number' => 0 ) );
+			$started   = microtime( true );
+			$installed = 0;
 			foreach ( $site_ids as $site_id ) {
 				switch_to_blog( (int) $site_id );
-				self::activate_site();
+				if ( $installed < self::NETWORK_ACTIVATION_SITES && microtime( true ) - $started < self::NETWORK_ACTIVATION_SECONDS ) {
+					self::activate_site();
+					++$installed;
+				} else {
+					self::defer_site_activation();
+				}
 				restore_current_blog();
 			}
 			return;
@@ -115,9 +176,21 @@ final class Plugin {
 		self::activate_site();
 	}
 
+	/** Current site: protect the uninstall opt-in now, install the schema with the next cron run. */
+	private static function defer_site_activation() {
+		if ( get_option( 'wpcap_db_version' ) ) {
+			Settings::migrate_uninstall_policy(); // Only sites that already have plugin data.
+		}
+		if ( ! wp_next_scheduled( Installer::UPGRADE_HOOK ) ) {
+			wp_schedule_single_event( time(), Installer::UPGRADE_HOOK );
+		}
+	}
+
 	private static function activate_site() {
 		Installer::install();
+		Frontend\EventPage::schedule_flush();
 		self::schedule_events();
+		Modules\Fiscalization::reschedule_retries(); // Deactivation removed the per-order retry events.
 	}
 
 	/** Schedules recurring jobs; also runs after plugin updates (activation hooks do not fire then). */
@@ -135,12 +208,23 @@ final class Plugin {
 		Privacy\Retention::schedule();
 	}
 
+	/**
+	 * Every WP-Cron hook of the plugin (deactivation removes all of them; uninstall.php has its own copy
+	 * of the list because it runs without the plugin classes).
+	 */
+	const CRON_HOOKS = array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_process_fiscal_order', Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK );
+
+	/** Every WP-Cron hook the plugin schedules (removed on deactivation; PERF-17/INT-7). */
+	public static function cron_hooks() {
+		return self::CRON_HOOKS;
+	}
+
 	public static function deactivate( $network_wide = false ) {
 		$site_ids = is_multisite() && $network_wide ? get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) : array( get_current_blog_id() );
 		foreach ( $site_ids as $site_id ) {
 			if ( is_multisite() && $network_wide ) { switch_to_blog( (int) $site_id ); }
 			// wp_unschedule_hook also removes continuation runs scheduled with arguments.
-			foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK ) as $hook ) {
+			foreach ( self::CRON_HOOKS as $hook ) {
 				wp_unschedule_hook( $hook );
 			}
 			if ( function_exists( 'as_unschedule_all_actions' ) ) { as_unschedule_all_actions( '', array(), 'wp-pass-captain' ); }

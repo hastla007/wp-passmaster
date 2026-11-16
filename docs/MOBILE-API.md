@@ -47,6 +47,11 @@ Das Token wird nur einmal ausgeliefert. Die App speichert es im sicheren Speiche
 Authorization: Bearer wpcapd_<device>_<secret>
 ```
 
+Hosts mit Apache und PHP als CGI/FastCGI reichen den `Authorization`-Header oft nicht an PHP weiter. Der Server liest dann
+ersatzweise `REDIRECT_HTTP_AUTHORIZATION`; dafür braucht die `.htaccess` die übliche Regel
+`RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]` (WordPress-Standard-`.htaccess` ab 5.6). Ohne sie antwortet
+jeder App-Aufruf mit 401 `wpcap_device_unauthenticated`.
+
 **Eigenschaften des Tokens**
 
 - Personengebunden: Das Gerät handelt im Namen der Person, die gekoppelt hat. Es gibt keine geteilten Konten.
@@ -66,9 +71,14 @@ Authorization: Bearer wpcapd_<device>_<secret>
 | POST | `/app/scan/validate` | Vorschau ohne Einlass |
 | POST | `/app/scan/check-in` | Einlass (benötigt `idempotency_key`) |
 | POST | `/app/scan/check-out` | Auslass/Check-out (benötigt `idempotency_key`) |
-| POST | `/app/scan/undo` | Einlass zurücknehmen (mit `reason`) |
+| POST | `/app/scan/undo` | Einlass zurücknehmen (benötigt `idempotency_key`, optional `reason`); siehe unten |
 | POST | `/app/scan/sync` | Offline-Scans hochladen (1–200) |
 | POST | `/app/logout` | Gerät widerrufen |
+| GET | `/app/offline/keys` | Öffentliche Schlüssel für Offline-Pakete und signierte QR-Codes (siehe [OFFLINE-SCANNER.md](OFFLINE-SCANNER.md)) |
+| GET | `/app/offline/occurrences` | Termine, für die dieses Gerät Offline-Pakete halten darf, mit ihren Regeln |
+| GET | `/app/offline/package` | Signiertes Offline-Paket (voll oder als Delta mit `since`) |
+| GET | `/app/offline/i18n` | Übersetzungstabelle der Scanner-Web-App (ohne Token, enthält nur Oberflächentexte) |
+| GET | `/app/offline/manifest` | Web-App-Manifest der Scanner-Web-App (ohne Token, enthält keine Daten) |
 
 ### Scan-Anfragen
 
@@ -104,7 +114,11 @@ Ist das Gerät keinem Bereich fest zugeordnet, kann die App den Bereich pro Scan
 
 `present` = Tickets, die aktuell drinnen sind (Einlass ohne folgenden Auslass). Bei Mehrfach- und Tagestickets bleibt der Ticketstatus `valid`; maßgeblich sind dann `entries`/`present`.
 
-**Idempotenz:** Die App erzeugt pro Scan einen neuen Schlüssel (UUID) und verwendet ihn bei Wiederholungen nach Netzwerkfehlern erneut. Eine Wiederholung liefert dann das ursprüngliche Ergebnis mit `"replayed": true` und zählt nicht doppelt.
+**Idempotenz:** Die App erzeugt pro Scan einen neuen Schlüssel (UUID) und verwendet ihn bei Wiederholungen nach Netzwerkfehlern erneut. Eine Wiederholung liefert dann das ursprüngliche Ergebnis mit `"replayed": true` und zählt nicht doppelt – auch wenn sie parallel zum ersten Versuch eintrifft: Der Schlüssel wird unter der Zeilensperre des Tickets atomar belegt (Tabelle `wpcap_checkin_claims`), und eine Wiederholung bekommt den Einlass zurück, nie „bereits verwendet“.
+
+**Undo:** `POST /app/scan/undo` mit `code`, `idempotency_key` (Pflicht, sonst 400) und optional `reason` nimmt den letzten Einlass zurück. Eine Wiederholung mit demselben Schlüssel entfernt keinen zweiten Einlass, sondern antwortet `{"ok":true,"result":"undone","replayed":true}`. Personal ohne `wpcap_manage_orders` darf nur eigene Scans (eigenes Konto oder dieses Gerät) innerhalb von `undo_window_minutes` (Einstellung, Standard 5, 0 = nie) zurücknehmen; Rollen aus `undo_roles` sowie Administratoren und Personal mit Bestellrechten dürfen immer. Sonst: `ok:false`, `result:"forbidden"`, `code:"wpcap_undo_forbidden"`.
+
+**Vorübergehender Datenbankfehler:** Konnte ein Scan wegen eines Deadlocks oder Lock-Timeouts nicht gespeichert werden (nichts verbucht), antwortet der Server mit **HTTP 503** (`code: wpcap_checkin_retry`, `data.result: "retry"`, `data.retryable: true`) statt 200 mit `ok:false`. Apps behandeln das wie einen Ausfall: offline entscheiden bzw. erneut versuchen, den Scan nicht als synchronisiert markieren.
 
 ### Ergebnis-Codes (`result`)
 
@@ -131,7 +145,7 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 | `not_checked_in` | (nur `check-out`) Ticket ist nicht eingecheckt | gelb |
 | `forbidden` | Person hat keinen Einlasszugriff (mehr) | rot, neu koppeln |
 
-HTTP-Fehler gibt es nur bei Authentifizierung (401), Berechtigung oder Rate-Limit (403/429) und ungültigen Anfragen (400).
+HTTP-Fehler gibt es nur bei Authentifizierung (401), Berechtigung oder Rate-Limit (403/429), ungültigen Anfragen (400) und vorübergehenden Datenbankfehlern (503, siehe oben).
 
 `attendee_name` wird nur mitgeliefert, wenn die Einstellung „Teilnehmername im Scanner anzeigen“ (`scanner_show_attendee`) aktiv ist. E-Mail- und Zahlungsdaten liefert die API nie aus.
 
@@ -154,10 +168,11 @@ Optional: Einlassfenster in Minuten vor Beginn/nach Ende sowie tägliche Einlass
 ## 4. Offline-Betrieb
 
 - Bei fehlender Verbindung speichert die App Scans lokal mit Code, `idempotency_key` und `scanned_at` (ISO 8601). Lokale Daten werden verschlüsselt gespeichert und nach erfolgreicher Synchronisierung gelöscht.
-- Wieder online, ruft sie `POST /app/scan/sync` mit `{"scans":[{"code":"…","idempotency_key":"…","scanned_at":"…","direction":"in"}]}` auf (`direction`: `in` Standard, `out` für Offline-Check-outs; optional `area_id` bei Geräten ohne festen Bereich). Mehrfaches Hochladen ist durch den Schlüssel unschädlich. Einlassregeln (Tag, Fenster) werden zum Zeitpunkt `scanned_at` geprüft, aber nur, wenn dieser höchstens `offline_max_age_hours` zurückliegt (Standard 12 h, einstellbar unter **Einlassregeln → Offline-Scans**, 0 = immer Upload-Zeitpunkt); ältere Scans werden zum Upload-Zeitpunkt geprüft. Wird ein zurückdatierter Scan (mehr als 15 Minuten) eingelassen, wäre aber zum Upload-Zeitpunkt abgelehnt worden (z. B. zweiter Einlass auf ein Tagesticket, „gestern“ datiert), gibt es `ok: true` mit `conflict: true`, `review: "backdated_admission"` und einen Konflikt zur Prüfung. `scanned_at` wird nur bei Offline-Uploads berücksichtigt.
+- Wieder online, ruft sie `POST /app/scan/sync` mit `{"scans":[{"code":"…","idempotency_key":"…","scanned_at":"…","direction":"in"}]}` auf (`direction`: `in` Standard, `out` für Offline-Check-outs; optional `area_id` bei Geräten ohne festen Bereich). Mehrfaches Hochladen ist durch den Schlüssel unschädlich. Einlassregeln (Tag, Fenster) werden zum Zeitpunkt `scanned_at` geprüft, aber nur, wenn dieser höchstens `offline_max_age_hours` zurückliegt (Standard 12 h, einstellbar unter **Einlassregeln → Offline-Scans**, 0 = immer Upload-Zeitpunkt); ältere Scans werden zum Upload-Zeitpunkt geprüft. Wird ein zurückdatierter Scan (mehr als 15 Minuten) eingelassen, wäre aber zum Upload-Zeitpunkt abgelehnt worden (z. B. zweiter Einlass auf ein Tagesticket, „gestern“ datiert), gibt es `ok: true` mit `conflict: true`, `review: "backdated_admission"` und einen Konflikt zur Prüfung – bei Tickettypen mit Einlassregel wie bei Tickettypen ohne Regel (dann gegen das Standard-Einlassfenster `default_entry_window`). `scanned_at` wird nur bei Offline-Uploads berücksichtigt. Uploads des Web-Scanners (`/admission/offline-sync`, Sichtprüfung ohne Prüfpaket) behalten ihre Gerätezeit höchstens 1 Stunde; ältere werden zum Upload-Zeitpunkt geprüft. Ergebniszeilen mit `retryable: true` (vorübergehender Serverfehler, z. B. Datenbank) wurden nicht verbucht: Die App behält diese Scans und lädt sie später erneut hoch, statt sie als synchronisiert zu markieren.
 - `conflict: true` heißt: Das Offline-Gerät hat die Person eingelassen, der Server lehnt den Scan aber ab (`result` sagt warum). `double_admission: true` kennzeichnet echte Doppeleinlässe (`already_checked_in`, `daily_limit_reached`, `entry_limit_reached`, `already_inside`). Jeder Konflikt wird genau einmal unter **Pass Captain → Einlass-Konflikte** erfasst (`conflict_id`) – mit Ticket, beiden Geräten/Personen und Zeiten – und dort mit Klärung und Notiz abgeschlossen (Recht `wpcap_manage_events`, Audit-Log). Abgelehnte Offline-Check-outs sind keine Konflikte.
 - Konflikte entstehen nur für Tickets von Events, für die das hochladende Gerät bzw. die Person Einlassrechte hat; Scans fremder Events (`wrong_event`, `forbidden`) und unbekannte Codes erzeugen keine Konflikte.
 - Fehlerantworten enthalten nur `result`, Status und Meldung, keine internen IDs.
+- Der Web-Scanner bricht eine Online-Prüfung nach 5 Sekunden ab (Anzeige „wird geprüft“, `data-state="pending"`) und bietet dann die Sichtprüfung an; der Offline-Eintrag übernimmt den Idempotenzschlüssel des abgebrochenen Versuchs, sodass ein Versuch, der den Server doch erreicht hat, beim Sync als Wiederholung zählt statt als Konflikt. Er zeigt den Teilnehmernamen, wenn `scanner_show_attendee` aktiv ist, spielt kurze Töne (abschaltbar, Einstellung im Browser) und bietet Taschenlampe/Dauerfokus, wo die Kamera das unterstützt.
 - Der Web-Scanner speichert Offline-Scans (Ticket-Code, Schlüssel, Zeit, Bereich, Richtung) im `localStorage` des Browsers, ohne Mengenbegrenzung, und lädt sie in Blöcken zu 100 hoch. Entfernt werden nur vom Server bestätigte Einträge (per `idempotency_key`). Die Warteschlange gehört dem angemeldeten WordPress-Benutzer (Schlüssel aus einem HMAC der Benutzer-ID, nicht die ID selbst). Öffnet ein anderer Benutzer den Scanner im selben Browser, werden fremde und ältere gemeinsame Warteschlangen gelöscht – auch noch nicht synchronisierte Scans. Vor einem Schichtwechsel deshalb synchronisieren. Einträge älter als 24 Stunden (Filter `wpcap_scanner_queue_max_hours`) werden mit Hinweis ohne Upload verworfen. Eine Abmeldung kann den Browserspeicher nicht selbst leeren: Auf geteilten Geräten nach Schichtende den Browser schließen bzw. die Website-Daten löschen.
 - **Scanner-Geräte** zeigt pro Gerät zuletzt aktiv, letzte Synchronisierung und offene Konflikte.
 - Der Web-Scanner synchronisiert über `POST /wp-pass-captain/v1/admission/offline-sync` (Cookie + REST-Nonce) mit denselben Regeln; Einlass/Auslass mit Bereich über `/admission/check-in` und `/admission/check-out`.
@@ -181,9 +196,12 @@ Optional: Einlassfenster in Minuten vor Beginn/nach Ende sowie tägliche Einlass
 ## 7. Versionierung und Ausbau
 
 - Die Version steht in `/app/me` als `api_version` (aktuell `1.1`: Check-out, Bereiche, erweiterte Statistik und Ergebnis-Codes; abwärtskompatibel). Änderungen, die bestehende Apps brechen, bekommen einen neuen Pfad (`/app/v2/…`). Neue Felder sind jederzeit möglich, Apps müssen unbekannte Felder ignorieren.
-- **Geplant (nicht umgesetzt):**
-  - Offline-Prüfpaket: signierte Liste gültiger Ticket-Hashes pro Termin für echte Offline-Validierung.
-  - Push-Benachrichtigung bei Gerätewiderruf.
-  - Suche nach Teilnehmenden mit eigenem Recht.
-  - Badge-Druck.
-  - Gerätebindung per App Attest / Play Integrity.
+- **Mindestversion des Kerns:** Alle Routen dieser Datei sind in Pass Captain 1.5.0 vorhanden; ältere Versionen kennen einen Teil davon nicht (zum Beispiel `/app/offline/manifest`). Eine App prüft deshalb nicht die Plugin-Version, sondern `api_version` und die Feature-Flags (`features`) aus `/app/me` sowie `package_formats` aus der Kopplungsantwort. Fehlt ein Flag, bietet die App die Funktion nicht an.
+- **Umgesetzt seit der ersten Fassung dieser Liste:** das Offline-Prüfpaket (signierte Liste gültiger Ticket-Hashes je Termin, Routen `/app/offline/*`, beschrieben in [OFFLINE-SCANNER.md](OFFLINE-SCANNER.md)).
+- **Nicht umgesetzt (kein Bestandteil von Version 1.1):**
+  - Push-Benachrichtigung bei Gerätewiderruf. Ein widerrufenes Gerät erfährt den Widerruf bei der nächsten Anfrage (401).
+  - Suche nach Teilnehmenden (Name, Bestellung) über die App-Routen. Die Suche gibt es nur im Admin.
+  - Sammelaktionen (mehrere Tickets in einer Anfrage ein- oder auslassen) außer dem Hochladen von Offline-Scans über `/app/scan/sync`.
+  - Blättern mit Cursor: `/app/occurrences` liefert höchstens 100 Termine ab gestern ohne Fortsetzung.
+  - Badge-Druck aus der App.
+  - Gerätebindung per App Attest / Play Integrity. Die Bindung besteht aus dem Geräte-Token; siehe Abschnitt 1.

@@ -82,13 +82,13 @@ final class Keys {
 
 	public static function get( $key_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partner_keys WHERE key_id=%d", absint( $key_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE key_id=%d', $wpdb->prefix . 'wpcap_partner_keys', absint( $key_id ) ) );
 	}
 
 	/** Keys of a partner (newest first; secret hashes stripped). */
 	public static function for_partner( $partner_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT key_id,partner_id,label,public_prefix,scopes,event_ids,ip_allowlist,rate_limit,expires_at,last_used_at,revoked_at,created_at FROM {$wpdb->prefix}wpcap_partner_keys WHERE partner_id=%d ORDER BY key_id DESC", absint( $partner_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT key_id,partner_id,label,public_prefix,scopes,event_ids,ip_allowlist,rate_limit,expires_at,last_used_at,revoked_at,created_at FROM %i WHERE partner_id=%d ORDER BY key_id DESC', $wpdb->prefix . 'wpcap_partner_keys', absint( $partner_id ) ) );
 	}
 
 	public static function revoke( $key_id ) {
@@ -96,7 +96,7 @@ final class Keys {
 		$key = self::get( $key_id );
 		if ( ! $key ) { return new \WP_Error( 'wpcap_partner_key_missing', __( 'API-Key nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $key->revoked_at ) { return array( 'key_id' => (int) $key->key_id, 'already_revoked' => true ); }
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partner_keys SET revoked_at=%s, revoked_by=%d WHERE key_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), get_current_user_id(), (int) $key->key_id ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET revoked_at=%s, revoked_by=%d WHERE key_id=%d AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_partner_keys', current_time( 'mysql', true ), get_current_user_id(), (int) $key->key_id ) );
 		Audit::record( 'partner_key_revoked', 'partner_key', (int) $key->key_id, array( 'partner_id' => (int) $key->partner_id ) );
 		return array( 'key_id' => (int) $key->key_id );
 	}
@@ -162,7 +162,7 @@ final class Keys {
 
 	/** Client address (REMOTE_ADDR; proxies must be resolved via the wpcap_partner_client_ip filter). */
 	public static function client_ip() {
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip = \PassCaptain\RateLimit::client_ip();
 		return (string) apply_filters( 'wpcap_partner_client_ip', $ip );
 	}
 
@@ -175,7 +175,7 @@ final class Keys {
 	}
 
 	private static function lock_key( $ip ) {
-		return 'wpcap_partner_lock_' . md5( (string) $ip );
+		return 'wpcap_partner_lock_' . substr( RateLimit::hash( (string) $ip ), 0, 40 );
 	}
 
 	/**
@@ -195,7 +195,7 @@ final class Keys {
 		if ( ! preg_match( '/^Bearer\s+' . self::TOKEN_PREFIX . '([a-f0-9]{12})_([a-f0-9]{64})$/', trim( $header ), $m ) ) {
 			return self::fail( '' === $header ? 'missing' : 'malformed', null, $ip, $route, 401, true );
 		}
-		$key = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partner_keys WHERE public_prefix=%s", $m[1] ) );
+		$key = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_prefix=%s', $wpdb->prefix . 'wpcap_partner_keys', $m[1] ) );
 		if ( ! $key || ! hash_equals( (string) $key->secret_hash, hash( 'sha256', $m[2] ) ) ) {
 			return self::fail( 'invalid', $key, $ip, $route, 401, true );
 		}
@@ -228,7 +228,7 @@ final class Keys {
 
 	/** Records a failed authentication/authorisation and returns the error. */
 	private static function fail( $reason, $key, $ip, $route, $status, $count_for_lockout, array $extra = array() ) {
-		if ( $count_for_lockout && ! RateLimit::allow( 'partner_auth_fail_' . md5( (string) $ip ), self::FAIL_LIMIT, self::FAIL_WINDOW ) ) {
+		if ( $count_for_lockout && ! RateLimit::allow( 'partner_auth_fail_' . RateLimit::hash( (string) $ip ), self::FAIL_LIMIT, self::FAIL_WINDOW ) ) {
 			set_transient( self::lock_key( $ip ), 1, self::FAIL_WINDOW );
 		}
 		self::audit_failure( $reason, $key, $ip, $route, $extra );

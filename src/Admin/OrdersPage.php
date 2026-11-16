@@ -8,8 +8,11 @@
 
 namespace PassCaptain\Admin;
 
+use PassCaptain\Audit;
 use PassCaptain\Orders;
 use PassCaptain\Refunds;
+use PassCaptain\Security\AuditTrail;
+use PassCaptain\Security\DataPolicy;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -98,12 +101,51 @@ final class OrdersPage {
 		if ( ! $all && ! $ticket_ids ) {
 			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ) );
 		}
-		$result = Refunds::request( $order->order_id, $ticket_ids, $reason, $key );
+		$options = self::refund_options( $in, (string) $order->currency );
+		if ( is_wp_error( $options ) ) { return $options; }
+		$result = Refunds::request( $order->order_id, $ticket_ids, $reason, $key, $options );
 		if ( is_wp_error( $result ) ) {
 			$status = (int) ( ( $result->get_error_data()['status'] ?? 409 ) );
 			return Forms::error( $result->get_error_code(), $result->get_error_message(), 403 === $status ? 403 : 409 );
 		}
 		return array( 'order_id' => (int) $order->order_id, 'refund' => $result );
+	}
+
+	/**
+	 * Optional fee kept and goodwill cap from the refund form (money input in the order currency).
+	 *
+	 * @return array|\WP_Error deduct_minor, max_minor.
+	 */
+	public static function refund_options( array $in, $currency ) {
+		$out = array();
+		foreach ( array( 'deduct' => 'deduct_minor', 'max_amount' => 'max_minor' ) as $field => $key ) {
+			$raw = is_scalar( $in[ $field ] ?? null ) ? trim( (string) $in[ $field ] ) : '';
+			if ( '' === $raw ) { continue; }
+			$minor = Forms::parse_money( $raw, Forms::currency_decimals( $currency ) );
+			if ( null === $minor ) { return Forms::error( 'wpcap_refund_amount', __( 'Abzug oder Höchstbetrag ist ungültig. Beispiel: 5,00', 'pass-captain' ) ); }
+			if ( $minor > 0 ) { $out[ $key ] = $minor; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Preview of a refund for the admin form (nothing is written): selected tickets or all open ones,
+	 * value, kept fee, refund and VAT.
+	 *
+	 * @return array|\WP_Error See Refunds::preview().
+	 */
+	public static function refund_preview( array $in ) {
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { return $order; }
+		if ( ! self::can_request_refunds() ) { return Forms::forbidden( __( 'Keine Berechtigung für Erstattungen.', 'pass-captain' ) ); }
+		$options = self::refund_options( $in, (string) $order->currency );
+		if ( is_wp_error( $options ) ) { return $options; }
+		$all = Forms::flag( $in, 'refund_all' );
+		$ticket_ids = $all ? array() : Forms::ids( $in, 'ticket_ids' );
+		if ( ! $all && ! $ticket_ids ) {
+			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ) );
+		}
+		return Refunds::preview( (int) $order->order_id, $ticket_ids, $options );
 	}
 
 	/** Loads a pending refund the current user may decide on. */
@@ -180,6 +222,11 @@ final class OrdersPage {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_refund_order_' . $order_id );
+		if ( Forms::flag( $in, 'preview' ) ) {
+			// "Betrag berechnen": back to the order with the selection; the page shows the preview.
+			$args = array( 'refund_preview' => 1, 'refund_all' => Forms::flag( $in, 'refund_all' ) ? 1 : 0, 'tickets' => implode( ',', Forms::ids( $in, 'ticket_ids' ) ), 'deduct' => Forms::text( $in, 'deduct', 20 ), 'max_amount' => Forms::text( $in, 'max_amount', 20 ) );
+			Forms::redirect( add_query_arg( array_filter( $args, static function ( $value ) { return '' !== (string) $value; } ), self::order_url( $order_id ) ) );
+		}
 		$result = self::refund( $in );
 		$message = '';
 		if ( ! is_wp_error( $result ) ) {
@@ -221,17 +268,67 @@ final class OrdersPage {
 		echo '</div>';
 	}
 
-	private static function render_list() {
-		$scope = Queries::event_ids_for( self::CAP );
-		$filters = array(
+	/** List filters from the query string (list and CSV export). */
+	private static function list_filters() {
+		return array(
 			'status' => in_array( Forms::query_arg( 'status' ), self::ORDER_STATUSES, true ) ? Forms::query_arg( 'status' ) : '',
 			'payment_status' => in_array( Forms::query_arg( 'payment_status' ), self::PAYMENT_STATUSES, true ) ? Forms::query_arg( 'payment_status' ) : '',
 			'search' => Forms::query_arg( 's' ),
 			'event_id' => absint( Forms::query_arg( 'event_id', 0 ) ),
 		);
+	}
+
+	/** Orders per CSV export at most. */
+	const CSV_LIMIT = 5000;
+
+	/**
+	 * CSV rows of the filtered orders in the user's event scope (header first): order number as shown to
+	 * buyers (Format::order_reference()), full id, dates, states, provider, buyer e-mail (masked for the
+	 * support profile), amounts and events. Cells are protected against formulas by Reports\Scope.
+	 *
+	 * @return array[]
+	 */
+	public static function csv_rows( array $filters ) {
+		$data = Queries::search_orders( $filters, Queries::event_ids_for( self::CAP ), 1, self::CSV_LIMIT );
+		$masked = DataPolicy::masks_pii_many( array_map( static fn( $row ) => (int) $row->order_id, $data['rows'] ) );
+		$rows = array( array( __( 'Bestellnummer', 'pass-captain' ), __( 'Bestell-ID', 'pass-captain' ), __( 'Datum (UTC)', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Zahlung', 'pass-captain' ), __( 'Zahlungsanbieter', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Gesamt', 'pass-captain' ), __( 'Erstattet', 'pass-captain' ), __( 'Währung', 'pass-captain' ), __( 'Events', 'pass-captain' ) ) );
+		foreach ( $data['rows'] as $order ) {
+			$decimals = Forms::currency_decimals( (string) $order->currency );
+			$rows[] = array(
+				\PassCaptain\Frontend\Format::order_reference( $order->public_id ),
+				(string) $order->public_id,
+				(string) $order->created_at,
+				(string) $order->status,
+				(string) $order->payment_status,
+				(string) $order->payment_provider,
+				! empty( $masked[ (int) $order->order_id ] ) ? DataPolicy::mask_email( $order->customer_email ) : (string) $order->customer_email,
+				number_format( (int) $order->total_minor / ( 10 ** $decimals ), $decimals, '.', '' ),
+				number_format( (int) $order->refunded_minor / ( 10 ** $decimals ), $decimals, '.', '' ),
+				(string) $order->currency,
+				(string) ( $order->event_names ?? '' ),
+			);
+		}
+		return $rows;
+	}
+
+	/** admin-post wpcap_orders_csv (GET, nonce): CSV of the filtered order list. */
+	public static function handle_csv() {
+		check_admin_referer( 'wpcap_orders_csv' );
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403 ) ); }
+		$filters = self::list_filters();
+		$rows = self::csv_rows( $filters );
+		Audit::record( 'orders_exported', 'order', 0, array( 'rows' => count( $rows ) - 1, 'filters' => array_filter( $filters ) ) );
+		\PassCaptain\Reports\Scope::send_csv( $rows, 'bestellungen-' . gmdate( 'Y-m-d' ) . '.csv' );
+	}
+
+	private static function render_list() {
+		$scope = Queries::event_ids_for( self::CAP );
+		$filters = self::list_filters();
 		$page = Forms::current_page();
 		$per_page = 20;
 		$data = Queries::search_orders( $filters, $scope, $page, $per_page );
+		// Masking decided once for the page (profile, policy, one unmask lookup), not per row (PERF-15).
+		$masked = DataPolicy::masks_pii_many( array_map( static fn( $row ) => (int) $row->order_id, $data['rows'] ) );
 		$events = Queries::event_options( $scope );
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ) );
 		$status_options = array( '' => __( 'Alle Bestellstatus', 'pass-captain' ) );
@@ -246,8 +343,9 @@ final class OrdersPage {
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', 'aria-label="' . esc_attr__( 'Bestellstatus', 'pass-captain' ) . '"' ); ?>
 			<?php Forms::select( 'payment_status', $payment_options, $filters['payment_status'], '', 'aria-label="' . esc_attr__( 'Zahlungsstatus', 'pass-captain' ) . '"' ); ?>
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
-			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>">
+			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer, E-Mail, Name oder Ticket-ID', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer, E-Mail, Name oder Ticket-ID', 'pass-captain' ); ?>">
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
+			<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array_filter( array( 'action' => 'wpcap_orders_csv', 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ), admin_url( 'admin-post.php' ) ), 'wpcap_orders_csv' ) ); ?>"><?php esc_html_e( 'CSV-Export', 'pass-captain' ); ?></a>
 		</form>
 		<table class="widefat striped">
 			<thead><tr>
@@ -263,9 +361,9 @@ final class OrdersPage {
 			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Bestellungen gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $data['rows'] as $order ) : ?>
 				<tr>
-					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( substr( $order->public_id, 0, 12 ) ); ?>…</code></a></td>
+					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ); ?></code></a></td>
 					<td><?php echo esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) ); ?></td>
-					<td><?php echo esc_html( $order->customer_email ); ?></td>
+					<td><?php echo esc_html( ! empty( $masked[ (int) $order->order_id ] ) ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
 					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td>
@@ -280,9 +378,8 @@ final class OrdersPage {
 
 	/** Finds the WooCommerce order id that references a core order (read-only hint). */
 	private static function woocommerce_order_id( $order_id ) {
-		if ( ! function_exists( 'wc_get_orders' ) ) { return 0; }
-		$ids = wc_get_orders( array( 'limit' => 1, 'return' => 'ids', 'meta_key' => '_wpcap_core_order_id', 'meta_value' => absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-		return $ids ? absint( $ids[0] ) : 0;
+		$wc_order = \PassCaptain\Integrations\WooCommerce\OrderAdapter::wc_order_for_core( $order_id );
+		return $wc_order ? absint( $wc_order->get_id() ) : 0;
 	}
 
 	private static function render_detail( $order_id ) {
@@ -294,14 +391,18 @@ final class OrdersPage {
 			return;
 		}
 		$items = Queries::order_items( $order_id );
-		$tickets = Queries::order_tickets( $order_id );
+		// Data minimisation (support sees masked personal data until a per-case unmask) and read audit.
+		$masked = DataPolicy::masks_pii( $order_id );
+		$tickets = array_map( static function ( $ticket ) use ( $order_id ) { return DataPolicy::ticket_view( $ticket, $order_id ); }, Queries::order_tickets( $order_id ) );
+		AuditTrail::read( 'order_detail', 'order', $order_id, array( 'masked' => $masked ) );
 		$refunds = Refunds::for_order( $order_id );
 		$is_woo = 'woocommerce' === $order->payment_provider;
 		$currency = $order->currency;
 		$tz = wp_timezone_string();
 		?>
 		<p><a href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( '← Zur Bestellliste', 'pass-captain' ); ?></a></p>
-		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'pass-captain' ), $order->public_id ) ); ?></h1>
+		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'pass-captain' ), \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ) ); ?></h1>
+		<p class="description"><?php echo esc_html( sprintf( /* translators: %s: full order id */ __( 'Vollständige Bestell-ID: %s', 'pass-captain' ), $order->public_id ) ); ?></p>
 		<?php Forms::render_notices(); ?>
 		<?php if ( $is_woo ) :
 			$wc_id = self::woocommerce_order_id( $order_id );
@@ -315,27 +416,53 @@ final class OrdersPage {
 		<?php if ( $voucher && 'commit_failed' === ( $voucher['status'] ?? '' ) ) : ?>
 			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten.', 'pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
 		<?php endif; ?>
+		<?php $delivery = 'paid' === $order->payment_status ? Orders::delivery_status( $order_id ) : null; ?>
+		<?php if ( $delivery && 'failed' === $delivery['status'] ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: %d: attempts */ __( 'Die Ticket-E-Mail konnte nach %d Versuchen nicht zugestellt werden. Bitte die E-Mail-Adresse prüfen und die Tickets erneut senden.', 'pass-captain' ), (int) $delivery['attempts'] ) ); ?></p></div>
+		<?php elseif ( $delivery && 'retrying' === $delivery['status'] ) : ?>
+			<div class="notice notice-warning inline"><p><?php echo esc_html( sprintf( /* translators: 1: attempts, 2: UTC date/time */ __( 'Die Ticket-E-Mail konnte bisher nicht zugestellt werden (%1$d Versuche). Der Versand wird automatisch wiederholt (nächster Versuch: %2$s UTC).', 'pass-captain' ), (int) $delivery['attempts'], (string) $delivery['next_attempt'] ) ); ?></p></div>
+		<?php endif; ?>
+		<?php $bounce = \PassCaptain\Mail\Suppression::bounce_for_order( $order_id ); ?>
+		<?php if ( $bounce ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( 'complaint' === $bounce['type']
+				/* translators: %s: UTC date/time */
+				? sprintf( __( 'Der Versanddienst meldet eine Spam-Beschwerde der Käufer-Adresse (%s UTC). Erinnerungen gehen nicht mehr an diese Adresse.', 'pass-captain' ), $bounce['at'] )
+				/* translators: %s: UTC date/time */
+				: sprintf( __( 'Der Versanddienst meldet die Käufer-Adresse als unzustellbar (Bounce, %s UTC). Bitte die E-Mail-Adresse prüfen und die Tickets erneut senden.', 'pass-captain' ), $bounce['at'] ) ); ?></p></div>
+		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
 			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten.', 'pass-captain' ); ?></p></div>
 		<?php endif; ?>
 
 		<table class="form-table"><tbody>
 			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
-			<tr><th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th><td><?php echo esc_html( $order->customer_email ); ?></td></tr>
-			<?php $billing = \PassCaptain\Billing::for_order( $order ); ?>
-			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'pass-captain' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
+			<?php if ( ! empty( $order->attribution ) ) : ?>
+				<tr><th><?php esc_html_e( 'Herkunft', 'pass-captain' ); ?></th><td><code><?php echo esc_html( (string) $order->attribution ); ?></code></td></tr>
+			<?php endif; ?>
+			<tr><th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th><td><?php echo esc_html( $masked ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?>
+				<?php if ( $masked ) : ?>
+					<?php Forms::open_form( SecurityScreens::UNMASK_ACTION, SecurityScreens::UNMASK_ACTION . '_' . (int) $order_id, 'style="margin-top:.5em"' ); Forms::hidden( 'order_id', (int) $order_id ); ?>
+					<label><?php esc_html_e( 'Grund / Supportfall', 'pass-captain' ); ?> <input type="text" name="reason" required minlength="5" maxlength="190"></label>
+					<button class="button button-small" type="submit"><?php esc_html_e( 'Daten für diesen Fall anzeigen (wird protokolliert)', 'pass-captain' ); ?></button>
+					</form>
+				<?php endif; ?>
+			</td></tr>
+			<?php $billing = $masked ? array() : \PassCaptain\Billing::for_order( $order ); ?>
+			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $masked ? esc_html__( 'Maskiert', 'pass-captain' ) : ( $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'pass-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
 			<tr><th><?php esc_html_e( 'Angelegt', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::datetime( $order->created_at, $tz ) ); ?></td></tr>
 			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
 			<?php
 			global $wpdb;
-			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
-			$credit_notes = $invoice ? $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_number FROM {$wpdb->prefix}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) ) : array();
+			$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT invoice_id,invoice_number FROM %i WHERE order_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_invoices', $order_id ) );
+			$credit_notes = $invoice ? $wpdb->get_col( $wpdb->prepare( 'SELECT credit_note_number FROM %i WHERE invoice_id=%d ORDER BY credit_note_id', $wpdb->prefix . 'wpcap_credit_notes', $invoice->invoice_id ) ) : array();
 			$invoice_url = add_query_arg( array( 'action' => 'wpcap_print_invoice', 'order_id' => (int) $order_id ), admin_url( 'admin-post.php' ) );
 			?>
 			<tr><th><?php esc_html_e( 'Rechnung', 'pass-captain' ); ?></th><td>
 				<?php if ( $invoice ) : ?>
 					<a href="<?php echo esc_url( $invoice_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( /* translators: %s: invoice number */ __( 'Rechnung %s anzeigen', 'pass-captain' ), $invoice->invoice_number ) ); ?></a>
 					<?php if ( $credit_notes ) : ?><br><?php echo esc_html( sprintf( /* translators: %s: credit note numbers */ __( 'Gutschriften (in der Rechnungsansicht): %s', 'pass-captain' ), implode( ', ', $credit_notes ) ) ); ?><?php endif; ?>
+					<?php $invoice_links = \PassCaptain\Api\Invoices::links_html( (int) $invoice->invoice_id, 'invoice', array( 'audience' => 'admin', 'location' => 'admin_order', 'order_id' => (int) $order_id, 'order_public_id' => (string) $order->public_id ) ); ?>
+					<?php if ( '' !== $invoice_links ) : ?><br><?php echo $invoice_links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?><?php endif; ?>
 				<?php elseif ( 'paid' === $order->payment_status && current_user_can( 'wpcap_view_finance' ) ) : ?>
 					<a class="button" href="<?php echo esc_url( wp_nonce_url( $invoice_url, 'wpcap_issue_invoice_' . (int) $order_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Rechnung erstellen', 'pass-captain' ); ?></a>
 				<?php else : ?>—<?php endif; ?>
@@ -343,7 +470,7 @@ final class OrdersPage {
 			<?php
 			// Sales model / seller of the customer invoice (docs/SALES-MODELS.md).
 			if ( $invoice ) {
-				$sales_label = \PassCaptain\Invoices::seller_label( (array) json_decode( (string) $wpdb->get_var( $wpdb->prepare( "SELECT buyer_snapshot FROM {$wpdb->prefix}wpcap_invoices WHERE invoice_id=%d", $invoice->invoice_id ) ), true ) );
+				$sales_label = \PassCaptain\Invoices::seller_label( (array) json_decode( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT buyer_snapshot FROM %i WHERE invoice_id=%d', $wpdb->prefix . 'wpcap_invoices', $invoice->invoice_id ) ), true ) );
 			} else {
 				$sales_context = \PassCaptain\Partners\SalesModel::order_context( $order_id );
 				$sales_label = is_wp_error( $sales_context ) ? '' : \PassCaptain\Invoices::seller_label( array( 'sales_model' => $sales_context['model'], 'seller' => $sales_context['seller'] ) );
@@ -409,6 +536,20 @@ final class OrdersPage {
 		}
 		$refundable = array_filter( $tickets, static function ( $t ) use ( $in_progress ) { return ! (int) $t->refunded && in_array( $t->status, array( 'valid', 'checked_in' ), true ) && ! in_array( (int) $t->ticket_id, $in_progress, true ); } );
 		$can_refund = ! $is_woo && 'paid' === $order->payment_status && $refundable && self::can_request_refunds();
+		// Refund preview (query args from "Betrag berechnen"; read-only).
+		$preview_in = array();
+		$preview = null;
+		if ( $can_refund && Forms::query_arg( 'refund_preview' ) ) {
+			$preview_in = array(
+				'order_id' => (int) $order->order_id,
+				'refund_all' => Forms::query_arg( 'refund_all' ),
+				'ticket_ids' => array_filter( array_map( 'absint', explode( ',', (string) Forms::query_arg( 'tickets' ) ) ) ),
+				'deduct' => (string) Forms::query_arg( 'deduct' ),
+				'max_amount' => (string) Forms::query_arg( 'max_amount' ),
+			);
+			$preview = self::refund_preview( $preview_in );
+		}
+		$preselected = array_map( 'intval', (array) ( $preview_in['ticket_ids'] ?? array() ) );
 		if ( $can_refund ) {
 			Forms::open_form( 'wpcap_refund_order', 'wpcap_refund_order_' . $order->order_id );
 			Forms::hidden( 'order_id', $order->order_id );
@@ -431,7 +572,7 @@ final class OrdersPage {
 				?>
 				<tr>
 					<?php if ( $can_refund ) : ?>
-						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
+						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>"<?php checked( in_array( (int) $ticket->ticket_id, $preselected, true ) ); ?> aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
 					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?></td>
@@ -449,16 +590,24 @@ final class OrdersPage {
 		<?php if ( $can_refund ) : ?>
 			<h3><?php esc_html_e( 'Erstatten', 'pass-captain' ); ?></h3>
 			<p>
-				<label><input type="checkbox" name="refund_all" value="1"> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'pass-captain' ); ?></label><br>
+				<label><input type="checkbox" name="refund_all" value="1"<?php checked( ! empty( $preview_in['refund_all'] ) ); ?>> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'pass-captain' ); ?></label><br>
+				<label><?php esc_html_e( 'Abzug (optional, z. B. Bearbeitungsgebühr)', 'pass-captain' ); ?> <input type="text" name="deduct" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['deduct'] ?? '' ) ); ?>"></label>
+				<label><?php esc_html_e( 'Höchstbetrag (optional, Kulanz)', 'pass-captain' ); ?> <input type="text" name="max_amount" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['max_amount'] ?? '' ) ); ?>"></label><br>
 				<label><?php esc_html_e( 'Grund', 'pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
 			</p>
+			<?php if ( is_array( $preview ) ) : ?>
+				<div class="notice notice-info inline" role="status"><p><?php echo esc_html( sprintf( /* translators: 1: tickets, 2: value, 3: fee, 4: refund, 5: VAT */ __( 'Vorschau: %1$d Tickets, Wert %2$s, Abzug %3$s → Erstattung %4$s (darin USt %5$s). Die Rechnungskorrektur weist den erstatteten Betrag aus.', 'pass-captain' ), count( $preview['ticket_ids'] ), Forms::money( (int) $preview['value_minor'], $currency ), Forms::money( (int) $preview['deducted_minor'], $currency ), Forms::money( (int) $preview['amount_minor'], $currency ), Forms::money( (int) $preview['tax_minor'], $currency ) ) ); ?></p></div>
+			<?php elseif ( is_wp_error( $preview ) ) : ?>
+				<div class="notice notice-error inline" role="alert"><p><?php echo esc_html( $preview->get_error_message() ); ?></p></div>
+			<?php endif; ?>
+			<p><button class="button" type="submit" name="preview" value="1" formnovalidate><?php esc_html_e( 'Betrag berechnen', 'pass-captain' ); ?></button></p>
 			<?php if ( 'manual' === $order->payment_provider ) : ?>
 				<p class="description"><?php esc_html_e( 'Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen.', 'pass-captain' ); ?></p>
 			<?php endif; ?>
 			<?php if ( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ) > 0 && ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig.', 'pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
 			<?php endif; ?>
-			<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ausgewählte Tickets wirklich erstatten?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>
+			<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ausgewählte Tickets wirklich erstatten?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>
 			</form>
 		<?php endif; ?>
 
@@ -476,18 +625,18 @@ final class OrdersPage {
 		if ( $can_mark_paid ) {
 			Forms::open_form( 'wpcap_confirm_payment', 'wpcap_confirm_payment_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
-			echo '<button class="button button-primary" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Zahlungseingang bestätigen und Tickets ausstellen?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Als bezahlt markieren', 'pass-captain' ) . '</button></form> ';
+			echo '<button class="button button-primary" type="submit" data-wpcap-confirm="' . esc_attr( __( 'Zahlungseingang bestätigen und Tickets ausstellen?', 'pass-captain' ) ) . '">' . esc_html__( 'Als bezahlt markieren', 'pass-captain' ) . '</button></form> ';
 		}
 		if ( $can_cancel ) {
 			Forms::open_form( 'wpcap_cancel_order', 'wpcap_cancel_order_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
 			echo '<input type="text" name="reason" placeholder="' . esc_attr__( 'Grund (optional)', 'pass-captain' ) . '" maxlength="255"> ';
-			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form> ';
+			echo '<button class="button" type="submit" data-wpcap-confirm="' . esc_attr( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'pass-captain' ) ) . '">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form> ';
 		}
 		if ( $can_resend ) {
 			Forms::open_form( 'wpcap_resend_tickets', 'wpcap_resend_tickets_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
-			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.', 'pass-captain' ) ) . '\')">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</button></form>';
+			echo '<button class="button" type="submit" data-wpcap-confirm="' . esc_attr( __( 'Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.', 'pass-captain' ) ) . '">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</button></form>';
 		}
 		echo '</p>';
 	}
@@ -523,7 +672,7 @@ final class OrdersPage {
 				<tr>
 					<td><?php echo esc_html( Forms::datetime( $refund['created_at'], wp_timezone_string(), false ) ); ?></td>
 					<?php if ( $queue ) : ?>
-						<td><a href="<?php echo esc_url( self::order_url( $refund['order_id'] ) ); ?>"><code><?php echo esc_html( substr( (string) ( $refund['order_public_id'] ?? '' ), 0, 12 ) ); ?>…</code></a><br><small><?php echo esc_html( (string) ( $refund['customer_email'] ?? '' ) ); ?></small></td>
+						<td><a href="<?php echo esc_url( self::order_url( $refund['order_id'] ) ); ?>"><code><?php echo esc_html( \PassCaptain\Frontend\Format::order_reference( (string) ( $refund['order_public_id'] ?? '' ) ) ); ?></code></a><br><small><?php echo esc_html( (string) ( $refund['customer_email'] ?? '' ) ); ?></small></td>
 						<td><?php echo esc_html( (string) ( $refund['event_names'] ?? '' ) ); ?></td>
 					<?php endif; ?>
 					<td><?php echo esc_html( Forms::money( $refund['amount_minor'], $refund['currency'] ?: $currency ) ); ?><br><small><?php echo esc_html( sprintf( /* translators: %s: tax amount */ __( 'davon Steuer %s', 'pass-captain' ), Forms::money( $refund['tax_minor'], $refund['currency'] ?: $currency ) ) ); ?></small></td>
@@ -539,7 +688,7 @@ final class OrdersPage {
 								<em><?php esc_html_e( 'Freigabe durch eine andere Person erforderlich', 'pass-captain' ); ?></em>
 							<?php else : ?>
 								<?php Forms::open_form( 'wpcap_approve_refund', 'wpcap_approve_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
-								<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Erstattung freigeben und auszahlen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Freigeben', 'pass-captain' ); ?></button>
+								<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Erstattung freigeben und auszahlen?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Freigeben', 'pass-captain' ); ?></button>
 								</form>
 								<?php Forms::open_form( 'wpcap_reject_refund', 'wpcap_reject_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
 								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Ablehnung', 'pass-captain' ); ?>">

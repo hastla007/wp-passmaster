@@ -11,13 +11,22 @@ $GLOBALS['wpac_test_refunds'] = array();
 $GLOBALS['wpac_test_touch']   = null;
 if ( ! function_exists( 'wpac_contract_version' ) ) {
 	function wpac_contract_version() { return $GLOBALS['wpac_test_version']; }
-	function wpac_record_sale( array $payload ) { $GLOBALS['wpac_test_sales'][] = $payload; return array( 'status' => 'created' ); }
+	function wpac_record_sale( array $payload ) {
+		// Failure modes for the retry tests: 'throw' (exception), 'error' (WP_Error).
+		$fail = $GLOBALS['wpac_test_fail'] ?? '';
+		if ( 'throw' === $fail ) { throw new RuntimeException( 'Affiliate Captain database gone' ); }
+		if ( 'error' === $fail ) { return new WP_Error( 'wpac_storage', 'Affiliate Captain could not store the sale' ); }
+		$GLOBALS['wpac_test_sales'][] = $payload;
+		return array( 'status' => 'created' );
+	}
 	function wpac_record_refund( array $payload ) { $GLOBALS['wpac_test_refunds'][] = $payload; return array( 'status' => 'adjusted' ); }
 	function wpac_resolve_partner_code( $code, array $context = array() ) { return 'NORD-1' === strtoupper( $code ) ? array( 'affiliate_id' => 7, 'code_id' => 3, 'code' => 'NORD-1' ) : null; }
 	function wpac_current_touch() { return $GLOBALS['wpac_test_touch']; }
 }
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'salt-' . $scheme; } }
 AffiliateAdapter::register();
+// No consent API in this test: the operator opts in to reading the referral cookie (default: no consent).
+$GLOBALS['wpcap_test_filters']['wpcap_affiliate_tracking_allowed'] = true;
 $aff_last_sale = static fn() => end( $GLOBALS['wpac_test_sales'] );
 $aff_snapshot  = static function ( $order_id ) { global $wpdb; return json_decode( $wpdb->get_var( "SELECT price_snapshot FROM {$wpdb->prefix}wpcap_orders WHERE order_id=" . (int) $order_id ), true ); };
 $aff_order     = static function ( $type, $qty, $payload = array(), $internal = array() ) {
@@ -95,3 +104,4 @@ $expected = $by_means ? (int) $fresh->total_minor - (int) round( (int) $fresh->t
 check( 'a redeemed voucher reduces the commission base to the net of what was paid', ! is_wp_error( $applied ) && (string) $vo['order_id'] === $sale['order_id'] && $expected === $sale['items'][0]['net_minor'] && $sale['items'][0]['net_minor'] < 10000 );
 echo '  (voucher ' . ( $by_means ? 'multi-purpose' : 'single-purpose' ) . ': paid ' . (int) $fresh->total_minor . ', base ' . (int) $sale['items'][0]['net_minor'] . ")\n";
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_affiliate_tracking_allowed'] );

@@ -16,7 +16,7 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 Settings::update( array( 'require_terms' => 0, 'terms_text' => '', 'attendee_retention_days' => 0 ) );
 
 // Own stubs only where no earlier test defined the function; checks depending on them are skipped otherwise.
@@ -48,7 +48,7 @@ function p1p_field( $type, $key, $days ) {
 function p1p_order( $type, $email, array $attendees ) {
 	$list = array();
 	foreach ( $attendees as $a ) { $list[] = array( 'ticket_type_id' => $type, 'name' => $a[0], 'email' => $a[1], 'answers' => $a[2] ?? array() ); }
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => count( $attendees ) ) ), 'idempotency_key' => 'p1p-' . uniqid( '', true ), 'attendees' => $list ) );
 }
 function p1p_tickets( $order_id ) { return array_map( static fn( $t ) => (int) $t->ticket_id, Orders::tickets_for_order( $order_id ) ); }
@@ -80,7 +80,7 @@ $wpdb->insert( "{$p}wpcap_offline_entries", array( 'occurrence_id' => (int) $wpd
 $wpdb->insert( "{$p}wpcap_wallet_passes", array( 'ticket_id' => $otid, 'provider' => 'apple', 'serial_number' => 'p1p-old-serial', 'status' => 'active', 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $wpdb->insert( "{$p}wpcap_wallet_registrations", array( 'device_library_id' => 'dev-old', 'pass_type_id' => 'pass.test', 'serial_number' => 'p1p-old-serial', 'push_token' => 'push-old', 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 // Unpaid orders: expired 10 days ago with attendee data, never paid 100 days ago.
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $paid_type = make_type( 20, 10, 1500 );
 $u1 = Orders::create( array( 'email' => 'p1p-unpaid@example.com', 'items' => array( array( 'ticket_type_id' => $paid_type, 'quantity' => 1 ) ), 'idempotency_key' => 'p1p-u1', 'attendees' => array( array( 'ticket_type_id' => $paid_type, 'name' => 'Uwe' ) ) ) );
 $u2 = Orders::create( array( 'email' => 'p1p-never@example.com', 'items' => array( array( 'ticket_type_id' => $paid_type, 'quantity' => 1 ) ), 'idempotency_key' => 'p1p-u2' ) );
@@ -151,7 +151,7 @@ $daily = array_filter( $GLOBALS['p1p_scheduled'], static fn( $e ) => Retention::
 check( 'retention: daily event is scheduled once', ! $p1p_own_cron || 1 === count( $daily ) && 'daily' === ( array_values( $daily )[0][3] ?? '' ) );
 
 echo "Privacy: exporter\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $et = make_type( 20, 10, 1000 );
 $ef = p1p_field( $et, 'firma', 365 );
 $eo = Orders::create( array( 'email' => 'p1p-buyer@example.com', 'items' => array( array( 'ticket_type_id' => $et, 'quantity' => 2 ) ), 'idempotency_key' => 'p1p-exp', 'attendees' => array(
@@ -201,7 +201,11 @@ add_action( 'wpcap_ticket_revoked', static function ( $id, $reason = '' ) use ( 
 $GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] = false;
 $res_a = Privacy::erase( 'p1p-ada@example.com' );
 check( 'erase attendee: name, e-mail, answers removed; ticket stays valid', '' === $wpdb->get_var( "SELECT attendee_name FROM {$p}wpcap_ticket_assignments WHERE ticket_id=$ada" ) && '' === $wpdb->get_var( "SELECT attendee_email FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array() === $answers( $ada ) && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array( 'Initech' ) === $answers( $bob ) );
-check( 'erase attendee: wallet device registration removed, no revocation', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
+// PRIV-4: the device first gets the push for the nameless pass; the registration goes with the delayed purge.
+$p1p_purge = array_values( array_filter( $GLOBALS['p1p_scheduled'] ?? array(), static fn( $e ) => Privacy::WALLET_PURGE_HOOK === $e[1] && in_array( $ada, (array) ( $e[2][0] ?? array() ), true ) ) );
+$p1p_reg_after_erase = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" );
+Privacy::purge_wallet_registrations( array( $ada ) );
+check( 'erase attendee: wallet device registration removed after the push (delayed purge), no revocation', 1 === $p1p_reg_after_erase && ( ! $p1p_own_cron || $p1p_purge ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
 check( 'erase attendee: warns that the buyer\'s upcoming tickets stay valid', (bool) preg_grep( '/bleiben gültig/', $res_a['messages'] ) );
 // Buyer erasure.
 $GLOBALS['p1p_scheduled'] = array();
@@ -253,20 +257,23 @@ $full = PolicyText::content();
 check( 'policy: enabled services, third-country transfers and consent (lit. a) appear', false !== strpos( $full, 'Stripe' ) && false !== strpos( $full, 'PayPal' ) && false !== strpos( $full, 'Mollie' ) && false !== strpos( $full, 'Twilio' ) && false !== strpos( $full, 'Apple' ) && false !== strpos( $full, 'Google' ) && false !== strpos( $full, 'Affiliate' ) && false !== strpos( $full, 'Drittländer' ) && false !== strpos( $full, 'lit. a' ) && false !== strpos( $full, '45 Tage' ) );
 $wpdb->query( "UPDATE {$p}wpcap_partners SET status='active' WHERE status='p1p_inactive'" );
 $wpdb->query( "UPDATE {$p}wpcap_webhook_subscriptions SET status='active' WHERE status='p1p_inactive'" );
+$GLOBALS['pagenow'] = 'options-privacy.php'; // Y5/PERF-9: only registered on the privacy screens.
 PolicyText::add();
+unset( $GLOBALS['pagenow'] );
 check( 'policy: registered through wp_add_privacy_policy_content', ! isset( $GLOBALS['p1p_policy'] ) || isset( $GLOBALS['p1p_policy']['Pass Captain'] ) );
 Settings::update( array( 'enabled_providers' => array( 'manual' ), 'wallet_apple_enabled' => 0, 'wallet_google_enabled' => 0, 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '' ) ), 'attendee_retention_days' => 0 ) );
 
 echo "Privacy: affiliate referral cookie needs consent\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $aft = make_type( 50, 10, 1000 );
 $aff_snap = static function ( $order_id ) use ( $wpdb, $p ) { return json_decode( (string) $wpdb->get_var( "SELECT price_snapshot FROM {$p}wpcap_orders WHERE order_id=" . (int) $order_id ), true ); };
-$aff_buy = static function ( $payload = array() ) use ( $aft ) { $GLOBALS['wpcap_test_transients'] = array(); return Orders::create( array_merge( array( 'email' => 'p1p-aff' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $aft, 'quantity' => 1 ) ), 'idempotency_key' => 'p1p-aff-' . uniqid( '', true ) ), $payload ) ); };
+$aff_buy = static function ( $payload = array() ) use ( $aft ) { wpcap_test_reset_transients(); return Orders::create( array_merge( array( 'email' => 'p1p-aff' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $aft, 'quantity' => 1 ) ), 'idempotency_key' => 'p1p-aff-' . uniqid( '', true ) ), $payload ) ); };
 $GLOBALS['wpac_test_touch'] = array( 'code' => 'NORD-1', 'method' => 'cookie', 'campaign' => 'herbst', 'content_id' => 0 );
 $had_consent_api = function_exists( 'wp_has_consent' );
 if ( ! $had_consent_api ) {
 	$no_api = $aff_buy();
-	check( 'affiliate: without a consent API the touch is read (operator gates the cookie)', 'cookie' === ( $aff_snap( $no_api['order_id'] )['affiliate_referral']['touch']['method'] ?? '' ) );
+	// PRIV-15: no consent API = no proof of consent, the cookie is not read.
+	check( 'affiliate: without a consent API the referral cookie is not read', ! isset( $aff_snap( $no_api['order_id'] )['affiliate_referral']['touch'] ) );
 	function wp_has_consent( $category ) { return ! empty( $GLOBALS['p1p_consent'][ $category ] ); }
 }
 $GLOBALS['p1p_consent'] = array();
@@ -303,10 +310,10 @@ check( 'partner API: e-mail fields go through Privacy::public_email()', 2 === su
 $_SERVER['REMOTE_ADDR'] = '198.51.100.7';
 $rl_client = PassCaptain\RateLimit::client();
 check( 'rate limit: client key is an HMAC with the site salt, not a static key', hash_hmac( 'sha256', '198.51.100.7', 'wpcap-rate' ) !== $rl_client && hash_hmac( 'sha256', '198.51.100.7', 'wpcap-rate|' . wp_salt( 'nonce' ) ) === $rl_client );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $allowed = 0;
 for ( $i = 0; $i < 4; $i++ ) { $allowed += PassCaptain\RateLimit::allow( 'p1p_bucket|198.51.100.7', 3, 60 ) ? 1 : 0; }
-$keys = array_keys( $GLOBALS['wpcap_test_transients'] );
-check( 'rate limit: still limits, transient key is not a plain md5 of the bucket', 3 === $allowed && 1 === count( $keys ) && false === strpos( $keys[0], md5( 'p1p_bucket|198.51.100.7|' . (int) floor( time() / 60 ) ) ) );
+$keys = $wpdb->get_col( $wpdb->prepare( 'SELECT bucket_key FROM %i', PassCaptain\RateLimit::table() ) );
+check( 'rate limit: still limits, stored bucket key is not a plain md5 of the bucket', 3 === $allowed && 1 === count( $keys ) && 64 === strlen( $keys[0] ) && false === strpos( $keys[0], md5( 'p1p_bucket|198.51.100.7|' . (int) floor( time() / 60 ) ) ) && array() === $GLOBALS['wpcap_test_transients'] );
 unset( $_SERVER['REMOTE_ADDR'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();

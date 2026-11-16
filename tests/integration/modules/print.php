@@ -33,7 +33,7 @@ if ( ! function_exists( 'wpp_pdf_ok' ) ) {
 		foreach ( $offsets[1] as $i => $offset ) {
 			if ( 0 !== strpos( substr( $pdf, (int) $offset ), ( $i + 1 ) . ' 0 obj' ) ) { return false; }
 		}
-		if ( ! preg_match_all( '/<< \/Length (\d+) >>\nstream\n/', $pdf, $streams, PREG_OFFSET_CAPTURE ) ) { return false; }
+		if ( ! preg_match_all( '/<< \/Length (\d+)(?: \/Filter \/FlateDecode)? >>\nstream\n/', $pdf, $streams, PREG_OFFSET_CAPTURE ) ) { return false; }
 		foreach ( $streams[1] as $i => $len ) {
 			$start = $streams[0][ $i ][1] + strlen( $streams[0][ $i ][0] );
 			if ( "\nendstream" !== substr( $pdf, $start + (int) $len[0], 10 ) ) { return false; }
@@ -48,16 +48,16 @@ check( 'placeholders are replaced, {qr} removed from text, separators trimmed', 
 $parsed = Templates::parse( "*18|{event}\n9|x\n{qr}\nplain" );
 check( 'template lines parse size, bold and QR', 18.0 === $parsed[0]['size'] && $parsed[0]['bold'] && ! $parsed[1]['bold'] && $parsed[2]['qr'] && 12.0 === $parsed[3]['size'] );
 $ticket_pdf = Templates::render( 'ticket', array( $item, $item, $item ) );
-check( 'ticket layout: valid PDF, one A4 page per ticket, escaped text', wpp_pdf_ok( $ticket_pdf, 3 ) && false !== strpos( $ticket_pdf, '(Gala \\(Wien\\)) Tj' ) && false !== strpos( $ticket_pdf, '/MediaBox [0 0 595.28 841.89]' ) );
-check( 'QR code is drawn when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $ticket_pdf, 're f' ) > 600 );
+check( 'ticket layout: valid PDF, one A4 page per ticket, escaped text', wpp_pdf_ok( $ticket_pdf, 3 ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '(Gala \\(Wien\\)) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '/MediaBox [0 0 595.28 841.89]' ) );
+check( 'QR code is drawn when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $ticket_pdf ), " re\n" ) > 200 );
 $badge = Templates::render( 'badge', array( $item ) );
-check( 'badge layout is A6', wpp_pdf_ok( $badge, 1 ) && false !== strpos( $badge, '/MediaBox [0 0 297.64 419.53]' ) && false !== strpos( $badge, '(Ada Lovelace) Tj' ) );
+check( 'badge layout is A6', wpp_pdf_ok( $badge, 1 ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '/MediaBox [0 0 297.64 419.53]' ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '(Ada Lovelace) Tj' ) );
 $tags = Templates::render( 'nametag', array_fill( 0, 12, $item ) );
-check( 'name tags: 10 per A4 page (12 tags = 2 pages) with cut marks', wpp_pdf_ok( $tags, 2 ) && 12 === substr_count( $tags, ' re S' ) && 12 === substr_count( $tags, '(Ada Lovelace) Tj' ) );
+check( 'name tags: 10 per A4 page (12 tags = 2 pages) with cut marks', wpp_pdf_ok( $tags, 2 ) && 12 === substr_count( wpcap_test_pdf_plain( $tags ), ' re S' ) && 12 === substr_count( wpcap_test_pdf_plain( $tags ), '(Ada Lovelace) Tj' ) );
 $band = Templates::render( 'wristband', array( $item, $item ) );
 check( 'wristband layout is 250 x 25 mm', wpp_pdf_ok( $band, 2 ) && false !== strpos( $band, '/MediaBox [0 0 708.66 70.87]' ) );
 $long = Templates::render( 'nametag', array( array_merge( $item, array( 'attendee_name' => str_repeat( 'Wolfeschlegelsteinhausen ', 6 ) ) ) ) );
-check( 'long names are shortened to fit the label', wpp_pdf_ok( $long, 1 ) && false !== strpos( $long, '...) Tj' ) );
+check( 'long names are shortened to fit the label', wpp_pdf_ok( $long, 1 ) && false !== strpos( wpcap_test_pdf_plain( $long ), '...) Tj' ) );
 check( 'umlauts are encoded for Helvetica (WinAnsi)', false !== strpos( PdfWriter::escape( 'Müller' ), "M\xFCller" ) );
 check( 'an empty batch still yields a valid PDF', wpp_pdf_ok( Templates::render( 'badge', array() ), 1 ) );
 
@@ -66,7 +66,7 @@ $pt = make_type( 10, 10, 0 );
 $pocc = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$pt" );
 $pevent = Scope::occurrence_event( $pocc );
 $wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $pt, 'field_key' => 'firma', 'label' => 'Firma', 'field_type' => 'text', 'required' => 0, 'status' => 'active' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $porder = Orders::create( array( 'email' => 'buyer-print@example.com', 'items' => array( array( 'ticket_type_id' => $pt, 'quantity' => 3 ) ), 'idempotency_key' => 'wpp-' . uniqid(), 'attendees' => array(
 	array( 'ticket_type_id' => $pt, 'name' => '=HYPERLINK("http://evil")', 'email' => 'ada@example.com', 'answers' => array( 'firma' => '+cmd|calc' ) ),
 	array( 'ticket_type_id' => $pt, 'name' => 'Ada Lovelace', 'answers' => array( 'firma' => 'ACME' ) ),
@@ -79,8 +79,8 @@ check( 'template of another layout cannot be assigned', is_wp_error( Templates::
 Templates::assign( $pevent, 'badge', $tid );
 add_filter( 'wpcap_ticket_seat_label', static function ( $label, $ticket_id ) use ( $ptickets ) { return (int) $ticket_id === (int) $ptickets[1]->ticket_id ? 'Reihe 3, Platz 7' : $label; }, 20, 2 );
 $batch = PrintPage::batch_request( $pocc, 'badge', false );
-check( 'batch print uses the event template incl. seat label for all non-revoked tickets', ! is_wp_error( $batch ) && wpp_pdf_ok( $batch['pdf'], 3 ) && false !== strpos( $batch['pdf'], '(Hallo Ada Lovelace) Tj' ) && false !== strpos( $batch['pdf'], '(Reihe 3, Platz 7) Tj' ) );
-check( 'without new codes no QR code is printed and codes stay unchanged', ( ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $batch['pdf'], 're f' ) < 10 ) );
+check( 'batch print uses the event template incl. seat label for all non-revoked tickets', ! is_wp_error( $batch ) && wpp_pdf_ok( $batch['pdf'], 3 ) && false !== strpos( wpcap_test_pdf_plain( $batch['pdf'] ), '(Hallo Ada Lovelace) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $batch['pdf'] ), '(Reihe 3, Platz 7) Tj' ) );
+check( 'without new codes no QR code is printed and codes stay unchanged', ( ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $batch['pdf'] ), " re\n" ) < 10 ) );
 check( 'other events keep the default layout', Templates::default_body( 'badge' ) === Templates::body_for_event( $pevent + 999, 'badge' ) );
 // Regression: template editing is scoped (global templates only for administrators, event templates per event).
 $other_type = make_type( 5 );
@@ -107,15 +107,17 @@ Templates::assign( $pevent, 'ticket', $assigned_tpl );
 check( 'the layout of an assigned template cannot be changed', is_wp_error( Templates::save_template( $assigned_tpl, 'Zugeordnet', 'badge', 'x' ) ) );
 Templates::assign( $pevent, 'ticket', 0 );
 $hashes = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
-$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_orders' );
-$no_codes = PrintPage::batch_request( $pocc, 'ticket', true );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events' );
+$no_codes = PrintPage::batch_request( $pocc, 'ticket', true, array( 'include_delivered' => true, 'confirm' => 2 ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_orders', 'wpcap_manage_events' );
 $no_print = PrintPage::batch_request( $pocc, 'badge', false );
 $GLOBALS['wpcap_test_denied_caps'] = array();
-check( 'printing needs event/order management; new codes need order management', is_wp_error( $no_codes ) && is_wp_error( $no_print ) && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
+$default_only = PrintPage::batch_request( $pocc, 'ticket', true );
+check( 'printing needs event/order management; new codes need event management (R2)', is_wp_error( $no_codes ) && is_wp_error( $no_print ) && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
+check( 'with QR by default only undelivered (box office) tickets: customer tickets stay untouched (R2)', is_wp_error( $default_only ) && 'wpcap_print_nothing' === $default_only->get_error_code() && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
 $GLOBALS['wpp_rotated'] = array();
 add_action( 'wpcap_ticket_code_rotated', static function ( $ticket_id, $token, $context ) { $GLOBALS['wpp_rotated'][ $ticket_id ] = array( $token, $context ); }, 10, 3 );
-$with_codes = PrintPage::batch_request( $pocc, 'ticket', true );
+$with_codes = PrintPage::batch_request( $pocc, 'ticket', true, array( 'include_delivered' => true, 'confirm' => 2 ) );
 $after = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
 check( 'tickets with QR: new codes for valid tickets only, checked-in tickets untouched', ! is_wp_error( $with_codes ) && wpp_pdf_ok( $with_codes['pdf'], 2 ) && $after[0] !== $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
 $rot_ok = 2 === count( $GLOBALS['wpp_rotated'] ) && ! isset( $GLOBALS['wpp_rotated'][ (int) $ptickets[2]->ticket_id ] );
@@ -150,7 +152,7 @@ echo "Print: invoice PDF\n";
 $it = make_type( 10, 10, 1190 );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=1900 WHERE ticket_type_id=$it" );
 Settings::update( array( 'seller_name' => 'Veranstalter GmbH', 'seller_address' => "Ring 1\n1010 Wien", 'seller_vat_id' => 'ATU12345678' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $io = Orders::create( array( 'email' => 'rechnung@example.com', 'items' => array( array( 'ticket_type_id' => $it, 'quantity' => 2 ) ), 'idempotency_key' => 'wpp-inv-' . uniqid() ) );
 $access_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'rechnung@example.com' === $m['to'] ) )[0] ?? array( 'body' => '' );
@@ -158,12 +160,12 @@ preg_match( '/wpcap_access=([a-f0-9]{64})/', $access_mail['body'], $tm );
 Orders::confirm_manual_payment( $io['order_id'] );
 $admin = InvoicePdf::admin_pdf( $io['order_id'] );
 $number = $wpdb->get_var( "SELECT invoice_number FROM {$p}wpcap_invoices WHERE order_id=" . (int) $io['order_id'] );
-check( 'admin download issues the invoice and returns a valid PDF with its content', ! is_wp_error( $admin ) && wpp_pdf_ok( $admin['pdf'], 1 ) && false !== strpos( $admin['pdf'], '(Rechnung ' . $number . ') Tj' ) && false !== strpos( $admin['pdf'], '(Umsatzsteuer 19,00 %) Tj' ) && false !== strpos( $admin['pdf'], '(23,80 EUR) Tj' ) && false !== strpos( $admin['pdf'], '(Veranstalter GmbH) Tj' ) && 'rechnung-' . $number . '.pdf' === $admin['filename'] );
+check( 'admin download issues the invoice and returns a valid PDF with its content', ! is_wp_error( $admin ) && wpp_pdf_ok( $admin['pdf'], 1 ) && false !== strpos( wpcap_test_pdf_plain( $admin['pdf'] ), '(Rechnung ' . $number . ') Tj' ) && false !== strpos( wpcap_test_pdf_plain( $admin['pdf'] ), '(Umsatzsteuer 19,00 %) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $admin['pdf'] ), '(23,80 EUR) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $admin['pdf'] ), '(Veranstalter GmbH) Tj' ) && 'rechnung-' . $number . '.pdf' === $admin['filename'] );
 $refund = PassCaptain\Refunds::request( $io['order_id'], array( (int) tickets( $io['order_id'] )[0]->ticket_id ), 'Test', 'wpp-cn' );
 $cn = PassCaptain\Invoices::credit_note_for_refund( $refund['refund_id'] );
 $with_cn = InvoicePdf::render( (int) $wpdb->get_var( "SELECT invoice_id FROM {$p}wpcap_invoices WHERE order_id=" . (int) $io['order_id'] ) );
 $only_cn = InvoicePdf::admin_pdf( $io['order_id'], (int) $cn['credit_note_id'] );
-check( 'credit notes get their own page; single credit note download', wpp_pdf_ok( $with_cn, 2 ) && false !== strpos( $with_cn, '(Rechnungskorrektur ' . $cn['credit_note_number'] . ') Tj' ) && ! is_wp_error( $only_cn ) && wpp_pdf_ok( $only_cn['pdf'], 1 ) && false !== strpos( $only_cn['pdf'], '(-11,90 EUR) Tj' ) && str_starts_with( $only_cn['filename'], 'rechnungskorrektur-' ) );
+check( 'credit notes get their own page; single credit note download', wpp_pdf_ok( $with_cn, 2 ) && false !== strpos( wpcap_test_pdf_plain( $with_cn ), '(Rechnungskorrektur ' . $cn['credit_note_number'] . ') Tj' ) && ! is_wp_error( $only_cn ) && wpp_pdf_ok( $only_cn['pdf'], 1 ) && false !== strpos( wpcap_test_pdf_plain( $only_cn['pdf'] ), '(-11,90 EUR) Tj' ) && str_starts_with( $only_cn['filename'], 'rechnungskorrektur-' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance', 'wpcap_manage_orders' );
 $forbidden = InvoicePdf::admin_pdf( $io['order_id'] );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance' );
@@ -179,7 +181,7 @@ check( 'buyer download works only with the order access token', ! is_wp_error( $
 Settings::update( array( 'print_attach_invoice_pdf' => 1, 'auto_invoice' => 1 ) );
 $GLOBALS['wpp_attachments'] = array();
 add_filter( 'wpcap_ticket_mail', static function ( $mail ) { $GLOBALS['wpp_attachments'] = (array) $mail['attachments']; return $mail; }, 30 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $ao = Orders::create( array( 'email' => 'anhang@example.com', 'items' => array( array( 'ticket_type_id' => $it, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp-att-' . uniqid() ) );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 Orders::confirm_manual_payment( $ao['order_id'] );
@@ -193,7 +195,7 @@ InvoicePdf::cleanup_temp_files();
 check( 'temporary directory is removed as well', '' !== $inv_path && ! is_dir( dirname( $inv_path ) ) );
 Settings::update( array( 'print_attach_invoice_pdf' => 0, 'auto_invoice' => 0 ) );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $no = Orders::create( array( 'email' => 'ohne@example.com', 'items' => array( array( 'ticket_type_id' => $it, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp-noatt-' . uniqid() ) );
 Orders::confirm_manual_payment( $no['order_id'] );
 $plain = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => str_starts_with( $m['subject'], 'Deine Tickets' ) ) )[0] ?? array( 'files' => array() );

@@ -1,0 +1,74 @@
+name: Load tests (scheduled)
+
+# Weekly load/concurrency run of tests/load/run.php with the "default" and "heavy" profiles on
+# MariaDB and MySQL (docs/TESTING.md, section "Geplante Lasttests"). The job fails when an
+# invariant is violated (no overselling, one admission per ticket, webhooks applied once, no
+# unexpected errors: exit code 1 of run.php). Latency/throughput are kept as artifacts and
+# compared with the reference values in docs/TESTING.md by hand (shared runners are noisy).
+on:
+  schedule:
+    - cron: '17 3 * * 1' # Mondays 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Profile'
+        type: choice
+        options: ['all', 'default', 'heavy']
+        default: 'all'
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    name: load (${{ matrix.profile }}, ${{ matrix.db.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Scheduled runs: both profiles; manual runs: the chosen one.
+        profile: ${{ fromJSON((inputs.profile == '' || inputs.profile == 'all') && '["default","heavy"]' || format('["{0}"]', inputs.profile)) }}
+        db:
+          - { name: 'MariaDB 11.4', slug: 'mariadb-11.4', image: 'mariadb:11.4', health: 'healthcheck.sh --connect --innodb_initialized' }
+          - { name: 'MySQL 8.4', slug: 'mysql-8.4', image: 'mysql:8.4', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot' }
+    services:
+      db:
+        image: ${{ matrix.db.image }}
+        env:
+          MYSQL_DATABASE: wp
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.db.health }}"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          coverage: none
+      - name: Load test (${{ matrix.profile }})
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+          OUT: load-${{ matrix.profile }}-${{ matrix.db.slug }}
+        run: |
+          mkdir -p load-results
+          set -o pipefail
+          php tests/load/run.php --profile=${{ matrix.profile }} --json="load-results/${OUT}.json" 2>&1 | tee "load-results/${OUT}.txt"
+      - name: Summary
+        if: always()
+        run: |
+          f="$(ls load-results/*.txt 2>/dev/null | head -n1)"
+          [ -n "$f" ] || exit 0
+          { echo "### Load ${{ matrix.profile }} – ${{ matrix.db.name }}"; echo '```'; sed -n '/^scenario/,$p' "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-${{ matrix.profile }}-${{ matrix.db.slug }}
+          path: load-results/
+          retention-days: 90
