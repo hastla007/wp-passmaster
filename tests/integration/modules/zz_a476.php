@@ -25,8 +25,10 @@ $a476_now = gmdate( 'Y-m-d H:i:s' );
 $wpdb->insert( "{$p}wpcap_events", array( 'name' => 'A476 Serie', 'slug' => 'a476-' . uniqid(), 'description' => '', 'status' => 'published', 'created_at' => $a476_now, 'updated_at' => $a476_now ) );
 $a476_event = (int) $wpdb->insert_id;
 $a476_occ = array();
+// Whole days from now (not a fixed 18:00): the select window starts 12 hours ago, so a fixed time of day
+// would put yesterday's date into it between 00:00 and 06:00 UTC.
 for ( $i = -60; $i < 70; $i++ ) {
-	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $a476_event, 'starts_at' => gmdate( 'Y-m-d 18:00:00', time() + $i * DAY_IN_SECONDS + ( $i >= 0 ? DAY_IN_SECONDS : 0 ) ), 'timezone' => 'Europe/Vienna', 'location' => 'Halle', 'capacity' => 100, 'status' => 'scheduled' ) );
+	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $a476_event, 'starts_at' => gmdate( 'Y-m-d H:i:00', time() + $i * DAY_IN_SECONDS + ( $i >= 0 ? DAY_IN_SECONDS : 0 ) ), 'timezone' => 'Europe/Vienna', 'location' => 'Halle', 'capacity' => 100, 'status' => 'scheduled' ) );
 	$a476_occ[] = (int) $wpdb->insert_id;
 }
 // Sold units on two dates of the second page.

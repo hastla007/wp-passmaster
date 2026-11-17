@@ -380,10 +380,16 @@ final class Dispatcher {
 		self::cancel_stale( $cutoff );
 		$deleted = 0;
 		do {
-			$batch = $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'deliveries' ) . " WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s LIMIT %d", $cutoff, self::PURGE_BATCH ) );
+			// The ids come from an index range on KEY cleanup (FORCE INDEX: on a small log MariaDB 11.8 would
+			// rather scan the whole table, and DELETE takes no index hint); the DELETE then goes by primary key.
+			$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT delivery_id FROM ' . self::t( 'deliveries' ) . " FORCE INDEX (cleanup) WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s LIMIT %d", $cutoff, self::PURGE_BATCH ) );
+			$ids = array_map( 'intval', (array) $ids );
+			$found = count( $ids );
+			if ( ! $found ) { break; }
+			$batch = $wpdb->query( 'DELETE FROM ' . self::t( 'deliveries' ) . ' WHERE delivery_id IN (' . implode( ',', $ids ) . ')' ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- log cleanup, integer ids.
 			$batch = false === $batch ? 0 : (int) $batch;
 			$deleted += $batch;
-		} while ( self::PURGE_BATCH === $batch && microtime( true ) < $deadline );
+		} while ( self::PURGE_BATCH === $found && microtime( true ) < $deadline );
 		return $deleted;
 	}
 

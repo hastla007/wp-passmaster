@@ -52,7 +52,8 @@ add_filter( 'query', $a437_spy );
 $a437_first = Dispatcher::purge_old( 0 );
 remove_filter( 'query', $a437_spy );
 $a437_deletes = array_values( array_filter( $a437_log, static fn( $sql ) => 0 === stripos( ltrim( $sql ), 'DELETE' ) ) );
-check( 'budget 0: one batch of 1,000 rows, the next run continues', 1000 === $a437_first && 1 === count( $a437_deletes ) && (bool) preg_match( '/LIMIT 1000\s*$/', $a437_deletes[0] ?? '' ) && 1530 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_webhook_deliveries" ) );
+$a437_lookups = array_values( array_filter( $a437_log, static fn( $sql ) => false !== stripos( $sql, 'FORCE INDEX (cleanup)' ) ) );
+check( 'budget 0: one batch of 1,000 rows (index lookup with LIMIT, DELETE by id), the next run continues', 1000 === $a437_first && 1 === count( $a437_deletes ) && 1 === count( $a437_lookups ) && (bool) preg_match( '/LIMIT 1000\s*$/', $a437_lookups[0] ?? '' ) && false !== stripos( $a437_deletes[0] ?? '', 'delivery_id IN (' ) && 1530 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_webhook_deliveries" ) );
 
 $a437_log = array();
 add_filter( 'query', $a437_spy );
@@ -76,17 +77,18 @@ add_filter( 'query', $a437_spy );
 $a437_none = Dispatcher::purge_old();
 remove_filter( 'query', $a437_spy );
 $a437_deletes = array_values( array_filter( $a437_log, static fn( $sql ) => 0 === stripos( ltrim( $sql ), 'DELETE' ) ) );
-// Measure exactly that DELETE (nothing is due, so running it again deletes nothing); the counter around
-// the whole purge_old() would also count the separate cancel_stale() lookup.
+$a437_lookups = array_values( array_filter( $a437_log, static fn( $sql ) => false !== stripos( $sql, 'FORCE INDEX (cleanup)' ) ) );
+// Measure exactly that lookup (read-only); the counter around the whole purge_old() would also count the
+// separate cancel_stale() lookup.
 $a437_scanned = PHP_INT_MAX;
-if ( $a437_deletes ) {
+if ( $a437_lookups ) {
 	$a437_scan_before = $a437_scan();
-	$a437_again = $wpdb->query( $a437_deletes[0] );
-	$a437_scanned = 0 === (int) $a437_again ? $a437_scan() - $a437_scan_before : PHP_INT_MAX;
+	$wpdb->get_col( $a437_lookups[0] );
+	$a437_scanned = $a437_scan() - $a437_scan_before;
 }
-$a437_plan = $a437_deletes ? (array) $wpdb->get_row( 'EXPLAIN ' . $a437_deletes[0] ) : array();
+$a437_plan = $a437_lookups ? (array) $wpdb->get_row( 'EXPLAIN ' . $a437_lookups[0] ) : array();
 if ( $a437_scanned >= 500 || 'cleanup' !== ( $a437_plan['key'] ?? '' ) ) { fwrite( STDERR, 'A437 plan: ' . json_encode( $a437_plan ) . " rows scanned: $a437_scanned\n" ); }
-check( 'nothing due: one DELETE, no full scan of the log (' . $a437_scanned . ' rows read by table scans)', 0 === $a437_none && 1 === count( $a437_deletes ) && $a437_scanned < 500 );
+check( 'nothing due: one index lookup on KEY cleanup, no DELETE, no full scan of the log (' . $a437_scanned . ' rows read by table scans)', 0 === $a437_none && 1 === count( $a437_lookups ) && 0 === count( $a437_deletes ) && $a437_scanned < 500 && 'cleanup' === ( $a437_plan['key'] ?? '' ) );
 
 $wpdb->query( "DELETE FROM {$p}wpcap_webhook_deliveries WHERE event_id LIKE 'evt\\_a437\\_%'" );
 $wpdb->query( "DELETE FROM {$p}wpcap_webhook_subscriptions WHERE subscription_id BETWEEN 9000 AND 9006" );

@@ -242,8 +242,10 @@ $a200_find = static function ( $public_id ) use ( $a200_rows ) { foreach ( $a200
 $a200_rj = $a200_find( Orders::get( $a200_oj['order_id'] )->public_id );
 $a200_rk = $a200_find( Orders::get( $a200_ok_['order_id'] )->public_id );
 check( 'accounting export: 3.000 JPY (gross, no decimals) and 12.345 KWD (three decimals)', $a200_rj && '3000' === $a200_rj[10] && '273' === $a200_rj[9] && 'JPY' === $a200_rj[11] && $a200_rk && '12.345' === $a200_rk[10] && 'KWD' === $a200_rk[11] );
-$a200_journal = Invoices::journal_totals( $a200_rows );
-check( 'journal totals read the export back exactly per currency', 3000 <= $a200_journal['JPY']['total']['gross'] && 12345 <= $a200_journal['KWD']['total']['gross'] );
+// Only this module's two rows: other JPY/KWD rows of "today" (credit notes of earlier modules, a day boundary
+// during the run) would change the sums.
+$a200_journal = Invoices::journal_totals( array_values( array_filter( array( $a200_rj, $a200_rk ) ) ) );
+check( 'journal totals read the export back exactly per currency', 3000 === ( $a200_journal['JPY']['total']['gross'] ?? null ) && 12345 === ( $a200_journal['KWD']['total']['gross'] ?? null ) );
 $a200_report = PassCaptain\Reports\Data::build( array( 'from' => $a200_today, 'to' => $a200_today, 'event_id' => $a200_event ), null );
 $a200_csv = PassCaptain\Reports\Data::csv_rows( $a200_report );
 $a200_cur_rows = array();
