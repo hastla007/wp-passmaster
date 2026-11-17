@@ -135,7 +135,13 @@ final class Webhooks {
 			return $result;
 		}
 		// processing → processed (StateMachine 'payment_event'); a processed event is never reopened.
-		$marked = $wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider' => $provider, 'provider_event_id' => $event_id, 'status' => 'processing' ) );
+		// A single UPDATE that lost a deadlock (or hit a lock wait timeout) is rolled back on its own and safe to
+		// repeat; without the retry the applied event would answer "in progress" until the takeover window.
+		for ( $attempt = 0; $attempt < 3; $attempt++ ) {
+			if ( $attempt ) { usleep( 50000 * $attempt ); }
+			$marked = $wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider' => $provider, 'provider_event_id' => $event_id, 'status' => 'processing' ) );
+			if ( false !== $marked ) { break; }
+		}
 		if ( false === $marked ) {
 			// The event was applied; the claim stays "processing" and a redelivery after the takeover
 			// window re-applies it idempotently (finds the work done: "already_paid" etc.).
