@@ -360,6 +360,25 @@ function db_deadlocks() {
 }
 
 /** Distributes ops over workers, runs them behind a start barrier and returns [results by op index, wall seconds]. */
+/**
+ * Provider redelivery: webhook ops whose answer was only retryable ("retry": deadlock victim or busy
+ * database, everything rolled back) are delivered once more, one at a time, as a payment provider would.
+ * Their results replace the retryable ones.
+ */
+function redeliver_retries( array $ops, array &$results, array $job_options = array() ) {
+	$again = array();
+	foreach ( $ops as $k => $op ) {
+		if ( 'webhook' !== ( $op['kind'] ?? '' ) ) { continue; }
+		$outcomes = array_column( (array) ( $results[ $k ] ?? array() ), 'outcome' );
+		if ( $outcomes && ! array_diff( $outcomes, array( 'retry' ) ) ) { $again[] = $op + array( 'i' => $k ); }
+	}
+	if ( ! $again ) { return 0; }
+	echo '  redelivering ' . count( $again ) . " webhook(s) after retryable answers\n";
+	list( $redone ) = run_workers( array( $again ), $job_options );
+	foreach ( $redone as $k => $rows ) { $results[ $k ] = $rows; }
+	return count( $again );
+}
+
 function run_workers( array $per_worker, array $job_options = array() ) {
 	global $last_db_stats, $cfg;
 	$deadlocks = db_deadlocks();
@@ -647,6 +666,7 @@ if ( in_array( $cfg['scenario'], array( 'all', 'mixed' ), true ) ) {
 	$tag_of = array();
 	foreach ( $ops as $k => $op ) { $tag_of[ $k ] = $op['tag']; $per_worker[ $k % $W ][] = $op + array( 'i' => $k ); }
 	list( $results, $wall ) = run_workers( $per_worker );
+	redeliver_retries( $ops, $results );
 	$sold = (int) $wpdb->get_var( "SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.ticket_type_id=$type AND o.payment_status='paid'" );
 	$held = (int) $wpdb->get_var( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active' AND expires_at > UTC_TIMESTAMP()" );
 	$tickets = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE ticket_type_id=$type AND status='valid'" );
@@ -703,6 +723,7 @@ if ( in_array( $cfg['scenario'], array( 'all', 'seats' ), true ) ) {
 	$tag_of = array();
 	foreach ( $ops as $k => $op ) { $tag_of[ $k ] = $op['tag']; $per_worker[ $k % $W ][] = $op + array( 'i' => $k ); }
 	list( $results, $wall ) = run_workers( $per_worker, array( 'seating' => true ) );
+	redeliver_retries( $ops, $results, array( 'seating' => true ) );
 	$claims_table = PassCaptain\Seating\Layouts::table( 'claims' );
 	$active_claims = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $claims_table WHERE occurrence_id=$occ AND active_key IS NOT NULL" );
 	$orphans = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $claims_table c LEFT JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE c.occurrence_id=$occ AND c.active_key IS NOT NULL AND o.order_id IS NULL" );
