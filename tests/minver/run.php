@@ -47,7 +47,7 @@ check( 'the guard returns before the autoloader and the plugin code are loaded',
 preg_match( '/^ \* Requires PHP:\s*(\S+)$/m', $main, $php_header );
 preg_match( '/^ \* Requires at least:\s*(\S+)$/m', $main, $wp_header );
 preg_match( '/^ \* WC requires at least:\s*(\S+)$/m', $main, $wc_header );
-check( 'the header declares PHP 8.5, WordPress 7.0 and WooCommerce 11.2 (the declared versions, not the running PHP)', '8.5' === ( $php_header[1] ?? '' ) && '7.0' === ( $wp_header[1] ?? '' ) && '11.2' === ( $wc_header[1] ?? '' ) );
+check( 'the header declares PHP 8.5, WordPress 7.0 and WooCommerce 11.2.2 (the declared versions, not the running PHP); WooCommerce 11.2.0 and 11.2.1 are below it', '8.5' === ( $php_header[1] ?? '' ) && '7.0' === ( $wp_header[1] ?? '' ) && '11.2.2' === ( $wc_header[1] ?? '' ) && version_compare( '11.2.1', $wc_header[1], '<' ) && version_compare( '11.2.0', $wc_header[1], '<' ) );
 
 echo "MINVER-1: database server warning (injected server strings)\n";
 require $root . '/src/Operations/SiteHealth.php';

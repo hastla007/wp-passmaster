@@ -28,12 +28,46 @@ final class DbSession {
 	/** @var int Nesting depth of with_short_lock_wait() (only the outermost call sets and restores). */
 	private static $lock_wait_depth = 0;
 
+	/** Whether the server is MariaDB (null = not checked yet; false also when the setting below is unknown there). */
+	private static $snapshot_setting = null;
+
+	/**
+	 * MariaDB 11.6.2+ turns innodb_snapshot_isolation on by default: a locking read (SELECT … FOR UPDATE) of a row
+	 * another request changed after this transaction's first read then fails with 1020 "Record has changed since
+	 * last read" and the whole transaction is rolled back. Orders, check-in, seats and refunds rely on the classic
+	 * InnoDB behaviour (the locking read sees the latest committed row) – as on MySQL and older MariaDB – so it is
+	 * switched off for this connection when the plugin starts and before each inventory transaction (it applies from
+	 * the next statement on, also inside a transaction another plugin opened). No effect on MySQL. Same approach and
+	 * name as Voucher Captain (VCAP\Db::classic_locking_reads(), MINVER-1).
+	 */
+	public static function classic_locking_reads() {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) ) {
+			return;
+		}
+		if ( null === self::$snapshot_setting ) {
+			$info = method_exists( $wpdb, 'db_server_info' ) ? (string) $wpdb->db_server_info() : (string) $wpdb->get_var( 'SELECT VERSION()' );
+			self::$snapshot_setting = false !== stripos( $info, 'mariadb' );
+		}
+		if ( ! self::$snapshot_setting ) {
+			return;
+		}
+		$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+		if ( false === $wpdb->query( 'SET SESSION innodb_snapshot_isolation = OFF' ) ) { // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			self::$snapshot_setting = false; // A MariaDB version without the setting: nothing to switch off.
+		}
+		if ( null !== $suppress ) {
+			$wpdb->suppress_errors( $suppress );
+		}
+	}
+
 	/**
 	 * Sets REPEATABLE READ for the next transaction of this connection. Call right before START
 	 * TRANSACTION. Fails harmlessly (returns false) when a transaction is already open.
 	 */
 	public static function repeatable_read() {
 		global $wpdb;
+		self::classic_locking_reads();
 		return false !== $wpdb->query( 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ' );
 	}
 

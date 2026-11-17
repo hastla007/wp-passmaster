@@ -27,6 +27,7 @@ final class Plugin {
 		$upgrade_hook = 'admin' === Installer::context() ? 'admin_init' : 'init';
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
+		DbSession::classic_locking_reads(); // MariaDB 11.6+: classic locking reads for this connection (MINVER-1).
 		Settings::register();
 		Security\Policy::register(); // W9 settings (before anything reads Settings::defaults()).
 		Security\Vault::register();

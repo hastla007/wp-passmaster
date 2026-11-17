@@ -149,7 +149,7 @@ The full change log is in CHANGELOG.md in the source repository.
 == Upgrade Notice ==
 
 = 1.6.0 =
-Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2). Adds a read-only API for add-ons (extension contract 1.2.0). No database change.
+Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2.2). Adds a read-only API for add-ons (extension contract 1.2.0). No database change.
 
 = 1.5.0 =
 Large update: database schema 3.17.7 is installed automatically, credentials are stored encrypted. Please read "Wichtige Verhaltensänderungen beim Update" in CHANGELOG.md and back up the database first.

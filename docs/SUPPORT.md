@@ -10,7 +10,7 @@ Maßgeblich ist die Matrix in [COMPATIBILITY.md](COMPATIBILITY.md) (Stand Versio
 |---|---|
 | PHP | 8.5 (8.6 experimentell getestet) |
 | WordPress | 7.0 bis 7.1 |
-| WooCommerce (optional) | 11.2 bis 11.3, HPOS und klassischer Bestellspeicher, Classic- und Blocks-Checkout |
+| WooCommerce (optional) | 11.2.2 bis 11.3, HPOS und klassischer Bestellspeicher, Classic- und Blocks-Checkout |
 | Datenbank | MariaDB 12.3+, MySQL 9.7+ (ältere Server: nur Warnung, nicht unterstützt) |
 | Multisite | ja (Daten je Site getrennt, Netzwerkübersicht) |
 

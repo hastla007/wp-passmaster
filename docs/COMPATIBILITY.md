@@ -6,7 +6,7 @@
 |---|---|---|---|
 | PHP | 8.5 | 8.5 (Syntax, Integration, Last-Smoke); 8.6 experimentell (nicht blockierend) | Minimum 8.5 (`Requires PHP`, `composer.json`, eigene Ladeprüfung) – darunter lädt das Plugin nicht |
 | WordPress | 7.0 bis 7.1 | 7.0 (Minimum) und aktuelle Version (ZIP-Installationstest) | `Requires at least: 7.0` (WordPress 6.8 wirft unter PHP 8.5 Core-Deprecations), `Tested up to: 7.1` |
-| WooCommerce (optional) | 11.2 bis 11.3 | 11.2 (Minimum) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header |
+| WooCommerce (optional) | 11.2.2 bis 11.3 | 11.2.2 (Minimum; 11.2.0/11.2.1 übernehmen Daten eines früheren Store-API-Checkouts im selben Prozess, woocommerce#70637) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header |
 | MariaDB | 12.3 | 12.3 × PHP 8.5 (8.6 experimentell) | Minimum 12.3; ältere Server: nur Warnung in „Website-Zustand“, keine Sperre |
 | MySQL | 9.7 | 9.7 × PHP 8.5 (8.6 experimentell) | Minimum 9.7; ältere Server: nur Warnung in „Website-Zustand“, keine Sperre; siehe unten |
 
@@ -22,6 +22,12 @@ verbindungslokale temporäre InnoDB-Tabelle (`{prefix}wpcap_trx_marker`); ein Ro
 `Orders::in_transaction()` meldet die Transaktion als verloren. Ohne das Recht `CREATE TEMPORARY TABLES` fällt
 das Plugin auf die übrigen geprüften Statements und den COMMIT zurück. Seit 17.11.2026 (MINVER-1) ist MySQL 9.7
 die freigegebene MySQL-Version.
+
+MariaDB ab 11.6.2 (also auch 12.3) schaltet `innodb_snapshot_isolation` standardmäßig ein: Ein sperrender Lesezugriff
+(`SELECT … FOR UPDATE`) auf eine Zeile, die eine andere Anfrage nach dem ersten Lesen der Transaktion geändert hat,
+bricht dann mit Fehler 1020 ab und rollt die Transaktion zurück. Pass Captain schaltet die Einstellung deshalb für
+seine Verbindung aus (`DbSession::classic_locking_reads()`: beim Start und vor jeder Bestandstransaktion; nur auf
+MariaDB, fehlt die Variable, passiert nichts) – wie Voucher Captain. Test: `tests/integration/modules/zz_minver.php`.
 
 ### Matrix ändern
 

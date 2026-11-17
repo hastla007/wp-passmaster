@@ -252,6 +252,9 @@ spl_autoload_register( static function ( $class ) {
 		if ( is_readable( $file ) ) { require_once $file; }
 	}
 } );
+// As Plugin::run() does for every request: MariaDB 11.6+ (innodb_snapshot_isolation on by default) keeps the
+// classic locking reads on this connection, also for the worker processes (MINVER-1).
+PassCaptain\DbSession::classic_locking_reads();
 
 /** Creates the plugin schema using the real Installer statements. */
 function wpcap_test_install() {
