@@ -4,11 +4,11 @@
 
 | Komponente | Freigegeben | In CI geprüft | Hinweis |
 |---|---|---|---|
-| PHP | 8.2, 8.3, 8.4 | 8.2, 8.3, 8.4 (Syntax, Integration, Last-Smoke) | Minimum 8.2 (`Requires PHP`, `composer.json`) |
+| PHP | 8.2, 8.3, 8.4, 8.5 | 8.2, 8.3, 8.4, 8.5 (Syntax, Integration, Last-Smoke) | Minimum 8.2 (`Requires PHP`, `composer.json`) |
 | WordPress | 6.4 bis 7.1 | 6.4 (Minimum) und aktuelle Version (ZIP-Installationstest) | `Requires at least: 6.4`, `Tested up to: 7.1` |
 | WooCommerce (optional) | 8.2 bis 11.3 | 8.2 (Minimum) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header |
-| MariaDB | 10.6, 11.4 | 10.6 und 11.4 × PHP 8.2/8.3/8.4 | Minimum 10.6 (älteste LTS mit Support) |
-| MySQL | 8.0, 8.4 | 8.0 und 8.4 × PHP 8.2/8.3/8.4 | siehe unten |
+| MariaDB | 10.6, 11.4, 12.3 | 10.6, 11.4 und 12.3 × PHP 8.2/8.3/8.4/8.5; zusätzlich 10.11 (PHP 8.3) und 11.8 (PHP 8.5) | Minimum 10.6 (älteste LTS mit Support) |
+| MySQL | 8.0, 8.4, 9.7 | 8.0, 8.4 und 9.7 × PHP 8.2/8.3/8.4/8.5 | siehe unten |
 
 **Freigegeben** heißt: Die Kombination läuft in jeder CI-Ausführung blockierend (Integrationssuite, Last-Smoke-
 Test `--profile=ci`, bei WordPress/WooCommerce zusätzlich der Installationstest des Release-ZIPs). Andere

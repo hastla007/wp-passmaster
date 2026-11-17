@@ -9,11 +9,11 @@ grün sein müssen, steht in [RELEASE.md](RELEASE.md); die unterstützten Plattf
 
 | Ebene | Werkzeug / Einstieg | Lokal | CI (Workflow, Job) |
 |---|---|---|---|
-| Syntax PHP/JS, Composer-Metadaten | `php -l`, `node --check`, `composer validate` | ja | `ci.yml` `php` (PHP 8.2/8.3/8.4), blockierend |
+| Syntax PHP/JS, Composer-Metadaten | `php -l`, `node --check`, `composer validate` | ja | `ci.yml` `php` (PHP 8.2/8.3/8.4/8.5), blockierend |
 | Statische Analyse + Versionskonsistenz | phpcs (Baseline), PHPStan (Baseline), `composer audit`, `build/check-versions.sh` | ja | `ci.yml` `static`, blockierend |
 | Lizenz-Wächter | `tests/guard/no-license-code.php` | ja | `ci.yml` `license-guard` und `package`, blockierend |
 | Secret-Scan, Abhängigkeitsprüfung | gitleaks, `dependency-review-action` | ja (gitleaks) | `ci.yml` `secrets` und `package`, blockierend |
-| Integrationssuite (echte DB) | `tests/integration/run.php` | ja | `ci.yml` `integration`: PHP 8.2/8.3/8.4 × MariaDB 10.6/11.4, MySQL 8.0/8.4, blockierend |
+| Integrationssuite (echte DB) | `tests/integration/run.php` | ja | `ci.yml` `integration`: PHP 8.2/8.3/8.4/8.5 × MariaDB 10.6/11.4/12.3, MySQL 8.0/8.4/9.7 (dazu MariaDB 10.11 mit PHP 8.3 und 11.8 mit PHP 8.5), blockierend |
 | Last-Smoke (Nebenläufigkeit) | `tests/load/run.php --profile=ci` | ja | `ci.yml` `integration`, gleiche Matrix, blockierend |
 | Lasttests `default`/`heavy` | `tests/load/run.php` | ja | `load.yml` wöchentlich + manuell, MariaDB 11.4 / MySQL 8.4 |
 | Lasttest über REST | `tests/load/http.php` | ja (Wegwerf-WordPress) | nein |
