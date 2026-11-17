@@ -339,6 +339,15 @@ wpcap_test_reset_transients();
  * Capacity counters (sold_qty/held_qty of ticket types and occurrences) must equal the sums of
  * the order lines and holds after every test file (see PassCaptain\CapacityCounters).
  */
+/**
+ * Expires all lapsed holds left by a test file, like the jobs worker does in batches in production.
+ * Without it the lapsed orders of earlier files pile up, and a later file's Orders::expire_holds()
+ * (batch of 200, lowest order ids first) no longer reaches its own order.
+ */
+function drain_lapsed_holds() {
+	for ( $i = 0; $i < 50 && PassCaptain\Orders::expire_holds() > 0; $i++ ) {}
+}
+
 function assert_capacity_counters( $after ) {
 	$drift = PassCaptain\CapacityCounters::drift();
 	check( "capacity counters equal the source sums after $after" . ( $drift ? ' ' . json_encode( array_slice( $drift, 0, 4 ) ) : '' ), ! $drift );
@@ -357,6 +366,7 @@ foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $cor
 	if ( '' !== $wpcap_only && '1' !== getenv( 'WPCAP_TEST_CORE' ) && ! preg_match( '#' . $wpcap_only . '#', $core_test ) ) { continue; }
 	require __DIR__ . "/$core_test.php";
 	assert_capacity_counters( "$core_test.php" );
+	drain_lapsed_holds();
 }
 foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
 	if ( '' !== $wpcap_only && ! preg_match( '#' . $wpcap_only . '#', basename( $module_test, '.php' ) ) ) { continue; }
@@ -370,6 +380,7 @@ foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
 		check( 'module ' . basename( $module_test ) . ' ran to the end (' . get_class( $wpcap_module_error ) . ': ' . $wpcap_module_error->getMessage() . ' @ ' . basename( $wpcap_module_error->getFile() ) . ':' . $wpcap_module_error->getLine() . ')', false );
 	}
 	assert_capacity_counters( 'modules/' . basename( $module_test ) );
+	drain_lapsed_holds();
 }
 if ( $failed_checks ) {
 	// Repeated at the end so CI logs show the failures without scrolling through thousands of lines.
