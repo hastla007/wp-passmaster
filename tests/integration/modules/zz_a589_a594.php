@@ -210,7 +210,9 @@ $gl_tid = (int) $wpdb->get_var( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE o
 $gl_hash = (string) r1_ticket( $gl_tid )->token_hash;
 $gl_early = Gl::arrive( $gl_entry->entry_id );
 check( 'A591: arrival before the entry window is refused and the mailed code stays valid', is_wp_error( $gl_early ) && $gl_tid > 0 && $gl_hash === (string) r1_ticket( $gl_tid )->token_hash && 'valid' === r1_ticket( $gl_tid )->status );
-$wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - 600 ) ), array( 'occurrence_id' => $s['occ'] ) );
+// Started up to 10 minutes ago, but never on the previous UTC day: right after midnight a day ticket of
+// yesterday's occurrence is (correctly) outside its entry window.
+$wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - min( 600, time() % DAY_IN_SECONDS ) ) ), array( 'occurrence_id' => $s['occ'] ) );
 $gl_other_area = Areas::save( (int) r1_setup( 1 )['event'], 'R1 Fremd' );
 $gl_wrong = Gl::arrive( $gl_entry->entry_id, 0, $gl_other_area );
 check( 'A591: arrival through an area of another event is refused, code unchanged', is_wp_error( $gl_wrong ) && $gl_hash === (string) r1_ticket( $gl_tid )->token_hash && 'valid' === r1_ticket( $gl_tid )->status );

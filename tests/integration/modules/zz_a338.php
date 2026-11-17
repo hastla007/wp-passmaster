@@ -36,7 +36,7 @@ $a338_occ = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p
 $a338_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $a338_occ ) );
 $a338_order = admin_paid_order( $a338_type, 3, 'a338@example.com' );
 // The occurrence started ten minutes ago (admission window open).
-$wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - 600 ) ), array( 'occurrence_id' => $a338_occ ) );
+$wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - min( 600, time() % DAY_IN_SECONDS ) ) ), array( 'occurrence_id' => $a338_occ ) );
 $a338_t = array_map( static fn( $t ) => (int) $t->ticket_id, Orders::tickets_for_order( $a338_order ) );
 $a338_status = static fn( $id ) => (string) $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=%d", $id ) );
 $a338_rows = static fn( $id ) => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='checked_in'", $id ) );

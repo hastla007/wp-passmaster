@@ -58,7 +58,7 @@ if ( ! is_wp_error( $a622_order ) ) {
 	check( 'A622: the per-address limit stops further mails silently', true === $a622_fourth && 2 === count( $GLOBALS['wpcap_test_mails'] ) );
 
 	// Admission has begun: the ticket is left alone.
-	$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id SET o.starts_at=%s WHERE tt.ticket_type_id=%d", gmdate( 'Y-m-d H:i:s', time() - 600 ), $a622_type ) );
+	$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id SET o.starts_at=%s WHERE tt.ticket_type_id=%d", gmdate( 'Y-m-d H:i:s', time() - min( 600, time() % DAY_IN_SECONDS ) ), $a622_type ) );
 	wpcap_test_reset_transients();
 	$GLOBALS['wpcap_test_mails'] = array();
 	TicketRecovery::request( $a622_holder );
