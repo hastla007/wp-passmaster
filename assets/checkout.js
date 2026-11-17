@@ -147,7 +147,20 @@
 		if (!attendeeSlots.has(form)) attendeeSlots.set(form, {});
 		const cache = attendeeSlots.get(form);
 		box.querySelectorAll('[data-slot]').forEach(function (fs) { cache[fs.dataset.slot] = fs; });
-		Array.prototype.slice.call(box.children).forEach(function (child) { child.remove(); });
+		// Blocks are only moved when the set or order changes: the live state refresh calls this every few
+		// seconds, and detaching the block with the focused field would end the buyer's typing (and close
+		// the keyboard on phones). When blocks do move, focus and caret are put back.
+		const wanted = [];
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
+			const n = Math.max(0, Number(qty.value) || 0);
+			for (let i = 0; i < n; i++) wanted.push(qty.dataset.type + '-' + i);
+		});
+		const current = Array.prototype.map.call(box.children, function (child) { return child.dataset ? child.dataset.slot : ''; });
+		const unchanged = current.length === wanted.length && current.every(function (slot, i) { return slot === wanted[i]; });
+		const active = document.activeElement && box.contains(document.activeElement) ? document.activeElement : null;
+		let caret = null;
+		if (active && typeof active.selectionStart === 'number') { try { caret = [active.selectionStart, active.selectionEnd]; } catch (e) { caret = null; } }
+		if (!unchanged) Array.prototype.slice.call(box.children).forEach(function (child) { child.remove(); });
 		let count = 0;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const n = Math.max(0, Number(qty.value) || 0);
@@ -162,9 +175,10 @@
 				if (cache[slot]) {
 					// Number by position after every change (A550): "Teilnehmer:in 1, 2, …" without gaps.
 					const legend = cache[slot].querySelector('legend');
-					if (legend) legend.textContent = attendeeLegend(count, qty.dataset.name);
+					const label = attendeeLegend(count, qty.dataset.name);
+					if (legend && legend.textContent !== label) legend.textContent = label;
 					attendeeAutocomplete(cache[slot], count);
-					box.appendChild(cache[slot]);
+					if (!unchanged) box.appendChild(cache[slot]);
 					continue;
 				}
 				const fs = el('fieldset', { 'data-slot': slot, 'data-type': qty.dataset.type, class: 'wpcap-attendee' });
@@ -203,6 +217,10 @@
 				box.appendChild(fs);
 			}
 		});
+		if (active && active !== document.activeElement && box.contains(active)) {
+			active.focus({ preventScroll: true });
+			if (caret) { try { active.setSelectionRange(caret[0], caret[1]); } catch (e) { /* type without a caret */ } }
+		}
 	}
 	// Short note for .wpcap-qty-live when the number of attendee blocks changed (A311): the block
 	// area itself is no live region, so a quantity change no longer reads out every form field.

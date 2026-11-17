@@ -328,3 +328,22 @@ test('409 not enough tickets: the remaining quantity updates the form', async ()
 	assert.equal(env.document.getElementById('q2').disabled, true, 'type without tickets left is disabled');
 	assert.equal(q1.getAttribute('aria-invalid'), 'true', 'error points at the adjusted type');
 });
+
+test('a re-render with the same quantities leaves the attendee blocks in place (no blur while typing)', () => {
+	const env = checkout();
+	setQty(env, 'q1', 2);
+	const blocks = env.document.querySelectorAll('.wpcap-attendee');
+	assert.equal(blocks.length, 2);
+	// Count every detach of an attendee block from here on (the live state refresh re-renders every few seconds).
+	let detached = 0;
+	blocks.forEach((fs) => { const remove = fs.remove.bind(fs); fs.remove = () => { detached++; remove(); }; });
+	blocks[0].querySelector('[data-key="__name"]').value = 'Erika Muster';
+	setQty(env, 'q1', 2); // same quantity: e.g. a refresh that changes nothing
+	assert.equal(detached, 0, 'unchanged blocks are not detached (a focused field would lose focus)');
+	assert.equal(env.document.querySelectorAll('.wpcap-attendee')[0], blocks[0]);
+	assert.equal(blocks[0].querySelector('[data-key="__name"]').value, 'Erika Muster');
+	setQty(env, 'q1', 1);
+	setQty(env, 'q1', 2);
+	assert.equal(env.document.querySelectorAll('.wpcap-attendee').length, 2, 'a real change still rebuilds the list');
+	assert.equal(env.document.querySelectorAll('.wpcap-attendee')[0].querySelector('[data-key="__name"]').value, 'Erika Muster');
+});
