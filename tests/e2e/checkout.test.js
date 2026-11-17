@@ -49,6 +49,9 @@ test('paid order: tickets, buyer data and attendees → fake payment page → pa
 	await form.locator('[name="email"]').fill(email);
 	if (await form.locator('[name="accept_terms"]').count()) await form.locator('[name="accept_terms"]').check();
 	assert.ok(await chooseProvider(form, 'e2e_fake'), 'the fake provider is offered to this browser');
+	// Still in the form right before submitting (separates a lost input in the browser from a lost value on the server).
+	const typed = await form.locator('.wpcap-attendee [data-key="__name"]').evaluateAll((els) => els.map((e) => e.value));
+	assert.deepEqual(typed, ['Erika Muster', 'Max Muster'], 'attendee names are still in the form before submitting');
 	await Promise.all([p.waitForURL(/wpcap_e2e_pay=/), form.locator('button[type="submit"]').click()]);
 
 	assert.match(await p.locator('#e2e-amount').innerText(), /50,00 EUR/);
