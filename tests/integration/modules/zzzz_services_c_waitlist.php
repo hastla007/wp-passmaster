@@ -160,7 +160,13 @@ check( 'decline releases the hold and the next entry gets the offer', 'declined'
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), (int) $y->order_id ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET offer_expires_at=%s WHERE waitlist_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), (int) $y->waitlist_id ) );
 check( 'an expired offer does not block sales any more', 1 === Orders::availability( $ew_type ) );
+$ew_in_tx = false !== stripos( (string) $wpdb->db_server_info(), 'mariadb' ) ? $wpdb->get_var( 'SELECT @@in_transaction' ) : 'n/a';
+$ew_expire_calls = 0;
+$ew_count_calls = static function ( $limit ) use ( &$ew_expire_calls ) { ++$ew_expire_calls; return $limit; };
+add_filter( 'wpcap_expire_holds_batch', $ew_count_calls );
+$ew_logs_before = (int) $wpdb->get_var( "SELECT COALESCE(MAX(log_id),0) FROM {$p}wpcap_logs" );
 Waitlists::sweep();
+remove_filter( 'wpcap_expire_holds_batch', $ew_count_calls );
 $ew_after = array( $ew_row( 'ew-y@svc.test' )->status, Orders::get( (int) $y->order_id )->status, Orders::availability( $ew_type ) );
 if ( array( 'expired', 'expired', 1 ) !== $ew_after ) {
 	// Diagnostic for a CI-only failure: why expire_holds() left the order alone.
@@ -176,6 +182,10 @@ if ( array( 'expired', 'expired', 1 ) !== $ew_after ) {
 		'lapsed_pending' => count( $ew_cand ),
 		'position' => array_search( $ew_oid, $ew_cand, true ),
 		'first' => array_slice( $ew_cand, 0, 5 ),
+		'in_tx_before_sweep' => $ew_in_tx,
+		'expire_calls_in_sweep' => $ew_expire_calls,
+		'logs' => $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_logs WHERE log_id>%d ORDER BY log_id LIMIT 10", $ew_logs_before ) ),
+		'expire_order' => ( static function () use ( $ew_oid ) { $m = new ReflectionMethod( PassCaptain\Orders::class, 'expire_order' ); $m->setAccessible( true ); return $m->invoke( null, $ew_oid, PassCaptain\Clock::mysql() ); } )(),
 		'second_expire' => PassCaptain\Orders::expire_holds(),
 		'order_after' => $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d", $ew_oid ) ),
 	) ) . "\n";
