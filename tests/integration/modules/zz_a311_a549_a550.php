@@ -20,5 +20,5 @@ check( 'A311 attendee note texts (singular and plural) are translatable', false 
 
 $a311_js = (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' );
 check( 'A549 attendee blocks are kept per form and slot (WeakMap cache), not only during one render', false !== strpos( $a311_js, 'const attendeeSlots = new WeakMap();' ) && false !== strpos( $a311_js, 'cache[slot] = fs;' ) );
-check( 'A550 legends of reused blocks are renumbered', false !== strpos( $a311_js, "legend.textContent = attendeeLegend(count, qty.dataset.name);" ) );
+check( 'A550 legends of reused blocks are renumbered', false !== strpos( $a311_js, "const label = attendeeLegend(count, qty.dataset.name);" ) && false !== strpos( $a311_js, "legend.textContent = label;" ) );
 check( 'A311/A549/A550 node tests exist', file_exists( WPCAP_PATH . 'tests/js/checkout.test.js' ) && file_exists( WPCAP_PATH . 'tests/js/fake-dom.js' ) );
