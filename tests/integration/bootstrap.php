@@ -60,6 +60,18 @@ final class Test_WPDB {
 		$this->db->set_charset( 'utf8mb4' );
 		// WPCAP_TEST_SQL_MODE=<modes> runs the suite under a given sql_mode (e.g. MySQL 8's strict default).
 		if ( false !== getenv( 'WPCAP_TEST_SQL_MODE' ) ) { $this->db->query( "SET SESSION sql_mode='" . $this->db->real_escape_string( (string) getenv( 'WPCAP_TEST_SQL_MODE' ) ) . "'" ); }
+		// The EXPLAIN checks read the tabular plan (key, type, Extra). MySQL 8.3+ has explain_format and
+		// newer versions may default to TREE/JSON; MariaDB and older MySQL have no such variable.
+		try {
+			$format = @$this->db->query( 'SELECT @@SESSION.explain_format' );
+			if ( $format instanceof mysqli_result ) {
+				$was = (string) ( $format->fetch_row()[0] ?? '' );
+				if ( 'TRADITIONAL' !== strtoupper( $was ) ) { @$this->db->query( "SET SESSION explain_format='TRADITIONAL'" ); }
+				if ( ! defined( 'WPCAP_TEST_EXPLAIN_FORMAT_WAS' ) ) { define( 'WPCAP_TEST_EXPLAIN_FORMAT_WAS', $was ); fwrite( STDERR, "explain_format: $was -> TRADITIONAL\n" ); }
+			}
+		} catch ( \Throwable $e ) {
+			unset( $e ); // MariaDB / MySQL < 8.3: unknown variable, EXPLAIN is tabular anyway.
+		}
 	}
 	/* Used by WordPress' real dbDelta() (tests/upgrade loads it from a WordPress download). */
 	private $suppress = false;
