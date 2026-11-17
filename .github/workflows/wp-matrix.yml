@@ -239,7 +239,9 @@ jobs:
       - name: Install WordPress (German) with the plugin
         run: |
           mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
-          wp core download --locale=de_DE
+          # A localized package can briefly mismatch its published md5 after a rebuild on WordPress.org: retry once,
+          # then fall back to the English package (the de_DE language pack is installed below anyway).
+          wp core download --locale=de_DE || { sleep 30; wp core download --locale=de_DE --force; } || wp core download --force
           wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
           wp config set AUTOMATIC_UPDATER_DISABLED true --raw   # pinned version: no background updates mid-test
           wp config set WP_AUTO_UPDATE_CORE false --raw
