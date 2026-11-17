@@ -1,16 +1,78 @@
 {
+  "$schema": "https://schemas.wp.org/trunk/block.json",
   "apiVersion": 3,
   "name": "wp-pass-captain/events",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "title": "Pass Captain Events",
   "category": "widgets",
   "icon": "tickets-alt",
-  "description": "Zeigt veröffentlichte Events und die Ticketauswahl an.",
+  "description": "Zeigt veröffentlichte Events als Terminliste oder mit Ticketauswahl an.",
   "textdomain": "pass-captain",
   "usesContext": [],
   "supports": {
-    "html": false
+    "html": false,
+    "className": true,
+    "customClassName": true,
+    "align": [
+      "wide",
+      "full"
+    ],
+    "spacing": {
+      "margin": true,
+      "padding": true
+    }
   },
   "render": "file:./render.php",
-  "editorScript": "file:./editor.js"
+  "editorScript": "file:./editor.js",
+  "style": "wpcap-public",
+  "attributes": {
+    "event": {
+      "type": "integer",
+      "default": 0
+    },
+    "occurrence": {
+      "type": "integer",
+      "default": 0
+    },
+    "perDate": {
+      "type": "boolean",
+      "default": false
+    },
+    "limit": {
+      "type": "integer",
+      "default": 50
+    },
+    "layout": {
+      "type": "string",
+      "default": "auto",
+      "enum": [
+        "auto",
+        "list",
+        "cards"
+      ]
+    },
+    "eventId": {
+      "type": "integer",
+      "default": 0
+    },
+    "occurrenceId": {
+      "type": "integer",
+      "default": 0
+    }
+  },
+  "keywords": [
+    "Tickets",
+    "Veranstaltung",
+    "Event",
+    "Termin",
+    "Bestellung"
+  ],
+  "example": {
+    "attributes": {
+      "event": 0,
+      "occurrence": 0,
+      "perDate": false,
+      "layout": "auto"
+    }
+  }
 }

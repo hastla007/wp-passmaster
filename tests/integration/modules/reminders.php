@@ -33,7 +33,7 @@ function rem_queue( $occ ) {
 $type = make_type( 20, 10, 0 );
 $occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET starts_at=%s WHERE occurrence_id=%d", gmdate( 'Y-m-d H:i:s', time() + 10 * 3600 ), $occ ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $a = Orders::create( array( 'email' => 'rem-a@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'rem-a' ) );
 $b = Orders::create( array( 'email' => 'rem-b@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'rem-b' ) );
 $c = Orders::create( array( 'email' => 'rem-c@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'rem-c' ) );
@@ -41,9 +41,11 @@ $d = Orders::create( array( 'email' => 'rem-d@example.com', 'items' => array( ar
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=" . (int) $b['order_id'] );
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE order_id=" . (int) $c['order_id'] );
 $wpdb->query( "UPDATE {$p}wpcap_orders SET payment_status='pending' WHERE order_id=" . (int) $d['order_id'] );
+PassCaptain\CapacityCounters::sync_order_now( $d['order_id'] ); // Raw state change: keep the capacity counters in line.
 // Attendee with own e-mail on one of A's tickets: separate holder.
 $a_tickets = tickets( $a['order_id'] );
-$wpdb->query( "UPDATE {$p}wpcap_tickets SET attendee_email='rem-guest@example.com' WHERE ticket_id=" . (int) $a_tickets[1]->ticket_id );
+// The ticket was assigned to the guest, whose address received the code (A581: code_with_attendee).
+$wpdb->query( "UPDATE {$p}wpcap_tickets SET attendee_email='rem-guest@example.com'" . ( PassCaptain\TicketCodes::holder_ready() ? ',code_with_attendee=1' : '' ) . " WHERE ticket_id=" . (int) $a_tickets[1]->ticket_id );
 
 echo "Reminders: scheduling and dedupe\n";
 $queued = Reminders::schedule_due();
@@ -65,8 +67,9 @@ $new = array_values( array_filter( $rows, static fn( $r ) => 'queued' === $r->st
 check( 'a moved start or the next offset produces new reminders (2 h stage)', 2 === count( $new ) && 2 === json_decode( $new[0]->payload, true )['hours'] );
 
 echo "Reminders: template rendering and sending\n";
+// A558: {hours} is the real remaining time (start in 1 h), not the 2 h stage it was queued for.
 $tpl = Reminders::render_template( null, 'wpcap_reminder', json_decode( $new[0]->payload, true ) );
-check( 'template renders placeholders from settings', is_array( $tpl ) && 0 === strpos( $tpl['subject'], 'Erinnerung: Konzert am ' ) && false !== strpos( $tpl['body'], 'Noch 2 Stunden: Konzert' ) && false !== strpos( $tpl['body'], 'Europe/Vienna' ) && false !== strpos( $tpl['body'], 'Tickets: 1' ) && false !== strpos( $tpl['body'], 'wpcap_ics=occurrence' ) );
+check( 'template renders placeholders from settings', is_array( $tpl ) && 0 === strpos( $tpl['subject'], 'Erinnerung: Konzert am ' ) && false !== strpos( $tpl['body'], 'Noch 1 Stunden: Konzert' ) && false !== strpos( $tpl['body'], 'Europe/Vienna' ) && false !== strpos( $tpl['body'], 'Tickets: 1' ) && false !== strpos( $tpl['body'], 'wpcap_ics=occurrence' ) );
 check( 'other templates are untouched', 'x' === Reminders::render_template( 'x', 'other', array() ) );
 $GLOBALS['wpcap_test_mails'] = array();
 Communications::process_due();

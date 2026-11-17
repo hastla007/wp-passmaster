@@ -16,6 +16,7 @@ final class Wallet {
 	public static function register() {
 		Service::register();
 		WebService::register();
+		\PassCaptain\WalletPasses\Health::register();
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -45,7 +46,7 @@ final class Wallet {
 				PRIMARY KEY  (registration_id),
 				UNIQUE KEY device_serial (device_library_id,serial_number),
 				KEY serial_number (serial_number),
-				KEY push_token (push_token)
+				KEY push_token (push_token(191))
 			) ENGINE=InnoDB $charset;",
 		);
 	}
@@ -58,6 +59,7 @@ final class Wallet {
 			'wallet_apple_delivery'         => 'attachment',
 			'wallet_apple_icon_path'        => '',
 			'wallet_apple_logo_path'        => '',
+			'wallet_google_logo_url'        => '',
 			'wallet_apns_host'              => 'https://api.push.apple.com',
 			'apple_pass_cert'               => '',
 			'apple_pass_key'                => '',

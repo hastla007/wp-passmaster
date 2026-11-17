@@ -1,153 +1,177 @@
 <?php
-/** efsta EFR unified JSON API adapter (local EFR or Cloud EFR). */
+/** efsta EFR adapter using the vendor's unified /register and /restart APIs. */
 namespace PassCaptain\Fiscalization\Providers;
 
 use PassCaptain\Fiscalization\AdapterInterface;
+use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class EfstaEfrAdapter implements AdapterInterface {
-	const ID = 'efsta_efr';
-	const COUNTRIES = array( 'AT', 'BE', 'CZ', 'DE', 'DK', 'ES', 'FR', 'HR', 'HU', 'IT', 'LT', 'PL', 'PT', 'SE', 'SI', 'SK' );
-	public function id() { return self::ID; }
+	public function id() { return 'efsta_efr'; }
 	public function interface_version() { return AdapterInterface::VERSION; }
-	public function countries() { return self::COUNTRIES; }
-	public function capabilities() { return array( 'receipt_submit', 'operation_status' ); }
+	public function countries() { return array( 'AT', 'BE', 'CZ', 'DK', 'DE', 'ES', 'FR', 'HR', 'HU', 'IT', 'LT', 'NO', 'PL', 'PT', 'SE', 'SI', 'SK' ); }
+	public function capabilities() { return array( 'receipt_submit', 'operation_status', 'journal_export', 'daily_report', 'fiscal_printer_bridge' ); }
 
 	public function health_check( array $seller, array $configuration ) {
-		$auth = $this->authorization( $configuration, $seller );
-		if ( is_wp_error( $auth ) ) { return $auth; }
-		$headers = $auth ? array( 'Authorization' => 'Bearer ' . $auth ) : array();
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'state' ), 'GET', $headers );
-		if ( is_wp_error( $response ) ) { return $response; }
-		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_health_failed', __( 'efsta EFR-Verbindungstest wurde abgelehnt.', 'pass-captain' ) ); }
-		return array( 'ok' => true );
+		$url = $this->endpoint( $configuration, '/state' );
+		if ( is_wp_error( $url ) ) { return $url; }
+		$result = ProviderHttp::request( $url, 'GET', $this->headers( $configuration ) );
+		if ( is_wp_error( $result ) ) { return $result; }
+		$state = $result['data'];
+		return ! empty( $state['name'] ) && 'EFR' === strtoupper( (string) $state['name'] )
+			? array( 'ok' => true, 'version' => sanitize_text_field( $state['version'] ?? '' ) )
+			: new \WP_Error( 'efsta_health_invalid', __( 'Die Antwort bestätigt keine laufende efsta EFR-Instanz.', 'pass-captain' ) );
 	}
 
+	/**
+	 * EFR's /restart is intentionally used for reconciliation. EFR documents it as the recovery
+	 * endpoint that returns the original result for an already registered transaction and never
+	 * registers a duplicate. The operation is therefore safe to replay with the frozen ESR identity.
+	 */
 	public function query_status( array $document, array $seller, array $configuration ) {
-		$auth = $this->authorization( $configuration, $seller );
-		if ( is_wp_error( $auth ) ) { return $auth; }
-		$headers = array( 'Accept' => 'application/json' );
-		if ( $auth ) { $headers['Authorization'] = 'Bearer ' . $auth; }
-		$rn = sanitize_text_field( (string) ( $configuration['register_number'] ?? 'def' ) );
-		$date = gmdate( 'Y-m-d', strtotime( (string) ( $document['created_at'] ?? 'now' ) ) );
-		$tn = absint( $document['document_id'] ?? 0 );
-		$query = http_build_query( array( 'rn' => $rn, 'd' => $date, 'tn' => $tn, '_' => 'Tra', 'limit' => '5rows5000ms' ) );
-		$url = HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'find?' . $query );
-		$response = HttpClient::request( $url, 'GET', $headers );
-		if ( is_wp_error( $response ) ) { return $response; }
-		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_status_unknown', __( 'efsta-Journalstatus konnte nicht sicher abgefragt werden.', 'pass-captain' ) ); }
-		$matches = $this->transactions( $response['data'] );
-		foreach ( $matches as $transaction ) {
-			$esr = (array) ( $transaction['Tra']['ESR'] ?? $transaction['ESR'] ?? array() );
-			if ( (string) ( $esr['TN'] ?? '' ) === (string) $tn && (string) ( $esr['D'] ?? '' ) === $date ) {
-				return $this->result( $transaction, $document );
-			}
-		}
-		return array( 'status' => 'not_found' );
+		return self::submitted( $this->register( $document, $seller, $configuration, '/restart' ) );
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
-		$auth = $this->authorization( $configuration, $seller );
-		if ( is_wp_error( $auth ) ) { return $auth; }
-		$tax_groups = (array) ( $configuration['tax_groups'] ?? array() );
-		$positions = array();
-		$tax_totals = array();
-		foreach ( (array) ( $document['items'] ?? array() ) as $index => $item ) {
-			$rate = (string) (int) ( $item['tax_rate_bp'] ?? -1 );
-			$group = sanitize_text_field( (string) ( $tax_groups[ $rate ] ?? '' ) );
-			if ( '' === $group || ! preg_match( '/^[A-Z0-9]{1,4}$/', $group ) ) {
-				return new \WP_Error( 'efsta_tax_mapping_missing', __( 'Ein Steuersatz ist keiner efsta-Steuergruppe zugeordnet.', 'pass-captain' ) );
-			}
-			$gross = (int) ( $item['gross_minor'] ?? 0 );
-			$tax = (int) ( $item['tax_minor'] ?? 0 );
-			$net = max( 0, $gross - $tax );
-			$positions[] = array(
-				'_' => 'Pos',
-				'PN' => (string) ( $index + 1 ),
-				'IN' => (string) absint( $item['ticket_type_id'] ?? 0 ),
-				'Dsc' => 'Ticket ' . absint( $item['ticket_type_id'] ?? 0 ),
-				'TaxG' => $group,
-				'Amt' => HttpClient::minor_to_major( $gross ),
-				'Qty' => (string) max( 1, (int) ( $item['quantity'] ?? 1 ) ),
-			);
-			if ( ! isset( $tax_totals[ $group ] ) ) { $tax_totals[ $group ] = array( 'rate' => (int) $rate, 'net' => 0, 'tax' => 0, 'gross' => 0 ); }
-			$tax_totals[ $group ]['net'] += $net;
-			$tax_totals[ $group ]['tax'] += $tax;
-			$tax_totals[ $group ]['gross'] += $gross;
+		return $this->register( $document, $seller, $configuration, '/register' );
+	}
+
+	/** Only AT and DE have enough stored original transaction data for an automatic full void here. */
+	public function supports_correction( $country_code, $kind ) {
+		return 'void' === sanitize_key( $kind ) && in_array( strtoupper( sanitize_text_field( $country_code ) ), array( 'AT', 'DE' ), true );
+	}
+
+	/** Validate and build the EFR payload before an irreversible void submission. */
+	public function prepare_void( array $document, array $seller, array $configuration, $event_id ) {
+		$country = strtoupper( sanitize_text_field( $document['country_code'] ?? ( $seller['country_code'] ?? '' ) ) );
+		if ( ! $this->supports_correction( $country, 'void' ) ) {
+			return new \WP_Error( 'efsta_void_country_unsupported', __( 'Automatisches efsta-Storno ist hier nur für AT und DE freigeschaltet; HU benötigt zusätzliche Kundendaten.', 'pass-captain' ) );
 		}
-		if ( ! $positions ) { return new \WP_Error( 'efsta_lines_missing', __( 'Der Fiskalbeleg enthält keine Positionen.', 'pass-captain' ) ); }
-		$payment_method = sanitize_key( $document['payment_method'] ?? 'other' );
-		$payment_groups = (array) ( $configuration['payment_groups'] ?? array() );
-		$pay_group = sanitize_key( $payment_groups[ $payment_method ] ?? $payment_groups['default'] ?? '' );
-		if ( ! in_array( $pay_group, array( 'cash', 'cashless', 'voucher', 'change', 'other' ), true ) ) {
-			return new \WP_Error( 'efsta_payment_mapping_missing', __( 'Zahlungsart ist keiner efsta-Zahlungsgruppe zugeordnet.', 'pass-captain' ) );
+		$payload = $this->payload( $document, $seller, $configuration );
+		if ( is_wp_error( $payload ) ) { return $payload; }
+		if ( empty( $payload['Tra']['ESR']['TN'] ) || empty( $payload['Tra']['ESR']['TL'] ) || empty( $payload['Tra']['ESR']['TT'] ) ) {
+			return new \WP_Error( 'efsta_void_original_identity_missing', __( 'Originale efsta-Transaktionskennung fehlt; Storno wird nicht gesendet.', 'pass-captain' ) );
 		}
+		$payload['Tra']['SESR'] = array( 'TN' => 'PC' . absint( $event_id ) );
+		$url = $this->endpoint( $configuration, '/register/void' );
+		if ( is_wp_error( $url ) ) { return $url; }
+		$register = rawurlencode( sanitize_text_field( $configuration['register_number'] ?? 'def' ) );
+		return array( 'url' => add_query_arg( 'rn', $register, $url ), 'payload' => $payload );
+	}
+
+	/** Submit one full reversal through EFR's documented /register/void endpoint. */
+	public function submit_void( array $document, array $seller, array $configuration, $event_id, array $prepared = array() ) {
+		if ( ! isset( $prepared['url'], $prepared['payload'] ) ) {
+			$prepared = $this->prepare_void( $document, $seller, $configuration, $event_id );
+		}
+		if ( is_wp_error( $prepared ) ) { return $prepared; }
+		$result = ProviderHttp::request( $prepared['url'], 'POST', $this->headers( $configuration ), $prepared['payload'], 12 );
+		if ( is_wp_error( $result ) ) { return $result; }
+		$data = $result['data'];
+		$transaction = is_array( $data['TraC']['ESR'] ?? null ) ? $data['TraC']['ESR'] : (array) ( $data['ESR'] ?? array() );
+		$trac = is_array( $data['TraC'] ?? null ) ? $data['TraC'] : $data;
+		$rc = strtoupper( (string) ( $trac['Result']['RC'] ?? '' ) );
+		$error = sanitize_text_field( (string) ( $trac['Result']['ErrorCode'] ?? '' ) );
+		if ( 'OK' !== $rc ) {
+			return new \WP_Error( 'efsta_void_result_' . ( '' !== $rc ? sanitize_key( $rc ) : 'unknown' ), __( 'efsta EFR hat das Storno nicht bestätigt.', 'pass-captain' ), array( 'provider_error' => sanitize_key( $error ) ) );
+		}
+		$fis = is_array( $trac['Fis'] ?? null ) ? $trac['Fis'] : array();
+		$reference = (string) ( $transaction['FN'] ?? $fis['FN'] ?? $transaction['TN'] ?? '' );
+		if ( '' === $reference ) { return new \WP_Error( 'efsta_void_reference_missing', __( 'efsta hat das Storno angenommen, aber keine Referenz geliefert; Vorgang muss abgeglichen werden.', 'pass-captain' ) ); }
+		return array( 'reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ) );
+	}
+
+	private function register( array $document, array $seller, array $configuration, $path ) {
+		$payload = $this->payload( $document, $seller, $configuration );
+		if ( is_wp_error( $payload ) ) { return $payload; }
+		$url = $this->endpoint( $configuration, $path );
+		if ( is_wp_error( $url ) ) { return $url; }
+		$register = rawurlencode( sanitize_text_field( $configuration['register_number'] ?? 'def' ) );
+		$url = add_query_arg( 'rn', $register, $url );
+		$result = ProviderHttp::request( $url, 'POST', $this->headers( $configuration ), $payload, 12 );
+		if ( is_wp_error( $result ) ) { return $result; }
+		$data = $result['data'];
+		$transaction = is_array( $data['TraC']['ESR'] ?? null ) ? $data['TraC']['ESR'] : (array) ( $data['ESR'] ?? array() );
+		$trac = is_array( $data['TraC'] ?? null ) ? $data['TraC'] : $data;
+		$rc = strtoupper( (string) ( $trac['Result']['RC'] ?? '' ) );
+		$error = sanitize_text_field( (string) ( $trac['Result']['ErrorCode'] ?? '' ) );
+		if ( 'OK' !== $rc ) {
+			return new \WP_Error( 'efsta_result_' . ( '' !== $rc ? sanitize_key( $rc ) : 'unknown' ), __( 'efsta EFR hat die Transaktion nicht bestätigt.', 'pass-captain' ), array( 'provider_error' => sanitize_key( $error ) ) );
+		}
+		$fis = is_array( $trac['Fis'] ?? null ) ? $trac['Fis'] : array();
+		$reference = (string) ( $transaction['FN'] ?? $fis['FN'] ?? $document['idempotency_key'] ?? '' );
+		$fields = array();
+		if ( ! empty( $transaction['TN'] ) ) { $fields['Transaktionsnummer'] = (string) $transaction['TN']; }
+		if ( ! empty( $transaction['D'] ) ) { $fields['Zeitpunkt'] = (string) $transaction['D']; }
+		if ( ! empty( $fis['SN'] ) ) { $fields['Signatur'] = (string) $fis['SN']; }
+		$receipt = array();
+		if ( $fields ) { $receipt['fields'] = $fields; }
+		if ( is_string( $fis['QR'] ?? null ) && '' !== $fis['QR'] ) { $receipt['qr_payload'] = $fis['QR']; }
+		$out = array( 'reference' => $reference ?: (string) ( $document['idempotency_key'] ?? '' ) );
+		if ( $receipt ) { $out['receipt'] = $receipt; }
+		return $out;
+	}
+
+	private function payload( array $document, array $seller, array $configuration ) {
+		$currency = (string) ( $document['currency'] ?? 'EUR' );
+		$groups = (array) ( $configuration['tax_groups'] ?? array() );
+		$payments = (array) ( $configuration['payment_groups'] ?? array() );
+		$items = array();
 		$taxes = array();
-		foreach ( $tax_totals as $group => $amounts ) {
-			$taxes[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => (string) ( $amounts['rate'] / 100 ), 'Net' => HttpClient::minor_to_major( $amounts['net'] ), 'TAmt' => HttpClient::minor_to_major( $amounts['tax'] ), 'Amt' => HttpClient::minor_to_major( $amounts['gross'] ) );
+		$tax_rates = array();
+		$gross_total = 0;
+		$tax_total = 0;
+		foreach ( (array) ( $document['items'] ?? array() ) as $index => $item ) {
+			$rate = (int) ( $item['tax_rate_bp'] ?? 0 );
+			$group = sanitize_text_field( (string) ( $groups[ (string) $rate ] ?? $groups[ $rate ] ?? '' ) );
+			if ( '' === $group ) { return new \WP_Error( 'efsta_tax_mapping_missing', __( 'Für einen Steuersatz fehlt die efsta-Steuergruppen-Zuordnung.', 'pass-captain' ) ); }
+			$gross = max( 0, (int) ( $item['gross_minor'] ?? 0 ) );
+			$tax = min( $gross, max( 0, (int) ( $item['tax_minor'] ?? 0 ) ) );
+			$qty = max( 1, (int) ( $item['quantity'] ?? 1 ) );
+			$items[] = array( '_' => 'Pos', 'PN' => (string) ( $index + 1 ), 'IN' => (string) (int) ( $item['ticket_type_id'] ?? $item['product_id'] ?? 0 ), 'Dsc' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'Qty' => (string) $qty, 'TaxG' => $group, 'Amt' => ProviderHttp::decimal( $gross, $currency ) );
+			$taxes[ $group ] = ( $taxes[ $group ] ?? 0 ) + $gross;
+			$tax_rates[ $group ] = $rate;
+			$tax_total += $tax;
+			$gross_total += $gross;
 		}
-		$tax_id = preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $seller['tax_number'] ?? $seller['vat_id'] ?? '' ) );
+		if ( ! $items || $gross_total !== (int) ( $document['gross_minor'] ?? -1 ) ) { return new \WP_Error( 'efsta_document_invalid', __( 'Die efsta-Belegdaten sind leer oder stimmen betragsmäßig nicht überein.', 'pass-captain' ) ); }
+		$tax_rows = array();
+		foreach ( $taxes as $group => $gross ) {
+			$tax = 0;
+			foreach ( (array) $document['items'] as $item ) { if ( (string) ( $groups[ (string) (int) $item['tax_rate_bp'] ] ?? $groups[ (int) $item['tax_rate_bp'] ] ?? '' ) === (string) $group ) { $tax += max( 0, (int) $item['tax_minor'] ); } }
+			$tax_rows[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => number_format( $tax_rates[ $group ] / 100, 2, '.', '' ), 'Net' => ProviderHttp::decimal( $gross - $tax, $currency ), 'TAmt' => ProviderHttp::decimal( $tax, $currency ), 'Amt' => ProviderHttp::decimal( $gross, $currency ) );
+		}
+		$payment_method = sanitize_key( $document['payment_method'] ?? 'other' );
+		$payment_group = sanitize_text_field( (string) ( $payments[ $payment_method ] ?? '' ) );
+		if ( '' === $payment_group ) { return new \WP_Error( 'efsta_payment_mapping_missing', __( 'Für die Zahlungsart fehlt die efsta-Zahlungsgruppen-Zuordnung.', 'pass-captain' ) ); }
+		$now = sanitize_text_field( (string) ( $document['created_at'] ?? gmdate( 'c' ) ) );
+		$register = sanitize_text_field( (string) ( $configuration['terminal_id'] ?? '1' ) );
+		$tax_id = sanitize_text_field( (string) ( $seller['tax_number'] ?? $seller['vat_id'] ?? '' ) );
 		$esr = array(
-			'D' => gmdate( 'Y-m-d\TH:i:s' ),
-			'TL' => sanitize_text_field( (string) ( $configuration['transaction_location'] ?? '001' ) ),
-			'TT' => sanitize_text_field( (string) ( $configuration['transaction_terminal'] ?? '1' ) ),
-			'TN' => (string) absint( $document['document_id'] ?? 0 ),
-			'T' => HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ),
-			'PosA' => $positions,
-			'PayA' => array( array( '_' => 'Pay', 'Dsc' => $payment_method, 'PayG' => $pay_group, 'Amt' => HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ) ) ),
-			'TaxA' => $taxes,
+			'D' => $now, 'TL' => $register, 'TT' => '1', 'TN' => substr( (string) ( $document['order_id'] ?? 0 ), 0, 32 ),
+			'T' => ProviderHttp::decimal( $gross_total, $currency ), 'PosA' => $items,
+			'PayA' => array( array( '_' => 'Pay', 'Dsc' => $payment_method, 'PayG' => $payment_group, 'Amt' => ProviderHttp::decimal( $gross_total, $currency ) ) ),
+			'TaxA' => $tax_rows,
 		);
 		if ( '' !== $tax_id ) { $esr['TaxId'] = $tax_id; }
-		$headers = array( 'Accept' => 'application/json' );
-		if ( $auth ) { $headers['Authorization'] = 'Bearer ' . $auth; }
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'register' ), 'POST', $headers, array( 'Tra' => array( 'ESR' => $esr ) ) );
-		if ( is_wp_error( $response ) ) { return $response; }
-		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) { return new \WP_Error( 'efsta_submit_failed', __( 'efsta hat den Beleg nicht bestätigt.', 'pass-captain' ) ); }
-		$data = $response['data'];
-		$tra_c = $data['TraC'] ?? $data['Tra']['TraC'] ?? null;
-		if ( is_array( $tra_c ) && in_array( strtoupper( (string) ( $tra_c['RC'] ?? '' ) ), array( 'BAD', 'NO' ), true ) ) {
-			return new \WP_Error( 'efsta_register_rejected', __( 'efsta hat die Transaktion abgelehnt oder zur Wiederholung markiert.', 'pass-captain' ) );
-		}
-		return $this->result( $data, $document );
+		return array( 'Tra' => array( 'ESR' => $esr ) );
 	}
 
-	private function authorization( array $configuration, array $seller ) {
-		if ( 'cloud' !== sanitize_key( $configuration['deployment'] ?? 'local' ) ) { return ''; }
+	/** Marks a successful replay/lookup result as submitted (contract of query_status()). */
+	private static function submitted( $result ) {
+		return is_array( $result ) && ! isset( $result['status'] ) ? array( 'status' => 'submitted' ) + $result : $result;
+	}
+
+	private function endpoint( array $configuration, $path ) {
+		$base = rtrim( trim( (string) ( $configuration['endpoint_url'] ?? $configuration['base_url'] ?? '' ) ), '/' ); // base_url: key of the earlier HttpClient-based adapter.
+		if ( '' === $base ) { return new \WP_Error( 'efsta_endpoint_missing', __( 'Die efsta EFR-Endpunktadresse muss konfiguriert werden.', 'pass-captain' ) ); }
+		return $base . '/' . ltrim( $path, '/' );
+	}
+	private function headers( array $configuration ) {
+		$headers = array();
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
-		$key = (string) ( $credentials['api_key'] ?? '' );
-		$secret = (string) ( $credentials['api_secret'] ?? '' );
-		if ( '' === $key || '' === $secret ) { return new \WP_Error( 'efsta_credentials_missing', __( 'efsta Cloud API-Key und Secret fehlen.', 'pass-captain' ) ); }
-		$tax_id = preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $configuration['cloud_tax_id'] ?? $seller['tax_number'] ?? $seller['vat_id'] ?? '' ) );
-		if ( '' === $tax_id ) { return new \WP_Error( 'efsta_tax_id_missing', __( 'Für efsta Cloud ist die Verkäufer-Steuernummer erforderlich.', 'pass-captain' ) ); }
-		$base = untrailingslashit( (string) ( $configuration['base_url'] ?? '' ) );
-		$body = http_build_query( array( 'grant_type' => 'client_credentials', 'TaxId' => $tax_id, 'TL' => (string) ( $configuration['transaction_location'] ?? '001' ), 'TT' => (string) ( $configuration['transaction_terminal'] ?? '1' ) ) );
-		$headers = array( 'Content-Type' => 'application/x-www-form-urlencoded', 'Authorization' => 'Basic ' . base64_encode( $key . ':' . $secret ) );
-		$token = HttpClient::request( $base . '/auth/token', 'POST', $headers, $body );
-		if ( is_wp_error( $token ) || ! in_array( (int) ( $token['status'] ?? 0 ), array( 200, 201 ), true ) || empty( $token['data']['access_token'] ) ) {
-			return new \WP_Error( 'efsta_auth_failed', __( 'efsta Cloud-Zugang konnte nicht authentifiziert werden.', 'pass-captain' ) );
-		}
-		return sanitize_text_field( (string) $token['data']['access_token'] );
-	}
-
-	private function transactions( array $data ) {
-		if ( isset( $data['Tra'] ) ) { return array( $data ); }
-		if ( array_is_list( $data ) ) { return $data; }
-		foreach ( array( 'Transactions', 'Journal', 'Data', 'TraA' ) as $key ) {
-			if ( isset( $data[ $key ] ) && is_array( $data[ $key ] ) ) { return $data[ $key ]; }
-		}
-		return array();
-	}
-
-	private function result( array $data, array $document ) {
-		$tra_c = $data['TraC'] ?? $data['Tra']['TraC'] ?? array();
-		$esr = $data['Tra']['ESR'] ?? $data['ESR'] ?? array();
-		$reference = is_scalar( $esr['FN'] ?? null ) ? (string) $esr['FN'] : 'EFR-' . absint( $document['document_id'] ?? 0 );
-		$fields = array();
-		foreach ( array( 'FN', 'JIR', 'EOR', 'QR', 'QRC', 'ZI' ) as $key ) {
-			$value = $tra_c[ $key ] ?? $esr[ $key ] ?? null;
-			if ( is_scalar( $value ) && '' !== (string) $value ) { $fields[ $key ] = (string) $value; }
-		}
-		return array( 'reference' => sanitize_text_field( $reference ), 'receipt' => array( 'fields' => $fields ) );
+		if ( ! empty( $credentials['username'] ) && isset( $credentials['password'] ) ) { $headers['Authorization'] = 'Basic ' . base64_encode( $credentials['username'] . ':' . $credentials['password'] ); }
+		return $headers;
 	}
 }

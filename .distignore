@@ -24,10 +24,14 @@
 /phpunit.xml.dist
 /phpstan.neon
 /phpstan.neon.dist
-/composer.json
+/phpstan-baseline.neon
+/phpcs-baseline.json
+/.gitleaks.toml
+# composer.json ships with the ZIP: it documents the bundled vendor/ dependencies (Plugin Check, WordPress.org review).
 /composer.lock
 package.json
 package-lock.json
+/eslint.config.mjs
 CLAUDE.md
 AGENTS.md
 

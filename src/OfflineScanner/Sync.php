@@ -4,11 +4,15 @@
  * (/app/scan/sync). Called after Api::sync() with the uploaded scans (same order as the results).
  *
  *  - duplicate_policy first_sync_wins: a double admission (ticket already admitted by an earlier
- *    upload) is still recorded as admission conflict, but resolved automatically as "duplicate_scan".
+ *    upload) is still recorded as admission conflict. It is resolved automatically as "duplicate_scan"
+ *    only when the earlier admission came from the same device or the same user (a guest scanned twice
+ *    at one entrance). The same code admitted on two devices (e.g. a shared screenshot) stays open and
+ *    is reported as cross-device double admission (result flag cross_device, report on
+ *    "Einlass-Konflikte", resolution "duplicate_admission").
  *  - max_offline_hours: an admitted scan whose device time is older than the event's maximum offline
  *    duration is flagged (offline_expired) and recorded as an open conflict for review.
  *
- * Result rows gain: offline_rules (policy), auto_resolved, offline_expired, conflict_status.
+ * Result rows gain: offline_rules (policy), auto_resolved, cross_device, offline_expired, conflict_status.
  */
 namespace PassCaptain\OfflineScanner;
 
@@ -36,12 +40,16 @@ final class Sync {
 			if ( ! $rules['enabled'] ) { continue; }
 			$row['offline_rules'] = $rules['duplicate_policy'];
 
-			if ( $conflict && ! empty( $row['double_admission'] ) && 'first_sync_wins' === $rules['duplicate_policy'] ) {
-				self::auto_resolve( $conflict );
-				$conflict = Conflicts::get( (int) $conflict->conflict_id );
+			if ( $conflict && ! empty( $row['double_admission'] ) ) {
+				$same = Conflicts::same_origin( $conflict );
+				$row['cross_device'] = ! $same;
+				if ( $same && 'first_sync_wins' === $rules['duplicate_policy'] ) {
+					self::auto_resolve( $conflict );
+					$conflict = Conflicts::get( (int) $conflict->conflict_id );
+				}
 			}
 
-			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
+			$scanned = (int) \PassCaptain\Checkin::parse_scanned_at( $scan['scanned_at'] ?? null ); // A609: validated by Api::sync().
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
 			if ( ! $out && $scanned && $scanned < time() - $rules['max_offline_hours'] * HOUR_IN_SECONDS ) {
 				$row['offline_expired'] = true;
@@ -66,7 +74,7 @@ final class Sync {
 	private static function auto_resolve( $conflict ) {
 		global $wpdb;
 		if ( 'open' !== $conflict->status ) { return; }
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_admission_conflicts SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'pass-captain' ), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", $wpdb->prefix . 'wpcap_admission_conflicts', __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'pass-captain' ), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
 		if ( $updated ) {
 			Audit::record( 'admission_conflict_auto_resolved', 'admission_conflict', (int) $conflict->conflict_id, array( 'event_id' => (int) $conflict->event_id, 'ticket_id' => (int) $conflict->ticket_id, 'rule' => 'first_sync_wins' ) );
 		}
@@ -79,7 +87,7 @@ final class Sync {
 		if ( is_wp_error( $found ) || '' === $key ) { return 0; }
 		$key_hash = hash( 'sha256', 'app:' . sanitize_text_field( $key ) );
 		$user_id = get_current_user_id();
-		$checkin_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT checkin_id FROM {$wpdb->prefix}wpcap_checkins WHERE user_id=%d AND idempotency_key=%s AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $user_id, $key_hash ) );
+		$checkin_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT checkin_id FROM %i WHERE user_id=%d AND idempotency_key=%s AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_checkins', $user_id, $key_hash ) );
 		return Conflicts::record( array(
 			'dedupe' => 'offline_expired|' . $user_id . '|' . $key_hash,
 			'ticket_id' => $found['ticket_id'],

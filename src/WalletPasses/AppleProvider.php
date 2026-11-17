@@ -28,9 +28,14 @@ class AppleProvider implements WalletProvider {
 	}
 
 	/** webServiceURL; Apple appends /v1/devices/… and /v1/passes/…. */
-	public static function web_service_url() { return rest_url( 'wp-pass-captain/v1/' . self::REST_BASE ); }
+	public static function web_service_url() { return rest_url( 'pass-captain/v1/' . self::REST_BASE ); }
 
 	/* ---- ProviderInterface ---- */
+
+	/** Identifiers of the pass without building/signing the bundle (A580: large orders). */
+	public function pass_ref( array $ticket ) {
+		return array( 'provider' => 'apple', 'serial_number' => (string) $ticket['public_id'], 'provider_ref' => $this->pass_type_id() );
+	}
 
 	public function create_pass( array $ticket ) {
 		return array( 'provider' => 'apple', 'serial_number' => (string) $ticket['public_id'], 'provider_ref' => $this->pass_type_id(), 'bundle' => $this->bundle( $this->pass_json( $ticket ) ) );
@@ -60,10 +65,13 @@ class AppleProvider implements WalletProvider {
 
 	public function pass_json( array $ticket ) {
 		$start = self::local_iso( $ticket['starts_at'], $ticket['timezone'] );
-		$end_utc = $ticket['ends_at'] ?: gmdate( 'Y-m-d H:i:s', strtotime( $ticket['starts_at'] . ' UTC' ) + 6 * HOUR_IN_SECONDS );
+		$end_utc = \PassCaptain\Occurrence::effective_end( $ticket ); // A606: same default duration as sales and listings.
 		$voided = ! empty( $ticket['voided'] ) || '' === (string) ( $ticket['code'] ?? '' );
 		$secondary = array( array( 'key' => 'date', 'label' => __( 'Datum', 'pass-captain' ), 'value' => $start, 'dateStyle' => 'PKDateStyleMedium', 'timeStyle' => 'PKDateStyleShort', 'ignoresTimeZone' => true ) );
-		if ( '' !== (string) $ticket['location'] ) { $secondary[] = array( 'key' => 'location', 'label' => __( 'Ort', 'pass-captain' ), 'value' => (string) $ticket['location'] ); }
+		if ( ! empty( $ticket['doors_open_at'] ) ) {
+			$secondary[] = array( 'key' => 'doors', 'label' => _x( 'Einlass', 'doors open time', 'pass-captain' ), 'value' => self::local_iso( $ticket['doors_open_at'], $ticket['timezone'] ), 'dateStyle' => 'PKDateStyleNone', 'timeStyle' => 'PKDateStyleShort', 'ignoresTimeZone' => true, 'changeMessage' => __( 'Neuer Einlass: %@', 'pass-captain' ) );
+		}
+		if ( '' !== (string) $ticket['location'] ) { $secondary[] = array( 'key' => 'location', 'label' => __( 'Ort', 'pass-captain' ), 'value' => (string) $ticket['location'], 'changeMessage' => __( 'Neuer Ort: %@', 'pass-captain' ) ); }
 		$auxiliary = array( array( 'key' => 'category', 'label' => __( 'Ticket', 'pass-captain' ), 'value' => (string) $ticket['ticket_name'] ) );
 		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'seat', 'label' => __( 'Platz', 'pass-captain' ), 'value' => (string) $ticket['seat'] ); }
 		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'attendee', 'label' => __( 'Name', 'pass-captain' ), 'value' => (string) $ticket['attendee_name'] ); }
@@ -105,7 +113,7 @@ class AppleProvider implements WalletProvider {
 		if ( $voided ) {
 			$json['voided'] = true;
 		} else {
-			$json['barcodes'] = array( array( 'format' => 'PKBarcodeFormatQR', 'message' => (string) $ticket['code'], 'messageEncoding' => 'iso-8859-1', 'altText' => substr( (string) $ticket['public_id'], 0, 8 ) ) );
+			$json['barcodes'] = array( array( 'format' => 'PKBarcodeFormatQR', 'message' => \PassCaptain\Security\SignedQr::qr_value( (string) $ticket['code'] ), 'messageEncoding' => 'iso-8859-1', 'altText' => substr( (string) $ticket['public_id'], 0, 8 ) ) );
 		}
 		/** Optional geo relevance: list of ['latitude'=>…, 'longitude'=>…, 'relevantText'=>…]. */
 		$locations = apply_filters( 'wpcap_wallet_apple_locations', array(), $ticket );
@@ -115,15 +123,48 @@ class AppleProvider implements WalletProvider {
 
 	/* ---- bundle ---- */
 
-	/** icon.png, icon@2x.png, logo.png, logo@2x.png (operator files from settings or generated). */
+	/**
+	 * icon.png, icon@2x.png (operator files from settings or generated) and logo.png, logo@2x.png
+	 * (only an operator file). A628: no generated logo – Wallet already shows the organisation name
+	 * as logoText (UTF-8, umlauts intact) next to the logo; a generated text logo showed the name
+	 * twice and could only draw ASCII.
+	 */
 	public function images() {
 		$bg = Settings::get( 'wallet_background_color' ) ?: '#1d2327';
 		$fg = Settings::get( 'wallet_foreground_color' ) ?: '#ffffff';
+		// A620: built once per settings hash (colours, image files and their mtimes), kept in a transient.
+		$sources = array( $bg, $fg, function_exists( 'imagecreatetruecolor' ) );
+		foreach ( array( 'wallet_apple_icon_path', 'wallet_apple_logo_path' ) as $key ) {
+			$path = trim( (string) Settings::get( $key ) );
+			$retina = preg_replace( '/\.png$/i', '@2x.png', $path );
+			$sources[] = array( $path, '' !== $path && is_file( $path ) ? filemtime( $path ) : 0, '' !== $retina && is_file( $retina ) ? filemtime( $retina ) : 0 );
+		}
+		$hash = hash( 'sha256', (string) wp_json_encode( $sources ) );
+		if ( ! isset( self::$images[ $hash ] ) ) {
+			$cached = get_transient( self::IMAGES_TRANSIENT );
+			if ( is_array( $cached ) && ( $cached['hash'] ?? '' ) === $hash && is_array( $cached['images'] ?? null ) ) {
+				self::$images[ $hash ] = array_map( 'base64_decode', $cached['images'] );
+			} else {
+				self::$images[ $hash ] = $this->build_images( $bg, $fg );
+				set_transient( self::IMAGES_TRANSIENT, array( 'hash' => $hash, 'images' => array_map( 'base64_encode', self::$images[ $hash ] ) ), DAY_IN_SECONDS ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- binary PNGs in an option.
+			}
+		}
+		return apply_filters( 'wpcap_wallet_apple_images', self::$images[ $hash ] );
+	}
+
+	/** Transient with the built images of the current settings hash (A620). */
+	const IMAGES_TRANSIENT = 'wpcap_wallet_apple_images';
+
+	/** @var array<string,array<string,string>> Images per settings hash (this request). */
+	private static $images = array();
+
+	/** @var array<string,string> Signed bundles per content hash (this request, A620). */
+	private static $bundles = array();
+
+	private function build_images( $bg, $fg ) {
 		$images = array(
 			'icon.png' => Archive::icon_png( 29, $bg, $fg ),
 			'icon@2x.png' => Archive::icon_png( 58, $bg, $fg ),
-			'logo.png' => Archive::logo_png( 160, 50, self::organization(), $fg ),
-			'logo@2x.png' => Archive::logo_png( 320, 100, self::organization(), $fg ),
 		);
 		foreach ( array( 'icon' => 'wallet_apple_icon_path', 'logo' => 'wallet_apple_logo_path' ) as $name => $key ) {
 			$path = trim( (string) Settings::get( $key ) );
@@ -133,32 +174,70 @@ class AppleProvider implements WalletProvider {
 				$images[ $name . '@2x.png' ] = is_readable( $retina ) ? (string) file_get_contents( $retina ) : $images[ $name . '.png' ];
 			}
 		}
-		return apply_filters( 'wpcap_wallet_apple_images', $images );
+		return $images;
 	}
 
-	/** Builds the signed .pkpass bytes. */
+	/**
+	 * Builds the signed .pkpass bytes. A620: the signed bundle is reused for the same content (pass.json,
+	 * images, signing certificate) – within the request and, with a persistent object cache, across
+	 * requests (encrypted like the stored codes, 1 hour). A new update tag, code or design changes the
+	 * content and therefore the key.
+	 */
 	public function bundle( array $pass_json, $credentials = null ) {
 		$credentials = $credentials ?: Credentials::apple();
-		if ( is_wp_error( $credentials ) ) { throw new \RuntimeException( $credentials->get_error_code() ); }
+		if ( is_wp_error( $credentials ) ) { throw new \RuntimeException( $credentials->get_error_code() ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal error code, never printed.
 		$files = array( 'pass.json' => (string) json_encode( $pass_json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) + $this->images();
 		$manifest = array();
 		foreach ( $files as $name => $bytes ) { $manifest[ $name ] = sha1( $bytes ); }
 		$files['manifest.json'] = (string) json_encode( $manifest, JSON_UNESCAPED_SLASHES );
+		$key = hash( 'sha256', $files['manifest.json'] . '|' . hash( 'sha256', $credentials['cert'] . $credentials['wwdr'] ) );
+		if ( isset( self::$bundles[ $key ] ) ) { return self::$bundles[ $key ]; }
+		$shared = self::shared_cache();
+		if ( $shared ) {
+			$box = wp_cache_get( $key, self::CACHE_GROUP );
+			$open = is_string( $box ) ? Store::decrypt( $box ) : null;
+			$bytes = is_array( $open ) ? base64_decode( (string) ( $open['b'] ?? '' ), true ) : false;
+			if ( is_string( $bytes ) && '' !== $bytes ) { return self::remember( $key, $bytes ); }
+		}
 		$files['signature'] = self::sign( $files['manifest.json'], $credentials );
-		return Archive::zip( $files );
+		$bundle = Archive::zip( $files );
+		if ( $shared ) { wp_cache_set( $key, Store::encrypt( array( 'b' => base64_encode( $bundle ) ) ), self::CACHE_GROUP, HOUR_IN_SECONDS ); } // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- binary bundle in the cache.
+		return self::remember( $key, $bundle );
+	}
+
+	/** Object cache group of the signed bundles (A620). */
+	const CACHE_GROUP = 'wpcap_wallet';
+
+	/** Whether a persistent object cache keeps bundles across requests (never the options table). */
+	private static function shared_cache() {
+		return function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_get' );
+	}
+
+	/** Keeps at most 50 bundles of this request. */
+	private static function remember( $key, $bundle ) {
+		if ( count( self::$bundles ) >= 50 ) { self::$bundles = array_slice( self::$bundles, -25, null, true ); }
+		self::$bundles[ $key ] = $bundle;
+		return $bundle;
 	}
 
 	/** Detached PKCS#7 signature (DER) of the manifest incl. the WWDR intermediate. */
 	public static function sign( $manifest, array $credentials ) {
-		$dir = get_temp_dir();
-		$in = tempnam( $dir, 'wpcap-mf' );
-		$out = tempnam( $dir, 'wpcap-sig' );
-		$wwdr = tempnam( $dir, 'wpcap-wwdr' );
-		file_put_contents( $in, $manifest );
-		file_put_contents( $wwdr, $credentials['wwdr'] );
-		$ok = openssl_pkcs7_sign( $in, $out, $credentials['cert'], array( $credentials['key'], (string) $credentials['password'] ), array(), PKCS7_BINARY | PKCS7_DETACHED, $wwdr );
-		$smime = $ok ? (string) file_get_contents( $out ) : '';
-		foreach ( array( $in, $out, $wwdr ) as $file ) { wp_delete_file( $file ); }
+		// openssl_pkcs7_sign() only works with file paths: private directory (0700) and files (0600).
+		$dir = \PassCaptain\TempFiles::private_dir();
+		if ( ! $dir ) { throw new \RuntimeException( 'wallet_sign_failed' ); }
+		$in = $dir . '/manifest';
+		$out = $dir . '/signature';
+		$wwdr = $dir . '/wwdr.pem';
+		$smime = '';
+		try {
+			if ( \PassCaptain\TempFiles::put( $in, $manifest ) && \PassCaptain\TempFiles::put( $wwdr, $credentials['wwdr'] ) && \PassCaptain\TempFiles::put( $out, '' ) ) {
+				$ok = openssl_pkcs7_sign( $in, $out, $credentials['cert'], array( $credentials['key'], (string) $credentials['password'] ), array(), PKCS7_BINARY | PKCS7_DETACHED, $wwdr );
+				$smime = $ok ? \PassCaptain\TempFiles::get( $out ) : '';
+			}
+		} finally {
+			foreach ( array( $in, $out, $wwdr ) as $file ) { \PassCaptain\TempFiles::remove( $file ); }
+			\PassCaptain\TempFiles::remove_dir( $dir );
+		}
 		if ( ! preg_match( '/filename="?smime\.p7s"?\s*\r?\n\r?\n(.+?)\r?\n\r?\n?-{2,}/s', $smime, $m ) ) {
 			throw new \RuntimeException( 'wallet_sign_failed' );
 		}
@@ -169,14 +248,35 @@ class AppleProvider implements WalletProvider {
 
 	/* ---- push ---- */
 
+	/** @var ApnsClient|null Client of the current run (one HTTP/2 connection for all pushes). */
+	private static $apns = null;
+	private static $in_run = false;
+
 	public static function apns_client() {
+		if ( self::$in_run && null !== self::$apns ) { return self::$apns; }
 		$client = apply_filters( 'wpcap_wallet_apns_client', null );
-		return $client instanceof ApnsClient ? $client : new ApnsClient();
+		$client = $client instanceof ApnsClient ? $client : new ApnsClient();
+		if ( self::$in_run ) { self::$apns = $client; }
+		return $client;
+	}
+
+	/** Starts a dispatch run (Service::process()): all pushes of the run share one client/connection. */
+	public static function begin_apns_run() {
+		self::$in_run = true;
+	}
+
+	/** Ends the run: closes the APNs connection. */
+	public static function release_apns_client() {
+		if ( null !== self::$apns ) { self::$apns->close(); }
+		self::$apns = null;
+		self::$in_run = false;
 	}
 
 	/**
 	 * Sends an update push to every device registered for the serial. Tokens answered with 410
 	 * (device unregistered) are removed. Returns false on transport/server errors (retry later).
+	 * 403 means APNs rejects the certificate or topic: a configuration error that no retry fixes, so it
+	 * is recorded for the system status (Service::status_issues()) and not retried.
 	 */
 	public function notify( $serial ) {
 		$registrations = Store::registrations_for_serial( $serial );
@@ -192,6 +292,18 @@ class AppleProvider implements WalletProvider {
 			$status = $client->send( $registration->push_token, $registration->pass_type_id, $credentials, $host );
 			$sent[ $registration->push_token ] = $status;
 			if ( 410 === $status ) { Store::delete_push_token( $registration->push_token ); continue; }
+			if ( 403 === $status ) {
+				if ( (int) get_option( Service::APNS_ERROR_OPTION, 0 ) < time() - HOUR_IN_SECONDS ) {
+					update_option( Service::APNS_ERROR_OPTION, time(), false );
+					Service::log( 'apns_forbidden', 'APNs 403: certificate or pass type id rejected' );
+				}
+				continue;
+			}
+			if ( 429 === $status ) {
+				// A422: APNs rate limit – no further pushes in this run, the sync retries later.
+				Service::rate_limited( 'apple', 60 );
+				return false;
+			}
 			if ( 200 !== $status && 400 !== $status ) { $ok = false; }
 		}
 		return $ok;

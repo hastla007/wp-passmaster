@@ -63,7 +63,7 @@ function wcp_cart( $type_id, $qty, $product_id ) {
 }
 
 echo "WooCommerce: series price tiers in the cart (opt-in)\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_notices'] = array();
 $ws = sp_series( array( 12 ) );
 $w_occ = $ws['occurrences'][0];

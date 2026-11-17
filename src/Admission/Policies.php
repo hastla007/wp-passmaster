@@ -40,8 +40,21 @@ final class Policies {
 	/** Normalised policy of a ticket type, or null when none is configured (legacy behaviour). */
 	public static function for_type( $ticket_type_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE ticket_type_id=%d', absint( $ticket_type_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
-		return $row ? self::normalize( $row ) : null;
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', self::table(), absint( $ticket_type_id ) ) );
+		if ( '' !== (string) $wpdb->last_error ) {
+			// Failed read: no filter run (its own queries would clear last_error), callers see the error
+			// and abort instead of admitting under "no policy" (Checkin::perform_locked()).
+			return null;
+		}
+		$policy = $row ? self::normalize( $row ) : null;
+		/**
+		 * [Passes] Extension point: effective admission policy of a ticket type (null = legacy single
+		 * entry). Modules may return a policy with a custom `policy` value (e.g. 'pass') and evaluate
+		 * it via `wpcap_admission_evaluate`; it must carry all keys of normalize(). Any value other
+		 * than 'single' keeps the ticket status valid after an entry (repeatable).
+		 */
+		$filtered = apply_filters( 'wpcap_admission_policy', $policy, absint( $ticket_type_id ) );
+		return is_array( $filtered ) && isset( $filtered['policy'] ) ? $filtered : $policy;
 	}
 
 	private static function normalize( $row ) {
@@ -182,7 +195,7 @@ final class Policies {
 		if ( 'multi_day' === $policy['policy'] ) { return $policy['valid_dates']; }
 		if ( 'daily' !== $policy['policy'] ) { return null; }
 		global $wpdb;
-		$days = $wpdb->get_col( $wpdb->prepare( "SELECT service_date FROM {$wpdb->prefix}wpcap_occurrence_days WHERE occurrence_id=%d ORDER BY service_date", (int) $found['occurrence_id'] ) );
+		$days = $wpdb->get_col( $wpdb->prepare( 'SELECT service_date FROM %i WHERE occurrence_id=%d ORDER BY service_date', $wpdb->prefix . 'wpcap_occurrence_days', (int) $found['occurrence_id'] ) );
 		if ( $days ) { return array_map( 'strval', $days ); }
 		// Service days (respecting the day cutoff), so a night that ends after midnight adds no extra day.
 		$start = strtotime( $found['starts_at'] . ' UTC' );

@@ -1,0 +1,273 @@
+name: WordPress version matrix
+
+# A125: activation, deactivation, reactivation, uninstall (with/without data removal), admin pages
+# and REST in real WordPress installs, plus the upgrade/rollback/restore drill against the previous
+# release (tests/restore/drill.sh). Runs on every push/PR and weekly against the newest WordPress.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '41 4 * * 2'
+  workflow_dispatch:
+
+# A new push supersedes the running check of the same branch (main keeps every run).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { wp: '7.0', php: '8.5' }   # minimum supported (Requires at least)
+          - { wp: 'latest', php: '8.5' }
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, gd, zip, sodium, curl
+          coverage: none
+      - name: Plugin dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+      - name: Install WordPress ${{ matrix.wp }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
+          wp core download --version=${{ matrix.wp }} --locale=en_US
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp config set AUTOMATIC_UPDATER_DISABLED true --raw   # pinned version: no background updates mid-test
+          wp config set WP_AUTO_UPDATE_CORE false --raw
+          wp core install --url=http://localhost:8080 --title=Matrix --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          echo "WordPress $(wp core version)"
+          (PHP_CLI_SERVER_WORKERS=4 nohup php -S localhost:8080 >/dev/null 2>&1 &)
+      - name: Lifecycle (activate, deactivate, reactivate, uninstall, admin pages, REST)
+        env:
+          WPCAP_LIFECYCLE_HTTP: '1'
+        run: bash tests/wp-matrix/lifecycle.sh "$RUNNER_TEMP/wp" "$GITHUB_WORKSPACE"
+      - name: Build the previous release (old) and this commit (new)
+        run: |
+          prev="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+          echo "Previous release: $prev"
+          # The previous release may still carry the old folder name (renamed for WordPress.org): use whatever ZIP it built.
+          rm -rf build/dist && WPCAP_BUILD_REF="$prev" bash build/release.sh && cp build/dist/*.zip "$RUNNER_TEMP/old.zip"
+          mkdir -p "$RUNNER_TEMP/old" && unzip -q "$RUNNER_TEMP/old.zip" -d "$RUNNER_TEMP/old"
+          echo "OLD_PLUGIN_DIR=$(ls -d "$RUNNER_TEMP"/old/*/ | head -n1)" >> "$GITHUB_ENV"
+          rm -rf build/dist && bash build/release.sh && mkdir -p "$RUNNER_TEMP/new" && unzip -q build/dist/pass-captain.zip -d "$RUNNER_TEMP/new"
+      - name: Release ZIP installed in a fresh WordPress ${{ matrix.wp }} (contents, install, activate, uninstall)
+        # A178: the built artefact itself, not the checkout; fails on development files in the ZIP.
+        env:
+          WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
+        run: bash tests/wp-matrix/zip-install.sh build/dist/pass-captain.zip "$RUNNER_TEMP/zip-install"
+      - name: Upgrade / rollback / restore drill with real data
+        run: |
+          mkdir -p "$RUNNER_TEMP/drill"
+          bash tests/restore/drill.sh "$RUNNER_TEMP/wp" "${OLD_PLUGIN_DIR%/}" "$RUNNER_TEMP/new/pass-captain" "$RUNNER_TEMP/drill"
+      - name: Switch from the previous release in a real site (rename to pass-captain, old copy taken over)
+        env:
+          WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
+        run: bash tests/wp-matrix/rename-takeover.sh "$RUNNER_TEMP/old.zip" build/dist/pass-captain.zip "$RUNNER_TEMP/rename"
+      - name: Same switch on a multisite network (old copy uninstalled network-wide, subsite data kept)
+        env:
+          WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
+        run: bash tests/wp-matrix/rename-takeover-ms.sh "$RUNNER_TEMP/old.zip" build/dist/pass-captain.zip "$RUNNER_TEMP/rename-ms"
+
+  plugin-check:
+    # A305: WordPress "Plugin Check" (PCP, the WordPress.org review tool) against the built ZIP in a
+    # throw-away WordPress. Required job: fails on Plugin Check errors that are not in the baseline
+    # tests/plugin-check/baseline.json (known backlog, see docs/RELEASE.md "Plugin Check"); warnings are
+    # reported in the uploaded result only. PCP is pinned so new checks arrive by a deliberate bump.
+    runs-on: ubuntu-latest
+    env:
+      PCP_VERSION: '2.2.0'
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, zip
+          coverage: none
+      - name: Build the plugin ZIP
+        run: bash build/release.sh
+      - name: Throw-away WordPress with Plugin Check ${{ env.PCP_VERSION }} and the ZIP
+        run: |
+          mkdir -p "$RUNNER_TEMP/pcp" && cd "$RUNNER_TEMP/pcp"
+          wp core download --locale=en_US
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp core install --url=http://localhost --title=PCP --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          wp plugin install plugin-check --version="$PCP_VERSION" --activate
+          wp plugin install "$GITHUB_WORKSPACE/build/dist/pass-captain.zip"
+      - name: Plugin Check (category plugin_repo), new errors fail
+        run: |
+          wp --path="$RUNNER_TEMP/pcp" plugin check pass-captain --format=json --categories=plugin_repo > "$RUNNER_TEMP/pcp-result.txt"
+          php tests/plugin-check/compare.php "$RUNNER_TEMP/pcp-result.txt" tests/plugin-check/baseline.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plugin-check-result
+          path: ${{ runner.temp }}/pcp-result.txt
+
+  woocommerce:
+    # A127: the WooCommerce adapter against installed WooCommerce versions, HPOS and posts storage.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        wc: ['11.2.2', 'latest']   # "WC requires at least" and newest
+        storage: ['hpos', 'posts']
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, gd, zip, sodium, curl, intl
+          coverage: none
+      - name: Plugin dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+      - name: Install WordPress, WooCommerce ${{ matrix.wc }} and the plugin
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
+          wp core download --locale=en_US
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp config set AUTOMATIC_UPDATER_DISABLED true --raw   # pinned version: no background updates mid-test
+          wp config set WP_AUTO_UPDATE_CORE false --raw
+          wp core install --url=http://localhost:8080 --title=Woo --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          if [ "${{ matrix.wc }}" = "latest" ]; then wp plugin install woocommerce --activate; else wp plugin install woocommerce --version=${{ matrix.wc }} --activate; fi
+          wp option update woocommerce_currency EUR
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/pass-captain
+          wp plugin activate pass-captain
+          echo "WooCommerce $(wp plugin get woocommerce --field=version)"
+      - name: Order storage ${{ matrix.storage }}
+        run: |
+          cd "$RUNNER_TEMP/wp"
+          if [ "${{ matrix.storage }}" = "hpos" ]; then
+            wp option update woocommerce_custom_orders_table_enabled yes
+          else
+            wp option update woocommerce_custom_orders_table_enabled no
+          fi
+          wp option update woocommerce_custom_orders_table_data_sync_enabled no
+      - name: WooCommerce adapter smoke test (hold, payment, refund, cancel, sold out)
+        run: wp --path="$RUNNER_TEMP/wp" eval-file tests/wp-matrix/woocommerce-smoke.php
+
+  accessibility:
+    # A155: axe-core (WCAG 2.2 A/AA, fails on serious/critical) and the keyboard walk-through against a
+    # real WordPress install with the plugin (public checkout, ticket page, portal, waitlist, scanner, admin).
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, gd, zip, sodium, curl
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Plugin dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+      - name: Install WordPress (German) with the plugin
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
+          # A localized package can briefly mismatch its published md5 after a rebuild on WordPress.org: retry once,
+          # then fall back to the English package (the de_DE language pack is installed below anyway).
+          wp core download --locale=de_DE || { sleep 30; wp core download --locale=de_DE --force; } || wp core download --force
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp config set AUTOMATIC_UPDATER_DISABLED true --raw   # pinned version: no background updates mid-test
+          wp config set WP_AUTO_UPDATE_CORE false --raw
+          wp core install --url=http://localhost:8080 --title=A11y --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          wp language core install de_DE --activate || true
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/pass-captain
+          wp plugin activate pass-captain
+          wp rewrite structure '/%postname%/'
+          (PHP_CLI_SERVER_WORKERS=4 nohup php -S localhost:8080 >/dev/null 2>&1 &)
+      - name: Install axe-core and Playwright
+        run: cd tests/a11y && npm ci && npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: axe-core (fails on serious or critical findings)
+        env:
+          WPCAP_A11Y_WP_PATH: ${{ runner.temp }}/wp
+          WPCAP_A11Y_BASE: http://localhost:8080
+          WPCAP_A11Y_USER: admin
+          WPCAP_A11Y_PASS: admin
+        run: cd tests/a11y && node run.js --fail-on=serious
+      - name: Keyboard walk-through
+        env:
+          WPCAP_A11Y_WP_PATH: ${{ runner.temp }}/wp
+          WPCAP_A11Y_BASE: http://localhost:8080
+          WPCAP_A11Y_USER: admin
+          WPCAP_A11Y_PASS: admin
+        run: cd tests/a11y && node keyboard.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: a11y-report
+          path: tests/a11y/report/

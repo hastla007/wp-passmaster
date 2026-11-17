@@ -11,7 +11,7 @@ use PassCaptain\Modules\Calendar;
 use PassCaptain\Orders;
 use PassCaptain\Settings;
 
-if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/wp-pass-captain/' ); }
+if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $t, $d = null ) { return esc_attr( $t ); } }
 if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = $a == $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
@@ -43,6 +43,7 @@ $event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE
 $start = gmdate( 'Y-m-d H:i:s', time() + 5 * 86400 );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET starts_at=%s, ends_at=NULL, location=%s WHERE occurrence_id=%d", $start, 'Saal 1; Wien, Ring', $occ ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_events SET name=%s, description=%s WHERE event_id=%d", 'Konzert, Nacht; Teil 2', '<p>Ein sehr langer Beschreibungstext mit Umlauten äöü und Sonderzeichen, der über die Zeilenlänge hinausgeht und gefaltet werden muss.</p>', $event ) );
+$cal_saved = Settings::get( 'calendar' ); // Restored at the end.
 Settings::update( array( 'calendar' => array( 'checkout_url' => 'https://example.test/tickets/', 'attach_ics' => 1 ) ) );
 
 $ics = Ics::occurrence_calendar( $occ );
@@ -56,7 +57,10 @@ check( 'DTSTART/DTEND in UTC with default duration of 2 hours', false !== strpos
 check( 'DTSTAMP present in UTC', 1 === preg_match( '/DTSTAMP:\d{8}T\d{6}Z/', $unfolded ) );
 check( 'summary and location escaped', false !== strpos( $unfolded, 'SUMMARY:Konzert\\, Nacht\\; Teil 2' ) && false !== strpos( $unfolded, 'LOCATION:Saal 1\\; Wien\\, Ring' ) );
 check( 'stable UID per occurrence', false !== strpos( $unfolded, 'UID:wpcap-occurrence-' . $occ . '@example.test' ) && $ics !== null && preg_replace( '/DTSTAMP:\S+/', '', $ics ) === preg_replace( '/DTSTAMP:\S+/', '', (string) Ics::occurrence_calendar( $occ ) ) );
-check( 'checkout link with card anchor as URL', false !== strpos( $unfolded, 'URL:https://example.test/tickets/#wpcap-occ-' . $occ ) );
+// Merged design: calendar/.ics links use ?wpcap_occurrence= plus the card anchor (A342); the list layout
+// opens its single-occurrence view for that parameter too (audit R2 #9), so no separate ?wpcap_occ= link.
+check( 'checkout link to the single-occurrence view as URL (?wpcap_occurrence=, no legacy ?wpcap_occ=)', false === strpos( $unfolded, '?wpcap_occ=' ) && false !== strpos( $unfolded, 'URL:https://example.test/tickets/?wpcap_occurrence=' . $occ ) );
+check( 'checkout link with card anchor as URL', false !== strpos( $unfolded, 'URL:https://example.test/tickets/?wpcap_occurrence=' . $occ . '#wpcap-occ-' . $occ ) );
 check( 'description has no HTML', false === strpos( $unfolded, '<p>' ) );
 
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET ends_at=DATE_ADD(starts_at, INTERVAL 90 MINUTE) WHERE occurrence_id=$occ" );
@@ -101,7 +105,9 @@ $draft_type = make_type( 5, 10, 0 );
 $draft_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$draft_type" );
 $wpdb->query( "UPDATE {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id SET e.status='draft', e.name='Geheim' WHERE o.occurrence_id=$draft_occ" );
 $list = Calendar::render_shortcode( array( 'view' => 'list', 'event' => $event ) );
-check( 'list view links to the checkout anchor and the .ics download', false !== strpos( $list, 'https://example.test/tickets/#wpcap-occ-' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
+// Merged design: ?wpcap_occurrence= (see above), never the list layout's own ?wpcap_occ= parameter.
+check( 'list view links to the single-occurrence view and the .ics download', false === strpos( $list, '?wpcap_occ=' ) && false !== strpos( $list, 'https://example.test/tickets/?wpcap_occurrence=' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
+check( 'list view links to the checkout anchor and the .ics download', false !== strpos( $list, 'https://example.test/tickets/?wpcap_occurrence=' . $occ . '#wpcap-occ-' . $occ ) && false !== strpos( $list, 'wpcap_ics=occurrence&amp;id=' . $occ ) );
 check( 'list view uses <time datetime> and escapes names', false !== strpos( $list, '<time datetime="' ) && false !== strpos( $list, 'Konzert, Nacht; Teil 2' ) );
 check( 'list view hides cancelled occurrences', false === strpos( $list, 'wpcap-occ-' . $cancelled_occ ) );
 $all = Calendar::render_list();
@@ -111,11 +117,18 @@ $_GET['wpcap_month'] = $month;
 $grid = Calendar::render_shortcode( array( 'view' => 'month', 'event' => $event ) );
 unset( $_GET['wpcap_month'] );
 check( 'month view is a table with caption and column headers', false !== strpos( $grid, '<table class="wpcap-cal-grid"><caption>' ) && 7 === substr_count( $grid, '<th scope="col">' ) );
-check( 'month view links the occurrence with an accessible label', false !== strpos( $grid, '#wpcap-occ-' . $occ ) && false !== strpos( $grid, 'aria-label="Konzert, Nacht; Teil 2 um' ) );
-check( 'month view has prev/next navigation', false !== strpos( $grid, 'rel="prev"' ) && false !== strpos( $grid, 'rel="next"' ) );
+check( 'month view links the occurrence with an accessible label', false !== strpos( $grid, '#wpcap-occ-' . $occ ) && 1 === preg_match( '/aria-label="\d\d:\d\d[^"]* Konzert, Nacht; Teil 2, \d\d\.\d\d\.\d{4}"/', $grid ) ); // A393: visible text first.
+$grid_later = Calendar::render_month( gmdate( 'Y-m', strtotime( 'first day of +2 month' ) ) );
+check( 'month view has prev/next navigation (no "previous" in the current month, A313)', false !== strpos( $grid, 'rel="next"' ) && false !== strpos( $grid_later, 'rel="prev"' ) && false !== strpos( $grid_later, 'rel="next"' ) );
 check( 'invalid month falls back to current month', false !== strpos( Calendar::render_month( '2026-13' ), '<caption>' ) );
 $card = Calendar::add_card_anchor( '<article class="wpcap-event"><h3>x</h3></article>', (object) array( 'occurrence_id' => 42 ) );
 check( 'event cards get an anchor id', 0 === strpos( $card, '<article id="wpcap-occ-42" class="wpcap-event"' ) );
 check( 'shortcode registered', isset( $GLOBALS['wpcap_test_shortcodes']['wp_pass_captain_calendar'] ) || ! isset( $GLOBALS['wpcap_test_shortcodes'] ) );
 $block = json_decode( (string) file_get_contents( WPCAP_PATH . 'src/blocks/calendar/block.json' ), true );
 check( 'block.json declares a dynamic block with view attribute', 'wp-pass-captain/calendar' === ( $block['name'] ?? '' ) && 'file:./render.php' === ( $block['render'] ?? '' ) && isset( $block['attributes']['view'] ) );
+Settings::update( array( 'calendar' => is_array( $cal_saved ) ? $cal_saved : array() ) );
+// Calendar::register() hooked the ticket mail and resend attachments (ICS, on by default): later modules
+// run without the calendar module and expect only the ticket PDF.
+remove_filter( 'wpcap_ticket_mail', array( Calendar::class, 'attach_ics' ), 20 );
+remove_filter( 'wpcap_ticket_resend_attachments', array( Calendar::class, 'resend_ics' ), 20 );
+remove_filter( 'wpcap_event_card_html', array( Calendar::class, 'add_card_anchor' ), 5 );

@@ -1,0 +1,96 @@
+{
+  "contract": "affiliate",
+  "version": "1.0.0",
+  "description": "Affiliate-Captain-Adapter (ausgehend): request = Shape der Payloads an wpac_record_sale()/wpac_record_refund(), response = Beispiel der kleinsten gültigen Antwort.",
+  "endpoints": {
+    "wpac_record_sale": {
+      "direction": "outbound",
+      "response": {
+        "status": "created"
+      },
+      "request": {
+        "contract": "string",
+        "source": "string",
+        "order_id": "string",
+        "currency": "string",
+        "paid_at": "string",
+        "coupon_codes": [
+          "string"
+        ],
+        "customer": {
+          "user_id": "int",
+          "email": "string"
+        },
+        "items": [
+          {
+            "item_id": "string",
+            "product_id": "int",
+            "parent_id": "int",
+            "sku": "string",
+            "category_ids": [
+              "int"
+            ],
+            "name": "string",
+            "quantity": "int",
+            "net_minor": "int"
+          }
+        ],
+        "?partner_code": "string",
+        "?partner_code_method": "string",
+        "?hold_until": "string",
+        "?touch": {
+          "code": "string",
+          "method": "string",
+          "campaign": "string",
+          "content_id": "int",
+          "ts": "int"
+        }
+      }
+    },
+    "wpac_record_refund (partial)": {
+      "direction": "outbound",
+      "response": {
+        "status": "adjusted"
+      },
+      "request": {
+        "contract": "string",
+        "source": "string",
+        "order_id": "string",
+        "refund_id": "string",
+        "type": "string",
+        "items": [
+          {
+            "item_id": "string",
+            "net_minor": "int"
+          }
+        ],
+        "reason": "string"
+      }
+    },
+    "wpac_record_refund (full)": {
+      "direction": "outbound",
+      "response": {
+        "status": "adjusted"
+      },
+      "request": {
+        "contract": "string",
+        "source": "string",
+        "order_id": "string",
+        "refund_id": "string",
+        "type": "string",
+        "full": "bool",
+        "reason": "string"
+      }
+    },
+    "wpac_registered_integrations": {
+      "direction": "outbound",
+      "response": null,
+      "request": {
+        "name": "string",
+        "version": "string",
+        "contract": "string",
+        "active": "bool"
+      }
+    }
+  }
+}

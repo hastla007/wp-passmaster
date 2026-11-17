@@ -18,14 +18,13 @@ final class DevicesPage {
 	const CAP = 'wpcap_checkin';
 
 	/** Transient key holding the freshly created pairing (shown once). */
-	private static function pairing_key() { return 'wpcap_pairing_' . get_current_user_id(); }
 
 	/** Creates a pairing for the current user. */
 	public static function create_pairing( array $in ) {
 		$events = isset( $in['event_ids'] ) && is_array( $in['event_ids'] ) ? $in['event_ids'] : array();
 		$result = Devices::create_pairing( $events, Forms::text( $in, 'label', 190 ), Forms::int( $in, 'hours' ), Forms::int( $in, 'area_id' ) );
 		if ( ! is_wp_error( $result ) ) {
-			set_transient( self::pairing_key(), $result, Devices::PAIRING_MINUTES * MINUTE_IN_SECONDS );
+			\PassCaptain\Security\OneTimeSecret::put( 'pairing', $result, Devices::PAIRING_MINUTES * MINUTE_IN_SECONDS ); // A507
 		}
 		return $result;
 	}
@@ -50,8 +49,9 @@ final class DevicesPage {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		global $wpdb;
 		$scope = Queries::event_ids_for( array( self::CAP ) );
-		$events = $wpdb->get_results( "SELECT event_id,name FROM {$wpdb->prefix}wpcap_events WHERE status='published'" . Queries::scope_sql( $scope, 'event_id' ) . ' ORDER BY name LIMIT 200' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scope_sql builds an integer list.
-		$pairing = get_transient( self::pairing_key() );
+		$where = "status='published'" . Queries::scope_sql( $scope, 'event_id' );
+		$events = $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name FROM %i WHERE {$where} ORDER BY name LIMIT 200", $wpdb->prefix . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: literal condition and integer scope.
+		$pairing = \PassCaptain\Security\OneTimeSecret::take( 'pairing' );
 		$devices = Devices::list_for_current_user();
 		$names = array();
 		foreach ( $events as $event ) { $names[ (int) $event->event_id ] = $event->name; }
@@ -65,8 +65,13 @@ final class DevicesPage {
 		<p><?php esc_html_e( 'Koppelt eine Scanner-App mit deinem Konto. Das Gerät erhält einen persönlichen, ablaufenden Zugang nur für die gewählten Events und kann jederzeit widerrufen werden.', 'pass-captain' ); ?></p>
 		<?php if ( is_array( $pairing ) ) : $qr = QrCode::data_uri( $pairing['qr_payload'] ); ?>
 			<div class="notice notice-success inline"><p><strong><?php esc_html_e( 'Kopplungscode (nur einmal gültig):', 'pass-captain' ); ?></strong> <code><?php echo esc_html( implode( '-', str_split( $pairing['code'], 4 ) ) ); ?></code><br><?php echo esc_html( sprintf( /* translators: %s: time */ __( 'Gültig bis %s.', 'pass-captain' ), Forms::datetime( $pairing['expires_at'], wp_timezone_string() ) ) ); ?></p>
-			<?php if ( $qr ) : ?><p><img src="<?php echo esc_attr( $qr ); ?>" width="220" height="220" alt="<?php esc_attr_e( 'Kopplungs-QR-Code', 'pass-captain' ); ?>"></p><?php else : ?><p><?php esc_html_e( 'QR-Bibliothek nicht installiert – den Code in der App manuell eingeben.', 'pass-captain' ); ?></p><?php endif; ?></div>
-			<?php delete_transient( self::pairing_key() ); ?>
+			<?php if ( $qr ) : ?><p><img src="<?php echo esc_attr( $qr ); ?>" width="220" height="220" alt="<?php esc_attr_e( 'Kopplungs-QR-Code', 'pass-captain' ); ?>"></p><?php else : ?><p><?php esc_html_e( 'QR-Bibliothek nicht installiert – den Code in der App manuell eingeben.', 'pass-captain' ); ?></p><?php endif; ?>
+			<?php if ( ! empty( $pairing['pwa_url'] ) && \PassCaptain\Modules::enabled( \PassCaptain\Modules\OfflineScanner::class ) ) : $pwa_qr = QrCode::data_uri( $pairing['pwa_url'] ); // A597: open and pair the offline scanner with one scan. ?>
+				<p><strong><?php esc_html_e( 'Offline-Scanner (Web-App) direkt koppeln:', 'pass-captain' ); ?></strong> <?php esc_html_e( 'Mit der Kamera des Aushilfs-Smartphones scannen – die Web-App öffnet sich und wird sofort gekoppelt.', 'pass-captain' ); ?></p>
+				<?php if ( $pwa_qr ) : ?><p><img src="<?php echo esc_attr( $pwa_qr ); ?>" width="220" height="220" alt="<?php esc_attr_e( 'QR-Code: Offline-Scanner öffnen und koppeln', 'pass-captain' ); ?>"></p><?php endif; ?>
+				<p><a href="<?php echo esc_url( $pairing['pwa_url'] ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Offline-Scanner auf diesem Gerät öffnen und koppeln', 'pass-captain' ); ?></a></p>
+			<?php endif; ?></div>
+			
 		<?php endif; ?>
 		<h2><?php esc_html_e( 'Neues Gerät koppeln', 'pass-captain' ); ?></h2>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -81,7 +86,7 @@ final class DevicesPage {
 			<?php submit_button( __( 'Kopplungs-QR erstellen', 'pass-captain' ), 'primary', 'submit', false ); ?>
 		</form>
 		<h2><?php esc_html_e( 'Gekoppelte Geräte', 'pass-captain' ); ?></h2>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $devices as $device ) :
 			$active = ! $device->revoked_at && ( ! $device->expires_at || $device->expires_at > current_time( 'mysql', true ) );
 			$sync = $status[ (int) $device->device_id ];
@@ -91,8 +96,35 @@ final class DevicesPage {
 		<?php endforeach; ?>
 		<?php if ( ! $devices ) : ?><tr><td colspan="9"><?php esc_html_e( 'Noch keine Geräte gekoppelt.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 		</tbody></table>
-		<p><?php echo esc_html( __( 'API-Basis für Apps:', 'pass-captain' ) . ' ' . rest_url( 'wp-pass-captain/v1/app/' ) ); ?></p>
+		<p><?php echo esc_html( __( 'API-Basis für Apps:', 'pass-captain' ) . ' ' . rest_url( 'pass-captain/v1/app/' ) ); ?></p>
+		<?php self::render_web_scanners(); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Scanning without the native app (A292): the web scanner shortcode (an existing page is
+	 * linked) and the installable offline scanner (PWA) when its module is on.
+	 */
+	public static function render_web_scanners() {
+		$pages = GettingStarted::frontend_pages();
+		echo '<h2 id="wpcap-web-scanner">' . esc_html__( 'Ohne App scannen', 'pass-captain' ) . '</h2>';
+		echo '<ul class="ul-disc">';
+		echo '<li><strong>' . esc_html__( 'Web-Scanner:', 'pass-captain' ) . '</strong> ';
+		/* translators: %s: shortcode */
+		echo esc_html( sprintf( __( 'Shortcode %s auf einer Seite einfügen. Die Seite funktioniert im Browser jedes Smartphones (Kamera oder Code-Eingabe) und nur für angemeldete Personen mit Einlassberechtigung.', 'pass-captain' ), '[wpcap_scanner]' ) );
+		if ( $pages['scanner_page_id'] ) {
+			echo ' <a href="' . esc_url( (string) get_permalink( $pages['scanner_page_id'] ) ) . '">' . esc_html__( 'Scanner-Seite öffnen', 'pass-captain' ) . '</a>';
+		}
+		echo '</li>';
+		if ( class_exists( \PassCaptain\OfflineScanner\AdminPage::class ) && \PassCaptain\Modules::enabled( \PassCaptain\Modules\OfflineScanner::class ) ) {
+			echo '<li><strong>' . esc_html__( 'Offline-Scanner (Web-App):', 'pass-captain' ) . '</strong> ' . esc_html__( 'Installierbare Web-App, die auch ohne Verbindung prüft. Das Gerät wird hier gekoppelt; Freigabe je Event unter „Offline-Scanner“.', 'pass-captain' );
+			echo ' <a href="' . esc_url( \PassCaptain\OfflineScanner\AdminPage::app_url() ) . '" target="_blank" rel="noopener">' . esc_html__( 'Offline-Scanner öffnen', 'pass-captain' ) . '</a>';
+			if ( current_user_can( \PassCaptain\OfflineScanner\AdminPage::CAP ) ) {
+				echo ' · <a href="' . esc_url( Forms::page_url( \PassCaptain\OfflineScanner\AdminPage::SLUG ) ) . '">' . esc_html__( 'Offline-Scanner einrichten', 'pass-captain' ) . '</a>';
+			}
+			echo '</li>';
+		}
+		echo '</ul>';
 	}
 }

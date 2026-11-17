@@ -3,6 +3,54 @@
 	'use strict';
 	const SVGNS = 'http://www.w3.org/2000/svg';
 	const R = 10;
+	// WCAG 2.5.8: seats (targets) at least 24 CSS px, and at least 24 px apart (centre to centre).
+	const TARGET = 24;
+	const ZOOMS = [1, 1.5, 2, 3];
+
+	/** Smallest distance between two seat centres (SVG units); Infinity with fewer than two seats. */
+	function minPitch(seats) {
+		const sorted = seats.slice().sort(function (a, b) { return a.x - b.x || a.y - b.y; });
+		let best = Infinity;
+		for (let i = 0; i < sorted.length; i++) {
+			for (let j = i + 1; j < sorted.length && sorted[j].x - sorted[i].x < best; j++) {
+				const d = Math.hypot(sorted[j].x - sorted[i].x, sorted[j].y - sorted[i].y);
+				if (d > 0 && d < best) best = d;
+			}
+		}
+		return best;
+	}
+	/** Minimum rendered width (px) of the map so every seat is >= 24 px and >= 24 px apart, at zoom 1. */
+	function minMapWidth(width, seats) {
+		const pitch = minPitch(seats);
+		const scale = Math.max(TARGET / (2 * R), isFinite(pitch) ? TARGET / pitch : 0);
+		return Math.min(6000, Math.max(320, Math.ceil(width * scale)));
+	}
+	/**
+	 * Best free seats for `count` tickets: side by side in one row if possible, rows nearer the stage
+	 * (top) and nearer the centre first; otherwise the best single seats.
+	 */
+	function bestSeats(seats, count, width, eligible) {
+		const free = seats.filter(function (seat) { return seat.kind === 'seat' && seat.status === 'free' && eligible(seat); });
+		if (count < 1 || free.length < count) return [];
+		const score = function (seat) { return seat.y + Math.abs(seat.x - width / 2) * 0.5; };
+		const rows = {};
+		free.forEach(function (seat) { const k = (seat.zone || '') + '|' + (seat.row || seat.y); (rows[k] = rows[k] || []).push(seat); });
+		let best = null;
+		Object.keys(rows).forEach(function (k) {
+			const row = rows[k].sort(function (a, b) { return a.x - b.x; });
+			const all = seats.filter(function (seat) { return seat.kind === 'seat' && (seat.zone || '') + '|' + (seat.row || seat.y) === k; }).sort(function (a, b) { return a.x - b.x; });
+			for (let i = 0; i + count <= row.length; i++) {
+				const block = row.slice(i, i + count);
+				// Side by side: no other (taken) seat of the row between the first and the last one.
+				const between = all.filter(function (seat) { return seat.x > block[0].x && seat.x < block[count - 1].x; }).length;
+				if (between !== count - 2 && count > 1) continue;
+				const value = block.reduce(function (sum, seat) { return sum + score(seat); }, 0) / count;
+				if (!best || value < best.value) best = { value: value, seats: block };
+			}
+		});
+		if (best) return best.seats;
+		return free.sort(function (a, b) { return score(a) - score(b); }).slice(0, count);
+	}
 
 	function parse(text, fallback) { try { return JSON.parse(text || '') || fallback; } catch (e) { return fallback; } }
 	function h(tag, attrs, parent, text) {
@@ -39,20 +87,50 @@
 
 	Picker.prototype.say = function (text) { this.status.textContent = text; };
 
+	// A392: until the map was built once, a failed load is retried (after 5, 10, 20, 30 s, and with
+	// the 30 s refresh); the first answer that arrives builds the map, without reloading the page.
 	Picker.prototype.load = function (first) {
 		const self = this;
 		if (first) this.say(this.t.loading || '…');
+		window.clearTimeout(this.retryTimer);
 		fetch(this.url, { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
 			if (!r.ok) throw new Error('http');
 			return r.json();
 		}).then(function (data) {
+			if (data && data.sales_open === false) { self.close(data); return; }
+			if (!data || !Array.isArray(data.seats)) throw new Error('data');
+			const built = !!self.nodes;
 			self.data = data;
 			self.byId = new Map(data.seats.map(function (seat) { return [seat.id, seat]; }));
 			let lost = false;
 			self.selected.forEach(function (type, id) { const seat = self.byId.get(id); if (!seat || seat.status !== 'free') { self.selected.delete(id); lost = true; } });
-			if (first) self.build(); else self.update();
-			self.say(lost ? self.t.seatTaken : (first ? self.t.help || '' : self.status.textContent));
-		}).catch(function () { if (first) self.say(self.t.loadFailed || 'Error'); });
+			if (built) self.update(); else self.build();
+			self.say(lost ? self.t.seatTaken : (built ? self.status.textContent : self.t.help || ''));
+		}).catch(function () {
+			if (self.nodes) return; // Map shown: keep it, the next refresh updates it.
+			self.say(self.t.loadFailed || 'Error');
+			self.retries = (self.retries || 0) + 1;
+			self.retryTimer = window.setTimeout(function () { self.load(false); }, Math.min(30000, 5000 * Math.pow(2, self.retries - 1)));
+		});
+	};
+
+	// A610: the date was cancelled or its online sale is over. The map goes, the reason is shown
+	// and the order form is locked (the payload hook refuses too, the server checks anyway).
+	Picker.prototype.close = function (data) {
+		this.closed = String(data.message || this.t.closed || '');
+		window.clearInterval(this.timer);
+		window.clearTimeout(this.retryTimer);
+		const self = this;
+		Array.prototype.slice.call(this.box.children).forEach(function (child) {
+			if (child !== self.status && child.tagName !== 'LEGEND') child.remove();
+		});
+		this.nodes = null;
+		this.selectionList = null;
+		this.selected.clear();
+		this.box.dataset.closed = String(data.occurrence_status || 'closed');
+		this.form.dataset.salesClosed = this.box.dataset.closed;
+		this.form.querySelectorAll('.wpcap-qty, button[type="submit"]').forEach(function (node) { node.disabled = true; });
+		this.say(this.closed);
 	};
 
 	Picker.prototype.quantities = function () {
@@ -91,7 +169,7 @@
 		const zone = (this.data.zones.find(function (z) { return z.key === seat.zone; }) || {}).name;
 		const cat = (this.data.categories.find(function (c) { return c.key === seat.category; }) || {}).name;
 		const state = this.selected.has(seat.id) ? t.selected : (seat.status === 'free' ? t.free : t.taken);
-		return [seat.label, zone, cat, seat.accessible ? t.accessible : '', state].filter(Boolean).join(', ');
+		return [seat.label, zone, cat, seat.accessible ? t.accessible : '', seat.companion ? t.companion : '', state].filter(Boolean).join(', ');
 	};
 
 	Picker.prototype.toggle = function (id) {
@@ -134,9 +212,23 @@
 		d.categories.forEach(function (c) { const li = h('li', {}, legend); h('span', { className: 'wpcap-seating-swatch', style: 'background:' + c.color, 'aria-hidden': 'true' }, li); li.appendChild(document.createTextNode(c.name)); });
 		h('li', {}, legend, '♿ ' + (this.t.accessible || ''));
 
+		const tools = h('div', { className: 'wpcap-seating-tools' }, this.box);
+		const zoomOut = h('button', { type: 'button', className: 'wpcap-seating-zoom', 'data-zoom': '-1', 'aria-label': this.t.zoomOut || '−' }, tools, '−');
+		const zoomIn = h('button', { type: 'button', className: 'wpcap-seating-zoom', 'data-zoom': '1', 'aria-label': this.t.zoomIn || '+' }, tools, '+');
+		this.zoomLabel = h('span', { className: 'wpcap-seating-zoom-level', 'aria-live': 'polite' }, tools);
+		const best = h('button', { type: 'button', className: 'wpcap-seating-best' }, tools, this.t.best || 'Best seats');
+		zoomOut.addEventListener('click', function () { self.zoom(-1); });
+		zoomIn.addEventListener('click', function () { self.zoom(1); });
+		best.addEventListener('click', function () { self.best(); });
+		this.zoomButtons = [zoomOut, zoomIn];
+
 		const wrap = h('div', { className: 'wpcap-seating-map' }, this.box);
 		const svg = s('svg', { viewBox: '0 0 ' + d.width + ' ' + d.height, role: 'group', 'aria-label': this.t.title || '' }, wrap);
 		this.svg = svg;
+		// Seat density decides the minimum width; the map container scrolls (pan) when it is wider than the screen.
+		this.baseWidth = minMapWidth(d.width, d.seats.filter(function (seat) { return seat.kind === 'seat'; }));
+		this.zoomIndex = 0;
+		this.applyZoom();
 		s('text', { x: d.width / 2, y: 16, 'text-anchor': 'middle', class: 'wpcap-seating-stage', 'aria-hidden': 'true' }, svg).textContent = '▭';
 		d.areas.forEach(function (area) {
 			const rect = s('rect', { x: area.x, y: area.y, width: area.w, height: area.h, rx: 6, fill: colors[area.category] || '#8c8f94', class: 'wpcap-seating-area', 'aria-hidden': 'true' }, svg);
@@ -155,7 +247,13 @@
 		if (seated.length) this.focusId = (seated.find(function (seat) { return seat.status === 'free'; }) || seated[0]).id;
 		svg.addEventListener('keydown', function (evt) { self.key(evt, seated); });
 
-		// List fallback: real checkboxes, grouped by zone and row.
+		// List fallback: real checkboxes, grouped by zone and row. Suggested on narrow screens with a large map.
+		const narrow = window.matchMedia ? window.matchMedia('(max-width: 600px)').matches : false;
+		if (narrow && seated.length > 40 && this.t.listHint) {
+			const hint = h('p', { className: 'wpcap-seating-hint' }, this.box, this.t.listHint + ' ');
+			const show = h('button', { type: 'button', className: 'wpcap-seating-list-show' }, hint, this.t.listShow || '');
+			show.addEventListener('click', function () { self.listBox.open = true; const first = self.listBox.querySelector('input'); if (first) first.focus(); });
+		}
 		const details = h('details', { className: 'wpcap-seating-list' }, this.box);
 		h('summary', {}, details, this.t.listToggle || '');
 		this.listBox = details;
@@ -172,7 +270,7 @@
 			groups[key].seats.forEach(function (seat) {
 				const label = h('label', {}, fs);
 				const box = h('input', { type: 'checkbox', value: String(seat.id) }, label);
-				label.appendChild(document.createTextNode(' ' + seat.seat + (seat.accessible ? ' ♿' : '')));
+				label.appendChild(document.createTextNode(' ' + seat.seat + (seat.accessible ? ' ♿' : '') + (seat.companion ? ' +' : '')));
 				box.addEventListener('change', function () { self.toggle(seat.id); });
 				self.checks.set(seat.id, box);
 			});
@@ -186,9 +284,49 @@
 		});
 
 		const chosen = h('div', { className: 'wpcap-seating-selection' }, this.box);
-		h('h3', {}, chosen, this.t.yourSeats || '');
+		this.selectionHeading = h('h3', { tabindex: '-1' }, chosen, this.t.yourSeats || '');
 		this.selectionList = h('ul', {}, chosen);
 		this.update();
+	};
+
+	Picker.prototype.applyZoom = function () {
+		const zoom = ZOOMS[this.zoomIndex];
+		this.svg.style.width = (100 * zoom) + '%';
+		this.svg.style.minWidth = Math.round(this.baseWidth * zoom) + 'px';
+		if (this.zoomLabel) this.zoomLabel.textContent = format(this.t.zoomLevel || '%d %', Math.round(zoom * 100));
+		if (this.zoomButtons) {
+			this.zoomButtons[0].disabled = this.zoomIndex === 0;
+			this.zoomButtons[1].disabled = this.zoomIndex === ZOOMS.length - 1;
+		}
+	};
+
+	Picker.prototype.zoom = function (dir) {
+		this.zoomIndex = Math.max(0, Math.min(ZOOMS.length - 1, this.zoomIndex + dir));
+		this.applyZoom();
+	};
+
+	/** "Beste verfügbare Plätze": proposes seats for the ordered quantities that still need one. */
+	Picker.prototype.best = function () {
+		const self = this;
+		const q = this.quantities();
+		const used = {};
+		this.selected.forEach(function (type) { used[type] = (used[type] || 0) + 1; });
+		let need = 0;
+		const open = Object.keys(this.data.types || {}).filter(function (id) {
+			const missing = (q[id] ? q[id].qty : 0) - (used[id] || 0);
+			if (missing > 0) need += missing;
+			return missing > 0;
+		});
+		const chosen = need ? bestSeats(this.data.seats.filter(function (seat) { return !self.selected.has(seat.id); }), need, this.data.width, function (seat) { return self.eligibleTypes(seat).some(function (id) { return open.indexOf(id) !== -1; }); }) : [];
+		if (!chosen.length) { this.say(this.t.bestNone || ''); return; }
+		const labels = [];
+		chosen.forEach(function (seat) {
+			const type = self.pickType(seat);
+			if (type) { self.selected.set(seat.id, type); labels.push(seat.label); }
+		});
+		this.focusId = chosen[0].id;
+		this.update();
+		this.say(format(this.t.bestDone || '%s', labels.join(', ')));
 	};
 
 	Picker.prototype.key = function (evt, seated) {
@@ -229,32 +367,59 @@
 		this.areaInputs.forEach(function (input, key) {
 			const spots = self.data.seats.filter(function (seat) { return seat.kind === 'standing' && seat.group === key; });
 			input.max = String(spots.filter(function (seat) { return seat.status === 'free' || self.selected.has(seat.id); }).length);
-			input.value = String(spots.filter(function (seat) { return self.selected.has(seat.id); }).length);
+			// Not while the buyer is typing a number into it (the 30 s refresh would overwrite it).
+			if (document.activeElement !== input) input.value = String(spots.filter(function (seat) { return self.selected.has(seat.id); }).length);
 		});
 		this.renderSelection();
 	};
 
+	// The list of chosen seats is rebuilt only when its content changes (not on every 30 s refresh),
+	// and keyboard focus inside it survives a rebuild: same control of the same seat, or after
+	// "Entfernen" the next (else previous) seat's button, else the heading (A312).
 	Picker.prototype.renderSelection = function () {
 		const self = this;
 		if (!this.selectionList) return;
-		this.selectionList.textContent = '';
-		if (!this.selected.size) { h('li', {}, this.selectionList, this.t.none || ''); return; }
 		const q = this.quantities();
-		this.selected.forEach(function (type, id) {
-			const seat = self.byId.get(id);
-			const li = h('li', {}, self.selectionList, seat.label + ' ');
-			const select = h('select', { 'aria-label': (self.t.ticketType || '') + ': ' + seat.label }, li);
-			self.eligibleTypes(seat).forEach(function (typeId) {
-				const option = h('option', { value: typeId }, select, q[typeId] ? q[typeId].name : '#' + typeId);
-				if (String(typeId) === String(type)) option.selected = true;
+		const entries = [];
+		this.selected.forEach(function (type, id) { entries.push([id, String(type)]); });
+		const signature = JSON.stringify([entries, Object.keys(q).map(function (k) { return [k, q[k].name]; })]);
+		if (signature === this.selectionSignature) return;
+		this.selectionSignature = signature;
+		const items = Array.prototype.slice.call(this.selectionList.querySelectorAll('li[data-seat]'));
+		const active = document.activeElement;
+		let focus = null;
+		if (active && active !== this.selectionList && this.selectionList.contains(active)) {
+			const li = active.closest('li');
+			focus = { seat: li ? li.getAttribute('data-seat') : null, select: active.tagName === 'SELECT', index: items.indexOf(li) };
+		}
+		this.selectionList.textContent = '';
+		if (!this.selected.size) {
+			h('li', {}, this.selectionList, this.t.none || '');
+		} else {
+			this.selected.forEach(function (type, id) {
+				const seat = self.byId.get(id);
+				const li = h('li', { 'data-seat': String(id) }, self.selectionList, seat.label + ' ');
+				const select = h('select', { 'aria-label': (self.t.ticketType || '') + ': ' + seat.label }, li);
+				self.eligibleTypes(seat).forEach(function (typeId) {
+					const option = h('option', { value: typeId }, select, q[typeId] ? q[typeId].name : '#' + typeId);
+					if (String(typeId) === String(type)) option.selected = true;
+				});
+				select.addEventListener('change', function () { self.selected.set(id, select.value); self.renderSelection(); });
+				const remove = h('button', { type: 'button', className: 'wpcap-seating-remove' }, li, self.t.remove || 'x');
+				remove.addEventListener('click', function () { self.toggle(id); });
 			});
-			select.addEventListener('change', function () { self.selected.set(id, select.value); });
-			const remove = h('button', { type: 'button', className: 'wpcap-seating-remove' }, li, self.t.remove || 'x');
-			remove.addEventListener('click', function () { self.toggle(id); });
-		});
+		}
+		if (!focus) return;
+		const now = Array.prototype.slice.call(this.selectionList.querySelectorAll('li[data-seat]'));
+		let li = now.filter(function (item) { return item.getAttribute('data-seat') === focus.seat; })[0] || null;
+		let select = focus.select;
+		if (!li && now.length) { li = now[Math.min(Math.max(focus.index, 0), now.length - 1)]; select = false; }
+		const target = li ? li.querySelector(select ? 'select' : '.wpcap-seating-remove') : this.selectionHeading;
+		if (target) target.focus();
 	};
 
 	Picker.prototype.payload = function (detail) {
+		if (this.closed) { detail.error = this.closed; return; }
 		if (!this.data) return;
 		const q = this.quantities();
 		const types = this.data.types || {};
@@ -270,4 +435,6 @@
 
 	function init() { document.querySelectorAll('.wpcap-seating[data-url]').forEach(function (box) { if (!box.dataset.ready) { box.dataset.ready = '1'; new Picker(box); } }); }
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
+	if (typeof module === 'object' && module && module.exports) { module.exports = { Picker: Picker, format: format, init: init, minMapWidth: minMapWidth, minPitch: minPitch, bestSeats: bestSeats }; }
 })();

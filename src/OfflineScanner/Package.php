@@ -13,10 +13,21 @@
  *
  * The signed document is the exact JSON string in `payload`; the Ed25519 signature (base64) covers
  * its UTF-8 bytes. Devices must verify before parsing and use only the signed fields.
+ *
+ * Formats (request parameter `format`, default 1 for existing clients):
+ *  - v1: `tickets` = [{h: sha256 hex, s: status, t: ticket type, n?: attendee name}, ...].
+ *  - v2 (compact, ~40 % of v1): `hash_prefix` = 32, `rows` = [[ticket type, status digit, the
+ *    concatenated first 32 hex digits of every ticket hash of that type and status], ...] with status
+ *    digits 0 revoked, 1 valid, 2 checked_in (revoked rows carry type 0); attendee names (opt-in per
+ *    event) in `names` = {hash prefix: name}; prefixes of replaced codes (A543) also in `replaced`. 128 bit of the hash identify a ticket as safely as the
+ *    full hash for this purpose (a forged code would need a 128-bit preimage).
+ * Both formats carry per ticket type max_entries and valid_days (local entry counters of the PWA) and
+ * the day cutoff hour of the occurrence.
  */
 namespace PassCaptain\OfflineScanner;
 
 use PassCaptain\Admission\Areas;
+use PassCaptain\Admission\Engine;
 use PassCaptain\Admission\Policies;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -24,6 +35,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Package {
 	const FORMAT = 'wpcap-offline-package';
 	const VERSION = 1;
+	/** Newest supported format version (compact rows); clients ask for it with format=2. */
+	const VERSION_COMPACT = 2;
+	/** Hex digits of the ticket hash shipped in the compact format. */
+	const HASH_PREFIX = 32;
+	/** Status digits of the compact format. */
+	const STATUS_DIGITS = array( 'revoked' => 0, 'valid' => 1, 'checked_in' => 2 );
 
 	/** Ticket statuses shipped as admissible/used; everything else is "revoked". */
 	const SHIPPED = array( 'valid', 'checked_in' );
@@ -57,16 +74,28 @@ final class Package {
 		$state = self::state( $occurrence_id );
 		$now = time();
 		if ( $state && ! $force && $state->refreshed_at && strtotime( $state->refreshed_at . ' UTC' ) > $now - self::refresh_interval() ) { return $state; }
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_offline_state (occurrence_id,epoch,version) VALUES (%d,%s,0)", $occurrence_id, bin2hex( random_bytes( 8 ) ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (occurrence_id,epoch,version) VALUES (%d,%s,0)', $p . 'wpcap_offline_state', $occurrence_id, bin2hex( random_bytes( 8 ) ) ) );
 		$wpdb->query( 'START TRANSACTION' );
 		$state = self::state( $occurrence_id, true );
+		// A443: a parallel request may have refreshed while this one waited for the row lock – check
+		// the throttle again under the lock instead of rebuilding the snapshot right after it.
+		if ( $state && ! $force && $state->refreshed_at && strtotime( $state->refreshed_at . ' UTC' ) > $now - self::refresh_interval() ) {
+			$wpdb->query( 'COMMIT' );
+			return $state;
+		}
 		$version = (int) $state->version + 1;
 		$live = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.token_hash,t.status,t.ticket_type_id,ta.attendee_name,o.status AS occurrence_status,e.status AS event_status FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id=%d AND t.token_hash<>''",
+			"SELECT t.ticket_id,t.token_hash,t.status,t.ticket_type_id,ta.attendee_name,o.status AS occurrence_status,e.status AS event_status FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id=%d AND t.token_hash<>''", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_ticket_assignments',
 			$occurrence_id
 		) );
+		/**
+		 * [Passes] Live ticket rows of the occurrence's snapshot (ticket_id, token_hash, status,
+		 * ticket_type_id, attendee_name, occurrence_status, event_status). Modules may add tickets
+		 * valid here whose ticket type belongs to another occurrence (multi-date passes) or drop rows.
+		 */
+		$live = (array) apply_filters( 'wpcap_offline_live_tickets', $live, $occurrence_id );
 		$known = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,fingerprint,status FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d", $occurrence_id ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT token_hash,fingerprint,status FROM %i WHERE occurrence_id=%d', $p . 'wpcap_offline_entries', $occurrence_id ) ) as $row ) {
 			$known[ $row->token_hash ] = $row;
 		}
 		$changed = array();
@@ -109,9 +138,11 @@ final class Package {
 	 * @param object      $device     Device row.
 	 * @param object      $occurrence Occurrence row with event_name, event_status.
 	 * @param string|null $since      Cursor of the device's current package.
+	 * @param int         $format     Payload format version (1 or 2, see class doc).
 	 * @return array Response body: alg, key_id, payload (signed JSON string), signature, kind, cursor, expires_at.
 	 */
-	public static function build( $device, $occurrence, $since = null ) {
+	public static function build( $device, $occurrence, $since = null, $format = self::VERSION ) {
+		$format = self::VERSION_COMPACT === (int) $format ? self::VERSION_COMPACT : self::VERSION;
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = (int) $occurrence->event_id;
@@ -121,22 +152,57 @@ final class Package {
 		$from = null === $since || '' === $since ? null : self::parse_cursor( (string) $since, $state );
 		$kind = null === $from ? 'full' : 'delta';
 		if ( 'full' === $kind ) {
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d AND status IN ('valid','checked_in') ORDER BY token_hash", (int) $occurrence->occurrence_id ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM %i WHERE occurrence_id=%d AND status IN ('valid','checked_in') ORDER BY token_hash", $p . 'wpcap_offline_entries', (int) $occurrence->occurrence_id ) );
 		} else {
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,status,ticket_type_id,attendee_name FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d AND version>%d ORDER BY token_hash", (int) $occurrence->occurrence_id, $from ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT token_hash,status,ticket_type_id,attendee_name,fingerprint FROM %i WHERE occurrence_id=%d AND version>%d ORDER BY token_hash', $p . 'wpcap_offline_entries', (int) $occurrence->occurrence_id, $from ) );
 		}
 		$tickets = array();
+		$compact = array();
+		$shipped_names = array();
+		$replaced = '';
 		foreach ( $rows as $row ) {
+			$revoked = 'revoked' === $row->status;
+			$name = $names && ! $revoked ? (string) $row->attendee_name : '';
+			if ( self::VERSION_COMPACT === $format ) {
+				$prefix = substr( strtolower( (string) $row->token_hash ), 0, self::HASH_PREFIX );
+				$group = ( $revoked ? 0 : (int) $row->ticket_type_id ) . ':' . ( self::STATUS_DIGITS[ $row->status ] ?? 0 );
+				$compact[ $group ] = ( $compact[ $group ] ?? '' ) . $prefix;
+				// A543: replaced codes (no ticket has the hash any more) are listed separately as well.
+				if ( $revoked && md5( 'gone' ) === (string) ( $row->fingerprint ?? '' ) ) { $replaced .= $prefix; }
+				if ( '' !== $name ) { $shipped_names[ $prefix ] = $name; }
+				continue;
+			}
 			$entry = array( 'h' => $row->token_hash, 's' => $row->status );
-			if ( 'revoked' !== $row->status ) { $entry['t'] = (int) $row->ticket_type_id; }
-			if ( $names && '' !== (string) $row->attendee_name && 'revoked' !== $row->status ) { $entry['n'] = (string) $row->attendee_name; }
+			// A543: a hash that no ticket has any more was replaced by a new code (transfer, reissue …).
+			if ( $revoked && md5( 'gone' ) === (string) ( $row->fingerprint ?? '' ) ) { $entry['r'] = 'replaced'; }
+			if ( ! $revoked ) { $entry['t'] = (int) $row->ticket_type_id; }
+			if ( '' !== $name ) { $entry['n'] = $name; }
 			$tickets[] = $entry;
 		}
+		$count = self::VERSION_COMPACT === $format ? count( $rows ) : count( $tickets );
 		$types = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", (int) $occurrence->occurrence_id ) ) as $type ) {
+		$found = array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'event_id' => $event_id, 'starts_at' => (string) $occurrence->starts_at, 'ends_at' => $occurrence->ends_at ? (string) $occurrence->ends_at : '', 'timezone' => (string) $occurrence->timezone );
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,name FROM %i WHERE occurrence_id=%d ORDER BY ticket_type_id', $p . 'wpcap_ticket_types', (int) $occurrence->occurrence_id ) ) as $type ) {
 			$policy = Policies::for_type( (int) $type->ticket_type_id );
-			$types[] = array( 'id' => (int) $type->ticket_type_id, 'name' => (string) $type->name, 'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ), 'policy' => $policy ? $policy['policy'] : 'single', 'multi' => $policy && 'single' !== $policy['policy'] );
+			$checks = \PassCaptain\AdmissionChecks::for_type( (int) $type->ticket_type_id );
+			$types[] = array(
+				'id' => (int) $type->ticket_type_id,
+				'name' => (string) $type->name,
+				'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ),
+				'policy' => $policy ? $policy['policy'] : 'single',
+				'multi' => $policy && 'single' !== $policy['policy'],
+				// Local entry counters of the PWA (daily: once per valid day, multi_entry/reentry: max).
+				'max_entries' => $policy ? (int) $policy['max_entries'] : 1,
+				'valid_days' => $policy ? Policies::valid_days( $policy, $found ) : null,
+				// A094: ID/age check of the ticket type, shown with the scan result.
+				'id_check' => $checks['id_check'],
+				'min_age' => $checks['min_age'],
+				'hint' => \PassCaptain\AdmissionChecks::staff_hint( $checks ),
+			);
 		}
+		// [Passes] Ticket type descriptors of the package (id, name, areas, policy, multi); modules add
+		// types of tickets they ship via `wpcap_offline_live_tickets`.
+		$types = array_values( (array) apply_filters( 'wpcap_offline_package_types', $types, $occurrence ) );
 		$areas = array_map( static function ( $a ) { return array( 'id' => (int) $a->area_id, 'name' => (string) $a->name ); }, Areas::for_event( $event_id ) );
 		$area_id = \PassCaptain\Mobile\Devices::area_id( $device );
 		$issued = time();
@@ -145,24 +211,36 @@ final class Package {
 		$kid = Keys::active_id();
 		$payload = array(
 			'format' => self::FORMAT,
-			'v' => self::VERSION,
+			'v' => $format,
 			'kind' => $kind,
 			'site' => home_url( '/' ),
 			'device_id' => (string) $device->public_id,
 			'key_id' => $kid,
 			'event' => array( 'id' => $event_id, 'name' => (string) $occurrence->event_name ),
-			'occurrence' => array( 'id' => (int) $occurrence->occurrence_id, 'starts_at' => gmdate( 'c', strtotime( $occurrence->starts_at . ' UTC' ) ), 'ends_at' => $occurrence->ends_at ? gmdate( 'c', strtotime( $occurrence->ends_at . ' UTC' ) ) : null, 'timezone' => (string) $occurrence->timezone, 'status' => (string) $occurrence->status ),
+			'occurrence' => array( 'id' => (int) $occurrence->occurrence_id, 'starts_at' => gmdate( 'c', strtotime( $occurrence->starts_at . ' UTC' ) ), 'ends_at' => $occurrence->ends_at ? gmdate( 'c', strtotime( $occurrence->ends_at . ' UTC' ) ) : null, 'timezone' => (string) $occurrence->timezone, 'status' => (string) $occurrence->status, 'doors_open_at' => self::iso( \PassCaptain\DoorsOpen::for_occurrence( (int) $occurrence->occurrence_id ) ) ),
 			'issued_at' => gmdate( 'c', $issued ),
 			'expires_at' => gmdate( 'c', $expires ),
 			'since' => 'delta' === $kind ? (string) $since : null,
 			'cursor' => $cursor,
 			'rules' => array( 'max_offline_hours' => $rules['max_offline_hours'], 'duplicate_policy' => $rules['duplicate_policy'], 'attendee_names' => $names ),
 			'device_area_id' => $area_id ?: null,
+			'day_cutoff_hour' => Engine::day_cutoff_hour( $found ),
 			'hash' => 'sha256',
 			'ticket_types' => $types,
 			'areas' => $areas,
-			'tickets' => $tickets,
 		);
+		if ( self::VERSION_COMPACT === $format ) {
+			$payload['hash_prefix'] = self::HASH_PREFIX;
+			$payload['rows'] = array();
+			foreach ( $compact as $group => $hashes ) {
+				list( $type_id, $digit ) = array_map( 'intval', explode( ':', $group ) );
+				$payload['rows'][] = array( $type_id, $digit, $hashes );
+			}
+			if ( $shipped_names ) { $payload['names'] = $shipped_names; }
+			if ( '' !== $replaced ) { $payload['replaced'] = $replaced; }
+		} else {
+			$payload['tickets'] = $tickets;
+		}
 		$json = (string) wp_json_encode( $payload );
 		$signed = Keys::sign( $json, $expires );
 		if ( $signed['key_id'] !== $kid ) {
@@ -178,9 +256,15 @@ final class Package {
 			'signature' => $signed['signature'],
 			'kind' => $kind,
 			'cursor' => $cursor,
-			'count' => count( $tickets ),
+			'count' => $count,
+			'format' => $format,
 			'expires_at' => gmdate( 'c', $expires ),
 		);
+	}
+
+	/** UTC datetime to ISO 8601, null stays null. */
+	private static function iso( $utc ) {
+		return null === $utc ? null : gmdate( 'c', strtotime( $utc . ' UTC' ) );
 	}
 
 	/**

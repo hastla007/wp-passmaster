@@ -1,0 +1,75 @@
+name: Restore drill (scheduled)
+
+# Weekly backup/restore drill (tests/drills/restore-drill.sh, docs/OPERATIONS.md "Restore-Probe"): realistic data
+# in a throwaway WordPress, logical dump, writes after the backup, destruction, restore, Diagnostics, recovery
+# (diagnose --repair-all, cron, diagnose --strict), data invariants and an idempotent re-run of the queued work.
+# The dump/import uses the client tools of the database container itself (client = server version).
+on:
+  schedule:
+    - cron: '41 4 * * 1' # Mondays 04:41 UTC (after the load tests)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  restore-drill:
+    name: restore drill (${{ matrix.db.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        db:
+          - { name: 'MariaDB 12.3', image: 'mariadb:12.3', health: 'healthcheck.sh --connect --innodb_initialized', dump: 'mariadb-dump', client: 'mariadb' }
+          - { name: 'MySQL 9.7', image: 'mysql:9.7', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', dump: 'mysqldump', client: 'mysql' }
+    services:
+      db:
+        image: ${{ matrix.db.image }}
+        env:
+          MYSQL_DATABASE: wp_drill
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.db.health }}"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          coverage: none
+      - name: Install runtime dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --no-progress
+      - name: Restore drill
+        env:
+          WPCAP_DRILL_DB_HOST: 127.0.0.1
+          WPCAP_DRILL_DUMP: docker exec -i ${{ job.services.db.id }} ${{ matrix.db.dump }}
+          WPCAP_DRILL_MYSQL: docker exec -i ${{ job.services.db.id }} ${{ matrix.db.client }}
+          WPCAP_DRILL_KEEP: '1'
+          WPCAP_DRILL_WORK: ${{ runner.temp }}/drill
+        run: |
+          set -o pipefail
+          tests/drills/restore-drill.sh 2>&1 | tee "$RUNNER_TEMP/restore-drill.txt"
+      - name: Summary
+        if: always()
+        run: |
+          [ -f "$RUNNER_TEMP/restore-drill.txt" ] || exit 0
+          { echo "### Restore drill – ${{ matrix.db.name }}"; echo '```'; grep -E '^(ok|FAIL|==)|passed|failed' "$RUNNER_TEMP/restore-drill.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: restore-drill-${{ strategy.job-index }}
+          path: |
+            ${{ runner.temp }}/restore-drill.txt
+            ${{ runner.temp }}/drill/*.json
+            ${{ runner.temp }}/drill/debug.log
+          if-no-files-found: ignore
+          retention-days: 30

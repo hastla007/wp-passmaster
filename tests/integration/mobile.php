@@ -6,11 +6,19 @@ use PassCaptain\Mobile\Api;
 use PassCaptain\Mobile\Devices;
 
 if ( ! class_exists( 'WP_REST_Response' ) ) {
-	class WP_REST_Response { public function __construct( public $data = null, public $status = 200 ) {} public function get_data() { return $this->data; } public function get_status() { return $this->status; } }
+	class WP_REST_Response { public function __construct( public $data = null, public $status = 200 ) {} public function get_data() { return $this->data; } public function get_status() { return $this->status; } public $headers = array(); public function header( $k, $v ) { $this->headers[ $k ] = $v; } public function get_headers() { return $this->headers; } }
 }
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r instanceof WP_REST_Response ? $r : new WP_REST_Response( $r ); } }
 if ( ! function_exists( 'wp_set_current_user' ) ) { function wp_set_current_user( $id ) { $GLOBALS['wpcap_test_user_id'] = (int) $id; } }
-if ( ! function_exists( 'get_userdata' ) ) { function get_userdata( $id ) { return (object) array( 'ID' => $id, 'display_name' => 'Staff ' . $id ); } }
+if ( ! function_exists( 'get_userdata' ) ) {
+	// Registered test users with capabilities (has_cap(), e.g. zz_a277.php) are returned as they are;
+	// ids in wpcap_test_deleted_users do not exist.
+	function get_userdata( $id ) {
+		if ( in_array( (int) $id, $GLOBALS['wpcap_test_deleted_users'] ?? array(), true ) ) { return false; }
+		foreach ( $GLOBALS['wpcap_test_users'] ?? array() as $user ) { if ( (int) $user->ID === (int) $id && method_exists( $user, 'has_cap' ) ) { return $user; } }
+		return (object) array( 'ID' => $id, 'display_name' => 'Staff ' . $id );
+	}
+}
 if ( ! function_exists( 'wp_get_current_user' ) ) { function wp_get_current_user() { return get_userdata( get_current_user_id() ); } }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 
@@ -55,7 +63,7 @@ check( 'test tickets and codes available', 3 === count( $codes ) && 1 === count(
 check( 'pairing needs at least one event', is_wp_error( Devices::create_pairing( array() ) ) );
 $pairing = Devices::create_pairing( array( $m_event ), 'Einlass Nord', 12 );
 $qr = json_decode( $pairing['qr_payload'], true );
-check( 'pairing QR carries API base and one-time code', 'wpcap-pair' === $qr['type'] && str_ends_with( $qr['api'], 'wp-pass-captain/v1/app/' ) && 20 === strlen( $qr['code'] ) );
+check( 'pairing QR carries API base and one-time code', 'wpcap-pair' === $qr['type'] && str_ends_with( $qr['api'], 'pass-captain/v1/app/' ) && 20 === strlen( $qr['code'] ) );
 $GLOBALS['wpcap_test_user_id'] = 0;
 $paired = Devices::pair( $pairing['code'], 'iPhone Nord', 'ios', '1.0.0' );
 $again = Devices::pair( $pairing['code'], 'iPhone 2', 'ios', '1.0.0' );
@@ -92,8 +100,12 @@ check( 'unknown code is reported as unknown', 'unknown' === $unknown['result'] )
 $stats = app_call( 'stats', 'GET', $token, array( 'occurrence_id' => $m_occ ) );
 check( 'stats count checked-in and remaining tickets', 3 === $stats['tickets_total'] && 1 === $stats['checked_in'] && 2 === $stats['remaining'] && 1 === $stats['checked_in_by_this_device'] );
 
-$undo = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan' ) );
+$undo_nokey = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan' ) );
+check( 'undo requires an idempotency key (audit R2 #3)', is_wp_error( $undo_nokey ) && 400 === $undo_nokey->get_error_data()['status'] );
+$undo = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan', 'idempotency_key' => 'undo-1' ) );
 check( 'undo makes the ticket valid again', true === $undo['ok'] && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE token_hash='" . hash( 'sha256', $codes[0] ) . "'" ) );
+$undo_retry = app_call( 'undo', 'POST', $token, array( 'code' => $codes[0], 'reason' => 'Fehlscan', 'idempotency_key' => 'undo-1' ) );
+check( 'a retried undo with the same key is answered as done (replayed)', true === $undo_retry['ok'] && ! empty( $undo_retry['replayed'] ) );
 
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='checked_in' WHERE token_hash='" . hash( 'sha256', $codes[2] ) . "'" );
 $sync = app_call( 'sync', 'POST', $token, array( 'scans' => array(

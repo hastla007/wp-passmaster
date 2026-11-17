@@ -50,7 +50,7 @@ function admin_last_audit( $action ) {
 }
 /** Creates a paid order with $qty tickets of $type and returns its order id. */
 function admin_paid_order( $type, $qty, $email ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$r = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'admin-' . uniqid( '', true ) ) );
 	if ( is_wp_error( $r ) ) { echo '    (order failed: ' . $r->get_error_message() . ")\n"; return 0; }
 	Orders::confirm_manual_payment( $r['order_id'] );
@@ -146,9 +146,12 @@ check( 'occurrence end must be after start', is_wp_error( $bad_end ) );
 $new_occ = EventsPage::save_occurrence( array( 'event_id' => $event_id, 'starts_at' => $future . 'T10:00', 'timezone' => 'America/New_York', 'location' => 'NYC', 'capacity' => '5' ) );
 check( 'a new occurrence is added in its own timezone', ! is_wp_error( $new_occ ) && Forms::local_to_utc( $future . 'T10:00', 'America/New_York' ) === Queries::occurrence( $new_occ['occurrence_id'] )->starts_at );
 $mark = count( $GLOBALS['wpcap_test_actions'] );
-$cancelled = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ->occurrence_id ) );
+$cancelled = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'reason' => 'Test', 'confirm' => 1 ) );
 check( 'cancelling an occurrence with tickets warns and fires wpcap_occurrence_cancelled', ! is_wp_error( $cancelled ) && 2 === $cancelled['issued'] && ! empty( $cancelled['warning'] ) && 'cancelled' === Queries::occurrence( $occ->occurrence_id )->status && in_array( 'wpcap_occurrence_cancelled', admin_actions_since( $mark ), true ) );
-EventsPage::save_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'starts_at' => $future . 'T20:00', 'timezone' => 'Europe/Berlin', 'capacity' => '100', 'status' => 'scheduled' ) );
+$reactivate = EventsPage::save_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'starts_at' => $future . 'T20:00', 'timezone' => 'Europe/Berlin', 'capacity' => '100', 'status' => 'scheduled' ) );
+check( 'a cancelled occurrence cannot be scheduled again (A356)', is_wp_error( $reactivate ) && 'wpcap_occurrence_reactivate' === $reactivate->get_error_code() && 'cancelled' === Queries::occurrence( $occ->occurrence_id )->status );
+// Fixture reset for the following tests (orders on this occurrence); not a product path.
+$wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'scheduled' ), array( 'occurrence_id' => (int) $occ->occurrence_id ) );
 
 echo "Admin: ticket types and participant fields\n";
 $tt = EventsPage::save_ticket_type( array( 'occurrence_id' => $new_occ['occurrence_id'], 'name' => 'VIP', 'price' => '1.234,56', 'currency' => 'EUR', 'tax_rate' => '7,7', 'capacity' => '20', 'max_per_order' => '4', 'sales_start' => $future . 'T08:00', 'sales_end' => '', 'status' => 'paused' ) );
@@ -161,7 +164,7 @@ $currency_change = EventsPage::save_ticket_type( array( 'ticket_type_id' => $typ
 check( 'currency of a ticket type with orders is locked', is_wp_error( $currency_change ) && 'wpcap_type_currency_locked' === $currency_change->get_error_code() );
 $type_cap = EventsPage::save_ticket_type( array( 'ticket_type_id' => $type_id, 'name' => 'Parkett', 'price' => '15', 'currency' => 'EUR', 'tax_rate' => '19', 'capacity' => '1', 'max_per_order' => '10' ) );
 check( 'ticket type capacity cannot drop below sold', is_wp_error( $type_cap ) && 'wpcap_capacity_below_sold' === $type_cap->get_error_code() );
-$repriced = EventsPage::save_ticket_type( array( 'ticket_type_id' => $type_id, 'name' => 'Parkett', 'price' => '15', 'currency' => 'EUR', 'tax_rate' => '19', 'capacity' => '50', 'max_per_order' => '10', 'status' => 'active' ) );
+$repriced = EventsPage::save_ticket_type( array( 'ticket_type_id' => $type_id, 'name' => 'Parkett', 'price' => '15', 'currency' => 'EUR', 'tax_rate' => '19', 'capacity' => '50', 'max_per_order' => '10', 'status' => 'active', 'confirm_sold_change' => '1' ) ); // A334: confirmed, the type has orders.
 check( 'price change on an existing type is saved; order snapshot unchanged', ! is_wp_error( $repriced ) && 1500 === (int) Queries::ticket_type( $type_id )->price_minor && 1250 === (int) $wpdb->get_var( "SELECT unit_price_minor FROM {$p}wpcap_order_items WHERE order_id=$order_id" ) );
 
 $field = EventsPage::save_participant_field( array( 'ticket_type_id' => $type_id, 'field_key' => 'Firma-Name', 'label' => 'Firma', 'field_type' => 'text', 'required' => '1', 'purpose' => 'Namensschild', 'retention_days' => '30' ) );
@@ -185,7 +188,7 @@ EventsPage::remove_staff( array( 'event_id' => $event_id, 'user_id' => 7, 'capab
 check( 'staff assignment can be removed', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_event_staff WHERE event_id=$event_id AND user_id=7" ) );
 
 echo "Admin: orders\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $pending = Orders::create( array( 'email' => 'admin-pending@example.com', 'items' => array( array( 'ticket_type_id' => $type_id, 'quantity' => 1 ) ), 'idempotency_key' => 'admin-pending-' . uniqid() ) );
 $found = Queries::search_orders( array( 'search' => 'admin-pending@', 'status' => 'pending_payment' ), null );
 $by_id = Queries::search_orders( array( 'search' => substr( $pending['public_id'], 0, 10 ) ), null );
@@ -298,25 +301,26 @@ $saved = SettingsPage::save( array(
 ) );
 $all = Settings::all();
 check( 'settings are sanitised and clamped', ! is_wp_error( $saved ) && 120 === $all['hold_minutes'] && 48 === $all['manual_hold_hours'] && array( 'manual' ) === $all['enabled_providers'] && 'live' === $all['stripe_mode'] && 'sandbox' === $all['paypal_mode'] && 15000 === $all['refund_approval_threshold'] && 1 === $all['require_terms'] && 0 === $all['delete_data_on_uninstall'] && 'Verein' === $all['seller_name'] );
-check( 'empty secret keeps the stored value, new secret is stored, clear removes', 'sk_test_old' === $all['stripe_secret_key'] && 'whsec_new' === $all['stripe_webhook_secret'] && '' === $all['paypal_client_secret'] );
-check( 'invalid numbers are reported, prefixes normalised', 1 === count( $saved['errors'] ) && 'RE-2026X' === $all['invoice_prefix'] && ( ! isset( $all['credit_note_prefix'] ) || 'GS' === $all['credit_note_prefix'] ) );
+check( 'A274: "Live" with the stored test key is reported on save', 1 === count( array_filter( $saved['errors'], static fn( $e ) => false !== strpos( $e, 'Testschlüssel' ) ) ) );
+check( 'empty secret keeps the stored value, new secret is stored, clear removes', 'sk_test_old' === PassCaptain\Secrets::stored( 'stripe_secret_key' ) && 'whsec_new' === PassCaptain\Secrets::stored( 'stripe_webhook_secret' ) && '' === PassCaptain\Secrets::stored( 'paypal_client_secret' ) && '' === $all['stripe_secret_key'] );
+check( 'invalid numbers are reported, prefixes normalised', 1 === count( array_filter( $saved['errors'], static fn( $e ) => false === strpos( $e, 'Stripe' ) ) ) && 'RE-2026X' === $all['invoice_prefix'] && ( ! isset( $all['credit_note_prefix'] ) || 'RK' === $all['credit_note_prefix'] ) );
 $defined = array();
 foreach ( SettingsPage::field_definitions() as $section ) { $defined += $section['fields']; }
 check( 'every settings key has a form field', ! array_diff( array_keys( array_diff_key( array_filter( Settings::defaults(), static fn( $v ) => ! is_array( $v ) ), PassCaptain\Modules::settings_defaults() ) ), array_keys( $defined ) ) && isset( $defined['enabled_providers'] ) );
 putenv( 'WPCAP_STRIPE_SECRET_KEY=sk_env' );
 check( 'constant/environment overrides are detected', 'WPCAP_STRIPE_SECRET_KEY' === SettingsPage::override_source( 'stripe_secret_key' ) && '' === SettingsPage::override_source( 'stripe_webhook_secret' ) );
 putenv( 'WPCAP_STRIPE_SECRET_KEY' );
-Settings::update( array( 'stripe_mode' => 'test', 'stripe_secret_key' => '', 'stripe_webhook_secret' => '', 'require_terms' => 0, 'terms_text' => '', 'refund_approval_threshold' => 0, 'hold_minutes' => 10, 'manual_hold_hours' => 72, 'manual_instructions' => '', 'seller_name' => '', 'invoice_prefix' => 'WPC' ) );
+Settings::update( array( 'stripe_mode' => 'test', 'stripe_secret_key' => '', 'stripe_webhook_secret' => '', 'require_terms' => 0, 'terms_text' => '', 'refund_approval_threshold' => 0, 'hold_minutes' => 10, 'manual_hold_hours' => 72, 'manual_instructions' => '', 'seller_name' => '', 'invoice_prefix' => 'WPC', 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Testverein' ) ); // Bank account of the run.php fixture (A265).
 
 echo "Admin: admin-post wrappers\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $GLOBALS['wpcap_test_nonce_checks'] = array();
 $_POST = array( 'action' => 'wpcap_update_event', 'event_id' => (string) $event_id, 'name' => 'Admin Gala Final', 'description' => '', 'status' => 'published' );
 $redirect = '';
 try { EventsPage::handle_update_event(); } catch ( Wpcap_Test_Redirect $e ) { $redirect = $e->getMessage(); }
 $notices = $GLOBALS['wpcap_test_transients'][ 'wpcap_admin_notices_1' ] ?? array();
 check( 'wrapper checks the nonce, saves, flashes and redirects to the event', in_array( 'wpcap_update_event', $GLOBALS['wpcap_test_nonce_checks'] ?? array( 'wpcap_update_event' ), true ) && 'Admin Gala Final' === Queries::event( $event_id )->name && false !== strpos( $redirect, 'event_id=' . $event_id ) && 'success' === ( $notices[0]['type'] ?? '' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $_POST = array( 'action' => 'wpcap_update_event', 'event_id' => (string) $event_id, 'name' => '', 'status' => 'published' );
 try { EventsPage::handle_update_event(); } catch ( Wpcap_Test_Redirect $e ) { $redirect = $e->getMessage(); }
 $notices = $GLOBALS['wpcap_test_transients'][ 'wpcap_admin_notices_1' ] ?? array();
@@ -328,4 +332,4 @@ try { SettingsPage::handle_save(); } catch ( Wpcap_Test_Die $e ) { $died = true;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'forbidden actions end with wp_die instead of a redirect', $died && 10 === (int) Settings::get( 'hold_minutes' ) );
 $_POST = array();
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();

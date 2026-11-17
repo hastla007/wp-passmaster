@@ -19,7 +19,7 @@ $p = $wpdb->prefix;
 /** Free order with $qty tickets; returns [order, access token]. */
 function p1s_free_order( $qty, $email ) {
 	$type = make_type( 10, 10, 0 );
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	$before = count( $GLOBALS['wpcap_test_mails'] );
 	$order = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'p1s-' . uniqid( '', true ) ) );
 	$token = '';
@@ -161,7 +161,7 @@ remove_filter( 'wpcap_payment_gateways', $p1s_gateways );
 PassCaptain\Payments\Registry::reset();
 
 echo "Phase 1 security: invoice PDF download needs a nonce to issue an invoice\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $unpaid = Orders::create( array( 'email' => 'p1s-inv@example.com', 'items' => array( array( 'ticket_type_id' => $refund_type, 'quantity' => 1 ) ), 'idempotency_key' => 'p1s-inv-' . uniqid() ) );
 $GLOBALS['wpcap_test_nonce_checks'] = array();
 $_GET = array( 'order_id' => (string) $unpaid['order_id'] );

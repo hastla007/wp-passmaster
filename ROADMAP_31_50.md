@@ -1,18 +1,18 @@
-# WP Pass Captain – Schritte 31–50
+# Pass Captain – Schritte 31–50
 
 Diese Stufen folgen auf die Kern- und Integrationsausbaustufen 1–30. Sie erweitern Anpassbarkeit, Veranstalterbetrieb und Plattformreife; sie setzen die abgeschlossenen Sicherheits- und Datenmodelle der vorherigen Stufen voraus.
 
 ## 31. Event- und Ticketvorlagen — Eventkarten-Vorlage umgesetzt
 
-Eventkarten lassen sich über ein Theme-Template und einen Filter überschreiben. Ticket- und E-Mail-Templates folgen noch.
+Eventkarten lassen sich über ein Theme-Template und einen Filter überschreiben. Inzwischen gibt es E-Mail-Vorlagen mit Admin-Editor und Druckvorlagen für Ticket, Badge, Namensschild und Armband.
 
-## 32. Teilnehmerfelder und Formulare — Datenmodell angelegt
+## 32. Teilnehmerfelder und Formulare — umgesetzt, Einwilligungssteuerung offen
 
-Tabellen für Ticketfelder und Antworten sind angelegt. Form-Editor, Checkout-Erfassung, Antwortvalidierung, Export/Löschung und Einwilligungssteuerung fehlen; sensible Felder sind nicht freigeschaltet.
+Tabellen für Ticketfelder und Antworten sind angelegt. Feld-Editor, Checkout-Erfassung, Validierung, Export/Löschung und Aufbewahrungsfristen sind inzwischen vorhanden; eine eigene Einwilligungssteuerung fehlt.
 
 ## 33. Geplante Kommunikation — Queue-Grundlage umgesetzt
 
-Idempotente Nachrichtenqueue mit geplantem Versand, Retry-Backoff und Fehlerstatus ist vorhanden. Versandvorlagen und konkrete Reminder-/Eventänderungsjobs müssen noch ergänzt werden.
+Idempotente Nachrichtenqueue mit geplantem Versand, Retry-Backoff und Fehlerstatus ist vorhanden. Versandvorlagen, Erinnerungen und Benachrichtigungen bei Terminverschiebung/-absage sind inzwischen vorhanden.
 
 ## 34. Teilnehmergruppen und Sammelbestellungen — Einzelzuweisung umgesetzt
 
@@ -24,7 +24,7 @@ Passcodes mit Gültigkeitszeitraum, Event-/Ticketregeln, atomaren Nutzungskontin
 
 ## 36. Kampagnen und Preisregeln — teilweise umgesetzt
 
-REST-Kampagnencodes unterstützen Prozent-/Festbetragsrabatte, Event-/Ticket-Scope, Priorität und ein unter Transaktion gesperrtes globales Limit; der Auftrag speichert Preis-Snapshot. Early-Bird-Autoregeln, per-Käufer-Grenzen, Stapelkonfiguration, Voucher-Bridges und Checkout-UI fehlen.
+REST-Kampagnencodes unterstützen Prozent-/Festbetragsrabatte, Event-/Ticket-Scope, Priorität und ein unter Transaktion gesperrtes globales Limit; der Auftrag speichert Preis-Snapshot. Checkout-UI, Voucher-Bridge und automatische Preisregeln für Serientermine sind inzwischen vorhanden; per-Käufer-Grenzen, Stapelkonfiguration, Preisregeln für Einzeltermine und eine Kampagnen-Admin-UI fehlen.
 
 ## 37. Wartelisten und Platzangebote — Queue und Angebot umgesetzt
 
@@ -32,11 +32,11 @@ Event-/Ticketwarteliste, geordnete Einträge, befristetes Angebot und Tokenannah
 
 ## 38. Veranstalterberichte — Basisbericht umgesetzt
 
-Eventbezogener Bericht liefert bezahlte Bestellungen, verkaufte Tickets, Bruttosummen pro Währung und Einlasszahlen mit Rollenprüfung und kurzer Cachezeit. CSV-Export, Bestand, Refunds, Kampagnen, Teilnehmerdaten und granularere Zeitraumvergleiche fehlen.
+Eventbezogener Bericht liefert bezahlte Bestellungen, verkaufte Tickets, Bruttosummen pro Währung und Einlasszahlen mit Rollenprüfung und kurzer Cachezeit. Inzwischen vorhanden: Berichtsseite mit Zeitraumfilter, Auslastung, Refunds, USt und CSV-Export sowie Teilnehmerlisten; Kampagnenauswertung und Zeitraumvergleiche fehlen.
 
 ## 39. Öffentliche Entwickler-API — Read-only-Grundlage umgesetzt
 
-Einmalig angezeigte, gehashte API-Schlüssel sind auf ein Event und `events.read`/`reports.read` begrenzt; Ablauf und Widerruf sind vorgesehen. Der erste Endpunkt liefert nur Eventdaten. Rate-Limits, Schlüsselverwaltung-UI, breite API-Abdeckung und dokumentierter Partner-Support fehlen.
+Einmalig angezeigte, gehashte API-Schlüssel sind auf ein Event und `events.read`/`reports.read` begrenzt; Ablauf und Widerruf sind vorgesehen. Der erste Endpunkt liefert nur Eventdaten. Ein festes Ratenlimit ist vorhanden; Schlüsselverwaltung-UI und breite API-Abdeckung fehlen. Partner-Schlüssel mit Admin-Verwaltung bietet inzwischen das Partner-Modul (`docs/PARTNER-API.md`).
 
 ## 40. WordPress-Multisite — getrennte Tabellen-Grundlage umgesetzt
 
@@ -60,7 +60,7 @@ Zusätzliche Reporting-Indizes und ein kurzer Cache für Eventberichte sind erg�
 
 ## 45. Hintergrundverarbeitung und Wiederholung — generische Queue-Grundlage umgesetzt
 
-Generische Jobtabelle mit Idempotenz, Claiming, exponentiellem Retry und `dead_letter`-Status ergänzt. Jobhandler und Admin-Ansicht für Wiederholung fehlen; WordPress-Cron ist abhängig von Traffic/externem Cron.
+Generische Jobtabelle mit Idempotenz, Claiming, exponentiellem Retry und `dead_letter`-Status ergänzt. Erste Jobhandler (Wallet, Voucher-Commit) sind vorhanden; eine Admin-Ansicht für Wiederholung fehlt; WordPress-Cron ist abhängig von Traffic/externem Cron.
 
 ## 46. Backup und Notfallwiederherstellung — Runbook dokumentiert
 
@@ -74,10 +74,10 @@ Schutzgrenzen und Meldungshinweise in `docs/SECURITY.md`; externe Prüfung, Pene
 
 Sichtbare Fokusse, Mindestzielhöhen und Reduced-Motion-Regel ergänzt; Statusmeldungen hatten bereits `aria-live`. Manuelle Tastatur-/Screenreader-Prüfung und Kontrast-/Zoom-Audit stehen aus.
 
-## 49. Erweiterungs- und Lizenzmodell — Richtlinie dokumentiert
+## 49. Erweiterungs- und Lizenzmodell — Kern frei, Premium im separaten Add-on
 
-`docs/EXTENSIONS.md` hält GPL-Kern, opt-in Connector-Vertrag und Lizenzserver-unabhängiges Ticketverhalten fest. Kommerzielles Lizenz-/Update-System wird nicht angeboten.
+Entscheidung vom 13.11.2026: Das Kern-Plugin bleibt vollständig frei (GPL, ohne Lizenzprüfung, gesperrte Funktionen oder eigenen Updater, Updates über WordPress.org); alles bereits Ausgelieferte ist „Kern, dauerhaft frei“ (`docs/FREE-PREMIUM.md`). Premiumfunktionen kommen ausschließlich in das separate Add-on „Pass Captain Pro“ (`pass-captain-pro`, Repository `hastla007/captain-pro`, Ordner `addons/pass-captain-pro`) mit eigenem Shop und eigenem Updater; nur das Add-on spricht mit dem Lizenzserver (WP License Captain). `docs/EXTENSIONS.md` beschreibt GPL-Kern, Andockpunkte (Hooks, Adapter- und opt-in Connector-Verträge) und das lizenzserver-unabhängige Ticketverhalten; die Wächtertests `tests/guard/no-license-code.php` und `tests/license-guard.php` verhindern Lizenz-/Updater-Code im Kern. Offen: öffentliche, versionierte Add-on-API.
 
 ## 50. Stabiler 1.0-Release und Wartungsbetrieb — Vorbereitung dokumentiert
 
-Version `0.3.0`, `CHANGELOG.md` und Release-Gates im Betriebs-Runbook ergänzt. Build ist noch nicht reproduzierbar; Kompatibilitätsmatrix, Supportprozess, Sicherheitswartung und 1.0-Freigabe fehlen.
+Aktuell Version 1.4.0 mit `CHANGELOG.md` und Release-Gates im Betriebs-Runbook. Build ist noch nicht reproduzierbar; Kompatibilitätsmatrix, Supportprozess, Sicherheitswartung und 1.0-Freigabe fehlen.

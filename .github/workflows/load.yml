@@ -1,0 +1,135 @@
+name: Load tests (scheduled)
+
+# Weekly load/concurrency run of tests/load/run.php with the "default", "heavy" and "big" profiles on
+# MariaDB and MySQL, plus the REST load test (docs/TESTING.md, section "Geplante Lasttests", A121).
+# The job fails when an invariant is violated (no overselling, one admission per ticket, webhooks
+# applied once, no unexpected errors: exit code 1 of run.php) or when tests/load/compare.php finds a
+# regression against tests/load/baselines/*.json (errors, p95). Results are kept as artifacts for
+# the regression history.
+on:
+  schedule:
+    - cron: '17 3 * * 1' # Mondays 03:17 UTC
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Profile'
+        type: choice
+        options: ['all', 'default', 'heavy', 'big']
+        default: 'all'
+
+permissions:
+  contents: read
+
+jobs:
+  load:
+    name: load (${{ matrix.profile }}, ${{ matrix.db.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Scheduled runs: all profiles; manual runs: the chosen one.
+        profile: ${{ fromJSON((inputs.profile == '' || inputs.profile == 'all') && '["default","heavy","big"]' || format('["{0}"]', inputs.profile)) }}
+        db:
+          - { name: 'MariaDB 12.3', slug: 'mariadb-12.3', image: 'mariadb:12.3', health: 'healthcheck.sh --connect --innodb_initialized' }
+          - { name: 'MySQL 9.7', slug: 'mysql-9.7', image: 'mysql:9.7', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot' }
+    services:
+      db:
+        image: ${{ matrix.db.image }}
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wp
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.db.health }}"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          coverage: none
+      - name: Allow enough connections for the heavy profile
+        run: mysql -h127.0.0.1 -uroot -proot -e "SET GLOBAL max_connections=300"
+      - name: Load test (${{ matrix.profile }})
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+          OUT: load-${{ matrix.profile }}-${{ matrix.db.slug }}
+        run: |
+          mkdir -p load-results
+          set -o pipefail
+          php tests/load/run.php --profile=${{ matrix.profile }} --json="load-results/${OUT}.json" 2>&1 | tee "load-results/${OUT}.txt"
+      - name: Compare with baseline
+        env:
+          OUT: load-${{ matrix.profile }}-${{ matrix.db.slug }}
+        run: php tests/load/compare.php "load-results/${OUT}.json" tests/load/baselines/${{ matrix.profile }}.json
+      - name: Summary
+        if: always()
+        run: |
+          f="$(ls load-results/*.txt 2>/dev/null | head -n1)"
+          [ -n "$f" ] || exit 0
+          { echo "### Load ${{ matrix.profile }} – ${{ matrix.db.name }}"; echo '```'; sed -n '/^scenario/,$p' "$f"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-${{ matrix.profile }}-${{ matrix.db.slug }}
+          path: load-results/
+          retention-days: 90
+
+  rest:
+    # REST load test against a real WordPress with the plugin (tests/load/http.php).
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:12.3
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, gd, zip, sodium, curl
+          coverage: none
+      - name: Install plugin dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+      - name: Install WordPress with the plugin
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
+          wp core download --version=latest
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp core install --url=http://127.0.0.1:8091 --title=Load --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/pass-captain
+          wp plugin activate pass-captain
+      - name: REST load test
+        run: php tests/load/http.php --wp="$RUNNER_TEMP/wp" --json=load-http.json
+      - name: Compare with baseline
+        run: php tests/load/compare.php load-http.json tests/load/baselines/http.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-http
+          path: load-http.json
+          retention-days: 90

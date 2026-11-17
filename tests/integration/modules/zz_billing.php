@@ -50,7 +50,7 @@ function bb_billing( array $override = array() ) {
 	return array_merge( array( 'enabled' => true, 'company' => 'Muster GmbH', 'first_name' => 'Erika', 'last_name' => 'Muster', 'street' => 'Ringstraße 1/3', 'postcode' => '1010', 'city' => 'Wien', 'country' => 'AT', 'vat_id' => 'ATU 1234 5678', 'po_number' => 'PO-4711' ), $override );
 }
 function bb_order( $type, $email, $billing, $qty = 1 ) {
-	$GLOBALS['wpcap_test_transients'] = array();
+	wpcap_test_reset_transients();
 	return Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'bb-' . uniqid( '', true ), 'billing' => $billing ) );
 }
 function bb_field( $err ) { return is_wp_error( $err ) ? (string) ( $err->get_error_data()['field'] ?? '' ) : ''; }
@@ -117,10 +117,11 @@ check( 'public callers cannot skip validation via the trusted adapter option', i
 
 echo "Billing: REST checkout\n";
 Settings::update( array( 'enabled_providers' => array( 'manual' ), 'require_terms' => 0 ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $rest = bb_data( Controller::checkout( bb_request( array( 'email' => 'rest-b2b@example.com', 'items' => array( array( 'ticket_type_id' => $bt, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'bb-rest-' . uniqid(), 'billing' => bb_billing( array( 'company' => 'REST AG' ) ) ) ) ) );
-check( 'REST checkout passes the billing payload key through', is_array( $rest ) && 'REST AG' === ( Orders::billing( $rest['order_id'] )['company'] ?? '' ) );
-$GLOBALS['wpcap_test_transients'] = array();
+$rest_order = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'rest-b2b@example.com' ) );
+check( 'REST checkout passes the billing payload key through', is_array( $rest ) && 'REST AG' === ( Orders::billing( $rest_order )['company'] ?? '' ) );
+wpcap_test_reset_transients();
 $rest_err = Controller::checkout( bb_request( array( 'email' => 'rest-bad@example.com', 'items' => array( array( 'ticket_type_id' => $bt, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'bb-rest-bad-' . uniqid(), 'billing' => bb_billing( array( 'postcode' => '' ) ) ) ) );
 check( 'REST error carries data.field for the inline error (billing_postcode)', is_wp_error( $rest_err ) && 'billing_postcode' === bb_field( $rest_err ) );
 
@@ -135,22 +136,22 @@ check( 'HTML invoice: recipient block with company, name, address, country', 1 =
 check( 'HTML invoice: VAT ID, buyer reference and e-mail in the recipient block', false !== strpos( $html, 'UID des Leistungsempfängers: ATU12345678' ) && false !== strpos( $html, 'Ihre Bestell-/Referenznummer: PO-4711' ) && false !== strpos( $html, "PO-4711\nb2b@example.com</div>" ) );
 check( 'HTML invoice: no reverse-charge note', false === strpos( $html, 'Steuerschuldnerschaft' ) && false === strpos( $html, 'Reverse' ) );
 $pdf = InvoicePdf::render( $inv['invoice_id'] );
-check( 'PDF invoice: recipient block rendered', false !== strpos( $pdf, '(Muster GmbH) Tj' ) && false !== strpos( $pdf, '(Erika Muster) Tj' ) && false !== strpos( $pdf, '(1010 Wien) Tj' ) && false !== strpos( $pdf, 'ATU12345678) Tj' ) && false !== strpos( $pdf, 'PO-4711) Tj' ) && false !== strpos( $pdf, '(b2b@example.com) Tj' ) );
+check( 'PDF invoice: recipient block rendered', false !== strpos( wpcap_pdf_plain( $pdf ), '(Muster GmbH) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(Erika Muster) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(1010 Wien) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), 'ATU12345678) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), 'PO-4711) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(b2b@example.com) Tj' ) );
 Orders::confirm_manual_payment( $without['order_id'] );
 $plain = Invoices::issue_for_order( $without['order_id'] );
 $plain_html = Invoices::render_html( $plain['invoice_id'] );
 $plain_pdf = InvoicePdf::render( $plain['invoice_id'] );
-check( 'invoice without billing data keeps the e-mail-only recipient line', false === strpos( $plain_html, 'class="buyer"' ) && false !== strpos( $plain_html, 'Rechnungsempfänger: b2c@example.com' ) && false === strpos( $plain_pdf, 'Leistungsempf' ) );
+check( 'invoice without billing data keeps the e-mail-only recipient line', false === strpos( $plain_html, 'class="buyer"' ) && false !== strpos( $plain_html, 'Rechnungsempfänger: b2c@example.com' ) && false === strpos( wpcap_pdf_plain( $plain_pdf ), 'Leistungsempf' ) );
 $refund = PassCaptain\Refunds::request( $with['order_id'], array( (int) tickets( $with['order_id'] )[0]->ticket_id ), 'Test', 'bb-cn-' . uniqid() );
 $cn = Invoices::credit_note_for_refund( $refund['refund_id'] );
 $cn_pdf = InvoicePdf::admin_pdf( $with['order_id'], (int) ( $cn['credit_note_id'] ?? 0 ) );
-check( 'credit note PDF names the recipient from the invoice snapshot', ! is_wp_error( $cn_pdf ) && false !== strpos( $cn_pdf['pdf'], '(Muster GmbH) Tj' ) );
+check( 'credit note PDF names the recipient from the invoice snapshot', ! is_wp_error( $cn_pdf ) && false !== strpos( wpcap_pdf_plain( $cn_pdf['pdf'] ), '(Muster GmbH) Tj' ) );
 
 echo "Billing: order portal correction\n";
 $portal = bb_order( $bt, 'portal-b2b@example.com', null );
 $portal_order = Orders::get( $portal['order_id'] );
 $token = bb_token( $portal_order->public_id );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $portal_html = PassCaptain\OrderPortal::render_page( $portal_order, $token );
 check( 'portal shows an editable billing form before the invoice', false !== strpos( $portal_html, 'class="wpcap-billing-form"' ) && false !== strpos( $portal_html, '/billing' ) && false !== strpos( $portal_html, 'data-billing="vat_id"' ) );
 $denied = Controller::update_billing( bb_request( array( 'access_token' => str_repeat( 'a', 64 ), 'billing' => bb_billing() ), array( 'public_id' => $portal_order->public_id ) ) );
@@ -167,7 +168,7 @@ $portal_html2 = PassCaptain\OrderPortal::render_page( Orders::get( $portal['orde
 check( 'portal shows read-only data after the invoice', false === strpos( $portal_html2, 'class="wpcap-billing-form"' ) && false !== strpos( $portal_html2, 'Korrigiert KG' ) && false !== strpos( $portal_html2, 'bereits ausgestellt' ) );
 $clear_order = bb_order( $bt, 'clear-b2b@example.com', bb_billing() );
 $clear_token = bb_token( Orders::get( $clear_order['order_id'] )->public_id );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $cleared = bb_data( Controller::update_billing( bb_request( array( 'access_token' => $clear_token, 'billing' => array( 'enabled' => false ) ), array( 'public_id' => Orders::get( $clear_order['order_id'] )->public_id ) ) ) );
 check( 'portal: unchecking removes the billing data', is_array( $cleared ) && array() === Orders::billing( $clear_order['order_id'] ) );
 
@@ -263,7 +264,7 @@ echo "Billing: checkout form and admin view\n";
 $card_type = make_type( 30, 5, 1990 );
 $card_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$card_type" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='bb_hidden' WHERE status='scheduled' AND occurrence_id<>$card_occ" );
-$card = PassCaptain\PublicEvents::render_shortcode();
+$card = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE status='bb_hidden'" );
 check( 'event card: collapsed billing section with checkbox and fields', false !== strpos( $card, '<legend>Rechnung mit Firmen-/Adressdaten</legend>' ) && false !== strpos( $card, 'name="billing_enabled"' ) && 1 === preg_match( '#class="wpcap-billing-fields" id="(wpcap-\d+-billing-fields)" hidden>#', $card, $bm ) && false !== strpos( $card, 'aria-controls="' . $bm[1] . '"' ) );
 check( 'event card: labelled inputs (for/id), required markers, autocomplete', 1 === preg_match( '#<label for="(wpcap-\d+-billing-first_name)">Vorname \*</label>\s*<input id="\1" name="billing_first_name" type="text" autocomplete="given-name" maxlength="100" required>#u', $card ) && false !== strpos( $card, 'Firma (optional)' ) && false !== strpos( $card, 'name="billing_country" autocomplete="country" required' ) && false !== strpos( $card, 'UID-Nummer (optional)' ) );
@@ -272,7 +273,7 @@ $js = file_get_contents( WPCAP_PATH . 'assets/checkout.js' );
 check( 'checkout.js sends billing only when checked and opens the section for server errors', false !== strpos( $js, 'function billingPayload' ) && false !== strpos( $js, 'extra.billing = billing' ) && false !== strpos( $js, "field.indexOf('billing_') === 0" ) );
 $admin_src = file_get_contents( WPCAP_PATH . 'src/Admin/OrdersPage.php' );
 check( 'admin order detail shows the billing data', false !== strpos( $admin_src, "esc_html_e( 'Rechnungsdaten'" ) && false !== strpos( $admin_src, 'Billing::for_order( $order )' ) );
-check( 'schema: billing column on wpcap_orders, DB version 3.5.0', '3.5.0' === PassCaptain\Installer::DB_VERSION && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_orders LIKE 'billing'" ) );
+check( 'schema: billing column on wpcap_orders, DB version >= 3.5.0', version_compare( PassCaptain\Installer::DB_VERSION, '3.5.0', '>=' ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_orders LIKE 'billing'" ) );
 
 echo "Billing: default threshold\n";
 // Earlier admin tests save the settings form, so read the default from defaults() and set it explicitly.

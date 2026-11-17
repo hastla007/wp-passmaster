@@ -248,6 +248,38 @@ final class Billing {
 		return max( 0, (int) apply_filters( 'wpcap_billing_required_threshold', $default, (string) $currency ) );
 	}
 
+	/**
+	 * Collapsible "invoice to company/address" form fields (name="billing[field]"); empty fields mean
+	 * no billing data. Used by the box office and the exchange forms (admin and portal).
+	 *
+	 * @param string $id_prefix HTML id prefix (and CSS class of the <details>).
+	 */
+	public static function fields_html( $id_prefix ) {
+		ob_start();
+		$labels = self::labels();
+		$default = self::default_country();
+		echo '<details class="' . esc_attr( $id_prefix ) . '"><summary>' . esc_html__( 'Rechnung auf Firma/Adresse (optional)', 'pass-captain' ) . '</summary>';
+		echo '<p class="description">' . esc_html__( 'Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht.', 'pass-captain' ) . '</p><table class="form-table" role="presentation"><tbody>';
+		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'address-line1', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
+		foreach ( self::FIELDS as $field ) {
+			$id = $id_prefix . '-' . $field;
+			$label = $labels[ $field ] . ( in_array( $field, self::REQUIRED, true ) ? '' : ' ' . __( '(optional)', 'pass-captain' ) );
+			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
+			if ( 'country' === $field ) {
+				echo '<select id="' . esc_attr( $id ) . '" name="billing[country]" autocomplete="country">';
+				foreach ( self::countries() as $code => $name ) {
+					echo '<option value="' . esc_attr( $code ) . '"' . selected( $code, $default, false ) . '>' . esc_html( $name ) . '</option>';
+				}
+				echo '</select>';
+			} else {
+				echo '<input type="text" class="regular-text" id="' . esc_attr( $id ) . '" name="billing[' . esc_attr( $field ) . ']" maxlength="' . (int) self::MAX[ $field ] . '" autocomplete="' . esc_attr( $autocomplete[ $field ] ) . '">';
+			}
+			echo '</td></tr>';
+		}
+		echo '</tbody></table></details>';
+		return (string) ob_get_clean();
+	}
+
 	/** Whether an order total requires billing data. */
 	public static function required_for( $total_minor, $currency = 'EUR' ) {
 		$threshold = self::required_threshold( $currency );
@@ -279,7 +311,7 @@ final class Billing {
 	/** Whether the order already has an invoice (billing data is then frozen in the invoice). */
 	public static function invoice_issued( $order_id ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", absint( $order_id ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_invoices', absint( $order_id ) ) );
 	}
 
 	/**
@@ -294,10 +326,12 @@ final class Billing {
 		}
 		$billing = self::validate( $input );
 		if ( is_wp_error( $billing ) ) { return $billing; }
+		$before = self::for_order( $order );
 		if ( ! self::save( (int) $order->order_id, $billing ?: array() ) ) {
 			return new \WP_Error( 'wpcap_billing_save', __( 'Die Rechnungsdaten konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
-		Audit::record( 'billing_updated', 'order', (int) $order->order_id, array( 'source' => 'portal', 'cleared' => ! $billing ) );
+		// Masked before/after diff (A122): field names and masked values only.
+		Audit::record( 'billing_updated', 'order', (int) $order->order_id, array( 'source' => 'portal', 'cleared' => ! $billing, 'changes' => Privacy\AccessLog::diff( $before, $billing ?: array(), array( 'country' ) ) ) );
 		return array( 'billing' => $billing ?: array() );
 	}
 
