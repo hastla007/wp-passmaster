@@ -162,11 +162,24 @@ $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET offer_expires_at=%s
 check( 'an expired offer does not block sales any more', 1 === Orders::availability( $ew_type ) );
 $ew_in_tx = false !== stripos( (string) $wpdb->db_server_info(), 'mariadb' ) ? $wpdb->get_var( 'SELECT @@in_transaction' ) : 'n/a';
 $ew_expire_calls = 0;
-$ew_count_calls = static function ( $limit ) use ( &$ew_expire_calls ) { ++$ew_expire_calls; return $limit; };
+$ew_inside = array();
+$ew_count_calls = static function ( $limit ) use ( &$ew_expire_calls, &$ew_inside, $y ) {
+	global $wpdb;
+	++$ew_expire_calls;
+	// State as seen by expire_holds() inside the sweep (diagnostic).
+	$now = PassCaptain\Clock::mysql();
+	$cand = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM {$wpdb->prefix}wpcap_orders ord WHERE ord.payment_status='pending' AND ord.status='pending_payment' AND NOT EXISTS (SELECT 1 FROM {$wpdb->prefix}wpcap_reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s) ORDER BY ord.order_id LIMIT %d", $now, (int) $limit ) ) );
+	$ew_inside[] = array( 'limit' => $limit, 'now' => $now, 'cand' => count( $cand ), 'has_ours' => in_array( (int) $y->order_id, $cand, true ), 'err' => $wpdb->last_error, 'in_tx' => false !== stripos( (string) $wpdb->db_server_info(), 'mariadb' ) ? $wpdb->get_var( 'SELECT @@in_transaction' ) : 'n/a', 'hold' => $wpdb->get_row( $wpdb->prepare( "SELECT status,expires_at FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d", (int) $y->order_id ) ), 'order' => $wpdb->get_row( $wpdb->prepare( "SELECT status,payment_status FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", (int) $y->order_id ) ) );
+	return $limit;
+};
+$ew_cancelled = array();
+$ew_on_cancel = static function ( $order_id ) use ( &$ew_cancelled ) { $ew_cancelled[] = (int) $order_id; };
+add_action( 'wpcap_order_cancelled', $ew_on_cancel );
 add_filter( 'wpcap_expire_holds_batch', $ew_count_calls );
 $ew_logs_before = (int) $wpdb->get_var( "SELECT COALESCE(MAX(log_id),0) FROM {$p}wpcap_logs" );
 Waitlists::sweep();
 remove_filter( 'wpcap_expire_holds_batch', $ew_count_calls );
+remove_action( 'wpcap_order_cancelled', $ew_on_cancel );
 $ew_after = array( $ew_row( 'ew-y@svc.test' )->status, Orders::get( (int) $y->order_id )->status, Orders::availability( $ew_type ) );
 if ( array( 'expired', 'expired', 1 ) !== $ew_after ) {
 	// Diagnostic for a CI-only failure: why expire_holds() left the order alone.
@@ -184,6 +197,9 @@ if ( array( 'expired', 'expired', 1 ) !== $ew_after ) {
 		'first' => array_slice( $ew_cand, 0, 5 ),
 		'in_tx_before_sweep' => $ew_in_tx,
 		'expire_calls_in_sweep' => $ew_expire_calls,
+		'inside' => $ew_inside,
+		'cancelled_in_sweep' => count( $ew_cancelled ),
+		'cancelled_first' => array_slice( $ew_cancelled, 0, 5 ),
 		'logs' => $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_logs WHERE log_id>%d ORDER BY log_id LIMIT 10", $ew_logs_before ) ),
 		'expire_order' => ( static function () use ( $ew_oid ) { $m = new ReflectionMethod( PassCaptain\Orders::class, 'expire_order' ); $m->setAccessible( true ); return $m->invoke( null, $ew_oid, PassCaptain\Clock::mysql() ); } )(),
 		'second_expire' => PassCaptain\Orders::expire_holds(),
