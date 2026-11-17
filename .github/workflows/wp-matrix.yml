@@ -25,12 +25,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { wp: '6.4', php: '8.2' }   # minimum supported (Requires at least)
-          - { wp: '6.8', php: '8.3' }
-          - { wp: 'latest', php: '8.4' }
+          - { wp: '7.0', php: '8.5' }   # minimum supported (Requires at least)
+          - { wp: 'latest', php: '8.5' }
     services:
       mariadb:
-        image: mariadb:11.4
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wp
           MARIADB_USER: wp
@@ -105,7 +104,7 @@ jobs:
       PCP_VERSION: '2.2.0'
     services:
       mariadb:
-        image: mariadb:11.4
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wp
           MARIADB_USER: wp
@@ -122,7 +121,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           tools: composer:v2, wp-cli
           extensions: mbstring, mysqli, zip
           coverage: none
@@ -152,11 +151,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        wc: ['8.2.0', 'latest']   # "WC requires at least" and newest
+        wc: ['11.2.0', 'latest']   # "WC requires at least" and newest
         storage: ['hpos', 'posts']
     services:
       mariadb:
-        image: mariadb:11.4
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wp
           MARIADB_USER: wp
@@ -173,7 +172,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           tools: composer:v2, wp-cli
           extensions: mbstring, mysqli, gd, zip, sodium, curl, intl
           coverage: none
@@ -210,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:11.4
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wp
           MARIADB_USER: wp
@@ -227,7 +226,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.5'
           tools: composer:v2, wp-cli
           extensions: mbstring, mysqli, gd, zip, sodium, curl
           coverage: none

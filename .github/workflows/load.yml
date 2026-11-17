@@ -31,8 +31,8 @@ jobs:
         # Scheduled runs: all profiles; manual runs: the chosen one.
         profile: ${{ fromJSON((inputs.profile == '' || inputs.profile == 'all') && '["default","heavy","big"]' || format('["{0}"]', inputs.profile)) }}
         db:
-          - { name: 'MariaDB 11.4', slug: 'mariadb-11.4', image: 'mariadb:11.4', health: 'healthcheck.sh --connect --innodb_initialized' }
-          - { name: 'MySQL 8.4', slug: 'mysql-8.4', image: 'mysql:8.4', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot' }
+          - { name: 'MariaDB 12.3', slug: 'mariadb-12.3', image: 'mariadb:12.3', health: 'healthcheck.sh --connect --innodb_initialized' }
+          - { name: 'MySQL 9.7', slug: 'mysql-9.7', image: 'mysql:9.7', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot' }
     services:
       db:
         image: ${{ matrix.db.image }}
@@ -56,7 +56,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: mbstring, mysqli, gd, zip, sodium, openssl
           coverage: none
       - name: Allow enough connections for the heavy profile
@@ -92,7 +92,7 @@ jobs:
     timeout-minutes: 30
     services:
       mariadb:
-        image: mariadb:11.4
+        image: mariadb:12.3
         env:
           MARIADB_DATABASE: wp
           MARIADB_USER: wp
@@ -109,7 +109,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           tools: composer:v2, wp-cli
           extensions: mbstring, mysqli, gd, zip, sodium, curl
           coverage: none

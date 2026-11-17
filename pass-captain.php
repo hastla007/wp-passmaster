@@ -4,13 +4,13 @@
  * Plugin URI: https://github.com/hastla007/wp-passmaster
  * Description: Eigenständige Event-, Ticket- und Passverwaltung für WordPress.
  * Version: 1.5.0
- * Requires at least: 6.4
- * Requires PHP: 8.2
+ * Requires at least: 7.0
+ * Requires PHP: 8.5
  * Author: hastla007
  * Author URI: https://github.com/hastla007
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * WC requires at least: 8.2
+ * WC requires at least: 11.2
  * WC tested up to: 11.3
  * Text Domain: pass-captain
  * Domain Path: /languages
@@ -29,13 +29,13 @@ if ( ! function_exists( 'wpcap_requirements_error' ) ) {
 	/** Returns why this site cannot run the plugin ('' when it can). */
 	function wpcap_requirements_error() {
 		global $wp_version;
-		if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
+		if ( version_compare( PHP_VERSION, '8.5', '<' ) ) {
 			/* translators: 1: required PHP version, 2: installed PHP version */
-			return sprintf( __( 'Pass Captain benötigt PHP %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte PHP beim Hosting aktualisieren.', 'pass-captain' ), '8.2', PHP_VERSION );
+			return sprintf( __( 'Pass Captain benötigt PHP %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte PHP beim Hosting aktualisieren.', 'pass-captain' ), '8.5', PHP_VERSION );
 		}
-		if ( isset( $wp_version ) && version_compare( (string) $wp_version, '6.4', '<' ) ) {
+		if ( isset( $wp_version ) && version_compare( (string) $wp_version, '7.0', '<' ) ) {
 			/* translators: 1: required WordPress version, 2: installed WordPress version */
-			return sprintf( __( 'Pass Captain benötigt WordPress %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte WordPress aktualisieren.', 'pass-captain' ), '6.4', (string) $wp_version );
+			return sprintf( __( 'Pass Captain benötigt WordPress %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte WordPress aktualisieren.', 'pass-captain' ), '7.0', (string) $wp_version );
 		}
 		return '';
 	}

@@ -51,7 +51,7 @@ Die Restore-Probe ist Teil der Release-Abnahme ([RELEASE.md](RELEASE.md)) und so
 regelmäßig (z. B. vierteljährlich) auf einer Staging-Site geübt werden.
 
 **Automatisierte Restore-Probe** (`tests/drills/restore-drill.sh`, wöchentlich in `.github/workflows/drills.yml`
-auf MariaDB 11.4, MySQL 8.0 und 8.4; Details in [TESTING.md](TESTING.md#restore-probe-testsdrillsrestore-drillsh)):
+auf MariaDB 12.3 und MySQL 9.7; Details in [TESTING.md](TESTING.md#restore-probe-testsdrillsrestore-drillsh)):
 Sie spielt genau diesen Ablauf in einer Wegwerf-Installation durch – Daten inklusive Arbeit, die beim Backup
 „unterwegs“ ist (bezahlte Bestellung, deren Ticketausstellung abbrach; hängender Job-Claim; nicht bereinigte
 Reservierung), Dump mit `--single-transaction`, Schreibvorgänge nach dem Backup, Zerstörung, Restore, dann
@@ -107,17 +107,13 @@ Freigegeben ist nur, was die CI bei jedem Push mit der vollständigen Integratio
 
 | PHP | Datenbank | Rolle |
 | --- | --- | --- |
-| 8.2 | MariaDB 10.6 | Minimum PHP + Minimum MariaDB |
-| 8.2 | MySQL 8.0 | Minimum PHP + Minimum MySQL |
-| 8.3 | MariaDB 10.11 | LTS |
-| 8.3 | MySQL 8.4 | LTS |
-| 8.4 | MariaDB 11.4 | LTS |
-| 8.4 | MySQL 8.4 | LTS |
-| 8.5 | MariaDB 11.8 | neueste PHP- und MariaDB-LTS |
+| 8.5 | MariaDB 12.3 | Minimum PHP + Minimum MariaDB |
+| 8.5 | MySQL 9.7 | Minimum PHP + Minimum MySQL |
+| 8.6 | MariaDB 12.3, MySQL 9.7 | experimentell (nicht blockierend) |
 
-- **Zu alte PHP- oder WordPress-Version** (unter PHP 8.2 bzw. WordPress 6.4, z. B. nach einem PHP-Downgrade beim Hosting): Das Plugin lädt nicht und zeigt Administratoren nur einen Hinweis; die Website läuft weiter (A511). Composers eigene Plattformprüfung (`vendor/composer/platform_check.php`, beendet jede Anfrage mit einem Fatal Error) ist abgeschaltet (`config.platform-check: false`), der Release-Build bricht ab, falls sie doch im ZIP landen würde.
-- **Unterstützt:** PHP 8.2–8.5, MySQL 8.0 und 8.4, MariaDB 10.6 bis 11.8. Ältere Versionen (MySQL 5.7, MariaDB < 10.6) werden nicht getestet und sind nicht freigegeben, auch wenn das Schema dort anlegbar wäre; Transaktionserkennung (`@@in_transaction` bzw. Savepoint-Probe), Sperrverhalten und Deadlock-Wiederholungen sind nur auf den getesteten Versionen abgesichert.
-- **Echte WordPress-/WooCommerce-Installationen** prüft zusätzlich `.github/workflows/wp-matrix.yml` (WordPress 6.4/6.8/aktuell, WooCommerce 8.2.0/aktuell × HPOS/Beitragsspeicher, Release-ZIP in frischer Installation) gegen MariaDB 11.4; wöchentliche Lastgrenzen gegen MariaDB und MySQL in `load.yml`.
+- **Zu alte PHP- oder WordPress-Version** (unter PHP 8.5 bzw. WordPress 7.0, z. B. nach einem PHP-Downgrade beim Hosting): Das Plugin lädt nicht und zeigt Administratoren nur einen Hinweis; die Website läuft weiter (A511). Composers eigene Plattformprüfung (`vendor/composer/platform_check.php`, beendet jede Anfrage mit einem Fatal Error) ist abgeschaltet (`config.platform-check: false`), der Release-Build bricht ab, falls sie doch im ZIP landen würde.
+- **Unterstützt (MINVER-1, 17.11.2026, einheitlich für alle Captain-Plugins):** PHP 8.5+, WordPress 7.0+, WooCommerce 11.2+, MySQL 9.7+, MariaDB 12.3+. Ältere Datenbankserver werden nicht gesperrt, „Website-Zustand“ zeigt aber eine Warnung (`wpcap_db_server`); sie werden nicht getestet und sind nicht freigegeben; Transaktionserkennung (`@@in_transaction` bzw. Savepoint-Probe), Sperrverhalten und Deadlock-Wiederholungen sind nur auf den getesteten Versionen abgesichert.
+- **Echte WordPress-/WooCommerce-Installationen** prüft zusätzlich `.github/workflows/wp-matrix.yml` (WordPress 7.0/aktuell, WooCommerce 11.2.0/aktuell × HPOS/Beitragsspeicher, Release-ZIP in frischer Installation) gegen MariaDB 12.3; wöchentliche Lastgrenzen gegen MariaDB und MySQL in `load.yml`.
 - **Pro Release** wird die Matrix des Release-Commits im Abnahmeprotokoll verlinkt (`docs/release-acceptance/`); eine neue Datenbank- oder PHP-Version gilt erst als freigegeben, wenn sie in diese Matrix aufgenommen wurde und grün ist.
 
 ## Schema-Upgrade nach einem Update

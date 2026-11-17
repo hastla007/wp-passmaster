@@ -26,9 +26,9 @@
 	<arg name="colors"/>
 	<arg value="sp"/>
 
-	<!-- Supported platform: PHP 8.2+, WordPress 6.4+ (docs/COMPATIBILITY.md). -->
-	<config name="testVersion" value="8.2-"/>
-	<config name="minimum_wp_version" value="6.4"/>
+	<!-- Supported platform: PHP 8.5+, WordPress 7.0+ (docs/COMPATIBILITY.md). -->
+	<config name="testVersion" value="8.5-"/>
+	<config name="minimum_wp_version" value="7.0"/>
 
 	<rule ref="PHPCompatibilityWP"/>
 

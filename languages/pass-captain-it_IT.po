@@ -17,7 +17,7 @@ msgstr ""
 #: pass-captain.php
 #: src/Integrations/WooCommerce/CartPricing.php:83
 #: src/Operations/SiteHealth.php:80
-#: src/Operations/SiteHealth.php:113
+#: src/Operations/SiteHealth.php:153
 #: src/Secrets.php:524
 #: src/Secrets.php:546
 #: src/WalletPasses/Health.php:91
@@ -363,7 +363,7 @@ msgstr "Non ci sono eventi per cui puoi creare chiavi."
 #: src/Seating/AdminPage.php:193
 #: src/Series/AdminPage.php:656
 #: src/Series/AdminPage.php:678
-#: src/Waitlists.php:1737
+#: src/Waitlists.php:1739
 #: src/WalletPasses/AppleProvider.php:77
 msgid "Name"
 msgstr "Nome"
@@ -581,7 +581,7 @@ msgstr "Valido fino al"
 #: src/Privacy.php:319
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Series/AdminPage.php:414
-#: src/Waitlists.php:1346
+#: src/Waitlists.php:1348
 #: src/Waitlists/AdminPage.php:164
 #: src/WalletPasses/AdminPage.php:165
 #: src/WalletPasses/AppleProvider.php:84
@@ -666,8 +666,8 @@ msgstr "Salva"
 
 #: src/Admin/ApiKeysPage.php:161
 #: src/Allocations/AdminPage.php:268
-#: src/Operations/SiteHealth.php:533
-#: src/Operations/SiteHealth.php:574
+#: src/Operations/SiteHealth.php:573
+#: src/Operations/SiteHealth.php:614
 msgid "nie"
 msgstr "mai"
 
@@ -1626,8 +1626,8 @@ msgstr "Stato salvato."
 #: src/Admin/CampaignsPage.php:187
 #: src/BoxOffice/ShiftPage.php:445
 #: src/BoxOffice/ZReport.php:398
-#: src/Operations/SiteHealth.php:526
-#: src/Operations/SiteHealth.php:625
+#: src/Operations/SiteHealth.php:566
+#: src/Operations/SiteHealth.php:665
 #: src/WalletPasses/AdminPage.php:135
 msgid "ja"
 msgstr "sì"
@@ -1727,7 +1727,7 @@ msgstr "Programmato"
 #: src/Frontend/ServiceBooking.php:142
 #: src/Services/Portal.php:205
 #: src/Services/Portal.php:261
-#: src/Waitlists.php:1657
+#: src/Waitlists.php:1659
 msgid "Abgelaufen"
 msgstr "Scaduto"
 
@@ -2030,7 +2030,7 @@ msgstr "Genera codici utilizzabili una sola volta con le impostazioni di questa 
 #: src/BoxOffice/ShiftPage.php:47
 #: src/Privacy.php:229
 #: src/Waitlists.php:453
-#: src/Waitlists.php:1482
+#: src/Waitlists.php:1484
 #: src/Waitlists/AdminPage.php:164
 #: templates/event-card.php:232
 msgid "Anzahl"
@@ -2224,7 +2224,7 @@ msgstr "Contingente"
 #: src/Sales/AdminSections.php:179
 #: src/Series/AdminPage.php:580
 #: src/Series/AdminPage.php:631
-#: src/Waitlists.php:1768
+#: src/Waitlists.php:1770
 #: templates/event-card.php:62
 msgid "Preis"
 msgstr "Prezzo"
@@ -5938,7 +5938,7 @@ msgstr "Nessuna prenotazione."
 
 #: src/Admin/Notices.php:65
 #: src/BoxOffice/Page.php:357
-#: src/LegacySlug.php:350
+#: src/LegacySlug.php:361
 msgid "Hinweis für mich ausblenden"
 msgstr "Nascondi l'avviso per me"
 
@@ -6103,7 +6103,7 @@ msgstr "Per questi rimborsi il fornitore di pagamenti non ha risposto in modo un
 #: src/Payments/BankTransfer.php:123
 #: src/PublicEvents.php:241
 #: src/Reports/Settlement.php:276
-#: src/Waitlists.php:1937
+#: src/Waitlists.php:1939
 msgid "Betrag"
 msgstr "Importo"
 
@@ -6527,7 +6527,7 @@ msgid "Diese Bestellung hat keine gültigen Tickets für ein PDF."
 msgstr "Questo ordine non ha biglietti validi per un PDF."
 
 #: src/Admin/OrdersPage.php:248
-#: src/Orders.php:4000
+#: src/Orders.php:4004
 #: src/PortalSelfService.php:289
 #: src/TicketPdf.php:191
 #: src/WalletPasses/AppleProvider.php:81
@@ -6974,7 +6974,7 @@ msgstr "Mostra il testo di questa versione (versione attualmente valida, non anc
 #: src/LegalVersions.php:122
 #: src/LegalVersions.php:137
 #: src/Mail/Blocks.php:112
-#: src/Waitlists.php:1782
+#: src/Waitlists.php:1784
 #: templates/event-card.php:196
 msgid "Bedingungen"
 msgstr "Condizioni"
@@ -6984,7 +6984,7 @@ msgstr "Condizioni"
 #: src/Frontend/ServiceBooking.php:548
 #: src/LegalVersions.php:123
 #: src/Mail/Blocks.php:112
-#: src/Waitlists.php:1784
+#: src/Waitlists.php:1786
 #: templates/event-card.php:192
 msgid "Verbraucherinformationen"
 msgstr "Informazioni per i consumatori"
@@ -8496,7 +8496,7 @@ msgstr "In attesa"
 
 #: src/Admin/ServicesPage.php:496
 #: src/Services/Portal.php:205
-#: src/Waitlists.php:1654
+#: src/Waitlists.php:1656
 msgid "Angebot offen"
 msgstr "Offerta aperta"
 
@@ -8511,13 +8511,13 @@ msgstr "Accettata"
 #: src/PortalSelfService.php:412
 #: src/Services/Portal.php:205
 #: src/Services/Portal.php:261
-#: src/Waitlists.php:1658
+#: src/Waitlists.php:1660
 msgid "Abgelehnt"
 msgstr "Rifiutato"
 
 #: src/Admin/ServicesPage.php:496
 #: src/Services/Portal.php:205
-#: src/Waitlists.php:1427
+#: src/Waitlists.php:1429
 msgid "Ausgetragen"
 msgstr "Rimosso"
 
@@ -8779,13 +8779,13 @@ msgstr "Modalità"
 #: src/Admin/SettingsPage.php:132
 #: src/Mail/Admin.php:118
 #: src/Modules/Fiscalization.php:1329
-#: src/Operations/SiteHealth.php:654
+#: src/Operations/SiteHealth.php:694
 msgid "Test"
 msgstr "Test"
 
 #: src/Admin/SettingsPage.php:132
 #: src/Admin/SettingsPage.php:143
-#: src/Operations/SiteHealth.php:653
+#: src/Operations/SiteHealth.php:693
 msgid "Live"
 msgstr "Live"
 
@@ -9776,7 +9776,7 @@ msgid "Als erledigt markieren"
 msgstr "Segna come risolto"
 
 #: src/Admin/StatusPage.php:416
-#: src/Operations/SiteHealth.php:633
+#: src/Operations/SiteHealth.php:673
 msgid "Datenbankschema"
 msgstr "Schema del database"
 
@@ -9788,7 +9788,7 @@ msgstr "Isolamento delle transazioni del server: %s (le transazioni di ordini e 
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
 #: src/Admin/StatusPage.php:419
-#: src/Operations/SiteHealth.php:656
+#: src/Operations/SiteHealth.php:696
 msgid "unbekannt"
 msgstr "sconosciuto"
 
@@ -10121,7 +10121,7 @@ msgstr "Crea bozza"
 #: src/Exchange/Portal.php:59
 #: src/Exchange/Service.php:184
 #: src/Exchange/Service.php:1270
-#: src/Orders.php:4377
+#: src/Orders.php:4381
 #: src/PortalSelfService.php:218
 #: src/PortalSelfService.php:474
 #: src/PortalSelfService.php:685
@@ -10371,7 +10371,7 @@ msgid "Unbestätigt (Bestätigungslink offen)"
 msgstr "Non confermato (link di conferma in sospeso)"
 
 #: src/Admin/WaitlistsPage.php:42
-#: src/Waitlists.php:1653
+#: src/Waitlists.php:1655
 msgid "Wartet"
 msgstr "In attesa"
 
@@ -12812,8 +12812,8 @@ msgid "Standort"
 msgstr "Sede"
 
 #: src/BoxOffice/ShiftPage.php:445
-#: src/Operations/SiteHealth.php:526
-#: src/Operations/SiteHealth.php:626
+#: src/Operations/SiteHealth.php:566
+#: src/Operations/SiteHealth.php:666
 #: src/WalletPasses/AdminPage.php:135
 msgid "nein"
 msgstr "no"
@@ -13762,7 +13762,7 @@ msgstr "Questo consenso non è stato prestato e quindi non può essere revocato.
 
 #: src/Consents.php:434
 #: src/ServiceBookingFlow.php:404
-#: src/Waitlists.php:1455
+#: src/Waitlists.php:1457
 msgid "Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut."
 msgstr "La sessione è scaduta. Ricarica la pagina e riprova."
 
@@ -15113,7 +15113,7 @@ msgstr "Abbiamo inviato la conferma a %s."
 #: src/Frontend/ServiceBooking.php:113
 #: src/Payments/ReturnNotice.php:211
 #: src/PublicEvents.php:217
-#: src/Waitlists.php:1923
+#: src/Waitlists.php:1925
 #, php-format
 msgid "Bestellnummer: %s"
 msgstr "Numero d'ordine: %s"
@@ -15152,7 +15152,7 @@ msgstr "Dopo la ricezione del pagamento il tuo appuntamento è confermato; ricev
 #: src/Payments/BankTransfer.php:124
 #: src/Privacy/PolicyText.php:179
 #: src/PublicEvents.php:242
-#: src/Waitlists.php:1937
+#: src/Waitlists.php:1939
 msgid "Empfänger"
 msgstr "Destinatario"
 
@@ -15172,14 +15172,14 @@ msgstr "BIC"
 #: src/Frontend/ServiceBooking.php:126
 #: src/Payments/BankTransfer.php:127
 #: src/PublicEvents.php:245
-#: src/Waitlists.php:1937
+#: src/Waitlists.php:1939
 msgid "Verwendungszweck"
 msgstr "Causale"
 
 #: src/Frontend/ServiceBooking.php:127
 #: src/Payments/BankTransfer.php:128
 #: src/PublicEvents.php:246
-#: src/Waitlists.php:1937
+#: src/Waitlists.php:1939
 msgid "Zahlbar bis"
 msgstr "Da pagare entro"
 
@@ -15396,7 +15396,7 @@ msgstr[1] "%d posti liberi"
 #: src/PublicEvents.php:153
 #: src/Reports/Settlement.php:262
 #: src/Reports/Settlement.php:328
-#: src/Waitlists.php:1703
+#: src/Waitlists.php:1705
 #: templates/event-card.php:182
 msgid "Zahlungsart"
 msgstr "Metodo di pagamento"
@@ -15414,13 +15414,13 @@ msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und A
 msgstr "Per ordini di importo superiore a %s ci servono nome e indirizzo per la fattura."
 
 #: src/Frontend/ServiceBooking.php:549
-#: src/Waitlists.php:1785
+#: src/Waitlists.php:1787
 #: templates/event-card.php:199
 msgid "Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen."
 msgstr "Accetto le condizioni e ho letto le informazioni per i consumatori."
 
 #: src/Frontend/ServiceBooking.php:549
-#: src/Waitlists.php:1785
+#: src/Waitlists.php:1787
 #: templates/event-card.php:199
 msgid "Ich akzeptiere die Bedingungen."
 msgstr "Accetto le condizioni."
@@ -16559,7 +16559,7 @@ msgstr "I dati dei partecipanti non corrispondono ai biglietti ordinati. Ricaric
 
 #: src/Integrations/WooCommerce/Attendees.php:304
 #: src/Integrations/WooCommerce/Attendees.php:470
-#: src/Waitlists.php:1728
+#: src/Waitlists.php:1730
 msgid "Angaben zu den Teilnehmenden"
 msgstr "Dati dei partecipanti"
 
@@ -17241,17 +17241,17 @@ msgid "Der Worker wurde während der Ausführung beendet (Reservierung nach 15 M
 msgstr "Il worker è stato terminato durante l'esecuzione (prenotazione recuperata dopo 15 minuti)."
 
 #. translators: %s: folder name of the old plugin copy
-#: src/LegacySlug.php:265
+#: src/LegacySlug.php:276
 #, php-format
 msgid "Die frühere Version von Pass Captain (Ordner „%s“) ist noch installiert. Sie wurde deaktiviert und kann unter „Plugins“ gelöscht werden – Bestellungen, Tickets und Einstellungen bleiben erhalten, Pass Captain nutzt dieselben Daten weiter."
 msgstr "La versione precedente di Pass Captain (cartella «%s») è ancora installata. È stata disattivata e può essere eliminata in «Plugin»: ordini, biglietti e impostazioni vengono mantenuti, Pass Captain continua a usare gli stessi dati."
 
-#: src/LegacySlug.php:270
+#: src/LegacySlug.php:281
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ ist so lange pausiert und wird danach automatisch wieder eingeschaltet."
 msgstr "«Rimuovi tutti i dati quando il plugin viene eliminato» resta sospeso fino ad allora e poi viene riattivato automaticamente."
 
 #. translators: 1: theme template path(s) in the old folder, 2: new folder name
-#: src/LegacySlug.php:345
+#: src/LegacySlug.php:356
 #, php-format
 msgid "Ihr Theme überschreibt Vorlagen von Pass Captain noch im früheren Ordner (%1$s). Sie werden weiter verwendet, bitte verschieben Sie sie aber in den Ordner „%2$s“ im Theme – die Unterstützung des alten Ordners entfällt in einer künftigen Version."
 msgstr "Il tuo tema sovrascrive i modelli di Pass Captain ancora nella cartella precedente (%1$s). Continuano a essere utilizzati, ma spostali nella cartella «%2$s» del tema: il supporto della vecchia cartella verrà rimosso in una versione futura."
@@ -18608,7 +18608,7 @@ msgstr ""
 "%7$s"
 
 #: src/Mail/Types.php:661
-#: src/Waitlists.php:1548
+#: src/Waitlists.php:1550
 msgid "Du bleibst auf der Warteliste."
 msgstr "Resti in lista d'attesa."
 
@@ -18643,7 +18643,7 @@ msgstr ""
 "Non devi fare altro; non ti scriveremo più riguardo a questa data."
 
 #: src/Mail/Types.php:675
-#: src/Waitlists.php:1598
+#: src/Waitlists.php:1600
 msgid "Der Termin wurde abgesagt."
 msgstr "La data è stata annullata."
 
@@ -20377,7 +20377,7 @@ msgstr "Risposta imprevista da Mollie."
 
 #: src/Mollie/MollieGateway.php:210
 #: src/Rest/Controller.php:533
-#: src/Waitlists.php:955
+#: src/Waitlists.php:957
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr "Il pagamento tramite bonifico non è più possibile così a ridosso dell'inizio. Scegli un altro metodo di pagamento."
 
@@ -20767,7 +20767,7 @@ msgid "Signaturschlüssel abgelaufen"
 msgstr "Chiave di firma scaduta"
 
 #: src/OfflineScanner/I18n.php:152
-#: src/Operations/SiteHealth.php:341
+#: src/Operations/SiteHealth.php:381
 msgid "Signatur ungültig"
 msgstr "Firma non valida"
 
@@ -21491,7 +21491,7 @@ msgid "Bitte mindestens einen Eintrag auswählen."
 msgstr "Seleziona almeno una voce."
 
 #. translators: %d: number of minutes
-#: src/Operations/SiteHealth.php:127
+#: src/Operations/SiteHealth.php:167
 #: src/ServiceBookings.php:1379
 #, php-format
 msgid "%d Minute"
@@ -21500,7 +21500,7 @@ msgstr[0] "%d minuto"
 msgstr[1] "%d minuti"
 
 #. translators: %d: number of hours
-#: src/Operations/SiteHealth.php:136
+#: src/Operations/SiteHealth.php:176
 #: src/ServiceBookings.php:1376
 #, php-format
 msgid "%d Stunde"
@@ -21508,96 +21508,96 @@ msgid_plural "%d Stunden"
 msgstr[0] "%d ora"
 msgstr[1] "%d ore"
 
-#: src/Operations/SiteHealth.php:146
+#: src/Operations/SiteHealth.php:186
 msgid "Zur Betriebsübersicht von Pass Captain"
 msgstr "Vai alla panoramica operativa di Pass Captain"
 
 #. translators: 1: cron hook name, 2: duration, e.g. "20 Minuten"
-#: src/Operations/SiteHealth.php:195
+#: src/Operations/SiteHealth.php:235
 #, php-format
 msgid "%1$s ist seit %2$s überfällig."
 msgstr "%1$s è in ritardo da %2$s."
 
 #. translators: %s: cron hook name
-#: src/Operations/SiteHealth.php:199
+#: src/Operations/SiteHealth.php:239
 #, php-format
 msgid "%s ist nicht eingeplant."
 msgstr "%s non è pianificato."
 
 #. translators: %s: duration, e.g. "3 Stunden"
-#: src/Operations/SiteHealth.php:204
+#: src/Operations/SiteHealth.php:244
 #, php-format
 msgid "DISABLE_WP_CRON ist gesetzt und die Warteschlangen liefen seit %s nicht mehr – offenbar löst kein externer Cronjob WP-Cron aus."
 msgstr "DISABLE_WP_CRON è impostato e le code non vengono eseguite da %s: a quanto pare nessun cron job esterno avvia WP-Cron."
 
-#: src/Operations/SiteHealth.php:206
+#: src/Operations/SiteHealth.php:246
 msgid "WP-Cron ist per DISABLE_WP_CRON abgeschaltet; ein System-Cronjob muss wp-cron.php regelmäßig aufrufen."
 msgstr "WP-Cron è disattivato tramite DISABLE_WP_CRON; un cron job di sistema deve richiamare wp-cron.php regolarmente."
 
-#: src/Operations/SiteHealth.php:206
+#: src/Operations/SiteHealth.php:246
 msgid "WP-Cron läuft bei Seitenaufrufen. Für verlässliche Ticketmails, Erinnerungen und Webhooks empfehlen wir einen System-Cronjob."
 msgstr "WP-Cron viene eseguito alle visite delle pagine. Per e-mail dei biglietti, promemoria e webhook affidabili consigliamo un cron job di sistema."
 
 #. translators: %s: duration, e.g. "4 Minuten"
-#: src/Operations/SiteHealth.php:209
+#: src/Operations/SiteHealth.php:249
 #, php-format
 msgid "Letzter Lauf der Warteschlangen vor %s."
 msgstr "Ultima esecuzione delle code %s fa."
 
-#: src/Operations/SiteHealth.php:211
+#: src/Operations/SiteHealth.php:251
 msgid "Externen Cronjob einrichten"
 msgstr "Configura un cron job esterno"
 
-#: src/Operations/SiteHealth.php:213
+#: src/Operations/SiteHealth.php:253
 msgid "Pass Captain: geplante Aufgaben laufen nicht"
 msgstr "Pass Captain: le attività pianificate non vengono eseguite"
 
-#: src/Operations/SiteHealth.php:216
+#: src/Operations/SiteHealth.php:256
 msgid "Pass Captain: geplante Aufgaben verspätet"
 msgstr "Pass Captain: attività pianificate in ritardo"
 
-#: src/Operations/SiteHealth.php:218
+#: src/Operations/SiteHealth.php:258
 msgid "Pass Captain: geplante Aufgaben laufen pünktlich"
 msgstr "Pass Captain: le attività pianificate vengono eseguite puntualmente"
 
 #. translators: 1: queue name, 2: number of due items, 3: waiting time of the oldest due item, e.g. "40 Minuten", 4: number of failed items
-#: src/Operations/SiteHealth.php:237
+#: src/Operations/SiteHealth.php:277
 #, php-format
 msgid "%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d."
 msgstr "%1$s: in scadenza %2$d (la più vecchia è in attesa da %3$s), non riuscite %4$d."
 
-#: src/Operations/SiteHealth.php:241
+#: src/Operations/SiteHealth.php:281
 msgid "Pass Captain: keine Rückstände in den Warteschlangen"
 msgstr "Pass Captain: nessun arretrato nelle code"
 
-#: src/Operations/SiteHealth.php:241
+#: src/Operations/SiteHealth.php:281
 msgid "Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge."
 msgstr "Job in background, e-mail e webhook vengono elaborati tempestivamente; non ci sono voci definitivamente non riuscite."
 
-#: src/Operations/SiteHealth.php:243
+#: src/Operations/SiteHealth.php:283
 msgid "Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
 msgstr "Pass Captain: grandi arretrati o molte voci non riuscite"
 
-#: src/Operations/SiteHealth.php:243
+#: src/Operations/SiteHealth.php:283
 msgid "Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
 msgstr "Pass Captain: arretrati o voci non riuscite nelle code"
 
-#: src/Operations/SiteHealth.php:244
+#: src/Operations/SiteHealth.php:284
 msgid "Prüfe die Einträge und versuche sie erneut oder verwirf sie."
 msgstr "Controlla le voci e riprovale oppure scartale."
 
 #. translators: %s: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:256
+#: src/Operations/SiteHealth.php:296
 #, php-format
 msgid "Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen."
 msgstr "Nell'arco di %s nessun invio di e-mail del plugin è fallito."
 
-#: src/Operations/SiteHealth.php:257
+#: src/Operations/SiteHealth.php:297
 msgid "Pass Captain: E-Mail-Versand ohne Fehler"
 msgstr "Pass Captain: invio e-mail senza errori"
 
 #. translators: 1: number of failed mails, 2: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:261
+#: src/Operations/SiteHealth.php:301
 #, php-format
 msgid "Innerhalb von %2$s ist %1$d Plugin-E-Mail nicht versendet worden (wp_mail() meldete einen Fehler)."
 msgid_plural "Innerhalb von %2$s sind %1$d Plugin-E-Mails nicht versendet worden (wp_mail() meldete einen Fehler)."
@@ -21605,386 +21605,386 @@ msgstr[0] "Nell'arco di %2$s non è stata inviata %1$d e-mail del plugin (wp_mai
 msgstr[1] "Nell'arco di %2$s non sono state inviate %1$d e-mail del plugin (wp_mail() ha segnalato un errore)."
 
 #. translators: 1: mail type, 2: error code, 3: error message
-#: src/Operations/SiteHealth.php:263
+#: src/Operations/SiteHealth.php:303
 #, php-format
 msgid "Letzter Fehler: Typ %1$s, Code %2$s %3$s"
 msgstr "Ultimo errore: tipo %1$s, codice %2$s %3$s"
 
-#: src/Operations/SiteHealth.php:265
+#: src/Operations/SiteHealth.php:305
 msgid "Pass Captain: E-Mails werden nicht zugestellt"
 msgstr "Pass Captain: le e-mail non vengono consegnate"
 
-#: src/Operations/SiteHealth.php:265
+#: src/Operations/SiteHealth.php:305
 msgid "Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website."
 msgstr "Controlla le impostazioni SMTP o il plugin di posta del sito."
 
 #. translators: %s: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:284
+#: src/Operations/SiteHealth.php:324
 #, php-format
 msgid "Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet."
 msgstr "Nell'arco di %s il fornitore SMS non ha segnalato alcun errore."
 
-#: src/Operations/SiteHealth.php:285
+#: src/Operations/SiteHealth.php:325
 msgid "Pass Captain: SMS-Versand ohne Fehler"
 msgstr "Pass Captain: invio SMS senza errori"
 
 #. translators: 1: number of SMS, 2: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:289
+#: src/Operations/SiteHealth.php:329
 #, php-format
 msgid "Innerhalb von %2$s ist %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
 msgid_plural "Innerhalb von %2$s sind %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
 msgstr[0] "Nell'arco di %2$s %1$d SMS non è riuscito o non è stato consegnato."
 msgstr[1] "Nell'arco di %2$s %1$d SMS non sono riusciti o non sono stati consegnati."
 
-#: src/Operations/SiteHealth.php:290
+#: src/Operations/SiteHealth.php:330
 msgid "Pass Captain: SMS-Versand fehlerhaft"
 msgstr "Pass Captain: errori nell'invio SMS"
 
-#: src/Operations/SiteHealth.php:290
+#: src/Operations/SiteHealth.php:330
 msgid "Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter."
 msgstr "Controlla le credenziali di accesso e il credito presso il fornitore SMS."
 
-#: src/Operations/SiteHealth.php:290
+#: src/Operations/SiteHealth.php:330
 msgid "SMS-Einstellungen"
 msgstr "Impostazioni SMS"
 
 #. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden"
-#: src/Operations/SiteHealth.php:327
+#: src/Operations/SiteHealth.php:367
 #, php-format
 msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, aber noch nie eine Webhook-Benachrichtigung erhalten."
 msgstr "%1$s: ordini nell'arco di %3$s: %2$d, ma finora nessuna notifica webhook ricevuta."
 
 #. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden", 4: date and time (UTC)
-#: src/Operations/SiteHealth.php:329
+#: src/Operations/SiteHealth.php:369
 #, php-format
 msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtigung am %4$s (UTC)."
 msgstr "%1$s: ordini nell'arco di %3$s: %2$d, ultima notifica webhook il %4$s (UTC)."
 
-#: src/Operations/SiteHealth.php:333
+#: src/Operations/SiteHealth.php:373
 msgid "Pass Captain: keine aktuellen Zahlungs-Webhooks"
 msgstr "Pass Captain: nessun webhook di pagamento recente"
 
-#: src/Operations/SiteHealth.php:333
+#: src/Operations/SiteHealth.php:373
 msgid "Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters."
 msgstr "I pagamenti vengono confermati tramite i webhook del fornitore di pagamento. Controlla l'URL del webhook e il signing secret nella dashboard del fornitore."
 
-#: src/Operations/SiteHealth.php:335
+#: src/Operations/SiteHealth.php:375
 msgid "Pass Captain: Zahlungs-Webhooks kommen an"
 msgstr "Pass Captain: i webhook di pagamento arrivano"
 
-#: src/Operations/SiteHealth.php:335
+#: src/Operations/SiteHealth.php:375
 msgid "Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen."
 msgstr "Per tutti i fornitori di pagamento attivi con ordini recenti sono arrivate notifiche webhook."
 
-#: src/Operations/SiteHealth.php:342
+#: src/Operations/SiteHealth.php:382
 msgid "Nachricht ungültig"
 msgstr "Messaggio non valido"
 
-#: src/Operations/SiteHealth.php:343
+#: src/Operations/SiteHealth.php:383
 msgid "Prüfung beim Anbieter nicht möglich"
 msgstr "Verifica presso il fornitore non possibile"
 
-#: src/Operations/SiteHealth.php:344
+#: src/Operations/SiteHealth.php:384
 msgid "Verarbeitung fehlgeschlagen"
 msgstr "Elaborazione non riuscita"
 
-#: src/Operations/SiteHealth.php:345
+#: src/Operations/SiteHealth.php:385
 msgid "Absturz bei der Verarbeitung"
 msgstr "Arresto anomalo durante l'elaborazione"
 
-#: src/Operations/SiteHealth.php:346
+#: src/Operations/SiteHealth.php:386
 msgid "Zahlungsstart fehlgeschlagen"
 msgstr "Avvio del pagamento non riuscito"
 
 #. translators: %s: error reference
-#: src/Operations/SiteHealth.php:355
+#: src/Operations/SiteHealth.php:395
 #, php-format
 msgid "(Fehler-ID %s)"
 msgstr "(ID errore %s)"
 
 #. translators: 1: error details, 2: date and time (UTC)
-#: src/Operations/SiteHealth.php:358
+#: src/Operations/SiteHealth.php:398
 #, php-format
 msgid "%1$s, zuletzt am %2$s (UTC)"
 msgstr "%1$s, l'ultima volta il %2$s (UTC)"
 
 #. translators: %s: period, e.g. "24 Stunden"
-#: src/Operations/SiteHealth.php:373
+#: src/Operations/SiteHealth.php:413
 #, php-format
 msgid "Innerhalb von %s wurde keine Webhook-Benachrichtigung eines Zahlungsanbieters abgelehnt oder fehlerhaft verarbeitet."
 msgstr "Negli ultimi %s nessuna notifica webhook di un fornitore di pagamenti è stata rifiutata o elaborata con errori."
 
-#: src/Operations/SiteHealth.php:374
+#: src/Operations/SiteHealth.php:414
 msgid "Pass Captain: Zahlungs-Webhooks ohne Fehler"
 msgstr "Pass Captain: webhook di pagamento senza errori"
 
 #. translators: 1: payment provider id, 2: kind of failure, 3: number, 4: details of the last failure
-#: src/Operations/SiteHealth.php:387
+#: src/Operations/SiteHealth.php:427
 #, php-format
 msgid "%1$s: %2$s – %3$d× (%4$s)"
 msgstr "%1$s: %2$s – %3$d× (%4$s)"
 
-#: src/Operations/SiteHealth.php:390
+#: src/Operations/SiteHealth.php:430
 msgid "Zahlungsanbieter bestätigen Zahlungen per Webhook. Abgelehnte Benachrichtigungen (falsches Signatur-Secret, falsche Webhook-URL) oder Abstürze bei der Verarbeitung führen dazu, dass bezahlte Bestellungen offen bleiben. Der Anbieter stellt fehlgeschlagene Benachrichtigungen erneut zu, sobald die Ursache behoben ist."
 msgstr "I fornitori di pagamenti confermano i pagamenti tramite webhook. Le notifiche rifiutate (segreto di firma errato, URL del webhook errato) o gli arresti anomali durante l'elaborazione fanno sì che gli ordini pagati restino aperti. Il fornitore recapita di nuovo le notifiche non riuscite non appena la causa è stata risolta."
 
-#: src/Operations/SiteHealth.php:391
+#: src/Operations/SiteHealth.php:431
 msgid "Pass Captain: Zahlungs-Webhooks werden abgelehnt oder scheitern"
 msgstr "Pass Captain: i webhook di pagamento vengono rifiutati o non riescono"
 
-#: src/Operations/SiteHealth.php:391
+#: src/Operations/SiteHealth.php:431
 msgid "Details mit Fehler-ID stehen im Support-Protokoll der Betriebsübersicht."
 msgstr "I dettagli con ID errore si trovano nel registro di supporto della panoramica operativa."
 
 #. translators: %s: period, e.g. "60 Minuten"
-#: src/Operations/SiteHealth.php:402
+#: src/Operations/SiteHealth.php:442
 #, php-format
 msgid "Innerhalb von %s ist kein Zahlungsstart bei einem Zahlungsanbieter fehlgeschlagen."
 msgstr "Negli ultimi %s nessun avvio di pagamento presso un fornitore di pagamenti è fallito."
 
-#: src/Operations/SiteHealth.php:403
+#: src/Operations/SiteHealth.php:443
 msgid "Pass Captain: Zahlungen starten ohne Fehler"
 msgstr "Pass Captain: i pagamenti vengono avviati senza errori"
 
 #. translators: 1: payment provider id, 2: number of failed payment starts, 3: details of the last failure
-#: src/Operations/SiteHealth.php:413
+#: src/Operations/SiteHealth.php:453
 #, php-format
 msgid "%1$s: %2$d fehlgeschlagene Zahlungsstarts (%3$s)"
 msgstr "%1$s: %2$d avvii di pagamento non riusciti (%3$s)"
 
 #. translators: %s: period, e.g. "60 Minuten"
-#: src/Operations/SiteHealth.php:417
+#: src/Operations/SiteHealth.php:457
 #, php-format
 msgid "Innerhalb von %s konnten Käufer:innen die Zahlung nicht starten; sie sahen einen neutralen Hinweis mit Fehler-ID, die Bestellung wurde storniert. Häufig sind Zugangsdaten, Kontoeinschränkungen oder eine nicht unterstützte Währung beim Anbieter die Ursache."
 msgstr "Negli ultimi %s alcuni acquirenti non hanno potuto avviare il pagamento; hanno visto un avviso neutro con ID errore e l'ordine è stato annullato. Spesso la causa sono credenziali di accesso, limitazioni dell'account o una valuta non supportata presso il fornitore."
 
-#: src/Operations/SiteHealth.php:418
+#: src/Operations/SiteHealth.php:458
 msgid "Pass Captain: Zahlungsstart beim Anbieter schlägt fehl"
 msgstr "Pass Captain: l'avvio del pagamento presso il fornitore non riesce"
 
-#: src/Operations/SiteHealth.php:461
+#: src/Operations/SiteHealth.php:501
 msgid "Pass Captain: öffentliche REST-Schnittstelle erreichbar"
 msgstr "Pass Captain: API REST pubblica raggiungibile"
 
-#: src/Operations/SiteHealth.php:461
+#: src/Operations/SiteHealth.php:501
 msgid "Die öffentlichen Endpunkte (Eventliste, Checkout, Bestellstatus) antworten auch ohne Anmeldung."
 msgstr "Gli endpoint pubblici (elenco eventi, checkout, stato dell'ordine) rispondono anche senza accesso."
 
 #. translators: %d: HTTP status code, e.g. 403
-#: src/Operations/SiteHealth.php:465
+#: src/Operations/SiteHealth.php:505
 #, php-format
 msgid "Die REST-Schnittstelle lehnt Anfragen ohne Anmeldung ab (HTTP %d). Checkout, Bestellportal, Ticketseite und Scanner funktionieren für Käufer:innen dann nicht. Häufige Ursache: ein Sicherheits-Plugin oder Code-Schnipsel, der die REST-API für Gäste sperrt. Bitte den Namensraum pass-captain/v1 dort freigeben."
 msgstr "L'API REST rifiuta le richieste senza accesso (HTTP %d). Checkout, portale ordini, pagina del biglietto e scanner non funzionano quindi per gli acquirenti. Causa frequente: un plugin di sicurezza o uno snippet di codice che blocca l'API REST per gli ospiti. Consenti lì lo spazio dei nomi pass-captain/v1."
 
-#: src/Operations/SiteHealth.php:466
+#: src/Operations/SiteHealth.php:506
 msgid "Pass Captain: REST-Schnittstelle für Gäste gesperrt"
 msgstr "Pass Captain: API REST bloccata per gli ospiti"
 
 #. translators: %s: error message of the HTTP request
-#: src/Operations/SiteHealth.php:470
+#: src/Operations/SiteHealth.php:510
 #, php-format
 msgid "Fehler: %s"
 msgstr "Errore: %s"
 
 #. translators: %d: HTTP status code
-#: src/Operations/SiteHealth.php:472
+#: src/Operations/SiteHealth.php:512
 #, php-format
 msgid "Antwort: HTTP %d"
 msgstr "Risposta: HTTP %d"
 
-#: src/Operations/SiteHealth.php:473
+#: src/Operations/SiteHealth.php:513
 msgid "Die Website konnte ihre eigene öffentliche REST-Schnittstelle nicht abrufen. Das kann an einer gesperrten Loopback-Verbindung liegen (dann ist nur diese Prüfung betroffen) oder an einer Sperre der REST-API für Gäste. Bitte den Checkout einmal ohne Anmeldung ausprobieren."
 msgstr "Il sito non è riuscito a raggiungere la propria API REST pubblica. Può dipendere da una connessione loopback bloccata (in tal caso è interessato solo questo controllo) o da un blocco dell'API REST per gli ospiti. Prova il checkout una volta senza accedere."
 
-#: src/Operations/SiteHealth.php:474
+#: src/Operations/SiteHealth.php:514
 msgid "Pass Captain: öffentliche REST-Schnittstelle nicht prüfbar"
 msgstr "Pass Captain: impossibile verificare l'API REST pubblica"
 
-#: src/Operations/SiteHealth.php:482
+#: src/Operations/SiteHealth.php:522
 msgid "Vertrauenswürdige Proxys sind eingetragen; Ratenlimits und Einwilligungsnachweise verwenden die Client-Adresse aus dem Weiterleitungs-Header."
 msgstr "Sono configurati proxy attendibili; i limiti di frequenza e le prove di consenso usano l'indirizzo del client dall'intestazione di inoltro."
 
-#: src/Operations/SiteHealth.php:483
+#: src/Operations/SiteHealth.php:523
 msgid "Es gibt keine Hinweise auf einen vorgeschalteten Proxy oder ein CDN; die direkte Absenderadresse wird verwendet."
 msgstr "Non ci sono indizi di un proxy o CDN a monte; viene usato l'indirizzo diretto del mittente."
 
-#: src/Operations/SiteHealth.php:484
+#: src/Operations/SiteHealth.php:524
 msgid "Pass Captain: Client-Adressen werden korrekt erkannt"
 msgstr "Pass Captain: gli indirizzi dei client vengono rilevati correttamente"
 
-#: src/Operations/SiteHealth.php:486
+#: src/Operations/SiteHealth.php:526
 msgid "Proxy-Einstellungen öffnen"
 msgstr "Apri impostazioni proxy"
 
-#: src/Operations/SiteHealth.php:487
+#: src/Operations/SiteHealth.php:527
 msgid "Pass Captain: Proxy ohne vertrauenswürdige Adressen"
 msgstr "Pass Captain: proxy senza indirizzi attendibili"
 
-#: src/Operations/SiteHealth.php:517
+#: src/Operations/SiteHealth.php:557
 msgid "Pass Captain: Der Betrieb ist gestört."
 msgstr "Pass Captain: l'operatività è compromessa."
 
-#: src/Operations/SiteHealth.php:517
+#: src/Operations/SiteHealth.php:557
 msgid "Betriebsübersicht öffnen"
 msgstr "Apri la panoramica operativa"
 
-#: src/Operations/SiteHealth.php:517
+#: src/Operations/SiteHealth.php:557
 msgid "Website-Zustand"
 msgstr "Salute del sito"
 
 #. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
-#: src/Operations/SiteHealth.php:532
+#: src/Operations/SiteHealth.php:572
 #, php-format
 msgid "Letzter Lauf %s"
 msgstr "Ultima esecuzione %s"
 
 #. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
-#: src/Operations/SiteHealth.php:541
+#: src/Operations/SiteHealth.php:581
 #, php-format
 msgid "Nächster Lauf %s"
 msgstr "Prossima esecuzione %s"
 
-#: src/Operations/SiteHealth.php:542
+#: src/Operations/SiteHealth.php:582
 msgid "nicht eingeplant"
 msgstr "non pianificato"
 
 #. translators: 1: counts per status, 2: due items, 3: age of the oldest due item in minutes
-#: src/Operations/SiteHealth.php:554
+#: src/Operations/SiteHealth.php:594
 #, php-format
 msgid "%1$s; fällig %2$d, ältester seit %3$d Min."
 msgstr "%1$s; in scadenza %2$d, la più vecchia da %3$d min"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:560
+#: src/Operations/SiteHealth.php:600
 #, php-format
 msgid "Fehlgeschlagene Plugin-E-Mails (%d h)"
 msgstr "E-mail del plugin non riuscite (%d h)"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:566
+#: src/Operations/SiteHealth.php:606
 #, php-format
 msgid "Fehlgeschlagene SMS (%d h)"
 msgstr "SMS non riusciti (%d h)"
 
 #. translators: %s: payment provider id
-#: src/Operations/SiteHealth.php:573
+#: src/Operations/SiteHealth.php:613
 #, php-format
 msgid "Letzter Zahlungs-Webhook %s"
 msgstr "Ultimo webhook di pagamento %s"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:582
+#: src/Operations/SiteHealth.php:622
 #, php-format
 msgid "Fehlgeschlagene Zahlungs-Webhooks (%d h)"
 msgstr "Webhook di pagamento non riusciti (%d h)"
 
 #. translators: %d: hours
-#: src/Operations/SiteHealth.php:584
+#: src/Operations/SiteHealth.php:624
 #, php-format
 msgid "Fehlgeschlagene Zahlungsstarts (%d h)"
 msgstr "Avvii di pagamento non riusciti (%d h)"
 
-#: src/Operations/SiteHealth.php:589
+#: src/Operations/SiteHealth.php:629
 msgid "Pass Captain – Betrieb"
 msgstr "Pass Captain – Operatività"
 
-#: src/Operations/SiteHealth.php:593
+#: src/Operations/SiteHealth.php:633
 msgid "Pass Captain – Support"
 msgstr "Pass Captain – Supporto"
 
-#: src/Operations/SiteHealth.php:594
+#: src/Operations/SiteHealth.php:634
 msgid "Für Support-Anfragen: „Website-Informationen in die Zwischenablage kopieren“ überträgt diese Angaben. Sie enthalten keine Zugangsdaten, Ticketcodes oder Kundendaten."
 msgstr "Per le richieste di supporto: «Copia le informazioni del sito negli appunti» trasferisce questi dati. Non contengono credenziali di accesso, codici dei biglietti o dati dei clienti."
 
-#: src/Operations/SiteHealth.php:628
+#: src/Operations/SiteHealth.php:668
 msgid "Plugin-Version"
 msgstr "Versione del plugin"
 
 #. translators: 1: stored schema version, 2: schema version of the code
-#: src/Operations/SiteHealth.php:632
+#: src/Operations/SiteHealth.php:672
 #, php-format
 msgid "%1$s (Code: %2$s)"
 msgstr "%1$s (codice: %2$s)"
 
-#: src/Operations/SiteHealth.php:633
+#: src/Operations/SiteHealth.php:673
 msgid "Update ausstehend"
 msgstr "Aggiornamento in sospeso"
 
 #. translators: 1: stored fingerprint, 2: expected fingerprint
-#: src/Operations/SiteHealth.php:636
+#: src/Operations/SiteHealth.php:676
 #, php-format
 msgid "%1$s (erwartet %2$s)"
 msgstr "%1$s (previsto %2$s)"
 
-#: src/Operations/SiteHealth.php:637
+#: src/Operations/SiteHealth.php:677
 msgid "Schema-Fingerabdruck"
 msgstr "Impronta dello schema"
 
-#: src/Operations/SiteHealth.php:640
+#: src/Operations/SiteHealth.php:680
 msgid "Fehler beim letzten Schema-Update"
 msgstr "Errore nell'ultimo aggiornamento dello schema"
 
 #. translators: 1: date and time (UTC), 2: missing tables/columns, 3: database error
-#: src/Operations/SiteHealth.php:643
+#: src/Operations/SiteHealth.php:683
 #, php-format
 msgid "%1$s UTC: fehlt %2$s %3$s"
 msgstr "%1$s UTC: manca %2$s %3$s"
 
-#: src/Operations/SiteHealth.php:644
+#: src/Operations/SiteHealth.php:684
 msgid "keiner"
 msgstr "nessuno"
 
-#: src/Operations/SiteHealth.php:649
+#: src/Operations/SiteHealth.php:689
 msgid "aus"
 msgstr "disattivato"
 
-#: src/Operations/SiteHealth.php:651
+#: src/Operations/SiteHealth.php:691
 msgid "Module"
 msgstr "Moduli"
 
-#: src/Operations/SiteHealth.php:655
+#: src/Operations/SiteHealth.php:695
 msgid "nicht eingerichtet"
 msgstr "non configurato"
 
-#: src/Operations/SiteHealth.php:665
+#: src/Operations/SiteHealth.php:705
 msgid "Zahlungsarten (Modus)"
 msgstr "Metodi di pagamento (modalità)"
 
-#: src/Operations/SiteHealth.php:668
+#: src/Operations/SiteHealth.php:708
 msgid "WooCommerce"
 msgstr "WooCommerce"
 
-#: src/Operations/SiteHealth.php:672
+#: src/Operations/SiteHealth.php:712
 msgid "Währungen aktiver Ticketarten"
 msgstr "Valute dei tipi di biglietto attivi"
 
-#: src/Operations/SiteHealth.php:673
+#: src/Operations/SiteHealth.php:713
 msgid "Sprache / Zeitzone"
 msgstr "Lingua / fuso orario"
 
 #. translators: 1: open reservations, 2: tickets held, 3: reservations past their expiry
-#: src/Operations/SiteHealth.php:676
+#: src/Operations/SiteHealth.php:716
 #, php-format
 msgid "%1$d (%2$d Tickets), davon abgelaufen %3$d"
 msgstr "%1$d (%2$d biglietti), di cui scadute %3$d"
 
-#: src/Operations/SiteHealth.php:677
+#: src/Operations/SiteHealth.php:717
 msgid "Offene Reservierungen"
 msgstr "Prenotazioni aperte"
 
-#: src/Operations/SiteHealth.php:678
+#: src/Operations/SiteHealth.php:718
 msgid "Debug-Modus (Support-Protokoll)"
 msgstr "Modalità di debug (registro di supporto)"
 
-#: src/Operations/SiteHealth.php:679
+#: src/Operations/SiteHealth.php:719
 msgid "PHP / Datenbank"
 msgstr "PHP / database"
 
-#: src/Operations/SiteHealth.php:685
+#: src/Operations/SiteHealth.php:725
 msgid "Letzte Fehler (Support-Protokoll)"
 msgstr "Ultimi errori (registro di supporto)"
 
-#: src/Operations/SiteHealth.php:685
+#: src/Operations/SiteHealth.php:725
 msgid "keine"
 msgstr "nessuno"
 
@@ -22454,12 +22454,12 @@ msgid "Bitte eine gültige E-Mail-Adresse und Tickets auswählen."
 msgstr "Inserisci un indirizzo e-mail valido e seleziona i biglietti."
 
 #: src/Orders.php:120
-#: src/Waitlists.php:930
+#: src/Waitlists.php:932
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr "Conferma le condizioni e le informazioni per i consumatori."
 
 #: src/Orders.php:164
-#: src/Waitlists.php:934
+#: src/Waitlists.php:936
 msgid "Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung."
 msgstr "Nel frattempo le condizioni sono state modificate. Ricarica la pagina e conferma la versione attuale."
 
@@ -22473,7 +22473,7 @@ msgstr "Una voce di biglietto non è valida."
 #: src/Rest/Controller.php:525
 #: src/ServiceBookings.php:743
 #: src/ServiceBookings.php:852
-#: src/Waitlists.php:949
+#: src/Waitlists.php:951
 msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "Questo metodo di pagamento non è disponibile."
 
@@ -22718,45 +22718,45 @@ msgstr "Questo evento non può essere annullato."
 msgid "Dieses Event ist nicht abgesagt."
 msgstr "Questo evento non è annullato."
 
-#: src/Orders.php:3568
+#: src/Orders.php:3572
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "Non è stato possibile emettere i biglietti in questo momento. Riprova."
 
 #. translators: %s: database error ('' when none)
-#: src/Orders.php:3805
+#: src/Orders.php:3809
 #, php-format
 msgid "Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s"
 msgstr "Il passaggio non è riuscito senza indicazione di errore. %s"
 
-#: src/Orders.php:4059
+#: src/Orders.php:4063
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile rinnovare i biglietti. Riprova."
 
-#: src/Orders.php:4063
+#: src/Orders.php:4067
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "I biglietti possono essere inviati di nuovo solo dopo la conferma del pagamento."
 
-#: src/Orders.php:4081
+#: src/Orders.php:4085
 msgid "Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden."
 msgstr "Questo modulo è già stato inviato; i biglietti sono già stati inviati di nuovo. Per un ulteriore invio ricarica la pagina."
 
-#: src/Orders.php:4142
-#: src/Orders.php:4221
-#: src/Orders.php:4392
+#: src/Orders.php:4146
+#: src/Orders.php:4225
+#: src/Orders.php:4396
 #: src/PortalSelfService.php:251
 #: src/PortalSelfService.php:264
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Impossibile rinnovare il codice del biglietto."
 
-#: src/Orders.php:4169
+#: src/Orders.php:4173
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Nessun biglietto valido trovato per il nuovo invio."
 
-#: src/Orders.php:4245
+#: src/Orders.php:4249
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt."
 msgstr "Non è stato possibile recapitare almeno un'e-mail. I codici dei biglietti precedenti restano validi; l'invio verrà ripetuto automaticamente."
 
-#: src/Orders.php:4381
+#: src/Orders.php:4385
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Possono essere riemessi solo i biglietti validi e non ancora registrati di ordini pagati."
 
@@ -25109,71 +25109,71 @@ msgstr "Errore Stripe: %s"
 msgid "Stripe akzeptiert Beträge in %2$s nur in Schritten von 0,010 (letzte Nachkommastelle 0). Der Betrag %1$s kann nicht exakt abgerechnet werden; bitte Preis bzw. Erstattungsbetrag anpassen."
 msgstr "Stripe accetta importi in %2$s solo in passi di 0,010 (ultima cifra decimale 0). L’importo %1$s non può essere addebitato esattamente; modifica il prezzo o l’importo del rimborso."
 
-#: src/Payments/Webhooks.php:215
+#: src/Payments/Webhooks.php:221
 msgid "Eine Zahlung passt nicht zum Bestellbetrag; es wurden keine Tickets ausgestellt."
 msgstr "Un pagamento non corrisponde all'importo dell'ordine; non sono stati emessi biglietti."
 
-#: src/Payments/Webhooks.php:223
+#: src/Payments/Webhooks.php:229
 msgid "Für eine bereits bezahlte Bestellung ist eine zweite Zahlung eingegangen. Bitte die doppelte Zahlung beim Zahlungsanbieter erstatten (oder die automatische Erstattung solcher Fälle in den Einstellungen aktivieren). Der Fall steht im Systemstatus."
 msgstr "È stato ricevuto un secondo pagamento per un ordine già pagato. Rimborsa il pagamento doppio presso il fornitore di pagamenti (oppure attiva il rimborso automatico di questi casi nelle impostazioni). Il caso è elencato nello stato del sistema."
 
-#: src/Payments/Webhooks.php:236
+#: src/Payments/Webhooks.php:242
 msgid "Für eine bereits bezahlte Bestellung ist eine zweite Zahlung eingegangen. Bitte die doppelte Zahlung beim Zahlungsanbieter erstatten."
 msgstr "Per un ordine già pagato è arrivato un secondo pagamento. Rimborsa il pagamento doppio presso il fornitore di servizi di pagamento."
 
-#: src/Payments/Webhooks.php:250
+#: src/Payments/Webhooks.php:256
 msgid "Für eine stornierte Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; die Zahlung wird automatisch erstattet."
 msgstr "È arrivato un pagamento per un ordine annullato. Non sono stati emessi biglietti; il pagamento verrà rimborsato automaticamente."
 
-#: src/Payments/Webhooks.php:250
+#: src/Payments/Webhooks.php:256
 msgid "Für eine stornierte oder erstattete Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; bitte erstatten oder die Bestellung manuell klären. Der Fall steht im Systemstatus."
 msgstr "È stato ricevuto un pagamento per un ordine annullato o rimborsato. Non sono stati emessi biglietti; rimborsa o gestisci l’ordine manualmente. Il caso è elencato nello stato del sistema."
 
-#: src/Payments/Webhooks.php:301
+#: src/Payments/Webhooks.php:307
 msgid "Eine Zahlung wurde nur autorisiert und kann nicht automatisch eingezogen werden. Bitte beim Zahlungsanbieter einziehen oder stornieren."
 msgstr "Un pagamento è stato solo autorizzato e non può essere incassato automaticamente. Incassalo o annullalo presso il fornitore di pagamenti."
 
-#: src/Payments/Webhooks.php:352
+#: src/Payments/Webhooks.php:358
 msgid "Für diese Bestellung wurde beim Zahlungsanbieter eine Zahlungsanfechtung (Dispute/Chargeback) eröffnet. Bitte beim Anbieter reagieren. Wird das Geld zurückgebucht, verbucht Pass Captain die Erstattung automatisch und sperrt die Tickets."
 msgstr "Per questo ordine è stata aperta una contestazione di pagamento (disputa/chargeback) presso il fornitore di pagamento. Rispondi presso il fornitore. Se il denaro viene stornato, Pass Captain registra automaticamente il rimborso e blocca i biglietti."
 
 #. translators: %s: amount with currency
-#: src/Payments/Webhooks.php:363
+#: src/Payments/Webhooks.php:369
 #, php-format
 msgid "Eine Rückbuchung (Chargeback) wurde zu Ihren Gunsten entschieden; der Zahlungsanbieter zahlt %s wieder aus."
 msgstr "Un riaddebito (chargeback) è stato deciso a tuo favore; il fornitore di pagamenti ti versa di nuovo %s."
 
-#: src/Payments/Webhooks.php:365
+#: src/Payments/Webhooks.php:371
 msgid "Die Rückbuchung war als Erstattung gebucht (Tickets widerrufen, Gutschrift erstellt). Bitte entscheiden: Tickets neu ausstellen und Gutschrift stornieren oder dem Käufer den Betrag erstatten. Pass Captain ändert die Bestellung nicht automatisch."
 msgstr "Il riaddebito era stato registrato come rimborso (biglietti revocati, nota di credito creata). Decidi: riemettere i biglietti e stornare la nota di credito oppure rimborsare l'importo all'acquirente. Pass Captain non modifica l'ordine automaticamente."
 
-#: src/Payments/Webhooks.php:366
+#: src/Payments/Webhooks.php:372
 msgid "Zu dieser Rückbuchung ist keine Erstattung gebucht; die Bestellung bleibt unverändert. Bitte beim Zahlungsanbieter prüfen."
 msgstr "Per questo riaddebito non è registrato alcun rimborso; l'ordine resta invariato. Verifica presso il fornitore di pagamenti."
 
-#: src/Payments/Webhooks.php:429
+#: src/Payments/Webhooks.php:435
 msgid "Beim Zahlungsanbieter wurde eine Erstattung bzw. Rückbuchung einer anderen Zahlung dieser Bestellung gemeldet (z. B. einer Doppelzahlung). Die gebuchte Zahlung und die Tickets bleiben unverändert; bitte beim Anbieter prüfen."
 msgstr "Il fornitore di pagamenti ha segnalato un rimborso o un riaddebito di un altro pagamento di questo ordine (ad es. un pagamento doppio). Il pagamento registrato e i biglietti restano invariati; verifica presso il fornitore."
 
-#: src/Payments/Webhooks.php:469
+#: src/Payments/Webhooks.php:475
 msgid "Beim Zahlungsanbieter wurde eine Erstattung gemeldet, während eine Erstattung über Pass Captain für den ganzen offenen Betrag läuft. Es wurde nichts zusätzlich gebucht; bitte beim Anbieter prüfen, ob doppelt erstattet wurde."
 msgstr "Il fornitore di pagamenti ha segnalato un rimborso mentre è in corso un rimborso tramite Pass Captain per l'intero importo aperto. Non è stato registrato nulla in più; verifica presso il fornitore se è stato rimborsato due volte."
 
-#: src/Payments/Webhooks.php:478
+#: src/Payments/Webhooks.php:484
 msgid "Für eine zu prüfende Bestellung (bezahlt, ohne Tickets) wurde ein Teilbetrag erstattet. Bitte die Bestellung manuell klären."
 msgstr "Per un ordine da verificare (pagato, senza biglietti) è stato rimborsato un importo parziale. Verifica l'ordine manualmente."
 
-#: src/Payments/Webhooks.php:495
+#: src/Payments/Webhooks.php:501
 msgid "Für eine bereits vollständig erstattete Bestellung wurde eine Rückbuchung (Chargeback) gemeldet. Bitte beim Zahlungsanbieter widersprechen; es wurde nichts erneut gebucht."
 msgstr "Per un ordine già interamente rimborsato è stato segnalato un riaddebito (chargeback). Contestalo presso il fornitore di pagamenti; non è stato registrato nulla di nuovo."
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
-#: src/Payments/Webhooks.php:593
+#: src/Payments/Webhooks.php:599
 msgid "Pass Captain: Zahlung prüfen"
 msgstr "Pass Captain: verifica pagamento"
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
-#: src/Payments/Webhooks.php:593
+#: src/Payments/Webhooks.php:599
 #, php-format
 msgid ""
 "Bestellung %1$s (%2$s, Referenz %3$s):\n"
@@ -29601,7 +29601,7 @@ msgid "Wieder in der Regel – Markierung wird aufgehoben"
 msgstr "Di nuovo nella regola – il contrassegno verrà rimosso"
 
 #: src/Series/AdminPage.php:293
-#: src/Waitlists.php:1659
+#: src/Waitlists.php:1661
 msgid "Übersprungen"
 msgstr "Saltata"
 
@@ -30242,9 +30242,9 @@ msgstr "L'idempotency key è stata utilizzata per un'altra prenotazione."
 
 #: src/ServiceBookings.php:115
 #: src/ServiceWaitlist.php:352
-#: src/Waitlists.php:899
-#: src/Waitlists.php:1692
-#: src/Waitlists.php:1915
+#: src/Waitlists.php:901
+#: src/Waitlists.php:1694
+#: src/Waitlists.php:1917
 msgid "Wartelistenangebot ist ungültig oder abgelaufen."
 msgstr "L'offerta dalla lista d'attesa non è valida o è scaduta."
 
@@ -30631,16 +30631,16 @@ msgstr "Vuoi rifiutare l'offerta? Il biglietto passerà alla persona successiva 
 
 #: src/Services/Portal.php:50
 #: src/Services/Portal.php:215
-#: src/Waitlists.php:1712
+#: src/Waitlists.php:1714
 msgid "Angebot ablehnen"
 msgstr "Rifiuta offerta"
 
 #: src/Services/Portal.php:52
 #: src/Services/Portal.php:218
-#: src/Waitlists.php:1329
-#: src/Waitlists.php:1392
-#: src/Waitlists.php:1411
-#: src/Waitlists.php:1484
+#: src/Waitlists.php:1331
+#: src/Waitlists.php:1394
+#: src/Waitlists.php:1413
+#: src/Waitlists.php:1486
 msgid "Von der Warteliste austragen"
 msgstr "Cancellati dalla lista d'attesa"
 
@@ -30703,7 +30703,7 @@ msgid "Die Plätze sind bis %s für dich reserviert."
 msgstr "I posti sono riservati per te fino a %s."
 
 #: src/Services/Portal.php:214
-#: src/Waitlists.php:1712
+#: src/Waitlists.php:1714
 msgid "Angebot annehmen"
 msgstr "Accetta offerta"
 
@@ -30793,7 +30793,7 @@ msgstr "La fascia oraria o l'indirizzo e-mail non sono validi."
 
 #: src/ServiceWaitlist.php:51
 #: src/Waitlists.php:178
-#: src/Waitlists.php:1213
+#: src/Waitlists.php:1215
 msgid "Zu viele Wartelistenanfragen. Bitte versuche es später erneut."
 msgstr "Troppe richieste per la lista d'attesa. Riprova più tardi."
 
@@ -31318,7 +31318,7 @@ msgid "Dieser Eintrag ist nicht gesperrt."
 msgstr "Questa voce non è bloccata."
 
 #: src/Waitlists.php:770
-#: src/Waitlists.php:1505
+#: src/Waitlists.php:1507
 msgid "Der Eintrag wurde gerade geändert. Bitte neu laden."
 msgstr "La voce è appena stata modificata. Ricarica la pagina."
 
@@ -31338,193 +31338,193 @@ msgstr "Dati del partecipante non validi"
 msgid "Zuletzt übersprungen: nicht genug freie Sitzplätze für die gewünschte Anzahl"
 msgstr "Ultima volta saltato: posti a sedere liberi insufficienti per la quantità desiderata"
 
-#: src/Waitlists.php:1077
+#: src/Waitlists.php:1079
 msgid "Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal."
 msgstr "Al momento non è stato possibile accettare l'offerta. Riprova tra poco."
 
-#: src/Waitlists.php:1096
+#: src/Waitlists.php:1098
 msgid "Wartelistenangebot konnte nicht angenommen werden."
 msgstr "Impossibile accettare l'offerta dalla lista d'attesa."
 
-#: src/Waitlists.php:1217
+#: src/Waitlists.php:1219
 msgid "Dieser Link zum Austragen ist ungültig."
 msgstr "Questo link di cancellazione non è valido."
 
-#: src/Waitlists.php:1260
+#: src/Waitlists.php:1262
 msgid "Das Austragen hat gerade nicht geklappt. Bitte versuche es gleich noch einmal."
 msgstr "Al momento la cancellazione non è riuscita. Riprova tra poco."
 
-#: src/Waitlists.php:1292
-#: src/Waitlists.php:1341
+#: src/Waitlists.php:1294
+#: src/Waitlists.php:1343
 msgid "Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person."
 msgstr "Hai già accettato l'offerta; l'ordine è in attesa del tuo pagamento. Se non paghi, la prenotazione scade automaticamente e il posto passa alla persona successiva."
 
-#: src/Waitlists.php:1338
+#: src/Waitlists.php:1340
 msgid "Du bist bereits von dieser Warteliste ausgetragen."
 msgstr "Ti sei già cancellato da questa lista d'attesa."
 
-#: src/Waitlists.php:1344
+#: src/Waitlists.php:1346
 msgid "Du stehst nicht mehr auf dieser Warteliste."
 msgstr "Non sei più in questa lista d'attesa."
 
-#: src/Waitlists.php:1348
+#: src/Waitlists.php:1350
 msgid "Für dich sind gerade Tickets reserviert. Wenn du dich austrägst, verfällt dieses Angebot sofort und die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "Al momento sono prenotati dei biglietti per te. Se ti cancelli, questa offerta scade subito e i biglietti passano alla persona successiva in lista d'attesa."
 
-#: src/Waitlists.php:1349
+#: src/Waitlists.php:1351
 msgid "Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht."
 msgstr "Se ti cancelli, non riceverai più offerte per questo tipo di biglietto. Il tuo indirizzo e-mail verrà eliminato dalla voce."
 
-#: src/Waitlists.php:1354
+#: src/Waitlists.php:1356
 msgid "Jetzt von der Warteliste austragen"
 msgstr "Cancellati ora dalla lista d'attesa"
 
-#: src/Waitlists.php:1419
+#: src/Waitlists.php:1421
 msgid "Austragen nicht möglich"
 msgstr "Cancellazione non possibile"
 
-#: src/Waitlists.php:1422
+#: src/Waitlists.php:1424
 msgid "Nicht mehr auf der Warteliste"
 msgstr "Non più in lista d'attesa"
 
-#: src/Waitlists.php:1422
+#: src/Waitlists.php:1424
 msgid "Du stehst nicht mehr auf dieser Warteliste. Es ist nichts weiter zu tun."
 msgstr "Non sei più in questa lista d'attesa. Non devi fare nient'altro."
 
-#: src/Waitlists.php:1425
+#: src/Waitlists.php:1427
 msgid "Du bist von der Warteliste ausgetragen. Die für dich reservierten Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "Ti sei cancellato dalla lista d'attesa. I biglietti prenotati per te passano alla persona successiva in lista d'attesa."
 
-#: src/Waitlists.php:1426
+#: src/Waitlists.php:1428
 msgid "Du bist von der Warteliste ausgetragen und bekommst dafür keine E-Mails mehr."
 msgstr "Ti sei cancellato dalla lista d'attesa e non riceverai più e-mail a riguardo."
 
-#: src/Waitlists.php:1470
+#: src/Waitlists.php:1472
 msgid "Deine Wartelisten"
 msgstr "Le tue liste d'attesa"
 
-#: src/Waitlists.php:1472
+#: src/Waitlists.php:1474
 msgid "Du bist von der Warteliste ausgetragen."
 msgstr "Ti sei cancellato dalla lista d'attesa."
 
-#: src/Waitlists.php:1474
+#: src/Waitlists.php:1476
 msgid "Das Austragen hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut."
 msgstr "La cancellazione non è riuscita. Ricarica la pagina e riprova."
 
-#: src/Waitlists.php:1477
+#: src/Waitlists.php:1479
 msgid "Mit deiner E-Mail-Adresse stehst du auf diesen Wartelisten."
 msgstr "Con il tuo indirizzo e-mail sei iscritto a queste liste d'attesa."
 
-#: src/Waitlists.php:1502
+#: src/Waitlists.php:1504
 msgid "Dieser Eintrag ist bereits abgeschlossen."
 msgstr "Questa voce è già conclusa."
 
-#: src/Waitlists.php:1548
+#: src/Waitlists.php:1550
 msgid "Dein Angebot bleibt bis zum angegebenen Zeitpunkt gültig."
 msgstr "La tua offerta resta valida fino al momento indicato."
 
-#: src/Waitlists.php:1598
+#: src/Waitlists.php:1600
 msgid "Der Termin hat begonnen bzw. der Verkauf ist beendet."
 msgstr "La data è iniziata o la vendita è terminata."
 
-#: src/Waitlists.php:1652
+#: src/Waitlists.php:1654
 msgid "Unbestätigt (E-Mail-Bestätigung offen)"
 msgstr "Non confermato (conferma via e-mail in sospeso)"
 
-#: src/Waitlists.php:1655
+#: src/Waitlists.php:1657
 msgid "Angenommen, Zahlung offen"
 msgstr "Accettata, pagamento in sospeso"
 
-#: src/Waitlists.php:1656
+#: src/Waitlists.php:1658
 msgid "Bezahlt"
 msgstr "Pagato"
 
-#: src/Waitlists.php:1660
+#: src/Waitlists.php:1662
 msgid "Entfernt"
 msgstr "Rimossa"
 
-#: src/Waitlists.php:1661
+#: src/Waitlists.php:1663
 msgid "Geschlossen (Termin abgesagt oder vorbei)"
 msgstr "Chiuso (data annullata o passata)"
 
-#: src/Waitlists.php:1662
+#: src/Waitlists.php:1664
 msgid "Nicht anbietbar"
 msgstr "Non offribile"
 
-#: src/Waitlists.php:1689
-#: src/Waitlists.php:1690
+#: src/Waitlists.php:1691
+#: src/Waitlists.php:1692
 msgid "Wartelistenangebot annehmen"
 msgstr "Accetta l'offerta dalla lista d'attesa"
 
-#: src/Waitlists.php:1728
+#: src/Waitlists.php:1730
 msgid "Bitte für jedes Ticket ausfüllen; mit * markierte Felder sind Pflicht."
 msgstr "Compila per ogni biglietto; i campi contrassegnati con * sono obbligatori."
 
 #. translators: 1: ticket type, 2: number of the ticket
-#: src/Waitlists.php:1735
+#: src/Waitlists.php:1737
 #, php-format
 msgid "%1$s – Ticket %2$d"
 msgstr "%1$s – biglietto %2$d"
 
-#: src/Waitlists.php:1767
+#: src/Waitlists.php:1769
 msgid "Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste."
 msgstr "Per te sono stati prenotati dei biglietti. Accetta l'offerta entro il termine indicato, altrimenti passerà alla persona successiva in lista d'attesa."
 
-#: src/Waitlists.php:1768
+#: src/Waitlists.php:1770
 #: src/Waitlists/AdminPage.php:164
 msgid "Reserviert bis"
 msgstr "Prenotato fino al"
 
 #. translators: %s: site name
-#: src/Waitlists.php:1824
-#: src/Waitlists.php:1963
+#: src/Waitlists.php:1826
+#: src/Waitlists.php:1965
 #, php-format
 msgid "Warteliste – %s"
 msgstr "Lista d'attesa – %s"
 
-#: src/Waitlists.php:1827
+#: src/Waitlists.php:1829
 msgid "Bitte Angaben prüfen"
 msgstr "Controlla i dati"
 
-#: src/Waitlists.php:1827
+#: src/Waitlists.php:1829
 msgid "Zurück zum Angebot"
 msgstr "Torna all'offerta"
 
-#: src/Waitlists.php:1829
+#: src/Waitlists.php:1831
 msgid "Angebot nicht verfügbar"
 msgstr "Offerta non disponibile"
 
-#: src/Waitlists.php:1915
+#: src/Waitlists.php:1917
 msgid "Wartelistenangebot"
 msgstr "Offerta dalla lista d'attesa"
 
-#: src/Waitlists.php:1919
+#: src/Waitlists.php:1921
 msgid "Angebot abgelehnt"
 msgstr "Offerta rifiutata"
 
-#: src/Waitlists.php:1919
+#: src/Waitlists.php:1921
 msgid "Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "Grazie per il tuo riscontro. I biglietti passano alla persona successiva in lista d'attesa."
 
-#: src/Waitlists.php:1921
+#: src/Waitlists.php:1923
 msgid "Angebot angenommen"
 msgstr "Offerta accettata"
 
-#: src/Waitlists.php:1925
+#: src/Waitlists.php:1927
 msgid "Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet."
 msgstr "Il tuo ordine è completato. I biglietti sono stati inviati al tuo indirizzo e-mail."
 
-#: src/Waitlists.php:1929
+#: src/Waitlists.php:1931
 msgid "Die Reservierung ist abgelaufen, ohne dass eine Zahlung eingegangen ist. Die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "La prenotazione è scaduta senza che sia arrivato alcun pagamento. I biglietti passano alla persona successiva in lista d'attesa."
 
 #. translators: %s: date and time the reservation ends
-#: src/Waitlists.php:1932
+#: src/Waitlists.php:1934
 #, php-format
 msgid "Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung (bis %s). Den Link zu deiner Bestellung haben wir dir per E-Mail gesendet."
 msgstr "Il tuo biglietto è riservato e l'ordine è in attesa di pagamento (fino al %s). Ti abbiamo inviato via e-mail il link al tuo ordine."
 
-#: src/Waitlists.php:1949
+#: src/Waitlists.php:1951
 msgid "Jetzt bezahlen"
 msgstr "Paga ora"
 
@@ -32464,3 +32464,19 @@ msgstr "servizio"
 msgctxt "dashboard widget: open tasks"
 msgid "Offen"
 msgstr "In sospeso"
+
+#: src/Operations/SiteHealth.php:135
+msgid "Pass Captain: Datenbankserver wird unterstützt"
+msgstr "Pass Captain: il server del database è supportato"
+
+#. translators: 1: database server (MySQL/MariaDB), 2: installed version
+#: src/Operations/SiteHealth.php:141
+#, php-format
+msgid "Pass Captain: %1$s %2$s ist älter als die unterstützte Version"
+msgstr "Pass Captain: %1$s %2$s è più vecchio della versione supportata"
+
+#. translators: 1: minimum MySQL version, 2: minimum MariaDB version
+#: src/Operations/SiteHealth.php:143
+#, php-format
+msgid "Pass Captain wird mit MySQL %1$s+ und MariaDB %2$s+ getestet. Ältere Datenbankserver werden nicht gesperrt, sind aber nicht mehr geprüft. Bitte den Datenbankserver beim Hosting aktualisieren."
+msgstr "Pass Captain è testato con MySQL %1$s+ e MariaDB %2$s+. I server di database più vecchi non vengono bloccati, ma non sono più testati. Chiedi al tuo hosting di aggiornare il server del database."

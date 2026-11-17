@@ -1,9 +1,9 @@
 === Pass Captain ===
 Contributors: hastla007
 Tags: events, tickets, check-in, booking, woocommerce
-Requires at least: 6.4
+Requires at least: 7.0
 Tested up to: 7.1
-Requires PHP: 8.2
+Requires PHP: 8.5
 Stable tag: 1.5.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -30,7 +30,7 @@ Pass Captain manages events, dates, ticket types, orders, tickets and admission 
 * Operations: system status page with cron and worker health, queues and retry/discard actions, consistency checks with safe repairs, and WP-CLI commands `wp pass-captain status` and `wp pass-captain diagnose`.
 * Privacy export and erasure through the WordPress privacy tools, retention periods and a privacy policy suggestion.
 * Multisite: data kept separate per site, plus a network overview of all sites.
-* Runs on MariaDB 10.6+ and MySQL 8.0+.
+* Runs on MariaDB 12.3+ and MySQL 9.7+ (older database servers get a warning in Site Health).
 
 The plugin's user interface is written in German and fully translated into English, French, Italian, Spanish and Dutch.
 
@@ -149,7 +149,7 @@ The full change log is in CHANGELOG.md in the source repository.
 == Upgrade Notice ==
 
 = 1.5.0 =
-Large update: database schema 3.18.0 is installed automatically, credentials are stored encrypted. New name "Pass Captain" (formerly "WP Pass Captain"): on activation the old copy is switched off; data, webhooks and API addresses are kept. The new default admission window stays off for existing installations. Please read "Wichtige Verhaltensänderungen beim Update" in CHANGELOG.md and back up the database first.
+Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2). Schema 3.18 installs automatically, credentials are stored encrypted, renamed from "WP Pass Captain" (data kept). Back up the database and read CHANGELOG.md first.
 
 = 1.4.0 =
 Adds sales models, company invoices and voucher tax treatment. Database schema 3.5.0 is installed automatically.

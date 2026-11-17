@@ -8,15 +8,15 @@ Maßgeblich ist die Matrix in [COMPATIBILITY.md](COMPATIBILITY.md) (Stand Versio
 
 | Komponente | Unterstützt |
 |---|---|
-| PHP | 8.2, 8.3, 8.4 |
-| WordPress | 6.4 bis 7.1 |
-| WooCommerce (optional) | 8.2 bis 11.3, HPOS und klassischer Bestellspeicher, Classic- und Blocks-Checkout |
-| Datenbank | MariaDB 10.6 und 11.4, MySQL 8.0 und 8.4 |
+| PHP | 8.5 (8.6 experimentell getestet) |
+| WordPress | 7.0 bis 7.1 |
+| WooCommerce (optional) | 11.2 bis 11.3, HPOS und klassischer Bestellspeicher, Classic- und Blocks-Checkout |
+| Datenbank | MariaDB 12.3+, MySQL 9.7+ (ältere Server: nur Warnung, nicht unterstützt) |
 | Multisite | ja (Daten je Site getrennt, Netzwerkübersicht) |
 
 „Unterstützt“ heißt: in jeder CI-Ausführung blockierend getestet. Versionen dazwischen sollten funktionieren,
 Fehlerberichte dazu werden angenommen. Andere Datenbanken (z. B. SQLite-Drop-in, Percona-Varianten) und PHP
-< 8.2 werden nicht unterstützt.
+< 8.5 werden nicht unterstützt (das Plugin lädt darunter nicht).
 
 **Anhebung von Mindestversionen** nur in einer Minor- oder Major-Version, angekündigt im CHANGELOG mindestens
 eine Minor-Version vorher. Faustregel: eine PHP-Version wird nicht mehr unterstützt, wenn sie upstream keine

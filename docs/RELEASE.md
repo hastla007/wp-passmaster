@@ -13,7 +13,7 @@ folgenden Gates erfüllt sind. Die automatischen Gates erzwingt GitHub Actions, 
 
 | Gate | Wie geprüft | Erzwungen durch |
 |---|---|---|
-| Syntax, Composer, JS, Konsistenz von Version/readme/CHANGELOG/Doku-Links | `ci.yml` Job `php` (PHP 8.2 und 8.4) | CI grün auf `main` |
+| Syntax, Composer, JS, Konsistenz von Version/readme/CHANGELOG/Doku-Links | `ci.yml` Job `php` (PHP 8.5; 8.6 experimentell) | CI grün auf `main` |
 | Integrationstests (Bestellungen, Zahlungen, Erstattungen, Check-in, Datenschutz, Module) | `ci.yml` Job `integration` | CI grün |
 | Nebenläufigkeit/Last (Smoke) | `ci.yml` Job `integration`, `tests/load/run.php --profile=ci` | CI grün |
 | Barrierefreiheit: axe-core WCAG 2.2 A/AA ohne ernste/kritische Befunde, Tastatur-Durchlauf | `wp-matrix.yml` Job `accessibility` (`tests/a11y/run.js --fail-on=serious`, `keyboard.js`) | Release-Commit auf `main` muss grün sein |
@@ -22,7 +22,7 @@ folgenden Gates erfüllt sind. Die automatischen Gates erzwingt GitHub Actions, 
 | Reproduzierbares ZIP mit Prüfsumme | `ci.yml` Job `package`, `tests/reproducible-build.sh` | CI grün |
 | Abhängigkeiten ohne bekannte Lücken (Composer, npm ≥ high), keine Secrets im Repository | `ci.yml` Job `php`: `composer audit`, `npm audit`, `tests/secret-scan.php`; Dependabot (`.github/dependabot.yml`) | CI grün |
 | Paketprüfung: keine Secrets im ZIP (inkl. mitgeliefertem vendor/), keine Entwicklungsdateien, Installation in frischem WordPress | `ci.yml` Job `package` (`tests/secret-scan.php --zip=…`), `wp-matrix.yml` (`tests/wp-matrix/zip-install.sh`) | CI grün |
-| Integrationssuite über PHP 8.2–8.5 und MySQL/MariaDB Minimum–aktuell | `ci.yml` Job `integration` (Matrix, siehe OPERATIONS.md „Datenbank- und PHP-Freigaben“) | CI grün |
+| Integrationssuite auf PHP 8.5 × MariaDB 12.3 und MySQL 9.7 | `ci.yml` Job `integration` (Matrix, siehe OPERATIONS.md „Datenbank- und PHP-Freigaben“) | CI grün |
 | Kein Lizenz-/Updater-Code im Kern (kein `LicenseClient`, `wplc/v1`, `Update URI`, Update-Transient-/`plugins_api`-Filter, `allows_entitlement`) | `ci.yml` Job `php`: `tests/license-guard.php --self-test` (nur ausgelieferte Dateien, siehe TESTING.md) | CI grün |
 | WordPress „Plugin Check“ (PCP 2.2.0, Kategorie `plugin_repo`) ohne neue Fehler gegenüber der Baseline | `wp-matrix.yml` Job `plugin-check`: gebautes ZIP in einem Wegwerf-WordPress, `wp plugin check pass-captain --format=json --categories=plugin_repo`, Abgleich mit `tests/plugin-check/compare.php` | CI grün |
 | Nur getestete Commits von `main` | `build/release-guard.sh` | Release-Workflow |
@@ -69,19 +69,19 @@ Der Release-Workflow bricht ab, wenn eines davon nicht erfüllt ist:
 
 Über „CI grün für den SHA“ sind zusätzlich verbindlich (alle Jobs in `ci.yml` blockierend):
 
-- Syntax PHP/JS (PHP 8.2/8.3/8.4), Composer-Metadaten;
+- Syntax PHP/JS (PHP 8.5, 8.6 experimentell), Composer-Metadaten;
 - statische Analyse ohne neue Befunde (phpcs, PHPStan), `composer audit`;
 - Lizenz-Wächter (Quellbaum und ZIP), Secret-Scan (Historie und ZIP), Dependency Review bei PRs;
-- Integrationssuite und **Last-Smoke** (`--profile=ci`) auf PHP 8.2/8.3/8.4 × MariaDB 10.6/11.4 und
-  MySQL 8.0/8.4;
-- Paketinhalt und **Installationstest** des ZIPs (WordPress aktuell und 6.4, WooCommerce aktuell und 8.2,
+- Integrationssuite und **Last-Smoke** (`--profile=ci`) auf PHP 8.5 × MariaDB 12.3 und MySQL 9.7
+  (PHP 8.6 experimentell);
+- Paketinhalt und **Installationstest** des ZIPs (WordPress aktuell und 7.0, WooCommerce aktuell und 11.2,
   HPOS an/aus);
 - **Update von der Vorgängerversion** (derzeit 1.4.0, aus ihrem Release-Commit gebaut) mit Daten: Übernahme der
   Aktivierung, Schema-Upgrade auf die aktuelle `DB_VERSION`, Daten unverändert und konsistent, keine PHP-Fehler,
   Löschen der alten Kopie entfernt keine Daten (`install-test`, Bein „Update from 1.4.0“);
 - **Deinstallation**: Daten bleiben mit Standardeinstellungen erhalten und werden nach Neuinstallation
   wiedergefunden; mit „Daten beim Löschen entfernen“ bleibt nichts übrig (alle `install-test`-Beine);
-- **JS-Unit-Tests** (`php`, PHP 8.4), **a11y-Gate** (axe über alle Admin-Screens + Tastatur, Chromium) und
+- **JS-Unit-Tests** (`php`, PHP 8.5), **a11y-Gate** (axe über alle Admin-Screens + Tastatur, Chromium) und
   **Browser-E2E** in Chromium, Firefox und WebKit (Checkout, Portal, Web-Scanner inkl. Fake-Kamera,
   Offline-PWA; WooCommerce Blocks in Chromium) sowie Mobil-Emulation Pixel 7 und iPhone 14 für Checkout,
   Portal und Offline-Kopplung (`browser`);

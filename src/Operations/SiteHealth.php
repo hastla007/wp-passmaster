@@ -95,6 +95,7 @@ final class SiteHealth {
 			'payment_start'    => array( __CLASS__, 'test_payment_start' ),
 			'rest_anonymous'   => array( __CLASS__, 'test_rest_anonymous' ),
 			'proxy'            => array( __CLASS__, 'test_proxy' ),
+			'db_server'        => array( __CLASS__, 'test_db_server' ),
 		);
 		if ( self::sms_active() ) { $tests['sms'] = array( __CLASS__, 'test_sms' ); }
 		return $tests;
@@ -102,6 +103,45 @@ final class SiteHealth {
 
 	private static function sms_active() {
 		return Modules::enabled( 'PassCaptain\\Modules\\Sms' ) && Privacy::has_table( 'wpcap_sms_messages' ) && \PassCaptain\Sms\Service::enabled();
+	}
+
+	/** Minimum database server versions (MINVER-1); older servers get a warning, the plugin still runs. */
+	const MIN_MYSQL = '9.7';
+	const MIN_MARIADB = '12.3';
+
+	/**
+	 * Database server of this site: array( 'type' => 'MariaDB'|'MySQL', 'version' => 'x.y.z' ).
+	 *
+	 * @param string|null $server_info Raw server info (tests); default $wpdb->db_server_info().
+	 */
+	public static function db_server( $server_info = null ) {
+		global $wpdb;
+		if ( null === $server_info ) {
+			$server_info = ( isset( $wpdb ) && method_exists( $wpdb, 'db_server_info' ) ) ? (string) $wpdb->db_server_info() : '';
+		}
+		$server_info = (string) $server_info;
+		$mariadb = false !== stripos( $server_info, 'mariadb' );
+		// MariaDB reports "5.5.5-10.11.6-MariaDB…" through the MySQL protocol.
+		$clean = preg_replace( '/^5\.5\.5-/', '', $server_info );
+		$version = preg_match( '/(\d+\.\d+(?:\.\d+)?)/', (string) $clean, $m ) ? $m[1] : '';
+		return array( 'type' => $mariadb ? 'MariaDB' : 'MySQL', 'version' => $version );
+	}
+
+	/** Site Health: database server below MySQL 9.7 / MariaDB 12.3 (recommended, no block). */
+	public static function test_db_server( $server_info = null ) {
+		$server = self::db_server( $server_info );
+		$minimum = 'MariaDB' === $server['type'] ? self::MIN_MARIADB : self::MIN_MYSQL;
+		if ( '' === $server['version'] || version_compare( $server['version'], $minimum, '>=' ) ) {
+			return self::result( 'db_server', 'good', __( 'Pass Captain: Datenbankserver wird unterstützt', 'pass-captain' ), self::p( $server['type'] . ' ' . $server['version'] ) );
+		}
+		return self::result(
+			'db_server',
+			'recommended',
+			/* translators: 1: database server (MySQL/MariaDB), 2: installed version */
+			sprintf( __( 'Pass Captain: %1$s %2$s ist älter als die unterstützte Version', 'pass-captain' ), $server['type'], $server['version'] ),
+			/* translators: 1: minimum MySQL version, 2: minimum MariaDB version */
+			self::p( sprintf( __( 'Pass Captain wird mit MySQL %1$s+ und MariaDB %2$s+ getestet. Ältere Datenbankserver werden nicht gesperrt, sind aber nicht mehr geprüft. Bitte den Datenbankserver beim Hosting aktualisieren.', 'pass-captain' ), self::MIN_MYSQL, self::MIN_MARIADB ) )
+		);
 	}
 
 	/** Site Health result array. */

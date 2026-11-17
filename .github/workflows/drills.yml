@@ -21,9 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         db:
-          - { name: 'MariaDB 11.4', image: 'mariadb:11.4', health: 'healthcheck.sh --connect --innodb_initialized', dump: 'mariadb-dump', client: 'mariadb' }
-          - { name: 'MySQL 8.0', image: 'mysql:8.0', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', dump: 'mysqldump', client: 'mysql' }
-          - { name: 'MySQL 8.4', image: 'mysql:8.4', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', dump: 'mysqldump', client: 'mysql' }
+          - { name: 'MariaDB 12.3', image: 'mariadb:12.3', health: 'healthcheck.sh --connect --innodb_initialized', dump: 'mariadb-dump', client: 'mariadb' }
+          - { name: 'MySQL 9.7', image: 'mysql:9.7', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', dump: 'mysqldump', client: 'mysql' }
     services:
       db:
         image: ${{ matrix.db.image }}
@@ -43,7 +42,7 @@ jobs:
           persist-credentials: false
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           tools: composer:v2
           extensions: mbstring, mysqli, gd, zip, sodium, openssl
           coverage: none
