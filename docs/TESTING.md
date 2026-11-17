@@ -23,7 +23,7 @@ grün sein müssen, steht in [RELEASE.md](RELEASE.md); die unterstützten Plattf
 | Deinstallation (Daten behalten / entfernen) | `build/ci-install-test.sh` (Schritt 5) | ja (Wegwerf-DB) | `ci.yml` `install-test`, alle Beine, blockierend |
 | Multisite: Netzwerkaktivierung (30 Sites), Site löschen, Deinstallation mit gemischtem Opt-in | `build/ci-multisite-test.sh <zip>` + `build/ci-multisite.php` | ja (Wegwerf-DB) | `ci.yml` `install-test`, Bein „Multisite (30 sites)“, blockierend |
 | Restore-Probe (Backup → Zerstörung → Restore → Diagnose) | `tests/drills/restore-drill.sh` | ja (Wegwerf-DB) | `drills.yml` wöchentlich + manuell, MariaDB 11.4 / MySQL 8.0 / 8.4 |
-| WordPress.org Plugin Check | `wordpress/plugin-check-action` | – | `ci.yml` `plugin-check`, blockierend |
+| WordPress.org Plugin Check | Plugin Check (neueste Version) gegen das ZIP, Abgleich mit `tests/plugin-check/baseline.json` (Frühwarnung für neue Prüfungen; Release-Gate mit gepinnter Version: `wp-matrix.yml` `plugin-check`) | – | `ci.yml` `plugin-check`, blockierend für Fehler außerhalb der Baseline |
 | Release-Gate-Skript | `tests/release/verify-release.test.sh` | ja | **nein** (nur das Skript selbst läuft in `release.yml`) |
 | JS-Unit-Tests | `tests/js` (`npm test`) | ja | `ci.yml` `php` (Bein PHP 8.4), blockierend |
 | Barrierefreiheit (Gate) | `tests/a11y/gate.sh` | ja (Wegwerf-WordPress) | `ci.yml` `browser` (Bein chromium), blockierend |

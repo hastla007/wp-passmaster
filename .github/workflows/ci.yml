@@ -435,9 +435,24 @@ jobs:
           fi
 
   plugin-check:
-    # Official WordPress.org Plugin Check (TODO A8) against exactly the files of the release ZIP.
+    # WordPress.org Plugin Check (TODO A8), LATEST version, against exactly the release ZIP. Fails on errors
+    # that are not in tests/plugin-check/baseline.json (known backlog A305), like the pinned release gate in
+    # wp-matrix.yml; this job is the early warning for checks added by new Plugin Check releases.
     runs-on: ubuntu-latest
     needs: [package]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -446,12 +461,26 @@ jobs:
         with:
           name: pass-captain
           path: build/dist
-      - name: Unpack plugin ZIP
-        run: |
-          rm -rf build/plugin-check && mkdir -p build/plugin-check
-          unzip -q build/dist/pass-captain.zip -d build/plugin-check
-      - name: Run Plugin Check
-        uses: wordpress/plugin-check-action@v1
+      - uses: shivammathur/setup-php@v2
         with:
-          build-dir: build/plugin-check/pass-captain
-          slug: pass-captain
+          php-version: '8.3'
+          tools: wp-cli
+          extensions: mbstring, mysqli, zip
+          coverage: none
+      - name: Throw-away WordPress with the latest Plugin Check and the ZIP
+        run: |
+          mkdir -p "$RUNNER_TEMP/pcp" && cd "$RUNNER_TEMP/pcp"
+          wp core download --locale=en_US
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp core install --url=http://localhost --title=PCP --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          wp plugin install plugin-check --activate
+          wp plugin install "$GITHUB_WORKSPACE/build/dist/pass-captain.zip"
+      - name: Plugin Check (category plugin_repo), errors outside the baseline fail
+        run: |
+          wp --path="$RUNNER_TEMP/pcp" plugin check pass-captain --format=json --categories=plugin_repo > "$RUNNER_TEMP/pcp-latest.txt"
+          php tests/plugin-check/compare.php "$RUNNER_TEMP/pcp-latest.txt" tests/plugin-check/baseline.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: plugin-check-latest-result
+          path: ${{ runner.temp }}/pcp-latest.txt
