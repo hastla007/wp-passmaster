@@ -78,25 +78,30 @@ for i in $(seq 2 "${SITES}"); do wp site create --slug="site${i}" --title="Site 
 count="$(wp site list --field=blog_id | wc -l)"
 [ "${count}" = "${SITES}" ] && ok "network with ${count} sites" || fail "network has ${count} sites, expected ${SITES}"
 
-section "Network activation (25 sites now, the rest via wpcap_run_upgrade)"
+section "Network activation (current site now, the rest in background batches)"
 wp plugin install "${ZIP}" >/dev/null
 out="$(wp plugin activate "${SLUG}" --network 2>&1)" || fail "network activation failed: ${out}"
 grep -E 'Fatal error|Warning|Notice|Deprecated' <<<"${out}" | grep -q "/plugins/${SLUG}/" && fail "PHP errors during the network activation: ${out}"
 state="$(wp eval-file "${HELPER}" state)"
 installed="$(json 'count( array_filter( $d["sites"], static fn( $s ) => "" !== $s["db_version"] && $s["tables"] > 0 ) )' <<<"${state}")"
-deferred="$(json 'count( array_filter( $d["sites"], static fn( $s ) => "" === $s["db_version"] && 0 === $s["tables"] && in_array( "wpcap_run_upgrade", $s["cron"], true ) ) )' <<<"${state}")"
-if [ "${installed}" -ge 1 ] && [ "${installed}" -le 25 ] && [ "$((installed + deferred))" = "${SITES}" ]; then
-	ok "activation request installed ${installed} sites, deferred ${deferred} (wpcap_run_upgrade scheduled)"
+# A287: the activation request installs the current site only; NetworkInstall (cron event
+# wpcap_network_install on the main site) installs the others in batches of 25.
+if [ "${installed}" -ge 1 ] && [ "${installed}" -le 25 ]; then
+	ok "activation request installed ${installed} site(s), the rest is left to the background batches"
 else
-	fail "after the network activation: ${installed} installed, ${deferred} deferred of ${SITES}"
+	fail "after the network activation: ${installed} of ${SITES} sites installed"
 fi
-[ "${SITES}" -le 25 ] || [ "${deferred}" -ge "$((SITES - 25))" ] && ok "at most 25 sites in the activation request" || fail "more than 25 sites installed in the activation request"
-for url in $(json 'implode( " ", array_map( static fn( $s ) => $s["url"], array_filter( $d["sites"], static fn( $s ) => "" === $s["db_version"] ) ) )' <<<"${state}"); do
-	wp cron event run wpcap_run_upgrade --url="${url}" >/dev/null || fail "wpcap_run_upgrade on ${url}"
+wp cron event list --fields=hook --format=csv 2>/dev/null | grep -qx 'wpcap_network_install' && ok "background installation scheduled (wpcap_network_install)" || fail "wpcap_network_install not scheduled after the network activation"
+runs=0
+while [ "${runs}" -lt 10 ]; do
+	runs=$((runs + 1))
+	wp cron event run wpcap_network_install >/dev/null 2>&1 || true
+	state="$(wp eval-file "${HELPER}" state)"
+	installed="$(json 'count( array_filter( $d["sites"], static fn( $s ) => "" !== $s["db_version"] && $s["tables"] > 0 ) )' <<<"${state}")"
+	[ "${installed}" = "${SITES}" ] && break
 done
-state="$(wp eval-file "${HELPER}" state)"
-installed="$(json 'count( array_filter( $d["sites"], static fn( $s ) => "" !== $s["db_version"] && $s["tables"] > 0 ) )' <<<"${state}")"
-[ "${installed}" = "${SITES}" ] && ok "after the deferred cron events all ${SITES} sites are installed" || fail "only ${installed} of ${SITES} sites installed after wpcap_run_upgrade"
+[ "${installed}" = "${SITES}" ] && ok "after ${runs} background run(s) all ${SITES} sites are installed" || fail "only ${installed} of ${SITES} sites installed after ${runs} background runs"
+[ "${SITES}" -le 25 ] || [ "${runs}" -ge 2 ] && ok "at most 25 sites per background run" || fail "more than 25 sites installed in one background run"
 
 section "Delete a site"
 victim="$(wp site list --field=blog_id | tail -n 1)"

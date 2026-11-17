@@ -62,6 +62,8 @@ function wpcap_ci_data_snapshot() {
 	// Since 1.5 the uninstall opt-in moves to wpcap_uninstall_policy and the old key is reset to 0 (checked separately).
 	unset( $settings['delete_data_on_uninstall'] );
 	$out['settings_md5'] = md5( wp_json_encode( $settings ) );
+	// Per-key digests: a mismatch names the keys (no values, they may hold credentials).
+	$out['settings_keys'] = array_map( static fn( $v ) => md5( (string) wp_json_encode( $v ) ), $settings );
 	return $out;
 }
 
@@ -187,7 +189,17 @@ switch ( $wpcap_mode ) {
 			if ( $have['rows'] !== $want['rows'] ) { $diff[] = "$table: {$have['rows']} rows, expected {$want['rows']}"; continue; }
 			if ( $have['columns'] === $want['columns'] && $have['md5'] !== $want['md5'] ) { $diff[] = "$table: row contents differ"; }
 		}
-		if ( ( $expected['settings_md5'] ?? '' ) !== $current['settings_md5'] && empty( $args[2] ) ) { $diff[] = 'wpcap_settings differ'; }
+		if ( ( $expected['settings_md5'] ?? '' ) !== $current['settings_md5'] && empty( $args[2] ) ) {
+			$want_keys = (array) ( $expected['settings_keys'] ?? array() );
+			$have_keys = (array) $current['settings_keys'];
+			$changed = array_keys( array_filter( $want_keys, static fn( $v, $k ) => isset( $have_keys[ $k ] ) && $have_keys[ $k ] !== $v, ARRAY_FILTER_USE_BOTH ) );
+			$removed = array_keys( array_diff_key( $want_keys, $have_keys ) );
+			// Keys the upgrade adds are expected (legacy pins of new settings, e.g. credit_note_prefix,
+			// enabled_providers, default_entry_window); existing values must stay as they were.
+			if ( ! $want_keys || $changed || $removed ) {
+				$diff[] = 'wpcap_settings differ (changed: ' . implode( ',', $changed ) . '; removed: ' . implode( ',', $removed ) . ')';
+			}
+		}
 		if ( $diff ) { echo 'FAIL  data differs from the snapshot: ' . implode( '; ', $diff ) . "\n"; exit( 1 ); }
 		echo 'ok    data matches the snapshot (' . count( $expected['tables'] ) . " tables)\n";
 		break;

@@ -44,10 +44,13 @@ $wpcap_check( 'settings readable', is_array( PassCaptain\Settings::all() ) );
 
 // REST API: routes registered and a public endpoint answers.
 $server = rest_get_server();
-$routes = array_filter( array_keys( $server->get_routes() ), static fn( $r ) => str_starts_with( $r, '/wp-pass-captain/v1' ) );
+$routes = array_filter( array_keys( $server->get_routes() ), static fn( $r ) => str_starts_with( $r, '/pass-captain/v1' ) );
 $wpcap_check( 'REST routes registered', count( $routes ) >= 10, count( $routes ) . ' routes' );
+$response = rest_do_request( new WP_REST_Request( 'GET', '/pass-captain/v1/events' ) );
+$wpcap_check( 'GET /pass-captain/v1/events', 200 === $response->get_status(), 'HTTP ' . $response->get_status() );
+// The namespace of the old plugin folder keeps answering (LegacySlug).
 $response = rest_do_request( new WP_REST_Request( 'GET', '/wp-pass-captain/v1/events' ) );
-$wpcap_check( 'GET /wp-pass-captain/v1/events', 200 === $response->get_status(), 'HTTP ' . $response->get_status() );
+$wpcap_check( 'GET /wp-pass-captain/v1/events (legacy namespace)', 200 === $response->get_status(), 'HTTP ' . $response->get_status() );
 
 // WooCommerce: adapter declared HPOS/Blocks compatibility, HPOS in the expected state.
 $hpos_expected = $args[0] ?? '';
