@@ -162,6 +162,24 @@ $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET offer_expires_at=%s
 check( 'an expired offer does not block sales any more', 1 === Orders::availability( $ew_type ) );
 Waitlists::sweep();
 $ew_after = array( $ew_row( 'ew-y@svc.test' )->status, Orders::get( (int) $y->order_id )->status, Orders::availability( $ew_type ) );
+if ( array( 'expired', 'expired', 1 ) !== $ew_after ) {
+	// Diagnostic for a CI-only failure: why expire_holds() left the order alone.
+	$ew_oid = (int) $y->order_id;
+	$ew_now = PassCaptain\Clock::mysql();
+	$ew_cand = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM {$p}wpcap_orders ord WHERE ord.payment_status='pending' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s) ORDER BY ord.order_id", $ew_now ) ) );
+	echo '       diag: ' . wp_json_encode( array(
+		'order' => $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", $ew_oid ) ),
+		'holds' => $wpdb->get_results( $wpdb->prepare( "SELECT reservation_id,status,expires_at FROM {$p}wpcap_reservations WHERE order_id=%d", $ew_oid ) ),
+		'entry' => $wpdb->get_row( $wpdb->prepare( "SELECT status,offer_expires_at FROM {$p}wpcap_waitlist WHERE waitlist_id=%d", (int) $y->waitlist_id ) ),
+		'clock' => $ew_now,
+		'php_now' => gmdate( 'Y-m-d H:i:s' ),
+		'lapsed_pending' => count( $ew_cand ),
+		'position' => array_search( $ew_oid, $ew_cand, true ),
+		'first' => array_slice( $ew_cand, 0, 5 ),
+		'second_expire' => PassCaptain\Orders::expire_holds(),
+		'order_after' => $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d", $ew_oid ) ),
+	) ) . "\n";
+}
 check( 'sweep marks the expired offer; with nobody waiting the ticket is free (entry/order/available: ' . implode( '/', $ew_after ) . ')', array( 'expired', 'expired', 1 ) === $ew_after );
 // Capacity increase → offer by the sweep; accepting a free offer completes the order at once.
 $ew2_type = make_type( 1, 10, 0 );
