@@ -464,7 +464,7 @@ final class AccessLog {
 			}
 			$context['params'] = self::clean_filters( $params );
 			$data = is_object( $result ) && method_exists( $result, 'get_data' ) ? $result->get_data() : $result;
-			if ( is_array( $data ) && array_is_list( $data ) ) { $context['rows'] = count( $data ); }
+			if ( is_array( $data ) && array_values( $data ) === $data ) { $context['rows'] = count( $data ); }
 			self::record_deduplicated( self::ACTION_REST, (string) $def[0], $object_type, $object_id, $context, array( 'params' => $context['params'], 'key' => $context['key_id'] ?? 0 ) );
 			break;
 		}
