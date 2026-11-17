@@ -182,8 +182,11 @@ if ( isset( $argv[1] ) && '--worker' === $argv[1] ) {
 				$r = is_wp_error( $event ) ? $event : Webhooks::process( 'stripe', $event );
 				// A delivery that arrives while the same event is still being processed gets a retryable
 				// 503 (the provider redelivers later, then answered "duplicate"), never a premature 2xx (A183).
+				// A retryable database answer (503, e.g. a deadlock on the claim, everything rolled back) is what
+				// a provider redelivers later: counted as "retry", the scenario redelivers it once at the end.
+				$retryable = is_wp_error( $r ) && ! empty( ( (array) $r->get_error_data() )['retryable'] );
 				$res = is_wp_error( $r )
-					? array( 'outcome' => 'wpcap_webhook_in_progress' === $r->get_error_code() ? 'in_flight' : 'error', 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() )
+					? array( 'outcome' => 'wpcap_webhook_in_progress' === $r->get_error_code() ? 'in_flight' : ( $retryable ? 'retry' : 'error' ), 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() )
 					: array( 'outcome' => (string) $r );
 				break;
 			case 'seatbuy':
@@ -556,12 +559,14 @@ if ( in_array( $cfg['scenario'], array( 'all', 'webhooks' ), true ) ) {
 	$per_worker = array_fill( 0, $W, array() );
 	$i = 0;
 	$event_of = array();
+	$body_of = array();
 	foreach ( $orders as $e => $o ) {
 		$body = json_encode( array( 'id' => "evt_load_$e", 'type' => 'checkout.session.completed', 'data' => array( 'object' => array(
 			'id' => 'cs_test_' . $o['public_id'], 'object' => 'checkout.session', 'amount_total' => (int) $o['total_minor'], 'currency' => 'eur',
 			'client_reference_id' => $o['public_id'], 'metadata' => array( 'wpcap_order' => $o['public_id'] ),
 			'payment_intent' => 'pi_' . substr( $o['public_id'], 0, 12 ), 'payment_status' => 'paid', 'status' => 'complete',
 		) ) ) );
+		$body_of[ $e ] = $body;
 		for ( $r = 0; $r < $R; $r++ ) {
 			$event_of[ $i ] = $e;
 			$per_worker[ ( $e * $R + $r ) % $W ][] = array( 'kind' => 'webhook', 'body' => $body, 'i' => $i++ );
@@ -570,6 +575,17 @@ if ( in_array( $cfg['scenario'], array( 'all', 'webhooks' ), true ) ) {
 	list( $results, $wall ) = run_workers( $per_worker );
 	$applied = array_fill( 0, $E, 0 );
 	foreach ( $results as $idx => $rows ) { foreach ( $rows as $row ) { if ( 'paid' === $row['outcome'] ) { $applied[ $event_of[ $idx ] ]++; } } }
+	// Provider redelivery: events whose deliveries all ended retryable (no processed row) come once more.
+	$redeliver = array();
+	foreach ( $orders as $e => $o ) {
+		$done = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_payment_events WHERE provider='stripe' AND provider_event_id=%s AND status='processed'", "evt_load_$e" ) );
+		if ( ! $done ) { $redeliver[] = array( 'kind' => 'webhook', 'body' => $body_of[ $e ], 'i' => $i ); $event_of[ $i++ ] = $e; }
+	}
+	if ( $redeliver ) {
+		echo '  redelivering ' . count( $redeliver ) . " event(s) after retryable answers\n";
+		list( $again ) = run_workers( array( $redeliver ) );
+		foreach ( $again as $idx => $rows ) { $results[ $idx ] = $rows; foreach ( $rows as $row ) { if ( 'paid' === $row['outcome'] ) { $applied[ $event_of[ $idx ] ]++; } } }
+	}
 	$ids = implode( ',', array_map( static fn( $o ) => (int) $o['order_id'], $orders ) );
 	$paid = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders WHERE order_id IN ($ids) AND payment_status='paid'" );
 	$tickets = $wpdb->get_col( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id IN ($ids) GROUP BY order_id" );
