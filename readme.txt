@@ -149,7 +149,7 @@ The full change log is in CHANGELOG.md in the source repository.
 == Upgrade Notice ==
 
 = 1.5.0 =
-Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2). Schema 3.18 installs automatically, credentials are stored encrypted, renamed from "WP Pass Captain" (data kept). Back up the database and read CHANGELOG.md first.
+Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2.2). Schema 3.18 installs automatically, credentials are stored encrypted, renamed from "WP Pass Captain" (data kept). Back up the database and read CHANGELOG.md first.
 
 = 1.4.0 =
 Adds sales models, company invoices and voucher tax treatment. Database schema 3.5.0 is installed automatically.

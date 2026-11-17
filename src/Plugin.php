@@ -24,6 +24,8 @@ final class Plugin {
 		self::$started = true;
 		// A285: with HyperDB/LudicrousDB, transactions and locking reads must run on the primary.
 		DbReplication::register();
+		// MariaDB 11.6.2+: classic InnoDB snapshots for the plugin's transactions (DbSession).
+		DbSession::classic_snapshots();
 		// Schema upgrades never run inline on every request: admin requests check on admin_init,
 		// cron/WP-CLI/frontend on init; frontend requests only defer to a cron event (see Installer).
 		$upgrade_hook = 'admin' === Installer::context() ? 'admin_init' : 'init';

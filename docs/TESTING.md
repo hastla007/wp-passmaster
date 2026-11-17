@@ -18,7 +18,7 @@ grün sein müssen, steht in [RELEASE.md](RELEASE.md); die unterstützten Plattf
 | Lasttests `default`/`heavy` | `tests/load/run.php` | ja | `load.yml` wöchentlich + manuell, MariaDB 12.3 / MySQL 9.7 |
 | Lasttest über REST | `tests/load/http.php` | ja (Wegwerf-WordPress) | nein |
 | Reproduzierbares ZIP, Paketinhalt | `build/release.sh`, `build/ci-install-test.sh` (statisch) | ja | `ci.yml` `package`, blockierend |
-| Installationstest des ZIPs | `build/ci-install-test.sh <zip>` + `build/ci-smoke.php` | ja (Wegwerf-DB) | `ci.yml` `install-test` (WP aktuell/7.0, WooCommerce aktuell/11.2), blockierend |
+| Installationstest des ZIPs | `build/ci-install-test.sh <zip>` + `build/ci-smoke.php` | ja (Wegwerf-DB) | `ci.yml` `install-test` (WP aktuell/7.0, WooCommerce aktuell/11.2.2), blockierend |
 | Update von 1.4.0 mit Daten | `WPCAP_IT_UPGRADE_FROM=<commit> build/ci-install-test.sh <zip>` + `build/ci-data.php` | ja (Wegwerf-DB) | `ci.yml` `install-test`, Bein „Update from 1.4.0“, blockierend |
 | Deinstallation (Daten behalten / entfernen) | `build/ci-install-test.sh` (Schritt 5) | ja (Wegwerf-DB) | `ci.yml` `install-test`, alle Beine, blockierend |
 | Multisite: Netzwerkaktivierung (30 Sites), Site löschen, Deinstallation mit gemischtem Opt-in | `build/ci-multisite-test.sh <zip>` + `build/ci-multisite.php` | ja (Wegwerf-DB) | `ci.yml` `install-test`, Bein „Multisite (30 sites)“, blockierend |
@@ -525,7 +525,7 @@ Repository einer Organisation, braucht die gitleaks-Action das Secret `GITLEAKS_
   Smoke-Check `build/ci-smoke.php`: Tabellen, Schema-Version/-Fingerprint, Rollenrechte, Cron, REST-Routen und
   `GET /wp-pass-captain/v1/events`, QR-Code; mit WooCommerce HPOS-Kompatibilität und eine Woo-Bestellung über den
   aktiven Speicher – mit HPOS an und aus, danach Deaktivieren/Aktivieren und erneuter Smoke-Check.
-  CI-Matrix: WordPress aktuell und 7.0, WooCommerce aktuell und 11.2.0, Update von 1.4.0, Multisite – alle mit
+  CI-Matrix: WordPress aktuell und 7.0, WooCommerce aktuell und 11.2.2, Update von 1.4.0, Multisite – alle mit
   PHP 8.5, Datenbank MariaDB 12.3. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`,
   `WPCAP_IT_WC_VERSION`, `WPCAP_IT_WP_CORE_DIR`/`WPCAP_IT_WC_ZIP` (lokale Quellen), `WPCAP_IT_UPGRADE_FROM`/
   `WPCAP_IT_UPGRADE_FROM_ZIP`, `WPCAP_IT_SKIP_UNINSTALL=1`, `WPCAP_IT_KEEP=1`.

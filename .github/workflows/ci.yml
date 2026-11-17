@@ -387,7 +387,7 @@ jobs:
           - { label: 'WordPress latest', php: '8.5', wc: '' }
           - { label: 'WordPress 7.0 (minimum)', php: '8.5', wc: '', wp: '7.0' }
           - { label: 'WooCommerce latest', php: '8.5', wc: 'latest' }
-          - { label: 'WooCommerce 11.2 (minimum)', php: '8.5', wc: '11.2.0' }
+          - { label: 'WooCommerce 11.2.2 (minimum)', php: '8.5', wc: '11.2.2' }
           # Release 1.4.0 (#18), the last version published as wp-pass-captain/wp-pass-captain.php.
           - { label: 'Update from 1.4.0', php: '8.5', wc: '', upgrade_from: '90c972ab681b32254887a945a11e17325e0a801c' }
           # Multisite (build/ci-multisite-test.sh): 30 sites, network activation (25 now, the rest via

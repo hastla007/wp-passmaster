@@ -10,7 +10,7 @@
  * Author URI: https://github.com/hastla007
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * WC requires at least: 11.2
+ * WC requires at least: 11.2.2
  * WC tested up to: 11.3
  * Text Domain: pass-captain
  * Domain Path: /languages

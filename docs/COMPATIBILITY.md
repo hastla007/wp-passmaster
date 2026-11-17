@@ -6,7 +6,7 @@
 |---|---|---|---|
 | PHP | 8.5 | 8.5 (Syntax, Integration, Last-Smoke); 8.6 experimentell (nicht blockierend) | Minimum 8.5 (`Requires PHP`, `composer.json`, eigene Ladeprüfung) – darunter lädt das Plugin nicht |
 | WordPress | 7.0 bis 7.1 | 7.0 (Minimum) und aktuelle Version (ZIP-Installationstest) | `Requires at least: 7.0` (WordPress 6.8 wirft unter PHP 8.5 Core-Deprecations), `Tested up to: 7.1` |
-| WooCommerce (optional) | 11.2 bis 11.3 | 11.2 (Minimum) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header |
+| WooCommerce (optional) | 11.2.2 bis 11.3 | 11.2.2 (Minimum) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header (11.2.0/11.2.1 übernehmen Bestell-/Zahlungsdaten eines früheren Store-API-Checkouts im selben PHP-Prozess, behoben in 11.2.2) |
 | MariaDB | 12.3 | 12.3 × PHP 8.5 (8.6 experimentell) | Minimum 12.3; ältere Server: nur Warnung in „Website-Zustand“, keine Sperre |
 | MySQL | 9.7 | 9.7 × PHP 8.5 (8.6 experimentell) | Minimum 9.7; ältere Server: nur Warnung in „Website-Zustand“, keine Sperre; siehe unten |
 
@@ -66,7 +66,7 @@ Basislinie ist Teil des Freigabeprotokolls ([RELEASE.md](RELEASE.md)); Support-Z
 | Release | PHP (CI) | WordPress | WooCommerce | Datenbanken (CI) | Browser-Suiten (manuell) | Stand |
 |---|---|---|---|---|---|---|
 | 1.5.0 | 8.2, 8.3, 8.4 | 6.4 und 7.1.4 | 8.2.0 und 11.3.0, HPOS an/aus | MariaDB 10.6, 11.4; MySQL 8.0, 8.4 | Chromium (a11y-Gate, E2E inkl. WooCommerce 11.3 Blocks) | 14.11.2026 |
-| nächstes Release (MINVER-1) | 8.5 (8.6 experimentell) | 7.0 und aktuell | 11.2.0 und aktuell, HPOS an/aus | MariaDB 12.3; MySQL 9.7 | wie 1.5.0 | 17.11.2026 (Mindestversionen angehoben) |
+| nächstes Release (MINVER-1) | 8.5 (8.6 experimentell) | 7.0 und aktuell | 11.2.2 und aktuell, HPOS an/aus | MariaDB 12.3; MySQL 9.7 | wie 1.5.0 | 17.11.2026 (Mindestversionen angehoben) |
 
 **Je Release aktualisieren** (Teil von Schritt 1 in [RELEASE.md](RELEASE.md)):
 

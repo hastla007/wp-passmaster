@@ -96,7 +96,7 @@ Wallet- und Gutscheinanbieter sind über dokumentierte Hooks erweiterbar ([docs/
 
 ## Entwicklung
 
-PHP 8.5+, WordPress 7.0+ (WooCommerce optional ab 11.2) und Composer erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
+PHP 8.5+, WordPress 7.0+ (WooCommerce optional ab 11.2.2) und Composer erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
 
 Das aktuelle Kern-Datenbankschema ist `3.9.0` (plus Modul-Schemata). Das Upgrade erfolgt über `dbDelta` im Admin-Bereich, per WP-Cron oder WP-CLI hinter einer Datenbanksperre, nicht bei jedem Frontend-Aufruf (Details, Backup/Restore und System-Cron-Empfehlung: [docs/OPERATIONS.md](docs/OPERATIONS.md)). WordPress-Schreibzugriffe über REST brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
 

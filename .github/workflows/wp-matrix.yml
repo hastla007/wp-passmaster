@@ -151,7 +151,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        wc: ['11.2.0', 'latest']   # "WC requires at least" and newest
+        wc: ['11.2.2', 'latest']   # "WC requires at least" and newest
         storage: ['hpos', 'posts']
     services:
       mariadb:

@@ -74,7 +74,7 @@ Der Release-Workflow bricht ab, wenn eines davon nicht erfüllt ist:
 - Lizenz-Wächter (Quellbaum und ZIP), Secret-Scan (Historie und ZIP), Dependency Review bei PRs;
 - Integrationssuite und **Last-Smoke** (`--profile=ci`) auf PHP 8.5 × MariaDB 12.3 und MySQL 9.7
   (PHP 8.6 experimentell);
-- Paketinhalt und **Installationstest** des ZIPs (WordPress aktuell und 7.0, WooCommerce aktuell und 11.2,
+- Paketinhalt und **Installationstest** des ZIPs (WordPress aktuell und 7.0, WooCommerce aktuell und 11.2.2,
   HPOS an/aus);
 - **Update von der Vorgängerversion** (derzeit 1.4.0, aus ihrem Release-Commit gebaut) mit Daten: Übernahme der
   Aktivierung, Schema-Upgrade auf die aktuelle `DB_VERSION`, Daten unverändert und konsistent, keine PHP-Fehler,

@@ -34,7 +34,39 @@ final class DbSession {
 	 */
 	public static function repeatable_read() {
 		global $wpdb;
+		self::classic_snapshots();
 		return false !== $wpdb->query( 'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ' );
+	}
+
+	/** @var string|null Connection (object id of the handle) on which classic_snapshots() last ran. */
+	private static $snapshot_connection = null;
+
+	/**
+	 * MariaDB 11.6.2+ (and so the supported 12.3) defaults to innodb_snapshot_isolation=ON: a locking read
+	 * or UPDATE of a row that another transaction changed after this transaction's snapshot fails with
+	 * error 1020 "Record has changed since last read" and rolls the whole transaction back. The inventory
+	 * transactions read, then update conditionally (status guards, counters) and were designed and tested
+	 * for the classic InnoDB behaviour, so the session switches it off (once per connection; MySQL and
+	 * older MariaDB versions: nothing to do). Runs at plugin start and before each inventory transaction.
+	 *
+	 * @return bool True when the variable was switched off on this connection.
+	 */
+	public static function classic_snapshots() {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) ) { return false; }
+		$info = (string) $wpdb->db_server_info();
+		if ( false === stripos( $info, 'mariadb' ) ) { return false; }
+		$version = preg_match( '/(\d+\.\d+\.\d+)/', (string) preg_replace( '/^5\.5\.5-/', '', $info ), $m ) ? $m[1] : '';
+		if ( '' === $version || version_compare( $version, '11.6.2', '<' ) ) { return false; }
+		// Same connection object as last time: already switched off (no extra query per transaction).
+		$handle = isset( $wpdb->dbh ) && is_object( $wpdb->dbh ) ? $wpdb->dbh : null;
+		$thread = null !== $handle ? (string) spl_object_id( $handle ) : 'default';
+		if ( $thread === self::$snapshot_connection ) { return true; }
+		$suppress = $wpdb->suppress_errors( true );
+		$ok = false !== $wpdb->query( 'SET SESSION innodb_snapshot_isolation = OFF' );
+		$wpdb->suppress_errors( $suppress );
+		if ( $ok ) { self::$snapshot_connection = $thread; }
+		return $ok;
 	}
 
 	/**
