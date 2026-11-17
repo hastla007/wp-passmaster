@@ -72,7 +72,14 @@ http_push( array( 'messages' => array() ), 200, '/Messages.json?' );
 http_push( array( 'sid' => 'SM' . str_repeat( '2', 32 ), 'status' => 'queued' ), 201, '/Messages.json' );
 Service::process_due();
 $r = a416_row( $m2->message_id );
-check( 'A416: not found at Twilio → sent again (exactly one new POST)', 'sent' === $r->status && 'SM' . str_repeat( '2', 32 ) === $r->provider_ref && 1 === count( array_filter( http_requests( 'api.twilio.com' ), static fn( $q ) => 'POST' === $q['method'] ) ) );
+$a416_posts = count( array_filter( http_requests( 'api.twilio.com' ), static fn( $q ) => 'POST' === $q['method'] ) );
+$a416_ok = 'sent' === $r->status && 'SM' . str_repeat( '2', 32 ) === $r->provider_ref && 1 === $a416_posts;
+if ( ! $a416_ok ) {
+	// Diagnostic for a one-off CI failure: row state, consent and the requests made.
+	$a416_c = $wpdb->get_row( $wpdb->prepare( "SELECT withdrawn_at,retired_at,phone<>'' AS has_phone,verification FROM {$p}wpcap_sms_consents WHERE consent_id=%d", (int) $r->consent_id ) );
+	echo '       row: ' . wp_json_encode( array( 'status' => $r->status, 'ref' => $r->provider_ref, 'attempts' => $r->attempts, 'error' => $r->last_error, 'send_at' => $r->send_at, 'now' => current_time( 'mysql', true ), 'posts' => $a416_posts, 'consent' => $a416_c, 'requests' => array_map( static fn( $q ) => $q['method'] . ' ' . $q['url'], http_requests( '' ) ), 'queue_left' => count( (array) ( $GLOBALS['wpcap_test_http_queue'] ?? array() ) ) ) ) . "\n";
+}
+check( 'A416: not found at Twilio → sent again (exactly one new POST)', $a416_ok );
 
 // 4) Lookup fails → stays unknown and is checked later.
 $m3 = a416_message( 9416003, '+4915177700003', 'A416 Erinnerung drei' );
