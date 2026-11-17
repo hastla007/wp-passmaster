@@ -196,7 +196,7 @@ switch ( $wpcap_mode ) {
 			$removed = array_keys( array_diff_key( $want_keys, $have_keys ) );
 			// Keys the upgrade adds are expected (legacy pins of new settings, e.g. credit_note_prefix,
 			// enabled_providers, default_entry_window); existing values must stay as they were.
-			if ( ! $want_keys || $changed || $removed ) {
+			if ( ! array_key_exists( 'settings_keys', (array) $expected ) || $changed || $removed ) {
 				$diff[] = 'wpcap_settings differ (changed: ' . implode( ',', $changed ) . '; removed: ' . implode( ',', $removed ) . ')';
 			}
 		}
