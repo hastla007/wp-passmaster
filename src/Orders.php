@@ -3144,18 +3144,22 @@ final class Orders {
 	 * order is retried by the next run.
 	 * At most $limit orders per run (filter `wpcap_expire_holds_batch`); the next run continues.
 	 *
-	 * @param int $limit Batch size (cron passes no argument).
+	 * @param int   $limit Batch size (cron passes no argument).
+	 * @param int[] $only  Restrict the run to these orders (e.g. the lapsed waitlist offers): a backlog
+	 *                     of older lapsed orders must not keep them pending beyond one batch.
 	 * @return int Number of expired orders.
 	 */
-	public static function expire_holds( $limit = 200 ) {
+	public static function expire_holds( $limit = 200, array $only = array() ) {
 		global $wpdb;
 		$now = Clock::mysql();
 		$reservations = $wpdb->prefix . 'wpcap_reservations';
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		$limit = max( 1, (int) apply_filters( 'wpcap_expire_holds_batch', absint( $limit ) ?: 200 ) );
 		self::$last_expire_batch_full = false;
+		$only = array_values( array_unique( array_filter( array_map( 'absint', $only ) ) ) );
+		$only_sql = $only ? ' AND ord.order_id IN (' . implode( ',', $only ) . ')' : '';
 		$candidates = $wpdb->get_col( $wpdb->prepare(
-			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='pending' AND " . StateMachine::source_sql( 'order', 'expired', 'ord.status' ) . " AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s) ORDER BY ord.order_id LIMIT %d", $orders, $reservations, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static state list.
+			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='pending' AND " . StateMachine::source_sql( 'order', 'expired', 'ord.status' ) . $only_sql . " AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s) ORDER BY ord.order_id LIMIT %d", $orders, $reservations, // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static state list, absint ids.
 			$now,
 			$limit
 		) );

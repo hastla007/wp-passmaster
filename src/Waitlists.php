@@ -858,8 +858,10 @@ final class Waitlists {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = Clock::mysql();
-		$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.status IN ('offered','accepted') AND ord.payment_status='pending' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_reservations r WHERE r.order_id=w.order_id AND r.status='active' AND r.expires_at > %s)", $now ) );
-		if ( $lapsed ) { Orders::expire_holds(); }
+		$lapsed = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.order_id FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.status IN ('offered','accepted') AND ord.payment_status='pending' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_reservations r WHERE r.order_id=w.order_id AND r.status='active' AND r.expires_at > %s) ORDER BY w.order_id LIMIT 200", $now ) ) );
+		// Exactly these orders: a backlog of other lapsed orders (expired by the jobs worker in batches)
+		// must not keep an expired offer open.
+		if ( $lapsed ) { Orders::expire_holds( 200, $lapsed ); }
 		$rows = $wpdb->get_results( "SELECT w.order_id,ord.payment_status FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.status IN ('offered','accepted') AND w.order_id>0 AND ord.payment_status <> 'pending' LIMIT 200" );
 		foreach ( $rows as $row ) {
 			if ( 'paid' === $row->payment_status ) {
