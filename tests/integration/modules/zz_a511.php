@@ -3,7 +3,7 @@
  * A511: pass-captain.php checks PHP and WordPress versions itself before the autoloader and only
  * shows an admin notice when they are too old; Composer's platform check (fatal error on every
  * request) is switched off and the release build refuses to ship it. The main file runs in a child
- * process with a minimal WordPress (WordPress 6.3 to trigger the guard).
+ * process with a minimal WordPress (one minor below "Requires at least" to trigger the guard).
  * Included from run.php (uses check()).
  */
 // phpcs:ignoreFile
@@ -36,10 +36,22 @@ foreach ( $GLOBALS["hooks"]["admin_notices"] ?? array() as $cb ) { $cb(); }
 $x2_a511_run = static function ( $wp ) use ( $x2_a511_child ) {
 	return (string) shell_exec( 'X2_WP=' . escapeshellarg( $wp ) . ' X2_MAIN=' . escapeshellarg( WPCAP_PATH . 'pass-captain.php' ) . ' ' . escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $x2_a511_child ) . ' 2>&1' );
 };
-$x2_a511_old = $x2_a511_run( '6.3' );
-check( 'A511: on WordPress 6.3 the plugin is not loaded and shows an admin notice instead of failing' . ( 0 === strpos( $x2_a511_old, 'SKIPPED|' ) ? '' : ' – ' . substr( $x2_a511_old, 0, 200 ) ), 0 === strpos( $x2_a511_old, 'SKIPPED|<div class="notice notice-error"><p>Pass Captain benötigt WordPress 6.4 oder neuer (installiert: 6.3)' ) );
-$x2_a511_new = $x2_a511_run( '6.8' );
-check( 'A511: on a supported WordPress the plugin loads without a notice', 0 === strpos( $x2_a511_new, 'LOADED|' ) && false === strpos( $x2_a511_new, 'notice-error' ) );
+// Versions from the plugin header (MINVER-1: PHP 8.5, WordPress 7.0); "too old" is one minor below.
+$x2_a511_hdr = (string) file_get_contents( WPCAP_PATH . 'pass-captain.php' );
+preg_match( '/Requires at least:\s*([0-9.]+)/', $x2_a511_hdr, $x2_a511_req_wp );
+preg_match( '/Requires PHP:\s*([0-9.]+)/', $x2_a511_hdr, $x2_a511_req_php );
+$x2_a511_min_wp = $x2_a511_req_wp[1] ?? '7.0';
+$x2_a511_min_php = $x2_a511_req_php[1] ?? '8.5';
+$x2_a511_old_wp = version_compare( $x2_a511_min_wp, '7.0', '==' ) ? '6.9' : preg_replace_callback( '/\.(\d+)$/', static fn( $m ) => '.' . max( 0, (int) $m[1] - 1 ), $x2_a511_min_wp );
+$x2_a511_old = $x2_a511_run( $x2_a511_old_wp );
+if ( version_compare( PHP_VERSION, $x2_a511_min_php, '>=' ) ) {
+	check( "A511: on WordPress $x2_a511_old_wp the plugin is not loaded and shows an admin notice instead of failing" . ( 0 === strpos( $x2_a511_old, 'SKIPPED|' ) ? '' : ' – ' . substr( $x2_a511_old, 0, 200 ) ), 0 === strpos( $x2_a511_old, "SKIPPED|<div class=\"notice notice-error\"><p>Pass Captain benötigt WordPress $x2_a511_min_wp oder neuer (installiert: $x2_a511_old_wp)" ) );
+	$x2_a511_new = $x2_a511_run( $x2_a511_min_wp );
+	check( 'A511: on a supported WordPress the plugin loads without a notice', 0 === strpos( $x2_a511_new, 'LOADED|' ) && false === strpos( $x2_a511_new, 'notice-error' ) );
+} else {
+	// Test runner below the plugin's PHP minimum (local development): the PHP guard answers first.
+	check( "A511: below PHP $x2_a511_min_php the plugin is not loaded and names the PHP requirement", 0 === strpos( $x2_a511_old, "SKIPPED|<div class=\"notice notice-error\"><p>Pass Captain benötigt PHP $x2_a511_min_php oder neuer" ) );
+}
 @unlink( $x2_a511_child );
 
 $x2_a511_main = (string) file_get_contents( WPCAP_PATH . 'pass-captain.php' );
