@@ -4,11 +4,11 @@
 
 | Komponente | Freigegeben | In CI geprüft | Hinweis |
 |---|---|---|---|
-| PHP | 8.2, 8.3, 8.4 | 8.2, 8.3, 8.4 (Syntax, Integration, Last-Smoke) | Minimum 8.2 (`Requires PHP`, `composer.json`) |
-| WordPress | 6.4 bis 7.1 | 6.4 (Minimum) und aktuelle Version (ZIP-Installationstest) | `Requires at least: 6.4`, `Tested up to: 7.1` |
-| WooCommerce (optional) | 8.2 bis 11.3 | 8.2 (Minimum) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header |
-| MariaDB | 10.6, 11.4 | 10.6 und 11.4 × PHP 8.2/8.3/8.4 | Minimum 10.6 (älteste LTS mit Support) |
-| MySQL | 8.0, 8.4 | 8.0 und 8.4 × PHP 8.2/8.3/8.4 | siehe unten |
+| PHP | 8.5 | 8.5 (Syntax, Integration, Last-Smoke); 8.6 experimentell (nicht blockierend) | Minimum 8.5 (`Requires PHP`, `composer.json`, eigene Ladeprüfung) – darunter lädt das Plugin nicht |
+| WordPress | 7.0 bis 7.1 | 7.0 (Minimum) und aktuelle Version (ZIP-Installationstest) | `Requires at least: 7.0` (WordPress 6.8 wirft unter PHP 8.5 Core-Deprecations), `Tested up to: 7.1` |
+| WooCommerce (optional) | 11.2 bis 11.3 | 11.2 (Minimum) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header |
+| MariaDB | 12.3 | 12.3 × PHP 8.5 (8.6 experimentell) | Minimum 12.3; ältere Server: nur Warnung in „Website-Zustand“, keine Sperre |
+| MySQL | 9.7 | 9.7 × PHP 8.5 (8.6 experimentell) | Minimum 9.7; ältere Server: nur Warnung in „Website-Zustand“, keine Sperre; siehe unten |
 
 **Freigegeben** heißt: Die Kombination läuft in jeder CI-Ausführung blockierend (Integrationssuite, Last-Smoke-
 Test `--profile=ci`, bei WordPress/WooCommerce zusätzlich der Installationstest des Release-ZIPs). Andere
@@ -20,8 +20,8 @@ MySQL kennt `@@in_transaction` nicht. Damit ein serverseitiger Rollback innerhal
 (Deadlock-Opfer) trotzdem erkannt wird, schreibt `Orders::begin()` unter MySQL eine Markierungszeile in eine
 verbindungslokale temporäre InnoDB-Tabelle (`{prefix}wpcap_trx_marker`); ein Rollback entfernt sie, und
 `Orders::in_transaction()` meldet die Transaktion als verloren. Ohne das Recht `CREATE TEMPORARY TABLES` fällt
-das Plugin auf die übrigen geprüften Statements und den COMMIT zurück. Stand 14.11.2026 laufen MySQL 8.0 und
-8.4 mit allen Integrationstests und dem Last-Smoke-Test grün und sind freigegeben.
+das Plugin auf die übrigen geprüften Statements und den COMMIT zurück. Seit 17.11.2026 (MINVER-1) ist MySQL 9.7
+die freigegebene MySQL-Version.
 
 ### Matrix ändern
 
@@ -29,7 +29,7 @@ das Plugin auf die übrigen geprüften Statements und den COMMIT zurück. Stand 
 - WordPress/WooCommerce: Job `install-test` (`matrix.include`, Variablen `WPCAP_IT_WP_VERSION`,
   `WPCAP_IT_WC_VERSION` von `build/ci-install-test.sh`).
 - Bei einer neuen Mindestversion auch Plugin-Header, `readme.txt`, `composer.json` (`require.php`,
-  `config.platform.php`), die eigene PHP-Prüfung `version_compare( PHP_VERSION, '8.2', '<' )` am Anfang von `pass-captain.php` (die
+  `config.platform.php`), die eigene PHP-Prüfung `version_compare( PHP_VERSION, '8.5', '<' )` am Anfang von `pass-captain.php` (die
   Composer-Plattformprüfung `vendor/composer/platform_check.php` wird wegen `config.platform-check: false` nicht
   ausgeliefert) und `phpcs.xml.dist` (`testVersion`, `minimum_wp_version`) anpassen –
   `build/check-versions.sh` prüft die Übereinstimmung von Header, Readme und Composer.

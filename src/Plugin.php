@@ -68,6 +68,7 @@ final class Plugin {
 		// Lapsed holds every 5 minutes too, so capacity and limited discount codes come back quickly.
 		add_action( 'wpcap_process_jobs', array( Orders::class, 'process_expired_holds' ), 3, 0 );
 		Ops\Heartbeat::register(); // Worker heartbeats for the system status page.
+		Operations\SiteHealth::register(); // MINVER-1: Site Health warns below MySQL 9.7 / MariaDB 12.3.
 		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); }
 		// Self-healing schedule: e.g. deleting the old "wp-pass-captain" copy runs its uninstall.php, which clears the
 		// recurring events this copy relies on.

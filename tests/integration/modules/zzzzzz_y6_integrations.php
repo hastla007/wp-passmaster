@@ -187,6 +187,12 @@ if ( $y6_fd ) {
 
 /* ------------------------------------------------------------------ INT-8 */
 echo "Y6 INT-8: the old copy cannot be re-activated next to this one\n";
+// MINVER-1: the loader guard checks the running PHP (local runs may use an older one than 8.5). The test defines the
+// guard first (pass-captain.php only declares it when missing), so the legacy guards below register on any PHP;
+// tests/minver/run.php checks the guard itself with injected versions.
+if ( ! function_exists( 'wpcap_requirements_error' ) ) {
+	function wpcap_requirements_error() { return ''; }
+}
 require WPCAP_PATH . 'pass-captain.php'; // Returns early (WPCAP_VERSION is defined) after registering the legacy guards.
 $y6_guard = null;
 foreach ( $GLOBALS['wpcap_test_hooks']['check_admin_referer'][1] ?? array() as $y6_entry ) { $y6_guard = $y6_entry[0]; }
@@ -209,7 +215,7 @@ check( 'INT-8: the plugin list offers no "Activate" link for the old copy', ! is
 echo "Y6 INT-9/INT-11: compatibility declarations\n";
 check( 'INT-9: product block editor declared incompatible', false !== strpos( $y6_adapter, "declare_compatibility( 'product_block_editor', WPCAP_FILE, false )" ) );
 $y6_main = (string) file_get_contents( WPCAP_PATH . 'pass-captain.php' );
-check( 'INT-11: no Composer platform check in the release, own PHP version check instead', false === ( $y6_composer['config']['platform-check'] ?? true ) && false !== strpos( $y6_main, "version_compare( PHP_VERSION, '8.2', '<' )" ) && false === strpos( $y6_main, ' fn(' ) );
+check( 'INT-11: no Composer platform check in the release, own PHP version check instead', false === ( $y6_composer['config']['platform-check'] ?? true ) && false !== strpos( $y6_main, "version_compare( PHP_VERSION, '8.5', '<' )" ) && false === strpos( $y6_main, ' fn(' ) );
 
 /* ------------------------------------------------------------------ INT-10 */
 echo "Y6 INT-10: WooCommerce orders without checkout and required attendee fields\n";

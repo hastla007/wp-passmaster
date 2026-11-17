@@ -78,7 +78,7 @@ Pass Captain ist als Kern-Plugin vollständig kostenlos (GPL-2.0-or-later) und f
 - **Multisite:** Daten je Site getrennt, Netzwerkübersicht mit Kennzahlen und Zustand aller Sites.
 - Datenschutzexport/-löschung über die WordPress-Werkzeuge, automatische Löschfristen, Vorschlag für die
   Datenschutzerklärung.
-- Datenbanken: **MariaDB 10.6/11.4 und MySQL 8.0/8.4** ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)).
+- Datenbanken: **MariaDB 12.3+ und MySQL 9.7+** (ältere Server: nur Warnung) ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)).
 
 Eventkarten lassen sich über `templates/event-card.php` im Theme überschreiben; Währungen, Zahlungs-, SMS-,
 Wallet- und Gutscheinanbieter sind über dokumentierte Hooks erweiterbar ([docs/EXTENSIONS.md](docs/EXTENSIONS.md),
@@ -86,7 +86,7 @@ Wallet- und Gutscheinanbieter sind über dokumentierte Hooks erweiterbar ([docs/
 
 ## Entwicklung
 
-PHP 8.2+, Composer und WordPress erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
+PHP 8.5+, WordPress 7.0+ (WooCommerce optional ab 11.2) und Composer erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
 
 Das aktuelle Kern-Datenbankschema ist `3.9.0` (plus Modul-Schemata). Das Upgrade erfolgt über `dbDelta` im Admin-Bereich, per WP-Cron oder WP-CLI hinter einer Datenbanksperre, nicht bei jedem Frontend-Aufruf (Details, Backup/Restore und System-Cron-Empfehlung: [docs/OPERATIONS.md](docs/OPERATIONS.md)). WordPress-Schreibzugriffe über REST brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
 
@@ -101,7 +101,7 @@ Integrationstests laufen gegen eine echte, wegwerfbare MySQL-/MariaDB-Datenbank 
 php tests/integration/run.php
 ```
 
-Die CI (`.github/workflows/ci.yml`) prüft Syntax, Coding-Standard und PHPStan gegen Baselines, `composer audit`, Secrets, den Lizenz-Wächter, die Integrationssuite und einen Last-Smoke-Test auf PHP 8.2–8.4 × MariaDB/MySQL, baut ein reproduzierbares ZIP, installiert es in echtem WordPress (mit und ohne WooCommerce) und prüft es mit dem offiziellen [Plugin Check](https://github.com/WordPress/plugin-check-action). Alle Testebenen, auch Lasttests, Barrierefreiheit und Browser-E2E: [docs/TESTING.md](docs/TESTING.md). Release-Gates: [docs/RELEASE.md](docs/RELEASE.md); Support- und Versionsregeln: [docs/SUPPORT.md](docs/SUPPORT.md).
+Die CI (`.github/workflows/ci.yml`) prüft Syntax, Coding-Standard und PHPStan gegen Baselines, `composer audit`, Secrets, den Lizenz-Wächter, die Integrationssuite und einen Last-Smoke-Test auf PHP 8.5 (8.6 experimentell) × MariaDB 12.3/MySQL 9.7, baut ein reproduzierbares ZIP, installiert es in echtem WordPress (mit und ohne WooCommerce) und prüft es mit dem offiziellen [Plugin Check](https://github.com/WordPress/plugin-check-action). Alle Testebenen, auch Lasttests, Barrierefreiheit und Browser-E2E: [docs/TESTING.md](docs/TESTING.md). Release-Gates: [docs/RELEASE.md](docs/RELEASE.md); Support- und Versionsregeln: [docs/SUPPORT.md](docs/SUPPORT.md).
 
 ## Roadmaps und Entwurfsdokumente
 

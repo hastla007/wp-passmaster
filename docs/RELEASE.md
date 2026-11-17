@@ -37,19 +37,19 @@ Der Release-Workflow bricht ab, wenn eines davon nicht erfüllt ist:
 
 Über „CI grün für den SHA“ sind zusätzlich verbindlich (alle Jobs in `ci.yml` blockierend):
 
-- Syntax PHP/JS (PHP 8.2/8.3/8.4), Composer-Metadaten;
+- Syntax PHP/JS (PHP 8.5, 8.6 experimentell), Composer-Metadaten;
 - statische Analyse ohne neue Befunde (phpcs, PHPStan), `composer audit`;
 - Lizenz-Wächter (Quellbaum und ZIP), Secret-Scan (Historie und ZIP), Dependency Review bei PRs;
-- Integrationssuite und **Last-Smoke** (`--profile=ci`) auf PHP 8.2/8.3/8.4 × MariaDB 10.6/11.4 und
-  MySQL 8.0/8.4;
-- Paketinhalt und **Installationstest** des ZIPs (WordPress aktuell und 6.4, WooCommerce aktuell und 8.2,
+- Integrationssuite und **Last-Smoke** (`--profile=ci`) auf PHP 8.5 × MariaDB 12.3 und MySQL 9.7
+  (PHP 8.6 experimentell);
+- Paketinhalt und **Installationstest** des ZIPs (WordPress aktuell und 7.0, WooCommerce aktuell und 11.2,
   HPOS an/aus);
 - **Update von der Vorgängerversion** (derzeit 1.4.0, aus ihrem Release-Commit gebaut) mit Daten: Übernahme der
   Aktivierung, Schema-Upgrade auf die aktuelle `DB_VERSION`, Daten unverändert und konsistent, keine PHP-Fehler,
   Löschen der alten Kopie entfernt keine Daten (`install-test`, Bein „Update from 1.4.0“);
 - **Deinstallation**: Daten bleiben mit Standardeinstellungen erhalten und werden nach Neuinstallation
   wiedergefunden; mit „Daten beim Löschen entfernen“ bleibt nichts übrig (alle `install-test`-Beine);
-- **JS-Unit-Tests** (`php`, PHP 8.4), **a11y-Gate** (axe über alle Admin-Screens + Tastatur, Chromium) und
+- **JS-Unit-Tests** (`php`, PHP 8.5), **a11y-Gate** (axe über alle Admin-Screens + Tastatur, Chromium) und
   **Browser-E2E** in Chromium, Firefox und WebKit (Checkout, Portal, Web-Scanner inkl. Fake-Kamera,
   Offline-PWA; WooCommerce Blocks in Chromium) sowie Mobil-Emulation Pixel 7 und iPhone 14 für Checkout,
   Portal und Offline-Kopplung (`browser`);
@@ -62,7 +62,7 @@ Ergebnis mit Commit-SHA bzw. Lauf-URL im Protokoll festhalten:
 - [ ] **Lasttest** `default` (bei Änderungen an Checkout, Einlass, Webhooks oder Schema zusätzlich `heavy`):
       letzter Lauf von `load.yml` nicht älter als eine Woche und grün, oder manuell auslösen; Latenzen mit den
       Referenzwerten in [TESTING.md](TESTING.md) vergleichen.
-- [ ] **Restore-Probe**: letzter Lauf von `drills.yml` (MariaDB 11.4, MySQL 8.0/8.4) nicht älter als eine Woche
+- [ ] **Restore-Probe**: letzter Lauf von `drills.yml` (MariaDB 12.3, MySQL 9.7) nicht älter als eine Woche
       und grün, bei Änderungen an Schema, Jobs, Ausstellung oder Diagnose für den Release-Commit manuell
       auslösen (`workflow_dispatch`); lokal `tests/drills/restore-drill.sh`.
 - [ ] **Release-Gate-Test**: `bash tests/release/verify-release.test.sh` (nur bei Änderungen an

@@ -7,7 +7,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-16T17:40:10+00:00\n"
+"POT-Creation-Date: 2026-11-17T06:26:57+00:00\n"
 "PO-Revision-Date: 2026-11-14 17:14+0000\n"
 "Language: it_IT\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -16,6 +16,8 @@ msgstr ""
 #. Plugin Name of the plugin
 #: pass-captain.php:3
 #: src/Integrations/WooCommerce/CartPricing.php:83
+#: src/Operations/SiteHealth.php:24
+#: src/Operations/SiteHealth.php:84
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
@@ -39,21 +41,27 @@ msgstr "hastla007"
 msgid "https://github.com/hastla007"
 msgstr "https://github.com/hastla007"
 
-#. translators: %s: PHP version of the server
-#: pass-captain.php:29
+#. translators: 1: required PHP version, 2: installed PHP version
+#: pass-captain.php:34
 #, php-format
-msgid "Pass Captain benötigt PHP 8.2 oder neuer; dieser Server verwendet PHP %s. Das Plugin ist bis zu einem PHP-Update inaktiv."
-msgstr "Pass Captain richiede PHP 8.2 o successivo; questo server usa PHP %s. Il plugin resta inattivo fino all’aggiornamento di PHP."
+msgid "Pass Captain benötigt PHP %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte PHP beim Hosting aktualisieren."
+msgstr "Pass Captain richiede PHP %1$s o versione successiva (installata: %2$s) e non è stato caricato. Aggiorna PHP presso il tuo hosting."
 
-#: pass-captain.php:114
+#. translators: 1: required WordPress version, 2: installed WordPress version
+#: pass-captain.php:38
+#, php-format
+msgid "Pass Captain benötigt WordPress %1$s oder neuer (installiert: %2$s) und wurde nicht geladen. Bitte WordPress aktualisieren."
+msgstr "Pass Captain richiede WordPress %1$s o versione successiva (installata: %2$s) e non è stato caricato. Aggiorna WordPress."
+
+#: pass-captain.php:133
 msgid "Ersetzt durch „Pass Captain“ – bitte löschen"
 msgstr "Sostituito da “Pass Captain” – eliminalo"
 
-#: pass-captain.php:141
+#: pass-captain.php:160
 msgid "Die alte Kopie „WP Pass Captain“ kann nicht aktiviert werden: „Pass Captain“ hat sie ersetzt und nutzt dieselben Daten. Die alte Kopie kann gefahrlos gelöscht werden."
 msgstr "La vecchia copia “WP Pass Captain” non può essere attivata: “Pass Captain” l’ha sostituita e usa gli stessi dati. La vecchia copia può essere eliminata senza rischi."
 
-#: pass-captain.php:142
+#: pass-captain.php:161
 msgid "Aktivierung abgelehnt"
 msgstr "Attivazione rifiutata"
 
@@ -11853,6 +11861,22 @@ msgstr "Regola per le doppie scansioni sconosciuta."
 #: src/OfflineScanner/Sync.php:77
 msgid "Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner)."
 msgstr "Risolto automaticamente: regola «Vince la prima sincronizzazione» (scanner offline)."
+
+#: src/Operations/SiteHealth.php:66
+msgid "Pass Captain: Datenbankserver wird unterstützt"
+msgstr "Pass Captain: il server del database è supportato"
+
+#. translators: 1: database server (MySQL/MariaDB), 2: installed version
+#: src/Operations/SiteHealth.php:72
+#, php-format
+msgid "Pass Captain: %1$s %2$s ist älter als die unterstützte Version"
+msgstr "Pass Captain: %1$s %2$s è più vecchio della versione supportata"
+
+#. translators: 1: minimum MySQL version, 2: minimum MariaDB version
+#: src/Operations/SiteHealth.php:74
+#, php-format
+msgid "Pass Captain wird mit MySQL %1$s+ und MariaDB %2$s+ getestet. Ältere Datenbankserver werden nicht gesperrt, sind aber nicht mehr geprüft. Bitte den Datenbankserver beim Hosting aktualisieren."
+msgstr "Pass Captain è testato con MySQL %1$s+ e MariaDB %2$s+. I server di database più vecchi non vengono bloccati, ma non sono più testati. Chiedi al tuo hosting di aggiornare il server del database."
 
 #: src/Ops/Heartbeat.php:25
 #: src/Ops/Status.php:44

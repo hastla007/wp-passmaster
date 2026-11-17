@@ -9,23 +9,23 @@ grün sein müssen, steht in [RELEASE.md](RELEASE.md); die unterstützten Plattf
 
 | Ebene | Werkzeug / Einstieg | Lokal | CI (Workflow, Job) |
 |---|---|---|---|
-| Syntax PHP/JS, Composer-Metadaten | `php -l`, `node --check`, `composer validate` | ja | `ci.yml` `php` (PHP 8.2/8.3/8.4), blockierend |
+| Syntax PHP/JS, Composer-Metadaten | `php -l`, `node --check`, `composer validate` | ja | `ci.yml` `php` (PHP 8.5 blockierend, 8.6 experimentell) |
 | Statische Analyse + Versionskonsistenz | phpcs (Baseline), PHPStan (Baseline), `composer audit`, `build/check-versions.sh` | ja | `ci.yml` `static`, blockierend |
 | Lizenz-Wächter | `tests/guard/no-license-code.php` | ja | `ci.yml` `license-guard` und `package`, blockierend |
 | Secret-Scan, Abhängigkeitsprüfung | gitleaks, `dependency-review-action` | ja (gitleaks) | `ci.yml` `secrets` und `package`, blockierend |
-| Integrationssuite (echte DB) | `tests/integration/run.php` | ja | `ci.yml` `integration`: PHP 8.2/8.3/8.4 × MariaDB 10.6/11.4, MySQL 8.0/8.4, blockierend |
+| Integrationssuite (echte DB) | `tests/integration/run.php` | ja | `ci.yml` `integration`: PHP 8.5 × MariaDB 12.3, MySQL 9.7 blockierend; PHP 8.6 × beide experimentell |
 | Last-Smoke (Nebenläufigkeit) | `tests/load/run.php --profile=ci` | ja | `ci.yml` `integration`, gleiche Matrix, blockierend |
-| Lasttests `default`/`heavy` | `tests/load/run.php` | ja | `load.yml` wöchentlich + manuell, MariaDB 11.4 / MySQL 8.4 |
+| Lasttests `default`/`heavy` | `tests/load/run.php` | ja | `load.yml` wöchentlich + manuell, MariaDB 12.3 / MySQL 9.7 |
 | Lasttest über REST | `tests/load/http.php` | ja (Wegwerf-WordPress) | nein |
 | Reproduzierbares ZIP, Paketinhalt | `build/release.sh`, `build/ci-install-test.sh` (statisch) | ja | `ci.yml` `package`, blockierend |
-| Installationstest des ZIPs | `build/ci-install-test.sh <zip>` + `build/ci-smoke.php` | ja (Wegwerf-DB) | `ci.yml` `install-test` (WP aktuell/6.4, WooCommerce aktuell/8.2), blockierend |
+| Installationstest des ZIPs | `build/ci-install-test.sh <zip>` + `build/ci-smoke.php` | ja (Wegwerf-DB) | `ci.yml` `install-test` (WP aktuell/7.0, WooCommerce aktuell/11.2), blockierend |
 | Update von 1.4.0 mit Daten | `WPCAP_IT_UPGRADE_FROM=<commit> build/ci-install-test.sh <zip>` + `build/ci-data.php` | ja (Wegwerf-DB) | `ci.yml` `install-test`, Bein „Update from 1.4.0“, blockierend |
 | Deinstallation (Daten behalten / entfernen) | `build/ci-install-test.sh` (Schritt 5) | ja (Wegwerf-DB) | `ci.yml` `install-test`, alle Beine, blockierend |
 | Multisite: Netzwerkaktivierung (30 Sites), Site löschen, Deinstallation mit gemischtem Opt-in | `build/ci-multisite-test.sh <zip>` + `build/ci-multisite.php` | ja (Wegwerf-DB) | `ci.yml` `install-test`, Bein „Multisite (30 sites)“, blockierend |
-| Restore-Probe (Backup → Zerstörung → Restore → Diagnose) | `tests/drills/restore-drill.sh` | ja (Wegwerf-DB) | `drills.yml` wöchentlich + manuell, MariaDB 11.4 / MySQL 8.0 / 8.4 |
+| Restore-Probe (Backup → Zerstörung → Restore → Diagnose) | `tests/drills/restore-drill.sh` | ja (Wegwerf-DB) | `drills.yml` wöchentlich + manuell, MariaDB 12.3 / MySQL 9.7 |
 | WordPress.org Plugin Check | `wordpress/plugin-check-action` | – | `ci.yml` `plugin-check`, blockierend |
 | Release-Gate-Skript | `tests/release/verify-release.test.sh` | ja | **nein** (nur das Skript selbst läuft in `release.yml`) |
-| JS-Unit-Tests | `tests/js` (`npm test`) | ja | `ci.yml` `php` (Bein PHP 8.4), blockierend |
+| JS-Unit-Tests | `tests/js` (`npm test`) | ja | `ci.yml` `php` (PHP 8.5), blockierend |
 | Barrierefreiheit (Gate) | `tests/a11y/gate.sh` | ja (Wegwerf-WordPress) | `ci.yml` `browser` (Bein chromium), blockierend |
 | Browser-E2E Desktop | `tests/e2e/run.sh` (`WPCAP_E2E_BROWSER`) | ja (Wegwerf-WordPress) | `ci.yml` `browser`: Chromium (+ WooCommerce Blocks), Firefox, WebKit, blockierend |
 | Browser-E2E Mobil-Emulation | `WPCAP_E2E_DEVICE="Pixel 7"` / `"iPhone 14"` | ja | `ci.yml` `browser`: Pixel 7 (Chromium), iPhone 14 (WebKit) – Checkout, Portal, Offline-Kopplung, blockierend |
@@ -44,7 +44,7 @@ und Deinstallation bestanden; Restore-Probe bestanden auf MariaDB 10.11, MySQL 8
 
 ## Gemeinsame Voraussetzungen
 
-- PHP 8.2+ mit `mysqli`, `mbstring`, `sodium`, `gd`, `zip`, `openssl`; `composer install` (inkl. Dev-Paketen
+- PHP 8.5+ mit `mysqli`, `mbstring`, `sodium`, `gd`, `zip`, `openssl`; `composer install` (inkl. Dev-Paketen
   für die statische Analyse).
 - Eine **Wegwerf**-Datenbank (MariaDB oder MySQL). Lokal z. B.:
 
@@ -142,7 +142,7 @@ Der früher gefundene Check-in-Fehler (Gap-Lock-Deadlock auf `wpcap_admission_st
 
 **CI:** `ci.yml`, Job `integration`, bei jedem Push/PR mit `--profile=ci` auf allen 12 Kombinationen
 PHP × Datenbank. **Geplant:** `load.yml` montags 03:17 UTC und manuell (`workflow_dispatch`, Profil
-`all|default|heavy`) mit `default` und `heavy` auf MariaDB 11.4 und MySQL 8.4, PHP 8.4. Der Job scheitert nur
+`all|default|heavy`) mit `default` und `heavy` auf MariaDB 12.3 und MySQL 9.7, PHP 8.5 (Referenzwerte unten noch von MariaDB 10.6/MySQL 8.4, beim nächsten Lauf ersetzen). Der Job scheitert nur
 bei verletzter Invariante; Ausgabe und JSON liegen 90 Tage als Artefakt `load-<profil>-<db>` vor, die Tabelle
 steht in der Job-Zusammenfassung. Latenzen werden nicht automatisch bewertet (geteilte Runner schwanken):
 bei Abweichungen über etwa Faktor 2 gegenüber den Referenzwerten oder Deadlocks > 0 genauer hinsehen.
@@ -193,7 +193,7 @@ p95 0,9–2,1 s, 0 % Fehler. Der Engpass ist der WordPress-Bootstrap, nicht das 
 | Prüfung | Lokal | Konfiguration |
 |---|---|---|
 | Versions-/Anforderungskonsistenz | `bash build/check-versions.sh [vX.Y.Z]` | Header `Version`, `WPCAP_VERSION`, readme `Stable tag`, neueste CHANGELOG-Version, `composer.json` (`require.php`, `config.platform.php`), `Requires at least`/`Requires PHP` |
-| PHP_CodeSniffer (WPCS 3 + PHPCompatibilityWP, PHP 8.2+, WP 6.4+) | `php build/phpcs-baseline.php` | `phpcs.xml.dist`, Baseline `phpcs-baseline.json` |
+| PHP_CodeSniffer (WPCS 3 + PHPCompatibilityWP, PHP 8.5+, WP 7.0+) | `php build/phpcs-baseline.php` | `phpcs.xml.dist`, Baseline `phpcs-baseline.json` |
 | PHPStan Level 5 (phpstan-wordpress, WooCommerce-Stubs) | `composer lint:phpstan` | `phpstan.neon.dist`, Baseline `phpstan-baseline.neon` |
 | Bekannte Schwachstellen in Composer-Paketen | `composer audit --locked` | – |
 
@@ -250,8 +250,8 @@ Repository einer Organisation, braucht die gitleaks-Action das Secret `GITLEAKS_
   Smoke-Check `build/ci-smoke.php`: Tabellen, Schema-Version/-Fingerprint, Rollenrechte, Cron, REST-Routen und
   `GET /wp-pass-captain/v1/events`, QR-Code; mit WooCommerce HPOS-Kompatibilität und eine Woo-Bestellung über den
   aktiven Speicher – mit HPOS an und aus, danach Deaktivieren/Aktivieren und erneuter Smoke-Check.
-  CI-Matrix: WordPress aktuell (PHP 8.4) und 6.4 (PHP 8.2), WooCommerce aktuell (PHP 8.4) und 8.2.0 (PHP 8.2),
-  Update von 1.4.0 (PHP 8.4), Datenbank MariaDB 11.4. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`,
+  CI-Matrix: WordPress aktuell und 7.0, WooCommerce aktuell und 11.2.0, Update von 1.4.0, Multisite – alle mit
+  PHP 8.5, Datenbank MariaDB 12.3. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`,
   `WPCAP_IT_WC_VERSION`, `WPCAP_IT_WP_CORE_DIR`/`WPCAP_IT_WC_ZIP` (lokale Quellen), `WPCAP_IT_UPGRADE_FROM`/
   `WPCAP_IT_UPGRADE_FROM_ZIP`, `WPCAP_IT_SKIP_UNINSTALL=1`, `WPCAP_IT_KEEP=1`.
 - **Update-Pfad** (`WPCAP_IT_UPGRADE_FROM=<git-ref>`, in CI der Release-Commit von 1.4.0 `90c972a`): das ZIP der
@@ -423,7 +423,7 @@ Variablen: `WPCAP_DRILL_DB_HOST/_PORT/_USER/_PASS/_NAME`, `WPCAP_DRILL_DUMP`, `W
 `WPCAP_DRILL_CLIENT_HOST/_PORT` (Sicht aus dem Container), `WPCAP_DRILL_WP_CORE` oder `WPCAP_DRILL_WP_VERSION`,
 `WPCAP_DRILL_WP_CLI`, `WPCAP_DRILL_WORK`, `WPCAP_DRILL_KEEP=1`. Laufzeit lokal etwa eine Minute.
 
-**CI:** `drills.yml` montags 04:41 UTC und manuell auf MariaDB 11.4, MySQL 8.0 und 8.4; Dump und Import mit den
+**CI:** `drills.yml` montags 04:41 UTC und manuell auf MariaDB 12.3 und MySQL 9.7; Dump und Import mit den
 Werkzeugen des Datenbank-Containers (Client = Server-Version). Bei Fehlschlag Protokoll, Snapshots und
 `debug.log` als Artefakt.
 

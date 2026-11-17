@@ -8,8 +8,8 @@ includes:
 parameters:
 	level: 5
 	phpVersion:
-		min: 80200
-		max: 80499
+		min: 80500
+		max: 80699
 	paths:
 		- pass-captain.php
 		- uninstall.php

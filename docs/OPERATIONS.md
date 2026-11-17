@@ -52,7 +52,7 @@ Die Restore-Probe ist Teil der Release-Abnahme ([RELEASE.md](RELEASE.md)) und so
 regelmäßig (z. B. vierteljährlich) auf einer Staging-Site geübt werden.
 
 **Automatisierte Restore-Probe** (`tests/drills/restore-drill.sh`, wöchentlich in `.github/workflows/drills.yml`
-auf MariaDB 11.4, MySQL 8.0 und 8.4; Details in [TESTING.md](TESTING.md#restore-probe-testsdrillsrestore-drillsh)):
+auf MariaDB 12.3 und MySQL 9.7; Details in [TESTING.md](TESTING.md#restore-probe-testsdrillsrestore-drillsh)):
 Sie spielt genau diesen Ablauf in einer Wegwerf-Installation durch – Daten inklusive Arbeit, die beim Backup
 „unterwegs“ ist (bezahlte Bestellung, deren Ticketausstellung abbrach; hängender Job-Claim; nicht bereinigte
 Reservierung), Dump mit `--single-transaction`, Schreibvorgänge nach dem Backup, Zerstörung, Restore, dann
