@@ -161,7 +161,8 @@ $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=%s W
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET offer_expires_at=%s WHERE waitlist_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), (int) $y->waitlist_id ) );
 check( 'an expired offer does not block sales any more', 1 === Orders::availability( $ew_type ) );
 Waitlists::sweep();
-check( 'sweep marks the expired offer; with nobody waiting the ticket is free', 'expired' === $ew_row( 'ew-y@svc.test' )->status && 'expired' === Orders::get( (int) $y->order_id )->status && 1 === Orders::availability( $ew_type ) );
+$ew_after = array( $ew_row( 'ew-y@svc.test' )->status, Orders::get( (int) $y->order_id )->status, Orders::availability( $ew_type ) );
+check( 'sweep marks the expired offer; with nobody waiting the ticket is free (entry/order/available: ' . implode( '/', $ew_after ) . ')', array( 'expired', 'expired', 1 ) === $ew_after );
 // Capacity increase → offer by the sweep; accepting a free offer completes the order at once.
 $ew2_type = make_type( 1, 10, 0 );
 $ew2_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$ew2_type" );
