@@ -121,9 +121,13 @@ final class Orders {
 		}
 		// Buyer language: the locale the checkout form was rendered in (legal texts, mails), else the request locale.
 		// W9: an explicit buyer language is only taken when the site offers it (Localization::order_locale()).
-		$order_locale = Mail\Mailer::normalize_locale( Localization::order_locale( is_string( $payload['locale'] ?? null ) ? $payload['locale'] : '' ) );
-		if ( '' === $order_locale ) { $order_locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }
-		$terms_version = $external ? '' : Settings::terms_version( $order_locale );
+		// A165: the legal texts are those of the language the form was shown in ("locale"); the buyer may
+		// choose another language for e-mails, tickets and the portal ("buyer_locale", Frontend\Language).
+		$legal_locale = Mail\Mailer::normalize_locale( Localization::order_locale( is_string( $payload['locale'] ?? null ) ? $payload['locale'] : '' ) );
+		if ( '' === $legal_locale ) { $legal_locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }
+		$order_locale = $external ? $legal_locale : Mail\Mailer::normalize_locale( Frontend\Language::order_locale( $payload ) );
+		if ( '' === $order_locale ) { $order_locale = $legal_locale; }
+		$terms_version = $external ? '' : Settings::terms_version( $legal_locale );
 		$unit_prices = ( $external && is_array( $internal['unit_prices'] ?? null ) ) ? array_map( 'absint', $internal['unit_prices'] ) : array();
 		// Exact gross line totals from the external system (unit prices may not divide evenly).
 		$line_totals = ( $external && is_array( $internal['line_totals'] ?? null ) ) ? array_map( 'absint', $internal['line_totals'] ) : array();
@@ -161,10 +165,10 @@ final class Orders {
 		// (GET /checkout/options), because a cached page would show the old ones again (A457).
 		$shown_version = is_string( $payload['terms_version'] ?? null ) ? $payload['terms_version'] : '';
 		if ( ! $external && Settings::get( 'require_terms' ) && '' !== $shown_version && $shown_version !== $terms_version ) {
-			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409, 'terms_version' => $terms_version, 'locale' => $order_locale ) );
+			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409, 'terms_version' => $terms_version, 'locale' => $legal_locale ) );
 		}
 		// A568: the wording behind the stored version stays provable (archive, append-only).
-		if ( '' !== $terms_version ) { LegalVersions::archive( $order_locale ); }
+		if ( '' !== $terms_version ) { LegalVersions::archive( $legal_locale ); }
 
 		// The per-type limit is the ticket type's max_per_order (checked under lock below); this is
 		// only an absolute safety cap against absurd quantities before any row is locked.
@@ -212,7 +216,7 @@ final class Orders {
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
 		// Consent proof (A116): text version shown, time, source, locale; recorded at issuance.
 		$consent_source = Consents::source_for_channel( $internal['source'] ?? $namespace );
-		$attendees = Consents::annotate( $attendees, $consent_source, $order_locale, 'checkout' === $consent_source && ! $external ? Consents::ip_hash( self::client_ip() ) : '' );
+		$attendees = Consents::annotate( $attendees, $consent_source, $legal_locale, 'checkout' === $consent_source && ! $external ? Consents::ip_hash( self::client_ip() ) : '' );
 		// Buyer billing data (company/address/VAT ID). Trusted adapters (e.g. WooCommerce) pass data that
 		// their own checkout already validated as $internal['billing']; customer input is validated here.
 		$billing = ( $external && is_array( $internal['billing'] ?? null ) ) ? Billing::sanitize( $internal['billing'] ) : Billing::validate( $payload['billing'] ?? null );

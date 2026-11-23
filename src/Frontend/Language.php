@@ -33,6 +33,7 @@ final class Language {
 	public static function payload_keys( $keys ) {
 		$keys = is_array( $keys ) ? $keys : array();
 		$keys[] = 'locale';
+		$keys[] = 'buyer_locale';
 		return array_values( array_unique( $keys ) );
 	}
 
@@ -46,12 +47,27 @@ final class Language {
 		return $html . '</select>';
 	}
 
-	/** Checkout field (empty when the selector is disabled). */
+	/**
+	 * Checkout field (empty when the selector is disabled). Named "buyer_locale" (A165): the hidden field
+	 * "locale" names the language of the legal texts shown on the page (consent), this one the language
+	 * of e-mails, tickets and the order portal.
+	 */
 	public static function checkout_field( $form_id ) {
 		if ( ! self::enabled() ) { return ''; }
 		$id = $form_id . '-locale';
 		$current = function_exists( 'determine_locale' ) ? determine_locale() : 'de_DE';
-		return '<div class="wpcap-field wpcap-language"><label for="' . esc_attr( $id ) . '">' . esc_html__( 'Sprache für E-Mails und Tickets', 'pass-captain' ) . '</label>' . self::select_html( $current, $id ) . '</div>';
+		return '<div class="wpcap-field wpcap-language"><label for="' . esc_attr( $id ) . '">' . esc_html__( 'Sprache für E-Mails und Tickets', 'pass-captain' ) . '</label>' . self::select_html( $current, $id, 'buyer_locale' ) . '</div>';
+	}
+
+	/**
+	 * Language of a new order (A165): the buyer's choice in the selector when it is offered and supported,
+	 * else the language the checkout was shown in (Localization::order_locale()).
+	 *
+	 * @param array $payload Checkout payload (buyer_locale, locale).
+	 */
+	public static function order_locale( array $payload ) {
+		$chosen = self::enabled() ? Localization::normalize_buyer_locale( is_string( $payload['buyer_locale'] ?? null ) ? $payload['buyer_locale'] : '' ) : '';
+		return '' !== $chosen ? $chosen : Localization::order_locale( is_string( $payload['locale'] ?? null ) ? $payload['locale'] : '' );
 	}
 
 	/** Portal form (empty when disabled). */

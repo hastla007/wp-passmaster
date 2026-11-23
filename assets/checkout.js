@@ -901,6 +901,8 @@
 		const terms = form.querySelector('[name="accept_terms"]');
 		const termsVersion = form.querySelector('input[type="hidden"][name="terms_version"]');
 		const formLocale = form.querySelector('input[type="hidden"][name="locale"]');
+		// A165: language chosen for e-mails, tickets and the portal (selector, Frontend\Language).
+		const buyerLocale = form.querySelector('select[name="buyer_locale"]');
 		const voucher = form.querySelector('[name="voucher_code"]');
 		const single = form.querySelector('[name="code"]');
 		const email = form.querySelector('[name="email"]').value.trim();
@@ -928,6 +930,7 @@
 			accept_terms: terms ? terms.checked : false,
 			terms_version: termsVersion ? termsVersion.value : '',
 			locale: formLocale ? formLocale.value : '',
+			buyer_locale: buyerLocale ? buyerLocale.value : '',
 			voucher_code: voucher ? voucher.value.trim() : '',
 			code: single ? single.value.trim() : '',
 			// A576: the unit prices shown on the card; the server refuses an order that would cost more.

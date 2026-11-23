@@ -194,6 +194,8 @@ final class PublicEvents {
 				'estimate' => __( 'Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)', 'pass-captain' ),
 				/* translators: %s: formatted amount */
 				'orderTotal' => __( 'Gesamtbetrag: %s.', 'pass-captain' ),
+				// A165: shown while a busy server is retried automatically (same order attempt).
+				'retrying' => __( 'Gerade ist viel los. Wir versuchen es automatisch noch einmal …', 'pass-captain' ),
 				/* translators: %s: formatted service fee amount (A425) */
 				'estimateFee' => __( 'inkl. Servicegebühr %s', 'pass-captain' ),
 				// Error summary and inline field errors.

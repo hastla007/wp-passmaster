@@ -52,6 +52,24 @@ Kassenschicht-Status. Alle Statuswerte von `Forms::status_label()` stehen im Kon
 
 Sortierung (A520): Listen mit Namen (z. B. Gruppen der Berichte) sortiert `Localization::compare()` in der Website-Sprache (ICU-Collator, Zahlen natürlich; ohne intl-Erweiterung ohne Akzente und Groß/Klein), nicht nach Bytes.
 
+## Sprache der Käufer:in (W9, A165)
+
+Ist unter **Einstellungen → Sicherheit** „Sprachauswahl im Checkout und im Bestellportal anzeigen“ an
+(Standard) und gibt es mehr als eine Sprache, zeigt der Checkout ein Auswahlfeld `buyer_locale`
+(`Frontend\Language`). Es bestimmt die Sprache von E-Mails, Tickets, Ticketseite und Bestellportal
+(`wpcap_orders.locale`); im Portal lässt sie sich später ändern. Das versteckte Feld `locale` nennt
+weiterhin die Sprache, in der die Seite und damit die Rechtstexte angezeigt wurden: Zustimmung,
+gespeicherte Bedingungsfassung (`terms_version`) und die Vertragstexte in der Bestätigungsmail
+(`{contract_texts}`) sind immer die gezeigte Fassung, auch wenn für Mails eine andere Sprache gewählt
+wurde. Eine nicht angebotene Auswahl fällt auf die Seitensprache zurück; bei ausgeschalteter Auswahl
+wird `buyer_locale` ignoriert.
+
+**String-Prüfung:** `tests/i18n-check.php` prüft die Kataloge (siehe unten); `tests/consistency.php`
+prüft zusätzlich, dass jeder Schlüssel, den ein Frontend-Skript aus seinem übersetzten Katalog liest
+(`t.…` in `assets/checkout.js`, `service-booking.js`, `woocommerce/attendees.js`, `seating/*.js`), im
+PHP-Katalog definiert ist – sonst sähe die Käufer:in den Platzhalter des Skripts statt des übersetzten
+Textes.
+
 ## Stand und Prüfung (A107)
 
 Stand 13.11.2026: alle 3234 Texte in allen fünf Sprachen vollständig, 0 fuzzy. Die 630 alten

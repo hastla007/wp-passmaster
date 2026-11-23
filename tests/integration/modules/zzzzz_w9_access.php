@@ -463,7 +463,7 @@ $changed = PassCaptain\Frontend\Language::set_order_locale( $fr['public_id'], $t
 check( 'language: portal change requires the access token and a supported locale; change is audited', is_wp_error( $bad ) && 403 === $bad->get_error_data()['status'] && is_wp_error( $unsupported ) && is_array( $changed ) && 'nl_NL' === Orders::get( $fr['order_id'] )->locale && 1 <= w9_audit_count( 'order_locale_changed', $fr['order_id'] ) );
 $form = PassCaptain\Frontend\Language::portal_form( Orders::get( $fr['order_id'] ), $token );
 $field = PassCaptain\Frontend\Language::checkout_field( 'wpcap-1' );
-check( 'language: selector in portal (current order language preselected) and checkout', false !== strpos( $form, 'value="nl_NL" lang="nl-NL" selected' ) && false !== strpos( $form, 'wpcap_portal_language' ) && false !== strpos( $field, 'name="locale"' ) && false !== strpos( $field, 'Français' ) );
+check( 'language: selector in portal (current order language preselected) and checkout', false !== strpos( $form, 'value="nl_NL" lang="nl-NL" selected' ) && false !== strpos( $form, 'wpcap_portal_language' ) && false !== strpos( $field, 'name="buyer_locale"' ) && false !== strpos( $field, 'Français' ) );
 Settings::update( array( 'buyer_language_selector' => 0 ) );
 check( 'language: selector can be switched off', '' === PassCaptain\Frontend\Language::checkout_field( 'wpcap-1' ) );
 Settings::update( array( 'buyer_language_selector' => 1 ) );

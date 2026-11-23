@@ -186,5 +186,20 @@ foreach ( $shipped as $file ) {
 	if ( ! $guarded ) { $unguarded[] = $file; }
 }
 $check( 'every shipped PHP file has an ABSPATH guard before its first statement' . ( $unguarded ? ' – missing in ' . implode( ', ', $unguarded ) : '' ), ! $unguarded );
+// A165: every string key a front-end script reads from its localized catalogue exists in the PHP catalogue
+// (a missing key shows the script's fallback, often "…" or English, instead of the translated text).
+$i18n_pairs = array(
+	'assets/checkout.js' => array( 'src/PublicEvents.php', '/\bt\.([A-Za-z_]+)/' ),
+	'assets/service-booking.js' => array( 'src/Frontend/ServiceBooking.php', '/\bt\.([A-Za-z_]+)/' ),
+	'assets/woocommerce/attendees.js' => array( 'src/Integrations/WooCommerce/Attendees.php', '/\bt\.([A-Za-z_]+)/' ),
+	'assets/seating/picker.js' => array( 'src/Seating/Picker.php', '/\bthis\.t\.([A-Za-z_]+)/' ),
+	'assets/seating/editor.js' => array( 'src/Seating/AdminPage.php', '/\bt\.([A-Za-z_]+)/' ),
+);
+foreach ( $i18n_pairs as $js_file => list( $php_file, $pattern ) ) {
+	preg_match_all( $pattern, (string) file_get_contents( $root . '/' . $js_file ), $used );
+	preg_match_all( "/'([A-Za-z_]+)'\s*=>/", (string) file_get_contents( $root . '/' . $php_file ), $defined );
+	$missing_keys = array_values( array_diff( array_unique( $used[1] ), $defined[1] ) );
+	$check( "$js_file: every i18n key is defined in $php_file" . ( $missing_keys ? ' – missing ' . implode( ', ', $missing_keys ) : '' ), $used[1] && ! $missing_keys );
+}
 echo $failed ? "$failed failed\n" : "all passed\n";
 exit( $failed ? 1 : 0 );
