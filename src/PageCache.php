@@ -158,7 +158,7 @@ final class PageCache {
 				self::collect( $event, $occurrence, $all, $events, $occurrences );
 			}
 		}
-		// A303: current block names and their former wp-pass-captain/* names (stored content).
+		// A303: current block names and their former names (LegacyNames::BLOCKS) (stored content).
 		$blocks = array();
 		foreach ( array( self::EVENT_BLOCK => array( 'event', 'occurrence' ), self::CALENDAR_BLOCK => array( 'eventId', '' ) ) as $current => $keys ) {
 			foreach ( LegacyNames::block_names( $current ) as $name ) { $blocks[ $name ] = $keys; }
