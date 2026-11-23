@@ -24,8 +24,8 @@ if ( PHP_SAPI === 'cli' && isset( $argv ) && in_array( '--wpp-a283-child', $argv
 	function status_header( $code ) { $GLOBALS['wpa283_status'] = (int) $code; }
 	function nocache_headers() { $GLOBALS['wpa283_nocache']++; }
 	function bloginfo( $k = '' ) { echo 'UTF-8'; }
-	function esc_url( $u ) { return (string) $u; }
-	function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; }
+	if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return (string) $u; } }
+	if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
 	function wp_create_nonce( $a = -1 ) { return 'nonce'; }
 	function esc_html_x( $t, $c, $d = null ) { return esc_html( $t ); }
 	add_action( 'wpcap_page_no_store', static function ( $context ) { $GLOBALS['wpa283_contexts'][] = $context; } );

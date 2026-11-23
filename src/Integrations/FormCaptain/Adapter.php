@@ -71,10 +71,23 @@ final class Adapter {
 			add_action( self::LOADED_HOOK, array( __CLASS__, 'on_loaded' ), 10, 0 );
 		}
 		add_filter( 'form_captain_accepted_context_purposes_v1', array( __CLASS__, 'accepted_purposes' ), 10, 2 );
-		add_filter( 'wp_pass_captain_event_card_html', array( __CLASS__, 'append_to_card' ), 20, 3 );
+		add_action( 'wpcap_listing_occurrences', array( __CLASS__, 'prime_listing' ), 10, 2 );
+		add_filter( 'wpcap_event_card_html', array( __CLASS__, 'append_to_card' ), 20, 3 );
 		add_action( 'wpcap_admin_event_sections', array( EventForms::class, 'render_section' ), 10, 2 );
 		add_action( 'form_captain_entry_deleted_v1', array( EventRequests::class, 'on_entry_deleted' ), 10, 3 );
 		add_action( 'form_captain_consent_withdrawn_v1', array( EventRequests::class, 'on_consent_withdrawn' ), 10, 3 );
+	}
+
+	/**
+	 * Preloads the form assignments of a listing (no query while Form Captain is not ready).
+	 *
+	 * @param int[] $occurrence_ids Occurrence IDs of the listing.
+	 * @param int[] $event_ids      Event IDs of the listing.
+	 */
+	public static function prime_listing( $occurrence_ids = array(), $event_ids = array() ) {
+		if ( self::ready() ) {
+			EventForms::prime( $occurrence_ids, $event_ids );
+		}
 	}
 
 	/** Form Captain contract functions are present (plugin active). */

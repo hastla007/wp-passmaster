@@ -275,6 +275,10 @@ function esc_html__( $t, $d = null ) { return esc_html( $t ); }
 function esc_html_e( $t, $d = null ) { echo esc_html( $t ); }
 function esc_attr( $t ) { return esc_html( $t ); }
 function esc_url_raw( $u ) { return (string) $u; }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
+// Shared admin stubs (used by many modules; single-module runs need them too).
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( $path, '/' ); } }
+if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce" value="n">'; } }
 function absint( $v ) { return abs( (int) $v ); }
 // WordPress' own sanitisers (A498): sanitize_text_field(), sanitize_textarea_field(), sanitize_key(),
 // sanitize_email(), is_email(), wp_strip_all_tags(), wp_check_invalid_utf8() – ported, checked against a

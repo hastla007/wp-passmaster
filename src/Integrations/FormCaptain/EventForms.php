@@ -71,6 +71,34 @@ final class EventForms {
 	 * @param int $event_id Event ID.
 	 * @return array{event_id:int,form_id:int,form_public_id:string,form_title:string}|null
 	 */
+	/**
+	 * Loads the assignments of several events with one query (listing hook `wpcap_listing_occurrences`),
+	 * so the cards of a listing do not query one by one.
+	 *
+	 * @param int[] $occurrence_ids Unused (hook signature).
+	 * @param int[] $event_ids      Event IDs of the listing.
+	 */
+	public static function prime( $occurrence_ids = array(), $event_ids = array() ) {
+		unset( $occurrence_ids );
+		$ids = array_values( array_diff( array_unique( array_filter( array_map( 'absint', (array) $event_ids ) ) ), array_keys( self::$by_event ) ) );
+		if ( ! $ids ) {
+			return;
+		}
+		global $wpdb;
+		foreach ( $ids as $id ) {
+			self::$by_event[ $id ] = null;
+		}
+		$rows = $wpdb->get_results( "SELECT event_id,form_id,form_public_id,form_title FROM {$wpdb->prefix}wpcap_event_forms WHERE event_id IN (" . implode( ',', $ids ) . ')', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $rows as $row ) {
+			self::$by_event[ (int) $row['event_id'] ] = array(
+				'event_id'       => (int) $row['event_id'],
+				'form_id'        => (int) $row['form_id'],
+				'form_public_id' => (string) $row['form_public_id'],
+				'form_title'     => (string) $row['form_title'],
+			);
+		}
+	}
+
 	public static function get( $event_id ) {
 		$event_id = absint( $event_id );
 		if ( ! $event_id ) {

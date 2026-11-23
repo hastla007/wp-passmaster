@@ -32,6 +32,7 @@ final class Modules {
 		'Connectors' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'Exchange' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'Fiscalization' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
+		'FormCaptain' => array( 'admin_handlers', 'register', 'schema' ),
 		'GuestLists' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
 		'MailTemplates' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
 		'Mollie' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
