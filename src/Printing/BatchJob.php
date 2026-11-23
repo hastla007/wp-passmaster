@@ -78,7 +78,7 @@ final class BatchJob {
 
 	public static function sync_limit() { return max( 0, (int) apply_filters( 'wpcap_print_batch_sync_limit', self::SYNC_LIMIT ) ); }
 
-	public static function keep_days() { return max( 1, (int) apply_filters( 'wpcap_print_batch_keep_days', self::KEEP_DAYS ) ); }
+	public static function keep_days() { return max( 1, (int) apply_filters( 'wpcap_print_batch_keep_days', max( 1, min( 90, (int) \PassCaptain\Settings::get( 'print_batch_keep_days', self::KEEP_DAYS ) ) ) ) ); } // SET-PC-21: setting, filter keeps precedence.
 
 	/** Private directory for batch files (created 0700 with deny rules); null when not writable. */
 	public static function dir() {

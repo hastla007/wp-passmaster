@@ -32,7 +32,12 @@ final class Rules {
 	}
 
 	public static function defaults() {
-		return array( 'enabled' => false, 'max_offline_hours' => 12, 'duplicate_policy' => 'review', 'include_attendee' => false );
+		return array( 'enabled' => false, 'max_offline_hours' => self::default_hours(), 'duplicate_policy' => 'review', 'include_attendee' => false );
+	}
+
+	/** Proposed package lifetime for events not configured yet (setting offline_default_hours, SET-PC-21, default 12). */
+	public static function default_hours() {
+		return max( 1, min( self::MAX_HOURS, (int) Settings::get( 'offline_default_hours', 12 ) ) );
 	}
 
 	/** Rules of an event (defaults when never configured: disabled). */
@@ -70,7 +75,7 @@ final class Rules {
 	 */
 	public static function save( $event_id, array $in ) {
 		global $wpdb;
-		$hours = (int) ( $in['max_offline_hours'] ?? 12 );
+		$hours = (int) ( $in['max_offline_hours'] ?? self::default_hours() );
 		if ( $hours < 1 || $hours > self::MAX_HOURS ) {
 			return new \WP_Error( 'wpcap_offline_hours', sprintf( /* translators: %d: hours */ __( 'Die maximale Offline-Dauer muss zwischen 1 und %d Stunden liegen.', 'pass-captain' ), self::MAX_HOURS ), array( 'status' => 400 ) );
 		}

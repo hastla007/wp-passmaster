@@ -733,16 +733,21 @@ final class Controller {
 	 */
 	/**
 	 * Manual payment holds tickets for days without any payment: one visitor must not be able to block an event
-	 * with a stream of anonymous orders. At most 2 unpaid manual orders per e-mail address
-	 * (filter `wpcap_manual_open_orders_per_email`) and 5 per client within the hold time
+	 * with a stream of anonymous orders. Unpaid manual orders per e-mail address: setting manual_open_orders_per_email
+	 * (SET-PC-20, default 2; filter `wpcap_manual_open_orders_per_email` keeps precedence) and 5 per client within the hold time
 	 * (filter `wpcap_manual_orders_per_client`); paid or expired orders do not count.
 	 */
+	public static function manual_open_orders_limit() {
+		return max( 1, (int) apply_filters( 'wpcap_manual_open_orders_per_email', max( 1, min( 50, (int) \PassCaptain\Settings::get( 'manual_open_orders_per_email', 2 ) ) ) ) );
+	}
+
+	/** Checkout guard for manual payment (see manual_open_orders_limit()). */
 	private static function manual_hold_limit( $email, $hold_minutes ) {
 		global $wpdb;
 		$email = sanitize_email( $email );
 		if ( is_email( $email ) ) {
 			$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s AND payment_provider='manual' AND payment_status='pending' AND status NOT IN ('cancelled','expired','refunded')", $email ) );
-			if ( $open >= max( 1, (int) apply_filters( 'wpcap_manual_open_orders_per_email', 2 ) ) ) {
+			if ( $open >= self::manual_open_orders_limit() ) {
 				return new \WP_Error( 'wpcap_manual_open_orders', __( 'Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen.', 'pass-captain' ), array( 'status' => 429, 'field' => 'email' ) );
 			}
 		}

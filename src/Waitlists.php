@@ -127,12 +127,13 @@ final class Waitlists {
 		// Offer hours default to the security/settings value waitlist_offer_hours (offer_hours()).
 		$defaults = array( 'auto_offers' => 1, 'offer_hours' => self::offer_hours(), 'max_offers_per_run' => 10, 'strict_fifo' => 0 );
 		$stored = Settings::get( 'waitlist' );
-		$c = array_merge( $defaults + array( 'close_mail' => 1, 'change_mail' => 1, 'double_opt_in' => 1, 'confirm_hours' => 48 ), is_array( $stored ) ? $stored : array() );
+		$c = array_merge( $defaults + array( 'close_mail' => 1, 'change_mail' => 1, 'double_opt_in' => 1, 'confirm_hours' => 48, 'offer_cutoff_minutes' => 15 ), is_array( $stored ) ? $stored : array() );
 		$c['auto_offers'] = (int) ! empty( $c['auto_offers'] );
 		$c['close_mail'] = (int) ! empty( $c['close_mail'] );
 		$c['change_mail'] = (int) ! empty( $c['change_mail'] );
 		$c['double_opt_in'] = (int) ! empty( $c['double_opt_in'] );
 		$c['confirm_hours'] = max( 1, min( 168, (int) $c['confirm_hours'] ) );
+		$c['offer_cutoff_minutes'] = max( 5, min( 1440, (int) $c['offer_cutoff_minutes'] ) );
 		$c['strict_fifo'] = (int) ! empty( $c['strict_fifo'] );
 		$c['offer_hours'] = max( 1, min( 336, (int) $c['offer_hours'] ) );
 		$c['max_offers_per_run'] = max( 1, min( 100, (int) $c['max_offers_per_run'] ) );
@@ -674,7 +675,8 @@ final class Waitlists {
 		// Never beyond the end of online sales: the start, or a sales_end after it (A535).
 		$phase = $wpdb->get_row( $wpdb->prepare( "SELECT o.starts_at,o.ends_at,tt.sales_end FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", (int) $row->ticket_type_id ) );
 		if ( $phase ) { $expires_ts = min( $expires_ts, Occurrence::online_sales_until( $phase, $phase ) ); }
-		if ( $expires_ts - $now_ts < 15 * MINUTE_IN_SECONDS ) {
+		// SET-PC-21: lock period before the end of online sales (waitlist offer_cutoff_minutes, default 15).
+		if ( $expires_ts - $now_ts < $c['offer_cutoff_minutes'] * MINUTE_IN_SECONDS ) {
 			return new \WP_Error( 'wpcap_waitlist_too_late', __( 'Für diesen Termin ist kein Wartelistenangebot mehr möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$token = bin2hex( random_bytes( 32 ) );

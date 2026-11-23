@@ -63,6 +63,15 @@ final class ReturnNotice {
 		return $messages[ $state ] ?? '';
 	}
 
+	/**
+	 * Whether "Zahlung fortsetzen" is offered after a cancelled or failed payment (setting
+	 * payment_resume_link, SET-PC-20, default on): return page, retry action and the pending-order
+	 * notice of the checkout form. Cancelling the order stays possible either way.
+	 */
+	public static function resume_enabled() {
+		return 'hide' !== Settings::get( 'payment_resume_link', 'show' );
+	}
+
 	/** Keyed hash of a public order id that authorises the actions on the return page. */
 	public static function key( $public_id ) {
 		$salt = function_exists( 'wp_salt' ) ? wp_salt( 'auth' ) : ( defined( 'AUTH_SALT' ) ? AUTH_SALT : ABSPATH );
@@ -213,11 +222,17 @@ final class ReturnNotice {
 		$order = in_array( $state, array( 'cancel', 'failed' ), true ) ? self::open_order( $public_id, $key ) : null;
 		if ( $order ) {
 			$until = Orders::hold_end( (int) $order->order_id );
-			/* translators: %s: time the reservation ends */
-			$out .= '<p>' . esc_html( sprintf( __( 'Deine Tickets sind noch bis %s reserviert. Du kannst die Zahlung fortsetzen oder die Bestellung stornieren und die Plätze sofort freigeben.', 'pass-captain' ), wp_date( 'H:i', $until ) ) ) . '</p>';
+			$resume = self::resume_enabled();
+			$out .= '<p>' . esc_html(
+				$resume
+					/* translators: %s: time the reservation ends */
+					? sprintf( __( 'Deine Tickets sind noch bis %s reserviert. Du kannst die Zahlung fortsetzen oder die Bestellung stornieren und die Plätze sofort freigeben.', 'pass-captain' ), wp_date( 'H:i', $until ) )
+					/* translators: %s: time the reservation ends */
+					: sprintf( __( 'Deine Tickets sind noch bis %s reserviert. Du kannst die Bestellung stornieren und die Plätze sofort freigeben.', 'pass-captain' ), wp_date( 'H:i', $until ) )
+			) . '</p>';
 			$out .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-payment-actions">';
 			$out .= '<input type="hidden" name="action" value="wpcap_payment_return"><input type="hidden" name="order" value="' . esc_attr( $order->public_id ) . '"><input type="hidden" name="wpcap_rk" value="' . esc_attr( $key ) . '"><input type="hidden" name="back" value="' . esc_attr( self::current_base() ) . '">';
-			$out .= '<button type="submit" name="decision" value="resume" class="wp-element-button">' . esc_html__( 'Zahlung fortsetzen', 'pass-captain' ) . '</button> ';
+			if ( $resume ) { $out .= '<button type="submit" name="decision" value="resume" class="wp-element-button">' . esc_html__( 'Zahlung fortsetzen', 'pass-captain' ) . '</button> '; }
 			$out .= '<button type="submit" name="decision" value="cancel" class="wp-element-button">' . esc_html__( 'Bestellung stornieren', 'pass-captain' ) . '</button></form>';
 		}
 		$out .= self::portal_html( $state, $public_id, $key, $portal );
@@ -325,7 +340,7 @@ final class ReturnNotice {
 			} else {
 				$target = self::url( 'cancel', $order->public_id, $back, 'return' );
 			}
-		} elseif ( $order && 'resume' === $decision ) {
+		} elseif ( $order && 'resume' === $decision && self::resume_enabled() ) {
 			$gateway = Registry::get( (string) $order->payment_provider );
 			$payment = $gateway ? $gateway->create_payment( array( 'return_base' => $back ) + (array) $order, array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( (int) $order->order_id ) ) ) : null;
 			if ( is_array( $payment ) && ! empty( $payment['redirect_url'] ) && preg_match( '#^https://#i', (string) $payment['redirect_url'] ) ) {
@@ -389,6 +404,9 @@ final class ReturnNotice {
 		if ( ! $order ) { return new \WP_Error( 'wpcap_payment_retry_denied', __( 'Diese Bestellung wurde nicht gefunden.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		if ( ! RateLimit::allow( 'wpcap_payment_retry|' . $order->public_id, 10, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
+		}
+		if ( ! self::resume_enabled() ) {
+			return new \WP_Error( 'wpcap_payment_retry_disabled', __( 'Eine abgebrochene Zahlung kann hier nicht fortgesetzt werden. Bitte bestelle erneut.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$gateway = self::retry_gateway( $order );
 		if ( ! $gateway ) { return new \WP_Error( 'wpcap_payment_retry_closed', __( 'Die Reservierung ist abgelaufen. Bitte bestelle erneut.', 'pass-captain' ), array( 'status' => 409 ) ); }
