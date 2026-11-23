@@ -752,6 +752,10 @@ final class ServiceBookings {
 		if ( is_wp_error( $order ) ) { return new \WP_Error( 'wpcap_rebook_supplement_order', $order->get_error_message(), array( 'status' => 409 ) ); }
 		$order_id = (int) $order['order_id'];
 		if ( 'pending' !== ( $order['payment_status'] ?? '' ) ) { return self::busy(); } // A reused order that is no longer open; the next attempt uses a new key.
+		if ( ! Payments\Rules::allows( $gateway->id(), Payments\Rules::order_context( $order_id ) ) ) { // SET-PC-40: payment rules apply to supplements too.
+			Orders::cancel_order( $order_id, 'provider_not_allowed' );
+			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
 		$refuse = static function ( $error ) use ( $order_id ) {
 			global $wpdb;
 			$wpdb->query( 'ROLLBACK' );

@@ -67,8 +67,17 @@ final class LegalNotice {
 		return trim( (string) Settings::get( 'imprint_url', '' ) );
 	}
 
-	/** Links to imprint and privacy policy as HTML (empty without either). */
+	/**
+	 * Whether imprint or privacy address is set explicitly. The links in mail, ticket PDF and ticket page
+	 * only appear then, so existing installs keep their footers until someone enters an address.
+	 */
+	public static function links_configured() {
+		return '' !== self::imprint_url() || '' !== trim( (string) Settings::get( 'privacy_url', '' ) );
+	}
+
+	/** Links to imprint and privacy policy as HTML (empty when neither address is set explicitly). */
 	public static function links_html() {
+		if ( ! self::links_configured() ) { return ''; }
 		$links = array();
 		if ( '' !== self::imprint_url() ) { $links[] = '<a href="' . esc_url( self::imprint_url() ) . '">' . esc_html__( 'Impressum', 'pass-captain' ) . '</a>'; }
 		if ( '' !== self::privacy_url() ) { $links[] = '<a href="' . esc_url( self::privacy_url() ) . '">' . esc_html__( 'Datenschutzerklärung', 'pass-captain' ) . '</a>'; }
@@ -77,6 +86,7 @@ final class LegalNotice {
 
 	/** Links to imprint and privacy policy as plain text lines (mail text part). */
 	public static function links_text() {
+		if ( ! self::links_configured() ) { return ''; }
 		$lines = array();
 		if ( '' !== self::imprint_url() ) { $lines[] = __( 'Impressum', 'pass-captain' ) . ': ' . self::imprint_url(); }
 		if ( '' !== self::privacy_url() ) { $lines[] = __( 'Datenschutzerklärung', 'pass-captain' ) . ': ' . self::privacy_url(); }

@@ -19,11 +19,11 @@
 - Länderprofile DE, AT, CH, EU und OTHER als Vorschlag mit Vorher/Nachher und Auswahl je Wert; alle Profile sind als „Rechts- und Steuerprüfung vor dem Verkaufsstart“ bzw. „nicht geprüft“ gekennzeichnet. Filter `wp_pass_captain_country_presets_v1`.
 - Währung als Einstellung (SET-PC-08): „Standardwährung“ und „Angebotene Währungen“; neue Ticketarten, Kassen, Rabattcodes, Partnerpreise, Pässe und SMS-Kosten übernehmen die Standardwährung statt fest EUR. Der Filter `wp_pass_captain_currencies_v1` hat weiter Vorrang.
 - Anrede (SET-PC-09): Alle deutschen Texte nutzen „du“; neue Sprachdatei „Deutsch (Sie)“ (`de_DE_formal`) mit förmlicher Anrede, wählbar in der Käufer-Sprachauswahl. Der Datenschutz-Vorschlag ist jetzt ebenfalls in der Du-Form.
-- Impressum und Datenschutzerklärung (SET-PC-19): eigene Adressen in den Rechtstexten, Links im Checkout und in der E-Mail-Fußzeile, Platzhalter `{imprint_url}` und `{privacy_url}`.
+- Impressum und Datenschutzerklärung (SET-PC-19): eigene Adressen in den Rechtstexten, Links im Checkout und in der E-Mail-Fußzeile, Platzhalter `{imprint_url}` und `{privacy_url}`. Die Links in Mail-Fußzeile, Ticket-PDF und Ticketseite erscheinen erst, wenn eine der beiden Adressen eingetragen ist; bestehende Installationen behalten ihre Fußzeilen.
 - Pro-Hinweiszeilen (SET-PC-06): Grundlage für graue, ausblendbare Textzeilen am Ende der Reiter; die Liste ist leer, bis eine Pro-Funktion verkauft wird.
 - Rechnungsadresse (SET-PC-24): Länderliste als Einstellung, optionales Feld „Region / Bundesland“, Verkäuferland als Auswahl.
 - WooCommerce (SET-PC-29): Reservierungszeit, Ausstellen bei „Abgeschlossen“ je Zahlungsart und Teilnehmerdaten im Woo-Checkout als Einstellungen; Filter behalten Vorrang.
-- Zahlungsarten nach Regel (SET-PC-40): je Zahlungsart Event, Mindest-/Höchstbetrag und Rechnungsländer; Filter `wp_pass_captain_payment_rules_v1`.
+- Zahlungsarten nach Regel (SET-PC-40): je Zahlungsart Event, Mindest-/Höchstbetrag und Rechnungsländer; Filter `wp_pass_captain_payment_rules_v1`. Die Regeln gelten auch für Nachzahlungen bei Umbuchungen von Servicebuchungen; eine Betragsgrenze, die in der Währung der Bestellung nicht lesbar ist, lässt die Regel nicht greifen.
 - Bedienbarkeit (SET-PC-44): Hilfetexte und Fehlermeldungen sind mit den Feldern verknüpft, nach dem Speichern erscheint eine Fehlerliste mit Sprungmarken.
 - Netto-Eingabe (SET-PC-45): Ticketpreise können netto eingetragen werden; gespeichert und angezeigt wird weiter der Bruttopreis.
 - Geschäftsregeln als Einstellungen (SET-PC-20): Gültigkeit des persönlichen Bestelllinks, Link „Zahlung fortsetzen“, höchstens Namensänderungen und Inhaberwechsel je Ticket, Höchstmenge je Bestellposition, offene Überweisungsbestellungen je E-Mail-Adresse.

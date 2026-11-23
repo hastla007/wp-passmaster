@@ -332,6 +332,8 @@ final class SettingsManager {
 			return SettingsSchema::validate_complete( $key, array_values( array_filter( $value, 'is_scalar' ) ) );
 		}
 		if ( null !== $entry && 'bool' === $entry['type'] ) { return empty( $value ) ? 0 : 1; }
+		// Money is exported in minor units; a digit-only string (older stored values) is minor units too.
+		if ( null !== $entry && 'money' === $entry['type'] && is_string( $value ) && preg_match( '/^\d+$/', trim( $value ) ) ) { $value = (int) trim( $value ); }
 		return SettingsSchema::validate_complete( $key, $value );
 	}
 

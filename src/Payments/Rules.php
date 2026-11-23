@@ -98,8 +98,12 @@ final class Rules {
 			return null === $minor ? null : (int) $minor;
 		};
 		foreach ( $rules[ $provider ] as $rule ) {
-			$rule['min'] = $amount( $rule['min'] );
-			$rule['max'] = $amount( $rule['max'] );
+			$min = $amount( $rule['min'] );
+			$max = $amount( $rule['max'] );
+			// A limit that cannot be read in the order currency (e.g. max=99.99 for JPY) never widens the rule.
+			if ( ( null !== $rule['min'] && null === $min ) || ( null !== $rule['max'] && null === $max ) ) { continue; }
+			$rule['min'] = $min;
+			$rule['max'] = $max;
 			if ( $rule['events'] && $events && array_diff( $events, $rule['events'] ) ) { continue; }
 			if ( null !== $total && null !== $rule['min'] && $total < $rule['min'] ) { continue; }
 			if ( null !== $total && null !== $rule['max'] && $total > $rule['max'] ) { continue; }

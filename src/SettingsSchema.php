@@ -177,7 +177,11 @@ final class SettingsSchema {
 			if ( is_wp_error( $checked ) ) { $errors[] = $checked->get_error_message(); continue; }
 			$out[ $field ] = $checked;
 		}
-		return $errors ? new \WP_Error( 'wpcap_setting_invalid', implode( ' ', $errors ), array( 'messages' => $errors ) ) : $out;
+		if ( $errors ) { return new \WP_Error( 'wpcap_setting_invalid', implode( ' ', $errors ), array( 'messages' => $errors ) ); }
+		if ( $entry['sanitize'] ) { // A group's own sanitize callback (e.g. legal texts) also applies outside its form.
+			$out = call_user_func( $entry['sanitize'], $out, Settings::get( $key ) );
+		}
+		return $out;
 	}
 
 	/**
@@ -406,6 +410,7 @@ final class SettingsSchema {
 				'type' => 'group',
 				'label' => __( 'Rechtstexte je Sprache', 'pass-captain' ),
 				'help' => __( 'Übersetzungen von AGB und Verbraucherinformationen je Sprache; bearbeitet im Reiter „Rechtliches“.', 'pass-captain' ),
+				'sanitize' => static function ( $value ) { return Admin\SettingsPage::sanitize_legal_texts( $value ); }, // Same filtering as the settings screen (import, CLI).
 				'tab' => 'legal',
 				'page' => 'settings',
 			),

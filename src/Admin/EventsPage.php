@@ -560,6 +560,20 @@ final class EventsPage {
 		return self::net_entry() ? (int) round( (int) $minor * ( 10000 + (int) $tax_bp ) / 10000 ) : (int) $minor;
 	}
 
+	/**
+	 * Tax rate for net entry: the rate of an active tax profile for event country, tax class and date
+	 * (as checkout applies it, Sales\TaxProfiles::for_line), else the rate of the form.
+	 *
+	 * @param int         $form_bp    Rate of the form in basis points.
+	 * @param object|null $occurrence Occurrence row.
+	 * @param string      $tax_class  Tax class of the type ('' = standard).
+	 */
+	public static function net_rate_bp( $form_bp, $occurrence, $tax_class = '' ) {
+		if ( ! self::net_entry() || ! $occurrence ) { return (int) $form_bp; }
+		$line = \PassCaptain\Sales\TaxProfiles::for_line( (object) array( 'tax_class' => (string) $tax_class ), $occurrence, \PassCaptain\Clock::mysql() );
+		return is_array( $line ) ? (int) $line['rate_bp'] : (int) $form_bp;
+	}
+
 	/** Entered price from the stored gross price (form value). */
 	public static function gross_to_entry( $minor, $tax_bp ) {
 		return self::net_entry() ? (int) round( (int) $minor * 10000 / ( 10000 + (int) $tax_bp ) ) : (int) $minor;
@@ -588,7 +602,11 @@ final class EventsPage {
 		$tax_bp = Forms::parse_percent_bp( $in['tax_rate'] ?? '' );
 		if ( null === $tax_bp ) { return Forms::error( 'wpcap_type_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ), 400, 'tax_rate' ); }
 		// SET-PC-45: net entry is converted to the stored gross price; an unchanged net value keeps the stored gross price (no rounding drift).
-		$price = ( $old && self::net_entry() && (int) $tax_bp === (int) $old->tax_rate_bp && (int) $price === self::gross_to_entry( (int) $old->price_minor, (int) $old->tax_rate_bp ) ) ? (int) $old->price_minor : self::entry_to_gross( (int) $price, (int) $tax_bp );
+		// The rate is the one checkout applies: an active tax profile for event country and class wins over the form rate.
+		$tax_class = array_key_exists( 'tax_class', $in ) ? substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 ) : (string) ( $old->tax_class ?? '' );
+		$net_bp = self::net_rate_bp( (int) $tax_bp, $occ, $tax_class );
+		$old_net_bp = $old ? self::net_rate_bp( (int) $old->tax_rate_bp, $occ, (string) ( $old->tax_class ?? '' ) ) : 0;
+		$price = ( $old && self::net_entry() && $net_bp === $old_net_bp && (int) $price === self::gross_to_entry( (int) $old->price_minor, $old_net_bp ) ) ? (int) $old->price_minor : self::entry_to_gross( (int) $price, $net_bp );
 		$max = Forms::int( $in, 'max_per_order', 10 );
 		if ( $max < 1 || $max > 100 ) { return Forms::error( 'wpcap_type_max', __( 'Die maximale Anzahl pro Bestellung muss zwischen 1 und 100 liegen.', 'pass-captain' ), 400, 'max_per_order' ); }
 		$sales = array();
@@ -1841,7 +1859,7 @@ final class EventsPage {
 		?>
 		<table class="form-table"><tbody>
 			<tr><th><label for="wpcap-tt-name"><?php esc_html_e( 'Name', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $v( 'name', $type ? $type->name : '' ) ); ?>"<?php echo $bad( 'name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
-			<tr><th><label for="wpcap-tt-price"><?php echo esc_html( self::price_label() ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( $v( 'price', Forms::money_input( $type ? self::gross_to_entry( (int) $type->price_minor, (int) $type->tax_rate_bp ) : 0, Forms::currency_decimals( $currency ) ) ) ); ?>"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( array_unique( array_merge( Localization::currencies(), array( $currency ) ) ), array_unique( array_merge( Localization::currencies(), array( $currency ) ) ) ), $currency, '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-price"><?php echo esc_html( self::price_label() ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( $v( 'price', Forms::money_input( $type ? self::gross_to_entry( (int) $type->price_minor, self::net_rate_bp( (int) $type->tax_rate_bp, $occ, (string) ( $type->tax_class ?? '' ) ) ) : 0, Forms::currency_decimals( $currency ) ) ) ); ?>"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( array_unique( array_merge( Localization::currencies(), array( $currency ) ) ), array_unique( array_merge( Localization::currencies(), array( $currency ) ) ) ), $currency, '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-tax" name="tax_rate" type="text" inputmode="decimal" size="6" value="<?php echo esc_attr( $v( 'tax_rate', Forms::percent_input( $type ? $type->tax_rate_bp : 0 ) ) ); ?>"<?php echo $bad( 'tax_rate' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-taxclass"><?php esc_html_e( 'Steuerklasse (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-taxclass" name="tax_class" type="text" size="16" maxlength="64" pattern="[a-z0-9_-]*" aria-describedby="wpcap-tt-taxclass-help" value="<?php echo esc_attr( $v( 'tax_class', $type ? (string) ( $type->tax_class ?? '' ) : '' ) ); ?>"> <span class="description" id="wpcap-tt-taxclass-help"><?php esc_html_e( 'z. B. culture. Gibt es für das Veranstaltungsland ein aktives Steuerprofil dieser Klasse, gilt dessen Satz; sonst der Steuersatz oben.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-cap"><?php esc_html_e( 'Kontingent dieser Ticketart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'capacity', (string) ( $type ? (int) $type->capacity : 0 ) ) ); ?>"<?php echo $bad( 'capacity' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>

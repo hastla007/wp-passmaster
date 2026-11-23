@@ -46,7 +46,7 @@ foreach ( range( 100, 400 ) as $pp_gross ) {
 }
 check( 'P1-2: rounding can drift (why save keeps the old price for an unchanged net value)', $pp_drift > 0 );
 $pp_src = (string) file_get_contents( WPCAP_PATH . 'src/Admin/EventsPage.php' );
-check( 'P1-2: save_ticket_type keeps old->price_minor for an unchanged net value', false !== strpos( $pp_src, '(int) $price === self::gross_to_entry( (int) $old->price_minor, (int) $old->tax_rate_bp ) ) ? (int) $old->price_minor' ) );
+check( 'P1-2: save_ticket_type keeps old->price_minor for an unchanged net value', false !== strpos( $pp_src, '(int) $price === self::gross_to_entry( (int) $old->price_minor, $old_net_bp ) ) ? (int) $old->price_minor' ) );
 // 7: payment rule amounts follow the decimals of the order currency.
 Settings::update( array( 'payment_rules' => 'manual | max=1000' ) );
 check( 'P2-7: rule amounts use the currency decimals (JPY 0, EUR 2)', PassCaptain\Payments\Rules::allows( 'manual', array( 'total_minor' => 1000, 'currency' => 'JPY' ) ) && ! PassCaptain\Payments\Rules::allows( 'manual', array( 'total_minor' => 1001, 'currency' => 'JPY' ) ) && PassCaptain\Payments\Rules::allows( 'manual', array( 'total_minor' => 100000, 'currency' => 'EUR' ) ) );
@@ -56,5 +56,27 @@ $pp_hold = new ReflectionMethod( PassCaptain\Integrations\WooCommerce\OrderAdapt
 check( 'P2-8: a short WooCommerce hold setting does not undercut the automatic hold', $pp_hold->invoke( null ) >= PassCaptain\Orders::HOLD_MINUTES );
 // 5: waitlist offers respect payment rules.
 check( 'P2-5: waitlist offers filter the payment methods through the rules', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Waitlists.php' ), 'Payments\\Rules::filter( Payments\\Registry::enabled( $order->currency )' ) );
+// Review round 2 (23.11.2026).
+Settings::update( array( 'currencies' => 'JPY,EUR', 'default_currency' => 'JPY' ) );
+$pp_tol = PassCaptain\BoxOffice\Page::check_shift_rules( array( 'boxoffice_difference_tolerance_minor' => '50', 'boxoffice_count_mode' => 'amount' ) );
+check( 'R2-1: the cash tolerance is read in the default currency (JPY 50 stays 50)', ! is_wp_error( $pp_tol ) && 50 === (int) $pp_tol['boxoffice_difference_tolerance_minor'] );
+Settings::update( array( 'currencies' => 'EUR', 'default_currency' => 'EUR' ) );
+Settings::update( array( 'payment_rules' => 'manual | max=99.99' ) );
+check( 'R2-3: a limit unreadable in the order currency does not widen the rule', ! PassCaptain\Payments\Rules::allows( 'manual', array( 'total_minor' => 1000000, 'currency' => 'JPY' ) ) && PassCaptain\Payments\Rules::allows( 'manual', array( 'total_minor' => 9999, 'currency' => 'EUR' ) ) && ! PassCaptain\Payments\Rules::allows( 'manual', array( 'total_minor' => 10000, 'currency' => 'EUR' ) ) );
+Settings::update( array( 'payment_rules' => '' ) );
+check( 'R2-4: rebooking supplements check the payment rules', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/ServiceBookings.php' ), "Payments\\Rules::allows( \$gateway->id(), Payments\\Rules::order_context( \$order_id ) )" ) );
+Settings::update( array( 'imprint_url' => '', 'privacy_url' => '' ) );
+check( 'R2-6: without an explicit address mails and tickets get no legal links (upgrade keeps footers)', '' === PassCaptain\Frontend\LegalNotice::links_html() && '' === PassCaptain\Frontend\LegalNotice::links_text() );
+Settings::update( array( 'privacy_url' => 'https://example.com/ds' ) );
+check( 'R2-6: an explicit address shows the links', false !== strpos( PassCaptain\Frontend\LegalNotice::links_html(), 'https://example.com/ds' ) );
+Settings::update( array( 'privacy_url' => '' ) );
+$pp_doc2 = SettingsManager::export();
+$pp_doc2['settings'] = array( 'refund_approval_threshold' => '25000' );
+$pp_prev2 = SettingsManager::preview( wp_json_encode( $pp_doc2 ) );
+check( 'R2-7: a money value exported as digit string is read as minor units', 25000 === (int) ( $pp_prev2['rows'][0]['new'] ?? 0 ) );
+$pp_lt = SettingsSchema::check_group( 'legal_texts', array( 'fr_FR' => array( 'terms_text' => '<p>Terms</p>', 'evil' => 'x' ), '../x' => array( 'terms_text' => 'y' ), 'nl_NL' => 'not an array' ) );
+check( 'R2-5: imported legal texts are filtered like on the settings screen (known languages and keys only)', array( 'fr_FR' => array( 'terms_text' => '<p>Terms</p>' ) ) === $pp_lt );
+check( 'R2-5: SMS endpoint and calendar link must be http(s) addresses', is_wp_error( SettingsSchema::check_group( 'sms', array( 'http_endpoint' => 'javascript:alert(1)' ) ) ) && is_wp_error( SettingsSchema::check_group( 'calendar', array( 'checkout_url' => 'file:///etc/passwd' ) ) ) );
+check( 'R2-2: net entry without a matching tax profile uses the form rate', 1900 === PassCaptain\Admin\EventsPage::net_rate_bp( 1900, null, '' ) );
 update_option( Settings::OPTION, $pp_saved );
 Settings::flush();

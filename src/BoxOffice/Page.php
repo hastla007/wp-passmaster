@@ -552,13 +552,21 @@ final class Page {
 	 *
 	 * @return array|\WP_Error key => value to store.
 	 */
+	/** Tolerance input in major units of the default currency → minor units; unreadable input stays text (reported by the register). */
+	private static function tolerance_minor( $raw ) {
+		$raw = is_scalar( $raw ) && '' !== trim( (string) $raw ) ? (string) $raw : '0';
+		$minor = Forms::parse_money( $raw, Forms::currency_decimals( \PassCaptain\Localization::default_currency() ) );
+		return null === $minor ? $raw : (int) $minor;
+	}
+
 	public static function check_shift_rules( array $in ) {
 		$locale = trim( is_scalar( $in['boxoffice_receipt_locale'] ?? null ) ? (string) $in['boxoffice_receipt_locale'] : '' );
 		if ( '' !== $locale && '' === \PassCaptain\Mail\Mailer::normalize_locale( $locale ) ) {
 			return Forms::error( 'wpcap_pos_receipt_locale', __( '„Sprache der Kassenbons“: Bitte einen Sprachcode wie de_DE oder en_US angeben oder das Feld leer lassen.', 'pass-captain' ) );
 		}
 		$checked = \PassCaptain\SettingsSchema::check_many( array(
-			'boxoffice_difference_tolerance_minor' => $in['boxoffice_difference_tolerance_minor'] ?? '0',
+			// Form input in major units of the default currency (shown with Money::number in that currency).
+			'boxoffice_difference_tolerance_minor' => self::tolerance_minor( $in['boxoffice_difference_tolerance_minor'] ?? '0' ),
 			'boxoffice_count_mode' => $in['boxoffice_count_mode'] ?? 'amount',
 			'boxoffice_receipt_locale' => $locale,
 			'boxoffice_blind_default' => Forms::flag( $in, 'boxoffice_blind_default' ) ? 1 : 0,

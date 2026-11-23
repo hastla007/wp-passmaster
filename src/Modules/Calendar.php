@@ -41,7 +41,7 @@ final class Calendar {
 	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
 	public static function settings_schema() {
 		return array(
-			'calendar' => array( 'type' => 'group', 'label' => __( 'Kalender', 'pass-captain' ), 'help' => __( 'Ziel des Kauf-Links in Kalendereinträgen, ob Bestätigungsmails einen Kalendereintrag (ICS) enthalten, und mit welchem Wochentag die Monatsansicht beginnt.', 'pass-captain' ), 'page' => 'wpcap-calendar', 'fields' => array( 'first_weekday' => array( 'type' => 'int', 'min' => 0, 'max' => 6, 'label' => __( 'Erster Wochentag der Monatsansicht', 'pass-captain' ) ) ) ),
+			'calendar' => array( 'type' => 'group', 'label' => __( 'Kalender', 'pass-captain' ), 'help' => __( 'Ziel des Kauf-Links in Kalendereinträgen, ob Bestätigungsmails einen Kalendereintrag (ICS) enthalten, und mit welchem Wochentag die Monatsansicht beginnt.', 'pass-captain' ), 'page' => 'wpcap-calendar', 'fields' => array( 'checkout_url' => array( 'type' => 'url', 'label' => __( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) ), 'first_weekday' => array( 'type' => 'int', 'min' => 0, 'max' => 6, 'label' => __( 'Erster Wochentag der Monatsansicht', 'pass-captain' ) ) ) ),
 		);
 	}
 
