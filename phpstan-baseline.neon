@@ -1132,13 +1132,13 @@ parameters:
 			message: '#^Undefined variable\: \$dropped$#'
 			identifier: variable.undefined
 			count: 3
-			path: src/Workflow/Outbox.php
+			path: src/Suite/Outbox.php
 
 		-
 			message: '#^Undefined variable\: \$status$#'
 			identifier: variable.undefined
 			count: 2
-			path: src/Workflow/Outbox.php
+			path: src/Suite/Outbox.php
 
 		-
 			message: '#^Variable \$attributes might not be defined\.$#'
