@@ -26,6 +26,10 @@
 - Zahlungsarten nach Regel (SET-PC-40): je Zahlungsart Event, Mindest-/Höchstbetrag und Rechnungsländer; Filter `wp_pass_captain_payment_rules_v1`.
 - Bedienbarkeit (SET-PC-44): Hilfetexte und Fehlermeldungen sind mit den Feldern verknüpft, nach dem Speichern erscheint eine Fehlerliste mit Sprungmarken.
 - Netto-Eingabe (SET-PC-45): Ticketpreise können netto eingetragen werden; gespeichert und angezeigt wird weiter der Bruttopreis.
+- Geschäftsregeln als Einstellungen (SET-PC-20): Gültigkeit des persönlichen Bestelllinks, Link „Zahlung fortsetzen“, höchstens Namensänderungen und Inhaberwechsel je Ticket, Höchstmenge je Bestellposition, offene Überweisungsbestellungen je E-Mail-Adresse.
+- Protokolle und Fristen (SET-PC-21): Aufbewahrung und Stufe des Support-Protokolls, Connector-Protokoll, Druckstapel, No-Show-Kulanz für Bewertungsanfragen, Standard-Paketdauer des Offline-Scanners, Sperrfrist der Warteliste vor Verkaufsende; neue Übersicht „Was wird wann gelöscht“ im Reiter Datenschutz.
+- Website-Zustand empfiehlt eine Löschfrist für Teilnehmerdaten, solange keine gesetzt ist (SET-PC-47); die Vorgabe bleibt „keine allgemeine Frist“.
+- Alle neuen Einstellungen starten mit dem bisherigen festen Wert; vorhandene Filter haben weiter Vorrang.
 - WP-CLI `wp pass-captain settings list|get|set|reset|export|import|preset`; `delete_data_on_uninstall` lässt sich nur mit `--confirm=LÖSCHEN` einschalten.
 
 ### Servicegebühr (A425, Entscheidungen vom 23.11.2026)
