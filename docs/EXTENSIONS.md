@@ -49,6 +49,7 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 | 1.1.0 | 1.5.0 | zusätzlich alle Erweiterungspunkte mit „seit 1.5.0“ |
 | 1.2.0 | 1.6.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
 | 1.3.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
+| 1.4.0 | 1.6.0 | zusätzlich der Gutschein-Abgleich `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, [VOUCHERS.md](VOUCHERS.md#abgleich-für-das-gutscheinsystem-reconciliation-vertrag-v1)); additiv |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
@@ -124,6 +125,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
 | `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |
 | `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
+| `PassCaptain\Integrations\Vouchers\Reconciliation` (`orders()`, `VERSION`, `MAX_LIMIT`) | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |
 | `PassCaptain\BoxOffice\Service::confirm_device_payment()`, `wpcap_confirm_pos_payment()` | 1.5.0 |
 | `PassCaptain\Orders::request_fingerprint()` | 1.5.0 |
@@ -149,6 +151,7 @@ ihnen stehen im `CHANGELOG.md`.
 | Scanner-Adapter (fremde Codes im Kern-Scanner) | `wp_pass_captain_scanner_adapters_v1` | Versionierter Filter (Registry) | `src/ScannerAdapters.php`, `src/Checkin.php` |
 | Scanner (fremde Geräte/Apps) | `wp_pass_captain_checkin_service_v1` (Dienst abrufen), Mobile-REST-API | Versionierter Dienst | `src/Integrations/Vouchers/CheckinService.php`, [MOBILE-API.md](MOBILE-API.md) |
 | Ticketausgabe von außen | `wp_pass_captain_ticket_service_v1` (Dienst abrufen) | Versionierter Dienst | `src/Integrations/Vouchers/TicketService.php` |
+| Gutschein-Abgleich (nur lesend) | `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` | Versionierte PHP-API (`VERSION`) | `src/Integrations/Vouchers/Reconciliation.php` |
 | Connectoren (CRM, Kalender, Buchhaltung) | `wp_pass_captain_connectors_v1` + `PassCaptain\Integrations\ConnectorInterface` | Versionierter Filter | `src/Integrations/ConnectorRegistry.php` |
 | Hintergrundjobs | `PassCaptain\Jobs::enqueue()` + `wp_pass_captain_process_job_v1` | Versionierter Filter | `src/Jobs.php` |
 | E-Mail-Typen | `wpcap_mail_types`, `wpcap_mail`, `wpcap_mail_before_send` | Filter/Action | `src/Mail/Types.php`, `src/Mail/Mailer.php` |

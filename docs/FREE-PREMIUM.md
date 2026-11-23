@@ -230,6 +230,7 @@ Klasse in `src/Modules/`; Module sind Bestandteil des Kerns, nicht des Add-ons.
 |---|---|---|
 | WooCommerce-Adapter (HPOS, Classic- und Block-Checkout, Reservierung vor Zahlung, Ticketausgabe, Storno/Erstattung, Teilnehmerfelder, Serien-Preise im Warenkorb) | `Integrations/WooCommerce/*` | Kern, dauerhaft frei |
 | WP Voucher Captain: Gutscheine im Checkout, Gutschein → Ticket, gemeinsamer Scanner | `Integrations/Vouchers/*` | Kern, dauerhaft frei |
+| WP Voucher Captain: lesender Abgleich der Gutschein-Bestellungen (`Reconciliation::orders()`) | `Integrations/Vouchers/Reconciliation` | Kern, dauerhaft frei |
 | WP Affiliate Captain: Verkäufe und Erstattungen melden, Partnercode im Checkout | `Integrations/AffiliateCaptain/Adapter` | Kern, dauerhaft frei |
 | Connector-Vertrag v1 und generische Job-Queue für eigene Adapter | `Integrations/ConnectorRegistry`, `Jobs` | Kern, dauerhaft frei |
 | Fiskal-Adapter (fiskaltrust, efsta) als Bausteine; derzeit nicht im Ablauf verdrahtet | `Fiscalization/Providers/*` | Kern, dauerhaft frei |
