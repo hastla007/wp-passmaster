@@ -1,13 +1,15 @@
 name: WordPress plugin checks
 
 on:
+  # Branches are checked through their pull request only; push runs only on main (no duplicate runs).
   push:
+    branches: [main]
   pull_request:
 
-# A new push supersedes the running check of the same branch (main keeps every run).
+# A new push to a pull request supersedes its running check; main keeps every run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
