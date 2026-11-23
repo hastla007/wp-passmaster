@@ -5,6 +5,9 @@ name: WordPress version matrix
 # release (tests/restore/drill.sh). Runs on every push/PR and weekly against the newest WordPress.
 on:
   push:
+    # Dependabot branches run once, through their pull request (no duplicate push run).
+    branches-ignore:
+      - 'dependabot/**'
   pull_request:
   schedule:
     - cron: '41 4 * * 2'

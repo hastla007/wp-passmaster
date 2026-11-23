@@ -2,6 +2,9 @@ name: WordPress plugin checks
 
 on:
   push:
+    # Dependabot branches run once, through their pull request (no duplicate push run).
+    branches-ignore:
+      - 'dependabot/**'
   pull_request:
 
 # A new push supersedes the running check of the same branch (main keeps every run).
