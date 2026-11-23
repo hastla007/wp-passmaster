@@ -233,6 +233,12 @@ final class Page {
 		echo '<details class="wpcap-boxoffice-admin-settings"><summary>' . esc_html__( 'Kassen- und Belegeinstellungen', 'pass-captain' ) . '</summary>';
 		Forms::open_form( 'wpcap_pos_settings' );
 		echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label> <label>' . esc_html__( 'Bediener auf Kundenbelegen', 'pass-captain' ) . ' <select name="boxoffice_receipt_cashier">' . implode( '', array_map( static function ( $value, $label ) { return '<option value="' . esc_attr( $value ) . '"' . selected( (string) Settings::get( 'boxoffice_receipt_cashier' ), $value, false ) . '>' . esc_html( $label ) . '</option>'; }, array( 'id', 'initials', 'name' ), array( __( 'Bedienernummer', 'pass-captain' ), __( 'Initialen', 'pass-captain' ), __( 'Vollständiger Name', 'pass-captain' ) ) ) ) . '</select></label></p><p><label><input type="checkbox" name="boxoffice_cash_confirmed" value="1"' . checked( (bool) Settings::get( 'boxoffice_cash_confirmed' ), true, false ) . '> ' . esc_html__( 'Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben', 'pass-captain' ) . '</label></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- option values and labels are escaped inside the closure.
+		// SET-PC-39: shift rules.
+		echo '<fieldset><legend><strong>' . esc_html__( 'Schichtregeln', 'pass-captain' ) . '</strong></legend><p><label>' . esc_html__( 'Kassendifferenz ohne Begründung bis', 'pass-captain' ) . ' <input type="text" inputmode="decimal" name="boxoffice_difference_tolerance_minor" size="8" value="' . esc_attr( \PassCaptain\Money::number( (int) Settings::get( 'boxoffice_difference_tolerance_minor', 0 ), \PassCaptain\Localization::default_currency() ) ) . '"></label> <label>' . esc_html__( 'Zählpflicht', 'pass-captain' ) . ' ';
+		Forms::select( 'boxoffice_count_mode', array( 'amount' => __( 'Betrag oder Stückelung', 'pass-captain' ), 'denominations' => __( 'Stückelung Pflicht', 'pass-captain' ) ), (string) Settings::get( 'boxoffice_count_mode', 'amount' ) );
+		echo '</label> <label>' . esc_html__( 'Sprache der Kassenbons', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_locale" size="8" placeholder="de_DE" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_locale', '' ) ) . '"></label></p>';
+		echo '<p><label><input type="checkbox" name="boxoffice_blind_default" value="1"' . checked( (bool) Settings::get( 'boxoffice_blind_default', 1 ), true, false ) . '> ' . esc_html__( 'Blindzählung als Standard für neue Kassen', 'pass-captain' ) . '</label></p>';
+		echo '<p class="description">' . esc_html__( 'Differenzen bis zum genannten Betrag brauchen beim Abschluss und bei der Übergabe keinen Grund (0 = jede Differenz). „Stückelung Pflicht“: Anfangsbestand, Zählung und Übergabe nach Scheinen und Münzen. Sprache leer = Sprache der Kassenoberfläche.', 'pass-captain' ) . '</p></fieldset>';
 		echo '<p><label>' . esc_html__( 'Zugelassene Kassenregister (eine Zeile je Register)', 'pass-captain' ) . '<br><textarea name="boxoffice_terminals" rows="5" cols="70" maxlength="10000">' . esc_textarea( TerminalRegistry::raw() ) . '</textarea></label><br><span class="description">' . esc_html__( 'Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen.', 'pass-captain' ) . '</span></p>';
 		echo '<p><button class="button">' . esc_html__( 'Kassen- und Belegeinstellungen speichern', 'pass-captain' ) . '</button></p></form></details>';
 	}
@@ -540,6 +546,30 @@ final class Page {
 		wp_send_json_success( $out );
 	}
 
+	/**
+	 * SET-PC-39: checks the shift rules of the settings form through the settings register (tolerance,
+	 * count mode, receipt language, blind count default); errors are reported, not corrected.
+	 *
+	 * @return array|\WP_Error key => value to store.
+	 */
+	public static function check_shift_rules( array $in ) {
+		$locale = trim( is_scalar( $in['boxoffice_receipt_locale'] ?? null ) ? (string) $in['boxoffice_receipt_locale'] : '' );
+		if ( '' !== $locale && '' === \PassCaptain\Mail\Mailer::normalize_locale( $locale ) ) {
+			return Forms::error( 'wpcap_pos_receipt_locale', __( '„Sprache der Kassenbons“: Bitte einen Sprachcode wie de_DE oder en_US angeben oder das Feld leer lassen.', 'pass-captain' ) );
+		}
+		$checked = \PassCaptain\SettingsSchema::check_many( array(
+			'boxoffice_difference_tolerance_minor' => $in['boxoffice_difference_tolerance_minor'] ?? '0',
+			'boxoffice_count_mode' => $in['boxoffice_count_mode'] ?? 'amount',
+			'boxoffice_receipt_locale' => $locale,
+			'boxoffice_blind_default' => Forms::flag( $in, 'boxoffice_blind_default' ) ? 1 : 0,
+		) );
+		if ( is_wp_error( $checked ) ) { return $checked; }
+		if ( (int) $checked['boxoffice_difference_tolerance_minor'] < 0 ) {
+			return Forms::error( 'wpcap_pos_tolerance', __( '„Kassendifferenz ohne Begründung bis“ darf nicht negativ sein.', 'pass-captain' ) );
+		}
+		return $checked;
+	}
+
 	public static function handle_settings() {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_pos_settings' );
@@ -549,7 +579,9 @@ final class Page {
 		if ( is_wp_error( $valid_terminals ) ) { Forms::finish( $valid_terminals, '', self::back() ); }
 		$cashier = \PassCaptain\SettingsSchema::validate( 'boxoffice_receipt_cashier', $in['boxoffice_receipt_cashier'] ?? 'id' ); // SET-PC-01
 		if ( is_wp_error( $cashier ) ) { Forms::finish( $cashier, '', self::back() ); }
-		Settings::update( array(
+		$rules = self::check_shift_rules( $in );
+		if ( is_wp_error( $rules ) ) { Forms::finish( $rules, '', self::back() ); }
+		Settings::update( $rules + array(
 			'boxoffice_receipt_prefix' => preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'boxoffice_receipt_prefix', 10 ) ) ?: 'BON',
 			'boxoffice_receipt_footer' => Forms::text( $in, 'boxoffice_receipt_footer', 300 ),
 			'boxoffice_terminals' => $terminal_raw,

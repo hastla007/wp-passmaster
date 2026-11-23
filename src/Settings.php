@@ -231,6 +231,18 @@ final class Settings {
 			'payment_rules'             => '',
 			// SET-PC-45: ticket prices entered gross (default) or net; buyers always see gross prices.
 			'price_entry'               => 'gross',
+			// SET-PC-36: date/time format of mails, tickets and documents in the site language ('' = WordPress setting).
+			'document_date_format'      => '',
+			'document_time_format'      => '',
+			// SET-PC-38: rate limits for operators (per hour); the settings register sets safe lower bounds.
+			'rate_checkout_ip_per_hour' => 30,
+			'rate_checkout_email_per_hour' => 8,
+			'rate_checkout_unpaid_per_network' => 10,
+			'rate_waitlist_ip_per_hour' => 60,
+			'rate_waitlist_email_per_hour' => 5,
+			'rate_portal_resend_per_hour' => 3,
+			'rate_portal_assign_per_hour' => 20,
+			'rate_portal_pdf_per_hour'  => 20,
 		);
 	}
 

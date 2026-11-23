@@ -407,6 +407,13 @@ final class BoxOffice {
 			// Cash/card without a certified fiscal solution (DE KassenSichV/TSE, AT RKSV) only after this explicit
 			// confirmation (e.g. the sales are recorded in a separate certified cash register).
 			'boxoffice_cash_confirmed' => 0,
+			// SET-PC-39 shift rules: differences up to this amount (minor units) need no reason (0 = every
+			// difference); 'amount' or 'denominations' count; receipt language ('' = language of the screen);
+			// blind count preselected for new registers.
+			'boxoffice_difference_tolerance_minor' => 0,
+			'boxoffice_count_mode' => 'amount',
+			'boxoffice_receipt_locale' => '',
+			'boxoffice_blind_default' => 1,
 		);
 	}
 
@@ -418,6 +425,10 @@ final class BoxOffice {
 			'boxoffice_terminals' => array( 'type' => 'textarea', 'label' => __( 'Kassenterminals', 'pass-captain' ), 'help' => __( 'Kartenterminals der Kasse, eines je Zeile.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
 			'boxoffice_receipt_cashier' => array( 'type' => 'choice', 'options' => array( 'id' => __( 'Bedienernummer', 'pass-captain' ), 'initials' => __( 'Initialen', 'pass-captain' ), 'name' => __( 'Vollständiger Name', 'pass-captain' ) ), 'label' => __( 'Kassierer auf dem Bon', 'pass-captain' ), 'help' => __( 'Ob und wie die Person an der Kasse auf dem Bon erscheint.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
 			'boxoffice_cash_confirmed' => array( 'type' => 'bool', 'label' => __( 'Barzahlung ohne Fiskalisierung bestätigt', 'pass-captain' ), 'help' => __( 'Bestätigung, dass die Kasse ohne angeschlossene Fiskalisierung bar kassieren darf.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_difference_tolerance_minor' => array( 'type' => 'money', 'label' => __( 'Kassendifferenz ohne Begründung bis', 'pass-captain' ), 'help' => __( 'Beim Schichtabschluss und bei der Übergabe brauchen Differenzen bis zu diesem Betrag (in Kassenwährung, z. B. 0,50) keinen Grund; sie stehen trotzdem im Z-Bericht. 0 = jede Differenz braucht einen Grund.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_count_mode' => array( 'type' => 'choice', 'options' => array( 'amount' => __( 'Betrag oder Stückelung', 'pass-captain' ), 'denominations' => __( 'Stückelung Pflicht', 'pass-captain' ) ), 'label' => __( 'Zählpflicht', 'pass-captain' ), 'help' => __( '„Stückelung Pflicht“: Anfangsbestand, Abschlusszählung und Übergabe müssen nach Scheinen und Münzen gezählt werden (außer bei leerer Kasse).', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_receipt_locale' => array( 'type' => 'text', 'label' => __( 'Sprache der Kassenbons', 'pass-captain' ), 'help' => __( 'Sprachcode wie de_DE oder en_US. Leer = Sprache der Kassenoberfläche.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_blind_default' => array( 'type' => 'bool', 'label' => __( 'Blindzählung als Standard für neue Kassen', 'pass-captain' ), 'help' => __( 'Neue Kassen werden mit Blindzählung vorgeschlagen; je Kasse änderbar.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
 		);
 	}
 

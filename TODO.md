@@ -457,13 +457,13 @@ Quelle: Analyse der Lizenz-Sitzung, `captain-pro` Branch `claude/sharp-mendel-xi
 ### OPTIMIERUNG
 - [x] **SET-PC-31 · Einrichtungsassistent** (Land → Rechnungssteller → Zahlungsart → Rechtstexte → erstes Event). Braucht: -02. *Erledigt 23.11.2026: Die Checkliste „Erste Schritte“ führt jetzt in der Reihenfolge Land (Länderprofil) → Rechnungssteller → Zahlungsart → Rechtstexte → erstes Event; jeder Schritt verlinkt die passende Stelle und gilt aus den gespeicherten Daten als erledigt (Test `zz_a088`).*
 - [x] **SET-PC-32 · Suche und Übersicht „Alle Einstellungen“** mit Wert, Standard und Quelle. Braucht: -01. *Erledigt 23.11.2026: Übersicht „Alle Einstellungen“ mit Suche im Reiter Werkzeuge, Test `zz_set_pc_10`.*
-- [ ] **SET-PC-33 · Ticket-PDF: Logo und Fußzeile als Feld** (je Sprache, je Event übersteuerbar, Filter bleiben).
-- [ ] **SET-PC-34 · Erinnerungen je Event übersteuerbar.**
+- [x] **SET-PC-33 · Ticket-PDF: Logo und Fußzeile als Feld** (je Sprache, je Event übersteuerbar, Filter bleiben). *Erledigt 23.11.2026: Einstellung `ticket_pdf` (Logo, Fußzeile je Sprache, Rechtslinks) in „Druck & Listen“, je Event übersteuerbar (`EventOverrides`), Filter behalten Vorrang, Impressum/Datenschutz auch auf der Ticketseite; Test `zz_set_pc_33`.*
+- [x] **SET-PC-34 · Erinnerungen je Event übersteuerbar.** *Erledigt 23.11.2026: Erinnerungen je Event an/aus und eigene Zeitpunkte (Seite Erinnerungen, „Je Event übersteuern“), Prüfung über das Register; Test `zz_set_pc_33`.*
 - [ ] **SET-PC-35 · Servicegebühr prozentual** mit Mindest-/Höchstwert. Braucht: E5.
-- [ ] **SET-PC-36 · Kalender: erster Wochentag, Datums-/Zeitformat für Dokumente als Einstellung.**
+- [x] **SET-PC-36 · Kalender: erster Wochentag, Datums-/Zeitformat für Dokumente als Einstellung.** *Erledigt 23.11.2026: `calendar.first_weekday` (Standard Montag) sowie `document_date_format`/`document_time_format` (leer = WordPress-Einstellung), Filter haben Vorrang; Test `zz_set_pc_33`.*
 - [ ] **SET-PC-37 · DATEV-Konten als Tabelle** im Formular. Braucht: Steuerberatung für Standardwerte.
-- [ ] **SET-PC-38 · Ratenlimits für Betreiber** (Checkout je IP/E-Mail, Warteliste, Portal) mit sicheren Untergrenzen. Braucht: -01.
-- [ ] **SET-PC-39 · Kasse: Schichtregeln** (Differenz-Toleranz, Zählpflicht, Bon-Sprache, Blindzählung als Standard).
+- [x] **SET-PC-38 · Ratenlimits für Betreiber** (Checkout je IP/E-Mail, Warteliste, Portal) mit sicheren Untergrenzen. Braucht: -01. *Erledigt 23.11.2026: acht Ratenlimits (Checkout, Warteliste, Portal) im Reiter Erweitert, Standard = bisheriger Wert, feste Untergrenzen werden gemeldet und zur Laufzeit erzwungen, Filter haben Vorrang; Test `zz_set_pc_33`. Die Untergrenzen sind ein Vorschlag.*
+- [x] **SET-PC-39 · Kasse: Schichtregeln** (Differenz-Toleranz, Zählpflicht, Bon-Sprache, Blindzählung als Standard). *Erledigt 23.11.2026: Differenz-Toleranz, Zählpflicht (Stückelung), Bon-Sprache und Blindzählung als Standard für neue Kassen; Standard = bisheriges Verhalten; Test `zz_set_pc_33`.*
 - [x] **SET-PC-40 · Zahlungsarten nach Regel** (je Event, Betrag, Land). *Erledigt 23.11.2026: `src/Payments/Rules.php`, Einstellung „Regeln für Zahlungsarten“ (Event, Betrag, Rechnungsland), Eventkarte blendet nicht passende Zahlungsarten aus, Checkout prüft die fertige Bestellung; Filter `wp_pass_captain_payment_rules_v1`; Test `zz_set_pc_40`.*
 - [ ] **SET-PC-41 · Pro: E-Rechnung weitere Länder** (Peppol mit Versand, FatturaPA, ebInterface). Braucht: anderes Repository; E4; Rechtsprüfung.
 - [ ] **SET-PC-42 · Schweizer QR-Rechnung** (Kern frei wie GiroCode laut Empfehlung). Braucht: E4.

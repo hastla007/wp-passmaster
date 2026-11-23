@@ -4076,7 +4076,7 @@ final class Orders {
 		foreach ( $chunks as $index => $chunk ) {
 			// A474: the PDF speaks the buyer's language, like the mail itself.
 			$bytes = Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $chunk ) {
-				return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+				return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => TicketPdf::default_footer() ) );
 			} );
 			if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
 			$file = $pdf_dir . '/tickets-' . Frontend\Format::order_reference( (string) $order->public_id ) . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf'; // A091: readable order number.

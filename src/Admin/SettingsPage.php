@@ -101,6 +101,29 @@ final class SettingsPage {
 					'max_line_quantity' => array( 'type' => 'int', 'label' => __( 'Höchstmenge je Bestellposition', 'pass-captain' ), 'min' => 1, 'max' => 1000, 'description' => __( 'Absolute Obergrenze der Tickets je Position einer Bestellung, als Schutz gegen versehentliche oder missbräuchliche Mengen. Die Höchstmenge je Bestellung der Ticketart gilt zusätzlich. Standard: 100. Ein Filter (wpcap_max_line_quantity) hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
+			'formats' => array(
+				'title' => __( 'Datum und Uhrzeit in Dokumenten', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'document_date_format' => array( 'type' => 'text', 'label' => __( 'Datumsformat für E-Mails, Tickets und Belege', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_date_format' ), 'description' => __( 'PHP-Datumsformat, z. B. „d.m.Y“ (24.12.2026) oder „j. F Y“ (24. Dezember 2026). Leer = Datumsformat der WordPress-Einstellungen. Gilt in der Sprache der Website; E-Mails und Dokumente in anderen Sprachen nutzen das Format ihrer Sprache. Der Filter wpcap_date_format hat Vorrang.', 'pass-captain' ) ),
+					'document_time_format' => array( 'type' => 'text', 'label' => __( 'Zeitformat für E-Mails, Tickets und Belege', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_date_format' ), 'description' => __( 'PHP-Zeitformat, z. B. „H:i“ (20:00) oder „g:i a“ (8:00 pm). Leer = Zeitformat der WordPress-Einstellungen, auf Ticket-PDFs 24 Stunden (H:i). Der Filter wpcap_time_format hat Vorrang.', 'pass-captain' ) ),
+				),
+			),
+			'rate_limits' => array(
+				'title' => __( 'Ratenlimits', 'pass-captain' ),
+				'tab' => 'advanced',
+				'description' => __( 'Schützt Checkout, Warteliste und Bestellportal vor automatisierten Anfragen. Die Untergrenzen sind fest, damit echte Käufer nicht ausgesperrt werden; Filter (z. B. wpcap_checkout_ip_limit) haben Vorrang.', 'pass-captain' ),
+				'fields' => array(
+					'rate_checkout_ip_per_hour' => array( 'type' => 'int', 'label' => __( 'Checkout: Bestellungen je Netzwerk und Stunde', 'pass-captain' ), 'min' => 10, 'max' => 10000, 'description' => __( 'Reservierungen, die ein Netzwerk (IPv4-Adresse oder IPv6-/64) je Stunde anlegen darf; Versuche dürfen das Vierfache sein. Mindestens 10 (Firmen- und Mobilfunknetze teilen sich Adressen). Filter wpcap_checkout_ip_limit.', 'pass-captain' ) ),
+					'rate_checkout_email_per_hour' => array( 'type' => 'int', 'label' => __( 'Checkout: Bestellungen je E-Mail-Adresse und Stunde', 'pass-captain' ), 'min' => 3, 'max' => 1000, 'description' => __( 'Reservierungen je Netzwerk und E-Mail-Adresse (ohne +Zusatz) je Stunde. Mindestens 3.', 'pass-captain' ) ),
+					'rate_checkout_unpaid_per_network' => array( 'type' => 'int', 'label' => __( 'Checkout: offene unbezahlte Bestellungen je Netzwerk', 'pass-captain' ), 'min' => 3, 'max' => 1000, 'description' => __( 'So viele unbezahlte Bestellungen darf ein Netzwerk innerhalb der Reservierungsdauer gleichzeitig halten. Mindestens 3. Filter wpcap_checkout_unpaid_per_network.', 'pass-captain' ) ),
+					'rate_waitlist_ip_per_hour' => array( 'type' => 'int', 'label' => __( 'Warteliste: Eintragungen je Netzwerk und Stunde (alle Events)', 'pass-captain' ), 'min' => 10, 'max' => 10000, 'description' => __( 'Mindestens 10. Filter wp_pass_captain_waitlist_ip_limit_v1.', 'pass-captain' ) ),
+					'rate_waitlist_email_per_hour' => array( 'type' => 'int', 'label' => __( 'Warteliste: Bestätigungsmails je E-Mail-Adresse, Event und Stunde', 'pass-captain' ), 'min' => 2, 'max' => 100, 'description' => __( 'Begrenzt Mails an eine Adresse, die jemand anderes eintragen könnte. Mindestens 2.', 'pass-captain' ) ),
+					'rate_portal_resend_per_hour' => array( 'type' => 'int', 'label' => __( 'Bestellportal: Tickets erneut senden je Bestellung und Stunde', 'pass-captain' ), 'min' => 1, 'max' => 50, 'description' => __( 'Mindestens 1. Filter wpcap_portal_resend_limit.', 'pass-captain' ) ),
+					'rate_portal_assign_per_hour' => array( 'type' => 'int', 'label' => __( 'Bestellportal: Namens- und Inhaberänderungen je Bestellung und Stunde', 'pass-captain' ), 'min' => 5, 'max' => 1000, 'description' => __( 'Jede Inhaberänderung schickt eine E-Mail. Mindestens 5. Filter wpcap_portal_assign_rate_limit.', 'pass-captain' ) ),
+					'rate_portal_pdf_per_hour' => array( 'type' => 'int', 'label' => __( 'Bestellportal: Ticket-PDFs je Bestellung und Stunde', 'pass-captain' ), 'min' => 5, 'max' => 1000, 'description' => __( 'Mindestens 5. Filter wpcap_portal_pdf_rate_limit.', 'pass-captain' ) ),
+				),
+			),
 			'network' => array(
 				'title' => __( 'Proxy / Client-Adresse', 'pass-captain' ),
 				'tab' => 'advanced',
@@ -614,6 +637,19 @@ final class SettingsPage {
 	 *
 	 * @return array|\WP_Error ['saved' => values written, 'errors' => list of messages for invalid fields]
 	 */
+	/**
+	 * SET-PC-36: sanitizer of the document date/time formats: '' or a PHP date() format of at most 40
+	 * characters with at least one date or time character (no HTML).
+	 */
+	public static function sanitize_date_format( $value ) {
+		$value = trim( (string) $value );
+		if ( '' === $value ) { return ''; }
+		if ( mb_strlen( $value ) > 40 || preg_match( '/[<>"]/', $value ) || ! preg_match( '/(?<!\\\\)[dDjlNSwzWFmMntLoYyaABgGhHisuveIOPpTZcrU]/', $value ) ) {
+			return new \WP_Error( 'wpcap_invalid_date_format', __( 'Bitte ein gültiges PHP-Datums- oder Zeitformat angeben, z. B. „d.m.Y“ oder „H:i“ (höchstens 40 Zeichen).', 'pass-captain' ) );
+		}
+		return $value;
+	}
+
 	/** Sanitizer of the sender address fields: '' or a valid e-mail address. */
 	public static function sanitize_mail_address( $value ) {
 		$value = trim( (string) $value );

@@ -186,7 +186,7 @@ final class PortalSelfService {
 		$p = $wpdb->prefix;
 		$order = self::order_with_access( $public_id, $token );
 		if ( ! $order ) { return self::denied(); }
-		if ( ! RateLimit::allow( 'portal-pdf-client|' . RateLimit::client(), 60, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'portal-pdf|' . $order->order_id, (int) apply_filters( 'wpcap_portal_pdf_rate_limit', 20, $order ), HOUR_IN_SECONDS ) ) {
+		if ( ! RateLimit::allow( 'portal-pdf-client|' . RateLimit::client(), 60, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'portal-pdf|' . $order->order_id, (int) apply_filters( 'wpcap_portal_pdf_rate_limit', RateLimit::configured( 'rate_portal_pdf_per_hour' ), $order ), HOUR_IN_SECONDS ) ) {
 			return self::limited();
 		}
 		if ( 'paid' !== $order->payment_status ) {
@@ -286,7 +286,7 @@ final class PortalSelfService {
 				'ticket_id' => (int) $ticket->ticket_id,
 			);
 		}
-		$content = TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+		$content = TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => \PassCaptain\TicketPdf::default_footer() ) );
 		Audit::record( 'portal_ticket_pdf', 'order', (int) $order->order_id, array( 'tickets' => count( $entries ), 'new_codes' => count( $rotated ), 'scope' => 'all' === $which ? 'all' : 'single' ) );
 		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', Frontend\Format::order_reference( $order->public_id ) );
 		return array(

@@ -174,7 +174,7 @@ final class Waitlists {
 		// type it) only counts sign-ups that send a mail, so junk requests cannot lock it out.
 		$email_bucket = 'waitlist|' . strtolower( $email ) . '|' . $event_id; // Y1: one bucket per address, whatever the case.
 		// One network (IPv6 /64) is also limited across all events (audit Y1, filter wp_pass_captain_waitlist_ip_limit_v1).
-		if ( ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT
+		if ( ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::email_limit_per_hour()
 			|| ! RateLimit::hit( 'wpcap_waitlist_ipall_' . RateLimit::hash( RateLimit::client_network() ), self::ip_limit_per_hour(), HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
@@ -212,7 +212,7 @@ final class Waitlists {
 			if ( '' !== $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::join_failed(); }
 		}
 		$wpdb->query( 'COMMIT' );
-		RateLimit::allow( $email_bucket, self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); // A644: a sign-up mail goes out.
+		RateLimit::allow( $email_bucket, self::email_limit_per_hour(), HOUR_IN_SECONDS ); // A644: a sign-up mail goes out.
 		if ( $doi ) {
 			$c = self::config();
 			$names = self::mail_names( $event_id, $ticket_type_id );
@@ -2013,7 +2013,12 @@ final class Waitlists {
 
 	/** Sign-ups per network and hour across all events (filter wp_pass_captain_waitlist_ip_limit_v1). */
 	public static function ip_limit_per_hour() {
-		return max( 1, (int) apply_filters( 'wp_pass_captain_waitlist_ip_limit_v1', 60 ) );
+		return max( 1, (int) apply_filters( 'wp_pass_captain_waitlist_ip_limit_v1', RateLimit::configured( 'rate_waitlist_ip_per_hour' ) ) );
+	}
+
+	/** SET-PC-38: sign-up mails per address, event and hour (setting rate_waitlist_email_per_hour, default EMAIL_HOURLY_LIMIT). */
+	public static function email_limit_per_hour() {
+		return RateLimit::configured( 'rate_waitlist_email_per_hour' );
 	}
 
 	/** Tickets of a ticket type held by open offers (placeholder orders of offered/accepted entries). */

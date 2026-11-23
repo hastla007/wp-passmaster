@@ -56,15 +56,16 @@ final class TicketPdf {
 		// Signed QR values (PC1) for all tickets at once; the plain code when signing is off.
 		$qr = Security\SignedQr::qr_values( array_map( static function ( $t ) { return (string) ( $t['token'] ?? '' ); }, $tickets ) );
 		$bodies = array();
+		$event_ids = array();
 		$answers = null;
 		foreach ( $tickets as $i => $ticket ) {
 			if ( ! $pdf->ok() ) { break; }
 			$occurrence_id = (int) ( $ticket['occurrence_id'] ?? 0 );
 			if ( ! isset( $bodies[ $occurrence_id ] ) ) {
-				$event_id = $occurrence_id ? (int) Reports\Scope::occurrence_event( $occurrence_id ) : 0;
-				$bodies[ $occurrence_id ] = $event_id ? Templates::body_for_event( $event_id, 'ticket' ) : Templates::default_body( 'ticket' );
+				$event_ids[ $occurrence_id ] = $occurrence_id ? (int) Reports\Scope::occurrence_event( $occurrence_id ) : 0;
+				$bodies[ $occurrence_id ] = self::with_logo( $event_ids[ $occurrence_id ] ? Templates::body_for_event( $event_ids[ $occurrence_id ], 'ticket' ) : Templates::default_body( 'ticket' ), $event_ids[ $occurrence_id ] );
 			}
-			$values = self::values( self::data( $ticket, $meta ), $meta );
+			$values = self::values( self::data( $ticket, $meta ) + array( 'event_id' => $event_ids[ $occurrence_id ] ), $meta );
 			$values['qr'] = (string) ( $qr[ $i ] ?? $values['qr'] );
 			if ( false !== strpos( $bodies[ $occurrence_id ], '{field:' ) ) {
 				// A686: participant field answers, read once for all tickets of the document.
@@ -97,16 +98,26 @@ final class TicketPdf {
 	/** Placeholder values of the ticket layout for one ticket entry. */
 	public static function values( array $ticket, array $meta = array() ) {
 		$time = '';
-		if ( ! empty( $ticket['starts_at'] ) ) { $time = Reports\Scope::local( (string) $ticket['starts_at'], (string) ( $ticket['timezone'] ?? 'UTC' ), 'H:i' ); }
-		$footer = (string) ( $ticket['footer'] ?? ( $meta['footer'] ?? '' ) );
+		if ( ! empty( $ticket['starts_at'] ) ) { $time = Reports\Scope::local( (string) $ticket['starts_at'], (string) ( $ticket['timezone'] ?? 'UTC' ), Frontend\Format::ticket_time_format() ); }
+		// SET-PC-33: footer of the event (language, event override, global setting) before the caller's default.
+		$event_id = (int) ( $ticket['event_id'] ?? 0 );
+		if ( ! $event_id && ! empty( $ticket['occurrence_id'] ) ) { $event_id = self::event_of( (int) $ticket['occurrence_id'] ); }
+		$ticket['event_id'] = $event_id;
+		$config = self::settings_for_event( $event_id );
+		$configured = self::footer_for( $config, ! empty( $meta['lang'] ) ? (string) $meta['lang'] : Mail\Mailer::current_locale() );
+		$footer = (string) ( $ticket['footer'] ?? ( '' !== $configured ? $configured : ( $meta['footer'] ?? '' ) ) );
 		/**
 		 * Footer line of one page of a ticket PDF (mail, portal, admin), e.g. conditions per ticket
 		 * type or pass. '' = none.
 		 *
-		 * @param string $footer Default footer ("Dieses Ticket ist nur einmal gültig …").
+		 * @param string $footer Default footer: the footer set under "Druck & Listen" (per language, per
+		 *                       event; SET-PC-33), otherwise "Dieses Ticket ist nur einmal gültig …".
 		 * @param array  $ticket Ticket entry (event, ticket, when, occurrence_id, ticket_type_id …; no code).
 		 */
 		$footer = (string) apply_filters( 'wpcap_ticket_pdf_footer', $footer, array_diff_key( $ticket, array( 'token' => 1, 'help_code' => 1, 'url' => 1 ) ) );
+		// SET-PC-19/-33: imprint and privacy links as the last footer line.
+		$legal = ! empty( $config['legal_links'] ) ? str_replace( "\n", ' · ', Frontend\LegalNotice::links_text() ) : '';
+		if ( '' !== $legal ) { $footer = '' !== trim( $footer ) ? $footer . "\n" . $legal : $legal; }
 		return array(
 			'event' => (string) ( $ticket['event'] ?? '' ),
 			'date' => (string) ( $ticket['when'] ?? '' ),
@@ -122,6 +133,59 @@ final class TicketPdf {
 			'_title' => (string) ( $meta['title'] ?? '' ),
 			'_footer' => $footer,
 		);
+	}
+
+	/** Built-in footer of ticket PDFs (in the current language). */
+	public static function default_footer() {
+		return __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' );
+	}
+
+	/** @var array<int,int> Event id per occurrence id (per request). */
+	private static $events = array();
+
+	private static function event_of( $occurrence_id ) {
+		if ( ! isset( self::$events[ $occurrence_id ] ) ) { self::$events[ $occurrence_id ] = (int) Reports\Scope::occurrence_event( $occurrence_id ); }
+		return self::$events[ $occurrence_id ];
+	}
+
+	/**
+	 * SET-PC-33: logo and footer of ticket PDFs for an event: the global setting "ticket_pdf"
+	 * (Druck & Listen) with the event's overrides (EventOverrides, area ticket_pdf).
+	 *
+	 * @return array{logo:int,footer:string,translations:array,legal_links:int,event:array}
+	 */
+	public static function settings_for_event( $event_id ) {
+		$defaults = Modules\PrintTemplates::settings_defaults()['ticket_pdf'];
+		$global = array_merge( $defaults, (array) Settings::get( 'ticket_pdf', array() ) );
+		$own = $event_id ? EventOverrides::get( (int) $event_id, 'ticket_pdf' ) : array();
+		return array(
+			'logo' => ! empty( $own['logo'] ) ? absint( $own['logo'] ) : absint( $global['logo'] ),
+			'footer' => (string) $global['footer'],
+			'translations' => is_array( $global['translations'] ) ? $global['translations'] : array(),
+			'legal_links' => empty( $global['legal_links'] ) ? 0 : 1,
+			'event' => $own,
+		);
+	}
+
+	/**
+	 * SET-PC-33: configured footer for a language: the event's text in that language, the event's
+	 * text, the global text in that language, the global text; '' = nothing configured.
+	 */
+	public static function footer_for( array $config, $locale ) {
+		$locale = Mail\Mailer::normalize_locale( (string) $locale );
+		$own = (array) ( $config['event'] ?? array() );
+		$candidates = array( $own['translations'][ $locale ] ?? '', $own['footer'] ?? '', $config['translations'][ $locale ] ?? '', $config['footer'] ?? '' );
+		foreach ( $candidates as $text ) {
+			if ( is_string( $text ) && '' !== trim( $text ) ) { return $text; }
+		}
+		return '';
+	}
+
+	/** SET-PC-33: adds the configured logo to a ticket layout without an own logo (the layout's logo wins). */
+	public static function with_logo( $body, $event_id ) {
+		$logo = self::settings_for_event( $event_id )['logo'];
+		if ( ! $logo || Templates::design( $body )['logo'] ) { return (string) $body; }
+		return '@logo|' . $logo . "\n" . (string) $body;
 	}
 
 	/** QR modules as rows of booleans, or empty array when the encoder is unavailable (see QrCode::matrix()). */
@@ -194,7 +258,7 @@ final class TicketPdf {
 					'help_code' => class_exists( HelpCode::class ) ? HelpCode::for_ticket( (int) $ticket['ticket_id'], (string) $ticket['token'] ) : '',
 				);
 			}, $issued );
-			return self::render_to_file( $file, $tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ), 'lang' => '' !== $locale ? $locale : Mail\Mailer::current_locale() ) );
+			return self::render_to_file( $file, $tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => self::default_footer(), 'lang' => '' !== $locale ? $locale : Mail\Mailer::current_locale() ) );
 		} );
 		$size = $ok && is_file( $file ) ? (int) filesize( $file ) : 0;
 		if ( ! $ok || ! $size ) {

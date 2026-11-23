@@ -1213,8 +1213,24 @@ final class Service {
 		);
 	}
 
+	/** SET-PC-39: receipt language (setting boxoffice_receipt_locale; '' = language of the screen). */
+	public static function receipt_locale() {
+		return \PassCaptain\Mail\Mailer::normalize_locale( trim( (string) Settings::get( 'boxoffice_receipt_locale', '' ) ) );
+	}
+
+	/** Runs $render in the receipt language (SET-PC-39). */
+	public static function in_receipt_locale( callable $render ) {
+		$locale = self::receipt_locale();
+		return '' !== $locale ? \PassCaptain\Mail\Mailer::with_locale( $locale, $render ) : $render();
+	}
+
 	/** 80 mm thermal printer friendly receipt (HTML, auto print). $storno prints the storno receipt. */
 	public static function receipt_html( $sale_id, $storno = false ) {
+		return (string) self::in_receipt_locale( static function () use ( $sale_id, $storno ) { return self::render_receipt_html( $sale_id, $storno ); } );
+	}
+
+	/** receipt_html() in the current language. */
+	private static function render_receipt_html( $sale_id, $storno ) {
 		$r = self::receipt( $sale_id );
 		if ( ! $r ) { return ''; }
 		$storno = $storno && '' !== $r['storno_number'];

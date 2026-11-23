@@ -30,6 +30,11 @@
 - Protokolle und Fristen (SET-PC-21): Aufbewahrung und Stufe des Support-Protokolls, Connector-Protokoll, Druckstapel, No-Show-Kulanz für Bewertungsanfragen, Standard-Paketdauer des Offline-Scanners, Sperrfrist der Warteliste vor Verkaufsende; neue Übersicht „Was wird wann gelöscht“ im Reiter Datenschutz.
 - Website-Zustand empfiehlt eine Löschfrist für Teilnehmerdaten, solange keine gesetzt ist (SET-PC-47); die Vorgabe bleibt „keine allgemeine Frist“.
 - Alle neuen Einstellungen starten mit dem bisherigen festen Wert; vorhandene Filter haben weiter Vorrang.
+- Ticket-PDF (SET-PC-33): Logo und Fußzeile je Sprache unter „Druck & Listen“, je Event übersteuerbar; Impressum- und Datenschutz-Link in der PDF-Fußzeile und auf der Ticketseite (abschaltbar).
+- Erinnerungen je Event ein-/ausschalten und mit eigenen Zeitpunkten (SET-PC-34).
+- Kalender und Dokumente (SET-PC-36): erster Wochentag der Monatsansicht, eigenes Datums- und Zeitformat für E-Mails, Tickets und Belege.
+- Ratenlimits für Checkout, Warteliste und Bestellportal als Einstellungen mit festen Untergrenzen (SET-PC-38).
+- Kasse (SET-PC-39): Differenz-Toleranz, Zählpflicht nach Stückelung, Sprache der Kassenbons, Blindzählung als Standard für neue Kassen.
 - WP-CLI `wp pass-captain settings list|get|set|reset|export|import|preset`; `delete_data_on_uninstall` lässt sich nur mit `--confirm=LÖSCHEN` einschalten.
 
 ### Servicegebühr (A425, Entscheidungen vom 23.11.2026)
