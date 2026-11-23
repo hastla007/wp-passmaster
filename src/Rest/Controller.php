@@ -52,6 +52,20 @@ final class Controller {
 	}
 
 	public static function register_routes() {
+		// A401: one method per resource group, called in the former order of the route registrations.
+		self::register_checkout_routes();
+		self::register_order_routes();
+		self::register_admission_routes();
+		self::register_member_pass_routes();
+		self::register_service_routes();
+		self::register_campaign_routes();
+		self::register_payment_routes();
+		self::register_waitlist_routes();
+		self::register_admin_routes();
+	}
+
+	/** Event list and checkout. (A401: part of register_routes(), same order.) */
+	private static function register_checkout_routes() {
 		register_rest_route( 'pass-captain/v1', '/events', array(
 			'methods' => \WP_REST_Server::READABLE,
 			'callback' => array( __CLASS__, 'events' ),
@@ -70,6 +84,10 @@ final class Controller {
 				'accept_terms' => self::arg( 'bool' ),
 			),
 		) );
+	}
+
+	/** Order portal: status, transfer, resend, refund request, assignment, billing, payout account, invoice. (A401: part of register_routes(), same order.) */
+	private static function register_order_routes() {
 		// A645: the access token belongs in the header X-WPCAP-Access-Token or a POST body; GET with
 		// ?access_token= still works for now but is answered with Deprecation: true (A370).
 		$order_token = array( 'access_token' => array( 'type' => 'string', 'maxLength' => 64, 'validate_callback' => 'rest_validate_request_arg' ) );
@@ -138,6 +156,10 @@ final class Controller {
 			'callback' => array( __CLASS__, 'issue_invoice' ),
 			'permission_callback' => array( __CLASS__, 'pos_permission' ),
 		) );
+	}
+
+	/** Admission and sales on site: validate, check-in, offline sync, box office sale, pass redemption. (A401: part of register_routes(), same order.) */
+	private static function register_admission_routes() {
 		register_rest_route( 'pass-captain/v1', '/tickets/validate', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'validate_ticket' ),
@@ -165,6 +187,10 @@ final class Controller {
 			'callback' => array( __CLASS__, 'redeem_pass' ),
 			'permission_callback' => array( __CLASS__, 'scanner_permission' ),
 		) );
+	}
+
+	/** Member passes: issue, revoke, approve, reject. (A401: part of register_routes(), same order.) */
+	private static function register_member_pass_routes() {
 		// One registration with both endpoints (issue and list) of the route.
 		register_rest_route( 'pass-captain/v1', '/member-passes', array(
 			array(
@@ -193,6 +219,10 @@ final class Controller {
 			'callback' => array( __CLASS__, 'reject_member_pass' ),
 			'permission_callback' => array( __CLASS__, 'member_approve_permission' ),
 		) );
+	}
+
+	/** Service slots, resources, bookings and admission days of an occurrence. (A401: part of register_routes(), same order.) */
+	private static function register_service_routes() {
 		// A529: the old seat API (GET /events/{id}/seats, POST /events/{id}/seat-maps, POST /events/{id}/seat-holds)
 		// had no purchase path (public holds that nothing could buy, an UPDATE on every GET) and is removed;
 		// seat selection and sale go through the Seating module (/seating/occurrences/{id}, checkout).
@@ -239,6 +269,10 @@ final class Controller {
 			'callback' => array( __CLASS__, 'set_admission_days' ),
 			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
+	}
+
+	/** Discount campaigns: preview and per-event list. (A401: part of register_routes(), same order.) */
+	private static function register_campaign_routes() {
 		register_rest_route( 'pass-captain/v1', '/campaigns/preview', array(
 			'methods' => 'POST',
 			'callback' => array( __CLASS__, 'preview_campaign' ),
@@ -253,6 +287,10 @@ final class Controller {
 			'callback' => array( __CLASS__, 'create_campaign' ),
 			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
+	}
+
+	/** Payment webhooks, availability and live checkout options. (A401: part of register_routes(), same order.) */
+	private static function register_payment_routes() {
 		register_rest_route( 'pass-captain/v1', '/payments/(?P<provider>[a-z0-9_-]+)/webhook', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( \PassCaptain\Payments\Webhooks::class, 'handle' ),
@@ -277,6 +315,10 @@ final class Controller {
 			'callback' => array( \PassCaptain\PublicEvents::class, 'rest_live' ),
 			'permission_callback' => '__return_true',
 		) );
+	}
+
+	/** Waitlist: sign-up, offers, accept/decline, entries. (A401: part of register_routes(), same order.) */
+	private static function register_waitlist_routes() {
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/waitlist', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'join_waitlist' ),
@@ -316,6 +358,10 @@ final class Controller {
 			'callback' => array( __CLASS__, 'list_waitlist' ),
 			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
+	}
+
+	/** Reports, developer API, event translations and tax profiles. (A401: part of register_routes(), same order.) */
+	private static function register_admin_routes() {
 		register_rest_route( 'pass-captain/v1', '/events/(?P<event_id>\d+)/reports/summary', array(
 			'methods' => \WP_REST_Server::READABLE,
 			'callback' => array( __CLASS__, 'event_report' ),

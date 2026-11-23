@@ -31,6 +31,92 @@ final class Installer {
 		if ( self::schema_is_newer( self::stored_db_version() ) ) { return false; }
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		$all_queries = self::schema_statements(); // A401: the statements are built in schema_statements().
+		// Structural changes dbDelta cannot make (both development lines of 1.5 shipped other layouts).
+		self::prepare_merged_schema();
+		$errors = array();
+		foreach ( $all_queries as $query ) {
+			$wpdb->last_error = '';
+			dbDelta( $query );
+			if ( '' !== (string) $wpdb->last_error ) { $errors[] = (string) $wpdb->last_error; }
+		}
+		// dbDelta only adds indexes: changed and removed ones are fixed here (schema 3.10.4, A181).
+		self::upgrade_indexes( $all_queries );
+		// dbDelta reports no errors: verify every table/column exists before the version is stored,
+		// otherwise the next request would rely on a schema that is not there.
+		$missing = self::missing_schema( $all_queries );
+		// A513: indexes are part of the schema, too – a failed index change is not silently stored as done.
+		$missing = array_merge( $missing, self::missing_indexes( $all_queries ) );
+		if ( $missing ) {
+			self::schema_failed( $errors, $missing );
+			if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
+			return false;
+		}
+		if ( $errors ) {
+			// The schema is complete (checked above); remaining dbDelta messages are only logged.
+			Log::warning( 'schema_upgrade_notice', 'dbDelta reported: ' . implode( ' | ', array_slice( array_unique( $errors ), 0, 3 ) ), array( 'audit' => false ) );
+		}
+		if ( function_exists( 'delete_option' ) ) { delete_option( self::ERROR_OPTION ); }
+
+		// One-off data migrations of both development lines of 1.5 (see migration_previous()): a site
+		// that comes from the other line never ran them, whatever its version number says.
+		$theirs = self::migration_previous( $previous_version, 'theirs' );
+		// Capacity counters (schema 3.7.0): fresh installs use them right away, upgrades and rollbacks
+		// rebuild them from the source tables (resumable, A468) and verify them before capacity
+		// decisions rely on them again (A464).
+		CapacityCounters::after_install( $rolled_back || $theirs !== $previous_version );
+		self::pin_legacy_credit_prefix( $theirs );
+		self::pin_legacy_manual_provider( $theirs );
+		// The entry window default was already in force on the other line: only the own baseline decides.
+		self::pin_legacy_entry_window( $previous_version );
+		self::backfill_capacity_released( $theirs );
+		self::backfill_ticket_updated_at( $theirs );
+		self::backfill_holder_changes( $theirs );
+		self::backfill_code_holder( $theirs );
+		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets). "pcv1:" values
+		// encrypted in place by Security\Vault move first, so they are never sealed as ciphertext.
+		Settings::migrate_secrets_to_store();
+		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
+		self::align_legacy_stripe_mode( $theirs );
+		self::migrate_site_scopes( $theirs );
+		self::mark_legacy_google_passes( $theirs );
+		self::migrate_merged_data();
+		// A568: the legal texts in force at the upgrade become the first archived versions.
+		LegalVersions::archive_all();
+
+		// Roles are registered on init (A362: with their source names; translated on display).
+		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
+			self::register_roles();
+		} else {
+			add_action( 'init', array( __CLASS__, 'register_roles' ), 1 );
+		}
+
+		// Encrypts provider secrets still stored in plaintext (idempotent, see Security\Vault).
+		Security\Vault::migrate();
+		// Uninstall opt-in out of reach of the old copy's uninstall.php (INT-1, idempotent).
+		Settings::migrate_uninstall_policy();
+		// wpcap_settings is read on every request: autoload it (PERF-11, idempotent).
+		Settings::ensure_autoload();
+		update_option( 'wpcap_db_version', self::version() );
+		self::remember_max_version( (string) get_option( 'wpcap_db_version_max', '' ) );
+		OrderLines::flush();
+		Tax\Profiles::flush();
+		update_option( 'wpcap_version', WPCAP_VERSION );
+		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
+		if ( get_option( self::ERROR_OPTION ) ) { delete_option( self::ERROR_OPTION ); }
+		if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
+		return true;
+	}
+
+	/**
+	 * A401: CREATE TABLE statements of the core, the sales schema and all modules, in the order dbDelta
+	 * runs them (moved out of install() unchanged). Also the input of upgrade_indexes(), missing_schema()
+	 * and missing_indexes().
+	 *
+	 * @return string[]
+	 */
+	public static function schema_statements() {
+		global $wpdb;
 		$charset = $wpdb->get_charset_collate();
 		$events = $wpdb->prefix . 'wpcap_events';
 		$occurrences = $wpdb->prefix . 'wpcap_occurrences';
@@ -1070,81 +1156,7 @@ final class Installer {
 
 		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).
 		$queries = array_merge( $queries, Sales\Schema::statements( $wpdb->prefix, $charset ) );
-		$all_queries = array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
-		// Structural changes dbDelta cannot make (both development lines of 1.5 shipped other layouts).
-		self::prepare_merged_schema();
-		$errors = array();
-		foreach ( $all_queries as $query ) {
-			$wpdb->last_error = '';
-			dbDelta( $query );
-			if ( '' !== (string) $wpdb->last_error ) { $errors[] = (string) $wpdb->last_error; }
-		}
-		// dbDelta only adds indexes: changed and removed ones are fixed here (schema 3.10.4, A181).
-		self::upgrade_indexes( $all_queries );
-		// dbDelta reports no errors: verify every table/column exists before the version is stored,
-		// otherwise the next request would rely on a schema that is not there.
-		$missing = self::missing_schema( $all_queries );
-		// A513: indexes are part of the schema, too – a failed index change is not silently stored as done.
-		$missing = array_merge( $missing, self::missing_indexes( $all_queries ) );
-		if ( $missing ) {
-			self::schema_failed( $errors, $missing );
-			if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
-			return false;
-		}
-		if ( $errors ) {
-			// The schema is complete (checked above); remaining dbDelta messages are only logged.
-			Log::warning( 'schema_upgrade_notice', 'dbDelta reported: ' . implode( ' | ', array_slice( array_unique( $errors ), 0, 3 ) ), array( 'audit' => false ) );
-		}
-		if ( function_exists( 'delete_option' ) ) { delete_option( self::ERROR_OPTION ); }
-
-		// One-off data migrations of both development lines of 1.5 (see migration_previous()): a site
-		// that comes from the other line never ran them, whatever its version number says.
-		$theirs = self::migration_previous( $previous_version, 'theirs' );
-		// Capacity counters (schema 3.7.0): fresh installs use them right away, upgrades and rollbacks
-		// rebuild them from the source tables (resumable, A468) and verify them before capacity
-		// decisions rely on them again (A464).
-		CapacityCounters::after_install( $rolled_back || $theirs !== $previous_version );
-		self::pin_legacy_credit_prefix( $theirs );
-		self::pin_legacy_manual_provider( $theirs );
-		// The entry window default was already in force on the other line: only the own baseline decides.
-		self::pin_legacy_entry_window( $previous_version );
-		self::backfill_capacity_released( $theirs );
-		self::backfill_ticket_updated_at( $theirs );
-		self::backfill_holder_changes( $theirs );
-		self::backfill_code_holder( $theirs );
-		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets). "pcv1:" values
-		// encrypted in place by Security\Vault move first, so they are never sealed as ciphertext.
-		Settings::migrate_secrets_to_store();
-		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
-		self::align_legacy_stripe_mode( $theirs );
-		self::migrate_site_scopes( $theirs );
-		self::mark_legacy_google_passes( $theirs );
-		self::migrate_merged_data();
-		// A568: the legal texts in force at the upgrade become the first archived versions.
-		LegalVersions::archive_all();
-
-		// Roles are registered on init (A362: with their source names; translated on display).
-		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
-			self::register_roles();
-		} else {
-			add_action( 'init', array( __CLASS__, 'register_roles' ), 1 );
-		}
-
-		// Encrypts provider secrets still stored in plaintext (idempotent, see Security\Vault).
-		Security\Vault::migrate();
-		// Uninstall opt-in out of reach of the old copy's uninstall.php (INT-1, idempotent).
-		Settings::migrate_uninstall_policy();
-		// wpcap_settings is read on every request: autoload it (PERF-11, idempotent).
-		Settings::ensure_autoload();
-		update_option( 'wpcap_db_version', self::version() );
-		self::remember_max_version( (string) get_option( 'wpcap_db_version_max', '' ) );
-		OrderLines::flush();
-		Tax\Profiles::flush();
-		update_option( 'wpcap_version', WPCAP_VERSION );
-		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
-		if ( get_option( self::ERROR_OPTION ) ) { delete_option( self::ERROR_OPTION ); }
-		if ( function_exists( 'delete_option' ) ) { delete_option( self::ATTEMPT_OPTION ); }
-		return true;
+		return array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
 	}
 
 	/** Option: schema line a site came from when the merged code first ran (fresh, base, ours, theirs, merged). */
