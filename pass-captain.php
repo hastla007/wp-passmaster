@@ -3,7 +3,7 @@
  * Plugin Name: Pass Captain
  * Plugin URI: https://github.com/hastla007/wp-passmaster
  * Description: Eigenständige Event-, Ticket- und Passverwaltung für WordPress.
- * Version: 1.6.0
+ * Version: 1.7.0
  * Requires at least: 7.0
  * Requires PHP: 8.5
  * Author: hastla007
@@ -180,11 +180,11 @@ if ( defined( 'WPCAP_VERSION' ) ) {
 	return;
 }
 
-define( 'WPCAP_VERSION', '1.6.0' );
+define( 'WPCAP_VERSION', '1.7.0' );
 /*
  * Version of the extension contract for add-ons (docs/EXTENSIONS.md, "Versionen der Erweiterungspunkte"):
  * major = an extension point was removed or changed incompatibly, minor = extension points were added.
- * 1.0.0 = plugin 1.4.0, 1.1.0 = plugin 1.5.0, 1.2.0 = plugin 1.6.0 (Api\Invoices service_date/service_period), 1.3.0 = plugin 1.6.0 plus the read facade (PassCaptain\Api\ReadFacade), 1.4.0 = plugin 1.6.0 plus the voucher reconciliation (Integrations\Vouchers\Reconciliation), connector read service, audit entry and opt-in functions (PASS-E17-01).
+ * 1.0.0 = plugin 1.4.0, 1.1.0 = plugin 1.5.0, 1.2.0 = plugin 1.6.0 (Api\Invoices service_date/service_period), 1.3.0 = plugin 1.6.0 plus the read facade (PassCaptain\Api\ReadFacade), 1.4.0 = plugin 1.7.0 plus the voucher reconciliation (Integrations\Vouchers\Reconciliation), connector read service, audit entry and opt-in functions (PASS-E17-01) and the public action functions (Api\Actions, PC-7); the never used workflow provider contract was removed in the same version (PC-7).
  */
 define( 'WPCAP_CONTRACT_VERSION', '1.4.0' );
 define( 'WPCAP_FILE', __FILE__ );

@@ -4,7 +4,7 @@ Tags: events, tickets, check-in, booking, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -127,6 +127,12 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 
 == Changelog ==
 
+= 1.7.0 =
+* Service fee: included in every price shown before purchase (event card, event page, REST, JSON-LD), own tax setting (like the ticket or own tax profile), refund rules (always refunded on cancellation, buyer's wish per setting) and shown separately in partner settlements and reports (optional pass-on to partners).
+* Vouchers: single-purpose vouchers only for the VAT of their sale, discount codes as price reduction; versioned read API for voucher reconciliation (extension contract 1.4.0).
+* Connector read service (`wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`), connector audit entry and opt-in functions.
+* Public action functions `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()`; the unused workflow provider contract was removed (Pass Captain sends all mails itself). `wpcap_event_cancelled` now fires once per cancellation after the tickets are revoked.
+
 = 1.6.0 =
 * First release after 1.4.0; includes everything prepared as 1.5.0 (below), which was not published separately.
 * Form Captain adapter (form per event, signed event context, explicit hand-over as a request), read API for the state of orders, tickets, refunds, dates and events (`wpcap_get_*_state()`, extension contract 1.3.0), connector contract 1.1.0.
@@ -163,6 +169,9 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 The full change log is in CHANGELOG.md in the source repository.
 
 == Upgrade Notice ==
+
+= 1.7.0 =
+Schema 3.18.4 installs automatically (refunds store the service fee). The workflow provider filter wp_pass_captain_workflow_provider_v1 no longer exists; use the wpcap_* actions, the read API and the new action functions. Back up the database before updating.
 
 = 1.6.0 =
 Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2.2). Schema 3.18.3 installs automatically, credentials are stored encrypted, renamed from "WP Pass Captain" (data kept). Back up the database before updating.

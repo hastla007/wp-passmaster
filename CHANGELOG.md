@@ -1,5 +1,30 @@
 # Änderungsprotokoll
 
+## 1.7.0 – 2026-11-23
+
+### Wichtige Verhaltensänderungen beim Update
+- **Datenbankschema 3.18.4:** Erstattungen speichern erstattete und einbehaltene Servicegebühr mit USt (`fee_minor`, `fee_tax_minor`, `fee_kept_minor`, `fee_kept_tax_minor`).
+- **PC-7:** Kein eigener Workflow-Vertrag mehr im Kern (Entscheidung vom 23.11.2026, Suite-Entscheidungen D13/D10): Filter `wp_pass_captain_workflow_provider_v1`, Workflow-Outbox, Workflow-Commands und die Übergabe optionaler Mails an Workflow Captain entfallen; Pass Captain versendet alle Mails selbst. Workflow Captain nutzt die `wpcap_*`-Actions, die Lesefassade `wpcap_get_*_state()` und die neuen Aktionsfunktionen. Die Outbox (`Suite\Outbox`) dient nur noch dem Review-Vertrag; ihre Hooks heißen `wpcap_outbox_*` statt `wpcap_workflow_*`. Ein Wächtertest verhindert die Rückkehr. Der Vertrag wurde nie genutzt und war nur in 1.6.0 veröffentlicht; deshalb bleibt `WPCAP_CONTRACT_VERSION` bei 1.4.0 (Ausnahme von der Regel „Entfernen = neue erste Stelle“, dokumentiert in docs/EXTENSIONS.md).
+- **PC-9:** `wpcap_event_cancelled` feuert jetzt einmal je Absage, nachdem alle Termine abgesagt und alle Tickets widerrufen sind (Argumente `int $event_id, array $context`); bisher direkt nach dem Commit, bevor die Tickets widerrufen waren.
+
+### Servicegebühr (A425, Entscheidungen vom 23.11.2026)
+- **Preisangabe:** Die Gebühr je Ticket ist in jedem Preis enthalten, den Käufer vor dem Kauf sehen (PAngV § 3, AT PrAG): Eventkarte und Eventseite („inkl. … Servicegebühr“), „ab …“-Preis, Live-Stand, Preismeldungen, JSON-LD und REST `/events` (neu `service_fee_minor`, `display_price_minor`, `order_fee_minor`; Vertrag `public` 1.2). Die Gebühr je Bestellung steht als „zzgl. … Bearbeitungsgebühr je Bestellung“ daneben und ist in jeder Summe vor dem Bestellbutton enthalten. Filter `wpcap_service_fee_shown`.
+- **Steuer:** neue Einstellung „Steuer der Servicegebühr“ – „wie das Ticket (Nebenleistung)“ (Standard, bisheriges Verhalten) oder „eigenes Steuerprofil“; Rechnung, Rechnungskorrektur, Fiskalbeleg und Bericht folgen der Gebührenzeile. Filter `wpcap_service_fee_tax`.
+- **Erstattung:** Absage durch den Veranstalter (auch Terminverschiebung) erstattet die Gebühr immer; Erstattungen auf Käuferwunsch folgen der neuen Einstellung „Servicegebühr bei Erstattung auf Käuferwunsch“ (Standard „einbehalten“), das Team wählt je Erstattung, das Bestellportal nennt eine einbehaltene Gebühr. Filter `wpcap_service_fee_refund_rule`.
+- **Partnerabrechnung:** Die Gebühr ist Umsatz des Betreibers (keine Provision, keine Auszahlung) und wird getrennt ausgewiesen; neue Einstellung „Servicegebühr an Partner weitergeben“ (Standard aus). Der Verkaufsbericht nennt erstattete und einbehaltene Gebühren je Währung.
+
+### Gutscheine
+- Einzweckgutscheine gelten nur für Ticketpositionen mit der USt ihres Verkaufs (Satz und Land, Filter `wpcap_voucher_tax_country`), sonst werden sie als Mehrzweckgutschein gebucht; Rabattcodes sind eine eigene Art „discount“ (Preisnachlass statt Zahlungsmittel).
+- Versionierte Lese-API für den Abgleich mit dem Gutscheinsystem: `Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, Erweiterungsvertrag 1.4.0).
+
+### Schnittstellen für Connectoren und Workflow (Vertrag 1.4.0)
+- **PASS-E17-01:** Lesedienst `wpcap_get_ticket_details()` / `wpcap_get_order_ticket_details()` (Termin, Event, Inhaber, Check-ins; E-Mail des Inhabers nur mit Capability `wpcap_read_holder_email`), Protokolleintrag `wpcap_connector_audit()`, Freigabe `wpcap_set_connector_enabled()` / `wpcap_is_connector_enabled()` statt Optionsschreiben.
+- **PC-7:** Öffentliche Aktionsfunktionen `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()` und `wpcap_confirm_attendance()` (Vertrag `actions` 1.0.0): Rechteprüfung für den aktuellen oder einen genannten Benutzer, regulärer Kerndienst, Audit-Eintrag, optionaler Idempotency-Key.
+- **PC-8:** docs/EXTENSIONS.md: eine Bedeutung je Vertragsversion (1.2.0 = Leistungsdatum der Rechnungs-API, 1.3.0 = Lesefassade).
+
+### CI
+- Push-Läufe nur auf `main`, Branches über ihren Pull Request; überholte PR-Läufe werden abgebrochen; Dependabot täglich 05:00 (Europe/Vienna) mit gruppierten Updates.
+
 ## 1.6.0 – 2026-11-23
 
 Version 1.6.0 ist die erste veröffentlichte Version nach 1.4.0: Die als 1.5.0 vorbereiteten Änderungen (Abschnitt unten) wurden nicht einzeln veröffentlicht und sind vollständig enthalten (Entscheidung der Inhaberin vom 23.11.2026).
