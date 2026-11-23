@@ -5,6 +5,7 @@
  *   public static function register()                 – hooks (called on plugins_loaded)
  *   public static function schema( $prefix, $charset ) – array of CREATE TABLE statements (dbDelta format)
  *   public static function settings_defaults()        – array key => default (merged into Settings)
+ *   public static function settings_schema()          – array key => register entry (SettingsSchema, SET-PC-01)
  *   public static function admin_pages()              – array of [slug, title, capability, callable, menu area (optional, see Admin\Menu::groups())]
  *   public static function admin_handlers()           – array admin-post action => callable
  *
@@ -25,31 +26,31 @@ final class Modules {
 	 * that every file in src/Modules/ is listed with exactly the methods it implements.
 	 */
 	const MANIFEST = array(
-		'Admission' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
-		'Allocations' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
-		'BoxOffice' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
-		'Calendar' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
+		'Admission' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
+		'Allocations' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
+		'BoxOffice' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
+		'Calendar' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults', 'settings_schema' ),
 		'Connectors' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
-		'Exchange' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
+		'Exchange' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
 		'Fiscalization' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'FormCaptain' => array( 'admin_handlers', 'register', 'schema' ),
 		'GuestLists' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
-		'MailTemplates' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
-		'Mollie' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
+		'MailTemplates' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults', 'settings_schema' ),
+		'Mollie' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
 		'OfflineScanner' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
-		'Partners' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
+		'Partners' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
 		'Passes' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
-		'PrintTemplates' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
-		'Reminders' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
+		'PrintTemplates' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
+		'Reminders' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults', 'settings_schema' ),
 		'Reports' => array( 'admin_handlers', 'admin_pages' ),
-		'SalesRules' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
+		'SalesRules' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults', 'settings_schema' ),
 		'Seating' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'Series' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'Services' => array( 'register' ),
-		'Sms' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
-		'Waitlist' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults' ),
-		'Wallet' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
-		'Webhooks' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults' ),
+		'Sms' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
+		'Waitlist' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults', 'settings_schema' ),
+		'Wallet' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
+		'Webhooks' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
 	);
 
 	/** Bundled module classes (sorted, from MANIFEST; nothing is loaded to build the list). */

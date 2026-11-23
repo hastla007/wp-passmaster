@@ -138,7 +138,7 @@ sort( $z3_files );
 $z3_manifest = array_keys( Z3Modules::MANIFEST );
 sort( $z3_manifest );
 check( 'contract: every file in src/Modules/ is listed in Modules::MANIFEST (and nothing else)', $z3_files === $z3_manifest );
-$z3_methods = array( 'register', 'schema', 'settings_defaults', 'admin_pages', 'admin_handlers' );
+$z3_methods = array( 'register', 'schema', 'settings_defaults', 'settings_schema', 'admin_pages', 'admin_handlers' );
 $z3_mismatch = array();
 foreach ( Z3Modules::MANIFEST as $name => $listed ) {
 	$class = 'PassCaptain\\Modules\\' . $name;

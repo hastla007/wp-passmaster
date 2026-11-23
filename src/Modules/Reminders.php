@@ -161,6 +161,13 @@ final class Reminders {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'reminders' => array( 'type' => 'group', 'label' => __( 'Erinnerungen', 'pass-captain' ), 'help' => __( 'Erinnerungsmails und -SMS vor dem Termin: Zeitpunkte, Betreff und Text je Sprache.', 'pass-captain' ), 'page' => 'wpcap-reminders' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( self::PAGE, __( 'Erinnerungen', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}

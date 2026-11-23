@@ -158,6 +158,17 @@ final class Sms {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'sms' => array( 'type' => 'group', 'label' => __( 'SMS', 'pass-captain' ), 'help' => __( 'SMS-Anbieter, Einwilligungstext, erlaubte Vorwahlen, Nachrichtentexte und Kostenbudget.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
+			'twilio_account_sid' => array( 'type' => 'secret', 'label' => __( 'Twilio Account SID', 'pass-captain' ), 'help' => __( 'Kennung des Twilio-Kontos; wird verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
+			'twilio_auth_token' => array( 'type' => 'secret', 'label' => __( 'Twilio Auth Token', 'pass-captain' ), 'help' => __( 'Zugangsschlüssel des Twilio-Kontos; wird verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
+			'sms_http_secret' => array( 'type' => 'secret', 'label' => __( 'Zugangsdaten des SMS-Gateways', 'pass-captain' ), 'help' => __( 'Zugangsdaten für den HTTP-SMS-Anbieter; werden verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
+			'sms_http_webhook_secret' => array( 'type' => 'secret', 'label' => __( 'Signaturschlüssel der Zustellberichte', 'pass-captain' ), 'help' => __( 'Prüft die Signatur eingehender Zustellberichte des HTTP-SMS-Anbieters.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( self::PAGE, __( 'SMS', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}

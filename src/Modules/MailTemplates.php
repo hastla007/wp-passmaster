@@ -30,6 +30,13 @@ final class MailTemplates {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'mail_layout' => array( 'type' => 'group', 'label' => __( 'Mail-Layout', 'pass-captain' ), 'help' => __( 'Logo, Akzentfarbe und Fußzeile aller E-Mails.', 'pass-captain' ), 'page' => 'wpcap-mail-templates' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( Admin::PAGE, __( 'E-Mail-Vorlagen', 'pass-captain' ), Admin::CAP, array( Admin::class, 'render' ) ) );
 	}

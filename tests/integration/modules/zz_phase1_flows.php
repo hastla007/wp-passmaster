@@ -134,8 +134,8 @@ $entry_day = $wpdb->get_var( "SELECT service_date FROM {$p}wpcap_admission_entri
 check( 'entry before the cutoff is stored on the previous service day', '2027-07-04' === $entry_day );
 Settings::update( array( 'admission_day_cutoff_hour' => 0 ) );
 $settings_before = get_option( Settings::OPTION, array() );
-PassCaptain\Admin\SettingsPage::save( array( 'admission_day_cutoff_hour' => '30' ) );
-check( 'settings field clamps the cutoff to 0–12', 12 === (int) Settings::get( 'admission_day_cutoff_hour' ) );
+$cutoff_saved = PassCaptain\Admin\SettingsPage::save( array( 'admission_day_cutoff_hour' => '30' ) );
+check( 'out-of-range cutoff is reported and not stored (SET-PC-01)', 0 === (int) Settings::get( 'admission_day_cutoff_hour' ) && is_array( $cutoff_saved ) && ! empty( $cutoff_saved['errors'] ) );
 update_option( Settings::OPTION, $settings_before );
 
 echo "Phase 1: per-ticket reissue and resend\n";

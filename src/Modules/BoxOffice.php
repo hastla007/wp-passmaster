@@ -410,6 +410,17 @@ final class BoxOffice {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'boxoffice_receipt_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix der Kassenbon-Nummern', 'pass-captain' ), 'help' => __( 'Vorangestellt vor die fortlaufende Bonnummer der Kasse.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_receipt_footer' => array( 'type' => 'textarea', 'label' => __( 'Fußzeile des Kassenbons', 'pass-captain' ), 'help' => __( 'Text unter jedem Kassenbon, z. B. Steuer- oder Rückgabehinweise.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_terminals' => array( 'type' => 'textarea', 'label' => __( 'Kassenterminals', 'pass-captain' ), 'help' => __( 'Kartenterminals der Kasse, eines je Zeile.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_receipt_cashier' => array( 'type' => 'choice', 'options' => array( 'id' => __( 'Bedienernummer', 'pass-captain' ), 'initials' => __( 'Initialen', 'pass-captain' ), 'name' => __( 'Vollständiger Name', 'pass-captain' ) ), 'label' => __( 'Kassierer auf dem Bon', 'pass-captain' ), 'help' => __( 'Ob und wie die Person an der Kasse auf dem Bon erscheint.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_cash_confirmed' => array( 'type' => 'bool', 'label' => __( 'Barzahlung ohne Fiskalisierung bestätigt', 'pass-captain' ), 'help' => __( 'Bestätigung, dass die Kasse ohne angeschlossene Fiskalisierung bar kassieren darf.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( Page::SLUG, __( 'Kasse', 'pass-captain' ), Service::CAP, array( Page::class, 'render' ) ) );
 	}

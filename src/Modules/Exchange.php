@@ -27,6 +27,13 @@ final class Exchange {
 		return array( 'exchange' => Policy::defaults() );
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'exchange' => array( 'type' => 'group', 'label' => __( 'Umtausch', 'pass-captain' ), 'help' => __( 'Ob Tickets umgetauscht werden dürfen, im Bestellportal bis wann und wie oft, mit welcher Gebühr und was mit Preisunterschieden geschieht.', 'pass-captain' ), 'page' => 'wpcap-exchange' ),
+		);
+	}
+
 	public static function schema( $prefix, $charset ) {
 		return array(
 			"CREATE TABLE {$prefix}wpcap_ticket_exchanges (

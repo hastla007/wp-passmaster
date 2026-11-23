@@ -62,11 +62,11 @@ final class SettingsPage {
 				'title' => __( 'Allgemein / Reservierung', 'pass-captain' ),
 				'tab' => 'general',
 				'fields' => array(
-					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120 ),
+					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120, 'description' => __( 'So lange bleiben die gewählten Tickets im Checkout für die Person reserviert; danach werden sie wieder frei.', 'pass-captain' ) ),
 					'occurrence_default_duration_hours' => array( 'type' => 'int', 'label' => __( 'Standarddauer von Terminen ohne Ende (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 168, 'description' => __( 'Ein Termin ohne Endzeit gilt so lange nach Beginn als laufend (Abendkasse, Terminlisten von Scanner und App). Mehrtägige Termine bitte mit Ende anlegen.', 'pass-captain' ) ),
 					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ) ),
 					'late_payment_auto_refund' => array( 'type' => 'bool', 'label' => __( 'Verspätete Zahlungen, für die keine Tickets mehr ausgestellt werden können, automatisch erstatten', 'pass-captain' ), 'description' => __( 'Betrifft Zahlungen nach Ablauf der Reservierung (Termin abgesagt oder vorbei, Kontingent, Rabattcode-Limit oder Käuferlimit erschöpft) und Zahlungen für stornierte Bestellungen. Ohne diese Option bleibt die Bestellung zur manuellen Klärung stehen.', 'pass-captain' ) ),
-					'campaign_max_codes' => array( 'type' => 'int', 'label' => __( 'Rabattcodes je Bestellung (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 5 ),
+					'campaign_max_codes' => array( 'type' => 'int', 'label' => __( 'Rabattcodes je Bestellung (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 5, 'description' => __( 'So viele Rabattcodes darf eine Person in einer Bestellung eingeben.', 'pass-captain' ) ),
 					'campaign_stacking' => array(
 						'type' => 'choice',
 						'label' => __( 'Mehrere Rabattcodes', 'pass-captain' ),
@@ -133,18 +133,18 @@ final class SettingsPage {
 				'fields' => array(
 					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'pass-captain' ) ),
 					'signed_qr' => array( 'type' => 'bool', 'label' => __( 'Signierte QR-Codes ausgeben (PC1, Ed25519)', 'pass-captain' ), 'description' => __( 'Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können.', 'pass-captain' ) ),
-					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720 ),
+					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720, 'description' => __( 'Danach muss ein gekoppeltes Scanner-Gerät neu gekoppelt werden.', 'pass-captain' ) ),
 					'admission_day_cutoff_hour' => array( 'type' => 'int', 'label' => __( 'Einlass-Tageswechsel (Uhrzeit, volle Stunde)', 'pass-captain' ), 'min' => 0, 'max' => 12, 'description' => __( '0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits.', 'pass-captain' ) ),
 					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'pass-captain' ) ),
-					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 10080 ),
-					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'pass-captain' ), 'min' => 0, 'max' => 10080 ),
+					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Ab diesem Zeitpunkt vor Beginn nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
+					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Bis zu diesem Zeitpunkt nach Ende nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
 				),
 			),
 			'payments' => array(
 				'title' => __( 'Übersicht', 'pass-captain' ),
 				'tab' => 'payments',
 				'fields' => array(
-					'enabled_providers' => array( 'type' => 'providers', 'label' => __( 'Aktive Zahlungsarten', 'pass-captain' ) ),
+					'enabled_providers' => array( 'type' => 'providers', 'label' => __( 'Aktive Zahlungsarten', 'pass-captain' ), 'description' => __( 'Diese Zahlungsarten stehen im Checkout zur Auswahl; jede braucht zusätzlich ihre Zugangsdaten.', 'pass-captain' ) ),
 				),
 			),
 			'manual' => array(
@@ -155,7 +155,7 @@ final class SettingsPage {
 					'manual_instructions' => array( 'type' => 'textarea', 'label' => __( 'Zahlungshinweis', 'pass-captain' ), 'description' => __( 'Wird Käufern nach der Bestellung angezeigt. Ohne IBAN und Empfänger ersetzt er die Überweisungsdaten.', 'pass-captain' ) ),
 					'bank_recipient' => array( 'type' => 'text', 'label' => __( 'Überweisung: Empfänger (Kontoinhaber)', 'pass-captain' ), 'description' => __( 'Leer = Name / Firma des Rechnungsstellers.', 'pass-captain' ) ),
 					'bank_iban' => array( 'type' => 'text', 'label' => __( 'Überweisung: IBAN', 'pass-captain' ), 'description' => __( 'Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt.', 'pass-captain' ) ),
-					'bank_bic' => array( 'type' => 'text', 'label' => __( 'Überweisung: BIC', 'pass-captain' ) ),
+					'bank_bic' => array( 'type' => 'text', 'label' => __( 'Überweisung: BIC', 'pass-captain' ), 'description' => __( 'BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode.', 'pass-captain' ) ),
 					'manual_hold_hours' => array( 'type' => 'int', 'label' => __( 'Reservierung bei manueller Zahlung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720, 'description' => __( 'Endet spätestens mit Beginn des (ersten) Termins.', 'pass-captain' ) ),
 					'manual_hold_max_percent' => array( 'type' => 'int', 'label' => __( 'Überweisung: höchstens so viel Prozent eines Kontingents unbezahlt reservieren', 'pass-captain' ), 'min' => 0, 'max' => 100, 'description' => __( 'Gilt je Ticketart und je Termin mit Kapazität. Offene, unbezahlte Überweisungsbestellungen halten zusammen höchstens diesen Anteil (mindestens aber 10 Tickets); danach ist Überweisung für diesen Termin erst wieder möglich, wenn Bestellungen bezahlt werden oder ablaufen. 0 oder 100 = keine Obergrenze.', 'pass-captain' ) ),
 					'manual_cutoff_hours' => array( 'type' => 'int', 'label' => __( 'Überweisung nur bis … Stunden vor Beginn anbieten', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( '0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht.', 'pass-captain' ) ),
@@ -189,10 +189,10 @@ final class SettingsPage {
 				'tab' => 'legal',
 				'fields' => array(
 					'require_terms' => array( 'type' => 'bool', 'label' => __( 'Zustimmung im Checkout verlangen', 'pass-captain' ), 'description' => __( 'Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer).', 'pass-captain' ) ),
-					'terms_text' => array( 'type' => 'html', 'label' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ) ),
-					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ) ),
+					'terms_text' => array( 'type' => 'html', 'label' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ), 'description' => __( 'Text, den Käufer im Checkout bestätigen, wenn „AGB bestätigen lassen“ eingeschaltet ist. Rechtlich prüfen lassen.', 'pass-captain' ) ),
+					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ), 'description' => __( 'Pflichtinformationen für Verbraucher, verlinkt im Checkout und in der Bestätigung. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'withdrawal_notice' => array( 'type' => 'bool', 'label' => __( 'Hinweis „kein Widerrufsrecht“ neben dem Bestellbutton zeigen', 'pass-captain' ), 'description' => __( 'Nur wenn alle Positionen einen festen Veranstaltungstermin haben. Standardtext, bitte prüfen und anpassen – keine Rechtsberatung.', 'pass-captain' ) ),
-					'withdrawal_notice_text' => array( 'type' => 'html', 'label' => __( 'Text: kein Widerrufsrecht (terminierte Tickets)', 'pass-captain' ) ),
+					'withdrawal_notice_text' => array( 'type' => 'html', 'label' => __( 'Text: kein Widerrufsrecht (terminierte Tickets)', 'pass-captain' ), 'description' => __( 'Hinweis im Checkout, dass für Tickets mit festem Termin in der Regel kein Widerrufsrecht besteht. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'withdrawal_right_text' => array( 'type' => 'html', 'label' => __( 'Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)', 'pass-captain' ), 'description' => __( 'Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen.', 'pass-captain' ) ),
 				),
 			),
@@ -270,12 +270,12 @@ final class SettingsPage {
 				'tab' => 'privacy',
 				'fields' => array(
 					'attendee_retention_days' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten nach dem Event löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = Feldeinstellung verwenden.', 'pass-captain' ) ),
-					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 720 ),
+					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( 'Bis zu diesem Zeitpunkt vor Beginn dürfen Käufer Teilnehmerangaben im Bestellportal ändern.', 'pass-captain' ) ),
 					'retention_unpaid_customer_email_days' => array( 'type' => 'int', 'label' => __( 'E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = nie.', 'pass-captain' ) ),
-					'retention_message_content_days' => array( 'type' => 'int', 'label' => __( 'Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
-					'retention_message_rows_days' => array( 'type' => 'int', 'label' => __( 'Versandprotokoll der Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
-					'retention_checkin_staff_days' => array( 'type' => 'int', 'label' => __( 'Personal und Gerät an Check-ins entfernen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
-					'retention_audit_logs_days' => array( 'type' => 'int', 'label' => __( 'Protokolleinträge (Audit-Log) löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
+					'retention_message_content_days' => array( 'type' => 'int', 'label' => __( 'Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach werden Betreff, Text und Empfängeradresse versendeter Nachrichten gelöscht; der Versand selbst bleibt protokolliert.', 'pass-captain' ) ),
+					'retention_message_rows_days' => array( 'type' => 'int', 'label' => __( 'Versandprotokoll der Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach werden die Einträge im Versandprotokoll vollständig gelöscht.', 'pass-captain' ) ),
+					'retention_checkin_staff_days' => array( 'type' => 'int', 'label' => __( 'Personal und Gerät an Check-ins entfernen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach wird an Check-ins nicht mehr gespeichert, welche Person oder welches Gerät eingelassen hat.', 'pass-captain' ) ),
+					'retention_audit_logs_days' => array( 'type' => 'int', 'label' => __( 'Protokolleinträge (Audit-Log) löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach werden Einträge des Audit-Logs gelöscht.', 'pass-captain' ) ),
 					'retention_partner_codes_days' => array( 'type' => 'int', 'label' => __( 'Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = direkt nach Ende des Termins.', 'pass-captain' ) ),
 					'retention_financial_years' => array( 'type' => 'int', 'label' => __( 'Rechnungen und Rechnungskorrekturen löschen nach (Jahren)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( '0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert.', 'pass-captain' ) ),
 					'retention_order_years' => array( 'type' => 'int', 'label' => __( 'Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( 'Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; deren Löschung nach Fristablauf entscheiden Sie selbst (laufende Prüfungen verlängern die Frist). 0 = nie.', 'pass-captain' ) ),
@@ -302,17 +302,17 @@ final class SettingsPage {
 				'title' => __( 'Rechnungssteller', 'pass-captain' ),
 				'tab' => 'invoices',
 				'fields' => array(
-					'seller_name' => array( 'type' => 'text', 'label' => __( 'Name / Firma', 'pass-captain' ) ),
-					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'pass-captain' ) ),
-					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'pass-captain' ) ),
+					'seller_name' => array( 'type' => 'text', 'label' => __( 'Name / Firma', 'pass-captain' ), 'description' => __( 'Erscheint als Verkäufer auf Rechnungen, Kassenbons und in E-Mails.', 'pass-captain' ) ),
+					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'pass-captain' ), 'description' => __( 'Erscheint als Anschrift des Verkäufers auf Rechnungen.', 'pass-captain' ) ),
+					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'pass-captain' ), 'description' => __( 'Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer', 'pass-captain' ), 'description' => __( 'Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist.', 'pass-captain' ) ),
 					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
 					'tax_profile_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)', 'pass-captain' ) ),
 					'seller_small_business' => array( 'type' => 'bool', 'label' => __( 'Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)', 'pass-captain' ), 'description' => __( 'Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen).', 'pass-captain' ) ),
 					'seller_small_business_note' => array( 'type' => 'text', 'label' => __( 'Kleinunternehmer-Hinweis (leer = Standardtext für das Land)', 'pass-captain' ), 'description' => __( 'DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“', 'pass-captain' ) ),
-					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'pass-captain' ) ),
-					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)', 'pass-captain' ) ),
-					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'pass-captain' ) ),
+					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'pass-captain' ), 'description' => __( 'Vorangestellt vor die fortlaufende Rechnungsnummer. Rechtlich prüfen lassen, bevor ein bestehendes Präfix geändert wird.', 'pass-captain' ) ),
+					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)', 'pass-captain' ), 'description' => __( 'Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen.', 'pass-captain' ) ),
+					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'pass-captain' ), 'description' => __( 'Vorangestellt vor die Nummer von Storno- und Korrekturbelegen.', 'pass-captain' ) ),
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ) ),
 					'datev_chart' => array( 'type' => 'choice', 'label' => __( 'Kontenrahmen für den DATEV-Buchungsstapel', 'pass-captain' ), 'options' => array( 'skr03' => __( 'SKR03 (Erlöse 8400/8300, Geldtransit 1360)', 'pass-captain' ), 'skr04' => __( 'SKR04 (Erlöse 4400/4300, Geldtransit 1460)', 'pass-captain' ) ), 'description' => __( 'Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts.', 'pass-captain' ) ),
 					'datev_contra_account' => array( 'type' => 'text', 'label' => __( 'Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)', 'pass-captain' ), 'description' => __( '4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters.', 'pass-captain' ) ),
@@ -580,19 +580,28 @@ final class SettingsPage {
 				$raw = $in[ $key ] ?? null;
 				switch ( $def['type'] ) {
 					case 'int':
-						if ( null === $raw || '' === $raw ) { break; }
-						if ( ! is_scalar( $raw ) || ! preg_match( '/^\s*\d+\s*$/', (string) $raw ) ) {
-							/* translators: %s: field label */
-							$errors[] = sprintf( __( '„%s“ muss eine ganze Zahl sein.', 'pass-captain' ), $def['label'] );
+					case 'money':
+					case 'email':
+						// SET-PC-01: checked by the settings register, which reports instead of clamping.
+						if ( 'int' === $def['type'] && ( null === $raw || '' === $raw ) ) { break; }
+						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
+						if ( is_wp_error( $checked ) ) {
+							$errors[] = $checked->get_error_message();
 							break;
 						}
-						$values[ $key ] = max( (int) $def['min'], min( (int) $def['max'], (int) $raw ) );
+						$values[ $key ] = $checked;
 						break;
 					case 'bool':
 						$values[ $key ] = Forms::flag( $in, $key ) ? 1 : 0;
 						break;
 					case 'choice':
-						$values[ $key ] = Forms::choice( $in, $key, array_map( 'strval', array_keys( $def['options'] ) ), (string) $current[ $key ] );
+						if ( null === $raw ) { break; } // Not in the form: keep the stored value.
+						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
+						if ( is_wp_error( $checked ) ) {
+							$errors[] = $checked->get_error_message();
+							break;
+						}
+						$values[ $key ] = $checked;
 						break;
 					case 'providers':
 						$available = array_keys( Registry::all() );
@@ -606,24 +615,6 @@ final class SettingsPage {
 						break;
 					case 'html':
 						$values[ $key ] = is_scalar( $raw ) ? wp_kses_post( (string) $raw ) : '';
-						break;
-					case 'money':
-						$parsed = Forms::parse_money( is_scalar( $raw ) && '' !== trim( (string) $raw ) ? $raw : '0', 2 );
-						if ( null === $parsed ) {
-							/* translators: %s: field label */
-							$errors[] = sprintf( __( '„%s“ ist kein gültiger Betrag.', 'pass-captain' ), $def['label'] );
-							break;
-						}
-						$values[ $key ] = $parsed;
-						break;
-					case 'email':
-						$email = is_scalar( $raw ) ? trim( (string) $raw ) : '';
-						if ( '' !== $email && ! is_email( $email ) ) {
-							/* translators: %s: field label */
-							$errors[] = sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $def['label'] );
-							break;
-						}
-						$values[ $key ] = '' === $email ? '' : sanitize_email( $email );
 						break;
 					case 'prefix':
 						$prefix = strtoupper( preg_replace( '/[^A-Za-z0-9\-]/', '', is_scalar( $raw ) ? (string) $raw : '' ) );

@@ -30,6 +30,13 @@ final class Waitlist {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'waitlist' => array( 'type' => 'group', 'label' => __( 'Warteliste', 'pass-captain' ), 'help' => __( 'Automatische Angebote, Gültigkeit eines Angebots, Reihenfolge, Benachrichtigungen und E-Mail-Bestätigung (Double-Opt-in).', 'pass-captain' ), 'page' => 'wpcap-waitlist' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( AdminPage::PAGE, __( 'Warteliste', 'pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
 	}

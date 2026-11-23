@@ -147,6 +147,13 @@ final class Allocations {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'allocations' => array( 'type' => 'group', 'label' => __( 'Kontingente und Käuferlimits', 'pass-captain' ), 'help' => __( 'Automatische Freigabe nicht genutzter Kontingente und wie Käufer für Kauflimits erkannt werden (Benutzerkonto, E-Mail-Varianten mit + oder Punkten).', 'pass-captain' ), 'page' => 'wpcap-allocations' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( AdminPage::SLUG, __( 'Kontingente', 'pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
 	}

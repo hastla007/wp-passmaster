@@ -37,6 +37,13 @@ final class Calendar {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'calendar' => array( 'type' => 'group', 'label' => __( 'Kalender', 'pass-captain' ), 'help' => __( 'Ziel des Kauf-Links in Kalendereinträgen und ob Bestätigungsmails einen Kalendereintrag (ICS) enthalten.', 'pass-captain' ), 'page' => 'wpcap-calendar' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( self::PAGE, __( 'Kalender', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}

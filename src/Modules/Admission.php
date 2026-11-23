@@ -141,6 +141,13 @@ final class Admission {
 		return array( 'admission' => array( 'offline_max_age_hours' => 12 ) );
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'admission' => array( 'type' => 'group', 'label' => __( 'Offline-Einlass', 'pass-captain' ), 'help' => __( 'Einstellungen des Offline-Scanners, z. B. wie alt die Ticketliste auf dem Gerät höchstens sein darf.', 'pass-captain' ), 'page' => 'wpcap-admission' ),
+		);
+	}
+
 	public static function admin_pages() {
 		$open = Conflicts::open_count_for_current_user();
 		$title = __( 'Einlass-Konflikte', 'pass-captain' ) . ( $open ? ' <span class="awaiting-mod">' . (int) $open . '</span>' : '' );

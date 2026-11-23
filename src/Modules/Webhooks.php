@@ -47,6 +47,13 @@ final class Webhooks {
 		return array( 'webhooks' => array( 'retention_days' => 30 ) );
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'webhooks' => array( 'type' => 'group', 'label' => __( 'Webhooks', 'pass-captain' ), 'help' => __( 'Wie lange Zustellprotokolle der Webhooks aufbewahrt werden.', 'pass-captain' ), 'page' => 'wpcap-webhooks' ),
+		);
+	}
+
 	public static function register_eraser( $erasers ) {
 		return array_merge( array( 'wpcap-webhooks' => array( 'eraser_friendly_name' => __( 'Pass Captain Webhook-Protokoll', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) ) ), (array) $erasers );
 	}

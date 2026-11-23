@@ -45,6 +45,7 @@ final class Settings {
 		self::$defaults = null;
 		self::$all = null;
 		if ( class_exists( Terms::class, false ) ) { Terms::flush(); }
+		if ( class_exists( SettingsSchema::class, false ) ) { SettingsSchema::flush(); }
 	}
 
 	/** Invalidates the per-request cache when translations change. */

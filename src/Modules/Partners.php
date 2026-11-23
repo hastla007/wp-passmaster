@@ -106,6 +106,14 @@ final class Partners {
 		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'self_billing_prefix' => 'GU', 'rate_limit' => 120, 'write_rate_limit' => 30 ), 'partner_negative_balance' => 'carry' );
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'partners' => array( 'type' => 'group', 'label' => __( 'Partner und Wiederverkauf', 'pass-captain' ), 'help' => __( 'Nummernkreise für Partnerabrechnungen und Gutschriften sowie Anfragegrenzen der Partner-Schnittstelle.', 'pass-captain' ), 'page' => 'wpcap-partners' ),
+			'partner_negative_balance' => array( 'type' => 'choice', 'options' => array( 'carry' => __( 'in die nächste Abrechnung vortragen (Standard)', 'pass-captain' ), 'invoice' => __( 'sofort als Forderung an den Veranstalter ausweisen', 'pass-captain' ) ), 'label' => __( 'Negatives Partnersaldo', 'pass-captain' ), 'help' => __( 'Was geschieht, wenn eine Abrechnung für einen Partner negativ ausfällt.', 'pass-captain' ), 'page' => 'wpcap-partners' ),
+		);
+	}
+
 	public static function schema( $prefix, $charset ) {
 		return array(
 			"CREATE TABLE {$prefix}wpcap_partners (

@@ -337,8 +337,8 @@
         "Squiz.PHP.DisallowMultipleAssignments.Found": 2,
         "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1,
         "Universal.NamingConventions.NoReservedKeywordParameterNames.namespaceFound": 1,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 56,
-        "WordPress.DB.PreparedSQL.NotPrepared": 15,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 55,
+        "WordPress.DB.PreparedSQL.NotPrepared": 13,
         "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 2,
         "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 2,
         "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
@@ -635,22 +635,6 @@
     "src/Webhooks/Dispatcher.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound": 2,
         "WordPress.DB.PreparedSQL.NotPrepared": 2
-    },
-    "src/Workflow/Commands.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
-    },
-    "src/Workflow/Contract.php": {
-        "Squiz.PHP.CommentedOutCode.Found": 1
-    },
-    "src/Workflow/Events.php": {
-        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
-        "Universal.NamingConventions.NoReservedKeywordParameterNames.newFound": 1,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13
-    },
-    "src/Workflow/Outbox.php": {
-        "Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 3,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3,
-        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 3
     },
     "templates/event-card.php": {
         "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound": 5,

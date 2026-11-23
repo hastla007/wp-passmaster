@@ -65,6 +65,14 @@ final class Mollie {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'mollie' => array( 'type' => 'group', 'label' => __( 'Mollie', 'pass-captain' ), 'help' => __( 'Angebotene Zahlungsmethoden und das Land für die Rechnungsadresse bei Mollie.', 'pass-captain' ), 'page' => 'wpcap-settings' ),
+			'mollie_api_key' => array( 'type' => 'secret', 'label' => __( 'Mollie API-Schlüssel', 'pass-captain' ), 'help' => __( 'Live- oder Test-Schlüssel aus dem Mollie-Dashboard; wird verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-settings' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( self::PAGE, __( 'Mollie', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}

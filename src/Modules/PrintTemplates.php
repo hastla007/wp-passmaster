@@ -72,6 +72,13 @@ final class PrintTemplates {
 		return array( 'print_attach_invoice_pdf' => 0 );
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'print_attach_invoice_pdf' => array( 'type' => 'bool', 'label' => __( 'Rechnung als PDF anhängen', 'pass-captain' ), 'help' => __( 'Rechnungen werden als PDF an die Bestätigungsmail angehängt.', 'pass-captain' ), 'page' => 'wpcap-print' ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( Page::SLUG, __( 'Druck & Listen', 'pass-captain' ), Page::menu_cap(), array( Page::class, 'render' ) ) );
 	}

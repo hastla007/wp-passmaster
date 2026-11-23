@@ -116,6 +116,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_scanner_adapters_v1` | 1.5.0 |
 | `wp_pass_captain_settings_defaults_v1` | 1.5.0 |
 | `wp_pass_captain_settings_sections_v1` | 1.5.0 |
+| `wp_pass_captain_settings_schema_v1` | 1.7.0 |
 | `wp_pass_captain_ticket_mail_inline_max_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_read_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_mail_list_max_v1` | 1.5.0 |
@@ -150,7 +151,7 @@ ihnen stehen im `CHANGELOG.md`.
 |---|---|---|---|
 | Admin-Navigation | `wpcap_modules` → Methode `admin_pages()` oder `wp_pass_captain_admin_menu_v1` | Filter + Modulvertrag / versionierter Filter | `src/Modules.php`, `src/Admin/Menu.php` |
 | Admin-Formulare | `wpcap_modules` → Methode `admin_handlers()` | Modulvertrag (`admin-post`-Aktionen) | `src/Admin/Menu.php` |
-| Einstellungen | `wpcap_modules` → `settings_defaults()` oder `wp_pass_captain_settings_defaults_v1`; Felder auf der Kern-Einstellungsseite über `wp_pass_captain_settings_sections_v1`; lesen über `PassCaptain\Settings::get()` | Modulvertrag / versionierte Filter | `src/Settings.php`, `src/Admin/SettingsPage.php` |
+| Einstellungen | `wpcap_modules` → `settings_defaults()` oder `wp_pass_captain_settings_defaults_v1`; Felder auf der Kern-Einstellungsseite über `wp_pass_captain_settings_sections_v1`; Beschreibung im Einstellungs-Register (`PassCaptain\SettingsSchema`, Modulmethode `settings_schema()` oder `wp_pass_captain_settings_schema_v1`); lesen über `PassCaptain\Settings::get()` | Modulvertrag / versionierte Filter | `src/Settings.php`, `src/Admin/SettingsPage.php` |
 | Eigene Tabellen | `wpcap_modules` → Methode `schema( $prefix, $charset )` | Modulvertrag (dbDelta) | `src/Modules.php`, `src/Installer.php` |
 | Hooks registrieren | `wpcap_modules` → Methode `register()` | Modulvertrag | `src/Modules.php` |
 | Zahlungsadapter | `wpcap_payment_gateways` + `PassCaptain\Payments\GatewayInterface` | Filter + Interface | `src/Payments/Registry.php` |
@@ -194,6 +195,7 @@ Kernmodule werden erst geladen, wenn eine ihrer Methoden gebraucht wird). Add-on
 |---|---|---|
 | `register()` | – | Wird auf `plugins_loaded` aufgerufen; hier eigene Hooks registrieren. |
 | `schema( $prefix, $charset )` | `string[]` CREATE-TABLE-Anweisungen (dbDelta-Format) | Tabellen werden mit dem Kernschema angelegt und aktualisiert; Änderungen werden über einen Hash erkannt. |
+| `settings_schema()` | `array` Schlüssel → Register-Eintrag (`type`, `label`, `help`, optional `min`/`max`, `options`, `page`, `legal`, `country`, `capability`) | Beschreibt die Einstellungen des Moduls im Einstellungs-Register (`PassCaptain\SettingsSchema`, SET-PC-01): eine Quelle für Formulare, Prüfung, Export/Import und WP-CLI. Jeder Schlüssel aus `settings_defaults()` braucht eine Beschreibung. |
 | `settings_defaults()` | `array` Schlüssel → Standardwert | Wird in `Settings::defaults()` übernommen; Werte liest das Add-on mit `Settings::get( $key )`. Modul-Einstellungen erscheinen **nicht** auf der Kern-Einstellungsseite, sondern werden auf der eigenen Seite des Moduls bearbeitet (`Settings::update()`). |
 | `admin_pages()` | Liste von `[ slug, title, capability, callable ]` | Unterseiten im Menü **Pass Captain** (vor „Einstellungen“). |
 | `admin_handlers()` | `array` `admin-post`-Aktion → callable | Formular-Handler (`admin_post_{action}`). Nonce und Rechte prüft der Handler selbst. |
