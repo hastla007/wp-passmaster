@@ -521,6 +521,19 @@ final class Checkin {
 		return self::publish( self::check_out_internal( $code, $context ) );
 	}
 
+	/**
+	 * A687/A688: check-out by ticket id (bulk check-out of staff and apps) – the rules, lock, log and
+	 * idempotency key of check_out(); the ticket code is not needed.
+	 *
+	 * @return array|\WP_Error
+	 */
+	public static function check_out_ticket( $ticket_id, array $context = array() ) {
+		$ticket_id = absint( $ticket_id );
+		if ( ! $ticket_id ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		$context['ticket_ref'] = $ticket_id;
+		return self::publish( self::check_out_internal( '', $context ) );
+	}
+
 	private static function check_out_internal( $code, array $context ) {
 		global $wpdb;
 		$p = $wpdb->prefix;

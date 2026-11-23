@@ -119,6 +119,8 @@ function wpcap_test_public_rest() {
 		'POST pass-captain/v1/sms/verify/confirm',
 		'GET pass-captain/v1/app/offline/i18n',
 		'GET pass-captain/v1/app/offline/manifest',
+		// A687: API/core version, minimum app version and feature flags (no event data).
+		'GET pass-captain/v1/app/info',
 		// Service bookings and waitlists of the audit line (Services\Api): order access token, booking or waitlist
 		// manage token, offer token or member pass code checked in the callback; the slot waitlist sign-up is
 		// rate limited and reveals no other entries.

@@ -18,7 +18,14 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Api {
 	const NS = 'pass-captain/v1';
-	const VERSION = '1.1';
+	/** 1.2 (A687): /app/info, /app/scan/batch, version headers. */
+	const VERSION = '1.2';
+
+	/** A687: header with the app's version (checked against the minimum app version). */
+	const APP_VERSION_HEADER = 'x-wpcap-app-version';
+
+	/** A687: header with the core version the app needs at least. */
+	const MIN_CORE_HEADER = 'x-wpcap-min-core';
 
 	public static function register() {
 		add_action( 'rest_api_init', array( __CLASS__, 'routes' ) );
@@ -27,6 +34,7 @@ final class Api {
 	public static function routes() {
 		$auth = array( __CLASS__, 'authenticate' );
 		register_rest_route( self::NS, '/app/pair', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'pair' ), 'permission_callback' => '__return_true' ) );
+		register_rest_route( self::NS, '/app/info', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'info' ), 'permission_callback' => '__return_true' ) );
 		register_rest_route( self::NS, '/app/me', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'me' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/occurrences', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'occurrences' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/occurrences/(?P<occurrence_id>\d+)/stats', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'stats' ), 'permission_callback' => $auth ) );
@@ -35,14 +43,75 @@ final class Api {
 		register_rest_route( self::NS, '/app/scan/check-out', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'check_out' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/scan/undo', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'undo' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/scan/sync', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'sync' ), 'permission_callback' => $auth ) );
+		register_rest_route( self::NS, '/app/scan/batch', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'batch' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/search', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'search' ), 'permission_callback' => $auth ) );
 		register_rest_route( self::NS, '/app/logout', array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'logout' ), 'permission_callback' => $auth ) );
 	}
 
 	/** permission_callback for all authenticated routes. */
 	public static function authenticate( \WP_REST_Request $request ) {
+		$gate = self::version_gate( $request );
+		if ( is_wp_error( $gate ) ) { return $gate; }
 		$device = Devices::authenticate( $request );
 		return is_wp_error( $device ) ? $device : true;
+	}
+
+	/** A687: version of this plugin (the "core" an app talks to). */
+	public static function core_version() {
+		return defined( 'WPCAP_VERSION' ) ? (string) WPCAP_VERSION : '';
+	}
+
+	/**
+	 * A687: oldest app version the site accepts ('' = any). Filter `wpcap_app_min_version`, e.g. after a
+	 * security fix in the app; apps that send an older X-WPCAP-App-Version get HTTP 426.
+	 */
+	public static function min_app_version() {
+		$min = apply_filters( 'wpcap_app_min_version', '' );
+		return is_string( $min ) && preg_match( '/^\d+(\.\d+){0,3}([.-][0-9A-Za-z.-]+)?$/', trim( $min ) ) ? trim( $min ) : '';
+	}
+
+	/**
+	 * A687: version checks of a request – the app's version (header X-WPCAP-App-Version, on pairing also the
+	 * `app_version` field) against min_app_version() (HTTP 426 wpcap_app_outdated), and the core version the
+	 * app needs (header X-WPCAP-Min-Core) against this plugin (HTTP 409 wpcap_core_outdated, so the app
+	 * can tell the staff to update the site instead of failing on missing routes). Without headers: true.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function version_gate( \WP_REST_Request $request ) {
+		$app = trim( \PassCaptain\Http::str( $request->get_header( self::APP_VERSION_HEADER ) ) );
+		if ( '' === $app ) { $app = trim( \PassCaptain\Http::str( $request->get_param( 'app_version' ) ) ); }
+		$min = self::min_app_version();
+		if ( self::version_below( $app, $min ) ) {
+			/* translators: 1: app version, 2: minimum app version */
+			return new \WP_Error( 'wpcap_app_outdated', sprintf( __( 'Diese App-Version (%1$s) wird nicht mehr unterstützt. Bitte mindestens Version %2$s installieren.', 'pass-captain' ), $app, $min ), array( 'status' => 426, 'min_app_version' => $min ) );
+		}
+		$need = trim( \PassCaptain\Http::str( $request->get_header( self::MIN_CORE_HEADER ) ) );
+		$core = self::core_version();
+		if ( self::version_below( $core, $need ) ) {
+			/* translators: 1: required version, 2: installed version */
+			return new \WP_Error( 'wpcap_core_outdated', sprintf( __( 'Die App braucht Pass Captain %1$s oder neuer; auf der Website ist %2$s installiert. Bitte das Plugin aktualisieren.', 'pass-captain' ), $need, $core ), array( 'status' => 409, 'core_version' => $core, 'api_version' => self::VERSION ) );
+		}
+		return true;
+	}
+
+	/** A687: whether version $have is older than $need; false when either is empty or no version number. */
+	public static function version_below( $have, $need ) {
+		$valid = static function ( $v ) { return 1 === preg_match( '/^\d+(\.\d+){0,3}([.-][0-9A-Za-z.-]+)?$/', (string) $v ); };
+		return $valid( $have ) && $valid( $need ) && version_compare( (string) $have, (string) $need, '<' );
+	}
+
+	/** A687: feature flags of this site (also in /app/me). */
+	public static function features() {
+		return array( 'undo' => true, 'undo_reason_required' => true, 'search' => true, 'offline_sync' => true, 'check_out' => true, 'areas' => true, 'batch' => true, 'batch_max' => \PassCaptain\Admission\BulkCheckin::max(), 'attendee_name' => (bool) \PassCaptain\Settings::get( 'scanner_show_attendee' ) );
+	}
+
+	/**
+	 * A687: GET /app/info (no token): API and core version, the minimum app version and the feature flags,
+	 * so an app can check compatibility before pairing. Contains no data of the site's events.
+	 */
+	public static function info( \WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- REST callback signature.
+		return rest_ensure_response( array( 'api_version' => self::VERSION, 'core_version' => self::core_version(), 'min_app_version' => self::min_app_version(), 'features' => self::features(), 'server_time' => gmdate( 'c', \PassCaptain\Clock::now() ) ) );
 	}
 
 	/**
@@ -62,6 +131,9 @@ final class Api {
 	}
 
 	public static function pair( \WP_REST_Request $request ) {
+		// A687: outdated apps are refused before a pairing code is used.
+		$gate = self::version_gate( $request );
+		if ( is_wp_error( $gate ) ) { return $gate; }
 		$limits = self::pair_limits();
 		$client = RateLimit::client();
 		// Failures are checked before and counted after the attempt; successful pairings only use the large budget.
@@ -81,11 +153,13 @@ final class Api {
 		$user = wp_get_current_user();
 		return rest_ensure_response( array(
 			'api_version' => self::VERSION,
+			'core_version' => self::core_version(),
+			'min_app_version' => self::min_app_version(),
 			'user' => array( 'display_name' => $user->display_name ),
 			'device' => array( 'id' => $device->public_id, 'label' => $device->label, 'expires_at' => $device->expires_at ? gmdate( 'c', strtotime( $device->expires_at . ' UTC' ) ) : null ),
 			'event_ids' => Devices::event_ids( $device ),
 			'area' => Devices::area_payload( Devices::area_id( $device ) ),
-			'features' => array( 'undo' => true, 'undo_reason_required' => true, 'search' => true, 'offline_sync' => true, 'check_out' => true, 'areas' => true, 'attendee_name' => (bool) \PassCaptain\Settings::get( 'scanner_show_attendee' ) ),
+			'features' => self::features(),
 			'server_time' => gmdate( 'c' ),
 		) );
 	}
@@ -293,6 +367,49 @@ final class Api {
 			$results[] = $row;
 		}
 		return rest_ensure_response( array( 'results' => $results, 'offline_conflicts_are_possible' => true ) );
+	}
+
+	/**
+	 * A687: POST /app/scan/batch – checks several tickets in or out at once (e.g. a group at the door):
+	 * `tickets` (public ids from the search, 1 to BulkCheckin::max()), `direction` (in|out), `batch_key`
+	 * (8–64 characters, the idempotency key of the whole batch) and optional `occurrence_id`/`area_id`. Every
+	 * ticket follows the rules of a single scan; repeating the same batch_key never admits a ticket twice
+	 * (booked tickets answer `replayed`), so an app retries after a timeout with the same key. Unknown
+	 * public ids are reported as `unknown`.
+	 */
+	public static function batch( \WP_REST_Request $request ) {
+		$tickets = $request->get_param( 'tickets' );
+		if ( ! is_array( $tickets ) ) {
+			return new \WP_Error( 'wpcap_bulk_size', __( 'tickets muss eine Liste von Ticket-IDs (public id) sein.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$tickets = array_slice( array_values( array_unique( array_map( static function ( $t ) { return strtolower( \PassCaptain\Http::str( $t ) ); }, $tickets ) ) ), 0, \PassCaptain\Admission\BulkCheckin::max() + 1 );
+		$ids = array();
+		$unknown = array();
+		foreach ( $tickets as $public ) {
+			$id = \PassCaptain\ScannerDesk::ticket_id_of( $public );
+			if ( $id ) { $ids[ $id ] = $public; } else { $unknown[] = $public; }
+		}
+		$context = self::context( $request );
+		$context['source'] = 'app';
+		$context['key_prefix'] = 'app:';
+		$report = $ids ? \PassCaptain\Admission\BulkCheckin::run( array_keys( $ids ), \PassCaptain\Http::str( $request->get_param( 'direction' ) ), $request->get_param( 'batch_key' ), $context ) : null;
+		if ( is_wp_error( $report ) ) { return $report; }
+		if ( ! $ids && ! \PassCaptain\Admission\BulkCheckin::key( $request->get_param( 'batch_key' ) ) ) {
+			return new \WP_Error( 'wpcap_bulk_key', __( 'Für den Sammellauf fehlt ein gültiger Schlüssel (8–64 Zeichen).', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$results = array();
+		foreach ( $report ? $report['results'] : array() as $row ) {
+			$public = $ids[ (int) $row['ticket_id'] ] ?? '';
+			unset( $row['ticket_id'] );
+			$row['public_id'] = $public;
+			$results[] = $row;
+		}
+		$counts = $report ? $report['counts'] : array( 'done' => 0, 'already' => 0, 'refused' => 0, 'retry' => 0 );
+		foreach ( $unknown as $public ) {
+			$results[] = array( 'public_id' => $public, 'ok' => false, 'result' => 'unknown', 'message' => __( 'Ticket nicht gefunden.', 'pass-captain' ), 'replayed' => false, 'retryable' => false );
+			++$counts['refused'];
+		}
+		return rest_ensure_response( array( 'ok' => 0 === $counts['refused'] + $counts['retry'], 'batch_key' => (string) \PassCaptain\Admission\BulkCheckin::key( $request->get_param( 'batch_key' ) ), 'direction' => 'out' === \PassCaptain\Http::str( $request->get_param( 'direction' ) ) ? 'out' : 'in', 'total' => count( $results ), 'counts' => $counts, 'complete' => 0 === $counts['retry'], 'results' => $results ) );
 	}
 
 	public static function logout( \WP_REST_Request $request ) {
