@@ -63,6 +63,8 @@ final class SettingsPage {
 				'tab' => 'general',
 				'fields' => array(
 					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120, 'description' => __( 'So lange bleiben die gewählten Tickets im Checkout für die Person reserviert; danach werden sie wieder frei.', 'pass-captain' ) ),
+					'default_currency' => array( 'type' => 'currency', 'label' => __( 'Standardwährung', 'pass-captain' ), 'description' => __( 'Währung für neue Ticketarten, Kassen, Rabattcodes und SMS-Kosten (ISO-Code, z. B. EUR oder CHF). Bestehende Preise behalten ihre Währung.', 'pass-captain' ) ),
+					'currencies' => array( 'type' => 'currencies', 'label' => __( 'Angebotene Währungen', 'pass-captain' ), 'description' => __( 'ISO-Codes, durch Komma getrennt, z. B. „CHF, EUR“. Leer = EUR, USD, CHF, GBP, CAD, AUD. Ein Filter (wp_pass_captain_currencies_v1) hat Vorrang.', 'pass-captain' ) ),
 					'occurrence_default_duration_hours' => array( 'type' => 'int', 'label' => __( 'Standarddauer von Terminen ohne Ende (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 168, 'description' => __( 'Ein Termin ohne Endzeit gilt so lange nach Beginn als laufend (Abendkasse, Terminlisten von Scanner und App). Mehrtägige Termine bitte mit Ende anlegen.', 'pass-captain' ) ),
 					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ), 'description' => __( 'Sagst du einen Termin ab, stößt Pass Captain die Erstattung bezahlter Bestellungen sofort an. Ohne Haken erstattest du selbst unter „Bestellungen“.', 'pass-captain' ) ),
 					'late_payment_auto_refund' => array( 'type' => 'bool', 'label' => __( 'Verspätete Zahlungen, für die keine Tickets mehr ausgestellt werden können, automatisch erstatten', 'pass-captain' ), 'description' => __( 'Betrifft Zahlungen nach Ablauf der Reservierung (Termin abgesagt oder vorbei, Kontingent, Rabattcode-Limit oder Käuferlimit erschöpft) und Zahlungen für stornierte Bestellungen. Ohne diese Option bleibt die Bestellung zur manuellen Klärung stehen.', 'pass-captain' ) ),
@@ -426,6 +428,7 @@ final class SettingsPage {
 			'invoices' => __( 'Rechnungen', 'pass-captain' ),
 			'privacy' => __( 'Datenschutz', 'pass-captain' ),
 			'advanced' => __( 'Erweitert', 'pass-captain' ),
+			SettingsTools::TAB => __( 'Werkzeuge', 'pass-captain' ),
 		);
 	}
 
@@ -584,8 +587,11 @@ final class SettingsPage {
 					case 'email':
 					case 'iban':
 					case 'bic':
+					case 'currency':
+					case 'currencies':
 						// SET-PC-01: checked by the settings register, which reports instead of clamping.
 						if ( 'int' === $def['type'] && ( null === $raw || '' === $raw ) ) { break; }
+					if ( null === $raw && in_array( $def['type'], array( 'iban', 'bic', 'currency', 'currencies' ), true ) ) { break; } // Not in the form: keep the stored value.
 						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
 						if ( is_wp_error( $checked ) ) {
 							$errors[] = $checked->get_error_message();
@@ -777,6 +783,12 @@ final class SettingsPage {
 		</nav>
 		<?php if ( 'payments' === $tab ) { self::render_payment_nav( $section ); } ?>
 		<?php
+		if ( SettingsTools::TAB === $tab ) {
+			// SET-PC-10/-11/-13/-32: overview, export/import, reset and history (no settings form).
+			SettingsTools::render();
+			echo '</div>';
+			return;
+		}
 		$extension = self::extension_tabs()[ $tab ] ?? null;
 		if ( null !== $extension ) {
 			// Add-on tab (wpcap_settings_tabs): its own content, no core form.

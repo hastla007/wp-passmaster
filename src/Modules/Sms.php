@@ -500,7 +500,7 @@ final class Sms {
 			'http_signature_header' => preg_replace( '/[^A-Za-z0-9\-]/', '', Forms::text( $in, 'http_signature_header', 64 ) ) ?: 'X-Signature',
 			'http_timestamp_header' => preg_replace( '/[^A-Za-z0-9\-]/', '', Forms::text( $in, 'http_timestamp_header', 64 ) ) ?: 'X-Timestamp',
 			'http_require_timestamp' => Forms::flag( $in, 'http_require_timestamp' ) ? 1 : 0,
-			'currency' => preg_match( '/^[A-Za-z]{3}$/', trim( (string) ( $in['currency'] ?? '' ) ) ) ? strtoupper( trim( (string) $in['currency'] ) ) : 'EUR',
+			'currency' => preg_match( '/^[A-Za-z]{3}$/', trim( (string) ( $in['currency'] ?? '' ) ) ) ? strtoupper( trim( (string) $in['currency'] ) ) : \PassCaptain\Localization::default_currency(), // SET-PC-08
 			'prices' => Costs::sanitize_prices( is_scalar( $in['prices'] ?? null ) ? (string) $in['prices'] : '' ),
 			'price_default' => self::amount_input( $in, 'price_default' ),
 			'budget_monthly' => self::amount_input( $in, 'budget_monthly' ),

@@ -31,7 +31,7 @@ $a099_original = Settings::all();
 
 echo "A099: settings tabs\n";
 $tabs = SettingsPage::tabs();
-check( 'seven tabs: general, admission, payments, legal, invoices, privacy, advanced (A378)', array( 'general', 'admission', 'payments', 'legal', 'invoices', 'privacy', 'advanced' ) === array_keys( $tabs ) );
+check( 'eight tabs: general, admission, payments, legal, invoices, privacy, advanced (A378) and tools (SET-PC-10)', array( 'general', 'admission', 'payments', 'legal', 'invoices', 'privacy', 'advanced', 'tools' ) === array_keys( $tabs ) );
 $per_key = array();
 foreach ( SettingsPage::field_definitions() as $section_id => $section ) {
 	foreach ( array_keys( $section['fields'] ) as $key ) { $per_key[ $key ][] = $section['tab'] ?? '?'; }

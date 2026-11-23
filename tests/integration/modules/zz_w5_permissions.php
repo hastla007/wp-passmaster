@@ -212,7 +212,7 @@ $pm_admin = array(
 	'wpcap_orders_csv' => 'wpcap_manage_orders', 'wpcap_issue_comps' => 'wpcap_manage_orders', 'wpcap_duplicate_event' => 'wpcap_manage_events',
 	'wpcap_duplicate_occurrence' => 'wpcap_manage_events', 'wpcap_import_events' => 'wpcap_manage_events', 'wpcap_campaign_codes_csv' => 'wpcap_manage_events',
 	'wpcap_revoke_ticket' => 'wpcap_manage_orders', 'wpcap_undo_checkin' => 'wpcap_checkin', 'wpcap_reissue_ticket' => 'wpcap_manage_orders',
-	'wpcap_save_settings' => 'manage_options', 'wpcap_create_pairing' => 'wpcap_checkin', 'wpcap_revoke_device' => 'wpcap_checkin',
+	'wpcap_save_settings' => 'manage_options', 'wpcap_settings_export' => 'manage_options', 'wpcap_settings_import' => 'manage_options', 'wpcap_settings_reset' => 'manage_options', 'wpcap_settings_preset' => 'manage_options', 'wpcap_create_pairing' => 'wpcap_checkin', 'wpcap_revoke_device' => 'wpcap_checkin',
 	'wpcap_api_key_action' => 'wpcap_manage_events', 'wpcap_service_action' => 'wpcap_manage_events', 'wpcap_waitlist_action' => 'wpcap_manage_events',
 	'wpcap_waitlist_export' => 'wpcap_manage_events', 'wpcap_campaign_action' => 'wpcap_manage_events', 'wpcap_membership_action' => 'wpcap_manage_orders',
 	'wpcap_admission_save_policy' => 'wpcap_manage_events', 'wpcap_admission_save_area' => 'wpcap_manage_events', 'wpcap_admission_area_status' => 'wpcap_manage_events',

@@ -129,7 +129,7 @@ final class Plugin {
 		// Lapsed holds every 5 minutes too, so capacity and limited discount codes come back quickly.
 		add_action( 'wpcap_process_jobs', array( Orders::class, 'process_expired_holds' ), 3, 0 );
 		Ops\Heartbeat::register(); // Worker heartbeats for the system status page.
-		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); }
+		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); Ops\SettingsCli::register(); }
 		// A352: provider ↔ local payment state (lost webhooks, payments of lapsed orders).
 		add_action( 'wpcap_process_jobs', array( Payments\Reconcile::class, 'cron' ), 30, 0 );
 		add_action( 'init', array( $this, 'register_blocks' ) );

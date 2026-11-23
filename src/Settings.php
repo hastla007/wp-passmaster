@@ -200,6 +200,9 @@ final class Settings {
 			'occurrence_default_duration_hours' => 6,
 			// A296: mail_from_name / mail_reply_to above ('' = seller name or site name / admin e-mail).
 			'mail_rate_per_minute'      => 0,
+			// SET-PC-08: offered currencies ('' = built-in list) and the currency of new prices.
+			'currencies'                => '',
+			'default_currency'          => 'EUR',
 		);
 	}
 
@@ -262,13 +265,16 @@ final class Settings {
 		// Plaintext / "pcv1:" values from before the store would otherwise be dropped below without being moved.
 		self::migrate_secrets_to_store();
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
+		$secret_changes = array(); // SET-PC-13: logged as "changed"/"removed", never with a value.
 		foreach ( Secrets::KEYS as $key ) {
 			if ( array_key_exists( $key, $values ) ) {
+				$secret_changes[ $key ] = ! is_scalar( $values[ $key ] ) || '' === (string) $values[ $key ];
 				Secrets::set( $key, is_scalar( $values[ $key ] ) ? (string) $values[ $key ] : '' );
 				unset( $values[ $key ] );
 			}
 		}
 		foreach ( self::secret_keys() as $key ) {
+			if ( array_key_exists( $key, $values ) && ! isset( $secret_changes[ $key ] ) ) { $secret_changes[ $key ] = ! is_string( $values[ $key ] ) || '' === $values[ $key ]; }
 			if ( isset( $values[ $key ] ) && is_string( $values[ $key ] ) && '' !== $values[ $key ] ) {
 				$values[ $key ] = Security\Vault::encrypt( $values[ $key ], $key );
 			}
@@ -280,10 +286,32 @@ final class Settings {
 		self::$all = null;
 		Security\Redact::reset();
 		PageCache::settings_changed( $stored, $values ); // A446: legal texts are part of every listing.
+		if ( class_exists( SettingsManager::class ) ) { SettingsManager::log_update( $stored, $values, $secret_changes ); } // SET-PC-13
 		// A568: every wording that comes into force is archived (append-only) for later proof.
 		if ( array_intersect_key( $values, array_flip( array_merge( self::LEGAL_KEYS, array( 'legal_texts' ) ) ) ) ) {
 			LegalVersions::archive_all();
 		}
+	}
+
+	/**
+	 * Removes stored values so their defaults apply again (SET-PC-11). Secrets are never removed here.
+	 *
+	 * @param string[] $keys     Keys to remove.
+	 * @param array    $defaults key => default, only for the change log.
+	 */
+	public static function forget( array $keys, array $defaults = array() ) {
+		$keys = array_values( array_diff( array_map( 'strval', $keys ), self::secret_keys(), array( 'delete_data_on_uninstall' ) ) );
+		$stored = get_option( self::OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		$before = array_diff_key( self::all(), array_flip( Secrets::KEYS ) );
+		$after = array_diff_key( $stored, array_flip( $keys ) );
+		if ( $after === $stored ) { return; }
+		update_option( self::OPTION, $after, true );
+		self::$all = null;
+		Security\Redact::reset();
+		PageCache::settings_changed( $before, array_intersect_key( $defaults, array_flip( $keys ) ) );
+		SettingsManager::log_update( $before, array_intersect_key( self::all(), array_flip( $keys ) ) );
+		if ( array_intersect( $keys, array_merge( self::LEGAL_KEYS, array( 'legal_texts' ) ) ) ) { LegalVersions::archive_all(); }
 	}
 
 	/** Option holding "pcv1:" values that could not be decrypted while moving them into Secrets (ciphertext only). */

@@ -114,7 +114,7 @@ final class AdminSections {
 		$occurrences = array();
 		$types = array();
 		$timezone = 'UTC';
-		$currency = 'EUR';
+		$currency = \PassCaptain\Localization::default_currency();
 		foreach ( $occ_rows as $occ ) {
 			$occurrences[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone, false );
 			$timezone = (string) $occ->timezone;

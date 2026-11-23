@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class SettingsSchema {
 	/** Entry types the register knows (form field types of Admin\SettingsPage plus group). */
-	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'iban', 'bic', 'prefix', 'providers', 'modules', 'list', 'group' );
+	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'iban', 'bic', 'currency', 'currencies', 'prefix', 'providers', 'modules', 'list', 'group' );
 
 	/**
 	 * Settings whose value has legal weight (texts with paragraphs of law, invoice data, retention, tax):
@@ -253,6 +253,22 @@ final class SettingsSchema {
 					return new \WP_Error( 'wpcap_setting_bic', sprintf( __( '„%s“ ist kein gültiger BIC (8 oder 11 Zeichen, z. B. GIBAATWWXXX).', 'pass-captain' ), $label ) );
 				}
 				return $bic;
+			case 'currency':
+				$code = strtoupper( trim( is_scalar( $value ) ? (string) $value : '' ) );
+				if ( ! preg_match( '/^[A-Z]{3}$/', $code ) ) {
+					/* translators: %s: field label */
+					return new \WP_Error( 'wpcap_setting_currency', sprintf( __( '„%s“ muss ein Währungscode aus drei Buchstaben sein (z. B. EUR).', 'pass-captain' ), $label ) );
+				}
+				return $code;
+			case 'currencies':
+				$codes = array_values( array_unique( array_filter( array_map( static function ( $c ) { return strtoupper( trim( $c ) ); }, preg_split( '/[\s,;]+/', is_array( $value ) ? implode( ',', array_filter( $value, 'is_scalar' ) ) : ( is_scalar( $value ) ? (string) $value : '' ) ) ) ) ) );
+				foreach ( $codes as $code ) {
+					if ( ! preg_match( '/^[A-Z]{3}$/', $code ) ) {
+						/* translators: 1: field label, 2: invalid code */
+						return new \WP_Error( 'wpcap_setting_currencies', sprintf( __( '„%1$s“: „%2$s“ ist kein Währungscode aus drei Buchstaben.', 'pass-captain' ), $label, $code ) );
+					}
+				}
+				return implode( ',', $codes );
 			case 'html':
 				return is_scalar( $value ) ? wp_kses_post( (string) $value ) : '';
 			case 'textarea':

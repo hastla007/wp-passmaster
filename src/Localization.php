@@ -37,8 +37,19 @@ final class Localization {
 		return $sign . substr( $digits, 0, -$decimals ) . '.' . substr( $digits, -$decimals );
 	}
 
+	/** Built-in currency list (setting "currencies" empty). */
+	const DEFAULT_CURRENCIES = array( 'EUR', 'USD', 'CHF', 'GBP', 'CAD', 'AUD' );
+
+	/**
+	 * Offered currencies: the setting "currencies" (SET-PC-08) or the built-in list, the default currency
+	 * always included; the filters keep the last word.
+	 */
 	public static function currencies() {
-		$currencies = apply_filters( 'wpcap_currencies', array( 'EUR', 'USD', 'CHF', 'GBP', 'CAD', 'AUD' ) );
+		$configured = array_values( array_filter( array_map( 'trim', explode( ',', strtoupper( (string) Settings::get( 'currencies', '' ) ) ) ) ) );
+		$base = $configured ? $configured : self::DEFAULT_CURRENCIES;
+		$default = strtoupper( (string) Settings::get( 'default_currency', 'EUR' ) );
+		if ( preg_match( '/^[A-Z]{3}$/', $default ) && ! in_array( $default, $base, true ) ) { array_unshift( $base, $default ); }
+		$currencies = apply_filters( 'wpcap_currencies', $base );
 		// Versioned contract wp_pass_captain_currencies_v1; the unversioned name still fires (deprecated since
 		// 1.5.0, through Hooks::legacy_filter() only when a callback is registered on it).
 		$currencies = apply_filters( 'wp_pass_captain_currencies_v1', $currencies );
@@ -46,6 +57,16 @@ final class Localization {
 		if ( ! is_array( $currencies ) ) { return array( 'EUR' ); }
 		$currencies = array_unique( array_filter( array_map( static function ( $code ) { $code = strtoupper( sanitize_text_field( $code ) ); return preg_match( '/^[A-Z]{3}$/', $code ) ? $code : ''; }, $currencies ) ) );
 		return $currencies ?: array( 'EUR' );
+	}
+
+	/**
+	 * Currency of new prices (ticket types, registers, discount codes, SMS costs): the setting
+	 * "default_currency" when it is offered, else the first offered currency (SET-PC-08).
+	 */
+	public static function default_currency() {
+		$currencies = self::currencies();
+		$default = strtoupper( (string) Settings::get( 'default_currency', 'EUR' ) );
+		return in_array( $default, $currencies, true ) ? $default : (string) reset( $currencies );
 	}
 
 	public static function current_locale() { return determine_locale(); }

@@ -10,7 +10,15 @@
 
 ### Einstellungs-Register (SET-PC-01)
 - Neue Klasse `PassCaptain\SettingsSchema`: beschreibt jeden Wert aus `Settings::defaults()` (Typ, Standard, Grenzen, Seite, Beschriftung, Hilfetext, Rechtsprüfung, geheim, landabhängig) und prüft Werte mit `validate()`. Module liefern ihre Beschreibung über `settings_schema()`; Add-ons über den Filter `wp_pass_captain_settings_schema_v1` (nur neue Schlüssel).
-- Hilfetexte an 21 weiteren Feldern der Einstellungsseite.
+- Hilfetexte an allen Feldern der Einstellungsseite (SET-PC-28); IBAN (Prüfziffer) und BIC werden geprüft.
+- Modulseiten (Warteliste, Umtausch, Kontingente, Offline-Einlass, Webhooks, Partner, SMS, Erinnerungen, Kasse) prüfen über das Register und melden Fehler, statt Zahlen zu kappen.
+
+### Werkzeuge für Einstellungen (SET-PC-02, -10, -11, -12, -13, -32)
+- Neuer Reiter „Werkzeuge“ auf der Einstellungsseite: Übersicht „Alle Einstellungen“ mit Suche, Wert, Standard und Herkunft; Zurücksetzen je Feld, Abschnitt, Modulseite oder gesamt (mit Bestätigung, ohne Geheimnisse und Deinstallations-Wahl); Export und Import als JSON mit Vorschau (alles oder nichts, ohne Geheimnisse, mit E-Mail-Vorlagen); Verlauf mit alten und neuen Werten.
+- Änderungsprotokoll: jede Änderung einer Einstellung wird mit Quelle (Einstellungsseite, Modulseite, WP-CLI, Import, Länderprofil, Zurücksetzen, REST-API, Programmcode) und alt/neu protokolliert; Geheimnisse nie, lange Texte als Prüfsumme.
+- Länderprofile DE, AT, CH, EU und OTHER als Vorschlag mit Vorher/Nachher und Auswahl je Wert; alle Profile sind als „Rechts- und Steuerprüfung vor dem Verkaufsstart“ bzw. „nicht geprüft“ gekennzeichnet. Filter `wp_pass_captain_country_presets_v1`.
+- Währung als Einstellung (SET-PC-08): „Standardwährung“ und „Angebotene Währungen“; neue Ticketarten, Kassen, Rabattcodes, Partnerpreise, Pässe und SMS-Kosten übernehmen die Standardwährung statt fest EUR. Der Filter `wp_pass_captain_currencies_v1` hat weiter Vorrang.
+- WP-CLI `wp pass-captain settings list|get|set|reset|export|import|preset`; `delete_data_on_uninstall` lässt sich nur mit `--confirm=LÖSCHEN` einschalten.
 
 ### Servicegebühr (A425, Entscheidungen vom 23.11.2026)
 - **Preisangabe:** Die Gebühr je Ticket ist in jedem Preis enthalten, den Käufer vor dem Kauf sehen (PAngV § 3, AT PrAG): Eventkarte und Eventseite („inkl. … Servicegebühr“), „ab …“-Preis, Live-Stand, Preismeldungen, JSON-LD und REST `/events` (neu `service_fee_minor`, `display_price_minor`, `order_fee_minor`; Vertrag `public` 1.2). Die Gebühr je Bestellung steht als „zzgl. … Bearbeitungsgebühr je Bestellung“ daneben und ist in jeder Summe vor dem Bestellbutton enthalten. Filter `wpcap_service_fee_shown`.

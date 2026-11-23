@@ -127,7 +127,7 @@ final class Repository {
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_partner_name', __( 'Bitte einen Namen angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$email = \PassCaptain\Http::optional_email( $data['contact_email'] ?? '' );
 		if ( false === $email ) { return new \WP_Error( 'wpcap_partner_email', __( 'Die Kontakt-E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? 'EUR' ) ) );
+		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? \PassCaptain\Localization::default_currency() ) ) );
 		if ( 3 !== strlen( $currency ) ) { return new \WP_Error( 'wpcap_partner_currency', __( 'Die Währung muss ein dreistelliger ISO-Code sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$commission = (int) ( $data['commission_bp'] ?? 0 );
 		$fee_tax = (int) ( $data['fee_tax_rate_bp'] ?? 0 );

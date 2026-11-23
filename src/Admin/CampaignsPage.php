@@ -46,7 +46,7 @@ final class CampaignsPage {
 	public static function parse( array $in ) {
 		$tz = FeatureScreens::site_timezone();
 		$kind = Forms::choice( $in, 'kind', array( 'percent', 'fixed' ), 'percent' );
-		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) ?: 'EUR' );
+		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) ?: \PassCaptain\Localization::default_currency() ); // SET-PC-08
 		$value = 'percent' === $kind ? Forms::parse_percent_bp( $in['value'] ?? '' ) : Forms::parse_money( $in['value'] ?? '', Forms::currency_decimals( $currency ) );
 		if ( null === $value || $value < 1 ) { return Forms::error( 'wpcap_campaign_value', __( 'Bitte einen gültigen Rabattwert angeben (Prozent bis 100 oder Betrag).', 'pass-captain' ) ); }
 		$starts = FeatureScreens::optional_local( $in, 'starts_at', $tz );
@@ -279,7 +279,7 @@ final class CampaignsPage {
 		FeatureScreens::row( 'wpcap-cp-kind', __( 'Rabattart', 'pass-captain' ), static function () use ( $kind, $used ) { Forms::select( 'kind', array( 'percent' => __( 'Prozent', 'pass-captain' ), 'fixed' => __( 'Fester Betrag', 'pass-captain' ) ), $kind, 'wpcap-cp-kind', $used ? 'disabled' : '' ); if ( $used ) { Forms::hidden( 'kind', $kind ); } } );
 		$value = $c ? ( 'percent' === $c->kind ? Forms::percent_input( $c->discount_value ) : Forms::money_input( $c->discount_value, Forms::currency_decimals( $c->currency ) ) ) : '';
 		FeatureScreens::input_row( 'wpcap-cp-value', 'value', __( 'Rabattwert', 'pass-captain' ), $value, 'text', 'inputmode="decimal" style="width:8em" required', __( 'Prozent (z. B. 10 oder 7,5) oder Betrag (z. B. 5,00) je nach Rabattart.', 'pass-captain' ) );
-		FeatureScreens::input_row( 'wpcap-cp-currency', 'currency', __( 'Währung', 'pass-captain' ), $c ? $c->currency : 'EUR', 'text', 'maxlength="3" pattern="[A-Za-z]{3}" style="width:5em" required' . $fixed );
+		FeatureScreens::input_row( 'wpcap-cp-currency', 'currency', __( 'Währung', 'pass-captain' ), $c ? $c->currency : \PassCaptain\Localization::default_currency(), 'text', 'maxlength="3" pattern="[A-Za-z]{3}" style="width:5em" required' . $fixed );
 		$event_id = $c ? (int) $c->event_id : 0;
 		$type_id = $c ? (int) $c->ticket_type_id : 0;
 		$event_choices = ( current_user_can( 'manage_options' ) ? array( '0' => __( 'Alle Events', 'pass-captain' ) ) : array() ) + $events;

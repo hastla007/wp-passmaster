@@ -86,6 +86,30 @@ final class Templates {
 		update_option( self::OPTION, $all, false );
 	}
 
+	/**
+	 * Imports overrides from a settings export (SET-PC-10): known mail types and valid locales only,
+	 * texts sanitised like the editor; existing overrides of other types/locales stay.
+	 *
+	 * @param array $templates type => locale => {subject, body, format}.
+	 * @return int Number of imported overrides.
+	 */
+	public static function import( array $templates ) {
+		$count = 0;
+		foreach ( $templates as $type => $locales ) {
+			if ( ! is_array( $locales ) || ( ! Mailer::type( (string) $type ) && 'reminder' !== $type ) ) { continue; }
+			foreach ( $locales as $locale => $row ) {
+				$locale = Mailer::normalize_locale( (string) $locale );
+				if ( '' === $locale || ! is_array( $row ) ) { continue; }
+				$subject = sanitize_text_field( (string) ( $row['subject'] ?? '' ) );
+				$body = wp_kses_post( (string) ( $row['body'] ?? '' ) );
+				if ( '' === trim( $subject ) || '' === trim( $body ) ) { continue; }
+				self::save( (string) $type, $locale, array( 'subject' => $subject, 'body' => $body, 'format' => 'text' === ( $row['format'] ?? '' ) ? 'text' : 'html' ) );
+				++$count;
+			}
+		}
+		return $count;
+	}
+
 	/** Removes an override (back to the built-in default / fallback). */
 	public static function reset( $type, $locale ) {
 		$all = self::all();

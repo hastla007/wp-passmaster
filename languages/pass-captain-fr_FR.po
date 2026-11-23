@@ -190,8 +190,8 @@ msgstr "Clé API révoquée."
 #: src/Admin/Forms.php:435
 #: src/Admin/Forms.php:458
 #: src/Admin/MembershipsPage.php:215
-#: src/Admin/Menu.php:193
-#: src/Admin/Menu.php:273
+#: src/Admin/Menu.php:197
+#: src/Admin/Menu.php:277
 #: src/Admin/MyServicesPage.php:80
 #: src/Admin/Notices.php:73
 #: src/Admin/OperationsPage.php:129
@@ -206,8 +206,13 @@ msgstr "Clé API révoquée."
 #: src/Admin/SecurityScreens.php:90
 #: src/Admin/ServiceSlotsPage.php:351
 #: src/Admin/ServicesPage.php:228
-#: src/Admin/SettingsPage.php:754
-#: src/Admin/SettingsPage.php:786
+#: src/Admin/SettingsPage.php:760
+#: src/Admin/SettingsPage.php:798
+#: src/Admin/SettingsTools.php:48
+#: src/Admin/SettingsTools.php:57
+#: src/Admin/SettingsTools.php:107
+#: src/Admin/SettingsTools.php:133
+#: src/Admin/SettingsTools.php:159
 #: src/Admin/StatusPage.php:242
 #: src/Admin/TaxPage.php:75
 #: src/Admin/TicketsPage.php:568
@@ -298,8 +303,8 @@ msgstr "Autorisation insuffisante."
 
 #: src/Admin/ApiKeysPage.php:101
 #: src/Admin/DeveloperKeysPage.php:115
-#: src/Admin/Menu.php:601
-#: src/Admin/Menu.php:672
+#: src/Admin/Menu.php:605
+#: src/Admin/Menu.php:676
 msgid "Entwickler-API"
 msgstr "API développeurs"
 
@@ -614,6 +619,7 @@ msgstr "Statut"
 #: src/Admin/ServicesPage.php:403
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/ServicesPage.php:498
+#: src/Admin/SettingsTools.php:262
 #: src/Admin/StatusPage.php:355
 #: src/Admin/TaxPage.php:101
 #: src/Admin/WaitlistsPage.php:167
@@ -779,7 +785,7 @@ msgid "abgesagt"
 msgstr "annulée"
 
 #: src/Admin/AssignmentsPage.php:112
-#: src/Admin/Menu.php:579
+#: src/Admin/Menu.php:583
 msgid "Zuweisungen"
 msgstr "Affectations"
 
@@ -824,6 +830,7 @@ msgstr "Équipe de l’événement"
 #: src/Admin/AssignmentsPage.php:157
 #: src/Admin/AssignmentsPage.php:174
 #: src/Admin/DevicesPage.php:90
+#: src/Admin/SettingsTools.php:389
 msgid "Person"
 msgstr "Personne"
 
@@ -957,6 +964,7 @@ msgstr "Toute personne affectée à une ou plusieurs zones ne peut scanner que l
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/OperationsPage.php:183
 #: src/Admin/OperationsPage.php:201
+#: src/Admin/SettingsTools.php:371
 #: src/Admission/RulesPage.php:202
 #: src/Printing/AttendeeList.php:42
 #: src/Seating/AdminPage.php:156
@@ -1386,8 +1394,8 @@ msgid "Benutzer"
 msgstr "Utilisateur"
 
 #: src/Admin/AuditLogPage.php:315
-#: src/Admin/Menu.php:100
-#: src/Admin/Menu.php:599
+#: src/Admin/Menu.php:104
+#: src/Admin/Menu.php:603
 #: src/Allocations/AdminPage.php:226
 #: src/Partners/AdminPage.php:278
 #: src/Passes/AdminPage.php:261
@@ -1424,7 +1432,7 @@ msgid "Serie"
 msgstr "Série"
 
 #: src/Admin/AuditLogPage.php:320
-#: src/Admin/Menu.php:671
+#: src/Admin/Menu.php:675
 #: src/Admin/ServicesPage.php:343
 #: src/Admin/ServicesPage.php:494
 #: src/Modules/Waitlist.php:36
@@ -1470,7 +1478,7 @@ msgid "Alle Objekte"
 msgstr "Tous les objets"
 
 #: src/Admin/AuditLogPage.php:365
-#: src/Admin/Menu.php:602
+#: src/Admin/Menu.php:606
 #: src/Admin/SecurityScreens.php:45
 msgid "Audit-Log"
 msgstr "Journal d’audit"
@@ -1759,7 +1767,7 @@ msgstr "Limite atteinte"
 #: src/Admin/MembershipsPage.php:211
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:166
-#: src/Admin/SettingsPage.php:1012
+#: src/Admin/SettingsPage.php:1024
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:278
 #: src/BoxOffice/ShiftPage.php:489
@@ -2638,11 +2646,13 @@ msgid "Änderungsverlauf"
 msgstr "Historique des modifications"
 
 #: src/Admin/ChangeHistory.php:279
+#: src/Admin/SettingsTools.php:388
 msgid "Noch keine Änderungen protokolliert."
 msgstr "Aucune modification enregistrée pour le moment."
 
 #: src/Admin/ChangeHistory.php:283
 #: src/Admin/CheckinsPage.php:101
+#: src/Admin/SettingsTools.php:389
 #: src/Modules/Fiscalization.php:1475
 msgid "Zeitpunkt"
 msgstr "Horodatage"
@@ -2675,7 +2685,7 @@ msgid "Alle Ergebnisse"
 msgstr "Tous les résultats"
 
 #: src/Admin/CheckinsPage.php:85
-#: src/Admin/Menu.php:571
+#: src/Admin/Menu.php:575
 msgid "Check-ins"
 msgstr "Check-ins"
 
@@ -2774,9 +2784,9 @@ msgid "Offene Zahlungen"
 msgstr "Paiements en attente"
 
 #: src/Admin/Dashboard.php:98
-#: src/Admin/Menu.php:117
-#: src/Admin/SettingsPage.php:144
-#: src/Admin/SettingsPage.php:914
+#: src/Admin/Menu.php:121
+#: src/Admin/SettingsPage.php:146
+#: src/Admin/SettingsPage.php:926
 #: src/Admin/StatusPage.php:247
 #: src/Reports/Page.php:108
 msgid "Übersicht"
@@ -3145,7 +3155,7 @@ msgid "Gerät widerrufen."
 msgstr "Appareil révoqué."
 
 #: src/Admin/DevicesPage.php:64
-#: src/Admin/Menu.php:576
+#: src/Admin/Menu.php:580
 msgid "Scanner-Geräte"
 msgstr "Appareils de scan"
 
@@ -3196,7 +3206,7 @@ msgstr "Appairer un nouvel appareil"
 #: src/Admin/DevicesPage.php:80
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/EventsPage.php:1423
-#: src/Admin/Menu.php:568
+#: src/Admin/Menu.php:572
 #: src/Admin/OrdersPage.php:666
 #: src/Ops/Network.php:289
 #: src/Partners/AdminPage.php:270
@@ -4435,7 +4445,7 @@ msgid "leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termin
 msgstr "vide = jusqu’au début de la date ; une fin de vente après le début (dates sur plusieurs jours) s’applique en ligne au plus tard jusqu’à la fin de la date"
 
 #: src/Admin/EventsPage.php:1827
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:219
 msgid "Servicegebühr je Ticket"
 msgstr "Frais de service par ticket"
 
@@ -4771,7 +4781,7 @@ msgstr "Ressources et créneaux"
 
 #: src/Admin/FeatureScreens.php:37
 #: src/Admin/MembershipsPage.php:216
-#: src/Admin/Menu.php:574
+#: src/Admin/Menu.php:578
 msgid "Mitgliedspässe"
 msgstr "Cartes de membre"
 
@@ -5052,7 +5062,7 @@ msgid "Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überwei
 msgstr "Activez Stripe, PayPal ou Mollie avec vos identifiants, ou renseignez l’IBAN pour le virement bancaire."
 
 #: src/Admin/GettingStarted.php:142
-#: src/Admin/Menu.php:316
+#: src/Admin/Menu.php:320
 msgid "Zahlungsart einrichten"
 msgstr "Configurer un mode de paiement"
 
@@ -5143,8 +5153,8 @@ msgid "Erste-Schritte-Checkliste anzeigen"
 msgstr "Afficher la liste de démarrage"
 
 #: src/Admin/GettingStarted.php:284
-#: src/Admin/Menu.php:101
-#: src/Admin/Menu.php:125
+#: src/Admin/Menu.php:105
+#: src/Admin/Menu.php:129
 msgid "Erste Schritte"
 msgstr "Premiers pas"
 
@@ -5186,7 +5196,7 @@ msgstr "Masquer la liste de démarrage"
 
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/GettingStarted.php:353
-#: src/Admin/Menu.php:570
+#: src/Admin/Menu.php:574
 #: src/Admin/OrdersPage.php:1140
 #: src/Admin/OrdersPage.php:1388
 #: src/Admin/TicketsPage.php:596
@@ -5449,7 +5459,7 @@ msgid "Keine Berechtigung für diesen Pass."
 msgstr "Vous n’avez pas l’autorisation pour ce pass."
 
 #: src/Admin/MembershipsPage.php:161
-#: src/Admin/SettingsPage.php:561
+#: src/Admin/SettingsPage.php:564
 #: src/Integrations/WooCommerce/Attendees.php:480
 msgid "Bitte eine gültige E-Mail-Adresse angeben."
 msgstr "Veuillez indiquer une adresse e-mail valide."
@@ -5487,6 +5497,7 @@ msgid "E-Mail suchen"
 msgstr "Rechercher un e-mail"
 
 #: src/Admin/MembershipsPage.php:229
+#: src/Admin/SettingsTools.php:259
 #: src/Admin/TicketsPage.php:611
 #: src/BoxOffice/Page.php:246
 #: src/Exchange/AdminPage.php:210
@@ -5650,160 +5661,160 @@ msgstr "Une carte révoquée ne peut plus être utilisée. Cette action est irr�
 msgid "Diesen Pass endgültig widerrufen?"
 msgstr "Révoquer définitivement cette carte ?"
 
-#: src/Admin/Menu.php:118
+#: src/Admin/Menu.php:122
 msgid "Pass Captain verkauft Tickets und Servicezeiten, stellt QR-Tickets aus und prüft den Einlass. Neue Events legst du unter „Events“ an; Termine und Ticketarten gehören zum Event."
 msgstr "Pass Captain vend des billets et des créneaux de service, émet des billets QR et contrôle l'accès. Créez de nouveaux événements sous « Événements » ; les dates et types de billets appartiennent à l'événement."
 
-#: src/Admin/Menu.php:118
+#: src/Admin/Menu.php:122
 msgid "Bestellungen, Erstattungen und Tickets findest du unter „Bestellungen“ und „Tickets“. Wer welche Daten sieht, richtet sich nach den Rollen und Eventzuweisungen."
 msgstr "Les commandes, remboursements et billets se trouvent sous « Commandes » et « Billets ». Qui voit quelles données dépend des rôles et des affectations aux événements."
 
-#: src/Admin/Menu.php:122
+#: src/Admin/Menu.php:126
 msgid "Probleme finden"
 msgstr "Trouver les problèmes"
 
-#: src/Admin/Menu.php:123
+#: src/Admin/Menu.php:127
 msgid "Der Systemstatus zeigt hängende Hintergrundaufgaben, fehlgeschlagene Mails, offene Erstattungen und die letzten Betriebsalarme. Dort lassen sich Aufgaben erneut versuchen."
 msgstr "L'état du système affiche les tâches d'arrière-plan bloquées, les e-mails en échec, les remboursements en cours et les dernières alertes d'exploitation. Les tâches peuvent y être relancées."
 
-#: src/Admin/Menu.php:125
-#: src/Admin/Menu.php:607
-#: src/Admin/Menu.php:673
+#: src/Admin/Menu.php:129
+#: src/Admin/Menu.php:611
+#: src/Admin/Menu.php:677
 #: src/Admin/StatusPage.php:72
 #: src/Admin/StatusPage.php:245
 msgid "Systemstatus"
 msgstr "État du système"
 
-#: src/Admin/Menu.php:126
+#: src/Admin/Menu.php:130
 msgid "Weitere Hilfe"
 msgstr "Plus d'aide"
 
-#: src/Admin/Menu.php:180
+#: src/Admin/Menu.php:184
 msgid "Pass Captain: Das Datenbank-Update ist unvollständig."
 msgstr "Pass Captain : la mise à jour de la base de données est incomplète."
 
-#: src/Admin/Menu.php:180
+#: src/Admin/Menu.php:184
 msgid "Es fehlen Tabellen, Spalten oder Indizes; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Update danach erneut starten."
 msgstr "Des tables, colonnes ou index sont manquants ; le plugin continue de fonctionner avec l’ancien schéma. Veuillez vérifier les droits de la base de données, puis relancer la mise à jour."
 
 #. translators: 1: number of failed attempts, 2: date and time of the next automatic attempt
-#: src/Admin/Menu.php:183
+#: src/Admin/Menu.php:187
 #, php-format
 msgid "%1$d Versuch fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgid_plural "%1$d Versuche fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgstr[0] "%1$d tentative a échoué. Prochaine tentative automatique : %2$s."
 msgstr[1] "%1$d tentatives ont échoué. Prochaine tentative automatique : %2$s."
 
-#: src/Admin/Menu.php:187
+#: src/Admin/Menu.php:191
 msgid "Datenbank-Update jetzt erneut versuchen"
 msgstr "Réessayer maintenant la mise à jour de la base de données"
 
-#: src/Admin/Menu.php:200
+#: src/Admin/Menu.php:204
 msgid "Das Datenbank-Update wurde abgeschlossen."
 msgstr "La mise à jour de la base de données est terminée."
 
-#: src/Admin/Menu.php:200
+#: src/Admin/Menu.php:204
 msgid "Das Datenbank-Update ist erneut fehlgeschlagen. Details stehen im Hinweis."
 msgstr "La mise à jour de la base de données a de nouveau échoué. Les détails figurent dans l’avis."
 
-#: src/Admin/Menu.php:216
+#: src/Admin/Menu.php:220
 msgid "Pass Captain: Die Zahlungsart „Überweisung“ ist aktiviert, aber nicht vollständig konfiguriert."
 msgstr "Pass Captain : le mode de paiement « Virement » est activé, mais pas entièrement configuré."
 
-#: src/Admin/Menu.php:216
+#: src/Admin/Menu.php:220
 msgid "Es fehlen Empfänger und IBAN bzw. ein Zahlungshinweis. Bis dahin wird Überweisung im Checkout nicht angeboten."
 msgstr "Le bénéficiaire et l’IBAN ou une instruction de paiement manquent. D’ici là, le virement n’est pas proposé lors du paiement."
 
-#: src/Admin/Menu.php:216
+#: src/Admin/Menu.php:220
 msgid "Überweisung einrichten"
 msgstr "Configurer le virement"
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:237
+#: src/Admin/Menu.php:241
 #, php-format
 msgid "Pass Captain: %d bezahlte Bestellung ohne Tickets muss geklärt werden."
 msgid_plural "Pass Captain: %d bezahlte Bestellungen ohne Tickets müssen geklärt werden."
 msgstr[0] "Pass Captain : %d commande payée sans tickets doit être régularisée."
 msgstr[1] "Pass Captain : %d commandes payées sans tickets doivent être régularisées."
 
-#: src/Admin/Menu.php:238
+#: src/Admin/Menu.php:242
 msgid "Die Zahlung kam nach Ablauf der Reservierung und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung erstatten."
 msgstr "Le paiement est arrivé après l’expiration de la réservation et il n’y avait plus de contingent disponible. Veuillez libérer une place et relancer l’attribution, ou rembourser le paiement."
 
-#: src/Admin/Menu.php:238
+#: src/Admin/Menu.php:242
 msgid "Bestellungen anzeigen"
 msgstr "Afficher les commandes"
 
-#: src/Admin/Menu.php:264
+#: src/Admin/Menu.php:268
 msgid "Pass Captain: Neues Standard-Einlassfenster"
 msgstr "Pass Captain : nouvelle fenêtre d’admission par défaut"
 
-#: src/Admin/Menu.php:264
+#: src/Admin/Menu.php:268
 msgid "Neue Installationen lassen Tickets ohne eigene Einlassregel nur von 2 Stunden vor Beginn bis zum Ende des Termins ein. Für diese bestehende Installation wurde das Einlassfenster beim Update ausgeschaltet, Scans verhalten sich also wie bisher. Es lässt sich unter Einstellungen → Einlass / Scanner-Geräte einschalten."
 msgstr "Les nouvelles installations n’admettent les tickets sans règle d’admission propre que de 2 heures avant le début jusqu’à la fin de la date. Pour cette installation existante, la fenêtre d’admission a été désactivée lors de la mise à jour : les scans se comportent donc comme auparavant. Elle peut être activée sous Réglages → Entrée / Appareils de scan."
 
-#: src/Admin/Menu.php:267
+#: src/Admin/Menu.php:271
 msgid "Einlass-Einstellungen öffnen"
 msgstr "Ouvrir les réglages d’entrée"
 
-#: src/Admin/Menu.php:267
+#: src/Admin/Menu.php:271
 msgid "Hinweis ausblenden"
 msgstr "Masquer l’avis"
 
 #. translators: %s: currency codes
-#: src/Admin/Menu.php:315
+#: src/Admin/Menu.php:319
 #, php-format
 msgid "Pass Captain: Keine verfügbare Zahlungsart für %s."
 msgstr "Pass Captain : aucun mode de paiement disponible pour %s."
 
-#: src/Admin/Menu.php:316
+#: src/Admin/Menu.php:320
 msgid "Veröffentlichte Events können auf der Website nicht gebucht werden; die Eventkarten zeigen „Online-Verkauf derzeit nicht möglich“."
 msgstr "Les événements publiés ne peuvent pas être réservés sur le site ; les fiches d’événement affichent « Vente en ligne actuellement impossible »."
 
 #. translators: %s: payment method names
-#: src/Admin/Menu.php:359
+#: src/Admin/Menu.php:363
 #, php-format
 msgid "Pass Captain: Die Zahlungsart %s stellt Tickets vor dem Geldeingang aus."
 msgstr "Pass Captain : le mode de paiement %s émet les tickets avant la réception du paiement."
 
-#: src/Admin/Menu.php:360
+#: src/Admin/Menu.php:364
 msgid "Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen."
 msgstr "L’achat sur facture place immédiatement la commande sur « En cours » ; Pass Captain émet alors les tickets. Pour n’émettre qu’au statut « Terminée », ajoutez le mode de paiement au filtre wpcap_woocommerce_issue_on_completed_gateways."
 
-#: src/Admin/Menu.php:487
+#: src/Admin/Menu.php:491
 msgid "Events & Programm"
 msgstr "Événements et programme"
 
-#: src/Admin/Menu.php:488
+#: src/Admin/Menu.php:492
 #: src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:66
 #: src/Partners/Statement.php:174
 msgid "Verkauf"
 msgstr "Vente"
 
-#: src/Admin/Menu.php:489
+#: src/Admin/Menu.php:493
 #: src/Admin/SecurityScreens.php:92
-#: src/Admin/SettingsPage.php:423
+#: src/Admin/SettingsPage.php:425
 msgctxt "admission (check-in area of work)"
 msgid "Einlass"
 msgstr "Entrée"
 
-#: src/Admin/Menu.php:490
+#: src/Admin/Menu.php:494
 msgid "Finanzen & Auswertung"
 msgstr "Finances et analyses"
 
-#: src/Admin/Menu.php:491
+#: src/Admin/Menu.php:495
 msgid "Kommunikation"
 msgstr "Communication"
 
-#: src/Admin/Menu.php:492
+#: src/Admin/Menu.php:496
 msgid "Einstellungen & Integrationen"
 msgstr "Réglages et intégrations"
 
-#: src/Admin/Menu.php:561
-#: src/Admin/Menu.php:572
+#: src/Admin/Menu.php:565
+#: src/Admin/Menu.php:576
 #: src/Admin/OrdersPage.php:1249
-#: src/Admin/SettingsPage.php:200
+#: src/Admin/SettingsPage.php:202
 #: src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:153
 #: src/Reports/Page.php:195
@@ -5812,15 +5823,15 @@ msgid "Erstattungen"
 msgstr "Remboursements"
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:565
+#: src/Admin/Menu.php:569
 #, php-format
 msgid "%d Bestellung muss geklärt werden"
 msgid_plural "%d Bestellungen müssen geklärt werden"
 msgstr[0] "%d commande doit être régularisée"
 msgstr[1] "%d commandes doivent être régularisées"
 
-#: src/Admin/Menu.php:566
-#: src/Admin/Menu.php:569
+#: src/Admin/Menu.php:570
+#: src/Admin/Menu.php:573
 #: src/Admin/OrdersPage.php:903
 #: src/Exchange/AdminPage.php:149
 #: src/Ops/Network.php:289
@@ -5831,48 +5842,48 @@ msgstr[1] "%d commandes doivent être régularisées"
 msgid "Bestellungen"
 msgstr "Commandes"
 
-#: src/Admin/Menu.php:573
+#: src/Admin/Menu.php:577
 msgid "Rabattcodes"
 msgstr "Codes de réduction"
 
-#: src/Admin/Menu.php:575
+#: src/Admin/Menu.php:579
 #: src/Admin/ScannerPage.php:87
 #: src/Admission/ConflictsPage.php:107
 #: src/Admission/ConflictsPage.php:108
 msgid "Web-Scanner"
 msgstr "Scanner web"
 
-#: src/Admin/Menu.php:577
+#: src/Admin/Menu.php:581
 #: src/Admin/TaxPage.php:76
 msgid "Steuerprüfung"
 msgstr "Contrôle fiscal"
 
-#: src/Admin/Menu.php:578
+#: src/Admin/Menu.php:582
 #: src/Admin/MyServicesPage.php:82
 msgid "Meine Leistungen"
 msgstr "Mes prestations"
 
-#: src/Admin/Menu.php:610
+#: src/Admin/Menu.php:614
 #: src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:54
 msgid "Gemeinsamer Scanner"
 msgstr "Scanner partagé"
 
-#: src/Admin/Menu.php:610
+#: src/Admin/Menu.php:614
 msgid "Gemeinsamer Scanner ↗"
 msgstr "Scanner partagé ↗"
 
-#: src/Admin/Menu.php:611
+#: src/Admin/Menu.php:615
 #: src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
 msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
-#: src/Admin/Menu.php:611
+#: src/Admin/Menu.php:615
 msgid "Voucher Captain ↗"
 msgstr "Voucher Captain ↗"
 
-#: src/Admin/Menu.php:625
+#: src/Admin/Menu.php:629
 #: src/Admin/ServiceSlotsPage.php:357
 msgid "Service-Zeitfenster"
 msgstr "Créneaux de service"
@@ -6442,6 +6453,8 @@ msgid "Protokoll"
 msgstr "Journal"
 
 #: src/Admin/OrderHistory.php:134
+#: src/Admin/SettingsTools.php:170
+#: src/Admin/SettingsTools.php:274
 #: src/Consents.php:531
 msgid "Verlauf"
 msgstr "Historique"
@@ -6455,6 +6468,7 @@ msgid "Noch keine Einträge."
 msgstr "Aucune entrée pour le moment."
 
 #: src/Admin/OrderHistory.php:141
+#: src/Admin/SettingsTools.php:389
 #: src/Consents.php:619
 msgid "Quelle"
 msgstr "Source"
@@ -7036,6 +7050,7 @@ msgid "Zuteilung erneut versuchen"
 msgstr "Relancer l’attribution"
 
 #: src/Admin/OrdersPage.php:1024
+#: src/Admin/SettingsTools.php:262
 #: src/BoxOffice/ZReport.php:363
 msgid "Herkunft"
 msgstr "Provenance"
@@ -7253,7 +7268,7 @@ msgid "Höchstbetrag (optional, Kulanz)"
 msgstr "Montant maximal (facultatif, geste commercial)"
 
 #: src/Admin/OrdersPage.php:1216
-#: src/Admin/SettingsPage.php:214
+#: src/Admin/SettingsPage.php:216
 #: src/ServiceFee.php:427
 msgid "Servicegebühr"
 msgstr "Frais de service"
@@ -7267,12 +7282,12 @@ msgid "automatisch (bei Absage erstatten, sonst einbehalten)"
 msgstr "automatique (rembourser en cas d’annulation, sinon conserver)"
 
 #: src/Admin/OrdersPage.php:1218
-#: src/Admin/SettingsPage.php:245
+#: src/Admin/SettingsPage.php:247
 msgid "mit erstatten"
 msgstr "inclure dans le remboursement"
 
 #: src/Admin/OrdersPage.php:1219
-#: src/Admin/SettingsPage.php:244
+#: src/Admin/SettingsPage.php:246
 msgid "einbehalten"
 msgstr "conserver"
 
@@ -8723,817 +8738,817 @@ msgstr "Général / Réservation"
 msgid "Reservierungsdauer im Checkout (Minuten)"
 msgstr "Durée de réservation lors du paiement (minutes)"
 
-#: src/Admin/SettingsPage.php:66
+#: src/Admin/SettingsPage.php:68
 msgid "Standarddauer von Terminen ohne Ende (Stunden)"
 msgstr "Durée par défaut des dates sans fin (heures)"
 
-#: src/Admin/SettingsPage.php:66
+#: src/Admin/SettingsPage.php:68
 msgid "Ein Termin ohne Endzeit gilt so lange nach Beginn als laufend (Abendkasse, Terminlisten von Scanner und App). Mehrtägige Termine bitte mit Ende anlegen."
 msgstr "Une date sans heure de fin est considérée comme en cours pendant cette durée après le début (caisse, listes de dates du scanner et de l’application). Veuillez créer les dates sur plusieurs jours avec une fin."
 
-#: src/Admin/SettingsPage.php:67
+#: src/Admin/SettingsPage.php:69
 msgid "Bei Terminabsage bezahlte Bestellungen automatisch erstatten"
 msgstr "Rembourser automatiquement les commandes payées en cas d’annulation d’une date"
 
-#: src/Admin/SettingsPage.php:68
+#: src/Admin/SettingsPage.php:70
 msgid "Verspätete Zahlungen, für die keine Tickets mehr ausgestellt werden können, automatisch erstatten"
 msgstr "Rembourser automatiquement les paiements tardifs pour lesquels aucun ticket ne peut plus être émis"
 
-#: src/Admin/SettingsPage.php:68
+#: src/Admin/SettingsPage.php:70
 msgid "Betrifft Zahlungen nach Ablauf der Reservierung (Termin abgesagt oder vorbei, Kontingent, Rabattcode-Limit oder Käuferlimit erschöpft) und Zahlungen für stornierte Bestellungen. Ohne diese Option bleibt die Bestellung zur manuellen Klärung stehen."
 msgstr "Concerne les paiements après l’expiration de la réservation (date annulée ou passée, contingent, limite du code de réduction ou limite par acheteur épuisés) et les paiements de commandes annulées. Sans cette option, la commande reste en attente de régularisation manuelle."
 
-#: src/Admin/SettingsPage.php:69
+#: src/Admin/SettingsPage.php:71
 msgid "Rabattcodes je Bestellung (höchstens)"
 msgstr "Codes de réduction par commande (maximum)"
 
-#: src/Admin/SettingsPage.php:72
+#: src/Admin/SettingsPage.php:74
 msgid "Mehrere Rabattcodes"
 msgstr "Plusieurs codes de réduction"
 
-#: src/Admin/SettingsPage.php:74
+#: src/Admin/SettingsPage.php:76
 msgid "nacheinander anwenden (jeder Code auf den Restbetrag, Reihenfolge nach Priorität)"
 msgstr "appliquer l’un après l’autre (chaque code sur le montant restant, par ordre de priorité)"
 
-#: src/Admin/SettingsPage.php:75
+#: src/Admin/SettingsPage.php:77
 msgid "nur den günstigsten Code anwenden"
 msgstr "appliquer uniquement le code le plus avantageux"
 
-#: src/Admin/SettingsPage.php:77
+#: src/Admin/SettingsPage.php:79
 msgid "Codes, die als „nicht kombinierbar“ angelegt sind, gelten immer nur allein."
 msgstr "Les codes créés comme « non cumulables » ne sont jamais valables qu’utilisés seuls."
 
-#: src/Admin/SettingsPage.php:79
+#: src/Admin/SettingsPage.php:81
 msgid "Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)"
 msgstr "Principe des quatre yeux pour les billets gratuits (liste d’invités : la personne qui fait la demande ne peut pas la valider elle-même ; administrateurs exceptés)"
 
-#: src/Admin/SettingsPage.php:83
+#: src/Admin/SettingsPage.php:85
 msgid "Proxy / Client-Adresse"
 msgstr "Proxy / adresse client"
 
-#: src/Admin/SettingsPage.php:86
+#: src/Admin/SettingsPage.php:88
 msgid "Vertrauenswürdige Proxys (IP-Adressen oder CIDR-Bereiche)"
 msgstr "Proxys de confiance (adresses IP ou plages CIDR)"
 
-#: src/Admin/SettingsPage.php:86
+#: src/Admin/SettingsPage.php:88
 msgid "Eine Adresse oder ein Bereich je Zeile, z. B. 10.0.0.0/8 oder die Adressbereiche des CDN. Nur wenn die direkte Gegenstelle (REMOTE_ADDR) hier steht, wird der Weiterleitungs-Header ausgewertet; leer = immer REMOTE_ADDR. Ratenlimits und Einwilligungsnachweise verwenden diese Adresse."
 msgstr "Une adresse ou une plage par ligne, p. ex. 10.0.0.0/8 ou les plages d’adresses du CDN. L’en-tête de transfert n’est évalué que si le pair direct (REMOTE_ADDR) figure ici ; vide = toujours REMOTE_ADDR. Les limites de débit et les preuves de consentement utilisent cette adresse."
 
-#: src/Admin/SettingsPage.php:89
+#: src/Admin/SettingsPage.php:91
 msgid "Header mit der Client-Adresse"
 msgstr "En-tête contenant l’adresse du client"
 
-#: src/Admin/SettingsPage.php:91
+#: src/Admin/SettingsPage.php:93
 msgid "X-Forwarded-For (rechteste nicht vertrauenswürdige Adresse)"
 msgstr "X-Forwarded-For (adresse non fiable la plus à droite)"
 
-#: src/Admin/SettingsPage.php:92
+#: src/Admin/SettingsPage.php:94
 msgid "Forwarded (RFC 7239, rechteste nicht vertrauenswürdige Adresse)"
 msgstr "Forwarded (RFC 7239, adresse non fiable la plus à droite)"
 
-#: src/Admin/SettingsPage.php:93
+#: src/Admin/SettingsPage.php:95
 msgid "CF-Connecting-IP (Cloudflare)"
 msgstr "CF-Connecting-IP (Cloudflare)"
 
-#: src/Admin/SettingsPage.php:97
+#: src/Admin/SettingsPage.php:99
 msgid "Auch per Konstante WPCAP_CLIENT_IP_HEADER oder Filter wpcap_client_ip_header (x-forwarded-for, forwarded, cf-connecting-ip), solange hier X-Forwarded-For gewählt ist."
 msgstr "Également via la constante WPCAP_CLIENT_IP_HEADER ou le filtre wpcap_client_ip_header (x-forwarded-for, forwarded, cf-connecting-ip), tant que X-Forwarded-For est sélectionné ici."
 
-#: src/Admin/SettingsPage.php:102
+#: src/Admin/SettingsPage.php:104
 msgid "Funktionen"
 msgstr "Fonctionnalités"
 
-#: src/Admin/SettingsPage.php:105
+#: src/Admin/SettingsPage.php:107
 msgid "Funktionen abschalten"
 msgstr "Désactiver des fonctions"
 
-#: src/Admin/SettingsPage.php:105
+#: src/Admin/SettingsPage.php:107
 msgid "Abgeschaltete Funktionen registrieren keine Menüs, Seiten, Shortcodes, REST-Routen und Hintergrundaufgaben mehr. Tabellen und Einstellungen bleiben erhalten; nach dem Wiedereinschalten geht es dort weiter."
 msgstr "Les fonctions désactivées n’enregistrent plus de menus, pages, shortcodes, routes REST ni tâches de fond. Les tables et réglages sont conservés ; en les réactivant, on reprend là où on s’était arrêté."
 
-#: src/Admin/SettingsPage.php:106
+#: src/Admin/SettingsPage.php:108
 msgid "Im Menü ausblenden"
 msgstr "Masquer dans le menu"
 
-#: src/Admin/SettingsPage.php:106
+#: src/Admin/SettingsPage.php:108
 msgid "Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen."
 msgstr "Seules les entrées de menu sont masquées ; les fonctionnalités continuent de fonctionner, les données sont conservées et les liens directs restent valables. Pour les fonctionnalités que vous n’utilisez pas."
 
-#: src/Admin/SettingsPage.php:110
+#: src/Admin/SettingsPage.php:112
 msgid "Begriffe"
 msgstr "Terminologie"
 
-#: src/Admin/SettingsPage.php:115
+#: src/Admin/SettingsPage.php:117
 msgid "Bezeichnung der Personen auf den Tickets"
 msgstr "Désignation des personnes sur les tickets"
 
-#: src/Admin/SettingsPage.php:117
+#: src/Admin/SettingsPage.php:119
 msgid "Gilt für Eventseiten, Checkout, Bestellportal, Ticketseite und E-Mails (nicht für die Verwaltung). Die Vorgaben ersetzen die deutschen Wortformen; für andere Sprachen eigene Ersetzungen eintragen."
 msgstr "S’applique aux pages d’événement, au paiement, au portail de commande, à la page du ticket et aux e-mails (pas à l’administration). Les préréglages remplacent les formes de mots allemandes ; pour les autres langues, saisissez vos propres remplacements."
 
-#: src/Admin/SettingsPage.php:119
+#: src/Admin/SettingsPage.php:121
 msgid "Eigene Ersetzungen"
 msgstr "Remplacements personnalisés"
 
-#: src/Admin/SettingsPage.php:119
+#: src/Admin/SettingsPage.php:121
 msgid "Eine Ersetzung je Zeile im Format „Alt = Neu“, z. B. „Teilnehmende = Kursteilnehmende“ oder „attendee = guest“. Ganze Wörter, Groß- und Kleinschreibung beachten; ergänzt die gewählte Vorgabe und hat Vorrang. Höchstens 60 Zeilen."
 msgstr "Un remplacement par ligne au format « Ancien = Nouveau », p. ex. « participants = stagiaires » ou « attendee = guest ». Mots entiers, respectez les majuscules et minuscules ; complète le préréglage choisi et a la priorité. 60 lignes au maximum."
 
-#: src/Admin/SettingsPage.php:123
+#: src/Admin/SettingsPage.php:125
 msgid "Eventseiten"
 msgstr "Pages d’événement"
 
-#: src/Admin/SettingsPage.php:126
+#: src/Admin/SettingsPage.php:128
 msgid "Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)"
 msgstr "Une page dédiée par événement avec une adresse partageable et des données structurées (schema.org/Event)"
 
-#: src/Admin/SettingsPage.php:127
+#: src/Admin/SettingsPage.php:129
 msgid "Adress-Basis der Eventseiten"
 msgstr "Adresse de base des pages d’événement"
 
-#: src/Admin/SettingsPage.php:127
+#: src/Admin/SettingsPage.php:129
 msgid "Beispiel „event“ ergibt https://example.com/event/sommerfest-ab12cd/. Nur Kleinbuchstaben, Ziffern und Bindestrich; darf nicht wie eine vorhandene Seite heißen."
 msgstr "Exemple : « event » donne https://example.com/event/sommerfest-ab12cd/. Uniquement des minuscules, des chiffres et des tirets ; ne doit pas porter le nom d’une page existante."
 
-#: src/Admin/SettingsPage.php:131
+#: src/Admin/SettingsPage.php:133
 #: src/Security/Policy.php:92
 msgid "Einlass / Scanner-Geräte"
 msgstr "Entrée / Appareils de scan"
 
-#: src/Admin/SettingsPage.php:134
+#: src/Admin/SettingsPage.php:136
 msgid "Teilnehmernamen beim Scannen anzeigen"
 msgstr "Afficher les noms des participants lors du scan"
 
-#: src/Admin/SettingsPage.php:135
+#: src/Admin/SettingsPage.php:137
 msgid "Signierte QR-Codes ausgeben (PC1, Ed25519)"
 msgstr "Émettre des QR codes signés (PC1, Ed25519)"
 
-#: src/Admin/SettingsPage.php:135
+#: src/Admin/SettingsPage.php:137
 msgid "Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können."
 msgstr "Les nouveaux QR codes contiennent, à la place du code du billet, une mention signée (ID du billet, date, période de validité, version du code) sans données personnelles ; les scanners peuvent vérifier la signature hors ligne. Les codes classiques restent valables. Désactivé par défaut pour que les systèmes de scan tiers puissent continuer à lire le code du billet."
 
-#: src/Admin/SettingsPage.php:136
+#: src/Admin/SettingsPage.php:138
 msgid "Maximale Gültigkeit einer Gerätekopplung (Stunden)"
 msgstr "Validité maximale d’un appairage d’appareil (heures)"
 
-#: src/Admin/SettingsPage.php:137
+#: src/Admin/SettingsPage.php:139
 msgid "Einlass-Tageswechsel (Uhrzeit, volle Stunde)"
 msgstr "Changement de jour d’admission (heure, heure pleine)"
 
-#: src/Admin/SettingsPage.php:137
+#: src/Admin/SettingsPage.php:139
 msgid "0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits."
 msgstr "0 = minuit. Exemple 6 : les scans jusqu’à 05:59 comptent encore pour la veille (festivals, événements nocturnes). S’applique aux tickets journaliers et aux limites quotidiennes."
 
-#: src/Admin/SettingsPage.php:138
+#: src/Admin/SettingsPage.php:140
 msgid "Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel"
 msgstr "Fenêtre d’admission par défaut pour les types de ticket sans règle d’admission propre"
 
-#: src/Admin/SettingsPage.php:139
+#: src/Admin/SettingsPage.php:141
 msgid "Einlass ab (Minuten vor Beginn)"
 msgstr "Admission à partir de (minutes avant le début)"
 
-#: src/Admin/SettingsPage.php:140
+#: src/Admin/SettingsPage.php:142
 msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)"
 msgstr "Admission jusqu’à (minutes après la fin ; sans fin : après la fin de la journée de l’événement)"
 
-#: src/Admin/SettingsPage.php:147
+#: src/Admin/SettingsPage.php:149
 msgid "Aktive Zahlungsarten"
 msgstr "Modes de paiement actifs"
 
-#: src/Admin/SettingsPage.php:151
+#: src/Admin/SettingsPage.php:153
 #: src/Payments/ManualGateway.php:12
 msgid "Überweisung"
 msgstr "Virement bancaire"
 
-#: src/Admin/SettingsPage.php:155
+#: src/Admin/SettingsPage.php:157
 msgid "Zahlungshinweis"
 msgstr "Instruction de paiement"
 
-#: src/Admin/SettingsPage.php:155
+#: src/Admin/SettingsPage.php:157
 msgid "Wird Käufern nach der Bestellung angezeigt. Ohne IBAN und Empfänger ersetzt er die Überweisungsdaten."
 msgstr "Affichée aux acheteurs après la commande. Sans IBAN ni bénéficiaire, elle remplace les coordonnées du virement."
 
-#: src/Admin/SettingsPage.php:156
+#: src/Admin/SettingsPage.php:158
 msgid "Überweisung: Empfänger (Kontoinhaber)"
 msgstr "Virement : bénéficiaire (titulaire du compte)"
 
-#: src/Admin/SettingsPage.php:156
+#: src/Admin/SettingsPage.php:158
 msgid "Leer = Name / Firma des Rechnungsstellers."
 msgstr "Vide = nom / société de l’émetteur de la facture."
 
-#: src/Admin/SettingsPage.php:157
+#: src/Admin/SettingsPage.php:159
 msgid "Überweisung: IBAN"
 msgstr "Virement : IBAN"
 
-#: src/Admin/SettingsPage.php:157
+#: src/Admin/SettingsPage.php:159
 msgid "Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt."
 msgstr "Affiché après la commande et dans l’e-mail de commande avec le montant, la référence de paiement et le délai de paiement."
 
-#: src/Admin/SettingsPage.php:158
+#: src/Admin/SettingsPage.php:160
 msgid "Überweisung: BIC"
 msgstr "Virement : BIC"
 
-#: src/Admin/SettingsPage.php:159
+#: src/Admin/SettingsPage.php:161
 msgid "Reservierung bei manueller Zahlung (Stunden)"
 msgstr "Réservation en cas de paiement manuel (heures)"
 
-#: src/Admin/SettingsPage.php:159
+#: src/Admin/SettingsPage.php:161
 msgid "Endet spätestens mit Beginn des (ersten) Termins."
 msgstr "Se termine au plus tard au début de la (première) date."
 
-#: src/Admin/SettingsPage.php:160
+#: src/Admin/SettingsPage.php:162
 msgid "Überweisung: höchstens so viel Prozent eines Kontingents unbezahlt reservieren"
 msgstr "Virement : réserver au maximum ce pourcentage d’un contingent sans paiement"
 
-#: src/Admin/SettingsPage.php:160
+#: src/Admin/SettingsPage.php:162
 msgid "Gilt je Ticketart und je Termin mit Kapazität. Offene, unbezahlte Überweisungsbestellungen halten zusammen höchstens diesen Anteil (mindestens aber 10 Tickets); danach ist Überweisung für diesen Termin erst wieder möglich, wenn Bestellungen bezahlt werden oder ablaufen. 0 oder 100 = keine Obergrenze."
 msgstr "S’applique par type de ticket et par date avec capacité. Les commandes par virement en attente et non payées occupent ensemble au maximum cette part (mais au moins 10 tickets) ; ensuite, le virement n’est de nouveau possible pour cette date que lorsque des commandes sont payées ou expirent. 0 ou 100 = pas de plafond."
 
-#: src/Admin/SettingsPage.php:161
+#: src/Admin/SettingsPage.php:163
 msgid "Überweisung nur bis … Stunden vor Beginn anbieten"
 msgstr "Ne proposer le virement que jusqu’à … heures avant le début"
 
-#: src/Admin/SettingsPage.php:161
+#: src/Admin/SettingsPage.php:163
 msgid "0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht."
 msgstr "0 = jusqu’au début. Recommandé : 24 à 48 heures, pour que le paiement arrive à temps."
 
-#: src/Admin/SettingsPage.php:165
+#: src/Admin/SettingsPage.php:167
 msgid "Stripe"
 msgstr "Stripe"
 
-#: src/Admin/SettingsPage.php:170
-#: src/Admin/SettingsPage.php:181
+#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:183
 msgid "Modus"
 msgstr "Mode"
 
-#: src/Admin/SettingsPage.php:170
+#: src/Admin/SettingsPage.php:172
 #: src/Mail/Admin.php:118
 #: src/Modules/Fiscalization.php:1363
 #: src/Operations/SiteHealth.php:694
 msgid "Test"
 msgstr "Test"
 
-#: src/Admin/SettingsPage.php:170
-#: src/Admin/SettingsPage.php:181
+#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:183
 #: src/Operations/SiteHealth.php:693
 msgid "Live"
 msgstr "Live"
 
-#: src/Admin/SettingsPage.php:171
+#: src/Admin/SettingsPage.php:173
 msgid "Geheimer API-Schlüssel (Secret Key)"
 msgstr "Clé API secrète (Secret Key)"
 
-#: src/Admin/SettingsPage.php:171
+#: src/Admin/SettingsPage.php:173
 msgid "Stripe-Dashboard → Entwickler → API-Schlüssel. Beginnt mit sk_test_ bzw. sk_live_ (eingeschränkter Schlüssel: rk_…)."
 msgstr "Tableau de bord Stripe → Développeurs → Clés API. Commence par sk_test_ ou sk_live_ (clé restreinte : rk_…)."
 
-#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:174
 msgid "Webhook-Signaturgeheimnis (Signing Secret)"
 msgstr "Secret de signature du webhook (Signing Secret)"
 
-#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:174
 msgid "Wird beim Webhook-Endpunkt im Stripe-Dashboard angezeigt und beginnt mit whsec_. Ohne dieses Geheimnis werden Zahlungen nie bestätigt."
 msgstr "Affiché pour le point de terminaison du webhook dans le tableau de bord Stripe et commence par whsec_. Sans ce secret, les paiements ne sont jamais confirmés."
 
-#: src/Admin/SettingsPage.php:176
+#: src/Admin/SettingsPage.php:178
 #: src/Payments/PayPalGateway.php:46
 msgid "PayPal"
 msgstr "PayPal"
 
-#: src/Admin/SettingsPage.php:181
+#: src/Admin/SettingsPage.php:183
 #: src/WalletPasses/AdminPage.php:192
 msgid "Sandbox"
 msgstr "Sandbox"
 
-#: src/Admin/SettingsPage.php:182
+#: src/Admin/SettingsPage.php:184
 #: src/Payments/PayPalGateway.php:71
 msgid "Client-ID"
 msgstr "ID client"
 
-#: src/Admin/SettingsPage.php:182
+#: src/Admin/SettingsPage.php:184
 msgid "PayPal Developer Dashboard → Apps & Credentials → eigene App (Sandbox bzw. Live passend zum Modus)."
 msgstr "PayPal Developer Dashboard → Apps & Credentials → votre application (Sandbox ou Live selon le mode)."
 
-#: src/Admin/SettingsPage.php:183
+#: src/Admin/SettingsPage.php:185
 #: src/Payments/PayPalGateway.php:72
 msgid "Client-Geheimnis (Secret)"
 msgstr "Secret client (Secret)"
 
-#: src/Admin/SettingsPage.php:183
+#: src/Admin/SettingsPage.php:185
 msgid "Steht in derselben App unter der Client-ID."
 msgstr "Figure dans la même application, sous le Client ID."
 
-#: src/Admin/SettingsPage.php:184
+#: src/Admin/SettingsPage.php:186
 msgid "Webhook-ID"
 msgstr "ID du webhook"
 
-#: src/Admin/SettingsPage.php:184
+#: src/Admin/SettingsPage.php:186
 msgid "Nach dem Anlegen des Webhooks in der App angezeigt (eine Kennung, nicht die URL). Ohne sie werden Zahlungen nie bestätigt."
 msgstr "Affiché dans l’application après la création du webhook (un identifiant, pas l’URL). Sans lui, les paiements ne sont jamais confirmés."
 
-#: src/Admin/SettingsPage.php:188
-#: src/Admin/SettingsPage.php:425
+#: src/Admin/SettingsPage.php:190
+#: src/Admin/SettingsPage.php:427
 msgid "Rechtstexte"
 msgstr "Mentions légales"
 
-#: src/Admin/SettingsPage.php:191
+#: src/Admin/SettingsPage.php:193
 msgid "Zustimmung im Checkout verlangen"
 msgstr "Exiger l’acceptation lors du paiement"
 
-#: src/Admin/SettingsPage.php:191
+#: src/Admin/SettingsPage.php:193
 msgid "Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer)."
 msgstr "Affiche les CGV/conditions de participation lors du paiement et exige leur acceptation. Sans cette option, les CGV n’apparaissent pas lors du paiement (les informations consommateur toujours)."
 
-#: src/Admin/SettingsPage.php:192
-#: src/Admin/SettingsPage.php:972
+#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:984
 #: src/Diagnostics.php:207
 msgid "AGB / Teilnahmebedingungen"
 msgstr "CGV / Conditions de participation"
 
-#: src/Admin/SettingsPage.php:193
-#: src/Admin/SettingsPage.php:972
+#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:984
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Informations consommateur (p. ex. information sur le droit de rétractation)"
 
-#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:196
 msgid "Hinweis „kein Widerrufsrecht“ neben dem Bestellbutton zeigen"
 msgstr "Afficher la mention « pas de droit de rétractation » à côté du bouton de commande"
 
-#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:196
 msgid "Nur wenn alle Positionen einen festen Veranstaltungstermin haben. Standardtext, bitte prüfen und anpassen – keine Rechtsberatung."
 msgstr "Uniquement si toutes les lignes ont une date d’événement fixe. Texte par défaut, à vérifier et adapter – pas un conseil juridique."
 
-#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:197
 msgid "Text: kein Widerrufsrecht (terminierte Tickets)"
 msgstr "Texte : pas de droit de rétractation (billets datés)"
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:198
 msgid "Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)"
 msgstr "Texte : droit de rétractation applicable (produits sans date, p. ex. pass, bons)"
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:198
 msgid "Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen."
 msgstr "Affiché lorsqu’une ligne n’a pas de date fixe. Indiquez ici, p. ex., l’information sur le droit de rétractation ou un renvoi vers celle-ci."
 
-#: src/Admin/SettingsPage.php:203
+#: src/Admin/SettingsPage.php:205
 msgid "Zweite Freigabe ab Betrag"
 msgstr "Seconde validation à partir du montant"
 
-#: src/Admin/SettingsPage.php:203
+#: src/Admin/SettingsPage.php:205
 msgid "0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00."
 msgstr "0 = pas de seconde validation. Montant dans la devise de la commande, p. ex. 100,00."
 
-#: src/Admin/SettingsPage.php:204
+#: src/Admin/SettingsPage.php:206
 msgid "Vier-Augen-Prinzip auch für Freigebende"
 msgstr "Principe des quatre yeux également pour les personnes habilitées à valider"
 
-#: src/Admin/SettingsPage.php:204
+#: src/Admin/SettingsPage.php:206
 msgid "Ohne diese Option führen Personen mit Freigabeberechtigung eigene Erstattungen über dem Betrag sofort aus. Mit der Option wartet jede Erstattung über dem Betrag auf die Freigabe einer anderen berechtigten Person."
 msgstr "Sans cette option, les personnes habilitées à valider exécutent immédiatement leurs propres remboursements au-delà de ce montant. Avec l’option, chaque remboursement au-delà de ce montant attend la validation d’une autre personne habilitée."
 
-#: src/Admin/SettingsPage.php:205
+#: src/Admin/SettingsPage.php:207
 msgid "Zwei-Faktor-Anmeldung für Erstattungen verlangen"
 msgstr "Exiger l’authentification à deux facteurs pour les remboursements"
 
-#: src/Admin/SettingsPage.php:206
+#: src/Admin/SettingsPage.php:208
 msgid "Doppelzahlungen und Zahlungen auf stornierte/abgelaufene Bestellungen automatisch erstatten"
 msgstr "Rembourser automatiquement les doubles paiements et les paiements de commandes annulées/expirées"
 
-#: src/Admin/SettingsPage.php:206
+#: src/Admin/SettingsPage.php:208
 msgid "Standard aus: Die Fälle erscheinen im Systemstatus und werden manuell geklärt. Eingeschaltet erstattet ein Hintergrund-Job den Betrag beim Zahlungsanbieter."
 msgstr "Désactivé par défaut : les cas apparaissent dans l’état du système et sont traités manuellement. Si l’option est activée, une tâche en arrière-plan rembourse le montant auprès du prestataire de paiement."
 
-#: src/Admin/SettingsPage.php:207
+#: src/Admin/SettingsPage.php:209
 msgid "Nach einer Terminverschiebung Erstattungsantrag im Bestellportal erlauben"
 msgstr "Autoriser les demandes de remboursement dans le portail de commande après le report d’une date"
 
-#: src/Admin/SettingsPage.php:207
+#: src/Admin/SettingsPage.php:209
 msgid "Ticketinhaber:innen können bis zur Frist eine Erstattung beantragen; jeder Antrag braucht eine Freigabe unter „Erstattungen“."
 msgstr "Les titulaires de billets peuvent demander un remboursement jusqu’à l’échéance ; chaque demande doit être validée sous « Remboursements »."
 
-#: src/Admin/SettingsPage.php:208
+#: src/Admin/SettingsPage.php:210
 msgid "Antragsfrist: Stunden vor dem neuen Termin"
 msgstr "Délai de demande : heures avant la nouvelle date"
 
-#: src/Admin/SettingsPage.php:208
+#: src/Admin/SettingsPage.php:210
 msgid "0 = bis zum Beginn des neuen Termins."
 msgstr "0 = jusqu’au début de la nouvelle date."
 
-#: src/Admin/SettingsPage.php:209
+#: src/Admin/SettingsPage.php:211
 msgid "Erstattungshinweis in der Verschiebungs-Mail"
 msgstr "Mention de remboursement dans l’e-mail de report"
 
-#: src/Admin/SettingsPage.php:209
+#: src/Admin/SettingsPage.php:211
 msgid "Platzhalter {refund_deadline} (Frist). Leer = Hinweis an den Veranstalter wenden. Kein Rechtsrat – Rücktrittsrechte bei erheblicher Verschiebung bitte prüfen."
 msgstr "Variable {refund_deadline} (échéance). Vide = mention invitant à contacter l’organisateur. Pas un conseil juridique – veuillez vérifier les droits de résiliation en cas de report important."
 
-#: src/Admin/SettingsPage.php:210
+#: src/Admin/SettingsPage.php:212
 msgid "Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)"
 msgstr "Demandes d’annulation dans le portail de commande jusqu’à (heures avant le début)"
 
-#: src/Admin/SettingsPage.php:210
+#: src/Admin/SettingsPage.php:212
 msgid "0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe."
 msgstr "0 = désactivé. Les acheteurs peuvent demander jusqu’à ce délai l’annulation avec remboursement de tickets valides et non utilisés (sauf billets gratuits et commandes WooCommerce). Chaque demande attend une décision sous « Remboursements en attente de validation » ; le versement n’a lieu qu’après la validation."
 
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:219
 msgid "0 = keine. Gilt im eigenen Online-Checkout für kostenpflichtige Tickets; je Ticketart abweichend einstellbar. Nicht bei Kasse, WooCommerce, Partnern, Freikarten und Servicebuchungen."
 msgstr "0 = aucuns. S’applique aux tickets payants dans votre propre paiement en ligne ; peut être réglé différemment pour chaque type de ticket. Pas pour la caisse, WooCommerce, les partenaires, les billets gratuits et les réservations de service."
 
-#: src/Admin/SettingsPage.php:218
+#: src/Admin/SettingsPage.php:220
 #: src/ServiceFee.php:422
 msgid "Servicegebühr je Bestellung"
 msgstr "Frais de service par commande"
 
-#: src/Admin/SettingsPage.php:218
+#: src/Admin/SettingsPage.php:220
 msgid "0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout; Käufer sehen sie als „Bearbeitungsgebühr je Bestellung“ neben den Preisen."
 msgstr "0 = aucuns. Une fois par commande payante dans votre propre paiement en ligne ; les acheteurs les voient comme « frais de traitement par commande » à côté des prix."
 
-#: src/Admin/SettingsPage.php:221
+#: src/Admin/SettingsPage.php:223
 msgid "Steuer der Servicegebühr"
 msgstr "TVA des frais de service"
 
-#: src/Admin/SettingsPage.php:223
+#: src/Admin/SettingsPage.php:225
 msgid "wie das Ticket (Nebenleistung)"
 msgstr "comme le ticket (prestation accessoire)"
 
-#: src/Admin/SettingsPage.php:224
+#: src/Admin/SettingsPage.php:226
 msgid "eigenes Steuerprofil"
 msgstr "profil fiscal propre"
 
-#: src/Admin/SettingsPage.php:226
+#: src/Admin/SettingsPage.php:228
 msgid "„Wie das Ticket“: Steuersatz und Steuerprofil der zugehörigen Ticketposition. „Eigenes Steuerprofil“: Steuerklasse unten, Satz aus dem aktiven Steuerprofil des Leistungsorts. Gilt für neue Bestellungen; Rechnungen, Fiskalbelege und Berichte folgen der Bestellzeile."
 msgstr "« Comme le ticket » : taux de TVA et profil fiscal de la ligne de ticket correspondante. « Profil fiscal propre » : catégorie fiscale ci-dessous, taux issu du profil fiscal actif du lieu de prestation. S’applique aux nouvelles commandes ; les factures, reçus fiscaux et rapports suivent la ligne de commande."
 
-#: src/Admin/SettingsPage.php:230
+#: src/Admin/SettingsPage.php:232
 msgid "Steuerklasse der Servicegebühr"
 msgstr "Catégorie fiscale des frais de service"
 
-#: src/Admin/SettingsPage.php:232
+#: src/Admin/SettingsPage.php:234
 msgid "Nur bei „eigenes Steuerprofil“. Steuerprofile je Land und Steuerklasse unter Verkauf → Steuerprofile anlegen und freigeben."
 msgstr "Uniquement avec « profil fiscal propre ». Créez et validez les profils fiscaux par pays et catégorie fiscale sous Vente → Profils fiscaux."
 
-#: src/Admin/SettingsPage.php:236
+#: src/Admin/SettingsPage.php:238
 msgid "Steuersatz der Servicegebühr ohne passendes Steuerprofil (%)"
 msgstr "Taux de TVA des frais de service sans profil fiscal correspondant (%)"
 
-#: src/Admin/SettingsPage.php:237
+#: src/Admin/SettingsPage.php:239
 msgid "Nur bei „eigenes Steuerprofil“, wenn für Leistungsort und Steuerklasse kein aktives Profil gilt. Leer = Satz der Ticketposition."
 msgstr "Uniquement avec « profil fiscal propre », si aucun profil actif ne s’applique au lieu de prestation et à la catégorie fiscale. Vide = taux de la ligne de ticket."
 
-#: src/Admin/SettingsPage.php:242
+#: src/Admin/SettingsPage.php:244
 msgid "Servicegebühr bei Erstattung auf Käuferwunsch"
 msgstr "Frais de service en cas de remboursement à la demande de l’acheteur"
 
-#: src/Admin/SettingsPage.php:247
+#: src/Admin/SettingsPage.php:249
 msgid "Für Erstattungen, die nicht durch eine Absage verursacht sind (Stornierungsanfrage im Bestellportal, Erstattung durch das Team ohne Absage). Bei Absage eines Termins oder Events durch den Veranstalter wird die Gebühr immer erstattet."
 msgstr "Pour les remboursements qui ne résultent pas d’une annulation (demande d’annulation dans le portail de commande, remboursement par l’équipe sans annulation). Si l’organisateur annule une date ou un événement, les frais sont toujours remboursés."
 
-#: src/Admin/SettingsPage.php:249
+#: src/Admin/SettingsPage.php:251
 msgid "Servicegebühr an Partner weitergeben"
 msgstr "Reverser les frais de service aux partenaires"
 
-#: src/Admin/SettingsPage.php:249
+#: src/Admin/SettingsPage.php:251
 msgid "Standard aus: Die Servicegebühr ist Umsatz des Betreibers und zählt in Partnerabrechnungen und in der Deal-Basis des Abrechnungsblatts nicht als Veranstaltererlös; beide weisen sie getrennt aus. Eingeschaltet zählt sie wie der Ticketpreis zum Veranstaltererlös."
 msgstr "Désactivé par défaut : les frais de service constituent le chiffre d’affaires de l’exploitant et ne comptent pas comme recettes de l’organisateur dans les décomptes des partenaires ni dans la base du deal de la feuille de décompte ; tous deux les présentent séparément. Activés, ils comptent comme le prix du ticket dans les recettes de l’organisateur."
 
-#: src/Admin/SettingsPage.php:251
+#: src/Admin/SettingsPage.php:253
 msgid "Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket – bei Absage immer, auf Käuferwunsch nach der Einstellung unten. Rechtliche und steuerliche Einordnung bitte mit der Steuerberatung prüfen."
 msgstr "Ligne distincte dans la commande, la facture et les rapports. En cas de remboursement, les frais par ticket sont remboursés avec le ticket, les frais par commande avec le dernier ticket – toujours en cas d’annulation, à la demande de l’acheteur selon le réglage ci-dessous. Veuillez faire vérifier la qualification juridique et fiscale par votre conseiller fiscal."
 
-#: src/Admin/SettingsPage.php:254
+#: src/Admin/SettingsPage.php:256
 msgid "Gutscheine"
 msgstr "Bons"
 
-#: src/Admin/SettingsPage.php:259
+#: src/Admin/SettingsPage.php:261
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
 msgstr "Traiter les bons par défaut comme des bons à usages multiples"
 
-#: src/Admin/SettingsPage.php:261
+#: src/Admin/SettingsPage.php:263
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
 msgstr "Oui – bon à usages multiples (moyen de paiement, TVA exigible lors de l’utilisation)"
 
-#: src/Admin/SettingsPage.php:262
+#: src/Admin/SettingsPage.php:264
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr "Non – bon à usage unique (TVA déjà exigible lors de la vente du bon)"
 
-#: src/Admin/SettingsPage.php:264
+#: src/Admin/SettingsPage.php:266
 msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären."
 msgstr "S’applique uniquement si Voucher Captain ne communique pas de type pour le bon. Bon à usages multiples : les tickets conservent leur prix et leur TVA intégraux, et le bon figure sur la facture comme moyen de paiement. Bon à usage unique (lieu de la prestation et taux de TVA connus lors de la vente, p. ex. bon pour un événement précis en Allemagne ou en Autriche) : la TVA a déjà été acquittée lors de la vente du bon, et son utilisation réduit le prix. En cas de doute, consultez votre conseiller fiscal."
 
-#: src/Admin/SettingsPage.php:269
-#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:271
+#: src/Admin/SettingsPage.php:429
 msgid "Datenschutz"
 msgstr "Confidentialité"
 
-#: src/Admin/SettingsPage.php:272
+#: src/Admin/SettingsPage.php:274
 msgid "Teilnehmerdaten nach dem Event löschen nach (Tagen)"
 msgstr "Supprimer les données des participants après l’événement au bout de (jours)"
 
-#: src/Admin/SettingsPage.php:272
+#: src/Admin/SettingsPage.php:274
 msgid "0 = Feldeinstellung verwenden."
 msgstr "0 = utiliser le réglage du champ."
 
-#: src/Admin/SettingsPage.php:273
+#: src/Admin/SettingsPage.php:275
 msgid "Teilnehmerdaten änderbar bis (Stunden vor Beginn)"
 msgstr "Données des participants modifiables jusqu’à (heures avant le début)"
 
-#: src/Admin/SettingsPage.php:274
+#: src/Admin/SettingsPage.php:276
 msgid "E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)"
 msgstr "Pseudonymiser les adresses e-mail des commandes jamais payées après (jours)"
 
-#: src/Admin/SettingsPage.php:274
-#: src/Admin/SettingsPage.php:283
+#: src/Admin/SettingsPage.php:276
+#: src/Admin/SettingsPage.php:285
 msgid "0 = nie."
 msgstr "0 = jamais."
 
-#: src/Admin/SettingsPage.php:275
+#: src/Admin/SettingsPage.php:277
 msgid "Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)"
 msgstr "Supprimer le contenu et le destinataire des messages envoyés après (jours)"
 
-#: src/Admin/SettingsPage.php:276
+#: src/Admin/SettingsPage.php:278
 msgid "Versandprotokoll der Nachrichten löschen nach (Tagen)"
 msgstr "Supprimer le journal d’envoi des messages après (jours)"
 
-#: src/Admin/SettingsPage.php:277
+#: src/Admin/SettingsPage.php:279
 msgid "Personal und Gerät an Check-ins entfernen nach (Tagen)"
 msgstr "Retirer le personnel et l’appareil des enregistrements d’entrée après (jours)"
 
-#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:280
 msgid "Protokolleinträge (Audit-Log) löschen nach (Tagen)"
 msgstr "Supprimer les entrées du journal d’audit après (jours)"
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:281
 msgid "Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)"
 msgstr "Supprimer les codes des tickets vendus par les partenaires (jours après la date)"
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:281
 msgid "0 = direkt nach Ende des Termins."
 msgstr "0 = juste après la fin de la date."
 
-#: src/Admin/SettingsPage.php:280
+#: src/Admin/SettingsPage.php:282
 msgid "Rechnungen und Rechnungskorrekturen löschen nach (Jahren)"
 msgstr "Supprimer les factures et factures rectificatives après (années)"
 
-#: src/Admin/SettingsPage.php:280
+#: src/Admin/SettingsPage.php:282
 msgid "0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert."
 msgstr "0 = ne jamais supprimer. Le délai court à partir de la fin de l’année d’émission. Respectez les durées légales de conservation (p. ex. Autriche 7 ans, Allemagne 8 ou 10 ans) et archivez d’abord les pièces dans votre système comptable. Les données de l’acheteur des commandes concernées sont alors pseudonymisées."
 
-#: src/Admin/SettingsPage.php:281
+#: src/Admin/SettingsPage.php:283
 msgid "Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)"
 msgstr "Supprimer les données de l’acheteur des commandes après (années à compter de la fin de l’année de commande)"
 
-#: src/Admin/SettingsPage.php:281
+#: src/Admin/SettingsPage.php:283
 msgid "Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; deren Löschung nach Fristablauf entscheiden Sie selbst (laufende Prüfungen verlängern die Frist). 0 = nie."
 msgstr "Durée légale de conservation des pièces comptables : Allemagne 10 ans (§ 147 AO, § 257 HGB), Autriche 7 ans (§ 132 BAO). Ensuite, l’e-mail de l’acheteur, l’adresse de facturation et les données des participants de la commande, de ses billets et de ses réservations de rendez-vous sont supprimés. Montants, lignes, remboursements, factures, avoirs et justificatifs fiscaux restent inchangés ; c’est vous qui décidez de leur suppression après ce délai (un contrôle en cours le prolonge). 0 = jamais."
 
-#: src/Admin/SettingsPage.php:282
+#: src/Admin/SettingsPage.php:284
 msgid "Wartelisteneinträge nach dem Termin anonymisieren nach (Tagen)"
 msgstr "Anonymiser les inscriptions en liste d’attente après la date au bout de (jours)"
 
-#: src/Admin/SettingsPage.php:282
+#: src/Admin/SettingsPage.php:284
 msgid "Gilt für Event- und Termin-Wartelisten. 0 = nie."
 msgstr "S’applique aux listes d’attente des événements et des rendez-vous. 0 = jamais."
 
-#: src/Admin/SettingsPage.php:283
+#: src/Admin/SettingsPage.php:285
 msgid "Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)"
 msgstr "Anonymiser les cartes de membre après leur expiration au bout de (jours)"
 
-#: src/Admin/SettingsPage.php:287
+#: src/Admin/SettingsPage.php:289
 msgid "E-Mail-Versand"
 msgstr "Envoi des e-mails"
 
-#: src/Admin/SettingsPage.php:290
+#: src/Admin/SettingsPage.php:292
 msgid "Absenderadresse"
 msgstr "Adresse de l’expéditeur"
 
-#: src/Admin/SettingsPage.php:290
+#: src/Admin/SettingsPage.php:292
 msgid "Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@ihre-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. Ihren SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang."
 msgstr "Expéditeur (From) et expéditeur d’enveloppe (Return-Path) de tous les e-mails clients, p. ex. tickets@votre-domaine.fr. Le domaine doit être celui du site et être autorisé via SPF, DKIM et DMARC pour l’envoi par ce serveur ou votre service SMTP. Vide : valeur par défaut de WordPress (wordpress@…). Une extension SMTP qui impose son propre expéditeur est prioritaire."
 
-#: src/Admin/SettingsPage.php:291
+#: src/Admin/SettingsPage.php:293
 msgid "Absendername"
 msgstr "Nom de l’expéditeur"
 
-#: src/Admin/SettingsPage.php:291
+#: src/Admin/SettingsPage.php:293
 msgid "Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain)."
 msgstr "Nom que les acheteurs voient comme expéditeur. Vide = nom / société de l’émetteur des factures, sinon le nom du site. L’adresse d’expédition elle-même provient de WordPress ou du plugin SMTP (en accord avec le SPF/DKIM du domaine)."
 
-#: src/Admin/SettingsPage.php:292
+#: src/Admin/SettingsPage.php:294
 msgid "Antwort an (E-Mail-Adresse)"
 msgstr "Répondre à (adresse e-mail)"
 
-#: src/Admin/SettingsPage.php:292
+#: src/Admin/SettingsPage.php:294
 msgid "Antworten der Käufer gehen an diese Adresse. Leer = die Absenderadresse; ist keine eigene Absenderadresse gesetzt, die Administrator-E-Mail der Website."
 msgstr "Les réponses des acheteurs sont envoyées à cette adresse. Vide = l’adresse d’expédition ; si aucune adresse d’expédition propre n’est définie, l’e-mail administrateur du site."
 
-#: src/Admin/SettingsPage.php:293
+#: src/Admin/SettingsPage.php:295
 msgid "Betriebsalarme an"
 msgstr "Alertes d'exploitation à"
 
-#: src/Admin/SettingsPage.php:293
+#: src/Admin/SettingsPage.php:295
 msgid "Hinweise, die ein Eingreifen erfordern (Erstattung wartet auf Freigabe, Zahlung prüfen, bezahlte Bestellung ohne Tickets, Webhook deaktiviert …). Leer = die Administrator-E-Mail der Website. Die letzten Alarme stehen auch im Systemstatus."
 msgstr "Avis nécessitant une intervention (remboursement en attente d'approbation, paiement à vérifier, commande payée sans billets, webhook désactivé…). Vide = l'e-mail administrateur du site. Les dernières alertes figurent aussi dans l'état du système."
 
-#: src/Admin/SettingsPage.php:294
+#: src/Admin/SettingsPage.php:296
 msgid "Bounce-/Beschwerde-Webhook des Versanddienstes annehmen"
 msgstr "Accepter le webhook de bounces/plaintes du service d’envoi"
 
 #. translators: %s: webhook URL with token
-#: src/Admin/SettingsPage.php:296
+#: src/Admin/SettingsPage.php:298
 #, php-format
 msgid "Diese URL beim Versanddienst (Postmark, SendGrid, Mailgun, Amazon SES/SNS) als Webhook für Bounces und Spam-Beschwerden eintragen: %s – unzustellbare Mails werden als fehlgeschlagen markiert und bei der Bestellung angezeigt; nach einer Beschwerde gehen keine Erinnerungen mehr an die Adresse. Die URL enthält ein geheimes Token."
 msgstr "Saisissez cette URL auprès du service d’envoi (Postmark, SendGrid, Mailgun, Amazon SES/SNS) comme webhook pour les bounces et les plaintes pour spam : %s – les e-mails non distribuables sont marqués comme en échec et affichés dans la commande ; après une plainte, plus aucun rappel n’est envoyé à l’adresse. L’URL contient un jeton secret."
 
-#: src/Admin/SettingsPage.php:297
+#: src/Admin/SettingsPage.php:299
 msgid "Nach dem Aktivieren erscheint hier die Webhook-URL (mit geheimem Token) für den Versanddienst."
 msgstr "Après l’activation, l’URL du webhook (avec jeton secret) pour le service d’envoi s’affiche ici."
 
-#: src/Admin/SettingsPage.php:298
+#: src/Admin/SettingsPage.php:300
 msgid "Geplante Mails je Minute (höchstens)"
 msgstr "E-mails planifiés par minute (maximum)"
 
-#: src/Admin/SettingsPage.php:298
+#: src/Admin/SettingsPage.php:300
 msgid "0 = ohne Begrenzung. Begrenzt Erinnerungen und andere Mails aus der Warteschlange auf das Limit deines Mail-Anbieters; der Rest geht in den nächsten Läufen hinaus. Meldet der Anbieter ein Limit, wird die Mail später erneut versucht statt verworfen."
 msgstr "0 = sans limite. Limite les rappels et autres e-mails de la file d’attente à la limite de votre fournisseur de messagerie ; le reste part lors des exécutions suivantes. Si le fournisseur signale une limite, l’e-mail est réessayé plus tard au lieu d’être abandonné."
 
-#: src/Admin/SettingsPage.php:302
+#: src/Admin/SettingsPage.php:304
 #: src/Partners/Settlements.php:1049
 msgid "Rechnungssteller"
 msgstr "Émetteur de la facture"
 
-#: src/Admin/SettingsPage.php:305
+#: src/Admin/SettingsPage.php:307
 msgid "Name / Firma"
 msgstr "Nom / Société"
 
-#: src/Admin/SettingsPage.php:306
+#: src/Admin/SettingsPage.php:308
 msgid "Anschrift"
 msgstr "Adresse"
 
-#: src/Admin/SettingsPage.php:307
+#: src/Admin/SettingsPage.php:309
 #: src/Partners/AdminPage.php:331
 msgid "USt-IdNr."
 msgstr "N° de TVA"
 
-#: src/Admin/SettingsPage.php:308
+#: src/Admin/SettingsPage.php:310
 #: src/Partners/AdminPage.php:593
 msgid "Steuernummer"
 msgstr "Numéro fiscal"
 
-#: src/Admin/SettingsPage.php:308
+#: src/Admin/SettingsPage.php:310
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
 msgstr "Mention obligatoire sur les factures lorsqu’aucun numéro de TVA n’est indiqué."
 
-#: src/Admin/SettingsPage.php:309
+#: src/Admin/SettingsPage.php:311
 msgid "Land (ISO-Code, z. B. DE oder AT)"
 msgstr "Pays (code ISO, p. ex. DE ou AT)"
 
-#: src/Admin/SettingsPage.php:309
+#: src/Admin/SettingsPage.php:311
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile)."
 msgstr "Utilisé pour la vérification de l’autoliquidation pour les organisateurs établis dans un autre pays de l’UE et considéré comme lieu de la prestation pour les dates sans pays de l’événement propre (profils fiscaux)."
 
-#: src/Admin/SettingsPage.php:310
+#: src/Admin/SettingsPage.php:312
 msgid "Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)"
 msgstr "Principe des quatre yeux pour les profils fiscaux (la personne qui crée ou modifie un profil ne peut pas l’activer elle-même ; administrateurs exceptés)"
 
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:313
 msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
 msgstr "Petite entreprise (pas de TVA sur les propres factures)"
 
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:313
 msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
 msgstr "Les factures de la plateforme portent alors la mention petite entreprise et sont refusées tant que des types de billets contiennent de la TVA (créer les types de billets à 0 %)."
 
-#: src/Admin/SettingsPage.php:312
+#: src/Admin/SettingsPage.php:314
 msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
 msgstr "Mention petite entreprise (vide = texte par défaut du pays)"
 
-#: src/Admin/SettingsPage.php:312
+#: src/Admin/SettingsPage.php:314
 msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
 msgstr "DE : « Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. » – AT : « Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG. »"
 
-#: src/Admin/SettingsPage.php:313
+#: src/Admin/SettingsPage.php:315
 msgid "Präfix Rechnungsnummer"
 msgstr "Préfixe du numéro de facture"
 
-#: src/Admin/SettingsPage.php:314
+#: src/Admin/SettingsPage.php:316
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
 msgstr "Demander le nom et l’adresse lors du paiement à partir d’un montant de commande de (0 = jamais ; DE : 250 €, AT : 400 €)"
 
-#: src/Admin/SettingsPage.php:315
+#: src/Admin/SettingsPage.php:317
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
 msgstr "Préfixe de correction de facture (document d’annulation / de correction)"
 
-#: src/Admin/SettingsPage.php:316
+#: src/Admin/SettingsPage.php:318
 msgid "Rechnung nach Zahlung automatisch erstellen"
 msgstr "Créer automatiquement la facture après le paiement"
 
-#: src/Admin/SettingsPage.php:317
+#: src/Admin/SettingsPage.php:319
 msgid "Kontenrahmen für den DATEV-Buchungsstapel"
 msgstr "Plan comptable du lot d'écritures DATEV"
 
-#: src/Admin/SettingsPage.php:317
+#: src/Admin/SettingsPage.php:319
 msgid "SKR03 (Erlöse 8400/8300, Geldtransit 1360)"
 msgstr "SKR03 (produits 8400/8300, fonds en transit 1360)"
 
-#: src/Admin/SettingsPage.php:317
+#: src/Admin/SettingsPage.php:319
 msgid "SKR04 (Erlöse 4400/4300, Geldtransit 1460)"
 msgstr "SKR04 (produits 4400/4300, fonds en transit 1460)"
 
-#: src/Admin/SettingsPage.php:317
+#: src/Admin/SettingsPage.php:319
 msgid "Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts."
 msgstr "Comptes propres, codes de TVA et un compte par prestataire de paiement via le filtre wpcap_datev_accounts."
 
-#: src/Admin/SettingsPage.php:318
+#: src/Admin/SettingsPage.php:320
 msgid "Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)"
 msgstr "Compte de trésorerie du lot (vide = fonds en transit du plan)"
 
-#: src/Admin/SettingsPage.php:318
+#: src/Admin/SettingsPage.php:320
 msgid "4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters."
 msgstr "4 à 8 chiffres, p. ex. le compte de compensation du prestataire de paiement."
 
-#: src/Admin/SettingsPage.php:322
+#: src/Admin/SettingsPage.php:324
 #: src/Security/Policy.php:90
 msgid "Sicherheit"
 msgstr "Sécurité"
 
-#: src/Admin/SettingsPage.php:325
+#: src/Admin/SettingsPage.php:327
 msgid "Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)"
 msgstr "Autoriser un service fiscal local (HTTP vers des adresses loopback/privées)"
 
-#: src/Admin/SettingsPage.php:325
+#: src/Admin/SettingsPage.php:327
 msgid "Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden."
 msgstr "Uniquement pour un service fiscal sur le même serveur ou dans le réseau local (p. ex. efsta EFR à l’adresse http://127.0.0.1:5618). Toutes les autres connexions sortantes vers des cibles configurables doivent utiliser HTTPS vers des adresses publiques."
 
-#: src/Admin/SettingsPage.php:329
+#: src/Admin/SettingsPage.php:331
 msgid "Support und Fehlersuche"
 msgstr "Support et dépannage"
 
-#: src/Admin/SettingsPage.php:332
+#: src/Admin/SettingsPage.php:334
 msgid "Fehlersuche-Protokoll (Debug-Modus) für 24 Stunden einschalten"
 msgstr "Activer le journal de dépannage (mode débogage) pendant 24 heures"
 
-#: src/Admin/SettingsPage.php:332
+#: src/Admin/SettingsPage.php:334
 msgid "Speichert zusätzlich ausführliche Diagnose-Einträge im Support-Protokoll (Betrieb → Support-Protokoll). Schaltet sich 24 Stunden nach dem Einschalten von selbst ab; zum erneuten Einschalten aus- und wieder einschalten. Fehler und Warnungen werden immer protokolliert. Geheimnisse, Ticketcodes und E-Mail-Adressen werden nie gespeichert. Die Konstante WPCAP_DEBUG in wp-config.php hat Vorrang."
 msgstr "Enregistre en plus des entrées de diagnostic détaillées dans le journal de support (Exploitation → Journal de support). Se désactive automatiquement 24 heures après l’activation ; pour le réactiver, désactivez-le puis réactivez-le. Les erreurs et les avertissements sont toujours journalisés. Les secrets, codes de ticket et adresses e-mail ne sont jamais enregistrés. La constante WPCAP_DEBUG dans wp-config.php a la priorité."
 
-#: src/Admin/SettingsPage.php:336
+#: src/Admin/SettingsPage.php:338
 msgid "Deinstallation"
 msgstr "Désinstallation"
 
-#: src/Admin/SettingsPage.php:339
+#: src/Admin/SettingsPage.php:341
 msgid "Beim Löschen des Plugins alle Daten entfernen"
 msgstr "Supprimer toutes les données lors de la suppression du plugin"
 
-#: src/Admin/SettingsPage.php:339
+#: src/Admin/SettingsPage.php:341
 msgid "Achtung: Events, Bestellungen, Tickets, Rechnungen, Rechnungskorrekturen, Kassen- und Fiskalbelege werden beim Löschen des Plugins unwiderruflich gelöscht. Rechnungen und Buchungsbelege unterliegen gesetzlichen Aufbewahrungspflichten (DE 10 Jahre, AT 7 Jahre): vorher Rechnungen und das Fiskal-Archiv exportieren und sicher aufbewahren."
 msgstr "Attention : la suppression de l’extension efface définitivement événements, commandes, billets, factures, factures rectificatives, tickets de caisse et justificatifs fiscaux. Les factures et pièces comptables sont soumises à des durées légales de conservation (DE 10 ans, AT 7 ans) : exportez au préalable les factures et l’archive fiscale et conservez-les en lieu sûr."
 
-#: src/Admin/SettingsPage.php:407
+#: src/Admin/SettingsPage.php:409
 msgid "Weitere Einstellungen"
 msgstr "Autres réglages"
 
-#: src/Admin/SettingsPage.php:422
+#: src/Admin/SettingsPage.php:424
 #: src/WalletPasses/AdminPage.php:180
 msgid "Allgemein"
 msgstr "Général"
 
-#: src/Admin/SettingsPage.php:424
+#: src/Admin/SettingsPage.php:426
 msgid "Zahlungsarten"
 msgstr "Modes de paiement"
 
-#: src/Admin/SettingsPage.php:426
+#: src/Admin/SettingsPage.php:428
 msgid "Rechnungen"
 msgstr "Factures"
 
-#: src/Admin/SettingsPage.php:428
+#: src/Admin/SettingsPage.php:430
 msgid "Erweitert"
 msgstr "Avancé"
 
-#: src/Admin/SettingsPage.php:529
+#: src/Admin/SettingsPage.php:532
 msgid "Neuen Wert eingeben, um ihn zu ersetzen – leer lassen, um beizubehalten"
 msgstr "Saisissez une nouvelle valeur pour la remplacer – laissez vide pour la conserver"
 
-#: src/Admin/SettingsPage.php:529
+#: src/Admin/SettingsPage.php:532
 #: src/Secrets.php:480
 msgid "Nicht gesetzt"
 msgstr "Non défini"
 
 #. translators: %s: masked value, e.g. ••••1234
-#: src/Admin/SettingsPage.php:535
+#: src/Admin/SettingsPage.php:538
 #, php-format
 msgid "gespeichert %s"
 msgstr "enregistré %s"
 
-#: src/Admin/SettingsPage.php:537
+#: src/Admin/SettingsPage.php:540
 msgid "Gespeicherter Wert kann nicht entschlüsselt werden – bitte neu eingeben"
 msgstr "La valeur enregistrée ne peut pas être déchiffrée – veuillez la saisir à nouveau"
 
-#: src/Admin/SettingsPage.php:539
+#: src/Admin/SettingsPage.php:542
 #: src/Secrets.php:458
 msgid "Kein Wert gespeichert"
 msgstr "Aucune valeur enregistrée"
 
-#: src/Admin/SettingsPage.php:542
+#: src/Admin/SettingsPage.php:545
 msgid "Gespeicherten Wert entfernen"
 msgstr "Supprimer la valeur enregistrée"
 
@@ -9551,15 +9566,15 @@ msgstr "« %s » n’est pas un montant valide."
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "« %s » n’est pas une adresse e-mail valide."
 
-#: src/Admin/SettingsPage.php:637
+#: src/Admin/SettingsPage.php:643
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen."
 msgstr "« Supprimer toutes les données lors de la suppression de l’extension » n’a pas été activé : saisissez LÖSCHEN ou DELETE pour confirmer."
 
-#: src/Admin/SettingsPage.php:687
+#: src/Admin/SettingsPage.php:693
 msgid "Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen."
 msgstr "L’acceptation lors du paiement est active, mais aucun texte de CGV n’est enregistré pour la langue par défaut. Les acheteurs devraient accepter des conditions qu’ils ne voient pas – veuillez saisir les CGV/conditions de participation."
 
-#: src/Admin/SettingsPage.php:730
+#: src/Admin/SettingsPage.php:736
 #: src/Admission/RulesPage.php:122
 #: src/Allocations/AdminPage.php:188
 #: src/BoxOffice/Page.php:560
@@ -9572,147 +9587,147 @@ msgstr "L’acceptation lors du paiement est active, mais aucun texte de CGV n�
 msgid "Einstellungen gespeichert."
 msgstr "Réglages enregistrés."
 
-#: src/Admin/SettingsPage.php:766
+#: src/Admin/SettingsPage.php:772
 msgid "Pass Captain Einstellungen"
 msgstr "Réglages de Pass Captain"
 
-#: src/Admin/SettingsPage.php:773
+#: src/Admin/SettingsPage.php:779
 msgid "Einstellungsbereiche"
 msgstr "Sections des réglages"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:804
+#: src/Admin/SettingsPage.php:816
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "Les textes suivants s’appliquent à la langue par défaut (%s) et à toute langue sans version propre."
 
-#: src/Admin/SettingsPage.php:816
+#: src/Admin/SettingsPage.php:828
 #: src/Partners/AdminPage.php:289
 msgid "Einstellungen speichern"
 msgstr "Enregistrer les réglages"
 
-#: src/Admin/SettingsPage.php:856
+#: src/Admin/SettingsPage.php:868
 msgid "Webhook-URL:"
 msgstr "URL du webhook :"
 
-#: src/Admin/SettingsPage.php:858
+#: src/Admin/SettingsPage.php:870
 msgid "In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:"
 msgstr "Dans l’application PayPal, sous « Webhooks », créez un webhook avec cette URL et ces événements ; saisissez ci-dessous le Webhook ID affiché :"
 
-#: src/Admin/SettingsPage.php:858
+#: src/Admin/SettingsPage.php:870
 msgid "Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:"
 msgstr "Dans le tableau de bord Stripe, sous Développeurs → Webhooks, créez un point de terminaison avec cette URL et ces événements ; saisissez ci-dessous le secret de signature affiché :"
 
 #. translators: %s: field names
-#: src/Admin/SettingsPage.php:866
+#: src/Admin/SettingsPage.php:878
 #, php-format
 msgid "Noch nicht vollständig eingerichtet. Es fehlen: %s."
 msgstr "Pas encore entièrement configuré. Éléments manquants : %s."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:867
+#: src/Admin/SettingsPage.php:879
 #, php-format
 msgid "%s wird im Checkout erst danach angeboten."
 msgstr "%s ne sera proposé lors du paiement qu’ensuite."
 
-#: src/Admin/SettingsPage.php:874
-#: src/Admin/SettingsPage.php:878
+#: src/Admin/SettingsPage.php:886
+#: src/Admin/SettingsPage.php:890
 msgid "Verbindung testen"
 msgstr "Tester la connexion"
 
-#: src/Admin/SettingsPage.php:875
+#: src/Admin/SettingsPage.php:887
 msgid "Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern."
 msgstr "Vérifie avec les identifiants enregistrés la connexion auprès du prestataire et si le webhook est configuré avec cette URL et tous les événements nécessaires. Rien n’est modifié ; enregistrez d’abord."
 
-#: src/Admin/SettingsPage.php:892
+#: src/Admin/SettingsPage.php:904
 msgid "Für diese Zahlungsart gibt es keinen Verbindungstest."
 msgstr "Aucun test de connexion n’existe pour ce mode de paiement."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:942
+#: src/Admin/SettingsPage.php:954
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "Proposer %s lors du paiement"
 
-#: src/Admin/SettingsPage.php:944
-#: src/Admin/SettingsPage.php:1022
+#: src/Admin/SettingsPage.php:956
+#: src/Admin/SettingsPage.php:1034
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(configuration incomplète)"
 
-#: src/Admin/SettingsPage.php:953
+#: src/Admin/SettingsPage.php:965
 msgid "Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen."
 msgstr "Mode test actif : aucun paiement réel n’est encaissé. Les acheteurs voient la mention « Mode test » lors du paiement. Pour vendre, passez en « Live » et renseignez les identifiants live."
 
-#: src/Admin/SettingsPage.php:956
+#: src/Admin/SettingsPage.php:968
 msgid "Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind."
 msgstr "Le virement n’est proposé lors du paiement que lorsque le bénéficiaire (ou l’émetteur des factures) et l’IBAN ou une instruction de paiement sont renseignés."
 
-#: src/Admin/SettingsPage.php:965
-#: src/SettingsSchema.php:336
+#: src/Admin/SettingsPage.php:977
+#: src/SettingsSchema.php:352
 msgid "Rechtstexte je Sprache"
 msgstr "Textes juridiques par langue"
 
-#: src/Admin/SettingsPage.php:966
+#: src/Admin/SettingsPage.php:978
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Les acheteurs voient les textes dans leur langue (langue du site ou de WPML/Polylang). Les champs vides reprennent le texte de la langue par défaut. Chaque langue possède sa propre version, enregistrée avec la commande."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:978
+#: src/Admin/SettingsPage.php:990
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Vide : le texte de %s s’applique."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:985
+#: src/Admin/SettingsPage.php:997
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Version actuelle pour %1$s : %2$s"
 
-#: src/Admin/SettingsPage.php:991
+#: src/Admin/SettingsPage.php:1003
 msgid "Archivierte Fassungen"
 msgstr "Versions archivées"
 
-#: src/Admin/SettingsPage.php:991
+#: src/Admin/SettingsPage.php:1003
 msgid "Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen."
 msgstr "Chaque version qui a été en vigueur reste enregistrée sans modification. Le récapitulatif de la commande indique quelle version s’appliquait à la commande, et son texte peut y être affiché."
 
-#: src/Admin/SettingsPage.php:992
+#: src/Admin/SettingsPage.php:1004
 msgid "Fassung"
 msgstr "Version"
 
-#: src/Admin/SettingsPage.php:992
+#: src/Admin/SettingsPage.php:1004
 #: src/Consents.php:619
 #: src/Mail/Admin.php:234
 msgid "Sprache"
 msgstr "Langue"
 
-#: src/Admin/SettingsPage.php:992
+#: src/Admin/SettingsPage.php:1004
 msgid "Archiviert am"
 msgstr "Archivée le"
 
-#: src/Admin/SettingsPage.php:1000
+#: src/Admin/SettingsPage.php:1012
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Ajouter une autre langue (locale, p. ex. en_US) :"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1028
+#: src/Admin/SettingsPage.php:1040
 #, php-format
 msgid "%s einrichten"
 msgstr "Configurer %s"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:1052
+#: src/Admin/SettingsPage.php:1064
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Version actuelle : %s (enregistrée avec chaque commande)"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:1078
+#: src/Admin/SettingsPage.php:1090
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Remplacé par %s (wp-config.php ou variable d’environnement) ; la valeur enregistrée ici n’est pas utilisée."
 
-#: src/Admin/SettingsPage.php:1084
+#: src/Admin/SettingsPage.php:1096
 msgid "Zum Aktivieren LÖSCHEN eintragen:"
 msgstr "Saisissez LÖSCHEN ou DELETE pour activer :"
 
@@ -10236,6 +10251,7 @@ msgstr "Catégories fiscales utilisées"
 msgid "Keine aktive Ticketart mit Steuerklasse für kommende Termine. Alle Verkäufe verwenden den Steuersatz der Ticketart."
 msgstr "Aucun type de ticket actif avec catégorie fiscale pour les dates à venir. Toutes les ventes utilisent le taux de TVA du type de ticket."
 
+#: src/Admin/SettingsTools.php:287
 #: src/Admin/TaxPage.php:86
 #: src/Admin/TaxPage.php:101
 #: src/Admin/TaxPage.php:138
@@ -10603,6 +10619,7 @@ msgstr "Réessayer les tickets non comptabilisés"
 msgid "Bericht schließen"
 msgstr "Fermer le rapport"
 
+#: src/Admin/SettingsTools.php:339
 #: src/Admin/TicketsPage.php:525
 #: src/OfflineScanner/I18n.php:247
 #: src/OrderPortal.php:125
@@ -11788,14 +11805,17 @@ msgid "Ticketgebühren"
 msgstr "Frais de ticket"
 
 #: src/Billing.php:67
+#: src/CountryPresets.php:52
 msgid "Österreich"
 msgstr "Autriche"
 
 #: src/Billing.php:68
+#: src/CountryPresets.php:36
 msgid "Deutschland"
 msgstr "Allemagne"
 
 #: src/Billing.php:69
+#: src/CountryPresets.php:67
 msgid "Schweiz"
 msgstr "Suisse"
 
@@ -12313,7 +12333,10 @@ msgstr "Caisse « %1$s » · session n° %2$d (depuis %3$s)"
 msgid "Standort %1$d · Kasse %2$s"
 msgstr "Site %1$d · caisse %2$s"
 
+#. translators: %s: setting label
 #. translators: 1: location ID, 2: register ID
+#: src/Admin/SettingsTools.php:262
+#: src/Admin/SettingsTools.php:272
 #: src/BoxOffice/Page.php:270
 #: src/Mail/Admin.php:205
 #: src/Mail/Admin.php:236
@@ -12847,6 +12870,7 @@ msgstr "– personne –"
 msgid "Stückelung zählen (Scheine und Münzen)"
 msgstr "Compter les coupures (billets et pièces)"
 
+#: src/Admin/SettingsTools.php:262
 #: src/BoxOffice/ShiftPage.php:47
 #: src/BoxOffice/ZReport.php:457
 msgid "Wert"
@@ -18161,6 +18185,7 @@ msgstr "Envoyer un e-mail de test"
 msgid "Eigene Vorlage für diese Sprache löschen?"
 msgstr "Supprimer le modèle personnalisé pour cette langue ?"
 
+#: src/Admin/SettingsTools.php:352
 #: src/Mail/Admin.php:265
 msgid "Auf Standard zurücksetzen"
 msgstr "Rétablir les valeurs par défaut"
@@ -22720,6 +22745,7 @@ msgstr "%1$s UTC : manque %2$s %3$s"
 msgid "keiner"
 msgstr "aucun"
 
+#: src/Admin/SettingsTools.php:205
 #: src/Operations/SiteHealth.php:689
 msgid "aus"
 msgstr "désactivé"
@@ -29623,6 +29649,7 @@ msgstr "Catégories"
 msgid "Stehbereiche"
 msgstr "Zones debout"
 
+#: src/Admin/SettingsPage.php:431
 #: src/Seating/AdminPage.php:163
 msgid "Werkzeuge"
 msgstr "Outils"
@@ -29659,6 +29686,7 @@ msgstr "Largeur"
 msgid "Höhe"
 msgstr "Hauteur"
 
+#: src/Admin/SettingsTools.php:297
 #: src/Seating/AdminPage.php:177
 msgid "Übernehmen"
 msgstr "Appliquer"
@@ -30209,6 +30237,7 @@ msgstr "enregistré chiffré"
 msgid "nicht entschlüsselbar"
 msgstr "impossible à déchiffrer"
 
+#: src/Admin/SettingsTools.php:201
 #: src/Secrets.php:562
 msgid "nicht gesetzt"
 msgstr "non défini"
@@ -30689,6 +30718,7 @@ msgstr "Si la case n’est pas cochée, les dates complètes et annulées resten
 msgid "Auswirkungen prüfen"
 msgstr "Vérifier les effets"
 
+#: src/Admin/SettingsTools.php:347
 #: src/Series/AdminPage.php:282
 msgid "Vorschau anzeigen"
 msgstr "Afficher l’aperçu"
@@ -30818,6 +30848,8 @@ msgstr "Passée – sera ignorée"
 msgid "Existiert bereits – wird übersprungen"
 msgstr "Existe déjà – sera ignorée"
 
+#: src/Admin/SettingsTools.php:320
+#: src/Admin/SettingsTools.php:389
 #: src/Series/AdminPage.php:416
 msgid "Neu"
 msgstr "Nouvelle"
@@ -33540,83 +33572,83 @@ msgstr "service"
 msgid "So lange bleiben die gewählten Tickets im Checkout für die Person reserviert; danach werden sie wieder frei."
 msgstr "Durée pendant laquelle les billets choisis restent réservés pour la personne au checkout ; ensuite, ils sont libérés."
 
-#: src/Admin/SettingsPage.php:69
+#: src/Admin/SettingsPage.php:71
 msgid "So viele Rabattcodes darf eine Person in einer Bestellung eingeben."
 msgstr "Nombre maximal de codes de réduction qu’une personne peut saisir dans une commande."
 
-#: src/Admin/SettingsPage.php:136
+#: src/Admin/SettingsPage.php:138
 msgid "Danach muss ein gekoppeltes Scanner-Gerät neu gekoppelt werden."
 msgstr "Ensuite, un appareil scanner associé doit être associé à nouveau."
 
-#: src/Admin/SettingsPage.php:139
+#: src/Admin/SettingsPage.php:141
 msgid "Ab diesem Zeitpunkt vor Beginn nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist."
 msgstr "À partir de ce délai avant le début, le scanner accepte les billets d’une date si la fenêtre d’admission est activée."
 
-#: src/Admin/SettingsPage.php:140
+#: src/Admin/SettingsPage.php:142
 msgid "Bis zu diesem Zeitpunkt nach Ende nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist."
 msgstr "Jusqu’à ce délai après la fin, le scanner accepte les billets d’une date si la fenêtre d’admission est activée."
 
-#: src/Admin/SettingsPage.php:147
+#: src/Admin/SettingsPage.php:149
 msgid "Diese Zahlungsarten stehen im Checkout zur Auswahl; jede braucht zusätzlich ihre Zugangsdaten."
 msgstr "Ces moyens de paiement sont proposés au checkout ; chacun nécessite en plus ses identifiants."
 
-#: src/Admin/SettingsPage.php:158
+#: src/Admin/SettingsPage.php:160
 msgid "BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode."
 msgstr "BIC de la banque pour les virements ; affiché sur la page de paiement et dans le GiroCode."
 
-#: src/Admin/SettingsPage.php:192
+#: src/Admin/SettingsPage.php:194
 msgid "Text, den Käufer im Checkout bestätigen, wenn „AGB bestätigen lassen“ eingeschaltet ist. Rechtlich prüfen lassen."
 msgstr "Texte que les acheteurs confirment au checkout lorsque « Faire accepter les CGV » est activé. À faire vérifier juridiquement."
 
-#: src/Admin/SettingsPage.php:193
+#: src/Admin/SettingsPage.php:195
 msgid "Pflichtinformationen für Verbraucher, verlinkt im Checkout und in der Bestätigung. Rechtlich prüfen lassen."
 msgstr "Informations obligatoires pour les consommateurs, liées au checkout et dans la confirmation. À faire vérifier juridiquement."
 
-#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:197
 msgid "Hinweis im Checkout, dass für Tickets mit festem Termin in der Regel kein Widerrufsrecht besteht. Rechtlich prüfen lassen."
 msgstr "Mention au checkout indiquant que les billets à date fixe ne donnent en général pas droit à rétractation. À faire vérifier juridiquement."
 
-#: src/Admin/SettingsPage.php:273
+#: src/Admin/SettingsPage.php:275
 msgid "Bis zu diesem Zeitpunkt vor Beginn dürfen Käufer Teilnehmerangaben im Bestellportal ändern."
 msgstr "Jusqu’à ce délai avant le début, les acheteurs peuvent modifier les informations des participants dans le portail de commande."
 
-#: src/Admin/SettingsPage.php:275
+#: src/Admin/SettingsPage.php:277
 msgid "Danach werden Betreff, Text und Empfängeradresse versendeter Nachrichten gelöscht; der Versand selbst bleibt protokolliert."
 msgstr "Ensuite, l’objet, le texte et l’adresse du destinataire des messages envoyés sont supprimés ; l’envoi lui-même reste journalisé."
 
-#: src/Admin/SettingsPage.php:276
+#: src/Admin/SettingsPage.php:278
 msgid "Danach werden die Einträge im Versandprotokoll vollständig gelöscht."
 msgstr "Ensuite, les entrées du journal d’envoi sont entièrement supprimées."
 
-#: src/Admin/SettingsPage.php:277
+#: src/Admin/SettingsPage.php:279
 msgid "Danach wird an Check-ins nicht mehr gespeichert, welche Person oder welches Gerät eingelassen hat."
 msgstr "Ensuite, les check-ins n’enregistrent plus quelle personne ou quel appareil a validé l’entrée."
 
-#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:280
 msgid "Danach werden Einträge des Audit-Logs gelöscht."
 msgstr "Ensuite, les entrées du journal d’audit sont supprimées."
 
-#: src/Admin/SettingsPage.php:305
+#: src/Admin/SettingsPage.php:307
 msgid "Erscheint als Verkäufer auf Rechnungen, Kassenbons und in E-Mails."
 msgstr "Affiché comme vendeur sur les factures, les tickets de caisse et dans les e-mails."
 
-#: src/Admin/SettingsPage.php:306
+#: src/Admin/SettingsPage.php:308
 msgid "Erscheint als Anschrift des Verkäufers auf Rechnungen."
 msgstr "Affiché comme adresse du vendeur sur les factures."
 
-#: src/Admin/SettingsPage.php:307
+#: src/Admin/SettingsPage.php:309
 msgid "Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen."
 msgstr "Numéro de TVA intracommunautaire du vendeur pour les factures. À faire vérifier juridiquement."
 
-#: src/Admin/SettingsPage.php:313
+#: src/Admin/SettingsPage.php:315
 msgid "Vorangestellt vor die fortlaufende Rechnungsnummer. Rechtlich prüfen lassen, bevor ein bestehendes Präfix geändert wird."
 msgstr "Placé devant le numéro de facture séquentiel. À faire vérifier juridiquement avant de modifier un préfixe existant."
 
-#: src/Admin/SettingsPage.php:314
+#: src/Admin/SettingsPage.php:316
 msgid "Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen."
 msgstr "À partir de ce montant de commande, le checkout demande le nom et l’adresse pour la facture. Le seuil dépend du pays ; à faire vérifier juridiquement."
 
-#: src/Admin/SettingsPage.php:315
+#: src/Admin/SettingsPage.php:317
 msgid "Vorangestellt vor die Nummer von Storno- und Korrekturbelegen."
 msgstr "Placé devant le numéro des pièces d’annulation et de correction."
 
@@ -33947,74 +33979,74 @@ msgid "„%s“: Dieser Wert steht nicht zur Auswahl."
 msgstr "« %s » : cette valeur ne fait pas partie des choix possibles."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:268
+#: src/SettingsSchema.php:284
 #, php-format
 msgid "„%s“ erwartet eine Liste von Werten."
 msgstr "« %s » attend une liste de valeurs."
 
-#: src/SettingsSchema.php:337
+#: src/SettingsSchema.php:353
 msgid "Übersetzungen von AGB und Verbraucherinformationen je Sprache; bearbeitet im Reiter „Rechtliches“."
 msgstr "Traductions des CGV et des informations consommateurs par langue ; modifiées dans l’onglet « Mentions légales »."
 
-#: src/SettingsSchema.php:345
+#: src/SettingsSchema.php:361
 msgid "Zahlungsstatus nachfragen nach (Minuten)"
 msgstr "Vérifier le statut du paiement après (minutes)"
 
-#: src/SettingsSchema.php:346
+#: src/SettingsSchema.php:362
 msgid "Nach dieser Zeit fragt Pass Captain den Zahlungsanbieter selbst nach dem Status, falls keine Benachrichtigung (Webhook) eingegangen ist."
 msgstr "Passé ce délai, Pass Captain interroge lui-même le prestataire de paiement sur le statut si aucune notification (Webhook) n’a été reçue."
 
-#: src/SettingsSchema.php:350
+#: src/SettingsSchema.php:366
 msgid "Header der Client-Adresse (intern)"
 msgstr "En-tête de l’adresse client (interne)"
 
-#: src/SettingsSchema.php:351
+#: src/SettingsSchema.php:367
 msgid "Wird aus „Header mit der Client-Adresse“ abgeleitet und nicht direkt bearbeitet."
 msgstr "Dérivé de « En-tête contenant l’adresse client » et non modifiable directement."
 
 #. translators: 1: field label, 2: largest number of values
-#: src/SettingsSchema.php:273
+#: src/SettingsSchema.php:289
 #, php-format
 msgid "„%1$s“: höchstens %2$d Werte."
 msgstr "« %1$s » : %2$d valeurs au maximum."
 
-#: src/Admin/SettingsPage.php:67
+#: src/Admin/SettingsPage.php:69
 msgid "Sagst du einen Termin ab, stößt Pass Captain die Erstattung bezahlter Bestellungen sofort an. Ohne Haken erstattest du selbst unter „Bestellungen“."
 msgstr "Si tu annules une date, Pass Captain lance immédiatement le remboursement des commandes payées. Sans cette option, tu rembourses toi-même sous « Commandes »."
 
-#: src/Admin/SettingsPage.php:79
+#: src/Admin/SettingsPage.php:81
 msgid "Empfohlen, wenn mehrere Personen Freikarten vergeben: Jede Freigabe braucht eine zweite Person und wird protokolliert."
 msgstr "Recommandé si plusieurs personnes attribuent des invitations : chaque validation nécessite une deuxième personne et est journalisée."
 
-#: src/Admin/SettingsPage.php:126
+#: src/Admin/SettingsPage.php:128
 msgid "Jedes Event bekommt eine eigene Adresse, die Suchmaschinen als Veranstaltung erkennen. Ausschalten, wenn du Events nur über Blöcke oder Shortcodes zeigst."
 msgstr "Chaque événement reçoit sa propre adresse, reconnue comme événement par les moteurs de recherche. Désactive cette option si tu n’affiches les événements que par des blocs ou des shortcodes."
 
-#: src/Admin/SettingsPage.php:134
+#: src/Admin/SettingsPage.php:136
 msgid "Zeigt beim Einlass den Namen auf dem Ticket, damit das Personal ihn mit einem Ausweis vergleichen kann. Aus Datenschutzgründen nur einschalten, wenn du das brauchst."
 msgstr "Affiche le nom figurant sur le billet à l’entrée, pour que le personnel puisse le comparer à une pièce d’identité. Pour la protection des données, active-le seulement si nécessaire."
 
-#: src/Admin/SettingsPage.php:138
+#: src/Admin/SettingsPage.php:140
 msgid "Gilt für Ticketarten ohne eigene Regel: Einlass ab „Einlass öffnet“ vor Beginn bis „Einlass schließt“ nach Beginn."
 msgstr "S’applique aux types de billets sans règle propre : entrée à partir de « Ouverture de l’entrée » avant le début jusqu’à « Fermeture de l’entrée » après le début."
 
-#: src/Admin/SettingsPage.php:170
+#: src/Admin/SettingsPage.php:172
 msgid "„Test“ nutzt die Testschlüssel von Stripe, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Schlüssel eingetragen sind."
 msgstr "« Test » utilise les clés de test de Stripe ; aucun argent n’est versé. Ne passe en « Live » qu’une fois les clés live saisies."
 
-#: src/Admin/SettingsPage.php:181
+#: src/Admin/SettingsPage.php:183
 msgid "„Sandbox“ nutzt die Testumgebung von PayPal, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Zugangsdaten eingetragen sind."
 msgstr "« Sandbox » utilise l’environnement de test de PayPal ; aucun argent n’est versé. Ne passe en « Live » qu’une fois les identifiants live saisis."
 
-#: src/Admin/SettingsPage.php:205
+#: src/Admin/SettingsPage.php:207
 msgid "Wer eine Erstattung auslöst, muss sich zusätzlich mit einem zweiten Faktor anmelden. Schützt vor Missbrauch eines gestohlenen Passworts."
 msgstr "Toute personne qui lance un remboursement doit en plus se connecter avec un second facteur. Protège contre l’utilisation d’un mot de passe volé."
 
-#: src/Admin/SettingsPage.php:310
+#: src/Admin/SettingsPage.php:312
 msgid "Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam."
 msgstr "Recommandé si plusieurs personnes gèrent les profils fiscaux : un profil nouveau ou modifié ne prend effet qu’après validation par une deuxième personne."
 
-#: src/Admin/SettingsPage.php:316
+#: src/Admin/SettingsPage.php:318
 msgid "Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab."
 msgstr "Crée après chaque commande payée une facture numérotée en continu et la joint au courriel de confirmation. Vérification juridique : l’obligation d’émettre des factures dépend du pays et de la clientèle."
 
@@ -34029,3 +34061,418 @@ msgstr "« %s » n’est pas un IBAN valide (la clé de contrôle ne correspond 
 #, php-format
 msgid "„%s“ ist kein gültiger BIC (8 oder 11 Zeichen, z. B. GIBAATWWXXX)."
 msgstr "« %s » n’est pas un BIC valide (8 ou 11 caractères, p. ex. GIBAATWWXXX)."
+
+#: src/Admin/SettingsTools.php:76
+msgid "Import abgebrochen."
+msgstr "Import annulé."
+
+#: src/Admin/SettingsTools.php:81
+msgid "Die Vorschau ist abgelaufen. Bitte lade die Datei erneut hoch."
+msgstr "L’aperçu a expiré. Merci de téléverser à nouveau le fichier."
+
+#. translators: 1: number of changed settings, 2: number of mail templates
+#: src/Admin/SettingsTools.php:87
+#, php-format
+msgid "Import abgeschlossen: %1$d Einstellungen geändert, %2$d E-Mail-Vorlagen übernommen."
+msgstr "Import terminé : %1$d réglages modifiés, %2$d modèles d’e-mail importés."
+
+#: src/Admin/SettingsTools.php:95
+msgid "Die Datei ist zu groß (höchstens 2 MB)."
+msgstr "Le fichier est trop volumineux (2 Mo maximum)."
+
+#: src/Admin/SettingsTools.php:99
+msgid "Bitte eine Exportdatei auswählen."
+msgstr "Merci de choisir un fichier d’export."
+
+#. translators: %d: number of settings
+#: src/Admin/SettingsTools.php:111
+#, php-format
+msgid "%d Einstellung auf den Standard zurückgesetzt."
+msgid_plural "%d Einstellungen auf den Standard zurückgesetzt."
+msgstr[0] "%d réglage réinitialisé à sa valeur par défaut."
+msgstr[1] "%d réglages réinitialisés à leurs valeurs par défaut."
+
+#: src/Admin/SettingsTools.php:125
+#: src/SettingsManager.php:213
+msgid "Keine Einstellung zum Zurücksetzen ausgewählt."
+msgstr "Aucun réglage sélectionné pour la réinitialisation."
+
+#: src/Admin/SettingsTools.php:127
+msgid "Bitte bestätige, dass die Werte auf den Standard zurückgesetzt werden sollen."
+msgstr "Merci de confirmer que les valeurs doivent être réinitialisées."
+
+#: src/Admin/SettingsTools.php:166
+#: src/Admin/SettingsTools.php:256
+#: src/Admin/SettingsTools.php:354
+msgid "Alle Einstellungen"
+msgstr "Tous les réglages"
+
+#: src/Admin/SettingsTools.php:168
+msgid "Export und Import"
+msgstr "Export et import"
+
+#: src/Admin/SettingsTools.php:169
+#: src/Admin/SettingsTools.php:374
+#: src/SettingsManager.php:164
+msgid "Zurücksetzen"
+msgstr "Réinitialiser"
+
+#: src/Admin/SettingsTools.php:201
+msgid "gesetzt (geheim)"
+msgstr "défini (secret)"
+
+#: src/Admin/SettingsTools.php:205
+msgid "ein"
+msgstr "activé"
+
+#: src/Admin/SettingsTools.php:219
+msgid "Kern"
+msgstr "Cœur"
+
+#: src/Admin/SettingsTools.php:219
+msgid "Modul"
+msgstr "Module"
+
+#: src/Admin/SettingsTools.php:219
+msgid "Erweiterung"
+msgstr "Extension"
+
+#: src/Admin/SettingsTools.php:219
+msgid "unbeschrieben"
+msgstr "non décrit"
+
+#: src/Admin/SettingsTools.php:257
+msgid "Jeder Wert mit Standard und Herkunft. Geänderte Werte sind fett; „Rechtsprüfung“ kennzeichnet Werte mit rechtlicher Bedeutung, die du prüfen lassen solltest."
+msgstr "Chaque valeur avec sa valeur par défaut et son origine. Les valeurs modifiées sont en gras ; « Vérification juridique » signale les valeurs ayant une portée juridique que tu devrais faire vérifier."
+
+#: src/Admin/SettingsTools.php:259
+msgid "Einstellungen durchsuchen"
+msgstr "Rechercher dans les réglages"
+
+#. translators: %d: number of settings
+#: src/Admin/SettingsTools.php:261
+#, php-format
+msgid "%d Einstellung"
+msgid_plural "%d Einstellungen"
+msgstr[0] "%d réglage"
+msgstr[1] "%d réglages"
+
+#: src/Admin/SettingsTools.php:262
+#: src/Admin/SettingsTools.php:297
+#: src/Admin/SettingsTools.php:320
+#: src/Admin/SettingsTools.php:389
+msgid "Einstellung"
+msgstr "Réglage"
+
+#: src/Admin/SettingsTools.php:265
+#: src/Admin/SettingsTools.php:300
+#: src/Admin/SettingsTools.php:323
+msgid "Rechtsprüfung"
+msgstr "Vérification juridique"
+
+#: src/Admin/SettingsTools.php:266
+msgid "festgelegt in wp-config.php oder Umgebung"
+msgstr "défini dans wp-config.php ou l’environnement"
+
+#. translators: %s: setting label
+#: src/Admin/SettingsTools.php:272
+#, php-format
+msgid "„%s“ auf den Standard zurücksetzen"
+msgstr "Réinitialiser « %s » à sa valeur par défaut"
+
+#: src/Admin/SettingsTools.php:308
+msgid "Export"
+msgstr "Export"
+
+#: src/Admin/SettingsTools.php:309
+msgid "Lädt alle Einstellungen und E-Mail-Vorlagen als JSON-Datei herunter, z. B. um eine zweite Website gleich einzurichten. Zugangsdaten und Schlüssel sowie die Wahl „Daten beim Löschen entfernen“ sind nie enthalten."
+msgstr "Télécharge tous les réglages et modèles d’e-mail dans un fichier JSON, p. ex. pour configurer un second site à l’identique. Les identifiants, clés et le choix « Supprimer les données à la suppression » ne sont jamais inclus."
+
+#: src/Admin/SettingsTools.php:311
+msgid "Einstellungen exportieren"
+msgstr "Exporter les réglages"
+
+#: src/Admin/SettingsTools.php:314
+#: src/SettingsManager.php:162
+msgid "Import"
+msgstr "Import"
+
+#. translators: 1: number of changes, 2: number of errors
+#: src/Admin/SettingsTools.php:319
+#, php-format
+msgid "Vorschau: %1$d Änderungen, %2$d Fehler. Es wird erst nach deiner Bestätigung etwas gespeichert."
+msgstr "Aperçu : %1$d modifications, %2$d erreurs. Rien n’est enregistré avant ta confirmation."
+
+#: src/Admin/SettingsTools.php:297
+#: src/Admin/SettingsTools.php:320
+#: src/Admin/SettingsTools.php:389
+msgid "Bisher"
+msgstr "Avant"
+
+#: src/Admin/SettingsTools.php:327
+msgid "Übersprungen (unbekannt oder geschützt):"
+msgstr "Ignorés (inconnus ou protégés) :"
+
+#. translators: %d: number of mail templates
+#: src/Admin/SettingsTools.php:333
+#, php-format
+msgid "Auch %d E-Mail-Vorlagen übernehmen"
+msgstr "Importer aussi %d modèles d’e-mail"
+
+#: src/Admin/SettingsTools.php:335
+msgid "Import bestätigen"
+msgstr "Confirmer l’import"
+
+#: src/Admin/SettingsTools.php:343
+msgid "Lade eine Exportdatei hoch. Du siehst zuerst eine Vorschau mit allen Änderungen; jeder Wert wird wie auf der Einstellungsseite geprüft."
+msgstr "Téléverse un fichier d’export. Tu vois d’abord un aperçu de toutes les modifications ; chaque valeur est vérifiée comme sur la page des réglages."
+
+#: src/Admin/SettingsTools.php:346
+msgid "Exportdatei (JSON)"
+msgstr "Fichier d’export (JSON)"
+
+#: src/Admin/SettingsTools.php:353
+msgid "Setzt die gewählten Einstellungen auf ihre Standardwerte zurück. Zugangsdaten, Schlüssel und die Wahl „Daten beim Löschen entfernen“ bleiben unverändert. Die alten Werte stehen im Verlauf."
+msgstr "Réinitialise les réglages choisis à leurs valeurs par défaut. Les identifiants, clés et le choix « Supprimer les données à la suppression » restent inchangés. Les anciennes valeurs figurent dans l’historique."
+
+#. translators: %s: module page title
+#: src/Admin/SettingsTools.php:368
+#, php-format
+msgid "Modulseite: %s"
+msgstr "Page du module : %s"
+
+#: src/Admin/SettingsTools.php:373
+msgid "Ja, die Werte dieses Bereichs auf den Standard zurücksetzen."
+msgstr "Oui, réinitialiser les valeurs de cette zone."
+
+#: src/Admin/SettingsTools.php:381
+msgid "Verlauf der Einstellungen"
+msgstr "Historique des réglages"
+
+#. translators: %s: setting label
+#: src/Admin/SettingsTools.php:385
+#, php-format
+msgid "Nur Änderungen an „%s“."
+msgstr "Uniquement les modifications de « %s »."
+
+#. translators: %s: setting label
+#: src/Admin/SettingsTools.php:385
+msgid "Alle anzeigen"
+msgstr "Tout afficher"
+
+#: src/Admin/SettingsTools.php:387
+msgid "Geheime Werte werden nie protokolliert; lange Texte erscheinen als Prüfsumme."
+msgstr "Les valeurs secrètes ne sont jamais journalisées ; les textes longs apparaissent sous forme de somme de contrôle."
+
+#: src/Ops/SettingsCli.php:77
+msgid "Dieser Wert wird aus „Header mit der Client-Adresse“ abgeleitet und kann nicht direkt gesetzt werden."
+msgstr "Cette valeur est dérivée de « En-tête avec l’adresse du client » et ne peut pas être définie directement."
+
+#: src/Ops/SettingsCli.php:82
+msgid "Zum Einschalten bitte mit --confirm=LÖSCHEN bestätigen: Beim Löschen des Plugins werden dann alle Daten entfernt."
+msgstr "Pour l’activer, confirme avec --confirm=LÖSCHEN (ou DELETE) : toutes les données seront alors supprimées lors de la suppression de l’extension."
+
+#. translators: 1: number of characters, 2: short checksum
+#: src/SettingsManager.php:148
+#, php-format
+msgid "Text mit %1$d Zeichen (Prüfsumme %2$s)"
+msgstr "Texte de %1$d caractères (somme de contrôle %2$s)"
+
+#: src/SettingsManager.php:151
+msgid "geändert (geheim)"
+msgstr "modifié (secret)"
+
+#: src/SettingsManager.php:152
+msgid "entfernt (geheim)"
+msgstr "supprimé (secret)"
+
+#: src/SettingsManager.php:159
+msgid "Einstellungsseite"
+msgstr "Page des réglages"
+
+#: src/SettingsManager.php:160
+msgid "Modulseite"
+msgstr "Page du module"
+
+#: src/SettingsManager.php:161
+msgid "WP-CLI"
+msgstr "WP-CLI"
+
+#: src/Admin/SettingsTools.php:167
+#: src/Admin/SettingsTools.php:282
+#: src/SettingsManager.php:163
+msgid "Länderprofil"
+msgstr "Profil de pays"
+
+#: src/SettingsManager.php:165
+msgid "REST-API"
+msgstr "API REST"
+
+#: src/SettingsManager.php:166
+msgid "Programmcode"
+msgstr "Code du programme"
+
+#: src/SettingsManager.php:267
+msgid "Die Datei ist kein Export der Pass-Captain-Einstellungen."
+msgstr "Le fichier n’est pas un export des réglages de Pass Captain."
+
+#: src/SettingsManager.php:270
+msgid "Die Datei stammt aus einer neueren Version von Pass Captain. Bitte aktualisiere das Plugin vor dem Import."
+msgstr "Le fichier provient d’une version plus récente de Pass Captain. Merci de mettre à jour l’extension avant l’import."
+
+#: src/Security/Policy.php:81
+msgid "Schutz gegen ein volles Audit-Log: Darüber hinaus wird je Person und Stunde nur noch ein Sammeleintrag geschrieben."
+msgstr "Protège contre un journal d’audit saturé : au-delà, une seule entrée récapitulative est écrite par personne et par heure."
+
+#: src/Security/Policy.php:82
+msgid "Personen mit der Support-Rolle sehen Namen, E-Mail und Telefon gekürzt. Für einen einzelnen Fall können sie die Daten mit Begründung freischalten; das wird protokolliert."
+msgstr "Les personnes ayant le rôle support voient noms, e-mail et téléphone abrégés. Pour un cas précis, elles peuvent démasquer les données avec un motif ; c’est journalisé."
+
+#: src/Security/Policy.php:84
+msgid "Ein befristeter Supportzugang endet spätestens nach dieser Zeit automatisch (1–168 Stunden)."
+msgstr "Un accès support temporaire prend fin automatiquement au plus tard après cette durée (1–168 heures)."
+
+#. translators: %s: action category
+#: src/Security/Policy.php:88
+msgid "Vor dieser Aktion muss die Person ihren zweiten Faktor erneut bestätigen (gilt einige Minuten). Empfohlen für alle Konten mit Verwaltungsrechten."
+msgstr "Avant cette action, la personne doit reconfirmer son second facteur (valable quelques minutes). Recommandé pour tous les comptes ayant des droits d’administration."
+
+#: src/Security/Policy.php:97
+msgid "Wer beim Verlassen ausgecheckt wurde, darf mit demselben Ticket wieder hinein. Ticketarten mit eigener Einlassregel folgen ihrer Regel."
+msgstr "Toute personne enregistrée à la sortie peut revenir avec le même billet. Les types de billets ayant leur propre règle d’entrée suivent cette règle."
+
+#: src/Security/Policy.php:98
+msgid "Begrenzt, wie oft ein Ticket nach einem Check-out erneut eingelassen wird. 0 bedeutet ohne Begrenzung."
+msgstr "Limite le nombre de réadmissions d’un billet après une sortie. 0 signifie sans limite."
+
+#: src/Security/Policy.php:119
+msgid "Käufer können die Sprache von Checkout, Bestellportal und E-Mails selbst wählen. Angeboten werden nur Sprachen, in die Pass Captain übersetzt ist."
+msgstr "Les acheteurs peuvent choisir eux-mêmes la langue du checkout, du portail de commande et des e-mails. Seules les langues dans lesquelles Pass Captain est traduit sont proposées."
+
+#. translators: %d: number of settings
+#: src/Admin/SettingsTools.php:137
+#, php-format
+msgid "%d Wert aus dem Länderprofil übernommen. Bitte die mit „Rechtsprüfung“ markierten Werte prüfen lassen."
+msgid_plural "%d Werte aus dem Länderprofil übernommen. Bitte die mit „Rechtsprüfung“ markierten Werte prüfen lassen."
+msgstr[0] "%d valeur reprise du profil de pays. Fais vérifier les valeurs marquées « Vérification juridique »."
+msgstr[1] "%d valeurs reprises du profil de pays. Fais vérifier les valeurs marquées « Vérification juridique »."
+
+#: src/Admin/SettingsTools.php:151
+msgid "Bitte mindestens einen Wert zum Übernehmen auswählen."
+msgstr "Merci de sélectionner au moins une valeur à reprendre."
+
+#: src/Admin/SettingsTools.php:283
+msgid "Ein Länderprofil schlägt passende Werte für dein Land vor. Du siehst jeden Wert vorher und nachher und wählst aus, was übernommen wird; nichts wird ungefragt geändert. Rechtlich bedeutsame Werte sind markiert und müssen vor dem Verkaufsstart geprüft werden."
+msgstr "Un profil de pays propose des valeurs adaptées à ton pays. Tu vois chaque valeur avant et après et choisis ce qui est repris ; rien n’est modifié sans ton accord. Les valeurs ayant une portée juridique sont signalées et doivent être vérifiées avant le début des ventes."
+
+#: src/Admin/SettingsTools.php:285
+msgid "— Land wählen —"
+msgstr "— Choisir un pays —"
+
+#: src/Admin/SettingsTools.php:289
+msgid "Vorschlag anzeigen"
+msgstr "Afficher la proposition"
+
+#: src/Admin/SettingsTools.php:294
+msgid "Deine Einstellungen entsprechen bereits diesem Profil."
+msgstr "Tes réglages correspondent déjà à ce profil."
+
+#: src/Admin/SettingsTools.php:297
+msgid "Vorschlag"
+msgstr "Proposition"
+
+#: src/Admin/SettingsTools.php:303
+msgid "Ausgewählte Werte übernehmen"
+msgstr "Reprendre les valeurs sélectionnées"
+
+#: src/CountryPresets.php:38
+msgid "Werte nach deutschem Recht (BGB, UStG, GoBD) als Ausgangspunkt. Vor dem Verkaufsstart rechtlich und steuerlich prüfen lassen."
+msgstr "Valeurs fondées sur le droit allemand (BGB, UStG, GoBD) comme point de départ. À faire vérifier juridiquement et fiscalement avant le début des ventes."
+
+#: src/CountryPresets.php:47
+msgid "Hinweis: Bei Tickets für Veranstaltungen mit festem Termin besteht in der Regel kein Widerrufsrecht (§ 312g Abs. 2 Nr. 9 BGB). Jede Buchung ist nach Zahlungseingang verbindlich."
+msgstr "Remarque : les billets pour des événements à date fixe ne donnent en général pas droit à rétractation (§ 312g al. 2 n° 9 BGB). Toute réservation est ferme dès réception du paiement."
+
+#: src/CountryPresets.php:54
+msgid "Werte nach österreichischem Recht (FAGG, UStG, BAO) als Ausgangspunkt. Vor dem Verkaufsstart rechtlich und steuerlich prüfen lassen."
+msgstr "Valeurs fondées sur le droit autrichien (FAGG, UStG, BAO) comme point de départ. À faire vérifier juridiquement et fiscalement avant le début des ventes."
+
+#: src/CountryPresets.php:62
+msgid "Hinweis: Bei Tickets für Freizeitveranstaltungen mit festem Termin besteht kein Rücktrittsrecht (§ 18 Abs. 1 Z 10 FAGG). Jede Buchung ist nach Zahlungseingang verbindlich."
+msgstr "Remarque : les billets pour des loisirs à date fixe ne donnent pas droit à rétractation (§ 18 al. 1 n° 10 FAGG). Toute réservation est ferme dès réception du paiement."
+
+#: src/CountryPresets.php:69
+msgid "Werte nach Schweizer Recht (OR, MWSTG) als Ausgangspunkt; für Online-Käufe gibt es kein allgemeines Widerrufsrecht. Vor dem Verkaufsstart rechtlich und steuerlich prüfen lassen."
+msgstr "Valeurs fondées sur le droit suisse (CO, LTVA) comme point de départ ; il n’existe pas de droit général de rétractation pour les achats en ligne. À faire vérifier juridiquement et fiscalement avant le début des ventes."
+
+#: src/CountryPresets.php:76
+msgid "Hinweis: Gekaufte Tickets können nicht zurückgegeben werden, ausser die Veranstaltung wird abgesagt oder verschoben."
+msgstr "Remarque : les billets achetés ne peuvent pas être retournés, sauf si l’événement est annulé ou reporté."
+
+#: src/CountryPresets.php:81
+msgid "EU allgemein"
+msgstr "UE (général)"
+
+#: src/CountryPresets.php:83
+msgid "Neutrale Werte für ein EU-Land ohne eigenes Profil (Verbraucherrechte-Richtlinie 2011/83/EU). Nicht geprüft: Landesrecht kann abweichen."
+msgstr "Valeurs neutres pour un pays de l’UE sans profil propre (directive 2011/83/UE relative aux droits des consommateurs). Non vérifié : le droit national peut différer."
+
+#: src/CountryPresets.php:89
+msgid "Hinweis: Für Tickets zu Freizeitveranstaltungen mit festem Termin besteht in der EU in der Regel kein Widerrufsrecht (Art. 16 Buchst. l der Richtlinie 2011/83/EU)."
+msgstr "Remarque : dans l’UE, les billets pour des loisirs à date fixe ne donnent en général pas droit à rétractation (art. 16, point l, de la directive 2011/83/UE)."
+
+#: src/CountryPresets.php:93
+msgid "Anderes Land"
+msgstr "Autre pays"
+
+#: src/CountryPresets.php:95
+msgid "Neutrale Werte ohne Bezug auf ein bestimmtes Recht. Nicht geprüft: Pflichtangaben, Fristen und Texte selbst festlegen."
+msgstr "Valeurs neutres sans référence à un droit particulier. Non vérifié : définis toi-même les mentions obligatoires, délais et textes."
+
+#: src/CountryPresets.php:99
+msgid "Hinweis: Bitte prüfe vor dem Kauf Datum und Ort der Veranstaltung. Die Bedingungen für Rückgabe und Erstattung findest du in den AGB."
+msgstr "Remarque : vérifie la date et le lieu de l’événement avant l’achat. Les conditions de retour et de remboursement figurent dans les CGV."
+
+#: src/CountryPresets.php:127
+msgid "geprüft"
+msgstr "vérifié"
+
+#: src/CountryPresets.php:128
+msgid "Rechts- und Steuerprüfung vor dem Verkaufsstart"
+msgstr "Vérification juridique et fiscale avant le début des ventes"
+
+#: src/CountryPresets.php:129
+msgid "nicht geprüft"
+msgstr "non vérifié"
+
+#: src/CountryPresets.php:143
+msgid "Unbekanntes Länderprofil."
+msgstr "Profil de pays inconnu."
+
+#: src/Admin/SettingsPage.php:66
+msgid "Standardwährung"
+msgstr "Devise par défaut"
+
+#: src/Admin/SettingsPage.php:66
+msgid "Währung für neue Ticketarten, Kassen, Rabattcodes und SMS-Kosten (ISO-Code, z. B. EUR oder CHF). Bestehende Preise behalten ihre Währung."
+msgstr "Devise des nouveaux types de billets, caisses, codes de réduction et coûts SMS (code ISO, p. ex. EUR ou CHF). Les prix existants gardent leur devise."
+
+#: src/Admin/SettingsPage.php:67
+msgid "Angebotene Währungen"
+msgstr "Devises proposées"
+
+#: src/Admin/SettingsPage.php:67
+msgid "ISO-Codes, durch Komma getrennt, z. B. „CHF, EUR“. Leer = EUR, USD, CHF, GBP, CAD, AUD. Ein Filter (wp_pass_captain_currencies_v1) hat Vorrang."
+msgstr "Codes ISO séparés par des virgules, p. ex. « CHF, EUR ». Vide = EUR, USD, CHF, GBP, CAD, AUD. Un filtre (wp_pass_captain_currencies_v1) a la priorité."
+
+#. translators: %s: field label
+#: src/SettingsSchema.php:260
+#, php-format
+msgid "„%s“ muss ein Währungscode aus drei Buchstaben sein (z. B. EUR)."
+msgstr "« %s » doit être un code de devise à trois lettres (p. ex. EUR)."
+
+#. translators: 1: field label, 2: invalid code
+#: src/SettingsSchema.php:268
+#, php-format
+msgid "„%1$s“: „%2$s“ ist kein Währungscode aus drei Buchstaben."
+msgstr "« %1$s » : « %2$s » n’est pas un code de devise à trois lettres."

@@ -40,7 +40,7 @@ final class EventsPage {
 		$name = Forms::text( $in, 'name' );
 		$timezone = Forms::text( $in, 'timezone', 64 );
 		$ticket_name = Forms::text( $in, 'ticket_name' );
-		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) ?: 'EUR' );
+		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) ?: \PassCaptain\Localization::default_currency() ); // SET-PC-08
 		// A297: each check names its field (the form marks it and keeps the input).
 		if ( '' === $name ) {
 			return Forms::error( 'wpcap_event_invalid', __( 'Bitte einen Eventnamen angeben.', 'pass-captain' ), 400, 'name' );
@@ -1495,7 +1495,7 @@ final class EventsPage {
 			<tr><th><label for="wpcap-location"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></label></th><td><input id="wpcap-location" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $v( 'location', '' ) ); ?>"></td></tr>
 			<tr><th><label for="wpcap-event-capacity"><?php esc_html_e( 'Kontingent pro Termin', 'pass-captain' ); ?></label></th><td><input id="wpcap-event-capacity" name="event_capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'event_capacity', '0' ) ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-type-name"><?php esc_html_e( 'Ticketart', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-name" name="ticket_name" type="text" value="<?php echo esc_attr( $v( 'ticket_name', 'Standard' ) ); ?>" required maxlength="190"<?php echo $bad( 'ticket_name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
-			<tr><th><label for="wpcap-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-price" name="price" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'price', '0,00' ) ); ?>" required size="10"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $v( 'currency', 'EUR' ), '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?></td></tr>
+			<tr><th><label for="wpcap-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-price" name="price" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'price', '0,00' ) ); ?>" required size="10"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $v( 'currency', Localization::default_currency() ), '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?></td></tr>
 			<tr><th><label for="wpcap-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tax" name="tax_rate" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'tax_rate', '0' ) ); ?>" size="6"<?php echo $bad( 'tax_rate' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-type-capacity"><?php esc_html_e( 'Ticketkontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-capacity" name="ticket_capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'ticket_capacity', '0' ) ); ?>"></td></tr>
 			<tr><th><label for="wpcap-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $v( 'status', 'draft' ), 'wpcap-status' ); ?></td></tr>
@@ -1804,7 +1804,7 @@ final class EventsPage {
 		$old = Forms::old( 'wpcap_save_ticket_type', array( 'occurrence_id' => (int) $occ->occurrence_id, 'ticket_type_id' => $type ? (int) $type->ticket_type_id : 0 ) );
 		$v = static function ( $key, $default ) use ( $old ) { return Forms::old_value( $old, $key, $default ); };
 		$bad = static function ( $key ) use ( $old ) { return Forms::invalid_attr( $old, $key ); };
-		$currency = $v( 'currency', $type ? $type->currency : 'EUR' );
+		$currency = $v( 'currency', $type ? $type->currency : \PassCaptain\Localization::default_currency() );
 		Forms::open_form( 'wpcap_save_ticket_type' );
 		Forms::hidden( 'occurrence_id', $occ->occurrence_id );
 		Forms::hidden( 'ticket_type_id', $type ? $type->ticket_type_id : 0 );
