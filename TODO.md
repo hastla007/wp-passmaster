@@ -433,7 +433,7 @@ Quelle: Analyse der Lizenz-Sitzung, `captain-pro` Branch `claude/sharp-mendel-xi
 ### WICHTIG
 - [ ] **SET-PC-10 · Export/Import der Einstellungen (JSON)** mit Plugin- und Schemaversion, ohne Geheimnisse, Import mit Vorschau, Prüfung über das Register, Audit; auch Modulwerte, Einzel-Optionen, Mail-Vorlagen, wahlweise Steuerprofile/Druckvorlagen; Rundlauf-Test. Braucht: -01.
 - [ ] **SET-PC-11 · Auf Standard zurücksetzen** je Feld/Abschnitt/gesamt mit Bestätigung; Geheimnisse und Deinstallations-Wahl ausgenommen; Audit mit alten Werten. Braucht: -01.
-- [ ] **SET-PC-12 · WP-CLI** `wp pass-captain settings list|get|set|reset|export|import|preset`; Geheimnisse nur setzen. Braucht: -01, -10.
+- [ ] **SET-PC-12 · WP-CLI** `wp pass-captain settings list|get|set|reset|export|import|preset`; Geheimnisse nur setzen. Braucht: -01, -10; Suite-Standard Deinstallation (S10, 23.11.2026): `delete_data_on_uninstall` nur mit `--confirm=LÖSCHEN` (auch LOESCHEN/DELETE) einschalten, ausschalten ohne Wort; die Einstellung wird nie exportiert (SET-PC-10).
 - [ ] **SET-PC-13 · Änderungsprotokoll mit Werten** (alt/neu, Geheimnisse und lange Texte als Prüfsumme, Quelle Seite/CLI/Import/Länderprofil), Ansicht „Einstellungen – Verlauf“, auch für Modulseiten. Braucht: -01.
 - [ ] **SET-PC-14 · Rechnung: Layout und Pflichtangaben:** Logo, Fußzeile, Zahlungsziel/-hinweis, frei benennbare Verkäufer-Kennungen, Sprache der Rechnung; Vorschau; alte Rechnungen unverändert. Braucht: Rechtsprüfung je Land.
 - [ ] **SET-PC-15 · Leistungsdatum für Positionen ohne Termin** wählbar (Zahlungsdatum, Gültigkeitsbeginn, Zeitraum): `invoice_service_date_fallback`. Braucht: Rechtsprüfung.
